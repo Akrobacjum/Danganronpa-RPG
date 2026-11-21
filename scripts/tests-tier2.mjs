@@ -9163,6 +9163,165 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ lights: { reply: { veiled: 1 } }, rows: ["lights", false], judged: { reply: { settled: true } }, after: null,
             none: { refused: "nothing was carried out: no veil to settle" } }), "{the lights' answer, [the declared killer's row, the other's], the end's answer, the row after, a request of no road}");
     }],
+    ["1.2.122 CASE-27 - a cover's critical gives its Sanity back on the GM, held to the GMs' record of the cover's roll (scripts/cleanup.mjs `concealFromWitnesses`, `takeCoverRefund`, `coverGiveBack`; the audit's CASE-27, 1.2.122 line MURDER): the roller's browser moves no mark for it and carries the roll, and the GM gives 1 back once, for a critical of that player and character with a witness in the room, and nothing for a replay, a roll that was no critical or nobody watching", async () => {
+        /*
+         * 1.2.122, the audit's CASE-27; the rule unchanged ("a critical gives 1 Sanity back"). Until then the cover's
+         * critical was given back on the roller's browser through `trustedWrite` "refund" - a refund of nothing, since the
+         * cover cost nothing, which the GMs' audit flagged or took out of another payment's credit. A player's character
+         * stood with another student in one room (`aloneTogether`), two Sanity marked, Tampers a trace (`attemptCleanup`):
+         * its `rollTrait` lands the cover as a critical of a drawn roll and closes the main roll's window. Read: the marks
+         * the roller's side moved and what it kept for the attempt's packet (`takeCoverRefund`). Then the GM scores a
+         * player's erase (`cleanupFixture`'s `scrub`, sent by that player) naming the cover's critical and a record planted
+         * in the GMs' `rolls`: a critical of that player and character (watched, twice: the first claiming 5, the second a replay), one that was
+         * no critical (watched), and a critical with nobody watching (`standAlone`); each with its actions full and two marks,
+         * against the same erase naming no cover, and each erase carried out. Read: the marks each moved beyond the control's.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 2), "the two are stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the two, or to one");
+        const { player, theirs: who, other } = playerAndCharacters();
+        must(other, "no second student to watch - this would measure nothing");
+        const Cl = await import("./cleanup.mjs");
+        const { rollStore } = await import("./gm-stores.mjs");
+        const { DRAWN_ROLL } = await import("./action-pipeline.mjs");
+        const { actionsMax } = await import("./actions.mjs");
+        const { ACTIONS_RESOURCE } = await import("./config.mjs");
+        const ACT = `system.resources.${ACTIONS_RESOURCE}.value`, STRESS = "system.resources.stress.value";
+        const had = { [ACT]: foundry.utils.getProperty(who._source, ACT), [STRESS]: foundry.utils.getProperty(who._source, STRESS) };
+        const refusals = [];
+        const marks = () => Number(foundry.utils.getProperty(who._source, STRESS)) || 0;
+        const ids = { good: "C27COVERCRITICAL", plain: "C27COVERPLAIN" };
+        const plant = async (rollId, isCritical) => rollStore.patch(rollId, { rollId, actorId: who.id, userId: player.id,
+            actionKey: null, messageId: null, isCritical, withHope: true, total: 30, flags: [], at: Date.now() });
+        const roller = [], scored = [];
+        const windows = answerWindows(press);
+        try {
+            const F = await cleanupFixture(who, "SUITE 1.2.122 CASE-27 the roller's trace");
+            const stood = await aloneTogether(who, other, { asked: true });
+            try {
+                must(F.trace, "the fixture's trace was not placed - this would measure nothing");
+                await who.update({ [ACT]: actionsMax(who), [STRESS]: 2 });
+                await settle();
+                let thrown = 0;
+                who.rollTrait = async () => (++thrown === 1
+                    ? { total: 30, isCritical: true, withHope: true, [DRAWN_ROLL]: { rollId: ids.good } } : null);
+                const before = marks();
+                await Cl.attemptCleanup(who, F.trace.id, { viaAction: true });
+                await settle();
+                roller.push(thrown, marks() - before,
+                    typeof Cl.takeCoverRefund === "function" ? stableJson(Cl.takeCoverRefund(who.id)) : "no takeCoverRefund");
+            } finally {
+                delete who.rollTrait;
+                await stood.back();
+                await F.putBack();
+            }
+            const once = async (stand, cover) => {
+                const G = await cleanupFixture(who, `SUITE 1.2.122 CASE-27 ${stand}`);
+                const at = stand === "alone" ? await standAlone(who) : await aloneTogether(who, other, { asked: true });
+                try {
+                    must(G.trace, "the fixture's trace was not placed - this would measure nothing");
+                    await who.update({ [ACT]: actionsMax(who), [STRESS]: 2 });
+                    await settle();
+                    const start = marks();
+                    const answer = await G.scrub(30, { by: player.id, ...cover });
+                    if (!answer || answer.refused) refusals.push(answer?.refused ?? "no answer");
+                    await settle();
+                    return marks() - start;
+                } finally {
+                    await at.back();
+                    await G.putBack();
+                }
+            };
+            await plant(ids.good, true);
+            await plant(ids.plain, false);
+            const control = await once("watched", {});
+            scored.push(await once("watched", { cover: 5, coverRollId: ids.good }) - control);
+            scored.push(await once("watched", { cover: 1, coverRollId: ids.good }) - control);
+            scored.push(await once("watched", { cover: 1, coverRollId: ids.plain }) - control);
+            await rollStore.patch(ids.good, { resolved: [] });
+            scored.push(await once("alone", { cover: 1, coverRollId: ids.good }) - await once("alone", {}));
+        } finally {
+            windows.restore();
+            for (const id of Object.values(ids)) if (rollStore.has(id)) await rollStore.drop(id);
+            await who.update(had);
+            await settle();
+        }
+        equal(stableJson(refusals), "[]", "an erase the cases are read on was refused - they would measure the refusal");
+        equal(stableJson(roller), stableJson([2, 0, stableJson({ cover: 1, coverRollId: ids.good })]),
+            "the cover's critical moved a mark on the roller's side, or was not kept with its roll for the attempt's packet "
+                + "([rolls asked, marks moved, what the packet carries])");
+        equal(stableJson(scored), stableJson([-1, 0, 0, 0]),
+            "the GM's give-back of a cover's critical was not 1, once, for a watched critical on the GMs' record "
+                + "([marks beyond the control: a critical claimed as 5, its replay, no critical, nobody watching])");
+    }],
+
+    ["1.2.122 CTRL-19 - a replacement of who left a Remnant that the GM cancels is not kept by a redraw under the question (scripts/remnant-ring.mjs `wireCardEditing`; the audit's CTRL-19, 1.2.122 line MURDER): the open card's By select shows the author the record holds again, and the record keeps it", async () => {
+        /*
+         * 1.2.122, the audit's CTRL-19. The GM's Remnant card asks before it replaces an author (`authorReplace`). The
+         * card is a live region (`keepLive`), and its By select has no name, so a redraw under the question carried the
+         * GM's pick to the new select as a dirty field, and the Cancel wrote the old author on the old select, which the
+         * redraw had already taken out of the window: the card named an author the record did not hold. A trace placed
+         * beside a student, its author set to that student, its card drawn as a GM's sheet render draws it (the hook
+         * `renderActorSheetV2` on a window of the trace's token); the GM picks a second student in By, the token moves
+         * while the question stands (a redraw), and the question is closed. Read: the By select in the window now, the
+         * select's count of redraws (a new node), and the author the record holds.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 2), "a trace is placed beside a student on the scene on screen");
+        const R = await import("./remnants.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const scene = canvas?.scene;
+        const [first, second] = cast(4).filter(a => locateActor(a)?.scene === scene);
+        must(first && second, "two students of the cast do not stand on the scene on screen - this would measure nothing");
+        const { tokenDoc, room } = locateActor(first);
+        const DialogV2 = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(DialogV2, "wait");
+        let trace = null, element = null, answer = null;
+        const read = {};
+        try {
+            trace = await R.placeRemnant({ type: "prep", visibility: "evident", scene, x: tokenDoc.x, y: tokenDoc.y, room, note: "SUITE 1.2.122 CTRL-19" });
+            must(trace, "the trace was not placed - this would measure nothing");
+            const doc = () => scene.tokens.get(trace.id);
+            await R.setRemnantAuthor(doc(), first);
+            await settle();
+            const held = () => R.remnantData(doc())?.sourceActor ?? null;
+            must(held() === first.id, "the trace's author was not set - this would measure nothing");
+            element = document.createElement("div");
+            element.innerHTML = `<div class="window-content"></div>`;
+            document.body.append(element);
+            // The trace's token as the window's document: the harness's synthetic actor carries no `.token`, which
+            // Foundry's does, and `showRemnantCard` reads the token first and falls back to what it was handed.
+            const app = { document: doc().actor?.token ?? doc(), element, setPosition: () => {} };
+            Hooks.callAll("renderActorSheetV2", app, element);
+            const select = () => element.querySelector("select[data-drpg-author]");
+            const drawn = select();
+            must(drawn && drawn.value === first.id, "the card drew no By select naming the author - this would measure nothing");
+            let asked = 0;
+            DialogV2.wait = () => { asked += 1; return new Promise(resolve => { answer = resolve; }); };
+            drawn.value = second.id;
+            drawn.dispatchEvent(new Event("change", { bubbles: true }));
+            await until(() => asked > 0);
+            await doc().update({ x: doc().x + 1 }, { animate: false });
+            await until(() => select() && select() !== drawn, 3000);
+            read.redrawn = select() !== drawn;
+            answer?.(false);
+            answer = null;
+            await settle();
+            read.shown = select()?.value ?? null;
+            read.held = held();
+        } finally {
+            answer?.(false);
+            if (own) Object.defineProperty(DialogV2, "wait", own); else delete DialogV2.wait;
+            element?.remove();
+            if (trace) {
+                const live = scene.tokens.get(trace.id);
+                if (live) { try { await R.dropRemnantSecret(live); } catch { /* nothing filed */ } await live.delete().catch(() => {}); }
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ redrawn: true, shown: first.id, held: first.id }),
+            "a cancelled replacement of the author stayed on the open card after a redraw under the question, or the record "
+                + "moved ({ redrawn under the question, the By select shows, the record holds })");
+    }],
+
     ["the time of day in an incident is veiled and names nobody", async () => {
         /*
          * E06 C4, 27.09.2026; audit S10-04 (L12). While an incident runs the time of day is told

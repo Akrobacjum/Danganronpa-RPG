@@ -5263,7 +5263,6 @@
       "noCharacters": "No living students in this world.",
       "installTables": "Create item tables",
       "despairFlow": "Despair Flow",
-      "clearFaint": "Clear Faint Remnants",
       "sweepBullets": "Sweep Truth Bullets",
       "sweepNone": "Nothing to sweep: every Truth Bullet in play is Faint or Final.",
       "sweepConfirm": {
@@ -5275,10 +5274,6 @@
         "one": "{n} Truth Bullet swept.",
         "other": "{n} Truth Bullets swept."
       },
-      "faintCleared": {
-        "one": "{n} Faint Remnant cleared.",
-        "other": "{n} Faint Remnants cleared."
-      },
       "voiceReset": "Fix voice",
       "studentsLeft": {
         "one": "{n} student still has actions",
@@ -5289,12 +5284,6 @@
         "badFormula": "\"{formula}\" is not a roll formula."
       },
       "failed": "That did not work. The Debug log in Diagnostics says why.",
-      "faintNone": "No Faint Remnants to clear: every Faint Remnant left is Reinforced or tied to the crime.",
-      "faintConfirm": {
-        "one": "Delete {n} Faint Remnant, across every scene?",
-        "other": "Delete {n} Faint Remnants, across every scene?"
-      },
-      "faintConfirmNote": "Reinforced Remnants and anything tied to the crime are left alone. The rest go for good.",
       "stateColumn": "State",
       "state": {
         "alive": "Alive",

@@ -5639,7 +5639,6 @@
       "noCharacters": "W tym świecie nie ma żywych uczniów.",
       "installTables": "Utwórz tabele przedmiotów",
       "despairFlow": "Despair Flow",
-      "clearFaint": "Wyczyść Faint Remnanty",
       "sweepBullets": "Zbierz Truth Bullets",
       "sweepNone": "Nie ma czego zbierać: każdy Truth Bullet w grze jest Faint albo Final.",
       "sweepConfirm": {
@@ -5655,12 +5654,6 @@
         "many": "Zebrano {n} Truth Bulletów.",
         "other": "Zebrano {n} Truth Bulletów."
       },
-      "faintCleared": {
-        "one": "Wyczyszczono {n} Faint Remnant.",
-        "few": "Wyczyszczono {n} Faint Remnanty.",
-        "many": "Wyczyszczono {n} Faint Remnantów.",
-        "other": "Wyczyszczono {n} Faint Remnantów."
-      },
       "voiceReset": "Napraw głos",
       "studentsLeft": {
         "one": "{n} uczeń ma jeszcze akcje",
@@ -5673,14 +5666,6 @@
         "badFormula": "„{formula}” to nie jest formuła rzutu."
       },
       "failed": "To nie zadziałało. Szczegóły znajdziesz w Dzienniku debugowania, w sekcji Diagnostyka.",
-      "faintNone": "Nie ma Faint Remnantów do wyczyszczenia: każdy pozostały Faint Remnant jest Reinforced albo powiązany ze zbrodnią.",
-      "faintConfirm": {
-        "one": "Usunąć {n} Faint Remnant ze wszystkich scen?",
-        "few": "Usunąć {n} Faint Remnanty ze wszystkich scen?",
-        "many": "Usunąć {n} Faint Remnantów ze wszystkich scen?",
-        "other": "Usunąć {n} Faint Remnantów ze wszystkich scen?"
-      },
-      "faintConfirmNote": "Reinforced Remnanty i wszystko powiązane ze zbrodnią zostają w spokoju. Reszta znika na dobre.",
       "stateColumn": "Stan",
       "state": {
         "alive": "Żyje",

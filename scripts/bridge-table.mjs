@@ -588,7 +588,7 @@ export const BRIDGE_ACTIONS = table({
         prepare: () => import("./cleanup.mjs"),
         sanitize: pick({ actorId: as.id, tokenId: as.id, key: as.text, targetId: as.id, total: as.num, isCritical: as.bool,
             withHope: as.bool, viaAction: as.bool, undo: as.gmFlag, grant: as.bool, price: as.raw, transform: as.raw, change: as.raw,
-            rollId: as.id }),
+            rollId: as.id, cover: as.num, coverRollId: as.id }),
         run: handleCleanup,
         answer: "reply",
         // Each of Stage 6's actions throws a clean-up's roll, read off the GMs' record of it (E08+E28 C17).
@@ -598,6 +598,8 @@ export const BRIDGE_ACTIONS = table({
             targetId: "resolveStageSix (cleanup.mjs) judges who may be framed and where the body lies",
             price: "bounded on arrival against PRICE_CHAINS by the resolvers (T-1), and given back no further than the GMs' credit holds it (cleanup.mjs paidBack)",
             transform: "bounded on arrival against CLEANUP.transform by resolveCleanup (G-20)",
+            cover: "a concealment's critical, read on the roller's browser (the trust model's open item): given back by the GM at most CLEANUP.conceal.refundStress.critical, and only with a witness the GM reads in the room (cleanup.mjs coverGiveBack, CASE-27)",
+            coverRollId: "the cover's roll, judged by coverGiveBack (cleanup.mjs): the GMs' record of it must name this sender and character and a critical, and gives back once",
             change: "bounded on arrival against CLEANUP.transform by resolveCleanup (Z5)",
             rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal), and written on only by noteFactOfRoll (action-pipeline.mjs): the sender's own row of that message, its character and a clean-up"
         }

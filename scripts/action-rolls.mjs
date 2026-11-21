@@ -285,7 +285,8 @@ export async function performAction(actor, actionKey, options = {}) {
          *
          * WHAT THIS DOES NOT COVER, on purpose: `game.drpg.cleanupDialog`,
          * `attemptCleanup` and `attemptStageSix` are their own entry points on the
-         * API, called directly by the suite and the harness. The PRICE still
+         * API - the last two called directly by the suite and the harness, the
+         * first by a GM's console alone (cleanup.mjs `openCleanupDialog`). The PRICE still
          * applies to them - only the phase lock does not, and a GM who calls a
          * clean-up by hand during a trial has decided to.
          */

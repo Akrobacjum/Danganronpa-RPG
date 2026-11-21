@@ -21,7 +21,6 @@ import { roomOfToken, roomAt, locateActor } from "./movement.mjs";
 import { SETTINGS, isDeceased, isDeadForGm, seasonEpoch, sameSeason } from "./settings.mjs";
 import { isPrimaryGm, log, warn, error, plural, esc, forcedDeletion, serverNow } from "./utils.mjs";
 // The kit's frame (E21 C3a): Clear Faint Remnants' question.
-import { drpgConfirm } from "./ui-kit.mjs";
 // The ledger's store. gm-stores.mjs reaches this file only by a dynamic `import()`,
 // so a static import here is no cycle (R161).
 import { remnantStore, bulletStore, traceDigestStore, upgradeMark } from "./gm-stores.mjs";
@@ -2466,39 +2465,10 @@ export async function handTiesOn(from, to) {
     return rows.length;
 }
 
-/**
- * Count the Faint traces that would go, confirm, then clear them.
- *
- * Counted BEFORE the confirmation, not after: these tokens do not come back,
- * and "delete 14 things?" is a question a GM can answer while "deleted 14
- * things" is only a report. No button calls it since E64-inv: End the chapter
- * clears the Faint Remnants (chapter.mjs `chapterEndForm`, `faint`), and the
- * Investigation bar's own button, its twin, is gone.
- */
-export async function confirmClearFaint({ tokens = null } = {}) {
-    const doomed = (tokens ?? Array.from(game.scenes).flatMap(scene => remnantsOn(scene))).filter(clearable).length;
-
-    if (!doomed) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Panel.faintNone"));
-        return 0;
-    }
-
-    // These tokens do not come back (E22 rule 4): destructive, named by its effect, Cancel the default and first under Enter.
-    const sure = await drpgConfirm({
-        yes: { role: "destructive", label: game.i18n.localize("DRPG.Panel.clearFaint") },
-        no: "cancel",
-        title: game.i18n.localize("DRPG.Panel.clearFaint"),
-        classes: ["drpg-panel"],
-        body: `<p>${plural("DRPG.Panel.faintConfirm", { n: doomed })}</p>
-                  <p class="notes">${game.i18n.localize("DRPG.Panel.faintConfirmNote")}</p>`,
-        rejectClose: false
-    });
-    if (!sure) return 0;
-
-    const cleared = await clearFaintRemnants(null, { tokens });
-    ui.notifications.info(plural("DRPG.Panel.faintCleared", { n: cleared }));
-    return cleared;
-}
+/* CLEAR FAINT REMNANTS IS GONE (the audit's CTRL-56, 1.2.122 line MURDER). Its question asked and cleared, and since
+   E64-inv nothing called it: End the chapter clears the Faint Remnants (chapter.mjs `chapterEndForm`, `faint`), and the
+   Investigation bar's button is gone. Neither the suite nor a scenario drove it - a window no control opens. The clear
+   itself is `clearFaintRemnants`, above, which the chapter's end and `game.drpg.clearFaintRemnants` reach. */
 
 /**
  * Change or remove a Remnant that has already been placed.

@@ -744,6 +744,8 @@ export async function attemptCleanup(actor, tokenId, {
     await requestCleanup({
         actorId: actor.id,
         tokenId,
+        // The cover's critical and its roll, for the GM to give back (CASE-27, `coverGiveBack`).
+        ...takeCoverRefund(actor.id),
         // The roll the GMs' fact of the attempt goes on (fix r1-G2).
         rollId: rollInHand(actor)?.messageId ?? null,
         total: roll.total,
@@ -1133,7 +1135,9 @@ export async function resolveCleanup({
     // The roll it was thrown with and who threw it, for the GMs' fact of the attempt (fix
     // r1-G2): action-pipeline.mjs `rollOfFact`. `by` is the bridge's sender, null for a GM's own
     // attempt, and a give-back the GMs' audit cannot check is not made on a player's word (`paidBack`).
-    rollId = null, by = null
+    rollId = null, by = null,
+    // The cover's critical, as the packet claims it, and its roll (CASE-27): given back on this side, bounded (`coverGiveBack`).
+    cover = 0, coverRollId = null
 } = {}) {
     if (!game.user.isGM) return null;
 
@@ -1255,6 +1259,8 @@ export async function resolveCleanup({
 
     const done = [];
     if (free) done.push(game.i18n.localize("DRPG.Cleanup.freeAttempt"));
+    const coverLine = await coverGiveBack(actor, cover, { receipt, by, coverRollId });
+    if (coverLine) done.push(coverLine);
 
     if (transforming && success) {
         const road = await resolveTransformRoad(actor, token, data, verdict,
@@ -1405,6 +1411,45 @@ export async function tamperWatchBlock(actor, { conceals = true } = {}) {
     return game.i18n.localize("DRPG.Tamper.watchedNoSanity");
 }
 
+/** The cover's critical give-back each roller's next attempt carries (`concealFromWitnesses`, CASE-27), by actor id. */
+const coverRefunds = new Map();
+
+/** The cover give-back `actorId`'s last concealment earned, taken: `{ cover, coverRollId }`, both empty when none. */
+export function takeCoverRefund(actorId) {
+    const held = coverRefunds.get(actorId) ?? null;
+    coverRefunds.delete(actorId);
+    return { cover: Number(held?.amount) || 0, coverRollId: held?.rollId ?? null };
+}
+
+/**
+ * The GM's give-back of a cover's critical (CASE-27): at most the table's `conceal.refundStress.critical`, only while the
+ * GM reads a witness in the roller's room (a cover is rolled for one), on the GM's own write; the Sanity it moved is the
+ * attempt's (`receipt.stressMoved`), so a Reroll of an erase or a reshape takes it back with the rest (read in `undoLastCleanup`,
+ * not measured; Stage 6's two keep no receipt). Answers the line for the card, or null.
+ * A player's packet (`by`) is held to the GMs' record of the cover's roll (`coverRollId`): drawn for that player and
+ * character, a critical, and not given back on before - marked `resolved` "cover" as it is, the way search-tokens.mjs
+ * marks a Search it settled. A GM's own attempt (`by` null) threw its cover on this browser and is taken as it says.
+ */
+async function coverGiveBack(actor, cover, { receipt = null, by = null, coverRollId = null } = {}) {
+    const back = Math.min(Math.max(0, Math.floor(Number(cover) || 0)), Number(CLEANUP.conceal?.refundStress?.critical) || 0);
+    if (!back || !game.user.isGM) return null;
+    const { othersInRoom } = await import("./movement.mjs");
+    if (!witnessesTo(actor, othersInRoom(actor)).length) return null;
+    if (by) {
+        const { rollStore } = await import("./gm-stores.mjs");
+        await rollStore.whenHydrated();
+        const row = typeof coverRollId === "string" && coverRollId ? rollStore.get(coverRollId) ?? null : null;
+        const resolved = Array.isArray(row?.resolved) ? row.resolved : [];
+        if (!row || row.actorId !== actor.id || row.userId !== by || row.isCritical !== true || resolved.includes("cover")) return null;
+        await rollStore.patch(coverRollId, { resolved: [...resolved, "cover"] });
+    }
+    const before = resourceValue(actor, "stress");
+    await restoreStress(actor, back);
+    const moved = before - resourceValue(actor, "stress");
+    if (receipt && moved) receipt.stressMoved -= moved;
+    return moved ? backLine({ pay: "stress", amount: moved }) : null;
+}
+
 /**
  * Cover what you are doing, when somebody is watching you do it.
  *
@@ -1433,6 +1478,8 @@ async function concealFromWitnesses(actor) {
     // concealment roll landed and paid out, null its window was closed. The
     // callers charge the price only after this answers, so null costs nothing;
     // a main roll closed after "alone" gets the price back, after "rolled" not.
+    // A give-back an earlier cover left untaken (its attempt never sent) is not this attempt's (CASE-27).
+    coverRefunds.delete(actor.id);
     const def = CLEANUP.conceal;
     if (!def) return "alone";
 
@@ -1454,8 +1501,15 @@ async function concealFromWitnesses(actor) {
     }
     for (let i = 0; i < cost; i++) await spendStress(actor);
 
+    /* THE CRITICAL'S SANITY COMES BACK ON THE GM (the audit's CASE-27, 1.2.122; the rule unchanged: "a critical gives 1
+       Sanity back"). It was cleared here, on the roller's browser, through `trustedWrite` "refund" - a refund of nothing,
+       since the cover cost nothing: with no recent payment the GMs' audit flagged it, with one it ate that payment's
+       credit. Kept for the attempt's packet now (`takeCoverRefund`, its `cover`), and given back by the GM as it scores
+       the attempt (`coverGiveBack`), held to the table's number and to a witness the GM reads in the room - the cover's
+       own reading stays the roller's (the trust model's open item). */
     const refund = hidden ? (def.refundStress?.[band] ?? 0) : 0;
-    if (refund) await restoreStress(actor, refund);
+    const { DRAWN_ROLL } = await import("./action-pipeline.mjs");
+    if (refund) coverRefunds.set(actor.id, { amount: refund, rollId: roll.raw?.[DRAWN_ROLL]?.rollId ?? null });
 
     const line = hidden
         ? (band === "despair" ? def.successWithDespair : def.success)
@@ -1752,6 +1806,8 @@ export async function attemptStageSix(actor, key, targetId = null, { viaAction =
         tokenId: null,
         key,
         targetId,
+        // The cover's critical and its roll, for the GM to give back (CASE-27, `coverGiveBack`).
+        ...takeCoverRefund(actor.id),
         // The roll the GM scores it on, as the two that aim at a trace name theirs (E08+E28 C17).
         rollId: rollInHand(actor)?.messageId ?? null,
         total: roll.total,
@@ -1774,7 +1830,9 @@ export async function resolveStageSix({
     // Who sent it, as `resolveCleanup` is told: null for a GM's own (fix r2-G8, `paidBack`).
     by = null,
     // The roll it was thrown with, as `resolveCleanup`'s: the author's copy (`authorsCopy`) is noted on that roll's row.
-    rollId = null
+    rollId = null,
+    // The cover's critical and its roll (CASE-27), as `resolveCleanup` takes them.
+    cover = 0, coverRollId = null
 } = {}) {
     if (!game.user.isGM) return null;
     const actor = game.actors.get(actorId);
@@ -1861,6 +1919,8 @@ export async function resolveStageSix({
     if (viaAction && !paidStep && !free) return { refused: "nothing was carried out: no action was left to pay for it" };
     if (free) await waivePrice(actor, paidStep, by);
     const done = [];
+    const coverLine = await coverGiveBack(actor, cover, { by, coverRollId });
+    if (coverLine) done.push(coverLine);
     if (free) done.push(game.i18n.localize("DRPG.Cleanup.freeAttempt"));
 
     const left = key === "misleadingTrail" ? await applyMisleadingTrail(actor, def, targetId, success, band, done)
@@ -2679,6 +2739,11 @@ async function report(actor, data, {
  * over the bridge and gets back only what `cleanableTracesForPlayer` (in this
  * same file) is willing to say - no `tiedToCrime`, and the number to beat for
  * the roll window alone.
+ *
+ * NO CONTROL OPENS IT (the audit's CTRL-56, 1.2.122 line MURDER, read 21.11.2026): a killer's clean-up is Tamper's
+ * (action-tamper.mjs `runTamperChoice` calls `attemptCleanup` with the trace its own menu picked), and this window is
+ * reached only from a console, as `game.drpg.cleanupDialog` (tools/api-surface.json). Kept as that road: taking it off
+ * the API is the owner's call, asked with this line's report.
  */
 export async function openCleanupDialog(actor) {
     if (!isCleaner(actor)) return refuseCleanup(actor);

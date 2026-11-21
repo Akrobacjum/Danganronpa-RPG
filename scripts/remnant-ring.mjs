@@ -332,6 +332,17 @@ export function wireCardEditing(body, tokenOrActor) {
        so replacing one asks first; naming one where there was none does not. Through `setRemnantAuthor`, both fields
        of the row together; a closed or refused question puts the select back. */
     const author = body.querySelector("select[data-drpg-author]");
+    /* PUT BACK ON THE SELECT THE WINDOW SHOWS (the audit's CTRL-19, 1.2.122 line MURDER). The card is a live region, and
+       a redraw while the question stands carries the pick to the new select (live.mjs `capture`, `restore`: the select has
+       no name, and is found by its place); the Cancel put the old author back on this one, which the redraw had taken out
+       of the window - the card named an author the record did not hold. So a closed or refused question writes it on the
+       select the window holds now as well, found where this one was wired (`body`, or the window around it). Tier 2
+       "1.2.122 CTRL-19". */
+    const around = author?.closest(".window-content") ?? body;
+    const putBack = was => {
+        const shown = around.isConnected ? around.querySelector("select[data-drpg-author]") : null;
+        for (const select of new Set([author, shown].filter(Boolean))) select.value = was;
+    };
     author?.addEventListener("change", async () => {
         const was = author.dataset.drpgWas ?? "";
         const value = author.value;
@@ -344,7 +355,7 @@ export function wireCardEditing(body, tokenOrActor) {
                 body: `<p>${esc(game.i18n.format("DRPG.Remnant.authorReplace", { was: name(was), now: name(value) }))}</p>`,
                 yes: { label: game.i18n.localize("DRPG.Remnant.authorReplaceYes") }
             });
-            if (sure !== true) { author.value = was; return; }
+            if (sure !== true) { putBack(was); return; }
         }
         try {
             if (!await setRemnantAuthor(tokenOrActor, value ? game.actors.get(value) ?? null : null)) throw new Error("no row of the trace on this GM");
@@ -354,7 +365,7 @@ export function wireCardEditing(body, tokenOrActor) {
         } catch (err) {
             error("Could not save who left the Remnant", err);
             ui.notifications.error(game.i18n.localize("DRPG.Remnant.cardSaveFailed"));
-            author.value = was;
+            putBack(was);
         }
     });
     for (const field of body.querySelectorAll("[data-drpg-public]")) {

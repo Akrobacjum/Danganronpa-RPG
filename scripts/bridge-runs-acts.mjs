@@ -939,7 +939,9 @@ export async function handleCleanup(payload, sender, ctx, prepared) {
             // made on a player's word (cleanup.mjs `paidBack`, fix r2-G8).
             by: sender.id,
             // The roll the author's copy is noted on (cleanup.mjs `authorsCopy`, E70 C12): the bridge's `rolled` holds it.
-            rollId: payload.rollId ?? null
+            rollId: payload.rollId ?? null,
+            // A cover's critical, given back on this side and bounded there (cleanup.mjs `coverGiveBack`, CASE-27).
+            cover: payload.cover, coverRollId: payload.coverRollId ?? null
         });
         // Not a guard: who may be framed and where the body lies are the
         // resolver's own rules, asked of a GM's Stage 6 too (cleanup.mjs).
@@ -976,7 +978,9 @@ export async function handleCleanup(payload, sender, ctx, prepared) {
         // waived guards were protecting.
         viaAction: payload.viaAction,
         rollId: payload.rollId,
-        by: sender.id
+        by: sender.id,
+        // A cover's critical, given back on this side and bounded there (cleanup.mjs `coverGiveBack`, CASE-27).
+        cover: payload.cover, coverRollId: payload.coverRollId ?? null
     });
     // Its one refusal answered as an object (`{ refused }`: a Tamper with no step to pay for it) is passed on, as the
     // Stage 6 branch above passes its own (the audit's CASE-59, 1.2.122): read as an answer, it was told as done.

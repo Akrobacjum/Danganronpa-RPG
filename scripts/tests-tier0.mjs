@@ -3102,8 +3102,10 @@ const REGRESSIONS = [
             "nothing bounds the step a Tamper packet claims to have paid");
         ok(/async function handBack\(/.test(cleanup),
             "the critical is back to healing Sanity the attempt may never have spent");
+        // The concealment's own refund is kept for the attempt's packet and given back on the GM since 1.2.122 (the audit's
+        // CASE-27; cleanup.mjs `takeCoverRefund`, `coverGiveBack`; tier 2 "1.2.122 CASE-27" drives both sides).
         const conceal = bodyOf(cleanup, "async function concealFromWitnesses");
-        ok(/restoreStress\(/.test(conceal.slice(0, 1600)),
+        ok(/coverRefunds\.set\(/.test(conceal.slice(0, 3200)) && /async function coverGiveBack\([\s\S]{0,1600}restoreStress\(/.test(cleanup),
             "the concealment's own refund is gone - that one is not the attempt's price");
 
         // The step travels: the roll context, both sides of the bridge, the replay.
@@ -9107,6 +9109,8 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#murder.cleanup#transform", "judged: bounded against CLEANUP.transform; C10 stores the proposal on the attempt row (the card carries only the tag); without both a name and a text it is no rewrite, the critical erases (resolveEraseRoad, C11)"],
             ["PACKET gm-bridge.mjs#murder.cleanup#change", "judged: bounded against CLEANUP.transform (Z5); without both a name and a text no reshape is put to the GMs (resolveTransformRoad, C11)"],
             ["PACKET gm-bridge.mjs#murder.cleanup#rollId", "judged: bridge-guards.mjs rollRefusal reads the result from the GMs' roll row (E28); the packet's number is a claim"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#cover", "judged: cleanup.mjs coverGiveBack bounds it to CLEANUP.conceal.refundStress.critical and gives it back only with a witness the GM reads in the room (the audit's CASE-27, 1.2.122)"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#coverRollId", "judged: cleanup.mjs coverGiveBack reads the GMs' roll row it names - this sender's, this character's, a critical - and marks it resolved \"cover\", once (CASE-27, 1.2.122)"],
             ["PACKET gm-bridge.mjs#remnant.place#data", "judged: narrowPlayerRemnant rebuilds a player's trace from a whitelist; C5 decides a Sabotage trace's tie by worksOwnMurder from the GMs' roll row, never the packet"],
             ["PACKET gm-bridge.mjs#remnant.place#rollId", "judged: the GMs' roll row (noteFactOfRoll) gives the band (traceBandOf) and, from C5, the sabotaged project and its actor"],
             ["PACKET gm-bridge.mjs#remnant.tieForItem#identity", "judged: guardTieTraceHolder - only the holder, in the fight; remnants.mjs tieTraceForItem writes the tie, and C4's prep checks it keeps the three states (read in the code); since fix r1-G1 the copies learn it when the death is the table's, or at the fight's close (tieWaitNow)"],

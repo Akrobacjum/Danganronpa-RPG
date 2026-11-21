@@ -44483,7 +44483,7 @@ const INVARIANTS = [
             buttons: [["cancel", true, "cancel"], ["reset", false, "destructive"]]
         }), "[the root's kit and own classes, the kit bodies in the window, the fields with autofocus, the footer in tree order: action, default, role]");
     }],
-    ["R1360 - the case's irreversible windows (E22 C3b; E22-01, E22-03, E22-05; S06-08, S13-04, S13-05): Who died? (death.mjs `openDeathDialog`), the body's announcement (`openBodyDiscoveryDialog`) and the chapter's end (`openChapterEndDialog`), each opened with DialogV2.wait stood in for, ask with their consequence destructive and named by its effect, Cancel the default and the first submit button in the tree, and Who died? and the body's room open on \"- choose -\" with that button shut, or, while an incident is open, on its victim and the victim's room with it open; Sweep Truth Bullets, Clear Faint Remnants, Delete the Remnant, End the murder (the tracker's and the fight's), the Final Trial's verdict and a stopped end's Finish and Drop ask with the destructive role", async () => {
+    ["R1360 - the case's irreversible windows (E22 C3b; E22-01, E22-03, E22-05; S06-08, S13-04, S13-05): Who died? (death.mjs `openDeathDialog`), the body's announcement (`openBodyDiscoveryDialog`) and the chapter's end (`openChapterEndDialog`), each opened with DialogV2.wait stood in for, ask with their consequence destructive and named by its effect, Cancel the default and the first submit button in the tree, and Who died? and the body's room open on \"- choose -\" with that button shut, or, while an incident is open, on its victim and the victim's room with it open; Sweep Truth Bullets, Delete the Remnant, End the murder (the tracker's and the fight's), the Final Trial's verdict and a stopped end's Finish and Drop ask with the destructive role", async () => {
         /*
          * E22 C3b, 06.11.2026; audit S06-08 ("They are dead", "Announce it" and "Do it" were Bone buttons and the default
          * under Enter; Who died? opened on the first living student and the body's window on the first room: one Enter
@@ -44491,9 +44491,11 @@ const INVARIANTS = [
          * DialogV2.wait stood in for (it answers null: nobody dies, no body is announced, no chapter ends) and their configs
          * read: the footer in tree order (ui-kit.mjs's header: Enter presses the first submit button), each button's role,
          * default and disabled, the consequence's label, and the select's first option. The other questions are read off
-         * their sources (each needs a world state tier 1 may not make: a bullet to sweep, a Faint trace, an incident, a
+         * their sources (each needs a world state tier 1 may not make: a bullet to sweep, an incident, a
          * Mastermind, a stopped end): the yes of each on the destructive role. Red on C3a's tree: "They are dead" was the
          * primary, the default, and first in the tree.
+         * Clear Faint Remnants was among them until 1.2.122, which took the question out: no control opened it since
+         * E64-inv (the audit's CTRL-56; End the chapter clears the Faint Remnants).
          *
          * BOTH STATES THE TABLE CAN BE IN (E21 C3 fix, 06.11.2026; CI run 42200796353 on 9f271c34, suite 1/8). This test
          * refused to run with an incident open (a `must`), and 01-runtests' A1 runs tiers 0-1 with one open - the handbook's
@@ -44561,15 +44563,14 @@ const INVARIANTS = [
         const destructiveYes = text => /yes:\s*\{\s*role:\s*"destructive"/.test(text);
         const sources = {
             sweep: destructiveYes(fnSource(investigationBy(read2), "confirmSweepBullets")),
-            clearFaint: destructiveYes(fnSource(read2("remnants.mjs"), "confirmClearFaint")),
             deleteTrace: destructiveYes(fnSource(investigationBy(read2), "deleteTraceRow")),
             endMurderTracker: destructiveYes(fnSource(read2("murder-ui.mjs"), "openIncidentTracker")),
             endMurderFight: destructiveYes(fnSource(read2("murder-rules.mjs"), "killerFell")),
             finalVerdict: (t => /destructive:\s*\[[^\]]*action:\s*"correct"[\s\S]*action:\s*"wrong"/.test(t) && /default:\s*"cancel"/.test(t) && !/primary:/.test(t))(fnSource(read2("verdict.mjs"), "openFinalVerdictDialog")),
             stoppedEnd: /destructive:\s*\[\{\s*action:\s*"finish"[\s\S]*action:\s*"drop"/.test(fnSource(chapterBy(read2), "askStoppedEnd"))
         };
-        must(Object.values(sources).length === 7 && fnSource(investigationBy(read2), "confirmSweepBullets").length > 200, "a source was not read - this would measure nothing");
-        equal(stableJson(sources), stableJson({ sweep: true, clearFaint: true, deleteTrace: true, endMurderTracker: true, endMurderFight: true, finalVerdict: true, stoppedEnd: true }),
+        must(Object.values(sources).length === 6 && fnSource(investigationBy(read2), "confirmSweepBullets").length > 200, "a source was not read - this would measure nothing");
+        equal(stableJson(sources), stableJson({ sweep: true, deleteTrace: true, endMurderTracker: true, endMurderFight: true, finalVerdict: true, stoppedEnd: true }),
             "[the questions read off their sources: whether each one's yes is on the destructive role]");
     }],
     ["R1361 - the chapter's end window says why a box is shut and marks what cannot be undone (E22 C3b; S12-19, S06-47; the owner's Q-E21-1 (c)): chapter.mjs `chapterEndForm` draws a box at 0 disabled with its words in the fine print and its reason after them, the four permanent boxes - the reveal, the sweep, the Faint clean-up, the Key Remnants - ticked with their counts, `drpg-destructive` on the label and \"cannot be undone\" in its words, and the Final Truth note only with a Mastermind set", async () => {
@@ -48079,6 +48080,8 @@ const INVARIANTS = [
             "watch-gm.mjs declareWatch": "a watch missed with Despair, its Sanity mark, written",
             "cleanup.mjs markResolutionStress": "the resolution's Sanity price, written",
             "cleanup.mjs restoreStress": "a refund of Sanity, written",
+            // 1.2.122, the audit's CASE-27: the cover's critical given back on the GM, its marks counted on the attempt's receipt.
+            "cleanup.mjs coverGiveBack": "the cover critical's Sanity given back on the GM, the marks it moved read for the receipt",
             "cleanup.mjs resolveCleanup": "the receipt's Sanity before the attempt, for a Reroll",
             "cleanup.mjs tamperWatchBlock": "a threshold: no Sanity left and watched refuses the concealment",
             "config.mjs LEGAL_ROLL_MODIFIERS": "the legal roll's reader for Breakdown's die (roll-draw.mjs), a rule's table",

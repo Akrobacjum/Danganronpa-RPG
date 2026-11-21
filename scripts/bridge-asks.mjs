@@ -1040,7 +1040,9 @@ export function requestCleanup({
     // and the resolver charges the Sanity itself.
     price = null, grant = false,
     // The roll it was thrown with (fix r1-G2): the GMs' fact of the attempt goes on that roll's row.
-    rollId = null
+    rollId = null,
+    // A cover's critical, given back on the GM (cleanup.mjs `coverGiveBack`, the audit's CASE-27).
+    cover = 0, coverRollId = null
 }) {
     // The two that aim at a TRACE go to `resolveCleanup`; the two that roll
     // against a flat threshold go to `resolveStageSix`. Naming the first pair
@@ -1050,16 +1052,16 @@ export function requestCleanup({
     const mode = key === "transformTrace" ? "transform" : "erase";
     return ask(ACTION_CLEANUP, {
         actorId, tokenId, total, isCritical, withHope, undo, key, targetId, transform,
-        change, viaAction, price, grant, rollId
+        change, viaAction, price, grant, rollId, cover, coverRollId
     }, {
         local: () => import("./cleanup.mjs").then(m => aimed
             ? m.resolveCleanup({
                 actorId, tokenId, total, isCritical, withHope, undo, transform,
-                mode, change, viaAction, price, grant, rollId
+                mode, change, viaAction, price, grant, rollId, cover, coverRollId
             })
             : m.resolveStageSix({
                 actorId, key, targetId, total, isCritical, withHope, viaAction,
-                price, grant, rollId
+                price, grant, rollId, cover, coverRollId
             }))
     });
 }
