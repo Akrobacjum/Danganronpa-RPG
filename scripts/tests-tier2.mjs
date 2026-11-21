@@ -103969,7 +103969,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const ACT = "system.resources.actions.value";
         const putBack = sheetAsFound(theirs, [ACT]);
         const seen = new Set(game.messages.map(m => m.id));
-        const read = {};
+        const read = {}, made = [];
         try {
             await there.tokenDoc.update(M.positionIn(away, there.tokenDoc), { ...PLACE });
             await settle();
@@ -103980,16 +103980,26 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const out = await Promise.race([run, wait(15000).then(() => "timeout")]);
             await settle();
             read.frisk = [out === "timeout" ? "timeout" : "ran", top - actionsLeft(theirs)];
+            // The Plants with both in the planter's room, so the one gate lets them through to the pockets.
+            await there.tokenDoc.update(M.positionIn(here.room, there.tokenDoc), { ...PLACE });
+            await settle();
             const answer = await V.plantOnPerson({ plannerId: theirs.id, victimId: other.id, itemId: "SUITE122ITEM27x", total: 30, isCritical: true, unseenTotal: 30, unseenCritical: true });
             read.plant = answer?.refused ? G.reasonOf(answer.refused) : answer;
+            // An item the planter holds that is out of their pockets as the GMs read them (in their stash): the pool's miss.
+            const [stashed] = await theirs.createEmbeddedDocuments("Item", [{ name: "SUITE 122 ITEM-27 stashed kit", type: "loot",
+                flags: { [MODULE_ID]: { category: "tool", location: "vault" } } }]);
+            made.push(stashed);
+            const missed = await V.plantOnPerson({ plannerId: theirs.id, victimId: other.id, itemId: stashed.id, total: 30, isCritical: true, unseenTotal: 30, unseenCritical: true });
+            read.pooled = missed?.refused ? G.reasonOf(missed.refused) : missed;
         } finally {
             if (there.scene.tokens.has(there.tokenDoc.id)) await there.tokenDoc.update(tokenWas, { ...PLACE });
+            for (const item of made) if (theirs.items.get(item.id)) await item.delete();
             await putBack();
             for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
             await settle();
         }
-        equal(stableJson(read), stableJson({ frisk: ["ran", 0], plant: "refused" }),
-            "{frisk: [the run ended, the actions it left spent]; plant: the code of a Plant's answer for an item not held} - a refusal before the rolls hands the action back, and a run that did nothing says so");
+        equal(stableJson(read), stableJson({ frisk: ["ran", 0], plant: "refused", pooled: "refused" }),
+            "{frisk: [the run ended, the actions it left spent]; plant, pooled: the code of a Plant's answer for an item not held, and for one held in the stash} - a refusal before the rolls hands the action back, and a run that did nothing says so");
     }],
     ["1.2.122 CORE-33 REFR-57 CTRL-70 - Item tables: a room table renamed takes its split tables with it, a Remove and a change made outside move the list's count, and an Add refused for its missing name comes back with what was typed (scripts/tables-editor.mjs `renameRoomFamily`, `freshTableCounts`, `newItemPaneHtml`'s draft; tables-pools.mjs `roomTableSuffix`; the audit's CORE-33, REFR-57 and CTRL-70, 1.2.122 line WORLD)", async () => {
         /*
@@ -104324,7 +104334,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const base = { chapter: 1, session: 1, day: 1, sweepable: 2, keyable: 0, backup: "x" };
             host.innerHTML = C.chapterEndForm(base);
             host.querySelector('input[name="sweep"]').checked = false;
-            C.refreshChapterEnd(host, C.chapterEndForm({ ...base, keyable: 3 }));
+            // The sweep's count moves too (2 to 3), so its label is redrawn and the GM's untick must be carried over.
+            C.refreshChapterEnd(host, C.chapterEndForm({ ...base, keyable: 3, sweepable: 3 }));
             const keys = host.querySelector('input[name="keys"]'), sweep = host.querySelector('input[name="sweep"]');
             read.boxes = [Boolean(keys && !keys.disabled && keys.checked), Boolean(sweep && !sweep.disabled && !sweep.checked)];
         } finally {
