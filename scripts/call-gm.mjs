@@ -1017,8 +1017,13 @@ export async function callGm(actor, {
  * to the asker's thread when the asker owns the character. Tier 2's "a co-owner's question lands in the co-owner's
  * thread" reads it.
  */
-function threadOf(actor, userId) {
-    const user = userId ? game.users.get(userId) : null;
+export function threadOf(actor, userId, { poster = game.user } = {}) {
+    /* AND A CARD A PLAYER'S OWN BROWSER POSTS GOES TO THAT PLAYER'S THREAD (1.2.122, the audit's COMM-25): a Search for
+       something specific, an Observe, an Analyze, a project's proposal and a Tier 0 item's use pass no `thread`, so a
+       co-owner's own question went to the first owner's thread. With no asker named, the poster is the asker when it is a
+       player who owns the character; a GM's post with none still goes to the first owner (`ownerOf`). */
+    const asker = userId ?? (poster && !poster.isGM ? poster.id : null);
+    const user = asker ? game.users.get(asker) : null;
     if (user && !user.isGM && actor?.testUserPermission?.(user, "OWNER")) return user;
     return ownerOf(actor);
 }

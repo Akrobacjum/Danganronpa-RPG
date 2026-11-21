@@ -17643,6 +17643,29 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson([true, false, false]), "the vote's music played over a floor opened after it ([no floor, a debate, an Objection])");
     }],
 
+    ["R8275 - a card a player's own browser posts goes to that player's thread when they own the character: a co-owner's own question lands in the co-owner's thread, a GM's post with no asker still in the first owner's (call-gm.mjs `threadOf`; 1.2.122, the audit's COMM-25)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-25): callGm's roads on a player's browser (a Search for something specific, an
+         * Observe, an Analyze, a proposal, a Tier 0 item's use) pass no `thread`, and threadOf answered ownerOf - the first
+         * connected owner - so a co-owner's request went to the other owner's thread. A stand-in character both of two
+         * player accounts own (its `testUserPermission` the suite's); the thread asked with no asker, the poster each of
+         * the two, then a GM. Nothing is written. Red at 21bf5d18: no export, and the first owner's thread for the second.
+         */
+        needs(world.atLeast("playerAccounts", 2), "two player accounts own the stand-in");
+        const C = await import("./call-gm.mjs");
+        must(typeof C.threadOf === "function", "call-gm.mjs exports no threadOf - this would measure nothing");
+        const [first, second] = game.users.filter(u => !u.isGM);
+        const stand = { id: "R8275Character01", name: "R8275", type: "character", testUserPermission: user => user?.id === first.id || user?.id === second.id };
+        const { ownerOf } = await import("./utils.mjs");
+        const firstOwner = ownerOf(stand)?.id ?? null;
+        must(firstOwner, "neither account is connected - ownerOf names nobody, and this would measure nothing");
+        const other = [first, second].find(u => u.id !== firstOwner);
+        const read = [C.threadOf(stand, null, { poster: other })?.id === other.id, C.threadOf(stand, null, { poster: game.user })?.id === firstOwner,
+            C.threadOf(stand, firstOwner, { poster: other })?.id === firstOwner];
+        equal(stableJson(read), stableJson([true, true, true]),
+            "a co-owner's own card did not go to the co-owner's thread, or another road moved ([the co-owner posting, a GM posting with no asker, an asker named])");
+    }],
+
     ["R539 - the GM's block in the list is Foundry's block and never undoes the module's: the button is built only in a GM's list; its click writes the user's `permissions.BROADCAST_AUDIO` flipped from what Foundry answers now and nothing else; where `moduleHoldsMic` holds the microphone or a death is kept secret the button is disabled with its line and `toggleBlock` writes nothing; it refuses a player's client, the GM's own account and a user who is not of this world", async () => {
         /*
          * E78 C5, 14.10.2026; the A9 design's R392 (A9-5; the E78 plan's D2 gave it this number), the owner's Q4 (the
