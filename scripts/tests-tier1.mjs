@@ -17738,6 +17738,83 @@ const INVARIANTS = [
             "the microphone note did not give way to the microphones once they were named, or gave way before ([[the note drawn, the microphones listed] at the build, after a device change still unnamed, after one named])");
     }],
 
+    ["R8592 - Unblock on a player whose role withholds the microphone and who holds no key of their own writes nothing and tells the GM it is the role's rule; with a key of their own it takes the key off as before (voice-tile.mjs `toggleBlock`; 1.2.123, the audit's r122-G-R1)", async () => {
+        /*
+         * The audit of 1.2.122 (r122-G-R1): since COMM-46 an unblock deletes the user's own BROADCAST_AUDIO, and for a user
+         * with none whose role withholds the microphone that deletion changed nothing - toggleBlock answered true, the row
+         * drew Blocked again, nobody was told. Another account of this world, its `update` spied (an own property, taken
+         * off after; nothing is written), Foundry's reading stood in as "may not broadcast": an unblock with no key of its
+         * own, then one with. Red at 14bb0d92: the first answered true and wrote the deletion, with no notice.
+         */
+        needs(world.atLeast("playerAccounts", 1), "another account to unblock");
+        must(game.user.isGM, "the block is a GM's");
+        const V = await import("./voice-tile.mjs");
+        const user = game.users.find(u => u.id !== game.user.id);
+        const had = Object.getOwnPropertyDescriptor(user, "update");
+        const writes = [], notices = [];
+        user.update = async data => { writes.push(JSON.stringify(Object.keys(data))); return user; };
+        const settings = { client: { users: {} }, get: () => undefined, set: async () => {}, getUser: () => ({ canBroadcastAudio: false }) };
+        const notify = text => { notices.push(String(text)); };
+        let read = null;
+        try {
+            const none = await V.toggleBlock(user, { holds: () => null, settings, notify, ownKey: () => false });
+            const first = [none, writes.splice(0).length, notices.splice(0)];
+            const own = await V.toggleBlock(user, { holds: () => null, settings, notify, ownKey: () => true });
+            read = [first, [own, writes.splice(0).length, notices.splice(0).length]];
+        } finally {
+            if (had) Object.defineProperty(user, "update", had);
+            else delete user.update;
+        }
+        equal(stableJson(read), stableJson([[false, 0, [game.i18n.format("DRPG.Voice.list.gmRoleBlocks", { name: user.name })]], [true, 1, 0]]),
+            "an Unblock the role withholds wrote, or said nothing, or one with a key of its own did not take it off ([[no key: answered, writes, notices], [own key: answered, writes, notices]])");
+    }],
+    ["R8591 - a closed settings window's microphone note follows nothing: a fieldset built after it stops its listeners, and a device change reads the devices only for the notes still on the page (voice-panel.mjs `followTheMic`, `micFollowers`; 1.2.123, the audit's r122-G-5)", async () => {
+        /*
+         * The audit of 1.2.122 (r122-G-5): followTheMic's listeners stopped only once the microphones were named, so on a
+         * browser that never names them every opening of the settings window added a set that read the devices on every
+         * event. Two fieldsets built with a stand-in client whose microphones stay unnamed (its device reads counted) and
+         * the browser's device list stood in as R8284 stands it in; the first placed and taken off the page (its window
+         * closed), the second placed; a device change; then the second taken off too, and two more. Read: the
+         * `rtcSettingsChanged` hooks the sets added, and the device reads. Nothing is written. Red at 14bb0d92: two hooks
+         * standing, two reads at each change.
+         */
+        const P = await import("./voice-panel.mjs");
+        let reads = 0;
+        const client = { getAudioSources: async () => { reads++; return { "": "" }; }, getAudioSinks: async () => ({}) };
+        const own = Object.getOwnPropertyDescriptor(globalThis.navigator, "mediaDevices");
+        const media = document.createElement("div");
+        Object.defineProperty(globalThis.navigator, "mediaDevices", { value: media, configurable: true });
+        let first = null, second = null, read = null;
+        const hooks = () => (Hooks.events?.rtcSettingsChanged ?? []).length;
+        const hooksWere = hooks();
+        try {
+            first = await P.voiceFieldset({ client, settings: { client: {} }, key: null });
+            document.body.append(first);
+            first.remove();
+            second = await P.voiceFieldset({ client, settings: { client: {} }, key: null });
+            document.body.append(second);
+            const standing = hooks() - hooksWere;
+            reads = 0;
+            media.dispatchEvent(new Event("devicechange"));
+            await settle();
+            const open = reads;
+            second.remove();
+            reads = 0;
+            media.dispatchEvent(new Event("devicechange"));
+            await settle();
+            media.dispatchEvent(new Event("devicechange"));
+            await settle();
+            read = [standing, open, reads, hooks() - hooksWere];
+        } finally {
+            if (own) Object.defineProperty(globalThis.navigator, "mediaDevices", own);
+            else delete globalThis.navigator.mediaDevices;
+            first?.remove();
+            second?.remove();
+        }
+        equal(stableJson(read), stableJson([1, 1, 0, 0]),
+            "a closed window's microphone note still followed the browser ([the module's rtcSettingsChanged hooks standing with one window open, reads at a change then, reads at two changes with none, hooks standing after])");
+    }],
+
     ["R8274 - after the vote has opened, a floor opened again before the verdict plays its own music, an Objection's and a debate's too, and the vote's comes back when it ends (music-states.mjs `voteMusicPlays`; 1.2.122, the audit's STG-95)", async () => {
         /*
          * The audit of 1.2.118 (STG-95): voteMusicPlays held from the vote's first opening to the verdict, and its row
@@ -17831,6 +17908,39 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson([true, true, true, 2, true]),
             "a player's card ruled on a classmate's character, or a GM's card was held to it ([Nothing was there closed, Refuse closed, the classmate's Sanity unchanged, notices, a GM's card reaches its ruling])");
         equal(read_rearm, game.i18n.format("DRPG.Trap.rearmGone", { name: game.user.name }), "Rearm the trap on a project that is gone did not say so (the audit's CTRL-64)");
+    }],
+
+    ["R8590 - Give and Not now on a Monocub's Ask for Hope act only on a Monocub the card's writer owns: a player's card naming a classmate's character is closed and gives nothing, and a GM's card is the GM's (messenger-app.mjs `runCallAction`, `CARD_CHARACTER_FIELD`; 1.2.123, the audit's r122-G-3, the rest of COMM-21)", async () => {
+        /*
+         * The audit of 1.2.122 (r122-G-3): COMM-21's fix held nine rulings' `data.by` to the card's writer, but Give and Not
+         * now read `data.actor`, which nothing compared, so a card a player's console posted naming a friend's Monocub
+         * turned the GM's Despair into that Monocub's Hope on the GM's press. A card made here as R8277 makes one (no world
+         * write), written by one player, naming a character that player does not own: Give pressed through
+         * `runCallAction`; the answer and the notice read. A GM's card naming no character reaches the ruling (its own
+         * line). Red at 14bb0d92: the ruling reached (it answered the missing character's line, not the closed card's).
+         */
+        needs(world.atLeast("playerAccounts", 2), "a writer and a classmate's player");
+        const M = await import("./messenger-app.mjs");
+        const writer = game.users.find(u => !u.isGM && game.actors.some(a => a.type === "character" && !a.testUserPermission(u, "OWNER")));
+        must(writer, "no player with a classmate's character to name - this would measure nothing");
+        const classmate = game.actors.find(a => a.type === "character" && !a.testUserPermission(writer, "OWNER"));
+        const card = author => ({ id: "R8590RulingCard1", author, whisper: [], rolls: [], content: "", flags: { [MODULE_ID]: {} },
+            getFlag(scope, key) { return this.flags?.[scope]?.[key]; } });
+        const warns = [], realWarn = ui.notifications.warn;
+        ui.notifications.warn = text => { warns.push(String(text)); };
+        let read = null;
+        try {
+            const line = key => game.i18n.format(key, { name: game.user.name });
+            const give = await M.runCallAction("cubGiveHope", { actor: classmate.id, n: 2 }, card(writer));
+            const notNow = await M.runCallAction("cubNotNow", { actor: classmate.id }, card(writer));
+            const gm = await M.runCallAction("cubGiveHope", { actor: "R8590Nobody00000", n: 1 }, card(game.user));
+            read = [give?.settled === line("DRPG.Bridge.settledNotTheirs"), notNow?.settled === line("DRPG.Bridge.settledNotTheirs"),
+                warns.length, gm?.settled === line("DRPG.Bridge.settledNoCharacter")];
+        } finally {
+            ui.notifications.warn = realWarn;
+        }
+        equal(stableJson(read), stableJson([true, true, 2, true]),
+            "a player's card ruled Give or Not now on a classmate's character, or a GM's card was held to it ([Give closed, Not now closed, notices, a GM's card reaches its ruling])");
     }],
 
     ["R8278 - a whisper to the GMs raises a notice for the GM to answer only when a GM's browser wrote it: gmPopup on a document a player wrote raises nothing, on a GM's it does (popup.mjs `onCreateChatMessage`; 1.2.122, the audit's COMM-35)", async () => {
@@ -18080,7 +18190,8 @@ const INVARIANTS = [
 
             const notices = [];
             const notify = text => notices.push(keyOf(text));
-            const block = async (user, how = holds) => V.toggleBlock(user, { holds: how, settings, notify });
+            // The GM's block writes the user's own key; the spied write does not reach the document, so it is said (1.2.123).
+            const block = async (user, how = holds) => V.toggleBlock(user, { holds: how, settings, notify, ownKey: () => true });
             const secret = { id: "R539SECRET000000", name: "R539 Secret", type: "character", img: null, getFlag: () => null };
             const viaModule = user => moduleHoldsMic(user, { actors: [secret], eclipse: false, trial: false, dead: () => true });
             const outsider = { id: "R539NOBODY000000", update: async data => { updates.push(`R539NOBODY:${JSON.stringify(data)}`); } };
@@ -67136,7 +67247,8 @@ const INVARIANTS = [
            (line TRIAL's part, DOC-13), and 18 in nine other files (cleanup-reshape, handover, inventory, level-up, monocub 7,
            passages-gm, projects-ui 4, reroll-receipts, sound-panel; the coordinator's sweep in the 1.2.122 assembly, DOC-21).
            Read over every file the module loads from module.mjs, the suite's own aside (tests-kit.mjs `otherSources`);
-           a call (`escapeHTML(body)`, messenger.mjs) is not a binding. Comments stripped. */
+           a call (`escapeHTML(body)`, messenger.mjs) is not a binding. Comments stripped. Red at 14bb0d92 once the reading
+           took any name: monocub.mjs:1 (the alias esc2 in answerBribeOnGm). */
         const { esc } = await import("./utils.mjs");
         const SWEPT = ["trial-progress.mjs", "trial.mjs", "truth-bullets.mjs", "verdict.mjs", "vote.mjs", "cleanup-reshape.mjs", "handover.mjs",
             "inventory.mjs", "level-up.mjs", "monocub.mjs", "passages-gm.mjs", "projects-ui.mjs", "reroll-receipts.mjs", "sound-panel.mjs"];
@@ -67145,7 +67257,8 @@ const INVARIANTS = [
         must(sources.length > 100 && !unread.length, `the module's files, or ${unread.join(", ")} of the fourteen swept, read as nothing - this would measure nothing`);
         const bare = [];
         for (const [file, text] of sources) {
-            const n = (stripComments(text).match(/\bconst esc = foundry\.utils\.escapeHTML\b(?!\s*\()/g) ?? []).length;
+            // Any name, not `esc` alone (1.2.123, the audit's r122-A-3): monocub.mjs's alias esc2 passed the narrower reading.
+            const n = (stripComments(text).match(/\b(?:const|let) \w+ = foundry\.utils\.escapeHTML\b(?!\s*\()/g) ?? []).length;
             if (n) bare.push(`${file}:${n}`);
         }
         equal(stableJson({ bare, nulls: [esc(null), esc(undefined), esc("<b>")] }), stableJson({ bare: [], nulls: ["", "", "&lt;b&gt;"] }),

@@ -92001,7 +92001,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "the same window]; [the key written meanwhile kept by the next change, that row's marker]; [two changes in one tick both stored and saved]; "
             + "[the window not rebuilt]; [Close closes]; [the toasts while it was open]; [the map after]; [the map after the test's own restore]");
     }],
-    ["1.2.122 COMM-21 - a GM's Give on a Monocub's Ask for Hope gives at most what the card offers, 2, whatever number the card's data names: the card is written on the Monocub's player's browser, so its `n` is a claim (monocub.mjs `answerHopeAsk`, `ASK_GIVE_MAX`; the rest of the audit's COMM-21)", async () => {
+    ["1.2.122 COMM-21 - a GM's Give on a Monocub's Ask for Hope gives at most what the card offers, 2, whatever number the card's data names: a card a player's console posts to look like the GM's carries any `n` (monocub.mjs `answerHopeAsk`, `ASK_GIVE_MAX`; the rest of the audit's COMM-21; the title's reason corrected in 1.2.123, r122-G-4)", async () => {
         /*
          * The audit of 1.2.118, COMM-21's rest: a ruling card's data is its writer's, and since 1.2.122 a ruling that acts
          * on a character holds it to one the card's writer owns (messenger-app.mjs `writerOwns`). The Monocub's own Ask
@@ -106166,7 +106166,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * read, so the GM got the tables as they were and retyped the card's category, tier, room and name. The item tables
          * opened; the ruling pressed through `runCallAction` with a Search card's data (a), then, with the name cleared and
          * text typed into the New item tab's description, pressed again naming another item (b). Read each time: the windows open, the New item
-         * tab's name, the warnings. The windows closed after. Red at 21bf5d18: (a) the name empty, one warning.
+         * tab's name, the warnings; (a2), since 1.2.123 (the audit's r122-G-1), a second card pressed on the tables the first one
+         * filled, nothing touched. The windows closed after. Red at 21bf5d18: (a) the name empty, one warning; at 14bb0d92:
+         * (a2) the name the first card's, one warning.
          */
         needs(env.dialogs(), "the item tables are drawn");
         must(game.user.isGM, "the item tables are a GM's");
@@ -106188,6 +106190,13 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await until(() => open().length === 1 && open()[0] !== drawn && nameNow() === "SUITE CTRL-25 crowbar", 6000);
             await settle();
             read.a = [open().length, nameNow(), warned()];
+            // (a2) a second card on tables the first card filled, nothing touched: the name is the card's, not typed
+            // (1.2.123, the audit's r122-G-1).
+            const filled = open()[0];
+            waits.push(Promise.resolve().then(() => M.runCallAction("createItem", { category: "tool", tier: "1", room: "", want: "SUITE CTRL-25 ladder" })).catch(() => null));
+            await until(() => open().length === 1 && open()[0] !== filled && nameNow() === "SUITE CTRL-25 ladder", 6000);
+            await settle();
+            read.a2 = [open().length, nameNow(), warned()];
             const text = open()[0]?.element?.querySelector('[name="newText"]');
             must(text, "the New item tab has no description box - (b) would measure nothing");
             text.value = "SUITE CTRL-25 half typed";
@@ -106203,7 +106212,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await Promise.race([Promise.all(waits), wait(3000)]);
             await settle();
         }
-        equal(stableJson(read), stableJson({ a: [1, "SUITE CTRL-25 crowbar", 0], b: [1, true, "", 1] }),
+        equal(stableJson(read), stableJson({ a: [1, "SUITE CTRL-25 crowbar", 0], a2: [1, "SUITE CTRL-25 ladder", 0], b: [1, true, "", 1] }),
             "the open item tables did not take the card's preset, or took it over typed text ({a, b: [windows open, the same window (b), the New item name, warnings]})");
     }],
     ["1.2.122 REFR-17 - a Despair Call's confirmation follows the Despair its pool owes: a conversion's debt written while the window stands open changes the header's spendable sum (calls.mjs `confirmCall`'s live header; despair.mjs `spendableDespair`; the audit's REFR-17, the header's half)", async () => {
@@ -106295,6 +106304,43 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ made: true, deleted: true, ticked: true }),
             "Contraband's picker did not follow the student's items, or lost the row ticked ({made, deleted: the rows followed; ticked: the second still ticked})");
     }],
+    ["1.2.123 r122-G-8 - a Call's project picker follows Daggerheart's countdowns while it stands open: a project finished meanwhile is no longer offered to a Call that moves progress (call-pickers.mjs `pickProject`'s `follow`; the audit's r122-G-8, the rest of REFR-17)", async () => {
+        /*
+         * The audit of 1.2.122 (r122-G-8): the project picker's rows were woken by tokens and drpgProjectSightChanged, and a
+         * project's progress - so whether it is finished - lives in `daggerheart.Countdowns`, a setting of another system
+         * the live region's filter drops unless it is named (live.mjs `settingKeys`). As the GM: a project made for the run
+         * (2 to go, in no room); Patronage's picker opened (`pickTarget`, not awaited; a stand-in buyer in no room, so the
+         * list is the GM's every project); the project finished (`addProgress`). Read: whether it is offered before and
+         * after. The project and the window gone after. Red at 14bb0d92: still offered after.
+         */
+        needs(env.dialogs(), "the picker is drawn");
+        must(game.user.isGM, "Patronage is a GM's Call");
+        const P = await import("./projects.mjs");
+        const C = await import("./call-pickers.mjs");
+        const { DESPAIR_CALLS } = await import("./config.mjs");
+        const call = DESPAIR_CALLS.favoriteProject;
+        must(call?.target === "project" && call.progress, "no Patronage (`favoriteProject`) aimed at a project's progress - this would measure nothing");
+        const buyer = { id: "SUITEG8Buyer0001", name: "SUITE G8 buyer", type: "character" };
+        let id = null, open = null;
+        const read = {};
+        const offered = () => [...document.querySelectorAll(".drpg-choice-list input[name='choice']")].some(r => r.value === id);
+        try {
+            id = (await P.createProject({ name: "SUITE G8 the rig", target: 2, room: null }))?.id ?? null;
+            must(id, "the project could not be made - this would measure nothing");
+            await settle();
+            open = C.pickTarget(buyer, call, "despair").catch(() => null);
+            read.before = Boolean(await until(() => offered(), 6000));
+            await P.addProgress(id, 2);
+            read.after = !(await until(() => !offered(), 3000));
+        } finally {
+            for (const app of [...foundry.applications.instances.values()].filter(a => a.element?.querySelector?.(".drpg-choice-list"))) await app.close();
+            if (open) await Promise.race([open, wait(3000)]);
+            if (id) await P.deleteProject(id).catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ before: true, after: false }),
+            "the project picker did not follow a project finished meanwhile ({before, after: the project offered})");
+    }],
     ["1.2.122 COMM-26 - two restrictions written at the same moment both stand, and a seal or a restriction is a GM's alone on the primary: a player's `call.world` is refused (call-world.mjs `restrict`, `writeCallWorld`; bridge-table.mjs `call.world`; the audit's COMM-26)", async () => {
         /*
          * The audit of 1.2.118 (COMM-26): sealRoom and restrict read the world setting on this GM's browser, added one entry
@@ -106329,13 +106375,43 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson([[true, true], true, true, "gmOnly"]),
             "two restrictions at once did not both stand, or a player's call.world was not refused as a GM's ([both answers, the first silenced, the second silenced, the refusal's reason])");
     }],
-    ["1.2.122 COMM-36 - Contraband tells the owner of the item it destroys, privately, as Silence and Chain tell theirs (call-effects.mjs `destroyItemEffect`, `tell`; the audit's COMM-36)", async () => {
+    ["1.2.123 r122-G-7 - a seal lifted and another written in the same moment both hold: the lift, a rename's carry, the time of day's clear and the boundary's put-back write in the same queue as Seal, Silence and Chain (call-world.mjs `liftSeal`, `carrySealedRoom`, `clearSeals`, `putBackSeals`; the audit's r122-G-7, the rest of COMM-26)", async () => {
+        /*
+         * The audit of 1.2.122 (r122-G-7): since COMM-26 the primary writes a seal or a restriction one after another
+         * (`serialWrite` on "drpg-call-world"), but liftSeal (a breach), carrySealedRoom (a rename), clearSeals and
+         * putBackSeals read and wrote the same settings outside that queue, so a lift and a queued seal could each read
+         * the list before the other's write and one undo the other. On this primary GM: "SUITE G7 Kitchen" sealed; then
+         * its lift and a seal of "SUITE G7 Library" started in the same tick. Read: the sealed list after. Put back after.
+         * Red at 14bb0d92: the Kitchen sealed again.
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which writes the seals - this would measure nothing");
+        const W = await import("./call-world.mjs");
+        const was = foundry.utils.deepClone(getSetting(SETTINGS.sealedRooms) ?? []);
+        let read = null;
+        try {
+            must(await W.sealRoom("SUITE G7 Kitchen"), "the Kitchen could not be sealed - this would measure nothing");
+            await settle();
+            const answers = await Promise.all([W.liftSeal("SUITE G7 Kitchen"), W.sealRoom("SUITE G7 Library")]);
+            await settle();
+            const sealed = W.sealedRooms();
+            read = [answers, sealed.includes("SUITE G7 Kitchen"), sealed.includes("SUITE G7 Library")];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.sealedRooms, was);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[1, true], false, true]),
+            "a lift and a seal in the same moment did not both hold ([the lift's and the seal's answers, the Kitchen still sealed, the Library sealed])");
+    }],
+    ["1.2.122 COMM-36 - Contraband tells the owner of the item it destroys, privately, as Silence and Chain tell theirs, on a veiled card that names neither the owner as its speaker nor its readers (call-effects.mjs `destroyItemEffect`, `tell`; the audit's COMM-36, and r122-G-2 of 1.2.123)", async () => {
         /*
          * The audit of 1.2.118 (COMM-36): the item was deleted on the GM and the public card named only the item; its
          * owner was told nothing, where every other Despair Call aimed at a student tells the student. An item given to a
          * student here, Contraband's effect run on this GM through `applyCall` (nothing is paid: the effect alone); read
          * the private words sent to the owner's players (`wordsSent`). The item is gone after, as the Call does; the cards
-         * are deleted. Red at 21bf5d18: no words to the owner.
+         * are deleted. Red at 21bf5d18: no words to the owner. Since 1.2.123 (the audit's r122-G-2) also the card's document:
+         * veiled, so its speaker is not the owner and its audience is everyone - the public card names the item, and an
+         * unveiled stub spoken as the owner named who carried it to any console. Red at 14bb0d92: the stub not veiled.
          */
         needs(world.atLeast("livingStudents", 1), "a student whose item is destroyed");
         const INV = await import("./inventory.mjs");
@@ -106345,7 +106421,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         must(readers.length, `${owner.name} has no player - this would measure nothing`);
         const NAME = "SUITE COMM-36 crowbar";
         const from = game.messages.contents.length;
-        let item = null, told = null, gone = null;
+        const S = await import("./secret.mjs");
+        let item = null, told = null, gone = null, stub = null;
         try {
             item = await INV.grantItem(owner, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
             must(item, "the item could not be given - this would measure nothing");
@@ -106355,12 +106432,14 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             });
             gone = !owner.items.get(item.id);
             told = packets.filter(w => w.to.some(id => readers.includes(id)) && w.html.includes(NAME)).length;
+            const card = game.messages.contents.slice(from).find(m => String(S.secretHtml(m) ?? "").includes(NAME) && m.speaker?.alias !== undefined);
+            stub = card ? [S.isVeiled(card), card.speaker?.actor === owner.id] : "no card";
         } finally {
             if (item && owner.items.get(item.id)) await owner.items.get(item.id).delete();
             for (const m of game.messages.contents.slice(from)) await m.delete().catch(() => {});
             await settle();
         }
-        equal(stableJson([gone, told]), stableJson([true, 1]), "Contraband did not destroy the item, or did not tell its owner once ([gone, private words to the owner's players naming it])");
+        equal(stableJson([gone, told, stub]), stableJson([true, 1, [true, false]]), "Contraband did not destroy the item, or did not tell its owner once on a veiled card ([gone, private words to the owner's players naming it, [the card veiled, spoken as the owner]])");
     }],
     ["1.2.122 COMM-38 - a Call aimed at a secret project names it in its confirmation as the picker did, not \"???\" (calls.mjs `describeChoice`, projects-secrecy.mjs `shownName`; the audit's COMM-38)", async () => {
         /*

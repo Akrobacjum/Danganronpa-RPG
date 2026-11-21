@@ -132,19 +132,41 @@ function followTheKey() {
  * gives way to their list, which the fieldset's one `change` listener writes like the others. Which of the three a real
  * browser raises when the microphone is allowed is not read at a table (R8284 raises `devicechange` on a stand-in).
  */
+/* A CLOSED WINDOW'S NOTE FOLLOWS NOTHING (1.2.123, the audit's r122-G-5). The listeners stopped only once a recheck found
+   the microphones named, so on a browser that never names them every opening of the settings window added a set that
+   read the devices on every event for the rest of the page. Each set now stops at the first event after its note has left
+   the page, and a new fieldset stops every set whose note is gone (`micFollowers`), so the ones standing are the open
+   windows'. */
+const micFollowers = new Set();
+
 function followTheMic(fieldset, client, settings, label) {
+    // A fieldset is built for one settings window at a time (`alreadyOpen` raises the one standing), so a note off the
+    // page when the next is built belongs to a window that closed.
+    for (const follower of [...micFollowers]) if (!follower.note.isConnected) follower.stop();
     const note = fieldset.querySelector(".drpg-voice-panel-mic-note");
     if (!note) return;
     const media = globalThis.navigator?.mediaDevices;
     let permission = null, hook = null, done = false;
     const stop = () => {
         done = true;
+        micFollowers.delete(follower);
         media?.removeEventListener?.("devicechange", recheck);
         permission?.removeEventListener?.("change", recheck);
         if (hook !== null) Hooks.off("rtcSettingsChanged", hook);
     };
+    // Gone once it has been on the page and left it: built and not yet placed (settings-window.mjs `placeVoice` puts it in
+    // at the window's render) is not gone.
+    let seen = false;
+    const gone = () => {
+        if (note.isConnected) seen = true;
+        return seen && !note.isConnected;
+    };
+    const follower = { note, stop };
+    micFollowers.add(follower);
     async function recheck() {
         if (done) return;
+        if (gone()) return stop();
+        if (!note.isConnected) return;
         const sources = await devices(client, "getAudioSources");
         if (done || unnamed(sources)) return;
         if (note.isConnected) note.replaceWith(deviceRow(label, "voice:audioSrc", sources, settings?.client?.audioSrc));

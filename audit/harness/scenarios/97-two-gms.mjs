@@ -35,7 +35,8 @@
  *      gm2's own rewrite reaches p2 cut too (K2). Red at e515907d: K1 and K2 named her. And her reveal on gm reaches
  *      gm2, connected, which forgets the same masked rows (K4; 1.2.122 line CORE, r121-M-3; red at 21bf5d18).
  *   M  1.2.122, the owner's decision of 21.11.2026: the second GM's Play and Stop the track, carried out on the primary
- *      and read there (M1, M2); and the second GM's Silence through `call.world` (M3, the audit's COMM-26).
+ *      and read there (M1, M2); and the second GM's Silence through `call.world` (M3, the audit's COMM-26); and why a
+ *      second GM's Play did not play, told to that GM and not the primary (M4, 1.2.123, the audit's r122-G-6).
  *
  * What this cannot see: a real F5 (a new process with the old localStorage, no cookie, IndexedDB or cache; the
  * order of "inactive", "active" and `ready` on v14 is LIVE-E30-05 and LIVE-E04-12), and a real server's delivery
@@ -692,6 +693,26 @@ export async function run(api) {
         for (const id of m.made) { const p = game.playlists.get(id); if (p) { await p.stopAll().catch(() => {}); await p.delete(); } }
         const cue = game.playlists.get(m.cue); if (cue) for (const s of cue.sounds.filter(s => s.name === "E122M cue")) await s.delete();
         delete globalThis.__e122m; return true;`, { timeout: 60000 });
+    /* WHY A PLAY DID NOT PLAY, SAID TO THE GM WHO PRESSED (1.2.123, the audit's r122-G-6): gm2 presses Play on a track the
+       cue playlist does not hold (the playlist itself is gone when the phase made it). Read: the warnings each GM was shown. Red at 14bb0d92: "Pick a track first." on gm, who
+       pressed nothing, and on gm2 the bridge's "was not carried out" alone. */
+    const WARNS = `globalThis.__e123warns = []; globalThis.__e123warn = ui.notifications.warn;
+        ui.notifications.warn = text => { globalThis.__e123warns.push(String(text)); }; return true;`;
+    const UNWARNS = `ui.notifications.warn = globalThis.__e123warn; const got = globalThis.__e123warns;
+        delete globalThis.__e123warns; delete globalThis.__e123warn; return got;`;
+    await gm.eval(WARNS);
+    await gm2.eval(WARNS);
+    const missingM = await gm2.eval(`${MUSIC} return Boolean(await P.playTrack("E123 no such track"));`, { timeout: 60000 });
+    await settle(800);
+    // The cue playlist is gone by now when the world had none (the phase deleted what it made): either reason is the primary's.
+    const reasons = await gm.eval(`const C = ${imp("config.mjs")}; return [game.i18n.localize("DRPG.Music.noTrack"),
+        game.i18n.format("DRPG.Music.noSituational", { name: C.SITUATIONAL_PLAYLIST })];`);
+    const told = list => list.some(w => reasons.includes(w));
+    const warnsGm = await gm.eval(UNWARNS);
+    const warnsGm2 = await gm2.eval(UNWARNS);
+    check("M4: the second GM's Play of a track the cue playlist does not hold (or with no cue playlist) is told why to the second GM, in its words, and not to the primary",
+        missingM === false && told(warnsGm2) && !told(warnsGm), J({ missingM, warnsGm, warnsGm2 }));
+
     /* AND A DESPAIR CALL'S RESTRICTION FROM THE SECOND GM (1.2.122, the audit's COMM-26): gm2's Silence is asked of the
        primary (`call.world`) and written there; read on gm, and the restrictions put back on gm after (a restriction is
        lifted by the end of its time of day, call-world.mjs `clearSeals`, not by a Call). Red at d4d1ddec: the row's
