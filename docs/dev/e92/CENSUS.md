@@ -69,6 +69,7 @@ ones.
 | roll-draw.mjs:265 | a sheet roll's actor | character here |
 | settings.mjs:3221, 4249, 4264 | own characters; sheet hooks | character here |
 | sfx.mjs:299 | whether this account is in the incident | character here |
+| window-scale.mjs `isCharacterSheet` (1.2.122 line UI, UI-09: one test where `scaleWindow` had two, the sheet hooks settings.mjs:4249, 4264 named before E54 W3 moved them) | the character's own sheet, sized under the glass | character here: a Spectator's sheet is a character sheet, and sized as one |
 | sheet-audit.mjs:783, 803, 927, 1215, 3226, 3320 | the audit's marks | character here: its flag is held there (C1, `GM_FLAGS`) |
 | sheet-mode.mjs:152 | sheet renders | character here (the mode is `sheetMode`'s, C5) |
 | sheet-repaint.mjs:171 | sheet renders | character here (the mode is `sheetMode`'s, C5) |

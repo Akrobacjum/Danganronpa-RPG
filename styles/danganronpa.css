@@ -13341,14 +13341,15 @@ body.drpg-reduced-motion #drpg-messenger-roster.leaving { opacity: 0; }
    button's glyph and the roster's edge rgb(224, 24, 47)). With the messenger's rules moved into base.css,
    which loads before the themes, the two dead lines would have started to win; they are gone, and what the
    screen showed stays. */
-#drpg-messenger-launcher,
 #drpg-messenger-roster {
     border-radius: var(--drpg-panel-radius, 4px);
 }
 
 #drpg-messenger-launcher {
     /* The one round thing in the module, and it stays round: it is a button
-       floating over the map, not a panel. */
+       floating over the map, not a panel. Its radius is stated here alone: the
+       panel radius above was the roster's and the launcher's both, and this rule
+       took the launcher's back at once (the audit of 1.2.118, UI-15). */
     border-radius: 50%;
 }
 

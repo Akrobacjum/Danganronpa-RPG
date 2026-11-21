@@ -117,6 +117,9 @@ body {
     --drpg-kit-role-cancel: var(--drpg-bone);
     --drpg-kit-role-secondary: var(--drpg-bone);
     --drpg-kit-role-destructive: var(--drpg-crimson);
+    /* a destructive control's WORDS, where the role's colour is text, not an edge (the audit of 1.2.118, UI-11): the role's
+       own colour under Legacy; under the glass the GM's light red (below) */
+    --drpg-kit-role-destructive-ink: var(--drpg-kit-role-destructive);
     /* the roles' faces (E22 C6b, 07.11.2026; D11 and the owner's P-B of 04.09, audit S12-58): danganronpa.css's dialog
        footer rule reads `--drpg-kit-face-*`, which each role's rule below sets from these - the primary Bone with the
        stronger Bone edge (it was the eye's red, so "Roll" read like "Send it to the GM"), the GM's road the eye's wash
@@ -241,6 +244,9 @@ body.drpg-theme-stained-glass {
     --drpg-kit-role-cancel: var(--drpg-sg-bone);
     --drpg-kit-role-secondary: var(--drpg-sg-bone);
     --drpg-kit-role-destructive: var(--drpg-sg-gm);
+    /* The GM's dark red is an edge, never a letter (the 14.09 review; stained-glass.css's 0 rules): #e0182f as text on Ink
+       is 2.9:1. A destructive control's words take the light red, #ff5566, 6.46:1 on opaque Ink (UI-11). */
+    --drpg-kit-role-destructive-ink: var(--drpg-sg-gm-light);
     --drpg-kit-notice-seam-hope: var(--drpg-sg-hope);
     --drpg-kit-notice-seam-fear: var(--drpg-sg-despair);
     --drpg-kit-notice-seam-evidence: var(--drpg-sg-evidence);
@@ -2871,7 +2877,7 @@ body .application.drpg-ui.drpg-window-tables .drpg-table-heading h4 { margin: 0 
 .drpg-window-tables .drpg-room-filter { display: flex; align-items: center; gap: var(--drpg-kit-gap); margin: 0 0 6px; }
 body .application.drpg-ui.drpg-window-tables .drpg-room-filter > select { flex: 0 1 auto; width: auto; min-width: 0; max-width: 100%; }
 .drpg-window-tables .drpg-room-groups > .drpg-room-group[hidden] { display: none; }
-.drpg-window-tables :is([data-drpg-delete-table], .drpg-table-items [data-drpg-drop]) { color: var(--drpg-kit-role-destructive); }
+.drpg-window-tables :is([data-drpg-delete-table], .drpg-table-items [data-drpg-drop]) { color: var(--drpg-kit-role-destructive-ink); }
 body.drpg-theme-stained-glass .drpg-window-tables :is([data-drpg-delete-table], .drpg-table-items [data-drpg-drop]) {
     --brush: var(--drpg-sg-gm);
     --brush-edge: var(--drpg-sg-gm);
@@ -3907,7 +3913,7 @@ body .application.drpg-window-projects .drpg-data-table td.drpg-data-col-viewer 
 body .application.drpg-window-projects .drpg-data-table th.drpg-data-col-viewer { vertical-align: bottom; padding: 4px 3px; letter-spacing: 0; }
 body .application.drpg-window-projects .drpg-data-table th.drpg-data-col-viewer > span.drpg-data-clamp { width: min-content; line-height: 1.15; }
 /* Delete (the owner's M16 note: a button, not a box read at Save) in the destructive role's colour */
-body .application.drpg-window-projects .drpg-kit-icon-button.drpg-role-destructive { color: var(--drpg-kit-role-destructive); }
+body .application.drpg-window-projects .drpg-kit-icon-button.drpg-role-destructive { color: var(--drpg-kit-role-destructive-ink); }
 /* the table, a little room, then the two notes as one block centred in the window, as the intro above (the owner's
    09.11 note on the mockup); the grey of the kit's fine print kept */
 body .application.drpg-window-projects .drpg-data-table-box { margin-block-end: 8px; }

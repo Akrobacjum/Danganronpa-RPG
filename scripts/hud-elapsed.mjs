@@ -274,12 +274,14 @@ export function stopElapsed() {
  * WRITTEN ONLY WHEN THE WORDS CHANGE, BECAUSE SOMEBODY IS WATCHING THE DOM.
  *
  * `el.textContent = x` replaces the element's children even when `x` is what is
- * already there, and that is a childList mutation. `#drpg-hud` lives in
- * `#ui-left-column-1`, which a11y.mjs observes with `subtree: true`, so every
- * such write runs the accessibility sweep. The elapsed line is the most regular
- * writer in the module - a ten-second interval at rest and a one-second one for
- * the whole length of a Class Trial - and it prints WHOLE MINUTES, so at rest
- * five of every six writes said exactly what the line already said. The comment
+ * already there, and that is a childList mutation. `#drpg-hud` is one of the
+ * hosts a11y.mjs observes with `subtree: true` (its SURFACES, since E48 K4), so
+ * every such write runs the accessibility sweep. The elapsed line is the most
+ * regular writer in the module - a ten-second interval, always (`buildElapsed`;
+ * a Class Trial draws no line at all, `showsStopwatch`, and the debate's
+ * per-second clock is the Event panel's) - and it prints WHOLE MINUTES, so five
+ * of every six writes said exactly what the line already said (the audit of
+ * 1.2.118, D-119, D-255: this note named the left column and a one-second tick). The comment
  * on the interval below already explains that a per-second tick "would repaint
  * sixty times for each visible change"; this is the other half of that argument,
  * for the ticks that survived it.

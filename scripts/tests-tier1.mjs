@@ -59974,7 +59974,7 @@ const INVARIANTS = [
             "fog.mjs": 5, "gm-stores.mjs": 3, "gm-students.mjs": 1, "gm-team-dialog.mjs": 2, "hud.mjs": 1, "monocub.mjs": 2, "monokuma.mjs": 8,
             "movement.mjs": 2, "palm.mjs": 1, "passages-gm.mjs": 3, "passages.mjs": 1, "patches.mjs": 1, "player-status.mjs": 1,
             "private-rolls.mjs": 1, "projects-ui.mjs": 1, "projects.mjs": 1, "relay-guard.mjs": 2, "reroll.mjs": 1, "roll-dialog.mjs": 1,
-            "roll-draw.mjs": 1, "settings.mjs": 1, "window-scale.mjs": 2, "sfx.mjs": 1, "sheet-audit.mjs": 6, "sheet-mode.mjs": 1, "sheet-inventory.mjs": 1, "sheet.mjs": 1, "sheet-repaint.mjs": 1, "sheet-sidebar.mjs": 2, "spectator-dead.mjs": 1, "spectator.mjs": 1, "states.mjs": 1, "trial-scene.mjs": 4,
+            "roll-draw.mjs": 1, "settings.mjs": 1, "window-scale.mjs": 1, "sfx.mjs": 1, "sheet-audit.mjs": 6, "sheet-mode.mjs": 1, "sheet-inventory.mjs": 1, "sheet.mjs": 1, "sheet-repaint.mjs": 1, "sheet-sidebar.mjs": 2, "spectator-dead.mjs": 1, "spectator.mjs": 1, "states.mjs": 1, "trial-scene.mjs": 4,
             "trial-zones-ui.mjs": 1, "user-match.mjs": 3, "visibility.mjs": 2, "voice.mjs": 4 };
         const counted = {};
         for (const [file, text] of await otherSources()) {
@@ -64643,6 +64643,37 @@ const INVARIANTS = [
             /seen by the owner on the token HUD's shots with 1\.2\.120/.test(g.from ?? ""), /not in a drawing round of its own/.test(g.from ?? "")])),
         stableJson([["legacy:lock-open", false, true, true], ["legacy:stairs", false, true, true], ["glass:lock-open", false, true, true]]),
         "[each HUD glyph row: its name, an old 'not seen / not approved', the shots seen with 1.2.120, no drawing round of its own]");
+    }],
+    ["R8435 - only a character's own sheet takes the sheet's size (the audit of 1.2.118, UI-09, its part left; 1.2.122 line UI): window-scale.mjs `isCharacterSheet` answers true for the window a character keeps as its sheet, and false for another window of the same character - Daggerheart's character settings, Configure Ownership - for a window of an actor of another type, and for a window with no document", async () => {
+        /* Red at 46da8a28: no `isCharacterSheet`; `scaleWindow` asked the document's type alone, so any window of a character
+           took SHEET_SIZE.glass and the place under the band. Stand-in windows and documents; nothing drawn or written. */
+        const W = await import("./window-scale.mjs");
+        must(typeof W.isCharacterSheet === "function", "window-scale.mjs has no isCharacterSheet - every window of a character takes the sheet's size");
+        const sheet = { id: "R8435-sheet" }, settings = { id: "R8435-settings" }, ownership = { id: "R8435-ownership" };
+        const actor = { type: "character", get sheet() { return sheet; } };
+        for (const app of [sheet, settings, ownership]) app.document = actor;
+        const npc = { document: { type: "adversary", get sheet() { return npc; } } };
+        const standIn = { document: { type: "character" } };
+        equal(stableJson([sheet, settings, ownership, npc, { document: null }, standIn].map(app => W.isCharacterSheet(app))),
+            stableJson([true, false, false, false, false, true]),
+            "[the character's sheet, its settings window, its ownership window, an adversary's sheet, no document, a stand-in document with no sheet]");
+        const src = stripComments((await moduleSources()).get("window-scale.mjs") ?? "");
+        const scale = fnSource(src, "scaleWindow");
+        equal(stableJson({ asks: (scale.match(/isCharacterSheet\(app\)/g) ?? []).length, raw: /app\?\.document\?\.type === "character"/.test(scale) }),
+            stableJson({ asks: 2, raw: false }), "{asks: scaleWindow's two tests of the sheet through isCharacterSheet; raw: a test of the type alone left}");
+    }],
+    ["R8436 - a destructive control's words are never the GM's dark red under the glass, and the messenger launcher's radius is stated once (the audit of 1.2.118, UI-11, UI-15; 1.2.122 line UI): components.css gives `--drpg-kit-role-destructive-ink` the light red under Stained Glass and the role's own colour under Legacy, the Item tables window's delete buttons and the Projects window's destructive icon read it, no rule sets `color` from `--drpg-kit-role-destructive` or `--drpg-sg-gm`, and the launcher is in no shared radius rule", async () => {
+        /* Red at 46da8a28: the two text rules read `--drpg-kit-role-destructive`, #e0182f under the glass (2.9:1 on Ink),
+           and the launcher took the panel radius in a shared rule before its own 50 %. Read off the sheets' text. */
+        const css = stripComments(await moduleStyles());
+        const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ sel: m[1].trim(), body: m[2] }));
+        const inkLegacy = rules.some(r => /--drpg-kit-role-destructive-ink:\s*var\(--drpg-kit-role-destructive\)/.test(r.body));
+        const inkGlass = rules.some(r => /stained-glass/.test(r.sel) && /--drpg-kit-role-destructive-ink:\s*var\(--drpg-sg-gm-light\)/.test(r.body));
+        const darkText = rules.filter(r => /(^|;|\s)color:\s*var\(--drpg-(kit-role-destructive|sg-gm)\)/.test(r.body)).map(r => r.sel);
+        const readers = rules.filter(r => /color:\s*var\(--drpg-kit-role-destructive-ink\)/.test(r.body)).length;
+        const shared = rules.filter(r => /border-radius/.test(r.body) && r.sel.split(",").length > 1 && r.sel.split(",").some(s => s.trim() === "#drpg-messenger-launcher")).length;
+        equal(stableJson({ inkLegacy, inkGlass, darkText, readers, shared }), stableJson({ inkLegacy: true, inkGlass: true, darkText: [], readers: 2, shared: 0 }),
+            "{inkLegacy, inkGlass: the words' token in each theme; darkText: rules whose words are the dark red; readers: rules reading the words' token; shared: shared radius rules naming the launcher}");
     }],
 ];
 

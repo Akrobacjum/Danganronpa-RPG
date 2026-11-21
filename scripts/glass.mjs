@@ -1985,9 +1985,9 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
          The lean a strip's outer edge can afford is its lean over its RUN, and a rail is
          nearly as tall as the screen: 48 px of lean over 924 is 3 degrees, and at the bottom
          of that range the tiles simply look vertical (Dawid, 07.09). The direction is the
-         edge's - the rail must lean the way its own glass does - and the size is at least
-         RAIL_LEAN. The shard already reserves the swing of MAX_TILT, which is larger than
-         this, so a rail leaning a little harder than its edge still stands inside its glass. */
+         edge's - the rail must lean the way its own glass does. The note below says what the
+         size is now: the edge's own angle, and the band reserves the swing at RAIL_LEAN
+         (glass-geometry.mjs `railSwing`), no longer at MAX_TILT. */
       /* THE EDGE'S OWN ANGLE, NOT A CONSTANT NEXT TO IT. `RAIL_LEAN` was a floor on the
          rotation, which is the wrong end of the problem: if a strip cannot lean, that is a
          strip too narrow, not a rail too upright. The edge is now cut to `STRIP_ANGLE`, so
@@ -3418,7 +3418,8 @@ function tileButtons(rail) {
    `moduleLayout`'s now ("MARGIN, NOT PADDING"), which clears that padding in the same pass, as `unmount` does, so the
    `placeTiles` that cleared it once more answered false on every pass and went, with the watchdog's `j.placed`. */
 
-/** A one-line account of the curtain for the Look dialog: frame, panes, the self-check, the tiles. */
+/** A one-line account of the curtain: frame, panes, the self-check, the tiles. Read by the watchdog's log line
+ *  (`registerGlass`) alone; no dialog shows it (the audit of 1.2.118, D-243). */
 export function glassReport() {
   const j = curtains[0], c = CHECKS[0];
   // and it says WHY there is no curtain, because "no curtain mounted" on a phone is the

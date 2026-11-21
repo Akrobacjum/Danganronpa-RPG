@@ -19,29 +19,10 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 
-// `availableCrisisActions` and `isTheirTurn` went to the Direct Murder tile's
-// menu with the crisis grid - see `openCrisisMenu` in action-murder.mjs.
-
-// Two different rules, each under its own name since 1.2.69 (E33 C9, D39): the
-// crime-witness marker on a Monocub (information only - it refuses nothing) and
-// the Despair Call "Silence" on a living student (no Hope Calls until the time of
-// day ends). Until then both arrived under one bare name and were renamed at this door,
-// which is how a reader of this file took one for the other.
-
-// `equippedFor` went with the clean-up panel's "what you have readied" note -
-// the Tamper menu says it now, where the roll it applies to is chosen.
-
-// `bodyIsHere` moved with the three Stage 6 actions - the Tamper menu asks it
-// now (action-rolls.mjs), because that is where the body tile lives.
-
-// The price a tile is about to charge, quoted from the same table the charge
-// reads (T-1). Synchronous by design - this file calls it from a render path.
-
-// The sheet's 'Known passages' (E79 C7): this browser's passages, the Mastermind as the GMs hold it, and the
-// rooms named as Listen names them - a room this viewer has not found is "Unexplored room n".
-
-// `sabotageTargetsIn` used to be imported here for the tile that no longer
-// exists; the question is asked in action-rolls.mjs now, where the menu is.
+// Notes on imports this file had before E54 cut it to a facade (the crisis grid's, the two Silence rules', the readied
+// tools', the Stage 6 actions', the tile's price quote, the Known passages' readers, the sabotage targets) stood here over
+// imports it no longer makes; each went with its code into the family file of its role (sheet-actions.mjs and the others,
+// .claude/rules/code.md's table). The audit of 1.2.118, D-262.
 
 import { error, markLanguage, markFired } from "./utils.mjs";
 
@@ -116,7 +97,9 @@ export function registerSheetTweaks() {
      * character walked out, or the clock turned. What it cannot see is the
      * ledger itself changing under a character who has not moved: a trace
      * erased, one planted, a chapter's sweep. All three are writes to
-     * `remnantSecrets`.
+     * `remnantSecrets` - the GMs' store, written on GMs' browsers alone, with no
+     * player copy - so this listener runs on a GM's browser only; a player's is
+     * the token listener below (the audit of 1.2.118, UI-34 and D-263).
      *
      * `clientSettingChanged`, NOT `updateSetting`, AND THIS LISTENER DID
      * NOTHING AT ALL UNTIL E17. `updateSetting` is a DOCUMENT hook, and

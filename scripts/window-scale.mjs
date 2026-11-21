@@ -1,6 +1,7 @@
 /**
- * The slider scaling of a module window box (E54, the plan W3): `registerWindows` stands `scaleWindow` on the two render
- * hooks with the readers module.mjs hands it (the slider, the layout height, whether the settings are registered), the
+ * The slider scaling of a window box (E54, the plan W3) - every window with a numeric width, Foundry's and other modules'
+ * as well as the module's own, as the Interface scale setting's hint says (the audit of 1.2.118, D-260: this said "a
+ * module window box"): `registerWindows` stands `scaleWindow` on the two render hooks with the readers module.mjs hands it (the slider, the layout height, whether the settings are registered), the
  * memo that keeps a re-render from compounding the scale (`scaleMemo`), the box a window asks for scaled and held on
  * the screen (`scaledBox`, `sheetBox`), and the sheet heights (`actionsTabHeight`, `callsHeight`, Q-E54-7). Moved out of
  * settings.mjs, which re-exports what it exported. windows.mjs (W1) holds the width that shows a table.
@@ -107,6 +108,18 @@ export function sheetBandFoot() {
     return feet.length ? Math.round(Math.max(...feet) + SHEET_BELOW_BAND) : null;
 }
 
+/**
+ * Whether `app` is a character's own sheet: its document a character and the window the one Foundry keeps as that
+ * actor's sheet (`actor.sheet`, which creates the sheet object, not a window, where none was made yet). Another window
+ * whose document is a character - Daggerheart's character settings, Configure Ownership - is not (UI-09). A stand-in
+ * document with no `sheet` at all (the suite's) is read by its type alone, as before. R8435.
+ */
+export function isCharacterSheet(app) {
+    const doc = app?.document;
+    if (doc?.type === "character") return !("sheet" in doc) || doc.sheet === app;
+    return false;
+}
+
 export function scaleWindow(app, element, _context, options) {
     if (!windowReaders?.registered()) return;
     const el = element instanceof HTMLElement ? element : element?.[0];
@@ -144,9 +157,11 @@ export function scaleWindow(app, element, _context, options) {
        AND ABOUT ONE WINDOW, ASKED BY ITS DOCUMENT (UI-09). A class-name match on
        "actor" also caught Foundry's Actors sidebar tab and any window with the word
        in its name, and `documentName === "Actor"` caught NPC sheets - all of them
-       were forced to this size and lost their resize handle. */
-    if (document.body.classList.contains("drpg-theme-stained-glass")
-        && app?.document?.type === "character") {
+       were forced to this size and lost their resize handle. And the document's type alone
+       still took any other window of a character - Daggerheart's character settings (the
+       wrench), Configure Ownership - for the sheet: so the window must be the actor's own
+       sheet (`isCharacterSheet`; the audit of 1.2.118, UI-09, its part left). */
+    if (document.body.classList.contains("drpg-theme-stained-glass") && isCharacterSheet(app)) {
         /* 1160 high, NOT 940. Measured on the sheet: the tallest tab wants 820 px of room and
            was given 607, so the last row of Hope Calls was simply below the fold - the window
            was sized for the old, smaller type. The extra 213 px is that shortfall. The numbers
@@ -161,7 +176,7 @@ export function scaleWindow(app, element, _context, options) {
        Legacy, which keeps Daggerheart's size and was promised its handle (review of
        stage D): a one-way edit cannot follow a two-way switch, and a rule can. */
     if (!Object.keys(size).length) return;
-    if (options?.isFirstRender && app?.document?.type === "character") {
+    if (options?.isFirstRender && isCharacterSheet(app)) {
         const foot = sheetBandFoot();
         if (foot !== null && foot < h / 2) {
             size.top = foot;
