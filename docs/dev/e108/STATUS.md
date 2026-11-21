@@ -71,7 +71,7 @@ settings-window.mjs:90) is one Boolean: on, every user below full Gamemaster hol
 So the owner's "only Dice So Nice's dice" is accurate: on 2.12.8 the switch can only force the GM's Dice So Nice look,
 and there is no way to choose Daggerheart's.
 
-A gap found on the way (**read**, not reported by the owner; closed for 1.2.113, "Q-E108-2 built" below): with the switch on, a player's own look for a role -
+A gap found on the way (**read**, not reported by the owner; closed in 1.2.112, "Q-E108-2 built" below): with the switch on, a player's own look for a role -
 `roleAppearance` on its User or its actor - is never written or put back. The module's write replaces `appearance`,
 `sfxList` and DSN 6.4's `saved` marker (dice-sync.mjs:1095); `roleAppearance` appears nowhere in scripts/. So today a
 player who sets a Hope die of its own in Dice So Nice 6.4's Dice Roles throws it, forced look or not. Whether any player
@@ -94,7 +94,7 @@ One choice, three values, in the game's settings, Rolls and privacy, where the s
 | Value | Basic dice of users below full GM | Hope, Fear, advantage, disadvantage dice |
 | --- | --- | --- |
 | Each player's own | their own (nothing written; today's off) | their own |
-| Everyone: Dice So Nice | the source GM's DSN look (today's on) | as today: Daggerheart 2.9 and older the source GM's preset; 2.10 and later DSN's roles, the source GM's role looks since 1.2.113 (Q-E108-2), each thrower's own until then |
+| Everyone: Dice So Nice | the source GM's DSN look (today's on) | as today: Daggerheart 2.9 and older the source GM's preset; 2.10 and later DSN's roles, the source GM's role looks since 1.2.112 (Q-E108-2), each thrower's own until then |
 | Everyone: Daggerheart | the source GM's DSN look, as the value above (Daggerheart has none for them) | Daggerheart's own colorsets, on every screen, whoever throws - a GM too |
 
 **How the Daggerheart value is applied.** Display only, as E60 C5d laid the 2.9 preset: at `diceSoNiceRollStart` each
@@ -142,9 +142,13 @@ cannot draw Dice So Nice's 3D dice, so the page lists Daggerheart's four colorse
 
 ## Not tried, and open
 
-- What the throw looks like at a table, on each screen, in each value: LIVE-E108-01 (audit/AUDIT-1.2.42.md 9.2, row 508).
+- What the throw looks like at a table, on each screen, in each value: LIVE-E108-01 (audit/AUDIT-1.2.42.md 9.2, item 513).
 - The registry stamps R5460-R5466 with stage E93, not E108: tools/stages.json has no E108 (`registry.mjs --write --stage E108` refuses), and this stage may not edit stages.json. The coordinator's to add.
 ## Q-E108-2 built (13.11.2026, for 1.2.113; the coordinator's default, owner to confirm)
+
+Corrected 21.11.2026 (STG-79): it shipped in 1.2.112, not 1.2.113. The commit that built it, abe0972f, is an ancestor of
+the tag v1.2.112 and not of v1.2.111 (`git merge-base --is-ancestor`), and the 1.2.112 notes say it came with the line's tip.
+The heading keeps the date and the plan as they were written.
 
 The forced look now carries the source full Gamemaster's `roleAppearance` too (dice-sync.mjs `lookFrom`, "THE ROLE
 LOOKS"): written on every user below full Gamemaster with the appearance, compared, put back, and the source's own held to

@@ -437,7 +437,7 @@ export async function endEclipse({ advance = true } = {}) {
        player's map and flagged `veiled` in every browser's world data, a mark of a declaration that came to nothing.
        Now the room is read here by the judgement's own reading (`standingAtTheLights`), so a killer it cancels is never
        veiled, and one cancelled at the lights for any other reason - a second declaration, the GM's refusal, a refused
-       betrayal - is lifted as it is cancelled (`judgePendingMurders`, mask-gm.mjs `liftAtTheLights`). Tier 2 "E120 - the
+       betrayal - is lifted as it is cancelled (`judgePendingMurders`, mask-gm.mjs `liftAtTheLights`). Tier 2 "1.2.121 the
        lights veil only a killer they can still open". */
     try {
         await pendingMurderStore.whenHydrated();

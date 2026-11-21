@@ -104,7 +104,7 @@ export async function targetsOf(actor, scope, place) {
  * direct murder waits on its opening the killer is veiled, and the victim - not seated yet (settings.mjs `incidentSeats`),
  * so nothing stops their room action - stands beside them. An effect on those present falls on the killer too (the rules'
  * reading, `countsAsPresent`), and its line named them, in the answer the asker's window writes and on the card
- * `tellUse` whispers, whose cut covers masked names, not veiled ones (tier 2 "E120 - a room action used beside a killer
+ * `tellUse` whispers, whose cut covers masked names, not veiled ones (tier 2 "1.2.121 a room action used beside a killer
  * veiled ...", red at e515907d: the victim's lines and card held the killer's name). So a target's line is kept only when
  * every player who reads it - the sender and the user's owners, `whisperToOwner`'s readers - sees through the veil
  * (mask-gm.mjs `veilInsiders`), as a picker leaves the veiled out (`seenHere`); the effect is written all the same, and

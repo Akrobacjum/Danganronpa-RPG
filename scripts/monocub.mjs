@@ -1787,7 +1787,7 @@ function openBounties(user = null) {
  * mask-gm.mjs `nameAsSeen`), and a GM may put a Bounty on one; the cards that tell a Monocub's player were cut while the
  * mask stood (secret.mjs `wordsFor`), but the copy its owner is sent (`cubsFor`), which the sheet's panel writes
  * ("Your Ghost Bet: ...", "Bounty: ..."), named them in clear, and the lapse's card after the time of day ended the mask
- * named the student behind the "?" (tier 2 "E120 - a Monocub's Ghost Bet and a GM's Bounty on a masked student ...", red
+ * named the student behind the "?" (tier 2 "1.2.121 a Monocub's Ghost Bet and a GM's Bounty on a masked student ...", red
  * at e515907d: the copy named the killer while the mask stood and after; the lapse's words to the Monocub's player too).
  * So a bet or a Bounty made while its student stood behind a mask is marked (`masked`), and its name is "?" to every
  * player who does not play that student, in the copy and on the cards a lapse, a claim and a payment post to the

@@ -165,7 +165,7 @@ export async function setClock(patch = {}) {
        stamp (transitions.mjs `boardsOf`, `bodyBoardsOf`), the cast's portraits on them since F118. The roll-over, the other
        advances and the Morning Eclipse's start ended the masks first, each on its own road; End chapter's "next morning"
        (chapter.mjs, through `setTimeOfDay`) stamps both boards and ended none, so outside a trial both drew the masked
-       killer's place without a picture beside the real name (tier 2 "E120 - the masks end before every write of a day's
+       killer's place without a picture beside the real name (tier 2 "1.2.121 the masks end before every write of a day's
        board stamp", red at e515907d: no picture, the mask standing as the clock landed). Read here, on the clock's one
        writer, so a road that stamps a board later is held too (`writesBoardStamp`). */
     {

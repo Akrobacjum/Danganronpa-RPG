@@ -17939,7 +17939,7 @@ const SCENARIOS = [
         }
     }],
 
-    ["E120 - the lights veil only a killer they can still open, and lift one they cancel before they judge the next: never a killer the room alone cancels", async () => {
+    ["1.2.121 the lights veil only a killer they can still open, and lift one they cancel before they judge the next: never a killer the room alone cancels", async () => {
         /*
          * 1.2.121 line M2; the audit's DOC-01 (audit/findings-1.2.118, first-session old-1.1.88-1.2.13-A obs1, re-checked
          * open on 1.2.119). `endEclipse` veiled every declaration's killer before the lights judged (mask-gm.mjs
@@ -18021,7 +18021,7 @@ const SCENARIOS = [
             + "in order, each write of the veil to either killer's tokens and each card to either killer's player; a veil left on either)");
     }],
 
-    ["E120 - the masks end before every write of a day's board stamp, so the chapter end's next morning outside a trial draws no masked killer on either board", async () => {
+    ["1.2.121 the masks end before every write of a day's board stamp, so the chapter end's next morning outside a trial draws no masked killer on either board", async () => {
         /*
          * 1.2.121 line M2; the audit's STG-03 residue and N119-5 (two readers): End chapter with "next morning" moves the
          * clock through clock.mjs `setTimeOfDay` with the start board's stamp and the end board's (chapter.mjs, the
@@ -18164,7 +18164,7 @@ const SCENARIOS = [
             "a reader outside the mask was sent the killer's name, or not sent the words ([sent, the name in it]: asked while the mask stood; after it ended with the time of day; the killer's own player after; the card rewritten after; a card under a mask the killer revealed)");
     }],
 
-    ["E120 - a Monocub's Ghost Bet and a GM's Bounty on a masked student name them \"?\" to the Monocub's player while the mask stands and after it ends, until the killer reveals themselves", async () => {
+    ["1.2.121 a Monocub's Ghost Bet and a GM's Bounty on a masked student name them \"?\" to the Monocub's player while the mask stands and after it ends, until the killer reveals themselves", async () => {
         /*
          * 1.2.121 line M1 (21.11.2026), the audit's N119-2 and N119-3 (recheck-119.json; COMM-19's and COMM-24's residue).
          * A Monocub's Ghost Bet picker names a masked student "?" (monocub.mjs CUB_TARGETS.student, `nameAsSeen`), and a
@@ -18263,7 +18263,7 @@ const SCENARIOS = [
         }), "the Monocub's player was given the masked student's name, or not given the control's (the copy's Bounties and bet: while the mask stands, after the time of day ended it, after the killer revealed themselves; the cards to that player: [sent, the name in them] while it stands and at the lapse after it ended)");
     }],
 
-    ["E120 - a room action used beside a killer veiled for the opening leaves the killer out of what its user is told, card and answer, and names them once the veil is lifted", async () => {
+    ["1.2.121 a room action used beside a killer veiled for the opening leaves the killer out of what its user is told, card and answer, and names them once the veil is lifted", async () => {
         /*
          * 1.2.121 line M1 (21.11.2026), the audit's N119-1 (recheck-119.json; MAP-16's residue). While a direct murder waits
          * on its opening the killer is veiled (mask-gm.mjs `veilWanted`): the victim's browser does not draw them, and the
