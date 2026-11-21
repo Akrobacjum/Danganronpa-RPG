@@ -293,7 +293,7 @@
       },
       "lockRollDialog": {
         "name": "Lock the roll window for players",
-        "hint": "Players cannot change the dice, statistic, advantage, Experiences, or bonus in the roll window; those come from the action, a Hope Call, or the GM. GMs are unaffected."
+        "hint": "Players cannot change the dice, statistic, advantage, Experiences, or bonus in the roll window. Off: they can, but the GM's throw counts only what the action and Calls give. GMs are unaffected."
       },
       "roomVisibility": {
         "name": "Players only see who is in their room",
@@ -1309,6 +1309,7 @@
         "other": "The {n} Despair {pool} paid for it is back in the pool."
       },
       "bountyPaid": "You claim the Bounty on {name}: {n} Hope in your purse.",
+      "bountyKept": "No Hope can go into your purse now, so the Bounty on {name} stays open.",
       "bountyNoDespair": "Your pool has not the Despair for a Bounty.",
       "bet": "Bet",
       "betIntro": "Name who a right verdict will sentence. If it does, your purse gets 4 Hope before the body is announced, 3 after, 2 in the trial, 1 during the vote.",
@@ -1346,6 +1347,7 @@
       "inviteAccept": "I accept the Rule",
       "inviteDecline": "Not now",
       "invited": "{name} is invited. They become a Monocub once their player accepts the Monocub Rule.",
+      "invitedNoPlayer": "{name} is invited, but no player owns {name}, so nobody can accept yet. The invitation waits for a player you give the character to.",
       "inviteDeclined": "{name}'s player declined the Monocub invitation.",
       "inviteSent": "Invitation sent",
       "cancelInvite": "Withdraw",
@@ -3894,6 +3896,7 @@
       },
       "tail": {
         "nobody": "Nobody else stands in this room to tail.",
+        "gone": "{name} is not in this room any more.",
         "prompt": "Pick whom to follow. Shadow {n} or more and they do not notice you; below it they learn your name, but the tail goes on.",
         "who": "Whom",
         "unseenTitle": "Tail Someone: staying unseen",
@@ -4759,6 +4762,7 @@
       "diag": {
         "title": "Dice look",
         "open": "Open the dice look",
+        "copyFailed": "The report could not be copied. Select its text at the foot of the window and copy it by hand.",
         "introGm": "The dice look as seen here. A player's own look only they can check.",
         "introPlayer": "What this browser reads of your dice look. Copy the text at the foot of the window and send it to your GM.",
         "who": "User",
@@ -4807,7 +4811,7 @@
           "missingTexture": "Dice So Nice on this browser has no texture \"{name}\", so dice that use it are drawn with no texture here.",
           "missingMaterial": "Dice So Nice on this browser has no material \"{name}\", so dice that use it are drawn in the automatic material here.",
           "dsnApiMoved": "Dice So Nice {version} copies only part of the GM's look; players fill in the rest their own way.",
-          "rolesUnforced": "Daggerheart {version} colors its Hope and Despair dice by Dice So Nice roles, which the table's forced look does not set.",
+          "rolesUnforced": "Daggerheart {version} colors its Hope and Despair dice by Dice So Nice roles. The table's look is not forced on this browser, so they show its own role looks.",
           "otherBrowser": "{name}'s browser is not read here. Ask them to run game.drpg.diagnoseDiceLook() and send you its text."
         }
       }
@@ -5422,6 +5426,8 @@
       "noExperienceToRaise": "There is no experience to raise. Choose another improvement; the Level Up still waits.",
       "notOnSheet": "A pick names a statistic or an experience {name} does not have, so nothing was written.",
       "experienceNeedsName": "A new experience needs a name. That choice was skipped.",
+      "experienceNeedsNameGm": "A new experience needs a name. Nothing was written: open Level Up again and choose.",
+      "takeBackGone": "That Level Up offer for {name} no longer stands: it was spent or taken back.",
       "nothingToApply": "Nothing was selected, so nothing changed.",
       "unknownKind": "Unknown Level Up type: {kind}.",
       "failed": "The Level Up could not be saved. See the console.",
@@ -5887,6 +5893,11 @@
       "waitsForGm": "An action roll needs a GM, and no GM is connected, so the roll is not made.",
       "gmThrowing": "The GM is throwing your dice.",
       "unwitnessed": "Rolled with no GM connected, so it moves no Hope, Sanity, or Despair for now. A GM decides later whether to grant what it would have moved.",
+      "unwitnessedGranted": "Rolled with no GM connected; a GM granted what it would have moved.",
+      "unwitnessedNotGranted": "Rolled with no GM connected; a GM did not grant it, so it moves no Hope, Sanity, or Despair.",
+      "awayDecidedGrant": "Decided: granted.",
+      "awayDecidedNone": "Decided: not granted.",
+      "awayAlreadyDecided": "These rolls were already decided.",
       "awayTitle": "Rolls with no GM connected",
       "awayLine": "{name}: Hope die {hope}, Despair die {fear}; the roll would give {moves}",
       "awayHope": "+{n} Hope",

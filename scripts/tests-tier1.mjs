@@ -11469,7 +11469,8 @@ const INVARIANTS = [
         ].map(before);
         const written = /message\.updateSource\(\{ \[`flags\.\$\{MODULE_ID\}\.\$\{UNWITNESSED_FLAG\}`\]: \{ \.\.\.stamp \} \}\)/.test(fnSource(draw, "stampUnwitnessed"))
             && /Hooks\.on\("preCreateChatMessage", stampUnwitnessed\)/.test(fnSource(draw, "registerUnwitnessedRolls"));
-        const card = /if \(message\.getFlag\?\.\(MODULE_ID, UNWITNESSED_FLAG\) && [^\n]*\) \{\s*body\.insertAdjacentHTML\([^\n]*game\.i18n\.localize\("DRPG\.Rolls\.unwitnessed"\)/.test(fnSource(draw, "onRenderUnwitnessed"));
+        // Since 1.2.122 (REFR-54) the line follows the decision: the waiting line while undecided, the decided one after.
+        const card = /const stamp = message\.getFlag\?\.\(MODULE_ID, UNWITNESSED_FLAG\);[\s\S]*?!decided \? "DRPG\.Rolls\.unwitnessed"[\s\S]*?rollStatus\("unwitnessed", game\.i18n\.localize\(key\)\)/.test(fnSource(draw, "onRenderUnwitnessed"));
         const reaction = /\breaction: dice\?\.options\?\.actionType === "reaction"/.test(fnSource(draw, "awayRowOf"));
         const tells = /\)\s*\{\s*if \(reaction\) return game\.i18n\.localize\("DRPG\.Rolls\.awayNothing"\);/.test(fnSource(draw, "awayMoves"));
         const grant = fnSource(draw, "grantRolls");
@@ -32570,6 +32571,90 @@ const INVARIANTS = [
             "[whether the dissolve could be stood down, what its end did after the scene was left, whether a dissolve is busy, queued, the frames drawn before]");
     }],
 
+    ["R8381 - every supporting roll with an action key spends no Call on the GM's draw, as the roller's window shields it (1.2.122 line DESP; the audit's ROLL-18): each `rollTrait(..., { remember: false, actionKey: \"<key>\" })` in the module names a key of roll-draw.mjs `SPENDS_NO_CALL` or of call-effects.mjs `TAKES_CALLS`", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP. action-pipeline.mjs `rollTrait` shields every `remember: false` roll but the
+         * murder's opening, so its window opens with no Call; roll-draw.mjs `hostileCalls` answered none only for a key of
+         * `SPENDS_NO_CALL` (then "palm" alone) or a roll naming no key. Pick the Lock's cover, Tail Someone's notice roll
+         * and Take from the Body's cover name a key and were in neither: the GM threw every hindering Call armed long enough
+         * into them and spent it. Read off the source: each keyed `remember: false` roll's key, and the two lists. Red at
+         * 21bf5d18: pickCover, tailUnseen and lootCover in neither.
+         */
+        const sources = await moduleSources();
+        const listOf = (file, name) => {
+            const line = stripComments(sources.get(file) ?? "").match(new RegExp(`const ${name} = (?:Object\\.freeze\\()?new Set\\(\\[([^\\]]*)\\]\\)`));
+            return line ? [...line[1].matchAll(/"([^"]+)"/g)].map(m => m[1]) : null;
+        };
+        const spends = listOf("roll-draw.mjs", "SPENDS_NO_CALL"), takes = listOf("call-effects.mjs", "TAKES_CALLS");
+        must(spends && takes, "roll-draw.mjs SPENDS_NO_CALL or call-effects.mjs TAKES_CALLS was not read - this would measure nothing");
+        const keyed = new Set();
+        // The module's files, not the suite's (a test may roll any key it likes), each call to its statement's end.
+        for (const [file, text] of sources) {
+            if (/^tests/.test(file)) continue;
+            for (const call of stripComments(text).matchAll(/\brollTrait\s*\([\s\S]*?\)\s*;/g)) {
+                if (!/remember:\s*false/.test(call[0])) continue;
+                const key = call[0].match(/actionKey:\s*"([^"]+)"/)?.[1];
+                if (key) keyed.add(key);
+            }
+        }
+        must(keyed.size >= 3, `only ${keyed.size} keyed supporting roll(s) read - this would measure nothing`);
+        const loose = [...keyed].filter(key => !spends.includes(key) && !takes.includes(key)).sort();
+        equal(stableJson(loose), "[]", "[the keys of supporting rolls (`remember: false`) the GM's draw would throw and spend hindering Calls into]");
+    }],
+    ["R8382 - Tail Someone holds its target to the room again before it pays (1.2.122 line DESP; the audit's REFR-20): action-tail.mjs `performTail` reads `tailTargets` again after the GM's statistic card and before `spendAction`, and a target gone is said and costs nothing", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP. The target list was read before the window and the GM's card (`traitFor`, which can
+         * wait on a person), and the pick was found in it after; a target who crossed meanwhile was refused by the primary
+         * only after the action was paid and both rolls thrown. Read off the source, the order of the four calls in
+         * `performTail`. Red at 21bf5d18: no second `tailTargets` before the price. The table's own order (a target who
+         * walks out while the card waits) is not driven here.
+         */
+        const src = fnSource(stripComments((await moduleSources()).get("action-tail.mjs") ?? ""), "performTail");
+        const at = re => { const m = src.match(re); return m ? m.index : -1; };
+        const order = { ruled: at(/await traitFor\(/), again: at(/if \(!tailTargets\(actor\)\.some\(a => a\.id === target\.id\)\) \{\s*ui\.notifications\.warn\(game\.i18n\.format\("DRPG\.Infiltrate\.tail\.gone"[\s\S]{0,80}?return null;/), paid: at(/await spendAction\(actor, cost\)/) };
+        must(order.ruled > 0 && order.paid > 0, `performTail's card or price was not read - this would measure nothing: ${stableJson(order)}`);
+        equal(stableJson([order.again > order.ruled, order.again > 0 && order.again < order.paid]), stableJson([true, true]),
+            "[the target held to the room again after the GM's card; before the action is paid]");
+    }],
+    ["R8383 - on the primary, an actor's flag write below full Gamemaster that touches no Dice So Nice flag schedules no dice-look put-back (1.2.122 line DESP; the audit's ROLL-30): dice-sync.mjs `onActorWritten` returns before `afterSwitchesHeld` for a write neither touching the look nor a creation", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP. A nit of cost: every player's or Assistant's flag write of any actor reached
+         * `onActorWritten` with `touched` false and still ran the switches' comparison, the world copy's stringify and a
+         * put-back timer. Read off the source, the order of the guard and the schedule below full Gamemaster. Not
+         * measured: the work it saves (scenario 86's counters do not name this path). Red at 21bf5d18: no guard.
+         */
+        const src = fnSource(stripComments((await moduleSources()).get("dice-sync.mjs") ?? ""), "onActorWritten");
+        const guard = src.search(/if \(!touched && !created\) return;/), held = src.search(/afterSwitchesHeld\(\(\) => schedule\(ACTOR \+ actor\.id\)\)/);
+        must(held > 0, "onActorWritten schedules no put-back of an actor - this would measure nothing");
+        equal(stableJson([guard > 0, guard < held]), stableJson([true, true]), "[a write touching no look stopped; before the put-back is scheduled]");
+    }],
+    ["R8380 - the Despair panel's overflow caption takes the pointer as the panel's controls do (1.2.122 line DESP; the audit's CTRL-28): under `#drpg-despair`'s `pointer-events: none` the caption computes `auto`, as the pool's count does, so its tooltip - the GM's real count past the threshold and why a full counter has not fired - can show on a desk layout; in Chromium audit/caption-hit.mjs measures the hit itself", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP. The panel is `pointer-events: none` so the canvas takes clicks through it, and its
+         * controls opt back in by name (styles/danganronpa.css); the caption was not named, so it was never hit and its
+         * `title` never showed. A panel and a caption as despair.mjs draws them, set into the page, the module's stylesheets
+         * applied as the page holds them: the computed `pointer-events` of the panel (the control: `none`, or the cascade
+         * reads nothing), the count and the caption. Taken out after. Red at 21bf5d18: the caption read `none`.
+         */
+        const panel = document.createElement("div");
+        panel.id = "drpg-despair-r8380";
+        const host = document.createElement("div");
+        host.innerHTML = `<div id="drpg-despair"><div class="drpg-despair-row"><span class="drpg-despair-count">2/12</span></div><div class="drpg-overflow-caption">x</div></div>`;
+        const real = document.getElementById("drpg-despair");
+        let read = null;
+        // The page's own panel, where one stands, is renamed for the read so the selectors find the test's alone.
+        if (real) real.id = panel.id;
+        try {
+            document.body.append(host);
+            const of = sel => getComputedStyle(host.querySelector(sel)).getPropertyValue("pointer-events");
+            read = { panel: of("#drpg-despair"), count: of(".drpg-despair-count"), caption: of(".drpg-overflow-caption") };
+        } finally {
+            host.remove();
+            if (real) real.id = "drpg-despair";
+        }
+        must(read.panel === "none", `the panel computes pointer-events "${read.panel}" - the cascade read nothing, so this would measure nothing`);
+        equal(stableJson(read), stableJson({ panel: "none", count: "auto", caption: "auto" }), "{computed pointer-events: the panel, the pool's count, the overflow caption}");
+    }],
     ["R8032 - a dissolve let go at its bound leaves the fog drawn, and its late end takes nothing away (1.2.121 line F; the audit of 1.2.120, r120-F-1 and r120-F-2): fog.mjs `swapInFog` on a fake ticker - the bound reached, a repaint that changes nothing, then the dissolve's own end - shows the new fog sprite; an end whose first clean-up throws still releases", async () => {
         /*
          * 1.2.121 line F; AUDIT 18.6 (audit/findings-1.2.118/recheck-120.json, r120-F-1). 1.2.120's bound
@@ -41012,7 +41097,8 @@ const INVARIANTS = [
                 missingTexture: v => { v.browser.registry.missing = [{ kind: "texture", name: "R1294 skulls" }]; },
                 missingMaterial: v => { v.browser.registry.missing = [{ kind: "material", name: "R1294 glass" }]; },
                 dsnApiMoved: v => { v.browser.dsn.api.allCustomization = false; v.browser.dsn.version = "6.4.4"; },
-                rolesUnforced: v => { v.browser.system.roles = true; v.browser.system.version = "2.12.4"; v.browser.dhPreset = null; },
+                // Since 1.2.122 (STG-78) on a table whose look is not forced: a forced one carries the source's role looks.
+                rolesUnforced: v => { v.browser.system.roles = true; v.browser.system.version = "2.12.4"; v.browser.dhPreset = null; v.forcing = false; },
                 otherBrowser: v => { v.gm = true; v.users.push(user("u2", false)); }
             };
             const read = view => L.lookFindings(view);
@@ -41309,19 +41395,21 @@ const INVARIANTS = [
             "[the key; scope, a String, its default, in Foundry's list; held with the switches; one of the table's settings]");
     }],
 
-    ["R5465 - the dice look's diagnostic no longer says Daggerheart's roles are unforced where this browser lays Daggerheart's dice (E108): dice-look.mjs `lookFindings` raises `rolesUnforced` on Daggerheart 2.10 and later only while no table look is laid here (`browser.tableLook`)", async () => {
+    ["R5465 - the dice look's diagnostic no longer says Daggerheart's roles are unforced where this browser lays Daggerheart's dice (E108): dice-look.mjs `lookFindings` raises `rolesUnforced` on Daggerheart 2.10 and later only while no table look is laid here (`browser.tableLook`) and the table's look is not forced on this user (1.2.122, the audit's STG-78)", async () => {
         /*
          * E108, 13.11.2026. `rolesUnforced` ("Daggerheart {version} colors its Hope and Despair dice by Dice So Nice roles,
          * which the table's forced look does not set") was true of every forced table on 2.10 and later until E108; with
          * Daggerheart's look chosen this browser lays the roles' colorsets on each throw, and the sentence would be false.
-         * A view as R1294 builds one, on 2.12.8. Red before E108: raised whatever `tableLook` holds.
+         * A view as R1294 builds one, on 2.12.8. Red before E108: raised whatever `tableLook` holds. Since 1.2.122 (the audit's STG-78)
+         * not raised either where the table's look is forced on this user: E108 made the forced look carry the source's role
+         * looks, so the sentence was false there; raised where the look is not forced. Red at 21bf5d18: `none` read ["rolesUnforced"].
          */
         const L = await import("./dice-look.mjs");
         ok(typeof L.lookFindings === "function", "dice-look.mjs exports no lookFindings");
         if (typeof L.lookFindings !== "function") return;
-        const view = tableLook => ({
-            gm: false, me: "u1", forcing: true, sourceId: "g1",
-            users: [{ id: "u1", name: "R5465 u1", here: true, gm: false, active: true, forced: true, holds: true, stopped: null, overlays: [],
+        const view = (tableLook, forcing = true) => ({
+            gm: false, me: "u1", forcing, sourceId: "g1",
+            users: [{ id: "u1", name: "R5465 u1", here: true, gm: false, active: true, forced: forcing, holds: forcing, stopped: null, overlays: [],
                 display: { visibility: "all", showOthersSFX: true, imageQuality: "high", read: true } }],
             browser: { module: "1.2.112", foundry: "14.370", system: { id: "daggerheart", version: "2.12.8", roles: true },
                 dsn: { version: "6.4.5", active: true, ready: true, api: { allCustomization: true } },
@@ -41332,8 +41420,9 @@ const INVARIANTS = [
         const laid = { hope: { colorset: "daggerheart-hope-colorset", system: "standard" }, fear: { colorset: "daggerheart-fear-colorset", system: "standard" },
             advantage: null, disadvantage: null };
         const codes = v => L.lookFindings(v).map(f => f.code).sort();
-        equal(stableJson({ none: codes(view(null)), laid: codes(view(laid)) }), stableJson({ none: ["rolesUnforced"], laid: [] }),
-            "[the codes raised on 2.12.8 with no table look laid here, and with Daggerheart's laid]");
+        equal(stableJson({ none: codes(view(null)), laid: codes(view(laid)), notForced: codes(view(null, false)) }),
+            stableJson({ none: [], laid: [], notForced: ["rolesUnforced"] }),
+            "[the codes raised on 2.12.8 with the table's look forced on this user and none laid here, with Daggerheart's laid, and with the look not forced]");
     }],
 
     ["R5467 - the table's dice look carries the source Gamemaster's Dice So Nice role looks (E108, Q-E108-2): dice-sync.mjs `lookFrom` answers the source's `roleAppearance`, each role's library die owned by the source where it names none, and none as an empty one; `holdsTableLook` reads a user's own role look as not the table's", async () => {
@@ -41471,7 +41560,8 @@ const INVARIANTS = [
         const blank = M.projectCard({ id: "R5645q", name: "R5645q", room: "Lab", current: null, start: 6, seen: "unknown" });
         const textOf = h => { const box = document.createElement("div"); box.innerHTML = h; return box.textContent; };
         const src = await fetch(`/modules/${MODULE_ID}/scripts/explain.mjs`).then(lfText);
-        const body = fnSource(src, "openProjectsExplainer");
+        // The body the window draws, and draws again, since 1.2.122 (CORE-30): `projectsBody`.
+        const body = fnSource(src, "projectsBody");
         equal(stableJson({
             last: [html.includes("2 / 6"), textOf(html).includes(game.i18n.localize("DRPG.Project.seenAsLast"))],
             unknown: [blank.includes("? / 6"), blank.includes("width: 0%"), textOf(blank).includes(game.i18n.localize("DRPG.Project.seenUnknown"))],
@@ -48079,6 +48169,7 @@ const INVARIANTS = [
             "cleanup.mjs undoLastCleanup": "a Reroll puts the clean-up's Sanity marks back",
             // E74 C6: Keep Watch missed with Despair marks a Sanity, written by the primary GM.
             "watch-gm.mjs declareWatch": "a watch missed with Despair, its Sanity mark, written",
+            "infiltrate-reroll.mjs settleWatch": "a Keep Watch's Reroll, the first throw's Sanity mark given back where it no longer stands (1.2.122, ROLL-24)",
             "cleanup.mjs markResolutionStress": "the resolution's Sanity price, written",
             "cleanup.mjs restoreStress": "a refund of Sanity, written",
             "cleanup.mjs resolveCleanup": "the receipt's Sanity before the attempt, for a Reroll",
@@ -56151,15 +56242,17 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({
             words: { roll: ["Roll", "Rzuć"], next: ["Next", "Dalej"], restNow: ["Rest", "Odpocznij"], askThem: ["Ask them", "Poproś"],
                 send: ["Send to the GM", "Wyślij do GM-a"], propose: ["Send to the GM", "Wyślij do GM-a"], crisis: ["Roll", "Rzuć"], gotIt: [null, null] },
-            openers: { observe: ["Action.roll"], search: ["Action.roll"], tamper: ["Action.roll"], listen: ["Action.roll"], palm: ["Action.askThem", "Action.roll"],
+            /* Tamper: Next on Reshape and Body, which open a window of their own first (1.2.122, ROLL-31). */
+            openers: { observe: ["Action.roll"], search: ["Action.roll"], tamper: ["Action.next", "Action.roll"], listen: ["Action.roll"], palm: ["Action.askThem", "Action.roll"],
                 analyze: ["Action.roll"], project: ["Action.next", "Action.roll"], picker: ["Action.roll"], rest: [], picks: ["Action.restNow"],
                 /* Level Up: Grant (the r112 merge, 13.11.2026, changed on purpose): E101 made its two menus one window
                    (the owner's yes to the GM screens' review, R4056), whose press grants; no menu leads to another. */
                 levelUp: ["Advance.grant"], dynamic: ["Bridge.send"], proposal: ["Project.proposeButton"],
                 /* Infiltrate (the r112 review's G1, the coordinator's default of 13.11.2026): Roll on a row that rolls from
                    this press (Dash, Shut the Door, Keep Watch), Next on one that opens its own window (Listen, Tail, Force,
-                   Pick), each of which says Roll. Red at 2895e28e: no key, the fallback Do it. */
-                infiltrate: ["Action.next", "Action.roll"], tail: ["Action.roll"], force: ["Action.roll"], pick: ["Action.roll"] },
+                   Pick), each of which says Roll. Red at 2895e28e: no key, the fallback Do it. Echoes, which rolls nothing, the
+                   kit's word for acting without a roll (DRPG.Murder.briefTake) since 1.2.122 (CTRL-67): it said Roll. */
+                infiltrate: ["Action.next", "Action.roll", "Murder.briefTake"], tail: ["Action.roll"], force: ["Action.roll"], pick: ["Action.roll"] },
             proceed: ["action-menus.mjs"],
             variantCallers: [["action-analyze.mjs", 1], ["action-listen.mjs", 1], ["action-murder.mjs", 1], ["action-observe.mjs", 1],
                 ["action-project.mjs", 1], ["action-rest.mjs", 1], ["action-search.mjs", 1], ["action-tamper.mjs", 1], ["level-up.mjs", 1], ["palm.mjs", 1]]
@@ -56203,8 +56296,9 @@ const INVARIANTS = [
             hurt: hurt[1] === game.i18n.format("DRPG.Explain.status.actionsWounded", { wounded: unit("actionAcc", base - lost), actions: unit("actionGen", base) }),
             // The trial's clause, in the sentence the window shows (the phase's name as the glossary has it, both languages).
             trial: hurt[1].includes("Class Trial") && rule[1].includes("Class Trial"),
-            windows: [/phaseExplanation\(clock, \{ actor: subjectActor\(\) \}\)/.test(fnSource(src, "openStateExplainer")),
-                /actionsExplained\(\{ actor \}\)/.test(fnSource(src, "openStatusExplainer"))]
+            // The bodies the two windows draw, and draw again, since 1.2.122 (CORE-30): `stateBody`, `statusBody`.
+            windows: [/phaseExplanation\(clock, \{ actor: subjectActor\(\) \}\)/.test(fnSource(src, "stateBody")),
+                /actionsExplained\(\{ actor \}\)/.test(fnSource(src, "statusBody"))]
         };
         equal(stableJson(read), stableJson({ phase: [true, true], what: [true, true], wounded: [true, true], hurt: true, trial: true, windows: [true, true] }),
             "{Daily Life's paragraph [with the character: its own count; with none: the rule's]; the strip's budget sentence [own, rule]; Wounded's [own less a wound, own]; Wounded's for a wounded student [Daily Life's wounded budget, the whole one]; the trial's clause in it; the windows hand the character in [the clock's, the strip's]}");

@@ -52,7 +52,7 @@ import { getClock } from "./clock.mjs";
 import { seasonEpoch, sameSeason, deathRecord, getSetting, SETTINGS, bodyFoundSinceTrial } from "./settings.mjs";
 import { isMonocubCorpse } from "./spectator.mjs";
 import { resolveThreshold, whisperToOwner, log, warn, error, plural, isPrimaryGm, primaryGmId, wholeNumber, serialWrite, ownerOf, serverNow } from "./utils.mjs";
-import { cubStore, cubCopy, cubTargetStore, bountyStore, projectWorkStore } from "./gm-stores.mjs";
+import { cubStore, cubCopy, cubTargetStore, bountyStore, projectWorkStore, despairOwedStore } from "./gm-stores.mjs";
 import { gmStoresQuiet, newestIn, whenGmStoresAudible } from "./gm-store.mjs";
 import { senderOf, replyForMe } from "./bridge-guards.mjs";
 import { blackenedIds as blackenedIdsNow } from "./incident-store.mjs";
@@ -319,18 +319,40 @@ async function receiveCubs(cubs, stamps) {
     const taken = await cubCopy.receive(mine, own);
     // An invitation the copy now holds opens its window on the owner's browser (E72 C6), once per invitation here;
     // so does each Bribe offered to the Monocub (E72 C15), once per offer.
-    for (const [actorId, row] of Object.entries(cubCopy.read() ?? {})) {
+    const rows = cubCopy.read() ?? {};
+    await closeGoneCubWindows(rows);
+    for (const [actorId, row] of Object.entries(rows)) {
         if (row?.invited) openInvitation(game.actors.get(actorId));
-        else invitationsShown.delete(actorId);
         for (const [bribeId, offer] of Object.entries(row?.bribes ?? {})) openBribeOffer(game.actors.get(actorId), bribeId, offer);
     }
     return taken;
 }
 
 /**
+ * THE WINDOW GOES WITH ITS OFFER (the audit's REFR-29, 1.2.122). An invitation withdrawn by a GM, or a Bribe answered from
+ * the sheet's Monocub panel, lapsed at the turn of the time of day or closed by the darkening, left its window standing,
+ * and its Accept was refused by the primary. A copy that no longer holds the invitation, or the offer, closes its window
+ * here (live.mjs `closeOpen`, by the class the window carries: the student's, or the offer's id) and forgets it was shown.
+ */
+export async function closeGoneCubWindows(rows) {
+    const { closeOpen } = await import("./live.mjs");
+    for (const actorId of [...invitationsShown]) {
+        if (rows?.[actorId]?.invited) continue;
+        invitationsShown.delete(actorId);
+        closeOpen(`drpg-cub-invite-${actorId}`);
+    }
+    const open = new Set(Object.values(rows ?? {}).flatMap(row => Object.keys(row?.bribes ?? {})));
+    for (const bribeId of [...bribesShown]) {
+        if (open.has(bribeId)) continue;
+        bribesShown.delete(bribeId);
+        closeOpen(`drpg-cub-bribe-${bribeId}`);
+    }
+}
+
+/**
  * WHAT THE PANEL SAYS OF PART B (E72 C19, 12.11.2026; the plan's C19): the lines under the Monocub's tiles, from the row as
  * this browser holds it - the owner's copy, or on a GM the row its owner would be sent (`cubsFor`'s, through
- * `copyRowOf`). Each Bribe waiting (`{ kind: "offer", id, name, cost }`, which the panel draws with Accept and Refuse),
+ * `copyRowOf`), its Bounties and bet named as the GMs hold them (1.2.122, r121-M-5). Each Bribe waiting (`{ kind: "offer", id, name, cost }`, which the panel draws with Accept and Refuse),
  * each open Bounty (`{ kind: "bounty", name, reward }`) and the Monocub's own Ghost Bet (`{ kind: "bet", name, value }`).
  */
 export function cubPanelLines(actor) {
@@ -339,6 +361,14 @@ export function cubPanelLines(actor) {
     if (game.user?.isGM) {
         const owner = ownerOf(actor);
         row = owner ? copyRowOf(cubsFor(owner.id).cubs[actor.id]) : null;
+        /* The GMs read a masked student's Bounty and bet as they are (`maskedNameFor`'s note): the row the owner is sent
+           says "?" for them, and the GM's panel drew that (the audit's r121-M-5, 1.2.122). Read off the GMs' own stores. */
+        if (row) {
+            const bet = cubStore.get(actor.id)?.bet ?? null;
+            row = { ...row,
+                bounties: isMonocub(actor) ? openBounties(null) : row.bounties,
+                bet: bet ? { targetName: game.actors.get(bet.targetId)?.name ?? String(bet.targetName ?? ""), value: Math.max(0, Math.trunc(Number(bet.value) || 0)) } : row.bet };
+        }
     } else {
         row = cubRowOf(actor);
     }
@@ -433,7 +463,11 @@ export async function offerMonocub(actor) {
     }
     if (isMonocub(actor)) return false;
     await patchCubRow(actor.id, { invite: { at: serverNow(), by: game.user.id } });
-    ui.notifications.info(game.i18n.format("DRPG.Monocub.invited", { name: actor.name }));
+    /* A student no player owns has nobody to answer (the audit's CTRL-88, 1.2.122): the window opens only on a player's
+       browser that owns the character, so the notice said "once their player accepts" of a player there is not. Said so;
+       the invitation stands for a player the GM gives the student to, and `game.drpg.setMonocub` is the GM's own road. */
+    const played = (game.users ?? []).some(u => !u.isGM && actor.testUserPermission?.(u, "OWNER"));
+    ui.notifications.info(game.i18n.format(played ? "DRPG.Monocub.invited" : "DRPG.Monocub.invitedNoPlayer", { name: actor.name }));
     log(`${actor.name} is invited to become a Monocub; waiting for their player to accept the Monocub Rule.`);
     return true;
 }
@@ -491,7 +525,7 @@ export async function openInvitation(actor) {
     const L = key => foundry.utils.escapeHTML(game.i18n.localize(key));
     const answer = await drpgWindow({
         title: game.i18n.localize("DRPG.Monocub.inviteTitle"),
-        classes: ["drpg-panel", "drpg-cub-invite"],
+        classes: ["drpg-panel", "drpg-cub-invite", `drpg-cub-invite-${actor.id}`],
         body: `<div class="drpg-cub-invite-body">
             <p>${foundry.utils.escapeHTML(game.i18n.format("DRPG.Monocub.inviteIntro", { name: actor.name }))}</p>
             <h3>${L("DRPG.Monocub.ruleTitle")}</h3>
@@ -1349,11 +1383,14 @@ export async function cubAbilityDialog(actor, key) {
     /* THE ACTION'S LAYOUT (E72, 12.11.2026; R3818): the header and the tiers on the left, the targets as the action's rows
        on the right, where a dropdown stood. The choices stay buttons of the footer (Help, Hinder): each is the answer
        itself, and a row more would be a press more. */
+    // The price it will be charged (`priceOf`): a move done to order costs the row's `executionCost` (E72 C17), and the
+    // window said the row's own (the audit's DESP-30, 1.2.122).
+    const price = priceOf(actor, row);
     const result = await callWindow({
         kind: "hope", title: row.label, once: `drpg-cub-ability-${key}`, layout: "action",
-        header: callHeader({ label: row.label, cost: row.hopeCost }, "hope", {
+        header: callHeader({ label: row.label, cost: price.hopeCost }, "hope", {
             effect: game.i18n.localize(row.intro ?? "DRPG.Monocub.meddleIntro"),
-            price: plural("DRPG.Monocub.meddleCostShort", { hope: row.hopeCost, actions: row.cost }, "actions")
+            price: plural("DRPG.Monocub.meddleCostShort", { hope: price.hopeCost, actions: price.cost }, "actions")
         }),
         brief: `<p class="notes">${game.i18n.localize("DRPG.Monocub.tiersIntro")}</p>
             ${cubTiersHtml(row)}`,
@@ -1556,11 +1593,14 @@ export async function answerHopeAsk(actor, n) {
         const granted = await convertDespairToHope(game.user.id, actor, amount);
         if (granted <= 0) return null;
         await patchCubRow(actor.id, { askOpen: null });
-        return game.i18n.format("DRPG.Monocub.askGiven", { n: granted, name: game.user.name });
+        // The pool's label, as the veiled card the same press sends (despair.mjs), not the GM's account (the audit's DESP-32).
+        const { poolLabel } = await import("./despair.mjs");
+        return game.i18n.format("DRPG.Monocub.askGiven", { n: granted, name: poolLabel(game.user) });
     }
     await patchCubRow(actor.id, { askOpen: null });
     await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Monocub.askNotNowTold")}</p>`, { veiled: true });
-    return game.i18n.format("DRPG.Monocub.askDeclined", { name: game.user.name });
+    const { poolLabel } = await import("./despair.mjs");
+    return game.i18n.format("DRPG.Monocub.askDeclined", { name: poolLabel(game.user) });
 }
 
 /** A living student offers `cub` a Bribe (calls.mjs `spendHopeCall`): the GM's on a GM's browser, else `bribe.offer`. */
@@ -1586,7 +1626,7 @@ export async function openBribeOffer(actor, bribeId, offer) {
     const esc = foundry.utils.escapeHTML;
     const answer = await drpgWindow({
         title: game.i18n.localize("DRPG.Monocub.bribeTitle"),
-        classes: ["drpg-panel", "drpg-cub-bribe"],
+        classes: ["drpg-panel", "drpg-cub-bribe", `drpg-cub-bribe-${bribeId}`],
         body: `<p>${esc(game.i18n.format("DRPG.Monocub.bribeAsk", { name: offer?.fromName ?? "?", cost: offer?.cost ?? 0, cub: actor.name }))}</p>`,
         footer: {
             primary: { action: "accept", label: game.i18n.localize("DRPG.Monocub.bribeAccept"), callback: () => "accept" },
@@ -1849,6 +1889,8 @@ async function postBountyNow(userId, target) {
     const cost = Math.max(1, Math.trunc(Number(call?.cost) || 1));
     const reward = Math.max(1, Math.trunc(Number(call?.reward) || 1));
     const D = await import("./despair.mjs");
+    // Another GM's owed rows counted (the audit's DESP-31, 1.2.122), as every other spend of the pool waits for them.
+    await despairOwedStore.whenHydrated();
     const why = target.type !== "character" || isMonokuma(target) || isMonocub(target) || isDeadForGm(target) ? "a Bounty is put on a living student"
         : bountyStore.has(target.id) ? "that student has a Bounty already"
             : D.spendableDespair(userId) < cost ? "the pool has not the Despair for it" : null;
@@ -1872,17 +1914,32 @@ async function postBountyNow(userId, target) {
     return bounty;
 }
 
-/** GM: `cub`'s Confusion hindered `target` and landed (`scoreMeddle`): an open Bounty on it is claimed. Answers the Hope paid. */
+/**
+ * GM: `cub`'s Confusion hindered `target` and landed (`scoreMeddle`): an open Bounty on it is claimed. Answers the Hope paid.
+ *
+ * A CLAIM THAT WOULD PAY NOTHING LEAVES THE BOUNTY STANDING (the audit's DESP-23 and DESP-29, 1.2.122; the line's default,
+ * sent to the coordinator). A Monocub at its Hope limit, or any Monocub in the Despair darkening, took the Bounty for 0
+ * Hope - "0 Hope in your purse" - while the posting pool still paid the Despair it owed, which only a lapse gives back.
+ * Now the Bounty stays open for a later claim or its lapse (which gives the Despair back), and the Monocub's player is
+ * told why. A purse with room for part of the reward still claims it, for what fits.
+ */
 export async function claimBounty(cub, target) {
     if (!game.user?.isGM || !cub || !target || !bountyStore.has(target.id)) return 0;
     const bounty = bountyStore.get(target.id);
-    await bountyStore.drop(target.id);
-    const paid = await addToPurse(cub, Math.max(0, Math.trunc(Number(bounty?.reward) || 0)));
-    tellEveryCub();
-    await tellBounty("bountyClaimed", { name: target.name }, "", { masked: Boolean(bounty?.masked) });
+    const reward = Math.max(0, Math.trunc(Number(bounty?.reward) || 0));
     // The card goes to every owner of the Monocub (`whisperToOwner`): "?" when one of them does not play the student.
     const outside = (game.users ?? []).find(u => !u.isGM && cub.testUserPermission?.(u, "OWNER") && !target.testUserPermission?.(u, "OWNER"));
     const ownerName = outside ? maskedNameFor(outside, target.id, target.name, bounty?.masked) : target.name;
+    const { overflowBlocksHope } = await import("./overflow.mjs");
+    if (reward > 0 && (overflowBlocksHope() || resourceMax(cub, "hope") - cubHopeTotal(cub) <= 0)) {
+        await whisperToOwner(cub, `<p>${foundry.utils.escapeHTML(game.i18n.format("DRPG.Monocub.bountyKept", { name: ownerName }))}</p>`, { veiled: true });
+        log(`${cub.name} (a Monocub) landed on ${target.name}'s Bounty with no room for its Hope: the Bounty stands.`);
+        return 0;
+    }
+    await bountyStore.drop(target.id);
+    const paid = await addToPurse(cub, reward);
+    tellEveryCub();
+    await tellBounty("bountyClaimed", { name: target.name }, "", { masked: Boolean(bounty?.masked) });
     await whisperToOwner(cub, `<p>${foundry.utils.escapeHTML(game.i18n.format("DRPG.Monocub.bountyPaid", { name: ownerName, n: paid }))}</p>`, { veiled: true });
     log(`${cub.name} (a Monocub) claimed the Bounty on ${target.name}: ${paid} Hope into its purse.`);
     return paid;

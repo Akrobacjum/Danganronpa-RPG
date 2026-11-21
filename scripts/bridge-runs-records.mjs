@@ -671,8 +671,12 @@ export async function handleDespair(payload, sender, ctx) {
     const delta = Math.trunc(payload.delta);
     const target = game.users.get(payload.targetUserId);
     const { adjustDespair } = await import("./despair.mjs");
-    await adjustDespair(target.id, delta, { clamp: payload.clamp === true });
+    // `price` (1.2.122, DESP-21): a Despair Call's, which the asker waits for - taken whole, or refused when the pool
+    // cannot spend it here; the pool written is the answer.
+    const value = await adjustDespair(target.id, delta, { clamp: payload.clamp === true, price: payload.price === true });
+    if (value === null || value === undefined) return { refused: "nothing was carried out: the pool has not the Despair for it" };
     debug(`Adjusted Despair for ${target.name} by ${delta} on behalf of ${sender.name}.`);
+    return { reply: { value } };
 }
 
     // An Eclipse crossing. Counted on this side, where the allowance is judged since E05

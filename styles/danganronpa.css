@@ -1173,12 +1173,15 @@ body:not(.drpg-theme-stained-glass) #drpg-hud .drpg-hud-button:hover {
     white-space: nowrap;
 }
 
-/* Opt the interactive parts back in (see the note on #drpg-despair above). */
+/* Opt the interactive parts back in (see the note on #drpg-despair above). The overflow caption too: its tooltip holds
+   the GM's real count past the threshold and why a full counter has not fired, and on a desk layout it was never hit
+   (the audit's CTRL-28, 1.2.122; audit/caption-hit.mjs measures it in Chromium). */
 #drpg-despair .drpg-despair-row,
 #drpg-despair .drpg-despair-pip,
 #drpg-despair .drpg-despair-button,
 #drpg-despair .drpg-despair-name,
-#drpg-despair .drpg-despair-count {
+#drpg-despair .drpg-despair-count,
+#drpg-despair .drpg-overflow-caption {
     pointer-events: auto;
 }
 

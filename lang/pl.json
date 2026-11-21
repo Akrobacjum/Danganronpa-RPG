@@ -293,7 +293,7 @@
       },
       "lockRollDialog": {
         "name": "Zablokuj graczom okno rzutu",
-        "hint": "W oknie rzutu gracze nie mogą zmienić kości, statystyki, przewagi, doświadczeń ani premii; ustala je akcja, Hope Call albo GM. GM-ów to nie dotyczy."
+        "hint": "W oknie rzutu gracze nie mogą zmienić kości, statystyki, przewagi, doświadczeń ani premii. Wyłączone: mogą, ale rzut GM-a liczy tylko to, co dają akcja i Calle. GM-ów to nie dotyczy."
       },
       "roomVisibility": {
         "name": "Gracze widzą tylko osoby w swoim pokoju",
@@ -1287,6 +1287,7 @@
       "inviteAccept": "Przyjmuję Zasadę",
       "inviteDecline": "Nie teraz",
       "invited": "{name}: zaproszenie wysłane. Postać zostaje Monocubem, gdy gracz przyjmie Zasadę Monocuba.",
+      "invitedNoPlayer": "{name}: zaproszenie wysłane, ale postać nie ma gracza, więc nikt go jeszcze nie przyjmie. Zaproszenie czeka na gracza, któremu dasz tę postać.",
       "inviteDeclined": "Gracz postaci {name} odrzucił zaproszenie Monocuba.",
       "inviteSent": "Zaproszenie wysłane",
       "cancelInvite": "Wycofaj",
@@ -1302,7 +1303,7 @@
       "askBody": "{name} prosi GM-ów o Hope.",
       "askGive": "Daj {n} Hope",
       "askNotNow": "Nie teraz",
-      "askGiven": "{n} Hope od gracza {name}.",
+      "askGiven": "{name}: {n} Hope dla ciebie.",
       "askDeclined": "{name}: nie teraz.",
       "askNotNowTold": "Twoje Ask for Hope: nie teraz. Możesz poprosić znowu.",
       "panelTitle": "Monocub",
@@ -1382,6 +1383,7 @@
         "other": "{n} Despair, które pula {pool} za nie zapłaciła, wraca do puli."
       },
       "bountyPaid": "Odbierasz Bounty na postać {name}: {n} Hope w twojej sakiewce.",
+      "bountyKept": "Do twojej sakiewki nie trafi teraz żadne Hope, więc Bounty na postać {name} pozostaje otwarte.",
       "bountyNoDespair": "W twojej puli nie ma Despair na Bounty.",
       "bet": "Postaw",
       "betIntro": "Wskaż, kogo skaże trafny werdykt. Jeśli tak będzie, sakiewka dostaje 4 Hope przed ogłoszeniem ciała, 3 po nim, 2 w rozprawie, 1 w trakcie głosowania.",
@@ -4167,6 +4169,7 @@
       },
       "tail": {
         "nobody": "Nikt inny nie stoi w tym pokoju, by go śledzić.",
+        "gone": "Postaci {name} nie ma już w tym pomieszczeniu.",
         "prompt": "Wybierz, kogo z tego pokoju chcesz śledzić, i zaproponuj Leg albo Shadow. Rzut Shadow poniżej {n} od razu zdradza celowi, kto go śledzi, ale śledzenie trwa dalej.",
         "who": "Kogo",
         "unseenTitle": "Tail Someone: czy cel cię zauważy?",
@@ -5107,6 +5110,7 @@
       "diag": {
         "title": "Wygląd kości",
         "open": "Otwórz wygląd kości",
+        "copyFailed": "Nie udało się skopiować raportu. Zaznacz jego tekst na dole okna i skopiuj go ręcznie.",
         "introGm": "Wygląd kości widziany u ciebie. U gracza sprawdzi go tylko on sam.",
         "introPlayer": "Co ta przeglądarka odczytuje z wyglądu twoich kości. Skopiuj tekst z dołu okna i wyślij go GM-owi.",
         "who": "Użytkownik",
@@ -5155,7 +5159,7 @@
           "missingTexture": "Dice So Nice w tej przeglądarce nie ma tekstury „{name}”, więc kości, które jej używają, rysują się tu bez tekstury.",
           "missingMaterial": "Dice So Nice w tej przeglądarce nie ma materiału „{name}”, więc kości, które go używają, rysują się tu z materiałem automatycznym.",
           "dsnApiMoved": "Dice So Nice {version} kopiuje tylko część wyglądu GM-a; resztę gracze mają po swojemu.",
-          "rolesUnforced": "Daggerheart {version} koloruje kości Hope i Despair rolami Dice So Nice, których wymuszony wygląd stołu nie ustawia.",
+          "rolesUnforced": "Daggerheart {version} koloruje kości Hope i Despair rolami Dice So Nice. Wygląd stołu nie jest wymuszony w tej przeglądarce, więc widać jej własne wyglądy ról.",
           "otherBrowser": "Przeglądarki użytkownika {name} nie odczytuje się tutaj. Poproś, by uruchomił game.drpg.diagnoseDiceLook() i przesłał ci tekst."
         }
       }
@@ -5804,6 +5808,8 @@
       "noExperienceToRaise": "Nie ma doświadczenia do podniesienia. Wybierz inne ulepszenie; Level Up wciąż czeka.",
       "notOnSheet": "Wybór wskazuje statystykę albo doświadczenie, których {name} nie ma, więc nic nie zapisano.",
       "experienceNeedsName": "Nowe doświadczenie potrzebuje nazwy. Ten wybór pominięto.",
+      "experienceNeedsNameGm": "Nowe doświadczenie musi mieć nazwę. Nic nie zapisano: otwórz Level Up jeszcze raz i wybierz.",
+      "takeBackGone": "Ta oferta Level Up dla postaci {name} już nie stoi: została wykorzystana albo cofnięta.",
       "nothingToApply": "Nic nie wybrano, więc nic się nie zmieniło.",
       "unknownKind": "Nieznany typ Level Up: {kind}.",
       "failed": "Nie udało się zapisać Level Up. Zajrzyj do konsoli.",
@@ -6327,6 +6333,11 @@
       "waitsForGm": "Rzut akcji wymaga połączonego GM-a, a żaden nie jest teraz połączony, więc rzut się nie odbywa.",
       "gmThrowing": "GM rzuca twoimi kośćmi.",
       "unwitnessed": "Rzucono bez połączonego GM-a, więc na razie rzut nie zmienia Hope, Sanity ani Despair. Gdy GM się połączy, zdecyduje, czy przyznać to, co rzut by zmienił.",
+      "unwitnessedGranted": "Rzucono bez połączonego GM-a; przyznano to, co rzut by zmienił.",
+      "unwitnessedNotGranted": "Rzucono bez połączonego GM-a; nie przyznano tego, więc rzut nie zmienia Hope, Sanity ani Despair.",
+      "awayDecidedGrant": "Rozstrzygnięto: przyznano.",
+      "awayDecidedNone": "Rozstrzygnięto: nie przyznano.",
+      "awayAlreadyDecided": "Te rzuty są już rozstrzygnięte.",
       "awayTitle": "Rzuty graczy pod nieobecność GM-a",
       "awayLine": "{name}: kość Hope {hope}, kość Despair {fear}; {moves}",
       "awayHope": "+{n} Hope",

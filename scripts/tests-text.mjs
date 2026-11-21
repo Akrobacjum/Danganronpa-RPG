@@ -2374,6 +2374,7 @@ export const UI_LITERAL_ALLOW = Object.freeze({
     "scripts/remnants.mjs migrateRemnantToken": { n: 1, why: "console only: a field name in a token's `unwritten` list, which migrateRemnants joins into its warn() lines" },
     "scripts/remnants.mjs leftOnToken": { n: 1, why: "console only: a field name in a token's `left` list, which the migrations join into their warn() lines" },
     "scripts/settings.mjs DEFAULT_SAFEWORD": { n: 1, why: "a world setting's stored default: the one word the whole table says, which a per-browser translation would split at a table of two languages; migrate.mjs compares it" },
+    "scripts/dice-look.mjs viewLines": { n: 2, why: "the report's first line names the module and Dice So Nice, proper nouns the same in every language; read since 1.2.122, when the file's Copy report began to notify (CTRL-68)" },
     "scripts/tables-editor.mjs installTables": { n: 1, why: "the module's own name (module.json title) on the RollTable folder it creates, a proper noun the Polish keeps" },
 });
 

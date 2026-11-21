@@ -10889,8 +10889,8 @@ const REGRESSIONS = [
             ["READ trial-scene.mjs#applyScenesTab#hallRoom -> setup", "the before-state the Apply compares the fields against (`hallRoomWrite`); not drawn"],
             // ---- whose room
             ["WHO explain.mjs#roomBlock#subjectActor -> which", "a player's `viewerActor()` only; a GM's selected token first, then their Monokuma (E77 C2; R509 reads the shape)"],
-            ["WHO explain.mjs#openStatusExplainer#subjectActor -> which", "the counters of the same actor; no room text"],
-            ["WHO explain.mjs#openStateExplainer#subjectActor -> which", "the same actor's own action count in Daily Life's paragraph (E100 item 7, R4106); no room text - the room is `roomBlock`'s row above"],
+            ["WHO explain.mjs#statusBody#subjectActor -> which", "the counters of the same actor; no room text (the body `openStatusExplainer` draws and keeps live since 1.2.122)"],
+            ["WHO explain.mjs#stateBody#subjectActor -> which", "the same actor's own action count in Daily Life's paragraph (E100 item 7, R4106); no room text - the room is `roomBlock`'s row above"],
             ["WHO explain.mjs#subjectActor#viewerActor -> which", "the one viewer rule (hud.mjs `viewerActor`): the assigned character, else the one owned student, else of several the controlled one, else the first by name (E51 C4, monokuma.mjs `chooseOwnStudent`, R1117), and the GM's Monokuma"],
             ["WHO room-tile.mjs#viewerRoom#viewerActor -> which", "the viewer's own character and no other actor (R509; scenario 66 W1 on the GM and two players)"],
             ["WHO room-tile.mjs#registerRoomTile#viewerActor -> which", "the settle hook repaints for the viewer's own token only (`tokenDoc.actorId !== viewerActor()?.id` returns; R506), and what it paints is `viewerRoom`'s"],
@@ -23289,7 +23289,9 @@ const REGRESSIONS = [
         }
         const box = (kind, state, toast = false) => [1, "drpg-box", kind, state, "a <b> & c", toast];
         equal(JSON.stringify(drawn), JSON.stringify({ notDrawn: box("warning", "notDrawn"), waitsForGm: box("warning", "waitsForGm", true), unwitnessed: box("warning", "unwitnessed"),
-            awayNothing: box("info", "awayNothing"), awayHope: box("info", "awayHope"), awayDespair: box("info", "awayDespair") }),
+            awayNothing: box("info", "awayNothing"), awayHope: box("info", "awayHope"), awayDespair: box("info", "awayDespair"),
+            // A stamped roll decided (1.2.122, REFR-54 and REFR-19): information, nothing waits.
+            awayDecided: box("info", "awayDecided") }),
             "{each state: [elements, class, the box's kind, its state, its words, said in a toast]}");
         let refused = null;
         try { D.rollStatus("noSuchState", "x"); } catch (err) { refused = err.message; }
@@ -23443,7 +23445,7 @@ const REGRESSIONS = [
             /* Merged with E72 and E91 (12.11.2026): the Monocubs' veiled lines and its built cards (E72 C2-C17), the Final
                Trial's bets line (verdict.mjs), and the unlock card moved from room-setup.mjs to vault-store.mjs `writeRoomLock`
                (E91 C4, D038), every one in a form this census names. */
-            "monocub.mjs": {"built": 3, "line": 18, "message": 1}, "movement.mjs": {"action": 3, "card": 5},
+            "monocub.mjs": {"built": 3, "line": 19, "message": 1}, "movement.mjs": {"action": 3, "card": 5},
             // murder-rules.mjs message 6 -> 8 (1.2.121 line K, CASE-16): `announceCrisis` posts the GMs' card and, for the seats a
             // defence is hidden from, a second copy, by the same `announce({ content, whisper })` form as before.
             "murder-rules.mjs": {"action": 1, "card": 5, "heading": 3, "line": 9, "message": 8},

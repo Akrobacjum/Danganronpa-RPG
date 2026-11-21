@@ -65,7 +65,9 @@ async function chooseTamper(actor, def, { erasable, mine, candidates, stageSix, 
             // that a refusal gives nothing back. The tile is not red - the other
             // rows resolve by themselves (Q-E21-1 (a)).
             {
-                value: "reshape", icon: "fa-pen-nib", gmRoute: true,
+                // Next, not Roll (the audit's ROLL-31, 1.2.122): the change is asked in a window of its own before any
+                // die (E100 item 6: a row that opens a window says Next). The body's row the same.
+                value: "reshape", icon: "fa-pen-nib", gmRoute: true, confirm: game.i18n.localize("DRPG.Action.next"),
                 label: game.i18n.localize("DRPG.Cleanup.transformAction"),
                 hint: game.i18n.localize("DRPG.Cleanup.transformActionHint"),
                 disabled: !erasable.length,
@@ -84,7 +86,7 @@ async function chooseTamper(actor, def, { erasable, mine, candidates, stageSix, 
             // next to it, because "the body is in the other room" is the useful
             // half of that answer.
             ...(stageSix ? [{
-                value: "body", icon: "fa-person-falling",
+                value: "body", icon: "fa-person-falling", confirm: game.i18n.localize("DRPG.Action.next"),
                 label: game.i18n.localize("DRPG.Cleanup.moveAction"),
                 hint: game.i18n.format("DRPG.Cleanup.moveHint", { n: RESOLUTION_STRESS_COST }),
                 disabled: !cleanup.bodyIsHere(actor),

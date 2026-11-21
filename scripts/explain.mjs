@@ -46,15 +46,31 @@ const t = (key, data) => data ? game.i18n.format(key, data) : game.i18n.localize
  * and change nothing, which is the whole reason a player can be handed one
  * mid-scene without worrying about what pressing something might do.
  */
-function explainer(title, body) {
+function explainer(title, build, watch) {
+    /* ITS "RIGHT NOW" FOLLOWS WHAT IT PRINTS (the audit's CORE-30, REFR-24 and REFR-56, 1.2.122; the owner's rule of
+       20.11.2026, "Zawsze odswiezamy okna od razu przy zmianie"). Each explainer was built once at open: the clock, the
+       pools, the actions and Hope and the projects stayed as they were beside a panel that had redrawn. `build` draws the
+       body from what this browser holds now (synchronous: its modules are loaded at the open), and `keepLive` draws it
+       again on `watch` - the clock's hooks always (live.mjs WORLD_HOOKS), and each window's own. Nothing in it is typed. */
+    const body = () => `<div class="drpg-explain-body">${build()}</div>`;
     // On the kit's frame (E21 C5a): nothing to answer, so its one word is Close.
     return drpgWindow({
         title,
         classes: ["drpg-panel", "drpg-explain"],
-        body: `<div class="drpg-explain-body">${body}</div>`,
+        body: body(),
         footer: { close: "close" },
+        live: { region: ".drpg-explain-body", build: body, watch },
         rejectClose: false
     });
+}
+
+/** The modules the explainers' bodies read, loaded once at an open so each body draws again synchronously. */
+async function explainModules() {
+    const [movement, vault, tokens, projects, despair, overflow, actions, character, seen, gmStores] = await Promise.all([
+        import("./movement.mjs"), import("./vault.mjs"), import("./search-tokens.mjs"), import("./projects.mjs"),
+        import("./despair.mjs"), import("./overflow.mjs"), import("./actions.mjs"), import("./character.mjs"),
+        import("./projects-seen.mjs"), import("./gm-stores.mjs")]);
+    return { movement, vault, tokens, projects, despair, overflow, actions, character, seen, gmStores };
 }
 
 /** A titled block. `lines` are already-escaped HTML fragments. */
@@ -184,14 +200,14 @@ function timeOfDayBlock(clock) {
  * none assigned is shown the one `viewerActor` chose (the controlled one, else the first by name), and the section
  * says so first, with where to make it stand (`DRPG.Hud.assignHint`).
  */
-async function roomBlock() {
+function roomBlock(mods) {
     const actor = subjectActor();
     if (!actor) return section(t("DRPG.Explain.room.title"), [esc(t("DRPG.Explain.room.noActor"))]);
     const guess = !game.user.isGM && viewerNeedsAssigning() ? esc(t("DRPG.Hud.assignHint", { name: actor.name })) : "";
 
     // The room and its scene where the reader's character stands (E12 C6): the description
     // and the tokens were read on the scene on screen until 1.2.74.
-    const { locateActor } = await import("./movement.mjs");
+    const { locateActor } = mods.movement;
     const place = locateActor(actor);
     const room = place?.room ?? null;
     if (!room) {
@@ -203,13 +219,13 @@ async function roomBlock() {
     // The GM's own words about the place, when they have written any - see the
     // Description tab in Room Setup. Escaped: it is typed prose, and it is
     // shown to everybody.
-    const { roomDescription } = await import("./vault.mjs");
+    const { roomDescription } = mods.vault;
     const description = roomDescription(room, place.scene);
     if (description) {
         lines.push(`<em class="drpg-explain-prose">${esc(description)}</em>`);
     }
 
-    const { SearchTokens } = await import("./search-tokens.mjs");
+    const { SearchTokens } = mods.tokens;
     lines.push(esc(t("DRPG.Explain.room.tokens", {
         left: SearchTokens.left(room, place.scene), max: SearchTokens.max
     })));
@@ -217,7 +233,7 @@ async function roomBlock() {
     // Whether there is something to work on here - never WHAT. The HUD makes
     // the same call for the same reason: this window is open while people
     // share a screen, and a project's name is between its owner and the GM.
-    const { projectsAvailableIn } = await import("./projects.mjs");
+    const { projectsAvailableIn } = mods.projects;
     lines.push(esc(t(projectsAvailableIn(place, game.user).length
         ? "DRPG.Hud.roomProject" : "DRPG.Hud.roomNoProject")));
 
@@ -231,6 +247,18 @@ async function roomBlock() {
  */
 export async function openStateExplainer() {
     try {
+        const mods = await explainModules();
+        return explainer(t("DRPG.Explain.state.window"), () => stateBody(mods), {
+            actors: true, tokens: true, settingKeys: ["daggerheart.Countdowns"], hooks: ["controlToken"] });
+    } catch (err) {
+        error("Could not explain the state of play", err);
+        return null;
+    }
+}
+
+/** "Where things stand": the campaign, the phase with the subject's own actions, the time of day and the room, as now. */
+function stateBody(mods) {
+    {
         const clock = clockForDisplay(getClock());
         const body = [
             section(t("DRPG.Explain.state.title"), [
@@ -242,13 +270,9 @@ export async function openStateExplainer() {
                 ? t("DRPG.Explain.phase.eclipseTitle")
                 : phaseLabel(clock.phase), [phaseExplanation(clock, { actor: subjectActor() })]),
             section(t("DRPG.Explain.time.title"), timeOfDayBlock(clock)),
-            await roomBlock()
+            roomBlock(mods)
         ].join("");
-
-        return explainer(t("DRPG.Explain.state.window"), body);
-    } catch (err) {
-        error("Could not explain the state of play", err);
-        return null;
+        return body;
     }
 }
 
@@ -268,7 +292,10 @@ export async function openStateExplainer() {
  */
 export async function openDespairExplainer() {
     try {
-        return explainer(t("DRPG.Explain.despair.window"), await despairExplainerBody({ gm: game.user.isGM }));
+        const mods = await explainModules();
+        // The pools are a world setting; what a pool owes and the overflow's count are the GMs' stores.
+        return explainer(t("DRPG.Explain.despair.window"), () => despairBody(mods, { gm: game.user.isGM }),
+            { stores: [mods.gmStores.despairOwedStore, mods.gmStores.overflowStore], hooks: ["updateUser"] });
     } catch (err) {
         error("Could not explain the Despair pool", err);
         return null;
@@ -277,9 +304,13 @@ export async function openDespairExplainer() {
 
 /** The Despair window's body as a GM (`gm: true`) or a player reads it; exported for the suite (E15-T5). */
 export async function despairExplainerBody({ gm = false, owed = null } = {}) {
+    return despairBody(await explainModules(), { gm, owed });
+}
+
+function despairBody(mods, { gm = false, owed = null } = {}) {
     const lines = [esc(t("DRPG.Explain.despair.what")), esc(t("DRPG.Explain.despair.spent"))];
 
-    const { monokumas, getDespair, despairMax, poolLabel, owedOf } = await import("./despair.mjs");
+    const { monokumas, getDespair, despairMax, poolLabel, owedOf } = mods.despair;
     /* What a pool owes, for a GM alone (the owner's report of 13.11.2026 on 1.2.112): a conversion's Despair is paid at
        the next time of day, and a player's window shows the pool as it stands. `owed` is the suite's to hand (R5880). */
     const debtOf = owed ?? owedOf;
@@ -299,7 +330,7 @@ export async function despairExplainerBody({ gm = false, owed = null } = {}) {
      * cannot hold. A player who clicked the pips to ask about the bar reads
      * the caption sitting directly above it on the way.
      */
-    const { overflowStatus } = await import("./overflow.mjs");
+    const { overflowStatus } = mods.overflow;
     const { count, threshold, pool } = overflowStatus();
     const overflowLines = [
         esc(game.i18n.format("DRPG.Overflow.explainBody", { max: STARTING.despairMax })),
@@ -321,9 +352,20 @@ export async function despairExplainerBody({ gm = false, owed = null } = {}) {
 /** The strip in the corner: what each of its three counters is for. */
 export async function openStatusExplainer() {
     try {
+        const mods = await explainModules();
+        return explainer(t("DRPG.Explain.status.window"), () => statusBody(mods), { actors: true, hooks: ["controlToken"] });
+    } catch (err) {
+        error("Could not explain the action strip", err);
+        return null;
+    }
+}
+
+/** The strip's window: what each counter is for, and where the subject stands now. */
+function statusBody(mods) {
+    {
         const actor = subjectActor();
-        const { actionsLeft, actionsMax, hasFreeMove } = await import("./actions.mjs");
-        const { resourceValue, resourceMax } = await import("./character.mjs");
+        const { actionsLeft, actionsMax, hasFreeMove } = mods.actions;
+        const { resourceValue, resourceMax } = mods.character;
 
         /*
          * A MONOKUMA HAS NONE OF THE THREE THINGS THIS SECTION COUNTS.
@@ -367,11 +409,7 @@ export async function openStatusExplainer() {
             section(t("DRPG.Explain.status.hopeTitle"), [esc(t("DRPG.Explain.status.hopeWhat"))]),
             section(t("DRPG.Explain.status.standing"), standing)
         ].join("");
-
-        return explainer(t("DRPG.Explain.status.window"), body);
-    } catch (err) {
-        error("Could not explain the action strip", err);
-        return null;
+        return body;
     }
 }
 
@@ -382,12 +420,24 @@ export async function openStatusExplainer() {
 /** The Projects tray: what a project is, and which ones this reader can see. */
 export async function openProjectsExplainer() {
     try {
+        const mods = await explainModules();
+        return explainer(t("DRPG.Explain.projects.window"), () => projectsBody(mods),
+            { settingKeys: ["daggerheart.Countdowns"], hooks: ["drpgSeenChanged", "drpgSecretStored"] });
+    } catch (err) {
+        error("Could not explain the Projects tray", err);
+        return null;
+    }
+}
+
+/** The tray's window: what a project is, and the projects as this reader last saw each. */
+function projectsBody(mods) {
+    {
         /* `knownProjects`, not `visibleProjects`: this window explains the tray,
            so it has to list exactly what the tray lists. On `visibleProjects` it
            named every public project on the board, discovered or not - which
            made it a way of reading the season's plan off a help window. */
         // As this reader last saw each (PV, 13.11.2026; the owner's rule #2): the tray's own list, projects-seen.mjs.
-        const { projectsAsSeen } = await import("./projects-seen.mjs");
+        const { projectsAsSeen } = mods.seen;
         const mine = projectsAsSeen(game.user);
 
         // `current` counts UP toward `start`, whichever way the underlying
@@ -404,11 +454,7 @@ export async function openProjectsExplainer() {
             section(t("DRPG.Explain.projects.yours"),
                 rows.length ? [rows.join("<br>")] : [esc(t("DRPG.Explain.projects.none"))])
         ].join("");
-
-        return explainer(t("DRPG.Explain.projects.window"), body);
-    } catch (err) {
-        error("Could not explain the Projects tray", err);
-        return null;
+        return body;
     }
 }
 
