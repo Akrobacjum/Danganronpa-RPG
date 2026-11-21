@@ -107836,8 +107836,6 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             entered: 0, left: 0, at: Date.now(), ...fields });
         const drawn = async (who, side) => (await expectedFor(who, { actionKey: "murderOpening", context: { side } })).read?.situation ?? null;
         const { contentOf } = await import("./secret.mjs");
-        // A whisper's words as this GM wrote them (a secret card keeps them aside, secret.mjs `contentOf`).
-        const cardsTo = () => game.messages.filter(m => !seenIds.has(m.id) && m.whisper?.includes(player.id)).map(m => contentOf(m));
         const read = {};
         try {
             await setClock({ timeOfDay: "noon" });
@@ -107846,8 +107844,22 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const state = M.murderState();
             must(state?.stage === "openingRoll" && state.killerId === actor.id, `the opening roll is not ${actor.name}'s to throw: ${stableJson(state)}`);
             read.gm = [await drawn(actor, "killer")];
-            const asked = async () => { const at = sent.length, cards = cardsTo().length; await M.rollOpening("killer", M.murderState()); await settle();
-                return { packet: sent.slice(at).at(-1) ?? null, cards: cardsTo().slice(cards) }; };
+            /* Each re-ask posts its own card (1.2.123's release, CI run 44961698565, suite 3/8): since the line CORE's
+               r122-lane-B-3 (d5287de4) a re-ask finds the player's card still standing and posts none, so the ask at 17
+               posted nothing and the comparison read a card against null (measured cards [true, false], red alone
+               here). The standing cards are taken down first, as the end of the opening does (`retireOpeningNotices`),
+               and an ask's cards are the ones whose ids were not there before it: the card taken down can leave while
+               the new one comes, so a count taken before the ask (the old `slice`) read none (cards [false, false],
+               measured with a probe of the messages). The open's card is written to the GMs' memo unawaited
+               (`keepOpeningNotice`), so the first ask waits for it there before taking it down; taken down before it
+               was noted, it stood, and the ask at 18 posted none. */
+            const { retireOpeningNotices, openingCardStandsFor } = await import("./incident-store.mjs");
+            const asked = async () => { for (let i = 0; i < 40 && !openingCardStandsFor(player.id); i++) await settle();
+                await retireOpeningNotices(); await settle();
+                const at = sent.length, known = new Set(game.messages.map(m => m.id)); await M.rollOpening("killer", M.murderState()); await settle();
+                // A whisper's words as this GM wrote them (a secret card keeps them aside, secret.mjs `contentOf`).
+                return { packet: sent.slice(at).at(-1) ?? null,
+                    cards: game.messages.filter(m => !known.has(m.id) && m.whisper?.includes(player.id)).map(m => contentOf(m)) }; };
             const at18 = await asked();
             await watch({ total: 17 });
             read.gm.push(await drawn(actor, "killer"));
