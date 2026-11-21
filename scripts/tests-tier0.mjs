@@ -4762,7 +4762,8 @@ const REGRESSIONS = [
             "the gate is never wired to the window");
         ok(!/return null;\s*\}\s*return written;/.test(confirm),
             "the callback still tries to cancel by returning null");
-        ok(/if \(call\.needsGm && !String\(result\)\.trim\(\)\) return null;/.test(confirm),
+        // The words read off the answer's object since 1.2.122 (the audit's COMM-39: a note "cancel" was read as Cancel).
+        ok(/const words = String\(result\.note \?\? ""\);\s*if \(call\.needsGm && !words\.trim\(\)\) return null;/.test(confirm),
             "an empty note can still reach the GM as an empty request - the gate lives in "
             + "the interface, and the boundary has to ask again");
     }],

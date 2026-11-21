@@ -102452,6 +102452,46 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ setting: [false, 1], gm: [NAME, true, false], revealed: [NAME, true] }),
             "{setting: [the name in Countdowns, the levels its map gives the players]; gm: [the GMs' name, the insider sees it, another does not]; revealed: [its name in the setting, another sees it]} - a secret project kept out of Countdowns");
     }],
+    ["1.2.122 COMM-38 - a Call aimed at a secret project names it in its confirmation as the picker did, not \"???\" (calls.mjs `describeChoice`, projects-secrecy.mjs `shownName`; the audit's COMM-38)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-38): the picker names each project by the name its reader may know, and the
+         * confirmation named the picked one from Daggerheart's raw countdown, which for a secret project is the neutral
+         * "???" - "Aimed at: ???" one window after the buyer picked it by name. A secret project made here (deleted after);
+         * Contribution's confirmation opened on this GM with DialogV2.wait held by a stand-in that reads the window and
+         * cancels it (nothing paid). Red at 21bf5d18: "???".
+         */
+        const P = await import("./projects.mjs");
+        const calls = await import("./calls.mjs");
+        const { HOPE_CALLS } = await import("./config.mjs");
+        const NAME = "SUITE COMM-38 the secret trap";
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        let id = null, aimed = null;
+        try {
+            id = (await P.createProject({ name: NAME, target: 6, room: null, secret: true, viewers: [] }))?.id ?? null;
+            must(id, "the secret project could not be made - this would measure nothing");
+            await settle();
+            must(game.settings.get("daggerheart", "Countdowns")?.countdowns?.[id]?.name !== NAME, "the countdown carries the real name - this would measure nothing");
+            D.wait = async config => {
+                const root = document.createElement("div");
+                if (typeof config.content === "string") root.innerHTML = config.content;
+                else if (config.content) root.append(config.content.cloneNode(true));
+                const line = [...root.querySelectorAll("p")].find(p => p.textContent.includes(game.i18n.localize("DRPG.Calls.aimedAt")));
+                aimed = line?.textContent ?? null;
+                return "cancel";
+            };
+            const call = Object.values(HOPE_CALLS).find(c => c.target === "project") ?? HOPE_CALLS.contribution;
+            must(call, "no Hope Call is aimed at a project - this would measure nothing");
+            await calls.confirmCall(call, { kind: "hope", held: 12, choice: { project: id } });
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+            if (id) await P.deleteProject(id);
+            await settle();
+        }
+        equal(stableJson([aimed?.includes(NAME) ?? null, aimed?.includes("???") ?? null]), stableJson([true, false]),
+            `the confirmation did not name the secret project as the picker does (read "${aimed}")`);
+    }],
     ["S17-31-T2 - a world's secret projects from before S17-31 are lifted once by the migration (scripts/migrate.mjs clause hideSecretProjects, projects.mjs `resealSecretProjects`): a secret project whose countdown holds its name and a per-player map loses both - its countdown carries no name and gives every player one level - its name and its player go to the GMs' store, that player is told by a private card, and a second run, forced, changes nothing", async () => {
         /*
          * S17-31, 13.11.2026. The old shape planted on a project made now: Daggerheart's Countdowns written back with the name

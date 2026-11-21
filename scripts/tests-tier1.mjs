@@ -17432,6 +17432,58 @@ const INVARIANTS = [
             "a notice of a card ruled elsewhere stayed, or one not ruled went ([drawn per card], [standing after: settled by update, settled by its words, left])");
     }],
 
+    ["R8266 - a note or a new rule that reads \"cancel\" is sent as written, not taken for the Cancel button: the Call's confirmation and New Rule's window answer the words inside an object (calls.mjs `confirmCall`, call-pickers.mjs `pickText`; 1.2.122, the audit's COMM-39)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-39): both windows' Next or Send answered the typed words bare, and the kit's Cancel
+         * answers its action, "cancel" - so the words "cancel" were read as Cancel (askForRequest fixed the same shape in
+         * E18 C0). DialogV2.wait held by a stand-in, as R3818 holds it, that presses the window's own primary button: its
+         * callback run on the window's form with "cancel" typed, its answer handed back as DialogV2 hands it. Read what
+         * each caller answers. Nothing is paid, armed or written: confirmCall only answers, and pickText's answer is taken
+         * before any purchase. Red at 21bf5d18: null for both.
+         */
+        const calls = await import("./calls.mjs");
+        const { pickTarget } = await import("./call-effects.mjs");
+        const { HOPE_CALLS, DESPAIR_CALLS } = await import("./config.mjs");
+        const who = game.actors.find(a => a.type === "character");
+        must(who, "no character in this world - this would measure nothing");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        D.wait = async config => {
+            const root = document.createElement("div");
+            if (typeof config.content === "string") root.innerHTML = config.content;
+            else if (config.content) root.append(config.content.cloneNode(true));
+            for (const box of root.querySelectorAll("textarea")) box.value = "cancel";
+            const press = (config.buttons ?? []).find(b => b.default) ?? (config.buttons ?? []).find(b => ["spend", "ok"].includes(b.action));
+            const answer = press?.callback ? await press.callback(new Event("click"), null, { element: root }) : null;
+            return answer ?? press?.action ?? null;
+        };
+        const within = promise => Promise.race([promise, new Promise(resolve => setTimeout(() => resolve("(another window)"), 2000))]);
+        let read = null;
+        try {
+            read = [await within(calls.confirmCall(HOPE_CALLS.experience, { kind: "hope", held: 12 })),
+                await within(pickTarget(who, DESPAIR_CALLS.newRule, "despair"))];
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+        }
+        equal(stableJson(read), stableJson(["cancel", { text: "cancel" }]),
+            "the words \"cancel\" were taken for the Cancel button ([Experience's note as confirmCall answers it, New Rule's text as pickTarget answers it])");
+    }],
+
+    ["R8267 - the GMs' card for a Hope Call's approval prints the effect from the GM's own table, never the packet's (call-gm.mjs `askHopeCallByCard`; 1.2.122, the audit's COMM-40)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-40): the card's title and price were read from this GM's HOPE_CALLS, the line under
+         * the title was the packet's `effect`, a claim - a console's ask could put "+5 to every roll today" under "Approve
+         * Experience?". Read off the source (driving the card would hold an ask on the primary): the card's body reads
+         * `proseOf(call, "effect")`, and the function reads no `payload.effect`. Red at 21bf5d18: `payload.effect` printed.
+         */
+        const sources = await moduleSources();
+        const body = stripComments(fnSource(stripComments(sources.get("call-gm.mjs") ?? ""), "askHopeCallByCard") ?? "");
+        must(/callGm\(actor,/.test(body), "askHopeCallByCard was not read off call-gm.mjs - this would measure nothing");
+        equal(stableJson([/proseOf\(call, "effect"\)/.test(body), /payload\.effect/.test(body)]), stableJson([true, false]),
+            "the approval card does not print the table's effect, or still prints the packet's ([reads proseOf(call, \"effect\"), reads payload.effect])");
+    }],
+
     ["R539 - the GM's block in the list is Foundry's block and never undoes the module's: the button is built only in a GM's list; its click writes the user's `permissions.BROADCAST_AUDIO` flipped from what Foundry answers now and nothing else; where `moduleHoldsMic` holds the microphone or a death is kept secret the button is disabled with its line and `toggleBlock` writes nothing; it refuses a player's client, the GM's own account and a user who is not of this world", async () => {
         /*
          * E78 C5, 14.10.2026; the A9 design's R392 (A9-5; the E78 plan's D2 gave it this number), the owner's Q4 (the

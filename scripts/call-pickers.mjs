@@ -323,12 +323,14 @@ async function pickText(ask) {
         },
         footer: { primary: {
             action: "ok", label: game.i18n.localize("DRPG.Calls.next"), tooltip: tipText("DRPG.Tips.Actions.nextTooltip"),
-            callback: (e, b, d) => d.element.querySelector("[name=text]").value.trim()
+            // `{ text }`, not the words bare (1.2.122, the audit's COMM-39; askForRequest's E18 C0): Cancel answers its
+            // action, "cancel", so a rule that read "cancel" was taken for the Cancel button.
+            callback: (e, b, d) => ({ text: d.element.querySelector("[name=text]").value.trim() })
         } }
     });
 
-    if (!text || text === "cancel") return null;
-    return { text };
+    if (!text?.text || typeof text !== "object") return null;
+    return { text: text.text };
 }
 
 /**
@@ -336,8 +338,8 @@ async function pickText(ask) {
  * cast has, and what happens when the time runs out.
  *
  * BOTH SENTENCES ARE REQUIRED, AND THE WINDOW SAYS SO BEFORE THE BUTTON (the
- * E13 lesson, learned on the rest picker). Nine Despair is three quarters of a
- * pool; a motive bought without a stated consequence is a threat the table
+ * E13 lesson, learned on the rest picker). A motive costs six Despair
+ * (config.mjs DESPAIR_CALLS.motive), half a pool; one bought without a stated consequence is a threat the table
  * cannot be held to, and finding that out after paying is the version of this
  * that costs somebody their time of day.
  */

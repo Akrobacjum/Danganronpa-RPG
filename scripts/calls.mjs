@@ -22,6 +22,7 @@ import { announce, whisperToOwner, log, error, esc, proseOf, gmIds } from "./uti
 import { callWindow, callHeader, callWindowClass, callRowsHtml, pickedRow, callPriceShort } from "./call-pickers.mjs";
 import { alreadyOpen } from "./live.mjs";
 import { nameAsSeen } from "./mask-gm.mjs";
+import { shownName } from "./projects-secrecy.mjs";
 
 import { tipText } from "./ui-kit.mjs";
 
@@ -788,7 +789,9 @@ export async function confirmCall(call, { kind = "hope", held = 0, choice = {}, 
                  */
                 callback: (event, button, dialog) => {
                     const words = asksGm ? (dialog.element.querySelector("[name=callNote]")?.value.trim() ?? "") : "";
-                    return rows ? { key: pickedRow(dialog.element, "call"), note: words } : words;
+                    // Always an object (1.2.122, the audit's COMM-39; askForRequest's E18 C0): Cancel answers its action,
+                    // "cancel", so a note that read "cancel", answered bare, was taken for the Cancel button.
+                    return rows ? { key: pickedRow(dialog.element, "call"), note: words } : { note: words };
                 }
             }
         },
@@ -802,20 +805,19 @@ export async function confirmCall(call, { kind = "hope", held = 0, choice = {}, 
         }
     });
 
-    if (result === "cancel" || result === null || result === undefined) return null;
+    if (!result || typeof result !== "object") return null;
     if (rows) {
         if (!open.includes(result?.key)) return null;
         if (asksGm && !String(result.note ?? "").trim()) return null;
         return { key: result.key, note: result.note ?? "" };
     }
     /* AND ASKED AGAIN WHERE NOTHING ABOUT THE WINDOW CAN LIE TO IT (CALL-12). The
-       gate above lives in the interface, and an empty string does not trip
-       `?? button.action` - that operator fires on null and undefined only - so
-       without this line an empty note could still travel to the GM as an empty
-       blockquote. A needsGm Call with nothing written is the same answer Cancel
-       gives. */
-    if (call.needsGm && !String(result).trim()) return null;
-    return result;
+       gate above lives in the interface, so without this line an empty note could
+       still travel to the GM as an empty blockquote. A needsGm Call with nothing
+       written is the same answer Cancel gives. */
+    const words = String(result.note ?? "");
+    if (call.needsGm && !words.trim()) return null;
+    return words;
 }
 
 /**
@@ -887,9 +889,12 @@ function describeChoice(choice = {}) {
     if (choice.room) return choice.room;
     if (choice.item?.name) return choice.item.name;
     if (choice.project) {
+        /* As the picker named it (1.2.122, the audit's COMM-38): a secret project's countdown carries the neutral "???"
+           and its real name is the GMs' (projects-secrecy.mjs), so the raw countdown's name read "Aimed at: ???" one
+           window after the buyer picked it by name. `shownName` is the name this browser's user may read. */
         try {
-            const data = game.settings.get("daggerheart", "Countdowns");
-            return data?.countdowns?.[choice.project]?.name ?? null;
+            if (!game.settings.get("daggerheart", "Countdowns")?.countdowns?.[choice.project]) return null;
+            return shownName(choice.project) || null;
         } catch {
             return null;
         }

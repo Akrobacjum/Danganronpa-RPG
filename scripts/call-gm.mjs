@@ -30,7 +30,7 @@
 import { MODULE_ID, TRAITS, HOPE_CALLS, TIMING } from "./config.mjs";
 import { cardWarn } from "./chat-card.mjs";
 import {
-    whisperToGms, ownerOf, isPrimaryGm, debug, warn, error, esc, serverNow, localeFormat
+    whisperToGms, ownerOf, isPrimaryGm, debug, warn, error, esc, serverNow, localeFormat, proseOf
 } from "./utils.mjs";
 import { forgetCallYes, sayNotDone, gmOnline, noteCallYes } from "./bridge-guards.mjs";
 import { contentOf, cardFlag, cardMeta } from "./secret.mjs";
@@ -239,7 +239,9 @@ export async function askHopeCallByCard(payload, ctx) {
     const posted = await callGm(actor, {
         title: game.i18n.format("DRPG.Calls.approveTitle", { call: call?.label ?? payload.callLabel ?? "" }),
         request: payload.note ?? "",
-        body: `<p>${esc(payload.effect ?? "")}</p><p class="notes">${
+        // The effect's sentence from this side's table too (1.2.122, the audit's COMM-40): the packet's `effect` is a
+        // claim, and a console could put any sentence under "Approve Experience?"; a key this side does not know says none.
+        body: `<p>${esc(call ? proseOf(call, "effect") : "")}</p><p class="notes">${
             game.i18n.format("DRPG.Calls.approveCost", { cost: Number.isFinite(call?.cost) ? call.cost : "?" })}</p>`,
         gmBody: game.i18n.localize("DRPG.Calls.approveHint"),
         actions: [
