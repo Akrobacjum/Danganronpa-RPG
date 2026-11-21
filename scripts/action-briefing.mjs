@@ -30,6 +30,7 @@ import { quotePrice, priceLine } from "./price.mjs";
 import { tamperQuote, witnessesTo } from "./cleanup.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { othersInRoom, locateActor } from "./movement.mjs";
+import { seenHere } from "./mask-gm.mjs";
 import { projectsAvailableIn, isIndirectMurder } from "./projects.mjs";
 import { error, plural, esc, listOf } from "./utils.mjs";
 import { equippedFor, tierOf } from "./use-items.mjs";
@@ -297,7 +298,8 @@ function thresholdFacts(actor, actionKey, def) {
             if (a !== undefined) f("DRPG.Action.dcProject", { a, b: b ?? a, relief: reliefNote });
             const [sa, sb] = mins(ACTIONS.sabotage?.thresholds).map(n => Math.max(0, n - relief));
             if (sa !== undefined) f("DRPG.Action.dcSabotage", { a: sa, b: sb ?? sa, relief: reliefNote });
-            if (othersInRoom(actor).length) f("DRPG.Action.dcConceal", { n: SABOTAGE_CONCEAL.threshold });
+            // Somebody here as this browser sees the room: not a veiled killer it does not draw (r121-M-4; mask-gm.mjs `seenHere`).
+            if (seenHere(othersInRoom(actor)).length) f("DRPG.Action.dcConceal", { n: SABOTAGE_CONCEAL.threshold });
             try {
                 const place = locateActor(actor);
                 const here = place?.room ? projectsAvailableIn(place) : [];

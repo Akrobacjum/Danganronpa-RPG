@@ -22,6 +22,7 @@ import { isCallSilenced, pendingGather, alreadyArmed } from "./call-effects.mjs"
 import { witnessesTo, isCleaner, freeTonightText, tamperQuote } from "./cleanup.mjs";
 import { stripeKindFor, quotePrice, priceLabel } from "./price.mjs";
 import { neighbouringRooms, othersInRoom, locateActor, roomOfActor } from "./movement.mjs";
+import { seenHere } from "./mask-gm.mjs";
 import { moveLine } from "./action-rolls.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { rules } from "./rules.mjs";
@@ -1011,8 +1012,11 @@ export function roomBlockFor(actor, key) {
         // Palm needs a pocket, and a pocket needs somebody standing in it -
         // true of both directions. The same question `performPalm` asks, on
         // the scene the character stands on (`othersInRoom`, E12 C3), so the
-        // tile tells the truth about the room rather than guessing.
-        if (key === "palm" && othersInRoom(actor).length === 0)
+        // tile tells the truth about the room rather than guessing - as this
+        // browser sees the room (mask-gm.mjs `seenHere`): a killer under the
+        // opening's veil, whose token it does not draw, is nobody here on the
+        // victim's own sheet (the auditor's check of 1.2.121, r121-M-4).
+        if (key === "palm" && seenHere(othersInRoom(actor)).length === 0)
             return game.i18n.localize("DRPG.Steal.nobodyHere");
 
         // TAMPER IS ANSWERED, AND IT USED TO SAY IT COULD NOT BE.

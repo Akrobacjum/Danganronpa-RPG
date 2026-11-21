@@ -64614,6 +64614,23 @@ const INVARIANTS = [
             stableJson({ asked: [{ width: 500 + grew }], inline: "", alone: `${500 + grew}px` }),
             "{asked: the app's setPosition calls; inline: the app's window's own width written; alone: an app-less window's}");
     }],
+    ["R8433 - a killer under the opening's veil is nobody here on a sheet that does not draw them (the auditor's check of 1.2.121, r121-M-4; 1.2.122 line UI): sheet-actions.mjs `roomBlockFor`'s Palm ('Nobody else is here') and action-briefing.mjs's Project line on concealment count the room through mask-gm.mjs `seenHere`, as the pickers do; `seenHere` leaves out an actor whose veiled token this browser hides and keeps the rest", async () => {
+        /* Red on 21bf5d18 and 8edfd7cf: both counted `othersInRoom` raw, so the victim's own sheet said somebody was there.
+           The two counts are read in the source; `seenHere`'s verdict on stand-in tokens with a stand-in user and verdict. */
+        const sources = await moduleSources();
+        const block = fnSource(stripComments(sources.get("sheet-actions.mjs") ?? ""), "roomBlockFor");
+        const brief = stripComments(sources.get("action-briefing.mjs") ?? "");
+        const M = await import("./mask-gm.mjs");
+        const veiled = { id: "R8433-veiled" }, plain = { id: "R8433-plain" };
+        const scenes = [{ tokens: [{ actorId: veiled.id, flags: { [MODULE_ID]: { [M.VEIL_FLAG]: true } } }, { actorId: plain.id, flags: {} }] }];
+        equal(stableJson({
+            player: M.seenHere([veiled, plain], { scenes, user: { isGM: false }, shown: () => "hide" }).map(a => a.id),
+            palm: /key === "palm" && seenHere\(othersInRoom\(actor\)\)\.length === 0/.test(block),
+            conceal: /if \(seenHere\(othersInRoom\(actor\)\)\.length\) f\("DRPG\.Action\.dcConceal"/.test(brief),
+            gm: M.seenHere([veiled, plain], { scenes, user: { isGM: true }, shown: () => "hide" }).length
+        }), stableJson({ player: [plain.id], palm: true, conceal: true, gm: 2 }),
+        "{player: who a player's browser that hides the veiled token counts; palm, conceal: each counts the room through seenHere; gm: a GM's browser leaves nobody out}");
+    }],
 ];
 
 /**
