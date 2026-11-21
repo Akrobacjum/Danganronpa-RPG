@@ -102411,6 +102411,65 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             failed: [false, 1, true], lockdown: ["actionBlocked", false], rows: [[true, true, true], [true, true, false]] }),
             "{first: [the use's success, Sanity after]; closed; again; noRoll; otherRoll; failed: [success, Sanity, closed]; lockdown: [the code, a use kept]; rows: [its character, its user, success] per use} - a GM's room action once a time of day, on the GMs' roll");
     }],
+    ["1.2.122 STG-39 - a GM's room action is closed by the draw of its roll: a failed drawn roll whose use is never reported leaves the action closed for everyone and a second draw refused, and the use that names that roll is still carried out (scripts/roll-draw.mjs `closeFacilityAtDraw`, `facilityOfDraw`; bridge-runs-acts.mjs `handleFacilityUse`; the audit's STG-39, 1.2.122 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP. The audit's STG-39: the use row and the public closing were written by
+         * `facility.use` alone, which the roller's browser sends after the roll; a console that read a failed drawn roll
+         * and sent nothing left the action open and could try again. E93-T2's room, one action of difficulty 30. A player's
+         * roll of it drawn on this GM as `drawOnGm` draws one (`drawnForPlayer`, the packet's context naming the action):
+         * then nothing sent. Read: the use row (pending), the action closed for all, a second draw's verdict; then the
+         * `facility.use` naming the first roll's message: its answer, and the row after. Put back as E93-T2. Red at
+         * 84c9c02c: no row, the action open, the second draw thrown.
+         */
+        const F = await import("./facilities.mjs");
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { writablePieces } = await import("./rooms.mjs");
+        const { FACILITIES } = await import("./config.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const pieces = writablePieces(where.scene, where.room);
+        must(pieces.length, `the room ${where.room} has no piece to hold an action - this would measure nothing`);
+        const flagsBefore = pieces.map(p => foundry.utils.deepClone(p.getFlag(MODULE_ID, FACILITIES.flag) ?? null));
+        const closedBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.facilityClosed) ?? {});
+        const tokensBefore = new Set(where.scene.tokens.map(t => t.id));
+        const id = "R122S39a", key = F.gmActionKey(where.scene.id, where.room, id);
+        const draws = [];
+        const draw = async () => {
+            const d = await drawnForPlayer(player, actor, { actionKey: "facility", faces: { hope: 3, fear: 2 },
+                edit: p => ({ ...p, context: { ...(p.context ?? {}), facilityId: id } }) });
+            draws.push(d);
+            return d;
+        };
+        const read = {};
+        try {
+            await F.setRoomActions(where.scene, where.room, [{ id, label: "1.2.122 STG-39 lamp", trait: "eye", dc: 30, effects: [{ kind: "sanity", n: 1 }] }]);
+            await settle();
+            const first = await draw();
+            must(first.value?.messageId, `the action's roll was not drawn - this would measure nothing: ${stableJson(first.sent)}`);
+            const row = S.facilityUseStore.get(key);
+            read.drawn = { pending: row?.pending === true, closed: F.closedNow().has(key) };
+            const second = await draw();
+            read.again = second.sent.find(r => r.action === "bridge.refused") ? "refused" : second.value?.messageId ? "drawn" : "none";
+            const told = [];
+            await G.judge(BRIDGE_ACTIONS, { action: "facility.use", requestId: `R122S39${foundry.utils.randomID(8)}`, actorId: actor.id, actionId: id, total: 0, rollId: first.value.messageId },
+                player.id, { send: (to, reply) => told.push(reply) });
+            await settle();
+            const reply = told.find(r => r?.action === "bridge.done" || r?.action === "bridge.refused") ?? null;
+            read.use = { answer: reply?.action === "bridge.refused" ? reply.reason : reply?.value?.success ?? null, pending: S.facilityUseStore.get(key)?.pending ?? null };
+        } finally {
+            for (const d of draws) await d.putBack();
+            if (S.facilityUseStore.has(key)) await S.facilityUseStore.drop(key);
+            await game.settings.set(MODULE_ID, SETTINGS.facilityClosed, closedBefore);
+            await where.scene.updateEmbeddedDocuments("Region", pieces.map((p, i) => ({ _id: p.id,
+                [`flags.${MODULE_ID}.${FACILITIES.flag}`]: flagsBefore[i] === null ? forcedDeletion() : flagsBefore[i] })));
+            const placed = where.scene.tokens.filter(t => !tokensBefore.has(t.id)).map(t => t.id);
+            if (placed.length) await e93DropTraces(where.scene, placed);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ drawn: { pending: true, closed: true }, again: "refused", use: { answer: false, pending: false } }),
+            "{after a drawn roll nobody reported: the use row pending, the action closed for all; a second draw; the use naming the first roll: its answer (the success), the row's pending after}");
+    }],
     ["E93-T3 - a completed project's action stands in its room for its lifetime and says so (scripts/facilities.mjs `projectActionsAt`, `facilityLineFor`, `setProjectFacility`, projects.mjs COMPLETION_EFFECTS `facility`, action-facilities.mjs `facilityRows`; E93 C1, C4, the owner's audit entry E93 (4) and 05.11 option A): a project given an action before it is completed offers nothing; completed in the character's room it stamps its completion and offers its action in the Facilities window with its time left, and the Projects line names it; at the next time of day a one-time-of-day action is gone; under Power cut it is greyed with the Power cut line; taken off, it is gone", async () => {
         /*
          * E93 C4, 12.11.2026. A public project made in the room a connected player's character stands in, completed by the

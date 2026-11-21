@@ -1772,6 +1772,7 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     });
     // The balance log (E53 C3): the roll as the GMs recorded it, kept only while the world's switch is on.
     await noteBalanceRoll(rollStore.get(rollId));
+    if (key === "facility") await closeFacilityAtDraw(actor, told.context, { rollId, messageId: message.id }, sender);
     if (flags.length) await tellUnexpected(actor, flags);
     await tellRoller(sender, legal);
     return { reply: { rollId, messageId: message.id, faces: facesOf(roll), total: roll.total, loaded: dieHeld, roll: legal.json } };
@@ -2021,6 +2022,33 @@ async function facilityOfDraw(actor, context, { open = false } = {}) {
     if (F.facilityShut("gm", overflowFacilityStates())) return null;
     const { facilityUseStore } = await import("./gm-stores.mjs");
     return facilityUseStore.get(F.gmActionKey(place.scene.id, place.room, id))?.mark === F.facilityMark() ? null : action;
+}
+
+/**
+ * A GM'S ROOM ACTION IS CLOSED BY ITS DRAWN ROLL (the audit's STG-39, 1.2.122). Once anyone uses one, a failed roll too, it
+ * is closed for everyone until the next time of day; the row and the public closing were written only by `facility.use`,
+ * which the roller's browser sends after the roll - so a console that read a failed drawn roll and sent nothing left the
+ * action open, for itself and the table, and tried again for an action each time. Now the draw writes the use row first,
+ * `pending` and naming its roll (`rollId`, `messageId`: the use packet names the message), and closes the action for all (facilities-gm.mjs `closeForAll`): a second draw
+ * finds it closed (`facilityOfDraw`), and the `facility.use` that names this roll carries it out over its own pending row
+ * (bridge-runs-acts.mjs `handleFacilityUse`). One never sent leaves the action closed with no effects given.
+ */
+async function closeFacilityAtDraw(actor, context, { rollId, messageId }, sender) {
+    try {
+        const id = typeof context?.facilityId === "string" ? context.facilityId : null;
+        const { gmPlaceOf } = await import("./movement.mjs");
+        const place = gmPlaceOf(actor);
+        if (!id || !place?.room) return;
+        const F = await import("./facilities.mjs");
+        const { facilityUseStore } = await import("./gm-stores.mjs");
+        const key = F.gmActionKey(place.scene.id, place.room, id), mark = F.facilityMark();
+        await facilityUseStore.whenHydrated();
+        if (facilityUseStore.get(key)?.mark === mark) return;
+        await facilityUseStore.patch(key, { mark, actorId: actor.id, userId: sender?.id ?? null, at: Date.now(), success: false, pending: true, rollId, messageId });
+        await (await import("./facilities-gm.mjs")).closeForAll(key, mark);
+    } catch (err) {
+        error("Could not close a room action at its roll's draw", err);
+    }
 }
 
 /** The clean-up's step a packet's context names (cleanup.mjs `cleanupKey`): one of Stage 6's actions, else the clean-up itself. */
