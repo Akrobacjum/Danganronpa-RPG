@@ -1630,6 +1630,7 @@
         "closeDebate": "Debata jest otwarta. Zamknij ją, gdy spór się wyczerpie.",
         "endRound": "Głos ma runda. Zakończ rundę, gdy każdy mówca zabierze głos.",
         "endClosing": "Głos ma Closing Argument. Zakończ go, potem wyślij karty.",
+        "closingChoice": "Closing Argument czeka na ciebie: zatwierdź albo wybierz mówcę albo zdecyduj, kto mówi dalej po Objection.",
         "vote": "Karty są rozesłane. Gdy wrócą, użyj Zamknij i policz w oknie Głosowanie.",
         "verdict": "Głosy policzone. Ogłoś werdykt.",
         "finishVerdict": "Werdykt zatrzymał się, zanim wykonał wszystkie kroki. Dokończ werdykt.",
@@ -1696,6 +1697,7 @@
         "sentenceWaits": "Wyrok zostanie wykonany, gdy Class Trial się skończy.",
         "round": "Głos ma runda, w której mówcy przemawiają po kolei. Pomiń oddaje głos następnemu mówcy, a Zakończ ten tryb kończy rundę.",
         "closing": "Głos ma Closing Argument: zatwierdź albo wybierz mówcę, a po Objection zdecyduj, kto mówi dalej. Zakończ Closing Argument go kończy; następny krok to głosowanie.",
+        "closingChoice": "Stół czeka na ciebie: zatwierdź albo wybierz mówcę Closing Argument w jego wierszu poniżej, a po Objection zdecyduj, kto mówi dalej. Zakończ Closing Argument go kończy; następny krok to głosowanie.",
         "zones": "Głos ma tryb stref: każdy odpowiada tym, gdzie stoi jego token. Policz teraz i Pomiń na pasku przyspieszają liczenie; Zakończ ten tryb go kończy.",
         "scrum": "Straw Poll podzieliła klasę. Scrum Debate ze Stref sali pozwoli obu obozom to rozstrzygnąć; debata i głosowanie nadal są dostępne."
       },

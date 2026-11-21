@@ -189,6 +189,10 @@ const notMine = view => Boolean(view.runner) && view.runner !== game.user?.id;
 export const TRIAL_NEXT_STEPS = Object.freeze([
     [view => !view.afterwards, "start"],
     [view => view.running && view.floor && floorFamily(view.floor) === "round", "endRound"],
+    /* THE CLOSING WAITS ON THE GM (1.2.122, CASE-62): its choice of the speaker and its decision after an Objection have
+       no clock and no card, and only a GM's press leaves them; until this row the step was End the Closing Argument, so
+       with the console shut the GM panel's Next line said to end it while the table waited on the GM. */
+    [view => view.running && view.floor && floorFamily(view.floor) === "closing" && ["choice", "decide"].includes(closingOf(view.floor)?.phase), "closingChoice"],
     [view => view.running && view.floor && floorFamily(view.floor) === "closing", "endClosing"],
     // A zone mode's end (E73): End this mode, the footer's step.
     [view => view.running && view.floor && floorFamily(view.floor) === "zones", "endZone"],

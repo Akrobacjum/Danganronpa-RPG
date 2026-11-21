@@ -65444,6 +65444,22 @@ const INVARIANTS = [
         }), stableJson({ player: [plain.id], palm: true, conceal: true, gm: 2 }),
         "{player: who a player's browser that hides the veiled token counts; palm, conceal: each counts the room through seenHere; gm: a GM's browser leaves nobody out}");
     }],
+    ["R8148 - the trial's next step says when the Closing Argument waits on the GM (1.2.122, CASE-62, routed from line MAP): trial-floor.mjs `TRIAL_NEXT_STEPS` answers `closingChoice` while the Closing's phase is the GM's choice of its speaker or the decision after an Objection, and `endClosing` while somebody speaks or volunteers; the step has its text and the console its lead in both languages, and the GM panel's Next line reads that text", async () => {
+        /* Red at d66006f0: the whole Closing was `endClosing` ("End it, then send the ballots"), so with the console shut
+           the GM read nothing of the choice the table waited on. Pure over planted views. */
+        const F = await import("./trial-floor.mjs");
+        const view = phase => ({ floor: { active: true, mode: "closing", holderId: phase === "speak" ? "a" : null, closing: { phase, step: 1, openedAt: 1 } },
+            running: true, afterwards: true, stopped: null, runner: null, finalNow: false,
+            progress: { voteClosed: false, verdictApplied: false, debateAgain: false, againAfterOverrule: null, vote: { open: false } } });
+        const steps = ["volunteer", "choice", "speak", "decide"].map(p => F.trialNextStep(view(p)));
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(lfText).then(t => JSON.parse(t).DRPG?.Floor ?? {});
+        const texts = ["en", "pl"].map(code => [typeof lang[code].next?.closingChoice === "string", typeof lang[code].lead?.closingChoice === "string"]);
+        const said = F.trialStepText("closingChoice", view("choice"));
+        equal(stableJson({ steps, texts, said: said === game.i18n.localize("DRPG.Floor.next.closingChoice") }),
+            stableJson({ steps: ["endClosing", "closingChoice", "endClosing", "closingChoice"], texts: [[true, true], [true, true]], said: true }),
+            "{steps: the next step in the Closing's [volunteers, choice, speech, decision]; texts: [EN, PL] the step's text and lead; said: the Next line's text}");
+    }],
 ];
 
 /**
