@@ -2,7 +2,7 @@
  "handbook": "docs/handbooks/player-brochure.en.md",
  "facts": [
   {"id": "s0.p1.f1", "unit": "s0.p1", "place": "(before the first section), line 3", "kind": "rule", "text": "The brochure is a short read before the first session, about six printed pages.", "keywords": ["about six printed pages"]},
-  {"id": "s0.p1.f2", "unit": "s0.p1", "place": "(before the first section), line 3", "kind": "rule", "text": "The brochure is for Module 1.2.122 on Daggerheart.", "keywords": ["Module 1.2.122", "Daggerheart"]},
+  {"id": "s0.p1.f2", "unit": "s0.p1", "place": "(before the first section), line 3", "kind": "rule", "text": "The brochure is for Module 1.2.123 on Daggerheart.", "keywords": ["Module 1.2.123", "Daggerheart"]},
   {"id": "s0.p2.f1", "unit": "s0.p2", "place": "(before the first section), line 5", "kind": "rule", "text": "You are an Ultimate.", "keywords": ["Ultimate"]},
   {"id": "s0.p2.f2", "unit": "s0.p2", "place": "(before the first section), line 5", "kind": "rule", "text": "An Ultimate is the one thing your character does best.", "keywords": ["the one thing your character does best"]},
   {"id": "s0.p2.f3", "unit": "s0.p2", "place": "(before the first section), line 5", "kind": "rule", "text": "Your Ultimate is written under their name on the sheet.", "keywords": ["written under their name on the sheet"]},
