@@ -1138,6 +1138,14 @@ export async function playTrack(track, soundId) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
     }
+    // Another GM's press is the primary's to carry out (`onPrimaryElsewhere`), which finds the track as below and says
+    // what it lacks; the bridge says a refusal or no answer. The sound answered is this browser's copy, for the notice.
+    if (onPrimaryElsewhere()) {
+        const { requestMusicTrack } = await import("./bridge-asks.mjs");
+        const res = await requestMusicTrack("play", String(soundId ?? track ?? "").trim());
+        const id = res.ok ? res.value?.played : null;
+        return id ? (situationalPlaylist()?.sounds.get(id) ?? null) : null;
+    }
 
     const playlist = situationalPlaylist();
     if (!playlist) {
@@ -1152,12 +1160,6 @@ export async function playTrack(track, soundId) {
     if (!sound) {
         ui.notifications.warn(game.i18n.localize("DRPG.Music.noTrack"));
         return null;
-    }
-    // Another GM's press is the primary's to carry out (`onPrimaryElsewhere`); the bridge says a refusal or no answer.
-    if (onPrimaryElsewhere()) {
-        const { requestMusicTrack } = await import("./bridge-asks.mjs");
-        const res = await requestMusicTrack("play", sound.id);
-        return res.ok && res.value?.played ? sound : null;
     }
 
     try {

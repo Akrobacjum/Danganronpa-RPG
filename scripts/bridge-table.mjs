@@ -1009,7 +1009,7 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_MUSIC_TRACK]: {
         label: "DRPG.Bridge.what.music.track",
         guards: [gmOnly("only a GM plays or stops the music")],
-        sanitize: pick({ kind: as.oneOf("play", "stop"), soundId: as.text }),
+        sanitize: pick({ kind: as.oneOf("play", "stop"), track: as.text }),
         run: handleMusicTrack,
         answer: "reply"
     },

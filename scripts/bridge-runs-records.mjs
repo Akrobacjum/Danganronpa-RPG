@@ -626,9 +626,9 @@ export async function handleMusicTrack(payload, sender, ctx) {
     if (!payload.kind) return { refused: "nothing was carried out: the press is not a play or a stop" };
     const { playTrack, resetMusic } = await import("./music-play.mjs");
     if (payload.kind === "play") {
-        const played = await playTrack(payload.soundId);
+        const played = await playTrack(payload.track);
         if (!played) return { refused: "nothing was carried out: the cue was not played" };
-        return { reply: { played: true } };
+        return { reply: { played: played.id } };
     }
     const done = await resetMusic();
     if (!done) return { refused: "nothing was carried out: the music was not stopped" };

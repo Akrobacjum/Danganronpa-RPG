@@ -510,10 +510,11 @@ export function requestCallWorld(change) {
 /**
  * A GM that is not the primary asks the primary to play a cue or stop the track (1.2.122, the owner's decision of
  * 21.11.2026; music-play.mjs `playTrack`, `resetMusic`, which ask only while the primary is connected and is somebody
- * else). Its value is `{ played }` for a play, `{ stopped, given }` for a stop.
+ * else). `track` is a sound's id or a track's name, as `playTrack` takes it. Its value is `{ played }` (the sound's id) for
+ * a play, `{ stopped, given }` for a stop.
  */
-export function requestMusicTrack(kind, soundId = null) {
-    return ask(ACTION_MUSIC_TRACK, { kind, soundId: soundId ?? null });
+export function requestMusicTrack(kind, track = null) {
+    return ask(ACTION_MUSIC_TRACK, { kind, track: track ?? null });
 }
 
 /**
