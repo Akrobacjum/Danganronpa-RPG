@@ -287,9 +287,14 @@ export async function killCharacter(actor, { keepBullets = false, secret = null,
             chapter: record.chapter
         })}</p>
         ${secretly
-            ? `<p>${game.i18n.localize("DRPG.Chapter.keptUntilFound")}</p>`
+            ? `<p class="drpg-gm-only">${game.i18n.localize("DRPG.Chapter.keptUntilFound")}</p>`
             : keepBullets ? "" : `<p>${plural("DRPG.Chapter.bulletsGone", { n: removed })}</p>`}
-        <p><small>${game.i18n.localize("DRPG.Chapter.vaultPending")}</small></p>`, {
+        <p class="drpg-gm-only"><small>${game.i18n.localize("DRPG.Chapter.vaultPending")}</small></p>`, {
+        /* THE GMS' NOTES STAY THEIRS (the audit's TEXT-29, 1.2.122): mid-incident this card is whispered to the incident's
+           players too (`deathAudience`), and "Only the GMs know of this death ... in the Students window" and the stash's
+           fate are the GMs' procedure, not a line to a player (docs/text-style.md section 3). Both are `.drpg-gm-only`,
+           which a player's copy of a veiled card's words never holds (secret.mjs `playerWords`): the players read the
+           title and who died. */
         whisper: deathAudience ?? gmIds(),
         // The audience of a death card mid-incident is the incident's cast.
         veiled: true,

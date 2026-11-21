@@ -103774,6 +103774,49 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ before: String(students.length), dead: String(students.length - 1), placing: read.placing, placed: 1, cubRender: true }),
             "{before, dead: the students Still to act counts over, before and after a death the GMs keep; placed: how many fewer Still placing after one student's crossings were written; cubRender: whether a Monocubs' row written drew the strip} - the strip follows the GMs' stores it reads");
     }],
+    ["1.2.122 TEXT-29 - a death the GMs keep during an incident sends the incident's players who died and not the GMs' notes: the killer's player's copy of the card holds the death's line and neither 'Only the GMs know of this death' nor the stash's fate, which a GM's copy keeps (scripts/death.mjs `recordDeath`; secret.mjs `wordsFor`; the audit's TEXT-29, 1.2.122 line WORLD)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line WORLD. The audit's TEXT-29 (domain-text-b-lang-1): the card is whispered to the GMs and
+         * the incident's audience (`deathAudience`), and carried DRPG.Chapter.keptUntilFound and vaultPending, two GM notes,
+         * as plain lines. Driven: a direct murder opened on a critical, as `closedCriticalCase` opens one, and the victim
+         * killed into Stage 6 (`killedIntoStageSix`: a death kept). Read: the death card posted then, whispered to the
+         * killer's player, and its words as that player and as this GM hold them (`wordsFor`). Put back: the victim, the
+         * incident, the cards. Red at 21bf5d18: the killer's player's copy held both notes.
+         */
+        const M = await import("./murder.mjs");
+        const { wordsFor, contentOf } = await import("./secret.mjs");
+        const { isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && a.testUserPermission(u, "OWNER")) ?? null;
+        const [killer, victim] = cast(2);
+        must(!M.murderState(), "an incident was already running when this test started");
+        const reader = player(killer);
+        must(reader && !victim.testUserPermission(reader, "OWNER"), "the killer has no player of their own - this would measure nothing");
+        const seenIds = new Set(game.messages.map(m => m.id));
+        const note = game.i18n.localize("DRPG.Chapter.keptUntilFound"), stash = game.i18n.localize("DRPG.Chapter.vaultPending");
+        const title = game.i18n.localize("DRPG.Chapter.deathTitle");
+        const plain = html => { const t = document.createElement("template"); t.innerHTML = String(html ?? ""); return t.content.textContent.replace(/\s+/g, " "); };
+        let read = null;
+        try {
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: true, withHope: true });
+            await settle();
+            const unanswered = await killedIntoStageSix(victim);
+            must(isDeadForGm(victim) && !unanswered.length, `the victim's death was not kept: ${stableJson({ unanswered })}`);
+            const card = game.messages.find(m => !seenIds.has(m.id) && plain(contentOf(m)).includes(title));
+            must(card, "no death card was posted - this would measure nothing");
+            const words = String(contentOf(card) ?? "");
+            const theirs = plain(wordsFor(reader.id, words)), mine = plain(wordsFor(game.user.id, words));
+            read = { toThem: (card.whisper ?? []).includes(reader.id), theirs: [theirs.includes(victim.name), theirs.includes(note), theirs.includes(stash)],
+                mine: [mine.includes(note), mine.includes(stash)] };
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            for (const m of game.messages.filter(m => !seenIds.has(m.id))) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ toThem: true, theirs: [true, false, false], mine: [true, true] }),
+            "{toThem: the card whispered to the killer's player; theirs: [the victim's name, the GMs' kept note, the stash's note] in that player's copy; mine: the two notes in this GM's} - an incident's player reads who died, not the GMs' notes");
+    }],
     ["PV-DOORS-T1 - the people in the character's own room always see who works its doors, and everyone behind a barricade hears a knock (scripts/doors-gm.mjs `shutDoor`, `forceDoor`, `pickLock`, `knockDoor`; the owner's rules #8 and #9, 13.11.2026): Shut the Door, a Force missed with Hope and a Pick whose Shadow cover passed each send the other student in the character's room a card naming the character, and nobody in the room beyond one; a Pick whose cover failed and a Force missed with Despair tell both rooms, as before; a walk refused at a barricade is heard by everyone in the barricaded room - its author and the student beside them - and never by the walker", async () => {
         /*
          * Privacy line 1 (doors), 13.11.2026. Judged as the primary judges the player's packets (`G.judge`), each roll a
