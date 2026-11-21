@@ -27650,7 +27650,7 @@ const REGRESSIONS = [
         }
         equal(JSON.stringify(wrong), "[]", "[what the text still says beyond what holds]");
     }],
-    ["R8544 - the handbooks say what the code does (1.2.123 line TEXT; the check of 1.2.122, lane HB: r122-HB-1 to r122-HB-6): each row reads the code a handbook sentence describes and holds the English and the Polish handbook to it - the camera dock takes a hidden killer's tile off, the voice tile's Hidden, the Debug log's buttons fixed at its open, Take from the Body at the top of a whole sheet's inventory, the hidden stashes' store and a secret project's completion in section 22, and Repair the Lock a preset", async () => {
+    ["R8620 - the handbooks say what the code does (1.2.123 line TEXT; the check of 1.2.122, lane HB: r122-HB-1 to r122-HB-6): each row reads the code a handbook sentence describes and holds the English and the Polish handbook to it - the camera dock takes a hidden killer's tile off, the voice tile's Hidden, the Debug log's buttons fixed at its open, Take from the Body at the top of a whole sheet's inventory, the hidden stashes' store and a secret project's completion in section 22, and Repair the Lock a preset", async () => {
         /*
          * 1.2.123 line TEXT, 21.11.2026; the auditor's lane HB of recheck-122.json, routed to TEXT by the coordinator. Each
          * row is the reading the finding made at its file on 14bb0d92, read again by hand there, and the words the
