@@ -1,0 +1,1987 @@
+{
+ "what": "The audit's check of release v1.2.122 against v1.2.121 (D-A10)",
+ "date": "21.11.2026",
+ "tree": "14bb0d92 (tag v1.2.122)",
+ "previous": "1eee4d62 (v1.2.121)",
+ "runs": {
+  "tiers_0_1": "1978 ran, 1963 passed, 0 failed, 16 skipped, 0 red (562 s), 14bb0d92's own harness",
+  "tier_2_selected": "--only \"1.2.122\": 288 ran, 294 passed, 0 failed, 0 skipped, 0 red (403 s; the runner's two counts differ, not read why)",
+  "probe_44": "100 windows, 96 opened, 78 of 78 live regions return the region. action-palm and ballot are not opened on any version (the probe's); action-loot and action-loot--long opened on 1.2.121 and not in this run: see not_established",
+  "probe_43": "running at the time of writing (all 74 windows, the GM heap after gc per window): 16 windows read, 136 -> 288 MB, against 472 -> 4967 MB on 1.2.121 at the same 16 (probe-43-heap.json) - INVEST's a11y observer (ede0cbe7) holds end to end so far. Added when it ends."
+ },
+ "method": "8 lanes (A TEXT+STG+assembly, B CORE+WORLD, C TRIAL+MURDER, D INVEST+heap, E MAP+UI, F DESP+ITEMS, G COMM, H R1+the window rule), each a first reader on the shipped tree and its diff against v1.2.121 (every commit of the line; lane F was sent back once for the 24 commits it had not read), then a second reader who tried to overturn every finding, regression and every claim or ask marked no/partly/not done. Two items measured in Chromium (H-R1, by both readers; the refuter from the real card's code), C-1 and two others in jsdom with verbatim copies; the rest read.",
+ "counts": {
+  "rows": 67,
+  "refuted": 1,
+  "weakened": 6,
+  "standing": {
+   "finding major": 1,
+   "finding minor": 22,
+   "finding nit": 34,
+   "regression major": 3,
+   "regression minor": 5
+  }
+ },
+ "sent_to_coordinator_early": [
+  "r122-ITEMS-R-3",
+  "r122-E-R1",
+  "r122-ITEMS-R-1",
+  "r122-ITEMS-R-2",
+  "r122-H-R1",
+  "r122-D-R1",
+  "r122-C-1",
+  "r122-C-R1",
+  "r122-lane-B-1"
+ ],
+ "findings": [
+  {
+   "id": "r122-D-R1",
+   "lane": "D",
+   "kind": "regression",
+   "severity": "major",
+   "first_severity": "major",
+   "where": "scripts/investigation.mjs:2216",
+   "title": "A Table filter change wipes the Final Truth form's typed words and an unsaved Key limit override tick",
+   "verdict": "holds",
+   "refuter_why": "The same defect as D-1, with the same reading. It worked on 1eee4d62: the filter's change only refreshed, and live.mjs capture/restore (not changed by this release) carried the dirty final* fields and keyOverride by name. It fails on 14bb0d92 because saveDrawnForm marks them as drawn before that refresh.",
+   "what_happens": "Since this line a Table filter's change runs saveDrawnForm before the redraw. saveFieldsIn (investigation.mjs:1914-1929) takes every dirty [name] field of the window's form and calls keepDrawn on each, so each becomes 'as drawn', but applyDashboardSave writes only traces, Key rows and the schema: the Final Truth fields (finalRoom, finalVis, finalAuthor, finalName, finalText, finalAnalysis, finalNote) and keyOverride are written nowhere. The redraw's capture keeps only dirty fields (live.mjs:787), so the rebuilt Final Truth tab is drawn from `finalDraft` (null, or an older draft) and the override box unticked.",
+   "failure_scenario": "A GM opens the Investigation window on the Table, fills the Final Truth tab (room, name, words), goes to the Remnants tab and changes Order or the Chapter filter: the Final Truth tab now shows empty fields; Save or a close places nothing and asks nothing. On 1.2.121 the same filter change kept the typed fields (live.mjs carried them). Same for a ticked 'Place more than the opening roll allows' on the Key Remnants tab: it unticks and the Place buttons grey again.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-H-R1",
+   "lane": "H",
+   "kind": "regression",
+   "severity": "major",
+   "first_severity": "major",
+   "where": "scripts/live.mjs:720-733 (keyFor's positional path), :250 (replaceQuietly), :660-673 (owedFrom, oweChange); scripts/float-text.mjs:193 (`el.before(hold)`); scripts/remnant-ring.mjs:456-462 (textareas with no name, key or id), :256-262 (watch tokens: true, whileEditing)",
+   "title": "The GM's Remnant card loses the words being typed in its two text boxes at every redraw, and saves nothing: float-text's placeholder moves the nameless textarea's key, and the R-1 guard now swallows the blur that used to save",
+   "verdict": "holds",
+   "refuter_why": "The real card matches the page the first reader built in every part that decides the outcome, and the outcome repeats with the real markup and the real wiring. The Remnant card is drawn into the trace's actor sheet by the renderActorSheetV2 hook (remnant-ring.mjs:196-204, showRemnantCard :229-264): body.innerHTML = gmRemnantCard(...), wireCardEditing(body), then keepLive with region '.drpg-remnant-card', watch { items: true, tokens: true, stores: [remnantStore] }, whileEditing true, after = wireCardEditing. Its two text boxes (remnant-ring.mjs:455-462) are `<textarea rows=\"3\" data-drpg-public=\"playerText\"|\"analyzedText\" data-drpg-was=... placeholder=...>` each alone in a `<label>` after a te",
+   "what_happens": "float-text lifts a focused textarea of an actor sheet (FLOAT_SCOPE includes .application.sheet.actor; the card is drawn in the trace's actor sheet) and puts a hidden placeholder before it in its label. The card's textareas have no name, data-drpg-key or id, so live.mjs keys them by position: index 1 in the old label (after the placeholder), 0 in the new one. At a redraw (any token update, create or delete in the world) capture keys the typed text and the focus under the old path, restore and giveFocusBack find no field there: the new textarea shows the stored words and the focus goes to the page. oweChange then finds no focused field and owes nothing, and the old field's blur, which saves the card, was swallowed by guardWindow. The words typed are gone and anything typed next goes to no field. On 1.2.121 the same redraw also lost the focus, but the old field's blur saved what had been typed (r121-R-1's premature save), so the words survived.",
+   "failure_scenario": "Daily Life: the GM opens a trace's card to rewrite what the players read and types while the students walk the map. At the next step the sentence vanishes from the box and the caret is gone; nothing reached the trace or the Truth Bullets. The GM clicks back in and starts again, and loses it again at the next step.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-ITEMS-R-3",
+   "lane": "F",
+   "kind": "regression",
+   "severity": "major",
+   "first_severity": "major",
+   "where": "scripts/stash-reach.mjs:241-251",
+   "title": "A student who found a hidden stash with Analyze can no longer see or rifle it: the finder's browser no longer knows the stash exists",
+   "verdict": "holds",
+   "refuter_why": "Traced every row after a find. resolveStashSearch (GM) writes only the finder's found flag and whispers the finder and the GMs; it sends no copy (no tellHiddenStashes/sendTo call). Who holds the found stash's row afterwards: every GM (hiddenStashStore, synced; hiddenStashesAt reads it), the stash owner's players (rowsFor: owned actors), the Mastermind's players (rowsFor all). The finder's player does not: rowsFor filters actors by OWNER and never reads the found list, readersOf(actorId) names the stash owner's players and the Mastermind's, and receive keeps only what was sent. The region lists open stashes alone since 1190ab8a. So on the finder's browser stashesIn -> stashesOn -> openStashes",
+   "what_happens": "openStashesHere runs on the player's browser (the sheet's open-stash section, sheet-inventory.mjs:345; rifleStashDialog, stash-reach.mjs:281) and walks stashesIn(room), keeping a concealed entry only for the Mastermind or a finder (`hasFoundStash`). On 1.2.121 the hidden entry was on the region, so the finder's browser listed it. Since 1190ab8a the region keeps open stashes alone and stashesOn adds hidden ones from the player's copy, which holds only the player's own characters' rows (hidden-stashes.mjs:138-151 rowsFor, :116-120 readersOf). A finder who is not the stash's owner or the Mastermind never has the row, so the found stash is not listed and the Rifle says there is no open stash here. The GM side (stealFromVault) would still allow it, but no window sends it.",
+   "failure_scenario": "Botan beats 16 on Analyze - Locate a hidden stash in Chie's bedroom and is told he found it. His sheet shows no open stash there, and Rifle a stash says there is none, so the find gives him nothing.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-C-R1",
+   "lane": "C",
+   "kind": "regression",
+   "severity": "minor",
+   "first_severity": "minor",
+   "where": "scripts/murder-rules.mjs:4500",
+   "title": "A third of an open (unmasked, direct) murder whose Escape Together fails is sent the hidden-defence card, '12 against 15 + a hidden defense: a miss', after their menu said 'Beat 16'",
+   "verdict": "holds",
+   "refuter_why": "On 1eee4d62 defenseHiddenFor spread the copy over the GMs' state (murder-rules.mjs 4411-4417 at v1.2.121), so a reader with an empty copy kept the GMs' killerId. Now killerId/victimId are the copy's alone (:4495-4501). A third whose Escape Together fails is unseated by thirdLeaves (:1968-1969) before the card; castCopyFor gives a user outside incidentAudienceIds {} or {betrayal} (incident-store.mjs:580), so killerId is null and crisisDefenseHidden (:284-287) is true for sharedEscape, whose defence is the killer's leg (config.mjs:4221-4223), in an open murder too. That third was seated with killerId kept (incident-store.mjs:591, neither indirect nor masked), so their menu showed the full numb",
+   "what_happens": "The r121-K-1 fix sets killerId and victimId from the reader's own copy alone. A third whose Escape Together failed has left (thirdLeaves, :1969) before the card, and castFor sends a reader with no seat {} (incident-store.mjs:581), so killerId is null and crisisDefenseHidden answers true for the killer-defended row whatever the incident: in a trap or behind a mask that is the fix, but in an open murder the third knew the killer, was shown the full number, and on 1eee4d62 was sent the full line. Now the card says a defence is hidden from them and gives the lower number, contradicting the 'Beat 16' they rolled against.",
+   "failure_scenario": "An open Direct Murder (no mask): Aiko walks in as the third, her tile says 'Beat 16' (the killer's Leg +1 shown, she sees the killer). She fails Escape Together with 12. Her card reads '12 against 15 + a hidden defense: a miss' while the killer's and the victim's read '12 < 16'. On 1.2.121 her card read '12 < 16 · with Hope'.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-E-R1",
+   "lane": "E",
+   "kind": "regression",
+   "severity": "minor",
+   "first_severity": "minor",
+   "where": "scripts/sheet-inventory.mjs:1057",
+   "title": "The sheet's room watch redraws every rendered window whose document is a character - Configure Ownership and Daggerheart's character settings among them - on every token move and item change",
+   "verdict": "holds",
+   "refuter_why": "New in 1.2.122 (openCharacterSheets did not exist on 1eee4d62, and no hook redrew another window on another token's move). openCharacterSheets takes every rendered app whose document is a character; only onRenderCharacterSheet notes a signature, so Configure Ownership and Daggerheart's character settings are redrawn on every pass (any token x/y/elevation/hidden/actorId, any item change on a character, 60 ms trailing). The same release has isCharacterSheet (UI-09) and does not use it here. Foundry's own document.apps redraw already covered the same actor's updates; a stranger's step is what is new. The lost unsaved choice is Foundry's form redraw, unread on v14 - minor until read; major if co",
+   "what_happens": "openCharacterSheets takes any rendered application with `document.type === \"character\"`; redrawRoomSheets skips one only when ROOM_SIGNATURES holds an equal signature, and only onRenderCharacterSheet notes one. A window that is not the sheet is never noted, so every pass (any token's x, y, elevation, hidden or actor change, any item change on any character, after 60 ms) calls its render(false); a token made or taken away or a region written does the same for its scene. The same release's UI-09 names exactly these windows as 'another window of the same character' (window-scale.mjs isCharacterSheet), but the watch does not use that test.",
+   "failure_scenario": "A GM opens Configure Ownership for a student and changes two players' levels; before Save, a player steps their token: the window redraws from the stored ownership and the two choices are gone (as Foundry's form redraw is recalled; v14 not read). The same for a value typed in Daggerheart's character settings window.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-ITEMS-R-1",
+   "lane": "F",
+   "kind": "regression",
+   "severity": "minor",
+   "first_severity": "minor",
+   "where": "scripts/projects.mjs:558-564",
+   "title": "An insider of a completed secret project sees its timed room action standing for good, with its whole span left: completedAt left projectMeta and the player's sight copy never keeps it",
+   "verdict": "holds",
+   "refuter_why": "sightFor sends completedAt inside the insider's facility part (projects.mjs:512) but receiveSight builds mine[id] from in, name, description, murder, room, roomScene and facility only (projects.mjs:559-564), so toldSight's completedAt (projects-secrecy.mjs:150) is always null and completedAtOf (facilities.mjs:349-352) answers null on a player. facilityLive with no completedAt answers true (facilities.mjs:172), facilityTimesLeft the whole span (:266). On 1.2.121 completedAt was not in PROJECT_SECRET_WHILE_SECRET (v1.2.121 projects-secrecy.mjs:224) and projectFacilityOf read meta.completedAt, so the player read it. The primary still refuses the use, so the cost is a wrong offer and a wrong 'ti",
+   "what_happens": "On 1.2.121 an insider's browser read completedAt from projectMeta (facilities.mjs projectFacilityOf, meta.completedAt). Since 8e90cdf7 it is the GMs' row's; sightFor sends it (projects.mjs:512), but receiveSight builds the stored row from in, name, description, murder, room, roomScene and facility only, so toldSight's completedAt (projects-secrecy.mjs:150) is always null. completedAtOf (facilities.mjs:349-352) answers null on the player, and facilityLive answers true with no completedAt (facilities.mjs:173), facilityTimesLeft the whole span (:266). Also no resend at completion: tellSight, tellDescription and tellFacility resend only when their own marks change (projects.mjs:1636-1650). The primary still judges a use with the GMs' completedAt (facilities-gm.mjs:46), so the use is refused.",
+   "failure_scenario": "Aiko is in on a secret project whose action lasts one time of day. It completes in the morning; in the afternoon her Facilities tile still offers the action with '1 time of day left' and the Projects line says the same; she presses it and the primary refuses it.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-ITEMS-R-2",
+   "lane": "F",
+   "kind": "regression",
+   "severity": "minor",
+   "first_severity": "minor",
+   "where": "scripts/facilities.mjs:328",
+   "title": "Saving a completed secret project's room action restarts its lifetime",
+   "verdict": "holds",
+   "refuter_why": "setProjectFacility tests `!metaFor(projectId).completedAt` (facilities.mjs:328); a secret project's completedAt is now the GMs' row's (PROJECT_SECRET_WHILE_SECRET includes it), so metaFor never holds it and every editor Save (facility-editor.mjs:305, called whatever `changed` says) of a completed secret project stamps now; setProjectMeta routes it to the GMs' row (projects-secrecy.mjs:293-309) over the real one. completedAtOf, the new reader, is used at :229 and :341 but not here. Only timed actions of completed secret projects; minor.",
+   "what_happens": "setProjectFacility stamps completedAt = now when the project is complete and `!metaFor(projectId).completedAt`. Since ITEM-38 a secret project's completedAt is in the GMs' row, so metaFor never holds it and every Save of the action editor (facility-editor.mjs:305) writes a fresh completedAt over the real one. On 1.2.121 metaFor held it and nothing was restamped. The new reader completedAtOf (:349) was used at :229 and :341 but not here.",
+   "failure_scenario": "A GM fixes a typo in the label of a secret project's two-day action on day 2: the action now runs two more days from that time of day.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-lane-B-1",
+   "lane": "B",
+   "kind": "regression",
+   "severity": "minor",
+   "first_severity": "minor",
+   "where": "scripts/secret.mjs:1082-1088, :1149-1150 (comment :1015 and :1029 still say 'the newest')",
+   "title": "A returning player's eight notices now go to the oldest of their returned cards, not the newest",
+   "verdict": "holds",
+   "refuter_why": "askForWords now marks every card asked and gives the slots to the first eight answers; the GM answers in the order of the ask's ids, which is game.messages order, the order the chat log draws as chronological, so the eight notices go to the oldest of the player's own cards. 1.2.121 sorted by timestamp, newest first, and took eight. No sort was found before the emit, in answerWordsRequest or in cardOnReturn. The comments at secret.mjs:1015 ('Only the newest RETURN_NOTICES of an ask raise one') and :1029 ('The newest cards of one ask') now say the opposite of the code. The 16 case needs a second primary's ready during the wait, which is narrow, but the main case is the ordinary return. R8103 m",
+   "what_happens": "askForWords marks every card asked (`for (const id of mine) noticeOnReturn.add(id)`) and sets returnNoticesLeft = 8; cardOnReturn raises a notice for the first 8 answers. `mine` is game.messages.contents in collection order (oldest first), the GM answers ids in that order (answerWordsRequest's `for (const id of ids)`) and emits one packet per card, so the first 8 answered are the 8 oldest. Until 1.2.121 the slots went to the newest 8 by timestamp. A second ask (another GM's ready, `ACTION_GM_READY` -> askForWords) resets the count to 8, so up to 16.",
+   "failure_scenario": "A player opens the game on a new browser (or after a long absence) with thirty private cards of their own: eight popups from the start of the season land in the middle of the screen and in the notice history; the cards of last night raise none.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-C-1",
+   "lane": "C",
+   "kind": "finding",
+   "severity": "major",
+   "first_severity": "major",
+   "where": "scripts/secret.mjs:567",
+   "title": "A masked killer whose name holds an apostrophe or an ampersand is named in clear on every card the mask's name cut is meant to cover: maskNames returns the words untouched when the raw name is not a substring of the escaped HTML",
+   "verdict": "weakened",
+   "refuter_why": "Stands on the road the finding names, but narrower than 'every card'. maskNames (secret.mjs:567) returns early when no raw name is a substring of the html. A card whose words pass a DOM serialisation before the cut - playerWords (secret.mjs:381-388) when the card holds .drpg-gm-only or call-actions prose, cutWords (:597-614) when it holds youOrThem lines - reaches maskNames with an apostrophe or a double quote written raw again, so for O'Hara or a quoted nickname those cards are cut; a plain card (no GM prose, no you/them lines) is not. An ampersand stays &amp; after serialisation, so a name with '&' is in clear on every card of the cut. The Frisk 'caught' line to the target's player (frisk.",
+   "what_happens": "wordsFor (secret.mjs:586-590) cuts a masked character's name to '?' for every reader outside the mask through maskNames. maskNames first asks `list.some(n => html.includes(n))` and returns the HTML unchanged when no raw name occurs in it. Every card writes names through foundry.utils.escapeHTML / esc, which turns ' into &#x27; and & into &amp; (the harness's futil.mjs:61-65 models the same), so a name like \"Ren O'Hara\" is in the HTML as \"Ren O&#x27;Hara\": the precheck fails and the DOM walk below it, which would have matched the decoded text, never runs. The cut is the one net the module relies on for a Frisk's, a Steal's, a Palm's and an onlooker's line (secret.mjs:461-464) and for words kept under a mask after it ends (heldMaskNames).",
+   "failure_scenario": "A direct murder opens on Hope, so Ren O'Hara is behind a '?'. Later that time of day Ren Frisks a student; the Frisk's card to that student's player passes wordsFor, the cut returns the words as written, and the player reads 'Ren O'Hara' - the killer the mask hides. The same for any card on the cut's road and for a card's words served again after the mask lapsed without a reveal.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-D-1",
+   "lane": "D",
+   "kind": "finding",
+   "severity": "major",
+   "first_severity": "major",
+   "where": "scripts/investigation.mjs:2216",
+   "title": "A Table filter change wipes the Final Truth form's typed words and an unsaved Key limit override tick",
+   "verdict": "holds",
+   "refuter_why": "Read whole, the save road confirms it. A Table filter change calls saveDrawnForm(dialog.element) (investigation.mjs:2216), so saveFieldsIn runs on the window's <form>. Every dirty [name] field in it is collected (:1916), the Final Truth tab's seven fields and keyOverride among them: the Final tab is inside the region (kitTabs key 'final', :1131-1138), and a hidden pane is still in querySelectorAll. Each field is then keepDrawn'd synchronously (:1919), which sets defaultValue/defaultChecked/defaultSelected to the present value (live.mjs:942-950), so isDirty is false from then on. The write only reaches traces, Key rows and the schema: readCaseFields reads TRACE_FIELDS, keyname/keytext/keyanal",
+   "what_happens": "Since this line a Table filter's change runs saveDrawnForm before the redraw. saveFieldsIn (investigation.mjs:1914-1929) takes every dirty [name] field of the window's form and calls keepDrawn on each, so each becomes 'as drawn', but applyDashboardSave writes only traces, Key rows and the schema: the Final Truth fields (finalRoom, finalVis, finalAuthor, finalName, finalText, finalAnalysis, finalNote) and keyOverride are written nowhere. The redraw's capture keeps only dirty fields (live.mjs:787), so the rebuilt Final Truth tab is drawn from `finalDraft` (null, or an older draft) and the override box unticked.",
+   "failure_scenario": "A GM opens the Investigation window on the Table, fills the Final Truth tab (room, name, words), goes to the Remnants tab and changes Order or the Chapter filter: the Final Truth tab now shows empty fields; Save or a close places nothing and asks nothing. On 1.2.121 the same filter change kept the typed fields (live.mjs carried them). Same for a ticked 'Place more than the opening roll allows' on the Key Remnants tab: it unticks and the Place buttons grey again.",
+   "confidence": "read",
+   "same_as": "r122-D-R1"
+  },
+  {
+   "id": "r122-C-3",
+   "lane": "C",
+   "kind": "finding",
+   "severity": "minor",
+   "first_severity": "minor",
+   "where": "scripts/case-trial.mjs:114",
+   "title": "A node pressed in the trial console's schema does not open that node when the Investigation's Map already stands: the Map is only raised",
+   "verdict": "holds",
+   "refuter_why": "openInvestigationDashboard returns RAISED at its first line when a drpg-window-case window is rendered (investigation.mjs:2443), before node or view is read, so a press with the Map standing only raises it. The code comment's 'raised, not reopened' admits the raise but the release notes promise the Map opens on the node. No hand-off of node on raise found.",
+   "what_happens": "onPick calls openInvestigationDashboard({ node: id, view: 'map' }), whose first line returns RAISED when a case window is open, before `node` or `view` is read. The Map comes to the front on whatever it showed. The release notes and 5ee53c6b say a press opens the Map on that node (the code comment says 'raised, not reopened').",
+   "failure_scenario": "The GM keeps the Investigation's Map open beside the trial console (as the trial's Reveals invite). They press 'Prep Remnant, (no name)' in the console's schema: the Map is raised on the node it had open before, or on none, and the pressed node's fields are not shown.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-C-5",
+   "lane": "C",
+   "kind": "finding",
+   "severity": "minor",
+   "first_severity": "minor",
+   "where": "scripts/trial-scene.mjs:1566",
+   "title": "Season setup's scenes part does not draw a student added to the world while it stands, and its nine hooks stay until the next scene, region or setting event after the window closes",
+   "verdict": "holds",
+   "refuter_why": "followRoles registers clientSettingChanged, updateSetting/createSetting and six scene/region hooks; no createActor/deleteActor, and its comment says a student added meanwhile is not drawn. off() runs only inside alive(), which runs only when one of those hooks fires, so the hooks outlive a closed window until such an event; the comment's 'The hooks go when the window does' overstates it. The listeners are cheap and self-removing, so the residue is the undrawn student against the owner's live-window rule.",
+   "what_happens": "followRoles follows another GM's school, hall, zones and cast ticks, but a student created meanwhile is drawn only when the window opens again (its own comment), against the owner's rule that a window redraws at once on any change. Its hooks are taken off only inside alive(), which runs when one of the hooks fires, so a closed window leaves its listeners registered until such an event.",
+   "failure_scenario": "Two GMs prepare a season; one creates a new student while the other has Season setup's scenes part open. The new student has no cast tick until Season setup is closed and opened again.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-D-2",
+   "lane": "D",
+   "kind": "finding",
+   "severity": "minor",
+   "first_severity": "minor",
+   "where": "scripts/observe.mjs:1321-1432",
+   "title": "The describe window's clock closes it under a GM who is still typing, and drops what was typed",
+   "verdict": "holds",
+   "refuter_why": "The clock is one setTimeout of waitMs (TIMING.rulingMs = 180000, config.mjs:384). Nothing resets it: no input or focus listener touches `timer`. At the end it closes the window and answers null (observe.mjs:1321-1327, 1429-1432), and the primary's callback, which would read the fields, never runs. The GM's words are dropped and the timed-out toast tells them to add the words in the Investigation window. Minor: it needs more than three minutes in one describe window, and the find itself still lands.",
+   "what_happens": "describeFind races the window against a fixed TIMING.rulingMs (180 s) timer that is not reset by input; at the end it closes the window and answers null, so the find goes out under the prefilled name and the words typed in the window are not read.",
+   "failure_scenario": "On a critical Observe the GM writes the hint for more than three minutes; the window shuts mid-sentence, the player gets the bullet with the prefilled name and no hint, and the GM is told to add the words in the Investigation window - the words already typed are gone.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-D-3",
+   "lane": "D",
+   "kind": "finding",
+   "severity": "minor",
+   "first_severity": "minor",
+   "where": "scripts/murder-rules.mjs:4829",
+   "title": "The opening invitation's wait covers a missing incident copy only; a copy one stage behind still ends the invitation silently",
+   "verdict": "holds",
+   "refuter_why": "It stands, but the lane's mechanism needs correcting. A fresh incident is written whole at stage 'openingRoll' (freshIncidentState, murder-rules.mjs:414-417), so a copy 'one stage behind' is not the reachable form for a new incident. The reachable form is the original CASE-LC2 one. unrouted-122.json's evidence reads 'before the copy of the cast' ('przed kopia obsady'). On a player, murderState() is the world setting merged with readCast() (incident-store.mjs:189-192), and the player's cast is that user's GM-store copy (settings.mjs:3606, readMine), which comes in its own packet (incident-store.mjs castPacket/sendCast) and is kept in client storage across a reload (gm-store.mjs:1432-1449). Th",
+   "what_happens": "The wait loops while `!murderState()?.active`; openingStillWanted (:4727-4730) also needs `stage === \"openingRoll\"` and the seat. A copy that holds the incident at its earlier stage (the stage update still on its way when the invitation lands) skips the wait, the loop's first openingStillWanted is false and the function returns null with no word to the GMs, as before.",
+   "failure_scenario": "The GM moves an incident to the opening roll; the player's browser gets the invitation before its copy's stage update: no window, nothing said, the tracker waits until the GM presses Ask again - the CASE-LC2 symptom in its 'copy still on its way' form.",
+   "confidence": "suspected"
+  },
+  {
+   "id": "r122-D-4",
+   "lane": "D",
+   "kind": "finding",
+   "severity": "minor",
+   "first_severity": "minor",
+   "where": "scripts/observe.mjs:885",
+   "title": "The empty room's ruling card, now posted by the GM, goes to the character's first owner's thread, not to the co-owner who asked",
+   "verdict": "holds",
+   "refuter_why": "scoreObserve's nothingHere branch runs on the primary GM and calls callGm(actor, { ...call, onPosted }) with no `thread` (observe.mjs:885). observeRulingCall's return carries none, and callGm reads threadOf(actor, thread) (call-gm.mjs:958). With no asker and a GM poster, threadOf falls back to ownerOf (:1030-1034). The asker is on the row (entry.by, observe.mjs:222). Other questions the primary holds pass `thread: ctx.asker` (call-gm.mjs:259, 292, 354, 425), so the omission is real. It matters only for characters with more than one owner.",
+   "what_happens": "scoreObserve's nothingHere branch calls callGm on the primary GM's browser with no `thread`; threadOf then sees a GM poster and falls back to ownerOf (call-gm.mjs:1025-1033). The row holds the asker (`entry.by`). Until this line the player's own browser posted the card, which under 1.2.122's COMM-25 rule goes to the asker's thread.",
+   "failure_scenario": "Two players own one student; the second sweeps an empty room: the GMs' card and its ruling land in the first owner's thread, and the asker sees nothing of it.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-E-1",
+   "lane": "E",
+   "kind": "finding",
+   "severity": "minor",
+   "first_severity": "minor",
+   "where": "scripts/token-hud.mjs:167",
+   "title": "A player's token settings are refused only the first time a given window renders; a token's cached sheet opened again is shown",
+   "verdict": "holds",
+   "refuter_why": "No close hook, render-state check or delete takes a window out of refusedConfigs; Foundry keeps one sheet object per token document, so the second double right-click renders the same object and passes. The test pins the hole as intended behaviour (the second call on the same app answers false). Minor: Trusted players only (TOKEN_CONFIGURE), against the owner's D-A11, v14 reuse unread.",
+   "what_happens": "refuseTokenConfig keeps every window it refused in a WeakSet and answers false, doing nothing, for a window in that set. The set was meant to stop the two render hooks of one render closing a window twice, but it is never cleared, and Foundry keeps one sheet object per token document (TokenDocument#sheet, as recalled for v13; v14 not read). The second double right-click of a Trusted player on their own token renders the same TokenConfig object again: it is in the set, so it is neither hidden nor closed.",
+   "failure_scenario": "A Trusted player double right-clicks their token: the settings window flashes and closes, 'A token's settings are the GM's.' They do it again a minute later: the token's settings window opens and stays, against the owner's 'gracz niech nie widzi ustawien tokena wcale'.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-E-2",
+   "lane": "E",
+   "kind": "finding",
+   "severity": "minor",
+   "first_severity": "minor",
+   "where": "scripts/spectator-ui.mjs:87",
+   "title": "isSafewordCard lets any flagged message containing the heading's class through for a Spectator; its comment says other content stays chat",
+   "verdict": "holds",
+   "refuter_why": "The shape test is a substring and a length; nothing compares the content to safewordCard()'s text. The primary's delete (the only part a console cannot take off) returns for any such message, so a Spectator's own words up to about 550 characters stay in every log. Needs a console; the comment's promise is wrong as written.",
+   "what_happens": "The test of 'the safeword's own shape' is a substring of the class name and a length of at most 600 characters. A Spectator's message created from the console with the safeword flag and `<h3 class=\"drpg-safeword-heading\">` plus up to about 550 characters of its own words passes on all three parts: not refused on its own browser, drawn on every browser, and not removed by the primary. The safeword hooks then raise the banner and pause the game for it. The comment says the flag is no road for a Spectator's words into the log.",
+   "failure_scenario": "A Spectator's player wants to talk to the class during the investigation: `ChatMessage.create({content: '<h3 class=\"drpg-safeword-heading\">x</h3><p>The knife is in the Kitchen</p>', flags: {'danganronpa-rpg': {safeword: true}}})` - the card stays in every log, the game pauses, the GMs see a safeword banner.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-F-1",
+   "lane": "F",
+   "kind": "finding",
+   "severity": "minor",
+   "first_severity": "minor",
+   "where": "scripts/action-listen.mjs:139-141, :275",
+   "title": "A Listen a GM runs for a student names the veiled killer on the card whispered to that student's player",
+   "verdict": "holds",
+   "refuter_why": "heardIn is seenHere over occupantsOf (action-listen.mjs:139-141); veilHidesHere returns false whenever the building browser is a GM's (mask-gm.mjs:785-786), and the card goes to the student's owners through whisperToOwner (:275). performAction runs for any character on a GM (action-rolls.mjs:98-104). Narrow (a GM acting for a student during a veiled opening); pre-existing in kind.",
+   "what_happens": "heardIn filters by seenHere, which answers by the browser that builds the card (veilHidesHere returns false on any GM's browser, mask-gm.mjs:785-786). When a GM presses Listen on a student's sheet (performAction runs for any actor on a GM, action-rolls.mjs:98-104), the card is built on the GM's browser with the veiled killer named and counted, then whisperToOwner sends it to the GMs and the student's owners (utils.mjs:752-753).",
+   "failure_scenario": "Botan's player is away; the GM runs Listen for Botan on the Library while Chie is veiled for the opening and rolls the named tier: the card reaches Botan's player naming Chie, who is drawn nowhere on their map.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-F-2",
+   "lane": "F",
+   "kind": "finding",
+   "severity": "minor",
+   "first_severity": "minor",
+   "where": "scripts/action-tail.mjs:126-130",
+   "title": "Tail's notThere refund hands the action back after both action rolls landed and paid out, so two players can repeat Tail for its rolls' Hope at no action",
+   "verdict": "holds",
+   "refuter_why": "The notThere refund (action-tail.mjs:126-130) comes after the Shadow roll and the Tail action roll (DRPG_ACTION_ROLL, Hope and Despair earned, action-pipeline.mjs:236-249); ROLL-05's note (:980-990) calls exactly that a free generator. It needs a second player to step out at the right moment, and the refund is bound to one payment, so it stays a trade-off for the owner, not more than minor. Not driven, as the reader said.",
+   "what_happens": "The refund comes after rollTrait threw the Shadow roll and the effect roll, both drawn on the primary; an action roll earns its Hope and Despair (action-pipeline.mjs:236-249). ROLL-05's rule (action-pipeline.mjs:980-990) keeps an action spent once a roll landed because a refund made 'a free generator'; this branch is the one exception. The refusal depends on the target's token leaving the room between the second look and the primary's read, which the target's player controls.",
+   "failure_scenario": "Two players agree: A opens Tail on B and holds the roll window; B steps into the next room; A rolls both; the primary refuses notThere and A's action comes back with the Hope of any Hope result kept; B steps back and they repeat.",
+   "confidence": "suspected"
+  },
+  {
+   "id": "r122-F-8",
+   "lane": "F",
+   "kind": "finding",
+   "severity": "minor",
+   "first_severity": "minor",
+   "where": "scripts/hidden-stashes.mjs:226-230",
+   "title": "The hidden stashes' copy does not follow a change of the Mastermind: the hook listens for a setting key nothing writes",
+   "verdict": "holds",
+   "refuter_why": "The hook tests `${MODULE_ID}.mastermind`, which is SETTINGS.legacyMastermind ('read once per world and never written', settings.mjs:1028-1032); the store writes SETTINGS.mastermind = 'gmMastermind' (gm-stores.mjs:151), which every other listener reads (gm-stores.mjs:3193, mastermind.mjs:378, passages-gm.mjs:3314). No other resend on a pick: retellHiddenStashes is called by afterRestore and the lift only. The new Mastermind's player gets every row at the next tell of any stash (readersOf includes them) or a reload; the former one keeps every row until a send to them. Also unwatched: an actor's ownership change. Minor: the former Mastermind already knew those rooms.",
+   "what_happens": "registerHiddenStashes resends every player's copy on `clientSettingChanged` with key `danganronpa-rpg.mastermind`. That is SETTINGS.legacyMastermind (settings.mjs:1032); the Mastermind lives in mastermindStore under SETTINGS.mastermind = 'gmMastermind' (settings.mjs:1031, gm-stores.mjs:150-151), which mastermind.mjs writeStore patches. So the new Mastermind's player gets every hidden row only at their next load or at the next change of some stash, and a player who stops being the Mastermind keeps every hidden stash of the world in their copy (mineHiddenStashes) until a send to them replaces it.",
+   "failure_scenario": "The GM moves the Mastermind from Aiko to Ben mid-season. Aiko's player's console (and her stash windows, which read the copy through stashesOn) still lists every hidden stash; Ben's player sees none of the others' until he reloads.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-F-9",
+   "lane": "F",
+   "kind": "finding",
+   "severity": "minor",
+   "first_severity": "minor",
+   "where": "scripts/reroll.mjs:1956-1972",
+   "title": "A Reroll of Observe, Analyze, Direct Murder or a described Search ends every open GM ruling card of that character posted since the roll, not only the one about the replaced roll",
+   "verdict": "holds",
+   "refuter_why": "endReplacedRuling ends every unsettled callCard/gmAsk card newer than the replaced roll holding drpg-call-actions and data-by=\"<actor>\" (reroll.mjs:1962-1969); callGm writes data-by on Dynamic action (action-dynamic.mjs:228-231), project (action-project.mjs:552, :569), reshape (cleanup-reshape.mjs:540, :548), a Call's request (call-gm.mjs:412) and Analyze (analyze.mjs:341, :351). A later card of another action of the same character is ended as replaced. Whether the asker's wait is released was not traced here either.",
+   "what_happens": "endReplacedRuling settles each callCard or gmAsk card that is not settled, newer than the replaced roll's message and holding a button with data-by=\"<actor id>\". callGm cards of other actions carry the same data-by (action-dynamic.mjs:228-231, action-project.mjs:552-569, cleanup-reshape.mjs:540-548, call-gm.mjs:412 for a Call's request, analyze.mjs:341-351), and the Reroll window is 30 minutes (config.mjs:407). Those cards lose their buttons with 'a Reroll replaced this', and the player's other request waits for an answer that can no longer be given.",
+   "failure_scenario": "Aiko Observes the Library (the GM's card waits), then proposes a project (another card waits), then Rerolls the Observe: the GM's project-proposal card is ended as replaced, and her proposal is never answered.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-G-1",
+   "lane": "G",
+   "kind": "finding",
+   "severity": "minor",
+   "first_severity": "minor",
+   "where": "scripts/tables-editor.mjs:1493",
+   "title": "Create an item on a second card is refused over the first card's prefilled name",
+   "verdict": "holds",
+   "refuter_why": "openItemTables counts New item as typed whenever its name box holds text, and that box is prefilled from the preset. After an add the window reopens with preset null (tables-editor.mjs:1661-1664), so the name clears only once an item is made; a second card's Create an item while the first card's preset is still unused finds the first card's 'want' and is refused with a sentence that says the GM typed it. The tier-2 CTRL-25 test clears the name by hand before its second press, so it does not pin this case. Minor: wrong in one situation, the GM can clear and press again.",
+   "what_happens": "openItemTables counts New item's name box as typed whenever it holds text, and the box is prefilled from the preset (draft?.name ?? preset?.name, :724). Tables opened by one card's Create an item hold that card's 'want' in the name; a second card's Create an item finds it 'typed', keeps the old preset and warns tablesOpenNoPreset, telling the GM to clear what they never typed.",
+   "failure_scenario": "Two Search cards ask for a crowbar and a rope. The GM presses Create an item on the first (tables open on 'crowbar'), then on the second without touching the form: the tables stay on 'crowbar' and the GM reads 'The open item tables hold a new item being typed ... Finish or clear it'.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-G-2",
+   "lane": "G",
+   "kind": "finding",
+   "severity": "minor",
+   "first_severity": "minor",
+   "where": "scripts/call-effects.mjs:1388",
+   "title": "Contraband's new owner notice tells every console whose item was destroyed",
+   "verdict": "holds",
+   "refuter_why": "tell() posts through whisperToOwner with no veiled flag: speaker the owner's actor, whisper GMs plus the owner's players. postSecret veils on its own only while an incident runs or a mask stands (secret.mjs:1253-1256), so outside those the stub on every browser names the owner at the moment the public card (calls.mjs:538) names the item. secret.mjs's header admits speaker and audience leak and calls it harmless for most cards; here the pair (item, owner) is what Contraband's public card leaves out, and COMM-22 in this release veiled a notice for the same metadata. Not a blocker: only a reader of the chat collection learns it, and only outside an incident.",
+   "what_happens": "destroyItemEffect now calls tell(owner, ...), which posts whisperToOwner unveiled: the document speaks as the owner (ChatMessage.getSpeaker({ actor })) and is whispered to the owner's players, and the module's own model says every connected browser receives a whispered document. The public card names the item only, so the stub posted at the same moment names its owner to any console that reads the chat collection. COMM-22 in the same release veiled the arrival notices for exactly this reason.",
+   "failure_scenario": "Monokuma's Contraband destroys a knife; the public card says the knife is destroyed. A player who lists game.messages sees a stub spoken as Botan whispered to Botan's player at that moment, and learns Botan carried the knife.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-G-3",
+   "lane": "G",
+   "kind": "finding",
+   "severity": "minor",
+   "first_severity": "minor",
+   "where": "scripts/messenger-app.mjs:1526",
+   "title": "Give on an Ask for Hope is not held to the card's writer: a console's card can send the GM's Hope to another Monocub",
+   "verdict": "holds",
+   "refuter_why": "COMM-21's own 'where' named cubGiveHope (messenger-app.mjs 1429-1435 at b5a29e73) beside the data.by rulings. 1.2.122 caps data.n (monocub.mjs:1623) but data.actor is not in CARD_CHARACTER_RULINGS (messenger-app.mjs:1526-1527) and answerHopeAsk checks only isMonocub and the cap - not that the Monocub asked (askOpen is cleared, never read, :1628, :1633). A GM's copy wires any [data-drpg-call] button (wireCallActions :793-837; gm-bridge.mjs:162), so a player's card naming another Monocub turns the GM's Despair into that Monocub's Hope on the GM's press. Same class and weight as COMM-21; the GM's press is needed, so not major.",
+   "what_happens": "COMM-21's fix closes a player's card naming a character the writer does not own for nine rulings on data.by, and caps Give at 2. ruleCubHope acts on data.actor, which is not in CARD_CHARACTER_RULINGS and is not compared with the card's writer, so a card a player's console posts with a cubGiveHope button naming another player's Monocub converts the GM's Despair into that Monocub's Hope.",
+   "failure_scenario": "A player's console posts a lookalike Ask for Hope card naming a friend's Monocub; the GM presses Give 2; two of the GM's Despair become the friend's Monocub's Hope.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-G-R1",
+   "lane": "G",
+   "kind": "finding",
+   "severity": "minor",
+   "first_severity": "minor",
+   "where": "scripts/voice-tile.mjs:1523",
+   "title": "A GM's Unblock on a player whose role withholds the microphone now does nothing and says nothing",
+   "verdict": "weakened",
+   "refuter_why": "Not a regression of intended behaviour: what 1.2.121 did (an explicit true granting the microphone to a user whose role withholds it) is exactly what COMM-46 named as wrong, and the commit (5ebfdf29) replaces it on purpose with the role's rule. What stands is narrower: for a user with no key of their own whose role withholds BROADCAST_AUDIO, the list still shows Blocked with an Unblock button (voice-tile.mjs:1669 reads canBroadcastAudio, which is false by role), the press writes a deletion of nothing, toggleBlock answers true, the row redraws Blocked and nothing tells the GM why. A defect of the new code (a button that silently does nothing in one world configuration), better routed as a fin",
+   "what_happens": "On 1eee4d62 the unblock wrote BROADCAST_AUDIO true, which gave the microphone to a player the world's role table withholds it from. COMM-46 makes it delete the user's key; with no key of their own and a role that withholds the permission, the deletion changes nothing, toggleBlock answers true, the list redraws the player still blocked, and no notice says why.",
+   "failure_scenario": "A world left on Foundry's permission defaults (Broadcast Audio for Trusted Players, as recalled from Foundry's CONST, not read in this tree) with Player-role students: the tile shows a student Blocked; the GM presses Unblock; the row stays Blocked with no word, where 1.2.121 gave the microphone.",
+   "confidence": "suspected",
+   "note": "not a regression: the refuter read the dropped grant as intended; Unblock doing nothing, silently, for a role that withholds the microphone stays"
+  },
+  {
+   "id": "r122-H-1",
+   "lane": "H",
+   "kind": "finding",
+   "severity": "minor",
+   "first_severity": "minor",
+   "where": "scripts/tables-editor.mjs:1359-1361 (refresh: redraws whenever a field is focused or typed in, even when the table drew the same), :1232-1268 (the pane's focusout writes the field), :1622 (keepFresh on every TableResult and RollTable hook)",
+   "title": "The Item tables pane's new redraw (REFR-57) saves the entry text being typed: the pane saves on focusout, and Chromium fires the removed field's focusout inside the innerHTML that redraws it",
+   "verdict": "holds",
+   "refuter_why": "Read as stated. refresh (tables-editor.mjs:1349-1376) is run by freshTableCounts (:1129-1131) from keepFresh on createTableResult, deleteTableResult, updateTableResult and updateRollTable (:1622); with a field focused it redraws even when the html is the same (:1359) and writes bodyEl.innerHTML (:1361). That is not keepLive's replaceQuietly, so `silencing` is null and guardWindow lets the old field's focusout through to the pane's delegated focusout (:1231), which writes the field when its value differs from data-drpg-initial (:1253-1262). New in 1.2.122 (no keepFresh or drpgRefresh in the 1.2.121 file). The typed text is carried and written in full at the leave, so it is a premature save of",
+   "what_happens": "refresh() is not a keepLive rebuild, so live.mjs's quiet replacement does not cover it. With the GM typing in an entry's name or description, any create, update or delete of a TableResult or an update of any RollTable in the world (another GM, Foundry's own table window, a Place) runs refresh; with a field focused it redraws even when the table's html is unchanged. `bodyEl.innerHTML = html` removes the focused field; Chromium fires focusout on it while still connected, the pane's delegated listener sees value != data-drpg-initial and writes the half-typed text with editResult. The typed text is carried to the new field and the GM goes on typing; the write's own updateTableResult redraws again; the full text is written at the leave.",
+   "failure_scenario": "Two GMs set up item tables: GM A types a new description for 'Bent nail'; GM B renames another entry. A's half sentence is written to the table at once, B and Foundry's table window show it, and a Search drawing that entry meanwhile gives the half text.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-H-2",
+   "lane": "H",
+   "kind": "finding",
+   "severity": "minor",
+   "first_severity": "minor",
+   "where": "scripts/passages-tab.mjs:408-410 (keepFresh, where updateActor with any `flags[MODULE_ID]` change), :327 (draw: box.innerHTML), :96-102 (the '+' opens a hidden menu; the second click is the student)",
+   "title": "Room setup's Passages tab is redrawn whole on every module flag write of any actor (REFR-59's new watch): an open '+' menu closes, a press in flight is lost, the way select's open list is shut",
+   "verdict": "holds",
+   "refuter_why": "The new watch (passages-tab.mjs:408-410) redraws on any updateActor whose change has any module flag, of any actor, and draw() rewrites box.innerHTML with no compare and no carry of the '+' menu's open state (:327, adder :96-102 draws the menu hidden). keepFresh has no press hold. 1.2.121 watched the stores and two hooks only. Frequency is what makes it more than a nit; I could not find a filter to students or a draw-if-changed check.",
+   "what_happens": "Spending an action, a step, a cub, a Call each write an actor's module flags, so during Daily Life the box is drawn again per player action. draw() rewrites the box's innerHTML: the menu a GM opened with '+' is drawn hidden again, a pointerdown on a button followed by the redraw and the release loses the click, and a 'Which way' select with its list open is replaced and its list shut. keepFresh has no press hold, no open-list hold and no carry; the body's keepLive around it holds only its own rebuild. Room setup's own body filtered actor writes to the roster for this reason (room-setup.mjs:1521-1528).",
+   "failure_scenario": "Daily Life, Room setup open on the Passages tab: the GM presses '+' to grant a passage to a student, a player spends an action, the menu shuts before the GM picks the name; the second try lands only between two players' actions.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-H-3",
+   "lane": "H",
+   "kind": "finding",
+   "severity": "minor",
+   "first_severity": "minor",
+   "where": "scripts/room-setup.mjs:333 (the box drawn from startLocked, the lock itself when unset), :1141 (startAtOpen), :1172 (`same` compares the lock now with startAtOpen), :1249; scripts/tests-tier2.mjs:114618-114620",
+   "title": "Room setup after r121-R-5: the start-lock box shows the forced lock while Apply stores the open's value, every untouched room whose lock moved is written, and the GM cannot store what the box shows",
+   "verdict": "holds",
+   "refuter_why": "Read as stated. The start-lock box is drawn from startLocked (room-setup.mjs:333), which falls back to the lock (vault-store.mjs:1163-1168). Apply's untouched column takes startAtOpen (:1141, :1145), and `same` compares wasLockedAtStart, read now, with it (:1172), so a room whose lock moved while the window stood, untouched by the GM, is no longer `same` (:1183 `if (same) continue;` is passed) and gets lockedAtStart written as false (:1249) and counted. On 1.2.121 the same untouched room was skipped whole and stayed unset. Which value an unset start lock should end with is the owner's; the window showing one value and Apply storing the other is a defect either way.",
+   "what_happens": "A room with no start lock stored, unlocked at the open; a student or GM locks it while the window stands; the body's keepLive (updateRegion on the scene) redraws the box ticked from startLocked. The GM presses Apply without touching that room: wasLockedAtStart (true now) differs from row.lockedAtStart (startAtOpen, false), so `same` fails and the row is written - setVaultRoom and setRestRoom with the current values, lockedAtStart false - and the room is counted in 'applied on N rooms'. A GM who wants the start lock the box shows cannot store it: ticking leaves it as drawn (not touched, so startAtOpen), unticking stores false. The tier-2 test's comment says an untouched row is skipped by `same` and never reaches the pin, which this change made untrue.",
+   "failure_scenario": "Mid-season the Kitchen (start lock never set) is locked by a GM's HUD while Room setup stands open; the window now shows 'Locked at start' ticked; the GM applies a change to the Library. The Kitchen is written and stored as starting open; at the season reset it opens, though the window said it starts locked.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-H-4",
+   "lane": "H",
+   "kind": "finding",
+   "severity": "minor",
+   "first_severity": "minor",
+   "where": "scripts/handover.mjs:93-104 (REFR-31's keepFresh), :102",
+   "title": "The handover picker (hand over, share, Show the passage) moves the pick to the first character still in the room when the one picked walks out, and OK then gives or shows to someone the player did not choose",
+   "verdict": "holds",
+   "refuter_why": "handover.mjs:93-104: when the picked character is no longer in the room the select is set to ids[0] silently, OK stays enabled while anybody is left. No note, no mark, no disabling of OK on a lost pick. A recipient the player did not choose gets the item or the passage. The GM's own check still runs, but the new recipient is in the room, so it passes.",
+   "what_happens": "The list is redrawn when the room's people change; the choice is kept only while its character is still here, else `select.value = ids[0]`. No word is said. Before 1.2.122 the list stood as opened and the GM's check refused a recipient who had left.",
+   "failure_scenario": "A player opens 'Show the passage', picks Kaede, and Kaede's player moves out of the room; the player presses OK and the secret passage is shown to Shuichi, the first one left in the list.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-H-5",
+   "lane": "H",
+   "kind": "finding",
+   "severity": "minor",
+   "first_severity": "minor",
+   "where": "scripts/gm-items.mjs:1747-1759 (followAutopsyTargets), :1754",
+   "title": "The Autopsy window's student boxes are taken out and drawn again on every actor write (REFR-09): a tick between pointerdown and release is lost",
+   "verdict": "holds",
+   "refuter_why": "followAutopsyTargets removes every label.drpg-checkbox and inserts the rows again on any actor write and on the death store (gm-items.mjs:1747-1759), with no compare of the roster and no press hold; a press whose node is replaced before the release sends no click to the box. The hand map and the focus are kept, a press is not.",
+   "what_happens": "keepFresh with `actors: true` removes every label.drpg-checkbox and inserts the rows again at any actor update anywhere, whether the roster changed or not. A Daggerheart roll writes an actor several times; a GM's press on a box that a write lands under meets a new node and Chromium sends no click.",
+   "failure_scenario": "The GM ticks the victim in Issue an Autopsy while players roll: the tick does not take, and a second press does.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-H-6",
+   "lane": "H",
+   "kind": "finding",
+   "severity": "minor",
+   "first_severity": "minor",
+   "where": "scripts/sheet-inventory.mjs:1066-1081 (redrawRoomSheets: app.render(false)); scripts/sheet.mjs:132-153 (updateToken, createToken, deleteToken, item hooks, updateRegion)",
+   "title": "The sheet's room watch (REFR-12) renders an open character sheet in full on another student's step into or out of its room, a token made or deleted, or a region written on its scene, with no hold for a player typing in the sheet",
+   "verdict": "holds",
+   "refuter_why": "The watch is new in 1.2.122 (sheet.mjs:125-153; no roomChanged in the 1.2.121 file). A token's x/y/elevation/hidden/actorId change redraws only sheets whose room signature moved, but every token made or deleted and every region write render every open character sheet on that scene in full (render(false), sheet-inventory.mjs:1075), with no hold for a focused field. What Foundry 14's render does to a focused field (focus kept by name, the value redrawn from the document, a change sent on the removal) is not in the tree; the consequence stays suspected, as the first reader said. Kept at minor because a trace laid or erased is common during Daily Life.",
+   "what_happens": "render(false) is not a repaint (sheet-repaint.mjs:139-148 answers 'render' for it) and goes to Foundry's own render. The module carries only the backstory (sheet-sidebar.mjs tidyBiography) and the held Ultimate across a render; Daggerheart's own fields are redrawn from the document. A trace laid or erased (a token) or a region write re-renders every open character sheet on the scene. In Chromium the removed focused field's change also fires inside the render's replacement (as measured for r121-R-1), which a submitOnChange sheet would submit.",
+   "failure_scenario": "A player types an experience's name on their sheet while the GM places a Remnant on the scene: the sheet renders and the field is drawn from the actor as stored, the typed letters gone or committed half way.",
+   "confidence": "suspected"
+  },
+  {
+   "id": "r122-lane-B-2",
+   "lane": "B",
+   "kind": "finding",
+   "severity": "minor",
+   "first_severity": "minor",
+   "where": "scripts/bridge-runs-acts.mjs:545-556 (reaskOwedOpening); scripts/murder-rules.mjs:4589-4608 (rollOpening), :4922 (resolveOpening refuses once the stage moved)",
+   "title": "The opening's re-ask invites the player while the primary's own window throws the same opening for them",
+   "verdict": "holds",
+   "refuter_why": "reaskOwedOpening checks only the stage, the side's actor and the sender's ownership, then calls rollOpening, whose player branch sends the invitation whenever the owner is active. Nothing on the primary reads whether a window for that side and character stands on a GM's browser: openingKeysInFlight is module state of the browser that throws and is read only inside throwOpeningRoll, and openingInvited is written, not read, here. Nothing closes the other window when the first result lands: closeOpeningRoll and cancelOpeningRoll run only from revokeOpeningInvitation, called from endMurder, not when resolveOpening moves the stage. So the GM's window (on the primary or another GM) and the returne",
+   "what_happens": "When the player was away at the ask, rollOpening falls to `throwOpeningRoll` on the primary itself (the GM throws for the player). When that player comes back, their ready ask runs reaskOwedOpening on the primary, which calls rollOpening again; the owner is now active, so the invitation goes out and the player's page opens its window. Nothing asks whether this browser's own window for that side and character still stands (openingKeysInFlight is the page's guard, read only inside throwOpeningRoll). Two windows stand on two browsers for one roll; the first result moves the stage and resolveOpening drops the second.",
+   "failure_scenario": "The killer's player has dropped; the GM presses Ask for the opening roll and the GM's own Body window opens. The player reconnects before the GM rolls: the player is shown the window and a fresh 'your opening roll' card. Whoever rolls second has thrown dice that count for nothing, with no word why.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-A-1",
+   "lane": "A",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": ".github/release-notes/v1.2.122.md:452",
+   "title": "The release notes say no part of the local gate ran on this release's tree; the shipped gate record says one part passed",
+   "verdict": "holds",
+   "refuter_why": "The press part ran on code identical to the tag. local-gate.json is bound to fcbb2753, and its bound tree hashes for scripts, styles and lang (c381b202, 11c68574, 47b3c6ba) equal 14bb0d92's. The only commit after fcbb2753 is 4f866a76, which changes the gate record and its evidence and nothing else. Notes :452 'no part of it has run on this release's tree' and :488 'the local gate did not run' are both wrong for one part. The notes' last edit to that sentence is 7caa0268 (15:38Z), before either gate record (15:39Z and 17:43Z). 'Nothing in this release has run on a real Foundry' still holds: the sandbox was unreachable (ECONNREFUSED :30099). It stays a nit because verdict 'incomplete' already ",
+   "what_happens": "Known gaps says 'No local gate has passed: no part of it has run on this release's tree', and Checked (:488) 'the local gate did not run'. The tag ships audit/gate/local-gate.json bound to fcbb2753 with press-live-region passed (11/11 in Chromium per 5c3dad9d), eight parts not run, verdict incomplete.",
+   "failure_scenario": "The owner or the L1 line reads the notes, takes the press part as never run on 1.2.122 and either runs it again or records the gate as wholly unrun; the record and the notes disagree.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-A-2",
+   "lane": "A",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": ".github/release-notes/v1.2.122.md:405",
+   "title": "Notes say tables-editor.mjs went under the length bound; it stands at 1675 lines, over the 1500 bound, on the accepted list",
+   "verdict": "weakened",
+   "refuter_why": "The notes describe a real change made in this release, but use the wrong word for it. tables-editor.mjs had 1795 lines on v1.2.121, over the 1750 ceiling. 0a33efed ('STG-61: tables-editor.mjs under 1750 - an entry's edits move to tables-entries.mjs') moved the edits into a new file, tables-entries.mjs, which did not exist at 1eee4d62. The file now has 1675 lines. The notes call the ceiling 'the bound', while in the code LENGTH_BOUND is 1500, and the 'action-project.mjs is on the accepted list, and tables-editor.mjs ...' contrast suggests the file left the list. It did not: check.mjs:1967 still lists it, with 'line WORLD splits it below 1750'. The failure scenario cannot pass unseen: with its",
+   "what_happens": "Repository's lengths bullet: 'tables-editor.mjs went under the bound by moving an entry's edits to tables-entries.mjs'. The bound is 1500; the file has 1675 lines and passes only because LENGTHS_ACCEPTED names it and it is under the 1750 ceiling.",
+   "failure_scenario": "A reader takes tables-editor.mjs off the list of over-bound files; a later removal of its LENGTHS_ACCEPTED row on that reading turns check lengths red.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-A-3",
+   "lane": "A",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "scripts/monocub.mjs:1790",
+   "title": "DOC-21's sweep leaves one bare escapeHTML alias in monocub.mjs, and R8149 cannot see that form",
+   "verdict": "holds",
+   "refuter_why": "I could not overturn it. monocub.mjs:1790 still binds 'const esc2 = foundry.utils.escapeHTML'. On v1.2.121 there were two such esc2 bindings (:1716 as well), and the sweep removed the esc ones and left this one. R8149's regex matches only the exact name 'esc'. The argument is always game.i18n.format's string, so nothing goes wrong today. The notes' wording ('no file binds esc') is literally true.",
+   "what_happens": "answerBribeOnGm's flag lines bind `const esc2 = foundry.utils.escapeHTML`. The notes say 'One null-safe esc in every module file: no file binds esc to the bare foundry.utils.escapeHTML any more'; literally true of the name esc, but R8149 matches only `const esc = foundry.utils.escapeHTML` (tests-tier1.mjs:66831), so any other alias name passes. The argument here is always a formatted string, so no null reaches it today.",
+   "failure_scenario": "A later edit passes a possibly-null value through esc2 (or a new alias) and prints 'null' or throws where esc would print nothing; R8149 stays green.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-A-5",
+   "lane": "A",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "docs/dev/stg-122/UNROUTED.md:3",
+   "title": "UNROUTED.md's header counts section B's ids as 69; its table holds the 67 the routing gave",
+   "verdict": "holds",
+   "refuter_why": "I counted the B table myself and got 67 id rows (68 '|' lines minus the header). The header at :3 says 69. ROUTING.md:130 says 'DEC-1b and H1b -> MURDER ...; the other 67 -> STG'.",
+   "what_happens": "The header says 'section B's 69 ids'; the B table has 67 rows, the same 67 that ROUTING's rule leaves STG (DEC-1b and H1b went to MURDER).",
+   "failure_scenario": "A checker looks for two missing ids that do not exist.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-A-6",
+   "lane": "A",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "docs/dev/R-REGISTRY.md:1824",
+   "title": "R8070's title and registry row name TEXT-04, which its body does not hold",
+   "verdict": "holds",
+   "refuter_why": "R8070's title and its registry row name TEXT-04, but the body reads only DRPG.Handover.alreadyHasIt. The comment in the body says TEXT-04 belongs to R8462, and R8462 passed on 14bb0d92 (r122-tier1.log:746).",
+   "what_happens": "R8070 is titled '(... TEXT-04, TEXT-09 and TEXT-LC2)'; after the assembly kept STG's explain.mjs its body reads only DRPG.Handover.alreadyHasIt, and its comment says TEXT-04 is R8462's.",
+   "failure_scenario": "A reader of the registry takes R8070 as the guard of the Eclipse sentence.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-A-7",
+   "lane": "A",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "lang/pl.json:3400",
+   "title": "The Polish Find Stash note keeps a sentence the English lacks, in the key TEXT rewrote",
+   "verdict": "holds",
+   "refuter_why": "The Polish value has a sentence the English lacks, and the sentence is true: stash-reach.mjs:243 lets the Mastermind reach a hidden stash without a Search. So the English GM is told less, not something false. The difference is older than this release. The release changed only '16+' to '{n}+' in both values (diff lines 359-360, 1368-1369) and kept it.",
+   "what_happens": "DRPG.Vault.stashesNote in Polish says 'Mastermind widzi kazda ukryta skrytke'; the English (lang/en.json:3202) has no such sentence. TEXT-39 rewrote both values ({n}+) and left the difference.",
+   "failure_scenario": "An English GM reading Room setup's Stashes tab is not told the Mastermind sees every hidden stash; a Polish GM is.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-C-2",
+   "lane": "C",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "scripts/action-murder.mjs:156",
+   "title": "The crisis menu closed by the incident's end says 'It is their turn. Your crisis actions open when it comes back to you.'",
+   "verdict": "holds",
+   "refuter_why": "closeWhen (action-murder.mjs:156) has one answer; isTheirTurn (murder-rules.mjs:134-135) answers false for any stage other than 'incident', so an ended incident closes the menu with DRPG.Murder.offTurn ('Your crisis actions open when it comes back to you', lang/en.json:3018). keepRowsLive's after() (action-menus.mjs:179-184) toasts that key. No other closer of the crisis menu at the incident's end found in murder-rules.mjs or murder-ui.mjs. Wrong sentence, nothing else wrong.",
+   "what_happens": "keepRowsLive closes the menu with the key `closeWhen` answers; openCrisisMenu answers DRPG.Murder.offTurn whenever isTheirTurn is false, which is also the case once the incident is over. The release notes say the incident's end 'closes it and says so'; what it says is that the turn will come back.",
+   "failure_scenario": "The victim has the crisis menu open; the GM ends the murder from the tracker. The menu closes and the victim is told the crisis actions open when the turn comes back - there is no turn any more.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-C-4",
+   "lane": "C",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "scripts/action-murder.mjs:102",
+   "title": "Two comments of the MURDER line cite R numbers that do not exist (R8228, R8224), and R8220's registry row says it was removed in E39",
+   "verdict": "holds",
+   "refuter_why": "R8228 and R8224 appear only in the two comments; neither is a test in any tier file nor a registry row (rows R8220-R8223, R8225-R8227). R8228 first appears in e54e10b5 as 'Next free: R8228', so the comment cites the next free number. R8220's row reads '(removed in E39)' although the test was taken out in f50efb89 of 1.2.122; tools/registry.mjs REMOVED_IN overrides only R214 (:187), and :216 stamps the first unshipped stage.",
+   "what_happens": "action-murder.mjs:102 says 'R8228 reads the rows rebuilt'; murder-ui.mjs:676 cites 'the suite's, R8224'. Neither number is a test in any tier file nor a row of docs/dev/R-REGISTRY.md (the block runs R8220-R8223, R8225-R8227). R8220's row reads '(removed in E39)', the first unshipped stage at --write, though the test was taken out in 1.2.122's E122 (f50efb89), the class STG-47 was about (tools/registry.mjs REMOVED_IN).",
+   "failure_scenario": "A reader looking for what pins the crisis menu's rebuilt rows or the re-ask's promise follows R8228 / R8224 and finds nothing; the row of R8220 points at a stage that has not shipped.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-C-6",
+   "lane": "C",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "scripts/verdict.mjs:108",
+   "title": "The DOC-13 sweep left an empty line where each `const esc` stood, two in a row in verdict.mjs",
+   "verdict": "holds",
+   "refuter_why": "The DOC-13 sweep replaced each 'const esc = foundry.utils.escapeHTML;' with an empty line; in openVerdictDialog that sits beside an existing blank, giving two in a row (verdict.mjs:108-109). Cosmetic.",
+   "what_happens": "Removing the local alias left a blank line in its place in postExecutionCard, bulletDescription, markOverruled, closeRound, openVerdictDialog (two blank lines), postVerdictCard and finalSummary.",
+   "failure_scenario": "None at the table; dirt in the diff the next reader reads.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-D-5",
+   "lane": "D",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "scripts/vote.mjs:651",
+   "title": "'Send another ballot (n)' now counts players handed a ballot who left, and the reminder reaches only those connected",
+   "verdict": "holds",
+   "refuter_why": "pendingVoters now appends issued users who are not connected (vote.mjs:649-656), and the remind label counts pending.length (trial-floor-ui.mjs:1933). sendAgain sends to trialParticipants() alone (vote.mjs:505-516), so the number on the button can be higher than the number sent, and the button can show with nobody connected to send to (it answers sent 0).",
+   "what_happens": "pendingVoters adds issued users who disconnected; the vote window's remind label uses pending.length (trial-floor-ui.mjs:1933), while runVoteOp's remind sends to trialParticipants alone (vote.mjs:506-518).",
+   "failure_scenario": "Four ballots out, one player drops: the button reads 'Send another ballot (2)' with one connected voter left; pressing it sends one.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-D-6",
+   "lane": "D",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "scripts/observe.mjs:1316",
+   "title": "'A find waits for its words on <gm>'s screen' is also whispered to the GM whose screen it is",
+   "verdict": "holds",
+   "refuter_why": "whisperToGms whispers gmIds(), which is every GM user (utils.mjs:370-372, 763-768), the describing GM included. The guard at observe.mjs:1316 decides only whether to send, not to whom.",
+   "what_happens": "whisperToGms goes to every GM (utils.mjs:763-768), the describing GM included.",
+   "failure_scenario": "With two GMs, the GM writing the description gets a card saying the find waits on their own screen.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-E-3",
+   "lane": "E",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "scripts/visibility.mjs:502-504",
+   "title": "visibility.mjs's comment above the slide check says a sprite between rooms is left to Foundry, which MAP-02 just reversed",
+   "verdict": "holds",
+   "refuter_why": "The comment says a sprite between rooms is left to Foundry; the line under it hides it (slideHeld answers true for at null). Comment against code, no behaviour.",
+   "what_happens": "Two lines edited the same block: COMM's ece01609 (MAP-45) wrote that a sprite in no room is left to Foundry 'the guard `at &&` since 8d24e215', and MAP's b0f02f6f replaced the guard by slideHeld, which hides it. The assembly kept both, so the comment states the opposite of the line under it.",
+   "failure_scenario": "A reader of applyToToken believes the gap is shown and 'fixes' slideHeld back; R8350 would catch it, the comment would not.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-E-4",
+   "lane": "E",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "scripts/movement-audit.mjs:429",
+   "title": "The primary's put-back from a bedroom still sends the bedroom's name to the mover's browser, found or not",
+   "verdict": "weakened",
+   "refuter_why": "The packet does carry the room, but it tells the browser nothing it lacks: every client holds the scene's room regions with their names and shapes (rooms.mjs roomPieces reads scene.regions; movement.mjs roomAt answers for any token on a player's browser), so the room at the dropped spot is derivable from the drag itself. It is an inconsistency with MAP-21's intent (words cut, data kept), not a new disclosure.",
+   "what_happens": "MAP-21 cut the name from the words a player is shown (sentBackLine asks roomsKnownToMe), but markOf still puts `room` in the move.sentBack packet for every bedroom refusal, so the browser of a player who has not found the room holds its name.",
+   "failure_scenario": "A player whose drop the primary put back from an unfound bedroom reads the packet (console, socket log): {rule: 'bedroomShut', room: 'Hiro's Room'}. The screen says only 'You cannot do that right now.'",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-E-5",
+   "lane": "E",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "scripts/stash-reach.mjs:346",
+   "title": "Rifle: a pick taken by somebody else meanwhile leaves an empty select, and Take then does nothing and says nothing",
+   "verdict": "holds",
+   "refuter_why": "keepLive puts back a dirty select's value; with its option gone selectedIndex is -1 and value is ''. Take's callback returns '' (the ?? keeps ''), and openRifle returns false at `!picked`, a line earlier than the finding says, with no notice. The primary judges every press, so display only.",
+   "what_happens": "The live list redraws the select; keepLive puts back a changed field's value, and a value whose option is gone leaves the select with nothing chosen. Take answers '' and the dialog returns false at the split, with no notice. If the player never touched the select, the first option is a different thing after the redraw and Take takes it. The header's owners and room are the open's.",
+   "failure_scenario": "Aiko picks the Knife in Botan's stash; Chie takes it a second earlier; Aiko's list redraws without it and shows a blank select; she presses Take and the window closes with nothing taken and nothing said.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-E-6",
+   "lane": "E",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "scripts/fog.mjs:4480-4486",
+   "title": "enteredRoom is kept per browser and not written while it is not the primary, so a held passage card can wait past an entry after a primary hand-back",
+   "verdict": "holds",
+   "refuter_why": "The precondition is ordinary, not exotic: the primary is the lowest-id active Gamemaster (utils.mjs:486-497), so a GM loses the role when a lower-id GM connects and regains it, without a reload, when that GM leaves. enteredRoom is written only while primary, so a stale entry can swallow one tellFoundOnEntry. The card is delayed, not lost.",
+   "what_happens": "reactToMove returns before the map is written on a browser that is not the primary. If this GM was primary, read a token entering A, stopped being primary while the token left A and the card was held, then became primary again, the token's next entry into A reads the stale A and posts no card; it waits for a later entry or the primary's ready.",
+   "failure_scenario": "Two GMs; the one who leads drops for ten minutes and comes back; a finder walks into the passage room: no 'finished' card until they leave and come back.",
+   "confidence": "suspected"
+  },
+  {
+   "id": "r122-E-7",
+   "lane": "E",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "scripts/fog.mjs:3277",
+   "title": "On a GM the repaint's reveal still stands its outline by every Monokuma's rooms, while the take-down now reads the GM's own lead",
+   "verdict": "holds",
+   "refuter_why": "Read as stated, and a little wider: a standing flash first calls fadeRoomOutline, so on GM A the outline round A's own Monokuma's room is taken down for a room where B's Monokuma stands, and the next repaint takes that down too (leadRooms), leaving A's own room with no outline until A's Monokuma moves - the case E49 B4 fixed, back for two GMs. Cosmetic.",
+   "what_happens": "MAP-33 made the take-down read leadRooms (the GM's own Monokuma), but the reveal of a room just found asks `standing: mine.has(...)`, every Monokuma's rooms. A room found where another GM's Monokuma stands plays with a standing outline that the next repaint takes down.",
+   "failure_scenario": "Two GMs; GM B's Monokuma stands in the Gym when the class finds it: on GM A's screen the Gym's outline stays after the reveal and goes at the next unrelated repaint.",
+   "confidence": "suspected"
+  },
+  {
+   "id": "r122-F-3",
+   "lane": "F",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "scripts/action-tail.mjs:68, :74-75, :83-88",
+   "title": "Tail's Roll, pressed after the picked student left or the list emptied, closes the window with no word",
+   "verdict": "holds",
+   "refuter_why": "live.mjs restore sets node.value = was.value (live.mjs:850-851); a select whose option is gone holds '' and the callback sends it; `targets.find` misses, so performTail returns null with no 'gone' warning (action-tail.mjs:83-88), against the comment at :74-75. Empty list the same.",
+   "what_happens": "A select the player changed is carried by live.mjs restore (node.value = was.value, live.mjs:850-851); with that option gone the select holds no value, the callback sends targetId \"\", neither the new list nor the opening's `targets` has it, so `was` is undefined and performTail returns null without the 'gone' warning. The same when the only student left and the select is empty. The comment says 'Roll says they are gone'.",
+   "failure_scenario": "Aiko opens Tail with Ben and Chie in the room, picks Chie; Chie walks out; the select shows blank; Aiko presses Roll and the window just closes.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-F-4",
+   "lane": "F",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "scripts/gm-team-dialog.mjs:358-370, :384-392",
+   "title": "Despair Flow's suggested threshold does not follow a pool another GM grants or revokes; the window's comment still says one number moves",
+   "verdict": "holds",
+   "refuter_why": "The suggestion's keepFresh watches actors and two death hooks (gm-team-dialog.mjs:391); monokumas() reads user roles and the extraPoolUsers setting (despair.mjs:143-148), neither watched. The block above still says one number moves (:358).",
+   "what_happens": "overflowSuggestionNow counts monokumas() (despair.mjs:143-148: GM users and the extraPoolUsers setting); the new keepFresh watches actors and two death hooks, not that setting or user roles, so 'and 1 pool' stays after another GM's Grant pool. The block above it still reads 'THE ONE NUMBER ON THIS WINDOW THAT MOVES WHILE IT IS OPEN'.",
+   "failure_scenario": "Two GMs: B grants an Assistant a pool while A has Despair Flow open; A's line still says 'for 4 students and 1 pool'.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-F-5",
+   "lane": "F",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "scripts/mastermind.mjs:732-734, :747-749",
+   "title": "The Mastermind window's keepLive carries the same REFR-05 comment twice",
+   "verdict": "holds",
+   "refuter_why": "The REFR-05 comment stands twice, before keepLive and beside whileEditing.",
+   "what_happens": "The block comment before keepLive was copied into the options object beside whileEditing; both now say 'The Hope box is redrawn at once...' while the region is the whole form.",
+   "failure_scenario": "A reader of the file.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-F-6",
+   "lane": "F",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "scripts/vault-store.mjs:661-675",
+   "title": "safePortrait was put between safeRoomImage's documentation and its function",
+   "verdict": "holds",
+   "refuter_why": "safeRoomImage's JSDoc ends at :661, then safePortrait's block and const, then safeRoomImage at :675 with no doc of its own.",
+   "what_happens": "safeRoomImage's long JSDoc (ending :661) now stands above safePortrait's block and const, so tooling and readers attach it to MASK_PORTRAIT; safeRoomImage at :675 has no documentation of its own.",
+   "failure_scenario": "A reader of the file.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-F-7",
+   "lane": "F",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "scripts/vault-store.mjs:312-318, :396-403, :563-572",
+   "title": "A bedroom key granted before 1.2.122 by a GM whose page language differs from the reading GM's and the world's is no longer recognised as the module's own grant",
+   "verdict": "weakened",
+   "refuter_why": "Not a regression: 'no longer recognised' is wrong. On 1.2.121 repointDeadKey and the owner-left rewrite compared with this GM's page language alone (v1.2.121 vault-store.mjs:368, :531), so a key a Polish-page GM granted, read by an English-page GM, was not recognised then either. 1.2.122 adds the world's language (keyNamesOf/keyTextsOf, :312-318), which only widens it. What stands: the comment at :559 ('in the language it was written in') overclaims for a granting GM whose page differs from both.",
+   "what_happens": "keyNamesOf and keyTextsOf hold this GM's page language and the world's. A key a Polish-page GM granted on an English world before 1.2.122, read later by an English-page GM: neither set holds the Polish text, so repointDeadKey and keyCopiesAfterOwnerLeft skip rewriting it. The comment at :559 says 'in the language it was written in'.",
+   "failure_scenario": "Mixed-language GMs on one world: a dead owner's key text stays naming the old owner after a bedroom changes hands.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-G-4",
+   "lane": "G",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "scripts/monocub.mjs:1612",
+   "title": "answerHopeAsk's new comment says the Ask card is written on the Monocub's player's browser; the module posts it on a GM",
+   "verdict": "holds",
+   "refuter_why": "The module's own Ask card is posted by postHopeAsk, a CUB_RESOLVERS row run only inside cubAbilityOnGm, which returns null off a GM. The new comment's reason (the card is written on the player's browser) is untrue of the module's card; the cap is still right, for a player's lookalike card. The tier-2 test title repeats the same sentence.",
+   "what_happens": "postHopeAsk is a CUB_RESOLVERS row run by cubAbilityOnGm, which returns at once off a GM, so the module's own card is a GM's; the cap guards a console's lookalike card, not the module's.",
+   "failure_scenario": "A reader of the comment believes the module's own card's data is the player's and looks for the fix in the wrong place.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-G-5",
+   "lane": "G",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "scripts/voice-panel.mjs:153",
+   "title": "The microphone note's listeners stay registered after the settings window closes, one more set per opening",
+   "verdict": "holds",
+   "refuter_why": "followTheMic is called for every fieldset voiceFieldset builds (voice-panel.mjs:180), i.e. each opening of the settings window's Voice section (settings-window.mjs:377-382). Its listeners stop only when a recheck finds the microphones named; a closed window's note (not connected) does not stop them. A browser that never names its microphones keeps one more devicechange listener, rtcSettingsChanged hook and permission listener per opening. Cost unmeasured, each event one enumerate per set.",
+   "what_happens": "followTheMic adds a devicechange listener, an rtcSettingsChanged hook and a permission change listener per fieldset built while the microphones are unnamed, and removes them only once a recheck finds them named. Closing the window does not stop them, so every opening on a browser that never names its microphones adds another set, each running enumerateDevices on every event.",
+   "failure_scenario": "A player without a microphone opens and closes the settings window ten times; ten rtcSettingsChanged hooks and ten devicechange listeners stand for the rest of the page.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-G-6",
+   "lane": "G",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "scripts/bridge-runs-records.mjs:629",
+   "title": "A second GM's Play or Stop the track that the primary cannot carry out shows its reason on the primary's screen",
+   "verdict": "holds",
+   "refuter_why": "handleMusicTrack runs the primary's own playTrack/resetMusic, whose warnings are ui.notifications on the primary (music-play.mjs:1150-1163). The asker's playTrack returns null and its wireSoundPlay says nothing for null (sound-panel.mjs:290-296); the asker has only the bridge's generic refusal. Narrow (a track or playlist gone between draw and press).",
+   "what_happens": "handleMusicTrack calls the primary's own playTrack and resetMusic, whose warnings (no cue playlist, no such track, the track would not play) are ui.notifications on the primary; the asking GM is told only the bridge's generic refusal.",
+   "failure_scenario": "The assistant GM presses Play on a track deleted meanwhile; the primary GM sees 'Pick a track first.' for a press they did not make, the assistant sees 'nothing was carried out'.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-G-7",
+   "lane": "G",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "scripts/call-world.mjs:77",
+   "title": "Only the Calls' seal and restriction go through the one writer; four other writers of the same settings do not",
+   "verdict": "holds",
+   "refuter_why": "Read as stated: liftSeal, carrySealedRoom, clearSeals and putBackSeals read and write sealedRooms/restrictions whole outside serialWrite('drpg-call-world'). Their callers run on the primary or a GM (doors-gm.mjs:181 forceDoor on the primary; fog.mjs:901 carryRoomInWorld on the primary; clock.mjs:701/797/858; eclipse.mjs:348), so the remaining overlap is mostly on one browser across a settings round trip. Suspected, not measured; the two-GM race COMM-26 named is closed.",
+   "what_happens": "writeCallWorld serializes Seal, Silence and Chain on 'drpg-call-world', but liftSeal (a breach), carrySealedRoom (a rename), clearSeals and putBackSeals read and write sealedRooms and restrictions whole outside that queue, so on the primary a lift and a queued seal step can still interleave across their awaits and one undo the other.",
+   "failure_scenario": "A breach completes and lifts the seal of the Kitchen on the primary while a second GM's Seal of the Library is being written there: the seal step read the list before the lift and writes the Kitchen back.",
+   "confidence": "suspected"
+  },
+  {
+   "id": "r122-G-8",
+   "lane": "G",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "scripts/call-pickers.mjs:518",
+   "title": "The Call's project picker does not follow the projects themselves",
+   "verdict": "weakened",
+   "refuter_why": "Narrower than written. keepLive's updateSetting listener wakes a region on any write to a setting of this module when watch.settings is not given (live.mjs:479-493), and this watch gives none; a freeze is projectMeta's frozenBy (projects-secrecy.mjs:78-80, projects.mjs:2240-2242, written at :1926), a module world setting, so a project frozen meanwhile IS redrawn. What is not heard is daggerheart.Countdowns (no settingKeys), where a project's progress and so isComplete live (projects.mjs:853, :935-937): a project finished meanwhile stays offered, and its pick is then refused with a reason. Whether a project made meanwhile wakes it depends on whether its creation writes projectMeta - not read.",
+   "what_happens": "The project picker's live rows are woken by token changes and drpgProjectSightChanged (a secret project's sight) only; a project made, finished or frozen in the Countdowns setting while the window stands is not redrawn, though the release notes say the pickers follow the world.",
+   "failure_scenario": "Monokuma opens Contribution's picker; a player finishes the project meanwhile; the finished project is still offered and the Call is refused after the pick (projectRefusal).",
+   "confidence": "suspected"
+  },
+  {
+   "id": "r122-H-7",
+   "lane": "H",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "minor",
+   "where": "scripts/gm-team-dialog.mjs:355-376, :384-392",
+   "title": "Despair Flow still shows the pool names, assignments and Overflow rules of its open while another GM changes them (REFR-07 chose a careful Save instead of a redraw)",
+   "verdict": "holds",
+   "refuter_why": "Accurate: only the Overflow count and the suggested threshold follow (gm-team-dialog.mjs:371-391); the rest stands as opened, which the code's own comment states (:358-368) with Save writing only this GM's fields. Nothing is lost or overwritten, so I would put it at nit: a stale display in a two-GM case, documented, and whether it meets the owner's redraw rule is the owner's.",
+   "what_happens": "Only the Overflow count and the suggested threshold follow (two keepFresh lines); Save writes only this GM's changes, so nothing is lost, but the window keeps showing what another GM replaced. Under the owner's rule (a window redraws at once on any change) this window is not wired to every change it shows.",
+   "failure_scenario": "Two GMs: B renames pool 2 and moves a student to it; A's open Despair Flow still names the old pool and assignment until reopened.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-H-8",
+   "lane": "H",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "scripts/gm-panel.mjs:781-786, :789-799",
+   "title": "The Debug log redraws its rows twice a second (REFR-50) but its Copy and Clear buttons are drawn from the rows at the open: a log opened empty never offers them",
+   "verdict": "holds",
+   "refuter_why": "Copy and Clear are in the footer only when rows existed at the open (gm-panel.mjs:781-786); the render hook's timer redraws .drpg-failure-live only (:789-799). The converse holds too: rows cleared elsewhere leave Copy and Clear on an empty list.",
+   "what_happens": "The footer's Copy (secondary) and Clear (destructive) are included only when `rows.length` at the open; the list region fills as failures arrive, the footer does not.",
+   "failure_scenario": "A GM opens the empty Debug log to watch for a failure; it appears in the list, and there is no Copy to send it.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-H-9",
+   "lane": "H",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "scripts/live.mjs:207-211, :521-523; scripts/sound-panel.mjs:465-467",
+   "title": "Three comments still say an open select list is not held, or is closed, by a redraw",
+   "verdict": "holds",
+   "refuter_why": "live.mjs's comment in rebuild still says a list opened from the keyboard is not held and a pointer's list is held only by the press, directly above the new listOpen rule that holds any open list; sound-panel.mjs:465-467 says a redraw closes a list left open after the release, which listOpen (live.mjs:212-226, :682-689) now prevents in that keepLive region.",
+   "what_happens": "live.mjs:208-210 'A list opened by the pointer is held by the press ... until it is let go ... A list opened from the keyboard (Alt+Down) is not held', directly above the new rule that an open list holds the rebuild; :522-523 'a list open under the pointer is held by the press'; sound-panel.mjs:465-467 (COMM's r121-R-9 rewrite) 'the list stays open after the release, and a redraw then closes it'.",
+   "failure_scenario": "A reader trusts the old lines and takes the listOpen hold for dead code.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-lane-B-3",
+   "lane": "B",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "scripts/bridge-runs-acts.mjs:532, :545-556; scripts/murder-rules.mjs:4598-4604",
+   "title": "Every re-ask of an owed opening whispers another 'your opening roll' card to the player",
+   "verdict": "holds",
+   "refuter_why": "Every run of rollOpening's player branch posts a new whisperToOwner card with the popup title and keeps it as an opening notice. reaskOwedOpening runs at every ACTION_ADVANCEMENT_ASK, which the player sends at its own ready (gm-bridge.mjs:180) and at every primary's ready (gm-bridge.mjs:92, onGmReady gated on the primary). The page's in-flight guard stops a second window but not the card, which is posted on the primary before the packet arrives. Only the primary's arrivals count, not any GM's, which keeps it a nit.",
+   "what_happens": "reaskOwedOpening runs at each of the player's ready asks and, by the line's own note, again at each primary GM's ready (askForOffers). Each run goes through rollOpening's player branch, which posts a new whisperToOwner card (DRPG.Murder.openingYours) and keeps it as an opening notice, even when the player's window still stands and the page opens no second one.",
+   "failure_scenario": "A primary GM reloads twice while the killer's player sits in front of the Body window: the player gets two more identical request cards, each raised as a popup.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-lane-B-4",
+   "lane": "B",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "scripts/bridge-runs-acts.mjs:904-915",
+   "title": "The parked murder's comment now stands above claimedFor's block, still indented as a statement",
+   "verdict": "holds",
+   "refuter_why": "Confirmed. a8cf250a dedented the run comments of D-90 and, in the same commit, inserted claimedFor between the park comment and handleParkMurder. The park comment is the only top-level four-space run comment left in the file (a scan of every four-space comment block that follows a closing brace at column 0 finds :904-915 alone). D-90 named this place (858-869 on 1.2.121).",
+   "what_happens": "a8cf250a dedented the run comments (D-90) and inserted the claimedFor block between handleParkMurder and its comment; the park comment ('A direct murder declared in the dark ... Only while an Eclipse runs') kept its four spaces and now describes claimedFor's position.",
+   "failure_scenario": "A reader of handleParkMurder finds no comment over it and a stray one over a helper.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-lane-B-5",
+   "lane": "B",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "scripts/sync.mjs:68-70; scripts/season-wipe.mjs:589",
+   "title": "SYNC.gather's note still gives one scene and a room; the reset now sends a list of scenes and no room",
+   "verdict": "holds",
+   "refuter_why": "Confirmed. The SYNC.gather note still gives `{ room, scene, tokenIds }` and names call-world.mjs gatherEveryone alone; the reset's packet since 1.2.122 is `{ scene: [...scenes], tokenIds }` with no room, and panToGathered takes a list. sync.mjs's diff in this release touched only the KIND_REFRESH note. The only reader is panToGathered, which handles both shapes, so nothing breaks today.",
+   "what_happens": "The packet's shape note says `{ room, scene, tokenIds }`; the season reset's packet is `{ scene: [...scenes], tokenIds }`, which panToGathered takes since CORE-24.",
+   "failure_scenario": "A future reader of the camera kind reads `scene` as one id and breaks the reset's pan.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-lane-B-6",
+   "lane": "B",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "scripts/tables-editor.mjs:1359 (refresh), :1360-1362 (bodyEl.innerHTML), :1233-1270 (the pane's focusout save); scripts/live.mjs:1135",
+   "title": "Item tables redraws the entries of a pane whose field is focused or typed in on any table change, against keepFresh's own rule",
+   "verdict": "holds",
+   "refuter_why": "Confirmed in source, and the open half is more likely than 'suspected' suggests: r121-R-1 measured in Chromium 153 that replacing a focused field fires blur and focusout while it is still connected, so delegated listeners hear them. That was measured on replaceWith; innerHTML's removal of the field was not measured. The pane's focusout listener is on `pane`, an ancestor of bodyEl, and saves a field whose value differs from data-drpg-initial, so a partial save per outside table change is the probable result. refresh redraws whenever a field is focused, even when the table on screen did not change, because freshTableCounts runs every pane's refresh on any table's hooks. Severity stays nit: tab",
+   "what_happens": "freshTableCounts runs every pane's refresh on createTableResult, deleteTableResult, updateTableResult and updateRollTable of any table. refresh returns early only when nothing is typed, nothing is focused and the html is the same, so a focused field's pane is rebuilt even when its table did not change; the typed text, focus and caret are put back. In Chromium a removed focused field fires blur and focusout (r121-R-1's reading); if that reaches the pane's focusout listener, the half-typed name or description is saved at the redraw. keepFresh's contract says 'Callers must only write nodes nobody edits'.",
+   "failure_scenario": "A GM types a new description for an entry while another GM adds an entry to a different table: the pane is rebuilt under the caret and, in Chromium, the partial description is written to the entry before the GM finishes.",
+   "confidence": "suspected"
+  },
+  {
+   "id": "r122-lane-B-7",
+   "lane": "B",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "scripts/room-setup.mjs:801; scripts/search-tokens.mjs:366-380 (setFor sends an absolute value; setForHere clamps and writes it)",
+   "title": "MAP-40's Room Setup step still overwrites a spend a non-primary GM has not seen yet",
+   "verdict": "holds",
+   "refuter_why": "Confirmed, and it is a rest of MAP-40 itself, not a new defect: MAP-40's title names 'Room Setup's step written by a GM who is not the primary can write over a spend'. The step is computed from this GM's copy (`tokens.left(room, scene) + (typed - was)`) and only the absolute value travels; setForHere writes it whole. A further gap the first reader did not name: a non-primary GM's own spend (action-search.mjs:564 for a student or NPC the GM plays, or game.drpg.useToken, api.mjs:1391) goes through claim's GM branch to #spendAsGm in that GM's own queue, from its own copy, not through gmWriteOnPrimary. giveBack is the primary's alone, so it is not affected.",
+   "what_happens": "The step is computed on the GM who typed it, from its own copy of the count (`tokens.left(room, scene) + (typed - was)`), and only the resulting number travels to the primary's queue. A spend the primary wrote whose setting update has not reached that GM yet is written over, as MAP-40 described.",
+   "failure_scenario": "Two GMs: a player searches the Kitchen (3 -> 2 on the primary) while the second GM raises the Kitchen by one in Room Setup from the 3 it still shows: 4 is written, the spend undone.",
+   "confidence": "read"
+  },
+  {
+   "id": "r122-A-4",
+   "lane": "A",
+   "kind": "finding",
+   "severity": "nit",
+   "first_severity": "nit",
+   "where": "tools/registry-since.json:73",
+   "title": "STG-85's restamp writes unshipped stages on nine rows whose tests shipped in 1.2.113",
+   "verdict": "refuted",
+   "refuter_why": "The finding misreads what Since means. In this registry Since names the stage a test belongs to, not the release that first shipped it. The generator's own default stamps 'the first unshipped stage when --write runs' (registry.mjs:149-155, :168-170), so a Since label has always named a stage still in progress. SINCE_CORRECTED, the precedent for this restamp, sets rows to 'the stage its tests' own titles name', including E108, which has no stages.json row: 'the stamp is a label and nothing reads it against the ledger' (registry.mjs:167-176). STG-85 itself complained that the registry 'will not say which tests are the stage's' (AUDIT-1.2.42.md:2398). The nine titles name exactly these stages: ",
+   "what_happens": "registry-since.json stamps R5100, R5170, R5171 'E40', R5200-R5203 'E43' and R6300, R6301 'E26' by the first stage their titles name. All three stages are unshipped (tools/stages.json:107-113, E26 planned 1.3.0), while the tests stood in v1.2.113's tier files (they were E54 before). The registry now dates shipped tests to stages still to come.",
+   "failure_scenario": "A reader listing E40's or E26's tests counts nine as part of work not yet shipped, or a release check that one day holds Since against the ledger turns red on rows nobody changed.",
+   "confidence": "read"
+  }
+ ],
+ "lanes": {
+  "A": {
+   "lines": "TEXT, STG, the assembly",
+   "commits_read": 33,
+   "claims": {
+    "holds": 40,
+    "partly": 7,
+    "unread": 1,
+    "no": 2
+   },
+   "asks": {
+    "done": 58,
+    "partly": 2,
+    "not done": 1,
+    "not applicable": 1
+   },
+   "asks_not_done_or_partly": [
+    {
+     "id": "recheck-119 TEXT-37 (TEXT, by file)",
+     "verdict": "partly",
+     "refuter": null,
+     "where": "lang/pl.json:5140 (DRPG.TraitRuling.pass 'Zrezygnuj' for 'Pass', 9 against 4 characters)",
+     "why": "Lock -> 'Zamknij' done; the finding's second button unchanged and R8060's row reads lair.lock alone; no answer for it in the line's messages"
+    },
+    {
+     "id": "recheck-119 STG file split (55 ids by the auditor's reading of `where`: CASE-75 COMM-51..53 DESP-37 DOC-02 DOC-04 DOC-18..20 ITEM-42 MAP-43 MAP-44 ROLL-36 STG-27 STG-35..38 STG-42 STG-44 STG-47 STG-48 STG-50 STG-53 STG-54 STG-56..60 STG-63 STG-69 STG-71 STG-75 STG-79 STG-81 STG-82 STG-84 STG-85 STG-87..89 STG-94 STG-96 STG-98 STG-99 STG-101 STG-104..106 TEXT-24 TEXT-41 UI-36 UI-38)",
+     "verdict": "partly",
+     "refuter": null,
+     "where": "STG's commits 5813f569..5a6721b7; STG-50, STG-59, STG-60, STG-69 closed by other lines",
+     "why": "54 of 55 named in a commit of this release and checked where read (registry, known leaks, AUDIT 9.2, handbooks, README); STG-82 is not (next row). The split is this reader's approximation of ROUTING's 'by the file each names'"
+    },
+    {
+     "id": "recheck-119 STG-82 (STG, by file)",
+     "verdict": "not done",
+     "refuter": null,
+     "where": "audit/AUDIT-1.2.42.md:2395; .github/release-notes/v1.2.113.md:158; scripts/tests-kit.mjs (E54 manifests cited)",
+     "why": "No commit of the release names it and no record answers it: the split's tools and manifests are still on claude/e54-prep only"
+    }
+   ],
+   "claims_no_or_partly": [
+    {
+     "claim": "TEXT-04: eclipseExplanation asks nightFree and says eclipseDark without 'or anywhere at night'; 'R8070 holds both'",
+     "verdict": "partly",
+     "where": "scripts/explain.mjs:146-150 (the shipped code is STG's: a second parameter `night`, not TEXT's nightFree); scripts/tests-tier0.mjs:27630-27646 (R8070 reads alreadyHasIt only; its comment says the assembly kept STG's and R8462 holds it)"
+    },
+    {
+     "claim": "STG-94: E110-T2 expects a Monocub muted by every mode (D-E110-A), measured with a fourth player",
+     "verdict": "partly",
+     "where": "scripts/tests-tier2.mjs:105363-105386 (the M branch m()/w() is empty with three players, so headless and CI never read it)"
+    },
+    {
+     "claim": "Registry stamps corrected: SINCE_CORRECTED ranges and REMOVED_IN R214; registry-since.json restamps 236 rows E54 took (129 by title, 107 by first tag), 10 keep E54",
+     "verdict": "partly",
+     "where": "tools/registry.mjs:178-197; tools/registry-since.json:73, :77, :199 (nine rows stamped with unshipped stages E40, E43, E26, though their tests shipped in 1.2.113); docs/dev/R-REGISTRY.md:1446-1453, :1580-1581"
+    },
+    {
+     "claim": "UNROUTED.md: every item's kind, status and holder; 'section B's 69 ids'",
+     "verdict": "partly",
+     "where": "docs/dev/stg-122/UNROUTED.md:3 (the B table holds 67 rows, the 67 ROUTING gave STG; DEC-1b and H1b went to MURDER)"
+    },
+    {
+     "claim": "DOC-21: one esc in every module file, the 18 bare escapeHTML bindings in nine files go, R8149 reads the whole module",
+     "verdict": "partly",
+     "where": "scripts/monocub.mjs:1790 (`const esc2 = foundry.utils.escapeHTML` left); scripts/tests-tier1.mjs:66817-66835 (R8149's regex reads `const esc =` only); every file that lost its binding imports esc from utils.mjs (checked)"
+    },
+    {
+     "claim": "Repository: tables-editor.mjs went under the bound by moving an entry's edits to tables-entries.mjs",
+     "verdict": "no",
+     "where": "scripts/tables-editor.mjs is 1675 lines, over LENGTH_BOUND 1500 (tools/check.mjs:1959), under the 1750 ceiling and on LENGTHS_ACCEPTED (tools/check.mjs:1967)"
+    },
+    {
+     "claim": "Known gaps: 'No local gate has passed: no part of it has run on this release's tree'; Checked: 'the local gate did not run'",
+     "verdict": "no",
+     "where": "audit/gate/local-gate.json (commit fcbb2753, part press-live-region status passed, counts passed 1 / notRun 8, verdict incomplete); commits 5c3dad9d and 4f866a76"
+    },
+    {
+     "claim": "Checked: npm run quick green, 26 check parts, gate self-test 62/62, tiers 0-1 1963/0/16/0 on the release tree",
+     "verdict": "partly",
+     "where": "tools/check.mjs:1931 plus seven own-line parts = 26 (holds); the run counts not re-measured here (central tier logs empty at this reading)"
+    },
+    {
+     "claim": "Checked: glass sweep 25 sizes, both themes, GM and player, 99 of 100 green",
+     "verdict": "partly",
+     "where": "audit/glass-sweep.mjs:283-284 (25 sizes; 25 x 2 x 2 = 100 holds); the run itself not re-measured"
+    }
+   ],
+   "not_established": [
+    {
+     "what": "Tier 0-1 and tier 2 results on 14bb0d92 for R8060-R8070, R8460-R8462, R7745, R8542, R8149 and the notes' '1963 passed, 0 failed, 16 skipped, 0 red'",
+     "live_check": "read base/r122-tier1.log and r122-tier2.log once they end with EXIT (both empty at this reading)"
+    },
+    {
+     "what": "Red-first and mutant claims of TEXT (16 mutants, six for R8069, three for R8070) and STG (R8460, R8461, R8462, R1313, lengths)",
+     "live_check": "re-run each named mutant on 14bb0d92 with run-tests --only"
+    },
+    {
+     "what": "E110-T2's Monocub expectation (STG-94): the M branch is empty with three players, so headless and CI never read it",
+     "live_check": "tier 2 on the sandbox with a fourth player owning a Monocub (as the commit's scratch run)"
+    },
+    {
+     "what": "Fit to view's sub-25% zoom kept across a live redraw: wireCaseCamera's apply reads the floor from boxSize(graph), which is 0 before layout, giving 25%",
+     "live_check": "AUDIT 9.2 item 831: fit an 8000 px case, then let a world change redraw the Map, and read the zoom readout"
+    },
+    {
+     "what": "settleAwayCards on a primary GM whose browser holds no words of the GMs' away card (secretHtml null): the card is skipped and keeps its buttons",
+     "live_check": "two GMs: the first posts the away card and leaves; the second, now primary, grants; read the card on both"
+    },
+    {
+     "what": "The Eclipse explanation under Darkness names the night's rooms whenever Darkness is on now, whatever time of day the Darkness covers",
+     "live_check": "a day Eclipse under Darkness, then read the explanation and a night placement"
+    },
+    {
+     "what": "STG-88's accepted look baselines (style-freeze 120 differences written, style-sweep 8 accepted) as intended changes",
+     "live_check": "run audit/look-freeze, style-sweep and style-freeze in the baselines' Chromium on 14bb0d92"
+    },
+    {
+     "what": "The handbook edits of TEXT (player 7, 9, 10; GM 8, 10.x) and STG (25 labels, COMM-51, TEXT-24, DOC-18)",
+     "live_check": "read the handbooks against the drawn windows (check text and R8460 cover only the quoted spans)"
+    }
+   ]
+  },
+  "B": {
+   "lines": "CORE, WORLD",
+   "commits_read": 45,
+   "claims": {
+    "holds": 46,
+    "partly": 6,
+    "unread": 1
+   },
+   "asks": {
+    "done": 66,
+    "not done": 5,
+    "partly": 7
+   },
+   "asks_not_done_or_partly": [
+    {
+     "id": "B: CORE-LC1",
+     "verdict": "not done",
+     "refuter": null,
+     "where": "scripts/migrate.mjs",
+     "why": "no answer recorded by the line (needs a new world's reading; no LIVE id proposed)"
+    },
+    {
+     "id": "B: CORE-LC5",
+     "verdict": "not done",
+     "refuter": null,
+     "where": "scripts/hud.mjs counters",
+     "why": "no count of one End of chapter's draws, no answer recorded"
+    },
+    {
+     "id": "B: CORE-LC6",
+     "verdict": "not done",
+     "refuter": null,
+     "where": "scripts/chapter.mjs",
+     "why": "needs two GMs at a table (LIVE-E11-09); the line records no answer"
+    },
+    {
+     "id": "D: CORE's 43 comment items (D29-D170)",
+     "verdict": "partly",
+     "refuter": null,
+     "where": "scripts/bridge-runs-acts.mjs:904-915",
+     "why": "the hunks for all 43 files are in a8cf250a/4406763a; D-90 (run comments indented four spaces) left one comment indented and now detached from handleParkMurder"
+    },
+    {
+     "id": "CASE-24",
+     "verdict": "partly",
+     "refuter": null,
+     "where": "scripts/bridge-runs-acts.mjs:545-556",
+     "why": "re-asked at the ready, not measured on a reload; the re-ask has two new side effects (lane-B-2, lane-B-3)"
+    },
+    {
+     "id": "CORE-28",
+     "verdict": "not done",
+     "refuter": null,
+     "where": "scripts/diagnostics.mjs:1158-1180",
+     "why": "fileSizes still reports the fixture names as not arrived; no hunk touches fileSizes or loadedFiles"
+    },
+    {
+     "id": "CORE-40",
+     "verdict": "partly",
+     "refuter": null,
+     "where": "scripts/secret.mjs:1082-1088, :1145-1150",
+     "why": "others' veiled cards no longer take the slots, but the slots now go to the oldest returned cards (lane-B-1)"
+    },
+    {
+     "id": "CORE-41",
+     "verdict": "not done",
+     "refuter": null,
+     "where": "scripts/secret.mjs:237, :260",
+     "why": "gmAsk still a placement flag a player's thread card keeps; no hunk touches it"
+    },
+    {
+     "id": "WORLD: REFR-57",
+     "verdict": "partly",
+     "refuter": null,
+     "where": "scripts/tables-editor.mjs:1349-1376",
+     "why": "the pane follows, but it redraws the entries under a focused field on any table change (lane-B-6)"
+    },
+    {
+     "id": "WORLD: REFR-40",
+     "verdict": "partly",
+     "refuter": null,
+     "where": "scripts/chapter.mjs refreshChapterEnd",
+     "why": "a warning that appears or goes is not added or taken out live (the commit says so)"
+    },
+    {
+     "id": "WORLD: MAP-40",
+     "verdict": "partly",
+     "refuter": null,
+     "where": "scripts/room-setup.mjs:801; scripts/search-tokens.mjs:366-380",
+     "why": "the refill and the put-back run in the primary's queue; Room Setup's step is still computed from this GM's own count and sent as an absolute value (lane-B-7)"
+    },
+    {
+     "id": "WORLD: D, its 42 comment items, and D 46",
+     "verdict": "partly",
+     "refuter": null,
+     "where": "b5cc72a4, 050f60e5",
+     "why": "39 rewritten and 3 already true by the commit; spot-read only (two held)"
+    }
+   ],
+   "claims_no_or_partly": [
+    {
+     "claim": "CORE-40: a returning player's notice slots go to the cards answered, not the newest of all asked",
+     "verdict": "partly",
+     "where": "scripts/secret.mjs:1082-1088, :1145-1150"
+    },
+    {
+     "claim": "CASE-24: the player's ready ask has the primary send an owed opening roll again; a page whose opening window stands starts no second loop, keyed per side and character since b9197030",
+     "verdict": "partly",
+     "where": "scripts/bridge-runs-acts.mjs:532, :545-556; scripts/murder-rules.mjs:4741-4751"
+    },
+    {
+     "claim": "The unrouted D comment items of line CORE (43, D29-D170) rewritten to the code",
+     "verdict": "partly",
+     "where": "scripts/bridge-runs-acts.mjs:904-915 (one run comment still indented and now above claimedFor), elsewhere as diffed"
+    },
+    {
+     "claim": "WORLD CORE-33, REFR-57, CTRL-70: a Rename takes the split tables; the lists' counts and the table on screen follow outside changes, what is typed kept; a refused Add keeps its form",
+     "verdict": "partly",
+     "where": "scripts/tables-editor.mjs renameRoomFamily, freshTableCounts, wirePoolPane refresh (:1349-1376), newItemPaneHtml draft"
+    },
+    {
+     "claim": "WORLD MAP-40: every GM write of the Search Tokens in the primary's queue (searchTokens.gmWrite)",
+     "verdict": "partly",
+     "where": "scripts/search-tokens.mjs:366-415, :488-535, the gmWrite row; scripts/room-setup.mjs:801 computes the step from this GM's own count"
+    },
+    {
+     "claim": "WORLD: 39 unrouted D comments rewritten, three already true (130, 132, 153); D 46 finished; search-tokens.mjs's U+2212 and the ellipsis gone",
+     "verdict": "partly",
+     "where": "spot-read: TRAP_TRIGGERS ten with manual (config.mjs), search-tokens.mjs holds no U+2212 or U+2026; the rest not each re-read"
+    }
+   ],
+   "not_established": [
+    {
+     "what": "CORE-31: that Foundry v14 refuses an Assistant GM's write of core.permissions (the module's reading, not read on v14)",
+     "live_check": "On 14.370 with only an Assistant GM connected, watch the module's ready: no write tried, one whisper DRPG.Enforced.filesNeedFullGm; then try game.settings.set('core','permissions',...) by hand from that console"
+    },
+    {
+     "what": "CASE-24: the opening's re-ask on a real reload and on a primary's reload (the commit says not measured)",
+     "live_check": "Ask for the opening roll, reload the player's tab, read whether the window comes back once; reload the primary GM and count the player's windows and cards"
+    },
+    {
+     "what": "lane-B-6: whether a focused field removed by Item tables' refresh fires focusout on the pane in Chromium and saves the half-typed text",
+     "live_check": "In Chromium, type in an entry's description while a second GM adds a result to another table; read the entry's stored text before leaving the field"
+    },
+    {
+     "what": "lane-B-1: that game.messages.contents is in creation order on v14 and the GM's answers arrive in the order sent",
+     "live_check": "A player with more than eight private cards opens a fresh browser; read which cards raise popups"
+    },
+    {
+     "what": "CORE-46: a take-back that throws after its sheet write landed (a timeout on a slow server) is tried again at the next boundary, and the trait bonus's take is a subtraction, not idempotent",
+     "live_check": "Throttle the network on the primary at a boundary with a +1 trait row; read the statistic after the next boundary"
+    },
+    {
+     "what": "CORE-38: one microtask before asking the card whether it rules is enough for a card whose words are drawn in the same hook dispatch (read, not measured)",
+     "live_check": "Post a ruling card while the GM's log is rendering a long history; read that each card's buttons answer"
+    },
+    {
+     "what": "COMM-23: that a client setting is one item per browser across worlds and logins on v14 (the notice history's reading)",
+     "live_check": "Two logins on one browser; read each one's unread badges after the other reads a thread"
+    },
+    {
+     "what": "Scenario results for 61 F9c/P3a, 97 K4/K5, 30, 33 A24 and 72-canary on 14bb0d92 (cited from the commits; no scenario log read here)",
+     "live_check": "node cluster.mjs on each scenario at 14bb0d92"
+    }
+   ]
+  },
+  "C": {
+   "lines": "TRIAL, MURDER",
+   "commits_read": 14,
+   "claims": {
+    "holds": 35,
+    "partly": 4
+   },
+   "asks": {
+    "done": 81,
+    "partly": 4
+   },
+   "asks_not_done_or_partly": [
+    {
+     "id": "REFR-73",
+     "verdict": "partly",
+     "refuter": "holds",
+     "where": "scripts/trial-scene.mjs:1559-1630",
+     "why": "the school, hall, zones and cast ticks follow another GM; a student added to the world while the window stands is not drawn until it opens again (its own comment, :1566), against the owner's rule that a window redraws at once on any change; see C-5"
+    },
+    {
+     "id": "STG-74",
+     "verdict": "partly",
+     "refuter": "weakened",
+     "where": "scripts/zone-machine.mjs:24-26; docs/handbooks/gm-handbook.en.md and .pl.md (the Logic Dive row)",
+     "why": "no code change: the comment and both handbooks now say a wrong answer's count tells the class the other was right, recorded as 'the owner's default asked' of the coordinator; the owner's answer is not in DECISIONS.md"
+    },
+    {
+     "id": "C 2-6, 8-12, 14-19, 21-26 (22 node buttons of the console's schema)",
+     "verdict": "partly",
+     "refuter": "holds",
+     "where": "scripts/case-trial.mjs:110-117; scripts/investigation.mjs:2443",
+     "why": "a press opens the Investigation's Map on the node only when no Map stands; with the Map already open it is only raised and stays on whatever it shows (alreadyOpen returns RAISED before `node` is read); see C-3"
+    },
+    {
+     "id": "REFR-21 (the crisis menu's refresh, MURDER's line item)",
+     "verdict": "partly",
+     "refuter": "holds",
+     "where": "scripts/action-murder.mjs:98-158; scripts/action-menus.mjs:173-189",
+     "why": "the rows are read again and a pass closes the menu with the off-turn sentence; at the incident's end it closes with the same sentence, which says the turn will come back (C-2); a row's details and facts stay as drawn (its own comment)"
+    }
+   ],
+   "claims_no_or_partly": [
+    {
+     "claim": "Pressing a node of the console's schema opens the Investigation's Map on that node (probe-42 group C, 22 node rows)",
+     "verdict": "partly",
+     "where": "scripts/case-trial.mjs:110-117; scripts/investigation.mjs:2443"
+    },
+    {
+     "claim": "Season setup's scenes part follows another GM's links and cast, keeping this GM's unsaved ticks (REFR-73)",
+     "verdict": "partly",
+     "where": "scripts/trial-scene.mjs:1559-1630"
+    },
+    {
+     "claim": "The crisis menu follows the incident while it stands: rows read again, a turn passed to the other side or the incident's end closes it and says so (REFR-21)",
+     "verdict": "partly",
+     "where": "scripts/action-murder.mjs:98-158; scripts/action-menus.mjs:173-189"
+    },
+    {
+     "claim": "The killer's identity holds on the roads the release notes name (veil, masks, Ghost Bet, Bounty, reveal) for the GM, the killer's player, a third and a Spectator",
+     "verdict": "partly",
+     "where": "scripts/secret.mjs:562-578 (the masks' name cut); scripts/mask-gm.mjs:785-811; scripts/monocub.mjs:367-390, :1871-1891; scripts/secret.mjs:542-559; scripts/camera-view.mjs:212-218; scripts/action-listen.mjs:139-141"
+    }
+   ],
+   "not_established": [
+    "Whether Foundry v14's foundry.utils.escapeHTML writes an apostrophe as &#x27; (the harness's futil.mjs does; C-1 rests on it for apostrophes, and on & -> &amp; for ampersands). Live check: on the sandbox, a masked killer named \"Ren O'Hara\" Frisks a student; read the Frisk card on the victim's player's browser.",
+    "The crisis menu's live rows on a player's browser: whether murderState's setting write and drpgCastChanged reach the menu before the player's press, and Chromium's press order on a row rebuilt under the pointer (action-menus.mjs:165-172 says it is not measured). Live check: two players in a direct murder, the GM passes the turn while the victim hovers a row.",
+    "CASE-35's fallback writes only shownType 'neutral' to an unread self-evident copy (truth-bullets.mjs:1035), so a Faint or tie change in the same propagateVerdicts call is not written onto that copy; whether an unread copy should show them is not settled by the code or the finding. A GM retyping and re-tying a found Key Remnant at once, then reading the holder's sheet, would show it.",
+    "STG-76's claim across two GMs over the bridge (askRecord to recordOnPrimary with summaryClaim) is read in code only; the tier-2 test runs both Sends on the primary. Scenario 97 or a two-GM table pressing Send together would settle it.",
+    "CTRL-39/CASE-63 (Enter on a focused non-default console button presses it): measured by audit/live-enter.mjs per d66006f0 (4/4 in Chromium); not re-run by this reader.",
+    "STG-31's second-GM road (scenario 97 V1-V2) and scenario 30's forged mask.veil refusal: claimed green in 8f7f5756; not run by this reader."
+   ]
+  },
+  "D": {
+   "lines": "INVEST, the heap branch",
+   "commits_read": 6,
+   "claims": {
+    "holds": 29,
+    "partly": 5
+   },
+   "asks": {
+    "done": 21,
+    "partly": 6,
+    "not done": 3
+   },
+   "asks_not_done_or_partly": [
+    {
+     "id": "CTRL-10",
+     "verdict": "partly",
+     "refuter": null,
+     "where": "scripts/case-view.mjs:176, 132-134; scripts/investigation.mjs moveCaseNode",
+     "why": "Already true in code (since 1.2.120/1.2.121 a manual column is drawn in row order, fixedOrder, and every column's drawn order is written with a Move), but line INVEST gave no answer for it (none of its five commits or the release notes name CTRL-10)."
+    },
+    {
+     "id": "STG-21",
+     "verdict": "partly",
+     "refuter": null,
+     "where": "as CTRL-10",
+     "why": "Duplicate of CTRL-10; already true in code, not answered."
+    },
+    {
+     "id": "CASE-LC2",
+     "verdict": "partly",
+     "refuter": null,
+     "where": "scripts/murder-rules.mjs:4829-4838",
+     "why": "Wait covers a browser with no active incident only; a copy present at an earlier stage still ends silently (D-3)."
+    },
+    {
+     "id": "CASE-LC4",
+     "verdict": "not done",
+     "refuter": null,
+     "where": "scripts/trial-floor.mjs (advanceIfDue, per unrouted-122 B)",
+     "why": "B routed the CASE prefix to INVEST; no commit of the line or any other line of 1.2.122 names CASE-LC4."
+    },
+    {
+     "id": "CASE-LC6",
+     "verdict": "not done",
+     "refuter": null,
+     "where": "scripts/murder-ui.mjs (per unrouted-122 B)",
+     "why": "No commit of 1.2.122 names CASE-LC6."
+    },
+    {
+     "id": "C row 27 (Findings window block)",
+     "verdict": "not done",
+     "refuter": null,
+     "where": "scripts/trial-zones-ui.mjs:477-494",
+     "why": "Not answered. Read here: [data-drpg-findings] is the Findings window's live region with a delegated click listener for its rows (a container), so the answer would be 'already true'."
+    },
+    {
+     "id": "probe 43: heap held from window to window",
+     "verdict": "partly",
+     "refuter": null,
+     "where": "scripts/a11y.mjs:413",
+     "why": "The a11y shared observer found and fixed (R8543); about 0.5 MB a cycle and +41 MB once on investigation--map-move left, not traced (ROUTING 1.2.123 candidates)."
+    },
+    {
+     "id": "CASE-37's rest",
+     "verdict": "partly",
+     "refuter": null,
+     "where": "scripts/observe.mjs:907-918, 1459-1493",
+     "why": "Reload recovered; a GM who leaves without reloading is not (claims)."
+    },
+    {
+     "id": "recheck-119 minors/nits on the line's files (investigation.mjs, case-*.mjs, observe.mjs, action-observe.mjs)",
+     "verdict": "partly",
+     "refuter": null,
+     "where": "see claims",
+     "why": "31 open rows name those files by INDEX.json `where`. Answered by INVEST: CASE-36, CASE-37, CASE-54, CASE-55, CASE-60, CASE-73, CTRL-11, CTRL-12, CTRL-14, CTRL-15, CTRL-16, CTRL-17, CTRL-18, CTRL-49, CTRL-50, CTRL-51, CTRL-53, CTRL-54, REFR-42, STG-22, STG-68, STG-77, STG-97 (23). By line TRIAL: CTRL"
+    }
+   ],
+   "claims_no_or_partly": [
+    {
+     "claim": "The Table's filter, the fold, Check consistency and Place on the map write the changed fields first",
+     "verdict": "partly",
+     "where": "scripts/investigation.mjs:2208-2218, 2020-2053"
+    },
+    {
+     "claim": "The Final Truth form's words are kept in this browser until placed; the close asks only when the form was changed",
+     "verdict": "partly",
+     "where": "scripts/investigation.mjs:1015-1030, 2366-2392, 2676-2690"
+    },
+    {
+     "claim": "The Map's small texts under Stained Glass at the 21 px floor; the footer keeps each word whole at 600 to 1120 px",
+     "verdict": "partly",
+     "where": "styles/stained-glass.css:390-401; styles/components.css:380-395"
+    },
+    {
+     "claim": "A find being described is marked on its row; a row a reload left marked is finished at the primary's hydration; the other GMs are told a find waits",
+     "verdict": "partly",
+     "where": "scripts/observe.mjs:907-918, 1314-1320, 1459-1493; scripts/module.mjs:233-234"
+    },
+    {
+     "claim": "An opening invitation before the player's copy of the incident waits TIMING.openingCopyWaitMs, then tells the GMs",
+     "verdict": "partly",
+     "where": "scripts/murder-rules.mjs:4829-4838"
+    }
+   ],
+   "not_established": [
+    {
+     "what": "Whether Chromium keeps a closed window reachable through a per-host MutationObserver (the spec's weak node list); the fix and R8543 are jsdom-only",
+     "live": "AUDIT 9.2 item 830: heap snapshot at a table after opening and closing the Map ten times"
+    },
+    {
+     "what": "About 0.5 MB a cycle on the case windows and +41 MB once on investigation--map-move in the harness, not traced",
+     "live": "headless heap trace (node --expose-gc), not a table"
+    },
+    {
+     "what": "Observe store now synced: the cache's invalidation (observe.mjs:141-143) ignores a store change that lands while this browser's own write is in flight (`pendingWriting`), and writePending then drops keys it never read (:118-133) - harmless while one GM writes; with two GMs writing in the same moment (a primary change) a row could be dropped",
+     "live": "two GMs, a primary change between an Observe's ask and its resolve, scenario 62 style, repeated"
+    },
+    {
+     "what": "A GM joining with a lower id while another GM's describe window stands: the new primary's hydration finishes the row (recoverDescribing) while the first window still stands; mintFindCopy's re-check is per browser",
+     "live": "two GMs at a table, describe window open, second GM reloads as primary"
+    },
+    {
+     "what": "Whether a disabled Key slot Place button shows its new placeOverLimitTooltip under Foundry's tooltip manager in Chromium",
+     "live": "hover a greyed Place on the Table at a table"
+    },
+    {
+     "what": "The footer container query and the Map's 21 px texts were read in code only here; the line's Chromium sweep (audit/case-map-sweep.mjs) was not re-run",
+     "live": "node audit/case-map-sweep.mjs at 600-1120 px, both themes"
+    }
+   ]
+  },
+  "E": {
+   "lines": "MAP, UI",
+   "commits_read": 16,
+   "claims": {
+    "holds": 59,
+    "partly": 8,
+    "unread": 1
+   },
+   "asks": {
+    "done": 34,
+    "partly": 3,
+    "not done": 9
+   },
+   "asks_not_done_or_partly": [
+    {
+     "id": "MAP-19 (unrouted A)",
+     "verdict": "partly",
+     "refuter": null,
+     "where": "scripts/fog.mjs:1740-1741",
+     "why": "New seeds skip a Spectator and a body. Rows a world already holds from earlier seeds (a ghost seeded on 1.2.121 or before) are not cleaned, so a Monocub's joined map keeps showing them in an upgraded world; forgetSpectatorMap's kept row is now a student's own pre-Spectator finds only."
+    },
+    {
+     "id": "STG-32 (unrouted A)",
+     "verdict": "not done",
+     "refuter": null,
+     "where": "scripts/movement.mjs:3567-3584",
+     "why": "No answer found in the shipped tree: no commit, release-note or 9.2 line of the MAP line names STG-32; its residue (14.370's move origin, the 1500 ms wait) stays on LIVE-E39-20 and LIVE-E39-12 as before. The line may have answered it to the coordinator outside the tree (not read)."
+    },
+    {
+     "id": "MAP-15 (B)",
+     "verdict": "partly",
+     "refuter": null,
+     "where": "scripts/fog-reveal.mjs:221-226; scripts/fog-diagnostics.mjs:91, :95, :152, :175",
+     "why": "The 0.18 guard, the 60 ms settle and 1024 / 1.4 / 13 are named. The verifier's addition to MAP-15 (three inline point-to-segment loops and a polyline run in fog-diagnostics.mjs beside fog-geometry.mjs's distanceToSegment) stands unchanged."
+    },
+    {
+     "id": "MAP-LC2 (B)",
+     "verdict": "not done",
+     "refuter": null,
+     "where": "scripts/fog-doorways.mjs (the visible predicate)",
+     "why": "No answer found in the tree (no LIVE-M122 item, no commit names it)."
+    },
+    {
+     "id": "MAP-LC6 (B)",
+     "verdict": "not done",
+     "refuter": null,
+     "where": "scripts/fog.mjs (createToken seed)",
+     "why": "No answer found in the tree."
+    },
+    {
+     "id": "r120-H-3",
+     "verdict": "partly",
+     "refuter": null,
+     "where": "scripts/token-hud.mjs:157-182; scripts/hud.mjs:263-266",
+     "why": "A player's token settings window is hidden and closed the first time a given window object renders; the same cached window opened again is let through (E-1). The handbooks no longer promise a double right-click target. v14's hook names unread (LIVE-U122-01)."
+    },
+    {
+     "id": "C[33] rooms-passages block",
+     "verdict": "not done",
+     "refuter": null,
+     "where": "scripts/passages-tab.mjs",
+     "why": "No answer for this row found in the tree (only C[35] has a 9.2 item); may be in the line's report outside the tree."
+    },
+    {
+     "id": "C[34] Remove the picture",
+     "verdict": "not done",
+     "refuter": null,
+     "where": "scripts/room-setup.mjs (data-drpg-picture-clear)",
+     "why": "No answer found in the tree."
+    },
+    {
+     "id": "C[36] season-checklist drpgCheckOut",
+     "verdict": "not done",
+     "refuter": null,
+     "where": "scripts/season-setup.mjs",
+     "why": "No answer found in the tree."
+    },
+    {
+     "id": "C[37] season-checklist drpgAnon",
+     "verdict": "not done",
+     "refuter": null,
+     "where": "scripts/season-setup.mjs",
+     "why": "No answer found in the tree."
+    },
+    {
+     "id": "C[38] pre-season-checks drpgCheckOut",
+     "verdict": "not done",
+     "refuter": null,
+     "where": "scripts/season-setup.mjs",
+     "why": "No answer found in the tree."
+    },
+    {
+     "id": "C[39] pre-season-checks drpgAnon",
+     "verdict": "not done",
+     "refuter": null,
+     "where": "scripts/season-setup.mjs",
+     "why": "No answer found in the tree."
+    }
+   ],
+   "claims_no_or_partly": [
+    {
+     "claim": "MAP-21: movement-audit.mjs sentBackLine names the bedroom of a primary's put-back only where the player has found it",
+     "verdict": "partly",
+     "where": "scripts/movement-audit.mjs:438-446 (the words); :429 (the packet still carries the room, see E-4)"
+    },
+    {
+     "claim": "REFR-52 (Rifle): the list is a live region; the pick is carried by keepLive",
+     "verdict": "partly",
+     "where": "scripts/stash-reach.mjs:324-330, :350-354 (a vanished pick leaves an empty select, see E-5)"
+    },
+    {
+     "claim": "MAP-15: the shared zoom threshold and theme settle named once (RESTRIKE_LOG_ZOOM, THEME_SETTLE_MS) and the reveal's bare numbers named",
+     "verdict": "partly",
+     "where": "scripts/fog-reveal.mjs:221-226; own-ring.mjs:144, :163; remnant-ring.mjs:146, :163; the inline segment-distance copies the verifier added to MAP-15 stand (scripts/fog-diagnostics.mjs:91, :95, :152, :175)"
+    },
+    {
+     "claim": "Release notes: 'What a player's browser no longer holds or learns' lists MAP-02, MAP-18, MAP-19, MAP-21",
+     "verdict": "partly",
+     "where": "scripts/movement-audit.mjs:429 (MAP-21: the words are cut, the move.sentBack packet still carries the unfound bedroom's name)"
+    },
+    {
+     "claim": "REFR-12, UI-34: an open sheet whose room signature moved is redrawn on a token's move or an item's change, and no other; a region written or a token made or taken away redraws its scene's sheets and forgets the Tamper cache",
+     "verdict": "partly",
+     "where": "scripts/sheet.mjs:133-153; scripts/sheet-inventory.mjs:1054-1081 (every rendered window whose document is a character is taken for a sheet; one never noted is redrawn on every pass, E-R1)"
+    },
+    {
+     "claim": "UI-25, STG-04, COMM-54: a Spectator's sheet draws the Stop; its own safeword card is not refused, hidden or deleted as a Spectator's chat (isSafewordCard: the flag and the card's heading); a message with the flag and any other content is chat as before",
+     "verdict": "partly",
+     "where": "scripts/sheet-mode.mjs:84; scripts/spectator-ui.mjs:84-88, :91, :116, :125 (the shape test is a substring and a length, E-2)"
+    },
+    {
+     "claim": "H-3: a player's browser closes Foundry's token settings as drawn (refuseTokenConfig; not read on v14)",
+     "verdict": "partly",
+     "where": "scripts/token-hud.mjs:157, :165-182 (a window is refused once for good; a cached token sheet opened again is not refused, E-1)"
+    },
+    {
+     "claim": "Release notes: 'A player cannot open a token's settings (token-hud.mjs refuseTokenConfig; H-3; R8421; not read on v14)'",
+     "verdict": "partly",
+     "where": "scripts/token-hud.mjs:167"
+    }
+   ],
+   "not_established": [
+    {
+     "what": "Whether a render(false) of Configure Ownership or of Daggerheart's character settings on v14 drops a choice not yet saved (E-R1's consequence)",
+     "live_check": "On 14.370, GM opens Configure Ownership for a student, changes a level without saving; a player moves a token; read whether the change is still shown."
+    },
+    {
+     "what": "Whether the room watch's sheet redraw (REFR-12) drops text being typed in a Daggerheart field that is neither the Ultimate nor the Background, or a press in flight on a tile, when another student walks in",
+     "live_check": "Two players in two rooms; A types in an experience's name on their sheet, or holds a tile's pointerdown; B walks into A's room; read whether A's text and click survive (owner's rule: a window redraws at once keeping a field being typed in and a click in flight)."
+    },
+    {
+     "what": "Whether TokenDocument#sheet is the same object on a second open on v14, so E-2 happens at a table",
+     "live_check": "LIVE-U122-01 done twice in a row by the same Trusted player, a minute apart."
+    },
+    {
+     "what": "What the room watch costs another player's step: redrawRoomSheets increments no perf counter, so scenario 86's 105/105 cannot see it",
+     "live_check": "game.drpg.fps() on a player's browser with their sheet open while another player walks a route, against the same with the sheet closed."
+    },
+    {
+     "what": "The Ultimate's blur on a render in Chromium (the code covers both a blur and none; jsdom fires none)",
+     "live_check": "Type half an Ultimate, have the GM write a clock change; read focus, caret and text after the redraw."
+    },
+    {
+     "what": "UI-LC4: the 4.3:1 bound is below WCAG's 4.5:1 for small text, and the backdrop filter and text shadow are not counted",
+     "live_check": "LIVE-U122-09 as written."
+    },
+    {
+     "what": "MAP-29's look at zoom 0.3, MAP-31's floor press, MAP-38's two drops inside one round trip, MAP-02's frames",
+     "live_check": "LIVE-M122-01, LIVE-M122-02, LIVE-E49-04."
+    },
+    {
+     "what": "Tier 1 and tier 2 results on 14bb0d92",
+     "live_check": "base/r122-tier1.log was empty and r122-tier2.log empty when read; no result cited here."
+    },
+    {
+     "what": "The UI line's answers to C rows 33, 34, 36-39 and the MAP line's to MAP-LC2, MAP-LC6 and STG-32 may exist in the lines' reports to the coordinator, which are not in the tree",
+     "live_check": "Read the lines' reports (not a table check)."
+    }
+   ]
+  },
+  "F": {
+   "lines": "DESP, ITEMS",
+   "commits_read": 34,
+   "claims": {
+    "holds": 24,
+    "no": 2,
+    "partly": 6
+   },
+   "asks": {
+    "done": 8,
+    "partly": 1
+   },
+   "asks_not_done_or_partly": [
+    {
+     "id": "ITEM-38",
+     "verdict": "partly",
+     "refuter": null,
+     "where": "scripts/projects-secrecy.mjs:232; scripts/projects.mjs:558-564; scripts/facilities.mjs:328",
+     "why": "The public leak is closed, but the move broke two readers that read completedAt where it no longer is: the insider's copy never keeps it (ITEMS-R-1) and the action editor's Save restamps it (ITEMS-R-2)."
+    }
+   ],
+   "claims_no_or_partly": [
+    {
+     "claim": "7a13814a: 'a refusal after the rolls still keeps the action' and 'the window's select is still read at open (not live)'",
+     "verdict": "no",
+     "where": "scripts/action-tail.mjs:73-78, :126-130"
+    },
+    {
+     "claim": "1.2.120's Mastermind Give test reads the box gone with the Mastermind",
+     "verdict": "partly",
+     "where": "scripts/tests-tier2.mjs:113657-113663 (the cleared reading)"
+    },
+    {
+     "claim": "The insiders' sight carries completedAt (sightFor sends it, toldSight reads it), so the action's lifetime reads it on an insider's browser",
+     "verdict": "no",
+     "where": "scripts/projects.mjs:512 (sent); scripts/projects.mjs:558-564 receiveSight (not kept); scripts/projects-secrecy.mjs:150 (read of a field never stored)"
+    },
+    {
+     "claim": "Bedroom keys, looted Truth Bullets and project tokens are written in the world's document language; the readers of a grant's name and text take either language",
+     "verdict": "partly",
+     "where": "scripts/vault-store.mjs:309-318, :352-355, :416-417, :563, :1333; scripts/handover.mjs:931-934; scripts/projects-map.mjs:325"
+    },
+    {
+     "claim": "DESP-22: a lapse on a non-primary GM waits up to 3 s for the primary's settlement mark and reads it as settlementOf pays",
+     "verdict": "partly",
+     "where": "scripts/despair.mjs:700-726 settledElsewhere"
+    },
+    {
+     "claim": "CORE-30, REFR-24, REFR-56: the four explainers follow what they print while open",
+     "verdict": "partly",
+     "where": "scripts/explain.mjs"
+    },
+    {
+     "claim": "CTRL-26: a Reroll of an action a GM rules on ends the first card it replaced; 'a card already answered stands'",
+     "verdict": "partly",
+     "where": "scripts/reroll.mjs:1956-1972 endReplacedRuling"
+    },
+    {
+     "claim": "CORE-25: a hidden stash is out of the rooms' region data, in the GMs' store and each owner's copy (every row for the Mastermind's player); an old world lifted; 'A finder reaches a stash they found through their found list and the GMs' judgement, as before'",
+     "verdict": "partly",
+     "where": "scripts/hidden-stashes.mjs; scripts/vault-store.mjs:873-908, :1013-1019, :1144-1150; scripts/stash-reach.mjs:224-257"
+    }
+   ],
+   "not_established": [
+    {
+     "what": "Whether Tail's notThere refund is accepted by the primary's audit after two drawn rolls, and whether the roll windows give a second player time to step out (F-2)",
+     "live_check": "At a table: A tails B, B moves out while A's roll window is open; read A's actions and Hope after the refusal."
+    },
+    {
+     "what": "The '?' SVG drawn on a sequence board and on the voice tile at their real sizes",
+     "live_check": "glass-sweep or a table: a masked killer at a day board and on their own voice tile."
+    },
+    {
+     "what": "The Mastermind window's whole-form redraw with a select's list open in a real browser (live.mjs listOpen deferral) and under frequent actor writes",
+     "live_check": "Chromium probe: open the who select's list while another GM writes Hope; the list must stay open and the pick land."
+    },
+    {
+     "what": "liftSecretCompletedAt on a real 1.2.121 world",
+     "live_check": "Migrate a 1.2.121 world copy on Foundry v14 and read projectMeta and the GMs' row (the notes say headless only)."
+    },
+    {
+     "what": "worldLocalize's fetch of lang/<lang>.json under a route prefix or on The Forge for keys, looted bullets and project tokens",
+     "live_check": "Grant a key with the document language set unlike the GM's page on a prefixed server."
+    },
+    {
+     "what": "Whether Daggerheart's roll window keeps a typed bonus or a picked experience when REFR-18 redraws it on a resources write of its roller",
+     "live_check": "At a table: open a roll window, type a bonus, have the GM change the roller's Hope; read the field."
+    },
+    {
+     "what": "Whether a hidden stash's copy reaches its owner and the Mastermind's player on a real Foundry (socket, readMine), and the lift of a 1.2.121 world's concealed entries",
+     "live_check": "Two browsers: hide a stash, read mineHiddenStashes on the owner's and on another player's; migrate a 1.2.121 world copy."
+    },
+    {
+     "what": "DESP-22's heuristic when the primary's settlement takes longer than 3 s or no primary settled the earlier time of day",
+     "live_check": "Two GMs, a Bounty lapsing on the non-primary while the primary is slow or absent; read the pool and the card."
+    }
+   ]
+  },
+  "G": {
+   "lines": "COMM",
+   "commits_read": 33,
+   "claims": {
+    "holds": 43,
+    "partly": 7,
+    "unread": 1
+   },
+   "asks": {
+    "done": 59,
+    "partly": 5,
+    "not done": 5
+   },
+   "asks_not_done_or_partly": [
+    {
+     "id": "COMM-21",
+     "verdict": "partly",
+     "refuter": "holds",
+     "where": "scripts/messenger-app.mjs:1526; scripts/monocub.mjs:1612",
+     "why": "Nine rulings held to the writer and Give capped at 2; cubGiveHope's target (data.actor) is not held to the writer (finding G-3)."
+    },
+    {
+     "id": "COMM-26",
+     "verdict": "partly",
+     "refuter": "weakened",
+     "where": "scripts/call-world.mjs:147-185",
+     "why": "Despair Calls' seal and restriction serialized on the primary; liftSeal, carrySealedRoom, clearSeals and putBackSeals still write the same two settings outside that queue (finding G-7)."
+    },
+    {
+     "id": "COMM-36",
+     "verdict": "partly",
+     "refuter": "weakened",
+     "where": "scripts/call-effects.mjs:1388",
+     "why": "Owner told, but through an unveiled whisper spoken as the owner, which names the owner to every console (finding G-2)."
+    },
+    {
+     "id": "CTRL-25",
+     "verdict": "partly",
+     "refuter": "holds",
+     "where": "scripts/tables-editor.mjs:1493",
+     "why": "A preset reaches open tables only when New item is empty; a name the previous card prefilled counts as typing (finding G-1)."
+    },
+    {
+     "id": "REFR-17",
+     "verdict": "partly",
+     "refuter": "weakened",
+     "where": "scripts/call-pickers.mjs:518",
+     "why": "Header, players, Monocubs and items follow; the project picker is woken by tokens and drpgProjectSightChanged only, not by the countdowns (finding G-8)."
+    },
+    {
+     "id": "COMM-LC6 (B)",
+     "verdict": "not done",
+     "refuter": "refuted",
+     "where": "-",
+     "why": "Needs a real table (the launcher's badge beside the camera dock on a real screen); the line proposed no LIVE id for it in any commit or record found."
+    },
+    {
+     "id": "COMM-LC7 (B)",
+     "verdict": "not done",
+     "refuter": "refuted",
+     "where": "-",
+     "why": "Needs a real table (whether v14 stamps ChatMessage.timestamp on the client); the line proposed no LIVE id for it in any commit or record found."
+    },
+    {
+     "id": "COMM-LC3 (B)",
+     "verdict": "not done",
+     "refuter": "refuted",
+     "where": "-",
+     "why": "Needs a real table (screen S7-6 unread); the line proposed no LIVE id for it in any commit or record found."
+    },
+    {
+     "id": "COMM-LC5 (B)",
+     "verdict": "not done",
+     "refuter": "refuted",
+     "where": "-",
+     "why": "Needs a real table (two of five parts; Play/Reset of a second GM now covered by scenario 97 M1-M2 in the harness only); the line proposed no LIVE id for it in any commit or record found."
+    },
+    {
+     "id": "probe 43: Sound's Files tab toggle state",
+     "verdict": "not done",
+     "refuter": "refuted",
+     "where": "scripts/sfx.mjs:661 (openFileLists), :861-868",
+     "why": "No commit of the line names it and sfx.mjs's toggle is unchanged. Source reading: the 'stale' controls string alternates on every reopen because probe 08's entry clicks the monocub chip on each open ('click' list) and the chip toggles the page-level openFileLists Set, so the live window shows the st"
+    }
+   ],
+   "claims_no_or_partly": [
+    {
+     "claim": "COMM-36: Contraband tells the item's owner privately (DRPG.Calls.destroyedNotice)",
+     "verdict": "partly",
+     "where": "scripts/call-effects.mjs:1388"
+    },
+    {
+     "claim": "COMM-26 (race): a Call's seal or restriction is written by the primary through one serialWrite key; another GM asks call.world",
+     "verdict": "partly",
+     "where": "scripts/call-world.mjs:147-185; scripts/bridge-table.mjs:1019-1027"
+    },
+    {
+     "claim": "COMM-21: a ruling on data.by acts only on a character the card's writer owns (nine rulings); a GM's card is untouched",
+     "verdict": "partly",
+     "where": "scripts/messenger-app.mjs:1515-1541"
+    },
+    {
+     "claim": "COMM-21 rest: a GM's Give on an Ask for Hope gives at most ASK_GIVE_MAX (2); 'the card is written on the Monocub's player's browser'",
+     "verdict": "partly",
+     "where": "scripts/monocub.mjs:1589, :1612-1615; scripts/monocub.mjs:1334-1335 (cubAbilityOnGm posts the module's card on a GM)"
+    },
+    {
+     "claim": "CTRL-25: Create an item with the tables open reopens them on the card's preset when nothing is typed in New item, else keeps them and says so",
+     "verdict": "partly",
+     "where": "scripts/tables-editor.mjs:1486-1499"
+    },
+    {
+     "claim": "REFR-17: a Despair Call's header follows the GMs' debt store; the pickers' rows follow players, Monocubs, projects and items",
+     "verdict": "partly",
+     "where": "scripts/calls.mjs:773; scripts/call-pickers.mjs:297, :439, :517-519, :581, :586-602"
+    },
+    {
+     "claim": "Release notes: 'An arrival notice (a stash gone through, a bedroom's note) no longer names the other players who walked in' (COMM-22)",
+     "verdict": "partly",
+     "where": "scripts/doors-gm.mjs:61; scripts/stash-reach.mjs:661"
+    }
+   ],
+   "not_established": [
+    {
+     "what": "Whether v14 raises clientSettingChanged for core.keybindings when a key is rebound in Configure Controls (REFR-55)",
+     "live_check": "At a table on 14.370: open the settings window's Voice section, rebind push-to-talk, read the line without reopening."
+    },
+    {
+     "what": "Which of devicechange, the microphone permission's change and rtcSettingsChanged a real browser raises when the microphone is allowed (R8284 raises devicechange on a stand-in)",
+     "live_check": "Chromium and Firefox, a fresh profile: open the Voice section before allowing the microphone, allow it, watch the note give way."
+    },
+    {
+     "what": "What avclient-livekit draws outside Foundry's dock for a hidden participant (COMM-20 rest)",
+     "live_check": "LIVE-F119-03: a veiled killer and a masked one with the voice tile off, read every other player's screen."
+    },
+    {
+     "what": "Whether a ten-minute READ_SKEW_MS covers the clock skews of a real table, and whether v14 stamps ChatMessage.timestamp on the client (COMM-LC7)",
+     "live_check": "Two browsers with clocks set apart; post from the slow one after the other read the thread."
+    },
+    {
+     "what": "COMM-28's reconnect on a real LiveKit drop before the primary's answer",
+     "live_check": "Reload a player while regional voice is on, cut the LiveKit connection before the GM's answer, watch the drop card and the connect."
+    },
+    {
+     "what": "music.track and call.world with a real second GM on v14 (scenario 97 M1-M3 are the harness's two jsdom GMs)",
+     "live_check": "Two GM accounts at a table: the assistant presses Play and Stop the track and casts Silence; read the primary's record and the settings."
+    },
+    {
+     "what": "Whether Foundry's default role table withholds BROADCAST_AUDIO from the Player role on 14.370 (decides how often G-R1 bites)",
+     "live_check": "Read Configure Permissions in a new world; block and unblock a Player-role user from the voice tile."
+    },
+    {
+     "what": "DESP-36's receipt number with the GM paying (the suite runs on a GM)",
+     "live_check": "A player buys a Hope Call while another Hope write lands in the same round trip; read the card's 'left'."
+    },
+    {
+     "what": "Test results on 14bb0d92 for the line's tests",
+     "live_check": "base/r122-tier1.log was empty when read and r122-tier2.log absent; no result cited."
+    }
+   ]
+  },
+  "H": {
+   "lines": "R1 (refresh-120), the window rule",
+   "commits_read": 4,
+   "claims": {
+    "holds": 9,
+    "partly": 3,
+    "unread": 1
+   },
+   "asks": {
+    "partly": 2,
+    "done": 5
+   },
+   "asks_not_done_or_partly": [
+    {
+     "id": "r121-R-1",
+     "verdict": "partly",
+     "refuter": "holds",
+     "where": "scripts/live.mjs:250, :623-673; scripts/float-text.mjs:193; scripts/remnant-ring.mjs:456-462",
+     "why": "The guard and the owed change work for named fields (measured here with live.mjs alone and with a named textarea under float-text: no save at the redraw, one save of the whole text at the leave). The Remnant card's two text boxes, the finding's own example, have no name; float-text lifts them with a"
+    },
+    {
+     "id": "r121-R-5",
+     "verdict": "partly",
+     "refuter": "holds",
+     "where": "scripts/room-setup.mjs:333, :1139-1146, :1172",
+     "why": "Apply stores the start lock the window read at its open. The window's own box shows the forced lock after its redraw, a room the GM did not touch is now written, and the GM cannot store the value the box shows (H-3)."
+    }
+   ],
+   "claims_no_or_partly": [
+    {
+     "claim": "The field drawn anew owes the change the GM's leave would fire, and pays it once at its blur (oweChange); a chain of redraws keeps the first focus's value",
+     "verdict": "partly",
+     "where": "scripts/live.mjs:242, :279, :640-650, :660-673"
+    },
+    {
+     "claim": "A live window no longer saves half-typed text when it redraws while the GM is typing",
+     "verdict": "partly",
+     "where": "scripts/live.mjs:250; scripts/tables-editor.mjs:1232, :1359-1361; scripts/remnant-ring.mjs:456-462"
+    },
+    {
+     "claim": "Room setup's Apply no longer turns a lock forced while the window was open into the room's start lock: an untouched, unset start lock keeps what the window read at its open (startLocksAtOpen)",
+     "verdict": "partly",
+     "where": "scripts/room-setup.mjs:1058-1064, :1139-1146, :1172, :1249"
+    }
+   ],
+   "not_established": [
+    {
+     "what": "Whether Foundry v14's desktop app (its Electron's Chromium) and Firefox support `select:open`. Where matches() throws, listOpen answers false and every redraw closes an open list again (r121-R-3 returns).",
+     "live_check": "At a table in the Foundry app and in Firefox: open the Students window's state select, let a player roll; the list should stay open until picked."
+    },
+    {
+     "what": "H-R1 on the real card in Foundry v14: the card's window classes and float-text's lift there.",
+     "live_check": "GM opens a Remnant's card, types into 'What the player reads' while a player moves a token: the words should stay and save once at the leave."
+    },
+    {
+     "what": "H-6: what Foundry 14's render(false) of a Daggerheart character sheet does with a focused, typed field (its value, the focus, a submitOnChange on the removal).",
+     "live_check": "A player types an experience's name on the sheet while the GM places a Remnant on the same scene."
+    },
+    {
+     "what": "Whether a headed Chromium or Electron select popup sends the page its pointerup (LIVE-R121-01 (b)); the press part reads headless Chromium only.",
+     "live_check": "As above, at a table."
+    },
+    {
+     "what": "The local gate's press part on 14bb0d92 and the mutant 'press hold taken out' (3 failing) were not re-run here; ROUTING.md says the release's record-mode run passed press-live-region.",
+     "live_check": "npm run press in audit/harness on 14bb0d92, then with live.mjs's onChange release taken out."
+    },
+    {
+     "what": "Windows the release made redraw that this lane did not read for typing, picks, open lists and presses in flight: the keepLive users (boundary, stash-reach, body, palm, case-trial, rules, level-up, projects-ui, action-menus, mastermind, the trial windows) inherit live.mjs's holds and were read for the region shape only where quoted; the custom redraws read are tables-editor, facility-editor, passages-tab, gm-items (three), handover, action-project, chapter, gm-panel, gm-stores, use-items, trial-scene, settings-window, season-setup, sheet-inventory. Rewriting a select's options with its list open keeps the list open (measured, headless Chromium 153), so the keepFresh option rewrites (handover, action-project, Give's categories, the Remnant picker) do not close a list.",
+     "live_check": "None for the keepLive set; probe 43 and probe 42 cover them headless."
+    },
+    {
+     "what": "Probe 43's run on 14bb0d92 (r122/probe43.json, in progress at reading) reads rooms-bedrooms 28 of 28 stale and restless: its first difference is a stepper's generated field id (drpg-kit-step-13 against -19), a new id per draw, not the world. It says nothing about Room setup's staleness until the probe ignores generated ids.",
+     "live_check": "None: a probe reading."
+    }
+   ]
+  }
+ },
+ "not_established_audit": [
+  "Probe 08's Take from the Body seed (action-loot): on 14bb0d92 the window opened in 6 of 11 scratch runs (4 misses, 1 run gave no reading; probes 42 and 44 missed it too), on 1eee4d62 in 5 of 5; in a miss, p1 had not seen the body's death or its items 12 s after the GM's seed (the GM's side the same as on 1.2.121). Probe 43 was running beside every run. Load or a slower path to a player's copy of a death: not told apart. A table check: a player beside a body that a GM kills on a published death opens Take from the Body at once."
+ ]
+}
