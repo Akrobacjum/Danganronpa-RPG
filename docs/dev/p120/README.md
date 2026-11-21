@@ -73,7 +73,7 @@ What the shots are not: Foundry's frame and stylesheet (the harness's capture).
 | File | Code | What it shows |
 | --- | --- | --- |
 | `shots/toolbar-1.2.119-glass.png`, `shots/toolbar-1.2.119-legacy.png` | e515907d | the window as the GM sees it (the camera on the open node, the graph clipped): the order's select at 11 px beside "Add a plan" at 21 under Stained Glass |
-| `shots/toolbar-1.2.120-glass.png`, `shots/toolbar-1.2.120-legacy.png` | this line | the order's select at the theme's select size, as "Add a plan" (under Stained Glass "All open" then wraps to a second row at this window's 1100 px) |
+| `shots/toolbar-1.2.120-glass.png`, `shots/toolbar-1.2.120-legacy.png` | this line | the order's select at the theme's select size, as "Add a plan", and as wide as the order it shows: the tools on one row in the harness's 1008 px window, both themes (two under Stained Glass with the select as wide as its longest option) |
 
 | `shots/toolbar-600-1.2.119-glass.png`, `shots/toolbar-600-1.2.119-legacy.png` | e515907d | the window drawn 600 px wide (`--width 600`), the GM's view |
 | `shots/toolbar-600-1.2.120-glass.png`, `shots/toolbar-600-1.2.120-legacy.png` | this line | the same: the tools wrap to rows, none over another |
