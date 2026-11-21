@@ -5797,5 +5797,27 @@
    "still_wrong": null,
    "verifier": null
   }
+ ],
+ "owner_readings": [
+  {
+   "id": "OWN-119-1",
+   "what": "the planner's edges cross node boxes; nodes should spread to make lanes, no edge over a node",
+   "class": "F (the owner at the table, v1.2.119)",
+   "new": true
+  },
+  {
+   "id": "OWN-119-2",
+   "what": "column sorts other than Manual do nothing past the first column: the aim order overrules them",
+   "class": "F",
+   "new": true,
+   "same_cause_as": "N119-6 (case-view.mjs:115, :167)"
+  },
+  {
+   "id": "OWN-119-3",
+   "what": "hovering a planner node turns it light cream with unreadable text",
+   "where": "styles/components.css:3664 (:hover, background: var(--drpg-kit-hover-bg))",
+   "class": "F",
+   "new": true
+  }
  ]
 }

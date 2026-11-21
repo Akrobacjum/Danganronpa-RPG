@@ -4504,6 +4504,11 @@ Co zostaje przy "częściowo", w skrócie (pełne zdania w `recheck-119.json`):
 - N119-6: Move poza pierwszą kolumną.
 - N119-7: `createSetting` w Season setup i liście kontrolnej oraz Edit campaign bez przerysowania.
 
+Odczyty właściciela przy stole na 1.2.119 (klasa F, 21.11.2026 około 02:50Z; wszystkie trzy nowe wobec znalezisk tego audytu, skierowane do linii P):
+- OWN-119-1: strzałki planera przechodzą przez pola węzłów; węzły powinny się rozsunąć i zostawić tory.
+- OWN-119-2: sortowania kolumn inne niż Manual nie działają poza pierwszą kolumną; ta sama przyczyna co N119-6.
+- OWN-119-3: najechany węzeł planera robi się jasnokremowy z nieczytelnym tekstem (`styles/components.css:3664`, reguła `:hover`). Statyczne sprawdzenia kontrastu nie obejmowały stanu najechania węzła.
+
 ## Część II - raport 1.2.42 z 12.09.2026 (zapis)
 
 > Część II to zapis z 12.09.2026 i dopisków etapów. Stan każdej jej pozycji na 1.2.118 jest w części I (tabela "Gdzie jest każda kategoria" na górze). Nic tu nie jest przenumerowane ani skrócone.

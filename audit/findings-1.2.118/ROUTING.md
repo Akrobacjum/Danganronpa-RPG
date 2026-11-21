@@ -65,3 +65,9 @@ the audit's reading: the audit's own reading of the diffs is `lines-119.json`.
 | I | claude/infra-120 | R8020-8029 | release.yml reuses a green CI run for the same tree (owner decision A) |
 
 Not routed to 1.2.120 (they go to 1.2.121 with the rest): every minor and nit, the rest of probe 42's group C, and unifying the two veil predicates.
+
+## The owner's table report on v1.2.119 (21.11.2026 ~02:50Z), all to line P (claude/move-120) for 1.2.120
+- OWN-119-1: the planner's edges cross node boxes; the nodes should spread to make lanes, with no edge over a node. New: no finding of this audit names it.
+- OWN-119-2: the column sorts other than Manual do nothing past the first column (the inputs' aim order overrules them). New as a finding; the same cause as N119-6 (case-view.mjs:115, :167 place a node by its inputs' height, the kept order only breaks ties).
+- OWN-119-3: hovering a planner node turns it light cream with unreadable text (styles/components.css:3664, the node's `:hover` rule: `background: var(--drpg-kit-hover-bg)`). New: no finding of this audit names it; the static contrast checks did not cover the hover state of a node.
+
