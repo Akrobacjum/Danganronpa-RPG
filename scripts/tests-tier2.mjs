@@ -104091,6 +104091,79 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "([the note: noteBedroom's answer, cards], [after the settled crossing: cards, notes left], [after the paid crossing's hook], "
             + "[after a second note and a GM's placement: cards, notes left], [after out and in again])");
     }],
+    ["1.2.122 COMM-22 - a bedroom's note told on walking back in is veiled: its document names no speaker and no reader, so a console that watches the chat log cannot read who walked into their own bedroom, in an Eclipse or by day (doors-gm.mjs `tellBedroomNotes`, `BEDROOM_SOUND`; arrival-notices.mjs; secret.mjs `postSecret`; the audit's COMM-22)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-22): arrival-notices.mjs answers every settled crossing, an Eclipse's included, and the
+         * bedroom's note went out through `whisperToOwnerOnly` unveiled - its document spoke as the owner's character and was
+         * whispered to the owner's players, two seconds after the crossing, on every browser, where the Eclipse's own
+         * crossing card is veiled for exactly that reason (eclipse.mjs `whisperToOwnerOnly(..., { veiled: true })`). A note
+         * held, the owner's settled crossing into the bedroom raised as crossing-settle.mjs raises it; read each card the
+         * crossing made that carries the bedroom's sound: its document's veiled flag, whether it speaks as an actor, and
+         * whether its whisper list is the owner's players (an unveiled card's) or everybody (a veiled one's).
+         */
+        const M = await import("./movement.mjs");
+        const D = await import("./doors-gm.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        const { ROOM_OWNER_FLAG } = await import("./config.mjs");
+        const { roomRegions } = await import("./rooms.mjs");
+        const { isDeadForGm } = await import("./settings.mjs");
+        const { CROSSING_SETTLED } = await import("./crossing-settle.mjs");
+        needs(world.atLeast("namedRooms", 2), "a bedroom and a room apart");
+        must(isPrimaryGm(), "this client is not the primary GM, which hears a crossing - this would measure nothing");
+        const scene = canvas.scene;
+        const readers = who => game.users.filter(u => !u.isGM && who.testUserPermission(u, "OWNER")).map(u => u.id);
+        const owner = game.actors.find(a => a.type === "character" && !a.getFlag(MODULE_ID, FLAGS.monokuma) && !isDeadForGm(a)
+            && readers(a).length && scene?.tokens?.some(t => t.actorId === a.id && !t.hidden));
+        must(owner, "no living student of a player with a token on the scene on screen - this would measure nothing");
+        const token = scene.tokens.find(t => t.actorId === owner.id);
+        const rooms = M.allRooms(scene);
+        must(rooms.length >= 2, `the scene on screen has ${rooms.length} rooms - too few for a bedroom and a room apart`);
+        const [B, far] = rooms;
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const was = { x: token.x, y: token.y };
+        const feesWere = game.settings.get(MODULE_ID, SETTINGS.chargeMovement);
+        const flagsWere = roomRegions(scene, B).map(piece => [piece, piece.getFlag(MODULE_ID, ROOM_OWNER_FLAG) ?? null]);
+        const noteKeys = () => Object.keys(S.bedroomNoteStore?.entries?.() ?? {}).filter(k => k.startsWith(`${owner.id}:`));
+        const wait = async () => { await settle(); await until(() => false, 400); await settle(); };
+        const made = [];
+        const hook = Hooks.on("createChatMessage", m => made.push(m.id));
+        let read = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, false);
+            for (const [piece] of flagsWere) await piece.setFlag(MODULE_ID, ROOM_OWNER_FLAG, owner.id);
+            await token.update(M.positionIn(far, token), { ...PLACE });
+            await wait();
+            await D.noteBedroom({ scene, room: B, kind: "mended" });
+            const before = made.length;
+            // The GM is no reader of this card, so it holds neither its words nor its meta: the card is the one whose
+            // words went out with the bedroom's sound (`wordsSent`), and its document is read for the rest.
+            const packets = await wordsSent(async () => {
+                Hooks.callAll(CROSSING_SETTLED, { actorId: owner.id, from: far, to: B, via: null, eclipse: null, sceneId: scene.id });
+                await wait();
+            });
+            const told = new Set(packets.filter(w => w.meta?.sfx === "bedroomEntered").map(w => w.id));
+            const mine = readers(owner).slice().sort();
+            read = made.slice(before).filter(id => told.has(id)).map(id => game.messages.get(id)).filter(Boolean).map(m => [
+                m.getFlag(MODULE_ID, "veiled") === true,
+                Boolean(m.speaker?.actor || m.speaker?.token),
+                stableJson([...(m.whisper ?? [])].filter(id => !game.users.get(id)?.isGM).sort()) === stableJson(mine)
+            ]);
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            for (const id of made) await game.messages.get(id)?.delete();
+            for (const key of noteKeys()) await S.bedroomNoteStore.drop(key);
+            for (const [piece, value] of flagsWere) {
+                if (value === null) await piece.unsetFlag(MODULE_ID, ROOM_OWNER_FLAG);
+                else await piece.setFlag(MODULE_ID, ROOM_OWNER_FLAG, value);
+            }
+            if (scene.tokens.has(token.id)) await token.update(was, { ...PLACE });
+            await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, feesWere);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[true, false, false]]),
+            "the bedroom's note told on a settled crossing was not one veiled card ([veiled, speaks as an actor, whispered to the owner's players alone] per card)");
+    }],
     ["A113-C4-3 - a stash's owner is told on every road that stands them in its room: a settled crossing (crossing rooms free, an Eclipse) and a GM's placement tell them as a paid crossing does, and once (traps.mjs `onCrossed`, arrival-notices.mjs, stash-reach.mjs `tellStashDisturbed`; 1.2.112's notice, the owner's decision of 13.11.2026)", async () => {
         /*
          * The audit of 1.2.113 (A113-C4-3): the notice fired only from `drpgRoomCrossed`, raised at the end of a paid
@@ -104128,6 +104201,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const made = [];
         const hook = Hooks.on("createChatMessage", m => made.push(m.id));
         const notices = () => made.map(id => game.messages.get(id)).filter(m => m && cardFlag(m, "sfx") === "stolen").length;
+        // 1.2.122 COMM-22: each notice is a veiled card - its document speaks as nobody and names no reader.
+        const unveiled = () => made.map(id => game.messages.get(id)).filter(m => m && cardFlag(m, "sfx") === "stolen")
+            .filter(m => m.getFlag(MODULE_ID, "veiled") !== true || m.speaker?.actor || m.speaker?.token).length;
         const backs = [];
         const read = [];
         const wait = async () => { await settle(); await until(() => false, 400); await settle(); };
@@ -104165,6 +104241,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await ownerToken.update(positionIn(room, ownerToken), { ...PLACE });
             await wait();
             read.push(["placed again", notices()]);
+            read.push(["unveiled", unveiled()]);
         } finally {
             Hooks.off("createChatMessage", hook);
             for (const a of [owner, first, second]) for (const i of a.items.filter(i => i.name.startsWith(NAME))) await i.delete();
@@ -104177,10 +104254,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await together.back();
             await settle();
         }
-        equal(stableJson(read), stableJson([["away", 0], ["settled", 1], ["paid after", 1], ["placed", 2], ["placed again", 2]]),
+        equal(stableJson(read), stableJson([["away", 0], ["settled", 1], ["paid after", 1], ["placed", 2], ["placed again", 2], ["unveiled", 0]]),
             "the owner was not told on a settled crossing or a GM's placement into the room, or told twice for one reach "
             + "([after the reach: notices], [after the settled crossing], [after the paid crossing's hook that follows it], "
-            + "[after a second reach and a GM's placement into the room], [after a second placement])");
+            + "[after a second reach and a GM's placement into the room], [after a second placement], "
+            + "[notices whose document is not veiled or speaks as an actor: 1.2.122 COMM-22])");
     }],
     ["A113-C6-4 - the GMs read whether a stash's owner watched a reach or is still to be told, and which reaches a notice settles; the players read no more (stash-reach.mjs `stealFromVault`, `tellStashDisturbed`; the audit of 1.2.113, A113-C6-4)", async () => {
         /*

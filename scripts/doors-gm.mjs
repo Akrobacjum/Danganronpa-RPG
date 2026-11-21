@@ -52,8 +52,12 @@ import { CROSSING_SETTLED } from "./crossing-settle.mjs";
 import { roomFlag } from "./rooms.mjs";
 
 /* What a bedroom's owner hears when told it was entered (E110 part 3, 14.11.2026; the coordinator's survey): the card's
-   sound, `bedroomEntered`, on the owner's whisper alone. */
-const BEDROOM_SOUND = { flags: { [MODULE_ID]: { sfx: "bedroomEntered" } } };
+   sound, `bedroomEntered`, on the owner's whisper alone. And veiled (1.2.122, the audit's COMM-22): the card is told at the
+   moment its owner stands in the bedroom - on walking back in, an Eclipse's crossing included, or at once while they stand
+   there - so an unveiled document, spoken as the owner and whispered to their players, told every console where they
+   were, which the Eclipse's own crossing card is veiled to keep (eclipse.mjs). Its sound still reaches its readers:
+   sfx.mjs asks for it once the words are here. */
+const BEDROOM_SOUND = { flags: { [MODULE_ID]: { sfx: "bedroomEntered" } }, veiled: true };
 
 /** A barricade's key in the GMs' store: the scene and the room. */
 export const barricadeKey = (sceneId, room) => `${sceneId}:${room}`;
