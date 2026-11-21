@@ -73,3 +73,10 @@ Not routed to 1.2.120 (they go to 1.2.121 with the rest): every minor and nit, t
 
 ## Not audit findings (continued)
 - The coordinator updates CLAUDE.md's one sentence on release.yml calling ci.yml (now: or reuses a green run of the same tree, audit/gate/reuse-ci.mjs) at the 1.2.120 assembly - the owner's "opcja 1" (21.11 ~02:55Z).
+
+## Release map changed (owner, 21.11.2026 ~03:05Z) - supersedes the map of 02:25Z
+- 1.2.120: an urgent small release - line P (the planner: the sort applies at once without Save, a white hover, Move and sort in every column, edges around nodes) and a new line F (claude/fog-120, R8030-8049): OWN-119-4 "Mgla u GMa nie odswieza sie wcale" - the GM's fog does not refresh at all on v1.2.119; the line checks first whether 1.2.119's F119 commits 2c87b5b9 / 09c3a3f8 caused it.
+- 1.2.121: the majors lines M1, M2, K, R1, R2 and I.
+- 1.2.122: the rest of the audit (minors and nits).
+- 1.2.123: L1 with E39, E40, E43, E53, E58, E83.
+- OWN-119-4 is new to this audit's findings. The re-check's batch 04 (`recheck-119.json`, MAP-19) read 2c87b5b9 as changing `ledgerRooms` (fog.mjs:1527) to count students' rows only; whether that or 09c3a3f8 stops the GM's fog from refreshing was not read by the audit.
