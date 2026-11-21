@@ -80,9 +80,7 @@
     ],
     "reading": "passes alone (7 passed: XI07 and its setup checks); the shard-3 failure depends on the order or the load of the shard - a test-suite finding (TEST), not a module leak"
   },
-  "pending": [
-    "probe 42 rerun of the 47 windows it did not open, alone, from 00:05Z"
-  ],
+  "pending": [],
   "first_session": "its npm test beside ten readers: lint 416 files 0, check 25 green, gate 37/37, tiers 0-1 1776/0/16 twice, 01-runtests RED on its 6480 s timeout, twelve scenarios green (00, 10-15, 17-21), stopped at 2 h in 30-security (first-session/README.md)",
   "scenarios": {
     "command": "node run-all.mjs scenarios (every scenario whose layers include ci, one at a time; 84 is local-gate only and was not run)",
@@ -454,5 +452,34 @@
     },
     "read": "Every stale reading's diff excerpt checked by script with kit step numbers (drpg-kit-step-N), 16-character ids and second countdowns masked. 278 of 356 'stale' differ only in those and measure nothing: all in the 15 restless windows (Room setup's eight tabs, investigation--map, item-tables--rooms, three Class Trial tabs, notice history GM and player). 78 are real: 60 in 19 calm windows (despair-flow, season-setup, season-checklist, chapter-end, class-trial, edit-campaign, murder, item-manager, item-manager--bullet, give, projects, action-observe, action-search, action-analyze, action-tamper, action-project, action-dynamic, palm-frisk, season-reset), 16 in Room setup (each tab after a death: living students, rooms per student), 2 in investigation--map (problem count after a Remnant). held-by-focus 7: investigation (item, truth-bullet, trace, death), students (actions, death, eclipse). Season setup's two stale readings had the focus inside and stayed stale after it left.",
     "correction": "The partial reading written at 23:25Z ('Room setup - 28 of 28 stale, confirms REFR-04') was wrong: those rows were the restless noise above; corrected in AUDIT 18.1 on 21.11.2026."
+  },
+  "probe_42_rerun": {
+    "ran": "21.11.2026 00:05-00:33Z (29 min), alone, DRPG_PRESS_ONLY = the 47 windows the first run did not open, with probe 42 as of e2d8c578 (each window caught, evidence written after every window, every 'nothing' named)",
+    "exit": 0,
+    "result_file": "audit/findings-1.2.118/probe-42-rerun.json (the evidence: windows, and `nothing` - each 'nothing' press with window, title, label, data-action, place, tag, data attributes)",
+    "peak_rss_mb": {
+      "gm": 4906,
+      "p1": 434,
+      "p2": 517,
+      "p3": 454
+    },
+    "totals": {
+      "windows": 52,
+      "opened": 52,
+      "controls": 1286,
+      "pressed": 513,
+      "acted": 449,
+      "nothing": 61,
+      "threw": 3,
+      "off": 249,
+      "alike": 84,
+      "capped": 170,
+      "containers": 119
+    },
+    "not_walked": 0,
+    "threw": "3, all from what the harness lacks, by their error text: 'Could not build the fog texture renderer.render is not a function' (no canvas; investigation--map-final 'Place on the map', new-trace 'Create on the map') and 'Could not create the Danganronpa RPG table folder Folder is not defined' (lib/shim.mjs has no Folder; item-tables 'Install / reinstall').",
+    "nothing_read": "Grouped by the auditor from label and data attributes, not each read in source: (A) 16 in the probe's own blind spots named in its header - 6 steppers 'One fewer' at their end (season-setup--zones, edit-campaign), 4 picture pickers ('Picture', 'Choose a picture'), 6 'Fit to view' (a camera fit, layout only); (B) 12 that look like the mode, section or chip already selected ('Map' in three case-map views, 'Item' / 'Truth Bullet' / 'Room key' in Give / take items, settings nav 'Look' twice and 'Voice', notice chip 'All'); (C) 33 to read in source: 5 'Not tied to the murder: 1' in the Class Trial schema (the dead control CTRL-02, now seen by a run), 22 case-map node buttons in four Class Trial tabs (case, counted, verdict-given, summary-sent), 4 item sub-modes ('From the tables', 'From a Remnant', 'Create new', 'Write a new one'; compare CTRL-61), 'Open Aiko Hoshino's sheet' in Students (the harness may not count a sheet as a new window), and the Findings window's empty-state block.",
+    "world": "After the last restore the world dump differs in 9 units (three users, the Academy scene, a Remnant token, two items of Aiko, the active and viewed scene): the harness world, not a real one; written, not assumed away.",
+    "names_missing": "The first run's 35 'nothing' (its 44 windows) still have no names; a rerun of those 44 windows with this probe would give them."
   }
 }
