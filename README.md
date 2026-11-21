@@ -280,7 +280,8 @@ inventory. Every character's items, with their names, still reach every
 browser; a Frisk lists another student's pockets only to the searcher and the
 GMs. <!-- leak:foundry-actor-items --> Where the Remnants lie, the Key Remnants
 among them, and where every token goes during an Eclipse are world data; the
-Key Remnant plan and a murder declared in the dark stay on the GMs' browsers. <!-- leak:S17-64 --> A
+Key Remnant plan and a murder declared in the dark stay with the GMs (the plan
+also in a file in the world's folder on the server since 1.2.115). <!-- leak:S17-64 --> A
 token the GM hides is hidden from view only: Foundry sends every token, with its
 name and position, to every browser. <!-- leak:foundry-hidden-tokens --> A
 secret passage, and who knows it, stay with the GMs and the students who know

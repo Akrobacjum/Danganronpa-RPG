@@ -121,6 +121,26 @@ them (`times`) and keeps every path they named. The harness throws Daggerheart's
 classes and runs a glue of its roll window for it (`audit/harness/README.md`,
 "Daggerheart's dice"); LIVE-E33-01 is the same scenario on a real Foundry.
 
+**The case's copy on the server (E111, 1.2.115).** Since 1.2.115 the case - every
+GM store with `backup: true`, the file Back up saves - has a copy outside the GMs'
+browsers: a file in the world's folder on the Foundry server,
+`worlds/<world>/drpg-case/case-<32 hex>.json`, uploaded by a GM's browser through
+Foundry's FilePicker (case-copy.mjs). It is not in world data: no setting, flag,
+chat card or log line holds the file or its name, so nothing Foundry sends to a
+player's browser carries it (scenario 34 A3 scans a player's world settings,
+localStorage, chat messages, flags and every packet sent to it for the name and
+the planner's fields and values). It is not encrypted. What keeps it from a player
+is Foundry's: listing the folder asks FILES_BROWSE and uploading asks FILES_UPLOAD
+(the harness's stand-in judges both, scenario 34 A2; on v14, LIVE-E111-02), and
+enforced.mjs's row `playerFiles` keeps both off the Player and Trusted Player
+roles; and the name, 128 random bits, cannot be guessed. The module writes no copy
+while that row is off, or while the permissions in force give either permission to
+a Player, a Trusted Player or a player's own account (`filesRefusal`; R7345;
+scenario 34 B1-B2), and tells the GMs why. A write never comes from a browser
+whose stores have not heard the other GMs, and never before it has listed and
+merged every copy in the folder (`copyRefusal`, `writeServerCopy`; R7346; scenario
+34 D1-D2).
+
 What stays open: a roll not drawn - one thrown with no GM connected (an action
 waits; any other roll is stamped and moves nothing until a GM grants it, on the
 dice the player's browser reports, and the GMs' card shows what it claimed beside
@@ -145,7 +165,12 @@ murder takes the band its request names. And three readings still made on the ro
 item a Search draws (granted on the roller's own sheet; the GM holds its tier to
 what the Search's record earns); a concealment roll's reading; and Listen's lines,
 since every browser holds the tokens. Of 83's forgeries two are watched, not
-caught (F4b, F6a); the scenario's comments say what each measures.
+caught (F4b, F6a); the scenario's comments say what each measures. Of the case's
+copy on the server: Foundry's server hands a file of the data folder to anybody
+who asks its exact path, logged in or not (assumed, LIVE-E111-02), so a name that
+leaks - pasted into a chat, shown on a shared screen, read off a GM's console -
+gives the whole case to whoever holds it; and a GM who gives a player FILES_BROWSE
+while no GM is connected is caught only at the next GM's write or load.
 
 The Reroll is the GM's own transaction (E08): asked of the primary GM, paid,
 thrown, taken back and replayed there, its steps written in the GMs' journal
@@ -209,11 +234,16 @@ steps; R1b, R162-R166 and the lint rule are there to catch a skipped one.
    whitelisted payload, refuses by returning `{ refused: "<English reason>" }` -
    the text must map to exactly one code of `REASONS` (R164), and a new code
    needs `DRPG.Bridge.why.<code>` in both files - answers with `{ reply }` when
-   `answer` is `"reply"`, and never emits a packet or calls `refuse()`: the
-   runner acknowledges, answers, and turns a throw into `failed`. A resolver
-   that answers null for work it did not do is a refusal as well,
+   `answer` is `"reply"`, and never calls `refuse()`: the runner acknowledges,
+   answers, and turns a throw into `failed`. A run emits no packet of its own
+   but where it answers later on purpose, said beside it: `handleFriskAsk`
+   sends its asker's done when the target has answered (`{ later: true }`), and
+   `handleAdvancementAsk` sends the offers and the owed opening invitation. A
+   resolver that answers null for work it did not do is a refusal as well,
    `"nothing was carried out: ..."`, told as `refused`: a run never answers a
-   done for nothing, and says nothing of which silent reason it was.
+   done for nothing, and says nothing of which silent reason it was - but for
+   `handleCubAbility`, whose null is the ability's own answer that nothing
+   applied, as its comment says.
 4. **Ask it.** `export function requestX(...) { return ask(ACTION_X, {...}, { local }); }`,
    with `local` when a GM runs it on their own client. It answers the bridge's
    result, `{ ok, pending?, value?, refused?, reason? }`, which is truthy
