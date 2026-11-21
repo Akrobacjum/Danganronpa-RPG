@@ -1492,6 +1492,10 @@ async function text() {
         const r = T.DETECTORS[name](inputs);
         const rows = T.BASELINES[name];
         const b = rows ? T.againstBaseline(r, rows) : null;
+        /* A row whose emptying stage has shipped is red (1.2.122 line TEXT; the audit of 1.2.118, STG-60). */
+        for (const row of T.shippedBaselineRows({ [name]: rows ?? [] }, shipped)) {
+            problems.push(`${name}'s baseline row ${row.file} ${row.key ?? `"${row.quote}"`} (${row.issue}) says ${row.empties} empties it, and ${row.empties} has shipped: empty it, or name the stage that will`);
+        }
         const counts = Object.entries(r.counts ?? {}).map(([k, n]) => `${k} ${n}`).join(", ");
         console.log(`text: ${m.test} ${m.mode} ${name} read ${r.read} found ${r.found.length}`
             + (b ? `; baseline ${rows.length} row(s), ${b.rows} site(s): ${b.matched} matched, ${b.left.length} new, ${b.stale.length} gone` : "")

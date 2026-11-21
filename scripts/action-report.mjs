@@ -87,7 +87,7 @@ function dualityBar(outcome) {
     const statValue = Number(rollData?.traits?.[trait?.dh]?.value);
     const hasStat = Boolean(trait) && Number.isFinite(statValue);
     const bonus = hasStat ? modifier - statValue : modifier;
-    const signed = n => `${n < 0 ? "−" : "+"}${Math.abs(n)}`;
+    const signed = n => `${n < 0 ? "-" : "+"}${Math.abs(n)}`;
 
     /* THE RESULT FIRST, ITS WORKING UNDER IT.
      *
@@ -114,7 +114,7 @@ function dualityBar(outcome) {
             esc(trait.label)} ${esc(signed(statValue))}</span>`);
     }
     if (bonus !== 0) {
-        formula.push(`<span class="drpg-duality-op">${bonus < 0 ? "−" : "+"}</span>`);
+        formula.push(`<span class="drpg-duality-op">${bonus < 0 ? "-" : "+"}</span>`);
         formula.push(`<span class="drpg-duality-mod" data-tooltip="${esc(L(hasStat ? "bonus" : "modifier"))}">${
             esc(Math.abs(bonus))}</span>`);
     }

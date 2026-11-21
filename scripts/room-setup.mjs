@@ -25,7 +25,7 @@
  * vault-store.mjs that made the store a file of its own.
  */
 
-import { MODULE_ID, ITEM_CATEGORIES } from "./config.mjs";
+import { MODULE_ID, ITEM_CATEGORIES, ACTIONS } from "./config.mjs";
 import { pickableCategories } from "./inventory.mjs";
 import { neighbouringRooms, ROOM_FLAGS, roomBroken, setRoomBroken } from "./movement.mjs";
 import { SETTINGS } from "./settings.mjs";
@@ -506,7 +506,7 @@ function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncove
             <p>${game.i18n.localize("DRPG.Vault.stashesIntro")}</p>
             ${stashLegend()}
             ${matrix(stashRows)}
-            <p class="notes">${game.i18n.localize("DRPG.Vault.stashesNote")}</p>
+            <p class="notes">${game.i18n.format("DRPG.Vault.stashesNote", { n: ACTIONS.analyze.stashThreshold })}</p>
         `,
 
         description: `

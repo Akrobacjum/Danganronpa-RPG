@@ -23,7 +23,7 @@
 import { MODULE_ID, FLAGS, BEDROOM_KEY_FLAG, LOOT, REMNANT_VISIBILITY } from "./config.mjs";
 import { capacityLabel, isStashed, transferItem, transferRefusal } from "./inventory.mjs";
 import { createTruthBullet, truthBulletData, secretOf, isTruthBullet, bulletAsHeld, unanalysedType } from "./truth-bullets.mjs";
-import { whisperToOwner, log, warn, error, isPrimaryGm, forcedDeletion, plural, serialWrite, ownerIdsOf, gmIds, announce, whisperToGms, listOf } from "./utils.mjs";
+import { whisperToOwner, whisperToOwnerOnly, log, warn, error, isPrimaryGm, forcedDeletion, plural, serialWrite, ownerIdsOf, gmIds, announce, whisperToGms, listOf } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 import { answerKeysRefusal, lootTraceStore, deathStore, lootRollStore } from "./gm-stores.mjs";
 import { getClock } from "./settings.mjs";
@@ -277,9 +277,13 @@ export async function mintCopy(from, to, item, { analysis = true, quiet = false 
     const data = truthBulletData(bulletAsHeld(item));
     const secret = secretOf(item.uuid);
     if (!secret.realType) {
-        if (!quiet) await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.answerKeyMissing", {
-            name: foundry.utils.escapeHTML(data.name)
-        })}</p>`);
+        /* Two sends, two readers (1.2.122 line TEXT; the audit of 1.2.118, TEXT-32): the player is told what happened,
+           the GMs how to restore the record - a GM's menu path is no player's to read (text-style O19, T29). */
+        if (!quiet) {
+            const name = foundry.utils.escapeHTML(data.name);
+            await whisperToOwnerOnly(from, `<p>${game.i18n.format("DRPG.Handover.answerKeyMissing", { name })}</p>`);
+            await whisperToGms(`<p>${game.i18n.format("DRPG.Handover.answerKeyMissingGm", { name })}</p>`);
+        }
         return { skipped: "noKey", data };
     }
 

@@ -345,7 +345,7 @@ Projekty to powolna gra: wiele akcji przez wiele pór dnia. To też jedyna rzecz
   - **Breach the Wall** (Body, Złożony 6): wyłom w tej ścianie, który wszyscy widzą i przez który każdy przejdzie. Dopóki ściana nie zostanie naprawiona, zamek pokoju za nią i drzwi jego sypialni nikogo nie zatrzymują, a pieczęć na nim jest zdjęta do końca pory dnia; Chained wciąż cię trzyma, a sala rozpraw zostaje zamknięta. Osoby w obu pokojach dostają o tym wiadomość, a twoje imię poznają tylko wtedy, gdy stoisz przy wyłomie; pokoje obok słyszą łomot.
   - **Seal the Passage** (Hand, Złożony 6): zamyka przejście, które znasz i które ma jedną stronę w twoim pokoju, dla wszystkich, którzy je znają. GM może je znów otworzyć.
   - **Close the Breach** (Body, Złożony 6): ściana znów jest cała.
-  - **Repair an item** (Hand; Trywialny 3 dla Tier 0 albo 1, Złożony 6 dla Tier 2 albo 3): jeden twój zepsuty albo zużyty przedmiot użytkowy albo narzędzie, noszone albo w skrytce, znów jest cały. Jeśli Tier przedmiotu wzrośnie przed końcem naprawy, naprawa może wymagać większej skali, a GM dostaje o tym wiadomość.
+  - **Repair an Item** (Hand; Trywialny 3 dla Tier 0 albo 1, Złożony 6 dla Tier 2 albo 3): jeden twój zepsuty albo zużyty przedmiot użytkowy albo narzędzie, noszone albo w skrytce, znów jest cały. Jeśli Tier przedmiotu wzrośnie przed końcem naprawy, naprawa może wymagać większej skali, a GM dostaje o tym wiadomość.
   - **Repair the Lock** (Hand, Trywialny 3): zamek wyłamany przez Force the Door albo przez wyłom, w drzwiach pokoju, w którym stoisz. Gdy projekt zostanie ukończony, zamek znów trzyma, dla wszystkich.
 
   GM zatwierdza projekt ściany, przejścia, zamka albo przedmiotu jak każdą propozycję i sprawdza go jeszcze raz, gdy jest ukończony: jeśli ściana, przejście, zamek albo przedmiot nie są już tym, czym były, nic się nie dzieje, a GM dowiaduje się dlaczego. Reroll rzutu, który ukończył Secret Passage, wyłom, zamknięcie przejścia albo naprawę zamka, cofa je.
@@ -620,7 +620,7 @@ Despair zdobyty ponad pełną pulę nie przepada: zbiera się w jednym wspólnym
 Przedmiot może służyć też jako inna kategoria (śrubokręt w narzędziach, który jest też narzędziem zbrodni) i wciąż zajmuje jedno miejsce.
 
 > [!IMPORTANT]
-> **W ręku.** Sprzęt liczy się tylko wzięty do ręki: w incydencie, przy sprzątaniu i przy pracy nad projektem liczy się tylko to, co trzymasz. W ręku jest zawsze najwyżej jedna rzecz, a gdy bierzesz jedną, pozostałe odkładasz; wzięcie do ręki nie kosztuje akcji. Narzędzie w ręku daje przewagę przy pracy nad projektem i sabotażu i obniża próg o swój Tier. Narzędzie do sprzątania w ręku robi to samo przy sprzątaniu, poza Move the Body, gdzie obniża próg o swój Tier, ale nie daje przewagi. Tier narzędzia zbrodni wyznacza jego obrażenia (rozdział 10, Jeśli jesteś zabójcą).
+> **W ręku.** Sprzęt liczy się tylko wzięty do ręki: w incydencie, przy sprzątaniu i przy pracy nad projektem liczy się tylko to, co trzymasz. W ręku jest zawsze najwyżej jedna rzecz, a gdy bierzesz jedną, pozostałe odkładasz; wzięcie do ręki nie kosztuje akcji. Narzędzie w ręku daje przewagę przy pracy nad projektem i sabotażu i obniża próg o swój Tier. Narzędzie do sprzątania w ręku robi to samo przy zacieraniu i przeróbce Remnantu; przy Misleading Trail daje przewagę, ale nie obniża progu, a przy Move the Body obniża próg o swój Tier, ale nie daje przewagi. Tier narzędzia zbrodni wyznacza jego obrażenia (rozdział 10, Jeśli jesteś zabójcą).
 
 **Przekazywanie.** Możesz dać coś każdemu w swoim pokoju. Przy **Przekaż** oddajesz rzecz na dobre i obowiązuje limit odbiorcy. Przy Truth Bullecie albo kluczu możesz zamiast tego wybrać **Podziel się kopią**: macie go wtedy oboje, a kopii Truth Bulletu nie wiąże żadna twoja nieudana analiza. Ani przekazanie, ani dzielenie się kopią nie kosztuje akcji i żadne z nich nie działa podczas Eclipse.
 
@@ -757,7 +757,7 @@ Ofiara nie widzi niczego, gdy zabójca rzuca: żadnej karty, muzyki ani niczego 
 
 Przy każdym sukcesie pułapka się nie zamyka, czy miałeś jeszcze Free Move, czy nie. Twoja próba dostrzeżenia pułapki zostawia Evident Remnant, a GM decyduje, co dzieje się dalej.
 
-Przy śmierci z własnej ręki rzuca się jak zabójca, a potem od razu przechodzi do sprzątania.
+Przy śmierci z własnej ręki rzuca się jak zabójca, a potem incydent od razu przechodzi do Tamper.
 
 ### Jeśli jesteś ofiarą
 
@@ -815,7 +815,7 @@ Udany Misleading Trail albo udane przeniesienie ciała od razu kładzie na twój
 Narzędzie do sprzątania w ręku pomaga (rozdział 7, W ręku). Gdy w pokoju są świadkowie, najpierw wykonujesz ten sam rzut maskowania Shadow-16 co przy każdym Tamper, z tym samym kosztem Sanity za przyłapanie (rozdział 4); Move the Body nie rzuca na maskowanie.
 
 > [!WARNING]
-> Każde narzędzie zbrodni, którym zamachnąłeś się w walce, zostaje zniszczone, gdy zamyka się incydent, który doszedł do sprzątania; Finishing Blow nie jest zamachem. Każde narzędzie do sprzątania, którego użyłeś przy próbie sprzątania, zostaje zniszczone, gdy znajdzie się ciało twojej ofiary, nawet jeśli od tamtej pory je odłożyłeś; to, które schowałeś do skrytki, ocaleje. Jeśli nie sprzątałeś, zniszczone zostaje narzędzie do sprzątania, które masz wtedy w ręku. Oba zostają w ekwipunku jako zepsute dowody.
+> Każde narzędzie zbrodni, którym zamachnąłeś się w walce, zostaje zniszczone, gdy zamyka się incydent, który doszedł do Tamper; Finishing Blow nie jest zamachem. Każde narzędzie do sprzątania, którego użyłeś przy próbie sprzątania, zostaje zniszczone, gdy znajdzie się ciało twojej ofiary, nawet jeśli od tamtej pory je odłożyłeś; to, które schowałeś do skrytki, ocaleje. Jeśli nie sprzątałeś, zniszczone zostaje narzędzie do sprzątania, które masz wtedy w ręku. Oba zostają w ekwipunku jako zepsute dowody.
 
 ### Jeśli wejdziesz w trakcie
 
