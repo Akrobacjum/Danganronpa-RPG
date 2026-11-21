@@ -109949,6 +109949,14 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * E69 C7, 13.11.2026. Judged as the primary judges the player's packet; the distances read here from the harness scene's
          * doors (`neighbouringRooms`; it draws no stairs and no tunnel). Hidden tokens are put back. Red at ceb9e9c8: no
          * `listen.echoes` in the table.
+         * EACH ASK PAID, AS THE PLAYER'S WINDOW PAYS (1.2.123, the assembly): since 1.2.122 (CORE-21) a player's Echoes claims
+         * a payment's ticket on the GM (bridge-runs-acts.mjs `handleEchoes`, `claimedFor`) and is refused `notPaid` with none.
+         * This test asked unpaid and passed only where an earlier test of the run had left a ticket of the asker's standing:
+         * run with a few others (`--only`) it failed on 14bb0d92 (lines DESP and ITEMS, 21.11.2026: none "notPaid") and on
+         * the 1.2.123 assembly (found [false, true, false, false], none "notPaid"), and a shard dealt differently could have
+         * read the same. Each of the asker's asks
+         * is paid now (`payAction`, the suite's payment as a player's), and the budget put back. `theirs` pays nothing: it is
+         * refused as not the asker's before any ticket is read.
          */
         needs(env.primaryGm(), "Echoes is read on the primary GM");
         needs(world.atLeast("namedRooms", 2), "a room to stand in and a room to find");
@@ -109985,10 +109993,12 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             ring = nextRing;
         }
         const nearest = Math.min(...[...occupied].map(r => dist.get(r) ?? Infinity));
+        const paid = [];
+        const askPaid = async packet => { paid.push(await payAction(actor)); return ask(packet); };
         const hiddenWere = [];
         const read = {};
         try {
-            const found = await ask({});
+            const found = await askPaid({});
             read.found = [occupied.has(found?.room), found?.room !== where.room, dist.get(found?.room) === nearest, found?.steps === nearest];
             read.theirs = await ask({ actorId: other.id });
             for (const t of scene.tokens.filter(t => t.actor && t.actor.id !== actor.id && !t.hidden)) {
@@ -109996,8 +110006,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 await t.update({ hidden: true });
             }
             await settle();
-            read.none = await ask({});
+            read.none = await askPaid({});
         } finally {
+            for (const p of paid.reverse()) await p.back();
             for (const t of hiddenWere) await t.update({ hidden: false });
             await line.putBack();
             await settle();
