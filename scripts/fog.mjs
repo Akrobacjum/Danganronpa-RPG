@@ -60,7 +60,7 @@
 
 import { MODULE_ID, FLAGS, UNCOVERED_LIMIT_PCT } from "./config.mjs";
 import { SETTINGS, iAmTheMastermind, isEclipse, discoveryLedger } from "./settings.mjs";
-import { roomOfToken, boundsOf, ROOM_FLAGS, whenAtRest } from "./movement.mjs";
+import { roomOfToken, boundsOf, ROOM_FLAGS, whenAtRest, isCorpseToken } from "./movement.mjs";
 import { roomPieces, roomRegions, roomNames, sceneHoldsRooms, scenesWithRooms, namedRegions, viewedScene,
     viewedLevel, onLevel, isMoveChange, floorsOf, isPlaceScene, levelOf, joinsAnotherRoom, RENAMED_FROM, placeScenes,
     regionPatches } from "./rooms.mjs";
@@ -1717,6 +1717,13 @@ function seedCells(scene, cells) {
         // `canvasReady` and the skip above would never get to matter.
         if (isMastermind(actor)) continue;
         if (isMonokuma(actor)) continue;
+        // And the other two (1.2.122 line MAP; the audit's MAP-19, MAP-18): a Spectator, which `recordDiscovery` skips
+        // since E92 C3 and this seed did not, so a ghost standing in a room nobody found was seeded into its row at the
+        // primary's next canvasReady or createToken; and a body (movement.mjs `isCorpseToken`: a dead student, or a
+        // Monocub's corpse), which discovers nothing - `isMine` said so for the viewer's fog only. Every row reaches the
+        // Monocubs' and the Spectators' joined maps (gm-stores.mjs `cubFogSection`, `spectatorFogSection`).
+        if (isSpectator(actor)) continue;
+        if (isCorpseToken(tokenDoc)) continue;
 
         const room = roomOfToken(tokenDoc);
         if (!room) continue;
@@ -4408,6 +4415,11 @@ async function reactToMove(tokenDoc) {
     try {
         const actor = tokenDoc.actor;
         if (!actor || actor.type !== "character") return;
+        /* A body discovers nothing here either (1.2.122 line MAP; the audit's MAP-18): Stage 6's Move the body, or a GM's
+           drag of one, put the room it was carried into in the dead student's row, and from there on every Monocub's and
+           Spectator's map and the victim's own player's fog - where the body went. Asked on the token (movement.mjs
+           `isCorpseToken`), as `isMine` asks it for the viewer's fog; `seedCells` skips it too. */
+        if (isCorpseToken(tokenDoc)) return;
         const scene = tokenDoc.parent;
         const room = roomOfToken(tokenDoc);
         if (!room) return;

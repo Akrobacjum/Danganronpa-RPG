@@ -107386,6 +107386,76 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ text: typed, world: true }),
             "Room setup wrote over the digits typed in a token count, or sent them unasked (text: the count's text after the redraw; world: the room's tokens untouched)");
     }],
+
+    ["1.2.122 MAP-18 MAP-19 - a body and a Spectator discover nothing in the GMs' ledger: the seed skips both, a body moved into a room records none, and a living student standing or moving still records its room (scripts/fog.mjs `seedCells`, `reactToMove`; movement.mjs `isCorpseToken`; the audit's MAP-18, MAP-19)", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026. The viewer's own fog had the skips (fog.mjs `isMine`: a Spectator, a Monocub's
+         * corpse), the ledger's write side did not: `reactToMove` asked only for a character in a room, so Stage 6's Move
+         * the body or a GM's drag of a body wrote the room it was put in as the dead student's find, and `seedCells` skipped
+         * the Mastermind and a Monokuma but not a Spectator, so a ghost standing in a room nobody found was seeded into its
+         * row at the primary's next canvasReady or createToken. Every row reaches the Monocubs' and the Spectators' joined
+         * maps (gm-stores.mjs `cubFogSection`, `spectatorFogSection`) and the victim's own player's fog. Driven in a world
+         * the GM stores have never opened (the ledger starts empty), on the scene on screen: a body, a Spectator and a
+         * living student, each with a token standing in a room; the seed, then the body's token and the living student's
+         * token each moved onto the spot of a token standing in another room. Put back: positions, the flag, the death.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fog is read on the scene on screen");
+        needs(world.atLeast("studentTokensOnScreen", 4), "four students with a token on the scene on screen");
+        needs(world.atLeast("occupiedRooms", 2), "two rooms with a token in them");
+        const fog = await import("./fog.mjs");
+        const E = await import("./gm-store.mjs");
+        const C = await import("./chapter.mjs");
+        const M = await import("./monocub.mjs");
+        const { roomOfToken } = await import("./movement.mjs");
+        const { isMonokuma } = await import("./monokuma.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const scene = canvas.scene;
+        const tokenOf = a => scene?.tokens?.find(t => t.actorId === a.id) ?? null;
+        const standing = C.livingStudents().filter(a => !M.isMonocub(a) && !isMonokuma(a) && !isMastermind(a)
+            && !a.getFlag(MODULE_ID, FLAGS.spectator) && tokenOf(a) && roomOfToken(tokenOf(a)));
+        const body = standing[0];
+        const elsewhere = body && standing.find(a => roomOfToken(tokenOf(a)) !== roomOfToken(tokenOf(body)));
+        const rest = standing.filter(a => a !== body && a !== elsewhere);
+        const [ghost, living] = rest;
+        must(body && elsewhere && ghost && living, "fewer than four living students standing in rooms, two of them in different rooms - this would measure nothing");
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const was = new Map([body, living].map(a => [tokenOf(a).id, { x: tokenOf(a).x, y: tokenOf(a).y }]));
+        const spectatorWas = ghost.getFlag(MODULE_ID, FLAGS.spectator);
+        const target = tokenOf(elsewhere), targetRoom = roomOfToken(target);
+        const livingTarget = [body, ghost, elsewhere].map(tokenOf).find(t => roomOfToken(t) !== roomOfToken(tokenOf(living)));
+        let read = null;
+        try {
+            read = await E.withGmStoreWorld(`suite-map18-${foundry.utils.randomID(8)}`, async () => {
+                // The flag first: a death can place a token (the watcher's), and a token placed seeds its scene.
+                await ghost.setFlag(MODULE_ID, FLAGS.spectator, true);
+                must(await C.markDeceased(body), "a death could not be written - this would measure nothing");
+                await settle();
+                must(C.isDeadForGm(body), "the body does not read as dead on the GM - this would measure nothing");
+                await fog.seedDiscovery(scene);
+                await settle();
+                const seeded = [body, ghost, living].map(a => fog.discoveredFor(scene.id, a.id).length);
+                await tokenOf(body).update({ x: target.x, y: target.y }, { ...PLACE });
+                await tokenOf(living).update({ x: livingTarget.x, y: livingTarget.y }, { ...PLACE });
+                await settle();
+                await wait(600);
+                const moved = [fog.discoveredFor(scene.id, body.id).includes(targetRoom),
+                    fog.discoveredFor(scene.id, living.id).includes(roomOfToken(livingTarget))];
+                if (C.isDeadForGm(body)) await C.reviveCharacter(body, { quiet: true });
+                return { seeded, moved };
+            });
+        } finally {
+            for (const [id, at] of was) {
+                const t = scene.tokens.get(id);
+                if (t && (t.x !== at.x || t.y !== at.y)) await t.update(at, { ...PLACE });
+            }
+            if (spectatorWas === undefined) { if (ghost.getFlag(MODULE_ID, FLAGS.spectator) !== undefined) await ghost.unsetFlag(MODULE_ID, FLAGS.spectator); }
+            else await ghost.setFlag(MODULE_ID, FLAGS.spectator, spectatorWas);
+            if (C.isDeadForGm(body)) await C.reviveCharacter(body, { quiet: true });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ seeded: [0, 0, 1], moved: [false, true] }),
+            "the ledger recorded a body's or a Spectator's room, or stopped recording a living student's (seeded: the rooms in the body's, the Spectator's and the living student's rows after the seed; moved: the room the body was moved into in its row, the room the living student moved into in its row)");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).
