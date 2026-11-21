@@ -106565,6 +106565,85 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ written: true, other: true, focus: true }),
             "[the row picked with the pointer written to the map; the other GM's row drawn on the open window within 3 s; the focus still on the row picked]");
     }],
+    ["the Mastermind's window follows another GM's change of the Mastermind, and Give pays the Mastermind of the moment it is pressed: changed - the box reads the new one's Hope and Give converts to them; cleared - Give refuses, saying no Mastermind is set, and converts nothing (the audit of 1.2.120, F-6; the line claude/refresh-120, 21.11.2026)", async () => {
+        /*
+         * The audit's check of 1.2.120, F-6 (AUDIT 18.6 on claude/audit-119), read at d3153c04: mastermind.mjs
+         * `openMastermindDialog` read the Mastermind once, at the open (`current`), and handed it to the Give wiring, and
+         * the box's live region heard actors and the debt's hook but not the Mastermind's store - so another GM's change
+         * or clearing of the Mastermind redrew nothing, and Give converted Despair to whoever was the Mastermind when the
+         * window opened. Here, as E05 C12's conversion test stages its pool (five Despair, nothing owed): student A named,
+         * the window opened, then B named (the store's own write, as another GM's arrives), Give 1 pressed; then the
+         * Mastermind cleared and Give pressed again. The pools, the Hope, the Mastermind and the cards are put back.
+         * Red at d3153c04: the box still read A's Hope, and the Give went to A.
+         */
+        const MM = await import("./mastermind.mjs");
+        const D = await import("./despair.mjs");
+        const { despairOwedStore } = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { resourceValue } = await import("./character.mjs");
+        needs(env.dialogs(), "the Mastermind's window is drawn and its Give pressed");
+        const donor = D.monokumas().find(u => u.id === game.user.id) ?? D.monokumas()[0];
+        must(donor, "no Monokuma's pool to convert from - this measures nothing");
+        const [a, b] = cast(2);
+        const wasActor = MM.mastermindActor()?.id ?? null, wasLair = MM.mastermindLair();
+        const hopeWas = [resourceValue(a, "hope"), resourceValue(b, "hope")];
+        const despairWas = D.getDespair(donor.id);
+        const owedWas = foundry.utils.deepClone(despairOwedStore.get?.(donor.id) ?? null);
+        const seen = new Set(game.messages.map(m => m.id));
+        const warned = [], warn = ui.notifications.warn;
+        const appOf = () => [...foundry.applications.instances.values()].find(x => x?.rendered && x.element?.isConnected && x.options?.classes?.includes("drpg-window-mastermind"));
+        const box = () => appOf()?.element?.querySelector(".drpg-mm-live") ?? null;
+        const readout = held => game.i18n.format("DRPG.Mastermind.hopeReadout", { held });
+        const give = async () => {
+            box().querySelector("[name=donor]").value = donor.id;
+            box().querySelector("[name=amount]").value = "1";
+            box().querySelector("[data-drpg-give]").click();
+            await wait(400);
+            await settle();
+        };
+        const read = {};
+        let opening = null;
+        try {
+            ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            await despairOwedStore.drop(donor.id);
+            await D.setDespair(donor.id, 5);
+            await trustedWrite(a, { "system.resources.hope.value": 0 }, { reason: "gmRuling" });
+            await trustedWrite(b, { "system.resources.hope.value": 2 }, { reason: "gmRuling" });
+            await MM.setMastermind(a);
+            await settle();
+            opening = Promise.resolve().then(() => MM.openMastermindDialog()).catch(() => null);
+            must(await until(() => box()?.querySelector("[data-drpg-give]"), 6000), "the Mastermind's window did not open on its Give Hope box");
+            must(box().querySelector("p.notes")?.textContent.trim() === readout(0), "the box does not read A's Hope as opened - nothing to compare with");
+
+            await MM.setMastermind(b);
+            read.redrawn = Boolean(await until(() => box()?.querySelector("p.notes")?.textContent.trim() === readout(2), 2000));
+            await give();
+            read.changed = { a: resourceValue(a, "hope"), b: resourceValue(b, "hope") };
+
+            await MM.clearMastermind();
+            await settle();
+            const before = [resourceValue(a, "hope"), resourceValue(b, "hope"), D.getDespair(donor.id), D.owedOf(donor.id)];
+            await give();
+            read.cleared = { same: stableJson([resourceValue(a, "hope"), resourceValue(b, "hope"), D.getDespair(donor.id), D.owedOf(donor.id)]) === stableJson(before),
+                told: warned.includes(game.i18n.localize("DRPG.Mastermind.noneSet")) };
+        } finally {
+            ui.notifications.warn = warn;
+            appOf()?.close();
+            if (opening) await Promise.race([opening, wait(3000)]);
+            await trustedWrite(a, { "system.resources.hope.value": hopeWas[0] }, { reason: "gmRuling" });
+            await trustedWrite(b, { "system.resources.hope.value": hopeWas[1] }, { reason: "gmRuling" });
+            await despairOwedStore.drop(donor.id);
+            if (owedWas) await despairOwedStore.patch(donor.id, owedWas);
+            await D.setDespair(donor.id, despairWas);
+            if (wasActor) await MM.setMastermind(game.actors.get(wasActor), { room: wasLair });
+            else await MM.clearMastermind();
+            const fresh = game.messages.filter(m => !seen.has(m.id)).map(m => m.id);
+            if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ cleared: { same: true, told: true }, changed: { a: 0, b: 3 }, redrawn: true }),
+            "[cleared: Give changed nothing; it said no Mastermind is set] [changed: A's Hope, B's Hope after Give 1] [the box read the new Mastermind's Hope]");
+    }],
     ["the open planner draws a node written to the case while it stands open - with no field focused, with a field focused that holds nothing typed, and with text typed in it: the focus, the caret and the text kept, and a field another write changed under the typing keeps the text and is marked (investigation.mjs `openInvestigationDashboard`, live.mjs `keepLive` `whileEditing`; the owner, 20.11.2026: \"by okna zawsze odswiezaly sie przed zaladowaniem okna od nowa (np. Planer)\", \"Zawsze odswiezamy okna od razu przy zmianie\"; the line claude/plan-119)", async () => {
         /*
          * The dashboard drawn on the Map as this GM opens it, a fixture deduction in it; then three writes of a new deduction
