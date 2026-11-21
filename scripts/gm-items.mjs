@@ -41,6 +41,7 @@ function recipientOptions(students, selectedId) {
 import { whisperToOwner, log, error, plural, cardHead, esc, serialWrite, listOf } from "./utils.mjs";
 import { kitTabs, wireKitTabs, shownTab, drpgWindow, box, emptyOption, formGrid, modeBar, tipAttr, tipText } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive, keepFresh, RAISED } from "./live.mjs";
+import { remnantStore, deathStore } from "./gm-stores.mjs";
 import { homeScene } from "./rooms.mjs";
 
 
@@ -162,9 +163,11 @@ function wireItemManager(dialog, target, ctx = null) {
  * and the Take list stayed as opened, and so did the give and take windows of their own. Each list is already drawn
  * again, its pick kept, when the student select changes (the handlers of `wireGiveForm`, `wireBulletForm`,
  * `showKeyChoices`' callers and Take's); a change of any item or actor runs those same handlers, as a change of the
- * select to the student it shows. What is typed stays (nothing typed is redrawn). The Remnant list is the one read
- * at the open: a trace placed or erased elsewhere is not drawn until a reopen (the trace's own pick is judged again at
- * Give).
+ * select to the student it shows. What is typed stays (nothing typed is redrawn). The Remnant list follows the traces
+ * too since the rest of REFR-09 (`followTheTraces`): a trace placed, erased or described elsewhere is read again and
+ * the list drawn again, its pick kept while the trace stands. One case it leaves: a window opened with no trace on any
+ * scene draws no list at all (From a Remnant holds the line saying so), and a trace placed meanwhile shows at a
+ * reopen.
  */
 function followTheWorld(dialog, field) {
     keepFresh(dialog, {
@@ -1271,12 +1274,13 @@ function bulletCreatePane(fill = null, { nameField = "name" } = {}) {
 }
 
 /** The name follows the picked trace; the trace list follows the recipient. */
-function wireBulletForm(dialog, traces, traceContextLine, scope = null) {
+function wireBulletForm(dialog, traces, traceContextLine, scope = null, reread = () => bulletTraces()) {
     if (!scope) {
         // Give off on From a Remnant with no trace to pick (CTRL-61), with the hub's own reason.
         const paint = () => {
             const existing = (shownTab(dialog.element) ?? "create") === "existing";
-            const empty = existing && !dialog.element.querySelector("form")?.elements?.remnant;
+            // No list, or a list the traces' redraw emptied (`followTheTraces`).
+            const empty = existing && !dialog.element.querySelector("form")?.elements?.remnant?.options?.length;
             holdGive(dialog.element, !empty, empty ? game.i18n.localize("DRPG.TruthBullet.remnantEmpty") : null);
         };
         wireKitTabs(dialog.element, { win: dialog.element, app: dialog, onSwitch: paint });
@@ -1306,6 +1310,34 @@ function wireBulletForm(dialog, traces, traceContextLine, scope = null) {
         const keep = picker.value;
         picker.innerHTML = bulletTraceOptions(traces, who, traceContextLine);
         if ([...picker.options].some(o => o.value === keep)) picker.value = keep;
+    });
+    followTheTraces(dialog, form, picker, traces, traceContextLine, scope, reread);
+}
+
+/*
+ * THE REMNANT LIST FOLLOWS THE TRACES (1.2.122 line ITEMS; the rest of the audit's REFR-09; the owner's rule "Zawsze
+ * odswiezamy okna od razu przy zmianie"). `traces` is the one array this window's Give reads (`giveBulletNow`) and its
+ * gate counts, so it is filled again in place, not replaced; then the list is drawn again for the recipient shown
+ * (everyone: no "already held" note, as `copiedRemnants` of nobody holds none), the pick kept while its trace stands,
+ * and the name field left alone unless the pick itself changed - what the GM typed there stays. Watched: the tokens
+ * (a trace placed or erased) and the trace ledger (`remnantStore`: a trace's words).
+ */
+function followTheTraces(dialog, form, picker, traces, traceContextLine, scope, reread) {
+    if (!picker) return;
+    keepFresh(dialog, {
+        run: () => {
+            reread().then(fresh => {
+                if (!picker.isConnected) return;
+                traces.splice(0, traces.length, ...fresh.traces);
+                const keep = picker.value;
+                const who = game.actors.get(form.elements[scope.recipient]?.value ?? "") ?? null;
+                picker.innerHTML = bulletTraceOptions(traces, who, traceContextLine);
+                if ([...picker.options].some(o => o.value === keep)) picker.value = keep;
+                else picker.dispatchEvent(new Event("change"));
+                scope.gate?.();
+            }).catch(err => error("Could not draw the Remnant list again", err));
+        },
+        watch: { tokens: true, stores: [remnantStore] }
     });
 }
 
@@ -1540,7 +1572,7 @@ export async function giveTruthBulletDialog(actor, { scenes: only = null, fill =
               html: bulletCreatePane(fill), tooltip: tipText("DRPG.Tips.Sweep.Gm.tabWriteNewTooltip") }
             /* a planned Truth Bullet (E104) opens on Write new, filled in, its recipient and Tell as planned */
         ], { active: fill || !traces.length ? "create" : "existing" })}${recipientRows(recipients, "DRPG.TruthBullet.secretNote", "drpg-bullet", { tell: fill?.tell ?? true })}</form>`,
-        render: (event, dialog) => { wireBulletForm(dialog, traces, traceContextLine); followTheWorld(dialog, "recipient"); },
+        render: (event, dialog) => { wireBulletForm(dialog, traces, traceContextLine, null, () => bulletTraces(only)); followTheWorld(dialog, "recipient"); },
         footer: {
             primary: { action: "ok", label: game.i18n.localize("DRPG.TruthBullet.give"), callback: (e, b, d) => readBulletForm(d),
                        tooltip: tipText("DRPG.Tips.Gm.giveATruthBulletTooltip") },
@@ -1661,6 +1693,47 @@ async function giveBulletNow(result, who, traces, writers) {
  * than hidden: a GM correcting a mis-marked death should not have to go and
  * find a different screen to do it from.
  */
+/* The Autopsy's rows, one per student: the living ticked, the dead marked and not. `was` holds the boxes the GM changed
+   by hand (a redraw, `followAutopsyTargets`), which keep the GM's tick. */
+function autopsyTargetRows(actors, isDeadForGm, was = new Map()) {
+    return actors.map(a => {
+        const dead = isDeadForGm(a);
+        const ticked = was.has(a.id) ? was.get(a.id) : !dead;
+        return `<label class="drpg-checkbox">
+            <input type="checkbox" name="target" value="${a.id}"${ticked ? " checked" : ""}${tipAttr("DRPG.Tips.Sweep.Gm.autopsyTargetTooltip")} />
+            ${foundry.utils.escapeHTML(a.name)}${
+                dead ? ` - <em>${game.i18n.localize("DRPG.Chapter.deadShort")}</em>` : ""
+            }</label>`;
+    }).join("");
+}
+
+/*
+ * THE AUTOPSY'S LIST FOLLOWS THE CAST (1.2.122 line ITEMS; the rest of the audit's REFR-09). The rows were drawn at the
+ * open, so a student made, renamed, removed or found dead meanwhile was offered as the window first saw them. Each
+ * change of an actor or of the deaths the GMs keep (`deathStore`) draws the rows again; a box the GM ticked or unticked
+ * by hand keeps the GM's answer (`hand`, read off the boxes' change), the rest follow the world, and the focus stays on
+ * the box that held it. The name and the two texts are not in the region: what is typed stays.
+ */
+function followAutopsyTargets(dialog, isDeadForGm) {
+    // The GM's own ticks, by student: read off the boxes' change, which the fieldset hears whatever row is drawn.
+    const hand = new Map();
+    dialog.element?.querySelector("[data-drpg-autopsy-who]")?.addEventListener("change", event => {
+        const box = event.target?.closest?.("[name=target]");
+        if (box) hand.set(box.value, box.checked);
+    });
+    keepFresh(dialog, {
+        run: root => {
+            const set = root.querySelector("[data-drpg-autopsy-who]");
+            if (!set) return;
+            const focused = [...set.querySelectorAll("[name=target]")].find(i => i === document.activeElement)?.value ?? null;
+            for (const label of set.querySelectorAll("label.drpg-checkbox")) label.remove();
+            set.insertAdjacentHTML("beforeend", autopsyTargetRows(studentActors(), isDeadForGm, hand));
+            if (focused) set.querySelector(`[name=target][value="${CSS.escape(focused)}"]`)?.focus();
+        },
+        watch: { actors: true, stores: [deathStore] }
+    });
+}
+
 export async function issueAutopsyDialog() {
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
@@ -1674,14 +1747,7 @@ export async function issueAutopsyDialog() {
     }
 
     const { isDeadForGm } = await import("./chapter.mjs");
-    const rows = actors.map(a => {
-        const dead = isDeadForGm(a);
-        return `<label class="drpg-checkbox">
-            <input type="checkbox" name="target" value="${a.id}"${dead ? "" : " checked"}${tipAttr("DRPG.Tips.Sweep.Gm.autopsyTargetTooltip")} />
-            ${foundry.utils.escapeHTML(a.name)}${
-                dead ? ` - <em>${game.i18n.localize("DRPG.Chapter.deadShort")}</em>` : ""
-            }</label>`;
-    }).join("");
+    const rows = autopsyTargetRows(actors, isDeadForGm);
 
     /* WHAT THE CASE PLANNED (13.11.2026): the next planned Autopsy not sent yet - of the chapter's count, with a name or
        words written (case-schema.mjs `autopsyId`, investigation.mjs `autopsyCount`) - fills the window in, for a body
@@ -1713,8 +1779,9 @@ export async function issueAutopsyDialog() {
             <label>${game.i18n.localize("DRPG.TruthBullet.gmNote")}
                 <textarea name="gmNote" rows="2"
                     placeholder="${game.i18n.localize("DRPG.TruthBullet.gmNotePlaceholder")}"${tipAttr("DRPG.Tips.Sweep.Gm.gmNoteTooltip")}>${foundry.utils.escapeHTML(fill.note ?? "")}</textarea></label>
-            <fieldset><legend>${game.i18n.localize("DRPG.TruthBullet.autopsyWho")}</legend>${rows}</fieldset>
+            <fieldset data-drpg-autopsy-who><legend>${game.i18n.localize("DRPG.TruthBullet.autopsyWho")}</legend>${rows}</fieldset>
         </form>`,
+        render: (event, dialog) => followAutopsyTargets(dialog, isDeadForGm),
         footer: {
             primary: {
                 action: "ok", label: game.i18n.localize("DRPG.TruthBullet.autopsyIssue"),

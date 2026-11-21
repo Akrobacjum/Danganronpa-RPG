@@ -23348,7 +23348,7 @@ const REGRESSIONS = [
             ["action-project.mjs", "startProject", "open", 1, 0, 1], ["call-pickers.mjs", "callHeader", "open", 0, 0, 1],
             ["mastermind.mjs", "openMastermindDialog", "open", 0, 0, 1], ["reroll.mjs", "settleGmRuling", "open", 0, 0, 1],
             ["roll-dialog.mjs", "announceFreeCritical", "open", 0, 0, 1], ["trial.mjs", "pickObjectionEvidence", "open", 0, 0, 1],
-            ["use-items.mjs", "confirmUse", "open", 0, 0, 1],
+            ["use-items.mjs", "previewLine", "open", 0, 0, 1], // confirmUse's until 1.2.122 (REFR-52 moved its line into `previewLine`)
             ["tables-editor.mjs", "installTables", "E49", 1, 0, 0], ["verdict.mjs", "verdictSummaryContent", "E49", 1, 0, 0],
             ["analyze.mjs", "tellGmsKeyMissing", "E49", 1, 0, 0], ["anonymity.mjs", "lowerOwnership", "E49", 1, 0, 0],
             ["bridge-runs-acts.mjs", "handleAdvancement", "E49", 1, 0, 0], ["call-effects.mjs", "tell", "E49", 1, 0, 0], ["call-gm.mjs", "callCardHtml", "E49", 1, 0, 0],
