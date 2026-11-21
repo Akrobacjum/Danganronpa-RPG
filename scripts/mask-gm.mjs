@@ -303,6 +303,8 @@ export async function endMask(killerId, why = "end") {
        end" read Chie's actor id, name and p3's user id on p1 and p2, the Blackened of a verdict that missed her. */
     // A reveal: the name is no longer kept cut on the cards this GM holds (secret.mjs `forgetHeldMask`); any other end keeps it.
     if (why === "reveal") await import("./secret.mjs").then(m => m.forgetHeldMask(killerId)).catch(err => error("Could not let the cards name a revealed killer", err));
+    // And the Monocubs' bets and the Bounty on them name them again (monocub.mjs `forgetMaskedTarget`, 1.2.120).
+    if (why === "reveal") await import("./monocub.mjs").then(m => m.forgetMaskedTarget(killerId)).catch(err => error("Could not let the Monocubs' rows name a revealed killer", err));
     if (why === "timeOfDay" && killer) await whisperToOwnerOnly(killer, { glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.localize("DRPG.Mask.ended"))}</p>` }, { veiled: true });
     log(`${killer?.name ?? killerId} is no longer behind a "?" (${why}).`);
     return true;
@@ -426,6 +428,20 @@ export function isVeiledToken(token) {
 export function veilWanted(state) {
     if (!state?.active || state.stage !== "openingRoll" || state.indirect || state.selfInflicted) return [];
     return [...new Set([state.killerId, state.thirdSide === "killer" ? state.thirdId : null].filter(Boolean))];
+}
+
+/**
+ * WHO SEES THROUGH A VEIL, ON A GM (1.2.120 line M1, 21.11.2026; the audit's N119-1): null when no veil stands for
+ * `actorId`, else the user ids that may be told of them - every GM, and every player who owns a veiled character (the
+ * killer, and a third seated on the killers' side: `veilWanted`'s, a row each). The veil's own answer on the GMs' side, as
+ * `maskInsiders` is the mask's; a player's browser asks `veiledFromHere` of its own token verdict instead. A room action's
+ * lines leave a character out for anyone else (facilities-gm.mjs `applyEffects`).
+ */
+export function veilInsiders(actorId) {
+    if (!game.user?.isGM || !actorId || !veilStore.get(actorId)) return null;
+    const ids = new Set((game.users ?? []).filter(u => u.isGM).map(u => u.id));
+    for (const id of Object.keys(veilStore.entries() ?? {})) for (const userId of ownersOf(game.actors?.get?.(id))) ids.add(userId);
+    return [...ids];
 }
 
 /** The users whose microphone a veil holds blocked: every veiled character's owners as the row names them. */
