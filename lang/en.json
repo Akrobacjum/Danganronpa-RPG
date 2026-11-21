@@ -1309,6 +1309,7 @@
         "other": "The {n} Despair {pool} paid for it is back in the pool."
       },
       "bountyPaid": "You claim the Bounty on {name}: {n} Hope in your purse.",
+      "bountyKept": "No Hope can go into your purse now, so the Bounty on {name} stays open.",
       "bountyNoDespair": "Your pool has not the Despair for a Bounty.",
       "bet": "Bet",
       "betIntro": "Name who a right verdict will sentence. If it does, your purse gets 4 Hope before the body is announced, 3 after, 2 in the trial, 1 during the vote.",

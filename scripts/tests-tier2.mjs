@@ -20026,6 +20026,206 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ legacy: false, yesterday: false, now: true, total: [max, max], revived: [null, null, null], paid: 0, given: [true, 0] }),
             "{legacy: the old true shuts the ask; yesterday: a mark of an earlier day does; now: one of this time of day does; total: [the Hope after a refund into a full purse, the maximum]; revived: [the bet, the ask, the order left on a revived student's row]; paid: bets paid to the revived; given: [an old card's Give answered as Not now, the Hope it gave]}");
     }],
+    ["1.2.122 DESP-22 - a Bounty that lapses on a GM that is not the primary gives its Despair back when the primary's settlement has paid it, though this GM's copy of the owed rows still holds the row: the lapse waits for the settlement's mark and asks the primary for the Despair back (scripts/despair.mjs `returnOwed`, `settledElsewhere`; monocub.mjs `lapseBounties`; the audit's DESP-22, 1.2.122 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP. The audit's DESP-22: `lapseBounties` runs on the GM that moved the clock, the
+         * settlement on the primary, and `returnOwed` decided on this GM's copy - a row the primary had paid, still in the
+         * copy, was dropped and told "cancelled", and the pool kept the payment. A second GM `A` set as E17-T8 sets one (the
+         * primary while it is there), the packets this GM sends it judged here as the primary judges them. A Bounty owed from
+         * this GM's pool of 3 (its row in the copy, dated this time of day), the clock moved to the next time of day by a
+         * plain write (no lapse), then the primary's settlement stood in: the pool's 1 taken and the mark set, the row left
+         * in this copy as a late drop leaves it. Then `lapseBounties` here. Read: the packets sent to A, the pool after the
+         * primary judged them, which line the GMs' card carried. Put back: the clock, the pools, the Bounties, the rows.
+         * Red at 21bf5d18: nothing sent, the pool at 2, the card "cancelled".
+         */
+        const [target] = cast(1);
+        const G = await import("./bridge-guards.mjs");
+        const D = await import("./despair.mjs");
+        const M = await import("./monocub.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const { isPrimaryGm, plural } = await import("./utils.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which the second GM is set beside - this would measure nothing");
+        must(D.monokumas().some(u => u.id === game.user.id), "this GM holds no Despair pool - this would measure nothing");
+        must(!S.bountyStore.has(target.id), "the fixture student has a Bounty already");
+        const EVENT = `module.${MODULE_ID}`;
+        const A = standInUser({ name: "1.2.122 DESP-22 primary GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "first" });
+        const arrive = () => game.users.set(A.id, A);
+        const depart = () => game.users.delete(A.id);
+        const clock = foundry.utils.deepClone(getClock());
+        const savedPools = foundry.utils.deepClone(getSetting(SETTINGS.despairPools) ?? {});
+        const owedRows = foundry.utils.deepClone(S.despairOwedStore?.entries?.() ?? {});
+        const sentToA = [], queued = [];
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        let inPlay = false;
+        socket.emit = function (event, packet, options, ...rest) {
+            const to = options?.recipients ?? [];
+            if (inPlay && event === EVENT && packet?.action === "despair.adjust" && to.includes(A.id)) {
+                sentToA.push([packet.action, packet.delta ?? null]);
+                queued.push(packet);
+                return socket;
+            }
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const drain = async () => {
+            for (const packet of queued.splice(0)) {
+                const replies = [];
+                depart();
+                try {
+                    await G.judge(BRIDGE_ACTIONS, packet, game.user.id, { send: (who, reply) => replies.push(reply) });
+                } finally {
+                    if (inPlay) arrive();
+                }
+                for (const reply of replies) for (const listener of [...socket.listeners(EVENT)]) listener(reply, A.id);
+            }
+            await settle();
+        };
+        const read = {};
+        try {
+            await D.setDespair(game.user.id, 3);
+            await settle();
+            const owedKey = await D.oweDespair(game.user.id, 1);
+            must(owedKey, "no owed row was written - this would measure nothing");
+            await S.bountyStore.patch(target.id, { by: game.user.id, reward: 1, cost: 1, owedKey, at: Date.now(), targetName: target.name, season: seasonEpoch() });
+            inPlay = true;
+            arrive();
+            must(!isPrimaryGm(), "with the second GM in the list this browser is still the primary - this would measure nothing");
+            const next = TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(clock.timeOfDay) + 1) % TIMES_OF_DAY.length];
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, timeOfDay: next });
+            await settle();
+            const now = `${clock.session ?? 0}.${clock.day ?? 1}.${next}`;
+            // The primary's settlement, as `settleOnce` writes it: the pool paid and the mark moved; the row's drop late.
+            await game.settings.set(MODULE_ID, SETTINGS.despairPools, { ...(getSetting(SETTINGS.despairPools) ?? {}), [game.user.id]: 2, settled: now });
+            await settle();
+            must(S.despairOwedStore.has(owedKey), "the owed row is gone from this copy - this would measure nothing");
+            const from = game.messages.size;
+            const lapsing = M.lapseBounties();
+            await until(() => queued.length > 0, 4000);
+            await drain();
+            await lapsing;
+            await settle();
+            const pool = D.poolLabel(game.user);
+            const card = game.messages.contents.slice(from).map(m => contentOf(m) ?? m.content ?? "").join(" ");
+            read.lapse = { sent: sentToA.splice(0), pool: D.getDespair(game.user.id),
+                card: card.includes(plural("DRPG.Monocub.bountyDespairBack", { n: 1, pool })) ? "back"
+                    : card.includes(plural("DRPG.Monocub.bountyOwedCancelled", { n: 1, pool })) ? "cancelled" : "none" };
+        } finally {
+            inPlay = false;
+            depart();
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            await drain().catch(() => {});
+            for (const id of Object.keys(S.bountyStore?.entries?.() ?? {})) await S.bountyStore.drop(id);
+            const nowRows = Object.keys(S.despairOwedStore?.entries?.() ?? {}).filter(k => !Object.hasOwn(owedRows, k));
+            if (nowRows.length) await S.despairOwedStore.dropMany(nowRows);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await game.settings.set(MODULE_ID, SETTINGS.despairPools, savedPools);
+            await settle();
+            await D.settleOwed();
+            D.renderDespairBar();
+        }
+        equal(stableJson(read), stableJson({ lapse: { sent: [["despair.adjust", 1]], pool: 3, card: "back" } }),
+            "{a lapse on this GM after the primary paid the row: the packets sent to the primary [action, delta], the pool after, the GMs' card's line}");
+    }],
+    ["1.2.122 DESP-32 - an Ask for Hope's card names the pool that answered, not the GM's account, and the Polish line does not call the GM a player; a Monocub's ability window states the price `priceOf` charges (scripts/monocub.mjs `answerHopeAsk`, `cubAbilityDialog`; lang/pl.json DRPG.Monocub.askGiven; the audit's DESP-32 and DESP-30, 1.2.122 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP. The audit's DESP-32: the settle line said "{n} Hope given by <the GM's account>",
+         * while the veiled card the same press sends names the pool's label, and the Polish read "od gracza" - "from the
+         * player" - about a GM. A Monocub of the cast, this GM's pool given a label of the test's; Not now answered. Read:
+         * the line answered. Then DESP-30, a nit read off the source: the ability window's header is drawn from `priceOf`
+         * (a move to order costs the row's `executionCost`), not from the row. Put back: the flag, the row, the label. Red
+         * at 21bf5d18: the line named the account; the header read `row.hopeCost`.
+         */
+        const [cub] = cast(1);
+        const M = await import("./monocub.mjs");
+        const D = await import("./despair.mjs");
+        const S = await import("./gm-stores.mjs");
+        must(D.monokumas().some(u => u.id === game.user.id), "this GM holds no Despair pool - this would measure nothing");
+        const labelWas = getSetting(SETTINGS.poolNames)?.[game.user.id] ?? null;
+        const rowWas = foundry.utils.deepClone(S.cubStore?.get(cub.id) ?? null);
+        const LABEL = "SUITE DESP-32 Monominie";
+        let line = null;
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await D.setPoolLabel(game.user.id, LABEL);
+            await settle();
+            line = await M.answerHopeAsk(cub, 0);
+        } finally {
+            await D.setPoolLabel(game.user.id, labelWas);
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            if (rowWas) await S.cubStore.patch(cub.id, rowWas);
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await settle();
+        }
+        const pl = await fetch(`modules/${MODULE_ID}/lang/pl.json`).then(lfText).then(JSON.parse).catch(() => null);
+        must(pl?.DRPG?.Monocub?.askGiven, "lang/pl.json was not read - this would measure nothing");
+        const src = stripComments((await moduleSources()).get("monocub.mjs") ?? "");
+        const header = fnSource(src, "cubAbilityDialog");
+        equal(stableJson({
+            line: line === game.i18n.format("DRPG.Monocub.askDeclined", { name: LABEL }) ? "pool" : line?.includes(game.user.name) ? "account" : line,
+            polishPlayer: /gracz/i.test(pl.DRPG.Monocub.askGiven),
+            header: /const price = priceOf\(actor, row\)[\s\S]*callHeader\(\{ label: row\.label, cost: price\.hopeCost \}/.test(header)
+        }), stableJson({ line: "pool", polishPlayer: false, header: true }),
+            "{whom the declined line names; whether the Polish given line says 'gracz'; whether the ability window's header is drawn from priceOf}");
+    }],
+    ["1.2.122 DESP-23 - a Bounty claim that would pay no Hope leaves the Bounty standing and its Despair owed for the lapse to give back: a Monocub at its Hope limit lands on a Bounty, which stays open, the pool's debt stays, and its player is told why; with room in the purse the same claim pays and takes the Bounty (scripts/monocub.mjs `claimBounty`; the audit's DESP-23 and DESP-29, 1.2.122 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP; the line's default sent to the coordinator. The audit's DESP-23 (and DESP-29):
+         * `claimBounty` dropped the Bounty, then `addToPurse` took 0 at the Hope limit or in the darkening, and the posting
+         * pool still paid the Despair it owed, which only a lapse gives back. One Monocub of the cast at its Hope limit (the
+         * sheet's Hope its maximum, no purse), a Bounty posted on a second student from this GM's pool of 3. Read: the claim's
+         * answer, whether the Bounty stands, the pool's debt, the words its owner was sent; then the sheet's Hope one under
+         * the maximum and the claim again. Put back: the flag, the row, the Hope, the Bounties, the debt rows, the pool. Red
+         * at 21bf5d18: the Bounty was gone at the limit with 0 paid.
+         */
+        const [cub, target] = cast(2);
+        const M = await import("./monocub.mjs");
+        const D = await import("./despair.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { resourceMax } = await import("./character.mjs");
+        const had = { hope: cub.system.resources.hope.value, pool: D.getDespair(game.user.id) };
+        const rowWas = foundry.utils.deepClone(S.cubStore?.get(cub.id) ?? null);
+        const owedRows = foundry.utils.deepClone(S.despairOwedStore?.entries?.() ?? {});
+        const owedBefore = D.owedOf(game.user.id);
+        must(!S.bountyStore.has(target.id), "the fixture student has a Bounty already");
+        const read = {};
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            const max = resourceMax(cub, "hope");
+            await trustedWrite(cub, { "system.resources.hope.value": max }, { reason: "gmRuling" });
+            await D.setDespair(game.user.id, 3);
+            await settle();
+            must(await M.postBounty(game.user.id, target), "the Bounty was not posted - this would measure nothing");
+            await settle();
+            const words = await wordsSent(async () => { read.full = { paid: await M.claimBounty(cub, target) }; await settle(); });
+            read.full.open = S.bountyStore.has(target.id);
+            read.full.owed = D.owedOf(game.user.id) - owedBefore;
+            read.full.told = words.some(w => w.html.includes(game.i18n.format("DRPG.Monocub.bountyKept", { name: target.name })));
+            await trustedWrite(cub, { "system.resources.hope.value": max - 1 }, { reason: "gmRuling" });
+            await settle();
+            read.room = { paid: await M.claimBounty(cub, target) };
+            await settle();
+            read.room.open = S.bountyStore.has(target.id);
+        } finally {
+            for (const id of Object.keys(S.bountyStore?.entries?.() ?? {})) await S.bountyStore.drop(id);
+            const nowRows = Object.keys(S.despairOwedStore?.entries?.() ?? {}).filter(k => !Object.hasOwn(owedRows, k));
+            if (nowRows.length) await S.despairOwedStore.dropMany(nowRows);
+            await D.setDespair(game.user.id, had.pool);
+            await trustedWrite(cub, { "system.resources.hope.value": had.hope }, { reason: "gmRuling" });
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            if (rowWas) await S.cubStore.patch(cub.id, rowWas);
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ full: { paid: 0, open: true, owed: 1, told: true }, room: { paid: 1, open: false } }),
+            "{at the Hope limit: paid, the Bounty open, the pool's debt, the owner told why; with room for 1: paid, open}");
+        // DESP-31: the post waits for the owed rows before it reads what the pool can spend, as every other spend does.
+        const post = fnSource(stripComments((await moduleSources()).get("monocub.mjs") ?? ""), "postBountyNow");
+        ok(/await despairOwedStore\.whenHydrated\(\)[\s\S]*spendableDespair\(userId\)/.test(post), "postBountyNow reads the spendable pool before the owed rows have arrived (the audit's DESP-31)");
+    }],
     ["1.2.110 lows, two Bounties at once - two posts on one student in step leave one Bounty and owe its Despair once (scripts/monocub.mjs `postBounty`; the E101 line's review of 1.2.110, E72 reader #6, 13.11.2026)", async () => {
         /*
          * The review's #6. `postBounty` checked `bountyStore.has`, then awaited `oweDespair`, then wrote, with no lock: two
@@ -87251,6 +87451,136 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 + "refilled: [the return after a refill and another account's spend, the room's count]} - a token came back for a Search that went on, or across a refill");
     }],
 
+    ["1.2.122 DESP-25 - the Despair bar's + and - steppers are held to the pool's range as its pips are: a + drawn below the maximum and pressed after the pool was filled leaves the pool full and adds nothing to the overflow (scripts/despair.mjs `buildRow`'s steppers, `adjustDespair` with `clamp`; the audit's DESP-25, 1.2.122 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP. The audit's DESP-25: E17 fix e1-G4 made a pip's change `clamp: true`, as a GM's
+         * correction past the maximum spilled into the overflow and stepped toward a darkening; the + stepper beside the
+         * pips still asked adjustDespair(+1) unclamped, and its `disabled` is the drawn `held >= max`, so a bar drawn
+         * before another change landed (a roll's point on the primary) spilled 1. On the primary: this GM's pool set to
+         * one under the maximum, the bar drawn, its + button kept, the pool filled as a roll's point fills it, then the
+         * kept button pressed. Read: the pool and the overflow's rise. Put back: the pools, the overflow's record and
+         * stamp. Red at 21bf5d18: the overflow rose by 1.
+         */
+        const D = await import("./despair.mjs");
+        const O = await import("./overflow.mjs");
+        const { overflowStore } = await import("./gm-stores.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM - this would measure nothing");
+        must(D.monokumas().some(u => u.id === game.user.id), "this GM holds no Despair pool - its stepper would measure nothing");
+        const max = D.despairMax();
+        const saved = { pools: foundry.utils.deepClone(getSetting(SETTINGS.despairPools) ?? {}),
+            overflow: foundry.utils.deepClone(getSetting(SETTINGS.overflow) ?? {}), count: O.overflowCount() };
+        const read = {};
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.despairPools, { ...saved.pools, [game.user.id]: max - 1 });
+            await settle();
+            D.renderDespairBar();
+            const plus = document.querySelector(`#drpg-despair .drpg-despair-row[data-user-id="${game.user.id}"] .drpg-despair-button .fa-plus`)?.closest("button");
+            must(plus && !plus.disabled, "the bar drew no live + for this GM's pool one under the maximum");
+            const count0 = O.overflowCount();
+            await D.adjustDespair(game.user.id, +1);
+            await settle();
+            must(D.getDespair(game.user.id) === max, "the pool was not filled before the press - this would measure nothing");
+            plus.click();
+            await settle();
+            read.plus = { pool: D.getDespair(game.user.id), spilled: O.overflowCount() - count0 };
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.despairPools, saved.pools);
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, saved.overflow);
+            await overflowStore.patch("record", { count: saved.count });
+            await settle();
+            D.renderDespairBar();
+        }
+        equal(stableJson(read), stableJson({ plus: { pool: max, spilled: 0 } }), "{the + pressed on a full pool: the pool, the overflow's rise}");
+    }],
+    ["1.2.122 DESP-21 - a Despair Call bought on a GM that is not the primary waits for the primary's write, which takes the price whole or refuses: with the pool lowered on the primary after the asker's check, the purchase answers false and the pool keeps what it held; with the pool whole, it answers true and the price is taken once (scripts/despair.mjs `spendDespairCall`, `adjustDespair`'s `price`, `routeToPrimary`; bridge-runs-records.mjs `handleDespair`; the audit's DESP-21 and DESP-28, 1.2.122 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP. The audit's DESP-21 (and DESP-28, the same road): on a GM that is not the primary,
+         * `spendDespairCall` checked this browser's copy, then `routeToPrimary` sent `despair.adjust` with `void` and
+         * answered the pool it expected at once, so the Call was counted paid; the primary wrote `held - cost` floored at 0
+         * with no price check. A second GM `A` set in the users' list as E17-T8 sets one (the primary while it is there), the
+         * packets this GM sends it held and judged on this browser as the primary judges them, A out of the list for the
+         * judgement. Read: (1) this GM's pool set to the Call's price, the Call bought, the pool lowered by 1 before the
+         * primary judged (as a Call bought from the same pool on the primary lowers it): the packet, what the purchase
+         * answered and the pool after; (2) the pool whole again, the same Call: the answer and the pool. Put back: the pools.
+         * Red at 21bf5d18: (1) answered true before the primary judged and the pool ended at 0.
+         */
+        const G = await import("./bridge-guards.mjs");
+        const D = await import("./despair.mjs");
+        const { DESPAIR_CALLS } = await import("./config.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which the second GM is set beside - this would measure nothing");
+        must(D.monokumas().some(u => u.id === game.user.id), "this GM holds no Despair pool - this would measure nothing");
+        const [key, call] = Object.entries(DESPAIR_CALLS).filter(([, c]) => c.cost >= 2 && c.cost <= D.despairMax()).sort((a, b) => a[1].cost - b[1].cost)[0] ?? [];
+        must(call, "no Despair Call costs 2 or more within a pool - this would measure nothing");
+        const EVENT = `module.${MODULE_ID}`;
+        const A = standInUser({ name: "1.2.122 DESP-21 primary GM", role: CONST.USER_ROLES.GAMEMASTER, active: true, sorts: "first" });
+        const arrive = () => game.users.set(A.id, A);
+        const depart = () => game.users.delete(A.id);
+        const saved = foundry.utils.deepClone(getSetting(SETTINGS.despairPools) ?? {});
+        const sentToA = [], queued = [];
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        let inPlay = false;
+        socket.emit = function (event, packet, options, ...rest) {
+            const to = options?.recipients ?? [];
+            if (inPlay && event === EVENT && packet?.action === "despair.adjust" && to.includes(A.id)) {
+                sentToA.push([packet.action, packet.delta ?? null, packet.price === true]);
+                queued.push(packet);
+                return socket;
+            }
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const drain = async () => {
+            for (const packet of queued.splice(0)) {
+                const replies = [];
+                depart();
+                try {
+                    await G.judge(BRIDGE_ACTIONS, packet, game.user.id, { send: (who, reply) => replies.push(reply) });
+                } finally {
+                    if (inPlay) arrive();
+                }
+                for (const reply of replies) for (const listener of [...socket.listeners(EVENT)]) listener(reply, A.id);
+            }
+            await settle();
+        };
+        const pool = () => D.getDespair(game.user.id);
+        const setPool = async n => { await game.settings.set(MODULE_ID, SETTINGS.despairPools, { ...(getSetting(SETTINGS.despairPools) ?? {}), [game.user.id]: n }); await settle(); };
+        const read = {};
+        try {
+            await setPool(call.cost);
+            inPlay = true;
+            arrive();
+            must(!isPrimaryGm(), "with the second GM in the list this browser is still the primary - this would measure nothing");
+            let answered = "pending";
+            const buy = D.spendDespairCall(game.user.id, key, { announce: false }).then(v => { answered = v; return v; });
+            await until(() => queued.length > 0 || answered !== "pending", 3000);
+            const before = answered;
+            await setPool(call.cost - 1);
+            await drain();
+            await buy;
+            read.short = { sent: sentToA.splice(0), before, answered, pool: pool() };
+            await setPool(call.cost);
+            answered = "pending";
+            const again = D.spendDespairCall(game.user.id, key, { announce: false }).then(v => { answered = v; return v; });
+            await until(() => queued.length > 0 || answered !== "pending", 3000);
+            await drain();
+            await again;
+            read.whole = { sent: sentToA.splice(0), answered, pool: pool() };
+        } finally {
+            inPlay = false;
+            depart();
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            await drain().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.despairPools, saved);
+            await settle();
+            D.renderDespairBar();
+        }
+        equal(stableJson(read), stableJson({
+            short: { sent: [["despair.adjust", -call.cost, true]], before: "pending", answered: false, pool: call.cost - 1 },
+            whole: { sent: [["despair.adjust", -call.cost, true]], answered: true, pool: 0 }
+        }), "{the pool lowered before the primary judged: the packet [action, delta, price], the answer before the primary judged, the answer, the pool; the pool whole: the same}");
+    }],
     ["Despair has one writer (E17-T8): a GM that is not the primary changes a pool by a pip as a change asked of the primary, adds to the overflow through it, and prunes nothing; a player's ask of either is refused", async () => {
         /*
          * E17 C5, 26.10.2026; E17-24, audit S09-32. The one-writer rule (DESP-12) held for `adjustDespair` alone: a pip

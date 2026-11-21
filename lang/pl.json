@@ -1302,7 +1302,7 @@
       "askBody": "{name} prosi GM-ów o Hope.",
       "askGive": "Daj {n} Hope",
       "askNotNow": "Nie teraz",
-      "askGiven": "{n} Hope od gracza {name}.",
+      "askGiven": "{name}: {n} Hope dla ciebie.",
       "askDeclined": "{name}: nie teraz.",
       "askNotNowTold": "Twoje Ask for Hope: nie teraz. Możesz poprosić znowu.",
       "panelTitle": "Monocub",
@@ -1382,6 +1382,7 @@
         "other": "{n} Despair, które pula {pool} za nie zapłaciła, wraca do puli."
       },
       "bountyPaid": "Odbierasz Bounty na postać {name}: {n} Hope w twojej sakiewce.",
+      "bountyKept": "Do twojej sakiewki nie trafi teraz żadne Hope, więc Bounty na postać {name} pozostaje otwarte.",
       "bountyNoDespair": "W twojej puli nie ma Despair na Bounty.",
       "bet": "Postaw",
       "betIntro": "Wskaż, kogo skaże trafny werdykt. Jeśli tak będzie, sakiewka dostaje 4 Hope przed ogłoszeniem ciała, 3 po nim, 2 w rozprawie, 1 w trakcie głosowania.",

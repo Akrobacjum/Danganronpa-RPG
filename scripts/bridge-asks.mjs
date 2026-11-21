@@ -491,8 +491,8 @@ export function requestArmCall(actorId, call, timeoutMs = TIMING.rulingMs) {
  * The caller has already checked that the primary is online and is somebody else.
  * The runner judges on the primary GM only, so there is one writer.
  */
-export function sendDespairToPrimary(targetUserId, delta, { clamp = false } = {}) {
-    return ask(ACTION_DESPAIR, { targetUserId, delta, ...(clamp ? { clamp: true } : {}) });
+export function sendDespairToPrimary(targetUserId, delta, { clamp = false, price = false } = {}) {
+    return ask(ACTION_DESPAIR, { targetUserId, delta, ...(clamp ? { clamp: true } : {}), ...(price ? { price: true } : {}) });
 }
 
 /**

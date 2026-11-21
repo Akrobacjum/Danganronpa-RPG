@@ -974,7 +974,8 @@ export const BRIDGE_ACTIONS = table({
         // Reroll's Despair itself (reroll.mjs), and an Assistant GM's correction comes here (DESP-12).
         guards: [gmOnly("an undo is the GM's own Reroll's"), guardDespairDelta, guardDespairPool],
         // `clamp` (E17 fix e1-G4): a GM's pip, held at the maximum with nothing spilled; a GM's flag, false from a player.
-        sanitize: pick({ targetUserId: as.id, delta: as.num, clamp: as.gmFlag }),
+        // `price` (1.2.122, DESP-21): a Despair Call's, taken whole or refused on the primary; a GM's flag too.
+        sanitize: pick({ targetUserId: as.id, delta: as.num, clamp: as.gmFlag, price: as.gmFlag }),
         run: handleDespair,
         answer: "reply",
         claims: { targetUserId: guardDespairPool }

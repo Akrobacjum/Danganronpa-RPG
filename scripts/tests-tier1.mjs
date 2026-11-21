@@ -32567,6 +32567,33 @@ const INVARIANTS = [
             "[whether the dissolve could be stood down, what its end did after the scene was left, whether a dissolve is busy, queued, the frames drawn before]");
     }],
 
+    ["R8380 - the Despair panel's overflow caption takes the pointer as the panel's controls do (1.2.122 line DESP; the audit's CTRL-28): under `#drpg-despair`'s `pointer-events: none` the caption computes `auto`, as the pool's count does, so its tooltip - the GM's real count past the threshold and why a full counter has not fired - can show on a desk layout; in Chromium audit/caption-hit.mjs measures the hit itself", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP. The panel is `pointer-events: none` so the canvas takes clicks through it, and its
+         * controls opt back in by name (styles/danganronpa.css); the caption was not named, so it was never hit and its
+         * `title` never showed. A panel and a caption as despair.mjs draws them, set into the page, the module's stylesheets
+         * applied as the page holds them: the computed `pointer-events` of the panel (the control: `none`, or the cascade
+         * reads nothing), the count and the caption. Taken out after. Red at 21bf5d18: the caption read `none`.
+         */
+        const panel = document.createElement("div");
+        panel.id = "drpg-despair-r8380";
+        const host = document.createElement("div");
+        host.innerHTML = `<div id="drpg-despair"><div class="drpg-despair-row"><span class="drpg-despair-count">2/12</span></div><div class="drpg-overflow-caption">x</div></div>`;
+        const real = document.getElementById("drpg-despair");
+        let read = null;
+        // The page's own panel, where one stands, is renamed for the read so the selectors find the test's alone.
+        if (real) real.id = panel.id;
+        try {
+            document.body.append(host);
+            const of = sel => getComputedStyle(host.querySelector(sel)).getPropertyValue("pointer-events");
+            read = { panel: of("#drpg-despair"), count: of(".drpg-despair-count"), caption: of(".drpg-overflow-caption") };
+        } finally {
+            host.remove();
+            if (real) real.id = "drpg-despair";
+        }
+        must(read.panel === "none", `the panel computes pointer-events "${read.panel}" - the cascade read nothing, so this would measure nothing`);
+        equal(stableJson(read), stableJson({ panel: "none", count: "auto", caption: "auto" }), "{computed pointer-events: the panel, the pool's count, the overflow caption}");
+    }],
     ["R8032 - a dissolve let go at its bound leaves the fog drawn, and its late end takes nothing away (1.2.121 line F; the audit of 1.2.120, r120-F-1 and r120-F-2): fog.mjs `swapInFog` on a fake ticker - the bound reached, a repaint that changes nothing, then the dissolve's own end - shows the new fog sprite; an end whose first clean-up throws still releases", async () => {
         /*
          * 1.2.121 line F; AUDIT 18.6 (audit/findings-1.2.118/recheck-120.json, r120-F-1). 1.2.120's bound

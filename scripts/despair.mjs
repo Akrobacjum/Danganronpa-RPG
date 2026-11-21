@@ -336,7 +336,7 @@ async function writePool(userId, value, { dice = null } = {}) {
  * on the pools' write so each browser draws the point when its dice of that roll have landed (`writePool`). A change
  * handed to the primary from another GM (`routeToPrimary`) carries none and is drawn at once.
  */
-export async function adjustDespair(userId, delta, { clamp = false, dice = null } = {}) {
+export async function adjustDespair(userId, delta, { clamp = false, dice = null, price = false } = {}) {
     /*
      * ONE WRITER (DESP-12). The pools are one world object, written whole from
      * the local cache; two GM clients writing at once - the primary awarding a
@@ -344,19 +344,29 @@ export async function adjustDespair(userId, delta, { clamp = false, dice = null 
      * one write. An assistant GM's adjustment goes to the primary over the
      * bridge, like a player's reroll correction does, and is applied there.
      */
-    const routed = await routeToPrimary(userId, delta, clamp);
+    const paying = price === true && delta < 0;
+    const routed = await routeToPrimary(userId, delta, clamp, paying);
+    if (routed === false) return null;
     if (routed !== null) return routed;
 
     /* Read inside the step that writes (E17 C0): read before it, ten +1 together all read the same pool. And the primary
        asked again in it (E17 fix e1-G4, 26.10.2026; the review's E17P1-COR-8, E17R-07): a GM whose id sorts first that
        connected while this step waited is the primary now, and its own steps write the same setting from its own copy -
        a step begun here goes to it instead, as one asked from here would. */
+    /* A price is taken whole or not at all (DESP-21): read in the step that writes, against what the pool can spend (less
+       what it owes, the owed rows arrived), so a pool lowered since the asker's check refuses rather than floors at 0. */
+    if (paying) await despairOwedStore.whenHydrated();
     const out = await serialWrite(DESPAIR_KEY, async () => {
         if (userId && primaryElsewhere()) return { handed: true };
+        if (paying && spendableDespair(userId) < -delta) return { short: true };
         const held = getDespair(userId);
         return { before: held, wanted: held + delta, applied: await writePool(userId, held + delta, { dice }) };
     });
-    if (out.handed) return (await routeToPrimary(userId, delta, clamp)) ?? getDespair(userId);
+    if (out.short) return null;
+    if (out.handed) {
+        const again = await routeToPrimary(userId, delta, clamp, paying);
+        return again === false ? null : (again ?? getDespair(userId));
+    }
     const { before, wanted, applied } = out;
 
     /* A GM'S SETTING NEVER SPILLS (E17 fix e1-G4; the review's E17R-04, E17P1-R4). The pip asks a change of the one writer
@@ -429,14 +439,25 @@ async function askRoster(op, userId, label = null) {
     return op === "label" ? (res.value?.label ?? null) : (res.value?.done ?? null);
 }
 
-/** A change of a pool asked of the primary from another GM (`adjustDespair`): the pool as this GM expects it, or null when it is this GM's to write. */
-async function routeToPrimary(userId, delta, clamp) {
+/**
+ * A change of a pool asked of the primary from another GM (`adjustDespair`): the pool as this GM expects it, or null when
+ * it is this GM's to write. A price (`price`, a Despair Call's) waits for the primary's answer instead and answers the
+ * pool it wrote, or `false` when the primary did not take it: a Call bought on this GM was counted paid on the pool this
+ * browser expected, before the primary wrote - two purchases inside one round trip, or a pool the primary had lowered
+ * meanwhile, paid less than the price, and an ask not answered left the Call applied and the pool untouched (the audit's
+ * DESP-21 and DESP-28, 1.2.122).
+ */
+async function routeToPrimary(userId, delta, clamp, price = false) {
     if (!userId || !primaryElsewhere()) return null;
     try {
         // `sendDespairToPrimary`, not `requestDespairAdjust` (retired in E08+E28 C8):
         // that one handed a GM straight back here. And no `hasGm` - it was never exported, so asking
         // for it threw and this fell through to writing locally, every time.
         const { sendDespairToPrimary } = await import("./gm-bridge.mjs");
+        if (price) {
+            const res = await sendDespairToPrimary(userId, delta, { clamp, price: true });
+            return res.ok && Number.isFinite(res.value?.value) ? res.value.value : false;
+        }
         void sendDespairToPrimary(userId, delta, { clamp });
         return Math.min(Math.max(getDespair(userId) + delta, 0), despairMax());
     } catch (err) {
@@ -660,6 +681,12 @@ export async function oweDespair(userId, n) {
 export async function returnOwed(userId, key, n) {
     if (!game.user?.isGM || !userId || !key || !(n > 0)) return null;
     await despairOwedStore.whenHydrated();
+    const settled = await settledElsewhere(key);
+    if (settled === "paid") {
+        await adjustDespair(userId, Math.trunc(n), { clamp: true });
+        return "back";
+    }
+    if (settled === "unpaid") return "cancelled";
     const owed = await serialWrite(DESPAIR_KEY, async () => {
         if (!despairOwedStore.has(key)) return false;
         await despairOwedStore.dropMany([key]);
@@ -668,6 +695,34 @@ export async function returnOwed(userId, key, n) {
     if (owed) return "cancelled";
     await adjustDespair(userId, Math.trunc(n), { clamp: true });
     return "back";
+}
+
+/*
+ * ON A GM THAT IS NOT THE PRIMARY, THE SETTLEMENT'S MARK DECIDES (the audit's DESP-22, 1.2.122). A lapse runs on the GM
+ * that moved the clock (clock.mjs `applyTimeOfDayChange`), the settlement on the primary (`settleOnce`), and this GM's
+ * copy of the owed rows can still hold a row the primary has paid: `returnOwed` dropped it and answered "cancelled", and
+ * the pool kept the payment for a Bounty that lapsed. Here the primary's settlement is waited for (its mark in the pools'
+ * world value reaching this time of day, at most SETTLE_WAIT_MS) and read as `settlementOf` pays: a row of the time of day
+ * the mark stood at before - or any, on a pool never settled - was paid ("paid"), another was dropped unpaid ("unpaid").
+ * A mark already at this time of day when the lapse asks is read as paid: a Bounty lapses at the first change after its
+ * post, so its row is of the time of day the last settlement closed, unless no primary settled that one (not measured).
+ * Null - decide here as before - on the primary, with no other GM connected, for a row this copy does not hold, or when
+ * the settlement does not arrive in time.
+ */
+const SETTLE_WAIT_MS = 3000;
+
+async function settledElsewhere(key) {
+    if (!primaryElsewhere() || !despairOwedStore.has(key)) return null;
+    const row = despairOwedStore.get(key);
+    const now = timeOfDayMark();
+    if (row?.since === now) return null;
+    const markOf = () => (typeof pools()[SETTLED] === "string" ? pools()[SETTLED] : null);
+    const before = markOf();
+    const until = Date.now() + SETTLE_WAIT_MS;
+    while (markOf() !== now && Date.now() < until) await new Promise(resolve => setTimeout(resolve, 50));
+    if (markOf() !== now) return null;
+    if (before === now) return "paid";
+    return before === null || row?.since === before ? "paid" : "unpaid";
 }
 
 /*
@@ -935,7 +990,8 @@ export async function spendDespairCall(userId, callKey, { announce: post = true 
 
     // The pool has to have moved for the Call to be bought: `adjustDespair`
     // answers null when this client could not write it (E03; audit S09-11).
-    const paid = await adjustDespair(userId, -call.cost);
+    // A price (DESP-21): on another GM it waits for the primary's write, and the primary takes it whole or refuses.
+    const paid = await adjustDespair(userId, -call.cost, { price: true });
     if (paid === null || paid === undefined) return false;
 
     /*
@@ -1105,12 +1161,12 @@ export function renderDespairBar() {
  * THE VEIL IS ONE CHARACTER WIDE AND HONEST ABOUT ITSELF. A player sees "?"
  * where the count would be; the threshold is public, because knowing the world
  * can get worse at twenty is part of playing in it, and not knowing how close
- * it is happens to be the whole tension. That asymmetry is a courtesy rather
- * than a secret: the counter is a WORLD setting, so a determined player can
- * read it from their own console exactly as they could read a stash flag. It
- * is drawn this way because a table plays better without the number on screen,
- * not because the number could be protected - and nothing about the
- * investigation lives in it either way. The popup says so in as many words.
+ * it is happens to be the whole tension. Since E05 C12 the mask is a real one:
+ * the count is the GMs' record (overflow.mjs `state`, which answers 0 on a
+ * player's browser; world-secrets.mjs lists it), so neither a player's screen
+ * nor their console holds it. Until then it was a world setting any console
+ * could read, and this note called the mask a courtesy (the audit's DESP-34,
+ * 1.2.122). Nothing about the investigation lives in it either way.
  *
  * ALWAYS DRAWN, and the first version of this was wrong to hide itself while
  * the counter sat at zero. Two reasons it is permanent now. Dawid asked for a
@@ -1308,10 +1364,12 @@ export function despairRowOf(user, { gm = game.user.isGM, held = null, owed = nu
      * be a considerably worse bug than a panel of the wrong width.
      */
     const ghost = !isGM;
+    // Held to the pool's range as a pip is (E17 fix e1-G4): `disabled` is the bar as drawn, and a + drawn before a roll's
+    // point filled the pool spilled 1 into the overflow, a step toward a darkening nobody earned (the audit's DESP-25).
     row.append(
-        stepper("fa-minus", () => adjustDespair(user.id, -1), held <= 0, ghost,
+        stepper("fa-minus", () => adjustDespair(user.id, -1, { clamp: true }), held <= 0, ghost,
             game.i18n.localize("DRPG.Look.stepDown"), tipText("DRPG.Tips.Gm.minusTooltip", { n: 1 })),
-        stepper("fa-plus", () => adjustDespair(user.id, +1), held >= max, ghost,
+        stepper("fa-plus", () => adjustDespair(user.id, +1, { clamp: true }), held >= max, ghost,
             game.i18n.localize("DRPG.Look.stepUp"), tipText("DRPG.Tips.Gm.plusTooltip", { n: 1 }))
     );
     if (isGM && isOwnPool) row.classList.add("own");
