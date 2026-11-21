@@ -9155,6 +9155,66 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson({ sent: true, threshold: false }), "{the third's player sent the card, a line with a threshold on it}");
     }],
+    ["1.2.123 r122-C-R1 - a third whose Escape Together fails is sent the line their seat saw (scripts/murder-rules.mjs `defenseHiddenFor`; the auditor's r122-C-R1 of 1.2.122, 1.2.123 line MURDER): in an open murder the third's card says the total against the threshold with no hidden defence; behind a mask and in a trap it says the hidden form and no threshold, as r121-K-1 holds", async () => {
+        /*
+         * 1.2.123, the auditor's r122-C-R1. r121-K-1's fix read the defence's secrecy off the reader's own copy, and a
+         * third whose Escape Together fails has left (`thirdLeaves`) before the card, so their copy is empty: in an open
+         * murder, where the third saw the killer and their menu said "Beat 16", the card read "12 against 15 + a hidden
+         * defense". A direct murder reaches its fight unmasked (its opening on Despair), a third walks in and fails Escape Together on 1; then the same behind a mask (its opening on
+         * Hope); then a trap is
+         * opened, its opening missed, a third walks in and fails the same. The words this GM sends the third are read
+         * (`wordsSent`). Read for each: a line with a threshold, a line with the hidden defence. Put back: the incident,
+         * the clock. Red at 14bb0d92: the open murder's third was sent the hidden form and no threshold.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and a third, each with a player");
+        const M = await import("./murder.mjs");
+        const { maskStore } = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, third] = livingStudents().filter(player);
+        const hidden = game.i18n.localize("DRPG.Murder.dcHidden").replace("{n}", "").trim();
+        must(hidden.length > 4, "the hidden defence's words were not read - this would measure nothing");
+        const text = w => w.html.replace(/<[^>]+>/g, " ").replace(/&gt;/g, ">").replace(/&lt;/g, "<");
+        const clock = getClock();
+        const read = {};
+        const failEscape = async () => {
+            await M.thirdPartyEnters(third);
+            await settle();
+            must(M.murderState()?.thirdId === third.id, `the third did not walk in: ${stableJson(M.murderState())}`);
+            const words = await wordsSent(async () => {
+                await M.resolveCrisisAction({ actorId: third.id, key: "sharedEscape", total: 1, isCritical: false, withHope: true });
+                await settle();
+            });
+            const toThird = words.filter(w => w.to.includes(player(third).id)).map(text);
+            return { sent: toThird.length > 0, threshold: toThird.some(t => /(≥|<|>=)\s*\d+/.test(t)), hidden: toThird.some(t => t.includes(hidden)) };
+        };
+        try {
+            // Open: an opening on Despair masks nobody (mask-gm.mjs `opensMask`; one on Hope or a critical does).
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: false });
+            await settle();
+            must(M.murderState()?.stage === "incident" && !maskStore.get(killer.id),
+                `the fixture's open fight did not come, or its killer is masked: ${stableJson(M.murderState())}`);
+            read.open = await failEscape();
+            await c3Incident(clock);
+            await settle();
+            // Masked: the same fight with its opening on Hope (`fightOpen`), the killer behind a "?".
+            await fightOpen(M, killer, victim);
+            must(Boolean(maskStore.get(killer.id)), "the masked fight's killer wears no mask - this would measure nothing");
+            read.masked = await failEscape();
+            await c3Incident(clock);
+            await settle();
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, indirect: true, openingTrait: "eye" });
+            if (M.murderState()?.stage === "openingRoll") await M.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
+            await settle();
+            read.trap = await failEscape();
+        } finally {
+            await c3Incident(clock);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ open: { sent: true, threshold: true, hidden: false }, masked: { sent: true, threshold: false, hidden: true }, trap: { sent: true, threshold: false, hidden: true } }),
+            "{each murder's third: sent the card, a line with a threshold, a line with the hidden defence}");
+    }],
     ["1.2.122 r121-K-3 - the watches' dice held at the Eclipse's end are let go when the end throws before the lights (scripts/eclipse.mjs `endEclipse`; watch-gm.mjs `holdForTheLights`, `heldAtTheLights`, `releaseTheLights`; the auditor's r121-K-3 of 1.2.121, 1.2.122 line MURDER): an Eclipse whose end fails at the clock's write leaves no die held", async () => {
         /*
          * 21.11.2026, 1.2.122 line MURDER. The auditor's r121-K-3: the dice are held as the Eclipse ends and let go in the

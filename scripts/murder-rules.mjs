@@ -84,7 +84,8 @@ import { dropRemnant, traceFeedback, publishTiesFor, fightKey, remnantById } fro
 import { closeOpen } from "./live.mjs";
 import {
     announce as announcePlain, whisperToGms, whisperToOwner as whisperToOwnerPlain, ownerOf,
-    ownerIdsOf, gmIds, isPrimaryGm, primaryGmId, hiddenByGm, worldLocalize, log, warn, error, plural, listOf, proseOf, debug, esc, cardHead, markFired
+    ownerIdsOf, gmIds, isPrimaryGm, primaryGmId, hiddenByGm, worldLocalize, log, warn, error, plural, listOf, proseOf, debug, esc, cardHead, markFired,
+    playerOwns
 } from "./utils.mjs";
 // The kit's frame (E21 C3a): the fight's questions and the checklists after it, answering as before.
 import { drpgWindow, drpgConfirm, tipText } from "./ui-kit.mjs";
@@ -4496,7 +4497,18 @@ function defenseHiddenFor(userId, key, state) {
     const user = game.users.get(userId);
     if (!user || user.isGM) return false;
     const world = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
-    const copy = castFor(userId, readCast(), world) ?? {};
+    const cast = readCast();
+    let copy = castFor(userId, cast, world) ?? {};
+    /* AND A THIRD WHO HAS JUST LEFT READS THE COPY THEY HELD (the auditor's r122-C-R1, 1.2.123): the fix above left such a
+       third with an empty copy, so in an OPEN murder - where they saw the killer and their menu said "Beat 16" - the card
+       of their own failed Escape Together read "12 against 15 + a hidden defense". A reader whose copy holds no seat and
+       who plays a third on `departed` reads the copy that third was sent while seated (`castFor` with them in the third's
+       seat): the killer named in an open murder, hidden in a trap or behind a mask, as before. Tier 2 "1.2.123 r122-C-R1". */
+    if (!copy.killerId && !copy.victimId && !copy.thirdId) {
+        const departed = Array.isArray(cast?.departed) ? cast.departed : [];
+        const left = [...departed].reverse().find(id => playerOwns(game.actors.get(id), user));
+        if (left) copy = castFor(userId, { ...cast, thirdId: left }, world) ?? {};
+    }
     return crisisDefenseHidden(key, { ...state, ...world, ...copy, killerId: copy.killerId ?? null, victimId: copy.victimId ?? null, active: true, stage: "incident" });
 }
 
