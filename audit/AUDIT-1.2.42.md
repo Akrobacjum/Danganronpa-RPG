@@ -4509,6 +4509,52 @@ Odczyty właściciela przy stole na 1.2.119 (klasa F, 21.11.2026 około 02:50Z; 
 - OWN-119-2: sortowania kolumn inne niż Manual nic nie zmieniają, według właściciela (około 02:55Z) nawet w pierwszej kolumnie. Poza pierwszą kolumną przyczyna jest ta sama co w N119-6; dlaczego pierwsza kolumna nie słucha sortowania, ten audyt nie przeczytał. Przyczynę znalazł właściciel przy stole (około 03:00Z): sortowanie działa dopiero po Save panelu, czyli to wada zastosowania od razu i odświeżania, nie układu pierwszej kolumny.
 - OWN-119-3: najechany węzeł planera robi się jasnokremowy z nieczytelnym tekstem (`styles/components.css:3664`, reguła `:hover`). Statyczne sprawdzenia kontrastu nie obejmowały stanu najechania węzła.
 
+### 18.6 Sprawdzenie wydania 1.2.120 (D-A10, 21.11.2026)
+
+1.2.120 wydano 21.11.2026 o 06:23Z (`v1.2.120`, tag na `03ee8de9`, PR #70). Sprawdzam drzewo wydane wobec `e515907d` (1.2.119). Wydanie złożono z czterech linii:
+- P: planer, `move-120`;
+- H: Token HUD Foundry, `tokenhud-120`;
+- F: utwardzenie mgły, `fog-120`;
+- `hopebox-120`.
+
+Surowe wyniki: `audit/findings-1.2.118/recheck-120.json`.
+
+**Daty w tym pliku.** Plan wydań zmienił się dwa razy 21.11 (ROUTING.md). Gdzie wcześniejsze sekcje mówią "1.2.120" o `major` (CASE-16, REFR-01 i reszta), czytaj 1.2.121. Gdzie mówią "1.2.120" o etapach E39, E40, E43, E53, E58, E83, czytaj 1.2.123. Tamte zdania zostają, jak je napisano.
+
+**Przebieg na wydanym drzewie (H)**, harness z `03ee8de9`, jeden proces naraz:
+- tiery 0-1: 1 841 testów, 1 826 zaliczonych, 0 niezaliczonych, 16 pominiętych;
+- testy tieru 2 planera i okna Mastermind: 29 zaliczonych, 0 niezaliczonych;
+- sonda 44: 58 z 58 regionów na żywo zwraca sam region. Okna Mastermind nie ma jeszcze na liście sondy 08 tego drzewa; dodaje je `refresh-120` w 1.2.121.
+
+**Jak czytano.** Trzech czytających: linia P, linia H oraz linia F z resztą zakresu. Każdy sprawdził twierdzenia linii, prośby z ROUTING.md i nowe wady w zmienionych plikach. Każde znalezisko i każdą regresję próbował potem obalić drugi czytający: 43 pozycje, 40 utrzymanych, 3 osłabione, 0 obalonych.
+
+**Dwie regresje wobec 1.2.119:**
+- **r120-P-1, `major`, zmierzone w Chromium (klasa C).** Gdy GM zmieni pole w planerze, następne naciśnięcie Move, pola "Rests on" albo Add deduction przepada na `03ee8de9`, a na `e515907d` dochodzi. Drugi czytający sterował prawdziwą myszą `live.mjs` każdego z drzew. Przyczyna: `live.mjs:306-307` pozwala teraz zmianie pola tekstowego zakończyć przytrzymanie naciśnięcia, a zapis przy zmianie przebudowuje Mapę pod wskaźnikiem między `pointerdown` a `click`. Testy tego nie widzą, bo jsdom nie układa tych zdarzeń jak przeglądarka.
+- **r120-F-1, mgła.** Dissolve puszczony przez nowy limit (`fadeMs()` + 1750 ms, liczony od startu), potem odświeżenie, które nie widzi zmiany, potem spóźniony koniec tego dissolve'u: na ekranie nie zostaje żadna warstwa mgły. Cała mapa tego gracza jest odkryta do następnej zmiany; tokeny i Remnanty zostają ukryte. Na `e515907d` ta sama kolejność kończy się narysowaną mgłą. Obaj czytający odtworzyli to na kodzie wydanym z obiektami zastępczymi testu R8030, nie w przeglądarce. Zwykła karta w tle Chrome nie spóźnia się tak bardzo: jej wyrównanie do 1 s wypada dokładnie na limicie. Możliwe jest to przy mocniejszym dławieniu, zamrożonej stronie albo karcie zablokowanej na sekundę i dłużej - żadnego z tych przypadków nie zmierzono. Weryfikator dał `minor` (rzadki warunek). Skutek jest jednak klasy "zdradza odpowiedź" (gracz widzi pokoje, które mgła ma ukryć), więc ocena należy do właściciela.
+
+**Prośby i twierdzenia linii:**
+
+| Linia | Prośba | Stan |
+| --- | --- | --- |
+| P | OWN-119-2: sortowanie każdej kolumny od razu, bez Save | zrobione |
+| P | OWN-119-3: najechany węzeł czytelny w obu motywach | zrobione (Chromium 9,65:1 i 7,97:1 na nazwie; w Foundry nieodczytane, LIVE-P120-01) |
+| P | N119-6: Move w każdej kolumnie, z komunikatem na końcu | zrobione; poza sortowaniem ręcznym Move przestawia inne kolumny (r120-P-2, `minor`) |
+| P | OWN-119-1: strzałki nie przechodzą przez węzły | w części: linia kontrargumentu wstecz dalej przechodzi przez węzły (r120-P-4, `minor`) |
+| P | lista kontrolek, które czekały na Save | w części: linia nie dostarczyła listy |
+| P | reguła właściciela dla panelu | w części: zmiana innego GM-a czeka, gdy fokus jest na polu wyboru Mapy (r120-P-3, `minor`) |
+| H | OWN-119-5: usunąć walkę, cel, akcję ruchu, przypisanie stanu, oba paski, wysokość | zrobione |
+| H | zostawić widoczność, sortowanie, blokadę, konfigurację; ikony i wygląd modułu | w części (r120-H-1: w Stained Glass z wysokim kontrastem ukryty albo zablokowany token nie ma ikony; H-7: obcięta ramka fokusu) |
+| F | utwardzenie po OWN-119-4 (`finally`, limit, `diagnoseFog().dissolve`) | w części: r120-F-1 wyżej; r120-F-2 - `finally` nie łapie wyjątku z pierwszej linii sprzątania |
+| hopebox | pudełko Give Hope zachowuje kontrolki | zrobione (jedyna droga przerysowania); okno dalej nie słucha wyboru Mastermind i czeka na fokus (r120-F-6, `minor`, w R1 na 1.2.121) |
+
+**Inne znaleziska wydania** (wszystkie utrzymane przez drugiego czytającego):
+- r120-H-2, `minor`: GM nie ma już w interfejsie drogi do stanów Daggerheart na uczniu - ani na karcie, ani w panelach, ani w ustawieniach tokena. Zostaje makro albo konsola. Podręczniki odsyłają do zakładki Effects, którą moduł zastąpił zakładką Rules. Żadna reguła modułu nie opiera się na stanach.
+- r120-H-3, `minor`: wątpliwe "Target dwukrotnym prawym kliknięciem" w podręcznikach.
+- r120-F-4, `minor`: zapis odrzucony przy pełnej pamięci mówi tylko `onChange` ustawienia.
+- Do tego `nit`: P-5, H-4 do H-8, F-3, F-5.
+
+Gracz nie dostaje teraz Token HUD wcale. Zapis prośby w ROUTING.md mówi tylko o tym, co zostaje dla GM-a; czy to zgodne z zamiarem właściciela, jest pytaniem do niego (Q-A120-1).
+
 ## Część II - raport 1.2.42 z 12.09.2026 (zapis)
 
 > Część II to zapis z 12.09.2026 i dopisków etapów. Stan każdej jej pozycji na 1.2.118 jest w części I (tabela "Gdzie jest każda kategoria" na górze). Nic tu nie jest przenumerowane ani skrócone.

@@ -1,0 +1,1399 @@
+{
+ "what": "The audit's check of release v1.2.120 against v1.2.119 (owner's rule D-A10)",
+ "date": "21.11.2026",
+ "tree": "03ee8de9 (tag v1.2.120)",
+ "previous": "e515907d (v1.2.119)",
+ "runs": {
+  "tiers_0_1": "node run-tests.mjs --tier 1 on 03ee8de9's own harness: 1841 ran, 1826 passed, 0 failed, 16 skipped, 0 red (494 s)",
+  "tier_2_selected": "--tier 2 --only the planner / the Table's filter / Mastermind's Give Hope / Move moves: 29 passed, 0 failed (23 tests ran)",
+  "probe_44": "99 windows, 97 opened, 58 of 58 live regions return the region (the Mastermind window is not in 03ee8de9's probe 08 list; refresh-120 adds it in 1.2.121)"
+ },
+ "method": "Three readers (lines P, H, F and the rest of the range), each claim, each ask in ROUTING.md and new defects in the changed files; every finding and regression then given to a second reader (43 items: 40 held, 3 weakened, 0 refuted). r120-P-1 measured by the second reader in Chromium 153 with a real mouse driving each tree's live.mjs (class C); r120-F-1 reproduced by both readers on the shipped fog code with R8030's stand-in canvas objects (not in a real browser).",
+ "regressions": [
+  {
+   "id": "r120-P-1",
+   "severity": "major",
+   "class": "C (Chromium, measured)",
+   "what": "after a GM edits a planner field, the next press on Move, a 'Rests on' box or Add deduction is lost on 03ee8de9 and lands on e515907d; live.mjs:306-307 now lets a text field's change end a press-hold, and the planner's write-on-change rebuilds the Map under the pointer between pointerdown and click",
+   "tests": "not seen by tiers 0-1 or the 1.2.120 tier-2 tests: jsdom does not order the events like a browser"
+  },
+  {
+   "id": "r120-F-1",
+   "severity": "minor by the verifier (rare condition); the consequence is of the class 'gives the answer away' (a player shown rooms the fog should hide) - the owner's call",
+   "class": "stand-in canvas objects, both readers",
+   "what": "a dissolve let go by the new bound (fadeMs()+1750 ms, counted from its start), then a repaint that finds the picture unchanged, then the late end of that dissolve: no fog sprite is drawn, and that player's whole map stays uncovered until the next change (tokens and Remnants stay hidden); on e515907d the same order ends with the fog drawn",
+   "when": "not by an ordinary background Chrome tab (its 1 s alignment lands at exactly the bound); possible under heavier throttling, a frozen or suspended page, or a visible tab blocked about a second or more - none measured"
+  }
+ ],
+ "lanes": {
+  "P": {
+   "claims": [
+    {
+     "claim": "N119-6: Move up / Move down past the first column swaps in the order as drawn and the Map then draws the GM's order (ae3d02b3; release notes 'Move up and Move down move a node one place in every column')",
+     "verdict": "holds",
+     "where": "scripts/investigation.mjs:2022-2047 (moveCaseNode, drawn tops at :1999), scripts/case-view.mjs:128-130 (packColumn fixed), :174",
+     "test": "tier 2 'the planner's Move moves a deduction past the first column one place as drawn, and back' and R8010",
+     "measures": "the claim: the tier-2 test plants swapped drawn tops (as a relayout under uncrossed would), presses Move down and Move up on the drawn window and reads drawn order and kept sort; R8010 reads the pure placement. Green in r120-tier2.log / r120-tier1.log."
+    },
+    {
+     "claim": "N119-6: Move says when it cannot, in every column",
+     "verdict": "holds",
+     "where": "scripts/investigation.mjs:2033-2041 (stays(), the end and gap check on the drawn column)",
+     "test": "tier 2 'a node at the top of the planner's column pressed Move up stays ... the GM is told'",
+     "measures": "part: the column it reads is the deductions on nothing (column 1, no aims); no test presses Move at the end of an aimed column under 'uncrossed', where the drawn order differs from the layout's. The code path is the same sorted array."
+    },
+    {
+     "claim": "OWN-119-2 / R8012: a sort picked with the pointer redraws at once without Save; a change inside the region ends the press; a forced refresh deferred by a press stays forced (2a45c693)",
+     "verdict": "holds",
+     "where": "scripts/live.mjs:140, :167, :288-292, :306-307",
+     "test": "R8012 (tier 1) and tier 2 'the planner's sort picked on the open Map redraws its column in the new order at once'",
+     "measures": "the claim, under the assumption the test states: the press is a dispatched pointerdown with no pointerup (a native select popup sending no release to the page is assumed, LIVE-E44-02's kind). The sort test's three nodes are deductions on nothing in one column, so it measures the redraw, not the column-1 Remnant order specifically; the layout part is R8013."
+    },
+    {
+     "claim": "R8013: every sort but 'fewer crossings' draws its order past the first column too",
+     "verdict": "holds",
+     "where": "scripts/case-view.mjs:174, :216-219",
+     "test": "R8013",
+     "measures": "the claim (two deductions under each of the five sorts). Consequence not stated as a trade-off: under the default 'By kind' a deduction no longer orders by its inputs' heights past column 1 (the 13.11.2026 centring is now held to the sort's order), so the default draws more crossings than 1.2.119; 'Fewer crossings' keeps the old rule."
+    },
+    {
+     "claim": "R8011: the canvas carries the sort and the measured relayout keeps the GM's order",
+     "verdict": "holds",
+     "where": "scripts/case-map.mjs:330; scripts/case-view.mjs:602",
+     "test": "R8011",
+     "measures": "the claim, at jsdom-planted 140 px sizes; a real browser's measured relayout is the sweep's (Chromium, not Foundry)."
+    },
+    {
+     "claim": "Node fields on the Map are written on each change (tick, pick, field left), drawn at once, focus kept (2a45c693; GM handbook 14 'Each change saves as you make it ... and the Map, and every other GM's open planner, shows it at once')",
+     "verdict": "partly",
+     "where": "scripts/investigation.mjs:1883-1900; docs/handbooks/gm-handbook.en.md:1323",
+     "test": "tier 2 'the planner's node fields on the Map are written on each change ...'; scenario 62 M3 (another GM's tick)",
+     "measures": "part: the write and this GM's redraw are measured with dispatched change events and no pointer. 'Every other GM's open planner shows it at once' is not measured with the other GM's focus on a select: their rebuild is then deferred until the focus leaves (live.mjs:175-185 whileEditing does not keep a SELECT), see r120-P-3. The press interaction is not measured, see r120-P-1."
+    },
+    {
+     "claim": "The Logic Dive set picker lists a set saved while the Map is open (diveSetStore watched)",
+     "verdict": "holds",
+     "where": "scripts/investigation.mjs:2530",
+     "test": "tier 2 'the planner's open Map lists a Logic Dive set saved while it stands open'",
+     "measures": "the claim, with no focus in the region; with the focus on a select the redraw waits (r120-P-3)."
+    },
+    {
+     "claim": "The Table's filters had the same delay and redraw at once too (5ae1b8a0)",
+     "verdict": "holds",
+     "where": "scripts/live.mjs:306",
+     "test": "tier 2 'the Table's filter picked with the pointer redraws the Table at once'",
+     "measures": "the claim, same pointer assumption as R8012."
+    },
+    {
+     "claim": "OWN-119-3: hovering a node no longer turns it white; 9.65:1 glass, 7.97:1 legacy (components.css, contrast-pairs case-node-hover-*)",
+     "verdict": "holds",
+     "where": "styles/components.css:3671-3672; tools/contrast-pairs.json case-node-hover-sg / -lg",
+     "test": "audit/case-map-sweep.mjs hover read (Chromium, planted control); no suite test",
+     "measures": "the node's name ink against the composited ground only; the kind line (--drpg-kit-help-ink), the state and the badges under the pointer are not read; the contrast-pairs rows are declared from the sweep's figure, the ground having alpha. Not read in Foundry's frame (LIVE-P120-01). The theme's other brush states (.active, [aria-pressed], [aria-selected], [autofocus]) are not on a node's markup (case-map.mjs:210 uses aria-current and aria-expanded), so they do not light it."
+    },
+    {
+     "claim": "OWN-119-1 / R8014: lines no longer pass over nodes; a line to a column further on runs at its source's height through a lane; 'Not covered: a line back to an earlier column that skips a column (none in the cases read)'",
+     "verdict": "partly",
+     "where": "scripts/case-view.mjs:185-200 (clearLanes), :309-316 (routePlan, hi = T.x)",
+     "test": "R8014",
+     "measures": "part: R8014 reads kind, manual and uncrossed (not room and state, which share the fixed path), and its case has no line back across columns (k1 refutes d2 only, so it stands beside it). Forward lines hold: my 600-layout read found 0 through a node on 03ee8de9 against 1239 on e515907d. Lines back hold less than the note says: a counter refuting deductions in two columns stands in the later one and its line to the earlier one crosses that target's own column at the counter's height (not only a skipped column); 49 such stretches in 45 of 600 random layouts (r120-P-4)."
+    },
+    {
+     "claim": "The column-order select at the theme's select size; the toolbar on one row at about 1000 px or wider; no control over another at any width (5ae1b8a0, 1730add3, 1fc4219a)",
+     "verdict": "partly",
+     "where": "styles/components.css:3809",
+     "test": "audit/case-map-sweep.mjs toolbar and rows reads (Chromium, the harness's static capture)",
+     "measures": "part: measured on the sweep's page, not in Foundry's frame. `field-sizing: content` is Chromium's (the comment says so); the release notes' one-row claim does not say that a browser without it (Firefox) keeps the longest option's width, where the commit measured two rows at 1008 px under Stained Glass."
+    },
+    {
+     "claim": "GM handbook: 'the order you set is the order drawn' after Move",
+     "verdict": "partly",
+     "where": "scripts/investigation.mjs:2042-2045; scripts/case-layout.mjs:54-57",
+     "test": "none for the other columns",
+     "measures": "the moved column holds; the other columns are re-sorted when the sort was not already By hand (r120-P-2)."
+    }
+   ],
+   "asks": [
+    {
+     "ask": "OWN-119-1: no edge over a node; nodes spread to make lanes",
+     "state": "partly",
+     "note": "done for every line to a later column (lanes, track before the target; 0 through-node stretches in 600 random layouts). A counter's line back to an earlier column still runs through nodes of the columns it crosses, its target's own column included (r120-P-4); the release notes name only the skipping case and say none was read."
+    },
+    {
+     "ask": "OWN-119-2: every column sort applies at once without Save, in every column (line P's top item)",
+     "state": "done",
+     "note": "live.mjs press release on change + heldForced; mapPlace fixedOrder for manual, kind, room, state; uncrossed by inputs as designed. Held by R8012, R8013, tier-2 sort test. Side effect: r120-P-1."
+    },
+    {
+     "ask": "OWN-119-3: a hovered node stays readable, both themes",
+     "state": "done",
+     "note": "Chromium sweep 9.65:1 / 7.97:1 on the name; secondary text under hover not read; not read in Foundry (LIVE-P120-01)."
+    },
+    {
+     "ask": "N119-6: Move in every column, and says when it cannot",
+     "state": "done",
+     "note": "drawn-order swap and fixed manual order; the end notice on the drawn column. Other columns re-sort on a Move under a sort other than By hand (r120-P-2)."
+    },
+    {
+     "ask": "List the planner's other controls that waited for Save",
+     "state": "partly",
+     "note": "No list was delivered as such (not in the commit messages, docs/dev/p120/README.md or the release notes). The line fixed and named: node fields on the Map (audit controls-03 findings 5, 12, 14) and the Dive set picker (finding 6). Still waiting for Save or a close, by reading: every field of the Table view (Remnant rows and Key slots, readCaseFields, investigation.mjs:1704-1760), the Map overview's Key limit override (keyOverride) and the Final Truth Remnant form (mapSummaryEditor, investigation.mjs:1648-1656; placing it is asked on close, offerFinalOnClose). Whether those should stay on Save (Q-E97-6's default for the Table) is the owner's to say."
+    },
+    {
+     "ask": "The owner's window rule for the dashboard ('Zawsze odswiezamy okna od razu przy zmianie', keeping a field being typed in)",
+     "state": "partly",
+     "note": "This GM's own changes (sort, Move, node fields, filters) redraw at once. Another GM's change, or a store echo, is still deferred while this GM's focus is on a select of the region (live.mjs:175-185; keptFocus refuses a SELECT at :443), and the line's own handler puts the focus back on the mode select after a pick (investigation.mjs:1895-1897), which makes that state ordinary. Routed to R1 (1.2.121) per ROUTING.md, but neither the release notes' known gaps (which name only the Sound window) nor the GM handbook (which says every other GM's planner shows it at once) say so (r120-P-3)."
+    }
+   ],
+   "findings": [
+    {
+     "id": "r120-P-1",
+     "severity": "major",
+     "title": "A text field's change now ends a press in every keepLive region, and the planner then rebuilds the Map under the pointer: the click after editing a node's text can be lost",
+     "where": "scripts/live.mjs:306-307 (onChange releases on any change in the region); scripts/investigation.mjs:1883-1900 (write on change, then forced refresh); rule 1 for a hand, live.mjs:120-131 (E44 C2b, S10-58)",
+     "what_happens": "Rule 1 for a hand holds a region from pointerdown to release so a rebuild cannot replace the control being clicked. A text field's change fires when it loses focus, which a pointerdown on another control causes (during mousedown, before pointerup). The new onChange takes that change as the press being over and releases it. The planner's new change listener then writes the node's fields (a GM store write: a 0 ms timer and a client-setting write, gm-store.mjs:815-817, no server) and calls refresh(), a forced rebuild, within milliseconds, so the region (toolbar, node editors, Move buttons, Rests on boxes) is replaced before the pointerup. The comment at live.mjs:302-305 says 'no click follows it to lose its node', which is true for a select's pick, not for a text field left by a press on another control.",
+     "evidence": "live.mjs:306 `const onChange = event => { if (held && target()?.contains?.(event.target)) release(); };`; investigation.mjs:1888-1894 `saveFieldsIn(fields).then(() => { ... refresh();`; live.mjs:342 `stop.refresh = () => rebuild(true);`",
+     "failure_scenario": "A GM with every node open types a new name in a deduction, then clicks that deduction's Move down (or ticks a box in another node's Rests on, or presses Add deduction). The name is written and the Map redraws, but Move does not happen, or the box stays unticked; a second click works. On 1.2.119 the press held through the field's change (nothing was written until the GM left the Map), so the click landed.",
+     "confidence": "suspected",
+     "refutation_tried": "Checked whether the press could still be held: onChange runs in the capture phase on the window root and calls release(), which clears `held` before the planner's bubble listener writes; with heldWanted false nothing is deferred. Checked whether the write is slow enough to land after pointerup: a schema node's write is a local GM store flush (0 ms timer), so refresh() comes within a few ms. Checked the tests: R1316 and R8012 dispatch no change from a text field under a press; the tier-2 node-field test dispatches change with no pointerdown; the Move tests call .click() with no press. Not run in a browser: that the click is then lost rests on the module's own E44 C2b reading (the delegated listener never heard the click on a replaced node), not on a run of this tree.",
+     "verifier": {
+      "id": "r120-P-1",
+      "kind": "finding",
+      "verdict": "holds",
+      "severity": "major",
+      "why": "Measured in a real browser, no longer only suspected. With a text field of the region focused and changed, a real mouse press on another control of the region runs: pointerdown (live.mjs holds), mousedown, then the field's change (live.mjs onChange, capture, releases the press with nothing wanted), the planner's write, blur/focusout, focusin on the pressed button; the write lands about 15 ms later and refresh() is a forced rebuild with nothing holding it, so the region (toolbar, node editors, Move, Rests on) is replaced before the pointer is let go. Chromium then sends pointerup and mouseup to the new button but dispatches no click at all, to any target. On e515907d's live.mjs the same press holds through the change, the write's refresh is deferred ('a press inside it is not let go'), and the click lands; with e515907d's live.mjs and 1.2.120's planner write the click also lands, so the onChange release (live.mjs:306-307) is the cause and the planner's write-and-refresh (investigation.mjs:1883-1900) is what makes it bite. Narrower than 'can be lost' in one way only: it needs the write to finish before the pointer is let go. A deduction, counter or solution field writes through the GM store (setCaseNode -> store patch -> 0 ms timer -> client setting), about 15 ms here, so the click is lost at every press length tried (30, 60, 100, 150 ms). A Remnant's or Key slot's field writes the token on the server (setRemnantPublic), a race: modelled at 40 ms the click was lost, at 150 ms it landed. Also the store's own echo (clientSettingChanged, 120 ms debounce) would replace the region on its own for a press held longer than about 135 ms. Nothing is lost from the field (the typed name is written); what is lost is the second action, and a Rests on tick that silently did not happen can go unnoticed, which keeps it major. Not measured in Firefox or in Foundry's frame; Chromium is the engine of Foundry's desktop app.",
+      "evidence": "Standalone page under /tmp/r120-vP (page.html, drive.mjs): each tree's own live.mjs (git show <rev>:scripts/live.mjs, its three imports stubbed), a region shaped as the Map's (.drpg-case-live > tools, .drpg-case-graph > .drpg-case-canvas > .drpg-case-edit with input[name=d1:label], a Move button with the graph's delegated click listener rewired in `after` as wireCaseMap does, another node's Rests on checkbox, an Add deduction button in the toolbar), keepLive with whileEditing and a watched store, and the planner's change listener modelled (write via setTimeout(writeMs) then refresh()). Driven by Playwright's real mouse in Chromium 153 (/opt/pw-browsers/chromium-1243): click the field, type ' X', mouse.down on the target, wait, mouse.up. 03ee8de9 + write, Move, 100 ms: 171.1 pointerdown button, 171.2 mousedown, 171.3 change input, 171.8 write begins, 172.0 blur/focusout input -> button, 172.1 focusin button, 186.2 write ends, refresh(), 187.3 REBUILT, 274.2 pointerup button, 274.3 mouseup button, no click, no onMove; 306.9 REBUILT again (the echo). Result LOST at holds 30/60/100/150 ms; Rests on tick LOST (box unticked); Add deduction LOST; writeMs 40 LOST, writeMs 150 LANDED. e515907d, no write (as shipped): 213.0 click button, onMove, LANDED; tick and Add LANDED. e515907d live.mjs + 1.2.120's write: 144.7 'deferred - a press inside it is not let go', 231.0 click, onMove, LANDED. 03ee8de9 live.mjs, no write: LANDED. Code: live.mjs:306 onChange -> release(); release() with heldWanted false returns at once; investigation.mjs:1888-1894 saveFieldsIn(...).then(... refresh()); live.mjs:342 refresh = rebuild(true); gm-store.mjs:815-817 schedule 0 ms; region includes the toolbar (investigation.mjs:1196, case-map.mjs:500, :560)."
+     }
+    },
+    {
+     "id": "r120-P-2",
+     "severity": "minor",
+     "title": "Move under By kind, room, state or fewer crossings re-sorts every other column",
+     "where": "scripts/investigation.mjs:2042-2045 (manual written for the moved column only, sort set to manual); scripts/case-layout.mjs:54-57 (a node with no manual place falls back to kind order); scripts/case-view.mjs:174 (every column now follows the sort)",
+     "what_happens": "moveCaseNode writes manual places for the moved column's nodes and sets the chapter's sort to manual. Every other column then orders by its nodes' manual places, which are absent (kind order) or stale from an earlier By hand. Since 1.2.120 every column follows the sort, so all of them jump, not only the first column as on 1.2.119.",
+     "evidence": "t.mjs on 03ee8de9: column 0 under 'room' [e3,e2,e1]; after one Move in column 1 (manual {d2:0,d1:1}, sort manual) [e1,e2,e3].",
+     "failure_scenario": "A GM sorts the Map By room to see the evidence room by room, then presses Move down on one deduction: the picker reads By hand and the evidence column (and every deduction column) reorders by kind, so the room order he picked is gone; under Fewer crossings every column loses its untangled order.",
+     "confidence": "read",
+     "refutation_tried": "Under the default By kind the other columns keep their order (kind is the manual fallback), so the jump needs another sort picked first. 1.2.119 had the same jump for column 0 only. The GM handbook (section 14) says only that the order set is the order drawn and the picker then reads By hand.",
+     "verifier": {
+      "id": "r120-P-2",
+      "kind": "finding",
+      "verdict": "holds",
+      "severity": "minor",
+      "why": "moveCaseNode (investigation.mjs:2022-2047) is unchanged from e515907d: it writes manual places for the moved column only and sets the sort to manual. The manual comparator (case-layout.mjs:54-57) puts a node with no manual place at Infinity and falls back to kindCompare, and since 1.2.120 every column under manual keeps the layout's order (case-view.mjs fixedOrder, packColumn fixed). So after a Move under By room, By state or Fewer crossings, every other column jumps to kind order or to stale manual places. On 1.2.119 only column 0 followed the sort (deduction columns centred on inputs whatever the sort), so only column 0 jumped; the finding's comparison is right. No guard or test pins the opposite. Under the default By kind no jump. Minor: the order is recoverable by picking the sort again, nothing is written to nodes.",
+      "evidence": "investigation.mjs:2042-2045 `order.forEach((nodeId, i) => { manual[nodeId] = i; }); await setCaseMeta(chapter, { sort: \"manual\", manual });`; case-layout.mjs:54-56 `const at = n => (Number.isFinite(manual?.[n.id]) ? manual[n.id] : Infinity); ... kindCompare`; git diff e515907d 03ee8de9 -- scripts/case-view.mjs: fixedOrder = [\"manual\", \"kind\", \"room\", \"state\"] new; old moveCaseNode identical (e515907d investigation.mjs:1972-1994)."
+     }
+    },
+    {
+     "id": "r120-P-3",
+     "severity": "minor",
+     "title": "Another GM's change is not drawn while this GM's focus is on a select of the Map, and the line's own handler leaves it there",
+     "where": "scripts/live.mjs:175-185, :443; scripts/investigation.mjs:1895-1897; docs/handbooks/gm-handbook.en.md:1323; .github/release-notes/v1.2.120.md Known gaps",
+     "what_happens": "The store echo of another GM's write schedules an unforced rebuild; with the focus on a SELECT inside the region it is deferred until the focus leaves. After a mode pick (or a Dive set pick) the new listener refreshes and puts the focus back on that select, so the GM's planner then stops showing other GMs' changes until they click elsewhere.",
+     "evidence": "live.mjs:443 `if (!active || !element.contains(active) || active.tagName === \"SELECT\") return null;`; investigation.mjs:1895-1897 refocus by name; handbook: 'and the Map, and every other GM's open planner, shows it at once'.",
+     "failure_scenario": "GM A picks a trial mode on a node and turns to talk; GM B ticks a Rests on box and adds a deduction; A's Map does not show either until A clicks somewhere in or out of the Map. The handbook told A it shows at once.",
+     "confidence": "read",
+     "refutation_tried": "This is the select hold the release notes list for the Sound window and ROUTING.md routes to R1 (1.2.121); it is a finding here only because 1.2.120's own text (handbook sentence, known gaps) says otherwise for the planner, and the new refocus makes the state the normal one after a pick.",
+     "verifier": {
+      "id": "r120-P-3",
+      "kind": "finding",
+      "verdict": "weakened",
+      "severity": "minor",
+      "why": "Stands for the text: the GM handbook's 'every other GM's open planner shows it at once' is false while that other GM's focus is on a select of the region (live.mjs:443 keptFocus returns null for SELECT, then isEditing holds the rebuild as pending until focusout), and the release notes' known gaps do not say so for the planner. Weakened on the cause: the planner's refocus (investigation.mjs:1895-1897) does not make the state ordinary. A native select keeps the focus after a pick on e515907d too (nothing redrew it there); on 03ee8de9 the planner's own redraw would have dropped the focus and the refocus puts it back, so both trees end with the focus on the select after a pick. The hold itself is the pre-existing select rule routed to R1, not a change of this line. The finding is a documentation overstatement of a known gap.",
+      "evidence": "live.mjs:443 `if (!active || !element.contains(active) || active.tagName === \"SELECT\") return null;`; live.mjs isEditing: `if (tag === \"TEXTAREA\" || tag === \"SELECT\") return true;`; live.mjs rebuild: `if (!force && !keep && isEditing(element)) { pending = true; ... return; }`; docs/handbooks/gm-handbook.en.md section 14 (diff line +43); investigation.mjs:1889-1897 (focus read before refresh, given back by name)."
+     }
+    },
+    {
+     "id": "r120-P-4",
+     "severity": "minor",
+     "title": "A counter's line back to an earlier column still runs through nodes, also when it skips no column",
+     "where": "scripts/case-view.mjs:309-316 (back lines: track in the gutter left of the target's column, first stretch from the counter's left edge at its height); :185-200 (no lane for a line back)",
+     "what_happens": "A counter stands in the column of its deepest target (case-layout.mjs depthOf). Refuting deductions in two columns, its line to the earlier one runs left at the counter's height across every column from its own to the target's, the target's own column included, and no lane is kept for it. The release notes say only a line back that skips a column is not covered, and that none was in the cases read.",
+     "evidence": "t3.mjs on 03ee8de9, 600 random layouts: 49 back stretches through a node in 45 layouts, e.g. k0>d1 through d2 (counter in column 2, both deductions in column 1); forward stretches 0. e515907d: back 48, so not a regression.",
+     "failure_scenario": "A GM adds a counter that refutes two deductions, one in each of two deduction columns; its dashed line to the earlier one is drawn over the deduction standing at the counter's height in that column, which the owner asked never to happen.",
+     "confidence": "read",
+     "refutation_tried": "R8014's crowded case has one counter refuting one deduction, so it stands beside it and its bracket passes nothing; the case-map-sweep 'through' read runs on probe 08's captures, which the README lists without such a counter. A counter has no Rests on field in the Map (investigation.mjs:1517-1522), so this needs two refuted deductions in different columns, which the Refutes list allows.",
+     "verifier": {
+      "id": "r120-P-4",
+      "kind": "finding",
+      "verdict": "holds",
+      "severity": "minor",
+      "why": "routePlan for a back line takes hi = T.x, the gutter left of the target's own column, and starts at the counter's left edge at its height (ex: back ? S.x), so a line from a counter to a deduction in an earlier column runs across that target's column at the counter's height; depthOf (case-layout.mjs:111-113) puts a counter in its deepest target's column, so a counter refuting deductions in two columns does this with no column skipped. mapPlace keeps no lane for a back line. Unchanged from e515907d (old routePlan: `hi = back ? T.x : ...`), so not a regression; the finding is that the release notes' 'Not covered' line is narrower than the truth. R8014's only counter refutes one deduction, so it never measures this.",
+      "evidence": "case-view.mjs:309-316 (03ee8de9) `const back = T.x <= S.x; ... const hi = T.x; ... ex: back ? S.x : right(S), ys: midOf(S, g)`; e515907d case-view.mjs:257-258 same for back lines; case-layout.mjs:111-113; tests-tier0.mjs R8014 `k1: { kind: \"counter\", label: \"k1\", refutes: [\"d2\"] }`; .github/release-notes/v1.2.120.md:29-30. The first reader's count (49 stretches in 45 of 600 layouts, 48 on e515907d) not re-run."
+     }
+    },
+    {
+     "id": "r120-P-5",
+     "severity": "nit",
+     "title": "R8014's text says 'under each sort' and reads three of the five",
+     "where": "scripts/tests-tier0.mjs R8014 (`for (const sort of [\"kind\", \"manual\", \"uncrossed\"])`); docs/dev/R-REGISTRY.md R8014 row",
+     "what_happens": "room and state are not read; they share the fixed-order path with kind and manual, so the gap is in the claim's wording, not likely in the code.",
+     "evidence": "for (const sort of [\"kind\", \"manual\", \"uncrossed\"]) for (const tall of [false, true])",
+     "failure_scenario": "A later change to the room or state comparator that moves a node into a lane would not turn R8014 red.",
+     "confidence": "read",
+     "refutation_tried": "Checked the fixed path: fixedOrder (case-view.mjs:174) treats the four sorts alike.",
+     "verifier": {
+      "id": "r120-P-5",
+      "kind": "finding",
+      "verdict": "holds",
+      "severity": "nit",
+      "why": "R8014's name says 'under each sort' and its loop reads kind, manual and uncrossed only; room and state share the fixed path, so the gap is wording and future coverage.",
+      "evidence": "scripts/tests-tier0.mjs (R8014 body) `for (const sort of [\"kind\", \"manual\", \"uncrossed\"]) for (const tall of [false, true])`; docs/dev/R-REGISTRY.md:1796 'under each sort'."
+     }
+    }
+   ],
+   "regressions": [
+    {
+     "what": "Rule 1 for a hand (E44 C2b): a press inside a keepLive region is let go by a text field's change that the press itself caused, so a rebuild can replace the control before its click; in the planner the new write-on-change makes that rebuild immediate (r120-P-1).",
+     "worked_on": "e515907d: no change listener released the press; the planner wrote node fields only on leaving the Map or closing the window",
+     "where": "scripts/live.mjs:306; scripts/investigation.mjs:1883-1900",
+     "confidence": "suspected (code read; the lost click not run in a browser)"
+    }
+   ],
+   "not_established": [
+    {
+     "what": "Whether a click is lost after editing a node's text (r120-P-1)",
+     "live_check": "Foundry v14 in Chromium, Investigation on the Map with All open: type in a deduction's name, then click its Move down directly; repeat with a Rests on box of another node. Read whether the Move / tick happened on the first click (game.drpg live diagnostics deferred/refresh counts for .drpg-case-live)."
+    },
+    {
+     "what": "That a native select's pick at a table sends no pointerup to the page (the premise of R8012 and the sort test)",
+     "live_check": "LIVE-E44-02 / LIVE-P120-01: pick a sort with the mouse on a real table in Chromium and Firefox and read that the Map redraws in the new order with no other click."
+    },
+    {
+     "what": "The hover contrast in Foundry's frame, and of the node's secondary text (kind line, state, badges)",
+     "live_check": "LIVE-P120-01: hover a deduction, a Remnant and a Key slot node under both themes in Foundry; read the name and the kind line."
+    },
+    {
+     "what": "The toolbar's one row at about 1000 px in Foundry and in a browser without field-sizing",
+     "live_check": "Open Investigation at 1000-1100 px in Firefox and Chromium under Stained Glass; read the toolbar's rows."
+    },
+    {
+     "what": "A gutter's track count when every line into one column now turns in the gutter before it (routePlan hi = T.x): a large case may put more than 20 sources in one gutter, where tracks stand closer than ROUTE.track",
+     "live_check": "A season case with 15 or more Remnants and deductions feeding the solution column; read the solution gutter's spacing (R7829's shared-stretch read on that case)."
+    },
+    {
+     "what": "An IME composition in the next field while the forced refresh after a field's write runs (the forced rebuild skips the composing guard)",
+     "live_check": "Type Polish through an IME into a node's text field right after leaving another changed field; read that the composed word survives."
+    }
+   ],
+   "verify": [
+    {
+     "id": "r120-P-1",
+     "kind": "finding",
+     "verdict": "holds",
+     "severity": "major",
+     "why": "Measured in a real browser, no longer only suspected. With a text field of the region focused and changed, a real mouse press on another control of the region runs: pointerdown (live.mjs holds), mousedown, then the field's change (live.mjs onChange, capture, releases the press with nothing wanted), the planner's write, blur/focusout, focusin on the pressed button; the write lands about 15 ms later and refresh() is a forced rebuild with nothing holding it, so the region (toolbar, node editors, Move, Rests on) is replaced before the pointer is let go. Chromium then sends pointerup and mouseup to the new button but dispatches no click at all, to any target. On e515907d's live.mjs the same press holds through the change, the write's refresh is deferred ('a press inside it is not let go'), and the click lands; with e515907d's live.mjs and 1.2.120's planner write the click also lands, so the onChange release (live.mjs:306-307) is the cause and the planner's write-and-refresh (investigation.mjs:1883-1900) is what makes it bite. Narrower than 'can be lost' in one way only: it needs the write to finish before the pointer is let go. A deduction, counter or solution field writes through the GM store (setCaseNode -> store patch -> 0 ms timer -> client setting), about 15 ms here, so the click is lost at every press length tried (30, 60, 100, 150 ms). A Remnant's or Key slot's field writes the token on the server (setRemnantPublic), a race: modelled at 40 ms the click was lost, at 150 ms it landed. Also the store's own echo (clientSettingChanged, 120 ms debounce) would replace the region on its own for a press held longer than about 135 ms. Nothing is lost from the field (the typed name is written); what is lost is the second action, and a Rests on tick that silently did not happen can go unnoticed, which keeps it major. Not measured in Firefox or in Foundry's frame; Chromium is the engine of Foundry's desktop app.",
+     "evidence": "Standalone page under /tmp/r120-vP (page.html, drive.mjs): each tree's own live.mjs (git show <rev>:scripts/live.mjs, its three imports stubbed), a region shaped as the Map's (.drpg-case-live > tools, .drpg-case-graph > .drpg-case-canvas > .drpg-case-edit with input[name=d1:label], a Move button with the graph's delegated click listener rewired in `after` as wireCaseMap does, another node's Rests on checkbox, an Add deduction button in the toolbar), keepLive with whileEditing and a watched store, and the planner's change listener modelled (write via setTimeout(writeMs) then refresh()). Driven by Playwright's real mouse in Chromium 153 (/opt/pw-browsers/chromium-1243): click the field, type ' X', mouse.down on the target, wait, mouse.up. 03ee8de9 + write, Move, 100 ms: 171.1 pointerdown button, 171.2 mousedown, 171.3 change input, 171.8 write begins, 172.0 blur/focusout input -> button, 172.1 focusin button, 186.2 write ends, refresh(), 187.3 REBUILT, 274.2 pointerup button, 274.3 mouseup button, no click, no onMove; 306.9 REBUILT again (the echo). Result LOST at holds 30/60/100/150 ms; Rests on tick LOST (box unticked); Add deduction LOST; writeMs 40 LOST, writeMs 150 LANDED. e515907d, no write (as shipped): 213.0 click button, onMove, LANDED; tick and Add LANDED. e515907d live.mjs + 1.2.120's write: 144.7 'deferred - a press inside it is not let go', 231.0 click, onMove, LANDED. 03ee8de9 live.mjs, no write: LANDED. Code: live.mjs:306 onChange -> release(); release() with heldWanted false returns at once; investigation.mjs:1888-1894 saveFieldsIn(...).then(... refresh()); live.mjs:342 refresh = rebuild(true); gm-store.mjs:815-817 schedule 0 ms; region includes the toolbar (investigation.mjs:1196, case-map.mjs:500, :560)."
+    },
+    {
+     "id": "r120-P-1-regression",
+     "kind": "regression",
+     "verdict": "holds",
+     "severity": "major",
+     "why": "The same as r120-P-1, now measured on both trees: the click after leaving an edited field lands on e515907d and is lost on 03ee8de9 (Chromium, real mouse). Rule 1 for a hand (E44 C2b) no longer holds for a press that itself blurs a changed text field. The comment at live.mjs:302-305 ('no click follows it to lose its node') is true of a select's pick and false of a text field's change, which is caused by the press.",
+     "evidence": "See r120-P-1: e515907d Move/tick/Add LANDED; 03ee8de9 LOST for all three; the cross runs isolate live.mjs:306-307 as the cause."
+    },
+    {
+     "id": "r120-P-2",
+     "kind": "finding",
+     "verdict": "holds",
+     "severity": "minor",
+     "why": "moveCaseNode (investigation.mjs:2022-2047) is unchanged from e515907d: it writes manual places for the moved column only and sets the sort to manual. The manual comparator (case-layout.mjs:54-57) puts a node with no manual place at Infinity and falls back to kindCompare, and since 1.2.120 every column under manual keeps the layout's order (case-view.mjs fixedOrder, packColumn fixed). So after a Move under By room, By state or Fewer crossings, every other column jumps to kind order or to stale manual places. On 1.2.119 only column 0 followed the sort (deduction columns centred on inputs whatever the sort), so only column 0 jumped; the finding's comparison is right. No guard or test pins the opposite. Under the default By kind no jump. Minor: the order is recoverable by picking the sort again, nothing is written to nodes.",
+     "evidence": "investigation.mjs:2042-2045 `order.forEach((nodeId, i) => { manual[nodeId] = i; }); await setCaseMeta(chapter, { sort: \"manual\", manual });`; case-layout.mjs:54-56 `const at = n => (Number.isFinite(manual?.[n.id]) ? manual[n.id] : Infinity); ... kindCompare`; git diff e515907d 03ee8de9 -- scripts/case-view.mjs: fixedOrder = [\"manual\", \"kind\", \"room\", \"state\"] new; old moveCaseNode identical (e515907d investigation.mjs:1972-1994)."
+    },
+    {
+     "id": "r120-P-3",
+     "kind": "finding",
+     "verdict": "weakened",
+     "severity": "minor",
+     "why": "Stands for the text: the GM handbook's 'every other GM's open planner shows it at once' is false while that other GM's focus is on a select of the region (live.mjs:443 keptFocus returns null for SELECT, then isEditing holds the rebuild as pending until focusout), and the release notes' known gaps do not say so for the planner. Weakened on the cause: the planner's refocus (investigation.mjs:1895-1897) does not make the state ordinary. A native select keeps the focus after a pick on e515907d too (nothing redrew it there); on 03ee8de9 the planner's own redraw would have dropped the focus and the refocus puts it back, so both trees end with the focus on the select after a pick. The hold itself is the pre-existing select rule routed to R1, not a change of this line. The finding is a documentation overstatement of a known gap.",
+     "evidence": "live.mjs:443 `if (!active || !element.contains(active) || active.tagName === \"SELECT\") return null;`; live.mjs isEditing: `if (tag === \"TEXTAREA\" || tag === \"SELECT\") return true;`; live.mjs rebuild: `if (!force && !keep && isEditing(element)) { pending = true; ... return; }`; docs/handbooks/gm-handbook.en.md section 14 (diff line +43); investigation.mjs:1889-1897 (focus read before refresh, given back by name)."
+    },
+    {
+     "id": "r120-P-4",
+     "kind": "finding",
+     "verdict": "holds",
+     "severity": "minor",
+     "why": "routePlan for a back line takes hi = T.x, the gutter left of the target's own column, and starts at the counter's left edge at its height (ex: back ? S.x), so a line from a counter to a deduction in an earlier column runs across that target's column at the counter's height; depthOf (case-layout.mjs:111-113) puts a counter in its deepest target's column, so a counter refuting deductions in two columns does this with no column skipped. mapPlace keeps no lane for a back line. Unchanged from e515907d (old routePlan: `hi = back ? T.x : ...`), so not a regression; the finding is that the release notes' 'Not covered' line is narrower than the truth. R8014's only counter refutes one deduction, so it never measures this.",
+     "evidence": "case-view.mjs:309-316 (03ee8de9) `const back = T.x <= S.x; ... const hi = T.x; ... ex: back ? S.x : right(S), ys: midOf(S, g)`; e515907d case-view.mjs:257-258 same for back lines; case-layout.mjs:111-113; tests-tier0.mjs R8014 `k1: { kind: \"counter\", label: \"k1\", refutes: [\"d2\"] }`; .github/release-notes/v1.2.120.md:29-30. The first reader's count (49 stretches in 45 of 600 layouts, 48 on e515907d) not re-run."
+    },
+    {
+     "id": "r120-P-5",
+     "kind": "finding",
+     "verdict": "holds",
+     "severity": "nit",
+     "why": "R8014's name says 'under each sort' and its loop reads kind, manual and uncrossed only; room and state share the fixed path, so the gap is wording and future coverage.",
+     "evidence": "scripts/tests-tier0.mjs (R8014 body) `for (const sort of [\"kind\", \"manual\", \"uncrossed\"]) for (const tall of [false, true])`; docs/dev/R-REGISTRY.md:1796 'under each sort'."
+    },
+    {
+     "id": "claim: node fields written on each change, drawn at once, every other GM's planner shows it at once",
+     "kind": "claim",
+     "verdict": "holds",
+     "severity": "minor",
+     "why": "The first reader's 'partly' holds. The write and this GM's redraw are real (my Chromium run: the typed name is written and the region redrawn within about 15 ms of the field's change). Two parts do not hold as written: another GM's planner with its focus on a select waits (r120-P-3), and the redraw on a field left by a press loses that press's click (r120-P-1, measured).",
+     "evidence": "r120-P-1 trace (label 'Deduction one X' kept after the rebuild); live.mjs:443."
+    },
+    {
+     "id": "claim: OWN-119-1 / R8014 lines no longer pass over nodes",
+     "kind": "claim",
+     "verdict": "holds",
+     "severity": "minor",
+     "why": "'partly' holds: forward lines get a lane (routePlan hi = T.x with mapPlace's lanes); back lines are routed as on 1.2.119 and cross their target's column (r120-P-4); R8014 reads three sorts (r120-P-5).",
+     "evidence": "case-view.mjs:309-316; case-layout.mjs:111-113; R8014 sort loop."
+    },
+    {
+     "id": "claim: toolbar on one row at about 1000 px, column-order select at the select size",
+     "kind": "claim",
+     "verdict": "holds",
+     "severity": "nit",
+     "why": "'partly' holds: the one-row width rests on `field-sizing: content`, which the CSS comment itself calls Chromium's and says a browser without it keeps the longest option's width, the case that put All open on its own row at 1008 px; the release notes state the one-row figure without that condition. Measured on the sweep's page, not in Foundry's frame. Not re-measured here.",
+     "evidence": "styles/components.css:3802-3809; .github/release-notes/v1.2.120.md:31-32."
+    },
+    {
+     "id": "claim: GM handbook 'the order you set is the order drawn' after Move",
+     "kind": "claim",
+     "verdict": "holds",
+     "severity": "minor",
+     "why": "'partly' holds: the moved column is drawn as set; the other columns re-sort to kind or stale manual places when the sort was not By kind or By hand (r120-P-2).",
+     "evidence": "investigation.mjs:2042-2045; case-layout.mjs:54-56."
+    }
+   ]
+  },
+  "H": {
+   "claims": [
+    {
+     "id": "C1",
+     "claim": "For a GM the HUD loses elevation, both bar inputs, the status palette, the movement palette, target and combat (93e1e827; release notes; R8050)",
+     "verdict": "holds",
+     "where": "scripts/token-hud.mjs:55-65 (REMOVED), :120 (node.remove())",
+     "test": "R8050 (tests-tier1.mjs:63727), scenario 15 H1",
+     "test_measures": "part: R8050 runs the real trimHudFor on a hand-copied fixture of Daggerheart 2.12.8's tokenHUD.hbs (tests-tier1.mjs:64682 dhTokenHud). Whether the live v14/Daggerheart markup matches the selectors is not read here (no Daggerheart or v14 source on this machine): LIVE-H120-01."
+    },
+    {
+     "id": "C2",
+     "claim": "For a GM the HUD keeps visibility, bring to front, lock, the token's settings, the floor palette and Daggerheart's companion and party buttons",
+     "verdict": "holds",
+     "where": "scripts/token-hud.mjs:120-124 (only REMOVED is taken out)",
+     "test": "R8050, R8052",
+     "test_measures": "part: the fixture has the companion button but leaves the party button out (tests-tier1.mjs:64682 comment)."
+    },
+    {
+     "id": "C3",
+     "claim": "A player has no token HUD: emptied, marked drpg-token-hud-none, aria-hidden, display: none (release notes: 'a right click on their own token opens nothing')",
+     "verdict": "partly",
+     "where": "scripts/token-hud.mjs:114-118; styles/danganronpa.css:19014-19016",
+     "test": "R8050 (player branch), R8053 (notDrawn on the CSS text), scenario 15 H1 (p1: none true, inputs 0)",
+     "test_measures": "part: the markup and the CSS text. Whether Foundry v14 draws an empty frame, a flash, or a core rule beats the display: none is not measured (LIVE-H120-01). 'Opens nothing' is the HUD only: a double right-click on an owned token is a separate Foundry road (H-3)."
+    },
+    {
+     "id": "C4",
+     "claim": "Kept controls labelled from DRPG.TokenHud (EN+PL), as aria-label and tooltip, and the words turn when Foundry turns the icon",
+     "verdict": "holds",
+     "where": "scripts/token-hud.mjs:73-98; lang/en.json and lang/pl.json DRPG.TokenHud (7 keys each, read)",
+     "test": "R8051",
+     "test_measures": "yes on the fixture, with jsdom's MutationObserver after a class swap; whether v14 re-renders or toggles in place is not read (the observer covers either)."
+    },
+    {
+     "id": "C5",
+     "claim": "The trim runs at renderTokenHUD from registerHud and replaces E29 C7's stillTokenBars",
+     "verdict": "holds",
+     "where": "scripts/hud.mjs:262; stillTokenBars gone from scripts/",
+     "test": "R8052",
+     "test_measures": "yes as a GM. Its non-GM expected list (tests-tier1.mjs:63792) is stale (H-4)."
+    },
+    {
+     "id": "C6",
+     "claim": "Every rule of the module's sheets that names the HUD is under #token-hud.drpg-token-hud, so nothing reaches another HUD",
+     "verdict": "holds",
+     "where": "styles/danganronpa.css:19014-19097; styles/stained-glass.css:5351-5377; styles/pixel-icons.css host rows",
+     "test": "R8053",
+     "test_measures": "yes, on the stylesheet text."
+    },
+    {
+     "id": "C7",
+     "claim": "Every kept control wears a module glyph in both themes (release notes); 'neither theme draws a solid square' (R8053)",
+     "verdict": "partly",
+     "where": "styles/danganronpa.css:19048-19073; styles/pixel-icons.css (lock-open, stairs on :root and under Stained Glass)",
+     "test": "R8053",
+     "test_measures": "part: R8053 checks that each glyph variable is declared, not what is drawn. Under Stained Glass with high contrast an on toggle draws no visible glyph (H-1); Daggerheart's companion button keeps Daggerheart's own picture (arrow-dunk.png, by design per token-hud.mjs:38-39)."
+    },
+    {
+     "id": "C8",
+     "claim": "A toggle that is on turns to Bone with an Ink glyph, 12.88:1 either way round (danganronpa.css and stained-glass.css comments)",
+     "verdict": "partly",
+     "where": "styles/danganronpa.css:19038-19042; styles/stained-glass.css:5363-5367 versus :5374-5377",
+     "test": "none (R8053 reads no colour)",
+     "test_measures": "not measured; the line's own shot docs/dev/h120/shots/glass-hc.png shows the hidden and locked buttons as blank Ink hexagons (H-1)."
+    },
+    {
+     "id": "C9",
+     "claim": "Where the removed controls went is in the four handbooks (b022fde1): conditions on the sheet's Effects tab, height in the token's settings, targeting by T or a double right-click",
+     "verdict": "partly",
+     "where": "docs/handbooks/gm-handbook.en.md:440, gm-handbook.pl.md:440, player-handbook.en.md:1041, player-handbook.pl.md:1041",
+     "test": "none (text)",
+     "test_measures": "n/a. The Effects tab does not exist on a character sheet (H-2); a double right-click on an owned token opens its settings rather than targeting, as Foundry's Token is recalled (H-3, suspected)."
+    },
+    {
+     "id": "C10",
+     "claim": "'an effect can still be added on the sheet' (token-hud.mjs:23-24, what removing the status palette costs a GM)",
+     "verdict": "no",
+     "where": "scripts/token-hud.mjs:22-24 versus scripts/sheet-actions.mjs:59-67 and scripts/sheet.mjs:182",
+     "test": "none",
+     "test_measures": "n/a (H-2)."
+    },
+    {
+     "id": "C11",
+     "claim": "Comments made untrue were fixed (states.mjs, resource-guard.mjs, settings.mjs, dice-hold.mjs)",
+     "verdict": "partly",
+     "where": "scripts/states.mjs:19-23, :464-469, :486-487; scripts/resource-guard.mjs:86-88; scripts/settings.mjs:3158-3161; scripts/dice-hold.mjs:176",
+     "test": "none",
+     "test_measures": "n/a. Those four hold; .claude/rules/code.md:80 still lists stillTokenBars among hud.mjs's contents and has no token-hud.mjs row; AUDIT 9.2 items 111 and 414 still ask a table to check HUD bar inputs that are no longer drawn (H-5)."
+    },
+    {
+     "id": "C12",
+     "claim": "movement.mjs sends back an unlawful floor change however it was written (token-hud.mjs:34-35, handbooks)",
+     "verdict": "unread",
+     "where": "scripts/movement.mjs:604 (a change of elevation or level enters the judge) seen; the judge's verdict for a level change not traced",
+     "test": "not read",
+     "test_measures": "not read by this lane."
+    },
+    {
+     "id": "C13",
+     "claim": "No module rule needs a removed control: the module's rolls read no targets, no rule runs on Foundry's combat, the module's moves are judged by rooms",
+     "verdict": "holds",
+     "where": "scripts/private-rolls.mjs:726, :792 (targets cleared); no game.combat/inCombat/combat hook reader in scripts/ (call-world.mjs:632 only re-points combatants); elevation read only as a passage's height (movement.mjs:1714-1732, :2212); statuses put on by the module itself (states.mjs:401, death.mjs:97, :651)",
+     "test": "none",
+     "test_measures": "by grep of scripts/ on 03ee8de9."
+    },
+    {
+     "id": "C14",
+     "claim": "Red first at e515907d, mutants 7/7 killed, quick gate and tier 1 green (1819 passed)",
+     "verdict": "unread",
+     "where": "commit 93e1e827",
+     "test": "R8050-R8053",
+     "test_measures": "not re-run (brief); scratchpad/base/r120-tier1.log was empty when read, r120-tier2.log absent."
+    },
+    {
+     "id": "C15",
+     "claim": "The HUD's look 'approved on its shots' / 'seen by the owner' (release notes v1.2.120.md:35, :125)",
+     "verdict": "partly",
+     "where": ".github/release-notes/v1.2.120.md:35; tools/glyphs.json:6915, :6942, :14314",
+     "test": "none",
+     "test_measures": "n/a: the three new glyph rows say 'not yet seen by the owner' / 'not approved by the owner in a drawing round', and 93e1e827 says 'not owner-approved yet' (H-6)."
+    },
+    {
+     "id": "C16",
+     "claim": "The bars are still drawn on the token",
+     "verdict": "holds",
+     "where": "no change to states.mjs reserveBar / patches.mjs token-bars-reserve in the range; only the HUD's inputs are removed",
+     "test": "none new",
+     "test_measures": "LIVE-E24-01 at a table."
+    }
+   ],
+   "asks": [
+    {
+     "ask": "OWN-119-5: remove combat",
+     "status": "done",
+     "where": "token-hud.mjs:64"
+    },
+    {
+     "ask": "OWN-119-5: remove target",
+     "status": "done",
+     "where": "token-hud.mjs:63 (targeting stays on T; the handbooks' double right-click is H-3)"
+    },
+    {
+     "ask": "OWN-119-5: remove movement action",
+     "status": "done",
+     "where": "token-hud.mjs:61-62"
+    },
+    {
+     "ask": "OWN-119-5: remove assign status",
+     "status": "done",
+     "where": "token-hud.mjs:59-60 (cost: no UI road left to Daggerheart's conditions on a student's sheet, H-2)"
+    },
+    {
+     "ask": "OWN-119-5: remove both bar inputs",
+     "status": "done",
+     "where": "token-hud.mjs:57-58 (the whole .attribute.bar1/.bar2; the middle column stays, empty)"
+    },
+    {
+     "ask": "OWN-119-5: remove elevation",
+     "status": "done",
+     "where": "token-hud.mjs:56"
+    },
+    {
+     "ask": "OWN-119-5: keep visibility, sort, lock and configure",
+     "status": "partly",
+     "where": "token-hud.mjs:114-124",
+     "note": "Kept for a GM. For a player nothing is kept: the commit and release notes cite later owner words ('gracz niech nie widzi ustawien tokena wcale', 'Niech gracz nie ma menu tokena') that ROUTING.md:83 does not record; the audit's record holds only the first ask. Visibility and lock were GM-only in the template anyway."
+    },
+    {
+     "ask": "OWN-119-5: restyle to the module's icons and look",
+     "status": "partly",
+     "where": "danganronpa.css:18994-19097, stained-glass.css:5345-5377, pixel-icons.css",
+     "note": "Done in both themes for the ordinary state; under Stained Glass with high contrast an on toggle shows a blank hexagon (H-1); Daggerheart's companion and party buttons keep Daggerheart's pictures."
+    },
+    {
+     "ask": "Coordinator (b022fde1): handbooks say where the removed controls went (GM: double right-click beside T; player: conditions on the Effects tab, height is the GM's, targeting T or double right-click)",
+     "status": "partly",
+     "where": "gm-handbook.en/pl.md:440, player-handbook.en/pl.md:1041",
+     "note": "Written as asked, but the Effects tab is the module's Rules tab on a character sheet (H-2) and the double right-click claim is doubtful for an owner (H-3)."
+    },
+    {
+     "ask": "Coordinator: 9.2 item 698 LIVE-H120-01",
+     "status": "done",
+     "where": "audit/AUDIT-1.2.42.md:1513",
+     "note": "It does not ask the table to try the double right-click or to find a condition on the sheet, the two handbook claims this lane doubts."
+    }
+   ],
+   "findings": [
+    {
+     "id": "H-1",
+     "severity": "minor",
+     "title": "Stained Glass with high contrast: a hidden or locked token's HUD button draws no icon (Ink glyph on Ink)",
+     "where": "styles/stained-glass.css:5363-5367 and :5374-5377",
+     "what_happens": "The glass high-contrast rule sets the button's background to Ink and is more specific than the on-state rule, which sets the glyph colour to Ink; the glyph is masked currentColor, so it vanishes on an on toggle.",
+     "evidence": "stained-glass.css:5363 'body.drpg-theme-stained-glass #token-hud.drpg-token-hud .control-icon.active { ... background: var(--drpg-sg-bone); color: var(--drpg-sg-ink); }' (specificity 1,4,1); :5374 'body.drpg-high-contrast.drpg-theme-stained-glass #token-hud.drpg-token-hud :is(.control-icon, .palette.palette-list) { border-color: var(--drpg-sg-bone); background: var(--drpg-sg-ink); }' (1,5,1, sets no color). The line's own shot docs/dev/h120/shots/glass-hc.png, cell 'GM: token hidden and locked', shows the visibility and lock buttons as blank black hexagons; glass-en.png shows them Bone with the glyph.",
+     "failure_scenario": "A GM on Stained Glass with high contrast on hides a token and right-clicks it: the visibility button is an empty black hexagon, as is lock on a locked token; the state reads only from the tooltip, against the comment's 'the state reads without the tooltip'.",
+     "confidence": "read",
+     "refutation_tried": "Computed specificity of both selectors (:is takes .palette.palette-list, 0,2,0); checked no later rule restores the colour or background; opened the shipped shot, which shows it.",
+     "verifier": {
+      "id": "H-1",
+      "kind": "finding",
+      "verdict": "holds",
+      "severity": "minor",
+      "why": "Specificity re-computed: the .active rule is (1,4,1) and sets background Bone and color Ink; the high-contrast glass rule is (1,5,1) because :is() takes its most specific argument (.palette.palette-list, two classes), so it wins on background (Ink) and sets no color. The glyph is masked currentColor (danganronpa.css:19053-19066), so Ink on Ink. No other sheet names token-hud apart from pixel-icons.css's glyph variables, which set no colour. Minor, not nit: high contrast is the mode for readers who need the state visible, and the comment promises the state reads without the tooltip.",
+      "evidence": "stained-glass.css:5363-5367 (.active), :5374-5377 (high contrast); danganronpa.css:19038-19042; the line's own shot docs/dev/h120/shots/glass-hc.png, middle cell 'GM: token hidden and locked': the lock and visibility hexagons are solid black with no glyph, while the left cell's off-state buttons show theirs."
+     }
+    },
+    {
+     "id": "H-2",
+     "severity": "minor",
+     "title": "The handbooks and token-hud.mjs send Daggerheart's conditions to the sheet's Effects tab, which the module replaced with Monokuma's Rules tab",
+     "where": "docs/handbooks/gm-handbook.en.md:440, gm-handbook.pl.md:440, player-handbook.en.md:1041, player-handbook.pl.md:1041; scripts/token-hud.mjs:22-24",
+     "what_happens": "On every character sheet sheet.mjs runs replaceEffectsTab, which relabels the Effects tab 'Rules' (gavel) and replaces its section with the rules panel; no effect list or add control is drawn. With the HUD's status palette gone, a GM has no interface road left to put a Daggerheart condition on a student (only a console call), and a player looking for 'conditions on the Effects tab' finds Monokuma's rules.",
+     "evidence": "sheet-actions.mjs:59-67 'section.classList.add(\"drpg-rules-tab\"); section.replaceChildren(buildRulesPanel(app));'; sheet.mjs:182 '[\"replaceEffectsTab\", ...]' in SHEET_STEPS (character sheets, sheet.mjs onRenderCharacterSheet). GM handbook :440 'Daggerheart's conditions in the sheet's Effects tab'; player handbook :1041 'your character's conditions are on your sheet (the Effects tab)'; player handbook :568 itself says rules land on 'the Rules tab of every sheet'. token-hud.mjs:23-24 'an effect can still be added on the sheet'.",
+     "failure_scenario": "A GM who wants a student Restrained (a Daggerheart condition) right-clicks the token (no palette), opens the sheet as the handbook says, finds no Effects tab, only 'Rules'. A Polish player reading 'zakładka Effects' finds none. The cost of removing the palette was recorded as 'asked of the coordinator with this default' on the premise that the sheet still adds effects.",
+     "confidence": "read",
+     "refutation_tried": "Looked for any sheet mode that skips replaceEffectsTab (the step takes no mode) and for another effect control on the character sheet (none found in sheet*.mjs); Breakdown and Wounded show as badges under the reserves (sheet-sidebar paintStateBadges), which is not what the handbook names. Adversary sheets keep Daggerheart's tab, but the text speaks of a student's sheet.",
+     "verifier": {
+      "id": "H-2",
+      "kind": "finding",
+      "verdict": "holds",
+      "severity": "minor",
+      "why": "Read every road I could find. Apply or remove a Daggerheart condition on a student, as a GM, on 03ee8de9: (1) the HUD status palette - removed for every token (token-hud.mjs:59-60, :120); (2) the character sheet - its Effects tab is replaced by the Rules panel on every character sheet in every mode (sheet-actions.mjs:59-67, sheet.mjs:182 in SHEET_STEPS, run from renderCharacterSheet sheet.mjs:70), and the only states the sheet draws are Breakdown and Wounded badges (sheet-sidebar.mjs:192-216); (3) Daggerheart's effects display - hidden on every screen (danganronpa.css:8130, :15091; gm-handbook.en.md:1776); (4) the module's own panels - no toggleStatusEffect outside death.mjs:97/:651 (dead) and states.mjs (its own two), no GM control for a status; (5) Token settings - Foundry's token config carries no status field (recalled, no v14 source here); (6) a macro from the Macro Directory (the hotbar is hidden, the directory still runs, gm-handbook.en.md:1776) or the console, e.g. actor.toggleStatusEffect('restrained') - works, scripted only. Not read, possible indirect roads: a Daggerheart action's effect applied from its chat card to a target (T still targets), an ActiveEffect dropped on the sheet, an effect on one of the student's items (item sheets are not replaced). Removing one has no UI road at all that I found. Why only minor: no rule of the module relies on a Daggerheart condition - 'This game has two conditions, both automatic ... and no spells' (sheet-actions.mjs:43-45; rules.mjs:11; config.mjs:3366-3370; states.mjs:8-19), Breakdown, Wounded and dead are put on and off by the module, the creative-use 'Works: apply an effect' ruling grants resource amounts, not statuses (messenger-app.mjs:953-955), and no handbook asks a GM to apply a condition. The cost is the four handbook sentences that send GM and player to an Effects tab that is the Rules tab (and the player one says 'your character's conditions are on your sheet'), plus the comment token-hud.mjs:23-24.",
+      "evidence": "gm-handbook.en.md:440 'Daggerheart's conditions in the sheet's Effects tab'; gm-handbook.pl.md:440 'w zakładce Effects arkusza'; player-handbook.en.md:1041 and .pl.md:1041 '(zakładka Effects)'; lang/en.json DRPG.Rules.tab 'Rules'. Also stale beside it, older than this line: gm-handbook.en.md:1776 'a condition still shows on the token's status icons and on the sheet' (no sheet shows one), and player-status.mjs:83 'states.mjs removes the system's own statuses' (states.mjs:62-72 only appends; Daggerheart's conditions stay in CONFIG.statusEffects, so a macro can still put them on)."
+     }
+    },
+    {
+     "id": "H-3",
+     "severity": "minor",
+     "title": "'Target with a double right-click' is doubtful for a GM, and a double right-click (or the sheet's prototype-token control) may still show a player the token's settings",
+     "where": "docs/handbooks/gm-handbook.en.md:440 and .pl.md:440, player-handbook.en.md:1041 and .pl.md:1041; scripts/token-hud.mjs:26",
+     "what_happens": "As Foundry's Token#_onClickRight2 is recalled (v11-v13; no v14 source here): an owner with TOKEN_CONFIGURE gets the token's configuration sheet on a double right-click, and only other users target. A GM owns every token, so a GM's double right-click would open Token settings, not target. A Trusted player (TOKEN_CONFIGURE is recalled as Trusted by default) would open their own token's settings, which the owner asked a player never to see; the module patches neither road (no _onClickRight2, configurePrototypeToken or header-control hook in scripts/ for actor sheets).",
+     "evidence": "gm-handbook.en.md:440 'target a token on the map as before, with the T key or a double right-click'; token-hud.mjs:26 'which the canvas still sets (T, or a double right-click)'; grep of scripts/ for _onClickRight2|configurePrototypeToken|TOKEN_CONFIGURE: no hit.",
+     "failure_scenario": "A GM double right-clicks a student to target it before a Daggerheart roll and gets the Token settings window; a Trusted player double right-clicks their own token and the settings window opens though 'gracz niech nie widzi ustawien tokena wcale'.",
+     "confidence": "suspected",
+     "refutation_tried": "Searched the repo for any recorded reading of the double right-click (none); LIVE-H120-01 (AUDIT:1513) checks T, not the double right-click. Cannot be settled without v14 source or a table.",
+     "verifier": {
+      "id": "H-3",
+      "kind": "finding",
+      "verdict": "holds",
+      "severity": "minor",
+      "why": "Could not overturn and cannot settle: no Foundry source on this machine. As recalled for v10-v13, Token#_onClickRight2 opens the token's configuration for an owner who has TOKEN_CONFIGURE and targets otherwise; a GM owns every token, so for a GM the double right-click opens Token settings, not a target - the GM handbook's sentence is then wrong for its only reader. For a plain Player (no TOKEN_CONFIGURE by default, as recalled) the double right-click targets, so the player handbook is right for Players and wrong for Trusted Players. The module holds only FILES_BROWSE and FILES_UPLOAD of core.permissions (enforced.mjs:108-109), not TOKEN_CONFIGURE, and patches no token config road (grep scripts/ for _onClickRight2, TOKEN_CONFIGURE, configurePrototypeToken, HeaderControls of actor sheets: no hit; iso-shield.mjs only wraps Daggerheart's renderTokenConfig listeners). So a Trusted player can still open their token's settings, against the owner's 'gracz niech nie widzi ustawien tokena wcale'. Stays suspected.",
+      "evidence": "gm-handbook.en.md:440; player-handbook.en.md:1041; token-hud.mjs:26; enforced.mjs:108-109; AUDIT-1.2.42.md:1513 (LIVE-H120-01 asks for T and 'whether right-click still does what the player did with it outside the HUD', not the double right-click)."
+     }
+    },
+    {
+     "id": "H-4",
+     "severity": "nit",
+     "title": "R8052's expectation for a non-GM runner is stale",
+     "where": "scripts/tests-tier1.mjs:63791-63792",
+     "what_happens": "When the suite does not run as a GM, R8052 expects ['sort','toggleCompanions','locked','config','visibility'], but trimHudFor empties a non-GM's HUD (controls []). The branch is dead while the suite runs as a GM, and would fail for the wrong reason otherwise.",
+     "evidence": "'controls: game.user?.isGM ? [\"togglePalette:levels\", ...] : [\"sort\", \"toggleCompanions\", \"locked\", \"config\", \"visibility\"]'",
+     "failure_scenario": "Someone runs tier 1 as a non-GM user: R8052 fails reporting a mismatch the code intends.",
+     "confidence": "read",
+     "refutation_tried": "runTests is documented as GM-only (CLAUDE.md), so impact is limited to the expectation being wrong.",
+     "verifier": {
+      "id": "H-4",
+      "kind": "finding",
+      "verdict": "holds",
+      "severity": "nit",
+      "why": "R8052 calls Hooks.callAll('renderTokenHUD') and trimTokenHud reads game.user; for a non-GM trimHudFor empties the root, so the controls are [] while the expectation lists five. Dead while the suite runs as a GM (it did: R8052 ok in r120-tier1.log).",
+      "evidence": "tests-tier1.mjs:63792 (the non-GM branch); token-hud.mjs:114-118; R8050's own player row expects controls [] (tests-tier1.mjs:63745)."
+     }
+    },
+    {
+     "id": "H-5",
+     "severity": "nit",
+     "title": "Records still describe the removed bar lock",
+     "where": ".claude/rules/code.md:80; audit/AUDIT-1.2.42.md items 111 (LIVE-E29-02) and 414 (LIVE-E24-01)",
+     "what_happens": "The code map still lists stillTokenBars among hud.mjs's contents and has no row for token-hud.mjs; the two 9.2 items still ask a table to check HUD bar inputs disabled, which no longer exist (the handbook says LIVE-E29-02 is moot, the item itself was not changed).",
+     "evidence": "code.md:80 '... `matchStripToDespair`, `stillTokenBars`), ...'; AUDIT item 414 'dwa pola liczbowe w HUD tokenu są wyłączone dla gracza i dla GM-a'.",
+     "failure_scenario": "A reader of the map looks for stillTokenBars; a tester runs LIVE-E24-01 and cannot find the inputs.",
+     "confidence": "read",
+     "refutation_tried": "grep for token-hud.mjs in .claude/rules/code.md: 0 hits.",
+     "verifier": {
+      "id": "H-5",
+      "kind": "finding",
+      "verdict": "holds",
+      "severity": "nit",
+      "why": "Read as stated. The GM handbook (:2139) already says LIVE-E29-02 was overtaken, but the 9.2 items themselves were not edited.",
+      "evidence": ".claude/rules/code.md:80 lists stillTokenBars; 'token-hud' occurs 0 times in code.md; AUDIT-1.2.42.md:820 (111, LIVE-E29-02 'paski w HUD tokenu są tylko do odczytu') and :1188 (414, LIVE-E24-01 'dwa pola liczbowe w HUD tokenu są wyłączone')."
+     }
+    },
+    {
+     "id": "H-6",
+     "severity": "nit",
+     "title": "Approval of the new glyphs recorded both ways",
+     "where": ".github/release-notes/v1.2.120.md:35 and :125; tools/glyphs.json:6915, :6942, :14314",
+     "what_happens": "Release notes say the HUD was 'approved on its shots' and 'seen by the owner'; the three new glyph rows say 'not yet seen by the owner' / 'not approved by the owner in a drawing round', as 93e1e827 said 'not owner-approved yet'.",
+     "evidence": "glyphs.json:6915 'not yet seen by the owner'; release notes :35 'approved on its shots'.",
+     "failure_scenario": "A later drawing round treats lock-open and stairs as approved, or the reverse.",
+     "confidence": "read",
+     "refutation_tried": "b022fde1 added glyph shots after the first commit; nothing in the tree records the owner's verdict on them.",
+     "verifier": {
+      "id": "H-6",
+      "kind": "finding",
+      "verdict": "holds",
+      "severity": "nit",
+      "why": "The two records may speak of different things (the owner approving the HUD's shots versus a glyph drawing round), but nothing in the tree records the owner's verdict, and glyphs.json still says the three glyphs are not seen, while the notes say the HUD's shots were seen and approved.",
+      "evidence": ".github/release-notes/v1.2.120.md:35 'approved on its shots', :124 'the token HUD's shots seen by the owner'; tools/glyphs.json:6915, :6942 'not yet seen by the owner', :14314 'not approved by the owner in a drawing round'."
+     }
+    },
+    {
+     "id": "H-7",
+     "severity": "nit",
+     "title": "Under Stained Glass the HUD buttons' keyboard focus ring is cut off",
+     "where": "styles/danganronpa.css:19034-19037 with styles/stained-glass.css:5357",
+     "what_happens": "The focus outline sits 2 px outside the box, and the glass button's hexagon clip-path clips everything outside the polygon, outlines included; focus shows only as the border and background change.",
+     "evidence": "danganronpa.css:19035 'outline: 2px solid var(--drpg-attention); outline-offset: 2px;'; stained-glass.css 'clip-path: polygon(50% 0, 100% 28%, ...)'",
+     "failure_scenario": "A GM tabbing through the HUD under Stained Glass sees no attention-coloured ring, only a slightly darker hexagon.",
+     "confidence": "read",
+     "refutation_tried": "Same pattern may be accepted for the corner launchers; not checked whether the house accepts it there.",
+     "verifier": {
+      "id": "H-7",
+      "kind": "finding",
+      "verdict": "holds",
+      "severity": "nit",
+      "why": "clip-path clips everything outside the polygon, outlines included, so the 2 px attention ring at offset 2 px is not drawn under the glass; focus still shows as the edge going solid Bone and the background going to full Ink (stained-glass.css:5358-5361). Not checked whether the corner launchers carry the same trade.",
+      "evidence": "danganronpa.css:19034-19037; stained-glass.css:5351-5357."
+     }
+    },
+    {
+     "id": "H-8",
+     "severity": "nit",
+     "title": "A player promoted to a GM role without a reload keeps an undrawn HUD",
+     "where": "scripts/token-hud.mjs:113-124",
+     "what_happens": "ApplicationV2 reuses the HUD's root element between renders; the player branch adds drpg-token-hud-none and aria-hidden, and the GM branch never removes them, so after a live promotion the trimmed GM HUD is drawn into a root the stylesheet hides.",
+     "evidence": "token-hud.mjs:116-117 'root.classList.add(NO_HUD_CLASS); root.setAttribute(\"aria-hidden\", \"true\");' with no matching remove in the GM branch",
+     "failure_scenario": "The GM promotes a player to Assistant GM mid-session; that user right-clicks a token and sees nothing until F5.",
+     "confidence": "suspected",
+     "refutation_tried": "Whether Foundry v14 reloads a client on a role change, or recreates the HUD element, is not read.",
+     "verifier": {
+      "id": "H-8",
+      "kind": "finding",
+      "verdict": "weakened",
+      "severity": "nit",
+      "why": "The code reads as described (the GM branch never removes drpg-token-hud-none or aria-hidden). But the road to it is very likely closed: as recalled from Foundry's User#_onUpdate (v10-v12), a change of one's own role or password logs that user out ('you must re-authenticate', game.logOut()), so a promoted player comes back to a fresh page and a fresh HUD element. Not read for v14 (no source here), so not refuted; if v14 kept that, the scenario cannot happen at a table.",
+      "evidence": "token-hud.mjs:113-119 (classes added, never removed); Foundry User#_onUpdate as recalled, not read."
+     }
+    }
+   ],
+   "regressions": [
+    {
+     "what": "None established beyond the removals the owner asked for. Consequences of those removals worth naming: the GM's only interface road to Daggerheart's conditions on a student (the HUD's status palette) is gone, since the sheet's Effects tab was already the Rules tab (H-2); a Hope (or other non-reserve) bar input that a GM could type in the HUD is gone (the sheet remains).",
+     "confidence": "read"
+    }
+   ],
+   "not_established": [
+    {
+     "what": "Whether Daggerheart 2.12.8 / v14's real HUD markup matches the selectors (data-action names locked, sort, config, visibility, target, combat; data-palette effects, movementActions; icon classes fa-bring-forward, fa-lock-open, fa-stairs)",
+     "live_check": "LIVE-H120-01: right-click a student's token as GM in both themes; inspect #token-hud's buttons"
+    },
+    {
+     "what": "Whether a player's emptied HUD flashes or leaves a box (a core rule on #hud .placeable-hud.active of equal or higher specificity than #token-hud.drpg-token-hud.drpg-token-hud-none)",
+     "live_check": "LIVE-H120-01, player right-click; read getComputedStyle(#token-hud).display"
+    },
+    {
+     "what": "Whether Foundry v14's TokenHUD code touches the removed status or movement palette later (refreshStatusIcons on a status change while the HUD is open, a stored active palette restored at render) and throws",
+     "live_check": "GM opens the HUD on a student, then the module puts Breakdown or Wounded on (or Foundry toggles a status); watch the console"
+    },
+    {
+     "what": "What a double right-click does on v14 for a GM, for a player on an owned token (Player and Trusted), and on another's token; whether Daggerheart's actor sheet offers a player a Prototype Token header control (H-3)",
+     "live_check": "At a table, both roles; add to LIVE-H120-01"
+    },
+    {
+     "what": "Whether v14 re-renders the HUD or toggles the icon in place on visibility and lock (the observer covers both, R8051)",
+     "live_check": "LIVE-H120-01 asks it"
+    },
+    {
+     "what": "Whether T still targets and Daggerheart's rolls read the target with the module loaded",
+     "live_check": "LIVE-H120-01"
+    },
+    {
+     "what": "Tier 1 and the line's tests on the release tree",
+     "live_check": "central run (r120-tier1.log was empty when read)"
+    }
+   ],
+   "verify": [
+    {
+     "id": "H-1",
+     "kind": "finding",
+     "verdict": "holds",
+     "severity": "minor",
+     "why": "Specificity re-computed: the .active rule is (1,4,1) and sets background Bone and color Ink; the high-contrast glass rule is (1,5,1) because :is() takes its most specific argument (.palette.palette-list, two classes), so it wins on background (Ink) and sets no color. The glyph is masked currentColor (danganronpa.css:19053-19066), so Ink on Ink. No other sheet names token-hud apart from pixel-icons.css's glyph variables, which set no colour. Minor, not nit: high contrast is the mode for readers who need the state visible, and the comment promises the state reads without the tooltip.",
+     "evidence": "stained-glass.css:5363-5367 (.active), :5374-5377 (high contrast); danganronpa.css:19038-19042; the line's own shot docs/dev/h120/shots/glass-hc.png, middle cell 'GM: token hidden and locked': the lock and visibility hexagons are solid black with no glyph, while the left cell's off-state buttons show theirs."
+    },
+    {
+     "id": "H-2",
+     "kind": "finding",
+     "verdict": "holds",
+     "severity": "minor",
+     "why": "Read every road I could find. Apply or remove a Daggerheart condition on a student, as a GM, on 03ee8de9: (1) the HUD status palette - removed for every token (token-hud.mjs:59-60, :120); (2) the character sheet - its Effects tab is replaced by the Rules panel on every character sheet in every mode (sheet-actions.mjs:59-67, sheet.mjs:182 in SHEET_STEPS, run from renderCharacterSheet sheet.mjs:70), and the only states the sheet draws are Breakdown and Wounded badges (sheet-sidebar.mjs:192-216); (3) Daggerheart's effects display - hidden on every screen (danganronpa.css:8130, :15091; gm-handbook.en.md:1776); (4) the module's own panels - no toggleStatusEffect outside death.mjs:97/:651 (dead) and states.mjs (its own two), no GM control for a status; (5) Token settings - Foundry's token config carries no status field (recalled, no v14 source here); (6) a macro from the Macro Directory (the hotbar is hidden, the directory still runs, gm-handbook.en.md:1776) or the console, e.g. actor.toggleStatusEffect('restrained') - works, scripted only. Not read, possible indirect roads: a Daggerheart action's effect applied from its chat card to a target (T still targets), an ActiveEffect dropped on the sheet, an effect on one of the student's items (item sheets are not replaced). Removing one has no UI road at all that I found. Why only minor: no rule of the module relies on a Daggerheart condition - 'This game has two conditions, both automatic ... and no spells' (sheet-actions.mjs:43-45; rules.mjs:11; config.mjs:3366-3370; states.mjs:8-19), Breakdown, Wounded and dead are put on and off by the module, the creative-use 'Works: apply an effect' ruling grants resource amounts, not statuses (messenger-app.mjs:953-955), and no handbook asks a GM to apply a condition. The cost is the four handbook sentences that send GM and player to an Effects tab that is the Rules tab (and the player one says 'your character's conditions are on your sheet'), plus the comment token-hud.mjs:23-24.",
+     "evidence": "gm-handbook.en.md:440 'Daggerheart's conditions in the sheet's Effects tab'; gm-handbook.pl.md:440 'w zakładce Effects arkusza'; player-handbook.en.md:1041 and .pl.md:1041 '(zakładka Effects)'; lang/en.json DRPG.Rules.tab 'Rules'. Also stale beside it, older than this line: gm-handbook.en.md:1776 'a condition still shows on the token's status icons and on the sheet' (no sheet shows one), and player-status.mjs:83 'states.mjs removes the system's own statuses' (states.mjs:62-72 only appends; Daggerheart's conditions stay in CONFIG.statusEffects, so a macro can still put them on)."
+    },
+    {
+     "id": "H-3",
+     "kind": "finding",
+     "verdict": "holds",
+     "severity": "minor",
+     "why": "Could not overturn and cannot settle: no Foundry source on this machine. As recalled for v10-v13, Token#_onClickRight2 opens the token's configuration for an owner who has TOKEN_CONFIGURE and targets otherwise; a GM owns every token, so for a GM the double right-click opens Token settings, not a target - the GM handbook's sentence is then wrong for its only reader. For a plain Player (no TOKEN_CONFIGURE by default, as recalled) the double right-click targets, so the player handbook is right for Players and wrong for Trusted Players. The module holds only FILES_BROWSE and FILES_UPLOAD of core.permissions (enforced.mjs:108-109), not TOKEN_CONFIGURE, and patches no token config road (grep scripts/ for _onClickRight2, TOKEN_CONFIGURE, configurePrototypeToken, HeaderControls of actor sheets: no hit; iso-shield.mjs only wraps Daggerheart's renderTokenConfig listeners). So a Trusted player can still open their token's settings, against the owner's 'gracz niech nie widzi ustawien tokena wcale'. Stays suspected.",
+     "evidence": "gm-handbook.en.md:440; player-handbook.en.md:1041; token-hud.mjs:26; enforced.mjs:108-109; AUDIT-1.2.42.md:1513 (LIVE-H120-01 asks for T and 'whether right-click still does what the player did with it outside the HUD', not the double right-click)."
+    },
+    {
+     "id": "H-4",
+     "kind": "finding",
+     "verdict": "holds",
+     "severity": "nit",
+     "why": "R8052 calls Hooks.callAll('renderTokenHUD') and trimTokenHud reads game.user; for a non-GM trimHudFor empties the root, so the controls are [] while the expectation lists five. Dead while the suite runs as a GM (it did: R8052 ok in r120-tier1.log).",
+     "evidence": "tests-tier1.mjs:63792 (the non-GM branch); token-hud.mjs:114-118; R8050's own player row expects controls [] (tests-tier1.mjs:63745)."
+    },
+    {
+     "id": "H-5",
+     "kind": "finding",
+     "verdict": "holds",
+     "severity": "nit",
+     "why": "Read as stated. The GM handbook (:2139) already says LIVE-E29-02 was overtaken, but the 9.2 items themselves were not edited.",
+     "evidence": ".claude/rules/code.md:80 lists stillTokenBars; 'token-hud' occurs 0 times in code.md; AUDIT-1.2.42.md:820 (111, LIVE-E29-02 'paski w HUD tokenu są tylko do odczytu') and :1188 (414, LIVE-E24-01 'dwa pola liczbowe w HUD tokenu są wyłączone')."
+    },
+    {
+     "id": "H-6",
+     "kind": "finding",
+     "verdict": "holds",
+     "severity": "nit",
+     "why": "The two records may speak of different things (the owner approving the HUD's shots versus a glyph drawing round), but nothing in the tree records the owner's verdict, and glyphs.json still says the three glyphs are not seen, while the notes say the HUD's shots were seen and approved.",
+     "evidence": ".github/release-notes/v1.2.120.md:35 'approved on its shots', :124 'the token HUD's shots seen by the owner'; tools/glyphs.json:6915, :6942 'not yet seen by the owner', :14314 'not approved by the owner in a drawing round'."
+    },
+    {
+     "id": "H-7",
+     "kind": "finding",
+     "verdict": "holds",
+     "severity": "nit",
+     "why": "clip-path clips everything outside the polygon, outlines included, so the 2 px attention ring at offset 2 px is not drawn under the glass; focus still shows as the edge going solid Bone and the background going to full Ink (stained-glass.css:5358-5361). Not checked whether the corner launchers carry the same trade.",
+     "evidence": "danganronpa.css:19034-19037; stained-glass.css:5351-5357."
+    },
+    {
+     "id": "H-8",
+     "kind": "finding",
+     "verdict": "weakened",
+     "severity": "nit",
+     "why": "The code reads as described (the GM branch never removes drpg-token-hud-none or aria-hidden). But the road to it is very likely closed: as recalled from Foundry's User#_onUpdate (v10-v12), a change of one's own role or password logs that user out ('you must re-authenticate', game.logOut()), so a promoted player comes back to a fresh page and a fresh HUD element. Not read for v14 (no source here), so not refuted; if v14 kept that, the scenario cannot happen at a table.",
+     "evidence": "token-hud.mjs:113-119 (classes added, never removed); Foundry User#_onUpdate as recalled, not read."
+    },
+    {
+     "id": "REG-1",
+     "kind": "regression",
+     "verdict": "holds",
+     "severity": "minor",
+     "why": "No regression beyond the asked removals, agreed. The named cost holds and is a little wider: with the palette gone, neither applying nor removing a Daggerheart condition on a student has a UI road (macro or console only), and the effects display that would list one is hidden; it costs no rule of the module (see H-2). For a player the removals cost nothing a rule needs: the bar inputs were already off for players (E29 C7), the floor goes by the stairs, statuses are the module's, target stays on T, the module reads no combat. What a player loses that no rule names: Daggerheart's companion button (toggleCompanions) for a student with a companion - no rule or handbook of the module uses companions (grep 'companion' in the handbooks: only gm-handbook.en.md:135 on resources), and the HUD elevation and movement-action controls. Right-click on an owned token still binds and controls it as recalled (Foundry's PlaceableObject#_onClickRight), only the drawing is suppressed.",
+     "evidence": "token-hud.mjs:55-65, :114-118; tests-tier1.mjs:64688-64714 (the fixture's player branch: sort, companion, config, status palette, movement, target, combat); sheet-actions.mjs:43-45."
+    },
+    {
+     "id": "C3",
+     "kind": "claim",
+     "verdict": "holds",
+     "severity": "minor",
+     "why": "'Partly' stands. The markup is emptied and marked, the CSS hides it, R8050 player row and scenario 15 H1 measure that; r120-tier1.log has R8050 ok. 'Opens nothing' is the HUD only: the right-click still controls the token (recalled), and a Trusted player's double right-click may still open the token's settings (H-3), which is exactly what the owner asked a player not to see.",
+     "evidence": "token-hud.mjs:114-118; danganronpa.css:19014-19016; docs/dev/h120/shots/glass-hc.png right cell 'nothing drawn (0 elements, display: none)' (static page, not v14)."
+    },
+    {
+     "id": "C7",
+     "kind": "claim",
+     "verdict": "holds",
+     "severity": "minor",
+     "why": "'Partly' stands: R8053 reads declarations; the shipped high-contrast glass shot shows two blank toggles (H-1); the companion button keeps Daggerheart's arrow-dunk.png by design (token-hud.mjs:38-39, danganronpa.css:19043-19047 sizes the img only).",
+     "evidence": "glass-hc.png middle cell; stained-glass.css:5374-5377."
+    },
+    {
+     "id": "C8",
+     "kind": "claim",
+     "verdict": "holds",
+     "severity": "minor",
+     "why": "'Partly' stands: true in Legacy (with or without high contrast, whose rule sets only border-color, danganronpa.css:19094-19097) and in glass without high contrast; false in glass with high contrast (H-1). The 12.88:1 figure is computed from token hex, not measured on a HUD.",
+     "evidence": "danganronpa.css:19038-19042, :19094-19097; stained-glass.css:5363-5377."
+    },
+    {
+     "id": "C9",
+     "kind": "claim",
+     "verdict": "holds",
+     "severity": "minor",
+     "why": "'Partly' stands: height in the token's settings is right; the Effects tab sentence is wrong on a character sheet (H-2); the double right-click is doubtful for a GM and a Trusted player (H-3).",
+     "evidence": "gm-handbook.en.md:440, player-handbook.en.md:1041 and their Polish twins."
+    },
+    {
+     "id": "C10",
+     "kind": "claim",
+     "verdict": "holds",
+     "severity": "minor",
+     "why": "'No' stands for the sheet the comment means (a student's character sheet): the Effects tab is the Rules panel and the sheet has no add-effect or condition control. Slightly weakened only in that indirect roads were not read (an ActiveEffect dropped on the sheet, an effect on an owned item, a Daggerheart action's chat card); none is a condition toggle and none removes one.",
+     "evidence": "token-hud.mjs:22-24; sheet-actions.mjs:59-67; sheet.mjs:182."
+    },
+    {
+     "id": "C11",
+     "kind": "claim",
+     "verdict": "holds",
+     "severity": "nit",
+     "why": "'Partly' stands as the first reader gave it (code.md:80, AUDIT 111 and 414). Two more stale texts next to this subject, older than the line: gm-handbook.en.md:1776 'a condition still shows ... on the sheet', and player-status.mjs:83 'states.mjs removes the system's own statuses and puts exactly two back' (it appends two, states.mjs:62-72).",
+     "evidence": "as listed."
+    },
+    {
+     "id": "C14",
+     "kind": "claim",
+     "verdict": "holds",
+     "severity": "nit",
+     "why": "The logs exist now: tier 1 on 03ee8de9 ends EXIT 0 with R8050, R8051, R8052 and R8053 each 'ok'; tier 2 EXIT 0. Red first at e515907d and the mutants were not re-run here.",
+     "evidence": "scratchpad/base/r120-tier1.log (R8050-R8053 ok, EXIT 0), r120-tier2.log (EXIT 0)."
+    },
+    {
+     "id": "C15",
+     "kind": "claim",
+     "verdict": "holds",
+     "severity": "nit",
+     "why": "'Partly' stands; see H-6.",
+     "evidence": "release notes :35, :124; glyphs.json:6915, :6942, :14314."
+    }
+   ]
+  },
+  "F": {
+   "claims": [
+    {
+     "claim": "fog.mjs startDissolve: done releases the dissolve in finally, so a clean-up that throws no longer leaves DISSOLVE.busy true (25231254; notes: 'A fog dissolve whose end throws no longer stops the fog redrawing'; fog.mjs:2058-2062 comment 'the end releases the flag whatever its clean-up throws')",
+     "verdict": "partly",
+     "where": "scripts/fog.mjs:2268-2293",
+     "detail": "The release in finally is gated by `current`, which is set only after `scratch.destroy({ children: true })` (2270) and the generation test. A throw from that first statement on the current generation leaves busy and queued true, the queued repaint not run - measured on the module's own block (sim case 2: busy true, queued true, 0 repaints run). Throws after line 2277 release as claimed. The hold is then lifted only by the bound, at the next repaint asked (see finding r120-F-2).",
+     "test": "R8030 A",
+     "test_measures": "part: A plants the throw in dropSprite (after `current = true`), not in scratch.destroy"
+    },
+    {
+     "claim": "startDissolve's catch releases in finally too (25231254, R8030 B)",
+     "verdict": "holds",
+     "where": "scripts/fog.mjs:2310-2321",
+     "test": "R8030 B",
+     "test_measures": "the claim: renderer throws, finish's dropSprite throws, busy read false"
+    },
+    {
+     "claim": "queueBehindDissolve lets go a dissolve still busy fadeMs + 750 + 1000 ms after it started (DISSOLVE_STUCK_MS 1750) and the repaint draws, with a console warning (25231254)",
+     "verdict": "holds",
+     "where": "scripts/fog.mjs:2065-2083",
+     "detail": "Lazy: it acts only when a repaint is asked past the bound; there is no timer. endDissolves (2329-2336) clears `queued`, so a repaint queued before the bound is dropped, and only a later repaint draws. The let-go keeps the layer's children, which no earlier caller of endDissolves did (canvasTearDown 463 and tearDownLayer 2448 both clear the layer) - see finding r120-F-1.",
+     "test": "R8030 C",
+     "test_measures": "part: the return values and busy only; not the layer's sprites after the let-go, not a late end of the let-go dissolve, not the dropped queued repaint"
+    },
+    {
+     "claim": "Release notes: 'one whose end never comes is let go after 1750 ms'",
+     "verdict": "partly",
+     "where": "scripts/fog.mjs:2073; .github/release-notes/v1.2.120.md:51-52",
+     "detail": "The bound is fadeMs() + 1750 (ENTER() + 1750), counted from the dissolve's start, and it is applied only by the first repaint asked after it; the repaint queued in the meantime is dropped, not run."
+    },
+    {
+     "claim": "diagnoseFog() reports `dissolve: { busy, queued, heldMs }` (25231254; notes)",
+     "verdict": "holds",
+     "where": "scripts/fog.mjs:2587-2590",
+     "test": "none reads the field",
+     "test_measures": "not measured"
+    },
+    {
+     "claim": "Scenario 97 phase K reads the GMs' drawn fog on gm and gm2 after every road with no repaint asked by the scenario (25231254; ROUTING ~03:45Z)",
+     "verdict": "holds",
+     "where": "audit/harness/scenarios/97-two-gms.mjs:343-394",
+     "detail": "K reads diagnoseFog().shading (lastShading), set by every repaint call before the unchanged shortcut: it shows a repaint was asked, not that anything was drawn; no dissolve runs headless, and K was green on e515907d, so K pins no 1.2.120 change (the commit says so).",
+     "test": "97 K0-K4",
+     "test_measures": "that a repaint ran on each GM, not the drawn layer"
+    },
+    {
+     "claim": "Release notes: 97-two-gms 'phases K and L, the fog after a dissolve and with a storage that refuses writes'",
+     "verdict": "no",
+     "where": ".github/release-notes/v1.2.120.md:85; audit/harness/scenarios/97-two-gms.mjs:349-350",
+     "detail": "K reaches no dissolve: its own comment says the harness renders no texture, so the dissolve is not reached. K is the GMs' drawn fog after every road with no repaint asked."
+    },
+    {
+     "claim": "gm-store.mjs: a GM store's flush whose storage write fails tells the store's readers through tellChanged -> env.changed, which runs the registered client setting's onChange with the value memory holds (be44650c; notes: 'whatever draws that store ... never heard of the change ... Now the store tells it anyway')",
+     "verdict": "partly",
+     "where": "scripts/gm-store.mjs:847-896, 925-928, 1753",
+     "detail": "Only the setting's onChange runs. Every reader on `clientSettingChanged` is still not told: live.mjs watch.stores (live.mjs:406-410; 8 windows, the Projects map among them with discoveryStore and fogCopy, projects-map.mjs:877), despair.mjs:57 (the owed bar), fog.mjs:411 (the GM passage frame), case-copy.mjs:255 (the backup), gm-stores.mjs:3015 (the health check). Of the 66 store and copy definitions in gm-stores.mjs, 13 have an onChange on their client setting (read with a regex over settings.mjs). For the fog itself (discoveryLedger, mineFog: onChange -> onWorldChange) the claim holds.",
+     "test": "R8031; 97 L1, L2",
+     "test_measures": "the claim for the fog's two keys; R8031 hands its own `changed`, the real one is read only through 97 L"
+    },
+    {
+     "claim": "A player's copy whose write fails stays in memory (cache) and is told the same way, where receive threw before (be44650c)",
+     "verdict": "holds",
+     "where": "scripts/gm-store.mjs:1478-1491, 1426-1436",
+     "test": "R8031 (copy half), 97 L2",
+     "test_measures": "the claim"
+    },
+    {
+     "claim": "Notes: 'That this was the cause at the owner's table is not read (the \"could not save\" notice appears once)'",
+     "verdict": "partly",
+     "where": "scripts/gm-store.mjs:711, 883-885",
+     "detail": "quotaWarned lives in the engine, so the permanent notice appears once per page load, again after every F5 on the first refused write; the parenthesis reads as once ever. Under the full-storage reading the owner would have seen a permanent red notice after each reload of 1.2.119's report; whether they did is not recorded."
+    },
+    {
+     "claim": "GM handbook 20.3 (EN, PL), diagnoseFog's row: dissolve.busy with heldMs over two seconds is a fade that held the map and the next change lets it go; the 'could not save' notice means full storage, back up (GM panel, Diagnostics, The case: Back up), the map still follows; otherwise reload and send lastReason, shading, dissolve; the Mastermind's rooms never show (9.2)",
+     "verdict": "holds",
+     "where": "docs/handbooks/gm-handbook.en.md:1850 (section 20.3 at :1844); gm-handbook.pl.md:1850",
+     "detail": "lastReason, shading, dissolve are diagnoseFog's fields (fog.mjs:2553, 2589, 2605); the backup path matches DRPG.GmStore.saveFailed; 'the next change' is the next repaint; 'your map still follows' is true of the fog only (other windows do not follow, r120-F-4). EN and PL say the same."
+    },
+    {
+     "claim": "Fog tab's Mastermind column now says why: DRPG.Vault.fogMastermind 'The Mastermind knows every room. Your map does not show where they go.' (be44650c; notes)",
+     "verdict": "partly",
+     "where": "lang/en.json:3232, lang/pl.json:3440, scripts/room-setup.mjs:97, :105",
+     "detail": "The tooltip already said 'The Mastermind knows every room.' since E91 C4; 1.2.120 adds the second sentence. 'now says why' overstates what changed. The tooltip sits on a disabled checkbox (not established that it shows, see not_established)."
+    },
+    {
+     "claim": "mastermind.mjs: the keepLive build returns the region's own element, so the Give Hope box keeps its pool select, amount and Give when drawn again (a5661b39; notes)",
+     "verdict": "holds",
+     "where": "scripts/mastermind.mjs:700-710; live.mjs:198, 469-474",
+     "detail": "The only road that rebuilds the box is this keepLive (actor hooks, drpgDespairOwedChanged, WORLD_HOOKS, any module world setting via updateSetting); `after: wireGive` rewires the new button. No other caller of mastermindHopeBox. Gaps of the owner's window rule that this fix leaves (pre-existing): r120-F-6.",
+     "test": "tier 2 'the Mastermind's Give Hope box stays whole when it is drawn again' (tests-tier2.mjs:105644); green in base/r120-tier2.log",
+     "test_measures": "part: the controls are present after two actor writes; Give is not pressed after a redraw, the hook road and a redraw under focus are not read"
+    },
+    {
+     "claim": "settings.mjs changes in comments only (notes)",
+     "verdict": "holds",
+     "where": "scripts/settings.mjs:3155-3161"
+    },
+    {
+     "claim": "dice-hold.mjs comment: the token HUD 'draws no number since 1.2.120'",
+     "verdict": "holds",
+     "where": "scripts/dice-hold.mjs:176; token-hud.mjs:55-65 (bar1, bar2, elevation removed); hud.mjs:259-269"
+    },
+    {
+     "claim": "R8030 row: a dissolve whose end throws still lets the fog redraw; one whose end never comes is let go after its bound",
+     "verdict": "partly",
+     "where": "docs/dev/R-REGISTRY.md:1797; scripts/tests-tier1.mjs:32486-32574",
+     "detail": "as the first and third claims: a throw at scratch.destroy is not covered; the let-go is read by return values only"
+    },
+    {
+     "claim": "R8031 row: over a storage that refuses every write, `changed` gets the key and the value memory holds, for a GM's store and a player's copy",
+     "verdict": "holds",
+     "where": "docs/dev/R-REGISTRY.md:1798; scripts/tests-tier1.mjs:32576-32617"
+    },
+    {
+     "claim": "AUDIT 9.2 item 700 (LIVE-F120-01): the steps, the console warning 'Fog: a dissolve held the fog for ... ms and was let go', 'an effect failed to clean itself up', R8030 on e515907d [true, true, 0], the reset neither reloads, changes scene nor calls endDissolves, the full-storage reading (97 L, R8031), the notice 'trwaly, ale pojawia sie raz'",
+     "verdict": "partly",
+     "where": "audit/AUDIT-1.2.42.md:1515",
+     "detail": "The warning text matches fog.mjs:2074, the watchdog's error fog-reveal.mjs:152; endDissolves is called only at fog.mjs:463, 2075, 2448 (no reset road). 'pojawia sie raz' is once per page load (as above). The item lists no check of the layer after a held fade is let go (r120-F-1) or of the other windows under a full storage (r120-F-4)."
+    },
+    {
+     "claim": "AUDIT 9.2 item 696 (LIVE-P120-01) against the code it names",
+     "verdict": "holds",
+     "where": "audit/AUDIT-1.2.42.md:1511; live.mjs heldForced (140), case-view.mjs mapPlace/routePlan, components.css:3809 field-sizing",
+     "detail": "read at the level of the names and the CSS rule; line P's behaviour is another lane's"
+    },
+    {
+     "claim": "AUDIT 9.2 item 698 (LIVE-H120-01) against the code it names",
+     "verdict": "holds",
+     "where": "audit/AUDIT-1.2.42.md:1513; scripts/token-hud.mjs:101-128, danganronpa.css:19014",
+     "detail": "the HUD emptied after Foundry draws it, not kept from opening; state words follow by MutationObserver (token-hud.mjs:94-98)"
+    },
+    {
+     "claim": "tools/stages.json: E120 planned and shipped 1.2.120 on 2026-11-21, touches sockets, rolls, scenes; E39, E40, E43, E53, E58, E83 to 1.2.123; E26 1.3.0",
+     "verdict": "holds",
+     "where": "tools/stages.json:104-111",
+     "detail": "'rolls': no roll code changed in the range (dice-hold.mjs is a comment); over-declaring only makes the gate required, which it is anyway."
+    },
+    {
+     "claim": "Notes: 21 commits e515907d..14d31228, 8 merges",
+     "verdict": "holds",
+     "where": "git rev-list --count / --merges --count"
+    },
+    {
+     "claim": "Notes: lang/en.json 6402 -> 6409, pl 7499 -> 7506, the 7 DRPG.TokenHud keys added, none removed, 1 changed (DRPG.Vault.fogMastermind)",
+     "verdict": "holds",
+     "where": "lang/en.json, lang/pl.json (flattened at e515907d, 14d31228, 03ee8de9)"
+    },
+    {
+     "claim": "Notes: game.settings.register on 202 lines of scripts/ at both ends; migrate.mjs, gm-stores.mjs, tools/api-surface.json, lib/fuzz.mjs, tests-grid.mjs (58) unchanged; known-leaks.json 11 rows",
+     "verdict": "holds",
+     "where": "git grep / git diff --stat over the range"
+    },
+    {
+     "claim": "Notes: tier 2's named tests 1554 -> 1560",
+     "verdict": "holds",
+     "where": "scripts/tests-tier2.mjs (entries at 4-space indent, e515907d and 14d31228)"
+    },
+    {
+     "claim": "Notes: 11 registry rows stamped E120 (R8010-R8014, R8030, R8031, R8050-R8053), next free R8054",
+     "verdict": "holds",
+     "where": "docs/dev/R-REGISTRY.md:6, 1792-1802"
+    },
+    {
+     "claim": "Notes: check live green with 575 items in AUDIT 9.2",
+     "verdict": "holds",
+     "where": "audit/AUDIT-1.2.42.md 9.2, counted with tools/check.mjs:1264 LIVE_ITEM: 575"
+    },
+    {
+     "claim": "Notes: module.json compatibility minimum 14.364 verified 14.365; Daggerheart verified 2.12.9",
+     "verdict": "holds",
+     "where": "module.json"
+    },
+    {
+     "claim": "Notes: tiers 0-1 on the release tree 1826 passed, 0 failed, 16 skipped, 0 red (1841 ran)",
+     "verdict": "holds",
+     "where": "base/r120-tier1.log (central run): the same four numbers and 1841 ran"
+    },
+    {
+     "claim": "Notes: 'tiers 0-1 green on each line's last commit (... F 1816 ...)'",
+     "verdict": "partly",
+     "where": ".github/release-notes/v1.2.120.md:123",
+     "detail": "F's last commit be44650c reports 'tier 1 1817 passed, 0 failed, 16 skipped'; 1816 is 25231254's figure."
+    },
+    {
+     "claim": "Notes: no local gate has passed; the record says every part not run for want of a server",
+     "verdict": "holds",
+     "where": "audit/gate/local-gate.json (verdict incomplete, parts not-run, reason no-server; bound to bf87ef2b)"
+    },
+    {
+     "claim": "Notes, the token HUD sentences (what a GM keeps, what goes, a player has no HUD, three new glyphs)",
+     "verdict": "holds",
+     "where": "scripts/token-hud.mjs:55-128; danganronpa.css:19014-19016; tools/glyphs.json (legacy:lock-open, legacy:stairs added; glass:lock-open as pix-lock-open in icons/pixel-sprite.svg)",
+     "detail": "read at the level of the selectors and the class; line H's depth is another lane's"
+    },
+    {
+     "claim": "Notes, the planner sentences (heldForced, mapPlace, routePlan, R8010-R8014, contrast pair case-node-hover-* 9.65:1, field-sizing)",
+     "verdict": "unread",
+     "where": "scripts/live.mjs:140, case-view.mjs, tools/contrast-pairs.json:517-525, components.css:3668, :3809",
+     "detail": "names and figures found where the notes say; the behaviour is line P's lane"
+    },
+    {
+     "claim": "Notes: 'A select held open in another window still waits' - the Sound window's Music tab",
+     "verdict": "partly",
+     "where": "scripts/mastermind.mjs:700-710",
+     "detail": "Not the only such window: the Mastermind box has no whileEditing, so any focused field in it (the pool's select or the amount) holds its redraw until the focus leaves (live.mjs:180-188)."
+    }
+   ],
+   "asks": [
+    {
+     "ask": "Line F (ROUTING ~03:05Z): check first whether 1.2.119's F119 commits 2c87b5b9 / 09c3a3f8 stop the GM's fog refreshing",
+     "state": "done",
+     "detail": "headless only: 97 K0-K4 green on e515907d (the commit's reading), so ledgerRooms/studentIds and stampOver do not stop the redraw on the roads the harness reaches; the dissolve is not reachable headless."
+    },
+    {
+     "ask": "Line F as hardening after the owner closed OWN-119-4 (~03:45Z): busy released in finally plus the 1750 ms bound (R8030), diagnoseFog().dissolve, GM handbook 20.3, AUDIT 9.2 item 700, scenario 97 K with no manual repaint",
+     "state": "partly",
+     "detail": "all shipped; the finally leaves a throw at scratch.destroy unreleased (r120-F-2), and the bound adds a road to a layer with no fog drawn (r120-F-1). The shipped line also carries be44650c (03:50Z, after the closing): the full-storage reading, gm-store.mjs tellChanged, 97 L, R8031 and the lang wording, recorded by ROUTING only at ~04:08Z."
+    },
+    {
+     "ask": "hopebox-120 (coordinator ~04:03Z): the Give Hope box keeps its controls on a live redraw; the class to look for elsewhere is a keepLive build whose first element is not the region",
+     "state": "done",
+     "detail": "the box's one road is fixed (mastermind.mjs:706); the class elsewhere was read by R1's probe 44 (56 of 56 regions on refresh-120; 55 of 55 on e515907d apart from this box), not re-read here."
+    },
+    {
+     "ask": "The owner's rule 'Zawsze odswiezamy okna od razu przy zmianie' for the Mastermind window",
+     "state": "not done",
+     "detail": "pre-existing and routed to R1 (1.2.121): r120-F-6."
+    }
+   ],
+   "findings": [
+    {
+     "id": "r120-F-1",
+     "severity": "minor",
+     "title": "A dissolve let go by the bound, then a repaint that finds the picture unchanged, then the late end of that dissolve: no fog sprite is drawn",
+     "where": "scripts/fog.mjs:2073-2076 (let-go), 2245-2246 (both sprites hidden at start), 2272-2275 (the stale end drops the mix and restores nothing), 3164-3167 (unchanged shortcut)",
+     "what_happens": "startDissolve hides the outgoing sprite and the incoming one and shows only the mix. When a repaint is asked more than fadeMs()+1750 ms after the start while the end has not run yet, queueBehindDissolve calls endDissolves (generation bumped, previous null) and returns false; repaintFog goes on, the signature equals lastPaintSignature (set when that dissolve began) and the layer is visible, so it returns 'unchanged' before swapInFog. When the old dissolve's end then runs it is stale: it drops the mix (mix.drpgTexture !== state.previous, which is now null) and returns without making its sprite renderable. The layer is left with the old and the new fog sprites both renderable=false: no fog at all until the next repaint whose signature changes. On e515907d the same sequence queued the repaint and the late end restored the new sprite.",
+     "evidence": "Driven on the module's own block with R8030's fake nodes (/tmp/r120-F/sim.mjs case 1): during the dissolve ['A:hidden','B:hidden','mix0:R']; let go, queued=false; after the late end ['A:hidden','B:hidden'], any renderable fog sprite: false. The same sequence on e515907d's block: after the late end ['B:R']. Code: `if (generation !== state.generation) { if (mix.drpgTexture !== state.previous) io.dropSprite(mix); return; }`. With a changed signature instead (case 3) the next dissolve fades from the mix and ends clean.",
+     "failure_scenario": "A player's browser in a background tab (or a GM's, or any browser through a main-thread stall) when a fade starts: rAF stops, the watchdog's timer is throttled; a socket-driven repaint for a step inside the same room arrives past the bound, then the throttled watchdog ends the fade. Back in the tab, the player sees the scene with no fog - every room, found or not - until they enter another room; diagnoseFog() reads busy false and lastReason 'unchanged: painted ...'.",
+     "confidence": "read (the state sequence, run on the shipped code with fake nodes); suspected (that a table's timers ever end a fade later than a repaint asked past fadeMs()+1750 ms: in a hidden Chrome tab a 930 ms timer is aligned to the next second, which mostly beats the 1930 ms bound)",
+     "refutation_tried": "Looked for anything that restores renderable or drops leftovers on the unchanged path (clearLayerLeftovers runs only before swapInFog and skips fog sprites; no visibilitychange handler in fog*.mjs); for a changed-signature let-go the state is correct (case 3); before 1.2.120 endDissolves was called only with the layer cleared (canvasTearDown, tearDownLayer).",
+     "verifier": {
+      "id": "r120-F-1",
+      "kind": "finding",
+      "verdict": "weakened",
+      "severity": "minor",
+      "why": "The state defect stands exactly as written and is a regression; what is narrower is the road to it at a table. Real order on 03ee8de9: repaint P1 (signature S1) calls swapInFog -> startDissolve, which sets since, hides the incoming sprite and the outgoing one (fog.mjs:2245-2246) and shows only the mix; repaintFog then stores lastPaintSignature = S1 (fog.mjs:3222) and the layer is visible (swapInFog sets it, :2351). A repaint P3 asked when now - since > fadeMs() + 1750 = 180 + 1750 = 1930 ms (strict, fog.mjs:2073) while done has not run calls endDissolves (generation bumped, previous null, queued false, :2329-2336) and returns false; repaintFog goes on and, the state being the same, returns 'unchanged' at fog.mjs:3164-3167 before clearLayerLeftovers/swapInFog - so the let-go repaint draws nothing, against the comment at :2069-2072 ('this repaint draws'). When D1's done then runs (watchdog timer or the animation's promise, fog-reveal.mjs:143-158) it is stale; with state.previous null, `mix.drpgTexture !== state.previous` is true and the mix - the only renderable fog sprite - is dropped (fog.mjs:2271-2275); nothing in the stale branch or elsewhere sets a fog sprite renderable again (the only writers are :2279 and :2315). What a player sees: not a frame. The fog layer stays visible with both fog sprites renderable=false; only the raster's dots and lines (masked by the incoming silhouette) remain over the fogged areas. With the module's scene setup (applySceneVisionMode: tokenVision false, global light on, fog.mjs:559-570) the scene's background, tiles and drawings of every room - found or never found - are shown on that one browser. Other characters' tokens and Remnants are not shown by it: visibility.mjs gates them on its own rule. It lasts until a repaint whose signature differs (that viewer's rooms change, an Eclipse starts or ends, a region edit or scene change resets the signature), a stand-down, or a reload. game.drpg.fogAnimations(false) and a manual repaintFog() do not cure it: both reach the same 'unchanged' shortcut. diagnoseFog() reads busy false and lastReason 'unchanged: painted ...'; whyBlack() lists the fog sprites with renderable false (fog.mjs:2779). What makes the end late at a table, read against the timings: (a) a hidden Chromium/Electron tab under ordinary throttling stops rAF, so only the 930 ms watchdog timer can end it, and wake-ups are aligned to 1 s, so it runs by since + 1930 ms at the latest - exactly the bound, strict '>', zero slack: closed except for milliseconds of scheduling latency. The lane's failure_scenario (an ordinary background tab) is this road and is not reachable in practice; the first reader's own confidence line says as much. Firefox's 1 s background minimum puts it near since + 1000: closed too. (b) Open roads: Chromium's intensive throttling (hidden over 5 minutes, page silent, timer chain of 5 or more: 1-minute alignment) - but the dissolve-starting roads I read are hook and socket driven with a synchronous step() (fog.mjs:493), chain 0-2, so this is not established; a frozen or suspended page (a tablet switching apps, Energy Saver freezing, a laptop lid) resumed with buffered socket messages run before the overdue timer; WebKit's or the OS's (App Nap) longer hidden-page timer coalescing; (c) a visible tab: a main-thread block of about 1 s or more spanning since+930..since+1930 (not 'a slow frame' - a frame of a few hundred ms never reaches the bound), after which a socket task queued during the block runs before both the timer task and the next frame (the next frame would end the 180 ms fade at once). Which runs first is the browser scheduler's, not settled from source. P3 'unchanged' itself is common for a player: another player's discovery (SYNC.fog, sync.mjs:438-442), any token created or deleted on the scene (fog.mjs:325-330, :350-353), the echo of the GM's write. Against e515907d: there P3 was queued whatever the time; the late end was current, made the incoming sprite renderable, dropped the old ones and the mix and ran the queued repaint: correct fog. 1.2.119's failure (an end that throws) froze the fog as drawn, the safe direction; 1.2.120 adds a road, behind a late end, to no fog at all, the unsafe direction. Class for this module: a player shown what the room fog exists to hide - the 'gives the answer away' consequence of the brief's blocker class (unexplored rooms' layout and art, possibly a crime scene's dressing), on one honest player's browser and persisting. It is a presentation failure, not a D2 trust breach: the scene's art is loaded on every client and the fog is a drawing layer, so nothing a player is not trusted with reaches their browser through it. Severity I assign: minor, because it needs a non-ordinary timing (b or c) none of which is measured; it would be blocker-class in consequence if LIVE shows it reachable on an ordinary table, and it is the first fog road since E12 r2-H1 that ends with the map uncovered rather than frozen.",
+      "evidence": "Shipped blocks copied unchanged from git show 03ee8de9/e515907d:scripts/fog.mjs (queueBehindDissolve to swapInFog) into /tmp/r120-vF/block-120.mjs and block-119.mjs, driven by /tmp/r120-vF/sim.mjs with a repaintFog model (queue, then the unchanged shortcut, then swapInFog) and the watchdog fired by hand. Case 1 on 120: P1@5000 painted S1; P2@5120 queued; P3@7000 'unchanged' with warning 'Fog: a dissolve held the fog for 2000 ms and was let go'; layer [fog-S0:hidden, fog-S1:hidden, mix:R]; late end @7010 -> [fog-S0:hidden, fog-S1:hidden], anyFogShown=false; P4@9000 unchanged, still none; P5@12000 into another room -> a dissolve, fog back. Same steps on 119: P3 queued; end @7010 -> [fog-S1:R]. Case 2 on 120 (P3 at exactly since+1930): queued, end restores [fog-S1:R] - the strict bound. Case 3 (end on time at 930 ms): correct on both. Case 4 (P3 with a changed signature): correct on both (the new dissolve fades from the mix; the stale end keeps it because mix.drpgTexture === state.previous). Code: fog.mjs:2073 `at - state.since > io.fadeMs() + DISSOLVE_STUCK_MS`; :2274 `if (mix.drpgTexture !== state.previous) io.dropSprite(mix); return;`; :3164 `if (signature === lastPaintSignature && findLayer()?.visible) { ... return true; }`. Tests: R8030 C (tests-tier1.mjs:32564-32573) reads [early, late, busy] only - no layer sprites, no late end, no unchanged repaint."
+     }
+    },
+    {
+     "id": "r120-F-2",
+     "severity": "minor",
+     "title": "done's release in finally skips a throw at its first line: scratch.destroy throwing leaves the dissolve busy and its queued repaint unrun",
+     "where": "scripts/fog.mjs:2268-2293",
+     "what_happens": "`current` is set at 2277, after `scratch.destroy({ children: true })` (2270) and the generation test; finally releases only `if (current)`. A throw from scratch.destroy on the current generation is caught by the watchdog and logged, busy and queued stay true, and the queued repaint never runs; the hold ends only when another repaint is asked past the bound, which drops the queued one (endDissolves clears queued). The comment at 2058-2062 and the commit say the end releases 'whatever its clean-up throws'.",
+     "evidence": "sim.mjs case 2 (PIXI.Container's destroy throwing): 'watchdog caught: scratch would not be destroyed', busy true, queued true, queued repaints run 0. R8030 A plants its throw in dropSprite, after `current = true`.",
+     "failure_scenario": "The one throw the fix was written for, but in scratch's destroy: the GM ticks a Fog cell during a fade whose end throws there; nothing is drawn; the map follows only from the next change asked about two seconds or more later.",
+     "confidence": "read",
+     "refutation_tried": "Moving the release decision before scratch.destroy is the evident shape; checked that the stale branch must not release (it must not), so the gate is right in intent and only its position is wrong. Whether PIXI's Container.destroy throws in practice is not known (it is the same kind of hypothesis as the dropSprite throw R8030 plants).",
+     "verifier": {
+      "id": "r120-F-2",
+      "kind": "finding",
+      "verdict": "holds",
+      "severity": "minor",
+      "why": "`current` is set at fog.mjs:2277, after scratch.destroy (:2270) and the generation test; finally releases only if current (:2291-2292). A throw from scratch.destroy on the current generation leaves busy and queued true and the queued repaint unrun; the comment at :2058-2062 and 25231254's message say the end releases 'whatever its clean-up throws'. Consequence is bounded: the mix stays shown (the fog is drawn, frozen at its last tick, not uncovered - done ran once and will not run again, so the F-1 late end cannot follow), and the first repaint asked past since+1930 lets it go and draws from current state, so the queued change is not lost if any later repaint comes. Whether a PIXI Container's destroy throws at all is as hypothetical as the dropSprite throw R8030 plants. Minor stands as the line's own claim is untrue for its first statement.",
+      "evidence": "/tmp/r120-vF/sim2.mjs (PIXI.Container.destroy throwing, block-120.mjs): 'watchdog caught: scratch would not be destroyed'; after the end {busy:true, queued:true, repaints:0, shown:[mix]}; a repaint at 3000 ms: not queued, busy false, shown [mix]. R8030 A plants its throw in dropSprite (tests-tier1.mjs:32545-32552), after current = true."
+     }
+    },
+    {
+     "id": "r120-F-3",
+     "severity": "nit",
+     "title": "The bound is lazy and counted from the start, not '1750 ms': the notes and the handbook describe it as a timeout",
+     "where": "scripts/fog.mjs:2073-2083; .github/release-notes/v1.2.120.md:51-52",
+     "what_happens": "Nothing lets a held dissolve go by itself; the first repaint asked more than fadeMs()+1750 ms after its start does, and the repaint queued earlier is discarded. With no further change the fog stays as it was.",
+     "evidence": "`if (Number.isFinite(at) && Number.isFinite(state.since) && at - state.since > io.fadeMs() + DISSOLVE_STUCK_MS) { ... endDissolves(io); return false; }`; endDissolves sets `state.queued = false`.",
+     "failure_scenario": "A GM's last tick of the evening lands behind a held fade: it is never drawn until something else repaints.",
+     "confidence": "read",
+     "refutation_tried": "The handbook says 'the next change lets it go', which matches the code; the notes' '1750 ms' does not.",
+     "verifier": {
+      "id": "r120-F-3",
+      "kind": "finding",
+      "verdict": "holds",
+      "severity": "nit",
+      "why": "The bound acts only inside queueBehindDissolve (fog.mjs:2065-2083); there is no timer, and it counts fadeMs()+1750 from the dissolve's start, not 1750 ms. The notes (v1.2.120.md:50-51) say 'let go after 1750 ms'; the handbook's 'the next change lets it go' matches the code. A queued repaint is cleared by endDissolves (:2333) and only the asking repaint runs, which reads current state, so nothing queued is lost when that repaint draws - but see F-1 for when it does not.",
+      "evidence": "fog.mjs:2073-2076; :2329-2336; release notes lines 50-51."
+     }
+    },
+    {
+     "id": "r120-F-4",
+     "severity": "minor",
+     "title": "A refused store write tells the setting's onChange only; every reader on clientSettingChanged still hears nothing under a full storage",
+     "where": "scripts/gm-store.mjs:895, 925-928, 1488, 1753; readers: live.mjs:406-410 (watch.stores), projects-map.mjs:877, investigation.mjs:2530, case-trial.mjs:126, gm-panel.mjs:657, passages-tab.mjs:402, boundary.mjs:521, remnant-ring.mjs:255, trial-floor-ui.mjs:1674, despair.mjs:57, fog.mjs:411, case-copy.mjs:255, gm-stores.mjs:3015",
+     "what_happens": "env.changed runs `game.settings.settings.get(key).onChange(value, {})`. Foundry's own successful write also fires clientSettingChanged, which is what live windows, the GMs' owed-Despair bar, the GM's passage frame, the case backup and the health recheck listen to. Of the 66 store and copy definitions, 13 have an onChange; for the rest nothing on screen follows a refused write, the GM's own or another GM's merged in. The notes say 'whatever draws that store ... Now the store tells it anyway'.",
+     "evidence": "live.mjs:408 `Hooks.on(\"clientSettingChanged\", key => { if (keys.includes(key)) schedule(); })`; gm-store.mjs:1753 `changed: (key, value) => game.settings?.settings?.get?.(...)?.onChange?.(value, {})`. Firing the hook would not be a drop-in either: gm-store.mjs:1607-1610 clears memory on a clientSettingChanged it did not write.",
+     "failure_scenario": "A GM whose localStorage is full: the map follows now (onChange), but the Projects map (discoveryStore, fogCopy), the Investigation dashboard and the Class Trial window stand as drawn after a write, the Despair bar does not show a new debt, and the passage frame keeps an old gap, through any F5.",
+     "confidence": "read",
+     "refutation_tried": "Checked whether the fog's own onChange path reaches those windows (it does not: onWorldChange is a settings hook, live.mjs watch.stores hears only clientSettingChanged) and whether those stores have an onChange of their own (13 of 66 do).",
+     "verifier": {
+      "id": "r120-F-4",
+      "kind": "finding",
+      "verdict": "holds",
+      "severity": "minor",
+      "why": "env.changed is the registered setting's onChange only (gm-store.mjs:1753), called through tellChanged (:925-928) from the flush's catch (:895). The clientSettingChanged readers - live.mjs:406-410 watch.stores, despair.mjs:57, case-copy.mjs:255, gm-stores.mjs:3015/3041, fog.mjs:411 - are not told. Not a regression: on e515907d none of them, and no onChange, heard a refused write; 1.2.120 closes it for stores with an onChange (the fog's two keys among them) and leaves the rest as they were. The notes' 'whatever draws that store ... Now the store tells it anyway' overstates. I did not recount the 13 of 66.",
+      "evidence": "gm-store.mjs:1751-1753 `changed: (key, value) => game.settings?.settings?.get?.(...)?.onChange?.(value, {})`; live.mjs:408 `Hooks.on(\"clientSettingChanged\", key => { if (keys.includes(key)) schedule(); })`."
+     }
+    },
+    {
+     "id": "r120-F-5",
+     "severity": "nit",
+     "title": "Release notes: three wordings that do not match the tree",
+     "where": ".github/release-notes/v1.2.120.md:85, :123, :49-50, :54",
+     "what_happens": "(a) 97 K is called 'the fog after a dissolve'; K reaches no dissolve (97-two-gms.mjs:349-350). (b) 'F 1816' on its last commit; be44650c reports 1817. (c) 'the \"could not save\" notice appears once': once per page load (quotaWarned per engine, gm-store.mjs:711). (d) the Mastermind column 'now says why': it said 'The Mastermind knows every room.' before; one sentence was added.",
+     "evidence": "quoted in claims",
+     "failure_scenario": "A reader relies on K for the dissolve or on the notice being a one-off.",
+     "confidence": "read",
+     "refutation_tried": "Re-read the commit messages and the scenario header.",
+     "verifier": {
+      "id": "r120-F-5",
+      "kind": "finding",
+      "verdict": "holds",
+      "severity": "nit",
+      "why": "(a) 97-two-gms.mjs:343-350: K's header says the dissolve is not reached headless; notes :85 call it 'the fog after a dissolve'. (b) 25231254 reports tier 1 1816, be44650c (F's last commit) 1817; notes :123 'F 1816'. (c) quotaWarned is per engine (gm-store.mjs:711), and the engine is made once per page load (:1735): once per load, again after an F5. (d) e515907d lang/en.json:3223 already had 'The Mastermind knows every room.'; 1.2.120 adds the second sentence (en.json:3232).",
+      "evidence": "git log -1 25231254 / be44650c 'Green after' lines; git show e515907d:lang/en.json | grep fogMastermind."
+     }
+    },
+    {
+     "id": "r120-F-6",
+     "severity": "minor",
+     "title": "The Mastermind window is still not live to the Mastermind pick, and its box waits for focus; Give gives to the Mastermind of the window's opening",
+     "where": "scripts/mastermind.mjs:610, 551, 700-710",
+     "what_happens": "`current` is read once at open and Give converts to it; the keepLive watch names no store, so another GM changing or clearing the Mastermind (mastermindStore, a GM store heard only on clientSettingChanged) redraws nothing, while the next actor write redraws the Hope line from mastermindActor() - the new one. No whileEditing: a focused pool select or amount holds the redraw until the focus leaves. Pre-existing on e515907d; not touched by a5661b39.",
+     "evidence": "`const current = mastermindActor();` ... `await convertDespairToHope(donorId, current, amount);` ... `watch: { actors: true, hooks: [\"drpgDespairOwedChanged\"] }`.",
+     "failure_scenario": "Two GMs: GM A has the window open; GM B picks another Mastermind; a Hope roll redraws A's box with the new Mastermind's Hope, and A's Give gives Hope to the old one.",
+     "confidence": "read",
+     "refutation_tried": "live.mjs listenFor adds WORLD_HOOKS and updateSetting only; the Mastermind's identity never touches an actor or a world setting (GM handbook section 8, line 686), so neither hears the pick.",
+     "verifier": {
+      "id": "r120-F-6",
+      "kind": "finding",
+      "verdict": "holds",
+      "severity": "minor",
+      "why": "Pre-existing on e515907d and untouched by a5661b39 except the build's wrapper: `current` is read once at open (mastermind.mjs:610) and handed to wireMastermindGive (:532-554), which converts to it; the keepLive watch is actors plus drpgDespairOwedChanged (:708), and mastermindActor() reads mastermindStore (:244-248), a GM store no actor or world-setting hook hears. Not in the release's change; it belongs to the windows' refresh line, as routed.",
+      "evidence": "mastermind.mjs:551 `await convertDespairToHope(donorId, current, amount);`, :610 `const current = mastermindActor();`, :708 watch."
+     }
+    }
+   ],
+   "regressions": [
+    {
+     "what": "The fog layer after a held fade (r120-F-1)",
+     "on_e515907d": "a repaint asked during a dissolve was queued; the dissolve's end, however late, restored its sprite and ran the queued repaint",
+     "on_03ee8de9": "a repaint asked past fadeMs()+1750 ms lets the dissolve go; when that repaint is unchanged and the late end follows, no fog sprite is drawn until the next changed repaint",
+     "evidence": "/tmp/r120-F/sim.mjs case 1 on both blocks: ['B:R'] on e515907d, [] renderable on 03ee8de9",
+     "confidence": "read in code; the timing at a table suspected"
+    }
+   ],
+   "not_established": [
+    {
+     "what": "Whether a fade's watchdog ever ends later than a repaint asked past fadeMs()+1750 ms at a table (background tab timer throttling, a long main-thread task), i.e. whether r120-F-1 occurs",
+     "live_check": "On a player's client, start moves that fade the fog, switch the tab away for a minute while another player walks inside a room, switch back; then and after each step run game.drpg.whyBlack() and diagnoseFog(): read the fog sprites' renderable flags, coveragePercent and any 'was let go' warning."
+    },
+    {
+     "what": "Whether Foundry 14.370's game.settings.set on a full localStorage throws before onChange and clientSettingChanged (the harness models it so)",
+     "live_check": "Fill the origin's localStorage, tick a Fog cell: read that the 'could not save' notice appears, the GM's fog follows (onChange), and whether the Projects map and the Investigation dashboard follow (r120-F-4)."
+    },
+    {
+     "what": "Whether the owner's storage was full, or any fade was held, at the 1.2.119 table (OWN-119-4 closed by the owner as not reproducible)",
+     "live_check": "LIVE-F120-01 step 5; on a report, diagnoseFog().dissolve and the console's 'Fog' lines first."
+    },
+    {
+     "what": "Whether the Fog tab's tooltip on the Mastermind's disabled checkbox is ever shown (disabled controls and pointer events differ by browser)",
+     "live_check": "Hover the Mastermind's ticked box in Room setup's Fog tab in Chromium/Electron and Firefox."
+    },
+    {
+     "what": "Whether Give still works after the box is redrawn (the tier-2 test reads the controls, it does not press Give)",
+     "live_check": "Open the Mastermind window, let a roll write an actor, then Give 1 Hope and read both actors."
+    },
+    {
+     "what": "That scratch.destroy or the dropSprite R8030 plants can throw in PIXI at all",
+     "live_check": "none practical; the console's 'an effect failed to clean itself up' line at a table would show one"
+    }
+   ],
+   "verify": [
+    {
+     "id": "r120-F-1",
+     "kind": "finding",
+     "verdict": "weakened",
+     "severity": "minor",
+     "why": "The state defect stands exactly as written and is a regression; what is narrower is the road to it at a table. Real order on 03ee8de9: repaint P1 (signature S1) calls swapInFog -> startDissolve, which sets since, hides the incoming sprite and the outgoing one (fog.mjs:2245-2246) and shows only the mix; repaintFog then stores lastPaintSignature = S1 (fog.mjs:3222) and the layer is visible (swapInFog sets it, :2351). A repaint P3 asked when now - since > fadeMs() + 1750 = 180 + 1750 = 1930 ms (strict, fog.mjs:2073) while done has not run calls endDissolves (generation bumped, previous null, queued false, :2329-2336) and returns false; repaintFog goes on and, the state being the same, returns 'unchanged' at fog.mjs:3164-3167 before clearLayerLeftovers/swapInFog - so the let-go repaint draws nothing, against the comment at :2069-2072 ('this repaint draws'). When D1's done then runs (watchdog timer or the animation's promise, fog-reveal.mjs:143-158) it is stale; with state.previous null, `mix.drpgTexture !== state.previous` is true and the mix - the only renderable fog sprite - is dropped (fog.mjs:2271-2275); nothing in the stale branch or elsewhere sets a fog sprite renderable again (the only writers are :2279 and :2315). What a player sees: not a frame. The fog layer stays visible with both fog sprites renderable=false; only the raster's dots and lines (masked by the incoming silhouette) remain over the fogged areas. With the module's scene setup (applySceneVisionMode: tokenVision false, global light on, fog.mjs:559-570) the scene's background, tiles and drawings of every room - found or never found - are shown on that one browser. Other characters' tokens and Remnants are not shown by it: visibility.mjs gates them on its own rule. It lasts until a repaint whose signature differs (that viewer's rooms change, an Eclipse starts or ends, a region edit or scene change resets the signature), a stand-down, or a reload. game.drpg.fogAnimations(false) and a manual repaintFog() do not cure it: both reach the same 'unchanged' shortcut. diagnoseFog() reads busy false and lastReason 'unchanged: painted ...'; whyBlack() lists the fog sprites with renderable false (fog.mjs:2779). What makes the end late at a table, read against the timings: (a) a hidden Chromium/Electron tab under ordinary throttling stops rAF, so only the 930 ms watchdog timer can end it, and wake-ups are aligned to 1 s, so it runs by since + 1930 ms at the latest - exactly the bound, strict '>', zero slack: closed except for milliseconds of scheduling latency. The lane's failure_scenario (an ordinary background tab) is this road and is not reachable in practice; the first reader's own confidence line says as much. Firefox's 1 s background minimum puts it near since + 1000: closed too. (b) Open roads: Chromium's intensive throttling (hidden over 5 minutes, page silent, timer chain of 5 or more: 1-minute alignment) - but the dissolve-starting roads I read are hook and socket driven with a synchronous step() (fog.mjs:493), chain 0-2, so this is not established; a frozen or suspended page (a tablet switching apps, Energy Saver freezing, a laptop lid) resumed with buffered socket messages run before the overdue timer; WebKit's or the OS's (App Nap) longer hidden-page timer coalescing; (c) a visible tab: a main-thread block of about 1 s or more spanning since+930..since+1930 (not 'a slow frame' - a frame of a few hundred ms never reaches the bound), after which a socket task queued during the block runs before both the timer task and the next frame (the next frame would end the 180 ms fade at once). Which runs first is the browser scheduler's, not settled from source. P3 'unchanged' itself is common for a player: another player's discovery (SYNC.fog, sync.mjs:438-442), any token created or deleted on the scene (fog.mjs:325-330, :350-353), the echo of the GM's write. Against e515907d: there P3 was queued whatever the time; the late end was current, made the incoming sprite renderable, dropped the old ones and the mix and ran the queued repaint: correct fog. 1.2.119's failure (an end that throws) froze the fog as drawn, the safe direction; 1.2.120 adds a road, behind a late end, to no fog at all, the unsafe direction. Class for this module: a player shown what the room fog exists to hide - the 'gives the answer away' consequence of the brief's blocker class (unexplored rooms' layout and art, possibly a crime scene's dressing), on one honest player's browser and persisting. It is a presentation failure, not a D2 trust breach: the scene's art is loaded on every client and the fog is a drawing layer, so nothing a player is not trusted with reaches their browser through it. Severity I assign: minor, because it needs a non-ordinary timing (b or c) none of which is measured; it would be blocker-class in consequence if LIVE shows it reachable on an ordinary table, and it is the first fog road since E12 r2-H1 that ends with the map uncovered rather than frozen.",
+     "evidence": "Shipped blocks copied unchanged from git show 03ee8de9/e515907d:scripts/fog.mjs (queueBehindDissolve to swapInFog) into /tmp/r120-vF/block-120.mjs and block-119.mjs, driven by /tmp/r120-vF/sim.mjs with a repaintFog model (queue, then the unchanged shortcut, then swapInFog) and the watchdog fired by hand. Case 1 on 120: P1@5000 painted S1; P2@5120 queued; P3@7000 'unchanged' with warning 'Fog: a dissolve held the fog for 2000 ms and was let go'; layer [fog-S0:hidden, fog-S1:hidden, mix:R]; late end @7010 -> [fog-S0:hidden, fog-S1:hidden], anyFogShown=false; P4@9000 unchanged, still none; P5@12000 into another room -> a dissolve, fog back. Same steps on 119: P3 queued; end @7010 -> [fog-S1:R]. Case 2 on 120 (P3 at exactly since+1930): queued, end restores [fog-S1:R] - the strict bound. Case 3 (end on time at 930 ms): correct on both. Case 4 (P3 with a changed signature): correct on both (the new dissolve fades from the mix; the stale end keeps it because mix.drpgTexture === state.previous). Code: fog.mjs:2073 `at - state.since > io.fadeMs() + DISSOLVE_STUCK_MS`; :2274 `if (mix.drpgTexture !== state.previous) io.dropSprite(mix); return;`; :3164 `if (signature === lastPaintSignature && findLayer()?.visible) { ... return true; }`. Tests: R8030 C (tests-tier1.mjs:32564-32573) reads [early, late, busy] only - no layer sprites, no late end, no unchanged repaint."
+    },
+    {
+     "id": "r120-F-2",
+     "kind": "finding",
+     "verdict": "holds",
+     "severity": "minor",
+     "why": "`current` is set at fog.mjs:2277, after scratch.destroy (:2270) and the generation test; finally releases only if current (:2291-2292). A throw from scratch.destroy on the current generation leaves busy and queued true and the queued repaint unrun; the comment at :2058-2062 and 25231254's message say the end releases 'whatever its clean-up throws'. Consequence is bounded: the mix stays shown (the fog is drawn, frozen at its last tick, not uncovered - done ran once and will not run again, so the F-1 late end cannot follow), and the first repaint asked past since+1930 lets it go and draws from current state, so the queued change is not lost if any later repaint comes. Whether a PIXI Container's destroy throws at all is as hypothetical as the dropSprite throw R8030 plants. Minor stands as the line's own claim is untrue for its first statement.",
+     "evidence": "/tmp/r120-vF/sim2.mjs (PIXI.Container.destroy throwing, block-120.mjs): 'watchdog caught: scratch would not be destroyed'; after the end {busy:true, queued:true, repaints:0, shown:[mix]}; a repaint at 3000 ms: not queued, busy false, shown [mix]. R8030 A plants its throw in dropSprite (tests-tier1.mjs:32545-32552), after current = true."
+    },
+    {
+     "id": "r120-F-3",
+     "kind": "finding",
+     "verdict": "holds",
+     "severity": "nit",
+     "why": "The bound acts only inside queueBehindDissolve (fog.mjs:2065-2083); there is no timer, and it counts fadeMs()+1750 from the dissolve's start, not 1750 ms. The notes (v1.2.120.md:50-51) say 'let go after 1750 ms'; the handbook's 'the next change lets it go' matches the code. A queued repaint is cleared by endDissolves (:2333) and only the asking repaint runs, which reads current state, so nothing queued is lost when that repaint draws - but see F-1 for when it does not.",
+     "evidence": "fog.mjs:2073-2076; :2329-2336; release notes lines 50-51."
+    },
+    {
+     "id": "r120-F-4",
+     "kind": "finding",
+     "verdict": "holds",
+     "severity": "minor",
+     "why": "env.changed is the registered setting's onChange only (gm-store.mjs:1753), called through tellChanged (:925-928) from the flush's catch (:895). The clientSettingChanged readers - live.mjs:406-410 watch.stores, despair.mjs:57, case-copy.mjs:255, gm-stores.mjs:3015/3041, fog.mjs:411 - are not told. Not a regression: on e515907d none of them, and no onChange, heard a refused write; 1.2.120 closes it for stores with an onChange (the fog's two keys among them) and leaves the rest as they were. The notes' 'whatever draws that store ... Now the store tells it anyway' overstates. I did not recount the 13 of 66.",
+     "evidence": "gm-store.mjs:1751-1753 `changed: (key, value) => game.settings?.settings?.get?.(...)?.onChange?.(value, {})`; live.mjs:408 `Hooks.on(\"clientSettingChanged\", key => { if (keys.includes(key)) schedule(); })`."
+    },
+    {
+     "id": "r120-F-5",
+     "kind": "finding",
+     "verdict": "holds",
+     "severity": "nit",
+     "why": "(a) 97-two-gms.mjs:343-350: K's header says the dissolve is not reached headless; notes :85 call it 'the fog after a dissolve'. (b) 25231254 reports tier 1 1816, be44650c (F's last commit) 1817; notes :123 'F 1816'. (c) quotaWarned is per engine (gm-store.mjs:711), and the engine is made once per page load (:1735): once per load, again after an F5. (d) e515907d lang/en.json:3223 already had 'The Mastermind knows every room.'; 1.2.120 adds the second sentence (en.json:3232).",
+     "evidence": "git log -1 25231254 / be44650c 'Green after' lines; git show e515907d:lang/en.json | grep fogMastermind."
+    },
+    {
+     "id": "r120-F-6",
+     "kind": "finding",
+     "verdict": "holds",
+     "severity": "minor",
+     "why": "Pre-existing on e515907d and untouched by a5661b39 except the build's wrapper: `current` is read once at open (mastermind.mjs:610) and handed to wireMastermindGive (:532-554), which converts to it; the keepLive watch is actors plus drpgDespairOwedChanged (:708), and mastermindActor() reads mastermindStore (:244-248), a GM store no actor or world-setting hook hears. Not in the release's change; it belongs to the windows' refresh line, as routed.",
+     "evidence": "mastermind.mjs:551 `await convertDespairToHope(donorId, current, amount);`, :610 `const current = mastermindActor();`, :708 watch."
+    },
+    {
+     "id": "regression-1 (the fog layer after a held fade)",
+     "kind": "regression",
+     "verdict": "weakened",
+     "severity": "minor",
+     "why": "Stands: on e515907d the same event order (an unchanged repaint asked more than 1930 ms after a fade began, then that fade's late end) ends with the incoming fog sprite shown; on 03ee8de9 with no fog sprite shown until a changed repaint. Narrower than 'a background tab': the end must come later than since+1930 ms, which Chromium's ordinary 1 s hidden-tab alignment does not produce; it needs intensive throttling, a frozen/suspended page, OS timer coalescing, or a visible-tab block of about 1 s or more with a socket task scheduled before the timer and the next frame - none measured. See r120-F-1.",
+     "evidence": "/tmp/r120-vF/sim.mjs case 1 on both blocks: 119 ends [fog-S1:R]; 120 ends with none renderable. Case 2: at exactly 1930 ms both are correct."
+    },
+    {
+     "id": "claim-1 (done releases in finally whatever the clean-up throws)",
+     "kind": "claim",
+     "verdict": "holds",
+     "severity": "minor",
+     "why": "The first reader's 'partly' holds: a throw from scratch.destroy, before `current = true`, is not released (r120-F-2). Every throw after fog.mjs:2277 is.",
+     "evidence": "sim2.mjs; fog.mjs:2268-2293."
+    },
+    {
+     "id": "claim-4 (notes: let go after 1750 ms)",
+     "kind": "claim",
+     "verdict": "holds",
+     "severity": "nit",
+     "why": "'partly' holds: the bound is fadeMs()+1750 from the start and acts only when a repaint is asked (r120-F-3).",
+     "evidence": "fog.mjs:2073."
+    },
+    {
+     "id": "claim-7 (notes: 97 K is the fog after a dissolve)",
+     "kind": "claim",
+     "verdict": "holds",
+     "severity": "nit",
+     "why": "'no' holds: K's own header says the harness renders no texture, so the dissolve is not reached; K reads diagnoseFog().shading.",
+     "evidence": "audit/harness/scenarios/97-two-gms.mjs:343-350."
+    },
+    {
+     "id": "claim-8 (gm-store tells the store's readers)",
+     "kind": "claim",
+     "verdict": "holds",
+     "severity": "minor",
+     "why": "'partly' holds: onChange only, not the clientSettingChanged readers (r120-F-4).",
+     "evidence": "gm-store.mjs:1753; live.mjs:406-410."
+    },
+    {
+     "id": "claim-10 (notes: the notice appears once)",
+     "kind": "claim",
+     "verdict": "holds",
+     "severity": "nit",
+     "why": "'partly' holds: quotaWarned is per engine, the engine per page load; AUDIT item 700 says the same ('trwaly, ale pojawia sie raz').",
+     "evidence": "gm-store.mjs:711, 883-885, 1735."
+    },
+    {
+     "id": "claim-12 (Fog tab's Mastermind column now says why)",
+     "kind": "claim",
+     "verdict": "holds",
+     "severity": "nit",
+     "why": "'partly' holds: the first sentence was there on e515907d; one sentence was added.",
+     "evidence": "e515907d lang/en.json:3223; 03ee8de9 lang/en.json:3232."
+    },
+    {
+     "id": "claim-16 (R8030 row)",
+     "kind": "claim",
+     "verdict": "holds",
+     "severity": "minor",
+     "why": "'partly' holds: A plants the throw after current is set; C reads return values and busy only, nothing of the layer after the let-go nor a late end - so R8030 cannot see r120-F-1.",
+     "evidence": "scripts/tests-tier1.mjs:32545-32573."
+    },
+    {
+     "id": "claim-18 (AUDIT 9.2 item 700)",
+     "kind": "claim",
+     "verdict": "holds",
+     "severity": "nit",
+     "why": "'partly' holds: the warning text, the watchdog's error and the reset reading match the code; the item asks nothing of a player's layer after a let-go (r120-F-1) nor of the other windows under a full storage (r120-F-4).",
+     "evidence": "audit/AUDIT-1.2.42.md:1515; fog.mjs:2074; fog-reveal.mjs:152."
+    },
+    {
+     "id": "claim-30 (notes: F 1816 on its last commit)",
+     "kind": "claim",
+     "verdict": "holds",
+     "severity": "nit",
+     "why": "'partly' holds: be44650c reports 1817; 1816 is 25231254's.",
+     "evidence": "git log -1 --format=%B be44650c, line 30; 25231254, line 35."
+    },
+    {
+     "id": "claim-34 (notes: a select held open in another window still waits)",
+     "kind": "claim",
+     "verdict": "holds",
+     "severity": "nit",
+     "why": "'partly' holds: the Mastermind box's keepLive has no whileEditing, so any focused field there (select or amount) defers the redraw (live.mjs RULE 1).",
+     "evidence": "live.mjs:181-188; mastermind.mjs:702-710."
+    }
+   ]
+  }
+ }
+}
