@@ -102642,6 +102642,47 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(warns.filter(w => w === game.i18n.localize("DRPG.Items.tablesOpenNoPreset")).length, 1,
             "Create an item with the item tables open did not say the card's details were not carried");
     }],
+    ["1.2.122 REFR-17 - a Despair Call's confirmation follows the Despair its pool owes: a conversion's debt written while the window stands open changes the header's spendable sum (calls.mjs `confirmCall`'s live header; despair.mjs `spendableDespair`; the audit's REFR-17, the header's half)", async () => {
+        /*
+         * The audit of 1.2.118 (REFR-17): the confirmation's header was kept live on the actors and the module's settings,
+         * and the spendable Despair also subtracts the GMs' debt store, heard only through `watch.stores`. With this GM's
+         * Monokuma (the pool's actor) and its pool at 8 (put back after), Public Announcement's confirmation opened (DialogV2.wait held by a stand-in that keeps
+         * the window until the test closes it, as R3818 holds it, and the window's content drawn into the page), a debt row
+         * of 2 written for the pool and dropped after. Red at 21bf5d18: the header as drawn. The pickers' own rows are not
+         * live (not done here: each picker hands `choose` its rows once).
+         */
+        must(game.user.isGM, "the debt store is a GM's");
+        const calls = await import("./calls.mjs");
+        const { DESPAIR_CALLS } = await import("./config.mjs");
+        const { poolUserFor } = await import("./monokuma.mjs");
+        const { spendableDespair, getDespair, setDespair } = await import("./despair.mjs");
+        const { despairOwedStore } = await import("./gm-stores.mjs");
+        const monokuma = game.actors.find(a => a.type === "character" && a.getFlag(MODULE_ID, FLAGS.monokuma) && poolUserFor(a)?.id === game.user.id);
+        needs(world.atLeast("playerAccounts", 1), "a world with a cast");
+        must(monokuma, "this GM has no Monokuma whose pool is theirs - this would measure nothing");
+        const call = DESPAIR_CALLS.publicAnnouncement ?? Object.values(DESPAIR_CALLS).find(c => c.target === "room");
+        const key = `${game.user.id}:${game.user.id}:REFR17${Date.now()}`;
+        const sums = [];
+        const poolWas = getDespair(game.user.id);
+        await setDespair(game.user.id, 8);
+        await settle();
+        const open = calls.confirmCall(call, { kind: "despair", held: spendableDespair(game.user.id), actor: monokuma });
+        try {
+            await until(() => document.querySelector(".drpg-call-header"), 3000);
+            const header = () => document.querySelector(".drpg-call-header")?.textContent ?? "";
+            sums.push(header());
+            await despairOwedStore.patch(key, { owed: 2, since: null });
+            await until(() => header() !== sums[0], 3000);
+            sums.push(header());
+        } finally {
+            await despairOwedStore.dropMany([key]);
+            for (const app of [...foundry.applications.instances.values()].filter(a => a.element?.querySelector?.(".drpg-call-header"))) await app.close();
+            await Promise.race([open, wait(3000)]);
+            await setDespair(game.user.id, poolWas);
+            await settle();
+        }
+        ok(sums.length === 2 && sums[1] !== sums[0], `the confirmation's header did not follow the pool's debt (read "${sums[0]}" then "${sums[1] ?? "-"}")`);
+    }],
     ["1.2.122 COMM-36 - Contraband tells the owner of the item it destroys, privately, as Silence and Chain tell theirs (call-effects.mjs `destroyItemEffect`, `tell`; the audit's COMM-36)", async () => {
         /*
          * The audit of 1.2.118 (COMM-36): the item was deleted on the GM and the public card named only the item; its

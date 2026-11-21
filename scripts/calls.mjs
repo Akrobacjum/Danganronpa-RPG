@@ -23,6 +23,7 @@ import { callWindow, callHeader, callWindowClass, callRowsHtml, pickedRow, callP
 import { alreadyOpen } from "./live.mjs";
 import { nameAsSeen } from "./mask-gm.mjs";
 import { shownName } from "./projects-secrecy.mjs";
+import { despairOwedStore } from "./gm-stores.mjs";
 
 import { tipText } from "./ui-kit.mjs";
 
@@ -767,7 +768,9 @@ export async function confirmCall(call, { kind = "hope", held = 0, choice = {}, 
         live: readHeld ? {
             region: ".drpg-call-header",
             build: () => callHeader(call, kind, { held: readHeld() }),
-            watch: { actors: true },
+            // And the Despair a pool owes (1.2.122, the audit's REFR-17): the spendable Despair subtracts the GMs' debt
+            // store, heard through `watch.stores` alone, so a conversion meanwhile left the header's sum as drawn.
+            watch: { actors: true, ...(kind === "despair" && game.user?.isGM ? { stores: [despairOwedStore] } : {}) },
             after: (header, dialog) => syncSpend(header, dialog)
         } : null,
         // The action's layout (R3818): the facts on the left under the header, the question on the right - the rows and

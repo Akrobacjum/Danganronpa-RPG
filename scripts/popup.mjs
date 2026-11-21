@@ -1296,7 +1296,12 @@ export async function onCreateChatMessage(message) {
     // `popupForce` only from a GM (E02, audit S11-27): from a player's console it
     // put a card that looks like the module's own in the middle of every screen. A GM posting a
     // player's card for them does not make it a GM's (secret.mjs `cardWriter`, E08+E28 fix r2-H5).
-    const forGm = cardFlag(message, "gmPopup")
+    // `gmPopup` only on a card a GM's browser wrote (1.2.122, the audit's COMM-35), as its two siblings are held: the
+    // module posts it through a GM (a player's meta loses it, secret.mjs GM_META), so on a document a player wrote it is
+    // a console's, and it put a card of the player's choosing in every GM's corner. A GM posting at a player's asking is
+    // still a GM's browser (its `author`); the card's writer for everything else stays `cardWriter`. A player's public
+    // card reaches every screen, GMs' included, by design: that is an announcement.
+    const forGm = (message.author?.isGM && cardFlag(message, "gmPopup"))
         || (cardWriter(message)?.isGM && cardFlag(message, "popupForce"));
     if (game.user.isGM && whisper.length && !forGm) return;
 

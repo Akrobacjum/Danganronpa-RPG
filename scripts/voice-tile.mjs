@@ -691,8 +691,24 @@ function voiceStep(watch = live, gone = null) {
         watch.phase = "holding";
         schedule(watch, "hold", HOLD_MS, () => startFade(watch));
     }
-    paintSpeaker(watch, ready.filter(id => id !== watch.shown).length, gone);
-    watch.controls?.(watch, gone);
+    /* ONE HOLD A STEP (1.2.122, the audit's COMM-47): the speaker's word and the controls' word each asked `watch.hold`,
+       micHold with its scans of every token of every scene, on every speaker event. Read once here and handed to both;
+       `micState`'s own reading for the microphone (connected from the Room) is a different question and stays. */
+    const ask = watch.hold;
+    let held, read = false;
+    watch.hold = () => {
+        if (!read) {
+            read = true;
+            held = ask?.();
+        }
+        return held;
+    };
+    try {
+        paintSpeaker(watch, ready.filter(id => id !== watch.shown).length, gone);
+        watch.controls?.(watch, gone);
+    } finally {
+        watch.hold = ask;
+    }
 }
 
 /** The hold is over: fade the portrait, then clear it - at once when the fade is 0 ms (reduced motion). */

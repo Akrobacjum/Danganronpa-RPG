@@ -13248,7 +13248,9 @@ const INVARIANTS = [
             for (let i = 0; i < 3; i++) seconds.push(NH.recordNotice({ source: "player", author: SECOND, kind: "info", title: `R297 second ${i}`, text: "", html: "<p>R297 second</p>" }));
             for (let i = 0; i < 13; i++) await onCreateChatMessage(made("P", i, { author: player, content: words }));
             ran("public");
-            for (let i = 0; i < 13; i++) await onCreateChatMessage(made("G", i, { author: player, whisper: [me], flags: { gmPopup: true }, content: words }));
+            // A GM's card posted at the player's asking (`askedBy`), as the module writes a gmPopup card: since 1.2.122 one a
+            // player wrote raises nothing (the audit's COMM-35). Its entry is still the player's.
+            for (let i = 0; i < 13; i++) await onCreateChatMessage(made("G", i, { author: game.user, whisper: [me], flags: { gmPopup: true, askedBy: player.id }, content: words }));
             ran("gmPopup");
             for (let i = 0; i < 13; i++) {
                 P.showPopup(words, { title: "R297 evidence", kind: "evidence", sticky: true, source: "evidence", messageId: made("E", i, { author: player }).id });
@@ -17720,6 +17722,67 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson([true, true, true, 2, true]),
             "a player's card ruled on a classmate's character, or a GM's card was held to it ([Nothing was there closed, Refuse closed, the classmate's Sanity unchanged, notices, a GM's card reaches its ruling])");
         equal(read_rearm, game.i18n.format("DRPG.Trap.rearmGone", { name: game.user.name }), "Rearm the trap on a project that is gone did not say so (the audit's CTRL-64)");
+    }],
+
+    ["R8278 - a whisper to the GMs raises a notice for the GM to answer only when a GM's browser wrote it: gmPopup on a document a player wrote raises nothing, on a GM's it does (popup.mjs `onCreateChatMessage`; 1.2.122, the audit's COMM-35)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-35): gmPopup was read off any document, so a player's console could whisper the GMs a
+         * plain card with the module's marker and gmPopup and put a notice of its choosing in every GM's corner, while its
+         * two siblings (popupForce, popupCentre) were held to a GM's card. Two cards made here (no world write) as R8264
+         * makes its card, both whispered to this GM with gmPopup: one written by a player, one by this GM. Red at
+         * 21bf5d18: both drawn.
+         */
+        must(game.user?.isGM, "the notices measured here are a GM's");
+        needs(world.atLeast("playerAccounts", 1), "a player account to write a card as");
+        const NH = await import("./notice-history.mjs");
+        const { onCreateChatMessage } = await import("./popup.mjs");
+        const { MESSAGE_FLAG } = await import("./utils.mjs");
+        const player = game.users.find(u => !u.isGM);
+        const card = (id, author) => ({ id, author, whisper: [game.user.id], rolls: [], content: `<p>${id}</p>`,
+            flags: { [MODULE_ID]: { [MESSAGE_FLAG]: true, gmPopup: true } }, getFlag(scope, key) { return this.flags?.[scope]?.[key]; } });
+        const cards = [card("R8278PlayerCard1", player), card("R8278GmCard00001", game.user)];
+        const byId = new Map(cards.map(m => [m.id, m]));
+        must(!Object.hasOwn(game.messages, "get"), "game.messages already answers get for itself - the suite's stand-in would hide it");
+        await NH.holdNoticeHistory(true);
+        const realGet = game.messages.get;
+        game.messages.get = function (key, ...rest) { return byId.get(key) ?? realGet.call(this, key, ...rest); };
+        let read = null;
+        try {
+            for (const m of cards) await onCreateChatMessage(m);
+            read = cards.map(m => Boolean(document.querySelector(`.drpg-popup[data-drpg-message="${m.id}"]`)));
+        } finally {
+            delete game.messages.get;
+            for (const m of cards) for (const c of document.querySelectorAll(`.drpg-popup[data-drpg-message="${m.id}"]`)) c.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            NH.holdNoticeHistory(false);
+        }
+        equal(stableJson(read), stableJson([false, true]), "a player's gmPopup raised a GM's notice, or a GM's did not ([the player's card drawn, the GM's drawn])");
+    }],
+
+    ["R8279 - one speaker event of the Room the tile follows reads the tile's hold once: the speaker's word and the controls' word share it (voice-tile.mjs `voiceStep`; 1.2.122, the audit's COMM-47)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-47): each step painted the speaker (paintWord asks watch.hold, micHold) and then the
+         * controls (paintWord again), each micHold scanning every token of every scene twice. The tile's rig (R538's,
+         * `voiceTileRig`) with its hold counted and the controls painted on each step; one account speaks. Red at
+         * 21bf5d18: two reads for the step.
+         */
+        needs(world.atLeast("playerAccounts", 1), "a speaker in the stand-in Room");
+        const V = await import("./voice-tile.mjs");
+        const [b] = game.users.filter(u => u.id !== game.user.id);
+        let asked = 0;
+        const rig = voiceTileRig(V, [b], { hold: () => { asked++; return null; }, controls: (w, g) => V.paintControls(w, g), gm: () => false });
+        const room = rig.makeRoom([b.id]);
+        V.attachRoom(rig.clientOf(room), rig.watch);
+        document.body.append(rig.tile);
+        let read = null;
+        try {
+            asked = 0;
+            rig.speak(room, [b.id]);
+            read = asked;
+        } finally {
+            V.detachRoom(rig.watch);
+            rig.tile.remove();
+        }
+        equal(read, 1, "one speaker event read the tile's hold more than once (the reads counted)");
     }],
 
     ["R539 - the GM's block in the list is Foundry's block and never undoes the module's: the button is built only in a GM's list; its click writes the user's `permissions.BROADCAST_AUDIO` flipped from what Foundry answers now and nothing else; where `moduleHoldsMic` holds the microphone or a death is kept secret the button is disabled with its line and `toggleBlock` writes nothing; it refuses a player's client, the GM's own account and a user who is not of this world", async () => {
