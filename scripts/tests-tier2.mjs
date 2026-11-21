@@ -95734,7 +95734,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "[the same while caseMark is written]");
     }],
 
-    ["E44-T2 - the Sound window's Music rows follow another GM's mapping (E44 C2b; E44-08, the 27.10 amend): a `musicMap` write redraws the rows with the new playlist selected, an `sfxMap` write redraws nothing, a focused select holds the redraw until focus leaves, and a row whose save landed keeps its marker through a redraw", async () => {
+    ["E44-T2 - the Sound window's Music rows follow another GM's mapping (E44 C2b; E44-08, the 27.10 amend; the select's clause since the line claude/refresh-120): a `musicMap` write redraws the rows with the new playlist selected, an `sfxMap` write redraws nothing, a mapping write with a select focused and a pick in it not yet saved redraws the rows at once with the focus and the pick kept, and a row whose save landed keeps its marker through a redraw", async () => {
         /*
          * E44 C2b, 04.11.2026; the 27.10 amend ("keepLive for settings is E44's", E50's STAGE, edge cases): the Music tab's
          * rows were drawn once, so with the window open on two GMs one's mapping left the other's select on the old
@@ -95744,6 +95744,15 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * changes it, its save let land, and another state written. The map, the effects' map and the playlist are put
          * back. Red before C2b: the select stayed on the old playlist (no region). The mutant c2b-m3 (the region without
          * `after`: the new selects save nothing) reads red here.
+         * THE FOCUSED SELECT'S CLAUSE, REWRITTEN (the line claude/refresh-120, 21.11.2026; UI-17 of the audit of 1.2.118;
+         * the owner's rule "Zawsze odswiezamy okna od razu przy zmianie"). From E44 C2b until this line the third reading
+         * held the old rule of live.mjs: a focused select held the redraw until the focus left, read as the select still
+         * drawn 400 ms after a mapping write and redrawn only after its `focusout`. UI-17 and R7970 changed the rule on
+         * purpose: a select holds nothing. So the clause now reads the new rule on the same staging - a select focused and
+         * another playlist picked in it with no `change` (a pick not saved), another row mapped by the setting's write:
+         * the rows drawn again at once, the other row on its playlist, the select picked in drawn anew with the focus and
+         * the pick kept. Failed on d3153c04 and the 1.2.121 assembly as written before (line P's report, the coordinator's
+         * reproduction); the rewrite reads red on e515907d (the select held the rows).
          */
         needs(env.dialogs(), "the Sound window is drawn and its selects read and changed");
         must(game.user.isGM, "the Music tab is a GM's");
@@ -95778,12 +95787,13 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const focused = select(k2);
             focused.focus();
             const isFocused = document.activeElement === focused;
-            await setSetting(SETTINGS.musicMap, { ...map(), [k2]: playlist.id });
-            await wait(400);
-            read.focus = [isFocused, focused.isConnected];
-            focused.blur();
-            focused.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
-            read.focus.push(Boolean(await until(() => !focused.isConnected && select(k2)?.value === playlist.id, 3000)));
+            focused.value = playlist.id;
+            await setSetting(SETTINGS.musicMap, { ...map(), [k4]: playlist.id });
+            const atOnce = Boolean(await until(() => !focused.isConnected && select(k4)?.value === playlist.id, 1500));
+            read.focus = [isFocused, atOnce, select(k2)?.value === playlist.id, document.activeElement === select(k2) && Boolean(select(k2))];
+            document.activeElement?.blur?.();
+            await setSetting(SETTINGS.musicMap, { ...map(), [k4]: "" });
+            await until(() => select(k4)?.value === "", 3000);
             const s3 = select(k3);
             s3.value = playlist.id;
             s3.dispatchEvent(new Event("change", { bubbles: true }));
@@ -95806,9 +95816,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             if (playlist) await playlist.delete();
             await settle();
         }
-        equal(stableJson(read), stableJson({ other: [true, true], sfx: true, focus: [true, true, true], marker: [true, true, "saved"], closed: true }),
+        equal(stableJson(read), stableJson({ other: [true, true], sfx: true, focus: [true, true, true, true], marker: [true, true, "saved"], closed: true }),
             "[another GM's mapping: the row's select on the new playlist, the old select replaced]; [the select drawn before an sfxMap write still drawn after it]; "
-            + "[a select focused, still drawn while focused after a mapping write, redrawn with the write once focus left]; "
+            + "[a select focused with a pick not saved: focused; the rows redrawn at once with another row's mapping; the pick kept; the focus on the select drawn anew]; "
             + "[a row's change saved with its marker saying so, the rows redrawn by another write, that row's marker after it]; [Close closes]");
     }],
     ["E44-T3 - a GM panel tile whose window stands behind the panel raises it and the panel does not come back (E44 C2c; E44-09, S10-59): the Investigation dashboard open, the panel opened over it and its tile pressed - one dashboard, raised, and no panel", async () => {
