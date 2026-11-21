@@ -49339,7 +49339,9 @@ const INVARIANTS = [
             empty: [sg.empty, legacy.empty]
         }), stableJson({
             sgHead: true, sgHeading: true, sgGroupBy: [true, true],
-            sgCount: "var(--drpg-sg-bone-dim)", sgFull: "var(--drpg-glass-accent)", sgFullRed: false, sgOpacity: "1",
+            // A full count is Bone since 1.2.122 (UI-LC4, the owner's: a window's words are Bone; R8437), still apart from a
+            // count's dim Bone: changed on purpose.
+            sgCount: "var(--drpg-sg-bone-dim)", sgFull: "var(--drpg-sg-bone)", sgFullRed: false, sgOpacity: "1",
             legacyHead: null, legacyHeading: true, legacyCount: "var(--drpg-ink)", legacyFull: "var(--drpg-ink)",
             empty: [null, null]
         }), "[Stained Glass: the rung --drpg-text-xs on a heading at the floor, the heading sized by it, GROUP BY's label and button at the floor, "
@@ -64631,18 +64633,19 @@ const INVARIANTS = [
         }), stableJson({ player: [plain.id], palm: true, conceal: true, gm: 2 }),
         "{player: who a player's browser that hides the veiled token counts; palm, conceal: each counts the room through seenHere; gm: a GM's browser leaves nobody out}");
     }],
-    ["R8434 - the token HUD's new glyphs are recorded once, as the release said (the audit of 1.2.120, H-6; 1.2.122 line UI): tools/glyphs.json's rows for legacy:lock-open, legacy:stairs and glass:lock-open, drawn for 1.2.120's token HUD, each say they were seen by the owner on the HUD's shots (the v1.2.120 notes: 'approved on its shots') and not in a drawing round of their own, where they said 'not yet seen by the owner' or 'not approved'", async () => {
+    ["R8434 - the token HUD's new glyphs are recorded as the owner approved them (the audit of 1.2.120, H-6; 1.2.122 line UI; the owner, 21.11.2026: he approved the icons on their own shots too): tools/glyphs.json's rows for legacy:lock-open, legacy:stairs and glass:lock-open, drawn for 1.2.120's token HUD, each say the owner approved them on their own shots with 1.2.120, where they said 'not yet seen by the owner' or 'not approved'", async () => {
         /* Red at fefe61d6: two rows said "not yet seen by the owner" and one "not approved by the owner in a drawing round",
-           while the v1.2.120 notes said the HUD was approved on its shots. Read off the served file. */
+           while the v1.2.120 notes said the HUD was approved on its shots. Changed on purpose at the owner's answer of
+           21.11.2026 (46da8a28 wrote 'seen on the HUD's shots, not in a drawing round of its own'). Read off the served file. */
         needs(env.tools(), "the rows are read in tools/glyphs.json (an installed module's zip leaves tools/ out)");
         const G = await import("./tests-glyphs.mjs");
         const text = await fetch(`/modules/${MODULE_ID}/tools/glyphs.json`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""));
         const rows = G.parseGlyphs(text).glyphs.filter(g => ["legacy:lock-open", "legacy:stairs", "glass:lock-open"].includes(`${g.family}:${g.name}`));
         must(rows.length === 3, `${rows.length} of the three HUD glyph rows read - this would measure nothing`);
         equal(stableJson(rows.map(g => [`${g.family}:${g.name}`, /not yet seen by the owner|not approved by the owner/.test(g.from ?? ""),
-            /seen by the owner on the token HUD's shots with 1\.2\.120/.test(g.from ?? ""), /not in a drawing round of its own/.test(g.from ?? "")])),
+            /approved by the owner on its own shots with 1\.2\.120/.test(g.from ?? ""), /glyphs-legacy\.png and glyphs-glass\.png/.test(g.from ?? "")])),
         stableJson([["legacy:lock-open", false, true, true], ["legacy:stairs", false, true, true], ["glass:lock-open", false, true, true]]),
-        "[each HUD glyph row: its name, an old 'not seen / not approved', the shots seen with 1.2.120, no drawing round of its own]");
+        "[each HUD glyph row: its name, an old 'not seen / not approved', approved on its own shots with 1.2.120, the two shots named]");
     }],
     ["R8435 - only a character's own sheet takes the sheet's size (the audit of 1.2.118, UI-09, its part left; 1.2.122 line UI): window-scale.mjs `isCharacterSheet` answers true for the window a character keeps as its sheet, and false for another window of the same character - Daggerheart's character settings, Configure Ownership - for a window of an actor of another type, and for a window with no document", async () => {
         /* Red at 46da8a28: no `isCharacterSheet`; `scaleWindow` asked the document's type alone, so any window of a character
@@ -64674,6 +64677,67 @@ const INVARIANTS = [
         const shared = rules.filter(r => /border-radius/.test(r.body) && r.sel.split(",").length > 1 && r.sel.split(",").some(s => s.trim() === "#drpg-messenger-launcher")).length;
         equal(stableJson({ inkLegacy, inkGlass, darkText, readers, shared }), stableJson({ inkLegacy: true, inkGlass: true, darkText: [], readers: 2, shared: 0 }),
             "{inkLegacy, inkGlass: the words' token in each theme; darkText: rules whose words are the dark red; readers: rules reading the words' token; shared: shared radius rules naming the launcher}");
+    }],
+    ["R8437 - under Stained Glass a window's words read over a bright map (the audit of 1.2.42, UI-LC4 and UI-11; 1.2.122 line UI; the owner's choice of 21.11.2026: Bone for every state word on a window): each rule that gave a window's words the state colour now gives them a colour that reads at least 4.3:1 on the window's ground, Ink at 58 % over white, in every state the accent takes (the times of day, the phases, the Eclipse, an incident)", async () => {
+        /* Red at e8f5921c: the words took `--drpg-glass-accent` (or a mix of it), which over white reads 1.5-2.4:1. The
+           colours are resolved off the sheets' own tokens; the backdrop filter and the text shadow are not counted. */
+        const css = stripComments(await moduleStyles());
+        const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ sel: m[1].trim().replace(/\s+/g, " "), body: m[2] }));
+        const decl = (name, where = sel => /^:root|^body\.drpg-theme-stained-glass$/.test(sel)) => {
+            for (const r of rules) {
+                if (!where(r.sel)) continue;
+                const m = r.body.match(new RegExp(`${name.replace(/[-]/g, "\\-")}:\\s*([^;]+);`));
+                if (m) return m[1].trim();
+            }
+            return null;
+        };
+        const hex = v => {
+            const m = String(v ?? "").match(/^#([0-9a-f]{6})$/i);
+            return m ? [0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16)) : null;
+        };
+        const token = name => hex(decl(name) ?? decl(name, () => true));
+        const accents = [...new Set(rules.filter(r => /stained-glass/.test(r.sel)).flatMap(r => [...r.body.matchAll(/--drpg-glass-accent:\s*var\((--drpg-sg-[a-z-]+)\)/g)].map(m => m[1])))];
+        const accentRgb = accents.map(token).filter(Boolean);
+        must(accentRgb.length >= 6, `${accentRgb.length} state accents resolved - this would measure nothing`);
+        const bone = token("--drpg-sg-bone");
+        must(bone, "Bone was not read");
+        const ground = [7, 6, 11].map(c => 0.58 * c + 0.42 * 255);
+        ok(/background:\s*rgba\(7, 6, 11, 0\.58\)/.test(css), "a window's ground is no longer Ink at 58 % - the ground above is not the sheets'");
+        const lin = c => { const s = c / 255; return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; };
+        const lum = ([r, g, b]) => 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+        const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+        const mix = (a, b, p) => a.map((c, i) => (p * c + (1 - p) * b[i]));
+        // A rule's colour in one state: Bone, the accent, or the accent mixed with Bone or white.
+        const resolve = (value, accent) => {
+            const v = value.replace(/\s*!important\s*$/, "").trim();
+            if (/^var\(--drpg-sg-bone\)$/.test(v)) return bone;
+            if (/^var\(--drpg-glass-accent\)$/.test(v)) return accent;
+            const m = v.match(/^color-mix\(in srgb, var\(--drpg-glass-accent\) (\d+)%, (var\(--drpg-sg-bone\)|white)\)$/);
+            if (m) return mix(accent, m[2] === "white" ? [255, 255, 255] : bone, Number(m[1]) / 100);
+            return null;
+        };
+        const WORDS = [
+            "body.drpg-theme-stained-glass .drpg-panel table thead th",
+            "body.drpg-theme-stained-glass .character-header-sheet .drpg-actions h4, body.drpg-theme-stained-glass .character-sidebar-sheet h4",
+            "body.drpg-theme-stained-glass .application.sheet.actor .drpg-group-count.full",
+            "body.drpg-theme-stained-glass .application.sheet.actor section[data-application-part=\"inventory\"]",
+            "body.drpg-theme-stained-glass .character-header-sheet .drpg-ultimate-row .drpg-ultimate-value",
+            "body.drpg-theme-stained-glass .character-header-sheet .drpg-actions h4, body.drpg-theme-stained-glass .character-header-sheet .drpg-calls-panel h4",
+            "body.drpg-theme-stained-glass .character-header-sheet .drpg-free-move",
+            "body.drpg-theme-stained-glass .character-sidebar-sheet :is(h3, h4, .section-header, fieldset > legend)",
+            "body.drpg-theme-stained-glass .drpg-gmp-next-label",
+            "body.drpg-theme-stained-glass .drpg-handbook-text strong",
+            "body.drpg-theme-stained-glass .drpg-gm-panel table th",
+            "body.drpg-theme-stained-glass .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab fieldset > legend"
+        ];
+        const read = WORDS.map(start => {
+            const rule = rules.find(r => r.sel.startsWith(start) && /(^|;|\s)color:/.test(r.body));
+            const value = rule?.body.match(/(?:^|;|\s)color:\s*([^;]+)/)?.[1] ?? null;
+            if (!value) return [start, "no rule"];
+            const worst = Math.min(...accentRgb.map(a => { const c = resolve(value, a); return c ? ratio(c, ground) : 0; }));
+            return [start, Math.round(worst * 100) / 100 >= 4.3];
+        });
+        equal(stableJson(read), stableJson(WORDS.map(w => [w, true])), "[each window rule: its words' worst contrast over the ground on white, in every state, at least 4.3:1]");
     }],
 ];
 

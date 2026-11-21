@@ -1061,7 +1061,7 @@ body.drpg-theme-stained-glass .drpg-panel table tr:first-child th {
     text-transform: uppercase;
     letter-spacing: 0.1em;
     font-size: max(var(--drpg-sg-floor), calc(12px * var(--drpg-sg-scale)));
-    color: var(--drpg-glass-accent);
+    color: var(--drpg-sg-bone);
     background: var(--drpg-sg-ink-50);
     border-bottom: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 50%, transparent);
     text-align: left;
@@ -1456,7 +1456,7 @@ body.drpg-theme-stained-glass .drpg-panel h4 {
     font-size: max(var(--drpg-sg-floor), calc(13px * var(--drpg-sg-scale)));
     text-transform: uppercase;
     letter-spacing: 0.12em;
-    color: var(--drpg-glass-accent);
+    color: var(--drpg-sg-bone);
     border-bottom: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 35%, transparent);
     padding-bottom: 2px;
 }
@@ -1824,7 +1824,7 @@ body.drpg-theme-stained-glass .application.sheet.actor .drpg-group-count {
     opacity: 1;
 }
 body.drpg-theme-stained-glass .application.sheet.actor .drpg-group-count.full {
-    color: var(--drpg-glass-accent);
+    color: var(--drpg-sg-bone);
 }
 /* GROUP BY on the ordinary brush (the same commit; S08-28's "the grouping buttons are tiny"): the label and the two
    buttons were VT323 at 11 px (Legacy's rung, `--drpg-text-xs`, from the base sheet) and the label inherited whatever
@@ -1846,7 +1846,7 @@ body.drpg-theme-stained-glass .application.sheet.actor section[data-application-
     font-size: max(var(--drpg-sg-floor), calc(12px * var(--drpg-sg-scale)));
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--drpg-glass-accent) !important;
+    color: var(--drpg-sg-bone) !important;
     background: none !important;
     border: 0 !important;
     border-bottom: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 35%, transparent) !important;
@@ -1871,9 +1871,9 @@ body.drpg-theme-stained-glass .character-header-sheet .character-traits .trait .
     color: var(--drpg-sg-bone-dim) !important;
     border-radius: 0 !important;
 }
-body.drpg-theme-stained-glass .character-header-sheet .drpg-ultimate-row .drpg-ultimate-value { font-family: var(--drpg-font-title); color: var(--drpg-glass-accent) !important; font-style: normal; }
+body.drpg-theme-stained-glass .character-header-sheet .drpg-ultimate-row .drpg-ultimate-value { font-family: var(--drpg-font-title); color: var(--drpg-sg-bone) !important; font-style: normal; }
 body.drpg-theme-stained-glass .character-header-sheet .drpg-actions h4,
-body.drpg-theme-stained-glass .character-header-sheet .drpg-calls-panel h4 { background: none !important; color: var(--drpg-glass-accent) !important; }
+body.drpg-theme-stained-glass .character-header-sheet .drpg-calls-panel h4 { background: none !important; color: var(--drpg-sg-bone) !important; }
 
 /* ==========================================================================
    Milestone 8: the audit's remaining families - the choice row, the other tab bars, the footer row,
@@ -2574,12 +2574,12 @@ body.drpg-theme-stained-glass .character-header-sheet .hope-section .hope-value.
     background-color: var(--drpg-sg-bone-dim);
     opacity: 0.3;
 }
-/* the action budget and the free Move take the state colour, spent stays an outline (a held pip's colour is its
-   `::before` rule's, "the pip" below, since E55 S3) */
+/* the action budget takes the state colour, spent stays an outline (a held pip's colour is its `::before` rule's, "the
+   pip" below, since E55 S3); the free Move's words are Bone since 1.2.122 ("A WINDOW'S WORDS ARE BONE", the end) */
 body.drpg-theme-stained-glass .character-header-sheet .drpg-action-pip.locked::before { background-color: var(--drpg-sg-gm-light); }
 body.drpg-theme-stained-glass .drpg-free-move .drpg-move-slot[data-drpg-slot="eclipse"] { color: var(--drpg-sg-eclipse); }
 body.drpg-theme-stained-glass .character-header-sheet .drpg-free-move {
-    color: var(--drpg-glass-accent);
+    color: var(--drpg-sg-bone);
     padding: 0 6px;
     border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 45%, transparent);
     clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
@@ -2601,14 +2601,15 @@ body.drpg-theme-stained-glass .drpg-safeword-button {
     border-radius: 0;
     clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
 }
-/* Equipped and Experience: the ink column's headings in the state colour over a hairline */
+/* Equipped and Experience: the ink column's headings in Bone over a hairline (the state colour until 1.2.122: see
+   "A WINDOW'S WORDS ARE BONE" at the end of this sheet) */
 body.drpg-theme-stained-glass .character-sidebar-sheet :is(h3, h4, .section-header, fieldset > legend) {
     font-family: var(--drpg-font-chrome);
     font-size: max(var(--drpg-sg-floor), calc(12px * var(--drpg-sg-scale)));
     font-weight: 400;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--drpg-glass-accent);
+    color: var(--drpg-sg-bone);
     background: none;
     border: 0;
     border-bottom: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 30%, transparent);
@@ -2759,7 +2760,7 @@ body.drpg-theme-stained-glass .drpg-gmp-next-label {
     font-weight: 400;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--drpg-glass-accent);
+    color: var(--drpg-sg-bone);
 }
 body.drpg-theme-stained-glass .drpg-gmp-next-text { font-family: var(--drpg-font-prose); }
 /* the Season setup row a running game still waits on, under the line and quieter (the owner's Q-8 amended) */
@@ -3691,7 +3692,7 @@ body.drpg-theme-stained-glass .drpg-handbook-text h3::after {
     background: var(--drpg-glass-accent);
 }
 body.drpg-theme-stained-glass .drpg-handbook-text strong {
-    color: color-mix(in srgb, var(--drpg-glass-accent) 70%, white);
+    color: var(--drpg-sg-bone);
 }
 body.drpg-theme-stained-glass .drpg-handbook-text ins {
     text-decoration-color: var(--drpg-glass-accent);
@@ -4536,10 +4537,10 @@ body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-grid {
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 }
 
-/* THE TABLE HEADER IS THE STATE'S COLOUR. It was the GM's red, which in this theme means
-   "the GM does this" - and a column heading does nothing. The audit page has it in the hour. */
+/* THE TABLE HEADER IS BONE. It was the GM's red, which in this theme means "the GM does this" - and a column heading
+   does nothing; then the hour's, mixed with Bone, until 1.2.122 ("A WINDOW'S WORDS ARE BONE", the end of this sheet). */
 body.drpg-theme-stained-glass .drpg-gm-panel table th {
-    color: color-mix(in srgb, var(--drpg-glass-accent) 72%, var(--drpg-sg-bone)) !important;
+    color: var(--drpg-sg-bone) !important;
     border-bottom-color: color-mix(in srgb, var(--drpg-glass-accent) 45%, transparent) !important;
 }
 
@@ -5397,3 +5398,13 @@ body.drpg-high-contrast.drpg-theme-stained-glass #token-hud.drpg-token-hud .cont
     outline: 3px solid var(--drpg-bone);
     outline-offset: -11px;
 }
+
+/* A WINDOW'S WORDS ARE BONE (1.2.122 line UI; the audit of 1.2.42, UI-LC4 and UI-11; the owner's choice of 21.11.2026).
+   A window's ground is Ink at 58 % over a filtered backdrop, and over a bright map it is a mid grey: composited over
+   white with the backdrop filter left out it reads (111, 111, 113), on which Bone is 4.35:1 and the state colours
+   mixed 72 % with Bone 1.89 (trial) to 2.34 (night):1, the pure accents 1.51 to 1.77:1 (computed; R8437). So every
+   word on a window that took the state colour - the panels' table heads and headings, the sheet's headings, Ultimate,
+   free Move, full group count and inventory titles, the GM panel's next step and table heads, the handbook's strong
+   words, Daggerheart settings' legends (components.css) - is Bone; the state still colours the window's edges, seams,
+   hairlines and marks. Left in the state colour on purpose: icons, a title's first letter (a drop cap, not a word),
+   the stepper's - and +, the HUD, the tiles, the launchers and the Event panel, which are not windows. */
