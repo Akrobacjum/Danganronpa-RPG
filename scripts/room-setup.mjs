@@ -63,9 +63,20 @@ import {
  */
 /* E46-C2a (09.11.2026): the count is a compact kit stepper's field (`roomCells`' `tokens`), and the recount writes
    its value and the value it was drawn at (`data-drpg-shown`, what `wireTokenButtons` measures a step from) and
-   nothing else of the row - never the GM's ticks (`keepFresh` below). */
+   nothing else of the row - never the GM's ticks (`keepFresh` below).
+   A COUNT BEING TYPED IS LEFT ALONE (the line claude/setup-120, 21.11.2026). A field whose value is not the one it was
+   drawn or last recounted at holds digits the GM is typing and has not sent (`change` sends them, `wireTokenButtons`):
+   the recount skips it. Since the line claude/refresh-120 a field with no name no longer holds the window's redraw
+   (live.mjs), and the redraw carries the typed digits onto the new field and recounts (`afterRedraw`): without this
+   the world's count was written over them (the tier-2 "Room setup keeps the digits typed in a search-token count ...",
+   red on a copy with claude/refresh-120 merged). The drawn value is in the markup (`data-drpg-shown`, `roomCells`), so
+   a field the redraw draws knows it before the carry puts the typed digits back. And the field is keyed for the carry
+   (`data-drpg-key`, `token:<room>`): it has no name, and live.mjs keys such a field by its `id` next, which the kit's
+   stepper draws anew each time (`stepperId`), so the digits and the focus found no field to go back to (the same
+   scratch copy: the count read the world's 3 and the focus the page's body, with this guard and no key). */
 function recountTokenCells(root, scene) {
     for (const input of root.querySelectorAll("input[data-drpg-token]")) {
+        if (input.dataset.drpgShown !== undefined && input.value !== input.dataset.drpgShown) continue;
         const text = String(SearchTokens.left(input.dataset.drpgToken, scene));
         if (input.value !== text) input.value = text;
         input.dataset.drpgShown = text;
@@ -344,7 +355,7 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
                (probe/summary.txt). The field has no name: Apply never reads it (the count acts at once). */
             tokens: `<span class="drpg-token-step">${stepper({ value: SearchTokens.left(room, scene), min: 0, max: maxTokens, compact: true,
                 words: { down: game.i18n.localize("DRPG.SearchTokens.spendOne"), up: game.i18n.localize("DRPG.SearchTokens.giveOne") },
-                attrs: { "data-drpg-token": room, "aria-label": `${game.i18n.localize("DRPG.SearchTokens.title")}: ${room}`,
+                attrs: { "data-drpg-token": room, "data-drpg-shown": String(SearchTokens.left(room, scene)), "data-drpg-key": `token:${room}`, "aria-label": `${game.i18n.localize("DRPG.SearchTokens.title")}: ${room}`,
                     "data-tooltip": tipText("DRPG.Tips.Sweep.Setup.searchTokensStepTooltip") } })}<span
                 class="drpg-token-max">/ ${maxTokens}</span>${iconButton({ icon: "fa-solid fa-rotate-left",
                 label: game.i18n.localize("DRPG.SearchTokens.refillRoom"), attrs: { "data-drpg-token-refill": room } })}</span>`,

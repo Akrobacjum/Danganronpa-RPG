@@ -106019,6 +106019,63 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson({ more: n(read.emptied) - n(read.before), back: read.back === read.before }), stableJson({ more: 1, back: true }),
             `the Season checklist's intro did not follow the world (before, emptied, back: ${stableJson(read)})`);
     }],
+    ["Room setup keeps the digits typed in a search-token count while the window redraws, and writes nothing until they are sent (room-setup.mjs `recountTokenCells`, `afterRedraw`; the line claude/setup-120, after claude/refresh-120 let a field with no name stop holding a redraw)", async () => {
+        /*
+         * Room setup drawn as a GM opens it. The GM types digits into the first room's token count (no `change` yet) and
+         * keeps the focus there; then another GM writes the second room's description, which redraws the window. Read
+         * within 2 s: the count's text, and the room's tokens in the world (untouched: typed digits are sent on `change`).
+         * On e515907d a field with no name holds the redraw, so the digits stay because nothing is drawn again; with
+         * claude/refresh-120 merged the window redraws, and the recount wrote the world's count over the digits (red on a
+         * scratch copy of that merge without the guard, 21.11.2026). The room's flags and tokens are put back as found.
+         */
+        needs(env.dialogs(), "Room setup is drawn and read");
+        needs(world.atLeast("namedRooms", 2), "Room setup lists two rooms of the scene on screen");
+        const V = await import("./vault.mjs");
+        const VS = await import("./vault-store.mjs");
+        const M = await import("./movement.mjs");
+        const { SearchTokens } = await import("./search-tokens.mjs");
+        const { roomRegions } = await import("./rooms.mjs");
+        const scene = canvas.scene;
+        const [roomA, roomB] = M.allRooms(scene);
+        must(roomA && roomB, "the scene on screen holds no two rooms - this would measure nothing");
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-rooms").length, "Room setup stands open already");
+        const form = () => of("drpg-window-rooms")[0]?.element;
+        const count = () => form()?.querySelector(`input[data-drpg-token="${CSS.escape(roomA)}"]`);
+        const desc = () => form()?.querySelector(`[name="${CSS.escape(`desc:${roomB}`)}"]`);
+        const was = roomRegions(scene, roomB).map(piece => [piece, foundry.utils.deepClone(piece.flags?.[MODULE_ID] ?? {})]);
+        const tokensWere = SearchTokens.left(roomA, scene);
+        const typed = String(tokensWere === 1 ? 2 : 1);
+        const read = {};
+        let answer = null;
+        try {
+            answer = Promise.resolve().then(() => V.openRoomSetupDialog()).catch(err => `threw: ${err.message}`);
+            await until(() => count() && desc(), 6000).catch(() => {});
+            must(count() && desc(), "Room setup drew no token count or description - this would measure nothing");
+            count().focus();
+            count().value = typed;
+            count().dispatchEvent(new Event("input", { bubbles: true }));
+            await VS.updateRoom(scene, roomB, { [`flags.${MODULE_ID}.${VS.VAULT_FLAGS.description}`]: "SUITE redraw" });
+            await until(() => desc()?.defaultValue === "SUITE redraw", 2000).catch(() => {});
+            await settle();
+            await wait(300);
+            read.text = count()?.value ?? null;
+            read.world = SearchTokens.left(roomA, scene) === tokensWere;
+            of("drpg-window-rooms")[0]?.element?.querySelector('footer button[data-action="cancel"]')?.click();
+            await Promise.race([answer, wait(6000)]);
+        } finally {
+            for (const app of of("drpg-window-rooms")) await app.close().catch(() => {});
+            await Promise.race([answer, wait(6000)]);
+            for (const [piece, flags] of was) {
+                for (const k of Object.keys(piece.flags?.[MODULE_ID] ?? {})) if (!Object.hasOwn(flags, k)) await piece.unsetFlag(MODULE_ID, k);
+                for (const [k, value] of Object.entries(flags)) await piece.setFlag(MODULE_ID, k, value);
+            }
+            if (SearchTokens.left(roomA, scene) !== tokensWere) await SearchTokens.setFor(roomA, tokensWere, scene);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ text: typed, world: true }),
+            "Room setup wrote over the digits typed in a token count, or sent them unasked (text: the count's text after the redraw; world: the room's tokens untouched)");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).
