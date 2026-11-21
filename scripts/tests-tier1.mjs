@@ -57749,7 +57749,8 @@ const INVARIANTS = [
             const repaint = fnSource(fog, "repaintFog");
             equal(J({ stands: FR.roomOutline?.room ?? null, kept: Boolean(standing && !standing.group.destroyed && standing.group.alpha === 1),
                 flash: Boolean(flash && !flash.destroyed), drops: flash?.drpgFlashTimer != null,
-                call: /playDiscoveryAnimation\(\s*opened\[0\]\s*,\s*null\s*,\s*\{\s*standing:\s*mine\.has\(\s*opened\[0\]\s*\)\s*\}\s*\)/.test(repaint) }),
+                // The lead's rooms since 1.2.123 (line MAP; the audit's r122-E-7), as the take-down reads them: `mine` on a GM is every Monokuma's.
+                call: /playDiscoveryAnimation\(\s*opened\[0\]\s*,\s*null\s*,\s*\{\s*standing:\s*leadRooms\.has\(\s*opened\[0\]\s*\)\s*\}\s*\)/.test(repaint) }),
             J({ stands: "R3431 Monokuma's room", kept: true, flash: true, drops: true, call: true }),
                 "{the room outlined after the flash, the first outline still whole, the flash drawn, the flash timed to go, the repaint's call} - a room the class found replaces the GM's own outline");
         } finally {
@@ -67125,6 +67126,46 @@ const INVARIANTS = [
         }
         equal(stableJson(read), stableJson({ adopted: 4, goneHeld: 0, leftHeld: false, observers: true }),
             "{adopted: hosts the watch took on; observers: some observer registered on the fourth host; goneHeld: the three removed hosts held by them; leftHeld: any node off the page held by them}");
+    }],
+    ["R8352 - the primary's put-back from a bedroom names the room on the wire only to a mover who has found it, and the fog's last entry is kept on every GM's browser (1.2.123 line MAP; scripts/movement-audit.mjs `markOf`, `roomsFoundBy`; fog.mjs `reactToMove`, `noteEntry`; the audit's r122-E-4, r122-E-6)", async () => {
+        /*
+         * 1.2.123 line MAP, 21.11.2026. r122-E-4: MAP-21 cut an unfound bedroom's name from the words a player is shown, and
+         * the `move.sentBack` packet still carried it; `markOf` now drops it where the mover's characters hold the room
+         * unfound in the GMs' ledger (`known`), and keeps it where found or for a mover who knows the map (null). Read on
+         * plain refusals, and the call held to hand it the mover's rooms (its source). r122-E-6: `enteredRoom` was written
+         * only on the primary, so a GM who lost the role and regained it held a stale entry; `noteEntry` is asked before
+         * the primary's check, on a GM's browser (the source: the harness's GM is always the primary).
+         */
+        const A = await import("./movement-audit.mjs");
+        must(typeof A.markOf === "function", "movement-audit.mjs exports no markOf - this would measure nothing");
+        const shut = { mark: "bedroomShut", room: "Hiro's Room" };
+        const [audit, fog] = await Promise.all(["movement-audit.mjs", "fog.mjs"].map(f => fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(lfText).then(stripComments)));
+        const react = fnSource(fog, "reactToMove");
+        equal(JSON.stringify([A.markOf(shut, new Set(["Hall"])), A.markOf(shut, new Set(["Hiro's Room"])), A.markOf(shut, null), A.markOf({ mark: "corpse" }, new Set()),
+            /markOf\(refused, actsAsMastermind\(actor, game\.users\?\.get\(mover\)\) \? null : roomsFoundBy\(mover, scene\.id\)\)/.test(audit),
+            react.indexOf("noteEntry(tokenDoc)") >= 0 && react.indexOf("noteEntry(tokenDoc)") < react.indexOf("if (!isPrimaryGm()) return;")]),
+            JSON.stringify([{ rule: "bedroomShut" }, { rule: "bedroomShut", room: "Hiro's Room" }, { rule: "bedroomShut", room: "Hiro's Room" }, { rule: "corpse" }, true, true]),
+            "[the mark for a bedroom unfound, found, a mover who knows the map, a body; the put-back hands it the mover's rooms; the entry kept before the primary's check]");
+    }],
+
+    ["R8353 - a joined map leaves out a ghost's old seeds and keeps the class's finds (1.2.123 line MAP; scripts/gm-stores.mjs `spectatorFogSection`, `cubFogSection`, `ghostSeed`; the audit's MAP-19, its residue)", async () => {
+        /*
+         * 1.2.123 line MAP, 21.11.2026. Since 1.2.122 the seed skips a Spectator, but a world upgraded from 1.2.121 or before
+         * can hold a ghost's standing room seeded into its row (a weak write, its stamp a watermark plus a half), and the
+         * joined maps showed it. A section of the suite's own: a Spectator's row with a seeded Hall (100.5) and a walked
+         * Gym (200), a student's Lab (300). Read: the Spectator's map with the Spectator named, and with nobody named; and
+         * `cubFogSection` held to the same rule (its source: it reads the Monocubs' world).
+         */
+        const GS = await import("./gm-stores.mjs");
+        const section = { e: { "S/ghost": { Hall: true, Gym: true }, "S/stu": { Lab: true } },
+            t: { "S/ghost": { "": 0, Hall: 100.5, Gym: 200 }, "S/stu": { "": 0, Lab: 300 } }, d: {}, cleared: 0 };
+        const rooms = out => Object.keys(out?.e?.["S/watch"] ?? {}).sort();
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/gm-stores.mjs`).then(lfText));
+        equal(JSON.stringify([rooms(GS.spectatorFogSection(section, "watch", { spectatorIds: new Set(["ghost"]) })),
+            rooms(GS.spectatorFogSection(section, "watch", { spectatorIds: new Set() })),
+            /if \(found !== true \|\| ghostSeed\(ghosts, actorId, stampOf\(room\)\)\) continue;/.test(fnSource(src, "cubFogSection"))]),
+            JSON.stringify([["Gym", "Lab"], ["Gym", "Hall", "Lab"], true]),
+            "[the Spectator's map with the ghost a Spectator now, with nobody one; the Monocubs' map held to the same rule]");
     }],
 ];
 

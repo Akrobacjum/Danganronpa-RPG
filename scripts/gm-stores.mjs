@@ -1916,6 +1916,7 @@ export function fogSectionFor(user) {
  */
 function cubFogSection(all, cubs) {
     const mastermindId = mastermindStore.get(RECORD)?.actorId ?? null;
+    const ghosts = spectatorIdsNow();
     const union = new Map();                                        // sceneId -> Map(room -> stamp)
     for (const [key, cells] of Object.entries(all.e ?? {})) {
         const [sceneId, actorId] = String(key).split("/");
@@ -1924,7 +1925,7 @@ function cubFogSection(all, cubs) {
         const stampOf = room => (typeof stamps === "number" ? stamps : Number(stamps?.[room] ?? stamps?.[""] ?? 0));
         const rooms = union.get(sceneId) ?? new Map();
         for (const [room, found] of Object.entries(cells)) {
-            if (found !== true) continue;
+            if (found !== true || ghostSeed(ghosts, actorId, stampOf(room))) continue;
             rooms.set(room, Math.max(rooms.get(room) ?? 0, stampOf(room)));
         }
         union.set(sceneId, rooms);
@@ -1938,6 +1939,25 @@ function cubFogSection(all, cubs) {
     return out;
 }
 
+/*
+ * A GHOST'S OLD SEEDS ARE NO FIND (1.2.123 line MAP; the audit's MAP-19, its residue). Since 1.2.122 the seed skips a
+ * Spectator (fog.mjs `seedCells`), but a world upgraded from 1.2.121 or before can hold a ghost's standing room seeded into
+ * its row, and every Monocub's and Spectator's joined map showed it. A seed is a weak write, stamped at a section's
+ * watermark plus a half (gm-store.mjs `weakOf`) where every real stamp is a whole millisecond; and since E92 C3 nothing
+ * but a seed writes a Spectator's row (`recordDiscovery` skips it). So a cell of a character flagged a Spectator now whose
+ * stamp is not whole is left out of the joined maps. What it costs: a room that character's own seed wrote while still a
+ * student is left out too while the flag stands (its walk-ins, whole-stamped, stay); the row itself is kept, so the flag
+ * taken off brings it back (fog.mjs `forgetSpectatorMap`).
+ */
+function spectatorIdsNow() {
+    return new Set((game.actors ?? []).filter(a => a?.getFlag?.(MODULE_ID, FLAGS.spectator)).map(a => a.id));
+}
+
+/** Whether a joined map leaves this cell out: a seed (a stamp that is not whole) in a row of a Spectator now. */
+function ghostSeed(spectatorIds, actorId, stamp) {
+    return Boolean(spectatorIds?.has?.(actorId)) && Number.isFinite(stamp) && !Number.isInteger(stamp);
+}
+
 /**
  * A SPECTATOR'S MAP (E92 C4, 12.11.2026; the owner's E92 goal (4): "it sees the whole map the players have discovered -
  * the discovery ledger without the Mastermind's row"; the plan's risk R2). Every row of the discovery store's `section`
@@ -1948,7 +1968,7 @@ function cubFogSection(all, cubs) {
  * watermark is kept, its tombstones are not (they name the characters whose rows went). The copy merges it cell by
  * cell (`fogCopy`), as a student's own row.
  */
-export function spectatorFogSection(section, watcherId, { mastermindId = null } = {}) {
+export function spectatorFogSection(section, watcherId, { mastermindId = null, spectatorIds = spectatorIdsNow() } = {}) {
     const out = { e: {}, t: {}, d: {}, cleared: section?.cleared ?? 0 };
     if (!watcherId) return out;
     const scenes = new Map();
@@ -1962,6 +1982,7 @@ export function spectatorFogSection(section, watcherId, { mastermindId = null } 
         for (const [room, found] of Object.entries(cells)) {
             if (room === "__proto__" || room === "constructor" || room === "prototype") continue;
             const v = Boolean(found), s = Number(stampOf(room)) || 0, had = rooms.get(room);
+            if (v && ghostSeed(spectatorIds, actorId, s)) continue;
             if (!had || (v && !had.v)) rooms.set(room, { v, s });
             else if (v === had.v && s > had.s) had.s = s;
         }
