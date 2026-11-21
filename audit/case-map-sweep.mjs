@@ -27,6 +27,7 @@
  *   hover    (line P of 1.2.120) the first node face in view hovered by the pointer: its name's ink against the ground it
  *            is drawn on under the pointer (the window, the node's fill and Stained Glass's brush, composited) under WCAG AA
  *            4.5; its control, on the first page under glass, the brush planted back under the pointer must read;
+ *   through  (line P of 1.2.120) a drawn line's stretch inside a node's box other than its own two ends;
  *   size     while a trial runs, under glass, at 800 px of height or less: the smallest node text after Fit to view
  *            at least 11 px (the owner, 12.11, round 6; MIN_TEXT);
  *   the numbers: nodes, the tallest node, the graph's viewport, the canvas; the trial console's slot, and after Fit to
@@ -113,8 +114,8 @@ function pageHtml(styles, html, title, width, theme, vh = 0) {
 }
 
 /** Read in the page: relayout through the module's code, then every node's cut and every pair's overlap. */
-async function readMap(page, { plantBox = false, staleLayout = false, plantBar = false, plantNarrow = false } = {}) {
-    return page.evaluate(async ({ plantBox, staleLayout, plantBar, plantNarrow }) => {
+async function readMap(page, { plantBox = false, staleLayout = false, plantBar = false, plantNarrow = false, plantThrough = false } = {}) {
+    return page.evaluate(async ({ plantBox, staleLayout, plantBar, plantNarrow, plantThrough }) => {
         const V = await import("/scripts/case-view.mjs");
         await document.fonts.ready;
         if (plantBox) {
@@ -133,6 +134,22 @@ async function readMap(page, { plantBox = false, staleLayout = false, plantBar =
         const canvas = document.querySelector(".drpg-case-canvas");
         if (!canvas) return { error: "no canvas" };
         if (!staleLayout) { V.relayoutCaseMap(canvas); V.placeTileControls?.(canvas); }
+        /* THE THROUGH READ'S CONTROL (line P of 1.2.120): a node that is no end of the first long horizontal stretch drawn
+           moved onto it, face and fields, after the relayout - the read must name it */
+        if (plantThrough) {
+            for (const path of canvas.querySelectorAll(":scope > svg.drpg-case-edges path[data-drpg-ends]")) {
+                const ends = JSON.parse(path.dataset.drpgEnds || "[]");
+                const m = String(path.getAttribute("d")).match(/^M(-?[\d.]+) (-?[\d.]+) H(-?[\d.]+)/);
+                if (!m || Math.abs(Number(m[3]) - Number(m[1])) < 60) continue;
+                const other = [...canvas.querySelectorAll(":scope > button[data-drpg-node]")].find(b => !ends.includes(b.dataset.drpgNode));
+                if (!other) break;
+                const x = Math.min(Number(m[1]), Number(m[3])) + 20, y = Number(m[2]) - 10;
+                for (const el of [other, canvas.querySelector(`:scope > .drpg-case-edit[data-drpg-edit="${CSS.escape(other.dataset.drpgNode)}"]`)]) {
+                    if (el) { el.style.left = `${x}px`; el.style.top = `${y}px`; }
+                }
+                break;
+            }
+        }
         const nodes = [...canvas.querySelectorAll(":scope > button[data-drpg-node]")];
         const open = new Map([...canvas.querySelectorAll(":scope > .drpg-case-edit:not([hidden])")].map(f => [f.dataset.drpgEdit, f]));
         const cut = [];
@@ -185,6 +202,42 @@ async function readMap(page, { plantBox = false, staleLayout = false, plantBar =
                 }
             }
             boxes.push(box);
+        }
+        /* NO LINE THROUGH A NODE (line P of 1.2.120; the owner: "Linie w planerze - niech omijaja nodes"): every drawn line's
+           path, read back by its M, H, V and Q, against every node's box in the canvas's own pixels (a face with its open
+           fields, as placed by the relayout above), its own two ends left out; a stretch inside a box by more than half a
+           pixel is a cut. */
+        {
+            const boxOf = id => {
+                const b = canvas.querySelector(`:scope > button[data-drpg-node="${CSS.escape(id)}"]`);
+                const f = open.get(id);
+                if (!b) return null;
+                const faceShown = getComputedStyle(b).display !== "none";
+                const x = parseFloat(b.style.left), y = parseFloat((faceShown ? b : f ?? b).style.top);
+                const w = Math.max(faceShown ? b.offsetWidth : 0, f?.offsetWidth ?? 0);
+                const h = (faceShown ? b.offsetHeight : 0) + (f ? f.offsetHeight : 0);
+                return { x0: x, x1: x + w, y0: y, y1: y + h };
+            };
+            const boxes = new Map([...canvas.querySelectorAll(":scope > button[data-drpg-node]")].map(b => [b.dataset.drpgNode, boxOf(b.dataset.drpgNode)]));
+            for (const path of canvas.querySelectorAll(":scope > svg.drpg-case-edges path[data-drpg-ends]")) {
+                const [from, to] = JSON.parse(path.dataset.drpgEnds || "[]");
+                let x = 0, y = 0;
+                for (const c of String(path.getAttribute("d")).match(/[MHVQ][^MHVQ]*/g) ?? []) {
+                    const v = c.slice(1).trim().split(/[\s,]+/).map(Number);
+                    let seg = null;
+                    if (c[0] === "M") [x, y] = v;
+                    else if (c[0] === "H") { seg = { h: true, y, a: Math.min(x, v[0]), b: Math.max(x, v[0]) }; x = v[0]; }
+                    else if (c[0] === "V") { seg = { h: false, x, a: Math.min(y, v[0]), b: Math.max(y, v[0]) }; y = v[0]; }
+                    else if (c[0] === "Q") [x, y] = [v[2], v[3]];
+                    if (!seg) continue;
+                    for (const [id, q] of boxes) {
+                        if (!q || id === from || id === to) continue;
+                        const hit = seg.h ? seg.y > q.y0 + 0.5 && seg.y < q.y1 - 0.5 && Math.min(seg.b, q.x1) - Math.max(seg.a, q.x0) > 0.5
+                            : seg.x > q.x0 + 0.5 && seg.x < q.x1 - 0.5 && Math.min(seg.b, q.y1) - Math.max(seg.a, q.y0) > 0.5;
+                        if (hit) cut.push(`line ${from}>${to} through ${id}`);
+                    }
+                }
+            }
         }
         /* THE TRIAL'S CONTROLS ON THEIR TILE (E99 round 4): each tick and start inside its tile's box, over none of the tile's
            words (kind, mode, state, name, text, reach, warning). */
@@ -294,7 +347,7 @@ async function readMap(page, { plantBox = false, staleLayout = false, plantBar =
         return { nodes: nodes.length, controls: canvas.querySelectorAll(":scope > [data-drpg-case-tick], :scope > [data-drpg-case-start-node]").length, revealed, open: [...open.keys()], tallest: Math.max(...boxes.map(b => Math.round(b.bottom - b.top))),
             viewport: graph ? [graph.clientWidth, graph.clientHeight] : null, canvas: [parseFloat(canvas.style.width), parseFloat(canvas.style.height)],
             measured: canvas.dataset.drpgMeasured ?? null, slot, fit, bar: Boolean(bar), cut, overlaps };
-    }, { plantBox, staleLayout, plantBar, plantNarrow });
+    }, { plantBox, staleLayout, plantBar, plantNarrow, plantThrough });
 }
 
 /* A NODE UNDER THE POINTER IS READ (line P of 1.2.120; the owner, 21.11.2026: "Po najechaniu myszka caly node robi sie
@@ -386,6 +439,12 @@ try {
                     const footHas = await page.evaluate(() => { const b = document.querySelector("footer.drpg-kit-footer button"); if (b) Object.assign(b.style, { position: "fixed", top: `${innerHeight + 40}px` }); return Boolean(b); });
                     const footRead = footHas ? ((await readMap(page)).cut ?? []).filter(c => c.startsWith("footer:")).length : 0;
                     const ok = box.cut?.length > 0 && stale.overlaps?.length > 0 && (!planted.bar || barRead > 0) && (!footHas || footRead > 0);
+                    // the through read's control (line P of 1.2.120): a node moved onto a drawn line must read
+                    const onLine = await readMap(page, { plantThrough: true });
+                    const throughRead = (onLine.cut ?? []).filter(c => c.startsWith("line ")).length;
+                    await load();
+                    console.log(`control  ${throughRead ? "ok  " : "FAIL"} a node moved onto a drawn line read ${throughRead} line(s) through a node`);
+                    if (!throughRead) failed++;
                     // the hover's control (line P of 1.2.120): the brush planted back under the pointer must read, under glass
                     const plantedHover = theme === "glass" ? await readHover(page, { plant: true }) : null;
                     await load();
@@ -397,7 +456,8 @@ try {
                     controlled = true;
                     await load();
                 }
-                if (!fieldControlled && /investigation--map-/.test(w.id)) {
+                // on a page with a node open (the lanes page, line P of 1.2.120, opens none and comes first)
+                if (!fieldControlled && /investigation--map-/.test(w.id) && await page.evaluate(() => Boolean(document.querySelector(".drpg-case-canvas > .drpg-case-edit:not([hidden])")))) {
                     // THE FIELDS' CONTROL (owner-116), on the first page with a node open: a text box planted at half the
                     // fields' width must read
                     const narrow = await readMap(page, { plantNarrow: true });

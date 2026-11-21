@@ -51,6 +51,10 @@
  * same number, and the fields take it (R5821, R7520). */
 export const MAP_GEOMETRY = Object.freeze({ nodeW: 300, nodeH: 54, openW: 352, colGap: 200, pitch: 66, pad: 12, head: 28 });
 
+/** How far a node stands above and below a line passing its column (`mapPlace`'s lanes): the line 6 px clear of either
+ *  box, as it is in a least column's row gap (`pitch - nodeH`, 12 px) when it runs down its middle. */
+const LANE = 6;
+
 /** A node's size from `sizes` (a Map or an object of id to `{ w, h }`); a size not read, or read as 0 (jsdom), is the least. */
 function sizeOf(sizes, id, g) {
     const s = sizes ? (typeof sizes.get === "function" ? sizes.get(id) : sizes[id]) : null;
@@ -168,6 +172,32 @@ export function mapPlace(layout, g = MAP_GEOMETRY, sizes = null, { gapH = 0, edg
        the inputs' heights decided the order whatever the sort, so a sort changed nothing there. "uncrossed" keeps
        ordering by the inputs, the order that crosses least; a layout that names no sort (the pure callers) too. */
     const fixedOrder = ["manual", "kind", "room", "state"].includes(layout?.sort);
+    /* A LANE FOR EVERY LINE THAT PASSES (line P of 1.2.120; the owner, 21.11.2026: "Linie w planerze - niech omijaja nodes.
+       Proponuje by nodes robily miejsce dla tych linii (rozsuwaly sie)"). A line that skips a column leaves its source at
+       the source's middle and runs straight across the columns between to its track in the gutter before its target
+       (`routeEdges`); until then it ran at the target's height and through whatever stood there (R8014 read 4 stretches
+       through a node on its crowded case). So each column, once placed, keeps a lane free `LANE` above and below the height
+       of every line that passes it - from a source in an earlier column to a target in a later one - and a node in the way
+       moves down below the lane, the rest of the column after it: the column spreads, nodes keep their order and stay a
+       row gap apart. The sources stand in earlier columns, already placed, so one pass left to right. A line back to an
+       earlier column is not given a lane (its source is placed after the columns it passes; a counter refutes beside its
+       target, in its own column, and its bracket passes nothing). Tier 0 R8014. */
+    const clearLanes = (c, list) => {
+        if (!Array.isArray(edges) || c === 0) return null;
+        const lanes = [...new Set(edges.filter(e => at[e.from] && colOf.get(e.from) < c && colOf.get(e.to) > c)
+            .map(e => at[e.from].y + at[e.from].h / 2))].sort((a, b) => a - b);
+        if (!lanes.length) return null;
+        let floor = -Infinity;
+        for (const p of list.map(n => at[n.id]).filter(Boolean).sort((a, b) => a.y - b.y)) {
+            p.y = Math.max(p.y, floor);
+            for (let moved = true; moved;) {
+                moved = false;
+                for (const L of lanes) if (p.y < L + LANE && p.y + p.h > L - LANE) { p.y = Math.ceil(L + LANE); moved = true; }
+            }
+            floor = p.y + p.h + rowGap;
+        }
+        return floor;
+    };
     const gapRow = Number.isInteger(layout?.gapAt) && (layout?.unrelated?.length ?? 0) > 0 ? layout.gapAt : null;
     let gapY = null, bottom = top + g.pitch;
     for (let c = 0; c < colCount; c++) {
@@ -186,7 +216,7 @@ export function mapPlace(layout, g = MAP_GEOMETRY, sizes = null, { gapH = 0, edg
         const aims = c > 0 && Array.isArray(edges) ? aimsOf(list, c) : null;
         if (aims && aims.size) {
             y = packColumn(list, aims, top, c, fixedOrder);
-            bottom = Math.max(bottom, y);
+            bottom = Math.max(bottom, y, clearLanes(c, list) ?? -Infinity);
             continue;
         }
         for (const n of list) {
@@ -198,7 +228,7 @@ export function mapPlace(layout, g = MAP_GEOMETRY, sizes = null, { gapH = 0, edg
         }
         // The gap's row is still drawn when every node after it is folded away (`caseGraphHtml`'s fold).
         if (c === 0 && gapRow !== null && gapY === null) skipTo(gapRow + 1);
-        bottom = Math.max(bottom, y);
+        bottom = Math.max(bottom, y, clearLanes(c, list) ?? -Infinity);
     }
     return { at, cols, width: g.pad * 2 + cols.reduce((sum, col) => sum + col.w, 0) + (colCount - 1) * g.colGap,
         height: bottom + g.pad, gapY };
@@ -244,8 +274,11 @@ export function edgeEnd(from, to, g = MAP_GEOMETRY) {
  * merged and the eye could not follow them (R7829 read 197 shared stretches on its crowded case, 26 on the shot's). Now:
  *   - A SOURCE'S BUNDLE. Every line of one node leaves it at one point (its right edge's middle; a counter into its own
  *     column, or a line back to an earlier one, its left edge's) and runs to that node's own TRACK, one vertical in a gutter
- *     - the gutter right of its column, or for a line back, the gutter left of its target's column - and down or up it. The
- *     bundle is one colour (its source's, case-map.mjs), so it reads as one line that branches.
+ *     - the gutter left of its target's column (the one right of its own for a line to the next column) - and down or up
+ *     it; a line to a column further on runs at its source's height across the columns between, through the lane
+ *     `mapPlace` keeps there (line P of 1.2.120, R8014; until then its track stood right of its own column and it crossed
+ *     the columns between at its target's height, through their nodes). The bundle is one colour (its source's,
+ *     case-map.mjs), so it reads as one line that branches.
  *   - ITS OWN PORT. Each line leaves the track at its own height and runs straight into its target's left edge at a PORT
  *     of its own, the target's ports at least `ROUTE.port` apart, centred on the node; its head ends there.
  *   - NO SHARED STRETCH. Tracks of different sources never share an x: a gutter's tracks are spread at least `ROUTE.track`
@@ -270,12 +303,15 @@ const midOf = (p, g) => p.y + (p.h ?? g.nodeH) / 2;
 /** The plan: each owner's track x, each edge's port y, with one gutter's order picked per `choose` (gutter -> index). */
 function routePlan(shown, at, g, choose = new Map()) {
     const right = p => p.x + (p.w ?? g.nodeW);
-    const xs = [...new Set(Object.values(at).map(p => p.x))].sort((a, b) => a - b);
     const info = new Map();
     for (const e of shown) {
         const S = at[e.from], T = at[e.to];
         const back = T.x <= S.x;
-        const hi = back ? T.x : (xs.find(x => x > S.x) ?? T.x);
+        /* THE TRACK IN THE GUTTER BEFORE THE TARGET (line P of 1.2.120): a line that skips a column runs at its source's
+           height across the columns between, through the lane `mapPlace` keeps there, and turns in the gutter before its
+           target; until then it turned in the gutter after its source and ran at its target's height through the column
+           between (R8014). Between neighbouring columns the two gutters are one. */
+        const hi = T.x;
         const before = Object.values(at).filter(p => p.x < hi).map(right);
         const lo = before.length ? Math.max(...before) : hi - g.colGap;
         info.set(e, { back, hi, lo, owner: `${back ? "back:" : ""}${e.from}`, ex: back ? S.x : right(S), ys: midOf(S, g) });
