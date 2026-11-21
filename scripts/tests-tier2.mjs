@@ -62860,8 +62860,21 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             must(tool && penalty && tool.effects.has(penalty.id), "no Tool, or no penalty on it - this would measure nothing");
             await tool.createEmbeddedDocuments("ActiveEffect", [bonus("Tier 2 G3 away bonus", 5)], { [AUDIT_ASIDE]: true });
             await penalty.delete({ [AUDIT_ASIDE]: true });
+            /* THE GIFT ARRIVES HELD (1.2.122, 21.11.2026). eb1fb8e1 (ITEM-04) holds a Gear made by Foundry's own create to
+               the Gear shape on the browser that made it (inventory.mjs, the createItem hook beside the slots'): the gift is
+               the student's second stowed Gear beside the Tool, so that hook readies it, unawaited. Tier 2 makes this
+               player's create on the GM's browser (`AUDIT_ASIDE`), so the readying was a GM's write the audit took as the
+               GMs' own: its judgement queued behind the comparison's (`inOrder`) and, the gift deleted by then, took it
+               whole into the mark again from the copy its hook saw (`itemMoves`). Read on 668db427 with the store's
+               patches and the item hooks logged: the GM's `equipped: true` on the gift (`drpgAutomated`), the put-back's
+               delete, then a patch of `items` naming the gift - the mark [..., true]; when the readying won the race,
+               the mark took the gift before the comparison read it, which then put back 3 and left it ([3, ..., true,
+               ..., true]). Red alone in 2 runs of 8, after "an effect a player puts on a resource's value" in 2 of 3,
+               and in shard 2/8 here and in CI. On the table the player's own browser readies it before any GM comes,
+               so the item made is the arrival already in the hand, as that browser leaves it, and the hook has
+               nothing to do (`keepGearShape`: `isEquipped`). */
             const [gift] = await student.createEmbeddedDocuments("Item", [{ name: NAMES[1], type: "loot", system: { quantity: 1 },
-                flags: { [MODULE_ID]: { category: "tool", tier: 1, location: "carried" } },
+                flags: { [MODULE_ID]: { category: "tool", tier: 1, location: "carried", equipped: true } },
                 effects: [{ name: "Tier 2 G3 away Agility", system: { changes: [{ key: "system.traits.agility.value", type: "add", value: 3 }] } }] }],
                 { [AUDIT_ASIDE]: true, [CAP_OVERRIDE]: true });
             const found = await compareAtReady();
