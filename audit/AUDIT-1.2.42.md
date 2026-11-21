@@ -4423,6 +4423,8 @@ Właściciel odpowiedział na wszystkie cztery 20.11.2026 około 23:30Z, przez k
 
 ### 18.3 1.2.119
 
+> **Po wydaniu (21.11.2026):** stan każdej pozycji tej tabeli na wydanym `e515907d` jest w 18.5; "do sprawdzenia" niżej to zapis sprzed wydania.
+
 **Stan w chwili pisania:** 1.2.119 nie jest wydane (`origin/main` = `b5a29e73`, ostatni tag `v1.2.118`). Poprawki z sześciu linii (i trzech dodanych później) są według koordynatora scalone do składanki `asm-119` albo wypchnięte; ten audyt przeczytał ich różnice (`lines-119.json`, bez przebiegu) i zapisał listę koordynatora (`ROUTING.md`). Nic poniżej nie jest zmierzone na wydanym kodzie; ponowne sprawdzenie (U13) zostaje do zrobienia po wydaniu, z kodu po scaleniu.
 
 | Znalezisko | Waga | Linia, sha (według koordynatora) | Stan w raporcie |
@@ -4453,6 +4455,52 @@ Prośby właściciela bez numeru znaleziska scalone do `asm-119`: Dive i Scrum b
 Skan cytowań (git grep na `claude/audit-119`, 20.11.2026): 68 linii w innych plikach cytuje `AUDIT-1.2.42`; z numerem sekcji 45 cytuje 9.2, 4 cytują 9, 2 cytują część I; nie znalazłem żadnego cytatu sekcji 0-8 ani 9.1, 9.1a, 9.3-9.3d po numerze. `CLAUDE.md` cytuje sekcję 9 i 9.2, a `tools/check.mjs live` czyta 9.2 od jej nagłówka do następnego nagłówka `##`/`###`. Wniosek: przeniesienie sekcji 0-8 (i 9.1-9.3d, gdy ich pozycje będą zamknięte) wygląda na bezpieczne według tych liczb; 9 i 9.2 muszą zostać. Trzy cytaty po numerze linii (`docs/dev/audit-113/FINDINGS.md:106, :719` -> `AUDIT-1.2.42.md:1351`; `docs/dev/e59/GAPS.md:117` -> `:1354`) wskazują inne linie, odkąd na górze stanęła część I (282e8f10): powód, by 9.2 cytować numerem pozycji, nie linią. Skan trzeba powtórzyć w dniu przeniesienia, z identyfikatorami LIVE i polskim "sekcja N" bez nazwy pliku.
 
 ---
+
+### 18.5 Ponowne sprawdzenie na wydanym 1.2.119 (U13, 21.11.2026)
+
+1.2.119 wydano 21.11.2026 o 01:53Z (`v1.2.119`, tag na `e515907d`, PR #69). To ponowne sprawdzenie czytało kod po scaleniu, a nie gałęzie linii. Surowe wyniki: `audit/findings-1.2.118/recheck-119.json`.
+
+**Jak.** Każde znalezisko skierowane do 1.2.119 albo cytujące plik zmieniony między `b5a29e73` a `e515907d`, czyli 309 z 555, przeczytał jeden z dziesięciu czytających: na różnicy i na kodzie wydanym. Każde "zamknięte" i "częściowo" dostał drugi czytający, który próbował je obalić: 22 twierdzenia, 15 utrzymanych, 7 osłabionych, 0 obalonych. Pozostałe 246 znalezisk cytuje tylko pliki niezmienione; zapisuję je jako otwarte bez ponownego czytania.
+
+**Przebieg na wydanym drzewie (klasa H)**, harness z `e515907d`, jeden proces naraz:
+- tiery 0-1: 1 830 testów, 1 815 zaliczonych, 0 niezaliczonych, 16 pominiętych, 0 red (487 s);
+- wybrane testy tieru 2 linii 1.2.119: 95 zaliczonych, 0 niezaliczonych. Szesnaście fragmentów nazw: E119, S119, P119, odłożenie, planer, Season setup, lista kontrolna, testy usuwania i przycinania oraz "a reshape approved under an open dashboard survives Save".
+
+**Zmienione przygotowanie testu E09 C3** ("a reshape approved under an open dashboard survives Save") przeszło na `e515907d`. Od `plan-119` pole tekstowe z fokusem nie wstrzymuje już przerysowania panelu, więc test wstrzymuje je fokusem na polu wyboru widoczności wiersza. Dalej mierzy to, co mówi jego nazwa (Save, który niczego nie zmienił, nie pisze nad zapisem, którego okno nie narysowało). Opiera się jednak na tym, że pole wyboru dalej wstrzymuje przerysowanie, a tego reguła właściciela nie chce (REFR-05). Gdy pole wyboru przestanie wstrzymywać, test będzie potrzebował innego sposobu na wstrzymane przerysowanie.
+
+**Wynik po weryfikacji:**
+
+| Stan na 1.2.119 | Ile | Które |
+| --- | ---: | --- |
+| zamknięte | 7 | COMM-19 i MAP-16 (oba `blocker`), CASE-19, CTRL-01, STG-02 ("Reset the season"), CASE-20, MAP-17 |
+| częściowo | 15 | CORE-20, COMM-20, COMM-24, STG-03, STG-100, REFR-02, REFR-05, REFR-06, REFR-25, REFR-27, CTRL-10, STG-21, MAP-19, DOC-05, STG-32 |
+| otwarte (przeczytane) | 287 | |
+| otwarte (plik niezmieniony, nieczytane) | 246 | |
+
+Co zostaje przy "częściowo", w skrócie (pełne zdania w `recheck-119.json`):
+- CORE-20: przy dwóch GM-ach drugi GM, nieobecny w czasie maski, po jej końcu bez ujawnienia może podać imię niepocięte.
+- COMM-24: Bounty na zamaskowanego ucznia nazywa go na panelu każdego Monocuba.
+- STG-03: koniec rozdziału z "następnym rankiem" poza procesem przesuwa zegar bez zakończenia maski (`chapter.mjs:770-773`; dwóch czytających).
+- COMM-20: dok kamer Foundry przy wyłączonym kafelku (LIVE-F119-03).
+- REFR-02, REFR-27: pierwszy zapis nigdy niezapisanego ustawienia (`createSetting`) nie jest słyszany.
+- REFR-06: Edit campaign dalej się nie przerysowuje.
+- REFR-05: karta Remnantu, Hope w Mastermind i pole wyboru z fokusem.
+- CTRL-10, STG-21: Move na węźle poza pierwszą kolumną zapisuje kolejność, której Mapa nie rysuje, i nic nie mówi.
+- MAP-19: `seedCells` bez pominięcia Spectatora.
+- DOC-05, STG-32: zachowanie na 14.370 nieodczytane.
+
+**Otwarte `blocker` i `major` po 1.2.119** (dla linii 1.2.120): `blocker` - żaden. `major` - 14:
+- otwarte: CASE-16, CASE-17, CASE-18, DOC-01, REFR-01, REFR-03, REFR-04, STG-01, UI-17;
+- częściowo: CORE-20, COMM-20, REFR-02, REFR-05, STG-03.
+
+**Nowi kandydaci** wyszli przy weryfikacji. Żaden nie jest jeszcze znaleziskiem: czytał go jeden czytający (N119-5 dwóch), nikt go nie obalał i nic nie uruchomiono. Cztery pierwsze dotyczą tożsamości, więc proponuję czytać je jak `major`, dopóki weryfikacja nie powie inaczej:
+- N119-1: karta akcji pokoju (`facilities-gm.mjs:91-95, 145-176`) nazywa każdego obecnego; cięcie maski nie obejmuje zasłony. Nie przeczytano, czy akcja pokoju może się wtedy wykonać.
+- N119-2: Ghost Bet Monocuba pokazuje w pickerze "?", a po zakładzie panel pisze prawdziwe imię (`monocub.mjs:270`, `sheet-actions.mjs:372`).
+- N119-3: Bounty jak w COMM-24 wyżej.
+- N119-4: drugi GM jak w CORE-20 wyżej.
+- N119-5: koniec rozdziału jak w STG-03 wyżej.
+- N119-6: Move poza pierwszą kolumną.
+- N119-7: `createSetting` w Season setup i liście kontrolnej oraz Edit campaign bez przerysowania.
 
 ## Część II - raport 1.2.42 z 12.09.2026 (zapis)
 
