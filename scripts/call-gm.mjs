@@ -238,7 +238,7 @@ export async function askHopeCallByCard(payload, ctx) {
      * AND THE NAME AND THE EFFECT LIKEWISE (1.2.122; the audit of 1.2.118, CORE-36): the card printed the packet's
      * `callLabel` for a key this side did not know and always the packet's `effect`, so a console could put "a free
      * critical" under Experience on a card the GM ruled on as the module's. Both are this side's table's now
-     * (`HOPE_CALLS`, the effect's prose as calls.mjs `requestApproval` writes it); the run refuses a key that is no Call
+     * (`HOPE_CALLS`, the effect's prose as calls.mjs `spendHopeCall` sends it); the run refuses a key that is no Call
      * waiting for a GM (bridge-runs-acts.mjs `handleHopeCall`), and neither field is on the row's whitelist any more.
      */
     const call = HOPE_CALLS[payload.key] ?? null;
