@@ -64300,7 +64300,7 @@ const INVARIANTS = [
         equal(stableJson({
             "CASE-24": [/reaskOwedOpening\(sender\)/.test(fnSource(acts, "handleAdvancementAsk")), /if \(state\?\.stage !== "openingRoll"\) return false;/.test(owed),
                 /!actor\.testUserPermission\?\.\(sender, "OWNER"\)\) return false;\s*await rollOpening\(side, state\);/.test(owed),
-                /if \(openingRollsInFlight > 0\) return null;\s*let roll = null;\s*openingRollsInFlight\+\+;/.test(fnSource(src.get("murder-rules.mjs") ?? "", "throwOpeningRoll"))],
+                /if \(openingKeysInFlight\.has\(flightKey\)\) return null;\s*let roll = null;\s*openingKeysInFlight\.add\(flightKey\);\s*openingRollsInFlight\+\+;/.test(fnSource(src.get("murder-rules.mjs") ?? "", "throwOpeningRoll"))],
             "CORE-31": /if \(!canGiveBack\(game\.user\)\) \{[\s\S]{0,240}DRPG\.Enforced\.filesNeedFullGm[\s\S]{0,80}return false;\s*\}\s*await keepOriginal\("permissions"/.test(hold),
             "CORE-24": [(place.match(/broadcast\(SYNC\.gather,/g) ?? []).length, /\}\s*if \(moved\.length\) broadcast\(SYNC\.gather, \{ scene: \[\.\.\.scenes\], tokenIds: moved \}\);/.test(place),
                 /const scenes = Array\.isArray\(scene\) \? scene : \[scene\];/.test(pan)],

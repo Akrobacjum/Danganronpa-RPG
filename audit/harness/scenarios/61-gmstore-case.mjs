@@ -1085,6 +1085,25 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         && picksAfter.gm - picksBefore.gm === 1 && picksAfter.gm2 === picksBefore.gm2
         && J(f9reask.invites) === J(["hand"]) && J(f9p3.held) === J([["finesse", true]]) && f9p3.copy === null,
         J({ f9open, f9reask, f9p3, picksBefore, picksAfter }), { flow: "trait-ruling" });
+    /* F9c (1.2.122, CASE-24 narrowed at the coordinator's ask): the opening's guard is one window per side and character.
+       On gm, with the incident F9 opened standing at its opening roll, the killer's and the victim's openings are thrown on
+       this one client (as a GM throws them for characters nobody connected plays), each window held; then the killer's is
+       asked again. Both first windows must open, the second ask none. Red at e25eddf9: the guard was the client's count, so
+       the victim's was dropped while the killer's stood (`thrown` ["killer"]). The held windows are let go after F9b's close. */
+    const f9c = await gm.eval(`${CAST} globalThis.__f9cHeld = []; globalThis.__f9cThrown = []; globalThis.__f9cKept = {};
+        for (const [side, id] of [["killer", "${IDS.chie}"], ["victim", "${IDS.daichi}"]]) {
+            const a = game.actors.get(id); globalThis.__f9cKept[id] = Object.hasOwn(a, "rollTrait") ? a.rollTrait : null;
+            a.rollTrait = function () { globalThis.__f9cThrown.push(side); return new Promise(r => globalThis.__f9cHeld.push(r)); };
+        }
+        const stage = M.murderState()?.stage ?? null;
+        M.throwOpeningRoll("killer", "${IDS.chie}", "hand");
+        M.throwOpeningRoll("victim", "${IDS.daichi}", "eye");
+        await new Promise(r => setTimeout(r, 300));
+        const again = await M.throwOpeningRoll("killer", "${IDS.chie}", "hand");
+        await new Promise(r => setTimeout(r, 200));
+        return { stage, thrown: [...globalThis.__f9cThrown], again: again ?? null };`, { timeout: 30000 });
+    check("F9c: one client throws two characters' openings at once, each in its own window, and a second ask of one of them opens no second window (1.2.122, CASE-24 per side and character)",
+        f9c.stage === "openingRoll" && J(f9c.thrown) === J(["killer", "victim"]) && f9c.again === null, J(f9c), { flow: "trait-ruling" });
     /* E32+E07 fix r2-G4 (03.10.2026; the correctness review's m3): the request cards go when the
        murder closes, whichever GM posted them. Each GM kept the ids of the cards it posted, and the
        primary closing here deleted its own alone: gm2's re-ask stayed on the killer's player's
@@ -1109,6 +1128,10 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     check("F9b: the close on the primary deletes the opening's request cards both GMs posted, on every browser; both GMs hold their ids until then and forget them after, and the killer's player is sent none and holds none, nor does the incident the GM reads",
         f9cards.length === 2 && f9held.gm >= 2 && f9held.gm2 === f9held.gm && f9held.sent === false && f9held.p3 === false && f9held.state === false
         && f9left.gm === 0 && f9left.gm2 === 0 && f9left.p3 === 0 && J(f9left.memo) === "[0,0]", J({ f9cards, f9held, f9left }), { flow: "trait-ruling" });
+    // F9c's held windows let go and its stubs taken off, now the incident is closed (its loops end on the closed state).
+    await gm.eval(`for (const r of globalThis.__f9cHeld ?? []) r(null);
+        for (const [id, fn] of Object.entries(globalThis.__f9cKept ?? {})) { const a = game.actors.get(id); if (fn) a.rollTrait = fn; else delete a.rollTrait; }
+        await new Promise(r => setTimeout(r, 300)); return true;`, { timeout: 30000 });
     await p3.eval(`const a = game.actors.get("${IDS.chie}"); delete a.rollTrait;
         for (const r of globalThis.__heldOpenings ?? []) r(null); delete globalThis.__heldOpenings; delete globalThis.__heldTraits; return true;`);
     await disconnect("gm2");
