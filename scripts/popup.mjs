@@ -1189,6 +1189,20 @@ export function onDeleteChatMessage(message) {
 }
 
 /**
+ * A card's words without its ruling's buttons (1.2.122, the audit's CTRL-22): a GM's copy keeps `.drpg-call-actions`
+ * (secret.mjs takes them off for a player only), and nothing wires a button inside a notice - only a bubble and the
+ * chat log do (messenger-app.mjs `wireCallActions`) - so Allow or Spring the trap pressed there only closed it. The
+ * messenger's notices take them off the same way (`cardPreview`); the card is ruled where it stands.
+ */
+function withoutRulingButtons(html) {
+    if (!/drpg-call-actions/.test(html ?? "")) return html;
+    const wrap = document.createElement("div");
+    wrap.innerHTML = html;
+    wrap.querySelectorAll(".drpg-call-actions").forEach(el => el.remove());
+    return wrap.innerHTML;
+}
+
+/**
  * Every module message surfaces in the middle of the screen, for everybody it
  * was addressed to - GMs included.
  *
@@ -1284,7 +1298,7 @@ export async function onCreateChatMessage(message) {
      * which is nearly everything, so the ordinary notice is not delayed by a
      * tick it does not need.
      */
-    showPopup(await wordsOf(message), {
+    showPopup(withoutRulingButtons(await wordsOf(message)), {
         kind,
         title: cardFlag(message, "popupTitle") ?? null,
         // Carried on the message rather than worked out here, for the same

@@ -17348,6 +17348,43 @@ const INVARIANTS = [
             "a ruling with nothing to rule on did not settle with its line, or the card table still holds a road no card draws");
     }],
 
+    ["R8264 - a GM's notice of a ruling card carries none of the card's buttons: drawn from the card's words, the notice leaves out its .drpg-call-actions, which nothing there wires (popup.mjs `onCreateChatMessage`; 1.2.122, the audit's CTRL-22)", async () => {
+        /*
+         * The audit of 1.2.118 (CTRL-22): callGm's road with no thread whispers the card to the GMs with gmPopup, and
+         * popup.mjs drew the notice from the words whole - a GM's copy keeps the ruling's buttons (secret.mjs strips them
+         * for a player only) - while only a bubble and the chat log wire them (messenger-app.mjs `wireCallActions`): Allow,
+         * Refuse, Spring the trap pressed in the notice only closed it. The messenger's own notices take them off
+         * (`cardPreview`). A GM's card for the GM to answer, made here (no world write) as R297 makes its cards, with a
+         * ruling's buttons and a line beside them; the notice drawn, then closed. Red at 21bf5d18: two buttons in it.
+         */
+        must(game.user?.isGM, "the notice measured here is a GM's");
+        const NH = await import("./notice-history.mjs");
+        const { onCreateChatMessage } = await import("./popup.mjs");
+        const { MESSAGE_FLAG } = await import("./utils.mjs");
+        const id = "R8264RulingCard1";
+        const message = {
+            id, author: game.user, whisper: [game.user.id], rolls: [],
+            content: `<p>R8264 a trap spoke</p><div class="drpg-call-actions"><button class="drpg-call-action" data-drpg-call="fireTrap">Spring</button><button class="drpg-call-action" data-drpg-call="rearmTrap">Rearm</button></div>`,
+            flags: { [MODULE_ID]: { [MESSAGE_FLAG]: true, gmPopup: true } },
+            getFlag(scope, key) { return this.flags?.[scope]?.[key]; }
+        };
+        must(!Object.hasOwn(game.messages, "get"), "game.messages already answers get for itself - the suite's stand-in would hide it");
+        await NH.holdNoticeHistory(true);
+        const realGet = game.messages.get;
+        game.messages.get = function (key, ...rest) { return key === id ? message : realGet.call(this, key, ...rest); };
+        let read = null;
+        try {
+            await onCreateChatMessage(message);
+            const card = document.querySelector(`.drpg-popup[data-drpg-message="${id}"]`);
+            read = [Boolean(card), card?.querySelectorAll("[data-drpg-call], .drpg-call-actions").length ?? null, Boolean(card?.textContent.includes("R8264 a trap spoke"))];
+        } finally {
+            delete game.messages.get;
+            for (const card of document.querySelectorAll(`.drpg-popup[data-drpg-message="${id}"]`)) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            NH.holdNoticeHistory(false);
+        }
+        equal(stableJson(read), stableJson([true, 0, true]), "the GM's notice of a ruling card carried its buttons, or was not drawn ([drawn, buttons in it, its words])");
+    }],
+
     ["R539 - the GM's block in the list is Foundry's block and never undoes the module's: the button is built only in a GM's list; its click writes the user's `permissions.BROADCAST_AUDIO` flipped from what Foundry answers now and nothing else; where `moduleHoldsMic` holds the microphone or a death is kept secret the button is disabled with its line and `toggleBlock` writes nothing; it refuses a player's client, the GM's own account and a user who is not of this world", async () => {
         /*
          * E78 C5, 14.10.2026; the A9 design's R392 (A9-5; the E78 plan's D2 gave it this number), the owner's Q4 (the

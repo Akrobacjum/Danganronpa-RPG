@@ -340,11 +340,6 @@ function nameplateMode() {
     };
 }
 
-/**
- * Swap Foundry's truncated (or hardcoded) charname for the real one - or, for a participant hidden from this browser
- * (`hiddenFromHere`), every name on the plate for "?", the plate as Foundry drew it kept on the label and put back once
- * they are not (COMM-20, the header).
- */
 /** A dock's box taken off (`shown` false) or put back as it stood: its inline `display` kept in `data-drpg-box` meanwhile. */
 function showBox(box, shown) {
     if (!shown) {
@@ -357,6 +352,11 @@ function showBox(box, shown) {
     delete box.dataset.drpgBox;
 }
 
+/**
+ * Swap Foundry's truncated (or hardcoded) charname for the real one - or, for a participant hidden from this browser
+ * (`hiddenFromHere`), every name on the plate for "?", the plate as Foundry drew it kept on the label and put back once
+ * they are not (COMM-20, the header).
+ */
 function relabel(box, userId, { hidden = hiddenFromHere, plate = nameplateMode() } = {}) {
     const user = game.users.get(userId);
     if (!user) return;
