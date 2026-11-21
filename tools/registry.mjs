@@ -179,8 +179,8 @@ const SINCE_CORRECTED = Object.freeze([
     { from: 1049, to: 1052, since: "E89" }, { from: 1506, to: 1529, since: "E20" }, { from: 3200, to: 3200, since: "E68" },
     { from: 4800, to: 4805, since: "E54" }, { from: 5000, to: 5001, since: "E38" }, { from: 5460, to: 5467, since: "E108" },
     { from: 6750, to: 6756, since: "E59" }, { from: 7160, to: 7182, since: "E59" },
-    /* 1.2.122 is a train of twelve lines with no stage row of its own; line STG's block, which --write stamped E39. */
-    { from: 8460, to: 8499, since: "1.2.122" }
+    /* 1.2.122's block of line STG, which --write stamped E39 while 1.2.122 had no stage row; E122 since the release. */
+    { from: 8460, to: 8499, since: "E122" }
 ]);
 /* A removed test's row names what removed it where the working stage at --write did not: R214 went in feba55c3 (13.11.2026,
    the 1.2.112 stash change), and the row read "(removed in E54)" (STG-47). */
