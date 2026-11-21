@@ -112194,6 +112194,98 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson({ answer, inTime: took !== null && took < 3000, standing, told }), stableJson({ answer: null, inTime: true, standing: false, told: true }),
             "{answer: what the unanswered window answered; inTime: within 3 s of a 300 ms time; standing: the window still open; told: the warning shown}");
     }],
+    ["1.2.123 r122-D-2 r122-D-6 - the describe window's clock counts from the last keystroke and, at its end, sends what was typed; the find's 'waits on a screen' card goes to the other GMs, not to the GM whose screen it is (observe.mjs `describeFind`; the auditor's recheck of 1.2.122, r122-D-2, r122-D-6)", async () => {
+        /*
+         * Line INVEST of 1.2.123. The window opened for a trace of the suite's own with a time of 400 ms: words typed into
+         * its player text at 250 ms and at 500 ms (each an `input`), then left. Read: what it answered and when (it must
+         * outlast the 400 ms a fixed clock gives, counted from the last keystroke), the warning shown, and the whispers made
+         * meanwhile (each card this browser created in the window's time, read by `createChatMessage` and deleted after),
+         * with a second GM stood in for as a connected user in `game.users.filter`, which `activeGmIds` reads.
+         * Red at a783e179: the clock was one 400 ms from the opening and its end answered null (the words dropped), and
+         * the card was whispered to every GM, this one included.
+         */
+        const O = await import("./observe.mjs");
+        needs(env.dialogs(), "the window is drawn");
+        const [student] = cast(1);
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.window?.title === game.i18n.localize("DRPG.Observe.describeTitle"));
+        const shown = [], whispers = [];
+        const warnWas = ui.notifications.warn;
+        const otherGm = "suite123d6gm0000";
+        const made = [];
+        const hook = Hooks.on("createChatMessage", doc => { made.push(doc); });
+        const usersFilter = game.users.filter;
+        let answer = "unset", took = null;
+        try {
+            ui.notifications.warn = (msg, ...rest) => { shown.push(String(msg)); return warnWas.call(ui.notifications, msg, ...rest); };
+            // a second GM, connected, as activeGmIds reads the users
+            const fake = { id: otherGm, isGM: true, active: true, name: "SUITE GM 2", role: 4 };
+            game.users.filter = function (fn, ...rest) { const list = usersFilter.call(this, fn, ...rest); return fn(fake) ? [...list, fake] : list; };
+            const at = Date.now();
+            const pending = O.describeFind(student, { room: "SUITE 123d room", data: { visibilityLabel: "Evident", typeLabel: "Prep", note: "" } }, false, "SUITE 123d name", null, { waitMs: 400 });
+            const type = async text => { const f = drawn()?.element?.querySelector('textarea[name="playerText"]'); if (f) { f.value = text; f.dispatchEvent(new Event("input", { bubbles: true })); } };
+            await wait(250); await type("SUITE 123d words");
+            await wait(250); await type("SUITE 123d words, more");
+            answer = await Promise.race([pending, wait(5000).then(() => "timeout")]);
+            took = Date.now() - at;
+            await settle();
+            for (const doc of made) if ((doc.whisper ?? []).length) whispers.push([...doc.whisper]);
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            for (const doc of made) await doc.delete?.().catch(() => {});
+            ui.notifications.warn = warnWas;
+            game.users.filter = usersFilter;
+            await drawn()?.close().catch(() => {});
+        }
+        const me = game.user.id;
+        const sentTo = whispers.flat();
+        const told = shown.includes(game.i18n.format("DRPG.Observe.describeTimedOutTyped", { actor: student.name, name: "SUITE 123d name" }));
+        equal(stableJson({ words: answer?.playerText ?? answer, afterLastKey: took !== null && took >= 850 && took < 4000, told,
+            whispered: whispers.length, toOther: sentTo.includes(otherGm), toMe: sentTo.includes(me) }),
+            stableJson({ words: "SUITE 123d words, more", afterLastKey: true, told: true, whispered: 1, toOther: true, toMe: false }),
+            "{words: what the window answered; afterLastKey: answered 400 ms after the last keystroke, not after the opening; told: the typed variant of the warning; whispered, toOther, toMe: the 'waits on a screen' card and its recipients}");
+    }],
+    ["1.2.123 r122-D-4 - the empty room's ruling card goes to the thread of the co-owner who asked, not the first owner's (observe.mjs `scoreObserve`; the auditor's recheck of 1.2.122, r122-D-4)", async () => {
+        /*
+         * Line INVEST of 1.2.123. A character of the suite's own owned by two connected players, alone in a one-room scene of
+         * the suite's own; the General Observe asked and paid by the owner `ownerOf` does not pick (the second). Read: the
+         * card posted, and whom it is whispered to. Red at a783e179: the card, posted on the primary GM with no thread, went
+         * to the first owner's thread (call-gm.mjs `threadOf`'s fallback for a GM's post).
+         */
+        const O = await import("./observe.mjs");
+        const R = await import("./rooms.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        needs(env.primaryGm(), "the target step is the primary GM's");
+        needs(env.playersConnected(), "two players own the character");
+        const players = game.users.filter(u => !u.isGM && u.active);
+        let scene = null, lone = null;
+        const cards = [];
+        const onCard = m => { cards.push(m); };
+        const seen = {};
+        try {
+            scene = await Scene.create({ name: "SUITE 123e an empty room", width: 800, height: 400, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: "SUITE 123e room", shapes: [{ type: "rectangle", x: 0, y: 0, width: 400, height: 400 }], flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            lone = await Actor.create({ name: "SUITE 123e observer", type: "character", ownership: { [players[0].id]: 3, [players[1].id]: 3 } });
+            await scene.createEmbeddedDocuments("Token", [{ actorId: lone.id, actorLink: true, name: lone.name, x: 100, y: 100, width: 1, height: 1 }]);
+            const first = ownerOf(lone);
+            const asker = players.slice(0, 2).find(u => u.id !== first?.id);
+            must(first && asker, "the character has no second owner - this would measure nothing");
+            const asked = await O.chooseObserveTarget({ actorId: lone.id, declaration: "general", userId: asker.id });
+            must(asked?.ok && asked.key, `the ask answered no key: ${stableJson(asked)}`);
+            Hooks.on("createChatMessage", onCard);
+            await O.resolveObserve({ key: asked.key, total: 5, isCritical: false, actorId: lone.id, senderId: asker.id, senderIsGm: false });
+            await settle();
+            const card = cards[0] ?? null;
+            seen.cards = cards.length;
+            seen.toAsker = Boolean(card?.whisper?.includes(asker.id));
+            seen.toFirst = Boolean(card?.whisper?.includes(first.id));
+        } finally {
+            Hooks.off("createChatMessage", onCard);
+            for (const m of cards) await m.delete().catch(() => {});
+            if (lone) await lone.delete().catch(() => {});
+            if (scene) await scene.delete().catch(() => {});
+        }
+        equal(stableJson(seen), stableJson({ cards: 1, toAsker: true, toFirst: false }), "{cards: posted; toAsker, toFirst: the card whispered to the co-owner who asked, to the first owner}");
+    }],
     ["1.2.122 CASE-33 - Observe's target step answers alike for a room holding nothing and a room holding a trace: a key, before anything is paid; the empty room is ruled at the paid resolve, on a card the GMs answer (observe.mjs `chooseObserveTarget`, `scoreObserve`; audit 1.2.118 domain-case-c-investigation 2)", async () => {
         /*
          * Line INVEST of 1.2.122 (routed by the coordinator from line CORE). A character of the suite's own, owned by a
@@ -112343,6 +112435,40 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
         }
         equal(stableJson({ named: named?.includes(away?.id) ?? null }), stableJson({ named: true }), "{named: the account handed a ballot and gone is among the pending voters}");
+    }],
+    ["1.2.123 r122-D-5 - 'Send another ballot (n)' counts the voters a reminder reaches: one handed a ballot who left is named as out and not counted on the button (vote.mjs `pendingVoters`; trial-floor-ui.mjs `voteFooter`; the auditor's recheck of 1.2.122, r122-D-5)", async () => {
+        /*
+         * Line INVEST of 1.2.123. As the CASE-14 test: an account of the suite's own, not connected, handed a ballot in an
+         * open round, nobody's ballot in. Read: whether `pendingVoters` names it, and the vote window's remind button as its
+         * footer draws it from that answer, against the connected participants who have not voted (whom `sendAgain` reaches).
+         * Red at a783e179: the button counted the away account too, so it read one more than a press sends.
+         */
+        const V = await import("./vote.mjs");
+        const { voteFooter } = await import("./trial-floor-ui.mjs");
+        const stored = game.settings.get(MODULE_ID, SETTINGS.trialProgress);
+        const ch = getClock().chapter;
+        let away = null;
+        const read = {};
+        try {
+            away = await CONFIG.User.documentClass.create({ name: "SUITE 123f away", role: CONST.USER_ROLES.PLAYER });
+            must(away && !away.active, "the suite's account is connected - this would measure nothing");
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...(stored ?? {}), chapter: ch, vote: { open: true, round: 918, picks: {}, issued: [away.id] } });
+            await settle();
+            must(V.trialProgress()?.vote?.open === true, "the record does not read an open vote - this would measure nothing");
+            const pending = V.pendingVoters() ?? [];
+            read.named = pending.some(p => p.user?.id === away.id);
+            const reaches = V.trialParticipants().length;
+            const footer = voteFooter({ pending, recipients: reaches });
+            const remind = [...(footer.secondary ?? [])].find(b => b.action === "remind") ?? null;
+            read.label = remind?.label ?? null;
+            read.want = reaches ? game.i18n.format("DRPG.Vote.remind", { n: reaches }) : null;
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored ?? {});
+            if (away) await away.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson({ named: read.named, label: read.label }), stableJson({ named: true, label: read.want }),
+            "{named: the away account among the pending voters; label: the remind button against the connected voters a press reaches}");
     }],
     ["1.2.122 CASE-33 rest - an unpaid Observe ask writes no row to the GMs' store and logs nothing, its paid resolve writes and rules it; a Reroll of an empty room's Observe writes the new number on the same card, posting none; a key the memory lost is chosen again on its declaration (observe.mjs `chooseObserveTarget`, `resolveObserve`, `scoreObserve`)", async () => {
         /*

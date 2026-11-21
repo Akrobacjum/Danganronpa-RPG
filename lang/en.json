@@ -3704,6 +3704,7 @@
       "describeRecovered": "{actor}'s find in {room} waited on a describe window that a reload closed. It went out under its prefilled name, with no words: add them in the Investigation window.",
       "describeWaiting": "{actor}'s find in {room} waits for its words on {gm}'s screen.",
       "describeTimedOut": "Nobody answered the window in time, so {actor}'s find went out under the name “{name}”, with no words. Add its words in the Investigation window.",
+      "describeTimedOutTyped": "Nobody pressed the window's button in time, so {actor}'s find went out as it was typed, under the name “{name}”. You can change its words in the Investigation window.",
       "describeIntro": "{actor} found something in {room}. Name it as they would, and say what they see.",
       "critPrompt": "On a critical, the student also learns the Remnant's category and earns a substantial hint: write the hint below.",
       "critHint": "Hint for this finder alone",

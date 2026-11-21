@@ -1930,7 +1930,9 @@ export function voteFooter({ pending, recipients }) {
        handler returns null anyway, so they behave identically either way. This
        was the only one that had work to do. */
     const send = { action: "open", disabled: !canSend, label: game.i18n.localize(running ? "DRPG.Vote.sendAgain" : "DRPG.Vote.send") };
-    const remind = pending?.length ? [{ action: "remind", label: game.i18n.format("DRPG.Vote.remind", { n: pending.length }) }] : [];
+    // the ones a reminder reaches (vote.mjs `pendingVoters`' `away`, the line INVEST of 1.2.123; r122-D-5)
+    const reached = (pending ?? []).filter(v => !v.away).length;
+    const remind = reached ? [{ action: "remind", label: game.i18n.format("DRPG.Vote.remind", { n: reached }) }] : [];
     // Closed with no vote open (E10 C14, S06-26): there is nothing to count, and the line
     // above the footer says to send the ballots first. Never the default (Open 44): neither
     // it nor Send again (which restarts the vote) is what Enter presses while a vote runs.
