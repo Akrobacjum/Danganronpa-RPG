@@ -954,10 +954,11 @@ function wireTwoRoomsCheck(root, rooms) {
 
 /*
  * TWO REASONS TO HOLD APPLY, ONE BUTTON (E13 C5; the A5 design's step 16). One student in two
- * bedrooms held Apply by writing `disabled` itself, and the Scenes tab holds it while both its
- * selects name one scene: two checks writing the same field would each free the button the other
+ * bedrooms held Apply by writing `disabled` itself, and the Scenes tab held it while both its
+ * selects named one scene: two checks writing the same field would each free the button the other
  * held. So each sets or clears its own reason here, and Apply is free only when none is left; its
- * label is the first reason still standing.
+ * label is the first reason still standing. The Scenes tab went to Season setup (E101 item 5),
+ * which keeps its own: in this file only the bedrooms check calls this now (the audit's D206).
  */
 const applyBlocks = new WeakMap();
 
@@ -1356,9 +1357,10 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
     /* NO ROOM IS NO REFUSAL (E13 C5; the owner's answer Q-E13-1 e, 09.10.2026). This refused a
        scene with no named region, so the GM of a world with no rooms yet could not reach the
        Scenes tab, and over a scene whose only named region was a Teleport (no room) it opened on
-       Bedrooms (read in the code, 12.10). It opens on the Scenes tab whenever its scene holds no room
-       (`roomSetupTab`), the room tabs empty or listing the regions still to be marked; only
-       with no scene at all is there nothing to open. */
+       Bedrooms (read in the code, 12.10). It opens with its scene holding no room as well, the room tabs
+       empty or listing the regions still to be marked (`roomSetupTab` answers Bedrooms for anything not a
+       tab: the Scenes tab is Season setup's since E101 item 5; the audit's D205); only with no scene at
+       all is there nothing to open. */
     if (!scene) {
         ui.notifications.warn(game.i18n.localize("DRPG.Vault.noRooms"));
         return null;
@@ -1428,7 +1430,7 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
         // for 860px, lost to the 26rem `.drpg-panel` cap, and clipped its own
         // right-hand columns with no way to scroll to them.
         classes: ["drpg-panel", "drpg-projects", "drpg-room-setup", "drpg-window-rooms"],
-        // One width for all nine tabs, taken from the biggest of them - see the
+        // One width for all eight tabs (`ROOM_SETUP_TABS`; nine until E101, the audit's D204), taken from the biggest of them - see the
         // kit's `fitKitWidth`. Without it the window is fitted to whichever tab
         // is showing and jumps between 708px and 1504px as the GM switches.
         fit: true,

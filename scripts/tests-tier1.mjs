@@ -64636,6 +64636,43 @@ const INVARIANTS = [
             JSON.stringify(["game.user.isGM ? leadRoomsHere() : mine", true, true, 2]),
             "[what leadRooms is, leadRoomsHere's default lead leadsHere, leadsHere answering every own token on a player, the fades reading leadRooms]");
     }],
+    ["R8350 - a token sliding towards a room of the viewer's is held hidden until its sprite is in one of the viewer's rooms, the stretch between two rooms included (1.2.122 line MAP; scripts/visibility.mjs `slideHeld`, `applyToToken`; the audit's MAP-02)", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026; the audit's MAP-02 (partly since task 8, commit 8d24e21). A token walking into the
+         * viewer's room is "in my room" when its update lands while the sprite still slides from the room it came from:
+         * held hidden while the sprite's centre is in a room that is not the viewer's, and shown on the frames it was in no
+         * room - the gap between two rooms that do not touch (the seeded Dorm A x 200-800 and Cafeteria from 1200), so the
+         * viewer saw which side it came out of. The rule read on its own (`slideHeld`, pure) and `applyToToken` held to ask
+         * it for a sliding sprite (its source). A real slide's frames are a table's (MAP-LC1, LOCAL-REPORT.md:419).
+         */
+        const V = await import("./visibility.mjs");
+        must(typeof V.slideHeld === "function", "visibility.mjs has no slideHeld - this would measure nothing");
+        const mine = new Set(["Cafeteria"]);
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/visibility.mjs`).then(lfText));
+        equal(JSON.stringify([V.slideHeld("Dorm A", mine), V.slideHeld(null, mine), V.slideHeld("Cafeteria", mine),
+            /if \(slideHeld\(roomAt\(token\.x, token\.y, token\.document\), myRooms\(\)\)\) hide\(token\);/.test(fnSource(src, "applyToToken"))]),
+            JSON.stringify([true, true, false, true]),
+            "[held with the sprite in another room, between rooms, in the viewer's room; applyToToken asks it]");
+    }],
+
+    ["R8351 - the outline and the two kinds of ring share one zoom threshold and one theme settle, named once, and the reveal's bare numbers are named (1.2.122 line MAP; scripts/fog-reveal.mjs `RESTRIKE_LOG_ZOOM`, `THEME_SETTLE_MS`; fog.mjs, remnant-ring.mjs, own-ring.mjs; the audit's MAP-15)", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026; the audit's MAP-15 (partly since b888c066). The zoom guard 0.18 and the 60 ms settle
+         * of the body's observer were written in three files each - the outline, the Remnant rings, the own-token rings -
+         * and 1024 and 1.4 with 13 stood bare in the reveal. Read off the four sources: neither literal left in a guard or
+         * a settle, each file reading the shared names, and the two exported once with their values.
+         */
+        const FR = await import("./fog-reveal.mjs");
+        const files = ["fog-reveal.mjs", "fog.mjs", "remnant-ring.mjs", "own-ring.mjs"];
+        const srcs = await Promise.all(files.map(f => fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(lfText).then(stripComments)));
+        const left = srcs.map(t => [/\)\) < 0\.18\)/.test(t), /\}, 60\);/.test(t)]);
+        const reads = srcs.map((t, i) => [i === 1 ? null : /< RESTRIKE_LOG_ZOOM\)/.test(t), i === 0 ? null : /\}, THEME_SETTLE_MS\);/.test(t)]);
+        equal(JSON.stringify([FR.RESTRIKE_LOG_ZOOM ?? null, FR.THEME_SETTLE_MS ?? null, left, reads,
+            /Math\.min\(1, REVEAL_TEXTURE_PX \//.test(srcs[1]), /REVEAL_LINES_MIN, Math\.min\(REVEAL_LINES_MAX,/.test(srcs[0])]),
+            JSON.stringify([0.18, 60, [[false, false], [false, false], [false, false], [false, false]],
+                [[true, null], [null, true], [true, true], [true, true]], true, true]),
+            "[the threshold, the settle, [a bare 0.18 guard, a bare 60 ms settle] per file, [reads the threshold, the settle] per file, the reveal's texture size named, its line counts named]");
+    }],
 ];
 
 /**

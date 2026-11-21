@@ -54,7 +54,8 @@ import { sample, now } from "./perf-timings.mjs";
 /* E88 C1: the frame's light drawn once into a texture its frame shape shares, instead of a blur on every frame
    (fog-reveal.mjs "THE SEAMS' LIGHT DRAWN ONCE"). Imported from its family file, as fog.mjs re-exports only
    `seamWidth`; fog-reveal.mjs imports neither ring file back. */
-import { wearHalo, releaseHalo, sweepHalos, restrikeHalos, ringHalo, HALO_BAKED, ringKept, positionOnly, haloBlurOn } from "./fog-reveal.mjs";
+import { wearHalo, releaseHalo, sweepHalos, restrikeHalos, ringHalo, HALO_BAKED, ringKept, positionOnly, haloBlurOn, RESTRIKE_LOG_ZOOM,
+    THEME_SETTLE_MS } from "./fog-reveal.mjs";
 
 const RING_NAME = "drpgRemnantRing";
 /* The seam's light, told apart from the seam - the same reason
@@ -142,7 +143,7 @@ export function registerRemnantRings() {
         if (!glassOn()) return;
         const zoom = canvas?.stage?.scale?.x;
         if (!Number.isFinite(zoom) || zoom <= 0.05) return;
-        if (ringZoom && Math.abs(Math.log(zoom / ringZoom)) < 0.18) return;
+        if (ringZoom && Math.abs(Math.log(zoom / ringZoom)) < RESTRIKE_LOG_ZOOM) return;
         ringZoom = zoom;
         restrikeHalos();
         repaintAll();
@@ -159,7 +160,7 @@ export function registerRemnantRings() {
         clearTimeout(themeTimer);
         themeTimer = setTimeout(() => {
             try { repaintAll(); } catch (err) { debug("Could not repaint the Remnant rings", err); }
-        }, 60);
+        }, THEME_SETTLE_MS);
     }).observe(document.body, { attributes: true, attributeFilter: ["class", "data-drpg-phase", "data-drpg-time"] });
     Hooks.on("updateToken", (doc, changes) => {
         // A type change has to redraw immediately; a move does not, because the

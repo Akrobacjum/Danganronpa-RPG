@@ -178,9 +178,11 @@ export function findLayer() {
  * --------------------------------------------------------------------------
  * The iris that used to live here was the wrong gesture: a circle, in a game
  * whose whole graphic language is diagonal cuts. This is made of the same
- * material as the fog it removes - bands at 45 degrees, on the same axis as
- * the raster, sweeping away from the token so the room reads as opening in
- * front of you rather than dissolving around you.
+ * material as the fog it removes - upright bands (`bandQuad`, "UPRIGHT RATHER
+ * THAN DIAGONAL"), in pairs about the middle of the room's box (`revealBandPlan`,
+ * which is handed the room and its box and no token), so the room reads as
+ * opening rather than dissolving (the audit's D188: this said 45 degrees and
+ * away from the token).
  *
  * TWO THINGS ABOUT THE IMPLEMENTATION ARE DELIBERATE AND BOTH ARE SCARS.
  *
@@ -210,6 +212,18 @@ const REVEAL_LINE_HALO = "drpgRevealLineHalo";
 
 /** How long the outline and name take to land after a room is entered. */
 const BOUNCE_MS = 520;
+
+/* THE NUMBERS THE OUTLINE AND THE RINGS SHARE (1.2.122 line MAP; the audit's MAP-15). Each stood written in three files -
+   the outline here, the Remnant rings (remnant-ring.mjs) and the own-token rings (own-ring.mjs) - so a change of one had
+   to be made three times to keep them in step. `RESTRIKE_LOG_ZOOM`: how far the zoom moves, as |log(zoom / struck)|,
+   before a light is struck again at the new zoom (about 20% either way). `THEME_SETTLE_MS`: how long after the body's
+   theme or hour attributes change the colours are read again, so a burst of attribute writes repaints once. */
+export const RESTRIKE_LOG_ZOOM = 0.18;
+export const THEME_SETTLE_MS = 60;
+/* The reveal's line count (`revealBandPlan`): a line every 1.4 squares of the half-width, never under 3 or over 13 a side,
+   so a small room still reads as a curtain and a hall does not draw a hundred lines. */
+const REVEAL_LINE_SQUARES = 1.4;
+const REVEAL_LINES_MIN = 3, REVEAL_LINES_MAX = 13;
 /**
  * How long the outline of a room you have left takes to go.
  *
@@ -398,9 +412,8 @@ export function buildRevealLayers(fx, { region, bounds, rect, glass, ink, bone, 
 
 /** Where the lines stand at rest, in pairs about the middle, and which band between them carries which stain. */
 export function revealBandPlan(room, { width, height, grid, lineWidth }) {
-    // Everything below is in the textures' own space. Every point on a
-    // 45-degree line shares `x + y`, so one number places a line.
-    // `c` is simply x now: a band is a vertical strip. See `bandQuad`.
+    // Everything below is in the textures' own space. A line is placed by its x
+    // alone, `c`: a band is a vertical strip (`bandQuad`; the audit's D189).
     const cMax = width;
     const cMid = cMax / 2;
     const cLow = -cMax;
@@ -421,7 +434,7 @@ export function revealBandPlan(room, { width, height, grid, lineWidth }) {
      * and those two lines cover it completely, so nothing pops. From there the
      * white and the black part together, which is what a curtain is.
      */
-    const perSide = Math.max(3, Math.min(13, Math.round(cMax / (grid * 1.4))));
+    const perSide = Math.max(REVEAL_LINES_MIN, Math.min(REVEAL_LINES_MAX, Math.round(cMax / (grid * REVEAL_LINE_SQUARES))));
     const pitch = cMid / perSide;
     const rest = [];
     for (let k = 0; k < perSide; k++) {
@@ -1570,7 +1583,7 @@ function fadeGroup(group, { now = false } = {}) {
     watchdog(animation, outlineFadeMs() + 750, drop);
 }
 
-/** The curtain's seam core, 1.3 px on the display, in the scene units this layer draws in.
+/** The seam's core, one display pixel (1 / zoom in the scene units this layer draws in; the audit's D190).
     EXPORTED because the Remnant rings are seams too under this theme and must be the same
     hairline as the room border they stand inside - one number, one home. */
 export function seamWidth() {
@@ -1589,7 +1602,7 @@ export function rezoomRoomOutline() {
     if (!standing || standing.group?.destroyed || !standing.rewidth) return;
     const zoom = canvas?.stage?.scale?.x;
     if (!Number.isFinite(zoom) || zoom <= 0.05) return;
-    if (outlineZoom && Math.abs(Math.log(zoom / outlineZoom)) < 0.18) return;
+    if (outlineZoom && Math.abs(Math.log(zoom / outlineZoom)) < RESTRIKE_LOG_ZOOM) return;
     outlineZoom = zoom;
     standing.rewidth();
 }

@@ -213,8 +213,9 @@ export async function retrieve(actor, item) {
  * Whose stash is in the room this character is standing in, if it is open.
  *
  * "Open" means not concealed. A concealed stash is one its owner has built a
- * hiding place for - a project - and finding that is what the Search action's
- * own stash branch is for, at a penalty, with a roll. An unconcealed stash is
+ * hiding place for - a project - and finding that is Analyze's Find Stash
+ * (`resolveStashSearch`): since 1.2.112 a Search reaches into no stash (the
+ * audit's D147; action-search.mjs). An unconcealed stash is
  * just a drawer in a bedroom: anyone who walks in can go through it, which is
  * exactly the pressure a killing game wants on leaving your things lying about.
  *
@@ -782,8 +783,9 @@ export async function resolveStashSearch({ actorId, total = 0, isCritical = fals
     /*
      * THE OWNER IS NOT TOLD, and that is the rule this action was written with
      * - "bez powiadamiania właściciela". Being found out is something they
-     * discover when something goes missing, which is `stealFromVault`'s job and
-     * has its own Despair test.
+     * discover when something goes missing: `stealFromVault` rolls nothing since
+     * 1.2.112 (a reach is free), and the owner is told of a reach on next walking
+     * into the room (its "THE OWNER HEARS OF IT ON WALKING IN"; the audit's D148).
      *
      * The GMs are told, because a hiding place opening is a fact about the
      * chapter and the one person who has to be able to narrate it is not on
@@ -797,7 +799,7 @@ export async function resolveStashSearch({ actorId, total = 0, isCritical = fals
     return { found: true, owner: target.owner.name, room: where.room, place };
 }
 
-/** GM: look inside anybody's stash, and pull things out of it. */
+/** GM: look inside anybody's stash - read only; its note sends the GM to Give / take items to take a thing out (D149). */
 export async function openVaultInspector() {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the

@@ -17,7 +17,7 @@
  * the panel's "Do it" (`toggleEclipse`) and its "Next time of day" (`nextTimeOfDay`) - opens a round on the primary GM
  * first: the world setting `readyRound` (settings.mjs), written there alone, in a step of `READY_KEY`
  * (`openRoundOnPrimary`, `answerOnPrimary`, `endRoundOnPrimary`; the bridge's rows `ready.open`, `ready.answer`,
- * `ready.end`, gm-bridge.mjs). Every player who owns a student of the one cast (monokuma.mjs `actingStudents`) gets one
+ * `ready.end`, bridge-table.mjs since E41 C5b, gm-bridge.mjs its facade; the audit's D207). Every player who owns a student of the one cast (monokuma.mjs `actingStudents`) gets one
  * window, Done or One moment; the GM who pressed gets a live window listing them, which goes on by itself once every
  * connected player said Done, and whose own buttons go on past the others after a confirmation. A start asks E17's
  * question first (Q-E37-3): the question is the GM's yes, the round the players'.

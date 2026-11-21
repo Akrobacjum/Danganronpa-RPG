@@ -11,7 +11,8 @@
  *     closed for everyone until the next time of day (05.11, "limits").
  *   - A COMPLETED PROJECT'S ACTION, set by a GM on the project (projectMeta `facility`), standing in the project's room
  *     for the project's lifetime after it was completed (`completedAt`, written by projects.mjs's completion row
- *     `facility`). Not rolled. Once per person per time of day, blocking nobody else; it costs an action unless the
+ *     `facility`). Not rolled. As often as its limit says, per character, blocking nobody else - no limit, once a time of
+ *     day or once a day (`FACILITIES.limits`, `defaultLimit` once a time of day; P2; the audit's D154); it costs an action unless the
  *     GM's switch says it costs none (08.11).
  *
  * This file is what every browser reads: the cleaning of what a GM typed (`cleanAction`, `cleanFacility`), the room's

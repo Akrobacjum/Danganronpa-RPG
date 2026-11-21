@@ -96,8 +96,8 @@ export async function targetsOf(actor, scope, place) {
 }
 
 /**
- * Carry out an action's effects on this GM, each in its own write; answers the lines its card says, in the table's
- * language. A write a GM makes is judged by nothing (resource-guard.mjs: a GM's write names no reason a judge reads);
+ * Carry out an action's effects on this GM, each in its own write; answers the lines its card says, in this browser's
+ * language - the primary GM's `game.i18n`, not the world's (utils.mjs `worldLocalize` is not used; the audit's D155). A write a GM makes is judged by nothing (resource-guard.mjs: a GM's write names no reason a judge reads);
  * the reason `facility` says on the GMs' own side which road it was.
  *
  * A VEILED CHARACTER'S LINE IS LEFT OUT (1.2.121 line M1, 21.11.2026; the audit's N119-1, MAP-16's residue). While a

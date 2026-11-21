@@ -18,10 +18,9 @@
  * `roomRegions(scene, name)` returns every piece, `roomFlag` reads a flag as OR over them,
  * `setRoomFlag` writes it to every region of the name that can be a room (`writablePieces`;
  * E12 fix r1-G1, 11.10.2026: until then a Teleport of the name took the mark too, which
- * `canBeRoom` refused to read and nobody had decided). E12 C1 adds the predicate and its
- * writers; the readers that still take `filter(r => r.name)` move onto it in C2a and C2b, so
- * in this commit the flag changes what Room Setup and Season setup show and nothing a rule
- * decides.
+ * `canBeRoom` refused to read and nobody had decided). E12 C1 added the predicate and its
+ * writers, and C2a and C2b moved every reader onto it (`roomPieces`, `isRoomWith`), so the flag
+ * decides every rule that asks about a room (the audit's D198: this said "in this commit").
  *
  * A LEAF. This file imports `config.mjs` and nothing else, so every module may read rooms
  * through it without a cycle (R161 counts static imports). It does not import settings.mjs,
