@@ -75,6 +75,16 @@ What the shots are not: Foundry's frame and stylesheet (the harness's capture).
 | `shots/toolbar-1.2.119-glass.png`, `shots/toolbar-1.2.119-legacy.png` | e515907d | the window as the GM sees it (the camera on the open node, the graph clipped): the order's select at 11 px beside "Add a plan" at 21 under Stained Glass |
 | `shots/toolbar-1.2.120-glass.png`, `shots/toolbar-1.2.120-legacy.png` | this line | the order's select at the theme's select size, as "Add a plan" (under Stained Glass "All open" then wraps to a second row at this window's 1100 px) |
 
+| `shots/toolbar-600-1.2.119-glass.png`, `shots/toolbar-600-1.2.119-legacy.png` | e515907d | the window drawn 600 px wide (`--width 600`), the GM's view |
+| `shots/toolbar-600-1.2.120-glass.png`, `shots/toolbar-600-1.2.120-legacy.png` | this line | the same: the tools wrap to rows, none over another |
+
+THE TOOLBAR DOES NOT OVERLAP, NARROW OR WIDE (measured 21.11.2026, `case-map-sweep.mjs`'s toolbar read: every button
+and select of the Map's tools and its view switch, by its box, against every other and against the window's content
+box). Windows drawn 1120, 900, 720, 600 and 480 px wide, both themes, at 1366x768 and 1920x1080: no control over
+another, none past the window's edge, on 1.2.119's code and on this line's; the read's planted control (a tool moved
+over its neighbour) reads. What differed on 1.2.119 was the order select's size alone (above). Seen at 600 px and not
+the toolbar's: the footer's "Preview realization" breaks inside its word ("REALIZATIO / N") under Stained Glass.
+
 THE NODES OVER THE TOOLBAR WERE THE SHOTS', NOT THE WINDOW'S. The Map shots sent before 21.11.2026 04:30 UTC (this
 folder's first versions) were taken by the sweep's whole-canvas shot, which lifts the graph's clip to show every node -
 while the camera stood moved to reveal the open node, so the canvas spilled up over the toolbar. The "-view" shot of the
