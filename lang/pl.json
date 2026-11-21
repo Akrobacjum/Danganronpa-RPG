@@ -4634,7 +4634,7 @@
       "markedIn": "{name} znów jest uczniem.",
       "npcLine": "Poza klasą: bez akcji, głosów i Level Upów.",
       "deathMark": "Nie żyje",
-      "deadStillGm": "Poza Class Trial ta postać nadal mówi przy stole. Gdy włączony jest Głos osobno w każdym pokoju, moduł przenosi ją do pokoju Widzów, gdzie żywi jej nie słyszą. Podczas Class Trial jej mikrofon jest wyłączony i nie oddaje głosu.",
+      "deadStillGm": "Poza Class Trial gracz tej postaci nadal mówi przy stole. Gdy włączony jest Głos osobno w każdym pokoju, moduł przenosi go do pokoju Widzów, gdzie żywi go nie słyszą. Podczas Class Trial jego mikrofon jest wyłączony, a postać nie oddaje głosu.",
       "deadStill": "Poza Class Trial nadal mówisz przy stole. Gdy włączony jest Głos osobno w każdym pokoju, moduł przenosi cię do pokoju Widzów, gdzie żywi cię nie słyszą. Podczas Class Trial twój mikrofon jest wyłączony i nie oddajesz głosu."
     },
     "Overflow": {
