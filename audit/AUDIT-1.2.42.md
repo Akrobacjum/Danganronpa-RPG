@@ -4430,9 +4430,9 @@ Właściciel odpowiedział na wszystkie cztery 20.11.2026 około 23:30Z, przez k
 | COMM-24 publiczna karta Despair Call | `minor` | `day-119` (90f1c51c) | naprawione w 1.2.119 - do sprawdzenia |
 | STG-03 tablica dnia przy masce | `major` | `day-119` (maski kończą się przed każdym przesunięciem) | naprawione w 1.2.119 - do sprawdzenia |
 | MAP-17 krok Widza jako przejście | `major` | `fog-119` fc190a65 | naprawione w 1.2.119 - do sprawdzenia |
-| CASE-20 nieskończona rekursja układu mapy sprawy | `major` | `plan-119` 3b73017a (wypchnięte, scalenie po raporcie) | skierowane |
-| CTRL-10 Move up / Move down | `minor` | `plan-119` | skierowane |
-| REFR-05 reguła 1 `keepLive` | `major` | `plan-119` (`whileEditing`, tylko planer i Table) | skierowane w części; reszta powierzchni otwarta na 1.2.120 |
+| CASE-20 nieskończona rekursja układu mapy sprawy | `major` | `plan-119` a13d89fa (asm c3b60999, 21.11 00:08Z; R7800-R7802, 9.2 poz. 695 LIVE-C119-01) | naprawione w 1.2.119 - do sprawdzenia |
+| CTRL-10 Move up / Move down | `minor` | `plan-119` a13d89fa (asm c3b60999) | naprawione w 1.2.119 - do sprawdzenia |
+| REFR-05 reguła 1 `keepLive` | `major` | `plan-119` a13d89fa (asm c3b60999): `whileEditing` tylko w planerze; pole wyboru z fokusem dalej wstrzymuje przerysowanie, Table zostaje przy swojej regule | w części w 1.2.119 - do sprawdzenia; reszta powierzchni otwarta na 1.2.120. C1 zmienił przygotowanie jednego testu tieru 2 E09 C3 (pole tekstowe z fokusem już nie wstrzymuje przerysowania, więc test stawia fokus na polu wyboru widoczności wiersza): do przeczytania przy ponownym sprawdzeniu |
 | CTRL-01 (= CASE-19, STG-02) martwy "Reset the season" | `major` | C1 na `claude/season-119` | w toku (do soboty 10:00, inaczej 1.2.120) |
 | REFR-02 Season setup zapisuje zegar sprzed otwarcia | `major` | C1 na `claude/season-119` | w toku |
 | REFR-27 wiersze listy kontrolnej sezonu | `minor` | C1, jeśli starczy czasu | w toku |
