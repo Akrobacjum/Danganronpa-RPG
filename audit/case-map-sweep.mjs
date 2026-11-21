@@ -27,6 +27,7 @@
  *   hover    (line P of 1.2.120) the first node face in view hovered by the pointer: its name's ink against the ground it
  *            is drawn on under the pointer (the window, the node's fill and Stained Glass's brush, composited) under WCAG AA
  *            4.5; its control, on the first page under glass, the brush planted back under the pointer must read;
+ *   toolbar  (line P of 1.2.120) the order's select and the plan's at one computed font size;
  *   through  (line P of 1.2.120) a drawn line's stretch inside a node's box other than its own two ends;
  *   size     while a trial runs, under glass, at 800 px of height or less: the smallest node text after Fit to view
  *            at least 11 px (the owner, 12.11, round 6; MIN_TEXT);
@@ -114,8 +115,10 @@ function pageHtml(styles, html, title, width, theme, vh = 0) {
 }
 
 /** Read in the page: relayout through the module's code, then every node's cut and every pair's overlap. */
-async function readMap(page, { plantBox = false, staleLayout = false, plantBar = false, plantNarrow = false, plantThrough = false } = {}) {
-    return page.evaluate(async ({ plantBox, staleLayout, plantBar, plantNarrow, plantThrough }) => {
+async function readMap(page, { plantBox = false, staleLayout = false, plantBar = false, plantNarrow = false, plantThrough = false, plantSmall = false } = {}) {
+    return page.evaluate(async ({ plantBox, staleLayout, plantBar, plantNarrow, plantThrough, plantSmall }) => {
+        // the toolbar read's control (line P of 1.2.120): the order's select planted at 9 px must read
+        if (plantSmall) document.querySelector("select[data-drpg-case-sort]")?.style.setProperty("font-size", "9px", "important");
         const V = await import("/scripts/case-view.mjs");
         await document.fonts.ready;
         if (plantBox) {
@@ -202,6 +205,15 @@ async function readMap(page, { plantBox = false, staleLayout = false, plantBar =
                 }
             }
             boxes.push(box);
+        }
+        /* THE TOOLBAR'S TWO SELECTS AT ONE SIZE (line P of 1.2.120; the owner's shots: "By hand" drawn tiny beside "Add a
+           plan"): the order's select and the plan's, by their computed font size, within half a pixel. */
+        {
+            const sortSel = document.querySelector("select[data-drpg-case-sort]"), planSel = document.querySelector("select[data-drpg-case-add-plan]");
+            if (sortSel && planSel) {
+                const [a, b] = [sortSel, planSel].map(el => parseFloat(getComputedStyle(el).fontSize));
+                if (Math.abs(a - b) > 0.5) cut.push(`toolbar: the order's select at ${a} px beside the plan's at ${b} px`);
+            }
         }
         /* NO LINE THROUGH A NODE (line P of 1.2.120; the owner: "Linie w planerze - niech omijaja nodes"): every drawn line's
            path, read back by its M, H, V and Q, against every node's box in the canvas's own pixels (a face with its open
@@ -347,7 +359,7 @@ async function readMap(page, { plantBox = false, staleLayout = false, plantBar =
         return { nodes: nodes.length, controls: canvas.querySelectorAll(":scope > [data-drpg-case-tick], :scope > [data-drpg-case-start-node]").length, revealed, open: [...open.keys()], tallest: Math.max(...boxes.map(b => Math.round(b.bottom - b.top))),
             viewport: graph ? [graph.clientWidth, graph.clientHeight] : null, canvas: [parseFloat(canvas.style.width), parseFloat(canvas.style.height)],
             measured: canvas.dataset.drpgMeasured ?? null, slot, fit, bar: Boolean(bar), cut, overlaps };
-    }, { plantBox, staleLayout, plantBar, plantNarrow, plantThrough });
+    }, { plantBox, staleLayout, plantBar, plantNarrow, plantThrough, plantSmall });
 }
 
 /* A NODE UNDER THE POINTER IS READ (line P of 1.2.120; the owner, 21.11.2026: "Po najechaniu myszka caly node robi sie
@@ -439,6 +451,13 @@ try {
                     const footHas = await page.evaluate(() => { const b = document.querySelector("footer.drpg-kit-footer button"); if (b) Object.assign(b.style, { position: "fixed", top: `${innerHeight + 40}px` }); return Boolean(b); });
                     const footRead = footHas ? ((await readMap(page)).cut ?? []).filter(c => c.startsWith("footer:")).length : 0;
                     const ok = box.cut?.length > 0 && stale.overlaps?.length > 0 && (!planted.bar || barRead > 0) && (!footHas || footRead > 0);
+                    // the toolbar read's control (line P of 1.2.120): the order's select planted small must read
+                    const small = await readMap(page, { plantSmall: true });
+                    const smallRead = (small.cut ?? []).filter(c => c.startsWith("toolbar:")).length;
+                    const hasSelects = await page.evaluate(() => Boolean(document.querySelector("select[data-drpg-case-sort]") && document.querySelector("select[data-drpg-case-add-plan]")));
+                    await load();
+                    console.log(`control  ${!hasSelects || smallRead ? "ok  " : "FAIL"} the order's select planted at 9 px read ${hasSelects ? smallRead : "no toolbar on this page"}`);
+                    if (hasSelects && !smallRead) failed++;
                     // the through read's control (line P of 1.2.120): a node moved onto a drawn line must read
                     const onLine = await readMap(page, { plantThrough: true });
                     const throughRead = (onLine.cut ?? []).filter(c => c.startsWith("line ")).length;
@@ -492,6 +511,10 @@ try {
                         await page.screenshot({ path: path.join(SHOTS, `${lang}-${theme}-${vw}x${vh}-${w.id}-fit.png`) });
                         await page.evaluate(() => { const c = document.querySelector(".drpg-case-canvas"); if (c) c.style.transform = window.__sweepBefore; });
                     }
+                    /* the whole canvas, unclipped: the camera put back to its origin first (line P of 1.2.120) - with the camera
+                       moved to reveal an open node and the clip taken off, the canvas was drawn over the toolbar above it, in the
+                       shot alone (the "-view" shot, the window as the GM sees it, clips it) */
+                    await page.evaluate(() => { const c = document.querySelector(".drpg-case-canvas"); if (c) c.style.transform = "none"; });
                     await page.evaluate(() => { const g = document.querySelector(".drpg-case-graph"); if (g) { g.style.overflow = "visible"; g.style.height = `${parseFloat(document.querySelector(".drpg-case-canvas").style.height) + 4}px`; g.style.flex = "none"; } const v = document.querySelector(".drpg-case-view"); if (v) { v.style.height = "auto"; v.style.overflow = "visible"; } });
                     await page.screenshot({ path: path.join(SHOTS, `${lang}-${theme}-${vw}x${vh}-${w.id}.png`), fullPage: true });
                 }
