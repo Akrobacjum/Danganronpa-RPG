@@ -65605,8 +65605,9 @@ const INVARIANTS = [
             "CORE-24": [(place.match(/broadcast\(SYNC\.gather,/g) ?? []).length, /\}\s*if \(moved\.length\) broadcast\(SYNC\.gather, \{ scene: \[\.\.\.scenes\], tokenIds: moved \}\);/.test(place),
                 /const scenes = Array\.isArray\(scene\) \? scene : \[scene\];/.test(pan)],
             "CORE-29": /\.find\(m => \(m\.rolls\?\.length \?\? 0\) > 0 && \(gm \|\| m\.visible !== false\)\)/.test(diag),
-            "CORE-40": [/for \(const id of mine\) noticeOnReturn\.add\(id\);\s*returnNoticesLeft = RETURN_NOTICES;/.test(fnSource(secret, "askForWords")),
-                /if \(!message \|\| returnNoticesLeft <= 0\) return false;\s*returnNoticesLeft -= 1;/.test(fnSource(secret, "cardOnReturn"))],
+            // Since 1.2.123 (r122-lane-B-1) the slots are the newest of a round's answers, and no ask sets a count again.
+            "CORE-40": [/for \(const id of mine\) noticeOnReturn\.add\(id\);/.test(fnSource(secret, "askForWords")) && !/RETURN_NOTICES/.test(fnSource(secret, "askForWords") ?? ""),
+                /\.sort\(\(a, b\) => time\(b\) - time\(a\)\)\.slice\(0, RETURN_NOTICES\)/.test(fnSource(secret, "cardOnReturn"))],
             "CASE-66": /setMonocub\(actor, false, \{ quiet: true, watcher: false \}\)/.test(wipe),
             "CASE-70": [/const scene = roomRowScene\(\) \?\? null;\s*const findings = checkRegions\(scene\);/.test(check), /lastRoomChecks\.set\(scene\.id,/.test(check), /canvas\?\.scene/.test(check)],
             "MAP-32": /if \(!game\.user\.isGM \|\| !isPrimaryGm\(\)\) return 0;/.test(fog),
@@ -65901,6 +65902,35 @@ const INVARIANTS = [
         equal(stableJson({ order, gone: !row.querySelector("[data-drpg-live-line]"), under: Boolean(row.querySelector("[data-suite-under]")) }),
             stableJson({ order: ["hint", "line", "under"], gone: true, under: true }),
             "{order: a new line drawn under the hint, before what stood under the row; gone: taken away when the step has none; under: kept}");
+    }],
+    ["R8118 - a masked name is cut where the markup writes it escaped - &, ' and \" - in a card's text and its attributes, plain or cut by reader, and words that hold none come back byte for byte (1.2.123; the auditor's check of 1.2.122, r122-C-1: secret.mjs `maskNames`, `wordsFor`)", async () => {
+        /* Red at 14bb0d92: `maskNames` returned the words uncut when no name stood in the markup as written, and a card
+           writes a name escaped, so `Ren O'Hara & Co` (markup `Ren O&#39;Hara &amp; Co`) reached a reader outside the mask in
+           clear. Stand-ins for the mask (`setNameMask`); nothing written. */
+        const S = await import("./secret.mjs");
+        must(typeof S.maskNames === "function" && typeof S.wordsFor === "function" && typeof S.setNameMask === "function",
+            "secret.mjs exports no maskNames, wordsFor or setNameMask - this would measure nothing");
+        const esc = foundry.utils.escapeHTML;
+        const names = [`Ren O'Hara & Co`, `Ann "Q" Lee`];
+        const plain = `<p>${esc(names[0])} caught you.</p><p title="${esc(names[1])}">${esc(names[1])} looks away.</p>`;
+        const P1 = "R8118P1000000000", P3 = "R8118P3000000000";
+        const cutCard = `<p>Seen by all.</p><p data-drpg-you="${P1}">${esc(names[0])} turned to you.</p>`;
+        const text = html => { const box = document.createElement("div"); box.innerHTML = html; return box.textContent; };
+        const attrs = html => { const box = document.createElement("div"); box.innerHTML = html; return [...box.querySelectorAll("[title]")].map(el => el.getAttribute("title")); };
+        const masked = S.maskNames(plain, names);
+        const odd = '<P CLASS=x>Nobody &amp; nothing<br></P>';
+        const before = S.setNameMask(id => (id === P1 ? names : []));
+        let cutFor;
+        try { cutFor = { outside: S.wordsFor(P1, cutCard), inside: S.wordsFor(P3, plain), plainOutside: S.wordsFor(P1, plain) }; } finally { S.setNameMask(before); }
+        equal(stableJson({
+            plain: text(masked), title: attrs(masked),
+            cut: text(cutFor.outside).includes(names[0]) || cutFor.outside.includes(esc(names[0])), cutQ: text(cutFor.outside).includes("? turned"),
+            plainOutside: text(cutFor.plainOutside).includes(names[0]) || text(cutFor.plainOutside).includes(names[1]),
+            inside: cutFor.inside === plain,
+            untouched: S.maskNames(odd, names) === odd
+        }), stableJson({
+            plain: "? caught you.? looks away.", title: ["?"], cut: false, cutQ: true, plainOutside: false, inside: true, untouched: true
+        }), "{plain, title: the escaped names cut in the text and the attribute; cut, cutQ: on a card cut by reader, outside the mask; plainOutside: a plain card through wordsFor; inside: a reader with no mask gets the words as written; untouched: words holding no name come back byte for byte}");
     }],
     ["R8050 - Foundry's token HUD holds only the controls kept (1.2.120 line H; the owner, 21.11.2026: \"Niepotrzebne jest: combat, target, movement action, assign status, liczby na gorze i na dole i elevation\"): token-hud.mjs `trimHudFor` on Daggerheart 2.12.8's tokenHUD.hbs as drawn for a GM leaves the floor's palette, bring to front, the companion's button, lock, the token's settings and visibility, with no input, status palette, movement palette, target or combat; as drawn for a player it leaves nothing, the HUD marked not to be drawn (the owner, 21.11.2026: \"Niech gracz nie ma menu tokena\")", async () => {
         /*
