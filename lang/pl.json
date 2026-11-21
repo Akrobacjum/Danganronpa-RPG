@@ -6237,6 +6237,7 @@
       "actionOwed": "Krytyk zniknął, ale nie masz już akcji, którą Reroll mógłby zabrać.",
       "gmReasked": "GM dostaje twoją prośbę jeszcze raz, z nowym wynikiem, i decyduje od nowa.",
       "rulingVoid": "Reroll: {old} już nie obowiązuje, wynik to teraz {new}. Zdecyduj ponownie.",
+      "rulingReplaced": "Reroll zastąpił ten rzut. Nowa karta pyta ponownie.",
       "lootStands": "Kości przepisano, ale chwila nie. Zabrane rzeczy są już u ciebie, a ciało wygląda tak jak wcześniej."
     },
     "Audit": {

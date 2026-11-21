@@ -22448,6 +22448,53 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ unspent: { said: true, facts: {} }, spent: { said: false }, refund: 0 }),
             "{a Search whose token the GMs never spent: the never-ran line said, the replay's facts; one whose token was spent: the line; a Work's critical claimed unrefunded, rerolled into a critical: the actions after}");
     }],
+    ["1.2.122 CTRL-26 - a Reroll of an action a GM rules on ends the first card it replaced: the open call card of that character posted since the replaced roll loses its buttons and says a Reroll replaced it, while another character's open card and a card from before the roll stand (scripts/reroll.mjs `endReplacedRuling`, `settleGmRuling`; call-gm.mjs `settleCall`; the audit's CTRL-26, 1.2.122 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP. The audit's CTRL-26: the Reroll posted a second card for the ruling and left the
+         * first one's buttons live, about the roll it replaced. Three call cards posted as an action's are (`callGm`, a
+         * Decline button with `data-by`): one of a student's before its roll message, the roll's message, one of the
+         * student's after it, one of another student's after it. Then `endReplacedRuling` for the student's bookmark
+         * naming that roll. Read: for each card, whether its buttons stand and whether it says the Reroll replaced it; and
+         * off the source, that the Reroll's re-ask ends the first card before it posts its own. Put back: the messages.
+         * Red at ded83479: no `endReplacedRuling`.
+         */
+        const [student, other] = cast(2);
+        const R = await import("./reroll.mjs");
+        const { callGm } = await import("./gm-bridge.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        must(typeof R.endReplacedRuling === "function", "reroll.mjs ends no replaced ruling (no endReplacedRuling) - this would measure nothing");
+        const seen = new Set(game.messages.map(m => m.id));
+        const fresh = () => game.messages.contents.filter(m => !seen.has(m.id));
+        const post = async (actor, tag) => {
+            const before = new Set(game.messages.map(m => m.id));
+            must(await callGm(actor, { title: `SUITE CTRL-26 ${tag}`, actions: [{ action: "decline", label: "Decline", data: { by: actor.id } }] }),
+                `the ${tag} card was not posted - this would measure nothing`);
+            await settle();
+            const card = game.messages.contents.find(m => !before.has(m.id)) ?? null;
+            must(card, `the ${tag} card is not in the log - this would measure nothing`);
+            return card;
+        };
+        const read = {};
+        try {
+            const early = await post(student, "early");
+            await wait(5);
+            const roll = await ChatMessage.create({ content: "<p>SUITE CTRL-26 roll</p>" });
+            await wait(5);
+            const first = await post(student, "first");
+            const another = await post(other, "another");
+            const ended = await R.endReplacedRuling(student, { messageId: roll.id, actionKey: "search", gmRuled: true });
+            await settle();
+            const state = card => { const w = contentOf(game.messages.get(card.id)) ?? ""; return [w.includes("drpg-call-actions"), w.includes(game.i18n.localize("DRPG.Reroll.rulingReplaced"))]; };
+            read.cards = { early: state(early), first: state(first), another: state(another), ended };
+        } finally {
+            for (const m of fresh()) await m.delete().catch(() => {});
+            await settle();
+        }
+        const ask = fnSource(stripComments((await moduleSources()).get("reroll.mjs") ?? ""), "settleGmRuling");
+        read.order = ask.search(/await endReplacedRuling\(actor, bookmark\)/) > 0 && ask.search(/await endReplacedRuling\(actor, bookmark\)/) < ask.search(/await callGm\(/);
+        equal(stableJson(read), stableJson({ cards: { early: [true, false], first: [false, true], another: [true, false], ended: 1 }, order: true }),
+            "{each card [its buttons stand, it says a Reroll replaced it]: the student's before the roll, the student's after it, another's after it; how many were ended; the re-ask ends the first before posting its own}");
+    }],
     ["Grant all grants each stamped roll once", async () => {
         /*
          * E08+E28 C18, 04.10.2026; the plan's 3.7. A roll thrown while no GM was connected is

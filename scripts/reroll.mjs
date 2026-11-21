@@ -1941,12 +1941,41 @@ async function listenLines(actor, { room, target, total, isCritical }) {
 }
 
 /**
+ * THE FIRST CARD ENDS WHEN ITS ROLL IS REPLACED (the audit's CTRL-26, 1.2.122). The Reroll re-asks the GM on a card of its
+ * own, and the first card - asked about the roll the Reroll replaced - kept its buttons (Nothing was there, Refuse the
+ * attempt, an Observe's picks, Create an item): a GM who pressed one there answered a roll that no longer stands. The
+ * call cards of this character still open (not `settled`), posted since the replaced roll's message, are settled here
+ * (call-gm.mjs `settleCall`: the buttons go) with the line that a Reroll replaced them. A card already answered stands, as
+ * the comment below says. The card holds no link to its roll (its flags are neutral on purpose), so it is found by its
+ * buttons' character (`data-by`) and its time. Exported for the suite.
+ */
+export async function endReplacedRuling(actor, bookmark) {
+    if (!game.user?.isGM || !actor?.id) return 0;
+    const { cardFlag, contentOf } = await import("./secret.mjs");
+    const { MESSENGER_FLAGS } = await import("./messenger.mjs");
+    const { settleCall } = await import("./call-gm.mjs");
+    const since = Number(game.messages.get(bookmark?.messageId ?? "")?.timestamp ?? bookmark?.at ?? 0) || 0;
+    const by = `data-by="${actor.id}"`;
+    let ended = 0;
+    for (const card of [...(game.messages?.contents ?? [])]) {
+        if (!(cardFlag(card, "callCard") || cardFlag(card, MESSENGER_FLAGS.gmAsk)) || cardFlag(card, MESSENGER_FLAGS.settled)) continue;
+        if ((Number(card.timestamp) || 0) < since) continue;
+        const words = contentOf(card) ?? "";
+        if (!words.includes("drpg-call-actions") || !words.includes(by)) continue;
+        await settleCall(card, game.i18n.localize("DRPG.Reroll.rulingReplaced"));
+        ended++;
+    }
+    return ended;
+}
+
+/**
  * Observe, Analyze, Direct Murder and a described Search all end in a human
  * ruling. A die cannot take that back, so the GM is asked again with the new
  * number and told the previous answer no longer stands.
  */
 async function settleGmRuling(actor, bookmark, after, done) {
     const { callGm } = await import("./gm-bridge.mjs");
+    await endReplacedRuling(actor, bookmark);
 
     await callGm(actor, {
         title: bookmark.label ?? game.i18n.localize("DRPG.Reroll.title"),
