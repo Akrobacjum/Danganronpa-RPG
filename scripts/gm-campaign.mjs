@@ -13,9 +13,9 @@
  * WHERE IT SITS. Moved out of gm-panel.mjs by E41 C7a (1.2.97), a pure move
  * that `node tools/moved-only.mjs` proves line by line. gm-panel.mjs re-exports
  * the two names here it exported before (`correctsTheHour`, `openClockDialog`),
- * so every importer still imports gm-panel.mjs, and the panel's tile reaches the
- * window through it; nothing here imports it back (the facade rule,
- * .claude/rules/code.md).
+ * so every importer still imports gm-panel.mjs; nothing here imports it back (the facade rule,
+ * .claude/rules/code.md). The panel has no Edit campaign tile since E49 A1e: the window's doors are
+ * game.drpg.editClock and Season setup, which draws the same rows itself.
  */
 
 import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES, CHAPTERS_PER_SEASON } from "./config.mjs";
@@ -362,7 +362,9 @@ export async function applyCampaignForm(result) {
      * Measured: an Eclipse running, the GM sets the time here to correct
      * something, and the world lands on Morning with `eclipse` still true. The
      * Eclipse owns token placement and refuses every murder while it is on, and
-     * this window has no field to turn it off with - it is ended from the panel.
+     * this window has no field to turn it off with - it is ended from the HUD's
+     * chevron or the panel's Next line (the panel has no Eclipse tile), as
+     * DRPG.Clock.eclipseStillOn says.
      *
      * A REFUSAL WOULD BE WRONG. A GM correcting a botched clock in the middle of
      * an Eclipse is doing something legitimate, and taking the tool away to
@@ -444,7 +446,8 @@ export async function applyCampaignForm(result) {
        write after the assembly had been called off - the order gone, the rest of the window dropped (tier 2 "an
        Eclipse begun during Edit campaign's trial question keeps the rest of the window" read the time of day
        and the name unwritten with the code before this, 11.10.2026). Read again here, with nothing awaited
-       between it and the write: the phase is kept and the GM told, as above. */
+       between it and the write but the assembly's call-off when the hour is corrected (below; read 21.11.2026): the phase
+       is kept and the GM told, as above. */
     if (phase === "classTrial" && getClock().phase !== "classTrial" && isEclipse()) {
         ui.notifications.warn(game.i18n.localize("DRPG.Floor.eclipseFirst"));
         phase = getClock().phase;
@@ -458,15 +461,19 @@ export async function applyCampaignForm(result) {
         session: result.session,
         timeOfDay: result.timeOfDay
     };
-    /* WHAT THE GM LEFT AS DRAWN IS THE WORLD'S AT THE WRITE (1.2.122; `untouchedKept`'s KEPT_FIELDS): read here, with
-       nothing awaited between this and `setClock`, so a time of day, a chapter or a phase another writer moved while a
-       question above stood open is not written back. */
-    const now = getClock();
-    for (const name of kept) if (name in patch && now?.[name] !== undefined && now?.[name] !== null) patch[name] = now[name];
+    /* WHAT THE GM LEFT AS DRAWN IS THE WORLD'S AT THE WRITE (1.2.122; `untouchedKept`'s KEPT_FIELDS): taken from the clock
+       here, after the questions above, so a time of day, a chapter or a phase another writer moved while one stood open is
+       not written back - and taken again after the assembly's call-off below, the one await left before `setClock`. */
+    const takeKept = () => {
+        const now = getClock();
+        for (const name of kept) if (name in patch && now?.[name] !== undefined && now?.[name] !== null) patch[name] = now[name];
+    };
+    takeKept();
     // Before the write, as the rewind's: the write's own `onChange` reaches the primary GM's `runPendingGather`
     // before a line after it would run. See `correctsTheHour`.
     if (correctsTheHour(getClock(), patch)) {
         await import("./call-effects.mjs").then(m => m.cancelGather()).catch(err => error("Could not call off the assembly", err));
+        takeKept();
     }
 
     await setClock(patch);

@@ -4607,6 +4607,10 @@ async function tellOpeningRoller(side, state, { proposed = false } = {}) {
  */
 let openingRollsInFlight = 0;
 
+/* Which of them, as `${side}|${actorId}` (1.2.122, CASE-24 narrowed): `throwOpeningRoll` starts no second loop for a
+   side and character whose window stands here, and starts one for any other. */
+const openingKeysInFlight = new Set();
+
 /**
  * AND WHICH WINDOWS THEY OPENED (E32+E07 C16, 03.10.2026; audit S04-35). The count above was
  * all `closeOpeningRoll` asked, and with it above zero it closed every D20RollDialog on
@@ -4752,9 +4756,14 @@ export async function throwOpeningRoll(side, actorId, trait = null, { hindrance 
     const MAX_ATTEMPTS = TIMING.openingAttempts;
     /* ONE WINDOW AT A TIME (1.2.122; CASE-24). The primary sends the invitation again when the invited browser asks at its
        ready (bridge-runs-acts.mjs `reaskOwedOpening`), and a primary's own reload makes the player ask too: a page whose
-       window still stands keeps that one and starts no second loop, which would stack two windows. */
-    if (openingRollsInFlight > 0) return null;
+       window still stands keeps that one and starts no second loop, which would stack two windows. One window per side
+       and character (the coordinator's ask, 21.11.2026): a GM's client throwing one character's opening still opens
+       another character's when it is asked of the same client. Until then the guard was the client's count, so the
+       second was dropped. */
+    const flightKey = `${side}|${actorId}`;
+    if (openingKeysInFlight.has(flightKey)) return null;
     let roll = null;
+    openingKeysInFlight.add(flightKey);
     openingRollsInFlight++;
     try {
         const { rollTrait } = await import("./action-rolls.mjs");
@@ -4779,6 +4788,7 @@ export async function throwOpeningRoll(side, actorId, trait = null, { hindrance 
             }
         }
     } finally {
+        openingKeysInFlight.delete(flightKey);
         openingRollsInFlight = Math.max(0, openingRollsInFlight - 1);
         if (!openingRollsInFlight) openingDialogs.clear();
     }

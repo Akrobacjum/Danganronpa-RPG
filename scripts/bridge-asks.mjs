@@ -50,15 +50,15 @@ export function requestOpeningResult({ actorId, side, total, isCritical, withHop
 }
 
 /*
- * A GM'S OWN INFILTRATE AND ROOM ACTIONS, ON WHICH BROWSER (1.2.122; the audit of 1.2.118, CORE-22 and ROLL-22). Each ask
- * below hands its row's own run to a GM's client (`local`), read as a player's answer is read (`localRun`, bridge-guards.mjs
- * `createWaiter`). The four with no roll - Stop listening, Echoes, a "?" revealed, a knock at a barricade - are the
- * primary's to carry out (`onPrimary`): a second GM asks them as a player does, so their GM halves, written "on the primary
- * GM" and some gated on it (eavesdrop-gm.mjs `settleBlock` gives the microphone back on the primary alone), run there. The
- * eight that settle a roll stay on the GM who pressed them: a GM's own rolls are not drawn (roll-draw.mjs `drawsHere`), so
- * the primary holds no record of that GM's roll, and asked over the socket the row's `rolled` would refuse it ("no roll the
- * GM drew is named"). Their writes are GM stores every GM holds and merges; what is left is that a second GM's
- * once-a-time-of-day facility check is queued on that GM's browser (`serialWrite`), not the primary's - not measured.
+ * A GM'S OWN INFILTRATE AND ROOM ACTIONS, ON THE PRIMARY (1.2.122; the audit of 1.2.118, CORE-22 and ROLL-22). Each ask
+ * below hands its row's own run to the GM's client (`local`), read as a player's answer is read (`localRun`,
+ * bridge-guards.mjs `createWaiter`), and only on the primary (`onPrimary`): a second GM asks each one as a player does, so
+ * the GM halves - written "on the primary GM", some gated on it (eavesdrop-gm.mjs `settleBlock` gives the microphone back
+ * on the primary alone; facilities-gm.mjs holds its once-a-time-of-day check in the primary's `serialWrite` queue) - run
+ * there. A roll they settle is a GM's own, which is not drawn (roll-draw.mjs `drawsHere`) and has no record; the judge
+ * takes a GM sender's numbers when no record names the roll (bridge-guards.mjs `rollsFor`: `if (!record && sender?.isGM)
+ * continue`), as the GM's own client took them. Read 21.11.2026; an earlier draft of this note said the primary would
+ * refuse such a roll, which the judge does not.
  */
 
 /**
@@ -70,6 +70,7 @@ export function requestOpeningResult({ actorId, side, total, isCritical, withHop
 export function requestFacilityUse({ actorId, actionId, total = 0, isCritical = false, rollId = null }) {
     return ask(ACTION_FACILITY_USE, { actorId, actionId, total, isCritical, rollId }, {
         localRun: true,
+        onPrimary: true,
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleFacilityUse({ actorId, actionId, total, isCritical, rollId }, game.user))
     });
 }
@@ -79,6 +80,7 @@ export function requestDoorShut({ actorId, total = 0, rollId = null }) {
     const packet = { actorId, total, rollId };
     return ask(ACTION_DOOR_SHUT, packet, {
         localRun: true,
+        onPrimary: true,
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleDoorShut(packet, game.user))
     });
 }
@@ -88,6 +90,7 @@ export function requestDoorForce({ actorId, room, total = 0, isCritical = false,
     const packet = { actorId, room, total, isCritical, withHope, rollId };
     return ask(ACTION_DOOR_FORCE, packet, {
         localRun: true,
+        onPrimary: true,
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleDoorForce(packet, game.user))
     });
 }
@@ -98,6 +101,7 @@ export function requestDoorPick({ actorId, room, total = 0, isCritical = false, 
     const packet = { actorId, room, total, isCritical, withHope, coverTotal, coverCritical, rollId, coverRollId };
     return ask(ACTION_DOOR_PICK, packet, {
         localRun: true,
+        onPrimary: true,
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleDoorPick(packet, game.user))
     });
 }
@@ -116,6 +120,7 @@ export function requestWatchDeclare({ actorId, total = 0, isCritical = false, wi
     const packet = { actorId, total, isCritical, withHope, rollId };
     return ask(ACTION_WATCH_DECLARE, packet, {
         localRun: true,
+        onPrimary: true,
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleWatchDeclare(packet, game.user))
     });
 }
@@ -126,6 +131,7 @@ export function requestTailStart({ tailerId, targetId, total = 0, isCritical = f
     const packet = { tailerId, targetId, total, isCritical, unseenTotal, unseenCritical, rollId, unseenRollId };
     return ask(ACTION_TAIL_START, packet, {
         localRun: true,
+        onPrimary: true,
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleTailStart(packet, game.user))
     });
 }
@@ -135,6 +141,7 @@ export function requestEavesdrop({ actorId, room, total = 0, isCritical = false,
     const packet = { actorId, room, total, isCritical, rollId };
     return ask(ACTION_LISTEN_EAVESDROP, packet, {
         localRun: true,
+        onPrimary: true,
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleEavesdrop(packet, game.user))
     });
 }
@@ -172,6 +179,7 @@ export function requestMaskReveal({ actorId }) {
 export function requestDash({ actorId, total = 0, isCritical = false, rollId = null }) {
     return ask(ACTION_DASH, { actorId, total, isCritical, rollId }, {
         localRun: true,
+        onPrimary: true,
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleDash({ actorId, total, isCritical, rollId }, game.user))
     });
 }
@@ -932,7 +940,8 @@ export async function requestCleanableTraces(actorId, { mine = false, quiet = fa
  * Hand a thrown Observe to the GM to be scored.
  *
  * The answer is the whisper the player gets when the GM's client has finished -
- * a Truth Bullet on their sheet, a project found, or the Sanity a miss marks - which can wait on the GM
+ * a Truth Bullet on their sheet, a project found, or the Sanity a miss marks (`OBSERVE_FAIL_STRESS`, 1 at config.mjs; until
+ * this comment was read against it on 21.11.2026 it said 2) - which can wait on the GM
  * describing what was found, so the request waits only for the "got it", and a
  * refusal after it is still told.
  */

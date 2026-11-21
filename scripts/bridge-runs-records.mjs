@@ -43,7 +43,7 @@ export async function handleProgress(payload, sender, ctx) {
     // recorded who proposed it; and whose character's roll it was (`owns`), so the change is that
     // character's in the entry (E36 C3): a completion row that keeps a project for a Reroll reads it.
     const result = await addProgress(payload.countdownId, amount, { by: asker, actorId: payload.actorId ?? null, kind: sender.isGM ? "gm" : "player" });
-    debug(`Applied ${amount} progress to ${payload.countdownId} on behalf of a player.`, result);
+    debug(`Applied ${amount} progress to ${payload.countdownId} for ${sender.isGM ? "a GM" : "a player"}.`, result);
     // Null: the project is not there any more - nothing was added, and the asker
     // is told so once, by the refusal (E31 review). A project that did not move
     // (already full) is an answer, whispered below; a frozen one is refused

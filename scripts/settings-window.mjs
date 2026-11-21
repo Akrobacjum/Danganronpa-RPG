@@ -14,20 +14,22 @@
  * wyjsciowe"). A1 drew one window of seven sections, the world rows for a GM alone, so a GM's gear and a player's
  * differed, and the Look window the gear opened (look.mjs, with the volumes and the Voice section) stood beside it.
  * Since A1d:
- *   - THIS BROWSER'S WINDOW (`openSettingsWindow`), the same for a GM and a player (a GM alone has the verbose log since E100 item 3): every client setting of the 35
+ *   - THIS BROWSER'S WINDOW (`openSettingsWindow`), the same for a GM and a player (a GM alone has the verbose log since E100 item 3): every client row of the sections
+ *     (12 on 21.11.2026; A1 drew 35 rows in all)
  *     (`CLIENT_SECTIONS`: look, effects, sound, tech) and what the Look window held besides them - the two volumes
  *     (sfx.mjs `volumeSliders`, saved as they move, as they were) and the Voice section (voice-panel.mjs
  *     `voiceFieldset`: the microphone, the output, always on or push to talk, the key and Configure Controls; only where
  *     `voiceAvailable()`, saved as touched, as it was). The gear opens it (look.mjs `openLookDialog`), and so does
  *     Configure Settings' one button of the module, DRPG Settings (settings.mjs `SETTINGS_MENU`). No world row in it.
- *   - THE GAME'S SETTINGS (`GAME_SECTIONS`: audio, rules, privacy, gm, foundry; every world row of the 35, Vary the
- *     sounds - a GM's switch the Look window carried - and Give back Foundry's settings): a window of their own in the
+ *   - THE GAME'S SETTINGS (`GAME_SECTIONS`: audio, rules, privacy, gm, foundry; every world row of the sections, 25 on
+ *     21.11.2026, and Give back Foundry's settings - Vary the sounds, a GM's switch the Look window carried, and the music's
+ *     switch are the Sound window's since E101, `SOUND_WINDOW_SETTINGS`): a window of their own in the
  *     same shape, `openGameSettingsWindow`, opened by the GM panel's Settings tile in Between sessions (the owner, the
  *     same day: "W wolne miejsce wejda nowe ustawienia gma jako "Settings"", the place Reset the season left when it
  *     moved into Season setup), for a user Foundry lets modify settings alone.
  *
  *   CLIENT_SECTIONS, GAME_SECTIONS  the sections of each place, `{ key, icon, place, keys }`, in the order drawn
- *   SETTINGS_SECTIONS        both lists, the client's first: every one of the 35 in exactly one (R3420)
+ *   SETTINGS_SECTIONS        both lists, the client's first: every row in exactly one (37 on 21.11.2026: 12 and 25; R3420)
  *   firstSentence(text)      a hint's first sentence; `restOf(text)` the rest, the tooltip
  *   settingRowHtml(key)      one setting's row: its control by type (kit `toggle`, `stepper`, a select), its line
  *   saveSettings(form, user) every field the person changed in the window written as Foundry's own form wrote it; a reload asked once

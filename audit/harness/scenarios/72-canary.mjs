@@ -162,7 +162,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
         return game.messages.contents.filter(m => !had.has(m.id)).map(m => m.id);`);
     await canary.chatMark({ ids: eclipseCards });
     const beforePark = await gm.eval(`return game.messages.size;`);
+    /* Paid first, as the Eclipse tile pays (action-murder.mjs `performDirectMurder`): since 1.2.122 the primary claims the
+       payment's ticket before it parks a player's declaration (CORE-21; bridge-runs-acts.mjs `claimedFor`). */
     await p3.eval(`const { parkDirectMurder } = await import("${repoUrl}/scripts/eclipse.mjs");
+        await (await import("${repoUrl}/scripts/actions.mjs")).spendAction(game.actors.get("${IDS.chie}"), 1);
         await parkDirectMurder({ killerId: "${IDS.chie}", room: "Gym", note: "${park}" });
         return true;`, { timeout: 60000 });
     await settle(1000);

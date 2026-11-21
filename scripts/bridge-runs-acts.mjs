@@ -42,7 +42,9 @@ import { tellUsesOf } from "./facility-uses.mjs";
  * packet and every guard the declaration names, in order; the run carries the
  * request out, and answers by what it returns: nothing, `{ reply }`,
  * `{ refused: "<English reason>" }`, or `{ later: true }` for a ruling a GM
- * gives from a card. A run never emits a packet and never calls `refuse`.
+ * gives from a card. A run never calls `refuse`, and emits no packet of the request's own answer: two send something
+ * later on purpose, each said beside it - `handleFriskAsk` sends its asker's done itself when the target answers, and
+ * `handleAdvancementAsk` sends the offers (`sendOffersTo`) and, since 1.2.122, an owed opening's invitation.
  */
 
     // Observe is scored on this side, because everything it is scored against -
@@ -64,12 +66,12 @@ export async function handleObserveTarget(payload, sender, ctx) {
     return result?.later || result?.refused ? result : { reply: result };
 }
 
-    // Stage 6's picker. Which traces a killer's own client may act on is
-    // computed here for the same reason Observe is: the ledger - the answer
-    // key `cleanableRemnants` reads to build the list - lives only on a GM
-    // client, and `cleanableTracesForPlayer` (cleanup.mjs) is what strips it
-    // back down to id, label, the reinforced flag and the number the roll window
-    // shows (E16 part 2 C0, the owner's Q7) before it goes out.
+// Stage 6's picker. Which traces a killer's own client may act on is
+// computed here for the same reason Observe is: the ledger - the answer
+// key `cleanableRemnants` reads to build the list - lives only on a GM
+// client, and `cleanableTracesForPlayer` (cleanup.mjs) is what strips it
+// back down to id, label, the reinforced flag and the number the roll window
+// shows (E16 part 2 C0, the owner's Q7) before it goes out.
 export async function handleCleanupTraces(payload, sender, ctx) {
     const { cleanableTracesForPlayer } = await import("./cleanup.mjs");
     return { reply: cleanableTracesForPlayer(payload.actorId, { mine: payload.mine }) };
@@ -338,18 +340,15 @@ export async function handleEchoes(payload, sender = null) {
        with a living student of another player, ties broken at random per ask. A player's ask now claims the payment's
        ticket on this GM, as an open Frisk's ask does (roll-draw.mjs `claimTicket`, kind `echoes`, claimed only), and is
        refused `notPaid` with none. A GM's own ask pays nothing here: a GM's write is no ticket. */
-    if (sender && !sender.isGM) {
-        const { claimTicket } = await import("./roll-draw.mjs");
-        if (!(await claimTicket(actor.id, "echoes"))) return { refused: "no payment of that character's stands for that roll" };
-    }
+    if (!(await claimedFor(sender, actor.id, "echoes"))) return { refused: "no payment of that character's stands for that roll" };
     const { echoesFor } = await import("./echoes-gm.mjs");
     const out = await echoesFor(actor);
     if (out.refused) return { refused: out.refused };
     return { reply: { room: out.room, steps: out.steps } };
 }
 
-    // Analyze is scored here for the same reason as Observe: the difficulty is
-    // read from what the bullet really is, which is the answer being bought.
+// Analyze is scored here for the same reason as Observe: the difficulty is
+// read from what the bullet really is, which is the answer being bought.
 export async function handleAnalyzeResolve(payload, sender, ctx) {
     const { resolveAnalyze } = await import("./analyze.mjs");
     const result = await resolveAnalyze({
@@ -566,10 +565,10 @@ export async function sendOffersTo(userId) {
     }, { recipients: [userId] });
 }
 
-    // Handing something to another character writes to a sheet the sender does
-    // not own, so it can only happen here. The same-room condition is checked
-    // again inside handover.mjs - the payload only claims it. One run for the
-    // two actions: which one is `ctx.action`, the runner's, not a packet field.
+// Handing something to another character writes to a sheet the sender does
+// not own, so it can only happen here. The same-room condition is checked
+// again inside handover.mjs - the payload only claims it. One run for the
+// two actions: which one is `ctx.action`, the runner's, not a packet field.
 export async function handleShareBulletOrGiveItem(payload, sender, ctx) {
     const { shareBullet, giveItem } = await import("./handover.mjs");
     const args = { fromId: payload.fromId, toId: payload.toId, itemId: payload.itemId };
@@ -582,9 +581,9 @@ export async function handleShareBulletOrGiveItem(payload, sender, ctx) {
     if (out?.refused) return { refused: out.refused };
 }
 
-    // Showing a secret passage (E79 C7): the recipient learns it in the GMs' records, which only the
-    // primary writes. Every check past the sender's ownership of the giver is `shareRefusal`'s, and whether
-    // the sender acts as the Mastermind through the giver is asked of the sender (E79 fix r2-G2, SEC M3).
+// Showing a secret passage (E79 C7): the recipient learns it in the GMs' records, which only the
+// primary writes. Every check past the sender's ownership of the giver is `shareRefusal`'s, and whether
+// the sender acts as the Mastermind through the giver is asked of the sender (E79 fix r2-G2, SEC M3).
 export async function handlePassageShare(payload, sender) {
     const { sharePassage } = await import("./passages-gm.mjs");
     const out = await sharePassage({ actorId: payload.actorId, targetId: payload.targetId, passageId: payload.passageId }, { asker: sender });
@@ -678,13 +677,13 @@ export function palmRolls(actor) {
     ];
 }
 
-    // And into them. Same guards as the theft, mirrored - the sender has to own
-    // the character whose pocket the item is leaving. An item no GM has decided on
-    // (E29 fix r2-H21), the one gate's refusals before the rolls (inventory.mjs
-    // `transferRefusal`; E14 part 1 C1) and a stash's own (stash-reach.mjs `stealFromVault`;
-    // E14 fix e1-G1) come back as { refused } and are told by their code; the gate's
-    // second asking, after the rolls, is told as nothing carried out (fix e1-G4). What a
-    // run carries out - a missed hand, full pockets - is the asker's whisper.
+// And into them. Same guards as the theft, mirrored - the sender has to own
+// the character whose pocket the item is leaving. An item no GM has decided on
+// (E29 fix r2-H21), the one gate's refusals before the rolls (inventory.mjs
+// `transferRefusal`; E14 part 1 C1) and a stash's own (stash-reach.mjs `stealFromVault`;
+// E14 fix e1-G1) come back as { refused } and are told by their code; the gate's
+// second asking, after the rolls, is told as nothing carried out (fix e1-G4). What a
+// run carries out - a missed hand, full pockets - is the asker's whisper.
 export async function handlePlant(payload, sender, ctx) {
     const { plantOnPerson } = await import("./vault.mjs");
     // The sender: a body the GMs keep from them is planted on as a living victim is (E80 fix sec1-G1; the one gate,
@@ -702,10 +701,10 @@ export async function handlePlant(payload, sender, ctx) {
     if (out?.refused) return { refused: out.refused };
 }
 
-    // Looking for a hiding place. The finder owns their own sheet and could
-    // write the flag themselves - which is exactly why they do not: that write
-    // is the whole distance between beating a 16 and reading other people's
-    // stashes, so it happens where the threshold is checked.
+// Looking for a hiding place. The finder owns their own sheet and could
+// write the flag themselves - which is exactly why they do not: that write
+// is the whole distance between beating a 16 and reading other people's
+// stashes, so it happens where the threshold is checked.
 export async function handleFindStash(payload, sender, ctx) {
     const { resolveStashSearch } = await import("./vault.mjs");
     const out = await resolveStashSearch({
@@ -725,9 +724,9 @@ export async function handleFindStash(payload, sender, ctx) {
     return { reply: true };
 }
 
-    // And out of their pockets. Same reasoning as the stash below, plus one
-    // more: the thief's client is the one that would benefit from getting the
-    // arithmetic wrong, so it does none of it.
+// And out of their pockets. Same reasoning as the stash below, plus one
+// more: the thief's client is the one that would benefit from getting the
+// arithmetic wrong, so it does none of it.
 export async function handleSteal(payload, sender, ctx) {
     const { stealFromPerson } = await import("./vault.mjs");
     // The sender: a body the GMs keep from them is robbed as a living victim is (E80 fix sec1-G1; the one gate,
@@ -805,8 +804,8 @@ export async function friskForceRoll(record, payload) {
     return { fields: { total: Number(record.total) || 0, isCritical: Boolean(record.isCritical) } };
 }
 
-    // Taking something out of somebody else's stash writes to two sheets, one of
-    // which the thief has no business writing to.
+// Taking something out of somebody else's stash writes to two sheets, one of
+// which the thief has no business writing to.
 export async function handleVaultSteal(payload, sender, ctx) {
     const { stealFromVault } = await import("./vault.mjs");
     const out = await stealFromVault({ thiefId: payload.thiefId, ownerId: payload.ownerId, itemId: payload.itemId });
@@ -815,9 +814,9 @@ export async function handleVaultSteal(payload, sender, ctx) {
     return { reply: { taken: Boolean(out) } };
 }
 
-    // Stage 4 thrown on the participant's own client. Same guard as a crisis
-    // action: the sender has to own the character the roll is about, or one
-    // player could open somebody else's murder for them.
+// Stage 4 thrown on the participant's own client. Same guard as a crisis
+// action: the sender has to own the character the roll is about, or one
+// player could open somebody else's murder for them.
 export async function handleOpeningResult(payload, sender, ctx) {
     const { resolveOpening } = await import("./murder.mjs");
     await resolveOpening({
@@ -829,11 +828,11 @@ export async function handleOpeningResult(payload, sender, ctx) {
     });
 }
 
-    // A crisis action writes to the other participant's sheet, to the map and to
-    // the shared incident state. All three are GM-only. It is judged again
-    // before it lands - see `guardCrisisAction` - and murder.mjs is imported in
-    // the declaration's `prepare`, before those guards, as it was here, so the
-    // last guard and the write have nothing awaited between them.
+// A crisis action writes to the other participant's sheet, to the map and to
+// the shared incident state. All three are GM-only. It is judged again
+// before it lands - see `guardCrisisAction` - and murder.mjs is imported in
+// the declaration's `prepare`, before those guards, as it was here, so the
+// last guard and the write have nothing awaited between them.
 export async function handleCrisis(payload, sender, ctx, prepared) {
     const { resolveCrisisAction, freeResolutionFor, sideOf } = prepared;
     const actor = game.actors.get(payload.actorId);
@@ -906,9 +905,24 @@ export async function handleCrisis(payload, sender, ctx, prepared) {
     //
     // Only while an Eclipse runs (E05 fix r1-G3; review S1-m8), as `eclipse.move` is: outside
     // one nothing is written and nobody is asked, and the asker is told.
+/*
+ * A DECLARATION IN THE DARK IS PAID FOR WHERE IT IS WRITTEN (1.2.122; the audit of 1.2.118, CORE-21's rest). A parked
+ * murder and a betrayal declared in an Eclipse cost one action, paid on the asker's browser before it asks
+ * (action-murder.mjs `performDirectMurder`, `performBetrayal`), and the primary wrote the declaration with no sight of that
+ * payment: a console declared them free. A player's declaration now claims the payment's ticket on this GM, as Echoes'
+ * ask and an open Frisk's do (roll-draw.mjs `claimTicket`, kinds `park` and `betrayal`, claimed only), and is refused
+ * `notPaid` with none - before anything is checked or written. A GM's own declaration pays nothing here.
+ */
+async function claimedFor(sender, actorId, kind) {
+    if (!sender || sender.isGM) return true;
+    const { claimTicket } = await import("./roll-draw.mjs");
+    return claimTicket(actorId, kind);
+}
+
 export async function handleParkMurder(payload, sender, ctx) {
     const eclipse = await import("./eclipse.mjs");
     if (!eclipse.eclipseId()) return { refused: "no Eclipse is running" };
+    if (!(await claimedFor(sender, payload.killerId, "park"))) return { refused: "no payment of that character's stands for that roll" };
     await eclipse.writeParkedMurder({
         killerId: payload.killerId,
         room: payload.room,
@@ -917,17 +931,17 @@ export async function handleParkMurder(payload, sender, ctx) {
     });
 }
 
-    // The newcomer turns on the person they just helped. Opening a murder is a
-    // world write and a second death, so the request travels and the decision
-    // is re-derived from the incident on this side - `betrayAsPlayer` refuses
-    // anyone the state does not put in that position.
-    //
-    // In an Eclipse it is a declaration (E32 C5b, 28.09.2026; the owner's Q3): the
-    // asking client has paid an action for it, so it is answered - parked, or refused
-    // and told, and the client gives the action back. Refused here unless the betrayal
-    // is on offer to that character now, and - the offer stays in the cast until the
-    // lights (fix r1-G2), so the tile stays lit - unless it is declared already;
-    // `betrayAsPlayer` parks it.
+// The newcomer turns on the person they just helped. Opening a murder is a
+// world write and a second death, so the request travels and the decision
+// is re-derived from the incident on this side - `betrayAsPlayer` refuses
+// anyone the state does not put in that position.
+//
+// In an Eclipse it is a declaration (E32 C5b, 28.09.2026; the owner's Q3): the
+// asking client has paid an action for it, so it is answered - parked, or refused
+// and told, and the client gives the action back. Refused here unless the betrayal
+// is on offer to that character now, and - the offer stays in the cast until the
+// lights (fix r1-G2), so the tile stays lit - unless it is declared already;
+// `betrayAsPlayer` parks it.
 export async function handleBetrayal(payload, sender, ctx) {
     const murder = await import("./murder.mjs");
     const { isEclipse, betrayalDeclared } = await import("./eclipse.mjs");
@@ -937,16 +951,17 @@ export async function handleBetrayal(payload, sender, ctx) {
     }
     if (!murder.betrayalTarget(game.actors.get(payload.actorId))) return { refused: "that cannot be done now" };
     if (betrayalDeclared(payload.actorId)) return { refused: "that betrayal is already declared" };
+    if (!(await claimedFor(sender, payload.actorId, "betrayal"))) return { refused: "no payment of that character's stands for that roll" };
     const parked = await murder.betrayAsPlayer(payload.actorId, { note: payload.note, proposed: payload.proposed });
     if (!parked) return { refused: "nothing was carried out: betrayAsPlayer parked nothing" };
     return { reply: true };
 }
 
-    // Stage 6. Deleting a Remnant token, placing the new one a botched wipe
-    // leaves, and reading how visible the trace was in the first place are all
-    // GM-only - the last of those most of all, since it is the threshold the
-    // roll is being measured against. See cleanup.mjs. cleanup.mjs is imported
-    // in the declaration's `prepare`, before the guards, as it was here.
+// Stage 6. Deleting a Remnant token, placing the new one a botched wipe
+// leaves, and reading how visible the trace was in the first place are all
+// GM-only - the last of those most of all, since it is the threshold the
+// roll is being measured against. See cleanup.mjs. cleanup.mjs is imported
+// in the declaration's `prepare`, before the guards, as it was here.
 export async function handleCleanup(payload, sender, ctx, prepared) {
     const cleanup = prepared;
 
@@ -1052,6 +1067,7 @@ export async function handleCubAbility(payload, sender, ctx) {
     // A student who has had its share (E72 C4): refused with its code, so the asker is told why and that nothing was paid.
     if (out?.capped === "time") return { refused: "that student has had a Monocub's move this time of day" };
     if (out?.capped === "day") return { refused: "that student has had two Monocub moves today" };
+    // A null (refused, unpaid) is answered null on purpose: the GM's whisper `moveRefused` is its one message (bridge-guards.mjs, REASONS).
     return { reply: out };
 }
 

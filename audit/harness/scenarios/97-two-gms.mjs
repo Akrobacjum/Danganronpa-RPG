@@ -586,6 +586,29 @@ export async function run(api) {
     const heldAfter = await until(() => heldOn(gm2), ids => !ids.includes(IDS.chie), 6000);
     check("K4: a reveal on gm takes the revealed killer off the masked rows gm2 keeps (r121-M-3)",
         J(heldBefore) === J([IDS.chie]) && Array.isArray(heldAfter) && !heldAfter.includes(IDS.chie), J({ heldBefore, heldAfter }));
+    /* K5 (1.2.122 line CORE; the audit of 1.2.118, CORE-22 and ROLL-22): gm2, not the primary, asks Echoes and a Dash for
+       Aiko as a GM playing her would. Each goes over the socket to the GMs, the primary among them, which judges it (`onPrimary`) and comes back read as a
+       player's answer is (`localRun`): the reply's fields, not `{ reply }`. The Dash names no roll (a GM's roll is not
+       drawn), and the judge takes a GM sender's numbers when no record names one; a total of 0 grants no crossing, so nothing
+       is written.
+       Red at 21bf5d18: both ran on gm2 itself, nothing was sent, and the values were `{ reply: ... }`. */
+    const asked = await gm2.eval(`const B = ${imp("bridge-asks.mjs")};
+        const socket = game.socket, send = socket.emit, sent = [];
+        socket.emit = function (event, packet, options, ...rest) {
+            if (["listen.echoes", "dash.settle"].includes(packet?.action)) sent.push([packet.action, (options?.recipients ?? []).join(",")]);
+            return send.call(this, event, packet, options, ...rest);
+        };
+        let echoes, dash;
+        try {
+            echoes = await B.requestEchoes({ actorId: "${IDS.aiko}" });
+            dash = await B.requestDash({ actorId: "${IDS.aiko}", total: 0 });
+        } finally { socket.emit = send; }
+        const shape = r => r?.ok ? Object.keys(r.value ?? {}).sort() : (r?.refused ? "refused " + r.reason : "not ok " + (r?.reason ?? ""));
+        return { sent, echoes: shape(echoes), dash: shape(dash) };`, { timeout: 60000 });
+    check("K5: gm2's own Echoes and Dash for a student go to the primary and come back as the run's reply (CORE-22, ROLL-22)",
+        J(asked.sent.map(([action]) => action)) === J(["listen.echoes", "dash.settle"]) && asked.sent.every(([, to]) => to.split(",").includes(IDS.gm))
+            && !J(asked.echoes).includes("reply") && !J(asked.dash).includes("reply")
+            && Array.isArray(asked.echoes) && Array.isArray(asked.dash), J(asked));
     await gm.eval(`${CARD_K} await card()?.delete(); return true;`);
     await settle(800);
 

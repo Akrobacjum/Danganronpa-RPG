@@ -750,8 +750,8 @@ export function secretHtml(message) {
     const entry = read()[message.id];
     if (!entry || typeof entry.html !== "string") return null;
     if (entry.user && entry.user !== game.user?.id) return null;
-    // Its author keeps it for others, and does not read it here (E38): a GM whispering a card to players alone sees
-    // its stub, as it did before the author-hold catch-up.
+    // Its author keeps it for others, and does not read it here (E38): a GM whispering a card to players alone has no
+    // words of it here, and its card is drawn with `DRPG.Secret.wordsHeldForReaders` at once (1.2.122, `heldForReaders`).
     if (entry.authorHold) return null;
     if (entry.trusted) return entry.html;
     if (!cleaned.has(message.id)) cleaned.set(message.id, cleanCardHtml(entry.html));
@@ -950,9 +950,11 @@ async function remember(id, html, at, pin = false, trusted = false, summary = un
 }
 
 /**
- * The readers an entry keeps after a write: those it held, with the ones this write names added (a GM's
- * `updateSecret` to a reader the card did not have, as a freed victim's line). Never fewer: who was given a
- * card's words may be given them again. Null when neither names anybody. Pure.
+ * The readers an entry keeps after a write: those it held, with the ones this write names added. Never fewer: who
+ * was given a card's words may be given them again. Null when neither names anybody. Pure. (Read 21.11.2026: this
+ * comment named a freed victim's line as a write that adds a reader, but that line is sent by a GM that is not a reader
+ * of the card, and `updateSecret` remembers only on a reader's browser, so that road adds nobody here; an added reader
+ * comes from a remember whose readers name more than the entry held.)
  */
 function heldReadersAfter(before, added) {
     const ids = [...(Array.isArray(before) ? before : []), ...(Array.isArray(added) ? added : [])]

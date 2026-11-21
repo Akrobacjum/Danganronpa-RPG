@@ -2427,7 +2427,9 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     const parkClock = await gm.eval(`const c = game.drpg.getClock(); await game.drpg.setClock({ timeOfDay: "morning", eclipse: true, eclipseStartedAt: Date.now() });
         return { timeOfDay: c.timeOfDay, timeOfDayStartedAt: c.timeOfDayStartedAt };`);
     await settle(300);
+    // Paid first, as the Eclipse tile pays: the primary claims the payment's ticket before it parks (1.2.122, CORE-21).
     await p3.eval(`const { parkDirectMurder } = await import("${repoUrl}/scripts/eclipse.mjs");
+        await (await import("${repoUrl}/scripts/actions.mjs")).spendAction(game.actors.get("${ids.chie}"), 1);
         await parkDirectMurder({ killerId: "${ids.chie}", room: "Gym", note: "SEC Chie's own declaration" }); return true;`, { timeout: 30000 });
     await settle(900);
     const parkOk = await gm.eval(readPark);
