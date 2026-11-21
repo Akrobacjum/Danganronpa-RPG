@@ -26,7 +26,7 @@
  * `hindrance: 1` and nothing else of it) and when it draws that roll (roll-draw.mjs `situationReading`, the `situation`
  * row of the GMs' list), so the killer's window throws the die the GM expects and calls it "a hindrance die", never why.
  * The watch, its post and its total stay the GMs'. For a murder declared in the dark the die is read while the watch
- * stands and kept with the incident (`holdForTheLights`, STG-01, 1.2.120).
+ * stands and kept with the incident (`holdForTheLights`, STG-01, 1.2.121).
  */
 
 import { MODULE_ID, FLAGS, INFILTRATE } from "./config.mjs";
@@ -50,11 +50,11 @@ export function openingHindrance(side, state) {
 }
 
 /**
- * THE DIE KEPT FOR THE LIGHTS (1.2.120 line K, 21.11.2026; the audit's STG-01). A watch has its post from the Eclipse's
+ * THE DIE KEPT FOR THE LIGHTS (1.2.121 line K, 21.11.2026; the audit's STG-01). A watch has its post from the Eclipse's
  * start and is dropped at its end (`endWatches`, on the hook the clock's write fires), and a murder declared in that
  * Eclipse opens only after the clock has moved (eclipse.mjs `endEclipse`, `judgePendingMurders`), its killer's roll
  * drawn later still, at the press - so `openingHindrance` read a watch already gone, and the die the notes promise was
- * never thrown. Red at e515907d (tier 2 "1.2.120 STG-01"): the invitation's die 0, the GM's draw 0. Now `endEclipse`
+ * never thrown. Red at e515907d (tier 2 "1.2.121 STG-01"): the invitation's die 0, the GM's draw 0. Now `endEclipse`
  * reads every watcher's die while the posts still stand, before the clock moves (`holdForTheLights`, as it takes the
  * betrayals' offers there for the same reason), `openMurder` writes the die of the victim it opens on into the incident
  * (`watchDie`, the GMs' alone: in no player's copy), and `openingHindrance` reads that. Lifted when the lights have

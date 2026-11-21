@@ -3026,8 +3026,8 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
      * arguments) and the GM scores Aiko's threshold; the two must be one number. Read only where the fresh scene can stand
      * on the body alone (no incident, no body found, a phase with a fresh scene). Red at 12a7e309: the GM 9, p1 12.
      * And the GM's number read off the stand-in the scoring itself hands `cleanupDc` (cleanup.mjs `resolveCleanup` through
-     * sheet-audit.mjs `actorAsHeld`; the audit's CASE-17, 1.2.120 line K): read off the document alone, this check passed
-     * while the scoring counted the whole store (this check's `held` not run at e515907d; tier 2 "1.2.120 CASE-17" read
+     * sheet-audit.mjs `actorAsHeld`; the audit's CASE-17, 1.2.121 line K): read off the document alone, this check passed
+     * while the scoring counted the whole store (this check's `held` not run at e515907d; tier 2 "1.2.121 CASE-17" read
      * the stand-in's Evident at 12 there, the document's at 15).
      */
     const freshPlant = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");

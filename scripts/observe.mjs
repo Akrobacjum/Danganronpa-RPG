@@ -1024,12 +1024,12 @@ async function createFind(actor, entry, isCritical) {
     if (copiedRemnants(actor).has(entry.tokenId)) return alreadyHeld(actor, entry);
 
     /*
-     * ONE DESCRIPTION, ASKED ONCE, WHOEVER ELSE FINDS IT MEANWHILE (1.2.120 line K, 21.11.2026; the audit's CASE-18). The
+     * ONE DESCRIPTION, ASKED ONCE, WHOEVER ELSE FINDS IT MEANWHILE (1.2.121 line K, 21.11.2026; the audit's CASE-18). The
      * record was read once, before the window, and Observe's bridge row has no queue, so a second student's find of the
      * same undescribed trace resolved while the window stood read the same empty record and opened a second window;
      * confirmed as drawn it wrote the fallback name and two empty boxes over the first answer (on the trace and on the
      * first finder's copy, truth-bullets.mjs), and closed it minted the second copy from the stale read. Red at e515907d
-     * (tier 2 "1.2.120 CASE-18"): two windows, and both bullets and the record read "Remnant - Dorm A" with no words.
+     * (tier 2 "1.2.121 CASE-18"): two windows, and both bullets and the record read "Remnant - Dorm A" with no words.
      * A find of a trace whose description is being asked on this GM waits for that answer (`describingTraces`) and
      * then reads the record: the first finder's words, asked of nobody again - or, if the first window closed with
      * nothing, its own window. A wait for a person, so not `serialWrite` (its steps await nothing that may never

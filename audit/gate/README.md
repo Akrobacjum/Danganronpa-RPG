@@ -8,7 +8,7 @@ A release passes two layers (decision D47, E30):
    parallel jobs, on every push to `main` or a `claude/**` branch, and
    `release.yml` calls it before it builds - unless `reuse-ci.mjs` finds a
    green run of the release commit's tree that ran every part, which is then
-   reused and named in the release's summary (INFRA, 1.2.120).
+   reused and named in the release's summary (INFRA, 1.2.121).
 2. **local-gate** - what the headless harness cannot do: the suite's tier 2 in
    both themes on a real Foundry v14, the whole-world diff around it, the
    scenarios whose layers include `local-gate`, and the drills a stage names in

@@ -1782,7 +1782,7 @@ function openBounties(user = null) {
 }
 
 /*
- * A MASKED STUDENT'S BET AND BOUNTY SAY "?" (1.2.120 line M1, 21.11.2026; the audit's N119-2 and N119-3, recheck-119.json,
+ * A MASKED STUDENT'S BET AND BOUNTY SAY "?" (1.2.121 line M1, 21.11.2026; the audit's N119-2 and N119-3, recheck-119.json,
  * COMM-19's and COMM-24's residue). The Ghost Bet's picker names a student behind a mask "?" (`CUB_TARGETS.student`,
  * mask-gm.mjs `nameAsSeen`), and a GM may put a Bounty on one; the cards that tell a Monocub's player were cut while the
  * mask stood (secret.mjs `wordsFor`), but the copy its owner is sent (`cubsFor`), which the sheet's panel writes

@@ -30,7 +30,7 @@
 #
 #   - ci: ci.yml, called on the same commit - lint, tools/check.mjs, the gate's
 #     self-test, the suite and the ci scenarios, exactly what a pull request met
-#     (since 1.2.120 a green run of the same tree is reused instead: below);
+#     (since 1.2.121 a green run of the same tree is reused instead: below);
 #   - local-gate: audit/gate/verify-gate.mjs reads audit/gate/local-gate.json,
 #     which only audit/gate/local-gate.mjs writes, on a machine with a Foundry v14
 #     sandbox; its rules are listed at the top of that file. The repository
@@ -66,7 +66,7 @@
 # `gh release view` lines both modes read (tag:, prerelease:) are its non-TTY
 # output; that a runner prints them so is to be seen on the first train.
 #
-# WHAT CHANGED FOR REUSING CI (INFRA, 1.2.120; the owner's decision "A" of 21.11.2026). `ci` called ci.yml on the
+# WHAT CHANGED FOR REUSING CI (INFRA, 1.2.121; the owner's decision "A" of 21.11.2026). `ci` called ci.yml on the
 # release commit - the merge of the release PR - although CI had already run green on the PR's head, whose tree is
 # the same: for 1.2.119, 7a1f8740 and e515907d both have tree 6f6840a7, and run 44845513063 on the head took 40
 # minutes. A job before it, reuse-ci, now runs audit/gate/reuse-ci.mjs: with the workflow's own token (actions:
@@ -76,7 +76,7 @@
 # URL. A different tree, a red, cancelled or running run, a job skipped, missing or unknown, or an API that does not
 # answer means "not reused", and `ci` runs as before. D47 stands: the same tree is the same files, ci.yml
 # included. The release job takes ci's success or the reuse, never neither. The decision is a pure function the
-# gate's self-test drives (verify-gate.mjs, its reuse-ci cases); no release has reused a run yet: 1.2.120's is the
+# gate's self-test drives (verify-gate.mjs, its reuse-ci cases); no release has reused a run yet: 1.2.121's is the
 # first that can, and what the runs list really answers is to be seen there (reuse-ci.mjs's header).
 name: Release
 

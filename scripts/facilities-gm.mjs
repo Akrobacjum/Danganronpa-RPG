@@ -100,7 +100,7 @@ export async function targetsOf(actor, scope, place) {
  * language. A write a GM makes is judged by nothing (resource-guard.mjs: a GM's write names no reason a judge reads);
  * the reason `facility` says on the GMs' own side which road it was.
  *
- * A VEILED CHARACTER'S LINE IS LEFT OUT (1.2.120 line M1, 21.11.2026; the audit's N119-1, MAP-16's residue). While a
+ * A VEILED CHARACTER'S LINE IS LEFT OUT (1.2.121 line M1, 21.11.2026; the audit's N119-1, MAP-16's residue). While a
  * direct murder waits on its opening the killer is veiled, and the victim - not seated yet (settings.mjs `incidentSeats`),
  * so nothing stops their room action - stands beside them. An effect on those present falls on the killer too (the rules'
  * reading, `countsAsPresent`), and its line named them, in the answer the asker's window writes and on the card

@@ -498,7 +498,7 @@ function heldMaskNames(userId, hid) {
 }
 
 /*
- * THE SECOND GM (1.2.120 line M1, 21.11.2026; the audit's CORE-20 residue and N119-4, recheck-119.json). A GM away while
+ * THE SECOND GM (1.2.121 line M1, 21.11.2026; the audit's CORE-20 residue and N119-4, recheck-119.json). A GM away while
  * the mask stood kept no `hid`: it was given the words uncut after the end (a GM is, `askForWords` at its ready), and
  * served them to a reader outside the mask who was away too - in a race while both GMs were on, for certain once the
  * first had left (scenario 97 K1, red at e515907d: p2 was served "E120K again Chie Mori was seen" by gm2; gm2's own
@@ -875,7 +875,7 @@ async function remember(id, html, at, pin = false, trusted = false, summary = un
     // And its meta, with whatever the new packet adds to it - `settleCall`'s `settled`.
     const kept = plainMeta({ ...(read()[id]?.meta ?? {}), ...(plainMeta(meta) ?? {}) });
     // Who stood behind a mask when these words came, with whoever did before and whoever the GM who sent them kept
-    // (`hidGiven`, 1.2.120: `heldMaskNames`, "THE SECOND GM", below): a GM's alone.
+    // (`hidGiven`, 1.2.121: `heldMaskNames`, "THE SECOND GM", below): a GM's alone.
     const hid = game.user?.isGM ? heldMaskOf(read()[id]?.hid, hidGiven, maskedNow()) : null;
     const store = { ...read(), [id]: {
         html: words, at: at ?? Date.now(), user: game.user?.id ?? null,

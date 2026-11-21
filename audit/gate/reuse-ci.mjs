@@ -1,5 +1,5 @@
 /**
- * Whether a release may reuse a green CI run of the same tree (INFRA, 1.2.120).
+ * Whether a release may reuse a green CI run of the same tree (INFRA, 1.2.121).
  * ---------------------------------------------------------------------------
  *     node audit/gate/reuse-ci.mjs --commit <sha>     release.yml's reuse-ci job; GITHUB_TOKEN and GITHUB_REPOSITORY
  *                                                     from the job's env, read only (actions: read)
@@ -26,7 +26,7 @@
  * The counts are this checkout's: SHARDS and BUCKETS from ci.yml's env, the buckets capped by the number of ci
  * scenarios as plan deals them (`expectedParts`). The tree is the run's, so ci.yml is the one that run read.
  *
- * NOT MEASURED when this landed: the release run itself (the first is 1.2.120's) - that `head_commit.tree_id` is in
+ * NOT MEASURED when this landed: the release run itself (the first is 1.2.121's) - that `head_commit.tree_id` is in
  * the runs list's answer (GitHub's documented schema has it; the session's API tool strips it, so a run without it
  * falls back to `git rev-parse <head_sha>^{tree}` in the checkout, which fetch-depth 0 makes possible for a PR head
  * merged into main), and what `filter=latest` lists after a "re-run failed jobs" (the case is read as it comes: a job

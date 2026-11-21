@@ -417,7 +417,7 @@ export async function endEclipse({ advance = true } = {}) {
         error("Could not take the offers of the betrayals declared during the Eclipse", err);
     }
 
-    /* AND THE WATCHES' DICE, READ WHILE THE POSTS STAND (1.2.120 line K; the audit's STG-01): the clock's write below drops
+    /* AND THE WATCHES' DICE, READ WHILE THE POSTS STAND (1.2.121 line K; the audit's STG-01): the clock's write below drops
        every watch (watch-gm.mjs `endWatches`), and a murder declared on a watcher in this Eclipse opens after it. Kept for
        `openMurder` until the lights have judged (`releaseTheLights`, below). */
     try {
@@ -431,7 +431,7 @@ export async function endEclipse({ advance = true } = {}) {
     /* THE OPENING'S VEIL FROM THE START OF THE TIME OF DAY (E112; the owner's answer (4)): the killers the lights below will
        judge are veiled while the Eclipse still hides every token, and `lightsJudged` settles once they have judged
        (mask-gm.mjs `veilAtTheLights`). On the primary GM; another GM's end veils at each open instead. */
-    /* AND ONLY THOSE THE LIGHTS CAN STILL OPEN (1.2.120 line M2; the audit's DOC-01, through the coordinator of 21.11.2026).
+    /* AND ONLY THOSE THE LIGHTS CAN STILL OPEN (1.2.121 line M2; the audit's DOC-01, through the coordinator of 21.11.2026).
        Every declaration's killer was veiled here, and one the lights then cancelled - alone, or with witnesses - stayed
        veiled until `lightsJudged`, after the whole judgement and any window it asks a GM: their token was drawn on no
        player's map and flagged `veiled` in every browser's world data, a mark of a declaration that came to nothing.
@@ -878,7 +878,7 @@ function standingAtTheLights(killer, parked, { othersInNamedRoom, locateActor, l
 }
 
 /**
- * The killers of the Eclipse `id`'s declarations the lights can still open (DOC-01, 1.2.120): a betrayal's - it has no
+ * The killers of the Eclipse `id`'s declarations the lights can still open (DOC-01, 1.2.121): a betrayal's - it has no
  * room test - and a direct murder's whose killer stands with exactly one other. The rest the judgement cancels on the
  * room alone, so the veil is not put on them (`endEclipse`). Whether a second declaration or the GM's refusal cancels one
  * is known only at the lights; those are lifted there.

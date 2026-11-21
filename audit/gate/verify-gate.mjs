@@ -335,7 +335,7 @@ function reEvidence(repo, doc, id, edit, change = {}) {
 const ENV_OK = async () => ({ ok: true });
 
 /*
- * REUSE-CI'S CASES (INFRA, 1.2.120). release.yml's reuse-ci job asks audit/gate/reuse-ci.mjs whether a completed,
+ * REUSE-CI'S CASES (INFRA, 1.2.121). release.yml's reuse-ci job asks audit/gate/reuse-ci.mjs whether a completed,
  * green ci.yml run of the release commit's tree ran every part; these cases drive its pure decision over API answers
  * shaped as run 44845513063 answered on 21.11.2026 (7a1f8740, the 1.2.119 PR's head: 21 jobs, the two crlf ones
  * skipped, the matrix one under its unexpanded name). Imported here, not at the top: buildRepo copies this file into
@@ -531,7 +531,7 @@ async function selfTest() {
 
         await expect("1.2.100 is compared with 1.2.99 as numbers", async () => ({ ok: G.compareVersions("1.2.100", "1.2.99") > 0 && G.compareVersions("1.3.0", "1.2.100") > 0 && G.compareVersions("1.2.61", "1.2.61") === 0 }), { ok: true });
 
-        /* A release reuses a green CI run of the same tree (INFRA, 1.2.120). */
+        /* A release reuses a green CI run of the same tree (INFRA, 1.2.121). */
         await reuseCases(expect);
     } finally {
         fs.rmSync(root, { recursive: true, force: true });

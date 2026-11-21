@@ -303,7 +303,7 @@ export async function endMask(killerId, why = "end") {
        end" read Chie's actor id, name and p3's user id on p1 and p2, the Blackened of a verdict that missed her. */
     // A reveal: the name is no longer kept cut on the cards this GM holds (secret.mjs `forgetHeldMask`); any other end keeps it.
     if (why === "reveal") await import("./secret.mjs").then(m => m.forgetHeldMask(killerId)).catch(err => error("Could not let the cards name a revealed killer", err));
-    // And the Monocubs' bets and the Bounty on them name them again (monocub.mjs `forgetMaskedTarget`, 1.2.120).
+    // And the Monocubs' bets and the Bounty on them name them again (monocub.mjs `forgetMaskedTarget`, 1.2.121).
     if (why === "reveal") await import("./monocub.mjs").then(m => m.forgetMaskedTarget(killerId)).catch(err => error("Could not let the Monocubs' rows name a revealed killer", err));
     if (why === "timeOfDay" && killer) await whisperToOwnerOnly(killer, { glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.localize("DRPG.Mask.ended"))}</p>` }, { veiled: true });
     log(`${killer?.name ?? killerId} is no longer behind a "?" (${why}).`);
@@ -320,7 +320,7 @@ export async function endMask(killerId, why = "end") {
  * write, so each portrait's write reaches every browser ahead of the board's: the time of day the mask was for ends with
  * that write either way. Since 1.2.119 before every advance (clock.mjs `advanceTimeOfDay`), since every board can play
  * on one: the end board at Night and the discovery's two after any hour (tier 2 "E119 - the masks end before every
- * advance"); and before the Class Trial's entry and, since 1.2.120, before any write that stamps a day's board, the chapter
+ * advance"); and before the Class Trial's entry and, since 1.2.121, before any write that stamps a day's board, the chapter
  * end's next morning among them (clock.mjs `setClock`, `writesBoardStamp`). Answers how many.
  */
 export async function endMasksBeforeTheBoard() {
@@ -432,7 +432,7 @@ export function veilWanted(state) {
 }
 
 /**
- * WHO SEES THROUGH A VEIL, ON A GM (1.2.120 line M1, 21.11.2026; the audit's N119-1): null when no veil stands for
+ * WHO SEES THROUGH A VEIL, ON A GM (1.2.121 line M1, 21.11.2026; the audit's N119-1): null when no veil stands for
  * `actorId`, else the user ids that may be told of them - every GM, and every player who owns a veiled character (the
  * killer, and a third seated on the killers' side: `veilWanted`'s, a row each). The veil's own answer on the GMs' side, as
  * `maskInsiders` is the mask's; a player's browser asks `veiledFromHere` of its own token verdict instead. A room action's
@@ -579,7 +579,7 @@ async function settleVeilsNow() {
  * is declared in an Eclipse and opens at its lights, at the start of the next time of day (eclipse.mjs
  * `judgePendingMurders`), after the Eclipse's flag has gone - when every token is drawn again. So the killers the lights
  * will judge are veiled before the flag goes (`endEclipse`), and `lightsJudged` settles once the lights have judged.
- * Since 1.2.120 (DOC-01) `endEclipse` hands only the killers the lights can still open - none the room alone cancels - and
+ * Since 1.2.121 (DOC-01) `endEclipse` hands only the killers the lights can still open - none the room alone cancels - and
  * one cancelled at the lights is lifted as it is (`liftAtTheLights`).
  */
 export async function veilAtTheLights(killerIds = []) {
@@ -592,7 +592,7 @@ export async function veilAtTheLights(killerIds = []) {
 }
 
 /**
- * A killer the lights cancelled (DOC-01, 1.2.120; eclipse.mjs `judgePendingMurders`): their row of "lights" lifted at once,
+ * A killer the lights cancelled (DOC-01, 1.2.121; eclipse.mjs `judgePendingMurders`): their row of "lights" lifted at once,
  * in the settles' order, so they are drawn again before the judgement goes on to the next declaration - not after the whole
  * of it at `lightsJudged`. A row the opening took over, or none, is left. On the primary; answers whether it lifted.
  */

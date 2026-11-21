@@ -536,7 +536,7 @@ function castStamps() {
  * its readers are the primary GM's (`maybeThirdParty`, `thirdPartyEnters`), and until fix
  * r2-G2 (the round-2 review's S2-m1) a third seated after another left was sent who had
  * walked in and out before they came - the one holder for whom it was news.
- * The watch's die kept at the lights (`watchDie`, 1.2.120, STG-01), null in every copy: the invitation carries the die
+ * The watch's die kept at the lights (`watchDie`, 1.2.121, STG-01), null in every copy: the invitation carries the die
  * and nothing of its cause.
  * The opening's statistic (`openingTrait`, E32+E07 C11c), null in every copy: a GM's pick
  * for a roll a direct murder's victim is not shown (D6) and a trap's builder is not shown

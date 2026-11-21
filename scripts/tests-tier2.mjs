@@ -8035,9 +8035,9 @@ const SCENARIOS = [
                 stableJson(words.map(w => ({ to: w.to, text: w.html.replace(/<[^>]+>/g, " ").trim().slice(0, 80) })))}`);
     }],
 
-    ["1.2.120 CASE-16 - a crisis card tells no seat the value of a defence its copy could not see: in a trap the victim's Self-Defense card says the total, the number the victim was shown with \"+ a hidden defense\" and the hit, with no threshold, while the GMs' copy keeps the full line (scripts/murder-rules.mjs `announceCrisis`, `crisisDefenseHidden`; incident-store.mjs `castFor`; the audit's CASE-16, the owner's answer of 21.11.2026, option 1, through the coordinator)", async () => {
+    ["1.2.121 CASE-16 - a crisis card tells no seat the value of a defence its copy could not see: in a trap the victim's Self-Defense card says the total, the number the victim was shown with \"+ a hidden defense\" and the hit, with no threshold, while the GMs' copy keeps the full line (scripts/murder-rules.mjs `announceCrisis`, `crisisDefenseHidden`; incident-store.mjs `castFor`; the audit's CASE-16, the owner's answer of 21.11.2026, option 1, through the coordinator)", async () => {
         /*
-         * 21.11.2026, 1.2.120 line K. The audit's CASE-16: the card printed "total < threshold" with the GM's full number
+         * 21.11.2026, 1.2.121 line K. The audit's CASE-16: the card printed "total < threshold" with the GM's full number
          * to every seat, so a victim whose copy holds no killer read the hidden builder's Body off the difference from the
          * "18 + a hidden defense" the menu and the roll window showed (R7950). A trap is opened on two students with
          * players, its opening missed so the trap closes (as "the time of day in an incident is veiled" opens one), and the
@@ -17941,7 +17941,7 @@ const SCENARIOS = [
 
     ["E120 - the lights veil only a killer they can still open, and lift one they cancel before they judge the next: never a killer the room alone cancels", async () => {
         /*
-         * 1.2.120 line M2; the audit's DOC-01 (audit/findings-1.2.118, first-session old-1.1.88-1.2.13-A obs1, re-checked
+         * 1.2.121 line M2; the audit's DOC-01 (audit/findings-1.2.118, first-session old-1.1.88-1.2.13-A obs1, re-checked
          * open on 1.2.119). `endEclipse` veiled every declaration's killer before the lights judged (mask-gm.mjs
          * `veilAtTheLights`), and a killer the lights then cancelled stayed veiled until `lightsJudged`, after the whole
          * judgement and any window it asks a GM: drawn on no player's map, and flagged `veiled` in every browser's world data
@@ -18023,11 +18023,11 @@ const SCENARIOS = [
 
     ["E120 - the masks end before every write of a day's board stamp, so the chapter end's next morning outside a trial draws no masked killer on either board", async () => {
         /*
-         * 1.2.120 line M2; the audit's STG-03 residue and N119-5 (two readers): End chapter with "next morning" moves the
+         * 1.2.121 line M2; the audit's STG-03 residue and N119-5 (two readers): End chapter with "next morning" moves the
          * clock through clock.mjs `setTimeOfDay` with the start board's stamp and the end board's (chapter.mjs, the
          * "morning" step; transitions.mjs `boardsOf` "both"), straight to `setClock`, which ended masks only on entering the
          * Class Trial - so with a mask standing outside a trial both boards drew the killer's place on the same write. Since
-         * 1.2.120 `setClock` ends the masks before any write that stamps a board (`writesBoardStamp`), whatever road writes
+         * 1.2.121 `setClock` ends the masks before any write that stamps a board (`writesBoardStamp`), whatever road writes
          * it. A direct murder on Hope (the killer masked), the incident closed, the clock at Evening of Daily Life; the
          * chapter's end asked for the next morning alone (`applyChapterEnd`). At the clock's write that lands on the morning,
          * read on this browser: the time of day, the start and the end stamps for the board, the picture the day's board
@@ -18166,7 +18166,7 @@ const SCENARIOS = [
 
     ["E120 - a Monocub's Ghost Bet and a GM's Bounty on a masked student name them \"?\" to the Monocub's player while the mask stands and after it ends, until the killer reveals themselves", async () => {
         /*
-         * 1.2.120 line M1 (21.11.2026), the audit's N119-2 and N119-3 (recheck-119.json; COMM-19's and COMM-24's residue).
+         * 1.2.121 line M1 (21.11.2026), the audit's N119-2 and N119-3 (recheck-119.json; COMM-19's and COMM-24's residue).
          * A Monocub's Ghost Bet picker names a masked student "?" (monocub.mjs CUB_TARGETS.student, `nameAsSeen`), and a
          * GM may put a Bounty on one (`postBounty`); the cards that tell the Monocub's player are cut while the mask stands
          * (secret.mjs `wordsFor`), but the copy its owner is sent (`cubsFor`: the bet's and every open Bounty's
@@ -18265,7 +18265,7 @@ const SCENARIOS = [
 
     ["E120 - a room action used beside a killer veiled for the opening leaves the killer out of what its user is told, card and answer, and names them once the veil is lifted", async () => {
         /*
-         * 1.2.120 line M1 (21.11.2026), the audit's N119-1 (recheck-119.json; MAP-16's residue). While a direct murder waits
+         * 1.2.121 line M1 (21.11.2026), the audit's N119-1 (recheck-119.json; MAP-16's residue). While a direct murder waits
          * on its opening the killer is veiled (mask-gm.mjs `veilWanted`): the victim's browser does not draw them, and the
          * room's pickers leave them out (`seenHere`). The victim is not seated yet (settings.mjs `incidentSeats`), so
          * nothing stops their room action (bridge-runs-acts.mjs `handleFacilityUse` asks no incident), and an effect on
@@ -78271,7 +78271,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await until(() => answer);
             read.describing = [await offered(trace.id), stableJson((await pick())?.held ?? null)];
             const again = await resolve(keys[0]);
-            /* The other pick's find waits for the first one's describe window since 1.2.120 (observe.mjs `createFind`,
+            /* The other pick's find waits for the first one's describe window since 1.2.121 (observe.mjs `createFind`,
                `describingTraces`; the audit's CASE-18): awaited before the answer, as it was until then, it never ends. */
             const later = Promise.all(keys.slice(1).map(resolve));
             await settle();
@@ -78311,9 +78311,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + `resolve's refusal; the bullets; the picker's options as the candidates, and the options the held trace took) - their successes ${stableJson(read.rest)}`);
     }],
 
-    ["1.2.120 CASE-18 - two students' finds of one undescribed trace ask the GM once: the second waits for the first window's answer and takes its words, so neither the trace nor the first copy loses them and both copies carry one name (scripts/observe.mjs `createFind`, `describeFind`; remnants.mjs `setRemnantPublicById`; the audit's CASE-18, 1.2.120 line K): with the first describe window held open, the second student's Observe of the same trace opens no second window; the first answered, both Truth Bullets and the trace's record read its name and words; the same with the first window closed unanswered asks the second", async () => {
+    ["1.2.121 CASE-18 - two students' finds of one undescribed trace ask the GM once: the second waits for the first window's answer and takes its words, so neither the trace nor the first copy loses them and both copies carry one name (scripts/observe.mjs `createFind`, `describeFind`; remnants.mjs `setRemnantPublicById`; the audit's CASE-18, 1.2.121 line K): with the first describe window held open, the second student's Observe of the same trace opens no second window; the first answered, both Truth Bullets and the trace's record read its name and words; the same with the first window closed unanswered asks the second", async () => {
         /*
-         * 21.11.2026, 1.2.120 line K. The audit's CASE-18 (domain-case-c-investigation-1, re-read on v1.2.119): `createFind`
+         * 21.11.2026, 1.2.121 line K. The audit's CASE-18 (domain-case-c-investigation-1, re-read on v1.2.119): `createFind`
          * read the trace's public record once, before the GM's describe window, so a second student's find resolved while
          * the window stood read the same empty record and opened a second window prefilled with the fallback; confirmed
          * untouched it wrote the fallback name and two empty boxes over the first answer, and closed it minted the second
@@ -78348,7 +78348,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const windows = [];
         D.wait = cfg => new Promise(resolve => { windows.push({ html: cfg?.content?.outerHTML ?? String(cfg?.content ?? ""), resolve }); });
         const prefill = html => ({ name: (html.match(/name="name"[^>]*value="([^"]*)"/) ?? [])[1] ?? "", playerText: "", analyzedText: "", critHint: "" });
-        const WORDS = { name: "SUITE 1.2.120 CASE-18 a bloody knife", playerText: "SUITE 1.2.120 CASE-18 its blade is wet", analyzedText: "", critHint: "" };
+        const WORDS = { name: "SUITE 1.2.121 CASE-18 a bloody knife", playerText: "SUITE 1.2.121 CASE-18 its blade is wet", analyzedText: "", critHint: "" };
         const copyOf = (a, traceId) => a.items.filter(i => !had.get(a.id).has(i.id) && bullets.secretOf(i.uuid)?.remnantId === traceId)
             .map(i => [i.name, String(i.getFlag(MODULE_ID, "playerText") ?? "")]);
         const traces = [];
@@ -103483,9 +103483,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "{gm: the GM's die at a watch of 18, 17, a critical, one not at its post, none; victimSide; packets: [the invitation's keys at 18, its hindrance, its keys at 17, the watch's words found in either]; cards: [a card with its words went, the same at 18 and 17]; window: [the claim's dice armed, the window's hindrance source, its sentence, the claim after]} - the watch's die on the killer's opening");
         ok(game.i18n.localize("DRPG.RollDialog.forcedByHindrance") !== "DRPG.RollDialog.forcedByHindrance", "the window's sentence for a hindrance die has no text");
     }],
-    ["1.2.120 STG-01 - a watch of 18 or more keeps its hindrance die for a Direct Murder declared on the watcher in the dark and opened at the lights, after the watch is over (scripts/watch-gm.mjs `openingHindrance`, `holdForTheLights`, `heldAtTheLights`, `endWatches`; eclipse.mjs `endEclipse`; murder-rules.mjs `openMurder`; roll-draw.mjs `situationReading`; the audit's STG-01, 1.2.120 line K): the Eclipse runs, the victim's watch stands at its post, a declaration allowed in the dark is judged as the Eclipse ends; the incident opens with the watch dropped, and the opening's invitation and the GM's draw of the killer's roll each read one hindrance die, which no copy of the cast holds", async () => {
+    ["1.2.121 STG-01 - a watch of 18 or more keeps its hindrance die for a Direct Murder declared on the watcher in the dark and opened at the lights, after the watch is over (scripts/watch-gm.mjs `openingHindrance`, `holdForTheLights`, `heldAtTheLights`, `endWatches`; eclipse.mjs `endEclipse`; murder-rules.mjs `openMurder`; roll-draw.mjs `situationReading`; the audit's STG-01, 1.2.121 line K): the Eclipse runs, the victim's watch stands at its post, a declaration allowed in the dark is judged as the Eclipse ends; the incident opens with the watch dropped, and the opening's invitation and the GM's draw of the killer's roll each read one hindrance die, which no copy of the cast holds", async () => {
         /*
-         * 21.11.2026, 1.2.120 line K. The audit's STG-01 (first-session/stages-21.json E74-3, re-read on v1.2.119): a watch
+         * 21.11.2026, 1.2.121 line K. The audit's STG-01 (first-session/stages-21.json E74-3, re-read on v1.2.119): a watch
          * has a post from the Eclipse's start and is dropped at its end (`endWatches`, on the hook the clock's write
          * fires), while a murder declared in that Eclipse is opened only after (eclipse.mjs `endEclipse`, "LAST, and
          * after the clock has moved"), and the killer's roll is drawn later still, at the press - so the die the notes
@@ -103530,7 +103530,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await S.watchStore.patch(victim.id, { actorId: victim.id, total: 19, critical: false, post: stood.room, sceneId: canvas?.scene?.id ?? null,
                 entered: 0, left: 0, at: Date.now(), userId: owner(victim)?.id ?? null });
             read.inTheDark = W.openingHindrance("killer", { victimId: victim.id });
-            await S.pendingMurderStore.patch(killer.id, { room: stood.room, note: "SUITE 1.2.120 STG-01 declared in the dark", at: Date.now(),
+            await S.pendingMurderStore.patch(killer.id, { room: stood.room, note: "SUITE 1.2.121 STG-01 declared in the dark", at: Date.now(),
                 approved: true, trait: "body", eclipse: id, betrayal: null });
             await E.endEclipse({ advance: false });
             await settle();
@@ -104958,7 +104958,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * lower, so a roll between the two came back a hit and told them a body lies unfound. Here, on the GM: a row of the
          * deaths store for one fixture student, this chapter, naming a second student's player as knowing it; a third student's
          * player names no row. Read through the scoring's reading, `cleanupDc(visibility, actor)` with the document (the scoring
-         * itself hands in sheet-audit.mjs `actorAsHeld`'s stand-in: "1.2.120 CASE-17" below drives it), for the knower and the
+         * itself hands in sheet-audit.mjs `actorAsHeld`'s stand-in: "1.2.121 CASE-17" below drives it), for the knower and the
          * other, and what the other's copy would hold (`deathsFor`). No incident runs and no body is found (read). The row is
          * dropped after. Red at 12a7e309: both thresholds took the -3.
          */
@@ -104997,9 +104997,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ thresholds: [C.atLeastFloor(full - bonus), full], bonus: [bonus, 0, bonus], otherCopy: false, otherOwnReading: 0 }),
             "{thresholds: [the knower's, the other's]; bonus: [the knower's, the other's, with no roller]; otherCopy: the body in the other's copy; otherOwnReading: the other's copy's reading} - the GM's fresh scene follows what the roller may know");
     }],
-    ["1.2.120 CASE-17 - the GM scores a Tamper's fresh scene with the bodies its roller's player may know, on the scoring's own road (scripts/cleanup.mjs `resolveCleanup`, `cleanupVerdict`, `unfoundBodyIn`; sheet-audit.mjs `actorAsHeld`; the audit's CASE-17, 1.2.120 line K): with a body of this chapter in the GMs' deaths that the roller's player may not know, an investigator's bare-handed Tamper of an Evident trace on a total one under the number their own browser shows is a miss - the trace stands - and the threshold read off the stand-in the scoring hands `cleanupDc` is the one read off the document", async () => {
+    ["1.2.121 CASE-17 - the GM scores a Tamper's fresh scene with the bodies its roller's player may know, on the scoring's own road (scripts/cleanup.mjs `resolveCleanup`, `cleanupVerdict`, `unfoundBodyIn`; sheet-audit.mjs `actorAsHeld`; the audit's CASE-17, 1.2.121 line K): with a body of this chapter in the GMs' deaths that the roller's player may not know, an investigator's bare-handed Tamper of an Evident trace on a total one under the number their own browser shows is a miss - the trace stands - and the threshold read off the stand-in the scoring hands `cleanupDc` is the one read off the document", async () => {
         /*
-         * 21.11.2026, 1.2.120 line K. The audit's CASE-17 (domain-case-b-traces-1, re-read on v1.2.119): `resolveCleanup`
+         * 21.11.2026, 1.2.121 line K. The audit's CASE-17 (domain-case-b-traces-1, re-read on v1.2.119): `resolveCleanup`
          * scores with `cleanupVerdict(held, ...)`, `held` the stand-in of sheet-audit.mjs `actorHeldNow` (id, name, type and
          * items, no `testUserPermission`), so cleanup.mjs `unfoundBodyIn` found no player of it and counted the GMs' whole
          * deaths store - the 1.2.110 V3 filter skipped on the one road that scores. The V3 test above reads `cleanupDc`
@@ -105041,9 +105041,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const held = await actorAsHeld(who);
             read.dc = { document: CL.cleanupDc("evident", who), held: CL.cleanupDc("evident", held), knower: CL.cleanupDc("evident", await actorAsHeld(knower)) };
             trace = await placeRemnant({ type: "prep", visibility: "evident", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
-                note: "SUITE 1.2.120 CASE-17 a trace an investigator Tampers" });
+                note: "SUITE 1.2.121 CASE-17 a trace an investigator Tampers" });
             must(trace, "the fixture's trace was not placed");
-            bullet = await createTruthBullet(who, { name: "SUITE 1.2.120 CASE-17 the trace found", realType: "neutral", visibility: "obvious",
+            bullet = await createTruthBullet(who, { name: "SUITE 1.2.121 CASE-17 the trace found", realType: "neutral", visibility: "obvious",
                 remnantId: trace.id, sceneId: scene.id });
             must(bullet, "the fixture's trace was not copied onto a Truth Bullet");
             await settle();

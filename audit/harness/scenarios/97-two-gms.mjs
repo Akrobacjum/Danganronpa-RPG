@@ -28,7 +28,7 @@
  *   J  the owner's flow as they restated it on 20.11.2026: rows of a character put out of the class and of the Monokuma
  *      beside Aiko's, every box of Room setup's Fog tab unticked (Hide all) and Apply, then gm's map (its record and
  *      its shading) at once and after gm's reload, and p1's copy (J1).
- *   K  1.2.120 line M1 (the audit's CORE-20 residue, N119-4): a card rewritten naming Chie while her mask stood, gm2 and
+ *   K  1.2.121 line M1 (the audit's CORE-20 residue, N119-4): a card rewritten naming Chie while her mask stood, gm2 and
  *      p2 away; the time of day ends the mask, gm2 fetches the words, gm leaves, and gm2 serves p2 with Chie "?" (K1);
  *      gm2's own rewrite reaches p2 cut too (K2). Red at e515907d: K1 and K2 named her.
  *
@@ -517,7 +517,7 @@ export async function run(api) {
         J({ setJ, beforeJ, applied, afterJ, reloadedJ, onP1J }));
 
     /* ------------------------------------------------------------------ K */
-    /* A MASKED NAME KEPT CUT BY THE SECOND GM (1.2.120 line M1; the audit's CORE-20 residue and N119-4, recheck-119.json).
+    /* A MASKED NAME KEPT CUT BY THE SECOND GM (1.2.121 line M1; the audit's CORE-20 residue and N119-4, recheck-119.json).
        1.2.119 keeps, on a GM, who stood behind a mask when a card's words came (secret.mjs `remember`'s `hid`), and cuts
        those names for a reader outside the mask when the words are served or rewritten after the mask ended without a
        reveal. A second GM away while the mask stood held no `hid`: it fetched the words from the first GM after the end
@@ -549,7 +549,7 @@ export async function run(api) {
     const leftK = await makePrimary("gm2");
     await connect("p2");
     const onP2K = await until(() => p2.eval(`${CARD_K} return S.secretHtml(card()) ?? null;`), v => typeof v === "string");
-    check("K1: a card rewritten naming Chie while her mask stood, fetched by gm2 after the time of day ended it, is served by gm2 to p2 - away throughout, outside the mask - with Chie as \"?\" (1.2.120 M1, CORE-20 / N119-4)",
+    check("K1: a card rewritten naming Chie while her mask stood, fetched by gm2 after the time of day ended it, is served by gm2 to p2 - away throughout, outside the mask - with Chie as \"?\" (1.2.121 M1, CORE-20 / N119-4)",
         setK.posted && setK.masked && !setK.veiled && J(setK.hid) === J([IDS.chie]) && setK.ended && !setK.stands
             && typeof onGm2K === "string" && onGm2K.includes(chieName) && J(leftK.left) === J(["gm"])
             && typeof onP2K === "string" && onP2K.includes("E120K again") && !onP2K.includes(chieName),

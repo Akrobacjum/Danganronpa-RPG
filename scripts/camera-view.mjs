@@ -34,7 +34,7 @@
  * created. "Player names only" means the account name was asked for on purpose,
  * so the account name is what stays.
  *
- * BUT A PERSON THE MAP HIDES FROM THIS READER IS NAMED BY NOBODY (1.2.120 line M2;
+ * BUT A PERSON THE MAP HIDES FROM THIS READER IS NAMED BY NOBODY (1.2.121 line M2;
  * the audit's COMM-20 residue, through the coordinator of 21.11.2026). "Voice
  * already scopes who is in a call to your room" stopped being the whole story
  * with E112's veil: the veiled killer stays in the room's channel, and with the

@@ -446,10 +446,10 @@ export function freshSceneBonus({ clock, found, incident, deaths, actor = null }
  * `cleanupDc` hands in - a GM counts only the rows one of that character's players may know, by the same rule the copy is
  * built by, so both browsers read one number. A character no player owns (a GM's own) reads the whole store, as before.
  *
- * THE OWNERS ARE THE DOCUMENT'S, WHATEVER STANDS IN FOR IT (1.2.120 line K, 21.11.2026; the audit's CASE-17). The one
+ * THE OWNERS ARE THE DOCUMENT'S, WHATEVER STANDS IN FOR IT (1.2.121 line K, 21.11.2026; the audit's CASE-17). The one
  * road that scores, `resolveCleanup` -> `cleanupVerdict` -> `cleanupDc`, hands in sheet-audit.mjs `actorAsHeld`'s
  * stand-in (id, name, type and the items as the GMs hold them), which has no `testUserPermission`: no player was found
- * and the whole store counted, so V3 held on `cleanupDc(visibility, document)` alone. Red at e515907d (tier 2 "1.2.120
+ * and the whole store counted, so V3 held on `cleanupDc(visibility, document)` alone. Red at e515907d (tier 2 "1.2.121
  * CASE-17"): the stand-in's Evident read 12 where the document's read 15, and a bare-handed Tamper on 14 erased the
  * trace. The owners are asked of the actor the id names, so a stand-in reads what its document reads.
  */

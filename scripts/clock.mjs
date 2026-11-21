@@ -132,7 +132,7 @@ export function trialCutOf(before = {}, patch = {}) {
 export const CLOCK_KEY = "clock";
 
 /**
- * Whether `patch` writes a day's board stamp that `before` does not carry (1.2.120, STG-03): a `dayBoard` or `nightBoard`
+ * Whether `patch` writes a day's board stamp that `before` does not carry (1.2.121, STG-03): a `dayBoard` or `nightBoard`
  * set to another day, or a `bodyBoard` of another announcement - the stamps the boards play from (transitions.mjs
  * `boardsOf`, `bodyBoardsOf`). Taking one away (null) plays nothing. Pure. R7930.
  */
@@ -160,7 +160,7 @@ export async function setClock(patch = {}) {
        copy the school token's look and not its flags (trial-scene.mjs `hallTokenData`): the killer's hall token was "?",
        naming them in a trial about who it is. Ended before the write, so the hall is staged from the real look - not for a
        write the edge's Eclipse rule below refuses. mask-gm.mjs `endMasksBeforeTheBoard`, as before the start-of-day board. */
-    /* AND BEFORE EVERY WRITE THAT STAMPS A DAY'S BOARD (1.2.120 line M2; the audit's STG-03 residue and N119-5, two
+    /* AND BEFORE EVERY WRITE THAT STAMPS A DAY'S BOARD (1.2.121 line M2; the audit's STG-03 residue and N119-5, two
        readers, through the coordinator of 21.11.2026). Every browser draws the day's boards on the write that carries a new
        stamp (transitions.mjs `boardsOf`, `bodyBoardsOf`), the cast's portraits on them since F118. The roll-over, the other
        advances and the Morning Eclipse's start ended the masks first, each on its own road; End chapter's "next morning"

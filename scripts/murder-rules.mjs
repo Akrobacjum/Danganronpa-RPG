@@ -266,7 +266,7 @@ export function crisisDefense(key, state = murderState(), { traitOf } = {}) {
 }
 
 /**
- * A DEFENCE THIS BROWSER CANNOT SEE (1.2.120 line K, 21.11.2026; the audit's CASE-16; the owner's answer of 21.11.2026,
+ * A DEFENCE THIS BROWSER CANNOT SEE (1.2.121 line K, 21.11.2026; the audit's CASE-16; the owner's answer of 21.11.2026,
  * option 1, through the coordinator: the GM judges with the full number, the victim and the third are shown the number
  * they can know and told plainly that a hidden defence is added, no value and no name). A victim's or a third's copy of the cast holds no killer while a mask stands
  * and in every trap (incident-store.mjs `castCopyFor`), so on their browser `crisisDefense` reads 0 for a row the
@@ -421,7 +421,7 @@ export function freshIncidentState({ killerId, victimId, indirect = false, selfI
         // The statistic a GM picked for the opening (E32+E07 C11c): the opener's, or none
         // yet, and `rollOpening` asks.
         openingTrait,
-        // The victim's watch's die, kept at the lights (1.2.120, STG-01; watch-gm.mjs `heldAtTheLights`): null at any
+        // The victim's watch's die, kept at the lights (1.2.121, STG-01; watch-gm.mjs `heldAtTheLights`): null at any
         // other open, and the opening reads the running watch.
         watchDie,
         turn: 0,
@@ -576,7 +576,7 @@ export async function openMurder({ killerId, victimId, indirect = false, opening
        TP01 and TP07 read the betrayal's incident holding the last one's `thirdActed`, I3).
        Against no incident running (`expect`), in the incident's queue: an incident opened
        since the check above is not written over. */
-    /* THE WATCH'S DIE, KEPT AT THE LIGHTS (1.2.120 line K; the audit's STG-01): opened by the lights, the victim's watch
+    /* THE WATCH'S DIE, KEPT AT THE LIGHTS (1.2.121 line K; the audit's STG-01): opened by the lights, the victim's watch
        is already dropped, so the die `endEclipse` read while it stood goes with the incident (`watchDie`; watch-gm.mjs
        `heldAtTheLights`, null at any other open). */
     const { heldAtTheLights } = await import("./watch-gm.mjs");
@@ -4387,7 +4387,7 @@ async function announceCrisis(actor, def, { key = null, success, band, total, th
     const recipients = new Set([...gmIds(), ...(state ? incidentAudienceIds(state, { stage, also: [actor] }) : [])]);
 
     /*
-     * NO VALUE OF A DEFENCE THE SEAT COULD NOT SEE (1.2.120 line K, 21.11.2026; the audit's CASE-16, the owner's answer
+     * NO VALUE OF A DEFENCE THE SEAT COULD NOT SEE (1.2.121 line K, 21.11.2026; the audit's CASE-16, the owner's answer
      * of 21.11.2026, option 1: "no value, no name", through the coordinator). The card printed "18 < 19" to every seat,
      * so a victim whose copy holds no killer (a mask, a trap) read the hidden killer's Body or Leg off the difference
      * from the "18 + a hidden defense" they were shown. A seat whose own copy of the cast hides this row's defence
@@ -4395,7 +4395,7 @@ async function announceCrisis(actor, def, { key = null, success, band, total, th
      * the total, the number it was shown with "+ a hidden defense", and hit or miss - no threshold; the GMs and every
      * other seat keep the full line. One card when no seat is hidden from. What stays readable, by the rules and not by
      * the card: a total at or just over the number shown that misses (an 18 against "18 + a hidden defense") still says
-     * the defence is 1 - the outcome has to be told. Red at e515907d (tier 2 "1.2.120 CASE-16"): the victim's card held 19.
+     * the defence is 1 - the outcome has to be told. Red at e515907d (tier 2 "1.2.121 CASE-16"): the victim's card held 19.
      */
     const hiddenTo = rolled && key && state ? Array.from(recipients).filter(id => defenseHiddenFor(id, key, state)) : [];
     if (!hiddenTo.length) return { card: await announce({ content, whisper: Array.from(recipients) }), hiddenCopy: null };

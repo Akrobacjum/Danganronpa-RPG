@@ -17164,7 +17164,7 @@ const INVARIANTS = [
 
     ["R7930 - a clock write stamps a day's board only with a stamp the clock does not carry: a start or end board's day moved, or a discovery's announcement newer; a stamp taken away, kept, or no stamp at all is none", async () => {
         /*
-         * 1.2.120 line M2; the audit's STG-03 residue and N119-5. `setClock` ends the masks before a write that stamps a
+         * 1.2.121 line M2; the audit's STG-03 residue and N119-5. `setClock` ends the masks before a write that stamps a
          * day's board (clock.mjs `writesBoardStamp`), so the chapter end's next morning - `setTimeOfDay` with both stamps,
          * which ended none - draws no masked killer (tier 2 "E120 - the masks end before every write of a day's board
          * stamp"). The predicate on the roads' own patches: the chapter end's morning, the roll-over's start stamp, Evening
@@ -17194,7 +17194,7 @@ const INVARIANTS = [
 
     ["R7931 - the camera dock names nobody the veil or a mask hides from this reader: every name on their plate reads \"?\" in each mode that draws one, put back when it goes; a GM's dock names everyone", async () => {
         /*
-         * 1.2.120 line M2; the audit's COMM-20 residue (recheck-119.json, the verifier's residue: camera-view.mjs
+         * 1.2.121 line M2; the audit's COMM-20 residue (recheck-119.json, the verifier's residue: camera-view.mjs
          * `relabel` writes `displayNameFor`'s character name on every `.camera-view[data-user]`, no veil or mask asked).
          * With the voice tile off, Foundry's dock draws a box for each participant avclient-livekit lists - the veiled
          * killer stays in the room's channel (E112) - and the module wrote their full character name on it. Now
@@ -61690,9 +61690,9 @@ const INVARIANTS = [
             openings: [[true, false], [true, false], [true, false]]
         }), "{cap; rows [key, side, trait]; Strike at the victim's Body 2, 1, 0, -1; Keep Your Distance at Leg 3; Self-Defense at the killer's Body 1; Survive at the killer's Leg 2; Leave a Clue, no defence; openings [read their own threshold, read a defence]}");
     }],
-    ["R7950 - a defended crisis row whose defender this browser's copy does not name says a hidden defence is added, and the number it shows is never presented as the whole (1.2.120 line K; the audit's CASE-16; the owner's call open, the coordinator's default of 21.11.2026: the GM judges with the full number, the victim and the third are shown the number they can know and told plainly that a hidden defence is added, no value and no name): murder-rules.mjs `availableCrisisActions` marks the killer-defended rows `defenseHidden` on a copy that holds no killer (a mask, a trap) and on no other, `crisisDc` hands the roll window a number with the same words, action-murder.mjs `crisisThresholdLine` draws the menu's row, and the GM's `crisisThreshold` still adds the defence", async () => {
+    ["R7950 - a defended crisis row whose defender this browser's copy does not name says a hidden defence is added, and the number it shows is never presented as the whole (1.2.121 line K; the audit's CASE-16; the owner's call open, the coordinator's default of 21.11.2026: the GM judges with the full number, the victim and the third are shown the number they can know and told plainly that a hidden defence is added, no value and no name): murder-rules.mjs `availableCrisisActions` marks the killer-defended rows `defenseHidden` on a copy that holds no killer (a mask, a trap) and on no other, `crisisDc` hands the roll window a number with the same words, action-murder.mjs `crisisThresholdLine` draws the menu's row, and the GM's `crisisThreshold` still adds the defence", async () => {
         /*
-         * 21.11.2026, 1.2.120 line K. The audit's CASE-16 (domain-case-a-incident-1, re-read on v1.2.119 in recheck-119.json):
+         * 21.11.2026, 1.2.121 line K. The audit's CASE-16 (domain-case-a-incident-1, re-read on v1.2.119 in recheck-119.json):
          * a victim's (or a third's) copy of the cast holds `killerId: null` while a mask stands and in every trap
          * (incident-store.mjs `castCopyFor`), so `crisisDefense` read 0 there while the GM's judgement added the killer's
          * Body or Leg: the menu and the roll window said "Beat 18" and the card said "18 < 19". Asked of the pure readings

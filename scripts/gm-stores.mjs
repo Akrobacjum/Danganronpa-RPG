@@ -367,7 +367,7 @@ export const INCIDENT_FIGHT = Object.freeze([
  * absent player - on any GM's browser - roll it again rather than ask again. The GMs' alone:
  * the roller is sent it with the invitation, and every player's copy holds it null.
  *
- * `watchDie` (1.2.120 line K, 21.11.2026; the audit's STG-01): the hindrance die the victim's watch puts on the killer's
+ * `watchDie` (1.2.121 line K, 21.11.2026; the audit's STG-01): the hindrance die the victim's watch puts on the killer's
  * opening, read while the watch stood and kept from the lights that opened the incident (watch-gm.mjs `heldAtTheLights`),
  * null for an incident opened anywhere else. The GMs' alone: the roller is sent the die with the invitation, never its
  * cause, and every player's copy holds it null.

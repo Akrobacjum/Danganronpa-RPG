@@ -132,7 +132,7 @@ public clock setting every player's browser holds).
    Foundry" line, as debt; 1.3.0 is refused without a passed gate.
 5. **The PR and release.yml**: push, CI green on the release commit and the gate record, a PR to `main` merged on green,
    then Actions ▸ Release dispatched on `main` with the tag (`release.md` steps 7-8), which calls `ci.yml` on the same
-   commit - or, since 1.2.120, reuses a green `ci.yml` run of the same tree that ran every part
+   commit - or, since 1.2.121, reuses a green `ci.yml` run of the same tree that ran every part
    (`audit/gate/reuse-ci.mjs`) - and verifies the gate record before it builds.
 
 ## 10. What no harness can see
