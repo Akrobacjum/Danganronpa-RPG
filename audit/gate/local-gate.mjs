@@ -1,7 +1,7 @@
 /**
  * The local gate's writer: the 'local-gate' layer of the release gate (E30, decision D47, 24.09.2026).
  * ---------------------------------------------------------------------------
- *     node audit/gate/local-gate.mjs [--parts live,sandbox,drills] [--merge] [--dry-run]
+ *     node audit/gate/local-gate.mjs [--parts live,sandbox,drills,press] [--merge] [--dry-run]
  *     npm run gate:local                (from audit/harness)
  *
  * --dry-run probes the sandbox and lists the parts this version's gate has,
@@ -10,7 +10,9 @@
  * Runs what the headless harness cannot - the suite's tier 2 in both themes on
  * a real Foundry v14, the whole-world diff around it, the scenarios whose
  * layers include "local-gate" through audit/live's adapter, and the drills on
- * private world copies - and writes audit/gate/local-gate.json, bound to this
+ * private world copies, and the press part (gate-lib.mjs `PRESS_PARTS`: scripts/live.mjs in
+ * Chromium, no Foundry needed, so it runs with or without a sandbox; DRPG_CHROMIUM names the
+ * executable when Playwright has none of its own) - and writes audit/gate/local-gate.json, bound to this
  * commit, which release.yml's verify-gate.mjs reads. Written only by this
  * script: an edited file fails the digest.
  *
@@ -37,6 +39,7 @@ import fs from "node:fs";
 import path from "node:path";
 import url from "node:url";
 import { createRequire } from "node:module";
+import { spawnSync } from "node:child_process";
 import * as G from "./gate-lib.mjs";
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
@@ -47,8 +50,9 @@ const EVIDENCE = path.join(HERE, "evidence");
 const argv = process.argv.slice(2);
 const DRY = argv.includes("--dry-run"), MERGE = argv.includes("--merge");
 const partsAt = argv.indexOf("--parts");
-const LAYERS = partsAt >= 0 ? String(argv[partsAt + 1] ?? "").split(",").map(s => s.trim().replace(/s$/, "")).filter(Boolean) : ["live", "sandbox", "drill"];
-for (const l of LAYERS) if (!["live", "sandbox", "drill"].includes(l)) { console.log(`local-gate: --parts takes live, sandbox, drills; got "${l}"`); process.exit(2); }
+// "drills" names the layer "drill"; "press" keeps its s
+const LAYERS = partsAt >= 0 ? String(argv[partsAt + 1] ?? "").split(",").map(s => s.trim()).map(s => s === "press" ? s : s.replace(/s$/, "")).filter(Boolean) : ["live", "sandbox", "drill", "press"];
+for (const l of LAYERS) if (!["live", "sandbox", "drill", "press"].includes(l)) { console.log(`local-gate: --parts takes live, sandbox, drills, press; got "${l}"`); process.exit(2); }
 
 function refuse(why) { console.log(`local-gate: refused - ${why}; nothing written`); process.exit(2); }
 
@@ -93,7 +97,9 @@ async function probe() {
 const notRun = (part, reason, why) => ({ ...part, status: "not-run", reason, why, evidence: [] });
 
 const sandbox = await probe();
-const all = G.partsFor(REPO, version).filter(p => LAYERS.includes(p.layer));
+const wanted = G.partsFor(REPO, version).filter(p => LAYERS.includes(p.layer));
+// The press part needs no sandbox: it runs below whatever the probe found.
+const all = wanted.filter(p => p.layer !== "press"), press = wanted.filter(p => p.layer === "press");
 let parts;
 const serverWhy = `nothing answered at ${URL_} (${sandbox.error})`;
 
@@ -120,6 +126,45 @@ if (DRY) {
     } catch (err) {
         parts = all.map(p => ({ ...p, status: "error", why: `the runner broke: ${String(err.stack ?? err).split("\n").slice(0, 3).join(" / ")}`, evidence: [] }));
     }
+}
+
+parts = [...parts, ...press.map(p => DRY ? notRun(p, "dry-run", "--dry-run: no part was run") : runPress(p))];
+
+/*
+ * The press part: each of G.PRESS_SCRIPTS run as it is run by hand (`node <script> [--chromium <DRPG_CHROMIUM>]`), its
+ * "ok" and "FAIL" lines counted and its closing "<name>: N failing" read. Failed when any line is FAIL; passed only when
+ * none is, each script printed its tally and agreed with it, and at least one line was ok; a script that ends without its
+ * tally is error (it broke, which is not the module failing) unless Playwright could not launch a browser (not-run,
+ * no-browser). The evidence is the two outputs, counted, in evidence/press-live-region.json.
+ */
+function runPress(part) {
+    const missing = G.PRESS_SCRIPTS.filter(f => !fs.existsSync(path.join(REPO, f)));
+    if (missing.length) return notRun(part, "no-script", `${missing.join(", ")} is not in this checkout`);
+    if (!playwrightVersion) return notRun(part, "no-playwright", 'require("playwright") from audit/harness failed (npm ci there)');
+    const chromium = process.env.DRPG_CHROMIUM || null;
+    const runs = G.PRESS_SCRIPTS.map(file => {
+        const r = spawnSync(process.execPath, [file, ...(chromium ? ["--chromium", chromium] : [])], { cwd: REPO, encoding: "utf8", timeout: 300000 });
+        const out = `${r.stdout ?? ""}${r.stderr ?? ""}${r.error ? `\n${r.error.message}` : ""}`;
+        const lines = out.split("\n");
+        const tally = out.match(/^live-[a-z]+: (\d+) failing/m);
+        return { file, exit: r.status, signal: r.signal ?? null, ok: lines.filter(l => l.startsWith("ok ")).length,
+            fail: lines.filter(l => l.startsWith("FAIL ")).length, failing: tally ? Number(tally[1]) : null, output: out.slice(-12000) };
+    });
+    const unlaunched = runs.find(r => r.failing === null && /Executable doesn't exist|Failed to launch|browserType\.launch/i.test(r.output));
+    if (unlaunched) return notRun(part, "no-browser", `${unlaunched.file}: ${unlaunched.output.split("\n").find(l => /launch|Executable/i.test(l))?.trim() ?? "Playwright launched no browser"}`);
+    const broke = runs.find(r => r.failing === null || r.failing !== r.fail || (r.exit !== 0) !== (r.fail > 0));
+    const passed = runs.reduce((n, r) => n + r.ok, 0), failed = runs.reduce((n, r) => n + r.fail, 0);
+    const status = broke ? "error" : failed ? "failed" : passed > 0 ? "passed" : "error";
+    fs.mkdirSync(EVIDENCE, { recursive: true });
+    const abs = path.join(EVIDENCE, `${part.id}.json`);
+    const text = JSON.stringify({ evidence: G.EVIDENCE_SCHEMA, part: part.id, env: { node: process.version, playwright: playwrightVersion, chromium },
+        body: { passed, failed, total: passed + failed, scripts: runs } }, null, 2) + "\n";
+    fs.writeFileSync(abs, text);
+    const evidence = [{ path: path.relative(REPO, abs).split(path.sep).join("/"), sha256: G.fileSha256(abs), bytes: Buffer.byteLength(text) }];
+    const why = broke ? `${broke.file} ended with exit ${broke.exit}${broke.signal ? ` (${broke.signal})` : ""}, ${broke.fail} FAIL line(s) and ${broke.failing === null ? "no tally" : `the tally ${broke.failing} failing`}`
+        : failed ? runs.filter(r => r.fail).map(r => `${r.file}: ${r.fail} failing`).join("; ")
+            : passed > 0 ? null : "no ok line: the scripts measured nothing";
+    return { ...part, status, ranAt: new Date().toISOString(), ...(why ? { why } : {}), evidence };
 }
 
 function fixtureDir(name) {

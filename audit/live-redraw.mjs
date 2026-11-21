@@ -3,7 +3,7 @@
  * 1.2.121, r121-R-1 and r121-R-3, measured in Chromium by its reader).
  *
  *   cd audit/harness && npm ci        (once: Playwright comes from there; it downloads no browser)
- *   node audit/live-redraw.mjs [--chromium <executable>] [--repo <checkout>]     (from the repository's root)
+ *   node audit/live-redraw.mjs [--chromium <executable>] [--repo <checkout>]   (or DRPG_CHROMIUM=<executable>)     (from the repository's root)
  *
  * The module's own scripts/live.mjs (`keepLive`, `liveRegions`) on a page of its own, as audit/live-press.mjs loads it:
  * config.mjs, utils.mjs and perf-timings.mjs answered by stubs, Foundry's `Hooks` and `foundry.utils.debounce` by stubs. A
@@ -81,7 +81,9 @@ function serve() {
 
 const server = await serve();
 const base = `http://127.0.0.1:${server.address().port}/redraw`;
-const browser = await chromium.launch(chromeAt >= 0 ? { executablePath: args[chromeAt + 1] } : {});
+// --chromium, else DRPG_CHROMIUM (what `npm run press` reads; the local gate passes it as --chromium), else Playwright's own
+const executablePath = chromeAt >= 0 ? args[chromeAt + 1] : process.env.DRPG_CHROMIUM || null;
+const browser = await chromium.launch(executablePath ? { executablePath } : {});
 let failed = 0;
 const say = (ok, line) => { console.log(`${ok ? "ok  " : "FAIL"} ${line}`); if (!ok) failed++; };
 const open = async () => {

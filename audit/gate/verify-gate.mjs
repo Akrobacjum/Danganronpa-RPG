@@ -405,9 +405,13 @@ async function selfTest() {
         /* The writer on a machine with no sandbox, as it runs here. */
         const base = buildRepo(root, "base", "1.2.61");
         const written = runWriter(base);
-        await expect("the writer records every part not-run, no-server and no-fixtures, verdict incomplete", async () => ({
-            ok: written.verdict === "incomplete" && written.parts.length === 5
-                && written.parts.every(p => p.status === "not-run" && (p.layer === "drill" ? p.reason === "no-fixtures" : p.reason === "no-server" && /127\.0\.0\.1:9/.test(p.why)))
+        /* The press part runs with no sandbox (gate-lib.mjs PRESS_PARTS), and this throwaway repository holds no press
+           script: not-run, no-script (r121-R-6, 21.11.2026). */
+        await expect("the writer records every part not-run, no-server, no-fixtures and the press part's no-script, verdict incomplete", async () => ({
+            ok: written.verdict === "incomplete" && written.parts.length === 6
+                && written.parts.every(p => p.status === "not-run" && (p.layer === "drill" ? p.reason === "no-fixtures"
+                    : p.layer === "press" ? p.reason === "no-script" && /audit\/live-press\.mjs/.test(p.why)
+                        : p.reason === "no-server" && /127\.0\.0\.1:9/.test(p.why)))
                 && written.hmac === null && written.digest === G.digestOf(written) }), { ok: true });
         await expect("train: the drills and touches of every stage shipping the version are read, not the first row's", async () => {
             const t = path.join(root, "train"); write(t, "tools/stages.json", JSON.stringify({ stages: [
@@ -460,11 +464,14 @@ async function selfTest() {
         }, { ok: false, says: "the writer writes only those" });
 
         /* Not-run parts, in each mode. */
-        const notRunDoc = runWriter(base);
+        /* The writer's file as a machine with no sandbox writes it: the press part needs none and ran there (gate-lib.mjs
+           PRESS_PARTS), played passed as playSandbox plays it; every other part not run, for a waivable reason. */
+        const written2 = runWriter(base), played = playSandbox(base, written2);
+        const notRunDoc = G.seal({ ...written2, parts: written2.parts.map(p => p.layer === "press" ? played.parts.find(q => q.id === p.id) : p) });
         const wv = (doc, opts) => async () => { save(base, doc); return verify({ repo: base, tag, envCheck: ENV_OK, ...opts }); };
         await expect("record: required, parts not run (waivable), notes line: pass, recorded", wv(notRunDoc, { mode: "record" }), { ok: true, recorded: true });
         await expect("enforce: required with a part not-run and no waiver: refused", wv(notRunDoc, { mode: "enforce" }), { ok: false, says: "no waiver file" });
-        write(base, `audit/gate/waivers/${tag}.md`, `# Local gate waiver - ${tag}\nDecided by: the owner, 24.09.2026\nParts not run: ${notRunDoc.parts.map(p => p.id).join(", ")}\nWhy: self-test\n`);
+        write(base, `audit/gate/waivers/${tag}.md`, `# Local gate waiver - ${tag}\nDecided by: the owner, 24.09.2026\nParts not run: ${notRunDoc.parts.filter(p => p.status === "not-run").map(p => p.id).join(", ")}\nWhy: self-test\n`);
         await expect("enforce: the same with a complete waiver: waived", wv(notRunDoc, { mode: "enforce", waiver: tag }), { ok: true, waived: true });
         await expect("enforce: a waiver typed for another tag: refused", wv(notRunDoc, { mode: "enforce", waiver: "v1.2.60" }), { ok: false, says: "not the tag typed again" });
         await expect("enforce: the environment has no reviewer: refused", wv(notRunDoc, { mode: "enforce", waiver: tag, envCheck: async () => ({ ok: false, why: "environment local-gate-waiver has no required reviewer" }) }), { ok: false, says: "no required reviewer" });
