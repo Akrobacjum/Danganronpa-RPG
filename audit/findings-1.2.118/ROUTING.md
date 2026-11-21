@@ -68,6 +68,8 @@ Not routed to 1.2.120 (they go to 1.2.121 with the rest): every minor and nit, t
 
 ## The owner's table report on v1.2.119 (21.11.2026 ~02:50Z), all to line P (claude/move-120) for 1.2.120
 - OWN-119-1: the planner's edges cross node boxes; the nodes should spread to make lanes, with no edge over a node. New: no finding of this audit names it.
-- OWN-119-2: the column sorts other than Manual do nothing past the first column (the inputs' aim order overrules them). New as a finding; the same cause as N119-6 (case-view.mjs:115, :167 place a node by its inputs' height, the kept order only breaks ties).
+- OWN-119-2: the column sorts other than Manual do nothing - at the table (the owner, ~02:55Z) not even in the FIRST column; line P's top item. New as a finding. Past the first column it shares N119-6's cause (case-view.mjs:115, :167 place a node by its inputs' height); why the first column ignores the sort is not read by this audit.
 - OWN-119-3: hovering a planner node turns it light cream with unreadable text (styles/components.css:3664, the node's `:hover` rule: `background: var(--drpg-kit-hover-bg)`). New: no finding of this audit names it; the static contrast checks did not cover the hover state of a node.
 
+## Not audit findings (continued)
+- The coordinator updates CLAUDE.md's one sentence on release.yml calling ci.yml (now: or reuses a green run of the same tree, audit/gate/reuse-ci.mjs) at the 1.2.120 assembly - the owner's "opcja 1" (21.11 ~02:55Z).

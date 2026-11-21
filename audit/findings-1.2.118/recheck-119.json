@@ -5807,10 +5807,10 @@
   },
   {
    "id": "OWN-119-2",
-   "what": "column sorts other than Manual do nothing past the first column: the aim order overrules them",
+   "what": "column sorts other than Manual do nothing, at the table not even in the first column (the owner, ~02:55Z)",
    "class": "F",
    "new": true,
-   "same_cause_as": "N119-6 (case-view.mjs:115, :167)"
+   "same_cause_as": "N119-6 past the first column only (case-view.mjs:115, :167); the first column's cause not read"
   },
   {
    "id": "OWN-119-3",
