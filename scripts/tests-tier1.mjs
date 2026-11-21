@@ -17565,6 +17565,41 @@ const INVARIANTS = [
             "the trial's voices were settled for a write that moves no microphone, or not for one that does");
     }],
 
+    ["R8272 - closing the notice history reads what it listed and nothing more: an unread entry its filter hid stays unread, one it listed is read, and Mark all as read still reads every one (notice-history-app.mjs `_onClose`, `buildList`; notice-history.mjs `markNoticesRead`; 1.2.122, the audit's COMM-33)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-33): the close called markNoticesRead with no list, which moved every unread entry of
+         * this login to read - the ones the filter or the search hid and the ones waiting behind "Show new notices" - and
+         * the corner's count dropped for notices nobody saw. With the history held (R299's road): an unread entry from a
+         * player and one for this user; the window opened on "For you" and closed; the two read; then Mark all as read
+         * (the engine with no list). Red at 21bf5d18: both read on the close.
+         */
+        const NH = await import("./notice-history.mjs");
+        must(!document.querySelector(".drpg-window-notices"), "the notice history window is open - close it: the suite measures a window it opened itself");
+        const { openNotices } = await import("./notice-history-app.mjs");
+        let win = null, read = null;
+        await NH.holdNoticeHistory(true);
+        try {
+            const hidden = NH.recordNotice({ source: "player", kind: "info", title: "R8272 a player's card", text: "", html: "", state: "unread" });
+            const listed = NH.recordNotice({ source: "mine", kind: "info", title: "R8272 a card for you", text: "", html: "", state: "unread" });
+            const state = id => NH.noticeEntries().find(entry => entry.id === id)?.state ?? null;
+            win = await openNotices();
+            must(win?.element, "the window did not open");
+            win.element.querySelector('[data-drpg-chip="forYou"]')?.click();
+            await settle();
+            await win.close();
+            win = null;
+            await settle();
+            read = [state(hidden), state(listed)];
+            NH.markNoticesRead();
+            read.push(state(hidden));
+        } finally {
+            await win?.close();
+            NH.holdNoticeHistory(false);
+        }
+        equal(stableJson(read), stableJson(["unread", "read", "read"]),
+            "closing the history read what its filter hid, or did not read what it listed ([the player's card after the close, the card for you, the player's card after Mark all as read])");
+    }],
+
     ["R539 - the GM's block in the list is Foundry's block and never undoes the module's: the button is built only in a GM's list; its click writes the user's `permissions.BROADCAST_AUDIO` flipped from what Foundry answers now and nothing else; where `moduleHoldsMic` holds the microphone or a death is kept secret the button is disabled with its line and `toggleBlock` writes nothing; it refuses a player's client, the GM's own account and a user who is not of this world", async () => {
         /*
          * E78 C5, 14.10.2026; the A9 design's R392 (A9-5; the E78 plan's D2 gave it this number), the owner's Q4 (the

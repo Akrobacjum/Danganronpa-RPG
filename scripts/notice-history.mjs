@@ -1120,11 +1120,13 @@ export function createNoticeEngine(env) {
          * Every unread entry read (E81 C7: the window's "Mark as read", and the window closing): an entry still on
          * screen stays `open`, a read one stays read. Answers how many moved; none is no write.
          */
-        markRead() {
+        markRead(ids = null) {
             const list = mine?.entries ?? pending;
             let moved = 0;
             for (let i = 0; i < list.length; i++) {
                 if (list[i].state !== "unread") continue;
+                // Only those named, when a set is handed in (the window's close, COMM-33); every one otherwise.
+                if (ids && !ids.has(list[i].id)) continue;
                 list[i] = { ...list[i], state: "read" };
                 moved++;
             }
@@ -1185,7 +1187,9 @@ export const onNoticeHistoryChange = fn => engine.onChange(fn);
 /** How many notices are unread: a count, the one thing of the history the tile's button carries (E81 C8, popup.mjs `ensureNoticeTile`). */
 export const noticeUnread = () => engine.unread();
 /** Read every unread notice (the window, E81 C7); answers how many moved. */
-export const markNoticesRead = () => engine.markRead();
+/* `ids` (1.2.122, the audit's COMM-33): the entries the history window listed, which its close reads - not the ones its
+   filter or search hid, nor the ones waiting behind "Show new notices". With none, every unread entry (Mark all as read). */
+export const markNoticesRead = (ids = null) => engine.markRead(ids instanceof Set ? ids : null);
 /** Clear this login's history (the window's Clear, after its question, E81 C7). */
 export const clearNoticeHistory = () => engine.clear();
 /** Whether a notice is kept for this page only, never written (the window's tag, E81 C7). */
