@@ -81,7 +81,7 @@
     "reading": "passes alone (7 passed: XI07 and its setup checks); the shard-3 failure depends on the order or the load of the shard - a test-suite finding (TEST), not a module leak"
   },
   "pending": [
-    "probe 43, running since 23:03Z"
+    "probe 42 rerun of the 47 windows it did not open, alone, from 00:05Z"
   ],
   "first_session": "its npm test beside ten readers: lint 416 files 0, check 25 green, gate 37/37, tiers 0-1 1776/0/16 twice, 01-runtests RED on its 6480 s timeout, twelve scenarios green (00, 10-15, 17-21), stopped at 2 h in 30-security (first-session/README.md)",
   "scenarios": {
@@ -427,5 +427,32 @@
     },
     "nothing_by_window": "rooms-passages 1, rooms-search 1, rooms-description 2, rooms-passages--rows 1, sound--effects 1, season-setup 3, season-checklist 2, pre-season-checks 2, investigation 2, investigation--key 2, investigation--final 1, investigation--who 1, investigation--map 1, investigation--map-node 2, investigation--map-trace 2, investigation--map-slot 3, investigation--map-planned 1, investigation--map-autopsy 1, look-player 1, drpg-settings-player 1, drpg-settings-player-voice 1, notices-player 2, notices-player-250 1",
     "caveat": "Probe 42's GM client was killed by the kernel (SIGKILL; the session saw an out-of-memory kill at about 23:35Z, and at 23:36Z the GM client still alive, probe 43's, held 5.3 GB RSS) before investigation--map-zone; the 47 windows after it, season-reset among them, were not opened. Because the run ended in a throw, the probe wrote no evidence block, so which control each 'nothing' was is not recorded: the counts are per window only. 'nothing' is a candidate for a dead control, not a verdict (the probe's header). CTRL-01 ('Reset the season') is not settled by this run: season-reset was not opened."
+  },
+  "probe_43": {
+    "ran": "20.11.2026 23:03Z - 21.11.2026 00:04Z (62 min), node cluster.mjs probes/43-stale-windows.mjs, beside probe 42 until 23:39Z",
+    "exit": 0,
+    "result_file": "audit/findings-1.2.118/probe-43.json (copy of audit/harness/results/probes/43-stale-windows.json)",
+    "peak_rss_mb": {
+      "gm": 7054,
+      "p1": 1318,
+      "p2": 434,
+      "p3": 434
+    },
+    "totals": {
+      "windows": 65,
+      "opened": 64,
+      "readings": 1792,
+      "relevant": 395,
+      "live": 39,
+      "stale": 356,
+      "staleUntilBlur": 0,
+      "confounded": 12,
+      "restless": 15,
+      "failed": 11,
+      "heldByFocus": 7,
+      "liveUnderFocus": 6
+    },
+    "read": "Every stale reading's diff excerpt checked by script with kit step numbers (drpg-kit-step-N), 16-character ids and second countdowns masked. 278 of 356 'stale' differ only in those and measure nothing: all in the 15 restless windows (Room setup's eight tabs, investigation--map, item-tables--rooms, three Class Trial tabs, notice history GM and player). 78 are real: 60 in 19 calm windows (despair-flow, season-setup, season-checklist, chapter-end, class-trial, edit-campaign, murder, item-manager, item-manager--bullet, give, projects, action-observe, action-search, action-analyze, action-tamper, action-project, action-dynamic, palm-frisk, season-reset), 16 in Room setup (each tab after a death: living students, rooms per student), 2 in investigation--map (problem count after a Remnant). held-by-focus 7: investigation (item, truth-bullet, trace, death), students (actions, death, eclipse). Season setup's two stale readings had the focus inside and stayed stale after it left.",
+    "correction": "The partial reading written at 23:25Z ('Room setup - 28 of 28 stale, confirms REFR-04') was wrong: those rows were the restless noise above; corrected in AUDIT 18.1 on 21.11.2026."
   }
 }
