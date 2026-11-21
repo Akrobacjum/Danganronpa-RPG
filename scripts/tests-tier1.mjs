@@ -39476,15 +39476,16 @@ const INVARIANTS = [
          * #129, #130, #133, S6, S8, S9, S11. Each was read against the code before it went: no literal names it and no
          * template can make it (TrialScene's `${key}` reads zoneA, zoneB, preparePlaylist, prepareVoice; Panel's `${key}`
          * the three A/V checks; Monocub's a row's choices and the critical's two keys; startPanic and startClosing are
-         * action names). TrialScene.scenesIntro, named with them in line C's notes, is read (trial-scene.mjs) and stays; so does
-         * Panel.seasonChecks, which docs/design/windows.md's M4 row (the owner's approval) names and R1334 holds.
+         * action names). TrialScene.scenesIntro, named with them in line C's notes, is read (trial-scene.mjs) and stays.
+         * Panel.seasonChecks went in 1.2.122 (line TEXT; the audit of 1.2.118, TEXT-40), with the owner's yes of 21.11.2026
+         * to retiring windows.md card M4's tile label and window name (the window became part of Season setup in E101 item 2).
          * Red at 729987e4: every key in both files, and scaleNote in look.mjs.
          */
         const DEAD = ["Vault.fogNote", "Look.uiScaleAuto", "Look.uiScaleSlider", "TrialScene.noWayBack", "TrialScene.hallDark", "TrialScene.prepare",
             "Season.note", "Panel.checksSetup", "SearchTokens.roomSetupNote", "Tables.newTierPool", "Tables.newTierPoolPlaceholder",
             "Tables.newTierPoolNote", "Zones.open", "Facility.editor.tabNote", "Passage.tab.intro", "Passage.pick.cancel", "Monocub.nobodyDead",
             "Monocub.manageTitle", "Monocub.dialogIntro", "Monocub.isOne", "Monocub.tickFirst", "Monocub.student", "Floor.startPanic",
-            "Floor.startClosing", "Floor.startTrialNoHall"];
+            "Floor.startClosing", "Floor.startTrialNoHall", "Panel.seasonChecks"];
         const sources = new Map(await otherSources());
         must(sources.size > 100 && sources.has("look.mjs"), "the module's sources did not load - this reads nothing");
         const all = [...sources.values()].map(stripComments).join("\n");

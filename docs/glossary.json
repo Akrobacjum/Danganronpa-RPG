@@ -1446,18 +1446,6 @@
         "note": "The window's name in the words of its tile label DRPG.Panel.despairFlow, from the owner's approval of card M3 (docs/design/windows.md, DR-E44-M1, 04.11.2026) and the plan's amend of 05.10; added in E44 C7a. No other name for the window was read in the interface or the handbooks (a common noun after the name - \"the Sound window\" - is a description, not a variant), so the entry is open and forbids nothing."
       },
       {
-        "id": "window-pre-season-checks",
-        "en": "Pre-season checks",
-        "pl": "Kontrola przed sezonem",
-        "gender": "f",
-        "inflection": "Kontrolę przed sezonem, Kontroli przed sezonem (as lang/pl.json and gm-handbook.pl.md write them)",
-        "forbidden": {"en": {"variants": [], "scope": ["ui", "handbooks"]}, "pl": {"variants": [], "scope": ["ui", "handbooks"]}},
-        "stage": "E44",
-        "source": ["D31", "E44 plan"],
-        "open": true,
-        "note": "The window's name in the words of its tile label DRPG.Panel.seasonChecks, from the owner's approval of card M4 (docs/design/windows.md, DR-E44-M1, 04.11.2026) and the plan's amend of 05.10; added in E44 C7a. Its tile label is Season setup's button that opens the window. No other name for the window was read in the interface or the handbooks (a common noun after the name - \"the Sound window\" - is a description, not a variant), so the entry is open and forbids nothing."
-      },
-      {
         "id": "window-investigation",
         "en": "Investigation",
         "pl": "Investigation",
