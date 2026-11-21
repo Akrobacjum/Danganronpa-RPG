@@ -270,7 +270,8 @@ export function registerHiddenStashes() {
     Hooks.on("updateActor", (actor, changes) => {
         if (!isPrimaryGm()) return;
         const flags = changes?.flags?.[MODULE_ID];
-        if (!flags || !Object.keys(flags).some(key => key === FOUND_FLAG || key === `-=${FOUND_FLAG}`)) return;
+        // The key itself, or a deletion's spelling of it (a prefix before the name: read, never written here, R152).
+        if (!flags || !Object.keys(flags).some(key => key.endsWith(FOUND_FLAG) && key.length <= FOUND_FLAG.length + 2)) return;
         const owners = (game.users ?? []).filter(u => !u.isGM && actor?.testUserPermission?.(u, "OWNER")).map(u => u.id);
         Promise.all(owners.map(sendTo)).catch(err => error("Could not tell a finder the stash they found", err));
     });
