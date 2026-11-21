@@ -5,9 +5,9 @@
     "id": "danganronpa-rpg",
     "version": "1.2.122"
   },
-  "commit": "7caa02683c68fe3b879e804a7903267aab8a1d9f",
+  "commit": "fcbb2753715bdd9a3a9030c6cfe9a56a6830a62f",
   "bound": {
-    "scripts": "2972ca084ba9debeb13e1351909b9deb2d44c67b",
+    "scripts": "c381b2022bd4ce3cc5cafca515605fc77ff52e5c",
     "styles": "11c68574e62892c25bae49d96b98a304431f63d1",
     "lang": "47b3c6ba59cf506f9e596b2fc2150b41e6f25f34",
     "fonts": "67a9597cecb677fad7cc6fa7a0fad2608f59299f",
@@ -25,8 +25,8 @@
     "audit/harness/scenarios/83-roll-integrity.mjs": "34abed6aeb225c69f7d9805b512539334066368b",
     "audit/harness/scenarios/84-viewports.mjs": "728b2c2ae9533e178568cb1acaaf8fe11817e083"
   },
-  "startedAt": "2026-11-21T15:38:54.484Z",
-  "finishedAt": "2026-11-21T15:39:03.438Z",
+  "startedAt": "2026-11-21T17:43:29.125Z",
+  "finishedAt": "2026-11-21T17:43:39.780Z",
   "host": {
     "node": "v22.23.5",
     "platform": "linux-x64",
@@ -123,11 +123,11 @@
       "id": "press-live-region",
       "layer": "press",
       "status": "passed",
-      "ranAt": "2026-11-21T15:39:03.365Z",
+      "ranAt": "2026-11-21T17:43:39.699Z",
       "evidence": [
         {
           "path": "audit/gate/evidence/press-live-region.json",
-          "sha256": "1a7820c7c51099fd824cf29ff3eec746071f71ba9ab68880485e1ee84f165724",
+          "sha256": "584562d6227e57d866a0be307f0698d8387c736aaa57893b9ff2e7c56e74f806",
           "bytes": 2097
         }
       ]
@@ -140,6 +140,6 @@
     "notRun": 8
   },
   "verdict": "incomplete",
-  "digest": "sha256:13640f17c2f607e8d4ea56c7c12b1bb7cabdb2d8fa60102e232e6990b2995203",
+  "digest": "sha256:f7354397330584255e0e2dc3141fedff8e9de1c903002cfb279bb8c9fcad3182",
   "hmac": null
 }
