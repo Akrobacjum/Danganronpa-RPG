@@ -51,6 +51,17 @@ import { PLANNED_GLYPH, randomPointIn, SCALE_LABELS, keyRowShows, keyPlan, caseK
 export { keyRevealRecord, recordKeyRevealed, keyPlan, setKeyPlan, archiveKeyPlan, liftKeyPlan, clearKeyPlan, keepOnlyKeyPlanChapter, clearSeasonKeyPlan, recordCaseKeys, caseKeyCount, keysToPlace, keyPlanStatus, missingKeyRows, keyFeeOf, chargeForUnfoundKeys, askToChargeForUnfoundKeys, randomPointIn, openKeyRemnantHere, placeInSlot, placeKeyRow } from "./key-remnants.mjs";
 
 /**
+ * How much harder ordinary evidence is to notice than a Key Remnant of the same visibility, as `{ low, high }`: every
+ * column of OBSERVE_DC but `key` against that band's `key` (1.2.122 line TEXT; the audit of 1.2.118, TEXT-30). Read
+ * 2 to 6 on 21bf5d18 - Obvious's daily life 8 against its key 6 the low end, Subtle's daily life 18 against 12 the high.
+ */
+export function ordinaryGap(table = OBSERVE_DC) {
+    const gaps = Object.values(table).flatMap(row => Object.entries(row ?? {})
+        .filter(([col, n]) => col !== "key" && Number.isFinite(n) && Number.isFinite(row.key)).map(([, n]) => n - row.key));
+    return gaps.length ? { low: Math.min(...gaps), high: Math.max(...gaps) } : { low: "?", high: "?" };
+}
+
+/**
  * A KEY SLOT NOT YET PLACED PLANS WHAT ITS PLACE ASKS AND WHAT THE REMNANT CARRIES (E104; the owner, 13.11.2026:
  * "lokalizacje, trudnosc i wszystkie parametry"): its visibility (with the Key column, how hard it is to find; the Place
  * window's own field and words), who left it (New Remnant's field) and its picture (the Table's). Beside its planned
@@ -944,7 +955,10 @@ function caseKeyPanel({ plan, status, placed, limit }) {
             list: REMNANT_VISIBILITY
                 .map(band => `${REMNANT_VISIBILITY_LABELS[band] ?? band} ${
                     OBSERVE_DC[band]?.key ?? "?"}`)
-                .join(", ")
+                .join(", "),
+            // and the gap to ordinary evidence the same way (1.2.122 line TEXT; the audit of 1.2.118, TEXT-30): the
+            // sentence typed "three to six", and Obvious's daily life (8) stands two above its Key Remnant (6)
+            ...ordinaryGap()
         })}</p>
         <p class="notes">${game.i18n.localize("DRPG.Investigation.keyPublicNote")}</p>
         ${(() => {

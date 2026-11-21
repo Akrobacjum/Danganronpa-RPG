@@ -344,8 +344,8 @@ The slow game: many actions over many times of day, and the one thing that can c
   - **Secret Passage** (Hand, Complex 6, always secret): through a wall of the room you stand in to the room beyond, named as you know it. The GM picks the stretch of wall. When it is finished you know the passage, and so do the people you shared the project with before then.
   - **Breach the Wall** (Body, Complex 6): a hole in that wall, for everyone to see and walk through. Until the wall is repaired, the room beyond's lock and its bedroom door stop nobody, and a seal on it is lifted until the end of the time of day; being Chained still holds you, and the courtroom stays shut. The people in both rooms are told, and they learn your name only if you stand at the hole; the rooms beside hear a crash.
   - **Seal the Passage** (Hand, Complex 6): closes a passage you know with a side in your room, for everyone who knows it. A GM can open it again.
-  - **Close the breach** (Body, Complex 6): the wall stands whole again.
-  - **Repair an item** (Hand; Trivial 3 for Tier 0 or 1, Complex 6 for Tier 2 or 3): one broken or worn usable or tool of your own, carried or in your stash, comes back whole. If the item's tier goes up before the repair is done, the repair may need to be bigger: the GM is told.
+  - **Close the Breach** (Body, Complex 6): the wall stands whole again.
+  - **Repair an Item** (Hand; Trivial 3 for Tier 0 or 1, Complex 6 for Tier 2 or 3): one broken or worn usable or tool of your own, carried or in your stash, comes back whole. If the item's tier goes up before the repair is done, the repair may need to be bigger: the GM is told.
   - **Repair the Lock** (Hand, Trivial 3): a lock that Force the Door or a breach broke, on a door of the room you stand in. Once it is finished the lock holds again, for everyone.
 
   The GM approves it like any proposal, and checks it again when it is finished: if the wall, the passage, the lock, or the item is no longer what it was, nothing happens and the GM is told why. A Reroll of the roll that finished a Secret Passage, a breach, a seal, or a lock's repair takes it back.
@@ -620,7 +620,7 @@ No darkening ever takes you below 1 action, 1 Eclipse crossing, or 1 Search Toke
 An item can also serve as another category (a screwdriver under Tools that is also a Murder Weapon) and still takes one slot.
 
 > [!IMPORTANT]
-> **Holding ready.** Gear must be held ready to count: only what is in your hand matters in an incident, a clean-up, or project work. At most one thing is ever in a hand, and readying one puts the others down; readying costs no action. A Tool in hand gives advantage on project work and sabotage and takes its tier off the threshold. A Cleaning Tool in hand does the same for a clean-up, except Move the Body, where it takes its tier off the threshold and gives no advantage. A Murder Weapon's tier sets its damage (section 10, If you are the killer).
+> **Holding ready.** Gear must be held ready to count: only what is in your hand matters in an incident, a clean-up, or project work. At most one thing is ever in a hand, and readying one puts the others down; readying costs no action. A Tool in hand gives advantage on project work and sabotage and takes its tier off the threshold. A Cleaning Tool in hand does the same for erasing or reshaping a Remnant; on a Misleading Trail it gives advantage and takes nothing off, and on Move the Body it takes its tier off the threshold and gives no advantage. A Murder Weapon's tier sets its damage (section 10, If you are the killer).
 
 **Handing over.** You can pass a thing to anyone in your room: **Hand it over** (it leaves you for good, and their limit applies) or, for a Truth Bullet or a key, **Share a copy** (you both have it; a Truth Bullet's copy is not bound by any failed analysis of yours). Neither costs an action, and neither works during an Eclipse.
 
@@ -757,7 +757,7 @@ The victim sees nothing while the killer rolls: no card, no music, nothing on th
 
 On any success the trap does not close, whether or not you still had a Free Move: your struggle to notice leaves an Evident Remnant, and the GM decides what happens next.
 
-A death by one's own hand uses the killer's roll and goes straight to the clean-up.
+A death by one's own hand uses the killer's roll and goes straight to Tamper.
 
 ### If you are the victim
 
@@ -815,7 +815,7 @@ A Misleading Trail or a moved body that succeeds puts the Truth Bullet of the Re
 A Cleaning Tool in hand helps (section 7, Holding ready). With witnesses in the room you first roll the same Shadow-16 concealment as any Tamper, at the same Sanity for being caught (section 4); Move the Body rolls no concealment.
 
 > [!WARNING]
-> Every Murder Weapon you swung in the fight is destroyed when an incident that reached the clean-up closes; a Finishing Blow swings nothing. Every Cleaning Tool you used for a clean-up attempt is destroyed when your victim's body is found, even if you have put it away since; one you stashed is spared. If you never cleaned up, the Cleaning Tool in your hand at that moment is destroyed instead. Both stay in your inventory as broken evidence.
+> Every Murder Weapon you swung in the fight is destroyed when an incident that reached Tamper closes; a Finishing Blow swings nothing. Every Cleaning Tool you used for a clean-up attempt is destroyed when your victim's body is found, even if you have put it away since; one you stashed is spared. If you never cleaned up, the Cleaning Tool in your hand at that moment is destroyed instead. Both stay in your inventory as broken evidence.
 
 ### If you walk in on it
 

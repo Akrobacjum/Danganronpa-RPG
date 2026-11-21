@@ -87,7 +87,7 @@ export const FLAGS = {
     swungWeapon: "swungWeapon",
     /**
      * LEGACY (CASE-04) - the betrayal offer and the swing memo above both live
-     * in the GM's incident cast now (`murder.mjs`, `CAST_FIELDS`). An actor flag
+     * in the GM's incident cast now (incident-store.mjs `CAST_FIELDS`). An actor flag
      * is world data every client receives, so for the whole of Stage 6 these
      * two named the accomplice, the killer and the weapon to anybody reading
      * `game.actors`. The keys stay so `liftIncidentSecrets` (migrate.mjs) can lift a live
@@ -696,7 +696,7 @@ export const ITEM_CATEGORIES = {
         label: "Cleaning Tool",
         plural: "Cleaning Tools",
         limitGroup: "gear",
-        hint: "Readied, it makes cleaning up easier: advantage on every clean-up roll but Move the Body, and its tier off the number to beat, never below the minimum. One used for a murder breaks once the body is found."
+        hint: "Readied: an erase or a reshape gets advantage and its tier off the number to beat, never below the minimum; a Misleading Trail, advantage; Move the Body, its tier off and no advantage. One used for a murder breaks once the body is found."
     },
     /**
      * A tool, in the ordinary sense: something you work with.
@@ -766,9 +766,9 @@ export const TIER_EFFECTS = {
     // USABLE_KIND_EFFECTS below instead.
     usable: {
         0: "A random, seemingly useless item. Open to creative use.",
-        1: "Restores 1 Health (healing) or 1 Sanity (sanity relief), by its kind.",
-        2: "Restores 2 Health (healing) or 2 Sanity (sanity relief), by its kind.",
-        3: "Restores 3 Health (healing) or 3 Sanity (sanity relief), by its kind."
+        1: "Restores 1 Health (Healing) or 1 Sanity (Sanity Relief), by its kind.",
+        2: "Restores 2 Health (Healing) or 2 Sanity (Sanity Relief), by its kind.",
+        3: "Restores 3 Health (Healing) or 3 Sanity (Sanity Relief), by its kind."
     },
     crimeTool: {
         0: "A random, seemingly useless item.",
@@ -851,7 +851,7 @@ export const USABLE_KIND_EFFECTS = {
 
 /**
  * THE WORDS AN ITEM TABLE'S DESCRIPTION IS BUILT FROM, IN ENGLISH, COPIED BEFORE ANY LANGUAGE IS APPLIED (E14 fix e1-G6,
- * 25.10.2026; the review's E14p2-END-06). tables.mjs `tableDescription` read `ITEM_CATEGORIES.*.label`, `USABLE_KINDS`,
+ * 25.10.2026; the review's E14p2-END-06). tables-pools.mjs `tableDescription` read `ITEM_CATEGORIES.*.label`, `USABLE_KINDS`,
  * `TIER_EFFECTS` and `USABLE_KIND_EFFECTS` as they read at the call, which i18n.mjs `localizeConfig` rewrites on a client
  * in Polish: a GM in Polish loading a world whose pools still carried an old boilerplate description had
  * `refreshTableCopy` write it to the world in Polish, every English GM read it so from then on, and their own pattern of
@@ -1529,9 +1529,9 @@ export const ACTIONS = {
         // number off the room and prints it as a fact line; a description that
         // states it in prose is a second copy, and the first GM to change the
         // setting turns it into a lie.
-        hint: "Loot the room for something you name. Spends one of its search tokens.",
-        description: "Roll Eye: the higher the total, the better the find, and a low total finds nothing. If what you "
-            + "find counts as a Murder Weapon or a cleaning tool, your search leaves a Remnant.",
+        hint: "Loot the room for something you name. Spends one of its Search Tokens.",
+        description: "Roll Eye, or another statistic the GM approves: the higher the total, the better the find, and a low "
+            + "total finds nothing. If what you find counts as a Murder Weapon or a Cleaning Tool, your search leaves a Remnant.",
         thresholds: [
             { min: 8, tier: 0, remnant: "hidden" },
             { min: 12, tier: 1, remnant: "subtle" },
@@ -1582,7 +1582,7 @@ export const ACTIONS = {
         traits: ["head"],
         cost: 1,
         /**
-         * A FUNCTION, not a flag - see `callsGmFor` in sheet.mjs.
+         * A FUNCTION, not a flag - see `callsGmFor` in sheet-actions.mjs.
          *
          * Analyze is two actions behind one tile: identifying a bullet is a
          * roll against a number, and asking for a hint is a question for a
@@ -1615,7 +1615,6 @@ export const ACTIONS = {
             { min: 18, result: "A direct hint - e.g. “Search the pool room.”" }
         ],
         hintCritical: { result: "You ask the GM one question - e.g. “Did the victim really die in this room?”" },
-        hintFailure: "No help.",
         /**
          * The third thing behind this tile: finding a hiding place.
          *
@@ -1642,7 +1641,7 @@ export const ACTIONS = {
         // a project sends the GM a card and waits for them. `callsGm` is what
         // paints the red stripe and the GM glyph on the tile, and a tile that
         // can hand the turn over should say so before it is pressed rather than
-        // after - see the cost-stripe note in sheet.mjs.
+        // after - see the cost-stripe note in sheet-actions.mjs (`callsGmFor`).
         //
         // Which branch it will be is decided by the room, not by the action:
         // standing in a room with a project in it, this is a roll; standing
@@ -1748,10 +1747,10 @@ export const ACTIONS = {
             + "there, a better one names them, and a critical names everyone in every neighboring room. A miss tells "
             + "you nothing; with no neighboring room, you keep your action.",
         thresholds: [
-            { min: 14, result: "Pick one room; learn whether anyone is there." },
-            { min: 18, result: "Pick one room; see the tokens of everyone in it." }
+            // the lines a hit says are DRPG.Listen.* (action-listen.mjs `performListen`), read off `min` alone
+            { min: 14 },
+            { min: 18 }
         ],
-        critical: { result: "See every player token in all adjacent rooms." },
         failure: "You learn nothing."
     },
     /**
@@ -1816,7 +1815,7 @@ export const ACTIONS = {
          */
         threshold: 12,
         /** Whether they noticed. Its own axis, rolled separately. */
-        unseen: { trait: "shadow", threshold: 15, label: "Keep your hands out of sight" },
+        unseen: { trait: "shadow", threshold: 15 },
         /** Leaving something is easier than taking it - both axes (D10a). */
         plant: { threshold: 8, unseen: 13 },
         /*
@@ -1830,8 +1829,7 @@ export const ACTIONS = {
          * (trait-ruling.mjs `definitionOf`). The numbers are the owner's 2 = a.
          */
         frisk: { trait: "body", threshold: 12, label: "Make them turn out their pockets" },
-        rummage: { trait: "hand", threshold: 10, unseen: 15, label: "Look through their pockets unseen" },
-        failure: "Your hand comes away empty."
+        rummage: { trait: "hand", threshold: 10, unseen: 15, label: "Look through their pockets unseen" }
     },
     /**
      * Cleaning up, and lying with the evidence, as an ordinary action.
@@ -2184,7 +2182,7 @@ export const REST = {
  * table, in the window's order; E74 adds Shut the Door, Force the Door, Pick the Lock and Keep Watch. Names and hints are
  * lang keys (`DRPG.Infiltrate.row.<key>`); nothing here is prose.
  *
- *   listen  the Listen of `ACTIONS.listen` (its thresholds, critical, failure); a room with no neighbour greys the row.
+ *   listen  the Listen of `ACTIONS.listen` (its thresholds and failure); a room with no neighbour greys the row.
  *           A good roll is also an eavesdrop on that room's voice (E69 C6, eavesdrop-gm.mjs).
  *   echoes  Echoes (E69 C7): no roll; the nearest room by crossings with a living student of another player, read on
  *           the GM (echoes-gm.mjs); struck through in an Eclipse (Q-E69-3's default).
@@ -2670,7 +2668,7 @@ export const OVERFLOW = {
         /*
          * THE FIVE OF THE ROOM ACTIONS (E93 C6, 12.11.2026; the owner's audit entry E93 (6): Sabotage and Spoilage
          * rejected). Each a state read where a room action or a rest is judged - on the user's browser, which greys
-         * the row, and on the primary GM, which refuses it (facilities-gm.mjs `handleFacilityUse`, sheet-audit.mjs
+         * the row, and on the primary GM, which refuses it (bridge-runs-acts.mjs `handleFacilityUse`, sheet-audit.mjs
          * `restCovers`). IN THE HAT BY DEFAULT (the owner's DRPG-D1 answer, 12.11.2026: "Wlaczone w losowaniu"), which
          * was a default the other way until then: with five more in the draw, each older darkening comes up less often, as
          * the handbooks say. A GM unticks any of them in Despair Flow.
@@ -2730,7 +2728,7 @@ export const DESPAIR_CALLS = {
     },
     behindClosedDoors: {
         label: "Behind Closed Doors", icon: "fa-door-closed", cost: 2, target: "room", sealsRoom: true,
-        effect: "Seals a room until the time of day ends; a successful Pick the Lock still gets a student in, and those inside stay."
+        effect: "Seals a room until the time of day ends; a successful Pick the Lock still gets a student in, Force the Door or a finished Breach the Wall lifts the seal for everyone, and those inside stay."
     },
     thisWillHurt: {
         /*
@@ -3996,7 +3994,7 @@ export const CRISIS_ACTIONS = {
          * ever sees `hope` and `despair`. Same for the three entries like it
          * elsewhere in this file.
          */
-        failureRemnant: { hope: "evident", despair: "evident", critical: "obvious" }
+        failureRemnant: { hope: "evident", despair: "evident" }
     },
     survive: {
         side: "victim", label: "Survive", icon: "fa-person-running",
@@ -4080,7 +4078,7 @@ export const CRISIS_ACTIONS = {
         failure: "Nothing on a Hope failure. On Despair you still take {stress} Sanity off them and "
             + "leave an Evident Remnant.",
         failureDamage: { despair: { stress: 1 } },
-        failureRemnant: { despair: "evident", critical: "obvious" }
+        failureRemnant: { despair: "evident" }
     },
     pin: {
         side: "killer", label: "Pin Them Down", icon: "fa-down-long",
@@ -4092,7 +4090,7 @@ export const CRISIS_ACTIONS = {
         short: "Put the victim's Leave a Clue and Survive at disadvantage; a critical blocks both.",
         hinders: { actions: ["leaveClue", "survive"], turns: 2 },
         remnant: { despair: "subtle" },
-        failureRemnant: { despair: "evident", critical: "obvious" }
+        failureRemnant: { despair: "evident" }
     },
     keepDistance: {
         side: "killer", label: "Keep Your Distance", icon: "fa-arrows-left-right",
@@ -4104,7 +4102,7 @@ export const CRISIS_ACTIONS = {
         short: "Put the victim's Secure a Trace and Role Reversal at disadvantage; a critical blocks both.",
         hinders: { actions: ["secureTrace", "roleReversal"], turns: 2 },
         remnant: { despair: "subtle" },
-        failureRemnant: { despair: "evident", critical: "obvious" }
+        failureRemnant: { despair: "evident" }
     },
     weaponAttack: {
         side: "killer", label: "Attack with a Weapon", icon: "fa-khanda",
@@ -4139,8 +4137,7 @@ export const CRISIS_ACTIONS = {
          */
         unarmedImprovises: { hope: 2, despair: 1, critical: 2, name: "Improvised weapon" },
         remnant: { despair: "subtle" },
-        failureRemnant: { despair: "evident", critical: "obvious" },
-        failureRemnantReinforced: { critical: true }
+        failureRemnant: { despair: "evident" }
     },
     finishingBlow: {
         side: "killer", label: "Finishing Blow", icon: "fa-skull-crossbones",
@@ -4154,7 +4151,7 @@ export const CRISIS_ACTIONS = {
         // "A free Stage 6 action" until 1.2.66, which the engine never gave: nothing read
         // the band, and Stage 6 costs a killer no action anyway, only a Sanity mark an
         // attempt. The owner's D13 (E32+E07 C13, 03.10.2026; audit S04-07): the first
-        // clean-up attempt of whoever struck it costs no Sanity, hit or miss (murder.mjs
+        // clean-up attempt of whoever struck it costs no Sanity, hit or miss (murder-rules.mjs
         // `finishIncident` writes `freeCleanup`, cleanup.mjs `consumeFreeCleanup` spends it).
         hint: "End the incident now. The number to beat is {mult} times the victim's remaining Health, so it is 0 once "
             + "they have none. A hit with Despair leaves an Evident Remnant, and a critical makes your first clean-up "
@@ -4166,8 +4163,7 @@ export const CRISIS_ACTIONS = {
         despair: "The incident ends and leaves one Incident Remnant.",
         critical: "The incident ends, and your first clean-up attempt costs no Sanity.",
         remnant: { despair: "evident" },
-        failureRemnant: { despair: "evident", critical: "obvious" },
-        failureRemnantReinforced: { critical: true }
+        failureRemnant: { despair: "evident" }
     },
 
     /* ---- somebody who walks in -----------------------------------------
@@ -4213,8 +4209,10 @@ export const CRISIS_ACTIONS = {
         remnant: { hope: "obvious", despair: "evident" },
         // A failed escape leaves a trace too. It used to live under
         // `remnant.failure`, which nothing ever read: the failure branch looks up
-        // `failureRemnant[band]`, and `band` is only ever hope/despair/critical.
-        failureRemnant: { hope: "subtle", despair: "subtle", critical: "subtle" },
+        // `failureRemnant[band]`, and on a failure `band` is only ever hope or despair: a critical is always a
+        // success (murder-rules.mjs, the failure branch), so no failure table here holds a critical key (1.2.122 line
+        // TEXT; the audit of 1.2.118, STG-64: seven did, and two `failureRemnantReinforced: { critical: true }`).
+        failureRemnant: { hope: "subtle", despair: "subtle" },
         // An Incident Remnant, as every other crisis action's (murder-rules.mjs `applyRemnant`'s
         // default). It said "prep" - a trace of the planning, left by the fight (E32 C6,
         // 28.09.2026; audit S02-43).
@@ -4296,17 +4294,19 @@ export const CRISIS_ACTIONS = {
  */
 export const TRIAL = {
     /**
-     * How long a free discussion runs before the bar turns red.
+     * How long a debate runs before the bar turns red - the default budget of a
+     * timed floor anyone may speak in, a debate since Q14 (B2, 02.09.2026): the
+     * trial with no floor open is the discussion, which has no clock
+     * (trial-floor.mjs; 1.2.122 line TEXT, the audit of 1.2.118 DOC-11).
      *
      * NOT a monologue any more. The guide's original shape was a clockwise
      * queue of three-minute monologues, and that is what this number used to
-     * bound; the trial now opens as a free discussion that anyone may speak
-     * in, and this is the GM's default budget for it, editable every time
-     * they open the floor. It stays 180 because that is the length the table
+     * bound; this is now the GM's default budget for a debate, editable every
+     * time they open the floor. It stays 180 because that is the length the table
      * is used to, and because overrunning it is a red bar rather than a hard
-     * stop - see `paintFloorClock` in hud.mjs, which is where the red mark is put
-     * on, and `extendFloor` in trial-floor.mjs, which is the "+30 s" that answers
-     * it.
+     * stop - see `trialConsoleHtml` in trial-floor-ui.mjs, which is where the red
+     * mark is put on (`over`), and `extendFloor` in trial-floor.mjs, which is the
+     * "+30 s" that answers it.
      */
     speakSeconds: 180,
     /**
@@ -4544,8 +4544,10 @@ export const CLEANUP = {
 
     /**
      * An equipped Cleaning Tool grants advantage and takes its tier off the
-     * threshold - a purpose-built Tier 3 kit turns an Obvious trace into the
-     * same job as an Evident one. `EQUIPPED` is the operative word: the guide's
+     * threshold of an erase or a reshape (`cleanupDc`) - a purpose-built Tier 3 kit
+     * turns an Obvious trace into the same job as an Evident one. Of the Stage 6
+     * actions, a Misleading Trail takes the advantage alone and Move the Body the
+     * tier alone (`toolBonusPerTier`, cleanup.mjs `attemptStageSix`, `resolveStageSix`). `EQUIPPED` is the operative word: the guide's
      * tools are objects in a hand, not entries on a list.
      */
     toolAdvantage: true,

@@ -1908,9 +1908,9 @@ async function applyCrisisAction({
          *
          * `band` is safe to test here and only here (trap 112): a critical is
          * always a success, so this branch sees `hope` and `despair` and
-         * nothing else. Three entries in config.mjs carry a `critical` key in
-         * their FAILURE tables, left as documentation of the guide's own
-         * layout; none of them is reachable, and this line is not one of them.
+         * nothing else. No crisis action's FAILURE table carries a `critical`
+         * key since 1.2.122 (line TEXT; the audit of 1.2.118, STG-64): seven did,
+         * and two `failureRemnantReinforced`, unreachable all of them.
          */
         if (def.failureGrantsAdvantage && band === "hope") {
             await grantAdvantage(side, key);

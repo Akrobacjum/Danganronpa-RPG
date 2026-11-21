@@ -365,7 +365,7 @@
       },
       "documentLanguage": {
         "name": "Document language",
-        "hint": "The language of the documents the module writes into this world, one for everyone. Windows, cards, and the sheet follow each browser's Language. The first time the primary GM starts this world, it takes their language."
+        "hint": "The language of a granted item's tier line, one for everyone; other names, such as a bedroom key's, are in the writing GM's language. Windows and cards follow each browser's Language. The primary GM's first start sets it."
       },
       "moveAudit": {
         "name": "When a player's token moves through a wall",
@@ -393,7 +393,7 @@
       },
       "sequences": {
         "name": "Full-screen sequences",
-        "hint": "Plays the Class Trial's entry, the verdict, the clock's turns and flashes, and the day boards full screen for everyone. When off, only the trial's and the verdict's sounds play. Esc skips one."
+        "hint": "Plays full screen for everyone: the Class Trial's entry and exit, the verdict, the case summary, the clock's turns and flashes, a death's fade, and the day boards. When off, their sounds still play. Esc skips one."
       },
       "reducedMotion": {
         "name": "Reduced motion",
@@ -692,7 +692,7 @@
       "elapsedUnknown": "not started",
       "elapsedTooltip": { "one": "How long this time of day has run. Amber at {first} minute, red at {second}.", "other": "How long this time of day has run. Amber at {first} minutes, red at {second}." },
       "stillToAct": "Still to act",
-      "stillToActTooltip": "Students with actions left. The roster on the left says which ones.",
+      "stillToActTooltip": "Students with actions left. The Students window says which ones.",
       "stillPlacing": "Still placing",
       "stillPlacingTooltip": "Students who have a crossing of the Eclipse left to use.",
       "stillPlacingFreeTooltip": "Students who have not moved yet in this Eclipse.",
@@ -742,7 +742,7 @@
         "wallGone": "the wall it was cut from is gone. The room beyond has its lock and its bedroom key back; delete the hole by hand with the walls tool.",
         "cannotClose": "the passage could not be closed. Close it by hand in the Passages tab.",
         "notKnown": "the character does not know that passage, or it is closed already. Check it in the Passages tab.",
-        "isBreach": "that is a breach. To give its wall back, use Close the breach on the Passages tab, or a Close the breach project.",
+        "isBreach": "that is a breach. To give its wall back, use Close the breach on the Passages tab, or a Close the Breach project.",
         "noSide": "it has no side in the room where the character stands. Approve it only from a room the passage or the breach opens into.",
         "lockWhole": "that lock is not broken, so there is nothing to repair.",
         "lockTaken": "a project repairs that lock already.",
@@ -949,7 +949,7 @@
       "dcConceal": "Somebody is here, so a Sabotage starts with a Shadow roll to cover what you are doing: {n}+. Work on Project needs no such roll.",
       "dcIndirect": "For an indirect murder with somebody here, you first roll Shadow to hide your intent: {n}+.",
       "dcListen": "{a}+ tells you how many people are there or that the room is empty, {b}+ who. A critical names everyone in every neighboring room.",
-      "dcPalm": "To take: Shadow {unseen}+ to stay unseen, then Hand {take}+. To plant: Shadow {plantUnseen}+, then Hand {plant}+.",
+      "dcPalm": "To take: Shadow {unseen}+ to stay unseen, then Hand {take}+. To plant: Shadow {plantUnseen}+, then Hand {plant}+. If they notice, the others in the room who see it learn whose hand it was too.",
       "dcTamper": "Erase a Trace works on any Remnant you know of here that is not Reinforced. By how visible it is: {rows}{relief}.",
       "dcTamperRelief": " (already includes {what})",
       "reliefTool": "-{n} for your readied cleaning tool",
@@ -1252,7 +1252,7 @@
       "giveHopeColumn": "Despair → Hope",
       "give": "Give Hope",
       "silenced": "Crime witness",
-      "silencedNote": "Ticked by itself when this Monocub is in the room of a murder. Tick it if they saw the crime some other way. They can't discuss it until the chapter ends; Confusion still works.",
+      "silencedNote": "Ticks itself in a murder's room; tick it if they saw the crime otherwise. They can't discuss it this chapter; Confusion still works.",
       "notCub": "Not a Monocub",
       "needHope": "You don't have enough Hope for this move. Redeem or Ask for Hope can get you some.",
       "nobodyHere": "There's nobody in your room to use Confusion on.",
@@ -2096,7 +2096,7 @@
         "moveUpMoveDownTooltip": "Moves this node one place in its column; the order becomes By hand",
         "checkConsistencyTooltip": "Lists what in the case does not hold together",
         "addDeductionCounterSolutionTooltip": "Adds it to the case at once, with no need to Save",
-        "notNowTooltip": "Not asked again this chapter. The Investigation window's Realization preview opens it any time",
+        "notNowTooltip": "Not asked again this chapter. The Investigation window's Preview realization opens it any time",
         "showPreviewTooltip": "Opens the realization's preview. Nothing is placed until you press Run realization there",
         "sendToEveryoneTooltip": "Posts this summary in the chat for the whole table, once per Class Trial",
         "difficultyTooltip": "How hard it is to spot with Observe, to analyze and to clean up with Tamper",
@@ -2554,7 +2554,7 @@
       "notSet": "- not set -",
       "intro": "Pick a playlist for each state.",
       "howOrder": "How the order works",
-      "orderNote": "The first state that applies wins, in the order listed. A Class Trial at night uses the trial's playlists; an Eclipse during a trial uses the Eclipse's.",
+      "orderNote": "The first state that applies wins, in the order listed. A Class Trial at night uses the trial's playlists; a paused game uses the pause's, whatever else applies.",
       "trialNote": "The higher row wins. A mode with no playlist of its own plays as before: a Rebuttal the Objection's, a zone mode the Debate's, Testimony, a Panic Round and the Closing Argument the Discussion's. The Closing Argument's own playlist starts once the GM confirms its speaker.",
       "incidentNote": "Only the players taking part in the murder, and the GMs, hear it.",
       "fadeNote": "Set the fade length in each playlist's Fade Duration. When a body is found and nothing is mapped to it, the music goes silent, and a track you put on yourself stops too.",
@@ -2799,7 +2799,7 @@
       "indirectCost": "A trap is built as projects. Plan about {low}-{high} progress in total, roughly {fewest} to {actions}.",
       "openConfirm": "Open the incident",
       "needOne": "A murder needs at least one living student, who can hold both seats.",
-      "openSelfNote": "The same student as killer and victim makes this a death by their own hand, and the trap box is cleared and locked. There is no fight: the opening roll decides whether they go through with it, and if they do, the incident goes straight to the clean-up.",
+      "openSelfNote": "The same student as killer and victim makes this a death by their own hand, and the trap box is cleared and locked. There is no fight: the opening roll decides whether they go through with it, and if they do, the incident goes straight to Tamper.",
       "killerNotAlive": "{name} was named as the killer but is not among the living, so the Killer list shows someone else. Choose the killer.",
       "roomsDiffer": "{killer} is in {killerRoom}, {victim} in {victimRoom}. Bring them together, or open it anyway.",
       "openingStatistic": "Opening roll's statistic",
@@ -3098,7 +3098,7 @@
       "newTraceDone": "{type} placed in {room}.",
       "noRooms": "This scene has no rooms yet, so there is nowhere to put a Remnant. Draw the regions first; Room setup explains how.",
       "createNote": "Place puts a row's Key Remnant on the map at once, in the room you pick: reinforced, tied to the crime, somewhere inside the room, with the words typed on its row. A row already on the map has no Place button.",
-      "keyDcNote": "A Key Remnant is the easiest thing in a room to notice. How easy depends on its visibility: {list}. The difficulty scale above does not change it. Ordinary evidence in the same band is three to six points harder to notice. The scale is how much a clue gives away.",
+      "keyDcNote": "A Key Remnant is the easiest thing in a room to notice. How easy depends on its visibility: {list}. The difficulty scale above does not change it. Ordinary evidence in the same band has a threshold {low} to {high} higher. The scale is how much a clue gives away.",
       "tabTraces": "Remnants",
       "tabKeyRemnants": "Key Remnants",
       "traceName": "Name",
@@ -3165,7 +3165,7 @@
       "gmTold": "{owner} entered {room} and was told somebody has been in their stash. It covers what {names} took.",
       "tabStashes": "Stashes",
       "stashesIntro": "Who has a stash in which room. Click a cell to change it. A bedroom's owner has a stash there from the start; you can take it away here.",
-      "stashesNote": "Anyone in the room can go through an open stash and take one thing from it, once each time of day. A hidden one must be found first, with Analyze's Find Stash (16+), and is open to its finder from then on. A stash in somebody else's room does not come with a key to it.",
+      "stashesNote": "Anyone in the room can go through an open stash and take one thing from it, once each time of day. A hidden one must be found first, with Analyze's Find Stash ({n}+), and is open to its finder from then on. A stash in somebody else's room does not come with a key to it.",
       "stashCycle": "Click to cycle: none / open / hidden",
       "stashNone": "No stash",
       "stashOpen": "Open",
@@ -3364,7 +3364,7 @@
       "optNextChapter": "Move to chapter {to} (from {from})",
       "lastChapter": "Chapter {n} is the last of a season. Press Reset the season in Season setup (GM panel, Between sessions) rather than moving on to chapter {next}.",
       "optNextSession": "Count this as session {to} (from {from})",
-      "optNextMorning": "Open the next chapter on the morning of day {day}, with actions and search tokens refilled",
+      "optNextMorning": "Open the next chapter on the morning of day {day}, with actions and Search Tokens refilled",
       "moved": "The clock now reads chapter {chapter}, session {session}.",
       "typeless": {
         "one": "1 Truth Bullet, not analyzed, has no real type recorded, so the reveal cannot show it. {who} holds it. Take it, then give one with its type from Give / take items.",
@@ -3623,7 +3623,8 @@
       "receivedBulletFrom": "{who} showed you “{name}”, and you now have your own copy.",
       "receivedItem": "You have been handed something",
       "receivedItemFrom": "{who} handed you “{name}”.",
-      "answerKeyMissing": "Nobody can get a copy of “{name}” now: the GM's record of what it really is has gone missing. The GM can restore it from a backup (GM panel, Diagnostics, The case: Restore from a file)."
+      "answerKeyMissingGm": "The GM's record of what “{name}” really is has gone missing, so nobody can get a copy of it now. Restore it from a backup: GM panel, Diagnostics, The case: Restore from a file.",
+      "answerKeyMissing": "Nobody can get a copy of “{name}” now: the GM's record of what it really is has gone missing. The GMs have been told."
     },
     "Observe": {
       "projectFoundDone": "The secret project you found is finished: {name}.",
@@ -4315,7 +4316,7 @@
       "markedIn": "{name} is a student again.",
       "npcLine": "Not in the class: no actions, ballots, or Level Ups.",
       "deathMark": "Dead",
-      "deadStill": "Outside the Class Trial you still speak at the table. In it your microphone is off and you hold no ballot."
+      "deadStill": "Outside the Class Trial you still speak at the table. With Separate voice in each room on, the module moves you to the Spectators' room, where the living do not hear you. In the trial your microphone is off and you hold no ballot."
     },
     "Overflow": {
       "hopeBlocked": "The darkening blocks Hope this time of day.",
@@ -4388,7 +4389,7 @@
         "despair": "Nobody gains Hope; spending the Hope already held still works.",
         "silence": "Nobody can use a Hope Call; Despair Calls still work.",
         "fog": "Nobody has a Free Move, so even the first crossing into another room uses a Sprint crossing or an action.",
-        "rot": "Everything the living carry wears down at once: each item loses up to {n} durability but never its last point, so nothing breaks.",
+        "rot": "Everything the living own wears down at once, what is in their stash included: each item loses up to {n} durability but never its last point, so nothing breaks.",
         "earthquake": "The building shakes and work is undone: every unfinished project that is not frozen loses up to {n} progress.",
         "lockdown": "The rooms are locked down: no room actions this time of day. Rests still work.",
         "insomnia": "Nobody can sleep: no Short Rest this time of day. A Long Rest still works.",
@@ -4505,17 +4506,17 @@
         "breach": "Breach the Wall",
         "sealPassage": "Seal the Passage",
         "closeBreach": "Close the Breach",
-        "repairItem": "Repair an item",
+        "repairItem": "Repair an Item",
         "repairLock": "Repair the Lock"
       },
       "kindOwn": "A project of your own",
       "sealWhich": "Passage to seal",
       "sealNote": "Seal the Passage: Hand, Complex (6). Once it is finished, the passage is closed to everyone who knows it, you included. A GM can open it again.",
       "unbreachWhich": "Breach to close",
-      "unbreachNote": "Close the breach: Body, Complex (6). Once it is finished the wall stands whole again.",
+      "unbreachNote": "Close the Breach: Body, Complex (6). Once it is finished the wall stands whole again.",
       "repairWhich": "Item to repair",
       "repairOption": "“{item}” (Tier {tier})",
-      "repairNote": "Repair an item: Hand; Trivial (3) for an item of Tier 0 or 1, Complex (6) for Tier 2 or 3. Once it is finished the item is whole again.",
+      "repairNote": "Repair an Item: Hand; Trivial (3) for an item of Tier 0 or 1, Complex (6) for Tier 2 or 3. Once it is finished the item is whole again.",
       "repairItemName": "Repair: “{item}”",
       "sealPassageSummary": "Seal the Passage: {target}",
       "closeBreachSummary": "Close the Breach: {target}",
@@ -4705,7 +4706,7 @@
       "allComplete": "Every project in {room} is already finished.",
       "frozenNoProgress": "{name} has been sabotaged and cannot move forward until its repair is finished.",
       "effectFailed": "{name}: an effect that runs when it is finished, or when its progress falls back below its target, failed ({error}). Its progress stays as it is; the console has the details.",
-      "everyone": "This project is public, so every player who has been in its room sees it, or every player if it has no room. The ticks show who knew before it was revealed; if it becomes secret again, they and its builders see it.",
+      "everyone": "Public: seen by everyone who has been in its room, or by everyone if it has none. Ticked: who knew before the reveal.",
       "builderStays": "{name} is building “{project}”: you cannot take a builder off their own project.",
       "description": "Description",
       "descriptionPlaceholder": "e.g. A false back in the bookcase, deep enough to hide a notebook",
@@ -5017,7 +5018,7 @@
         "rollMissed": "Your roll does not give that result.",
         "projectFrozen": "A sabotage has frozen that project until its repair is finished.",
         "rollReplaced": "A later roll of the same action counts instead.",
-        "notPaid": "You haven't paid for that roll with an action. Take the action again.",
+        "notPaid": "The GM did not see this paid for. Try it again.",
         "rollThrown": "You have already rolled for that action.",
         "callNotPaid": "You have not paid the Hope for that Call.",
         "callNotApproved": "No GM has approved that Call, or the approval has run out. Ask again.",
@@ -5160,7 +5161,7 @@
       "summaryEclipse": "{summary} · ECLIPSE",
       "rewindDuringEclipse": "An Eclipse is running. End it first.",
       "takenBack": "Actions, Free Moves, what Sprint and Burst bought, Search Tokens, and seals are back as they were before this time of day began.",
-      "eclipseStillOn": "The clock moved, but the Eclipse is still on. End it from the clock's chevron; until then no incident can open.",
+      "eclipseStillOn": "The clock moved, but the Eclipse is still on. End it from the clock's chevron; until then no incident can open, and crossings count against the Eclipse's limit.",
       "campaignName": "Campaign name",
       "chapter": "Chapter",
       "day": "Day",
@@ -5842,7 +5843,7 @@
       "rewritePutBack": "<strong>{name}</strong> changed the dice of a roll ({roll}) by hand. The roll shows the original dice again.",
       "rewriteNotPutBack": "<strong>{name}</strong> changed the dice of a roll ({roll}) by hand, and the original dice could not be restored. The changed dice stand.",
       "notDrawnHere": "Daggerheart {version} builds rolls in a way this module was not written for, so players roll their own dice instead of the GM rolling for them. This message appears once for this version.",
-      "unexpected": "{name}'s roll did not match the roll the GM expected, so the GM rolled the expected one. These parts did not count: {list}. game.drpg.rollFlags() lists it.",
+      "unexpected": "{name}'s roll did not match the roll the GM expected, so the GM rolled the expected one. Where they differ: {list}. game.drpg.rollFlags() lists it.",
       "flagLine": "{what} {claimed}, expected {expected}",
       "flagsTitle": "Flagged drawn rolls: {n}",
       "flagKind": {
@@ -6154,7 +6155,7 @@
     },
     "Note": {
       "tab": "Note",
-      "intro": "Your plans for the session, for the GMs to read. The first four questions are your boundaries, and the GMs plan around them. If nothing has changed, write “No changes” and you're done.",
+      "intro": "Your plans for the session, for the GMs to read. The questions on dying, torture, romance, and triggers are your boundaries, and the GMs plan around them. If nothing has changed, write “No changes” and you're done.",
       "gmIntro": "This player's pre-session note. You can edit it, and the player will see your changes.",
       "placeholder": "No changes",
       "useTemplate": "Use the template",
@@ -6487,7 +6488,7 @@
         "deaths": "Deaths and Monocubs, with the dead back, the bodies off the maps, and every student's Health and Sanity whole again",
         "items": "What the cast is carrying, with each bedroom key handed back to its owner",
         "advancement": "Level Ups, with traits and maxima back to the starting sheet and the experiences they added removed",
-        "actions": "The action budget refilled, and what the season's actions left in force cleared: rests, barricades, Bounties, Confusions, room effects, masks, tails, watches, eavesdrops, lock picks, crossings and the rolls' records",
+        "actions": "The action budget refilled, and what the season's actions left in force cleared: rests, barricades, Bounties, Confusions, room effects, masks, tails, watches, eavesdrops, lock picks, crossings, who used which facility, bedroom notes still waiting for their owners, the Monocubs' move counts, a killer hidden until the opening roll, the rolls' records, and the list of sheet writes",
         "preNotes": "The GMs' pre-session notes",
         "stashesFound": "The stashes each student has already found, and every hidden stash open again",
         "projects": "Projects, repairs, and their countdowns",
@@ -6550,7 +6551,7 @@
         "eclipseReach": { "one": "up to {n} connected room", "other": "up to {n} connected rooms" },
         "dailyLife": "Ordinary days inside the school. You have {actions} each time of day to search rooms, work on projects, rest, talk, and prepare. No body has been found yet this chapter, and this is when you decide who you trust.",
         "investigation": "A body has been found. Observe Remnants on the map, Analyze what you collect, and every Truth Bullet you build is one you can present at the trial. What you fail to find, you will not have.",
-        "classTrial": "Everyone is in the room and one of you did it. Testimony, Objections, and finally the vote. Get it right and the killer is punished; get it wrong and everybody else is."
+        "classTrial": "Everyone is in the room, and one of the students did it. Testimony, Objections, and finally the vote. If the class names the killer, the killer is punished; if not, everybody else is."
       },
       "time": {
         "title": "Time of day",

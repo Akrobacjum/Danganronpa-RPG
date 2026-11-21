@@ -19328,7 +19328,8 @@ const REGRESSIONS = [
                 ["localeCalls", 8, 8], ["mirror", 3, 3], ["monokumaVoice", 7, 7], ["naturalnessBefore", 2, 2], ["oxfordComma", 3, 3], ["pairParity", 5, 5], ["patterns", 22, 22], ["pluralForms", 4, 4],
                 ["renderChecks", 7, 7], ["retiredHits", 11, 11], ["ruleNumberWords", 10, 10], ["secondPersonToMany", 6, 6], ["staleTranslations", 1, 1], ["tableWordProblems", 4, 4], ["telegraph", 3, 3], ["uiLiterals", 13, 13]],
             // dashesIn: 2 rows since the needsCode line (R6902) wrote roll-dialog.mjs's minus sign "-".
-            baselines: [["dashesIn", 2], ["familyFormats", 0]],
+            // dashesIn emptied by 1.2.122 line TEXT (STG-60: action-report.mjs's two minus signs written "-")
+            baselines: [["dashesIn", 0], ["familyFormats", 0]],
             notDue: [["glossaryHits", 1, 1], ["retiredHits", 1, 1]],
             problems: [], caught: 2, ledgerBlind: 1, unlexed: ["dashesIn", "familyFormats", "itemQuotes", "lengthOver", "localeCalls", "monokumaVoice", "uiLiterals"],
             schemaStubs: [["glossarySchema", 1], ["budgetsSchema", 1]], pairsStub: 1, goneSeen: [1, 8], marksBlind: 3
@@ -19416,7 +19417,7 @@ const REGRESSIONS = [
         log(`R1059: ${runs.map(r => `${r.name} read ${r.read} found ${r.found.length} beyond its baseline, ${r.matched}/${r.sites} baseline site(s) filled`).join("; ")}; `
             + `en ${lang.en.size} keys, pl ${lang.pl.size}; ${scripts.size} scripts; ${docs.size} handbooks`);
         equal(JSON.stringify(runs.map(r => [r.name, r.read > 0, r.sites, r.found, r.gone])), JSON.stringify([
-            ["pluralForms", true, 0, [], []], ["pairParity", true, 0, [], []], ["familyFormats", true, 0, [], []], ["dashesIn", true, 2, [], []], ["ruleNumberWords", true, 0, [], []], ["colonChains", true, 0, [], []], ["bareLeft", true, 0, [], []], ["uiLiterals", true, 0, [], []],
+            ["pluralForms", true, 0, [], []], ["pairParity", true, 0, [], []], ["familyFormats", true, 0, [], []], ["dashesIn", true, 0, [], []], ["ruleNumberWords", true, 0, [], []], ["colonChains", true, 0, [], []], ["bareLeft", true, 0, [], []], ["uiLiterals", true, 0, [], []],
             ["localeCalls", true, 0, [], []]]),
         "[each FAIL detector that reads only what a table serves: its name, whether it read anything, the baseline sites judged here, "
             + "what it found that its baseline does not hold, the baseline rows nothing filled]");
@@ -23429,7 +23430,8 @@ const REGRESSIONS = [
             "eavesdrop-gm.mjs": {"card": 1}, "eclipse.mjs": {"action": 3, "heading": 1, "line": 3, "message": 3},
             "enforced.mjs": {"line": 2}, "facilities-gm.mjs": {"card": 2}, "fog.mjs": {"line": 1}, "frisk.mjs": {"built": 7, "message": 2},
             "gm-items.mjs": {"action": 1, "heading": 2},
-            "handover.mjs": {"built": 1, "heading": 2, "line": 13, "message": 1},
+            // 1.2.122 line TEXT (TEXT-32): the missing answer key's one send to the owner and the GMs is two, the owner's and the GMs'
+            "handover.mjs": {"built": 1, "heading": 2, "line": 14, "message": 1},
             "inventory.mjs": {"card": 2, "line": 3}, 
             "key-remnants.mjs": {"card": 1, "line": 2}, "level-up.mjs": {"heading": 1, "line": 4},
             // E69 C8 (13.11.2026): the killer's own cards behind the "?" (mask-gm.mjs), its start and its end at the time of day.
@@ -23458,7 +23460,7 @@ const REGRESSIONS = [
             "states.mjs": {"line": 1}, "tables-editor.mjs": {"card": 1}, "tail-gm.mjs": {"line": 3}, "timed-effects.mjs": {"line": 1}, "traps.mjs": {"line": 1},
             "trial-floor-ui.mjs": {"message": 4}, "trial-floor.mjs": {"message": 1},
             "trial-modes.mjs": {"heading": 1, "message": 1}, "trial-progress.mjs": {"line": 2, "message": 1},
-            "trial-scene.mjs": {"built": 1, "line": 10}, "trial-zones.mjs": {"card": 1, "message": 1}, "trial.mjs": {"line": 9, "message": 4},
+            "trial-scene.mjs": {"built": 1, "line": 10}, "trial-zones.mjs": {"card": 1, "message": 1}, "trial.mjs": {"line": 11, "message": 4},
             "truth-bullets.mjs": {"card": 1, "heading": 2}, "use-items.mjs": {"card": 1, "line": 6},
             "user-match.mjs": {"line": 1}, "utils.mjs": {"built": 1}, "vault-store.mjs": {"card": 1, "line": 3, "message": 1},
             "verdict.mjs": {"built": 3, "line": 1, "message": 1}, "voice.mjs": {"card": 1, "line": 1}, "vote.mjs": {"message": 2}, "watch-gm.mjs": {"card": 1, "line": 2}
@@ -26994,6 +26996,265 @@ const REGRESSIONS = [
             `the census read ${read.names.length} guarded flag(s) and ${read.sites.length} write(s) of one - fewer than 19 and 20 on 17.11.2026, so it would measure nothing`);
         log(`R7744: ${read.names.length} guarded flags; ${read.sites.length} bare write(s) of one, ${read.deletions.length} deletion(s) aside (LIVE-E39-17), ${NOT_NOTED.length} row(s)`);
         equal(JSON.stringify([read.unnoted, read.stale]), "[[],[]]", "a bare write of a student's guarded flag does not tell the GMs' audit first, or a NOT_NOTED row names nothing [unnoted, stale]");
+    }],
+
+    ["R8060 - the language files say what the code does (1.2.122 line TEXT; the audit of 1.2.118: CORE-37, CORE-52, ROLL-29, STG-29, STG-33, STG-51, STG-80, STG-86, STG-87, STG-90, STG-91, TEXT-31, TEXT-33, TEXT-34, TEXT-35, TEXT-37, TEXT-38, UI-31): each row reads one key, or every value, of lang/en.json and lang/pl.json and holds it to the fact the finding read off the code", async () => {
+        /*
+         * 1.2.122 line TEXT, 21.11.2026. One row a finding; each is the reading the finding made at its file:line on
+         * 21bf5d18, turned into the words the text must (or must not) hold. They are words, not behaviour: what each
+         * key says was read against its code by hand (the line's report), and a row only keeps the sentence from
+         * drifting back. Red at 21bf5d18: every row.
+         */
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => (r.ok ? r.json() : null));
+        must(lang.en?.DRPG && lang.pl?.DRPG, "lang/en.json or lang/pl.json was not served - this would read nothing");
+        const at = (code, key) => foundry.utils.getProperty(lang[code], key);
+        const all = code => [...flatLang(lang[code])].filter(([, v]) => typeof v === "string");
+        must(all("en").length > 3000 && all("pl").length > 3000, "the language files flatten to too few values - the scans below would read nothing");
+        const ROWS = [
+            // notPaid is told for any step of a price chain (Hope, Sanity) and for a Frisk ask, which has no roll.
+            ["CORE-37", () => !/\baction\b|\broll\b/i.test(at("en", "DRPG.Bridge.why.notPaid")) && !/akcj|rzut/i.test(at("pl", "DRPG.Bridge.why.notPaid"))],
+            // the Polish named the Eclipse's crossings and the English did not; both now say it.
+            ["CORE-52", () => /crossings/.test(at("en", "DRPG.Clock.eclipseStillOn")) && /przejścia/.test(at("pl", "DRPG.Clock.eclipseStillOn"))],
+            // checkRoll records differences both ways; a part the GM counted is no part that "did not count".
+            ["ROLL-29", () => !/did not count/.test(at("en", "DRPG.Rolls.unexpected"))],
+            // voice.mjs `voiceClaim`: with voice per room, a silenced death talks in the Spectators' room.
+            ["STG-29", () => /Spectators/.test(at("en", "DRPG.Class.deadStill")) && /Widzów/.test(at("pl", "DRPG.Class.deadStill"))],
+            // the switch also governs the trial's exit, the case summary and the death fade (sequence.mjs, death-fade.mjs).
+            ["STG-33", () => ["exit", "case summary", "death"].every(w => at("en", "DRPG.Settings.sequences.hint").includes(w))
+                && ["wyjście", "podsumowanie sprawy", "śmierci"].every(w => at("pl", "DRPG.Settings.sequences.hint").includes(w))],
+            // no Eclipse opens in a trial and no trial in an Eclipse since E13 (clock.mjs, eclipse.mjs).
+            ["STG-51", () => !/Eclipse during a trial/.test(at("en", "DRPG.Music.orderNote")) && !/Eclipse w jego trakcie/.test(at("pl", "DRPG.Music.orderNote"))],
+            // dice-look.mjs lays all four kinds; the English named four, the Polish two.
+            ["STG-80", () => /przewag/.test(at("pl", "DRPG.Settings.forceDiceLook.hint")) && /utrudnie/.test(at("pl", "DRPG.Settings.forceDiceLook.hint"))],
+            // the tooltip names the button by the button's own words.
+            ["STG-86", () => ["en", "pl"].every(c => at(c, "DRPG.Tips.Case.notNowTooltip").includes(at(c, "DRPG.CaseRealize.preview")))],
+            // pre-session-note.mjs: the boundaries are the questions on dying, torture, romance and triggers (q2-q5), not "the first four".
+            ["STG-87", () => !/first four/.test(at("en", "DRPG.Note.intro")) && !/cztery/.test(at("pl", "DRPG.Note.intro"))],
+            // the stage the incident goes to is Tamper (E109), as the tracker and the cards say.
+            ["STG-90", () => !/clean-up/.test(at("en", "DRPG.Murder.openSelfNote")) && /Tamper/.test(at("en", "DRPG.Murder.openSelfNote"))
+                && !/sprzątani/.test(at("pl", "DRPG.Murder.openSelfNote")) && /Tamper/.test(at("pl", "DRPG.Murder.openSelfNote"))],
+            // gm-stores.mjs: the "actions" group also cuts facilityUses, bedroomNotes, cubTargets, veils and sheetWrites.
+            ["STG-91", () => [/facilit/i, /bedroom note/, /Monocub/, /opening/, /sheet/].every(re => re.test(at("en", "DRPG.Season.group.actions")))
+                && [/Facilities/, /sypial/, /Monocub/, /otwarcia/, /arkusz/].every(re => re.test(at("pl", "DRPG.Season.group.actions")))],
+            // overflow.mjs `rotEverything` walks every item of the living, stash included.
+            ["TEXT-31", () => /stash/.test(at("en", "DRPG.Overflow.what.rot")) && /skryt/.test(at("pl", "DRPG.Overflow.what.rot"))],
+            // EN7 (DB17): Search Token in its case, the plural too.
+            ["TEXT-33", () => !all("en").some(([, v]) => /(?<![\p{L}])search tokens?(?![\p{L}])/u.test(v))],
+            // EN6 (DB16): one casing per project name; the Passages tab's button "Close the breach" is a verb phrase and stays.
+            ["TEXT-34", () => ["en", "pl"].every(c => !all(c).some(([k, v]) => /Repair an item/.test(v) || (/Close the breach(?! on the Passages tab)/.test(v) && k !== "DRPG.Passage.tab.closeBreach")))],
+            // the glossary declines Truth Bullet and token with -u (DB4).
+            ["TEXT-35", () => !all("pl").some(([, v]) => /Truth Bulleta(?![\p{L}])|(?<![\p{L}])tokena(?![\p{L}])/u.test(v))],
+            // a no-wrap mini button: the Polish no more than twice the English.
+            ["TEXT-37", () => at("pl", "DRPG.Mastermind.lair.lock").length <= 2 * at("en", "DRPG.Mastermind.lair.lock").length],
+            // explain.mjs shows the paragraph to whoever clicks, GM included: no "you" spoken to the class.
+            ["TEXT-38", () => !/one of you|Get it right/.test(at("en", "DRPG.Explain.phase.classTrial")) && !/z was|Trafcie|pomylcie/.test(at("pl", "DRPG.Explain.phase.classTrial"))],
+            // hud.mjs: the roster on the left is gone; the Students window lists each student's actions.
+            ["UI-31", () => ["en", "pl"].every(c => at(c, "DRPG.Hud.stillToActTooltip").includes(at(c, "DRPG.Panel.whoIsAlive")))
+                && !/on the left/.test(at("en", "DRPG.Hud.stillToActTooltip")) && !/po lewej/.test(at("pl", "DRPG.Hud.stillToActTooltip"))]
+        ];
+        const wrong = [];
+        for (const [id, holds] of ROWS) {
+            let fine = false;
+            try { fine = holds() === true; } catch (err) { wrong.push(`${id} (threw: ${err?.message ?? err})`); continue; }
+            if (!fine) wrong.push(id);
+        }
+        equal(JSON.stringify(wrong), "[]", "[the findings whose text still says what the code does not]");
+    }],
+
+    ["R8061 - config.mjs's prose says what its tables do (1.2.122 line TEXT; the audit of 1.2.118: TEXT-20, TEXT-22, TEXT-23, TEXT-25, TEXT-27, STG-64): the Cleaning Tool's hint splits its help as cleanup.mjs does, Palm's briefing names the room, Behind Closed Doors names the ways through, Search speaks of Search Tokens, of Eye unless the GM approves another statistic and of a Cleaning Tool, the usables name their kinds as USABLE_KINDS does, prose nothing reads is gone from config.mjs and lang/pl.json, and no crisis action's failure table carries a critical key", async () => {
+        /*
+         * 1.2.122 line TEXT, 21.11.2026. The English is config.mjs's own (i18n-config.mjs `configEnglish`, the value before a
+         * Polish page swaps it), the Polish lang/pl.json's DRPG.Config twin. TEXT-20: cleanup.mjs arms the tool's advantage on
+         * every Stage 6 key but moveBody (`attemptStageSix`) and takes its tier off only where a row has `toolBonusPerTier`
+         * (`resolveStageSix`), so a Misleading Trail gets advantage and no tier; the hint said the reverse of the trail. TEXT-25:
+         * fields nothing outside config.mjs read (git grep, tests aside). STG-64: a critical is always a success, so a
+         * failure table's critical key is never read (murder-rules.mjs, the failure branch). Red at 21bf5d18: every row.
+         */
+        const C = await import("./config.mjs");
+        const { configEnglish, configProseOf } = await import("./i18n-config.mjs");
+        const langs = {};
+        for (const code of ["en", "pl"]) langs[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => (r.ok ? r.json() : null));
+        const pl = langs.pl;
+        must(pl?.DRPG?.Config && langs.en?.DRPG, "lang/pl.json's DRPG.Config or lang/en.json was not served - this would read nothing");
+        const en = key => configEnglish(key) ?? configProseOf(C, key);
+        const plOf = key => foundry.utils.getProperty(pl, key);
+        const trail = C.CLEANUP.actions?.misleadingTrail, body = C.CLEANUP.actions?.moveBody;
+        must(trail && body, "CLEANUP.actions has no misleadingTrail or moveBody - this would read nothing");
+        const hint = en("DRPG.Config.ITEM_CATEGORIES.cleaningTool.hint") ?? "";
+        const clause = name => hint.split(/[;.]/).find(s => s.includes(name)) ?? "";
+        const ROWS = [
+            // each Stage 6 action named, with a tier only where its row has toolBonusPerTier
+            ["TEXT-20", () => [["Misleading Trail", trail], ["Move the Body", body]].every(([name, row]) => clause(name) !== ""
+                && /tier/i.test(clause(name)) === Boolean(row.toolBonusPerTier))
+                && /Misleading Trail/.test(plOf("DRPG.Config.ITEM_CATEGORIES.cleaningTool.hint"))],
+            // palm.mjs `tellOnlookers`: a noticed take or plant is told to the room - in the briefing's fact line, since the
+            // description is the owner's approved text (docs/dev/text-batch-B01a.json)
+            ["TEXT-22", () => /room/.test(langs.en.DRPG.Action.dcPalm) && /pokoju/.test(langs.pl.DRPG.Action.dcPalm)],
+            // doors-gm.mjs: Force the Door lifts the seal; a finished breach does too
+            ["TEXT-23", () => ["Force the Door", "Breach the Wall"].every(w => en("DRPG.Config.DESPAIR_CALLS.behindClosedDoors.effect").includes(w)
+                && plOf("DRPG.Config.DESPAIR_CALLS.behindClosedDoors.effect").includes(w))],
+            ["TEXT-25", () => C.ACTIONS.analyze.hintFailure === undefined && C.ACTIONS.palm.failure === undefined
+                && C.ACTIONS.palm.unseen?.label === undefined && C.ACTIONS.listen.critical?.result === undefined
+                && C.ACTIONS.listen.thresholds.every(t => t.result === undefined)
+                && ["analyze.hintFailure", "palm.failure", "palm.unseen.label", "listen.critical.result", "listen.thresholds.0.result", "listen.thresholds.1.result"]
+                    .every(k => plOf(`DRPG.Config.ACTIONS.${k}`) === undefined)],
+            // the search's description: the owner's yes of 21.11.2026 (tools/text-render.mjs BATCH_LATER over B01a's after)
+            ["TEXT-27", () => en("DRPG.Config.ACTIONS.search.hint").includes("Search Tokens")
+                && !/^Roll Eye:/.test(en("DRPG.Config.ACTIONS.search.description")) && en("DRPG.Config.ACTIONS.search.description").includes("Cleaning Tool")
+                && plOf("DRPG.Config.ACTIONS.search.description").includes("Narzędzie do sprzątania")
+                && [1, 2, 3].every(n => en(`DRPG.Config.TIER_EFFECTS.usable.${n}`).includes(`(${C.USABLE_KINDS.stress.label})`)
+                    && en(`DRPG.Config.TIER_EFFECTS.usable.${n}`).includes(`(${C.USABLE_KINDS.healing.label})`))],
+            ["STG-64", () => Object.values(C.CRISIS_ACTIONS).every(def => !Object.hasOwn(def.failureRemnant ?? {}, "critical")
+                && !Object.hasOwn(def.failureRemnantReinforced ?? {}, "critical"))]
+        ];
+        const wrong = [];
+        for (const [id, holds] of ROWS) {
+            let fine = false;
+            try { fine = holds() === true; } catch (err) { wrong.push(`${id} (threw: ${err?.message ?? err})`); continue; }
+            if (!fine) wrong.push(id);
+        }
+        equal(JSON.stringify(wrong), "[]", "[the findings whose config prose still says what its tables do not]");
+    }],
+
+    ["R8062 - two GM notes take their numbers from the rule (1.2.122 line TEXT; the audit of 1.2.118: TEXT-30, TEXT-39; text-style O5): DRPG.Investigation.keyDcNote's gap between ordinary evidence and a Key Remnant is {low} to {high}, filled by investigation.mjs from OBSERVE_DC, and DRPG.Vault.stashesNote's Find Stash threshold is {n}, filled by room-setup.mjs from ACTIONS.analyze.stashThreshold", async () => {
+        /*
+         * 1.2.122 line TEXT, 21.11.2026. keyDcNote typed "three to six", and OBSERVE_DC.obvious gives two (dailyLife 8, key
+         * 6); stashesNote typed "16+", equal to stashThreshold today and free to part from it. Each text holds its
+         * placeholder in both languages and no digit, and the call that draws it hands the placeholder in. Red at
+         * 21bf5d18: both texts typed their numbers.
+         */
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => (r.ok ? r.json() : null));
+        must(lang.en?.DRPG && lang.pl?.DRPG, "lang/en.json or lang/pl.json was not served - this would read nothing");
+        const at = (code, key) => foundry.utils.getProperty(lang[code], key) ?? "";
+        const src = async file => fetch(`/modules/${MODULE_ID}/scripts/${file}`, { cache: "no-cache" }).then(lfText);
+        const invest = stripComments(await src("investigation.mjs")), rooms = stripComments(await src("room-setup.mjs"));
+        must(invest.length > 1000 && rooms.length > 1000, "investigation.mjs or room-setup.mjs did not load - this reads nothing");
+        const wrong = [];
+        for (const c of ["en", "pl"]) {
+            const dc = at(c, "DRPG.Investigation.keyDcNote"), stash = at(c, "DRPG.Vault.stashesNote");
+            if (!dc.includes("{low}") || !dc.includes("{high}") || /three to six|trzy do sześciu/.test(dc)) wrong.push(`${c} keyDcNote`);
+            if (!stash.includes("{n}+") || /\d/.test(stash)) wrong.push(`${c} stashesNote`);
+        }
+        const dcCall = bodyOf(invest, `"DRPG.Investigation.keyDcNote"`, { length: 700 });
+        if (!/\bordinaryGap\(\)/.test(dcCall)) wrong.push("investigation.mjs hands keyDcNote no ordinaryGap()");
+        const I = await import("./investigation.mjs");
+        if (typeof I.ordinaryGap !== "function" || JSON.stringify(I.ordinaryGap({ a: { key: 5, x: 9, y: 6 }, b: { key: 10, x: 13 } })) !== JSON.stringify({ low: 1, high: 4 })) {
+            wrong.push("investigation.mjs `ordinaryGap` does not read a planted table's gaps (1 to 4)");
+        }
+        const stashCall = bodyOf(rooms, `"DRPG.Vault.stashesNote"`, { back: 40 }) + bodyOf(rooms, `"DRPG.Vault.stashesNote"`, { length: 160 });
+        if (!/game\.i18n\.format\(\s*"DRPG\.Vault\.stashesNote"/.test(stashCall) || !/stashThreshold/.test(stashCall)) wrong.push("room-setup.mjs hands stashesNote no stashThreshold");
+        equal(JSON.stringify(wrong), "[]", "[the notes that type a number the rule holds, or the calls that do not fill it]");
+
+    }],
+
+    ["R8063 - a player is not handed the GM's restore path (1.2.122 line TEXT; the audit of 1.2.118: TEXT-32; text-style O19, T29): DRPG.Handover.answerKeyMissing names no GM window in either language, DRPG.Handover.answerKeyMissingGm carries the path, and handover.mjs and trial.mjs send the first to the owner alone and the second to the GMs", async () => {
+        /*
+         * 1.2.122 line TEXT, 21.11.2026. Both senders used whisperToOwner, which also copies the GMs: one sentence for two
+         * readers, so the player read "GM panel, Diagnostics, The case: Restore from a file". Now two sends: the owner's
+         * (whisperToOwnerOnly) says what happened, the GMs' (whisperToGms) says what happened and how to restore it. Red
+         * at 21bf5d18: one key with the path, and no answerKeyMissingGm.
+         */
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => (r.ok ? r.json() : null));
+        must(lang.en?.DRPG && lang.pl?.DRPG, "lang/en.json or lang/pl.json was not served - this would read nothing");
+        const wrong = [];
+        for (const [c, path] of [["en", /GM panel|Diagnostics/], ["pl", /panel GM|Diagnostyk/]]) {
+            const player = lang[c].DRPG.Handover?.answerKeyMissing ?? "", gm = lang[c].DRPG.Handover?.answerKeyMissingGm ?? "";
+            if (!player || path.test(player)) wrong.push(`${c}: the player's sentence names the GM's path`);
+            if (!path.test(gm)) wrong.push(`${c}: the GMs' sentence names no path`);
+        }
+        for (const file of ["handover.mjs", "trial.mjs"]) {
+            const code = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`, { cache: "no-cache" }).then(lfText));
+            must(code.length > 1000, `${file} did not load - this reads nothing`);
+            const sends = [...new Set([...code.matchAll(/(whisperTo\w+)\([^;]*?"DRPG\.Handover\.(answerKeyMissing\w*)"/g)].map(m => `${m[1]} ${m[2]}`))];
+            if (JSON.stringify(sends.sort()) !== JSON.stringify(["whisperToGms answerKeyMissingGm", "whisperToOwnerOnly answerKeyMissing"])) wrong.push(`${file}: ${JSON.stringify(sends)}`);
+        }
+        equal(JSON.stringify(wrong), "[]", "[what still hands a player the GM's procedure]");
+    }],
+
+    ["R8064 - three tooltips are back under the tooltip limit (1.2.122 line TEXT; the audit of 1.2.118: TEXT-36; docs/text-budgets.json, tooltip limit 23 words): DRPG.Project.everyone, DRPG.Monocub.silencedNote and DRPG.Vault.neighboursHint, in English and in Polish, as tests-text.mjs `wordCount` counts", async () => {
+        /* 1.2.122 line TEXT, 21.11.2026. Read 43/41, 34/26 and 19/25 words on 21bf5d18 (the finding's count, this test's red). */
+        const T = await import("./tests-text.mjs");
+        const budgets = await fetch(`/modules/${MODULE_ID}/docs/text-budgets.json`, { cache: "no-cache" }).then(r => (r.ok ? r.json() : null)).catch(() => null);
+        needs(env.tools(), "docs/text-budgets.json is read from the repository (an installed module's zip leaves docs/ out)");
+        const limit = budgets?.surfaces?.tooltip?.limit;
+        must(Number.isFinite(limit), "docs/text-budgets.json names no tooltip limit - this reads nothing");
+        const over = [];
+        for (const code of ["en", "pl"]) {
+            const json = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => r.json());
+            for (const key of ["DRPG.Project.everyone", "DRPG.Monocub.silencedNote", "DRPG.Vault.neighboursHint"]) {
+                const text = foundry.utils.getProperty(json, key);
+                must(typeof text === "string", `${code} ${key} is missing`);
+                const n = T.wordCount(text);
+                if (n > limit) over.push(`${code} ${key} ${n}`);
+            }
+        }
+        equal(JSON.stringify(over), "[]", `[the tooltips over ${limit} words]`);
+    }],
+
+    ["R8065 - the text lint reads two things it missed (1.2.122 line TEXT; the audit of 1.2.118: TEXT-33, STG-60, STG-87): T8's otherCase finds a countable term's plural and inflected forms in another case (\"search tokens\", \"search tokenów\") and not the term's own, and a baseline row whose emptying stage has shipped is named by tests-text.mjs `shippedBaselineRows`, which tools/check.mjs reads; T6's baseline holds no row today", async () => {
+        /*
+         * 1.2.122 line TEXT, 21.11.2026. TEXT-33: `glossaryHits` matched the term as a whole word, so the plural ("search
+         * tokens") was never read, and two English texts kept the lower case. STG-60 and STG-87: T6's two U+2212 rows said
+         * E25 would empty them after E25 shipped (1.2.113), and nothing read a row's stage. Planted here, on a bag of one
+         * entry and one row, and on the real baseline. Red at 21bf5d18: the plural not found, and no shippedBaselineRows.
+         */
+        const T = await import("./tests-text.mjs");
+        const entry = { id: "fx-token", en: "Search Token", pl: "Search Token", stage: "E00", source: ["FX"],
+            declension: { countable: true, gen: "Search Tokenu" },
+            forbidden: { en: { variants: [], scope: ["ui"], otherCase: true }, pl: { variants: [], scope: ["ui"], otherCase: true } } };
+        const bag = { glossary: { entries: [entry] }, shipped: ["E00"],
+            en: { "DRPG.A": "Spends one of its search tokens.", "DRPG.B": "Search Tokens: 2 left.", "DRPG.C": "A Search Token." },
+            pl: { "DRPG.A": "Brak search tokenów.", "DRPG.B": "Wydaje jeden z jego Search Tokenów." } };
+        const found = T.glossaryHits(bag).found.map(f => f.key).sort();
+        equal(JSON.stringify(found), JSON.stringify(["fx-token@DRPG.A", "fx-token@DRPG.A"]), "[the planted lower-case plural in each language, and nothing else]");
+        must(typeof T.shippedBaselineRows === "function", "tests-text.mjs exports no shippedBaselineRows - a row past its stage stays green");
+        const planted = T.shippedBaselineRows({ dashesIn: [{ file: "fx/a.mjs", quote: "x", issue: "S00-01", empties: "E01" }, { file: "fx/b.mjs", quote: "y", issue: "S00-02", empties: "E99" }] }, ["E01"]);
+        equal(JSON.stringify(planted.map(r => r.file)), JSON.stringify(["fx/a.mjs"]), "[the planted row whose stage has shipped]");
+        equal(JSON.stringify(TEXT_BASELINES.dashesIn ?? null), "[]", "T6's baseline still holds a row (action-report.mjs's two minus signs)");
+    }],
+
+    ["R8066 - a repeated key in an object literal is a lint error (1.2.122 line TEXT; the audit of 1.2.118: DOC-03): eslint.config.mjs turns `no-dupe-keys` on as an error for the module's scripts", async () => {
+        /* 1.2.122 line TEXT, 21.11.2026. A1's class of defect, a key written twice so the first value is dead, had no guard;
+           measured on 21bf5d18 with `npm run lint` and the rule on: 0 repeated keys in scripts/, so it holds today. */
+        needs(env.tools(), "eslint.config.mjs is read from the repository (an installed module's zip leaves it out)");
+        const text = await fetch(`/modules/${MODULE_ID}/eslint.config.mjs`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""));
+        must(text.length > 200, "eslint.config.mjs was not served - this reads nothing");
+        ok(/["']no-dupe-keys["']\s*:\s*["']error["']/.test(stripComments(text)), "eslint.config.mjs does not set no-dupe-keys to error");
+    }],
+
+    ["R8067 - the Document language setting promises only what goes through it (1.2.122 line TEXT; the audit of 1.2.118: STG-28): while vault-store.mjs `grantBedroomKey` names a key with game.i18n, the setting's hint says in both languages that a bedroom key's name is not in the document language", async () => {
+        /*
+         * 1.2.122 line TEXT, 21.11.2026. utils.mjs `worldLocalize` (the setting's one road) is called by inventory.mjs
+         * alone: a usable's tier line. A bedroom key, a Truth Bullet taken from a body and the project token are named in
+         * the language of the GM's page that writes them. The hint said "the documents the module writes into this world,
+         * one for everyone". The row ties the hint to the code: once grantBedroomKey goes through worldLocalize, its
+         * exception in the hint is the stale half. Red at 21bf5d18: the hint named no exception.
+         */
+        const code = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/vault-store.mjs`, { cache: "no-cache" }).then(lfText));
+        const grant = fnSource(code, "grantKeyNow");
+        must(/"DRPG\.Vault\.keyName"/.test(grant), "vault-store.mjs `grantKeyNow` (grantBedroomKey's step) names no DRPG.Vault.keyName - this reads nothing");
+        const byPage = /game\.i18n\.format\(\s*"DRPG\.Vault\.keyName"/.test(grant);
+        const lang = {};
+        for (const c of ["en", "pl"]) lang[c] = await fetch(`/modules/${MODULE_ID}/lang/${c}.json`, { cache: "no-cache" }).then(r => r.json());
+        const hints = [lang.en.DRPG.Settings.documentLanguage.hint, lang.pl.DRPG.Settings.documentLanguage.hint];
+        const named = [/bedroom key/.test(hints[0]), /klucz/.test(hints[1])];
+        equal(JSON.stringify(named), JSON.stringify([byPage, byPage]), `the hint ${byPage ? "does not say" : "still says"} that a bedroom key's name is outside the document language [en, pl]`);
+    }],
+
+    ["R8068 - the style guide waits on no shipped stage (1.2.122 line TEXT; the audit of 1.2.118: STG-59): no rule's status in docs/text-style.md says \"to confirm in E<nn>\" for a stage tools/stages.json says has shipped", async () => {
+        /* 1.2.122 line TEXT, 21.11.2026. E71 shipped in 1.2.113; 30 lines still said "to confirm in E71 (row 1.2.113)" on
+           21bf5d18 (the red). E71's outcomes are its STATUS.md's table; the guide now says each. */
+        needs(env.tools(), "docs/text-style.md and tools/stages.json are read from the repository");
+        const { stageLedger } = await import("./tests-kit.mjs");
+        const ledger = await stageLedger();
+        must(ledger && ledger.size > 50, "tools/stages.json was not served - this reads nothing");
+        const text = await fetch(`/modules/${MODULE_ID}/docs/text-style.md`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""));
+        must(text.length > 10000, "docs/text-style.md was not served - this reads nothing");
+        const due = text.split("\n").map((l, i) => [i + 1, l.match(/to confirm in (E\d\d)/)?.[1]]).filter(([, id]) => id && ledger.get(id)?.done);
+        equal(JSON.stringify(due.map(([n, id]) => `${n}:${id}`)), "[]", "[the lines whose status waits on a stage that has shipped]");
     }],
 ];
 

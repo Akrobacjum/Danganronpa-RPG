@@ -616,7 +616,13 @@ export const BATCH_LATER = Object.freeze(Object.fromEntries([
     // owner, having checked that a project's action has no roll, kept the texts that say so.
     ...["DRPG.Config.ACTIONS.rest.hint", "DRPG.Config.ACTIONS.rest.description"].map(key => [key, Object.freeze({ by: "F118",
         date: "18.11.2026", page: "F118 Facilities shots", card: "Facilities tile",
-        text: "Zostawmy jak jest w takim razie. I uwzglednijmy to w opisie kafla facilities" })])
+        text: "Zostawmy jak jest w takim razie. I uwzglednijmy to w opisie kafla facilities" })]),
+    // 1.2.122 line TEXT, 21.11.2026: the owner's yes through the coordinator to the audit of 1.2.118, TEXT-27 - Search's
+    // description says Eye unless the GM approves another statistic (the action lists six, Eye the default), and writes
+    // the category's name "Cleaning Tool" (PL „Narzędzie do sprzątania”), where B01a's approved after said "Roll Eye:" and
+    // "a cleaning tool".
+    ["DRPG.Config.ACTIONS.search.description", Object.freeze({ by: "1.2.122 TEXT", date: "21.11.2026", page: "audit-118 TEXT-27",
+        card: "Search description", text: "the owner said yes to TEXT-27's Search description (21.11)" })]
 ]));
 /* The pilot's approved after with the owner's amendments of B01A_AMENDED applied, or null when a row's words are not
    found exactly once in it (the pilot's after moved: the row no longer says what it replaces). */

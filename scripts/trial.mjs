@@ -50,7 +50,7 @@ import { SETTINGS, isMutedDead } from "./settings.mjs";
 import { truthBulletData, isTruthBullet, bulletDescription, bulletAsHeld, unanalysedType, secretOf } from "./truth-bullets.mjs";
 import { showPopup, OVERRULED_FLAG, overruledStamp } from "./popup.mjs";
 import { announce, isPrimaryGm, log, error,
-    whisperToOwner, serialWrite, serverNow, esc, localeFormat, plural } from "./utils.mjs";
+    whisperToOwner, whisperToOwnerOnly, whisperToGms, serialWrite, serverNow, esc, localeFormat, plural } from "./utils.mjs";
 import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
 // The price of an interruption, quoted where it is about to be shown (T-1).
 import { quotePrice, priceLine, payPrice, refundPrice, paidLine, priceLabel } from "./price.mjs";
@@ -401,7 +401,9 @@ export async function presentOnPrimary({ actorId, itemId, comment = "", analysis
         const notOpen = await answerKeysRefusal();
         if (notOpen) return { refused: notOpen };
         if (!secretOf(item.uuid).realType) {
-            await whisperToOwner(actor, `<p>${esc(game.i18n.format("DRPG.Handover.answerKeyMissing", { name: data.name }))}</p>`);
+            // the player what happened, the GMs how to restore it (1.2.122 line TEXT, TEXT-32; handover.mjs's two sends)
+            await whisperToOwnerOnly(actor, `<p>${esc(game.i18n.format("DRPG.Handover.answerKeyMissing", { name: data.name }))}</p>`);
+            await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Handover.answerKeyMissingGm", { name: data.name }))}</p>`);
             return { refused: "the answer key for that bullet is not on this GM's browser" };
         }
 
@@ -442,7 +444,9 @@ export async function presentOnPrimary({ actorId, itemId, comment = "", analysis
             await whisperToOwner(to, `<p>${esc(game.i18n.format("DRPG.Trial.presentCopy", { who: actor.name, name: data.name }))}</p>`);
         }
         if (noKey) {
-            await whisperToOwner(actor, `<p>${esc(game.i18n.format("DRPG.Handover.answerKeyMissing", { name: data.name }))}</p>`);
+            // the player what happened, the GMs how to restore it (1.2.122 line TEXT, TEXT-32; handover.mjs's two sends)
+            await whisperToOwnerOnly(actor, `<p>${esc(game.i18n.format("DRPG.Handover.answerKeyMissing", { name: data.name }))}</p>`);
+            await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Handover.answerKeyMissingGm", { name: data.name }))}</p>`);
         }
         log(`${actor.name} presented "${data.name}"${shown ? "" : " without its analysis"}; ${copies} cop${copies === 1 ? "y" : "ies"} handed out.`);
         return { reply: { item: data.name, copies } };

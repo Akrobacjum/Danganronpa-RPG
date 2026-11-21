@@ -583,10 +583,12 @@ function field(className, label, value, tooltipKey, spent) {
  * The table's numbers, for an account with no character of its own.
  *
  * The same question a player asks - "is there anything left to spend?" - from
- * the other side of the screen. Deliberately WITHOUT names: the roster panel
- * top left already spells out who is who, one row per student, and two widgets
+ * the other side of the screen. Deliberately WITHOUT names: two widgets
  * competing to list the same people in two corners is how this one came to be
- * deleted the first time. This is the glance; the roster is the answer.
+ * deleted the first time. This is the glance; the answer is the Students window
+ * (gm-students.mjs, a row per student with their actions left), which the
+ * tooltip names - the roster panel top left it used to point at is gone (hud.mjs,
+ * "THE ROSTER IS GONE"; 1.2.122 line TEXT, the audit of 1.2.118 UI-31).
  *
  * "Still to act", not "Actions". The label is the whole fix.
  *
