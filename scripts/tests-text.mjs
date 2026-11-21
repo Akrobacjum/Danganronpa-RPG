@@ -2350,6 +2350,7 @@ export const UI_LITERAL_ALLOW = Object.freeze({
     "scripts/gm-panel.mjs openFailureLog": { n: 1, why: "the header line of the error log a GM copies to paste to whoever debugs it, English as the console it copies" },
     "scripts/enforced.mjs FOUNDRY_WRITES": { n: 2, why: "a reach's fallback, English for the console and the author's report (patches.mjs header); the table reads DRPG.Contract.instead.<id>" },
     "scripts/season-wipe.mjs wipeSeason": { n: 1, why: "runSteps' label, written only into steps.mjs's error() lines" },
+    "scripts/traps.mjs diagnoseTraps": { n: 3, why: "console only: game.drpg.diagnoseTraps()'s answer to a player's console, where the plants, the ledger and the armed items are the GMs' (1.2.122: the file draws a toast since CTRL-62, so T13 reads it)" },
     "scripts/projects-map.mjs PROJECT_ACTOR": { n: 1, why: "the name the module gives its own actor and finds it again by (line 128 compares it); a translated name would not be found in a world opened in another language" },
     /* E57 T13 group 3 (14.11.2026), its slice's rows; the reconcile of the three T13 lines took out gmsRefusal, sentBackRefusal,
        passageRowsRefusal, ballotRefusal and drawCorpseCaption and three of auditMove's, which the reason and font-list rules now read. */

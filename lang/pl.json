@@ -7436,6 +7436,8 @@
       "rearm": "Uzbrój pułapkę ponownie",
       "rearmed": "Pułapka znów czuwa.",
       "plantTitle": "Przedmiot pułapki",
+      "plantNeedsName": "Najpierw nazwij przedmiot. Pułapka nadal na niego czeka.",
+      "plantNeedsRoom": "Najpierw wybierz pokój. Pułapka nadal czeka na przedmiot.",
       "plantPrompt": "Wpisz przedmiot, który jest pułapką, i wybierz pokój, w którym czeka. Wyciągnie go pierwszy udany Search w tym pokoju. Kto go użyje, uruchomi pułapkę, a ty zdecydujesz, co dalej.",
       "plantItem": "Co to jest",
       "plantRoom": "Gdzie czeka",

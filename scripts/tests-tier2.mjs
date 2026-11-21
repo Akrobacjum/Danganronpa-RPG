@@ -104075,6 +104075,53 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             carried: ["SUITE 122 typed and refused", true] }),
             "{names: the three tables after the Rename; removed: [entries, the list's count] after a Remove; outside: the same after an entry made elsewhere; carried: [the description, the tick] of the form that came back} - the window keeps the tables' family, counts and the typed form true");
     }],
+    ["1.2.122 CTRL-62 - the trap's Plant waits for a name: drawn, its Plant is shut until the item's name is typed, and an answer that comes with no name all the same is told to the GM, the card left waiting (scripts/traps.mjs `openPlantDialog`; the audit's CTRL-62, 1.2.122 line WORLD)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line WORLD. The audit's CTRL-62 (controls-06-items-sheet-7): Plant was never held off, and an
+         * answer with an empty name closed the window with no word. Driven: a project of the test's own; the window drawn
+         * on this GM, its button read, the name typed as a hand types it (`input`); then the window answered as Enter
+         * would answer it with the field empty (`withFormAnswered`, the default button's callback), the warnings caught.
+         * Put back: the windows, the project. Red at 21bf5d18: the button stood open and nothing was said.
+         */
+        needs(env.dialogs(), "the plant window is drawn and its button read");
+        const P = await import("./projects.mjs");
+        const T = await import("./traps.mjs");
+        const R = await import("./rooms.mjs");
+        const school = R.homeScene();
+        const ROOM = school ? R.roomNames(school)[0] ?? null : null;
+        must(ROOM, "no scene holds a room - a project has nowhere to be");
+        const title = game.i18n.localize("DRPG.Trap.plantTitle");
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.element && a.options?.window?.title === title) ?? null;
+        const warned = [];
+        const ownWarn = ui.notifications.warn;
+        const read = {};
+        let id = null, pending = null;
+        try {
+            id = (await P.createProject({ name: "SUITE 1.2.122 CTRL-62 a Trap", target: 6, room: ROOM }))?.id ?? null;
+            must(id, "could not create a project - this would measure nothing");
+            pending = T.openPlantDialog(id);
+            must(await until(() => Boolean(drawn()), 8000), "the plant window did not draw");
+            const el = drawn().element;
+            const button = el.querySelector('footer button[data-action="plant"]'), field = el.querySelector('input[name="name"]');
+            must(button && field, "the window has no Plant or no name field");
+            read.empty = button.disabled;
+            field.value = "SUITE a kit";
+            field.dispatchEvent(new Event("input", { bubbles: true }));
+            read.typed = button.disabled;
+            await drawn().close();
+            await Promise.race([pending, wait(3000)]);
+            ui.notifications.warn = (msg, ...rest) => { warned.push(String(msg)); return ownWarn.call(ui.notifications, msg, ...rest); };
+            await withFormAnswered(() => true, () => T.openPlantDialog(id));
+            read.told = warned.includes(game.i18n.localize("DRPG.Trap.plantNeedsName"));
+        } finally {
+            ui.notifications.warn = ownWarn;
+            if (drawn()) await drawn().close();
+            if (id) await P.deleteProject(id);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ empty: true, typed: false, told: true }),
+            "{empty, typed: Plant shut before and after a name was typed; told: the GM warned of an answer with no name} - Plant waits for the item's name");
+    }],
     ["PV-DOORS-T1 - the people in the character's own room always see who works its doors, and everyone behind a barricade hears a knock (scripts/doors-gm.mjs `shutDoor`, `forceDoor`, `pickLock`, `knockDoor`; the owner's rules #8 and #9, 13.11.2026): Shut the Door, a Force missed with Hope and a Pick whose Shadow cover passed each send the other student in the character's room a card naming the character, and nobody in the room beyond one; a Pick whose cover failed and a Force missed with Despair tell both rooms, as before; a walk refused at a barricade is heard by everyone in the barricaded room - its author and the student beside them - and never by the walker", async () => {
         /*
          * Privacy line 1 (doors), 13.11.2026. Judged as the primary judges the player's packets (`G.judge`), each roll a

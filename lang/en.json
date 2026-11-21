@@ -6872,6 +6872,8 @@
       "rearm": "Rearm the trap",
       "rearmed": "The trap is watching again.",
       "plantTitle": "The trap's item",
+      "plantNeedsName": "Name the item first. The trap is still waiting for it.",
+      "plantNeedsRoom": "Choose the room first. The trap is still waiting for its item.",
       "plantPrompt": "Name the item that is the trap, and pick the room where it waits. The next Search there that finds something turns it up. Whoever uses it sets off the trap, and you decide what follows.",
       "plantItem": "What it is",
       "plantRoom": "Where it waits",
