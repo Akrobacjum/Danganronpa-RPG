@@ -106,7 +106,7 @@ export const open = (repoUrl, w) => `
     for (const a of [...foundry.applications.instances.values()]) if (!rest.has(a.id)) { try { await a.close(); } catch {} }
     const P = globalThis.__probe42 = { before: new Set(foundry.applications.instances.keys()),
         keep: { windows: globalThis.__dialogWindows, answers: [...globalThis.__dialogAnswers] },
-        answered: "pending", threw: null, app: null, clicks: new Set(), consoleErrors: [] };
+        answered: "pending", threw: null, app: null, clicks: new WeakSet(), consoleErrors: [] };
     globalThis.__dialogWindows = true;
     globalThis.__dialogAnswers.length = 0;
     const ET = document.defaultView.EventTarget.prototype;

@@ -107014,6 +107014,70 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(seen), stableJson({ askWrote: false, askLogged: 0, paidWrote: true, cardsFirst: 1, cardsAfterReroll: 1, sameCardNewNumber: true, lostChosenAgain: true }),
             "{askWrote, askLogged: a row in the GMs' store and log lines after the unpaid ask; paidWrote: the row after the paid resolve; cardsFirst, cardsAfterReroll: cards posted; sameCardNewNumber: the first card carries the Reroll's 7; lostChosenAgain: a key the memory lost resolved to a row}");
     }],
+    ["1.2.122 probe 43 - the Map's problem count follows a Remnant renamed and deleted under a deduction resting on it, with \"All open\" on and off, as a Map opened fresh counts it (investigation.mjs `caseMapRegion`, `CASE_WATCH`; the auditor's probe 43 on 1.2.121)", async () => {
+        /*
+         * Line INVEST of 1.2.122. A Remnant of the suite's own placed; a deduction of the suite's own resting on that
+         * Remnant alone, once for each drawing ("All open" on, then off); for each change - the Remnant renamed, then deleted -
+         * the standing Map's "Problems: n" read after the redraw, the window closed and opened again on the same world and
+         * read again. The two must agree, and the deletion must show (the deduction then rests on nothing).
+         * Not red at 8de67faf (this line's head over 21bf5d18), measured; red when the Map hears neither the token's
+         * deletion nor the Remnants' store (both roads cut: a mutant, 21.11.2026; one alone still redraws). Probe 43's
+         * "stale" problem counts on the five Map views
+         * (probe-43-121.json, the change `trace`) come from its own fresh reading - its reopen runs probe 08's seed
+         * again, and SEED_CASE picks the deductions' inputs out of the evidence as it then stands (`ev.slice(1, 3)`), so
+         * the window opened fresh draws another case than the one that stood. A probe that reopens without the seed reads
+         * every view live (a scratch probe, 21.11.2026: the five views x a Remnant placed, then
+         * renamed and deleted - the window's words, fields and controls equal to a seedless reopen's). This test holds what
+         * that run read.
+         */
+        const S = await import("./case-schema.mjs");
+        const Rm = await import("./remnants.mjs");
+        const I = await import("./investigation.mjs");
+        needs(env.dialogs(), "the Map is read on its drawn window");
+        const chapter = I.keyPlan().chapter, id = "suite122p43";
+        const count = root => Number(root?.textContent.match(/Problems: (\d+)/)?.[1] ?? 0);
+        const seen = [];
+        let token = null, win = null;
+        try {
+            for (const allOpen of [true, false]) {
+                token = await Rm.placeRemnant({ type: "prep", visibility: "evident", x: 0, y: 0, scene: canvas.scene, chapter, note: "suite 122 probe 43" });
+                must(token, "no Remnant was placed - this would measure nothing");
+                await Rm.setRemnantPublic(token, { name: "SUITE 122 p43 trace", playerText: "A suite's trace." });
+                const ev = S.caseGraph(chapter).nodes.find(n => n.evidence && n.label === "SUITE 122 p43 trace");
+                must(ev, "the Remnant is no node of the case - this would measure nothing");
+                await S.setCaseNode(chapter, id, { kind: "deduction", label: "SUITE 122 p43 deduction", inputs: [ev.id] });
+                await gmStoresIdle();
+                const steps = [["renamed", () => Rm.setRemnantPublic(token, { name: "SUITE 122 p43 trace", playerText: "Renamed." })],
+                    ["deleted", async () => { await Rm.dropRemnantSecret(token).catch(() => {}); await token.delete(); token = null; }]];
+                for (const [what, change] of steps) {
+                    win = await drawnCaseWindow({ view: "map", allOpen });
+                    await settle();
+                    const before = count(win.app?.element);
+                    const was = win.app?.element?.querySelector(".drpg-case-live");
+                    await change();
+                    await until(() => win.app.element.querySelector(".drpg-case-live") !== was || null, 3000).catch(() => {});
+                    await settle();
+                    const live = count(win.app?.element);
+                    await win.close(); win = null;
+                    win = await drawnCaseWindow({ view: "map", allOpen });
+                    await settle();
+                    const fresh = count(win.app?.element);
+                    await win.close(); win = null;
+                    seen.push({ allOpen, what, before, live, fresh });
+                }
+                await S.dropCaseNode(chapter, id);
+                await gmStoresIdle();
+            }
+        } finally {
+            if (win) await win.close().catch(() => {});
+            await S.dropCaseNode(chapter, id).catch(() => {});
+            if (token) { await Rm.dropRemnantSecret(token).catch(() => {}); await token.delete().catch(() => {}); }
+            await gmStoresIdle();
+        }
+        must(seen.length === 4, "a reading is missing - this would measure less than it says");
+        equal(stableJson(seen.map(s => ({ ...s, followed: s.live === s.fresh }))), stableJson(seen.map(s => ({ ...s, followed: true }))), "a standing Map counts the problems a Map opened fresh counts");
+        equal(stableJson(seen.filter(s => s.what === "deleted").map(s => s.live - s.before)), stableJson([1, 1]), "the Remnant deleted under the deduction did not add its problem on the standing Map, in each drawing");
+    }],
     ["a planned Truth Bullet removed from the planner takes its links with it: the deductions that rested on it no longer name it, the counter refuting one of them keeps its target, and the case's check names nothing missing (case-schema.mjs `dropCaseNode`, `refsCut`; the owner, 19.11.2026: \"Przyjmujemy ze usuniecie bulleta usuwa tez jego polaczenia\"; the line claude/plan-119)", async () => {
         /*
          * A planned bullet, two deductions resting on it and a counter refuting the first, written in this chapter; the bullet
