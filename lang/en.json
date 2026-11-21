@@ -2950,6 +2950,7 @@
       "thirdEscapedAlone": "{name} gets out alone and leaves the incident. The victim stays.",
       "openingYours": "This opening roll is yours, and you cannot skip it. If you close the window, it opens again, and after a few refusals the GMs are told.",
       "openingRequired": "You cannot skip this roll. Roll it.",
+      "openingNoCopy": "{name}'s opening roll could not open: their browser has no copy of the incident yet. Press Ask for the opening roll again on the Incident tracker.",
       "openingDeclined": "{name} did not make the opening roll, and nobody can skip it. Press Ask for the opening roll again on the Incident tracker, or end the incident.",
       "openingRemnantNote": "{name} sensed the attempt ({band}). Something of the struggle was left to notice.",
       "leftRemnants": {
@@ -3662,6 +3663,8 @@
       "pickGone": "Nobody is waiting on this Observe anymore: its player stopped waiting, its time ran out, or another GM answered it first.",
       "tiedFlag": "tied to the crime",
       "describeTitle": "Observe: what the student sees",
+      "describeRecovered": "{actor}'s find in {room} waited on a describe window that a reload closed. It went out under its prefilled name, with no words: add them in the Investigation window.",
+      "describeWaiting": "{actor}'s find in {room} waits for its words on {gm}'s screen.",
       "describeTimedOut": "Nobody answered the window in time, so {actor}'s find went out under the name “{name}”, with no words. Add its words in the Investigation window.",
       "describeIntro": "{actor} found something in {room}. Name it as they would, and say what they see.",
       "critPrompt": "On a critical, the student also learns the Remnant's category and earns a substantial hint: write the hint below.",

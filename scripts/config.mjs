@@ -374,6 +374,9 @@ export const TIMING = {
     putBackWaitMs: 1500,
     /** A GM's ruling on a request (a Dynamic threshold, an Observe target, a sabotage's result). */
     rulingMs: 180000,
+    /** A player's opening-roll invitation that came before the player's copy of the incident waits this long for it (line
+     *  INVEST of 1.2.122; murder-rules.mjs `throwOpeningRoll`). A few of the copy's round trips; not measured at a table. */
+    openingCopyWaitMs: 5000,
     /**
      * The primary GM's answer to another GM's change of a project (E36 fix e1-G4; gm-bridge.mjs `project.change`):
      * one step of the queue and its after-steps, no person deciding, so far under a ruling's clock. A burst of

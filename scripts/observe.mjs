@@ -30,13 +30,13 @@ import { createTruthBullet, copiedRemnants, dropSecret } from "./truth-bullets.m
 import { trustedWrite } from "./resource-guard.mjs";
 import { resourceValue } from "./character.mjs";
 import {
-    whisperToOwner, whisperToGms, ownerOf, ownerIdsOf, log, warn, error, debug, serialWrite
+    whisperToOwner, whisperToGms, ownerOf, ownerIdsOf, log, warn, error, debug, serialWrite, isPrimaryGm, activeGmIds
 } from "./utils.mjs";
 // The store the declarations are written through (ACT-08). settings.mjs imports
 // config.mjs and nothing else, so this closes no cycle.
 import { SETTINGS } from "./settings.mjs";
 import { observeStore } from "./gm-stores.mjs";
-import { stableJson } from "./gm-store.mjs";
+import { stableJson, onGmStoresHydrated, gmStoresQuiet } from "./gm-store.mjs";
 import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
 
 
@@ -75,15 +75,14 @@ export const DECLARATIONS = {
  * browser - a local GM store since E04 (1.2.63, gm-stores.mjs `observeStore`), a
  * section per world, which this Map is filled from and written through to.
  *
- * WHAT THIS DOES NOT DO, said plainly: it does not reach a SECOND GM. Both halves
- * of the round trip are handled by whoever `primaryGmId()` names at that moment,
- * and that can change - a GM joining with a lower-sorted id, the primary
- * disconnecting, a reload - so a declaration minted on one GM's browser can be
- * asked of another's. The GM store could carry it now - every other GM-only store is
- * exchanged between the GMs since E04 - but this one was kept local (`sync: false`,
- * E04 C7: both halves of the round trip usually go through one GM), and syncing it
- * is a change nobody has made yet. The road that cannot answer says so on both
- * screens, which is the half that matters at the table.
+ * AND IT REACHES THE OTHER GMs (line INVEST of 1.2.122; the audit's CASE-LC3 of
+ * 1.2.42). Both halves of the round trip are handled by whoever `primaryGmId()`
+ * names at that moment, and that can change - a GM joining with a lower-sorted id,
+ * the primary disconnecting, a reload - so a declaration minted on one GM's browser
+ * can be asked of another's. The store was kept local until this line (`sync:
+ * false`, E04 C7), and a new primary then held no row; it is exchanged between the
+ * GMs now, as every other GM-only store (scenario 62 Q). A row still missing - an
+ * hour gone, or a GM who never received it - is said on both screens.
  */
 const pending = new Map();
 const PENDING_TTL_MS = TIMING.pendingObserveTtlMs;
@@ -854,7 +853,18 @@ async function scoreObserve(actor, entry, key, { total, isCritical, undo, rollId
 
     const success = isCritical || total >= entry.dc;
 
-    const item = success ? await createFind(actor, entry, isCritical) : null;
+    /* A FIND BEING DESCRIBED IS MARKED ON ITS ROW (line INVEST of 1.2.122; audit 1.2.118 domain-case-c-investigation 6,
+       its rest): the GM's describe window can stand for minutes on this browser alone, and a reload then lost the find -
+       nothing resolved the row again. The row (a store this browser keeps over a reload, `observeStore`) says so from
+       here until its result is written, with what the find is scored on; `recoverDescribing` finishes such a row when a
+       primary GM's stores open, as a window closed unanswered. */
+    if (success) {
+        entry.describing = { at: Date.now(), total, isCritical: Boolean(isCritical), rollId, by };
+        await writePending();
+    }
+    const item = success ? await createFind(actor, entry, isCritical, { ask: !recovering.has(key) }) : null;
+    // null, not deleted: the store's patch merges a row, so a field left out stays as it was
+    if (entry.describing) entry.describing = null;
     const marked = success ? 0 : await applyFailure(actor, total, entry);
 
     /* THE TRACE'S CARD FIRST, THEN THIS ONE, and the order is the whole reason
@@ -1013,7 +1023,7 @@ async function applyFailure(actor, total, entry) {
  * prefilled text: a result that has already been rolled must never evaporate
  * because a dialog was dismissed.
  */
-async function createFind(actor, entry, isCritical) {
+async function createFind(actor, entry, isCritical, { ask = true } = {}) {
     const data = entry.data;
     const fallbackName = data.subject
         || game.i18n.format("DRPG.Observe.defaultName", { room: entry.room });
@@ -1077,7 +1087,8 @@ async function createFind(actor, entry, isCritical) {
     const described = stored?.name ? stored : null;
 
     let written = described, pub = stored;
-    if (!described || isCritical) {
+    // a find finished after a reload (`recoverDescribing`) asks nobody: the window it waited on is gone
+    if (ask && (!described || isCritical)) {
         const asked = (async () => {
             written = await describeFind(actor, entry, isCritical, described?.name || fallbackName, described);
             // Written back on the GM's client, where the ledger lives. Only when there
@@ -1249,6 +1260,13 @@ async function alreadyHeld(actor, entry) {
 export async function describeFind(actor, entry, isCritical, fallbackName, stored = null, { waitMs = TIMING.rulingMs } = {}) {
     const data = entry.data;
     let shown = null, timer = null, timedOut = false;
+    /* THE OTHER GMs ARE TOLD THE FIND WAITS HERE (line INVEST of 1.2.122; audit 1.2.118 domain-case-c-investigation 6): the
+       window opens on this browser alone, and a second GM never learned a player was waiting on it. */
+    if (activeGmIds().some(id => id !== game.user?.id)) {
+        void whisperToGms({ body: `<p>${game.i18n.format("DRPG.Observe.describeWaiting", {
+            actor: foundry.utils.escapeHTML(actor?.name ?? "?"), room: foundry.utils.escapeHTML(entry.room ?? "?"),
+            gm: foundry.utils.escapeHTML(game.user.name ?? "") })}</p>` }).catch(() => {});
+    }
     const clock = new Promise(resolve => {
         timer = setTimeout(() => {
             timedOut = true;
@@ -1385,6 +1403,42 @@ export function pendingShape(key) {
         projectOnly: Boolean(entry.projectOnly),
         hasProject: Boolean(entry.projectId)
     };
+}
+
+/**
+ * THE FINDS A RELOAD LEFT WAITING ON THEIR WORDS (line INVEST of 1.2.122; audit 1.2.118 domain-case-c-investigation 6):
+ * on the primary GM, the rows marked `describing` with no result (`scoreObserve`) are scored again on what they were
+ * scored on, the describe window answered as closed - the trace's prefilled name, no words - so the copy is made, the
+ * row resolved and the player told as a find is; the GMs are told the words are theirs to add. Answers how many.
+ * Registered at the primary's hydration (`registerObserveRecovery`); exported for the suite.
+ */
+const recovering = new Set();
+export async function recoverDescribing() {
+    if (!game.user?.isGM || !isPrimaryGm()) return 0;
+    readPending();
+    let n = 0;
+    for (const [key, entry] of [...pending]) {
+        if (!entry?.describing || entry.result) continue;
+        const { total, isCritical, rollId = null, by = null } = entry.describing;
+        const actor = game.actors.get(entry.actorId);
+        recovering.add(key);
+        try {
+            const done = await resolveObserve({ key, total, isCritical, actorId: entry.actorId, senderId: by, senderIsGm: true, rollId });
+            if (done && !done.refused) n++;
+        } catch (err) {
+            error("A find left waiting on its words could not be finished", err);
+        } finally {
+            recovering.delete(key);
+        }
+        await whisperToGms({ tone: "warning", body: `<p>${game.i18n.format("DRPG.Observe.describeRecovered", {
+            actor: foundry.utils.escapeHTML(actor?.name ?? "?"), room: foundry.utils.escapeHTML(entry.room ?? "?") })}</p>` });
+    }
+    return n;
+}
+
+/** At the primary's hydration, the finds a reload left waiting (`recoverDescribing`); not while the suite holds the stores. */
+export function registerObserveRecovery() {
+    onGmStoresHydrated(() => { if (!gmStoresQuiet()) void recoverDescribing(); });
 }
 
 /** Forget every pending target. A console tool for a stuck declaration. */

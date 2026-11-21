@@ -371,6 +371,22 @@ body .application.dialog.drpg-ui footer.form-footer.drpg-kit-footer.drpg-kit-foo
     margin: 0;
     white-space: normal;
 }
+/* A NARROW FOOTER KEEPS EACH WORD WHOLE (line INVEST of 1.2.122; the owner: "Preview realization" broke mid-word with the
+   Investigation window at 600 px). Its buttons stand a quarter of the footer each, two rows at every size (Q-C), so at
+   600 px a cell is 136 px and "REALIZATION" needed 164 under the glass and 159 under Legacy (audit/case-map-sweep.mjs
+   `word`, Chromium). Where the footer itself is narrow (`drpg-kit-footer`, a container on its inline size) the buttons
+   give up their tracking and most of their side padding, Legacy's take its floor size, and a word never breaks: it may
+   only wrap between words. */
+body .application.dialog.drpg-ui footer.form-footer.drpg-kit-footer.drpg-kit-footer-rows { container: drpg-kit-footer / inline-size; }
+@container drpg-kit-footer (max-width: 760px) {
+    body .application.dialog.drpg-ui footer.form-footer.drpg-kit-footer.drpg-kit-footer-rows button[data-drpg-role] {
+        padding-inline: 4px;
+        letter-spacing: 0;
+        font-size: var(--drpg-kit-notice-xs-size);
+        overflow-wrap: normal;
+        word-break: normal;
+    }
+}
 /* Each button as wide as its word (at least today's 8.5rem), never stretched across its side: danganronpa.css's
    dialog rule (0,4,2, `flex: 1 1 auto`) stretched the lone Cancel to 866 px of M1's 1366 px footer under Legacy; this
    is 0,4,3. */

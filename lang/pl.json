@@ -3106,6 +3106,7 @@
       "thirdEscapedAlone": "{name} ucieka w pojedynkę i nie może już wrócić do incydentu. Ofiara zostaje, a incydent trwa dalej.",
       "openingYours": "To twój rzut otwarcia. Jeśli zamkniesz okno, otworzy się znowu, a po kilku odmowach GM-owie dostaną o tym wiadomość.",
       "openingRequired": "Tego rzutu nie pominiesz: okno rzutu otwiera się znowu.",
+      "openingNoCopy": "Rzut otwarcia ucznia {name} się nie otworzył: jego przeglądarka nie ma jeszcze kopii incydentu. Poproś o rzut jeszcze raz przyciskiem „Poproś o rzut otwarcia ponownie” w oknie śledzenia incydentu.",
       "openingDeclined": "{name} odmawia rzutu otwarcia. Za każdym razem zamyka okno. Poproś o rzut jeszcze raz przyciskiem „Poproś o rzut otwarcia ponownie” w oknie śledzenia incydentu albo zakończ incydent.",
       "openingRemnantNote": "{name} - próba wyczuta ({band}). Coś z szamotaniny zostało do zauważenia.",
       "leftRemnants": {
@@ -3927,6 +3928,8 @@
       "pickGone": "Nikt już nie czeka na to Observe: gracz przestał czekać, minął czas albo inny GM odpowiedział pierwszy.",
       "tiedFlag": "powiązany ze zbrodnią",
       "describeTitle": "Znalezisko z Observe",
+      "describeRecovered": "Znalezisko ucznia {actor} w pokoju {room} czekało na okno opisu, które zamknęło odświeżenie strony. Trafiło do niego pod nazwą domyślną, bez opisu: dopisz go w oknie Investigation.",
+      "describeWaiting": "Znalezisko ucznia {actor} w pokoju {room} czeka na opis na ekranie GM-a {gm}.",
       "describeTimedOut": "Nikt nie odpowiedział w porę na okno, więc znalezisko ucznia {actor} trafiło do niego pod nazwą „{name}”, bez opisu. Opis dopiszesz w oknie Investigation.",
       "describeIntro": "{actor} coś znajduje w pokoju {room}. Nazwij to tak, jak nazwałaby to ta osoba, i powiedz, co widzi.",
       "critPrompt": "Krytyk: obserwator od razu rozpoznaje kategorię. Daj solidną podpowiedź.",

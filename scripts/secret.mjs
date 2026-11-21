@@ -1531,7 +1531,7 @@ function redrawIfDrawn(message) {
 export async function onSecretPacket(payload, senderId) {
     // A returning reader's ask, judged on each GM against its own store (E18 C4).
     if (payload?.action === ACTION_REQUEST) {
-        if (game.user.isGM) answerWordsRequest(payload, senderId);
+        if (game.user?.isGM) answerWordsRequest(payload, senderId);
         return;
     }
     // A GM whose world has loaded can answer: ask it for what this browser holds no words of.
@@ -1580,7 +1580,7 @@ export async function onSecretPacket(payload, senderId) {
             const pin = pinned(message.flags) || meta?.thread === senderId;
             /* A GM keeps the readers of a player's card as they stand when its words first come: the author's
                list then, not one widened after (E18 C4). */
-            const first = game.user.isGM && !read()[payload.id]?.readers ? readersOf(message, { quiet: true }) : undefined;
+            const first = game.user?.isGM && !read()[payload.id]?.readers ? readersOf(message, { quiet: true }) : undefined;
             await remember(payload.id, payload.html, payload.at, pin, false, given, meta ?? undefined, first);
             refresh(game.messages.get(payload.id));
             return;
@@ -1588,13 +1588,13 @@ export async function onSecretPacket(payload, senderId) {
         // A GM keeps a GM-written card's readers as its document names them (`readersOf`); another's stay as held.
         const arrived = game.messages.get(payload.id);
         // Who stood behind a mask when the sending GM kept these words: a GM keeps them too ("THE SECOND GM").
-        const hidGiven = game.user.isGM ? heldMaskOf(payload.hid) : [];
+        const hidGiven = game.user?.isGM ? heldMaskOf(payload.hid) : [];
         // A second GM's answer to the same ask: the words are here already (E18 C4); what it kept masked is kept too.
         if (payload.requested === true && secretHtml(arrived) !== null) {
             if (hidGiven.length) await keepHeldMask(payload.id, hidGiven);
             return;
         }
-        const readers = game.user.isGM && writtenByGm(arrived) ? readersOf(arrived, { quiet: true }) : undefined;
+        const readers = game.user?.isGM && writtenByGm(arrived) ? readersOf(arrived, { quiet: true }) : undefined;
         await remember(payload.id, payload.html, payload.at, Boolean(payload.pin), true,
             payload.summary === undefined ? undefined : plainSummary(payload.summary), payload.meta, readers,
             typeof payload.lines === "string" ? payload.lines : undefined, { hidGiven });

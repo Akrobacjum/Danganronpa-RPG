@@ -639,9 +639,21 @@ export function pendingVoters() {
     const progress = trialProgress();
     if (!progress.vote.open) return null;
     const back = new Set(roundBallots(progress).map(([userId]) => userId));
-    return trialParticipants()
+    const out = trialParticipants()
         .filter(({ user }) => !back.has(user.id))
         .map(({ user, actor }) => ({ user, actor, name: actor.name }));
+    /* AND EVERYBODY HANDED ONE WHO LEFT (line INVEST of 1.2.122; the audit's CASE-14 of 1.2.42, its rest): the count is out
+       of every ballot that went out (`ballotBase`, `vote.issued`), and this list named the connected alone, so a player
+       handed a ballot who then disconnected was in the count and in no list - the console said "Every ballot is in."
+       beside "3 of 4". Named by their character where they have one. Tier 2 "1.2.122 CASE-14". */
+    const listed = new Set(out.map(({ user }) => user.id));
+    for (const id of progress.vote.issued ?? []) {
+        const user = game.users.get(id);
+        if (!user || back.has(id) || listed.has(id)) continue;
+        listed.add(id);
+        out.push({ user, actor: user.character ?? null, name: user.character?.name ?? user.name });
+    }
+    return out;
 }
 
 /**

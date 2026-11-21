@@ -690,17 +690,19 @@ export const pendingMurderStore = defineGmStore({
 });
 
 /**
- * THE OBSERVE DECLARATIONS WAITING FOR THEIR ROLL (E04 C7). Local: this browser's,
- * a section per world, neither synced nor backed up - the declaration and its
- * answer go through one GM, whoever `primaryGmId()` names, and last an hour at
- * most (observe.mjs). The old ones are claimed when their scene or actor is this
+ * THE OBSERVE DECLARATIONS WAITING FOR THEIR ROLL (E04 C7). Not backed up, and
+ * synced between the GMs since line INVEST of 1.2.122 (the audit's CASE-LC3 of
+ * 1.2.42): the declaration and its answer go through one GM, whoever
+ * `primaryGmId()` names, and a GM who became the primary between the two held no
+ * row, so the player's action and roll were lost (scenario 62 Q). They last an
+ * hour at most (observe.mjs). The old ones are claimed when their scene or actor is this
  * world's and they are inside that hour - weak, like every old row with no stamp
  * of the store's own: the hour is read off the entry's `at`, and a later write here
  * wins.
  */
 export const observeStore = defineGmStore({
     name: "observe", key: SETTINGS.observePending, legacyKey: SETTINGS.legacyObservePending,
-    kind: "ledger", resetGroup: "remnants", backup: false, sync: false,
+    kind: "ledger", resetGroup: "remnants", backup: false, sync: true,
     claim: legacy => {
         const cutoff = Date.now() - TIMING.pendingObserveTtlMs;
         const rows = [], left = [];

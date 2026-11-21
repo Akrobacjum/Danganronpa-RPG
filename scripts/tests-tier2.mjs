@@ -106864,6 +106864,97 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(seen), stableJson({ empty: { followTraces: same, general: same, nonObvious: same }, ruled: true, trace: { followTraces: same, general: same, nonObvious: same } }),
             "{empty, trace: each declaration's answer in a room with nothing and in one with a trace - ok and its fields; ruled: the empty room's paid resolve sent the GMs a card with its total}");
     }],
+    ["1.2.122 CASE-37 - a find waiting on its describe window is marked on its row, and a row left marked by a reload is finished when the primary's stores open: the copy made under the prefilled name, the row resolved, no window asked (observe.mjs `scoreObserve`, `recoverDescribing`; audit 1.2.118 domain-case-c-investigation 6)", async () => {
+        /*
+         * Line INVEST of 1.2.122 (the coordinator's 21.11: the rest of CASE-37). The world's player character in a room, two
+         * undescribed traces of the suite's laid at its feet. Part 1: a General Observe aimed (`chooseObserveTarget`) and
+         * resolved with 30; while its describe window stands, its row in the GMs' store of pending Observes is read; then
+         * the window closed. Part 2: a second Observe aimed, its row marked as a reload would leave it (`describing`, no
+         * result), then `recoverDescribing` run. Read: the mark while the window stood and after; how many it finished,
+         * whether a describe window opened, the character's new bullets and the row's result. Items, keys and traces go.
+         * Red at b841a765: no mark, and no recovery (observe.mjs exported no recoverDescribing).
+         */
+        const O = await import("./observe.mjs");
+        const { observeStore } = await import("./gm-stores.mjs");
+        const remnants = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        needs(env.dialogs(), "the describe window is drawn");
+        needs(env.primaryGm(), "the Observe is resolved on the primary GM");
+        must(typeof O.recoverDescribing === "function", "observe.mjs exports no recoverDescribing");
+        const { player, actor, where } = await playerInRoom();
+        const had = new Set(actor.items.map(i => i.id));
+        const describeWindow = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.window?.title === game.i18n.localize("DRPG.Observe.describeTitle"));
+        const traces = [];
+        const seen = {};
+        try {
+            for (const n of [1, 2]) traces.push(await remnants.placeRemnant({ type: "prep", visibility: "evident", scene: where.scene, x: where.tokenDoc.x, y: where.tokenDoc.y, note: `SUITE 122m trace ${n}` }));
+            must(traces.every(Boolean), "the traces were not placed - this would measure nothing");
+            const first = await O.chooseObserveTarget({ actorId: actor.id, declaration: "general", userId: player.id });
+            must(first?.ok && first.key, "the first Observe found nothing to aim at - this would measure nothing");
+            const resolving = O.resolveObserve({ key: first.key, total: 30, isCritical: false, actorId: actor.id, senderId: player.id, senderIsGm: false });
+            await until(() => describeWindow()?.element, 4000).catch(() => {});
+            seen.windowed = Boolean(describeWindow());
+            seen.markedWhileOpen = Boolean(observeStore.get(first.key)?.describing);
+            await describeWindow()?.close();
+            await Promise.race([resolving, wait(5000)]);
+            seen.markedAfter = Boolean(observeStore.get(first.key)?.describing);
+            const second = await O.chooseObserveTarget({ actorId: actor.id, declaration: "general", userId: player.id });
+            must(second?.ok && second.key && O.pendingShape(second.key), "the second Observe found nothing to aim at - this would measure nothing");
+            const row = observeStore.get(second.key);
+            await observeStore.patch(second.key, { ...row, describing: { at: Date.now(), total: 30, isCritical: false, rollId: null, by: player.id } });
+            await settle();
+            const before = actor.items.size;
+            let opened = false;
+            const watch = () => { if (describeWindow()) opened = true; };
+            const timer = setInterval(watch, 20);
+            seen.finished = await Promise.race([O.recoverDescribing(), wait(5000).then(() => "timeout")]);
+            clearInterval(timer);
+            watch();
+            seen.opened = opened;
+            seen.newBullets = actor.items.size - before;
+            seen.resolved = Boolean(observeStore.get(second.key)?.result?.success);
+        } finally {
+            await describeWindow()?.close().catch(() => {});
+            for (const item of [...actor.items]) {
+                if (had.has(item.id)) continue;
+                const uuid = item.uuid;
+                await item.delete().catch(() => {});
+                await bullets.dropSecret?.(uuid);
+            }
+            for (const t of traces.filter(Boolean)) {
+                await remnants.dropRemnantSecret(t).catch(() => {});
+                if (where.scene.tokens.has(t.id)) await where.scene.deleteEmbeddedDocuments("Token", [t.id]);
+            }
+        }
+        equal(stableJson(seen), stableJson({ windowed: true, markedWhileOpen: true, markedAfter: false, finished: 1, opened: false, newBullets: 1, resolved: true }),
+            "{windowed: the first find's describe window opened; markedWhileOpen, markedAfter: its row marked while it stood and after; finished: rows the recovery finished; opened: a describe window during it; newBullets: bullets it made; resolved: the second row's result a success}");
+    }],
+    ["1.2.122 CASE-14 - a ballot handed to a player who then left is still named as out: the vote's pending voters are everybody handed one who has not answered, connected or not (vote.mjs `pendingVoters`; the audit's CASE-14 of 1.2.42, its rest)", async () => {
+        /*
+         * Line INVEST of 1.2.122 (the auditor's unrouted list, B). An account of the suite's own, not connected, handed a
+         * ballot in an open round of the running chapter's trial record (its `vote.issued`), nobody's ballot in. Read:
+         * whether `pendingVoters` names that account. The record and the account put back.
+         * Red at 22e053f2: only the connected participants were read, so the console said "Every ballot is in." beside a
+         * count still one short.
+         */
+        const V = await import("./vote.mjs");
+        const stored = game.settings.get(MODULE_ID, SETTINGS.trialProgress);
+        const ch = getClock().chapter;
+        let away = null, named = null;
+        try {
+            away = await User.create({ name: "SUITE 122n away", role: CONST.USER_ROLES.PLAYER });
+            must(away && !away.active, "the suite's account is connected - this would measure nothing");
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...(stored ?? {}), chapter: ch, vote: { open: true, round: 917, picks: {}, issued: [away.id] } });
+            await settle();
+            must(V.trialProgress()?.vote?.open === true, "the record does not read an open vote - this would measure nothing");
+            named = (V.pendingVoters() ?? []).map(p => p.user?.id);
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored ?? {});
+            if (away) await away.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson({ named: named?.includes(away?.id) ?? null }), stableJson({ named: true }), "{named: the account handed a ballot and gone is among the pending voters}");
+    }],
     ["a planned Truth Bullet removed from the planner takes its links with it: the deductions that rested on it no longer name it, the counter refuting one of them keeps its target, and the case's check names nothing missing (case-schema.mjs `dropCaseNode`, `refsCut`; the owner, 19.11.2026: \"Przyjmujemy ze usuniecie bulleta usuwa tez jego polaczenia\"; the line claude/plan-119)", async () => {
         /*
          * A planned bullet, two deductions resting on it and a counter refuting the first, written in this chapter; the bullet
