@@ -275,11 +275,20 @@ export function registerHiddenStashes() {
         const owners = (game.users ?? []).filter(u => !u.isGM && actor?.testUserPermission?.(u, "OWNER")).map(u => u.id);
         Promise.all(owners.map(sendTo)).catch(err => error("Could not tell a finder the stash they found", err));
     });
-    // Who the Mastermind is decides who reads every row: a change of the pick sends every player their copy again.
+    /* Who the Mastermind is decides who reads every row: a change of the pick sends every player their copy again. The key
+       is the GMs' store's own (gm-stores.mjs `mastermindStore`, `gmMastermind`), read off its handle: until 1.2.123 this
+       listened for `danganronpa-rpg.mastermind`, the legacy key nothing writes, so a new Mastermind's player saw the hidden
+       stashes only at their next load and a former one kept them (the auditor's r122-F-8; scenario 99, red at 14bb0d92).
+       And who owns a character decides whose rows a player holds: an ownership change sends them again too. */
     Hooks.on("clientSettingChanged", key => {
-        if (key === `${MODULE_ID}.mastermind` && isPrimaryGm()) {
+        const mastermind = gmStoreByName("mastermind")?.spec?.key;
+        if (mastermind && key === `${MODULE_ID}.${mastermind}` && isPrimaryGm()) {
             retellHiddenStashes().catch(err => error("Could not tell the players which stashes are hidden", err));
         }
+    });
+    Hooks.on("updateActor", (actor, changes) => {
+        if (!isPrimaryGm() || !changes || !Object.hasOwn(changes, "ownership")) return;
+        retellHiddenStashes().catch(err => error("Could not tell the players which stashes are hidden", err));
     });
 }
 

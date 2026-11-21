@@ -278,6 +278,37 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl, IDS, relo
                 && otherSees?.copy === false && Array.isArray(otherSees?.at) && !otherSees.at.includes(IDS.daichi),
             J({ foundSet, finderSees, otherSees }));
 
+        /* THE MASTERMIND'S PLAYER IS SENT EVERY HIDDEN STASH WHEN THE PICK CHANGES, AND LOSES THEM WHEN IT GOES (1.2.123; the
+           auditor's r122-F-8). hidden-stashes.mjs listened for `danganronpa-rpg.mastermind`, the legacy key nothing writes,
+           while the pick lives in the GMs' store `gmMastermind`: the new Mastermind's player saw the hidden stashes only at
+           their next load, and a former one kept them. Daichi's stash hidden in Dorm A; the Mastermind set to Aiko (p1's),
+           then cleared, each through mastermind.mjs as the window does; p1's copy read after each. The pick and the stash
+           put back after. Red at 14bb0d92: p1's copy held no row of Daichi's after the pick. */
+        phase("the Mastermind's player and the hidden stashes", { flow: "action-roll" });
+        const mmSet = await gm.eval(`const V = ${imp("vault-store.mjs")}, MM = ${imp("mastermind.mjs")};
+            globalThis.__s99mm = { was: MM.mastermindActor()?.id ?? null,
+                stash: (e => (e ? { concealed: Boolean(e.concealed) } : null))(V.stashesIn("Dorm A", canvas.scene).find(e => e.actorId === "${IDS.daichi}")) };
+            await V.setStash("Dorm A", "${IDS.daichi}", { present: true, concealed: true, scene: canvas.scene });
+            if (globalThis.__s99mm.was) await MM.clearMastermind();
+            await new Promise(r => setTimeout(r, 1200));
+            return true;`, { timeout: 60000 });
+        const p1Holds = () => p1.eval(`const H = ${imp("hidden-stashes.mjs")};
+            return H.hiddenStashesAt(canvas.scene.id, "Dorm A").includes("${IDS.daichi}");`, { timeout: 30000 });
+        const mmBefore = await p1Holds();
+        await gm.eval(`const MM = ${imp("mastermind.mjs")}; await MM.setMastermind(game.actors.get("${IDS.aiko}")); await new Promise(r => setTimeout(r, 1500)); return true;`, { timeout: 60000 });
+        await settle(800);
+        const mmPicked = await p1Holds();
+        await gm.eval(`const MM = ${imp("mastermind.mjs")}; await MM.clearMastermind(); await new Promise(r => setTimeout(r, 1500)); return true;`, { timeout: 60000 });
+        await settle(800);
+        const mmCleared = await p1Holds();
+        await gm.eval(`const V = ${imp("vault-store.mjs")}, MM = ${imp("mastermind.mjs")}, f = globalThis.__s99mm ?? {};
+            if (f.was) await MM.setMastermind(game.actors.get(f.was));
+            if (f.stash === null) await V.setStash("Dorm A", "${IDS.daichi}", { present: false, scene: canvas.scene });
+            else await V.setStash("Dorm A", "${IDS.daichi}", { concealed: f.stash.concealed, scene: canvas.scene });
+            return true;`, { timeout: 60000 });
+        check("the Mastermind's player is sent every hidden stash when the pick names their character, and holds none of another's once it is cleared (r122-F-8)",
+            mmSet === true && mmBefore === false && mmPicked === true && mmCleared === false, J({ mmBefore, mmPicked, mmCleared }));
+
         /* PALM'S FRISK IN BOTH MODES (E39, 14.11.2026; the A11 amendment: "driveAction covers Frisk in both modes"; the gap
            STATUS named: 99 drove Palm only to its refusal). Botan (p2's) stands beside Aiko in Dorm A with a marked comb, and
            p1 frisks him from its own page, the Palm window answered as 40-flow's open Frisk answers it (the Frisk, Botan, the
