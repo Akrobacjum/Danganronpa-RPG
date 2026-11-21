@@ -232,7 +232,14 @@ export function passagesTabBody(scene, { stores = PASSAGE_STORES, students = [],
     return `${table}<p class="notes">${esc(t("DRPG.Passage.tab.footnote"))} ${esc(t("DRPG.Passage.tab.startHint"))} ${esc(t("DRPG.Passage.tab.wayHint"))}</p>`;
 }
 
-/** The Passages panel's inside, for Room Setup (room-setup.mjs `roomSetupContent`): nothing on a player's browser. */
+/**
+ * The Passages panel's inside, for Room Setup (room-setup.mjs `roomSetupContent`): nothing on a player's browser.
+ *
+ * The `[data-drpg-passages]` box holds no control of its own: `wirePassagesTab` hangs one change and one click listener
+ * on it for every row's buttons and selects, so the rows can be redrawn inside it without wiring them again. The audit
+ * of 1.2.118's click probe (probe-42-rerun-2.json, row C[33]) clicked the box on a scene with no passage and saw
+ * nothing happen, which is what a click outside every button does; the buttons inside it are rows of their own.
+ */
 export function passagesTabHtml(scene, options = {}) {
     if (!game.user?.isGM) return "";
     return `<p>${esc(t("DRPG.Passage.tab.introLine"))}</p><div class="drpg-passage-bar"><button type="button" class="drpg-mini-button"
