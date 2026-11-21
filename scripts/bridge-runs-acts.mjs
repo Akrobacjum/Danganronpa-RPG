@@ -20,7 +20,7 @@
  * below, is the comment that stood over the first run in gm-bridge.mjs.
  */
 
-import { TRAITS, LEVEL_UP, LEVEL_UP_OPTIONS } from "./config.mjs";
+import { TRAITS, LEVEL_UP, LEVEL_UP_OPTIONS, HOPE_CALLS } from "./config.mjs";
 import { whisperToGms, debug, error, esc, serialWrite } from "./utils.mjs";
 import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 import {
@@ -1066,6 +1066,9 @@ export async function handleCubAbility(payload, sender, ctx) {
  * answers `{ later: true }`.
  */
 export async function handleHopeCall(payload, sender, ctx) {
+    /* Only a Call that waits for a GM's yes is put before the GMs (1.2.122; the audit of 1.2.118, CORE-36): a key that is
+       no Call, or one that needs no GM, raised a card a GM ruled on as if the module had written it. */
+    if (!HOPE_CALLS[payload.key]?.needsGm) return { refused: "nothing was carried out: that is no Call that waits for a GM's yes" };
     return askHopeCallByCard(payload, ctx);
 }
 

@@ -64478,6 +64478,27 @@ const INVARIANTS = [
         stableJson({ gm: { AIKO: 500 }, aiko: { AIKO: 100 }, otherWorld: { AIKO: 900 }, none: {}, legacy: { AIKO: 300, BOTAN: 200 }, writesSection: true }),
             "{gm, aiko: the same thread as each login on one browser reads it; otherWorld: another world's; none: a login with no section; legacy: a map from before; writesSection: the write keeps the other sections}");
     }],
+    ["R8113 - a Hope Call's approval card says what the GM's own table says (1.2.122 line CORE; the audit of 1.2.118, CORE-36): bridge-runs-acts.mjs `handleHopeCall` refuses a key that is no Call and a Call that needs no GM's yes before any card; the `call.approve` row hands its run no `callLabel` or `effect`; call-gm.mjs `askHopeCallByCard` titles the card and writes its effect from `HOPE_CALLS`", async () => {
+        /* Red at 21bf5d18: any key raised a card, titled by the packet's `callLabel` when unknown and always showing the
+           packet's `effect`. Pure: the run with keys that post nothing, the row's sanitizer, and the card's source. */
+        const R = await import("./bridge-runs-acts.mjs");
+        const T = await import("./bridge-table.mjs");
+        const W = await import("./bridge-wire.mjs");
+        const B = await import("./bridge-guards.mjs");
+        const free = Object.entries(HOPE_CALLS).find(([, c]) => !c.needsGm)?.[0];
+        must(free && Object.values(HOPE_CALLS).some(c => c.needsGm), "HOPE_CALLS holds no Call with and one without a GM's yes - this would measure nothing");
+        const code = out => out?.refused ? B.reasonOf(out.refused) : stableJson(out);
+        const ctx = { asker: "R8113U", requestId: "R8113RID" };
+        const read = {
+            unknown: code(await R.handleHopeCall({ actorId: "R8113A", key: "R8113 no such Call", note: "" }, { isGM: false, id: "R8113U" }, ctx)),
+            noGm: code(await R.handleHopeCall({ actorId: "R8113A", key: free, note: "" }, { isGM: false, id: "R8113U" }, ctx)),
+            row: Object.keys(T.BRIDGE_ACTIONS[W.ACTION_HOPE_CALL].sanitize({ actorId: "R8113A", key: "k", callLabel: "c", effect: "e", note: "n", nonce: "x" })).sort()
+        };
+        const card = fnSource((new Map(await moduleSources())).get("call-gm.mjs") ?? "", "askHopeCallByCard");
+        equal(stableJson({ ...read, card: [/payload\.callLabel|payload\.effect/.test(card), /proseOf\(call, "effect"\)/.test(card)] }),
+            stableJson({ unknown: "refused", noGm: "refused", row: ["actorId", "key", "nonce", "note"], card: [false, true] }),
+            "{unknown, noGm: how the run answers a key that is no Call and one needing no GM; row: what the run is handed; card: [the packet's name or effect read, the table's effect read]}");
+    }],
     ["R8050 - Foundry's token HUD holds only the controls kept (1.2.120 line H; the owner, 21.11.2026: \"Niepotrzebne jest: combat, target, movement action, assign status, liczby na gorze i na dole i elevation\"): token-hud.mjs `trimHudFor` on Daggerheart 2.12.8's tokenHUD.hbs as drawn for a GM leaves the floor's palette, bring to front, the companion's button, lock, the token's settings and visibility, with no input, status palette, movement palette, target or combat; as drawn for a player it leaves nothing, the HUD marked not to be drawn (the owner, 21.11.2026: \"Niech gracz nie ma menu tokena\")", async () => {
         /*
          * 21.11.2026, 1.2.120 line H. The harness draws no token HUD (no canvas), so this hands the transform the markup

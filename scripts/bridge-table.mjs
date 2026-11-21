@@ -632,10 +632,11 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_HOPE_CALL]: {
         label: "DRPG.Bridge.what.call.approve",
         guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
-        // `cost` and `actorName` are sent and never read: the price comes from HOPE_CALLS
-        // here, the name from the character (E02; E31). `nonce` names the purchase a GM's
+        // `cost`, `actorName`, `callLabel` and `effect` are sent and never read: the price, the name and the effect
+        // come from HOPE_CALLS here (E02; E31; 1.2.122, CORE-36), the character's name from the character. `key` is
+        // refused unless it names a Call that waits for a GM (`handleHopeCall`). `nonce` names the purchase a GM's
         // yes is kept for (E29 fix r2-H4; `yesOnPrimary`).
-        sanitize: pick({ actorId: as.id, key: as.text, callLabel: as.text, effect: as.text, note: as.text, nonce: as.text }),
+        sanitize: pick({ actorId: as.id, key: as.text, note: as.text, nonce: as.text }),
         run: handleHopeCall,
         // Not patient (E18 C2, S10-51): the primary's "got it" comes as the card goes up, so none within
         // TIMING.ackMs is an ask no GM's listener took, said at once rather than after the ruling's clock (R840).
