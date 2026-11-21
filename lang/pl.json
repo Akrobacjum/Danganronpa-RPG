@@ -3486,6 +3486,7 @@
       "rifleTitle": "Skrytka w pokoju {room}",
       "rifleIntro": "W pokoju {room} możesz sięgnąć do skrytek tych postaci: <strong>{who}</strong>. Z każdej bierzesz jedną rzecz, raz na porę dnia, bez akcji i bez rzutu.",
       "rifleNote": "Za darmo. Ukrytej skrytki nie ma na tej liście, dopóki nie znajdziesz jej przez Find Stash w Analyze.",
+      "rifleGone": "Wybranej rzeczy już tu nie ma. Wybierz inną.",
       "noOpenStashHere": "W tym pokoju nie ma otwartej skrytki.",
       "stashEmpty": "Każda skrytka, do której tu sięgasz, jest pusta ({who}).",
       "openStashSection": "Skrytka postaci {who} w pokoju {room}",

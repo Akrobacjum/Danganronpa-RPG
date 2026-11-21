@@ -350,11 +350,24 @@ export async function rifleStashDialog(actor) {
         render: (event, dialog) => keepLive(dialog, {
             region: ".drpg-rifle-pick",
             build: pickHtml,
-            watch: { actors: true, items: true, hooks: ["createRegion", "updateRegion", "deleteRegion"] }
+            watch: { actors: true, items: true, hooks: ["createRegion", "updateRegion", "deleteRegion"] },
+            /* THE PICK TAKEN MEANWHILE (1.2.123; the auditor's r122-E-5). keepLive puts back the value the player chose, and
+               when another student took that thing first no option holds it: the select stood with nothing chosen and Take
+               closed the window on nothing, saying nothing. The redraw now says so under the list. */
+            after: root => {
+                const select = (root ?? dialog.element)?.querySelector?.('.drpg-rifle-pick select[name="item"]');
+                if (!select || select.selectedIndex >= 0 || select.parentElement?.parentElement?.querySelector("[data-drpg-rifle-gone]")) return;
+                select.closest("label")?.insertAdjacentHTML("afterend", `<p class="notes" data-drpg-rifle-gone>${esc(game.i18n.localize("DRPG.Vault.rifleGone"))}</p>`);
+            }
         }),
         rejectClose: false
     });
 
+    if (picked === "") {
+        // Take with nothing chosen (r122-E-5): said, where it closed on nothing.
+        ui.notifications.warn(game.i18n.localize("DRPG.Vault.rifleGone"));
+        return false;
+    }
     if (!picked || picked === "cancel") return false;
 
     const [ownerId, itemId] = String(picked).split(":");

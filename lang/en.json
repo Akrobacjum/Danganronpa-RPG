@@ -3278,6 +3278,7 @@
       "rifleTitle": "The stash in {room}",
       "rifleIntro": "In {room} you can reach the stashes of <strong>{who}</strong>. Take one thing from each, once each time of day.",
       "rifleNote": "It costs no action and no roll. A hidden stash you have not found has to be found first, with Analyze's Find Stash.",
+      "rifleGone": "The thing you picked is no longer here. Pick another.",
       "noOpenStashHere": "There is no open stash in this room.",
       "stashEmpty": "Nothing to take: the stash of {who} is empty.",
       "openStashSection": "{who}'s stash in {room}",

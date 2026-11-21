@@ -114835,6 +114835,68 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "{opened: the suite's things offered at the open; taken: those left after the lamp was taken; added: after the key was stashed; kept: the rope still picked}");
     }],
 
+    ["1.2.123 r122-E-5 - Rifle: the thing picked taken by somebody else meanwhile, the list says so, and Take with nothing picked says so instead of closing on nothing (scripts/stash-reach.mjs `rifleStashDialog`; the auditor's r122-E-5)", async () => {
+        /*
+         * 1.2.123, 21.11.2026; the auditor's r122-E-5. The live list (REFR-52) redraws the select without the thing the
+         * player picked, and keepLive puts back a value no option holds: nothing chosen, and Take answered "" and closed
+         * the window with nothing taken and nothing said. As REFR-52's test: a second student at one student's open stash,
+         * two things stashed, Rifle opened, the second picked; the second taken off the owner's sheet. Read: whether the
+         * window says the pick is gone, then Take pressed and what this browser was told. Put back as there. Red at
+         * 14bb0d92: no line, no word.
+         */
+        needs(env.dialogs(), "the window is read as drawn");
+        needs(world.atLeast("stashes"), "a stash on the scene on screen");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const M = await import("./movement.mjs");
+        const { AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const scene = canvas.scene;
+        const vault = V.allVaults(scene).find(v => v.owner && !v.concealed && M.allRooms(scene).includes(v.room));
+        must(vault, "no open stash of a student in a room of the scene on screen - this would measure nothing");
+        const owner = vault.owner, STORE = vault.room;
+        const thief = livingStudents().find(a => a !== owner && scene.tokens.some(t => t.actorId === a.id));
+        must(thief, "no second student with a token on the scene on screen - this would measure nothing");
+        const token = scene.tokens.find(t => t.actorId === thief.id);
+        const was = { x: token.x, y: token.y };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const stash = name => owner.createEmbeddedDocuments("Item", [moduleItemData(name, { [INV.ITEM_FLAGS.location]: INV.LOCATIONS.vault, [INV.ITEM_FLAGS.stashRoom]: STORE })],
+            { [AUDIT_ASIDE]: true, [INV.CAP_OVERRIDE]: true });
+        const ONE = "SUITE E5 lamp", TWO = "SUITE E5 rope";
+        const winOf = () => [...foundry.applications.instances.values()].find(app => app?.element?.querySelector?.(".drpg-rifle-pick") && app.element?.isConnected) ?? null;
+        const made = [], told = [], warn = ui.notifications.warn;
+        let read = null, opening = null;
+        try {
+            made.push(...await stash(ONE), ...await stash(TWO));
+            await token.update(M.positionIn(STORE, token), { ...PLACE });
+            await settle();
+            must(V.openStashesHere(thief).some(e => e.owner === owner && e.items.some(i => i.name === TWO)), "the second student does not stand at the open stash - this would measure nothing");
+            ui.notifications.warn = (text, ...rest) => { told.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            opening = Promise.resolve().then(() => V.rifleStashDialog(thief)).catch(() => "threw");
+            await until(() => winOf()?.element?.querySelector('.drpg-rifle-pick select[name="item"] option'), 4000);
+            const select = winOf()?.element?.querySelector('.drpg-rifle-pick select[name="item"]');
+            const two = [...(select?.options ?? [])].find(o => o.textContent.includes(TWO));
+            must(select && two, "the rope is not offered - this would measure nothing");
+            select.value = two.value;
+            select.dispatchEvent(new Event("change", { bubbles: true }));
+            await made[1].delete({ [AUDIT_ASIDE]: true });
+            const gone = Boolean(await until(() => winOf()?.element?.querySelector("[data-drpg-rifle-gone]"), 3000));
+            const before = told.length;
+            winOf()?.element?.querySelector('footer button[data-action="take"]')?.click();
+            const answer = await Promise.race([opening, wait(3000).then(() => "open")]);
+            read = { gone, answer, said: told.slice(before).some(t => t === game.i18n.localize("DRPG.Vault.rifleGone")) };
+        } finally {
+            ui.notifications.warn = warn;
+            await winOf()?.close();
+            if (opening) await Promise.race([opening, wait(3000)]);
+            for (const item of made) if (owner.items.has(item.id)) await item.delete({ [AUDIT_ASIDE]: true });
+            if (token.x !== was.x || token.y !== was.y) await token.update(was, { ...PLACE });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ gone: true, answer: false, said: true }),
+            "{gone: the window says the pick is gone; answer: what Rifle answered on Take; said: this browser was told why}");
+    }],
+
     ["1.2.122 r121-M-2 - a room action's lines name a masked target \"?\" to a reader who does not play it, and by name once the mask is off (scripts/facilities-gm.mjs `applyEffects`; mask-gm.mjs `nameAsSeen`, `MASK_NAME`; the auditor's r121-M-2)", async () => {
         /*
          * 1.2.122 line MAP, 21.11.2026; the auditor's check of 1.2.121, lane M, r121-M-2. `applyEffects` named each target by
