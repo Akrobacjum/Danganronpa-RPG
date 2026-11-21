@@ -5810,7 +5810,8 @@
    "what": "column sorts other than Manual do nothing, at the table not even in the first column (the owner, ~02:55Z)",
    "class": "F",
    "new": true,
-   "same_cause_as": "N119-6 past the first column only (case-view.mjs:115, :167); the first column's cause not read"
+   "same_cause_as": "N119-6 past the first column only (case-view.mjs:115, :167); the first column's cause not read",
+   "cause": "the owner at the table (~03:00Z): the sort takes effect only after the dashboard's Save; an apply-at-once / refresh defect, not a column-1 layout one"
   },
   {
    "id": "OWN-119-3",

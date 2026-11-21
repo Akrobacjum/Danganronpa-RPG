@@ -68,7 +68,7 @@ Not routed to 1.2.120 (they go to 1.2.121 with the rest): every minor and nit, t
 
 ## The owner's table report on v1.2.119 (21.11.2026 ~02:50Z), all to line P (claude/move-120) for 1.2.120
 - OWN-119-1: the planner's edges cross node boxes; the nodes should spread to make lanes, with no edge over a node. New: no finding of this audit names it.
-- OWN-119-2: the column sorts other than Manual do nothing - at the table (the owner, ~02:55Z) not even in the FIRST column; line P's top item. New as a finding. Past the first column it shares N119-6's cause (case-view.mjs:115, :167 place a node by its inputs' height); why the first column ignores the sort is not read by this audit.
+- OWN-119-2: the column sorts other than Manual do nothing - at the table (the owner, ~02:55Z) not even in the FIRST column; line P's top item. New as a finding. Past the first column it shares N119-6's cause (case-view.mjs:115, :167 place a node by its inputs' height); why the first column ignores the sort is not read by this audit. Cause found by the owner at the table (~03:00Z): the sort takes effect only after the dashboard's Save, so it is an apply-at-once / refresh defect of the investigation dashboard, not a layout one in column 1. Routed: line P applies the sort at once and lists the planner's other controls that wait for Save; R1 covers the dashboard's redraw of writes made while it is open.
 - OWN-119-3: hovering a planner node turns it light cream with unreadable text (styles/components.css:3664, the node's `:hover` rule: `background: var(--drpg-kit-hover-bg)`). New: no finding of this audit names it; the static contrast checks did not cover the hover state of a node.
 
 ## Not audit findings (continued)

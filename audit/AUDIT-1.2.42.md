@@ -4506,7 +4506,7 @@ Co zostaje przy "częściowo", w skrócie (pełne zdania w `recheck-119.json`):
 
 Odczyty właściciela przy stole na 1.2.119 (klasa F, 21.11.2026 około 02:50Z; wszystkie trzy nowe wobec znalezisk tego audytu, skierowane do linii P):
 - OWN-119-1: strzałki planera przechodzą przez pola węzłów; węzły powinny się rozsunąć i zostawić tory.
-- OWN-119-2: sortowania kolumn inne niż Manual nic nie zmieniają, według właściciela (około 02:55Z) nawet w pierwszej kolumnie. Poza pierwszą kolumną przyczyna jest ta sama co w N119-6; dlaczego pierwsza kolumna nie słucha sortowania, ten audyt nie przeczytał.
+- OWN-119-2: sortowania kolumn inne niż Manual nic nie zmieniają, według właściciela (około 02:55Z) nawet w pierwszej kolumnie. Poza pierwszą kolumną przyczyna jest ta sama co w N119-6; dlaczego pierwsza kolumna nie słucha sortowania, ten audyt nie przeczytał. Przyczynę znalazł właściciel przy stole (około 03:00Z): sortowanie działa dopiero po Save panelu, czyli to wada zastosowania od razu i odświeżania, nie układu pierwszej kolumny.
 - OWN-119-3: najechany węzeł planera robi się jasnokremowy z nieczytelnym tekstem (`styles/components.css:3664`, reguła `:hover`). Statyczne sprawdzenia kontrastu nie obejmowały stanu najechania węzła.
 
 ## Część II - raport 1.2.42 z 12.09.2026 (zapis)
