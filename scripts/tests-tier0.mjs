@@ -27652,6 +27652,73 @@ const REGRESSIONS = [
         }
         equal(JSON.stringify(wrong), "[]", "[what the text still says beyond what holds]");
     }],
+    ["R8620 - the handbooks say what the code does (1.2.123 line TEXT; the check of 1.2.122, lane HB: r122-HB-1 to r122-HB-6): each row reads the code a handbook sentence describes and holds the English and the Polish handbook to it - the camera dock takes a hidden killer's tile off, the voice tile's Hidden, the Debug log's buttons following its rows, Take from the Body at the top of a whole sheet's inventory, the hidden stashes' store and a secret project's completion in section 22, and Repair the Lock a preset", async () => {
+        /*
+         * 1.2.123 line TEXT, 21.11.2026; the auditor's lane HB of recheck-122.json, routed to TEXT by the coordinator. Each
+         * row is the reading the finding made at its file on 14bb0d92, read again by hand there, and the words the
+         * handbooks must (or must no longer) hold. Red at 22629bda: every row (each sentence as it stood). A row whose code
+         * half goes red means the code moved and the handbook's sentence with it must be read again. r122-HB-3 did: line R1's
+         * r122-H-8 (34143265, merged here) made the Debug log's Copy and Clear follow its rows, and its rows read that code;
+         * red with 14bb0d92's gm-panel.mjs.
+         */
+        const doc = async name => fetch(`/modules/${MODULE_ID}/docs/handbooks/${name}.md`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""));
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`, { cache: "no-cache" }).then(lfText));
+        const [gmEn, gmPl, plEn, plPl] = await Promise.all(["gm-handbook.en", "gm-handbook.pl", "player-handbook.en", "player-handbook.pl"].map(doc));
+        must([gmEn, gmPl, plEn, plPl].every(t => t.length > 50000), "a handbook was not served - this would read nothing");
+        const [cam, tile, panel, anon, stores, secrecy, project] = await Promise.all(["camera-view.mjs", "voice-tile.mjs", "gm-panel.mjs",
+            "anonymity.mjs", "gm-stores.mjs", "projects-secrecy.mjs", "action-project.mjs"].map(src));
+        must([cam, tile, panel, anon, stores, secrecy, project].every(s => s.length > 1000), "a script did not load - this reads nothing");
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => (r.ok ? r.json() : null));
+        must(lang.en?.DRPG && lang.pl?.DRPG, "lang/en.json or lang/pl.json was not served - this would read nothing");
+        const word = code => foundry.utils.getProperty(lang[code], "DRPG.Voice.tile.state.hidden") ?? "";
+        must(word("en").length > 2 && word("pl").length > 2, "DRPG.Voice.tile.state.hidden is missing - this reads nothing");
+        // A paragraph of a handbook, found by its first words.
+        const paragraph = (text, start) => {
+            const i = text.indexOf(start);
+            must(i >= 0, `no handbook paragraph starts "${start}" - this row reads nothing until it is pointed at the text again`);
+            return lineAround(text, i);
+        };
+        const relabel = fnSource(cam, "relabel"), failureLog = fnSource(panel, "openFailureLog"), loot = fnSource(anon, "addLootButton");
+        const ROWS = [
+            // camera-view.mjs `relabel`: the box is taken off (`showBox`) before the nameplate's Off returns, in every mode.
+            ["r122-HB-2 code", () => relabel.indexOf("showBox(box, !hidden(user))") >= 0
+                && relabel.indexOf("showBox(box, !hidden(user))") < relabel.indexOf("plate.MODES.OFF")],
+            ["r122-HB-2 en", () => !/camera dock shows "\?" for every name/.test(gmEn) && (gmEn.match(/killer's player's tile is taken off/g) ?? []).length === 2],
+            ["r122-HB-2 pl", () => !/pokazuje[^.]*„\?” zamiast każdego imienia/.test(gmPl) && (gmPl.match(/znika z doku kamer/g) ?? []).length === 2],
+            // voice-tile.mjs WORDS.masked: the word a killer behind a "?" reads, before any connection state.
+            ["r122-HB-1 code", () => /masked:\s*\{\s*word:\s*"DRPG\.Voice\.tile\.state\.hidden"/.test(tile)],
+            ["r122-HB-1 en", () => plEn.includes(`| **${word("en")}** |`) && gmEn.includes(`reads **${word("en")}**`)],
+            ["r122-HB-1 pl", () => plPl.includes(`| **${word("pl")}** |`) && gmPl.includes(`widzi **${word("pl")}**`)],
+            // gm-panel.mjs `openFailureLog` since line R1's r122-H-8 (34143265): Copy and Clear always drawn, hidden while the log
+            // is empty - at the open (`showButtons(rows.length)`) and at each redraw (`showButtons(fresh.length)`). At 14bb0d92
+            // they were drawn only when the rows read at the open were some (`rows.length ? [{ action: "copy" ...`).
+            ["r122-HB-3 code", () => /button\.hidden = !n/.test(failureLog) && /showButtons\(rows\.length\)/.test(failureLog)
+                && /showButtons\(fresh\.length\)/.test(failureLog) && !/rows\.length \? \[\{ action: "copy"/.test(failureLog)],
+            ["r122-HB-3 en", () => paragraph(gmEn, "**Debug log** lists").includes("hide while it is empty, a log opened empty included")
+                && !gmEn.includes("offers neither button until you close it")],
+            ["r122-HB-3 pl", () => paragraph(gmPl, "**Dziennik debugowania** wymienia").includes("gdy jest pusty, znikają, także w dzienniku otwartym pustym")
+                && !gmPl.includes("żadnego z tych dwóch przycisków nie da")],
+            // anonymity.mjs `addLootButton`: with the switch off the button is prepended to the inventory pane.
+            ["r122-HB-4 code", () => /pane\.prepend\(lootFoot\(/.test(loot)],
+            ["r122-HB-4 en", () => paragraph(plEn, "- The **body** can be searched").includes("top of its inventory")],
+            ["r122-HB-4 pl", () => paragraph(plPl, "- **Ciało** można przeszukać").includes("na górze jego ekwipunku")],
+            // gm-stores.mjs: the hidden stashes a GM store, backed up, with a player's copy; projects-secrecy.mjs: completedAt a secret.
+            ["r122-HB-5 code", () => /name: "hiddenStashes", key: SETTINGS\.gmHiddenStashes,\s*kind: "ledger", backup: true/.test(stores)
+                && /name: "hiddenStashes", key: SETTINGS\.mineHiddenStashes, from: "hiddenStashes"/.test(stores)
+                && /PROJECT_SECRET_WHILE_SECRET = Object\.freeze\(\[[^\]]*"completedAt"/.test(secrecy)],
+            ["r122-HB-5 en", () => /Since 1\.2\.122 also: which stashes are hidden[\s\S]{0,160}completed/.test(paragraph(gmEn, "What the GMs' browsers hold, and since when."))
+                && /Since 1\.2\.122 also which of their own characters' stashes are hidden/.test(paragraph(gmEn, "What a player's browser holds:"))],
+            ["r122-HB-5 pl", () => /Od 1\.2\.122 trzymają także to, które skrytki są ukryte[\s\S]{0,160}ukończono/.test(paragraph(gmPl, "Od 1.2.63 przeglądarki GM-ów trzymają:"))
+                && /Od 1\.2\.122 trzyma także to, które skrytki jego własnych postaci są ukryte/.test(paragraph(gmPl, "Przeglądarka gracza trzyma to,"))],
+            // action-project.mjs: Repair the Lock is a preset beside the others.
+            ["r122-HB-6 code", () => /lockable\.length \? \["repairLock"\]/.test(project)],
+            ["r122-HB-6 en", () => !gmEn.includes("not yet built as a project preset") && paragraph(gmEn, "**Broken** (the Doors tab)").includes("A finished Repair the Lock project unticks it")],
+            ["r122-HB-6 pl", () => !gmPl.includes("Gotowego projektu Repair the Lock jeszcze nie ma") && paragraph(gmPl, "Pole **Zepsute** (zakładka Drzwi)").includes("Ukończony projekt Repair the Lock też je odznacza")]
+        ];
+        const wrong = ROWS.filter(([, holds]) => !holds()).map(([id]) => id);
+        equal(JSON.stringify(wrong), "[]", "[a handbook sentence that does not say what the code does, or code that moved under one]");
+    }],
     ["R8542 - Fit to view shows the whole case however far it must zoom out (the owner, 21.11.2026: \"niech fit to view w planerze zagadki przekracza maksymalne oddalenie (aktualnie 25%) - niech je ignoruje\"; case-view.mjs `fitCamera`, `zoomFloor`, `wireCaseCamera`): a case wider than the view at 25% fits at its own zoom, down to CAMERA_LIMITS.fitMin (5%); the zoom's floor in the window is the lower of 25% and that fit, so a step out or the wheel stops at the fit and does not pull the view back to 25%, and a step in from it zooms in; a case that fits at 25% or more keeps 25% as the floor; the toolbar's readout shows the zoom as it is", async () => {
         /*
          * 1.2.122, the assembly, 21.11.2026. Until here `fitCamera` clamped its zoom to CAMERA_LIMITS.min (0.25), and so
