@@ -52,3 +52,16 @@ the audit's reading: the audit's own reading of the diffs is `lines-119.json`.
 - 1.2.120: the blockers and majors still open after the audit's v1.2.119 re-check, plus the refresh pattern (the owner's rule "Zawsze odswiezamy okna od razu przy zmianie").
 - 1.2.121: all the rest of the findings (minors and nits).
 - E39, E40, E43, E53, E58, E83 move to the L1 release (planned 1.2.122); L1 resumes after 29.11.2026.
+
+## 1.2.120 lines (launched 21.11.2026 02:37-02:39Z from main e515907d; reports due Sunday 22.11 12:00 Warsaw)
+| Line | Branch | R range | Takes |
+| --- | --- | --- | --- |
+| M1 | claude/mask-120 | R7910-7929 | CORE-20 and N119-4 (the two-GM served card), N119-2 (Ghost Bet), N119-3 (Bounty), N119-1 (a room action's card under the veil) |
+| M2 | claude/veil-120 | R7930-7949 | DOC-01; STG-03 and N119-5 (End chapter with next morning); COMM-20 (the camera dock's relabel; LIVE-F119-03 stays a live check) |
+| K | claude/rules-120 | R7950-7969 | CASE-16 (the owner was asked; default: the GM judges the full number, the victim or third is told a hidden defence is added, with no value), CASE-17, STG-01, CASE-18 |
+| R1 | claude/refresh-120 | R7970-7989 | UI-17, REFR-05's remainder, REFR-01, the notice history's Close (probe 42 group C), the E09 C3 test's staging |
+| R2 | claude/setup-120 | R7990-8009 | REFR-03, REFR-04, REFR-02's remainder and N119-7, probe 42 group C entries in Room setup and the Season checklist |
+| P | claude/move-120 | R8010-8019 | N119-6 |
+| I | claude/infra-120 | R8020-8029 | release.yml reuses a green CI run for the same tree (owner decision A) |
+
+Not routed to 1.2.120 (they go to 1.2.121 with the rest): every minor and nit, the rest of probe 42's group C, and unifying the two veil predicates.
