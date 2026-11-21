@@ -27650,13 +27650,14 @@ const REGRESSIONS = [
         }
         equal(JSON.stringify(wrong), "[]", "[what the text still says beyond what holds]");
     }],
-    ["R8620 - the handbooks say what the code does (1.2.123 line TEXT; the check of 1.2.122, lane HB: r122-HB-1 to r122-HB-6): each row reads the code a handbook sentence describes and holds the English and the Polish handbook to it - the camera dock takes a hidden killer's tile off, the voice tile's Hidden, the Debug log's buttons fixed at its open, Take from the Body at the top of a whole sheet's inventory, the hidden stashes' store and a secret project's completion in section 22, and Repair the Lock a preset", async () => {
+    ["R8620 - the handbooks say what the code does (1.2.123 line TEXT; the check of 1.2.122, lane HB: r122-HB-1 to r122-HB-6): each row reads the code a handbook sentence describes and holds the English and the Polish handbook to it - the camera dock takes a hidden killer's tile off, the voice tile's Hidden, the Debug log's buttons following its rows, Take from the Body at the top of a whole sheet's inventory, the hidden stashes' store and a secret project's completion in section 22, and Repair the Lock a preset", async () => {
         /*
          * 1.2.123 line TEXT, 21.11.2026; the auditor's lane HB of recheck-122.json, routed to TEXT by the coordinator. Each
          * row is the reading the finding made at its file on 14bb0d92, read again by hand there, and the words the
          * handbooks must (or must no longer) hold. Red at 22629bda: every row (each sentence as it stood). A row whose code
-         * half goes red means the code moved and the handbook's sentence with it must be read again - r122-HB-3's in
-         * particular: line R1's r122-H-8 may make the Debug log's footer follow its rows, and then the sentence changes back.
+         * half goes red means the code moved and the handbook's sentence with it must be read again. r122-HB-3 did: line R1's
+         * r122-H-8 (34143265, merged here) made the Debug log's Copy and Clear follow its rows, and its rows read that code;
+         * red with 14bb0d92's gm-panel.mjs.
          */
         const doc = async name => fetch(`/modules/${MODULE_ID}/docs/handbooks/${name}.md`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""));
         const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`, { cache: "no-cache" }).then(lfText));
@@ -27687,10 +27688,15 @@ const REGRESSIONS = [
             ["r122-HB-1 code", () => /masked:\s*\{\s*word:\s*"DRPG\.Voice\.tile\.state\.hidden"/.test(tile)],
             ["r122-HB-1 en", () => plEn.includes(`| **${word("en")}** |`) && gmEn.includes(`reads **${word("en")}**`)],
             ["r122-HB-1 pl", () => plPl.includes(`| **${word("pl")}** |`) && gmPl.includes(`widzi **${word("pl")}**`)],
-            // gm-panel.mjs `openFailureLog`: Copy and Clear are in the footer only when the rows read at open are some.
-            ["r122-HB-3 code", () => /\.\.\.\(rows\.length \? \[\{ action: "copy"/.test(failureLog) && /destructive: rows\.length \?/.test(failureLog)],
-            ["r122-HB-3 en", () => !gmEn.includes("While it holds anything it offers") && gmEn.includes("a log opened empty")],
-            ["r122-HB-3 pl", () => !gmPl.includes("Gdy coś w nim jest, ma **Kopiuj") && gmPl.includes("dziennik otwarty pusty")],
+            // gm-panel.mjs `openFailureLog` since line R1's r122-H-8 (34143265): Copy and Clear always drawn, hidden while the log
+            // is empty - at the open (`showButtons(rows.length)`) and at each redraw (`showButtons(fresh.length)`). At 14bb0d92
+            // they were drawn only when the rows read at the open were some (`rows.length ? [{ action: "copy" ...`).
+            ["r122-HB-3 code", () => /button\.hidden = !n/.test(failureLog) && /showButtons\(rows\.length\)/.test(failureLog)
+                && /showButtons\(fresh\.length\)/.test(failureLog) && !/rows\.length \? \[\{ action: "copy"/.test(failureLog)],
+            ["r122-HB-3 en", () => paragraph(gmEn, "**Debug log** lists").includes("hide while it is empty, a log opened empty included")
+                && !gmEn.includes("offers neither button until you close it")],
+            ["r122-HB-3 pl", () => paragraph(gmPl, "**Dziennik debugowania** wymienia").includes("gdy jest pusty, znikają, także w dzienniku otwartym pustym")
+                && !gmPl.includes("żadnego z tych dwóch przycisków nie da")],
             // anonymity.mjs `addLootButton`: with the switch off the button is prepended to the inventory pane.
             ["r122-HB-4 code", () => /pane\.prepend\(lootFoot\(/.test(loot)],
             ["r122-HB-4 en", () => paragraph(plEn, "- The **body** can be searched").includes("top of its inventory")],
