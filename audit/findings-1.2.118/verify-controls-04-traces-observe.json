@@ -1,0 +1,54 @@
+{
+  "refuter": "verify-controls-04-traces-observe",
+  "of": "controls-04-traces-observe",
+  "checked": [
+    {
+      "ref": "controls-04-traces-observe-1",
+      "claim": "A GM's Remnant card keeps an author pick the GM cancelled when a watched event redraws the card while 'Who left this Remnant' is open.",
+      "verdict": "stands",
+      "why": "Read the whole road. The card is a keepLive region watching every item and token hook and remnantStore, with no whileEditing (grep: no whileEditing anywhere in scripts/). The author select has no name, id or data-drpg-key, so it is keyed by position; it is drawn with the stored author selected (authorOptions), so after the GM's pick isDirty is true and capture carries the pick, restore writes it onto the new select. Both focus roads end the same: if the question takes focus, isEditing is false and the redraw runs 120 ms after the event; if focus stays on the select, the event leaves pending and the focusout of the pointerdown on Cancel forces rebuild(true) before Cancel's click resolves. Either way Cancel then writes 'was' onto the detached old select, and the new select shows the unsaved pick with no change event left. A redraw of the trace's own sheet (renderActorSheetV2 -> body.innerHTML) would draw the stored author afresh, but only an update of that token's actor does that, not another token's move. No test pins the cancel road (grep authorReplace / data-drpg-author in scripts/tests*.mjs: one source-shape test, tests-tier1.mjs:8879). Severity raised: the card states a saved author the ledger does not hold, which Observe's Follow My Traces, an incident's tie and Tamper read - wrong in a particular situation (11.3 minor), not dirt or text.",
+      "evidence": "remnant-ring.mjs:255 `watch: { items: true, tokens: true, stores: [remnantStore] },`; remnant-ring.mjs:343 `if (sure !== true) { author.value = was; return; }`; remnant-ring.mjs:408 `<select data-drpg-author data-drpg-was=\"${esc(data.sourceActor ?? \"\")}\"...`; live.mjs:157-163 `if (!force && isEditing(element)) { pending = true; ...`; live.mjs:171-172 `element.replaceWith(next); restore(next, carried);`; live.mjs:481 `if (isDirty(node)) dirty.set(keyFor(node, element, named), ...`; live.mjs:548 `else node.value = was.value;`; live.mjs:615 `if (node.tagName === \"SELECT\") return node.value !== drawnOf(node);`; remnants.mjs:1275 `${a.id === selected ? \" selected\" : \"\"}`",
+      "severity_after": "minor"
+    },
+    {
+      "ref": "controls-04-traces-observe-2",
+      "claim": "On a reshape card whose Remnant is gone, Approve answers null, the card stays open, and each further press whispers the roller 'already gone' again; Refuse then says the Remnant 'reads as before'.",
+      "verdict": "stands",
+      "why": "applyReshapeRuling returns null on !data before the claim is used (claim is computed only when data exists), so no 'ruled' mark is written and a second press is ruled again. askReshapeRuling passes the null through (res.value?.value ?? null); ruleApproveReshape settles only on false or truthy; claimCard drops the card's claim when the outcome is neither settled nor held, and wireCallActions releases the buttons. A reset of the 'incident' group drops the attempt row, but that changes only Refuse (claimRuling then answers value false and the card settles as voided), not Approve, which returns null on !data first. Refuse with the row standing: claimRuling succeeds, the erase branch finds no token, and 'said' stays DRPG.Cleanup.reshapeDeclined. No test pins the gone road (grep reshapeRulingGone in scripts/tests*.mjs: only a key-list check, tests-tier0.mjs:5225). Severity kept: the GM has Refuse as a way out and is told the player was informed; the cost is a repeated whisper and a wrong line in an uncommon situation. The verdict label 'stale-state' fits a flow defect better than a redraw one, which does not change the finding.",
+      "evidence": "cleanup-reshape.mjs:611 `const claim = data && !data.reinforced ? claimRuling(...) : null;`; cleanup-reshape.mjs:612-616 `if (!data) { tell(\"warn\", \"DRPG.Cleanup.reshapeRulingGone\"); ... return null; }`; messenger-app.mjs:1083-1084 `if (applied === false) return settled(\"DRPG.Cleanup.reshapeVoided\"); return applied ? settled(\"DRPG.Bridge.settledApproved\") : null;`; bridge-asks.mjs:738 `return res.value?.value ?? null;`; bridge-asks.mjs:1341 `await askCardClaim(message.id, outcome?.settled || outcome?.held ? \"done\" : \"drop\");`; lang/en.json:2725 `\"reshapeDeclined\": \"{name} refused your story, so the Remnant reads as before. ...\"`",
+      "severity_after": "nit"
+    },
+    {
+      "ref": "controls-04-traces-observe-3",
+      "claim": "confirmClearFaint has no caller, and openCleanupDialog is reachable only as game.drpg.cleanupDialog.",
+      "verdict": "stands",
+      "why": "git grep over the whole tree (findings files aside) for confirmClearFaint: its definition, its own header, a comment in investigation.mjs:358 and a tier 1 source read; no import, no import() destructuring, no api.mjs entry. openCleanupDialog: the definition, api.mjs:138 (import) and 934 (export as cleanupDialog), and comments; the Tamper menu runs openMoveBodyDialog, attemptCleanup, askTransformChange and attemptStageSix, never openCleanupDialog (action-tamper.mjs:129-158); action-rolls.mjs:286 names cleanupDialog as an API entry point 'called directly by the suite and the harness'. chapter.mjs:660 calls clearFaintRemnants directly, not the window.",
+      "evidence": "remnants.mjs:2458-2460 `No button calls it since E64-inv: End the chapter clears the Faint Remnants (chapter.mjs chapterEndForm, faint), and the Investigation bar's own button, its twin, is gone.`; tests-tier1.mjs:43684 `clearFaint: destructiveYes(fnSource(read2(\"remnants.mjs\"), \"confirmClearFaint\")),`; api.mjs:934 `cleanupDialog: openCleanupDialog,`; chapter.mjs:660-661 `const { clearFaintRemnants } = await import(\"./remnants.mjs\"); return plural(\"DRPG.Chapter.doneFaint\", { n: await clearFaintRemnants() });`",
+      "severity_after": "nit"
+    },
+    {
+      "ref": "The 'Clear Faint Remnants' question / Clear Faint Remnants",
+      "claim": "dead: the window's destructive button can never be pressed, since nothing opens the window.",
+      "verdict": "stands",
+      "why": "As for finding 3: confirmClearFaint is the only builder of this window and has no caller in scripts/, the handbooks, the harness scenarios or probes.",
+      "evidence": "remnants.mjs:2462 `export async function confirmClearFaint({ tokens = null } = {}) {`; remnants.mjs:2471-2472 `const sure = await drpgConfirm({ yes: { role: \"destructive\", label: game.i18n.localize(\"DRPG.Panel.clearFaint\") },`",
+      "severity_after": "nit"
+    },
+    {
+      "ref": "The 'Clear Faint Remnants' question / Cancel",
+      "claim": "dead: as above.",
+      "verdict": "stands",
+      "why": "The same window, the same missing caller.",
+      "evidence": "remnants.mjs:2473 `no: \"cancel\",`",
+      "severity_after": "nit"
+    }
+  ],
+  "counts": { "checked": 5, "stands": 5, "weakened": 0, "refuted": 0 },
+  "not_established": [
+    "The reader's file has no finding of severity minor or above; the three nits and the two dead controls were checked. The 'unknown' Share control (sheet-inventory.mjs, handover.mjs) was not traced by the reader and is not checked here.",
+    "None of the reader's 23 surfaces carries the 'refresh' block BRIEF.md asks of the resumed controls lane (reads, listens, verdict, gaps, focus_rule). In particular the GM's Remnant card is a keepLive region on rule 1 (live.mjs:157-163; remnant-ring.mjs:252-257 passes no whileEditing, and no whileEditing exists in scripts/ at b5a29e73), which D-A1 makes a major finding; the reader's file does not carry it. refresh-01-04.json names the same keepLive (remnant-ring.mjs:252-257) and DECISIONS.md D-A1 lists 'a GM's Remnant card' as an open finding for 1.2.120, so it is not lost, but it is not this file's.",
+    "Finding 1's two focus roads (DialogV2 taking focus, or focus staying on the select until Cancel's pointerdown) were both read to the same outcome; which one v14 takes was not measured. The reader's probe would settle it at the table.",
+    "The reader's counts write the verdict as 'stale-state' in the controls and 'stale_state' in counts; the two rows so labelled (By, Approve) are the findings above. Approve's defect is a card that cannot settle, not a redraw.",
+    "Nothing was run: the harness, the suite and the probes were not run, and base-run.json was not read for these items."
+  ]
+}

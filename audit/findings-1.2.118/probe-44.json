@@ -1,0 +1,1108 @@
+{
+ "about": "probe 44 (audit/harness/probes/44-live-builds.mjs): each live region of each window of probe 08's list, its build called once, and whether what it returns is the region itself. A reading, not a verdict.",
+ "only": [],
+ "totals": {
+  "windows": 96,
+  "opened": 94,
+  "regions": 55,
+  "matches": 55,
+  "wrong": 0,
+  "threw": 0
+ },
+ "windows": [
+  {
+   "id": "rooms-bedrooms",
+   "client": "gm",
+   "opened": true,
+   "title": "Room setup - Academy - Floor 1",
+   "regions": []
+  },
+  {
+   "id": "rooms-doors",
+   "client": "gm",
+   "opened": true,
+   "title": "Room setup - Academy - Floor 1",
+   "regions": []
+  },
+  {
+   "id": "rooms-passages",
+   "client": "gm",
+   "opened": true,
+   "title": "Room setup - Academy - Floor 1",
+   "regions": []
+  },
+  {
+   "id": "rooms-search",
+   "client": "gm",
+   "opened": true,
+   "title": "Room setup - Academy - Floor 1",
+   "regions": []
+  },
+  {
+   "id": "rooms-rest",
+   "client": "gm",
+   "opened": true,
+   "title": "Room setup - Academy - Floor 1",
+   "regions": []
+  },
+  {
+   "id": "rooms-stashes",
+   "client": "gm",
+   "opened": true,
+   "title": "Room setup - Academy - Floor 1",
+   "regions": []
+  },
+  {
+   "id": "rooms-description",
+   "client": "gm",
+   "opened": true,
+   "title": "Room setup - Academy - Floor 1",
+   "regions": []
+  },
+  {
+   "id": "rooms-fog",
+   "client": "gm",
+   "opened": true,
+   "title": "Room setup - Academy - Floor 1",
+   "regions": []
+  },
+  {
+   "id": "rooms-passages--rows",
+   "client": "gm",
+   "opened": true,
+   "title": "Room setup - Academy - Floor 1",
+   "regions": []
+  },
+  {
+   "id": "sound",
+   "client": "gm",
+   "opened": true,
+   "title": "Sound",
+   "regions": [
+    {
+     "region": ".drpg-music-now",
+     "drawn": true,
+     "returned": "<fieldset class=\"drpg-music-now\">",
+     "matches": true,
+     "alsoInside": false
+    },
+    {
+     "region": ".drpg-music-map",
+     "drawn": true,
+     "returned": "<tbody class=\"drpg-music-map\">",
+     "matches": true,
+     "alsoInside": false
+    },
+    {
+     "region": "[data-drpg-sfx-region]",
+     "drawn": true,
+     "returned": "<div class=\"drpg-sound-effects\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "sound--files",
+   "client": "gm",
+   "opened": true,
+   "title": "Sound",
+   "regions": [
+    {
+     "region": ".drpg-music-now",
+     "drawn": true,
+     "returned": "<fieldset class=\"drpg-music-now\">",
+     "matches": true,
+     "alsoInside": false
+    },
+    {
+     "region": ".drpg-music-map",
+     "drawn": true,
+     "returned": "<tbody class=\"drpg-music-map\">",
+     "matches": true,
+     "alsoInside": false
+    },
+    {
+     "region": "[data-drpg-sfx-region]",
+     "drawn": true,
+     "returned": "<div class=\"drpg-sound-effects\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "despair-flow",
+   "client": "gm",
+   "opened": true,
+   "title": "Despair Flow",
+   "regions": []
+  },
+  {
+   "id": "season-setup",
+   "client": "gm",
+   "opened": true,
+   "title": "Season setup",
+   "regions": []
+  },
+  {
+   "id": "season-checklist",
+   "client": "gm",
+   "opened": true,
+   "title": "Season checklist",
+   "regions": []
+  },
+  {
+   "id": "pre-season-checks",
+   "client": "gm",
+   "opened": true,
+   "title": "Season checklist",
+   "regions": []
+  },
+  {
+   "id": "foundry-report",
+   "client": "gm",
+   "opened": true,
+   "title": "Foundry and modules",
+   "regions": []
+  },
+  {
+   "id": "investigation",
+   "client": "gm",
+   "opened": true,
+   "title": "Investigation",
+   "regions": [
+    {
+     "region": ".drpg-case-live",
+     "drawn": true,
+     "returned": "<div class=\"drpg-case-live drpg-case-view\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "investigation--map",
+   "client": "gm",
+   "opened": true,
+   "title": "Investigation",
+   "regions": [
+    {
+     "region": ".drpg-case-live",
+     "drawn": true,
+     "returned": "<div class=\"drpg-case-live drpg-case-view\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "investigation--map-node",
+   "client": "gm",
+   "opened": true,
+   "title": "Investigation",
+   "regions": [
+    {
+     "region": ".drpg-case-live",
+     "drawn": true,
+     "returned": "<div class=\"drpg-case-live drpg-case-view\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "investigation--map-trace",
+   "client": "gm",
+   "opened": true,
+   "title": "Investigation",
+   "regions": [
+    {
+     "region": ".drpg-case-live",
+     "drawn": true,
+     "returned": "<div class=\"drpg-case-live drpg-case-view\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "investigation--map-slot",
+   "client": "gm",
+   "opened": true,
+   "title": "Investigation",
+   "regions": [
+    {
+     "region": ".drpg-case-live",
+     "drawn": true,
+     "returned": "<div class=\"drpg-case-live drpg-case-view\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "investigation--map-planned",
+   "client": "gm",
+   "opened": true,
+   "title": "Investigation",
+   "regions": [
+    {
+     "region": ".drpg-case-live",
+     "drawn": true,
+     "returned": "<div class=\"drpg-case-live drpg-case-view\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "investigation--map-autopsy",
+   "client": "gm",
+   "opened": true,
+   "title": "Investigation",
+   "regions": [
+    {
+     "region": ".drpg-case-live",
+     "drawn": true,
+     "returned": "<div class=\"drpg-case-live drpg-case-view\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "investigation--map-zone",
+   "client": "gm",
+   "opened": true,
+   "title": "Investigation",
+   "regions": [
+    {
+     "region": ".drpg-case-live",
+     "drawn": true,
+     "returned": "<div class=\"drpg-case-live drpg-case-view\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "investigation--map-final",
+   "client": "gm",
+   "opened": true,
+   "title": "Investigation",
+   "regions": [
+    {
+     "region": ".drpg-case-live",
+     "drawn": true,
+     "returned": "<div class=\"drpg-case-live drpg-case-view\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "investigation--map-bullet",
+   "client": "gm",
+   "opened": true,
+   "title": "Investigation",
+   "regions": [
+    {
+     "region": ".drpg-case-live",
+     "drawn": true,
+     "returned": "<div class=\"drpg-case-live drpg-case-view\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "investigation--map-types",
+   "client": "gm",
+   "opened": true,
+   "title": "Investigation",
+   "regions": [
+    {
+     "region": ".drpg-case-live",
+     "drawn": true,
+     "returned": "<div class=\"drpg-case-live drpg-case-view\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "investigation--map-types-faces",
+   "client": "gm",
+   "opened": true,
+   "title": "Investigation",
+   "regions": [
+    {
+     "region": ".drpg-case-live",
+     "drawn": true,
+     "returned": "<div class=\"drpg-case-live drpg-case-view\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "investigation--map-crowd",
+   "client": "gm",
+   "opened": true,
+   "title": "Investigation",
+   "regions": [
+    {
+     "region": ".drpg-case-live",
+     "drawn": true,
+     "returned": "<div class=\"drpg-case-live drpg-case-view\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "investigation--map-modes",
+   "client": "gm",
+   "opened": true,
+   "title": "Investigation",
+   "regions": [
+    {
+     "region": ".drpg-case-live",
+     "drawn": true,
+     "returned": "<div class=\"drpg-case-live drpg-case-view\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "case-realize",
+   "client": "gm",
+   "opened": true,
+   "title": "Case realization, chapter 1",
+   "regions": []
+  },
+  {
+   "id": "case-realize--made",
+   "client": "gm",
+   "opened": true,
+   "title": "Case realization, chapter 1",
+   "regions": []
+  },
+  {
+   "id": "new-trace",
+   "client": "gm",
+   "opened": true,
+   "title": "New Remnant",
+   "regions": []
+  },
+  {
+   "id": "case-body-ask",
+   "client": "gm",
+   "opened": true,
+   "title": "The case's realization",
+   "regions": []
+  },
+  {
+   "id": "chapter-end",
+   "client": "gm",
+   "opened": true,
+   "title": "End the chapter",
+   "regions": []
+  },
+  {
+   "id": "gm-panel--case-asks",
+   "client": "gm",
+   "opened": true,
+   "title": "GM panel",
+   "regions": [
+    {
+     "region": ".drpg-gmp-standing",
+     "drawn": true,
+     "returned": "<div class=\"drpg-gmp-standing\">",
+     "matches": true,
+     "alsoInside": false
+    },
+    {
+     "region": ".drpg-gmp-sections",
+     "drawn": true,
+     "returned": "<div class=\"drpg-gmp-sections\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "class-trial",
+   "client": "gm",
+   "opened": true,
+   "title": "Class Trial",
+   "regions": [
+    {
+     "region": ".drpg-trial-console",
+     "drawn": true,
+     "returned": "<div class=\"drpg-trial-console\">",
+     "matches": true,
+     "alsoInside": false
+    },
+    {
+     "region": ".drpg-case-trial-live",
+     "drawn": true,
+     "returned": "<div class=\"drpg-case-trial-live\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "class-trial--case",
+   "client": "gm",
+   "opened": true,
+   "title": "Class Trial",
+   "regions": [
+    {
+     "region": ".drpg-trial-console",
+     "drawn": true,
+     "returned": "<div class=\"drpg-trial-console\">",
+     "matches": true,
+     "alsoInside": false
+    },
+    {
+     "region": ".drpg-case-trial-live",
+     "drawn": true,
+     "returned": "<div class=\"drpg-case-trial-live\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "class-trial--case-debate",
+   "client": "gm",
+   "opened": true,
+   "title": "Class Trial",
+   "regions": [
+    {
+     "region": ".drpg-trial-console",
+     "drawn": true,
+     "returned": "<div class=\"drpg-trial-console\">",
+     "matches": true,
+     "alsoInside": false
+    },
+    {
+     "region": ".drpg-case-trial-live",
+     "drawn": true,
+     "returned": "<div class=\"drpg-case-trial-live\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "class-trial--case-objection",
+   "client": "gm",
+   "opened": true,
+   "title": "Class Trial",
+   "regions": [
+    {
+     "region": ".drpg-trial-console",
+     "drawn": true,
+     "returned": "<div class=\"drpg-trial-console\">",
+     "matches": true,
+     "alsoInside": false
+    },
+    {
+     "region": ".drpg-case-trial-live",
+     "drawn": true,
+     "returned": "<div class=\"drpg-case-trial-live\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "class-trial--counted",
+   "client": "gm",
+   "opened": true,
+   "title": "Class Trial",
+   "regions": [
+    {
+     "region": ".drpg-trial-console",
+     "drawn": true,
+     "returned": "<div class=\"drpg-trial-console\">",
+     "matches": true,
+     "alsoInside": false
+    },
+    {
+     "region": ".drpg-case-trial-live",
+     "drawn": true,
+     "returned": "<div class=\"drpg-case-trial-live\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "class-trial--verdict-given",
+   "client": "gm",
+   "opened": true,
+   "title": "Class Trial",
+   "regions": [
+    {
+     "region": ".drpg-trial-console",
+     "drawn": true,
+     "returned": "<div class=\"drpg-trial-console\">",
+     "matches": true,
+     "alsoInside": false
+    },
+    {
+     "region": ".drpg-case-trial-live",
+     "drawn": true,
+     "returned": "<div class=\"drpg-case-trial-live\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "class-trial--summary-sent",
+   "client": "gm",
+   "opened": true,
+   "title": "Class Trial",
+   "regions": [
+    {
+     "region": ".drpg-trial-console",
+     "drawn": true,
+     "returned": "<div class=\"drpg-trial-console\">",
+     "matches": true,
+     "alsoInside": false
+    },
+    {
+     "region": ".drpg-case-trial-live",
+     "drawn": true,
+     "returned": "<div class=\"drpg-case-trial-live\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "class-trial--straw",
+   "client": "gm",
+   "opened": true,
+   "title": "Class Trial",
+   "regions": [
+    {
+     "region": ".drpg-trial-console",
+     "drawn": true,
+     "returned": "<div class=\"drpg-trial-console\">",
+     "matches": true,
+     "alsoInside": false
+    },
+    {
+     "region": ".drpg-case-trial-live",
+     "drawn": true,
+     "returned": "<div class=\"drpg-case-trial-live\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "class-trial--debate",
+   "client": "gm",
+   "opened": true,
+   "title": "Class Trial",
+   "regions": [
+    {
+     "region": ".drpg-trial-console",
+     "drawn": true,
+     "returned": "<div class=\"drpg-trial-console\">",
+     "matches": true,
+     "alsoInside": false
+    },
+    {
+     "region": ".drpg-case-trial-live",
+     "drawn": true,
+     "returned": "<div class=\"drpg-case-trial-live\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "class-trial--objection",
+   "client": "gm",
+   "opened": true,
+   "title": "Class Trial",
+   "regions": [
+    {
+     "region": ".drpg-trial-console",
+     "drawn": true,
+     "returned": "<div class=\"drpg-trial-console\">",
+     "matches": true,
+     "alsoInside": false
+    },
+    {
+     "region": ".drpg-case-trial-live",
+     "drawn": true,
+     "returned": "<div class=\"drpg-case-trial-live\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "zone-picker",
+   "client": "gm",
+   "opened": true,
+   "title": "Hall zones",
+   "regions": []
+  },
+  {
+   "id": "dive-editor",
+   "client": "gm",
+   "opened": true,
+   "title": "Edit a Logic Dive set",
+   "regions": []
+  },
+  {
+   "id": "findings",
+   "client": "gm",
+   "opened": true,
+   "title": "Findings",
+   "regions": []
+  },
+  {
+   "id": "season-setup--zones",
+   "client": "gm",
+   "opened": true,
+   "title": "Season setup",
+   "regions": []
+  },
+  {
+   "id": "reveal-confirm",
+   "client": "gm",
+   "opened": true,
+   "title": "Monokuma's Reveal",
+   "regions": []
+  },
+  {
+   "id": "trial-end",
+   "client": "gm",
+   "opened": true,
+   "title": "End the trial",
+   "regions": []
+  },
+  {
+   "id": "vote",
+   "client": "gm",
+   "opened": true,
+   "title": "The vote",
+   "regions": [
+    {
+     "region": ".drpg-vote-status",
+     "drawn": true,
+     "returned": "<div class=\"drpg-vote-status\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "edit-campaign",
+   "client": "gm",
+   "opened": true,
+   "title": "Edit campaign",
+   "regions": []
+  },
+  {
+   "id": "murder",
+   "client": "gm",
+   "opened": true,
+   "title": "Murder",
+   "regions": []
+  },
+  {
+   "id": "incident-tracker",
+   "client": "gm",
+   "opened": true,
+   "title": "Incident tracker",
+   "regions": [
+    {
+     "region": ".drpg-incident-live",
+     "drawn": true,
+     "returned": "<div class=\"drpg-incident-live\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "level-up",
+   "client": "gm",
+   "opened": true,
+   "title": "Level Up for Aiko Hoshino",
+   "regions": []
+  },
+  {
+   "id": "item-manager",
+   "client": "gm",
+   "opened": true,
+   "title": "Give / take items",
+   "regions": [
+    {
+     "region": ".drpg-holdings-live",
+     "drawn": true,
+     "returned": "<div class=\"drpg-holdings-live\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "item-manager--item-new",
+   "client": "gm",
+   "opened": true,
+   "title": "Give / take items",
+   "regions": [
+    {
+     "region": ".drpg-holdings-live",
+     "drawn": true,
+     "returned": "<div class=\"drpg-holdings-live\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "item-manager--bullet",
+   "client": "gm",
+   "opened": true,
+   "title": "Give / take items",
+   "regions": [
+    {
+     "region": ".drpg-holdings-live",
+     "drawn": true,
+     "returned": "<div class=\"drpg-holdings-live\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "item-manager--bullet-new",
+   "client": "gm",
+   "opened": true,
+   "title": "Give / take items",
+   "regions": [
+    {
+     "region": ".drpg-holdings-live",
+     "drawn": true,
+     "returned": "<div class=\"drpg-holdings-live\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "item-manager--key",
+   "client": "gm",
+   "opened": true,
+   "title": "Give / take items",
+   "regions": [
+    {
+     "region": ".drpg-holdings-live",
+     "drawn": true,
+     "returned": "<div class=\"drpg-holdings-live\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "item-tables",
+   "client": "gm",
+   "opened": true,
+   "title": "Item tables",
+   "regions": []
+  },
+  {
+   "id": "item-tables--rooms",
+   "client": "gm",
+   "opened": true,
+   "title": "Item tables",
+   "regions": []
+  },
+  {
+   "id": "look-gm",
+   "client": "gm",
+   "opened": true,
+   "title": "Danganronpa RPG settings",
+   "regions": []
+  },
+  {
+   "id": "drpg-settings",
+   "client": "gm",
+   "opened": true,
+   "title": "Danganronpa RPG settings",
+   "regions": []
+  },
+  {
+   "id": "game-settings",
+   "client": "gm",
+   "opened": true,
+   "title": "Game settings",
+   "regions": []
+  },
+  {
+   "id": "notices-gm",
+   "client": "gm",
+   "opened": true,
+   "title": "Notice history",
+   "regions": [
+    {
+     "region": ".drpg-notices-list",
+     "drawn": true,
+     "returned": "<div class=\"drpg-notices-list drpg-kit-body\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "gm-panel",
+   "client": "gm",
+   "opened": true,
+   "title": "GM panel",
+   "regions": [
+    {
+     "region": ".drpg-gmp-standing",
+     "drawn": true,
+     "returned": "<div class=\"drpg-gmp-standing\">",
+     "matches": true,
+     "alsoInside": false
+    },
+    {
+     "region": ".drpg-gmp-sections",
+     "drawn": true,
+     "returned": "<div class=\"drpg-gmp-sections\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "give",
+   "client": "gm",
+   "opened": true,
+   "title": "Give an item",
+   "regions": []
+  },
+  {
+   "id": "bullet",
+   "client": "gm",
+   "opened": true,
+   "title": "Give a Truth Bullet",
+   "regions": []
+  },
+  {
+   "id": "students",
+   "client": "gm",
+   "opened": true,
+   "title": "Students",
+   "regions": [
+    {
+     "region": ".drpg-alive-live",
+     "drawn": true,
+     "returned": "<div class=\"drpg-alive-live\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "projects",
+   "client": "gm",
+   "opened": true,
+   "title": "Create a project",
+   "regions": []
+  },
+  {
+   "id": "sound-player",
+   "client": "p1",
+   "opened": true,
+   "title": "Sound",
+   "regions": []
+  },
+  {
+   "id": "look-player",
+   "client": "p1",
+   "opened": true,
+   "title": "Danganronpa RPG settings",
+   "regions": []
+  },
+  {
+   "id": "drpg-settings-player",
+   "client": "p1",
+   "opened": true,
+   "title": "Danganronpa RPG settings",
+   "regions": []
+  },
+  {
+   "id": "drpg-settings-player-voice",
+   "client": "p1",
+   "opened": true,
+   "title": "Danganronpa RPG settings",
+   "regions": []
+  },
+  {
+   "id": "notices-player",
+   "client": "p1",
+   "opened": true,
+   "title": "Notice history",
+   "regions": [
+    {
+     "region": ".drpg-notices-list",
+     "drawn": true,
+     "returned": "<div class=\"drpg-notices-list drpg-kit-body\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "action-observe",
+   "client": "p1",
+   "opened": true,
+   "title": "Observe",
+   "regions": []
+  },
+  {
+   "id": "action-search",
+   "client": "p1",
+   "opened": true,
+   "title": "Search",
+   "regions": []
+  },
+  {
+   "id": "action-analyze",
+   "client": "p1",
+   "opened": true,
+   "title": "Analyze",
+   "regions": []
+  },
+  {
+   "id": "action-tamper",
+   "client": "p1",
+   "opened": true,
+   "title": "Tamper",
+   "regions": []
+  },
+  {
+   "id": "action-rest",
+   "client": "p1",
+   "opened": true,
+   "title": "Facilities",
+   "regions": []
+  },
+  {
+   "id": "action-project",
+   "client": "p1",
+   "opened": true,
+   "title": "Projects",
+   "regions": []
+  },
+  {
+   "id": "action-palm",
+   "client": "p1",
+   "opened": false,
+   "title": null
+  },
+  {
+   "id": "action-dynamic",
+   "client": "p1",
+   "opened": true,
+   "title": "Dynamic Action",
+   "regions": []
+  },
+  {
+   "id": "notices-player-250",
+   "client": "p1",
+   "opened": true,
+   "title": "Notice history",
+   "regions": [
+    {
+     "region": ".drpg-notices-list",
+     "drawn": true,
+     "returned": "<div class=\"drpg-notices-list drpg-kit-body\">",
+     "matches": true,
+     "alsoInside": false
+    }
+   ]
+  },
+  {
+   "id": "room-window",
+   "client": "p1",
+   "opened": true,
+   "title": "Description",
+   "regions": []
+  },
+  {
+   "id": "palm-frisk",
+   "client": "p1",
+   "opened": true,
+   "title": "Palm",
+   "regions": []
+  },
+  {
+   "id": "ballot",
+   "client": "p1",
+   "opened": false,
+   "title": null
+  },
+  {
+   "id": "season-reset",
+   "client": "gm",
+   "opened": true,
+   "title": "Reset the season",
+   "regions": []
+  },
+  {
+   "id": "use-item-pick",
+   "client": "p1",
+   "opened": true,
+   "title": "Use “Probe odd vial”",
+   "regions": []
+  },
+  {
+   "id": "level-up-queue",
+   "client": "gm",
+   "opened": true,
+   "title": "The class's Level Ups",
+   "regions": []
+  },
+  {
+   "id": "rest-pick",
+   "client": "p1",
+   "opened": true,
+   "title": "Short Rest",
+   "regions": []
+  },
+  {
+   "id": "action-loot",
+   "client": "p1",
+   "opened": true,
+   "title": "Take from the Body",
+   "regions": []
+  },
+  {
+   "id": "action-loot--long",
+   "client": "p1",
+   "opened": true,
+   "title": "Take from the Body",
+   "regions": []
+  }
+ ]
+}

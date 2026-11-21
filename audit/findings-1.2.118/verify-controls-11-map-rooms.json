@@ -1,0 +1,126 @@
+{
+ "refuter": "verify-controls-11-map-rooms",
+ "of": "controls-11-map-rooms",
+ "checked": [
+  {
+   "ref": "controls-11-map-rooms-1",
+   "claim": "Room Setup's Apply writes back every column of a row whose room the world changed since the open, undoing a forced lock and deleting a Repair the Lock under way",
+   "verdict": "stands",
+   "why": "Read the whole road. readRoomSetupForm reads every row off the form as drawn; applyRoomRows compares each row with the flags read at Apply time (before, wasLocked, wasBroken), so a row the GM never touched is not `same` once the world changed it. With wasBroken true (forceDoor set it while open) and the drawn box false, setRoomBroken(false) and dropLockRepairs run; setVaultRoom then writes the drawn owner, table, description and picture, and writeRoomLock the drawn lock if the lock moved. The window's only redraw is keepFresh on the search-token setting (recountTokenCells writes token fields alone) and the Passages box's own keepFresh; no Hooks.on, keepLive or updateRegion listener in room-setup.mjs, and no other file finds the window by its class (grep of drpg-window-rooms: room-setup.mjs only). A Repair the Lock can only start after the break (repairLockRefusal needs roomBroken), so the scenario's order is a real one. E74-T5 sets the break and the lock before calling openRoomSetupDialog, so it pins the mend by hand only. The window's own comment (1343-1348) puts it open during Daily Life, so the change in between is ordinary; major holds.",
+   "evidence": [
+    "scripts/room-setup.mjs:1009 \"const wasBroken = roomBroken(scene, row.room);\"",
+    "scripts/room-setup.mjs:1041-1046 \"if (same) continue; ... if (wasBroken !== row.broken) { await setRoomBroken(scene, row.room, row.broken); ... if (!row.broken) await (await import(\\\"./doors-gm.mjs\\\")).dropLockRepairs(scene, row.room);\"",
+    "scripts/room-setup.mjs:1358-1361 \"keepFresh(dialog, { run: recount, watch: { settings: [SETTINGS.searchTokens] } });\"",
+    "scripts/doors-gm.mjs:175 \"if (holds.lock) await M.setRoomBroken(place.scene, room, true);\"",
+    "scripts/doors-gm.mjs:281 \"if ((await lockRepairsOf(scene.id, room)).some(p => p.id !== ignore)) return \\\"a project repairs that lock already.\\\";\" (and 279: refused unless roomBroken)",
+    "scripts/doors-gm.mjs:307-319 dropLockRepairs: \"for (const project of await lockRepairsOf(scene.id, room)) { if (await deleteProject(project.id)) {\"",
+    "scripts/mastermind.mjs:311 \"for (const scene of scenes) await writeRoomLock(scene, room, Boolean(lock));\" (another writer of the lock column)",
+    "scripts/tests-tier2.mjs:101884-101886 E74-T5: \"await M.setRoomBroken(scene, room, true); ... read.drawn = await answer(true);\" - the break is written before the window opens"
+   ],
+   "severity_after": "major"
+  },
+  {
+   "ref": "controls-11-map-rooms-2",
+   "claim": "Room Setup's Fog matrix, stash cells, owners, locks and room list stay as drawn at the open; nothing redraws them",
+   "verdict": "stands",
+   "why": "No listener in room-setup.mjs but keepFresh on the search-token setting; recountTokenCells touches only the token steppers. fog.mjs's own comment on applyDiscoveryChanges states the checkboxes are never refreshed while recordDiscovery goes on. The scene binding (E12 C4) is a decision, not a gap. The display harm stands as written. Severity raised: the surface is not even on keepLive's wait-for-focus, it never redraws, and its own comments say it is held open during Daily Life precisely to watch these values change; D-A1 makes a surface still on rule 1 a major finding, and a long-lived window that does not redraw at all breaks the same owner's rule more, so it cannot sit below those. Minor would fit a transient picker, not this window.",
+   "evidence": [
+    "scripts/fog.mjs:1530-1533 \"The checkboxes are drawn when Room Setup opens and never refreshed, while `recordDiscovery` goes on adding every room a student walks into - and the window is open during Daily Life because a GM is watching that happen.\"",
+    "scripts/room-setup.mjs:1276-1280 \"const known = new Map(students.map(a => [a.id, new Set(discoveredFor(scene?.id, a.id))])); ... const fogRows = ...; const stashRows = ...; const cells = roomCells(...)\" - read once",
+    "scripts/room-setup.mjs:42 \"import { alreadyOpen, keepFresh, RAISED } from \\\"./live.mjs\\\";\" - no keepLive, and grep of Hooks.on in the file: none",
+    "audit/findings-1.2.118/DECISIONS.md D-A1 \"Every surface still on rule 1 is a `major` REFR finding.\""
+   ],
+   "severity_after": "major"
+  },
+  {
+   "ref": "controls-11-map-rooms-3",
+   "claim": "A room's actions saved before the room is marked are written to its pieces but read back as none: count 0, editor reopens empty",
+   "verdict": "stands",
+   "why": "The Edit button is enabled on `possible` (pieces that can be a room, marked or not). setRoomActions writes on writablePieces (canBeRoom, no mark needed); roomActions reads through roomFlag -> roomRegions -> roomPieces, which filters on isRoomWith, which requires the ROOM_FLAG true. On an undecided region the two differ exactly as the finding says, and the opener rereads the count through roomActions after Save. The editor itself opens with roomActions(scene, room), so it reopens empty and its next Save replaces the first list. Undecided regions are every room of a new map before the first Apply, an ordinary setup step; minor holds (nothing is lost once Apply marks the room, unless the GM saved a second time).",
+   "evidence": [
+    "scripts/rooms.mjs:98-100 \"export function isRoomWith(region, players) { return canBeRoom(region, players) && region.getFlag?.(MODULE_ID, ROOM_FLAG) === true; }\"",
+    "scripts/rooms.mjs:321-323 \"export function writablePieces(scene, name) { ... return namedRegions(scene, name).filter(r => canBeRoom(r, players)); }\"",
+    "scripts/facilities.mjs:277 \"const stored = roomFlag(scene, room, FACILITIES.flag);\"",
+    "scripts/facilities.mjs:300 \"const pieces = writablePieces(scene, room);\"",
+    "scripts/room-setup.mjs:297 \"const possible = pieces.length > 0;\" and 318-320 \"disabled: !possible, attrs: { \\\"data-drpg-facility-edit\\\": room }\"",
+    "scripts/room-setup.mjs:726-727 \"if (count) count.textContent = String(roomActions(scene, room).length);\"",
+    "scripts/facility-editor.mjs:110 \"body: roomActionsBody(room, roomActions(scene, room)),\""
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-11-map-rooms-4",
+   "claim": "The action editors drop what their cleaning refuses with no word: an unnamed project action saves nothing and closes the window",
+   "verdict": "stands",
+   "why": "cleanFacility returns null on an empty label; setProjectFacility returns null; editProjectFacility returns that; the project manager's click handler awaits it and reads nothing. No required attribute on p.label or a{i}.label. cleanAction drops an unnamed room action and cleanEffect an effect with no text; the room note says nothing of it. Nit holds.",
+   "evidence": [
+    "scripts/facilities.mjs:112-114 \"export function cleanFacility(raw) { const label = clip(raw?.label, FACILITIES.maxLabel); if (!label) return null;\"",
+    "scripts/facilities.mjs:313-314 \"const facility = raw === null ? null : cleanFacility(raw); if (raw !== null && !facility) return null;\"",
+    "scripts/projects-ui.mjs:575-576 \"const { editProjectFacility } = await import(\\\"./facility-editor.mjs\\\"); await editProjectFacility(project);\"",
+    "lang/en.json:3976 \"roomNote\": \"Saving writes the room's actions at once. Only a character standing in the room sees them.\""
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "controls-11-map-rooms-5",
+   "claim": "The two action editors do not follow another GM's Save, and their own Save replaces the list whole",
+   "verdict": "stands",
+   "why": "facility-editor.mjs has no keepLive, keepFresh or Hooks (grep); each body is drawn once; setRoomActions writes the cleaned list over the flag and setProjectFacility the whole action. Two GMs on one room's editor at once is uncommon; nit holds.",
+   "evidence": [
+    "scripts/facility-editor.mjs:106-118 \"const result = await drpgWindow({ ... body: roomActionsBody(room, roomActions(scene, room)), ... }); ... return setRoomActions(scene, room, result);\"",
+    "scripts/facilities.mjs:303 \"await scene.updateEmbeddedDocuments(\\\"Region\\\", pieces.map(piece => ({ _id: piece.id, [`flags.${MODULE_ID}.${FACILITIES.flag}`]: actions })));\""
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "controls-11-map-rooms-6",
+   "claim": "The handover picker's list is the room at the open; a character who walks in is not offered",
+   "verdict": "stands",
+   "why": "askWhoIsHere reads othersInRoom once and draws the select; no render, no keepLive, no hook in handover.mjs (grep). One detail of the scenario needs at least one other person already there, since with nobody the window is not drawn (notice instead); the scenario says two were there, so it holds. The GM side's check refuses a stale pick, so the harm is the missing name; a short-lived picker, minor holds.",
+   "evidence": [
+    "scripts/handover.mjs:59-60 \"const room = locateActor(actor)?.room ?? null; const here = room ? othersInRoom(actor) : [];\"",
+    "scripts/handover.mjs:61-66 \"if (!here.length) { ui.notifications.warn(...) return null; }\"",
+    "scripts/handover.mjs:72-86 \"const picked = await drpgWindow({ title, classes: [\\\"drpg-panel\\\", \\\"drpg-window-handover\\\"], body: ... })\" - no render callback"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-11-map-rooms-7",
+   "claim": "The Passages tab's '+' menus offer the students of the open, and its names do not follow actor or user changes",
+   "verdict": "stands",
+   "why": "wirePassagesTab's draw closes over the `students` handed in at open (room-setup.mjs studentActors()); names are read from game.actors at draw time, but nothing hears createActor, updateActor or updateUser, so they change only on the next store change. Grants are judged on write. Nit holds.",
+   "evidence": [
+    "scripts/passages-tab.mjs:321 \"const draw = () => { box.innerHTML = passagesTabBody(scene, { stores, students, actors, users, told }); };\"",
+    "scripts/passages-tab.mjs:129 \"const offer = list => students.filter(a => !list.includes(a.id) && !mm(a.id));\"",
+    "scripts/passages-tab.mjs:402 \"keepFresh(dialog, { run: draw, watch: { stores: [...], hooks: [\\\"userConnected\\\", \\\"drpgPassagesTold\\\"] } });\""
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "controls-11-map-rooms-8",
+   "claim": "The room's picture popout keeps the picture it opened with after the GM changes or removes it",
+   "verdict": "stands",
+   "why": "openRoomImage makes a Foundry ImagePopout with the path of the press; refreshRoomTile on updateRegion repaints the tile and refreshRoomWindow finds RoomWindow instances only; stripImageControls touches the header controls. Nothing finds the popout again. Nit holds.",
+   "evidence": [
+    "scripts/room-tile.mjs:553-555 \"const popout = new foundry.applications.apps.ImagePopout({ src, classes: [POPOUT_CLASS], ... });\"",
+    "scripts/room-tile.mjs:733 \"const app = RoomWindow && [...foundry.applications.instances.values()].find(a => a instanceof RoomWindow && a.rendered);\"",
+    "scripts/room-tile.mjs:760-762 \"Hooks.on(\\\"createRegion\\\", onRegionChanged); Hooks.on(\\\"updateRegion\\\", onRegionChanged); Hooks.on(\\\"deleteRegion\\\", onRegionChanged);\""
+   ],
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 8,
+  "stands": 8,
+  "weakened": 0,
+  "refuted": 0
+ },
+ "severity_changes": [
+  "controls-11-map-rooms-2 minor -> major: Room Setup never redraws the values it shows and is held open during Daily Life to watch them; D-A1 makes a surface on keepLive's wait-for-focus major, and one that does not redraw at all cannot rank below it"
+ ],
+ "not_established": [
+  "No control was pressed and no harness run, probe or base-run.json read; every verdict here is a static reading of b5a29e73's source.",
+  "The reader's control verdicts of dead, throws, mislabeled and wrong_audience are all zero; the 80 controls marked ok were not re-checked one by one in this pass, only the 7 marked silent or stale_state and the 8 findings.",
+  "Whether the other writers named in finding 1 (cutBreach passages-gm.mjs:773, another GM's Apply) reach a row in the same way was read only as far as their call to setRoomBroken / writeRoomLock; forceDoor and the Mastermind's lair lock were followed to the flag."
+ ]
+}

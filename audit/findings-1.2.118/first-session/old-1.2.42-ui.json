@@ -1,0 +1,600 @@
+{
+ "reader": "old-1.2.42-ui",
+ "source": "audit/findings-1.2.42/ui.md: the 16 findings UI-01..UI-16 and the 6 numbered items of 'Live checks recommended'; what the old report says of each from audit/AUDIT-1.2.42.md sections 0, 2, 4, 5, 7 and 9",
+ "read": [
+  {
+   "file": "audit/findings-1.2.42/ui.md",
+   "lines": 218,
+   "how": "end to end"
+  },
+  {
+   "file": "audit/AUDIT-1.2.42.md",
+   "lines": 1666,
+   "how": "lines 5-128 (guide, section 11), 236-248, 378-404, 497-512, 558-760 and 827-836; every line that names a UI id (22 mentions, grep)"
+  },
+  {
+   "file": "scripts/glass.mjs",
+   "lines": 3870,
+   "how": "lines 50-235, 876-972, 2176-2345, 3347-3360, 3405-3530 and 3670-3870; every inline style write of moduleLayout (1163-1362) by a line filter"
+  },
+  {
+   "file": "scripts/glass-geometry.mjs",
+   "lines": 1307,
+   "how": "lines 28-44 and a grep of the strip constants"
+  },
+  {
+   "file": "scripts/glass-blocks.mjs",
+   "lines": 88,
+   "how": "end to end"
+  },
+  {
+   "file": "scripts/popup.mjs",
+   "lines": 1299,
+   "how": "lines 196-238, 318-470, 640-672 and 948-1030"
+  },
+  {
+   "file": "scripts/look.mjs",
+   "lines": 60,
+   "how": "end to end"
+  },
+  {
+   "file": "scripts/settings-window.mjs",
+   "lines": 523,
+   "how": "lines 55-84, 146-192 and 365-378"
+  },
+  {
+   "file": "scripts/settings.mjs",
+   "lines": 4662,
+   "how": "lines 1125-1160, 1830-1900, 4431-4470 and 4556-4564"
+  },
+  {
+   "file": "scripts/window-scale.mjs",
+   "lines": 225,
+   "how": "lines 62-225"
+  },
+  {
+   "file": "scripts/dh-settings.mjs",
+   "lines": 223,
+   "how": "lines 25-140 and 196-223"
+  },
+  {
+   "file": "scripts/motion.mjs",
+   "lines": 574,
+   "how": "lines 130-175"
+  },
+  {
+   "file": "scripts/sheet-fit.mjs",
+   "lines": 462,
+   "how": "lines 160-182 and 318-462"
+  },
+  {
+   "file": "scripts/sheet.mjs",
+   "lines": 242,
+   "how": "lines 75-100"
+  },
+  {
+   "file": "scripts/sheet-header.mjs",
+   "lines": 942,
+   "how": "lines 120-200"
+  },
+  {
+   "file": "scripts/config.mjs",
+   "lines": 5646,
+   "how": "lines 512-540"
+  },
+  {
+   "file": "scripts/anonymity.mjs",
+   "lines": 1054,
+   "how": "lines 66-82"
+  },
+  {
+   "file": "scripts/module.mjs",
+   "lines": 720,
+   "how": "the registration order of registerWindows, registerSettings and registerDhSettings (grep, lines 198-213)"
+  },
+  {
+   "file": "scripts/tests-css.mjs",
+   "lines": 1045,
+   "how": "lines 225-360 (deadClasses, deadAttributes)"
+  },
+  {
+   "file": "scripts/tests-tier0.mjs",
+   "lines": 26270,
+   "how": "R63 (3854-3890), R102 (5322-5345), R1313 (903-922); greps"
+  },
+  {
+   "file": "scripts/tests-tier1.mjs",
+   "lines": 63672,
+   "how": "R1380 (3349-3418), R298 (14498-14545), R3530 (20104-20143), R3500 (55845-55860), R3551 (59665-59705); greps"
+  },
+  {
+   "file": "scripts/tests-tier2.mjs",
+   "lines": 104280,
+   "how": "one line (50491) and greps only"
+  },
+  {
+   "file": "styles/stained-glass.css",
+   "lines": 5344,
+   "how": "lines 20-50, 100-175, 765-790, 1052-1069, 1222-1242, 2196-2212, 3430-3470, 3618-3632, 4455-4500, 4518-4544 and 4660-4690; the whole file by two scripts (colour rules, dead selectors)"
+  },
+  {
+   "file": "styles/danganronpa.css",
+   "lines": 18950,
+   "how": "lines 4640-4660, 5979-6014, 6972-6990, 8486-8500, 8590-8604, 13290-13316, 17270-17312 and 17397-17404; the whole file by the font-size script"
+  },
+  {
+   "file": "styles/components.css",
+   "lines": 4934,
+   "how": "lines 205-250, 1380-1408, 2868-2878 and 3714-3721; the whole file by the font-size script"
+  },
+  {
+   "file": "styles/base.css",
+   "lines": 330,
+   "how": "lines 28-40; the whole file by the font-size script"
+  },
+  {
+   "file": "styles/narrow.css",
+   "lines": 593,
+   "how": "by the font-size script only"
+  },
+  {
+   "file": "docs/design/typography.md",
+   "lines": 103,
+   "how": "end to end"
+  },
+  {
+   "file": "fonts/README.md",
+   "lines": 113,
+   "how": "the floor sentence (line 109, grep)"
+  },
+  {
+   "file": "CONTRIBUTING.md",
+   "lines": 185,
+   "how": "lines 94-100"
+  },
+  {
+   "file": "tools/contrast.mjs",
+   "lines": 76,
+   "how": "lines 1-70"
+  },
+  {
+   "file": "tools/contrast-pairs.json",
+   "lines": 236,
+   "how": "all 26 pairs and the hours block, by a script"
+  },
+  {
+   "file": "docs/dev/e58/TRIAGE-9.2.md",
+   "lines": 588,
+   "how": "lines 1-45"
+  },
+  {
+   "file": "docs/dev/e58/LOCAL-REPORT.md",
+   "lines": 660,
+   "how": "lines 336-347, 432-433 and greps"
+  },
+  {
+   "file": "docs/dev/e39/CALIBRATION.md",
+   "lines": 151,
+   "how": "lines 40-44"
+  },
+  {
+   "file": "docs/dev/e59/GAPS.md",
+   "lines": 194,
+   "how": "lines 25-34"
+  },
+  {
+   "file": "docs/dev/R-REGISTRY.md",
+   "lines": 1826,
+   "how": "the rows of R2, R63, R102, R298, R547, R1312, R1380, R1410, R3500, R3530, R6754 (grep)"
+  },
+  {
+   "file": "audit/harness/lib/seed.mjs",
+   "lines": 199,
+   "how": "the seeded actors (grep)"
+  },
+  {
+   "file": "lang/en.json",
+   "lines": 7534,
+   "how": "every key holding uiScale or a floor in px, by a script; lines 418-421"
+  },
+  {
+   "file": "lang/pl.json",
+   "lines": 9375,
+   "how": "the same script"
+  },
+  {
+   "file": "fonts/*.woff2 (6 files)",
+   "lines": null,
+   "how": "each file's cmap table decoded by a script (binary)"
+  },
+  {
+   "file": "git show v1.2.42:scripts/glass.mjs",
+   "lines": 2328,
+   "how": "lines 36-72 and 2010-2056, to compare"
+  }
+ ],
+ "count_expected": 22,
+ "count_note": "grep -c '^### ' gives 16 headings, all of the form '### UI-nn [severity: ...]'. 'Live checks recommended' holds 6 numbered items, added as UI-LC1..UI-LC6. 'Comments contradicting code' is one unnumbered paragraph inside 'Hygiene metrics' (seven places): no items of its own, each place is settled under UI-02, UI-06, UI-07, UI-08 or UI-13. 16 + 6 = 22 items.",
+ "items": [
+  {
+   "id": "UI-01",
+   "title": "#drpg-settings-launcher (7 rules, one selector of the curtain's block table) and #drpg-notice (10 references) are styled and measured, and no script builds either",
+   "old_severity": "minor",
+   "old_state": "closed under another name: AUDIT-1.2.42.md section 9 (line 634, one of the '34 ID'); the dead selectors went with task 11, commit b3604be (lines 511 and 626)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/glass.mjs:50 LAUNCHERS names #drpg-messenger-launcher, #drpg-sound-launcher, #drpg-book-launcher and [data-drpg-cluster], and the launch block reads it (glass.mjs:92); each id has a script that creates it (messenger-app.mjs:39, sfx.mjs:467, handbooks.mjs:27). A count over the 7 served sheets with comments stripped and the 259 scripts whose name does not start with tests- finds 0 of #drpg-settings-launcher and 0 of #drpg-notice; the one mention left is the history note at styles/stained-glass.css:2203. Commits b3604be0 (12.09.2026) and 3f19bfc5 (07.11.2026).",
+   "pinned_by": "R1380 (tier 1, scripts/tests-tier1.mjs:3369-3370: no served sheet names #drpg-settings-launcher). None found for #drpg-notice.",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Counted both ids in every served sheet and every non-test script (0 and 0); checked that every id of the launch union is created by a script.",
+   "note": "The phantom id came back once: 6ab84efa (17.09.2026) wrote two new rules naming #drpg-settings-launcher (the turning lists), and they stood until 3f19bfc5 (E23 C1c, 07.11.2026) took them out and added R1380. The union's fallback box is 114x134 now, the corner being a grid since E77 C6."
+  },
+  {
+   "id": "UI-02",
+   "title": "23 rules of stained-glass.css are gated on body.drpg-no-glass-effects, a class no script sets since the setting behind it was removed",
+   "old_severity": "minor",
+   "old_state": "closed under another name: AUDIT-1.2.42.md section 9 (line 634); removed with task 11, commit b3604be (line 626)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "The class stands in no served sheet and no script (count 0 and 0 over 7 sheets and 259 scripts; git grep of scripts, styles, tools and audit finds it only in the old papers). The three switches the theme still has are set by a script: scripts/settings.mjs:4556-4558 toggles drpg-no-pulse, drpg-no-ticker and drpg-no-blur. scripts/glass.mjs:2215 keeps the note that effectsOn() is gone. Commit b3604be0 (12.09.2026).",
+   "pinned_by": "none found that would fail on the 1.2.42 shape: R2 (tests-css.mjs deadClasses) asks an emitter for a class styled outside :not(), but leaves out any class that also stands in a :not() (tests-css.mjs:283-303), which is how this one stood",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for the class under another spelling (no-glass, glassEffects, effectsOn) in scripts, sheets and lang/en.json: only the note at glass.mjs:2215 and two comments that say 'glass effects' as a heading (settings.mjs:1746, look.mjs:6).",
+   "note": "The idea the class stood for (less cost on a weak machine) came back as a registered client setting with its own class: glassBlur and drpg-no-blur (styles/stained-glass.css:2713)."
+  },
+  {
+   "id": "UI-03",
+   "title": "unmount() never clears the inline max-height and overflow that moduleLayout writes on #scene-controls, so Monokuma Legacy keeps a rail capped for the glass layout until reload",
+   "old_severity": "minor",
+   "old_state": "fixed in 1.2.43 (AUDIT-1.2.42.md section 2.2, line 244)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/glass.mjs:2292, in unmount(): the loop over '#scene-controls, #sidebar' clears marginTop, paddingTop, boxSizing, maxHeight and overflow. The only writes are glass.mjs:1310-1311 on railTop, which is columnRail('#scene-controls') (1205), so the element cleared is the element written. refreshGlass() calls unmount() whenever the theme is off and something is mounted (3803). Commit 90c17021 (12.09.2026).",
+   "pinned_by": "none found for the inline max-height; R1380 reads unmount's observers, loop, probe and rotation table, not this style",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Listed every inline style write of moduleLayout (transform, paddingTop, marginTop, boxSizing, overflow, maxHeight) against what unmount clears: each is cleared (2292, 2296-2297); looked for a second element taking the bound (none).",
+   "note": ""
+  },
+  {
+   "id": "UI-04",
+   "title": "observe() adds a resize listener on every mount (one more per Legacy to Glass switch) and registerGlass adds a second, unthrottled one that pins the column and probes the board on every resize event",
+   "old_severity": "minor",
+   "old_state": "fixed in 1.2.43 (AUDIT-1.2.42.md section 2.2, line 244); also listed among the '34 ID' of section 9 (line 634)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/glass.mjs:3675-3680: resizeWatched guards the listener, added once for the page's life. registerGlass's own listener (3855) only calls schedule() (a 150 ms debounce on one timer, 3674) and flatSoon() (150 ms, 431); pinRightColumn and freeTheBoard run inside the debounced rebuild. unmount disconnects every observer and the sidebar's watch (2283-2284). Commit 90c17021 (12.09.2026).",
+   "pinned_by": "none found (no test names resizeWatched or counts resize listeners); R1380 holds that no observer stays connected after unmount",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for any other listener added per mount (visibilitychange, AV lift, hooks: all in registerGlass, once) and for work done on the raw resize event (none: both handlers end in a timer).",
+   "note": "Under Monokuma Legacy a resize still costs one debounced refreshGlass(), which returns at glassRoom() with nothing mounted."
+  },
+  {
+   "id": "UI-05",
+   "title": "The curtain's frame loop allocates a MediaQueryList about 60 times a second through REDUCED() and paneAt walks every pane's polygon; the loop runs for the life of the page",
+   "old_severity": "minor",
+   "old_state": "fixed in 1.2.43 (AUDIT-1.2.42.md section 2.2, line 244); also listed among the '34 ID' of section 9 (line 634)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/glass.mjs:2181-2182: one REDUCED_MQ made at import, REDUCED() reads its .matches. glass.mjs:3466-3472: paneAt tests the pane's box before inside(). The loop runs only while a curtain is mounted: started in mount() (2275), cancelled in unmount() (2285) since E23 C1c. Commits 90c17021 (12.09.2026) and 3f19bfc5 (07.11.2026).",
+   "pinned_by": "R1380 (the loop's frame is 0 after unmount and runs again after a mount); none found for the cached list or the box test",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Checked the other callers of REDUCED() (beatAt, objectionEdge) read the same cached list; checked pulseOn() is a class read (2184). REDUCED() still stands before the 66 ms gate (3787-3788), which now costs a class read and a property read.",
+   "note": "A reading on a real Foundry exists for the pulse's cost on a desktop: see UI-LC6."
+  },
+  {
+   "id": "UI-06",
+   "title": "glass.mjs carries dead code and notes that contradict it: placeTiles' unreachable tail and MAX_SHIFT, STRIP_SLACK never read, two stacked notes on the note-block's fallback, 22 against STRIP_LEAN 26, rails called blocks",
+   "old_severity": "nit",
+   "old_state": "task 13 (AUDIT-1.2.42.md section 9, line 632; the table names commit 7e40243, which in this history is the D8 text pass - the commit titled 'Task 13' is b888c066)",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "Gone: MAX_SHIFT and STRIP_SLACK (0 matches in the scripts; b888c066 and b3604be0), placeTiles' tail (glass.mjs:3428-3436 is six lines), the note-block has one note (glass.mjs:71-76), the strip's note says STRIP_LEAN 26 (glass-geometry.mjs:34-42). Left: the note of the removed MAX_SHIFT (glass.mjs:3415-3418, 'The shift is capped ... 160 px') now stands over tileButtons; the heading at 3423 says 'ONCE THE RAILS ARE BLOCKS' against 93 'FOUNDRY'S TWO RAILS ARE NOT BLOCKS'; the call at 3353-3355 says 'push them down once' of a placeTiles that only clears an inline padding-top no code writes (paddingTop is only cleared: 1208, 2292, 3431, 3433); and 103-107 says 'a taller stack of cards is measured and the tile grows to hold it' against 71-75 and fitNoteTile (220-233), which reads the rail's end.",
+   "pinned_by": "none found",
+   "still_wrong": "Whoever next reads glass.mjs meets four notes describing code that is not there: a shift cap of 160 px, rails as blocks, a push placeTiles no longer makes, and a notice tile that grows with its cards.",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "Searched for any writer of padding-top on #sidebar or #scene-controls in glass.mjs, glass-close.mjs, narrow.mjs, chrome.mjs and the sheets (none), so placeTiles() can only answer false; compared the 1.2.42 text of both notes (git show v1.2.42:scripts/glass.mjs 36-72, 2010-2056).",
+   "note": "Nothing here changes what a table sees. A fifth stale reference of the same kind is in UI-16's note (a sha in a comment)."
+  },
+  {
+   "id": "UI-07",
+   "title": "Three documents give three type floors: the uiScale hint and typography.md say 11 px and 'never scaled', the sheet says 21 px times the slider",
+   "old_severity": "minor",
+   "old_state": "task 13 (AUDIT-1.2.42.md section 9, line 632)",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "The hint no longer names a floor: lang/en.json:420 'Sets the size of the module's windows and text, and with them Foundry's windows and the sheet, from 25% to 140%. The map keeps its size.' (its Polish twin says the same; the range is UI_SCALE, scripts/settings.mjs:4431). docs/design/typography.md:19-24 says 21 px scaled by the slider, as styles/stained-glass.css:104 and fonts/README.md:109. Left in typography.md: line 13 gives VT323's chrome '11-15px at 100% scale' and line 91 says 'The 11px above is VT323's floor and the glass's'. Commit b888c066 (13.09.2026).",
+   "pinned_by": "none found",
+   "still_wrong": "A contributor reading docs/design/typography.md is told in two places that the glass's chrome type is 11 px, and in a third that nothing is under 21 px.",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "Scanned every key of lang/en.json and lang/pl.json for uiScale and for a floor stated in px (only the two hints, neither names a floor); read typography.md end to end for every 11 and 21.",
+   "note": "The player-facing half (the hint) is the part that mattered and it is fixed. A neighbouring contradiction in the same document, on Legacy's floor, is in new_observations."
+  },
+  {
+   "id": "UI-08",
+   "title": "The Reduced motion switch is hidden under Monokuma Legacy in both windows although it stills the whole module's motion there too",
+   "old_severity": "minor",
+   "old_state": "fixed in 1.2.43 (AUDIT-1.2.42.md section 2.2, line 245)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/look.mjs:33-37: themeOnlyKeys lists the pulse, the ticker and the blur for the glass and the pixel face for Legacy; reduced motion is in neither. The one window that holds the row draws it in Effects for every theme (scripts/settings-window.mjs:84) and disables a row only when another theme owns it (149-152, 367-376). Foundry's Configure Settings hides nothing any more: every setting is config: false (settings.mjs:1836-1844) and the hook only marks the module's row (1134-1146). motion.mjs:135-143 reads the class whatever the theme.",
+   "pinned_by": "R3530 (the gear's window holds the reduced motion row once, the same markup for a GM and a player); R1410 (the class is on for the switch or the system and stills both themes). Neither reads the row's enabled state under Legacy.",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for a second place that hides or disables the row by theme (renderSettingsConfig, syncTheme, settingRowHtml): only themeOnlyKeys decides, and it does not name the setting.",
+   "note": "The Look window of 1.2.42 is the DRPG Settings window since E49 A1d; look.mjs is a 60-line door to it."
+  },
+  {
+   "id": "UI-09",
+   "title": "scaleWindow takes any window whose class name matches /actor/i or whose document is an Actor for the character sheet: the Actors tab and NPC sheets are forced to 1120x1160 and lose their resize handle",
+   "old_severity": "minor",
+   "old_state": "task 10, commit b708865 (AUDIT-1.2.42.md section 5 line 503, section 9 line 625); live check section 7 item 12",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "Fixed: scripts/window-scale.mjs:167-168 enters the sheet branch only for the glass body class and app.document.type === 'character' - no class-name match, no documentName test - so the Actors tab (no document) and a sheet of another actor type keep their box; the handle is hidden by a rule for .application.sheet.actor.character alone (styles/stained-glass.css:4525-4527), not removed. Left, suspected: the test is the document's type, not the window, so any other window whose document is a character takes SHEET_SIZE.glass (173-174) and, on its first render, the sheet's place under the band (183-187). The module's own stand-in of Daggerheart's character settings window is such a window (scripts/tests-tier1.mjs:59685-59692: app.document = { documentName: 'Actor', type: 'character' }), dh-settings.mjs:218 then sets its width alone, and anonymity.mjs:73-75 reads Configure Ownership's app.document as the actor. Commit b708865c (12.09.2026).",
+   "pinned_by": "R63 (the stated size is written once, in the glass branch) and R102 (the handle is hidden by a rule); none found that holds the branch to the sheet's own window - R3551 reads the settings window's width, not its height",
+   "still_wrong": "Suspected: under Stained Glass somebody opens Daggerheart's character settings (the wrench) on a student and the window comes up at the module's popup width but as tall as the sheet (1160 px times the slider, capped at the screen less 48 px) and placed under the Despair band; a GM's Configure Ownership on a student would take 1120x1160.",
+   "severity_now": "minor",
+   "confidence": "suspected",
+   "refutation_tried": "Looked for a guard by class or element in scaleWindow (window-scale.mjs:129-196: none), a rule setting the height of .drpg-window-dh-settings (components.css 4380-4470: none), a later setPosition of the height (dh-settings.mjs:218 sets width alone) and a test reading the height (none). Not refuted from the source; Daggerheart's own class is not in this checkout.",
+   "note": "What would settle it: at a table under Stained Glass, open the wrench's window and Configure Ownership on a student and read each window's position.height. Monokuma is an actor of type character in this module (audit/harness/lib/seed.mjs:109), so its sheet takes the glass size by design; the old finding counted it as an NPC. No reading on a real Foundry: E58's row S7-12 is 'left - shots not yet taken' (docs/dev/e58/LOCAL-REPORT.md:433)."
+  },
+  {
+   "id": "UI-10",
+   "title": "Under Stained Glass the notice stack is clipped to a fixed tile and trimStack retires only non-sticky cards, so with two sticky cards on it every later card arrives out of sight",
+   "old_severity": "minor",
+   "old_state": "task 10, commit b708865 (AUDIT-1.2.42.md section 5 line 503, section 9 line 625); live check 9.2 item 16 added for the fix (line 832)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/popup.mjs:369-390: trimStack parks (keeps, hidden) the oldest shown cards past the stack's capacity, non-sticky first and then sticky, and never the card that just arrived (382). popup.mjs:433-441: while the shown cards' boxes overflow the tile and more than one is shown, the oldest shown is parked too. A trial's evidence and objections no longer stand on the corner tile at all: hostFor sends them to their own stage (234-238, MAX_EVIDENCE 2 at 658). Commits b708865c (12.09.2026) and 14a710d1 (22.09.2026, parked instead of dismissed, newest on top).",
+   "pinned_by": "R298 (tier 1, scripts/tests-tier1.mjs:14508-14536: sticky cards alone are parked once the stack is full and '+N' stands on the oldest shown one)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for a road onto the tile that skips trimStack (showPopup is the one writer and calls it at 1067) and for a state where the newest is parked (both loops go oldest first and stop at one card). The fit by boxes (overflowsGlass, 415-424) needs layout and was not run here.",
+   "note": "Live check 9.2 item 16 is still unread on a real Foundry: docs/dev/e58/LOCAL-REPORT.md:432 'not yet driven'. The note at styles/stained-glass.css:3438-3441 still describes the 1.2.42 stack ('the newest at the bottom ... retired'), see new_observations."
+  },
+  {
+   "id": "UI-11",
+   "title": "State accents used as text (night, trial, eclipse, GM red, GM light) sit at or under 4.5:1 on a pane and under it on a window over a bright map; GM red #e0182f as text is 2.9:1",
+   "old_severity": "minor",
+   "old_state": "task 10, commit b708865 (AUDIT-1.2.42.md section 5 line 503, section 9 line 625); the 14.09 review corrected that --drpg-sg-gm is never a letter (section 9.3b, line 717)",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "Fixed, counted by a script over stained-glass.css with comments stripped (147 colour declarations): 0 rules set text in the dark GM red; .drpg-event-title (769-779), .drpg-hud-elapsed (1236-1240), .drpg-gm-panel table th (4540-4543) and the panels' icons (4667-4669) take a color-mix of the accent with Bone at 72-80 %, destructive and GM-route glyphs the light red (4674-4677); night is #8f9aab since E48 K2 (144). Left: 24 rules still set text in the pure accent, among them .drpg-panel table thead th (1058-1064), the clock's chapter and phase (1226-1231), the sheet's headings (1449, 2605) and .drpg-step (2625), and a window's ground is still rgba(7, 6, 11, 0.58) over a filtered backdrop (4472-4488). On opaque Ink the state accents read 6.03 (trial #ff3d8b), 6.47 (eclipse #a678ff) and 6.46 (incident #ff5566) to 1, computed here; over the translucent ground nothing was measured.",
+   "pinned_by": "R1312 and 'check contrast' hold the tokens at AA on opaque Ink (tools/contrast-pairs.json 'sg-label'); a ground with alpha is 'not measured in Node' (tools/contrast.mjs:15-17). Nothing found reads accent text over a translucent pane on a bright scene.",
+   "still_wrong": "Suspected: during a Class Trial, an Eclipse or an incident, a player whose window lies over a bright scene reads table heads and section headings in the pure state colour at about 3.2-3.5:1 by the old finding's own figures; not re-measured, the ground being a blurred and darkened backdrop.",
+   "severity_now": "nit",
+   "confidence": "suspected",
+   "refutation_tried": "Looked for a later rule lifting every accent label (none: 24 pure-accent colour rules counted), for an opaque ground under the heads (th stands on --drpg-sg-ink-50, a half Ink, 1065), for a recorded picker reading (none in docs/dev/e58/LOCAL-REPORT.md) and for a switch: High contrast gives the module's panels and dialogs an opaque ground (styles/danganronpa.css:17308-17312), where the accents read over 6:1.",
+   "note": "Rated nit, not minor: the worst case of the old finding (GM red as text) is gone, the elements it named are lifted, the ground carries a text shadow (4487) and a player has the High contrast switch. The translucent ground is a stated design choice of the theme (4473-4483)."
+  },
+  {
+   "id": "UI-12",
+   "title": "Under Monokuma Legacy eleven rules set text under 12 px at 1080p (badges at 10-11 px, the pixel-face status value at 11.5 px)",
+   "old_severity": "nit",
+   "old_state": "task 10, commit b708865 (AUDIT-1.2.42.md section 5 line 503, section 9 line 625)",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "Fixed as the old fix line asked: .drpg-overflow-badge, .drpg-tb-badge and .drpg-messenger-badge read --drpg-text-xs (danganronpa.css:13433, 3528; base.css:66), which floors at 11 px (danganronpa.css:361); .drpg-overflow-caption is max(10px, 11px times the slider) (13388), .drpg-table-item-also and .drpg-messenger-time floor at 11 px (components.css:2903; danganronpa.css:13932), the pixel-face status value is 0.75rem, 12 px (6981-6985), and .drpg-sfx-badge has no rule left. Left: a script over the four sheets Legacy reads (332 font-size declarations outside glass rules; 45 relative and 9 unresolved set aside) finds 12 text sizes declared under 11 px at 100 % - the voice tile's push-to-talk mark 8 px and count 9 px (components.css:1388-1395, 1404), the pixel face's trait names and sheet tabs 9 px (danganronpa.css:2885, 2902), its clock lines and Despair names 10 px (2868, 2874) - and 109 from 11 to under 12 px.",
+   "pinned_by": "R3500 (--drpg-text-xs and Legacy's rungs 11-14 never under 11 px) and R6754 (no served size under 11 px at the slider's least, but on the surfaces FLOOR_OUTSIDE names)",
+   "still_wrong": "A Legacy player with the pixel face reads the sheet's trait names and tabs at 9 px and the voice tile's push-to-talk mark at 8 px at 100 % (declared sizes; what wins the cascade was not computed).",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "Checked each of the eleven named rules by selector in base.css, components.css, danganronpa.css and narrow.css; checked whether the leftovers are known: docs/dev/e59/GAPS.md:31 lists '21 sizes under 11 px off the windows ... open (Q-E59-12)' and R6754 exempts those surfaces by name.",
+   "note": "The leftovers are a recorded open question for the owner (Q-E59-12), not an oversight; a later !important rule lifts some of them under the Legacy body class (danganronpa.css:8494-8498 for the status label, the Despair name, the badge), which the declared-size count does not see."
+  },
+  {
+   "id": "UI-13",
+   "title": "The character sheet's size is stated in two files with two different Daggerheart defaults in their comments (850x830 and 850x800) and two targets",
+   "old_severity": "nit",
+   "old_state": "task 13 (AUDIT-1.2.42.md section 9, line 632)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/config.mjs:525 SHEET_SIZE = { minHeight: 980, glass: { width: 1120, height: 1160 } } is the one statement; sheet-fit.mjs:395 and window-scale.mjs:91 read the minimum, window-scale.mjs:173-174 the glass size. One default is left in the comments: 850 x 800 (window-scale.mjs:94-96, 150, 160), and sheet-fit.mjs:379 says '850 wide' and points there. Commit b888c066 (13.09.2026).",
+   "pinned_by": "R63 (scripts/tests-tier0.mjs:3884-3889: want.width = SHEET_SIZE.glass.width stands exactly once in scaleWindow, inside the glass branch)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Searched the scripts for 1120, 1160, 980, 830 and SHEET_MIN_HEIGHT as literals outside config.mjs: only the alias at sheet-fit.mjs:395.",
+   "note": "sheet-fit.mjs:380 still says scaleWindow is 'in settings.mjs'; it lives in window-scale.mjs since E54 and settings.mjs re-exports it (settings.mjs:17)."
+  },
+  {
+   "id": "UI-14",
+   "title": "watchTileFit creates one ResizeObserver per sheet root and never disconnects it: every open and close of a character sheet leaves an observer on a detached element",
+   "old_severity": "nit",
+   "old_state": "task 9, commit 6e59551 (AUDIT-1.2.42.md section 5 line 497, section 9 line 624)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/sheet-fit.mjs:372 keeps the observer on the app (app._drpgTileFit), 354 disconnects a previous root's observer on a re-open, and scripts/sheet.mjs:90-93 disconnects it on closeCharacterSheet. Commit 6e595514 (12.09.2026).",
+   "pinned_by": "none found (no test names _drpgTileFit or watchTileFit)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Listed every ResizeObserver in the sheet files: two. The second is new (see the note) and is not one per open.",
+   "note": "A second observer of the same kind arrived with dc476939 (14.11.2026): fitTraitRow (scripts/sheet-header.mjs:179-183) replaces app._drpgTraitFit on each render but the close hook (sheet.mjs:90-93) does not disconnect it, so one observer and one detached row per closed sheet stay until that sheet is opened again - bounded, not growing."
+  },
+  {
+   "id": "UI-15",
+   "title": "const SHY is written as a literal invisible U+00AD; .drpg-compact is negated in nine selectors and set by nothing; the messenger launcher is styled twice in messenger.css",
+   "old_severity": "nit",
+   "old_state": "not named anywhere in AUDIT-1.2.42.md (0 mentions; in none of the lists of section 9, though line 636 counts all 152 ids as settled); its .drpg-compact part is in task 11's dead selectors (lines 511, 626)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/sheet-fit.mjs:167: const SHY = \"\\u00AD\", an escape, with the id in its comment (commit b3604be0). .drpg-compact stands in no selector of the served sheets (count 0; the note at styles/danganronpa.css:4649-4651 says it went). messenger.css is gone: the launcher's place is one rule in styles/base.css:37, its size and shape danganronpa.css:8600 and 13306-13316, with the note that the dead lines were removed at E49 B3; no sheet mentions the Casebook launcher.",
+   "pinned_by": "none found",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Scanned all 271 scripts and 7 sheets for a literal U+00AD: two are left, neither the constant (a comment at sheet-fit.mjs:178 and a test's regex, see new_observations).",
+   "note": "tests-css.mjs:283-289 still explains :not(.drpg-compact) as a switch the sheets keep ('nothing wears it today'); no sheet holds it any more. styles/danganronpa.css:13306-13316 gives the launcher the panel radius in a shared rule and 50 % in the next one, so the first rule's launcher arm never shows."
+  },
+  {
+   "id": "UI-16",
+   "title": "One rebuild of the curtain forces 8-12 synchronous layouts, and applyRotations is also the rails' ResizeObserver callback, run synchronously with three forced reflows when a tool palette opens",
+   "old_severity": "nit",
+   "old_state": "task 9, commit 6e59551 (AUDIT-1.2.42.md section 5 line 497, section 9 line 624)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/glass.mjs:3693-3702: the rails' observer runs applyRotations once per animation frame (railFrame). glass.mjs:902-912: the rotation sheet's text is written only when the rules changed, so an unchanged pass restyles nothing; applyRotations stands down with no curtain (883-889). Commits 6e595514 (12.09.2026, the frame) and b4d198ae (15.09.2026, the unchanged pass).",
+   "pinned_by": "R547 (tier 1: a pass over the same geometry writes the rotation sheet zero times, through glass.mjs rotationWrites); none found for the animation frame",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for another synchronous caller of applyRotations from an observer (the block observer and the mutation observer both go through schedule, 150 ms).",
+   "note": "The comment at glass.mjs:909-910 says the first half 'was implemented (8d24e21)'; 8d24e215 does not touch glass.mjs - railFrame arrives in 6e595514. The old finding asked for no fix of the rebuild itself, and none was made."
+  },
+  {
+   "id": "UI-LC1",
+   "title": "Live check 1 (UI-09): open the Actors sidebar as a popout and a Monokuma (NPC) sheet under Stained Glass; does setPosition(1120x1160) reach them, does the resize handle go",
+   "old_severity": null,
+   "old_state": "AUDIT-1.2.42.md section 7 item 12 (line 592); E58's triage row S7-12, class S, 'left - shots not yet taken' (docs/dev/e58/TRIAGE-9.2.md:35, LOCAL-REPORT.md:433)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "The code answers it: scripts/window-scale.mjs:167-168 gives the stated size only to a window whose document is of type character, so the Actors tab (no document) and an actor of another type keep their own box times the slider, and the handle is hidden by a rule that names .application.sheet.actor.character (styles/stained-glass.css:4525-4527).",
+   "pinned_by": "R63 and R102, as far as UI-09's item says",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Checked what a Monokuma is here: an actor of type character (audit/harness/lib/seed.mjs:109), so its sheet is a character sheet and takes the size by design.",
+   "note": "Nobody read it on a real Foundry. The check worth making in its place is UI-09's: the wrench's window and Configure Ownership on a student under Stained Glass."
+  },
+  {
+   "id": "UI-LC2",
+   "title": "Live check 2 (UI-10): in a trial with two sticky evidence cards on screen, trigger a refusal on a player's client under Stained Glass and confirm it is not visible",
+   "old_severity": null,
+   "old_state": "AUDIT-1.2.42.md section 7 item 12 (line 592) and, after the fix, 9.2 item 16 (line 832); E58: item 16 'left - not yet driven' (docs/dev/e58/LOCAL-REPORT.md:432)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "The code answers the logic: evidence and objections stand on their own stage, not on the corner tile (scripts/popup.mjs:234-238), and on the tile the newest card is never the one parked (369-390, 433-441).",
+   "pinned_by": "R298",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "See UI-10; the fit by boxes needs a browser's layout and no reading of it on a real Foundry is recorded.",
+   "note": "9.2 item 16 words the expected result as 'the third card pushes out the oldest sticky'; since 22.09.2026 the oldest is parked and counted in '+N', not dismissed, and a trial's evidence is not on this tile - the item's text no longer matches the code."
+  },
+  {
+   "id": "UI-LC3",
+   "title": "Live check 3 (UI-03): switch Stained Glass to Monokuma Legacy with a tool palette open on a 900 px screen and inspect #scene-controls for a stale inline max-height",
+   "old_severity": null,
+   "old_state": "not carried into AUDIT-1.2.42.md section 7; UI-03 itself was fixed in 1.2.43 (line 244)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/glass.mjs:2292: unmount clears maxHeight and overflow on #scene-controls, the element moduleLayout wrote them on (1205, 1310-1311).",
+   "pinned_by": "none found",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "See UI-03.",
+   "note": ""
+  },
+  {
+   "id": "UI-LC4",
+   "title": "Live check 4 (UI-11): at Night, Eclipse and Class Trial run a contrast picker on .drpg-event-title, .drpg-gm-panel table th and the GM panel's icons over a bright scene",
+   "old_severity": null,
+   "old_state": "not carried into AUDIT-1.2.42.md section 7; no later item of 9.2 asks for it (grep of 'kontrast' in the file: lines 167 and 717 only)",
+   "status": "open",
+   "evidence_class": "S",
+   "evidence": "The three named elements now take a mix of the accent with Bone at 72 % (styles/stained-glass.css:778, 4541, 4668), which on opaque Ink reads 7.6:1 and more (computed here); the ground they stand on is still translucent (4484), and no reading over a bright scene is recorded in docs/dev/e58/LOCAL-REPORT.md or audit/AUDIT-1.2.42.md.",
+   "pinned_by": "none (R1312 measures on opaque Ink)",
+   "still_wrong": "Nobody has read the contrast of state-coloured text over a bright scene at a table or in Chromium with a bright map.",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "Searched the E58 report and section 9.2 for a contrast reading (none).",
+   "note": "The 24 pure-accent text rules of UI-11 are the ones a picker should be pointed at now, table heads of .drpg-panel first."
+  },
+  {
+   "id": "UI-LC5",
+   "title": "Live check 5 (Polish diacritics): confirm the Latin-Ext woff2 is fetched when a name with a Polish letter is drawn, and that U+00D3 is in VT323-Regular.woff2 (not verified byte-level then)",
+   "old_severity": null,
+   "old_state": "AUDIT-1.2.42.md section 7 item 13 (line 593); E58's row S7-13 'left - shots not yet taken' (docs/dev/e58/LOCAL-REPORT.md:433)",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "The byte-level half is read here: a script decoded the cmap of the six shipped woff2 files - in each face (VT323, Special Elite, the pixel face) the lower and upper o-acute are mapped in the base file and the other 16 Polish letters in the Latin-Ext file, none missing, none in neither. The @font-face ranges still split there: U+0000-00FF and U+0100-02BA (styles/stained-glass.css:29, 35, 41, 47; danganronpa.css:2745, 2760). Not read: that a client fetches the Latin-Ext file when such a letter is drawn.",
+   "pinned_by": "none found that reads the font files; audit/glass-sweep.mjs --accents reads nine Polish capitals on the sequences' title in Chromium",
+   "still_wrong": "No recorded reading of the network fetch on a real client.",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Checked the cmap reader on a control: capital A is mapped in every base file and in no Latin-Ext file.",
+   "note": ""
+  },
+  {
+   "id": "UI-LC6",
+   "title": "Live check 6 (UI-05): profile one minute of idle with the pulse on and 120+ panes; the linear paneAt scan every 500 ms is the number to watch on a tablet",
+   "old_severity": null,
+   "old_state": "not carried into AUDIT-1.2.42.md section 7; UI-05 itself was fixed in 1.2.43 (line 244)",
+   "status": "partly",
+   "evidence_class": "F",
+   "evidence": "A reading on a real Foundry 14.370 exists for a desktop: docs/dev/e58/LOCAL-REPORT.md:345 (16.11.2026, the GM alone in one focused window, both themes) - 300 frames in 5 s, median 16.7 ms, and 'the blur, the pulse and the canvas each held changed the frame by at most 0.15 ms'. In the source the scan tests a pane's box before its polygon (scripts/glass.mjs:3466-3472). Not read: a tablet, and how many panes that run had; audit/perf-baseline.json still says not-measured (0 runs, 3 attempts).",
+   "pinned_by": "none",
+   "still_wrong": "The pulse's cost on a tablet has not been read.",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Checked the same report's first run (four windows, 23-29 fps): its own note puts that on the browser, with each effect held alone moving the frame by -2.2 to +3.4 ms either way.",
+   "note": "game.drpg.fps() (since E88) is the tool that holds the pulse off alone and reports the difference."
+  }
+ ],
+ "new_observations": [
+  {
+   "title": "A test holds CONTRIBUTING.md to a Legacy floor of 10 px while two other tests hold the sheet to 11 px",
+   "where": "scripts/tests-tier0.mjs:918 (R1313); CONTRIBUTING.md:96-97; docs/design/typography.md:88-93; styles/danganronpa.css:361, 17400-17403",
+   "what": "R1313 requires the CSS contract to say '10 px' and CONTRIBUTING.md and typography.md say Legacy's floor is 10 px a rung ('the rungs from 10 to 14 carry max(10px, ...)'); since E48 K6 --drpg-text-xs and rungs 11-14 floor at 11 px (R3500, R6754 'the 11 px floor'). Only rung 10 itself still stops at 10 px.",
+   "severity": "nit",
+   "confidence": "read"
+  },
+  {
+   "title": "The trait row's ResizeObserver is not disconnected when the sheet closes",
+   "where": "scripts/sheet-header.mjs:179-183; scripts/sheet.mjs:90-93",
+   "what": "fitTraitRow keeps an observer on app._drpgTraitFit and replaces it on each render, but closeCharacterSheet disconnects only _drpgTileFit: one observer on a detached row stays per closed sheet until it is opened again. Bounded; the same shape UI-14 fixed.",
+   "severity": "nit",
+   "confidence": "read"
+  },
+  {
+   "title": "Two literal invisible characters are left in source after UI-15's escape",
+   "where": "scripts/tests-tier2.mjs:50491; scripts/sheet-fit.mjs:178",
+   "what": "A tier-2 test's regex is a character class of a literal U+00AD and a literal U+200B (an editor shows empty brackets), and the comment that shows what softWrap used to produce holds a literal soft hyphen, so it reads as the same word twice.",
+   "severity": "nit",
+   "confidence": "read"
+  },
+  {
+   "title": "The glass sheet's note on the notice stack describes the 1.2.42 stack",
+   "where": "styles/stained-glass.css:3438-3441; scripts/popup.mjs:359-362, 975-981",
+   "what": "The note says 'the newest at the bottom, and a card that would not fit is retired by popup.mjs'; since 22.09.2026 the newest card is prepended (on top) and what does not fit is parked and kept.",
+   "severity": "nit",
+   "confidence": "read"
+  }
+ ],
+ "not_established": [
+  "UI-09, the part left: whether Daggerheart's character settings window and Foundry's Configure Ownership carry the character as app.document on v14 and so take the sheet's size under Stained Glass. Daggerheart's class is not in this checkout; the module's own stand-in (tests-tier1.mjs:59685-59692) and anonymity.mjs:73-75 model them so. Settles it: open both on a student under Stained Glass and read position.height.",
+  "UI-11 and UI-LC4: the contrast of state-coloured text over a window's translucent ground on a bright scene. The ground is a blurred, darkened backdrop under rgba(7, 6, 11, 0.58) with a text shadow; no static figure is honest. Settles it: computed colours and a picker in Chromium over a bright map at Class Trial, Eclipse and an incident, High contrast off.",
+  "UI-12: which of the 12 sizes declared under 11 px at 100 % win the cascade under Monokuma Legacy (some are lifted by later !important rules); docs/dev/e59/GAPS.md:31 counts 21 at the slider's 80 %. Settles it: audit/style-sweep.mjs's computed sizes, or R6754's own list printed.",
+  "Whether the Projects window's delete icon is drawn in the dark GM red under the glass: the button takes #e0182f through --drpg-kit-role-destructive (styles/components.css:243, 3719) while its <i> takes the accent mix by stained-glass.css:4667 if the window carries .drpg-panel. Settles it: one computed-colour reading.",
+  "UI-LC1 and UI-LC2 have no reading on a real Foundry (E58 rows S7-12 and 16 are 'left'); their status here is the source's answer only.",
+  "UI-LC5: that a client fetches the Latin-Ext file; UI-LC6: the pulse's cost on a tablet.",
+  "The base run's results were not consulted and nothing was run from the harness: no item here carries class H. R298, R547, R1380 and the other tests are named as pins from their source, not from a result.",
+  "The report's table (AUDIT-1.2.42.md line 632) names commit 7e40243 for task 13; in this history 7e402433 is 'D8: the first text pass' and the commit titled 'Task 13' is b888c066. Which sha the report meant on its branch was not established."
+ ],
+ "coverage_note": "This pass settles old items by symbol; it is not an end-to-end re-read of the UI domain. Of the files the 1.2.42 reader read whole, none was re-read whole here but look.mjs and glass-blocks.mjs; scripts/chrome.mjs (200 lines), scripts/diagnostics.mjs, scripts/utils.mjs, styles/motion.css and styles/pixel-icons.css were not opened, no old item pointing into them.",
+ "scripts_run": [
+  "contrast.py - WCAG ratios of eight accent colours on Ink and on a half-transparent pane over grey and white (8 colours, 4 grounds)",
+  "accent_rules.py - colour declarations of stained-glass.css with comments stripped: 147 read, 24 pure accent, 7 mixed, 0 dark GM red",
+  "legacy_sizes.py - every font-size rule for the eight classes UI-12 named, in five sheets (14 rules printed)",
+  "small_type.py - font-size declarations of base, components, danganronpa and narrow outside glass rules: 332 read, 45 relative, 9 unresolved, 39 under 11 px (27 of them font-size 0 on icons, 12 text), 109 from 11 to under 12 px",
+  "cmap.mjs - the cmap of the 6 shipped woff2 files against 18 Polish letters",
+  "three inline counts: dead selectors and constants over 7 sheets and 259 scripts; literal U+00AD over 271 scripts and 7 sheets (2 found); lang keys naming uiScale or a floor",
+  "all under the scratchpad's agents/old-1.2.42-ui/, none in the repository"
+ ]
+}

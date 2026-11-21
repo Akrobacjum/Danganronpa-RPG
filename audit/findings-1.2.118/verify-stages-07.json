@@ -1,0 +1,422 @@
+{
+ "refuter": "verify-stages-07",
+ "of": "stages-07",
+ "scope_note": "Both findings of stages-07 are nits (E78-1, E84-1); none is minor or above, so the required checks are the four grades and the 31 promises marked holds 'yes' (none is marked 'no'). The two nits were checked as well. Promises marked partly, superseded or unread (E78 4, 11; E84 4; E79 5, 7, 11; E80 8) were not checked one by one.",
+ "checked": [
+  {
+   "ref": "E78 promise 1",
+   "claim": "The tile shows only who this player hears in their own LiveKit Room; 250 ms, 1.5 s hold, cleared at once on leave or new Room - holds yes",
+   "verdict": "stands",
+   "why": "The header rule and the code agree; R535, R536, R540, R550 are tier 1 and tier 1 had 0 failures in the base run (shard 1). Real speech stays LIVE-E78-10/LIVE-E79-20, as the reader says.",
+   "evidence": [
+    "scripts/voice-tile.mjs:22-26: 'On an empty tile the first speaker is shown at once (E79 C15, 1.2.79 ...) a new speaker while somebody else is still drawn ... is shown after 250 ms of speech (`STICK_MS`)'",
+    "audit/findings-1.2.118/base-run.json (written 21:19Z, commit 6e399af4, after stages-07.json's last commit 435007dc at 20:12Z): shard 1/8 'suite 1781 passed, 0 failed, 16 skipped'; suite_merge '3387 passed, 1 failed, 27 skipped' - the one failure 'grid XI07 - a betrayal declared in the Eclipse ...', not a test of these four stages"
+   ]
+  },
+  {
+   "ref": "E78 promise 2",
+   "claim": "The dock is not shown while the tile is on but stays in the page so its sound keeps playing; off brings it back - holds yes",
+   "verdict": "weakened",
+   "why": "The class, display: none !important and the setting's onChange are where cited, and R541 (tier 1, green) reads display and presence in jsdom. The half that carries the promise - that the sound still plays and that the rule beats Foundry's own on v14 - is not in the source and not measured; the css comment says so itself. 'yes' is more than the source shows: the display half holds, the sound half is unmeasured (LIVE-E78-01, -10).",
+   "evidence": [
+    "styles/danganronpa.css:6300-6305: 'whether this wins over them at a table, and whether a hidden dock still plays after F5, are LIVE-E78-01 and the owner's T1 (LIVE-E78-10), not measured here.' ... 'body.drpg-dock-hidden #camera-views, ... display: none !important;'",
+    "scripts/settings.mjs:1928-1942 voiceTile: 'scope: \"world\", ... default: true, ... onChange: () => { import(\"./voice-tile.mjs\").then(m => m.refreshVoiceTile()) ... holdRtcDock()'"
+   ]
+  },
+  {
+   "ref": "E78 promise 3",
+   "claim": "The microphone button writes only the viewer's own users.<self>.muted, struck grey when the module holds it - holds yes",
+   "verdict": "stands",
+   "why": "toggleOwnMic writes the one key and refuses outside MIC_FREE; no toggleAudio( call in scripts/ outside a comment (git grep). Whether avclient-livekit mutes on that write is external, LIVE-E78-02.",
+   "evidence": [
+    "scripts/voice-tile.mjs:942-948: 'if (!MIC_FREE.includes(mic?.state)) { notify(...); return false; } ... await settings.set(\"client\", `users.${game.user.id}.muted`, mic.state !== \"muted\");'",
+    "git grep 'toggleAudio(' -- scripts (non-test): only scripts/voice.mjs:2182, a comment"
+   ]
+  },
+  {
+   "ref": "E78 promise 5",
+   "claim": "'Who you hear' volume and 'Mute for me' are this browser's; only a GM has the block, disabled while the module holds that microphone - holds yes",
+   "verdict": "stands",
+   "why": "toggleBlock returns false on a player's client and where moduleHoldsMic holds; it writes permissions.BROADCAST_AUDIO alone. R538/R539 tier 1 green.",
+   "evidence": [
+    "scripts/voice-tile.mjs:1448-1462: 'if (!game.user?.isGM) return false; ... const hold = holds(user); if (hold?.held) { notify(heldLine(hold)); return false; } ... await user.update({ \"permissions.BROADCAST_AUDIO\": !allowed });'"
+   ]
+  },
+  {
+   "ref": "E78 promise 6",
+   "claim": "The gear's Voice section: microphone, output, mode, push-to-talk key - holds yes",
+   "verdict": "stands",
+   "why": "voice-panel.mjs was read only to its header by the reader; R542's title pins exactly 'offers only the microphone, the output, the mode and the key, and writes only those', and R586 its place; both tier 1, green in shard 1.",
+   "evidence": [
+    "docs/dev/R-REGISTRY.md:350 R542: 'the gear's Voice section offers only the microphone, the output, the mode and the key, and writes only those'",
+    "docs/dev/R-REGISTRY.md:388 R586"
+   ]
+  },
+  {
+   "ref": "E78 promise 7",
+   "claim": "Pre-season checks add a Voice line for an audio-and-video world - holds yes",
+   "verdict": "stands",
+   "why": "The line is in preSessionReport. The reader's 'test: none found by name' is wrong: R542's title ends 'the pre-season checks say when a world sends video nobody watches'.",
+   "evidence": [
+    "scripts/season-setup.mjs:1491: 'const voice = [avOffForTile(av) && \"checksAvOff\", videoWithoutAudio(av) && \"checksAvVideoOnly\", videoUnwatched(av) && \"checksAvVideo\"].filter(Boolean);'",
+    "docs/dev/R-REGISTRY.md:350 R542: '... the pre-season checks say when a world sends video nobody watches'"
+   ]
+  },
+  {
+   "ref": "E78 promise 8",
+   "claim": "The room tile smaller under Monokuma Legacy, beside the notices under Stained Glass - holds yes",
+   "verdict": "stands",
+   "why": "roomCapH and the VOICE_* measures are where cited; R533 (tier 0) states the 364/1080 rule, R549/R551 tier 1; all green in shard 1. Pixel sizes are the notes' Chromium readings, as the reader says.",
+   "evidence": [
+    "scripts/glass.mjs:283: 'export function roomCapH(H, need) {'",
+    "docs/dev/R-REGISTRY.md:341 R533: 'glass.mjs roomCapH(H, need) = max(need, round(H x 364 / 1080))'"
+   ]
+  },
+  {
+   "ref": "E78 promise 9",
+   "claim": "Forge Assets Library pictures kept for rooms and voice portraits; off The Forge nothing changed - holds yes",
+   "verdict": "stands",
+   "why": "forgeAsset is read in safeRoomImage and the notice history; R546 tier 1 green; The Forge itself is LIVE-E78-11.",
+   "evidence": [
+    "scripts/vault-store.mjs:647: 'if (!/^https?:$/.test(url.protocol) || !(here || forgeAsset(url)) || url.search || url.hash) return null;'",
+    "scripts/notice-history.mjs:282"
+   ]
+  },
+  {
+   "ref": "E78 promise 10",
+   "claim": "Leaning blocks stand still on an idle screen; Foundry tools wears the anvil - holds yes",
+   "verdict": "stands",
+   "why": "OVERHANG and the one-write rule are in glass.mjs; R547, R548 tier 1 green.",
+   "evidence": [
+    "scripts/glass.mjs:788: 'const OVERHANG = new Map();'",
+    "docs/dev/R-REGISTRY.md:355 R547: 'a pass over the same geometry writes the rotation sheet zero times'"
+   ]
+  },
+  {
+   "ref": "E78-1",
+   "claim": "nit: voice-tile.mjs's header says the tile sends no packet and writes no document but the GM's block; the reveal and the Spectator switch do",
+   "verdict": "stands",
+   "why": "The sentence is in the header and paintReveal, defined in the same file, calls requestReveal by default. Nit is the right weight.",
+   "evidence": [
+    "scripts/voice-tile.mjs:95: ' * The tile and the list send no socket and no packet, write no world setting and no document but the GM's block,'",
+    "scripts/voice-tile.mjs:1189: 'export function paintReveal(tile, { masked = myMask(), onReveal = requestReveal } = {})'"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "E78 grade",
+   "claim": "8, provisional after L1",
+   "verdict": "stands",
+   "why": "The scale's 8 is 'promises delivered, one holds only by reading the code'; the dock's sound and display: none against Foundry's rules are exactly that (promise 2 above), and only a nit was found. Tier 1 is now measured green in the base run, which does not move it: scenario 75 has no verdict yet (base-run.json 'pending': 'the ci scenarios one at a time').",
+   "evidence": [
+    "styles/danganronpa.css:6300-6302 (quoted under promise 2)",
+    "audit/findings-1.2.118/base-run.json pending: 'the ci scenarios one at a time (node run-all.mjs scenarios)'",
+    "audit/AUDIT-1.2.42.md:96 (8: 'obietnice dowiezione, ale jedna trzyma się tylko odczytem kodu albo ma minor')"
+   ],
+   "grade_after": "8 (provisional after L1)"
+  },
+  {
+   "ref": "E84 promise 1",
+   "claim": "The waiter's timers are called as the browser's own functions (WINDOW_CLOCK) - holds yes",
+   "verdict": "stands",
+   "why": "WINDOW_CLOCK wraps setTimeout/clearTimeout in arrows and is createWaiter's default clock. R570 (tier 1) and R571 (tier 0) green in shard 1. The reader's 'unread' harness half (client-entry.mjs) I read: the strict wrapper throws for a non-window receiver, as the notes say.",
+   "evidence": [
+    "scripts/bridge-guards.mjs:1891: 'export const WINDOW_CLOCK = Object.freeze({ set: (fn, ms) => setTimeout(fn, ms), clear: id => clearTimeout(id) });'",
+    "scripts/bridge-guards.mjs:1905: 'export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = WINDOW_CLOCK,'",
+    "audit/harness/client-entry.mjs:204-206: 'if (this !== undefined && this !== null && this !== globalThis && this !== dom.window) { throw new TypeError(`'${name}' called on an object that does not implement interface Window.`);'"
+   ]
+  },
+  {
+   "ref": "E84 promise 2",
+   "claim": "A drag into another room is judged once more at rest (3 s, then 250 ms), only for a recorded character, with no newer move, no put-back, no route settling - holds yes",
+   "verdict": "stands",
+   "why": "The constants, whenAtRest and recheckAtRest's guards are as cited and match the promise clause by clause; fog.mjs reads the move again at rest. The only test named is scenario 74 phase L, which has no verdict in the base run yet; the claim stands on reading, which the reader says.",
+   "evidence": [
+    "scripts/movement.mjs:238-240: 'const AT_REST_MAX_MS = 3000; const AT_REST_POLL_MS = 100; const AT_REST_GRACE_MS = 250;'",
+    "scripts/movement.mjs:2928-2932: 'if (moveTurns.get(id) !== turn || putBack.has(id) || unsettled.has(id)) return; ... if (tokenDoc.actor?.type !== \"character\" || !lastRoom.has(id)) return;'",
+    "scripts/fog.mjs:4314: 'whenAtRest(tokenDoc).then(() => reactToMove(tokenDoc))'"
+   ]
+  },
+  {
+   "ref": "E84 promise 3",
+   "claim": "With debug on, the browser says 'read again at rest' with the recorded and the standing room - holds yes",
+   "verdict": "stands",
+   "why": "The debug line is there with both rooms.",
+   "evidence": [
+    "scripts/movement.mjs:2939-2940: 'debug(`Route of ${tokenDoc.name} read again at rest: recorded ${lastRoom.get(id) ?? \"no room\"}, ` + `standing in ${roomOfToken(tokenDoc) ?? \"no room\"}.`);'"
+   ]
+  },
+  {
+   "ref": "E84-1",
+   "claim": "nit: E84's labels point two ways (LIVE-E84-01 is the wait's fix, the drag fix carries LIVE-E78-14)",
+   "verdict": "stands",
+   "why": "The notes and the 9.2 items read as quoted.",
+   "evidence": [
+    ".github/release-notes/v1.2.78.md:14: 'The second fix (stage E84):'",
+    "audit/AUDIT-1.2.42.md:1110-1111: '236. **LIVE-E78-14 - pierwsze przeciągnięcie do nowego pokoju:** ...' / '237. **LIVE-E84-01 - akcja i rzut gracza docierają do GM-a:** ...'"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "E84 grade",
+   "claim": "8, provisional after L1",
+   "verdict": "stands",
+   "why": "Both fixes are in the code; the fog's read at rest holds by reading alone and phase L is unmeasured in this audit, which is the scale's 8. Graded although no row carries 'E84': R570/R571 are stamped 1.2.78, E84's version, so rule 2 ('not graded') does not apply.",
+   "evidence": [
+    "docs/dev/R-REGISTRY.md:372-373: '| R570 | 1 | 1.2.78 | ...' '| R571 | 0 | 1.2.78 | ...'",
+    "tools/stages.json row E84"
+   ],
+   "grade_after": "8 (provisional after L1)"
+  },
+  {
+   "ref": "E79 promise 1",
+   "claim": "A GM makes a passage on a plain wall and gives it to a student; doors, a wall that stops nobody, another floor, a taken stretch refused - holds yes",
+   "verdict": "stands",
+   "why": "passageRowFor refuses each case named; the tab file was not read whole by the reader, but R561 drives the tab (tier 1, green).",
+   "evidence": [
+    "scripts/passages-gm.mjs:1369-1379: 'if (Number(wall.door) > 0) return { refused: \"that wall is a door.\" }; if (Number(wall.move) === 0) return { refused: \"that wall does not block movement.\" }; ... if (!onLevel(wall, floor)) return { refused: \"that wall is not on that floor.\" };'",
+    "scripts/passages-gm.mjs:1778 grantPassage, :1791 revokePassage, :1849 deletePassage"
+   ]
+  },
+  {
+   "ref": "E79 promise 2",
+   "claim": "A player's browser holds only the passages its characters know; the step costs a crossing; to everybody else a wall - holds yes",
+   "verdict": "stands",
+   "why": "tunnelEndsFor and passageSegmentsFor are where cited; R555-R558 (tier 1) and R560 (tier 0) pin the copy, the cut, the veto and the source rules; tier 0-1 green in shard 1, and the tier-2 passage tests passed in the eight shards (no passage row in skip-baseline.json).",
+   "evidence": [
+    "scripts/passages.mjs:323: 'export function tunnelEndsFor(actor, sceneId, level = null, { mastermind = false, known = knownPassages() } = {})'",
+    "scripts/passages.mjs:451: 'function passageSegmentsFor(config, { known, gm = game.user?.isGM } = {})'",
+    "audit/findings-1.2.118/base-run.json (written 21:19Z, commit 6e399af4, after stages-07.json's last commit 435007dc at 20:12Z): shard 1/8 'suite 1781 passed, 0 failed, 16 skipped'; suite_merge '3387 passed, 1 failed, 27 skipped' - the one failure 'grid XI07 - a betrayal declared in the Eclipse ...', not a test of these four stages"
+   ]
+  },
+  {
+   "ref": "E79 promise 3",
+   "claim": "The Mastermind (the first connected owner of the student) knows every passage; a Monokuma moved by a GM passes every open one - holds yes",
+   "verdict": "stands",
+   "why": "actsAsMastermind reads the record's id and the student's owner; a GM passes. R555, R559 green.",
+   "evidence": [
+    "scripts/passages-gm.mjs:134-139: 'if (!id || !user || id !== mastermindId) return false; if (user.isGM) return true; ... return Boolean(doc) && ownerOf(doc, peopleOf(users))?.id === user.id;'"
+   ]
+  },
+  {
+   "ref": "E79 promise 4",
+   "claim": "Show the passage: same room and floor, refused while dead, in an incident, a Monocub or locked; a repeat writes nothing - holds yes",
+   "verdict": "stands",
+   "why": "The reader cited the judge only 'by R562's title'; it is shareRefusal, and it refuses each case the promise names. R562 green.",
+   "evidence": [
+    "scripts/passages-gm.mjs:2147-2150: 'if (world.locked()) return \"that action is locked\"; ... if (world.dead(giver) || world.inIncident(giver)) return \"that cannot be done now\"; if (world.monocub(giver)) return \"that action is not open to that character now\";'",
+    "scripts/passages-gm.mjs:2159-2161: 'if (!there?.room || there.scene?.id !== here.scene?.id || floorKey(there.level) !== floorKey(here.level) || there.room !== here.room) { return \"the character is not in that room\";'"
+   ]
+  },
+  {
+   "ref": "E79 promise 6",
+   "claim": "Daggerheart's welcome window stays closed while the switch is on, nothing written to the world - holds yes",
+   "verdict": "stands",
+   "why": "The dhWelcome row is a userFlag held on this browser's copy at setup; the switch is world, default true. R575 green. Daggerheart's own ready is outside the repository (LIVE-E79-09).",
+   "evidence": [
+    "scripts/enforced.mjs:96-103: 'Held at `setup`, before any `ready`, on this browser's copy of its account alone ... { id: \"dhWelcome\", kind: \"userFlag\", system: \"daggerheart\", scope: \"daggerheart\", flag: \"welcome-message\", value: true, toggle: SETTINGS.enforceDhWelcome }'"
+   ]
+  },
+  {
+   "ref": "E79 promise 8",
+   "claim": "A User Configuration window that opens by itself at start closes; one a person opens stays - holds yes",
+   "verdict": "stands",
+   "why": "closeUnaskedUserConfig closes only the own account's first render inside the start window when userActivation reads false; no reading closes nothing. R576 green.",
+   "evidence": [
+    "scripts/enforced.mjs:639-645: 'if (!doc || !user || doc.id !== user.id) return false; if (options?.isFirstRender === false) return false; if (since !== null && now - since > START_WINDOW_MS) return false; if (activation?.isActive !== false) return false; app.close?.({ animate: false });'"
+   ]
+  },
+  {
+   "ref": "E79 promise 9",
+   "claim": "An account with no character named exactly like one student gets it and Owner on the primary GM; cards for none, several, two alike, owned, owns - holds yes",
+   "verdict": "stands",
+   "why": "Read: nameKey (NFD, marks removed, l for the stroke l, white space joined), equality not a part, the plan's six outcomes, Owner before character, the primary alone, the hooks as listed. R579/R580 green.",
+   "evidence": [
+    "scripts/user-match.mjs:92-94: 'return String(name ?? \"\").normalize(\"NFD\").replace(/\\p{M}/gu, \"\").toLowerCase().replace(/ł/g, \"l\").replace(/\\s+/gu, \" \").trim();'",
+    "scripts/user-match.mjs:217: 'if (!isPrimaryGm()) return null;'",
+    "scripts/user-match.mjs:236: 'if (own) await actor.update({ [`ownership.${userId}`]: ownerLevel() }); await user.update({ character: actorId });'"
+   ]
+  },
+  {
+   "ref": "E79 promise 10",
+   "claim": "The hall's tokens copy the school token's look and never turn; the room tile shows the hall during a trial - holds yes",
+   "verdict": "stands",
+   "why": "hallTokenData copies HALL_TOKEN_LOOK and forces lockRotation; setHallRoom's one caller is applyScenesTab, which Season setup calls since E101. R581-R583 green.",
+   "evidence": [
+    "scripts/trial-scene.mjs:541: 'return { ...foundry.utils.deepClone(base ?? {}), ...look, lockRotation: true, _id: id, actorId, x, y, hidden: false, actorLink: true };'",
+    "scripts/trial-scene.mjs:1699: 'if (facts) done.hall = await setHallRoom(hall, facts);'",
+    "scripts/season-setup.mjs:1237: 'if (result.scenes) await scenesTab.applyScenesTab(result.scenes);'"
+   ]
+  },
+  {
+   "ref": "E79 promise 12",
+   "claim": "Smaller fixes: the caret narrows Foundry tools, 'No projects yet.', the dice's colours, LATENCY/FPS hidden, a move announced on the move, the tile's first speaker and word, the GM's fog ignores the Mastermind - holds yes",
+   "verdict": "stands",
+   "why": "Each piece found where cited or by its key; R563, R584-R589 green.",
+   "evidence": [
+    "scripts/movement.mjs:330: 'function destinationOf(tokenDoc, changes) {'",
+    "lang/en.json:4641: '\"trayEmpty\": \"No projects yet.\",'",
+    "styles/danganronpa.css:12368: '/* FOUNDRY'S LATENCY AND FPS LINE IS NOT DRAWN (E79 C13 ...'",
+    "scripts/foundry-windows.mjs:167: 'Hooks.on(\"collapseSidebar\", onCollapseSidebar);'"
+   ]
+  },
+  {
+   "ref": "E79 grade",
+   "claim": "8, provisional after L1",
+   "verdict": "weakened",
+   "why": "One of the reasons given against a 9 does not hold: 'three passage tests still fail on 14.370 (1037, 1096, 1108)'. The paper groups them under 'Passages', but two are E12's rooms tests (the room mark pass, Room Setup's Neighbours) and the third is End the trial's token copies; none is E79's passage code, and the same paper says every Secret Passage test passes. The rest still argues for 8 on the scale: the passage through a real drag, the audit's 'log' with no false row and OBJECTION!'s target stand on Foundry's own move backend and LiveKit, read in code and on the harness's stand-ins, and scenario 76 has no verdict yet. The grade stands; its reasons are thinner than written.",
+   "evidence": [
+    "scripts/tests-tier2.mjs:66724: '\"the pass over a scene of four named regions, a Teleport, a nameless region and a player's, run twice around an untick and a late region \"'",
+    "scripts/tests-tier2.mjs:70447-70449: '[\"Room Setup warns of a Neighbours name that is no room on the scene ...\", async () => { /* E12 fix r2-H2, 11.10.2026'",
+    "audit/findings-1.2.118/live-readings-e58-delta.json: 'Passages: 3 failures left of about 20 - 1037 ..., 1096 ... and 1108 (End the trial's copies on the chosen place). Every tunnel, stairs and Secret Passage test passes on C1's floorNamed.'"
+   ],
+   "grade_after": "8 (provisional after L1)"
+  },
+  {
+   "ref": "E80 promise 1",
+   "claim": "A tunnel or stairs with a click in each of two rooms; no room, one room, another tunnel's end refused - holds yes",
+   "verdict": "stands",
+   "why": "tunnelEndAt refuses offRoom, floor and endTaken; tunnelRowFor refuses oneRoom and a trial scene. R594, R606, R607 green.",
+   "evidence": [
+    "scripts/passages-gm.mjs:2692-2693: 'if (!room) return { refused: \"offRoom\" }; if ((taken ?? []).some(end => end.x === x && end.y === y && (end.level ?? null) === floor)) return { refused: \"endTaken\" };'",
+    "scripts/passages-gm.mjs:2723: 'if (at[0].room === at[1].room) return { refused: TUNNEL_REFUSALS.oneRoom };'"
+   ]
+  },
+  {
+   "ref": "E80 promise 2",
+   "claim": "Go through is decided on the primary GM as a door; refusals pay nothing; price back if the token cannot be moved - holds yes",
+   "verdict": "stands",
+   "why": "crossTunnel runs on the primary, refuses through the doors' verdict before payment and refunds when the token moved meanwhile. R597, R614 green.",
+   "evidence": [
+    "scripts/passages-gm.mjs:2321: 'if (!isPrimaryGm()) return { refused: \"nothing was carried out: the token is moved on the primary GM's browser\" };'",
+    "scripts/passages-gm.mjs:2353: 'await M.refundCrossingOnGm(actor, paid.cost).catch(back => error(\"Could not give a tunnel crossing's price back\", back));'"
+   ]
+  },
+  {
+   "ref": "E80 promise 3",
+   "claim": "Find Passage: 16 or a critical finds the oldest open passage of the room the student does not know; the Mastermind finds none; one card shape; Reroll in the first room only - holds yes",
+   "verdict": "stands",
+   "why": "Read resolvePassageSearch whole: trial refusal, beat, actsAsMastermind gives no pick, the held place for a replay, one whisper to the owner and the GMs. R598, R599, R604, R612 green.",
+   "evidence": [
+    "scripts/passages-gm.mjs:2466-2467: 'const beat = Boolean(isCritical) || Number(total) >= ACTIONS.analyze.passageThreshold; const door = actsAsMastermind(actor, asker, ...);'",
+    "scripts/passages-gm.mjs:2500: 'const pick = beat && !door ? passagesToFind(actor, place, facts, stores)[0] ?? null : null;'",
+    "scripts/config.mjs:1625: 'passageThreshold: 16'"
+   ]
+  },
+  {
+   "ref": "E80 promise 4",
+   "claim": "Make public gives a passage to every student and tells nobody; Make secret gives it back to those listed - holds yes",
+   "verdict": "stands",
+   "why": "The promise stands (R602, R608, R610, R615 green). The reader's note 'The notes' own gaps stand: no console call for it, the GMs' overlay draws a public passage like a secret one' is wrong on both: E91 C3 added game.drpg.passages.makePublic/makeSecret (R3811) and E49 B1 gave a public passage its own look.",
+   "evidence": [
+    "scripts/api.mjs:1600-1602: '// The tab's Make public and Make secret (E91 C3, D117): the same write as its buttons. makePublic: passageId => makePassagePublic(passageId), makeSecret: passageId => makePassageSecret(passageId),'",
+    "scripts/passages-gm.mjs:3029: 'A public one (E49 B1, D118: a secret row with `public: true`, which every student knows) in the passage colour with'",
+    "scripts/passages-gm.mjs:3034: 'public: Object.freeze({ token: \"--drpg-passage-secret\", fallback: 0xff3d8b, dash: 40, gap: 5, width: 5 }),'"
+   ]
+  },
+  {
+   "ref": "E80 promise 5",
+   "claim": "The primary GM puts back a Foundry secret door a player changed; a change with no GM is put back when a GM connects; Convert to passages - holds yes",
+   "verdict": "stands",
+   "why": "The hooks and the pass at ready are registered as cited; R601, R605, R609, R616 green. The stage's own gap (a player made a GM who becomes primary) is the notes', and the reader keeps it.",
+   "evidence": [
+    "scripts/passages-gm.mjs:3285-3291: 'Hooks.on(\"preUpdateWall\", stampSecretDoor); Hooks.on(\"preCreateWall\", stampNewSecretDoor); Hooks.on(\"updateWall\", onSecretDoorChanged); ... Hooks.on(\"userConnected\", onDoorsGmLeft); Hooks.on(\"updateUser\", onDoorsRoleChanged); Hooks.on(\"createScene\", onSceneCreated);'",
+    "scripts/passages-gm.mjs:3302: 'if (!gmStoresQuiet()) settleSecretDoors().catch(...)'"
+   ]
+  },
+  {
+   "ref": "E80 promise 6",
+   "claim": "Season setup's ruler switch takes SHOW_RULER from Player and Trusted alone and gives it back - holds yes",
+   "verdict": "stands",
+   "why": "setPlayerRulers changes only the two player roles and writes back the rest; R601 green. v14's default roles are LIVE-E80-02.",
+   "evidence": [
+    "scripts/season-setup.mjs:134-138: 'const after = show ? [...new Set([...before, ...PLAYER_ROLES])].sort((a, b) => a - b) : before.filter(role => !PLAYER_ROLES.includes(role)); ... perms.SHOW_RULER = after; await settings.set(\"core\", \"permissions\", perms);'"
+   ]
+  },
+  {
+   "ref": "E80 promise 7",
+   "claim": "Frisk openly: the target's player asked, a minute's silence a refusal, the GMs answer for no player, a force at Body 12 within 30 s unless the switch is off - holds yes",
+   "verdict": "stands",
+   "why": "The numbers and the answerers are in the code; and since the reader wrote, the base run's eight shards passed every tier-2 test but XI07, so the tier-2 Frisk tests the reader put in tests_to_join are green headless (H). The 14.370 failures stay unexplained: the paper ties three of them to a stray incident cast that refused Aiko's and Chie's person actions, and says nothing of 179/184.",
+   "evidence": [
+    "scripts/config.mjs:411-412: 'friskAnswerMs: 60000, friskForceMs: 30000,'",
+    "scripts/config.mjs:1824: 'frisk: { trait: \"body\", threshold: 12, label: \"Make them turn out their pockets\" },'",
+    "scripts/frisk.mjs:826-827: 'row.byGms = !row.silent && !owners.length; row.answerUserIds = row.silent ? [] : row.byGms ? activeGmIds() : active;'",
+    "audit/findings-1.2.118/base-run.json (written 21:19Z, commit 6e399af4, after stages-07.json's last commit 435007dc at 20:12Z): shard 1/8 'suite 1781 passed, 0 failed, 16 skipped'; suite_merge '3387 passed, 1 failed, 27 skipped' - the one failure 'grid XI07 - a betrayal declared in the Eclipse ...', not a test of these four stages"
+   ]
+  },
+  {
+   "ref": "E80 promise 9",
+   "claim": "A Frisk, Take or Plant at a body the GMs keep reads as at a living student; such a Frisk asks nobody - holds yes",
+   "verdict": "stands",
+   "why": "personActionRefusal, knownDeath and tellOnlookers are where cited; the tier-2 tests named (13438, 15296, 15452) are in the suite and passed in the base run's shards.",
+   "evidence": [
+    "scripts/frisk.mjs:146: 'export function personActionRefusal(asker, target, { body = false, user = null } = {})'",
+    "scripts/tests-tier2.mjs:15296: '[\"an unseen Frisk at a body the GMs keep reads at the searcher as at a living target on the same dice (A11-5, '",
+    "audit/findings-1.2.118/base-run.json (written 21:19Z, commit 6e399af4, after stages-07.json's last commit 435007dc at 20:12Z): shard 1/8 'suite 1781 passed, 0 failed, 16 skipped'; suite_merge '3387 passed, 1 failed, 27 skipped' - the one failure 'grid XI07 - a betrayal declared in the Eclipse ...', not a test of these four stages"
+   ]
+  },
+  {
+   "ref": "E80 promise 10",
+   "claim": "With no GM a Frisk is refused before it is paid; a Reroll keeps the moment; the roll window keeps the context - holds yes",
+   "verdict": "stands",
+   "why": "The claim stands, but not on the line cited: the refusal before payment is performAction's first gate, which every action that throws dice passes (Palm, and so Frisk, among them); action-analyze.mjs:402 is Find Passage's own. Tier-2 tests 15151 and 75325 passed in the shards.",
+   "evidence": [
+    "scripts/action-rolls.mjs:117-120: 'if (!game.user.isGM && !activeGmIds().length && !THROWS_NO_DICE.has(actionKey)) { ui.notifications.warn(game.i18n.localize(\"DRPG.Rolls.waitsForGm\")); return null; }'",
+    "scripts/action-rolls.mjs:74: 'const THROWS_NO_DICE = new Set([\"move\", \"rest\", \"directMurder\"]);'"
+   ]
+  },
+  {
+   "ref": "E80 promise 11",
+   "claim": "serialWrite keeps one key's steps in order - holds yes",
+   "verdict": "stands",
+   "why": "serialWrite is at the line cited and resolvePassageSearch runs inside it; R593 green.",
+   "evidence": [
+    "scripts/utils.mjs:409: 'export function serialWrite(key, step) {'",
+    "scripts/passages-gm.mjs:2457: 'return serialWrite(`passage.find/${actorId}`, async () => {'"
+   ]
+  },
+  {
+   "ref": "E80 grade",
+   "claim": "7, provisional after L1",
+   "verdict": "weakened",
+   "why": "The scale gives 7 for 'several minor or one promise delivered in part'. The reader found no defect and counts against an 8 the notes' gaps it did not re-read. Re-read: two of those it names are gone - the console's make-public call (E91 C3) and the overlay's look (E49 B1), both under promise 4 - and the GM who drops and returns without a reload is handled since E18 fix c7-G1 (friskSocketBack drops what it holds, as a reload would). What remains is one read-in-code minor still in the code (a follow after the primary's reload reads an ended ask as dropped: endedAsks is this browser's memory), P2-01 (the Palm window scrolls at 1366x768, no later record closing it), and the 14.370 Frisk failures whose cause the paper partly ties to a stray cast; the tier-2 Frisk tests now pass headless in the base run. One or two minors is the scale's 8. The three partly promises are changes the owner made (the privacy rule of 13.11.2026), not deliveries in part.",
+   "evidence": [
+    "scripts/frisk.mjs:441-445: 'Since E18 C7 the ask is on E18's one road for its ends ... a GM whose socket comes back without a reload drops what it holds (`friskSocketBack`).'",
+    "scripts/frisk.mjs:46: 'const endedAsks = new Set();' and :926-928: 'if (!row && askId && (!rollId || sender?.isGM) && !endedAsks.has(askId)) { log(`A Frisk's follow named an ask this GM neither holds nor ended (dropped by a reload or by the primary before it): interrupted, ...`); return { outcome: \"interrupted\" };'",
+    ".github/release-notes/v1.2.80.md:227-229: 'The Palm window with Frisk picked still scrolls at 1366x768 ... (P2-01, OPEN).'",
+    "scripts/api.mjs:1600-1602 (quoted under promise 4)",
+    "audit/findings-1.2.118/base-run.json (written 21:19Z, commit 6e399af4, after stages-07.json's last commit 435007dc at 20:12Z): shard 1/8 'suite 1781 passed, 0 failed, 16 skipped'; suite_merge '3387 passed, 1 failed, 27 skipped' - the one failure 'grid XI07 - a betrayal declared in the Eclipse ...', not a test of these four stages"
+   ],
+   "grade_after": "8 (provisional after L1)"
+  }
+ ],
+ "counts": {
+  "checked": 37,
+  "stands": 34,
+  "weakened": 3,
+  "refuted": 0
+ },
+ "not_established": [
+  {
+   "what": "stages-07's first not_established entry ('base-run.json does not exist') is out of date: the file was written at 21:19Z after the reader's last commit. Tiers 0-1 and tier 2 are now measured (3387 passed, 1 failed - XI07, not these stages - 27 skipped); the scenarios 33, 40, 74, 75, 76 and 97 are still pending there, so phase L, scenario 75 and scenario 76 still have no verdict.",
+   "live_check": "none - the base run's scenario pass settles it"
+  },
+  {
+   "what": "Per-test verdicts of the 85 tier 0-1 rows: only the shard totals were read (0 failed, 16 skipped; R543 the one skip of R533-R623 by skip-baseline.json). A row that did not run at all would not show in a total.",
+   "live_check": "none - the per-test results file of shard 1"
+  },
+  {
+   "what": "Whether 14.370's open-Frisk failures (179, 184 and three stand-in-user tests) are the module's or the sandbox's: the paper names a stray incident cast that refused person actions in that run, and does not say whether it explains 179/184. Not settled from source.",
+   "live_check": "the reader's new live check: the tests run on the sandbox after the cast is cleared, each failing assertion's text recorded"
+  },
+  {
+   "what": "P2-01 (the Palm window with Frisk scrolls at 1366x768): no later record closing it was found by grep, and the window was not measured here.",
+   "live_check": "LIVE-E80-04's sizes, or a Chromium sweep of the Palm window at 1366x768"
+  },
+  {
+   "what": "E84 promise 4 (the harness's refusing timers) is marked unread by the reader; audit/harness/client-entry.mjs:191-215 does throw for a receiver other than the window for the nine functions the notes name. The red-first run on 1.2.77's code is the notes' record only.",
+   "live_check": "none"
+  }
+ ]
+}

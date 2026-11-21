@@ -1,0 +1,115 @@
+{
+ "refuter": "verify-domain-roll-b-actions",
+ "of": "domain-roll-b-actions",
+ "checked": [
+  {
+   "ref": "domain-roll-b-actions-1",
+   "claim": "On a GM's own client the Infiltrate rows (Dash, Echoes, Shut, Force, Pick, Keep Watch, Tail, Listen's eavesdrop) read the handler's raw `{ reply: {...} }` as if it were the reply, so the GM's card says the wrong result; a `{ refused }` is read as success by Dash and Echoes and is silent in the rest.",
+   "verdict": "stands",
+   "why": "Read the whole road. `ask` (bridge-table.mjs:1653-1661) spreads `opts` into bridgeRequest unchanged; createWaiter's local branch settles `{ ok: true, value }` with whatever `local` returned (bridge-guards.mjs:1947-1948), while a player's road is answered with `out?.reply` by the judge (1819) and read as `packet.value` (2030). The eight `local` closures of bridge-asks.mjs:65-150 return the handler's answer as is, and the handlers answer `{ reply: {...} }` (bridge-runs-acts.mjs:188, 204, 217 and the rest). The other `local` closures in the same file do unwrap - `return out?.reply ?? null` with `sayNotDone` on a refusal (bridge-asks.mjs:261-265, 293-297 and nine more) - which is the shape these eight lack. The readers check `res.value?.refused` (action-doors.mjs:41, 91, 152; action-watch.mjs:46; action-tail.mjs:94), so the refusal half of the raw shape was foreseen, but they then read `res.value?.forced`, `?.kept`, `?.seen`, `?.moves`, `?.room`, `?.moved` off the top, not off `.reply`. Dash (action-listen.mjs:354-356) and Echoes (322-325) do not test `refused`, so a refusal there reads as 0 crossings / nobody with the action kept spent. Nothing keeps a GM from these rows: performAction refuses only a player's `free` and a player with no GM (action-rolls.mjs:101, 117). No test presses a row on a GM's client: 33-bridge-paths runs performDash, performEchoes and performShut on p1 (1947, 2018, 2083); tier 0's entries only read the noGm literals (tests-tier0.mjs:10578-10584). Severity minor holds: the world state is right (the handler ran), only the GM's own card is wrong, and only when a GM plays a student.",
+   "evidence": [
+    "scripts/bridge-guards.mjs:1947-1948  if (self.isGM && typeof local === \"function\" && (!onPrimary || self.isPrimary)) { Promise.resolve().then(local).then(value => settle(entry, { ok: true, value }), ...",
+    "scripts/bridge-guards.mjs:1819  if (decl.answer === \"reply\" && !out?.later && ctx.requestId) answer(decl, ctx, out?.reply ?? null, send);",
+    "scripts/bridge-asks.mjs:146-147  return ask(ACTION_DASH, { actorId, total, isCritical, rollId }, { local: () => import(\"./bridge-runs-acts.mjs\").then(m => m.handleDash({ actorId, total, isCritical, rollId }, game.user))",
+    "scripts/bridge-asks.mjs:261-264  local: () => import(\"./movement.mjs\").then(m => m.refundLastCrossing(actorId)).then(out => { if (out?.refused) sayNotDone(...); return out?.reply ?? null;",
+    "scripts/bridge-runs-acts.mjs:188  return { reply: { moves } };",
+    "scripts/action-doors.mjs:91-92  if (!res.ok || res.value?.refused) return null; const forced = res.value?.forced === true;",
+    "scripts/action-listen.mjs:356  const moves = Number(res.value?.moves) || 0;",
+    "scripts/action-tail.mjs:95  const seen = res.value?.seen === true;"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-roll-b-actions-2",
+   "claim": "A Reroll of a Force the Door that did not force it calls forceDoor again in full: the rooms are told a second time and a second door Remnant is left for one attempt.",
+   "verdict": "stands",
+   "why": "settleForce (infiltrate-reroll.mjs:83-96) returns early only when the first throw forced the door; otherwise it calls forceDoor with the new total and no quiet flag. forceDoor (doors-gm.mjs:157-198) has no `tell` parameter: it always tells the character's room (and, loud, the room beyond and the neighbours) and leaves a Remnant whenever anything held the door (195). pickLock takes `tell = true` and the pick replay passes `tell: false` (205, 229-237; infiltrate-reroll.mjs:118-119), with the comment that a replay leaves none of its own - the treatment forceDoor lacks. dropRemnant (remnants.mjs:214-248) takes no roll id here and leaveDoorTrace passes none, so nothing dedupes the second trace. The file header (infiltrate-reroll.mjs:11-16) lists what a replay cannot take back and does not name a second telling. The only replay test drives a pick (tests-tier2.mjs:102310-102373); no test names settleForce. Minor holds: a second Remnant is a false clue in the investigation, in the particular case of a rerolled failed force.",
+   "evidence": [
+    "scripts/infiltrate-reroll.mjs:89  const out = await forceDoor({ actor, room: bookmark.forceRoom ?? null, total, isCritical, withHope });",
+    "scripts/doors-gm.mjs:157  export async function forceDoor({ actor, room, total = 0, isCritical = false, withHope = true }) {",
+    "scripts/doors-gm.mjs:192  await tellRooms(place.scene, loud ? [place.room, room] : [place.room], game.i18n.format(forced ? \"DRPG.Infiltrate.force.forcedBy\" : \"DRPG.Infiltrate.force.triedBy\",",
+    "scripts/doors-gm.mjs:195  if (held.length) await leaveDoorTrace(actor, forced || !withHope ? \"evident\" : \"subtle\", \"force\", room);",
+    "scripts/doors-gm.mjs:229-234  // `tell` false: a Reroll's replay ... if (tell && lockish) await leaveDoorTrace(...); // a Reroll's replay leaves none of its own"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-roll-b-actions-3",
+   "claim": "A rerolled Keep Watch ignores the new roll's duality: settleWatch never passes withHope, so a Reroll into a miss with Despair charges no Sanity mark, and the first throw's mark stays when the Reroll keeps the watch.",
+   "verdict": "stands",
+   "why": "settleInfiltrate computes withHope (infiltrate-reroll.mjs:26) and passes it to Force and Pick (30-31) but not to Keep Watch (33); settleWatch's signature has no withHope and calls declareWatch({ actor, total, isCritical }) (127-137), whose default is withHope = true (watch-gm.mjs:60), so the `!kept && !withHope` Sanity mark (70-75) is never charged on a replay. Nothing gives back the first throw's mark: settleDualityReroll moves only Daggerheart's Hope/Fear and a critical's stress under CRITICAL.clearsStress (reroll.mjs:223-250), and settleWatch touches no stress. The header (infiltrate-reroll.mjs:15) says 'a watch kept or let go' is replaced, and names no exception for the price. The second half (the replay ignoring the duality) is a defect whatever the owner means for the first half. Minor holds.",
+   "evidence": [
+    "scripts/infiltrate-reroll.mjs:26  const total = Number(after?.total) || 0, isCritical = Boolean(after?.isCritical), withHope = after?.withHope !== false;",
+    "scripts/infiltrate-reroll.mjs:33  case \"keepWatch\": return settleWatch(actor, total, isCritical, done);",
+    "scripts/infiltrate-reroll.mjs:135  const out = await declareWatch({ actor, total, isCritical });",
+    "scripts/watch-gm.mjs:60  export async function declareWatch({ actor, total = 0, isCritical = false, withHope = true, userId = null }) {",
+    "scripts/watch-gm.mjs:70  if (!kept && !withHope) {"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-roll-b-actions-4",
+   "claim": "A Work's Reroll moves an action on the roller's own `refunded` and `burst` claims, which no GM fact holds and which a resent roll.bookmark inside the minute can rewrite.",
+   "verdict": "stands",
+   "why": "ROLL_CLAIMS.project lists refunded and burst as bool claims (action-pipeline.mjs:534); the roller's browser writes them (action-project.mjs:594-597). replayBookmark spreads claims then facts (reroll.mjs:353-356), and no GM fact `refunded` is written for a first throw (grep: the only writer is the replay's own answer, reroll.mjs:1210, i.e. after a first Reroll). settleProject holds relief and bonus with projectExtrasHeld and claimedOn (1187) but hands settleActionRefund the bookmark, which reads `bookmark.refunded` and `bookmark.burst` raw (2082, 2087) and refunds through refundAction, whose grant branch writes a Burst (actions.mjs:245) with no credit look. keepGmBookmark replaces the same message's claims with a new packet's (action-pipeline.mjs:687-690), and guardRollAuthor admits the author's packet for that message for 60 s (bridge-guards.mjs:1167, 1183-1184). The comment at action-pipeline.mjs:510-517 names 'whether a Project's critical gave its action back and from what' as claims accepted because they name only the roller's own sheet, but the trust model's 'What stays open' (.claude/rules/trust-model.md:124-147) does not list it, and with lockPlayerResources on, a GM's write of the roller's actions is exactly what the lock refuses a player. Minor holds: a console write, a paid Reroll and a critical are all needed, for one action.",
+   "evidence": [
+    "scripts/action-pipeline.mjs:534  project: Object.freeze({ relief: \"num\", bonus: \"num\", refunded: \"bool\", burst: \"bool\" }),",
+    "scripts/reroll.mjs:2082  const wasRefunded = Boolean(bookmark.refunded);",
+    "scripts/reroll.mjs:2087  const receipt = bookmark.burst ? { grant: true, amount: 1 } : { grant: false, amount: 1 };",
+    "scripts/action-pipeline.mjs:687  const again = { claims: rollClaims(held.actionKey ?? null, context), ...(card ? { reportMessageId: card } : {}) };",
+    "scripts/action-pipeline.mjs:512-514  a Listen's room, a ruling's request, the clean-up's declaration, whether a Project's critical gave its action back and from what. They are claims now, of the same kinds; none of them names a document the replay writes but the roller's own sheet"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-roll-b-actions-5",
+   "claim": "takeBackRefund, grantFreeActions, grantFreeMoves, the Dash replay's take-down and declareWatch's Sanity mark compute a GM's write of a student's means from the document, not from meansHeld, though r2-H24 moved refundAction onto meansWrite for that reason.",
+   "verdict": "stands",
+   "why": "Each cited write reads the document: takeBackRefund freeActionsLeft/actionsLeft (actions.mjs:268-276), grantFreeActions/grantFreeMoves `freeActionsLeft(actor) + n` / `freeMovesLeft(actor) + n` (134-143), the Dash take-down freeMovesLeft (infiltrate-reroll.mjs:49-50), the watch's stress (watch-gm.mjs:72-74); refundAction beside them uses meansWrite (actions.mjs:249-252). All five paths are keys of the audit's LEDGER (sheet-audit.mjs:177-184), and meansWrite's own comment (1007-1031) records the defect class: on a GM's client a player's write the audit puts back stands until the put-back lands, and a GM write over the same path supersedes the pending put-back (measured at 85fdf9d for the roads it fixed). These roads run on the primary in a Reroll (reroll.mjs:2089-2097; infiltrate-reroll.mjs:47-50) and the first-throw handlers (bridge-runs-acts.mjs handleDash 180-181). The meansWrite list of fixed roads does not name these. The window's length at a table is not measured (the reader's not_established names the L1 reading), so the reachability, not the road, is open; minor fits 'wrong in a particular situation'.",
+   "evidence": [
+    "scripts/actions.mjs:274-275  if (!receipt?.grant && actionsLeft(actor) >= amount) { await trustedWrite(actor, { [`system.resources.${ACTIONS_RESOURCE}.value`]: actionsLeft(actor) - amount }, { reason: \"spend\" });",
+    "scripts/actions.mjs:136  await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: freeActionsLeft(actor) + n }, { reason, ref });",
+    "scripts/infiltrate-reroll.mjs:49-50  const left = freeMovesLeft(actor); await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: Math.max(0, left - (before - moves)) }, { reason: \"infiltrate\" });",
+    "scripts/actions.mjs:249-250  const { meansWrite } = await import(\"./sheet-audit.mjs\"); await meansWrite(actor, ({ actions }, maxOf) => trustedWrite(actor, ...",
+    "scripts/sheet-audit.mjs:1013-1016  where a player's write the audit puts back ... stands until its put-back lands, and for good where it fails, and where a GM's write over the same path supersedes the put-back pending on it (READ WHEN WRITTEN)"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-roll-b-actions-6",
+   "claim": "Tamper menu / confirm: the button reads Roll on every row, including Reshape and Body, which open a window of their own first (mislabeled against E100 item 6).",
+   "verdict": "stands",
+   "why": "chooseTamper passes one `confirm: DRPG.Action.roll` (action-tamper.mjs:45) and none of the four option objects sets `confirm` (the rows at 46, 68, 76, 87 by grep), so followConfirmLabel never runs (action-menus.mjs:241) and every row says Roll. runTamperChoice opens openMoveBodyDialog for Body (127-131) and askTransformChange for Reshape (146-153) before any dice. The Infiltrate rows apply the rule (action-listen.mjs:75-78). Whether E100's rule covers Tamper is not written; nit holds.",
+   "evidence": [
+    "scripts/action-tamper.mjs:45  confirm: game.i18n.localize(\"DRPG.Action.roll\"),",
+    "scripts/action-tamper.mjs:152  const change = await cleanup.askTransformChange(actor);",
+    "scripts/action-menus.mjs:241  if (options.some(o => o.confirm)) followConfirmLabel(dialog, confirmFor);"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "domain-roll-b-actions-7",
+   "claim": "performDirectMurder destructures promptForNote's answer as an object, which it is only when two or more statistics are listed; with one the sentence would be lost.",
+   "verdict": "stands",
+   "why": "promptForNote returns `{ note, proposed }` only when `traits.length > 1`, else a string (action-menus.mjs:514, 536-537); performDirectMurder destructures (action-murder.mjs:376). MURDER_OPENING.killer.traits is ['body', 'hand'] (config.mjs:3686), so today the object road is taken; latent, nit.",
+   "evidence": [
+    "scripts/action-menus.mjs:514  const propose = (traits ?? []).length > 1;",
+    "scripts/action-menus.mjs:537  return typeof result === \"string\" ? result : \"\";",
+    "scripts/action-murder.mjs:376  const { note, proposed } = await promptForNote(actor, {"
+   ],
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 7,
+  "stands": 7,
+  "weakened": 0,
+  "refuted": 0
+ },
+ "scope_note": "All seven findings re-read on today's source (scripts/ as on b5a29e73): the five minor ones as the task asks, finding 6 as the file's one mislabeled control, and nit 7 since its road is two lines. The file holds no per-control verdicts beyond its hints; the 'Not built yet' dead branch (action-listen.mjs:50-64, BUILT holds all eight variants of config.mjs:1736) was confirmed in passing. No harness, test, scenario or probe was run; no base-run.json was cited.",
+ "not_established": [
+  "Finding 5: how long a console's write of a student's actions or grants stands on the primary's document before the put-back lands, which is the window the road needs (the reader's L1 recipe stands as written).",
+  "Finding 3: whether the owner means a missed watch's Despair mark to stand after a Reroll that keeps the watch (as a theft's moment stands); docs/dev/e74 was not read for it. The replay ignoring the new roll's duality is a defect either way.",
+  "Finding 1: no row was pressed on a GM's client; settled by one press of Dash or Force the Door by a GM on a student's sheet, reading the card against the world."
+ ]
+}

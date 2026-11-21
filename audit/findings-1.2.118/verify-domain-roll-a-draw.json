@@ -1,0 +1,82 @@
+{
+ "refuter": "verify-domain-roll-a-draw",
+ "of": "domain-roll-a-draw",
+ "checked": [
+  {
+   "ref": "domain-roll-a-draw-1",
+   "claim": "A hindering Call armed more than 60 s before is thrown and spent on the supporting rolls pickCover, tailUnseen and lootCover on the primary, while the roller's window shields it, so an honest roll is flagged and the Call is gone before the action's own roll.",
+   "verdict": "stands",
+   "why": "Read the whole road. rollTrait shields every `remember: false` roll outside TAKES_CALLS, which holds murderOpening alone, so the roller's pendingCalls answers [] and the window and packet carry no Call. The three callers pass `remember: false` with an action key. On the primary throwDrawn takes the key as sent (regex check only); SPENDS_NO_CALL holds \"palm\" alone, so `applied` is read normally (empty: the packet names none) and hostileCalls, whose early return covers only SPENDS_NO_CALL and a keyless claimed roll, returns every hindering Call armed before HOSTILE_GRACE, read through armedCallsShown, which has no shield test. expectedFor adds read.hostile.dice and .bonus into the GM's number, checkRoll flags `advantage` or `modifier` for the difference, and `used = [...applied, ...hostile]` spends them. traitsFor names pickCover, tailUnseen and lootCover as drawn keys, and the bridge binds these rolls by those kinds, so the draw road is the one these rolls take. The comment over SPENDS_NO_CALL says it mirrors rollTrait's `remember: false`, which it no longer does. No test found that pins the opposite: tests-tier2.mjs's pickCover/tailUnseen rows (101614, 102481, 103069) build rolls through rollOf without an armed hindering Call, and the hostileCalls tests (9814, 9862, 10009) drive action rolls. Minor holds: it needs a hindering Call standing at the moment of one of three actions, and it costs that Call and raises a false flag.",
+   "evidence": "scripts/action-pipeline.mjs:158 `const supporting = !remember && !calls.TAKES_CALLS.has(actionKey);`; scripts/call-effects.mjs:94 `export const TAKES_CALLS = Object.freeze(new Set([\"murderOpening\"]));`; scripts/call-effects.mjs:193 `if (shielded) return [];` (pendingCalls) and :202-204 armedCallsShown with no shield; scripts/roll-draw.mjs:1857 `const SPENDS_NO_CALL = new Set([\"palm\"]);`; :1866 `if (SPENDS_NO_CALL.has(key) || (!key && claimed !== false)) return [];`; :1715-1716 `const used = [...applied, ...hostile].map(call => call.nonce); if (used.length) await spendCallsByNonce(actor, used);`; :1962 `if (key === \"pickCover\") return [INFILTRATE.pick.cover.trait];`; scripts/action-doors.mjs:143 `rollTrait(actor, rule.cover.trait, { remember: false, actionKey: \"pickCover\",`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-roll-a-draw-2",
+   "claim": "With the roll window lock off, a player's ticked Experience, typed bonus or other statistic is shown in the window but not counted by the GM's draw, so the roll is flagged and the roller told 'not counted'; the setting's text describes only the on state.",
+   "verdict": "stands",
+   "why": "The lock-off branch of roll-dialog leaves the trait, the experience chips and a bonus no Call set to the player (freeBonus). On the primary the `experience` reader answers its bound only when an applied Call grants `experience`, scoredOf slices the claim's experiences to that bound and clamps the rest of the flat sum into the effects' range, and checkRoll flags `modifier` when the claim's flat differs or holds more experiences, `trait` when the statistic differs from the action's. rollerLine then names `uncounted` to the roller. Nothing in roll-draw reads lockRollDialog (grep finds the setting only in roll-dialog.mjs:551, settings.mjs and settings-window.mjs:91), so the draw does not change its count with the switch. The tier-2 test at tests-tier2.mjs:75180-75230 opens an unlocked window and clicks an experience chip, but it reads the window's costs and Roll button, not what the GM counts. One narrowing: the title's 'counts none of them' is wide - a typed bonus within the character's effects' range is counted - but what_happens says so (the clamp). Minor holds: the default is on.",
+   "evidence": "scripts/roll-dialog.mjs:368-370 `only the things that are the PLAYER's are left alone: which trait, which experience, the roll mode, the free-text bonus.`; :401 `else freeBonus(root, app);`; scripts/roll-draw.mjs:2289 `experience: (actor, draw, row) => (draw.applied.some(call => call?.grants === \"experience\") ? row.bound : 0),`; :1520 `const experiences = claim.experiences.slice(0, expected.experiences);`; :1525 `const effects = Math.min(high, Math.max(low, rest));`; :2419 `if (claim.flat - claim.traitValue !== scored.flat - scored.traitValue || claim.experiences.length > scored.experiences.length) {`; lang/en.json:296 hint `Players cannot change the dice, statistic, advantage, Experiences, or bonus in the roll window; ...`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-roll-a-draw-3",
+   "claim": "A player's diagnoseDiceLook() with no message id reads the newest message with rolls whose `visible` is not false, which includes another player's hidden whispered roll, and prints its author and its dice kinds in the window the player is asked to send the GM.",
+   "verdict": "stands",
+   "why": "rollMessage filters a player's run by `m.visible !== false` only. The module's own note states that Foundry's ChatMessage#visible answers true for any whispered message holding a roll, and the module hides such cards through isContentVisible alone (enforceContentVisibility returns early only on isContentVisible); the harness models visible that way. The module patches isContentVisible (readableRule) and nothing patches ChatMessage#visible (grep of `get visible` and `\"visible\"` over scripts/ finds only fog-doorways' ruler). lookView then sets `by = message.author?.id` without the GM-only branch, and viewLines prints `Roll: <name> - <dice>`; the same view feeds diceLookLines, the diagnostic report's part on a player's browser too (diagnostics.mjs:2227). The dice lines carry class, faces and modifiers, not the faces rolled, so the leak is who rolled and with which dice, as the finding says. Foundry's own getter was not read here (not on this machine); the claim rests on the module's note and the harness's model, as the reader says. Minor holds: the player must run a diagnostic, and it shows that a hidden roll was made and by whom.",
+   "evidence": "scripts/dice-look.mjs:328 `return game.messages.contents.filter(m => (m.rolls?.length ?? 0) > 0 && (gm || m.visible !== false)).at(-1) ?? null;`; :368 `let by = message.author?.id ?? null, audience = null;`; :477-478 `const by = game.users.get(view.roll.by ?? \"\")?.name ?? \"?\"; lines.push(`${word(\"DRPG.DiceLook.diag.roll\")}: ${by} - ...`; scripts/private-rolls.mjs:452-454 `ChatMessage#visible returns TRUE for any whispered message that contains a roll - deliberately.`; :485 `if (message.isContentVisible) return;`; audit/harness/lib/shim.mjs:955-957 `if (this.whisper.length) { if (this.isRoll) return true;`; lang/en.json:4700 introPlayer `Copy the text at the foot of the window and send it to your GM.`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-roll-a-draw-4",
+   "claim": "A roller who reloads between the GM's message of a drawn statistic and the draw's answer never reads that card again: the id is kept for after a reload only in playBack, and the relay leaves the roller out.",
+   "verdict": "stands",
+   "why": "The claimed message is whispered to the GMs (supersedingRoll's note, keepCard). Its roller reads it through drawsAwaited (memory) during the draw and through readableHere after playBack, the only caller of `readHere(..., { keep: true })` (grep). refillReadable at ready reads only the kept client setting. relayDrawnDice drops `by` from the recipients, so showRelayedDice's readHere never reaches the roller, and that branch skips claimed rolls anyway (`drawn && !isClaimedRoll(message)`). enforceContentVisibility then hides the card, isReadableHere answering false with an empty set. No other road found that asks the GM for the roller's drawn rolls after a reload. The size of the window (pay, pick and audit waits) is not measured, as the reader says. Minor holds.",
+   "evidence": "scripts/roll-draw.mjs:610 `readHere(messageId, { keep: true });`; scripts/private-rolls.mjs:1555 `if (keep) void keepReadable(messageId);`; :1586 `ids = Array.isArray(kept) ? kept.filter(id => typeof id === \"string\" && game.messages?.has(id)) : [];`; :1602-1605 isReadableHere reads readableHere and drawsAwaited only; :1790 `const recipients = audience.filter(id => id !== game.user?.id && id !== by?.id);`; :1936 `if (drawn && !isClaimedRoll(message)) {`; :627 `A statistic from the sheet keeps Daggerheart's card (`keepCard`, C13): its message is claimed - whispered to the GMs`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-roll-a-draw-5",
+   "claim": "The 'Rolls with no GM connected' card is posted again at every primary ready while a roll stands undecided, and another GM's copy keeps live buttons after a decision; a press there answers [] and says nothing.",
+   "verdict": "stands",
+   "why": "askAboutUnwitnessed lists undecided stamps and whispers a new card with no search for a standing awayCard (grep of awayCard finds only the write and the render check); module.mjs calls it at every ready. onRenderUnwitnessed removes the buttons only at a render when no listed roll is open; decideNow updates the rolls' messages, not the card. A press on a decided set reaches decideNow, which skips every id (awayRowOf null) and returns [] with ok, so the waiter's notify (sayNotDone, for refusals) is not reached and nothing is said. A full chat re-render would drop the buttons; nothing in this road asks for one. Nit holds: the decision itself runs once.",
+   "evidence": "scripts/roll-draw.mjs:2917 `const rows = (messages ?? game.messages?.contents ?? []).map(awayRowOf).filter(Boolean);`; :2928-2929 `return whisperToGms(awayRollsCard(lines), { flags: { [MODULE_ID]: { awayCard: true, awayRolls: ... } } });`; :3045 `if (!open) return void element.querySelector(\".drpg-away-actions\")?.remove();`; :2965-2966 `const row = awayRowOf(game.messages.get(id)); if (!row) continue;`; scripts/module.mjs:421 `askAboutUnwitnessed().catch(err =>`",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "domain-roll-a-draw-6",
+   "claim": "The GMs' flagged-roll whisper says 'These parts did not count' also for a die or bonus the GM counted and the window lacked.",
+   "verdict": "stands",
+   "why": "checkRoll flags `advantage` on any inequality and `pick` when no card came, both directions, and tellUnexpected frames every flag with the one sentence. Narrowed: the English text alone says it; the Polish twin says the GM throws by its list and only records the differences ('a roznice tylko zapisuje'), which is right for both directions.",
+   "evidence": "lang/en.json DRPG.Rolls.unexpected `... so the GM rolled the expected one. These parts did not count: {list}. ...`; lang/pl.json DRPG.Rolls.unexpected `GM rzuca według swojej listy, a różnice tylko zapisuje: {list}.`; scripts/roll-draw.mjs:2423 `if (claim.advantage !== scored.advantage) {`; :2418 `if (expected.traitFrom === \"gm\" && !expected.pick) flags.push({ kind: \"pick\", expected: \"1\", claimed: \"0\" });`",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "domain-roll-a-draw-7",
+   "claim": "On the primary every actor flag write below full Gamemaster schedules a dice-look put-back and the switches' comparison whether or not it touches Dice So Nice's flags.",
+   "verdict": "weakened",
+   "why": "The road is as read: the updateActor hook passes touchesLook, and below full Gamemaster onActorWritten ignores `touched` and calls afterSwitchesHeld. But it is narrower than said and the 'expected' is not safe as written. Narrower: registerDiceSync adds the hook only with Dice So Nice active; afterSwitchesHeld runs the step (and so the 400 ms timer and the put-back) only while the table's look is forced (`enforcing()`); worldCopyMoved stringifies only on a full Gamemaster's primary. Not safe: touchesLook tests `Object.hasOwn(flags, DSN)`, so a write that removes the whole namespace with the legacy `-=dice-so-nice` key (which 14.370 still honours, CLAUDE.md, LIVE-E30-01) does not carry the `dice-so-nice` key and reads as untouched; the unconditional schedule is what catches it below full Gamemaster. The reader's refutation says any write of the overlay carries the key, which this form does not. The cost remains unmeasured. Nit holds.",
+   "evidence": "scripts/dice-sync.mjs:208-215 `if (!game.modules.get(DSN)?.active) { ... return; } ... if (changes?.flags !== undefined) onActorWritten(actor, userId, touchesLook(changes.flags));`; :926 `return Boolean(flags) && typeof flags === \"object\" && Object.hasOwn(flags, DSN);`; :301 `void held.then(() => (enforcing() ? step() : undefined))`; :409 `if (!isFullGm(game.user)) return false;` (worldCopyMoved); :975 `afterSwitchesHeld(() => schedule(ACTOR + actor.id));`",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "GMs' card of rolls thrown with no GM / Grant all (hints_for_other_passes.dead_controls[1])",
+   "claim": "On the clicking browser the buttons are removed before askToDecide answers, so a refused or failed ask leaves the card with no buttons and no word until it is redrawn.",
+   "verdict": "weakened",
+   "why": "The buttons are removed before the ask, as said. But 'no word' does not hold for a refusal or a failure: askToDecide goes through bridgeRequest, whose waiter is built with `notify: (action, reason, opts) => sayNotDone(action, reason, opts)`, and the call passes no `quiet`. What stays is a card without buttons after a refusal, until a render; whether sayNotDone's words for roll.grant read well was not read.",
+   "evidence": "scripts/roll-draw.mjs:3050-3051 `element.querySelector(\".drpg-away-actions\")?.remove(); await askToDecide(ids, button.dataset.drpgAway === \"grant\");`; :2956-2957 `bridgeRequest(\"roll.grant\", { messageIds, grant: grant === true }, { settle: \"reply\", onPrimary: true, local: ... })`; scripts/bridge-guards.mjs:2123 `notify: (action, reason, opts) => sayNotDone(action, reason, opts),`",
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 8,
+  "stands": 6,
+  "weakened": 2,
+  "refuted": 0
+ },
+ "not_established": [
+  "Finding 3 rests on Foundry v14's ChatMessage#visible answering true for every whispered roll; read from the module's note (private-rolls.mjs:452-454) and the harness's shim, not from v14's source. New live check: on a real table, a player's game.messages filter of another player's forced-private roll by `visible`.",
+  "Finding 4's window (between the GM's message and the answer reaching the roller) is not measured; how often a reload lands in it is a table question.",
+  "Finding 7's cost on the primary is not measured; scenario 86's counters do not name the dice-sync path.",
+  "base-run.json was not present when read: no test or scenario result is cited; nothing was run."
+ ]
+}

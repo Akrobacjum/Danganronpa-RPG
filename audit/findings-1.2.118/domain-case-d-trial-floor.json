@@ -1,0 +1,414 @@
+{
+ "reader": "domain-case-d-trial-floor",
+ "files_read": [
+  {
+   "file": "scripts/trial.mjs",
+   "lines": 1711,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/trial-floor.mjs",
+   "lines": 1835,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/trial-floor-ui.mjs",
+   "lines": 2045,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/trial-modes.mjs",
+   "lines": 472,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/trial-progress.mjs",
+   "lines": 638,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/trial-prompt.mjs",
+   "lines": 279,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/trial-speakers.mjs",
+   "lines": 284,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/floor-machine.mjs",
+   "lines": 699,
+   "read": "whole"
+  }
+ ],
+ "neighbours_followed": [
+  "scripts/bridge-table.mjs 1140-1470 (the rows trial.enter, trial.record, floor.now, trial.object, trial.evidence, trial.withdraw, floor.repoint, trial.gm, trial.turn, trial.claim, trial.present: guards, sanitizers, claims)",
+  "scripts/bridge-asks.mjs 280-350, 395-415 (requestObject, requestEvidence, requestWithdraw, requestRepoint, requestTrialGm, requestClaim, requestTurn)",
+  "scripts/bridge-runs-records.mjs 745-850 (handleTrialEnter, handleFloorNow, handleTrialObject, handleTrialEvidence, handleTrialGm, handleTrialTurn, handleTrialClaim)",
+  "scripts/bridge-guards.mjs (bridgeRequest's header: what an unanswered request answers)",
+  "scripts/live.mjs 56-360 (keepLive, its press hold, listenFor's defaults: every module setting, the world hooks, stores only when named)",
+  "scripts/ui-kit.mjs (drpgWindow's render called once, liveFooter)",
+  "scripts/gm-panel.mjs 258-270, 444-456, 533-620, 865-872 (the two doors to the trial console, the tile runner that reopens the panel, the Next line)",
+  "scripts/hud.mjs 1470-1580 (objectionControl: the held button, the latch, raiseObjection's only caller)",
+  "scripts/handover.mjs 247-330 (mintCopy: its refusals and the per-receiver queue)",
+  "scripts/vote.mjs 53-59, 540-592 (the re-exports of trial-progress.mjs, trialParticipants)",
+  "scripts/voice.mjs 1739-1860 (settleTrialVoices: the record of its own chapter, the listener on the floor's setting)",
+  "scripts/clock.mjs 128-215, 985-1135 (setClock's refusals, reconcilePhase out of and into the trial)",
+  "scripts/chapter.mjs 640-770 (CHAPTER_END_STEPS: clock before trial)",
+  "scripts/key-remnants.mjs 60-100, 545-570 (keyRevealRecord, recordKeyRevealed, missingKeyRows: the Key plan store)",
+  "scripts/remnants.mjs 1671-1678 (markKeyFound)",
+  "scripts/truth-bullets.mjs 795-860 (truthBulletData: the holder's fields and the GM's own)",
+  "scripts/world-secrets.mjs 100-130 (the rules for trialProgress and trialQueue)",
+  "scripts/mastermind.mjs 244-248 (mastermindActor reads a GM store)",
+  "scripts/sfx.mjs 270-305 (the floor's sounds: none for the Closing's choice and decision)",
+  "scripts/sync.mjs 430 (renderTrialFloor on every write of the floor), scripts/module.mjs 343-345, 492 (the registrations)",
+  "scripts/config.mjs 4300-4405 (TRIAL and TRIAL.modes)",
+  "lang/en.json (DRPG.Trial.turn, DRPG.Floor.bar, DRPG.Floor.lead, DRPG.Floor.next, DRPG.Floor.round, DRPG.Floor.closing, DRPG.Reveal)",
+  "docs/handbooks/gm-handbook.en.md 1436-1560, docs/handbooks/player-handbook.en.md 888-896, docs/design/windows.md 54 (M13)",
+  "scripts/tests-tier0.mjs, tests-tier1.mjs, tests-tier2.mjs (grep of floorFamily, againAfterOverrule, retrySentence, turn.keep, testimonyRefusal, drpgTrialStep; the titles of R1024-R1048, R1365, R3911, R7101)"
+ ],
+ "strengths": [
+  "One engine for the floor: floor-machine.mjs `nextFloor` is pure and every writer hands its answer to one write, trial-floor.mjs `commitFloor` (floor-machine.mjs:497-699, trial-floor.mjs:628-674); the bar's greyed buttons ask the same rows (trial-floor.mjs:1431-1442).",
+  "One writer in one queue: the floor is written only on the primary GM inside a step of `SEIZE_KEY`, another GM asks `trial.gm`, and no step calls a public writer (trial-floor.mjs:350-371, 726-742).",
+  "The Objection is judged, paid, posted and opened on the primary, its target read off the primary's own voice Room, and the price is handed back when the floor did not move (trial.mjs:1070-1171).",
+  "A card is built from `HOLDER_FIELDS` of the bullet as the GMs hold it, never from the GM half of `truthBulletData` (trial.mjs:530-536, 1205-1222); truth-bullets.mjs keeps the two halves in separate fields.",
+  "A player's own card carrying the trial's flags is raised on no screen and is marked refused by the primary (trial.mjs:631-656).",
+  "A late press cannot move a newer floor: the GM's Now names the floor it saw (trial-floor.mjs:1613-1643), a round's Done, Pass and step over name the step they are for (floor-machine.mjs:609-616), and a step over is heard once a sender and step (trial-modes.mjs:166-171).",
+  "Who volunteered for the Closing and whom the draw named stay in the GMs' store; the floor holds a count, and `via` is 'chosen' whether the GM confirmed or changed the draw (trial-modes.mjs:226-251, floor-machine.mjs:186-189; world-secrets.mjs:123-128 holds the setting to it).",
+  "The trial record's fields are one table with a lifetime and a writer each (trial-progress.mjs:339-384), and another GM's patch is held to `RECORD_FIELDS` on the primary (trial-progress.mjs:514-522).",
+  "Every countdown is counted from one stamp on the server's clock, and the picker, the primary's test and the lapse read one millisecond count (trial-floor.mjs:765-768, 1182-1186, 1685-1692).",
+  "The sentence is carried out on the primary under one latch, a record written after each student and the stamp only when nobody failed (trial-progress.mjs:94-110, 153-201).",
+  "What cannot be undone is the destructive role and never the default in every window of the console (trial-floor-ui.mjs:584-625, 1503-1518, 1849-1886).",
+  "The speakers' record lives in memory only, is emptied at both edges of the trial, and names only a student alive as the table knows it (trial-speakers.mjs:101-107, 214-221).",
+  "`MODE_RULES` states who speaks, presents, objects and may be aimed at for every mode in one table, and `MODE_STARTS` is held to the modes by a census (trial-floor.mjs:98-151)."
+ ],
+ "findings": [
+  {
+   "id": "domain-case-d-trial-floor-1",
+   "domain": "CASE",
+   "severity": "minor",
+   "category": "flow",
+   "title": "Keep speaking, the default of Your turn, takes Done and Pass away for the rest of the turn: nothing else on the speaker's screen can end it",
+   "where": "scripts/trial-prompt.mjs:175-176 (the turn marked as prompted before the window opens), 189-198 (the window, Keep speaking the primary), 214 (the only reset, after a thesis), 217-220; scripts/bridge-asks.mjs:405 (requestTurn, called by trial-prompt.mjs alone); lang/en.json:3541, 3544",
+   "what_happens": "`promptTurn` sets `promptedFor = key` for the turn's step and opens Your turn with Keep speaking as the primary (so Enter and Space press it), Done and Pass on the left. Any answer but Done or Pass - Keep speaking, Escape, the header's X - returns with `promptedFor` still the key, and the once-a-second `tick` then finds `promptedFor === key` and opens nothing. Only the Scrum thesis branch clears it. `requestTurn` with `done` or `pass` has no other caller in scripts/ (git grep: trial-prompt.mjs:220 only), and the HUD and the voice tile carry no turn control. So after the default answer the speaker cannot end or pass the turn; it runs to its clock (30-120 s in Testimony, up to 300 s in the Closing Argument) unless a GM presses Skip.",
+   "evidence": "    if (promptedFor === key || alreadyOpen(WINDOW_CLASS)) return;\n    promptedFor = key;\n...\n        if (turnKey(trialFloor()) === key) promptedFor = null;\n        return;\n    }\n    if (choice !== \"done\" && choice !== \"pass\") return;",
+   "failure_scenario": "The Closing's speaker clears the window with Enter (Keep speaking) to see their sheet, finishes after two minutes and finds no Done: the table sits through the remaining three minutes, or the player has to ask the GM to press Skip or End this mode.",
+   "expected": "The window's own words, 'Press Done when you finish, or Pass to give up your turn.' (lang/en.json:3541), and the handbooks: 'a window says Your turn (n s), with Done to end your turn and Pass to give it to the next speaker' (player-handbook.en.md:894; gm-handbook.en.md:1553). Keep speaking as the default is the owner's card (E70 fix p2-G3; docs/design/windows.md M13); that it removes the two controls is written nowhere.",
+   "fix_sketch": "Keep a way back for the running step: clear `promptedFor` when the window closes without Done or Pass and reopen it from a control on the trial row or the voice tile, or leave a small Done / Pass control there for the speaker.",
+   "confidence": "read",
+   "refutation_tried": "git grep of requestTurn, ACTION_TRIAL_TURN and DRPG.Trial.turn over scripts/: the window is the only asker of done and pass. hud.mjs `objectionControl` (1511-1580) is the trial row's one control. The comment at trial-prompt.mjs:194-197 says the default 'closes the window alone; the turn runs on its clock, the GM's bar still skips it' - it records the default, not that Done should be gone. A reload reopens the window (the latch is the browser's memory), which is no road a player is told.",
+   "tests_near": "R1365 (tier 1) pins the footer's order and roles; R1047's part 4 (tests-tier1.mjs:33230) pins that Done and Pass are not the default; tier 2 E70-T9 drives a round with the heartbeat held. None closes the window with Keep speaking and then looks for Done.",
+   "live_check": ""
+  },
+  {
+   "id": "domain-case-d-trial-floor-2",
+   "domain": "UI",
+   "severity": "minor",
+   "category": "ux",
+   "title": "A trial console opened from the GM panel hands the panel back the first time it reopens itself: the reopen runs outside the awaited chain",
+   "where": "scripts/trial-floor-ui.mjs:1675-1702 (the live hook's close and detached reopen), 1805, 1826-1829 (the awaited chain); scripts/gm-panel.mjs:266-267, 451-452 (the console's two doors), 599-618 (the tile runner that reopens the panel)",
+   "what_happens": "The GM panel closes itself, awaits the tile's `run()` and opens again when it resolves with anything but RAISED. `manageClassTrial` keeps that promise alive across footer actions by returning the next console (`return manageClassTrial()`). But when the floor's family or the trial's running state changes while the console stands open, the live hook closes the dialog and reopens the console from a detached `.then`. The close resolves the awaited window with null, the tile's `run()` resolves, and `openGmPanel()` runs beside the new console. Changes that take this road: a rebuttal running out or skipped (debate to no floor), a mode started from the console's own picker (Nonstop Debate, Testimony, Panic Round, the Closing, the zone modes: the picker's click does not close the console), a round or the Closing ending by itself, the bar's End this mode, and a trial started or ended by another GM or from Edit campaign. The panel and the console are the only doors: git grep finds `manageClassTrial` in gm-panel.mjs and api.mjs alone.",
+   "evidence": "                    reopening = true;\n                    dialog.close()\n                        .then(() => manageClassTrial())\n                        .catch(err => error(\"Could not reopen the trial console\", err));\n...\n                    answer = await item.run();\n                if (answer === RAISED) return;\n                openGmPanel().catch(err =>",
+   "failure_scenario": "The GM opens Class Trial from the panel, starts the trial and a debate; a player objects, the rebuttal runs out, and at that moment the GM panel opens over or beside the reopened console.",
+   "expected": "gm-panel.mjs:590-593: the panel comes back 'by the time `run()` resolves the screen is clear again'; here the screen holds the console the GM is running the trial from. One window for one question.",
+   "fix_sketch": "Let the first call's promise follow the reopened console (resolve the awaited chain with the reopened console's promise, or answer RAISED when the close was the console's own reopen).",
+   "confidence": "read",
+   "refutation_tried": "Read the whole chain: `drpgWindow` resolves null on a close (`rejectClose: false`), line 1805 returns null for it, and gm-panel.mjs:615-617 reopens for any answer but RAISED. `openGmPanel` refuses only a panel already open (533-539), and the tile closed it first (605). After the first detached reopen the later ones belong to no chain, so the panel comes back once per console opened from it. Which of the two windows ends on top is not established (two unordered promises).",
+   "tests_near": "tier 0 R1026 holds the console's signature to the floor's family, and tier 2 E70-T2 (cited at trial-floor-ui.mjs:1377-1380) reads the console across an Objection; no test found opens it from the GM panel's tile. The same mechanism is reported for the incident tracker by the reader of murder-ui.mjs (domain-case-a-incident-3).",
+   "live_check": "Open Class Trial from the GM panel, start a trial and a debate, let an Objection and its rebuttal run out: count the windows."
+  },
+  {
+   "id": "domain-case-d-trial-floor-3",
+   "domain": "CASE",
+   "severity": "minor",
+   "category": "flow",
+   "title": "An Objection inside a Testimony is read as the debate's exchange: the console closes and reopens at its start and its end, its footer's step is Close Debate, and that press drops the rest of the round under a card saying the debate is closed",
+   "where": "scripts/trial-floor.mjs:100-101 (the Objection's and the rebuttal's family 'debate'), 154-158 (floorFamily: only the Closing's exchange is kept), 179-183 (TRIAL_NEXT_STEPS), 400 (the op `end`); scripts/trial-floor-ui.mjs:1385 (trialSignature), 1395-1406 (the footer's button), 498-509 (closeDebate); scripts/floor-machine.mjs:693-694 (End this mode in a round's exchange)",
+   "what_happens": "A Testimony allows an Objection at its speaker (`MODE_RULES.testimony.object`). The machine then writes mode `objection` and keeps `round` on the floor. `floorFamily` answers the Closing's exchange as 'closing' but a round's exchange by the mode's row, 'debate'. So (1) `trialSignature` moves from `true|round` to `true|debate` and back when the queue resumes, and the console closes and opens again each time - what E70-06 took out for a debate's Objection; (2) `trialNextStep` answers `closeDebate`, so the console's footer shows Close Debate in the primary's slot, and the GM panel's Next line and the vote window's lead read 'The debate is open. Close it when the room has argued it out.'; (3) Close Debate runs `closeDebate()` -> `endFloor()` -> the op `end`, which writes the empty floor: the round is gone with no 'The Testimony is over.' card, and the table is told 'The debate is closed'. The bar's End this mode in the same state resumes the queue at the next speaker (floor-machine.mjs:694), so the two ends of one state do different things.",
+   "evidence": "    [MODES.objection]: Object.freeze({ family: \"debate\", speak: \"holder\", present: \"all\", object: false, target: \"any\", adjust: true }),\n...\nexport function floorFamily(floor = trialFloor()) {\n    // The Closing's exchange is the Closing's (E70 C8): its footer, End the Closing Argument, stands through it.\n    if (floor && closingOf(floor)) return \"closing\";\n    return floor ? (MODE_RULES[floor.mode]?.family ?? floor.mode) : \"none\";\n}",
+   "failure_scenario": "Third speaker of a six-speaker Testimony is objected to; the GM's console flashes shut and open, now offers Close Debate, and the GM who presses it to end the argument loses the last three turns while every screen reads 'The debate is closed'.",
+   "expected": "gm-handbook.en.md:1553: in Testimony the Objection 'runs the debate's exchange ...; after it the round goes on at the next speaker', and 'End this mode (End the round) ends the round'; trial-floor.mjs:155 gives the Closing's exchange the Closing's footer for the same reason, and trial-floor-ui.mjs:1377-1384 says the console is not to reopen at an Objection.",
+   "fix_sketch": "Answer 'round' from `floorFamily` while `floor.round` holds a round (as `closingOf` does for the Closing), so the footer keeps End the round and the signature does not move.",
+   "confidence": "read",
+   "refutation_tried": "Checked that the round stays on the Objection's floor (floor-machine.mjs:564-567 spreads the floor; `roundOf` reads it at 65-68) and that no Closing field stands on a round's floor (the round's base at 528 has none, and every end writes `{}`). `closeDebate` asks nothing of the mode (trial-floor-ui.mjs:498-509) and the op `end` takes the Closing's road only (trial-floor.mjs:400). Enter is held in the exchange (1780-1784), so the press is a click. git grep of floorFamily in the tests: six lines (tests-tier0.mjs:17735-17764 and 23065, tests-tier1.mjs:52663), all on trialSignature's source text; none hands it a round's exchange.",
+   "tests_near": "R1026 (tier 0) holds trialSignature to floorFamily; R1042 (tier 1) reads the machine's round rows, an exchange inside one among them, without the console; R1048 reads the console for the Closing and the Reveal. No test draws the console on an Objection inside a round.",
+   "live_check": ""
+  },
+  {
+   "id": "domain-case-d-trial-floor-4",
+   "domain": "CASE",
+   "severity": "minor",
+   "category": "ux",
+   "title": "The Closing Argument's refusals are written in both languages and never shown: Confirm on a drawn speaker whose player has dropped says only 'The Closing Argument did not change.'",
+   "where": "scripts/trial-modes.mjs:265-275 (closingCall); scripts/trial-floor.mjs:412-416 (the ops call closingStepInStep without `why`), 587-599; scripts/floor-machine.mjs:267-294 (the keys); lang/en.json:1761-1769 (the eight sentences), 1777 (notDone)",
+   "what_happens": "The machine refuses a Closing step with a key of its own: `absent` ('That player is not connected: pick someone else.'), `noDrawn`, `noChoice`, `notParticipant`, `noDecision`, `notInExchange`, `voteOpen`, `nothingToResume`. The GM's four calls - Confirm the speaker, Pick, the decision, Resume - go through `closingCall` -> `floorStep` -> `FLOOR_OPS`, which call `closingStepInStep(event)` without `{ why: true }`; a refusal becomes null, and `closingCall` says the one line `DRPG.Floor.closing.notDone`. git grep finds each of those eight keys in floor-machine.mjs and the tests only, so none is ever localized for a GM. On a GM who is not the primary the bridge first says its own 'nothing was carried out' (bridge-runs-records.mjs:829) and `closingCall` then adds the second notice.",
+   "evidence": "    const written = await floorStep(op, args);\n    if (written === null) ui.notifications.warn(game.i18n.localize(\"DRPG.Floor.closing.notDone\"));\n    return written;\n...\n    const result = nextFloor(floor, event, ctx);\n    if (result.refused) return why ? { refused: result.refused } : null;\n...\n            if (absent.has(ctx.drawn) || !among(ctx.drawn)) return { refused: \"DRPG.Floor.closing.absent\" };",
+   "failure_scenario": "The drawn volunteer's browser reloads during the GM's choice; the GM presses Confirm the speaker and reads 'The Closing Argument did not change.' with the row still offering Confirm, and has to guess that Pick someone else is the way on.",
+   "expected": "trial-floor.mjs:1400-1401 states the rule for the bar ('so a dead button says why'), and the eight sentences exist in en.json and pl.json for exactly these presses; trial-modes.mjs:95-96 made the same repair for a round's start (E70 fix p2-G3).",
+   "fix_sketch": "Have the Closing's ops ask `closingStepInStep(event, { why: true })` and carry the key back (or ask `nextFloor` on the pressing GM first, as `barMay` does) so `closingCall` localizes the machine's reason.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a pre-check on the pressing GM: `startClosing` has one (`closingRefusal`: already, busy); Confirm, Pick, the decision and Resume have none (trial-modes.mjs:294-314). `closingStepInStep(event, { why: true })` has one caller, `volunteerOnPrimary`, which maps every refusal to its own bridge text. The pick window lists connected participants only, so `absent` there needs a drop after it opened; the drawn speaker's and an objector's drop are the ordinary cases.",
+   "tests_near": "R1043 (tier 1) reads the machine's keys; R1048 reads the console's row. Neither presses a refused Confirm through `closingCall`.",
+   "live_check": ""
+  },
+  {
+   "id": "domain-case-d-trial-floor-5",
+   "domain": "CASE",
+   "severity": "minor",
+   "category": "bug",
+   "title": "An Overrule after the exchange of an Objection raised in a Testimony or in the Closing Argument offers 'Open the debate again' with the interrupted speaker's seconds, as the trial's next step",
+   "where": "scripts/trial-floor.mjs:1540 (the offer written), 198 (the next step); scripts/trial.mjs:944-945 (the receipt: `mode`, `leftAtObjection`, `debateLeft`); scripts/floor-machine.mjs:380-383 (restOf); scripts/trial-floor-ui.mjs:1407-1412, 1535-1540",
+   "what_happens": "A receipt keeps what the Objection interrupted (`mode`), that floor's seconds (`leftAtObjection`) and `debateLeft`, the rest of the newest debate on the stack - null when the Objection cut into a round's turn or the Closing's speech, which have no debate under them. `overruleInStep`, for an Overrule after the exchange with no floor open, writes `againAfterOverrule.seconds` from `debateLeft ?? leftAtObjection` without asking the receipt's `mode`. So once the round or the Closing is over, overruling its newest Objection sets the offer with the speaker's seconds; `TRIAL_NEXT_STEPS` then answers `openAgain` (ahead of `reopen` and `openDebate`), the console's primary reads 'Open the debate again (n s left)' with the lead 'Open the debate again with the time it had left', and the press opens a debate of that length under the trial record's last question.",
+   "evidence": "            if (!judged.during && !floor) change.againAfterOverrule = { messageId: id, seconds: Number(judged.receipt?.debateLeft ?? judged.receipt?.leftAtObjection) || 0 };\n...\n                    mode: entry?.before?.mode ?? null, leftAtObjection: entry ? Number(entry.leftAtObjection) || 0 : null,\n                    debateLeft: restOf(floor), trialStartedAt: record.trialStartedAt ?? null, at: serverNow(), overruled: false,",
+   "failure_scenario": "The Closing's speaker was objected to with 200 s left; the Closing ends, the GM overrules that Objection from the bar, and the console's next step becomes 'Open the debate again (200 s left)' where the ballots were next - a debate that never ran.",
+   "expected": "gm-handbook.en.md:1478: after its exchange 'the console offers Open the debate again with the time the debate had left'; trial-floor.mjs:1538-1539: 'The debate's time when the Objection cut in (the newest debate under it, TR31's rest)'. With no debate under the Objection there is nothing to offer.",
+   "fix_sketch": "Write the offer only when the receipt's `debateLeft` is a number (or its `mode` is the debate).",
+   "confidence": "read",
+   "refutation_tried": "Read `keepReceipt` and `restOf`: a round's turn empties the stack (`before: []`, floor-machine.mjs:86) and the Closing's speech too (173), so the Objection's entry is the only one and its `before.mode` is the round's or 'closing'. `overruleTarget` names the newest receipt of this trial whatever its mode (floor-machine.mjs:476-487). `startFloorInStep` clears the offer only when a debate opens (trial-floor.mjs:902-905). grep of againAfterOverrule in the tests: views handed to `trialNextStep` and the record's blank; `debateLeft` once in tier 1.",
+   "tests_near": "R1027 and R1030 (tier 1) read the Overrule and the debate again for a debate's Objection; none writes the offer from a receipt whose `mode` is a round or the Closing.",
+   "live_check": ""
+  },
+  {
+   "id": "domain-case-d-trial-floor-6",
+   "domain": "CASE",
+   "severity": "nit",
+   "category": "flow",
+   "title": "The Closing Argument's two waits for the GM (who speaks, who continues) raise nothing on the GM's side, and the GM panel's Next line reads 'End it, then send the ballots.' meanwhile",
+   "where": "scripts/floor-machine.mjs:311, 325 (the choice, `cards: []`), 210-220 (the decision); scripts/trial-floor.mjs:180 (the step `endClosing` for the whole Closing), 550-562 (the table's line); scripts/sfx.mjs:292-299; lang/en.json:1566, 1773, 1776",
+   "what_happens": "When the volunteers' 30 s end, and again when an exchange inside the Closing ends, the floor enters a phase with no clock that only a GM's press leaves. The players read 'The GM is confirming the speaker.' or 'The GM decides who continues the Closing Argument.' on the HUD and the Event panel. On the GM's side the machine posts no card for either move, sfx.mjs plays `closingStart` and a speaker's turn only, and nothing is whispered. The question is drawn in the console's row alone (`closingConsole`). With the console closed, the panel's Next line is the step `endClosing`: 'The Closing Argument holds the floor. End it, then send the ballots.'",
+   "evidence": "        if (phase === \"volunteer\") return { floor: closingFloor(floor, \"choice\", now, { choice: ctx?.drawn ? \"confirm\" : \"none\" }), cards: [] };\n...\n    [view => view.running && view.floor && floorFamily(view.floor) === \"closing\", \"endClosing\"],",
+   "failure_scenario": "An Objection's rebuttal ends three minutes into the Closing while the GM is reading the map with the console closed: the table waits on 'The GM decides who continues' and the GM's panel says to end the Closing.",
+   "expected": "The console's own lead says what is asked ('confirm or pick its speaker, and after an Objection decide who continues', lang/en.json:1632); the same question deserves a sign where the GM is when the console is shut - a notice, a sound or the Next line's words.",
+   "fix_sketch": "Give the choice and the decision a step of their own in `TRIAL_NEXT_STEPS` (or a notice to the GMs when the floor enters them).",
+   "confidence": "read",
+   "refutation_tried": "Looked for a card, a whisper or a sound at the two moves: `closingFloor` returns the caller's `cards` (empty on the clock's road), `commitFloor` posts only those, sfx.mjs keys on the volunteers' stamp and a speaker's step. `drpgTrialStep` is called and has no listener (see hygiene). A GM who started the Closing half a minute ago is likely at the console for the first wait; the second comes minutes later.",
+   "tests_near": "R1043, R1048 (tier 1) read the phases and the console's row; none asks what a GM is told.",
+   "live_check": ""
+  },
+  {
+   "id": "domain-case-d-trial-floor-7",
+   "domain": "UI",
+   "severity": "nit",
+   "category": "a11y",
+   "title": "While any mode but the debate holds the floor, Enter on a focused button of the console is swallowed, the bar's own buttons included",
+   "where": "scripts/trial-floor-ui.mjs:1780-1784 (the capture listener), 881-883 (exchangeRuns: every floor that is not a debate)",
+   "what_happens": "The listener meant to keep Enter from pressing the footer's default runs in the capture phase on the window's root and cancels every Enter keydown while `exchangeRuns()` - an Objection, a rebuttal, a round, the Closing, a zone mode. A button's activation by Enter is the default action of that keydown, so on a browser it never becomes a click: a GM who tabs to Skip, +30 s, Overrule or Confirm the speaker and presses Enter moves nothing and is told nothing. Space still presses.",
+   "evidence": "            dialog.element?.addEventListener(\"keydown\", event => {\n                if (event.key !== \"Enter\" || !exchangeRuns()) return;\n                event.preventDefault();\n                event.stopPropagation();\n            }, true);",
+   "failure_scenario": "A GM working by keyboard tabs to Skip during a rebuttal and presses Enter: nothing happens, though the lead reads 'Skip on the bar moves it on now'.",
+   "expected": "trial-floor-ui.mjs:846-849: a bar button stays 'still focusable', and a press 'says that reason'; the hold was written for the footer's default (1777-1779).",
+   "fix_sketch": "Cancel the key only when its target is not a button inside the bar, or hold the default by the footer's `default` alone (already Close in an exchange, 1516).",
+   "confidence": "suspected",
+   "refutation_tried": "The listener has no test of the target (read at 1780-1784). The harness cannot show it: jsdom does not turn Enter on a button into a click, so tier 2's 'the console holds Enter while an Objection runs' (tests-tier2.mjs:48044) reads the same either way. That a real browser cancels the click with the keydown is browser behaviour, not read here.",
+   "tests_near": "Tier 2 'the console holds Enter while an Objection runs, ...' (tests-tier2.mjs:48044) measures the footer's default; no test presses Enter on a bar button.",
+   "live_check": "On a real browser, during a rebuttal, focus the bar's Skip with Tab and press Enter, then Space: the floor should move on both."
+  },
+  {
+   "id": "domain-case-d-trial-floor-8",
+   "domain": "TEXT",
+   "severity": "nit",
+   "category": "text",
+   "title": "Your turn's title states the whole turn when the speaker is given back only the rest of it",
+   "where": "scripts/trial-prompt.mjs:184, 190; scripts/floor-machine.mjs:102-112 (speakerAgain)",
+   "what_happens": "After an Objection in a Testimony lapses, is withdrawn or is overruled, `speakerAgain` gives the speaker the turn back with `seconds` the turn's full length and `startedAt` moved so that only the rest is left, and a new step. The speaker's window opens again for that step and takes its title from `floor.seconds`: 'Your turn (60 s)' with 23 s on the clock. The Closing's branch of the same line reads `secondsLeft`.",
+   "evidence": "    const seconds = closing ? Math.max(secondsLeft(floor), 0) : Math.round(Number(floor.seconds) || 0);\n...\n    back.startedAt = now - (modeSecondsOf(back) - Math.max(Number(entry?.leftAtObjection) || 0, 0)) * 1000;",
+   "failure_scenario": "A Testimony speaker objected to at 23 s gets the floor back after the GM's Overrule and reads 'Your turn (60 s)'; the turn passes 23 s later.",
+   "expected": "The title names the seconds the speaker has (lang/en.json DRPG.Trial.turn.title, 'Your turn ({seconds} s)'); gm-handbook.en.md:1553: Overrule 'gives the speaker back the rest of their turn'.",
+   "fix_sketch": "Read `secondsLeft(floor)` for a round's turn as for the Closing's (rounded up for a Scrum turn's fraction).",
+   "confidence": "read",
+   "refutation_tried": "Checked that the step moves (floor-machine.mjs:108) so the window does open again, and that nothing else rewrites the title (the window is static after it opens).",
+   "tests_near": "R1042 (tier 1) reads the machine's round rows, a turn given back with its rest among its fixtures (tests-tier1.mjs:32821); R1365 the footer. None reads the title.",
+   "live_check": ""
+  },
+  {
+   "id": "domain-case-d-trial-floor-9",
+   "domain": "TEXT",
+   "severity": "nit",
+   "category": "text",
+   "title": "The mode picker greys Nonstop Debate with 'The debate is already running.' while a round, the Closing or a zone mode holds the floor",
+   "where": "scripts/trial-floor-ui.mjs:1133-1135; lang/en.json:1666, 1707",
+   "what_happens": "`modePickerHtml` gives every other start the reason `DRPG.Floor.round.busy` when a mode other than the debate holds the floor, but the debate's own start answers `DRPG.Floor.bar.inDebate` for any floor at all. The greyed button's title, and the notice a press on it shows (line 1753), therefore say a debate runs during a Testimony.",
+   "evidence": "    const busy = floor && floor.mode !== FLOOR_MODES.debate ? game.i18n.localize(\"DRPG.Floor.round.busy\") : null;\n    const why = (mode, action) => {\n        if (action === \"openDebate\") return floor ? game.i18n.localize(\"DRPG.Floor.bar.inDebate\") : null;\n        if (busy) return busy;",
+   "failure_scenario": "During a Panic Round the GM presses the greyed Nonstop Debate and reads 'The debate is already running.'",
+   "expected": "The machine's own reason for that start, `DRPG.Floor.startBusy`: 'A debate cannot open while a round, the Closing Argument, or a zone mode holds the floor. End that mode first.' (floor-machine.mjs:505; lang/en.json:1707).",
+   "fix_sketch": "Answer `startBusy` (or `busy`) when the floor's mode is not the debate, `inDebate` only for a debate.",
+   "confidence": "read",
+   "refutation_tried": "`startFloor` itself says the machine's reason (trial-floor.mjs:884-888), but the picker never reaches it: a greyed button only shows its title.",
+   "tests_near": "tests-tier1.mjs:9327-9331 draws the picker with no floor; grep of `bar.inDebate` in the tests finds the bar's Back to the debate only (32324, 32370-32371). No test draws the picker in a round.",
+   "live_check": ""
+  }
+ ],
+ "by_decision": [
+  {
+   "what": "An Objection whose Truth Bullet does not come - its seconds out, its picker closed, its floor replaced - is withdrawn with the price kept, and the floor goes back to the debate with the time the debate had.",
+   "source": "scripts/trial.mjs:1246-1250 (D4), 1055-1058; docs/handbooks/gm-handbook.en.md:1464; docs/handbooks/player-handbook.en.md:890"
+  },
+  {
+   "what": "Keep speaking is the default of Your turn and Someone else of the volunteers' window, so Enter ends and volunteers nothing.",
+   "source": "scripts/trial-prompt.mjs:78-85, 194-197 (E70 fix p2-G3); docs/design/windows.md:54 (M13, approved 04.11.2026)"
+  },
+  {
+   "what": "After an Objection's exchange in a Testimony the round goes on at the next speaker; the interrupted speaker's rest is not given back, except by an Overrule.",
+   "source": "scripts/floor-machine.mjs:439-440 (E70-42); docs/handbooks/gm-handbook.en.md:1553"
+  },
+  {
+   "what": "A rebuttal's end closes the floor (the trial's discussion), not a debate; the console then offers the debate again with the same question and budget.",
+   "source": "scripts/trial-floor.mjs:1652-1664 (Dawid, 28.08); scripts/floor-machine.mjs:402-410 (TR11 = 1)"
+  },
+  {
+   "what": "An Objection may be aimed at a student whose death the GMs keep unpublished: the target is alive as the table knows it.",
+   "source": "scripts/trial-speakers.mjs:34-43 (fix r4-G1, 17.10.2026); scripts/trial.mjs:1107-1109"
+  },
+  {
+   "what": "The trial's list of the dead, a death nobody has found among them, is world data while the Class Trial runs.",
+   "source": "scripts/world-secrets.mjs:114-122 (the owner's TR30 = 2); scripts/trial-progress.mjs:381-383"
+  },
+  {
+   "what": "The console's footer step is Close Debate for the whole debate, an Objection and its rebuttal included, and Enter presses nothing while one runs.",
+   "source": "scripts/trial-floor.mjs:173-174 (E70-06); scripts/trial-floor-ui.mjs:1512-1516, 1777-1779 (E70 fix p1-G3)"
+  },
+  {
+   "what": "The verdict and the End of chapter stand in the console's footer only while each is the trial's next step.",
+   "source": "scripts/trial-floor-ui.mjs:1432-1443, 1459-1464 (the owner, 12.11.2026)"
+  },
+  {
+   "what": "A debate is never shorter than 30 s, so the debate again after an Overrule with 12 s left opens with 30.",
+   "source": "scripts/trial-floor.mjs:820-832 (E51 C6; audit S06-45); scripts/trial-floor-ui.mjs:1409-1412"
+  },
+  {
+   "what": "A Present is free, posted by the primary, and hands every other participant a copy as shown; with or without the Analyze result is the presenter's choice.",
+   "source": "scripts/trial.mjs:362-373 (the owner's notes of 27.10; B2, B6)"
+  },
+  {
+   "what": "Opening the vote ends any floor with no card of its own; a pending Objection on it is withdrawn with its price kept.",
+   "source": "scripts/trial-floor.mjs:679-693 (E110 C3, 14.11.2026)"
+  },
+  {
+   "what": "While a mode gives the floor to a speaker, a pending Objection's objector included, every other player's microphone is blocked.",
+   "source": "scripts/floor-machine.mjs:141-160 (E110 C2, the owner's words; Q-E110-4)"
+  },
+  {
+   "what": "A GM may redirect an Objection in its Rebuttal at anybody present, not only at the pair.",
+   "source": "scripts/trial-floor.mjs:1249-1263 (E110 C1; Q-E110-1)"
+  }
+ ],
+ "comments_against_code": [
+  {
+   "where": "scripts/trial-floor.mjs:2, 18-28, 74",
+   "comment_says": "The file is about 'the trial's three modes'; 'only two are restrictive'; `FLOOR_MODES` is 'the three modes'; and a rebuttal 'returns to open debate by itself'.",
+   "code_does": "floor-machine.mjs:35-36 has nine modes, and a rebuttal's end closes the floor: `stepOn` answers `ended(cards, true)` (floor-machine.mjs:440), as the same file says at 1652-1664."
+  },
+  {
+   "where": "scripts/trial-floor.mjs:1021-1026",
+   "comment_says": "`openObjection` is 'REFUSED DURING SOMEBODY ELSE'S OBJECTION OR REBUTTAL'.",
+   "code_does": "A rebuttal allows an Objection from anybody (`MODE_RULES.rebuttal.object: true`, line 101; the comment inside the twin at 1045-1060 says so)."
+  },
+  {
+   "where": "scripts/trial-floor-ui.mjs:288-294",
+   "comment_says": "Opening the debate is announced because 'from here the same button on the same row is an Objection that takes the floor. The players' one button changes meaning under them'.",
+   "code_does": "The sheet's button is always a Present since 1.2.79 (trial.mjs:139-146); an Objection is the HUD's or the voice tile's own button."
+  },
+  {
+   "where": "scripts/trial-floor-ui.mjs:712-716",
+   "comment_says": "'NO SECTION EVER DISAPPEARS. When nothing is running they hold one sentence saying so.'",
+   "code_does": "With no trial running `trialConsoleHtml` draws the lead, the register's line and the Final Trial's note alone (1275-1282, E10 C14)."
+  },
+  {
+   "where": "scripts/trial-floor-ui.mjs:1362-1374",
+   "comment_says": "When the set of buttons would change 'the window opens again instead', and 'every action in this console already ends with `return manageClassTrial()`'.",
+   "code_does": "The footer is redrawn in place (`liveFooter`, 1683-1685) and the bar's, the picker's and the Closing row's presses leave the console open (1743-1776); the window reopens only on a change of `trialSignature`, as the comment inside the function says."
+  },
+  {
+   "where": "scripts/trial.mjs:259-261",
+   "comment_says": "`presentBullet`: 'Built and sent by the presenter's own client'.",
+   "code_does": "A player's call asks the primary (`requestPresent`, 292-296); only a GM's browser posts a card from this function."
+  },
+  {
+   "where": "scripts/trial-floor.mjs:626, 803",
+   "comment_says": "`drpgTrialStep` is called after each step and 'E70-19 reads it in C5'; 'drpgTrialStep follows each step'.",
+   "code_does": "git grep finds the hook's name in trial-floor.mjs and .github/release-notes/v1.2.90.md only: nothing listens. voice.mjs settles on the floor's setting instead (voice.mjs:1856)."
+  },
+  {
+   "where": "scripts/trial-progress.mjs:113-118 (and scripts/clock.mjs:1049-1056)",
+   "comment_says": "A sentence is asked again at the primary's ready and at every later change of phase 'while the record's sentence waits outside a trial (`pendingSentence`'s reading)'.",
+   "code_does": "`retrySentence` (124) and clock.mjs:1056 ask again only when `execution.failed` holds an id. A sentence never attempted - the phase written and the page reloaded before the first kill on the Edit campaign road, or a primary that did not answer `execute` twice - has no `execution` row and is not asked again."
+  },
+  {
+   "where": "scripts/trial-progress.mjs:19-21 and the row of trial-progress.mjs in the path-scoped rules file code.md",
+   "comment_says": "'every importer still imports vote.mjs'; '15 names exported, 14 of them re-exported'.",
+   "code_does": "The file exports 21 names (counted by script); vote.mjs re-exports 14 (vote.mjs:55-59). clock.mjs:1015 (`shutVoteAtExit`) and sequence.mjs:694 (`trialProgressChapter`) import it past the facade."
+  },
+  {
+   "where": "scripts/trial-floor.mjs:1161-1163",
+   "comment_says": "`fillObjection`, which asked the fill 'through the floor's op `fill`', 'had no caller and went'.",
+   "code_does": "The op itself stayed: `FLOOR_OPS.fill` (390), 'fill' in `FLOOR_OP_NAMES` (374) and in the bridge's list (bridge-table.mjs:1359). Nothing in scripts/ asks it."
+  }
+ ],
+ "hygiene": {
+  "functions_over_300": [],
+  "functions_150_to_300": 4,
+  "duplicated_helpers": [
+   "The functions of 150 to 300 lines counted above (espree, loc end - start + 1): manageClassTrial 245 (trial-floor-ui.mjs:1586-1830), nextFloor 203 (floor-machine.mjs:497-699), trialConsoleHtml 185 (trial-floor-ui.mjs:1150-1334) and the `render` callback inside manageClassTrial, 163 (1636-1798). Next below: openVoteDialog 148, registerTrial 120.",
+   "'Is a Class Trial in session' is written three times as a function - trial.mjs:128 `inClassTrial`, trial-floor.mjs:436 `inClassTrial`, trial-speakers.mjs:64 `inTrial` - and inline at trial-floor-ui.mjs:103, 323, 470, 882, trial-modes.mjs:395 and trial-progress.mjs:120.",
+   "m:ss of a number of seconds three times: `clockOf` (trial-floor-ui.mjs:920-923), inline in `postFloorCard` (trial-floor.mjs:709-710), `roundLength` (trial-modes.mjs:69-72).",
+   "The 'turn not run out yet, but for the grace' test is written three times in floor-machine.mjs (323-324, 331-332, 613-614).",
+   "The floor's stack is read by `stackOf` (floor-machine.mjs:372-374) and again inline at trial.mjs:936 and 1297.",
+   "The whisper of the price paid, with its `actionSpent` sound, is written in `seizeFloor` (trial.mjs:903-905) and in `objectOnPrimary` (1165-1167).",
+   "`FLOOR_OP_NAMES` (trial-floor.mjs:374-376) and the `as.oneOf(...)` of the row `trial.gm` (bridge-table.mjs:1359-1361) are two copies of one list of 25 ops (held equal by tier 0 R1020).",
+   "Two escapers side by side: `foundry.utils.escapeHTML` 24 times and `esc(` 8 times in trial.mjs, 2 and 51 in trial-floor-ui.mjs; `const esc = foundry.utils.escapeHTML` shadows the imported `esc` at trial.mjs:1012 and trial-progress.mjs:230.",
+   "vote.mjs is imported statically by trial-floor.mjs (line 63: trialParticipants, trialProgress) and again by `import()` seven times in the same file (504, 570 for the same two names; 642, 648, 661, 903, 1533 for setTrialProgress). trial-prompt.mjs imports trial-floor.mjs by `import()` twice inside `promptTurn` (177, 182).",
+   "The console's own press hold (`pressing`, `pressedAt`, the 5000 ms cap, the page-wide release: trial-floor-ui.mjs:1736-1742, 1794-1795) repeats what keepLive has done for every live region since E44 (live.mjs:118-130, 244-262, `HOLD_MAX_MS`)."
+  ],
+  "dead_code": [
+   "The floor's op `fill`: `FLOOR_OPS.fill` (trial-floor.mjs:390), its name in `FLOOR_OP_NAMES` (374) and in the bridge's list (bridge-table.mjs:1359). git grep of `floorStep(\"`, `floorOnPrimary(\"` and `requestTrialGm(\"` over scripts/ finds no asker of it; the fill's one road is `fillObjectionInStep`, called by trial.mjs `evidenceOnPrimary`.",
+   "The module hook `drpgTrialStep` (trial-floor.mjs:669): `git grep drpgTrialStep` over the repository finds the call, two comments and the 1.2.90 release note; no `Hooks.on`. Its twin `drpgClosingClaims` (settings.mjs:2249) has no listener in scripts/ either.",
+   "`testimonyRefusal` (trial-modes.mjs:59) and `panicRefusal` (64): `git grep -w` over scripts/, audit/harness and tools finds the definitions and one tier 1 line (tests-tier1.mjs:32857-32858); `startRound` asks `roundRefusal` directly. docs/dev/e56/MEASURE.md:1351-1352 lists both as read by the suite alone.",
+   "`modeCensus` (trial-floor.mjs:141) and `trialRecordProblems` (trial-progress.mjs:391) are read by the suite alone (R3670, R1257): pure checks, kept on purpose.",
+   "In `seizeFloor` the test 'the author owns the character' (trial.mjs:835-837) can no longer fail: the hook hands it GM-authored cards only since E70 fix p2-G2 (631-656 return for a player's card), and a GM owns every actor.",
+   "`fillObjectionInStep` and `withdrawObjectionInStep` test `advancing` and `game.user.isGM` (trial-floor.mjs:1170, 1224): both run only inside a step of `SEIZE_KEY` on the primary, where the latch can be set only by a heartbeat or a Now already queued behind them."
+  ],
+  "magic_numbers": [
+   "Timer periods written in place, none in config.mjs TIMING: 1000 ms (the floor's heartbeat, trial-floor.mjs:1831; the console's tick, trial-floor-ui.mjs:1797; a participant's tick, trial-prompt.mjs:266) and 500 ms (the Objection picker, trial.mjs:1471; the two prompt watches, trial-prompt.mjs:160, 206).",
+   "5000 ms, the console's forgotten press (trial-floor-ui.mjs:1794), a second copy of live.mjs `HOLD_MAX_MS`.",
+   "500, the cap of `overHeard` (trial-modes.mjs:169, 193); 50, `DONE_KEPT` (trial-speakers.mjs:61).",
+   "1280, the console's width (trial-floor-ui.mjs:1345).",
+   "The Open Debate stepper's `min: 30, step: 10` (trial-floor-ui.mjs:342) beside `TRIAL.debateMinSeconds`.",
+   "Fallbacks that repeat a config value as a literal: `|| 300` for `TRIAL.modes.closing.seconds` (floor-machine.mjs:184, 201; trial-floor-ui.mjs:968), `|| 30` (floor-machine.mjs:261; trial-floor.mjs:831), `|| 200` for `topicLength` (floor-machine.mjs:420; trial-floor-ui.mjs:344), `|| 120` for the thesis (trial-prompt.mjs:107), `|| 270` for `minutesAt16` (trial-floor-ui.mjs:494), `|| 60` (trial-modes.mjs:36).",
+   "30, the default of `extendFloor` and of the op `extend` (trial-floor.mjs:397, 1309, 1315), beside `TRIAL.modes.gm.adjustSeconds`."
+  ]
+ },
+ "hints_for_other_passes": {
+  "dead_controls": [
+   "Your turn (trial-prompt.mjs:189-198): after Keep speaking, Escape or the X, Done and Pass are gone for the rest of the turn (finding 1).",
+   "Trial console, footer, Close Debate during an Objection inside a Testimony (trial-floor-ui.mjs:1395-1406, 498-509): ends the round and posts 'The debate is closed' (finding 3).",
+   "Trial console, the Closing's row, Confirm the speaker and the decision's buttons (trial-floor-ui.mjs:942-976; trial-modes.mjs:272-273): for a player who dropped, the press says only 'The Closing Argument did not change.' (finding 4).",
+   "Trial console, mode picker, Nonstop Debate greyed in a round, the Closing or a zone mode (trial-floor-ui.mjs:1135): the title and the notice name the wrong reason (finding 9).",
+   "Trial console, every button while a mode other than the debate holds the floor: Enter on focus is cancelled (trial-floor-ui.mjs:1780-1784; finding 7, suspected).",
+   "Trial console, footer, Open the debate again after an Overrule of a Testimony's or the Closing's Objection (trial-floor-ui.mjs:1407-1412): offers a debate that never ran (finding 5).",
+   "Trial console, Missing Key Remnants, a row's Reveal after its own Reveal with no floor open (trial-floor-ui.mjs:1018-1030, 1060-1064): the row and its button stay until the next redraw; pressed again it answers 'That Key Remnant is not missing'.",
+   "Trial console, footer, The vote and Show the case summary drawn disabled with no `tooltip` in the footer's list (ui-kit.mjs:115: a footer that names none draws none): The vote while no trial runs (trial-floor-ui.mjs:1430-1431), the case summary through the whole trial before the verdict and in every Final Trial (1453-1454); the file's own rule at 1236-1239 is that a disabled button says what it waits for.",
+   "OBJECTION! on the trial row or the voice tile (hud.mjs:1525, 1547) for the objector whose own Objection is pending after their page reloaded: held with 'during an Objection'; the picker is opened by `raiseObjection` alone (trial.mjs:1347-1369), so the Objection lapses after `TRIAL.objectionPickSeconds` with its price kept.",
+   "Round window, Move up on the first row (trial-floor-ui.mjs:432-435): does nothing, by reading; not greyed."
+  ],
+  "stale_windows": [
+   "Trial console, Missing Key Remnants and 'Left to reveal' (trial-floor-ui.mjs:1018-1030): read keyPlanStore, the trace ledger and the finders (key-remnants.mjs:69-75, 545-567); the console watches the stores `[blackenedStore, deathStore]` only (1674) and no tokens or items, and ticks once a second only while a floor is open (1795), so in open discussion a Reveal by this GM or another is not drawn.",
+   "Trial console, footer, Start the Final Trial's greyed state (trial-floor-ui.mjs:738, 1485-1487): `mastermindActor()` reads a GM store (mastermind.mjs:244-248) that is not among `watch.stores`.",
+   "Trial console, the Closing's row (volunteers by name, the draw: trial-floor-ui.mjs:926-930): reads closingClaimStore, not watched; drawn fresh only by the one-second tick, which runs while the Closing holds the floor. The hook the store's setting fires, `drpgClosingClaims` (settings.mjs:2249), has no listener.",
+   "Round window (openRoundWindow, trial-floor-ui.mjs:397-407): the participants and the round's whole length are read at open; a player who connects or drops before Start is added or left out by the primary (trial-floor.mjs:505-508) without the window showing it.",
+   "Pick a speaker (pickClosingDialog, trial-floor-ui.mjs:983-995) and Re-point (trial.mjs:1527-1545): the lists are read at open; no keepLive.",
+   "The Objection's picker (trial.mjs:1427): the character's Truth Bullets are read at open; a copy a Present hands out during the 30 s is not offered. Its count line is live (1464-1471).",
+   "The player's 'whom do you contradict' window (nameObjectionTarget, trial.mjs:1378-1401): the choices and the note follow the floor read at open; a rebuttal that ends meanwhile leaves the pair's list standing (the primary judges the name again).",
+   "Vote window (openVoteDialog, trial-floor-ui.mjs:1938-1968): watches the ballots' hook, userConnected and the module's settings; `ballotRecipients` also reads each student's death and Monocub flag (an actor's update, not watched).",
+   "Objection log (trial.mjs:1687-1710): watched for what it reads - the chat hooks it names plus every module setting by keepLive's default (the floor, the record, the clock). No gap found."
+  ]
+ },
+ "not_established": [
+  "Whether a withdrawn or lapsed Objection that cut into a Rebuttal is meant to end that Rebuttal: the machine sends the floor to the debate with the debate's rest (floor-machine.mjs:437, 596) - in a round to the interrupted speaker (speakerAgain) - while an Overrule of the same Objection gives the pair their Rebuttal back with its time (672-685). gm-handbook.en.md:1464 states the rule for a debate only; no test hands `lapse` or `withdraw` a stack of two. The owner's word would settle it: as written, one press of OBJECTION! and a closed picker ends two other players' Rebuttal for the price of an Objection.",
+  "Whether Enter on a focused bar button is in fact cancelled on Foundry's browsers (finding 7): the listener is read, the browser's default action is not measurable in jsdom.",
+  "How often a sentence is left never attempted (the comment against trial-progress.mjs:113-118): it needs a reload of the primary between the phase write and the first kill on the Edit campaign road, or a primary that stays connected and answers `execute` neither from `closeTrial` nor from `reconcilePhase`. The condition is read; the timing was not measured.",
+  "Which window ends on top when the console reopens itself and the GM panel returns (finding 2): the two opens are unordered promises; a table would show it.",
+  "Whether what an objector paid is meant to be readable by every browser: the receipt in the world's trial record holds `paid: { key, pay, amount, grant }` by card (trial.mjs:943). world-secrets.mjs has no rule for it and 72-canary's scan was not run here.",
+  "Whether a Monocub holding a Truth Bullet is meant to Present: `presentOnPrimary` judges the death, the mode's row and the bullet (trial.mjs:377-394) and does not ask `isMonocub`, while the copies go to `trialParticipants`, which leaves a Monocub out. No comment or handbook line read here says either way.",
+  "Whether the console's tick (one rebuild of the whole region a second while a floor is open, twice the reading of the trial with `after`) costs anything a table feels: the code says it is deliberate (trial-floor-ui.mjs:1705-1724); `perf()`'s `live..drpg-trial-console` line at a table is the reading."
+ ]
+}

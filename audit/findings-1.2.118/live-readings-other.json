@@ -1,0 +1,963 @@
+{
+ "reader": "live-digest-other",
+ "read": [
+  {
+   "file": "docs/dev/e58/PERF-READINGS.md",
+   "lines": 357,
+   "whole": true
+  },
+  {
+   "file": "docs/dev/e39/CALIBRATION.md",
+   "lines": 151,
+   "whole": true
+  },
+  {
+   "file": "docs/dev/e39/STATUS.md",
+   "lines": 188,
+   "whole": true
+  },
+  {
+   "file": "docs/dev/e43/FINDINGS.md",
+   "lines": 49,
+   "whole": true
+  },
+  {
+   "file": "docs/dev/e43/README-CHAPTER.md",
+   "lines": 67,
+   "whole": true
+  },
+  {
+   "file": "docs/dev/e43/SCENES.md",
+   "lines": 200,
+   "whole": true
+  },
+  {
+   "file": "docs/dev/e43/STATUS.md",
+   "lines": 208,
+   "whole": true
+  },
+  {
+   "file": "docs/dev/e53/STATUS.md",
+   "lines": 71,
+   "whole": true
+  },
+  {
+   "file": "docs/dev/e112/STATUS.md",
+   "lines": 213,
+   "whole": true
+  },
+  {
+   "file": "docs/dev/e112v/STATUS.md",
+   "lines": 52,
+   "whole": true
+  },
+  {
+   "file": "docs/dev/owner-115/STATUS.md",
+   "lines": 341,
+   "whole": true
+  },
+  {
+   "file": "docs/dev/owner-116/STATUS.md",
+   "lines": 310,
+   "whole": true
+  },
+  {
+   "file": "docs/dev/facts-117/STATUS.md",
+   "lines": 136,
+   "whole": true
+  },
+  {
+   "file": "audit/gate/local-gate.json",
+   "lines": 130,
+   "whole": true
+  },
+  {
+   "file": "audit/perf-baseline.json",
+   "lines": 308,
+   "whole": true
+  },
+  {
+   "file": "audit/live/README.md",
+   "lines": 40,
+   "whole": true
+  },
+  {
+   "file": "audit/probe-daggerheart-2.10.5.md",
+   "lines": 467,
+   "whole": true,
+   "note": "a static probe (source diff only, no Foundry run): no reading taken from it"
+  },
+  {
+   "file": ".github/release-notes/v1.2.117.md",
+   "lines": 248,
+   "whole": true
+  },
+  {
+   "file": ".github/release-notes/v1.2.118.md",
+   "lines": 261,
+   "whole": true
+  },
+  {
+   "file": "docs/dev/e58/shots/README.md",
+   "lines": 25,
+   "whole": true
+  },
+  {
+   "file": "the repository's root rules file (193 lines; its file name is left out of this paper)",
+   "lines": 193,
+   "whole": true
+  },
+  {
+   "file": "audit/AUDIT-1.2.42.md",
+   "lines": 971,
+   "whole": false,
+   "note": "lines 1-130 (the method, section 11) and 575-594 (section 7, 14 items) read; section 9.2 (lines 827-1666) parsed by script into 577 numbered items, every item scanned for words of a reading, of an owner's report and of the sandbox, and 96 items then read in full; the 18 B- items and the 7 known gaps at the end read once. Sections 0-6, 8, 9.1 and 9.3 not read."
+  },
+  {
+   "file": "docs/dev/e58/TRIAGE-9.2.md",
+   "lines": 60,
+   "whole": false,
+   "note": "lines 1-60 read, the rest by grep for the rows of class M and C: a worklist, not a result"
+  },
+  {
+   "file": "docs/dev/e58/LOCAL-REPORT.md",
+   "lines": 0,
+   "whole": false,
+   "note": "another reader's file: not read; grepped once for its headings to tell which readings it holds first"
+  },
+  {
+   "file": "docs/dev/e112v/DESIGN.md",
+   "lines": 30,
+   "whole": false,
+   "note": "lines 1-30"
+  },
+  {
+   "file": "docs/dev/e106/STATUS.md",
+   "lines": 25,
+   "whole": false,
+   "note": "lines 60-84"
+  },
+  {
+   "file": "audit/harness/README.md",
+   "lines": 57,
+   "whole": false,
+   "note": "lines 556-612, the rest by grep for 'read on', 'sandbox' and the owner. The line numbers cited are the committed file's; the working tree's copy gained 2 lines at line 192 during this run, not by this reader"
+  },
+  {
+   "file": ".github/release-notes/v1.2.113.md",
+   "lines": 75,
+   "whole": false,
+   "note": "lines 1-75, the rest by grep"
+  },
+  {
+   "file": ".github/release-notes/v1.2.115.md",
+   "lines": 60,
+   "whole": false,
+   "note": "lines 1-14, 44-62, 76-84, 174-180, 196-202, the rest by grep"
+  },
+  {
+   "file": ".github/release-notes/v1.2.116.md",
+   "lines": 75,
+   "whole": false,
+   "note": "lines 10-64, 84-94, 126-134, the rest by grep"
+  },
+  {
+   "file": ".github/release-notes (the other 97 files)",
+   "lines": 0,
+   "whole": false,
+   "note": "by git grep for the words of the task only; the hits of v1.2.78, v1.2.79, v1.2.81, v1.2.93, v1.2.94, v1.2.97-v1.2.102, v1.2.110 and v1.2.111 read with a few lines around each"
+  },
+  {
+   "file": "docs/dev (the other papers)",
+   "lines": 0,
+   "whole": false,
+   "note": "by git grep for the words of the task only (the text-batch and e71 batch files left out of the Polish-word grep as translations)"
+  }
+ ],
+ "readings": [
+  {
+   "item": "25",
+   "live_id": "LIVE-E30-01",
+   "where": "docs/dev/e39/CALIBRATION.md:20",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox: Foundry 14.370 (Node build) at localhost:30099, world drpg-qa-gate seeded with the harness's world, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric Perspective 14.0.6, LiveKit AVClient 0.6.8, the module at 1.2.116 (the checkout, symlinked); Playwright 1.56.1's Chromium 141, headless, one page per account (GM, PlayerOne, PlayerTwo, a scratch Assistant); no person at the pages",
+   "outcome": "mixed",
+   "summary": "A scratch actor and its token, each with module flags: update({'flags.danganronpa-rpg.-=calibA': null}) deleted the key on both, no '-=' key was stored, and '==calibD' replaced the object whole ({x, y} became {z: 9}); each write printed v14's deprecation warning. Fields other than flags were not read. The same reading is cited at audit/harness/README.md:586-591 and in the repository's root rules file, lines 109-114.",
+   "defect": "Harness model, not the module: the shim's default reading was 'ignored' (nothing deleted); fixed, the default is 'honoured' (lib/operators.mjs), every key still reported; the row names no commit. The module's older note that such a key removes nothing was corrected in the root rules file (6bb98cd8 per .github/release-notes/v1.2.117.md:152-153)."
+  },
+  {
+   "item": "477",
+   "live_id": "LIVE-E76-03",
+   "where": "docs/dev/e39/CALIBRATION.md:21",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox: Foundry 14.370 (Node build) at localhost:30099, world drpg-qa-gate seeded with the harness's world, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric Perspective 14.0.6, LiveKit AVClient 0.6.8, the module at 1.2.116 (the checkout, symlinked); Playwright 1.56.1's Chromium 141, headless, one page per account (GM, PlayerOne, PlayerTwo, a scratch Assistant); no person at the pages",
+   "outcome": "as-expected",
+   "summary": "Answered by the LIVE-E30-01 row: a '-=key' and a '==key' are honoured on the flags of an actor and a token on Foundry 14.370. Item 477 here is the second of two items numbered 477 in 9.2 (AUDIT line 1446; the first, at line 1439, is LIVE-E93-03). Also at audit/harness/README.md:598-599.",
+   "defect": ""
+  },
+  {
+   "item": "26",
+   "live_id": "LIVE-E30-02",
+   "where": "docs/dev/e39/CALIBRATION.md:26",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox: Foundry 14.370 (Node build) at localhost:30099, world drpg-qa-gate seeded with the harness's world, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric Perspective 14.0.6, LiveKit AVClient 0.6.8, the module at 1.2.116 (the checkout, symlinked); Playwright 1.56.1's Chromium 141, headless, one page per account (GM, PlayerOne, PlayerTwo, a scratch Assistant); no person at the pages",
+   "outcome": "mixed",
+   "summary": "foundry.data.operators read in the page: ForcedDeletion and ForcedReplacement each have a constructor and a static create; create() makes a new instance each call; _del is a global instance (not a function), _replace a global function of one argument; a ForcedReplacement has no .replacement and no .value, its value is at instance[OPERATOR_VALUE] with its keys copied on. Daggerheart 2.12.9 still calls _del() once (build/daggerheart.js:9154), which throws on v14 (docs/dev/e39/CALIBRATION.md:72-73; the system's, not the module's).",
+   "defect": "Harness model, not the module: create() returned one shared instance and a replacement sat under .replacement; both fixed in the shim. One tier-2 test read value.replacement (undefined on v14); fixed to read value[OPERATOR_VALUE] (docs/dev/e39/CALIBRATION.md:62-67). No commit named in the rows."
+  },
+  {
+   "item": "27",
+   "live_id": "LIVE-E30-03",
+   "where": "docs/dev/e39/CALIBRATION.md:27-28",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox: Foundry 14.370 (Node build) at localhost:30099, world drpg-qa-gate seeded with the harness's world, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric Perspective 14.0.6, LiveKit AVClient 0.6.8, the module at 1.2.116 (the checkout, symlinked); Playwright 1.56.1's Chromium 141, headless, one page per account (GM, PlayerOne, PlayerTwo, a scratch Assistant); no person at the pages",
+   "outcome": "mixed",
+   "summary": "On a scratch actor and a token, hooks watched on the GM and p1: _preUpdate ran before the preUpdateActor hook every time; both hooks got the operator instance after unsetFlag, _del and _replace; an update a hook emptied or refused was not sent (no updateActor, modifiedTime unchanged). A write of a value already there ran preUpdateActor and then nothing: not sent, no update hook on any client, update() answered undefined; a mixed update's hook got only the changed key; a world setting set to its own value wrote nothing. Also at audit/harness/README.md:572-580.",
+   "defect": "Harness model, not the module: the shim sent a no-op update and handed every hook the whole update; proposed as D3 in the paper (docs/dev/e39/CALIBRATION.md:120-124), built later on the shim-118 line as 5b9269ba (docs/dev/e39/STATUS.md:58)."
+  },
+  {
+   "item": "29",
+   "live_id": "LIVE-E30-04",
+   "where": "docs/dev/e39/CALIBRATION.md:29",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox: Foundry 14.370 (Node build) at localhost:30099, world drpg-qa-gate seeded with the harness's world, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric Perspective 14.0.6, LiveKit AVClient 0.6.8, the module at 1.2.116 (the checkout, symlinked); Playwright 1.56.1's Chromium 141, headless, one page per account (GM, PlayerOne, PlayerTwo, a scratch Assistant); no person at the pages",
+   "outcome": "mixed",
+   "summary": "A scratch Assistant (role 3): isGM true, can('SETTINGS_MODIFY') true; game.user.update({role: 4}) from its console was refused by the server ('lacks permission to update User'), its role stayed 3; a world setting of the module written and put back passed. Both as the item expects. Its updates of PlayerThree (role 2, role 3, a flag) each applied on the server while the Assistant's own copy of PlayerThree still read the old values after update() resolved (seen 3 times, on two accounts).",
+   "defect": "No module defect. The writer's copy of another User lagging behind its own resolved update is not explained and not modelled; proposed as a question (D8, docs/dev/e39/CALIBRATION.md:136-137), not built (.github/release-notes/v1.2.118.md:206-207)."
+  },
+  {
+   "item": "30",
+   "live_id": "LIVE-E30-05",
+   "where": "docs/dev/e39/CALIBRATION.md:30",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox: Foundry 14.370 (Node build) at localhost:30099, world drpg-qa-gate seeded with the harness's world, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric Perspective 14.0.6, LiveKit AVClient 0.6.8, the module at 1.2.116 (the checkout, symlinked); Playwright 1.56.1's Chromium 141, headless, one page per account (GM, PlayerOne, PlayerTwo, a scratch Assistant); no person at the pages",
+   "outcome": "mixed",
+   "summary": "A GM page listening on userConnected while PlayerOne's page closed: the hook came once, (user, false), with user.active already false inside it (as the harness assumed). The GM changing PlayerTwo's role 1 to 2 while PlayerTwo's page was open: that page went from /game to /join within 5 s (logged out).",
+   "defect": "Harness model, not the module: the shim logged nobody out on a role change; proposed as D6, built on the shim-118 line as b17b9867 (docs/dev/e39/STATUS.md:59)."
+  },
+  {
+   "item": "32",
+   "live_id": "LIVE-E30-08",
+   "where": "docs/dev/e39/CALIBRATION.md:33",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox: Foundry 14.370 (Node build) at localhost:30099, world drpg-qa-gate seeded with the harness's world, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric Perspective 14.0.6, LiveKit AVClient 0.6.8, the module at 1.2.116 (the checkout, symlinked); Playwright 1.56.1's Chromium 141, headless, one page per account (GM, PlayerOne, PlayerTwo, a scratch Assistant); no person at the pages",
+   "outcome": "not-checkable",
+   "summary": "The sandbox's Data folder manifests read: Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric Perspective 14.0.6, LiveKit 0.6.8. The item asks for the installation the table plays on, which is not this sandbox; audit/harness/versions.json (6.2.9, 14.0.2, 0.6.8) was not changed.",
+   "defect": ""
+  },
+  {
+   "item": "33",
+   "live_id": "LIVE-E30-09",
+   "where": "docs/dev/e39/CALIBRATION.md:34",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox: Foundry 14.370 (Node build) at localhost:30099, world drpg-qa-gate seeded with the harness's world, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric Perspective 14.0.6, LiveKit AVClient 0.6.8, the module at 1.2.116 (the checkout, symlinked); Playwright 1.56.1's Chromium 141, headless, one page per account (GM, PlayerOne, PlayerTwo, a scratch Assistant); no person at the pages",
+   "outcome": "as-expected",
+   "summary": "The console line of item 33 on the GM at 1366x768: all seven sheets in module.json's order (base, motion, danganronpa, stained-glass, pixel-icons, components, narrow), each an @import in layer 'modules' inside a <style>; the page's layer order reset, variables, elements, blocks, applications, compatibility, layouts, system, modules, exceptions; --drpg-window-max 1400px. Same as the shim.",
+   "defect": ""
+  },
+  {
+   "item": "34",
+   "live_id": "LIVE-E30-10",
+   "where": "docs/dev/e39/CALIBRATION.md:35",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox: Foundry 14.370 (Node build) at localhost:30099, world drpg-qa-gate seeded with the harness's world, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric Perspective 14.0.6, LiveKit AVClient 0.6.8, the module at 1.2.116 (the checkout, symlinked); Playwright 1.56.1's Chromium 141, headless, one page per account (GM, PlayerOne, PlayerTwo, a scratch Assistant); no person at the pages",
+   "outcome": "as-expected",
+   "summary": "game.drpg.runTests({ tier: 2 }) as GM drew a DialogV2 titled 'Tier 2 writes to DRPG QA Gate', its text naming 'DRPG QA Gate (drpg-qa-gate)', buttons Cancel (autofocus) then 'Run tier 2 on DRPG QA Gate'; Enter at once answered {refused: 'cancelled', passed: 0, results: 0}; the world's documents and settings compared before and after: nothing changed. Shot: docs/dev/e58/shots/e30-10-tier2-dialog.png (docs/dev/e58/shots/README.md:11).",
+   "defect": ""
+  },
+  {
+   "item": "274",
+   "live_id": "LIVE-H81-03",
+   "where": "docs/dev/e39/CALIBRATION.md:36",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox: Foundry 14.370 (Node build) at localhost:30099, world drpg-qa-gate seeded with the harness's world, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric Perspective 14.0.6, LiveKit AVClient 0.6.8, the module at 1.2.116 (the checkout, symlinked); Playwright 1.56.1's Chromium 141, headless, one page per account (GM, PlayerOne, PlayerTwo, a scratch Assistant); no person at the pages",
+   "outcome": "partial",
+   "summary": "A scratch token moved by the GM four ways, options read in preUpdateToken (GM) and updateToken (GM, p1). The module's own placing write (teleport: true, movementAction: 'displace', animate: false, the module's key): every option arrived in both hooks on both clients. v14's own move({x, y, action: 'displace'}): teleport and movementAction null in preUpdateToken, teleport: true in updateToken on both clients. A walk: teleport false. So the tunnel-step guard holds for a GM's API displacement. A GM's mouse drag and a region's teleport behaviour were not read (the item's parts (d) and (f)); the item's parts (a)-(c), a token dragged onto a tunnel's end going through once, are not among what this row records.",
+   "defect": ""
+  },
+  {
+   "item": "20",
+   "live_id": null,
+   "where": "docs/dev/e39/CALIBRATION.md:38-43",
+   "date": "16.11.2026 (read after the sandbox's restart)",
+   "environment": "the owner's sandbox: Foundry 14.370 (Node build) at localhost:30099, world drpg-qa-gate seeded with the harness's world, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric Perspective 14.0.6, LiveKit AVClient 0.6.8, the module at 1.2.116 (the checkout, symlinked); Playwright 1.56.1's Chromium 141, headless, one page per account (GM, PlayerOne, PlayerTwo, a scratch Assistant); no person at the pages, with a scratch second Gamemaster made primary",
+   "outcome": "mixed",
+   "summary": "The world's GM, not primary, opened Configure Ownership on Aiko through the real window, set 'All Players' to Owner and saved: (a) updateActor reached the primary GM with options.noHook === true, the change a ForcedReplacement of the whole ownership map; (b) closeDocumentOwnershipConfig fired on the window's GM; (c) ownership.default went back from 3 to 2 (OBSERVER). A second probe: writes with {noHook: true} fired no preUpdate hook but did fire updateActor / updateUser on the writer and on the other browser.",
+   "defect": "Harness model, not the module: on 14.370 noHook skips the 'pre' hook only, while the shim skips both hooks; proposed as D9 (docs/dev/e39/CALIBRATION.md:141-146), not built (.github/release-notes/v1.2.118.md:206-207). The paper notes 44 tier-2 tests and scenario 17 name noHook and would have to be read again."
+  },
+  {
+   "item": "269",
+   "live_id": "LIVE-E16-04",
+   "where": "docs/dev/e39/CALIBRATION.md:38-43",
+   "date": "16.11.2026 (read after the sandbox's restart)",
+   "environment": "the owner's sandbox: Foundry 14.370 (Node build) at localhost:30099, world drpg-qa-gate seeded with the harness's world, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric Perspective 14.0.6, LiveKit AVClient 0.6.8, the module at 1.2.116 (the checkout, symlinked); Playwright 1.56.1's Chromium 141, headless, one page per account (GM, PlayerOne, PlayerTwo, a scratch Assistant); no person at the pages",
+   "outcome": "partial",
+   "summary": "Part (3) of the item only (the paper's heading names 'LIVE-E16-04's part'): an update with noHook does fire updateUser and updateActor on every browser on 14.370, with options.noHook true; only the 'pre' hook is skipped. Parts (1), (2) and (4) (Dice So Nice's window, an Assistant's write of another user's dice flags, a Setting's _stats.lastModifiedBy) are not in this paper.",
+   "defect": "Harness model, not the module: see item 20's row (D9, proposed, not built)."
+  },
+  {
+   "item": "512",
+   "live_id": "LIVE-E39-01",
+   "where": "docs/dev/e39/CALIBRATION.md:82-116",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox: Foundry 14.370 (Node build) at localhost:30099, world drpg-qa-gate seeded with the harness's world, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric Perspective 14.0.6, LiveKit AVClient 0.6.8, the module at 1.2.116 (the checkout, symlinked); Playwright 1.56.1's Chromium 141, headless, one page per account (GM, PlayerOne, PlayerTwo, a scratch Assistant); no person at the pages",
+   "outcome": "partial",
+   "summary": "One real move through v14's own TokenDocument#move with a waypoint across three rooms (Dorm A, Cafeteria, Hall), read on the mover, the primary GM and a bystander: one update per route; the options key is _movement (options._movement[tokenId]); passed.waypoints holds all 20 grid steps, pending.waypoints empty, method 'api'; updateToken's changes carry _regions and its options _priorRegions; MOVEMENT_FIELDS are x, y, elevation, width, height, depth, shape, level. Levels on a scratch scene: Scene#levels is an embedded collection of Level documents, every scene has defaultLevel0000 (0-20) unless given levels, a move up in place left elevation 0, Region documents carry ownership. The move was made by API from a page script; a drag by mouse and a Change Level region, which the item asks for, were not read.",
+   "defect": "Harness model, not the module: movement options, one update per route, Levels as an embedded collection and region owners differed; proposed as D4, D5, D7 and built later as 9a8e4f0c (D4) and c803e68a, 909dc019 (D5) (docs/dev/e39/STATUS.md:55-57); D7 not built. The module defect this reading led to is in item 65's row."
+  },
+  {
+   "item": "22",
+   "live_id": null,
+   "where": "docs/dev/e39/CALIBRATION.md:93-110 (docs/dev/e58/TRIAGE-9.2.md:19-20 names item 22 as this same move)",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox: Foundry 14.370 (Node build) at localhost:30099, world drpg-qa-gate seeded with the harness's world, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric Perspective 14.0.6, LiveKit AVClient 0.6.8, the module at 1.2.116 (the checkout, symlinked); Playwright 1.56.1's Chromium 141, headless, one page per account (GM, PlayerOne, PlayerTwo, a scratch Assistant); no person at the pages",
+   "outcome": "partial",
+   "summary": "Item 22 asks how v14 splits a drag with waypoints into updates and what the token's floor field is called: a route with a waypoint made through TokenDocument#move is one update with every grid step in passed.waypoints, and the token's floor is the field 'level', a Level's id ('defaultLevel0000' on a scene without levels drawn). A drag by mouse was not read.",
+   "defect": ""
+  },
+  {
+   "item": "65",
+   "live_id": "LIVE-E05-13",
+   "where": ".github/release-notes/v1.2.118.md:99-109 (the move itself at docs/dev/e39/CALIBRATION.md:93)",
+   "date": "16.11.2026 (the notes of 1.2.118, 19.11.2026)",
+   "environment": "the owner's sandbox (Foundry 14.370, Daggerheart 2.12.9, the module at 1.2.116 with line L1's commits), headless Chromium pages driven by line L1",
+   "outcome": "defect",
+   "summary": "Secondary record of line L1's sandbox reading; the measurement itself is written in docs/dev/e58/LOCAL-REPORT.md, which another reader holds. On 14.370 one move with waypoints is one update, and the module read only its two ends: in an Eclipse with two crossings a move from Dorm A through the Cafeteria and the Hall to the Storage ended in the Storage, a room past the allowance, and the Cafeteria never counted. The reading was a move made through Foundry's API.",
+   "defect": "Module defect: an Eclipse route through several rooms was charged by its ends only. Fixed in 1.2.118: each room on the route is counted and each leg judged (movement.mjs roomsAlong, routeLegs; scenario 70, R7740), commits 67d525f6 and 224f99a2 (docs/dev/e39/STATUS.md:56). The fix is checked on the harness's model only; a mouse drag through rooms was not read (LIVE-E39-11)."
+  },
+  {
+   "item": "52",
+   "live_id": "LIVE-E04-12",
+   "where": "docs/dev/e39/CALIBRATION.md:138-140",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox: Foundry 14.370 (Node build) at localhost:30099, world drpg-qa-gate seeded with the harness's world, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric Perspective 14.0.6, LiveKit AVClient 0.6.8, the module at 1.2.116 (the checkout, symlinked); Playwright 1.56.1's Chromium 141, headless, one page per account (GM, PlayerOne, PlayerTwo, a scratch Assistant); no person at the pages",
+   "outcome": "as-expected",
+   "summary": "On 14.370 a player's browser gets userConnected(gm, true) when the GM's socket connects, about 5.7 s before that GM's module sends bridge.gmReady; the module's asks were answered either way. AUDIT item 656 (line 1611) repeats that only the GM's entry is read; a player's and an Assistant's entry are LIVE-E39-18.",
+   "defect": "Harness model, not the module: the harness fired the hook only once the client was ready; proposed as D10, built on the shim-118 line as 4c407e78 (docs/dev/e39/STATUS.md:61)."
+  },
+  {
+   "item": "164",
+   "live_id": "LIVE-E12-02",
+   "where": "docs/dev/e39/CALIBRATION.md:103-116",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox: Foundry 14.370 (Node build) at localhost:30099, world drpg-qa-gate seeded with the harness's world, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric Perspective 14.0.6, LiveKit AVClient 0.6.8, the module at 1.2.116 (the checkout, symlinked); Playwright 1.56.1's Chromium 141, headless, one page per account (GM, PlayerOne, PlayerTwo, a scratch Assistant); no person at the pages",
+   "outcome": "partial",
+   "summary": "The paper does not name this item; the mapping is this reader's, from the item's own question. Read on a scratch scene with two Level documents: includedInLevel takes a level's id or the Level document, and an empty levels Set means every floor; a Level is {_id, name, elevation: {bottom, top, base}, ...}; every scene has defaultLevel0000. Everything else the item asks (the fog on one floor, stairs' cost, Foundry's own floor switcher, walls' levels, canvas.tokens.placeables per floor, the look) is not read here; 'a region's teleport and change-level behaviours' are listed as not read (docs/dev/e39/CALIBRATION.md:150-151).",
+   "defect": ""
+  },
+  {
+   "item": "165",
+   "live_id": "LIVE-E12-03",
+   "where": "docs/dev/e39/CALIBRATION.md:99-112",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox: Foundry 14.370 (Node build) at localhost:30099, world drpg-qa-gate seeded with the harness's world, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric Perspective 14.0.6, LiveKit AVClient 0.6.8, the module at 1.2.116 (the checkout, symlinked); Playwright 1.56.1's Chromium 141, headless, one page per account (GM, PlayerOne, PlayerTwo, a scratch Assistant); no person at the pages",
+   "outcome": "partial",
+   "summary": "The paper does not name this item; the mapping is this reader's, from the item's own question. MOVEMENT_FIELDS on 14.370 are x, y, elevation, width, height, depth, shape, level (so 'level' is listed); a token's level is a level id; Region#levels is a Set of level ids, empty on the seed's regions. What levels a new region gets on a two-level scene, polygonTree.testPoint, and whether scene.update({regions}) fires updateRegion are not in the paper.",
+   "defect": ""
+  },
+  {
+   "item": "169",
+   "live_id": "LIVE-E12-07",
+   "where": "docs/dev/e39/CALIBRATION.md:93",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox: Foundry 14.370 (Node build) at localhost:30099, world drpg-qa-gate seeded with the harness's world, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric Perspective 14.0.6, LiveKit AVClient 0.6.8, the module at 1.2.116 (the checkout, symlinked); Playwright 1.56.1's Chromium 141, headless, one page per account (GM, PlayerOne, PlayerTwo, a scratch Assistant); no person at the pages",
+   "outcome": "partial",
+   "summary": "The paper does not name this item; the mapping is this reader's, from the item's own question. The item rests on a code comment that v14 writes a path as a series of updates. Read: a route with a waypoint made through TokenDocument#move arrived as one update (preMoveToken and preUpdateToken once on the mover, updateToken and moveToken once on every client). A mouse drag through two doors, and walls and doors on a route, were not read (docs/dev/e39/CALIBRATION.md:129-130, 150).",
+   "defect": ""
+  },
+  {
+   "item": "256",
+   "live_id": "LIVE-E79-19",
+   "where": "docs/dev/e39/CALIBRATION.md:95-98, 128-130",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox: Foundry 14.370 (Node build) at localhost:30099, world drpg-qa-gate seeded with the harness's world, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric Perspective 14.0.6, LiveKit AVClient 0.6.8, the module at 1.2.116 (the checkout, symlinked); Playwright 1.56.1's Chromium 141, headless, one page per account (GM, PlayerOne, PlayerTwo, a scratch Assistant); no person at the pages",
+   "outcome": "partial",
+   "summary": "The paper does not name this item; the mapping is this reader's, from the item's own question. Of the item's 'not measured on v14' list: TokenDocument#movement exists with pending, passed and state among its 22 keys; an API route leaves pending.waypoints empty and puts every step in passed.waypoints, and state is completed by updateToken. A drag by mouse (method 'dragging', where pending may hold the rest of a route) and the milliseconds the item asks for were not read.",
+   "defect": ""
+  },
+  {
+   "item": null,
+   "live_id": null,
+   "where": "docs/dev/e39/CALIBRATION.md:22",
+   "date": "16.11.2026 (the module-roads grep 17.11.2026)",
+   "environment": "the owner's sandbox: Foundry 14.370 (Node build) at localhost:30099, world drpg-qa-gate seeded with the harness's world, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric Perspective 14.0.6, LiveKit AVClient 0.6.8, the module at 1.2.116 (the checkout, symlinked); Playwright 1.56.1's Chromium 141, headless, one page per account (GM, PlayerOne, PlayerTwo, a scratch Assistant); no person at the pages",
+   "outcome": "mixed",
+   "summary": "Names no 9.2 item. On an actor, three spellings of deleting one user's ownership entry (a ForcedDeletion dotted, nested, and 'ownership.-=<user>') left the owner's entry as it was; a ForcedReplacement of the whole ownership removed it; a module flag deleted by the same ForcedDeletion went. Which paths each client's updateActor was handed was not written down; other documents' ownership not read.",
+   "defect": "Harness model, not the module: the shim deleted the entry; fixed by line L1 (keepOwners, lib/futil.mjs; 867653ee, and d5907e1b merged on the shim-118 line). The paper's grep found no module road that deletes an owner."
+  },
+  {
+   "item": null,
+   "live_id": null,
+   "where": "docs/dev/e39/CALIBRATION.md:23",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox: Foundry 14.370 (Node build) at localhost:30099, world drpg-qa-gate seeded with the harness's world, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric Perspective 14.0.6, LiveKit AVClient 0.6.8, the module at 1.2.116 (the checkout, symlinked); Playwright 1.56.1's Chromium 141, headless, one page per account (GM, PlayerOne, PlayerTwo, a scratch Assistant); no person at the pages",
+   "outcome": "mixed",
+   "summary": "Names no 9.2 item. A User's 'active' on 14.370 is an own, writable data property (nothing on the prototype), so 'delete user.active' removes it: two trial tests that deleted it left PlayerTwo then PlayerThree reading as not connected for the rest of the session.",
+   "defect": "Test defect (the suite's, at a table): fixed by line L1 in 76a582d4 (the two tests put it back by its descriptor). Harness model, not the module: the shim's getter on the prototype hid it; fixed at the merge of 93f14e01."
+  },
+  {
+   "item": null,
+   "live_id": null,
+   "where": "docs/dev/e39/CALIBRATION.md:24",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox: Foundry 14.370 (Node build) at localhost:30099, world drpg-qa-gate seeded with the harness's world, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric Perspective 14.0.6, LiveKit AVClient 0.6.8, the module at 1.2.116 (the checkout, symlinked); Playwright 1.56.1's Chromium 141, headless, one page per account (GM, PlayerOne, PlayerTwo, a scratch Assistant); no person at the pages",
+   "outcome": "mixed",
+   "summary": "Names no 9.2 item. At a table a GM's DialogV2 wait, confirm or prompt with no queued answer waits for a person: tier-2 test 357 ran to the runner's limit on its kits' confirms. The shim answers an empty queue itself.",
+   "defect": "Test defect: test 357 now queues its three answers (7881daee). Harness model, not the module: the shim's own answer is left as it is; the paper says a test that leans on it is not found by any check."
+  },
+  {
+   "item": null,
+   "live_id": null,
+   "where": "docs/dev/e39/CALIBRATION.md:25",
+   "date": "18.11.2026",
+   "environment": "the owner's sandbox: Foundry 14.370 (Node build) at localhost:30099, world drpg-qa-gate seeded with the harness's world, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric Perspective 14.0.6, LiveKit AVClient 0.6.8, the module at 1.2.116 (the checkout, symlinked); Playwright 1.56.1's Chromium 141, headless, one page per account (GM, PlayerOne, PlayerTwo, a scratch Assistant); no person at the pages",
+   "outcome": "mixed",
+   "summary": "Names no 9.2 item. game.users on 14.370 refused a plain object ('You may only push instances of User'; tier 2's tests 180, 181 and 1267 among others) and the tests' own ids; an unsaved User with a valid 16-character id was taken. Which step refuses an id was not written down; the other collections not read.",
+   "defect": "Test defect: tier 2's 28 sites in 21 tests now build a stand-in User (tests-kit standInUser). Harness model, not the module: the User collection's set refuses what is not a User; fixed on the shim-118 line, no commit named in the row."
+  },
+  {
+   "item": null,
+   "live_id": null,
+   "where": "docs/dev/e39/CALIBRATION.md:49-50 (the fix described at .github/release-notes/v1.2.117.md:53-60)",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox: Foundry 14.370 (Node build) at localhost:30099, world drpg-qa-gate seeded with the harness's world, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric Perspective 14.0.6, LiveKit AVClient 0.6.8, the module at 1.2.116 (the checkout, symlinked); Playwright 1.56.1's Chromium 141, headless, one page per account (GM, PlayerOne, PlayerTwo, a scratch Assistant); no person at the pages",
+   "outcome": "defect",
+   "summary": "Names no 9.2 item (the nearest is LIVE-E76-01, see that row). At init and i18nInit game.user is null on 14.370 and game.users is empty; four of the module's registrations at init threw on game.user.isGM, on every browser, every load: the lock-pick passes, the room actions' uses, the eavesdrops and the timed effects, so a player's browser held none of those after a load until the next change sent them.",
+   "defect": "Module defect, hidden by the shim (which gave the User before init). Fixed in 1.2.117 (E117): each ask waits until the world is ready; measured on the sandbox after the fix: no such failure on the GM or a player (.github/release-notes/v1.2.117.md:59-60). The notes name no commit. The shim now gives no user through init and i18nInit."
+  },
+  {
+   "item": null,
+   "live_id": null,
+   "where": "docs/dev/e39/CALIBRATION.md:54-80",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox: Foundry 14.370 (Node build) at localhost:30099, world drpg-qa-gate seeded with the harness's world, Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric Perspective 14.0.6, LiveKit AVClient 0.6.8, the module at 1.2.116 (the checkout, symlinked); Playwright 1.56.1's Chromium 141, headless, one page per account (GM, PlayerOne, PlayerTwo, a scratch Assistant); no person at the pages",
+   "outcome": "mixed",
+   "summary": "Names no 9.2 item ('Found on the way'). game.collections is a Collection on v14, not a Map of pairs: tests-kit worldDump threw 'collection is not iterable', and runSuite calls it before tier 2's first test, so the local gate's tier-2 parts would have errored at once. Scene.create with an invalid embedded id answered undefined and logged a validation error. A player's browser holds no scene it cannot observe. On a fresh GM browser the module showed 'Daggerheart is newer than the verified version' (2.12.9 over 2.12.8). Every page shows Foundry's error notice that Chromium 141 is older than the 146 it wants.",
+   "defect": "Suite defect: worldDump and tier 2's restore snapshot read pairs; both fixed to entries(), red first in 00-boot (no commit named). Harness model, not the module: game.collections is now a Collection."
+  },
+  {
+   "item": "561",
+   "live_id": "LIVE-E53-01",
+   "where": "docs/dev/e58/PERF-READINGS.md:1-357 (named for this item at .github/release-notes/v1.2.117.md:246-248)",
+   "date": "16.11.2026",
+   "environment": "the owner's PC (AMD Ryzen 9 9900X, 31.6 GB RAM visible to WSL2, NVIDIA GeForce RTX 4080 SUPER), the Foundry 14.370 sandbox world drpg-qa-gate on the seed's academy scene (4000x3000, not isometric, token vision off, the world paused), the module at 80dfaf06 (1.2.116 with line L1's step 3); Playwright 1.56.1's Chromium 141 headed on WSLg, WebGL on the GPU through D3D12 translation, 1366x768, device pixel ratio 1",
+   "outcome": "partial",
+   "summary": "Raw perf() and fps({toChat: false}) on the GM and PlayerOne in both themes. Run 1, four headed windows at once: Stained Glass 42.64 ms/frame on the GM (23 fps), 43.09 on PlayerOne; Monokuma Legacy 34.31 and 34.73 (29 fps); a window reaches the screen in 86.7-86.8 ms (glass) and 69.9-74.3 ms (Legacy). Cost block: a student's ring p95 0.1-1.9 ms, the fog repainted p95 33.2-50.7 ms (2-3 readings), a chat card p95 0.1-0.7 ms; the Remnant ring, the case dashboard, the three canvas draws and the GMs' audit all read 'none since this browser loaded'. Run 2, the GM alone in one focused window: 300 frames in 5 s, 60 fps, median 16.7 ms in both themes. The paper says none of the numbers is a budget and that Run 1's frame times are the browser's. Not the item's recipe: a desktop GPU through WSLg, the seed's small flat scene, no trial hall visited, no dashboard opened, no sheet write judged; nothing was appended to audit/perf-baseline.json runs.",
+   "defect": ""
+  },
+  {
+   "item": "129",
+   "live_id": "LIVE-E33-05",
+   "where": "docs/dev/e58/PERF-READINGS.md:37-40, 76-79, 176-179, 211-214",
+   "date": "16.11.2026",
+   "environment": "the owner's PC (AMD Ryzen 9 9900X, 31.6 GB RAM visible to WSL2, NVIDIA GeForce RTX 4080 SUPER), the Foundry 14.370 sandbox world drpg-qa-gate on the seed's academy scene (4000x3000, not isometric, token vision off, the world paused), the module at 80dfaf06 (1.2.116 with line L1's step 3); Playwright 1.56.1's Chromium 141 headed on WSLg, WebGL on the GPU through D3D12 translation, 1366x768, device pixel ratio 1",
+   "outcome": "partial",
+   "summary": "perf() ran after E29 on a real Foundry in both themes on the GM and a player, but each of the four reports reads 'none since this browser loaded' on all three lines of 'Rolls the GM drew', so the drawn roll's round trip, which the item asks for, was not measured. No world copy was recorded and perf-baseline.mjs --run did not run.",
+   "defect": ""
+  },
+  {
+   "item": "323",
+   "live_id": "LIVE-E88-01",
+   "where": "docs/dev/e58/PERF-READINGS.md:96-160, 231-357 (named at .github/release-notes/v1.2.117.md:246-248)",
+   "date": "16.11.2026",
+   "environment": "the owner's PC (AMD Ryzen 9 9900X, 31.6 GB RAM visible to WSL2, NVIDIA GeForce RTX 4080 SUPER), the Foundry 14.370 sandbox world drpg-qa-gate on the seed's academy scene (4000x3000, not isometric, token vision off, the world paused), the module at 80dfaf06 (1.2.116 with line L1's step 3); Playwright 1.56.1's Chromium 141 headed on WSLg, WebGL on the GPU through D3D12 translation, 1366x768, device pixel ratio 1",
+   "outcome": "partial",
+   "summary": "fps({toChat: false}) output kept for the GM and PlayerOne in both themes: the 5 s window (22-31 fps with four headed windows, 60 fps for the GM alone), the module's counters in it (fog.driftTick, fog.held.backdrop and .raster about 8-10 a second, glass.pulseFrame), the canvas filters, and each effect held alone (differences of -3.5 to +6.2 ms/frame in Run 1, within 0.3 ms in Run 2). Not the item's setting: no weakest player machine, no player alone in a fogged room, and the paper does not record whether the map looked the same afterwards or that a second call was refused.",
+   "defect": ""
+  },
+  {
+   "item": "129",
+   "live_id": "LIVE-E33-05",
+   "where": "audit/perf-baseline.json:173-196",
+   "date": "2026-11-16T14:26:15Z",
+   "environment": "node audit/live/perf-baseline.mjs --probe --stage E53 against the owner's sandbox (Foundry 14.370, world drpg-qa-gate, Daggerheart 2.12.9, the module 1.2.116 served)",
+   "outcome": "not-checkable",
+   "summary": "The third recorded attempt, and the first where a Foundry answered: the probe recorded the perfReport body as revision E53 and the server's status, and could not run for two reasons it names: no world copy (DRPG_FIXTURES is not set) and the probe's Chromium drawing on SwiftShader, a software renderer. 'runs' is empty and 'status' is 'not-measured'; the baseline's world copy is recorded as 'lost' (lines 109-120).",
+   "defect": ""
+  },
+  {
+   "item": "561",
+   "live_id": "LIVE-E53-01",
+   "where": "audit/perf-baseline.json:71, 173-196",
+   "date": "2026-11-16T14:26:15Z",
+   "environment": "as the row above",
+   "outcome": "not-checkable",
+   "summary": "The same probe attempt, for the item whose result 'goes to audit/perf-baseline.json runs': no run was appended; every budget line's max is null (lines 197-306), so 'check budget' holds nothing yet.",
+   "defect": ""
+  },
+  {
+   "item": "553",
+   "live_id": "LIVE-E112-01",
+   "where": ".github/release-notes/v1.2.117.md:170-173 (also docs/dev/e112v/DESIGN.md:3-7, .github/release-notes/v1.2.118.md:37-38, docs/dev/e58/shots/README.md:16-17, 25)",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox (Foundry 14.370, Daggerheart 2.12.9, the module at 1.2.116 with line L1's commits), headless Chromium pages driven by line L1, token vision turned on for the reading",
+   "outcome": "defect",
+   "summary": "Secondary record of line L1's sandbox reading; the measurement itself is written in docs/dev/e58/LOCAL-REPORT.md, which another reader holds. While the killer's opening waited, the victim's map showed no token of the killer's (shot e112-01-victim-before-opening.png) and the killer's own browser still drew their token, but Foundry gives a hidden token no vision (_isVisionSource() false) and every player observes every character, so the killer saw from the victim's token.",
+   "defect": "Module defect (1.2.116-1.2.117): the veil wrote Foundry's hidden. Open in 1.2.117; fixed in 1.2.118 (E112v): the veil is the module's flag alone and a token the module hides gives no sight, commits dd9a56ed and 9e9a224c (docs/dev/e112v/STATUS.md:8-10). The fix is read on stand-ins only and has not been seen on a real canvas (LIVE-E112V-01 open)."
+  },
+  {
+   "item": "556",
+   "live_id": "LIVE-E112-04",
+   "where": ".github/release-notes/v1.2.117.md:228-229 (shots at docs/dev/e58/shots/README.md:18-20)",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox (Foundry 14.370, Daggerheart 2.12.9, the module at 1.2.116 with line L1's commits), headless Chromium pages driven by line L1",
+   "outcome": "partial",
+   "summary": "Secondary record of line L1's sandbox reading; the measurement itself is written in docs/dev/e58/LOCAL-REPORT.md, which another reader holds. The masked killer's '?' on the map and the portrait, 'its v14 half': after the killer's opening on Hope the victim's map draws the killer's token as the module's '?' disc (icons/mask-unknown.svg) with the card 'Face to face' and a notice naming nobody; a bystander in another room draws no token of the killer's; the killer's own map shows the same '?' disc. The hosting service the owner's table runs on, the look on light and dark maps, the give-back at the mask's end and part (4) (Isometric Perspective's silhouettes) are not in these records.",
+   "defect": ""
+  },
+  {
+   "item": "557",
+   "live_id": "LIVE-E112-05",
+   "where": ".github/release-notes/v1.2.117.md:243-244 (shots at docs/dev/e58/shots/README.md:22)",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox (Foundry 14.370, Daggerheart 2.12.9, the module at 1.2.116 with line L1's commits), headless Chromium pages driven by line L1",
+   "outcome": "not-checkable",
+   "summary": "Secondary record of line L1's sandbox reading; the measurement itself is written in docs/dev/e58/LOCAL-REPORT.md, which another reader holds. With Isometric Perspective's 'Token Silhouette' on (GPU mode) and a scratch occluding tile, no silhouette sprite was built at all on the sandbox, for the hidden token or the visible one, so there was nothing for the module to hide: the two shots settle nothing.",
+   "defect": ""
+  },
+  {
+   "item": "534",
+   "live_id": "LIVE-E43-01",
+   "where": ".github/release-notes/v1.2.117.md:228-231 (and 166-167)",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox (Foundry 14.370, Daggerheart 2.12.9, the module at 1.2.116 with line L1's commits), headless Chromium pages driven by line L1; lib/fuzz.mjs driven by a runner outside the repository",
+   "outcome": "as-expected",
+   "summary": "Secondary record of line L1's sandbox reading; the measurement itself is written in docs/dev/e58/LOCAL-REPORT.md, which another reader holds. The request fuzz on v14: scenario 30's four checks, 673 requests refused, each with a code of the closed list, none unanswered, the writes read from the GM page's hooks. The notes add that it was read once, outside the gate, and that the hostile-client matrix (scenario 33 H) never ran on v14.",
+   "defect": ""
+  },
+  {
+   "item": "535",
+   "live_id": "LIVE-E43-02",
+   "where": ".github/release-notes/v1.2.117.md:231-232 (shots at docs/dev/e58/shots/README.md:12-13)",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox (Foundry 14.370, Daggerheart 2.12.9, the module at 1.2.116 with line L1's commits), headless Chromium pages driven by line L1",
+   "outcome": "as-expected",
+   "summary": "Secondary record of line L1's sandbox reading; the measurement itself is written in docs/dev/e58/LOCAL-REPORT.md, which another reader holds. A secret project in Daggerheart's Countdowns: on a player not in on it the window reads 'No projects yet.' with no name and no '???' row; on a player in on it, the project's real name with its progress unknown ('? / 4').",
+   "defect": ""
+  },
+  {
+   "item": "536",
+   "live_id": "LIVE-E43-03",
+   "where": ".github/release-notes/v1.2.117.md:232 (shots at docs/dev/e58/shots/README.md:14-15)",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox (Foundry 14.370, Daggerheart 2.12.9, the module at 1.2.116 with line L1's commits), headless Chromium pages driven by line L1",
+   "outcome": "as-expected",
+   "summary": "Secondary record of line L1's sandbox reading; the measurement itself is written in docs/dev/e58/LOCAL-REPORT.md, which another reader holds. A project token's card opened by PlayerOne while the project's room was undiscovered ('A project / You do not know what this is.') and never closed turned into the project's card (name, description, Progress 0 / 4, Room Gym) after the character walked in, in both themes and both languages.",
+   "defect": ""
+  },
+  {
+   "item": "537",
+   "live_id": "LIVE-E40-01",
+   "where": ".github/release-notes/v1.2.117.md:233",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox (Foundry 14.370, Daggerheart 2.12.9, the module at 1.2.116 with line L1's commits), headless Chromium pages driven by line L1",
+   "outcome": "partial",
+   "summary": "Secondary record of line L1's sandbox reading; the measurement itself is written in docs/dev/e58/LOCAL-REPORT.md, which another reader holds. checkState() ran on a world with murders and projects, with no chapter played; the item asks for a copy of a world on which at least a chapter was played. These notes give no count of warnings.",
+   "defect": ""
+  },
+  {
+   "item": "67",
+   "live_id": "LIVE-E06-01",
+   "where": "docs/dev/e58/shots/README.md:23-24 (and .github/release-notes/v1.2.117.md:177-178)",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox (Foundry 14.370, Daggerheart 2.12.9, the module at 1.2.116 with line L1's commits), headless Chromium pages driven by line L1",
+   "outcome": "mixed",
+   "summary": "Secondary record of line L1's sandbox reading; the measurement itself is written in docs/dev/e58/LOCAL-REPORT.md, which another reader holds. The victim's screen after a failed opening: no incident look and no event panel, but its chat holds three veiled cards and Foundry's own 'GM privately rolled some dice' stub; after a successful opening on Hope: the incident look and its card, no name of the killer. The item expects a failed opening to leave the victim nothing.",
+   "defect": "Left, with a default: 'the victim's chat shows Foundry's GM privately rolled some dice at the opening (Foundry's own private roll)' is listed under 'Read at the sandbox and left' (.github/release-notes/v1.2.117.md:174-178); not fixed."
+  },
+  {
+   "item": "S7-2",
+   "live_id": null,
+   "where": ".github/release-notes/v1.2.118.md:62-69 (AUDIT item 660 at audit/AUDIT-1.2.42.md:1614 names S7-2 and line L1's run)",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox (Foundry 14.370, Daggerheart 2.12.9, the module at 1.2.116 with line L1's commits), headless Chromium pages driven by line L1; a real click on the GM's page",
+   "outcome": "defect",
+   "summary": "Secondary record of line L1's sandbox reading; the measurement itself is written in docs/dev/e58/LOCAL-REPORT.md, which another reader holds. While reading section 7's item 2 (the statistic changed in the roll window), a player's statistic proposal that belongs to a messenger thread reached the GM's chat log with Approve, Change to and Refuse buttons that did nothing: a real click, 20 s, no error.",
+   "defect": "Module defect: the chat-log copy of a thread's ruling card was not wired. Fixed in 1.2.118 (F118): on a GM the buttons rule the card (gm-bridge.mjs registerGmBridge) and a card already answered refuses a second ruling (messenger-app.mjs wireCallActions). Held by two tier-2 tests that click in jsdom; a real click on v14 is LIVE-F118-01, open. The notes name no commit."
+  },
+  {
+   "item": "23",
+   "live_id": null,
+   "where": ".github/release-notes/v1.2.117.md:174-176",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox (Foundry 14.370, Daggerheart 2.12.9, the module at 1.2.116 with line L1's commits), headless Chromium pages driven by line L1",
+   "outcome": "mixed",
+   "summary": "Secondary record of line L1's sandbox reading; the measurement itself is written in docs/dev/e58/LOCAL-REPORT.md, which another reader holds. The paper does not name this item; the mapping is this reader's, from the item's own question. Item 23 asks whether ui.notifications on v14 escapes HTML: a character's name with HTML in it is drawn as HTML in a GM's notice; v14 strips scripts and handlers, and an image in a name makes the GM's browser load its address.",
+   "defect": "Listed under 'Read at the sandbox and left, each with a default'; not fixed in 1.2.117 or 1.2.118 as far as these notes say."
+  },
+  {
+   "item": "475",
+   "live_id": "LIVE-E76-01",
+   "where": ".github/release-notes/v1.2.118.md:192-195 (and .github/release-notes/v1.2.117.md:53-62, 120-129)",
+   "date": "16-17.11.2026",
+   "environment": "the owner's sandbox (Foundry 14.370, Daggerheart 2.12.9, the module at 1.2.116 with line L1's commits), headless Chromium pages driven by line L1",
+   "outcome": "in-progress",
+   "summary": "Secondary record of line L1's sandbox reading; the measurement itself is written in docs/dev/e58/LOCAL-REPORT.md, which another reader holds. The paper does not name this item; the mapping is this reader's, from the item's own question. Item 475 here is the second of two items numbered 475 (AUDIT line 1442). It asks for a clean load, relayGuard 'ok' and tier 2 with 0 failed on 14.370 with Daggerheart 2.12.8; the sandbox ran 2.12.9. Recorded: the load was not clean (four registrations failed on every browser, fixed in 1.2.117); runTests({tier: 2}) would have stopped before its first test (fixed); line L1's last whole run of tier 2, at d5907e1b, read 1326 passed, 214 failed, 26 skipped of 1566, and no whole run has followed on any Foundry. module.json's Daggerheart 'verified' went to 2.12.9 in 1.2.117 on the owner's decision, the notes saying no full gate ran on it.",
+   "defect": "Defects found on the way are in the rows for docs/dev/e39/CALIBRATION.md:49-50 and :54-80. Tier 2 at a table is not green; the notes attribute the last run's failures to the state before 'the window answers, the users' active, the form answers, the stand-in Users and the Reroll tests were fixed', and no run after those fixes is recorded."
+  },
+  {
+   "item": "560",
+   "live_id": "LIVE-E116-03",
+   "where": "docs/dev/e112v/DESIGN.md:3-5 (and docs/dev/e112v/STATUS.md:21)",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox (Foundry 14.370, Daggerheart 2.12.9, the module at 1.2.116 with line L1's commits), headless Chromium pages driven by line L1",
+   "outcome": "partial",
+   "summary": "Secondary record of line L1's sandbox reading; the measurement itself is written in docs/dev/e58/LOCAL-REPORT.md, which another reader holds. The paper does not name this item; the mapping is this reader's, from the item's own question. On v14 a hidden token is drawn for its owner (and is not its owner's vision source). This agrees with the owner's own answer of 15.11.2026 (next section). The ruler of a hidden token, the rest of the item, is not read.",
+   "defect": ""
+  },
+  {
+   "item": null,
+   "live_id": null,
+   "where": "docs/dev/e39/STATUS.md:65-69",
+   "date": "18.11.2026 (the proposal's date)",
+   "environment": "the owner's sandbox (Foundry 14.370, Daggerheart 2.12.9, the module at 1.2.116 with line L1's commits), headless Chromium pages driven by line L1",
+   "outcome": "mixed",
+   "summary": "Names no 9.2 item. On v14 a chat message's rolls are Daggerheart's DualityRoll, rebuilt by its class (line L1 read a roll of 5 terms); headless they are plain JSON with no terms, so a test can reroll a real roll only at a table.",
+   "defect": "Harness model, not the module: a D for a chat message's rolls is proposed, not built."
+  },
+  {
+   "item": null,
+   "live_id": null,
+   "where": ".github/release-notes/v1.2.117.md:176-180",
+   "date": "16.11.2026",
+   "environment": "the owner's sandbox (Foundry 14.370, Daggerheart 2.12.9, the module at 1.2.116 with line L1's commits), headless Chromium pages driven by line L1",
+   "outcome": "mixed",
+   "summary": "Secondary record of line L1's sandbox reading; the measurement itself is written in docs/dev/e58/LOCAL-REPORT.md, which another reader holds. Names no 9.2 item. Read at the sandbox and left: a GM whose socket was closed and opened again from the console, without a reload, held stale data (Foundry's; a real network loss not read); Daggerheart 2.12.9's chat card throws on a message whose author was deleted (the system's).",
+   "defect": "Left, each with a default; not the module's by the notes' reading."
+  },
+  {
+   "item": "547",
+   "live_id": "LIVE-OWN115-01",
+   "where": "docs/dev/owner-115/STATUS.md:8-9 (also .github/release-notes/v1.2.115.md:47-55)",
+   "date": "14.11.2026",
+   "environment": "the owner at a real table, on 1.2.114",
+   "outcome": "defect",
+   "summary": "The owner's report: in a direct murder whose roll hides the killer, the killer's token icon on the victim's screen was not replaced by '?', which gives the killer's identity away; and the same should hold for bystanders. Headless (scenario 21 at e0ee06ef) the token document already read '?', but the victim's browser held the killer's name on the crisis cards, notices and history and the killer's player on the dice packets. By this reader's reading the report also answers point (1) of item 527 (LIVE-E69-05, the Mask at a table), which expects the '?' on the victim's screen.",
+   "defect": "Fixed in 1.2.115 on the owner-115 line: maskedName, maskSplit, listenName, the ring's subject texture, the pickers and the veil of every card while a mask stands (scenario 21 from 7/9 to 14/14; tier 1 green at c1bae24f and 08f742ef). The paper names no single fix commit. Whether a v14 canvas draws the '?' at once was not measurable there; the owner then saw the real face again on 1.2.115 (item 556's row)."
+  },
+  {
+   "item": "548",
+   "live_id": "LIVE-OWN115-02",
+   "where": "docs/dev/owner-115/STATUS.md:117-118",
+   "date": "14.11.2026",
+   "environment": "the owner at a real table, on 1.2.114",
+   "outcome": "defect",
+   "summary": "The owner's words: when a character's token is on the same spot as a Remnant, the character should always be on top. The paper's reading of the cause: Isometric Perspective 14.0.6 depth-sorts every token and overwrote the module's sort of -10, so a Remnant fell above or below a character by document id (read in the release zip, not run).",
+   "defect": "Fixed in 1.2.115: remnant-ring.mjs keepUnderCharacters puts a trace's mesh on sort layer 699 (R7400, red before; measured at 7e5cb85e). Characters have no mesh in the harness, so the order against them is the table's: LIVE-OWN115-02 is open."
+  },
+  {
+   "item": "552",
+   "live_id": "LIVE-OWN115-03",
+   "where": "docs/dev/owner-115/STATUS.md:169-170",
+   "date": "14.11.2026",
+   "environment": "the owner at a real table, on 1.2.114",
+   "outcome": "defect",
+   "summary": "The owner's words: a scrollbar appeared on the Event panel during a murder; the Event panel must never scroll. In Chromium (audit/events-murder-fit.mjs, 60 panels: 5 cases, both themes, two languages, three sizes) 60 of 60 scrolled at e0ee06ef.",
+   "defect": "Fixed in 1.2.115: no cap, cards fold to their title past the room under the panel (events.mjs fitEvents; R7401; 60 of 60 fit; measured at fb6f664b and 779026ce). No window was opened over a lengthened panel in a real Foundry: LIVE-OWN115-03 is open."
+  },
+  {
+   "item": "556",
+   "live_id": "LIVE-E112-04",
+   "where": "docs/dev/e112/STATUS.md:69-83 (also .github/release-notes/v1.2.116.md:60-61)",
+   "date": "15.11.2026 (the owner's asks of that day)",
+   "environment": "the owner at a real table, 1.2.115, on the hosting service the owner's table runs on",
+   "outcome": "defect",
+   "summary": "The owner: the killer still has no '?' in place of the token icon when hidden, 'it still does not work', and not only the sheet's portrait but the token's icon on the map; the owner saw the real name and picture on the victim's screen after a successful direct opening on Hope. In the harness 1.2.115's road masks (scenario 21, phase 'road'), so the report was not reproduced.",
+   "defect": "Cause not established: 'which road showed the owner the real face at a table on 1.2.115 is not known'. Built in 1.2.116 for the two roads the code supports (a mask row left standing, H2; a token write that failed and was only logged, H4), with the module's own '?' picture and the portrait; 'neither was seen at a table'. Line L1 then read the '?' on the sandbox on 16.11.2026 (the other row for this item)."
+  },
+  {
+   "item": "555",
+   "live_id": "LIVE-E112-03",
+   "where": "docs/dev/e112/STATUS.md:8-28",
+   "date": "15.11.2026",
+   "environment": "the owner's report, through the coordinator; the section does not say where or on which version it was seen",
+   "outcome": "defect",
+   "summary": "The owner: a Loaded Die is not used up on the murder's opening ('it works, but the Hope Call is not spent'). Measured on the base tree in the harness: the opening's packet named no Call and no Loaded Die mark, the draw came out 3 and 5, the die stayed armed; so the die neither loaded nor was spent, and the owner's 'it works' was not reproduced (the paper calls the critical the owner saw a guess, not a reading).",
+   "defect": "Fixed in 1.2.116: 8282b192 (the Loaded Die alone), then 406f96a4 (every Call, on the owner's 'Inne tez'); three tier-2 tests red on e9f4a791 and green after. The real Daggerheart window is LIVE-E112-03, open."
+  },
+  {
+   "item": "560",
+   "live_id": "LIVE-E116-03",
+   "where": "docs/dev/owner-116/STATUS.md:192-198 (also audit/AUDIT-1.2.42.md:1584 and .github/release-notes/v1.2.116.md:88-89)",
+   "date": "15.11.2026",
+   "environment": "the owner at a real table (the owner's answer about their table)",
+   "outcome": "partial",
+   "summary": "The owner's answer: at their table a player does see their own hidden token. The first build (1cc78724) hid a hidden token's ruler from its owner too; on this answer the commit after 3a4dfafa shows the owner the ruler. The ruler itself on v14 (the owner sees both the hidden token and its ruler) is still to be read.",
+   "defect": ""
+  },
+  {
+   "item": null,
+   "live_id": null,
+   "where": "docs/dev/owner-116/STATUS.md:92-96",
+   "date": "15.11.2026",
+   "environment": "the owner at a real table (a screenshot under Stained Glass that the coordinator read; it did not reach the session)",
+   "outcome": "defect",
+   "summary": "Names no 9.2 item. The owner's 'still narrower than it should be' on the planner's nodes: in the screenshot the text boxes fill the node and the selects do not, each as wide as its words.",
+   "defect": "Fixed in 1.2.116: two rules in components.css's planner block (R7520; case-map-sweep: 46 narrow fields before, 0 after on 48 pages in Chromium). A second defect found on the way, a floating field scaled twice under the map's zoom, fixed by float-text.mjs holdSize (R7521). Foundry's own stylesheet was not loaded by either sweep."
+  },
+  {
+   "item": null,
+   "live_id": null,
+   "where": "docs/dev/e43/STATUS.md:69 (the first report at docs/dev/e53/STATUS.md:16, 29; .github/release-notes/v1.2.117.md:41-51)",
+   "date": "15.11.2026 (the report, 1.2.115) and 16.11.2026 (the owner's probe on their world, 1.2.116)",
+   "environment": "the owner's own world at their table",
+   "outcome": "defect",
+   "summary": "Names no 9.2 item (the nearest is LIVE-E93-02, the first item numbered 476). Report: a public, completed project with a room, the character in that room, its action shown neither to the player nor to the GM. The owner's probe on their world: project 'Porządki', public, complete, room Dorm, its action of one day completed at day 3 morning while the clock stood at day 1 morning, so the action did not stand and nothing said why.",
+   "defect": "Explained, then built in 1.2.117 on the owner's 'tak' and 'b': a GM sees why an action does not stand (facilityWhyLine), and a completion later than a clock set back is restamped to now (R7644 and a tier-2 test, red at 5b3d80b5). Not run on a real Foundry; the notes say the restamp has no AUDIT 9.2 item yet (.github/release-notes/v1.2.117.md:241-242)."
+  },
+  {
+   "item": "41",
+   "live_id": "LIVE-E04-01",
+   "where": "audit/AUDIT-1.2.42.md:869 (also .github/release-notes/v1.2.93.md:3-8, 84)",
+   "date": "31.10.2026",
+   "environment": "the owner at a real table: Foundry 14.365 on the hosting service the owner's table runs on, Daggerheart 2.6.5, the GM's browser",
+   "outcome": "defect",
+   "summary": "'Answered 31.10.2026 at the owner's table: no.' game.time.serverTime read 2811317 beside Date.now() 1793415993407: it is the time since the server started and returns near zero at each restart. The stores' marks had been written at about 1.6 h of uptime (most 5867475, the highest 5869492), so after a restart every write was stamped under them and lost as older than the cut (gmStoreStatus: Remnants live 0 / dead 31; a trace laid that session had no row, opened Daggerheart's own sheet and had no ring).",
+   "defect": "Module defect. Fixed in 1.2.93 (E90, commit 71b726a6): the module's clock takes serverTime only when it reads as a date (at least 1e12 ms), else the browser's Date.now() (config.mjs epochClock). What is left for the table is LIVE-E90-01 (item 348), for which no reading is recorded."
+  },
+  {
+   "item": "236",
+   "live_id": "LIVE-E78-14",
+   "where": "audit/AUDIT-1.2.42.md:1110 (also .github/release-notes/v1.2.78.md:32-43, 106-108)",
+   "date": "14.10.2026",
+   "environment": "the owner at a real table, on 1.2.77",
+   "outcome": "defect",
+   "summary": "The owner's report: only the second drag inside the new room was counted (the room tile, the fog's arrival, the crossing). Which of two readings the table gave (a hook reading the position from before the drag, or a last update still carrying pending waypoints) was not measured.",
+   "defect": "Fixed in 1.2.78 for both readings (movement.mjs whenAtRest, recheckAtRest; fog.mjs onUpdateToken read the room again when the token stands); measured in the harness only (scenario 74, phase L). The item names no commit; no re-reading at a table is recorded."
+  },
+  {
+   "item": "237",
+   "live_id": "LIVE-E84-01",
+   "where": "audit/AUDIT-1.2.42.md:1111 (also .github/release-notes/v1.2.78.md:5-12, 100-105)",
+   "date": "14.10.2026",
+   "environment": "the owner at a real table: a Foundry v14 table on the hosting service the owner's table runs on, on 1.2.77",
+   "outcome": "defect",
+   "summary": "The owner's report: a player's actions from the grid ended with 'That action could not be completed. Tell the GM.', a statistic clicked on the sheet rolled nothing, and the player's console showed \"'setTimeout' called on an object that does not implement interface Window.\" from bridge-guards.mjs. Why rolls had worked at that table before is not known.",
+   "defect": "Module defect since 1.2.62: createWaiter's default clock called setTimeout as another object's method. Fixed in 1.2.78 (WINDOW_CLOCK); measured only in the harness, whose timers now refuse the same way (scenario 33, R570, R571). No commit named in the item; not re-read in a real browser at a table."
+  },
+  {
+   "item": "255",
+   "live_id": "LIVE-E79-18",
+   "where": "audit/AUDIT-1.2.42.md:1129",
+   "date": "the screenshot is undated in the item (images/14.png)",
+   "environment": "the owner at a real table (a screenshot)",
+   "outcome": "defect",
+   "summary": "The item says the glass harness did not reproduce the cut edges of a notice sheet seen in the owner's screenshot (in the harness the sheet fit its pane). What exactly the screenshot shows is not described further.",
+   "defect": "Addressed in 1.2.79 (the notice sheet fills its pane); not seen at a table, and the report was not reproduced headless."
+  },
+  {
+   "item": "256",
+   "live_id": "LIVE-E79-19",
+   "where": "audit/AUDIT-1.2.42.md:1130",
+   "date": "15.10.2026",
+   "environment": "the owner at a real table, on 1.2.78",
+   "outcome": "defect",
+   "summary": "The owner's report: 'entering a room reads too late' (the room tile after a move).",
+   "defect": "Fixed in 1.2.79: movement.mjs destinationOf reads the room from the update itself. The milliseconds the item asks for were never measured at a table; the field names it lists as unread were partly read on the sandbox on 16.11.2026 (this item's other row)."
+  },
+  {
+   "item": "272",
+   "live_id": "LIVE-H81-01",
+   "where": "audit/AUDIT-1.2.42.md:1146 (the report at .github/release-notes/v1.2.81.md:3-4, 131-135)",
+   "date": "20.10.2026 (the owner's smoke of 1.2.80; the owner's words on it 21.10)",
+   "environment": "the owner at a real table, on 1.2.80",
+   "outcome": "defect",
+   "summary": "The owner's smoke found a tunnel or stairs that went one way. On 21.10 the owner said the case was seen from the GM's browser and that a tunnel between floors must work; on one floor or two, and on which scene, is not known.",
+   "defect": "Open: 'the owner's one-way case is still open as a defect'. 1.2.81 fixed one cause measured on a model of Foundry 14's regions only (the end's room read at height 0), which 'may not be what the owner hit'. No later reading is recorded in the item."
+  },
+  {
+   "item": "356",
+   "live_id": "LIVE-E51-02",
+   "where": "audit/AUDIT-1.2.42.md:1230 (also .github/release-notes/v1.2.97.md:110-112)",
+   "date": "01.11.2026",
+   "environment": "the owner at a real table: 1.2.96, Foundry 14.365, with Daggerheart's and Isometric Perspective's rulers",
+   "outcome": "mixed",
+   "summary": "'The owner's reading': the chain of CONFIG.Token.rulerClass is TokenRulerIsometric > HourTokenRuler > DhpTokenRuler > TokenRuler > BaseTokenRuler, and the token's movement line has the time of day's colour ('Jest kolor pory dnia'), so the colour reaches the drawing on v14. The colour's change when the time of day changes was not yet read.",
+   "defect": "The diagnostics' token-ruler row showed a false alarm ('another function stands where the module's was') because it asked only the top class's name. Fixed in 1.2.97 (E37 C4b, R1203): it looks for HourTokenRuler in the whole chain."
+  },
+  {
+   "item": "357",
+   "live_id": "LIVE-E51-03",
+   "where": "audit/AUDIT-1.2.42.md:1231 (also .github/release-notes/v1.2.94.md:144-150)",
+   "date": "11.10.2026 and 31.10.2026 (the owner's screenshots)",
+   "environment": "the owner at a real table (screenshots of the owner's map)",
+   "outcome": "defect",
+   "summary": "On the screenshot of 31.10: patches of light along a diagonal room border, behind the walls of the rooms next door (the doorway light passing the outer room's walls).",
+   "defect": "Fixed in 1.2.94 (E51 fix FG3: fog-doorways.mjs doorwayLight, doorwayGlowPlan, eraseBeyondLight); the shape is measured by R1138 and R1139 with no renderer. What the renderer draws of it is not measured; no screenshot after the fix is recorded."
+  },
+  {
+   "item": "358",
+   "live_id": "LIVE-E51-04",
+   "where": "audit/AUDIT-1.2.42.md:1232",
+   "date": "27.10.2026 (the session's notes)",
+   "environment": "the owner at a real table (the owner's world)",
+   "outcome": "defect",
+   "summary": "A character's token doubled after the investigation started. The harness (scenario 62, phase S) showed no road of the module's that creates a token at the investigation's start.",
+   "defect": "Not reproduced and not fixed ('no fix in E51'); the item's console line with _stats.createdBy is the reading still asked for."
+  },
+  {
+   "item": "376",
+   "live_id": "LIVE-E60-09",
+   "where": "audit/AUDIT-1.2.42.md:1250 (also .github/release-notes/v1.2.98.md:19-23, 164)",
+   "date": "03.11.2026",
+   "environment": "the owner at a real table",
+   "outcome": "partial",
+   "summary": "'Measured by the owner': with Dice So Nice's 'Show only mine' on, the GM did not see the players' dice (the owner: 'Jest show only mine'). The item's own steps (a player's dice on the GM's screen only with that GM's Monokuma in the room, on 1.2.98) are not recorded as read.",
+   "defect": "Not a module defect by the paper's reading: the cause is the GM's own Dice So Nice setting, which the item now starts by switching off."
+  },
+  {
+   "item": "383",
+   "live_id": "LIVE-E44-07",
+   "where": "audit/AUDIT-1.2.42.md:1257 (also .github/release-notes/v1.2.99.md:145-146)",
+   "date": "04.11.2026",
+   "environment": "the owner at a real table",
+   "outcome": "defect",
+   "summary": "The owner: on the GM's screen the project tokens are white, on the players' they have their colour (amber while building, green when finished). Read in the code the same day: the colour stands on the token document, one for every screen, and no road of the module draws a project token differently for a GM.",
+   "defect": "Cause not established. The nearest cause is a reading of another module's code (Isometric Perspective's Dynamic Tile clones, drawn without the tint); the console line and the toggle that would settle it are still to be run at the table. No change in the module."
+  },
+  {
+   "item": "385",
+   "live_id": "LIVE-E44-08",
+   "where": "audit/AUDIT-1.2.42.md:1259 (also .github/release-notes/v1.2.100.md:174, 215)",
+   "date": "06.11.2026",
+   "environment": "the owner at a real table (a character's sheet)",
+   "outcome": "defect",
+   "summary": "'Read at the table': the character sheet did not fold; it stayed as an empty, transparent strip as wide as the title bar and as tall as the sheet (a 205 x 838 px screenshot) through which the board showed.",
+   "defect": "Module defect in CSS: the sheet's min-height 830px beat the height Foundry writes when folding. Fixed in 1.2.100, commit bb0feb94 (the rule leaves out a folded and a folding window; R1566). Point (1) for the character sheet is to be checked again at the table; the rest of the item is unread."
+  },
+  {
+   "item": "409",
+   "live_id": "LIVE-E23-08",
+   "where": "audit/AUDIT-1.2.42.md:1306 (also .github/release-notes/v1.2.102.md:26-30, 187-189)",
+   "date": "09.11.2026",
+   "environment": "the owner at a real table, on 1.2.101 (v14)",
+   "outcome": "defect",
+   "summary": "'The owner's reading': the item's console line gave [\"\", \"flex\", \"row\", \"static\"] - the toast list's parent has no id and is a flex row, and the list stood static under 1.2.101's own rule; neither #ui-top nor #ui-right is the parent. The ancestor chain and the core's own position are still to be confirmed.",
+   "defect": "Module defect (1.2.101): the module's placement of #notifications, written on the unconfirmed guess that the list stands in #ui-top, broke the top right of the screen. Fixed in 1.2.102 (E96 C1, commit 5e7e57ba; R3100): the placement applies only to a list whose parent is #ui-top. Nothing of 1.2.102 was run at a table by its own notes."
+  },
+  {
+   "item": "428",
+   "live_id": "LIVE-E24-11",
+   "where": "audit/AUDIT-1.2.42.md:1344 (the fix at .github/release-notes/v1.2.101.md:218-222)",
+   "date": "09.11.2026",
+   "environment": "the owner at a real table (a screenshot)",
+   "outcome": "defect",
+   "summary": "The owner's screenshot, 'the Projects window's description - too narrow': the description field was about a third of the window.",
+   "defect": "Fixed in 1.2.101 (E24 C6, commit 337318cf); in Chromium without Foundry's stylesheet the field is 544/544 and 542/542 px of the form. Not seen with Foundry's own stylesheet."
+  },
+  {
+   "item": "429",
+   "live_id": "LIVE-E24-12",
+   "where": "audit/AUDIT-1.2.42.md:1346 (the fix at .github/release-notes/v1.2.101.md:195-199)",
+   "date": "the report came on 1.2.100 (the notes call it the owner's 09.11 report)",
+   "environment": "the owner at a real table, on 1.2.100, under Monokuma Legacy",
+   "outcome": "defect",
+   "summary": "The owner's report: an empty strip of UI in the lower-left corner under Monokuma Legacy; the owner saw a box of 217x20.",
+   "defect": "Fixed in 1.2.101 (E23 fix L, commit 1fde943b: Foundry's players list out of the module's panel look); the harness then measures a transparent 22x28 box. Whether Foundry's own list leaves a strip is the table's; not re-read."
+  },
+  {
+   "item": "509",
+   "live_id": "LIVE-E106-01",
+   "where": "audit/AUDIT-1.2.42.md:1484 (also docs/dev/e106/STATUS.md:66-81)",
+   "date": "13.11.2026",
+   "environment": "the owner at a real table (1.2.110 by docs/dev/e106/STATUS.md:66)",
+   "outcome": "defect",
+   "summary": "The owner's report: the Monocub's token is smaller than the original token and does not open the character sheet (at least for the GM). The owner's answer the same day: after a student becomes a Monocub the GM sees two things on the map, the body tile and the Monocub.",
+   "defect": "Cause not established: the paper's hypothesis is that the GM compared and double-clicked the body tile, which opens no sheet. Built in E106 (1.2.112): the tile's death mark and caption take no clicks (R5402). Which of the two the GM double-clicked 'is still LIVE-E106-01's'."
+  },
+  {
+   "item": "523",
+   "live_id": "LIVE-113R-01",
+   "where": "audit/AUDIT-1.2.42.md:1510",
+   "date": "13.11.2026",
+   "environment": "the owner at a real table, on 1.2.112",
+   "outcome": "defect",
+   "summary": "The owner's report at the table: the closed trial curtain must last until the next scene has switched.",
+   "defect": "Fixed in 1.2.113 (fix-113r: sequence.mjs whenSceneDrawn, a 15 s limit; R6090, R6091; glass-sweep --trial-layout). No commit named in the item; not re-read at a table."
+  },
+  {
+   "item": "524",
+   "live_id": "LIVE-113R-02",
+   "where": "audit/AUDIT-1.2.42.md:1512",
+   "date": "13.11.2026",
+   "environment": "the owner at a real table, on 1.2.112",
+   "outcome": "defect",
+   "summary": "The owner's report at the table: between covering and uncovering the screen the curtain's layout changes.",
+   "defect": "Fixed in 1.2.113 (fix-113r: one cut from closed to open; R6092). In Chromium before the fix, at ceb9e9c8, 34 of 39 tiles moved, up to 111.7 px, and 11.3 % of the frame's pixels changed; after, 0. Not re-read at a table."
+  },
+  {
+   "item": "661",
+   "live_id": "LIVE-F118-02",
+   "where": "audit/AUDIT-1.2.42.md:1616 (also .github/release-notes/v1.2.118.md:71-81)",
+   "date": "17.11.2026",
+   "environment": "the owner at a real table",
+   "outcome": "defect",
+   "summary": "The owner's report: 'a new bug - there is no frame on the second GM's token'.",
+   "defect": "Fixed in 1.2.118 (F118: own-ring.mjs frameFor; R7790 and a tier-2 test on one GM's screen). The frames' redraw on a role change is held by no test (a mutant without it survived). Frames on a canvas with two GMs are LIVE-F118-02, open. No commit named."
+  },
+  {
+   "item": "662",
+   "live_id": "LIVE-F118-03",
+   "where": "audit/AUDIT-1.2.42.md:1618 (also .github/release-notes/v1.2.118.md:83-97)",
+   "date": "17.11.2026 (the owner's word on the rooms' list 18.11.2026)",
+   "environment": "the owner at a real table (a screenshot of the Facilities window)",
+   "outcome": "defect",
+   "summary": "The owner's report: the Facilities tile needs an update; its description leaves out the GM's room action and the projects, and the grey print under the actions, the rests' above all, needs fixing.",
+   "defect": "Fixed in 1.2.118 (F118: the tile's words, 'Not here.', 'Free.', and the grey line's contrast from 2.08:1 to 6.79:1 under Stained Glass and 3.02:1 to 4.68:1 under Monokuma Legacy, read in Chromium on the harness's drawing; R7791, R7792). Not seen at a table (LIVE-F118-03 open)."
+  }
+ ],
+ "not_run": [
+  "docs/dev/e39/CALIBRATION.md:31 - LIVE-E30-06 (item 31) not run: scenario 17-assistant needs a fifth account and page hooks the sandbox adapter lacks.",
+  "docs/dev/e39/CALIBRATION.md:32 - LIVE-E30-07 (item 28) not run: needs a copy of a world from before the traces' ledger (DRPG_FIXTURES), unset on purpose.",
+  "docs/dev/e39/CALIBRATION.md:33 - LIVE-E30-08 (item 32): the table's own installation was not read, only the sandbox's manifests.",
+  "docs/dev/e39/CALIBRATION.md:20 - LIVE-E30-01: fields other than flags were not read for '-=' and '=='.",
+  "docs/dev/e39/CALIBRATION.md:22 - other documents' ownership, and the hooks' changes for an ownership deletion, not read.",
+  "docs/dev/e39/CALIBRATION.md:25 - which step of v14 refuses a User id was not written down; the other collections not read.",
+  "docs/dev/e39/CALIBRATION.md:36 - LIVE-H81-03: a GM's mouse drag and a region's teleport behaviour not read.",
+  "docs/dev/e39/CALIBRATION.md:49 - game.users empty at init and i18nInit is read but not modelled in the harness.",
+  "docs/dev/e39/CALIBRATION.md:129-130 - a drag by mouse (method 'dragging', pending waypoints) was not read; 'a canvas drag through Playwright on this sandbox is the next reading'.",
+  "docs/dev/e39/CALIBRATION.md:134-135 - D7: whether a player's region write is refused on v14 was not tried (bears on item 166, LIVE-E12-04).",
+  "docs/dev/e39/CALIBRATION.md:136-137 - D8: the writer's copy of another User after its own update is 'to be read again before anything is modelled'.",
+  "docs/dev/e39/CALIBRATION.md:141-146 - D9: create and delete with noHook, and a setting's, not read; the shim's noHook left as it was.",
+  "docs/dev/e39/CALIBRATION.md:150-151 - not read in step 3: a mouse drag on the canvas, a region's teleport and change-level behaviours, walls and doors on a route, the senderId on system.daggerheart and the relay guard's state (items 18-20); left to LOCAL-REPORT's step 4.",
+  "docs/dev/e58/PERF-READINGS.md:3-6 - none of the numbers is a budget; Run 1's frame times are the browser's (four headed windows), not the module's.",
+  "docs/dev/e58/PERF-READINGS.md:37-52, 76-90 - on every perf() report: no drawn roll, no Remnant ring, no case dashboard rebuild, no canvas draw (any scene, into or out of the trial hall) and no judged sheet write had happened, so those lines read 'none since this browser loaded'.",
+  "audit/perf-baseline.json:121, 196 - status 'not-measured', runs []: no run of perf-baseline.mjs --run exists; the three attempts (24.09, 07.10, 16.11.2026) each say what could not run (lines 122-195).",
+  "audit/perf-baseline.json:109-120 - the 1.2.56 world copy is 'lost': not in DRPG_FIXTURES, its manifest never taken.",
+  "audit/perf-baseline.json:197-306 - every budget line's max is null (no budget set until the owner gives the numbers).",
+  "audit/gate/local-gate.json:26-129 - the record for 1.2.118 (commit ec1478d5, 19.11.2026): all 8 parts not-run, reason no-server (connect ECONNREFUSED 127.0.0.1:30099): tier 2 in both themes, the world diff, and scenarios 14, 60, 81, 83 and 84; fixtures none (DRPG_FIXTURES is not set); verdict incomplete. Bears on LIVE-E33-01 (item 125), LIVE-E37-01 (item 365) and LIVE-E76-01.",
+  "audit/live/README.md:9-10 - the gate's own parts (suite.mjs, sandbox-cluster.mjs) have not yet run on the sandbox; only perf-baseline.mjs --probe has.",
+  "audit/live/README.md:37-40 - drills on fixture worlds: no restart step exists; with fixtures a drill is recorded as error, without as not-run.",
+  "audit/probe-daggerheart-2.10.5.md:3-8, 451-467 - a static probe of 24.09.2026 (source diff of Daggerheart 2.6.5 against 2.10.5, 'no Foundry run'): no reading. Its six points that need the live probe (the Actions resource after an item update, Countdowns ownership 0, a modifier-click on a sheet trait, dice colours, the visuals, 2.10.5 on 14.364/14.365) are not recorded as run in any paper read here.",
+  "docs/dev/e39/STATUS.md:165-170 - LIVE-E39-01's drag by mouse and a stair between two Levels with a player and a GM, and the trial hall's zones on a real v14 scene (LIVE-E73-01..04), need a local Foundry.",
+  "docs/dev/e43/STATUS.md:144-145 - the Mask's two cards (E43-F10) on a v14 table (to be read in LIVE-E69-05's row): not read.",
+  "docs/dev/e43/FINDINGS.md:11-49 - every finding of E43 is a harness measurement or a code reading; the paper holds no reading on a real Foundry. E43-F8's player window on a walk-in was 'not measured headless'.",
+  "docs/dev/e53/STATUS.md:68-71 - every millisecond of E53 C1 is jsdom's; the table's numbers are LIVE-E53-01's and LIVE-E33-05's.",
+  "docs/dev/e53/STATUS.md:27 - a project on a copy of the scene holding the same room names: not measured (the harness's scene clone answered the original's id).",
+  "docs/dev/e112/STATUS.md:56-57, 63-65 - whether a veiled killer keeps their own vision needed a canvas (LIVE-E112-01); one mutant survived for want of one.",
+  "docs/dev/e112/STATUS.md:116-125 - Isometric Perspective 14.0.6 was read, not run; a real canvas and whether a frame shows before a silhouette is hidden: LIVE-E112-05.",
+  "docs/dev/e112/STATUS.md:176-177 - the start-of-day board was not read on a Spectator's browser; a mask standing at the verdict's cut-in is not read.",
+  "docs/dev/e112v/STATUS.md:17-25 - V2, V3, V9 and V10 are answered headless or on stand-ins only; the real token class and canvas are LIVE-E112V-01 and -02.",
+  "docs/dev/owner-115/STATUS.md:91-102 - the map token at the opening on a v14 canvas, Daggerheart's own chat header and Dice So Nice's colours on the victim's screen: need a local Foundry.",
+  "docs/dev/owner-115/STATUS.md:152-159 - a character over a Remnant and a project token on v14 with Isometric Perspective, and whether remnantRing.layer counts on every refresh: LIVE-OWN115-02.",
+  "docs/dev/owner-115/STATUS.md:227-235, 254-256 - the Event panel at a real table; no window was opened over a lengthened panel in a real Foundry; the z-index values 30 and 100 are the module's notes, not v14's source.",
+  "docs/dev/owner-115/STATUS.md:330-333 - the mask standing after the fight (a Steal, a Frisk, the pickers, a token with the dynamic ring): LIVE-OWN115-01.",
+  "docs/dev/owner-116/STATUS.md:41-42, 114 - Foundry's own stylesheet was loaded by neither sweep; the top layer and a transform on v14's real window: not measured.",
+  "docs/dev/owner-116/STATUS.md:171 - LIVE-E92-01 (one LiveKit connection in one room at a time) 'never measured'.",
+  "docs/dev/owner-116/STATUS.md:210-214 - LIVE-E116-01, -02 and -03: the harness has no ruler and no canvas, nothing of what is drawn is measured; the predicate's cost not measured at a table.",
+  "docs/dev/owner-116/STATUS.md:266-267 - not measured: the first draw's cost of a window holding every node open; a real table's machine.",
+  "docs/dev/facts-117/STATUS.md - holds no reading on a real Foundry (the handbook facts files against the handbooks).",
+  ".github/release-notes/v1.2.117.md:98-102 - of 565 rows of AUDIT 9.2 at the sandbox: 33 measured, 1 defect found and open, 113 not checkable there, 8 closed by their own text, 410 not yet driven or shot; line L1 ran no part of the local gate itself.",
+  ".github/release-notes/v1.2.117.md:234-248 - none of 1.2.117's own changes ran on a Foundry v14 server or at a real table; LIVE-E40-02 (no copy world yet), LIVE-E40-03, 18-trial's local layer, the scene picker, the restamp and the Debug log's count were checked nowhere real; the performance budgets (LIVE-E53-01, LIVE-E33-05, LIVE-E88-01) were not taken on the budget's 1366x768 laptop with the largest isometric map.",
+  ".github/release-notes/v1.2.118.md:13-14, 189-197 - nothing of 1.2.118 has run on a real Foundry or at a table; no local gate has passed (required: E118 declares sockets, rolls and scenes); LIVE-E112V-01 and -02, LIVE-E112-02, LIVE-F118-01 to -04 and LIVE-E39-02 to -19 are all open.",
+  ".github/release-notes/v1.2.118.md:108-109, 114, 118-119, 122-123 - not read on v14: a mouse drag through rooms in an Eclipse (LIVE-E39-11), where v14 compares a put-back with the document (LIVE-E39-12), a GM's write equal to a player's pending write (LIVE-E39-16), a console passage with no floor named (LIVE-E39-14).",
+  "audit/AUDIT-1.2.42.md:1595-1612 - items 640-657 (LIVE-E39-02 to -19) each end 'Headless: nieodczytane': they are the harness's assumptions about 14.370 that were accepted without a reading, not readings.",
+  "audit/AUDIT-1.2.42.md:1222 - LIVE-E90-01 (item 348), the check after the server-clock fix on the owner's table: its text holds a recipe and no reading.",
+  "audit/AUDIT-1.2.42.md:1230 - LIVE-E51-02: the ruler's colour changing when the time of day changes 'was not yet read'.",
+  "audit/AUDIT-1.2.42.md:1259 - LIVE-E44-08: points (2)-(4) and the other windows of point (1) are unread; the character sheet's fold is to be checked again.",
+  "audit/AUDIT-1.2.42.md:1306 - LIVE-E23-08: 'the rest, the ancestor chain and the core's position, to be confirmed'.",
+  "audit/AUDIT-1.2.42.md:1256 - LIVE-E44-06 (item 382): the owner said on 04.11.2026 he would verify on 1.2.99 and report; no reading follows in the item.",
+  "audit/AUDIT-1.2.42.md:1125, 1300 - items 251 (LIVE-E79-14) and 406 (LIVE-E23-05) name an owner's screenshot or report of 14.10.2026 without saying what it showed; not counted as readings here.",
+  ".github/release-notes/v1.2.115.md:176 - says Daggerheart 'verified' stays 2.12.8, 'the newest version run at a table'; no paper read here records a load check, a relayGuard state or a tier-2 result on 2.12.8 at a table (what LIVE-E76-01 asks before 'verified' is raised): not established."
+ ]
+}

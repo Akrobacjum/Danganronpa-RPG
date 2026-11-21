@@ -1,0 +1,773 @@
+{
+ "reader": "stages-02",
+ "checkout": "main b5a29e73 = 1.2.118, read on the audit's branch claude/audit-119 (which adds audit papers and two harness probes only); nothing run, nothing changed but this file",
+ "read_counts": {
+  "stages": 4,
+  "release_notes_lines_read": "v1.2.61.md 1-60, v1.2.62.md 1-54, v1.2.63.md 1-98, v1.2.64.md 1-163, each whole (375 lines)",
+  "papers_read_whole": {},
+  "papers_not_found": [
+   "docs/dev/e30",
+   "docs/dev/e31",
+   "docs/dev/e04",
+   "docs/dev/e05 (no folder for any of the four stages; ls docs/dev)"
+  ],
+  "other_papers_read": [
+   "audit/AUDIT-1.2.42.md 16-127 (section 11) and 9.2 lines 845-894 (items 25-66)",
+   "audit/findings-1.2.118/BRIEF.md, README.md, first-session/README.md, stages-25.json (shape), first-session/stages-20.json (shape)",
+   "audit/findings-1.2.118/live-items-01.json items 25-48, live-items-02.json items 49-66",
+   "docs/dev/e39/CALIBRATION.md 18-22",
+   "audit/harness/skip-baseline.json (whole), audit/gate/local-gate.json (parts and counts)",
+   ".claude/rules/code.md, trust-model.md, tests.md, release.md (loaded with the files)"
+  ],
+  "source_read_in_part": [
+   "scripts/tests.mjs 126-240, 656",
+   "scripts/tests-kit.mjs 181, 195-207, 475-511",
+   "scripts/relay-guard.mjs 385-420, 1157-1215",
+   "scripts/remnants.mjs 2600-2900",
+   "scripts/utils.mjs 990-1005",
+   "scripts/bridge-guards.mjs 154-184, 560-610, 2100-2160",
+   "scripts/live.mjs 798-823",
+   "scripts/bridge-table.mjs 900-915",
+   "scripts/analyze.mjs 20-60",
+   "scripts/action-analyze.mjs 220-260",
+   "scripts/season-wipe.mjs 215-232",
+   "scripts/migrate.mjs 1549-1564, 1670-1720",
+   "scripts/case-copy.mjs 1-40",
+   "scripts/gm-store.mjs 1738-1748",
+   "scripts/frisk.mjs 1024-1030",
+   "scripts/action-pipeline.mjs 340-360",
+   "scripts/despair.mjs 15-35",
+   "scripts/world-secrets.mjs 67-73",
+   "scripts/settings.mjs 3800-3826",
+   "scripts/voice.mjs 955-965",
+   ".github/workflows/ci.yml 44-69 (grep), release.yml 125 (grep)",
+   "grep hits only: config.mjs 458, 473-503; bridge-runs-acts.mjs 872; eclipse.mjs 1175-1279; incident-store.mjs 1685, 1708; death.mjs 521; gm-stores.mjs 864, 1653; remnant-icons.mjs 112; diagnostics.mjs 1373-1375"
+  ],
+  "registry_rows": {
+   "E30": 10,
+   "E31": 8,
+   "E04": 21,
+   "E05": 11
+  },
+  "test_bodies_read": "R152 whole; R165, R166, R167, R199 in part; headers of R153, R154, R170, R173, R177, R187, R189, R190, R193, R196, R198 and tier 2's 'a found trace's token keeps the neutral name'; 33 of the 50 rows not read past their name",
+  "base_run_lookups": "no per-test results file exists: base-run.json is not written yet, and the second session's base run reached only lint, check and the gate's self-test. The 50 rows are read against the first session's tiers 0-1 totals (0 failed; none of the 50 in skip-baseline.json)",
+  "live_items": 42,
+  "live_readings_found": "21 read or partly read (E30 8, E31 3, E04 5, E05 5), all through live-items-01/-02's digests of CALIBRATION.md and LOCAL-REPORT.md, plus LIVE-E04-01's reading at the owner's table recorded in the item's text"
+ },
+ "count_note": "Four stages, as the scope names (E30, E31, E04, E05; tools/stages.json rows 9-12). The stages have no papers in docs/dev and none of their commits is in this shallow checkout, so 'what was promised' rests on the release notes, the registry rows' names and the comments that name each stage's parts (C1-C15 in E05's case); none is 'not graded', since each has its notes and stamped tests.",
+ "stages": [
+  {
+   "id": "E30",
+   "version": "1.2.61",
+   "shipped": "2026-09-25",
+   "what": "Tests that say what they measured: the suite split by tiers (tier 1 by default, tier 2 behind a window naming the world, Cancel first and default), the test author contract held by the runner (a test with no assertion fails as \"measured nothing\", expectedRed with a stage, R154-R158), the fourth number of the result line, an Assistant GM's relay packet judged like a player's, migrateRemnants made to remove what it says it removed (read back first, a Faint Prep promotion carried), `npm test` running lint, checks, the gate's self-test, the suite and the scenarios, CI on GitHub, and the harness made more like v14 (operators, the Assistant role, pre-update steps, stylesheets). 10 registry rows stamped E30 (R151-R160).",
+   "claim_sources": [
+    ".github/release-notes/v1.2.61.md (1-60, whole)",
+    "tools/stages.json row E30 (planned and shipped 1.2.61, 25.09.2026; touches null; drills [\"migrate-remnants-old-world\"])",
+    "docs/dev/e30/: does not exist (ls docs/dev: no e30, e31, e04 or e05 folder); no STATUS, ledger or plan of this stage is in the tree",
+    "docs/dev/R-REGISTRY.md rows R151-R160 (10, all \"Since E30\")",
+    "audit/AUDIT-1.2.42.md 9.2 items 25-34 (lines 845-856, the block \"Po E30 (1.2.61)\")",
+    "audit/findings-1.2.118/live-items-01.json items 25-34 (the readings digested from docs/dev/e39/CALIBRATION.md and docs/dev/e58/LOCAL-REPORT.md)",
+    "audit/harness/README.md register (rows 02-07 probes, 17-assistant, 72-canary, 90 retired name E30; line 131: 14-quiet and 60-ledger local-gate since E30)",
+    "git log: the checkout is shallow (git rev-parse --is-shallow-repository: true; oldest commit 30587912 of 14.10.2026, 1.2.77); none of the stage's own commits (Sept. 2026) is in it, and there are no v1.2.x tags. The 12 commits a grep for E30 finds are later ones naming it (e.g. 6bb98cd8 of 16.11.2026, CLAUDE.md on the -= key)"
+   ],
+   "commits": 0,
+   "commits_note": "0 of the stage's own commits are in this shallow checkout; 12 later commits name E30 (git log -E --grep '\\bE30\\b').",
+   "promises": [
+    {
+     "promise": "`game.drpg.runTests()` runs tier 1 unless asked for more; `runTests({ tier: 2 })` opens a window naming the world and waits, Cancel first and the default; an open incident refuses tier 2 without a window",
+     "source": "v1.2.61.md 12-14",
+     "code": "scripts/tests.mjs:126 runTests (tier default 1, :155 the clamp), :158-163 confirmTier2 before the run, :180-206 confirmTier2 (DialogV2.wait, the world's title and id in the text, Cancel first with default: true, rejectClose false)",
+     "holds": "yes",
+     "test": "R154 (the runner's contract); the window itself: LIVE-E30-10, read on 14.370 (CALIBRATION.md:35, LOCAL-REPORT.md:512)",
+     "test_kind": "both",
+     "note": "The window's look and Enter cancelling were read on Foundry 14.370 on the owner's sandbox by a script (live-items-01 item 34, as expected)."
+    },
+    {
+     "promise": "The result line gains a fourth number while some tests stay red until a later stage: \"N passed, N failed, N skipped, K red until a later stage\"",
+     "source": "v1.2.61.md 14-16",
+     "code": "scripts/tests.mjs:656 (`, ${red} red until a later stage` only when red is not 0); scripts/tests-kit.mjs:195 expectedRed, :475-479 the verdicts (\"measured nothing\", \"unexpectedly passed\")",
+     "holds": "yes",
+     "test": "R154, R155",
+     "test_kind": "both",
+     "note": ""
+    },
+    {
+     "promise": "An Assistant GM is checked like a player when Daggerheart asks the GM's browser to make a change for them",
+     "source": "v1.2.61.md 17-18",
+     "code": "scripts/relay-guard.mjs:392-399 forwardsUnjudged (only role === GAMEMASTER goes unjudged)",
+     "holds": "yes",
+     "test": "R153; scenario 17-assistant (sections B, C)",
+     "test_kind": "both",
+     "note": "R153 drives forwardsUnjudged and judgeRelay on made-up users. 17-assistant was green in the first session's base run. LIVE-E30-06 read as expected on 14.370 (LOCAL-REPORT.md:457: B1, C2, C3 replayed by hand; the scenario itself not run through the sandbox adapter)."
+    },
+    {
+     "promise": "`game.drpg.migrateRemnants()` removes what it says it removed: it moves the token's answer key into the GMs' record of traces, reads the record back, and only then removes it from the token; a Faint Prep promotion made at a body discovery is kept; the summary lists every promotion carried and every trace left as it was or not finished",
+     "source": "v1.2.61.md 19-25",
+     "code": "scripts/remnants.mjs:2668-2747 migrateRemnants (waits for whenHydrated, the counts, carried / notCarried / leftAlone / failed listed, the toast); :2843-2900 migrateRemnantToken's header (the strip read back, a live row only filled in, the promotion carried one way and only over a value from before the upgrade); :2773 migrateRemnantsOnce, the 1.2.64 clause that runs the same routine at load (E05 C14)",
+     "holds": "yes",
+     "test": "tier 2 near tests-tier2.mjs:52117 (the ledger move and the strip read back; its result not read: tier 2 has no verdict in this audit's runs); R152 (no -= spelling anywhere); scenario 72-canary (traces still carrying flags)",
+     "test_kind": "both",
+     "note": "Since E04 the promotion is carried only over a value stamped under the world's upgrade mark, and since E05 C14 the same routine runs once at load on the primary, so the console call is now the GM's tool for what the clause leaves. The run on a copy of an old world is LIVE-E30-07 and the stage's drill `migrate-remnants-old-world`: neither has been run (CALIBRATION.md:32, LOCAL-REPORT.md:449: no fixture world, DRPG_FIXTURES unset on purpose)."
+    },
+    {
+     "promise": "`npm test` in audit/harness runs lint, the repository checks, the gate's self-test, the headless suite and every scenario in one go; GitHub runs the same on each push and pull request; the release workflow refuses a version whose checks are red",
+     "source": "v1.2.61.md 26-30",
+     "code": "audit/harness/package.json:7 (\"test\": \"node run-all.mjs\"); .github/workflows/ci.yml:60-69 (push to main and claude/**, workflow_dispatch, workflow_call), :46-47 (no pull_request trigger, on purpose); .github/workflows/release.yml:125 (uses ./.github/workflows/ci.yml)",
+     "holds": "partly",
+     "test": "the gate's self-test (37/37 in the second session's base run, audit/findings-1.2.118/README.md, 'Update, 19:40Z')",
+     "test_kind": "behaviour",
+     "note": "Holds but for \"and pull request\": ci.yml has no pull_request trigger since INFRA I3, by decision (a PR from a line branch would run every job twice; the push run's verdict is the required check). A later stage's change, not a defect."
+    },
+    {
+     "promise": "Every test has to show that it measured something; the contract's rules read off the tier files (an expectedRed names an unshipped stage, no bare indexOf cut, nothing true by construction, needs() only of a probe); the world dump reads every type a module write names; every way a player reaches the GM belongs to a flow",
+     "source": "v1.2.61.md 3-6, 37; registry R154-R160",
+     "code": "scripts/tests-kit.mjs:475-479 (runOne's verdicts), :510-511 (the planted cases \"an empty test\", \"a loop over nothing\"); scripts/tests-tier0.mjs:5989 R154 onwards",
+     "holds": "yes",
+     "test": "R154, R155, R156, R157, R158, R159, R160; tools/check.mjs part contract (green in the second session's base run: 3374 tests, 0 problems)",
+     "test_kind": "both",
+     "note": "The `check contract` line is in the scratch log of the second session's base run (npmtest.log:18), not in a results file under audit/."
+    },
+    {
+     "promise": "No update in the module deletes or replaces a key with the old '-=' / '==' spelling (which, the stage said, this Foundry ignores)",
+     "source": "v1.2.61.md 19-21; R152",
+     "code": "scripts/tests-tier0.mjs:5948-5987 R152 (every string and template literal, joined literals too, a planted sample found first); scripts/utils.mjs:989-1000 forcedDeletion",
+     "holds": "yes",
+     "test": "R152",
+     "test_kind": "static",
+     "note": "The rule holds. Its reason does not: on Foundry 14.370 a -= key deleted and == replaced, each with v14's deprecation warning (LIVE-E30-01, docs/dev/e39/CALIBRATION.md:20, 16.11.2026). CLAUDE.md was corrected (6bb98cd8); R152's own name and message and five comments still say the spelling removes nothing - finding E30-1."
+    }
+   ],
+   "registry_rows": 10,
+   "tests_read": [
+    {
+     "test": "R152 (tests-tier0.mjs:5948-5987)",
+     "measures": "yes",
+     "why": "Builds the spelling at run time, proves the scan finds three planted writes and lets a membership read through, then scans every module source; a scan that found nothing could not pass on an empty list. It measures the rule, not v14's behaviour; its name says v14 ignores the spelling, which 14.370 does not (E30-1)."
+    },
+    {
+     "test": "R153 (tests-tier1.mjs:5498)",
+     "measures": "weak",
+     "why": "Pure calls of forwardsUnjudged and judgeRelay on made-up users and a made-up world: pins the rule; the relay with an Assistant at a table is 17-assistant's and LIVE-E30-06's."
+    },
+    {
+     "test": "R154 (tests-tier0.mjs:5989, body read in part)",
+     "measures": "yes",
+     "why": "Runs the runner's judgement on small tests that break each rule on purpose and on controls, and holds each to its verdict (tests-kit.mjs:510-511 are two of the planted cases): it would fail if runOne passed a test that measured nothing."
+    },
+    {
+     "test": "scenario 17-assistant",
+     "measures": "yes",
+     "why": "Drives an Assistant GM's relay packets through the harness's copy of Daggerheart's relay; green in the first session's base run (first-session/README.md)."
+    }
+   ],
+   "tests_to_join": [
+    "R151",
+    "R152",
+    "R153",
+    "R154",
+    "R155",
+    "R156",
+    "R157",
+    "R158",
+    "R159",
+    "R160",
+    "tier 2: the migrateRemnants ledger move (tests-tier2.mjs near 52117)",
+    "scenario 17-assistant",
+    "scenario 14-quiet",
+    "scenario 60-ledger",
+    "scenario 72-canary"
+   ],
+   "scenarios": [
+    "17-assistant (register row, audit/harness/README.md:180: an Assistant GM is a GM, and its relay packets are judged like a player's) - green in the first session's base run",
+    "72-canary (README.md:208, E30: the canary's self-test and planted secrets; later E05 and E06 phases) - no verdict in this audit's runs",
+    "14-quiet and 60-ledger carry local-gate since E30 (README.md:131); 14 green in the first session's base run, 60 no verdict; the local gate's parts not run (audit/gate/local-gate.json of 19.11.2026: 8 parts, all not-run, no-server)",
+    "probes 02-07 registered with E30 (README.md:164-169), tools, not scenarios"
+   ],
+   "live": {
+    "items": 10,
+    "read": 8,
+    "partly": 0,
+    "open": 2,
+    "ids_read": [
+     "LIVE-E30-01",
+     "LIVE-E30-02",
+     "LIVE-E30-03",
+     "LIVE-E30-04",
+     "LIVE-E30-05",
+     "LIVE-E30-06",
+     "LIVE-E30-09",
+     "LIVE-E30-10"
+    ],
+    "note": "All eight read on Foundry 14.370 on the owner's sandbox, 16.11.2026, by a script with no person at the pages (CALIBRATION.md:20-35, LOCAL-REPORT.md:457, 504-512). Four as expected (04, 06, 09, 10); four mixed against the harness's model (01, 02, 03, 05), each a shim difference since fixed, no module defect. Open: LIVE-E30-07 (migrateRemnants on a copy of an old world - the stage's one GM-facing data promise and its drill) and LIVE-E30-08 (the table's installed versions; versions.json still holds 6.2.9, 14.0.2, 0.6.8)."
+   },
+   "findings": [
+    {
+     "id": "E30-1",
+     "severity": "nit",
+     "category": "text",
+     "title": "R152's name and message and five comments still say a '-=' key removes nothing on v14, which the 14.370 reading contradicts",
+     "where": "scripts/tests-tier0.mjs:5948 (R152's name: \"... which v14 ignores\"), :5986 (its failure message, the same); scripts/utils.mjs:997; scripts/remnants.mjs:2850; scripts/sheet-audit.mjs:585; scripts/tests-tier2.mjs:362, :52117",
+     "what_happens": "The rule (use forcedDeletion() or unsetFlag) stands and the code is right either way; the reason the test and the comments give for it is the one LIVE-E30-01 refuted: on 14.370 the old spelling deletes, with v14's deprecation warning. CLAUDE.md and the harness README (:583-593) were corrected; these were not.",
+     "evidence": "tests-tier0.mjs:5948: [\"R152 - no update deletes or replaces a key with the old '-=' / '==' spelling, which v14 ignores\", ...]; utils.mjs:997: \" * `-=key` removes nothing in this Foundry (the measured notes in actions.mjs,\"; CALIBRATION.md:20 (LIVE-E30-01): \"deleted on both; no `-=` key stored; `==` replaced the object whole ... each wrote v14's deprecation warning\"",
+     "failure_scenario": "A contributor reading R152's failure or utils.mjs's comment takes -= for a no-op on v14 and, when a third-party module or Daggerheart writes one, looks for a bug in the wrong place: 14.370 deletes the key.",
+     "evidence_class": "F",
+     "confidence": "read",
+     "refutation_tried": "Looked for a later correction of these lines (git grep 'remov(e|es) nothing|v14 ignores' over scripts/: 7 hits on -=, 6 more on deletions under ownership, which E58 L1 measured as removing nothing and are right). 6bb98cd8 changed CLAUDE.md alone (git show --stat). A reading on 14.369 or earlier could differ, but the module's minimum is 14.364 and the comment says 'this Foundry' without a version; the only recorded reading is 14.370's."
+    }
+   ],
+   "superseded_by": [
+    "INFRA I3 (ci.yml:46-47): no pull_request trigger - the push run's verdict is the required check",
+    "E04 (1.2.63): migrateRemnants waits for the GMs' copies and carries a promotion only over a value from before the upgrade mark",
+    "E05 C14 (1.2.64): migrateRemnantsOnce runs the same per-token routine once at load on the primary"
+   ],
+   "grade": 8,
+   "grade_reasons": "Every promise of 1.2.61 is in today's code (tests.mjs, tests-kit.mjs, relay-guard.mjs, remnants.mjs, ci.yml, release.yml), and the ten rows R151-R160 passed in the first session's tiers 0-1 run (totals read, 0 failed, none in the skip baseline); 17-assistant was green there; eight of ten live checks read on 14.370, none showing a module defect. Against a 9: the migration promise - the one change a GM's data depends on - is held by a tier-2 test whose result this audit has not read and by reading the code, and its live check (LIVE-E30-07) and the stage's drill have never run; \"and pull request\" no longer holds by a later decision; one nit (E30-1). Not capped by 11.4's first rule only because the stage's main goal is the test contract, which the base run's tiers 0-1 and `check contract` measure.",
+   "missing_to_10": "LIVE-E30-07 and the drill migrate-remnants-old-world run on a copy of a pre-ledger world; tier 2's migration test joined from a base run; LIVE-E30-08 read on the table's installation; R152's name and message and the five comments brought in line with the 14.370 reading (E30-1)."
+  },
+  {
+   "id": "E31",
+   "version": "1.2.62",
+   "shipped": "2026-09-26",
+   "what": "Every request to the GM one way: one table of who may ask for what (the bridge's declarations), one closed list of reasons a request was refused (REASONS), one function that waits for the answer (createWaiter / bridgeRequest); the player told what was not carried out and why in their own language, one message for no GM or no answer, no success line before the GM has done the work, a Search in another room refused with its reason, Daggerheart's relay refusals told to the player, and windows handed off without their closing animation. 8 registry rows stamped E31 (R161-R168); new scenario 33-bridge-paths.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.62.md (1-54, whole)",
+    "tools/stages.json row E31 (planned and shipped 1.2.62, 26.09.2026; touches sockets; drills none)",
+    "docs/dev/e31/: does not exist; no STATUS, ledger or plan in the tree",
+    "docs/dev/R-REGISTRY.md rows R161-R168 (8)",
+    "audit/AUDIT-1.2.42.md 9.2 items 35-40 (lines 860-865)",
+    "audit/findings-1.2.118/live-items-01.json items 35-40",
+    ".claude/rules/trust-model.md 'How to add a bridge action' (the recipe since E31) and 'The trust model' (E31's told refusals)",
+    "git log: shallow checkout from 14.10.2026; no commit in it names E31 (git log -E --grep '\\bE31\\b': 0)"
+   ],
+   "commits": 0,
+   "commits_note": "0 of the stage's commits are in this shallow checkout; no later commit names E31 either.",
+   "promises": [
+    {
+     "promise": "When the GM's client refuses a player's request, the player sees what was not carried out and why, in their own language (English or Polish)",
+     "source": "v1.2.62.md 71-73",
+     "code": "scripts/bridge-guards.mjs:154-170 REASONS (a closed list), :177 REASON_PATTERNS, :581-595 sayNotDone (composed on the player's client: DRPG.Bridge.notDone with the request's label and DRPG.Bridge.why.<code>; a code off the list is shown as `refused`)",
+     "holds": "yes",
+     "test": "R164 (every refusal maps to one code); R165 (one message says what and why); scenario 33-bridge-paths",
+     "test_kind": "both",
+     "note": "LIVE-E31-06 read on 14.370 (LOCAL-REPORT.md:460): a Polish player's refusal in Polish under an English GM. Since E81 C4 the sentence is also kept in the notice history."
+    },
+    {
+     "promise": "A request that fails on the GM's side is reported once to the asker; with no GM connected, or no answer in time, every request gives the same single message, with \"Nothing was spent.\" when nothing was",
+     "source": "v1.2.62.md 74-78",
+     "code": "scripts/bridge-guards.mjs:2116-2124 the module's one waiter (createWaiter, notify -> sayNotDone), :2144-2146 bridgeRequest; lang/en.json DRPG.Bridge.why.noGm \"No GM is connected.\", .noAnswer \"The GM did not answer in time.\", .failed; :4912 DRPG.Bridge.nothingSpent",
+     "holds": "yes",
+     "test": "R162 (the runner answers once and tells an exception as failed); R165 (fakes: no GM refused at once, ack, reply, noAnswer, late, failed; one message each, no promise rejects)",
+     "test_kind": "behaviour",
+     "note": "The words changed since: DRPG.Bridge.nothingSpent is now \"You keep your action and your Hope.\" (en.json:4912; pl.json:5259 \"Nie tracisz akcji ani Hope.\"); sayNotDone's comment still quotes the old sentence (finding E31-1). LIVE-E31-03 read in part (LOCAL-REPORT.md:458: an acknowledged ask, the GM's page closed, one notice; the 8 s branch not read)."
+    },
+    {
+     "promise": "Actions no longer report success before the GM has carried them out (a loot, a Level Up offer, sharing a project, an Eclipse move, Palm's or Steal's \"sent\" line, a Reroll's lines); a discarded item leaves the sheet only once its trace is placed; a request the GM's side quietly could not carry out is refused",
+     "source": "v1.2.62.md 79-82, 104-108",
+     "code": "scripts/bridge-table.mjs:902-912 ACTION_LOOT answer \"reply\" (the asker counts it done only on the run's reply); trust-model.md 'How to add a bridge action' step 3 (\"nothing was carried out: ...\" for a resolver that answers null); scripts/action-analyze.mjs:239-242",
+     "holds": "partly",
+     "test": "R162, R163; scenario 33-bridge-paths (every legal road, before and after)",
+     "test_kind": "both",
+     "note": "Read for the loot row only, not row by row for the rest. Two parts changed by later stages: the Reroll is the GM's own transaction since E08+E28 (1.2.67), so its lines are written on the GM; and Analyze's \"sent\" line, which E31's review made wait for the score, is posted first since 1.2.115 and says only that the result comes on its own card (action-analyze.mjs:239-242). LIVE-E31-01 (a real Reroll through the table) is open."
+    },
+    {
+     "promise": "A Search in a room the character is not in is refused once, with the reason; the search card then says only that the search was not counted",
+     "source": "v1.2.62.md 83-84",
+     "code": "the guard writes the place it judged and the run reads it back (guardSearchRoom / searchSceneOf, keyed by ctx), as R166's header gives it",
+     "holds": "yes",
+     "test": "R166 (tests-tier1.mjs:6226: the real guardSearchRoom, runSpend and runTakePlant since E31's review)",
+     "test_kind": "behaviour",
+     "note": "The harness has one scene, so no scenario can show a spend landing on the wrong one; R166 is where it is held (its own header)."
+    },
+    {
+     "promise": "When a Daggerheart feature asks for a change this game leaves to the GM, the player is told so",
+     "source": "v1.2.62.md 85-86",
+     "code": "scripts/relay-guard.mjs:1157-1189 reportRefusal (ends with tellRefused(sender.id, \"daggerheart\", null, \"relay\")); lang/en.json DRPG.Bridge.why.relay \"Only the GM can make that change.\"",
+     "holds": "yes",
+     "test": "scenario 33-bridge-paths and 30-security (no verdict in this audit's runs)",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "Windows the GM panel or the Season setup closes to reopen no longer wait for their closing animation",
+     "source": "v1.2.62.md 87-88",
+     "code": "scripts/live.mjs:798-811 handOff (close({ animate: false }), the work runs once the close resolves, a close that throws or refuses still runs the work)",
+     "holds": "yes",
+     "test": "R167 (tests-tier1.mjs:6305-6332, spy windows)",
+     "test_kind": "behaviour",
+     "note": "LIVE-E31-05 read on 14.370 on a DialogV2 (LOCAL-REPORT.md:459: the work ran 14-19 ms after the hand-off). Season setup's pinned tiles no longer hand off at all since E101 (live-items-01 item 39)."
+    },
+    {
+     "promise": "One table says who may ask for what, read by one runner that judges before it answers and hands the run only the whitelisted fields; who asks and whether a GM is there is answered in one leaf",
+     "source": "v1.2.62.md 63-66; registry R161-R163",
+     "code": "scripts/bridge-guards.mjs `judge` and the guards; scripts/bridge-table.mjs BRIDGE_ACTIONS (since E41 C5b; at 1.2.62 in gm-bridge.mjs)",
+     "holds": "yes",
+     "test": "R161 (one leaf, no import cycle), R162, R163 (a run reads exactly its whitelist); R1b",
+     "test_kind": "both",
+     "note": "The table moved files in E41 (1.2.97) by a pure move; the rule stands as written in trust-model.md."
+    }
+   ],
+   "registry_rows": 8,
+   "tests_read": [
+    {
+     "test": "R165 (tests-tier1.mjs:6041)",
+     "measures": "yes",
+     "why": "Drives createWaiter with a recording emit, a clock of tens of milliseconds and a recording message: no GM, ack, reply, refusal, noAnswer, patient resend, late, an emit that throws, a GM's own client and the primary; each failure one message and no rejected promise. Would fail if two messages were shown or a promise rejected."
+    },
+    {
+     "test": "R166 (tests-tier1.mjs:6226)",
+     "measures": "yes",
+     "why": "Since E31's review it runs the real guardSearchRoom, runSpend and runTakePlant (its header), so a record keyed by the packet instead of ctx would be found missing."
+    },
+    {
+     "test": "R167 (tests-tier1.mjs:6305-6332)",
+     "measures": "yes",
+     "why": "Spy windows record the close's options and the order: fails if the close is asked with its transition or the work runs before the close resolves, or a close that throws loses the work. The second the transition took is not measurable here (its own header; LIVE-E31-05)."
+    },
+    {
+     "test": "R164 (tests-tier0.mjs:6585, name and place only)",
+     "measures": "unread",
+     "why": "Body not read; by its name a source read that every refusal maps to one code."
+    }
+   ],
+   "tests_to_join": [
+    "R161",
+    "R162",
+    "R163",
+    "R164",
+    "R165",
+    "R166",
+    "R167",
+    "R168",
+    "scenario 33-bridge-paths",
+    "scenario 30-security"
+   ],
+   "scenarios": [
+    "33-bridge-paths (register row README.md:188, E31: every legal road through the GM bridge, and what a player is told when a request is not carried out) - no verdict in this audit's runs",
+    "30-security (gained two checks in 1.2.62) - no verdict in this audit's runs (the first session's run stopped inside it)"
+   ],
+   "live": {
+    "items": 6,
+    "read": 2,
+    "partly": 1,
+    "open": 3,
+    "ids_read": [
+     "LIVE-E31-05",
+     "LIVE-E31-06"
+    ],
+    "note": "Read on 14.370 on the owner's sandbox by a script, 16.11.2026: -05 (handOff's timing on a DialogV2, not on the two windows the item names) and -06 (a Polish player's refusal), both as expected. -03 partly (LOCAL-REPORT.md:458: a statistic ruling, not a sabotage; the 8 s branch not read). Open: -01 (a real Reroll through the table), -02 (a real server's timing; not checkable at the sandbox), -04 (a plant answered late)."
+   },
+   "findings": [
+    {
+     "id": "E31-1",
+     "severity": "nit",
+     "category": "text",
+     "title": "sayNotDone's comment quotes \"Nothing was spent.\", a sentence the language files no longer hold",
+     "where": "scripts/bridge-guards.mjs:567; lang/en.json:4912; lang/pl.json:5259",
+     "what_happens": "The doc block says the message adds \"Nothing was spent.\" where the asker says so; the key it adds now reads \"You keep your action and your Hope.\" (Polish \"Nie tracisz akcji ani Hope.\"). The code is right; the comment names text that is gone.",
+     "evidence": "bridge-guards.mjs:566-567: \" * player's language - `DRPG.Bridge.notDone` with the request's label and the\\n * sentence of its reason, and \\\"Nothing was spent.\\\" where the asker says so.\"; en.json:4912: \"nothingSpent\": \"You keep your action and your Hope.\"",
+     "failure_scenario": "A contributor searching the code for the player's words \"You keep your action and your Hope\" to find where they are said finds the key but not this comment, and one searching for the release notes' \"Nothing was spent.\" finds a comment and no text.",
+     "evidence_class": "S",
+     "confidence": "read",
+     "refutation_tried": "Looked for another key holding \"Nothing was spent.\" (grep over lang/en.json: none) and for a second composer of the line (sayNotDone is the one, nothingSpent read at :587). Cosmetic: a comment, not what a player sees."
+    }
+   ],
+   "superseded_by": [
+    "E08+E28 (1.2.67): the Reroll is the GM's own transaction, so a Reroll's lines are the GM's",
+    "1.2.115 (action-analyze.mjs:239-242): Analyze's \"sent\" line is posted first, saying only that the result comes on its own card",
+    "E41 C5b (1.2.97): the bridge's table moved from gm-bridge.mjs to bridge-table.mjs by a pure move",
+    "E101: Season setup's pinned tiles no longer hand off",
+    "text sweep (date not traced): DRPG.Bridge.nothingSpent reworded"
+   ],
+   "grade": 8,
+   "grade_reasons": "The one table, one list of reasons and one waiter are today's code and the recipe the rules file teaches (trust-model.md); every promise traced holds or was changed on purpose by a later stage; R161-R168 passed in the first session's tiers 0-1 run (totals read); two live checks read as expected and one in part on 14.370. Against a 9: the stage's own measuring scenario, 33-bridge-paths, and 30-security have no verdict in this audit's runs, so the 'no success line before the GM' promise is read in the code for one row (the loot) and rests on the notes for the rest; three of six live checks are open, among them a real Reroll and a real server's timing. One nit (E31-1).",
+   "missing_to_10": "33-bridge-paths and 30-security joined from a base run; the 'reported only once done' promise read row by row against BRIDGE_ACTIONS' `answer`; LIVE-E31-01, -02 and -04 read, and -03's sabotage and 8 s branch; E31-1's comment brought in line with the text."
+  },
+  {
+   "id": "E04",
+   "version": "1.2.63",
+   "shipped": "2026-09-26",
+   "what": "What only the GMs may know - the case - kept by the GMs: a store per world in each GM's browser (gm-store.mjs, the table of stores in gm-stores.mjs), exchanged field by field with a stamp per field and tombstones, the newer decision winning; a player's browser holding only its part; Back up and Restore of the case; a health check; the season reset the primary GM's; the Analyze and handover refused and paid back when the key is missing or the stores do not open within 16 s; a world migrated on the first load, read back before anything leaves world data. 21 registry rows stamped E04 (R169-R189); new scenario 61-gmstore-case.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.63.md (1-98, whole)",
+    "tools/stages.json row E04 (planned and shipped 1.2.63, 26.09.2026; touches sockets, rolls; drills none)",
+    "docs/dev/e04/: does not exist; no STATUS, ledger or plan in the tree",
+    "docs/dev/R-REGISTRY.md rows R169-R189 (21)",
+    "audit/AUDIT-1.2.42.md 9.2 items 41-52 (lines 869-880)",
+    "audit/findings-1.2.118/live-items-01.json items 41-48 and live-items-02.json items 49-52",
+    ".claude/rules/code.md 'What only the GMs may know lives in the GM store, and nowhere else (E04, 1.2.63)'",
+    "docs/handbooks/gm-handbook.en.md:2010 ('Updating from a build before 1.2.63', the notes' optional console line)",
+    "git log: shallow checkout from 14.10.2026; 2 later commits name E04 (71b726a6 E90 of 31.10.2026, f3df1f56 E18 of 26.10.2026)"
+   ],
+   "commits": 0,
+   "commits_note": "0 of the stage's commits are in this shallow checkout; 2 later commits name it.",
+   "promises": [
+    {
+     "promise": "What only the GMs may know lives in the GMs' browsers, one copy per world; when a GM joins the browsers exchange copies field by field and the newer decision wins, a removal included, so a GM joining empty loses nothing and takes nothing away",
+     "source": "v1.2.63.md 22-30",
+     "code": "scripts/gm-store.mjs (the engine: openGmStoreEngine :1738, the hello on connect :1745, PART_BYTES :124); scripts/gm-stores.mjs (66 defineGmStore rows); scripts/config.mjs:502-503 epochClock (the stamps' clock since E90)",
+     "holds": "yes",
+     "test": "R169 (the merge keeps every field written last), R170 (three engines on a bus in three orders, with and without every packet twice: equal sections, the newer fields kept; the receive gate), R171 (nothing outside the engine reads or writes a store key), R172 (no answer-key writer derives a value from absence); scenario 61-gmstore-case",
+     "test_kind": "both",
+     "note": "On a real table the stamps were not what the stage assumed: game.time.serverTime was the server's uptime (LIVE-E04-01, read at the owner's hosted table 31.10.2026, Foundry 14.365, a defect), so two browsers' stamps were not ordered by the server; fixed by E90 (71b726a6, 1.2.93: serverTime only when it reads as an epoch time, else Date.now()). Since E111 (1.2.115) the case also has a copy on the server (case-copy.mjs:1-30), which fills a GM's empty browser without a second GM online. The exchange between two GMs at a real table (size, time, the largest part) is LIVE-E04-02, open."
+    },
+    {
+     "promise": "A player's browser holds only its part (Mastermind and lair when it is theirs, the cast of an incident they are in, their own Level Ups, the rooms their characters found), asked again when a GM's browser comes up and sent again after a restore",
+     "source": "v1.2.63.md 31-35",
+     "code": "scripts/gm-store.mjs (a player's copy stamped part by part); gm-stores.mjs rows' `from` and `afterRestore` (code.md's paragraph)",
+     "holds": "yes",
+     "test": "R176 (the newer of two stamped copies, every copy the GM sends stamped), R182 (every store a copy is made from sends again after a restore), R184 (no player told anything from a store while tier 2 holds them); scenario 61 (the players' copies), 72-canary",
+     "test_kind": "both",
+     "note": "Read through the tests' headers and code.md, not by walking every copy's road in the engine."
+    },
+    {
+     "promise": "Back up the case and Restore the case save the whole case to one file and merge it back; a restore takes only what is newer, shows what it would remove, never takes the file's season reset, and takes another world's file and its Mastermind or cast only when ticked",
+     "source": "v1.2.63.md 36-40",
+     "code": "scripts/gm-stores.mjs:2949 (readTextFromFile) and restoreCase / backupCase (case-copy.mjs reads each server copy through the same restoreCase)",
+     "holds": "yes",
+     "test": "R173 (an older file over a newer section keeps every newer value, no tombstoned or cut row back, twice is once; the preview says the same), R181 (no file's watermark, no other world's removal, no stamp beyond the clock); scenario 61",
+     "test_kind": "both",
+     "note": "Saving and reading the file in Chrome, Firefox and the desktop app is LIVE-E04-05, open (the harness keeps the file in memory)."
+    },
+    {
+     "promise": "When the primary GM's browser holds less than the world says it should, a health check names what is missing and offers Restore, Enter the cast by hand, or Move them into the ledger",
+     "source": "v1.2.63.md 41-45",
+     "code": "scripts/gm-stores.mjs gmStoreHealth (the case's rows, `tracesKept` since E05 fix r2-G4)",
+     "holds": "yes",
+     "test": "R174 (counts this world as it stands), R185 (the case marked from the bullets and traces alone; the window acts on what it showed)",
+     "test_kind": "behaviour",
+     "note": "LIVE-E04-08 (the brief's own check: a GM changes browser during an open murder) read in part on 14.370 (LOCAL-REPORT.md:461): no warning and no Restore were needed because E111's server copy filled the new browser; one field of the cast came back older (deniedToVictim [] against [\"roleReversal\"]); finishing the incident there was not driven."
+    },
+    {
+     "promise": "The season reset belongs to the primary GM; another GM is told who that is; the window names every GM not connected; a browser that was away drops what the reset cleared; a reset that clears advancement withdraws the Level Ups on offer",
+     "source": "v1.2.63.md 46-49",
+     "code": "scripts/season-wipe.mjs:223-227 (refused off the primary with DRPG.GmStore.resetPrimaryOnly and the primary's name), :229-231 (waits for the GMs' copies before the window opens)",
+     "holds": "yes",
+     "test": "R177 (tier 0: the window refuses all but the primary, the cut written before the first step, every store names a reset group), R180 (a browser that takes over its old store after a reset is cut by it)",
+     "test_kind": "both",
+     "note": "LIVE-E04-09 (the refusal on an Assistant and a second Gamemaster at a real table) is open: an accepted reset would wipe the sandbox's only world (LOCAL-REPORT.md:455, :463)."
+    },
+    {
+     "promise": "An Analyze or a handover of a Truth Bullet whose answer key is not on the GM's browser is refused and paid back, the GMs told once per bullet a session; neither waits without end: after 16 s it is refused and paid back, and a GM store that cannot open says so on screen",
+     "source": "v1.2.63.md 51-61",
+     "code": "scripts/analyze.mjs:30-42 (keyMissingTold, one whisper per bullet a session); scripts/action-analyze.mjs:171 KEY_REFUSALS, :225-236 (refundPrice for answerKeyMissing and keysNotOpen alone); scripts/config.mjs:458 gmStoreOpenMs: 16000; scripts/bridge-guards.mjs:353-355 (the two reasons); scripts/handover.mjs:267-279",
+     "holds": "yes",
+     "test": "R187 (both wait for the copies, then refuse - read from the source), R189 (answerKeysOpen with real timers: late at the bound, open, failed; a store whose open threw says so); scenario 61 part M",
+     "test_kind": "both",
+     "note": ""
+    },
+    {
+     "promise": "A world updated straight from v1.1.0 keeps its safeword; the regression suite waits for the world's load to finish writing",
+     "source": "v1.2.63.md 64-67",
+     "code": "scripts/migrate.mjs:1549-1564 worldWasInPlay (the stored clock, the module's actor flags, a table's category), the storage read one function below in worldAsFound",
+     "holds": "yes",
+     "test": "R179 (a world that was in play keeps its safeword), R188 (the suite's first read waits for the load's writes)",
+     "test_kind": "behaviour",
+     "note": "v14's world storage as worldWasInPlay reads it is LIVE-E04-10, open (needs a v1.1.0 world as a fixture)."
+    },
+    {
+     "promise": "The world is migrated on the first load, and nothing leaves the world's data before the new store has read it back; 1.2.63 reads the old browser store and never writes it",
+     "source": "v1.2.63.md 6-13",
+     "code": "scripts/migrate.mjs:1676-1703 (a clause that throws is listed, the stamp not written, a permanent notice); gm-store.mjs's claim of the frozen old keys (code.md: read by the engine's claim and never written); R178",
+     "holds": "yes",
+     "test": "R171 (no frozen legacy key written outside the engine), R178 (no migration runs from a ready hook)",
+     "test_kind": "both",
+     "note": "The update on a copy of a played world with a saved browser store is LIVE-E04-06, open; whether a pre-1.2.63 store of the owner's still exists to rehearse with was not established (live-items-01 item 46)."
+    }
+   ],
+   "registry_rows": 21,
+   "tests_read": [
+    {
+     "test": "R170 (tests-tier1.mjs:6477, header read)",
+     "measures": "yes",
+     "why": "Three engines on fake buses (first-in-first-out, last-in-first-out, a seeded shuffle, each with and without duplicates) and a clock moved by hand: two GMs writing at once and a late third with an older copy must end equal with the newer fields kept; a packet from a player or another world changes nothing. It measures the protocol, not the server's clock - the very thing LIVE-E04-01 found wrong at a real table."
+    },
+    {
+     "test": "R173 (tests-tier1.mjs:6623, header read)",
+     "measures": "yes",
+     "why": "Merges an older file over a newer section and reads that every newer value, tombstone and cut stands, that twice is once and that the preview says the same before any write."
+    },
+    {
+     "test": "R177 (tests-tier0.mjs:7217, header read)",
+     "measures": "weak",
+     "why": "Tier 0: source reads of the window's refusal and the cut's order, plus checks that every store names a reset group. Pins the shape; the reset on a second GM is scenario 61's."
+    },
+    {
+     "test": "R187 (tests-tier1.mjs:7308)",
+     "measures": "weak",
+     "why": "Reads the source: `await answerKeysRefusal()` comes before `secretOf(item.uuid)` in resolveAnalyze (indexOf order), and the same for the handover. Pins the order, drives no Analyze; R189 and 61 M drive the wait."
+    },
+    {
+     "test": "R189 (tests-tier1.mjs:7341, header read)",
+     "measures": "yes",
+     "why": "Drives the engine with a store whose open throws and answerKeysOpen with real timers of a fraction of a second: late at the bound, open inside it, failed at once or at the bound."
+    }
+   ],
+   "tests_to_join": [
+    "R169",
+    "R170",
+    "R171",
+    "R172",
+    "R173",
+    "R174",
+    "R175",
+    "R176",
+    "R177",
+    "R178",
+    "R179",
+    "R180",
+    "R181",
+    "R182",
+    "R183",
+    "R184",
+    "R185",
+    "R186",
+    "R187",
+    "R188",
+    "R189",
+    "scenario 61-gmstore-case",
+    "tier 2: the E04 lifts' tests (tests-tier2.mjs, 61 comment mentions of E04)"
+   ],
+   "scenarios": [
+    "61-gmstore-case (register row README.md:197, E04: a late empty browser, backup and restore, tombstones, the reset's cuts; 62 checks at 1.2.63, 83 at 1.2.64) - no verdict in this audit's runs",
+    "30-security (kept its 71 checks) - no verdict in this audit's runs"
+   ],
+   "live": {
+    "items": 12,
+    "read": 3,
+    "partly": 2,
+    "open": 7,
+    "ids_read": [
+     "LIVE-E04-01",
+     "LIVE-E04-11",
+     "LIVE-E04-12"
+    ],
+    "note": "LIVE-E04-01: read by the owner at a real table, 31.10.2026 (Foundry 14.365, Daggerheart 2.6.5): serverTime was the server's uptime - a defect of the stage's stamps, fixed in 1.2.93 (E90, 71b726a6) and not read again at a table. -11 (two tabs of one browser) and -12 (a GM's entry: userConnected 5.7 s before the GM's module is ready) read as expected on 14.370 by a script. Partly: -04 (connect comes again after socket.disconnect()/connect(); v14 sends no missed documents; the GM stores' exchange not read) and -08 (see the health check promise). Open: -02, -03, -05, -06, -07, -09, -10."
+   },
+   "findings": [
+    {
+     "id": "E04-1",
+     "severity": "nit",
+     "category": "text",
+     "title": "Two comments still say a socket's return is not measured on v14, though LIVE-E04-04 read that connect comes again",
+     "where": "scripts/gm-store.mjs:1743-1744; scripts/frisk.mjs:1028-1029",
+     "what_happens": "gm-store.mjs says \"Whether v14's socket emits \\\"connect\\\" again is LIVE-E04-04\" and frisk.mjs \"A drop without a reload is not measured on v14, nor whether its socket emits \\\"connect\\\" again\". On 14.370 game.socket.disconnect() then connect() emitted connect again 10 s later without a reload (LOCAL-REPORT.md:453), and v14 sent no document written meanwhile. The code's listener is right; the comments leave out what was read, and gm-store.mjs's \"deltas sent while it was down arrive with the states\" is the engine's own exchange, which was not read.",
+     "evidence": "gm-store.mjs:1743-1745: \"// A socket that comes back after a drop re-exchanges: deltas sent while it was down / // arrive with the states. Whether v14's socket emits \\\"connect\\\" again is LIVE-E04-04. / game.socket.on(\\\"connect\\\", () => engine.sendHello());\"",
+     "failure_scenario": "A contributor deciding whether a GM back from a network drop needs a reload reads these comments as 'unknown' and misses the recorded reading that v14 does not resend the missed documents, which is the half that matters to a stale window.",
+     "evidence_class": "F",
+     "confidence": "read",
+     "refutation_tried": "The reading is of one road (a console's disconnect, not a real network loss: LOCAL-REPORT.md:453 says the driver's offline mode closed nothing), so 'not measured' is still true of a real drop; kept as a nit for the half that was read. Also seen by live-items-01 item 44, whose note names the same two lines."
+    }
+   ],
+   "superseded_by": [
+    "E90 (1.2.93, 71b726a6): the stamps' clock - serverTime only when it reads as an epoch time (config.mjs:473-503), after LIVE-E04-01's defect",
+    "E111 (1.2.115): a copy of the case on the server (case-copy.mjs), so a GM's empty browser is filled without a second GM online; the promise 'the case lives in the GMs' browsers' now has a server copy beside it",
+    "E05 (1.2.64): the store holds more of the case (traps, the Eclipse's dark, the key plan, notes, deaths, Despair counters)",
+    "E54 K1 (1.2.113) and E42 C5: the key plan and the season reset moved to key-remnants.mjs and season-wipe.mjs by moves"
+   ],
+   "grade": 7,
+   "grade_reasons": "Every promise of 1.2.63 is in today's code, the engine is the one the rules file names as the module's only road to the GMs' secrets, and R169-R189 (21 rows) passed in the first session's tiers 0-1 run (totals read). Against an 8: (1) the stage's core mechanism met a real table once and was wrong there - its stamps used a server uptime (LIVE-E04-01, a recorded defect, fixed a month later by E90 and not read at a table since); (2) the brief's own live check, a GM changing browser in an open murder, was read only in part, and through E111's server copy, with one cast field coming back older; (3) seven of twelve live checks are open, among them the exchange between two GMs at a real table (-02), the update on a played world (-06) and Back up / Restore in real browsers (-05); (4) 61-gmstore-case, the stage's own scenario, has no verdict in this audit's runs and tier 2's lifts were not joined. Capped at 9 by 11.4's first rule in any case. One nit (E04-1).",
+   "missing_to_10": "LIVE-E04-02 (two GMs exchanging at a real table, the largest part), -05, -06, -09 and -10 read; LIVE-E04-01 read again on 1.2.118's clock at the owner's hosted table; LIVE-E04-08 finished (the incident completed on the new browser, and the older cast field explained); 61-gmstore-case and tier 2's E04 tests joined from a base run; E04-1's comments brought in line with the reading."
+  },
+  {
+   "id": "E05",
+   "version": "1.2.64",
+   "shipped": "2026-09-27",
+   "what": "Secrets out of the world's data and into E04's GM store: the traps (killer, builders, condition, trigger, a project's saboteur), the dark of an Eclipse (Direct Murders declared in it, the crossings), the Key Remnant plan a chapter at a time, the pre-session notes' text, how an incident happened, a death nobody has found yet (two predicates, isDeceased and isDeadForGm), the Despair counters (owed Despair paid at the next time of day), a trace's token kept neutral, what was taken off a body, the Reroll bookmark and the Search card's facts; the trial asking only for killers of known deaths, the Reinforced Level Up waiting for the class, the LiveKit secret warning; the world-secrets rule and 72-canary's chapter scan; a migration that reads back before it removes. 11 registry rows stamped E05 (R190-R200).",
+   "claim_sources": [
+    ".github/release-notes/v1.2.64.md (1-163, whole: the migration 21-37, do not go back 39-51, Changed 53-103, Known gaps 105-132, Checked 134-163)",
+    "tools/stages.json row E05 (planned and shipped 1.2.64, 27.09.2026; touches sockets, rolls, scenes; drills none)",
+    "docs/dev/e05/: does not exist; no STATUS, ledger or plan in the tree",
+    "docs/dev/R-REGISTRY.md rows R190-R200 (11)",
+    "audit/AUDIT-1.2.42.md 9.2 items 53-66 (lines 881-894)",
+    "audit/findings-1.2.118/live-items-02.json items 53-66",
+    ".claude/rules/code.md 'A new world setting or flag is checked by scripts/world-secrets.mjs (E05, 1.2.64)' and 'Death is two predicates (E05 C9, C10)'",
+    "git log: shallow checkout from 14.10.2026; 4 later commits name E05 (67d525f6, 10d07d9b, 4a17f888, f0ea4293)"
+   ],
+   "commits": 0,
+   "commits_note": "0 of the stage's commits are in this shallow checkout; 4 later commits name it.",
+   "promises": [
+    {
+     "promise": "A trap is the GMs': who built it, the killer, what sets it off, armed or fired, and who sabotaged a project are no longer in the world's data; every world setting and flag is held to one statement of what it may never hold",
+     "source": "v1.2.64.md 55-57; code.md (world-secrets.mjs)",
+     "code": "scripts/world-secrets.mjs:67-72 WORLD_SECRET_RULES.settings.projectMeta.fields (killerId, by, condition, trigger, saboteur, ... since E05 C1)",
+     "holds": "yes",
+     "test": "R190 (every rule has a fixture, every planted secret found, a clean snapshot clean), R9 (the suite's world); scenario 72-canary (a player's browser after every phase of a chapter); tier 2 'E05 C1' lifts (tests-tier2.mjs:52859, :52902)",
+     "test_kind": "both",
+     "note": "The rule has grown since (the notes' first known gap, a secret project's name and viewers in Daggerheart's Countdowns, is closed: projects-secrecy.mjs:116, migrate.mjs:1094, known leak S17-31, E101's review). A player's console through a whole chapter on a real v14 is LIVE-E05-01, open."
+    },
+    {
+     "promise": "The dark of an Eclipse is the GMs': a Direct Murder declared in it is kept by the GMs to the lights; a declaration outside a running Eclipse is refused; the crossings are counted and judged by the primary GM, and the crossing's card goes privately to the mover, naming the room crossed into",
+     "source": "v1.2.64.md 58-62",
+     "code": "scripts/bridge-runs-acts.mjs:872 (refused: \"no Eclipse is running\"), bridge-guards.mjs:315 (code cannotNow); scripts/eclipse.mjs:1237 (the card's room: crossedInto, else roomOfActor), :1279 crossedInto; scripts/movement.mjs roomsAlong :3236, routeLegs :3263 (a route judged leg by leg since 67d525f6)",
+     "holds": "yes",
+     "test": "tier 2 'E05 C3' and 'E05 C4' (tests-tier2.mjs:29153, :29331, :29363, :29476); R7740 for the route (stamped E118)",
+     "test_kind": "behaviour",
+     "note": "On 14.370 a route by waypoints through two rooms was one update and was charged wrong: Dorm A to the Storage through the Cafeteria and the Hall ended a third room deep on an allowance of two, the Cafeteria never counted (LIVE-E05-13, LOCAL-REPORT.md:478, 16.11.2026, a defect). Fixed in 1.2.118 by 67d525f6 (an ancestor of b5a29e73), checked on the harness's model only; a mouse drag is LIVE-E39-11, open. LIVE-E05-06 (the card in the mover's log alone, and its timing) is open."
+    },
+    {
+     "promise": "The Key Remnant plan is kept by the GMs a chapter at a time; a season reset keeps one chapter's plan; a pre-session note's words are the GMs' and its writer's alone, a note saved with no GM online waits on its writer's browser, and a player's Save keeps a GM's newer edit",
+     "source": "v1.2.64.md 63-67",
+     "code": "scripts/gm-stores.mjs:1653 keyPlanStore; scripts/key-remnants.mjs (the plan's store, since E54 K1); the notes' store gmNotes (LIVE-E05-10's reading names it)",
+     "holds": "yes",
+     "test": "tier 2 'E05 C5' (tests-tier2.mjs:29519, :51843, :51886, :53195)",
+     "test_kind": "behaviour",
+     "note": "LIVE-E05-10 read as expected on 14.370 (LOCAL-REPORT.md:474): with no GM online the note was kept and reached a GM from a fresh browser within 15 s."
+    },
+    {
+     "promise": "A death kept until the body is found: no deceased flag, no dead marker, Truth Bullets stay on the sheet; the death card and sound go to the GMs and the incident's players, the victim's own player and later a lone finder; the discovery publishes it; the trial asks only for the killers of deaths the table knows",
+     "source": "v1.2.64.md 68-76",
+     "code": "scripts/settings.mjs:3800 isDeceased (the flag), :3817 isDeadForGm (the flag or the GMs' row / the player's copy); scripts/death.mjs:521 publishDeath; scripts/incident-store.mjs:1685 trialBlackenedIds, :1708 countsAtTrial",
+     "holds": "yes",
+     "test": "R192 (the flag read only by the predicates, written only by chapter.mjs), R193 (a death is the table's only once published), R199 (a killer counts only for a death the table knows), R191; tier 2 'E05 C10' (26438, 26678, 27597, 27617)",
+     "test_kind": "both",
+     "note": "The dead marker at the publication and a lone finder's marker are LIVE-E05-03, open (no canvas headless; the drawing is measured nowhere)."
+    },
+    {
+     "promise": "A surviving Blackened's Reinforced Level Up waits for the class: told on a veiled card after a wrong verdict; the class's next correct verdict opens one window per survivor (1 + 3); what still waits at the Final Trial's verdict is given there",
+     "source": "v1.2.64.md 77-81",
+     "code": "scripts/level-up.mjs:1059, :1138 ('one picker of 1 + 3, as since E05 C11', per live-items-02 item 60); scripts/verdict.mjs (both verdicts since E41 C10b)",
+     "holds": "unread",
+     "test": "R195 (a deferred Reinforced joins its owner's Standard in one write); tier 2 'E05 C11' (27637, 27675, 27736)",
+     "test_kind": "both",
+     "note": "Not traced in the code by this reader beyond the lines live-items-02 cites. 10d07d9b (14.11.2026) changed how the Final Trial's Level Ups read the living. LIVE-E05-08 (one window per character at a real table, the sound) is open."
+    },
+    {
+     "promise": "The Despair counters are the GMs': the overflow's count is kept by the GMs; a conversion gives the Hope at once while the pool's drop is owed and paid at the next time of day; the GM panel shows what the pool owes; only the pool less what it owes can be spent",
+     "source": "v1.2.64.md 82-85",
+     "code": "scripts/despair.mjs:15-23 (the owed drop paid at the next time of day; despairOwedStore imported), scripts/gm-stores.mjs:864-865 despairOwedStore",
+     "holds": "yes",
+     "test": "R196 (owedAfter, pure: never spent twice; the spending paths read from the source), R200 (each conversion paid once; the counters read what other GMs hold); tier 2 'E05 C12' (44061, 44301)",
+     "test_kind": "both",
+     "note": "LIVE-E05-07 (the drop on every HUD at the next time of day, the panel's owed count) is open."
+    },
+    {
+     "promise": "A trace's token keeps its neutral name and \"?\" picture on every screen; a GM's screen draws the rest from the case, a finder's from their own Truth Bullet; a Truth Bullet no longer names its trace in its flags; what was taken off a body is the GMs'",
+     "source": "v1.2.64.md 86-91",
+     "code": "scripts/remnant-icons.mjs:112 shownOnTrace (the drawing; its header :39-40 names LIVE-E05-05); scripts/remnants.mjs:2773 migrateRemnantsOnce (the old traces' names given the neutral word)",
+     "holds": "yes",
+     "test": "tier 2 'a found trace's token keeps the neutral name' (tests-tier2.mjs:35879; skipped headless, in skip-baseline.json under env.canvas), tier 2 'E05 C13'/'E05 C14' (35949, 36123, 36495); 72-canary (a finder's copy on a player's browser)",
+     "test_kind": "both",
+     "note": "The drawn name and picture are LIVE-E05-05 and the taker's drawing of a loot trace LIVE-E05-14, both open: the harness has no canvas, so the drawing half is measured nowhere."
+    },
+    {
+     "promise": "A Reroll's bookmark stays in the roller's browser, and a Search card's facts travel with its words, not in its flags",
+     "source": "v1.2.64.md 92-93",
+     "code": "scripts/action-pipeline.mjs:344-359 (E05 C7 moved the bookmark to the roller's client setting; since E08+E28 C4a the Reroll is made on a GM from the GMs' own bookmark and this browser keeps nothing a Reroll reads; the retired setting taken out once by forgetRollBookmarks)",
+     "holds": "superseded",
+     "test": "LIVE-E05-12 (dropRollBookmarks on a token's delta, read on 14.370 as expected)",
+     "test_kind": "behaviour",
+     "note": "Superseded by E08+E28 (1.2.67): the bookmark is the GMs' now, which also closes the notes' gap 'A Reroll of a roll made in another browser has nothing to replay'. The world data stays clean of it either way."
+    },
+    {
+     "promise": "Regional voice: a victim leaves the room's voice at the kill, not at the discovery; the season checklist and voice diagnostics warn when a self-hosted LiveKit secret is stored in the world",
+     "source": "v1.2.64.md 101-103",
+     "code": "scripts/voice.mjs:955-965 (the dead channel since E19 C3: a dead student keeps the room's voice until the first of A9's triggers), :2420-2432 liveKitSecretWarning; scripts/diagnostics.mjs:1373-1375 (GM only), scripts/season-setup.mjs:58",
+     "holds": "partly",
+     "test": "R198 (liveKitSecretWarning over avclient-livekit 0.6.8's shapes; both callers read from the source)",
+     "test_kind": "both",
+     "note": "The warning holds (LIVE-E05-11 read on 14.370 with avclient-livekit 0.6.8 installed and A/V off: custom with a secret warns, Tavern does not). The voice half is superseded by the owner's A9 (E19 C3, 3a94c32f, 19.10.2026): the victim now stays in the room's voice until the body is found or another trigger, so LIVE-E05-04 is obsolete and LIVE-E19-05 carries today's rule."
+    },
+    {
+     "promise": "A moment after the first load the primary GM's browser moves each secret into the GMs' store; a step that cannot read back what it moved leaves the world as it was and a notice that stays on screen, and the next load tries again",
+     "source": "v1.2.64.md 21-37",
+     "code": "scripts/migrate.mjs:559-722 (17 clauses `since: \"1.2.64\"`), :1676-1703 (a failing clause listed, no stamp, ui.notifications.error(DRPG.Migrate.failed, { permanent: true })), the primacy asked before the first clause (E32+E07 fix r1-G4, r2-G4)",
+     "holds": "yes",
+     "test": "R178 (each lift a clause, nothing else calls it); tier 2 lift pairs 'E05 C1', 'C3', 'C4', 'C5' (52859-53195: the store's save swallowed, the world data stays)",
+     "test_kind": "both",
+     "note": "The migration on a copy of a played world is LIVE-E05-02, open (needs the owner's world copy as a fixture)."
+    }
+   ],
+   "registry_rows": 11,
+   "tests_read": [
+    {
+     "test": "R190 (tests-tier1.mjs:7479, header read)",
+     "measures": "yes",
+     "why": "Fixtures written out, not derived from the rule: each plants one secret in a clean snapshot, so a rule taken out fails its fixture and a rule with no fixture fails too; exemptions fixtured both ways."
+    },
+    {
+     "test": "R193 (tests-tier1.mjs:7920, header read)",
+     "measures": "yes",
+     "why": "Drives deadIn by role on engines with storage in a Map - a GM with the row, the victim's player with a copy, a bystander with none - and knowsOfDeath; would fail if a bystander were told."
+    },
+    {
+     "test": "R196 (tests-tier1.mjs:8041, header read)",
+     "measures": "yes",
+     "why": "owedAfter driven over every pool and debt (never spent twice); the spending paths, the settlement at the clock's write and the stores' groups read from the source."
+    },
+    {
+     "test": "R198 (tests-tier1.mjs:8160, header read)",
+     "measures": "weak",
+     "why": "The warning's rule over settings shaped as avclient-livekit 0.6.8's source writes them, then the two callers read from the source; the real setting was read later on 14.370 (LIVE-E05-11)."
+    },
+    {
+     "test": "R199 (tests-tier1.mjs:8211-8230)",
+     "measures": "yes",
+     "why": "countsAtTrial driven over rows shaped as recordBlackened writes them (no victim, published, unfound, mixed), then the ballot and the verdict read from the source as asking the trial's list."
+    },
+    {
+     "test": "tier 2 'a found trace's token keeps the neutral name' (tests-tier2.mjs:35879)",
+     "measures": "skipped",
+     "why": "Its last line reads the nameplate PIXI draws; headless it stands down (skip-baseline.json, env.canvas). The neutral word on the token is the GM-side half and is read before the skip."
+    }
+   ],
+   "tests_to_join": [
+    "R190",
+    "R191",
+    "R192",
+    "R193",
+    "R194",
+    "R195",
+    "R196",
+    "R197",
+    "R198",
+    "R199",
+    "R200",
+    "scenario 72-canary",
+    "scenario 61-gmstore-case (83/83 at 1.2.64)",
+    "scenario 30-security (88/88 at 1.2.64)",
+    "scenario 11-killer-secrecy",
+    "tier 2: the 'E05 C1'-'E05 C14' tests (128 mentions of E05 in tests-tier2.mjs)"
+   ],
+   "scenarios": [
+    "72-canary (register row README.md:208: '(E05) a chapter, scanned after every phase with the world-secrets rule') - 66/69 at 1.2.64 with three expected reds; no verdict in this audit's runs",
+    "61-gmstore-case and 30-security (grown in 1.2.64) - no verdict in this audit's runs",
+    "14-quiet (its intermittent failure fixed in 1.2.64) and 11-killer-secrecy - green in the first session's base run"
+   ],
+   "live": {
+    "items": 14,
+    "read": 4,
+    "partly": 1,
+    "open": 8,
+    "obsolete": 1,
+    "ids_read": [
+     "LIVE-E05-09",
+     "LIVE-E05-10",
+     "LIVE-E05-11",
+     "LIVE-E05-12"
+    ],
+    "note": "Read on 14.370 by a script, 16.11.2026 (LOCAL-REPORT.md:473-476): -09 replaceFlag and forcedDeletion(), -10 a note saved with no GM, -12 a deletion on a token's delta, as expected; -11 mixed only against a comment (voice.mjs:2429-2430). Partly: -13, a defect in the crossings' count on a route through two rooms, fixed by 67d525f6 in 1.2.118 on the harness's model. Obsolete: -04 (the voice rule replaced by E19 C3). Open: -01 (a player's console through a whole chapter - the stage's own verification), -02 (the migration on a played world), -03, -05, -06, -07, -08, -14."
+   },
+   "findings": [],
+   "superseded_by": [
+    "E08+E28 (1.2.67): the Reroll's bookmark is the GMs' (action-pipeline.mjs:344-359)",
+    "E19 C3 (3a94c32f, 19.10.2026; the owner's A9): a victim keeps the room's voice until the first of A9's triggers, then the dead channel (since E62 C3b the Spectators' room)",
+    "E101's review of S17-31: a secret project's name and viewers leave Daggerheart's Countdowns (the notes' first known gap closed)",
+    "the claude/shim-118 line, 67d525f6 (1.2.118): a route of one update judged leg by leg (LIVE-E05-13's defect)",
+    "E54 D1/D2 (1.2.113): death.mjs and body.mjs moved out of chapter.mjs by moves; E54 K1: key-remnants.mjs"
+   ],
+   "grade": 8,
+   "grade_reasons": "The stage's goal - what only the GMs or one player may know taken out of world data - holds in today's code: one rule (world-secrets.mjs) that R190 fixtures and 72-canary scans, the two death predicates R192 and R193 hold, the trial's count (R199), the owed Despair (R196, R200), the migration that does not stamp over a failed lift; the 11 rows R190-R200 passed in the first session's tiers 0-1 run (totals read). Against a 9: one promise - the crossings judged by the primary - was wrong on a real Foundry for a route through two rooms (LIVE-E05-13) from 1.2.64 to 1.2.117 and holds today on a fix checked only on the harness's model; the Reinforced Level Up promise was not traced by this reader; the stage's own verification on a real v14 (LIVE-E05-01) and the migration on a played world (-02) are open, with the drawn halves (-03, -05, -14) measured nowhere; 72-canary, 61 and 30 have no verdict in this audit's runs and tier 2 was not joined. Two promises changed on purpose by later stages (the Reroll bookmark, the voice at the kill). Capped at 9 by 11.4's first rule. No finding of this reader's.",
+   "missing_to_10": "LIVE-E05-01 run on a real v14 (a player's console through a chapter) and -02 on a copy of a played world; LIVE-E05-13's fix read on 14.370 with a mouse drag (LIVE-E39-11); -03, -05, -14 seen on a real canvas; -06, -07, -08 read; 72-canary, 61-gmstore-case, 30-security and tier 2's E05 tests joined from a base run; the Reinforced Level Up traced in level-up.mjs and verdict.mjs."
+  }
+ ],
+ "not_established": [
+  "Tier 2's and the scenarios' results for these stages: base-run.json does not exist yet, the first session's 01-runtests timed out, and 33-bridge-paths, 61-gmstore-case, 72-canary and 30-security have no verdict in either session's runs. Every tier-2 test and those scenarios are listed in tests_to_join, taken from the notes' own runs (1.2.61-1.2.64), not as green today.",
+  "Per-test results of the 50 tier 0-1 rows: only the first session's totals were read (0 failed); a row that ran and passed is inferred from 0 failed and the skip baseline, not read on its own line.",
+  "The stages' own commits (September 2026): the checkout is shallow from 14.10.2026, so no promise is checked against the diff that made it; git fetch was not run, as the brief allows reading only.",
+  "E31's 'no success line before the GM has done the work', row by row: read for the loot alone (bridge-table.mjs:902-912). Whether every other row the notes list (a Level Up offer, sharing a project, an Eclipse move, Palm's and Steal's lines) still answers 'reply' was not read; a script over BRIDGE_ACTIONS' `answer` would settle it.",
+  "E05's Reinforced Level Up (one window per survivor, 1 + 3, given at the Final Trial) was not traced in level-up.mjs or verdict.mjs by this reader; LIVE-E05-08 is open.",
+  "E04-1's half that matters - whether the GM stores' own exchange re-runs and carries the deltas after a real network drop on v14 - is not read anywhere (LIVE-E04-04's second question; new live check: drop a GM's network for 30 s during a second GM's trace write and read gmStoreStatus() on both after the reconnect).",
+  "LIVE-E04-08's older cast field (deniedToVictim [] against [\"roleReversal\"]) after E111's server copy filled a new browser: whether it is the copy's seal delay (case-copy.mjs SEAL_QUIET_MS) or a lost write was not established here; it belongs to the E111 reader."
+ ]
+}

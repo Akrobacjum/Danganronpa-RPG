@@ -1,0 +1,508 @@
+{
+ "reader": "domain-desp-a",
+ "checkout": "claude/audit-119 at 1b3fd1fa (scripts/ identical to main b5a29e73, 1.2.118)",
+ "files_read": [
+  {
+   "file": "scripts/despair.mjs",
+   "lines": 1341,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/despair-award.mjs",
+   "lines": 333,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/price.mjs",
+   "lines": 397,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/balance-log.mjs",
+   "lines": 176,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/critical.mjs",
+   "lines": 125,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/level-up.mjs",
+   "lines": 1522,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/trait-ruling.mjs",
+   "lines": 395,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/character.mjs",
+   "lines": 406,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/resources.mjs",
+   "lines": 111,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/resource-guard.mjs",
+   "lines": 368,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/rest.mjs",
+   "lines": 546,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/action-rest.mjs",
+   "lines": 44,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/safeword.mjs",
+   "lines": 477,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/monocub.mjs",
+   "lines": 1979,
+   "read": "whole"
+  }
+ ],
+ "count_note": "14 files, 8220 lines, as the scope lists (wc -l on the checkout gives the same 8220). Every file read start to end. audit/findings-1.2.118/base-run.json did not exist when this file was written, so no test result is cited as passed; tests are named from their source only.",
+ "neighbours_followed": [
+  "scripts/bridge-asks.mjs 485-496 (sendDespairToPrimary, the `despair.adjust` ask)",
+  "scripts/bridge-table.mjs 971-980 (the `despair.adjust` row: gmOnly, guardDespairDelta, guardDespairPool, answer reply)",
+  "scripts/bridge-runs-records.mjs 600-674 (handleOverflowAdd/Clear, handleDespairSet/All/Roster, handleDespair)",
+  "scripts/bridge-guards.mjs 1140-1151 (guardDespairDelta, guardDespairPool)",
+  "scripts/calls.mjs 440-475 (spendDespairCallFor: the Bounty's road to postBounty, then spendDespairCall)",
+  "scripts/clock.mjs 782-822 (applyTimeOfDayChange: checkOverflow, settleBribes, lapseBounties, on the client that moved the clock)",
+  "scripts/settings.mjs 3160-3175 (autoApproveTraits), 3379-3390 (despairPools onChange -> renderDespairBar)",
+  "scripts/sync.mjs 95, 392-408 (despairPools -> SYNC.despair -> the bar)",
+  "scripts/sheet-audit.mjs 1040-1080 (meansWrite: GM queue vs a player's sheet read; creditRefund)",
+  "scripts/roll-draw.mjs 2740-2760, 2944-3031 (the unwitnessed roll's Grant: grantRolls -> awardRollDespair(actor, 1))",
+  "scripts/timed-effects.mjs 110-140 (takeDespairShield, primary only, needs the message to mark)",
+  "scripts/reroll.mjs 680, 1024-1080 (settleDespair, the critical top-up: the two other callers of despair-award.mjs)",
+  "scripts/gm-stores.mjs 700-747 (offerStore, deferredOfferStore: rows, no redraw listener)",
+  "scripts/sheet-header.mjs 661-711 (the Level Up button reads standingOffers)",
+  "scripts/action-facilities.mjs 60-125 (facilityRows, facilitiesRows, facilitiesShutReason: `why` shown only on a disabled row)",
+  "scripts/messenger-app.mjs 1423-1433 (Ask for Hope's card buttons -> answerHopeAsk)",
+  "scripts/config.mjs 304-324 (STARTING), 1509-1520 (ACTIONS.search.traits), 2160-2168 (REST), 2260-2275 (timed effects, despairShield), 3418-3439 (LEVEL_UP_OPTIONS, LEVEL_UP, LEVEL_UP_TRAIT_RESOURCES), 3487-3520 (MONOCUB.abilities.meddle caps and executionCost)",
+  "scripts/utils.mjs 594-596 (proseOf)",
+  "scripts/tests-tier2.mjs 86834-86870 (E17-T8: a pip's change never spills; the stepper is not driven)",
+  "lang/en.json and lang/pl.json: DRPG.Despair.*, DRPG.Overflow.playerHint, DRPG.Advance.*, DRPG.Rest.applied, DRPG.Rest.notHere, DRPG.Monocub.* (askGiven, askDeclined, bountyPaid, moveRefused, meddleCostShort, tinkerHeld ...), DRPG.Tips.Gm.plusTooltip/minusTooltip, DRPG.Settings.autoApproveTraits",
+  "audit/findings-1.2.42/despair.md (DESP-01..20, live checks 1-6) and audit/findings-1.2.118/old-1.2.42-despair.json (its six new observations, re-read here on today's source)"
+ ],
+ "strengths": [
+  "Every road that changes the pools has one writer: adjust, set, fill, zero, grant, revoke and label each ask the primary when another GM is connected, and each asks again inside its serialWrite step so a GM that became the primary meanwhile takes it (scripts/despair.mjs:293-300, 330-350, 376-421, 449-507).",
+  "The owed Despair (E05 C12) is one pure arithmetic (`owedAfter`, `settlementOf`) with thin writers around it; every spending road reads the spendable pool after waiting for the other GMs' rows (scripts/despair.mjs:561-579, 721-736, 816-819, 916-917).",
+  "Despair to Hope has one road for both doors (`creditHopeFromDespair`): refused under the darkening, read from the Hope the GMs hold, capped by the Monocub's purse, the debt recorded before the Hope so no redrawn window offers it twice, and one veiled card (scripts/despair.mjs:861-891).",
+  "The roll's Despair award refuses reactions, unwitnessed rolls, forged GM flags, non-characters, Monokumas and plain 2d12 rolls, each with the measurement that put it there (scripts/despair-award.mjs:26-108, 284-290).",
+  "The critical rule corrects Daggerheart's funnel against a snapshot instead of replacing it, so a build that stops paying leaves it doing nothing (scripts/critical.mjs:55-107).",
+  "The price chain re-quotes at the moment of paying and hands back a receipt that knows a Burst from an action; a refund says only what landed (scripts/price.mjs:202-308).",
+  "Level Up: a player's picks are a claim judged on the primary against a named offer; an apply is one write and one step of `advances`; a take-back holds the latch until its drop; the Reinforced waits for the class's next verdict (scripts/level-up.mjs:418-448, 642-656, 812-1011, 1048-1122).",
+  "Trait rulings: the listed traits are read from this browser's config on both sides, never carried; the proposal is a claim dropped when off the list; a pass after 'Change to' voids the card's ruling (scripts/trait-ruling.mjs:136-141, 261-265, 321-350).",
+  "The safeword's caller is named only on a recipient-addressed socket to the GMs; the primary posts the public card; when no GM answers in time the caller's own browser posts it, header hidden; one pause, on the primary (scripts/safeword.mjs:277-363, 447-476).",
+  "Monocub moves are paid on the GM after every condition, one serial step per Monocub and one per target for the share and the price, so a refusal costs nothing (scripts/monocub.mjs:1270-1322).",
+  "A Rest's benefits and its 'used up' stamp are one write, and the window enforces the pick count live with the check after it kept as the authority (scripts/rest.mjs:353-361, 382-473).",
+  "resources.mjs keeps Daggerheart 2.12's optional-resource clean-up from deleting Actions by taking the one deletion out of the update, not by wrapping the system (scripts/resources.mjs:64-111)."
+ ],
+ "findings": [
+  {
+   "id": "domain-desp-a-1",
+   "domain": "DESP",
+   "severity": "minor",
+   "category": "flow",
+   "title": "A GM that is not the primary counts a Despair Call as paid before the primary writes the pool, and the primary takes the price with no check",
+   "where": "scripts/despair.mjs:424-437 (routeToPrimary), 902-928 (spendDespairCall), 315 (writePool floors at 0); scripts/bridge-runs-records.mjs:666-674 (handleDespair); scripts/bridge-table.mjs:971-980",
+   "what_happens": "On a GM that is not the primary, spendDespairCall checks the spendable pool on this browser's copy, then adjustDespair(userId, -cost) goes to routeToPrimary, which sends `despair.adjust` with `void` and answers the pool it expects at once; spendDespairCall reads that as paid and the caller applies the Call. On the primary, handleDespair runs adjustDespair(delta) and writePool clamps at 0 - there is no price check there. So a pool the primary has lowered in the same round trip (another Call, a roll's point given back by a Reroll) pays less than the price, and an ask that is not answered (time-out, the primary's module not listening yet) leaves the Call applied and the pool untouched, while the bridge tells the GM the change was not carried out.",
+   "evidence": "despair.mjs:430  const { sendDespairToPrimary } = await import(\"./gm-bridge.mjs\");\ndespair.mjs:431  void sendDespairToPrimary(userId, delta, { clamp });\ndespair.mjs:432  return Math.min(Math.max(getDespair(userId) + delta, 0), despairMax());\ndespair.mjs:927  const paid = await adjustDespair(userId, -call.cost);\ndespair.mjs:928  if (paid === null || paid === undefined) return false;\nbridge-runs-records.mjs:672  await adjustDespair(target.id, delta, { clamp: payload.clamp === true });\ndespair.mjs:315  const next = Math.min(Math.max(Math.round(value), 0), despairMax());",
+   "failure_scenario": "Two GMs: the Assistant GM with a granted pool reads 3 on its bar a moment after the primary paid 1 from that pool, buys a 3-Despair Call, the Call lands and the pool ends at 0 - a 3-Despair Call for 2; with the primary reloading, the same press applies the Call and the pool stays at 3.",
+   "expected": "The Call applied only on the primary's answer that the price was taken (the expected pool not read as paid), or the price checked on the primary.",
+   "confidence": "read",
+   "refutation_tried": "Looked for an await on the ask (none: `void`), for a price check in handleDespair or guardDespairDelta (the guard checks only |delta| <= 12 and non-zero), and for spendDespairCallFor checking the answer (it checks `ok` only, calls.mjs:470-475). The timing of the two writes is not read; tier 2 E37-T8 drives the set/fill/roster asks, not a Call bought on a second GM. The earlier reader of old-1.2.42-despair.json wrote this as suspected; the road is now traced end to end.",
+   "old_id": "DESP-LC1 (the live check of DESP-12, open; DESP-12's routing is what leaves this road)"
+  },
+  {
+   "id": "domain-desp-a-2",
+   "domain": "DESP",
+   "severity": "minor",
+   "category": "flow",
+   "title": "A Bounty that lapses on a GM that is not the primary can be told 'cancelled' while the primary's settlement has already paid its Despair",
+   "where": "scripts/despair.mjs:651-662 (returnOwed), 49-51 and 755-774 (settleOwed on the primary); scripts/monocub.mjs:1857-1881 (lapseBounties); scripts/clock.mjs:782-822 (applyTimeOfDayChange runs on the client that moved the clock)",
+   "what_happens": "lapseBounties runs on whichever GM moved the clock. returnOwed reads this GM's copy of `despairOwed` in a step of this browser's DESPAIR_KEY queue; its note says that queue orders it against the settlement 'on the primary', which is true only on the primary. The settlement runs on the primary on `drpgTimeOfDayChanged`. When the clock is moved by another GM, the row can still stand in that GM's copy after the primary has paid it; returnOwed then drops the tombstoned row and answers 'cancelled', nothing is given back, and the GMs' card says the owed Despair was cancelled. The pool has paid for a Bounty that lapsed - the double charge A113-C6-3 was written to stop.",
+   "evidence": "despair.mjs:654  const owed = await serialWrite(DESPAIR_KEY, async () => {\ndespair.mjs:655      if (!despairOwedStore.has(key)) return false;\ndespair.mjs:656      await despairOwedStore.dropMany([key]);\ndespair.mjs:659  if (owed) return \"cancelled\";\ndespair.mjs:762  if (!isPrimaryGm()) return 0;   // settleOnce\nmonocub.mjs:1870  const back = bounty?.owedKey && thisSeason ? await D.returnOwed(bounty.by, bounty.owedKey, cost)\nclock.mjs:822  await import(\"./monocub.mjs\").then(m => m.lapseBounties())",
+   "failure_scenario": "Two GMs; the Assistant GM moves the clock to the afternoon with a Bounty open; the primary settles first, the pool drops by 1; on the Assistant's browser the row is still there, the card says 'its owed Despair is cancelled', and the pool keeps the drop.",
+   "expected": "The lapse's give-back asked of the primary (as every other pool change is), or decided against the settlement's mark rather than this browser's copy.",
+   "confidence": "suspected",
+   "refutation_tried": "Checked that lapseBounties is not gated to the primary (it asks only isGM, 1858) and that applyTimeOfDayChange runs on one client, the mover (clock.mjs comment 823-829). The order of the primary's settlement against the other GM's lapse depends on sync.mjs's merge window and the store's exchange, which I did not time; that is why this is suspected. On the primary the same road is ordered by DESPAIR_KEY and is right."
+  },
+  {
+   "id": "domain-desp-a-3",
+   "domain": "DESP",
+   "severity": "minor",
+   "category": "bug",
+   "title": "A Bounty claimed by a Monocub at its Hope limit, or under the Despair darkening, pays 0 Hope while the posting pool still owes its Despair",
+   "where": "scripts/monocub.mjs:1835-1845 (claimBounty), 811-822 (addToPurse/addToPurseNow), 1390 (scoreMeddle claims on a landing Hinder)",
+   "what_happens": "claimBounty drops the Bounty first, then addToPurse takes min(reward, room) and 0 in the darkening; the Monocub is whispered 'You claim the Bounty on X: 0 Hope in your purse', every Monocub is told it is claimed, and nothing gives the Bounty's owed Despair back - only a lapse does (returnOwed in lapseBounties).",
+   "evidence": "monocub.mjs:1838  await bountyStore.drop(target.id);\nmonocub.mjs:1839  const paid = await addToPurse(cub, Math.max(0, Math.trunc(Number(bounty?.reward) || 0)));\nmonocub.mjs:819   const take = overflowBlocksHope() || !(n > 0) ? 0 : Math.min(Math.trunc(n), Math.max(0, resourceMax(actor, \"hope\") - cubHopeTotal(actor)));\nlang/en.json DRPG.Monocub.bountyPaid: \"You claim the Bounty on {name}: {n} Hope in your purse.\"",
+   "failure_scenario": "A Monocub with 6/6 Hope lands a Hinder on a student with a Bounty: the Bounty is gone for every Monocub, its card reads '0 Hope in your purse', and the Monokuma who posted it still pays 1 Despair at the next time of day.",
+   "expected": "A claim that pays nothing either leaves the Bounty standing or gives its Despair back; or the owner's rule recorded.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a recorded decision on a zero claim (config.mjs:2928, gm-stores.mjs:1414-1416, the C16 header 1764-1774: 'the claim by a landing Hinder' is a default, the zero case is not mentioned) and for a cap that keeps a full Monocub from Hindering (the hopeFull block is Redeem's and Ask's, not Confusion's). Previously noted as suspected in old-1.2.42-despair.json; the road is now read whole."
+  },
+  {
+   "id": "domain-desp-a-4",
+   "domain": "DESP",
+   "severity": "minor",
+   "category": "ux",
+   "title": "On the GM's own Level Up picker a new experience left without a name is skipped and the rest written; in a verdict's batch that counts as given and drops the Blackened's waiting Reinforced",
+   "where": "scripts/level-up.mjs:620-656 (the blank-name check is the player's road only), 876-881 (applyAdvancement skips it), 1184-1192 (runAdvancementBatch)",
+   "what_happens": "openAdvancement refuses a blank new experience on the player's road (648-651: nothing sent, the offer kept). On a GM's road it goes to applyAdvancement, which warns 'A new experience needs a name. That choice was skipped.' and writes the other picks and one step of `advances`. In runAdvancementBatch a GM pick that answers a summary is `applied`, and the row's waiting Reinforced is dropped from `deferredOfferStore`. The E10 C8 comment at 835-839 says a pick the sheet cannot take stops the whole Level Up; this one does not.",
+   "evidence": "level-up.mjs:648  if (result.some(p => p?.option === \"experienceNew\" && !String(p.name ?? \"\").trim())) {   // inside if (asPlayer)\nlevel-up.mjs:878  if (!name) {\nlevel-up.mjs:879      ui.notifications.warn(game.i18n.localize(\"DRPG.Advance.experienceNeedsName\"));\nlevel-up.mjs:880      break;\nlevel-up.mjs:1188  if (choice === \"gm\" && await openAdvancement(actor, entry.kind, { extraPicks: entry.extraPicks, reasons: entry.reasons })) {\nlevel-up.mjs:1190      if (entry.deferred) await deferredOfferStore.drop(actor.id);",
+   "failure_scenario": "After a correct verdict the GM picks for the surviving Blackened (1 + 3 picks), leaves one 'new experience' name empty and presses Apply: three picks are written, the fourth is gone, the waiting Reinforced is dropped, and only the toast says so.",
+   "expected": "The GM's road refuses the blank name before anything is written, as the player's does.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a check of blank names in readForm (779-793: none), in wireForm (no `required`, 769-772) and in the batch (none). The GM is warned, so it is not silent; the loss of a pick and of the waiting row is what stands."
+  },
+  {
+   "id": "domain-desp-a-5",
+   "domain": "DESP",
+   "severity": "minor",
+   "category": "bug",
+   "title": "The Despair bar's + stepper is not held at the maximum: on a bar drawn before another change landed it spills into the overflow",
+   "where": "scripts/despair.mjs:1300-1305 (stepper +: adjustDespair(user.id, +1) with no clamp), 1256-1261 (the pip, clamped), 353-367 (an unclamped +1 over the maximum spills)",
+   "what_happens": "E17 fix e1-G4 made a pip's change `clamp: true` because a GM's correction that ran past the maximum spilled into the overflow and advanced a darkening. The + stepper beside the pips still calls adjustDespair(user.id, +1) unclamped; its `disabled` is the drawn `held >= max`. A pool raised to 12 by the primary (a roll's point) before this bar redraws leaves the + live, and its +1 spills 1 into the overflow.",
+   "evidence": "despair.mjs:1303  stepper(\"fa-plus\", () => adjustDespair(user.id, +1), held >= max, ghost,\ndespair.mjs:1260  return adjustDespair(user.id, delta, { clamp: true });\ndespair.mjs:358   if (!clamp && delta > 0 && wanted > max) {\ndespair.mjs:360       await spillFrom(userId, before, delta, \"pool spill\");",
+   "failure_scenario": "A GM sees a pool at 11 and presses + just as a student's roll with Despair fills it on the primary: the pool stays 12 and the overflow counter goes up by 1, a step toward a darkening nobody earned.",
+   "expected": "The stepper held at the maximum as the pip is (`clamp: true`), unless spilling by hand is meant; then said in the tooltip.",
+   "confidence": "read",
+   "refutation_tried": "Tier 2 E17-T8 (tests-tier2.mjs:86834) drives the pip only; no test drives the stepper. The tooltip says 'Adds 1 Despair to this pool' (DRPG.Tips.Gm.plusTooltip), not that it may spill. The window is one round trip, so the severity is minor."
+  },
+  {
+   "id": "domain-desp-a-6",
+   "domain": "DESP",
+   "severity": "minor",
+   "category": "bug",
+   "title": "The Monocub's Hope and a Bribe payer's Hope are read off the document on the GM, not as the GMs hold them",
+   "where": "scripts/monocub.mjs:788 (spendCubHopeNow), 805 (refundCubHopeNow), 1513 (redeemHope), 1641 and 1686-1694 (offerBribeOnGm, answerBribeOnGm), 1139/1197 (cubHopeTotal via resourceValue, 767-769), 1959-1961 (wasteAction)",
+   "what_happens": "price.mjs, rest.mjs, despair.mjs (creditHopeFromDespair) and level-up.mjs read and write a student's Hope on a GM through sheet-audit.mjs `meansWrite`, because (E29 fix r2-H24) a console's raised value read off the document and written back by a GM becomes the student's new mark. The Monocub roads compute their checks and writes from `resourceValue(actor, \"hope\")` directly and write through trustedWrite as the GM. A console's raised Hope on the Monocub (or on a Bribe's payer) that the audit has not put back yet passes the price check and is written back, less the price, as a GM's value.",
+   "evidence": "monocub.mjs:768  return resourceValue(actor, \"hope\") + purseOf(actor);\nmonocub.mjs:788  if (fromSheet) await trustedWrite(actor, { \"system.resources.hope.value\": resourceValue(actor, \"hope\") - fromSheet }, { reason: \"price\" });\nmonocub.mjs:1689 await trustedWrite(payer, { \"system.resources.hope.value\": resourceValue(payer, \"hope\") - offer.cost }, { reason: \"call\" });\nprice.mjs:215-226 (the same payment through meansWrite, 'a console's Hope or maximum, not put back yet, paid there')",
+   "failure_scenario": "A Monocub's player writes Hope 6 from the console and at once asks for Confusion: the GM's check passes on 6, the GM writes 5, and the audit may take 5 as the GMs' value instead of putting the console's write back.",
+   "expected": "The Monocub's and the payer's Hope read and written in the student's audit queue (`meansWrite`), as the other price roads do.",
+   "confidence": "suspected",
+   "refutation_tried": "Read resource-guard.mjs `noteOwnWrite` (327-347): a GM's own trustedWrite is told to sheet-audit.mjs `noteOwnDropped`, which may judge the leaves it drops; I did not read noteOwnDropped through, so whether the audit still puts the console's value back is not settled. R3808 holds only that the file does not read the sheet's Hope without the purse. Suspected: needs a probe (a console write and a move in one tick, on the harness)."
+  },
+  {
+   "id": "domain-desp-a-7",
+   "domain": "DESP",
+   "severity": "minor",
+   "category": "bug",
+   "title": "A roll granted after no GM was connected gives its Despair through a protection from Despair",
+   "where": "scripts/roll-draw.mjs:3028-3030 (grantRolls: awardRollDespair(actor, 1)); scripts/despair-award.mjs:121-128 (the shield is asked only with a message)",
+   "what_happens": "awardRollDespair takes a room action's protection from Despair (timed-effects.mjs `takeDespairShield`) only when it is handed the roll's message. The fresh roll's road hands it (despair-award.mjs:104); the GMs' Grant of a roll thrown with no GM connected calls awardRollDespair(actor, 1) with none, though `rows` carries the message (roll-draw.mjs:2998). So the shield is neither used nor consulted, and the Monokuma gets the point.",
+   "evidence": "roll-draw.mjs:3029  if (!reaction && outcome.withFear) await awardRollDespair(actor, 1);\ndespair-award.mjs:125  if (delta > 0 && message && !isMonokuma(actor) && game.settings.get(MODULE_ID, SETTINGS.despairFromRolls)) {\ndespair-award.mjs:127      if (await takeDespairShield(actor, message)) return { shielded: true };",
+   "failure_scenario": "A student holding 'next roll with Fear gives no Despair' rolls with Fear while the GM is away; the GM comes back and presses Grant all: the pool gains 1 and the protection still stands for a later roll.",
+   "expected": "The Grant hands the message, so the shield takes the point (and marks the roll for its Reroll) as at a fresh roll.",
+   "confidence": "read",
+   "refutation_tried": "Checked the config's rule ('The character's next roll with Fear gives its Monokuma no Despair', config.mjs:2270-2272) - it does not exclude a roll granted later; checked takeDespairShield needs the primary (it does; decideUnwitnessed's grant runs on a GM, which may not be the primary - then the shield is skipped either way). No test of a Grant with a shield found by name."
+  },
+  {
+   "id": "domain-desp-a-8",
+   "domain": "DESP",
+   "severity": "nit",
+   "category": "text",
+   "title": "Ask for Hope's card names the GM's account, and the Polish line calls the GM a player",
+   "where": "scripts/monocub.mjs:1557 and 1561 (answerHopeAsk: `name: game.user.name`); lang/pl.json DRPG.Monocub.askGiven",
+   "what_happens": "The settle line of the Monocub's Ask card is '{n} Hope given by {name}' / 'Not now, said {name}' with the account name, while the veiled card the same press sends (despair.mjs:887-889) names the pool's label (`poolLabel`). DESP-20 moved the bar and the spend card off account names for this reason. The Polish 'askGiven' reads '{n} Hope od gracza {name}' - 'from the player' - about a GM.",
+   "evidence": "monocub.mjs:1557  return game.i18n.format(\"DRPG.Monocub.askGiven\", { n: granted, name: game.user.name });\nlang/en.json askGiven: \"{n} Hope given by {name}.\"\nlang/pl.json askGiven: \"{n} Hope od gracza {name}.\"",
+   "failure_scenario": "The GM account 'Dawid' runs the pool 'Monominie'; the Monocub reads 'Monominie gives you 1 Hope' on one card and '1 Hope od gracza Dawid' on the Ask card.",
+   "expected": "The pool's label, and a Polish line that does not call a GM a player.",
+   "confidence": "read",
+   "refutation_tried": "Checked whether the card is the GMs' only (it is in the Monocub's thread, veiled, read by its player: callGm with `thread: owner?.id`, 1531-1537)."
+  },
+  {
+   "id": "domain-desp-a-9",
+   "domain": "DESP",
+   "severity": "nit",
+   "category": "text",
+   "title": "A Rest's Breath card says the Hope asked for, not the Hope that landed",
+   "where": "scripts/rest.mjs:526-531",
+   "what_happens": "Breath writes min(max, hope + gain) but the card says '+{gain} Hope'; Sleep and Meal say what they restored.",
+   "evidence": "rest.mjs:529  const next = Math.min(max, held.hope + gain);\nrest.mjs:531  applied.push(game.i18n.format(\"DRPG.Rest.applied.hope\", { label: opt.label, n: gain }));",
+   "failure_scenario": "A student at 5/6 Hope takes a Long Rest with Breath: the card says 'Breath: +2 Hope' and the sheet shows 6.",
+   "expected": "n = next - held.hope, or a line that says the Hope is full.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a cap note in the key (DRPG.Rest.applied.hope is '{label}: +{n} Hope') and for the picker greying Breath at full Hope (it greys only for the darkening and a Relief, 406-416)."
+  },
+  {
+   "id": "domain-desp-a-10",
+   "domain": "DESP",
+   "severity": "nit",
+   "category": "ux",
+   "title": "A Monocub's ability window states the row's price, not the price it will be charged for a move done to order",
+   "where": "scripts/monocub.mjs:1350-1355 (callHeader with row.hopeCost and row.cost), 1129-1132 and 1213-1218 (priceOf: a move to order costs executionCost)",
+   "what_happens": "Since E72 C17 a move done to order (an accepted Bribe this time of day) costs the row's `executionCost` (Confusion: 1 action, 0 Hope; config.mjs:3516), and performCubAbility and the GM both use `priceOf` (R6905). The window still says '1 Hope, 1 action'.",
+   "evidence": "monocub.mjs:1352  header: callHeader({ label: row.label, cost: row.hopeCost }, \"hope\", {\nmonocub.mjs:1354      price: plural(\"DRPG.Monocub.meddleCostShort\", { hope: row.hopeCost, actions: row.cost }, \"actions\")\nmonocub.mjs:1216  if (exec && orderOpen(actor)) return { cost: Number(exec.cost) || 0, hopeCost: Number(exec.hopeCost) || 0, toOrder: true };",
+   "failure_scenario": "A Monocub with 0 Hope and an accepted Bribe opens Confusion: the window says it costs 1 Hope, though pressing Help goes through for the action alone.",
+   "expected": "The header from `priceOf(actor, row)`.",
+   "confidence": "read",
+   "refutation_tried": "Checked that the window is drawn after an order can exist (the order is the row's `order`, set by answerBribeOnGm, 1710) and that no other line of the window says the order's price."
+  },
+  {
+   "id": "domain-desp-a-11",
+   "domain": "DESP",
+   "severity": "nit",
+   "category": "bug",
+   "title": "A Bounty is checked against the spendable pool before the other GMs' owed rows have arrived",
+   "where": "scripts/monocub.mjs:1808-1821 (postBountyNow), against scripts/despair.mjs:816-819, 916-917 and 675 (every other spend waits for `despairOwedStore.whenHydrated()`)",
+   "what_happens": "postBountyNow asks `spendableDespair(userId) < cost` without waiting for the owed store; on a GM browser just loaded beside another GM, a debt that GM recorded is not counted yet, and the Bounty is owed on a pool that cannot spend it (the settlement floors at 0).",
+   "evidence": "monocub.mjs:1815  : D.spendableDespair(userId) < cost ? \"the pool has not the Despair for it\" : null;\ndespair.mjs:818   await despairOwedStore.whenHydrated();   // convertDespairToHope, before its check",
+   "failure_scenario": "A GM reloads and at once posts a Bounty from a pool of 1 whose 1 is owed to another GM's conversion: the Bounty is posted, the pool pays 1 at the next time of day and the second debt is lost at 0.",
+   "expected": "await despairOwedStore.whenHydrated() before the check, as the other three roads do.",
+   "confidence": "read",
+   "refutation_tried": "Checked whether spendDespairCallFor waits first (it does not on the Bounty's road: calls.mjs:463-467 returns before spendDespairCall). The window is the store's hydration after a load; severity nit."
+  }
+ ],
+ "by_decision": [
+  {
+   "what": "A conversion of Despair to Hope does not lower the pool at once: the pool owes it and pays at the next time of day, so the bar shows more than it can spend for up to one time of day.",
+   "source": "scripts/despair.mjs:533-550 (E05 C12, 27.09.2026; audit S09-28); the GM's row draws the owed pips (1176-1185, the owner's report of 13.11.2026)"
+  },
+  {
+   "what": "A Bounty posts no public card, unlike every other Despair Call.",
+   "source": "scripts/calls.mjs:463-467; scripts/monocub.mjs:1764-1774 (the owner's DC27 = 2, DC40)"
+  },
+  {
+   "what": "A settlement drops unpaid an owed row of a time of day other than the last settlement's mark, so a conversion recorded on another GM in the moment the time of day moves can go unpaid.",
+   "source": "scripts/despair.mjs:701-720 ('What it costs ... Not measured at a table')"
+  },
+  {
+   "what": "A Reroll's point given back at a full pool comes off the overflow first, even where that roll's point paid a debt instead of spilling.",
+   "source": "scripts/despair-award.mjs:147-159 ('Not inferred: ... the pool keeps no record of which roll fed it')"
+  },
+  {
+   "what": "The DA39 migration marks the world done whatever the GM ticked; Cancel asks again next load.",
+   "source": "scripts/level-up.mjs:1382-1390, 1497-1501 (the owner's DRPG-D1 of 12.11.2026)"
+  },
+  {
+   "what": "Closing the class's Level Up window hands every row a player owns to its player.",
+   "source": "scripts/level-up.mjs:1124-1135, 1260-1262 (E10 C7)"
+  },
+  {
+   "what": "Tinker never finishes a project: a Help that would complete it holds one step short.",
+   "source": "scripts/monocub.mjs:1470-1475 ('default, owner may revise')"
+  },
+  {
+   "what": "Health is shown to every player, Sanity only to owners and GMs; the document still reaches every browser.",
+   "source": "scripts/character.mjs:324-335 (E24 C1a, the owner's D5 option 1)"
+  },
+  {
+   "what": "A player's safeword press posts the card from the caller's own browser (the caller stays the author in the document) when no GM card lands in time.",
+   "source": "scripts/safeword.mjs:37-45, 252-269 (E06 fix r2-G3: stopping the scene outranks keeping the name off the document)"
+  },
+  {
+   "what": "The resource guard on a player's own browser is a courtesy; Hope is left out of it on purpose.",
+   "source": "scripts/resource-guard.mjs:27-37, 73-96 (E29 C2, C7)"
+  }
+ ],
+ "comments_against_code": [
+  {
+   "where": "scripts/despair.mjs:1094-1103",
+   "comment_says": "The overflow's '?' is 'a courtesy rather than a secret: the counter is a WORLD setting, so a determined player can read it from their own console'.",
+   "code_does": "The count is the GMs' record since E05 C12 and a player's client reads 0 (the earlier reading in old-1.2.42-despair.json cites overflow.mjs:258-259 and world-secrets.mjs:93-96); the player's own hint says 'Only the GMs see the count' (lang/en.json DRPG.Overflow.playerHint). Still standing at 1.2.118 (first noted in old-1.2.42-despair.json's new_observations)."
+  },
+  {
+   "where": "scripts/despair.mjs:1021 and 1326",
+   "comment_says": "'see `buildRow`' / 'A shape, not a control. See `buildRow`.'",
+   "code_does": "No function named buildRow exists; the row builder is `despairRowOf` (1186). The name is the 1.2.42 one (findings-1.2.42/despair.md hygiene: 'buildRow 112')."
+  },
+  {
+   "where": "scripts/despair.mjs:7-11",
+   "comment_says": "'Assistant GMs are deliberately excluded: they are helpers, not Monokumas'.",
+   "code_does": "An Assistant GM granted a pool is a Monokuma: `monokumas()` takes `u.isGM && extra.has(u.id)` (141-146), `addPool` grants one (169-186)."
+  },
+  {
+   "where": "scripts/despair-award.mjs:189-191",
+   "comment_says": "'so it never runs through `onChatMessage` below'.",
+   "code_does": "`onChatMessage` is above it, at 26."
+  },
+  {
+   "where": "scripts/level-up.mjs:10-12",
+   "comment_says": "'Options (repeatable ...): +1 max Health · +1 max Sanity · +1 to a trait · +1 to an experience · a new experience at +2'.",
+   "code_does": "Since E64 C6 (DA39) the options are trait, experienceUp and experienceNew (config.mjs:3418-3420); a point in Head, Body or Leg raises a maximum (LEVEL_UP_TRAIT_RESOURCES, config.mjs:3437-3439; level-up.mjs:850-866)."
+  },
+  {
+   "where": "scripts/character.mjs:18-20",
+   "comment_says": "'A Level Up writes +1 Health or +1 Sanity onto the maximum'.",
+   "code_does": "No Level Up option does since DA39; a statistic's point does (level-up.mjs:856-866). The predicate's reasoning still holds; the sentence names options that are gone."
+  },
+  {
+   "where": "scripts/trait-ruling.mjs:33-34 and 69-73",
+   "comment_says": "'OUTSIDE THE INCIDENT NOTHING ASKS (C11d) ... Search rolls Eye alone' and 'a Search ..., which lists Eye alone until C6 and so asks nobody yet'.",
+   "code_does": "ACTIONS.search.traits lists six statistics since E68 C6 (config.mjs:1514-1517), `CARD_ACTIONS` is ['search'] (149) and a Search proposed on anything but Eye asks a GM on a card; the autoApproveTraits setting's hint says so (lang DRPG.Settings.autoApproveTraits.hint). Line 66-67 of the same header has it right."
+  },
+  {
+   "where": "scripts/resource-guard.mjs:4-9",
+   "comment_says": "'Actions, Hope and traits change because something happened ... So those fields become read-only for players'.",
+   "code_does": "`GUARDED` holds no `hope.value` (89-96), and the file's own note at 73-88 says Hope is left out on purpose."
+  },
+  {
+   "where": "scripts/price.mjs:189-194",
+   "comment_says": "'Two windows open at once therefore pay two different steps rather than the same step twice.'",
+   "code_does": "On a player's browser `meansWrite` reads the sheet with no queue (sheet-audit.mjs:1047-1048), and the sheet moves only when the server answers; two payPrice calls begun before the first write lands both read the same Hope and both write held - amount. Not measured; true for presses that are a round trip apart."
+  },
+  {
+   "where": "scripts/monocub.mjs:1525",
+   "comment_says": "'The ask stays open in the Monocub's row (`askOpen`) until a GM answers it.'",
+   "code_does": "Since the 1.2.110 review the mark shuts the next ask only while its time of day lasts (`askStillOpen`, 730-743; the CUB_BLOCKS row 844-847)."
+  },
+  {
+   "where": "scripts/monocub.mjs:6-8 and 16-17",
+   "comment_says": "'gets exactly two things to do with it: Move, and Meddle' and 'a Hope total that only a GM can top up, by converting their own Despair'.",
+   "code_does": "CUB_RESOLVERS holds five moves (meddle, redeem, askHope, tinker, bet; 1468); Hope also comes from Redeem (1511-1519), a Bribe (1683-1698), a Bounty (1835-1845) and a Ghost Bet (1917-1941), into the purse (750-822)."
+  }
+ ],
+ "hygiene": {
+  "functions_over_300": [],
+  "functions_150_to_300": 1,
+  "functions_150_to_300_list": [
+   "applyAdvancement, scripts/level-up.mjs:812, 200 lines (brace count by script)"
+  ],
+  "functions_100_to_150": [
+   "despairRowOf, scripts/despair.mjs:1186, 124 lines",
+   "openAdvancement, scripts/level-up.mjs:548, 110 lines"
+  ],
+  "duplicated_helpers": [
+   "`esc` imported statically in level-up.mjs:17 and again by import() at 1395 and 1506; askWhoPicks shadows it with a local `const esc = foundry.utils.escapeHTML` (1247).",
+   "Four whole-number helpers in level-up.mjs: `wholeCount` (177) and three local `whole` (1296, 1328, 1406), each `Math.max(0, Math.trunc(Number(value) || 0))`.",
+   "monocub.mjs's `askMarkNow` (737-739) and `moveSlotNow` (1221-1224) build the same `{ chapter, epoch, day, timeOfDay }`; the same-day comparison is typed three times (`isToday` 746-748, `cubCapRefusal` 1236, `noteCubMove` 1248).",
+   "The verdict-before reading `record.chapter === chapter ? record.lastVerdictAt ?? null : null` in monocub.mjs setSilenced (544-546) and caseOpen (96).",
+   "Sheet Hope read off the document on the GM in five places of monocub.mjs (788, 805, 1513, 1641, 1686-1694) where price.mjs, rest.mjs, despair.mjs and level-up.mjs use sheet-audit.mjs `meansWrite` (finding 6)."
+  ],
+  "dead_code": [
+   "scripts/despair.mjs:966 `poolLabel(user) ?? user?.name ?? \"?\"`: `poolLabel` always answers a string ('?' at worst, 236), so both fallbacks are unreachable.",
+   "Exports with no importer in scripts/ and none in the tests: balance-log.mjs `BALANCE_FLOOR` (32) and `balanceLogOn` (38), level-up.mjs `da39Boxes` (1468) - each used in its own file only (git grep -w over scripts/ and audit/harness).",
+   "rest.mjs `currentClock()` (236-238) is `getClock()` under another name, kept for the comment above it.",
+   "level-up.mjs offerAdvancement's returned `by` and `at` (490) are read by no caller found (its callers test the answer for truth)."
+  ],
+  "magic_numbers": [
+   "rest.mjs:527 Breath's `full ? 2 : 1` beside config.mjs:2166's prose 'Grants 2 Hope' / 'Grants 1 Hope' - two copies of one number, no REST field.",
+   "despair-award.mjs:332 `waitMs: 4000` ('not a measured delay', 323-327).",
+   "monocub.mjs:1950 the Monocub log keeps `-50` entries, unnamed.",
+   "balance-log.mjs:35 `NOTE_MAX = 2000`, named, its number unexplained."
+  ]
+ },
+ "hints_for_other_passes": {
+  "dead_controls": [],
+  "stale_windows": [
+   "A second GM's open character sheet keeps its Level Up button lit or dark after the primary records or drops an offer: `dropOffer` redraws the primary's own sheet only (scripts/level-up.mjs:266-271), `offerAdvancement` on a non-primary redraws before the primary's row merges back (494-518), and `offerStore` (gm-stores.mjs:723-737) has no redraw listener in level-up.mjs or sheet-header.mjs (661-711 reads `standingOffers` at render). Refresh pass: confirm with probe 43 or a two-GM scenario.",
+   "The Monocub ability window's price header is drawn from the row and never redrawn; an order accepted while it stands open changes the price (finding 10).",
+   "The Despair bar's steppers carry `disabled` from the drawn `held` (scripts/despair.mjs:1301-1304) and redraw on the pools' setting (settings.mjs:3379-3390, sync.mjs:408); in the round trip after another GM's change the + of a full pool is live (finding 5)."
+  ],
+  "for_controls_pass": [
+   "Despair bar: pips (GM, clamped, toggle on a second click before redraw), the - and + steppers (GM, unclamped +), the ghost steppers on a player (disabled, aria-hidden, no handler) - scripts/despair.mjs:1241-1305, 1311-1339.",
+   "Level Up menu (openAdvancement): Standard, Reinforced, one 'take back' row per standing offer, the who-picks radios, Grant; the class window's Hand them out / All: the players pick (scripts/level-up.mjs:45-118, 1245-1274); the DA39 window's boxes, Apply and Later (1502-1522).",
+   "Trait ruling: the GM's local window (Approve/Change/pick, Cancel) and the player's Roll {stat} / I'll pass (scripts/trait-ruling.mjs:329-350, 380-395).",
+   "Monocub: Invitation Accept / Not now, Bribe Accept / Refuse, the ability window's Help / Hinder and target rows (scripts/monocub.mjs:487-515, 1325-1373, 1581-1602).",
+   "Safeword confirmation: Stop it (default, gmRoute) and Cancel, the keybinding (unbound by default) (scripts/safeword.mjs:387-439)."
+  ]
+ },
+ "not_established": [
+  {
+   "item": "Finding 2's order: whether the primary's settlement can run before a second GM's lapse of a Bounty in one change of the time of day.",
+   "l1": {
+    "what": "A lapsed Bounty's Despair when the clock is moved by a GM that is not the primary.",
+    "recipe": [
+     "Two GMs, both with pools; note pool P of the primary GM.",
+     "As the primary, post a Bounty (Despair Call) on a living student; the GM bar shows 1 owed.",
+     "As the second GM, advance the time of day.",
+     "Read P on both bars and the GMs' card about the lapse."
+    ],
+    "clients": "2 GMs, 1 player",
+    "theme": "default",
+    "settles_if": "P back where it was and the card says cancelled or given back: no defect; P one lower with a 'cancelled' card: finding 2 stands.",
+    "priority": "minor"
+   }
+  },
+  {
+   "item": "Finding 1 at a table (DESP-LC1): two GMs, one buying Despair Calls from its own pool while the primary awards roll points; the bar against the sum of awards and prices over a session.",
+   "l1": {
+    "what": "Whether a Call bought on a second GM ever pays less than its price or none.",
+    "recipe": [
+     "Two GMs; grant the Assistant GM a pool and set it to 3.",
+     "As the primary, lower that pool by 1 by hand (pip) and, within a second, as the Assistant buy a 3-Despair Call.",
+     "Repeat with the primary's browser reloading while the Assistant buys.",
+     "Read the pool and whether the Call was applied."
+    ],
+    "clients": "2 GMs (one Assistant with a granted pool), 1 player",
+    "theme": "default",
+    "settles_if": "Every applied Call took its full price: refuted; a Call applied with the pool at 0 after holding 2, or applied with the pool unchanged: stands.",
+    "priority": "minor"
+   }
+  },
+  {
+   "item": "Finding 6: whether sheet-audit.mjs `noteOwnDropped` (reached through resource-guard.mjs noteOwnWrite) still puts back a console's raised Hope that a Monocub road read and wrote less its price.",
+   "l1": {
+    "what": "A Monocub's console-raised Hope spent by a move in the same tick.",
+    "recipe": [
+     "A Monocub with 0 Hope; on its player's console write system.resources.hope.value = 6 and in the same tick call game.drpg for a Confusion (or press it).",
+     "Read the Monocub's Hope after the primary's audit, and game.drpg.sheetWrites()."
+    ],
+    "clients": "1 GM, 2 players (Monocub and target)",
+    "theme": "default",
+    "settles_if": "Hope back to 0 and the move refused or flagged: refuted; Hope 5 standing: stands.",
+    "priority": "minor"
+   }
+  },
+  {
+   "item": "balance-log.mjs balanceRowOf reads the first non-d12 die as the advantage die and the rest of the total as its sign; a drawn roll with an advantage die and a Call's die (or two Call dice) records one die's faces for both, and the exact count is then computed for the wrong spread. The record's `dice` shape (roll-draw.mjs keepRecord) was not traced.",
+   "l1": {
+    "what": "Not a table check: a harness probe that draws a roll with advantage and a Call's d4 with the balance log on and reads the row.",
+    "recipe": [
+     "Harness: balanceLog on; arm a Call with a bonus die and advantage on a student; draw an action roll; read balanceLogStore's row."
+    ],
+    "clients": "harness, 1 GM 1 player",
+    "theme": "n/a",
+    "settles_if": "adv.faces matches the advantage die and the Call's die is in flat or listed: no defect; otherwise a nit in the report's numbers.",
+    "priority": "nit"
+   }
+  },
+  {
+   "item": "price.mjs: two payPrice calls on a player's browser begun before the first write lands (comment against code above) - whether a real table can press two priced controls inside one round trip.",
+   "l1": {
+    "what": "Two priced actions in one breath on one player's browser.",
+    "recipe": [
+     "In a Class Trial, a student with 1 Hope and no actions; open Analyze and an Objection window together and confirm both within a second.",
+     "Read the Hope and Sanity after."
+    ],
+    "clients": "1 GM, 1 player",
+    "theme": "default",
+    "settles_if": "One paid with Hope and the other with Sanity (or refused): the comment holds; both paid with the one Hope: the comment is wrong at a table.",
+    "priority": "nit"
+   }
+  },
+  {
+   "item": "safeword.mjs: a GM card that lands after TIMING.safewordAnswerMs, when the caller has already posted its own, gives two public cards (the header's 'still posts the only card' is said for a GM inside the window only). Not timed.",
+   "l1": {
+    "what": "A safeword press with a primary GM slow to answer.",
+    "recipe": [
+     "A player presses the safeword while the primary GM's browser is reloading (connected, module not yet listening).",
+     "Count the safeword cards in chat on every client and whether the game pauses."
+    ],
+    "clients": "1 GM, 2 players",
+    "theme": "default",
+    "settles_if": "One card and one pause: no defect; two cards: a nit to record.",
+    "priority": "nit"
+   }
+  },
+  {
+   "item": "No test result is cited: audit/findings-1.2.118/base-run.json did not exist when this file was written. E17-T8 (tier 2), R5762, R1441, R3808, R6905, R213 and the DA39 tier 2 test are named from source only.",
+   "l1": null
+  }
+ ]
+}

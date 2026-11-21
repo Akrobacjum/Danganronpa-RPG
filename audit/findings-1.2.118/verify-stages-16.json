@@ -1,0 +1,273 @@
+{
+ "refuter": "verify-stages-16",
+ "of": "stages-16",
+ "scope_note": "Checked: every promise the reader marked holds 'yes' (no promise is marked 'no'), each stage's grade, and the three findings (all nit; none of severity minor or above exists in the file, so the nits were checked as well). Promises marked partly, superseded or unread were read only where they bear on a grade (E46 promise 10, E47 promise 6, E68 promise 6). base-run.json was on the branch when this was written (it was not when the reader looked): its merge of all 8 shards is cited for every tier-2 result. Nothing was run; source read with grep, sed and git show.",
+ "checked": [
+  {
+   "ref": "E46 promise 1",
+   "claim": "The kit gains group rows, two-line heads and cells, a compact stepper, iconButton, checkList (red only for blocking) and liveFooter (a destructive default throws)",
+   "verdict": "stands",
+   "why": "Each builder is at the cited place and does what is claimed: a group row is one colgroup heading with its count, lines: 2 and cellLines: 2 clamp with the whole text in title, stepper takes compact, iconButton throws without a label, checkList's states are CHECK_MARKS' and the comment names blocking as the only red, and footerButtons throws when a destructive button is the default. R2002-R2009 are rows stamped E46 and the merged base run has no failure among them.",
+   "evidence": "scripts/ui-kit.mjs:694-696 \"if (grouped && r && Object.hasOwn(r, \\\"group\\\")) { ... return `<tr class=\\\"drpg-data-group\\\"><th scope=\\\"colgroup\\\" colspan=...\"; :821 \"export function stepper({ ..., compact = false, ...\"; :938 \"if (!label) throw new Error(\\\"ui-kit: an icon button with no label - its icon is no name\\\")\"; :148 \"if (chosen && !BUTTON_ROLES[chosen.role].mayDefault) throw new Error(`ui-kit: a ${chosen.role} button may never be a window's default ...`)\"; audit/findings-1.2.118/base-run.json suite_merge: \"8 shard(s) of 8 file(s), 1583 tier-2 tests in the list; 3387 passed, 1 failed, 27 skipped, 0 red: RED\" (the one failure grid XI07, shard 3/8; audit/harness/skip-baseline.json's 27 skips name none of these four stages' tests)"
+  },
+  {
+   "ref": "E46 promise 2",
+   "claim": "Room setup: kit tables, Searching's count a compact stepper (one write a click), 'This is a room' a switch, Apply with nothing changed writes nothing, input names kept",
+   "verdict": "stands",
+   "why": "The tokens cell is a compact stepper with no name (Apply never reads it), isroom is the kit's toggle, readRoomSetupForm reads the form by name and applyRoomRows compares a before per row. The 'nothing changed writes nothing' half is held by tier 2 E46-T1, whose title says so and which passed in the merged base run.",
+   "evidence": "scripts/room-setup.mjs:345 \"tokens: `<span class=\\\"drpg-token-step\\\">${stepper({ value: SearchTokens.left(room, scene), min: 0, max: maxTokens, compact: true,\"; :309-310 \"isroom: { html: toggle({ name: `isroom:${room}`, ...\"; :532-534 \"function readRoomSetupForm(d, ...) { const f = d.element.querySelector(\\\"form\\\"); const pick = name => f.querySelector(`[name=...`)\"; scripts/tests-tier2.mjs:97151 \"E46-T1 - ... Apply with nothing changed writes no region; ...\""
+  },
+  {
+   "ref": "E46 promise 3",
+   "claim": "The room picture's warning (large or not loading) is drawn in the cell and never blocks Apply",
+   "verdict": "stands",
+   "why": "wirePictureWarnings writes box('warning') into the cell's say span on a MutationObserver per picture and calls nothing of setApplyBlock; the only setApplyBlock call in the file is the bedrooms' one. headOfImage is the one HEAD with a bound.",
+   "evidence": "scripts/room-setup.mjs:786 \"say.innerHTML = text ? box(\\\"warning\\\", `<p>${foundry.utils.escapeHTML(text)}</p>`) : \\\"\\\";\"; :849 \"setApplyBlock(root, \\\"bedrooms\\\", text || null);\" (the only call); scripts/room-tile.mjs:609 \"const answer = await fetch(src, { method: \\\"HEAD\\\", signal: abort?.signal });\""
+  },
+  {
+   "ref": "E46 promise 5",
+   "claim": "Item tables on the kit; Give existing takes category and tier from entryAs, '- choose -' where the table does not say, Give waits",
+   "verdict": "stands",
+   "why": "entryAs answers null parts where neither the flags nor the name say, the window imports it, and setCategoryTier is both the warning box and Give's disabled title. The '- choose -' key exists in both languages. R2020-R2022 and E46-T2 green in the merged run.",
+   "evidence": "scripts/tables-pools.mjs:858-859 \"export function entryAs(table, entry) { const none = { category: null, tier: null, goal: null };\"; scripts/gm-items.mjs:776 \"const as = entryAs(table, entry);\"; :885 \"const title = may ? null : why ?? game.i18n.localize(\\\"DRPG.Items.setCategoryTier\\\");\"; lang/pl.json:1257 \"\\\"chooseOne\\\": \\\"- wybierz -\\\"\""
+  },
+  {
+   "ref": "E46 promise 6",
+   "claim": "A Truth Bullet from an unnamed trace is called 'Remnant' and nothing is written unless the GM renames it",
+   "verdict": "stands",
+   "why": "bulletFromRemnant compares the result's name with what the box showed (entry.label) and writes the name and the edited mark only when they differ; DRPG.Remnant.tokenName is 'Remnant' in both files.",
+   "evidence": "scripts/gm-items.mjs:1333-1337 \"if (result.name !== (entry.label ?? pub?.name)) { try { await setRemnantPublicById(scene?.id, token.id, { name: result.name }); ... await markRemnantEditedById(...\"; lang/en.json:3792 and lang/pl.json:4064 \"\\\"tokenName\\\": \\\"Remnant\\\"\""
+  },
+  {
+   "ref": "E46 promise 7",
+   "claim": "Sound: Effects one row an event, at most three buttons, the 11 px floor in both themes; Music in one sentence with the order folded; the Test's reasons in both languages",
+   "verdict": "stands",
+   "why": "soundEffectsHtml is at sfx.mjs:598 and openSoundDialog takes it; R2026-R2029 describe exactly these parts and are green. The 11 px floor is a stand-in cascade (R2027's own title), so it is a shape, not a reading in Foundry's stylesheet - the reader says so.",
+   "evidence": "scripts/sfx.mjs:598 \"export function soundEffectsHtml({ lead = \\\"\\\" } = {}) {\"; docs/dev/R-REGISTRY.md:958 \"R2027 | 1 | E46 | Sound's text on the floor in both themes ... in a stand-in of the Sound window ... (styleCascade; Chromium's floor reads the rest)\""
+  },
+  {
+   "ref": "E46 promise 8",
+   "claim": "Despair Flow's tables and Overflow's rules are kit tables; Clear still asks first",
+   "verdict": "stands",
+   "why": "The rules are a dataTable with a toggle and a compact stepper per rule; the Clear button is wired by clearOverflowFromTab, which asks drpgConfirm with a destructive yes before clearOverflowAsGm.",
+   "evidence": "scripts/overflow.mjs:1200 \"const rules = keys => dataTable({\"; scripts/gm-team-dialog.mjs:131-138 \"const answer = await drpgConfirm({ ... yes: { role: \\\"destructive\\\", action: \\\"clear\\\", ... } }); if (answer !== \\\"clear\\\") return false; const cleared = await clearOverflowAsGm();\""
+  },
+  {
+   "ref": "E46 promise 9",
+   "claim": "Season setup and Pre-season checks one kit checklist, red only for blocking; the chapter's end and reset warnings in the kit's box",
+   "verdict": "stands",
+   "why": "setupRows maps the steps onto checkList; chapter.mjs, season-setup.mjs and season-wipe.mjs draw their warnings with box('warning'). R2032-R2035 and E46-T4 green.",
+   "evidence": "scripts/season-setup.mjs:937-938 \"export function setupRows(list, { label = null } = {}) { return checkList(list.map(step => {\"; scripts/chapter.mjs:1062 \"body: `${box(\\\"warning\\\", `<p>${esc(game.i18n.format(\\\"DRPG.Chapter.endStands\\\", ...\"; scripts/season-wipe.mjs:290 \"${box(\\\"warning\\\", `<p>${esc(game.i18n.localize(\\\"DRPG.Season.resetWarning\\\"))}</p>`)}\""
+  },
+  {
+   "ref": "E46 grade",
+   "claim": "8, provisional after L1: everything checked holds; against 9 the unread live checks (cap), the four tier-2 tests not read, touches [] and two builders taken from rows",
+   "verdict": "stands",
+   "why": "The grade stands, on a narrower reason than the reader's. One reason has fallen: base-run.json was written after the reader looked, and its merge of all 8 shards has one failure (XI07, not this stage's) and skips none of E46-T1..T4, so all four passed. The two builders held by green rows meet 11.4's standard (a named test green), so that reason is not one against a 9 either. What still keeps it at 8 is promise 10, touches []. It cannot be checked from history: E46 C0-C4's work reaches this branch only inside f4a5083a, a commit with no parent that adds 613 files. So that diff cannot be read for socket, bridge, roll or store changes, and E46's own later commits (C5a, C5b, C6 and the merges) touch none of those files. One promise neither tested nor traceable fits 8 ('one held only by reading'), not 9 ('everything delivered'). The cap at 9 for the seven unread live checks stands as the reader wrote it.",
+   "evidence": "audit/findings-1.2.118/base-run.json suite_merge: \"8 shard(s) of 8 file(s), 1583 tier-2 tests in the list; 3387 passed, 1 failed, 27 skipped, 0 red: RED\" (the one failure grid XI07, shard 3/8; audit/harness/skip-baseline.json's 27 skips name none of these four stages' tests); git show f4a5083a --format=%P -s: (empty, no parent); f4a5083a \"613 files changed, 504104 insertions(+)\" incl. \"scripts/bridge-table.mjs ... new file mode 100644\"; tools/stages.json row E46 \"touches\": []",
+   "grade_after": 8
+  },
+  {
+   "ref": "E47 promise 1",
+   "claim": "One table says the trial's next step; the console, the vote and the GM panel's Next line all read it; no row closes the trial",
+   "verdict": "stands",
+   "why": "TRIAL_NEXT_STEPS is one frozen list and trialNextStep its only reader; the console (:772), the vote's lead (:1894) and the panel (:870) call it. The table's header says no row closes the trial and the rows listed are start, rounds, debate, verdict, summary, chapterEnd, vote, scrum and the debate again - no 'end'. R2050/R2051 and E47-T1 are green.",
+   "evidence": "scripts/trial-floor.mjs:168-169 \"No row closes the trial: the sentence after the verdict is E70's\"; :205-207 \"export function trialNextStep(view) { return TRIAL_NEXT_STEPS.find(([when]) => when(view))[1]; }\"; scripts/trial-floor-ui.mjs:1894 \"data-drpg-step=\\\"${esc(trialNextStep(view))}\\\"\"; scripts/gm-panel.mjs:870 \"const step = trialNextStep(view);\""
+  },
+  {
+   "ref": "E47 promise 2",
+   "claim": "The console's footer keeps fixed slots, redrawn in place; destructive buttons left, never Enter's; Start the Final Trial greyed with its reason with no Mastermind",
+   "verdict": "stands",
+   "why": "trialFooter sorts roles into primary, secondary and destructive, holds Close as the default during an exchange, and the Final Trial's button is disabled with DRPG.Mastermind.noneSet as its tooltip when no Mastermind is set and no Final Trial runs.",
+   "evidence": "scripts/trial-floor-ui.mjs:1508 \"else if (role === \\\"destructive\\\") footer.destructive.push(button);\"; :1516 \"if (state.hold && footer.close) footer.default = footer.close.action;\"; :1487 \"...(finalNow || mastermind ? {} : { disabled: true, tooltip: game.i18n.localize(\\\"DRPG.Mastermind.noneSet\\\") })\""
+  },
+  {
+   "ref": "E47 promise 3",
+   "claim": "The incident tracker at one width, a turn bar first, at most three last turns, the empty state's 'Open a murder...', the bar says the turns are over at Stage 6",
+   "verdict": "stands",
+   "why": "openIncidentTracker states width 'tracker'; the strings exist; R2056/R2057 hold the bar, the three turns and the empty state; E47-T2 green.",
+   "evidence": "scripts/murder-ui.mjs:746 \"width: \\\"tracker\\\",\"; :480 \"? game.i18n.format(\\\"DRPG.Murder.trackerStateOver\\\", {\"; lang/en.json:2804 \"\\\"trackerOpenMurder\\\": \\\"Open a murder...\\\"\"; docs/dev/R-REGISTRY.md:974 \"R2056 ... at most three of the last turns\""
+  },
+  {
+   "ref": "E47 promise 4",
+   "claim": "Murder and Edit campaign are kit forms; Edit campaign's Chapter a stepper",
+   "verdict": "stands",
+   "why": "openClockDialog builds the chapter, day and session as kit steppers on formGrid rows; R2058, R2059 green.",
+   "evidence": "scripts/gm-campaign.mjs:171-172 \"{ label: L(\\\"DRPG.Clock.chapter\\\"), id: ids.chapter, field: stepper({ name: \\\"chapter\\\", value: now, min: 1, max: Math.max(CHAPTERS_PER_SEASON, now), ...\""
+  },
+  {
+   "ref": "E47 promise 5",
+   "claim": "The Murder tile live during an Eclipse while an incident runs; a disabled tile says why; the phase's tile marked; one case tile opening one window",
+   "verdict": "stands",
+   "why": "The comment and the tile at the cited lines say exactly this; the case tile runs openCaseWindow; R2060-R2064, E47-T3 and E47-T4 green.",
+   "evidence": "scripts/gm-panel.mjs:248-251 \"LIVE WHILE AN INCIDENT RUNS, EVEN IN AN ECLIPSE (E47-C3 ...)\"; :347-348 \"{ key: \\\"caseWindow\\\", icon: \\\"fa-box-archive\\\", labelKey: \\\"DRPG.Case.tile\\\", subtitle: () => backupAge(), run: () => import(\\\"./gm-stores.mjs\\\").then(m => m.openCaseWindow()) }\"; scripts/gm-stores.mjs:2856 \"export async function openCaseWindow() {\""
+  },
+  {
+   "ref": "E47 promise 7",
+   "claim": "The Students window: every character a row with its Role through the sheet's roads, a Level Up and its own Items; a player reaches none",
+   "verdict": "weakened",
+   "why": "The Role and Level Up halves hold (changeRole goes through markFromSheet/setMonokuma/setNotInClass; R2080-R2084, E47-T6 green). 'Its own Items' on every row no longer holds as shipped: since E95 C7 a Monokuma's row gets a disabled, aria-hidden kept slot in place of the Items button. The reader's note says so, but the promise is marked 'yes', not partly or superseded in part. This is an owner's later rule, not a defect, so no severity.",
+   "evidence": "scripts/gm-students.mjs:175-176 \"const keptSlot = () => iconButton({ ..., cls: \\\"drpg-mini-button drpg-alive-slot\\\", attrs: { \\\"data-drpg-items-slot\\\": \\\"\\\", \\\"aria-hidden\\\": \\\"true\\\", tabindex: \\\"-1\\\" }, disabled: true });\"; :190 \"open: `${sheetButton(a)}${role === \\\"monokuma\\\" ? keptSlot() : itemsButton(a)}`,\""
+  },
+  {
+   "ref": "E47 promise 9",
+   "claim": "One roll status component; the no-GM and audit cards on the kit, every button doing what it did; the settings section and Give back without Foundry's amber",
+   "verdict": "stands",
+   "why": "rollStatus is one table of states over the kit's box; b6133c75 (E47-C5) changed roll-draw.mjs's and sheet-audit.mjs's markup and kept the data-drpg-away attributes the handlers read (its own comment). R2072-R2075 and E47-T5 green. A small slip in the citation: settings.mjs:1134 is a renderSettingsConfig hook, not a function of that name. That does not change the claim.",
+   "evidence": "scripts/roll-draw.mjs:243 \"export function rollStatus(state, text) {\"; git show b6133c75 roll-draw.mjs \"+ * The GMs' card's markup around its lines ... The buttons' `data-drpg-away` and the wrapper `.drpg-away-actions` are what `onRenderUnwitnessed` reads and removes, unchanged.\"; scripts/settings.mjs:1134 \"Hooks.on(\\\"renderSettingsConfig\\\", (_app, element) => {\"; scripts/enforced.mjs:918 \"export function giveBackContent({\""
+  },
+  {
+   "ref": "E47-1",
+   "claim": "nit: the suite's tier-2 refusal during an incident names a 'Close the murder' button; the tracker's is 'End the murder'",
+   "verdict": "stands",
+   "why": "The message is as quoted; en.json has 'End the murder' and no 'Close the murder'. murder-ui.mjs's own comment records the rename at C3b.",
+   "evidence": "scripts/tests.mjs:452 \"message: \\\"Close it from the incident tracker (Close the murder) and run again.\\\\n\\\"\"; lang/en.json:2826 \"\\\"endMurder\\\": \\\"End the murder\\\"\"; scripts/murder-ui.mjs:644 \"End the murder - \\\"Close the murder\\\" until C3b\"",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "E47-2",
+   "claim": "nit: components.css's E47-FB comment still speaks of 1204 px and in-word breaks under Legacy, which E97 C2 replaced",
+   "verdict": "stands",
+   "why": "Both comments are as quoted; the window's stated width is WIDE, 1120 px.",
+   "evidence": "styles/components.css:4013-4014 \"ten columns do not hold them all in 1204 px: there, and below 1366 px, a head still breaks inside a word\"; :3381-3385 \"So under Legacy the Traces table keeps its shares at 130 % of its box ... A head breaks between its words only.\"; scripts/ui-columns.mjs:30 \"export const WIDE = Object.freeze({ width: 1120, ...\"",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "E47 grade",
+   "claim": "8, provisional after L1: holds and is tested; two nits; live unread; E47-T1/-T4/-T5 not read; two promises superseded; R2068's title says more than E97 lets the Legacy table do",
+   "verdict": "stands",
+   "why": "One reason fell and one was confirmed, so the grade stands. The one that fell: E47-T1, -T4 and -T5 passed in the merged base run. The one confirmed: R2068's body builds its stand-in without the .drpg-case-view wrapper, so the rule that holds the Legacy Traces pane at 130cqw never applies in it. The test passes and does not see the table the window draws under Legacy, though its title promises 'no table ... wider than its window'. That is a test measuring less than its title, a nit to minor in test hygiene, on top of the stage's own unmeasured Legacy known gaps (Students with 2 px to spare, footers wrapping). Promise 7 is partly superseded as well (above). With one promise's test now short of its title, 8 is the anchor that fits; 9 would need nothing but nits.",
+   "evidence": "scripts/tests-tier1.mjs:52975 \"R2068 - no table of the Investigation dashboard wider than its window\"; its stand-in: \"<div class=\\\"drpg-case-live\\\"><form>... <section class=\\\"drpg-tab-pane\\\" data-drpg-pane=\\\"traces\\\">\" (no .drpg-case-view); styles/components.css:3396 \"body:not(.drpg-theme-stained-glass) .application.drpg-window-case .drpg-case-view [data-drpg-pane=\\\"traces\\\"] { width: 130cqw; }\"; audit/findings-1.2.118/base-run.json suite_merge: \"8 shard(s) of 8 file(s), 1583 tier-2 tests in the list; 3387 passed, 1 failed, 27 skipped, 0 red: RED\" (the one failure grid XI07, shard 3/8; audit/harness/skip-baseline.json's 27 skips name none of these four stages' tests)",
+   "grade_after": 8
+  },
+  {
+   "ref": "E95 promise 3",
+   "claim": "Where a body lies is read in one place (bodyPlaceOf, bodyRoomOf) and the loot judged there by Frisk's one gate",
+   "verdict": "stands",
+   "why": "personActionRefusal reads bodyPlaceOf for a body, its header names the three askers (lootBody, transferItem, the greying) through it, and handover.mjs's witnesses and loot read bodyPlaceOf too. R3141, R3143 and the tier-2 'a body's loot is judged where the body lies' are green.",
+   "evidence": "scripts/frisk.mjs:162 \"const there = theirs.getFlag(MODULE_ID, FLAGS.monokuma) ? null : body ? bodyPlaceOf(target, { held: flagsHeldNow }) : gmPlaceOf(target);\"; :142-144 \"The three askers - handover.mjs `lootBody`, inventory.mjs `transferItem` and anonymity.mjs's greying - read it through this one gate (tier 0 R3143)\"; scripts/handover.mjs:766 \"const place = bodyPlaceOf(body);\""
+  },
+  {
+   "ref": "E95 promise 4",
+   "claim": "The announcement calls one hook, on the writer before the gather (waitUntil at most 1500 ms) and on others on the stamp; a row older than 60 s at load never announced; suite stamps rehearsal: true",
+   "verdict": "stands",
+   "why": "callBodyAnnounced waits on the writer's promises against BODY_ANNOUNCED_WAIT_MS; announceArrivedBodies skips rows older than ready less BODY_ANNOUNCED_STALE_MS, and rows held at ready are marked seen; the payload carries rehearsal only where the stamp has it. The 1.2.113 change (the GM's Announce before the discovery) is at body.mjs:839-853 as the reader says.",
+   "evidence": "scripts/body.mjs:529-531 \"export const BODY_ANNOUNCED_HOOK = \\\"drpgBodyAnnounced\\\"; const BODY_ANNOUNCED_WAIT_MS = 1500; const BODY_ANNOUNCED_STALE_MS = 60000;\"; :598 \"const oldest = announcedReadyAt - BODY_ANNOUNCED_STALE_MS;\"; :549 \"if (row?.rehearsal === true) payload.rehearsal = true;\"; :618 \"if (setting?.key === `${MODULE_ID}.${SETTINGS.bodiesFound}`) announceArrivedBodies();\""
+  },
+  {
+   "ref": "E95 promise 5",
+   "claim": "Breakdown and Wounded drawn on no token for anybody, public on the sheet as a badge; a Monokuma's sheet none",
+   "verdict": "stands",
+   "why": "effectIconShown refuses both statuses for every user, and wrapEffectIcons answers a settled null for them; it is a patches.mjs row. The sheet half rests on two tier-2 tests on a stand-in sheet, both green; the real sheet is LIVE-E95-05, as the reader says.",
+   "evidence": "scripts/states.mjs:549-551 \"export function effectIconShown(actor, effect, user = game.user) { return !OFF_TOKEN.some(state => effect?.statuses?.has?.(state.id)); }\"; :566 \"if (!shown) return Promise.resolve(null);\"; scripts/patches.mjs:1203 \"symbol: \\\"wrapEffectIcons\\\"\""
+  },
+  {
+   "ref": "E95 promise 6",
+   "claim": "A sheet button on every Students row with the window kept open; no Inventory tab on a Monokuma's sheet and no Items control on its row, the items kept",
+   "verdict": "stands",
+   "why": "sheetButton is drawn on every row, wired keepOpen, opening actor.sheet.render(true); sheetMode sets inventory false for a Monokuma and tidyInventoryTab drops the tab without touching the data.",
+   "evidence": "scripts/gm-students.mjs:412 \"wireAliveRow(dialog, \\\"data-drpg-sheet\\\", actor => roads.openSheet(actor), { keepOpen: true, reopen });\"; :481 \"openSheet: actor => actor.sheet?.render(true),\"; scripts/sheet-mode.mjs:84 \"... biography: !monokuma, inventory: !monokuma,\"; scripts/sheet-inventory.mjs:53-55 \"if (mode.inventory) return; ... if (part) dropTab(app, element, part, \\\"inventory\\\");\""
+  },
+  {
+   "ref": "E95 grade",
+   "claim": "7, provisional after L1: what lasts holds and is measured; the headline tile as shipped was replaced twice, once after a real table showed three tokens; v14 reads unread; the sheet gap unmeasured",
+   "verdict": "stands",
+   "why": "Two of the reader's tier-2 tests were 'not read', and both passed in the merged base run, but that was not what set the grade. LIVE-E95-01 is a recorded defect in the drawn tile: body-tile.mjs's header quotes the owner's report from a table on 1.2.112, and fix-113h replaced it. So one promise (2) did not hold at a table as shipped. The stage's own sheet gap is still unmeasured. 7 ('one promise delivered in part') is an anchor the scale allows. Read strictly on 1.2.118 alone it could be 8. I keep 7: today's form of promise 2 (a tile at alpha 0 that draws nothing) is itself unread on v14 (LIVE-E95-01's fixed state).",
+   "evidence": "scripts/body-tile.mjs:32-35 \"THE TILE IS DATA, NOT A PICTURE (the owner's report of 13.11.2026 at a table on 1.2.112: \\\"Killing a character makes 3 tokens appear ...\\\")\"; :42 \"Whether v14 draws a Tile at alpha 0 to nobody, a GM included, was not read: LIVE-E95-01.\"; .github/release-notes/v1.2.113.md:23-26",
+   "grade_after": 7
+  },
+  {
+   "ref": "E68 promise 1",
+   "claim": "The proposal card: Approve, Change to each other listed statistic, Refuse, with the player's words; a pass after Change to; the roll window locked with who chose; two presses one ruling",
+   "verdict": "stands",
+   "why": "traitFor, askTraitByCard and rulePickTrait are where cited. lockTrait disables the statistic with traitApproved or traitChanged from the config's TRAIT_BY_GM, which is 'who chose'. The three tier-2 tests the reader names passed in the merged base run. Scenario 89 is listed as pending in base-run.json, so its result was not read.",
+   "evidence": "scripts/roll-dialog.mjs:623-625 \"} else if (trait && app?.config?.[TRAIT_BY_GM]) { const how = app.config[TRAIT_BY_GM]; disable(trait, how === \\\"approved\\\" ? \\\"DRPG.RollDialog.traitApproved\\\" : how === \\\"changed\\\" ? \\\"DRPG.RollDialog.traitChanged\\\" : ...\"; scripts/call-gm.mjs:305 \"export async function askTraitByCard(payload, ctx) {\"; scripts/messenger-app.mjs:910 \"async function rulePickTrait(action, data) {\"; base-run.json pending: \"the ci scenarios one at a time\""
+  },
+  {
+   "ref": "E68 promise 2",
+   "claim": "One world setting, off by default, approves a Search or a project with no statistic in Daily Life, outside an Eclipse and an incident; fights, openings and Dynamic actions still ask",
+   "verdict": "stands",
+   "why": "autoApprovableIn refuses unless the setting is on, the phase is dailyLife, no Eclipse, no incident and no variant, and only for AUTO_SCOPE's kinds. The reader left open where a GM turns it on. That is now settled: the module's own settings window lists it in the game section's rules group.",
+   "evidence": "scripts/trait-ruling.mjs:235-237 \"if (on !== true || phase !== \\\"dailyLife\\\" || eclipse || incident || spec?.variant) return false; return AUTO_SCOPE.some(...\"; scripts/settings.mjs:3169-3172 \"scope: \\\"world\\\", config: false, type: Boolean, default: false\"; scripts/settings-window.mjs:90 \"section(\\\"game\\\", \\\"rules\\\", \\\"fa-scale-balanced\\\", [..., \\\"friskForce\\\", \\\"autoApproveTraits\\\", ...])\""
+  },
+  {
+   "ref": "E68 promise 3",
+   "claim": "Search on six statistics, Eye the default asking nobody; another statistic a proposal on a GM's card",
+   "verdict": "stands",
+   "why": "ACTIONS.search.traits lists the six with Eye first and the comment names the roads; R3151, R3332 and the two tier-2 tests are green. A stale clause remains in trait-ruling.mjs's header ('which lists Eye alone until C6 and so asks nobody yet'). It is dirt in a comment, not against the promise.",
+   "evidence": "scripts/config.mjs:1517 \"traits: [\\\"eye\\\", \\\"head\\\", \\\"body\\\", \\\"hand\\\", \\\"leg\\\", \\\"shadow\\\"],\"; scripts/trait-ruling.mjs:72-73 \"a Search (`{ kind: \\\"action\\\", key: \\\"search\\\" }`, which lists Eye alone until C6 and so asks nobody yet)\""
+  },
+  {
+   "ref": "E68 promise 4",
+   "claim": "Stage 6's erase, reshape and trail list Shadow alone; Move the Body stays Body",
+   "verdict": "stands",
+   "why": "The clean-up's traits are ['shadow'] and moveBody's ['body']; R3152 green.",
+   "evidence": "scripts/config.mjs:4535 \"traits: [\\\"shadow\\\"],\"; :4790-4793 \"moveBody: { label: \\\"Move the Body\\\", ..., traits: [\\\"body\\\"],\""
+  },
+  {
+   "ref": "E68 promise 5",
+   "claim": "Resolve costs 2 Hope; armed it asks nobody and opens the picker on any statistic",
+   "verdict": "stands",
+   "why": "The definition is cost 2, target none, grants trait, with no needsGm; R3153 green.",
+   "evidence": "scripts/config.mjs:2530 \"label: \\\"Resolve\\\", icon: \\\"fa-hand-fist\\\", cost: 2, target: \\\"none\\\", grants: \\\"trait\\\",\""
+  },
+  {
+   "ref": "E68 promise 7",
+   "claim": "Take from the Body: Hand bands (below 12 Evident, 12-17 Subtle, 18+ and a critical Hidden), a Shadow cover against 16 with a witness, the first roll per Take counts, the GM store lootRolls",
+   "verdict": "stands",
+   "why": "LOOT holds the bands and the cover; handover.mjs answers coverNeeded when the primary counts a witness and no cover came; lootRollStore is a ledger cut with 'deaths', not backed up, synced. R3250 and the three tier-2 tests green. The reader's open point (whether the cover's coverNeeded tells a player of a watcher their screen does not show) is the code's stated design and stays not established.",
+   "evidence": "scripts/config.mjs:4842-4846 \"trait: \\\"hand\\\", bands: Object.freeze([Object.freeze({ below: 12, visibility: \\\"evident\\\" }), Object.freeze({ below: 18, visibility: \\\"subtle\\\" })]), top: \\\"hidden\\\", cover: Object.freeze({ trait: \\\"shadow\\\", threshold: 16 })\"; scripts/handover.mjs:434 \"if (coverRequired && !cover && (await lootWitnesses(taker, body)).length) return { coverNeeded: true };\"; scripts/gm-stores.mjs:945-946 \"name: \\\"lootRolls\\\", key: SETTINGS.gmLootRolls, kind: \\\"ledger\\\", resetGroup: \\\"deaths\\\", backup: false, sync: true,\""
+  },
+  {
+   "ref": "E68 promise 8",
+   "claim": "Older open items: an ask under a ruling, the Reroll's window after a reload and a Dynamic success a Reroll misses, a refused Secret Passage's re-pick, a Frisk's receipt",
+   "verdict": "stands",
+   "why": "cleanProjectChange, receivedOnPrimary and receivedFriskAsk are where cited. R3251, R3252 and the six tier-2 tests whose titles the reader names exist at the cited lines, and all passed in the merged base run. Their bodies were not read here.",
+   "evidence": "scripts/projects.mjs:1484 \"export function cleanProjectChange(change) {\"; scripts/tests-tier2.mjs:84126 \"a Dynamic success a Reroll turns into a miss is greyed for the GMs ... (E68 C11; D048, D054)\"; :84221 \"the Reroll's window after a reload names the roll ... (E68 C11; D047)\"; :39044 \"an expiry under a claim that ends in a ruling ... (E68 review R2)\""
+  },
+  {
+   "ref": "E68 promise 9",
+   "claim": "One wide two-column layout for every action (WIDE 1120 px, actionWindow, chooseVariant)",
+   "verdict": "stands",
+   "why": "WIDE, wideWindow, chooseVariant and actionWindow are where cited; R3200 (stamped E95, see E68-1), R3201 and R3331 green. The fit under Foundry's stylesheet is LIVE-E68-04.",
+   "evidence": "scripts/ui-columns.mjs:30 \"export const WIDE = Object.freeze({ width: 1120, cls: \\\"drpg-variant-columns\\\" });\"; :65 \"export function wideWindow({\"; scripts/action-menus.mjs:303 \"export function actionWindow({ brief = \\\"\\\", ask = \\\"\\\", classes = [], render = null, ...rest } = {}) {\""
+  },
+  {
+   "ref": "E68 promise 10",
+   "claim": "Both handbooks say who picks the statistic, the table held to config.mjs",
+   "verdict": "stands",
+   "why": "R3330 is the row that holds the handbooks' statistic tables to config.mjs in both languages, and it is green. The prose around the tables was not read, by the reader or here.",
+   "evidence": "docs/dev/R-REGISTRY.md:1047 \"R3330 | 1 | E68 | the handbooks' statistic tables say what config.mjs lists: ... in both languages (E68 C14)\""
+  },
+  {
+   "ref": "E68-1",
+   "claim": "nit: R3200, E68 C12's test, is stamped E95 in the registry since the merge 7b5b4da9",
+   "verdict": "stands",
+   "why": "724bcffb (an E68 C12 commit) added the row as E68; the merge 7b5b4da9 regenerated it as E95; the test's own title says E68 C12.",
+   "evidence": "git show 724bcffb -- docs/dev/R-REGISTRY.md \"+| R3200 | 0 | E68 | every action window is built by action-menus.mjs `actionWin...\"; git show 7b5b4da9 -- docs/dev/R-REGISTRY.md \"+| R3200 | 0 | E95 | every action window ...\"; docs/dev/R-REGISTRY.md:1040 \"| R3200 | 0 | E95 |\"; scripts/tests-tier0.mjs:23806 \"R3200 - ... (E68 C12; ...\"",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "E68 grade",
+   "claim": "7, provisional after L1: in code and green; several parts held only by direct calls; Shadow cover reach not established; the opening's proposal on 'Ask again' a known gap; tier-2 tests and scenario 89 unread; live unread",
+   "verdict": "stands",
+   "why": "One reason fell and one gap was confirmed, so the grade stands. The one that fell: the seven tier-2 tests passed in the merged base run. Scenario 89 is still pending. The gap the reader left open is now confirmed in code: the tracker's ask-again (murder-ui.mjs reaskOpening) calls rollOpening with no proposal, while openMurder hands { proposal: openingProposal }. So a killer whose first invitation is re-sent loses the proposal. That is the 1.2.104 Known gap, confirmed and still open, a minor against promise 6 (marked 'partly'). One promise delivered in part plus open known gaps is 7 on 11.4.",
+   "evidence": "scripts/murder-ui.mjs:670-671 \"if (current?.stage === \\\"openingRoll\\\") { rollOpening(current.indirect ? \\\"victim\\\" : \\\"killer\\\", current)\"; scripts/murder-rules.mjs:606 \"rollOpening(indirect ? \\\"victim\\\" : \\\"killer\\\", murderState(), { proposal: openingProposal })\"; audit/findings-1.2.118/base-run.json suite_merge: \"8 shard(s) of 8 file(s), 1583 tier-2 tests in the list; 3387 passed, 1 failed, 27 skipped, 0 red: RED\" (the one failure grid XI07, shard 3/8; audit/harness/skip-baseline.json's 27 skips name none of these four stages' tests)",
+   "grade_after": 7
+  }
+ ],
+ "counts": {
+  "checked": 35,
+  "stands": 34,
+  "weakened": 1,
+  "refuted": 0
+ },
+ "not_established": [
+  "Whether the tier-2 tests the reader listed 'to join' measure what their titles say: the merged base run shows them passed (no failure but XI07, none in skip-baseline.json), but their bodies were not read here.",
+  "Scenarios 89-proposal-card, 10-murder, 78-death-map, 62-investigation, 50 and the others the reader names: base-run.json lists the ci scenarios as pending, so no scenario result was read.",
+  "E46's touches [] (promise 10): E46 C0-C4 reach this branch only inside the parentless 613-file commit f4a5083a, so the stage's diff cannot be separated. E47's commits b6133c75 and 91013b93 changed roll-draw.mjs and sheet-audit.mjs (card markup, read in b6133c75), which bears on whether 'touches []' was right for the gate's rule on runtime scripts that read rolls. Not settled here.",
+  "R2068: its stand-in has no .drpg-case-view, so it cannot see the Legacy Traces pane at 130cqw (components.css:3395). Whether to retitle the test or extend the stand-in is for the owner; noted under the E47 grade.",
+  "Whether a Take's coverNeeded answer tells a player of a watcher their screen does not show (reader's l1 block stands as written).",
+  "Every layout half (Foundry's frame, DialogV2's footer redraw, the 11 px floor in Foundry's stylesheet, the badges on a real Daggerheart sheet, a Tile at alpha 0 on v14) is a live check, LIVE-E46-01..07, LIVE-E47-01..11, LIVE-E95-01..05 and LIVE-E68-01..05, none read."
+ ]
+}

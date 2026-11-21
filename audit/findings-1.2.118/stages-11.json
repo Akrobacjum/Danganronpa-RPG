@@ -1,0 +1,776 @@
+{
+ "reader": "stages-11",
+ "checkout": "claude/audit-119 at 014f9a83; the code under audit is main b5a29e73 (1.2.118)",
+ "count_expected": 4,
+ "count_note": "Four stages given (E70, E89, E20, E52, tools/stages.json:45-48, in that order), four written. None has a docs/dev/<id>/ folder (ls docs/dev: no e70, e89, e20 or e52), so each stage's papers are its stages.json row, its release notes (v1.2.90.md 297 lines, v1.2.91.md 227, v1.2.92.md 161, each read whole), its registry rows, its commits and the 9.2 rows naming it. Registry rows by title: 29 (E70) + 7 (E89) + 37 (E20) + 29 (E52) = 102; by the Since stamp 29 + 3 + 13 + 29 = 74 - the 28 between are stamped E67 (findings E89-1, E20-1). Live items: 12 + 5 numbered (331-347), 7 + 11 in the B- block with no number; the B- block is covered by no live-items-NN file. Read in code: about 1100 lines at the file:line given, in 30 files, none whole; test bodies: R1033, R1049, R1540 and R1560's heads, E70-T8's set-up and exit, R1541 and R1553 around their draw; scenario bodies by grep only. No harness, test, scenario or probe was run; base-run.json was absent when this was written, so no tier-0/1 result of b5a29e73 is claimed and every test named is in tests_to_join.",
+ "stages": [
+  {
+   "id": "E70",
+   "version": "1.2.90",
+   "shipped": "2026-10-28",
+   "what": "The Class Trial by the guide, in two parts shipped as one release: the floor and the trial's record written by the primary GM alone on one engine, the GM's bar (seven buttons) and Overrule, the debate's question and the debate opened again, the verdict that kills nobody and a sentence carried out once at the trial's end, the Final Trial's sentence in the GMs' store, who takes part and the dead's microphones blocked for the trial; Testimony and Panic Round, the Closing Argument, Monokuma's Reveal, Present with or without the Analyze result and a copy to every participant, no Share in the trial, OBJECTION! on the voice tile, a successful Tamper's Truth Bullet for its author - 29 registry rows R1020-R1048, all stamped E70.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.90.md (1-297, whole: Before installing 15-51, At the table 53-144, Changed 146-200, Known gaps 202-261, Checked 263-297)",
+    "tools/stages.json:45 row E70 (planned and shipped 1.2.90, 2026-10-28, touches sockets, drills none)",
+    "no docs/dev/e70/ folder (ls docs/dev: none); the notes cite STATUS files, a ledger of 26 + 32 rows and two end reviews that are not in the repository",
+    "docs/dev/R-REGISTRY.md:553-581 (R1020-R1048, 29 rows stamped E70)",
+    "audit/AUDIT-1.2.42.md 9.2 items 331-342 (lines 1205-1216), LIVE-E70-01 to -12; audit/findings-1.2.118/live-items-327.json rows 331-342",
+    "git log --grep E70: 34 commits in this checkout; 14 of them in 1a1bf1ff..12ff1b62 (the merge of 1.2.90); release commit 41c0e92f, merge 12ff1b62",
+    "audit/harness/README.md:202 (scenario 67, the one register row stamped E70) and :199 (63, stamped E10, extended by E70)"
+   ],
+   "commits": 34,
+   "promises": [
+    {
+     "promise": "One writer: the floor and the trial's record are written on the primary GM's browser alone; another GM's press reaches it by \"trial.gm\" and \"trial.record\", a player's turn, claim and Present by their own rows",
+     "source": "v1.2.90.md 3-6, 136-137, 151-152",
+     "code": "scripts/trial-floor.mjs:366-371 writeFloor (isPrimaryGm first), :726-729 floorOnPrimary (a step of SEIZE_KEY), :737-743 floorStep (requestTrialGm off the primary); scripts/trial-progress.mjs:518 recordPatchOf, :540 recordOnPrimary",
+     "holds": "yes",
+     "test": "R1020, R1021, R1022 (tier 0 source census), R1039 (tier 1); tier 2 \"one writer of the trial's records (E70-T1)\" (tests-tier2.mjs:47875), \"a function of game.drpg for each button of the GM's bar, and the same floor by trial.gm (E70-T4)\" (:48177); scenario 30-security refuses a player's trial.gm, trial.enter, trial.record (v1.2.90.md 195)",
+     "test_kind": "both",
+     "note": "The op list has grown since (FLOOR_OP_NAMES, trial-floor.mjs:374-376: E73's straw, dive, scrum, zoneCount, zoneSkipQuestion); the one-writer rule is unchanged."
+    },
+    {
+     "promise": "The GM's bar: seven buttons in every mode, each greyed with its reason where it does nothing; a press on any GM runs on the primary; the table sees each press",
+     "source": "v1.2.90.md 57-62",
+     "code": "scripts/trial-floor.mjs:1403 BAR_OPS, :1431-1443 barRefusal, :1446-1450 barMay; scripts/trial-floor-ui.mjs:852 BAR_LABELS",
+     "holds": "yes",
+     "test": "R1025 (tier 1, BAR_OPS and barRefusal), R1026; tier 2 E70-T2 (tests-tier2.mjs:47967), E70-T4 (:48177)",
+     "test_kind": "both",
+     "note": "Extended, not broken: BAR_OPS holds nine since E73 C6 (count, skipQuestion, shown in a zone mode) and Re-point is allowed in a Rebuttal since E110 C1 (trial-floor.mjs:1437). live-items-327.json marks LIVE-E70-01's text stale for the nine-button row."
+    },
+    {
+     "promise": "Overrule: only the newest Objection; during its exchange the floor goes back to what it interrupted with its time; the price stays paid; the card is stamped and the log says so; after the exchange the console offers the debate again",
+     "source": "v1.2.90.md 63-65",
+     "code": "scripts/floor-machine.mjs:463 overruleTarget; scripts/trial-floor.mjs:1465-1475 (the owner's TR25 quoted); scripts/trial.mjs:932 keepReceipt, :995 markOverruled",
+     "holds": "yes",
+     "test": "R1027 (tier 1, pure), R1028 (tier 0, no refund on the road); tier 2 \"an Overrule gives the floor back with its time and keeps the price ... (E70-T5)\" (tests-tier2.mjs:48263)",
+     "test_kind": "both",
+     "note": "The notes' own gaps stand: an Overrule while the objector still chooses the Truth Bullet is held by R1027's pure row only, and an Objection and an Overrule in one second are read in the code (v1.2.90.md 239-241)."
+    },
+    {
+     "promise": "The debate's question on the trial's card, the console and the Objection and Present cards; the debate opened again with the same question and budget after an exchange; the trial's clock estimate, 270 minutes for sixteen, in proportion",
+     "source": "v1.2.90.md 66-70",
+     "code": "scripts/trial-floor.mjs:383 FLOOR_OPS.start (topic), scripts/trial-floor-ui.mjs:467 reopenDebate, :489-495 trialTime (TRIAL.modes.budget.minutesAt16, 270, times trialSize / 16)",
+     "holds": "yes",
+     "test": "R1029, R1030, R1031 (tier 1), R1032 (tier 0); tier 2 \"the debate's question on the floor, the Event panel ... (E70-T6)\" (tests-tier2.mjs:48413)",
+     "test_kind": "both",
+     "note": "The notes say the question field of Open Debate's window is driven by no test (v1.2.90.md 242-243); not re-read."
+    },
+    {
+     "promise": "The verdict kills nobody: the sentence is carried out once, on the primary, on every road out of the trial but the season reset, before the table leaves the hall; a failure is said and tried again at the next change of phase and at the GM's reload; the Final Trial's sentence is kept in the GMs' verdictStore and a GM browser without it says so",
+     "source": "v1.2.90.md 71-78; 21-25 (verdictStore backed up)",
+     "code": "scripts/trial-progress.mjs:94-101 executeAtExit (off the primary askRecord \"execute\"), :104-109 the latch, :119-126 retrySentence, :131-150 sentenceOf (the Final sentence from verdictStore, the GMs told once when it is missing), :153-198 carryOutSentence (the stamp only when nobody failed); callers scripts/clock.mjs:1030-1031, :1054-1056, scripts/trial-floor-ui.mjs:665-666, scripts/verdict.mjs:1425, scripts/vote.mjs:112 (retry at ready); scripts/gm-stores.mjs:801 verdictStore",
+     "holds": "yes",
+     "test": "R1033 (tier 0: only carryOutSentence kills, in the vote family's three files and mastermind.mjs, and each exit asks executeAtExit before its clock write; a clean twin and a planted fault first), R1038; tier 2 \"the verdict kills nobody and ends nothing; the convicted die once when the trial ends, in its own chapter ... (E70-T7)\" (tests-tier2.mjs:48522)",
+     "test_kind": "both",
+     "note": "The functions moved to trial-progress.mjs at E41 C10a and applyFinalVerdict to verdict.mjs at E41 C10b (verdict.mjs:1262); R1033 follows them through tests-kit.mjs VOTE_FAMILY (vote.mjs, trial-progress.mjs, verdict.mjs, :1747). Since E42 C1c the loop is steps.mjs runSteps (trial-progress.mjs:83-88). The order in a linked hall is LIVE-E70-06, open."
+    },
+    {
+     "promise": "The dead's microphones: as the trial opens the primary lists every dead student (a death nobody found too, never a Monocub) and blocks each one's player with Foundry's own block; a GM is never blocked, a block a GM set stays, and every road out gives back the blocks the trial made and no other",
+     "source": "v1.2.90.md 79-84, 123-126",
+     "code": "scripts/voice.mjs:1683-1701 blockForTrial (a block found stays: \"gm\"), :1704-1732 restoreTrialBlock (row.had: the old value; no own grant before: forcedDeletion() of permissions.BROADCAST_AUDIO), :1739 settleTrialVoices; scripts/settings.mjs:3839 isMutedDead; scripts/gm-stores.mjs:816 trialMuteStore",
+     "holds": "partly",
+     "test": "R1034, R1037, R1040 (tier 1), R1035, R1038 (tier 0); tier 2 \"the dead are muted for the trial, a death nobody found too, and nobody else ... (E70-T8)\" (tests-tier2.mjs:48825); scenario 67 phase D, 72-canary",
+     "test_kind": "both",
+     "note": "Holds in the code and on the harness. Not read on a v14 server: the give-back for a player who had no BROADCAST_AUDIO grant of their own (the common case) writes ForcedDeletion on the user's permissions (voice.mjs:1717-1724); on 14.370 a ForcedDeletion left an ownership entry in place (docs/dev/e58/LOCAL-REPORT.md, 17.11.2026, \"An owner is not removed by a deletion on v14\") and was read on flags only (CALIBRATION.md, LIVE-E30-01). Whether it removes a user's permission entry is not established (see not_established). Extended since: E92 C2 blocks a Spectator's account by the same row, E110 C2 blocks everyone a trial mode does not give the floor (voice.mjs:1785-1800), and the owner's D-E110-A holds a Monocub in such a mode, which E70's \"Discussion: you may speak\" line for a Monocub no longer covers in a mode."
+    },
+    {
+     "promise": "Testimony (60 s offered, 30 to 120) and Panic Round (15 s, 10 s from 12 participants), the order frozen at the start, a turn ended by the participants' browsers too; the Closing Argument once a trial with its volunteers, draw and both decisions",
+     "source": "v1.2.90.md 85-97, 115-118",
+     "code": "scripts/trial-modes.mjs:129 startPanicRound, :147 turnOnPrimary, :322 volunteerOnPrimary; scripts/floor-machine.mjs:210 closingDecide; scripts/config.mjs:4359-4366 TRIAL.modes (live-items-327.json reads the values as quoted); scripts/gm-stores.mjs:831 closingClaimStore",
+     "holds": "yes",
+     "test": "R1042, R1043, R1047, R1048 (tier 1); tier 2 \"Testimony and Panic Round: the start's guard ... (E70-T9)\" (tests-tier2.mjs:49021), \"the Closing Argument: volunteers by \\\"trial.claim\\\" ... (E70-T10)\" (:49148); scenario 67 phases T, P, C, M",
+     "test_kind": "both",
+     "note": "The start window's Up, Draw again and live length are driven by no test (v1.2.90.md 216-217, LIVE-E70-07); a disconnected speaker's pass and the round's sounds are read in the code (249-251)."
+    },
+    {
+     "promise": "Monokuma's Reveal of the Key Remnants nobody found: the count left, Cancel the default, past the count a second question, one copy a participant typed Key, not analysed",
+     "source": "v1.2.90.md 98-102, 129-130",
+     "code": "scripts/trial-modes.mjs:378 revealLeft, :394 revealRefusal, :409 revealMissingKey; scripts/trial-floor-ui.mjs:1039 confirmReveal (live-items-327.json: Cancel first, autofocus); key-remnants.mjs missingKeyRows since E54 K1",
+     "holds": "yes",
+     "test": "R1044 (tier 1); tier 2 \"Monokuma's Reveal: the Key Remnants nobody found listed ... (E70-T11)\" (tests-tier2.mjs:49297), passed on Foundry 14.370 on L1's tree after 76a582d4 (docs/dev/e58/LOCAL-REPORT.md:258-263, 17.11.2026: \"both tests pass\"); scenario 67 R",
+     "test_kind": "both",
+     "note": "The F reading is on L1's tree (module 1.2.116), not on b5a29e73; the console's Missing Key Remnants section and its button are driven by no test (v1.2.90.md 222-223)."
+    },
+    {
+     "promise": "Present on the primary by \"trial.present\": with or without the Analyze result, a copy as shown to every other participant, refused with no GM connected, a player's own Present card shown nobody; no Share in the trial's row",
+     "source": "v1.2.90.md 103-106, 119-122",
+     "code": "scripts/trial.mjs:377 presentOnPrimary, :239 analysisChoice; scripts/trial-floor.mjs:263 presentRefusal; scripts/handover.mjs:258 mintCopy; scripts/bridge-table.mjs:1449 the row; scripts/bridge-asks.mjs:392-395",
+     "holds": "yes",
+     "test": "R1045 (tier 1); tier 2 \"Present on the primary by \\\"trial.present\\\": the card with or without the Analyze result ... (E70-T12)\" (tests-tier2.mjs:49495), passed on Foundry 14.370 on L1's tree (LOCAL-REPORT.md:258-263); scenario 67 S, 30-security",
+     "test_kind": "both",
+     "note": "Present with no GM connected is the bridge's general refusal, not driven for \"trial.present\" (v1.2.90.md 225)."
+    },
+    {
+     "promise": "OBJECTION! on the voice tile, beside the microphone, greyed outside a trial with its reason; on the HUD's trial row only where no tile is drawn; the plate's \"has the floor\"",
+     "source": "v1.2.90.md 112-114",
+     "code": "scripts/voice-tile.mjs:1080 paintObjection, :1281 paintFloorMark; scripts/hud.mjs:1511 objectionControl",
+     "holds": "yes",
+     "test": "tier 2 \"OBJECTION! on the voice tile: held with its reason in Daily Life ... (E70-T13)\" (tests-tier2.mjs:49677); scenario 75 G2",
+     "test_kind": "behaviour",
+     "note": "The stage's own open row E70-75 (the narrow layout's HUD) stands as shipped; no mutant ran for C11 (v1.2.90.md 232-234). The Polish refusal was reworded by E71 B10a (live-items-327.json row 342)."
+    },
+    {
+     "promise": "A successful Tamper (a frame or a moved body) that leaves its author's trace puts the trace's Truth Bullet on the author's sheet; a Reroll takes it back",
+     "source": "v1.2.90.md 107-108, 131-132",
+     "code": "scripts/cleanup.mjs:2017 authorsCopy, :2039 takeBackAuthorsCopy",
+     "holds": "yes",
+     "test": "tier 2 \"a successful Tamper that leaves its author's trace gives the author that trace's Truth Bullet at once ... (E70-T14)\" (tests-tier2.mjs:49786)",
+     "test_kind": "behaviour",
+     "note": "Not re-read beyond the two functions' heads."
+    },
+    {
+     "promise": "The public list of the dead during a trial is known leak TR30, closed by E67",
+     "source": "v1.2.90.md 42, 138-139, 199",
+     "code": "audit/harness/known-leaks.json:104-112 (TR30, now with a foundryLimit and the owner's TR30 = 2); scenario 67 phase D knownLeak TR30 (67-trial-modes.mjs:319)",
+     "holds": "superseded",
+     "test": "scenario 67 D2 (knownLeak)",
+     "test_kind": "behaviour",
+     "note": "E67 was replaced by E72 part A (v1.2.94.md 246; scripts/config.mjs:3491 \"E72 (part A, formerly E67)\"), and TR30 is kept as a Foundry limit by the owner's choice: public on purpose while the trial runs. Nothing on today's handbooks or lang files names E67 (git grep: 0 hits outside comments)."
+    }
+   ],
+   "registry_rows": 29,
+   "tests_read": [
+    {
+     "test": "R1033 (tests-tier0.mjs:17937-18003)",
+     "measures": "weak",
+     "why": "A source census with a clean twin and a planted fault read first: only carryOutSentence kills in the vote family and mastermind.mjs, no verdict step named executions, and each road out (reconcilePhase, closeTrial) asks executeAtExit before its clock write, and the season's clearSeasonClock clears the sentence first. It pins the shape; it runs no trial (E70-T7 does)."
+    },
+    {
+     "test": "tier 2 E70-T8 (tests-tier2.mjs:48825-49020)",
+     "measures": "yes",
+     "why": "Kills one student with nobody told and one openly, raises an Objection from each, enters a raw trial and reads the list, the permission rows (own grant and value, by _source), the store and the ballots; then a Monocub, a death in the trial and the exit, reading what each block left. It would fail if a death nobody found were not muted or a GM's own block were lifted. On the harness's User; a server's answer to the ForcedDeletion give-back is what it cannot read."
+    },
+    {
+     "test": "tier 2 E70-T11, E70-T12 (tests-tier2.mjs:49297, :49495)",
+     "measures": "yes",
+     "why": "Drive the Reveal and Present on the primary and read the copies on each participant; both read on Foundry 14.370 on L1's tree (F)."
+    },
+    {
+     "test": "R1035 (tests-tier0.mjs:18004)",
+     "measures": "weak",
+     "why": "By its title a census: permissions.BROADCAST_AUDIO is written only by voice-tile.mjs toggleBlock and voice.mjs's trial block; body not read past its head."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: one writer of the trial's records (E70-T1)",
+    "tier 2: the trial console stays open across an Objection and its rebuttal, and the GM's bar is told to the table (E70-T2)",
+    "tier 2: Back to the debate gives the debate the time it had when the Objection cut in (E70-T3)",
+    "tier 2: a function of game.drpg for each button of the GM's bar, and the same floor by trial.gm (E70-T4)",
+    "tier 2: an Overrule gives the floor back with its time and keeps the price ... (E70-T5)",
+    "tier 2: the debate's question on the floor ... (E70-T6)",
+    "tier 2: the verdict kills nobody and ends nothing ... (E70-T7)",
+    "tier 2: the dead are muted for the trial ... (E70-T8)",
+    "tier 2: Testimony and Panic Round ... (E70-T9)",
+    "tier 2: the Closing Argument ... (E70-T10)",
+    "tier 2: Monokuma's Reveal ... (E70-T11)",
+    "tier 2: Present on the primary by \"trial.present\" ... (E70-T12)",
+    "tier 2: OBJECTION! on the voice tile ... (E70-T13)",
+    "tier 2: a successful Tamper that leaves its author's trace ... (E70-T14)",
+    "tiers 0-1: R1020-R1048",
+    "scenario 67-trial-modes",
+    "scenario 63-class-trial (parts Z, O, Q, R, W, Y)",
+    "scenario 30-security",
+    "scenario 75-voice-tile G2",
+    "scenario 72-canary"
+   ],
+   "scenarios": [
+    "67-trial-modes (audit/harness/README.md:202, layer ci, the one register row stamped E70): Testimony with its turn windows, a Panic Round moved on by the players' browsers with the GM's heartbeat held, a death nobody found given no turn and TR30 as a known leak (D), the Closing, the Reveal, Present's copies and a turn's change counted (M); body not read past phase D's check",
+    "63-class-trial (README:199, stamped E10): parts Z, O, Q and R added by E70, W reworked, Y pressed on p1's tile (v1.2.90.md 193-194); taken from the notes",
+    "30-security (a player's trial.gm, trial.enter, trial.record, trial.turn, trial.claim and trial.present refused), 75-voice-tile G2, 72-canary (the list of the dead in and after the trial), 50-lang, 65-season: from v1.2.90.md 194-197"
+   ],
+   "live": {
+    "items": 12,
+    "read": 0,
+    "ids_read": [],
+    "note": "Items 331-342 (LIVE-E70-01 to -12): no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (grep for the ids: 0 hits each); live-items-327.json rows 331-342 say open (triage T for 331, 332, 335, 337-339, 341, 342; K for 333, 334, 336, 340), text stale for 331 (the bar has nine buttons in a zone mode), 339 and 342 (E71's Polish rewording). The only real-Foundry readings of the stage are the two tier-2 tests that passed on L1's sandbox (Reveal, Present). Related later items: LIVE-E110-01 (item 542) and LIVE-E92-03 (item 498) ask the same microphone question for the modes and the Spectators.",
+    "l1": {
+     "what": "The trial's microphone block and its give-back on a real server: a dead player's microphone stops without a reload, and after the trial the player's own permissions read as before (no BROADCAST_AUDIO entry left)",
+     "recipe": [
+      "On the sandbox with LiveKit 0.6.8, a GM and three players, a player with no BROADCAST_AUDIO of their own (read game.users.getName(p).toObject().permissions)",
+      "Kill that player's student with nobody told, enter a Class Trial through the module's road",
+      "Read the player's permissions on the GM and the player's page: BROADCAST_AUDIO false; on the player's page try game.user.update({ 'permissions.BROADCAST_AUDIO': true }) (LIVE-E70-05)",
+      "End the trial by End the trial, then read the player's toObject().permissions again on both pages",
+      "Run tier 2 E70-T8 by name on the sandbox (run-tests --only \"the dead are muted for the trial\")"
+     ],
+     "clients": "one GM, three players",
+     "theme": "default",
+     "settles_if": {
+      "agrees": "the block reads false in the trial, the player's own write is refused, and after the exit the permissions object has no BROADCAST_AUDIO key; E70-T8 passes",
+      "defect": "after the exit BROADCAST_AUDIO is still false (the ForcedDeletion did not remove it) - the player stays unable to speak until a GM lifts it by hand; or the player's own write lands"
+     },
+     "priority": "the stage's grade cap (9), major if the give-back leaves the key"
+    }
+   },
+   "findings": [],
+   "superseded_by": [
+    "E73 (1.2.108, zone modes): the bar's two more buttons, Count now and Skip question (trial-floor.mjs:1403)",
+    "E92 C2 and E110 C2 (1.2.114): the same BROADCAST_AUDIO row blocks a Spectator's account and everyone a trial mode does not give the floor; D-E110-A holds a Monocub in such a mode (voice.mjs:1785-1800)",
+    "E72 part A (formerly E67): TR30 is no longer closed by a stage; the owner's TR30 = 2 keeps it as a Foundry limit (known-leaks.json:104-112)",
+    "E41 C10a, C10b: the sentence's functions moved to trial-progress.mjs and verdict.mjs (pure moves)"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "Every promise of both parts is in today's code at the place named, and each part has a behaviour test of its own on the GM's page (E70-T1 to E70-T14) beside tier 0's census rows and scenario 67; the 29 registry rows are all present and none is in skip-baseline.json. The base run was not available, so no tier result of b5a29e73 is claimed. Against a 9: (1) the dead's microphones - the stage's one write to Foundry's own user record - are given back by a ForcedDeletion that no v14 server has been seen to apply to a user's permissions, while the same kind of write was measured not to remove an ownership entry on 14.370; (2) by the notes' own account several parts stand on reading alone: the round's start window, the Reveal's console section, the question field, an Overrule during the picker, a disconnected speaker; (3) the stage shipped with three ledger rows open (E70-71, E70-75, E70-82) and no mutant for C11; (4) of 12 live items none is read. No finding of the stage's own. Provisional: the cap is the unread LIVE-E70-04/-05 and the give-back.",
+   "missing_to_10": "A reading on v14 of the trial's block and its give-back (the l1 above, and LIVE-E70-04, -05); LIVE-E70-01 to -12 read, with 331, 339 and 342's texts brought to today's nine-button bar and E71's Polish; tests that drive the round's start window, the Reveal's console section and Open Debate's question field; the ledger rows E70-71, -75 and -82 answered by the owner; the base run's tier-2 and scenario results joined."
+  },
+  {
+   "id": "E89",
+   "version": "1.2.91",
+   "shipped": "2026-10-30",
+   "what": "Line A of 1.2.91: token moves ask fewer verdicts on the mover's browser and on a sightRefresh (movePass one / rooms / all, one sight pass a frame), the Stained Glass buttons' shared cut takes the corners and not the border (--drpg-clip-out), and a Bedroom gets its owner's open stash on every usual road, with the migration clause bedroomStashes for existing worlds and a scene created later.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.91.md (1-227, whole; E89's parts 3-5, 14-19, 32-35, 45-61, 105-114, 122-146, 165-170, 174-198, 210-222)",
+    "tools/stages.json:46 row E89 (planned and shipped 1.2.91, touches scenes, drills none)",
+    "no docs/dev/e89/ folder; the ledger (16 rows) and the end review at 15c68d96 are cited by the notes, not in the repository",
+    "docs/dev/R-REGISTRY.md:582-588: R1053-R1055 stamped E89; R1049-R1052, whose titles say \"(E89 C1)\" to \"(E89 C4)\", stamped E67",
+    "audit/AUDIT-1.2.42.md 9.2 items 343-347 (lines 1217-1221); live-items-327.json rows 343-347",
+    "git log --grep E89: 23 commits; 15 in 12ff1b62..4616d1d1; release commit 50206d85",
+    "audit/harness/README.md:220 (scenario 86, stamped E88, its E89 C0-C4 parts)"
+   ],
+   "commits": 23,
+   "promises": [
+    {
+     "promise": "A move of the viewer's own token inside the rooms they already stand in asks that token's verdict alone; a move into another room asks only the tokens the room change can touch; nothing known before asks every token",
+     "source": "v1.2.91.md 107-109, 133-136",
+     "code": "scripts/visibility.mjs:301-324 movePass (\"one\" on equal room and lair signatures, \"rooms\" when both known and different, \"all\" with none), :343 roomChangeTokens, :396 applyRooms, :417 recheckAtRest",
+     "holds": "yes",
+     "test": "R1049, R1050 (tier 1, stamped E67); scenario 86's E89 C1-C4 events (README:220)",
+     "test_kind": "both",
+     "note": "Holds as written; movePass also turns \"all\" on the veil's flag since E112v (visibility.mjs:309). Measured only on the harness's model (counts, not frames): \"Whether it feels lighter at a table is not measured (LIVE-E89-01)\" - the notes' own words; E89-04 closed partial (138 to 48 applyToToken, not 3)."
+    },
+    {
+     "promise": "sightRefresh during a move asks one verdict pass a frame",
+     "source": "v1.2.91.md 135",
+     "code": "scripts/visibility.mjs:1053 sightPassNextFrame, :1065 sightPass; scripts/perf-counters.mjs:27 the counters",
+     "holds": "yes",
+     "test": "R1052 (tier 1, stamped E67; it kills mutant m7, v1.2.91.md 220-221); scenario 86",
+     "test_kind": "both",
+     "note": "Whether v14 fires the preview and sightRefresh each frame of a drag is LIVE-E89-02, open."
+    },
+    {
+     "promise": "Fix FG2: the whole pass again on a region, a behaviour, a scene with regions, the player-region or scene-role setting, and an actor's ownership or a token's actor; only a refresh of visibility takes a token off the hidden-by-us list",
+     "source": "v1.2.91.md 137-139",
+     "code": "scripts/visibility.mjs:312-313 (actorId, actorLink, delta.ownership answer \"all\")",
+     "holds": "yes",
+     "test": "R1054, R1055 (tier 1, stamped E89); scenario 86 (the region, ownership, setting and piece roads)",
+     "test_kind": "both",
+     "note": "The comment at :311 says v14's delta carrying ownership is not read; the notes list it as not read on v14 (189-190)."
+    },
+    {
+     "promise": "The shared cut of the Stained Glass buttons (GM Panel tiles, footer buttons, the messenger's send button) no longer covers the last pixel of the border",
+     "source": "v1.2.91.md 58-61, 113-114, 140-143",
+     "code": "styles/stained-glass.css:895-912 (--drpg-clip-out = (1 - brush-on) * 0.5px on the polygon; its comment ends \"LIVE-E89-04 is the table's reading\")",
+     "holds": "partly",
+     "test": "audit/glass-sweep.mjs --edges (Chromium, software); no tier test",
+     "test_kind": "behaviour",
+     "note": "Delivered in part by the stage's own account: E89-11 was \"not met\" at the end review and closed partial - the Projects tile and the GM Panel's Close button still read counts at three and four sizes, and the same cut at six other places of stained-glass.css is unchanged (v1.2.91.md 177-183). Software Chromium only; a real card is LIVE-E89-04."
+    },
+    {
+     "promise": "A Bedroom made the usual way gives its owner an open stash on every road (owner then mark or mark then owner, one Apply or two, setVaultRoom, Apply with no cell changed); a Bedroom given to someone else keeps the old owner's stash and gives the new owner one; a stash removed on the Stashes tab stays removed",
+     "source": "v1.2.91.md 45-50, 105-106, 144-146",
+     "code": "scripts/vault-store.mjs:978-986 ensureBedroomStash, :1392-1440 setVaultRoom (the list stored before the owner moves, then ensureBedroomStash); scripts/room-setup.mjs:1137 applyStashMatrix, :1179 seedOwnerStashes",
+     "holds": "yes",
+     "test": "tier 2 \"a Bedroom set up the usual way has its owner's open stash on every road, and Room Setup writes only the stash cells the GM changed\" (tests-tier2.mjs:67178); R1053",
+     "test_kind": "both",
+     "note": "Read in the code on the console road and the owner change; Room Setup's roads taken from the test's title and the notes."
+    },
+    {
+     "promise": "The migration clause bedroomStashes runs once on the primary GM at the first load of 1.2.91 and reports \"Bedroom stashes given\"; a scene created later with such a Bedroom seeds it once on the primary",
+     "source": "v1.2.91.md 14-19, 51-53",
+     "code": "scripts/migrate.mjs:1019 the clause, :1273 seedBedroomStashes, :1284 the report (DRPG.Rooms.stashesTitle, lang/en.json:6737); scripts/vault-store.mjs:1509-1515 bedroomsOfNewScene (isPrimaryGm first)",
+     "holds": "yes",
+     "test": "tier 2 \"the migration gives every Bedroom of an existing world its owner's stash once ...\" (tests-tier2.mjs:67324) and \"a scene made or imported with a Bedroom whose owner has no stash ...\" (:67430)",
+     "test_kind": "behaviour",
+     "note": "The notes say the clause ran on the harness only; Import Data onto an existing scene is an update and seeds nothing (184-186). The owner's world is past its first 1.2.91 load, so that half of LIVE-E89-05 can no longer be read there (live-items-327.json row 347); a fresh world loaded first on 1.2.90 could still read it."
+    }
+   ],
+   "registry_rows": 7,
+   "registry_note": "Seven numbered tests by title (R1049-R1055, the notes' 'R1049 to R1055 for E89'), three of them stamped E89 in the registry's Since column (R1053-R1055) and four stamped E67 (R1049-R1052): finding E89-1.",
+   "tests_read": [
+    {
+     "test": "R1049 (tests-tier1.mjs:28586-28615)",
+     "measures": "yes",
+     "why": "Calls movePass on stand-ins with room signatures equal, different and missing and reads the answer for each; a change that is no move answers null. Pure: it reads the rule, not a drag (scenario 86 counts a drag on the harness's model)."
+    },
+    {
+     "test": "R1053 (tests-tier1.mjs:28741)",
+     "measures": "yes",
+     "why": "bedroomStashGaps on stand-in regions, the trial hall's among them; pins which Bedrooms the migration would seed."
+    },
+    {
+     "test": "tier 2 \"a Bedroom set up the usual way ...\" (tests-tier2.mjs:67178)",
+     "measures": "yes",
+     "why": "By its title and the notes (red before on two roads and setVaultRoom, v1.2.91.md 48-49) it drives the roads on the GM's world; body not read."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: a Bedroom set up the usual way has its owner's open stash on every road, and Room Setup writes only the stash cells the GM changed",
+    "tier 2: the migration gives every Bedroom of an existing world its owner's stash once and tells the GMs, and not on a GM that is not the primary",
+    "tier 2: a scene made or imported with a Bedroom whose owner has no stash gives that owner an open stash once ...",
+    "tiers 0-1: R1049-R1055",
+    "scenario 86-frame-work (E89 C0-C4 parts)",
+    "audit/glass-sweep.mjs --edges (not in npm test)"
+   ],
+   "scenarios": [
+    "86-frame-work (audit/harness/README.md:220, stamped E88, layer ci): since E89 C0 the mover's own drag on the harness's model of a preview and a slide on every browser, and since C1-C4 the same events held to what they now cost (LIVE-E89-02, -03 named); 28 lines of the file name E89; 98/98 in E89's newest results file per v1.2.91.md 166; not re-run"
+   ],
+   "live": {
+    "items": 5,
+    "read": 0,
+    "ids_read": [],
+    "note": "Items 343-347 (LIVE-E89-02, -03, -04, -01, -05): no reading in the three live-readings files (0 hits); live-items-327.json rows 343-347 open (K for 343, 344; T for 345, 346; F for 347). A related 14.370 reading of a route made by TokenDocument#move (one update for the whole route, CALIBRATION.md:93) is not a mouse drag (row 344).",
+    "l1": {
+     "what": "A dragged token's cost on the mover's and a watcher's browser, and the GM Panel's tile edges under Stained Glass on a real graphics card",
+     "recipe": [
+      "On the sandbox (default theme, then Stained Glass), a player drags their own token through a room and into the next for 5 s",
+      "During the drag run await game.drpg.fps({ seconds: 5, toChat: false }) on the mover's page, a watcher's page and the GM's",
+      "Record visibility.applyAll.tokens, visibility.applyRooms.tokens, visibility.sightPass and refreshToken counts from game.drpg.counters() before and after",
+      "Hooks.on('updateToken') counter on the mover's page across one drag with two waypoints (LIVE-E89-03)",
+      "Open the GM Panel under Stained Glass on a headed browser with a GPU while a token moves; screenshot the tile and Close button edges at 100% and 125% zoom (LIVE-E89-04)"
+     ],
+     "clients": "one GM, two players",
+     "theme": "both",
+     "settles_if": {
+      "agrees": "an own move inside a room counts one token's refresh on the mover; the frame rate within the table's other readings; no edge vanishes",
+      "defect": "a whole pass on every frame of a drag, or edges still cut on the Projects tile or Close button"
+     },
+     "priority": "the stage's grade cap (9); the edges minor"
+    }
+   },
+   "findings": [
+    {
+     "id": "E89-1",
+     "severity": "nit",
+     "category": "hygiene",
+     "title": "Four of E89's own tests are stamped E67 in the registry, a stage that no longer exists",
+     "where": "docs/dev/R-REGISTRY.md:582-585 (R1049-R1052, Since \"E67\"); tools/registry.mjs:149-162 workingStage (the first stage not shipped), :172-177 (a kept row keeps its Since); tools/stages.json (no E67 row: git grep 0 hits)",
+     "what_happens": "R1049-R1052 were written while E67 (planned 1.2.92, a placeholder) was the first unshipped stage in tools/stages.json and E89's row did not exist yet (v1.2.91.md 169-170: 1d19c003 adds E89's row), so --write stamped them E67. A kept row keeps its Since on every later --write, and E67's row was replaced by E72 (v1.2.94.md 246), so the stamp names nothing in the ledger.",
+     "evidence": "| R1049 | 1 | E67 | an own move inside the same rooms asks its own token (E89 C1): ... | (R-REGISTRY.md:582); registry.mjs:172 `const keptRow = r => { const row = existing?.rows.get(r); return row && ... row.since !== \"-\" ? row : null; };`",
+     "failure_scenario": "A reader counting E89's tests by the registry's Since column (as this audit's lane U5 does) finds three, not seven, and the four C1-C4 tests that hold the stage's main promise are filed under a stage that does not exist.",
+     "expected": "R1049-R1052 stamped E89 (or 1.2.91).",
+     "confidence": "read",
+     "refutation_tried": "Looked for E67 in tools/stages.json (0 hits) and for a check that holds a Since to a known stage (tools/registry.mjs reads stages only to find the working stage); the titles themselves say E89 C1-C4, and the notes count R1049-R1055 for E89. The checkout has no tags, but sinceOf would not change a kept row anyway (:177 `kept?.since ?? since.get(t.r)`)."
+    }
+   ],
+   "superseded_by": [
+    "E112v (1.2.118): movePass answers \"all\" on the veil's flag (visibility.mjs:306-309), an addition"
+   ],
+   "grade": 7,
+   "provisional": "after L1",
+   "grade_reasons": "The stash half is delivered and held by three tier-2 tests on every road the notes name; the moves' rules are in visibility.mjs as written, held by R1049-R1055 and scenario 86's counts. Against an 8: (1) the edges promise is delivered in part by the stage's own close (E89-11 not met at the review, closed partial: the Projects tile and the Close button still cut, six other places unchanged), and was read in software Chromium only; (2) the lag the stage was opened for is \"not known to be gone\" - the notes' own words - measured as counts on the harness's model and never as frames at a table; (3) five ledger rows closed partial (E89-04, 09, 10, 11, 24); (4) none of five live items read, and one half of LIVE-E89-05 can no longer be read on the owner's world. One nit (E89-1). Base run not joined.",
+   "missing_to_10": "A reading of fps() during a drag on v14 on 1.2.90 and 1.2.91 or later (LIVE-E89-01), LIVE-E89-02 and -03 on the sandbox; the remaining cuts of E89-11 (the Projects tile, the Close button, the six other places) and a reading on a real card (LIVE-E89-04); the first load of the clause on a fresh v14 world (LIVE-E89-05); R1049-R1052 stamped E89 (E89-1)."
+  },
+  {
+   "id": "E20",
+   "version": "1.2.91",
+   "shipped": "2026-10-30",
+   "what": "Line B of 1.2.91, the first run (24 issues): Where to start for a GM new to the module, Set the season up that ticks only what it checked, one census of rooms and students for the Doors tab, the checklist and Pre-season checks, the map's uncovered share against the scene's own rect at 10%, Check rooms with a legend and Show on map, Pre-season checks in the table's language, room pictures probed a few at a time, a module that did not start leaves Foundry as it was, what the module changes in Foundry listed and given back, the overflow suggestion, the motive's Withdraw and the steppers' words.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.91.md (1-227, whole; E20's parts 5-8, 20-31, 35-39, 62-101, 110-112, 118-121, 147-158, 160-167, 191-206, 223-224)",
+    "tools/stages.json:47 row E20 (planned 1.2.91 with E89, touches [], drills none)",
+    "no docs/dev/e20/ folder; the ledger (24 rows) and the end review's 18 findings are cited by the notes, not in the repository",
+    "docs/dev/R-REGISTRY.md:860-896: R1500-R1505 and R1530-R1536 (13) stamped E20; R1506-R1529 (24), whose titles say \"(E20 C2 ...)\" to \"(E20 fix round ...)\", stamped E67",
+    "audit/AUDIT-1.2.42.md 9.2 B-E20-1 to B-E20-7 (lines 1622-1634), no item numbers; no live-items-NN file covers the B- block (live-items-561.json's count note stops at line 1621)",
+    "git log --grep E20: 14 commits; 7 in 12ff1b62..4616d1d1 (line B merged at 55ed2e36)"
+   ],
+   "commits": 14,
+   "promises": [
+    {
+     "promise": "Where to start: on a world with no campaign name and no students a GM's first load says once in each GM's browser where to start, with a button to Set the season up",
+     "source": "v1.2.91.md 62-64",
+     "code": "scripts/season-setup.mjs:1406-1408 startHereDue, :1414-1424 offerStartHere (client setting startHereShown marked when shown), :1427-1437 askStartHere; scripts/module.mjs:545; scripts/settings.mjs:658, :2555",
+     "holds": "yes",
+     "test": "R1513 (tier 1, stamped E67)",
+     "test_kind": "both",
+     "note": "Read whole in the code. Whether a person new to the module finds the first Eclipse by the windows alone is B-E20-3, open."
+    },
+    {
+     "promise": "A checklist row ticks only once it has checked something; until the required rows hold the GM panel's Next line sends to Season setup and never offers the Eclipse; in a game under way the actions line stays first",
+     "source": "v1.2.91.md 66-73",
+     "code": "scripts/gm-panel.mjs:814 nextStep; scripts/season-setup.mjs steps, setupRows",
+     "holds": "yes",
+     "test": "R1501, R1512, R1522, R1523 (tier 1); tier 2 \"E20-T8 - the Next line judges the rooms on the school ...\" (tests-tier2.mjs:87851)",
+     "test_kind": "both",
+     "note": "Since E101 (1.2.112) Pre-season checks are the further checks under the Season checklist's rows and the Doors tab's room check moved to the Rooms tab (season-setup.mjs:215, :534; gm-handbook.en.md:2043): the rows and the census stand, their windows changed. The season-started reading of the clock is the implementer's (notes 69-70)."
+    },
+    {
+     "promise": "One count of rooms and students for the Doors tab, the checklist and Pre-season; the map's share in no room measured against the scene's own rect at most 10%, floor by floor, the worst floor named",
+     "source": "v1.2.91.md 74-78",
+     "code": "scripts/vault-store.mjs:1319 roomCensusOf, :1334 roomCensus, :1345 roomRatioLine; scripts/monokuma.mjs:102 studentCensus; scripts/fog-diagnostics.mjs:869 sceneUncoveredPercent; scripts/config.mjs:547 UNCOVERED_LIMIT_PCT = 10",
+     "holds": "yes",
+     "test": "R1500, R1503, R1504 (tier 1, stamped E20), R1525, R1527, R1528 (stamped E67)",
+     "test_kind": "both",
+     "note": "10% is a choice, not measured on a real map (notes 191; B-E20-7)."
+    },
+    {
+     "promise": "Check the rooms says each kind once above the list, gives each room a short fact and Show on map on the finding's floor, names no scene or no rooms plainly, warns when one room's pieces differ",
+     "source": "v1.2.91.md 79-82",
+     "code": "scripts/fog-diagnostics.mjs:680 roomCheckProblems, :691 roomCheckHtml, :717 showOnMap (sceneId, levelId), :351 piecesDifferCheck",
+     "holds": "yes",
+     "test": "R1505 (stamped E20), R1508, R1511, R1526 (stamped E67), R1535 (stamped E20)",
+     "test_kind": "both",
+     "note": "Show on map on a real canvas is B-E20-5, open."
+    },
+    {
+     "promise": "Pre-season checks in the table's language, naming no console command; room pictures over 4096 px or 8 MiB, of unknown size or not loaded within 8 s said plainly, three probed at a time; the voice rows only when they hold; the anonymity audit asks a fix only above Observer",
+     "source": "v1.2.91.md 83-89",
+     "code": "scripts/config.mjs:558 ROOM_IMAGE_LIMITS { side: 4096, bytes: 8 MiB, probeMs: 8000, atOnce: 3 }; scripts/room-tile.mjs:663 checkRoomImages; scripts/voice-tile.mjs:259 avOffForTile, :270 videoWithoutAudio; scripts/season-setup.mjs:1480 preSessionReport",
+     "holds": "yes",
+     "test": "R1502, R1506, R1507, R1509, R1510 (stamped E67), R1534, R1536 (stamped E20); tier 2 \"E20-T1 ...\" (tests-tier2.mjs:87471), \"E20-T2 ...\" (:87509); scenario 12-social ANONYMITY (12-social.mjs:501)",
+     "test_kind": "both",
+     "note": "Room pictures on a real server are B-E20-4, open. The window that holds these checks is the Season checklist's since E101."
+    },
+    {
+     "promise": "A module that did not start leaves Foundry as it was: its stylesheets taken off, its settings and holds idle, the hotbar and navigation where Foundry draws them; the requirements window in the table's language with each module's reason, one missing module counted as one",
+     "source": "v1.2.91.md 110-112, 118-120",
+     "code": "scripts/requirements.mjs:157 removeModuleStyles, :194 requirementsLanguage, :231 requirementsContent",
+     "holds": "yes",
+     "test": "R1516, R1517, R1533 (tier 1); scenario 00-boot \"E20-T3 - a GM whose world has Dice So Nice switched off ...\" (00-boot.mjs:533-557)",
+     "test_kind": "both",
+     "note": "The players' list is named in a code comment and was not read (notes 118-119); B-E20-2 open."
+    },
+    {
+     "promise": "What the module changes in Foundry is listed and kept before its first write; Give back Foundry's settings, a full Gamemaster's only, gives each part back and stops the writes; switched off and on again it holds nothing until Hold them again",
+     "source": "v1.2.91.md 20-25, 90-97",
+     "code": "scripts/enforced.mjs:669 FOUNDRY_WRITES, :771-774 keepOriginal (GM only), :787-797 giveBackClientRow; scripts/settings.mjs:224-232, :1961-1967 (foundryBefore, foundryBeforeClient, foundryGivenBack)",
+     "holds": "yes",
+     "test": "R1518 (stamped E67), R1531, R1532 (stamped E20); tier 2 \"E20-T4 ...\" (tests-tier2.mjs:87560), \"E20-T6 - Give back Foundry's settings is a full Gamemaster's ...\" (:87665), \"E20-T7 ...\" (:87762)",
+     "test_kind": "both",
+     "note": "The automations go back to Daggerheart 2.6.5's defaults (2.10.x not read, notes 193-195); the sandbox runs 2.12.9 (live-readings-e58-delta.json environment), not read for this. B-E20-6 open."
+    },
+    {
+     "promise": "Smaller: the overflow row suggests 12 plus half the living students held to the range (default 20 kept); the rules manager shows the motive in force with Withdraw; a stepper's buttons say their step",
+     "source": "v1.2.91.md 98-101",
+     "code": "scripts/overflow.mjs:1163-1168 overflowSuggestion (Math.round(12 + n / 2) held to OVERFLOW.range, null with no student), :1174-1182 overflowSuggestionLine; scripts/rules.mjs:410 motiveSection",
+     "holds": "yes",
+     "test": "R1519, R1520, R1521, R1529 (stamped E67); tier 2 \"E20-T5 - the rules manager's Withdraw ...\" (tests-tier2.mjs:87629)",
+     "test_kind": "both",
+     "note": ""
+    }
+   ],
+   "registry_rows": 37,
+   "registry_note": "37 numbered tests by title (R1500-R1536, the notes' 'R1500 to R1536 for E20'): 13 stamped E20, 24 (R1506-R1529) stamped E67 - finding E20-1.",
+   "tests_read": [
+    {
+     "test": "R1513 (by title; offerStartHere's inputs handed in, season-setup.mjs:1411-1413 comment)",
+     "measures": "yes",
+     "why": "The function takes every input as a parameter and R1513 hands a settings stand-in and an ask that counts (the code's own comment): it reads the once-per-browser rule, not the window drawn."
+    },
+    {
+     "test": "scenario 00-boot E20-T3 (00-boot.mjs:533-557)",
+     "measures": "yes",
+     "why": "The same GM joins again with Dice So Nice off and the scenario reads the stylesheets left on the page and a window drawn: a real page of the harness, no layout."
+    },
+    {
+     "test": "tier 2 E20-T6 (tests-tier2.mjs:87665)",
+     "measures": "yes",
+     "why": "By its title: a full Gamemaster's give-back, each part on its own, forgetting only what it wrote; body not read."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: E20-T1, E20-T2, E20-T4, E20-T5, E20-T6, E20-T7, E20-T8 (tests-tier2.mjs:87471-87851)",
+    "tiers 0-1: R1500-R1536",
+    "scenario 00-boot (E20-T3)",
+    "scenario 12-social (ANONYMITY)"
+   ],
+   "scenarios": [
+    "00-boot (README:162, stamped <=1.2.50): E20-T3 since E20 C5, a GM whose world has Dice So Nice off - the module stops, leaves none of its stylesheets, a window drawn throws nothing (00-boot.mjs:557)",
+    "12-social (README:175): the anonymity check, no character at Observer under 'fix these' (12-social.mjs:501)"
+   ],
+   "live": {
+    "items": 7,
+    "read": 0,
+    "ids_read": [],
+    "note": "B-E20-1 to B-E20-7 (LIVE-E20-01 to -07, AUDIT lines 1622-1634): no reading in the three live-readings files (0 hits each) and no live-items-NN file holds them. Text stale: B-E20-1 and B-E20-5 name Pre-season checks and the Doors tab, which since E101 are the Season checklist's further checks and the Rooms tab.",
+    "l1": {
+     "what": "Season setup, the further checks and Check rooms on a real screen and server, and Give back Foundry's settings in the real settings window",
+     "recipe": [
+      "On the sandbox at 1366x768 and 1920x1080, both themes, English then Polish, open Set the season up on a fresh world: focus on the campaign name, a row's Open in front, a round trip back where it was (B-E20-1)",
+      "Add three room pictures (one over 8 MiB, one missing) and read the further checks' picture lines with timings (B-E20-4)",
+      "On a scene with a room off its wall and two overlapping rooms on two floors press Show on map for each finding (B-E20-5)",
+      "As GM and as a player open Configure Settings: the Give back button for the GM only; Give them back, then read the two Daggerheart automations and the file permissions (B-E20-6)",
+      "Disable Dice So Nice, reload as GM and player: the requirements window's words, no module stylesheet in document.styleSheets (B-E20-2)"
+     ],
+     "clients": "one GM, one player",
+     "theme": "both",
+     "settles_if": {
+      "agrees": "every window inside the viewport, Show on map pans to the finding's floor, the picture lines match the files, Give back restores what was kept",
+      "defect": "a window past the viewport, a wrong floor, a picture called missing that loads, or a setting not given back"
+     },
+     "priority": "the stage's grade cap (9)"
+    }
+   },
+   "findings": [
+    {
+     "id": "E20-1",
+     "severity": "nit",
+     "category": "hygiene",
+     "title": "24 of E20's 37 tests are stamped E67 in the registry, a stage that no longer exists",
+     "where": "docs/dev/R-REGISTRY.md:866-889 (R1506-R1529, Since \"E67\"); tools/registry.mjs:172-177",
+     "what_happens": "As E89-1: --write stamped the numbers taken while E67 was the first unshipped stage; kept rows keep the stamp; E67 was replaced by E72 and has no row in tools/stages.json.",
+     "evidence": "| R1512 | 1 | E67 | the GM panel's Next line sends a season not set up to Season setup's first row not done, never to the Eclipse, ... (E20 C4, E20-13; S10-57, Q-8) | (R-REGISTRY.md:872)",
+     "failure_scenario": "A reader counting E20's tests by the registry stamp reads 13 (R1500-R1505, R1530-R1536) and misses the 24 that hold the anonymity audit, the requirements window, the Next line, Give back and the Season setup round trip.",
+     "expected": "R1506-R1529 stamped E20 (or 1.2.91).",
+     "confidence": "read",
+     "refutation_tried": "Same as E89-1; the titles name E20's commits and issues (E20 C2 to the fix round), and the notes count R1500-R1536 for E20 (v1.2.91.md 160-161)."
+    }
+   ],
+   "superseded_by": [
+    "E101 (1.2.112): Pre-season checks became the further checks under the Season checklist's rows, the Doors tab's This is a room moved to the Rooms tab, and the contract's lines left for the Debug log's Foundry and modules (season-setup.mjs:215, :534, :1438-1464; gm-handbook.en.md:2043); E20's rules, census and checks carried over"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "All 24 issues are in today's code at the places named, held by 37 numbered tier-1 tests, seven tier-2 tests and a scenario check each, and the notes say each fix commit's tests were red first. E101 moved the windows the checks live in without dropping a rule. Against a 9: (1) parts stand on reading alone by the notes' own account - Season setup's scroll and focus round trip, its stacking against Foundry's windows, the players' list when the module stops; (2) UNCOVERED_LIMIT_PCT = 10 and the automations' defaults (Daggerheart 2.6.5) are choices not measured on a real map or on the Daggerheart the sandbox now runs; (3) none of seven live checks read, and none was triaged by any live-items reader. One nit (E20-1). Base run not joined.",
+   "missing_to_10": "B-E20-1 to B-E20-7 read (the l1 above), with B-E20-1 and B-E20-5's texts brought to E101's windows; the automations' defaults read on the Daggerheart in use; the round trip's scroll and focus driven in Chromium; R1506-R1529 stamped E20 (E20-1)."
+  },
+  {
+   "id": "E52",
+   "version": "1.2.92",
+   "shipped": "2026-10-30",
+   "what": "The contract with Foundry, Daggerheart and the modules: one register of every place the module relies on code not its own (patches.mjs), run at the primary GM's ready as ok / failed / unknown with one permanent notice and a Pre-season line; game.drpg.diagnose() as one report to copy; the macro API's written surface (tools/api-surface.json) held by a test, with aliases; game.drpg.migrate() as the data migration's name; the Levels throw read by its floors, the door controls' fallback, the microphone block without BROADCAST_AUDIO.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.92.md (1-161, whole)",
+    "tools/stages.json:48 row E52 (planned and shipped 1.2.92, touches [], drills none)",
+    "no docs/dev/e52/ folder; the ledger (23 + 7 rows) and the review at 03e73d82 are cited by the notes, not in the repository",
+    "docs/dev/R-REGISTRY.md:589-590, :897-923 (R1056, R1057, R1537-R1563: 29 rows, all stamped E52)",
+    "audit/AUDIT-1.2.42.md 9.2 B-E52-1 to B-E52-11 (lines 1636-1656), no item numbers; no live-items-NN file covers them",
+    "git log --grep E52: 18 commits; 14 in 4616d1d1..248e798e (the merge of 1.2.92); release commit b09bd05d",
+    "tools/api-surface.json (474 keys, 9 aliases today)"
+   ],
+   "commits": 18,
+   "promises": [
+    {
+     "promise": "At each load the primary GM's browser runs the contract after the requirements: each row ok, failed or unknown, a probe that throws is failed; read-only, nothing written to the world",
+     "source": "v1.2.92.md 3-6, 44-49, 87",
+     "code": "scripts/module.mjs:413 (isPrimaryGm, announceAtReady); scripts/patches.mjs:1467-1483 runContract, :1543-1548 announceAtReady; register PATCHES :292-1252 (63 rows today)",
+     "holds": "yes",
+     "test": "R1540, R1538, R1539 (tier 1), R1537 (tier 0); tier 2 \"E52-T1 - the contract on the suite's world: run at the primary GM's ready, every row read, none failed\" (tests-tier2.mjs:87934)",
+     "test_kind": "both",
+     "note": "Read on the harness's Foundry and Daggerheart only: B-E52-1 (runContract on v14 with Daggerheart 2.10.5) is open, and the sandbox now runs 2.12.9; no contract reading is in LOCAL-REPORT.md (grep: 0 hits for contract or diagnose())."
+    },
+    {
+     "promise": "A failed row: one permanent notice a load naming its target, file:symbol and what the table gets instead; a place failing later in the load a notice of its own; no place named twice",
+     "source": "v1.2.92.md 44-47",
+     "code": "scripts/patches.mjs:1495 toldThisLoad, :1505-1532 announceContract, :1535 announceLevelThrow; lang/en.json:6833-6836 DRPG.Contract.notice",
+     "holds": "yes",
+     "test": "R1541, R1056 (tier 1)",
+     "test_kind": "both",
+     "note": "Since E91 C1 (09.11) an unknown row is one console info line, not a warning, and rows only a table can read are left out of the console (patches.mjs:1507-1516); the report and the Foundry and modules window still name both. The handbook's \"it is a warning, never a pass\" (gm-handbook.en.md 20.4) reads as never a pass."
+    },
+    {
+     "promise": "Pre-season checks show the same rows: each failed place on its own line with a cross, the unknown ones one counted line folded, a tick only when every place holds",
+     "source": "v1.2.92.md 50-52",
+     "code": "scripts/season-setup.mjs:1459-1464 foundryReport, :1563-1575 contractSection",
+     "holds": "superseded",
+     "test": "R1541, R1553 (tier 1)",
+     "test_kind": "both",
+     "note": "Superseded by E101 item 2 (1.2.112): the contract's lines are in the Debug log's Foundry and modules window, not in the checks before a session (season-setup.mjs:1438-1442; gm-handbook.en.md:2397). The tests follow (R1541's body :35764-35765, R1553's :36575-36576, \"changed on purpose\"), their titles do not: finding E52-1."
+    },
+    {
+     "promise": "The trust rows (the relay guard, the roll draw, what a player may read of a roll) keep their own fallbacks and words; a failed one is never turned into a looser one",
+     "source": "v1.2.92.md 47-48",
+     "code": "scripts/patches.mjs:1460-1463 (runContract changes no fallback)",
+     "holds": "yes",
+     "test": "R1542 (tier 1)",
+     "test_kind": "both",
+     "note": "runContract only reads; read, not traced into each trust row's probe."
+    },
+    {
+     "promise": "Doors: a door-control class with no isVisible on its chain is left as Foundry's, doors open, the row failed; Levels: a region whose includedInLevel throws is read on the floors it lists",
+     "source": "v1.2.92.md 24-27, 57-58, 83",
+     "code": "scripts/fog.mjs:2974-2999 (the getter looked for on the chain; the rooms' class over Base only where it has one); scripts/rooms.mjs:458-486 (the throw caught, the region read by its floors, said once, whenLevelThrows)",
+     "holds": "yes",
+     "test": "R1543, R1544 (tier 1)",
+     "test_kind": "both",
+     "note": "On the harness's model, not on a canvas (B-E52-5)."
+    },
+    {
+     "promise": "game.drpg.diagnose(): one report of 21 parts with Copy report; on a player's browser the eight GM-only parts are named and not run; the silenced warnings listed with Show again",
+     "source": "v1.2.92.md 59-64, 81-82",
+     "code": "scripts/diagnostics.mjs:2219-2246 REPORT_SECTIONS (22 parts today: E60 C5b added diceLook; eight gmOnly - despair, truthBullets, gmStores, characters, scenes, visibility, music, traps), :2263 gatherReport; scripts/settings.mjs STALE_SILENCES",
+     "holds": "yes",
+     "test": "R1550, R1551, R1552 (tier 1); tier 2 \"E52-T2 - the one report on the suite's world ...\" (tests-tier2.mjs:87966)",
+     "test_kind": "both",
+     "note": "R1551 stands a player in on the GM's client (notes 126); a real player's report and a real clipboard are B-E52-4."
+    },
+    {
+     "promise": "The macro API: tools/api-surface.json lists every key of game.drpg and a test holds the live object to it; nine old names stay as aliases; migrate() is the data migration and migrate1_2_0 its alias",
+     "source": "v1.2.92.md 28-29, 68-74",
+     "code": "tools/api-surface.json (474 keys, 9 aliases: migrate1_2_0 to migrate keepUntil 1.3.1, the eight others no end date); scripts/api.mjs:802, :1099-1114",
+     "holds": "yes",
+     "test": "R1560 (tier 0; needs(env.tools()), so skipped at a table installed without tools/), R1557, R1558, R1561 (tier 1), R1559 (tier 0)",
+     "test_kind": "both",
+     "note": "The surface has grown from 450 to 474 keys with no alias removed."
+    },
+    {
+     "promise": "In a Foundry that does not name BROADCAST_AUDIO the microphone block writes nothing and the GM is told why",
+     "source": "v1.2.92.md 30-32",
+     "code": "scripts/voice.mjs:1669-1671 broadcastAudioKnown, :1685-1689 blockForTrial; scripts/voice-tile.mjs:1452-1455 toggleBlock (DRPG.Voice.list.gmNoBlock, lang/en.json:5940)",
+     "holds": "yes",
+     "test": "R1546 (tier 1, hands perms in)",
+     "test_kind": "both",
+     "note": "The GM's line now reads \"... so you cannot block a microphone from here.\" (reworded since)."
+    },
+    {
+     "promise": "The page-tint notice only for a named Dark Reader; diagnoseStyles and diagnoseWindows read the theme's own fonts; traceClicks hears a cancelled click; perfReport warms up",
+     "source": "v1.2.92.md 65-67",
+     "code": "scripts/diagnostics.mjs detectPageTinting, warnAboutPageTinting, diagnoseStyles, diagnoseWindows, traceClicks, perfReport (names from the notes; not read)",
+     "holds": "unread",
+     "test": "R1554, R1555, R1556 (tier 1)",
+     "test_kind": "both",
+     "note": "Not read; the notes say the page-tint fix has no permanent test, a scratch run only (126-128)."
+    }
+   ],
+   "registry_rows": 29,
+   "tests_read": [
+    {
+     "test": "R1540 (tests-tier1.mjs:35129-35150, head)",
+     "measures": "yes",
+     "why": "Stand-in rows (ours, gone, replaced, a probe that throws) through runContract and announceContract: pins the three answers and the failed-with-message rule without the suite's world deciding (E52-T1 reads that one)."
+    },
+    {
+     "test": "R1560 (tests-tier0.mjs:18419-18440, head)",
+     "measures": "yes",
+     "why": "Runs the judge on a planted surface first (a key removed with no alias, an alias to nothing, a removal before its release, ...) and then on the live object; skipped where tools/ is not installed, so at a table it measures nothing (its needs() says so)."
+    },
+    {
+     "test": "R1541, R1553 (tests-tier1.mjs:35728, :36562)",
+     "measures": "yes",
+     "why": "Draw foundryReport over stand-in rows and read the failed rows, the folded unknowns and the all-ok line; they hold E101's window, not Pre-season's (E52-1)."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: E52-T1 - the contract on the suite's world (tests-tier2.mjs:87934)",
+    "tier 2: E52-T2 - the one report on the suite's world (tests-tier2.mjs:87966)",
+    "tiers 0-1: R1056, R1057, R1537-R1563",
+    "scenario 30-security (named green in the notes' review, v1.2.92.md 154)"
+   ],
+   "scenarios": [
+    "none in audit/harness/README.md's register names E52; the notes cite scenario 30 green at the review (v1.2.92.md 152-154)"
+   ],
+   "live": {
+    "items": 11,
+    "read": 0,
+    "ids_read": [],
+    "note": "B-E52-1 to B-E52-11 (LIVE-E52-01 to -11, AUDIT lines 1636-1656): no reading in the three live-readings files and none in docs/dev/e58/LOCAL-REPORT.md (no contract or diagnose() run recorded on 14.370); no live-items-NN file covers them. B-E52-1's text names Daggerheart 2.10.5 while the sandbox runs 2.12.9; B-E52-11's names Pre-season's line, which E101 moved to Foundry and modules.",
+    "l1": {
+     "what": "The contract's rows and the report on Foundry 14.370 with the Daggerheart in use",
+     "recipe": [
+      "On the sandbox, fresh load, as the primary GM: note any contract notice; run game.drpg.diagnosePatches() and record each row's state",
+      "Open the first character sheet, then a scene with floors; record any later notice",
+      "Run game.drpg.diagnose() as GM and as a player; press Copy report and paste into a text field; read that the player's report names the eight GM-only parts and holds none of their data",
+      "Open the Debug log's Foundry and modules window in English and Polish, both themes"
+     ],
+     "clients": "one GM, one player",
+     "theme": "both",
+     "settles_if": {
+      "agrees": "no failed row, the unknown rows only those the register says a table reads, a notice only for a failed row, the player's report with no GM data",
+      "defect": "a row failed on 14.370 or the Daggerheart in use, a notice for an unknown row, or GM data in the player's report"
+     },
+     "priority": "the stage's grade cap (9)"
+    }
+   },
+   "findings": [
+    {
+     "id": "E52-1",
+     "severity": "nit",
+     "category": "text",
+     "title": "R1541 and R1553 say they read Pre-season's checks; since E101 they read the Debug log's Foundry and modules window",
+     "where": "docs/dev/R-REGISTRY.md:901, :913 (the titles); scripts/tests-tier1.mjs:35728, :35732, :35764-35765, :35771-35776 (R1541), :36562, :36575-36576 (R1553)",
+     "what_happens": "E101 item 2 moved the contract's lines out of the checks before a session; both tests were changed to draw season-setup.mjs foundryReport (\"changed on purpose\"), but their titles, the registry rows and R1541's failure messages still say Pre-season's checks.",
+     "evidence": "[\"R1553 - Pre-season's contract lines: each failed row its own line, ...\" (tests-tier1.mjs:36562); \"// Diagnostics' Foundry and modules since E101 item 2 (Pre-season checks until then): changed on purpose.\" / \"el.innerHTML = await SS.foundryReport({ contract: mod.runContract({ rows }) });\" (:36575-36576); R1541's message \"Pre-season's checks do not list the failed rows ...\"",
+     "failure_scenario": "A GM or a later stage reading R1541's failure, \"Pre-season's checks do not list the failed rows\", looks in the Season checklist, which no longer shows the contract at all.",
+     "expected": "The titles and messages name Foundry and modules.",
+     "confidence": "read",
+     "refutation_tried": "Read both bodies around the draw: each calls foundryReport and neither preSessionReport; the handbook already says the lines moved (gm-handbook.en.md:2397), so only the test texts lag."
+    }
+   ],
+   "superseded_by": [
+    "E101 item 2 (1.2.112): the contract's lines in the Debug log's Foundry and modules window, not in Pre-season's checks (season-setup.mjs:1438-1464)",
+    "E91 C1 (owner's note of 09.11): an unknown row is a console info line, not a load warning (patches.mjs:1507-1516)",
+    "E60 C5b: the report's 22nd part, diceLook (diagnostics.mjs:2227)"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "The register, the ready run, the notice, the report, the surface file with its test and the two fallbacks (doors, Levels) are in today's code as promised and held by 29 numbered tests and two tier-2 tests; later stages moved the Pre-season half to a Diagnostics window and quietened the console, as the owner asked, without loosening a row. Against a 9: (1) the stage's own ledger closed E52-11 (presence probes only) and E52-12 (18 sheet places, not about 25) partial, and E52-verify-3 (runContract on Daggerheart 2.10.5) as LIVE: the contract has never been read on a real Foundry, and the sandbox has since moved to Daggerheart 2.12.9; (2) the page-tint fix has no permanent test, and R1560 measures nothing at a table; (3) none of eleven live checks read. One nit (E52-1). Base run not joined.",
+   "missing_to_10": "The l1 above (B-E52-1, -4, -7, -11), and B-E52-2, -3, -5, -6, -8 to -10; a permanent test for the page-tint notice; the 25 or so sheet places of the plan or the owner's word that 18 are the set; R1541 and R1553's titles brought to Foundry and modules (E52-1)."
+  }
+ ],
+ "not_established": [
+  {
+   "what": "Whether Foundry 14.370 removes a user's own permissions.BROADCAST_AUDIO entry when the trial's give-back writes ForcedDeletion on it (voice.mjs:1717-1724, the case of a player with no grant of their own before the trial). The same kind of write left an ownership entry in place on 14.370 (docs/dev/e58/LOCAL-REPORT.md, 'An owner is not removed by a deletion on v14', 17.11.2026); CALIBRATION.md's LIVE-E30-01 read flags only. If it does not remove it, the player's microphone stays blocked after every trial until a GM lifts it. Suspected, not a finding: the road is traced to the write, the server's answer is not read.",
+   "live_check": "LIVE-E70-04 and LIVE-E70-05 (items 332, 333), with the permissions object read after the exit; tier 2 E70-T8 by name on the sandbox",
+   "l1": {
+    "what": "The trial's microphone block and its give-back on a real server: a dead player's microphone stops without a reload, and after the trial the player's own permissions read as before (no BROADCAST_AUDIO entry left)",
+    "recipe": [
+     "On the sandbox with LiveKit 0.6.8, a GM and three players, a player with no BROADCAST_AUDIO of their own (read game.users.getName(p).toObject().permissions)",
+     "Kill that player's student with nobody told, enter a Class Trial through the module's road",
+     "Read the player's permissions on the GM and the player's page: BROADCAST_AUDIO false; on the player's page try game.user.update({ 'permissions.BROADCAST_AUDIO': true }) (LIVE-E70-05)",
+     "End the trial by End the trial, then read the player's toObject().permissions again on both pages",
+     "Run tier 2 E70-T8 by name on the sandbox (run-tests --only \"the dead are muted for the trial\")"
+    ],
+    "clients": "one GM, three players",
+    "theme": "default",
+    "settles_if": {
+     "agrees": "the block reads false in the trial, the player's own write is refused, and after the exit the permissions object has no BROADCAST_AUDIO key; E70-T8 passes",
+     "defect": "after the exit BROADCAST_AUDIO is still false (the ForcedDeletion did not remove it) - the player stays unable to speak until a GM lifts it by hand; or the player's own write lands"
+    },
+    "priority": "the stage's grade cap (9), major if the give-back leaves the key"
+   }
+  },
+  {
+   "what": "Every tier-0, tier-1 and tier-2 result of the four stages' tests on b5a29e73: base-run.json was not on the branch when read. The notes' CI runs are of 9ae38192 (1.2.90), da0690b1 (1.2.91) and none stated at HEAD for 1.2.92 (v1.2.92.md 137-138).",
+   "live_check": "none: the audit's base run, once written, settles it"
+  },
+  {
+   "what": "The four stages' ledgers, STATUS files, mutant definitions and end reviews are cited by the notes and are not in the repository; no promise was read from them, and the mutant counts cannot be reproduced.",
+   "live_check": "none"
+  },
+  {
+   "what": "Whether a dragged token is lighter at a table on 1.2.91 and later (E89's reason): only counts on the harness's model exist.",
+   "live_check": "LIVE-E89-01, -02, -03 (items 346, 343, 344)",
+   "l1": {
+    "what": "A dragged token's cost on the mover's and a watcher's browser, and the GM Panel's tile edges under Stained Glass on a real graphics card",
+    "recipe": [
+     "On the sandbox (default theme, then Stained Glass), a player drags their own token through a room and into the next for 5 s",
+     "During the drag run await game.drpg.fps({ seconds: 5, toChat: false }) on the mover's page, a watcher's page and the GM's",
+     "Record visibility.applyAll.tokens, visibility.applyRooms.tokens, visibility.sightPass and refreshToken counts from game.drpg.counters() before and after",
+     "Hooks.on('updateToken') counter on the mover's page across one drag with two waypoints (LIVE-E89-03)",
+     "Open the GM Panel under Stained Glass on a headed browser with a GPU while a token moves; screenshot the tile and Close button edges at 100% and 125% zoom (LIVE-E89-04)"
+    ],
+    "clients": "one GM, two players",
+    "theme": "both",
+    "settles_if": {
+     "agrees": "an own move inside a room counts one token's refresh on the mover; the frame rate within the table's other readings; no edge vanishes",
+     "defect": "a whole pass on every frame of a drag, or edges still cut on the Projects tile or Close button"
+    },
+    "priority": "the stage's grade cap (9); the edges minor"
+   }
+  },
+  {
+   "what": "The contract's rows on Foundry 14.370 with Daggerheart 2.12.9 (the sandbox's): never run on a real Foundry; B-E52-1 names 2.10.5.",
+   "live_check": "B-E52-1 (LIVE-E52-01), with its Daggerheart version brought to the one in use",
+   "l1": {
+    "what": "The contract's rows and the report on Foundry 14.370 with the Daggerheart in use",
+    "recipe": [
+     "On the sandbox, fresh load, as the primary GM: note any contract notice; run game.drpg.diagnosePatches() and record each row's state",
+     "Open the first character sheet, then a scene with floors; record any later notice",
+     "Run game.drpg.diagnose() as GM and as a player; press Copy report and paste into a text field; read that the player's report names the eight GM-only parts and holds none of their data",
+     "Open the Debug log's Foundry and modules window in English and Polish, both themes"
+    ],
+    "clients": "one GM, one player",
+    "theme": "both",
+    "settles_if": {
+     "agrees": "no failed row, the unknown rows only those the register says a table reads, a notice only for a failed row, the player's report with no GM data",
+     "defect": "a row failed on 14.370 or the Daggerheart in use, a notice for an unknown row, or GM data in the player's report"
+    },
+    "priority": "the stage's grade cap (9)"
+   }
+  },
+  {
+   "what": "Scenario bodies: 67's phase D check (the TR30 known leak, 67-trial-modes.mjs:319), 86's E89 lines and 00-boot's E20-T3 and 12-social's ANONYMITY were read by grep only; 63's E70 parts, 30, 72, 75 and 50 were taken from the notes.",
+   "live_check": "none"
+  }
+ ]
+}

@@ -1,0 +1,375 @@
+{
+ "refuter": "verify-live-items-18",
+ "of": "live-items-18",
+ "checked": [
+  {
+   "ref": "B-E52-5",
+   "claim": "partly, agrees: part (2)'s rule (a region with no floor is on every floor) read on 14.370 in CALIBRATION.md:112; part (1) and the error road not read",
+   "verdict": "stands",
+   "why": "CALIBRATION.md:112 on b5a29e73 is the includedInLevel row of the 16.11.2026 Levels table (two Level documents, a region with none), and says true/true for the region with no floor, which is the rule the item expects. It is a reading of Foundry's own method, not of the module's region-included-in-level row, which the reader says ('Part (2)'s rule only'). No reading of the door controls, the isVisible getter's place or a throwing includedInLevel exists in the L1 report (both copies) or CALIBRATION (both copies): grep for DoorControl, isVisible, door-control finds nothing. The cited code and tests are where the reader says.",
+   "evidence": [
+    "docs/dev/e39/CALIBRATION.md:112 '| `includedInLevel` | by id or by the Level document; an empty Set is every floor (Ground true/Upper false for the low room, the reverse for the high one, true/true for the one with none) |'",
+    "scripts/patches.mjs:613 'id: \"door-controls\",' and :732 'id: \"region-included-in-level\",'",
+    "scripts/tests-tier1.mjs:35904 'R1544 - Levels: a region whose includedInLevel throws is read by the floors it names, said once, and the contract's row fails'"
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "gap-3",
+   "claim": "obsolete (closed): a Reroll of a crisis action that killed is refused before payment and the GM refuses its undo",
+   "verdict": "weakened",
+   "why": "The closing is confirmed in today's code: reroll.mjs:513-517 refuses before the payment, murder-rules.mjs:2143-2145 refuses the undo from the world's record, bridge-guards.mjs:310 holds the reason. But the subject is not gone - the Reroll of a lethal crisis action exists and is refused - and the reader itself writes subject_exists true. Section 11.3 keeps 'obsolete' for a subject removed or replaced; a record closed by a fix is 'fixed' in the old-item vocabulary, which is the vocabulary a recorded gap (not a live check, AUDIT:1658) belongs to. The facts stand; the status word does not.",
+   "evidence": [
+    "scripts/reroll.mjs:516 'if (last?.actorId === actor.id && crisisKilled(last)) return { why: \"that crisis action killed somebody; the death stands\", say: \"DRPG.Reroll.deathStands\" };'",
+    "scripts/murder-rules.mjs:2143-2145 'if (crisisKilled(receipt)) { warn(`Reroll: ... the death stands and nothing is taken back.`); return false;'",
+    "audit/AUDIT-1.2.42.md:1658 'Znane luki po E03, świadomie zostawione (nie live checki, tylko zapis):'"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "gap-4",
+   "claim": "obsolete: the Reroll receipts are gone since E08+E28 C8 (1.2.67)",
+   "verdict": "stands",
+   "why": "reroll-receipts.mjs's header says the file wrote receipts until C8 and no longer does; guardUndoIsTheGms stands at bridge-guards.mjs:624. The subject (the receipt) was removed, so 'obsolete' fits 11.3. bfb4b613 is first contained in v1.2.67.",
+   "evidence": [
+    "scripts/reroll-receipts.mjs:5 'UNTIL E08+E28 C8 (03.10.2026) THIS FILE WROTE RECEIPTS'",
+    "scripts/reroll-receipts.mjs:11-12 'Nothing was left for a receipt to pay for, and the receipts went with the guards that spent them.'",
+    "scripts/bridge-guards.mjs:624 'export function guardUndoIsTheGms(sender, payload, ctx) {'"
+   ],
+   "status_after": "obsolete"
+  },
+  {
+   "ref": "gap-6",
+   "claim": "partly (changed): since E12 C3 one locateActor rule; 'the trap relay no longer reads the scene the player views'",
+   "verdict": "refuted",
+   "why": "The relay's room check still reads the scene the sender is looking at first and falls back to every scene only when the character has no token there, exactly as the gap says: guardRelayRoom passes sender.viewedScene into traps.mjs standsIn, whose comment and body do so. What moved to sceneOfEvent/locateActor is the scene the trap then fires on (and the payload's sceneId, a hint), not the relay's check. Search still takes the request's scene when the character has a token there (search-tokens.mjs:589, locateActor's first rule). So neither half of the gap's description has stopped holding; the reader's stale_detail and observation 5 are wrong on the trap relay. Not measured at a table, as the gap says.",
+   "evidence": [
+    "scripts/bridge-guards.mjs:1302-1304 'const there = await standsIn(actor, named, { passedThrough: field === \"to\", sceneId: sender?.viewedScene ?? null });'",
+    "scripts/traps.mjs:891-896 'ON THE SCENE THE SENDER IS LOOKING AT, when the character has a token there (`User#viewedScene`) ... Only a character with no token on that scene falls back to every scene.'",
+    "scripts/traps.mjs:903-904 'const onScene = sceneId ? all.filter(where => where.scene?.id === sceneId) : []; return (onScene.length ? onScene : all).some(...'",
+    "scripts/movement.mjs:3628-3629 'the scene `sceneId` names. It is a hint, often a player's packet, and it only chooses among the character's own tokens'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "gap-7",
+   "claim": "obsolete (closed): Use item and critical Strike replays and the second trace fixed by E08+E28 C2 and C6b in 1.2.67",
+   "verdict": "weakened",
+   "why": "The fixes are where the reader says: settleCrisis replays with the first throw's pick and item (reroll.mjs:1604-1613), the GM writes the trace id on the row (bridge-runs-records.mjs:152-156) and settleRemnant retunes or removes it (reroll.mjs:1993). E08 and E28 shipped in 1.2.67 (tools/stages.json:16-17). But the subject (the Reroll replay and its trace) exists - reader's own subject_exists true - so by 11.3 this is a fix, not an obsolete record.",
+   "evidence": [
+    "scripts/reroll.mjs:1605-1610 'WITH THE FIRST THROW'S FACTS, ON THIS GM (E08+E28 C6b ... It runs `resolveCrisisAction` here, with the row's pick, item, the reserve the item healed'",
+    "scripts/bridge-runs-records.mjs:152 'WHICH TRACE, ON THE GMS' BOOKMARK (E08+E28 C2; audit S05-08).'",
+    "tools/stages.json:16 '{\"id\": \"E08\", \"planned\": \"1.2.67\", \"version\": \"1.2.67\", \"shipped\": \"2026-10-05\"'"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "S7-1",
+   "claim": "read, agrees: an unanswered Search proposal spends no action and leaves the room's tokens (LOCAL-REPORT.md:427)",
+   "verdict": "stands",
+   "why": "The row exists on b5a29e73's copy at line 427, labelled S7-1, pass 2 of 16.11.2026, Foundry 14.370, module from 1.2.116 (ff3e12e5, LOCAL-REPORT.md:3-4). It reads actions 3 and the room's tokens untouched after the GM's time ran out, which answers the item's question on today's road. The two runs that pressed Eye are excluded in the paper itself.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:427 'the action is not spent while it waits; left unanswered past that time, PlayerOne was told \"... The GM did not answer in time. You keep your act[ion]\", actions 3, the room's tokens untouched, the search ended.'",
+    "docs/dev/e58/LOCAL-REPORT.md:3-4 'made from origin/main at ff3e12e5 (1.2.116, ...)'"
+   ],
+   "status_after": "read"
+  },
+  {
+   "ref": "S7-2",
+   "claim": "read, result 'defect' (the reading as a whole): the statistic Hand is locked and the card carries Hand; dead chat-log buttons found beside it, fixed in 1.2.118",
+   "verdict": "weakened",
+   "why": "The reading exists (LOCAL-REPORT.md:428) and shows the window's statistic locked on Hand and the private card '... 12+12+Hand +1', so the item's own question agrees. The result 'defect' belongs to a different subject - the thread card's buttons in the GM's chat log - which already has its own item (LIVE-F118-01, AUDIT:1614) and was fixed in 1.2.118 (release notes 62-69). Writing 'defect' on S7-2 counts that defect twice and misstates the item's result; the reader's own note says 'The item is read and agrees'. Also not read: the item's 'field with the used statistic on the rollTrait result' (the reading gives the card text, not the result's field).",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:428 'holds the statistic locked (`trait` finesse, Daggerheart's Hand, disabled); the private result card \"Search · Dorm A · 25 · needed 8 / 12 / 18 · Tier 3 · 25 critical 12+12+Hand +1\". **The defect**: the ruling card of a player's thread reaches the GM's chat log'",
+    ".github/release-notes/v1.2.118.md:62 '**A thread's ruling card answered from the chat log** (F118; AUDIT 9.2 S7-2, measured by line L1 on Foundry 14.370).'",
+    "audit/AUDIT-1.2.42.md:1614 '660. **LIVE-F118-01 - przyciski karty orzeczenia z wątku w czacie GM-a'"
+   ],
+   "status_after": "read (result agrees; the side defect is LIVE-F118-01's)"
+  },
+  {
+   "ref": "S7-3",
+   "claim": "read, agrees: with core.messageMode 'self' a Search with Fear moved the GM's Despair pool {} to {GM: 1}",
+   "verdict": "stands",
+   "why": "LOCAL-REPORT.md:429 is the S7-3 row, pass 2 on 14.370: self mode on PlayerOne, a Fear result, the pool moved. That is the item's question and its answer.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:429 'set to \"self\" on PlayerOne, the roll window takes \"self\" and locks it; a Search with Fear (Hope 5, Fear 8), drawn by the GM and whispered to the GM: the GM's Despair pool `{}` to `{GM: 1}`'"
+   ],
+   "status_after": "read"
+  },
+  {
+   "ref": "S7-4",
+   "claim": "read, agrees: a player's console reads the alias (null) and the whisper list of the module's secret cards, the content a placeholder",
+   "verdict": "weakened",
+   "why": "The row exists (LOCAL-REPORT.md:417, 16.11.2026, 14.370). But CASE-03, the finding this check follows, was that incident cards carried the killer as speaker and the participants as their whisper list (old-1.2.42-case.json CASE-03). The reading records the alias as null, which answers half, but says only that the whisper list is read, not what it holds, and does not say an incident was open - the item asks 'w trakcie incydentu'. Whether a player can read the participants off the whisper list during an incident is not in the reading.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:417 'Of the module's secret cards a player reads the alias (null) and the whisper list; the content is the placeholder `-`, the words stay on the GM's browser'",
+    "audit/AUDIT-1.2.42.md:584 '4. **CASE-03:** z konsoli gracza `game.messages.contents.filter(...).map(m => [m.speaker.alias, m.whisper])` w trakcie incydentu.'",
+    "audit/findings-1.2.118/old-1.2.42-case.json CASE-03 title 'Every incident, Stage 6, opening and death whisper still carried the killer's actor as its speaker and the participants as its whisper list'"
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "S7-5",
+   "claim": "read, agrees: a thread message's document holds a placeholder; only the recipient got the words",
+   "verdict": "stands",
+   "why": "LOCAL-REPORT.md:418 records a real thread message to PlayerTwo whose document holds the placeholder, the words reaching PlayerTwo alone by secret.card and PlayerOne holding them nowhere - the COMM-03 query's subject. The flag name stands (messenger.mjs:66).",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:418 'its document holds `<p class=\"notes\" data-drpg-secret>-</p>`; the words reached PlayerTwo alone, by `secret.card` (PlayerOne's socket heard nothing) ... PlayerOne holds them nowhere (document, drawn card, socket)'"
+   ],
+   "status_after": "read"
+  },
+  {
+   "ref": "S7-7",
+   "claim": "read, agrees: another's token is hidden in the corridor and first drawn at the room's edge (LOCAL-REPORT.md:419, shared with item 15)",
+   "verdict": "stands",
+   "why": "The row at :419 names '15, S7-7 (MAP-02)', sampled each frame on PlayerTwo's canvas, with the sampling limit the reader repeats. verify-live-items-01.json let item 15 stand on the same row. The reader's note keeps the narrower partly question of old-1.2.42-map.json apart, correctly.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:419 '| 15, S7-7 (MAP-02) | measured | ... hidden in the corridor (last hidden at x 588), first drawn at x 1155 ... never drawn further left. Limit: headless drew 33 frames in 9 s'"
+   ],
+   "status_after": "read"
+  },
+  {
+   "ref": "S7-8",
+   "claim": "read, agrees: two safeword presses give one card and pause the game; the 1.2.43 'already had a safeword' text is gone",
+   "verdict": "weakened",
+   "why": "The row exists (LOCAL-REPORT.md:430), but what it measured is the press and its de-duplication, not the CORE-13 question. CORE-13 was that a new, unstamped world ran keepOldSafeword, got the language file's word as its safeword and a card saying it already had one (old-1.2.42-core.json); the check asks for a fresh world's safeword on the sheet and the chat after that message. The reading does not record the word a fresh world ends with, nor the chat at its first load; 'the text is gone' is said without how it was read. The clause still exists (migrate.mjs:1579-1586), so the subject stands. A partial, related reading on the safeword, not the item's measure.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:430 'PlayerOne pressed the safeword twice (`game.drpg.safeword()`, \"Stop the scene\" each time): one public card ...; the second press a \"+1\" ... The 1.2.43 \"already had a safeword\" text is gone.'",
+    "audit/AUDIT-1.2.42.md:588 '8. **CORE-13:** świeży świat na 1.2.43 z angielskim; safeword na arkuszu i czat po \"already had a safeword\".'",
+    "scripts/migrate.mjs:1579-1586 'export async function keepOldSafeword({ from = \"\", wasInPlay = false } = {}) { // A WORLD THAT WAS IN PLAY, not a new one (CORE-13). ... if (!from && !wasInPlay) return null;'"
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "S7-9",
+   "claim": "read, agrees: a bystander's stopwatch stays as it was when the GM moves the hour",
+   "verdict": "stands",
+   "why": "LOCAL-REPORT.md:431 is exactly the CORE-06 check: an incident open, PlayerTwo a bystander, the GM moved the hour, the stopwatch unchanged at 4 s and 16 s.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:431 'the GM moved the hour (`advanceTimeOfDay`, morning to noon, the setting noon on PlayerTwo too): the stopwatch stayed as it was 4 s and 16 s after'"
+   ],
+   "status_after": "read"
+  },
+  {
+   "ref": "9.3-21",
+   "claim": "partly: the phone and tablet half has no subject since 11.11.2026; the clamp half has no reading",
+   "verdict": "refuted",
+   "why": "Section 11.3 gives a live check 'partly' only when a part was read (odczytana część). The reader's own evidence says the clamp half 'has no reading in the three digests', and the touch half was not read either - it lost its subject. No part of the item has a reading, so the status is open for what remains (the clamp on a narrow desk window), with the phone half noted as out of scope. The citations are right: AUDIT:1410 records the owner dropping phones, 84-viewports.mjs:2-4 the supported screens, foundry-windows.mjs:303 clampPlace.",
+   "evidence": [
+    "audit/AUDIT-1.2.42.md:669 '21. Telefon i tablet: dotyk, przewijanie stosu palcem, i czy Foundry samo przycina pozycję okien do ekranu (`ApplicationV2` klamruje `left`/`top` - założone, nie zmierzone).'",
+    "audit/harness/scenarios/84-viewports.mjs:3-4 'a desktop browser from 1280x720, narrow windows supported, phones and tablets not'",
+    "scripts/foundry-windows.mjs:303 'export function clampPlace(place, size, screen, block = null) {'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "9.3-22",
+   "claim": "obsolete: pinFooterAcrossScroll retired by E21 C2a; the kit's footer stands outside the scrolling body",
+   "verdict": "stands",
+   "why": "git grep on b5a29e73 finds pinFooterAcrossScroll, fitWindowToTable and fitWindowToTabs only in retirement notes and in R1357, which asserts they are gone. ui-kit.mjs's fitKitWidth header says neither the measured height nor the footer's pin came with it.",
+   "evidence": [
+    "scripts/ui-kit.mjs:1464-1467 '`fitWindowToTable` and `fitWindowToTabs` - moved into the kit ... neither the measured height nor the footer's pin across a sideways scroll (`pinFooterAcrossScroll`: the kit's footer stands outside the body that scrolls) came with it.'",
+    "scripts/tests-tier0.mjs:22187 'const OLD = [\"tableDialog\", \"fitWindowToTabs\", \"fitWindowToTable\", \"pinFooterAcrossScroll\"];'"
+   ],
+   "status_after": "obsolete"
+  },
+  {
+   "ref": "9.3-25",
+   "claim": "obsolete: where the evidence card stands was decided (the middle of the map during a trial)",
+   "verdict": "stands",
+   "why": "AUDIT:742 records the chosen lever ('wybrane rozwiązanie: własne miejsce na czas triala') and :739 the commits; popup.mjs:186-209 holds the evidence stage with id drpg-evidence. The corner tile the item was about no longer carries the card, so the question's subject was replaced. Its look at a table is not read, as the reader says.",
+   "evidence": [
+    "audit/AUDIT-1.2.42.md:742 '25 (gdzie ma naprawdę stać karta dowodu - wybrane rozwiązanie: własne miejsce na czas triala).'",
+    "scripts/popup.mjs:186 'EVIDENCE GETS THE MIDDLE OF THE SCREEN, AND IT GETS IT BECAUSE IT WAS BEING CUT IN HALF IN THE CORNER (16.09).'",
+    "scripts/popup.mjs:50 'const EVIDENCE_ID = \"drpg-evidence\";'"
+   ],
+   "status_after": "obsolete"
+  },
+  {
+   "ref": "475 (first: LIVE-E93-01)",
+   "claim": "partly, defect - copied from live-items-463.json",
+   "verdict": "weakened",
+   "why": "The copy matches live-items-463.json, but verify-live-items-463.json moved this item to open: the reading behind it (LOCAL-REPORT.md:529-532, the four registrations that threw at init, facility-uses.mjs:122 among them) is a start-up defect in a mechanism the item depends on and names no 9.2 item; none of the item's own asks (the row greyed elsewhere, a second payer refused and refunded, the Subtle trace) is read. I read LOCAL-REPORT.md:529-532 myself and it says what that refuter quotes. This reader read nothing of its own here.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:529-530 'A player's browser asked for nothing at its start, on every real v14 ... at lockpick-gm.mjs:216, facility-uses.mjs:122'",
+    "audit/findings-1.2.118/verify-live-items-463.json, ref '475 first (LIVE-E93-01)': verdict weakened, status_after open"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "475 (second: LIVE-E76-01)",
+   "claim": "partly, defect - copied from live-items-463.json",
+   "verdict": "stands",
+   "why": "The copy matches live-items-463.json; verify-live-items-463.json let it stand as partly (the load at CALIBRATION.md:50 and LOCAL-REPORT.md:529-532, the relay guard at :421-422, tier 2 runs). I read CALIBRATION.md:50 and LOCAL-REPORT.md:421-422, :529-532: they are on 14.370 with Daggerheart 2.12.9 and Dice So Nice 6.4.5, as that file says.",
+   "evidence": [
+    "docs/dev/e39/CALIBRATION.md:50 '`sessionFailures()` on a fresh GM and player | four registrations at `init` threw on `game.user.isGM`'",
+    "docs/dev/e58/LOCAL-REPORT.md:422 '| 19 | measured | `game.socket.listeners`, `off`, `on`, `prependAny`: functions; `relayGuard().state` `ok` |'"
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "476 (first: LIVE-E93-02)",
+   "claim": "partly, defect - copied from live-items-463.json",
+   "verdict": "weakened",
+   "why": "verify-live-items-463.json moved this item to open: the owner's probe of 16.11.2026 (docs/dev/e53/STATUS.md:29) was a clock set back before the completion, a state the item does not ask about; the item's three states (present in the morning with one time of day left, gone at noon, 'For good' to the chapter's end) are unread on a real Foundry. This reader copied the status without reading.",
+   "evidence": [
+    "audit/findings-1.2.118/verify-live-items-463.json, ref '476 first (LIVE-E93-02)': verdict weakened, status_after open",
+    "audit/AUDIT-1.2.42.md:1438 '476. **LIVE-E93-02 - czas działania akcji projektu przez kolejne pory dnia (E93 C1, C4):**'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "477 (second: LIVE-E76-03)",
+   "claim": "partly, agrees - copied from live-items-463.json",
+   "verdict": "stands",
+   "why": "CALIBRATION.md:20-21 records -= deleting and == replacing a key directly under the module's flag scope on an actor and a token on 14.370, with 'other fields not read'; the item asks about a nested field path, so partly is right. verify-live-items-463.json agrees.",
+   "evidence": [
+    "docs/dev/e39/CALIBRATION.md:20 '`update({\"flags.danganronpa-rpg.-=calibA\": null})` on each, then `{\"flags.danganronpa-rpg.==calibD\": {z: 9}}` on the actor | deleted on both; no `-=` key stored; `==` replaced the object whole'",
+    "docs/dev/e39/CALIBRATION.md:21 '| LIVE-E76-03 | the same | honoured on flags of an actor and a token, 14.370 |'"
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "478 (second: LIVE-E76-04)",
+   "claim": "partly, agrees - copied from live-items-463.json",
+   "verdict": "stands",
+   "why": "LOCAL-REPORT.md:429 says a player's Search was drawn by the GM and :428 shows the window's statistic locked and the card's critical on Daggerheart 2.12.9 (not the 2.12.8 the item names, a later build); the seam's own checks named in the item are not read. verify-live-items-463.json let it stand as partly.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:429 'a Search with Fear (Hope 5, Fear 8), drawn by the GM and whispered to the GM'",
+    "audit/findings-1.2.118/verify-live-items-463.json, ref '478 second (LIVE-E76-04)': verdict stands, status_after partly"
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "S7-6",
+   "claim": "open: COMM-02's trap firing on the GM's screen not driven",
+   "verdict": "stands",
+   "why": "b5a29e73's LOCAL-REPORT.md:432 and the L1 branch's copy (:584) both list S7-6 as left ('a trap that fires'); grep of the L1 copy for trap, COMM-02 finds only tier-2 test names, none of which reads the GM's popup or sound. No digest row names S7-6.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:432 '| S7-6, S7-10, S7-11, 16 | left | not yet driven: a trap that fires (an indirect murder's trigger), the overflow hat with a Monocub, two GMs' Despair writes in a race, a trial's sticky cards |'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "S7-10",
+   "claim": "open: DESP-04's overflow hat with a Monocub not driven",
+   "verdict": "stands",
+   "why": "Same row as S7-6 in both copies of the L1 report ('the overflow hat with a Monocub'); no other paper of the digests records a Fuel on a Monocub after a Despair-only hat.",
+   "evidence": [
+    "origin/claude/e58-local docs/dev/e58/LOCAL-REPORT.md:584 '| S7-6, S7-10, S7-11, 16 | left | not yet driven: ... the overflow hat with a Monocub ...'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "S7-14",
+   "claim": "open: a note closed by its own text; no reading of a mixed-language table",
+   "verdict": "stands",
+   "why": "The L1 report closes S7-14 by its own text, not by a reading (LOCAL-REPORT.md:426, :330), and no digest records what a GM in Polish and a player in English see. Keeping 'open' with the reason written is consistent with 11.3 (nobody read it); no reading was missed.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:426 '| S7-14, 21 | closed by their own text | \"To nie błąd, ale warto wiedzieć\"; \"Nieaktualne od 1.2.67\" |'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "B-E52-1",
+   "claim": "open: no reading of diagnose()'s contract part on v14",
+   "verdict": "stands",
+   "why": "No contract or diagnose reading in either copy of the L1 report or CALIBRATION (grep for contract, diagnose, door-control, announceContract). The nearest readings, items 18-19 (relayGuard().state 'ok' on 14.370), do not settle the relay-guard row: relayGuardRow needs the guard first among Daggerheart's channel listeners and no catch-all before it, which those rows did not record.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:422 '| 19 | measured | `game.socket.listeners`, `off`, `on`, `prependAny`: functions; `relayGuard().state` `ok` |'",
+    "scripts/patches.mjs:1310-1315 'if (state === \"ok\") { if (at === 0 && any.length) { return { ... state: \"unknown\", unreadKey: \"relay-guard-catch-all\" ... if (at === 0) return { present, ours: true, state: \"ok\" };'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "gap-5",
+   "claim": "open (stands): only the primary applies a player's relayed Daggerheart write; one sent during its reload may be lost",
+   "verdict": "stands",
+   "why": "relay-guard.mjs:374 drops the packet on a GM that is not primary; nothing in the file holds a packet across a reload. One small inaccuracy in the evidence: the wrapper at :441 does not read 'disarm(payload); return;' as quoted for both places - it logs a debug line and returns (:441-443). The gap stands either way.",
+   "evidence": [
+    "scripts/relay-guard.mjs:374 'if (!isPrimaryGm()) { disarm(payload); return; }'",
+    "scripts/relay-guard.mjs:441-443 'if (!isPrimaryGm()) { debug(`Daggerheart relay: \"${plainWhat(textOf(relayName(payload)))}\" left to the primary GM.`); return;'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "observation 2",
+   "claim": "the code names B-E52-2 (4 rows) and B-E52-3 (7 rows) as contract table labels, R1547 asserts them, fog-diagnostics.mjs:715 names B-E20-5",
+   "verdict": "stands",
+   "why": "Counted by grep: 4 'table: \"B-E52-2\"' and 7 'table: \"B-E52-3\"' between patches.mjs:933 and :1095; R1547's TABLE map at tests-tier1.mjs:36205-36207 holds the same eleven; fog-diagnostics.mjs:715 names 'AUDIT 9.2 B-E20-5'.",
+   "evidence": [
+    "scripts/patches.mjs:933 'table: \"B-E52-2\"' ... :1095 'table: \"B-E52-3\"'",
+    "scripts/fog-diagnostics.mjs:715 'How the mark looks on a real canvas is not measured: a table's check, AUDIT 9.2 B-E20-5.'"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "observation 3",
+   "claim": "text gone stale on 21 rows, among them 'all 18 places' against SHEET_ANCHORS' 20 with 9 optional, and 59 Contract.instead sentences against 69",
+   "verdict": "weakened",
+   "why": "Spot-checked: Contract.instead has 69 keys in lang/en.json (59 in B-E52-11's text) - right; module.json verifies Daggerheart 2.12.9 - right; Pre-season checks gone as a window (season-setup.mjs:1344-1348) - right. SHEET_ANCHORS has 20 entries, but 8 carry 'optional', not 9 (patches.mjs:249-268). The rest of the 21 claims were not checked one by one.",
+   "evidence": [
+    "scripts/patches.mjs:248-268 SHEET_ANCHORS: 20 entries; optional on the status bar, bar input, progress bar, Health pips, Sanity pips, equipment heading, loadout heading and Experience (8)",
+    "scripts/season-setup.mjs:1344 'ONE WINDOW (E101 item 2; the owner's yes of 12.11.2026 ...). Pre-season checks was a second window behind this footer's button'"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "observation 4",
+   "claim": "B-E52-11's console recipe throws on today's code: told { done: false } has no has()",
+   "verdict": "stands",
+   "why": "announceContract takes told as a Set of row ids today and calls told.has inside the failed branch, which the recipe's failing row reaches; { done: false } has no has, so a TypeError follows the console warn and no notice is raised. At 03e73d82 told was { done: false } and read told.done (patches.mjs:1189, :1205 there), so the recipe was right when written.",
+   "evidence": [
+    "scripts/patches.mjs:1504 'export function announceContract({ rows = PATCHES, told = toldThisLoad,'",
+    "scripts/patches.mjs:1520 'const fresh = contract.failed.filter(r => !told.has(r.id));'",
+    "git show 03e73d82:scripts/patches.mjs:1189 'const toldThisLoad = { done: false };' and :1205 'if (!told.done && game.user?.isGM) {'"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "observation 5",
+   "claim": "gap summary: gap-6 changed in E12 C3, 'the trap relay no longer reads the scene the player views'",
+   "verdict": "weakened",
+   "why": "The rest of the summary checks out (gap-1, -2, -5 stand; gap-3, -4 closed; gap-7 closed by E08+E28). The gap-6 clause is wrong: guardRelayRoom still hands sender.viewedScene to standsIn, which reads that scene first and every scene only without a token there (see gap-6 above).",
+   "evidence": [
+    "scripts/bridge-guards.mjs:1303 'passedThrough: field === \"to\", sceneId: sender?.viewedScene ?? null'"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "observation 8",
+   "claim": "settings.mjs claims the 1224 threshold was swept on a real Foundry v14 client on 22.09, which no paper records and U11 says no v14 reading existed then",
+   "verdict": "stands",
+   "why": "The comment is at settings.mjs:4318-4320 as quoted; AUDIT 11.2 U11 says no v14 reading existed in September. The reader marks it not established and does not count it as a reading, which is the right handling.",
+   "evidence": [
+    "scripts/settings.mjs:4318-4319 '1224 SINCE 22.09, BECAUSE 1200 TO 1216 WERE STILL A COLLISION. Swept on a real client (Foundry v14, Stained Glass, a fresh load at each width, 768 px tall)'",
+    "audit/AUDIT-1.2.42.md:59 (U11) 'We wrześniu żadnego odczytu z v14 nie było'"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "observation 10",
+   "claim": "DRPG.Panel.seasonChecks is read by no script since Pre-season checks went",
+   "verdict": "stands",
+   "why": "git grep over scripts/ finds it only in a test comment (tests-tier1.mjs:38875); the one dynamic DRPG.Panel.${key} lookup (season-setup.mjs:1493) is fed only checksAv* keys. The key is still named by docs/design/windows.md's M4 row and held by R1334, as the comment says, so it is a hint for the text lane, not a dead key yet.",
+   "evidence": [
+    "scripts/season-setup.mjs:1491-1493 'const voice = [avOffForTile(av) && \"checksAvOff\", videoWithoutAudio(av) && \"checksAvVideoOnly\", videoUnwatched(av) && \"checksAvVideo\"] ... game.i18n.localize(`DRPG.Panel.${key}`)'",
+    "lang/en.json:5256 '\"seasonChecks\": \"Pre-season checks\",'"
+   ],
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 32,
+  "stands": 21,
+  "weakened": 9,
+  "refuted": 2
+ },
+ "not_established": [
+  "S7-4: what the whisper list of an incident's secret cards holds on a player's console during an open incident (participants or GMs only); new live check: the CASE-03 query run with an incident open, recording each card's whisper ids.",
+  "S7-8: the safeword word and the first-load chat of a fresh, unstamped v14 world (keepOldSafeword's clause); new live check: a new world, the module enabled, read game.settings.get('danganronpa-rpg', 'safeword') and the chat after the first ready.",
+  "The observations carry no severity of their own; each was checked and given severity_after nit (paper and comment defects).",
+  "Observation 3: 18 of its 21 stale-text claims were not checked one by one.",
+  "The dup rows other than 475-first and 476-first rest on verify-live-items-463.json plus the lines quoted here; their remaining asks were not re-read."
+ ]
+}

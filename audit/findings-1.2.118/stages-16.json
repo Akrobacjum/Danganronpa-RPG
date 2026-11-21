@@ -1,0 +1,859 @@
+{
+ "reader": "stages-16",
+ "checkout": "branch claude/audit-119; the code read is main b5a29e73 (1.2.118) - git diff b5a29e73 HEAD -- scripts lang styles tools docs is empty. No version tags in this checkout: train ranges come from the notes and the merge commits (f31afc84 for 1.2.103, b97028e1 for 1.2.104). Nothing run but read-only git, grep and short python over the source and the base run's shard files 1/8-5/8 (in the session's scratchpad, base/shards); base-run.json was not on the branch.",
+ "read": [
+  {
+   "file": ".github/release-notes/v1.2.103.md",
+   "lines": "1-283",
+   "of": 283,
+   "how": "whole"
+  },
+  {
+   "file": ".github/release-notes/v1.2.104.md",
+   "lines": "1-331",
+   "of": 331,
+   "how": "whole"
+  },
+  {
+   "file": "audit/AUDIT-1.2.42.md",
+   "lines": "16-127 (section 11), 1350-1412 (9.2 items 431-462)",
+   "how": "whole ranges"
+  },
+  {
+   "file": "tools/stages.json",
+   "lines": "rows E46, E47, E95, E68 and the $comment's first 1500 characters",
+   "how": "by script"
+  },
+  {
+   "file": "docs/dev/R-REGISTRY.md",
+   "lines": "the 110 rows with Since E46 (36), E47 (54), E95 (7), E68 (13)",
+   "how": "counted by script; the E95 and E68 rows read whole, E46's titles read, E47's counted"
+  },
+  {
+   "file": "audit/findings-1.2.118/live-items-429.json",
+   "lines": "items 429-462 and observations",
+   "how": "whole"
+  },
+  {
+   "file": "audit/findings-1.2.118/live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json",
+   "how": "grep for LIVE-E46/E47/E95/E68: 0 hits"
+  },
+  {
+   "file": "audit/harness/README.md",
+   "lines": "213, 223, 307-332 (grep for the four ids)",
+   "how": "the register rows naming them"
+  },
+  {
+   "file": "scripts/ui-kit.mjs",
+   "lines": "176-260, 640-830, 965-1000",
+   "how": "the kit's E46 parts"
+  },
+  {
+   "file": "scripts/room-setup.mjs",
+   "lines": "260-350, 532-560, 640-650, 773-800, 963-1000",
+   "how": "grep and ranges"
+  },
+  {
+   "file": "scripts/body-tile.mjs",
+   "lines": "1-45; signatures 158, 175, 222, 273, 404",
+   "how": "header whole"
+  },
+  {
+   "file": "scripts/body.mjs",
+   "lines": "684-701, 529-531 and the hook's comments",
+   "how": "ranges"
+  },
+  {
+   "file": "scripts/handover.mjs",
+   "lines": "415-440, 477-516 (grep), 704-710",
+   "how": "ranges"
+  },
+  {
+   "file": "scripts/anonymity.mjs",
+   "lines": "535-570",
+   "how": "range"
+  },
+  {
+   "file": "scripts/movement.mjs",
+   "lines": "3761-3800",
+   "how": "range"
+  },
+  {
+   "file": "scripts/frisk.mjs",
+   "lines": "195-232",
+   "how": "range"
+  },
+  {
+   "file": "scripts/config.mjs",
+   "lines": "1510-1520, 2524-2534, 4525-4540, 4785-4800, 4836-4850",
+   "how": "ranges"
+  },
+  {
+   "file": "scripts/settings.mjs",
+   "lines": "1680-1705, 3166-3175",
+   "how": "ranges"
+  },
+  {
+   "file": "scripts/gm-stores.mjs",
+   "lines": "940-960",
+   "how": "range"
+  },
+  {
+   "file": "scripts/states.mjs",
+   "lines": "545-575",
+   "how": "range"
+  },
+  {
+   "file": "scripts/gm-students.mjs, gm-panel.mjs, trial-floor-ui.mjs, murder-ui.mjs, murder-rules.mjs, gm-campaign.mjs, sheet-inventory.mjs, sheet-mode.mjs, ui-columns.mjs, action-menus.mjs, gm-items.mjs, investigation.mjs, styles/components.css",
+   "how": "grep hits and a few lines around each cited line"
+  },
+  {
+   "file": "scripts/tests-tier1.mjs",
+   "lines": "50790-50840 (R2011, R2012), 52565-52600 (R2051), 10524-10560 (R3150)",
+   "how": "ranges"
+  },
+  {
+   "file": "scripts/tests-tier2.mjs",
+   "lines": "97942-97980 (a body's loot ...); the titles of 4 E46, 7 E47, 11 E95 and 17 E68 tests by grep",
+   "how": "range and titles"
+  },
+  {
+   "file": "scripts/tests.mjs",
+   "lines": "440-460",
+   "how": "range"
+  },
+  {
+   "file": "base/shards/results-suite-1..5/01-runtests.json (session scratchpad)",
+   "how": "by script: every registry row of the four stages looked up by its R number, and every tier-2 title naming them"
+  }
+ ],
+ "count_note": "Four stages, as the scope names them, in tools/stages.json order (E46, E47, E95, E68). None has a docs/dev/<id>/ folder; each is graded from its notes, registry rows, commits and 9.2 items, as the other stages-NN files grade the stages with no folder. Registry rows: 110 stamped (36 + 54 + 7 + 13), every one found in shard 1/8 and ok; R3200 is counted under E95 as stamped and is E68's test (finding E68-1). Tier 2: of the stages' named tests, 21 found in shards 2/8-5/8, all ok; the rest are in tests_to_join. Promises checked: 10 (E46), 10 (E47), 6 (E95), 10 (E68).",
+ "stages": [
+  {
+   "id": "E46",
+   "version": "1.2.103",
+   "shipped": "2026-11-10",
+   "what": "The GM's large windows on one layout kit, first half (E46 C0-C6, one train with E47): the kit's additions (group rows, two-line heads and cells, a compact stepper, iconButton, checkList, liveFooter, footer tooltips), Room setup's room tabs, Passages and Scenes on the kit with the room picture's warning, the item windows (Item tables, Give existing, a Truth Bullet from an unnamed trace), Sound's Effects and Music, Despair Flow and Overflow, Season setup and Pre-season checks as one checklist, and the chapter's end and the reset's warnings in the kit's box - content and order kept (the owner's D31, option 1). 36 registry rows stamped E46 (12 tier 0, 24 tier 1) and four tier-2 tests E46-T1..T4.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.103.md (1-283, whole: the kit 23-35, Room setup 37-49, the item windows 51-63, Sound 65-71, Despair Flow and Season setup 73-80, the ledger 166-174, the owner's answers 176-205, Known gaps 207-247, Checked 249-283)",
+    "no papers folder: docs/dev/e46/ does not exist and git log --all -- docs/dev/e46 finds nothing; the notes and the registry rows cite a 'STAGE E46' spec and E46-NN items (E46-01..E46-21) and STATUS 'Open' rows that were never committed",
+    "tools/stages.json row E46 (planned and shipped 1.2.103, 2026-11-10, touches [], drills none)",
+    "docs/dev/R-REGISTRY.md: 36 rows with Since E46 (R2000-R2018, R2020-R2036), counted by script",
+    "audit/AUDIT-1.2.42.md 9.2 items 431-437 (lines 1350-1362, LIVE-E46-01..07), read whole",
+    "git log --grep E46: 22 commits (E46-C0..C6 and three registry/baseline regenerations); the train v1.2.102..bc8ee2d8 is 34 commits (notes 3-6); tags are not in this checkout, so the range was taken from the notes and the merge f31afc84",
+    "audit/findings-1.2.118/live-items-429.json (items 431-437) and live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json (grep LIVE-E46: 0 hits)",
+    "the base run's suite shards 1/8-5/8 (scratchpad base/shards/results-suite-1..5/01-runtests.json, read 20.11.2026)"
+   ],
+   "commits": 22,
+   "promises": [
+    {
+     "promise": "The kit gains group rows with a count, a head and a body cell cut after two lines with the whole text in the tooltip, column width kinds, a compact stepper for a cell, an icon button, a checklist red only for a blocking row, and a footer redrawn in place with fixed slots (next step right and first for Enter, a destructive button never the default)",
+     "source": "v1.2.103.md 25-29",
+     "code": "scripts/ui-kit.mjs:672 dataTable (group row :694-697, lines-2 head :680, cellLines :684-688), :821 stepper compact, :937 iconButton, :971 CHECK_MARKS and :983 checkList (blocking the only red, the comment :973-981), :211 liveFooter (footerButtons throws on a destructive default, comment :195-198)",
+     "holds": "yes",
+     "test": "R2002-R2009 (tier 0 and 1)",
+     "test_kind": "behaviour",
+     "note": "All eight rows ok in the base run's shard 1/8. liveFooter on a real v14 DialogV2 is not read: its own comment says Foundry v14's handling of a footer changed after render is LIVE-E47-01."
+    },
+    {
+     "promise": "Room setup: every room tab is a kit table with the room first; Searching's token count a compact stepper, one write a click; Stashes' and Fog's student heads two-line with the whole name in the tooltip; 'This is a room' a switch; Apply with nothing changed writes nothing; every input name of the old form kept",
+     "source": "v1.2.103.md 39-42",
+     "code": "scripts/room-setup.mjs:345 (the tokens cell, stepper compact), :309-310 (isroom: a toggle), :532 readRoomSetupForm by name, :963 applyRoomRows (the before/after compare per row); the window :1200 openRoomSetupDialog",
+     "holds": "yes",
+     "test": "R2010-R2014, R2016 (tier 1/0); tier 2 E46-T1 (tests-tier2.mjs:97151)",
+     "test_kind": "both",
+     "note": "R2011 (tests-tier1.mjs:50790) reads the form's names against 3c952c67's list; since E101 item 5 the Scenes tab's seven names are Season setup's (its SCENES list is empty on purpose) and since E101 item 4 'This is a room' stands on Rooms, not Doors (R2013's title says so). E46-T1 is tier 2 and was not in shards 1-5."
+    },
+    {
+     "promise": "The room's picture keeps its column with a warning of a large file (pixels and bytes) or one that does not load, which never blocks Apply",
+     "source": "v1.2.103.md 43-44",
+     "code": "scripts/room-setup.mjs:773-791 wirePictureWarnings (a MutationObserver per picture, box('warning') in the cell, no Apply gate); scripts/room-tile.mjs:609 the one HEAD request",
+     "holds": "yes",
+     "test": "R2015 (on a stand-in imageFacts)",
+     "test_kind": "behaviour",
+     "note": "What a real server's HEAD answers (and The Forge's) is LIVE-E46-02, open. The notes' own Known gap stands: every stored picture is read once when the window opens (a HEAD and a decode each)."
+    },
+    {
+     "promise": "Passages is a kit table in the owner's column order with the access chips; the Scenes tab a form with the hall's cast in a table and a reserved row for E73's zones",
+     "source": "v1.2.103.md 45-47",
+     "code": "scripts/passages-tab.mjs passagesTabBody; scripts/trial-scene.mjs scenesTabHtml",
+     "holds": "partly",
+     "test": "R2017, R2018",
+     "test_kind": "behaviour",
+     "note": "Passages holds as written. The Scenes tab left Room setup for Season setup at E101 item 5 (R2011's comment; R4471, E101-T9): superseded, not broken. The code of both builders was not read line by line here; held by the two rows, ok in shard 1/8."
+    },
+    {
+     "promise": "Item tables' pick list and a pool's entries are kit tables and the editor's states tell the truth; Give existing takes its category and tier from the table's entry, both selects on '- choose -' with a line when the table does not say, and Give waits until both are chosen; roles from the tier",
+     "source": "v1.2.103.md 53-57",
+     "code": "scripts/tables-editor.mjs poolPaneHtml; scripts/tables-pools.mjs:858 entryAs; lang/en.json:1224 'chooseOne': '- choose -'",
+     "holds": "yes",
+     "test": "R2020-R2022, R2024, R2025; tier 2 E46-T2 (tests-tier2.mjs:96435)",
+     "test_kind": "both",
+     "note": "Held by the rows (ok in shard 1/8); the window's code was read at entryAs only. E46-T2 was not in shards 1-5."
+    },
+    {
+     "promise": "A Truth Bullet from a trace with no name is called 'Remnant' (EN and PL) and nothing is written unless the GM renames it",
+     "source": "v1.2.103.md 58-59",
+     "code": "scripts/gm-items.mjs:1317 bulletFromRemnant, :1332-1340 (writes the name back only when result.name differs from what the box showed, entry.label)",
+     "holds": "yes",
+     "test": "R2023",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "Sound: Effects one row an event with at most three buttons and each description on the 11 px floor in both themes; Music in one sentence with 'How the order works' folded; the Test's eight reasons in both languages; the save model unchanged",
+     "source": "v1.2.103.md 67-69",
+     "code": "scripts/sfx.mjs:598 soundEffectsHtml (the Sound window's sfx side stays in sfx.mjs, .claude/rules/code.md sound-panel row); scripts/sound-panel.mjs:351 openSoundDialog",
+     "holds": "yes",
+     "test": "R2026-R2029; tier 2 E46-T3 (tests-tier2.mjs:96497)",
+     "test_kind": "both",
+     "note": "R2027 measures the 11 px floor on a stand-in in both themes, not in Foundry's stylesheet (LIVE-E46-03, -07 open)."
+    },
+    {
+     "promise": "Despair Flow's three tables and Overflow's rules are kit tables; Clear still asks first",
+     "source": "v1.2.103.md 75-76",
+     "code": "scripts/overflow.mjs:1193-1235 (the rules table and the threshold row); the clear is the bridge row overflow.clear run on the primary (bridge-wire.mjs:41, bridge-runs-records.mjs:609, per live-items-429)",
+     "holds": "yes",
+     "test": "R2030, R2031",
+     "test_kind": "behaviour",
+     "note": "Two GMs pressing Clear is LIVE-E46-06, open."
+    },
+    {
+     "promise": "Season setup and Pre-season checks are one kit checklist, red only for a row that blocks, an uneven Despair split a warning row, the picture decode and size rows kept; the chapter's end, the stopped end and Reset the season draw their warnings in the kit's box",
+     "source": "v1.2.103.md 77-80",
+     "code": "scripts/season-setup.mjs:937 setupRows over ui-kit.mjs checkList; scripts/ui-kit.mjs:961 box",
+     "holds": "yes",
+     "test": "R2032-R2036; tier 2 E46-T4 (tests-tier2.mjs:97285)",
+     "test_kind": "both",
+     "note": "E46-T4's title says it reads 'the Season checklist's further checks since E101': the checklist grew after this stage, the rule (red only for blocking) is the same."
+    },
+    {
+     "promise": "No world migration, no flag renamed, no socket listener, bridge row, guard, roll or GM store changed (touches [])",
+     "source": "v1.2.103.md 18-21",
+     "code": "tools/stages.json row E46 touches []",
+     "holds": "unread",
+     "test": "none named",
+     "test_kind": "none",
+     "note": "Not traced against the train's diff: taken from the notes and the ledger row."
+    }
+   ],
+   "registry_rows": 36,
+   "tests_read": [
+    {
+     "test": "R2011 (tests-tier1.mjs:50790-50816)",
+     "measures": "yes",
+     "why": "Draws Room setup on the GM, reads every [name] in the form and asks for the twelve room names, the favour/hinder pairs per category and the fog/stash pairs per student for each listed room; guarded by needs(world.atLeast('namedRooms', 1)) and must(rooms.length > 0), so it cannot pass on an empty window. Its mutant (locked: written lock:) is named. It reads names, not that Apply writes them."
+    },
+    {
+     "test": "R2012 (tests-tier1.mjs:50818-)",
+     "measures": "yes",
+     "why": "Reads each Stashes and Fog head for the lines-2 class, title, aria-label and clamp span, then the cascade in both themes on a stand-in of the window; must(students.length > 0) guards the empty case."
+    },
+    {
+     "test": "the 36 E46 rows as a group",
+     "measures": "partly",
+     "why": "All ok in shard 1/8 (36 of 36). Most read markup on the GM's harness page or the cascade from the stylesheets' text; none sees Foundry's own frame or stylesheet, which is what the seven live items ask."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: E46-T1 - Room setup opened on a scene while the GM views another",
+    "tier 2: E46-T2 - Give existing at the table",
+    "tier 2: E46-T3 - a Polish GM's Test on an event with no file",
+    "tier 2: E46-T4 - Pre-season checks drawn on the GM",
+    "the audit's fit sweep (node audit/style-sweep.mjs --fit) - not run by the audit"
+   ],
+   "scenarios": [
+    "No row of the scenario register (audit/harness/README.md) names E46 in its stage column; the README's probe 08 section (307-320) records E46 C0's captures (give, bullet, and the Polish capture) and what they cannot say. Scenario 50 (lang) and 62 were in the train's QUICK runs (notes 262)."
+   ],
+   "live": {
+    "items": 7,
+    "read": 0,
+    "ids_read": [],
+    "note": "LIVE-E46-01..07 (items 431-437) all open: no reading in live-readings-e58.json, live-readings-other.json or the L1 delta (grep: 0 hits). live-items-429.json finds none of the seven stale; 431's Searching tab changed after it (E47-FD R3138, E101 item 4)."
+   },
+   "findings": [],
+   "superseded_by": [
+    "E101 item 4: 'This is a room' moved from Doors to Rooms (R2013's title)",
+    "E101 item 5: Room setup's Scenes tab became Season setup's form (R2011's comment; R4471, E101-T9)",
+    "E47-FD R3138 and E101 item 4: the Searching tab's place column (styles/components.css:2678-2686)"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "Every promise checked is in today's code and each is held by a stamped row; all 36 E46 rows are ok in the base run's shard 1/8. Nothing found against the stage. Against a 9: the stage is a layout stage and its layout was measured only on the harness's pages and in Chromium without Foundry's frame or stylesheet (the notes' 'Checked' 251-254) - its seven live checks, which are its main promise at a table, are all unread (11.4's first cap: at most 9); four tier-2 tests (E46-T1..T4) were not in the shards read; the touches [] claim and two builders (Passages, Item tables) were taken from the rows, not traced. One promise (the Scenes tab) is superseded by E101, by design. No papers folder: the STAGE E46 spec, its E46-NN items and STATUS Open rows the tests cite cannot be read.",
+   "missing_to_10": "LIVE-E46-01..07 read at a v14 table with Foundry's stylesheet in both themes and languages; E46-T1..T4 joined from the base run's shards 6-8; the touches [] claim checked against the train's diff; the room picture's HEAD per stored picture at open measured on a real server (LIVE-E46-02).",
+   "l1": {
+    "what": "E46's windows under Foundry v14's own frame and stylesheet (LIVE-E46-01, -07 first; then -02..-06)",
+    "recipe": [
+     "Open Room setup on the school scene and step through every tab at 1366x768 and 1920x1080; screenshot the footer on each tab.",
+     "On Searching press + once and read the room's token count on a player's page (it rises by 1).",
+     "Change one field, switch scene without closing, press Apply; note the 'changed rooms' count; press Apply with nothing changed and confirm no region update.",
+     "Repeat in Polish and under the other theme; note every cut label with no tooltip.",
+     "On Description set three pictures (one over 8 MB or 4096 px, one small, one missing) and record the warnings, the HEAD requests in the network tab and the seconds to the last warning."
+    ],
+    "clients": "GM and one player, two browsers",
+    "theme": "both",
+    "settles_if": "Footer on screen on every tab, one write per click, Apply with nothing changed writes nothing and no label cut without its tooltip: the stage holds at a table; any cut label or double write is a defect against E46.",
+    "priority": "grade cap 9"
+   }
+  },
+  {
+   "id": "E47",
+   "version": "1.2.103",
+   "shipped": "2026-11-10",
+   "what": "The GM's large windows on one layout kit, second half (E47 C1-C8, KFa/KFb, FA-FD, FM; with E46): one next-step table for the Class Trial console, the vote and the GM panel's Next line, the console's fixed footer, the incident tracker at one width with its turn bar, Murder and Edit campaign on formGrid, the GM panel's tiles and one case window, Investigation's three tables, the Students window with Role, Level Up and Items per row, the project windows from the owner's mockups with a per-browser wide setting, the roll status and the E28/E29 cards, the settings section, and the fix round of comparisons 2 and 3. 54 registry rows stamped E47 (11 tier 0, 43 tier 1) and seven tier-2 tests E47-T1..T7.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.103.md (1-283, whole: the trial 82-93, the tracker 95-103, the panel 105-113, Investigation 115-122, Students 124-132, projects 134-140, the new surfaces 142-151, the fix round 153-164, Known gaps 207-247, Checked 249-283)",
+    "no papers folder: docs/dev/e47/ does not exist; E47-NN items, 'E47-C1 Open 4' and the like are cited by the notes and 9.2 but were not committed",
+    "tools/stages.json row E47 (planned 1.2.103 with E46, shipped 2026-11-10, touches [], drills none)",
+    "docs/dev/R-REGISTRY.md: 54 rows with Since E47 (R2050-R2098 less gaps, R3123, R3133-R3140)",
+    "audit/AUDIT-1.2.42.md 9.2 items 438-452 (lines 1364-1392: LIVE-E47-01..11 and records 448-451), read whole",
+    "git log --grep E47: 34 commits",
+    "audit/findings-1.2.118/live-items-429.json (items 438-452)",
+    "the base run's suite shards 1/8-5/8 (scratchpad base/shards/results-suite-1..5/01-runtests.json, read 20.11.2026)"
+   ],
+   "commits": 34,
+   "promises": [
+    {
+     "promise": "One table says the trial's next step and the console, the vote window and the GM panel's Next line all read it, in the same words; no step closes the trial",
+     "source": "v1.2.103.md 84-86",
+     "code": "scripts/trial-floor.mjs:205 trialNextStep; read at scripts/trial-floor-ui.mjs:772 (the console), :1894 voteLead (the vote), scripts/gm-panel.mjs:870 (the Next line)",
+     "holds": "yes",
+     "test": "R2050, R2051; tier 2 E47-T1 (tests-tier2.mjs:97335)",
+     "test_kind": "both",
+     "note": "R2051 read (below). E47-T1 was not in shards 1-5."
+    },
+    {
+     "promise": "The console's footer keeps fixed places in every state and is redrawn in place: the next step right and Enter's, End the trial, End the chapter and Start the Final Trial in a destructive group on the left never pressed by Enter; Start the Final Trial with no Mastermind greyed with its reason",
+     "source": "v1.2.103.md 87-90",
+     "code": "scripts/trial-floor-ui.mjs:1503 trialFooter, :1521 consoleFooter, :1616 (which button Enter presses; none in an Objection); scripts/ui-kit.mjs:211 liveFooter",
+     "holds": "yes",
+     "test": "R2052-R2055; R3137 (greyed under the glass)",
+     "test_kind": "behaviour",
+     "note": "On v14's real DialogV2: LIVE-E47-01, open."
+    },
+    {
+     "promise": "The incident tracker keeps one width at every stage, a turn bar first naming the side, the last turns at most three, 'Left' the victim's Health and Sanity, an empty state with 'Open a murder...'; at Stage 6 the bar says the turns are over",
+     "source": "v1.2.103.md 97-101",
+     "code": "scripts/murder-ui.mjs:746 width: 'tracker' (the kit's stated width), :679 openIncidentTracker; lang DRPG.Murder.trackerStateOver",
+     "holds": "yes",
+     "test": "R2056, R2057, R3123; tier 2 E47-T2 (ok, shard 2/8)",
+     "test_kind": "both",
+     "note": ""
+    },
+    {
+     "promise": "Murder and Edit campaign are kit forms; Edit campaign's Chapter a stepper; the murder windows' words the guide's, EN and PL",
+     "source": "v1.2.103.md 102-103",
+     "code": "scripts/gm-campaign.mjs:172 (chapter: stepper), :175 (day)",
+     "holds": "yes",
+     "test": "R2058, R2059",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "The Murder tile is live during an Eclipse while an incident runs; a disabled tile is dashed and says why; the current phase's tile marked; Back up and Restore one 'The case' tile opening one window with Restore's preview and the copy's age",
+     "source": "v1.2.103.md 107-113",
+     "code": "scripts/gm-panel.mjs:248-249 (live while an incident runs, even in an Eclipse), :520 (is-current), :342-348 (the case tile); scripts/gm-stores.mjs:2856 openCaseWindow; scripts/api.mjs:193 previewRestore",
+     "holds": "yes",
+     "test": "R2060-R2064; tier 2 E47-T3 (ok, shard 5/8), E47-T4 (tests-tier2.mjs:97777)",
+     "test_kind": "both",
+     "note": "E47-T4 was not in shards 1-5. Restore with two GMs on a real server is LIVE-E47-04."
+    },
+    {
+     "promise": "Investigation's three tables are kit tables, none wider than its window in either theme",
+     "source": "v1.2.103.md 117-120",
+     "code": "scripts/investigation.mjs:2288-2294 (since E97 C2 one stated width, 1120 px); styles/components.css:3378-3386 (under Legacy the Traces table at 130 % of its box, scrolling sideways in the view by design, Q-D)",
+     "holds": "superseded",
+     "test": "R2067, R2068 (titles unchanged)",
+     "test_kind": "behaviour",
+     "note": "E97/E98 made the dashboard the case panel with the Map by default; under Legacy the Traces table is now wider than its view on purpose. R2068's title still says 'no table ... wider than its window' (live-items-429 item 446 notes it); whether its assertions follow E97 C2 was not read."
+    },
+    {
+     "promise": "The Students window lists every character (students, Monocubs, Monokumas, others); each row has its Role set through the sheet's own roads with their confirmations (Monokuma on a player's character asks first, Cancel the default), a Level Up and its own Items; a player reaches none of it",
+     "source": "v1.2.103.md 126-131",
+     "code": "scripts/gm-students.mjs:259 changeRole (:271 to monokuma, :276 from monokuma through road.setMonokuma), :172-190 the row's buttons",
+     "holds": "yes",
+     "test": "R2080-R2084; tier 2 E47-T6 (ok, shard 3/8)",
+     "test_kind": "both",
+     "note": "E95 C6/C7 added a sheet button per row and took Items off a Monokuma's row."
+    },
+    {
+     "promise": "The project windows rebuilt from the approved mockups, Delete a button per row that asks first; 'Wide project windows' a per-browser setting, off by default",
+     "source": "v1.2.103.md 15-17, 136-138",
+     "code": "scripts/settings.mjs:1693-1705 (scope client, config false, default true)",
+     "holds": "superseded",
+     "test": "R2076, R2077; R4404 (the default)",
+     "test_kind": "behaviour",
+     "note": "On by default since 1.2.110 (the owner, 13.11.2026, commit d12ff689; the comment at settings.mjs:1693-1697 says so), and no longer in Foundry's Configure Settings (config: false). The per-browser scope holds."
+    },
+    {
+     "promise": "One roll status component on the roll cards; the no-GM card (Grant all, Grant none) and the audit cards (Undo, Keep, Undo all, Accept all) on the kit, every button doing what it did; the settings section and Give back Foundry settings without Foundry's amber",
+     "source": "v1.2.103.md 144-148",
+     "code": "scripts/roll-draw.mjs:243 rollStatus; scripts/settings.mjs:1134 renderSettingsConfig; scripts/enforced.mjs:918 giveBackContent",
+     "holds": "yes",
+     "test": "R2072-R2075; tier 2 E47-T5 (tests-tier2.mjs:97854)",
+     "test_kind": "both",
+     "note": "E47-T5 not in shards 1-5. The variable names for the checked box and focus are remembered, not read on v14 (components.css:3978; LIVE-E47-06)."
+    },
+    {
+     "promise": "The fix round FA-FD: form labels on their field's line, a checkbox keeps its box, the box without paragraph margins, the fit sweep reading footers and clipped content, Sound's Play and Reset on one row, Give's icon preview, Observe's captions halved, a disabled role button greyed under the glass, and three cuts (Room setup's Search tab at 1024x768, Analyze, the Look fieldset on a phone)",
+     "source": "v1.2.103.md 153-164",
+     "code": "styles/components.css (the E47-FA section, :2678-2686 the Searching columns); tools/text-render.mjs BATCH_LATER (Observe's captions)",
+     "holds": "partly",
+     "test": "R2092-R2098, R3123, R3133-R3140; tier 2 E47-T7 (ok, shard 4/8)",
+     "test_kind": "both",
+     "note": "Held by the rows, all ok in shard 1/8. The Look fieldset (R3140) went with E49 A1d and the phone half was dropped by the owner (v1.2.104.md 238-239); the Searching columns changed again at E101 item 4. Observe's scroll, a Known gap here, was E68's and closed there."
+    }
+   ],
+   "registry_rows": 54,
+   "tests_read": [
+    {
+     "test": "R2051 (tests-tier1.mjs:52565-52600)",
+     "measures": "yes",
+     "why": "Thirteen handed views of a running trial; for each it asks trialNextStep, the GM panel's nextStep line, the vote's lead and trialStepText, and holds that the three readers say the step's text; it also holds that the views reach twelve distinct steps ('this would measure less than it says'), the U9 guard in the test itself."
+    },
+    {
+     "test": "tier 2 E47-T6 (tests-tier2.mjs:97507)",
+     "measures": "yes",
+     "why": "By its title and its pass in shard 3/8: the GM marks a player's character Monokuma from its row, asked first, Cancel writes nothing. Body not read past its title."
+    },
+    {
+     "test": "the 54 E47 rows as a group",
+     "measures": "partly",
+     "why": "All ok in shard 1/8. They read markup and the cascade on the harness; none sees Foundry v14's frame, DialogV2 or stylesheet, which LIVE-E47-01..11 ask."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: E47-T1 - the trial console through a trial",
+    "tier 2: E47-T4 - Back up, then Restore from a file, through the GM panel's one case window",
+    "tier 2: E47-T5 - the E28 and E29 cards pressed as the chat draws them",
+    "scenario 62-investigation (named for E47-C4 in 9.2 item 446); scenario 50 (QUICK in the notes)"
+   ],
+   "scenarios": [
+    "No register row names E47 in its stage column. The README's probe 08 section (321-332) lists what the harness cannot read of E47's windows and names LIVE-E47-01, -04..-08. Scenario 62 is named by 9.2 item 446 as headless evidence for the dashboard; no scenario result was in the base run's files when this was written."
+   ],
+   "live": {
+    "items": 11,
+    "read": 0,
+    "ids_read": [],
+    "note": "LIVE-E47-01..11 (items 438-447, 452) all open: no reading in the three live-readings files. live-items-429.json marks 439, 444, 446, 447 and 452 with stale text (Stage 6's bar words, glass-harness ?scheme=light, the case panel since E97, phones dropped)."
+   },
+   "findings": [
+    {
+     "id": "E47-1",
+     "severity": "nit",
+     "title": "The suite's refusal of tier 2 during an incident still tells the GM to 'Close the murder'; the tracker's button is 'End the murder'",
+     "where": "scripts/tests.mjs:452; lang/en.json:2826 (DRPG.Murder... 'endMurder': 'End the murder')",
+     "what_happens": "runTests({ tier: 2 }) with an incident open records 'tier 2 would not start on top of an open incident' with the message 'Close it from the incident tracker (Close the murder) and run again.' No button of that name exists.",
+     "evidence": "message: \"Close it from the incident tracker (Close the murder) and run again.\\n\"  (tests.mjs:452); \"endMurder\": \"End the murder\" (en.json:2826)",
+     "failure_scenario": "A GM runs game.drpg.runTests({ tier: 2 }) during a murder, reads 'Close the murder' and looks for a button the tracker does not have.",
+     "expected": "The message names the tracker's button as drawn ('End the murder').",
+     "confidence": "read",
+     "refutation_tried": "Grepped lang/en.json for 'Close the murder' (0 hits) and for the tracker's footer key (endMurder). The 1.2.103 notes list this as a Known gap (238-239) and nothing later changed the line; diagnostics and the suite stay English by the house rule, so this is a stale word, not an i18n gap."
+    },
+    {
+     "id": "E47-2",
+     "severity": "nit",
+     "title": "components.css's E47-FB comment still says ten Traces heads do not fit '1204 px' under Legacy and break inside a word; since E97 C2 the window is 1120 px and a head breaks between words only",
+     "where": "styles/components.css:4008-4015 against :3378-3386 and scripts/investigation.mjs:2292",
+     "what_happens": "The older comment describes 1.2.103's Legacy table; the later one (E97 C2, E64-inv) says the Legacy Traces table is held at 130 % of its box and scrolls sideways in the view, 'A head breaks between its words only'.",
+     "evidence": "'Under Legacy's pixel face the same words are 104-143 px and ten columns do not hold them all in 1204 px: there, and below 1366 px, a head still breaks inside a word' (components.css:4013-4014) vs 'So under Legacy the Traces table keeps its shares at 130 % of its box ... A head breaks between its words only.' (:3381-3385)",
+     "failure_scenario": "A developer tuning the Legacy Traces heads reads the E47-FB comment and works to a 1204 px window and in-word breaks that no longer exist.",
+     "expected": "The E47-FB comment points at the E97 C2 paragraph or is cut to what still holds.",
+     "confidence": "read",
+     "refutation_tried": "Read both comments and the window's stated width (investigation.mjs:2288-2294). Already observed by live-items-429.json's observations (comment against code, item 449); recorded here because it is E47-FB's own comment."
+    }
+   ],
+   "superseded_by": [
+    "E97/E98 (1.2.106-1.2.107): Investigation became the case panel at 1120 px with the Map by default; Legacy's Traces table scrolls in its view by design",
+    "1.2.110 (the owner, 13.11.2026, d12ff689; R4404): Wide project windows on by default, out of Configure Settings",
+    "E49 A1d: the Look fieldset of R3140 gone; the owner dropped phones (v1.2.104.md 238-239)",
+    "E68 C12: Observe's scroll (this stage's Known gap) closed by the one layout",
+    "E95 C6/C7: a sheet button on every Students row; no Items control on a Monokuma's row"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "The trial's one next step, the console's footer, the tracker, the panel's tiles and case window, the Students window and the cards are in today's code and each held by stamped rows, all 54 ok in shard 1/8, and E47-T2, -T3, -T6 and -T7 ok in shards 2-5. Two nits (a stale word in the suite's refusal, a stale CSS comment). Against a 9: all eleven live checks are unread and the stage's promise is layout at a table (cap 9); E47-T1, -T4 and -T5 were not in the shards read; two promises are superseded by later owner decisions (the dashboard, the wide default), and R2068's title now says more than E97 lets the Legacy table do. The notes' own Known gaps under Legacy (Students with 2 px to spare, footers wrapping) are not measured since.",
+   "missing_to_10": "LIVE-E47-01..11 read at a v14 table in both themes (the console footer's height through a trial, the tracker's width, the case window's Restore with two GMs, Foundry's settings variables); E47-T1, -T4, -T5 joined from shards 6-8; R2068's title reconciled with E97 C2; the two nits corrected.",
+   "l1": {
+    "what": "The Class Trial console's footer on v14's DialogV2 and the case window's Restore with two GMs (LIVE-E47-01, -04; then -02, -03, -05..-11)",
+    "recipe": [
+     "GM runs a Class Trial with the console open through a debate, an Objection with its Rebuttal, the vote and the verdict; screenshot the footer in each state and note its height in px.",
+     "Press Enter in each state; note which button it presses (none during the Objection).",
+     "Without a Mastermind, hover Start the Final Trial; note which tooltip shows.",
+     "With two GM accounts: Back up the case, the second GM changes a note and a Key planner row, then Restore from file: preview first, Cancel changes nothing, Confirm restores on both; note the seconds to the second GM's state."
+    ],
+    "clients": "two GMs (one primary), one player",
+    "theme": "both",
+    "settles_if": "Footer redrawn in place at one height, Enter only on the right group, Restore previewed and applied on both GMs: E47 holds at a table; a jumping or closing footer, or a second GM left on the old stores, is a defect.",
+    "priority": "grade cap 9"
+   }
+  },
+  {
+   "id": "E95",
+   "version": "1.2.104",
+   "shipped": "2026-11-11",
+   "what": "E72's early part as its own stage (ledger 7f53395c): the body on the map - a murdered student who becomes a Monocub leaves a body tile where their token stood, captioned with the death sign, the room a body lies in read in one place (bodyPlaceOf, bodyRoomOf) and the loot judged there, the announcement one named hook drpgBodyAnnounced on every browser; with the owner's asks of 10.11.2026: Breakdown and Wounded on no token and public on the sheet, a sheet button on every Students row, no Inventory tab on a Monokuma's sheet. 7 registry rows stamped E95 (3 tier 0, 4 tier 1; one of them, R3200, is E68's test) and tier-2 tests named E95 C1-C7 and RV-n.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.104.md (1-331, whole: E95 7-11, 49-95; Before installing 27-47; the owner's answers 222-230; Known gaps 250-289; Checked 290-331)",
+    "no papers folder: docs/dev/e95/ does not exist; the notes cite QUESTIONS.md (10.11.2026), STATUS E95 Open rows and an end review RV-1..RV-12, none committed",
+    "tools/stages.json row E95 (planned and shipped 1.2.104, 2026-11-11, touches ['scenes'], drills none)",
+    "docs/dev/R-REGISTRY.md: 7 rows with Since E95 (R3141-R3146, R3200)",
+    "audit/AUDIT-1.2.42.md 9.2 items 453-457 (lines 1394-1402, LIVE-E95-01..05), and 463 (LIVE-E63-01) for what E63 changed",
+    "git log --grep E95: 23 commits (C0-C7, the C2/C5 fixes, the end review bc750112, merges)",
+    "audit/findings-1.2.118/live-items-429.json (items 453-457)",
+    "scripts/body-tile.mjs:1-45 (the file's header, which records E63's and 1.2.113's changes)",
+    "the base run's suite shards 1/8-5/8 (scratchpad base/shards/results-suite-1..5/01-runtests.json, read 20.11.2026)"
+   ],
+   "commits": 23,
+   "promises": [
+    {
+     "promise": "A murdered student who becomes a Monocub leaves a body tile where their token stood (laid at setMonocub's edge for a death neither by execution nor in the trial); a revive removes the student's tiles; the reset's 'Deaths and Monocubs' group removes body tiles and never a plain one",
+     "source": "v1.2.104.md 7-9, 57-58",
+     "code": "scripts/body-tile.mjs:222 leaveBody (now from chapter.mjs markDeceased), :273 removeBodyTiles; header :11-17",
+     "holds": "superseded",
+     "test": "R3142; tier 2 'a body tile goes with the death (E95 C2 ...)' (ok, shard 4/8)",
+     "test_kind": "both",
+     "note": "Superseded by E63 C0 (1.2.105, the owner's rules of 11.11.2026): every death made known lays the tile, an execution's too; it follows the corpse's token until the student gets up as a Monocub, and every body tile goes at the Class Trial's end. The revive and the reset halves hold."
+    },
+    {
+     "promise": "The body tile is captioned \"{name}'s body\" / 'Cialo: {name}' with the dead sign on every browser, half alpha on a hidden tile for a GM and nothing for a player",
+     "source": "v1.2.104.md 61-63",
+     "code": "scripts/body-tile.mjs:32-43 (the tile at alpha 0, draws nothing), :404 drawCorpseCaption (the caption over the corpse's token)",
+     "holds": "superseded",
+     "test": "R3144 (now reads drawCorpseCaption)",
+     "test_kind": "behaviour",
+     "note": "At a table on 1.2.112 the owner saw three tokens at a death (the body tile drawn with the token's picture beside the corpse and the Spectator; body-tile.mjs:32-35, scenario 78); fix-113h (1.2.113) laid the tile at alpha 0 and moved the caption onto the corpse's token. So the drawn tile E95 shipped was a defect a real table showed, replaced; the caption stands on its new host."
+    },
+    {
+     "promise": "The room a body lies in is read in one place (bodyPlaceOf, bodyRoomOf), and the loot is judged there by Frisk's one gate, no second gate",
+     "source": "v1.2.104.md 51-56",
+     "code": "scripts/body-tile.mjs:158 bodyPlaceOf, :175 bodyRoomOf; frisk.mjs personActionRefusal through bodyPlaceOf (R3143); handover.mjs:704-710 lootWitnesses asks bodyPlaceOf too",
+     "holds": "yes",
+     "test": "R3141, R3143; tier 2 'a body's loot is judged where the body lies' (tests-tier2.mjs:97942), 'a body's tile moves no living road' (ok, shard 2/8), 'two body tiles of one death' (ok, 2/8), 'a player's forged death id moves neither the loot gate nor the body' (ok, 3/8), 'an open body's loot window reads the gate again ...' (ok, 5/8)",
+     "test_kind": "both",
+     "note": "Whether a hidden tile reaches a player's browser at all on v14 (and so what the player's greying reads) is LIVE-E95-04, open: the harness sends every tile to every client."
+    },
+    {
+     "promise": "The body's public announcement calls one named hook, drpgBodyAnnounced, on the writer before the gather (waitUntil held at most 1500 ms) and on every other browser when the stamp arrives; a row older than 60 s at a page's load is never announced there; the suite's stamps say rehearsal: true",
+     "source": "v1.2.104.md 65-70, 76-77",
+     "code": "scripts/body.mjs:529 BODY_ANNOUNCED_HOOK, :530 BODY_ANNOUNCED_WAIT_MS = 1500, :531 BODY_ANNOUNCED_STALE_MS = 60000, :554-560 callBodyAnnounced",
+     "holds": "yes",
+     "test": "R3145 (tier 0); tier 2 'the body's announcement is one hook, called once on the writer ...' (ok, shard 3/8); scenario 10-murder (notes 68-69)",
+     "test_kind": "both",
+     "note": "Since 1.2.113 two witnesses walking in no longer start it: the discovery waits for the primary GM's Announce (body.mjs:838-853; live-items-429 item 456). The other browsers' call rides bodiesFound's updateSetting with Setting#key as v13 has it, not read on v14 (LIVE-E95-03, the same model as LIVE-E24-13). The 1500 ms and the 60 s are chosen, not measured."
+    },
+    {
+     "promise": "Breakdown and Wounded are drawn on no token for anybody and are public on the sheet as a badge under the reserves; a Monokuma's sheet draws no badge; Health and Sanity stay in one row and the badge row keeps its height",
+     "source": "v1.2.104.md 84-89",
+     "code": "scripts/states.mjs:549-551 effectIconShown (OFF_TOKEN for every user), :559-573 wrapEffectIcons on proto._drawEffect (a patches.mjs row)",
+     "holds": "yes",
+     "test": "R1485; tier 2 'Breakdown and Wounded are public on the sheet' (ok, shard 4/8), 'a Monokuma's sheet shows no state badge' (ok, 5/8)",
+     "test_kind": "both",
+     "note": "The wrap is on Daggerheart 2.10.5's Token#_drawEffect as read; the canvas is not drawn headless (LIVE-E95-05). The notes' own Known gap: on the comparison's stand-in the badges ran together and Health and Sanity stacked; 'A real sheet will tell' - not read since."
+    },
+    {
+     "promise": "A sheet button on every Students row (EN \"Open {name}'s sheet\", PL), the Students window staying open; no Inventory tab on a Monokuma's sheet and no Items control on its Students row, the items kept in the data",
+     "source": "v1.2.104.md 91-95",
+     "code": "scripts/gm-students.mjs:172 sheetButton, :190 (a Monokuma's row gets keptSlot, not itemsButton), :412 (keepOpen), :481 openSheet: actor.sheet?.render(true); scripts/sheet-inventory.mjs:46-55 (dropTab 'inventory'), scripts/sheet-mode.mjs:84",
+     "holds": "yes",
+     "test": "tier 2 'a Students row opens that character's sheet' (tests-tier2.mjs:99329); E47-T6 (ok, 3/8)",
+     "test_kind": "behaviour",
+     "note": "The sheet-button test was not in shards 1-5."
+    }
+   ],
+   "registry_rows": 7,
+   "tests_read": [
+    {
+     "test": "tier 2 'a body's loot is judged where the body lies' (tests-tier2.mjs:97942-97978)",
+     "measures": "yes",
+     "why": "With a tile in another room than the token, reads the loot gate (inventory.mjs transferRefusal, mode loot, for a player) and the loot window's Take greying beside the token, beside the tile, with the tile hidden, deleted, and back beside the token. It would fail on a second gate or on a gate that reads the token. Since E63 a tile follows its token until the Monocub rises; the test plants the split itself, which is still a reachable state (a Monocub walked away)."
+    },
+    {
+     "test": "R3145 (tier 0)",
+     "measures": "weak",
+     "why": "By its row a source read: the hook's name in one place, called only in callBodyAnnounced, awaited after the stamp; the behaviour is the tier-2 test's (ok in 3/8)."
+    },
+    {
+     "test": "R3200 (tier 0, stamped E95)",
+     "measures": "n/a",
+     "why": "E68 C12's test of the action windows' layout (commit 724bcffb stamped it E68); see finding E68-1."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: a body's loot is judged where the body lies (E95 C1)",
+    "tier 2: a Students row opens that character's sheet (E95 C6)",
+    "tier 2: the Class Trial's end takes every body off the map (E63 C2)",
+    "tier 2: a suite's trial end leaves the table's bodies (E63 C2; the lesson of E95 fix RV-1)",
+    "scenario 10-murder (the announcement on gm, gm2 and three players; notes 68-69)",
+    "scenario 78-death-map (what a death lays on the map; fix-113h)"
+   ],
+   "scenarios": [
+    "No register row names E95 in its stage column. The notes name scenario 10 ('37/38' red, '38/38' green, 68-69) for the announcement; 78-death-map (register row 213, stage fix-113h) measured the three tokens E95's drawn tile produced at a death."
+   ],
+   "live": {
+    "items": 5,
+    "read": 1,
+    "ids_read": [
+     "LIVE-E95-01"
+    ],
+    "note": "LIVE-E95-01 (item 455) partly read: the owner's report at a table on 1.2.112, 13.11.2026, 'Killing a character makes 3 tokens appear' (body-tile.mjs:32-35; .github/release-notes/v1.2.113.md 23-26), a defect, fixed in 1.2.113 and not read again. LIVE-E95-02 (tile units and floors on v14), -03 (the hook on a real server), -04 (a hidden tile in a player's browser), -05 (no state icon on any token) open. live-items-429 marks 453, 455 and 456 stale (E63 C0, 1.2.113)."
+   },
+   "findings": [],
+   "superseded_by": [
+    "E63 C0-C2 (1.2.105): the tile laid at every death made known, following the corpse until the Monocub rises, and removed at the Class Trial's end (body-tile.mjs:11-17)",
+    "fix-113h (1.2.113): the tile at alpha 0, drawing nothing; the caption over the corpse's token (drawCorpseCaption); old tiles set to alpha 0 by migrate.mjs bodyTilesUnseen",
+    "1.2.113: a body seen by two waits for the primary GM's Announce before drpgBodyAnnounced (body.mjs:838-853)",
+    "E68 C10: the loot's Remnant laid at the body's tile (DC7 left to E68 by this stage)"
+   ],
+   "grade": 7,
+   "provisional": "after L1",
+   "grade_reasons": "What lasts of E95 holds and is measured: the one place a body lies (bodyPlaceOf/bodyRoomOf) and the one loot gate, the named hook with its wait and its stale row, Breakdown and Wounded off the token and on the sheet, the Students sheet button and the Monokuma's sheet - all 7 rows ok in shard 1/8 and eight tier-2 tests ok in shards 2-5. Against an 8: the stage's headline promise as shipped - a drawn body tile with its caption and sign at the Monocub's edge - was replaced twice within two days, by E63's rule and by fix-113h after a real table showed three tokens at a death (LIVE-E95-01, a recorded defect); the caption's new host (the corpse's token) and the hook's other-browser road (updateSetting with Setting#key) are unread on v14; the notes' own sheet gap (badges run together, Health and Sanity stacked on the stand-in) was never measured on a real sheet. No finding of this reader's against today's E95 code. Two tier-2 tests of its own were not in the shards read.",
+   "missing_to_10": "LIVE-E95-02..05 read on v14 (tile units and floors; the hook on a real server with two GMs and two players; a hidden tile's presence in a player's browser; no state icon on any token, badges on a real Daggerheart sheet) and LIVE-E95-01's fixed state (caption over the corpse, tile invisible to all) read again; the two tier-2 tests joined; the registry's E95 stamp on R3200 moved back to E68.",
+   "l1": {
+    "what": "A death's map and sheet at a table on today's code: one corpse token with its caption, no visible tile, the hook on every browser, no state icon on a token (LIVE-E95-01 fixed state, -03, -04, -05)",
+    "recipe": [
+     "Before the death, in each browser's console: Hooks.on('drpgBodyAnnounced', p => console.log('E95', performance.now(), p.writer, typeof p.waitUntil)).",
+     "Make a student's death known (Students window or a murder's close); screenshot the map on the GM and on a Polish player: count the tokens/tiles drawn at the place.",
+     "In the player's console list tiles with flags['danganronpa-rpg'].bodyOf and their hidden; hide the tile on the GM and list again.",
+     "Two students walk in; the primary GM presses Announce; read one 'writer true' line on the primary and one 'writer false' on every other browser.",
+     "Give a student Breakdown and Wounded; confirm no icon on the token for GM, owner, another player and an Observer, and the two badges on the sheet for all four."
+    ],
+    "clients": "two GMs (one primary), two players, one of them Polish",
+    "theme": "both",
+    "settles_if": "One corpse token captioned, nothing else drawn, one hook line per browser, no state icon on any token and both badges on the sheet: E95's lasting part holds at a table; a second drawn object, a missing or doubled hook line, or an icon on a token is a defect.",
+    "priority": "grade cap 9 (provisional 7)"
+   }
+  },
+  {
+   "id": "E68",
+   "version": "1.2.104",
+   "shipped": "2026-11-11",
+   "what": "The statistic rule (with E95): wherever a roll lists several statistics the player proposes one and a GM answers on one card (Approve, Change to, Refuse), with a world setting that approves in Daily Life by itself; the killer's opening proposes too; Search on six statistics with Eye asking nobody, Stage 6 on Shadow, Resolve for 2 Hope asking nobody; Take from the Body on Hand with the Remnant's visibility from the roll, the first roll per Take counting and a Shadow cover with a witness (the GM store lootRolls); older open items (an ask's expiry under a ruling, Rerolls, a refused passage, a Frisk's receipt); one wide two-column layout for every action. 13 registry rows stamped E68 (all tier 1) plus R3200 (tier 0, E68 C12's, stamped E95), and 17 tier-2 tests with E68 in their names, more without.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.104.md (1-331, whole: E68 12-19, 97-203; Before installing 27-47; the owner's answers 231-248; Known gaps 250-289; Checked 290-331)",
+    "no papers folder: docs/dev/e68/ does not exist; the notes cite Q1-Q12, DA-numbered decisions, the end review R1-R8 and round M, none committed; docs/dev/e64/STATUS.md:15, :56, :66 review E68's Resolve price (E64, 12.11.2026)",
+    "tools/stages.json row E68 (planned 1.2.104 with E95, shipped 2026-11-11, touches ['sockets', 'rolls', 'scenes'] since e6c7186b, drills none)",
+    "docs/dev/R-REGISTRY.md: 13 rows with Since E68 (R3150-R3153, R3201, R3250-R3252, R3300, R3301, R3330-R3332) and R3200 (Since E95)",
+    "audit/AUDIT-1.2.42.md 9.2 items 458-462 (lines 1404-1412, LIVE-E68-01..05), read whole",
+    "git log --grep E68: 73 commits; the train v1.2.103..aad79b75 is 67 commits (notes 3-5)",
+    "audit/harness/README.md:223 (scenario 89-proposal-card, the one register row naming E68)",
+    "audit/findings-1.2.118/live-items-429.json (items 458-462)",
+    "the base run's suite shards 1/8-5/8 (scratchpad base/shards/results-suite-1..5/01-runtests.json, read 20.11.2026)"
+   ],
+   "commits": 73,
+   "promises": [
+    {
+     "promise": "The proposal card offers Approve: {stat}, a Change to: {stat} for each other listed statistic and Refuse, with the player's words; after a Change to the player may roll it or pass (nothing spent); the roll window opens locked with who chose; two presses at once make one ruling",
+     "source": "v1.2.104.md 99-102",
+     "code": "scripts/trait-ruling.mjs traitFor; scripts/call-gm.mjs askTraitByCard; scripts/messenger-app.mjs rulePickTrait (named by R3150's source read)",
+     "holds": "yes",
+     "test": "tier 2 'a proposal is approved, changed or refused on one card ...' (tests-tier2.mjs:39182), 'two presses of one proposal card at once ...' (ok, shard 2/8), 'a pass after a GM's \"Change to\" voids that card's ruling ...' (ok, 3/8); scenario 89-proposal-card",
+     "test_kind": "both",
+     "note": "The first was not in shards 1-5. Scenario 89's register row now names the pass's line in the thread (C), which the notes (115-116) said it did not read; the scenario's result was not in the base run's files."
+    },
+    {
+     "promise": "One world setting, off by default, approves a player's proposal for a Search or a project without a statistic with no GM's press, in Daily Life, outside an Eclipse and an incident; fights, openings and Dynamic actions still ask",
+     "source": "v1.2.104.md 31-34",
+     "code": "scripts/settings.mjs:3166-3173 (autoApproveTraits: world, config false, default false); scripts/trait-ruling.mjs:70, :245 autoApprovableIn",
+     "holds": "yes",
+     "test": "R3150 (ok, shard 1/8); tier 2 'the valve's setting approves a proposal for a project stored without a statistic ...' (ok, 3/8); scenario 89 part H",
+     "test_kind": "both",
+     "note": "config: false - the setting is not in Foundry's Configure Settings; where a GM turns it on was not traced here (the module's own settings window, E49, is the likely road)."
+    },
+    {
+     "promise": "Search rolls on six statistics, Eye the default asking nobody and waiting for nothing; another statistic is a proposal on a GM's card and nothing is spent before the answer",
+     "source": "v1.2.104.md 124-126",
+     "code": "scripts/config.mjs:1510-1517 (search traits ['eye','head','body','hand','leg','shadow'], the comment naming action-search.mjs searchTrait and roll-draw.mjs's search row)",
+     "holds": "yes",
+     "test": "R3151, R3332; tier 2 'Search on Eye asks nobody and waits for nothing ...' (ok, 5/8), 'a Search's statistic is Eye with no card ...' (ok, 4/8)",
+     "test_kind": "both",
+     "note": "Click counts at a table: LIVE-E68-05, and no scenario counts clicks (git grep traceClicks -- audit/harness: 0 files, per live-items-429)."
+    },
+    {
+     "promise": "Stage 6's erase, reshape and trail list Shadow alone and ask nobody; Move the Body stays Body",
+     "source": "v1.2.104.md 122-123",
+     "code": "scripts/config.mjs:4535 (the clean-up's traits ['shadow'], comment :4525-4533), :4790-4793 (moveBody traits ['body'])",
+     "holds": "yes",
+     "test": "R3152; tier 2 'a clean-up rolls Shadow on every road ...' (ok, 4/8), 'a Stage 6 roll asks nobody and throws Shadow ...' (tests-tier2.mjs:26035)",
+     "test_kind": "both",
+     "note": ""
+    },
+    {
+     "promise": "Resolve costs 2 Hope; armed, it asks nobody and opens the roll window's picker on any statistic",
+     "source": "v1.2.104.md 127-128",
+     "code": "scripts/config.mjs:2524-2531 (cost: 2, target: 'none', grants: 'trait', no needsGm)",
+     "holds": "yes",
+     "test": "R3153 (ok, 1/8)",
+     "test_kind": "behaviour",
+     "note": "E64 reviewed the price against session 0's data and kept it (docs/dev/e64/STATUS.md:66). The Hope taken in a real roll window is LIVE-E68-02."
+    },
+    {
+     "promise": "A Direct Murder declared in the dark carries the killer's proposal; the GM's card answers Allow / Change to / Refuse, and the approved opening opens on it with no second window; declaring costs the action and Refuse does not give it back",
+     "source": "v1.2.104.md 132-139",
+     "code": "scripts/murder-rules.mjs:436 openingProposal, :4052 (a betrayal hands { proposed, note }), :4491, :4514-4518 tellOpeningRoller (openingKillerProposed)",
+     "holds": "partly",
+     "test": "R3300, R3301 (ok, 1/8); tier 2 'an approved opening opens on its statistic with no second window (E68 C9)' (tests-tier2.mjs:29224), 'a betrayal's proposal is the first answer ...' (:29290)",
+     "test_kind": "both",
+     "note": "The two tier-2 tests were not in shards 1-5. The tests call the declaration and the betrayal directly; the player's declaration window and the betrayal's confirmation by a player's hand are LIVE-E68-01. The notes' own gap: the proposal reaches the first opening invitation only, the tracker's 'Ask for the opening roll again' asks with none - not traced on today's code (not_established)."
+    },
+    {
+     "promise": "Take from the Body rolls Hand for the ticked items, no action: below 12 Evident, 12-17 Subtle, 18 and up and a critical Hidden; the Remnant only becomes plainer and lies at the body's tile; with a witness a Shadow cover against 16 (a miss with Hope tells the witnesses and GMs, with Despair also what), no Sanity; every Take rolls and only the first roll for that Take counts (the GM store lootRolls, synced, not backed up, cut with 'deaths')",
+     "source": "v1.2.104.md 144-163, 35-36",
+     "code": "scripts/config.mjs:4841-4846 LOOT; scripts/handover.mjs:424-434 (a witness means a roll: coverNeeded), :477-516 (the first roll bound per taker, body and time of day), :678 lootCover, :704-710 lootWitnesses; scripts/gm-stores.mjs:944-948 lootRollStore (resetGroup 'deaths', backup false, sync true); scripts/anonymity.mjs:535-568 (the taker's page rolls Hand, Shadow when it counts others, and again on coverNeeded)",
+     "holds": "yes",
+     "test": "R3250; tier 2 'one Hand roll takes several items off a body ...' (ok, 3/8), 'every Take rolls once and only its first roll counts' (ok, 4/8), 'the loot's Remnant only rises and lies at the body's tile' (ok, 5/8); scenarios 72, 83, 33, 87 (notes 154-163)",
+     "test_kind": "both",
+     "note": "The notes' Known gap 252-254 - a Shadow roll can tell a player someone is there - is the design of handover.mjs:424-434 today ('The answer tells the taker's browser that the GMs count a watcher there'); which tokens the primary counts and a player's screen does not show was not traced token by token (not_established). A GM's own Take keeps the GM's roll (gap 255). The accomplice as witness: LIVE-E68-03 (4)."
+    },
+    {
+     "promise": "Older open items: an ask's card that runs out under a GM's ruling waits for it and ends once (D075, review R2); a Reroll's window names the roll after a reload and a Dynamic success a Reroll misses is greyed and told (D047, D048, D054); a refused Secret Passage gives the GMs 'Choose the target again' (D023); a Frisk ask gets a 'received' like the others (D084)",
+     "source": "v1.2.104.md 165-177",
+     "code": "scripts/projects.mjs cleanProjectChange (R3251); scripts/call-gm.mjs receivedOnPrimary, scripts/frisk.mjs receivedFriskAsk (R3252)",
+     "holds": "yes",
+     "test": "R3251, R3252 (ok, 1/8); tier 2 'an ask's card that runs out while a GM is ruling ...' (ok, 5/8), 'a Secret Passage whose completion is refused ...' (ok, 2/8), the two Reroll tests (tests-tier2.mjs:84126, :84221), the Frisk receipt test (:40054), 'an expiry under a claim ...' (:39044)",
+     "test_kind": "both",
+     "note": "Four of these tier-2 tests were not in shards 1-5."
+    },
+    {
+     "promise": "One layout for every action: the briefing left, the question right, one wide window built of shared blocks E49 reuses; the picked row keeps 1.2.103's brush; each other action's caption about one sentence; the crisis menu without a scroll at 1366x768 under the glass; Observe no longer scrolls",
+     "source": "v1.2.104.md 179-193",
+     "code": "scripts/ui-columns.mjs:30 WIDE (1120 px), :65 wideWindow; scripts/action-menus.mjs:167 chooseVariant, :303 actionWindow",
+     "holds": "yes",
+     "test": "R3200 (tier 0, stamped E95), R3201, R3331 (ok, 1/8); the fit sweep (notes 185, 312-313)",
+     "test_kind": "both",
+     "note": "The notes' gap 'Take from the Body is still the body's list ... not a window on the new layout' is closed since 1.2.113 (R3200's title: Take from the Body among the openers). The layout under Foundry's stylesheet is LIVE-E68-04; the Palm window was never captured in Chromium (notes 278)."
+    },
+    {
+     "promise": "Both handbooks say who picks the statistic, with the table of where it applies held to config.mjs",
+     "source": "v1.2.104.md 197-198",
+     "code": "docs/handbooks/gm-handbook.en.md and .pl.md (the statistic tables)",
+     "holds": "yes",
+     "test": "R3330 (ok, 1/8)",
+     "test_kind": "behaviour",
+     "note": "Handbook prose beyond the tables was not read."
+    }
+   ],
+   "registry_rows": 13,
+   "tests_read": [
+    {
+     "test": "R3150 (tests-tier1.mjs:10524-10560)",
+     "measures": "yes",
+     "why": "Reads the setting's registered scope and default, autoApprovableIn for seven definitions in Daily Life and a Search in four other states, traitFor on a GM's page with the valve open and shut (whether a window opened), and the source of askTraitByCard and rulePickTrait for the press behind the valve. It would fail if the valve approved a crisis action or outside Daily Life. It does not drive a player's card through the bridge (scenario 89 H does)."
+    },
+    {
+     "test": "tier 2 'every Take rolls once and only its first roll counts' (ok, shard 4/8)",
+     "measures": "partly",
+     "why": "By the notes (299) its binding is released by hand, not through a real Take; body not read here."
+    },
+    {
+     "test": "the 13 E68 rows",
+     "measures": "partly",
+     "why": "All ok in shard 1/8. Most are pure calls and source reads on the GM's page; the roads a player's hand takes (the declaration window, a real roll window's Hope, the Take's cards in a witness's chat) are the live items'."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: a proposal is approved, changed or refused on one card (E68 C1)",
+    "tier 2: an approved opening opens on its statistic with no second window (E68 C9)",
+    "tier 2: a betrayal's proposal is the first answer in the GM's opening window (E68 C9)",
+    "tier 2: a Stage 6 roll asks nobody and throws Shadow (E68 C5)",
+    "tier 2: an expiry under a claim that ends in a ruling (E68 review R2)",
+    "tier 2: an open Frisk's answer ... waits for the searcher's receipt (E68 C11)",
+    "tier 2: the two Reroll tests (E68 C11; D047, D048, D054)",
+    "scenario 89-proposal-card",
+    "scenarios 13, 30, 33, 72, 83, 87 (named by the notes for E68's roads)"
+   ],
+   "scenarios": [
+    "89-proposal-card (audit/harness/README.md:223, the one register row naming E68): two GMs and two players, Approve, Change to on gm2, a pass with its line in the thread, Refuse, two GMs on one card, the pass in an incident veiled from a bystander, no GM connected, the setting on; gm2 a second GM, so not in the local gate. Scenarios 13, 30, 33, 72, 83 and 87 were changed or re-read for E68 (notes 108-109, 154-163). No scenario result was in the base run's files when this was written."
+   ],
+   "live": {
+    "items": 5,
+    "read": 0,
+    "ids_read": [],
+    "note": "LIVE-E68-01..05 (items 458-462) all open: no reading in the three live-readings files. live-items-429 marks only 462 stale (it compares 1.2.103 with 1.2.104)."
+   },
+   "findings": [
+    {
+     "id": "E68-1",
+     "severity": "nit",
+     "title": "R3200, E68 C12's test of the one action layout, is stamped E95 in the registry since the merge 7b5b4da9",
+     "where": "docs/dev/R-REGISTRY.md:1040; scripts/tests-tier0.mjs:23806 (the title: 'E68 C12'); commit 724bcffb (added the row as '| R3200 | 0 | E68 |'), merge 7b5b4da9 (2026-11-11, regenerated it as '| R3200 | 0 | E95 |'); tools/registry.mjs:172-177 (a number not kept gets sinceOf's stage)",
+     "what_happens": "The row lost its E68 stamp when the registry was regenerated on the 1.2.105 line and was given E95's. A reader counting a stage's rows by Since finds E68's layout test under E95 and none under E68.",
+     "evidence": "724bcffb: '+| R3200 | 0 | E68 | every action window is built by action-menus.mjs `actionWindow` ...'; 7b5b4da9: '+| R3200 | 0 | E95 | every action window ...'; today R-REGISTRY.md:1040 '| R3200 | 0 | E95 | every action window ...'",
+     "failure_scenario": "An auditor grading E68 by its stamped rows counts 13 and misses the one test of its layout promise; one grading E95 credits it with a layout test it never had.",
+     "expected": "R3200's Since is E68.",
+     "confidence": "read",
+     "refutation_tried": "Checked the test's own title (E68 C12) and the commit that added it (724bcffb, an E68 commit, stamped E68); git log -G on the registry line finds the change in the merge 7b5b4da9. No other E68 row moved (the 13 rows with Since E68 are C2-C14's). The registry is generated; a regeneration that saw R3200 as fresh gave it the stage being worked on."
+    }
+   ],
+   "superseded_by": [
+    "1.2.113: Take from the Body opens on the action layout (R3200's title), closing this stage's gap 256-257",
+    "1.2.113: the tile the Remnant is laid at is at alpha 0 (the Remnant at the tile is read from the tile's document, not seen; live-items-429 item 460)",
+    "E69 C3-C4: Tail Someone's effect is a GM's pick on E68's card (docs/dev/e69/STATUS.md:13) - an extension, not a change"
+   ],
+   "grade": 7,
+   "provisional": "after L1",
+   "grade_reasons": "The statistic rule, the valve, Search on Eye, Stage 6 on Shadow, Resolve at 2 Hope, Take from the Body's bands, cover and first-roll binding, the older items and the one layout are all in today's code; the 13 E68 rows (and R3200) are ok in shard 1/8 and eleven tier-2 tests of its roads ok in shards 2-5. One nit (the R3200 stamp). Against an 8: several parts are held by reading or by calls the tests make themselves - the player's declaration window and the betrayal's confirmation (the tests call the declaration directly), the Dynamic proposal on its card (the notes: no test reads 'Proposed: {stat}'), a GM's own Take, the first-roll test's binding released by hand; the Shadow cover's signal that the GMs count a watcher the player may not see is the design today and its reach is not established; the opening's proposal on 'Ask again' is a known gap not re-read; seven of its tier-2 tests and scenario 89 were not in the base run's files read; all five live checks are unread, and the stage touches sockets, rolls and scenes.",
+   "missing_to_10": "LIVE-E68-01..05 read at a v14 table; the seven tier-2 tests and scenario 89 joined; a test that drives a player's declaration window and a Dynamic proposal card; the Shadow cover's watchers compared token by token between the primary and a player's page (or the signal accepted by the owner as a rule); R3200's stamp moved back to E68.",
+   "l1": {
+    "what": "The statistic proposal and Take from the Body at a table (LIVE-E68-01, -03 first; then -02, -04, -05)",
+    "recipe": [
+     "As the killer's player in an Eclipse, declare a Direct Murder, pick Hand and write how; read the GMs' card (Allow: Hand, Change to: Body, Refuse, 'Proposed: Hand'); Allow; end the Eclipse with killer and victim alone; confirm the opening rolls Hand with no second window on the GM.",
+     "Repeat with Change to: Body, and with the card left unanswered until the lights.",
+     "With a body tile in a room: a student alone Takes two items (one Hand roll, no Shadow, no cards); then with a second student in the room (Hand, then Shadow against 16); force a miss with Hope and with Despair and read both cards in the witness's chat.",
+     "With the killer's accomplice in the room, record whether the Shadow is asked and who gets the miss card.",
+     "With a token the player's screen does not show in the room (if the table has one: a sneaking student, a veiled killer), Take and note whether a Shadow roll is asked."
+    ],
+    "clients": "GM and two players in separate browsers",
+    "theme": "both",
+    "settles_if": "Cards and buttons as listed, one roll window per road, the cover asked only with a visible witness: the stage holds; a second window, a cover asked with nobody visible, or a card in the wrong chat is a defect.",
+    "priority": "grade cap 9 (provisional 7)"
+   }
+  }
+ ],
+ "not_established": [
+  {
+   "what": "The base run's suite shards 6/8-8/8 and every scenario had not been read when this was written (only results-suite-1..5 existed). Shard 3/8 had one failure, of another stage's test (stages-14.json names it grid XI07). Every tier-2 test and scenario of the four stages not listed as ok is in its stage's tests_to_join, its result not read.",
+   "l1": null
+  },
+  {
+   "what": "Whether the Shadow cover of a Take tells a player of a watcher their screen does not show (the 1.2.104 Known gap 252-254). Read: the taker's page counts movement.mjs othersInRoom (countsAsPresent: no Monokuma, no Spectator, no dead, no hidden token; a veiled killer counted, movement.mjs:3770) and the primary counts frisk.mjs roomWitnessesOnGm (body.mjs witnessesOf with monocubs: true, hidden excluded); handover.mjs:434 answers coverNeeded when the primary counts one and no cover came, and anonymity.mjs:559 then asks the Shadow roll. Not established: which tokens a player's per-browser hiding (visibility.mjs, the veil's mark, a sneaking student) keeps off the screen while both counts include them, and whether a Take is reachable in such a moment.",
+   "l1": {
+    "what": "Whether a Take's Shadow roll is asked with no witness on the taker's screen",
+    "recipe": [
+     "Lay a body tile in a room.",
+     "Put a second student in the room whose token the taker's player cannot see (a veiled killer during an opening, or a sneaking student if the table has the road).",
+     "As the taker's player, Take one item; note whether a Shadow window opens.",
+     "Repeat with a Monocub in the room and with nobody."
+    ],
+    "clients": "GM and two players",
+    "theme": "default",
+    "settles_if": "No Shadow window with nobody visible: no signal; a Shadow window with nobody visible: the gap stands as a leak of presence (minor).",
+    "priority": "minor"
+   }
+  },
+  {
+   "what": "The opening's proposal on the tracker's 'Ask for the opening roll again' (1.2.104 Known gap 262-263): murder-rules.mjs threads `proposed` through the declaration, the betrayal and tellOpeningRoller (:436, :4052, :4491, :4514-4518); the ask-again road in murder-ui.mjs was not traced.",
+   "l1": null
+  },
+  {
+   "what": "E46's and E47's 'touches []' (no socket listener, bridge row, guard, roll or GM store changed) was taken from the notes and the ledger, not checked against the train's diff.",
+   "l1": null
+  },
+  {
+   "what": "The Chromium measurements the 1.2.103 and 1.2.104 notes quote (the fit sweep's 1521/1524 and 1534/1534, the style and glass sweeps, the picked row's contrasts) were not re-run; the stylesheets were read only at the rules cited.",
+   "l1": null
+  },
+  {
+   "what": "The stages' specs, QUESTIONS, STATUS 'Open' rows, end reviews and mutant counts the notes and registry rows cite (STAGE E46, E46-NN, E47-C1 Open 4, E95 RV-1..12, E68 R1-R8, DA-numbered decisions) were never committed and cannot be read.",
+   "l1": null
+  },
+  {
+   "what": "R2068's assertions against E97 C2's Legacy Traces table at 130 % of its box: its title still says no table wider than its window; the body was not read.",
+   "l1": null
+  },
+  {
+   "what": "Where a GM turns on autoApproveTraits: it is registered with config: false (settings.mjs:3166-3173); the module's own settings window was not traced.",
+   "l1": null
+  }
+ ]
+}

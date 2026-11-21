@@ -1,0 +1,1465 @@
+{
+  "reader": "controls-05-murder-body-death",
+  "read": [
+    {
+      "file": "scripts/murder-rules.mjs",
+      "lines_read": 3053
+    },
+    {
+      "file": "scripts/murder-ui.mjs",
+      "lines_read": 907
+    },
+    {
+      "file": "scripts/action-murder.mjs",
+      "lines_read": 398
+    },
+    {
+      "file": "scripts/body.mjs",
+      "lines_read": 1223
+    },
+    {
+      "file": "scripts/death.mjs",
+      "lines_read": 803
+    },
+    {
+      "file": "scripts/body-tile.mjs",
+      "lines_read": 449
+    },
+    {
+      "file": "scripts/events.mjs",
+      "lines_read": 1133
+    },
+    {
+      "file": "scripts/anonymity.mjs",
+      "lines_read": 1054
+    },
+    {
+      "file": "scripts/ui-kit.mjs",
+      "lines_read": 496
+    },
+    {
+      "file": "scripts/action-menus.mjs",
+      "lines_read": 500
+    },
+    {
+      "file": "scripts/live.mjs",
+      "lines_read": 210
+    },
+    {
+      "file": "scripts/incident-store.mjs",
+      "lines_read": 326
+    },
+    {
+      "file": "scripts/roll-draw.mjs",
+      "lines_read": 182
+    },
+    {
+      "file": "scripts/action-rolls.mjs",
+      "lines_read": 160
+    },
+    {
+      "file": "scripts/gm-panel.mjs",
+      "lines_read": 135
+    },
+    {
+      "file": "scripts/action-briefing.mjs",
+      "lines_read": 133
+    },
+    {
+      "file": "scripts/gm-bridge.mjs",
+      "lines_read": 103
+    },
+    {
+      "file": "scripts/sheet-mode.mjs",
+      "lines_read": 71
+    },
+    {
+      "file": "docs/dev/e59/WINDOWS.md",
+      "lines_read": 40
+    },
+    {
+      "file": "lang/en.json",
+      "lines_read": 160
+    }
+  ],
+  "surfaces": [
+    {
+      "surface": "The murder window (title 'Murder')",
+      "file": "scripts/murder-ui.mjs",
+      "opener": "openMurderDialog:53 (window at 209)",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Killer",
+          "key": "DRPG.Murder.killer",
+          "kind": "select",
+          "selector": "select[name=killer]",
+          "handler": "murder-ui.mjs:296-301 change listener, then sync 272-294",
+          "effect": "the trap box follows whether that killer has a finished trap (armed), the statistic list and the two notes are redrawn",
+          "gate": "any GM; the window is refused before it draws to a player (54-57, told), in an Eclipse (83-87, told), with nobody alive (95-98, told); with a murder running the tracker opens instead (59)",
+          "how_read": "code; tier 2 'the murder window opens with the finished trap of the killer it is showing already ticked'; R2058",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-window-murder, drpg-form-grid; the one rule found, components.css:3232, takes away a full-width row whose one child is hidden - the trap's budget line while the box is unticked - in both themes)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Victim",
+          "key": "DRPG.Murder.victim",
+          "kind": "select",
+          "selector": "select[name=victim]",
+          "handler": "murder-ui.mjs:302 change -> sync 272-294",
+          "effect": "one name in both seats shows the info box, clears and locks the trap box; the rooms-apart warning is redrawn",
+          "gate": "as the window",
+          "how_read": "code; tier 2 'a direct murder between two rooms is said in the murder window, neither one room nor a trap is, and the trap's budget shows with the box alone'",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-window-murder)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "A trap (the victim alone, losing double)",
+          "key": "DRPG.Murder.indirect",
+          "kind": "toggle",
+          "selector": "input[name=indirect]",
+          "handler": "murder-ui.mjs:303 change -> sync 272-294",
+          "effect": "shows the trap's budget line and moves the statistic list to the victim's two traits; sent as indirect",
+          "gate": "disabled while killer and victim are one student (275-276); the reason is the info box under the form (DRPG.Murder.openSelfNote)",
+          "how_read": "code; tier 2 'the trap card's button opens the murder window on the student the trap read, with the trap's budget and the victim's statistics'",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-checkbox, drpg-window-murder)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Opening roll's statistic",
+          "key": "DRPG.Murder.openingStatistic",
+          "kind": "select",
+          "selector": "select[name=openingTrait]",
+          "handler": "read at confirm, murder-ui.mjs:315",
+          "effect": "sent to openMurder as openingTrait (murder-rules.mjs:440, checked again at 524-529), so no second window asks it",
+          "gate": "as the window",
+          "how_read": "code; tier 2 'a murder opened from the murder window asks no second question about the opening's statistic'",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-window-murder)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Open the incident",
+          "key": "DRPG.Murder.openConfirm",
+          "kind": "button",
+          "selector": "footer primary, data-action=ok",
+          "handler": "murder-ui.mjs:309-317 callback, then 345 openMurder (murder-rules.mjs:440)",
+          "effect": "writes a fresh incident, tells the GMs, sends the opening roll to the side that owes it (rollOpening, 606) and opens the tracker (348)",
+          "gate": "the default under Enter; openMurder refuses an Eclipse and a second incident with a notice (453, 422), and the window then opens no tracker (346)",
+          "how_read": "code; tier 2 'a murder opened from the murder window asks no second question about the opening's statistic'",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer close, data-action=cancel",
+          "handler": "murder-ui.mjs:324",
+          "effect": "closes; nothing is opened",
+          "gate": "always",
+          "how_read": "code",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "The incident tracker (title 'Incident tracker'), with its empty state",
+      "file": "scripts/murder-ui.mjs",
+      "opener": "openIncidentTracker:679 (window at 738; footer incidentButtons:594, emptyButtons:655)",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Silence now",
+          "key": "DRPG.Voice.silenceNow",
+          "kind": "button",
+          "selector": "footer secondary, data-action=silence",
+          "handler": "murder-ui.mjs:783-786 -> incident-store.mjs:978 silenceDeadNow",
+          "effect": "writes silencedDead for the victim in the GMs' cast, which moves the dead student's voice; the tracker reopens",
+          "gate": "any GM; drawn only when, as the window opens, the victim is dead for the GMs, not published and not silenced yet (703, 748); tooltip DRPG.Voice.silenceNowTip",
+          "how_read": "code; R3821 reads the footer's source; tier 2 'E72 C8 Silence now' calls the function, no test opens the tracker on a dead victim",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "stale-state",
+          "detail": "Whether the button is in the footer is read once, when the window opens (murder-ui.mjs:703, 748). The footer is redrawn only when the stage or selfInflicted changes (incidentSignature 584-586, after 760-771), so a death or a publication under an unchanged stage leaves it as it was. See finding 7."
+        },
+        {
+          "label": "Ask for the opening roll again",
+          "key": "DRPG.Murder.openingReask",
+          "kind": "button",
+          "selector": "footer secondary, data-action=reask",
+          "handler": "murder-ui.mjs:787-790 -> reaskOpening 663-676 -> murder-rules.mjs:4426 rollOpening",
+          "effect": "sends the opening roll again to the side that owes it (the owner's browser, or thrown here when the owner is away); the tracker reopens",
+          "gate": "any GM; drawn at the opening stage unless the incident is by the student's own hand (627-629); once per 10 s on this browser, told (DRPG.Murder.openingReaskWait)",
+          "how_read": "code; tier 2 'a re-ask of the opening rolls the pick the cast keeps, and asks nobody again' calls rollOpening, no test or scenario presses the button (git grep reask, openingReask in scripts/tests-*.mjs and audit/harness/scenarios: none)",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "mislabeled",
+          "detail": "Three things: it is still offered, under a line that says the tracker waits for the roll, once a trap's victim has rolled and noticed (finding 1); it is not drawn for a death by the student's own hand, where the GMs' notice names it (finding 2); its toast says the roll was offered before anything was (finding 4)."
+        },
+        {
+          "label": "Pass the turn",
+          "key": "DRPG.Murder.passTurn",
+          "kind": "button",
+          "selector": "footer secondary, data-action=pass",
+          "handler": "murder-ui.mjs:778-782 -> murder-rules.mjs:3055 passTurn",
+          "effect": "moves the turn to the next side or killer, counts the hindrances down, and at a full round drains the victim; the tracker reopens",
+          "gate": "any GM; drawn at the incident stage, not at the opening, not at Stage 6, not for a death by their own hand (630-641); a second press inside 1.5 s is told (DRPG.Murder.passTooSoon); a browser without the cast is told (incident-store.mjs:1055-1063)",
+          "how_read": "code; R1363 (footer and cooldown, source); tier 2 E47-T2 (the tracker drawn through a fight)",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "End the murder",
+          "key": "DRPG.Murder.endMurder",
+          "kind": "button",
+          "selector": "footer destructive, data-action=end",
+          "handler": "murder-ui.mjs:791-801",
+          "effect": "opens the question 'End the murder' (next surface)",
+          "gate": "any GM; never the default",
+          "how_read": "code; R1363",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Close",
+          "key": "DRPG.Kit.close",
+          "kind": "button",
+          "selector": "footer close, data-action=close",
+          "handler": "ui-kit.mjs footerButtons; murder-ui.mjs:802",
+          "effect": "closes the tracker; the incident goes on",
+          "gate": "the default under Enter",
+          "how_read": "code; R1363",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Open a murder...",
+          "key": "DRPG.Murder.trackerOpenMurder",
+          "kind": "button",
+          "selector": "footer primary, data-action=open (empty state)",
+          "handler": "murder-ui.mjs:777 -> openMurderDialog",
+          "effect": "opens the murder window",
+          "gate": "drawn with no incident running; reached from game.drpg.incidentTracker() or when a Pass, a Silence now or a re-ask finds the incident gone (the GM panel's tile opens the murder window itself)",
+          "how_read": "code; R2057",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Close (empty state)",
+          "key": "DRPG.Kit.close",
+          "kind": "button",
+          "selector": "footer close, data-action=close",
+          "handler": "murder-ui.mjs:802",
+          "effect": "closes",
+          "gate": "always",
+          "how_read": "code; R2057",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "The question 'End the murder' asked from the tracker",
+      "file": "scripts/murder-ui.mjs",
+      "opener": "openIncidentTracker:793 (drpgConfirm)",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "End the murder",
+          "key": "DRPG.Murder.endMurder",
+          "kind": "button",
+          "selector": "footer destructive, data-action=yes",
+          "handler": "murder-ui.mjs:800 -> murder-rules.mjs:3405 endMurder -> closeIncident 3440",
+          "effect": "records the Blackened, breaks the tools Stage 6 used, keeps the case's Key count, wipes the incident, tells its players, closes the tracker and opens the checklist (afterIncident)",
+          "gate": "any GM; Cancel is the default",
+          "how_read": "code; R1363; tier 2 'two closes of one incident close it once' (endMurder)",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "mislabeled",
+          "detail": "For a death by the student's own hand at Stage 6 the yes also records the student's death (murder-rules.mjs:3473-3477); the question's one sentence (DRPG.Murder.endConfirm) says only that tracking stops. See finding 9."
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer cancel, data-action=cancel",
+          "handler": "ui-kit.mjs:1536 (answers false)",
+          "effect": "closes the question; the tracker is not reopened (murder-ui.mjs:801-802)",
+          "gate": "the default",
+          "how_read": "code",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "The question 'End the murder' asked when every killer of the fight is dead",
+      "file": "scripts/murder-rules.mjs",
+      "opener": "killerFell:3146 (drpgConfirm)",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "End the murder",
+          "key": "DRPG.Murder.endMurder",
+          "kind": "button",
+          "selector": "footer destructive, data-action=yes",
+          "handler": "murder-rules.mjs:3158-3159 -> endMurder",
+          "effect": "closes the incident if it is still the one asked about",
+          "gate": "the primary GM alone (3215-3222), once an incident; the window closes itself when that incident is gone (3139-3142)",
+          "how_read": "code; R1360 (source)",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer cancel, data-action=cancel",
+          "handler": "ui-kit.mjs:1536",
+          "effect": "the fight goes on with the victim taking every turn (told to the GMs, DRPG.Murder.noKillerLeft)",
+          "gate": "the default",
+          "how_read": "code",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "The question 'They ran out' (a victim spent, two killers)",
+      "file": "scripts/murder-rules.mjs",
+      "opener": "checkVictimSpent:2415 (drpgConfirm)",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "End the incident",
+          "key": "DRPG.Murder.ranOutEndNow",
+          "kind": "button",
+          "selector": "footer primary, data-action=yes",
+          "handler": "murder-rules.mjs:2429-2458",
+          "effect": "moves the incident to Stage 6 (endedBy ranOut), tells the GMs and records the victim's death",
+          "gate": "the GM that scores the action or the primary GM's hook (3199-3209); asked only with two killers",
+          "how_read": "code; tier 2 'a victim who runs out on the last blow is closed once'",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer cancel, data-action=cancel",
+          "handler": "murder-rules.mjs:2429",
+          "effect": "the question is withdrawn and the fight goes on; the next change of the victim's reserves asks again",
+          "gate": "always",
+          "how_read": "code",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "The checklist after an incident that left a body (title 'After the incident')",
+      "file": "scripts/murder-rules.mjs",
+      "opener": "afterIncident:3773 (from closeIncident 3664-3670)",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Body found",
+          "key": "DRPG.Chapter.bodyTitle",
+          "kind": "button",
+          "selector": "footer primary, data-action=body",
+          "handler": "murder-rules.mjs:3828-3831 -> body.mjs:1101 openBodyDiscoveryDialog",
+          "effect": "opens the body's announcement window",
+          "gate": "drawn on the GM who closed the murder, whoever that is; the default under Enter; the announcement itself is the primary GM's alone (body.mjs:1107, 176-181, told)",
+          "how_read": "code; R4752 (its tooltip); tier 2 'a GM who is not the primary announces no body and is told whose it is' (the refusal)",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "wrong-audience",
+          "detail": "On a GM who is not the primary the press is always refused, with the notice DRPG.Chapter.bodyPrimaryOnly, and the checklist has closed with it. See finding 6."
+        },
+        {
+          "label": "Move to Investigation",
+          "key": "DRPG.Murder.afterGoInvestigation",
+          "kind": "button",
+          "selector": "footer secondary, data-action=investigation",
+          "handler": "murder-rules.mjs:3821-3827 -> clock.mjs:67 setPhase",
+          "effect": "sets the phase to Investigation and announces nothing",
+          "gate": "not drawn when the phase is Investigation already (3756, 3801)",
+          "how_read": "code; R4752",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Issue Autopsy Truth Bullet",
+          "key": "DRPG.TruthBullet.autopsyTitle",
+          "kind": "button",
+          "selector": "footer secondary, data-action=autopsy",
+          "handler": "murder-rules.mjs:3832-3835 -> gm-items.mjs:1619 issueAutopsyDialog",
+          "effect": "opens the Autopsy window",
+          "gate": "always",
+          "how_read": "code; R4752",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "{third} turns on the killer",
+          "key": "DRPG.Murder.betrayalButton",
+          "kind": "button",
+          "selector": "footer destructive, data-action=betrayal",
+          "handler": "murder-rules.mjs:3820 -> openBetrayal 3995",
+          "effect": "takes the betrayal offer and opens a second murder, the third as its killer",
+          "gate": "drawn when a third may turn on the killer (betrayalCandidate, incident-store.mjs:1887) and no Class Trial runs (3771); every refusal is a notice on this GM's screen (refuseBetrayal 4144-4146)",
+          "how_read": "code; tier 2 'the checklist offers no betrayal in a Class Trial, and one pressed as a trial starts is refused with its offer kept'",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Close",
+          "key": "DRPG.Kit.close",
+          "kind": "button",
+          "selector": "footer close, data-action=close",
+          "handler": "murder-rules.mjs:3836",
+          "effect": "closes; nothing is asked again",
+          "gate": "always",
+          "how_read": "code",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "The checklist after an escape (title 'They got away')",
+      "file": "scripts/murder-rules.mjs",
+      "opener": "afterEscape:4184",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Open the Investigation",
+          "key": "DRPG.Murder.escapeRemnants",
+          "kind": "button",
+          "selector": "footer primary, data-action=remnants",
+          "handler": "murder-rules.mjs:4204-4207 -> investigation.mjs openInvestigationDashboard",
+          "effect": "opens the Investigation window",
+          "gate": "always",
+          "how_read": "code; R4752 (its tooltip)",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Close",
+          "key": "DRPG.Kit.close",
+          "kind": "button",
+          "selector": "footer close, data-action=close",
+          "handler": "murder-rules.mjs:4208",
+          "effect": "closes",
+          "gate": "always",
+          "how_read": "code",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "The checklist after an incident with no body (title 'After the incident')",
+      "file": "scripts/murder-rules.mjs",
+      "opener": "afterNoBody:4221",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Open the Investigation",
+          "key": "DRPG.Murder.escapeRemnants",
+          "kind": "button",
+          "selector": "footer primary, data-action=remnants",
+          "handler": "murder-rules.mjs:4234-4237",
+          "effect": "opens the Investigation window",
+          "gate": "drawn only when the victim lived through Stage 6 (4219, 4229); an interrupted incident has Close alone",
+          "how_read": "code; tier 2 'closing without a body records nobody and offers nothing'",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Close",
+          "key": "DRPG.Kit.close",
+          "kind": "button",
+          "selector": "footer close, data-action=close",
+          "handler": "murder-rules.mjs:4238",
+          "effect": "closes",
+          "gate": "always",
+          "how_read": "code",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "The critical's pick (title 'A clean hit')",
+      "file": "scripts/murder-rules.mjs",
+      "opener": "askCriticalTarget:912 (from afterCrisisRoll 1289)",
+      "audience": "both",
+      "controls": [
+        {
+          "label": "Both off Health",
+          "key": "DRPG.Murder.criticalChoiceHp",
+          "kind": "button",
+          "selector": "footer primary, data-action=hp",
+          "handler": "murder-rules.mjs:925",
+          "effect": "the pick 'hp' travels with the crisis result (1249)",
+          "gate": "whoever threw the critical: the player, or a GM replaying a Reroll; closing the window is Health too, as the window says",
+          "how_read": "code",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Both off Sanity",
+          "key": "DRPG.Murder.criticalChoiceStress",
+          "kind": "button",
+          "selector": "footer secondary, data-action=stress",
+          "handler": "murder-rules.mjs:925",
+          "effect": "the pick 'stress' travels with the crisis result",
+          "gate": "as above",
+          "how_read": "code",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "The GM's rating of a Tier 0 weapon (title 'Rate a Tier 0 weapon')",
+      "file": "scripts/murder-rules.mjs",
+      "opener": "rateTierZero:1489 (from chooseWeapon 1425, applyDamage 2535)",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Count it as",
+          "key": "DRPG.Murder.tierZeroRate",
+          "kind": "select",
+          "selector": "select[name=tier]",
+          "handler": "read by Apply, murder-rules.mjs:1504",
+          "effect": "the tier this swing counts at, 0 to 2",
+          "gate": "the GM that scores the crisis action; opens on Tier 0",
+          "how_read": "code",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-panel)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Apply",
+          "key": "DRPG.Panel.apply",
+          "kind": "button",
+          "selector": "footer primary, data-action=ok",
+          "handler": "murder-rules.mjs:1502-1512",
+          "effect": "the damage is read at the tier chosen; a closed window counts Tier 0",
+          "gate": "the one button",
+          "how_read": "code; tier 2 'a tier-0 knife swung on a hit with Hope is spent and a Reroll gives it back for the replay to spend again'",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "The crisis menu behind the Direct Murder tile in a fight (title 'Your turn in the incident')",
+      "file": "scripts/action-murder.mjs",
+      "opener": "openCrisisMenu:59 (window through action-menus.mjs chooseVariant:230; reached from action-rolls.mjs:137)",
+      "audience": "both",
+      "controls": [
+        {
+          "label": "the crisis actions (one row each)",
+          "key": "literal (config.mjs CRISIS_ACTIONS labels)",
+          "kind": "tile",
+          "selector": "input[name=variant] in .drpg-choice",
+          "handler": "action-menus.mjs:425 (syncDetails), 488 (followConfirmLabel)",
+          "effect": "the picked row's hint, facts and proposal field are lit and the confirm reads Roll or Do it",
+          "gate": "the player of a student in the fight, on their turn (off turn: the notice DRPG.Murder.offTurn, 87-91; nothing to do: 65-69); a locked, spent, blocked or denied row is greyed with its reason (136-148)",
+          "how_read": "code; R3382; R1107; scenario 13",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-choice, drpg-unpicked: the rules found (danganronpa.css:5149, 17871, 17893) hide the unpicked rows' lines in both themes)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Which statistic do you propose?",
+          "key": "DRPG.TraitRuling.proposeLabel",
+          "kind": "select",
+          "selector": "[data-drpg-field] select[name=proposed]",
+          "handler": "read at 153-156 (readProposal, action-menus.mjs:78)",
+          "effect": "the statistic proposed to the GM for that row's roll",
+          "gate": "drawn for a row whose roll asks a GM (several statistics, no Resolve armed; 97, 132)",
+          "how_read": "code; scenario 13",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-action-trait, drpg-trait-)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "How do you do it? (optional)",
+          "key": "DRPG.TraitRuling.howLabel",
+          "kind": "field-with-effect",
+          "selector": "[data-drpg-field] input[name=note]",
+          "handler": "read at 153-156",
+          "effect": "the words the GM's card quotes",
+          "gate": "as the proposal",
+          "how_read": "code",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-trait-)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Details",
+          "key": "DRPG.Kit.details",
+          "kind": "toggle",
+          "selector": ".drpg-action-details-toggle",
+          "handler": "action-menus.mjs:371-400 wireDetails (called by actionWindow, 309)",
+          "effect": "opens or shuts the facts' box and remembers it on this browser",
+          "gate": "always",
+          "how_read": "code; R3382",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-action-details: danganronpa.css:17865 hides a shut box in both themes)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Roll / Do it",
+          "key": "DRPG.Murder.briefRoll / DRPG.Murder.briefTake",
+          "kind": "button",
+          "selector": "footer primary, data-action=ok",
+          "handler": "action-murder.mjs:152-157 -> murder-rules.mjs:1045 takeCrisisAction",
+          "effect": "the action is judged again, the GM's statistic ruling asked, the dice thrown and the result sent to the primary (1244); a refusal with a reason is a notice (1059-1062)",
+          "gate": "the default under Enter",
+          "how_read": "code; scenario 13",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer close, data-action=cancel",
+          "handler": "action-menus.mjs:269",
+          "effect": "closes; nothing is spent",
+          "gate": "always",
+          "how_read": "code",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "The betrayal's confirmation (title 'Betrayal') and its sentence in an Eclipse",
+      "file": "scripts/action-murder.mjs",
+      "opener": "performBetrayal:253 (actionWindow), 288 (promptForNote)",
+      "audience": "player",
+      "controls": [
+        {
+          "label": "Which statistic do you propose?",
+          "key": "DRPG.TraitRuling.proposeLabel",
+          "kind": "select",
+          "selector": ".drpg-action-trait select[name=proposed]",
+          "handler": "read by Yes, action-murder.mjs:265",
+          "effect": "the opening's statistic the betrayer proposes",
+          "gate": "the third's player while the offer stands (murder-rules.mjs:3852 betrayalTarget)",
+          "how_read": "code; tier 2 'a betrayal's proposal is the first answer in the GM's opening window, and a trap victim's opening asks with none (E68 C9)'",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-action-trait, drpg-trait-)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "How do you do it? (optional)",
+          "key": "DRPG.TraitRuling.howLabel",
+          "kind": "field-with-effect",
+          "selector": ".drpg-action-trait input[name=note]",
+          "handler": "read by Yes, 265",
+          "effect": "the words sent with the request",
+          "gate": "outside an Eclipse (261)",
+          "how_read": "code",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-trait-)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Yes",
+          "key": "DRPG.Dialog.yes",
+          "kind": "button",
+          "selector": "footer primary, data-action=yes",
+          "handler": "action-murder.mjs:263-265, then 273-301",
+          "effect": "outside an Eclipse asks the primary to open the betrayal (requestBetrayal); in one pays the action, asks the sentence and has the declaration parked",
+          "gate": "the default; a refusal is told by the bridge, or by a veiled whisper from the GM's side (murder-rules.mjs:4150-4151)",
+          "how_read": "code; tests-grid.mjs (the betrayal's steps)",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer close, data-action=cancel",
+          "handler": "action-murder.mjs:270",
+          "effect": "closes; nothing is spent or asked",
+          "gate": "always",
+          "how_read": "code",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Make the attempt",
+          "key": "DRPG.Action.murderParkedConfirm",
+          "kind": "button",
+          "selector": "footer primary, data-action=ok (the sentence's window)",
+          "handler": "action-menus.mjs:529-532 -> action-murder.mjs:295",
+          "effect": "sends the sentence with the declaration",
+          "gate": "in an Eclipse, after the action is paid; closing the window still declares, without words (its tooltip says so)",
+          "how_read": "code",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "The Direct Murder declaration in an Eclipse: its confirmation (title 'Direct Murder') and its sentence",
+      "file": "scripts/action-murder.mjs",
+      "opener": "performDirectMurder:323 (drpgConfirm), 376 (promptForNote)",
+      "audience": "player",
+      "controls": [
+        {
+          "label": "Details",
+          "key": "DRPG.Kit.details",
+          "kind": "toggle",
+          "selector": ".drpg-action-details-toggle in the confirmation's body",
+          "handler": "none",
+          "effect": "none: the box under it stays as it was drawn",
+          "gate": "drawn in every confirmation (briefingBlock ends in detailsHtml, action-briefing.mjs:100); shut unless this browser left Details open in another action window",
+          "how_read": "code",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-action-details)",
+          "verdict": "dead",
+          "detail": "The confirmation is ui-kit.mjs drpgConfirm, and the Details toggle is wired only by action-menus.mjs actionWindow (309). See finding 10."
+        },
+        {
+          "label": "Yes",
+          "key": "DRPG.Dialog.yes",
+          "kind": "button",
+          "selector": "footer gmRoute, data-action=yes",
+          "handler": "action-murder.mjs:332-370",
+          "effect": "pays the action and opens the sentence's window",
+          "gate": "the default; with no GM connected nothing is spent and the player is told (363-367)",
+          "how_read": "code; R121",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer cancel, data-action=cancel",
+          "handler": "action-murder.mjs:332",
+          "effect": "closes; nothing is spent",
+          "gate": "always",
+          "how_read": "code",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "What are you doing, and how?",
+          "key": "DRPG.Action.murderPromptParked",
+          "kind": "field-with-effect",
+          "selector": "textarea[name=note]",
+          "handler": "read by Make the attempt (action-menus.mjs:531)",
+          "effect": "the sentence the GM reads with the declaration",
+          "gate": "after the action is paid",
+          "how_read": "code",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-specific-note, drpg-action-window)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Which statistic do you propose?",
+          "key": "DRPG.TraitRuling.proposeLabel",
+          "kind": "select",
+          "selector": ".drpg-action-trait select[name=proposed]",
+          "handler": "read by Make the attempt (531)",
+          "effect": "the opening's statistic proposed, which the GM's card allows or changes",
+          "gate": "as above",
+          "how_read": "code; tier 2 'an approved opening opens on its statistic with no second window (E68 C9)'",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-action-trait)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Details (the sentence's window)",
+          "key": "DRPG.Kit.details",
+          "kind": "toggle",
+          "selector": ".drpg-action-details-toggle",
+          "handler": "action-menus.mjs:371-400 (this window is an actionWindow, 522)",
+          "effect": "opens or shuts the facts' box",
+          "gate": "always",
+          "how_read": "code",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-action-details)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Make the attempt",
+          "key": "DRPG.Action.murderParkedConfirm",
+          "kind": "button",
+          "selector": "footer primary, data-action=ok",
+          "handler": "action-menus.mjs:529-536 -> action-murder.mjs:384-397 (eclipse.mjs parkDirectMurder)",
+          "effect": "parks the declaration with the GMs; a declaration no GM parked gives the action back (386-390)",
+          "gate": "the one button; closing the window declares without words",
+          "how_read": "code; tier 2 'an approved opening opens on its statistic with no second window (E68 C9)'",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "The opening roll's invitation (the card 'This opening roll is yours' and Daggerheart's roll window under the opening's title)",
+      "file": "scripts/murder-rules.mjs",
+      "opener": "rollOpening:4426 -> gm-bridge.mjs:212 askOpeningRoll -> throwOpeningRoll:4625",
+      "audience": "both",
+      "controls": [
+        {
+          "label": "closing the roll window",
+          "key": "literal (Daggerheart's window)",
+          "kind": "key",
+          "selector": "the window's X or Escape",
+          "handler": "murder-rules.mjs:4666-4685 (the re-offer loop), 4691-4702",
+          "effect": "the window opens again with the notice DRPG.Murder.openingRequired, three times in all; then the GMs are told (DRPG.Murder.openingDeclined)",
+          "gate": "the roller's player, or a GM when no owner is connected (4437-4449); a GM's close of the murder takes the window back (4603-4612)",
+          "how_read": "code; scenario 13 (its opening phases throw the invited roll; the re-offer after a close was read in code only)",
+          "themes": "not the module's window: no module rule read for it",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "The body's announcement (title 'Body found')",
+      "file": "scripts/body.mjs",
+      "opener": "openBodyDiscoveryDialog:1101 (window at 1184)",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Which room?",
+          "key": "DRPG.Chapter.whereBody",
+          "kind": "select",
+          "selector": "select[name=room]",
+          "handler": "death.mjs:795-803 chooseFirst (change)",
+          "effect": "Announce the body is enabled once a room is chosen",
+          "gate": "the primary GM alone: another GM is told whose it is before the form (1107), a player that it is a GM's (1102-1105), an Eclipse refuses it (1125-1128); opens on '- choose -' unless an incident's or a waiting discovery's room is known (1152-1158)",
+          "how_read": "code; R1360; tier 2 E22-T1",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-window-body)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Whose body? (optional)",
+          "key": "DRPG.Chapter.whoseBody",
+          "kind": "select",
+          "selector": "select[name=victim]",
+          "handler": "read by Announce (1205)",
+          "effect": "the victim the card names; 'Name nobody' announces the room alone",
+          "gate": "lists every student dead for the GMs, one already announced this chapter marked (1167-1172)",
+          "how_read": "code; tier 2 'a body already announced is marked in the GM's list and not announced twice in the chapter'",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-window-body)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Announce the body",
+          "key": "DRPG.Chapter.announce",
+          "kind": "button",
+          "selector": "footer destructive, data-action=ok",
+          "handler": "body.mjs:1202-1206, then 1217-1222 discoverBody -> runDiscovery 209",
+          "effect": "publishes the bodies in the room, stamps the discovery, gathers everyone, posts the card and writes the hold; then asks which Prep traces belong",
+          "gate": "disabled until a room is chosen (1201, chooseFirst); never the default; an Eclipse and a body already announced are told (237-239, 261-263)",
+          "how_read": "code; R1360; tier 2 E22-T1; scenario 65",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer close, data-action=cancel",
+          "handler": "body.mjs:1215",
+          "effect": "closes; nothing is announced",
+          "gate": "the default",
+          "how_read": "code; tier 2 E22-T1",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "The prompt for a discovery waiting for the GM's word (title 'Students found a body')",
+      "file": "scripts/body.mjs",
+      "opener": "promptPendingBodies:931 (askPendingBodies:906)",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Announce",
+          "key": "DRPG.Chapter.pendingAnnounce",
+          "kind": "button",
+          "selector": "footer destructive, data-action=announce",
+          "handler": "body.mjs:943-946 -> discoverBody 159",
+          "effect": "runs the announcement for that room and body, where the body lies now",
+          "gate": "the primary GM when a full Gamemaster (891-893, 907); never the default",
+          "how_read": "code; scenario 10 (answers 'announce'); R5741",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Not yet",
+          "key": "DRPG.Chapter.pendingNotYet",
+          "kind": "button",
+          "selector": "footer close, data-action=close",
+          "handler": "body.mjs:943 (any other answer)",
+          "effect": "leaves the row waiting for the Body found window; a later walk into that room does not ask again (849-851), as the window's note says",
+          "gate": "the default",
+          "how_read": "code; R6350",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "The Prep traces question after a discovery (title 'Body found in {room}')",
+      "file": "scripts/body.mjs",
+      "opener": "promoteFaintPrep:85 (askPromotion:377)",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "one tick per Faint Prep trace",
+          "key": "literal (the trace's own words)",
+          "kind": "toggle",
+          "selector": "input[name=promote]",
+          "handler": "read by the primary button (96-97)",
+          "effect": "which traces are tied",
+          "gate": "the GM whose browser announced the body; only this chapter's untied Faint Prep traces are listed (36-49)",
+          "how_read": "code; tier 2 'the Faint Prep promotion offers no trace already tied to the crime, and writes what it ticks into the ledger alone'",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-checkbox)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Tie them to the murder",
+          "key": "DRPG.Chapter.promoteConfirm",
+          "kind": "button",
+          "selector": "footer primary, data-action=ok",
+          "handler": "body.mjs:105-122 -> remnants.mjs setRemnantFlagsMany",
+          "effect": "the ticked traces stop being Faint and are tied to the crime in the ledger; a notice counts them (379)",
+          "gate": "the default; with nothing ticked it writes nothing",
+          "how_read": "code; tier 2 'the discovery card comes before the Prep question'; scenarios 65, 72",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer cancel, data-action=skip",
+          "handler": "body.mjs:105",
+          "effect": "closes; nothing is tied",
+          "gate": "always",
+          "how_read": "code",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "The death window (title 'A character dies')",
+      "file": "scripts/death.mjs",
+      "opener": "openDeathDialog:714 (window at 753)",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Who died?",
+          "key": "DRPG.Chapter.whoDied",
+          "kind": "select",
+          "selector": "select[name=actor]",
+          "handler": "death.mjs:795-803 chooseFirst (change)",
+          "effect": "Record the death is enabled once a student is chosen",
+          "gate": "drawn only when no student is named: the Students window's Kill names one (gm-students.mjs:403), so the list is reached from game.drpg.deathDialog() alone",
+          "how_read": "code; R1360; tier 2 E22-T1",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-panel)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Keep their Truth Bullets, for a death outside the killing game",
+          "key": "DRPG.Chapter.keepBullets",
+          "kind": "toggle",
+          "selector": "input[name=keepBullets]",
+          "handler": "read by Record the death (773)",
+          "effect": "the Truth Bullets are not destroyed",
+          "gate": "always",
+          "how_read": "code",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-checkbox)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Keep the death known only to the GMs until the body is found",
+          "key": "DRPG.Chapter.keepSecretUntilFound",
+          "kind": "toggle",
+          "selector": "input[name=secret]",
+          "handler": "read by Record the death (773)",
+          "effect": "the death is a row of the GMs' store and nothing on the actor until it is published",
+          "gate": "ticked when the student is the running incident's victim (739, 762)",
+          "how_read": "code; tier 2 'a death from the Students list in a fight offers Stage 6 and ties the traces'",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-checkbox)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Record the death",
+          "key": "DRPG.Chapter.confirmDeath",
+          "kind": "button",
+          "selector": "footer destructive, data-action=ok",
+          "handler": "death.mjs:770-774, then 785-787 killCharacter 158",
+          "effect": "marks the student dead (kept or public), destroys or keeps the Truth Bullets, tells the GMs and, for the incident's victim, offers Stage 6",
+          "gate": "any GM; disabled until a student is chosen; never the default; a student already dead is told (160-163)",
+          "how_read": "code; R1360; tier 2 E22-T1",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer close, data-action=cancel",
+          "handler": "death.mjs:783",
+          "effect": "closes; nobody dies",
+          "gate": "the default",
+          "how_read": "code; tier 2 E22-T1",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "The question after the incident's victim is marked dead (title 'The incident's victim died')",
+      "file": "scripts/death.mjs",
+      "opener": "offerStageSix:594 (drpgConfirm; from incidentVictimDied 368)",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Move to Stage 6",
+          "key": "DRPG.Chapter.stageSixYes",
+          "kind": "button",
+          "selector": "footer primary, data-action=yes",
+          "handler": "death.mjs:612 -> murder-rules.mjs:2924 beginResolution",
+          "effect": "moves the running incident to Stage 6",
+          "gate": "the GM who marked the death, while that incident is at its incident stage (589-590)",
+          "how_read": "code; tier 2 'a death from the Students list in a fight offers Stage 6 and ties the traces'",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer cancel, data-action=cancel",
+          "handler": "death.mjs:612",
+          "effect": "the incident stays at its incident stage around the dead victim",
+          "gate": "always",
+          "how_read": "code",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "The body on the map (a tile at alpha 0 and the caption '{name}'s body' on the corpse's token)",
+      "file": "scripts/body-tile.mjs",
+      "opener": "leaveBody:222 (from death.mjs markDeceased); drawCorpseCaption:404",
+      "audience": "both",
+      "controls": []
+    },
+    {
+      "surface": "The Event panel (#drpg-events) and its cards",
+      "file": "scripts/events.mjs",
+      "opener": "renderEvents:1075",
+      "audience": "both",
+      "controls": [
+        {
+          "label": "a folded card (its title alone)",
+          "key": "literal (the card's title)",
+          "kind": "tile",
+          "selector": ".drpg-event[data-drpg-folded], role=button, tabindex=0",
+          "handler": "events.mjs:1044-1058 wireEventsPanel (click, Enter, Space) -> fitEvents 1020",
+          "effect": "that card opens and stays open while it stands, and the others fold as the room needs",
+          "gate": "every browser that draws the panel; a card folds only when the cards are taller than the room under the panel; titles that still do not fit are left out and counted '+N' (the owner's Q-OWN115-6)",
+          "how_read": "code; R7401; R1430",
+          "themes": "Monokuma Legacy: the panel takes no pointer (danganronpa.css:10216) and a folded card does (10219); Stained Glass: the panel takes the pointer (stained-glass.css:730). No rule hides a folded card under either theme.",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "A dead student's sheet as another player reads it (redacted, with 'What they were carrying')",
+      "file": "scripts/anonymity.mjs",
+      "opener": "onRenderSheet:115 (redactSheet 172, buildBodyLoot 265)",
+      "audience": "player",
+      "controls": [
+        {
+          "label": "the sheet's tabs, greyed",
+          "key": "DRPG.Redacted.tabLocked (tooltip)",
+          "kind": "tab",
+          "selector": "a[data-tab].drpg-locked",
+          "handler": "anonymity.mjs:229-235 (the click is swallowed)",
+          "effect": "none, on purpose: the pane behind is emptied (237-240)",
+          "gate": "another player's sheet with 'Keep character sheets anonymous' on; the reason is the tab's tooltip",
+          "how_read": "code; tier 2 reads drpg-locked (4 lines)",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-locked, drpg-redacted)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "the settings button, greyed",
+          "key": "DRPG.Redacted.settingsLocked (tooltip)",
+          "kind": "button",
+          "selector": "[data-action=openSettings] made .drpg-locked",
+          "handler": "anonymity.mjs:737-745",
+          "effect": "none, on purpose",
+          "gate": "every viewer who is not a GM, the owner too (137)",
+          "how_read": "code",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-locked)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "the Inventory tab, given back on a body",
+          "key": "literal (Daggerheart's tab)",
+          "kind": "tab",
+          "selector": "a[data-tab=inventory]",
+          "handler": "anonymity.mjs:592-598 reopenTab (Foundry's own tab action)",
+          "effect": "shows the list of what the body carries",
+          "gate": "a body this browser knows dead (268)",
+          "how_read": "code",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-loot)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Take from the Body",
+          "key": "DRPG.Loot.open",
+          "kind": "button",
+          "selector": "button.drpg-loot-open",
+          "handler": "anonymity.mjs:304-308 -> openBodyLoot 344",
+          "effect": "opens the Take from the Body window",
+          "gate": "drawn under the list when the body carries something (282-286, 297-309) - and only where the sheet is redacted: with 'Keep character sheets anonymous' off the render hook returns first (127)",
+          "how_read": "code; tier 2 A113-C5-7-T1; R6070",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-loot, drpg-mini-button)",
+          "verdict": "dead",
+          "detail": "With the switch on the press opens the window, as read. With it off the button is never drawn and nothing else opens the window. See finding 3."
+        }
+      ]
+    },
+    {
+      "surface": "The Take from the Body window (title 'Take from the Body')",
+      "file": "scripts/anonymity.mjs",
+      "opener": "openBodyLoot:344 (actionWindow at 372)",
+      "audience": "player",
+      "controls": [
+        {
+          "label": "one tick per thing the body carries",
+          "key": "literal (the item's name)",
+          "kind": "toggle",
+          "selector": ".drpg-loot-list input[name=item]",
+          "handler": "anonymity.mjs:444 change -> syncLootTake 464",
+          "effect": "Take is enabled while an open row is ticked",
+          "gate": "a row the one gate or full hands refuse is greyed with the sentence (448-458), and read again as tokens, the body's tile, the clock or an announcement move (84-106)",
+          "how_read": "code; tier 2 A113-C5-7-T1; scenario 87",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-loot, drpg-choice)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Details",
+          "key": "DRPG.Kit.details",
+          "kind": "toggle",
+          "selector": ".drpg-action-details-toggle",
+          "handler": "action-menus.mjs:371-400",
+          "effect": "opens or shuts the facts' box",
+          "gate": "always",
+          "how_read": "code; R3382",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-action-details)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Take",
+          "key": "DRPG.Loot.take",
+          "kind": "button",
+          "selector": "footer primary, data-action=ok (.drpg-loot-take)",
+          "handler": "anonymity.mjs:384-385, then 391-397 takeFromBody 502",
+          "effect": "rolls Hand once (Shadow with a watcher) and asks the primary for the ticked things (requestBodyLoot); a Take that landed is a notice (571)",
+          "gate": "disabled with the gate's sentence, the rows' or 'Tick what you want to take first.' as its tooltip (469-474); with no GM the bridge says so (519-522)",
+          "how_read": "code; R6070; scenarios 83, 87 (the GM's side, handover.mjs lootBody, was not read here)",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer close, data-action=cancel",
+          "handler": "anonymity.mjs:391",
+          "effect": "closes; nothing is rolled or taken",
+          "gate": "always",
+          "how_read": "code",
+          "themes": "no hiding rule found (styles/*.css scanned for display:none, visibility:hidden and pointer-events:none on drpg-kit-footer, drpg-role-)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "The anonymity audit as Pre-season checks draws it",
+      "file": "scripts/anonymity.mjs",
+      "opener": "auditAnonymity:909 ({ toChat: false }); wireAnonymityFix:1018",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Set them to Observer",
+          "key": "DRPG.Anonymity.audit.fix",
+          "kind": "button",
+          "selector": "button[data-drpg-anon-fix]",
+          "handler": "anonymity.mjs:1020-1031 -> fixExposed 996",
+          "effect": "every sheet all players own is set to Observer, a notice counts them and the audit is drawn again in place",
+          "gate": "drawn only on the on-screen copy, and only when a sheet is owned by every player (935-943); the whispered copy carries none",
+          "how_read": "code; R1506; tier 2 E20-T1",
+          "themes": "no hiding rule found (git grep data-drpg-anon-fix in styles: none)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    }
+  ],
+  "counts": {
+    "surfaces": 24,
+    "controls": 77,
+    "ok": 71,
+    "dead": 2,
+    "throws": 0,
+    "mislabeled": 2,
+    "wrong_audience": 1,
+    "silent": 0,
+    "stale_state": 1,
+    "unknown": 0
+  },
+  "findings": [
+    {
+      "id": "controls-05-murder-body-death-1",
+      "severity": "minor",
+      "verdict": "mislabeled",
+      "title": "After a trap's victim has rolled and noticed it, the tracker still says it waits for that roll and offers to ask for it again",
+      "surface": "The incident tracker",
+      "control": "Ask for the opening roll again (and the tracker's state line)",
+      "where": "scripts/murder-ui.mjs:463-471, 627-629; scripts/murder-rules.mjs:861-890; scripts/roll-draw.mjs:1151-1156",
+      "what_happens": "A trap's opening is the victim's roll. On a success resolveVictimOpening tells the GMs and returns without writing the stage (murder-rules.mjs:861-890), so the incident stays at openingRoll until a GM ends it, as DRPG.Murder.victimNoticedNext says. The tracker reads the stage alone: its bar goes on saying 'Opening - waiting for {victim}'s opening roll' (murder-ui.mjs:463-471) and its footer still draws Ask for the opening roll again (627-629). A press sends a new invitation and the toast says it was offered. With the victim's player connected the primary's draw refuses that roll as thrown already (roll-draw.mjs:1154-1155), the window re-offers itself to the third try (murder-rules.mjs:4666-4685) and the GMs are then told the player did not make the opening roll (4695-4701). With the player away the GM throws it here and resolveOpening has no once-only check (4730-4746), so the trap is rolled a second time.",
+      "evidence": "murder-rules.mjs:889  await whisperToGms({ tone: \"warning\", body: `<p>${game.i18n.localize(\"DRPG.Murder.victimNoticedNext\")}</p>` });\nmurder-rules.mjs:890  return { success: true, band };\nmurder-ui.mjs:627  ...(state.stage === \"openingRoll\" && !state.selfInflicted ? [\nmurder-ui.mjs:628  { action: \"reask\", label: game.i18n.localize(\"DRPG.Murder.openingReask\") }\nmurder-ui.mjs:629  ] : []),\nroll-draw.mjs:1154  return rowsOf(actor.id, key).some(row => row.incident?.openedAt === state.openedAt)\nroll-draw.mjs:1155  ? \"that character's roll of that action has been thrown already\" : null;",
+      "failure_scenario": "A GM opens a trap, the victim's player rolls 20 or more and notices it; the GM looks at the tracker, reads that it waits for the opening roll, presses Ask for the opening roll again, and the player gets three roll windows that are each refused, after which the GMs' chat says the player did not make the roll.",
+      "expected": "Once the opening is scored the tracker says so (the trap was noticed; end it when the scene is done) and offers no second opening roll.",
+      "confidence": "read",
+      "refutation_tried": "Looked for anything that marks a scored opening: resolveVictimOpening's success branch writes no state, and git grep finds no field for it (trapNoticed, noticedAt, openingDone: none). Read whether the bar or the footer read more than the stage: they do not. Looked for a once-only rule: resolveOpening has none, the primary's draw has one for a player's roll. No test or scenario reads the tracker after a noticed trap (git grep victimNoticed, reask, openingReask in scripts/tests-*.mjs and audit/harness/scenarios: none). The comment at murder-rules.mjs:884-888 says leaving the stage is deliberate; it says nothing of the tracker's line or of this button.",
+      "probe": "As GM: game.drpg.murderDialog(), tick A trap, Open the incident; let the victim's page throw a success; then read the tracker's .drpg-turn-bar and press footer button[data-action=reask]; read the victim's page (roll windows, notices) and the GMs' whispers."
+    },
+    {
+      "id": "controls-05-murder-body-death-2",
+      "severity": "minor",
+      "verdict": "mislabeled",
+      "title": "A death by the student's own hand has no 'Ask for the opening roll again', though the GMs' notice tells them to press it",
+      "surface": "The incident tracker",
+      "control": "Ask for the opening roll again",
+      "where": "scripts/murder-ui.mjs:627-629; scripts/murder-rules.mjs:4691-4702; lang/en.json:2928",
+      "what_happens": "One student in both seats still opens on Stage 4's roll, thrown by that student's player and re-offered up to three times (murder-rules.mjs:4661-4685). When it is not made, the GMs are whispered DRPG.Murder.openingDeclined: 'Press Ask for the opening roll again on the Incident tracker, or end the incident.' The tracker's footer draws that button only when the incident is not selfInflicted (murder-ui.mjs:627-629), so for this incident it shows End the murder and Close alone under a bar that says it waits for the roll. reaskOpening and rollOpening themselves would work for it (663-676, 4426-4450); the condition came in with the button (commit 5c66ffab, 12.09.2026), whose note gives a reason for no Pass in such a death and none for no re-ask.",
+      "evidence": "murder-ui.mjs:627  ...(state.stage === \"openingRoll\" && !state.selfInflicted ? [\nmurder-ui.mjs:628  { action: \"reask\", label: game.i18n.localize(\"DRPG.Murder.openingReask\") }\nmurder-ui.mjs:629  ] : []),\nmurder-rules.mjs:4697  await whisperToGms({ tone: \"warning\", body: `<p>${\nmurder-rules.mjs:4698  game.i18n.format(\"DRPG.Murder.openingDeclined\", {\nmurder-rules.mjs:4699  name: foundry.utils.escapeHTML(actor.name)\nmurder-rules.mjs:4700  })}</p>` });",
+      "failure_scenario": "A GM opens a murder with one student as killer and victim, the player closes the roll window three times (or was away and the GM closed its own), the chat tells the GMs to press Ask for the opening roll again, and the tracker has no such button: the one road left is End the murder and opening it again.",
+      "expected": "The button the notice names is on the tracker for this incident too, or the notice names what is there.",
+      "confidence": "read",
+      "refutation_tried": "Looked for another road that sends the roll again: reaskOpening is called from the tracker alone and rollOpening from openMurder and reaskOpening (git grep). Read rollOpening and throwOpeningRoll for a refusal of a self-inflicted incident: none. Read the comment above the condition (murder-ui.mjs:616-626) and the commit that added it: no decision of the owner is named for leaving the re-ask out.",
+      "probe": "As GM open the murder window with one student in both lists and Open the incident; on that student's page close the roll window three times; read the GMs' whisper, then the tracker's footer: button[data-action=reask] is absent."
+    },
+    {
+      "id": "controls-05-murder-body-death-3",
+      "severity": "minor",
+      "verdict": "dead",
+      "title": "With 'Keep character sheets anonymous' off nothing opens Take from the Body",
+      "surface": "A dead student's sheet as another player reads it",
+      "control": "Take from the Body",
+      "where": "scripts/anonymity.mjs:127, 139-144, 299-309",
+      "what_happens": "The window's one opener is the button buildBodyLoot draws on a body's sheet (anonymity.mjs:299-309), and buildBodyLoot is called at one place, the end of the redaction (144). The render hook returns before it when the world's switch is off (127). So in a world with the switch off a player who opens a dead student's sheet reads it whole, with no list 'What they were carrying' and no button, and no other control calls openBodyLoot or requestBodyLoot (git grep: anonymity.mjs alone). Both handbooks tell the player to open the sheet and press Take from the Body with no word of the switch (gm-handbook.en.md:935, player-handbook.en.md:857), and the anonymity audit's line for the switch (DRPG.Anonymity.audit.switchOff) says only that the sheets are read whole.",
+      "evidence": "anonymity.mjs:127  if (!enforcing()) return;\nanonymity.mjs:139  if (!mode.redact) return;\nanonymity.mjs:142  redactSheet(root);\nanonymity.mjs:144  buildBodyLoot(root, actor)?.catch?.(err => error(\"Could not read whether the body's Take is open\", err));",
+      "failure_scenario": "At a table that turned the switch off in the module's settings, a student stands over a body, opens its sheet and finds no Take from the Body anywhere; the body cannot be searched by a player.",
+      "expected": "The button is on a body's sheet whether or not the sheet is redacted, or the switch's hint and the audit say that Take from the Body goes with it.",
+      "confidence": "read",
+      "refutation_tried": "git grep openBodyLoot, buildBodyLoot, DRPG.Loot.open and requestBodyLoot in scripts: one opener, one caller of it, both behind the return at 127. Read sheet-mode.mjs for another viewer's road (rows are the editor's alone). Read the setting's hint (lang/en.json:287-288), the audit's lines and both handbooks for a word that ties Take from the Body to the switch: only closed sheets are said to stop it (DRPG.Anonymity.audit.closed). The only test that turns the switch off (tier 2 E20-T1) reads the audit, not a body.",
+      "probe": "On the GM: game.settings.set('danganronpa-rpg', 'enforceAnonymity', false), a student dead and public, its sheet at Observer. On a player's page open that sheet: document.querySelector('.drpg-loot-open') is null; with the switch on it is the button."
+    },
+    {
+      "id": "controls-05-murder-body-death-4",
+      "severity": "nit",
+      "verdict": "mislabeled",
+      "title": "The re-ask's toast says the opening roll was offered before anything is, and when nothing is",
+      "surface": "The incident tracker",
+      "control": "Ask for the opening roll again",
+      "where": "scripts/murder-ui.mjs:669-674; scripts/murder-rules.mjs:4481-4500",
+      "what_happens": "reaskOpening starts rollOpening without waiting and says 'The opening roll was offered again: to the victim of a trap, otherwise to the killer.' in the same step (murder-ui.mjs:671-673). rollOpening first needs the opening's statistic: when the incident holds none (a betrayal's, whose statistic window the GM closed) it opens the GM's own window and sends nothing until that is answered, sends nothing at all if the window is closed or already open (murder-rules.mjs:4484-4499), and with the roller's player away it throws the roll on this GM's browser (4449).",
+      "evidence": "murder-ui.mjs:671  rollOpening(current.indirect ? \"victim\" : \"killer\", current)\nmurder-ui.mjs:672  .catch(err => error(\"Could not re-send the opening roll\", err));\nmurder-ui.mjs:673  ui.notifications.info(game.i18n.localize(\"DRPG.Murder.openingReaskSent\"));",
+      "failure_scenario": "A GM who closed the statistic window of a betrayal's opening presses Ask for the opening roll again: the toast says the roll was offered while the GM's own statistic window opens, and closing that window offers it to nobody.",
+      "expected": "The toast follows what rollOpening did: offered to a player, thrown here, or waiting for the GM's pick.",
+      "confidence": "read",
+      "refutation_tried": "Read rollOpening's three ends (asked, thrown here, null) and that reaskOpening reads none of them. An incident opened from the murder window carries its statistic (murder-ui.mjs:315), so there the toast is only early by the socket's send.",
+      "probe": "As GM let a betrayal open (or call openMurder with no openingTrait), close the statistic window, then press button[data-action=reask] on the tracker and read the notices and which windows open."
+    },
+    {
+      "id": "controls-05-murder-body-death-5",
+      "severity": "minor",
+      "verdict": "silent",
+      "title": "A second discovery that reaches its two witnesses while the prompt of the first is open is never asked of the GM",
+      "surface": "The prompt for a discovery waiting for the GM's word",
+      "control": "the prompt itself (no control)",
+      "where": "scripts/body.mjs:849-856, 906-913, 915-949",
+      "what_happens": "When a walk reaches the count the room's row is written and askPendingBodies is called (body.mjs:852-855). One prompt runs at a time: a call while one is open answers that prompt's promise (908-912). promptPendingBodies read its rows once, before the first window (917), and asks those alone (922), so a row written while the GM is looking at the first window is in no loop, and nothing asks again when the first is answered. A later walk into the second room asks nothing either, because its row stands (849-851). What is left is the note in the Body found window (1180-1182), the GM panel's Next line (gm-panel.mjs:949-950) and the next reload or GM leaving (956-962).",
+      "evidence": "body.mjs:908  askingPending ??= promptPendingBodies().catch(err => {\nbody.mjs:911  }).finally(() => { askingPending = null; });\nbody.mjs:917  const rows = pendingBodyDiscoveries({ held: flagsHeldNow });\nbody.mjs:922  for (const row of rows) {\nbody.mjs:923  if (!pendingBodyStore.has(row.key) || !isPrimaryGm()) continue;",
+      "failure_scenario": "Two bodies lie in two rooms; two students walk in on the first and the GM's prompt opens; before the GM answers, two others walk in on the second: its finders hear the sound and are told privately, and the GM is never prompted about it.",
+      "expected": "Every discovery that reaches its count is asked once, the second after the first is answered.",
+      "confidence": "read",
+      "refutation_tried": "Read every caller of askPendingBodies (body.mjs:855, 958, 961): a walk that reaches the count, the GM stores opening, a GM leaving. Read promptPendingBodies for a second read of the rows: none. The walk that would ask again is stopped by the standing row. The owner's decision A (13.11.2026) is that the GM is asked; nothing found decides this case. No test walks two rooms while a prompt is open (R5741 and scenario 10 use one room).",
+      "probe": "On the primary GM with two kept bodies in two rooms: walk two students into the first room and leave the prompt open; walk two others into the second; answer the first prompt; read that no second 'Students found a body' window opens while pendingBodyDiscoveries() still lists the second room."
+    },
+    {
+      "id": "controls-05-murder-body-death-6",
+      "severity": "nit",
+      "verdict": "wrong-audience",
+      "title": "The checklist's first button, Body found, is drawn on a GM whose press is always refused",
+      "surface": "The checklist after an incident that left a body",
+      "control": "Body found",
+      "where": "scripts/murder-rules.mjs:3799, 3828-3831; scripts/body.mjs:176-181, 1107",
+      "what_happens": "Any GM may end a murder from the tracker, and the checklist opens on that GM's browser (murder-rules.mjs:3664-3670). Its primary button, the one Enter presses, opens the body's announcement, which only the primary GM's browser makes: on another GM openBodyDiscoveryDialog answers with the notice 'Only the primary GM, {name}, can announce a body...' and opens nothing (body.mjs:1107, 176-181). The checklist has closed with the press, and the primary GM was shown no checklist.",
+      "evidence": "murder-rules.mjs:3828  if (action === \"body\") {\nmurder-rules.mjs:3829  const { openBodyDiscoveryDialog } = await import(\"./chapter.mjs\");\nmurder-rules.mjs:3830  return openBodyDiscoveryDialog();\nbody.mjs:177  if (isPrimaryGm()) return true;\nbody.mjs:178  const name = game.users.get(primaryGmId())?.name ?? \"?\";\nbody.mjs:179  ui.notifications.warn(game.i18n.format(\"DRPG.Chapter.bodyPrimaryOnly\", { name }));\nbody.mjs:180  return false;",
+      "failure_scenario": "At a table with two GMs the second ends the murder on their tracker, presses Enter on the checklist and reads that only the first GM can announce a body; the autopsy and the Investigation buttons went with the window.",
+      "expected": "On a GM who cannot announce, the button is shut with that reason, or the checklist is the primary GM's.",
+      "confidence": "read",
+      "refutation_tried": "The refusal is told and names who can, and tier 2 holds it ('a GM who is not the primary announces no body and is told whose it is'), so this is the button's audience, not a silent failure. Read afterIncident for a look at who the primary is before it draws the footer: none.",
+      "probe": "With two GMs connected, on the one that is not the primary: open and end a murder that left a body from the tracker, then press button[data-action=body] on 'After the incident'."
+    },
+    {
+      "id": "controls-05-murder-body-death-7",
+      "severity": "nit",
+      "verdict": "stale-state",
+      "title": "Silence now on the tracker is decided when the window opens and does not follow the victim's death or its publication",
+      "surface": "The incident tracker",
+      "control": "Silence now",
+      "where": "scripts/murder-ui.mjs:584-586, 701-703, 748, 760-771, 783-786",
+      "what_happens": "Whether the footer carries Silence now is read once, as openIncidentTracker starts (murder-ui.mjs:703). The body of the window is rebuilt live, but the footer is redrawn only by a reopen, and the tracker reopens itself only when the stage or selfInflicted changes (584-586, 762-763). So a victim marked dead under an unchanged stage (Kill in the Students window or game.drpg.deathDialog(), with Stage 6 declined) gets no button until the tracker is closed and opened again; and a button drawn before the body was announced, or before another GM pressed it, stays, and its press writes nothing and says nothing (silenceDeadNow answers false, incident-store.mjs:982) before the tracker reopens without it. The Students window's own Silence now follows the deaths live (gm-students.mjs:575).",
+      "evidence": "murder-ui.mjs:703  const silence = Boolean(victim) && isDeadForGm(victim) && !isDeceased(victim) && !isDeadSilenced(victim);\nmurder-ui.mjs:585  return now ? [now.stage, now.selfInflicted].join(\"|\") : null;\nmurder-ui.mjs:762  const now = signature();\nmurder-ui.mjs:763  if (now === openedWith) return;",
+      "failure_scenario": "During a fight, with the tracker open, the victim is marked dead with Kill in the Students window (the GM panel is back by finding 8, or a second GM does it) and Stage 6 is answered Cancel; the tracker on screen does not offer Silence now for the body until it is closed and opened again.",
+      "expected": "The button follows the victim's death, its publication and the cast's silencedDead while the tracker stands open.",
+      "confidence": "read",
+      "refutation_tried": "Read keepLive (live.mjs:106-204): it replaces the region, never the footer. Read what the tracker watches (759): actors, tokens, the incident's setting and the cast's hook, none of which redraws a footer. In the ordinary close of a fight the stage moves first and the death is recorded after it (murder-rules.mjs:2880-2904, 2434-2452), so the reopen and the death race; which lands first at a table was not established (see not_established).",
+      "probe": "Open a direct murder, let the fight start, leave the tracker open; mark the victim dead with game.drpg.deathDialog and answer Cancel to 'The incident's victim died'; read the tracker's footer for button[data-action=silence]."
+    },
+    {
+      "id": "controls-05-murder-body-death-8",
+      "severity": "nit",
+      "verdict": "stale-state",
+      "title": "The GM panel comes back over a running incident the first time the tracker reopens itself (window flow, not a control's look)",
+      "surface": "The incident tracker",
+      "control": "the tracker's own reopen at a stage change (no control)",
+      "where": "scripts/murder-ui.mjs:345-349, 760-771; scripts/gm-panel.mjs:605-618",
+      "what_happens": "The GM panel closes for a tile and opens again when the tile's run() settles (gm-panel.mjs:605-618). The Murder tile's run is openMurderDialog, which awaits the tracker so that, as its note says, the panel is not dropped on a live incident (murder-ui.mjs:341-349). But when the stage changes under an open tracker - the opening roll lands, in every murder - the tracker closes itself and opens a new one from a then() nobody awaits (769-770). The close settles the first tracker's wait, openMurderDialog returns true, and the GM panel opens beside the new tracker as the fight begins. No verdict of the list names this exactly; it is filed under stale-state because the panel's return no longer follows the tracker's life.",
+      "evidence": "murder-ui.mjs:348  await openIncidentTracker();\nmurder-ui.mjs:349  return true;\nmurder-ui.mjs:769  dialog.close()\nmurder-ui.mjs:770  .then(() => (again ? openIncidentTracker() : null))\ngm-panel.mjs:608  answer = await item.run();\ngm-panel.mjs:617  openGmPanel().catch(err =>",
+      "failure_scenario": "A GM opens a murder from the GM panel; the killer's opening roll succeeds; the tracker redraws for the fight and the GM panel pops open over it.",
+      "expected": "The panel stays away while a tracker of that incident stands, as the note at murder-ui.mjs:341-343 intends.",
+      "confidence": "read",
+      "refutation_tried": "Read openGmPanel for a look at a running incident: none (gm-panel.mjs:533-545). Read whether the reopen is chained to the first tracker's promise: it is not (the then() is on dialog.close()). Pass, Silence now and the re-ask do return the next tracker (murder-ui.mjs:781, 785, 789), so those keep the chain.",
+      "probe": "From the GM panel press the Murder tile, Open the incident, and let the killer's page roll a success; read which windows stand on the GM: .drpg-window-incident and .drpg-window-panel together."
+    },
+    {
+      "id": "controls-05-murder-body-death-9",
+      "severity": "nit",
+      "verdict": "mislabeled",
+      "title": "End the murder's question does not say that, for a death by the student's own hand, the yes records the death",
+      "surface": "The question 'End the murder' asked from the tracker",
+      "control": "End the murder (the yes)",
+      "where": "scripts/murder-ui.mjs:791-800; scripts/murder-rules.mjs:3473-3481; lang/en.json:2827",
+      "what_happens": "The question has one sentence for every incident: 'Stop tracking this murder? Lost Health and Sanity, items, and Remnants stay as they are.' For an incident by the student's own hand at Stage 6, closing it is the moment the student is killed (murder-rules.mjs:3473-3477), kept by the GMs until the body is found. The GMs were told so on the card that opened Stage 6 (DRPG.Murder.resolutionNoteSelf) and the handbook says it; the button's own question, written by the rule that a yes says what it does (murder-ui.mjs:792), does not.",
+      "evidence": "murder-ui.mjs:794  yes: { role: \"destructive\", label: game.i18n.localize(\"DRPG.Murder.endMurder\") },\nmurder-ui.mjs:798  body: `<p>${game.i18n.localize(\"DRPG.Murder.endConfirm\")}</p>`\nmurder-rules.mjs:3473  if (state?.selfInflicted && state.stage === \"resolution\") {\nmurder-rules.mjs:3477  if (actor && !isDeadForGm(actor)) await killCharacter(actor);",
+      "failure_scenario": "A GM who opened a death by the student's own hand by mistake presses End the murder at Stage 6 to drop it, reads 'Stop tracking this murder?', confirms, and the student is dead.",
+      "expected": "For this incident the question says that ending it records the death.",
+      "confidence": "read",
+      "refutation_tried": "Read the whisper at Stage 6 (murder-rules.mjs:741), the opening's card (DRPG.Murder.openedSelfNote) and gm-handbook.en.md:1122: each says the death is recorded at the close, so the GM has been told elsewhere; the finding is the question's own words. reviveCharacter can take the death back.",
+      "probe": "Open the murder window with one student in both lists, let the roll succeed, press End the murder on the tracker and read the question's body before answering."
+    },
+    {
+      "id": "controls-05-murder-body-death-10",
+      "severity": "minor",
+      "verdict": "dead",
+      "title": "Details in the Direct Murder declaration's confirmation does nothing",
+      "surface": "The Direct Murder declaration in an Eclipse",
+      "control": "Details",
+      "where": "scripts/action-murder.mjs:323-331; scripts/action-briefing.mjs:100; scripts/action-menus.mjs:309, 371-400",
+      "what_happens": "The confirmation a player gets for a Direct Murder in an Eclipse puts the action's briefing in its body (action-murder.mjs:327). briefingBlock always ends in the Details toggle and its box (action-briefing.mjs:100). The toggle's listener is added by wireDetails, which only action-menus.mjs actionWindow calls (309); this window is ui-kit.mjs drpgConfirm, whose frame wires steppers, mode bars and scroll signals and nothing else (ui-kit.mjs:1026-1041). So the button is drawn with its tooltip 'Shows or hides the price, the rolls, and what each result does' and a press does nothing: the box stays shut, as it is by default (settings.mjs:1686-1691), and the lines in it - 'Costs 1 action. You have N.' and the room - cannot be read there. The 16 other call sites of briefingBlock hand it to chooseVariant or actionWindow (the brief: sites and the Dynamic action's read one by one; the intro: sites by their shape).",
+      "evidence": "action-murder.mjs:323  const confirmed = await drpgConfirm({\naction-murder.mjs:327  body: `${briefingBlock(actor, \"directMurder\", def)}\naction-briefing.mjs:100  </div>${detailsHtml(`${factsList(plain.map(f => f.text))}${stack}${thresholds}`)}`;\naction-menus.mjs:309  render: (event, dialog) => { wireDetails(dialog); return render?.(event, dialog); },",
+      "failure_scenario": "In an Eclipse a player presses Direct Murder, reads the confirmation, presses Details to see the price and nothing happens.",
+      "expected": "The toggle opens and shuts its box here as in every action window, or this confirmation draws no toggle.",
+      "confidence": "read",
+      "refutation_tried": "git grep wireDetails and drpg-action-details in scripts: one definition, one caller (actionWindow's render); a11y.mjs only reads such toggles and notice-history.mjs only lists the class. Read wireKit and dressFrame for a generic wiring of aria-expanded buttons: none. R3382 and R3200 hold the Details of the action windows' list, and this confirmation is not on that list (tests-tier0.mjs:23806). The sentence's window that follows is an actionWindow (action-menus.mjs:522), so its own Details works.",
+      "probe": "On a player's page in an Eclipse press the sheet's Direct Murder tile; in the confirmation click .drpg-action-details-toggle and read its aria-expanded and whether .drpg-action-details-box loses inert."
+    }
+  ],
+  "not_established": [
+    "Nothing was pressed or run in this pass: every row is label -> element -> listener -> handler -> effect read in the source at b5a29e73, with the tests and scenarios that press or pin it named where git grep found them.",
+    "Whether Foundry 14's DialogV2 keeps the <form> a window's body brings (utils.mjs dialogContent hands it a bare div). The callbacks read here find their fields either way, by reading: d.element.querySelector('form') then answers DialogV2's own form, which holds the same named fields (the murder window's killer, victim, indirect and openingTrait; the body's room and victim; the death's actor, keepBullets and secret). Not compared with a drawn v14 window.",
+    "Announce the body and Record the death open disabled: the kit writes the button's disabled itself (ui-kit.mjs:297-299) and death.mjs chooseFirst lifts it on a choice. Foundry 14's own drawing of a disabled dialog button, and whether a press of one is refused by Foundry, were not read; tier 2 E22-T1 presses Enter in both windows on the harness's model.",
+    "Finding 7's ordinary road: at a Finishing Blow or a victim run out, the stage is written before the death is recorded, and the tracker's reopen (a 120 ms debounce, then the window's close) races the death's row (one chat write, then the GMs' store). Which lands first on a real server was not established; if the reopen wins, Stage 6's tracker has no Silence now. A reading on a table would settle it: after a Finishing Blow, the tracker's footer.",
+    "Finding 1's leg with the roller's player away: a GM's own throw goes to resolveOpening through requestOpeningResult's local road (bridge-asks.mjs:46-50), which has no once-only check; whether roll-draw.mjs keeps a record of a GM's own throw that something else would read was not traced.",
+    "The roll window an opening invitation opens is Daggerheart's, dressed by roll-dialog.mjs: its own buttons were not read here. The GM's statistic window an opening or a crisis roll waits on (trait-ruling.mjs traitFor) and the GM's side of Take from the Body (handover.mjs lootBody, bridge-runs-records.mjs handleLoot) were not read here either.",
+    "murder-rules.mjs was read in the parts that build, wire and handle controls (3053 of 4746 lines). Not read: 1-124, 351-404, 620-659, 1530-2375 (the GM's scoring of a crisis action and its undo), 2466-2861, 2952-3039, 3255-3399. A grep of the whole file for drpgWindow, drpgConfirm and drpgPrompt gives the seven sites read.",
+    "Layout was not measured: whether a footer's buttons or a row are clipped at a narrow or short screen in either theme. Only rules that hide (display: none, visibility: hidden, pointer-events: none) were searched, by a script over styles/*.css.",
+    "The Event panel's hover texts under Monokuma Legacy: the motive card's and the trial clock's data-tooltip sit in a panel that takes no pointer there (danganronpa.css:10216), so by the stylesheet as read they cannot be hovered, while under Stained Glass they can (stained-glass.css:730). No control is affected and the motive's consequence is printed on the card; whether Foundry's tooltip shows over such an element was not tried.",
+    "The body's tile has no control of the module's: it is laid at alpha 0, and the caption on the corpse's token takes no pointer (body-tile.mjs:420-421). Whether Foundry 14 draws a tile at alpha 0 to nobody, a GM included, is the module's own LIVE-E95-01."
+  ]
+}

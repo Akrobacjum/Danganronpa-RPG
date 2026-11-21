@@ -1,0 +1,1029 @@
+{
+ "reader": "stages-18",
+ "checkout": "branch claude/audit-119 at d0b71dc3; the code read is main b5a29e73 (1.2.118) - the branch adds files under audit/ only. Shallow history, no version tags: the trains' ranges are the merge commits 14619ce2 (1.2.106), 235c3210 (1.2.107) and 4dfac3a9 (1.2.108). Nothing run but read-only git, grep and short python over the source and over the base run's suite shards 1/8-5/8 (results-suite-1..5 in the session's scratchpad, base/shards; read into a name -> outcome table); base-run.json was not on the branch, shards 6/8-8/8 and every scenario of the base run were not available.",
+ "read": [
+  {
+   "file": "audit/findings-1.2.118/BRIEF.md",
+   "lines": "1-95",
+   "of": 95,
+   "how": "whole"
+  },
+  {
+   "file": "audit/AUDIT-1.2.42.md",
+   "lines": "16-127 (section 11); 1456-1469 (9.2 items 482-495); 1493-1494 (items 514-515)",
+   "how": "whole ranges; the items found by grep for LIVE-E97, -E98, -E73, -E99"
+  },
+  {
+   "file": "audit/findings-1.2.118/stages-25.json",
+   "how": "shape and the E112 entry read whole; stages-16.json for the l1 and not_established shape"
+  },
+  {
+   "file": "tools/stages.json",
+   "lines": "rows E97, E98, E73, E99 and their neighbours E76, E61",
+   "how": "by script"
+  },
+  {
+   "file": ".github/release-notes/v1.2.107.md",
+   "lines": "1-393",
+   "of": 393,
+   "how": "whole"
+  },
+  {
+   "file": ".github/release-notes/v1.2.108.md",
+   "lines": "1-468",
+   "of": 468,
+   "how": "whole"
+  },
+  {
+   "file": "docs/dev/e97/STATUS.md",
+   "lines": "1-99",
+   "of": 99,
+   "how": "whole"
+  },
+  {
+   "file": "docs/dev/e97/STATUS-FIX.md",
+   "lines": "1-116",
+   "of": 116,
+   "how": "whole"
+  },
+  {
+   "file": "docs/dev/e73/STATUS.md",
+   "lines": "1-215",
+   "of": 215,
+   "how": "whole"
+  },
+  {
+   "file": "docs/dev/e99/STATUS.md",
+   "lines": "1-130, 300-440 of 673; headings of the rest",
+   "of": 673,
+   "how": "the 1.2.108 part whole; the later sections (E99 next, rounds 7 on, 13.11.2026) by their headings, as the record of what later lines changed"
+  },
+  {
+   "file": "docs/dev/e110/STATUS.md",
+   "lines": "1-30, 77",
+   "how": "the rows that repaired E73's zone modes"
+  },
+  {
+   "file": "docs/dev/R-REGISTRY.md",
+   "lines": "the 49 rows stamped E97 (19), E98 (1), E73 (12, R3910 removed) and E99 (17, six removed), and R3917-R3919, R3967, R3968, R6050, R6051",
+   "how": "by script, titles read whole"
+  },
+  {
+   "file": "scripts/tests-tier0.mjs, tests-tier1.mjs",
+   "lines": "R3656 (tier1 9133-9161), R3658 (9162-9192), R3671 (tier0 24545-24582), R3904 (tier1 9704-9737); the other rows by title",
+   "how": "bodies of four tests read; the rest by title and result"
+  },
+  {
+   "file": "scripts/tests-tier2.mjs",
+   "lines": "the 13 titles naming E97, E73 or E99 (31317, 31641, 32637, 32688, 32727, 32760, 32888, 32997, 33039, 33093, 46968, 47044, 47078)",
+   "how": "titles; results looked up in the shards"
+  },
+  {
+   "file": "scripts/remnants.mjs",
+   "lines": "1235-1276, 728-742",
+   "how": "setRemnantAuthor, authorOptions, the GM's trace card"
+  },
+  {
+   "file": "scripts/truth-bullets.mjs, handover.mjs, world-secrets.mjs",
+   "lines": "truth-bullets 600-615, 750-765; handover 340-344; world-secrets 120-150, 200-216, 250-256",
+   "how": "ranges"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "lines": "1100-1110, 1196-1266, 2206-2350",
+   "how": "the view default, the reach, Who has what, the dashboard's frame"
+  },
+  {
+   "file": "scripts/case-realize.mjs",
+   "lines": "92-281 of 281",
+   "how": "whole from the preview on"
+  },
+  {
+   "file": "scripts/case-schema.mjs",
+   "lines": "505-590",
+   "how": "reachability, CASE_PROBLEMS, checkCase's head"
+  },
+  {
+   "file": "scripts/case-view.mjs, case-map.mjs",
+   "lines": "case-view 1-60, 210-271, 375-470; case-map 415-530",
+   "how": "geometry, camera, the map's wiring"
+  },
+  {
+   "file": "scripts/case-summary.mjs",
+   "lines": "1-126 of 126",
+   "how": "whole"
+  },
+  {
+   "file": "scripts/case-hints.mjs",
+   "lines": "1-66 of 66",
+   "how": "whole"
+  },
+  {
+   "file": "scripts/zone-machine.mjs",
+   "lines": "60-130, 150-240, 335-360",
+   "how": "verdicts, the dive's judgement, the early count"
+  },
+  {
+   "file": "scripts/trial-zones.mjs",
+   "lines": "340-372",
+   "how": "sideOnPrimary, thesisOnPrimary"
+  },
+  {
+   "file": "scripts/vote.mjs, trial-progress.mjs, trial-floor-ui.mjs",
+   "lines": "trial-progress 494-524; trial-floor-ui 1440-1460",
+   "how": "the record's write road; the summary button"
+  },
+  {
+   "file": "scripts/gm-stores.mjs",
+   "lines": "1660-1712",
+   "how": "caseSchemaStore, caseTickStore, diveSetStore"
+  },
+  {
+   "file": "lang/en.json, lang/pl.json",
+   "lines": "DRPG.Zones.dive.*",
+   "how": "by script"
+  },
+  {
+   "file": "audit/harness/README.md",
+   "lines": "197-208",
+   "how": "register rows; grep of the four ids: one row (68) names E73"
+  },
+  {
+   "file": "audit/harness/scenarios/68-trial-zones.mjs",
+   "lines": "1-60",
+   "how": "the header"
+  },
+  {
+   "file": "audit/findings-1.2.118/live-items-463.json, live-items-493.json, live-readings-*.json",
+   "how": "grep for the four ids; the 14 live items' rows read"
+  },
+  {
+   "file": "audit/findings-1.2.118/controls-01, -02, -03, refresh-01-04 and their verify files; domain-case-b, -c, -d",
+   "how": "findings on these stages' surfaces, by script; joined, not redone"
+  }
+ ],
+ "count_expected": 4,
+ "count_note": "Four stages given (E97, E98, E73, E99, in tools/stages.json order) and four written. E98 has no papers folder of its own; it is graded from the shared 1.2.107 notes, e97/STATUS.md and its one registry row. Registry rows counted by stamp: E97 19 (all live), E98 1, E73 12 (11 live, R3910 removed), E99 17 (11 live, R3663-R3666 and R3676-R3677 removed); 42 live rows, all ok in shard 1/8. Findings: 5 of this reader (all nit) and 10 joined from other lanes by duplicate_of (all minor, none redone; further nits of other lanes are named in the promises notes only).",
+ "stages": [
+  {
+   "id": "E97",
+   "version": "1.2.107",
+   "shipped": "2026-11-12",
+   "what": "The case map: the Investigation panel opens on a Map of the chapter's case (evidence, deductions, counters, the solution), the Table one switch away per GM; nodes shown whole and edited on themselves, a pannable and zoomable camera; the case schema as a GM store; reach 'x/y' past half; Check consistency; the realization of the Key Remnant plan with a preview, a run and an undo; the question at a body; planned Incident Remnants; who left a Remnant, for the GMs alone. 19 registry rows stamped E97.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.107.md (1-393, whole; shared with E98)",
+    "docs/dev/e97/STATUS.md (1-99, whole) and docs/dev/e97/STATUS-FIX.md (1-116, whole: the owner's review of 12.11.2026 - whole nodes, editing on the node, the camera)",
+    "tools/stages.json row E97 (planned and shipped 1.2.107, touches scenes and sockets, drills none; 656cb513)",
+    "audit/AUDIT-1.2.42.md 9.2 items 482-487 (LIVE-E97-01..06, lines 1456-1461)",
+    "git log -E --grep E97 on b5a29e73: 39 commits; the train 14619ce2..235c3210: 27 commits (the notes' 25 plus 1.2.106's two gate commits 6cce91ef, 373dbdfc brought by the merge fa73b601)"
+   ],
+   "commits": 27,
+   "promises": [
+    {
+     "promise": "Every Remnant can name who left it, for the GMs alone: an author select 'Left by (GMs only)', '- unknown -' first, on New Remnant, Create Key Remnant here, the Final Truth form and the GM's card of a trace; the author written on the ledger row only, handed on in a bullet's answer key, never on an item, token or card; no migration",
+     "source": "v1.2.107.md 41-43, 64-79, 104-109; e97/STATUS.md 9",
+     "code": "scripts/remnants.mjs:1256-1263 (authorPatch, setRemnantAuthor: GM only, ifLive), :1270-1276 (authorOptions); scripts/truth-bullets.mjs:609-611 (leftByOf), :755-764; scripts/handover.mjs:342-343; scripts/world-secrets.mjs:147-148 (leftBy among a trace's secret fields), :214-215 (Item leftBy, leftByName); selects at investigation.mjs:70, :159, :1012, key-remnants.mjs:1161, remnant-ring.mjs:409",
+     "holds": "yes",
+     "test": "R3370, R3371, R3372 (all ok, shard 1/8); R190's fixtures",
+     "test_kind": "both",
+     "note": "That no player's browser holds an author at a real table is LIVE-E97-05 (open)."
+    },
+    {
+     "promise": "An author a GM sets counts as a player's own: Observe's preference, an incident's tie and Tamper read the same field",
+     "source": "v1.2.107.md 75-76 ('read in the code, not run')",
+     "code": "scripts/remnants.mjs:1252-1254 (the comment naming observe.mjs, placeRemnant and cleanup.mjs); lang/en.json:2092 (the select's tooltip)",
+     "holds": "unread",
+     "test": "none named by the notes; the notes say read, not run",
+     "test_kind": "none",
+     "note": "Taken from the comment and the notes; the three readers were not traced in this pass."
+    },
+    {
+     "promise": "The panel has one fixed size, 1120 px (WIDE.width), the same on the Map and every Table tab; the footer two rows at every width as a kit option",
+     "source": "v1.2.107.md 34-41, 111-118; e97/STATUS.md 12",
+     "code": "scripts/investigation.mjs:2290-2296 (width: WIDE.width), :2345 (rows: 2); scripts/ui-kit.mjs:150-157 (footer.rows: 2)",
+     "holds": "yes",
+     "test": "R3650 (ok); R1357, R1358 (the kit's rule)",
+     "test_kind": "both",
+     "note": "Measured only in Chromium through the style harness (1120 x 714 / 688 at 1366x768), never in Foundry's frame: LIVE-E97-01. The footer's ten buttons were cut by E64-inv (R3967: Undo realization moved behind the preview's own footer), so 'ten buttons, five a row' (v1.2.107.md 50-51) no longer describes the bar."
+    },
+    {
+     "promise": "The Map is the default view; each GM's choice of Map or Table is kept on their own User (flag investigationView, a word only)",
+     "source": "v1.2.107.md 31-33, 63-68, 175-181",
+     "code": "scripts/investigation.mjs:1103-1106 (investigationView answers 'map' with no flag), :2268, :2305 (setFlag on game.user)",
+     "holds": "yes",
+     "test": "R3652 (ok; the notes' mutant of the default read it red)",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "The case schema is a GM store (gmCaseSchema): synced between GMs, any GM writes it, in the case backup, cut with the Key Remnant plan at a season reset; no player holds it",
+     "source": "v1.2.107.md 58-63, 120-124",
+     "code": "scripts/gm-stores.mjs:1666-1668 (caseSchemaStore: ledger, resetGroup keyPlan, backup, sync)",
+     "holds": "yes",
+     "test": "R3373, R3374 (ok); tier 2 'Back up the case, then Restore, brings every store back' (tests-tier2.mjs:56587; not in the shards read)",
+     "test_kind": "both",
+     "note": ""
+    },
+    {
+     "promise": "The layout: evidence left, deductions and counters by depth, the solution right, unrelated evidence below a folding gap; a cycle refused; five orders and fewer crossings",
+     "source": "v1.2.107.md 124-128",
+     "code": "scripts/case-layout.mjs:85 (layoutCase), :139 (crossings); scripts/case-view.mjs:83 (mapPlace)",
+     "holds": "yes",
+     "test": "R3375, R3651 (ok)",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "A deduction shows 'x/y' and is marked reachable once students other than the culprit hold strictly more than half its inputs; a bullet only the culprit holds counts for nothing; only the living count",
+     "source": "v1.2.107.md 22-26; the owner's answers of 09.11.2026 (v1.2.107.md 265-267)",
+     "code": "scripts/case-schema.mjs:511-539 (reachability: needed = floor(n/2)+1, culprit and the dead left out); scripts/investigation.mjs:1206-1228 (caseReach), :1239-1244 (caseCulprits)",
+     "holds": "yes",
+     "test": "R3376, R3655 (ok)",
+     "test_kind": "behaviour",
+     "note": "The reach reads the answer keys when the window draws; it does not redraw when a key lands later (refresh-01-04-2, minor, joined below)."
+    },
+    {
+     "promise": "Check consistency lists what does not hold together as warnings that block nothing, ten codes, marked on the nodes",
+     "source": "v1.2.107.md 26-27, 133-140",
+     "code": "scripts/case-schema.mjs:542 (CASE_PROBLEMS), :560 (checkCase)",
+     "holds": "yes",
+     "test": "R3654 (ok)",
+     "test_kind": "behaviour",
+     "note": "Eleven codes today: E104 added 'incomplete' (case-schema.mjs:557, :582). It reads the stored case, so with every node open what a GM just typed is not checked until they leave the Map (controls-03-investigation-planner-14, minor; a later stage's surface)."
+    },
+    {
+     "promise": "Every node is as large as its whole name and description, no two overlap, no clamp or ellipsis (the E97 fix)",
+     "source": "v1.2.107.md 183-200; STATUS-FIX.md 26",
+     "code": "scripts/case-view.mjs:52 (MAP_GEOMETRY), :83-98 (mapPlace stacks a column by measured sizes), :293 (relayoutCaseMap)",
+     "holds": "yes",
+     "test": "R3660 (ok); audit/case-map-sweep.mjs in Chromium (24 pages, 0 cut, 0 overlaps, in the notes)",
+     "test_kind": "both",
+     "note": "The numbers moved since: a node is 300 px wide (owner-116, 1.2.116) and columns 200 px apart (13.11.2026), not 240 and 48. Fonts and Foundry's frame not measured: LIVE-E97-01, whose text still asks for 'no node label cut beyond two lines' (the notes 329-331 say so)."
+    },
+    {
+     "promise": "A node is edited on itself: click or Enter opens its fields, Escape (stopped there) or a click on empty space closes them; no side panel; Move up, Move down and Remove on the node; the Table's one Save writes a Map edit unchanged",
+     "source": "v1.2.107.md 13-20, 200-210; STATUS-FIX.md 27",
+     "code": "scripts/case-map.mjs:436-523 (wireCaseMap: onPick, onClose, Escape with preventDefault and stopPropagation at :517-523, the empty-space click)",
+     "holds": "superseded",
+     "test": "R3653 (parity), R3661 (ok); tier 2 'E97 C6: a case node's name, mode and inputs edited on the Map ...' (ok, shard 4/8); 'E97 C6: a Remnant edited on the Map is saved by the Table's one Save ...' (tests-tier2.mjs:31317, not in the shards read)",
+     "test_kind": "both",
+     "note": "Since E64 (1.2.110, R3919) the open node's fields replace its face; since 13.11.2026 a node saves when its editing closes and the window's every close writes; since owner-116 (1.2.116) every node is open by default, and then Escape and the empty-space click shut nothing (case-map.mjs:488-490). E97's open-and-close rules hold only with All open switched off. Move up / Move down read another graph than the Map draws (controls-03-investigation-planner-1, minor, joined)."
+    },
+    {
+     "promise": "The camera: drag on empty space pans, the wheel zooms about the pointer, -, + and Fit to view and the keys + = - 0 zoom, held to 0.25..2, the pan keeping 48 px in view, the buttons' zoom easing 160 ms unless motion is reduced; kept across redraws",
+     "source": "v1.2.107.md 210-217; STATUS-FIX.md 28",
+     "code": "scripts/case-view.mjs:218 (CAMERA_LIMITS 0.25, 2, step 1.25, margin 48), :221-271, :379-470 (wireCaseCamera: the ease only when not still); scripts/case-map.mjs:424-431 (motionStill: the module's class or the system's query)",
+     "holds": "yes",
+     "test": "R3662 (ok; the notes' mutant of the ease under reduced motion read it red)",
+     "test_kind": "behaviour",
+     "note": "Real mouse, trackpad and touch never tried (the notes' Known gaps). Since round 5 of E99 the camera's bar is a strip under the graph."
+    },
+    {
+     "promise": "The realization: the preview lists each Key slot not on the map and writes nothing; Run places the picked slots through the Key planner's road and marks them in the GMs' case; Undo removes only what nobody found and Monokuma did not reveal and frees the slot; two GMs' runs settled by the run's id and a 300 ms wait",
+     "source": "v1.2.107.md 28-31, 150-156, 305-310",
+     "code": "scripts/case-realize.mjs:92-123 (openRealization), :126-150 (runRealization: setCaseMeta run, 300 ms, return when overwritten; placeInSlot), :156-177 (undoRealization: finders, keyRevealRecord), :180-193 (confirmUndoRealization)",
+     "holds": "yes",
+     "test": "tier 2 'E97 C10: the realization's preview writes nothing; Run places the slot picked in its room and marks it; Undo takes back what nobody found and frees the slot' (ok, shard 2/8); R3657 (ok)",
+     "test_kind": "behaviour",
+     "note": "Undo with something found is read, not run (the tier-2 Undo has nothing found: the notes' Known gaps). The 300 ms is a choice, not a lock across a slow network (LIVE-E97-04). Run from the question at a body that places nothing says nothing (controls-03-investigation-planner-9, nit, joined)."
+    },
+    {
+     "promise": "The question at a body: on the primary GM only, after a body is found by either road, once a chapter, only while the chapter has a case not yet realized; not for the suite's rehearsal",
+     "source": "v1.2.107.md 85-90, 157-158",
+     "code": "scripts/case-realize.mjs:203-215 (registerCaseAsk: writer, primary, not rehearsal), :218-226 (shouldAskAtBody), :228-242 (askAtBody writes askedAt first)",
+     "holds": "yes",
+     "test": "tier 2 'E97 C11: a body found asks the primary GM about the realization once, and a rehearsal or a second body asks nothing' (ok, shard 3/8)",
+     "test_kind": "behaviour",
+     "note": "The test calls the announcement hook as its writer would; neither road of a discovery is driven to it (the notes' Known gaps; LIVE-E97-03, whose text live-items-463 reads as stale since 1.2.113's witnessed bodies)."
+    },
+    {
+     "promise": "The GM panel lists the chapter's planned Incident Remnants under the Next line, each with Place on the map or Show",
+     "source": "v1.2.107.md 91-93, 158",
+     "code": "none today: the tier-2 test 'the GM panel lists no planned Remnants to place ...' (tests-tier2.mjs:33093; ok, shard 3/8) holds its absence",
+     "holds": "superseded",
+     "test": "the E97 C12 tier-2 test was rewritten by fix-113d (13.11.2026) to pin the opposite",
+     "test_kind": "behaviour",
+     "note": "Removed at the owner's word of 13.11.2026 ('Let's remove the case waits... from the GM panel'); shipped in 1.2.113."
+    },
+    {
+     "promise": "Nothing of the case reaches a player: the Map, its fields, the overview, the realization's windows, the question and the panel line are drawn on a GM only",
+     "source": "v1.2.107.md 79-84",
+     "code": "scripts/gm-stores.mjs:1666-1668 (a client-setting GM store); scripts/investigation.mjs:2206 (the dashboard, refused to a player as before)",
+     "holds": "yes",
+     "test": "R3374 (ok); scenario 72's scans (base-run result not read)",
+     "test_kind": "behaviour",
+     "note": "LIVE-E97-05 is the reading at a table."
+    }
+   ],
+   "registry_rows": 19,
+   "tests_read": [
+    {
+     "test": "R3370-R3376, R3650-R3657, R3659-R3662 (19 rows)",
+     "measures": "yes",
+     "why": "All 19 ok in the base run's shard 1/8 (tiers 0-1). Titles read whole; the notes quote a red for R3370-R3376, R3650-R3652, R3659-R3662 before their code and three planted faults read red by R3660-R3662."
+    },
+    {
+     "test": "R3656 (tests-tier1.mjs:9133-9161)",
+     "measures": "weak",
+     "why": "Opens the dashboard on the Map and compares each listed student's name, bullet names and item names with the world. Its title says it reads 'what each really is' and names a side panel; the side panel is gone and the real kind the list draws (investigation.mjs:1255-1258) is not compared - finding E97-1."
+    },
+    {
+     "test": "tier 2 'E97 C10: the realization's preview ...' (tests-tier2.mjs:32637)",
+     "measures": "yes",
+     "why": "Preview writes nothing, one slot placed and marked, Undo removes it and frees the slot (removed 1, kept 0); ok in shard 2/8. Undo with something found is not driven."
+    },
+    {
+     "test": "tier 2 'E97 C11: a body found asks the primary GM ...' (32688)",
+     "measures": "yes",
+     "why": "Question windows [0, 1, 0] after a rehearsal, a first body and a second, by the hook; ok in shard 3/8."
+    },
+    {
+     "test": "tier 2 'E97 C6: a case node's name, mode and inputs edited on the Map ...' (31641)",
+     "measures": "yes",
+     "why": "ok in shard 4/8; another GM's change under the window refused and told."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: E97 C6: a Remnant edited on the Map is saved by the Table's one Save, as the Table's row saves it (tests-tier2.mjs:31317)",
+    "tier 2: Back up the case, then Restore, brings every store back (56587)",
+    "scenario 62-investigation (the Table phase asks for the Table by name)",
+    "scenario 61-gmstore-case (D5, the 1.2.107 line's d220d7a7)",
+    "scenario 72-canary"
+   ],
+   "scenarios": [
+    "No register row of audit/harness/README.md names E97 (grep: 0). Scenario 62 names it once in a comment (62-investigation.mjs:515: the Map is the default since E97 C9) and its Table phase opens the Table by name; no scenario drives the Map, the realization, the question at a body or two GMs' runs (the notes' 'Not in this release': the plan's 97-case and a realization phase in 62 were not built)."
+   ],
+   "live": {
+    "items": 6,
+    "read": 0,
+    "ids_read": [],
+    "note": "LIVE-E97-01..06 (items 482-487) all open: no reading in live-readings-e58.json, -other.json or the L1 delta. live-items-463.json reads 482-484 as subject present, 483 and 484 with stale text (the preview's Polish label; the witnessed body since 1.2.113); 482 still asks for 'no node label cut beyond two lines', a rule the E97 fix replaced."
+   },
+   "findings": [
+    {
+     "id": "E97-1",
+     "severity": "nit",
+     "category": "test-coverage",
+     "title": "R3656 promises the real kind of each bullet and a side panel; it compares names only, and the panel is gone",
+     "where": "scripts/tests-tier1.mjs:9133 (the title), :9147-9157 (what it reads); scripts/investigation.mjs:1255-1258 (studentsListHtml draws the real kind beside each bullet)",
+     "what_happens": "The test reads li.firstChild's text of each list item - the bullet's name - and compares it with bulletsOf(actor).map(i => i.name). The kind the list draws in a span after the name (the GMs' answer key's realType) is never compared, and the title's 'with no node picked the side panel lists' names a panel the E97 fix removed (the notes 141 say the name is stale).",
+     "evidence": "parts: [...el.querySelectorAll(\".drpg-case-student-part\")].map(part => [...part.querySelectorAll(\"li\")].map(li => li.firstChild?.textContent ?? \"\")) ... return `<li>${esc(item.name)}${kind ? ` <span class=\"notes\">(${esc(kind)})</span>` : \"\"}</li>`;",
+     "failure_scenario": "A change that drew every bullet's kind wrong (or the player-facing kind instead of the answer key's) in the GM's Who has what list would leave R3656 green, and a reader of the registry would think the real kind is held.",
+     "expected": "The title says what the test compares, or the test compares the kind too.",
+     "confidence": "read",
+     "refutation_tried": "Looked for another test that reads the kind in .drpg-case-students (R3968 reads the Table's tab, not the Map's list; grep for 'drpg-case-student' in the tier files finds R3656 and one test that only counts the lists (tests-tier1.mjs:9272); none compares the kind). The notes (v1.2.107.md 141) already name the stale panel; the missing kind they do not."
+    },
+    {
+     "id": "controls-03-investigation-planner-1",
+     "severity": "minor",
+     "duplicate_of": "controls-03-investigation-planner-1",
+     "title": "Move up / Move down read another graph than the Map draws (joined: E97 C6's order tools)",
+     "where": "scripts/investigation.mjs:1927-1940",
+     "what_happens": "See controls-03-investigation-planner.json; stands in its verify file.",
+     "failure_scenario": "A GM orders an unwritten Key slot and nothing moves while another node jumps.",
+     "confidence": "read",
+     "refutation_tried": "Not redone here; the verify pass left it standing."
+    },
+    {
+     "id": "controls-03-investigation-planner-12",
+     "severity": "minor",
+     "duplicate_of": "controls-03-investigation-planner-12",
+     "title": "The Map's fold and the Table's filter drop a typed, unwritten field without a word (joined: E97 C5's fold)",
+     "where": "scripts/investigation.mjs:1860, :1998-2004; scripts/case-map.mjs:168-194",
+     "what_happens": "See controls-03-investigation-planner.json.",
+     "failure_scenario": "A GM types a node's note, folds the unrelated evidence, and the note is gone.",
+     "confidence": "read",
+     "refutation_tried": "Not redone here; the verify pass left it standing."
+    },
+    {
+     "id": "refresh-01-04-2",
+     "severity": "minor",
+     "duplicate_of": "refresh-01-04-2",
+     "title": "The dashboard does not hear the bullets' answer keys: 'found by', Who has what and the Map's reach stay as drawn (joined: E97 C7)",
+     "where": "refresh-01-04.json",
+     "what_happens": "See refresh-01-04.json; the verify pass weakened it but kept it minor.",
+     "failure_scenario": "A player is handed a bullet while the GM's Map is open; its 'x/y' does not move until a redraw.",
+     "confidence": "read",
+     "refutation_tried": "Not redone here."
+    }
+   ],
+   "superseded_by": [
+    "E64 (1.2.110): the open node is its editor (R3919); Undo realization moved behind the preview, the bar cut (E64-inv, R3967)",
+    "fix-113d (1.2.113): the GM panel's planned Incident Remnant line removed at the owner's word of 13.11.2026",
+    "E104 and the 13.11.2026 case-planner rounds (planned Remnants of other kinds, planned rooms, planned Autopsies and minigames; a node saves when its editing closes; columns 200 px apart): the Map holds more than E97 drew, checkCase an eleventh code",
+    "owner-116 in E112's train (1.2.116): every node open by default and 300 px wide, so Escape and the empty-space click close nothing unless All open is off"
+   ],
+   "grade": 7,
+   "provisional": "after L1",
+   "grade_reasons": "Every promise of E97 is in today's code or was replaced on purpose by a later stage at the owner's word (the panel line, the open-and-close editing, the bar's ten buttons); all 19 registry rows are ok in the base run's shard 1/8, and the three tier-2 tests read there (C6 node, C10, C11) are ok. Against an 8: on the stage's own surfaces other lanes hold three minor findings that their verify passes left standing (controls-03-investigation-planner-1 and -12, refresh-01-04-2) and a nit (-9); two parts stand on reading alone (an author counting as a player's own in Observe, the tie and Tamper; Undo with something found); one test claims more than it reads (E97-1, nit). The look, the camera with real input and the two-GM run were measured only in jsdom and Chromium through the style harness; the six live items are unread, so the grade is capped at 9 and provisional. Two tier-2 tests and every scenario of the base run were not read.",
+   "missing_to_10": "The three joined minors closed; a test that sets a GM author and reads Observe's preference, the incident's tie and Tamper's offer; a tier-2 Undo with one Remnant found and one revealed; R3656 comparing the kind or retitled; the realization and two GMs' Run in a scenario (the plan's 97-case); LIVE-E97-01..06 read at a table (01 rewritten for whole nodes, All open and the camera).",
+   "l1": {
+    "what": "The case map in Foundry's own frame and the realization on a real scene (LIVE-E97-01, -02 first; then -04, -05, -03, -06)",
+    "recipe": [
+     "As GM at 1366x768 and 1920x1080, open The case > Investigation: the Map, then the Table and each tab; screenshot each and note the window's width and whether the footer moves.",
+     "On the Map with All open off, click a node, press Escape: note whether the node closes and the window stays open.",
+     "Drag empty space, wheel over the graph, press -, + and Fit to view: note that zoom stops at 25% and 200%.",
+     "Realization preview: pick a room for two slots, Run; as a player find one; Undo: note what was removed and what stayed.",
+     "In a second browser as a player, with an author set by the GM on a trace, run in the console: game.actors.contents.flatMap(a => a.items.contents).map(i => i.flags) and look for leftBy, sourceName or sourceActor."
+    ],
+    "clients": "GM, a second GM for LIVE-E97-04, one player",
+    "theme": "both",
+    "settles_if": "Frame fixed, nodes whole, Escape closing the node only, Undo removing only the unfound and no author on the player's side: the stage holds at a table; Escape closing the window or an author on the player's side is a defect against E97.",
+    "priority": "grade cap 9"
+   }
+  },
+  {
+   "id": "E98",
+   "version": "1.2.107",
+   "shipped": "2026-11-12",
+   "what": "With E97, one release (the owner's 'Wariant A' of 11.11.2026): Who has what as a Table tab of its own, by name (E98 C4); Legacy's one-word Remnants heads (AUDIT 449, left to E98 by 1.2.103); and E98's verify, a measurement of a world of about 60 Remnants. No papers of its own: its record is docs/dev/e97/STATUS.md and the 1.2.107 notes. One registry row (R3658).",
+   "claim_sources": [
+    ".github/release-notes/v1.2.107.md 53-56, 133-141, 244, 256-259, 271, 294 (shared with E97)",
+    ".github/release-notes/v1.2.103.md 121, 198-214 (what was moved to E98)",
+    "docs/dev/e97/STATUS.md 12 (Legacy's heads, built under E97 C2), 15 (E98 C4), 22-23 (the 60-Remnant measurement still open)",
+    "tools/stages.json row E98 (planned and shipped 1.2.107, with E97, touches [], drills none)",
+    "git log -E --grep '\\bE98\\b' on b5a29e73: 16 commits, every one shared with E97 or a merge; the one carrying E98's code is fd668314 (E98 C4)",
+    "No LIVE-E98 item exists (v1.2.107.md 331; grep of AUDIT-1.2.42.md: 0)"
+   ],
+   "commits": 1,
+   "promises": [
+    {
+     "promise": "In the Table view Who has what is a tab of its own after Remnants, Key Remnants and Final Truth Remnants, with the counts table and each living student's Truth Bullets and items by name; nothing stands above the tabs",
+     "source": "v1.2.107.md 53-56; e97/STATUS.md 15",
+     "code": "scripts/investigation.mjs:1081 (the 'who' tab)",
+     "holds": "superseded",
+     "test": "R3658 (ok, shard 1/8)",
+     "test_kind": "behaviour",
+     "note": "Since E64-inv (1.2.110, R3968) the pane is one table whose rows name each student's bullets and items; 'a list under the counts' as 1.2.107 shipped it is gone (R3658's own comment says so). The tab and the by-name promise hold. The pane does not redraw when a bullet's answer key lands after it is drawn (refresh-01-04-2, minor, joined under E97)."
+    },
+    {
+     "promise": "Legacy's one-word heads: under Monokuma Legacy the Remnants table scrolls sideways in its own box rather than breaking a head inside a word (Difficulty 13 %, Name 15 %)",
+     "source": "v1.2.107.md 36-39; e97/STATUS.md 12; v1.2.103.md 202, 213",
+     "code": "built under E97 C2 (e320102); the dashboard's one scroller (live-items-463.json item 482's reading of audit/style-sweep.mjs:244-250)",
+     "holds": "partly",
+     "test": "R3650 (ok; the frame); Chromium through the style harness ('no Traces or Key head word wider than its head under Legacy', e97/STATUS.md 18-19)",
+     "test_kind": "source",
+     "note": "Measured in Chromium on the module's sheets only, with the harness's fonts; not in Foundry and not after the later changes to the Table. LIVE-E97-01 is its reading."
+    },
+    {
+     "promise": "E98's verify: the Map measured on a world of about 60 Remnants",
+     "source": "v1.2.107.md 244 ('not made, headless or anywhere'); e97/STATUS.md 22-23",
+     "code": "none",
+     "holds": "no",
+     "test": "none",
+     "test_kind": "none",
+     "note": "Openly not done; LIVE-E97-06's second half (game.drpg.fps() with the panel open on a 60-Remnant world) is the only place it is asked."
+    }
+   ],
+   "registry_rows": 1,
+   "tests_read": [
+    {
+     "test": "R3658 (tests-tier1.mjs:9162-9192)",
+     "measures": "yes",
+     "why": "Opens the dashboard on the Table, reads the tab keys (traces, key, final, who), what stands first in the live region (the nav) and the Who has what pane's table rows against livingStudentsForGm by name; guarded by needs(world.atLeast('livingStudents')). It reads names, not the counts' values. ok in shard 1/8."
+    }
+   ],
+   "tests_to_join": [],
+   "scenarios": [
+    "No register row or scenario names E98 (grep: 0)."
+   ],
+   "live": {
+    "items": 0,
+    "read": 0,
+    "ids_read": [],
+    "note": "No LIVE-E98 item was written. The stage's two table-only questions ride E97's: Legacy's heads in LIVE-E97-01, the 60-Remnant world in LIVE-E97-06; both open."
+   },
+   "findings": [],
+   "superseded_by": [
+    "E64-inv (1.2.110): Who has what is one table, each student's bullets and items in its row (R3968)"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "The stage's feature - Who has what by name on a tab of its own - is in the code (in E64-inv's later shape) and held by R3658, ok in the base run. Against a 9: its verify promise, the 60-Remnant measurement, was not made anywhere and is said so; Legacy's heads hold only by a Chromium reading through the style harness; the tab shares E97's minor refresh gap (refresh-01-04-2, counted under E97). No live item of its own, and the two that carry its questions are unread: capped at 9, provisional. Graded although its papers are E97's: one stamped row and the notes' sections name it.",
+   "missing_to_10": "The 60-Remnant world measured (LIVE-E97-06's second half, or a probe that times the panel's redraw); Legacy's heads read in Foundry's frame (LIVE-E97-01); the pane redrawn when an answer key lands (refresh-01-04-2).",
+   "l1": {
+    "what": "The Investigation panel on a world of about 60 Remnants, and Legacy's Table heads in Foundry (LIVE-E97-06 second half, LIVE-E97-01's Legacy part)",
+    "recipe": [
+     "Under Monokuma Legacy, at 1366x768, open the Table's Remnants tab: screenshot the heads; note any head broken inside a word.",
+     "Seed or place about 60 Remnants in one chapter; open the panel on the Map and on Who has what.",
+     "Run await game.drpg.fps({ toChat: false }) with the panel open; as a player find one Remnant during the run; note the frame figures."
+    ],
+    "clients": "GM and one player",
+    "theme": "both",
+    "settles_if": "No broken head and no felt redraw (fps report within the table's baseline): E98's open questions close; a broken head or a long frame on the redraw is a defect against E98.",
+    "priority": "grade cap 9"
+   }
+  },
+  {
+   "id": "E73",
+   "version": "1.2.108",
+   "shipped": "2026-11-12",
+   "what": "The trial hall's zones: Zone A and Zone B picked in Room Setup's Scenes tab with their warnings; three modes played by standing in them - Straw Poll, Logic Dive and Scrum Debate - on the floor's one engine; the trial's Findings; and the Class Trial console rebuilt on the owner's mockup B (status on top, read-out left, the schema's slot right, the bar at the bottom, 1280 px and full height). 12 registry rows (R3900-R3911; R3910 removed in E99).",
+   "claim_sources": [
+    ".github/release-notes/v1.2.108.md (1-468, whole; shared with E99)",
+    "docs/dev/e73/STATUS.md (1-215, whole)",
+    "tools/stages.json row E73 (planned and shipped 1.2.108, touches scenes and sockets, drills none)",
+    "audit/AUDIT-1.2.42.md 9.2 items 491-495 (LIVE-E73-01..05, lines 1465-1469) and 514-515 (LIVE-E73-06, -07, lines 1493-1494, added 13.11.2026 for the camps' voice rooms)",
+    "git log -E --grep E73 on b5a29e73: 41 commits; the train 235c3210..4dfac3a9: 52 commits, 9 merges (the notes' 48 at b3df4284 plus ab5903bb, 0d61342f, 80a2fb2a and the merge into main), sixteen on the E73 line (6002ca84..6a914d02)",
+    "docs/dev/e110/STATUS.md rows E110-11, -13, -14, -15 (what 1.2.114 repaired of the zone modes)"
+   ],
+   "commits": 52,
+   "promises": [
+    {
+     "promise": "Room Setup's Scenes tab picks Zone A and Zone B among the hall's regions that are not rooms, stored in sceneRoles.zones; the tab, the Scenes report and the Pre-season check warn of no zones, one, the same, overlapping, a gap or an unchecked gridless hall; a zone is no room",
+     "source": "v1.2.108.md 31-34, 60-65, 121-126; e73/STATUS.md 11-20",
+     "code": "scripts/zone-geometry.mjs:86 (zoneAt), :129 (zoneCoverage, 200 ms budget), :155 (zoneWarnings); scripts/rooms.mjs:132 (isZoneRegion); scripts/trial-scene.mjs:1235-1250 (sceneReport's zones)",
+     "holds": "yes",
+     "test": "R3900, R3901, R3902 (ok); tier 2 'E73 C1: Zone A and Zone B picked in Room Setup's Scenes tab are stored in sceneRoles, read back after a reload, and the tab warns of a gap' (ok, shard 2/8)",
+     "test_kind": "both",
+     "note": "v14's testPoint with elevation and regions with holes are modelled, not read on v14 (LIVE-E73-01, open). Season setup's scenes part does not redraw on another GM's zones (refresh-01-04-9, nit)."
+    },
+    {
+     "promise": "Each participant (one student per connected player, no Monocub, no muted dead) stands on the side whose zone holds their hall token's centre; a centre both zones hold is on neither; a participant with no hall token picks a side in a window ('trial.side', refused with a reason)",
+     "source": "v1.2.108.md 34-38, 103-106, 130-133; e73/STATUS.md 20-27",
+     "code": "scripts/trial-zones.mjs:55 (sidesNow), :346-362 (sideOnPrimary's four refusals); scripts/bridge-table.mjs:1422; scripts/bridge-runs-records.mjs:849",
+     "holds": "partly",
+     "test": "R3903 (ok); scenario 68 P (result not read)",
+     "test_kind": "both",
+     "note": "The window comes once for a whole Logic Dive and keeps the first question's words; closing it leaves no way to pick in that mode (controls-02-trial-zones-verdict-1, -2; refresh-01-04-6: three minors, joined)."
+    },
+    {
+     "promise": "Straw Poll: 45 s, one count (the clock or Count now); a Finding when 3 x larger >= 2 x counted, else a split with Scrum Debate the next step",
+     "source": "v1.2.108.md 38-40, 137-138",
+     "code": "scripts/zone-machine.mjs:70-76 (strawVerdict), :158",
+     "holds": "yes",
+     "test": "R3906 (ok); tier 2 'E73 C3, C4 ...' (tests-tier2.mjs:32888, not in the shards read); scenario 68 S",
+     "test_kind": "behaviour",
+     "note": "Until 1.2.114 a split kept offering Scrum Debate for the rest of the trial; E110 C3 makes any mode's start take it back (E110-13)."
+    },
+    {
+     "promise": "Logic Dive: sets of 1-5 questions written ahead (a GM store, diveSets); 60 s a question, early on unanimity after 10 s, a 5 s pause, a simple majority; a wrong answer or a tie ends the set and shows no truth; the truth never on the floor; Skip question keeps no answer; a set can be replayed with a warning",
+     "source": "v1.2.108.md 40-42, 76-79, 138-143; e73/STATUS.md 33-38, 63-64",
+     "code": "scripts/zone-machine.mjs:82-86 (diveVerdict), :202-216 (diveJudge: the wrong and tie cards carry the counts and no answer), :354-358 (the early count); scripts/world-secrets.mjs:126-127 (truth among trialQueue's secret fields); scripts/gm-stores.mjs:1696-1698 (diveSetStore)",
+     "holds": "partly",
+     "test": "R3904, R3907 (ok); tier 2 'E73 C3, C4' (not read); scenario 68 D",
+     "test_kind": "both",
+     "note": "No truth field reaches the floor (R3904). But a public 'The class is wrong, with {a} in Zone A and {b} in Zone B' on a two-answer question names the right answer by elimination (finding E73-2, nit). The set editor drops what was typed when Save refuses an incomplete set, and the picker's list does not hear a set made beside it (controls-02-trial-zones-verdict-3, -5, minor, joined)."
+    },
+    {
+     "promise": "Scrum Debate: 45 s for the camps, then twice the larger camp's turns of 300 s over the turns (20-40 s), the smaller camp first, speakers in rotation, crossing free; an emptied camp ends it with the other's answer as a Finding; a speaker's thesis ('trial.keyword') from their own page",
+     "source": "v1.2.108.md 43-44, 107-108, 143-146",
+     "code": "scripts/zone-machine.mjs:89-104 (scrumTurns, scrumTurnSeconds), :236-; scripts/trial-zones.mjs:368- (thesisOnPrimary)",
+     "holds": "partly",
+     "test": "R3908 (ok); scenario 68 C",
+     "test_kind": "behaviour",
+     "note": "As shipped in 1.2.108 a Scrum speaker had no Done, no Pass and no window for the thesis, and the vote's opening did not end a zone mode: E110 C3 (1.2.114) built them (E110-11, -14, -15; tier 2 E110-T3, ok in shard 5/8). On 1.2.118 the promise holds through that repair; the camps' voice rooms (LIVE-E73-06, -07) are a 13.11.2026 addition."
+    },
+    {
+     "promise": "When a zone mode ends by any road every token goes back to its stand in one write; the zone modes are rows of the floor's MODES with MODE_RULES and MODE_STARTS 'zones'; no Objection in any",
+     "source": "v1.2.108.md 34-38, 147-152",
+     "code": "scripts/trial-zones.mjs (the stands, given back at a zone mode's end); scripts/trial-floor.mjs:119 (MODE_STARTS)",
+     "holds": "yes",
+     "test": "R3905 (ok); scenario 68 S and C",
+     "test_kind": "both",
+     "note": "In a zone mode OBJECTION! is greyed with the words of a running Objection (controls-01-trial-console-10, nit). A second GM's Skip in a Straw Poll was refused until audit A113-C3-2 (scenario 68 G, red at ceb9e9c8: the row's sanitizer named five modes); fixed in a later line."
+    },
+    {
+     "promise": "Findings: what a zone mode settles is a Finding; the console's Findings (n) lists them; a GM adds, edits, deletes and marks Monokuma confirms, each a public card; the list on the vote's opening card",
+     "source": "v1.2.108.md 45-47, 157-161",
+     "code": "scripts/trial-progress.mjs:376 (findings row), :418 (findingsHtml); scripts/trial-zones-ui.mjs:385-420",
+     "holds": "partly",
+     "test": "R3909 (ok); tier 2 'E73 C6: the GM's Findings ...' (tests-tier2.mjs:32997, not in the shards read)",
+     "test_kind": "both",
+     "note": "The Findings window is drawn once: a Finding written by a mode's end or another GM is not in the open window (refresh-01-04-4, minor, joined); Save on an empty or unchanged Finding says nothing (controls-02-trial-zones-verdict-6, nit)."
+    },
+    {
+     "promise": "The Class Trial console on mockup B: 1280 px held to the screen less 8 px a side, the screen's height, 8 px from the top, with and without a trial; the status and one mode picker on top (each mode greyed with its reason), the read-out left with its own scroll, the schema's slot right outside the console's per-second redraw, the bar and footer pinned; the footer keeps no mode start",
+     "source": "v1.2.108.md 7-13, 50-58; e73/STATUS.md 48-82, 155-176",
+     "code": "scripts/trial-floor-ui.mjs:1291-1293, :1344 (consoleWidth), :1355-1357 (trialBodyHtml: the slot after .drpg-trial-console), :1628",
+     "holds": "yes",
+     "test": "R3911 (ok); R2053; Chromium through the style harness (24 + 8 cases in e73/STATUS.md)",
+     "test_kind": "both",
+     "note": "Never measured in Foundry's frame and header (LIVE-E73-05; the harness puts the window 24 px down). The picker greys Nonstop Debate with 'already running' in a round or a zone mode (controls-01-trial-console-11 / domain-case-d-trial-floor-9, nit)."
+    },
+    {
+     "promise": "Sound and music: five rows in the Sound panel (Straw Poll result, Logic Dive right and wrong, Zone entered falling back to Room entered, the case summary); the zone modes play the debate's music",
+     "source": "v1.2.108.md 113-116",
+     "code": "scripts/trial-zones-ui.mjs:550 (the zoneEntered fallback, per live-items-493's reading); scripts/config.mjs:5445",
+     "holds": "superseded",
+     "test": "R3 / R20 (the sound census, ok)",
+     "test_kind": "source",
+     "note": "Since E110 (1.2.114, D-E110-B, -C) each zone mode has a music state of its own and Scrum three; the debate's music for the zone modes no longer stands. The drawing and the entry's sound are LIVE-E73-03 (open)."
+    }
+   ],
+   "registry_rows": 12,
+   "tests_read": [
+    {
+     "test": "R3900-R3909, R3911 (11 live rows; R3910 removed in E99 as the same test as R3670)",
+     "measures": "yes",
+     "why": "All 11 ok in shard 1/8. R3906-R3908 pin the rule's numbers (4:2 and 5:2 a Finding, 4:3, 3:3, 0:0 a split; 5:1 right, 4:3 wrong; 3:2 40 s, 4:3 37.5 s, 8:7 and 10:5 20 s)."
+    },
+    {
+     "test": "R3904 (tests-tier1.mjs:9704-9737)",
+     "measures": "yes",
+     "why": "Runs a Logic Dive through zone-machine.mjs to a right answer, a second question, a tie and a Skip with a marker as the truth, and reads every floor as JSON for the marker and a 'truth' field and the tie's cards for the true answer; also that world-secrets names truth on trialQueue. It drives no wrong (non-tie) answer, so the elimination of E73-2 is outside it."
+    },
+    {
+     "test": "tier 2 'E73 C1: Zone A and Zone B picked ...' (tests-tier2.mjs:33039)",
+     "measures": "yes",
+     "why": "ok in shard 2/8: stored in sceneRoles, read after a reload, the gap warned."
+    },
+    {
+     "test": "tier 2 'E110-T3 - the review's gaps on the primary (E110 C3) ...'",
+     "measures": "yes",
+     "why": "ok in shard 5/8; the repair of E73's Scrum and split gaps, stamped E110."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: E73 C3, C4: a Straw Poll and a Logic Dive in the trial hall on the primary ... (tests-tier2.mjs:32888)",
+    "tier 2: E73 C6: the GM's Findings - added, edited, confirmed and deleted, each on a public card, the record holding the list (32997)",
+    "tier 2: Back up the case, then Restore, brings every store back (the diveSets fixture, 781b4b9a)",
+    "scenario 68-trial-zones (phases N, S, P, D, C, V, G)",
+    "scenario 41-trial-scene ('zonesNone')",
+    "scenario 88-flow-length (the mode picker)",
+    "scenario 63-class-trial, 67-trial-modes"
+   ],
+   "scenarios": [
+    "68-trial-zones (audit/harness/README.md:203, the one register row naming E73): a hall with Zone A and Zone B; refused with no zones (N); a Straw Poll read alike on every player, a move, the Finding, the stands back, a split (S); a side picked with no hall token and one refused (P); a Logic Dive with no truth on any player, right then a tie, unrevealed (D); a Scrum Debate (C); since 13.11.2026 the camps' voice rooms (V) and a second GM's Skip (G); the canary's scan each phase. Its header names LIVE-E73-01..04 as what it cannot see. Base-run result not read.",
+    "41-trial-scene names 'zonesNone' since E73 C1 (41-trial-scene.mjs:296); 88-flow-length the picker (311)"
+   ],
+   "live": {
+    "items": 7,
+    "read": 0,
+    "ids_read": [],
+    "note": "LIVE-E73-01..05 (items 491-495) and -06, -07 (514-515, the camps' voice, added 13.11.2026) all open: no reading in any live-readings file (live-readings-other.json lists LIVE-E73-01..04 among what needs a local Foundry, docs/dev/e39/STATUS.md:165-170). live-items-493.json reads 494's headless clause as untrue: scenario 68 drives no GM reload."
+   },
+   "findings": [
+    {
+     "id": "E73-1",
+     "severity": "nit",
+     "category": "hygiene",
+     "title": "The three zone rules' comments name the wrong tests (R3907, R3910, R3913 for what R3906, R3907 and R3908 hold)",
+     "where": "scripts/zone-machine.mjs:66, :79, :94",
+     "what_happens": "Straw Poll's rule cites R3907 (Logic Dive's judgement), Logic Dive's cites R3910 (a removed number, 'the trial modes' census as the E73 line numbered it'), Scrum's turn seconds cite R3913 (E99's console schema). The registry's rows for the three rules are R3906, R3907 and R3908 (tests-tier1.mjs:10061, :10084, :10109). The numbers were already so in E73's own commit (git show 5101742c: lines 60, 73, 88).",
+     "evidence": "* THE STRAW POLL'S RULE (TR3 = 2, the plan's 2/3; R3907) ... * LOGIC DIVE'S JUDGEMENT (TR3 = 2, TR27: simple majority; a tie, 0:0 too, is wrong; R3910) ... * A Scrum turn's seconds (`scrumTurnSeconds`; R3913)",
+     "failure_scenario": "A developer changing the two-thirds rule follows the comment to R3907, edits the Logic Dive test, and the Straw Poll's real guard R3906 fails unexpectedly - or a rule is believed unguarded because R3910 is removed.",
+     "expected": "Each comment names the row that holds its rule.",
+     "confidence": "read",
+     "refutation_tried": "Read the three rows' titles in the registry and the tests' bodies (R3906 calls strawVerdict, R3907 diveVerdict, R3908 scrumTurnSeconds); R3913's title is the console's schema. Not a renumbering of the registry after the comment: the comment's numbers stand in 5101742c, where R3906-R3908 already held these rules by their titles."
+    },
+    {
+     "id": "E73-2",
+     "severity": "nit",
+     "category": "text",
+     "title": "A wrong Logic Dive answer shows the right one by elimination: the public card says the class is wrong and gives the counts on a two-answer question",
+     "where": "scripts/zone-machine.mjs:208-210 (diveJudge's wrong card with words a and b); lang/en.json DRPG.Zones.dive.wrong; scripts/zone-machine.mjs:223-226 (a question has exactly answers a and b)",
+     "what_happens": "On a wrong majority the card posted to the whole table is 'The class is wrong, with {a} in Zone A and {b} in Zone B. The Logic Dive ends here.' With one answer per zone and the majority's zone named by the counts, every player reads that the other zone's answer is the right one. The notes and e73/STATUS.md (63-64) say a wrong answer, like a tie, 'shows no truth' and the set 'stays replayable'.",
+     "evidence": "if (verdict !== \"right\") { return over([card(floor.mode, verdict === \"tie\" ? \"DRPG.Zones.dive.tie\" : \"DRPG.Zones.dive.wrong\", words, { sfx: \"answerWrong\" })], ...",
+     "failure_scenario": "The class stands 4:1 in Zone A on question two and is wrong; the card tells everyone the answer is Zone B's; when the GM replays the set later the class answers question two right from memory, which the replay warning ('Players may remember it') only half covers.",
+     "expected": "The notes and the handbook say that a wrong answer tells the class the other answer, or the default (Q-E73 'a wrong majority shows no truth, as a tie does', owner to confirm) is put to the owner with this reading.",
+     "confidence": "read",
+     "refutation_tried": "Looked for a third answer or a question with more than two (diveQuestion requires a and b and no other); for a whisper of the card (the e71 text batch B17 items 108-109 record it as posted to the whole table); for a test that reads a wrong card (R3904 drives a tie only). It stands as a wording of the promise rather than a code defect: telling the class it was wrong cannot avoid it, so the severity is nit and the question goes to the owner."
+    },
+    {
+     "id": "controls-02-trial-zones-verdict-1",
+     "severity": "minor",
+     "duplicate_of": "controls-02-trial-zones-verdict-1",
+     "title": "The side-pick window comes once for a whole Logic Dive (joined)",
+     "where": "scripts/trial-zones-ui.mjs:437-441",
+     "what_happens": "See controls-02-trial-zones-verdict.json; stands in its verify file.",
+     "failure_scenario": "A participant with no hall token picks Zone A on question one and cannot change it on question two.",
+     "confidence": "read",
+     "refutation_tried": "Not redone here."
+    },
+    {
+     "id": "controls-02-trial-zones-verdict-2",
+     "severity": "minor",
+     "duplicate_of": "controls-02-trial-zones-verdict-2",
+     "title": "Closing the side-pick window leaves no way to pick in that mode (joined)",
+     "where": "scripts/trial-zones-ui.mjs:441, :454",
+     "what_happens": "See controls-02-trial-zones-verdict.json.",
+     "failure_scenario": "A player presses Escape on the window and stands on no side for the rest of the mode, told nothing.",
+     "confidence": "read",
+     "refutation_tried": "Not redone here."
+    },
+    {
+     "id": "controls-02-trial-zones-verdict-3",
+     "severity": "minor",
+     "duplicate_of": "controls-02-trial-zones-verdict-3",
+     "title": "The Logic Dive set editor loses what was typed when Save refuses an incomplete set (joined)",
+     "where": "scripts/trial-zones-ui.mjs:215-222",
+     "what_happens": "See controls-02-trial-zones-verdict.json.",
+     "failure_scenario": "A GM writes four questions, leaves one answer empty, presses Enter; the toast refuses and the four questions are gone.",
+     "confidence": "read",
+     "refutation_tried": "Not redone here."
+    },
+    {
+     "id": "controls-02-trial-zones-verdict-5",
+     "severity": "minor",
+     "duplicate_of": "controls-02-trial-zones-verdict-5",
+     "title": "The picker's set list does not hear a set made through its own button (joined)",
+     "where": "scripts/trial-zones-ui.mjs:287-305",
+     "what_happens": "See controls-02-trial-zones-verdict.json.",
+     "failure_scenario": "A GM makes a set from the picker and it is not offered until the picker is opened again.",
+     "confidence": "read",
+     "refutation_tried": "Not redone here."
+    },
+    {
+     "id": "refresh-01-04-4",
+     "severity": "minor",
+     "duplicate_of": "refresh-01-04-4",
+     "title": "The Findings window is drawn once (joined)",
+     "where": "scripts/trial-zones-ui.mjs:392-417",
+     "what_happens": "See refresh-01-04.json.",
+     "failure_scenario": "A Straw Poll ends with a Finding while the GM has Findings open; the window does not show it while the console counts it.",
+     "confidence": "read",
+     "refutation_tried": "Not redone here."
+    },
+    {
+     "id": "refresh-01-04-6",
+     "severity": "minor",
+     "duplicate_of": "refresh-01-04-6",
+     "title": "The side-pick window keeps the first question's words while a Logic Dive moves on (joined)",
+     "where": "scripts/trial-zones-ui.mjs:434-458",
+     "what_happens": "See refresh-01-04.json.",
+     "failure_scenario": "On question two the player's buttons still read question one's answers.",
+     "confidence": "read",
+     "refutation_tried": "Not redone here."
+    }
+   ],
+   "superseded_by": [
+    "E110 C3 (1.2.114): the vote's opening ends a zone mode, any mode's start takes back a split, a Scrum speaker's Done, Pass and Post thesis (E110-11, -13, -14, -15); each zone mode's own music (D-E110-B, -C)",
+    "audit-113 A113-C3-2 (scenario 68 G): a second GM's Skip in a Straw Poll, refused until the bridge row's sanitizer knew the zone modes",
+    "13.11.2026 (the owner): the camps' voice rooms in Scrum's Confer (LIVE-E73-06, -07)",
+    "E99 (same release): the slot filled with the case schema; R3910 removed as R3670"
+   ],
+   "grade": 7,
+   "provisional": "after L1",
+   "grade_reasons": "On 1.2.118 every E73 promise is in the code, the rules' numbers are pinned by pure tests (R3904, R3906-R3908) and all 11 live registry rows are ok in shard 1/8, the Scenes tab's tier-2 test in shard 2/8. As shipped in 1.2.108 the Scrum Debate lacked its speaker's controls and the vote did not end a zone mode, a second GM's Skip was refused - repaired by E110 and audit-113's line, not by E73. Today, on the stage's own windows, six minor findings of other lanes stand after their verify passes (the side-pick window twice, the set editor, the picker's list, the Findings window, the side-pick's stale words) and several nits; two of this reader's (E73-1, E73-2). That is 'several minor': 7. The zones on a real canvas and server, the console in Foundry's frame and a GM's reload mid-question are unread (7 live items, 0 read): capped at 9, provisional. The two tier-2 tests of the modes and Findings and scenario 68's result were not read.",
+   "missing_to_10": "The six joined minors closed (a side-pick window that follows the question and can be reopened, the editor keeping its fields, the picker and Findings windows redrawing on their stores); E73-1's comments and E73-2's sentence put right or put to the owner; a test that posts a wrong (not tied) answer and reads its card; scenario 68's latecomer and GM reload mid-question; LIVE-E73-01..07 read.",
+   "l1": {
+    "what": "The zone modes on a real v14 hall (LIVE-E73-01, -02, -05 first; then -03, -04, -06, -07)",
+    "recipe": [
+     "In the sandbox, link a trial hall with two zone regions, one with a hole and one on a second Level; pick them in Room Setup > Scenes.",
+     "Start a Straw Poll from the console's mode picker; a player drags a token from Zone A to Zone B in the last two seconds; compare every client's count with the GM's.",
+     "Put a token in the hole and one on the second Level; note which side each counts on.",
+     "Run a Logic Dive; the primary GM reloads mid-question; note the clock after the reload and search game.settings for the set's truth on a player.",
+     "Screenshot the console at 1366x768 with no trial and in a Straw Poll, both themes: footer and bar in view with Foundry's header."
+    ],
+    "clients": "GM, a second GM for the reload, three players",
+    "theme": "both",
+    "settles_if": "Counts agree on every client, the hole on neither side, the Level per testPoint, the question surviving the reload with no truth on a player and the console whole on screen: E73 holds at a table; any count that differs or a truth on a player is a defect against E73.",
+    "priority": "grade cap 9"
+   }
+  },
+  {
+   "id": "E99",
+   "version": "1.2.108",
+   "shipped": "2026-11-12",
+   "what": "With E73: the chapter's case schema in the Class Trial console's right-hand slot (read only before a trial; a tick button on each deduction, counter and solution while one runs, and a node's mode start); Presented marks and hints after presentations; Show summary after the verdict, a public card of only what was found, the solution only on a right vote, once a trial; the trial modes' census; the compact console under 800 px. 17 registry rows stamped E99, six of them removed (R3663-R3666 renumbered, R3676-R3677 with the separate window).",
+   "claim_sources": [
+    ".github/release-notes/v1.2.108.md (1-468, whole; shared with E73)",
+    "docs/dev/e99/STATUS.md (1-130 and 300-372 whole: the 1.2.108 part; 372-673 by headings: E99 next, round 7 and the 13.11.2026 planner rounds, shipped later)",
+    "tools/stages.json row E99 (planned and shipped 1.2.108, with E73, touches [], drills none)",
+    "audit/AUDIT-1.2.42.md 9.2 items 488-490 (LIVE-E99-01, -04, -05; lines 1462-1464); -02 and -03 are the board's (E61) and were not written",
+    "git log -E --grep E99 on b5a29e73: 57 commits; twenty-two on the E99 line in the 1.2.108 train (9290ce03..9ca7fcc1)"
+   ],
+   "commits": 52,
+   "promises": [
+    {
+     "promise": "Every mode of the floor's MODES has a console start or is raised by a player; a mode a stage adds without a row fails the census",
+     "source": "v1.2.108.md 170-171; e99/STATUS.md 14-15",
+     "code": "scripts/trial-floor.mjs:119 (MODE_STARTS), :141 (modeCensus)",
+     "holds": "yes",
+     "test": "R3670 (ok)",
+     "test_kind": "source",
+     "note": ""
+    },
+    {
+     "promise": "The case's ticks are a GM store (gmCaseTicks), any GM ticks, synced, not backed up, cut with the trial's group; no player holds them",
+     "source": "v1.2.108.md 81-83, 171-172; e99/STATUS.md 16-17",
+     "code": "scripts/gm-stores.mjs:1681-1683 (caseTickStore: resetGroup trialProgress, backup false, sync); scripts/case-schema.mjs:615 (caseTicks), setCaseTick",
+     "holds": "yes",
+     "test": "R3672 (ok); scenario 63 S (a tick on gm2 read on gm3; result not read)",
+     "test_kind": "both",
+     "note": "As shipped the ticks were the chapter's: a second trial started with the first's (the notes' Known gaps, E99-05). 'E99 next' (1.2.110, R3917 stamped E64) made them the trial's; tier 2 'E99 next: the case's ticks are a trial's ...' ok in shard 4/8. Two GMs ticking in one second on a real server is LIVE-E99-05."
+    },
+    {
+     "promise": "The summary holds only what was found: evidence on the schema a student found by public name and words, ticked deductions and counters by name, the solution whole only on a right vote; no id, no author, no count of what was not found",
+     "source": "v1.2.108.md 17-20, 172-175; e99/STATUS.md 18-21",
+     "code": "scripts/case-summary.mjs:24-46 (composeCaseSummary: an allowlist over the graph)",
+     "holds": "yes",
+     "test": "R3671 (ok; markers in every place that must not cross, both votes); R3673 (ok); scenario 72's summary phase (a mutant composer passing unticked deductions was caught there, e99/STATUS.md 57-60; result not read)",
+     "test_kind": "both",
+     "note": ""
+    },
+    {
+     "promise": "Show summary: greyed before the verdict and in a Final Trial; a GM preview of exactly what goes out, Close the default; Send to everyone posts one public card, once a trial - a second press by any GM says 'Already sent for this trial.' and sends nothing",
+     "source": "v1.2.108.md 17-20, 248-252; e99/STATUS.md 22-25, 343-353",
+     "code": "scripts/trial-floor-ui.mjs:1451-1454 (disabled before the verdict, in a Final Trial, once shown); scripts/case-summary.mjs:65-110 (showCaseSummary: summaryShown checked at :78 before the preview and at :93 after Send, then setTrialProgress at :95 and ChatMessage.create)",
+     "holds": "partly",
+     "test": "R3916 (ok); scenario 63 S (gm2 sends, gm3's second press sends nothing; result not read); no tier-2 test calls showCaseSummary (the notes' Known gaps)",
+     "test_kind": "both",
+     "note": "'Once a trial' is a check-then-write on each GM: two GMs whose previews are open and who press Send within the record's round trip both post a card (finding E99-1, nit). The greyed button carries no reason (controls-01-trial-console-12, nit)."
+    },
+    {
+     "promise": "The summary's card: speaker 'Case summary', no speaker actor or token, flags caseSummary and sfx only (world-secrets); its own sound",
+     "source": "v1.2.108.md 84-85, 252-253",
+     "code": "scripts/world-secrets.mjs:252-254 (when caseSummary: flagsOnly caseSummary, caseBoard, sfx); scripts/case-summary.mjs:96-106",
+     "holds": "superseded",
+     "test": "R190's three fixtures (the notes); R6050, R6051 (stamped E54, ok)",
+     "test_kind": "both",
+     "note": "Since 1.2.113 (fix-113p) the card carries the board's payload (caseBoard) and no sfx; every browser plays it as a board with the sound (sequence.mjs playCaseSummary). The rule now allows caseBoard; the promise's shape changed, its aim holds."
+    },
+    {
+     "promise": "Hints after presentations: Remnants a student presented are marked Presented; a deduction gets a hint when students other than the culprit have presented strictly more than half of what it rests on (a ticked deduction counting); a hint is never a tick; a card with no Remnant behind it hints nothing and is counted for the GM",
+     "source": "v1.2.108.md 23-26, 184-189; e99/STATUS.md 26-32",
+     "code": "scripts/case-hints.mjs:24-44 (presentationHints over reachability), :51-66 (casePresentations: the chapter's Present cards, a withdrawn Objection skipped); scripts/case-trial.mjs:65",
+     "holds": "partly",
+     "test": "R3674, R3675 (ok); tier 2 'E99 C4: a Present card of a copy of a Remnant on the schema marks it presented and hints the deduction it carries, without a tick' (ok, shard 5/8; written after the code, its control a mutant that skips every card)",
+     "test_kind": "both",
+     "note": "casePresentations reads every Present card of the chapter, not of this trial: since the ticks became a trial's (E99 next), a second Class Trial in the chapter shows the first trial's Presented marks and hints (finding E99-2, nit). No scenario drives a player's Present to the GM's hint."
+    },
+    {
+     "promise": "The schema in the console: the Map's graph read only, whole nodes and the camera with its bar in a strip under the graph; before a trial nothing to tick; while a trial runs a tick button on each deduction, counter and solution (aria-pressed, 'Ticked: <name>'), a node's mode start under its tick; mounted in E73's slot, drawn for a GM only, no separate window or button",
+     "source": "v1.2.108.md 13-16, 191-207; e99/STATUS.md 131-290",
+     "code": "scripts/case-trial.mjs:40 (trialSchemaHtml), :135 (mountTrialSchema); scripts/case-map.mjs:158 (caseGraphHtml, marks and controls), :416-421 (the camera's bar), :473-482 (its strip wired under the graph)",
+     "holds": "yes",
+     "test": "R3912, R3913, R3914 (ok); tier 2 'E99 C5: the case schema stands in the middle ...', 'E99 C5 round 4: before a Class Trial runs ...', 'E99 C5: the case schema stays in the trial console in every floor state ...' (tests-tier2.mjs:46968, :47044, :47078; not in the shards read); the sweep's 48 pages (the notes)",
+     "test_kind": "both",
+     "note": "The schema's 'Not tied to the murder: N' fold does nothing in the console (controls-01-trial-console-1, minor, joined); a tile's start is greyed in a Nonstop Debate while the picker starts the same mode (-9, nit); the schema does not hear the trace ledger or tokens (refresh-01-04-13, nit). Since 13.11.2026 no OBJECTION or Rebuttal start on a node."
+    },
+    {
+     "promise": "On a screen 800 px tall or less the console's title and footer are compact (one row, all buttons in view); under the glass the smallest node text after Fit to view is at least 11 px during a trial at 1366x768; Legacy left as it is",
+     "source": "v1.2.108.md 220-232; e99/STATUS.md 302-330",
+     "code": "scripts/settings.mjs:4344 (BREAKPOINTS.low 800), :4404 (lowScreen); the drpg-low rules in components.css (not read)",
+     "holds": "yes",
+     "test": "R3915 (ok); the sweep (24 trial pages, 0 failing; 12.6 px)",
+     "test_kind": "both",
+     "note": "Part of the gain is the harness's own header (64 -> 38 px); with Foundry's header the notes estimate about 11.8 px. Read only at a table: LIVE-E99-01, open. Legacy's 8.7 px during a trial is the owner's decision."
+    }
+   ],
+   "registry_rows": 17,
+   "tests_read": [
+    {
+     "test": "R3670-R3675, R3912-R3916 (11 live rows; R3663-R3666 and R3676-R3677 removed)",
+     "measures": "yes",
+     "why": "All 11 ok in shard 1/8. R3917-R3919 (E99 next, round 7, the open node) are stamped E64 and ok too."
+    },
+    {
+     "test": "R3671 (tests-tier0.mjs:24545-24582)",
+     "measures": "yes",
+     "why": "A fixture graph with a marker in every place that must not cross (an unfound tied Remnant, an untied found one, a planned slot, an unticked deduction, the solution on a wrong vote, an author, every node id), composed with a wrong and a right vote and read as JSON; the expected payload stated whole. Pure: it does not read the card a player receives (scenario 72 does)."
+    },
+    {
+     "test": "tier 2 'E99 C4: a Present card ...' (tests-tier2.mjs:32760)",
+     "measures": "yes",
+     "why": "ok in shard 5/8: a real copy, a card shaped as a Present, the node marked presented and the deduction hinted, the ticks unchanged. One client; one trial."
+    },
+    {
+     "test": "tier 2 'E99 next: the case's ticks are a trial's ...' (32727)",
+     "measures": "yes",
+     "why": "ok in shard 4/8; the later repair of the ticks' scope, stamped by its R3917 row E64."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: E99 C5: the case schema stands in the middle of the trial console, outside its ticking read-out, and its tick box writes the GMs' ticks (tests-tier2.mjs:46968)",
+    "tier 2: E99 C5 round 4: before a Class Trial runs, the console's schema is the schema alone - whole nodes and the camera, no tick and no mode start (47044)",
+    "tier 2: E99 C5: the case schema stays in the trial console in every floor state the bar has (47078)",
+    "scenario 63-class-trial phase S (ticks on two GMs, the summary once a trial, a second trial's ticks)",
+    "scenario 72-canary phase summary (after a wrong verdict, the players scanned)"
+   ],
+   "scenarios": [
+    "No register row names E99 in its stage column; 72-canary's row names '(E99) the case summary after the wrong verdict, scanned for the schema's unticked nodes' (audit/harness/README.md:208) and 63-class-trial carries phase S (63-class-trial.mjs:806-851). Base-run results not read."
+   ],
+   "live": {
+    "items": 3,
+    "read": 0,
+    "ids_read": [],
+    "note": "LIVE-E99-01, -04, -05 (items 488-490) open: no reading in any live-readings file. live-items-463.json reads 489's text as stale (the 'sent' mark is the trial record's summaryShown, not a GM store) and notes that e99/STATUS.md:68 still numbers the items 481-483."
+   },
+   "findings": [
+    {
+     "id": "E99-1",
+     "severity": "nit",
+     "category": "bug",
+     "title": "'Once a trial' is checked on each GM before its write: two GMs pressing Send at once both post the summary",
+     "where": "scripts/case-summary.mjs:78 (the first check), :92-96 (the second check, then setTrialProgress and ChatMessage.create); scripts/trial-progress.mjs:494-497 (a non-primary GM's patch asked of the primary, with no test of summaryShown there)",
+     "what_happens": "Each GM's browser reads trialProgress().summaryShown, waits on the preview, reads it again after Send, then asks the record's patch and creates the card itself. The primary applies the patch in its queue but does not refuse a second one, and ChatMessage.create is not behind it; between one GM's Send and the record's update reaching the other GM's browser, the second check passes there as well.",
+     "evidence": "if (answer !== \"send\") return null;\n    if (trialProgress()?.summaryShown) return null;\n    const at = Date.now();\n    await setTrialProgress({ summaryShown: at });\n    await ChatMessage.create({",
+     "failure_scenario": "Two GMs both have Show summary open after a verdict and press Send within about a second; every player gets two case summary cards and two boards.",
+     "expected": "The once-a-trial rule held where the record is written (the primary's step refusing a second summaryShown), as the verdict's own lock is.",
+     "confidence": "read",
+     "refutation_tried": "Looked for a lock on the primary: recordPatchOf only filters fields (trial-progress.mjs:518-522); serialWrite orders writes on one browser, not across GMs; scenario 63 S presses gm3's Send after gm2's has landed (sequential). Rare (two GMs, the same second), so nit; LIVE-E99-04's table would show it with two GMs."
+    },
+    {
+     "id": "E99-2",
+     "severity": "nit",
+     "category": "flow",
+     "title": "The schema's Presented marks and hints read the whole chapter's Present cards, so a second trial in the chapter starts with the first trial's",
+     "where": "scripts/case-hints.mjs:51-66 (casePresentations filters by the chapter flag and withdrawn only); scripts/case-trial.mjs:65",
+     "what_happens": "Since E99 next the ticks are one trial's (a row stamped with the trial's trialStartedAt), but the presentations the hints rest on are every Present card of the chapter in the chat. In a second Class Trial of the same chapter the GM's schema opens with Remnants marked Presented and deductions hinted from the first trial.",
+     "evidence": "if (!flag(flags.present) || flag(flags.chapter) !== chapter || flag(flags.withdrawn)) continue;",
+     "failure_scenario": "A chapter's first trial ends on a wrong verdict and a second is opened; before anyone presents, the GM's schema already marks three Remnants Presented and hints a deduction.",
+     "expected": "Presentations read from the current trial (cards after its entry), as the ticks are.",
+     "confidence": "read",
+     "refutation_tried": "Looked for another filter (the caller passes no messages; TRIAL_FLAGS has no trial stamp read here) and for a test of a second trial's hints (tier 2 E99 C4 runs one trial; 'E99 next' reads ticks only). Hints are a GM's aid and never a tick, so nit."
+    },
+    {
+     "id": "controls-01-trial-console-1",
+     "severity": "minor",
+     "duplicate_of": "controls-01-trial-console-1",
+     "title": "The schema's 'Not tied to the murder: N' button in the trial console does nothing (joined)",
+     "where": "scripts/case-trial.mjs:98; scripts/case-map.mjs:224, :445, :495",
+     "what_happens": "See controls-01-trial-console.json; stands in its verify file.",
+     "failure_scenario": "A GM at the trial presses the fold to see the unrelated evidence and nothing opens.",
+     "confidence": "read",
+     "refutation_tried": "Not redone here."
+    }
+   ],
+   "superseded_by": [
+    "E64 (1.2.110): E99 next - Show summary the trial's next step, 'Summary sent' on every GM's console, the ticks one trial's (R3917); round 7 - the verdict and the chapter's end as steps (R3918)",
+    "E54 / fix-113p (1.2.113): the summary's board on every browser, the card carrying caseBoard and no sfx (R6050, R6051)",
+    "E109 (DRPG-Q113 #56): Replay summary on a GM's own browser",
+    "13.11.2026: no OBJECTION or Rebuttal start on a node"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "E99's core - a summary that carries only what was found, held by a pure allowlist test with markers and by scenario 72's player scan, the ticks a GM store, the hints by E98's rule, the schema in the console's slot, the compact frame - is in the code; all 11 live registry rows are ok in shard 1/8, the two tier-2 tests read (E99 C4, E99 next) are ok. Its one shipped gap (ticks per chapter) was closed by its own line in 1.2.110. Against a 9: one minor on its surface stands from another lane (controls-01-trial-console-1, the fold in the console), two nits of this reader (E99-1, two GMs' Send; E99-2, the hints of an earlier trial) and three nits of others; 'once a trial' holds by reading on one GM at a time. The three E99 C5 tier-2 tests and scenarios 63 and 72 of the base run were not read; the three live items are unread: capped at 9, provisional.",
+   "missing_to_10": "The fold working in the console (controls-01-trial-console-1); the once-a-trial rule held on the primary (E99-1) with a test of two GMs pressing Send together; the presentations read per trial (E99-2); a hint driven from a player's Present in a scenario; LIVE-E99-01 (the 11 px reading under Foundry's header), -04 (with its text corrected for summaryShown) and -05 read.",
+   "l1": {
+    "what": "The schema in the trial console under Foundry's header, and the summary with two GMs (LIVE-E99-01 first; then -04, -05)",
+    "recipe": [
+     "At 1366x768 under Stained Glass, run a Nonstop Debate; in the console's schema press Fit to view; screenshot and measure the smallest node text (devtools, computed font-size times the zoom).",
+     "Check the footer: every button in view with Foundry's own header.",
+     "With two GMs (one an Assistant): both tick different deductions in the same second; reload both and read the ticks.",
+     "After the verdict both GMs open Show summary and press Send together; count the case summary cards in a player's chat."
+    ],
+    "clients": "two GMs (one Assistant), one player",
+    "theme": "both",
+    "settles_if": "Text at 11 px or more, footer whole, both ticks kept and one card: E99 holds; under 11 px, a lost tick or two cards is a defect against E99 (two cards confirms E99-1).",
+    "priority": "grade cap 9"
+   }
+  }
+ ],
+ "not_established": [
+  {
+   "what": "The base run's suite shards 6/8-8/8 and every scenario had not been read when this was written (only results-suite-1..5 existed; shard 3/8's one failure is grid XI07, another stage's). Seven tier-2 tests of these stages (E97 C6 Remnant, E73 C3-C4, E73 C6, the three E99 C5 tests and the case backup test) and scenarios 41, 61, 62, 63, 67, 68, 72 and 88 are in tests_to_join with their results not read; nothing here claims them green.",
+   "l1": null
+  },
+  {
+   "what": "That an author a GM sets counts as a player's own in Observe's preference, an incident's tie and Tamper (v1.2.107.md 75-76): the notes say read in the code, not run; this pass did not trace observe.mjs, placeRemnant or cleanup.mjs.",
+   "l1": null
+  },
+  {
+   "what": "Whether Foundry v14's keybinding manager hears Escape before the map's own handler (case-map.mjs:517-523 stops it at the graph): not read from v14's source; with All open on by default since 1.2.116 the handler closes nothing anyway. The notes' Known gap.",
+   "l1": {
+    "what": "Escape on an open case-map node with All open off",
+    "recipe": [
+     "Open the Investigation panel on the Map; switch All open off.",
+     "Click a node to open it; press Escape.",
+     "Note whether the node closes and whether the window stays open."
+    ],
+    "clients": "GM",
+    "theme": "default",
+    "settles_if": "Node closed, window open: E97's promise holds; window closed: Foundry hears Escape first.",
+    "priority": "nit"
+   }
+  },
+  {
+   "what": "Two GMs pressing Run realization in the same second: whether the 300 ms settle (case-realize.mjs:126-133) keeps the Key Remnants made once on a real server. LIVE-E97-04.",
+   "l1": {
+    "what": "Two GMs' Run realization at once (LIVE-E97-04)",
+    "recipe": [
+     "Build a case with two Key slots and rooms.",
+     "Both GMs open Realization preview and pick rooms.",
+     "Press Run on both within a second.",
+     "Count the Key Remnant tokens made and the plan's slots."
+    ],
+    "clients": "two GMs (one Assistant)",
+    "theme": "default",
+    "settles_if": "Two tokens, two slots filled: holds; four tokens or a slot pointing at a deleted token: a defect against E97.",
+    "priority": "grade cap 9"
+   }
+  },
+  {
+   "what": "The CSS behind E73's and E99's console and E97's map (components.css, stained-glass.css, the drpg-low rules) was not read; the Chromium figures quoted are the notes' and the STATUS files', not re-run. The slot's sizes in the two lines' sweeps differ and the record does not reconcile them (v1.2.108.md 326-329).",
+   "l1": null
+  },
+  {
+   "what": "docs/dev/e99/STATUS.md 372-673 (E99 next, round 7 and the 13.11.2026 planner rounds) was read by its headings only, as the record of what later lines did to these stages; the plans docs/dev/plans/E73.md, E97.md, E98.md, E99.md are on origin/claude/plan-130 and not in this tree, so the stages' plan promises beyond the notes and STATUS files were not read.",
+   "l1": null
+  },
+  {
+   "what": "Whether the zone tokens' stands are given back on every road out of a zone mode on a real server (a GM's End this mode, the vote's opening since E110, a trial ended mid-mode, a primary that leaves): the code path was not traced road by road here; R3905 and scenario 68 S and C are the headless readings.",
+   "l1": {
+    "what": "The stands given back after a zone mode",
+    "recipe": [
+     "Start a Straw Poll; players move their tokens.",
+     "End it by End this mode; note every token's place.",
+     "Repeat, ending by opening the vote, and once with the primary GM leaving mid-mode."
+    ],
+    "clients": "GM, a second GM, three players",
+    "theme": "default",
+    "settles_if": "Every token on its stand after each road: holds; a token left in a zone is a defect against E73.",
+    "priority": "minor"
+   }
+  }
+ ]
+}

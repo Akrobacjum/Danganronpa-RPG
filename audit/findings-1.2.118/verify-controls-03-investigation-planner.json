@@ -1,0 +1,204 @@
+{
+ "refuter": "verify-controls-03-investigation-planner",
+ "of": "controls-03-investigation-planner",
+ "scope": "Every finding of severity minor or above (1, 2, 3, 4, 5, 7, 12, 14, 15) and every control whose verdict is dead or mislabeled (Move up / Move down; Chapter; Check consistency; Place on the map for a planned Remnant and a planned Final Truth; Give a Truth Bullet; a Key slot's fields). No control is marked throws or wrong_audience. The nit findings were not re-checked, except 13, which sits under the Place control. Read on claude/audit-119 (scripts/ the same as b5a29e73). base-run.json, probe-42.json and probe-43.json are not in audit/findings-1.2.118/, so no run was cited.",
+ "checked": [
+  {
+   "ref": "controls-03-investigation-planner-1",
+   "claim": "Move up / Move down build caseGraph(chapter) with no options, so an unwritten Key slot, an unsent planned Autopsy or another chapter's Remnant is in no column and the press does nothing; other nodes swap in the shorter column and the missing ones sink",
+   "verdict": "stands",
+   "why": "Read the whole road. The drawn graph is built with the Key plan's every slot, the chapter's Autopsy count and chapters 'all' when the filter is every chapter; the handler's graph takes only stored keyPlanStore rows (case-schema.mjs:379-386), autopsy false (graphOf counts 0, case-schema.mjs:240) and chapters 'this' (case-schema.mjs:375). A node not in the handler's layout returns at 'if (!column) return;' and the caller refreshes with nothing said. The click handler only skips a disabled arrow (case-map.mjs:501) and nodeEditHtml never disables one (case-map.mjs:284-289). The manual comparator puts an unplaced node at Infinity (case-layout.mjs:55), so the drawn-only nodes sink below the ones the handler numbered. No test reads a move's result: R3661 (tests-tier0.mjs:24731-24735) presses with a stand-in onMove that only records ['move', id, step]. The function's own comment (investigation.mjs:1923) says 'the column as it is drawn now', which the code does not do.",
+   "evidence": [
+    "scripts/investigation.mjs:1146: const graph = caseGraph(chapter, { chapters, slots: chapter === plan.chapter ? slots : null, autopsy: autopsies });",
+    "scripts/investigation.mjs:1927-1932: async function moveCaseNode(chapter, id, step) { ... const graph = caseGraph(chapter); ... if (!column) return;",
+    "scripts/case-schema.mjs:240: const autopsies = autopsy === true ? 1 : Number.isInteger(autopsy) ? Math.min(AUTOPSY_MAX, Math.max(0, autopsy)) : 0;",
+    "scripts/case-layout.mjs:55: const at = n => (Number.isFinite(manual?.[n.id]) ? manual[n.id] : Infinity);",
+    "scripts/case-map.mjs:501: if (move && !move.disabled) { onMove(id, Number(move.dataset.drpgCaseMove)); return; }"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "Investigation - the Map view / Move up / Move down (verdict dead)",
+   "claim": "the arrows do nothing on the nodes the handler's graph lacks",
+   "verdict": "stands",
+   "why": "Same road as finding 1. 'dead' holds for an unwritten Key slot, the unsent planned Autopsy and, with the filter on every chapter, another chapter's Remnant; on the other nodes the arrows do act (wrongly), so the verdict is dead for part of the nodes, mislabeled for the rest - the finding says both.",
+   "evidence": [
+    "scripts/investigation.mjs:1882: onMove: (id, step) => { reading.focus = id; moveCaseNode(chapterNow(), id, step).then(() => refresh(), fail(\"move\")); },"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-03-investigation-planner-2",
+   "claim": "Place on the map and Give a Truth Bullet act on the stored plan row, not on the node's fields as typed; a planned Final Truth is placed without them",
+   "verdict": "stands",
+   "why": "onPlace goes straight to placeIncident, which reads caseRows(chapter).rows[id] from the store; nothing before it writes the node: saveOpenNode / saveFieldsIn are called only at a pick (1852), a Close (1858), the All open switch (1863), a view switch (2303) and the window's close (2431) - grep of scripts/ finds no other caller. This holds with one node open too (Place stands inside the open editor, and its Close is not pressed). placePlannedFinal asks for a room when row.room is empty and places with row.label, row.text, row.vis, row.author; a new final plan's stored label is the en.json 'Final Truth Remnant' (DRPG.CaseMap.newLabel.final, written by onAdd's setCaseNode). givePlannedBullet hands { fill: row } to giveTruthBulletDialog. The tooltip says 'with every field of this plan filled in'.",
+   "evidence": [
+    "scripts/investigation.mjs:1886-1889: onPlace: ref => { const [chapter, id] = ref.split(\":\"); placeIncident(Number(chapter), id).then(() => refresh(), fail(\"place\")); }",
+    "scripts/investigation.mjs:1903-1906: const row = caseNodeOf(caseRows(chapter).rows[id]); if (row?.kind === \"final\") return placePlannedFinal(chapter, id, row); if (row?.kind === \"bullet\") return givePlannedBullet(chapter, id, row);",
+    "scripts/investigation.mjs:2134-2135: const token = await placeFinalRemnant({ room, scene, visibility: row.vis ?? \"evident\", note: row.note ?? \"\", name: row.label ?? \"\", text: row.text ?? \"\", analysis: row.analysis ?? \"\", author: row.author ?? \"\" });",
+    "scripts/investigation.mjs (givePlannedBullet): const given = await giveTruthBulletDialog(row.recipient ? game.actors.get(row.recipient) ?? null : null, { fill: row });",
+    "lang/en.json DRPG.CaseMap.newLabel.final: \"Final Truth Remnant\""
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "Investigation - the Map view / Place on the map (a planned Remnant) (verdict mislabeled)",
+   "claim": "filled in from the store, not from the typed fields; and a false 'not on this scene' notice (finding 13)",
+   "verdict": "stands",
+   "why": "Finding 2's road for the fill. Finding 13 (nit) also confirmed: the warning tests allRooms(workingScene()) while openNewTrace opens on row.scene first and marks the room, so with the plan on another scene than the GM's the warning is wrong and the window right.",
+   "evidence": [
+    "scripts/investigation.mjs:1912: if (row.room && !allRooms(workingScene()).includes(row.room)) ui.notifications.warn(game.i18n.format(\"DRPG.Investigation.plannedRoomGone\", { room: row.room }));",
+    "scripts/investigation.mjs:112: const scene = (sceneId ? game.scenes.get(sceneId) : null) ?? workingScene();",
+    "lang/en.json DRPG.Tips.Case.placeOnTheMapTooltip: \"Opens New Remnant with every field of this plan filled in; canceled, nothing is placed\""
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "Investigation - the Map view / Place on the map (a planned Final Truth) (verdict mislabeled)",
+   "claim": "placed at once from the stored row without what was typed in the node",
+   "verdict": "stands",
+   "why": "Finding 2's road: placePlannedFinal takes room, label, words, visibility and author from the stored row; once the plan's row points at the token the planned node is aliased to the trace's node (case-schema.mjs graphOf, 'if (node.trace && traceKeys.has(node.trace)) { alias.set(id, node.trace); ... continue; }'), so the fields named case:<ch>:<id>:* are not in the next markup and live.mjs's restore has no field to carry them to.",
+   "evidence": [
+    "scripts/investigation.mjs:2118: let room = row.room, scene = row.scene ? game.scenes.get(row.scene) ?? null : null;",
+    "scripts/live.mjs:530-533: for (const node of element.querySelectorAll(\"input, textarea, select\")) { const was = dirty.get(keyFor(node, element, named)); if (!was) continue;"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "Investigation - the Map view / Give a Truth Bullet (a planned Truth Bullet) (verdict mislabeled)",
+   "claim": "the Give window is filled from the store, not from the typed fields",
+   "verdict": "stands",
+   "why": "givePlannedBullet passes the stored row as fill; nothing writes the node first (finding 2).",
+   "evidence": [
+    "scripts/investigation.mjs (givePlannedBullet): giveTruthBulletDialog(..., { fill: row })"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-03-investigation-planner-3",
+   "claim": "On a Map drawn for another chapter, that chapter's Key slot nodes carry the running chapter's slot fields and Place",
+   "verdict": "stands",
+   "why": "mapChapterOf names the filter's chapter; for it caseGraph reads that chapter's stored keyPlanStore rows (prefix '<ch>:', case-schema.mjs:380-385), and archiveKeyPlan keeps rows per chapter rather than moving them (key-remnants.mjs:227-230, chapterRows 91-99), so the placed Key Remnants of a past chapter become nodes with slot numbers. mapEditors then hangs caseKeyCells({ plan }) on slotNode.get(i) with no chapter test, and plan is keyPlan(), whose chapter is getClock().chapter (key-remnants.mjs:128-129). R3653 (tests-tier1.mjs:9118) sets the filter to every chapter, where the Map draws the clock's chapter, so it does not reach this case.",
+   "evidence": [
+    "scripts/investigation.mjs:1294-1297: const slotNode = new Map(graph.nodes.filter(n => Number.isInteger(n.slot)).map(n => [n.slot, n.id])); caseKeyCells({ plan, status, placed, limit }).forEach((c, i) => { const id = slotNode.get(i); if (!id) return;",
+    "scripts/key-remnants.mjs:128-129: export function keyPlan() { const chapter = getClock().chapter;",
+    "scripts/investigation.mjs:1122: return reading.chapter && Number.isInteger(named) ? { chapter: named, chapters: \"this\" }"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "Investigation - the Map view / A Key slot's fields on its node (verdict mislabeled)",
+   "claim": "the group 'Slot N' on another chapter's node holds and writes the running chapter's slot N",
+   "verdict": "stands",
+   "why": "Finding 3's road. The write needs the GM to change a field there (saveFieldsIn writes only dirty fields, investigation.mjs:1806), which the failure scenario says.",
+   "evidence": [
+    "scripts/investigation.mjs:1806: const fields = scope ? [...scope.querySelectorAll(\"[name]\")].filter(isDirty) : [];"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-03-investigation-planner-4",
+   "claim": "New Remnant opened from a plan with no room, and the planned Final Truth's room question, close and place nothing with no word when left on the empty room",
+   "verdict": "stands",
+   "why": "openNewTrace's first check after the window returns null for an empty room with no notice, while the next three refusals warn; the select carries no 'required' and no listener disables Create (investigation.mjs:125-180 read: the room select is '<select name=\"room\">${roomOptions}</select>'). placePlannedFinal returns null on '!answer?.room' with no notice. Its comment says the empty option 'places nothing' - the silence is what is not said. The road is the plan's alone: from the footer askRoom is false and the empty option is not drawn.",
+   "evidence": [
+    "scripts/investigation.mjs:120: const roomOptions = (askRoom ? `<option value=\"\" selected>${esc(game.i18n.localize(\"DRPG.CaseMap.pickRoom\"))}</option>` : \"\") + rooms.map(r =>",
+    "scripts/investigation.mjs:208: if (!result || result === \"cancel\" || !result.room) return null;",
+    "scripts/investigation.mjs:2130: if (!answer?.room) return null;"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-03-investigation-planner-5",
+   "claim": "After a redraw a node's planned-minigame rows and its 'Ticked: n of m' line are drawn from the store while the select and the boxes hold the GM's unwritten picks",
+   "verdict": "stands",
+   "why": "zoneRows draws each row hidden unless the stored node.mode is its mode; foldedList draws the line from the stored ticks. live.mjs's restore writes node.value / node.checked and dispatches no event (grep of live.mjs for dispatchEvent: none), and the only code that toggles the rows or the line is wireMap's change listener, added once per window ('if (root && !root.dataset.drpgZoneRows)'). keepLive's after hook re-runs wireMap but nothing in it re-applies the rows. No stylesheet rule names data-drpg-zone-for (grep of styles/). With every node open (the default, caseMapAllOpen: flag caseMapFaces !== true) Add deduction, Check consistency, the fold or an actor/item update redraw while the node is unwritten. The values are carried, so nothing is lost; the look is wrong.",
+   "evidence": [
+    "scripts/investigation.mjs:1496: const row = (modes, label, field) => `<div data-drpg-zone-for=\"${modes.join(\" \")}\"${modes.includes(node.mode) ? \"\" : \" hidden\"}>${editRow(label, field)}</div>`;",
+    "scripts/investigation.mjs:1829-1830: if (root && !root.dataset.drpgZoneRows) { root.dataset.drpgZoneRows = \"1\";",
+    "scripts/live.mjs:547-548: if (node.type === \"checkbox\" || node.type === \"radio\") node.checked = was.value; else node.value = was.value;"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-03-investigation-planner-7",
+   "claim": "On a chapter with no Remnant of its own the Table's first draw sets the filter to '' and the Map then draws every chapter's Remnants; the running chapter is not an option",
+   "verdict": "stands",
+   "why": "readTracesAs is called only by the Table's branch of caseHtml (investigation.mjs:1055; the Map returns at 1033 before it), and resolves reading.chapter (initially null, 2268) to '' when no Remnant of this chapter exists. mapChapterOf reads '' as chapters 'all'. The chapter options are built only from the Remnants' chapters (725-727), so the running chapter cannot be picked back. The Table's fallback is a recorded choice (the comment at 405-421, 'it falls back to every chapter'); the Map's reading of it as an explicit 'every chapter' is not recorded anywhere I found, and the filter's tooltip says it 'picks the chapter the Map draws'.",
+   "evidence": [
+    "scripts/investigation.mjs:422-425: if (reading.chapter === null) { const here = String(getClock().chapter); reading.chapter = list.some(({ data }) => String(data.chapter ?? \"\") === here) ? here : \"\"; }",
+    "scripts/investigation.mjs:1123: : { chapter: getClock().chapter, chapters: reading.chapter === \"\" ? \"all\" : \"this\" };",
+    "scripts/investigation.mjs:2268: const reading = { order: \"room\", player: \"\", room: \"\", chapter: null, view: ..."
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "Investigation - the Table view / Chapter (verdict mislabeled)",
+   "claim": "the window itself picks 'Every chapter' and the Map then draws every chapter",
+   "verdict": "stands",
+   "why": "Finding 7's road.",
+   "evidence": [
+    "lang/en.json DRPG.Tips.Case.chapterFilterTooltip: \"Shows this chapter's Remnants, and picks the chapter the Map draws\""
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-03-investigation-planner-12",
+   "claim": "A Table filter and the Map's fold redraw without the rows or nodes they hide, and an unwritten field typed there is dropped without a word",
+   "verdict": "stands",
+   "why": "wireCaseFilters' change handler sets the reading and refreshes; onFold flips the fold and refreshes; neither calls saveOpenNode / saveFieldsIn (the only callers are listed under finding 2). case-map.mjs draws no node the fold hides (the shown layout filters 'unrelated' out of positions, and only place.at's ids get a button and a fieldset). live.mjs carries a dirty value only to a field of the same key in the new markup; a missing field's value is dropped. Save and the close read the form as it stands. The comment over wireCaseFilters ('the half-typed fields ... survive a filter change') is true only of a field still drawn.",
+   "evidence": [
+    "scripts/investigation.mjs:1998-2002: control.addEventListener(\"change\", () => { reading[control.dataset.drpgFilter] = control.value; refresh(); });",
+    "scripts/investigation.mjs:1860: onFold: () => { reading.fold = !reading.fold; refresh(); },",
+    "scripts/case-map.mjs:168-169: const shown = fold && unrelated.size ? { ...layout, positions: Object.fromEntries(Object.entries(layout.positions).filter(([id]) => !unrelated.has(id))), unrelated: [...unrelated] } : layout;"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-03-investigation-planner-14",
+   "claim": "Check consistency, the lines and the reach read the stored case; with every node open the GM's unwritten ticks are not in it",
+   "verdict": "stands",
+   "why": "onCheck only sets reading.overview and refreshes; caseMapRegion builds the graph and checkCase from the stores (1146, 1157). With every node open nothing writes a node before that (finding 2's list of writers). docs/dev/owner-116/STATUS.md:240 records the decision that fields are written 'when the GM leaves the Map or switches' and says nothing about the check. The tier-0 R3661 press of the check uses a stand-in onCheck (tests-tier0.mjs:24731-24739). Whether 'mislabeled' or 'stale' is the better word is open; the effect is as the finding says.",
+   "evidence": [
+    "scripts/investigation.mjs:1885: onCheck: () => { reading.overview = true; refresh(); },",
+    "scripts/investigation.mjs:1157: const problems = checkCase(graph, { reach, cycle: layout.cycle ?? [], keyMax: KEY_REMNANTS.prepared });",
+    "docs/dev/owner-116/STATUS.md:240: with every node open, every node's changed fields are written when the GM leaves the Map or switches."
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "Investigation - the Map view / Check consistency (verdict mislabeled)",
+   "claim": "the check reads the stored case, not the open fields",
+   "verdict": "stands",
+   "why": "Finding 14's road; tooltip 'Lists what in the case does not hold together' does not say 'as saved'.",
+   "evidence": [
+    "lang/en.json DRPG.Tips.Case.checkConsistencyTooltip: \"Lists what in the case does not hold together\""
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-03-investigation-planner-15",
+   "claim": "A pre-session note typed and not saved is dropped by a press of the Chat tab",
+   "verdict": "stands",
+   "why": "onSwitch sets this.tab and calls this.render(); _prepareContext reads note: noteFor(this.playerUserId) from the store and _buildNote sets area.value = context.note. Nothing keeps the draft: the window holds only noteShown and noteSaid, and refreshNote (keeps typed text) runs on a note change, not on a tab switch. The tier-2 test 'a GM's Note tab waits for the GMs' notes, follows its note without losing what is typed ...' (tests-tier2.mjs:53368) is about refreshNote, not a tab press.",
+   "evidence": [
+    "scripts/messenger-app.mjs:386-390: wireKitTabs(this.element, { onSwitch: key => { this.tab = key; this.render(); } });",
+    "scripts/messenger-app.mjs:225: note: noteFor(this.playerUserId),",
+    "scripts/messenger-app.mjs:306-307: area.value = context.note; this.noteShown = context.note;"
+   ],
+   "severity_after": "minor"
+  }
+ ],
+ "counts": {
+  "checked": 16,
+  "stands": 16,
+  "weakened": 0,
+  "refuted": 0
+ },
+ "not_established": [
+  "MISSING FROM THE READER'S FILE: no surface carries the 'refresh' block the brief asks for (reads, listens, verdict, gaps, focus_rule), and no finding covers D-A1. The dashboard's live region is on keepLive's rule 1 (no opt-in in investigation.mjs:2409-2418; scripts/live.mjs:157-163 'if (!force && isEditing(element)) { pending = true; ... return; }', released at focusout 231-241), and its watch has no tokens ('watch: { actors: true, items: true, stores: [remnantStore, keyPlanStore, caseSchemaStore, blackenedStore, castStore, deathStore] }'; TOKEN_HOOKS are heard only with watch.tokens, live.mjs:71, 306), so a Remnant token moved by hand does not redraw the Map or the Table, and a store change waits while a field has focus. By D-A1 that is a major REFR finding, being fixed in 1.2.119 line C1. The diveSetStore gap (finding 6, nit) is the one source gap the file names. This refuter did not grade that omission; it is for the coordinator's refresh pass (refresh-01-04.json may hold it).",
+  "Finding 10 (nit, suspected) and the nits 6, 8, 9, 11 were not re-checked.",
+  "The counts block uses 'stale-state' as a control verdict while the brief's vocabulary is 'stale_state'; the totals (dead 1, mislabeled 6, silent 8, stale 4) match the rows.",
+  "Nothing was pressed; every verdict here is a static reading (class S). The probes the reader names would measure findings 1, 2, 3, 5, 7, 12, 14 and 15 on the harness."
+ ]
+}

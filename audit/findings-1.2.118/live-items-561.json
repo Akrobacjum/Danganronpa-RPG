@@ -1,0 +1,793 @@
+{
+ "reader": "live-items-561",
+ "lines": "1586-1620",
+ "count_expected": 27,
+ "count_note": "27 numbered items at lines 1586-1620 of audit/AUDIT-1.2.42.md, as the scope says: 561-563, 600-601, 640-657, 660-663 (counted by a script over the lines; the numbers jump after 563, 601 and 657). All 27 read, each with its named code, tests and readings.",
+ "items": [
+  {
+   "n": "561",
+   "live_id": "LIVE-E53-01",
+   "stage": "E53 C1 (also LIVE-E33-05)",
+   "asks": "At a real v14 table with Daggerheart, the largest isometric scene, a 1366x768 laptop drawing on a GPU, both themes, the GM's and the weakest player's browser: a trip to the trial hall and back, the case dashboard open while a player's action changes a sheet and module cards arrive; then `game.drpg.perf()` and `await game.drpg.fps({ toChat: false })`, every line of the block 'What the table's own work cost on this browser' with count, p50 and p95, and the roll lines; the result appended to audit/perf-baseline.json `runs` through audit/live/perf-baseline.mjs.",
+   "status": "partly",
+   "result": "n/a",
+   "evidence": "F, live-readings-other.json item 561 (docs/dev/e58/PERF-READINGS.md:1-357, 16.11.2026, Foundry 14.370 on the owner's PC, RTX 4080 SUPER through WSLg, headed Chromium 141 at 1366x768, the seed's flat 4000x3000 academy scene, module 80dfaf06 = 1.2.116): perf() and fps() on the GM and PlayerOne in both themes - four windows 23 fps (Stained Glass) and 29 fps (Legacy), the GM alone 60 fps; the cost block's student ring p95 0.1-1.9 ms, fog repaint p95 33-51 ms, chat card p95 0.1-0.7 ms, and the case dashboard, the canvas draws and the GMs' audit 'none since this browser loaded'. Not the recipe: a desktop GPU, not the laptop; no isometric map; no trial hall visited; no dashboard opened; no roll drawn. live-readings-e58.json LIVE-E53-01 rows (docs/dev/e58/LOCAL-REPORT.md:342-346, :354) and audit/perf-baseline.json:71, :173-196: the probe attempt of 16.11.2026 could not run (no world copy, SwiftShader), `runs` empty, `status` 'not-measured' (read today: status not-measured, 0 runs). The L1 delta adds nothing for this item.",
+   "triage_class": "T",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "R7540 (scripts/tests-tier1.mjs:62629, exists; jsdom's clock, checks only how a line is counted and that each cost is fed where the work happens); base-run.json does not exist, so the headless result on b5a29e73 is not read",
+   "note": "Identifiers read today: scripts/diagnostics.mjs `perfReport` :1551, `costLines` :1654, the block heading 'What the table's own work cost on this browser' :1916, 'Rolls the GM drew' :1885, 'none since this browser loaded' :1658 and :1896; scripts/perf-timings.mjs, audit/live/perf-baseline.mjs and audit/perf-baseline.json exist. The case dashboard's cost line is diagnostics.mjs:1666 ('the case dashboard rebuilt in place'); the tile the item calls 'Sprawa' is DRPG.Case.tile 'Sprawa' / 'The case'. Item 129 (LIVE-E33-05) was marked duplicate_of 561 by live-items-04.json; item 323 (LIVE-E88-01) shares the fps() half.",
+   "l1": {
+    "what": "perf() and fps() on the budget's machine and map, with the work the recipe names done first, and the run appended to audit/perf-baseline.json.",
+    "recipe": [
+     "Set DRPG_FIXTURES to a copy of a played world with the largest isometric scene; run `node audit/live/perf-baseline.mjs --probe --stage E53` and read that it no longer refuses.",
+     "On a 1366x768 laptop drawing on its GPU (read `chrome://gpu` renderer string, not the label), log in as GM; on the weakest player's machine log in as a player.",
+     "Switch the scene to the trial hall and back; as GM open the case dashboard ('The case') and leave it open; the player takes an action that writes the sheet; let several module cards reach the chat.",
+     "On both browsers run `game.drpg.perf()` and `await game.drpg.fps({ toChat: false })`; copy every line of 'What the table's own work cost on this browser' and 'Rolls the GM drew' with count, p50, p95.",
+     "Repeat in the other theme; run `node audit/live/perf-baseline.mjs --run` to append the run."
+    ],
+    "clients": "GM and one player (the weakest machine)",
+    "theme": "both",
+    "settles_if": "Read when every cost line has a count above zero and audit/perf-baseline.json `runs` holds the run; agrees if no line breaks a budget the owner sets, a defect if one does. A line still reading 'none since this browser loaded' means the work was not done, not zero.",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "562",
+   "live_id": "LIVE-E40-02",
+   "stage": "E40 (line claude/e40-117)",
+   "asks": "On a copy of a v14 world played through at least a chapter (scenes with walls and floors, hundreds of chat cards, Daggerheart Countdowns), the GM runs the season reset with every group ticked: record `cleared`, `failed`, `notRun`, then `game.drpg.checkState()` (each warning checked in the world data) and the whole-world diff before and after, as the local gate takes it.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json, nor in the item's text. live-readings-e58.json not_run (docs/dev/e58/LOCAL-REPORT.md:404, :296-297): the sandbox holds one world and a copy needs Duplicate World on the setup screen; live-readings-other.json not_run (.github/release-notes/v1.2.117.md:234-248): 'LIVE-E40-02 (no copy world yet)'. The nearest reading is item 537 (LIVE-E40-01, LOCAL-REPORT.md:403): checkState() `{ ok: true, problems: [] }` on the seed world with no chapter played - not a reset.",
+   "triage_class": "F (this reader's class: docs/dev/e58/TRIAGE-9.2.md stops at item 561)",
+   "subject_exists": true,
+   "text_stale": true,
+   "stale_detail": "The button's Polish name is 'Zresetuj sezon' today (lang/pl.json DRPG.Season.resetButton and resetTitle), not 'Resetuj sezon' as the item writes it; English 'Reset the season'. The rest of the item names today's code.",
+   "duplicate_of": null,
+   "headless_half": "scenario 65 phases D (audit/harness/scenarios/65-season.mjs:476) and V (:1174), scenario 72-canary (season end, 72-canary.mjs:58-63, :1070), scenario 18-trial's reset during a suicide incident (18-trial.mjs:406) - all exist and all run on the seed's world; base-run.json does not exist, so the headless result on b5a29e73 is not read",
+   "note": "Identifiers read today: scripts/season-wipe.mjs `resetSeason` :115, `wipeSeason` :369; scripts/state-check.mjs exists and `checkState` is game.drpg's (scripts/api.mjs:81, :1181). docs/dev/e40/STATUS.md:529 names this item as the season wipe on a real world copy.",
+   "l1": {
+    "what": "The season reset on a copy of a world played through a chapter: its record, checkState() and the whole-world diff.",
+    "recipe": [
+     "On the setup screen, Duplicate World of a world played through a chapter; launch the copy.",
+     "As GM take the local gate's world dump (audit/live, the gate's world diff) before.",
+     "Open the season reset and tick every group; run it; copy the result's `cleared`, `failed`, `notRun`.",
+     "Run `game.drpg.checkState()`; check each warning against the world data.",
+     "Take the world dump after and diff; note every path the reset left that its groups name."
+    ],
+    "clients": "GM alone (a player page open to read that nothing of the old season reaches it)",
+    "theme": "default",
+    "settles_if": "Agrees if `failed` and `notRun` are empty, checkState() reports nothing the world does not hold, and the diff leaves no state of a ticked group; a defect otherwise.",
+    "priority": "major"
+   }
+  },
+  {
+   "n": "563",
+   "live_id": "LIVE-E40-03",
+   "stage": "E40 (line claude/e40-117; the owner's answer of 16.11.2026)",
+   "asks": "At a v14 table, both themes and languages, a trial whose count accuses two living students: the verdict window shows two ticked boxes in place of the 'who to lose' select, and they fit; none ticked greys 'They got it wrong', one ticked enables it; a wrong verdict with one ticked loses only that student at the trial's end (card, Students, Despair, Reinforced Level Up Blackened); and what v14's DialogV2 answers when a button's callback returns null.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json, nor in the item's text. live-readings-other.json not_run (.github/release-notes/v1.2.117.md:234-248): 'LIVE-E40-03 ... checked nowhere real'.",
+   "triage_class": "S (this reader's class; the DialogV2 null-callback answer is K)",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "tier 2 'E40-T8 - two accused, each on their own ...' (scripts/tests-tier2.mjs:27460, exists; jsdom, no layout, no real DialogV2) and tier 1 R7601 (scripts/tests-tier1.mjs:7815, exists, `accusedChoices`); base-run.json does not exist, so the headless result on b5a29e73 is not read",
+   "note": "Identifiers read today: scripts/verdict.mjs `accusedChoices` :294 (fewer than two living accused answers [] and the select stays), the fieldset of checkboxes :164-172, `verdictAnswer` :248, `executedChoice` :306. The fieldset's legend is DRPG.Vote.executedEachIfWrong 'Kogo stracić, jeśli stół się pomylił: zaznacz jedną z oskarżonych postaci albo więcej' (lang/pl.json:2622), so the words 'Kogo stracić' are still on screen as the legend; the item means the select. The button is DRPG.Vote.gotItWrong 'Pomylili się' (lang/pl.json:2573).",
+   "l1": {
+    "what": "The two-accused verdict window's layout and gating, the execution of the ticked student alone, and DialogV2's answer for a null callback.",
+    "recipe": [
+     "Stage a trial whose count accuses two living students (both themes, both languages, 1366x768).",
+     "Open the verdict window; screenshot the fieldset and the footer.",
+     "Untick both: read the 'They got it wrong' button's `disabled`; tick one: read it again.",
+     "Press 'They got it wrong' with one ticked; end the trial; read the card, the Students window, Despair and the Blackened's Reinforced Level Up.",
+     "In the console, open a DialogV2 whose button callback returns null and log what `DialogV2.wait` answers."
+    ],
+    "clients": "GM and two players",
+    "theme": "both",
+    "settles_if": "Agrees if the boxes fit, the button follows the ticks and only the ticked student is lost; a defect otherwise. The DialogV2 answer is recorded either way (the module relies on neither).",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "600",
+   "live_id": "LIVE-E112V-01",
+   "stage": "E112v (road (b), the owner's decision of 16.11.2026)",
+   "asks": "On v14 with a GM and three players (killer A, victim B, witness C in one room), token vision on and sight on A's and B's tokens, a direct murder waiting for the opening roll: (a) A's token has no `hidden` and `_isVisionSource()` is true on A's page, A sees from A's own token; (b) nothing of A is drawn on B's and C's canvases for even a frame (token, name, bars, border, ruler, turn marker), drawn on A's; (c) a Spectator does not see A; (d) the sight rule - with no token selected B and C get no sight from A's token nor from a character in another room, and do from one in their room; diagnosePatches() shows `token-sight` ok (only with the room fog off); (e) after the opening roll A's token returns on B and C (with '?' on Hope) and its own `hidden` is as before the murder.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json, nor in the item's text for the fixed state. The defect the item follows from is item 553's reading (live-readings-e58.json, docs/dev/e58/LOCAL-REPORT.md:366, 16.11.2026, module 1.2.116): the veiled killer was `hidden`, `_isVisionSource()` false on the killer's page, the killer saw from the victim's token. E112v (1.2.118, commits dd9a56ed and 9e9a224c per live-readings-other.json item 553) made the veil the module's flag alone; that fix has not been seen on a real canvas (live-readings-other.json not_run, docs/dev/e112v/STATUS.md:17-25; .github/release-notes/v1.2.118.md:196-205). The L1 delta's readings all ran on 179c2644's runtime scripts, which lack E112v.",
+   "triage_class": "K (this reader's class; part (b) by a per-frame sampler as S7-7 was, part (d) by reading the fog layer)",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "tier 1 R7700-R7707 (scripts/tests-tier1.mjs:59322-59415, exist; R7707 wraps a stand-in token class), tier 2 'E112 - the opening veils ...' (scripts/tests-tier2.mjs:17885) and 'E112v - a veil written by 1.2.116 or 1.2.117 ...' (:18019), scenario 21 phase 'road' (audit/harness/scenarios/21-masked-killer.mjs:171-193) - all exist, all on documents and stand-ins, no canvas; base-run.json does not exist, so the headless result on b5a29e73 is not read",
+   "note": "Identifiers read today: scripts/mask-gm.mjs `veilPatch` :380, `convertVeil` :383; scripts/visibility.mjs `tokenShownTo` :49, `movePass` :109, `rulerShownTo` :940, `givesNoSight` :968, `installSightRule` :986 (wraps `_isVisionSource` where the token class's chain first owns it); scripts/patches.mjs:658 the `token-sight` row, game.drpg.diagnosePatches (scripts/api.mjs:1257). The comment at visibility.mjs:960-963 says the rule is read on a stand-in and a real canvas is this item.",
+   "l1": {
+    "what": "The veiled killer's own sight and the veil's drawing on the other players' canvases, on 1.2.118.",
+    "recipe": [
+     "On 1.2.118 (not 1.2.116), give A's and B's tokens sight and switch the scene's token vision on (put back after); turn the room fog off for part (d).",
+     "Open a direct murder A on B in one room with C present; leave the opening waiting.",
+     "On A's page read `canvas.tokens.get(A).document.hidden` and `canvas.tokens.get(A)._isVisionSource()`; screenshot A's view.",
+     "On B's and C's pages sample every animation frame `canvas.tokens.get(A)?.visible`, its nameplate, bars, border, ruler and turn marker from before the opening to after it; same on a Spectator's page.",
+     "On B and C with no token selected screenshot the map around A and around a character in another room and one in their room; run `game.drpg.diagnosePatches()` and read the `token-sight` row.",
+     "Roll the opening; read A's token on B and C (with '?' on Hope) and A's `hidden` against its value before the murder."
+    ],
+    "clients": "GM, three players, one Spectator",
+    "theme": "default",
+    "settles_if": "Agrees if (a)-(e) hold on every frame sampled; a defect if A is drawn for one frame on B or C, if A has no sight of its own, or if B or C see the map through A's token.",
+    "priority": "major"
+   }
+  },
+  {
+   "n": "601",
+   "live_id": "LIVE-E112V-02",
+   "stage": "E112v",
+   "asks": "As LIVE-E112-05 (isometric scene, a tile marked occluding in Isometric's tile settings, the client setting 'Token Silhouette' on) with A under the opening's veil: no silhouette of A behind the tile on B's and C's pages, one on A's; the veil is no longer Foundry's `hidden`, so only the module's `visible = false` matches the silhouette.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json, nor in the item's text. live-readings-other.json not_run (docs/dev/e112v/STATUS.md:25 'V10 ... LIVE-E112V-02 | LIVE'; .github/release-notes/v1.2.118.md:196-197).",
+   "triage_class": "S (this reader's class; item 557, its twin before E112v, is S in docs/dev/e58/TRIAGE-9.2.md:584)",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "tier 1 R7407 (scripts/tests-tier1.mjs:59460, exists; a stand-in scene, no canvas); base-run.json does not exist, so the headless result on b5a29e73 is not read",
+   "note": "Identifiers read today: scripts/visibility.mjs `hideSilhouettes` :68, :851, :865. The item is item 557 (LIVE-E112-05) restated for the veil; 557 is open in the same way, so a reading of one drive can settle both if the veil is staged in it.",
+   "l1": {
+    "what": "Isometric's silhouettes of the veiled killer behind an occluding tile.",
+    "recipe": [
+     "On an isometric scene with Isometric Perspective 14.0.6, mark a tile occluding; switch the client setting 'Token Silhouette' on for A, B and C.",
+     "Stand A behind the tile; open a direct murder A on B; leave the opening waiting.",
+     "On B's and C's pages screenshot behind the tile and sample each frame whether a silhouette sprite for A is drawn; on A's page the same.",
+     "Move A behind the tile once while veiled; sample again."
+    ],
+    "clients": "GM and three players",
+    "theme": "default",
+    "settles_if": "Agrees if B and C never draw A's silhouette and A does; a defect if a silhouette shows for a frame.",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "640",
+   "live_id": "LIVE-E39-02",
+   "stage": "E39 (D4, line claude/shim-118)",
+   "asks": "A player moves their token by `TokenDocument#move([...])` from room to room; in `updateToken` on the GM and on another player record `options._priorRegions` whole (type, keys, values) and whether it holds the regions before the move. The shim takes `{ [tokenId]: [region ids before] }`; the module reads neither `_priorRegions` nor `_regions`.",
+   "status": "partly",
+   "result": "n/a",
+   "evidence": "F, docs/dev/e39/CALIBRATION.md section 3 (:82-116; 16.11.2026, Foundry 14.370, PlayerOne's move of Aiko through `TokenDocument#move([{x: 1500, y: 400}, {x: 2300, y: 500}])`, read on the mover, the primary GM and a bystander; live-readings-other.json item 512, LIVE-E39-01), row at :97: `updateToken`'s changes `{x, y, _regions: [\"REGHALL000000000\"], _id}`; 'options also carry `_priorRegions`'. Its presence is read; its shape and values are not recorded. Nothing in the L1 delta.",
+   "triage_class": "K (this reader's class)",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "scenario 00-boot checks D4 (audit/harness/scenarios/00-boot.mjs:211, :223) and D11 (:242) hold the shim to the parts read; the shim writes `_priorRegions` at audit/harness/lib/shim.mjs:668; base-run.json does not exist, so the headless result on b5a29e73 is not read",
+   "note": "The module reads neither key: git grep `_priorRegions` and `_regions` over scripts/ outside the tests finds nothing. The item's own sentence says so, and it holds. audit/harness/lib/shim.mjs:605-642 (the `TOKEN MOVEMENT` header; its 'NOT READ ON 14.370' paragraph :620-628) lists `_priorRegions`' shape as not read, as the item does.",
+   "l1": {
+    "what": "`options._priorRegions` on a real move.",
+    "recipe": [
+     "On the GM's and PlayerTwo's page: `Hooks.on('updateToken', (d, c, o) => console.log(JSON.stringify(o._priorRegions)))`.",
+     "PlayerOne moves Aiko by `move([...])` from Dorm A to the Cafeteria.",
+     "Copy the logged value on both pages."
+    ],
+    "clients": "GM and two players",
+    "theme": "default",
+    "settles_if": "Agrees if it is `{ [tokenId]: [ids before] }`; a defect in the harness's model otherwise (no module code is touched).",
+    "priority": "nit"
+   }
+  },
+  {
+   "n": "641",
+   "live_id": "LIVE-E39-03",
+   "stage": "E39 (D4)",
+   "asks": "The same move: the order of `preMoveToken` against `preUpdateToken` on the mover and of `moveToken` against `updateToken` on each client, both movement hooks' arguments, and what a `false` from `preMoveToken` does. The shim: `preMoveToken` before `preUpdateToken`, `moveToken` after `updateToken`, `false` cancels.",
+   "status": "partly",
+   "result": "n/a",
+   "evidence": "F, docs/dev/e39/CALIBRATION.md section 3 (:82-116; 16.11.2026, Foundry 14.370, PlayerOne's move of Aiko through `TokenDocument#move([{x: 1500, y: 400}, {x: 2300, y: 500}])`, read on the mover, the primary GM and a bystander; live-readings-other.json item 512, LIVE-E39-01), row at :93: 'preMoveToken and preUpdateToken once on the mover, updateToken and moveToken once on every client'. That each fires once is read; their order, their arguments and a `false` from preMoveToken are not.",
+   "triage_class": "K (this reader's class)",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "scenario 00-boot checks D4 (audit/harness/scenarios/00-boot.mjs:211, :223) and D11 (:242) hold the shim to the parts read; base-run.json does not exist, so the headless result on b5a29e73 is not read",
+   "note": "The module hooks neither `preMoveToken` nor `moveToken` (git grep over scripts/ outside the tests: none), so the order and the arguments are the harness's model only; the module's veto is `preUpdateToken` (scripts/movement.mjs `onPreUpdateToken` :375, :1545). The shim's order is at audit/harness/lib/shim.mjs:658-659 and the paragraph :620-628 says not read.",
+   "l1": {
+    "what": "The order and arguments of the movement hooks, and a refused preMoveToken.",
+    "recipe": [
+     "On the mover's page wrap `Hooks.on` for preMoveToken and preUpdateToken with a counter that logs order and `arguments.length` and argument types; on the GM and a bystander the same for moveToken and updateToken.",
+     "PlayerOne moves Aiko by `move([...])`.",
+     "Then `Hooks.once('preMoveToken', () => false)` and move again; read whether updateToken fires anywhere and where the token stands."
+    ],
+    "clients": "GM and two players",
+    "theme": "default",
+    "settles_if": "Agrees if the order is the shim's and false cancels; a defect in the harness's model otherwise.",
+    "priority": "nit"
+   }
+  },
+  {
+   "n": "642",
+   "live_id": "LIVE-E39-04",
+   "stage": "E39 (D4)",
+   "asks": "L1's route (300,300 -> 1500,400 -> 2300,500): `x`, `y` of each of the 20 steps of `passed.waypoints`, especially on which step `y` changes. The shim cuts each segment into max(|dx|, |dy|) / grid steps on the straight line, rounded to the grid; the steps are audited for walls by movement-audit.mjs `routeOf`.",
+   "status": "partly",
+   "result": "n/a",
+   "evidence": "F, docs/dev/e39/CALIBRATION.md section 3 (:82-116; 16.11.2026, Foundry 14.370, PlayerOne's move of Aiko through `TokenDocument#move([{x: 1500, y: 400}, {x: 2300, y: 500}])`, read on the mover, the primary GM and a bystander; live-readings-other.json item 512, LIVE-E39-01), row at :95: `passed.waypoints` held all 20 grid steps, each `{x, y, action: \"walk\", checkpoint, intermediate, level}`, the asked waypoint not intermediate, the end a checkpoint. The count and the keys are read; the coordinates of each step are not recorded.",
+   "triage_class": "K (this reader's class)",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "scenario 00-boot checks D4 (audit/harness/scenarios/00-boot.mjs:211, :223) and D11 (:242) hold the shim to the parts read; base-run.json does not exist, so the headless result on b5a29e73 is not read",
+   "note": "The module reads these steps twice: scripts/movement-audit.mjs `routeOf` :119-124 (the GM's wall audit) and scripts/movement.mjs `passedPath` :3252-3256 (the rooms of a route). Where the diagonal's step falls decides which wall a step line crosses. routeOf's comment :113-115 still calls `tokenDoc.movement` 'a field of v14's move not modelled by the harness', which D4 now models (audit/harness/client-entry.mjs:1998, shim.mjs:602) - a stale comment (nit).",
+   "l1": {
+    "what": "The coordinates of every grid step of a diagonal route.",
+    "recipe": [
+     "On the GM's page `Hooks.on('updateToken', (d, c, o) => console.log(JSON.stringify(o._movement?.[d.id]?.passed?.waypoints?.map(w => [w.x, w.y]))))`.",
+     "PlayerOne moves Aiko from (300,300) by `move([{x: 1500, y: 400}, {x: 2300, y: 500}])`.",
+     "Copy the 20 pairs; put Aiko back."
+    ],
+    "clients": "GM and two players",
+    "theme": "default",
+    "settles_if": "Agrees if the pairs equal the shim's straight-line cut; a defect in the harness's model otherwise, and then each wall-audit scenario's route is read again.",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "643",
+   "live_id": "LIVE-E39-05",
+   "stage": "E39 (D4)",
+   "asks": "`move({ x, y, action: \"displace\" })` across two rooms and the module's own write `update(to, { teleport: true, movementAction: \"displace\" })`: `passed.waypoints` (how many points, their `action`, `intermediate`, `checkpoint`). The shim gives one point, no grid steps.",
+   "status": "partly",
+   "result": "n/a",
+   "evidence": "F, docs/dev/e39/CALIBRATION.md:36 (LIVE-H81-03, 16.11.2026; live-readings-other.json item 274): for both the module's placing write and v14's own displacement 'the waypoint's action `displace`', `teleport: true` in `updateToken`; and CALIBRATION.md:88 the GM's put-back by `move({x: 300, y: 300, action: \"displace\"})`. The action is read; the number of points, `intermediate` and `checkpoint` are not recorded.",
+   "triage_class": "K (this reader's class)",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "scenario 00-boot checks D4 (audit/harness/scenarios/00-boot.mjs:211, :223) and D11 (:242) hold the shim to the parts read; 00-boot D4 at :223 holds `teleport` true for a displacement; base-run.json does not exist, so the headless result on b5a29e73 is not read",
+   "note": "The module reads `teleport` (scripts/sheet-sidebar.mjs `onTunnelStep`, per LIVE-H81-03's row) and `passed.waypoints` through `passedPath`/`routeOf`; a displacement with grid steps would hand the wall audit a route the token did not walk. The shim's single point: audit/harness/lib/shim.mjs:625-626.",
+   "l1": {
+    "what": "The waypoints of a displacement.",
+    "recipe": [
+     "On the GM's page log `o._movement[id].passed.waypoints` in updateToken.",
+     "As GM `t.move({x, y, action: 'displace'})` across two rooms; then the module's own `t.update(to, {teleport: true, movementAction: 'displace', animate: false})`.",
+     "Copy each list's length and each point's action, intermediate and checkpoint."
+    ],
+    "clients": "GM and two players",
+    "theme": "default",
+    "settles_if": "Agrees if each is one point; a defect in the harness's model if grid steps come.",
+    "priority": "nit"
+   }
+  },
+  {
+   "n": "644",
+   "live_id": "LIVE-E39-06",
+   "stage": "E39 (D4)",
+   "asks": "A token moved by `update({ x, y })` with no movement options: `options.movement` in the mover's `preUpdateToken`, `options._movement[id]` in `updateToken` (`method`, the number of steps in `passed`) and `teleport`. The shim treats it as `move()` with one waypoint, method 'api', with grid steps.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json, nor in the item's text. The nearest readings are docs/dev/e39/CALIBRATION.md:28 (LIVE-E30-03, more: an update naming a movement field where the token stood was sent and its hook got `{_id}`) and :36 (LIVE-H81-03: 'A walk: `teleport: false`', how the walk was written not said); neither records `movement` or `_movement` for a plain update.",
+   "triage_class": "K (this reader's class)",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "scenario 00-boot checks D4 (audit/harness/scenarios/00-boot.mjs:211, :223) and D11 (:242) hold the shim to the parts read; 00-boot D3 at :328 holds the no-op case; base-run.json does not exist, so the headless result on b5a29e73 is not read",
+   "note": "Every put-back of the module is a plain update (scripts/movement.mjs `putBackWrite` :3493-3495, `{ ...options, diff: false }`), so the record a plain update leaves is what `passedPath` and `routeOf` then read on the other browsers. Shim: audit/harness/lib/shim.mjs:626 and the request built at :656.",
+   "l1": {
+    "what": "The movement record of a plain update.",
+    "recipe": [
+     "On the mover's page log `o.movement` in preUpdateToken; on the GM log `o._movement[id]` (method, passed.waypoints.length) and `o.teleport` in updateToken.",
+     "PlayerOne writes `token.update({x: 500, y: 300})` on Aiko two rooms away.",
+     "Put her back."
+    ],
+    "clients": "GM and two players",
+    "theme": "default",
+    "settles_if": "Agrees if it is a route of one waypoint, method 'api', with grid steps; a defect in the harness's model otherwise.",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "645",
+   "live_id": "LIVE-E39-07",
+   "stage": "E39 (D4)",
+   "asks": "After a token's move, change only its name or a flag: `token.movement` before and after (the last move kept, or empty). The shim sets null.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json, nor in the item's text.",
+   "triage_class": "K (this reader's class)",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "no test or scenario reads it; audit/harness/client-entry.mjs:1998 sets `_drpgMovement` null for an update that moves nothing, its comment :1991-1997 says 'which was not read'; base-run.json does not exist, so the headless result on b5a29e73 is not read",
+   "note": "The module reads `tokenDoc.movement` in `passedPath` (scripts/movement.mjs:3252-3256) only from the move's own update road (:3054-3056, `path.length || atRest ? path : passedPath(tokenDoc)`), and in `routeOf` (movement-audit.mjs:119-124); a stale record kept after a flag write matters only if either runs on a non-move update, which this reader did not trace whole.",
+   "l1": {
+    "what": "`TokenDocument#movement` after an update that moves nothing.",
+    "recipe": [
+     "Move Aiko by `move([...])`; read `JSON.stringify(t.movement?.passed?.waypoints?.length)` on the GM.",
+     "Write `t.update({name: t.name + ' '})` (then back); read `t.movement` again on the GM and a player."
+    ],
+    "clients": "GM and two players",
+    "theme": "default",
+    "settles_if": "Agrees if null or empty after; a defect in the harness's model if the last move stays.",
+    "priority": "nit"
+   }
+  },
+  {
+   "n": "646",
+   "live_id": "LIVE-E39-08",
+   "stage": "E39 (D4)",
+   "asks": "In `options._movement[id]` and `TokenDocument#movement`, the values of the 14 keys the shim does not model: subpathId, chain, history, split, constrained, recorded, constrainOptions, terrainOptions, measureOptions, autoRotate, showRuler, updateOptions, finished, animation.",
+   "status": "partly",
+   "result": "n/a",
+   "evidence": "F, docs/dev/e39/CALIBRATION.md section 3 (:82-116; 16.11.2026, Foundry 14.370, PlayerOne's move of Aiko through `TokenDocument#move([{x: 1500, y: 400}, {x: 2300, y: 500}])`, read on the mover, the primary GM and a bystander; live-readings-other.json item 512, LIVE-E39-01), row at :98: `TokenDocument#movement` has 22 keys, named there (the 14 among them). The names are read; no value of the 14 is recorded.",
+   "triage_class": "K (this reader's class)",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "scenario 00-boot checks D4 (audit/harness/scenarios/00-boot.mjs:211, :223) and D11 (:242) hold the shim to the parts read; base-run.json does not exist, so the headless result on b5a29e73 is not read",
+   "note": "No module code reads any of the 14 (git grep for `constrainOptions` finds the module's put-back's option at scripts/movement.mjs:1429 and bridge-runs-records.mjs:451, which it writes, not reads). Shim: audit/harness/lib/shim.mjs:626-627 'left out, not filled with guesses'.",
+   "l1": {
+    "what": "The values of the movement record's other keys.",
+    "recipe": [
+     "After a `move([...])` of Aiko, on the GM: `JSON.stringify(Object.fromEntries(['subpathId','chain','history','split','constrained','recorded','constrainOptions','terrainOptions','measureOptions','autoRotate','showRuler','updateOptions','finished','animation'].map(k => [k, t.movement?.[k]])))`."
+    ],
+    "clients": "GM and one player",
+    "theme": "default",
+    "settles_if": "Read when the values are recorded; nothing in the module rests on them.",
+    "priority": "nit"
+   }
+  },
+  {
+   "n": "647",
+   "live_id": "LIVE-E39-09",
+   "stage": "E39 (D4)",
+   "asks": "A token dragged by mouse on the canvas over several squares with a stop half way: how many updates arrive, `method` ('dragging'?), `pending.waypoints` and `state` in each, and `TokenDocument#movement` in flight. The shim does not model it: tests that need a move in flight set `movement` on the document (66 N, W, GO; 74; 75; 86 'own path').",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json, nor in the item's text. docs/dev/e39/CALIBRATION.md:128-130 and :144-146 (section 5): 'A drag by mouse ... was not read: a canvas drag through Playwright on this sandbox is the next reading'; live-readings-other.json not_run (docs/dev/e39/STATUS.md:165-170).",
+   "triage_class": "K (this reader's class; Playwright's mouse on the canvas)",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "no test reads a real drag; scenarios 66, 74, 75 and 86 stand a move in flight on the document itself, as the item says; base-run.json does not exist, so the headless result on b5a29e73 is not read",
+   "note": "This is the ordinary road a player takes. scripts/movement.mjs:3054-3056 chooses between the drag's noted `path` and `passedPath`, and which one a mouse drag on 14.370 feeds is item 649's question.",
+   "l1": {
+    "what": "A mouse drag's updates and movement record.",
+    "recipe": [
+     "On the GM and the mover log every updateToken's `o._movement[id]` (method, state, passed and pending lengths) and `t.movement` on each animation frame.",
+     "Drag Aiko with the real mouse (Playwright `page.mouse` down, move in steps, pause 1 s, move on, up) across three squares and a stop."
+    ],
+    "clients": "GM and one player",
+    "theme": "default",
+    "settles_if": "Read when the counts, method and pending are recorded; the harness's model is then built from them (D4's open half).",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "648",
+   "live_id": "LIVE-E39-10",
+   "stage": "E39 (the Eclipse route fix, line claude/shim-118; L1's reading LIVE-E05-13)",
+   "asks": "A player moves a token by `TokenDocument#move([...])` with a waypoint in each room; in `preUpdateToken` on their browser record `options.movement[id]` whole: whether it has a `waypoints` list, in what order and with which fields (`x`, `y`, `level`, `action`). The module's veto judges each leg of that list; the harness takes `{ waypoints, method }`.",
+   "status": "partly",
+   "result": "n/a",
+   "evidence": "F, docs/dev/e39/CALIBRATION.md section 3 (:82-116; 16.11.2026, Foundry 14.370, PlayerOne's move of Aiko through `TokenDocument#move([{x: 1500, y: 400}, {x: 2300, y: 500}])`, read on the mover, the primary GM and a bystander; live-readings-other.json item 512, LIVE-E39-01), row at :94: '`options.movement` only in the mover's `preUpdateToken` (the request)'. Its presence and where it is seen are read; its contents are not recorded. The fix it serves follows item 65's reading (live-readings-e58.json, LOCAL-REPORT.md:478; fixed in 1.2.118, .github/release-notes/v1.2.118.md:99-109).",
+   "triage_class": "K (this reader's class)",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "scenario 70 phase 'route' (audit/harness/scenarios/70-movement.mjs:151-162) and R7740 on the shim's request shape; base-run.json does not exist, so the headless result on b5a29e73 is not read",
+   "note": "scripts/movement.mjs `routeLegs` :1595-1608 and :3258-3270 read `options.movement[id].waypoints` (all but the last); the comment at :1607 says 'not read on 14.370 (LIVE-E39-10)'. If 14.370's request holds no such list, every route falls back to one leg end to end (:1596 and :3264-3266), which is item 65's defect again.",
+   "l1": {
+    "what": "The mover's request in preUpdateToken.",
+    "recipe": [
+     "On PlayerOne's page `Hooks.on('preUpdateToken', (d, c, o) => console.log(JSON.stringify(o.movement?.[d.id])))`.",
+     "PlayerOne moves Aiko by `move([{x: 1500, y: 400}, {x: 2300, y: 500}])` across three rooms.",
+     "Copy the logged object."
+    ],
+    "clients": "GM and one player",
+    "theme": "default",
+    "settles_if": "Agrees if it holds `waypoints` in route order with x, y (and level); a defect if the list is missing or holds other points, since the module's leg judgement then judges end to end.",
+    "priority": "major"
+   }
+  },
+  {
+   "n": "649",
+   "live_id": "LIVE-E39-11",
+   "stage": "E39 (the same fix; movement.mjs `passedPath`)",
+   "asks": "In an ordinary Eclipse (two crossings) a player drags their token by mouse from a room through the next into a third and on into a fourth without letting go: how many crossings the GM counted, where the token stood, the cards to the player, and `movement.passed.waypoints` and `pending` in each update. Which road (passed waypoints, or rooms noted in flight) a mouse drag takes is not known.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json, nor in the item's text. live-readings-other.json not_run (.github/release-notes/v1.2.118.md:108-109: 'A mouse drag through rooms was not read (LIVE-E39-11)'); item 65's reading (LOCAL-REPORT.md:478) was an API move.",
+   "triage_class": "K (this reader's class)",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "scenario 70 phase 'route' (audit/harness/scenarios/70-movement.mjs:151-162) on API routes only; base-run.json does not exist, so the headless result on b5a29e73 is not read",
+   "note": "scripts/movement.mjs `passedPath` :3252-3256, chosen at :3054-3056. Before 1.2.118 an API route passed the Eclipse's limit by a room (item 65); whether a drag does is this item.",
+   "l1": {
+    "what": "A mouse drag through four rooms in an Eclipse.",
+    "recipe": [
+     "Start an Eclipse at Noon with 2 crossings each.",
+     "On the GM log each updateToken's `o._movement[id]` (passed, pending, state) for Aiko; note the Eclipse counter before.",
+     "PlayerOne drags Aiko with the real mouse from Dorm A through the Cafeteria and the Hall into the Storage without releasing.",
+     "Read the GM's count, Aiko's final room and the cards PlayerOne got."
+    ],
+    "clients": "GM and one player",
+    "theme": "default",
+    "settles_if": "Agrees if the token stops at its last allowed crossing and two are counted; a defect if it ends in a room past the allowance.",
+    "priority": "major"
+   }
+  },
+  {
+   "n": "650",
+   "live_id": "LIVE-E39-12",
+   "stage": "E39 (line claude/shim-118; the coordinator's answer of 17.11.2026 on scenario 76 D; movement.mjs `putBackWrite`)",
+   "asks": "On 14.370: (1) the GM writes `token.update({ x, y })` when its copy already holds that `y` and the server another (a player's move not yet arrived): is `y` sent and written, or dropped (client or server diff); (2) the same with `{ diff: false }`; (3) in play, a player moves a token through a wall and straight back and the GM sends it back: where does it end.",
+   "status": "partly",
+   "result": "defect",
+   "evidence": "F, live-readings-e58-delta.json items 650 (four rows): origin/claude/e58-local docs/dev/e58/LOCAL-REPORT.md:376-378 (18.11.2026, test 404 'a put-back writes every coordinate it names ...' red at a table), docs/dev/e39/CALIBRATION.md:153-174 (a stale-copy put-back by five roads, `diff: false` among them: nothing written, `update()` answered undefined), :176-194 (the GM's socket did emit `modifyDocument` with x 400, y 300 and `diff: false`; PlayerOne got no write of x; the fresh control failed too) and :213, :221-222 (r5, 19.11.2026: the GM's copy out of step, a `diff: false` write to a free square not written, the same target from an in-step copy written in r1). So parts 1-2 are read with a defect against the module's promise in movement.mjs:3482-3491 ('every coordinate it names sent whatever the copy holds'); whether the client sends and the server refuses, or the client drops, is not separated. Part 3 is not driven (the seed's scenes have no walls; delta not_run). The runs were on 179c2644's runtime scripts; movement.mjs is byte-identical at b5a29e73 (delta `carries_to_b5a29e73`).",
+   "triage_class": "K (this reader's class; part 3 needs a drawn wall)",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "tier 2 'a put-back writes every coordinate it names, whatever the writer's copy of the token holds' (scripts/tests-tier2.mjs:27432, exists; red at a table per the delta), tier 0 R7741 (holds the three put-backs to `putBackWrite`), scenario 76 phase D (audit/harness/scenarios/76-passages.mjs:758) on the shim's writer-side diff; base-run.json does not exist, so the headless result on b5a29e73 is not read",
+   "note": "Identifiers read today: scripts/movement.mjs `putBackWrite` :3493-3495 (`{ ...options, diff: false }`), its header :3482-3491 still says 'where v14 diffs was not read (LIVE-E39-12)' and promises every coordinate sent; the shim's comment audit/harness/lib/shim.mjs:670-674 models the diff on the writer's client. Both stand against the delta's r5. The delta's observation 'The put-back from a copy out of step did not land on 14.370' (F, measured) is the same fact. Failure scenario at a table, not driven: a GM sends a token back while the player's next move is on its way, and the token stays where the player put it or at a mix of the two spots.",
+   "l1": {
+    "what": "Part 3, and the cause of parts 1-2.",
+    "recipe": [
+     "Draw one wall on the Academy (as CALIBRATION.md:199-201 did) and delete it after.",
+     "PlayerOne moves Aiko through the wall and at once back; the primary GM's audit sends her back; read where she stands on the server (a fresh page) and on each page.",
+     "For the cause: repeat r5 with a server-side read (a fresh GM page's `t._source`) and `game.socket` traffic on PlayerOne, to say whether the server received and refused the write."
+    ],
+    "clients": "GM and two players",
+    "theme": "default",
+    "settles_if": "Agrees if she ends where the put-back names in every run; a defect if she ends elsewhere. Parts 1-2 stay a defect against movement.mjs:3482-3491 until a stale-copy put-back lands.",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "651",
+   "live_id": "LIVE-E39-13",
+   "stage": "E39 (D5, line claude/shim-118; shim `TokenDocumentImpl.level`)",
+   "asks": "On 14.370 on a scene with two levels (e.g. Ground 0-10, Upper 10-20) create a token with no `level` field and record `token.level` and the floor the canvas draws it on; also the name and `elevation.base` of `defaultLevel0000` on a scene without levels. The harness takes the lowest floor (by `elevation.bottom`), name '' and `base` equal to `bottom`.",
+   "status": "partly",
+   "result": "defect",
+   "evidence": "F, docs/dev/e58/LOCAL-REPORT.md:277 (b5a29e73's copy, 16.11.2026; the passages paragraph): 'a new scene: `defaultLevel0000`, \"Level\", read on the sandbox' - the default level's name is 'Level', where the harness writes '' (audit/harness/lib/futil.mjs:50, `withDefaultLevel`). docs/dev/e39/CALIBRATION.md:109-110: `defaultLevel0000` 0-20 on a scene given no levels. `elevation.base` and a token given no level on a scene of two floors are not read.",
+   "triage_class": "K (this reader's class)",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "scenario 00-boot check D5 (audit/harness/scenarios/00-boot.mjs:262, :281, :291) on the parts read; base-run.json does not exist, so the headless result on b5a29e73 is not read",
+   "note": "audit/harness/lib/futil.mjs:40-44 says the name was 'Not read' - a comment that LOCAL-REPORT.md:277 contradicts (nit, the harness's). The module shows a floor's name in diagnostics with the id as fallback (scripts/fog-diagnostics.mjs:565, :904 `floor?.name || floor?.id`; fog.mjs:3054 `level?.name ?? floorKey`), so on v14 such a report reads 'Level' where the harness reads 'defaultLevel0000'; nothing a player sees. The token's floor (audit/harness/lib/shim.mjs:703-707, `get level()`) is the open half.",
+   "l1": {
+    "what": "A token's floor when created with no level on a two-floor scene, and the default level's base.",
+    "recipe": [
+     "On a scratch scene with Levels Ground (0-10) and Upper (10-20), create a token with no `level`; read `t.level` and which level the canvas draws it in.",
+     "On a scene with no levels drawn read `scene.levels.get('defaultLevel0000')` name and elevation.",
+     "Delete the scratch scene."
+    ],
+    "clients": "GM alone",
+    "theme": "default",
+    "settles_if": "Agrees if the token is on the lowest floor and base equals bottom; the name is already read as 'Level', against the harness's ''.",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "652",
+   "live_id": "LIVE-E39-14",
+   "stage": "E39 (line claude/shim-118; passages-gm.mjs `floorNamed`)",
+   "asks": "On 14.370 on a scene with no levels drawn (`defaultLevel0000`), the GM creates from the console a passage `game.drpg.passages.create({ sceneId, wallId, seg })` with no `level` and a tunnel with ends without `level`, grants them to a student, and the player crosses with their token: whether the passage was made (and with which `level` in the GM's data), whether the player crossed without a refusal and the GM did not send the token back. On a scene of two levels the same command with no `level` must be refused.",
+   "status": "partly",
+   "result": "agrees",
+   "evidence": "F, live-readings-e58-delta.json (origin/claude/e58-local docs/dev/e58/LOCAL-REPORT.md:366-368, 18.11.2026): 'Every tunnel, stairs and Secret Passage test passes on C1's floorNamed' in the tier 2 run at a table, down from about 20 failures (b5a29e73's copy LOCAL-REPORT.md:275-279: the fixtures ask for ends with `level: null` and were refused on v14, where every scene has a floor); 3 passage tests still fail there (1037, 1096, 1108), causes not read. `floorNamed` is on b5a29e73 (scripts/passages-gm.mjs:1343). This reads the module road on tier 2's own fixtures; the console command, the player's crossing at the table and the two-floor refusal are not recorded by name.",
+   "triage_class": "K (this reader's class)",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "tier 1 R7742 (scripts/tests-tier1.mjs:7891) and R7743 (:7909), scenarios 30, 33, 65, 76 (phase A, audit/harness/scenarios/76-passages.mjs:350) and 99 - exist; base-run.json does not exist, so the headless result on b5a29e73 is not read",
+   "note": "Identifiers read today: scripts/passages-gm.mjs `floorNamed` :1343-1346 and `passageRowFor` :1367-1376 (refuses 'name one of the scene's floors.' where several); game.drpg.passages (scripts/api.mjs:1594). The three passage tests still red at a table are not this item's subject by name but one of them (1037) passes over 'a nameless region', which this reader did not map.",
+   "l1": {
+    "what": "The console's passage with no floor named on a single-floor scene, crossed by a player.",
+    "recipe": [
+     "As GM on the Academy, `await game.drpg.passages.create({ sceneId, wallId, seg })` with no level on a wall between two rooms; read the answer and the passage's `level`.",
+     "Grant it to Aiko; PlayerOne walks her through; read refusals on PlayerOne and the GM's audit.",
+     "On a scratch two-floor scene, the same call with no level: read the refusal; delete the scratch scene."
+    ],
+    "clients": "GM and two players",
+    "theme": "default",
+    "settles_if": "Agrees if made with `defaultLevel0000`, crossed without a refusal or a send-back, and refused on two floors; a defect otherwise.",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "653",
+   "live_id": "LIVE-E39-15",
+   "stage": "E39 (D6, line claude/shim-118; harness cluster.mjs logout on a role change)",
+   "asks": "On 14.370 (1) an Assistant (role 3) lowers their own role to 2 from their console, and (2) the GM changes an open player's role 2 to 2 (no change) and 1 to 3: whose page goes to /join and after how long, and whether the others get `userConnected(user, false)` before or after the role write. The harness logs out only a user whose role someone else changed, and only when it changed.",
+   "status": "partly",
+   "result": "agrees",
+   "evidence": "F, docs/dev/e39/CALIBRATION.md:30 (LIVE-E30-05, 16.11.2026; live-readings-other.json): the GM changed PlayerTwo's role 1 to 2 with the page open - PlayerTwo's page went to /join within 5 s, the hook came once `(user, false)` with `active` already false. :29 (LIVE-E30-04): the Assistant's own raise to role 4 was refused by the server. The Assistant's own lowering, a write of the same role, 1 to 3, and the hook's order against the role write are not read.",
+   "triage_class": "K (this reader's class; the sandbox made a scratch Assistant for E30-04)",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "scenario 00-boot check D6 (audit/harness/scenarios/00-boot.mjs:336-355: the GM's change of p2's role logs p2 out within 5 s; a write of the role p2 holds logs nobody out) and audit/harness/cluster.mjs:528 - exist; base-run.json does not exist, so the headless result on b5a29e73 is not read",
+   "note": "The harness's rule matches what was read for the one case read; the unread cases are where it chose (only someone else's change, only a real change).",
+   "l1": {
+    "what": "A role change's log-out in the cases not read.",
+    "recipe": [
+     "Make a scratch Assistant (role 3); on the GM log `userConnected` with a timestamp and `updateUser` with a timestamp.",
+     "From the Assistant's console `game.user.update({role: 2})`; note whether its page goes to /join and when.",
+     "As GM set PlayerOne's role 2 to 2, then a player of role 1 to 3; note each page and the two hooks' order.",
+     "Delete the scratch user."
+    ],
+    "clients": "GM and two players",
+    "theme": "default",
+    "settles_if": "Agrees if only an actual change by another user logs out; a defect in the harness's model otherwise.",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "654",
+   "live_id": "LIVE-E39-16",
+   "stage": "E39 (line claude/shim-118; the coordinator's answer of 17.11.2026 after E16-T29; sheet-audit.mjs `noteOwnDropped`)",
+   "asks": "On 14.370 with the primary GM and a connected player: the player writes from the console a GM-only flag on their student (e.g. `notInClass` true) or a found-stash note, and before the audit's put-back arrives the GM writes the same value by its own road (a Find Stash resolved on the GM, the Students window's switch): whether the GM's write went out (`update()` answers the document or undefined), what the sheet and the GMs' mark hold after (`game.drpg.sheetWrites()`, the mark from the GM's console), and whether the put-back did not overwrite the GM's value.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json, nor in the item's text. live-readings-other.json not_run (.github/release-notes/v1.2.118.md:114-119: 'not read at a table (LIVE-E39-16)').",
+   "triage_class": "K (this reader's class)",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "tier 2 E16-T29 (scripts/tests-tier2.mjs:84495) and the test before it, 'a GM's own write of a student's GM-only flag that a player's pending write already left on the sheet moves the GMs' mark ...' (:84454), and R7744 - exist; base-run.json does not exist, so the headless result on b5a29e73 is not read",
+   "note": "Identifiers read today: scripts/sheet-audit.mjs `noteOwnDropped` :3333-3348 (registered at :3372 through `noteOwnWritesWith`), game.drpg.sheetWrites (scripts/api.mjs:155, :1186). The window is a network race; the item itself says the harness cannot measure it with real delays.",
+   "l1": {
+    "what": "A GM's write equal to a player's pending write, under real network delay.",
+    "recipe": [
+     "On PlayerOne's console write `actor.setFlag('danganronpa-rpg', 'notInClass', true)` on Aiko; within the same second, as GM, set the same through the Students window's switch.",
+     "Read the GM's `update()` answer, `game.drpg.sheetWrites()`, the GMs' mark from the GM console and the flag on a fresh page after 10 s.",
+     "Repeat 10 times with the GM's write at different delays."
+    ],
+    "clients": "GM and one player",
+    "theme": "default",
+    "settles_if": "Agrees if the flag ends at the GM's value and the mark moved in every run; a defect if the put-back writes the old value over it.",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "655",
+   "live_id": "LIVE-E39-17",
+   "stage": "E39 (line claude/shim-118; sheet-audit.mjs `noteOwnDropped`)",
+   "asks": "On 14.370 on an actor with `preUpdateActor` and `updateActor` hooks standing: `unsetFlag` of a flag the actor does not have, and `update({\"flags.danganronpa-rpg.x\": ForcedDeletion.create()})` with no such key: whether the write goes out (`update()` answers the document or undefined) and what `updateActor` gets on both clients. The harness sends every operator (lib/futil.mjs `diffChanges`); if v14 drops such a removal, a GM's removal of a flag a player's pending write already removed does not move the GMs' mark and must be added to `noteOwnDropped`.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json, nor in the item's text. docs/dev/e39/CALIBRATION.md:27 (LIVE-E30-03) read `unsetFlag` of a key that exists (the hooks got a ForcedDeletion instance) and a write of a value already there (not sent, undefined), not a removal of a missing key. live-readings-other.json not_run (.github/release-notes/v1.2.118.md:208-210: 'read and left').",
+   "triage_class": "K (this reader's class)",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "no test named; audit/harness/lib/futil.mjs `diffChanges` :332-338 sends every operator; base-run.json does not exist, so the headless result on b5a29e73 is not read",
+   "note": "scripts/sheet-audit.mjs `noteOwnDropped` :3339-3341 skips non-plain objects (an operator instance) and `-=`/`==` keys, so today a dropped removal is not noted, as the release notes say ('read and left').",
+   "l1": {
+    "what": "A removal of a key that is not there.",
+    "recipe": [
+     "On a scratch actor with `preUpdateActor` and `updateActor` loggers on the GM and PlayerOne:",
+     "`await a.unsetFlag('danganronpa-rpg', 'nosuchkey')`; log the answer and the hooks.",
+     "`await a.update({'flags.danganronpa-rpg.nosuchkey': foundry.data.operators.ForcedDeletion.create()})`; log the same; delete the actor."
+    ],
+    "clients": "GM and two players",
+    "theme": "default",
+    "settles_if": "Agrees with the harness if the write is sent and updateActor fires; if it is not sent, the GMs' mark gap the item names is real and noteOwnDropped needs the case.",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "656",
+   "live_id": "LIVE-E39-18",
+   "stage": "E39 (D10, line claude/shim-118; harness cluster.mjs `connect`)",
+   "asks": "On 14.370, with the GM's page listening to `userConnected` and the module's socket: (1) a player opens their page, (2) an Assistant (role 3) opens theirs; for each, whether `userConnected(user, true)` arrives at the socket's connection (before that page's `ready`) or after, and how much earlier than that page's first packet. Only the GM's entry is read (item 52, about 5.7 s before `bridge.gmReady`).",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json, nor in the item's text for a player's or an Assistant's entry. The GM's entry is item 52 (LIVE-E04-12; docs/dev/e39/CALIBRATION.md:138-140, docs/dev/e58/LOCAL-REPORT.md:472 on b5a29e73's copy; live-items-02.json reads it), as the item says.",
+   "triage_class": "K (this reader's class)",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "scenario 00-boot check D10 (audit/harness/scenarios/00-boot.mjs:358-372) for a GM only; audit/harness/cluster.mjs:720-724 announces a GM before load and a player after `ready`, 'the order no one has read for a player (LIVE-E39-18)'; base-run.json does not exist, so the headless result on b5a29e73 is not read",
+   "note": "No module code was traced here that depends on a player's hook order; the harness's choice decides when every scenario's GM first hears a player.",
+   "l1": {
+    "what": "When a GM hears a player's and an Assistant's page connect.",
+    "recipe": [
+     "On the GM's page log `userConnected` and every module socket packet with `performance.now()`.",
+     "Open PlayerOne's page; note its `ready` time from its own console (`Hooks.once('ready', () => console.log(performance.timeOrigin + performance.now()))`) and its first packet.",
+     "Make a scratch Assistant; open its page; the same; delete the user."
+    ],
+    "clients": "GM, one player, a scratch Assistant",
+    "theme": "default",
+    "settles_if": "Agrees with the harness if a player is heard after its ready and an Assistant before; a defect in the model otherwise.",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "657",
+   "live_id": "LIVE-E39-19",
+   "stage": "E39 (D11, line claude/shim-118; merge 0e70bfe3 with E58 L1, a6b25c51)",
+   "asks": "On 14.370 as GM: `const o = {}; await t.move([{ x: 400, y: 300 }], o); await t.move([{ x: 500, y: 300 }], o);` on one token, then the same with `update({ x }, o)` twice. Whether the second `move()` throws 'Cannot redefine property: <token id>' as the second `update()` does, what `o._movement` holds after the first (does `move()` pass its options on, or copy), and what `move()` answers.",
+   "status": "partly",
+   "result": "agrees",
+   "evidence": "F, live-readings-e58.json (docs/dev/e58/LOCAL-REPORT.md:136-140 on b5a29e73's copy, 17.11.2026): v14's `_preUpdate` writes `options._movement ??= {}` (client/documents/token.mjs:1742) and defines the token's id on it, not configurable (:2009), so one options object given to two moves of the same token throws 'Cannot redefine property' - 152 tier 2 failures from tests' shared options to `update`. The `update()` half is read and the shim models it (D11). `move()`'s half - throw, the options passed on or copied, the answer - is not read; the delta's CALIBRATION.md:176-194 records `move()` answering `false` on a stale copy, a Boolean, not this question.",
+   "triage_class": "K (this reader's class)",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "scenario 00-boot check D11 (audit/harness/scenarios/00-boot.mjs:242) on `update()`; base-run.json does not exist, so the headless result on b5a29e73 is not read",
+   "note": "audit/harness/lib/shim.mjs:630-642 models the throw on `update()`'s caller and says `move()` builds its own options (:685-693 `move` spreads `options` into a new object), 'not read (LIVE-E39-19)'. The module's own moves each pass a fresh object literal (live-readings-e58.json, LOCAL-REPORT.md:136), so only tests depend on the answer.",
+   "l1": {
+    "what": "`move()` and the caller's options object.",
+    "recipe": [
+     "As GM on a scratch token: `const o = {}; await t.move([{x: 400, y: 300}], o); console.log(JSON.stringify(Object.keys(o._movement ?? {})));`",
+     "`await t.move([{x: 500, y: 300}], o)`; note a throw and the answer of each call.",
+     "Delete the token."
+    ],
+    "clients": "GM alone",
+    "theme": "default",
+    "settles_if": "Agrees with the shim if the second move() does not throw and `o` stays empty; if it throws, the shim's move() must define the record on the caller's object as update() does.",
+    "priority": "nit"
+   }
+  },
+  {
+   "n": "660",
+   "live_id": "LIVE-F118-01",
+   "stage": "F118 (16.11.2026; AUDIT 9.2 S7-2, L1's run on 14.370)",
+   "asks": "At a v14 table with a GM and a player, both themes: a player asks for an action's statistic whose card goes to their messenger thread (as in S7-2, a Hand proposal), and the GM clicks with the real mouse 'Approve: Hand (+1)' on the card's copy in the chat log: the ruling is made within seconds (the player's Daggerheart window with the statistic locked, the card with the ruling line, no buttons in the messenger either). Then a second such card: the GM answers in the messenger and then clicks the chat copy's button if still visible: no second ruling, a refusal card ('... already ruled on this card.'), the log's buttons greyed or gone. The same for 'Change to: ...' and 'Refuse'.",
+   "status": "partly",
+   "result": "defect",
+   "evidence": "F, live-readings-other.json item S7-2 (.github/release-notes/v1.2.118.md:62-69; the L1 run of 16.11.2026 on Foundry 14.370, module 1.2.116, headless pages, a real click on the GM's page): the chat-log copy of a thread's ruling card had Approve, Change to and Refuse buttons that did nothing - 20 s, no error. A module defect, fixed in 1.2.118 (F118: gm-bridge.mjs registerGmBridge, messenger-app.mjs wireCallActions); the fixed state is not read at a table. The L1 delta ran on 179c2644's runtime scripts, which lack F118 (live-readings-e58-delta.json module_commit), so nothing there reads it.",
+   "triage_class": "K (this reader's class; a real click by Playwright, as L1's was)",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "tier 2 'the chat log's copy of a thread's ruling card rules it on a GM: Approve in the log is the messenger's Approve' (scripts/tests-tier2.mjs:25634) and 'a thread's ruling card answered in the messenger first is not ruled again from the log, and the log's buttons end disabled' (:25687) - exist; they draw the copy through the harness's `renderHTML` (audit/harness/client-entry.mjs:1270) and click in jsdom; base-run.json does not exist, so the headless result on b5a29e73 is not read",
+   "note": "Identifiers read today: scripts/gm-bridge.mjs `registerGmBridge` :102, scripts/messenger-app.mjs `wireCallActions` :684, scripts/bridge-asks.mjs `claimCard` :1327; the refusal is DRPG...alreadyRuled '{gm} already ruled on this card.' (lang/en.json:5010). The item's English quote '... already ruled on this card.' matches.",
+   "l1": {
+    "what": "The chat-log copy of a thread's ruling card, ruled and refused, on 1.2.118.",
+    "recipe": [
+     "On 1.2.118, PlayerOne asks for a Hand ruling on an action whose card goes to the messenger thread.",
+     "On the GM's page click 'Approve: Hand (+1)' on the chat log's copy with the real mouse; time to the ruling line; read the player's Daggerheart window and the messenger card's buttons.",
+     "Second card: answer in the messenger; then click the log copy's button; read the refusal card and the buttons' `disabled`.",
+     "Repeat for 'Change to: ...' and 'Refuse'; repeat under the other theme."
+    ],
+    "clients": "GM and one player",
+    "theme": "both",
+    "settles_if": "Agrees if each first click rules within seconds and each second click is refused with the buttons disabled; a defect otherwise.",
+    "priority": "major"
+   }
+  },
+  {
+   "n": "661",
+   "live_id": "LIVE-F118-02",
+   "stage": "F118 (17.11.2026; the owner's report and his 'Tak' for the rule)",
+   "asks": "At a v14 table with two GMs and a player, both themes: each GM has an assigned character owned by GMs only; on each GM's screen their own has the bone frame and the other GM's the others' frame (the time of day's colour under Stained Glass, dimmed bone under Monokuma Legacy); on the player's screen both have the others' frame. A GM assigns Monokuma: no frame on the other GM's or the player's screen. A change of assigned character mid-session redraws the frames everywhere without a token move. The GM turns a player with no assigned character into a Gamemaster and back: their character's frame goes and returns without a move (no test holds this redraw; a mutant without it survived), and the same on adding and removing an account.",
+   "status": "partly",
+   "result": "defect",
+   "evidence": "F, live-readings-other.json item 661 (audit/AUDIT-1.2.42.md:1616; .github/release-notes/v1.2.118.md:71-81): the owner at a real table, 17.11.2026, 'a new bug - there is no frame on the second GM's token'. Fixed in 1.2.118 (own-ring.mjs `frameFor`); the fixed state, the role-change redraw and two GMs on a canvas are not read. Nothing in the L1 delta (it ran without F118).",
+   "triage_class": "S (this reader's class; the frames are drawn on the canvas)",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "tier 1 R7790 (scripts/tests-tier1.mjs:2440, stand-in actors and accounts) and tier 2 'a character another user has as theirs is framed on this GM's screen as soon as it is assigned, and Monokuma assigned stays bare (F118)' (scripts/tests-tier2.mjs:25746, `diagnoseOwnRings` on one GM's screen) - exist; the harness draws no frames; base-run.json does not exist, so the headless result on b5a29e73 is not read",
+   "note": "Identifiers read today: scripts/own-ring.mjs `frameFor` :35, :225, `registerOwnRing` :126, `diagnoseOwnRings` :441. The release notes :209-211 repeat that the redraw on a role change is held by no test.",
+   "l1": {
+    "what": "Frames of GM-owned characters with two GMs, Monokuma, and the redraws on assignment, role change and account changes, on 1.2.118.",
+    "recipe": [
+     "Make a second GM account (role 4); assign each GM a character owned by GMs only.",
+     "Screenshot each GM's and the player's view of both tokens, both themes; run `game.drpg.diagnoseOwnRings()` on each.",
+     "One GM assigns Monokuma; screenshot the other GM's and the player's views.",
+     "Change an assigned character mid-session without moving any token; screenshot all three.",
+     "Turn a player with no assigned character into a Gamemaster and back; then add and remove an account; screenshot after each without moving tokens."
+    ],
+    "clients": "two GMs and one player",
+    "theme": "both",
+    "settles_if": "Agrees if every frame matches the rule on every screen after each change without a token move; a defect otherwise (the role-change redraw first).",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "662",
+   "live_id": "LIVE-F118-03",
+   "stage": "F118 (17.11.2026; the owner's report with a screenshot of the Facilities window; his word of 18.11.2026)",
+   "asks": "At a v14 table, Polish and English, both themes, at 1366x768 and narrow: a player in a room with no rest; the GM marked for rest their bedroom, an ownerless room and two other students' bedrooms, to one of which the player holds the key. Under the greyed Short Rest and Long Rest stands only 'Nie tutaj.' / 'Not here.'; a rest chosen in the wrong room refuses and names only 'your bedroom', the ownerless room and the bedroom keyed; after the rest is used the line says it was taken. A completed project's free action reads 'Za darmo.' / 'Free.'. The window's description and the tile's tip name the rest, the GM's action and the project's. The grey print reads without effort in both themes (in Chromium 6.79:1 under Stained Glass, 4.68:1 at 11 px under Legacy); the owner's impression from shots and the table.",
+   "status": "partly",
+   "result": "defect",
+   "evidence": "F, live-readings-other.json item 662 (audit/AUDIT-1.2.42.md:1618; .github/release-notes/v1.2.118.md:83-97): the owner's report at a real table, 17.11.2026 - the tile's description left out the GM's room action and the projects, the grey print under the rests needed fixing. Fixed in 1.2.118; the contrast after the fix is C (Chromium on the harness's drawing, audit/style-harness.html), not F; the fixed window has not been seen at a table.",
+   "triage_class": "S (this reader's class; the owner's impression is T - only the owner gives it)",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "tier 1 R7791 (scripts/tests-tier1.mjs:20736) and R7792 (:20798) - exist; the contrast measured in Chromium on audit/style-harness.html (exists); base-run.json does not exist, so the headless result on b5a29e73 is not read",
+   "note": "Identifiers read today: scripts/rest.mjs `restRoomsSentence` :83, scripts/action-facilities.mjs `priceLine` :46 ('Free.' = DRPG.Action.costsNothing, lang/en.json:1021, pl 'Za darmo.' :1044), 'Not here.' / 'Nie tutaj.' (lang/en.json:4067, lang/pl.json:4342), `.drpg-choice.unavailable` in styles/danganronpa.css:13112-13121. Both languages carry the item's words.",
+   "l1": {
+    "what": "The Facilities window's rest rows, refusal, free line, description and grey print at a table, and the owner's impression.",
+    "recipe": [
+     "As GM mark for rest PlayerOne's bedroom, an ownerless room and two other bedrooms; give PlayerOne the key of one.",
+     "Stand Aiko in a room with no rest; open Facilities in English and Polish, both themes, 1366x768 and narrow; screenshot each.",
+     "Choose a rest anyway; read the refusal's room list.",
+     "Take a rest where allowed, open Facilities again; read the line. Open a completed project's free action; read 'Free.'.",
+     "Show the owner the shots and the window; record his word."
+    ],
+    "clients": "GM and one player",
+    "theme": "both",
+    "settles_if": "Agrees if every row reads as the item says and the owner finds the grey print readable; a defect otherwise.",
+    "priority": "nit"
+   }
+  },
+  {
+   "n": "663",
+   "live_id": "LIVE-F118-04",
+   "stage": "F118 (18.11.2026; the owner's 'one screen' at both ends of the day)",
+   "asks": "At a v14 table, both themes and languages, 1366x768 and narrow: at the start of Night (end of the night's Eclipse, Skip Eclipse from Evening) the board 'End of day N' and at the start of the day (Skip Eclipse from Night) the board 'Day N' look the same under the title: the chapter line, the time of day and the living, the cast with the dead greyed, the school's mood (a word, no numbers, animated) and in the morning the GM's sentence; no day rows, sum or what the school saw. The Evening's summary comes at the start of Night as its own card. The next morning after the chapter's end screen both boards have a fresh mood. The end-of-day card stays in the notice history. A Spectator gets only title and mood at Night's start and the whole board at day's start; a player joining within 10 minutes sees the day's board with the mood. A world with no mood on the clock shows no mood row.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json, nor in the item's text. live-readings-other.json not_run (.github/release-notes/v1.2.118.md:196-197, :256-258: LIVE-F118-04 open). The look was shot in Chromium (docs/dev/f118/shots/day-start-*, day-end-*, 16 files; exist), class C, not at a table.",
+   "triage_class": "S (this reader's class; the join within 10 minutes and the Spectator's board are K)",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "tier 1 R3722 (scripts/tests-tier1.mjs:57467), R3724 (:57540), R7793 (:58230), R3868 (:58715) and tier 2 F118-T1 (scripts/tests-tier2.mjs:91514) - exist, on stand-in clocks and students; base-run.json does not exist, so the headless result on b5a29e73 is not read",
+   "note": "Identifiers read today: scripts/sequence.mjs `dayBoardElement` :914, `drawDayBoard` :915, `dayStartBoard` :937, `dayEndBoard` :945, `dayEndBoardFor` :1137; scripts/day-summary.mjs `sumUp` :61; 'Pomiń Eclipse' is DRPG.Panel.advance (lang/pl.json). chapter.mjs's `morning` step not opened by this reader.",
+   "l1": {
+    "what": "The day's board at both ends of the day, its mood, the Evening card, the Spectator's and a late joiner's view.",
+    "recipe": [
+     "With the table's sequences on, from Evening press 'Skip Eclipse'; screenshot the 'End of day N' board on GM, player and Spectator.",
+     "From Night press 'Skip Eclipse'; screenshot the 'Day N' board on the same three; compare the parts under the title.",
+     "Read the Evening's summary card at Night's start and the notice history's end-of-day entry.",
+     "Within 10 minutes of the day's start, open a player's page fresh; screenshot.",
+     "End a chapter and play to the next morning; compare the mood with the previous Night's.",
+     "On a world with no mood on the clock, repeat one board; both themes and languages, 1366x768 and narrow."
+    ],
+    "clients": "GM, one player, one Spectator",
+    "theme": "both",
+    "settles_if": "Agrees if both boards match under the title and each case shows what the item says; a defect otherwise.",
+    "priority": "minor"
+   }
+  }
+ ],
+ "observations": [
+  "Count: audit/AUDIT-1.2.42.md lines 1586-1620 hold 27 numbered items: 561, 562, 563, 600, 601, 640-657 (18) and 660-663 (4), counted by a script over the lines (each number once, in order, an item head at the start of a line). The numbers jump twice after 563 and once after 601 and 657 (564-599, 602-639, 658-659 are not in the file); line 1621 on is the B- block (B-E20-1). Every item carries a LIVE id; LIVE-E39-01 (item 512) is not in this chunk, so the E39 ids run -02 to -19.",
+  "Triage: docs/dev/e58/TRIAGE-9.2.md (16.11.2026) stops at item 561 (T, :588); items 562-663 were written later (1.2.117 and 1.2.118) and have no triage row. Their class here is this reader's, by the triage's own codes, and each item says so. Classes by first letter: F 1, K 20, S 5, T 1.",
+  "Status by script over this file: read 0, partly 15, open 12, obsolete 0; result defect 5, agrees 3, n/a 19. Partly: 561, 640, 641, 642, 643, 646, 648, 650, 651, 652, 653, 657, 660, 661, 662. No item is obsolete: every function, key, test and file named was found today.",
+  "Readings: none of the 27 is closed by a reading. The parts read come from four places: docs/dev/e39/CALIBRATION.md section 3 (16.11.2026, LIVE-E39-01's one move: presence of `_priorRegions`, the hooks' counts, 20 steps and their keys, the 22 key names, the request's presence) gives 640-643, 646 and 648 their partly; LOCAL-REPORT.md:136-140 (the `update()` half of 657) and :277 (the default level's name 'Level', item 651); the L1 delta (item 650's four rows, the passage tests passing on floorNamed for 652); and owner or L1 reports of a defect since fixed (660, 661, 662), whose fixed state is not read - the same reading the 429 file gave item 429.",
+  "The L1 delta's readings all ran on 179c2644's runtime scripts (module.json 1.2.116), which lack F118 and E112v: nothing in it can read items 600, 601 or 660-663. The parts of 650 and 652 it reads rest on movement.mjs and passages-gm.mjs, byte-identical at b5a29e73 per the delta.",
+  "Item 650 is the one defect of this chunk against today's module code: at 14.370 a put-back written with `diff: false` from a GM copy out of step did not land (CALIBRATION.md:213, :221-222 on origin/claude/e58-local, r5), against scripts/movement.mjs:3482-3491's promise. The cause (client or server) and whether the race happens in play (part 3) are not read. The module comment :3482-3486 and the shim's comment audit/harness/lib/shim.mjs:670-674 still describe the diff as not read.",
+  "Items 640, 641, 643, 645 and 646 are harness assumptions no module code reads: git grep over scripts/ outside the tests finds no `_priorRegions`, `_regions`, `_movement`, `preMoveToken` or `moveToken`; the module reads only `TokenDocument#movement.passed.waypoints` (movement.mjs `passedPath` :3252, movement-audit.mjs `routeOf` :119) and the mover's request `options.movement[id].waypoints` (movement.mjs `routeLegs` :3258). Items 642, 644, 647, 648 and 649 are the ones whose answer changes what the module does (the wall audit's route, the Eclipse's count, the leg veto).",
+  "Comments against readings (nit, read): audit/harness/lib/futil.mjs:40-44 says the default level's name was 'Not read' and writes '' (:50), while docs/dev/e58/LOCAL-REPORT.md:277 (b5a29e73's copy) records 'a new scene: `defaultLevel0000`, \"Level\", read on the sandbox'. scripts/movement-audit.mjs:113-115 calls `tokenDoc.movement` 'a field of v14's move not modelled by the harness', which D4 models since 1.2.118 (audit/harness/client-entry.mjs:1998).",
+  "Text stale: one item, 562 - the Polish button is 'Zresetuj sezon' (lang/pl.json DRPG.Season.resetButton), not 'Resetuj sezon'. 563's 'bez listy Kogo stracić' is right about the select, though the words stay on screen as the fieldset's legend (lang/pl.json:2622).",
+  "Duplicates: none within the chunk. 601 restates 557 (LIVE-E112-05) for the veil; 561 overlaps 129 (LIVE-E33-05, which live-items-04.json marks duplicate_of 561) and 323 (LIVE-E88-01); 656's GM half is item 52; 660 follows the S7-2 reading. Each said in its note.",
+  "base-run.json did not exist when this file was written (20.11.2026): no headless result of a named test or scenario is cited, only that it exists today."
+ ]
+}

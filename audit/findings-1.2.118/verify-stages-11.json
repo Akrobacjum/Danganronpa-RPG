@@ -1,0 +1,440 @@
+{
+ "refuter": "verify-stages-11",
+ "of": "stages-11",
+ "scope": "Every promise marked holds yes (30; none is marked no), every stage's grade (4), and the three findings, all nit (the file has none of minor or above; checked anyway). Promises marked partly, superseded or unread were not re-judged. Source read at the lines quoted on claude/audit-119 (code as b5a29e73); nothing was run. base-run.json now exists (written after the reader's file): suite_merge \"3387 passed, 1 failed, 27 skipped, 0 red: RED\", the one failure grid XI07 in shard 3/8 (passes alone, xi07_alone); shard 1/8 (tiers 0-1) \"1781 passed, 0 failed, 16 skipped\"; the ci scenarios are still under `pending`.",
+ "checked": [
+  {
+   "ref": "E70 promise 1",
+   "claim": "One writer: floor and record written on the primary alone; another GM by trial.gm / trial.record",
+   "verdict": "stands",
+   "why": "writeFloor returns null off the primary; floorOnPrimary refuses off the primary or an op outside FLOOR_OP_NAMES; floorStep sends another GM's press by requestTrialGm; recordOnPrimary refuses off the primary and holds a patch to RECORD_FIELDS. E70-T1 and E70-T4 are tier-2 tests in shards other than 3, all green in the base run. Only road found that writes off the primary: askRecord writes the patch locally when the primary does not answer (not refused) - a recorded fallback named in its own header, not a second writer in the ordinary case.",
+   "evidence": [
+    "scripts/trial-floor.mjs:366-371 `async function writeFloor(patch) { if (!isPrimaryGm()) return null; ...`",
+    "scripts/trial-floor.mjs:726-729 `if (!isPrimaryGm() || !FLOOR_OP_NAMES.includes(op)) return Promise.resolve(null); return serialWrite(SEIZE_KEY, ...)`",
+    "scripts/trial-progress.mjs:528-529 `if (op === \"patch\" && !res.refused) { warn(`The primary GM did not answer a write of the trial's record; written here: ...`",
+    "scripts/trial-progress.mjs:540-541 `if (!game.user.isGM || !isPrimaryGm()) return null;`",
+    "audit/findings-1.2.118/base-run.json"
+   ]
+  },
+  {
+   "ref": "E70 promise 2",
+   "claim": "The GM's bar: buttons greyed with their reason, a press runs on the primary, the table told",
+   "verdict": "stands",
+   "why": "barRefusal answers a key for every op outside a trial, with no floor, for repoint outside an exchange and for +/- where the mode forbids; barMay warns with it before floorStep. Today BAR_OPS holds nine (E73's count and skipQuestion), as the reader says. E70-T2 (\"the GM's bar is told to the table\") and E70-T4 passed in the base run.",
+   "evidence": [
+    "scripts/trial-floor.mjs:1403 `export const BAR_OPS = Object.freeze([\"skip\", \"minus\", \"plus\", \"overrule\", \"endMode\", \"back\", \"repoint\", \"count\", \"skipQuestion\"]);`",
+    "scripts/trial-floor.mjs:1431-1432 `export function barRefusal(op, floor = trialFloor(), ...) { if (!running) return \"DRPG.Floor.bar.notTrial\";`",
+    "scripts/trial-floor.mjs:1446-1449 `function barMay(op, seconds = null) { const refused = barRefusal(...); if (refused) ui.notifications.warn(...)`",
+    "audit/findings-1.2.118/base-run.json"
+   ]
+  },
+  {
+   "ref": "E70 promise 3",
+   "claim": "Overrule: only the newest; during the exchange the floor goes back with its time; the price stays; after it the debate offered again",
+   "verdict": "stands",
+   "why": "overruleTarget refuses anything but the stack's top during an exchange and anything but the newest unoverruled receipt of this trial after it; overruleInStep moves the floor only when `during`, and the TR25 comment and R1028 (tier 0, no refund on the road) hold the price. E70-T5 passed in the base run.",
+   "evidence": [
+    "scripts/floor-machine.mjs:471-473 `if (exchange) { const top = stackOf(floor).at(-1)?.messageId ?? floor.messageId ?? null; if (messageId && messageId !== top) return { refused: \"DRPG.Floor.overrule.onlyNewest\" };`",
+    "scripts/floor-machine.mjs:477-478 `const newest = Object.entries(receipts).filter(([, r]) => r && sameTrial(r) && !r.overruled)`",
+    "scripts/trial-floor.mjs:1527-1529 `if (judged.during) { written = await commitFloor(floor, nextFloor(floor, { type: \"overrule\" }, { now }), \"overrule\", ...`",
+    "audit/findings-1.2.118/base-run.json"
+   ]
+  },
+  {
+   "ref": "E70 promise 4",
+   "claim": "The debate's question carried; the debate reopened with the same question and budget; the 270-minute estimate in proportion",
+   "verdict": "stands",
+   "why": "FLOOR_OPS.start carries the GM's text as the topic; reopenDebate reads the record's seconds and topic and asks no window; trialTime scales TRIAL.modes.budget.minutesAt16 (270) by trialSize / 16. The cards' half rests on E70-T6, whose title names the cards and the log, green in the base run; not re-read in the card builders.",
+   "evidence": [
+    "scripts/trial-floor.mjs:384 `start: ({ seconds, text = null }) => startFloorInStep(debateSeconds(seconds), { topic: text }),`",
+    "scripts/trial-floor-ui.mjs:475-477 `const record = trialProgress(); ... return openDebate({ seconds: debateSeconds(record.seconds), topic: record.topic ?? \"\" });`",
+    "scripts/trial-floor-ui.mjs:494 `budget: size > 0 ? Math.round((Number(TRIAL.modes.budget.minutesAt16) || 270) * size / 16) : null`",
+    "scripts/config.mjs:4353 `budget: { minutesAt16: 270 },`"
+   ]
+  },
+  {
+   "ref": "E70 promise 5",
+   "claim": "The verdict kills nobody; the sentence once, on the primary, on every road out but the season reset, before the hall; retried at a phase change and at reload; Final sentence from verdictStore",
+   "verdict": "stands",
+   "why": "executeAtExit sends a non-primary GM's ask by askRecord(\"execute\"); startExecution keeps one run under a latch; carryOutSentence writes the stamp only when nobody failed; clock.mjs runs it on the road out after the vote and the microphones and before the bodies are taken off, and again at every phase change outside a trial when `failed` is not empty; vote.mjs retries at drpgPrimaryReady and ready. sentenceOf reads the Final sentence from verdictStore and whispers the GMs once when it is missing. E70-T7 green in the base run.",
+   "evidence": [
+    "scripts/trial-progress.mjs:100 `if (!isPrimaryGm()) return askRecord(\"execute\", { chapter }, () => startExecution(chapter));`",
+    "scripts/trial-progress.mjs:188 `key: STAMP, ask: () => !failed.length,`",
+    "scripts/clock.mjs:1029-1031 `const { executeAtExit } = await import(\"./vote.mjs\"); await executeAtExit();`",
+    "scripts/clock.mjs:1052-1056 `if (from !== \"classTrial\" && to !== \"classTrial\") { ... trialProgress(chapter).execution?.failed?.length ? await executeAtExit({ chapter }) : null;`",
+    "scripts/vote.mjs:112-113 `const retry = () => verdictStore.whenHydrated().then(() => retrySentence()) ...; Hooks.on(\"drpgPrimaryReady\", retry);`",
+    "audit/findings-1.2.118/base-run.json"
+   ]
+  },
+  {
+   "ref": "E70 promise 7",
+   "claim": "Testimony 60 s (30-120), Panic Round 15 s, 10 s from 12; the Closing once a trial",
+   "verdict": "stands",
+   "why": "The values are in TRIAL.modes.round as quoted; the named functions exist at the lines given. E70-T9 and E70-T10 green in the base run; scenario 67 is under base-run `pending`, so its phases T, P, C, M are not joined.",
+   "evidence": [
+    "scripts/config.mjs:4364-4366 `testimony: { offered: 60, min: 30, max: 120 }, panic: { offered: 15, small: 10, smallFrom: 12, min: 10, max: 15 },`",
+    "scripts/trial-modes.mjs:129 `export function startPanicRound(options = {}) {`, :147 turnOnPrimary, :322 volunteerOnPrimary",
+    "scripts/floor-machine.mjs:210 `function closingDecide(floor, now, cards) {`",
+    "audit/findings-1.2.118/base-run.json"
+   ]
+  },
+  {
+   "ref": "E70 promise 8",
+   "claim": "Monokuma's Reveal: count left, Cancel default, a second question past the count, one copy typed Key, not analysed",
+   "verdict": "stands",
+   "why": "revealLeft is paid less revealed; revealRefusal refuses past the count without beyondPaid; confirmReveal makes Reveal the destructive role with no primary and shows the beyondPaid warning when left is 0; revealInStep mints realType \"key\", analyzed null, none twice. E70-T11 green in the base run and on L1's sandbox (LOCAL-REPORT.md:258-263, read).",
+   "evidence": [
+    "scripts/trial-modes.mjs:401 `if (!beyondPaid && revealLeft(keyRevealRecord()) <= 0) return game.i18n.localize(\"DRPG.Reveal.pastPaid\");`",
+    "scripts/trial-floor-ui.mjs:1052-1053 `yes: { role: \"destructive\", action: \"reveal\", ...`",
+    "scripts/trial-modes.mjs:453 `name, realType: \"key\", shownType: null, analyzed: null,`",
+    "docs/dev/e58/LOCAL-REPORT.md:259-262 `\"Monokuma's Reveal ...\" and \"Present on the primary by \"trial.present\" ...\" ... both tests pass`"
+   ]
+  },
+  {
+   "ref": "E70 promise 9",
+   "claim": "Present on the primary by trial.present, with or without the Analyze result, copies to every participant; no Share in the trial",
+   "verdict": "stands",
+   "why": "The bridge row trial.present guards knownSender, notSpectator, owns, and runs presentOnPrimary; requestPresent asks it onPrimary; sheet-inventory.mjs drops Share in the trial (E70 C10 comment). E70-T12 green in the base run and on L1's sandbox. The no-GM refusal is the bridge's general one, as the reader says.",
+   "evidence": [
+    "scripts/bridge-table.mjs:1449-1451 `[ACTION_TRIAL_PRESENT]: { ... guards: [knownSender, notSpectator(\"actorId\"), owns(\"actorId\", ...)],`",
+    "scripts/bridge-asks.mjs:392-394 `return ask(ACTION_TRIAL_PRESENT, { actorId, itemId, comment, bare: analysis === false }, { onPrimary: true, ...`",
+    "scripts/sheet-inventory.mjs:888 `// NOT IN THE CLASS TRIAL (E70 C10, 28.10.2026; B6, the owner's \"Share znika z wiersza rozprawy\")`",
+    "audit/findings-1.2.118/base-run.json"
+   ]
+  },
+  {
+   "ref": "E70 promise 10",
+   "claim": "OBJECTION! on the voice tile, greyed outside a trial with its reason; on the HUD only where no tile",
+   "verdict": "stands",
+   "why": "objectionControl with host \"tile\" holds the button outside a trial with DRPG.Trial.objectionOutside; objectionOnHud answers true only when no #drpg-voice-tile is connected. E70-T13 green in the base run; scenario 75 is pending in the base run.",
+   "evidence": [
+    "scripts/hud.mjs:1478-1480 `export function objectionOnHud(root = document) { return !root.getElementById?.(\"drpg-voice-tile\")?.isConnected; }`",
+    "scripts/hud.mjs:1524 `const outside = tile && phase !== \"classTrial\" ? game.i18n.localize(\"DRPG.Trial.objectionOutside\") : null;`"
+   ]
+  },
+  {
+   "ref": "E70 promise 11",
+   "claim": "A successful Tamper's trace gives its author the Truth Bullet; a Reroll takes it back",
+   "verdict": "stands",
+   "why": "The only caller of authorsCopy passes it only on success; takeBackAuthorsCopy deletes the item on a GM. E70-T14 green in the base run.",
+   "evidence": [
+    "scripts/cleanup.mjs:1829 `const copy = success ? await authorsCopy(actor, left, done) : null;`",
+    "scripts/cleanup.mjs:2039-2045 `export async function takeBackAuthorsCopy(actor, itemId) { if (!game.user.isGM) return false; ... await item.delete();`",
+    "audit/findings-1.2.118/base-run.json"
+   ]
+  },
+  {
+   "ref": "E70 grade",
+   "claim": "Grade 8, provisional after L1",
+   "verdict": "weakened",
+   "why": "The scale (11.4) gives 8 when the promises are delivered and one holds only by a reading of the code; 7 when one promise is delivered in part. The reader marks promise 6 \"partly\" and still grades 8. Either the label is wrong (the give-back is only unmeasured on v14, which is the cap of 9, not a promise held in part) or the grade is. Two things argue for the label: the v14 reading that a ForcedDeletion did not remove an ownership entry (LOCAL-REPORT.md:214) gives a real reason to doubt the give-back on a user's permissions, and the stage shipped E70-75 open with the owner's wording (OBJECTION! kept on the HUD in the narrow layout) not built - tried, turned 75 G2 red, put back and asked again; no later commit answers it (git grep E70-75: notes, AUDIT 342 and a test comment only). With one promise in part and one owner's requirement not built as worded, the scale's row is 7. The base run, absent for the reader, now shows every E70 tier-0/1/2 test green (only XI07 failed); it does not move the grade, since what holds the grade down is not a test.",
+   "evidence": [
+    "audit/findings-1.2.118/stages-11.json E70 promise 6 `\"holds\": \"partly\"` with grade 8",
+    "audit/AUDIT-1.2.42.md 11.4 `| 7 | ... albo jedna obietnica dowieziona w części |`",
+    "docs/dev/e58/LOCAL-REPORT.md:214-215 `An owner is not removed by a deletion on v14 ... update({ \"ownership.<user>\": ForcedDeletion }), nested, and ownership.-=<user> each left the entry`",
+    "scripts/voice.mjs:1714-1720 `const gone = forcedDeletion(); ... change = { \"permissions.BROADCAST_AUDIO\": gone };`",
+    ".github/release-notes/v1.2.90.md:232-234 `E70-75, open: the narrow layout. The owner's answer lists the narrow layout among the places where the HUD keeps OBJECTION! ... it was put back and asked again.`",
+    "audit/findings-1.2.118/base-run.json"
+   ],
+   "grade_after": 7
+  },
+  {
+   "ref": "E89 promise 1",
+   "claim": "An own move inside the same rooms asks its own token; into another room only the tokens the change can touch; nothing known before asks all",
+   "verdict": "stands",
+   "why": "movePass answers \"one\" for equal room and lair signatures, \"rooms\" when both are known and differ, \"all\" when roomsBefore is unknown; roomChangeTokens builds the turned set. R1049, R1050 green in the base run (shard 1).",
+   "evidence": [
+    "scripts/visibility.mjs:315-318 `const sameRooms = viewer.roomsBefore != null && viewer.roomsBefore === viewer.roomsAfter; ... if (sameRooms && sameLair) return \"one\"; return viewer.roomsBefore != null ? \"rooms\" : \"all\";`",
+    "audit/findings-1.2.118/base-run.json"
+   ]
+  },
+  {
+   "ref": "E89 promise 2",
+   "claim": "sightRefresh during a move asks one verdict pass a frame",
+   "verdict": "stands",
+   "why": "sightPassNextFrame returns while a frame is pending and runs sightPass in one requestAnimationFrame. R1052 green in the base run. Whether v14 fires sightRefresh each frame is LIVE-E89-02, as the reader says.",
+   "evidence": [
+    "scripts/visibility.mjs:1053-1055 `function sightPassNextFrame() { if (pendingSight) return; pendingSight = requestAnimationFrame(() => {`",
+    "audit/findings-1.2.118/base-run.json"
+   ]
+  },
+  {
+   "ref": "E89 promise 3",
+   "claim": "Fix FG2: a whole pass on a region, a behaviour, a scene's regions, the two settings, an actor's ownership or a token's actor; only refreshVisibility takes a token off hiddenByUs",
+   "verdict": "stands",
+   "why": "Holds, but the reader's cited code (:312-313) covers only the token-side half; the region, behaviour, scene, setting and actor roads are the hooks at :86-95, and the list rule is refreshHeard at :124-125. A behaviour is heard on create and delete only (no updateRegionBehavior hook), which matches the comment's \"a passage behaviour added or taken off\". R1054, R1055 green in the base run.",
+   "evidence": [
+    "scripts/visibility.mjs:86-95 `Hooks.on(\"createRegion\", ...); ... Hooks.on(\"createRegionBehavior\", ...); Hooks.on(\"deleteRegionBehavior\", ...); ... Hooks.on(\"updateActor\", (actor, changes) => { if (changes?.ownership !== undefined) wholePassSoon(); }); Hooks.on(\"createSetting\" ...); Hooks.on(\"updateSetting\" ...)`",
+    "scripts/visibility.mjs:124-125 `export function refreshHeard(token, flags) { if (flags?.refreshVisibility) hiddenByUs.delete(token);`",
+    "scripts/visibility.mjs:312-313 `if (changes?.actorId !== undefined || changes?.actorLink !== undefined || changes?.delta?.ownership !== undefined) return \"all\";`"
+   ]
+  },
+  {
+   "ref": "E89 promise 5",
+   "claim": "A Bedroom made the usual way gives its owner an open stash on every road; an owner change keeps the old stash and gives the new owner one; a removed stash stays removed",
+   "verdict": "stands",
+   "why": "setVaultRoom stores the list before the owner moves and then calls ensureBedroomStash; ensureBedroomStash writes nothing when the owner's stash is stored already; Room Setup seeds only for rooms whose owner moved or mark appeared (seedOwnerStashes over ownerMoved), never every Apply. The tier-2 test at tests-tier2.mjs:67178 green in the base run.",
+   "evidence": [
+    "scripts/vault-store.mjs:1437-1441 `const ownerMoves = owner !== undefined && (ownerBefore ?? null) !== (owner || null); if (ownerMoves) { ... if (first) await setStash(room, first.actorId, { scene });`",
+    "scripts/vault-store.mjs:986-987 `if (has && stored) return null; return setStash(room, owner, has ? { scene } : { concealed: false, scene });`",
+    "scripts/room-setup.mjs:1179-1182 `async function seedOwnerStashes(ownerMoved, scene) { ... for (const { room } of ownerMoved) { if (await ensureBedroomStash(scene, room)) ...`",
+    "audit/findings-1.2.118/base-run.json"
+   ]
+  },
+  {
+   "ref": "E89 promise 6",
+   "claim": "The clause bedroomStashes runs once on the primary at the first 1.2.91 load and reports; a scene created later seeds once on the primary",
+   "verdict": "stands",
+   "why": "The clause is keyed bedroomStashes since 1.2.91 and returns notPrimary off the primary; seedBedroomStashes reports DRPG.Rooms.stashesTitle (\"Bedroom stashes given\"); createScene calls bedroomsOfNewScene, which asks isPrimaryGm first. Both tier-2 tests green in the base run.",
+   "evidence": [
+    "scripts/migrate.mjs:1019-1020 `key: \"bedroomStashes\", since: \"1.2.91\",`",
+    "scripts/migrate.mjs:1034 `if (!isPrimaryGm()) return { notPrimary: true };      // a Bedroom's stash: the primary's, once a world`",
+    "scripts/vault-store.mjs:1494 `Hooks.on(\"createScene\", scene => bedroomsOfNewScene(scene));`, :1510 `if (!isPrimaryGm() || !scene || !bedroomStashGaps(scene).length) return null;`",
+    "lang/en.json:6737 `\"stashesTitle\": \"Bedroom stashes given\",`"
+   ]
+  },
+  {
+   "ref": "E89 grade",
+   "claim": "Grade 7, provisional after L1",
+   "verdict": "stands",
+   "why": "One promise delivered in part (the edges, E89-11 not met at the review and closed partial by the stage itself) is the scale's 7; four more ledger rows closed partial and the lag never read as frames keep it from 8. Nothing found that would lower it: the five promises marked yes hold in the code and their tests passed in the base run.",
+   "evidence": [
+    ".github/release-notes/v1.2.91.md:217 `E89 closed (30.10): ANSWERED 11, PARTIAL 5 (E89-04, 09, 10, 11, 24)`",
+    ".github/release-notes/v1.2.91.md:177 `E89-11, the edges, partial. Measured only in software Chromium, headless.`",
+    "audit/findings-1.2.118/base-run.json"
+   ],
+   "grade_after": 7
+  },
+  {
+   "ref": "E89-1",
+   "claim": "Four of E89's tests (R1049-R1052) are stamped E67, a stage with no row",
+   "verdict": "stands",
+   "why": "The registry rows read E67, and tools/stages.json has no E67 row; the titles name E89 C1-C4. A nit, as filed.",
+   "evidence": [
+    "docs/dev/R-REGISTRY.md:582 `| R1049 | 1 | E67 | an own move inside the same rooms asks its own token (E89 C1)`",
+    "git grep E67 tools/stages.json: no hit"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "E20 promise 1",
+   "claim": "Where to start: once per GM browser on a world with no campaign name and no students, with a button to Set the season up",
+   "verdict": "stands",
+   "why": "startHereDue requires a GM, an empty campaign name, zero students and not shown; offerStartHere marks the client setting before the window; module.mjs calls it at ready. R1513 green in the base run.",
+   "evidence": [
+    "scripts/season-setup.mjs:1406-1408 `return Boolean(isGM) && !String(campaignName ?? \"\").trim() && Number(students) === 0 && !shown;`",
+    "scripts/module.mjs:545 `offerStartHere().catch(err => error(\"Could not say where to start\", err));`",
+    "scripts/settings.mjs:2557 `game.settings.register(MODULE_ID, SETTINGS.startHereShown, {`"
+   ]
+  },
+  {
+   "ref": "E20 promise 2",
+   "claim": "Until the required rows hold the Next line sends to Season setup, never the Eclipse; in a game under way the actions line stays first",
+   "verdict": "stands",
+   "why": "nextStep returns the season-checklist line when a required row is outstanding and the season is not under way, and an aside once it is. An Eclipse already running, an incident, a readiness round or a stopped chapter end are named before it - by design (the comment: they \"come first\"), and none of them is an offer to start an Eclipse. R1512 and E20-T8 green in the base run.",
+   "evidence": [
+    "scripts/gm-panel.mjs:987-988 `if (outstanding && !seasonUnderway(clock)) { return { text: game.i18n.format(\"DRPG.Panel.nextSeasonSetup\", ...), action: \"seasonChecklist\" };`",
+    "scripts/gm-panel.mjs:832-833 `if (eclipse) { return { text: game.i18n.localize(\"DRPG.Panel.nextEclipse\"), action: \"eclipse\" }; }`",
+    "audit/findings-1.2.118/base-run.json"
+   ]
+  },
+  {
+   "ref": "E20 promise 3",
+   "claim": "One census of rooms and students; the uncovered share against the scene's own rect, at most 10%, floor by floor with the worst named",
+   "verdict": "stands",
+   "why": "roomCensus/roomCensusOf and studentCensus are read by season-setup.mjs, fog.mjs and room-setup.mjs; sceneUncoveredShare measures against sceneRectOf and, on two floors or more, answers the worst floor by name; UNCOVERED_LIMIT_PCT = 10. That 10 is a choice is the reader's own caveat.",
+   "evidence": [
+    "scripts/season-setup.mjs:283-284 `const census = roomCensus(roomScene); const living = studentCensus(roster).count;`",
+    "scripts/fog-diagnostics.mjs:899-902 `const floors = floorsOf(scene); if (floors.length < 2) return { pct: share(pieces), floor: null }; let worst = null; for (const floor of floors) {`",
+    "scripts/config.mjs:547 `export const UNCOVERED_LIMIT_PCT = 10;`"
+   ]
+  },
+  {
+   "ref": "E20 promise 4",
+   "claim": "Check the rooms: each kind said once, a short fact a room, Show on map on the finding's floor, pieces that differ warned",
+   "verdict": "stands",
+   "why": "The functions named exist at the lines given (roomCheckProblems, roomCheckHtml, showOnMap with sceneId and levelId, piecesDifferCheck adding a warning). Their tests (R1505, R1508, R1511, R1526, R1535) passed in the base run; the window's drawing is not re-read here.",
+   "evidence": [
+    "scripts/fog-diagnostics.mjs:717 `export async function showOnMap(at, { sceneId = null, levelId = null, board = canvas, scenes = game.scenes } = {}) {`",
+    "scripts/fog-diagnostics.mjs:374 `add(\"warning\", first.name, finding(\"piecesDiffer\", { what: words }, \"fact\"), at);`"
+   ]
+  },
+  {
+   "ref": "E20 promise 5",
+   "claim": "Pre-season checks in the table's language; room pictures over 4096 px / 8 MiB / 8 s, three at a time; anonymity fix only above Observer",
+   "verdict": "stands",
+   "why": "ROOM_IMAGE_LIMITS holds the four numbers; checkRoomImages and preSessionReport exist; scenario 12-social's ANONYMITY check pins no Observer-level character under \"fix these\" - green in the first session's run (first-session/README.md:36: 12 among the twelve green), not in the base run, whose scenarios are pending.",
+   "evidence": [
+    "scripts/config.mjs:558 `export const ROOM_IMAGE_LIMITS = Object.freeze({ side: 4096, bytes: 8 * 1024 * 1024, probeMs: 8000, atOnce: 3 });`",
+    "audit/harness/scenarios/12-social.mjs:501 `check(\"ANONYMITY: no character at Observer is under 'fix these' (E20 C2, S11-19)\",`",
+    "audit/findings-1.2.118/first-session/README.md:36 `twelve scenarios green: 00, 10, 11, 12, 13, 14, 15, 17, 18, 19, 20, 21`"
+   ]
+  },
+  {
+   "ref": "E20 promise 6",
+   "claim": "A module that did not start leaves Foundry as it was; the requirements window in the table's language",
+   "verdict": "stands",
+   "why": "removeModuleStyles, requirementsLanguage and requirementsContent exist; 00-boot's E20-T3 reads no module stylesheet left and nothing thrown on a window's render, and 00 was green in the first session's run. The players' list is unread, as the reader says.",
+   "evidence": [
+    "scripts/requirements.mjs:157 `export function removeModuleStyles(doc = globalThis.document) {`",
+    "audit/harness/scenarios/00-boot.mjs:555-556 `check(\"E20-T3 - a GM whose world has Dice So Nice switched off: the module stops, leaves none of its stylesheets on the page, and a window drawn throws nothing\",`"
+   ]
+  },
+  {
+   "ref": "E20 promise 7",
+   "claim": "What the module changes in Foundry kept before its first write; Give back a full Gamemaster's only",
+   "verdict": "stands",
+   "why": "keepOriginal runs on a GM only; canGiveBack requires role GAMEMASTER, and giveBackContent offers the button only to fullGm. E20-T4, T6, T7 green in the base run.",
+   "evidence": [
+    "scripts/enforced.mjs:771-773 `export function keepOriginal(part, value) { if (!game.user?.isGM) return Promise.resolve(null);`",
+    "scripts/enforced.mjs:819 `return Boolean(user?.isGM) && Number(user?.role) >= CONST.USER_ROLES.GAMEMASTER;`",
+    "scripts/enforced.mjs:952 `const offered = facts.givenBack ? [...(facts.retry && facts.fullGm ? [give] : []), hold] : facts.fullGm ? [give] : [];`",
+    "audit/findings-1.2.118/base-run.json"
+   ]
+  },
+  {
+   "ref": "E20 promise 8",
+   "claim": "Overflow suggests round(12 + n/2) held to the range; the motive with Withdraw; a stepper's buttons say their step",
+   "verdict": "stands",
+   "why": "overflowSuggestion is exactly the formula, null with no student; motiveSection exists; the stepper's labels are E20 C6's in ui-kit.mjs (R1521). R1519-R1521 and R1529 green in the base run.",
+   "evidence": [
+    "scripts/overflow.mjs:1163-1167 `const n = Number(students) || 0; if (n <= 0) return null; const { min, max } = OVERFLOW.range; return Math.min(max, Math.max(min, Math.round(12 + n / 2)));`",
+    "scripts/ui-kit.mjs:783 `What the - and + of a number field say (E20 C6, 30.10.2026; S01-48)`"
+   ]
+  },
+  {
+   "ref": "E20 grade",
+   "claim": "Grade 8, provisional after L1",
+   "verdict": "stands",
+   "why": "Every promise holds in the code and its tier-1/2 tests passed in the base run; one finding, a nit. By the scale this sits between 8 (a promise held only by reading - promise 6's players' list is unread) and 9 (only nits and unread live checks). 8 is within what the scale allows for that one unread part; nothing found lowers it.",
+   "evidence": [
+    "audit/findings-1.2.118/stages-11.json E20 promise 6 note `The players' list is named in a code comment and was not read`",
+    "audit/findings-1.2.118/base-run.json"
+   ],
+   "grade_after": 8
+  },
+  {
+   "ref": "E20-1",
+   "claim": "24 of E20's 37 tests (R1506-R1529) are stamped E67",
+   "verdict": "stands",
+   "why": "Counted from the registry: R1500-R1536 are 37 tier-1 rows, 24 stamped E67 and 13 E20. A nit.",
+   "evidence": [
+    "docs/dev/R-REGISTRY.md:866 `| R1506 | 1 | E67 | the anonymity audit asks for a fix only above Observer (E20 ...`"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "E52 promise 1",
+   "claim": "The contract runs at each load on the primary after the requirements; ok/failed/unknown, a throwing probe failed, read-only",
+   "verdict": "stands",
+   "why": "module.mjs's ready returns early when requirementsMet fails and then calls announceAtReady on the primary; judged turns a throw into failed; runContract only builds rows. The register has 63 rows between :292 and :1252 (counted). R1537-R1540 and E52-T1 green in the base run.",
+   "evidence": [
+    "scripts/module.mjs:413 `if (isPrimaryGm()) import(\"./patches.mjs\").then(m => m.announceAtReady())`",
+    "scripts/patches.mjs:1439-1441 `result = entry.probe() ?? {}; } catch (err) { return { state: \"failed\", present: false, ours: null, note: String(err?.message ?? err) };`",
+    "audit/findings-1.2.118/base-run.json"
+   ]
+  },
+  {
+   "ref": "E52 promise 2",
+   "claim": "A failed row: one permanent notice a load naming target, file:symbol and what the table gets; later failures a notice of their own; none twice",
+   "verdict": "stands",
+   "why": "announceContract notifies only rows not in toldThisLoad, permanent; announceLevelThrow and watchSheetRenders run it again later. R1541 and R1056 green in the base run.",
+   "evidence": [
+    "scripts/patches.mjs:1520-1524 `const fresh = contract.failed.filter(r => !told.has(r.id)); if (fresh.length && game.user?.isGM) { for (const r of fresh) told.add(r.id); notify(plural(\"DRPG.Contract.notice\", ...), { permanent: true });`"
+   ]
+  },
+  {
+   "ref": "E52 promise 4",
+   "claim": "The trust rows keep their own fallbacks; a failed one is never turned into a looser one",
+   "verdict": "stands",
+   "why": "runContract only reads (judged calls probe and returns a state); nothing in it writes a fallback. The trust rows' probes are their own readers (roll-draw's rollDrawRow, relay-guard's status). R1542 (\"the contract changes none\") green in the base run. The reader's own caveat, not traced into each probe, stands too.",
+   "evidence": [
+    "scripts/patches.mjs:1461-1463 `Read-only: it writes nothing to the world and changes no fallback - each failed row's fallback is the one its file already has.`",
+    "scripts/patches.mjs:333 `probe: () => rollDrawRow()`",
+    "docs/dev/R-REGISTRY.md:902 `| R1542 | 1 | E52 | the trust rows read their own state: ... the contract changes non`"
+   ]
+  },
+  {
+   "ref": "E52 promise 5",
+   "claim": "Doors: a class with no isVisible on its chain left as Foundry's; Levels: a throwing includedInLevel read by the floors listed",
+   "verdict": "stands",
+   "why": "doorControlFor answers null without the getter on the chain; onLevel catches the throw, says it once and reads region.levels.has(id).",
+   "evidence": [
+    "scripts/fog.mjs:2993 `if (typeof Base !== \"function\" || !visibleGetterOf(Base)) return null;`",
+    "scripts/rooms.mjs:470-482 `try { return region.includedInLevel(id); } catch (err) { if (!levelThrew) { ... } return typeof region.levels.has === \"function\" ? region.levels.has(id) : true; }`"
+   ]
+  },
+  {
+   "ref": "E52 promise 6",
+   "claim": "diagnose(): one report, eight GM-only parts named and not run on a player's browser",
+   "verdict": "stands",
+   "why": "Counted: REPORT_SECTIONS has 22 parts (diceLook added by E60 C5b), eight with gmOnly: despair, truthBullets, gmStores, characters, scenes, visibility, music, traps. Copy report and Show again not re-read. E52-T2 green in the base run.",
+   "evidence": [
+    "scripts/diagnostics.mjs:2226-2227 `// E60 C5b: this browser's own dice look ... part(\"diceLook\", \"Dice look\", ...`",
+    "scripts/diagnostics.mjs:2228 `part(\"despair\", \"Despair\", [\"diagnoseDespair\"], () => diagnoseDespair({ toChat: false }), { gmOnly: true }),`"
+   ]
+  },
+  {
+   "ref": "E52 promise 7",
+   "claim": "tools/api-surface.json lists every key and a test holds the live object to it; nine aliases; migrate1_2_0 the alias of migrate",
+   "verdict": "stands",
+   "why": "The surface file has 474 keys, 9 aliases (migrate1_2_0 keepUntil 1.3.1) and 0 removed; R1560 is the test (green in the base run, needs(env.tools()) answered headless). The reader's api.mjs citation is wrong: :802 and :1099-1114 are the trial's functions (reopenDebate, startPanicRound, missingKeys); migrate and migrate1_2_0 are at :735-737.",
+   "evidence": [
+    "python over tools/api-surface.json: keys 474, aliases 9, removed 0; aliases ['migrate1_2_0', 'advanceFloorNow', 'extendFloor', 'endFloor', 'exportLedger', 'importLedger', 'isSilenced', 'musicDialog', 'currentRoom']",
+    "scripts/api.mjs:735 `migrate: migrate1_2_0,` and :737 `migrate1_2_0,`",
+    "scripts/api.mjs:802 `reopenDebate: (...a) => import(\"./trial-floor-ui.mjs\").then(m => m.reopenDebate(...a)),` (not the macro API's aliases)"
+   ]
+  },
+  {
+   "ref": "E52 promise 8",
+   "claim": "In a Foundry without BROADCAST_AUDIO the microphone block writes nothing and the GM is told why",
+   "verdict": "stands",
+   "why": "Both blocks ask broadcastAudioKnown first: the trial's writes nothing and warns once a load on the console; the voice list's notifies DRPG.Voice.list.gmNoBlock; the contract's row for BROADCAST_AUDIO tells the GMs at load. R1546 green in the base run.",
+   "evidence": [
+    "scripts/voice.mjs:1685-1689 `if (!broadcastAudioKnown()) { if (!saidNoBroadcastEntry) warn(\"The trial's microphone block: Foundry names no BROADCAST_AUDIO permission ...\"); ... return null; }`",
+    "scripts/voice-tile.mjs:1452-1454 `if (!broadcastAudioKnown(perms)) { notify(game.i18n.localize(\"DRPG.Voice.list.gmNoBlock\")); return false; }`",
+    "scripts/patches.mjs:869 `target: \"the user permission BROADCAST_AUDIO (a user's permissions.BROADCAST_AUDIO)\",`"
+   ]
+  },
+  {
+   "ref": "E52 grade",
+   "claim": "Grade 8, provisional after L1",
+   "verdict": "weakened",
+   "why": "The stage's own notes close two of its acceptance rows PARTIAL (E52-11 presence probes only where Foundry exposes the name, E52-12 18 sheet places, not the 25 or so of the plan). The reader names both against a 9 but grades 8; the scale's row for a promise delivered in part is 7, and the same reader gave E89 a 7 for its one row closed partial (E89-11). Promise 9 was not read at all, so it cannot count as delivered by this reader (its tier-1 tests R1554-R1556 passed in the base run, which keeps it from counting against the stage). Grade after: 7.",
+   "evidence": [
+    ".github/release-notes/v1.2.92.md:121-122 `E52-11, partial. Presence probes only where Foundry exposes the name ... E52-12, partial: SHEET_ANCHORS holds 18 places, not the 25 or so of the`",
+    ".github/release-notes/v1.2.92.md:150 `Stage ledger: 23 acceptance rows, 21 ANSWERED, E52-11 and E52-12 PARTIAL`",
+    "audit/findings-1.2.118/stages-11.json E89 grade_reasons `Against an 8: (1) the edges promise is delivered in part by the stage's own close`",
+    "audit/AUDIT-1.2.42.md 11.4 `| 7 | ... albo jedna obietnica dowieziona w części |`"
+   ],
+   "grade_after": 7
+  },
+  {
+   "ref": "E52-1",
+   "claim": "R1541 and R1553 still say Pre-season's checks while they draw the Debug log's Foundry and modules",
+   "verdict": "stands",
+   "why": "The titles and R1541's failure message say Pre-season; R1553's body calls SS.foundryReport with the comment \"changed on purpose\". A nit.",
+   "evidence": [
+    "scripts/tests-tier1.mjs:36562 `[\"R1553 - Pre-season's contract lines: ...`",
+    "scripts/tests-tier1.mjs:36575-36576 `// Diagnostics' Foundry and modules since E101 item 2 (Pre-season checks until then): changed on purpose. el.innerHTML = await SS.foundryReport(...)`"
+   ],
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 37,
+  "stands": 35,
+  "weakened": 2,
+  "refuted": 0
+ },
+ "grades_changed": [
+  "E70 8 -> 7: a promise the reader marks partly (the trial's microphone give-back) and E70-75 shipped open with the owner's wording not built; the scale gives 7 for a promise delivered in part",
+  "E52 8 -> 7: two acceptance rows closed PARTIAL by the stage itself (E52-11, E52-12), graded as E89's one partial row was graded 7 by the same reader"
+ ],
+ "not_established": [
+  "Whether forcedDeletion() on a user's permissions.BROADCAST_AUDIO removes the key on v14 14.370: read only for flags (CALIBRATION.md) and found not to remove an ownership entry (LOCAL-REPORT.md:214); the reader's l1 block for E70 settles it, and with it whether E70 promise 6 is partly or yes.",
+  "Whether the owner has answered E70-75 (OBJECTION! on the HUD in the narrow layout) anywhere outside the repository; nothing in it does.",
+  "The scenarios the stages lean on (67-trial-modes, 63-class-trial, 30-security, 75-voice-tile, 72-canary, 86-frame-work) are under base-run.json `pending`; 00-boot and 12-social were green in the first session's run only.",
+  "E70 promise 4's cards (the question on the Objection and Present cards) rest on E70-T6's title and its pass, not on a reading of the card builders."
+ ]
+}

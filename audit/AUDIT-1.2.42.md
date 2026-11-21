@@ -1,5 +1,4518 @@
 # Audyt Danganronpa RPG v1.2.42 - funkcje, treść, przepływ informacji, UX, higiena kodu
 
+**Audyt powtórzony:** 20.11.2026 · **Stan:** `b5a29e73` (`module.json` 1.2.118, gałąź `main`) · **Gałąź audytu:** `claude/audit-119` · **Zakres:** 271 skryptów (434 614 linii, z czego 13 plików testów i zestawu to 208 332), 7 arkuszy CSS (31 831 linii), `lang/en.json` 6 369 kluczy, `lang/pl.json` 7 456, 54 scenariusze harnessu, 105 etapów w `tools/stages.json`. Liczby zdjęte skryptem na tym commicie (`wc -l`, liczenie liści JSON), 20.11.2026.
+
+## Jak czytać ten plik (stan 20.11.2026)
+
+Plik ma dwie części. **Część I** (sekcje 10-18, na górze) to audyt powtórzony na 1.2.118: stan dziś. **Część II** (sekcje 0-9) to zapis audytu 1.2.42 z 12.09.2026 i lista live checków 9.2 dopisywana przez każdy etap; jej numery sekcji i pozycji 9.2 zostają tam, gdzie były, bo cytuje je 68 linii w repozytorium, `CLAUDE.md` i `node tools/check.mjs live`. Każda kategoria jest powiedziana raz, w jednym miejscu (D-A4); drugie miejsce wskazuje je jedną linią. Surowe pliki czytających, weryfikatorów i tury bazowej są w `audit/findings-1.2.118/` (README tam mówi, co jest czym).
+
+### Spis treści
+
+| Sekcja | Co | |
+| --- | --- | --- |
+| 10 | Werdykt, oceny siedmiu pytań, lista zadań do 10/10, co działa i czego nie ruszać | najpierw tu |
+| 11 | Metodyka: 16 kroków oryginału, 13 usprawnień, słownik statusów, wag, pewności i klas dowodu, skala ocen | |
+| 12 | Pomiary: zakres, tura bazowa (zestaw w ośmiu shardach, scenariusze, sondy), higiena w liczbach | |
+| 13 | Rozliczenie starych pozycji: 1.1.88, 1.2.13, 1.2.42 (157 ID, tabele treści, zadania, sekcje 0-9), lista 9.2 pozycja po pozycji | stan każdej pozycji części II |
+| 14 | Etapy: każdy ze 105 wierszy `tools/stages.json` z oceną po weryfikacji | |
+| 15 | Kontrolki: każdy przycisk każdego okna, HUD-u, dodatków arkusza i kart czatu | prośba właściciela |
+| 16 | Odświeżanie okien: co okno czyta, czego słucha, czy przerysowuje się od razu | prośba i reguła właściciela |
+| 17 | Nowe znaleziska według domen (CASE, COMM, CORE, DESP, ITEM, MAP, ROLL, UI, TEXT, DOC, TEST) | |
+| 18 | Czego nie zmierzono, pytania do właściciela, 1.2.119, archiwum części II | |
+| II | 0 Werdykt 1.2.42 · 1 Harness · 2 Poprawki 1.2.43 · 3 Treść · 4 Znaleziska · 5 Zadania · 6 Higiena · 7 Live checks · 8 Wydanie 1.2.43 · 9 Stan po naprawach (9.3, 9.1, 9.1a, 9.3b-d) · **9.2 Live checks nadal otwarte** | zapis |
+
+### Gdzie jest każda kategoria
+
+| Kategoria | Stan dziś (jedno miejsce) | Zapis z 12.09 (część II) |
+| --- | --- | --- |
+| werdykt i oceny | 10 | 0 |
+| metoda | 11 | nagłówek części II |
+| testy i harness | 12.2 | 1 |
+| higiena | 12.3 | 6 |
+| znaleziska | 13.1-13.5 (stare), 15-17 (nowe) | 2, 4 |
+| treść | 13.4 (stare tabele), 17.9 (dziś) | 3 |
+| lista zadań | 10.3 | 5 |
+| decyzje | 13.5 (stare), `audit/findings-1.2.118/DECISIONS.md` (z tego audytu), 18.2 (pytania i odpowiedzi) | 9.1, 9.1a |
+| live checki | 9.2 (lista) + 13.6 (stan każdej pozycji) + `L1-HANDOFF.md` (przepisy) | 7, 9.2 |
+| co jest już naprawiane | 18.3, `audit/findings-1.2.118/ROUTING.md` | - |
+
+### Część II: historia i to, co żyje
+
+| Sekcja części II | Charakter | Gdzie jej stan |
+| --- | --- | --- |
+| 0, 1, 2, 3, 4, 5, 6, 8 | historia (zapis 12.09 i poprawek 1.2.43-1.2.47) | 13.3-13.5, 12, 10 |
+| 7 | historia: lista live checków z 12.09, zastąpiona przez 9.2 | 13.6 (wiersze `s7`) |
+| 9, 9.3, 9.1, 9.1a, 9.3b, 9.3c, 9.3d | historia z dopiskami (decyzje i uwagi od stołu) | 13.5; 9.3-18..9.3-25 w 13.6 |
+| **9.2** | **żywa**: lista live checków, cytowana numerami, czytana przez `check live` | 13.6, `L1-HANDOFF.md` |
+
+Dwie kategorie stoją dziś w dwóch miejscach, bo część II jest datowanym zapisem i nic w niej nie jest skracane przed wydaniem 1.2.119: listy live checków (7 obok 9.2) i znaleziska z listą zadań (4 i 5 obok 13 i 10.3). Zostają do osobnego zadania po wydaniu (przeniesienie zamkniętej historii do pliku archiwum); według skanu cytowań w 18.4 przeniesienie sekcji 0-8 wygląda na bezpieczne, 9 i 9.2 muszą zostać.
+
+
+## 10. Werdykt i oceny (stan 1.2.118, 20.11.2026)
+
+**Krótko.** Na `b5a29e73` (1.2.118) moduł robi to, co obiecuje, w zwykłej sytuacji: zestaw przechodzi (3 387 zaliczonych, 1 niezaliczony test zależny od obciążenia, 27 pominiętych zgodnie z listą), stare pozycje są w większości zamknięte (329 z 518 zamkniętych, 118 częściowo, 49 otwartych, 22 nieaktualne), a 97 z 105 etapów dostało 7 albo więcej (6 dostało 6, 2 nie ocenione). Najpoważniejsze, co ten audyt znalazł, to **tożsamość zabójcy widoczna dla gracza** w trzech miejscach interfejsu (dwa `blocker`, jeden `major`) i **okna, które nie przerysowują się od razu** wbrew regule właściciela z 20.11.2026 (pięć `major` i jedna klasa `major` podniesiona przez weryfikatorów). Wszystkie trzy wycieki tożsamości są według koordynatora poprawione na gałęziach 1.2.119 i scalone do składanki `asm-119` (sekcja 18); ten audyt czytał je na 1.2.118 i potwierdzi poprawki dopiero na wydanym kodzie.
+
+Wszystkie liczby tej sekcji pochodzą z plików `audit/findings-1.2.118/` po weryfikacji przeciwnej (U1); prawie wszystko poza turą bazową to odczyt kodu (klasa S, pewność "przeczytane"), nie przebieg. Co wymaga stołu, jest w `audit/findings-1.2.118/L1-HANDOFF.md` (523 wiersze).
+
+### 10.1 Odpowiedzi na prośby właściciela
+
+| Prośba | Gdzie | Odpowiedź w jednym zdaniu |
+| --- | --- | --- |
+| zaktualizować i posprzątać istniejący plik audytu | ten plik: część I (10-18) na górze, część II z jednolinijkowym "stanem dziś" przy każdej sekcji | każda kategoria jest powiedziana raz (D-A4); numery 0-9 i pozycje 9.2 zostają, bo cytuje je 68 linii w repozytorium i `check live` |
+| zaktualizować oceny | 10.2 | siedem pytań z briefu 1.2.42 ocenione na 1.2.118 według jawnej skali 11.4 |
+| ocenić realizację każdego etapu na najnowszej wersji | 14 | 105 etapów, każdy z oceną po weryfikacji i z tym, czego brakuje do 10 |
+| znaleźć błędy i problemy; co naprawiono, co nie, co nowe | 13 (stare), 15-17 (nowe) | 555 nowych pozycji z ID: 2 `blocker`, 19 `major`, 214 `minor`, 320 `nit` (przed łączeniem tych samych wad znalezionych przez dwóch czytających - sekcje 15-17 łączą je jako "to samo") |
+| odtworzyć metodykę z usprawnieniami | 11 | 16 kroków oryginału i 13 usprawnień, wszystkie zastosowane; U1 dało 25 zmian ocen etapów i kilkadziesiąt zmian wag |
+| niedziałające przyciski i funkcje | 15 | 1 329 wierszy kontrolek w 15 plikach: 11 martwych, 24 robiące co innego niż etykieta, 6 dla złej publiczności, 42 milczące; najpoważniejsza: "Reset the season" w Season setup nic nie robi (CTRL-01, `major`) |
+| okna zawsze odświeżane przed i przy zmianie (np. Planer) | 16 | 275 powierzchni z blokiem odświeżania: 35 żywych, 40 częściowo, 79 nieaktualnych do ponownego otwarcia, 121 n/a (pytania jednorazowe); reguła 1 `keepLive` (czekanie na fokus) jest według D-A1 `major` wszędzie, gdzie jeszcze stoi |
+
+### 10.2 Oceny (0-10), skala 11.4
+
+Reguła przypisania: każde znalezisko `blocker` i `major` po weryfikacji przypisuję jednemu pytaniu (lista w ostatniej kolumnie), a ocenę biorę z kotwic 11.4: `blocker` - 4 i niżej, kilka `major` - 5, jedno `major` - 6, kilka `minor` - 7, jedno-dwa `minor` - 8. Kolumna "po 1.2.119" zakłada, że poprawki scalone do `asm-119` (ROUTING.md) utrzymają się po wydaniu; **nie jest zmierzona** i zostanie sprawdzona w sekcji 18 na wydanym kodzie.
+
+| Pytanie z briefu | 1.2.42 | 1.2.43 | 1.2.118 | po 1.2.119 (niezmierzone) | Co ciągnie w dół na 1.2.118 |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Funkcje działają end-to-end i spójnie | 7 | 8,5 | 5 | 5 | CTRL-01 (= CASE-19, STG-02: martwy "Reset the season"; w toku, C1), CASE-16 (liczba do pobicia bez obrony zamaskowanego; odłożone na 1.2.120), CASE-17 (sprzątanie liczone ciaśniej za ciało nieznane graczowi), CASE-18 (dwa okna opisu jednego śladu), CASE-20 (nieskończona rekursja układu mapy sprawy; naprawione w `plan-119`), MAP-17 (krok Widza liczony jako przejście; naprawione w `fog-119`), STG-01 (niesprawdzone) |
+| Teksty zwięzłe, trafne, nic GM-only u gracza | 8 | 9 | 4 | 6 | COMM-19 i MAP-16 (`blocker`: zamaskowany albo zawoalowany zabójca nazwany w oknie potwierdzenia Calla i w pickerze przekazania), COMM-20 (kafelek głosu pod zasłoną), CORE-20 (słowa karty po końcu maski), STG-03 (tablica dnia przy stojącej masce), DOC-01 (niesprawdzone); po 1.2.119 zostaje DOC-01 i drobne |
+| Przepływ moduł -> GM -> gracz -> moduł | 6,5 | 8 | 6 | 6 | REFR-01 (historia powiadomień czeka, aż czytelnik skończy); do tego 42 kontrolki milczące (15) |
+| Wygląd, UX, UI | 8 | 8,5 | 7 | 7 | same `minor`: etykiety niezgodne z działaniem (24), okna niedopasowane po przerysowaniu (UI-*) |
+| Łatwość i szybkość prowadzenia dla GM-a | 6 | 8 | 5 | 5 | REFR-02 (Season setup zapisuje zegar sprzed otwarcia), REFR-03 i REFR-04 (Room Setup cofa i nie śledzi zmian mapy), REFR-05 (reguła 1: Table, karta Remnantu, Hope w Mastermind; planer naprawiony w `plan-119`), UI-17 (Music w oknie Sound), okno "Students" (reguła 1, podniesione przez weryfikatorów) |
+| Optymalizacja: fps | 8 | 8,5 | 8 (po L1) | 8 (po L1) | jeden odczyt ze stołu (60 fps samemu, efekty do 0,15 ms, LOCAL-REPORT 16.11); maszyna budżetowa niezmierzona (LIVE-E33-05); kilka `nit` kosztu na zapis |
+| Optymalizacja: higiena kodu | 6,5 | 7 | 7 | 7 | 6 funkcji ponad 300 linii (było 14), 0 martwych kluczy (było 8), 0 martwych selektorów w budżecie; za to 270 komentarzy sprzecznych z kodem, 26 lokalnych aliasów `escapeHTML`, pięć odczytów "czy Stained Glass" |
+
+Skala jest surowa, jak w oryginale. Spadek wierszy 1-2 i 5 względem 1.2.43 nie znaczy, że moduł się pogorszył: moduł urósł z 90 do 434 tysięcy linii, a ten audyt przeczytał całość dwoma czytającymi na znalezisko i dodał dwa przebiegi, których oryginał nie miał (kontrolki i odświeżanie).
+
+### 10.3 Lista zadań do 10/10, w kolejności ryzyka dla kampanii
+
+Bez szacunków w wieczorach (11.6). Pozycje już skierowane do 1.2.119 są oznaczone; reszta jest otwarta na 1.2.120.
+
+1. **Tożsamość zabójcy w interfejsie.** COMM-19, MAP-16, COMM-20, CORE-20, STG-03 - naprawione w 1.2.119 według koordynatora (`day-119` d76fdbbc, `fog-119` ef1a6064); zostaje: po wydaniu przejść każdy picker i listę, które pokazują imię (16.1, 17.1), i zamknąć DOC-01. Listy całej obsady (Despair Call, Tamper) nadal nazywają zawoalowanego zabójcę z założenia linii D: decyzja właściciela.
+2. **Reguła 1 `keepLive` wszędzie, gdzie stoi** (D-A1): Table, karta Remnantu, Hope w Mastermind, "Students", Music w "Sound", historia powiadomień (REFR-01, REFR-05, UI-17). Planer naprawiony w `plan-119` (`whileEditing`), zakładka Effects w `sound-119` do sprawdzenia.
+3. **Okna, które piszą wartości sprzed otwarcia:** REFR-02 (Season setup, w toku C1), REFR-03 (Room Setup), Edit campaign i Despair Flow (16), Game settings (CORE).
+4. **Martwy "Reset the season"** (CTRL-01; w toku C1).
+5. **Liczba do pobicia bez obrony zamaskowanego zabójcy** (CASE-16; odłożone na 1.2.120).
+6. **Sprzątanie i ślady:** CASE-17, CASE-18 i `minor` 17.1.
+7. **Okna nieaktualne do ponownego otwarcia** (79 powierzchni, 16): po kolei według sekcji 16.
+8. **Kontrolki milczące i z niezgodną etykietą** (15).
+9. **Stół (L1):** 11 wierszy `blocker` i 86 `major` w `L1-HANDOFF.md`; od nich zależy zdjęcie "po L1" z ocen etapów.
+10. **Higiena:** komentarze sprzeczne z kodem (270), sześć funkcji ponad 300 linii, aliasy `escapeHTML`, cytaty audytu po numerze linii (17.10).
+
+### 10.4 Co działa dobrze - nie ruszać
+
+Czytający domen zapisali 334 mocne strony; te poniżej trzymają resztę i powtarzają się w wielu plikach:
+
+- **Jedna władza nad zapisem:** każda zmiana stanu gry idzie przez głównego GM-a w kolejce na klucz (`incident-store.mjs:327-339`, `trial-floor.mjs` `commitFloor`, `projects.mjs` `applyProjectChange`, `clock.mjs` `setClock`), a przejście mówi, co przeczytało, więc przegrany wyścig niczego nie zapisuje.
+- **Wynik to zapis GM-a, nie pakietu:** `bridge-guards.mjs` `judge` i `rollsFor` oceniają każdy nazwany rzut, zanim cokolwiek zostanie przyznane; GM rzuca własny rzut z własnej listy (`roll-draw.mjs`).
+- **Słowa prywatnych kart nigdy nie leżą w dokumencie** (`secret.mjs`, wątki messengera, raporty diagnostyki szeptane wywołującemu).
+- **Ślady i sekrety GM-ów w magazynach GM-ów, adresowane dwa razy** (`fog.mjs:1162-1183`, `gm-store.mjs` jedna przemienna fuzja dla synchronizacji, przywracania i kopii serwera).
+- **Każde ustawienie świata ma czas życia i obietnicę przerysowania** (71 rejestracji otagowanych, 22 klucze `onWorldChange` równe wierszom `SETTING_KINDS`, sprawdzone skryptem).
+- **Awaria warstwy mgły kończy się mniejszą mgłą, nie większą** (`fog.mjs`).
+- **Teksty z liczbami czytają je z reguły** (`fillProse`, `PROSE_NUMBERS`); 553 z 553 zdań `config.mjs` ma polskiego bliźniaka; 0 zakazanych wariantów słownika w 6 369 kluczach.
+
+
+## 11. Metodyka audytu powtórzonego
+
+Źródła metody: `audit/AUDIT-1.1.88.md`, `audit/AUDIT-1.2.13.md`, ten plik (sekcje 0-9) z surowymi znaleziskami w `audit/findings/` i `audit/findings-1.2.42/`, oraz `audit/README.md`. Tamte dwa raporty czytałem jako źródło i ich nie edytuję. Sekcja ma trzy zadania: zapisać, co robił oryginał (11.1), powiedzieć, co zmieniam i dlaczego (11.2), i ustalić słownik, którym mówi reszta części I (11.3-11.6).
+
+### 11.1 Metoda oryginału, odtworzona z trzech raportów
+
+Żaden z trzech raportów nie ma osobnego rozdziału o metodzie; jest tabela czterech kroków na górze tego pliku (sekcja "Metoda" raportu 1.2.42), akapit "Jak to było testowane" w 1.1.88 i jedno zdanie w nagłówku 1.2.13. Reszta metody jest w tym, jak raporty są zbudowane. Poniżej każdy krok z miejscem, z którego go odczytałem.
+
+| # | Co robił oryginał | Skąd to wiadomo |
+| --- | --- | --- |
+| 1 | **Zamrożony stan.** Data, commit, wersja z `module.json`, liczby zakresu (skrypty, linie, CSS, `en.json`). | nagłówki wszystkich trzech raportów; 1.2.13 "Liczby" |
+| 2 | **Audyt statyczny domenami, równolegle.** Dziewięć domen (CASE, COMM, CORE, DESP, ITEM, MAP, ROLL, TEXT, UI); każdy plik domeny przeczytany od początku do końca; każdy przepływ prześledzony do sąsiadów (bridge, utils, secret, settings); każdy klucz `DRPG.*` użyty w kodzie sprawdzony w `en.json` skryptem. 1.2.13 zrobił to samo jednym przebiegiem przez całe źródło, bez uruchamiania świata. | 1.2.42 "Metoda" krok 1; `findings-1.2.42/*.md` "Files read (with line counts)" i "Neighbours followed"; nagłówek 1.2.13 |
+| 3 | **Surowe znaleziska w stałej formie.** ID domeny z numerem; waga (`blocker`/`major`/`minor`/`nit`; w 1.2.13 P1-P3, w 1.1.88 KRYTYCZNY/WYSOKI/NISKI); kategoria (leak, bug, flow, ux, text, perf, hygiene); `CONFIRMED` albo `SUSPECTED`; Where / What happens / Evidence z cytatem kodu / szkic naprawy. Obok: mocne strony domeny, komentarze sprzeczne z kodem, zalecane live checki, pomiary higieny. | `findings-1.2.42/case.md` i pozostałe osiem; 1.2.13 sekcja A ("P1 psuje regułę lub bezpieczeństwo, P2 działa źle w konkretnej sytuacji, P3 brud") |
+| 4 | **Harness zamiast Foundry.** Atrapa Foundry v14 z kilkoma klientami naraz (GM i 2 graczy w 1.1.88, GM i 3 graczy w 1.2.42): boot, własny zestaw modułu, pełny przebieg zbrodni, prywatność rzutów między klientami, próby zapisu ponad uprawnienia i wstrzyknięcia HTML, potem scenariusze `40-flow` i `50-lang`. Awaria modułu to znalezisko, nie łatka w harnessie. | 1.1.88 "Jak to było testowane"; 1.2.42 sekcja 1 |
+| 5 | **Zestaw modułu przed i po.** `game.drpg.runTests({ tier: 2 })` na harnessie; porównywany jest zbiór porażek, nie sama liczba ("ten sam zestaw 13 przed i po"). | 1.2.42 "Metoda" krok 3; 9.3b punkt 2 (re-triage 12 akceptowanych porażek) |
+| 6 | **Wydanie i zależności przez sieć.** `releases/latest`, gałąź `main`, flagi `prerelease`, manifest instalacyjny. | 1.1.88 REL-001 |
+| 7 | **Analiza treści.** Cztery tabele: zdania mówiące co innego niż kod; dryf terminologii z liczbą kluczy na wariant; teksty za długie na swoje miejsce (skrypt długości); informacje GM-only, które docierały do gracza. | 1.2.42 sekcja 3; 1.2.13 sekcja F |
+| 8 | **Przepływ gry i UX**, osobno gracz i GM: ile powierzchni mówi o jednym zdarzeniu, ile drzwi prowadzi do jednego pytania, które okna migają. | 1.2.13 E1-E12; 1.2.42 sekcja 4 "Przepływ do GMa", "UX i wygląd" |
+| 9 | **Wydajność**: co biegnie co klatkę i co zapis, z zastrzeżeniem, że liczbę klatek mierzy tylko stół. | 1.2.13 D; 1.2.42 zadanie 9, 9.3b punkt 5 |
+| 10 | **Higiena kodu w liczbach**: rozmiary, funkcje ponad 300 linii, zduplikowane helpery, martwy kod, martwe klucze i selektory, magiczne liczby, komentarze sprzeczne z kodem. | 1.2.13 "Liczby", C1-C6; 1.2.42 sekcja 6 |
+| 11 | **Werdykt z ocenami.** Odpowiedzi wprost na pytania właściciela; oceny 0-10 (jedna w 1.1.88, sześć obszarów w 1.2.13, siedem pytań z briefu w 1.2.42) z kolumną "do 10/10 brakuje"; skala surowa ("10 znaczy: nie ma nic, co bym zmienił"). | sekcje "Werdykt" trzech raportów |
+| 12 | **"Co działa dobrze - nie ruszać"**, żeby poprawki nie zepsuły tego, co trzyma moduł. | 1.1.88; 1.2.13 G; 1.2.42 koniec sekcji 6 |
+| 13 | **Live checki.** Wszystko, czego harness nie rozstrzyga, z przepisem na odczyt przy stole (linia do konsoli, kroki, co ma wyjść). | 1.1.88 "Obszary wymagające żywego oka"; 1.2.42 sekcja 7 i 9.2 |
+| 14 | **Pytania do właściciela.** Miejsca, gdzie komentarz przeczy kodowi, i decyzje reguł z wariantami A/B, których kod nie rozstrzygnie. | 1.2.13 B; 1.2.42 zadanie 12 i 9.1 |
+| 15 | **Lista zadań do 10/10** w kolejności ryzyka dla rocznej kampanii, każde z celem, metodą i pułapkami. | 1.2.42 sekcja 5; 1.2.13 H |
+| 16 | **Korekta własna.** Znalezisko, które nie przetrwało czytania kodu, jest wycofane jawnie i zostaje w raporcie (LIVE-002 w 1.1.88; A11, A22 punkt trzeci i A23 w 1.2.13; "wcześniejsze zdanie było za mocne" w sekcji 9 tego pliku). Na koniec rozliczenie wszystkich ID skryptem (zadanie 13). | "Status after this review" w 1.1.88; "Co się zmieniło w samym audycie" w 1.2.13; sekcja 9 |
+
+Tę metodę powtarzam krok po kroku. Trzy rzeczy z oryginału zmieniam świadomie i mówię o nich w 11.6.
+
+### 11.2 Usprawnienia metody i dlaczego
+
+| # | Usprawnienie | Dlaczego (co poszło źle albo czego brakowało w oryginale) |
+| --- | --- | --- |
+| U1 | **Każde znalezisko jest przed zapisem sprawdzane przeciwnie**: osobny czytający dostaje samo twierdzenie i ma je obalić prawdziwym wywołującym, prawdziwym wejściem i odczytem kodu. Zostaje tylko to, czego nie obalił. | W oryginale `CONFIRMED` stawiał ten sam czytający, który znalazł. Cztery znaleziska trzeba było potem wycofać (LIVE-002, A11, A22 punkt trzeci, A23), a przegląd `docs/dev/audit-113/FINDINGS.md` sam podaje 9 podejrzeń na 32 pozycje. |
+| U2 | **Żadnego twierdzenia bez odczytu.** Każda pozycja niesie klasę dowodu (11.3) i miejsce: plik i linia na `b5a29e73`, nazwa testu albo scenariusza z wynikiem z tego przebiegu, albo commit. Czego nie da się zmierzyć bez stołu, jest zapisane jako niezmierzone, z live checkiem, który by to rozstrzygnął. | `CLAUDE.md`, "Measure, then say"; oba przykłady stamtąd (test, który nie mierzył niczego, i etykieta na kuble porażek, której nikt nie sprawdził) to błędy raportu, nie kodu. |
+| U3 | **Jedna tura bazowa harnessu, wspólna dla wszystkich czytających.** Lint, checki, bramka, tiery 0-1 i jeden pełny `npm test` na `b5a29e73`; wyniki leżą w jednym miejscu i czytający się na nie powołują, zamiast uruchamiać harness sami. Dodatkowe sondy idą po jednej. | Odczyty czasowe tieru 2 migają pod obciążeniem na 4 rdzeniach (`docs/dev/METHOD.md` sekcja 3), a dwóch czytających z dwoma różnymi przebiegami to dwa różne stany. Oryginał miał jednego czytającego i ten problem go nie dotyczył. |
+| U4 | **Stare pozycje rozliczane odczytem kodu, nie szukaniem ID.** Każda pozycja z 1.1.88, 1.2.13 i 1.2.42 dostaje status (11.3) z dowodem na dzisiejszym kodzie. | Skrypt rozliczeniowy z zadania 13 szukał ID w commitach i komentarzach i nie widział 34 pozycji zamkniętych pod innymi nazwami (sekcja 9); "zamknięte, bo commit wymienia ID" nie mówi też, czy poprawka przeżyła drogę z 1.2.43 do 1.2.118. |
+| U5 | **Przebieg etapów.** Każdy ze 105 wierszy `tools/stages.json` oceniany na najnowszej wersji: obietnica (notatki wydania, STATUS/ledger w `docs/dev/`, `touches`) kontra kod, kontra testy (wiersze rejestru R ostemplowane etapem i ich wynik w turze bazowej), kontra scenariusze, kontra live checki etapu w 9.2. Ocena, dowód oceny, czego brakuje. | Oryginał nie miał etapów. `docs/dev/METHOD.md` ("What the method does not catch") mówi wprost, że etap sprawdzony tylko własną metodą jest sprawdzony tylko nią. |
+| U6 | **Przebieg kontrolek** (prośba właściciela). Spis każdego przycisku i kontrolki każdego okna modułu, HUD-u, dodatków arkusza i kart czatu: etykieta -> handler -> skutek, u GM-a i u gracza, w obu motywach. Znaleziskiem jest kontrolka, która nic nie robi, rzuca wyjątkiem, robi co innego niż mówi etykieta, albo jest pokazana komuś, kto nie może jej użyć. Przy każdej zapisane, jak ją odczytałem (test, przebieg harnessu, ścieżka w kodzie). | Oryginał znajdował martwe przyciski przy okazji (COMM-02, COMM-07, ITEM-02), nie spisem. Dziś jest 162 okien w 165 miejscach (`docs/dev/e59/WINDOWS.md`) i przy okazji nie da się ich przejść. |
+| U7 | **Przebieg odświeżania okien** (prośba właściciela). Dla każdego okna, które pokazuje dane magazynu albo świata (ustawienia, flagi, dziennik, aktorzy, magazyny GM-a, sockety): czy przerysowuje się w miejscu, gdy te dane zmieni ktoś inny, czy dopiero po zamknięciu i otwarciu. Lista danych czytanych przez okno jest porównywana z listą, na którą okno nasłuchuje. | W 1.2.13 "okna GM odświeżają się na żywo" było mocną stroną stwierdzoną ogólnie; pojedyncze braki wychodziły przy stole (CASE-07 licznik głosów; przykład właściciela: Planer). |
+| U8 | **Jawna skala ocen z kotwicami** (11.4), ta sama dla siedmiu pytań z briefu i dla etapów. | Oceny oryginału nie miały zapisanych kryteriów; 8.5 nie dało się odtworzyć ani porównać między audytami. |
+| U9 | **Strażnik "zmierzono nic".** Każdy skrypt audytu i każdy czytający podaje, ile rzeczy przeczytał (plików, linii, kluczy, okien, pozycji); zero albo liczba niezgodna ze spisem to brak wyniku, a nie wynik zielony. | `CLAUDE.md`: `stackShapes` przeszło z zerem porażek, bo lista bloków była pusta. |
+| U10 | **Pokrycie wykazane, nie założone.** Lista plików z liczbą linii na czytającego i osobno lista plików, których nikt nie przeczytał w całości. | 97 skryptów i 90 tysięcy linii we wrześniu, 258 skryptów bez testów i 226 tysięcy linii dziś. "Każdy plik od początku do końca" przestało być oczywiste. |
+| U11 | **Odczyty z prawdziwego Foundry jako osobna klasa dowodu.** `docs/dev/e58/LOCAL-REPORT.md` i `docs/dev/e39/CALIBRATION.md` (Foundry 14.370 na maszynie właściciela, 16-17.11.2026) są wciągnięte do rozliczenia 9.2. Pozycję live zamyka tylko zapisany odczyt, nigdy rozumowanie. | We wrześniu żadnego odczytu z v14 nie było; dziś są, ale poza tym plikiem, więc 9.2 mówi "otwarte" o rzeczach już odczytanych. |
+| U12 | **Waga z jednozdaniowym scenariuszem awarii**: kto, co robi, co widzi. | Waga bez scenariusza jest opinią; ze scenariuszem da się ją podważyć. `docs/dev/METHOD.md` sekcja 5 wymaga tego od przeglądu etapu. |
+| U13 | **Ponowne sprawdzenie na końcu względem 1.2.119.** Obszary, które zmieniają linie poprawek (plan, wygląd planu, trial, mgła, dzień, arkusz), czytane jeszcze raz po wydaniu; jeśli wydania nie ma, pozycje, które mogą się z nim przesunąć, są oznaczone. | Audyt biegnie równolegle z sześcioma liniami poprawek; bez tego raport byłby nieaktualny w dniu oddania. |
+
+### 11.3 Słownik: statusy, wagi, pewność, klasy dowodu
+
+**Status starej pozycji** (znalezisko, zadanie, decyzja):
+
+- **naprawione** - dzisiejszy kod nie robi tego, co opisano, i wskazuję dlaczego (plik i linia, test, commit);
+- **częściowo** - część opisu już nie zachodzi, część zachodzi; obie części nazwane;
+- **otwarte** - zachodzi nadal na `b5a29e73`;
+- **nieaktualne** - rzecz, której dotyczyło, została usunięta albo zastąpiona, więc pytanie nie ma już przedmiotu (z nazwą tego, co ją zastąpiło).
+
+**Status live checka** (sekcja 7, 9.2, 9.3): **odczytane** (jest zapis odczytu na prawdziwym Foundry, z wynikiem: zgodne albo wada), **otwarte** (nikt nie odczytał), **częściowo** (odczytana część), **nieaktualne** (jak wyżej). Osobno zaznaczam, gdy tekst pozycji nie zgadza się już z kodem (nazywa funkcję, klucz, okno albo test, których nie ma).
+
+**Waga**, jak w `findings-1.2.42/`: `blocker` (psuje kampanię albo zdradza odpowiedź), `major` (psuje regułę, sesję albo pracę GM-a w zwykłej sytuacji), `minor` (działa źle w konkretnej sytuacji), `nit` (brud, tekst, kosmetyka). Każda z jednozdaniowym scenariuszem (U12).
+
+**Pewność**: **zmierzone** (przebieg: harness, Chromium albo zapis z prawdziwego Foundry), **przeczytane** (cała droga prześledzona w źródle i nieobalona w weryfikacji przeciwnej), **podejrzenie** (część drogi; nie jest znaleziskiem, tylko pytaniem z live checkiem). To zastępuje `CONFIRMED`/`SUSPECTED` oryginału.
+
+**Klasa dowodu**, podawana przy każdej pozycji:
+
+| Znak | Co to jest | Czego nie dowodzi |
+| --- | --- | --- |
+| H | przebieg harnessu z tej tury (jsdom, atrapa Foundry, 4-5 klientów) | układu, canvasu, fontów, dźwięku, prawdziwego serwera; założenia o v14 mają identyfikatory LIVE-E30 |
+| C | prawdziwy Chromium bez Foundry (sweepy z `audit/`) | zachowania Foundry; rysowanie jest programowe, więc koszt klatki to kształt, nie liczba ze stołu |
+| F | zapis odczytu z prawdziwego Foundry 14.370 (E58, E39), z datą | niczego poza tym, co wtedy odczytano; strony były headless, bez człowieka, bez LiveKit |
+| S | odczyt statyczny: plik i linia na `b5a29e73` | że kod tak działa po uruchomieniu; dlatego S przechodzi weryfikację przeciwną |
+| K | commit albo zapis w papierach etapu | stanu dzisiejszego, jeśli nie idzie z nim S albo H |
+
+### 11.4 Skala ocen
+
+Surowa jak w oryginale: 10 znaczy "nie ma nic, co bym zmienił". Ta sama skala dla siedmiu pytań z briefu 1.2.42 (żeby wiersze dało się porównać z ocenami z 12.09) i dla etapów.
+
+| Ocena | Znaczy | Dla etapu |
+| --- | --- | --- |
+| 10 | nic do zmiany i nic nieudowodnionego | każda obietnica ma nazwany test albo check zielony w turze bazowej, odczyt kodu nic nie znalazł, live checki etapu odczytane |
+| 9 | drobiazgi bez skutku przy stole | wszystko dowiezione; zostały najwyżej znaleziska `nit` albo live checki etapu jeszcze nieodczytane |
+| 8 | działa, z jednym-dwoma `minor` | obietnice dowiezione, ale jedna trzyma się tylko odczytem kodu albo ma `minor` |
+| 7 | działa w zwykłej sytuacji, kilka `minor` albo jedna obietnica dowieziona w części | jak obok |
+| 6 | jedno `major` | jedna obietnica niedowieziona albo zepsuta przez późniejszy etap |
+| 5 i niżej | `blocker` albo kilka `major` | główny cel etapu nie zachodzi na 1.2.118 |
+
+Dwie reguły, żeby ocena nie mówiła więcej, niż zmierzono: etap, którego główna obietnica stoi na nieodczytanych live checkach, nie dostaje więcej niż 9; etap, którego nie dało się ocenić z repozytorium (brak papierów, brak testów z jego stemplem), dostaje "nie oceniono" z powodem, a nie liczbę.
+
+### 11.5 Przebiegi i ich kolejność
+
+| Krok | Co | Jak | Sekcja z wynikiem |
+| --- | --- | --- | --- |
+| K0 | Stan i tura bazowa | `npm run quick`, `node run-tests.mjs --tier 1`, jeden `npm test` na `b5a29e73`; liczby zakresu skryptem | 12 |
+| K1 | Rozliczenie starych pozycji | 1.1.88 (4 pozycje), 1.2.13 (A, B, C, D, E, F), 1.2.42 (152 ID z `findings-1.2.42/`, tabele 3.1-3.4, zadania 1-14, sekcja 6, sekcja 7, 9.1, 9.3), 9.2 (577 numerowanych pozycji, 18 pozycji B-, 7 znanych luk) | 13 i adnotacje w części II |
+| K2 | Audyt statyczny domenami | dziewięć domen oryginału, podzielone tak, żeby jeden czytający miał około 10 tysięcy linii; pliki od początku do końca, sąsiedzi wymienieni | 17 |
+| K3 | Etapy | 105 wierszy `tools/stages.json`, grupami po wydaniach | 14 |
+| K4 | Kontrolki | spis z `docs/dev/e59/WINDOWS.md` i z kodu; handler i skutek z kodu, podejrzane potwierdzane sondą | 15 |
+| K5 | Odświeżanie okien | dane czytane przez okno kontra to, na co nasłuchuje (`keepLive`, hooki, sockety); podejrzane potwierdzane sondą | 16 |
+| K6 | Treść | cztery tabele z sekcji 3 powtórzone na dzisiejszych plikach językowych i `config.mjs` | 17 |
+| K7 | Higiena i wydajność w liczbach | pomiary sekcji 6 powtórzone skryptem; liczniki pracy ze scenariuszy 81 i 86 | 12 |
+| K8 | Weryfikacja przeciwna | każde znalezisko z K2-K7 i każda zmiana statusu z K1 na "naprawione" | w statusie pozycji |
+| K9 | Oceny i werdykt | skala z 11.4 | 10 i 14 |
+| K10 | Ponowne sprawdzenie względem 1.2.119 | U13 | 18 |
+
+Nowe znaleziska dostają kolejne numery w swojej domenie (po CASE-15 idzie CASE-16 i tak dalej), a dla nowych przebiegów nowe przedrostki: `CTRL` (kontrolki), `REFR` (odświeżanie), `STG` (etap dowieziony inaczej, niż mówi jego zapis), `TEST` (zestaw, harness, bramka), `DOC` (podręczniki i papiery kontra kod). Nowe live checki dostają kolejne numery na końcu 9.2.
+
+### 11.6 Świadome odstępstwa od oryginału
+
+1. **Audyt nie naprawia.** Raport 1.2.42 był audytem i wydaniem naraz (krok 4 "Poprawki"). Tu są same znaleziska: równolegle pracuje sześć linii poprawek 1.2.119 i każda moja zmiana w kodzie zderzałaby się z nimi. Nie ruszam też testów, `tools/stages.json`, `module.json`, `CLAUDE.md` ani `.claude/`.
+2. **Krok 6 (wydanie przez sieć) zawężony.** Sprawdzam to, co widać z repozytorium i z jego historii (tagi, notatki, zapis bramki); nie tworzę wydania, PR ani waivera i ich nie ruszam.
+3. **Lista zadań (krok 15) bez szacunków w wieczorach.** Kolejność według ryzyka zostaje; szacunków nie podaję, bo nie mam czym ich zmierzyć.
+
+
+## 12. Pomiary: stan, tura bazowa, higiena (K0, K7)
+
+Wszystko w tej sekcji zostało zmierzone na `b5a29e73` (1.2.118) w tym kontenerze, 20.11.2026, albo przeczytane skryptem z drzewa na tym commicie. Maszyna miała 4 rdzenie, a obok tury bazowej pracowało od 6 do 12 czytających (load 1,1-2,3), więc **czasy nie są czasami bezczynnej maszyny** i nie nadają się do porównań wydajności. Surowe wyniki: `audit/findings-1.2.118/base-run.json`.
+
+### 12.1 Zakres
+
+| Co | 1.2.42 (12.09) | 1.2.118 (dziś) | Jak zmierzone |
+| --- | ---: | ---: | --- |
+| skrypty / linie | 97 / 89 963 | 271 / 434 614 | `wc -l scripts/*.mjs` |
+| w tym testy i zestaw | - | 13 plików / 208 332 | jak wyżej |
+| kod modułu bez testów | - | 258 / 226 282 | jak wyżej |
+| największe pliki modułu | `fog.mjs` 5 884, `action-rolls.mjs` 4 402 | `config.mjs` 5 646, `fog.mjs` 4 833, `murder-rules.mjs` 4 746, `settings.mjs` 4 662, `movement.mjs` 4 058 | `wc -l` |
+| arkusze CSS / linie | 5 / 20 490 | 7 / 31 831 | `cat styles/*.css \| wc -l` |
+| klucze `lang/en.json` / `pl.json` | 2 212 / - | 6 369 / 7 456 (formy liczby mnogiej) | liście JSON |
+| okna modułu | - | 162 okna w 165 miejscach, 69 plików | `docs/dev/e59/WINDOWS.md` |
+| etapy w `tools/stages.json` | - | 105 (98 wydanych, 7 bez wersji) | `tools/stages.json` |
+| scenariusze harnessu | 2 | 54, z tego 53 z warstwą `ci` (84 tylko `local-gate`) | `audit/harness/scenarios` |
+
+### 12.2 Tura bazowa (U3)
+
+| Część | Wynik | Klasa | Uwagi |
+| --- | --- | --- | --- |
+| lint | 418 plików, 0 problemów | H | 418, a nie 416 jak u pierwszej sesji: dwie sondy tego audytu (`probes/42`, `43`) są nowymi plikami gałęzi |
+| `tools/check.mjs` | 25 części, wszystkie zielone | H | |
+| samosprawdzenie bramki | 37/37 przypadków | H | |
+| zestaw, 8 shardów po kolei (`DRPG_SUITE_SHARD=i/8`) | 3 387 zaliczonych, **1 niezaliczony**, 27 pominiętych, 0 red; 1 583 testy tieru 2 na liście | H | `suite-merge.mjs`: lista kompletna, tiery 0-1 w shardzie 1 (1 781 / 0 / 16 / 0, 2 233 s), shardy 2-8 po 641-716 s |
+| niezaliczony test | tier 2 "grid XI07 - a betrayal declared in the Eclipse after Night opens the next morning" w shardzie 3: kopie PlayerTwo i PlayerThree nazywają zabójcę, model oczekuje `null`; okno "Which statistic?" zamknięte bez odpowiedzi | H | **ten sam test sam: zaliczony** (`run-tests.mjs --tier 2 --only XI07`, 7/0/0, 16 s); **shard 3 jeszcze raz w tej samej kolejności: zielony** (716 s). Wada testu albo harnessu zależna od obciążenia, nie odczyt modułu: TEST-01 (17.11) |
+| pominięte | 27, równo `skip-baseline.json` | H | pole `measured` w `skip-baseline.json` (z 27.09, 1.2.63) podaje 17, a lista `skips` ma 27 (sprawdzone; DOC, 17.10) |
+| scenariusze `ci`, po kolei (`node run-all.mjs scenarios`) | **52/52 zielone**, 4 227 s (21:31-22:42Z); oczekiwane czerwone tylko tam, gdzie zapisane: 21 (1), 30 (2), 33 (1), 65 (2), 67 (1), 72 (3, granice Foundry), 76 (1) | H | jeden proces naraz, po shardach; scenariusz 84 należy tylko do `local-gate` i nie był uruchamiany; 81-render-budget i 86-frame-work zielone (86: 105/105) |
+| sonda 42 (23:03-23:39Z, obok sondy 43) | 94 okna na liście: 44 otwarte, 521 naciśnięć - 345 z efektem, 35 "nic się nie stało", **0 wyjątków**; 47 okien nieotwartych, bo jądro zabiło klienta GM-a (SIGKILL, brak pamięci), 3 nieotwarte przez otwierającego; wyjście 1 | H (częściowo) | wyniki: `audit/findings-1.2.118/probe-42.json`, liczby w `base-run.json` (`probe_42`); przebieg skończył się wyjątkiem, więc sonda nie zapisała bloku dowodów - liczby są na okno, bez nazw kontrolek (18.1) |
+| sonda 42, powtórka (21.11 00:05-00:33Z, sama) | 47 okien, których pierwszy przebieg nie otworzył, z zakładkami 52: wszystkie otwarte, 513 naciśnięć - 449 z efektem, 61 "nic się nie stało" (z nazwami), 3 wyjątki (wszystkie z braków harnessu); wyjście 0 | H | `audit/findings-1.2.118/probe-42-rerun.json`, `base-run.json` (`probe_42_rerun`); sonda od e2d8c578 łapie każde okno osobno i zapisuje dowody po każdym oknie (18.1) |
+| sonda 42, druga powtórka (21.11 00:37-01:15Z, sama) | okna pierwszego przebiegu (39 identyfikatorów listy 08 z zakładkami: 47 przejść), 46 otwartych: 418 naciśnięć - 381 z efektem, 36 "nic się nie stało" (z nazwami), 1 wyjątek (brak płótna); wyjście 0 | H | `audit/findings-1.2.118/probe-42-rerun-2.json`; obie powtórki razem: `probe-42-nothing.json` (97 pozycji) |
+| sonda 43 (23:03Z-00:04Z, 62 min) | 65 okien, 64 otwarte; 1 792 odczyty, 395 istotnych: 39 żywych, 356 "nieaktualnych", 7 trzymanych przez fokus w polu, 12 niejasnych, 11 nieudanych; wyjście 0 | H | wyniki: `audit/findings-1.2.118/probe-43.json`, `base-run.json` (`probe_43`); z 356 "nieaktualnych" 278 to szum okien niespokojnych (losowe numery pól i identyfikatory, odliczanie sekund), 78 to zmierzone nieaktualne okna - czytanie w 18.1 |
+
+Pierwsza sesja audytu (jej `npm test` obok dziesięciu czytających) dała lint 416/0, check 25, bramkę 37/37, tiery 0-1 dwa razy 1 776 / 0 / 16, dwanaście scenariuszy zielonych, a 01-runtests skończyło się limitem 6 480 s bez pliku wyników (`first-session/README.md`). Dlatego tu zestaw szedł shardami, tak jak w CI.
+
+### 12.3 Higiena kodu w liczbach (sekcja 6 oryginału powtórzona)
+
+| Wiersz sekcji 6 | 1.2.42 | 1.2.118 | Jak |
+| --- | --- | --- | --- |
+| funkcje ponad 300 linii | 14 | 6 w kodzie modułu: `registerSettings` 1 971, `createGmStoreEngine` 941, `createNoticeEngine` 710, `steps` 416, `openProjectDialog` 377, `applyCrisisAction` 306; 16 w testach | espree po każdym węźle funkcji, 17 089 funkcji w 258 plikach |
+| funkcje 150-300 linii | około 40 | 75 w kodzie modułu, 96 w testach | jak wyżej |
+| zduplikowane pomocniki | "kto jest uczniem" x5, `esc` x8 i inne | jedna definicja każdego z dawnych; nowe: "czy Stained Glass" czytane w pięciu miejscach, 26 lokalnych aliasów `escapeHTML` w 15 plikach obok wspólnego `esc` | grep |
+| martwe klucze i18n | 8 z 2 212 | 0 z 6 369 (5 068 czytanych, 999 pod prefiksem budowanym w kodzie, 207 tylko w testach i narzędziach, 95 obcych) | `tools/e56/keys.mjs find` |
+| martwe selektory CSS | około 40 | 0 według `tools/css-budget.json`; klasa `.drpg-summary-dialog` stylowana w 34 miejscach, a niewystawiana (R2 tego nie widzi, bo łańcuch w `utils.mjs` liczy się jako emiter) | grep, budżet CSS |
+| `!important` | `danganronpa.css` 689, `stained-glass.css` 260 | 711 i 243 w całym tekście; poza komentarzami 612 i 199 (równe budżetowi) | grep |
+| magiczne liczby poza config | około 25 | dawne w `config.mjs` `TIMING`; czytający domen notują po 4-8 nowych na plik | grep |
+| komentarze sprzeczne z kodem | około 30 | 270 wpisów w 29 plikach domen tego audytu (lista czytających, nie sprawdzana przez weryfikatorów pod kątem liczby) | JSON czytających |
+
+### 12.4 Koszt pracy i klatki
+
+Liczby klatek ze stołu ma tylko stół: `docs/dev/e58/LOCAL-REPORT.md:344-346` zapisuje `perf()` i `fps()` na Foundry 14.370 z 16.11.2026 (60 fps samemu w obu motywach, efekty najwyżej 0,15 ms) - klasa F, jeden odczyt, bez graczy i bez LiveKit. Maszyna budżetowa 1366x768 i `audit/perf-baseline.json` dalej nie są zmierzone (LIVE-E33-05, LIVE-E53-01, LIVE-E88-01). Liczniki pracy: scenariusze 81-render-budget i 86-frame-work (GM i czterech graczy, 16 tokenów, 30 Remnantów, oba motywy) przeszły w turze bazowej, czyli liczniki modułu trzymają się granic zapisanych od E88 C1-C4 - to liczby pracy, nie klatki.
+
+
+## 13. Rozliczenie starych pozycji (U4)
+
+Sekcja daje status na `b5a29e73` każdej pozycji trzech starych raportów: `audit/AUDIT-1.1.88.md` (z `audit/findings/LIVE-findings.md`), `audit/AUDIT-1.2.13.md` i części II tego pliku z surowymi plikami `audit/findings-1.2.42/`. Rozliczyło je trzynastu czytających (pliki `old-*` w `audit/findings-1.2.118/` i `first-session/`, plus pozycje tabel z `domain-text-b-lang.json`), a każdy plik przeszedł weryfikację przeciwną (`verify-<nazwa>.json`). Gdzie weryfikacja podaje `status_after`, liczy się jej status, nie czytającego; tak policzone są wszystkie liczby niżej. Razem 518 pozycji: zamknięte 329, częściowo 118, otwarte 49, nieaktualne 22. Z 167 częściowych i otwartych waga tego, co nadal zachodzi: `major` 3 (LIVE-001, DEC-1b i H1b - jedna rzecz, znacznik zawoalowanego tokenu), `minor` 42 (jedna tymczasowo), `nit` 71; 5 bez ustalonej wagi i 46 bez wagi własnej (wiersze planu i zadań, mocne strony i live checki bez odczytu; jeśli coś nadal zachodzi, waga stoi przy ID, na którym wiersz się opiera). Nowe wady znalezione przy rozliczaniu (DOC-01..03, DOC-09..21, CASE-74..76 i inne z plików `old-*`) mają numery w części I i nie są liczone tutaj.
+
+Słowa statusu (D-A3) odpowiadają 11.3: **zamknięte** to "naprawione" (dla mocnej strony: twierdzenie nadal prawdziwe; dla decyzji: kod robi to, co postanowiono, i tak to oznaczam), **częściowo**, **otwarte**, **nieaktualne** (przedmiot usunięty albo zastąpiony; też pozycje wycofane już w starym raporcie). Dla live checka "zamknięte" znaczy odczytane i zgodne. Znak **T** przy statusie: tekst starej pozycji nie zgadza się już z kodem (nazywa funkcję, klucz, okno, liczbę albo commit, których nie ma albo które są inne). "Kierowanie" mówi, czy pozycję albo jej następcę z części I obejmuje linia poprawek 1.2.119 według `ROUTING.md` i `lines-119.json`; żadna stara pozycja nie jest tam wymieniona wprost, więc wszystkie powiązania idą przez nowe znaleziska (numery z sekcji 15-17).
+
+Czego nie zmierzono: czytający nie uruchamiali harnessu ani przeglądarki; statusy stoją na odczycie kodu (klasa S, pewność przeczytane), a tam, gdzie to zaznaczone, na zapisach odczytów z Foundry 14.370 (F: `docs/dev/e58/LOCAL-REPORT.md`, `docs/dev/e39/CALIBRATION.md`). Wyników testów i scenariuszy wymienionych jako przypinki nikt nie przeczytał: `base-run.json` nie istniał, gdy czytający i weryfikujący pracowali. Weryfikacja sprawdziła każdą pozycję zamkniętą, częściową i nieaktualną oraz próbkę otwartych; pozycji otwartych było w większości plików mniej niż pięć, więc sprawdzono wszystkie.
+
+### Podsumowanie
+
+| Źródło | Pozycji | zamknięte | częściowo | otwarte | nieaktualne | zmienione przez weryfikację |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1.1.88: znaleziska | 4 | 2 | 1 | 0 | 1 | 0 |
+| 1.1.88: mocne strony, obszary żywego oka, checklista; LIVE-findings.md | 23 | 10 | 9 | 2 | 2 | 0 |
+| 1.2.13: A1-A26 | 26 | 23 | 2 | 0 | 1 | 0 |
+| 1.2.13: B (Q1-Q18) | 18 | 13 | 4 | 0 | 1 | 1 |
+| 1.2.13: część statusowa, C-H | 62 | 31 | 25 | 4 | 2 | 2 |
+| 1.2.42: znaleziska domen (157 ID) | 157 | 126 | 25 | 1 | 5 | 8 |
+| 1.2.42: live checki plików domen | 56 | 7 | 14 | 30 | 5 | 20 |
+| 1.2.42: tabele treści 3.1-3.4 | 47 | 37 | 5 | 2 | 3 | 1 |
+| 1.2.42: reszta części II (0, 2, 5, 6, 8, 9) | 125 | 80 | 33 | 10 | 2 | 6 |
+| **razem** | **518** | **329** | **118** | **49** | **22** | **38** |
+
+Uwagi do liczb:
+
+- "Zmienione przez weryfikację" liczy pozycje, którym weryfikacja przesunęła status między czterema słowami; do tego jedna zmiana moja: wiersz 3.1-03 tabel treści czytający dał jako zamknięty, a to ten sam klucz co TEXT-04, który weryfikacja domeny TEXT zmieniła na częściowo - liczę go częściowo i mówię to w wierszu.
+- Zamknięte decyzją: CASE-11 (D5), DESP-03 (D3), MAP-12 (D2), TEXT-14 (D1), TEXT-LC5 (D6) i A23 (decyzja z 03.09). Weryfikacja zmieniła "decision" na zamknięte przy CASE-11 i DESP-03, a przy ITEM-04 na częściowo, bo droga upuszczenia z kompendium nadal omija regułę D4.
+- Live checki plików domen 1.2.42 weryfikujący traktowali niejednakowo: w ITEM, CORE, DESP, MAP, ROLL i UI live check odpowiedziany tylko kodem przeszedł na otwarte albo częściowo (11.2 U11: pozycję live zamyka tylko zapisany odczyt), w COMM zostało jedno takie zamknięcie (COMM-LC1, oznaczone "kod; bez odczytu"). Stąd 30 otwartych live checków przy 7 zamkniętych; pięć zamkniętych ma odczyt F, jeden (COMM-LC1) nie, a TEXT-LC5 to decyzja.
+- Trzy pozycje 1.1.88 i `LIVE-findings.md` są zamknięte z dopiskiem "niepotwierdzone" (LF-PERMS, LF-VOTE, WD-ROOMS): weryfikacja zostawiła status, ale zaznaczyła, że stoi na samym istnieniu funkcji albo na modelu harnessu.
+
+Błędy rachunku w starych raportach, znalezione przez czytających:
+
+- Część II mówi o 152 znaleziskach (sekcja 9, bilans po zadaniu 13; 9.1a "wszystkie 152 ID zamknięte"), a pliki `findings-1.2.42/*.md` mają **157** różnych nagłówków `### XXX-nn` (case 15, comms 18, core 19, despair 20, items 18, map 15, rolls 17, text 19, ui 16; `grep -cE`, potwierdzone w weryfikacji). Ta sama liczba 152 stoi w 11.5 (krok K1) części I. Bilans 49 + 78 + 4 zostawia 21 pozycji na "live checki", czego raport nie wylicza (S9-BAL, DOC-20).
+- Zadanie 13 w sekcji 9 "zamyka 25 znalezisk", a lista wymienia **24** (S9-T13). Ten sam wiersz podaje commit 7e40243, który w historii jest "D8: the first text pass"; zmiana zadania 13 to b888c066 (znalazło to sześciu czytających: CASE-75, COMM-52, ITEM-42, MAP-44, ROLL-36, TEXT-41). ITEM-42 dodaje, że ITEM-12 i ITEM-13 są przypisane do złego zadania.
+- "Wszystkie ID zamknięte" (9.1a) nie było prawdą także wtedy: COMM-10 nigdy nie zostało zamknięte z nazwy (COMM-53), a naprawa DESP-12 w 1.2.44-1.2.47 nie działała, bo `adjustDespair` wołało `hasGm()`, którego gm-bridge.mjs nie eksportował. MAP-10 policzone jako zamknięte 13.09 nadal mówiło "has been put back" do 14.11.2026.
+- Checklista 1.1.88 (punkt 6) mówi o "czterech obszarach" żywego oka, sekcja ma trzy punkty (CL-LIVE).
+- Sekcja 8 i nagłówki 2.1-2.2 mówią o wydaniu 1.2.43, którego nie było: tagu v1.2.43 nie ma, całość wyszła jako 1.2.44 (S8, S9-REL144).
+
+### 13.1 AUDIT-1.1.88
+
+Cztery znaleziska raportu (4 pozycje: zamknięte 2, częściowo 1, otwarte 0, nieaktualne 1). LIVE-001 ma dziś dwie połowy: ustawienie świata jest zamknięte, a znacznik zawoalowanego tokenu (E112, 1.2.116) da się odczytać z konsoli każdego gracza; właściciel przyjął to dla maski 14.11.2026, dla welonu zgody nie znaleziono.
+
+| ID | waga wtedy | status dziś | waga dziś | dowód | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| LIVE-001 | WYSOKI | częściowo | major | `murderState` trzyma tylko `active` i `stage` (incident-store.mjs:148-167); gracz spoza zbrodni czyta z konsoli tokeny z flagą `veiled` i ich aktora (known-leaks.json `foundry-veiled-token-actor`) | nie skierowane; obok DOC-01 (`major`, niesprawdzone) i DOC-02 |
+| REL-001 | KRYTYCZNY dla wydania | zamknięte | - | `main`, `origin/main` i tag v1.2.118 to jeden commit `b5a29e73`; manifest i download wskazują `releases/latest` (module.json:5, 68-69) | - |
+| LIVE-003 | WYSOKI | zamknięte | - | Hope za trafienie krytyczne = stan sprzed wywołania + `CRITICAL.hope` 2 (critical.mjs:55-113, config.mjs:1259-1262) | - |
+| LIVE-002 | NISKI | nieaktualne (wycofane w 1.1.88) | - | oba klucze są w en i pl; wycofanie z 1.1.88 trzyma | - |
+
+Obszary wymagające żywego oka (OA-1..OA-3), mocne strony "Co zweryfikowanie działa dobrze" (WD-*; dziewiąta, redakcja Remnantów, jest pod LF-REMNANT) i punkty 5-6 checklisty (CL-*): 14 pozycji: zamknięte 5, częściowo 7, otwarte 1, nieaktualne 1. Dla mocnej strony "częściowo" znaczy, że część twierdzenia przestała być prawdą albo zastąpiła ją decyzja; dla obszaru live - że są tylko niektóre odczyty F.
+
+| ID | waga wtedy | status dziś | waga dziś | dowód | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| OA-3 | obszar live | otwarte | minor | jedyny odczyt LiveKit na Foundry to jego ustawienie przy wyłączonym A/V (LIVE-E05-11, LOCAL-REPORT.md:475); głos za pokojami i muzyka za porą nieodczytane | - |
+| OA-1 | obszar live | częściowo | minor | odczyty F: repaint mgły p95 33-51 ms, pierścień ucznia p95 0,1-1,9 ms (LIVE-E53-01, LOCAL-REPORT.md:346); największa mapa izometryczna i sprzątanie po zmianie sceny nieodczytane | etap E53 odłożony do 1.2.120 (ROUTING.md) |
+| OA-2 | obszar live | częściowo | nit | CSS urósł do 2 007 312 B w 7 arkuszach (`wc -c styles/*.css`); ucięte teksty w wąskich oknach i jasny motyw v14 nieodczytane | - |
+| WD-WRITE | mocna strona (harness) | częściowo | minor | `senderId` w każdym handlerze (vote.mjs:117, private-rolls.mjs:104 i dalej); znaleziska COMM-21 i CORE-21 mówią, że "solidne" nie jest dziś całkiem prawdą | - |
+| WD-ROLLS | mocna strona (harness) | częściowo | minor | droga stoi (private-rolls.mjs:104, scenariusz 83-roll-integrity); zastrzeżenie: ROLL-20 (`minor`) | - |
+| WD-CRIME | mocna strona (harness) | częściowo | nie ustalono | jak LF-DEATH, LF-CLEANUP i LF-NOTHROW razem; waga stoi na odczycie innego drzewa (weryfikacja: osłabione) | - |
+| WD-DEGRADE | mocna strona (harness) | częściowo · T | - | twardy stop trzyma i obejmuje trzy moduły (module.mjs:173-191); brak Isometric Perspective zatrzymuje moduł zamiast ostrzec, decyzją z 09.10.2026 | - |
+| CL-LIVE | zadanie | częściowo · T | minor | jak OA-1..OA-3; lista mówi "cztery obszary", sekcja ma trzy | - |
+| WD-HTML | mocna strona (harness) | zamknięte | - | `escapeHTML(body)` przy zapisie (messenger.mjs:240-249) | - |
+| WD-GEAR | mocna strona (harness) | zamknięte | - | `LIMIT_GROUPS.gear` 2, `maxStowed` 1, `canCarry` przed przyjęciem (config.mjs:964, 977; inventory.mjs:668) | - |
+| WD-ROOMS | mocna strona (harness) | zamknięte (niepotwierdzone) | - | `roomOfActor`, `locateActor` istnieją (movement.mjs:3617, 3647); tylko istnienie; LIVE-E78-14 znalazł wadę przybycia w 1.2.77, poprawioną tylko w harnessie (weryfikacja: osłabione) | - |
+| CL-CHANGELOG | sugestia | zamknięte | - | CHANGELOG.md generowany przez `tools/changelog.mjs` z `.github/release-notes/` | - |
+| CL-POLISH | sugestia | zamknięte | - | lang/pl.json 7456 liści obok 6369 w en.json; parity w `check.mjs` | - |
+| WD-SUITE | mocna strona | nieaktualne · T | - | opisany zestaw zastąpiony: 1743 wiersze R w docs/dev/R-REGISTRY.md i tier 2 | - |
+
+`audit/findings/LIVE-findings.md` poza trzema znaleziskami rozliczonymi wyżej: 9 pozycji: zamknięte 5, częściowo 2, otwarte 1, nieaktualne 1. LF-NOTHROW jest otwarte w sensie "nieustalone ponownie", nie "znaleziono wadę".
+
+| ID | waga wtedy | status dziś | waga dziś | dowód | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| LF-NOTHROW | mocna strona (harness) | otwarte | - | nie ustalone ponownie: rozstrzyga tylko przebieg, a `base-run.json` nie istniał w chwili czytania | - |
+| LF-DEATH | mocna strona (harness) | częściowo | - | Finishing Blow sprawdzony (10-murder.mjs:193); "śmierć replikowana do gracza przy ciosie" zastąpiona celowo: śmierć trzymana przez GM-ów jest ogłaszana przy publikacji (10-murder.mjs:197) | - |
+| LF-CLEANUP | mocna strona (harness) | częściowo | minor (tymczasowo) | `endMurder` czyści stan (murder-rules.mjs:3405, 10-murder.mjs:826-829); przywracanie zestawu na 14.370 nie zawsze wraca świat, ale odczyt z drzewa 01b845d7, nie z `b5a29e73` (weryfikacja: osłabione) | - |
+| LF-R9 | luka testu | zamknięte | - | reguły `world-secrets.mjs` (:1-27) czytane przez R9, R190 i scenariusz 72-canary | - |
+| LF-REMNANT | mocna strona (harness) | zamknięte | - | ślad pod nazwą publiczną albo słowem neutralnym (remnants.mjs:484-486, 1401-1404) | - |
+| LF-PERMS | mocna strona (harness) | zamknięte (niepotwierdzone) | - | 00-boot.mjs:57-60 to model bramki uprawnień w harnessie; odczytu F zapisu gracza do ustawienia świata brak (weryfikacja: osłabione) | - |
+| LF-VOTE | mocna strona (harness) | zamknięte (niepotwierdzone) | - | funkcje są (vote.mjs:308, 318, 986-1010); "bez wyjątków" mówi tylko przebieg (weryfikacja: osłabione) | - |
+| LF-LIVEKIT | uwaga o zakresie | zamknięte | - | trzy klucze `LIVEKITAVCLIENT.*` należą do avclient-livekit (00-boot.mjs:43-55) | - |
+| LF-SUITE | twierdzenie o metodzie | nieaktualne · T | - | rachunek 102/9 zastąpiony liczbami zestawu i `skip-baseline.json` (CLAUDE.md, "What the suite's four numbers mean") | - |
+
+### 13.2 AUDIT-1.2.13
+
+#### A. Błędy i miejsca wrażliwe (A1-A26)
+
+26 pozycji: zamknięte 23, częściowo 2, otwarte 0, nieaktualne 1. A11 było wycofane w samym raporcie 1.2.13 i wycofanie trzyma; A23 to decyzja z 03.09, którą kod wykonuje.
+
+| ID | waga wtedy | status dziś | waga dziś | dowód | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| A4 | P2 | częściowo | nit | generator podmieniany tylko w jednym `evaluate` (forced-roll.mjs:176-226); drugi `evaluate` w trakcie nieustalony (LIVE-E16-06, 9.2 pozycja 305) | - |
+| A9 | P2 | częściowo | minor | nazwa ustalona: `token.ruler.visible` (visibility.mjs:1013-1016); czy linijka Foundry 14.370 bierze ten zapis - otwarte (9.2 pozycje 558, 559) | - |
+| A1 | P1 | zamknięte | - | jeden obiekt `flags` z `sfx` (safeword.mjs:129-159, sfx-play.mjs:719-737) | DOC-03 (`nit`): lint bez `no-dupe-keys` |
+| A2 | P1 | zamknięte | - | brama czyta zaciemnioną liczbę przejść (movement.mjs:1774-1776, 1792) | - |
+| A3 | P2 | zamknięte | - | `stow` liczy `stashItemsIn` (stash-reach.mjs:104-113, vault-store.mjs:1149-1157); weryfikacja: osłabione - przepełnienie `grantItem` kładzie do skrytki bez liczenia (inna przyczyna, nowa obserwacja) | - |
+| A5 | P1 (znane) | zamknięte | - | jak zamknięta połowa LIVE-001 (incident-store.mjs:148-151, settings.mjs:2840-2846) | - |
+| A6 | P2 | zamknięte | - | karta niesie scenę gracza (action-observe.mjs:228-254, messenger-app.mjs:1363-1369) | - |
+| A7 | P2 | zamknięte | - | wynik z dwóch k12, nie z tekstu (private-rolls.mjs:431-443) | - |
+| A8 | P2 | zamknięte | - | `retuneRemnant` nie zmienia nazwy tokenu (remnants.mjs:2509-2592) | - |
+| A10 | P2 | zamknięte | - | `secretOf` = `bulletStore.get` (truth-bullets.mjs:182-185) | - |
+| A12 | P2 | zamknięte | - | `isPrimaryGm()` przy wołających w czasie ładowania (module.mjs:559-576, 637-669) | - |
+| A13 | P2 | zamknięte | - | cztery podpowiedzi ustawień zgodne z kodem (lang/en.json) | - |
+| A14 | P2 | zamknięte | - | `deathNote` i `revived` zgodne z kodem (death.mjs:130-135, 209-210); komentarze w kodzie - zob. Q3 | - |
+| A15 | P3 | zamknięte | - | żadnej z siedmiu rzeczy w drzewie | - |
+| A16 | P3 | zamknięte | - | `gmOnline()` bez skutków ubocznych; `hasGm` nie ma (bridge-guards.mjs:82-84) | - |
+| A17 | P3 | zamknięte | - | literały usunięte (5c69acf2); konsola diagnostyki po angielsku decyzją DB12 | - |
+| A18 | P3 | zamknięte | - | patches.mjs z rejestrem i `diagnosePatches` (api.mjs:1257); ładowanie - zob. VER-A18 | - |
+| A19 | P3 | zamknięte · T | - | `gmGiveItemDialog` i `handOverDialog`, nazwa publiczna zostaje (gm-items.mjs:1041, handover.mjs:131, api.mjs:777) | - |
+| A20 | P3 | zamknięte | - | `&mdash;` tylko w fiksturach testów (tests-text.mjs:3134, 3155) | - |
+| A21 | P2 | zamknięte | - | jeden spis i jedno zaokrąglenie (vault-store.mjs:1319-1343, 1366) | - |
+| A22 | P2 | zamknięte | - | `pickableCategories` to jedna lista (inventory.mjs:607-624) | - |
+| A23 | P2 | zamknięte (decyzją z 03.09) | - | okno sadzenia pyta o nazwę i pokój, z notką (traps.mjs:632-703) | - |
+| A24 | P2 | zamknięte | - | kolumny z `pickableCategories({ splitUsables: false })` (room-setup.mjs:1269-1270) | - |
+| A26 | P1 | zamknięte | - | `ITEM_CATEGORIES.usable.limit` 3, `LIMIT_GROUPS.gear.limit` 2 (config.mjs:672, 964) | - |
+| A25 | P2 | zamknięte | - | `carriableCategories` bez kluczy i Truth Bulletów (inventory.mjs:636-638, season-setup.mjs:177-180) | - |
+| A11 | - | nieaktualne (wycofane w 1.2.13) | - | pary adres-nadawca nadal razem (gm-bridge.mjs:198-201, 227-230); wycofanie trzyma | - |
+
+#### B. Pytania do właściciela (Q1-Q18) i decyzje B2
+
+18 pozycji: zamknięte 13, częściowo 4, otwarte 0, nieaktualne 1. Każda decyzja B2 jest rozliczona pod swoim pytaniem (Q15 i Q18 mają jedną). Q3, Q4, Q10, Q11, Q13, Q15, Q16 i Q17 to te same rzeczy co A14, A26, A13, A13, A8, A20, A5/LIVE-001 i A15, sprawdzone od strony pytania.
+
+| ID | waga wtedy | status dziś | waga dziś | dowód | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| Q3 | pytanie: tekst kontra kod | częściowo | nit | teksty języka naprawione (jak A14); weryfikacja: obalone - JSDoc `killCharacter`/`reviveCharacter` i nagłówek okna Students nadal mówią o zniszczeniu ekwipunku | - |
+| Q9 | pytanie: komentarz kontra kod | częściowo | minor | potwierdzone na 14.365 (visibility.mjs:911-917); ekran innego gracza na 14.370 nieodczytany (jak A9) | - |
+| Q12 | pytanie: martwe dane | częściowo | nit | `PROJECT_ITEMS` usunięte (tables-pools.mjs:663-672); reguła zostawiona "dla podręcznika" nie stoi w żadnym podręczniku | - |
+| Q16 | pytanie: decyzja | częściowo | nie ustalono | `world-secrets.mjs:140-144` pozwala tylko `active`/`stage`; weryfikacja: osłabione - flaga veil to zadeklarowany znany wyciek, więc `major` niepotwierdzony | jak LIVE-001 |
+| Q1 | pytanie: komentarz kontra kod | zamknięte | - | komentarz mówi, czemu mipmapy są wyłączone (fog.mjs:3558-3575) | - |
+| Q2 | pytanie: komentarz kontra kod | zamknięte | - | nagłówek: zamiatanie to przycisk GM-a (chapter.mjs:8-26) | - |
+| Q4 | pytanie: komentarz kontra kod | zamknięte | - | limity i komentarze zgodne (config.mjs:672, 964, 977; inventory.mjs:654-660) | - |
+| Q5 | pytanie: komentarz kontra kod | zamknięte | - | Motive 6 z komentarzem (config.mjs:2898-2910) | - |
+| Q6 | pytanie: komentarz kontra kod | zamknięte | - | ceny z jednym komentarzem (config.mjs:2413-2421) | - |
+| Q7 | pytanie: komentarz kontra kod | zamknięte | - | w `TRIAL` nie ma zdania o remisie; remis jest czytany (vote.mjs:1010) | - |
+| Q8 | pytanie: komentarz kontra kod | zamknięte | - | nagłówek: `#ui-left-column-1` (hud.mjs:5-9) | - |
+| Q10 | pytanie: tekst kontra kod | zamknięte | - | podpowiedź `lockPlayerResources` zgodna | - |
+| Q11 | pytanie: tekst kontra kod | zamknięte | - | podpowiedź `enforceAnonymity` zgodna | - |
+| Q13 | pytanie: komentarz kontra kod | zamknięte | - | blok zmiany nazwy usunięty (remnants.mjs:2509-2592) | - |
+| Q14 | pytanie: nazwa | zamknięte | - | tryby `debate`, `objection`, `rebuttal` (floor-machine.mjs:35-36) | - |
+| Q15 | pytanie: reguła domu | zamknięte | - | długiej kreski nie ma poza testami (git grep) | - |
+| Q17 | pytanie: martwy kod | zamknięte | - | jak A15 | - |
+| Q18 | pytanie: reguła domu | nieaktualne | - | archiwum z czterema kreskami usunięte (audit/harness/results) | - |
+
+#### Część statusowa (linie 1-404): decyzje 03.09, przebudowa poza planem, weryfikacja
+
+13 pozycji: zamknięte 9, częściowo 3, otwarte 0, nieaktualne 1.
+
+| ID | waga wtedy | status dziś | waga dziś | dowód | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| DEC-1b | P1 (A5, LIVE-001) | częściowo | major | jak LIVE-001: świat zamknięty, droga zawoalowanego tokenu otwarta | jak LIVE-001 |
+| REB-hub | - | częściowo | - | jedno okno `openItemManager` (gm-items.mjs:331, 78-100); przycisk Items w każdym wierszu okna Students decyzją z 09.11 (gm-students.mjs:174-175) | - |
+| VER-A18 | P3 | częściowo · T | - | rejestr i 48 wierszy sond trzymają; weryfikacja: osłabione - od E52 C3 patches.mjs jest importowany na każdym kliencie w `ready`, nie "na żądanie" | - |
+| DEC-E7 | P2 (D3, E7) | zamknięte | - | wiersz `traceDigestStore` zamiast szeptu, jeden zbiorczy na porę (remnants.mjs:756-797) | - |
+| DEC-A23 | P2 | zamknięte | - | `plantItem` bez kategorii i tieru (traps.mjs:503-515, 648-655) | - |
+| REB-take-key | - | zamknięte | - | `only: "bedroomKey"`, bez klucza do własnej sypialni (gm-items.mjs:431-432, 1753-1760) | - |
+| REB-give-existing | znalezione przez właściciela | zamknięte | - | dwa selecty, przedmioty budowane po zmianie tabeli (gm-items.mjs:660-697) | - |
+| VER-Q5 | P3 (komentarz) | zamknięte | - | Motive 6 i komentarz New Rule zgodne (config.mjs:2898-2919) | - |
+| VER-deadkeys | P3 | zamknięte | - | trzy klucze nieobecne, `DRPG.Items.hubButton` w użyciu | - |
+| R3-A15 | P3 | zamknięte | - | aliasy i dwa makra usunięte (git grep) | - |
+| R3-C3-clock | P3 (C3) | zamknięte | - | jedyne definicje w settings.mjs:3883, 3888, 3974 | - |
+| SBX-cast-ready | P1 (znalezione na żywo) | zamknięte | - | prośby o kopie w `Hooks.once("ready")` (incident-store.mjs:1186) | - |
+| REB-panel | prośba właściciela | nieaktualne · T | - | panel przebudowany późniejszymi decyzjami właściciela (gm-panel.mjs:179-212) | - |
+
+#### C-H: skrócenie kodu, wydajność, przepływ i UX, teksty, mocne strony, plan
+
+49 pozycji: zamknięte 22, częściowo 22, otwarte 4, nieaktualne 1. C4, D5, D7 i E12 są otwarte, bo zostawiono je decyzją w 1.2.13 albo później; nikt nie uznał ich za wadę do poprawy. G1-G7 to mocne strony: "zamknięte" znaczy, że nadal trzymają.
+
+| ID | waga wtedy | status dziś | waga dziś | dowód | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| C4 | propozycja | otwarte | nit | 1 650 `await import(` w 149 plikach bez testów; zamiana na statyczne odrzucona w 1.2.13 | - |
+| D5 | wydajność (opóźnienie kliknięcia) | otwarte | nit | `YIELD_MS = 120` zostawione decyzją (sfx-play.mjs:60-70, sfx.mjs:172); odczucie przy stole nieodczytane | COMM-49 (`nit`) |
+| D7 | wydajność (drobne) | otwarte | nit | jak C4 | - |
+| E12 | ux | otwarte | - | wywołanie gracza ostrzega `DRPG.Panel.gmOnly` (tables-editor.mjs:1625-1628); zostawione decyzją | - |
+| C1 | propozycja | częściowo | nit | zdublowany JSDoc trzymany na zero (tools/comment-budget.json, R7150); cel 15-20% porzucony stylem domu | - |
+| C3 | propozycja | częściowo | nit | jedna definicja każdego helpera (git grep); gołe aliasy `escapeHTML` urosły z 12 do 26 | DOC-13 (`nit`) |
+| C5 | propozycja | częściowo | nit | `onSocket` to `judge` nad tabelą (bridge-table.mjs:1632); config.mjs niepodzielony, sześć plików ponad 3 500 linii | - |
+| C6 | propozycja | częściowo | nit | 7 arkuszy, 31 831 linii; 827 `!important` poza komentarzami | DOC-12 (`nit`, martwa klasa) |
+| D1 | wydajność (kwadratowe) | częściowo | nit | parsowanie zniknęło (truth-bullets.mjs:182-185); cały region przebudowywany na serię zmian, koszt przy stole niezmierzony | - |
+| E1 | ux | częściowo | nit | 594 wywołań `ui.notifications` (433 warn, 113 info, 48 error); co najmniej trzy odmowy jako info, reguły nie trzyma żaden lint | - |
+| E2 | ux | częściowo | nie podano | od E100 Move nic nie otwiera (action-rolls.mjs:77-82); weryfikacja: osłabione - reszta to wniosek czytającego, nie prześledzona | - |
+| E3 | ux | częściowo | nit | tooltip bez kosztu (sheet-actions.mjs:1378-1401); starą miarą 165 tooltipów ponad 80 znaków, dzisiejszą żaden ponad limit | - |
+| E4 | ux | częściowo | nit | podsumowanie dnia jako karta, nie modal (day-summary.mjs:119, 275-287) | DOC-12 (`nit`) |
+| E6 | ux | częściowo | nit | okno Monocubs wycofane, Mastermind na `keepLive` (mastermind.mjs:700); zamykanie i otwieranie panelu zostaje z założenia | reguła 1 `keepLive`: REFR-05 (D-A1); `claude/plan-119` tylko dla pulpitu sprawy, reszta 1.2.120 |
+| E10 | ux | częściowo | nit | Install w stopce (tables-editor.mjs:1666-1673); nadal dwa formularze nowego przedmiotu | - |
+| F2 | tekst | częściowo | nit | 17 z 21 kluczy pod 220 znakami; `Vote.verdictNote` urósł | - |
+| F3 | tekst | częściowo | nit | osiem z dziewięciu trzyma; `Panel.whoIsAliveNote` znów akapit | - |
+| F4 | tekst | częściowo | nit | 553 zdania config (walkConfigProse); 20 ponad 220 znaków, wszystkie w limicie słów | - |
+| H1b | krok planu | częściowo | major | jak DEC-1b | jak LIVE-001 |
+| H5 | krok planu | częściowo | nit | E1 i E3 częściowo, E7 zamknięte | - |
+| H6 | krok planu | częściowo | nit | F2, F3, F4 częściowo | - |
+| H7 | krok planu | częściowo | nit | E6 i E10 częściowo, E8 i E9 zamknięte | reguła 1 `keepLive`: REFR-05 (D-A1); `claude/plan-119` tylko dla pulpitu sprawy, reszta 1.2.120 |
+| H8 | krok planu | częściowo | nit | C2, A15, A18 zamknięte, C3 częściowo; cel "minus 8 tysięcy linii" niemierzalny przy kodzie trzy razy większym | - |
+| H9 | krok planu | częściowo | nit | C1 i C5 częściowo, C4 otwarte decyzją | - |
+| H10 | krok planu | częściowo | nit | C6 częściowo | - |
+| H-note | uwaga planu | częściowo | nit | A3 zamknięte, A4 nadal częściowo | - |
+| C2 | propozycja | zamknięte | - | zestaw leniwy (api.mjs:1285); graf statyczny od module.mjs: 240 plików, bez `tests*.mjs` | - |
+| D2 | wydajność (kwadratowe) | zamknięte | - | `tableIndex` budowany raz, zrzucany na sześciu hookach (tables-pools.mjs:1151-1190) | - |
+| D3 | wydajność/spam | zamknięte | - | jak DEC-E7 | - |
+| D4 | wydajność (drobne) | zamknięte | - | `clearSystemConditions` bez zapisu, gdy nic nie pasuje (states.mjs:272-284) | - |
+| D6 | wydajność (drobne) | zamknięte | - | `markThreadRead` pisze tylko przy nowszym stemplu (messenger.mjs:196-210) | - |
+| E7 | ux | zamknięte | - | druga połowa jak DEC-E7; `callGm` nieprześledzony u każdego wołającego | - |
+| E8 | ux | zamknięte | - | jeden system zakładek `kitTabs`/`wireKitTabs` (ui-kit.mjs:332, 378) | - |
+| E9 | ux | zamknięte | - | filtr rozdziału domyślnie na bieżący (investigation.mjs:422-426) | - |
+| E11 | ux/tekst | zamknięte | - | `DRPG.Bridge.createItemStays` i "Nothing was there." (action-search.mjs:162, action-dynamic.mjs:219) | - |
+| F1 | tekst (P2, A13/A14) | zamknięte | - | podpowiedzi i teksty śmierci zgodne z kodem (lang/en.json) | - |
+| F5 | tekst | zamknięte | - | w en.json nie ma "Advancement" ani "Meddle" | - |
+| G1 | mocna strona | zamknięte (mocna strona trzyma) | - | klucze odpowiedzi w magazynach GM-ów od E04 (truth-bullets.mjs:165-185, traps.mjs:509-511) | - |
+| G2 | mocna strona | zamknięte (mocna strona trzyma) | - | klauzule z bramą `since` i odczytem po zapisie (migrate.mjs:70-100, 142) | - |
+| G3 | mocna strona | zamknięte (mocna strona trzyma) | - | `keepLive`, `alreadyOpen`, `keepFresh` (live.mjs:106, 696, 837); R19 `MUST_BE_LIVE` | reguła 1 `keepLive`: REFR-05 (D-A1); `claude/plan-119` tylko dla pulpitu sprawy, reszta 1.2.120 |
+| G4 | mocna strona | zamknięte (mocna strona trzyma) | - | sync.mjs:225-229, music-play.mjs:41-45, voice-client.mjs:128, 169 | - |
+| G5 | mocna strona | zamknięte (mocna strona trzyma) | - | `settleCall` (call-gm.mjs:1150) | - |
+| G6 | mocna strona | zamknięte (mocna strona trzyma) | - | tests-tier0.mjs 26 270 linii; wyniki przypinek nie czytane | - |
+| G7 | mocna strona | zamknięte (mocna strona trzyma) | - | `asActor` (api.mjs:1654) | - |
+| H1 | krok planu | zamknięte | - | A1, A2, A26, A6, A7, A10, A12, A15, A8, A20 zamknięte | - |
+| H2 | krok planu | zamknięte | - | A22, A24, A25 zamknięte, A23 decyzją | - |
+| H3 | krok planu | zamknięte | - | `sharedRooms`, `roomCensusOf`, `roomRatioLine`, `roomsWantedFor` (vault-store.mjs:1303-1366) | - |
+| H4 | krok planu | zamknięte | - | F1, VER-Q5, tryby sądu zamknięte; weryfikacja: osłabione - "częściowo" stało tylko na części drugiego czytającego, który ją zamknął (Q1, Q11, Q14) | - |
+| E5 | ux/tekst | nieaktualne | - | właściciel zdecydował odwrotnie: "Remnant" także w zdaniach (docs/glossary.json, DB33) | - |
+
+#### Liczby (zmierzone ponownie)
+
+| Wiersz | Wtedy (1.2.13) | Dziś (`b5a29e73`) | Jak zmierzono |
+| --- | --- | --- | --- |
+| Skrypty / linie | 90 / 81 745 (bez testów 76 349) | 271 / 434 614 (bez 13 plików `tests*.mjs`: 258 / 226 282) | python po scripts/*.mjs, liczba znaków nowej linii |
+| Linie komentarzy | 31 619 (41%) | 146 586 (33,7%) z testami; 99 401 z 226 282 (43,9%) bez | własny automat (tylko komentarz w linii, napisy pominięte); metoda 1.2.13 niezapisana, więc porównanie przybliżone |
+| Największe pliki | fog 5316, tests 5396, action-rolls 4390, config 3955, sheet 3919, murder 3533 | tests-tier2 104 280, tests-tier1 63 672, tests-tier0 26 270; kod modułu: config 5646, fog 4833, murder-rules 4746, settings 4662, movement 4058, glass 3870 (action-rolls 328, sheet 242, murder 37 po podziałach) | `wc -l` |
+| `await import()` | 546 (632 z `.then`) | 1 650 `await import(` w 149 plikach bez testów; 1 969 `import(` we wszystkich formach w 159; z testami 9 789 / 10 197 | regex po kodzie bez komentarzy |
+| `ui.notifications.*` | 339 wywołań | 594 poza testami w 117 plikach: 433 warn, 113 info, 48 error (613 z testami) | regex po kodzie bez komentarzy |
+| `DialogV2.wait/confirm/prompt` + `tableDialog` | 99 + 14 | 1 + 0 poza testami (w ui-kit.mjs:1344); okna przez kit: `drpgWindow` 133, `drpgConfirm` 31, `drpgPrompt` 2 (WINDOWS.md: 162 okna w 165 miejscach) | regex po kodzie bez komentarzy |
+| Szepty / ogłoszenia | 83 `whisperToOwner`, 46 `whisperToGms`, 38 `announce` | 151 `whisperToOwner` (i 17 `whisperToOwnerOnly`), 131 `whisperToGms`, 63 `announce(`, z definicjami | regex `\bname\(` po kodzie bez komentarzy |
+| Lokalne `const esc = ...` | 46 kopii w 25 plikach (34 scalone 03.09, 12 zostawione) | 1 eksport (utils.mjs:34) w 90 plikach; 27 lokalnych `const esc =` w 16 plikach, 26 z nich to gołe aliasy `foundry.utils.escapeHTML` | git grep bez testów |
+| CSS | 14 778 linii, 682 `!important`, 141 sekcji, 200 tokenów | 7 arkuszy, 31 831 linii; 1 004 `!important` w ogóle, 827 poza komentarzami; 182 banery `/* ====`; 577 różnych `--drpg-*` | grep i python po styles/*.css; "sekcja" i "token" to zastępniki czytającego, metoda 1.2.13 niezapisana |
+| en.json | 2745 linii, 2216 kluczy, 23 teksty > 220 znaków, 3 użyte a niezdefiniowane, ok. 11 nieużywanych | 7534 linii, 6369 liści (pl.json 9376 linii, 7456 liści); 71 wartości > 220 znaków; użyte a niezdefiniowane 0 w kodzie (7 literałów poza en.json, wszystkie w komentarzach); nieużywane 0 miarą łagodną (prefiks szablonu ręczy za rodzinę) | spłaszczenie JSON w pythonie, regex literałów |
+
+Liczby są czytającego (`old-1.2.13-C-H.json`, "numbers"); weryfikacja ich nie powtarzała.
+
+#### Oceny 1.2.13
+
+Nie oceniam ich ponownie (oceny dziś są w sekcji 10); tu tylko, na czym stały i co z tego jest dziś.
+
+| Obszar | Wtedy | Na czym stała | Dziś |
+| --- | --- | --- | --- |
+| Poprawność reguł | 8/10 | A1-A4 | A1-A3 zamknięte, A4 częściowo |
+| Bezpieczeństwo danych | 8/10 | A5 (LIVE-001) | A5 zamknięte, LIVE-001 częściowo (`major`); doszedł model zaufania E03/E28/E29 |
+| Czytelność kodu | 5/10 | komentarze-kronika, duplikaty, pliki-giganty | duplikaty i giganty w większości zrobione (C3, C5); kronika zostaje decyzją; kod trzy razy większy |
+| Wydajność | 7/10 | D1, D2 | D2 zamknięte, D1 częściowo; koszt klatki tylko przy stole (`fps()`, LIVE-E88-01) |
+| Przepływ gracza | 7/10 | potrójna komunikacja, długie teksty | E1, E3, F2 częściowo starymi miarami; w dzisiejszych limitach słów |
+| Przepływ GM-a | 6/10 | wiele drzwi, migające okna, formularze za regułami | formularze zamknięte (A21-A25), jeden system zakładek, panel przebudowany przez właściciela (E49); zamykanie i otwieranie panelu zostaje |
+| Razem | 7/10 | "wydać po A1-A4, utrzymywać po C i E" | nie oceniam ponownie (K9) |
+
+### 13.3 AUDIT-1.2.42: znaleziska według domen
+
+157 znalezisk z `audit/findings-1.2.42/*.md`: zamknięte 126, częściowo 25, otwarte 1, nieaktualne 5. Pod nimi w każdej tabeli live checki z sekcji "Live checks recommended" tego samego pliku (ID z `-LC`, razem 56: zamknięte 7, częściowo 14, otwarte 30, nieaktualne 5); część z nich weszła do sekcji 7 i 9.2, ich numery w 9.2 rozlicza 13.6. Waga wtedy to waga z `findings-1.2.42/`; waga dziś to waga tego, co nadal zachodzi (dla live checka: waga tego, czego nie odczytano). W każdej tabeli najpierw otwarte i częściowe.
+
+Dla porównania: weryfikacja zadań (S9-BAL) policzyła te 157 jako 128 naprawionych, 19 częściowo, 4 decyzją, 5 nieaktualnych, 1 otwarte, uwzględniając tylko zmiany z weryfikacji CASE i COMM. Po zmianach z weryfikacji pozostałych domen (MAP-03, TEXT-04, ROLL-13, DESP-18, UI-15 i ITEM-04 przechodzą na częściowo) jest 126 zamkniętych (z tego 2 decyzją: MAP-12, TEXT-14), 25 częściowo, 5 nieaktualnych i 1 otwarte (COMM-10).
+
+#### CASE
+
+Znaleziska: 15 pozycji: zamknięte 12, częściowo 2, otwarte 0, nieaktualne 1; live checki: 6 pozycji: zamknięte 1, częściowo 2, otwarte 3, nieaktualne 0. Weryfikacja: CASE-09 z zamkniętych na nieaktualne (skutek z opisu zachodzi, ale celowo), CASE-11 z decyzji na zamknięte decyzją D5; CASE-12 osłabione (usunięcie sceny niesprawdzone).
+
+Znaleziska CASE:
+
+| ID | waga 1.2.42 | status dziś | waga dziś | dowód | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| CASE-08 | minor | częściowo | nit | strażniki są (vote.mjs:154, bridge-table.mjs:1632-1634); gołe `game.user` zostało w gm-bridge.mjs:200, 229, a weryfikacja (osłabione) dodaje `askForOffers` z `onGmReady` | - |
+| CASE-14 | minor | częściowo | nit | baza licznika z listy wydanych kart (vote.mjs:456-458, 682-685); `pendingVoters` zna tylko połączonych (vote.mjs:637-645): "Every ballot is in." obok "3 of 4" | - |
+| CASE-01 | blocker | zamknięte | - | `gmsRefusal` odrzuca każdy pakiet `gms.*` od nie-GM-a przed odpowiedzią; księga nie ma własnego socketu (gm-store.mjs:658-663, remnants.mjs:1846-1852) | - |
+| CASE-02 | blocker | zamknięte | - | `lastCrisis` w `CAST_FIELDS`; do świata idą tylko `active` i `stage` (gm-stores.mjs:393-394, incident-store.mjs:148-166) | - |
+| CASE-03 | major | zamknięte | - | karta zawoalowana: mówca to alias `DRPG.Secret.speaker`, słowa idą adresowanym socketem (secret.mjs:1163-1196, 1215-1220) | - |
+| CASE-04 | major | zamknięte | - | oferta i pamięć ciosu w obsadzie (`betrayal`, `swung`), nie we flagach aktora (incident-store.mjs:877-898, gm-stores.mjs:394) | - |
+| CASE-05 | major | zamknięte | - | Save zapisuje tylko pola zmienione przez GM-a i tylko tam, gdzie księga trzyma jeszcze wartość wyrysowaną (investigation.mjs:1668-1692, 2482) | - |
+| CASE-06 | major | zamknięte | - | `recreationDataFor` buduje z wiersza księgi (cleanup-reshape.mjs:101-138); jej nagłówek nadal mówi o flagach (:90-91, CASE-76 `nit`) | - |
+| CASE-07 | major | zamknięte | - | `drpgBallotsChanged` po każdym głosie; konsola i okno głosowania go słuchają (vote.mjs:208, trial-floor-ui.mjs:1674, 1987) | - |
+| CASE-10 | minor | zamknięte | - | komentarz zgodny; "Ask for the opening roll again" z odstępem 10 s (murder-ui.mjs:627-676, config.mjs:437) | - |
+| CASE-11 | minor | zamknięte (decyzją D5) | - | wiązane są tylko ślady obsady albo pokoju, w którym stoi token ofiary (remnants.mjs:373-397); weryfikacja: osłabione - "decision" nie jest statusem, więc zamknięte decyzją D5 | - |
+| CASE-12 | minor | zamknięte | - | jeden hook `deleteToken` na głównym GM-ie stawia nagrobek (remnants.mjs:1876-1884); weryfikacja: osłabione - usunięcie całej sceny nie ma obsługi, a czy v14 odpala wtedy `deleteToken`, nie odczytano | - |
+| CASE-13 | minor | zamknięte | - | słowa karty tylko od GM-a albo autora karty (secret.mjs:1462-1469); `narrowPlayerRemnant` przebudowuje ślad gracza (remnants.mjs:882-913) | - |
+| CASE-15 | nit | zamknięte | - | cena dopiero po zatajeniu; zamknięte okno główne oddaje cenę (cleanup.mjs:625-628, 691-693, 1538-1551) | - |
+| CASE-09 | minor | nieaktualne · T | - | odczyt flagi `sourceActor` zniknął; od E08 pierwszy strażnik to `gmOnly`, więc prośba gracza jest odrzucana z założenia (bridge-table.mjs:813-817); weryfikacja: osłabione - zamknięte było za mocne | - |
+
+Live checki CASE:
+
+| ID | waga 1.2.42 | status dziś | waga dziś | dowód | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| CASE-LC2 | - | otwarte | minor | zaproszenie kończy się po cichu, gdy przyjdzie przed kopią obsady (murder-rules.mjs:4564-4568, 4667, 4695); nieodczytane | - |
+| CASE-LC4 | - | otwarte | minor | `advanceIfDue` tylko na głównym GM-ie (trial-floor.mjs:1721-1724); HUD graczy bez GM-a nieodczytany | - |
+| CASE-LC6 | - | otwarte | nit | tracker każdego GM-a decyduje sam (murder-ui.mjs:584-586, 736, 760-772); nieodczytane z dwoma GM-ami | - |
+| CASE-LC3 | - | częściowo | minor | odbiór sprzątania zsynchronizowany (gm-stores.mjs:1502-1506); wiersze Observe tylko w przeglądarce jednego GM-a (gm-stores.mjs:696-698, observe.mjs:78-86, 718-722) | - |
+| CASE-LC5 | - | częściowo | nit | przeniesienie ciała uruchamia sprawdzenie odkrycia (murder-rules.mjs:3175-3190, cleanup.mjs:1987, body.mjs:781); czy zamierzone - nigdzie nie zapisano | - |
+| CASE-LC1 | - | zamknięte (odczytane, zgodne) | - | odczyt F: gracz czyta alias null i listę szeptu (LOCAL-REPORT.md:417, S7-4); karty zbrodni są zawoalowane (secret.mjs:1190-1196) | - |
+
+#### COMM
+
+Znaleziska: 18 pozycji: zamknięte 12, częściowo 3, otwarte 1, nieaktualne 2; live checki: 7 pozycji: zamknięte 2, częściowo 2, otwarte 2, nieaktualne 1. Weryfikacja: COMM-18 z zamkniętych na częściowo (nowe angielskie zdania dla GM-a w dzienniku awarii). COMM-10 to jedyne otwarte znalezisko spośród 157.
+
+Znaleziska COMM:
+
+| ID | waga 1.2.42 | status dziś | waga dziś | dowód | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| COMM-10 | minor | otwarte | minor | Play i Reset dla każdego GM-a, a zapis `interrupted` żyje w jednej przeglądarce (music-play.mjs:175, 1098-1099, 1179-1180) | następca COMM-29 (`minor`), nie skierowane |
+| COMM-11 | minor | częściowo | minor | skrót klawiszowy dla każdego i `game.drpg.safeword()` (safeword.mjs:428-436, api.mjs:839); klawisz bez domyślnego przypisania (:432), na ekranie brak kontrolki | UI-25 (`minor`, Stop na arkuszu Spectatora), nie skierowane |
+| COMM-15 | minor | częściowo | minor | znacznik odczytu z czasu wiadomości (messenger.mjs:196-208); reguła `timestamp >` nadal zależy od zegara nadawcy (:147), COMM-LC7 nieodczytany | - |
+| COMM-18 | nit | częściowo | nit | `contestedWarning` z klucza (voice.mjs:2235-2259); weryfikacja: osłabione - nowe angielskie zdania dla GM-a (music-play.mjs:619, voice.mjs:1686, 1749) trafiają do dziennika awarii; czy dziennik ma zostać angielski - pytanie do właściciela; **odpowiedź 20.11.2026: tak, zamknięte decyzją** (18.2, D-A7) | - |
+| COMM-01 | major | zamknięte | - | każda prośba idzie przez jedną funkcję czekającą na odpowiedź (`bridgeRequest`), adresowaną do połączonych GM-ów (bridge-guards.mjs:2120-2121, 2144) | - |
+| COMM-02 | major | zamknięte | - | karta bez wątku niesie popup i dźwięk `gmAsk` (call-gm.mjs:975-986, popup.mjs:1267-1269); ekran przy stole nieodczytany (9.2 pozycja 660) | - |
+| COMM-03 | major | zamknięte | - | wątek idzie przez `postSecret`, w dokumencie zostaje zaślepka (messenger.mjs:275-313, secret.mjs:1190-1224); odczyt F LOCAL-REPORT.md:418 | - |
+| COMM-04 | major | zamknięte | - | obie prośby to karty `callGm` z odpowiedziami jako przyciski, nacisnąć może każdy GM (call-gm.mjs:44-58, 228-290) | - |
+| COMM-05 | minor | zamknięte | - | `onGmReady` wysyła ponownie tylko od głównego GM-a (gm-bridge.mjs:81-90) | - |
+| COMM-06 | minor | zamknięte | - | proza GM-a w `.drpg-gm-only`, wycinana z każdej kopii gracza (call-gm.mjs:781-799, secret.mjs:335, 368-375) | - |
+| COMM-07 | minor | zamknięte | - | obie karty mają przyciski (analyze.mjs:338-351, use-items.mjs:596-606) | - |
+| COMM-08 | minor | zamknięte | - | dźwięk `gmAsk` gra przed sprawdzeniem autora (messenger.mjs:364-371) | - |
+| COMM-12 | nit | zamknięte | - | nadawca z `senderId` (safeword.mjs:342-347) | - |
+| COMM-14 | minor | zamknięte | - | `requestLabel` i `sayNotDone` z kluczy języka (bridge-guards.mjs:555-587) | - |
+| COMM-16 | minor | zamknięte | - | potwierdzenie dopiero po strażnikach i zapisie rzutu (bridge-guards.mjs:1780-1826) | - |
+| COMM-17 | minor | zamknięte | - | Sabotage czeka `TIMING.rulingMs` 180 s, "got it" ma własne 8 s (bridge-asks.mjs:540-559, config.mjs:366-368) | - |
+| COMM-09 | minor | nieaktualne | - | push skórki zastąpiony flagami Dice So Nice zapisanymi w dokumencie User (dice-sync.mjs:4-16, E16 C3) | - |
+| COMM-13 | minor | nieaktualne | - | nasłuch przy drzwiach usunięty decyzją D7 (voice.mjs:35-41) | - |
+
+Live checki COMM:
+
+| ID | waga 1.2.42 | status dziś | waga dziś | dowód | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| COMM-LC6 | - | otwarte | - | plakietka wyrzutni obok docku kamer na prawdziwym ekranie nieodczytana (messenger-app.mjs:538-549) | - |
+| COMM-LC7 | - | otwarte | - | czy v14 stempluje `ChatMessage.timestamp` u klienta - brak odczytu (9.2 pozycja 134) | - |
+| COMM-LC3 | - | częściowo | - | kod odpowiada (call-gm.mjs:975-986, gm-bridge.mjs:147-162); ekran S7-6 nieodczytany (LOCAL-REPORT.md:432) | - |
+| COMM-LC5 | - | częściowo | minor | z pięciu części dwie nieodczytane: Play/Reset drugiego GM-a (COMM-10) i dwa zegary w jednym wątku (COMM-15) | - |
+| COMM-LC1 | - | zamknięte (kod; bez odczytu) | - | pakiet adresowany tylko do GM-ów (bridge-guards.mjs:2120-2121); zapisu odczytu przy stole brak | - |
+| COMM-LC2 | - | zamknięte (odczytane, zgodne) | - | odczyt F: dokument trzyma zaślepkę, słowa tylko u adresata (LOCAL-REPORT.md:418) | - |
+| COMM-LC4 | - | nieaktualne · T | - | nie ma okna do przykrycia: prośba jest kartą (call-gm.mjs:44-58, calls.mjs:224) | - |
+
+#### CORE
+
+Znaleziska: 19 pozycji: zamknięte 17, częściowo 2, otwarte 0, nieaktualne 0; live checki: 6 pozycji: zamknięte 1, częściowo 0, otwarte 4, nieaktualne 1. Weryfikacja: CORE-LC1, CORE-LC3, CORE-LC6 z zamkniętych na otwarte (U11). Kod czyszczący resetu (CORE-02, -03, -04, -18) stoi, ale z interfejsu resetu nie da się dziś uruchomić: przycisk "Reset the season" ("Zresetuj sezon") w oknie "Season setup" ("Ustawienia sezonu") zamyka okno i nic nie otwiera (CTRL-01, CASE-19).
+
+Znaleziska CORE:
+
+| ID | waga 1.2.42 | status dziś | waga dziś | dowód | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| CORE-15 | nit | częściowo | nit | trzy z czterech komentarzy prawdziwe; api.mjs:379 i hud.mjs:6 nadal sadzają wyrzutnię GM-a w lewej szynie (od E77 C6 prawy dolny róg); JSDoc `advanceTimeOfDay` też (clock.mjs:346-352, CORE-50) | - |
+| CORE-19 | nit | częściowo | nit | przypadek "wszystkie zaplanowane Key Remnants znalezione" zrobiony (gm-panel.mjs:916-927); sprawa z 3 albo 4 kluczami nadal czyta "Check what has been found" | - |
+| CORE-01 | major | zamknięte | - | linia Next przy "wszyscy działali" wskazuje Zaćmienie (`toggleEclipse`, boundary.mjs:96), Advance przy zegarze (gm-panel.mjs:418-421, 996-999) | - |
+| CORE-02 | major | zamknięte | - | `clearSeasonAssembly` zapisuje `pendingGather {}` jako grupa resetu (call-world.mjs:175-180) | reset z interfejsu martwy: CTRL-01/CASE-19 (`major`), skierowane C1 `claude/season-119` (w toku) |
+| CORE-03 | major | zamknięte | - | `clearSeasonRules` zapisuje `[]` (rules.mjs:329-334) | reset z interfejsu martwy: CTRL-01/CASE-19 (`major`), skierowane C1 `claude/season-119` (w toku) |
+| CORE-04 | minor | zamknięte | - | część "actions" resetu kasuje `restsTaken` i `betrayalWindow` (season-wipe.mjs:488-492) | reset z interfejsu martwy: CTRL-01/CASE-19 (`major`), skierowane C1 `claude/season-119` (w toku) |
+| CORE-05 | major | zamknięte · T | - | drzwi bez werdyktu: "End the chapter" w Season setup (gm-panel.mjs:294-302); kafelka w panelu nie ma od E49 A2, decyzją właściciela | - |
+| CORE-06 | minor | zamknięte | - | minuty czytają tę samą zamrożoną kopię zegara co etykieta (hud-elapsed.mjs:199-213, 295-301) | - |
+| CORE-07 | minor | zamknięte | - | klucza `endNote` nie ma w en ani pl (usunięty w 2c7a9c0e) | - |
+| CORE-08 | minor | zamknięte | - | lede z `timeOfDayLabel` (day-summary.mjs:269) | - |
+| CORE-09 | minor | zamknięte | - | trzy zdania mówią prawdę (en.json:5161, 3313; `bodyFoundTooltip` usunięty) | - |
+| CORE-10 | minor | zamknięte | - | pole rozdziału do max(`CHAPTERS_PER_SEASON`, rozdział zegara) (gm-campaign.mjs:84-87, 153-172) | - |
+| CORE-11 | minor | zamknięte | - | `plural()` dla czterech linii (chapter.mjs:654-664) | - |
+| CORE-12 | minor | zamknięte | - | jedno rysowanie HUD-u na zapis zegara (sync.mjs:474-475, hud.mjs:228-236); scenariusz 81 na Foundry nieuruchomiony (LIVE-E37-01) | - |
+| CORE-13 | minor | zamknięte | - | `keepOldSafeword` nic nie pisze na nowym świecie (migrate.mjs:1586) | CORE-26 (`minor`, naprawa `migrate({ force: true })`), nie skierowane |
+| CORE-14 | nit | zamknięte | - | ostrzeżenie tylko przy zmianie pory, dnia albo rozdziału (gm-campaign.mjs:287, 363-368) | - |
+| CORE-16 | nit | zamknięte | - | nagłówek mówi, że klauzule są niezależne i stoją w kolejności pisania (migrate.mjs:67-70) | - |
+| CORE-17 | nit | zamknięte | - | koniec rozdziału tylko u głównego GM-a, jeden naraz (chapter.mjs:391, 839-869) | - |
+| CORE-18 | nit | zamknięte | - | ożywienie przy resecie z `quiet` (season-wipe.mjs:456-458) | reset z interfejsu martwy: CTRL-01/CASE-19 (`major`), skierowane C1 `claude/season-119` (w toku) |
+
+Live checki CORE:
+
+| ID | waga 1.2.42 | status dziś | waga dziś | dowód | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| CORE-LC1 | - | otwarte | - | kod odpowiada (migrate.mjs:1586); odczytu nowego świata brak (weryfikacja: osłabione, U11) | - |
+| CORE-LC3 | - | otwarte | - | kod odpowiada na trzy części (call-world.mjs:175-180, rules.mjs:329-334, season-wipe.mjs:488-492); brak odczytu (U11) | reset z interfejsu martwy: CTRL-01/CASE-19 (`major`), skierowane C1 `claude/season-119` (w toku) |
+| CORE-LC5 | - | otwarte | nit | nikt nie policzył rysowań jednego End of chapter; liczniki są (hud.mjs:407) | - |
+| CORE-LC6 | - | otwarte | - | kod odpowiada (chapter.mjs:391, 864-869); brak odczytu z dwoma GM-ami (LIVE-E11-09) | - |
+| CORE-LC2 | - | zamknięte (odczytane, zgodne) | - | odczyt F: minuty widza nie skaczą przy zmianie godziny (LOCAL-REPORT.md:431, S7-9) | - |
+| CORE-LC4 | - | nieaktualne · T | - | obie drogi to jedna funkcja `toggleEclipse` od E37 C2 (boundary.mjs:96) | - |
+
+#### DESP
+
+Znaleziska: 20 pozycji: zamknięte 19, częściowo 1, otwarte 0, nieaktualne 0; live checki: 6 pozycji: zamknięte 0, częściowo 1, otwarte 5, nieaktualne 0. Weryfikacja: DESP-03 z decyzji na zamknięte decyzją D3; DESP-18 obalone (częściowo); DESP-15 i DESP-17 osłabione, bo ich testy-przypinki nie czytają tego, co mają przypinać; DESP-LC2 i DESP-LC5 na otwarte (U11).
+
+Znaleziska DESP:
+
+| ID | waga 1.2.42 | status dziś | waga dziś | dowód | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| DESP-18 | minor | częściowo | nit | tekst naprawiony (en.json:4374); weryfikacja: obalone - nagłówek eclipse.mjs nadal mówi "the other three" przy jednym wolnym Zaćmieniu z pięciu | - |
+| DESP-01 | major | zamknięte | - | Hope czytane ponownie po zgodzie (calls.mjs:249-260); paragon liczy `held - cost` sprzed wpłaty (DESP-36 `nit`) | - |
+| DESP-02 | major | zamknięte | - | mapa kluczowana `STATES.*.id`, każda przeglądarka gra sama (states.mjs:89-91, 363) | - |
+| DESP-03 | major | zamknięte (decyzją D3) | - | liczby pul jawne, liczba overflow zamaskowana i poza światem (despair.mjs:1129-1131, 1194-1196, 1228-1233) | - |
+| DESP-04 | major | zamknięte | - | odmowa przed zapłatą pod zaciemnieniem (call-effects.mjs:905-906, calls.mjs:455-461); bliźniak przy Bounty to DESP-29 (`minor`) | - |
+| DESP-05 | major | zamknięte | - | przeglądarka Monocuba nic nie płaci, wysyła prośbę (monocub.mjs:1119-1179, E72 C1) | - |
+| DESP-06 | major | zamknięte | - | cel dostaje zdanie w drugiej osobie, zawoalowane (config.mjs:3534-3549, monocub.mjs:1393-1394) | - |
+| DESP-07 | minor | zamknięte | - | zdanie wybierane po rodzaju wezwania (call-effects.mjs:304-324) | - |
+| DESP-08 | minor | zamknięte | - | "a Loaded Die (a die set to 12)" (en.json:4162, 4170, 4178) | - |
+| DESP-09 | minor | zamknięte | - | koszt z `DESPAIR_CALLS.newRule.cost` (en.json:4192, call-pickers.mjs:310) | - |
+| DESP-10 | minor | zamknięte | - | "never its last point" (en.json:4339, config.mjs:2692-2693) | - |
+| DESP-11 | minor | zamknięte | - | jedna karta po efekcie (calls.mjs:473, 496-504) | - |
+| DESP-12 | minor (podejrzenie) | zamknięte | - | jeden zapisujący na każdej drodze (despair.mjs:338-350, 424-432); w 1.2.44-1.2.47 naprawa nie działała (`hasGm` nie było eksportowane) | DESP-28 (`minor`), nie skierowane |
+| DESP-13 | minor | zamknięte · T | - | strażnik pyta listę pul, nie rolę (bridge-guards.mjs:1146-1151); pakiet Rerolla gracza z opisu już nie istnieje | - |
+| DESP-14 | minor | zamknięte | - | lista zastępcza tylko dla Monokumy (call-pickers.mjs:475-477) | - |
+| DESP-15 | minor | zamknięte | - | zbiórka pomija martwych (call-world.mjs:497-502); weryfikacja: osłabione - test-przypinka nie kładzie ciała, więc niczego nie mierzy | - |
+| DESP-16 | minor | zamknięte | - | obie grupy w `RESET_STEPS` (rules.mjs:329-334, call-world.mjs:175-180, season-wipe.mjs:406-413) | reset z interfejsu martwy: CTRL-01/CASE-19 (`major`), skierowane C1 `claude/season-119` (w toku) |
+| DESP-17 | minor | zamknięte | - | plakietka nazywa efekt (despair.mjs:1149-1164); weryfikacja: osłabione - R1119 nie czyta zdania trwającego zaciemnienia | - |
+| DESP-19 | nit | zamknięte | - | jedno zdanie przy przekroczeniu czasu i przy porażce (calls.mjs:231-241) | - |
+| DESP-20 | nit | zamknięte | - | `poolLabel(user)` (despair.mjs:966, 1242; calls.mjs:529) | - |
+
+Live checki DESP:
+
+| ID | waga 1.2.42 | status dziś | waga dziś | dowód | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| DESP-LC1 | - | otwarte | minor | dwa GM-y i suma puli nieodczytane (LOCAL-REPORT.md:432, S7-11) | DESP-21 (`minor`), nie skierowane |
+| DESP-LC2 | - | otwarte | - | kod odpowiada (call-effects.mjs:905-906); E37-T6 nie czyta puli; brak odczytu (weryfikacja: osłabione) | - |
+| DESP-LC3 | - | otwarte · T | nit | droga szeptu z dźwiękiem nie powstała, każda przeglądarka gra sama (states.mjs:89-91, 381-390); nieodczytane | - |
+| DESP-LC5 | - | otwarte | - | kod odpowiada (call-world.mjs:175-180, 497-502); przypinka nie kładzie ciała; brak odczytu | reset z interfejsu martwy: CTRL-01/CASE-19 (`major`), skierowane C1 `claude/season-119` (w toku) |
+| DESP-LC6 | - | otwarte | nit | licznik zapełniony w Zaćmieniu uzbraja tę porę (overflow.mjs:420-424, 702-703); nieodczytane | - |
+| DESP-LC4 | - | częściowo | minor | odczyt F kolejności `_preUpdate` (CALIBRATION.md:27, LIVE-E30-03); rzut z Hope pod zaciemnieniem nieodczytany | - |
+
+#### ITEM
+
+Znaleziska: 18 pozycji: zamknięte 17, częściowo 1, otwarte 0, nieaktualne 0; live checki: 8 pozycji: zamknięte 0, częściowo 0, otwarte 7, nieaktualne 1. Weryfikacja: ITEM-04 z decyzji na częściowo; siedem live checków ITEM-LC2..LC8 z zamkniętych na otwarte (U11); ITEM-05 i ITEM-18 zostają zamknięte z resztką `nit`.
+
+Znaleziska ITEM:
+
+| ID | waga 1.2.42 | status dziś | waga dziś | dowód | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| ITEM-04 | major | częściowo | minor | każda droga modułu kończy się `keepGearShape` (inventory.mjs:918); weryfikacja: osłabione - upuszczenie z kompendium, paska bocznego albo innego arkusza liczy tylko sloty (`preCreateItem`) | - |
+| ITEM-01 | major | zamknięte | - | `preservedFlags` niesie zużycie; każda zmiana właściciela przez `transferItem` (inventory.mjs:167-171, 1136) | - |
+| ITEM-02 | major | zamknięte | - | kolumny "Stash hidden" nie ma (room-setup.mjs:1049-1059); nieaktualny komentarz w vault-store.mjs:123-129 (ITEM-43 `nit`) | - |
+| ITEM-03 | major | zamknięte | - | widownia ukrytego projektu zawsze z budowniczym (projects.mjs:2098-2100) | - |
+| ITEM-05 | minor | zamknięte (z resztką `nit`) | - | `stow` zapisuje `equipped false` (stash-reach.mjs:117-124); weryfikacja: osłabione - przedmiot schowany gotowy przed 1.2.43 nie jest czyszczony (`nit`, niezmierzone) | - |
+| ITEM-06 | minor | zamknięte | - | `giveItem` odmawia przedmiotu ze skrytki (handover.mjs:971-981) | - |
+| ITEM-07 | major | zamknięte | - | karta ma trzy akcje, obsłużone w messenger-app.mjs:938-962 (use-items.mjs:589-609) | - |
+| ITEM-08 | minor | zamknięte | - | usunięcie projektu przycina pułapki (projects.mjs:2669-2673, traps.mjs:597-615); `takePlant` nadal nie pyta o projekt (traps.mjs:544-566) | - |
+| ITEM-09 | minor | zamknięte | - | grupa resetu `stashesFound` i usunięcie skrytki czyszczą notatki (season-wipe.mjs:499-502, vault-store.mjs:1031-1075) | reset z interfejsu martwy: CTRL-01/CASE-19 (`major`), skierowane C1 `claude/season-119` (w toku) |
+| ITEM-10 | minor | zamknięte | - | zdanie usunięte (en.json:3222) | - |
+| ITEM-11 | minor | zamknięte | - | `capacityLabel` w trzech odmowach (inventory.mjs:1338-1341, stash-reach.mjs:170-173, handover.mjs:1003-1008) | ITEM-28 (`nit`, szept przepełnienia) |
+| ITEM-12 | minor | zamknięte | - | znaczniki "in the stash" i "Broken" (gm-items.mjs:1773-1780) | - |
+| ITEM-13 | nit | zamknięte | - | trzy tytuły ogólne (gm-items.mjs:499, 1055, 1487) | ITEM-29 (`nit`, okno Take) |
+| ITEM-14 | minor | zamknięte | - | Create i edycja odmawiają bez zabójcy (projects-ui.mjs:1211-1274); `createProject` z konsoli nie odmawia (api.mjs:282-289) | - |
+| ITEM-15 | minor | zamknięte | - | zmiana nazwy tylko z nazwy nadanej kiedyś przez moduł (tables-pools.mjs:284-291) | - |
+| ITEM-16 | minor | zamknięte | - | listy kluczy czytają każdą scenę (gm-items.mjs:371-379, 454-458; vault-store.mjs:1189-1197) | - |
+| ITEM-17 | nit | zamknięte | - | komentarz zgodny z `LIMIT_GROUPS` (inventory.mjs:768-769) | - |
+| ITEM-18 | nit | zamknięte (z resztką `nit`) | - | jeden `recipientOptions`, pięciu wołających (gm-items.mjs:31-41); weryfikacja: osłabione - budowniczy w projects-ui.mjs:1720 został (`nit`) | - |
+
+Live checki ITEM:
+
+| ID | waga 1.2.42 | status dziś | waga dziś | dowód | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| ITEM-LC2 | - | otwarte | - | kod odpowiada (projects.mjs:2098-2100, 2111); brak odczytu (weryfikacja: osłabione, U11) | - |
+| ITEM-LC3 | - | otwarte | - | kod odpowiada (inventory.mjs:918, stash-reach.mjs:122); brak odczytu | - |
+| ITEM-LC4 | - | otwarte | - | kod odpowiada (projects.mjs:1930, 2669-2673; traps.mjs:597-615); brak testu i odczytu | - |
+| ITEM-LC5 | - | otwarte | - | kod odpowiada (tables-pools.mjs:290-291); brak odczytu | - |
+| ITEM-LC6 | - | otwarte | - | kod odpowiada (gm-items.mjs:371-379, 454-458); brak odczytu | - |
+| ITEM-LC7 | - | otwarte | - | hub to region `keepLive` na przedmioty i aktorów (gm-items.mjs:148-155, live.mjs:72); brak odczytu | reguła 1 `keepLive`: REFR-05 (D-A1); `claude/plan-119` tylko dla pulpitu sprawy, reszta 1.2.120 |
+| ITEM-LC8 | - | otwarte | - | alert `gmOnly` nie trafia do wątku (traps.mjs:323-328, call-gm.mjs:951); brak odczytu | - |
+| ITEM-LC1 | - | nieaktualne · T | - | kolumny, którą sprawdzenie zaznacza, nie ma (room-setup.mjs:1049-1051) | - |
+
+#### MAP
+
+Znaleziska: 15 pozycji: zamknięte 10, częściowo 5, otwarte 0, nieaktualne 0; live checki: 6 pozycji: zamknięte 0, częściowo 2, otwarte 4, nieaktualne 0. Weryfikacja: MAP-03 z zamkniętych na częściowo (ta sama wada to MAP-21); MAP-02 częściowo z niezmierzoną połową; MAP-LC3, LC5, LC6 na otwarte (U11).
+
+Znaleziska MAP:
+
+| ID | waga 1.2.42 | status dziś | waga dziś | dowód | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| MAP-02 | major | częściowo | minor | sprite trzymany ukryty, gdy jego miejsce leży w obcym pokoju (visibility.mjs:492-509); przerwa między niestykającymi się pokojami nie jest trzymana (weryfikacja: osłabione, niezmierzone); odczyt F LOCAL-REPORT.md:419 | - |
+| MAP-03 | major | częściowo | minor | `notConnectedText` tnie listę do znanych pokoi (movement.mjs:1905-1911); weryfikacja: osłabione - odmowa klucza sypialni i pieczęci nazywa pokój, którego gracz nie odkrył (movement.mjs:2079, 2098-2100) | MAP-21 (`minor`), nie skierowane |
+| MAP-08 | minor | częściowo | minor | jedno `reducedMotion` z motion.mjs (fog.mjs:70); obrys pokoju nadal skacze dwa razy, nazwa gaśnie 5,4 s | MAP-20 (`minor`), nie skierowane |
+| MAP-13 | minor | częściowo | nit | odpowiedź strażnika w pamięci (fog.mjs:3072-3078); `doorRooms` nadal liczone przed "unchanged" | MAP-35 (`nit`) |
+| MAP-15 | nit | częściowo | nit | jedno `glassOn` i `SEAM_GLOW` (motion.mjs:37-48); próg zoomu i 60 ms w trzech plikach; weryfikacja: osłabione - dalsze kopie w fog-diagnostics.mjs | - |
+| MAP-01 | major | zamknięte | - | uczestnicy z obsady, `murderState` tylko po `active` (visibility.mjs:762-790, settings.mjs:3608-3611) | - |
+| MAP-04 | minor | zamknięte | - | `opened` tylko wobec zapisu tej samej sceny (fog.mjs:2811-2817) | - |
+| MAP-05 | minor | zamknięte | - | wygaszenie obrysu przed skrótem sygnatury (fog.mjs:3104-3112) | - |
+| MAP-06 | minor | zamknięte | - | Mastermind liczony jako "seen" (fog.mjs:4538-4541) | - |
+| MAP-07 | minor | zamknięte | - | jeden `MediaQueryList`, kolor tuszu najwyżej 2 razy na sekundę (motion.mjs:121-144, fog.mjs:3803-3808) | - |
+| MAP-09 | minor | zamknięte | - | `freeOwned` przed `destroy` (fog.mjs:4270-4276, fog-reveal.mjs:103-115) | - |
+| MAP-10 | minor | zamknięte | - | `noBudget` krótki, `noBudgetLong` osobno (en.json:4426-4428); w 1.2.44-14.11.2026 zdanie Zaćmienia nadal mówiło "has been put back" | - |
+| MAP-11 | minor | zamknięte | - | `standing` przesuwa się po każdym opłaconym przejściu (movement.mjs:2841-2847) | - |
+| MAP-12 | minor | zamknięte (decyzją D2) | - | ustawienie świata puste, księga w magazynie GM-ów, gracz trzyma tylko komórki (settings.mjs:3050-3074, gm-stores.mjs:1799) | - |
+| MAP-14 | minor | zamknięte | - | siedem komentarzy zgodnych (fog.mjs:103-108, 2755-2764, 3298-3303) | - |
+
+Live checki MAP:
+
+| ID | waga 1.2.42 | status dziś | waga dziś | dowód | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| MAP-LC3 | - | otwarte | nit | `chargeRoute` poza kluczem szeregowym, dwa szybkie przeciągnięcia mogą czytać Free Move przed zapisem; nic nie odczytano (weryfikacja: osłabione, U11) | MAP-38 (`nit`) |
+| MAP-LC4 | - | otwarte | minor | fog.mjs:974 przywraca `fog.mode` tylko z liczby; typ na v14 nieodczytany | - |
+| MAP-LC5 | - | otwarte | - | kod odpowiada (fog.mjs:2813-2816, 3188); brak odczytu (weryfikacja: osłabione) | - |
+| MAP-LC6 | - | otwarte | - | `createToken` seeduje własną scenę tokenu (fog.mjs:329, 1691-1707); brak odczytu (weryfikacja: osłabione) | - |
+| MAP-LC1 | - | częściowo | - | odczyt F jednego przejścia ucznia (LOCAL-REPORT.md:419); Monokuma i klatki między pokojami nieodczytane | - |
+| MAP-LC2 | - | częściowo · T | - | projekt zmieniony: każdy zapis `visible` pyta jeden predykat (fog-doorways.mjs:1887-1911); kształt `visible` na v14 nieodczytany (9.2 pozycje 558, 559) | - |
+
+#### ROLL
+
+Znaleziska: 17 pozycji: zamknięte 13, częściowo 3, otwarte 0, nieaktualne 1; live checki: 6 pozycji: zamknięte 1, częściowo 2, otwarte 2, nieaktualne 1. Weryfikacja: ROLL-13 z zamkniętych na częściowo (roszczenia `burst`/`refunded` czytane wprost); ROLL-LC3 na otwarte, ROLL-LC4 na częściowo.
+
+Znaleziska ROLL:
+
+| ID | waga 1.2.42 | status dziś | waga dziś | dowód | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| ROLL-02 | major | częściowo | minor | zamknięte na drodze modułu (`claimed: false`, action-search.mjs:133-135; reroll.mjs:1240-1245); drugi `roll.bookmark` z konsoli w ciągu minuty prześledzony, nie uruchomiony | ROLL-27 (`minor`), nie skierowane |
+| ROLL-13 | minor | częściowo | nie podano | mapa zniknęła, paragon jedzie z akcją (actions.mjs:156-254); weryfikacja: osłabione - `burst` i `refunded` Rerolla to roszczenia gracza czytane wprost w `settleActionRefund` | - |
+| ROLL-16 | nit | częściowo | nit | martwy kod usunięty (action-rolls.mjs:306-307); nagłówek action-rolls.mjs i komentarz `requestObserveResolve` nieaktualne | - |
+| ROLL-01 | major | zamknięte | - | `case "palm"` przechodzi do `settleSteal` (reroll.mjs:1126-1129) | - |
+| ROLL-03 | major | zamknięte | - | jedna reguła `leavesTraceFor` (reroll.mjs:1368, inventory.mjs:122-125) | - |
+| ROLL-04 | major | zamknięte | - | ulga narzędzia jedzie w roszczeniach rzutu (action-project.mjs:585-590, action-pipeline.mjs:534-535) | - |
+| ROLL-05 | major | zamknięte | - | `spentAfterRoll` ostrzega i nic nie oddaje (action-pipeline.mjs:980-990, palm.mjs:341-343) | - |
+| ROLL-06 | major | zamknięte | - | cecha czytana z rzuconego rzutu (action-pipeline.mjs:304-338) | - |
+| ROLL-07 | major | zamknięte | - | odmowa przed ceną, gdy nie ma GM-a (action-murder.mjs:363-370) | - |
+| ROLL-08 | minor | zamknięte | - | Refuse odpowiada `false`, gracz dostaje szept (messenger-app.mjs:884-887, call-gm.mjs:279-280) | - |
+| ROLL-09 | minor | zamknięte | - | `askForHint` dostaje zapłaconą cenę, `null` dla darmowego (action-analyze.mjs:144-167, 248) | - |
+| ROLL-11 | minor | zamknięte | - | rzut idzie prosto do `ruleObserve` (action-observe.mjs:91-94) | - |
+| ROLL-12 | minor | zamknięte | - | select sabotażu w wierszu okna Projects (action-project.mjs:150-160); weryfikacja: osłabione - `projectTrait` może raz spytać o cechę (E68 C4) | - |
+| ROLL-14 | minor | zamknięte | - | rzut modułu szeptany GM-om mimo Self Roll (private-rolls.mjs:955-969) | - |
+| ROLL-15 | minor | zamknięte | - | "Sweep the room", "Ask for a hint" (en.json:3607, 1077) | - |
+| ROLL-17 | nit | zamknięte | - | `styleNow()` z pamięcią 1 s (private-rolls.mjs:382-410) | - |
+| ROLL-10 | minor | nieaktualne | - | Search nie sięga do skrytek od 1.2.112, decyzją właściciela (action-search.mjs:55-61, 578) | - |
+
+Live checki ROLL:
+
+| ID | waga 1.2.42 | status dziś | waga dziś | dowód | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| ROLL-LC3 | - | otwarte | - | kod odpowiada (palm.mjs:341-343); brak odczytu (weryfikacja: osłabione, U11) | - |
+| ROLL-LC5 | - | otwarte | - | jedna płatność przed kośćmi (action-observe.mjs:127-129, 141-144); nieodczytane | - |
+| ROLL-LC4 | - | częściowo | nie podano | wydatek po nazwie (call-effects.mjs:520-524); weryfikacja: osłabione - hook zamknięcia i `throwDice` mogą oba zapisać flagę dla rzutu nierysowanego przez GM-a | - |
+| ROLL-LC6 | - | częściowo | minor | obie prośby to karty (action-dynamic.mjs:58-66); wiersz Observe ginie przy zmianie głównego GM-a | - |
+| ROLL-LC2 | - | zamknięte (odczytane, zgodne) | - | odczyt F: Self Roll zablokowany, pula Monokumy się ruszyła (E58 S7-3) | - |
+| ROLL-LC1 | - | nieaktualne · T | - | okno Search trzyma cechę zablokowaną (roll-dialog.mjs:618-628); w tym brzmieniu sprawdzenia nie da się wykonać | - |
+
+#### TEXT
+
+Znaleziska: 19 pozycji: zamknięte 16, częściowo 2, otwarte 0, nieaktualne 1; live checki: 5 pozycji: zamknięte 2, częściowo 0, otwarte 2, nieaktualne 1. Weryfikacja: TEXT-04 z zamkniętych na częściowo (okno "Where things stand" ("Gdzie jesteśmy") pod zaciemnieniem Darkness); TEXT-LC1 ma odczyt F, który czytający przeoczył; TEXT-17 osłabione (commity nie rozwiązują się, status stoi na kodzie).
+
+Znaleziska TEXT:
+
+| ID | waga 1.2.42 | status dziś | waga dziś | dowód | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| TEXT-04 | major | częściowo | minor | zasięg z `eclipseReach` (en.json:6497, explain.mjs:125-127); weryfikacja: osłabione - pod zaciemnieniem Darkness zdanie obiecuje "anywhere at night", którego ruch nie daje | - |
+| TEXT-09 | minor | częściowo | minor | duplikat klucza ma własne zdanie (handover.mjs:151-156); dający Truth Bullet nadal słyszy, że odbiorca ma już kulę tego Remnantu (en.json:3591) | - |
+| TEXT-01 | major | zamknięte | - | próg z `CLEANUP.actions.misleadingTrail.threshold` (en.json:5550, action-tamper.mjs:78) | - |
+| TEXT-02 | major | zamknięte | - | koszt z `DESPAIR_CALLS` (en.json:4192, call-pickers.mjs:310) | - |
+| TEXT-03 | major | zamknięte | - | `openingCard` tylko dla miejsc obsady (events.mjs:171-172, settings.mjs:3666) | - |
+| TEXT-05 | minor | zamknięte | - | "Place puts..." (en.json:3076) | - |
+| TEXT-06 | minor | zamknięte | - | podpowiedź nie mówi już, co zostawia porażka (config.mjs:5324-5328) | - |
+| TEXT-07 | minor | zamknięte | - | dwie opcje (en.json:2867, murder-rules.mjs:909-926) | - |
+| TEXT-08 | minor | zamknięte | - | oba zdania o remisie zgodne (en.json:2444, 2499) | - |
+| TEXT-10 | minor | zamknięte | - | z kluczy `DRPG.Actions.freeMove*` (gm-students.mjs:123-127) | - |
+| TEXT-11 | minor | zamknięte | - | linie raportu z kluczy (diagnostics.mjs:1524, en.json:6204) | - |
+| TEXT-12 | minor | zamknięte | - | "Visibility" na każdym selekcie widoczności (investigation.mjs:69 i dalej) | - |
+| TEXT-13 | nit | zamknięte | - | "Room"; `pickRoom` usunięty (investigation.mjs:154) | - |
+| TEXT-14 | minor | zamknięte (decyzją D1) · T | - | progi w każdej odprawie (action-briefing.mjs:225-229); raport mówi w zadaniu 12 co innego niż w 9.1 | - |
+| TEXT-15 | nit | zamknięte | - | `tidyNote` i `Season.note` usunięte; `blackenedRuleIntro` bez "the guide" | - |
+| TEXT-16 | nit | zamknięte | - | "Diagnostics" (en.json:5189, gm-panel.mjs:481) | - |
+| TEXT-18 | nit | zamknięte | - | nagłówek z dopiskiem o zakresie 2-4 (investigation.mjs:4-9) | - |
+| TEXT-19 | nit | zamknięte | - | `DRPG.Legacy.safeword` czytane tylko przez migrację (en.json:6084-6085, migrate.mjs:1592) | - |
+| TEXT-17 | nit | nieaktualne | - | okno Pre-season checks scalone z checklistą (season-setup.mjs:1363-1377); weryfikacja: osłabione - cytowane commity nie rozwiązują się w repozytorium | - |
+
+Live checki TEXT:
+
+| ID | waga 1.2.42 | status dziś | waga dziś | dowód | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| TEXT-LC2 | - | otwarte | minor | zdanie z en.json:3591 szeptane dającemu (handover.mjs:354-359); jak TEXT-09 | - |
+| TEXT-LC3 | - | otwarte | nit | `fitTileText` skaluje wszystkie siatki po najdłuższym słowie (sheet-fit.mjs:306-338); nieodczytane | - |
+| TEXT-LC1 | - | zamknięte (odczytane, zgodne) | - | odczyt F: przeglądarka ofiary bez karty i panelu (LOCAL-REPORT.md:481, LIVE-E06-01); weryfikacja: osłabione - czytający przeoczył odczyt | - |
+| TEXT-LC5 | - | zamknięte (decyzją D6) | - | `sabotageSeen` do `roomAudience` (action-project.mjs:1361-1371) | - |
+| TEXT-LC4 | - | nieaktualne · T | - | etykiety 47 znaków nie ma: `{left}/{max} searches` (en.json:701) | - |
+
+#### UI
+
+Znaleziska: 16 pozycji: zamknięte 10, częściowo 6, otwarte 0, nieaktualne 0; live checki: 6 pozycji: zamknięte 0, częściowo 5, otwarte 1, nieaktualne 0. Weryfikacja: UI-15 i trzy live checki UI-LC1..LC3 z zamkniętych na częściowo; UI-11 częściowo z wagą podniesioną z `nit` na `minor` (czerwień GM-a nadal jako tekst przycisków okna "Item tables" ("Tabele przedmiotów") w components.css).
+
+Znaleziska UI:
+
+| ID | waga 1.2.42 | status dziś | waga dziś | dowód | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| UI-06 | nit | częściowo | nit | `MAX_SHIFT`, `STRIP_SLACK` i ogon `placeTiles` usunięte; cztery notatki opisują kod, którego nie ma | UI-28 (`nit`) |
+| UI-07 | minor | częściowo | nit | podpowiedź `uiScale` bez progu (en.json:420); docs/design/typography.md podaje 11 px i 21 px | - |
+| UI-09 | minor | częściowo | minor | gałąź arkusza tylko dla typu `character` (window-scale.mjs:167-168); okno klucza Daggerheart i Configure Ownership mogą dostać wysokość arkusza (podejrzenie) | - |
+| UI-11 | minor | częściowo | minor | 0 reguł z czerwienią GM-a w stained-glass.css; weryfikacja: osłabione - components.css:243, 2874 nadal rysuje #e0182f jako tekst przycisków okna Item tables | - |
+| UI-12 | nit | częściowo | nit | plakietki z `--drpg-text-xs`, próg 11 px (danganronpa.css:361); pod Legacy pikselowy krój 9 px i 8 px (pytanie Q-E59-12) | - |
+| UI-15 | nit | częściowo | nit | `SHY` jako escape, `.drpg-compact` w żadnym selektorze; weryfikacja: osłabione - wyrzutnia nadal stylowana w pięciu miejscach (danganronpa.css:13306-13314) | - |
+| UI-01 | minor | zamknięte | - | `LAUNCHERS` bez identyfikatorów, których nikt nie buduje (glass.mjs:50, 92) | - |
+| UI-02 | minor | zamknięte | - | klasy nie ma w żadnym arkuszu ani skrypcie | - |
+| UI-03 | minor | zamknięte | - | `unmount` czyści `maxHeight` i `overflow` (glass.mjs:2292) | - |
+| UI-04 | minor | zamknięte | - | `resizeWatched`, debounce 150 ms (glass.mjs:3674-3680, 3855) | - |
+| UI-05 | minor | zamknięte | - | jeden `REDUCED_MQ`, `paneAt` najpierw po pudełku (glass.mjs:2181-2182, 3466-3472) | - |
+| UI-08 | minor | zamknięte | - | reduced motion poza `themeOnlyKeys` (look.mjs:33-37) | - |
+| UI-10 | minor | zamknięte | - | `trimStack` parkuje najstarsze, nigdy nowej karty (popup.mjs:369-390, 433-441) | - |
+| UI-13 | nit | zamknięte | - | jedno `SHEET_SIZE` (config.mjs:525) | - |
+| UI-14 | nit | zamknięte | - | obserwator rozłączany przy zamknięciu (sheet-fit.mjs:354, 372; sheet.mjs:90-93) | UI-35 (`nit`, drugi obserwator `fitTraitRow`) |
+| UI-16 | nit | zamknięte | - | obserwator szyn raz na klatkę (glass.mjs:3693-3702, 902-912) | - |
+
+Live checki UI:
+
+| ID | waga 1.2.42 | status dziś | waga dziś | dowód | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| UI-LC4 | - | otwarte | nit | kontrast koloru stanu nad jasną sceną nieodczytany (stained-glass.css:778, 4541, 4668) | - |
+| UI-LC1 | - | częściowo | - | kod odpowiada (window-scale.mjs:167-168); brak odczytu (S7-12 bez zrzutów) | - |
+| UI-LC2 | - | częściowo · T | - | logika parkowania (popup.mjs:234-238, 369-390); 9.2 pozycja 16 opisuje stos sprzed 22.09.2026 | - |
+| UI-LC3 | - | częściowo | - | kod odpowiada (glass.mjs:2292); brak odczytu; nigdy nie trafiło do sekcji 7 ani 9.2 | - |
+| UI-LC5 | - | częściowo | - | cmap sześciu plików woff2 odczytany skryptem; pobranie pliku Latin-Ext przez sieć nieodczytane | - |
+| UI-LC6 | - | częściowo | - | odczyt F na biurku (LOCAL-REPORT.md:345); tablet nieodczytany | - |
+
+### 13.4 AUDIT-1.2.42 sekcja 3: cztery tabele treści
+
+47 wierszy (3.1: 18, 3.2: 14, 3.3: 9, 3.4: 6), każdy jako pozycja w `domain-text-b-lang.json`: zamknięte 37, częściowo 5, otwarte 2, nieaktualne 3. Osiem wierszy 3.1 i 3.4 to te same rzeczy co TEXT-01..09, DESP-03 i COMM-06; czytający przeczytał je na dzisiejszych liniach. Weryfikacja tego pliku sprawdziła jedyny wiersz `minor` i wyżej (3.4-04, utrzymane) i cztery nowe `nit` (TEXT-29..32). Tabele 3.2 i 3.3 są tu rozliczone jako wiersze; ponowne liczenie dryfu terminów robi sekcja 17 (TEXT, `domain-text-c-terms`). Liczby kluczy to skrypt czytającego po wartościach `lang/en.json` (6369 napisów, dopasowanie po granicy słowa).
+
+#### 3.1 Zdania, które mówiły co innego niż kod
+
+18 pozycji: zamknięte 15, częściowo 1, otwarte 0, nieaktualne 2.
+
+| ID | waga wtedy | status dziś | waga dziś | dowód | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| 3.1-03 | major (TEXT-04) | częściowo (za weryfikacją TEXT-04) | - | `DRPG.Explain.phase.eclipse`: zasięg z `eclipseReach` (en.json:6497, explain.mjs:126); czytający tabel dał zamknięte, ale weryfikacja TEXT-04 (ten sam klucz) znalazła zdanie fałszywe pod zaciemnieniem Darkness - liczę częściowo | - |
+| 3.1-01 | major (TEXT-01) | zamknięte | - | `DRPG.Tamper.frameHint`: próg z `CLEANUP.actions.misleadingTrail.threshold` (en.json:5550, action-tamper.mjs:78); jak TEXT-01 | - |
+| 3.1-02 | major (TEXT-02) | zamknięte | - | `DRPG.Calls.newRuleNote`: `{cost}` z `DESPAIR_CALLS.newRule.cost` (en.json:4192, call-pickers.mjs:310); jak TEXT-02 | - |
+| 3.1-04 | minor (TEXT-05) | zamknięte | - | `DRPG.Investigation.createNote`: "Place puts...", losowe miejsce w pokoju (en.json:3076, investigation.mjs:939) | - |
+| 3.1-05 | minor (TEXT-06) | zamknięte | - | `SFX_EVENTS.cleanupFailed.hint` nie mówi już, co zostawia porażka (config.mjs:5324-5328) | - |
+| 3.1-06 | minor (TEXT-07) | zamknięte | - | `DRPG.Murder.killerChooses`: dwie opcje (en.json:2867, murder-rules.mjs:2552) | - |
+| 3.1-07 | minor (TEXT-08) | zamknięte | - | `Vote.tied` i `Vote.tiedVerdictNote` zgodne (en.json:2444, 2499) | - |
+| 3.1-09 | minor | zamknięte | - | `bodyFoundTooltip` usunięty; `Panel.nextBodyFound` i `Chapter.bodyNote` zgodne (en.json:5161, 2687) | - |
+| 3.1-10 | minor | zamknięte | - | `Cleanup.gmAttemptsLeft` mówi o złamanej broni i narzędziu (murder-ui.mjs:872) | - |
+| 3.1-11 | minor | zamknięte | - | liczby z konfiguracji, nie wpisane (key-remnants.mjs:756-759, 1181; investigation.mjs:920-923) | - |
+| 3.1-12 | minor | zamknięte | - | `Hud.startEclipseNamed` z `overflowCrossings` (hud.mjs:1310-1316); `Eclipse.noMovesLeft` bez liczby (en.json:4374) | - |
+| 3.1-13 | minor | zamknięte | - | `Overflow.explainBody` z `{max}` (en.json:4350) | - |
+| 3.1-15 | minor | zamknięte | - | `uiScale.hint` bez progu (en.json:418); 25% i 140% wpisane, równe dziś `UI_SCALE` (rodzina Q-NC-1) | - |
+| 3.1-16 | minor | zamknięte | - | `Vault.rifleNote` bez "they will notice" (en.json:3222, stash-reach.mjs:330) | - |
+| 3.1-17 | minor | zamknięte | - | `Calls.grants.critical`: "a Loaded Die (a die set to 12)" (en.json:4162) | - |
+| 3.1-18 | minor | zamknięte | - | `Overflow.what.rot`: "never its last point" (en.json:4339, overflow.mjs:899-930) | TEXT-31 (`nit`: Rot zużywa też skrytkę) |
+| 3.1-08 | minor | nieaktualne · T | - | klucza `DRPG.Chapter.endNote` nie ma (chapter.mjs:360-376) | - |
+| 3.1-14 | minor | nieaktualne · T | - | klucz `Action.murderConfirm` usunięty jako nigdy niepokazywany (action-murder.mjs:318-320) | - |
+
+#### 3.2 Dryf terminologii
+
+14 pozycji: zamknięte 12, częściowo 2, otwarte 0, nieaktualne 0.
+
+| ID | waga wtedy | status dziś | waga dziś | dowód | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| 3.2-05 | tekst | częściowo | nit | "killer" 66, "Blackened" 45; `verdictNoteKnown` po proponowanej linii; reguły, które słowo gdzie, nie ma | - |
+| 3.2-09 | tekst | częściowo | nit | "OBJECTION" 13, "Objection" 55; proza nazywa przycisk "OBJECTION!" za zgodą X15; `Floor.mode.objection` jedyny tryb wielkimi literami | - |
+| 3.2-01 | tekst | zamknięte | - | "Remnant" 313 kluczy, "trace" 12 (nazwy akcji), "clue" 10 (skrypt na en.json) | - |
+| 3.2-02 | tekst | zamknięte | - | "stash" 66 kluczy; "hiding place", "drawer", "Vault" 0 w tekście | - |
+| 3.2-03 | tekst | zamknięte | - | "Gamemaster" 8 kluczy, każdy o roli Foundry | - |
+| 3.2-04 | tekst | zamknięte | - | `hudTicker.hint` mówi "time of day"; `Summary.lede` wypełniany etykietą pory (day-summary.mjs:269) | - |
+| 3.2-06 | tekst | zamknięte | - | "Students", "Which student?" (en.json:5258, 4123); hasła glosariusza | - |
+| 3.2-07 | tekst | zamknięte | - | "Final Truth Remnant" 17, "Final Key Remnant" 0 | - |
+| 3.2-08 | tekst | zamknięte | - | "Free Move" 23, "free Move" 0 | - |
+| 3.2-10 | tekst | zamknięte | - | brak "Analys" poza rzeczownikiem "Analysis:" | - |
+| 3.2-11 | tekst | zamknięte | - | jedna pisownia "Role Reversal" - za glosariuszem, nie za propozycją | - |
+| 3.2-12 | tekst | zamknięte | - | "Level Up" 73, "Level up" 0 (config.mjs:5495-5497) | - |
+| 3.2-13 | tekst | zamknięte | - | wezwanie "Public Announcement", zdarzenie "Assembly" (config.mjs:2884, en.json:4210, 4214) | - |
+| 3.2-14 | tekst | zamknięte | - | "Broken Down" 0; "Breakdown" 15 kluczy | - |
+
+#### 3.3 Za długie na swoje miejsce
+
+9 pozycji: zamknięte 7, częściowo 0, otwarte 2, nieaktualne 0.
+
+| ID | waga wtedy | status dziś | waga dziś | dowód | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| 3.3-03 | tekst | otwarte | nit | `HOPE_CALLS.freeCrit.effect` nadal tooltipem kafelka i dłuższy: 205 znaków, 41 słów (config.mjs:2539-2541); słowa zatwierdzone do przeredagowania przez właściciela (Q-NC-16) | - |
+| 3.3-09 | tekst | otwarte | nit | obie etykiety bez zmian, 19 znaków (config.mjs:2724, 2884); dopasowanie mierzy najdłuższe słowo (TEXT-LC3, LIVE-E66-01) | - |
+| 3.3-01 | tekst | zamknięte | - | wiersz menu pokazuje `short` (84 znaki), pełna podpowiedź w szczegółach (action-murder.mjs:105-124) | - |
+| 3.3-02 | tekst | zamknięte | - | jak 3.3-01: `short` 77 znaków (config.mjs:3829-3836) | - |
+| 3.3-04 | tekst | zamknięte | - | `Music.noSituational` 32 znaki (en.json:2576) | - |
+| 3.3-05 | tekst | zamknięte | - | `Eclipse.actionsLocked` 137 znaków, nadal dwa zdania w toaście (en.json:2922) | - |
+| 3.3-06 | tekst | zamknięte | - | `Anonymity.blocked` 133 znaki (en.json:5476) | - |
+| 3.3-07 | tekst | zamknięte | - | `Assign.title` usunięty, sześć etykiet skróconych do 14-22 znaków | - |
+| 3.3-08 | tekst | zamknięte | - | `Hud.roomTokens` = `{left}/{max} searches` (en.json:701) | - |
+
+#### 3.4 Informacje GM-only, które docierały do gracza
+
+6 pozycji: zamknięte 3, częściowo 2, otwarte 0, nieaktualne 1.
+
+| ID | waga wtedy | status dziś | waga dziś | dowód | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| 3.4-04 | minor (TEXT-09) | częściowo | minor | dający nadal słyszy, że odbiorca ma kulę tego Remnantu (en.json:3591, handover.mjs:355-359); weryfikacja: utrzymane, `minor` | - |
+| 3.4-06 | nit | częściowo | nit | `bodyFoundTooltip` usunięty; `Hud.trialTooltip` nadal kieruje gracza do konsoli GM-a (en.json:715, hud.mjs:1194-1197) | - |
+| 3.4-01 | major (TEXT-03) | zamknięte | - | `openingCard` tylko dla miejsc obsady; ofiara nie dostaje obsady przy otwarciu; jak TEXT-03 | - |
+| 3.4-02 | major (DESP-03) | zamknięte | - | `Despair.spent` bez reszty, `Overflow.cardLeft` bez liczby (en.json:636, 4279); decyzja D3 | - |
+| 3.4-03 | major (COMM-06) | zamknięte | - | `.drpg-gm-only` wycinane z kopii gracza (call-gm.mjs:782, 799; secret.mjs:335, 373); jak COMM-06 | - |
+| 3.4-05 | decyzja | nieaktualne | - | D1 upubliczniła progi (action-briefing.mjs:225-229); przesłanka "próg to wiedza GM-a" nie ma przedmiotu | - |
+
+### 13.5 Reszta części II
+
+Sekcje 0, 2, 5, 6, 8 i 9 (bez 9.2) jako 125 pozycji czytającego `old-1.2.42-tasks.json`: zamknięte 80, częściowo 33, otwarte 10, nieaktualne 2. Wiersz, który stoi na ID z domen, bierze status z plików domen po weryfikacji ("jak CASE-01"); weryfikacja zadań sprawdziła 116 pozycji zamkniętych, częściowych i nieaktualnych i pięć otwartych.
+
+#### Sekcja 0: werdykt i "do 10/10 brakuje"
+
+Trzy blokery werdyktu i siedem wierszy ocen. Ocen nie powtarzam (są w sekcji 10); kolumna "stan dziś" mówi tylko, czy zrobiono to, czego według wiersza brakowało do 10.
+
+| ID | wiersz i "do 10/10 brakuje" | status dziś | waga dziś | zrobione? | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| S0-G1 | "funkcje od końca do końca" 7 -> 8.5; brakowało: CASE-03/04, ROLL-02..06, ITEM-02/03/04, DESP-04/05 | częściowo | minor | zrobione poza ROLL-02 (częściowo) i ITEM-04 (częściowo po weryfikacji) | - |
+| S0-G2 | "teksty" 8 -> 9; brakowało: COMM-06, TEXT-14, dryf terminologii z 3.2 | częściowo | - | COMM-06 i TEXT-14 zrobione; ręczny przegląd terminów czeka na 1.3.0 (S9.1a-2); weryfikacja: obalone - czytający dał zamknięte | - |
+| S0-G4 | "wygląd, UX, UI" 8 -> 8.5; brakowało: UI-09/10/11, MAP-02 | częściowo | minor | UI-10 zrobione; UI-09, UI-11, MAP-02 częściowo | - |
+| S0-G5 | "łatwość dla GM-a" 6 -> 8; brakowało: ITEM-07, ROLL-08/11/12, CORE-10/19 | częściowo | nit | zrobione poza CORE-19 (częściowo) | - |
+| S0-G6 | "fps" 8 -> 8.5; brakowało: MAP-07, MAP-13, CORE-12, UI-05/16 | częściowo | nit | zrobione poza MAP-13 (częściowo); odczyt F klatek na biurku jest (E58), maszyny budżetowej nie (LIVE-E33-05, weryfikacja: osłabione) | - |
+| S0-G7 | "higiena kodu" 6.5 -> 7; brakowało: sekcja 6 (funkcje 300-700 linii, pięć kopii "kto jest uczniem", 8 martwych kluczy, 40 martwych selektorów) | częściowo | nit | jeden `studentActors`, martwe klucze i selektory zniknęły; dwie zwykłe funkcje znów ponad 300 linii (`openProjectDialog` 377, `applyCrisisAction` 306) | - |
+| S0-V1 | bloker 1: księga Remnantów oddawała klucz odpowiedzi (CASE-01) | zamknięte | - | CASE-01 zamknięte | - |
+| S0-V2 | bloker 2: obsada w świecie, zabójca ślepy na własny ślad (CASE-02, MAP-01) | zamknięte | - | obie zamknięte | - |
+| S0-V3 | bloker 3: reset sezonu przenosił zbiórkę, reguły i odpoczynki (CORE-02/03/04) | zamknięte | - | trzy zamknięte w kodzie resetu | reset z interfejsu martwy: CTRL-01/CASE-19, skierowane C1 `claude/season-119` (w toku) |
+| S0-G3 | "przepływ moduł -> GM -> gracz" 6.5 -> 8; brakowało: COMM-02, COMM-03, COMM-04 | zamknięte | - | wszystkie trzy zrobione | - |
+
+#### Sekcja 2: co naprawiło 1.2.43
+
+2.1 (7 wierszy), 2.2 (24) i 2.3 (11): 42 pozycje: zamknięte 39, częściowo 2, otwarte 1, nieaktualne 0. Wydanie nazywało się w końcu 1.2.44 (tagu v1.2.43 nie ma).
+
+| ID | pozycja wtedy | status dziś | waga dziś | stan dziś | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| S2.3-L11 | dwie rzeczy do obejrzenia na żywo: polski 15-25% dłuższy, HUD i pasek statusu | otwarte | nit | brak odczytu polskich szerokości przy stole | - |
+| S2.2-CASE-08 | strażniki `game.user` null | częściowo | nit | jak CASE-08 (częściowo) | - |
+| S2.2-MAP-04/05/06/08/09 | fog.mjs: księga per scena, wygaszanie obrysu, Mastermind, jedno `reducedMotion`, `freeOwned` | częściowo | minor | MAP-08 częściowo, reszta zamknięta | - |
+| S2.1-CASE-01 | księga odmawia nie-GM-om | zamknięte | - | jak CASE-01 | - |
+| S2.1-CASE-02 | `lastCrisis` w obsadzie | zamknięte | - | jak CASE-02 | - |
+| S2.1-MAP-01 | `myIncidentTrace` czyta obsadę | zamknięte | - | jak MAP-01 | - |
+| S2.1-TEXT-03 | "A murder is under way" z obsady | zamknięte | - | jak TEXT-03 | - |
+| S2.1-COMM-01 | prośby gracza adresowane do GM-ów | zamknięte | - | jak COMM-01 | - |
+| S2.1-COMM-12 | karta safeword z `senderId` | zamknięte | - | jak COMM-12 | - |
+| S2.1-DESP-03 | karty publiczne bez liczb puli i overflow | zamknięte | - | jak DESP-03 (decyzją D3) | - |
+| S2.2-CORE-02/03/04 | reset czyści zbiórkę, reguły, stemple | zamknięte | - | jak CORE-02/03/04 | reset z interfejsu martwy: CTRL-01/CASE-19, skierowane C1 `claude/season-119` (w toku) |
+| S2.2-CORE-05 | End of chapter z konsoli i jako kafelek panelu | zamknięte · T | - | jak CORE-05; kafelka nie ma od E49 A2 | - |
+| S2.2-CORE-01 | Next wskazuje Zaćmienie | zamknięte | - | jak CORE-01 | - |
+| S2.2-CORE-08 | podsumowanie dnia z etykietą pory | zamknięte | - | jak CORE-08 | - |
+| S2.2-CORE-11 | `plural()` w raporcie rozdziału | zamknięte | - | jak CORE-11 | - |
+| S2.2-CORE-14 | "Eclipse still on" tylko przy zmianie | zamknięte | - | jak CORE-14 | - |
+| S2.2-ROLL-01 | Reroll po Palm do `settleSteal` | zamknięte | - | jak ROLL-01 | - |
+| S2.2-ROLL-07 | Direct Murder pyta o GM-a przed ceną | zamknięte | - | jak ROLL-07 | - |
+| S2.2-ROLL-09 | `askForHint` z prawdziwą ceną | zamknięte | - | jak ROLL-09 | - |
+| S2.2-CASE-05 | Save pulpitu tylko wiersze z formularza | zamknięte | - | jak CASE-05 | - |
+| S2.2-CASE-07 | `drpgBallotsChanged` | zamknięte | - | jak CASE-07 | - |
+| S2.2-ITEM-01 | zużycie przy przekazaniu | zamknięte | - | jak ITEM-01 | - |
+| S2.2-ITEM-05 | `stow()` zdejmuje `equipped` | zamknięte | - | jak ITEM-05 (z resztką `nit`) | - |
+| S2.2-ITEM-11 | odmowy z `capacityLabel` | zamknięte | - | jak ITEM-11 | - |
+| S2.2-DESP-01 | Hope Call liczy od wartości po decyzji | zamknięte | - | jak DESP-01 | - |
+| S2.2-DESP-02 | dźwięki Breakdown/Wounded | zamknięte | - | jak DESP-02 | - |
+| S2.2-DESP-07 | szept "armed" mówi prawdę | zamknięte | - | jak DESP-07 | - |
+| S2.2-COMM-08 | dźwięk gmAsk dla autora karty | zamknięte | - | jak COMM-08 | - |
+| S2.2-UI-03/04/05 | glass.mjs: unmount, jeden listener, cache matchMedia, `paneAt` | zamknięte | - | jak UI-03, UI-04, UI-05 | - |
+| S2.2-UI-08 | Reduced motion w obu motywach | zamknięte | - | jak UI-08 | - |
+| S2.2-TEXT-01..15 | dziewięć poprawek tekstu | zamknięte | - | weryfikacja zadań utrzymała zamknięte; uwaga: TEXT-04 z tej listy jest po weryfikacji domeny częściowo | - |
+| S2.2-CORE-07/09 | `endNote` i "body found" prawdziwe | zamknięte | - | jak CORE-07, CORE-09 | - |
+| S2.3-L1 | ustawienie języka: client, en/pl, przeładowanie | zamknięte | - | settings.mjs:1714-1723, 4152 | - |
+| S2.3-L2 | select "Language" w oknie Look i w ustawieniach modułu | zamknięte · T | - | jedne drzwi: okno DRPG Settings od E49 A1d (settings-window.mjs:83, 394, 408); `confirmLanguageReload` nie istnieje | - |
+| S2.3-L3 | wczytanie: fetch przy init, scalenie przy i18nInit | zamknięte | - | module.json:59-60 tylko en; i18n.mjs:55-80 | - |
+| S2.3-L4 | proza config.mjs podmieniana w miejscu (484 zdania) | zamknięte | - | 553 klucze `DRPG.Config.*` w pl.json (i18n.mjs:43-44) | - |
+| S2.3-L5 | `plural()` przez `Intl.PluralRules` | zamknięte | - | utils.mjs:565-573, język strony od E66 C1; 0 rodzin bez few/many | - |
+| S2.3-L6 | pl.json pokrywa każdy klucz en.json | zamknięte | - | 0 brakujących; 1087 nadmiarowych = 553 config + 534 formy few/many | - |
+| S2.3-L7 | fonty Latin-Ext z polskimi literami | zamknięte | - | fonts/*-LatinExt.woff2, stained-glass.css:33-47 | - |
+| S2.3-L8 | stempel wersji w trzech miejscach | zamknięte | - | module.json 1.2.118, danganronpa.css:35, 103 pliki notatek | - |
+| S2.3-L9 | podręczniki PL/EN | zamknięte | - | sześć plików w docs/handbooks/, te same liczby linii w obu językach | - |
+| S2.3-L10 | czego świadomie nie tłumaczymy | zamknięte | - | i18n.mjs:25-29, config.mjs:4901, konsola diagnostyki (CLAUDE.md) | - |
+
+#### Sekcja 5: zadania 1-14
+
+Po jednym wierszu na zadanie. Czytający rozłożył zadanie 13 na pięć pozycji (13a-e), a zadanie 14 na cztery (14a-d); w liczeniu (21 pozycji: zamknięte 4, częściowo 11, otwarte 6, nieaktualne 0) idą osobno, w tabeli łączę je w jeden wiersz z ich statusami.
+
+| Zadanie | status dziś | waga dziś | stan dziś | kierowanie |
+| --- | --- | --- | --- | --- |
+| zadanie 1: LIVE-001, metadane szeptów i flagi aktorów | zamknięte | - | CASE-03, CASE-04 zamknięte, MAP-12 decyzją D2; punkt 6 spełniony przez R9, R190 i 72-canary (wyniki nie czytane); otwarta połowa LIVE-001 (veil) przyszła później | - |
+| zadanie 2: jeden kanał do GM-a, karty z przyciskami | zamknięte | - | wszystkie osiem ID zamknięte | - |
+| zadanie 3: messenger przez secret.mjs | częściowo | minor | COMM-03 zamknięte, COMM-15 częściowo; pułapka KEEP = 500 odpowiedziana (secret.mjs:147, 554) | - |
+| zadanie 4: Reroll zgodny z akcją | częściowo | minor | ROLL-02 i ROLL-13 częściowo (ROLL-13 po weryfikacji), reszta zamknięta | - |
+| zadanie 5: przedmioty, reguły egzekwowane | częściowo | - | ITEM-04 częściowo po weryfikacji, reszta zamknięta (weryfikacja: osłabione) | - |
+| zadanie 6: ekonomia Despair przy dwóch GM-ach i zaciemnieniu | częściowo | - | DESP-18 częściowo po weryfikacji, reszta zamknięta (weryfikacja: osłabione) | - |
+| zadanie 7: luźne końce sprawy i triala | częściowo | nit | CASE-14 i CORE-19 częściowo, CASE-11 decyzją D5, reszta zamknięta | - |
+| zadanie 8: prześwit tokena i nazwy pokoi | częściowo | minor | MAP-02 i MAP-03 częściowo (MAP-03 po weryfikacji), MAP-10, MAP-11 zamknięte | - |
+| zadanie 9: wydajność co klatkę i co zapis | częściowo | nit | MAP-13 częściowo, reszta zamknięta | - |
+| zadanie 10: UX i wygląd | częściowo | minor | UI-09, UI-11, UI-12, COMM-11 częściowo; COMM-13 nieaktualne; reszta zamknięta | - |
+| zadanie 11: higiena kodu | częściowo | nit | jeden czytnik ucznia, `onSocket` jako tabela, fog-diagnostics.mjs; `openProjectDialog` 377 i `applyCrisisAction` 306 ponad 300 linii, "czy Stained Glass" w pięciu miejscach | - |
+| zadanie 12: trzy decyzje reguł | zamknięte | - | D1, D2, D3 podjęte i w kodzie | - |
+| zadanie 13 (lokalizacja polska i wydanie) | zamknięte 1, częściowo 2, otwarte 2 | nit | 13a: zamknięte - tools/stale-pl.mjs `--check` (E57 C1); 13b: częściowo - 6463 z 6824 stempli to baza E57 C1 ':b', nie odczyt; 13c: otwarte - brak odczytu; 13d: otwarte - 94 klucze; czy system ma pl, nie sprawdzono; 13e: częściowo · T - trzy trzymają; dwie nazywają rzeczy, których nie ma (`DRPG.Safeword.word`, `confirmLanguageReload`) | - |
+| zadanie 14 (podręczniki) | otwarte 4 | nit | 14a: otwarte - 0 obrazów w sześciu podręcznikach; 14b: otwarte - 0 wystąpień "Dungeondraft"; 14c: otwarte - 1.3.0 nie wyszło; 14d: otwarte - 107 linii, 2056 słów; nadal "One page." (DOC-18); stron nie zmierzono | - |
+
+#### Sekcja 6: higiena kodu w liczbach
+
+Każdy wiersz zmierzony ponownie przez czytającego (narzędzie w kolumnie "dziś"): 11 pozycji: zamknięte 4, częściowo 6, otwarte 0, nieaktualne 1. S6-H1 jest "nieaktualne", bo to sama liczba zakresu, nie wada.
+
+| ID | wtedy (1.2.42) | status dziś | waga dziś | dziś i jak zmierzono | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| S6-H2 | CSS 20 490 linii; `!important` danganronpa 689, stained-glass 260; `:root` 15 razy | częściowo | - | 7 arkuszy, 31 831 linii; `!important` wszystkie/poza komentarzami: danganronpa 711/612, stained-glass 243/199; `:root` raz na górze i dwa w `@media`; grep i odczyt; weryfikacja: osłabione - po liczbie wszystkich wystąpień danganronpa ma więcej, nie mniej | - |
+| S6-H3 | 14 funkcji ponad 300 linii | częściowo | nit | 6 z 17 089 funkcji (espree po 258 plikach): 2 tabele danych, 2 fabryki silników, `openProjectDialog` 377, `applyCrisisAction` 306; żadna z 14 starych nazw | - |
+| S6-H4 | około 40 funkcji 150-300 linii | częściowo | nit | 75 (ten sam skrypt espree), w kodzie trzy razy większym | - |
+| S6-H5 | zdublowane helpery (uczeń x5, esc x8, glassOn x4 i inne) | częściowo | nit | po jednej definicji (git grep); "czy Stained Glass" w pięciu miejscach z dwoma różnymi domyślnymi, 25 lokalnych aliasów esc | - |
+| S6-H9 | około 25 magicznych liczb poza config | częściowo | nit | nazwane trafiły do `TIMING` (config.mjs:364-468); nowa stała `KEEP_PINNED = 2000` (secret.mjs:554); sumy dzisiejszych nie policzono | - |
+| S6-H10 | około 30 komentarzy sprzecznych z kodem | częściowo | nit | nazwane zgodne poza CORE-15; czytający domen spisali 248 takich wpisów (skrypt po ich JSON, liczby nie weryfikowano) | - |
+| S6-H6 | martwy kod (performGeneric, chooseTrait, MAX_SHIFT i inne) | zamknięte | - | 0 trafień albo celowo z powodem w komentarzu (fog.mjs:3298-3303, config.mjs:4650-4651); git grep | - |
+| S6-H7 | 8 martwych kluczy z 2 212 i 2 tylko w testach | zamknięte | - | 0 martwych z 6369, 207 tylko w testach i narzędziach, 999 niepewnych (tools/e56/keys.mjs `find`) | - |
+| S6-H8 | martwe selektory (4 nazwy, 49 reguł) | zamknięte | - | tylko w komentarzach; css-budget deadClasses 0 (grep po styles/*.css) | - |
+| S6-W | "co działa, nie ruszać" | zamknięte | - | każda pozycja stoi: `senderOf` (bridge-guards.mjs:61), magazyn GM-ów (gm-store.mjs:700), `keepLive`, jedyny zapis zegara w `setClock` (clock.mjs:287) | `keepLive` reguła 1: REFR-05 (D-A1) |
+| S6-H1 | 97 skryptów / 89 963 linii | nieaktualne | - | 271 / 434 614 (13 testów 208 332, 258 bez testów 226 282); `wc -l` | - |
+
+#### Sekcja 8: jak wydać 1.2.43
+
+| ID | pozycja wtedy | status dziś | waga dziś | stan dziś | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| S8 | jak wydać 1.2.43 | nieaktualne · T | - | 1.2.43 nigdy nie wyszło: brak tagu v1.2.43, całość poszła jako 1.2.44; droga wydania to dziś .claude/rules/release.md i release.yml | - |
+
+#### Sekcja 9: stan po naprawach, 9.3, 9.1, 9.1a, 9.3b-d
+
+Jeden wiersz na decyzję albo uwagę: 40 pozycji: zamknięte 29, częściowo 8, otwarte 3, nieaktualne 0. Osiem live checków 9.3 i 9.3c (numery 18-25) idzie jako jedna pozycja S9.3-LC; ich rozliczenie pozycja po pozycji jest w `live-items-18.json` i w 13.6.
+
+**Sekcja 9 (tabela, 34 ID, zadanie 13, bilans, wydanie 1.2.44)**
+
+| ID | pozycja wtedy | status dziś | waga dziś | stan dziś | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| S9-34 | "34 ID zamknięte pod innymi nazwami" | częściowo | minor | lista liczy 34; CORE-15 i MAP-08 częściowo | - |
+| S9-T13 | zadanie 13 (7e40243): "25 znalezisk spoza zadań 1-11" | częściowo · T | minor | lista wymienia 24, nie 25; commit 7e40243 to "D8: the first text pass", zmiana zadania to b888c066 (CASE-75, COMM-52, ITEM-42, MAP-44, ROLL-36, TEXT-41); częściowo: MAP-15, ROLL-16, TEXT-09, UI-06 i (po weryfikacji) COMM-18 | - |
+| S9-BAL | bilans: 152 znaleziska, 49 + 78 + 4, "wszystkie 152 ID zamknięte" | częściowo · T | minor | plików jest 157, nie 152; po weryfikacjach 128 naprawionych, 19 częściowo, 4 decyzją, 5 nieaktualnych, 1 otwarte (liczenie weryfikacji zadań, przed zmianami w domenach - zob. 13.3) | - |
+| S9-TABLE | tabela sekcji 9: zadania 1-13 i Higiena A-D, commit na zadanie | zamknięte | - | każdy commit istnieje na origin (gh api, 20.11.2026); klon płytki | - |
+| S9-REL144 | wydane jako 1.2.44 | zamknięte | - | tag v1.2.44 (9f480eee), notatki v1.2.44.md | - |
+
+**9.3 (wydanie 1.2.45)**
+
+| ID | pozycja wtedy | status dziś | waga dziś | stan dziś | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| S9.3-M | pomiary 1.2.45 w Chromium: 0/0/0 od 280x653 | otwarte | - | nikt w tym audycie nie uruchomił audit/glass-sweep.mjs; telefony poza zakresem decyzją (9.2 pozycja 461), biurko i tablet nieodmierzone (weryfikacja: osłabione - nie nieaktualne) | - |
+| S9.3-LC | live checki 18-25 | częściowo | minor | live-items-18.json: 18, 19, 20, 23, 24 otwarte, 21 częściowo, 22 i 25 nieaktualne | - |
+| S9.3-d6b069e | 1.2.45: faza trzyma swój stan, karta zbrodni z obsady, kurtyna przy visibilitychange | zamknięte | - | clock.mjs:308, 999-1060 | - |
+| S9.3-c7014db | 1.2.45 A: progi ekranu w jednym miejscu | zamknięte · T | - | `BREAKPOINTS` (settings.mjs:4344); `narrow` to dziś 1224, nie 1200 | - |
+| S9.3-aa9b9a6 | 1.2.45 B: poniżej 1200 px bloki się układają | zamknięte · T | - | narrow.mjs i narrow.css ostatni; próg 1224 | - |
+| S9.3-240f0ff | 1.2.45 C: `stackShapes`, `pinRightColumn` wyłączony | zamknięte | - | glass-geometry.mjs:937, glass.mjs:982 | - |
+| S9.3-scale | autoScale zostaje, próg 0.7 | zamknięte | - | settings.mjs:4413, 4458-4470 | - |
+
+**9.1 Decyzje z 13.09**
+
+| ID | pozycja wtedy | status dziś | waga dziś | stan dziś | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| S9.1-D4 | D4: Gear auto-ready na każdej drodze | częściowo | - | ITEM-04 częściowo po weryfikacji: upuszczenie z kompendium omija regułę | - |
+| S9.1-D1 | D1: progi jawne, dynamicznie | zamknięte | - | jak TEXT-14 | - |
+| S9.1-D2 | D2: księga odkryć tajna per gracz | zamknięte | - | jak MAP-12 | - |
+| S9.1-D3 | D3: liczby pul jawne, overflow zamaskowany | zamknięte | - | jak DESP-03 | - |
+| S9.1-D5 | D5: wiązanie tylko uczestników albo pokoju | zamknięte | - | jak CASE-11 | - |
+| S9.1-D6 | D6: nieudany sabotaż tylko dla pokoju i GM-ów | zamknięte | - | jak TEXT-LC5 | - |
+| S9.1-D7 | D7: nasłuch LiveKit usunięty; reset głosu jako kafelek w Between sessions | zamknięte · T | nit | nasłuchu nie ma; komentarz gm-panel.mjs:229-230 nadal mówi o kafelku, którego od E49 A2 nie ma (DOC-17 `nit`) | - |
+| S9.1-D8 | D8: pierwsze przejście tekstu | zamknięte | - | zmiany z listy są w en.json; masowe przejście Remnant/trace, GM/Monokuma, student/postać/gracz zostawione na 1.3.0 | - |
+| S9.1-D9 | D9: alias i `SETTINGS.blackened` usunięte | zamknięte | - | grep: brak; rejestr Blackened to magazyn GM-ów (settings.mjs:931-938) | - |
+| S9.1-D10 | D10: wydanie 1.2.44 | zamknięte | - | tag v1.2.44; D20 wycofana przez O1 15.10.2026 | - |
+| S9.1-X | karta zdarzenia overflow, karta Zaćmienia zdjęta | zamknięte | - | commity istnieją; kart nie przeczytano jedna po drugiej | - |
+
+**9.1a Co zostało do zrobienia**
+
+| ID | pozycja wtedy | status dziś | waga dziś | stan dziś | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| S9.1a-2 | ręczne przejście tekstu dla 1.3.0 | otwarte | - | 1.3.0 nie wyszło; "Remnant" 313 kluczy, "trace" 12 | - |
+| S9.1a-1 | live checki sekcji 7 i 9.2 na prawdziwym Foundry | częściowo | - | część odczytana 16-17.11.2026 (E58); większość nieodczytana, L1 wstrzymana do końca audytu | - |
+| S9.1a-3 | `registerSettings` i `steps()` długie z natury | zamknięte · T | - | nadal jedyne dwa wyjątki; `registerSettings` ma dziś 1971 linii, nie 505 | - |
+
+**9.3b Przegląd 14.09 (wydanie 1.2.46)**
+
+| ID | pozycja wtedy | status dziś | waga dziś | stan dziś | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| S9.3b-36 | punkty 3 i 6: live checki i tekst 1.3.0 "nie moje" | otwarte | - | jak S9.1a-1 i S9.1a-2 | - |
+| S9.3b-5 | wydajność: liczbę bierze `perf()` przy stole | częściowo | minor | perf() i fps() odczytane na 14.370 na RTX 4080 (E58, 16.11.2026); maszyna budżetowa i perf-baseline.json nieodmierzone (LIVE-E33-05); weryfikacja: osłabione - czytający przeoczył odczyt F | etapy E53, E58 odłożone do 1.2.120 (ROUTING.md) |
+| S9.3b-1 | stos z dala od paska zakładek i szyny narzędzi | zamknięte | - | narrow.mjs:51, 198, 247, 299 | - |
+| S9.3b-2 | ponowny podział 12 akceptowanych porażek | zamknięte · T | nit | reguła stoi i jest ostrzejsza (CLAUDE.md, skip-baseline.json); liczby 126/0/9 nieaktualne; zdanie "measured" w skip-baseline.json mówi 17, lista ma 27 (DOC-19) | - |
+| S9.3b-4 | dostępność: a11y.mjs, aria-live, forced-colors | zamknięte | - | api.mjs:1485, popup.mjs:219, danganronpa.css:17516 | - |
+| S9.3b-7 | CLAUDE.md i CONTRIBUTING.md export-ignore | zamknięte | - | .gitattributes | - |
+| S9.3b-REL | wydane jako 1.2.46 | zamknięte | - | tag v1.2.46 (d46fa471) | - |
+
+**9.3c Wydanie 1.2.47**
+
+| ID | pozycja wtedy | status dziś | waga dziś | stan dziś | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| S9.3c-2 | nieruszone wtedy: wyrzutnie na pasku zakładek o 34 px; 280-320 px | częściowo | - | pierwsze zrobione w 9.3d (`clearLaunchers`, glass.mjs:1105); drugie to szerokość telefonu, poza zakresem decyzją 11.11.2026, nieodmierzone | - |
+| S9.3c-1 | 1.2.47: dwustopniowy opis Remnantu, `perf()`, projekty na mapie | zamknięte | - | remnants.mjs:1300-1325, 1414; projects.mjs:271; popup.mjs:51, 186-209 | - |
+
+**9.3d Trzy uwagi od stołu, pułapka i odrzucone**
+
+| ID | pozycja wtedy | status dziś | waga dziś | stan dziś | kierowanie |
+| --- | --- | --- | --- | --- | --- |
+| S9.3d-1 | powiadomienie za małe na kafelek | zamknięte | - | stained-glass.css:3508 `flex: 1 0 auto` | - |
+| S9.3d-2 | token projektu w ramce jak Remnant | zamknięte | - | remnant-ring.mjs:33-37, 92-93, 845 | - |
+| S9.3d-3 | kafelki po prawej nad sekcją projektów | zamknięte | - | glass.mjs:992-1038, 1105; odczyty Chromium z 16.09 nie powtórzone | - |
+| S9.3d-T | pułapka pomiarowa: `liveSignature` czyta tylko BLOCKS | zamknięte | - | ostrzeżenie przeniesione do .claude/rules/code.md | - |
+| S9.3d-R | odrzucone po pomiarze: trzy warianty | zamknięte | - | część zapisana w glass.mjs:1025-1035 i przy `cutStrips`; nie każdy wariant dopasowany do komentarza, więc zamknięte bez potwierdzenia (weryfikacja: osłabione) | - |
+
+### 13.6 Lista live checków 9.2 i listy obok niej
+
+Każda pozycja 9.2 (577 numerowanych, z dwiema pozycjami pod każdym z numerów 475-478) i 47 pozycji obok niej (18 B-, 7 znanych luk po E03, 14 z sekcji 7, 9.3-18..9.3-25), rozliczone przez czytających `live-items-*` (pozycje 15-218 i 293-663 ta sesja, 219-292 `first-session/live-items-07..09`, listy obok `live-items-18`) i sprawdzone przeciwnie (`verify-live-*`). Pozycja jest **odczytana** tylko wtedy, gdy istnieje zapis odczytu na prawdziwym Foundry (`live-readings-e58.json`, `live-readings-other.json`, `live-readings-e58-delta.json` - z gałęzi L1 `claude/e58-local` 7875554f, klasa F); rozumowanie jej nie zamyka (U11); weryfikatorzy cofali do "otwarte" pozycje zamknięte przez czytających samym odczytem kodu (zmiany statusu w `verify-live-*.json`, a dla live checków starych domen w `verify-old-*.json`, 13.3).
+
+| Stan (577 pozycji 9.2) | odczytane | częściowo | otwarte | nieaktualne |
+| --- | ---: | ---: | ---: | ---: |
+| liczba | 22 | 77 | 471 | 7 |
+
+Wynik odczytanych i częściowo odczytanych: 48 zgodnych, 28 z wadą (prawie wszystkie wady to zgłoszenia właściciela sprzed poprawki albo wady testu lub harnessu, nie modułu na 1.2.118; jedna wada modułu na dziś: pozycja 650, odłożenie tokena z kopii GM-a nie w kroku, `movement.mjs:3482-3491`), 17 mieszanych. Tekst 182 pozycji nie zgadza się już z kodem (nazywa okno, przycisk, klucz, wersję Daggerhearta albo liczbę, których nie ma) - kolumna "Tekst nieaktualny"; pary "było / jest" są w plikach czytających. Dwie numeracje się powtarzają: pod 475-478 stoją po dwie pozycje (LIVE-E93-01..03 z LIVE-E69-04 i LIVE-E76-01..04), a 9.3 ma własne 18-25, różne od 18-25 w 9.2 - tabela je rozróżnia.
+
+**Kolumna L1** wskazuje wiersz `audit/findings-1.2.118/L1-HANDOFF.md` z przepisem na odczyt przy stole (284 pozycji); "jak w 9.2" znaczy, że czytający nie zapisał osobnego przepisu (pozycje 15-292, czytane przed poleceniem z 19:40Z) i przepis jest w tekście samej pozycji. Wiersze L1-HANDOFF wskazują z powrotem numer 9.2.
+
+| Nr | LIVE | Stan | Wynik | Tekst nieaktualny | Weryfikacja | L1 | Plik |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 15 |  | odczytane | zgodne |  | stands |  | `live-items-01.json` |
+| 16 |  | otwarte | - |  | stands | jak w 9.2 | `live-items-01.json` |
+| 17 |  | odczytane | zgodne | tak | stands |  | `live-items-01.json` |
+| 18 |  | częściowo | zgodne |  | stands | jak w 9.2 | `live-items-01.json` |
+| 19 |  | odczytane | zgodne |  | stands |  | `live-items-01.json` |
+| 20 |  | odczytane | mieszane |  | stands |  | `live-items-01.json` |
+| 21 |  | nieaktualne | - | tak | stands |  | `live-items-01.json` |
+| 22 |  | częściowo | mieszane |  | stands | jak w 9.2 | `live-items-01.json` |
+| 23 |  | odczytane | mieszane |  | stands |  | `live-items-01.json` |
+| 24 |  | otwarte | - |  | stands | jak w 9.2 | `live-items-01.json` |
+| 25 | LIVE-E30-01 | odczytane | mieszane | tak | stands |  | `live-items-01.json` |
+| 26 | LIVE-E30-02 | odczytane | mieszane | tak | stands |  | `live-items-01.json` |
+| 27 | LIVE-E30-03 | odczytane | mieszane | tak | stands |  | `live-items-01.json` |
+| 28 | LIVE-E30-07 | otwarte | - |  |  | jak w 9.2 | `live-items-01.json` |
+| 29 | LIVE-E30-04 | odczytane | zgodne |  | stands |  | `live-items-01.json` |
+| 30 | LIVE-E30-05 | odczytane | mieszane | tak | stands |  | `live-items-01.json` |
+| 31 | LIVE-E30-06 | częściowo | zgodne |  | weakened | jak w 9.2 | `live-items-01.json` |
+| 32 | LIVE-E30-08 | otwarte | - |  |  | jak w 9.2 | `live-items-01.json` |
+| 33 | LIVE-E30-09 | odczytane | zgodne |  | stands |  | `live-items-01.json` |
+| 34 | LIVE-E30-10 | odczytane | zgodne |  | stands |  | `live-items-01.json` |
+| 35 | LIVE-E31-01 | otwarte | - | tak | stands | jak w 9.2 | `live-items-01.json` |
+| 36 | LIVE-E31-02 | otwarte | - | tak |  | jak w 9.2 | `live-items-01.json` |
+| 37 | LIVE-E31-03 | częściowo | zgodne | tak | stands | jak w 9.2 | `live-items-01.json` |
+| 38 | LIVE-E31-04 | otwarte | - |  | stands | jak w 9.2 | `live-items-01.json` |
+| 39 | LIVE-E31-05 | odczytane | zgodne | tak | stands |  | `live-items-01.json` |
+| 40 | LIVE-E31-06 | odczytane | zgodne |  | stands |  | `live-items-01.json` |
+| 41 | LIVE-E04-01 | odczytane | wada |  | stands |  | `live-items-01.json` |
+| 42 | LIVE-E04-02 | otwarte | - |  |  | jak w 9.2 | `live-items-01.json` |
+| 43 | LIVE-E04-03 | otwarte | - |  |  | jak w 9.2 | `live-items-01.json` |
+| 44 | LIVE-E04-04 | częściowo | mieszane |  | stands | jak w 9.2 | `live-items-01.json` |
+| 45 | LIVE-E04-05 | otwarte | - |  |  | jak w 9.2 | `live-items-01.json` |
+| 46 | LIVE-E04-06 | otwarte | - |  |  | jak w 9.2 | `live-items-01.json` |
+| 47 | LIVE-E04-07 | otwarte | - |  | stands | jak w 9.2 | `live-items-01.json` |
+| 48 | LIVE-E04-08 | częściowo | mieszane | tak | stands | jak w 9.2 | `live-items-01.json` |
+| 49 | LIVE-E04-09 | otwarte | - |  |  | jak w 9.2 | `live-items-02.json` |
+| 50 | LIVE-E04-10 | otwarte | - |  |  | jak w 9.2 | `live-items-02.json` |
+| 51 | LIVE-E04-11 | odczytane | zgodne |  | stands |  | `live-items-02.json` |
+| 52 | LIVE-E04-12 | odczytane | zgodne | tak | stands |  | `live-items-02.json` |
+| 53 | LIVE-E05-01 | otwarte | - |  | stands | jak w 9.2 | `live-items-02.json` |
+| 54 | LIVE-E05-02 | otwarte | - |  |  | jak w 9.2 | `live-items-02.json` |
+| 55 | LIVE-E05-03 | otwarte | - | tak |  | jak w 9.2 | `live-items-02.json` |
+| 56 | LIVE-E05-04 | nieaktualne | - | tak | stands |  | `live-items-02.json` |
+| 57 | LIVE-E05-05 | otwarte | - |  |  | jak w 9.2 | `live-items-02.json` |
+| 58 | LIVE-E05-06 | otwarte | - |  | stands | jak w 9.2 | `live-items-02.json` |
+| 59 | LIVE-E05-07 | otwarte | - |  |  | jak w 9.2 | `live-items-02.json` |
+| 60 | LIVE-E05-08 | otwarte | - |  |  | jak w 9.2 | `live-items-02.json` |
+| 61 | LIVE-E05-09 | odczytane | zgodne |  | stands |  | `live-items-02.json` |
+| 62 | LIVE-E05-10 | odczytane | zgodne |  | stands |  | `live-items-02.json` |
+| 63 | LIVE-E05-11 | odczytane | mieszane |  | stands |  | `live-items-02.json` |
+| 64 | LIVE-E05-12 | częściowo | zgodne | tak | weakened | jak w 9.2 | `live-items-02.json` |
+| 65 | LIVE-E05-13 | częściowo | wada | tak | stands | jak w 9.2 | `live-items-02.json` |
+| 66 | LIVE-E05-14 | otwarte | - |  |  | jak w 9.2 | `live-items-02.json` |
+| 67 | LIVE-E06-01 | częściowo | mieszane | tak | stands | jak w 9.2 | `live-items-02.json` |
+| 68 | LIVE-E06-02 | częściowo | mieszane | tak | stands | jak w 9.2 | `live-items-02.json` |
+| 69 | LIVE-E06-03 | otwarte | - |  | stands | jak w 9.2 | `live-items-02.json` |
+| 70 | LIVE-E06-04 | częściowo | zgodne |  | stands | jak w 9.2 | `live-items-02.json` |
+| 71 | LIVE-E06-05 | częściowo | mieszane | tak | stands | jak w 9.2 | `live-items-02.json` |
+| 72 | LIVE-E06-06 | otwarte | - |  |  | jak w 9.2 | `live-items-02.json` |
+| 73 | LIVE-E06-07 | otwarte | - |  |  | jak w 9.2 | `live-items-02.json` |
+| 74 | LIVE-E06-08 | otwarte | - |  | stands | jak w 9.2 | `live-items-02.json` |
+| 75 | LIVE-E32-01 | otwarte | - |  | stands | jak w 9.2 | `live-items-02.json` |
+| 76 | LIVE-E32-02 | otwarte | - |  |  | jak w 9.2 | `live-items-02.json` |
+| 77 | LIVE-E07-01 | otwarte | - | tak |  | jak w 9.2 | `live-items-02.json` |
+| 78 | LIVE-E07-02 | otwarte | - | tak |  | jak w 9.2 | `live-items-02.json` |
+| 79 | LIVE-E07-03 | otwarte | - |  |  | jak w 9.2 | `live-items-02.json` |
+| 80 | LIVE-E07-04 | otwarte | - |  |  | jak w 9.2 | `live-items-02.json` |
+| 81 | LIVE-E07-05 | otwarte | - | tak |  | jak w 9.2 | `live-items-02.json` |
+| 82 | LIVE-E07-06 | otwarte | - |  |  | jak w 9.2 | `live-items-02.json` |
+| 83 | LIVE-E07-07 | otwarte | - |  |  | jak w 9.2 | `live-items-03.json` |
+| 84 | LIVE-E07-08 | otwarte | - | tak |  | jak w 9.2 | `live-items-03.json` |
+| 85 | LIVE-E07-09 | otwarte | - |  |  | jak w 9.2 | `live-items-03.json` |
+| 86 | LIVE-E07-10 | otwarte | - |  |  | jak w 9.2 | `live-items-03.json` |
+| 87 | LIVE-E07-11 | otwarte | - | tak |  | jak w 9.2 | `live-items-03.json` |
+| 88 | LIVE-E07-12 | otwarte | - | tak |  | jak w 9.2 | `live-items-03.json` |
+| 89 | LIVE-E08-01 | częściowo | - | tak | weakened | jak w 9.2 | `live-items-03.json` |
+| 90 | LIVE-E08-02 | otwarte | - |  |  | jak w 9.2 | `live-items-03.json` |
+| 91 | LIVE-E08-03 | otwarte | zgodne |  | weakened | jak w 9.2 | `live-items-03.json` |
+| 92 | LIVE-E08-04 | otwarte | - |  | stands | jak w 9.2 | `live-items-03.json` |
+| 93 | LIVE-E08-05 | otwarte | - |  |  | jak w 9.2 | `live-items-03.json` |
+| 94 | LIVE-E28-01 | otwarte | - | tak | stands | jak w 9.2 | `live-items-03.json` |
+| 95 | LIVE-E28-02 | otwarte | - |  |  | jak w 9.2 | `live-items-03.json` |
+| 96 | LIVE-E28-03 | otwarte | - | tak |  | jak w 9.2 | `live-items-03.json` |
+| 97 | LIVE-E28-04 | częściowo | zgodne | tak | stands | jak w 9.2 | `live-items-03.json` |
+| 98 | LIVE-E28-05 | otwarte | - |  | stands | jak w 9.2 | `live-items-03.json` |
+| 99 | LIVE-E28-06 | otwarte | - |  |  | jak w 9.2 | `live-items-03.json` |
+| 100 | LIVE-E28-07 | otwarte | - |  |  | jak w 9.2 | `live-items-03.json` |
+| 101 | LIVE-E28-08 | otwarte | - |  |  | jak w 9.2 | `live-items-03.json` |
+| 102 | LIVE-E28-09 | otwarte | - |  |  | jak w 9.2 | `live-items-03.json` |
+| 103 | LIVE-E28-10 | otwarte | - | tak |  | jak w 9.2 | `live-items-03.json` |
+| 104 | LIVE-E28-11 | otwarte | - | tak |  | jak w 9.2 | `live-items-03.json` |
+| 105 | LIVE-E28-12 | otwarte | - | tak |  | jak w 9.2 | `live-items-03.json` |
+| 106 | LIVE-E28-13 | otwarte | - | tak |  | jak w 9.2 | `live-items-03.json` |
+| 107 | LIVE-E28-14 | otwarte | - |  | stands | jak w 9.2 | `live-items-03.json` |
+| 108 | LIVE-E28-15 | otwarte | - |  |  | jak w 9.2 | `live-items-03.json` |
+| 109 | LIVE-E28-16 | otwarte | - |  |  | jak w 9.2 | `live-items-03.json` |
+| 110 | LIVE-E29-01 | otwarte | - | tak |  | jak w 9.2 | `live-items-03.json` |
+| 111 | LIVE-E29-02 | otwarte | - | tak |  | jak w 9.2 | `live-items-03.json` |
+| 112 | LIVE-E29-03 | otwarte | - | tak |  | jak w 9.2 | `live-items-03.json` |
+| 113 | LIVE-E29-04 | otwarte | - |  |  | jak w 9.2 | `live-items-03.json` |
+| 114 | LIVE-E29-05 | otwarte | - |  |  | jak w 9.2 | `live-items-03.json` |
+| 115 | LIVE-E29-06 | otwarte | - | tak |  | jak w 9.2 | `live-items-03.json` |
+| 116 | LIVE-E29-07 | otwarte | - |  | stands | jak w 9.2 | `live-items-03.json` |
+| 117 | LIVE-E29-08 | otwarte | - | tak |  | jak w 9.2 | `live-items-04.json` |
+| 118 | LIVE-E29-09 | otwarte | - |  | stands | jak w 9.2 | `live-items-04.json` |
+| 119 | LIVE-E29-10 | otwarte | - |  |  | jak w 9.2 | `live-items-04.json` |
+| 120 | LIVE-E29-11 | otwarte | - |  |  | jak w 9.2 | `live-items-04.json` |
+| 121 | LIVE-E29-12 | otwarte | - |  |  | jak w 9.2 | `live-items-04.json` |
+| 122 | LIVE-E29-13 | otwarte | - |  |  | jak w 9.2 | `live-items-04.json` |
+| 123 | LIVE-E29-14 | otwarte | - | tak |  | jak w 9.2 | `live-items-04.json` |
+| 124 | LIVE-E29-15 | otwarte | - |  |  | jak w 9.2 | `live-items-04.json` |
+| 125 | LIVE-E33-01 | otwarte | - | tak | stands | jak w 9.2 | `live-items-04.json` |
+| 126 | LIVE-E33-02 | otwarte | - | tak |  | jak w 9.2 | `live-items-04.json` |
+| 127 | LIVE-E33-03 | otwarte | - |  | stands | jak w 9.2 | `live-items-04.json` |
+| 128 | LIVE-E33-04 | otwarte | - |  |  | jak w 9.2 | `live-items-04.json` |
+| 129 | LIVE-E33-05 | otwarte | - | tak | weakened | jak w 9.2 | `live-items-04.json` |
+| 130 | LIVE-E33-06 | otwarte | - |  |  | jak w 9.2 | `live-items-04.json` |
+| 131 | LIVE-E33-07 | otwarte | - |  | stands | jak w 9.2 | `live-items-04.json` |
+| 132 | LIVE-E33-08 | otwarte | - |  |  | jak w 9.2 | `live-items-04.json` |
+| 133 | LIVE-E33-09 | otwarte | - | tak |  | jak w 9.2 | `live-items-04.json` |
+| 134 | LIVE-E33-10 | otwarte | - | tak | stands | jak w 9.2 | `live-items-04.json` |
+| 135 | LIVE-E34-01 | otwarte | - | tak |  | jak w 9.2 | `live-items-04.json` |
+| 136 | LIVE-E34-02 | otwarte | - |  |  | jak w 9.2 | `live-items-04.json` |
+| 137 | LIVE-E09-01 | otwarte | - |  |  | jak w 9.2 | `live-items-04.json` |
+| 138 | LIVE-E09-02 | otwarte | - |  |  | jak w 9.2 | `live-items-04.json` |
+| 139 | LIVE-E09-03 | otwarte | - |  |  | jak w 9.2 | `live-items-04.json` |
+| 140 | LIVE-E09-04 | otwarte | - |  |  | jak w 9.2 | `live-items-04.json` |
+| 141 | LIVE-E09-05 | otwarte | - |  |  | jak w 9.2 | `live-items-04.json` |
+| 142 | LIVE-E10-01 | otwarte | - |  |  | jak w 9.2 | `live-items-04.json` |
+| 143 | LIVE-E10-02 | otwarte | - |  |  | jak w 9.2 | `live-items-04.json` |
+| 144 | LIVE-E10-03 | otwarte | - |  |  | jak w 9.2 | `live-items-04.json` |
+| 145 | LIVE-E10-04 | otwarte | - |  |  | jak w 9.2 | `live-items-04.json` |
+| 146 | LIVE-E10-05 | otwarte | - | tak |  | jak w 9.2 | `live-items-04.json` |
+| 147 | LIVE-E10-06 | otwarte | - |  |  | jak w 9.2 | `live-items-04.json` |
+| 148 | LIVE-E10-07 | otwarte | - |  |  | jak w 9.2 | `live-items-04.json` |
+| 149 | LIVE-E75-01 | otwarte | - | tak |  | jak w 9.2 | `live-items-04.json` |
+| 150 | LIVE-E75-02 | otwarte | - |  |  | jak w 9.2 | `live-items-04.json` |
+| 151 | LIVE-E75-03 | częściowo | zgodne | tak | stands | jak w 9.2 | `live-items-05.json` |
+| 152 | LIVE-E75-04 | otwarte | - | tak |  | jak w 9.2 | `live-items-05.json` |
+| 153 | LIVE-E75-05 | częściowo | mieszane | tak | stands | jak w 9.2 | `live-items-05.json` |
+| 154 | LIVE-E11-01 | otwarte | - |  | stands | jak w 9.2 | `live-items-05.json` |
+| 155 | LIVE-E11-02 | otwarte | - |  |  | jak w 9.2 | `live-items-05.json` |
+| 156 | LIVE-E11-03 | otwarte | - |  |  | jak w 9.2 | `live-items-05.json` |
+| 157 | LIVE-E11-04 | otwarte | - |  |  | jak w 9.2 | `live-items-05.json` |
+| 158 | LIVE-E11-05 | otwarte | - |  |  | jak w 9.2 | `live-items-05.json` |
+| 159 | LIVE-E11-06 | otwarte | - |  |  | jak w 9.2 | `live-items-05.json` |
+| 160 | LIVE-E11-07 | otwarte | - |  |  | jak w 9.2 | `live-items-05.json` |
+| 161 | LIVE-E11-08 | otwarte | - |  |  | jak w 9.2 | `live-items-05.json` |
+| 162 | LIVE-E11-09 | otwarte | - |  |  | jak w 9.2 | `live-items-05.json` |
+| 163 | LIVE-E12-01 | otwarte | - |  |  | jak w 9.2 | `live-items-05.json` |
+| 164 | LIVE-E12-02 | częściowo | zgodne | tak | stands | jak w 9.2 | `live-items-05.json` |
+| 165 | LIVE-E12-03 | częściowo | zgodne |  | weakened | jak w 9.2 | `live-items-05.json` |
+| 166 | LIVE-E12-04 | otwarte | - |  |  | jak w 9.2 | `live-items-05.json` |
+| 167 | LIVE-E12-05 | otwarte | - |  |  | jak w 9.2 | `live-items-05.json` |
+| 168 | LIVE-E12-06 | otwarte | - |  |  | jak w 9.2 | `live-items-05.json` |
+| 169 | LIVE-E12-07 | częściowo | mieszane | tak | stands | jak w 9.2 | `live-items-05.json` |
+| 170 | LIVE-E12-08 | otwarte | - | tak |  | jak w 9.2 | `live-items-05.json` |
+| 171 | LIVE-E12-09 | otwarte | - |  |  | jak w 9.2 | `live-items-05.json` |
+| 172 | LIVE-E13-01 | otwarte | - | tak | stands | jak w 9.2 | `live-items-05.json` |
+| 173 | LIVE-E13-02 | otwarte | - |  |  | jak w 9.2 | `live-items-05.json` |
+| 174 | LIVE-E13-03 | otwarte | - |  |  | jak w 9.2 | `live-items-05.json` |
+| 175 | LIVE-E13-04 | otwarte | - |  |  | jak w 9.2 | `live-items-05.json` |
+| 176 | LIVE-E13-05 | otwarte | - |  |  | jak w 9.2 | `live-items-05.json` |
+| 177 | LIVE-E13-06 | otwarte | - |  | weakened | jak w 9.2 | `live-items-05.json` |
+| 178 | LIVE-E13-07 | otwarte | - |  |  | jak w 9.2 | `live-items-05.json` |
+| 179 | LIVE-E13-08 | otwarte | - |  | stands | jak w 9.2 | `live-items-05.json` |
+| 180 | LIVE-E13-09 | otwarte | - | tak |  | jak w 9.2 | `live-items-05.json` |
+| 181 | LIVE-E13-10 | otwarte | - |  |  | jak w 9.2 | `live-items-05.json` |
+| 182 | LIVE-E13-11 | otwarte | - | tak |  | jak w 9.2 | `live-items-05.json` |
+| 183 | LIVE-E81-01 | otwarte | - |  | stands | jak w 9.2 | `live-items-05.json` |
+| 184 | LIVE-E81-02 | otwarte | - | tak |  | jak w 9.2 | `live-items-05.json` |
+| 185 | LIVE-E81-03 | otwarte | - |  |  | jak w 9.2 | `live-items-06.json` |
+| 186 | LIVE-E81-04 | otwarte | - |  |  | jak w 9.2 | `live-items-06.json` |
+| 187 | LIVE-E81-05 | otwarte | - |  |  | jak w 9.2 | `live-items-06.json` |
+| 188 | LIVE-E81-06 | otwarte | - |  |  | jak w 9.2 | `live-items-06.json` |
+| 189 | LIVE-E81-07 | otwarte | - |  |  | jak w 9.2 | `live-items-06.json` |
+| 190 | LIVE-E81-08 | otwarte | - | tak |  | jak w 9.2 | `live-items-06.json` |
+| 191 | LIVE-E81-09 | otwarte | - | tak |  | jak w 9.2 | `live-items-06.json` |
+| 192 | LIVE-E81-10 | otwarte | - |  |  | jak w 9.2 | `live-items-06.json` |
+| 193 | LIVE-E81-11 | otwarte | - |  | stands | jak w 9.2 | `live-items-06.json` |
+| 194 | LIVE-E81-12 | otwarte | - |  |  | jak w 9.2 | `live-items-06.json` |
+| 195 | LIVE-E81-13 | otwarte | - | tak |  | jak w 9.2 | `live-items-06.json` |
+| 196 | LIVE-E81-14 | otwarte | - | tak | weakened | jak w 9.2 | `live-items-06.json` |
+| 197 | LIVE-E81-15 | otwarte | - |  |  | jak w 9.2 | `live-items-06.json` |
+| 198 | LIVE-E81-16 | otwarte | - |  | weakened | jak w 9.2 | `live-items-06.json` |
+| 199 | LIVE-E81-17 | otwarte | - |  |  | jak w 9.2 | `live-items-06.json` |
+| 200 | LIVE-E81-18 | otwarte | - |  |  | jak w 9.2 | `live-items-06.json` |
+| 201 | LIVE-E81-19 | otwarte | - | tak |  | jak w 9.2 | `live-items-06.json` |
+| 202 | LIVE-E81-20 | otwarte | - |  | stands | jak w 9.2 | `live-items-06.json` |
+| 203 | LIVE-E81-21 | otwarte | - |  |  | jak w 9.2 | `live-items-06.json` |
+| 204 | LIVE-E81-22 | otwarte | - |  |  | jak w 9.2 | `live-items-06.json` |
+| 205 | LIVE-E77-01 | otwarte | - | tak |  | jak w 9.2 | `live-items-06.json` |
+| 206 | LIVE-E77-02 | otwarte | - |  |  | jak w 9.2 | `live-items-06.json` |
+| 207 | LIVE-E77-03 | otwarte | - | tak | stands | jak w 9.2 | `live-items-06.json` |
+| 208 | LIVE-E77-04 | otwarte | - |  |  | jak w 9.2 | `live-items-06.json` |
+| 209 | LIVE-E77-05 | otwarte | - |  |  | jak w 9.2 | `live-items-06.json` |
+| 210 | LIVE-E77-06 | otwarte | - |  |  | jak w 9.2 | `live-items-06.json` |
+| 211 | LIVE-E77-07 | otwarte | - |  |  | jak w 9.2 | `live-items-06.json` |
+| 212 | LIVE-E77-08 | otwarte | - | tak |  | jak w 9.2 | `live-items-06.json` |
+| 213 | LIVE-E77-09 | nieaktualne | - |  | stands |  | `live-items-06.json` |
+| 214 | LIVE-E77-10 | otwarte | - |  |  | jak w 9.2 | `live-items-06.json` |
+| 215 | LIVE-E77-11 | otwarte | - |  |  | jak w 9.2 | `live-items-06.json` |
+| 216 | LIVE-E77-12 | otwarte | - |  |  | jak w 9.2 | `live-items-06.json` |
+| 217 | LIVE-E77-13 | otwarte | - |  |  | jak w 9.2 | `live-items-06.json` |
+| 218 | LIVE-E77-14 | otwarte | - |  |  | jak w 9.2 | `live-items-06.json` |
+| 219 | LIVE-E77-15 | otwarte | - | tak | stands | jak w 9.2 | `first-session/live-items-07.json` |
+| 220 | LIVE-E77-16 | otwarte | - |  |  | jak w 9.2 | `first-session/live-items-07.json` |
+| 221 | LIVE-E77-17 | otwarte | - |  |  | jak w 9.2 | `first-session/live-items-07.json` |
+| 222 | LIVE-E77-18 | otwarte | - |  |  | jak w 9.2 | `first-session/live-items-07.json` |
+| 223 | LIVE-E78-01 | otwarte | - | tak |  | jak w 9.2 | `first-session/live-items-07.json` |
+| 224 | LIVE-E78-02 | otwarte | - |  |  | jak w 9.2 | `first-session/live-items-07.json` |
+| 225 | LIVE-E78-03 | otwarte | - |  |  | jak w 9.2 | `first-session/live-items-07.json` |
+| 226 | LIVE-E78-04 | otwarte | - |  |  | jak w 9.2 | `first-session/live-items-07.json` |
+| 227 | LIVE-E78-05 | otwarte | - |  |  | jak w 9.2 | `first-session/live-items-07.json` |
+| 228 | LIVE-E78-06 | częściowo | zgodne |  | stands | jak w 9.2 | `first-session/live-items-07.json` |
+| 229 | LIVE-E78-07 | otwarte | - |  | stands | jak w 9.2 | `first-session/live-items-07.json` |
+| 230 | LIVE-E78-08 | otwarte | - |  |  | jak w 9.2 | `first-session/live-items-07.json` |
+| 231 | LIVE-E78-09 | otwarte | - | tak |  | jak w 9.2 | `first-session/live-items-07.json` |
+| 232 | LIVE-E78-10 | otwarte | - | tak |  | jak w 9.2 | `first-session/live-items-07.json` |
+| 233 | LIVE-E78-11 | otwarte | - |  |  | jak w 9.2 | `first-session/live-items-07.json` |
+| 234 | LIVE-E78-12 | otwarte | - |  |  | jak w 9.2 | `first-session/live-items-07.json` |
+| 235 | LIVE-E78-13 | otwarte | - |  |  | jak w 9.2 | `first-session/live-items-07.json` |
+| 236 | LIVE-E78-14 | otwarte | wada |  | weakened | jak w 9.2 | `first-session/live-items-07.json` |
+| 237 | LIVE-E84-01 | częściowo | mieszane |  | stands | jak w 9.2 | `first-session/live-items-07.json` |
+| 238 | LIVE-E79-01 | otwarte | - |  | stands | jak w 9.2 | `first-session/live-items-07.json` |
+| 239 | LIVE-E79-02 | częściowo | zgodne | tak | weakened | jak w 9.2 | `first-session/live-items-07.json` |
+| 240 | LIVE-E79-03 | otwarte | - |  |  | jak w 9.2 | `first-session/live-items-07.json` |
+| 241 | LIVE-E79-04 | otwarte | - |  |  | jak w 9.2 | `first-session/live-items-07.json` |
+| 242 | LIVE-E79-05 | otwarte | - |  |  | jak w 9.2 | `first-session/live-items-07.json` |
+| 243 | LIVE-E79-06 | otwarte | - | tak |  | jak w 9.2 | `first-session/live-items-07.json` |
+| 244 | LIVE-E79-07 | otwarte | - |  |  | jak w 9.2 | `first-session/live-items-07.json` |
+| 245 | LIVE-E79-08 | częściowo | - |  | weakened | jak w 9.2 | `first-session/live-items-07.json` |
+| 246 | LIVE-E79-09 | otwarte | - | tak | stands | jak w 9.2 | `first-session/live-items-07.json` |
+| 247 | LIVE-E79-10 | otwarte | - |  |  | jak w 9.2 | `first-session/live-items-07.json` |
+| 248 | LIVE-E79-11 | otwarte | - |  | stands | jak w 9.2 | `first-session/live-items-07.json` |
+| 249 | LIVE-E79-12 | częściowo | zgodne |  | stands | jak w 9.2 | `first-session/live-items-07.json` |
+| 250 | LIVE-E79-13 | otwarte | - |  |  | jak w 9.2 | `first-session/live-items-07.json` |
+| 251 | LIVE-E79-14 | otwarte | - | tak |  | jak w 9.2 | `first-session/live-items-07.json` |
+| 252 | LIVE-E79-15 | otwarte | - |  |  | jak w 9.2 | `first-session/live-items-07.json` |
+| 253 | LIVE-E79-16 | częściowo | zgodne | tak | stands | jak w 9.2 | `first-session/live-items-08.json` |
+| 254 | LIVE-E79-17 | otwarte | - |  | stands | jak w 9.2 | `first-session/live-items-08.json` |
+| 255 | LIVE-E79-18 | otwarte | - |  | stands | jak w 9.2 | `first-session/live-items-08.json` |
+| 256 | LIVE-E79-19 | częściowo | zgodne | tak | stands | jak w 9.2 | `first-session/live-items-08.json` |
+| 257 | LIVE-E79-20 | otwarte | - |  | stands | jak w 9.2 | `first-session/live-items-08.json` |
+| 258 | LIVE-E79-21 | otwarte | - | tak |  | jak w 9.2 | `first-session/live-items-08.json` |
+| 259 | LIVE-E79-22 | otwarte | - | tak |  | jak w 9.2 | `first-session/live-items-08.json` |
+| 260 | LIVE-E79-23 | otwarte | - | tak |  | jak w 9.2 | `first-session/live-items-08.json` |
+| 261 | LIVE-E79-24 | otwarte | - |  |  | jak w 9.2 | `first-session/live-items-08.json` |
+| 262 | LIVE-E79-25 | otwarte | - | tak |  | jak w 9.2 | `first-session/live-items-08.json` |
+| 263 | LIVE-E80-01 | częściowo | zgodne | tak | weakened | jak w 9.2 | `first-session/live-items-08.json` |
+| 264 | LIVE-E80-02 | otwarte | - |  | stands | jak w 9.2 | `first-session/live-items-08.json` |
+| 265 | LIVE-E80-03 | otwarte | - |  |  | jak w 9.2 | `first-session/live-items-08.json` |
+| 266 | LIVE-E80-04 | otwarte | - | tak |  | jak w 9.2 | `first-session/live-items-08.json` |
+| 267 | LIVE-E16-01 | otwarte | - | tak |  | jak w 9.2 | `first-session/live-items-08.json` |
+| 268 | LIVE-E16-02 | częściowo | wada |  | weakened | jak w 9.2 | `first-session/live-items-08.json` |
+| 269 | LIVE-E16-04 | częściowo | mieszane | tak | stands | jak w 9.2 | `first-session/live-items-08.json` |
+| 270 | LIVE-E16-03 | otwarte | - | tak | stands | jak w 9.2 | `first-session/live-items-08.json` |
+| 271 | LIVE-E80-05 | otwarte | - | tak |  | jak w 9.2 | `first-session/live-items-08.json` |
+| 272 | LIVE-H81-01 | częściowo | wada | tak | weakened | jak w 9.2 | `first-session/live-items-08.json` |
+| 273 | LIVE-H81-02 | otwarte | - | tak |  | jak w 9.2 | `first-session/live-items-08.json` |
+| 274 | LIVE-H81-03 | częściowo | zgodne |  | stands | jak w 9.2 | `first-session/live-items-09.json` |
+| 275 | LIVE-H82-01 | otwarte | - | tak |  | jak w 9.2 | `first-session/live-items-09.json` |
+| 276 | LIVE-H82-02 | otwarte | - |  |  | jak w 9.2 | `first-session/live-items-09.json` |
+| 277 | LIVE-H82-03 | otwarte | - | tak |  | jak w 9.2 | `first-session/live-items-09.json` |
+| 278 | LIVE-H82-04 | otwarte | - | tak |  | jak w 9.2 | `first-session/live-items-09.json` |
+| 279 | LIVE-H82-05 | otwarte | - | tak |  | jak w 9.2 | `first-session/live-items-09.json` |
+| 280 | LIVE-H82-06 | otwarte | - |  |  | jak w 9.2 | `first-session/live-items-09.json` |
+| 281 | LIVE-E19-06 | otwarte | - |  | stands | jak w 9.2 | `first-session/live-items-09.json` |
+| 282 | LIVE-E19-07 | otwarte | - |  |  | jak w 9.2 | `first-session/live-items-09.json` |
+| 283 | LIVE-E19-01 | otwarte | - |  |  | jak w 9.2 | `first-session/live-items-09.json` |
+| 284 | LIVE-E19-02 | otwarte | - |  | stands | jak w 9.2 | `first-session/live-items-09.json` |
+| 285 | LIVE-E19-03 | otwarte | - |  |  | jak w 9.2 | `first-session/live-items-09.json` |
+| 286 | LIVE-E19-04 | otwarte | - |  |  | jak w 9.2 | `first-session/live-items-09.json` |
+| 287 | LIVE-E19-05 | otwarte | - | tak |  | jak w 9.2 | `first-session/live-items-09.json` |
+| 288 | LIVE-E19-08 | otwarte | - |  |  | jak w 9.2 | `first-session/live-items-09.json` |
+| 289 | LIVE-E19-09 | otwarte | - |  |  | jak w 9.2 | `first-session/live-items-09.json` |
+| 290 | LIVE-E19-10 | otwarte | - |  | stands | jak w 9.2 | `first-session/live-items-09.json` |
+| 291 | LIVE-E18-04 | otwarte | - | tak | stands | jak w 9.2 | `first-session/live-items-09.json` |
+| 292 | LIVE-E18-03 | otwarte | - | tak | stands | jak w 9.2 | `first-session/live-items-09.json` |
+| 293 | LIVE-E18-01 | otwarte | - | tak |  | L1-024 | `live-items-293.json` |
+| 294 | LIVE-E18-02 | częściowo | zgodne | tak | stands | L1-025 | `live-items-293.json` |
+| 295 | LIVE-E35-01 | otwarte | - |  |  | L1-172 | `live-items-293.json` |
+| 296 | LIVE-E35-02 | otwarte | - |  |  | L1-173 | `live-items-293.json` |
+| 297 | LIVE-E14-02 | otwarte | - | tak |  | L1-026 | `live-items-293.json` |
+| 298 | LIVE-E14-01 | otwarte | - | tak |  | L1-174 | `live-items-293.json` |
+| 299 | LIVE-E36-01 | otwarte | - |  |  | L1-027 | `live-items-293.json` |
+| 300 | LIVE-E36-02 | otwarte | - | tak |  | L1-175 | `live-items-293.json` |
+| 301 | LIVE-E15-01 | otwarte | - | tak |  | L1-028 | `live-items-293.json` |
+| 302 | LIVE-E15-02 | otwarte | - | tak |  | L1-029 | `live-items-293.json` |
+| 303 | LIVE-E15-03 | otwarte | - | tak |  | L1-030 | `live-items-293.json` |
+| 304 | LIVE-E16-05 | otwarte | - |  |  | L1-461 | `live-items-293.json` |
+| 305 | LIVE-E16-06 | otwarte | - | tak | stands | L1-176 | `live-items-293.json` |
+| 306 | LIVE-E17-06 | otwarte | - |  |  | L1-177 | `live-items-293.json` |
+| 307 | LIVE-E17-01 | otwarte | - | tak |  | L1-178 | `live-items-293.json` |
+| 308 | LIVE-E17-02 | otwarte | - | tak | stands | L1-179 | `live-items-293.json` |
+| 309 | LIVE-E17-03 | otwarte | - |  | stands | L1-180 | `live-items-293.json` |
+| 310 | LIVE-E17-04 | otwarte | - | tak | stands | L1-031 | `live-items-293.json` |
+| 311 | LIVE-E17-05 | otwarte | - |  |  | L1-032 | `live-items-293.json` |
+| 312 | LIVE-E17-07 | częściowo | zgodne |  | stands | L1-033 | `live-items-293.json` |
+| 313 | LIVE-E17-08 | otwarte | - | tak |  | L1-181 | `live-items-293.json` |
+| 314 | LIVE-E17-09 | otwarte | - | tak |  | L1-462 | `live-items-293.json` |
+| 315 | LIVE-E17-10 | otwarte | - |  |  | L1-182 | `live-items-293.json` |
+| 316 | LIVE-E17-11 | otwarte | - |  |  | L1-183 | `live-items-293.json` |
+| 317 | LIVE-H84-01 | otwarte | - | tak |  | L1-034 | `live-items-293.json` |
+| 318 | LIVE-H84-02 | otwarte | - | tak |  | L1-035 | `live-items-293.json` |
+| 319 | LIVE-H84-03 | otwarte | - |  |  | L1-463 | `live-items-293.json` |
+| 320 | LIVE-H84-04 | otwarte | - |  |  | L1-464 | `live-items-293.json` |
+| 321 | LIVE-H84-05 | otwarte | - |  | stands | L1-036 | `live-items-293.json` |
+| 322 | LIVE-H84-06 | otwarte | - | tak |  | L1-465 | `live-items-293.json` |
+| 323 | LIVE-E88-01 | częściowo | zgodne |  | stands | L1-466 | `live-items-293.json` |
+| 324 | LIVE-E88-05 | otwarte | - | tak |  | L1-467 | `live-items-293.json` |
+| 325 | LIVE-E88-02 | częściowo | zgodne |  | weakened | L1-468 | `live-items-293.json` |
+| 326 | LIVE-E88-03 | otwarte | - | tak |  | L1-184 | `live-items-293.json` |
+| 327 | LIVE-E88-04 | otwarte | - |  |  | L1-037 | `live-items-327.json` |
+| 328 | LIVE-E88-06 | otwarte | - |  |  | L1-185 | `live-items-327.json` |
+| 329 | LIVE-E88-07 | otwarte | - |  |  | L1-186 | `live-items-327.json` |
+| 330 | LIVE-E88-08 | otwarte | - |  |  | L1-187 | `live-items-327.json` |
+| 331 | LIVE-E70-01 | otwarte | - | tak |  | L1-188 | `live-items-327.json` |
+| 332 | LIVE-E70-04 | otwarte | - |  |  | L1-038 | `live-items-327.json` |
+| 333 | LIVE-E70-05 | otwarte | - |  | stands | L1-039 | `live-items-327.json` |
+| 334 | LIVE-E70-02 | otwarte | - |  |  | L1-189 | `live-items-327.json` |
+| 335 | LIVE-E70-03 | otwarte | - |  |  | L1-190 | `live-items-327.json` |
+| 336 | LIVE-E70-06 | otwarte | - |  |  | L1-040 | `live-items-327.json` |
+| 337 | LIVE-E70-07 | otwarte | - |  |  | L1-191 | `live-items-327.json` |
+| 338 | LIVE-E70-08 | otwarte | - |  |  | L1-192 | `live-items-327.json` |
+| 339 | LIVE-E70-09 | otwarte | - | tak |  | L1-041 | `live-items-327.json` |
+| 340 | LIVE-E70-10 | otwarte | - |  |  | L1-042 | `live-items-327.json` |
+| 341 | LIVE-E70-11 | otwarte | - |  |  | L1-043 | `live-items-327.json` |
+| 342 | LIVE-E70-12 | otwarte | - | tak |  | L1-193 | `live-items-327.json` |
+| 343 | LIVE-E89-02 | otwarte | - |  |  | L1-194 | `live-items-327.json` |
+| 344 | LIVE-E89-03 | otwarte | - |  | stands | L1-195 | `live-items-327.json` |
+| 345 | LIVE-E89-04 | otwarte | - |  |  | L1-469 | `live-items-327.json` |
+| 346 | LIVE-E89-01 | otwarte | - |  |  | L1-196 | `live-items-327.json` |
+| 347 | LIVE-E89-05 | otwarte | - |  |  | L1-197 | `live-items-327.json` |
+| 348 | LIVE-E90-01 | otwarte | - |  | stands | L1-002 | `live-items-327.json` |
+| 349 | LIVE-E50-01 | otwarte | - |  | stands | L1-198 | `live-items-327.json` |
+| 350 | LIVE-E50-02 | otwarte | - |  |  | L1-199 | `live-items-327.json` |
+| 351 | LIVE-E50-06 | otwarte | - |  |  | L1-470 | `live-items-327.json` |
+| 352 | LIVE-E50-03 | otwarte | - |  | stands | L1-471 | `live-items-327.json` |
+| 353 | LIVE-E50-04 | otwarte | - |  |  | L1-200 | `live-items-327.json` |
+| 354 | LIVE-E50-05 | otwarte | - |  |  | L1-201 | `live-items-327.json` |
+| 355 | LIVE-E51-01 | otwarte | - |  |  | L1-202 | `live-items-327.json` |
+| 356 | LIVE-E51-02 | częściowo | wada |  | stands | L1-472 | `live-items-327.json` |
+| 357 | LIVE-E51-03 | otwarte | wada |  | weakened | L1-203 | `live-items-327.json` |
+| 358 | LIVE-E51-04 | otwarte | wada | tak | weakened | L1-044 | `live-items-327.json` |
+| 359 | LIVE-E51-05 | otwarte | - |  |  | L1-204 | `live-items-327.json` |
+| 360 | LIVE-E51-06 | otwarte | - |  |  | L1-473 | `live-items-327.json` |
+| 361 | LIVE-E65-01 | otwarte | - |  | stands | L1-474 | `live-items-361.json` |
+| 362 | LIVE-E66-01 | otwarte | - | tak |  | L1-205 | `live-items-361.json` |
+| 363 | LIVE-E66-02 | otwarte | - |  |  | L1-475 | `live-items-361.json` |
+| 364 | LIVE-E37-02 | otwarte | - | tak |  | L1-206 | `live-items-361.json` |
+| 365 | LIVE-E37-01 | otwarte | - |  | stands | L1-207 | `live-items-361.json` |
+| 366 | LIVE-E37-03 | otwarte | - | tak |  | L1-045 | `live-items-361.json` |
+| 367 | LIVE-E37-05 | otwarte | - |  |  | L1-046 | `live-items-361.json` |
+| 368 | LIVE-E37-06 | otwarte | - |  |  | L1-047 | `live-items-361.json` |
+| 369 | LIVE-E41-01 | otwarte | - | tak |  | L1-208 | `live-items-361.json` |
+| 370 | LIVE-E41-02 | otwarte | - | tak |  | L1-209 | `live-items-361.json` |
+| 371 | LIVE-E42-02 | otwarte | - | tak | stands | L1-048 | `live-items-361.json` |
+| 372 | LIVE-E60-05 | otwarte | - | tak |  | L1-210 | `live-items-361.json` |
+| 373 | LIVE-E60-07 | otwarte | - |  |  | L1-476 | `live-items-361.json` |
+| 374 | LIVE-E60-08 | otwarte | - |  | stands | L1-211 | `live-items-361.json` |
+| 375 | LIVE-E60-06 | otwarte | - | tak |  | L1-212 | `live-items-361.json` |
+| 376 | LIVE-E60-09 | częściowo | zgodne | tak | stands | L1-213 | `live-items-361.json` |
+| 377 | LIVE-E44-01 | otwarte | - | tak |  | L1-214 | `live-items-361.json` |
+| 378 | LIVE-E44-02 | otwarte | - |  |  | L1-215 | `live-items-361.json` |
+| 379 | LIVE-E44-03 | otwarte | - |  |  | L1-216 | `live-items-361.json` |
+| 380 | LIVE-E44-04 | otwarte | - |  |  | L1-217 | `live-items-361.json` |
+| 381 | LIVE-E44-05 | otwarte | - | tak |  | L1-218 | `live-items-361.json` |
+| 382 | LIVE-E44-06 | otwarte | - |  | stands | L1-477 | `live-items-361.json` |
+| 383 | LIVE-E44-07 | częściowo | wada | tak | stands | L1-478 | `live-items-361.json` |
+| 384 | LIVE-E44-20 | otwarte | - | tak |  | L1-049 | `live-items-361.json` |
+| 385 | LIVE-E44-08 | częściowo | wada | tak | stands | L1-219 | `live-items-361.json` |
+| 386 | LIVE-E44-09 | otwarte | - | tak |  | L1-220 | `live-items-361.json` |
+| 387 | LIVE-E21-01 | otwarte | - | tak |  | L1-221 | `live-items-361.json` |
+| 388 | LIVE-E21-02 | otwarte | - |  |  | L1-222 | `live-items-361.json` |
+| 389 | LIVE-E21-03 | otwarte | - |  |  | L1-479 | `live-items-361.json` |
+| 390 | LIVE-E22-01 | otwarte | - |  |  | L1-050 | `live-items-361.json` |
+| 391 | LIVE-E22-02 | otwarte | - | tak |  | L1-480 | `live-items-361.json` |
+| 392 | LIVE-E21-04 | otwarte | - |  |  | L1-223 | `live-items-361.json` |
+| 393 | LIVE-E21-05 | otwarte | - |  |  | L1-224 | `live-items-361.json` |
+| 394 | LIVE-E22-03 | otwarte | - |  |  | L1-481 | `live-items-361.json` |
+| 395 | LIVE-E22-04 | częściowo | zgodne | tak | stands | L1-225 | `live-items-395.json` |
+| 396 | LIVE-E22-05 | otwarte | - |  |  | L1-482 | `live-items-395.json` |
+| 397 | LIVE-E22-06 | otwarte | - |  |  | L1-483 | `live-items-395.json` |
+| 398 | LIVE-E21-06 | otwarte | - | tak | stands | L1-051 | `live-items-395.json` |
+| 399 | LIVE-E21-07 | otwarte | - |  |  | L1-226 | `live-items-395.json` |
+| 400 | LIVE-E21-08 | otwarte | - | tak |  | L1-484 | `live-items-395.json` |
+| 401 | LIVE-E21-09 | otwarte | - |  |  | L1-227 | `live-items-395.json` |
+| 402 | LIVE-E23-01 | otwarte | - |  |  | L1-228 | `live-items-395.json` |
+| 403 | LIVE-E23-02 | otwarte | - |  |  | L1-229 | `live-items-395.json` |
+| 404 | LIVE-E23-03 | otwarte | - |  |  | L1-230 | `live-items-395.json` |
+| 405 | LIVE-E23-04 | otwarte | - |  | stands | L1-231 | `live-items-395.json` |
+| 406 | LIVE-E23-05 | otwarte | - |  |  | L1-485 | `live-items-395.json` |
+| 407 | LIVE-E23-06 | otwarte | - |  |  | L1-486 | `live-items-395.json` |
+| 408 | LIVE-E23-07 | otwarte | - |  |  | L1-487 | `live-items-395.json` |
+| 409 | LIVE-E23-08 | częściowo | wada |  | stands | L1-052 | `live-items-395.json` |
+| 410 | LIVE-E23-09 | otwarte | - |  | stands | L1-232 | `live-items-395.json` |
+| 411 | LIVE-E23-10 | otwarte | - |  |  | L1-488 | `live-items-395.json` |
+| 412 | LIVE-E23-11 | otwarte | - |  |  | L1-233 | `live-items-395.json` |
+| 413 | LIVE-E23-12 | otwarte | - |  |  | L1-489 | `live-items-395.json` |
+| 414 | LIVE-E24-01 | otwarte | - |  | stands | L1-234 | `live-items-395.json` |
+| 415 | LIVE-E24-02 | otwarte | - | tak |  | L1-235 | `live-items-395.json` |
+| 416 | LIVE-E24-03 | otwarte | - |  |  | L1-236 | `live-items-395.json` |
+| 417 | LIVE-E24-04 | otwarte | - |  |  | L1-490 | `live-items-395.json` |
+| 418 | LIVE-E24-05 | otwarte | - |  |  | L1-053 | `live-items-395.json` |
+| 419 | LIVE-E24-06 | otwarte | - |  |  | L1-237 | `live-items-395.json` |
+| 420 | LIVE-E24-07 | częściowo | - |  | weakened | L1-238 | `live-items-395.json` |
+| 421 | LIVE-E24-08 | otwarte | - |  |  | L1-054 | `live-items-395.json` |
+| 422 | LIVE-E24-09 | otwarte | - | tak |  | L1-055 | `live-items-395.json` |
+| 423 | LIVE-E24-10 | otwarte | - |  |  | L1-056 | `live-items-395.json` |
+| 424 | LIVE-E45-01 | otwarte | - |  | stands | L1-057 | `live-items-395.json` |
+| 425 | LIVE-E45-02 | otwarte | - | tak |  | L1-239 | `live-items-395.json` |
+| 426 | LIVE-E45-03 | otwarte | - |  |  | L1-058 | `live-items-395.json` |
+| 427 | LIVE-E45-04 | otwarte | - | tak |  | L1-240 | `live-items-395.json` |
+| 428 | LIVE-E24-11 | otwarte | wada | tak | weakened | L1-241 | `live-items-395.json` |
+| 429 | LIVE-E24-12 | częściowo | wada | tak | stands | L1-491 | `live-items-429.json` |
+| 430 | LIVE-E24-13 | otwarte | - |  | stands | L1-242 | `live-items-429.json` |
+| 431 | LIVE-E46-01 | otwarte | - |  |  | L1-243 | `live-items-429.json` |
+| 432 | LIVE-E46-02 | otwarte | - |  |  | L1-244 | `live-items-429.json` |
+| 433 | LIVE-E46-03 | otwarte | - |  |  | L1-245 | `live-items-429.json` |
+| 434 | LIVE-E46-04 | otwarte | - |  |  | L1-492 | `live-items-429.json` |
+| 435 | LIVE-E46-05 | otwarte | - |  |  | L1-246 | `live-items-429.json` |
+| 436 | LIVE-E46-06 | otwarte | - |  |  | L1-247 | `live-items-429.json` |
+| 437 | LIVE-E46-07 | otwarte | - |  |  | L1-493 | `live-items-429.json` |
+| 438 | LIVE-E47-01 | otwarte | - |  |  | L1-248 | `live-items-429.json` |
+| 439 | LIVE-E47-02 | otwarte | - | tak |  | L1-249 | `live-items-429.json` |
+| 440 | LIVE-E47-03 | otwarte | - |  |  | L1-494 | `live-items-429.json` |
+| 441 | LIVE-E47-04 | otwarte | - |  | stands | L1-059 | `live-items-429.json` |
+| 442 | LIVE-E47-05 | otwarte | - |  |  | L1-250 | `live-items-429.json` |
+| 443 | LIVE-E47-06 | otwarte | - |  |  | L1-495 | `live-items-429.json` |
+| 444 | LIVE-E47-07 | otwarte | - | tak |  | L1-496 | `live-items-429.json` |
+| 445 | LIVE-E47-08 | otwarte | - |  |  | L1-251 | `live-items-429.json` |
+| 446 | LIVE-E47-09 | otwarte | - | tak |  | L1-497 | `live-items-429.json` |
+| 447 | LIVE-E47-10 | otwarte | - | tak |  | L1-498 | `live-items-429.json` |
+| 448 |  | nieaktualne | - | tak | stands |  | `live-items-429.json` |
+| 449 |  | nieaktualne | - |  | stands |  | `live-items-429.json` |
+| 450 |  | nieaktualne | - |  | stands |  | `live-items-429.json` |
+| 451 |  | nieaktualne | - | tak | stands |  | `live-items-429.json` |
+| 452 | LIVE-E47-11 | otwarte | - | tak |  | L1-499 | `live-items-429.json` |
+| 453 | LIVE-E95-02 | otwarte | - | tak | stands | L1-252 | `live-items-429.json` |
+| 454 | LIVE-E95-04 | otwarte | - |  |  | L1-253 | `live-items-429.json` |
+| 455 | LIVE-E95-01 | częściowo | wada | tak | weakened | L1-254 | `live-items-429.json` |
+| 456 | LIVE-E95-03 | otwarte | - | tak | stands | L1-255 | `live-items-429.json` |
+| 457 | LIVE-E95-05 | otwarte | - |  |  | L1-256 | `live-items-429.json` |
+| 458 | LIVE-E68-01 | otwarte | - |  | stands | L1-257 | `live-items-429.json` |
+| 459 | LIVE-E68-02 | otwarte | - |  |  | L1-258 | `live-items-429.json` |
+| 460 | LIVE-E68-03 | otwarte | - |  |  | L1-259 | `live-items-429.json` |
+| 461 | LIVE-E68-04 | otwarte | - |  |  | L1-500 | `live-items-429.json` |
+| 462 | LIVE-E68-05 | otwarte | - | tak |  | L1-501 | `live-items-429.json` |
+| 463 | LIVE-E63-01 | otwarte | wada | tak | weakened | L1-260 | `live-items-463.json` |
+| 464 | LIVE-E63-02 | otwarte | - | tak |  | L1-003 | `live-items-463.json` |
+| 465 | LIVE-E63-03 | otwarte | - | tak |  | L1-060 | `live-items-463.json` |
+| 466 | LIVE-E63-04 | otwarte | - |  |  | L1-261 | `live-items-463.json` |
+| 467 | LIVE-E63-05 | otwarte | - | tak |  | L1-262 | `live-items-463.json` |
+| 468 | LIVE-E49-01 | otwarte | - |  |  | L1-263 | `live-items-463.json` |
+| 469 | LIVE-E49-02 | otwarte | - | tak | stands | L1-061 | `live-items-463.json` |
+| 470 | LIVE-E49-04 | otwarte | - |  |  | L1-264 | `live-items-463.json` |
+| 471 | LIVE-E49-05 | otwarte | - |  |  | L1-265 | `live-items-463.json` |
+| 472 | LIVE-E49-07 | otwarte | - |  | stands | L1-266 | `live-items-463.json` |
+| 473 | LIVE-E48-06 | otwarte | - |  |  | L1-267 | `live-items-463.json` |
+| 474 | LIVE-E48-02 | otwarte | - |  |  | L1-268 | `live-items-463.json` |
+| 475 (first: LIVE-E93-01, AUDIT line 1437) | LIVE-E93-01 | częściowo | wada |  |  | L1-062, L1-063 | `live-items-463.json` |
+| 475 (second: LIVE-E76-01, AUDIT line 1442) | LIVE-E76-01 | częściowo | wada | tak |  | L1-062, L1-063 | `live-items-463.json` |
+| 476 (first: LIVE-E93-02, AUDIT line 1438) | LIVE-E93-02 | częściowo | wada |  |  | L1-064, L1-269 | `live-items-463.json` |
+| 476 (second: LIVE-E76-02, AUDIT line 1444) | LIVE-E76-02 | otwarte | - | tak |  | L1-064, L1-269 | `live-items-463.json` |
+| 477 (first: LIVE-E93-03, AUDIT line 1439) | LIVE-E93-03 | otwarte | - | tak |  | L1-270, L1-271 | `live-items-463.json` |
+| 477 (second: LIVE-E76-03, AUDIT line 1446) | LIVE-E76-03 | częściowo | zgodne | tak |  | L1-270, L1-271 | `live-items-463.json` |
+| 478 (first: LIVE-E69-04, AUDIT line 1440) | LIVE-E69-04 | otwarte | - |  |  | L1-065, L1-272 | `live-items-463.json` |
+| 478 (second: LIVE-E76-04, AUDIT line 1448) | LIVE-E76-04 | częściowo | zgodne | tak |  | L1-065, L1-272 | `live-items-463.json` |
+| 479 | LIVE-E76-05 | otwarte | - |  |  | L1-273 | `live-items-463.json` |
+| 480 | LIVE-E76-06 | otwarte | - |  | stands | L1-066 | `live-items-463.json` |
+| 481 | LIVE-E76-07 | otwarte | - |  |  | L1-274 | `live-items-463.json` |
+| 482 | LIVE-E97-01 | otwarte | - |  |  | L1-275 | `live-items-463.json` |
+| 483 | LIVE-E97-02 | otwarte | - | tak |  | L1-067 | `live-items-463.json` |
+| 484 | LIVE-E97-03 | otwarte | - | tak |  | L1-276 | `live-items-463.json` |
+| 485 | LIVE-E97-04 | otwarte | - |  |  | L1-277 | `live-items-463.json` |
+| 486 | LIVE-E97-05 | otwarte | - |  | stands | L1-004 | `live-items-463.json` |
+| 487 | LIVE-E97-06 | otwarte | - |  |  | L1-278 | `live-items-463.json` |
+| 488 | LIVE-E99-01 | otwarte | - |  |  | L1-279 | `live-items-463.json` |
+| 489 | LIVE-E99-04 | otwarte | - | tak | stands | L1-280 | `live-items-463.json` |
+| 490 | LIVE-E99-05 | otwarte | - |  |  | L1-281 | `live-items-463.json` |
+| 491 | LIVE-E73-01 | otwarte | - |  | stands | L1-068 | `live-items-463.json` |
+| 492 | LIVE-E73-02 | otwarte | - |  |  | L1-069 | `live-items-463.json` |
+| 493 | LIVE-E73-03 | otwarte | - |  |  | L1-282 | `live-items-493.json` |
+| 494 | LIVE-E73-04 | otwarte | - | tak |  | L1-070 | `live-items-493.json` |
+| 495 | LIVE-E73-05 | otwarte | - |  |  | L1-283 | `live-items-493.json` |
+| 496 | LIVE-E92-01 | otwarte | - | tak |  | L1-284 | `live-items-493.json` |
+| 497 | LIVE-E92-02 | otwarte | - |  | weakened | L1-071 | `live-items-493.json` |
+| 498 | LIVE-E92-03 | otwarte | - | tak |  | L1-072 | `live-items-493.json` |
+| 499 | LIVE-E92-04 | otwarte | - |  |  | L1-502 | `live-items-493.json` |
+| 500 | LIVE-E61-01 | otwarte | - |  |  | L1-285 | `live-items-493.json` |
+| 501 | LIVE-E61-08 | otwarte | - |  |  | L1-286 | `live-items-493.json` |
+| 502 | LIVE-E61-06 | otwarte | - |  |  | L1-287 | `live-items-493.json` |
+| 503 | LIVE-E62-01 | otwarte | - |  | stands | L1-503 | `live-items-493.json` |
+| 504 | LIVE-E94-01 | otwarte | - | tak |  | L1-288 | `live-items-493.json` |
+| 505 | LIVE-E94-02 | otwarte | - | tak |  | L1-289 | `live-items-493.json` |
+| 506 | LIVE-E94-03 | otwarte | - |  |  | L1-073 | `live-items-493.json` |
+| 507 | LIVE-E64-01 | otwarte | - |  |  | L1-290 | `live-items-493.json` |
+| 508 | LIVE-E102-01 | otwarte | - |  |  | L1-504 | `live-items-493.json` |
+| 509 | LIVE-E106-01 | częściowo | wada |  | stands | L1-291 | `live-items-493.json` |
+| 510 | LIVE-E106-02 | otwarte | - |  | stands | L1-292 | `live-items-493.json` |
+| 511 | LIVE-E105-01 | otwarte | - |  | stands | L1-293 | `live-items-493.json` |
+| 512 | LIVE-E39-01 | częściowo | wada |  | stands | L1-294 | `live-items-493.json` |
+| 513 | LIVE-E108-01 | otwarte | - |  |  | L1-295 | `live-items-493.json` |
+| 514 | LIVE-E73-06 | otwarte | - |  |  | L1-074 | `live-items-493.json` |
+| 515 | LIVE-E73-07 | otwarte | - |  |  | L1-075 | `live-items-493.json` |
+| 516 | LIVE-PV-01 | otwarte | - | tak |  | L1-076 | `live-items-493.json` |
+| 517 | LIVE-PV-02 | otwarte | - |  |  | L1-077 | `live-items-493.json` |
+| 518 | LIVE-PV-03 | otwarte | - |  |  | L1-078 | `live-items-493.json` |
+| 519 | LIVE-E38-01 | otwarte | - | tak | stands | L1-079 | `live-items-493.json` |
+| 520 | LIVE-E38-02 | otwarte | - | tak |  | L1-080 | `live-items-493.json` |
+| 521 | LIVE-E38-03 | otwarte | - | tak | stands | L1-081 | `live-items-493.json` |
+| 522 | LIVE-E38-04 | otwarte | - | tak |  | L1-082 | `live-items-493.json` |
+| 523 | LIVE-113R-01 | częściowo | wada |  | stands | L1-296 | `live-items-493.json` |
+| 524 | LIVE-113R-02 | częściowo | wada |  | stands | L1-505 | `live-items-493.json` |
+| 525 | LIVE-E69-03 | otwarte | - | tak |  | L1-083 | `live-items-493.json` |
+| 526 | LIVE-E69-06 | otwarte | - |  |  | L1-084 | `live-items-493.json` |
+| 527 | LIVE-E69-05 | częściowo | zgodne | tak | stands | L1-005 | `live-items-527.json` |
+| 528 | LIVE-E113-01 | otwarte | - | tak | stands | L1-085 | `live-items-527.json` |
+| 529 | LIVE-E57-01 | otwarte | - |  |  | L1-297 | `live-items-527.json` |
+| 530 | LIVE-E57-02 | otwarte | - | tak |  | L1-298 | `live-items-527.json` |
+| 531 | LIVE-E57-03 | otwarte | - |  |  | L1-506 | `live-items-527.json` |
+| 532 | LIVE-E59-01 | otwarte | - |  |  | L1-299 | `live-items-527.json` |
+| 533 | LIVE-R4420-01 | otwarte | - |  |  | L1-507 | `live-items-527.json` |
+| 534 | LIVE-E43-01 | odczytane | zgodne | tak | stands |  | `live-items-527.json` |
+| 535 | LIVE-E43-02 | częściowo | zgodne |  | weakened | jak w 9.2 | `live-items-527.json` |
+| 536 | LIVE-E43-03 | odczytane | zgodne |  | stands |  | `live-items-527.json` |
+| 537 | LIVE-E40-01 | częściowo | zgodne |  | stands | L1-300 | `live-items-527.json` |
+| 538 | LIVE-E55-01 | otwarte | - | tak |  | L1-301 | `live-items-527.json` |
+| 539 | LIVE-E55-02 | otwarte | - |  |  | L1-302 | `live-items-527.json` |
+| 540 | LIVE-E55-03 | otwarte | - |  | stands | L1-303 | `live-items-527.json` |
+| 541 | LIVE-E55-04 | otwarte | - | tak | stands | L1-508 | `live-items-527.json` |
+| 542 | LIVE-E110-01 | otwarte | - |  |  | L1-086 | `live-items-527.json` |
+| 543 | LIVE-E110-02 | otwarte | - |  |  | L1-304 | `live-items-527.json` |
+| 544 | LIVE-E110-03 | otwarte | - |  |  | L1-305 | `live-items-527.json` |
+| 545 | LIVE-E110-04 | otwarte | - |  |  | L1-306 | `live-items-527.json` |
+| 546 | LIVE-E110-05 | otwarte | - |  |  | L1-509 | `live-items-527.json` |
+| 547 | LIVE-OWN115-01 | częściowo | zgodne | tak | stands | L1-006 | `live-items-527.json` |
+| 548 | LIVE-OWN115-02 | otwarte | wada |  | weakened | L1-307 | `live-items-527.json` |
+| 549 | LIVE-E111-01 | częściowo | zgodne |  | stands | L1-087 | `live-items-527.json` |
+| 550 | LIVE-E111-02 | otwarte | - |  | stands | L1-007 | `live-items-527.json` |
+| 551 | LIVE-E111-03 | częściowo | zgodne |  | weakened | L1-088 | `live-items-527.json` |
+| 552 | LIVE-OWN115-03 | otwarte | wada |  | weakened | L1-308 | `live-items-527.json` |
+| 553 | LIVE-E112-01 | częściowo | wada |  | weakened | L1-008 | `live-items-527.json` |
+| 554 | LIVE-E112-02 | otwarte | - |  |  | L1-009 | `live-items-527.json` |
+| 555 | LIVE-E112-03 | otwarte | wada | tak | weakened | L1-309 | `live-items-527.json` |
+| 556 | LIVE-E112-04 | częściowo | zgodne |  | stands | L1-010 | `live-items-527.json` |
+| 557 | LIVE-E112-05 | otwarte | - |  |  | L1-089 | `live-items-527.json` |
+| 558 | LIVE-E116-01 | otwarte | - |  | stands | L1-310 | `live-items-527.json` |
+| 559 | LIVE-E116-02 | otwarte | - |  |  | L1-090 | `live-items-527.json` |
+| 560 | LIVE-E116-03 | częściowo | zgodne |  | stands | L1-311 | `live-items-527.json` |
+| 561 | LIVE-E53-01 | częściowo | - |  | stands | L1-312 | `live-items-561.json` |
+| 562 | LIVE-E40-02 | otwarte | - | tak | stands | L1-091 | `live-items-561.json` |
+| 563 | LIVE-E40-03 | otwarte | - |  |  | L1-313 | `live-items-561.json` |
+| 600 | LIVE-E112V-01 | otwarte | - |  |  | L1-092 | `live-items-561.json` |
+| 601 | LIVE-E112V-02 | otwarte | - |  |  | L1-314 | `live-items-561.json` |
+| 640 | LIVE-E39-02 | częściowo | - |  | stands | L1-510 | `live-items-561.json` |
+| 641 | LIVE-E39-03 | częściowo | - |  | stands | L1-511 | `live-items-561.json` |
+| 642 | LIVE-E39-04 | częściowo | - |  | stands | L1-315 | `live-items-561.json` |
+| 643 | LIVE-E39-05 | częściowo | - |  | stands | L1-512 | `live-items-561.json` |
+| 644 | LIVE-E39-06 | otwarte | - |  | stands | L1-316 | `live-items-561.json` |
+| 645 | LIVE-E39-07 | otwarte | - |  | stands | L1-513 | `live-items-561.json` |
+| 646 | LIVE-E39-08 | częściowo | - |  | stands | L1-514 | `live-items-561.json` |
+| 647 | LIVE-E39-09 | otwarte | - |  |  | L1-317 | `live-items-561.json` |
+| 648 | LIVE-E39-10 | częściowo | - |  | stands | L1-093 | `live-items-561.json` |
+| 649 | LIVE-E39-11 | otwarte | - |  |  | L1-094 | `live-items-561.json` |
+| 650 | LIVE-E39-12 | częściowo | wada |  | weakened | L1-318 | `live-items-561.json` |
+| 651 | LIVE-E39-13 | częściowo | wada |  | weakened | L1-319 | `live-items-561.json` |
+| 652 | LIVE-E39-14 | częściowo | zgodne |  | stands | L1-320 | `live-items-561.json` |
+| 653 | LIVE-E39-15 | częściowo | zgodne |  | stands | L1-321 | `live-items-561.json` |
+| 654 | LIVE-E39-16 | otwarte | - |  |  | L1-322 | `live-items-561.json` |
+| 655 | LIVE-E39-17 | otwarte | - |  | stands | L1-323 | `live-items-561.json` |
+| 656 | LIVE-E39-18 | otwarte | - |  | stands | L1-324 | `live-items-561.json` |
+| 657 | LIVE-E39-19 | częściowo | zgodne |  | stands | L1-515 | `live-items-561.json` |
+| 660 | LIVE-F118-01 | częściowo | wada |  | stands | L1-095 | `live-items-561.json` |
+| 661 | LIVE-F118-02 | częściowo | wada |  | stands | L1-325 | `live-items-561.json` |
+| 662 | LIVE-F118-03 | częściowo | wada |  | stands | L1-516 | `live-items-561.json` |
+| 663 | LIVE-F118-04 | otwarte | - |  |  | L1-326 | `live-items-561.json` |
+| 9.3 9.3-18 |  | otwarte | - | tak |  | jak w 9.2 | `live-items-18.json` |
+| 9.3 9.3-19 |  | otwarte | - |  |  | jak w 9.2 | `live-items-18.json` |
+| 9.3 9.3-20 |  | otwarte | - |  |  | jak w 9.2 | `live-items-18.json` |
+| 9.3 9.3-21 |  | otwarte | - | tak | refuted | jak w 9.2 | `live-items-18.json` |
+| 9.3 9.3-22 |  | nieaktualne | - | tak | stands |  | `live-items-18.json` |
+| 9.3 9.3-23 |  | otwarte | - |  |  | jak w 9.2 | `live-items-18.json` |
+| 9.3 9.3-24 |  | otwarte | - | tak |  | jak w 9.2 | `live-items-18.json` |
+| 9.3 9.3-25 |  | nieaktualne | - | tak | stands |  | `live-items-18.json` |
+| B-E20 B-E20-1 | LIVE-E20-01 | otwarte | - | tak |  | jak w 9.2 | `live-items-18.json` |
+| B-E20 B-E20-2 | LIVE-E20-02 | otwarte | - |  |  | jak w 9.2 | `live-items-18.json` |
+| B-E20 B-E20-3 | LIVE-E20-03 | otwarte | - | tak |  | jak w 9.2 | `live-items-18.json` |
+| B-E20 B-E20-4 | LIVE-E20-04 | otwarte | - | tak |  | jak w 9.2 | `live-items-18.json` |
+| B-E20 B-E20-5 | LIVE-E20-05 | otwarte | - |  |  | jak w 9.2 | `live-items-18.json` |
+| B-E20 B-E20-6 | LIVE-E20-06 | otwarte | - | tak |  | jak w 9.2 | `live-items-18.json` |
+| B-E20 B-E20-7 | LIVE-E20-07 | otwarte | - | tak |  | jak w 9.2 | `live-items-18.json` |
+| B-E52 B-E52-1 | LIVE-E52-01 | otwarte | - | tak | stands | jak w 9.2 | `live-items-18.json` |
+| B-E52 B-E52-10 | LIVE-E52-10 | otwarte | - |  |  | jak w 9.2 | `live-items-18.json` |
+| B-E52 B-E52-11 | LIVE-E52-11 | otwarte | - | tak |  | jak w 9.2 | `live-items-18.json` |
+| B-E52 B-E52-2 | LIVE-E52-02 | otwarte | - |  |  | jak w 9.2 | `live-items-18.json` |
+| B-E52 B-E52-3 | LIVE-E52-03 | otwarte | - |  |  | jak w 9.2 | `live-items-18.json` |
+| B-E52 B-E52-4 | LIVE-E52-04 | otwarte | - |  |  | jak w 9.2 | `live-items-18.json` |
+| B-E52 B-E52-5 | LIVE-E52-05 | częściowo | zgodne |  | stands | jak w 9.2 | `live-items-18.json` |
+| B-E52 B-E52-6 | LIVE-E52-06 | otwarte | - |  |  | jak w 9.2 | `live-items-18.json` |
+| B-E52 B-E52-7 | LIVE-E52-07 | otwarte | - | tak |  | jak w 9.2 | `live-items-18.json` |
+| B-E52 B-E52-8 | LIVE-E52-08 | otwarte | - |  |  | jak w 9.2 | `live-items-18.json` |
+| B-E52 B-E52-9 | LIVE-E52-09 | otwarte | - |  |  | jak w 9.2 | `live-items-18.json` |
+| gap gap-1 |  | otwarte | - |  |  | jak w 9.2 | `live-items-18.json` |
+| gap gap-2 |  | otwarte | - |  |  | jak w 9.2 | `live-items-18.json` |
+| gap gap-3 |  | zamknięte | - |  | weakened |  | `live-items-18.json` |
+| gap gap-4 |  | nieaktualne | - |  | stands |  | `live-items-18.json` |
+| gap gap-5 |  | otwarte | - |  | stands | jak w 9.2 | `live-items-18.json` |
+| gap gap-6 |  | otwarte | - | tak | refuted | jak w 9.2 | `live-items-18.json` |
+| gap gap-7 |  | zamknięte | - | tak | weakened |  | `live-items-18.json` |
+| s7 S7-1 |  | odczytane | zgodne | tak | stands |  | `live-items-18.json` |
+| s7 S7-10 |  | otwarte | - | tak | stands | jak w 9.2 | `live-items-18.json` |
+| s7 S7-11 |  | otwarte | - |  |  | jak w 9.2 | `live-items-18.json` |
+| s7 S7-12 |  | otwarte | - |  |  | jak w 9.2 | `live-items-18.json` |
+| s7 S7-13 |  | otwarte | - | tak |  | jak w 9.2 | `live-items-18.json` |
+| s7 S7-14 |  | otwarte | - | tak | stands | jak w 9.2 | `live-items-18.json` |
+| s7 S7-2 |  | odczytane | wada | tak | weakened |  | `live-items-18.json` |
+| s7 S7-3 |  | odczytane | zgodne |  | stands |  | `live-items-18.json` |
+| s7 S7-4 |  | częściowo | zgodne |  | weakened | jak w 9.2 | `live-items-18.json` |
+| s7 S7-5 |  | odczytane | zgodne |  | stands |  | `live-items-18.json` |
+| s7 S7-6 |  | otwarte | - |  | stands | jak w 9.2 | `live-items-18.json` |
+| s7 S7-7 |  | odczytane | zgodne |  | stands |  | `live-items-18.json` |
+| s7 S7-8 |  | częściowo | zgodne | tak | weakened | jak w 9.2 | `live-items-18.json` |
+| s7 S7-9 |  | odczytane | zgodne |  | stands |  | `live-items-18.json` |
+
+
+## 14. Etapy: realizacja każdego etapu na 1.2.118 (U5)
+
+Sekcja zbiera przebieg K3: każdy ze 105 wierszy `tools/stages.json`, w jego kolejności, oceniony na 1.2.118 (`b5a29e73`). Czytało 25 plików (`stages-01` do `stages-18` i `stages-22` do `stages-26` w `audit/findings-1.2.118/`, `first-session/stages-20` i `-21`), a każdy z nich ma swój plik weryfikacji (`verify-stages-*`, `verify-first-session/stages-*`). 98 etapów ma wersję i datę (62 wydania, 1.2.57-1.2.118); 7 nie ma żadnej (14.4). Czytający spisali 934 obietnice: 735 trzyma, 103 w części, 15 nie, 34 nieodczytane (23 `unread` i 11 `unknown`, w tabeli razem), 47 zastąpione później z decyzji (wartość spoza zbioru z briefu, liczona osobno). Znalezisk z przedrostkiem `STG` jest 106: 3 `major`, 30 `minor`, 73 `nit`, żadnego `blocker`. Weryfikacja przeciwna według `master.json`: 58 utrzymanych, 4 osłabione (jedno z nich podniesione z `nit` do `minor`), 1 obalone w pierwotnym brzmieniu, 43 niesprawdzone - wszystkie 43 to `nit`, każde `major` i `minor` ma werdykt. Klasa dowodu S, pewność "przeczytane", poza dwoma pozycjami z odczytu L1 na 14.370 (klasa F): STG-32 (weryfikacja zeszła na podejrzenie) i STG-41 (zmierzone, `docs/dev/e58/LOCAL-REPORT.md:425`). Czytający niczego nie uruchamiali: czytali kod, notatki wydań i papiery etapów, a wyniki testów brali z tury bazowej albo z logów shardów, które były gotowe, gdy pisali (wielu miało shardy 1-5 albo żadnego). Weryfikujący mieli już cały `base-run.json`: osiem shardów, 3387 przeszło, 1 nie (XI07, przechodzi sam), 27 pominiętych; scenariusze warstwy `ci` stoją w nim jako `pending`, więc wynik scenariusza etapu jest w tej sekcji odczytem notatek (K) albo pierwszej sesji, nie tej tury. Niezmierzone zostają live checki etapów: prawie żaden nie ma odczytu (14.1, "po L1").
+
+### 14.1 Jak oceniałem
+
+Skala to 11.4, ta sama co dla siedmiu pytań briefu: 10 gdy każda obietnica etapu ma nazwany test albo check zielony w turze bazowej, odczyt kodu nic nie znalazł, a live checki etapu są odczytane; 9 gdy wszystko jest dowiezione i zostały najwyżej `nit` albo nieodczytane live checki; 8 gdy obietnice są dowiezione, ale jedna trzyma się tylko odczytem kodu albo ma `minor`; 7 przy kilku `minor` albo jednej obietnicy dowiezionej w części; 6 przy jednym `major` albo jednej obietnicy niedowiezionej lub zepsutej przez późniejszy etap; 5 i niżej, gdy główny cel etapu nie zachodzi na 1.2.118. Obowiązują dwie reguły z 11.4. Pierwsza: etap, którego główna obietnica stoi na nieodczytanych live checkach, nie dostaje więcej niż 9, a taka ocena jest tymczasowa - w tabeli "po L1", czyli do odczytu na linii L1 (decyzja D-A2: odczyty L1 do `7875554f` są klasą F, reszta stołu jest niezmierzona z przepisem). Druga: etap, którego nie da się ocenić z repozytorium (brak papierów, brak testów z jego stemplem), dostaje "nie oceniono" z powodem.
+
+Każdą z 105 ocen sprawdził drugi czytający (każdy wiersz ma w pliku weryfikacji pozycję `grade`): 72 utrzymał, 30 osłabił, 3 obalił (E04, E51, E40). Werdykt nie mówi sam, czy liczba się zmieniła: osłabienie bywa uwagą o uzasadnieniu przy tej samej liczbie (E39, E111), a przy E01 i E02 inna pozycja tej samej weryfikacji obaliła część uzasadnienia oceny, nie samą ocenę. Liczba zmieniła się przy 25 etapach: 20 w dół (E02, E03, E05, E06, E34, E11, E36, E70, E52, E98, E99, E108, E54, E25, E71, E57, E102, E109, E40, E43), 4 w górę (E04, E80, E14, E51) i jeden z "nie oceniono" na 7 (E07: etap ma notatki 1.2.66 wspólne z E32 i stemple w nagłówkach testów tieru 2, więc druga reguła go nie obejmuje). Najczęstszy powód zmiany w dół: czytający zaznaczył obietnicę jako `partly` albo `no` i mimo to dał 8, a skala daje wtedy 7 albo 6. W górę: obietnica zaznaczona w części okazała się zmieniona później z decyzji właściciela, nie dowieziona w części (E14, E51), albo powody przeciw 8 nie były kotwicami skali (E04, E80). Przy ocenie zmienionej tabela 14.2 podaje w nawiasie ocenę czytającego.
+
+"po L1" stoi przy 91 etapach: 65 oznaczył tak sam czytający ("tak"), a przy 26 oznaczenie dopisał weryfikujący, bo ocena opiera się na nieodczytanych live checkach, a plik czytającego go nie miał ("tak (W)"; zwykle z uwagą "not marked provisional after L1"). Bez oznaczenia jest 14: E01, E65, E64, E91, E74, E56, E109 (etap nie ma live checka w 9.2 albo cap go według weryfikacji nie wiąże, bo live check nie dotyczy głównej obietnicy), E03, E49, E54, E25 (ocena leży poniżej capu z innego powodu i żaden z dwóch czytających jej nie oznaczył), E58 i E83 (nie oceniono) oraz E26 (przygotowanie bez live checka). Żaden etap nie dostał 10; przy każdej dziewiątce ostatnia kolumna 14.2 mówi, czego brakuje.
+
+| Ocena | czytający | po weryfikacji | w tym "po L1" (po weryfikacji) |
+| --- | ---: | ---: | ---: |
+| 9 | 9 | 7 | 3 |
+| 8 | 63 | 53 | 51 |
+| 7 | 27 | 37 | 34 |
+| 6 | 3 | 6 | 3 |
+| 5 i niżej | 0 | 0 | 0 |
+| nie oceniono | 3 | 2 | 0 |
+| **razem** | **105** | **105** | **91** |
+
+Dziewiątki po weryfikacji: E27, E72, E111 (wszystkie trzy "po L1") oraz E65, E91, E56, E26. Szóstki: E49, E98, E74, E25, E57, E118. Nie oceniono: E58 i E83. Średnia 98 wydanych etapów po weryfikacji to 7,60 (czytający: 7,76 z 97, bez E07).
+
+Słowa w kolumnach obietnic to pole `holds` czytającego, nie weryfikującego: weryfikacja zmieniła brzmienie kilku obietnic (14.3), ale liczby w tabeli zostają liczbami czytającego, żeby dało się je odnaleźć w jego pliku.
+
+### 14.2 Wszystkie etapy
+
+Kolejność i wersje z `tools/stages.json`; data to `shipped` (UTC). Ocena po weryfikacji, w nawiasie ocena czytającego, gdy weryfikacja ją zmieniła. "po L1": "tak" oznaczył czytający, "tak (W)" dopisał weryfikujący, "-" bez oznaczenia (14.1). Liczby obietnic to pole `holds` czytającego: "nieodcz." łączy `unread` i `unknown`, "zastąp." to obietnice zmienione później z decyzji (`superseded`). Ostatnia kolumna to w jednym zdaniu `missing_to_10` czytającego z poprawkami weryfikującego; pozycje `STG` są w 14.5.
+
+| Etap | wersja | data | ocena | po L1 | tak | częściowo | nie | nieodcz. | zastąp. | do 10 brakuje |
+| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
+| E01 | 1.2.57 | 2026-09-24 | **8** | - | 9 | 0 | 0 | 0 | 0 | postęp tajnego projektu od kogoś spoza niego nie jest sprawdzany przebiegiem (Hope Call i Dynamic są w 33 H, według weryfikacji); okno nowszego Daggerheart nieodczytane na prawdziwym Foundry |
+| E27 | 1.2.58 | 2026-09-24 | **9** | tak (W) | 5 | 0 | 0 | 0 | 0 | trzy checki stołu z notatek 1.2.58 (35-37) nie są wierszami 9.2 i nikt ich nie odczytał (STG-42) |
+| E02 | 1.2.59 | 2026-09-24 | **7** (8) | tak (W) | 8 | 0 | 0 | 0 | 0 | czyszczenie słów gracza ma zapisane wady D01 i D13, czekające na E83; prawdziwe `cleanHTML` Foundry nieodczytane (LIVE-E81-01); limit 2000 przypiętych i pełny magazyn bez przebiegu |
+| E03 | 1.2.60 | 2026-09-24 | **7** (8) | - | 7 | 1 | 1 | 0 | 0 | Truth Bullet zmieniony bez GM-a online jest tylko wypisany, nie cofnięty (odłożone do E43); noHook harnessu inny niż na v14 (D9); STG-40, STG-41 |
+| E30 | 1.2.61 | 2026-09-25 | **8** | tak (W) | 6 | 1 | 0 | 0 | 0 | migracja trzyma się odczytem kodu, LIVE-E30-07 i drill `migrate-remnants-old-world` nieuruchomione; R152 i pięć komentarzy przeczą odczytowi 14.370 (STG-44) |
+| E31 | 1.2.62 | 2026-09-26 | **8** | tak (W) | 6 | 1 | 0 | 0 | 0 | 33-bridge-paths i 30-security bez werdyktu w tej turze; "zgłoszone dopiero po wykonaniu" czytane wiersz po wierszu tylko dla łupu; LIVE-E31-01, -02, -04 otwarte |
+| E04 | 1.2.63 | 2026-09-26 | **8** (7) | tak (W) | 8 | 0 | 0 | 0 | 0 | wymiana dwóch GM-ów przy prawdziwym stole (LIVE-E04-02) i siedem z dwunastu live checków otwarte; 61-gmstore-case bez werdyktu; STG-43 |
+| E05 | 1.2.64 | 2026-09-27 | **7** (8) | tak (W) | 7 | 1 | 0 | 1 | 1 | trzy obietnice tylko odczytem kodu, w tym przejścia przez dwa pokoje, błędne przy stole do 1.2.117 i naprawione bez odczytu na v14; Reinforced Level Up nieprześledzone |
+| E06 | 1.2.65 | 2026-09-28 | **7** (8) | tak | 7 | 0 | 1 | 2 | 0 | dwie obietnice nieodczytane (kości, migracja), dwie tylko odczytem kodu; LIVE-E06-03, -06, -07, -08 otwarte; przebieg 14.370, w którym karta ofiary nazwała zabójcę, niewyjaśniony |
+| E32 | 1.2.66 | 2026-10-03 | **8** | tak | 5 | 1 | 0 | 0 | 0 | 58 przypadków siatki bez nazwanego przebiegu na 14.370 (LIVE-E32-01); LIVE-E32-02 na świecie z 1.2.65 nieodczytane; wiersz R214 w rejestrze (STG-47) |
+| E07 | 1.2.66 | 2026-10-03 | **7** (nie oceniono) | tak (W) | 5 | 1 | 0 | 2 | 0 | żaden test nie nosi stempla E07; obietnica Search zastąpiona w części (E68 C6), tury i okna nieprześledzone; wszystkie 12 live checków otwarte |
+| E08 | 1.2.67 | 2026-10-05 | **7** | tak | 5 | 1 | 0 | 1 | 0 | menu stoi na nazwie hooka nieodczytanej ze źródła Foundry (LIVE-E08-05); pięć testów Reroll tieru 2 bez prawdziwego rzutu na 14.370; STG-46 |
+| E28 | 1.2.67 | 2026-10-05 | **8** | tak | 7 | 1 | 0 | 1 | 2 | kości i nagłówek u rzucającego, GM-a i postronnego nieodczytane (LIVE-E28-01..03, -14); odmowa bez GM-a trzymana dopasowaniem linii, nie przebiegiem |
+| E29 | 1.2.68 | 2026-10-06 | **8** | tak | 11 | 0 | 0 | 0 | 0 | LIVE-E29-01 i -03 nieodczytane; `CALL_YES_MS` bez testu; wzorzec R221 nie łapie każdej formy zapisu |
+| E33 | 1.2.69 | 2026-10-07 | **8** | tak | 10 | 1 | 0 | 0 | 0 | część `sandbox-83-roll-integrity` bramki lokalnej nieuruchomiona (LIVE-E33-01); LIVE-E33-10 i okno Daggerheart nieodczytane; `perf()` z rzutem na stole niezmierzone (LIVE-E33-05); STG-48 |
+| E34 | 1.2.70 | 2026-10-08 | **7** (8) | tak | 5 | 0 | 0 | 2 | 0 | główna obietnica (czyste przeniesienia) bez commitów etapu w klonie i bez ponownego `moved-only`; fasada `murder.mjs` ma 69 nazw, nie 67 (STG-49) |
+| E09 | 1.2.71 | 2026-10-10 | **8** | tak | 10 | 1 | 0 | 0 | 0 | STG-10 (przywrócona sprawa traci "Not tied"); dwie luki sprzątania nierozstrzygnięte; scenariusz 62 bez werdyktu; LIVE-E09-01..05 otwarte |
+| E10 | 1.2.71 | 2026-10-10 | **8** | tak | 9 | 1 | 0 | 0 | 0 | cztery znane luki bez testu i bez decyzji; podłoga E70 czytana wobec "Present turns into Objection" tylko w części; LIVE-E10-01..07 otwarte |
+| E75 | 1.2.72 | 2026-10-10 | **8** | tak | 6 | 0 | 0 | 0 | 1 | część 8 30-security bez werdyktu; LIVE-E75-01, -02, -04 i połowa -03 nieodczytane; harness nie ma nadawcy pola countdown |
+| E11 | 1.2.73 | 2026-10-11 | **7** (8) | tak | 7 | 3 | 0 | 0 | 0 | jedna obietnica w części: po resecie z zachowanymi Truth Bulletami kilka odczytów idzie po samym rozdziale; scenariusz 65 i dziewięć live checków otwarte |
+| E12 | 1.2.74 | 2026-10-12 | **8** | tak | 9 | 0 | 0 | 1 | 0 | LIVE-E12-01, -02, -04, -05, -09 nieodczytane na canvasie v14 z dwoma Levels; migracja LIVE-E12-08 na kopii świata; `teleportToken` i `changeLevel` nieodczytane z v14 |
+| E13 | 1.2.74 | 2026-10-12 | **8** | tak | 7 | 0 | 0 | 1 | 2 | STG-50, STG-51; LIVE-E13-01, -02, -05, -08, -10, -11 otwarte (późna przeglądarka, GM wychodzący w kroku, jeden pokój LiveKit) |
+| E81 | 1.2.75 | 2026-10-13 | **8** | tak | 7 | 3 | 0 | 1 | 0 | R299 i R111 biegną tylko w przeglądarce na Foundry (LIVE-E81-02, -13); cleaner HTML Foundry wobec trzymanej karty (LIVE-E81-01) i reszta otwarte |
+| E77 | 1.2.76 | 2026-10-13 | **8** | tak | 6 | 4 | 0 | 0 | 1 | okna z prawdziwym paskiem bocznym i kontrolkami Foundry (LIVE-E77-02, -10, -11, -16, -17) nieodczytane na 14.370; cztery pominięte wiersze bez przeglądarki |
+| E78 | 1.2.77 | 2026-10-14 | **8** | tak | 9 | 0 | 0 | 0 | 2 | LIVE-E78-10, -01, -02 na prawdziwym LiveKit nieodczytane; nagłówek `voice-tile.mjs:95` nieprawdziwy (STG-52); id pop-outu kamery v14 nieodczytane |
+| E84 | 1.2.78 | 2026-10-14 | **8** | tak | 3 | 0 | 0 | 1 | 0 | LIVE-E84-01 i LIVE-E78-14 po poprawkach nieodczytane; scenariusze 74 L i 33 bez werdyktu; etykiety w dwie strony (STG-53) |
+| E79 | 1.2.79 | 2026-10-17 | **8** | tak | 9 | 3 | 0 | 0 | 0 | LIVE-E79-01, -02, -08, -22 nieodczytane; trzy testy przejść, które padają na 14.370, bez przyczyny; wybieracze obrazów gracza (luka z notatek) |
+| E80 | 1.2.80 | 2026-10-20 | **8** (7) | tak | 10 | 1 | 0 | 0 | 0 | porażki Frisk na 14.370 bez przyczyny; jeden `minor` czytany w kodzie (śledzenie po przeładowaniu primary) i P2-01; LIVE-E80-01, -05 otwarte |
+| E85 | 1.2.81 | 2026-10-23 | **7** | tak | 7 | 1 | 0 | 1 | 0 | LIVE-H81-01 (schody między dwoma Levels v14, tunel) nieodczytane, sprawa właściciela bez przyczyny; test tieru 2 mierzy zapis wysokości, nie przyczynę |
+| E86 | 1.2.82 | 2026-10-24 | **8** | tak | 7 | 0 | 0 | 0 | 0 | mediany LIVE-H82-05 i -06 na The Forge niezmierzone; brak testu zmiany regionu i zmiany primary w trakcie rzutu |
+| E18 | 1.2.83 | 2026-10-24 | **8** | tak | 7 | 0 | 0 | 1 | 1 | LIVE-E18-01 i -02 z GM-em, asystentem i dwoma graczami nieodczytane; droga bez GM-a nieprześledzona |
+| E19 | 1.2.83 | 2026-10-24 | **8** | tak | 8 | 0 | 0 | 1 | 1 | LIVE-E19-01, -05 (zmarli na prawdziwym LiveKit), -08 nieodczytane; tytuły R815, R832, R833 nieaktualne (STG-54) |
+| E35 | 1.2.84 | 2026-10-25 | **8** | tak | 7 | 0 | 0 | 0 | 0 | LIVE-E35-01, -02 na v14 nieodczytane; brak testu dwóch sięgnięć do jednej skrytki naraz; rozstrzygnięcie właściciela o niewidzianym Gear |
+| E14 | 1.2.84 | 2026-10-25 | **8** (7) | tak | 9 | 2 | 0 | 0 | 0 | LIVE-E14-01 i -02 nieodczytane; zakładka tabel pokoju Stained Glass niezmierzona w 768 px; dwa sięgnięcia do skrytki naraz bez testu |
+| E36 | 1.2.85 | 2026-10-26 | **7** (8) | tak | 5 | 2 | 0 | 0 | 0 | dwie obietnice w części; test tieru 2 obietnicy 4 nie przeszedł przy stole v14 19.11.2026 (przyczyna nieodczytana); LIVE-E36-02 przypięte do Daggerheart 2.10.5 |
+| E15 | 1.2.85 | 2026-10-26 | **7** | tak | 9 | 1 | 0 | 0 | 0 | wybieracze propozycji trzech rodzajów z 15.10 bez testu przebiegiem; LIVE-E15-01..03 nieodczytane; prawdziwy Reroll cofający przejście nieodczytany |
+| E16 | 1.2.86 | 2026-10-26 | **7** | tak | 14 | 4 | 0 | 0 | 2 | LIVE-E16-01..06 nieodczytane na wyglądach kości 1.2.118; refundacja gracza bez testu na stronie gracza; STG-55 |
+| E17 | 1.2.87 | 2026-10-27 | **8** | tak | 16 | 1 | 0 | 0 | 0 | cofnięcie i refundacja na 14.370 (LIVE-E17-02..04) nieodczytane; brak testu cofnięcia osobno dla pieczęci, Chained i sali sądowej; odpowiedź właściciela o Stage 6 |
+| E87 | 1.2.88 | 2026-10-27 | **8** | tak | 6 | 1 | 0 | 0 | 0 | STG-11 (wiedza proponującego trzyma się karty czatu); LIVE-H84-01..06 nieodczytane; `overflow.clear` bez testu |
+| E88 | 1.2.89 | 2026-10-27 | **7** | tak | 8 | 1 | 0 | 0 | 0 | `fps()` przed i po pociągu nieodczytane (LIVE-E88-04, -05); pominięcie pulsu rzadko zachodzi (E88-10, decyzja właściciela) |
+| E70 | 1.2.90 | 2026-10-28 | **7** (8) | tak | 10 | 1 | 0 | 0 | 1 | jedna obietnica w części (oddanie mikrofonów zmarłym na v14, gdzie `ForcedDeletion` zostawiło wpis) i E70-75 niezbudowane; LIVE-E70-01..12 otwarte |
+| E89 | 1.2.91 | 2026-10-30 | **7** | tak | 5 | 1 | 0 | 0 | 0 | E89-11 zamknięte częściowo (kafel Projects, Close, sześć miejsc); `fps()` przy przeciąganiu na v14 nieodczytane; stemple R1049-R1052 (STG-58) |
+| E20 | 1.2.91 | 2026-10-30 | **8** | tak | 8 | 0 | 0 | 0 | 0 | B-E20-1..7 nieodczytane; domyślne automatyzacje na używanym Daggerheart; R1506-R1529 ze stemplem E67 (STG-56) |
+| E52 | 1.2.92 | 2026-10-30 | **7** (8) | tak | 7 | 0 | 0 | 1 | 1 | dwa wiersze akceptacji zamknięte PARTIAL (E52-11, E52-12: 18 miejsc arkusza z około 25); obietnica 9 nieprzeczytana; brak stałego testu odcienia strony; STG-57 |
+| E90 | 1.2.93 | 2026-10-31 | **8** | tak | 4 | 1 | 0 | 0 | 0 | LIVE-E90-01 na The Forge przez prawdziwy restart nieodczytane; `migrateRemnants` i przywracanie na świecie z cięciem uptime bez testu |
+| E50 | 1.2.94 | 2026-10-31 | **8** | tak | 9 | 0 | 0 | 0 | 1 | LIVE-E50-01..06 nieodczytane (dwóch prawdziwych GM-ów, zabójstwo z dźwiękiem); okno echa niezmierzone na prawdziwym serwerze |
+| E51 | 1.2.94 | 2026-10-31 | **8** (7) | tak | 14 | 2 | 0 | 0 | 0 | kontrola w chwili naciśnięcia w `runCall` bez testu (m14); podwójny token bez przyczyny (LIVE-E51-04 w części); sprawdzenia rysowane nieobejrzane |
+| E65 | 1.2.95 | 2026-11-01 | **9** | - | 8 | 2 | 0 | 0 | 0 | dwa `nit` (STG-59, STG-60); LIVE-E65-01 nieodczytane; T4 umieszcza 28 % tego, co czyta, i nic tego udziału nie trzyma |
+| E66 | 1.2.96 | 2026-11-01 | **8** | tak | 9 | 1 | 0 | 0 | 2 | LIVE-E66-01 i -02 nieodczytane, `lang` arkusza tylko ze źródła; STG-64 |
+| E37 | 1.2.97 | 2026-11-03 | **8** | tak | 9 | 2 | 0 | 0 | 0 | LIVE-E37-01..03, -05, -06 nieodczytane; połowa o skrytce zastąpiona w 1.2.112 bez notatki etapu |
+| E41 | 1.2.97 | 2026-11-03 | **7** | tak | 4 | 2 | 1 | 0 | 0 | przekazanie E41-15/E41-16 do E73 nigdy niepodjęte (STG-62); granica 1500 linii niczym nietrzymana (STG-61); LIVE-E41-01, -02 otwarte |
+| E42 | 1.2.97 | 2026-11-03 | **7** | tak | 7 | 1 | 0 | 0 | 0 | reset nie raportuje przez `stepsReport`, nieudany zapis rekordu milczy; LIVE-E42-02 nieodczytane; STG-63 |
+| E60 | 1.2.98 | 2026-11-04 | **8** | tak | 7 | 1 | 0 | 0 | 0 | LIVE-E60-09, -08, -05, -07 nieodczytane; jedna obietnica zastąpiona na Daggerheart 2.12.9 (E108); STG-66, STG-67 |
+| E44 | 1.2.99 | 2026-11-05 | **8** | tak | 8 | 1 | 0 | 0 | 0 | arkusz nie zwijał się przy stole (LIVE-E44-08, poprawione w 1.2.100, nieodczytane po poprawce); harness nie rysuje prawdziwego zwijania ApplicationV2 |
+| E21 | 1.2.100 | 2026-11-07 | **8** | tak | 6 | 1 | 0 | 0 | 0 | dopasowanie na v14 w czterech rozmiarach (LIVE-E21-01, -09) i prawdziwa klawiatura (-02, -03) nieodczytane; sweep dopasowania niepowtórzony na `b5a29e73` |
+| E22 | 1.2.100 | 2026-11-07 | **8** | tak | 6 | 1 | 0 | 0 | 0 | siedem okien pytań nadal z gołym "Yes" (STG-65); Enter w oknach nieodwracalnych na v14 (LIVE-E22-01) nieodczytany; brak własnego stempla w rejestrze |
+| E23 | 1.2.101 | 2026-11-09 | **7** | tak | 8 | 2 | 0 | 0 | 2 | LIVE-E23-01 (klatki, tekstury, pamięć przy stole) i jedenaście innych nieodczytane; dwie części C5b zepsute przy stole i naprawione przez E96 |
+| E24 | 1.2.101 | 2026-11-09 | **7** | tak | 7 | 3 | 0 | 1 | 1 | dwa `minor` (STG-12, STG-13); LIVE-E24-01, -03, -08, -10 nieodczytane; trzy powierzchnie E24-27 nieczytane na jasnej stronie |
+| E45 | 1.2.101 | 2026-11-09 | **8** | tak | 3 | 1 | 0 | 0 | 0 | STG-14 (arkusz drugiego GM-a); LIVE-E45-01..04 nieodczytane |
+| E96 | 1.2.102 | 2026-11-09 | **8** | tak | 7 | 0 | 0 | 0 | 1 | tosty, checkbox z arkuszem stylów core i przenikanie w Firefoksie nieodczytane przy stole i bez id live; STG-68 |
+| E46 | 1.2.103 | 2026-11-10 | **8** | tak | 8 | 1 | 0 | 1 | 0 | LIVE-E46-01..07 nieodczytane z arkuszem stylów Foundry; deklaracja `touches []` niesprawdzona wobec diffu pociągu |
+| E47 | 1.2.103 | 2026-11-10 | **8** | tak | 7 | 1 | 0 | 0 | 2 | LIVE-E47-01..11 nieodczytane; dwa `nit` (STG-69, STG-70); tytuł R2068 wobec E97 C2 |
+| E95 | 1.2.104 | 2026-11-11 | **7** | tak | 4 | 0 | 0 | 0 | 2 | LIVE-E95-02..05 nieodczytane na v14 (jednostki kafla, hook z dwoma GM-ami, ukryty kafel u gracza); stempel R3200 (STG-71) |
+| E68 | 1.2.104 | 2026-11-11 | **7** | tak | 9 | 1 | 0 | 0 | 0 | LIVE-E68-01..05 nieodczytane; okno deklaracji gracza i karta propozycji Dynamic bez testu; osłona Shadow nieporównana token po tokenie |
+| E48 | 1.2.105 | 2026-11-12 | **8** | tak | 7 | 0 | 0 | 0 | 0 | LIVE-E48-06, -02 nieodczytane, LIVE-E48-03 bez wiersza 9.2; ikony szkła w prawdziwej ramie Foundry nieodczytane |
+| E49 | 1.2.105 | 2026-11-12 | **6** | - | 7 | 1 | 1 | 0 | 0 | STG-02 (`major`: Reset the season nic nie robi), STG-15; okno ustawień postaci i glify nieczytane na Daggerheart 2.12.9; pięć live checków nieodczytanych, trzy id bez wiersza 9.2 |
+| E63 | 1.2.105 | 2026-11-12 | **7** | tak | 5 | 0 | 0 | 0 | 0 | LIVE-E63-02..05 nieodczytane (drugi GM, świat 1.2.104); papierów E63 nie ma w repozytorium; STG-72 |
+| E76 | 1.2.106 | 2026-11-12 | **8** | tak | 4 | 0 | 0 | 0 | 2 | LIVE-E76-02, -05, -06, -07 nieodczytane, -01 nieodczytane czysto na Daggerheart 2.12.9; `-=` na Foundry 14.364/14.365 nieodczytane |
+| E97 | 1.2.107 | 2026-11-12 | **7** | tak | 12 | 0 | 0 | 1 | 2 | trzy dołączone `minor` (STG-21, STG-22, STG-23); R3656 porównuje same nazwy (STG-75); LIVE-E97-01..06 nieodczytane |
+| E98 | 1.2.107 | 2026-11-12 | **6** (8) | tak | 0 | 1 | 1 | 0 | 1 | obietnica niedowieziona: Mapa na świecie z około 60 Remnantami nigdy niezmierzona; nagłówki Legacy tylko w Chromium |
+| E73 | 1.2.108 | 2026-11-12 | **7** | tak | 4 | 4 | 0 | 0 | 1 | sześć dołączonych `minor` (STG-17..20, STG-24, STG-25); STG-73, STG-74; LIVE-E73-01..07 nieodczytane |
+| E99 | 1.2.108 | 2026-11-12 | **7** (8) | tak | 5 | 2 | 0 | 0 | 1 | dwie obietnice w części (STG-76, STG-77) i STG-16; LIVE-E99-01, -04, -05 nieodczytane |
+| E61 | 1.2.109 | 2026-11-12 | **8** | tak (W) | 8 | 0 | 0 | 0 | 2 | LIVE-E61-01, -06, -08 nieodczytane; C7 ani zbudowane, ani skreślone; podpowiedź przełącznika nieaktualna (STG-33), STG-34 |
+| E62 | 1.2.109 | 2026-11-12 | **7** | tak (W) | 8 | 1 | 0 | 0 | 0 | wybór właściciela dla C7, reszta C6 i C8; LIVE-E62-01 nieodczytane; brak testu jednego dźwięku błysku |
+| E92 | 1.2.109 | 2026-11-12 | **8** | tak (W) | 7 | 1 | 0 | 0 | 2 | dwa `minor` (STG-04, STG-05); LIVE-E92-01..04 nieodczytane, zwłaszcza czy v14 zatrzymuje przeciąganie na ścianie; STG-35 |
+| E94 | 1.2.109 | 2026-11-12 | **8** | tak (W) | 5 | 0 | 0 | 0 | 4 | STG-06 (tablica dnia przy ukrytym zegarze); LIVE-E94-01 i -03 nieodczytane; koszt klatki tablicy niezapisany; STG-36 |
+| E64 | 1.2.110 | 2026-11-13 | **8** | - | 11 | 1 | 0 | 1 | 0 | STG-07 (liczba kryzysu bez obrony zabójcy); sieroty D001-D059 stoją na tierze 2; LIVE-E64-01 nieodczytane |
+| E72 | 1.2.110 | 2026-11-13 | **9** | tak (W) | 10 | 0 | 0 | 1 | 1 | LIVE-E72-03 nie jest wierszem 9.2 (STG-37), głos zmarłych na prawdziwym LiveKit nieodczytany; domyślne części B i D038 bez potwierdzenia właściciela |
+| E91 | 1.2.110 | 2026-11-13 | **9** | - | 5 | 0 | 0 | 2 | 0 | potwierdzenie właściciela dla D038 i A113-C5-5; `sealLairPassage` nieprzeczytane; brak live checka linii Mastermind na prawdziwym arkuszu |
+| E93 | 1.2.111 | 2026-11-13 | **8** | tak (W) | 8 | 0 | 0 | 0 | 0 | trzy części czytane w kodzie bez testu przebiegiem; LIVE-E93-01..03 nieodczytane; STG-39 |
+| E69 | 1.2.111 | 2026-11-13 | **8** | tak (W) | 7 | 0 | 0 | 1 | 0 | LIVE-E69-03..06 nieodczytane z serwerem głosu; brak testu, w którym rozliczenie ruchu odpala kartę ogona |
+| E74 | 1.2.111 | 2026-11-13 | **6** | - | 5 | 3 | 1 | 1 | 0 | obietnica niedowieziona: kość utrudnienia Keep Watch (STG-01, `major`); STG-08, STG-09, STG-38; żadnego live checka w 9.2 |
+| E108 | 1.2.112 | 2026-11-13 | **8** (9) | tak (W) | 8 | 0 | 0 | 1 | 0 | obietnica 4 (podstawowe kości pod wartością Daggerheart) bez testu; LIVE-E108-01 z Dice So Nice 6.4.5 nieodczytane; STG-78..80 |
+| E54 | 1.2.113 | 2026-11-14 | **7** (8) | - | 7 | 1 | 1 | 0 | 0 | C6, C9, C10 niezrobione i niezapisane jako porzucone (STG-84); obietnica fasad w części (`gm-bridge.mjs:139`); brak stałej kontroli podziału; STG-83, STG-85 |
+| E38 | 1.2.113 | 2026-11-14 | **7** | tak (W) | 5 | 1 | 1 | 0 | 0 | STG-26; część planu niezbudowana (lista 85-chaos, zakres 82, Frisk przez dwóch GM-ów); 97-two-gms i 98-chaos bez werdyktu; LIVE-E38-01..04 nieodczytane |
+| E55 | 1.2.113 | 2026-11-14 | **7** | tak (W) | 5 | 2 | 0 | 1 | 1 | LIVE-E55-01..04 nieodczytane; zamrożenie wyglądu to odczyt z 14.11.2026, nie stała bramka (STG-88); 91 powtórzonych list selektorów i pięć pędzli |
+| E25 | 1.2.113 | 2026-11-14 | **6** (7) | - | 2 | 3 | 1 | 0 | 1 | obietnica niedowieziona (dwa otwarte wpisy słownika) i trzy w części; planu i listy 38 zgłoszeń nie ma w repozytorium; STG-27 na podręcznikach; STG-87 |
+| E71 | 1.2.113 | 2026-11-14 | **7** (8) | tak (W) | 6 | 1 | 1 | 0 | 0 | STG-29 (`minor`); klucze po E65 tylko lintowane; okna nieobejrzane narysowane (obietnica "nie", STG-89) |
+| E57 | 1.2.113 | 2026-11-14 | **6** (7) | tak (W) | 4 | 3 | 1 | 0 | 0 | dwa `minor` (STG-27, STG-28), trzy obietnice w części, strażniki T10 i T26 niezbudowane; LIVE-E57-01..03 nieodczytane |
+| E102 | 1.2.113 | 2026-11-14 | **8** (9) | tak (W) | 6 | 0 | 0 | 1 | 1 | dwie obietnice tylko odczytem źródła; scenariusza 95 nie ma w turze bazowej; LIVE-E102-01 nieodczytane; STG-86 |
+| E110 | 1.2.114 | 2026-11-14 | **8** | tak (W) | 9 | 1 | 0 | 0 | 0 | LIVE-E110-01..05 z LiveKit nieodczytane; własne odmowy przekierowania nigdy niepokazane (STG-92); STG-93..95 |
+| E56 | 1.2.115 | 2026-11-15 | **9** | - | 6 | 0 | 0 | 1 | 0 | trzy obietnice bez własnego checka (martwe eksporty, kopie `esc`, "nic przy stole"); tabela kodu w regułach nieaktualna (STG-98) |
+| E109 | 1.2.115 | 2026-11-15 | **7** (8) | - | 7 | 3 | 0 | 1 | 0 | trzy obietnice w części, jedna z `minor` (STG-30); STG-90, STG-91; pięć checków stołu bez id LIVE |
+| E59 | 1.2.115 | 2026-11-15 | **8** | tak (W) | 8 | 1 | 0 | 0 | 1 | C3 (drugi przegląd zrzutów) niezrobione, LIVE-E59-01 nieodczytane; poprawki widoczne przy stole bez testu przebiegiem; STG-99 |
+| E111 | 1.2.115 | 2026-11-15 | **9** | tak (W) | 7 | 0 | 1 | 0 | 0 | ochrona kopii stoi na nieodczytanym LIVE-E111-02 (kto może pobrać albo wylistować plik); README i reguły zaufania nie mówią o kopii (STG-96); STG-97 |
+| E112 | 1.2.116 | 2026-11-16 | **7** | tak (W) | 8 | 1 | 0 | 0 | 1 | STG-31 (zasłona przy drugim GM-ie); LIVE-E112V-01 na canvasie i LIVE-E116-01..03 nieodczytane; STG-100; E118-1 (STG-03) do zamknięcia |
+| E117 | 1.2.117 | 2026-11-16 | **8** | tak (W) | 10 | 0 | 0 | 0 | 0 | brak testu przeciągnięcia tokenu projektu do pokoju dwóch scen i złego werdyktu przez `openVerdictDialog`; LIVE-E40-03 nieodczytane, cztery zmienione powierzchnie bez live checka |
+| E118 | 1.2.118 | 2026-11-19 | **6** | tak (W) | 8 | 2 | 0 | 0 | 0 | STG-03 (`major`: tablica końca dnia przy masce); LIVE-E112V-01, -02 i LIVE-F118-01..04 nieodczytane; ostatni cały tier 2 na sandboksie: 214 porażek z 1566 |
+| E39 | - | - | **7** | tak | 6 | 1 | 1 | 0 | 0 | dwie obietnice w części (shim na jednym odczycie ruchu, put-back na 14.370: STG-32); D7-D9 niezbudowane; LIVE-E39-02..19 nieodczytane |
+| E40 | - | - | **7** (8) | tak | 6 | 1 | 0 | 2 | 0 | przebieg mutacji w żadnej bramce i niepowtarzalny z repozytorium; odpowiedź okna werdyktu nieprzeprowadzona przez `verdictAnswer`; LIVE-E40-02, -03 nieodczytane; STG-103 |
+| E43 | - | - | **7** (8) | tak | 10 | 0 | 0 | 0 | 0 | kanarek nie zasiewa `closingClaims`, `diveSets`, `claimTicket` ani `passage*`; macierz 33 H nigdy na v14; STG-104 |
+| E53 | - | - | **7** | tak | 4 | 2 | 0 | 0 | 0 | budżet bez progów i bez przebiegu; rewizja `perf-baseline.json` tylko dla 1.2.116 (STG-105); LIVE-E53-01 i LIVE-E33-05 nieodczytane |
+| E58 | - | - | nie oceniono | - | 0 | 1 | 2 | 0 | 0 | około 6 % 9.2 odczytane, osiem części bramki lokalnej nieuruchomionych, scenariusze 16 i 64 niezbudowane |
+| E83 | - | - | nie oceniono | - | 0 | 0 | 0 | 1 | 0 | niezaczęty: bez papierów i testów; STG-106 |
+| E26 | - | - | **9** | - | 5 | 1 | 0 | 0 | 0 | część wydania niezaczęta; LIVE-E26-01 i -02 bez wierszy 9.2 (STG-101) |
+
+### 14.3 Obietnice niedowiezione i dowiezione w części
+
+**Plan 1.3.0, przeciw któremu to czytam.** W `tools/stages.json` E26 ma `planned` 1.3.0 ("Stained Update", `.claude/rules/release.md` krok 9), a E39, E40, E43, E53, E58 i E83 mają `planned` 1.2.119; ROUTING.md odkłada te sześć do 1.2.120. E83 to końcowy przegląd każdego wydanego etapu i jedno przejście poprawek, po którym E26 wydaje 1.3.0 (`docs/dev/METHOD.md:164-166`), a 1.3.0 bez zaliczonej bramki lokalnej jest odrzucane (`docs/dev/METHOD.md:132`). "Dla 1.3.0" mówi więc przy każdej pozycji, czy rzecz blokuje wydanie E26, czy trafia do przejścia poprawek E83, czy wystarczy zdanie w notatkach 1.3.0.
+
+**Piętnaście obietnic "nie"** w czternastu etapach. Weryfikacja utrzymała dwanaście, a trzy osłabiła do "w części" (E41, E49, E39); dwie są "nie" z decyzji, bo ich przedmiot zastąpiono ściślejszą albo inną regułą (E03, E06), i czytający nie liczy ich przeciw ocenie, a weryfikacja się z tym zgadza.
+
+**E03** - cofnięcie czegoś wymaga Rerolla tuż przed: GM przyjmuje undo tylko zaraz po Rerollu tego samego gracza dla tej samej postaci, raz na rodzaj (v1.2.60.md 23-26). Weryfikacja: utrzymane jako zastąpione.
+Gdzie: `scripts/reroll-receipts.mjs` (trzyma tylko pierwsze kości rzutu); `scripts/bridge-guards.mjs` `guardUndoIsTheGms` (nazwane w `scripts/bridge-table.mjs:727-729`); R134 i R135 "removed in E08" (`docs/dev/R-REGISTRY.md:144-145`).
+Dla 1.3.0: nic w kodzie - od E08+E28 C8 (1.2.67) Reroll jest transakcją primary GM-a, a undo gracza jest odrzucane zawsze, co jest ściślejsze niż pokwitowanie; najwyżej zdanie w notatkach.
+Skierowanie: brak w ROUTING.md (nie ma czego kierować).
+
+**E06** - ukryta skrytka daje -1 do sumy po rzucie, nie kość utrudnienia w oknie (v1.2.65.md 81-85). Weryfikacja: utrzymane jako zastąpione.
+Gdzie: `scripts/reroll.mjs:1247-1251` (płaskie -1 zakładki z 1.2.65 nadal liczone przy Rerollu); `scripts/tests-tier0.mjs:7990-7993` (R5468).
+Dla 1.3.0: przedmiot zniknął dwa razy - 1.2.66 (E32/E07) zrobiło z tego znów kość, a decyzja właściciela z 13.11.2026 (feba55c3, 1.2.112) wyjęła skrytkę z Search; zostaje tylko -1 zakładki ze świata zapisanego na 1.2.65.
+Skierowanie: brak.
+
+**E41** - strona sfx okna Sound i wiersze Effects z E41-15 przekazane do E73 (C9b niezbudowane: przeniesienie zamykało statyczny cykl importów; v1.2.97.md 188-189, 244-249). Weryfikacja: osłabione do "w części" - E41 obiecało przekazanie i je zrobiło, nie podjął go E73 (wydany w 1.2.108 bez tego); w tekście E41 zostały trzy nieaktualne komentarze (STG-62, `nit`).
+Gdzie: `scripts/sfx.mjs:8-14`, `scripts/sound-panel.mjs:15-22` ("E41-16 is carried to E73"); `.claude/rules/code.md:137`.
+Dla 1.3.0: E41-16 (okno Sound w jednym pliku) nie ma etapu, który by je wydał; trzeba je przypisać albo zapisać jako porzucone, z zapisanym cyklem.
+Skierowanie: ROUTING.md nie wymienia E41-15 ani E41-16. `claude/sound-119` (28778c8e, scalone 22:14Z) przebudowuje kartę Effects okna Sound na prośbę właściciela; czy to zamyka E41-15, ROUTING nie mówi, a `lines-119.json` tej linii nie czyta.
+
+**E49** - Season setup ("Ustawienia sezonu") jedynym miejscem zakładania sezonu: Edit campaign na górze, rząd kafelków okien, "Reset the season" ("Zresetuj sezon") w środku; Season checklist osobnym oknem (v1.2.105.md 25-26, 205-210). Weryfikacja: osłabione do "w części" - Edit campaign, rząd kafelków (`seasonTilesHtml`) i `openSeasonChecklist` stoją (R3580-R3587 i tier 2 E49-A1e zielone), martwa jest część z resetem (STG-02, `major`). R4055 i test w `tests-tier1.mjs:20693` dopasowują linię `if (resetAsked) return ...` jako tekst i niczego nie naciskają.
+Gdzie: `scripts/season-setup.mjs:1199-1204`, `:1213-1215`, `:1316`; `scripts/gm-panel.mjs:305-309`.
+Dla 1.3.0: bez poprawki GM nie zresetuje sezonu z interfejsu, a ostrzeżenie ostatniego rozdziału (`lang/en.json:3341`) każe mu nacisnąć właśnie ten przycisk; to rzecz na koniec każdego sezonu.
+Skierowanie: ROUTING.md, "In progress": C1 na `claude/season-119` (razem z controls-10-setup-config-1 i domain-case-g-death-chapter-1), do soboty 10:00, inaczej 1.2.120. `lines-119.json`: żadna z sześciu linii nie zmienia `season-setup.mjs`.
+
+**E98** - weryfikacja etapu: Mapa zmierzona na świecie z około 60 Remnantami (v1.2.107.md 244: "not made, headless or anywhere"; `docs/dev/e97/STATUS.md` 22-23). Weryfikacja: utrzymane.
+Gdzie: brak kodu i testu.
+Dla 1.3.0: nie wiadomo, ile kosztuje Mapa na świecie wielkości kampanii; pyta o to tylko druga połowa LIVE-E97-06 (`game.drpg.fps()` z otwartym panelem na świecie z 60 Remnantami). Przez tę obietnicę E98 ma 6.
+Skierowanie: brak w ROUTING.md; należy do odczytów stołu (L1, E58 - odłożone do 1.2.120).
+
+**E54** - C6 planu (migracje Remnantów do `migrate.mjs`), C9 (martwy kod `glass.mjs`, S12-77) i C10 (`passages-gm.mjs`) (`docs/dev/e59/GAPS.md:46`; planu nie ma w tym checkoucie). Weryfikacja: utrzymane; C6 jest przygotowane na `claude/e54-prep` (`tools/e54/remnants-migrate.json`) i nie wylądowało.
+Gdzie: `scripts/remnants.mjs:2668`, `:2773`, `:2931`; `scripts/glass.mjs:1929` (`const W = fullW`); `scripts/passages-gm.mjs` (3304 linie).
+Dla 1.3.0: higiena bez skutku przy stole. Nie ustalono, czy to obietnice wydanego etapu, czy zakres porzucony przez właściciela: notatki, ledger i 9.2 tego nie mówią (STG-84).
+Skierowanie: brak.
+
+**E38** - reszta zakresu planu: lista 85-chaos (równoległe Eclipse, pula i Search przy przeładowaniu, gracz z dwiema postaciami), zakres 82 z 11.10 (Testimony, Closing, Objection, Logic Dive i zapis `mutedDead` przy przeładowaniu i zmianie primary), Frisk przez dwóch GM-ów, trzecie konto i drugi GM w `audit/live` (`docs/dev/e38/STATUS.md:57-65`; GAPS.md:58-63). Weryfikacja: utrzymane ("nie" dla zakresu planu, którego notatki nie niosły).
+Gdzie: `audit/harness/scenarios/98-chaos.mjs:22-23` ("Not here"); `audit/harness/scenarios/97-two-gms.mjs:188-192`; `audit/live/sandbox-cluster.mjs` (brak `gm2`, przeładowania i `makePrimary`); `scripts/inventory.mjs:1023-1025`.
+Dla 1.3.0: zachowanie dwóch GM-ów przy przeładowaniu i zmianie primary w trybach procesu i we Frisku nie ma przebiegu, a łańcucha przekazań przedmiotów między przeglądarkami dwóch GM-ów nikt nie podjął.
+Skierowanie: brak w ROUTING.md; drill migracji (scenariusz 64) przeszedł do E58, odłożonego do 1.2.120.
+
+**E25** - otwarte pytania słownika, które przewodnik tekstu daje E25, rozstrzygnięte (`db3-english`, `mechanic-capitals`; GAPS.md:151, `docs/text-style.md`). Weryfikacja: utrzymane (oba wpisy nadal `open: true`, stage E65, puste warianty zakazane; `docs/text-style.md:844` daje je E25).
+Gdzie: `docs/glossary.json:78-87`, `:434-443`.
+Dla 1.3.0: T8 nic dla nich nie trzyma; to pytania, które ręczna redakcja tekstów przed 1.3.0 i tak musi rozstrzygnąć (9.1a, wiersz 2: ręczna redakcja tekstów na 1.3.0). Przez tę obietnicę E25 ma 6.
+Skierowanie: brak.
+
+**E71** - każda partia okien obejrzana narysowana: angielski i polski, oba motywy, 1366x768, 1024x768 i 820x1180 - nic uciętego, przyciski w jednej linii, tost najwyżej w trzech liniach (C1-C19 planu; `docs/dev/e71/STATUS-A.md:222-228`, `STATUS-B.md:154-160`, `STATUS-C.md:150-154`, `STATUS-D.md:163-167`). Weryfikacja: utrzymane.
+Gdzie: brak kodu; T4 trzyma długość tekstu w znakach na powierzchnię, nic nie czyta narysowanego okna.
+Dla 1.3.0: około 2800 przepisanych tekstów nikt nie obejrzał w ich oknach; LIVE-E71-01..03 są tylko w papierach, nie w 9.2 (STG-89), więc żaden licznik ich nie liczy.
+Skierowanie: brak.
+
+**E57** - strażniki podręczników: nazwy UI w podręcznikach (T10), sekcja trzyma swoje fakty (T26), T7 czytające podręczniki (C1) (`PLAN.md:84`, F6, F9, Q-E57-6). Weryfikacja: utrzymane.
+Gdzie: `scripts/tests-text.mjs` `MODES` (brak T10 i T26; `ruleNumberWords` czyta `["lang"]`, także `["prose"]`, nie podręczniki); `docs/dev/e59/GAPS.md:172`.
+Dla 1.3.0: podręczniki wychodzą z 25 etykietami, których UI już nie rysuje (STG-27); T10 byłby strażnikiem dokładnie tego dryfu. Przez tę obietnicę E57 ma 6.
+Skierowanie: brak.
+
+**E111** - zapowiedziane jako niezrobione: plik reguł modelu zaufania i akapit prywatności README nie wspominają jeszcze kopii na serwerze (szkice dla właściciela; v1.2.115.md 215-216). Weryfikacja: utrzymane, z uwagą, że zdanie README mówi dziś odwrotnie niż kod, a host czyta je, decydując, co wystawia publiczny serwer.
+Gdzie: `README.md:283` ("the Key Remnant plan and a murder declared in the dark stay on the GMs' browsers"); `docs/dev/e111/README-DRAFT.md`, `TRUST-DRAFT.md`.
+Dla 1.3.0: README to tekst, który E26 przygotowuje do wydania (szkic w `docs/dev/e26/README-DRAFT.md`); bez tego akapitu 1.3.0 opisuje prywatność sprawy błędnie. E111 trzyma 9, bo to zapowiedziany szkic (`nit`, STG-96).
+Skierowanie: brak.
+
+**E74** - wachta z 18 albo więcej, albo krytyk, daje jedną kość utrudnienia na rzut otwarcia temu, kto otwiera morderstwo na wartowniku (DA44, opcja A właściciela; v1.2.111.md 102-104, 405-409, 586-588). Weryfikacja: utrzymane (STG-01, `major`).
+Gdzie: `scripts/watch-gm.mjs:42-47`, `:138-153`; `scripts/murder-rules.mjs:4433-4449`; `scripts/roll-draw.mjs:2240-2248`; `scripts/eclipse.mjs:437-474`, `:520-529`. Tier 2 E74-T10 pisze wiersz wachty ręcznie w południe i otwiera morderstwo wprost, więc zostaje zielony.
+Dla 1.3.0: reguła nie działa w jedynej sytuacji, dla której ją napisano - morderstwie zadeklarowanym w ciemności. Przez tę obietnicę E74 ma 6.
+Skierowanie: brak w ROUTING.md i w `lines-119.json`; otwarte dla 1.2.120.
+
+**E39** - każde cofnięcie miejsca tokenu pisze przez `putBackWrite` z `diff: false`, każda nazwana współrzędna wysłana bez względu na kopię piszącego (`docs/dev/e39/STATUS.md`, 224f99a2; nagłówek `movement.mjs`). Weryfikacja: osłabione do "w części" - droga i wysłanie trzymają (R7741 zielony; gniazdo GM-a wysłało x 400, y 300 ze starej kopii), na 14.370 nie wylądował zapis, a kontrola ze świeżą kopią też padła, więc przyczyna nie jest rozdzielona (STG-32).
+Gdzie: `scripts/movement.mjs:3481-3495`; R7741; `scripts/tests-tier2.mjs:27432`.
+Dla 1.3.0: cofnięcie jest drogą każdego weta przejścia; czy w grze token zostaje za wetem, rozstrzyga LIVE-E39-12 część 3.
+Skierowanie: ROUTING.md: E39 odłożone do 1.2.120.
+
+**E58** - osiem części bramki lokalnej przebiega na sandboksie v14 albo jest zapisanych jako nieprzebiegnięte z prawdziwym błędem (`docs/dev/plan-114/ADDED.md:17`). Weryfikacja: utrzymane.
+Gdzie: `audit/gate/local-gate.json` (osiem części `not-run`, powód `no-server`, związane z `ec1478d5`; L1 zrobiła tylko przebieg na sucho, v1.2.117.md 101).
+Dla 1.3.0: blokuje wydanie - 1.3.0 bez zaliczonej bramki jest odrzucane (`docs/dev/METHOD.md:132`).
+Skierowanie: ROUTING.md: E58 odłożone do 1.2.120 (L1 wstrzymana do końca audytu, D-A2).
+
+**E58** - scenariusze 16-first-run i 64-migration-drill (`audit/harness/README.md:179`, `:205`). Weryfikacja: utrzymane (oba `planned`, stage E58; plików w `scenarios/` nie ma).
+Gdzie: brak kodu.
+Dla 1.3.0: ani czysta instalacja, ani migracja na kopiach prawdziwych światów nie ma scenariusza; obie rzeczy 1.3.0 robi u każdego, kto je zainstaluje albo zaktualizuje.
+Skierowanie: ROUTING.md: E58 odłożone do 1.2.120.
+
+**Obietnice "w części" (103).** Jeden wiersz na obietnicę, w kolejności etapów; wiele z nich to część zastąpiona później z decyzji, nie wada (zaznaczone "zastąpione"). Słowa obietnic skrócone; pełne brzmienie i źródło są w pliku czytającego.
+
+| Etap | Obietnica | Co z niej nie zachodzi |
+| --- | --- | --- |
+| E03 | edycja Truth Bulleta przez gracza cofana i nieniesiona do innych kopii | trzyma przy GM-ie online; bez GM-a od E29 tylko wypisana (`sheet-audit.mjs` `compareOne`), odłożone do E43 |
+| E30 | `npm test` w jednym przebiegu, GitHub to samo na każdy push i PR | bez "i PR": `ci.yml` nie ma `pull_request` od INFRA I3, z decyzji |
+| E31 | akcje nie mówią o sukcesie, zanim GM je wykona | czytane wiersz po wierszu tylko dla łupu; Reroll i linia "sent" Analyze zmienione przez późniejsze etapy |
+| E05 | głos ofiary przy zabójstwie, ostrzeżenie o własnym LiveKit | ostrzeżenie trzyma (LIVE-E05-11 na 14.370); połowa o głosie zastąpiona przez A9 właściciela (E19 C3) |
+| E32 | siatka przypadków incydentu w każdym zestawie | jest w tierze 2, a `runTests()` domyślnie biegnie tier 1; 58 przypadków, nie 49 |
+| E07 | Search rzuca Eye, projekt swoją statystyką | Eye zastąpione przez E68 C6 (sześć statystyk); połowa o projekcie trzyma |
+| E08 | rerolle Daggerheart znikają z menu gracza | nazwa hooka `getChatMessageContextOptions` nieodczytana ze źródła Foundry; do LIVE-E08-05 menu stoi na odgadniętej nazwie |
+| E28 | rzut statystyki z arkusza jako reakcja | bez GM-a był rzucany jako akcja do poprawki E33 r1-G2; połowa o przeładowaniu nieprześledzona |
+| E33 | publiczny rzut GM-a | zastąpione w części: kafelek panelu usunięty przez E60 C5a, makro i API stoją; LIVE-E33-04 otwarte |
+| E09 | odmówione sprzątanie oddaje koszt | dwie luki z notatek: krytyk na darmowym sprzątaniu (pytanie reguł) i sprzątanie GM-a rozstrzygnięte na nie-primary |
+| E10 | podłoga debaty | podłoga przebudowana po etapie (tryby E70); "Present turns into Objection" czytane w części |
+| E11 | ciało znalezione raz, przez primary | zastąpione w jednym zdaniu: od E72 C3 Monocub też nie jest świadkiem |
+| E11 | koniec rozdziału na primary | zastąpione w części przez E42 C2 (`runSteps`, rekord `SETTINGS.chapterEnd`) |
+| E11 | rekordy zeszłego sezonu niosą sezon | postęp procesu i głosowania, zdrada, zablokowany bullet, filtr Traces i klucz kopii Key czytane po samym rozdziale |
+| E81 | historia powiadomień tylko do odczytu, siedem chipów | odczyt i szukanie trzymają; chipy zastąpione przez E100 punkt 4 (jedno menu) |
+| E81 | przycisk historii w rogu kafla, trzy przyciski rogu na jednej siatce | rozmiary trzymają; zastąpione w części przez E77 (górny rząd) i E44 C8c |
+| E81 | DZ5: nawigacja scen i pasek makr ukryte, zakładka Scenes zostaje u GM-a | druga połowa zastąpiona przez E77 (pasek boczny w oknie narzędzi Foundry) |
+| E77 | obraz pokoju tylko ścieżką tego serwera | trzyma poza The Forge; na The Forge zastąpione poprawką E78 h76-HF1 (`forgeAsset`) |
+| E77 | zegar bez wierszy pokoju, karta ruchu bez opisu | trzyma; słowa to dziś "You are now in {room}." (późniejsza zmiana) |
+| E77 | górny rząd rogu, logo Foundry | rząd trzyma; logo zastąpione kowadłem modułu (E78), LIVE-E77-09 nieaktualne |
+| E77 | historia: Clear sam po prawej | zastąpione przez E44 C5 (Clear po lewej); reszta nieprześledzona |
+| E79 | ruch przez ścianę zapisany na primary, "log" nic nie rusza | zmienione przez E17 C1: reguły drzwi cofają token w obu trybach |
+| E79 | gracze bez przeglądania i wysyłania plików | "wyłączenie nie oddaje" zmienione przez E20 C6; luka z notatek (wybieracze obrazów gracza) stoi |
+| E79 | OBJECTION! w Nonstop Debate | zmienione przez E70 C11 (przycisk na kafelku głosu) i E110 C1 |
+| E80 | Frisk niezauważony: dwa rzuty, lista tylko szukającemu i GM-om | zmienione regułą prywatności właściciela z 13.11.2026 |
+| E85 | tunel albo schody wracają tą samą drogą | kod robi to na modelu harnessu; test tieru 2 mierzy zapis wysokości, nie przyczynę |
+| E14 | wyrzucenie składane przez przeglądarkę GM-a | zastąpione w części przez E51 C6 (w Class Trial nic się nie wyrzuca) |
+| E14 | okno "Item tables" | reguły trzymają testy; układ mierzony tylko w zastępniku Chromium, zakładka Stained Glass za 768 px według notatek |
+| E36 | token idzie za projektem | ukrycie tokenu na canvasie gracza po udostępnieniu czytane w kodzie, niemierzone |
+| E36 | - i + w tacy Countdowns | czytane na źródle 2.10.5; `module.json` weryfikuje 2.12.9, LIVE-E36-02 otwarte |
+| E15 | pule Despair Flow | zastąpione w części (od E101 nie ma pola Monokuma; okno Monocubs wycofane przez E72) |
+| E16 | okno Reroll nazywa rzut, który cofa | po przeładowaniu nie nazywa żadnego (pamięć tej przeglądarki), jak mówią notatki |
+| E16 | H83: obraz przedmiotu z siatki | wybór z siatki nie przeżywa `pinItemIcons({ apply: true })` (STG-55) |
+| E16 | część 1: okno rzutu owija `D20RollDialog` | zwijanie okna gracza wycofane przez E60 C5c; tytuł rzutu litera pod literą przy stole na 1.2.80, poprawiony w 1.2.81, nieodczytany przy stole |
+| E16 | część 1: jeden wygląd Dice So Nice | właściciel zgłosił niezgodność po 1.2.97; E60 C5b-C5d i E108 dodały diagnostykę i wybór wyglądu; nieodczytane przy stole |
+| E17 | Refund last crossing | od E64 D059 Free Move sprzed granicy nie wraca po niej (decyzja) |
+| E87 | publiczny projekt znany proponującemu | tylko dopóki prywatna karta jest w czacie (STG-11) |
+| E88 | C5: puls szkła rysuje tylko zadania, których wypełnienie się ruszyło | pominięcie rzadko zachodzi (455 z 455 klatek przy 24 szybach), otwarty wiersz E88-10 |
+| E70 | mikrofony zmarłych blokowane na procesie i oddawane | oddanie graczowi bez własnego `BROADCAST_AUDIO` pisze `ForcedDeletion`, a na 14.370 `ForcedDeletion` zostawiło wpis; nieodczytane na v14 |
+| E89 | wspólne cięcie przycisków Stained Glass | E89-11 zamknięte częściowo: kafel Projects, Close panelu GM-a i sześć innych miejsc |
+| E90 | drogi odzysku zgubionych wpisów | `migrateRemnants` i świeży stempel przywracania nieprześledzone; promocja Faint Prep "czytana w kodzie" według notatek |
+| E51 | ślad: neutralne słowo, znalazca, plama w tym samym pokoju | Clear Faint i wynik Sweep usunięte wyborem właściciela (E64-inv); reszta trzyma |
+| E51 | karta tury incydentu tylko do uczestników i GM-a | mutant m1 przeżył scenariusz 10; weryfikacja: kartę trzyma sprawdzenie scenariusza 10, zielone (stąd 8) |
+| E65 | przewodnik stylu, każda reguła z jednym statusem | statusy niezamknięte po E71 (STG-59) |
+| E65 | lint tekstu w `tools/check.mjs` | baseline T6 niepusty: dwa wiersze dla E25 (STG-60) |
+| E66 | `lang` na oknach, arkuszu, HUD i stosie powiadomień | arkusz czytany tylko ze źródła (harness nie ma szablonów Daggerheart), LIVE-E66-02 otwarte |
+| E37 | całe zapisy Countdowns Daggerheart w kolejce projektów | wiersz E37-29 częściowy: prawdziwy kod Daggerheart to LIVE-E37-03 |
+| E37 | Search ze skrytki uruchamia pułapkę | połowa o skrytce zastąpiona (od 1.2.112 Search nie sięga skrytki) |
+| E41 | trzy pliki ponad 1500 linii | nic tego nie trzyma; cztery pliki etapu ponad granicą (STG-61) |
+| E41 | listy werdyktu | zmienione przez E40 w 1.2.117: przy dwóch oskarżonych jeden znacznik na oskarżonego |
+| E42 | niedokończony reset nazwany przy następnym | nieudany zapis rekordu nie zatrzymuje resetu; karta zamknięta w trakcie czytana w kodzie |
+| E60 | jeden wygląd Hope i Despair dla stołu | działa na Daggerheart 2.9 i starszym; na 2.12.9 zastąpione przez E108 |
+| E44 | każde okno się zwija | arkusz nie zwijał się przy stole 06.11.2026 (LIVE-E44-08), poprawione w 1.2.100; okna pytań na `DialogV2.wait` z domyślnym Foundry |
+| E21 | szerokość okna kitu podana kitowi | szerokości trzymają; 918 px okna Sound pod Legacy nie jest już stałą liczbą |
+| E22 | przyciski nazwane tym, co robią | cztery nieodwracalne odpowiedzi zostały "Yes"; dziś siedem miejsc (STG-65) |
+| E23 | szyby Stained Glass przy zmianie pory | przekolorowanie zastąpione przez E96 C2 po tym, co właściciel zobaczył przy stole |
+| E23 | rozwinięty czat GM-a, powiadomienia Foundry na płycie | dwie części C5b zepsuły się przy stole na 1.2.101, naprawione przez E96 C1 |
+| E24 | biografia zapisuje się sama | konflikt przy zamknięciu (STG-12) |
+| E24 | pole rezerwy arkusza | nie idzie za blokadą przy otwartym arkuszu (STG-13) |
+| E24 | czytelność pod Stained Glass | wiersz E24-27 niespełniony w całości; LIVE-E24-06 otwarte |
+| E45 | przycisk Level Up gaśnie po wzięciu | tylko u primary (STG-14) |
+| E46 | Passages i zakładka Scenes | Passages trzyma; Scenes przeniesione do Season setup przez E101 punkt 5 |
+| E47 | runda poprawek FA-FD | pole Look odeszło z E49 A1d, połowa telefonu porzucona przez właściciela, kolumny Searching zmienione przez E101 |
+| E68 | Direct Murder w ciemności z propozycją zabójcy | okno deklaracji gracza i potwierdzenie zdrady to LIVE-E68-01; luka z notatek o pierwszym otwarciu |
+| E49 | jedno okno ustawień na przeglądarkę, osobne okno ustawień gry | okna stoją; nie przerysowują się, a Save cofa cudzą zmianę (STG-15) |
+| E98 | jednowyrazowe nagłówki Legacy | mierzone w Chromium na arkuszach modułu, nie w Foundry; LIVE-E97-01 |
+| E73 | strona uczestnika według strefy tokenu | okno wyboru strony raz na Logic Dive, zamknięcie bez wyboru (STG-17, STG-18, STG-25) |
+| E73 | Logic Dive | zła odpowiedź wskazuje dobrą przez eliminację (STG-74); edytor gubi tekst (STG-19) |
+| E73 | Scrum Debate | wydany w 1.2.108 bez Done, Pass i okna tezy; dobudował je E110 C3 (1.2.114) |
+| E73 | Findings | okno rysowane raz (STG-24); Save na pustym milczy (CTRL-47) |
+| E99 | Show summary raz na proces | dwóch GM-ów naraz wysyła dwie karty (STG-76); wyszarzenie bez powodu (CTRL-38) |
+| E99 | podpowiedzi po prezentacjach | czyta cały rozdział, nie proces (STG-77) |
+| E62 | reszta planu "Not in this release" z 1.2.109 | C3 w 1.2.112, C6 w części w 1.2.113; C7 zmierzone, niezmienione (39 % wobec progu 80 %) |
+| E92 | Spectator bez czatu | trzyma dla jego wiadomości; skutki uboczne to STG-04 i STG-05; żadnego testu tieru 0-1 |
+| E64 | akcja kryzysowa na silnego obrońcę o jeden trudniejsza | gdy kopia obsady nie ma zabójcy, przeglądarka pokazuje liczbę bazową (STG-07) |
+| E74 | Shut the Door | barykada zostaje po wyjściu autora bez przejścia (STG-08) |
+| E74 | Pick the Lock | przepustka w użyciu zostaje na zawsze (STG-09) |
+| E74 | publiczna flaga barykady bez autora i siły | flaga jak obiecano; zapisu DA47 nie ma (STG-38) |
+| E54 | żaden nowy plik nie importuje swojej fasady | wyjątek na HEAD: `gm-bridge.mjs:139` czyta `key-remnants.mjs` przez `import()` (E109) |
+| E38 | prywatna karta do nieobecnego gracza dochodzi po powrocie | nie dla czytelników dodanych potem przez `updateSecret` (STG-26) |
+| E55 | selektor powtórzony w arkuszu jako jedna reguła | 91 powtórzonych list selektorów zostaje (liczone skryptem przez czytającego) |
+| E55 | jedna definicja pędzla | pięć reguł `::before` rysuje ten sam pędzel własnymi ciałami |
+| E25 | zdania podręczników sprzeczne z kodem poprawione | testy tieru 0 przypinają oba teksty, nie zachowanie; 25 etykiet w podręcznikach już nie istnieje (STG-27) |
+| E25 | wiersze T6 z `empties: "E25"` opróżnione | dwa zostają: `action-report.mjs:90`, `:117` piszą U+2212 na karcie rzutu |
+| E25 | błędy faktów w tekstach UI, żargon "Stage" poza tekstami graczy | "Stage N" w dwóch tekstach GM-a; `DRPG.Note.intro` nadal o czterech pytaniach |
+| E71 | zdania przepisane według przewodnika | 324 z 1662 rodzin linii C tylko lintowane; jedna mówi zmarłemu coś, czego kod już nie robi (STG-29) |
+| E57 | rules-parity | 53 reguły i 95 wartości wobec około 307 liczb w podręcznikach |
+| E57 | D34: dokumenty świata w jego języku | dostarczone dla dwóch miejsc; ustawienie obiecuje więcej (STG-28) |
+| E57 | sześć podręczników przepisanych | 25 etykiet zdryfowało (STG-27); plik faktów podręcznika GM-a poza checkiem z decyzji właściciela |
+| E110 | odmowa tego samego celu i nieobecnego własną linią | obie odmówione, ale GM czyta ogólną linię mostu (STG-92) |
+| E109 | cztery odpowiedzi tekstowe | jeden tekst UI i dwie linie podręcznika mówią "clean-up" (STG-90); polskie formy różnią się przyimkiem |
+| E109 | przycisk "Charge the Key fee" na karcie | przycisk niezwiązany z rozdziałem (STG-30) |
+| E109 | etykieta grupy "actions" resetu | cztery rodzaje wierszy poza etykietą (STG-91) |
+| E59 | siedem reguł okien jako testy | C3 (drugi przegląd zrzutów) niezrobione, LIVE-E59-01 bez odczytu |
+| E112 | morderstwo w Eclipse zasłonięte przy jego końcu | tylko primary zasłania przy światłach (STG-31); miejsca wywołań w `endEclipse` bez testu |
+| E118 | jedna tablica dnia na obu końcach dnia | tablica końca dnia rysuje portrety przy stojącej masce (STG-03) |
+| E118 | zestaw na prawdziwym Foundry | mechanizmy są; ostatni cały tier 2 na sandboksie: 1326 przeszło, 214 nie, 26 pominiętych z 1566 |
+| E39 | shim jak 14.370 (D3-D6, D10, D11) | zbudowany na jednym odczycie ruchu (LIVE-E39-01); LIVE-E39-02..19 nieodczytane; D7-D9 niezbudowane |
+| E40 | przebieg 12 mutacji w bramce wydania | zapisany (12 z 12), ale w żadnej bramce i niepowtarzalny z repozytorium |
+| E53 | budżet wydajności trzymany przez `check budget` | maszyneria trzyma, budżet nic: każdy próg null, żaden przebieg niezapisany - główna obietnica etapu |
+| E53 | rewizja `perf-baseline.json` dla wydanej wersji | tylko 1.2.116 (STG-105) |
+| E58 | każda otwarta pozycja 9.2 sprawdzona albo przeniesiona do notatek 1.3.0 | na 1.2.117: z 565 wierszy 33 zmierzone, 410 jeszcze nieprzeprowadzone |
+| E26 | tekst README | szkic dla właściciela, z zasady |
+
+### 14.4 Siedem etapów bez wersji
+
+Z `stages-26.json` i jego weryfikacji. Żaden z siedmiu nie ma `version` ani `shipped`, a rejestr nie stempluje żadnego wiersza ich identyfikatorem (kolumna Since rejestru nazywa pociąg, w którym numer wyszedł). Pięć ma kawałki wydane w pociągach innych etapów i jest ocenianych za to, co wyszło; E58 i E83 nie są ocenione. W `tools/stages.json` E39, E40, E43, E53, E58 i E83 mają `planned` 1.2.119, a E26 1.3.0; ROUTING.md odkłada te sześć do 1.2.120.
+
+| Etap | stan | ocena | co wyszło i gdzie | co zostało |
+| --- | --- | --- | --- | --- |
+| E39 | wydany w części, reszta odłożona do 1.2.120 | 7 (po L1) | testy i scenariusze z 1.2.112-1.2.113: `70-movement`, `99-actions` (każdy wiersz `ACTIONS` z jego ceną i progami), tier 2 E39-T1 (wpis projektu), E35-T10 (każdy tryb `TRANSFER_POLICY`), część M scenariusza 68; linia `claude/shim-118` jako C1 etapu E118 w 1.2.118: shim jak ruch na 14.370 (D3, D4, D5, D6, D10, D11) i poprawki modułu (trasa liczona pokój po pokoju, każde cofnięcie przez `putBackWrite`, piętro przejścia, znak GM-ów); 45 commitów | D7-D9 niezbudowane, LIVE-E39-02..19 nieodczytane, cofnięcie z kopii nie w kroku na 14.370 (STG-32, obietnica osłabiona do "w części"), definicje mutantów poza repozytorium |
+| E40 | wydany w części, reszta odłożona do 1.2.120 | 7 (8), po L1 | kawałki w notatkach 1.2.112, 1.2.113, 1.2.116 i 1.2.117: DC36 (zły werdykt skazuje, zamknięcie procesu wykonuje raz), `game.drpg.checkState()` z trzema niezmiennikami, macierz faza x akcja, `18-trial` z prawdziwymi kartami głosowania, testy-wyrażenia tieru 0 przepisane na zachowanie, `settle()` z `until()`, jedna reguła "allowed now"; dwóch oskarżonych na znacznikach wyszło jako funkcja E117 (1.2.117); 41 commitów | przebieg 12 mutacji w żadnej bramce, odpowiedź okna werdyktu nieprzeprowadzona przez `verdictAnswer` (mutant przeżył), LIVE-E40-02 i -03 nieodczytane, -01 w części; STG-103 |
+| E43 | wydany w części, reszta odłożona do 1.2.120 | 7 (8), po L1 | kawałki w notatkach 1.2.112, 1.2.113, 1.2.116 i 1.2.117: `diagnoseSecrets()` i `diagnoseTraps()`, plan głosu po kontach, jeden rejestr pól tylko dla GM-ów, fuzz każdego żądania z konsoli gracza (scenariusz 30) i macierz własnego klienta gracza (33 część H), rozdział README "What a player with a console always sees" (za zgodą właściciela z 16.11.2026), Open 96 i 103, kanarek sezonu i jego poprawki; scena pokoju projektu i P1 wyszły jako funkcja E117; trzy LIVE-E43 odczytane przez L1 | kanarek nie zasiewa `closingClaims`, `diveSets`, `claimTicket` i `passage*`; macierz 33 H nigdy na v14; wiersze 31-32 rejestru scenariuszy (STG-104); wyścig cofnięcia w bibliotece fuzz harnessu |
+| E53 | wydany w części, reszta odłożona do 1.2.120 | 7 (po L1) | kod wyszedł w 1.2.116 (notatki 1.2.116 i 1.2.117): `perf()` z liczbą, p50 i p95 każdego kosztu, `check budget` przeciw zapisanym przebiegom, dziennik balansu za przełącznikiem świata, `projectLabel(id, user)` (cel E43), limity użycia akcji projektu (P2) i akcja pokoju tajnego projektu przez kopię widoku (P1) | budżet nic nie trzyma: każdy próg null do pomiaru L1 i liczb właściciela, żaden przebieg niezapisany (główna obietnica w części); rewizja `perf-baseline.json` tylko dla 1.2.116 (STG-105); LIVE-E53-01 w części, LIVE-E33-05 niezmierzone |
+| E58 | w toku, wstrzymany (L1 po audycie, D-A2); odłożony do 1.2.120 | nie oceniono | tylko papiery, będące dowodem dla innych etapów (`docs/dev/e58/LOCAL-REPORT.md`, `TRIAGE-9.2.md`, `PERF-READINGS.md`), i poprawki harnessu oceniane przy E118; odczyty: `live-readings-e58.json` 94 (24 zgodne, 19 wada, 15 mieszane, 15 w części, 19 w toku, 2 niesprawdzalne; 35 nieuruchomionych) i 25 więcej na gałęzi (`live-readings-e58-delta.json`) | około 6 % 9.2 odczytane na scalonych papierach; osiem części bramki lokalnej `not-run`; scenariusze 16 i 64 `planned` (dwie obietnice "nie", 14.3) |
+| E83 | zaplanowany, niezaczęty; odłożony do 1.2.120 | nie oceniono | nic: brak `docs/dev/e83`, brak testów poza wierszem tieru 0 interfejsu (`scripts/secret.mjs:567` `cleanCardHtml` trzymane dla jego poprawek D01 i D13); ten audyt może być jego podstawą, ale nic na `b5a29e73` tego nie mówi | cały etap: przegląd każdego etapu, jedno przejście poprawek, bramka lokalna na commicie wydania 1.3.0; STG-106 |
+| E26 | zaplanowany na 1.3.0; przygotowanie wydane | 9 (bez capu) | przygotowanie w 1.2.113 (notatki 1.2.113: 8, 118, 180): licencje fontów w `fonts/`, zmodyfikowany Press Start 2P przemianowany na DRPG Pixel, powtarzalny `module.zip` bez `macros/`, `module.json` według D1, szkic README dla właściciela; siedem polskich "MG" poprawiła inna linia | część wydania niezaczęta i nieoceniona; LIVE-E26-01 i -02 bez wierszy 9.2 (STG-101); szkic README czeka na zgodę właściciela |
+
+E39, E40, E43 i E53 to etapy, które właściciel 12.11.2026 odłożył do sesji lokalnej na maszynie z Foundry v14, razem z E38 i E58 (komentarz `tools/stages.json`); E38 wyszedł potem w 1.2.113. Dla E39, E40 i E43 weryfikacja doszła do 7 tą samą regułą, którą czytający zastosował do E39 i E53: jedna obietnica w części daje 7. Że kawałki zielenieją w turze bazowej (każdy nazwany test tych etapów jest w niej zielony według weryfikacji), nie podnosi obietnicy dowiezionej w części.
+
+### 14.5 Znaleziska STG
+
+`STG` to etap dowieziony inaczej, niż mówi jego zapis (11.5). Jest ich 106, wszystkie z plików czytających etapów (najwięcej `stages-18`: 15, `stages-24`: 11, `stages-22`: 9): 3 `major`, 30 `minor`, 73 `nit`, żadnego `blocker`. Dziesięć `minor` (STG-16 do STG-25) czytający `stages-18` dołączył z plików kontrolek i odświeżania jako wady etapów E73, E97 i E99; mają tam swoje ID i wpisy w sekcjach 15 i 16. Razem 19 pozycji `major`/`minor` i jeden `nit` to te same wady co pozycje sekcji 15-17 - przy każdej "To samo:" z ID tamtej sekcji; "Pokrewne:" znaczy tę samą drogę albo to samo pytanie, ale inną wadę. Sekcje 15 i 17 piszą przy STG-02, -04, -07, -15 i -26 "niesprawdzone"; według `master.json` wszystkie pięć jest utrzymanych (`verify-stages-17`, `verify-first-session/stages-20`, `-21`, `verify-stages-22`). Wycofanych nie ma; STG-82 obalone w pierwotnym brzmieniu zostaje jako węższy `nit`. Gdzie nie piszę "1.2.119", żadna z sześciu linii w `lines-119.json` ani pozycja ROUTING.md tego nie dotyczy.
+
+#### `major`
+
+**STG-01** · `major` · przeczytane · utrzymane · S · `first-session/stages-21` E74-3
+Kość utrudnienia Keep Watch jest czytana z wachty, której już nie ma, gdy otwiera się morderstwo zadeklarowane w ciemności. Wachta ma posterunek tylko od startu Eclipse, a `endWatches` zrzuca każdy wiersz na jego końcu; morderstwo bezpośrednie zadeklarowane w Eclipse otwiera się dopiero po nim (`eclipse.mjs:520-529`), więc `openingHindrance` daje 0. Tier 2 E74-T10 pisze wiersz ręcznie w południe i zostaje zielony.
+Gdzie: `scripts/watch-gm.mjs:42-47`, `:138-153`, `:156-161`; `scripts/eclipse.mjs:437-474`, `:520-529`; `scripts/murder-rules.mjs:4433-4449`; `scripts/roll-draw.mjs:2240-2248`.
+Scenariusz: Botan trzyma wachtę z 19, w Eclipse gracz Aiko deklaruje morderstwo bezpośrednie i zostaje z Botanem sam; GM kończy Eclipse, wiersz wachty znika, a rzut otwarcia Aiko jest rzucany bez kości utrudnienia, którą obiecują notatki.
+1.2.119: nieskierowane (brak w ROUTING.md i w `lines-119.json`).
+
+**STG-02** · `major` · przeczytane · utrzymane · S · `stages-17` E49-1
+"Reset the season" ("Zresetuj sezon") w "Season setup" ("Ustawienia sezonu"), jedynym miejscu, które E49 dało resetowi, nic nie robi: przycisk ustawia `resetAsked` i zamyka okno, `DialogV2.wait` z `rejectClose: false` odpowiada null, a test null wraca, zanim `resetAsked` zostanie przeczytane. Od E49 A1d kafelka resetu w panelu nie ma; R4055 i test w `tests-tier1.mjs:20693` czytają linię jako tekst.
+Gdzie: `scripts/season-setup.mjs:1199-1204`, `:1210`, `:1213-1215`; `scripts/gm-panel.mjs:305-309`; `lang/en.json:3341`.
+Scenariusz: na ostatnim rozdziale sezonu GM idzie za ostrzeżeniem do Season setup i naciska Reset the season: okno się zamyka, nic się nie otwiera, nic nie zostaje powiedziane, a żaden inny przycisk resetu nie zaczyna.
+1.2.119: `lines-119.json` - żadna linia nie zmienia `season-setup.mjs`; ROUTING.md - w toku jako C1 na `claude/season-119`, do soboty 10:00, inaczej 1.2.120.
+To samo: CTRL-01 (sekcja 15), CASE-19 (sekcja 17).
+
+**STG-03** · `major` · przeczytane · utrzymane · S · `stages-25` E118-1
+Tablica końca dnia, która od F118 rysuje portret każdego ucznia, gra przy stojącej masce: na miejscu zamaskowanego zabójcy każdy gracz widzi literę pod prawdziwym imieniem. Maska kończy się na hooku `drpgTimeOfDayChanged` po zapisie zegara, a na tym samym hooku każda przeglądarka buduje tablicę, gdzie `safeRoomImage` odrzuca SVG maski; E112 zamknęło to dla tablicy porannej, a maski są kończone przed zapisem tylko przy przejściu przez dobę.
+Gdzie: `scripts/sequence.mjs:926-934`, `:957-975`, `:1155-1166`; `scripts/clock.mjs:422-427`; `scripts/transitions.mjs:151-153`, `:171`, `:222`; `scripts/mask-gm.mjs:678-680`; `scripts/vault-store.mjs:601`, `:648-649`.
+Scenariusz: wieczorem otwiera się morderstwo bezpośrednie, zabójczyni stoi za "?", nikt nie znajduje ciała; GM kończy nocny Eclipse i u każdego gracza gra "End of day N", na której jeden żywy uczeń ma gołą literę w miejscu portretu - ta za "?".
+1.2.119: ROUTING.md - `claude/day-119` (d76fdbbc, scalone później) kończy maski przed każdym przesunięciem, "so the day board no longer names the masked"; `lines-119.json` opisuje to w linii `day-119` (`endMasksBeforeTheBoard` przed każdym przesunięciem), bez wpisu w `matches` dla tego ID. Do sprawdzenia w sekcji 18.
+Pokrewne: MAP-16 (sekcja 17), STG-31, STG-100 - to samo pytanie maski.
+
+#### `minor`
+
+**STG-04** · `minor` · przeczytane · utrzymane · S · `first-session/stages-20` E92-1
+Spectator nie ma "Stop" na arkuszu, a bez GM-a jego safeword odrzuca jego własna blokada czatu, choć naciśnięcie zgłasza kartę jako wysłaną. `sheetMode` daje Spectatorowi `safeword: false`; bez GM-a `callSafeword` postuje kartę z jego przeglądarki, `preCreateChatMessage` Spectatora ją odrzuca ("A Spectator has no chat."), a `callSafeword` i tak zwraca true.
+Gdzie: `scripts/sheet-mode.mjs:81`; `scripts/spectator-ui.mjs:74-78`, `:99`; `scripts/safeword.mjs:168-170`, `:252-269`, `:285-286`; `docs/handbooks/gm-handbook.en.md:1794`.
+Scenariusz: stół przypisał klawisz safeword, p3 gra Spectatora, a przeglądarka GM-a odpadła; p3 naciska klawisz i potwierdza "Stop it": dostaje ostrzeżenie o czacie, nikt nie widzi baneru, nic nie jest wstrzymane, a podręcznik GM-a mówi, że nacisnąć może każdy, Spectator też.
+To samo: UI-25 (sekcja 17, połowa o braku przycisku); pokrewne: COMM-54.
+
+**STG-05** · `minor` · przeczytane · utrzymane · S · `first-session/stages-20` E92-2
+Gdy ucznia zrobi się Spectatorem, każda karta, którą to konto wysłało wcześniej, przestaje być rysowana na każdej przeglądarce. `hideSpectatorMessage` usuwa element wiadomości przy każdym renderze, gdy autor jest dziś Spectatorem, nie pytając, kiedy ani co napisał; karty wracają po oddaniu roli.
+Gdzie: `scripts/spectator-ui.mjs:69-72`, `:80-82`, `:100`; `scripts/spectator.mjs:108-123`.
+Scenariusz: p1 grał Aiko trzy sesje; GM ustawia jej Role na Spectator i po przeładowaniu dowolnej przeglądarki, także GM-a, żadnej wcześniejszej karty p1 nie ma w logu czatu.
+
+**STG-06** · `minor` · przeczytane · utrzymane · S · `first-session/stages-20` E94-1
+Gdy incydent chowa zegar, przeglądarka postronnego gracza nadal gra tablicę dnia, kiedy GM przesuwa zegar w Noc albo w nowy dzień: `transitions.mjs` gra tablice z hooków zegara bez pytania o `clockHiddenHere`.
+Gdzie: `scripts/transitions.mjs:140-154`, `:160-186`; `scripts/sequence.mjs:1030-1037`, `:1155-1166`; wobec `scripts/day-summary.mjs:91`, `scripts/hud-elapsed.mjs:199-213`, `scripts/clock.mjs:881-890`, `scripts/boundary.mjs:315-321`.
+Scenariusz: otwarcie incydentu biegnie wieczorem, p3 nie bierze w nim udziału; GM naciska "Next time of day", a u p3, któremu zegar wciąż mówi Evening, wjeżdża na 6 s "End of day 3" z dźwiękiem - p3 dowiaduje się, że GM przesunął zegar, co moduł wszędzie indziej ukrywa.
+Pokrewne: UI-21, CORE-49 (stoper postronnego w czasie incydentu).
+
+**STG-07** · `minor` · przeczytane · utrzymane · S · `first-session/stages-21` E64-1
+Ofiara, której kopia obsady nie ma zabójcy, widzi liczbę kryzysu o jeden niższą, niż osądza GM: `crisisDefense` czyta obrońcę przez `state.killerId`, a `castCopyFor` zeruje go każdemu poza zabójcami w pułapce i, od 1.2.113, za "?".
+Gdzie: `scripts/murder-rules.mjs:254-263`, `:316-318`, `:1183`, `:1773`; `scripts/incident-store.mjs:586-588`.
+Scenariusz: pułapka ucznia z Body 1 łapie Aiko; menu i okno rzutu mówią Self-Defense "Beat 18", Aiko rzuca 18, primary liczy 18 wobec 19 i akcja się nie udaje.
+To samo: CASE-16 (sekcja 17; tam `major`, tu `minor` - waga u dwóch czytających różna, obie utrzymane). ROUTING.md: odłożone do 1.2.120.
+
+**STG-08** · `minor` · przeczytane · utrzymane · S · `first-session/stages-21` E74-1
+Barykada przeżywa wyjście autora, gdy autor nie wyszedł sam: spada tylko przy rozliczonym przejściu autora z pokoju, a zebranie przy znalezieniu ciała, zgromadzenie, start procesu i przeciągnięcie przez GM-a nie są zapisanymi przejściami. Żadne okno GM-a barykady nie zdejmuje.
+Gdzie: `scripts/doors-gm.mjs:495-502`, `:505-510`; `scripts/crossing-settle.mjs:11-15`; `scripts/movement.mjs:1117`, `:1350-1363`, `:2115-2124`; `scripts/call-world.mjs:463`.
+Scenariusz: Aiko barykaduje Dorm po południu, znalezienie ciała w Gym zbiera tam wszystkich, i do końca tej pory dnia każdy, kto idzie do Dormu, także Aiko, słyszy "The door does not give.".
+Pokrewne: MAP-22 (barykada a tajne przejście).
+
+**STG-09** · `minor` · przeczytane · utrzymane · S · `first-session/stages-21` E74-2
+Przepustka Pick the Lock w użyciu zostaje na zawsze, gdy posiadacz opuści pokój bez przejścia: kończy ją tylko rozliczone przejście na zewnątrz, koniec pory dnia i start Eclipse pomijają przepustkę w użyciu, a `holdsPass` nie pyta o czas.
+Gdzie: `scripts/lockpick-gm.mjs:71-80`, `:84-90`, `:97-107`; `scripts/movement.mjs:1210-1214`.
+Scenariusz: Chie otwiera zamek sypialni Botana na 16 i wchodzi; znalezienie ciała zabiera ją stamtąd, a dwa dni gry później wchodzi do tej sypialni bez rzutu.
+Pokrewne: ITEM-20 (przepustka po samej nazwie pokoju).
+
+**STG-10** · `minor` · przeczytane · utrzymane · S · `stages-05` E09-1
+Każde wczytanie czyta "Not tied" śladów wobec cięcia z pierwszego wczytania świata, więc sprawa przywrócona z innego świata traci fałszywe tropy przy następnym wczytaniu. `settleTieStates` przenosi do nierozstrzygniętych każdy wiersz z `tiedToCrime` false i stemplem pod cięciem, przywrócenie zachowuje stemple pliku, a liczba przeniesionych ginie w `.then`.
+Gdzie: `scripts/gm-stores.mjs:2208-2227`, `:2431-2460`, `:3004-3008`; `scripts/gm-store.mjs:530-548`.
+Scenariusz: GM przenosi kampanię do nowego świata, otwiera go raz, przywraca plik sprawy starego świata przez "Restore it here anyway" i przeładowuje: każdy ślad oznaczony Not tied jest nierozstrzygnięty, a następna śmierć ofiary wiąże te tropy z morderstwem.
+
+**STG-11** · `minor` · przeczytane · utrzymane · S · `stages-10` E87-1
+Proponujący zna swój publiczny projekt tylko dopóki prywatna karta GM-a jest w czacie: na przeglądarce gracza `proposedBy` czyta tylko tę kartę, a `proposerTold` ustawione przy zatwierdzeniu nie pozwala wysłać jej drugi raz.
+Gdzie: `scripts/projects.mjs:338-343`, `:641-650`, `:683-685`, `:1963-1965`, `:2143`.
+Scenariusz: GM zatwierdza projekt gracza w Library, w której postać gracza nigdy nie stała, a na koniec sesji czyści log czatu; w następnej sesji projektu nie ma na tacy ani mapie proponującego, choć podręcznik mówi, że widzi go od zatwierdzenia (`gm-handbook.en.md:984`).
+To samo: ITEM-24 (sekcja 17).
+
+**STG-12** · `minor` · przeczytane · utrzymane · S · `stages-15` E24-1
+Background trzymany niezapisany przy zamknięciu arkusza, gdy ktoś inny go w tym czasie zmienił, nie jest zapisany, a powiadomienie prosi o kliknięcie poza pole, którego już nie ma.
+Gdzie: `scripts/sheet.mjs:90-94`; `scripts/sheet-sidebar.mjs:1027-1031`, `:1093-1094`; `lang/en.json:509`.
+Scenariusz: gracz pisze akapit Background, GM w tym czasie poprawia w nim jedno słowo; gracz zamyka arkusz X-em, czyta "click outside the field again", pola nie ma, a po przeładowaniu akapit przepadł.
+
+**STG-13** · `minor` · przeczytane · utrzymane · S · `stages-15` E24-2
+Pole rezerwy nie idzie za "Lock player resources" przy otwartym arkuszu: jest dane albo nie przy renderze, a `onChange` ustawienia przełącza tylko klasę `body`, której reguły pola nie sięgają.
+Gdzie: `scripts/sheet-mode.mjs:113-123`; `scripts/sheet-sidebar.mjs:152-166`.
+Scenariusz: GM blokuje zasoby graczy w środku sesji; gracz z otwartym arkuszem nadal widzi Health jako pole, wpisuje 3 i patrzy, jak GM-owie to cofają.
+To samo: REFR-11 (sekcja 16).
+
+**STG-14** · `minor` · przeczytane · utrzymane · S · `stages-15` E45-1
+Otwarty arkusz drugiego GM-a zostawia zapalony przycisk Level Up po wzięciu go przez gracza: `dropOffer` biegnie na primary i rysuje tylko jego arkusz, a magazyn ofert nie ma hooka zmiany.
+Gdzie: `scripts/level-up.mjs:256-276`; `scripts/gm-stores.mjs:722-740`.
+Scenariusz: przy dwóch GM-ach gracz bierze Level Up z werdyktu, a asystent GM z otwartym arkuszem ucznia wciąż czyta "1 Level Up on offer".
+1.2.119: `claude/sheet-119` - nie dotyczy (znak Level Up w `sheet-header.mjs` nietknięty).
+To samo: REFR-14 (sekcja 16).
+
+**STG-15** · `minor` · przeczytane · utrzymane · S · `stages-17` E49-2
+Dwa okna ustawień z E49 rysują się raz, a ich Save pisze z powrotem wiersz, który ktoś inny zmienił, gdy były otwarte: `saveSettings` porównuje pole z ustawieniem w chwili Save, nie z wartością narysowaną.
+Gdzie: `scripts/settings-window.mjs:408-437`, `445-523`.
+Scenariusz: dwóch GM-ów ma otwarte ustawienia gry; jeden wyłącza "Force private rolls" i zapisuje, drugi zmienia "Room visibility" i zapisuje: Force private rolls jest znów włączone i żadne okno tego nie powiedziało.
+To samo: REFR-28 (sekcja 16), CORE-27 (sekcja 17).
+
+**STG-16** · `minor` · przeczytane · utrzymane · S · `stages-18` E99 (dołączone controls-01-trial-console-1)
+Przycisk "Not tied to the murder: N" pod schematem w konsoli procesu nic nie robi: konsola woła `wireCaseMap` bez `onFold`.
+Gdzie: `scripts/case-trial.mjs:98`; `scripts/case-map.mjs:224`, `:445`, `:495`.
+Scenariusz: GM na procesie naciska przycisk, żeby zobaczyć niezwiązane dowody, i nic się nie otwiera.
+1.2.119: `claude/planlook-119` - nie dotyczy.
+To samo: CTRL-02 (sekcja 15).
+
+**STG-17** · `minor` · przeczytane · utrzymane · S · `stages-18` E73 (dołączone controls-02-trial-zones-verdict-1)
+Okno wyboru strony przychodzi raz na cały Logic Dive: klucz okna i wybory są ustawiane tylko w `zoneStart` i przeżywają każde pytanie.
+Gdzie: `scripts/trial-zones-ui.mjs:437-441`.
+Scenariusz: uczestnik bez tokenu w hali wybiera Zone A przy pierwszym pytaniu i nie może tego zmienić przy drugim.
+1.2.119: `claude/trial-119` - nie dotyczy (bez wczesnego zamknięcia stary wybór nie kończy już pytania przed zegarem, ale nadal jest liczony na jego końcu).
+To samo: CTRL-06 (sekcja 15), CASE-46 (sekcja 17).
+
+**STG-18** · `minor` · przeczytane · utrzymane · S · `stages-18` E73 (dołączone controls-02-trial-zones-verdict-2)
+Zamknięcie okna wyboru strony nie zostawia drogi do wyboru w tym trybie: `pickOpenFor` jest zapisywane przed otwarciem i nikt go potem nie zmienia.
+Gdzie: `scripts/trial-zones-ui.mjs:441`, `:454`.
+Scenariusz: gracz naciska Escape w oknie i do końca trybu nie stoi po żadnej stronie, a nikt mu tego nie mówi.
+To samo: CTRL-07 (sekcja 15), CASE-46 (sekcja 17).
+
+**STG-19** · `minor` · przeczytane · utrzymane · S · `stages-18` E73 (dołączone controls-02-trial-zones-verdict-3)
+Edytor zestawów Logic Dive gubi wpisany tekst, gdy Save odrzuca niepełny zestaw: formularz jest oceniany po zamknięciu okna.
+Gdzie: `scripts/trial-zones-ui.mjs:215-222`.
+Scenariusz: GM pisze cztery pytania, zostawia jedną pustą odpowiedź i naciska Enter; tost odmawia, a cztery pytania przepadają.
+1.2.119: `claude/trial-119` - nie dotyczy.
+To samo: CTRL-08 (sekcja 15), CASE-47 (sekcja 17).
+
+**STG-20** · `minor` · przeczytane · utrzymane · S · `stages-18` E73 (dołączone controls-02-trial-zones-verdict-5)
+Lista zestawów w wybieraczu stref nie słyszy zestawu zrobionego jego własnym przyciskiem: okno nie ma `live`, a `diveSetStore` nie ma `onChange`.
+Gdzie: `scripts/trial-zones-ui.mjs:287-305`.
+Scenariusz: GM robi zestaw z wybieracza i nie widzi go na liście, dopóki nie otworzy wybieracza jeszcze raz.
+To samo: CTRL-09 (sekcja 15).
+
+**STG-21** · `minor` · przeczytane · utrzymane · S · `stages-18` E97 (dołączone controls-03-investigation-planner-1)
+"Move up" / "Move down" układają inny graf niż ten, który rysuje Mapa Investigation (bez niezapisanych slotów Key i planowanych Autopsji, `chapters: 'this'`).
+Gdzie: `scripts/investigation.mjs:1927-1940`.
+Scenariusz: GM porządkuje niezapisany slot Key i nic się nie rusza, a inny węzeł przeskakuje.
+1.2.119: `claude/plan-119` (0f904621) adresuje - `moveCaseNode` układa graf Mapy (`caseMapGraph(reading)`), a ruch niemożliwy jest mówiony.
+To samo: CTRL-10 (sekcja 15).
+
+**STG-22** · `minor` · przeczytane · utrzymane · S · `stages-18` E97 (dołączone controls-03-investigation-planner-12)
+Zwinięcie Mapy i filtr Tabeli gubią wpisane, niezapisane pole bez słowa: żaden z dwóch nie woła zapisu otwartego węzła.
+Gdzie: `scripts/investigation.mjs:1860`, `:1998-2004`; `scripts/case-map.mjs:168-194`.
+Scenariusz: GM wpisuje notatkę węzła, zwija niezwiązane dowody i notatka znika.
+1.2.119: `claude/plan-119` - nie dotyczy.
+To samo: CTRL-11 (sekcja 15).
+
+**STG-23** · `minor` · przeczytane · osłabione · S · `stages-18` E97 (dołączone refresh-01-04-2)
+Panel Investigation nie słyszy kluczy odpowiedzi Truth Bulletów: "found by", Who has what i zasięg Mapy zostają jak narysowane. Weryfikacja osłabiła: przy pierwszym znalezieniu inny zapis (`revealSourceOf` do `remnantStore`) przerysowuje panel; luka zostaje dla drugiego znalazcy już ujawnionego śladu, poprawek `bulletStore` bez zapisu przedmiotu i wymiany, która dostarczy `bulletStore` po `remnantStore` (nieczytane). Waga zostaje `minor`.
+Gdzie: `scripts/investigation.mjs:317-328`, `:2412`; `scripts/truth-bullets.mjs:182-185`, `:708`, `:761`.
+Scenariusz: gracz dostaje bullet, gdy Mapa GM-a jest otwarta, a jego "x/y" nie zmienia się do przerysowania.
+1.2.119: `claude/plan-119` dotyka - obserwacja panelu dostaje `where: CASE_WATCH`, lista magazynów bez zmian, klucze odpowiedzi nadal niesłyszane.
+To samo: REFR-42 (sekcja 16).
+
+**STG-24** · `minor` · przeczytane · utrzymane · S · `stages-18` E73 (dołączone refresh-01-04-4)
+Okno Findings jest rysowane raz: Finding zapisany na końcu trybu strefy albo przez innego GM-a nie pojawia się w otwartym oknie.
+Gdzie: `scripts/trial-zones-ui.mjs:392-417`.
+Scenariusz: Straw Poll kończy się Findingiem, gdy GM ma otwarte Findings; okno go nie pokazuje, choć konsola go liczy.
+1.2.119: `claude/trial-119` - nie dotyczy.
+To samo: REFR-43 (sekcja 16).
+
+**STG-25** · `minor` · przeczytane · utrzymane · S · `stages-18` E73 (dołączone refresh-01-04-6)
+Okno wyboru strony zostawia słowa i odpowiedzi pierwszego pytania, gdy Logic Dive idzie dalej (klucz okna się nie zmienia, więc nowe okno nie powstaje).
+Gdzie: `scripts/trial-zones-ui.mjs:434-458`.
+Scenariusz: przy drugim pytaniu przyciski gracza wciąż mają odpowiedzi pierwszego.
+1.2.119: `claude/trial-119` - nie dotyczy.
+To samo: REFR-44 (sekcja 16).
+
+**STG-26** · `minor` · przeczytane · utrzymane · S · `stages-22` E38-1
+Kopia trzymana przez autora nie idzie za kartą, której słowa dano potem drugiej publiczności: gracz żywej ofiary, nieobecny przy zamknięciu incydentu, nigdy nie dostaje swojej karty. `updateSecret` pisze magazyn autora tylko wtedy, gdy autor jest wśród nowych czytelników, czego GM szepczący samym graczom nigdy nie jest.
+Gdzie: `scripts/murder-rules.mjs:3691-3708`; `scripts/secret.mjs:958-977`, `:1235-1243`, `:1343-1367`.
+Scenariusz: morderstwo bezpośrednie zamyka się z żywą ofiarą, gdy jej gracz przeładowuje przeglądarkę; gracz zabójcy czyta kartę zamknięcia, a gracz ofiary po powrocie nie dostaje żadnej.
+To samo: CORE-23 (sekcja 17).
+
+**STG-27** · `minor` · przeczytane · utrzymane · S · `stages-23` E57-1
+Podręczniki cytują 25 etykiet UI, których moduł już tymi słowami nie rysuje, część od samego 1.2.113, a strażnika z planu (T10) nie zbudowano. Policzone skryptem na 3053 wierszach `docs/dev/e57/LABELS.md` (u czytającego i u weryfikującego): 33 wiersze, 25 różnych, np. **Add pool** / **Remove pool** wobec "Grant pool" / "Revoke pool", **Realization preview** wobec "Preview realization".
+Gdzie: `docs/handbooks/gm-handbook.en.md:383`, `:562`, `:609`, `:721`, `:1195`, `:1243`, `:1346`, `:2145`; `docs/handbooks/player-handbook.en.md:724`, `:764`, `:789` i polskie odpowiedniki; `lang/en.json:660`, `:665`, `:3462`, `:7455`.
+Scenariusz: GM czyta sekcję 7 podręcznika, żeby dać asystentowi pulę Despair, i szuka w Despair Flow "Add pool"; okno ma "Grant pool", a każdy test podręcznika tieru 0 i `check text` są zielone.
+
+**STG-28** · `minor` · przeczytane · utrzymane · S · `stages-23` E57-2
+Ustawienie "Document language" mówi, że to język dokumentów, które moduł pisze do świata, jeden dla wszystkich, a kod puszcza przez nie jedno zdanie - linię tieru przedmiotu. `worldLocalize` ma wołających tylko w `inventory.mjs:726-727`; klucze sypialni, Truth Bullet wzięty z ciała i token projektu idą przez `game.i18n` przeglądarki GM-a.
+Gdzie: `lang/en.json:366-369`; `scripts/inventory.mjs:726-727`; `scripts/vault-store.mjs:321-327`; `scripts/handover.mjs:904-909`; `scripts/projects-map.mjs:324`.
+Scenariusz: język dokumentów świata jest angielski, a przeglądarka primary GM-a polska; Season setup rozdaje klucze sypialni i każdy angielski gracz ma przedmiot nazwany i opisany po polsku.
+Pokrewne: TEXT-21 (broń improwizowana w języku strony GM-a).
+
+**STG-29** · `minor` · przeczytane · utrzymane · S · `stages-23` E71-1
+Arkusz zmarłego ucznia mówi "Outside the Class Trial you still speak at the table", a przy głosie w pokojach moduł wysyła tego gracza do pokoju Spectatorów, którego żaden żywy gracz nie słyszy; podręcznik gracza mówi to drugie.
+Gdzie: `lang/en.json:4266`, `lang/pl.json:4549` (`DRPG.Class.deadStill`); `scripts/sheet-actions.mjs:233-246`; `scripts/voice.mjs:1948-1971`.
+Scenariusz: przy głosie osobno w każdym pokoju ucznia zabito, ciało znaleziono, proces się nie zaczął; gracz zmarłego czyta, że poza procesem mówi przy stole, i mówi do żywych o tym, co się stało, a słyszą go tylko inni zmarli i Spectatorzy.
+
+**STG-30** · `minor` · przeczytane · utrzymane · S · `stages-24` E109-1
+Przycisk "Charge the Key fee" na trzymanej karcie pobiera opłatę za rozdział, w którym jest zegar w chwili naciśnięcia: karta nie niesie rozdziału, a `chargeForUnfoundKeys` nie pyta o fazę.
+Gdzie: `scripts/key-remnants.mjs:683-735`, `:790-801`; `scripts/gm-bridge.mjs:137-141`; `scripts/trial-progress.mjs:347`, `:604-606`.
+Scenariusz: w rozdziale 2, w trakcie śledztwa, GM przewijający log naciska przycisk na karcie z rozdziału 1: opłata jest liczona od Keyów znalezionych dotąd, `keysCharged` dostaje stempel rozdziału 2, więc uczciwa opłata przy wejściu w proces rozdziału 2 jest pomijana.
+Pokrewne: REFR-67 (przycisk zostaje po pobraniu opłaty).
+
+**STG-31** · `minor` · przeczytane · utrzymane · S · `stages-25` E112-2
+Gdy GM, który nie jest primary, kończy Eclipse albo otwiera morderstwo, zasłona idzie w górę za późno: token zabójcy jest rysowany ofierze, dopóki incydent się nie otworzy i primary tego nie usłyszy, bo `veilAtTheLights` i `settleVeilsNow` biegną tylko na primary.
+Gdzie: `scripts/mask-gm.mjs:516`, `:552`, `:684`; `scripts/eclipse.mjs:399`, `:425-430`, `:972`; `scripts/murder-rules.mjs:441`, `:548-554`.
+Scenariusz: przy stole z dwoma GM-ami uczeń deklaruje morderstwo bezpośrednie w Eclipse, a drugi GM naciska End Eclipse: na ekranie ofiary token zabójcy wraca do pokoju ze światłami i stoi tam, dopóki drugi GM odpowiada w oknie świateł.
+Pokrewne: DOC-01, STG-03, STG-100.
+
+**STG-32** · `minor` · podejrzenie · osłabione · F · `stages-26` E39-1
+Obietnica `putBackWrite` - każda współrzędna wysłana bez względu na kopię piszącego - nie trzymała na Foundry 14.370 dla kopii nie w kroku: na L1 (18-19.11.2026) test tieru 2 tej obietnicy padł przy stole, a zainscenizowany przypadek nie zapisał nic pięcioma drogami. Weryfikacja zeszła z "zmierzone" na podejrzenie: klient wysłał obie współrzędne, kontrola ze świeżą kopią też padła w tej próbie, wyścig zainscenizowano przez `updateSource`, a sytuacja z gry (LIVE-E39-12 część 3) jest nieodczytana. To pytanie do L1, nie zmierzona wada.
+Gdzie: `scripts/movement.mjs:3481-3495`; `scripts/tests-tier2.mjs:27432`.
+Scenariusz: primary cofa nielegalne przejście gracza, gdy jego kopia tokenu jest krok w tyle; cofnięcie nie ląduje i token zostaje za wetem na każdej przeglądarce.
+1.2.119: ROUTING.md - E39 odłożone do 1.2.120.
+To samo: DOC-05 (sekcja 17).
+
+**STG-77** · `minor` (czytający: `nit`) · przeczytane · osłabione · S · `stages-18` E99-2
+Znaki Presented i podpowiedzi schematu czytają karty Present całego rozdziału, a znaczniki od E99 należą do jednego procesu, więc drugi proces w rozdziale zaczyna z tymi z pierwszego. Weryfikacja podniosła wagę: zła informacja w schemacie GM-a w konkretnej sytuacji to `minor`, nie brud.
+Gdzie: `scripts/case-hints.mjs:51-66`; `scripts/case-trial.mjs:65`.
+Scenariusz: pierwszy proces rozdziału kończy się złym werdyktem i otwiera się drugi; zanim ktoś cokolwiek pokaże, schemat GM-a już oznacza trzy Remnanty jako Presented i podpowiada dedukcję.
+
+#### `nit`
+
+Weryfikacja w ostatniej kolumnie: u - utrzymane, o - osłabione, n - niesprawdzone.
+
+| ID | etap | gdzie | co | weryf. |
+| --- | --- | --- | --- | --- |
+| STG-33 | E61 | `lang/en.json:396`, `lang/pl.json:392`; `scripts/sequence.mjs:194-198` | podpowiedź przełącznika sekwencji nie mówi już, czym rządzi: wyłączony wycisza też dźwięk podsumowania sprawy, a trzech późniejszych sekwencji nie nazywa | u |
+| STG-34 | E61 | `scripts/sequence.mjs:709` | komentarz `verdictBoard` nazywa zły test | u |
+| STG-35 | E92 | `scripts/tests-tier1.mjs:58399`, `:58501`, `:58691`; `docs/dev/R-REGISTRY.md:1270`, `:1277`, `:1284` | tytuły R3853, R3860 i R3867 (i ich wiersze rejestru) mówią o regułach, których ciała już nie sprawdzają; zaproponowanego wiersza `known-leaks.json` nie ma | u |
+| STG-36 | E94 | `scripts/tests-tier1.mjs:57550`, `:58190`; `docs/dev/R-REGISTRY.md:1227`, `:1233` | tytuły R3725 i R3731 opisują tablicę sprzed F118 | u |
+| STG-37 | E72 | `docs/dev/e72/STATUS.md:222`; `.github/release-notes/v1.2.110.md:314` | jedyny live check etapu, LIVE-E72-03, nie jest wierszem 9.2 | u |
+| STG-38 | E74 | `audit/harness/known-leaks.json` | zapisu DA47 o publicznej fladze barykady nie ma | u |
+| STG-39 | E93 | `scripts/roll-draw.mjs:1174`, `:1994-2007`; `scripts/bridge-runs-acts.mjs:136-140` | akcję pokoju GM-a zamyka pakiet użycia, nie rzut, więc nieudany rzut, którego nikt nie zgłosi, niczego nie zamyka | n |
+| STG-40 | E03 | `scripts/anonymity.mjs:810-818`; `scripts/relay-guard.mjs:1096-1097`, `:1197-1199` | trzy komentarze etapu nadal mówią, że zachowanie v14, na którym stoją, jest niezmierzone, choć sandbox je zmierzył | n |
+| STG-41 | E03 | `scripts/anonymity.mjs:800`, `:837-839` | tost GM-a o własności drukuje wybraną przez gracza nazwę postaci bez escapowania, a v14 rysuje znaczniki tostu; ta sama nazwa w szepcie jest escapowana, a 47 tostów modułu formatuje `.name` dokumentu wprost (zmierzone na 14.370, klasa F: `docs/dev/e58/LOCAL-REPORT.md:425`) | n |
+| STG-42 | E27 | `.github/release-notes/v1.2.58.md:35-37` | trzy checki stołu etapu nie są wierszami 9.2, więc żaden licznik nie liczy ich jako otwarte | n |
+| STG-43 | E04 | `scripts/gm-store.mjs:1743-1744`; `scripts/frisk.mjs:1028-1029` | dwa komentarze mówią, że powrót gniazda na v14 jest niezmierzony, choć LIVE-E04-04 odczytało ponowne `connect` | u |
+| STG-44 | E30 | `scripts/tests-tier0.mjs:5948`, `:5986`; `scripts/utils.mjs:997`; `scripts/remnants.mjs:2850` | nazwa i komunikat R152 oraz pięć komentarzy mówią, że klucz `-=` niczego na v14 nie usuwa, czemu przeczy odczyt 14.370 | u |
+| STG-45 | E31 | `scripts/bridge-guards.mjs:567`; `lang/en.json:4912`; `lang/pl.json:5259` | komentarz `sayNotDone` cytuje "Nothing was spent.", zdanie, którego pliki językowe już nie mają | u |
+| STG-46 | E08 | `scripts/reroll.mjs:857-862`; `scripts/utils.mjs:478-481`; `scripts/bridge-asks.mjs:1006` | komentarze podają "harness ma jednego GM-a" jako powód, dla którego kolejność wyjścia GM-a i wyścigi dwóch GM-ów są niezmierzone, i nie cytują odczytu kolejności z 14.370 | n |
+| STG-47 | E32 | `docs/dev/R-REGISTRY.md:224`; `scripts/tests-tier0.mjs:7990-7993` | wiersz R214 mówi, że test usunięto w E54; odszedł ze zmianą skrytki w 1.2.112 | n |
+| STG-48 | E33 | `audit/harness/README.md:217`; `audit/harness/scenarios/83-roll-integrity.mjs:9-10` | wiersz rejestru scenariusza 83 i jego nagłówek liczą mniej zapisów z konsoli, niż scenariusz robi | u |
+| STG-49 | E34 | `scripts/murder.mjs:13-15`, `:23-37`; `.claude/rules/code.md:15-16` | nagłówek `murder.mjs` i code.md dają fasadzie 67 nazw (33, 31, 3); re-eksportuje 69 (34, 32, 3), a jedną dodano po podziale wbrew regule fasady | u |
+| STG-50 | E13 | `scripts/tests.mjs:647`, `:501`; `scripts/room-setup.mjs:378-379`, `:1229-1234` | linia porażki zestawu i pięć komentarzy odsyłają GM-a do zakładki Scenes w Room Setup, którą usunął E101 punkt 5; łącza są w Season setup | n |
+| STG-51 | E13 | `lang/en.json:2539`, `lang/pl.json:2667`; `scripts/sound-panel.mjs:200` | panel Sound mówi, jak muzyka jest wybierana dla "Eclipse w trakcie procesu", stanu, którego DZ1 z E13 odmawia na każdej drodze | n |
+| STG-52 | E78 | `scripts/voice-tile.mjs:95-96` | nagłówek mówi, że kafelek nie wysyła pakietu i nie pisze dokumentu poza blokadą GM-a; trzy późniejsze przyciski kafelka to robią | u |
+| STG-53 | E84 | `.github/release-notes/v1.2.78.md:14`, `:163` | etykiety etapu wskazują w dwie strony: LIVE-E84-01 to poprawka czekania, poprawka przeciągania, którą notatki nazywają E84, ma przedrostek E78, a testy stempel 1.2.78 | u |
+| STG-54 | E19 | `scripts/tests-tier1.mjs:25739`, `:25984`, `:26109` | tytuły R815 i R832 mówią, że śmierć publiczna mówi w głównym pokoju, a tajna w kanale zmarłych; ich ciała czytają pokój Spectatorów dla obu | n |
+| STG-55 | E16 | `scripts/inventory.mjs:451-457`, `:472-475`, `:497` | obraz wybrany w siatce H83 resetuje `pinItemIcons`, którego nagłówek mówi, że obraz wybrany przez GM-a zostaje | n |
+| STG-56 | E20 | `docs/dev/R-REGISTRY.md:866-889`; `tools/registry.mjs:172-177` | 24 z 37 testów E20 mają w rejestrze stempel E67, etapu, którego już nie ma | u |
+| STG-57 | E52 | `docs/dev/R-REGISTRY.md:901`, `:913`; `scripts/tests-tier1.mjs:35728`, `:36562` | R1541 i R1553 mówią, że czytają checki Pre-season; od E101 czytają okno Foundry i modułów w Debug log | u |
+| STG-58 | E89 | `docs/dev/R-REGISTRY.md:582-585`; `tools/registry.mjs:149-162` | cztery testy E89 mają w rejestrze stempel E67 | u |
+| STG-59 | E65 | `docs/text-style.md:14-16`, `:276` i 33 inne linie | przewodnik stylu nadal prosi E71 o potwierdzenie 35 reguł, choć E71 wyszedł | u |
+| STG-60 | E65 | `scripts/tests-text.mjs:2875-2876`, `:4212`; `scripts/action-report.mjs:90`, `:117` | baseline T6 trzyma dwa wiersze ze znakiem minus, które według E65 miał opróżnić E25, choć E25 wyszedł; nic nie czyta etapu wiersza | u |
+| STG-61 | E41 | `.claude/rules/code.md:137-140`, `:80` | granicy rozmiaru podziału nic nie trzyma: cztery pliki fali 2 mają ponad 1500 linii (`tables-editor.mjs` 1795, `hud.mjs` 1717, `bridge-table.mjs` 1660, `vault-store.mjs` 1605), mapa kodu wymienia trzy; osłabione o zakres tytułu (46 plików modułu ponad 1500) | o |
+| STG-62 | E41 | `scripts/sfx.mjs:12-13`; `scripts/sound-panel.mjs:21-22`; `.claude/rules/code.md:89` | E41-16 i wiersze Effects z E41-15 przekazano do E73, który wyszedł w 1.2.108 bez nich; trzy miejsca nadal mówią, że zrobi to E73 | u |
+| STG-63 | E42 | `docs/dev/R-REGISTRY.md:692`; `scripts/tests-tier0.mjs:21057`, `:21070-21071` | nazwa R1252 mówi o sześciu krokach werdyktu Final Trial; od E72 tabela i ciało testu mają siedem | u |
+| STG-64 | E66 | `scripts/config.mjs:4075`, `:3991`; `scripts/murder-rules.mjs:1866-1870` | tabela porażek Strike nadal nazywa Obvious Remnant przy krytyku, a komentarz o nieosiągalnych kluczach liczy trzy, choć stoi siedem | u |
+| STG-65 | E22 | `scripts/action-murder.mjs:263`, `:324`; `scripts/mastermind.mjs:451` | siedem okien pytań nadal odpowiada gołym "Yes" tam, gdzie E22 nazwało przyciski tym, co robią; notatki liczyły cztery | n |
+| STG-66 | E60 | `scripts/remnants.mjs:3248-3251`, `:3290-3293`; `scripts/api.mjs:544-545` | `game.drpg.remnantsOn` i `remnantsInRoom` od C1b zwracają zamrożone referencje, a nic, co czyta autor makra, tego nie mówi | n |
+| STG-67 | E60 | `.claude/rules/code.md:77`; `scripts/gm-panel.mjs:211-213` | reguły agentów nadal dają `gm-panel.mjs` okno publicznego rzutu, które usunęło C5a | n |
+| STG-68 | E96 | `scripts/action-observe.mjs:312-314`; `scripts/action-menus.mjs:125-126`, `:169` | wywołanie Observe nadal mówi, że jest rysowane bez kolumn i przewija się w 1366x768; od E68 C12 to samo wywołanie rysuje odprawę obok listy | n |
+| STG-69 | E47 | `scripts/tests.mjs:452`; `lang/en.json:2826` | odmowa tieru 2 w trakcie incydentu każe GM-owi "Close the murder"; przycisk śledzenia to "End the murder" | u |
+| STG-70 | E47 | `styles/components.css:4008-4015` wobec `:3378-3386`; `scripts/investigation.mjs:2292` | komentarz E47-FB mówi, że dziesięć nagłówków Traces nie mieści się w 1204 px pod Legacy i łamie się w słowie; od E97 C2 okno ma 1120 px, a nagłówek łamie się tylko między słowami | u |
+| STG-71 | E68 | `docs/dev/R-REGISTRY.md:1040`; `scripts/tests-tier0.mjs:23806` | R3200, test E68 C12, ma w rejestrze stempel E95 od scalenia 7b5b4da9 | u |
+| STG-72 | E63 | `scripts/body-tile.mjs:12-13`; `scripts/migrate.mjs:1046-1047` | dwa komentarze mówią, że `markDeceased` jest w `chapter.mjs`; od E54 jest w `death.mjs` | n |
+| STG-73 | E73 | `scripts/zone-machine.mjs:66`, `:79`, `:94` | komentarze trzech reguł stref nazywają złe testy (R3907, R3910, R3913 zamiast R3906, R3907, R3908) | u |
+| STG-74 | E73 | `scripts/zone-machine.mjs:208-210`, `:223-226` | zła odpowiedź Logic Dive pokazuje dobrą przez eliminację: przy pytaniu z dwiema odpowiedziami publiczna karta mówi, że klasa się myli, i podaje liczby w strefach | u |
+| STG-75 | E97 | `scripts/tests-tier1.mjs:9133`, `:9147-9157` | R3656 obiecuje prawdziwy rodzaj każdego bulleta i panel boczny; porównuje same nazwy, a panelu nie ma | u |
+| STG-76 | E99 | `scripts/case-summary.mjs:78`, `:92-96`; `scripts/trial-progress.mjs:494-497` | "raz na proces" jest sprawdzane na każdym GM-ie przed zapisem: dwóch GM-ów naciskających Send naraz wysyła dwa podsumowania | u |
+| STG-78 | E108 | `scripts/dice-look.mjs:423`; `lang/en.json:4747`; `lang/pl.json:5087` | diagnostyka wyglądu kości mówi, że wymuszony wygląd nie ustawia kości Hope i Despair, co przestało być prawdą w tym samym wydaniu | n |
+| STG-79 | E108 | `docs/dev/e108/STATUS.md:74`, `:97`, `:147`; `audit/AUDIT-1.2.42.md:1492` | papier etapu i jego live check mówią, że wyglądy ról przyszły w 1.2.113; wyszły w 1.2.112 | n |
+| STG-80 | E108 | `lang/en.json:275`; `lang/pl.json:275` | polska podpowiedź ustawienia nazywa dwie z czterech kości, które nazywa angielska | n |
+| STG-81 | E38 | `audit/harness/README.md:231-232`; `docs/dev/e38/STATUS.md:81` | rejestr scenariuszy i papier etapu opisują scenariusze sprzed dwóch poprawek | n |
+| STG-82 | E54 | `.github/release-notes/v1.2.113.md:158`; `scripts/tests-kit.mjs:1767-1768` i sześć par dalej | narzędzia i manifesty podziału, które cytują notatki i kit testów, nie są na `main`; obalone w pierwotnym brzmieniu ("w żadnej gałęzi repozytorium") - są na `claude/e54-prep` - więc zostaje węższe: czytający `main` nie dojdzie do cytatów | obalone, węższe |
+| STG-83 | E54 | `scripts/window-scale.mjs:25-43`; `scripts/settings-window.mjs:188-193` | komentarz o chowaniu przełączników drugiego motywu przeszedł do `window-scale.mjs`, gdzie żaden kod tego nie robi, i mówi odwrotnie niż dzisiejsze okno ustawień | n |
+| STG-84 | E54 | `docs/dev/e59/GAPS.md:43-52`; `.github/release-notes/v1.2.113.md:185-199` | to, czego E54 nie zrobił, jest zapisane tylko w papierze późniejszego etapu; notatki, ledger i 9.2 tego nie mówią | n |
+| STG-85 | E54 | `docs/dev/R-REGISTRY.md:1433-1438`, `:1444-1445`, `:1476-1483` | rejestr nie powie, które testy są etapu: 257 wierszy ma stempel E54 i żaden nie jest testem E54, a sześć testów E54 ma E93 | n |
+| STG-86 | E102 | `lang/en.json:2088`, `lang/pl.json:2178`; `lang/en.json:7455` | tooltip "Not now" pytania o realizację nazywa przycisk "Realization preview"; od 1.2.115 przycisk to "Preview realization" | n |
+| STG-87 | E25 | `scripts/tests-text.mjs:2875-2876`; `scripts/action-report.mjs:90`, `:117`; `docs/glossary.json:78-87`, `:434-443` | cztery pozycje własnej listy E25 stoją na 1.2.118, a trzy live checki planu nie są wierszami 9.2 | n |
+| STG-88 | E55 | `audit/look-freeze-baseline.json`; `audit/style-baseline.json`; `audit/style-freeze/` | zamrożenie wyglądu to odczyt z 14.11.2026, nie stała bramka: trzy baseline'y ostatnio pisał E55, a 32 późniejsze commity zmieniły `styles/` bez nich | n |
+| STG-89 | E71 | `docs/dev/e71/STATUS-A.md:222-228` i trzy pozostałe; `docs/dev/e59/GAPS.md:164` | trzy live checki planu i zrzuty partii są tylko w papierach: 9.2 nie ma LIVE-E71, więc nic nie prosi stołu o obejrzenie około 2800 przepisanych tekstów | n |
+| STG-90 | E109 | `lang/en.json:2784`; `docs/handbooks/player-handbook.en.md:760`, `:818` | jeden tekst okna i dwie linie podręcznika gracza nadal nazywają etap Tamper "the clean-up" | n |
+| STG-91 | E109 | `lang/en.json:6438`; `scripts/gm-stores.mjs:998`, `:1079`, `:1186`, `:1407` | etykieta grupy "actions" resetu nie nazywa wszystkiego, co grupa czyści (`facilityUses`, `bedroomNotes`, `veils`, `cubTargets`) | n |
+| STG-92 | E110 | `scripts/trial-floor.mjs:1258-1261`, `:1274`; `scripts/trial.mjs:1285`; `lang/en.json:1703-1704` | dwie własne linie odmowy przekierowania nigdy się nie pokazują, GM czyta ogólną linię mostu; to samo: CTRL-43 (sekcja 15) | n |
+| STG-93 | E110 | `scripts/bridge-table.mjs:1343` | tekst roszczenia `floor.repoint` nadal mówi o celu "connected or not" | n |
+| STG-94 | E110 | `scripts/tests-tier2.mjs:103945`, `:103964`, `:104028-104042` | E110-T2 oczekuje, że opcjonalny czwarty gracz, Monocub od startu, zostanie otwarty przez Objection | n |
+| STG-95 | E110 | `scripts/music-states.mjs:98-102`, `:189-210`; `scripts/vote.mjs:460` | przy playliście przypisanej do głosowania debata albo Objection otwarte po pierwszym otwarciu głosowania grają jego muzykę | n |
+| STG-96 | E111 | `README.md:283`; `docs/dev/e111/README-DRAFT.md:1-12` | akapit prywatności README i plik reguł modelu zaufania nadal mówią, że sprawa zostaje na przeglądarkach GM-ów (obietnica "nie", 14.3) | n |
+| STG-97 | E111 | `scripts/case-copy.mjs:261-268` | przy plikach otwartych dla graczy istniejąca kopia nie jest czytana przy wczytaniu, a notatki mówią tylko, że nic nie jest pisane; pokrewne: CASE-54 (ta sama droga `copyAtLoad`, od strony kopii zostawionej na serwerze) | n |
+| STG-98 | E56 | `docs/dev/e56/C14-COUNTS.md:8-41` | liczby w tabeli kodu reguł zmierzono jako nieaktualne i zostawiono; nic ich nie sprawdza | n |
+| STG-99 | E59 | `docs/dev/e59/STATUS-115.md:72-73`; `docs/dev/R-REGISTRY.md` | papier mówi, że R7172 i dalsze mają stempel E59; rejestr stempluje każdy wiersz etapu jako E56 albo E54 | n |
+| STG-100 | E112 | `scripts/vault-store.mjs:601`, `:648-649`; `scripts/sequence.mjs:733-736`, `:970`; `scripts/voice-tile.mjs:725-727` | "?" nie jest rysowany na dwóch powierzchniach, które wymieniają notatki: tablice sekwencji i kafelek głosu odrzucają portret SVG | n |
+| STG-101 | E26 | `docs/dev/e26/STATUS.md:51-58` | LIVE-E26-01 i -02 są w papierze etapu, ale nie są wierszami 9.2 | n |
+| STG-102 | E39 | `scripts/anonymity.mjs:808-817`; `docs/dev/e39/CALIBRATION.md:38-43` | `anonymity.mjs` nadal mówi, że hook `updateActor` zapisu noHook z Configure Ownership nie był czytany na v14; kalibracja E39 go odczytała | n |
+| STG-103 | E40 | `scripts/truth-bullets.mjs:1327-1342`, `:1404-1412`; `scripts/world-secrets.mjs:210-215` | cofnięcie Truth Bulleta pisze null dla strzeżonej flagi, której bullet nigdy nie miał, więc wraca, pusty, klucz zakazany przez `world-secrets.mjs` (`remnantRef`) | n |
+| STG-104 | E43 | `audit/harness/README.md:186-187` | rejestr scenariuszy nadal planuje 31-fuzz i 32-case-security dla E43, choć etap wcielił oba do scenariuszy 30 i 33 | n |
+| STG-105 | E53 | `audit/perf-baseline.json` (`perfFunction.revisions`); `audit/live/perf-baseline.mjs:103`, `:118-120` | `perf-baseline.json` zapisuje dzisiejsze ciało `perfReport` tylko dla 1.2.116, więc przebieg baseline'u na sandboksie z 1.2.118 jest odrzucany | n |
+| STG-106 | E83 | `docs/dev/METHOD.md:164-166`; `tools/stages.json:108` | METHOD.md mówi, że E83 nie jest jeszcze wierszem `tools/stages.json`; jest nim od 1.2.95 | n |
+
+
+## 15. Przebieg kontrolek (U6)
+
+Sekcja zbiera przebieg K4: piętnaście plików czytających kontrolek, trzynaście tej sesji (`controls-01` do `controls-13` w `audit/findings-1.2.118/`) i dwa pierwszej (`first-session/controls-05`, `first-session/controls-06`). Razem 321 powierzchni i 1329 kontrolek; to suma po plikach, a część okien czytało dwóch czytających (15.1), więc różnych kontrolek jest mniej - ile, nie policzyłem. Znalezisk z przedrostkiem `CTRL` jest 88: 1 `major`, 34 `minor`, 53 `nit`, żadnego `blocker`. Weryfikacja przeciwna według `master.json`: 56 utrzymanych, 3 osłabione, 29 niesprawdzonych; pięć z tych 29 (CTRL-67, -74, -76, -77, -85) ma jednak sprawdzenie w pliku `verify-*`, zapisane pod nazwą kontrolki zamiast ID, i wszystkie pięć jest tam utrzymane jako `nit` - piszę przy nich "utrzymane (pod nazwą kontrolki)". Pewność: 82 przeczytane, 6 podejrzenie. Klasa dowodu wszędzie S: żaden czytający kontrolek niczego nie nacisnął, nie uruchomił harnessu ani sondy, a testy i scenariusze nazywa z ich tekstu, nie z wyniku. Wycofanych `CTRL` nie ma (żadne nie zostało obalone); jedyne "obalone" w weryfikacji tego przebiegu to liczba, nie znalezisko (15.1). Pozostałe 60 znalezisk tych samych czytających, z werdyktem `stale_state` (4 `major`, 36 `minor`, 20 `nit`), ma przedrostek `REFR` i jest w sekcji 16. `lines-119.json` zestawia 13 pozycji `CTRL` z liniami 1.2.119: CTRL-10 adresuje linia `plan-119`, CTRL-15 i CTRL-17 ta linia dotyka, dziesięciu (CTRL-01, -02, -04, -06, -08, -11, -12, -14, -26, -28) żadna linia nie zmienia; żadna z sześciu linii nie była scalona do `main` w chwili odczytu, a każde "czerwone, potem zielone" pochodzi z wiadomości commita, nie z pomiaru. Czego nie zmierzono: układu i motywów (czytający szukali skryptem tylko reguł CSS, które chowają: `display: none`, `visibility: hidden`, `pointer-events: none`; żadne okno nie zostało narysowane), zachowania DialogV2 z v14 pod stopką przerysowaną w miejscu (LIVE-E47-01) i z `<form>` w treści okna, oraz 118 pozycji `not_established` z piętnastu plików.
+
+### 15.1 Liczby z plików czytających
+
+| Plik czytającego | powierzchnie | kontrolki | `ok` | `dead` | `throws` | `mislabeled` | `wrong_audience` | `silent` | `stale_state` | `unknown` |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `controls-01-trial-console` | 20 | 98 | 82 | 2 | 0 | 5 | 1 | 5 | 3 | 0 |
+| `controls-02-trial-zones-verdict` | 16 | 60 | 52 | 0 | 0 | 0 | 0 | 4 | 4 | 0 |
+| `controls-03-investigation-planner` | 18 | 87 | 68 | 1 | 0 | 6 | 0 | 8 | 4 | 0 |
+| `controls-04-traces-observe` | 23 | 87 | 82 | 2 | 0 | 0 | 0 | 0 | 2 | 1 |
+| `controls-05-gm-panel-stores` | 29 | 124 | 115 | 0 | 0 | 0 | 0 | 2 | 7 | 0 |
+| `controls-06-items-sheet` | 31 | 133 | 114 | 0 | 0 | 4 | 0 | 4 | 11 | 0 |
+| `controls-07-messages-calls` | 16 | 49 | 39 | 1 | 0 | 1 | 0 | 5 | 3 | 0 |
+| `controls-08-rolls-actions` | 21 | 75 | 63 | 0 | 0 | 2 | 0 | 1 | 7 | 2 |
+| `controls-09-hud-overlays` | 15 | 66 | 57 | 1 | 0 | 0 | 0 | 0 | 8 | 0 |
+| `controls-10-setup-config` | 25 | 93 | 79 | 1 | 0 | 0 | 0 | 2 | 10 | 1 |
+| `controls-11-map-rooms` | 21 | 87 | 80 | 0 | 0 | 0 | 0 | 2 | 5 | 0 |
+| `controls-12-projects` | 15 | 94 | 81 | 0 | 0 | 1 | 0 | 5 | 5 | 2 |
+| `controls-13-case-death-chapter` | 25 | 79 | 62 | 1 | 0 | 1 | 0 | 0 | 15 | 0 |
+| **razem, ta sesja (13)** | 275 | 1132 | 974 | 9 | 0 | 20 | 1 | 38 | 84 | 6 |
+| `first-session/controls-05-murder-body-death` | 24 | 77 | 71 | 2 | 0 | 2 | 1 | 0 | 1 | 0 |
+| `first-session/controls-06-gm-panel-campaign` | 22 | 120 | 108 | 0 | 0 | 2 | 4 | 4 | 0 | 2 |
+| **razem, pierwsza sesja (2)** | 46 | 197 | 179 | 2 | 0 | 4 | 5 | 4 | 1 | 2 |
+| **razem (15)** | 321 | 1329 | 1153 | 11 | 0 | 24 | 6 | 42 | 85 | 8 |
+
+Liczby są z pól `counts`. W każdym pliku suma werdyktów równa się liczbie kontrolek, a `counts` zgadza się z werdyktami wierszy (policzyłem skryptem; w czterech plikach wiersze piszą `stale-state` i `wrong-audience` z łącznikiem). Tabela liczy kontrolki, znaleziska liczą wady: jedno znalezisko obejmuje czasem kilka kontrolek, a werdykt kontrolki nie zawsze ma własne znalezisko. Trzy zastrzeżenia do liczb:
+
+- `first-session/controls-06`: `stale_state` 0 weryfikacja obaliła. Okno "Students" ("Uczniowie") ma region `keepLive` z polami (select State w każdym wierszu, pula i kwota Despair -> Hope, Role) i czeka z przerysowaniem, aż fokus wyjdzie z regionu; według D-A1 taka powierzchnia to `major`. Wszystkie 22 bloki odświeżania w tym pliku są puste, więc 0 to liczba nieprzeczytanego, nie zmierzone zero. Weryfikacja `verify-controls-05-gm-panel-stores.json` mówi to samo o tym oknie z drugiej strony; `master.json` nie ma dla tego `major` ID (sekcja 16).
+- `first-session/controls-05`: z dwóch `dead` jedno (Take from the Body) weryfikacja osłabiła jako werdykt kontrolki: przycisk, gdzie jest narysowany, działa, brakuje drogi do okna (CTRL-33).
+- `unknown` 8: Share na wierszu Truth Bullet w arkuszu (`handover.mjs` poza plikami czytającego), Daggerheart'owe "Reroll Action Roll" w menu GM-a i przyciski pierwszej karty po Reroll (CTRL-26), przycisk DRPG Settings w Configure Settings (droga v14, LIVE-E49-02), `-`/`+` tacy projektów u gracza z poziomem OBSERVER i Plant the item na karcie pułapki (handler innego czytającego), pola A/V Config i przeglądarka plików gracza w oknach Foundry trzymanych przez moduł (LIVE-E19-06, LIVE-E79-11).
+
+Kontrolki rzucającej wyjątkiem nie zapisał żaden plik (`throws` 0 wszędzie). Spis okien `docs/dev/e59/WINDOWS.md` czytający porównali z kodem i znaleźli trzy okna bez wiersza: prośbę `call-gm.mjs` `askForRequest` (CTRL-65), "Your thesis" `trial-prompt.mjs` `promptThesis` i `investigation.mjs` `openClearPlan`; oraz miejsce `boundary.mjs` `noFirst`, które rysuje dwa pytania.
+
+**Wspólne okna.** Po tytułach powierzchni: z 24 powierzchni `first-session/controls-05` 16 ma odpowiednik w `controls-13` (okno "Murder" ("Morderstwo"), "Incident tracker" ("Śledzenie incydentu"), oba "End the murder", "A clean hit", "Rate a Tier 0 weapon", "They ran out", oba "After the incident", "They got away", Faint Prep traces, "Students found a body", "Body found", "The incident's victim died", "A character dies", podpis ciała), a 3 w `controls-08` (menu kryzysu, potwierdzenie zdrady, deklaracja Direct Murder w Eclipse). Z 22 powierzchni `first-session/controls-06` 21 ma odpowiednik: 13 w `controls-05` (launcher, "GM panel", kafelki Season setup, "Debug log", Students, "Edit campaign" i jego dwa pytania, Despair Flow i jego dwa pytania, Give back Foundry's settings z pytaniem przy starcie, okna Foundry trzymane przez moduł), 5 w `controls-10` (objaśnienia, podręczniki, raport diagnostyki, dwa okna `requirements.mjs`), 2 w `controls-13` (oba "End the chapter") i 1 w `controls-08` ("Killing game rules"); tylko zakładka Scenes nie ma pary. Gdzie dwaj czytający widzieli to samo, wpis jest jeden (CTRL-77 z CTRL-78, CTRL-69 z CTRL-87). Gdzie widzieli różnie: `controls-13` dał tym oknom 15 `stale_state`, a `first-session/controls-05` jedno (CTRL-80, u `controls-13` to REFR-63); `controls-08` policzył deklarację Direct Murder jako dwie kontrolki `ok`, bez Details, które `first-session/controls-05` znalazł martwe (CTRL-31); `controls-05` nie zapisał znalezisk `first-session/controls-06` w panelu i w Students (CTRL-35, -83, -84, -85, -88), a `first-session/controls-06` nie zapisał ich `stale_state` (sekcja 16).
+
+### 15.2 Martwe
+
+**CTRL-01** · `major` · przeczytane · utrzymane · S · `controls-10-setup-config-1`
+"Reset the season" ("Zresetuj sezon") w "Season setup" ("Ustawienia sezonu") zamyka okno i niczego nie otwiera: przycisk ustawia `resetAsked` i woła `dialog.close()`, okno z `rejectClose: false` odpowiada wtedy `null`, a `:1214` wraca na `!result`, zanim `:1215` przeczyta `resetAsked`. Innej drogi do resetu nie ma (kafelka panelu nie ma od E49 A1d, `api.mjs:814` sięga tylko `openSeasonSetup`); testy tieru 1 przypinają tekst linii, a scenariusze i tier 2 wołają `resetSeason()` wprost. Że DialogV2 z v14 odpowiada `null` na takie zamknięcie, jest odczytane z kitu i z modelu harnessu, nie z v14.
+Gdzie: `scripts/season-setup.mjs:1200-1204` (naciśnięcie), `:1213-1215` (co po oknie).
+Scenariusz: GM kończący sezon otwiera Season setup i naciska Reset the season: okno się zamyka, nic się nie otwiera, nic nie zostaje powiedziane, a żaden inny przycisk modułu resetu nie zaczyna.
+1.2.119: żadna z sześciu linii nie zmienia `season-setup.mjs`.
+To samo: CASE-19, STG-02.
+
+**CTRL-02** · `minor` · przeczytane · utrzymane · S · `controls-01-trial-console-1`
+Przycisk "Not tied to the murder: N" ("Niezwiązane z morderstwem: N") pod schematem w konsoli "Class Trial" nic nie robi: konsola woła `wireCaseMap(region, { camera })` bez `onFold`, więc kliknięcie trafia w pustą funkcję domyślną, a zwinięte Remnanty (i znak "presented" na którymś z nich) nie dają się w konsoli zobaczyć. Żadna reguła CSS go tam nie chowa (`components.css:3528`, `:3543` stylują go w obu motywach); komentarz w `case-map.mjs:222` sam to mówi.
+Gdzie: `scripts/case-trial.mjs:98`; `scripts/case-map.mjs:224, 445, 495`.
+Scenariusz: GM prowadzący proces naciska "Not tied to the murder: 3" pod schematem i nic się nie dzieje.
+To samo: STG-16.
+
+**CTRL-10** · `minor` · przeczytane · utrzymane · S · `controls-03-investigation-planner-1`
+"Move up" / "Move down" ("W górę" / "W dół") na Mapie Investigation układają inny graf niż ten, który Mapa rysuje: handler bierze tylko zapisane wiersze `keyPlanStore`, bez planowanych Autopsji i z `chapters: 'this'`, a Mapa rysuje każdy slot planu Key, liczbę Autopsji i wszystkie rozdziały przy filtrze "Every chapter" ("Wszystkie rozdziały"). Węzeł spoza układu handlera wraca bez słowa, inne przeskakują.
+Gdzie: `scripts/investigation.mjs:1927-1940` (`moveCaseNode`) wobec `:1146` (rysowany graf).
+Scenariusz: GM na świeżym rozdziale naciska Move down na "Slot 1" albo Move up na planowanej Autopsji: nic się nie rusza i nic nie mówi; Move up na drugim z dwóch Remnantów: oba przeskakują pięć slotów.
+1.2.119: `plan-119` (0f904621) to adresuje: `moveCaseNode` układa graf Mapy (`caseMapGraph(reading)`), a ruch niemożliwy jest mówiony (`DRPG.CaseMap.moveEnd.up/down`).
+To samo: STG-21.
+
+**CTRL-22** · `minor` · przeczytane · utrzymane · S · `controls-07-messages-calls-1`
+Powiadomienie GM-a o karcie decyzji bez wątku niesie przyciski karty niepodpięte: Allow, "Refuse" ("Odmów"), "Spring the trap" ("Odpal pułapkę"), "Rearm the trap" i "Choose the target again" ("Wybierz cel ponownie") tylko je zamykają. Droga bez wątku szepcze przez `gmPopup`, `showPopup` dostaje słowa całe i bez `onClick`, a `wireCallActions` jest wołane tylko w `messenger-app.mjs:684` i `gm-bridge.mjs:158`; powiadomienia komunikatora przyciski zdejmują (`cardPreview`).
+Gdzie: `scripts/popup.mjs:1267-1269, 1287-1298, 1072-1077`; `scripts/call-gm.mjs:976-986`; wobec `scripts/messenger-app.mjs:617-625`.
+Scenariusz: w Eclipse GM dostaje powiadomienie "A ruling to make" ("Decyzja do podjęcia") o Direct Murder Chie i naciska w nim "Allow on Strength": powiadomienie się zamyka, nic nie zostaje rozstrzygnięte, a karta w dzienniku czatu dalej czeka.
+
+**CTRL-28** · `minor` · przeczytane · utrzymane · S · `controls-09-hud-overlays-3`
+Podpowiedź podpisu przelewu Despair, która trzyma prawdziwą liczbę GM-a i powód, dla którego pełny licznik nie odpalił, nie może się pokazać na układzie biurkowym: podpis jest doklejony wprost do `#drpg-despair`, a ten ma `pointer-events: none` i włącza z powrotem tylko wiersz, pip, przycisk, nazwę i licznik. Na wąskim stosie działa. Rdzennego arkusza Foundry dla `#ui-top` nie przeczytano; czytający proponuje odczyt przy stole w obu motywach.
+Gdzie: `scripts/despair.mjs:1142-1147` (`line.title`); `styles/danganronpa.css:1148-1153, 1176-1181`.
+Scenariusz: GM widzi "Despair overflow · 20/20" bez karty zaciemnienia, najeżdża na podpis, żeby przeczytać dlaczego i ile się naprawdę przelało: nic się nie pojawia, w żadnym motywie, na ekranie biurkowym.
+
+**CTRL-31** · `minor` · przeczytane · utrzymane · S · `first-session/controls-05-murder-body-death-10`
+"Details" ("Szczegóły") w potwierdzeniu deklaracji Direct Murder w Eclipse nic nie robi: `briefingBlock` kończy się `detailsHtml`, którego jedynym słuchaczem jest `wireDetails`, wołane tylko z renderu `actionWindow`, a `performDirectMurder` otwiera `drpgConfirm` bez renderu i bez podpięcia szczegółów. `controls-08` czytał to okno i policzył je bez Details.
+Gdzie: `scripts/action-murder.mjs:323-331`; `scripts/action-briefing.mjs:100`; `scripts/action-menus.mjs:309, 371-400`.
+Scenariusz: w Eclipse gracz naciska Direct Murder, czyta potwierdzenie, naciska Details, żeby zobaczyć cenę, i nic się nie dzieje.
+
+**CTRL-33** · `minor` · przeczytane · utrzymane · S · `first-session/controls-05-murder-body-death-3`
+Z wyłączonym "Keep character sheets anonymous" ("Anonimowe arkusze postaci") nic nie otwiera "Take from the Body": `onRenderSheet` wraca na `!enforcing()` przed `buildBodyLoot`, jedynym miejscem, które rysuje przycisk, a przycisk jest jedynym wołającym `openBodyLoot`. Weryfikacja utrzymała znalezisko, a osłabiła werdykt kontrolki: brakuje drogi do okna, nie działającego przycisku.
+Gdzie: `scripts/anonymity.mjs:127, 139-144, 299-309`.
+Scenariusz: przy stole, który wyłączył ten przełącznik w ustawieniach modułu, uczeń staje nad ciałem, otwiera jego arkusz i nigdzie nie ma Take from the Body; gracz nie może przeszukać ciała.
+
+| ID | Weryfikacja | Gdzie | Co |
+| --- | --- | --- | --- |
+| CTRL-39 | osłabione; podejrzenie | `scripts/trial-floor-ui.mjs:1780-1784, 881-883` | Enter na przycisku konsoli z fokusem jest zdejmowany w każdym trybie poza debatą, nie tylko w Objection, jak mówią komentarze `:880` i `:1777-1779`; że przeglądarka wtedy nie aktywuje przycisku, nie zmierzono. To samo: CASE-63. |
+| CTRL-56 | utrzymane | `scripts/remnants.mjs:2462-2485`; `scripts/cleanup.mjs:2632-2682`; `scripts/api.mjs:934` | Dwa okna z `WINDOWS.md` (wiersze 89 i 168) bez kontrolki, która je otwiera: "Clear Faint Remnants" ("Wyczyść Faint Remnanty") nie ma żadnego wołającego, "Cleaning up" ("Sprzątanie") tylko `game.drpg.cleanupDialog`. |
+| CTRL-63 | utrzymane | `scripts/messenger-app.mjs:1631-1664`; `scripts/a11y.mjs:70-71` | Wiersze rostera GM-a to `li` z kliknięciem, bez `tabindex`, roli i klawisza: klawiatura ich nie sięga, a `a11y` ich nie liczy. |
+| CTRL-76 | utrzymane (pod nazwą kontrolki) | `scripts/messenger-app.mjs:964-968, 1402` | Droga decyzji `openMurder` jest zarejestrowana, a żadna karta modułu nie rysuje jej przycisku. |
+
+### 15.3 Rzucają wyjątkiem
+
+Żaden z piętnastu plików nie ma kontrolki rzucającej wyjątkiem i żadne `CTRL` nie ma tej kategorii. Jedna droga z wyjątkiem stoi poza tym przebiegiem: kafelek Investigation i każdy przycisk, który otwiera panel ponownie, rzucają, gdy w schemacie rozdziału stoi pętla refutes (CASE-20, `major`, sekcja 17; wskazówka `first-session/domain-case-f`); `plan-119` (3b73017a) to adresuje. `controls-01` zapisał w `not_established`, że akcja stopki konsoli, która rzuci, zostawia konsolę zamkniętą (`manageClassTrial` bez `catch`, `scripts/trial-floor-ui.mjs:1826-1829`), ale rzucającej drogi w przeczytanych handlerach nie znalazł.
+
+### 15.4 Robią co innego niż etykieta
+
+**CTRL-03** · `minor` · przeczytane · utrzymane · S · `controls-01-trial-console-2`
+W oknie "Your turn" ("Twoja tura") "Keep speaking" ("Mówię dalej"), X i Escape zabierają "Done" ("Gotowe") i "Pass" ("Pasuję") do końca tury: `promptTurn` ustawia `promptedFor` na klucz tury przed rysowaniem, a każda odpowiedź poza done, pass i thesis wraca w `:217` bez cofnięcia go; tik co sekundę wraca w `:175` dla tego samego klucza. Innego nadawcy Done i Pass nie ma.
+Gdzie: `scripts/trial-prompt.mjs:175-176, 217`; `lang/en.json` `DRPG.Trial.turn.body`.
+Scenariusz: mówca Closing Argument naciska Enter w oknie na początku 300 s, kończy po dwóch minutach i nie ma czego nacisnąć; odcinek biegnie do końca zegara albo do Skip GM-a.
+To samo: CASE-38.
+
+**CTRL-12** · `minor` · przeczytane · utrzymane · S · `controls-03-investigation-planner-14`
+"Check consistency" ("Sprawdź spójność") oraz linie i "x/y" Mapy czytają zapisaną sprawę: przy wszystkich węzłach otwartych to, co GM właśnie zaznaczył albo wpisał, nie jest w niej, dopóki nie opuści Mapy. `onCheck` tylko ustawia `reading.overview` i odświeża; graf i `checkCase` są budowane z magazynów, a decyzja w `docs/dev/owner-116/STATUS.md:240` o zapisie pól nie mówi nic o sprawdzeniu.
+Gdzie: `scripts/investigation.mjs:1885` (`onCheck`), `:1146-1157`, `:1787-1791` (kiedy węzeł jest zapisywany).
+Scenariusz: GM dodaje wniosek, zaznacza dwa Remnanty, na których stoi, i naciska Check consistency: lista dalej mówi, że wniosek nie stoi na niczym, i żadna linia nie łączy go z Remnantami.
+
+**CTRL-14** · `minor` · przeczytane · utrzymane · S · `controls-03-investigation-planner-2`
+"Place on the map" ("Postaw na mapie") i "Give a Truth Bullet" ("Daj Truth Bullet") działają na zapisanym planie, nie na polach węzła, jak je wpisano: `onPlace` idzie prosto do `placeIncident`, które czyta wiersz z magazynu, a nic przed nim węzła nie zapisuje (`saveOpenNode` i `saveFieldsIn` są wołane tylko przy wyborze, Close, przełączniku All open, zmianie widoku i zamknięciu okna). Planowana Final Truth staje bez wpisanych pól, a wpisane znika.
+Gdzie: `scripts/investigation.mjs:1886-1889` (`onPlace`), `1903-1919` (`placeIncident`), `2115-2141` (`placePlannedFinal`).
+Scenariusz: GM dodaje Planned Final Truth, wybiera pokój, wpisuje nazwę i słowa, naciska Place on the map: znów pytany o pokój, Remnant Final Truth staje pod pierwszą nazwą planu, bez wpisanych słów, a wpisane znika z okna.
+
+**CTRL-15** · `minor` · przeczytane · utrzymane · S · `controls-03-investigation-planner-3`
+Na Mapie narysowanej dla innego rozdziału węzły slotów Key tamtego rozdziału niosą pola slotu i Place rozdziału bieżącego: `caseGraph` czyta zapisane wiersze tamtego rozdziału (archiwum trzyma je per rozdział), a `mapEditors` wiesza na nich `caseKeyCells({ plan })` planu bieżącego.
+Gdzie: `scripts/investigation.mjs:1135-1146` (`caseMapRegion`), `1294-1303` (`mapEditors`).
+Scenariusz: GM w rozdziale 3 ustawia filtr Chapter w Tabeli na rozdział 2 i otwiera Mapę: pod pierwszym Key Remnantem rozdziału 2 grupa "Slot 1" pokazuje pustą nazwę i Place, a to, co tam wpisze, zapisuje się jako pierwsza wskazówka rozdziału 3.
+1.2.119: `plan-119` tego dotyka: odczyt slotów i Autopsji przeszedł do `caseMapGraph`, ale `mapEditors` nie jest w diffie i nic nie pokazuje, że znalezisko się przesunęło.
+
+**CTRL-18** · `minor` · przeczytane · utrzymane · S · `controls-03-investigation-planner-7`
+Na rozdziale bez własnego Remnanta jedno spojrzenie na Tabelę ustawia filtr Chapter na "Every chapter": `readTracesAs`, wołane tylko z gałęzi Tabeli, zamienia `reading.chapter` (początkowo null) na `''`, `mapChapterOf` czyta `''` jako wszystkie rozdziały, a opcje filtra są budowane tylko z rozdziałów Remnantów, więc bieżącego rozdziału nie da się wybrać z powrotem.
+Gdzie: `scripts/investigation.mjs:422-426` (`readTracesAs`), `1120-1124` (`mapChapterOf`), `725-727` i `753` (opcje).
+Scenariusz: GM planujący rozdział 3, zanim istnieje jego jakikolwiek Remnant, otwiera Investigation na Mapie, zagląda do Tabeli i wraca: kolumna dowodów trzyma teraz też Key Remnanty rozdziałów 1 i 2, i żadna opcja filtra ich nie usuwa.
+
+**CTRL-20** · `minor` · przeczytane · utrzymane · S · `controls-06-items-sheet-4`
+"Give / take" ("Daj / zabierz") na arkuszu ucznia (i Items w oknie Students) podnosi już otwarty hub, który jest o kimś innym: pierwsza instrukcja `openItemManager` odpowiada na otwarty hub `alreadyOpen` -> RAISED, zanim przeczyta `actor`, a `alreadyOpen` tylko rozwija i podnosi.
+Gdzie: `scripts/sheet-header.mjs:811-814`; `scripts/gm-items.mjs:337`.
+Scenariusz: GM z hubem otwartym na Annie naciska Give / take na arkuszu Boba; hub wychodzi na wierzch dalej na Annie i następne Give idzie do Anny.
+
+**CTRL-27** · `minor` · przeczytane · utrzymane · S · `controls-08-rolls-actions-4`
+"Refuse" ("Odmów", podpowiedź "Turns the action down") w oknie trudności Dynamic Action nie odmawia niczego, gdy okno otwarto z karty GM-ów: `askDynamicDifficulty` składa Refuse i zamknięte okno w jedno `null`, `ruleSetDifficulty` wraca na `null`, więc `wireCallActions` oddaje przyciski karty i do gracza nic nie dociera. Własne Refuse karty (`ruleRefuseDynamic`) wysyła `false`.
+Gdzie: `scripts/action-dynamic.mjs:356` (`askDynamicDifficulty`), `111-115`; `scripts/messenger-app.mjs:873-881` (`ruleSetDifficulty`).
+Scenariusz: GM naciska "Set the difficulty" ("Ustal trudność") na karcie Dynamic gracza, czyta opis, naciska Refuse w oknie i idzie dalej; gracz nigdy się nie dowiaduje, karta jest znów otwarta, a akcja czeka, aż minie czas na decyzję.
+
+**CTRL-30** · `minor` · przeczytane · utrzymane · S · `first-session/controls-05-murder-body-death-1`
+Gdy ofiara pułapki rzuciła i ją zauważyła, Incident tracker dalej mówi, że czeka na ten rzut, i proponuje "Ask for the opening roll again" ("Poproś o rzut otwarcia ponownie"): gałąź sukcesu `resolveVictimOpening` nie zapisuje stanu, a linia i przycisk trackera zależą tylko od `stage === 'openingRoll'` i `selfInflicted`.
+Gdzie: `scripts/murder-ui.mjs:463-471, 627-629`; `scripts/murder-rules.mjs:861-890`; `scripts/roll-draw.mjs:1151-1156`.
+Scenariusz: GM otwiera pułapkę, gracz ofiary wyrzuca 20 lub więcej i ją zauważa; GM czyta w trackerze, że czeka na rzut otwarcia, naciska Ask again, a gracz dostaje trzy okna rzutu, każde odrzucone, po czym czat GM-ów mówi, że gracz nie rzucił.
+To samo: CASE-57.
+
+**CTRL-32** · `minor` · przeczytane · utrzymane · S · `first-session/controls-05-murder-body-death-2`
+Śmierć z własnej ręki ucznia nie ma Ask for the opening roll again, choć powiadomienie GM-ów każe go nacisnąć: wpis stoi za `!state.selfInflicted`, a koniec `throwOpeningRoll` bez rzutu szepcze `DRPG.Murder.openingDeclined` bez wyjątku dla `selfInflicted`.
+Gdzie: `scripts/murder-ui.mjs:627-629`; `scripts/murder-rules.mjs:4691-4702`; `lang/en.json:2928`.
+Scenariusz: GM otwiera morderstwo z jednym uczniem jako zabójcą i ofiarą, gracz trzy razy zamyka okno rzutu, czat każe GM-om nacisnąć Ask for the opening roll again, a trackera nie ma tego przycisku: zostaje "End the murder" ("Zakończ morderstwo") i otwarcie od nowa.
+
+**CTRL-35** · `minor` · przeczytane · utrzymane · S · `first-session/controls-06-gm-panel-campaign-1`
+W oknie Students Enter w wierszu Monocuba Despair -> Hope naciska "Apply" ("Zastosuj") ze stopki, nie "Give Hope" ("Daj Hope"): select i stepper wiersza nie mają `data-drpg-enter` (ten sam wiersz Mastermind ma), stepper to `input type=number`, który bierze udział w niejawnym wysłaniu formularza, a wszystkie przyciski tabeli są `type=button`, więc wygrywa pierwszy przycisk submit, główny.
+Gdzie: `scripts/gm-students.mjs:101-106` (wiersz), `546-552` (Apply); `scripts/utils.mjs:1121-1133`; `scripts/ui-kit.mjs:41-46`.
+Scenariusz: GM wpisuje 3 w kwotę Monocuba i naciska Enter: okno Students zamyka się z "Nothing changed." (albo z zapisanym State, którego jeszcze nie chciał zastosować), a Monocub nie ma więcej Hope.
+
+| ID | Weryfikacja | Gdzie | Co |
+| --- | --- | --- | --- |
+| CTRL-36 | utrzymane | `scripts/trial-floor.mjs:933-939, 107-109` | W Straw Poll, Logic Dive i Scrum Debate "OBJECTION!" jest wstrzymany słowami trwającego Objection: gracz słyszy, żeby czekał na Rebuttal, który nie przyjdzie. |
+| CTRL-37 | utrzymane | `scripts/trial-floor-ui.mjs:1134-1136` | Wyszarzony Nonstop Debate w wyborze trybu mówi "The debate is already running." w rundzie, w Closing i w trybach stref. To samo: CASE-65. |
+| CTRL-43 | utrzymane | `scripts/trial.mjs:1531-1544, 1285`; `scripts/trial-floor.mjs:1258, 1274` | "Re-point" ("Przekieruj") otwiera się na obecnym celu, a Re-point na nim jest odrzucany jako "You cannot do that right now." zamiast własnej odmowy. To samo: STG-92. |
+| CTRL-45 | utrzymane | `scripts/case-trial.mjs:49-54, 66`; `scripts/trial-floor-ui.mjs:1133-1139` | Start kafelka schematu jest wyszarzony w zwykłej Nonstop Debate z "Another mode is running. End it first.", a wybór trybu startuje ten sam tryb. |
+| CTRL-51 | niesprawdzone | `scripts/investigation.mjs:1912-1917` | Place on the map ostrzega, że planowany pokój "is not on this scene", gdy jest na scenie planu, a GM patrzy na inną. To samo: CASE-60. |
+| CTRL-60 | utrzymane | `scripts/gm-items.mjs:1790-1794, 1847-1850, 429-433` | Take an item: tytuł ("Take an item from {actor}") nazywa ucznia huba po zmianie selecta, a przedmiot zniknięty w międzyczasie jest mówiony jako "carries nothing the module tracks". To samo: ITEM-29, ITEM-40. |
+| CTRL-61 | utrzymane | `scripts/gm-items.mjs:923-937, 1280-1286, 752, 866-877` | "Give an item" ("Daj przedmiot") i Give a Truth Bullet: Give na pustej zakładce From the tables albo From a Remnant działa na drugiej zakładce (bez tabel GM słyszy, że przedmiot potrzebuje nazwy). |
+| CTRL-64 | utrzymane | `scripts/messenger-app.mjs:990-1003`; `scripts/traps.mjs:376-383`; `scripts/projects-secrecy.mjs:257-260` | "Rearm the trap" ("Uzbrój pułapkę ponownie") na pułapce, której projekt usunięto, rozlicza kartę "The trap is watching again."; `patchTrigger` nie pyta o projekt. |
+| CTRL-66 | niesprawdzone | `scripts/action-menus.mjs:278, 304-305`; reguła `code.md` repozytorium (wiersz `action-briefing.mjs`) | Komentarze nazywają okno akcji, którego nie ma ("Move's briefing" jako wołający `actionWindow`); żaden wołający nie przekazuje dziś pustego `ask`. |
+| CTRL-67 | utrzymane (pod nazwą kontrolki) | `scripts/action-listen.mjs:77, 83-85` | Wiersz Echoes w Infiltrate: przycisk mówi "Roll" ("Rzuć"), podpowiedź wiersza "Without a roll"; wybór zapisany (E69 C7, R4105), a etykieta przeczy własnemu wierszowi. Pokrewne: ROLL-31. |
+| CTRL-74 | utrzymane (pod nazwą kontrolki) | `scripts/projects-ui.mjs:1187-1194, 1255-1256` | Okno projektu mówi "Projects updated." i "1 deleted." bez względu na odpowiedź kroku; według weryfikacji to bliżej fałszywego sukcesu niż złej etykiety, waga ta sama. |
+| CTRL-77, CTRL-78 | utrzymane (CTRL-77 pod nazwą kontrolki) | `scripts/murder-ui.mjs:663-676`; `scripts/murder-rules.mjs:4426-4450, 4481-4500` | Toast Ask for the opening roll again mówi "offered again", zanim cokolwiek wysłano, i gdy nic nie wysłano (okno statystyki otwarte; przy nieobecnym właścicielu okno rzutu otwiera się u GM-a). Dwaj czytający (`controls-13-case-death-chapter-7`, `first-session/controls-05-murder-body-death-4`). |
+| CTRL-82 | utrzymane | `scripts/murder-ui.mjs:791-800`; `scripts/murder-rules.mjs:3473-3481`; `lang/en.json:2827` | Pytanie End the murder ("Stop tracking this murder?") nie mówi, że przy śmierci z własnej ręki "tak" zapisuje śmierć. |
+| CTRL-84 | utrzymane | `scripts/gm-panel.mjs:898-906`; `lang/en.json:5163-5164`; `scripts/investigation.mjs:1103-1106` | Linia Next w "GM panel" ("Panel GM-a") odsyła do "Key Remnants tab" okna Investigation, a jej przycisk otwiera okno na Mapie, która zakładek nie ma. |
+
+### 15.5 Dla złej publiczności
+
+Wszystkie cztery są `nit`: każde naciśnięcie kończy się odmową, która mówi, kto może.
+
+| ID | Weryfikacja | Gdzie | Co |
+| --- | --- | --- | --- |
+| CTRL-44 | utrzymane | `scripts/trial-floor-ui.mjs:1447-1450`; `scripts/verdict.mjs:1106-1113` | "Finish the verdict" ("Dokończ werdykt") jest rysowany i włączony u GM-a, który werdyktu nie prowadzi; naciśnięcie każe zapytać drugiego GM-a. |
+| CTRL-79 | utrzymane | `scripts/murder-rules.mjs:3799, 3828-3831`; `scripts/body.mjs:176-181, 1107` | Pierwszy przycisk checklisty po incydencie, "Body found" ("Znaleziono ciało"), stoi u GM-a, którego naciśnięcie jest zawsze odrzucane; przyciski Autopsji i Investigation znikają z oknem. |
+| CTRL-85 | utrzymane (pod nazwą kontrolki) | `scripts/gm-panel.mjs:331-341, 422-425, 440-443`; `scripts/voice.mjs:2611-2612`; `scripts/chapter.mjs:391, 864-869`; `scripts/body.mjs:1107, 176-181` | Trzy naciśnięcia panelu GM-a ("Fix voice" ("Napraw głos"), Next: End the chapter, Next: Announce the body) są pokazane włączone GM-owi, który nie jest pierwszy, i zawsze odrzucane. |
+| CTRL-86 | utrzymane | `scripts/gm-campaign.mjs:225-229, 243, 116-126`; `scripts/chapter.mjs:391, 864-869` | "Edit campaign" ("Edytuj kampanię"): End the chapter zamyka okno i zadaje pytanie, zanim GM nie-pierwszy usłyszy, że rozdział kończy tylko pierwszy (zamknięcie bez Apply jest zaprojektowane dla każdego GM-a). |
+
+### 15.6 Milczące
+
+**CTRL-04** · `minor` · przeczytane · utrzymane · S · `controls-01-trial-console-3`
+Przyciski Closing Argument odmawiają słowami "The Closing Argument did not change.", nigdy powodem napisanym dla odmowy: `runClosingOp` nie pyta wcześniej o odmowę, `FLOOR_OPS` wołają `closingStepInStep` bez `why`, więc odmowa maszyny (`closing.absent`, `noDrawn`, `nothingToResume`) wraca jako `null`; u drugiego GM-a `floorStep` robi z odrzuconego `trial.gm` to samo. "Confirm the speaker" ("Zatwierdź mówcę") jest rysowany bez sprawdzenia, czy mówca jest.
+Gdzie: `scripts/trial-floor-ui.mjs:1073-1078`; `scripts/trial-modes.mjs:265-275`; `scripts/trial-floor.mjs:587-592`; `scripts/floor-machine.mjs:267-294`.
+Scenariusz: gracz wylosowanego ochotnika wypada; konsola dalej proponuje Confirm the speaker, a każde naciśnięcie mówi tylko "The Closing Argument did not change.".
+To samo: CASE-41.
+
+**CTRL-07** · `minor` · przeczytane · utrzymane · S · `controls-02-trial-zones-verdict-2`
+Cancel, X albo Escape w oknie wyboru strony zostawia uczestnika bez możliwości wyboru w tym trybie i nic tego nie mówi: `pickOpenFor` jest zapisywane w `:441` przed otwarciem okna i nic w `scripts/` go już nie zmienia; odrzucenie wraca w `:454` bez komunikatu, a każde późniejsze `renderTrialFloor` wraca w `:438`, także przy kolejnych pytaniach Logic Dive.
+Gdzie: `scripts/trial-zones-ui.mjs:441, 454`.
+Scenariusz: uczestnik bez żetonu w sali naciska Escape, gdy okno się otwiera w Straw Poll: brak komunikatu, okno nie wraca, a konsola wpisuje jego ucznia pod "In neither zone" ("Poza strefami") dla tego liczenia.
+To samo: STG-18, CASE-46.
+
+**CTRL-11** · `minor` · przeczytane · utrzymane · S · `controls-03-investigation-planner-12`
+Filtr w Tabeli i zwinięcie na Mapie przerysowują bez wierszy albo węzłów, które chowają, a pole tam wpisane i jeszcze niezapisane znika bez słowa: ani `wireCaseFilters`, ani `onFold` nie wołają `saveOpenNode` czy `saveFieldsIn`, `case-map.mjs` nie rysuje schowanych węzłów, a `live.mjs` przenosi brudną wartość tylko do pola o tym samym kluczu.
+Gdzie: `scripts/investigation.mjs:1998-2004` (`wireCaseFilters`), `1860` (`onFold`); `scripts/case-map.mjs:168-170, 185-194`; `scripts/live.mjs:530-549`.
+Scenariusz: GM zmienia nazwę Remnanta w Tabeli, przestawia filtr Room na inny pokój, żeby porównać, wraca i naciska Save: stoi stara nazwa i nic nie powiedziało, że edycja przepadła.
+To samo: STG-22.
+
+**CTRL-13**, **CTRL-24** · `minor` · przeczytane · utrzymane · S · `controls-03-investigation-planner-15`, `controls-07-messages-calls-7`
+Przełączenie zakładki komunikatora gubi szkic w obie strony: "Chat" ("Czat") gubi niezapisaną notatkę przed sesją, "Note" ("Notatka") gubi niewysłaną wiadomość. `onSwitch` ustawia `this.tab` i woła `this.render()`; notatka jest rysowana z magazynu (`noteFor`), pole czatu pusto, a okno szkicu nie trzyma (tylko `noteSaid` i `noteShown`).
+Gdzie: `scripts/messenger-app.mjs:386-391` (`onSwitch`), `304-307` (`_buildNote`), `255-262` (pole czatu).
+Scenariusz: gracz odpowiada na siedem pytań, naciska Chat, żeby przeczytać, co napisał GM, wraca do Note i w polu jest stara notatka; albo pisze długie pytanie do GM-a, zagląda do Note, wraca do Chat i pytania nie ma.
+
+**CTRL-16** · `minor` · przeczytane · utrzymane · S · `controls-03-investigation-planner-4`
+"New Remnant" ("Nowy Remnant") otwarty z planu bez pokoju: "Create on the map" ("Utwórz na mapie") przy "- pick a room -" zamyka okno i nic nie mówi; pytanie o pokój Final Truth robi to samo. Pierwsza kontrola po oknie wraca `null` na pusty pokój bez komunikatu, a trzy następne odmowy ostrzegają; select nie ma `required`.
+Gdzie: `scripts/investigation.mjs:119-121, 208` (`openNewTrace`), `2130` (`placePlannedFinal`).
+Scenariusz: GM naciska Place on the map na planowanym Remnancie bez pokoju, wypełnia słowa, zapomina pokoju i naciska Create on the map: okno się zamyka, Remnant nie staje, nic nie mówi dlaczego.
+
+**CTRL-21** · `minor` · przeczytane · utrzymane · S · `controls-06-items-sheet-8`
+Wiersze cofnięcia oferty ("Take back the offer", "Cofnij ofertę") w Level Up są rysowane raz: oferta wydana albo cofnięta w międzyczasie sprawia, że naciśnięcie nic nie robi i milczy. Stan jest czytany raz przed `chooseVariant`, `action-menus.mjs` nie ma `keepLive`, a powrót "nie znaleziono" w `takeBackOffer` nic nie mówi, choć dwie pozostałe odmowy ostrzegają.
+Gdzie: `scripts/level-up.mjs:59-62, 114, 418-421`.
+Scenariusz: GM otwiera Level Up, żeby cofnąć pomyłkową ofertę Reinforced, gracz pierwszy ją wydaje, a Take back GM-a zamyka menu bez słowa, że oferta już wydana.
+
+**CTRL-23** · `minor` · przeczytane · utrzymane · S · `controls-07-messages-calls-2`
+Karta decyzji, która nie znajduje, o czym decydować, oddaje przyciski i nic nie mówi: przy przedmiocie przekazanym dalej kartę twórczego użycia nie zamknie żaden przycisk, Refuse też (przedmiot jest czytany przed gałęzią odmowy); usunięta postać robi to samo większości kart; prośba Call albo Dynamic, którą pierwszy GM upuścił, jest mówiona tylko w konsoli.
+Gdzie: `scripts/messenger-app.mjs:939-941, 783`; `1057-1058, 1132-1133, 1186-1187, 1212-1213, 1290-1291, 1356-1357, 1378-1379, 1430-1431` (`if (!actor) return null`); `862, 881, 886` z `scripts/call-gm.mjs:476-484, 500-508`.
+Scenariusz: Bob pyta, czy jego dziwna łyżka działa, i oddaje ją Chie, zanim GM spojrzy; GM naciska Refuse na karcie Boba, przyciski mrugają i wracają, nic nie zostaje powiedziane, a karta do końca kampanii mówi "Awaiting a ruling".
+
+**CTRL-25** · `minor` · przeczytane · utrzymane · S · `controls-07-messages-calls-8`
+"Create an item" ("Utwórz przedmiot") na karcie Search przy już otwartych tabelach przedmiotów podnosi je bez kategorii, tieru, pokoju i nazwy z karty: `openItemTables` zwraca RAISED, zanim przeczyta preset, a `wireCallActions` czyta RAISED jako brak rozliczenia i oddaje przyciski bez komunikatu.
+Gdzie: `scripts/messenger-app.mjs:1336-1350` (`ruleCreateItem`); `scripts/tables-editor.mjs:1616-1623`.
+Scenariusz: GM ma otwarte "Item tables" ("Tabele przedmiotów") z przygotowania rozdziału i naciska Create an item na Search Boba szukającego łomu: tabele wychodzą na wierzch na puli, którą pokazywały, a GM wpisuje kategorię, tier, pokój i nazwę od nowa.
+
+**CTRL-29** · `minor` · przeczytane · utrzymane · S · `controls-12-projects-8`
+Delete z menu wiersza tacy projektów usuwa projekt od razu, bez pytania i bez słowa, inaczej niż dwa pozostałe Delete (menedżer i okno projektu czekają na `confirmProjectDelete` i powiadamiają); `deleteProject` niczego nie pyta i nic nie mówi.
+Gdzie: `scripts/projects-ui.mjs:242-248` (`projectRowMenu`); por. `490-499`, `1187-1193`; `DRPG.Project.deleteNote`.
+Scenariusz: GM klika prawym na wiersz projektu, żeby wybrać Edit, i trafia w Delete linię niżej: pośrednie morderstwo i jego postęp znikają od razu, nic nie zapytane, nic nie powiedziane.
+
+**CTRL-34** · `minor` · przeczytane · utrzymane · S · `first-session/controls-05-murder-body-death-5`
+Drugie odkrycie ciała, które dociera do swoich dwóch świadków, gdy pytanie o pierwsze jest otwarte, nigdy nie trafia do GM-a: `askPendingBodies` zwraca trwającą obietnicę, `promptPendingBodies` czyta wiersze raz i po pętli nie wraca do magazynu, a późniejsze wejście do drugiego pokoju wraca na stojącym wierszu.
+Gdzie: `scripts/body.mjs:849-856, 906-913, 915-949`.
+Scenariusz: dwa ciała leżą w dwóch pokojach; dwoje uczniów wchodzi na pierwsze i otwiera się pytanie GM-a; zanim GM odpowie, dwoje innych wchodzi na drugie: znalazcy słyszą dźwięk i dostają wiadomość prywatnie, a GM nigdy nie dostaje pytania o to ciało.
+
+| ID | Weryfikacja | Gdzie | Co |
+| --- | --- | --- | --- |
+| CTRL-38 | niesprawdzone | `scripts/trial-floor-ui.mjs:1453-1454` | "Show summary" ("Pokaż podsumowanie") jest wyszarzony bez powodu przed werdyktem i przez cały Final Trial. |
+| CTRL-46 | niesprawdzone | `scripts/trial-zones-ui.mjs:322` | "Start" ("Zacznij") w Hall zones z Logic Dive i bez zestawu zamyka okno, nic nie startuje, nic nie mówi. Pokrewne: CASE-47. |
+| CTRL-47 | niesprawdzone | `scripts/trial-zones-ui.mjs:385-388, 409, 420`; `scripts/trial-zones.mjs:412-413, 425-426` | Save na słowach Finding nic nie robi i milczy przy pustym polu albo słowach bez zmian, a Finding wpisane jako słowo "cancel" jest czytane jako Cancel. |
+| CTRL-48 | niesprawdzone | `scripts/mastermind.mjs:559-568` | Apply bez wybranego Mastermind, z wybranym pokojem, nic nie zapisuje i nic nie mówi. |
+| CTRL-50 | niesprawdzone | `scripts/investigation.mjs:893-895, 1603-1605`; `scripts/case-map.mjs:322-326` | Place slotu Key ponad limit rzutu otwarcia jest na Mapie wyłączony bez powodu przy przycisku; linia limitu i jej nadpisanie są w zwiniętym przeglądzie. |
+| CTRL-53 | niesprawdzone | `scripts/investigation.mjs:1826, 1879-1888`; `scripts/utils.mjs:338-341` | Nieudane dodanie, porządek, ruch, usunięcie albo postawienie na Mapie idzie tylko do konsoli, słowami pisanymi dla GM-a. |
+| CTRL-54 | niesprawdzone | `scripts/case-realize.mjs:120-123, 213, 238` | "Run realization" ("Uruchom realizację") z pytania przy ciele milczy, gdy niczego nie postawił (bez wybranego pokoju). |
+| CTRL-57 | niesprawdzone | `scripts/gm-stores.mjs:2928-2938, 2802-2806` | "Enter the cast by hand" ("Wpisz obsadę ręcznie") nic nie zapisuje i nic nie mówi, gdy zabójca albo ofiara zostaje na Nobody. |
+| CTRL-58 | niesprawdzone | `scripts/enforced.mjs:439-453, 1016-1020` | A/V Config Foundry pokazuje dwa pola doku trzymane przez moduł jako wyłączone, bez słowa dlaczego; czy v14 rysuje własny powód, nie odczytano. |
+| CTRL-59 | utrzymane (waga obniżona z `minor`) | `scripts/gm-items.mjs:572-583`; `scripts/vault-store.mjs:316` | Give klucza do pokoju, który uczeń już trzyma (np. udostępniony), nic nie daje i nic nie mówi; hub otwiera się ponownie z prawdziwą listą, brakuje jednej linii tekstu. |
+| CTRL-62 | utrzymane | `scripts/traps.mjs:677` (czytający podał 668) | "Plant the item" ("Podłóż przedmiot") bez nazwy zamyka okno, a karta zostaje, bez słowa dlaczego. |
+| CTRL-68 | niesprawdzone | `scripts/dice-look.mjs:544-545` | Copy report w "Dice look" ("Wygląd kości") zamyka okno i milczy, także przy nieudanym kopiowaniu. |
+| CTRL-69 | utrzymane | `scripts/diagnostics.mjs:2327-2335`; `scripts/utils.mjs:338-341` | "Copy report" ("Kopiuj raport") w raporcie diagnostyki milczy przy nieudanym kopiowaniu (`error()` to konsola), a okno wraca jak po skopiowaniu. To samo (część): CTRL-87. |
+| CTRL-70 | utrzymane | `scripts/tables-editor.mjs:1770-1778` | "Add an item" ("Dodaj przedmiot") odrzucone za brak nazwy albo puli otwiera okno puste: opis, obraz, tier, role i zaznaczenia znikają bez słowa. |
+| CTRL-71 | utrzymane | `scripts/facility-editor.mjs:104-119, 158-176`; `scripts/facilities.mjs:54-62, 87-90, 112-114, 313-317`; `scripts/projects-ui.mjs:575-577` | Edytory akcji upuszczają bez słowa to, co odrzuca czyszczenie: akcja projektu bez nazwy nic nie zapisuje, akcja pokoju bez nazwy albo efekt bez tekstu znikają. |
+| CTRL-72 | niesprawdzone | `scripts/action-project.mjs:240-261, 338-352` | W oknie propozycji projektu preset Kind zastępuje Scale, Statistic i Room i bez słowa zdejmuje "This is my indirect murder"; selecty każdego presetu stoją pod każdym Kind. |
+| CTRL-73 | niesprawdzone | `scripts/projects-ui.mjs:598-605`; `scripts/projects-map.mjs:747-753, 607, 618-627, 295-311` | "Show on the map" ("Pokaż na mapie") zabiera swój przycisk i milczy, gdy żaden żeton nie mógł stanąć. |
+| CTRL-75 | niesprawdzone | `scripts/projects-ui.mjs:1752-1756`; `scripts/projects.mjs:2938-2967, 1726-1730`; `scripts/projects-secrecy.mjs:434-455, 486-487` | "Share..." ("Udostępnij...") i "Revoke access" ("Cofnij dostęp") milczą na przeglądarce GM-a, gdy krok odmawia. |
+| CTRL-83 | niesprawdzone | `scripts/gm-students.mjs:435-436` | W Students Give Hope z pustą kwotą (albo 0) nic nie robi i nic nie mówi. |
+| CTRL-87 | niesprawdzone; podejrzenie | `scripts/gm-panel.mjs:770-775`; `scripts/diagnostics.mjs:2327-2334` | Dwa przyciski kopiowania, "Copy to clipboard" ("Kopiuj do schowka") w "Debug log" ("Dziennik debugowania") i Copy report diagnostyki, milczą, gdy zapis do schowka się nie uda. To samo (część): CTRL-69. |
+| CTRL-88 | niesprawdzone | `scripts/monocub.mjs:427-438, 455-463, 487-488, 510`; `scripts/gm-students.mjs:418, 658-662` | "Invite as a Monocub" ("Zaproś jako Monocuba") dla martwego ucznia, którego nie posiada żaden gracz, nie dociera do nikogo, a żadne okno nie pozwala GM-owi odpowiedzieć. |
+
+### 15.7 Nieaktualny stan (`stale-state` w `CTRL`)
+
+Te 14 pozycji czytający zapisali jako `stale-state`, z łącznikiem; skrypt `master.json` przeniósł do `REFR` tylko werdykty `stale_state` z podkreślnikiem, więc te zostały w `CTRL`. Treścią to ten sam rodzaj co sekcja 16: kontrolka działa na stanie sprzed zmiany.
+
+**CTRL-05** · `minor` · podejrzenie · osłabione · S · `controls-01-trial-console-4`
+"Your turn" i "I'll sum up" ("Podsumuję") nie otwierają się na pierwszy zapis podłogi procesu w świecie: `renderTrialPrompt` słucha tylko `ready` i `updateSetting`, nie `createSetting` (pięć innych plików modułu słucha obu, `voice.mjs` dla tego samego klucza). Osłabione: to, że v14 przy pierwszym zapisie ustawienia odpala `createSetting`, jest wzięte z notatek modułu (`gm-store.mjs:1750-1752`), nie z Foundry; okno jest wąskie (pierwszy zapis podłogi w całym życiu świata, a domyślny pierwszy krok konsoli, Open the debate, zapisuje wcześniej). Według 11.3 to pytanie z live checkiem, nie znalezisko.
+Gdzie: `scripts/trial-prompt.mjs:274-279`.
+Scenariusz: pierwszy Class Trial nowego świata: GM startuje Closing Argument z dyskusji i żaden gracz nie dostaje pytania I'll sum up w jego 30 s.
+
+**CTRL-06** · `minor` · przeczytane · utrzymane · S · `controls-02-trial-zones-verdict-1`
+Okno wyboru strony przychodzi raz na cały Logic Dive: pierwszy wybór liczy się dla każdego następnego pytania i żadna kontrolka go nie zmienia. `offerSidePick` wraca, gdy `pickOpenFor` równa się `${mode}|${openedAt}` albo gdy `zone.picks` trzyma aktora; oba są ustawiane tylko w `zoneStart` i przeżywają każde pytanie.
+Gdzie: `scripts/trial-zones-ui.mjs:437-441`; `scripts/zone-machine.mjs:221-233`; `scripts/trial-zones.mjs:58-62`.
+Scenariusz: gracz, którego uczeń nie ma żetonu w sali, wybiera Zone A w pytaniu 1 trzypytaniowego Logic Dive; w pytaniach 2 i 3 okno nie przychodzi, uczeń dalej liczy się w Zone A, a ten jeden głos może dać remis albo złą większość, która kończy zestaw.
+1.2.119: `trial-119` okna nie zmienia; bez wczesnego zamknięcia stary wybór nie skończy już pytania przed zegarem, ale dalej liczy się na jego końcu.
+To samo: CASE-46, STG-17; pokrewne: REFR-44, STG-25 (słowa pierwszego pytania na przyciskach).
+
+**CTRL-08** · `minor` · przeczytane · utrzymane · S · `controls-02-trial-zones-verdict-3`
+"Save the set" ("Zapisz zestaw") ocenia formularz po zamknięciu edytora: niepełny zestaw jest odrzucany toastem, a wszystko wpisane przepada (Enter w każdym polu naciska Save). Callback głównego przycisku to sam `readSetForm`, `DialogV2.wait` rozwiązuje się na tej odpowiedzi, a `setRefusal` biegnie dopiero po oknie; tak samo okno "Hall zones" ("Strefy sali") przy Straw Poll i Scrum Debate z brakującą odpowiedzią.
+Gdzie: `scripts/trial-zones-ui.mjs:215-222, 138-144`; wybór: `:310-324` z `scripts/trial-zones.mjs:261-272`.
+Scenariusz: GM wpisuje nazwę zestawu i cztery pytania, zostawia jedno "Right answer" ("Dobra odpowiedź") niezaznaczone (albo naciska Enter po nazwie), a okno zamyka się na "Mark the right answer of every question.": zestaw niezapisany, tekst stracony.
+To samo: CASE-47, STG-19.
+
+**CTRL-09** · `minor` · przeczytane · utrzymane · S · `controls-02-trial-zones-verdict-5`
+Lista zestawów w Hall zones jest rysowana raz: zestaw zrobiony, zmieniony albo usunięty przez własny przycisk okna "Logic Dive sets..." ("Zestawy Logic Dive...") nie pojawia się w wyborze, dopóki okna nie otworzyć ponownie. `openZonePicker` nie przekazuje `live`, a `diveSetStore` jest zarejestrowany bez `onChange` i bez hooka.
+Gdzie: `scripts/trial-zones-ui.mjs:287-290, 305` (`pickerHtml` `:241-272` czyta `diveSets()` raz).
+Scenariusz: GM otwiera Hall zones na Logic Dive, naciska Logic Dive sets..., pisze zestaw i zapisuje; po powrocie wybór dalej mówi "No Logic Dive set yet." albo pokazuje tylko starsze, a Start nic nie robi (CTRL-46) albo startuje starszy zestaw.
+To samo: STG-20.
+
+**CTRL-17** · `minor` · przeczytane · utrzymane · S · `controls-03-investigation-planner-5`
+Po przerysowaniu wiersze planowanej minigry węzła i jego linia "Ticked: n of m" są rysowane z magazynu, a select i pola trzymają niezapisane wybory GM-a: `restore` w `live.mjs` pisze `value` i `checked` bez zdarzenia, a jedyny kod przełączający wiersze to słuchacz `change` dodany raz na okno.
+Gdzie: `scripts/investigation.mjs:1496` (`zoneRows`), `1470` (`foldedList`), `1829-1843`; `scripts/live.mjs:547-548`.
+Scenariusz: GM wybiera Scrum Debate na wniosku, wpisuje pytanie i naciska "Add deduction" ("Dodaj wniosek"): pierwszy węzeł dalej mówi Scrum Debate, ale jego pytanie i odpowiedzi znikają z widoku.
+1.2.119: `plan-119` tego dotyka: licznik `foldedList` dolicza odwołania "gone", `restore` bez zmian; z `whileEditing` panel przerysowuje się też z fokusem w polu, więc droga znaleziska jest osiągana częściej, nie zamknięta (nie zmierzone).
+
+**CTRL-19** · `minor` (podniesione z `nit`) · przeczytane · utrzymane · S · `controls-04-traces-observe-1`
+Select "By" ("Przez") na karcie Remnanta zatrzymuje zastępstwo, które GM anulował, gdy karta przerysuje się pod pytaniem "Who left this Remnant" ("Kto zostawił ten Remnant"): select nie ma nazwy, więc jest kluczowany pozycją; po wyborze GM-a `isDirty` jest prawdą, `capture` niesie wybór, `restore` pisze go na nowy select, a Cancel pisze starego autora na odłączony stary select. Weryfikacja podniosła wagę: karta podaje autora, którego rejestr nie trzyma, a czytają go Follow My Traces, remis incydentu i Tamper.
+Gdzie: `scripts/remnant-ring.mjs:331-344, 252-257`; `scripts/live.mjs:167-174, 481, 548`.
+Scenariusz: w śledztwie GM wybiera w By innego ucznia, żeton gracza rusza się, gdy pytanie jest otwarte, GM naciska Cancel: karta dalej pokazuje ucznia, którego nikt nie zapisał, a Follow My Traces i Tamper w Observe czytają starego.
+
+| ID | Weryfikacja | Gdzie | Co |
+| --- | --- | --- | --- |
+| CTRL-40 | niesprawdzone | `scripts/trial-floor-ui.mjs:404-405, 432-435` | "Move up" ("Przesuń w górę") na pierwszym wierszu porządku rundy wygląda na aktywny i niczego nie przesuwa. |
+| CTRL-41 | niesprawdzone | `scripts/trial-floor-ui.mjs:738, 1487, 1674`; `scripts/mastermind.mjs:76-84` | "Start the Final Trial" ("Zacznij Final Trial") zostaje wyszarzony po wyborze Mastermind, gdy konsola stoi otwarta. |
+| CTRL-42 | niesprawdzone; podejrzenie | `scripts/trial-floor-ui.mjs:1018-1030, 1060-1070, 1674, 1795`; `scripts/key-remnants.mjs:78-85` | Po "Reveal" ("Ujawnij") w dyskusji jego wiersz i "Left to reveal" zostają w konsoli. Pokrewne: REFR-70. |
+| CTRL-49 | niesprawdzone; podejrzenie | `scripts/investigation.mjs:1066, 1159, 2372-2375`; `scripts/live.mjs:385-390` | Enter w polu naciska Save tylko do pierwszego przerysowania regionu, potem pola siedzą w zagnieżdżonym formularzu bez przycisku submit; zależy od tego, czy DialogV2 v14 zdejmuje `<form>` z treści, czego nie odczytano. |
+| CTRL-52 | niesprawdzone | `scripts/investigation.mjs:1498-1507, 1844-1847, 2412` | Select Set Logic Dive w węźle nie pokazuje zestawu zrobionego przyciskiem Logic Dive sets... obok, dopóki coś innego nie przerysuje Mapy. |
+| CTRL-55 | utrzymane | `scripts/cleanup-reshape.mjs:611-617, 705-719`; `scripts/messenger-app.mjs:1083-1084` | Na karcie przekształcenia, której Remnant zniknął, "Approve" ("Zatwierdź") nigdy nie rozlicza karty i przy każdym naciśnięciu znów szepcze rzucającemu "already gone". |
+| CTRL-80 | utrzymane | `scripts/murder-ui.mjs:584-586, 701-703, 748, 760-771, 783-786` | "Silence now" ("Wycisz teraz") w trackerze jest ustalane przy otwarciu i nie idzie za śmiercią ofiary ani jej ogłoszeniem. Pokrewne: REFR-63. |
+| CTRL-81 | utrzymane | `scripts/murder-ui.mjs:345-349, 760-771`; `scripts/gm-panel.mjs:605-618` | Panel GM-a wraca nad trwającym incydentem przy pierwszym samoczynnym ponownym otwarciu trackera (przepływ okien, nie wygląd kontrolki). To samo: CASE-22. |
+
+### 15.8 Nieustalone
+
+**CTRL-26** · `minor` · podejrzenie · osłabione · S · `controls-08-rolls-actions-10`
+Reroll akcji, o której decyduje GM, wysyła drugą kartę (tylko z Reply) i zostawia żywe przyciski pierwszej. Weryfikacja doczytała dalej: `settleGmRuling` pierwszej karty nie dotyka, a pierwsza karta opisanego Search niesie "Refuse the attempt" z danymi do zwrotu; nie przeczytano, czy handler odmowy przy naciśnięciu czyta rzut i odrzuca rzut zastąpiony, ani czy zakładka rzutu dla Search istnieje, zanim GM odpowie. Zostaje pytaniem, nie znaleziskiem.
+Gdzie: `scripts/reroll.mjs:1933-1964` (`settleGmRuling`), wobec `scripts/action-dynamic.mjs:260-294` (`withdrawDynamicFind`).
+Scenariusz: gracz przerzuca opisany Search, zanim GM odpowie; GM widzi dwie karty, naciska Refuse the attempt na pierwszej, a akcja jest oddana za rzut, który gracz już zastąpił i za którego powtórkę zapłacił trzy Hope.
+
+| ID | Weryfikacja | Gdzie | Co |
+| --- | --- | --- | --- |
+| CTRL-65 | niesprawdzone | `scripts/call-gm.mjs:1228`; `scripts/tests-windows.mjs:45` | Okno prośby `call-gm.mjs` (`(columns ? actionWindow : drpgWindow)(`) nie ma wiersza w `docs/dev/e59/WINDOWS.md`, więc reguły okien R6750-R6753 go nie czytają. |
+
+### 15.9 Wskazówki domen, niezweryfikowane
+
+Czytający domen zapisali w `hints_for_other_passes.dead_controls` 65 pozycji (30 z 31 plików `domain-*`, w tym dwa pierwszej sesji; `domain-text-c-terms` tej listy nie ma). Poniżej te, dla których `master.json` nie ma wpisu; nikt ich nie sprawdzał przeciwnie, a klasa to S według czytającego domeny.
+
+| Plik domeny | Gdzie | Co |
+| --- | --- | --- |
+| `domain-case-a-incident` | `scripts/murder-ui.mjs:627-629, 663-676`; `scripts/gm-bridge.mjs:198-206`; `scripts/murder-rules.mjs:697, 840, 4603-4612` | Każde Ask for the opening roll again otwiera kolejne okno rzutu na stronie rzucającego; zapasowych okien nie zamyka rozstrzygnięcie otwarcia, tylko zamknięcie, a rzut na jednym z nich jest odrzucany, bo etap się przesunął. |
+| `domain-case-b-traces` | `scripts/key-remnants.mjs:1206-1208, 1274-1277, 1309-1314` | "Create a Key Remnant here" bez pokoju w selecie: główny przycisk zamyka okno i nic nie mówi; brak sprawdzenia "postawiony w międzyczasie", więc slot wypełniony przez innego GM-a jest przepinany. (`controls-04` zapisał to samo w `not_established`.) |
+| `domain-case-b-traces` | `scripts/action-tamper.mjs:235, 257` | Menu Tamper czyta Stage 6 przed otwarciem i używa tego odczytu po zamknięciu. Wskazówka odsyła do "finding 8" swojego pliku, który dziś mówi o czym innym (CASE-59). |
+| `domain-case-c-investigation` | `scripts/key-remnants.mjs:852-860, 892-898`; por. `scripts/investigation.mjs:2495-2498` | Opróżnienie nazwy, opisu albo analizy postawionego slotu w zakładce Key Remnants i na Mapie jest bez słowa pomijane: do śladu idą tylko niepuste słowa, a wiersz rysuje je z powrotem. |
+| `domain-case-c-investigation` | `scripts/observe.mjs:402, 631` | Wybór Observe otwarty z karty nie ma własnego Refuse (`refuse: false`, zgodnie z komentarzem); zamknięcie zostawia kartę otwartą i nic nie mówi, że odmawia się na karcie. |
+| `domain-case-d-trial-floor` | `scripts/trial-floor-ui.mjs:1430-1431`; `scripts/ui-kit.mjs:115` | "The vote" ("Głosowanie") jest rysowane wyłączone bez podpowiedzi, gdy proces nie trwa, wbrew regule pliku (`:1236-1239`), że wyłączony przycisk mówi, na co czeka. Połowa o podsumowaniu to CTRL-38. |
+| `domain-case-d-trial-floor` | `scripts/hud.mjs:1525, 1547`; `scripts/trial.mjs:1347-1369` | OBJECTION! u zgłaszającego, którego Objection czeka po przeładowaniu strony: wstrzymany słowami "during an Objection", a wybór otwiera tylko `raiseObjection`, więc Objection wygasa po `TRIAL.objectionPickSeconds` z zachowaną ceną. |
+| `domain-comm-b-calls` | `scripts/calls.mjs:851` | Drugie naciśnięcie po stronie GM-a w jego oknie zatwierdzenia odpowiada `null`, podnosi pierwsze i milczy (według wskazówki z decyzji D176). |
+| `domain-comm-d-audio` | `scripts/sound-panel.mjs:54-72` | Okna "Sound" gracza nie otwiera żadna kontrolka (suwaki gracza są w oknie ustawień). `controls-09` policzył je jako `ok`, osiągalne tylko przez `game.drpg.soundDialog()`. |
+| `domain-comm-d-audio` | `scripts/sfx.mjs:778-782`; `scripts/sfx-play.mjs:792-793` | Odpowiedź "refused" Test na wierszu efektu jest nieosiągalna, więc `DRPG.Sound.why.refused` to tekst, którego żadne naciśnięcie nie pokaże. |
+| `domain-core-e-utils-clock` | `scripts/tables-editor.mjs:1091-1096, 1636-1640` | W Item tables, Add an item nie da się dodać wpisu tylko do pul pokojów, gdy istnieje jego pula tieru; komentarz obiecuje wybór "-". |
+| `domain-map-c-rooms` | `scripts/room-setup.mjs:345-350, 732-754`; `scripts/search-tokens.mjs:366-382` | Stepper Search tokens w wierszu Room Setup dla nazwy, która nie może być pokojem, od razu zapisuje licznik (połowa o wierszu to MAP-39). |
+| `domain-roll-a-draw` | `scripts/roll-draw.mjs:3050-3051` | Grant all na klikającej przeglądarce zdejmuje przyciski, zanim `askToDecide` odpowie; odmowa albo błąd zostawia kartę bez przycisków i bez słowa, aż do przerysowania. |
+| `domain-ui-b-kit-hud` | `scripts/hud.mjs:1235-1241` | Lewy szewron HUD-u w Eclipse jest rysowany włączony, z podpowiedzią "An Eclipse is running. End it first.", a naciśnięcie woła `rewindTimeOfDay`; czy odmawia słowami i nie cofa, czytający zostawił do sprawdzenia. |
+| `domain-ui-c-sheet` | `scripts/sheet-audit.mjs:2942-2948, 3218-3227` | Karta zapisu oznaczonego i przyciski wierszy karty nieobecności zdejmują swoje przyciski przed pytaniem pierwszego GM-a; odmowa albo brak odpowiedzi zostawia kartę bez przycisków, jedynym słowem jest toast mostu. |
+| `domain-ui-c-sheet` | `scripts/sheet-actions.mjs:384-388` | Accept i Refuse Bribe w panelu Monocuba wyłączają się same i nigdy nie włączają ani nie czytają odpowiedzi; po odmowie oba zostają szare aż do renderu. |
+| `domain-ui-c-sheet` | `scripts/sheet-sidebar.mjs:624-630, 667-674` | Etykieta "the way is shut" w Known passages jest rysowana przy renderze z miejsca żetonu i nic jej nie przerysowuje po ruchu (własna notatka pliku). Pokrewne: REFR-12. |
+| `first-session/domain-case-e-trial-scene-vote` | `scripts/trial-zones-ui.mjs:357-361` | New w liście zestawów Logic Dive zamyka listę, żeby otworzyć edytor, a lista po Save nie wraca. |
+| `first-session/domain-case-e-trial-scene-vote` | `scripts/trial-zones-ui.mjs:415-421` | Add w oknie "Findings" zamyka okno, żeby zapytać o słowa, i go nie otwiera ponownie. |
+| `first-session/domain-case-e-trial-scene-vote` | `scripts/verdict.mjs:1239-1240` | "They named the Mastermind" w oknie werdyktu Final Trial jest wyłączone, gdy Mastermind już nie żyje, a powód stoi w ramce nad nim, nie przy przycisku. |
+| `first-session/domain-case-f-planner-stores` | `scripts/case-map.mjs:121-125`; `scripts/case-trial.mjs:98` | Przyciski węzłów schematu w konsoli procesu to `<button>` z `aria-expanded` i bez podpiętego callbacku; według komentarzy nic tam nie otwierają (połowa o zwinięciu to CTRL-02). |
+| `first-session/domain-case-f-planner-stores` | `scripts/case-realize.mjs:82, 113-116, 128` | Run realization jest pokazane i włączone, gdy żadna linia nie jest `create` (każdy slot postawiony albo ponad limit), i wtedy odpowiada "not run" (połowa bez pokoju to CTRL-54). |
+| `first-session/domain-case-f-planner-stores` | `scripts/gm-stores.mjs:2879, 2886-2890` | "Write the copy now" w oknie sprawy jest proponowane, gdy pliki są otwarte dla graczy, a naciśnięcie tylko mówi odmowę. |
+
+Pozostałe wskazówki mają wpis w `master.json`: CTRL-01 (`domain-case-g`), CTRL-16, CTRL-22, CTRL-55, CTRL-56, CTRL-59, CTRL-62, CTRL-77, CTRL-78, CTRL-80, CTRL-03, CTRL-04, CTRL-37, CTRL-38, CTRL-39, CTRL-40, CTRL-42, CTRL-06, CTRL-07, CTRL-08, CTRL-46, CTRL-02, CTRL-54; REFR-19, REFR-39, REFR-63; CASE-20, CASE-24, CASE-26, CASE-36, CASE-40, CASE-42, CASE-56, COMM-21, COMM-45, CORE-35, CORE-43, MAP-39, ROLL-28, ROLL-31. Pominięte jako niebędące wadą kontrolki: przycisk Body found w stopce Investigation (czytający domeny pisze, że działa, i prosi tylko o odczyt podpowiedzi na wyłączonym przycisku w obu motywach), dwa okna Frisk (główny przycisk to Refuse i Leave it według `docs/design/windows.md` M12; zegar to zdanie rysowane raz), wiersze Infiltrate (żaden nie może już być szary "Not built yet"), zakładka Overflow w Despair Flow (zapisywana tylko Save okna, bez wady w opisie) oraz trzy pliki, które piszą "none new" albo "none" (`domain-item-b`, `domain-item-c`, `domain-ui-a`).
+
+
+## 16. Odświeżanie okien (U7, reguła właściciela z 20.11.2026)
+
+Reguła właściciela, powiedziana 20.11.2026 o planerze i o tokenie przesuniętym ręcznie: **"Zawsze odswiezamy okna od razu przy zmianie"**. Decyzja D-A1 (`audit/findings-1.2.118/DECISIONS.md`, 20.11.2026 ok. 19:31Z) rozstrzyga, że ta reguła ma pierwszeństwo przed regułą 1 `keepLive` (`scripts/live.mjs:157-163, 231-241, 375-382`), która wstrzymuje przerysowanie regionu, dopóki fokus stoi w polu wewnątrz niego: okno ma się przerysować od razu i zachować pole, w którym ktoś pisze (wartość, kursor, fokus). Każda powierzchnia, która nadal stoi na regule 1, jest znaleziskiem `REFR` o wadze `major`.
+
+Ta sekcja to przebieg K5 (U7): dla każdej powierzchni z blokiem `refresh` lista danych, które okno czyta, porównana z listą tego, czego słucha. Bloki `refresh` mają `controls-05` do `controls-13` (198 powierzchni) i `refresh-01-04.json` (77 powierzchni, czyli wszystkie z `controls-01` do `controls-04`, które same bloku `refresh` nie mają); razem **275 powierzchni**: `live` 35, `partial` 40, `stale` 79, `n/a` 121. Pliki `first-session/controls-05-murder-body-death.json` i `first-session/controls-06-gm-panel-campaign.json` nie mają bloków `refresh` i nie są tu liczone. Liczę wiersze czytających, nie okna: to samo okno bywa w dwóch plikach (np. "Despair Flow" w `controls-05` i jego zakładka Overflow w `controls-09`, objaśnienia w `controls-09` i `controls-10`, "Season setup" w `controls-10` i jego część scen w `refresh-01-04`). Znalezisk z przedrostkiem `REFR` w `master.json` jest **73**: `major` 5, `minor` 40, `nit` 28, `blocker` 0; żadne nie zostało obalone, więc nie ma linii "wycofane". Weryfikacja: utrzymane 55 (5 `major`, 38 `minor`, 12 `nit`), osłabione 2 (`minor`), niesprawdzone 16 (`nit`). Pewność: przeczytane 71, podejrzenie 2 (REFR-46, REFR-61). Klasa dowodu wszystkich: S (odczyt statyczny na `b5a29e73`). Dwie wagi weryfikator podniósł z D-A1: REFR-01 z `nit` i REFR-04 z `minor` na `major`.
+
+Czego nie zmierzono: żaden odczyt tej sekcji nie jest przebiegiem. Sonda `audit/harness/probes/43-stale-windows.mjs` dała wynik dopiero po napisaniu tej sekcji (`probe-43.json`, 21.11.2026 00:04Z); jej przebieg i jego granice są w 18.1, a `refresh-01-04.json` zapisano, zanim powstał `base-run.json` (jego `not_established`). Werdykt `live` znaczy "czytający prześledził w źródle, że okno słucha wszystkiego, co czyta", nie "zmierzone w przeglądarce". Linie poprawek 1.2.119 nazywam jak `lines-119.json` (`plan-119`, `fog-119`, `trial-119`, `day-119`, `sheet-119`; C1 to `plan-119`), bez przedrostka gałęzi. Czy przerysowanie z `whileEditing` z 1.2.119 trzyma kursor i tekst w prawdziwej przeglądarce i przy IME, też nie jest zmierzone (`lines-119.json`, `not_established`).
+
+### 16.1 Liczby powierzchni
+
+| Plik czytającego | Powierzchnie | live | partial | stale | n/a |
+| --- | --- | --- | --- | --- | --- |
+| `controls-05-gm-panel-stores` | 29 | 2 | 4 | 8 | 15 |
+| `controls-06-items-sheet` | 31 | 1 | 6 | 13 | 11 |
+| `controls-07-messages-calls` | 16 | 2 | 5 | 2 | 7 |
+| `controls-08-rolls-actions` | 21 | 3 | 2 | 13 | 3 |
+| `controls-09-hud-overlays` | 15 | 5 | 4 | 1 | 5 |
+| `controls-10-setup-config` | 25 | 1 | 1 | 11 | 12 |
+| `controls-11-map-rooms` | 21 | 4 | 3 | 10 | 4 |
+| `controls-12-projects` | 15 | 1 | 3 | 3 | 8 |
+| `controls-13-case-death-chapter` | 25 | 4 | 2 | 12 | 7 |
+| `refresh-01-04` (`controls-01` do `controls-04`) | 77 | 12 | 10 | 6 | 49 |
+| **razem** | **275** | **35** | **40** | **79** | **121** |
+
+Ze 154 powierzchni, które pokazują dane mogące się zmienić (wszystkie poza `n/a`), 35 przerysowuje się na każde czytane źródło, a 119 (40 `partial` i 79 `stale`) nie.
+
+**Co już przerysowuje się od razu** (35 wierszy `live`, numery z tabeli 16.2): okno gracza w rundzie gotowości i karta rundy do ponownej odpowiedzi (25, 26); arkusz przedmiotu (57); launcher komunikatora (61); przyciski kart orzeczeń (65, 94) i karta GM-ów po Dynamic Action (93); menu przerzutów w czacie Daggerheart (80); zegar HUD-u (98), pasek Despair (100), kafel głosu i lista "Who you hear" (102, 103), launchery w rogu (109); ustawienia postaci Daggerheart (127); kafel pokoju i "Describe the room" (153, 154), przełącznik pięter (156), drzwi w mgle gracza (157); token projektu na mapie (173); "End the murder" bez zabójcy (180), rzut otwarcia (194), zanikanie śmierci i sekwencje kurtyny (195, 196); "Trial evidence log" (211), wybór Truth Bullet do OBJECTION! i przycisk OBJECTION! (214, 218); rama "Investigation" (235); notatka przed sesją (252); karty Observe, podpowiedzi i krytycznego Analyze w wątku (255, 256, 261, 262); karta Remnantu u GM-a i u gracza (263, 264); wiersz Truth Bullet z Present na arkuszu (272).
+
+Cztery zastrzeżenia do tej listy, z wierszy czytających: karta Remnantu u GM-a (263) jest `live` co do źródeł, ale stoi na regule 1, więc przy fokusie w jej polu nie przerysowuje się od razu (REFR-05); przy launcherze komunikatora (61) zmiana roli użytkownika go nie przerysowuje (nit czytającego, niezgłoszony); przy "Who you hear" (103) czytający ma niesprawdzone podejrzenie o przycisku blokady; przy przełączniku pięter (156) to, czy dodanie piętra do sceny go przerysowuje, nie jest ustalone.
+
+**Kto jeszcze stoi na regule 1.** REFR-05 wymienia cztery regiony: planer (widok Map), widok Table, kartę Remnantu u GM-a i pudełko Hope w "The Mastermind". Wiersze czytających zapisują regułę 1 jeszcze przy dwóch powierzchniach, których REFR-05 nie wymienia: "Students" (wiersz 5: "rebuild deferred while a select or the stepper's field has focus, done at focusout") i region mapy w zakładce Music okna "Sound" u GM-a (wiersz 105: "a select being chosen from holds the map's redraw"). Według D-A1 należą do tej samej klasy i obie są `major`: "Students" podnieśli do `major` weryfikatorzy dwóch plików, które to okno czytały (`verify-controls-05-gm-panel-stores.json`, `verify-first-session/controls-06-gm-panel-campaign.json`), a region Music okna "Sound" to UI-17 (`major`, utrzymane, 17.8). Żadna z nich nie ma osobnego ID w REFR. Pole uniesione przez `float-text.mjs` (wiersz 111) trzyma regułę 1 z założenia, a "Notice history" ma własne, szersze czekanie (REFR-01).
+
+Znaleziska o oknach z `controls-01` do `controls-04` zapisane jako `stale_state` dostały przedrostek `CTRL` i są w sekcji 15: CTRL-05, CTRL-09, CTRL-41, CTRL-42, CTRL-52, CTRL-55. `refresh-01-04` potwierdził je w swoich lukach i nie zgłosił drugi raz; tabela niżej odsyła do nich tam, gdzie dotyczą wiersza.
+
+### 16.2 Każda powierzchnia z blokiem `refresh`
+
+Werdykty jak u czytających: `live` (słucha wszystkiego, co czyta), `partial` (słucha części), `stale` (rysowane raz, do ponownego otwarcia), `n/a` (okno nie pokazuje danych świata, które mogłyby się zmienić w trakcie: pytanie, formularz jednego kroku, karta; komórka "-", chyba że czytający coś dopisał). "Reguła 1" w komórce znaczy, że przerysowanie czeka na fokus.
+
+| # | Okno | Plik czytającego | Werdykt | Co czyta i czego nie słucha |
+| --- | --- | --- | --- | --- |
+| 1 | Launcher panelu GM-a (czerwony sześciokąt w rogu) | `controls-05` | n/a | - |
+| 2 | "GM panel" (Panel GM-a) | `controls-05` | partial | czyta zegar, `murderState`, aktorów, tokeny i magazyny GM-a; nie słucha `pendingBodyStore` ani `lastHealth` (REFR-46) ani uprawnień kafla Settings (REFR-47) |
+| 3 | Rząd kafli Season setup (Despair Flow, The Mastermind, Killing game rules, Season checklist) | `controls-05` | n/a | rysuje i podpina `season-setup.mjs` |
+| 4 | "Debug log" (Dziennik debugowania) | `controls-05` | stale | czyta błędy sesji z pamięci modułu; `record()` nie woła żadnego hooka (REFR-50) |
+| 5 | "Students" (Uczniowie) | `controls-05` | partial | czyta aktorów i siedem magazynów GM-a; nie słucha `offerStore` (licznik Level Up, REFR-48); przerysowanie czeka, gdy select albo stepper ma fokus (reguła 1) |
+| 6 | "Edit campaign" (Edytuj kampanię) | `controls-05` | stale | zegar czytany raz, bez `keepLive`; Apply pisze sześć pól z formularza (REFR-06, opisane przy REFR-02) |
+| 7 | Pytanie Edit campaign przed korektą | `controls-05` | n/a | - |
+| 8 | "End the chapter?" (pytanie) | `controls-05` | n/a | - |
+| 9 | "Despair Flow" | `controls-05` | partial | na żywo tylko licznik Overflow; nazwy pul, zakładka Monokum, przypisania i podpowiedź progu rysowane raz (REFR-07) |
+| 10 | "Revoke the pool?" | `controls-05` | n/a | - |
+| 11 | "Clear the Overflow?" | `controls-05` | n/a | - |
+| 12 | "Back up the case?" | `controls-05` | stale | ostrzeżenie o niedoszłych kopiach innych GM-ów czytane raz (REFR-51) |
+| 13 | "The case's health" | `controls-05` | stale | raport `gmStoreHealth()` raz; magazyn scalony w trakcie nie przerysowuje wierszy ani `lastHealth` (REFR-51) |
+| 14 | "The case" | `controls-05` | stale | `caseMark` i stan kopii czytane raz (REFR-51) |
+| 15 | "Enter the cast by hand" | `controls-05` | n/a | - |
+| 16 | "Restore the case" | `controls-05` | stale | liczby podglądu raz; scalanie idzie po stemplach, więc zapis jest dobry (REFR-51) |
+| 17 | "Give back Foundry's settings" | `controls-05` | stale | `foundryGivenBack` czytane raz; po zmianie innego GM-a okno oferuje przyciski drugiego stanu (REFR-51) |
+| 18 | "Hold them again?" | `controls-05` | n/a | - |
+| 19 | Okno A/V Config Foundry, jak trzyma je moduł | `controls-05` | n/a | - |
+| 20 | Arkusze, wybór plików i User Configuration Foundry, jak trzyma je moduł | `controls-05` | n/a | - |
+| 21 | "Start the Eclipse?" | `controls-05` | n/a | - |
+| 22 | "End the Eclipse" - tabela, kto się ustawił | `controls-05` | stale | `eclipseMoveStore` i tokeny czytane raz; przejście ucznia nie zapala wiersza (REFR-08) |
+| 23 | Runda gotowości, okno GM-a | `controls-05` | partial | słucha `readyRound`, zegara i `eclipseMoveStore`; nie słucha aktorów ani śmierci (REFR-49) |
+| 24 | "Go on anyway?" | `controls-05` | n/a | - |
+| 25 | Runda gotowości, okno gracza | `controls-05` | live | czyta i słucha `readyRound` i zegara |
+| 26 | Karta rundy gotowości do ponownej odpowiedzi | `controls-05` | live | czyta i słucha `readyRound` |
+| 27 | Szeptane karty połówek GM-ów (Keep Watch, Tail, drzwi, pokoje, eavesdrop) | `controls-05` | n/a | - |
+| 28 | Powiadomienia silnika magazynów GM-ów | `controls-05` | n/a | - |
+| 29 | Nakładka GM-ów na planszy | `controls-05` | n/a | nic nie przyjmuje wskaźnika |
+| 30 | "Give / take items" (Daj / zabierz przedmioty) | `controls-06` | partial | na żywo tylko posiadanie; liczniki udźwigu, klucze, Remnanty i lista uczniów z otwarcia (REFR-09) |
+| 31 | "Give a room key" | `controls-06` | stale | pokoje i klucze z otwarcia; okno nie ma dziś nic, co je otwiera, więc bez skutku przy stole |
+| 32 | "Give an item" | `controls-06` | stale | liczniki udźwigu tylko przy otwarciu i zmianie odbiorcy (REFR-09) |
+| 33 | "Give a Truth Bullet" | `controls-06` | stale | lista Remnantów czytana raz (REFR-09) |
+| 34 | "Issue an Autopsy" | `controls-06` | stale | śmierć albo Autopsja z planu wysłana gdzie indziej nie zmienia pól (REFR-09) |
+| 35 | "Take an item from {actor}" | `controls-06` | stale | brak hooka przedmiotów (REFR-09) |
+| 36 | "Rifle" | `controls-06` | stale | otwarte skrytki z otwarcia; naciśnięcie oceniane ponownie na primary (REFR-52) |
+| 37 | "Look inside the stashes" (Zajrzyj do skrytek) | `controls-06` | stale | brak hooka przedmiotów, aktorów i regionów; drugie otwarcie podnosi starą kopię (REFR-13) |
+| 38 | "Choose what to take" (kradzież) | `controls-06` | stale | wybór rysowany raz (REFR-52) |
+| 39 | "Palm" | `controls-06` | stale | kto stoi w pokoju i co niesie podkładający - raz; obecność ocenia GM (REFR-52) |
+| 40 | "Plant the item" | `controls-06` | n/a | - |
+| 41 | "Use" - co przywrócić | `controls-06` | n/a | - |
+| 42 | "Use" - potwierdzenie | `controls-06` | stale | podgląd przywrócenia z chwili naciśnięcia; zapis przywraca to, co należne wtedy (REFR-52) |
+| 43 | "Throw it away" (pytanie) | `controls-06` | n/a | - |
+| 44 | Level Up, menu GM-a | `controls-06` | stale | stojące oferty z magazynu GM-ów bez nasłuchu (REFR-14); wiersze Take back rysowane raz (CTRL-21) |
+| 45 | Level Up, wybór gracza | `controls-06` | stale | wartości opcji czytane przy rysowaniu szczegółu; wycofana oferta odrzucana na primary (REFR-52) |
+| 46 | "Who picks the Level Ups" | `controls-06` | stale | właściciele i kto jest online - raz (REFR-52) |
+| 47 | Migracja DA39 | `controls-06` | n/a | - |
+| 48 | "The GM changed the statistic" | `controls-06` | n/a | - |
+| 49 | Which statistic (orzeczenie GM-a) | `controls-06` | n/a | - |
+| 50 | "Short Rest" / "Long Rest" | `controls-06` | n/a | - |
+| 51 | Starting resources (pytanie) | `controls-06` | n/a | - |
+| 52 | Usunięcie przedmiotu spoza nagłówków (pytanie) | `controls-06` | n/a | - |
+| 53 | Arkusz postaci - nagłówek modułu | `controls-06` | partial | magazyn ofert `gmOffers` bez `onChange` (REFR-14); pole Ultimate bez ochrony przy renderze (REFR-10) |
+| 54 | Arkusz postaci - pasek boczny | `controls-06` | partial | Lock player resources zmienia tylko klasę body (REFR-11); zamek legowiska to flaga regionu bez hooka (REFR-12) |
+| 55 | Arkusz postaci - zakładki Actions i Rules | `controls-06` | partial | wejście i wyjście innej postaci, token bez zapisu aktora, flagi regionu, rejestr śladów - żaden hook nie rysuje arkusza (REFR-12) |
+| 56 | Arkusz postaci - zakładka Inventory | `controls-06` | partial | przedmioty w skrytce innego aktora, flagi skrytki, wejście do pokoju z otwartą skrytką (REFR-12) |
+| 57 | Arkusz przedmiotu (Daggerheart, przycięty) | `controls-06` | live | czyta przedmiot; Foundry renderuje go przy zmianie |
+| 58 | Arkusz drużyny - Health i Sanity członków jako rezerwa | `controls-06` | partial | czy Daggerheart renderuje arkusz drużyny przy zmianie członka - nie przeczytane |
+| 59 | Karta GM-a: twórcze użycie rzeczy Tier 0 | `controls-06` | n/a | - |
+| 60 | Karta GM-a: pułapka zadziałała | `controls-06` | n/a | - |
+| 61 | Launcher komunikatora z licznikiem nieprzeczytanych | `controls-07` | live | wiadomości, mapa przeczytanych, użytkownicy; zmiana roli użytkownika nie przerysowuje przycisku (nit czytającego, nie zgłoszone) |
+| 62 | Roster GM-a w komunikatorze | `controls-07` | stale | hooki komunikatora przerysowują tylko launcher (REFR-15) |
+| 63 | Wpis "Open GM Chat" w liście graczy | `controls-07` | n/a | - |
+| 64 | Okno rozmowy ("GM Chat") | `controls-07` | partial | kropka zakładki Note, tytuł i linia uczestników rysowane raz (REFR-53) |
+| 65 | Przyciski kart orzeczeń (wątek i dziennik GM-ów) | `controls-07` | live | karta nie śledzi tego, o czym orzeka - luka kontrolki, nie odświeżania (CTRL-23) |
+| 66 | Powiadomienie GM-a o karcie bez wątku | `controls-07` | partial | `settleCall` innego GM-a nie zdejmuje "Awaiting a ruling" (REFR-16) |
+| 67 | Powiadomienia: kafel w rogu i scena środkowa | `controls-07` | partial | karta zmieniona po narysowaniu nie jest rysowana ponownie (REFR-16) |
+| 68 | "Notice history" (Historia powiadomień) | `controls-07` | partial | liczniki na żywo; lista czeka, gdy czytelnik jest w niej (REFR-01) |
+| 69 | Clear the history (pytanie) | `controls-07` | n/a | - |
+| 70 | Wybieraki Calli (kto, projekt, pokój, przedmiot, Monocub) | `controls-07` | stale | tokeny, aktorzy, ustawienia i magazyny projektów nie słuchane (REFR-17) |
+| 71 | Potwierdzenie Calla | `controls-07` | partial | słucha aktorów; nie słucha `despairOwedStore` ani zamkniętych wierszy (REFR-17) |
+| 72 | "Approve {call}?" (Call po stronie GM-a) | `controls-07` | n/a | - |
+| 73 | "Reply to {name}" | `controls-07` | n/a | - |
+| 74 | "What does {item} do?" | `controls-07` | n/a | - |
+| 75 | Okno prośby gracza do GM-a | `controls-07` | n/a | - |
+| 76 | Karta oczekiwania na GM-a | `controls-07` | n/a | - |
+| 77 | Okno rzutu Daggerheart, zablokowane przez moduł | `controls-08` | partial | Sanity czytane przy każdym renderze, nie słuchane (zapis bez flagi modułu); Confusion w magazynie bez flagi (REFR-18) |
+| 78 | "Rolls with no GM connected" (karta GM-ów) | `controls-08` | stale | `decideNow` aktualizuje wiadomości rzutów, nie kartę (REFR-19) |
+| 79 | Linia karty rzutu bez GM-a | `controls-08` | stale | czyta stempel, nie jego `granted` (REFR-54) |
+| 80 | Menu czatu Daggerheart: dwa przerzuty | `controls-08` | live | rola użytkownika przy budowie menu |
+| 81 | Okno akcji - wspólna rama | `controls-08` | stale | żadne okno tej ramy nie woła `keepLive` (REFR-21) |
+| 82 | "Your turn" (akcje kryzysowe) | `controls-08` | stale | stan incydentu i tura - pierwszy odczyt; naciśnięcie odrzucane z toastem (REFR-21) |
+| 83 | Search - czego szukasz | `controls-08` | stale | pozostałe przeszukania z otwarcia; sprawdzane ponownie przed zapłatą (REFR-21) |
+| 84 | Infiltrate - menu kafla | `controls-08` | stale | Eclipse zaczęte przy otwartym menu zostawia Echoes i Keep Watch aktywne (REFR-21) |
+| 85 | Listen - który pokój | `controls-08` | stale | lista pokoi z otwarcia; ruch własnego tokena nie przerysowuje (REFR-21) |
+| 86 | Force the Door - które drzwi | `controls-08` | stale | lista pokoi z otwarcia; ruch własnego tokena nie przerysowuje (REFR-21) |
+| 87 | Pick the Lock - które drzwi | `controls-08` | stale | lista pokoi z otwarcia; ruch własnego tokena nie przerysowuje (REFR-21) |
+| 88 | Tail Someone - kogo śledzić | `controls-08` | stale | tokeny w pokoju czytane raz (REFR-20) |
+| 89 | Turn on your partner - potwierdzenie | `controls-08` | stale | Eclipse zaczęte albo skończone w trakcie zmienia skutek bez zmiany słów; czytający nie zgłosił |
+| 90 | Direct Murder w Eclipse (pytanie) | `controls-08` | stale | fakty briefingu, jak każde okno akcji (REFR-21) |
+| 91 | Zdanie odłożonej deklaracji | `controls-08` | n/a | - |
+| 92 | Dynamic Action - trudność u GM-a | `controls-08` | n/a | - |
+| 93 | Dynamic Action - karta GM-ów po rzucie | `controls-08` | live | własne słowa i meta karty |
+| 94 | Przyciski kończące kartę orzeczenia GM-a | `controls-08` | live | dane karty |
+| 95 | Przerzut akcji orzekanej przez GM-a - karta ponowna | `controls-08` | partial | pierwsza karta tego samego rzutu nie jest zamykana ani wyszarzana |
+| 96 | "Killing game rules" (Zasady killing game) - menedżer | `controls-08` | stale | `killingGameRules` i motyw nie słuchane (REFR-22) |
+| 97 | Dice look - odczyt | `controls-08` | n/a | odczyt chwili; przerysowanie rozjechałoby kopiowany tekst |
+| 98 | Zegar HUD-u (#drpg-hud) | `controls-09` | live | zegar, pauza, `murderState`, `bodyFound`, stan trialu |
+| 99 | Cztery objaśnienia z HUD-u (Where things stand, Despair, pasek statusu, Projects) | `controls-09` | stale | okno otwarte bez `live`; nic go nie przerysowuje (REFR-24) |
+| 100 | Pasek Despair (#drpg-despair) | `controls-09` | live | pule, nazwy, Monokumy, dług, użytkownicy, Overflow |
+| 101 | Pasek statusu (#drpg-player-status) | `controls-09` | partial | nie słucha przejść Eclipse, sakiewki Monocuba ani śmierci trzymanych przez GM-ów (REFR-23) |
+| 102 | Kafel głosu (#drpg-voice-tile) | `controls-09` | live | ustawienia A/V, uczestnicy pokoju LiveKit, `micHold` |
+| 103 | "Who you hear" (lista głosów) | `controls-09` | live | na żywo; podejrzenie czytającego, nieprześledzone: przycisk blokady po śmierci trzymanej przez GM-ów |
+| 104 | Sekcja Voice w ustawieniach przeglądarki | `controls-09` | partial | klawisz push-to-talk i lista urządzeń rysowane raz (REFR-55) |
+| 105 | "Sound" (Dźwięk), GM | `controls-09` | partial | Music nie słucha `game.playlists`; `musicEnabled`, `sfxVary` i zakładka Effects bez regionu (REFR-25); region mapy czeka na fokus selecta (reguła 1) |
+| 106 | "Sound", gracz (dwa suwaki) | `controls-09` | n/a | - |
+| 107 | Despair Flow - zakładka Overflow | `controls-09` | partial | `overflowRules` nie słuchane; Save zapisuje stare reguły (REFR-26, opisane przy REFR-07) |
+| 108 | Foundry tools (kowadło w rogu i dwie ramki) | `controls-09` | n/a | - |
+| 109 | Launchery w rogu | `controls-09` | live | licznik komunikatora i głośności |
+| 110 | Dwa pytania zestawu i "?" nagłówka | `controls-09` | n/a | - |
+| 111 | Pole tekstowe uniesione w edycji (`float-text.mjs`) | `controls-09` | n/a | reguła 1 trzyma przerysowanie regionu, dopóki pole jest uniesione |
+| 112 | HUD tokena Foundry, dwa paski ucznia | `controls-09` | n/a | - |
+| 113 | "Season setup" (Ustawienia sezonu) | `controls-10` | stale | zegar i safeword rysowane raz, Save pisze je z formularza (REFR-02); część scen też raz (REFR-73) |
+| 114 | "Season checklist" (Lista kontrolna sezonu) | `controls-10` | partial | wiersze przerysowuje tylko naciśnięcie własnego wiersza (REFR-27) |
+| 115 | "Start here" | `controls-10` | n/a | - |
+| 116 | "Foundry and modules" | `controls-10` | n/a | - |
+| 117 | "Reset the season" | `controls-10` | stale | liczby i linia GM-ów offline raz; zapis strzeżony ponownym sprawdzeniem na primary |
+| 118 | "Diagnostics" - raport | `controls-10` | n/a | migawka; po Show again część "Silenced warnings" nadal mówi o wyciszeniu (nit czytającego, nie zgłoszone) |
+| 119 | The state of play (objaśnienie zegara z panelu) | `controls-10` | stale | wartości czytane raz (REFR-24) |
+| 120 | Despair (objaśnienie paska Despair z panelu) | `controls-10` | stale | wartości czytane raz (REFR-24) |
+| 121 | Your actions (objaśnienie paska statusu z panelu) | `controls-10` | stale | wartości czytane raz (REFR-24) |
+| 122 | Projects (objaśnienie tacy z panelu) | `controls-10` | stale | wartości czytane raz (REFR-24) |
+| 123 | "Handbooks" i launcher książki | `controls-10` | n/a | - |
+| 124 | "DRPG Settings" (ustawienia tej przeglądarki) | `controls-10` | stale | każde ustawienie klienta z otwarcia; Save pisze stary wiersz (REFR-28) |
+| 125 | "Game settings" (Ustawienia gry) | `controls-10` | stale | każde ustawienie świata z otwarcia; Save pisze starą wartość (REFR-28) |
+| 126 | Configure Settings: przycisk DRPG Settings | `controls-10` | n/a | - |
+| 127 | Ustawienia postaci Daggerheart (klucz w nagłówku arkusza) | `controls-10` | live | aktor |
+| 128 | "Item tables" (Tabele przedmiotów) | `controls-10` | stale | tabele z otwarcia; licznik po Remove za wysoki o jeden (REFR-57) |
+| 129 | "Install item tables" (pytanie) | `controls-10` | n/a | - |
+| 130 | "Where does <name> live?" | `controls-10` | n/a | - |
+| 131 | Rename a table (pytanie z jednym polem) | `controls-10` | n/a | - |
+| 132 | Delete a table (pytanie) | `controls-10` | n/a | - |
+| 133 | "Safeword" (potwierdzenie) | `controls-10` | n/a | - |
+| 134 | "An invitation" (zaproszenie Monocuba) | `controls-10` | stale | Withdraw GM-a nie zamyka okna (REFR-29) |
+| 135 | "A Bribe" | `controls-10` | stale | oferta odpowiedziana, wygasła albo zamknięta - okno zostaje (REFR-29) |
+| 136 | Required modules unavailable | `controls-10` | n/a | - |
+| 137 | A newer Daggerheart | `controls-10` | n/a | - |
+| 138 | Room Setup - rama | `controls-11` | partial | flagi regionów nie słuchane, tylko ustawienie żetonów przeszukania (REFR-03, REFR-04) |
+| 139 | Room Setup - Rooms | `controls-11` | stale | `updateRegion` i aktorzy nie słuchani; Apply wpisuje narysowane (REFR-03) |
+| 140 | Room Setup - Doors | `controls-11` | stale | zamek wyważony, naprawiony albo wyłom niewidoczne; Apply innego wiersza je cofa (REFR-03) |
+| 141 | Room Setup - Searching | `controls-11` | partial | `updateRegion` i tabele losowe nie słuchane (REFR-03) |
+| 142 | Room Setup - Facilities | `controls-11` | stale | `updateRegion` nie słuchany; zmiana innego GM-a widoczna dopiero po ponownym otwarciu |
+| 143 | Room Setup - Stashes | `controls-11` | stale | flagi regionów i nowi aktorzy nie słuchani; Apply bezpieczne (REFR-04) |
+| 144 | Room Setup - Description | `controls-11` | stale | Apply wiersza wpisuje narysowane słowa z powrotem (REFR-03) |
+| 145 | Room Setup - Fog | `controls-11` | stale | magazynu odkryć nie ma w `keepFresh` (REFR-04) |
+| 146 | Room Setup - Passages | `controls-11` | partial | aktorzy i użytkownicy nie słuchani (REFR-59) |
+| 147 | "Revoke <passage>" (pytanie) | `controls-11` | n/a | - |
+| 148 | Delete the passage (pytanie) | `controls-11` | n/a | - |
+| 149 | "Pick a secret passage" | `controls-11` | n/a | zmiana w trakcie dwóch kliknięć sprawdzana przy zapisie |
+| 150 | "Actions of <room>" (edytor) | `controls-11` | stale | Save innego GM-a niewidoczny, własny Save nadpisuje (REFR-58) |
+| 151 | "Room action of <project>" (edytor) | `controls-11` | stale | Save innego GM-a niewidoczny, własny Save nadpisuje (REFR-58) |
+| 152 | Who is here (wybór przy przekazaniu) | `controls-11` | stale | ruch tokenów nie słuchany (REFR-31) |
+| 153 | Kafel pokoju pod zegarem | `controls-11` | live | token i pokój widza, opis, obraz, żetony, projekty |
+| 154 | "Describe the room" | `controls-11` | live | `tileView()` przy każdym renderze |
+| 155 | Obraz pokoju (ImagePopout Foundry) | `controls-11` | stale | `updateRegion` nie słuchany (REFR-60) |
+| 156 | Przełącznik pięter (#drpg-floors) | `controls-11` | live | piętra sceny, tokeny, odkryte pokoje; dodanie piętra - nie ustalone |
+| 157 | Kontrolki drzwi Foundry w mgle gracza | `controls-11` | live | cieniowanie ostatniego malowania |
+| 158 | Check rooms' Show on map | `controls-11` | n/a | - |
+| 159 | Taca projektów (DhCountdowns) | `controls-12` | partial | `projectSecrets` bez `onChange` i bez nasłuchu tacy (REFR-61, podejrzenie) |
+| 160 | "Projects" - menedżer projektów | `controls-12` | partial | na żywo tylko postęp; projekt nowy, usunięty, przeniesiony, ukryty - po ponownym otwarciu (REFR-32); tiki graczy (REFR-62) |
+| 161 | Okno projektu (tworzenie, edycja, propozycja) | `controls-12` | stale | Save pisze pułapkę i pola z otwarcia (REFR-34, REFR-35) |
+| 162 | Usunięcie projektu (pytanie) | `controls-12` | n/a | - |
+| 163 | "Share a project" | `controls-12` | stale | projekt ukryty albo ujawniony w trakcie nie wchodzi do listy; odmowa cicha (CTRL-75) |
+| 164 | Choose the target again | `controls-12` | n/a | drugi repick łapany przez krok i powiedziany |
+| 165 | Okno akcji Projects | `controls-12` | stale | rysowane raz (REFR-36) |
+| 166 | Wybór projektu (okno akcji) | `controls-12` | n/a | lista czytana tuż przed; rzut sprawdza ponownie |
+| 167 | Propose a project | `controls-12` | n/a | formularz; ocena przy zatwierdzeniu GM-a |
+| 168 | Propose a statistic | `controls-12` | n/a | - |
+| 169 | Karta propozycji projektu | `controls-12` | n/a | - |
+| 170 | Karta odrzuconego ukończenia | `controls-12` | n/a | - |
+| 171 | Karty gotowej pułapki | `controls-12` | n/a | - |
+| 172 | Karta tokena projektu | `controls-12` | partial | `projectSecretStore` i `drpgProjectSightChanged` poza `watch` (REFR-33) |
+| 173 | Token projektu na mapie | `controls-12` | live | `projectMeta`, glif, pasek |
+| 174 | "Murder" (Morderstwo) | `controls-13` | stale | żywi czytani raz; śmierć w trakcie zostaje na liście (REFR-37) |
+| 175 | "Incident tracker" (Śledzenie incydentu) | `controls-13` | partial | brak hooków przedmiotów (REFR-38); Silence now w stopce liczone raz (REFR-63) |
+| 176 | "End the murder" (pytanie trackera) | `controls-13` | stale | incydent zamknięty inną drogą nie zamyka pytania (REFR-39) |
+| 177 | "A clean hit" | `controls-13` | n/a | - |
+| 178 | "Rate a Tier 0 weapon" | `controls-13` | n/a | - |
+| 179 | "They ran out" | `controls-13` | stale | `murderState` nie słuchany (REFR-39) |
+| 180 | "End the murder" (bez zabójcy) | `controls-13` | live | `murderState` |
+| 181 | "After the incident" (z ciałem) | `controls-13` | stale | faza zegara i oferta zdrady czytane raz (REFR-41) |
+| 182 | "They got away" | `controls-13` | n/a | - |
+| 183 | "After the incident" (bez ciała) | `controls-13` | n/a | - |
+| 184 | Ślady Faint Prep przy odkryciu | `controls-13` | stale | tokeny śladów raz (REFR-65) |
+| 185 | "Students found a body" | `controls-13` | stale | zmiana `pendingBodyStore` nie zamyka pytania (REFR-39) |
+| 186 | "Body found" | `controls-13` | stale | śmierć w trakcie poza listą Whose body? (REFR-65) |
+| 187 | "The incident's victim died" | `controls-13` | stale | `murderState` nie słuchany (REFR-39) |
+| 188 | "A character dies" | `controls-13` | stale | śmierć albo wskrzeszenie w trakcie (REFR-65) |
+| 189 | "End the chapter" (Zakończ rozdział) | `controls-13` | stale | znak sprawy, tokeny śladów, analizy - raz (REFR-40) |
+| 190 | "End the chapter", zatrzymany koniec | `controls-13` | stale | rekord raz; oba przyciski czytają go ponownie i mówią |
+| 191 | "A killing in the dark" | `controls-13` | n/a | - |
+| 192 | "A ruling to make" (karta deklaracji Eclipse) | `controls-13` | stale | światła zdejmują wiersze, karty nie są rozliczane (REFR-64) |
+| 193 | "Mark as Monokuma" | `controls-13` | n/a | - |
+| 194 | Rzut otwarcia (okno Daggerheart) | `controls-13` | live | `murderState` |
+| 195 | Zanikanie śmierci i powrót Monocuba na kurtynie | `controls-13` | live | śmierci, jak je trzyma gracz |
+| 196 | Sekwencje kurtyny | `controls-13` | live | zegar, karty czatu |
+| 197 | Podpis ciała na tokenie | `controls-13` | partial | zmiana nazwy aktora bez zmiany tokena - nie przeczytane |
+| 198 | Drogi orzeczeń, które otwierają okna tej linii | `controls-13` | n/a | - |
+| 199 | "Class Trial" - konsola | `refresh-01-04` | partial | nie słucha `mastermindStore` (CTRL-41), `keyPlanStore`, rejestru i tokenów śladów (REFR-70, CTRL-42), aktorów (REFR-68) |
+| 200 | "Case schema" (Schemat sprawy) w konsoli | `refresh-01-04` | partial | `remnantStore` i tokeny nie słuchane (REFR-69) |
+| 201 | "Start the Class Trial" | `refresh-01-04` | n/a | - |
+| 202 | "Open a new trial" | `refresh-01-04` | n/a | - |
+| 203 | "An incident is still open" | `refresh-01-04` | n/a | - |
+| 204 | "Open the debate" | `refresh-01-04` | n/a | - |
+| 205 | "Testimony" / "Panic Round" | `refresh-01-04` | n/a | - |
+| 206 | "End the trial" | `refresh-01-04` | n/a | - |
+| 207 | "Closing Argument" (wybór) | `refresh-01-04` | n/a | - |
+| 208 | "Monokuma's Reveal" | `refresh-01-04` | n/a | - |
+| 209 | "The vote" (Głosowanie) | `refresh-01-04` | partial | aktorzy i `sheetMarkStore` nie słuchani (REFR-68) |
+| 210 | "Re-point" | `refresh-01-04` | n/a | - |
+| 211 | "Trial evidence log" (Dziennik dowodów Class Trial) | `refresh-01-04` | live | wiadomości z Present, `trialProgress`, `trialQueue` |
+| 212 | "Present {name}" | `refresh-01-04` | n/a | - |
+| 213 | "OBJECTION!" (cel) | `refresh-01-04` | n/a | - |
+| 214 | "OBJECTION! Choose your Truth Bullet" | `refresh-01-04` | live | piętro co 500 ms; lista kul raz - wybór nieoferowany, nie wartość pokazana źle |
+| 215 | "Your turn ({seconds} s)" | `refresh-01-04` | partial | sekundy rysowane raz, +30 s / -30 s nie dociera (REFR-66); `createSetting` nie słuchany (CTRL-05) |
+| 216 | "Your thesis" | `refresh-01-04` | n/a | - |
+| 217 | "Closing Argument" - pytanie do ochotników | `refresh-01-04` | partial | sekundy z otwarcia (REFR-66); `createSetting` (CTRL-05) |
+| 218 | OBJECTION! na pasku trialu i kaflu głosu | `refresh-01-04` | live | `trialQueue`, faza, `mutedDead`, tryb arkusza |
+| 219 | "Hall zones" (Strefy sali) | `refresh-01-04` | stale | `diveSetStore` nie słuchany (CTRL-09) |
+| 220 | "Logic Dive sets" (Zestawy Logic Dive) | `refresh-01-04` | stale | `diveSetStore` nie słuchany (REFR-71) |
+| 221 | Edytor zestawu Logic Dive | `refresh-01-04` | n/a | - |
+| 222 | Usunięcie zestawu Logic Dive (pytanie) | `refresh-01-04` | n/a | - |
+| 223 | "Findings" | `refresh-01-04` | stale | `trialProgress` nie słuchany (REFR-43) |
+| 224 | "Add a Finding" / "Edit" | `refresh-01-04` | n/a | - |
+| 225 | Wybór strony uczestnika bez tokena w sali | `refresh-01-04` | stale | `trialQueue` nie słuchany; zostaje na pierwszym pytaniu i po końcu trybu (REFR-44) |
+| 226 | Kontrolki konsoli z handlerami w plikach stref | `refresh-01-04` | n/a | nie osobne okno; odczyt w wierszu konsoli |
+| 227 | "Who did it?" (Kto to zrobił?) | `refresh-01-04` | partial | zamknięcie głosowania nie dociera do okna (REFR-72) |
+| 228 | "The verdict" | `refresh-01-04` | n/a | - |
+| 229 | Reguła Blackened (krok błędnego werdyktu) | `refresh-01-04` | n/a | - |
+| 230 | "Final Trial verdict" | `refresh-01-04` | n/a | - |
+| 231 | "Stay hidden?" (maska ukrytego zabójcy) | `refresh-01-04` | n/a | - |
+| 232 | "The Mastermind" (Mastermind) | `refresh-01-04` | partial | `mastermindStore` nie słuchany (REFR-45); pudełko Hope na regule 1 (REFR-05) |
+| 233 | Start albo koniec Final Trial (pytanie) | `refresh-01-04` | n/a | - |
+| 234 | Część scen w Season setup | `refresh-01-04` | stale | `sceneRoles`, sceny, regiony i obsada nie słuchane; Apply pisze tylko zmienione pola (REFR-73) |
+| 235 | "Investigation" - rama okna | `refresh-01-04` | live | Eclipse z zegara, flagi użytkownika |
+| 236 | "Investigation" - widok Table (Tabela) | `refresh-01-04` | partial | nie słucha `bulletStore` (REFR-42); reguła 1 (REFR-05) |
+| 237 | "Investigation" - widok Map (Mapa), planer | `refresh-01-04` | partial | nie słucha `bulletStore` (REFR-42) ani `diveSetStore` (CTRL-52); reguła 1 (REFR-05) |
+| 238 | New Remnant | `refresh-01-04` | n/a | - |
+| 239 | Delete the Remnant (pytanie) | `refresh-01-04` | n/a | - |
+| 240 | Remove from the case (pytanie) | `refresh-01-04` | n/a | - |
+| 241 | Clear the plan (dwa okna) | `refresh-01-04` | n/a | - |
+| 242 | Final Truth Remnant's room | `refresh-01-04` | n/a | - |
+| 243 | Place the Final Truth Remnant | `refresh-01-04` | n/a | - |
+| 244 | Podgląd realizacji sprawy | `refresh-01-04` | n/a | - |
+| 245 | Undo realization (pytanie) | `refresh-01-04` | n/a | - |
+| 246 | Realizacja sprawy (pytanie przy ciele) | `refresh-01-04` | n/a | - |
+| 247 | Podsumowanie sprawy (podgląd) | `refresh-01-04` | n/a | - |
+| 248 | Create a Key Remnant here | `refresh-01-04` | n/a | - |
+| 249 | Place this Key Remnant | `refresh-01-04` | n/a | - |
+| 250 | Sweep Truth Bullets (pytanie; od E64-inv nic go nie otwiera) | `refresh-01-04` | n/a | - |
+| 251 | Karta wstrzymanej opłaty za Key | `refresh-01-04` | stale | `trialProgress.keysCharged` nie słuchane (REFR-67) |
+| 252 | Notatka przed sesją (zakładka Note komunikatora) | `refresh-01-04` | live | wiersz magazynu notatki i status; tekst wpisywany nie jest nadpisywany i nic nie czeka na fokus |
+| 253 | Deklaracja Observe | `refresh-01-04` | n/a | - |
+| 254 | "Observe - which Remnant?" | `refresh-01-04` | n/a | - |
+| 255 | Karta Observe w wątku gracza | `refresh-01-04` | live | wiadomość; zajęcie przez innego GM-a nierysowane, naciśnięcie odrzucane z powodem |
+| 256 | Karta orzeczenia Observe | `refresh-01-04` | live | wiadomość |
+| 257 | "Observe: what the student sees" | `refresh-01-04` | n/a | - |
+| 258 | "Frisk request" | `refresh-01-04` | n/a | - |
+| 259 | "Make them turn out their pockets" | `refresh-01-04` | n/a | - |
+| 260 | Wybór Analyze | `refresh-01-04` | n/a | - |
+| 261 | Karta orzeczenia "Ask for a hint" | `refresh-01-04` | live | wiadomość |
+| 262 | Karta "Critical Analyze" | `refresh-01-04` | live | wiadomość |
+| 263 | Karta Remnantu u GM-a | `refresh-01-04` | live | rejestr śladów, flagi tokena, uczniowie; reguła 1 (REFR-05) |
+| 264 | Karta Remnantu u gracza | `refresh-01-04` | live | własna Truth Bullet gracza |
+| 265 | Clear Faint Remnants (pytanie) | `refresh-01-04` | n/a | nic go nie woła (CTRL-56) |
+| 266 | Menu Tamper | `refresh-01-04` | n/a | - |
+| 267 | "Cleaning up" | `refresh-01-04` | n/a | - |
+| 268 | "Move the Body" | `refresh-01-04` | n/a | - |
+| 269 | "A clean job" | `refresh-01-04` | n/a | - |
+| 270 | "Reshape a Trace" | `refresh-01-04` | n/a | - |
+| 271 | Karta przekształcenia w wątku rzucającego | `refresh-01-04` | partial | usunięty token Remnantu nie słuchany (CTRL-55) |
+| 272 | Wiersz Truth Bullet na arkuszu (Present) | `refresh-01-04` | live | przedmiot, faza, `trialQueue`; `createSetting` - CTRL-05 |
+| 273 | "Present {name}" | `refresh-01-04` | n/a | - |
+| 274 | "Give a Truth Bullet" | `refresh-01-04` | n/a | - |
+| 275 | "Issue Autopsy Truth Bullet" | `refresh-01-04` | n/a | - |
+
+### 16.3 Znaleziska `major`
+
+Wszystkie pięć: pewność przeczytane, weryfikacja utrzymane, klasa S. Linia C1 wydania 1.2.119 (`plan-119`, opcja `whileEditing` w `keepLive`) dosięga tylko REFR-05 i tylko w części.
+
+**REFR-05** · `major` · przeczytane · utrzymane · S
+- Każdy region `keepLive`, który zawiera pole, przerysowuje się dopiero, gdy fokus z niego wyjdzie: planer (widok Map "Investigation"), widok Table, karta Remnantu u GM-a i pudełko Give Hope w "The Mastermind". `rebuild()` wraca z `pending = true`, gdy `isEditing(element)` i nie ma `force`; wymusza je tylko `onFocusOut` albo `refresh()`. `isEditing` liczy fokus w polu tekstowym, textarea i select. Na `b5a29e73` nie ma żadnej opcji wyjścia (git grep weryfikatora: brak `whileEditing`). Testy (R1316 dla połowy z naciśnięciem) przypinają to czekanie jako zamierzone, czyli potwierdzają zachowanie; waga wynika z D-A1.
+- Gdzie: `scripts/live.mjs:157-163, 231-241, 375-382`; `scripts/investigation.mjs:1100-1102, 2409-2418`; `scripts/remnant-ring.mjs:252-257`; `scripts/mastermind.mjs:700-706`.
+- Scenariusz: GM pisze tekst dedukcji w otwartym węźle planera, a w tym czasie Observe gracza daje mu Truth Bullet Key Remnantu; "found by", zasięg i podsumowanie węzła zostają przy starym odczycie, dopóki GM nie kliknie poza polem.
+- 1.2.119: `plan-119` (C1) - addresses, w części. `whileEditing` (88ad9a26, de1d5072) przekazuje tylko `openInvestigationDashboard` (region `.drpg-case-live`, Map i Table), więc planer i Table przerysowują się z przeniesionym tekstem. Karta Remnantu (`remnant-ring.mjs:252-257`) i pudełko Hope (`mastermind.mjs:700-706`) opcji nie włączają, a select z fokusem nadal trzyma każdy region (`keptFocus` odpowiada null dla SELECT). Zachowanie przy IME niezmierzone (jsdom nie składa znaków). Według D-A1 te dwie powierzchnie, a z nimi "Students" i mapa w "Sound" (16.1), zostają otwarte na 1.2.120.
+
+**REFR-01** · `major` (czytający: `nit`) · przeczytane · utrzymane · S
+- Lista "Notice history" (Historia powiadomień) czeka na czytelnika: nowe wpisy idą za pigułkę "Show new notices", gdy lista jest przewinięta albo ma fokus, a zmiana wpisów już narysowanych czeka, aż fokus wyjdzie z listy. Czytający zapisał to jako `nit`, bo to zapisany projekt A7 (komentarz 357-362). Weryfikator podniósł wagę z D-A1: czekanie jest szersze niż reguła 1 (wystarczy dowolny fokus w liście, np. summary po kliknięciu wpisu), a w liście nie ma pola do ochrony. Koszt przy stole jest mały; waga wynika z reguły, nie ze skutku.
+- Gdzie: `scripts/notice-history-app.mjs:363-378` (`changed`), `304-307` (przerysowanie na focusout).
+- Scenariusz: gracz z otwartym wpisem czyta go, a GM rozlicza prośbę, z której wpis przyszedł; wiersz trzyma "Shown" bez "Settled", dopóki gracz nie kliknie poza listą.
+- 1.2.119: w `lines-119.json` brak dopasowania; `notice-history-app.mjs` nie jest w plikach `plan-119`, więc C1 go nie dosięga.
+
+**REFR-02** · `major` · przeczytane · utrzymane · S
+- Save w "Season setup" (Ustawienia sezonu) pisze sześć pól zegara i safeword tak, jak były przy otwarciu: krok czasu, rozpoczęty trial albo zmiana innego GM-a w międzyczasie jest cofana bez pytania. Okno nie ma opcji `live` i nic go nie zamyka ani nie przerysowuje; `readClockForm` czyta każde pole z formularza, `applyCampaignForm` pyta tylko przy zmianie rozdziału i wejściu w Class Trial, a `setClock` scala łatkę na zegar (`clock.mjs:157-158`), więc narysowana wartość wygrywa z nowszą. Wyjście z Class Trial nie pyta o nic, a `reconcilePhase` kończy wtedy piętro, zamyka głosowanie i uruchamia `executeAtExit` (`clock.mjs:999-1034`).
+- Gdzie: `scripts/season-setup.mjs:1134, 1161` (rysowane raz), `1179` (odczyt), `1250, 1255-1258` (zapis); `scripts/gm-campaign.mjs:347-361` (łatka sześciu pól).
+- Scenariusz: GM otwiera Season setup rano, żeby ustawić safeword, zostawia okno, przestawia zegar na popołudnie z HUD-u i naciska Save; zegar wraca na rano bez pytania, a popołudnie stołu jest cofnięte.
+- To samo: REFR-06 (`controls-05`, zapisane jako `minor`, utrzymane) - "Edit campaign" (Edytuj kampanię) ma te same wiersze i ten sam `applyCampaignForm`; zegar czytany raz (`gm-campaign.mjs:217, 223`), komentarz 281-283 mówi "it is not a live window". Scenariusz: drugi GM albo strzałka HUD-u przestawia ranek na popołudnie, a Apply pierwszego GM-a cofa zegar i odwołuje zgromadzenie zwołane na popołudnie, bez słowa, że czas się zmienił. Dwa pliki dały tej samej drodze dwie wagi.
+- 1.2.119: `season-setup.mjs` nie jest w diffie żadnej z sześciu linii (`lines-119.json`, wpis `controls-10-setup-config-1`); C1 go nie dosięga.
+
+**REFR-03** · `major` · przeczytane · utrzymane · S
+- Apply w Room Setup pisze z powrotem każdy narysowany wiersz, którego pokój świat zmienił od otwarcia: zamek wyważony, naprawiony albo wyłom zrobiony przy otwartym oknie jest cofany przez Apply innego pokoju, a trwająca Repair the Lock jest usuwana. `readRoomSetupForm` czyta wiersze z formularza, `applyRoomRows` porównuje je z flagami z chwili Apply, więc nieruszony wiersz nie jest "same"; przy `wasBroken` true i odznaczonym polu biegną `setRoomBroken(false)` i `dropLockRepairs`. Jedyne odświeżanie okna to `keepFresh` na ustawieniu żetonów przeszukania. Test E74-T5 ustawia wyłom przed otwarciem okna, więc przypina tylko naprawę ręczną.
+- Gdzie: `scripts/room-setup.mjs:963-1117` (`applyRoomRows`), `1358-1361` (jedyny `keepFresh`).
+- Scenariusz: w Daily Life GM trzyma Room Setup otwarte (komentarz 1343-1348 mówi, że wtedy jest otwarte); gracz wyważa drzwi kuchni (`doors-gm.mjs:175`), inny zaczyna Repair the Lock; GM wpisuje opis biblioteki i naciska Apply - zamek kuchni jest naprawiony bez słowa o wyważeniu, a projekt naprawy usunięty z samym szeptem "dropped".
+- 1.2.119: w `lines-119.json` brak dopasowania; `room-setup.mjs` nie jest w plikach `plan-119`, więc C1 go nie dosięga.
+
+**REFR-04** · `major` (czytający: `minor`) · przeczytane · utrzymane · S
+- Room Setup nie śledzi mapy, którą pokazuje: macierz Fog, komórki skrytek, właściciele, zamki i lista pokoi zostają z otwarcia. Komentarz `fog.mjs:1529-1532` mówi sam, że pola są rysowane przy otwarciu i nigdy nie odświeżane, gdy `recordDiscovery` dopisuje pokoje. Weryfikator podniósł wagę: okno nie przerysowuje się wcale, a według własnych komentarzy jest trzymane otwarte w Daily Life właśnie po to, żeby patrzeć na te zmiany; skoro D-A1 daje `major` za samo czekanie na fokus, okno bez żadnego przerysowania nie może stać niżej.
+- Gdzie: `scripts/room-setup.mjs:1358-1361`; `scripts/fog.mjs:1529-1532`.
+- Scenariusz: GM patrzy w Daily Life na zakładkę Fog i widzi niezaznaczoną kolumnę ucznia przy sali gimnastycznej, do której uczeń wszedł minutę temu, i sądzi, że mgła tego nie zapisała.
+- 1.2.119: `fog-119` - nie dotyczy (unrelated): Room Setup ma nadal jeden `keepFresh`, a zmiana `fog.mjs` koło 1529 to filtr uczniów w `ledgerRooms`. C1 go nie dosięga.
+
+### 16.4 Znaleziska `minor`
+
+Wszystkie: pewność przeczytane, klasa S; weryfikacja utrzymane, chyba że napisano inaczej. REFR-06 jest opisane przy REFR-02, a REFR-26 przy REFR-07.
+
+**REFR-07** · `minor` · przeczytane · utrzymane · S
+- "Despair Flow" przerysowuje tylko licznik Overflow; Save pisze nazwy pul, pule Monokum i całą mapę przypisań z formularza jak narysowany, więc zmiana innego GM-a w międzyczasie ginie.
+- Gdzie: `scripts/gm-team-dialog.mjs:290` (raz), `326-333` (jedyna linia na żywo), `204-221` (`saveGmTeam`), `734-742`; `scripts/assignments.mjs:118-121`; `scripts/monokuma.mjs:300-305`.
+- Scenariusz: dwóch GM-ów przygotowuje sezon; jeden przypisuje Hinę do jej puli i zapisuje, drugi ma Despair Flow otwarte, żeby zmienić nazwę swojej puli; jego Save cofa przypisanie Hiny do domyślnego i nic tego nie mówi.
+- To samo: REFR-26 (`controls-09`, `minor`, utrzymane) - zakładka Overflow tego okna trzyma reguły z otwarcia, a Save pisze je z powrotem (`gm-team-dialog.mjs:316-333, 159-160`; `overflow.mjs:110-138, 1188-1258`): GM B obniża próg z 20 na 16, GM A zmienia nazwę puli i zapisuje, a próg znów jest 20.
+
+**REFR-08** · `minor` · przeczytane · utrzymane · S
+- Tabela "kto się ustawił" przy końcu Eclipse - okno, które GM trzyma otwarte, żeby widzieć przejścia - jest rysowana raz i ich nie śledzi. Według weryfikatora tabela pojawia się też w zwykłym przebiegu, gdy po "go" GM-a któryś uczeń jest nieustawiony.
+- Gdzie: `scripts/boundary.mjs:117-122` (wiersze raz), `193-225` (`placementTable`, bez renderu i `keepLive`).
+- Scenariusz: przy końcu Eclipse bez rundy połączonych graczy GM czeka na tabeli na ostatniego ucznia; gracz przechodzi, wiersz zostaje przyciemniony na 0, a GM kończy bez przejścia dalej albo czeka na ruch, który już był.
+
+**REFR-09** · `minor` · przeczytane · utrzymane · S
+- Okna dawania i zabierania u GM-a są rysowane raz: na żywo jest tylko posiadanie w hubie; liczniki, lista kluczy, lista Remnantów i lista Take zostają z otwarcia. Jedyny `keepLive` (149) obejmuje region bez pól.
+- Gdzie: `scripts/gm-items.mjs:149-155, 371-381, 1018-1019, 1482, 1632-1656, 1763-1800`.
+- Scenariusz: GM z otwartym "Give / take items" na Annie widzi, jak posiadanie przechodzi na "Gear: 3/3" po znalezieniu narzędzia, a select kategorii pod nim nadal mówi "Cleaning Tool (Gear 2/3)" i lista kluczy oferuje klucz, który Bob właśnie jej dał.
+
+**REFR-10** · `minor` · przeczytane · utrzymane · S
+- Pole Ultimate na arkuszu nie ma żadnej ochrony: każdy render w trakcie pisania zastępuje je zapisanym tekstem. `injectUltimate` odtwarza wiersz z flagi przy każdym renderze i zapisuje na blur; jedyne ochrony w `sheet*.mjs` to biografia i pole rezerwy. D-A1 każe przerysować od razu i zachować pisane pole; tu przerysowanie jest, a zachowania nie ma.
+- Gdzie: `scripts/sheet-header.mjs:841-869`.
+- Scenariusz: gracz pisze swoje Ultimate, a GM przestawia zegar na popołudnie; arkusz się renderuje, słowa napisane w połowie znikają albo zapisują się niedokończone, kursor znika.
+- 1.2.119: `sheet-119` - nie dotyczy (unrelated): zmiany w `sheet-header.mjs` to `freeMovePip` i `pendingStack`, pole Ultimate nietknięte.
+
+**REFR-11** · `minor` · przeczytane · utrzymane · S
+- Pola Health i Sanity rezerwy nie śledzą "Lock player resources": `reserveField` czyta ustawienie przy renderze, a `onChange` ustawienia przełącza tylko klasę body, której reguły CSS nie obejmują `.drpg-reserve-field`.
+- Gdzie: `scripts/sheet-sidebar.mjs:152-166, 330-387`; `scripts/sheet-mode.mjs:113-123`; `scripts/settings.mjs:3153-3158`.
+- Scenariusz: GM blokuje zasoby graczy w trakcie sesji; gracz z otwartym arkuszem nadal widzi Health jako pole, wpisuje 3 i patrzy, jak wartość wraca z odmową.
+
+**REFR-12** · `minor` · przeczytane · utrzymane · S
+- Części arkusza związane z pokojem są rysowane przy renderze i nic ich nie przerysowuje po ruchu innej postaci, zmianie flag pokoju albo zmianie skrytki gdzie indziej. Hooki `sheet.mjs:66-127` nie obejmują żadnego z tych źródeł; komentarz `sheet-sidebar.mjs:667-674` mówi to samo o ruchu tokena.
+- Gdzie: `scripts/sheet-actions.mjs:962-1074, 1084-1168`; `scripts/sheet-inventory.mjs:330-399`; `scripts/sheet-sidebar.mjs:800-828`; `scripts/sheet.mjs:66-139`.
+- Scenariusz: Kaede stoi sama w kuchni z otwartym arkuszem, Palm jest skreślone "Nobody else is here"; wchodzi Hiro, a kafel zostaje skreślony, dopóki coś innego nie wyrenderuje jej arkusza.
+- 1.2.119: `sheet-119` - nie dotyczy: `sheet.mjs` dodaje wstrzymanie renderu arkusza drużyny, przerysowanie części pokojowych nietknięte.
+
+**REFR-13** · `minor` · przeczytane · utrzymane · S
+- "Look inside the stashes" (Zajrzyj do skrytek) nigdy się nie przerysowuje, a ponowne otwarcie tylko podnosi starą kopię (`alreadyOpen`, `live.mjs:696-718`).
+- Gdzie: `scripts/stash-reach.mjs:785-848`.
+- Scenariusz: GM trzyma inspektor skrytek otwarty w Daily Life; uczeń przetrząsa otwartą skrytkę Kaede, a inspektor nadal pokazuje nóż w jej szufladzie, nawet po ponownym `game.drpg.inspectVaults()`.
+
+**REFR-14** · `minor` · przeczytane · utrzymane · S
+- Znak "on offer" przycisku Level Up na arkuszu u GM-a nie śledzi ofert GM-ów: magazyn `advanceOffers` jest ustawieniem klienta bez `onChange`, scalanie w `gm-store.mjs` nie woła hooka, a primary nic nie rysuje dla oferty innego GM-a.
+- Gdzie: `scripts/sheet-header.mjs:654-713`; `scripts/level-up.mjs:229-249, 256-276, 517`; `scripts/settings.mjs:2192-2197`; `scripts/gm-stores.mjs:723-740`.
+- Scenariusz: drugi GM oferuje Hiro Level Up z werdyktu, a primary ma otwarty arkusz Hiro; przycisk zostaje niezapalony, dopóki arkusz nie wyrenderuje się z innego powodu.
+- Pokrewne: REFR-48 (licznik Level Up w "Students" czyta ten sam magazyn).
+- 1.2.119: `sheet-119` - nie dotyczy: znak Level Up (654-713) nietknięty.
+
+**REFR-15** · `minor` · przeczytane · utrzymane · S
+- Roster GM-a w komunikatorze trzyma wiersze z chwili rysowania: wiadomość, odczyt albo rozliczona prośba zmienia licznik launchera, ale nie podgląd ani licznik wiersza. Komentarz 45-49 zapisuje to jako wybór (E50, FG2) sprzed reguły właściciela z 20.11.2026.
+- Gdzie: `scripts/messenger-app.mjs:44-51` (hooki przerysowują tylko launcher), `1585-1629` (`buildRoster`), `1631-1667` (`rosterRow`).
+- Scenariusz: GM otwiera roster, żeby wybrać rozmowę; Bob pisze "are you there?": licznik launchera skacze na 1, a wiersz Boba ma stary podgląd i żadnego licznika.
+
+**REFR-16** · `minor` · przeczytane · utrzymane · S
+- Powiadomienie na ekranie GM-a trzyma "Awaiting a ruling", gdy inny GM już orzekł albo czas prośby minął: `popup.mjs` reaguje na `updateChatMessage` tylko dla overrulowanej Objection.
+- Gdzie: `scripts/popup.mjs:1131-1141, 1165-1177`; `scripts/messenger-app.mjs:553-563`.
+- Scenariusz: dwóch GM-ów; Experience Call Alice wywołuje "Waiting on your ruling" u obu; GM A zatwierdza w wątku; powiadomienie GM-a B nadal prosi o orzeczenie, dopóki B go nie zamknie albo nie kliknie i nie zobaczy rozliczonej karty.
+
+**REFR-17** · `minor` · przeczytane · utrzymane · S
+- Okna Calli nie śledzą świata: listy wybieraków są rysowane raz, a potwierdzenie śledzi Hope kupującego i pule, ale nie dług puli ani zamknięte wiersze. `choose()` woła `callWindow` bez `live`; `confirmCall` obserwuje tylko aktorów; `despairOwedStore` nie jest w `watch.stores`.
+- Gdzie: `scripts/call-pickers.mjs:393-434, 448-507, 566-579`; `scripts/calls.mjs:671-684, 761-766`; `scripts/despair.mjs:593-611`.
+- Scenariusz: Bob otwiera Support z Chie w pokoju; Chie wychodzi, zanim Bob wybierze; okno nadal ją oferuje, Bob naciska Next i Spend i dopiero odmowa GM-a mówi mu, że jej nie ma.
+- 1.2.119: `day-119` - nie dotyczy: `calls.mjs` dostaje import `nameAsSeen` i linię `describeChoice`, obserwacja okien bez zmian.
+
+**REFR-18** · `minor` · przeczytane · osłabione · S
+- Okno rzutu nie przerysowuje się, gdy ostatnie Sanity rzucającego zostaje zaznaczone przy otwartym oknie: `redrawRollWindows` wraca, jeśli zmiana nie ma flagi modułu, a Breakdown idzie jako status efektu. Weryfikator osłabił z trzech powodów: okno wysyła się przy każdej zmianie formularza, a każdy render woła `forceConfig`, więc dotyczy to tylko gracza, który naciska Roll bez dotykania okna; czy okno Daggerheart 2.12 samo renderuje się przy zmianie aktora - nie przeczytane; zdanie czytającego, że rozbieżność jest "named to the roller", jest błędne (widzą ją GM-owie). Scenariusz z szeptem do GM-ów zostaje.
+- Gdzie: `scripts/roll-dialog.mjs:130-140` wobec `1031-1040`; `scripts/roll-draw.mjs:2295, 2423-2425`.
+- Scenariusz: gracz otwiera okno rzutu Search przy 1 Sanity; GM zaznacza to ostatnie Sanity, zanim gracz naciśnie Roll; okno pokazuje zwykły rzut, kości wracają z disadvantage, a GM-owie dostają szept, że advantage rzutu różni się od policzonego.
+
+**REFR-19** · `minor` · przeczytane · utrzymane · S
+- "Rolls with no GM connected": w dzienniku drugiego GM-a Grant all i Grant none zostają po decyzji pierwszego, a naciśnięcie tam nic nie robi i nic nie mówi. `decideNow` aktualizuje tylko wiadomości rzutów; karty nic nie przerysowuje.
+- Gdzie: `scripts/roll-draw.mjs:2961-2977` (`decideNow`), `3034-3053` (`onRenderUnwitnessed`).
+- Scenariusz: dwóch GM-ów jest połączonych, gdy pojawia się lista rzutów z pustego stołu; GM A naciska Grant all; GM B minutę później naciska Grant none, widzi, że przyciski znikają, i sądzi, że Hope odmówiono, choć już je przyznano.
+- Pokrewne: REFR-54 (linia samej karty rzutu nie czyta `granted`).
+
+**REFR-20** · `minor` · przeczytane · utrzymane · S
+- Tail Someone: lista celów jest czytana raz, a cel, który wyszedł z pokoju, GM odrzuca dopiero po zapłacie akcji i obu rzutach, bez zwrotu.
+- Gdzie: `scripts/action-tail.mjs:44-100`; `scripts/tail-gm.mjs:48-56`; `scripts/frisk.mjs:164-165`.
+- Scenariusz: gracz otwiera Tail Someone na uczniu w stołówce i czeka na kartę Leg/Shadow GM-a, a cel przechodzi na korytarz; GM zatwierdza, gracz płaci akcję, idą dwa rzuty i śledzenie jest odrzucone, akcja przepada.
+
+**REFR-21** · `minor` · przeczytane · utrzymane · S
+- Żadne okno akcji nie przerysowuje się, gdy jest otwarte: liczby briefingu, powody zamknięcia wierszy i tura kryzysu to pierwszy odczyt. Okna idą `actionWindow -> wideWindow -> drpgWindow` bez `live`. Naciśnięcia sprawdzają ponownie przed zapłatą, więc kosztem jest naciśnięcie i toast.
+- Gdzie: `scripts/action-menus.mjs:167-271, 303-313`; `scripts/ui-columns.mjs` (`wideWindow`, bez `keepLive`); wywołujący w `action-murder.mjs`, `action-search.mjs`, `action-listen.mjs`, `action-doors.mjs`, `action-tail.mjs`.
+- Scenariusz: gracz zostawia menu Infiltrate otwarte na Keep Watch, a GM zaczyna Eclipse z HUD-u; wiersz nadal wygląda na dostępny, gracz naciska Roll i słyszy, że Keep Watch nie da się trzymać w Eclipse.
+- Pokrewne: REFR-36 (okno akcji Projects, ta sama rama).
+
+**REFR-22** · `minor` · przeczytane · utrzymane · S
+- Menedżer "Killing game rules" (Zasady killing game) nigdy się nie przerysowuje: jego Save przywraca stare słowa reguły, którą przeredagował inny GM, a Withdraw wycofuje motyw, którego okno nie pokazuje.
+- Gdzie: `scripts/rules.mjs:460-532` (`openRulesManager`), `560-589` (`saveRulesEdit`), `431-449`.
+- Scenariusz: GM A ma menedżer otwarty, GM B przeredagowuje regułę 2 i zapisuje; GM A zaznacza Revoke przy regule 4 i zapisuje; reguła 2 wraca do starych słów, a obaj słyszą tylko "Saved - 3 rules in force".
+
+**REFR-23** · `minor` · przeczytane · utrzymane · S
+- Pasek statusu nie śledzi magazynów GM-ów, które czyta: przejście w Eclipse, sakiewka Monocuba i śmierć trzymana przez GM-ów zostawiają stary stan. Pasek nie słucha `clientSettingChanged`, `drpgCubsChanged` ani `drpgDeathsChanged`.
+- Gdzie: `scripts/player-status.mjs:40-75` wobec `432-562, 608-660`; `scripts/settings.mjs:3233-3247, 3483-3494`; `scripts/sync.mjs:485`.
+- Scenariusz: w porannym Eclipse gracz przeciąga token przez jedne drzwi; kafel Move na arkuszu mówi, że zostało jedno przejście, pasek pod zegarem nadal ma obie stopy zapalone, a pasek GM-a nadal "Still placing 5 / 5", dopóki ktoś nie zapisze czyjegoś arkusza.
+
+**REFR-24** · `minor` · przeczytane · utrzymane · S
+- Cztery objaśnienia (zegar, pasek Despair, pasek statusu, taca Projects) to migawki: zegar, akcje i pule, które pokazują, nie śledzą zmiany. `explainer()` woła `drpgWindow` bez `live`; w `explain.mjs` nie ma `keepLive`, `keepFresh` ani `Hooks.on`.
+- Gdzie: `scripts/explain.mjs:49-58` (`explainer`), `232-251, 266-310, 314-` (treści), `428-433` (panele, które je otwierają).
+- Scenariusz: gracz otwiera "Where things stand", żeby przeczytać, ile ma akcji rano; GM przestawia zegar na południe, a okno dalej mówi rano i starą liczbę obok zegara, który mówi południe.
+- To samo: REFR-56 (`controls-10`, `nit`, utrzymane) - te same cztery objaśnienia otwierane z panelu (`explain.mjs:49-57, 232-253, 269-277, 322-375, 383-415`); weryfikator zostawił tam `nit` ("odczyt obok panelu, który jest na żywo"). Dwa pliki dały tej samej wadzie dwie wagi.
+
+**REFR-25** · `minor` · przeczytane · utrzymane · S
+- Zakładka Music okna "Sound" (Dźwięk) nie śledzi playlist świata, a jej dwa przełączniki i zakładka Effects nie śledzą innego GM-a. Region mapy słucha tylko `musicMap`; sześć hooków playlist budzi tylko region odtwarzania.
+- Gdzie: `scripts/sound-panel.mjs:81-84, 195-197, 225-227, 259-261, 446-451`.
+- Scenariusz: GM z otwartym Sound na Music tworzy w sidebarze playlistę "Trial theme", żeby ją przypisać; żaden select jej nie oferuje, dopóki okno nie zostanie zamknięte i otwarte, a zakładka Play obok już pokazuje nowe utwory.
+
+**REFR-27** · `minor` · przeczytane · utrzymane · S
+- Wiersze "Season checklist" (Lista kontrolna sezonu) przerysowują się tylko po naciśnięciu jednego z jej własnych wierszy: pula przypisana w Despair Flow albo Mastermind wybrany z kafli Season setup obok zostawia wiersz czerwony.
+- Gdzie: `scripts/season-setup.mjs:1316-1371` (okno), `1323-1325` (wiersze raz), `1110-1119` (kafle otwierają Despair Flow i The Mastermind, nic nie zamykając).
+- Scenariusz: GM z otwartą listą naciska Despair Flow w rzędzie Season setup, przypisuje każdego ucznia do puli i zapisuje; lista nadal ma "Every student feeds a pool" na czerwono z nazwiskami i niezmienione "N still to do", dopóki nie zostanie zamknięta i otwarta.
+
+**REFR-28** · `minor` · przeczytane · utrzymane · S
+- Oba okna ustawień ("DRPG Settings" i "Game settings" (Ustawienia gry)) rysują każde ustawienie raz, a ich Save pisze stary wiersz na zmianę zrobioną gdzie indziej w tym czasie; `saveSettings` porównuje narysowane pole z ustawieniem, jak stoi.
+- Gdzie: `scripts/settings-window.mjs:188-209` (wartość wiersza z otwarcia), `408-437` (`saveSettings`), `445-523` (bez nasłuchu).
+- Scenariusz: dwóch GM-ów ma otwarte Game settings; jeden wyłącza Force private rolls i zapisuje, drugi zmienia Room visibility i zapisuje: Force private rolls znów jest włączone i żadne okno tego nie powiedziało.
+
+**REFR-29** · `minor` · przeczytane · utrzymane · S
+- Zaproszenie Monocuba albo okno Bribe zostaje otwarte, gdy GM wycofał zaproszenie albo oferta została odpowiedziana lub wygasła, a jego Accept jest wtedy odrzucany. Nic nie zamyka tych okien; `cancelMonocubOffer` łata wiersz i nic nie zamyka.
+- Gdzie: `scripts/monocub.mjs:320-325` (`receiveCubs`), `441-446`, `487-516` (`openInvitation`), `1581-1600` (`openBribeOffer`).
+- Scenariusz: gracz zmarłego ucznia czyta zaproszenie, gdy GM je wycofuje; okno zostaje, gracz naciska Accept the Rule i słyszy, że prośba została odrzucona.
+
+**REFR-30** · `minor` · przeczytane · utrzymane · S
+- Akcje pokoju zapisane, zanim pokój zostanie oznaczony, są zapisane, ale pokazane jako żadne: licznik zostaje 0, a edytor otwiera się pusty. `setRoomActions` pisze na kawałkach, które mogą być pokojem, a `roomActions` czyta tylko oznaczone.
+- Gdzie: `scripts/room-setup.mjs:297, 318-320, 719-729`; `scripts/facilities.mjs:275-279, 298-305`; `scripts/rooms.mjs:228-241, 320-323`.
+- Scenariusz: GM przygotowuje nową mapę, przechodzi do Facilities przed Apply, daje kuchni akcję "Brew tea" i zapisuje; licznik nadal 0, edytor otwiera się pusty, a GM wpisuje ją jeszcze raz albo sądzi, że edytor jest zepsuty.
+
+**REFR-31** · `minor` · przeczytane · utrzymane · S
+- Lista "Who is here" przy przekazaniu to pokój z chwili otwarcia: postać, która wchodzi, nie jest oferowana. Strona GM-a odrzuca nieaktualny wybór, więc szkodą jest brakujące imię.
+- Gdzie: `scripts/handover.mjs:46-90`.
+- Scenariusz: gracz otwiera Give na łomie, czekając na przyjaciela; token przyjaciela wchodzi do pokoju; lista nadal ma tylko dwie osoby, które były, i okno trzeba zamknąć i otworzyć.
+
+**REFR-32** · `minor` · przeczytane · utrzymane · S
+- Menedżer projektów ("Projects") trzyma na żywo tylko postęp: projekt utworzony, usunięty, przeniesiony, przemianowany, ukryty albo udostępniony gdzie indziej pojawia się dopiero po ponownym otwarciu. Jedyna część na żywo to `keepFresh`, który pisze komórki `[data-drpg-progress]`.
+- Gdzie: `scripts/projects-ui.mjs:544-568` (`keepFresh`), `689-697` (wiersze z `allProjects` przy otwarciu).
+- Scenariusz: GM trzyma menedżer otwarty w Daily Life, zatwierdza propozycję gracza z karty czatu i przeciąga barykadę biblioteki do sali gimnastycznej; menedżer nie pokazuje ani nowego projektu, ani sali, dopóki nie zostanie zamknięty i otwarty.
+
+**REFR-33** · `minor` · przeczytane · utrzymane · S
+- Karta tokena projektu u GM-a nie słyszy magazynu GM-ów: udostępnienie, cofnięcie albo nowa nazwa, pokój lub warunek tajnego projektu nie są rysowane. `watch` karty nie zawiera `projectSecretStore`.
+- Gdzie: `scripts/projects-map.mjs:877, 931-934`; `scripts/projects-secrecy.mjs:299-308, 442-455`; `scripts/projects.mjs:1736-1745, 1824-1826`; `scripts/settings.mjs:2669-2674`.
+- Scenariusz: GM ma otwartą kartę tokena pośredniego morderstwa i udostępnia projekt wspólnikowi z okna Share; karta nadal pokazuje pod "Knows it is there" tylko zabójcę, dopóki nie zostanie zamknięta i otwarta.
+
+**REFR-34** · `minor` · przeczytane · utrzymane · S
+- Save okna projektu pisze `armed` i `firedAt` pułapki tak, jak były przy otwarciu: pułapka, która zadziałała przy otwartym oknie, znów jest uzbrojona i nie jest już uciszona.
+- Gdzie: `scripts/projects-ui.mjs:1034` (odczyt przy otwarciu), `1249-1253` (zapis); `scripts/traps.mjs:207, 362`; `scripts/projects-secrecy.mjs:308`.
+- Scenariusz: GM otwiera okno edycji uzbrojonej pułapki, żeby poprawić literówkę; gracz wchodzi do pokoju i pułapka alarmuje GM-ów; GM naciska Save; przy następnym wejściu gracza GM-owie dostają alarm drugi raz.
+
+**REFR-35** · `minor` · przeczytane · utrzymane · S
+- Save okna projektu pisze pokój, nazwę, rozmiar, statystykę, glif i opis jak narysowane, na zmianę zrobioną przy otwartym oknie (`projectEditChange` podaje pokój zawsze, gdy go dostanie).
+- Gdzie: `scripts/projects-ui.mjs:1229-1254`; `scripts/projects.mjs:2613-2639` (2620).
+- Scenariusz: GM A otwiera okno edycji barykady; GM B przeciąga jej token z biblioteki do sali gimnastycznej; A zmienia opis i zapisuje: projekt wraca do biblioteki, a jego token wraca tam.
+
+**REFR-36** · `minor` · przeczytane · utrzymane · S
+- Okno akcji Projects jest rysowane raz: projekt utworzony, ukończony, zamrożony albo otwarty dla postaci w jej pokoju zostaje skreślony albo pokazany jak był. Ponowne sprawdzenia przed zapłatą trzymają.
+- Gdzie: `scripts/action-project.mjs:64-66, 108, 110-161`; `scripts/action-menus.mjs` (bez `keepLive` i `keepFresh`).
+- Scenariusz: gracz otwiera Work on Project w bibliotece, a GM zatwierdza tam jego barykadę; okno nadal mówi, że nie ma tu nad czym pracować, dopóki go nie zamknie i nie otworzy.
+
+**REFR-37** · `minor` · przeczytane · utrzymane · S
+- Okno "Murder" (Morderstwo) rysuje żywych raz, a Open the incident otwiera incydent na uczniu, który zmarł przy otwartym oknie; strażnicy `openMurder` nie sprawdzają śmierci.
+- Gdzie: `scripts/murder-ui.mjs:90, 209-326, 345`; `scripts/murder-rules.mjs:440-488`.
+- Scenariusz: GM otwiera Murder, drugi GM zapisuje śmierć wybranej ofiary z listy Students, a Open the incident pierwszego GM-a zaczyna incydent z martwą ofiarą i wysyła zabójcy rzut otwarcia.
+
+**REFR-38** · `minor` · przeczytane · utrzymane · S
+- "Incident tracker" (Śledzenie incydentu) nie słyszy zapisów przedmiotów: linia Cleaning Tool i każde DC sprzątania zostają złe po tym, jak zabójca przygotuje albo odłoży narzędzie (`toggleEquipped` pisze tylko flagę przedmiotu, bez `updateActor` i bez hooka modułu).
+- Gdzie: `scripts/murder-ui.mjs:749-760, 845-881`; `scripts/cleanup.mjs:373-378, 459-467`; `scripts/use-items.mjs:316-366`.
+- Scenariusz: na etapie 6 gracz zabójcy przygotowuje szmatę Tier 2 z arkusza; tracker GM-a nadal mówi, że zabójca nie ma Cleaning Tool, i podaje każdy ślad o dwa punkty za wysoko, dopóki następny wydatek Sanity go nie przerysuje.
+- 1.2.119: `sheet-119` - nie dotyczy: `use-items.mjs` zmienia `discardBroken`, linie 316-366 nietknięte.
+
+**REFR-39** · `minor` · przeczytane · utrzymane · S
+- Cztery pytania o incydent albo ciało zostają otwarte, gdy sprawa poszła dalej, a ich "tak" nic wtedy nie robi i nic nie mówi; bliźniacze pytanie `killerFell` zamyka się samo od E68 T6.
+- Gdzie: `scripts/murder-rules.mjs:2415-2435`; `scripts/death.mjs:594-614` z `murder-rules.mjs:2928`; `scripts/body.mjs:931-943` z `312`; `scripts/murder-ui.mjs:793-801`.
+- Scenariusz: GM dostaje pytanie "The incident's victim died - Move to Stage 6?", w międzyczasie kończy incydent z trackera i naciska Move to Stage 6 na pytaniu, które zostało na ekranie: nic się nie dzieje i nic nie mówi dlaczego.
+
+**REFR-40** · `minor` · przeczytane · utrzymane · S
+- "End the chapter" (Zakończ rozdział) jest rysowane raz: liczby, zamknięte pola i ostrzeżenie Final Truth stoją, a własny przycisk Back up the case zostawia na ekranie "last backup: never".
+- Gdzie: `scripts/chapter.mjs:293-300, 427-465, 467-486`; `scripts/gm-stores.mjs:2287-2313`.
+- Scenariusz: GM otwiera End the chapter, naciska Back up the case, widzi toast "backed up", a okno nadal mówi "Back up the case (last backup: never)"; albo stawia z dashboardu ostatni Key Remnant rozdziału przy otwartym oknie i nie może zaznaczyć jego usunięcia.
+
+**REFR-41** · `minor` · przeczytane · utrzymane · S
+- "After the incident" oferuje Move to Investigation według fazy z otwarcia; zostawione otwarte do Class Trial, jego naciśnięcie cofa fazę do Investigation. Weryfikator: droga jest gorsza, niż napisał czytający - wyjście z Class Trial uruchamia `endFloor`, `shutVoteAtExit`, `askTrialVoices` i `executeAtExit`, a potem zdejmuje ciała z mapy. Waga zostaje `minor`.
+- Gdzie: `scripts/murder-rules.mjs:3756, 3802-3806, 3821-3826`; `scripts/clock.mjs:67-80`.
+- Scenariusz: GM zamyka morderstwo, zostawia listę za dashboardem, prowadzi śledztwo i zaczyna trial, po czym sprząta zabłąkane okno przyciskiem Move to Investigation: stół wypada z Class Trial.
+- 1.2.119: `day-119` - nie dotyczy: `clock.mjs` zmienia tylko `advanceTimeOfDay`.
+
+**REFR-42** · `minor` · przeczytane · osłabione · S
+- Dashboard "Investigation" nie słyszy kluczy odpowiedzi Truth Bullet (`bulletStore`): "found by", Who has what i zasięg na mapie zostają bez klucza, który przychodzi po przedmiocie. Weryfikator osłabił: przy pierwszym znalezieniu (scenariusz czytającego) `createTruthBullet` po kluczu woła `revealSourceOf`, które pisze `foundAt` do `remnantStore`, a ten magazyn dashboard obserwuje, więc przerysowanie przychodzi po kluczu. Zostaje drugi znalazca śladu już ujawnionego, poprawki `bulletStore` bez zapisu przedmiotu ani rejestru i wymiana, która dostarcza `bulletStore` po `remnantStore` (kolejność nie przeczytana). Nigdy zły zapis.
+- Gdzie: `scripts/investigation.mjs:317-328, 2412`; `scripts/truth-bullets.mjs:182-185, 708, 761`.
+- Scenariusz: przy dwóch GM-ach Observe gracza robi na primary Truth Bullet z Key Remnantu; otwarty dashboard drugiego GM-a przerysowuje się na przedmiocie i pokazuje ten Remnant jako przez nikogo nieznaleziony, dopóki inny zapis go nie przerysuje.
+- 1.2.119: `plan-119` - touches: `watch` dashboardu dostaje `where: CASE_WATCH` (tokeny Remnantów, regiony, sceny), ale lista magazynów jest bez zmian i `bulletStore` nadal nie jest słuchany.
+
+**REFR-43** · `minor` · przeczytane · utrzymane · S
+- Okno "Findings" jest rysowane raz: Finding zapisany przez koniec trybu strefy albo przez innego GM-a nie pojawia się w otwartym oknie, choć konsola obok go liczy.
+- Gdzie: `scripts/trial-zones-ui.mjs:392-417`; `scripts/trial-zones.mjs:188-201, 388-391`; `scripts/trial-floor-ui.mjs:1116-1122`.
+- Scenariusz: GM trzyma Findings otwarte nad konsolą w czasie Straw Poll; ankieta kończy się wyraźną stroną, przycisk konsoli mówi "Findings (2)", a okno nadal pokazuje jeden i nie ma "Monokuma confirms" dla nowego.
+- 1.2.119: `trial-119` - nie dotyczy: `trial-zones.mjs` zmienia `zoneCtxOf` i usuwa `zoneEarly`, zapisy Findings nietknięte.
+
+**REFR-44** · `minor` · przeczytane · utrzymane · S
+- Okno wyboru strony trzyma na przyciskach słowa i odpowiedzi pierwszego pytania, gdy Logic Dive idzie dalej, i zostaje po końcu trybu. Następne pytanie zmienia `question` i `answers` przy tym samym `openedAt`, więc klucz okna się nie zmienia i nowe okno nie powstaje.
+- Gdzie: `scripts/trial-zones-ui.mjs:434-458`; `scripts/zone-machine.mjs:133-136, 220-232`; `scripts/bridge-asks.mjs:366-367`.
+- Scenariusz: gracz bez tokena w sali zostawia okno otwarte przez pytanie 1 Logic Dive i naciska "Zone A: Yes" w pytaniu 2, w którym odpowiedź strefy A jest inna: strona liczy się dla pytania 2.
+- 1.2.119: `trial-119` - nie dotyczy: to okno jest nietknięte, a zmienione linie `zone-machine.mjs` to wczesne zamknięcie i `scrumTurn`.
+
+**REFR-45** · `minor` · przeczytane · utrzymane · S
+- Okno "The Mastermind" czyta wybór, legowisko i odbiorcę pudełka Hope raz: zmiana innego GM-a nie jest pokazana, a Apply pisze narysowane legowisko na jego. Na żywo jest tylko `.drpg-mm-live`, które nie obejmuje selectów.
+- Gdzie: `scripts/mastermind.mjs:559-583, 607-633, 678-706`.
+- Scenariusz: dwóch GM-ów; jeden przenosi legowisko Masterminda do biblioteki, drugi ma okno otwarte na sali gimnastycznej i naciska Apply, niczego nie ruszając: legowisko znów jest w sali gimnastycznej.
+- Pokrewne: REFR-05 (pudełko Hope tego okna na regule 1).
+
+### 16.5 Znaleziska `nit`
+
+28 pozycji, wszystkie klasy S. Pewność przeczytane, poza REFR-46 i REFR-61 (podejrzenie). REFR-56 jest opisane przy REFR-24.
+
+| ID | Gdzie | Co | Weryfikacja |
+| --- | --- | --- | --- |
+| REFR-46 | `scripts/gm-panel.mjs:654-658, 949-950, 1090-1095` | linia Next i czerwona linia sprawy w panelu GM-a czytają `pendingBodyStore` i ostatni raport zdrowia, których blok na żywo nie obserwuje (podejrzenie) | niesprawdzone |
+| REFR-47 | `scripts/gm-panel.mjs:313-315, 389-391, 670-674` | kafel Settings trzyma stan wyłączenia z budowy; zmiana uprawnień nie dociera do regionu kafli | niesprawdzone |
+| REFR-48 | `scripts/gm-students.mjs:187, 195-197, 571-577` | przycisk Level Up w "Students" liczy stojące oferty z magazynu, którego okno nie obserwuje (ten sam magazyn co REFR-14) | niesprawdzone |
+| REFR-49 | `scripts/boundary.mjs:273-284, 494-495, 514-522` | okno GM-a w rundzie gotowości nie słyszy zmiany obsady: uczeń, który umiera albo zmienia właściciela, zostaje w starym wierszu | niesprawdzone |
+| REFR-50 | `scripts/gm-panel.mjs:706-751, 758-778`; `scripts/utils.mjs:295-327` | "Debug log" pokazuje błędy z chwili otwarcia; późniejszego nie pokazuje i nie kopiuje | niesprawdzone |
+| REFR-51 | `scripts/gm-stores.mjs:2293-2304, 2755-2785, 2861-2869, 2965-2999`; `scripts/enforced.mjs:949-956` | pięć okien sprawy i Foundry ("Back up the case?", zdrowie sprawy, "The case", podgląd przywrócenia, "Give back") rysuje fakty raz | niesprawdzone |
+| REFR-52 | `scripts/stash-reach.mjs:279-358`; `scripts/palm.mjs:109-161, 475-497`; `scripts/use-items.mjs:556-559, 689-709`; `scripts/level-up.mjs:740-777, 1245-1262` | jednorazowe wybieraki gracza (Rifle, wybór kradzieży, cele Palm, podgląd Use, wartości Level Up) są rysowane raz | niesprawdzone |
+| REFR-53 | `scripts/messenger-app.mjs:211-215, 234-237, 269-283, 367-378` | kropka zakładki Note, tytuł i linia uczestników okna rozmowy są rysowane raz | niesprawdzone |
+| REFR-54 | `scripts/roll-draw.mjs:3037-3040` | rzut wykonany bez GM-a nadal mówi "a GM decides later" po decyzji GM-a: linia czyta stempel, nie `granted` | utrzymane |
+| REFR-55 | `scripts/voice-panel.mjs:141-156` | sekcja Voice pokazuje stary klawisz push-to-talk po własnym "Change the key" | utrzymane |
+| REFR-56 | `scripts/explain.mjs:49-57` | zob. REFR-24 (to samo) | utrzymane |
+| REFR-57 | `scripts/tables-editor.mjs:1334-1338, 1617-1786` | "Item tables" (Tabele przedmiotów): po Remove licznik tabeli jest o jeden za wysoki; zmiana w arkuszu tabeli Foundry albo u innego GM-a niewidoczna | utrzymane |
+| REFR-58 | `scripts/facility-editor.mjs:104-119, 158-176` | dwa edytory akcji nie śledzą Save innego GM-a, a własny Save nadpisuje całą listę | utrzymane |
+| REFR-59 | `scripts/passages-tab.mjs:96-103, 120-122, 129, 402`; `scripts/room-setup.mjs:1247, 1321` | menu "+" zakładki Passages oferuje uczniów z otwarcia; nazwy i linie "shared" nie śledzą aktorów ani użytkowników | utrzymane |
+| REFR-60 | `scripts/room-tile.mjs:545-563, 719-737` | okno obrazu pokoju trzyma obraz z otwarcia po tym, jak GM go zmieni albo usunie | utrzymane |
+| REFR-61 | `scripts/projects-tray.mjs:226-239`; `scripts/settings.mjs:2669-2674` | podejrzenie: na GM-ie, który nie jest primary, taca trzyma starą nazwę tajnego projektu po zmianie, do renderu z innego powodu | niesprawdzone |
+| REFR-62 | `scripts/projects-ui.mjs:407, 1669-1675` | w menedżerze zaznaczenie Secret na publicznym projekcie zostawia tiki graczy w tym wierszu wyłączone z podpowiedzią "This project is public" | niesprawdzone |
+| REFR-63 | `scripts/murder-ui.mjs:703, 774, 783-786`; `scripts/incident-store.mjs:978-985` | "Silence now" rysowane raz na kopię trackera; po przeniesieniu głosu albo ogłoszeniu ciała naciśnięcie nic nie robi i nic nie mówi | niesprawdzone |
+| REFR-64 | `scripts/eclipse.mjs:677-707, 749-760, 887` | karta deklaracji Eclipse trzyma aktywne Allow i Refuse po tym, jak światła osądziły każdy wiersz | niesprawdzone |
+| REFR-65 | `scripts/body.mjs:33-46, 1161-1166`; `scripts/death.mjs:160-162, 731` | "Body found", "A character dies" i lista Faint Prep są rysowane raz; naciśnięcie jest strzeżone albo nieszkodliwe | niesprawdzone |
+| REFR-66 | `scripts/trial-prompt.mjs:150-160, 182-206`; `scripts/trial-floor.mjs:1309-1345` | sekundy w podpowiedziach tury ("Your turn (60 s)", licznik ochotników) są rysowane raz; +30 s / -30 s GM-a do nich nie dociera | utrzymane |
+| REFR-67 | `scripts/key-remnants.mjs:719-726, 785-800` | karta wstrzymanej opłaty za Key trzyma "Charge the Key fee" na każdym GM-ie po pobraniu opłaty | utrzymane |
+| REFR-68 | `scripts/vote.mjs:567-592`; `scripts/trial-floor-ui.mjs:1674, 1987` | okno głosowania i linie głosowania konsoli nie śledzą arkusza ucznia: zmiany właściciela ani flagi Monocub / spoza klasy | niesprawdzone |
+| REFR-69 | `scripts/case-trial.mjs:121-127`; `scripts/case-schema.mjs:369-378`; `scripts/remnants.mjs:3248-3251` | schemat sprawy w konsoli nie słucha rejestru śladów ani tokenów: ślad postawiony w czasie trialu albo nieznaleziony przemianowany na karcie zostaje w węźle jak narysowany | niesprawdzone |
+| REFR-70 | `scripts/trial-floor-ui.mjs:1015-1030, 1674, 1785-1797`; `scripts/key-remnants.mjs:545-577` | bez otwartego piętra lista Reveal konsoli nie słucha żadnego ze swoich źródeł (Key postawiony, znaleziony, ujawniony, zapis planu Key) | utrzymane |
+| REFR-71 | `scripts/trial-zones-ui.mjs:328-359`; `scripts/trial-zones.mjs:188` | "Logic Dive sets" (Zestawy Logic Dive) przerysowuje się tylko po własnym Edit albo Delete | utrzymane |
+| REFR-72 | `scripts/vote.mjs:318-322, 781-860` | otwarta karta "Who did it?" (Kto to zrobił?) zostaje po zamknięciu i policzeniu głosowania; Cast odpowiada wtedy "The vote has moved on" | utrzymane |
+| REFR-73 | `scripts/trial-scene.mjs:1489-1540, 1613-1633` | część scen w Season setup jest rysowana raz: sala, szkoła, strefy i obsada ustawione przez innego GM-a niewidoczne do ponownego otwarcia | niesprawdzone |
+
+
+## 17. Nowe znaleziska według domen (K2, K6)
+
+Wynik audytu statycznego: 31 plików czytających domen (25 tej sesji, 6 pierwszej; 29 czyta kod, 2 pliki językowe), każdy skrypt modułu bez testów przeczytany w całości dokładnie raz (258 plików, 226 282 linii), każde znalezisko `minor` i wyżej sprawdzone przez drugiego czytającego, który próbował je obalić. Numery idą dalej od oryginału (po CASE-15 jest CASE-16, po COMM-18 jest COMM-19 i tak dalej); TEXT, DOC i TEST jak w 11.5. Tam, gdzie poprawka jest już w linii 1.2.119, wpis to mówi (stan na 20.11.2026 22:15Z, 18.3); ponowne sprawdzenie po wydaniu zostaje. Okna i kontrolki są w 15 i 16, nie tutaj; etapy w 14.
+
+
+Ta część sekcji 17 to wynik K2 (audyt statyczny domenami) dla trzech domen oryginału: CASE (zbrodnia i incydent, ślady i Tamper, śledztwo, piętro trialu, sceny i strefy trialu, planer i magazyny sprawy, śmierć i rozdział), COMM (komunikator, Calls, głos, dźwięk) i CORE (bridge, `secret.mjs`, start i ustawienia, API i diagnostyka, utils i zegar). Czytających domen jest szesnastu: siedmiu CASE (`domain-case-a` do `domain-case-g`; `-e` i `-f` w `first-session/`), czterech COMM i pięciu CORE; do tego trzy ponowne odczyty starych domen (`old-1.2.42-case`, `old-1.2.42-comms`, `old-1.2.42-core`), z których tu są tylko ich nowe obserwacje. Według `files_read` czytających: CASE 65 plików i 59 662 linie, COMM 25 plików i 20 741 linii, CORE 43 pliki i 39 152 linie; razem 133 pliki i 119 555 linii, żaden plik nie jest liczony u dwóch czytających. Znalezisk z przedrostkami `CASE`, `COMM` i `CORE` w `master.json` jest **131**: `blocker` 1, `major` 7, `minor` 62, `nit` 61. Z tego CASE 61 (`major` 5, `minor` 36, `nit` 20), COMM 37 (`blocker` 1, `major` 1, `minor` 12, `nit` 23), CORE 33 (`major` 1, `minor` 14, `nit` 18). Żadne nie zostało obalone, więc nie ma linii "wycofane". Weryfikacja: utrzymane 69, osłabione 12, niesprawdzone 50 (same `nit`y); każdy `blocker`, `major` i `minor` przeszedł weryfikację przeciwną, a z 61 `nit`ów sprawdzono 11 (8 utrzymanych i 3 obniżone z `minor`). Weryfikatorzy zmienili sześć wag: CASE-45 z `blocker` oraz CASE-51 i COMM-24 z `major` na `minor`; COMM-36, COMM-42 i CORE-46 z `minor` na `nit`. Pewność: przeczytane 124, podejrzenie 7 (CASE-32, CASE-54, CASE-55, CASE-63, CASE-73, CORE-22, CORE-31). Klasa dowodu wszystkich: S (odczyt statyczny na `b5a29e73`). Jedenaście pozycji to obserwacje z ponownych odczytów starych domen (CASE-74 do CASE-76, COMM-52 do COMM-55, CORE-49 do CORE-52), wszystkie `nit` i niesprawdzone. Trzy pozycje ciągną stare ID: COMM-29 (COMM-10 z 1.2.42), COMM-49 (D5 z 1.2.13), CORE-26 (CORE-13 z 1.2.42).
+
+Czego nie zmierzono: żaden czytający ani weryfikator niczego nie uruchamiał; każda pozycja to odczyt kodu. Czytający zapisali 99 pozycji `not_established` (CASE 52, COMM 21, CORE 26). Dla wag liczą się cztery: czy avclient-livekit 0.6.8 przypisuje uczestnika z `BROADCAST_AUDIO` false do jego użytkownika (imię w COMM-20; liczba na kafelku tego nie wymaga); czy konto gracza z FILES_BROWSE listuje na 14.370 katalog kopii sprawy (CASE-54, LIVE-E111-02, otwarte); czy v14 odrzuca zapis `core.permissions` przez Assistant GM-a (CORE-31, sam komentarz modułu); ile wierszy mają magazyny prawdziwego świata (CASE-51, LIVE-E111-01, otwarte). Czasy w CASE-51 to przebieg Node czytającego poza harnessem, nie klasa H. Linie poprawek 1.2.119 nazywam jak `lines-119.json` (`plan-119`, `trial-119`, `fog-119`, `day-119`, `sheet-119`), bez przedrostka gałęzi. Każde "czerwone, potem zielone" przy nich to słowa commita: testów, scenariuszy i mutantów linii tu nie uruchamiano, ich scalenia nie próbowano, a żadna nie jest na `main` (`lines-119.json`, `not_established`). Dopasowano tylko pozycje `minor` i wyżej; pozycja bez wiersza "1.2.119" nie ma w `lines-119.json` dopasowania.
+
+### Najpierw tożsamość: zabójca w masce albo za zasłoną, ukryta śmierć
+
+Osiem pozycji tych trzech domen mówi graczowi coś, co reguła trzyma przed nim: kto zabija, kto jest ofiarą albo że gdzieś leży nieznalezione ciało. Pełne wpisy są w swoich grupach (17.1-17.3), na ich początku.
+
+| ID | Waga | Co ujawnia i komu | 1.2.119 (`lines-119.json`) |
+| --- | --- | --- | --- |
+| COMM-19 | `blocker` | prawdziwe imię zabójcy w masce w linii "Aimed at" potwierdzenia Support; ofierze albo świadkowi w pokoju, bez zapłaty | `day-119`: addresses |
+| COMM-20 | `major` | zasłoniętego zabójcę w liczniku kafelka głosu, a z imieniem i portretem w "Who you hear" (Kogo słyszysz); ofierze i świadkowi | żadna linia tego nie zmienia |
+| CORE-20 | `major` | imię zabójcy na karcie, której słowa są podawane albo przepisywane po końcu maski; czytelnikowi, który wraca po rozłączeniu | `day-119`: addresses, w części |
+| CASE-17 | `major` | że w rozdziale leży nieznalezione ciało (trafienie Tamper poniżej pokazanej liczby); niezaangażowanemu graczowi | brak dopasowania |
+| COMM-24 | `minor` (czytający: `major`) | imię celu w masce na publicznej karcie Despair Call; każdemu graczowi, do wywnioskowania | `day-119`: addresses (pięć efektów) |
+| CASE-21 | `minor` | ukrytą śmierć z drugiego incydentu dnia; trzeciemu z pierwszego incydentu | brak dopasowania |
+| CASE-30 | `minor` | kto jest ofiarą trwającego morderstwa (odmowa Misleading Trail); świadkowi spoza incydentu | brak dopasowania |
+| CASE-45 | `minor` (czytający: `blocker`), osłabione | zabójcę w masce na liście Actors; droga przez interfejs obalona, zostaje odczyt z konsoli | `day-119`: nie dotyczy (zmiana napisana i cofnięta) |
+
+Trzy z ośmiu (COMM-19, CORE-20, COMM-24) mają w `lines-119.json` relację addresses, wszystkie na `day-119`; CORE-20 i COMM-24 z nazwanymi resztkami (wpisy niżej). COMM-20, CASE-17, CASE-21 i CASE-30 zostają na 1.2.119 takie, jak na `b5a29e73`. To samo pytanie stawiają pozycje innych domen i przebiegów, opisane w swoich miejscach: MAP-16 (`blocker`, wybór przekazania nazywa zasłoniętego zabójcę), STG-03 (`major`, tablica końca dnia przy stojącej masce), STG-31 i STG-100 (sekcja 14). Odwrotną stroną tej samej maski jest CASE-16: kopia obsady bez zabójcy daje ofierze liczbę o punkt za niską. CASE-54 (podejrzenie) to droga do zabójcy i kluczy odpowiedzi przez plik kopii sprawy, zależna od LIVE-E111-02.
+
+### 17.1 CASE
+
+Wszystkie: klasa S; pewność i weryfikacja przy każdym wpisie.
+
+**Tożsamość i ukryta śmierć**
+
+**CASE-17** · `major` · przeczytane · utrzymane · S
+- GM liczy trudność sprzątania (Tamper) o 3 niżej za ciało, o którym gracz rzucający może nie wiedzieć: filtr V3 z 1.2.110 nie działa na drodze punktowania. `resolveCleanup` punktuje werdykt na `held = actorAsHeld(actor)`, a `actorHeldNow` oddaje zwykły obiekt (id, nazwa, typ, przedmioty) bez `testUserPermission`, więc lista graczy filtra jest pusta i ciało liczy się zawsze.
+- Gdzie: `scripts/cleanup.mjs:811, 1169-1172` (werdykt z `held`), `451-453` (filtr pyta `actor.testUserPermission`); `scripts/sheet-audit.mjs:872-875` (`actorHeldNow`).
+- Scenariusz: GM zamyka morderstwo nocą i nikt nie znalazł ciała; rano niezaangażowany uczeń robi Tamper na znalezionym śladzie Evident: okno mówi 15, rzuca 13, a karta mówi, że Remnant zniknął - trafienie poniżej pokazanej liczby, które mówi graczowi, że w tym rozdziale leży nieznalezione ciało.
+- 1.2.119: brak dopasowania.
+
+**CASE-21** · `minor` · przeczytane · utrzymane · S
+- Śmierć trzymana przez GM-ów jest wysyłana trzeciemu z wcześniejszego incydentu tego samego dnia, którego oferta zdrady jeszcze stoi, choć w nowym incydencie nie ma on miejsca. `incidentKnowers` woła `castOwners`, a ten zawsze pyta z `betrayal: true`, co dodaje `state.betrayal.thirdId`; `openMurder` zachowuje `betrayal` (`keep`), a `sweepBetrayalWindows` zdejmuje ofertę dopiero przy zmianie dnia albo rozdziału.
+- Gdzie: `scripts/incident-store.mjs:1225-1230` (`incidentKnowers`), `454-457`, `399-404`; `scripts/death.mjs:462-470, 487`.
+- Scenariusz: wieczorem A zabija B, a C wszedł i został, więc do końca dnia ma ofertę zdrady; tej samej nocy D zabija E bez nikogo przy tym, a gracz C, który był daleko, widzi token E oznaczony jako martwy i jest traktowany jako znający to ciało (Frisk, Palm, powiadomienie znalazcy), zanim ktokolwiek je znalazł.
+- 1.2.119: brak dopasowania.
+
+**CASE-30** · `minor` · przeczytane · utrzymane · S
+- Misleading Trail świadka spoza incydentu wymierzony w ofiarę trwającego morderstwa jest odrzucany słowami "You cannot frame that student", choć to imię zaproponowało mu jego własne menu. `framingCandidates` czyta `murderState()?.victimId` na przeglądarce rzucającego, gdzie kopia obsady świadka to `{}`, więc lista zachowuje ofiarę; odmowa przychodzi dopiero od GM-a.
+- Gdzie: `scripts/cleanup.mjs:1591-1596` (`framingCandidates`), `1778-1781` (odmowa GM-a); `scripts/incident-store.mjs:176-184`.
+- Scenariusz: w czasie morderstwa w kuchni uczeń gdzie indziej używa Tamper, żeby wrobić rywala, który akurat jest ofiarą; po rzucie czyta "You cannot frame that student.", dostaje akcję z powrotem i wie, kto jest zabijany albo już nie żyje, zanim ktoś znalazł ciało.
+- 1.2.119: brak dopasowania.
+
+**CASE-45** · `minor` (czytający: `blocker`) · przeczytane · osłabione · S
+- Maska pisze na Aktora obrazek "?" i zostawia jego nazwę, własność i wpis na liście; czytający wywnioskował, że gracz widzi zabójcę w zakładce Actors. Weryfikacja się podzieliła: droga w kodzie potwierdzona (`mask-gm.mjs:252` pisze tylko `img`), ale gracz zakładki Actors nie ma - `body.drpg-player #sidebar { display: none }` (`styles/danganronpa.css:7646`), klasa ustawiana każdemu nie-GM-owi przy ready (`module.mjs:692`). Droga przez interfejs obalona; zostaje odczyt z konsoli (nazwy w `game.actors` i jeden aktor z obrazkiem "?"), ta sama klasa co zapisany znany wyciek `foundry-veiled-token-actor` scenariusza 21, stąd `minor`.
+- Gdzie: `scripts/mask-gm.mjs:238, 252`; `scripts/anonymity.mjs:122-126`.
+- Scenariusz (czytającego, obalony co do interfejsu): gracz, którego uczeń jest w innym pokoju, otwiera zakładkę Actors w porze morderstwa, widzi jednego kolegę z "?" zamiast portretu i zna zabójcę przed znalezieniem ciała.
+- 1.2.119: `day-119` - nie dotyczy. Linia napisała `maskDirectory` w `renderActorDirectory` (b503f869, a8d4efb8, a46dbe4a) i cofnęła to w 50a2de6b po tej samej korekcie (lista Actors jest graczowi schowana); końcowy diff listy nie zmienia. To odczyt na rzecz osłabienia, nie poprawka, i tu nie był sprawdzany.
+
+**`major`**
+
+**CASE-16** · `major` · przeczytane · utrzymane · S
+- Liczba, którą ofiara (albo trzeci) ma pobić, pomija obronę drugiej strony zawsze, gdy ich kopia obsady nie ma zabójcy - przy zabójcy w masce i przy każdej pułapce - a GM rozstrzyga i drukuje liczbę z obroną. `crisisDefense` czyta obrońcę z `state.killerId` i przy null daje 0; `castCopyFor` zeruje `killerId` każdemu posiadaczowi poza zabójcą, gdy incydent jest pośredni albo stoi maska. Błąd to najwyżej 1 punkt (`DEFENSE.cap` 1), ale to jedyna liczba, dla której menu istnieje, a komentarz 248-252 obiecuje, że trzy odczyty się nie różnią. Czy obrona ukrytego zabójcy ma się liczyć, zostaje pytaniem do właściciela.
+- Gdzie: `scripts/murder-rules.mjs:258-260` (`crisisDefense`), `316-318` (wiersz menu), `1183` (okno rzutu), `1773, 1783` (rozstrzygnięcie); `scripts/incident-store.mjs:586-588`.
+- Scenariusz: morderstwo bezpośrednie otwiera się na Hope (zabójca za "?"), a Body zabójcy to +1; menu ofiary i okno rzutu mówią "Beat 18" przy Self-Defense, ofiara rzuca 18, a karta mówi "18 < 19": chybienie na liczbę, której nikt jej nie pokazał (tak samo ofiara pułapki wobec Body i Leg nieobecnego budowniczego).
+- To samo: STG-07 (sekcja 14, zapisane jako `minor`, niesprawdzone).
+
+**CASE-18** · `major` · przeczytane · utrzymane · S
+- Dwóch uczniów znajduje jeden nieopisany ślad, gdy okno opisu u GM-a jest otwarte: drugie okno otwiera się z rekordu sprzed pierwszej odpowiedzi, a jego potwierdzenie wymazuje pierwszy opis na śladzie i na kopii pierwszego znalazcy; zamknięcie go daje drugiemu znalazcy kopię pod inną nazwą, bez słów. `createFind` czyta publiczny rekord śladu raz, przed oknem, i pisze z tego odczytu po nim; `setRemnantPublic` pisze łatkę jak podaną, z pustymi tekstami.
+- Gdzie: `scripts/observe.mjs:1026-1051` (`createFind`), `1179-1281` (`describeFind`); `scripts/remnants.mjs:1428-1457` (`setRemnantPublic`).
+- Scenariusz: dwóch graczy przeszukuje pokój z ciałem w ciągu pół minuty, w której GM wpisuje "Bloody knife" i opis; GM naciska przycisk drugiego okna i oba Truth Bullety brzmią "Something found in the Kitchen" bez słów, albo zamyka je i dwaj gracze mają jeden przedmiot pod dwiema nazwami.
+
+**CASE-19** · `major` · przeczytane · utrzymane · S
+- "Reset the season" (Zresetuj sezon), jedyne wejście okna "Season setup" (Ustawienia sezonu) do resetu, zamyka okno i nigdy nie otwiera resetu. Przycisk ustawia `resetAsked` i woła `dialog.close()`; `drpgWindow` jest wołane z `rejectClose: false`, więc zamknięte okno odpowiada null, a linia 1214 wraca na `!result`, zanim 1215 przeczyta `resetAsked`. "End the chapter", podpięte tak samo obok, działa tylko dlatego, że jego flaga jest czytana przed testem null (1213).
+- Gdzie: `scripts/season-setup.mjs:1200-1204` (przycisk), `1213-1215` (co idzie po oknie).
+- Scenariusz: GM na końcu sezonu otwiera Season setup i naciska Reset the season: okno się zamyka i nic więcej się nie dzieje, więc sezonu nie da się zresetować z interfejsu.
+- To samo: CTRL-01 (sekcja 15, `major`), STG-02 (sekcja 14, `major`, niesprawdzone).
+- 1.2.119: żadna linia nie zmienia `season-setup.mjs` (nie dotyczy).
+
+**CASE-20** · `major` · przeczytane · utrzymane · S
+- Dwa kontrargumenty, które odpierają się wzajemnie, wpychają układ mapy sprawy w nieskończoną rekurencję; panel "Investigation" nie otwiera się wtedy w widoku "Map" (Mapa) u żadnego GM-a. Test cyklu czyta tylko krawędzie `input`, więc A refutes B / B refutes A przechodzi; `depthOf` zapamiętuje głębokość dopiero po powrocie rekurencji, a kontrargument bez wejść bierze głębokość z celów refutes.
+- Gdzie: `scripts/case-layout.mjs:103-105` (`depthOf`), `90-92` (test cyklu); wołane z `scripts/investigation.mjs:1148` i `scripts/case-trial.mjs:66`.
+- Scenariusz: GM zaznacza kontrargument B pod Refutes kontrargumentu A, a A pod Refutes B, zamyka panel i od tej chwili kafel Investigation odpowiada u każdego GM-a, że akcja się nie udała, a miejsce schematu w konsoli trialu zostaje puste.
+- 1.2.119: `plan-119` - addresses. `layoutCase`/`depthOf` (3b73017a) dostają zbiór `working`; węzeł spotkany ponownie w trakcie liczenia dostaje głębokość 1. Commit podaje RangeError zmierzony na b5a29e73 i de1d5072 oraz R7802 i test tieru 2 "Map opens" czerwone, potem zielone - słowa commita, tu nieuruchomione. `case-trial.mjs:66` idzie przez ten sam `layoutCase`, więc schemat konsoli ma tę samą ochronę (według commita osobno nietestowany).
+
+**`minor`**
+
+**CASE-22** · `minor` · przeczytane · utrzymane · S
+- Tracker otwarty z panelu GM-a oddaje panel przy każdej zmianie etapu: tracker otwiera się sam poza oczekiwanym łańcuchem, więc przebieg kafla Murder się kończy i panel otwiera się obok nowego trackera. `after` w `keepLive` zamyka okno przy zmianie sygnatury i otwiera tracker z `.then()`; zamknięcie rozwiązuje oczekiwane okno z null.
+- Gdzie: `scripts/murder-ui.mjs:760-772` (zamknięcie i ponowne otwarcie), `59, 345-349` (oczekiwany łańcuch), `802`; `scripts/gm-panel.mjs:605-618`.
+- Scenariusz: GM otwiera morderstwo kaflem Murder i patrzy na tracker; rzut otwarcia zabójcy się udaje, tracker przerysowuje się na walkę, a panel GM-a wyskakuje razem z nim, nieproszony, w środku incydentu - i znów, gdy walka się kończy.
+- To samo: CTRL-81 (sekcja 15, `nit`). Ten sam wzór w konsoli trialu: CASE-39.
+
+**CASE-23** · `minor` · przeczytane · utrzymane · S
+- Przy dwóch zabójcach Cancel na pytanie "the victim ran out" wraca do trzech razy dla tej samej akcji i przy każdej następnej, a notka pytania odsyła GM-a do przycisku trackera, który zamyka incydent bez zmarłego. `applyCrisisAction` woła `checkVictimSpent` przed kartą i po `passTurn`, a `finally` w `resolveCrisisAction` trzeci raz; Cancel nic nie pisze.
+- Gdzie: `scripts/murder-rules.mjs:1914, 1953-1958, 1583-1586, 2411-2429, 3199-3208`; `lang/en.json:2975` (`ranOutTwoKillersNote`).
+- Scenariusz: Partners in Crime, Strike wypełnia ostatnie znaczniki ofiary; główny GM czyta "End it now / Cancel", naciska Cancel, jak pozwala notka, dostaje to samo pytanie od razu i trzeci raz, a potem idzie za notką, naciska "End the murder" (Zakończ morderstwo) na trackerze i słyszy, że nikt nie zginął.
+
+**CASE-24** · `minor` · przeczytane · utrzymane · S
+- Zaproszenie do rzutu otwarcia to jeden pakiet: po przeładowaniu przeglądarki zaproszonego gracza nic nie proponuje rzutu ponownie i nic nie mówi GM-owi, a karta gracza nadal mówi, że okno wróci. `rollOpening` woła `askOpeningRoll` raz (emit do właściciela); droga ready gracza (`onGmReady`) otwarcia nie uruchamia.
+- Gdzie: `scripts/gm-bridge.mjs:198-218` (`onOpeningAsk`, `askOpeningRoll`); `scripts/murder-rules.mjs:4437-4446` (`rollOpening`), `4625-4721` (`throwOpeningRoll`); `lang/en.json:2926`.
+- Scenariusz: gracz zabójcy naciska F5 z otwartym oknem rzutu otwarcia; strona wraca z kartą "you cannot skip it. If you close the window, it opens again" i bez okna, a tracker GM-a czeka na rzut, którego nikt nie może rzucić, dopóki ktoś nie zauważy.
+
+**CASE-25** · `minor` · przeczytane · utrzymane · S
+- Drugie ciało tego samego dnia nadpisuje stojącą ofertę zdrady: wcześniejszy trzeci traci ofertę, która była jego do końca dnia, bez słowa. `armBetrayalWindow` pisze `betrayal` do obsady, nie pytając, czy stoi już oferta innego trzeciego; obsada ma jedno pole, a `giveBetrayalOfferBack` zna ten jeden slot na drodze powrotnej.
+- Gdzie: `scripts/incident-store.mjs:876-893` (`armBetrayalWindow`).
+- Scenariusz: C ma ofertę przeciw A z wieczornego morderstwa; tej samej nocy D zabija E przy F, oferta F jest zapisana, oferta C znika, a kafel C już się nie świeci, choć dzień się nie skończył.
+
+**CASE-26** · `minor` · przeczytane · utrzymane · S
+- Ekran po incydencie proponuje zdradę przeciw martwemu zabójcy (albo przez martwego trzeciego): "oboje żywi" sprawdzają kafel i światła, nie droga listy kontrolnej. `betrayalCandidate` sprawdza, że aktor zabójcy istnieje i jest ciało, nie że zabójca i trzeci żyją, wbrew własnemu komentarzowi; `openBetrayal` bez `taken` pomija test śmierci.
+- Gdzie: `scripts/incident-store.mjs:1887-1895` (`betrayalCandidate`); `scripts/murder-rules.mjs:3771, 3810-3814, 3820, 4025, 4052`.
+- Scenariusz: w Stage 6 zabójca ginie z ręki GM-a (okno "Students" (Uczniowie)); GM kończy morderstwo, ekran mówi, że trzeci "may turn on" martwego zabójcę, i daje przycisk, a po jego naciśnięciu otwiera się incydent z martwym uczniem jako ofiarą i wychodzi rzut otwarcia.
+
+**CASE-27** · `minor` · przeczytane · utrzymane · S
+- Krytyczny rzut ukrycia czyści znacznik Sanity na przeglądarce rzucającego jako zwrot za nic: audyt GM-ów go flaguje albo zjada kredyt innej płatności. `concealFromWitnesses` biegnie przed `chargeTamper`, więc przy krytyku koszt to 0, a zwrot `conceal.refundStress.critical` = 1 pisze `marks - 1` z powodem "refund".
+- Gdzie: `scripts/cleanup.mjs:1420-1421, 2540-2546` (`concealFromWitnesses` -> `restoreStress`); `scripts/config.mjs:4826`; `scripts/sheet-audit.mjs:1769-1773, 1776-1781`.
+- Scenariusz: uczeń z jednym znacznikiem Sanity od rana robi Tamper przy koledze i rzuca krytyk na "Hide what you are doing" (Ukryj, co robisz): znacznik znika, a GM-owie dostają kartę oflagowanego zapisu Sanity z Undo i Keep za wynik, który dała tabela samego modułu.
+
+**CASE-28** · `minor` · przeczytane · utrzymane · S
+- Karty wyniku Tamper podają prawdziwy zasięg i kategorię śladu rzucającemu, który ma tylko nieanalizowaną kopię. Lista podpisuje ślad samą kopią, ale linie po stronie GM-a biorą `visibilityLabel` i `typeLabel` z rejestru i trafiają do karty szeptanej właścicielowi.
+- Gdzie: `scripts/cleanup.mjs:954-956` (linia wymazania, szeptana przez `report` 2580-2592), `788-790` (odmowa przy wzmocnionym śladzie); `scripts/cleanup-reshape.mjs:392-400, 661-665`.
+- Scenariusz: śledczy, który skopiował ślad i nigdy go nie analizował, wymazuje go przez Tamper i czyta "The Subtle Incident Remnant is gone." - jego neutralny Truth Bullet okazuje się śladem incydentu bez Analyze.
+
+**CASE-29** · `minor` · przeczytane · utrzymane · S
+- `keyPlanStatus` liczy każde miejsce planu jako Key Remnant: przy sprawie z trzema albo czterema "every planned Key Remnant has been found" nie przychodzi nigdy, a linia GM-a mówi "N of 5". `keyPlan` ma zawsze co najmniej pięć wpisów, a wpis niezapisany albo `overLimit` nie ma znalazcy.
+- Gdzie: `scripts/key-remnants.mjs:131, 525-533`; czytają `scripts/gm-panel.mjs:921-927`, `scripts/events.mjs:642-647`, `scripts/investigation.mjs:924-926`.
+- Scenariusz: otwarcie zabójcy wychodzi z Despair, GM stawia cztery Key Remnanty sprawy i klasa znajduje wszystkie cztery, a panel nigdy nie mówi "Every planned Key Remnant has been found. Start the Class Trial", za to karta Event mówi GM-owi "4 of 5 Key Remnants found".
+
+**CASE-31** · `minor` · przeczytane · utrzymane · S
+- Reroll przywraca wymazany ślad jako ukryty i nieznaleziony: znalazcy tracą go z map, a wiersz traci znalezienie oraz znaczniki słów i zasięgu od GM-a. `recreationDataFor` nie zachowuje `hidden`, `foundAt`, `foundVia`, `incidentFound`, `gmEdited` ani `gmBand`; `placeRemnant` tworzy token ukryty z `foundAt` null.
+- Gdzie: `scripts/cleanup-reshape.mjs:101-138`; `scripts/cleanup.mjs:2112-2127`; `scripts/remnants.mjs:535, 651-654`.
+- Scenariusz: uczeń wymazuje znaleziony przez siebie ślad, a Reroll zamienia rzut w chybienie; karta mówi, że Remnant nadal jest, ale jego znacznik zniknął z mapy tego ucznia i każdego innego znalazcy, a zakładka Traces czyta go jako nigdy nieznaleziony.
+
+**CASE-32** · `minor` · podejrzenie · utrzymane · S
+- Move the Body pyta, gdzie stoi chodzący token ofiary, nie gdzie leży ciało: `bodyIsHere` woła `sameRoom(actor, victim)` bez opcji, a `locateActor` oddaje token Monocuba. Weryfikator prześledził warunek wstępny: stan jest osiągalny, ale tylko z wyboru GM-a wbrew radzie przewodnika (Monocub przy wciąż otwartym Stage 6).
+- Gdzie: `scripts/cleanup.mjs:151-155` (`bodyIsHere`), `1970` (`applyMoveBody` niesie token ciała); `scripts/movement.mjs:3647-3671` (`locateActor`).
+- Scenariusz: GM zostawia Stage 6 otwarty po odkryciu i robi z ofiary Monocuba; Monocub wchodzi do pokoju zabójcy, Move the Body zabójcy się udaje, a ciało skacze z drugiego końca szkoły do sąsiedniego pokoju.
+
+**CASE-33** · `minor` · przeczytane · osłabione · S
+- Krok celu Observe odpowiada, zanim cokolwiek jest zapłacone, czy pokój ma ślad, którego postać nie skopiowała, a pytany jako "non-obvious" - czy jest tam tajny projekt, o którym postać nie wie. `observe.target` nie wymaga płatności ani fazy, a zamknięte okno rzutu oddaje akcję. Osłabione: to, w których pokojach są ślady, każda przeglądarka już ma (pozycje tokenów, także ukrytych, `gm-handbook.en.md:144`; token Remnantu rozpoznawalny po teksturze, `remnants.mjs:503`). Darmowe pytanie dodaje mniej: które ślady postać ma nieskopiowane, czy ślad w ogóle da się obserwować, i pokój tajnego projektu bez tokenu.
+- Gdzie: `scripts/bridge-table.mjs:108-115`; `scripts/bridge-runs-acts.mjs:51-63`; `scripts/observe.mjs:201-225`; `scripts/action-observe.mjs:77-97`.
+- Scenariusz: gracz z otwartą zakładką sieci przeglądarki naciska Observe, General w każdym pokoju, czyta ok true albo false w ramce socketu i zamyka okno rzutu - akcja niewydana, a "general" false obok "nonObvious" true mówi, że buduje się tam tajny projekt.
+
+**CASE-34** · `minor` · przeczytane · utrzymane · S
+- Niewidoczny Frisk odrzucony przez GM-a, zanim rzuty zostaną odczytane, zostawia akcję wydaną; Steal, Plant i jawny Frisk odrzucone przez tę samą bramkę ją oddają. `performFrisk` czyta odpowiedź tylko na tekst karty, bez `res.refused`, `res.reason` i `noGm`.
+- Gdzie: `scripts/frisk.mjs:409-426` (`performFrisk`), `305-307` (`friskPerson`), `1255-1256` (jawna droga); porównaj `scripts/palm.mjs:232-246, 378-391` (`palmBack`).
+- Scenariusz: uczeń zaczyna niewidoczny Frisk, a przy otwartych dwóch oknach rzutu token celu wychodzi z pokoju; GM odmawia ("not there"), gracz czyta odmowę i kartę rzutu, a akcja przepada - Steal by ją oddał.
+
+**CASE-35** · `minor` · przeczytane · utrzymane · S
+- Zmiana typu znalezionego Key albo Final Remnantu przez GM-a trafia na każdą kopię, której nikt nie analizował: kopia pokazuje poprawiony rodzaj, nie da się jej już analizować i nigdy nie dostaje odczytu, a każda droga pytająca czyta ją jako "read". Kopia Key rodzi się z `shownType` "key" i `analyzed` false, więc `isIdentified` odpowiada true i `propagateVerdicts` pisze na nią nowy typ.
+- Gdzie: `scripts/truth-bullets.mjs:1010-1021, 1025-1028` (`propagateVerdicts`), `309-313, 369-373, 472-483`; z `scripts/investigation.mjs:2515-2523` przez `scripts/remnants.mjs:2243-2246`.
+- Scenariusz: dwóch uczniów ma nieanalizowany Key Truth Bullet, a GM zmienia typ jego Remnantu na Cleanup na dashboardzie; oba bullety czytają Cleanup bez rzutu Head, Analyze ich już nie proponuje, a to, co analiza odsłania, nie trafia na żaden arkusz.
+
+**CASE-36** · `minor` · przeczytane · utrzymane · S
+- "Not now" (Nie teraz) na pytaniu przy zamknięciu o Final Truth Remnant mówi w podpowiedzi "Your words are kept ... Save places it later", ale słowa z formularza nie są w żadnym magazynie, a okno, które wraca, jest puste.
+- Gdzie: `scripts/investigation.mjs:2159` (podpowiedź), `2149-2165` (`offerFinalOnClose`), `2430-2437` (zamknięcie i ponowne otwarcie z samym `said`), `1004-1027` (`caseFinalPanel` rysuje pola puste); `lang/en.json:2123`, `lang/pl.json:2213`.
+- Scenariusz: GM wpisuje nazwę, opis i analizę Final Truth, wybiera pokój, naciska "New Remnant" (Nowy Remnant), odpowiada Not now, jak zachęca podpowiedź, i wraca do pustego formularza Final.
+
+**CASE-37** · `minor` · przeczytane · osłabione · S
+- Udane znalezienie nieopisanego śladu czeka na okno tylko na przeglądarce głównego GM-a, bez zegara, karty i drugiego GM-a; przeładowanie tego GM-a przy otwartym oknie gubi znalezisko bez słowa. Osłabione w dwóch częściach: okno u GM-a rozstrzygającego to opisany projekt (`gm-handbook.en.md:2281`), a gracz dostaje kartę z głową rzutu po ack (`action-observe.mjs:183`), choć bez werdyktu. Zostaje strata przy przeładowaniu: `observe.resolve` odpowiada "ack" i nie ma ponowienia, a przy ready nic nie wznawia oczekującego wiersza.
+- Gdzie: `scripts/observe.mjs:823` (`scoreObserve` czeka na `createFind`), `1030-1032, 1183-1280` (`describeFind`), `751-756` (znacznik `describing` w pamięci); `scripts/bridge-table.mjs:132`.
+- Scenariusz: przy stole z dwoma GM-ami prowadzący nie jest głównym; przeszukanie gracza się udaje, okno otwiera się za mapą drugiego GM-a, a gracz czeka z wydaną akcją, dopóki ktoś nie zauważy - albo ten GM naciska F5 i znalezisko przepada.
+
+**CASE-38** · `minor` · przeczytane · utrzymane · S
+- "Keep speaking" (Mówię dalej), domyślny przycisk okna "Your turn", odbiera mówcy "Done" (Gotowe) i "Pass" (Pasuję) do końca tury: nic innego na jego ekranie jej nie kończy. `promptedFor` jest ustawiane przed otwarciem okna, a jedyny reset jest na gałęzi tezy; tick co sekundę wraca na tym samym kluczu.
+- Gdzie: `scripts/trial-prompt.mjs:175-176, 189-198, 214, 217-220`; `scripts/bridge-asks.mjs:405` (`requestTurn`, wołane tylko z `trial-prompt.mjs`); `lang/en.json:3541, 3544`.
+- Scenariusz: mówca Closing zamyka okno Enterem (Keep speaking), żeby zobaczyć arkusz, kończy po dwóch minutach i nie ma Done, więc stół siedzi przez pozostałe trzy minuty albo gracz prosi GM-a o Skip lub End this mode.
+- To samo: CTRL-03 (sekcja 15, `minor`).
+
+**CASE-39** · `minor` · przeczytane · utrzymane · S
+- Konsola trialu otwarta z panelu GM-a oddaje panel przy pierwszym samodzielnym ponownym otwarciu: ponowne otwarcie biegnie poza oczekiwanym łańcuchem (`.then(() => manageClassTrial())`), oczekiwany `drpgWindow` rozwiązuje się z null, a kafel otwiera panel na każdą odpowiedź poza RAISED.
+- Gdzie: `scripts/trial-floor-ui.mjs:1675-1702, 1805, 1826-1829`; `scripts/gm-panel.mjs:266-267, 451-452, 599-618`.
+- Scenariusz: GM otwiera "Class Trial" z panelu, zaczyna trial i debatę; gracz zgłasza sprzeciw, replika się kończy i w tej chwili panel GM-a otwiera się nad konsolą albo obok niej.
+
+**CASE-40** · `minor` · przeczytane · utrzymane · S
+- Objection w środku Testimony jest czytane jako wymiana debaty: konsola zamyka się i otwiera na jego początku i końcu, krok w stopce to "Close Debate" (Zamknij debatę), a to naciśnięcie porzuca resztę rundy pod kartą, że debata jest zamknięta. `MODE_RULES` daje objection rodzinę "debate", a `floorFamily` zachowuje osobno tylko wymianę Closing.
+- Gdzie: `scripts/trial-floor.mjs:100-101, 154-158` (`floorFamily`), `179-183`, `400`; `scripts/trial-floor-ui.mjs:1385, 1395-1406, 498-509`; `scripts/floor-machine.mjs:693-694`.
+- Scenariusz: trzeci mówca sześcioosobowego Testimony dostaje sprzeciw; konsola GM-a miga, proponuje teraz Close Debate, a GM, który ją naciska, żeby zakończyć spór, traci ostatnie trzy tury, podczas gdy każdy ekran czyta "The debate is closed".
+- 1.2.119: `trial-119` - nie dotyczy (`trial-floor.mjs` zmienia tylko `isDue` i import trial-zones).
+
+**CASE-41** · `minor` · przeczytane · utrzymane · S
+- Odmowy Closing Argument są napisane w obu językach i nigdy niepokazywane: Confirm przy wylosowanym mówcy, którego gracz wypadł, mówi tylko "The Closing Argument did not change." Operacje wołają `closingStepInStep` bez `why`, więc odmowa wraca jako null, a `closingCall` pokazuje `notDone`; na innym GM-ie `handleTrialGm` robi z null własną odmowę, też bez klucza.
+- Gdzie: `scripts/trial-modes.mjs:265-275` (`closingCall`); `scripts/trial-floor.mjs:412-416, 587-599`; `scripts/floor-machine.mjs:267-294`; `lang/en.json:1761-1769, 1777`.
+- Scenariusz: przeglądarka wylosowanego ochotnika przeładowuje się w czasie wyboru GM-a, GM naciska "Confirm the speaker" (Zatwierdź mówcę), czyta "The Closing Argument did not change." przy wierszu, który dalej proponuje Confirm, i musi zgadnąć, że drogą dalej jest "Pick someone else" (Wybierz kogoś innego).
+- To samo: CTRL-04 (sekcja 15, `minor`).
+- 1.2.119: `trial-119` - nie dotyczy.
+
+**CASE-42** · `minor` · przeczytane · utrzymane · S
+- Overrule (Oddalenie) po wymianie Objection zgłoszonego w Testimony albo w Closing Argument proponuje jako następny krok trialu "Open the debate again" (Otwórz debatę ponownie) z sekundami przerwanego mówcy. `restOf` szuka tylko wpisu stosu z `before.mode` debate; tura rundy i mowa Closing zaczynają się z `before: []`, więc `debateLeft` to null i bierze się `leftAtObjection` mówcy.
+- Gdzie: `scripts/trial-floor.mjs:1540` (oferta), `198`; `scripts/trial.mjs:944-945`; `scripts/floor-machine.mjs:380-383` (`restOf`); `scripts/trial-floor-ui.mjs:1407-1412, 1535-1540`.
+- Scenariusz: mówca Closing dostał sprzeciw przy 200 s, Closing się kończy, GM oddala ten sprzeciw z paska, a następnym krokiem konsoli staje się "Open the debate again (200 s left)" tam, gdzie były karty głosowania - debata, której nigdy nie było.
+- 1.2.119: `trial-119` - nie dotyczy.
+
+**CASE-43** · `minor` · przeczytane · utrzymane · S
+- Pole "keep it for the GMs" w oknie śmierci jest zaznaczone dla ofiary incydentu i zostaje zaznaczone, gdy GM wybierze kogoś innego: `secretByDefault` liczone raz przed oknem, a jedyny słuchacz selecta przełącza tylko `disabled` przycisku.
+- Gdzie: `scripts/death.mjs:736-745` (domyślne), `761-763` (pole), `773, 787` (odpowiedź do `killCharacter`).
+- Scenariusz: w środku incydentu GM otwiera "A character dies" (Postać umiera), żeby wykonać karę Monokumy na świadku, przełącza select z ofiary na świadka i potwierdza, a śmierć świadka zostaje ukryta przed stołem, dopóki ktoś nie wejdzie na ciało, czego GM nie chciał.
+
+**CASE-44** · `minor` · przeczytane · utrzymane · S
+- "Split evenly" (Podziel po równo) dzieli też martwych, więc pule, które tworzy, mogą od razu mieć "uneven" na liście kontrolnej sezonu. `autoAssign` idzie po `students()`, które nie odrzucają martwych ani Monocubów; `despairSplitCounts` pomija `isDeadForGm`.
+- Gdzie: `scripts/assignments.mjs:131-156` (`autoAssign`); `scripts/season-setup.mjs:717-735`; `scripts/gm-team-dialog.mjs:349-352`.
+- Scenariusz: w rozdziale 3, przy dwóch martwych z ośmiu, obu na zapasowych miejscach pierwszej puli, GM naciska Split evenly w "Despair Flow": jedna Monokuma pilnuje dwóch żywych, druga czterech, a "Season checklist" (Lista kontrolna sezonu) ostrzega o nierównym podziale zaraz po komunikacie, że podział był równy.
+
+**CASE-46** · `minor` · przeczytane · utrzymane · S
+- Uczestnik bez tokenu w sali wybiera stronę raz na tryb stref: w Logic Dive wybór z pierwszego pytania liczy się do każdego następnego, a okno wyboru zamknięte bez odpowiedzi nie wraca. Klucz `offerSidePick` to `mode|openedAt`, a `diveQuestion` nie zmienia `openedAt` ani `picks`.
+- Gdzie: `scripts/trial-zones-ui.mjs:437-441`; `scripts/zone-machine.mjs:133-136, 232`.
+- Scenariusz: gracz, którego uczeń nie ma tokenu w sali, odpowiada Zone A na pierwsze pytanie Logic Dive, chce Zone B na drugie, nie dostaje okna i do końca zestawu jest liczony w Zone A - albo zamyka pierwsze okno przez pomyłkę i do końca trybu nie stoi w żadnej strefie.
+- To samo: CTRL-06 i CTRL-07 (sekcja 15), STG-17 i STG-18 (sekcja 14); pokrewne REFR-44 (sekcja 16) i STG-25 (okno trzyma słowa pierwszego pytania).
+- 1.2.119: `trial-119` - nie dotyczy (`trial-zones-ui.mjs:437-441` i `zone-machine.mjs:133-136` bez zmian).
+
+**CASE-47** · `minor` · przeczytane · utrzymane · S
+- Edytor zestawu Logic Dive i okno "Hall zones" (Strefy sali) oceniają formularz po zamknięciu: odrzucony Save albo Start gubi to, co GM wpisał, a Start bez zestawu nic nie mówi. `drpgWindow` to `DialogV2.wait` bez drogi "zostań otwarte"; `setRefusal` i `zoneArgsRefusal` ostrzegają, gdy okna już nie ma.
+- Gdzie: `scripts/trial-zones-ui.mjs:221-222` z `139-144`; `scripts/trial-zones-ui.mjs:321-324` z `scripts/trial-zones.mjs:261-272`.
+- Scenariusz: GM wpisuje zestaw Logic Dive z pięcioma pytaniami, przy jednym zapomina zaznaczyć dobrą odpowiedź, naciska "Save the set" (Zapisz zestaw), czyta w komunikacie "Mark the right answer of every question." i zastaje edytor zamknięty, a zestaw niezapisany.
+- To samo: CTRL-08 i CTRL-46 (sekcja 15), STG-19 (sekcja 14).
+- 1.2.119: `trial-119` - nie dotyczy (edytor zestawu, zapis stref sali i zapisy Findings bez zmian).
+
+**CASE-48** · `minor` · przeczytane · utrzymane · S
+- Edycja Findings przez GM-a pisze całą listę przeczytaną wcześniej jako łatkę obiektu, więc Finding dodany w międzyczasie przez krok strefy jest nadpisany. Każda z czterech funkcji czyta `findingsNow()` i oddaje całą listę; poza głównym GM-em idzie to przez `recordOnPrimary('patch')` i jest rozkładane na rekord.
+- Gdzie: `scripts/trial-zones.mjs:393-397` (wołane z `415, 427, 438, 449`).
+- Scenariusz: drugi GM naciska "Monokuma confirms" (Monokuma potwierdza) przy starym Finding w sekundzie, w której kończy się zegar Straw Poll; stół czyta kartę "The class thinks: ...", a lista Findings, karta głosowania i konsola nigdy nie pokazują tego Finding.
+- 1.2.119: `trial-119` - nie dotyczy.
+
+**CASE-49** · `minor` · przeczytane · utrzymane · S
+- Linia o błędnym werdykcie dla GM-ów wstawia imiona powiadomionych Monocubów do HTML karty bez escapowania: nagłówek `listOf` mówi "Not escaped", `verdictSummaryContent` pisze każdą linię surowo do `<li>`, a magazyn `secret.mjs` wkłada słowa GM-a do `innerHTML`. Monocub to własna postać gracza martwego ucznia.
+- Gdzie: `scripts/verdict.mjs:1007`.
+- Scenariusz: gracz martwego ucznia zmienia nazwę swojego Monocuba na tekst z tagiem `<img>` z handlerem, a po błędnym werdykcie karta podsumowania GM-ów rysuje ten tag na przeglądarce każdego GM-a.
+
+**CASE-50** · `minor` · przeczytane · utrzymane · S
+- "Take from the Body" wybiera biorącego własną regułą: dla gracza z dwoma uczniami bez przypisanej postaci to pierwszy posiadany aktor w kolejności świata, nie postać, którą pokazują zegar, kafel pokoju i token. `myCharacter` bierze `owned[0]` (także Spectatora i martwego ucznia), a `viewerActor` w `hud.mjs` idzie przez `chooseOwnStudent`.
+- Gdzie: `scripts/anonymity.mjs:583-589` (używane w `344` i `503`).
+- Scenariusz: gracz z dwoma uczniami podchodzi drugim do ciała, zaznacza jego token, otwiera arkusz ciała i naciska Take from the Body, a każdy wiersz jest zamknięty odmową bramki, bo okno pytało o pierwszego ucznia, który stoi gdzie indziej.
+
+**CASE-51** · `minor` (czytający: `major`) · przeczytane · osłabione · S
+- Każdy odczyt kopii sprawy na serwerze uruchamia podgląd Restore, który klonuje cały magazyn raz na każdy jego wiersz. `restoreCase` liczy `previewSection` dla każdego magazynu bez gałęzi na `quiet`, a `mergeSections` zaczyna od `structuredClone` całej bazy: praca rośnie jak wiersze razy rozmiar, na głównym GM-ie przed każdym zapisem (co 15 s, najwyżej 60 s) i u każdego GM-a przy ładowaniu. Osłabione: czasy czytającego (0,6 s przy 600 kluczach odpowiedzi, 2,5 s przy 1200, 126 ms przy 300) to przebieg Node na zbudowanych wierszach, nie klasa H, a żaden zapis z prawdziwego świata nie podaje takiej liczby wierszy (LIVE-E111-01 otwarte); jedyny magazyn bez granicy, dziennik bilansu, jest domyślnie wyłączony.
+- Gdzie: `scripts/gm-stores.mjs:2455` (`restoreCase`); `scripts/gm-store.mjs:504-506, 329-333`; `scripts/case-copy.mjs:151, 177, 255-258`.
+- Scenariusz: późno w sezonie przeglądarka głównego GM-a - ta, która rysuje każdy rzut gracza i rozstrzyga każdą prośbę - staje na sekundę albo dłużej mniej więcej raz na minutę i przy każdym ładowaniu, bez słowa na ekranie dlaczego.
+- 1.2.119: `fog-119` - nie dotyczy (`previewSection`, `mergeSections` i `compact` bez zmian).
+
+**CASE-52** · `minor` · przeczytane · utrzymane · S
+- Reset sezonu, który zachowuje plan Key Remnantów, zachowuje w całości schemat sprawy każdego rozdziału ze znacznikami zeszłego sezonu: zaplanowane Autopsje czytają się jako wysłane, a pytanie przy ciele jako zadane. `caseSchemaStore` i `diveSetStore` są w grupie resetu `keyPlan`, której jedyny `keep` przycina tylko `keyPlanStore`.
+- Gdzie: `scripts/key-remnants.mjs:323-329, 347-357`; `scripts/gm-stores.mjs:1666-1669, 1696-1699`; `scripts/case-schema.mjs:82, 210-225`; `scripts/case-realize.mjs:221`.
+- Scenariusz: GM resetuje sezon z odznaczonym "The Key Remnant plan"; w rozdziale 1 nowego sezonu Map otwiera się na dedukcjach i rozwiązaniu rozdziału 1 zeszłego sezonu, zaplanowana Autopsja jest pokazana jako wysłana i nie wychodzi przy pierwszym ciele, a okno o realizacji nie przychodzi.
+
+**CASE-53** · `minor` · przeczytane · utrzymane · S
+- Od czasu kopii na serwerze kompaktowanie tombstone'ów nie trzyma się dla magazynu z kopią: każdy odczyt kopii scala usunięte tombstone'y z powrotem i liczy się jako przywrócenie, które coś zmieniło. `compact` usuwa stare tombstone'y tylko z sekcji tej przeglądarki i nic nie wysyła; plik niesie je dalej, a `mergeInto` bierze większy stempel.
+- Gdzie: `scripts/gm-stores.mjs:1967-1980` (`compactGmStores`), `2473-2483`; `scripts/gm-store.mjs:1070-1076, 531-534`; `scripts/case-copy.mjs:138-158`.
+- Scenariusz: od 31. dnia po usunięciu Remnantu albo Truth Bulleta każde ładowanie GM-a usuwa jego tombstone i w ciągu 15 sekund go przywraca, wysyła graczom ponownie odwołania do ich bulletów (i inne kopie), a magazyny nigdy nie maleją.
+- 1.2.119: `fog-119` - nie dotyczy (zmienia stemple zapisu i limit `receiveCopy`, nie `compact`).
+
+**CASE-54** · `minor` · podejrzenie · osłabione · S
+- Gdy gracze zostaną wpuszczeni do przeglądarki plików, kopia już leżąca na serwerze zostaje, a GM słyszy tylko, że kopia nie jest pisana. Odmowa tylko liczy, zapisuje i mówi; nic nie usuwa pliku (FilePicker nie ma usuwania, `case-copy.mjs:24-25`), a zasada etapu "GM usuwa stary plik ręcznie" (`docs/dev/e111/STATUS-115.md:72-74`) nie stoi nigdzie, gdzie GM czyta. Osłabione: krok, który robi z tego wyciek (konto gracza z FILES_BROWSE listuje `worlds/<id>/drpg-case` na 14.370), to LIVE-E111-02, otwarte, a podręcznik mówi "Never give players those permissions while the copy is in use". Według 11.3 to pytanie z live checkiem; `blocker`em byłoby dopiero, gdy LIVE-E111-02 odczyta listowanie jako dozwolone.
+- Gdzie: `scripts/case-copy.mjs:170-175, 203-207, 261-268`; `lang/en.json` `DRPG.Case.copy.refused.switchOff`, `.roles`, `.account` (`lang/pl.json` tak samo); `scripts/gm-stores.mjs:2679, 2896-2897`.
+- Scenariusz: GM wyłącza "Keep players out of the file browser" (Bez przeglądarki plików dla graczy), żeby gracze mogli wgrać portrety; gracz otwiera wybór plików, wchodzi do `worlds/<id>/drpg-case`, otwiera `case-<32 hex>.json` i czyta zabójcę, Mastermind i każdy klucz odpowiedzi, a powiadomienie GM-a mówiło tylko, że kopia nie jest pisana.
+
+**CASE-55** · `minor` · podejrzenie · osłabione · S
+- Drugie ciało ogłoszone, gdy pierwsza zaplanowana Autopsja jeszcze wychodzi, jest porzucane, nie kolejkowane: jego Autopsja nie wychodzi. Hook nie czeka, wywołanie przy rozdziale w `sending` zwraca 0, a `sendPlannedAutopsy` nie ma innego wołającego ani późniejszego przeglądu. Osłabione: nie ustalono, że to okno czasu otwiera się przy stole (drugie odkrycie musiałoby być ostemplowane w czasie `issueAutopsy`, a `announceBody` czeka na słuchaczy `waitUntil`); GM może wysłać Autopsję ręcznie z panelu. Zostaje podejrzeniem.
+- Gdzie: `scripts/case-realize.mjs:257` (strażnik), `259-262` (należne czytane raz), `207-210` (hook bez czekania).
+- Scenariusz: w rozdziale z dwoma ciałami GM odpowiada na dwa czekające odkrycia jedno po drugim; pierwsza Autopsja dociera do klasy, druga, zaplanowana dla drugiego ciała, nigdy, a Map nadal pokazuje ją jako zaplanowaną.
+
+**CASE-56** · `minor` · przeczytane · utrzymane · S
+- Anulowanie okna plików przeglądarki w "Restore from a file" (Przywróć z pliku) zostawia obietnicę kafla nierozstrzygniętą i panel GM-a nie wraca. `chooseCaseFile` rozstrzyga się tylko w słuchaczu `change`; nie ma słuchacza `cancel` ani limitu czasu.
+- Gdzie: `scripts/gm-stores.mjs:2941-2954` (`chooseCaseFile`), wołający `2885, 2787, 2963`; `scripts/gm-panel.mjs:605-618`.
+- Scenariusz: GM otwiera "The case" (Sprawa) z panelu GM-a, naciska Restore from a file, rozmyśla się i naciska Cancel w oknie przeglądarki, a nie zostaje żadne okno i panel GM-a się nie otwiera, choć każdy inny kafel go przywraca.
+
+**`nit`**
+
+20 pozycji, klasa S. Pewność przeczytane, poza CASE-63 i CASE-73 (podejrzenie). CASE-74 do CASE-76 to obserwacje z `old-1.2.42-case`.
+
+| ID | Gdzie | Co | Weryfikacja |
+| --- | --- | --- | --- |
+| CASE-57 | `scripts/murder-rules.mjs:861-890`; `scripts/murder-ui.mjs:463-471, 627-629, 663-676` | po rzucie ofiary pułapki, która ją zauważyła, tracker nadal czyta "waiting for their opening roll" i proponuje "Ask for the opening roll again" (Poproś o rzut otwarcia ponownie), co wysyła drugi rzut | niesprawdzone |
+| CASE-58 | `scripts/incident-store.mjs:1350-1372, 1416` | każde odświeżenie tokenu na przeglądarce każdego gracza biegnie przez odczyty lokalnego znaku śmierci, bez licznika i bez wczesnego wyjścia, gdy przeglądarka nie trzyma żadnej ukrytej śmierci | niesprawdzone |
+| CASE-59 | `scripts/cleanup.mjs:1208-1211`; `scripts/bridge-runs-acts.mjs:938, 973` | jedyna odpowiedź `refused` drogi wymazania nie jest przekazywana przez bridge i pytający dostaje "done"; w rzadkim uczciwym przecięciu zabójca traci znacznik Sanity za próbę, która po cichu się nie odbyła | utrzymane |
+| CASE-60 | `scripts/investigation.mjs:1913, 1915-1917, 112` | stawianie zaplanowanego Remnantu ostrzega "The planned room is not on this scene. Pick a room." według sceny na ekranie, nie sceny z planu | niesprawdzone |
+| CASE-61 | `scripts/bridge-table.mjs:111, 114`; `scripts/observe.mjs:271-283, 336-354`; `scripts/bridge-asks.mjs:825-826` | `observe.target` bierze `declaration` jak wysłane, nieznane traktuje jak General i trzyma wartość godzinę w wierszu GM-a, choć claim mówi, że nieznane jest odrzucane z powodem | niesprawdzone |
+| CASE-62 | `scripts/floor-machine.mjs:210-220, 311, 325`; `scripts/trial-floor.mjs:180, 550-562`; `scripts/sfx.mjs:292-299` | dwa czekania Closing Argument na GM-a (kto mówi, kto kontynuuje) nic nie podnoszą po stronie GM-a, a linia Next panelu mówi w tym czasie "End it, then send the ballots." | niesprawdzone |
+| CASE-63 | `scripts/trial-floor-ui.mjs:1780-1784, 881-883` | gdy piętro trzyma tryb inny niż debata, Enter na przycisku konsoli z fokusem jest połykany, także na przyciskach paska (podejrzenie) | niesprawdzone |
+| CASE-64 | `scripts/trial-prompt.mjs:184, 190`; `scripts/floor-machine.mjs:102-112` | tytuł "Your turn" podaje całą turę, gdy mówca dostaje z powrotem tylko jej resztę | niesprawdzone |
+| CASE-65 | `scripts/trial-floor-ui.mjs:1133-1135`; `lang/en.json:1666, 1707` | wybór trybu wyszarza Nonstop Debate z "The debate is already running.", gdy piętro trzyma runda, Closing albo tryb stref | niesprawdzone |
+| CASE-66 | `scripts/season-wipe.mjs:453-458`; `scripts/monocub.mjs:207-211`; `scripts/death.mjs:683-692` | reset sezonu robi Spectatora dla każdego Monocuba i zabiera go w tym samym kroku - ten sam churn, który A113-C2-4 zamknął dla okna "Students" | niesprawdzone |
+| CASE-67 | `scripts/body.mjs:849-855, 906-913, 915-949` | odkrycie, które przychodzi, gdy stoi pytanie GM-a "Students found a body" (Uczniowie znaleźli ciało), nigdy nie jest przez to pytanie zadane | niesprawdzone |
+| CASE-68 | `scripts/body.mjs:654-668, 771-778, 1164-1172` | "Whose body?" w "Body found" (Znaleziono ciało) proponuje Monocuba bez oznaczenia, choć żadne wejście na ciało go nie nazywa; wybór ogłasza publicznie ciało Monocuba | niesprawdzone |
+| CASE-69 | `scripts/death-fade.mjs:115-125`; `scripts/monokuma.mjs:77-84` | stan spoczynku bez szkła liczy postać NPC posiadaną przez gracza jako ucznia, więc martwy uczeń, którego gracz ma też NPC, zostaje przy świecącej kurtynie | niesprawdzone |
+| CASE-70 | `scripts/season-setup.mjs:268-277, 520-521, 1016-1038` | "Check rooms" sprawdza scenę na ekranie, podczas gdy jego wiersz ocenia szkołę, i zapisuje wynik pod sceną ekranu | niesprawdzone |
+| CASE-71 | `scripts/mask-gm.mjs:167-173, 692-695, 707-709` | na przeglądarce każdego gracza każde odświeżenie tokenu przechodzi przez każdy token każdej sceny, żeby spytać, czy ten gracz jest za maską; koszt w czasie niezmierzony | utrzymane |
+| CASE-72 | `scripts/gm-stores.mjs:2667, 2721-2735, 3027-3046`; `scripts/gm-store.mjs:1108-1120` | gdy sprawdzenie zdrowia znalazło brak, każdy zapis magazynu z kopią na głównym GM-ie uruchamia całe sprawdzenie ponownie (odczyt i parsowanie każdego klucza); koszt niezmierzony | utrzymane |
+| CASE-73 | `scripts/case-summary.mjs:93-108` | podsumowanie sprawy jest oznaczane jako wysłane, zanim karta istnieje, a niestworzona karta i tak jest zgłaszana jako wysłana (podejrzenie) | utrzymane |
+| CASE-74 | `scripts/remnants.mjs:391` | (obserwacja) pokój incydentu dla automatycznego powiązania idzie za tokenem ofiary po Move the Body | niesprawdzone |
+| CASE-75 | `audit/AUDIT-1.2.42.md:632` | (obserwacja) plik audytu podaje zły commit dla zadania 13; to samo: COMM-52 | niesprawdzone |
+| CASE-76 | `scripts/cleanup-reshape.mjs:90` | (obserwacja) nagłówek `recreationDataFor` nadal opisuje flagi tokenu | niesprawdzone |
+
+### 17.2 COMM
+
+Wszystkie: pewność przeczytane, klasa S; weryfikacja przy każdym wpisie.
+
+**Tożsamość**
+
+**COMM-19** · `blocker` · przeczytane · utrzymane · S
+- Potwierdzenie Support pokazuje zabójcę w masce, którego wybór narysował jako "?", z prawdziwym imieniem: świadek albo ofiara dowiaduje się, kto zabija, za cenę otwarcia okna. `pickPlayer` podpisuje wiersze `nameAsSeen`, ale oddaje samego aktora; `confirmCall` drukuje `describeChoice(choice)`, a ono oddaje `choice.target.name`. Karty nie ma, więc cięcie w `wordsFor` tego tekstu nie widzi. Dwóch weryfikatorów (droga; testy i papiery) utrzymało `blocker`: R7404 czyta tylko źródła wyborów, a znany wyciek scenariusza 21 to odczyt z konsoli, tu jest własne okno modułu.
+- Gdzie: `scripts/calls.mjs:721` (`describeChoice`), `769-770` (linia "Aimed at"), `878-880`; `scripts/call-pickers.mjs:430-433`; `scripts/sheet-actions.mjs:908-909, 929`; `scripts/mask-gm.mjs:148-158` (`nameAsSeen`).
+- Scenariusz: morderstwo bezpośrednie otwiera się na Hope i zabójca stoi za "?"; ofiara (albo trzeci uczeń w pokoju) naciska Support, wybiera wiersz "?", czyta w potwierdzeniu "Aimed at: Chie Mori" i naciska Cancel (Anuluj), nic nie płacąc.
+- 1.2.119: `day-119` - addresses. `describeChoice` (937a98b0) oddaje `nameAsSeen(choice.target)`, więc linia "Aimed at" czyta "?" u świadka i ofiary, póki stoi maska; `refusalBeforePaying` w `call-effects.mjs` też bierze `nameAsSeen`. Commit podaje scenariusz 21 "outside the fight" czerwony na 50a2de6b i zielony po; tu nieuruchomione.
+
+**COMM-20** · `major` · przeczytane · utrzymane · S
+- Zasłona otwarcia ukrywa token zabójcy, ale kafel głosu ofiary liczy zabójcę, a lista "Who you hear" (Kogo słyszysz) go nazywa: zasłona nie wysyła cichego pokoju i nic na kafelku nie filtruje zasłoniętego uczestnika. `placeVoices` stosuje reguły Spectatorów, podsłuchu i maski, nie zasłony; `voiceClaim` umieszcza konto według pokoju tokenu, więc zabójca dostaje pokój zbrodni; `channelCount` liczy każdego zdalnego uczestnika, a `voiceIdentity` nie czyta zasłony ani maski. Najmocniejszy przypadek to Eclipse (deklaracja w ciemności, zasłona przed światłami) i świadek, który wchodzi po otwarciu.
+- Gdzie: `scripts/voice.mjs:1074-1083` (`placeVoices`), `1359-1360` (`micHold`); `scripts/voice-tile.mjs:812-817` (`channelCount`), `1551-1559` (`paintList`), `486-495`; `scripts/camera-view.mjs:205-209` (`voiceIdentity`); `scripts/mask-gm.mjs:14-17, 370-375`.
+- Scenariusz: Aiko deklaruje morderstwo Botana w Eclipse, a przy światłach jej token zostaje ukryty na mapie Botana, ale kafel głosu Botana pokazuje 1 w kanale, a "Who you hear" wymienia Aiko z portretem, więc Botan wie przed otwarciem, kto zaraz uderzy - i wie dalej, gdy otwarcie na Hope zamienia Aiko w "?".
+- Niezmierzone: imię wymaga, żeby avclient-livekit przypisał uczestnika do użytkownika (zewnętrzne, `not_established` czytającego, z propozycją dopisku do LIVE-E112-01); sama liczba tego nie wymaga.
+- 1.2.119: żadna linia (`voice.mjs`, `voice-tile.mjs` i `camera-view.mjs` nie są w żadnym diffie; zmiana `mask-gm.mjs` w `day-119` nie dosięga linii 14-17 ani 370-375, ani zasłony).
+
+**COMM-24** · `minor` (czytający: `major`) · przeczytane · utrzymane · S
+- Despair Call wymierzony w zabójcę w masce nazywa go na publicznej karcie każdemu graczowi: efekty piszą `beneficiary.name` albo `choice.target.name` do linii `done`, a karta idzie przez `announce` bez listy szeptu, czyli zwykłe `ChatMessage.create`, więc cięcie maski w `wordsFor` nie biegnie. Weryfikator obniżył wagę: Despair Call kupuje tylko GM, z wyboru pokazującego prawdziwe imię, a karta nazywa cel, ale nie wiąże tego imienia z "?" - czytelnik może to tylko wywnioskować (np. z Chained albo Silence pasującego do zachowania tokenu "?"). Łamie regułę właściciela z 14.11, że imię w masce jest cięte z każdej karty dla czytelnika spoza maski.
+- Gdzie: `scripts/calls.mjs:525-534` (publiczna karta); `scripts/call-effects.mjs:1000-1003, 1044-1046, 1099-1102, 1288, 1303`; `scripts/utils.mjs:701-716, 815-831`; `scripts/secret.mjs:496-499`.
+- Scenariusz: w porze dnia po Eclipse, gdy zabójca morderstwa bezpośredniego stoi za "?", GM kupuje na tego ucznia Pain, Obstacle, Silence albo Chained, a czat każdego gracza pokazuje publiczną kartę Despair z imieniem w jawnej postaci ("Chie Mori loses 2 Health"), choć sama karta nie mówi, kto jest "?".
+- 1.2.119: `day-119` - addresses. `cardName` (90f1c51c) pisze "?" za aktora w masce w `grantEffect` (Obstacle, Approval), `hopeFromDespairEffect`, `damageEffect` (Pain, Paranoia), `silenceEffect` i `chainEffect`, dla każdego czytelnika, GM-ów też. Niesprawdzone: linie innych efektów (np. `destroyItemEffect`), cytat `note` karty i to, czy każda karta Despair Call jest postowana na przeglądarce, na której `isMaskedActor` już czyta maskę (GM nie-główny, droga gracza Monokumy).
+
+**`minor`**
+
+**COMM-21** · `minor` · przeczytane · utrzymane · S
+- Przyciski karty orzeczenia działają na postaci i przedmiocie, które nazywają ich dane: karta napisana z konsoli gracza może sprawić, że naciśnięcie GM-a obciąży kolegę Sanity albo zużyje jego przedmiot. `wireCallActions` podpina każdy `[data-drpg-call]` dla każdego GM-a i sprawdza tylko flagę settled; od F118 podpinana jest każda karta dziennika z takim przyciskiem, nie tylko karta z `callCard`.
+- Gdzie: `scripts/messenger-app.mjs:724-786` (`wireCallActions`), `1211-1233` (`ruleObserveMiss`), `938-962`, `894-899`, `1429-1435`; `scripts/gm-bridge.mjs:143-161`; `scripts/call-gm.mjs:1077-1104`.
+- Scenariusz: konsola gracza wpisuje do jego własnego wątku kopię karty Observe z postacią kolegi i przyciskiem "Nothing was there"; GM go naciska, kolega traci 1 Sanity i czyta w swoim wątku "<GM> rules: Nothing was there." za Observe, którego nie robił.
+
+**COMM-22** · `minor` · przeczytane · osłabione · S
+- W Eclipse powiadomienia o przybyciu idą bez zasłony: każda przeglądarka ma kartę mówioną postacią właściciela w chwili, gdy jego przejście się ustali, podczas gdy karta przejścia samego Eclipse jest zasłonięta właśnie z tego powodu. Osłabione: to, że Aiko weszła do własnej sypialni, konsola i tak czyta z dokumentów tokenów (Eclipse ukrywa tokeny tylko rysowaniem); karta dodaje, że jest powiadomienie dla tej postaci (skrytka przeszukana, drzwi sypialni ruszone), czyli fakt z magazynów GM-ów - i to nie tylko w Eclipse, także po przejściu w dzień. Ramowanie przez Eclipse i oczekiwana poprawka (zasłona tylko w Eclipse) są więc nietrafne; czy obejmują to fazy `72-canary`, nie przeczytano.
+- Gdzie: `scripts/arrival-notices.mjs:33-41, 44-50`; `scripts/stash-reach.mjs:640-643`; `scripts/doors-gm.mjs:56, 418`; `scripts/secret.mjs:1103-1107` (`incidentVeils`); `scripts/eclipse.mjs:1236-1243`.
+- Scenariusz (z poprawką weryfikatora): gracz, który patrzy w konsoli na `game.messages`, widzi nową kartę mówioną przez Aiko i szeptaną jej graczowi dwie sekundy po przejściu i dowiaduje się, że jej skrytka albo sypialnia była ruszana pod jej nieobecność.
+
+**COMM-23** · `minor` · przeczytane · utrzymane · S
+- Mapa przeczytanych komunikatora to jedna wartość dla każdego loginu na przeglądarce: GM, który czyta tam wątek gracza, oznacza go jako przeczytany dla loginu tego gracza na tej samej przeglądarce, i odwrotnie. `messengerLastRead` ma zakres client i klucz samym id gracza wątku.
+- Gdzie: `scripts/settings.mjs:2106-2114`; `scripts/messenger.mjs:147, 181-209` (`readMap`, `lastReadAt`, `markThreadRead`).
+- Scenariusz: GM sprawdza widok gracza, logując się jako ten gracz na własnej przeglądarce, a orzeczenie GM-a, przeczytane w sesji GM-a, nie zapala plakietki nieprzeczytanych na launcherze gracza, więc GM wnioskuje, że plakietka przy orzeczeniu się nie zapala.
+
+**COMM-25** · `minor` · przeczytane · utrzymane · S
+- Własne wezwanie GM-a przez współwłaściciela postaci (Search for something specific, Observe, Analyze, propozycja projektu, użycie rzeczy Tier 0) idzie do wątku drugiego właściciela: żaden z pięciu wołających nie podaje `thread`, więc `threadOf` bierze `ownerOf(actor)`, pierwszego aktywnego właściciela nie-GM-a.
+- Gdzie: `scripts/call-gm.mjs:951, 1018-1022, 1306`; `scripts/utils.mjs:642-647` (`ownerOf`); wołający `scripts/action-search.mjs:148`, `scripts/action-observe.mjs:232`, `scripts/action-analyze.mjs:259`, `scripts/action-project.mjs:416`.
+- Scenariusz: dwóch graczy dzieli Aiko; drugi rzuca Search for something specific i pisze, czego szuka, a karta, jej "Open until" i odpowiedź GM-a idą do "GM Chat" (Czat z GM-em) pierwszego gracza, podczas gdy drugi czeka na wątku, który ich nigdy nie pokaże.
+
+**COMM-26** · `minor` · przeczytane · utrzymane · S
+- Dwóch GM-ów piszących naraz pieczęć albo ograniczenie zachowuje tylko jedno: zapieczętowane pokoje i ograniczenia są czytane i pisane w całości z kopii każdego GM-a. `writeWorld` nie ma kroku szeregowego ani przekazania głównemu (por. jedyny pisarz pul i `serialWrite`, DESP-12), a Despair Calls są stosowane na przeglądarce kupującego GM-a.
+- Gdzie: `scripts/call-world.mjs:65-69` (`sealRoom`), `134-139` (`restrict`), `202-207` (`writeWorld`); porównaj `scripts/despair.mjs:330-349`.
+- Scenariusz: dwóch GM-ów, każdy z Monokumą, ucisza Aiko i Botana w tej samej sekundzie: obie karty mówią "silenced", obie pule płacą 4, a uciszony jest tylko Botan.
+- 1.2.119: `sheet-119` - nie dotyczy (`call-world.mjs` bez zmian; zmiany `writePool` w `despair.mjs` dodają tylko `dice`).
+
+**COMM-27** · `minor` · przeczytane · utrzymane · S
+- W trybie trialu mikrofon kafelka mówi "The floor is {name}'s" bez imienia: `micState` gubi dane blokady dla trzymanego mikrofonu, a komunikat kliknięcia jest lokalizowany bez danych. HUD formatuje z danymi, więc gracz bez kafelka czyta imię.
+- Gdzie: `scripts/voice-tile.mjs:918` (gałąź held w `micState`), `981` (`paintMic`), `943` (`toggleOwnMic`); `scripts/voice.mjs:1380-1381, 1593-1601`.
+- Scenariusz: w Objection Botan najeżdża albo naciska swój przekreślony mikrofon na kafelku głosu i czyta "The floor is {name}'s: ..." (albo to, co Foundry rysuje za brakującą wartość) zamiast imienia sprzeciwiającego się, a gracz bez kafelka czyta imię na HUD-zie.
+
+**COMM-28** · `minor` · przeczytane · utrzymane · S
+- Strona, która wylądowała sama i nie dostała jeszcze pokoju, po zerwaniu "łączy się ponownie" przez wyjście z głosu, a karta zerwania jest zdejmowana, jakby wróciła. `landAloneFirst` pisze cichy pokój tego użytkownika, `onRoomDisconnected` pomija tylko `silentFor(desired)`, a przy `desired` undefined `reconnect` woła `applyBreakout` z tym cichym pokojem.
+- Gdzie: `scripts/voice-client.mjs:198-204` (`landAloneFirst`), `780-784` (`reconnect`), `579-610` (`applyBreakout`), `529-536`, `271-289`.
+- Scenariusz: Botan przeładowuje stronę, gdy obsada głównego GM-a jeszcze nie przyszła (jego pokój jest trzymany, `voice.mjs:1095-1098`), serwer LiveKit mruga, karta "Voice disconnected" pojawia się i znika sekundę później, jakby wrócił, a on nie słyszy nikogo do następnego przebiegu głównego GM-a.
+
+**COMM-29** · `minor` · przeczytane · utrzymane · S
+- Play i "Stop the track" (Wyłącz utwór) są otwarte dla każdego GM-a, a zapis muzyki żyje na głównym: Play pomocniczego GM-a zostawia zapis głównego pusty, a Stop the track pomocniczego GM-a w ciszy po ciele przywraca w nią muzykę. Na GM-ie nie-głównym `resetMusic` nie ma zapisu, a jego `silenced` to null, więc wznawia każdą wstrzymaną playlistę.
+- Gdzie: `scripts/music-play.mjs:1098-1102, 1179-1183` (każdy GM), `175, 178` (pamięć jednej przeglądarki), `381-388`, `932-993`, `1206-1222`; `scripts/sound-panel.mjs:362`.
+- Scenariusz: przy dwóch GM-ach ciało jest ogłoszone i pokój cichnie; pomocniczy GM otwiera okno "Sound" (Dźwięk) i naciska Stop the track, żeby wyczyścić cue, a popołudniowa playlista wraca dla całego stołu na odkrycie i zostaje.
+- Stara pozycja: COMM-10 z 1.2.42, wciąż otwarta (zob. COMM-53).
+
+**COMM-30** · `minor` · przeczytane · utrzymane · S
+- GM, który zostaje głównym, nie przejmuje trwającego cue ani ciszy: następna zmiana stanu gra swoją playlistę na cue wciąż zapętlonym, a stare wstrzymania zostają oflagowane. `adoptRunningInterruption` biegnie raz przy ready i wraca od razu, gdy GM nie jest wtedy głównym; nic w rodzinie muzyki nie słucha zmiany głównego.
+- Gdzie: `scripts/music-play.mjs:264-283, 305-335, 397-503, 520-564`.
+- Scenariusz: główny GM włącza cue i wypada z sesji, pomocniczy przestawia porę na Evening, a playlista Evening zaczyna grać pod cue i obie grają dla stołu, dopóki ktoś nie naciśnie Stop the track.
+
+**COMM-31** · `minor` · przeczytane · utrzymane · S
+- Przy wyłączonym "Music follows the game state" (Muzyka podąża za stanem gry; domyślnie wyłączone) cue zatrzymany z panelu Playlists Foundry zostawia wstrzymaną przez siebie muzykę wstrzymaną i oflagowaną. `playTrack` wstrzymuje niezależnie od przełącznika, a jedyne drogi powrotu (`watchManualEnd`, `onManualEnd`) zaczynają się od `if (!enabled()) return`.
+- Gdzie: `scripts/music-play.mjs:932-956, 1006-1021, 1082-1087, 1132`; `scripts/settings.mjs:2004-2018`.
+- Scenariusz: GM, który nigdy nie włączył przełącznika, gra cue na swojej playliście tła z okna Sound, potem zatrzymuje cue w panelu Playlists i pokój zostaje cichy, a tło trzeba włączyć ręcznie.
+
+**COMM-32** · `minor` · przeczytane · utrzymane · S
+- Pole tekstowe unoszone nad mapą sprawy przy zoomie innym niż 1 ma niezoomowany font w zoomowanym pudełku: `lift()` kopiuje font i odstępy z `getComputedStyle` (transform przodka ich nie zmienia), a pudełko bierze z `getBoundingClientRect` (który transform zmienia).
+- Gdzie: `scripts/float-text.mjs:57-66` (`FACE`), `150-188` (`lift`).
+- Scenariusz: GM z oddaloną mapą sprawy klika notatkę węzła, a notatka skacze do dwukrotnej wielkości czcionki w polu o połowę węższym i wraca, gdy GM kliknie gdzie indziej.
+
+**`nit`**
+
+23 pozycje, pewność przeczytane, klasa S. COMM-52 do COMM-55 to obserwacje z `old-1.2.42-comms`.
+
+| ID | Gdzie | Co | Weryfikacja |
+| --- | --- | --- | --- |
+| COMM-33 | `scripts/notice-history-app.mjs:310-318, 363-378`; `scripts/notice-history.mjs:1123-1135` | zamknięcie "Notice history" (Historia powiadomień) oznacza jako przeczytane każde nieprzeczytane, także ukryte filtrem lub wyszukiwaniem i czekające za "Show new notices" (Pokaż nowe powiadomienia) | niesprawdzone |
+| COMM-34 | `scripts/messenger-app.mjs:41-51, 1499-1536`; `scripts/secret.mjs:829-831, 924`; `scripts/messenger.mjs:166-173` | launcher komunikatora jest rozbierany i budowany od nowa przy każdym zdarzeniu wątku, każda budowa przechodzi przez każdą wiadomość czatu, a fokus z klawiatury wraca na stronę | niesprawdzone |
+| COMM-35 | `scripts/popup.mjs:1212-1215, 1264-1269, 1294-1296` | `gmPopup` na zwykłej karcie przerywa GM-owi niezależnie od autora, obok `popupForce` i `popupCentre`, o które może prosić tylko karta GM-a | niesprawdzone |
+| COMM-36 | `scripts/call-effects.mjs:1354-1362`; `scripts/calls.mjs:525-534`; `lang/en.json:4144` | Contraband niszczy przedmiot ucznia i nie mówi tego właścicielowi; czytający `minor`, osłabione do `nit`: publiczna karta podnosi powiadomienie u każdego gracza (`popup.mjs:1255-1262`), więc właściciel czyta to od razu, chyba że dwie osoby noszą przedmioty o tej samej nazwie; `lines-119`: `day-119` nie dotyczy (`destroyItemEffect` bez `cardName`) | osłabione |
+| COMM-37 | `scripts/calls.mjs:303-308`; `scripts/call-effects.mjs:283-288, 990-997, 1405-1415`; `scripts/bridge-asks.mjs:466-477` | odrzucone albo bez odpowiedzi uzbrojenie Hope Call mówi to dwa razy i loguje błąd za zwykłą odmowę | niesprawdzone |
+| COMM-38 | `scripts/calls.mjs:883-889`; `scripts/projects-secrecy.mjs:128, 160-191`; `scripts/call-pickers.mjs:502-504` | Call wymierzony w tajny projekt mówi w potwierdzeniu "Aimed at: ???" | niesprawdzone |
+| COMM-39 | `scripts/calls.mjs:788-791, 804`; `scripts/call-pickers.mjs:326, 330` | notatka albo nowa reguła o treści "cancel" jest brana za przycisk Cancel | niesprawdzone |
+| COMM-40 | `scripts/call-gm.mjs:229-243`; `scripts/bridge-table.mjs:634` | karta GM-ów do zatwierdzenia Call drukuje zdanie efektu przysłane w pakiecie; to samo: CORE-36 | niesprawdzone |
+| COMM-41 | `scripts/voice.mjs:1739-1813, 1832-1858` | przy Spectatorze w świecie każdy zapis dowolnej flagi modułu na dowolnym aktorze uruchamia na głównym GM-ie całe ustalanie głosów trialu, w każdej fazie | niesprawdzone |
+| COMM-42 | `scripts/voice-tile.mjs:167-176, 835-842`; `scripts/voice.mjs:1151-1155, 1358`; `scripts/voice-client.mjs:621-627`; `lang/en.json:5909, 5916` | zabójca za "?" czyta na kafelku "Disconnected" i linię, że wyłączony jest tylko mikrofon; czytający `minor`, osłabione do `nit`: `DRPG.Mask.card` i okno `DRPG.Mask.ask` mówią mu, że nie mówi i nie słyszy nikogo, a kafel ma "Reveal yourself" (Ujawnij się) - zostaje słowo kafelka sprzeczne z tym, co mu powiedziano | osłabione |
+| COMM-43 | `scripts/voice.mjs:2254-2259, 2271-2274, 2510-2512` | plan głosu GM-a zapisuje zabójcę w masce i obóz Scrum pod "(main room)", a słuchacza pod pokojem, z którego słucha | niesprawdzone |
+| COMM-44 | `scripts/voice.mjs:2488`; `lang/en.json:5974` | plan głosu drukuje tryb A/V Foundry jako liczbę | niesprawdzone |
+| COMM-45 | `scripts/voice.mjs:1714-1718`; `lang/en.json:5859`; `scripts/voice-tile.mjs:1555-1556` | po trialu szept "microphone still blocked" odsyła GM-a do "Who you hear", które pokazuje tylko kanał GM-a | niesprawdzone |
+| COMM-46 | `scripts/voice-tile.mjs:1461-1463`; porównaj `scripts/voice.mjs:1704-1724` | odblokowanie przez GM-a pisze jawne `BROADCAST_AUDIO` true, nie to, co użytkownik miał przed blokadą | niesprawdzone |
+| COMM-47 | `scripts/voice-tile.mjs:645-669, 743-764, 856-866, 1045-1060`; `scripts/voice.mjs:1172-1193, 1347-1349` | każde zdarzenie Room, za którym idzie kafel, uruchamia `micHold` trzy razy, a każdy dwa razy skanuje każdy token każdej sceny; czy to widać w klatce, niezmierzone | niesprawdzone |
+| COMM-48 | `scripts/sfx.mjs:335-339`; `scripts/season-wipe.mjs:455-457`; `scripts/monocub.mjs:140, 169-170` | reset sezonu dzwoni dźwiękiem Monocuba u każdego GM-a i u gracza każdego cuba, raz na każdego czyszczonego Monocuba | niesprawdzone |
+| COMM-49 | `scripts/sfx-play.mjs:57-70, 470-486`; `scripts/config.mjs:5130-5141` | każdy dźwięk przycisku nadal czeka 120 ms, czy dźwięk okna go nie wyprzedzi; liczba, którą komentarz każe E17 dostroić na ucho, bez zmian (stara pozycja: D5 z 1.2.13) | niesprawdzone |
+| COMM-50 | `scripts/sound-panel.mjs:285-288`; `scripts/music-play.mjs:1179-1226` | Stop the track zawsze mówi, że utwór się zatrzymał, a przerwana muzyka wraca, także gdy nic nie grało albo nic nie wróciło | niesprawdzone |
+| COMM-51 | `docs/handbooks/gm-handbook.en.md:1715`; `scripts/sound-panel.mjs:438-451` | podręcznik GM-a każe ponownie otworzyć okno Sound, żeby zobaczyć zmiany innego GM-a; wiersze zakładki Music idą za nimi od E44 C2b, zakładka Effects i dwa przełączniki nie | niesprawdzone |
+| COMM-52 | `audit/AUDIT-1.2.42.md:632` | (obserwacja) tabela sekcji 9 podaje zły commit dla zadania 13; to samo: CASE-75 | niesprawdzone |
+| COMM-53 | `audit/AUDIT-1.2.42.md:371, 632, 701` | (obserwacja) COMM-10 nigdy nie zostało zamknięte z nazwy, a rozliczenie mówi, że każde ID jest zamknięte (zob. COMM-29) | niesprawdzone |
+| COMM-54 | `scripts/sheet-sidebar.mjs:903-906, 915`; `scripts/sheet-mode.mjs:80-81` | (obserwacja) komentarz przy Stop na arkuszu mówi, że jest dla każdego, a kod zostawia dwa arkusze bez niego | niesprawdzone |
+| COMM-55 | `scripts/safeword.mjs:387-401, 433` | (obserwacja) dwa naciśnięcia klawisza safeword otwierają dwa okna potwierdzenia | niesprawdzone |
+
+### 17.3 CORE
+
+Wszystkie: klasa S; pewność i weryfikacja przy każdym wpisie.
+
+**Tożsamość**
+
+**CORE-20** · `major` · przeczytane · utrzymane · S
+- Karta, która ukryła imię zabójcy w masce jako "?", podaje je jawnie, gdy jej słowa są podawane albo przepisywane po końcu maski. `remember()` u GM-a autora trzyma słowa nieocięte (dla GM-a nic nie jest cięte) i nic z maski; `endMask` czyści flagę, a nowa pora dnia kończy maskę bez ujawnienia; `answerWordsRequest` tnie słowa dla pytającego według maski w chwili pytania. Weryfikator zostawił `major`, nie `blocker`: karta nazywa złodzieja i czas kradzieży, nie to, że złodziej jest zabójcą - mocny trop, nie odpowiedź. Drogę `updateSecret` prześledził tylko w zarysie.
+- Gdzie: `scripts/secret.mjs:496-499` (`wordsFor`), `1207-1211, 1235-1239` (słowa GM-a autora), `958-991` (`answerWordsRequest`), `1343-1365` (`updateSecret`); `scripts/mask-gm.mjs:135-137` (`namesHiddenFrom`) i nagłówek WHEN IT ENDS.
+- Scenariusz: w czasie morderstwa w masce zabójca robi Steal u świadka, którego połączenie wypadło, następna pora dnia kończy maskę bez ujawnienia, a gdy świadek wraca, jego przeglądarka prosi GM-a o słowa karty i czyta "Kaito takes ...", gdzie każdy połączony wtedy czytelnik czytał "? takes ...".
+- 1.2.119: `day-119` - addresses, w części. `remember` (f5c8f041) zapisuje `hid` (maskę trzymaną w chwili zapisu, tylko u GM-a), `wordsFor(userId, html, hid)` tnie też imiona z `heldMaskNames`, `answerWordsRequest` i `updateSecret` podają `hid`, a `endMask` woła `forgetHeldMask` tylko przy ujawnieniu. Zostaje, jak mówi sama linia: karta zapamiętana przed 1.2.119 nie ma `hid`, więc maska, która stała i skończyła się przed aktualizacją, nadal oddaje imię, a magazyn innego GM-a trzyma słowa ocięte po ujawnieniu. Commit podaje test tieru 2 "E119 - a card's words kept while a mask stood ..." czerwony na 937a98b0 i zielony; tu nieuruchomione.
+
+**`minor`**
+
+**CORE-21** · `minor` · przeczytane · utrzymane · S
+- Echoes jest rozstrzygane na głównym GM-ie bez wglądu w jego cenę jednej akcji, więc konsola gracza pyta za darmo i ile chce; zaparkowane morderstwo i zdrada w Eclipse są wykonywane tak samo. Strażnicy wiersza `listen.echoes` to `knownSender`, `notSpectator`, `guardUndoIsTheGms` i `owns`; żaden nie czyta płatności, a cena jest wydawana tylko na przeglądarce pytającego.
+- Gdzie: `scripts/bridge-table.mjs:277-284` (`listen.echoes`); `scripts/bridge-runs-acts.mjs:327-334` (`handleEchoes`), `870-879, 892-904`; `scripts/echoes-gm.mjs:95-127`; `scripts/action-listen.mjs:317-320`; `scripts/action-murder.mjs:285, 369`.
+- Scenariusz: gracz bez akcji po południu woła Echoes dwadzieścia razy z konsoli przeglądarki: każda odpowiedź nazywa pokój, powiązania wychodzą jedno po drugim, a GM-owie widzą tylko dwadzieścia linii logu "Echoes for Aiko from Library: ...".
+
+**CORE-22** · `minor` · podejrzenie · osłabione · S
+- Własne Infiltrate i akcje pokojowe GM-a biegną na przeglądarce tego GM-a, także gdy nie jest głównym, choć ich połowy GM-owe są opisane jako "on the primary GM": `createWaiter.request` uruchamia `local` na każdym GM-ie bez `onPrimary`, a dwanaście pytań podaje samo `local`. Weryfikator: struktura stoi, a w jednym miejscu jest mocniejsza (magazyn podsłuchu jest "Written, read and dropped by the primary alone", a na drugim GM-ie `settleBlock` i `tellOwners` się nie uruchamiają), ale scenariusz czytającego się nie zdarza - GM nie ma "Stop listening" (Przestań słuchać) na kafelku. Zostaje pytanie wymagające drugiego GM-a, który gra ucznia z arkusza; według 11.3 to pytanie z live checkiem, nie znalezisko.
+- Gdzie: `scripts/bridge-asks.mjs:58-149` (bez `onPrimary`), porównaj `221-253, 276-284, 1086-1105, 1177-1240`; `scripts/bridge-guards.mjs:1947`.
+- Scenariusz (czytającego, w tej postaci nieosiągalny): przy dwóch GM-ach pomocniczy naciska Stop listening za ucznia, którego gra; wiersz podsłuchu się kończy, ale blokada mikrofonu ustala się tylko wtedy, gdy główny zareaguje na zmianę magazynu, o co ta droga go nie prosi.
+- Pokrewne: ROLL-22 (ten sam `local` w `bridge-guards.mjs:1947` daje GM-owi zły wynik w wierszach Infiltrate).
+
+**CORE-23** · `minor` · przeczytane · utrzymane · S
+- Wiersz "You can act again" dla uwolnionej ofiary nigdy nie jest podawany po powrocie: trzymana kopia GM-a autora zachowuje innych czytelników i inną linię. `tellIncidentClosed` postuje do pozostałych uczestników bez GM-a, więc GM trzyma `authorHold` z `readers = others`, a `updateSecret` zapamiętuje tylko na przeglądarce, która jest czytelnikiem.
+- Gdzie: `scripts/murder-rules.mjs:3691-3708` (`tellIncidentClosed`); `scripts/secret.mjs:970-977, 1235-1243, 1350-1357`.
+- Scenariusz: morderstwo bezpośrednie kończy się z żywą ofiarą, gdy gracz ofiary jest rozłączony, a po jego powrocie karta w czacie mówi "A private card. Its words did not reach this browser." zamiast "The incident is over. You can act again." i nic innego nie mówi mu, że może działać.
+- To samo: STG-26 (sekcja 14, niesprawdzone).
+- 1.2.119: `day-119` - nie dotyczy (`remember` dostaje tylko `hid`; czytelnicy, `authorHold` i reguła `updateSecret` bez zmian).
+
+**CORE-24** · `minor` · przeczytane · utrzymane · S
+- "Each to their own bedroom" przy resecie sezonu przesuwa kamerę tylko graczom ostatniej sypialni: pakiety `SYNC.gather` jednej serii są scalane i najnowsze `tokenIds` wygrywają. `placeCast` wysyła jeden broadcast na partię, a koalescer scala pole po polu.
+- Gdzie: `scripts/season-wipe.mjs:574-578`; `scripts/sync.mjs:255-279, 530`; `scripts/call-world.mjs:684-694` (`panToGathered`).
+- Scenariusz: GM resetuje sezon z obsadą wysłaną każdy do swojej sypialni; tokeny się przenoszą, ale na ekranach większości graczy kamera zostaje w pokoju, w którym byli, i tylko gracze ostatniej jednej czy dwóch sypialni widzą swój token.
+
+**CORE-25** · `minor` · przeczytane · utrzymane · S
+- To, które pokoje mają ukrytą skrytkę i czyją, to dane regionu, które ma każda przeglądarka; żadna reguła `world-secrets.mjs` ich nie nazywa. `drpgStashes` (`[{ actorId, concealed }]`) to flaga regionu czytana po stronie gracza z założenia (`stash-reach.mjs:240-249, 739-740`); `WORLD_SECRET_RULES` zna flagi Actor, User, Token, ChatMessage i Item, nie Region ani Scene. Moduł mówi o sobie, że "has no secrets from a determined player".
+- Gdzie: `scripts/vault-store.mjs:108-121, 829-845, 1570-1588`; `scripts/world-secrets.mjs` (brak reguły dla flagi Region).
+- Scenariusz: gracz wpisuje `game.scenes.contents.flatMap(s => s.regions.contents).map(r => [r.name, r.flags['danganronpa-rpg']?.drpgStashes])` i czyta, że w bibliotece jest ukryta skrytka Kaede, bez rzutu Head 16, którego wymaga reguła.
+
+**CORE-26** · `minor` · przeczytane · utrzymane · S
+- Naprawa, którą podaje podręcznik GM-a, `game.drpg.migrate({ force: true })`, ustawia safeword świata z wartością domyślną na MISIUBOMBO i mówi GM-om, że świat już go miał; oddaje też skrytkę w sypialni, którą GM usunął. `force` pomija bramkę `since`, `wasInPlay` staje się `Boolean(from)`, a strażnicy `keepOldSafeword` przepuszczają każdy świat, którego GM nie wpisał własnego słowa (domyślne `DEFAULT_SAFEWORD` "Safe Word").
+- Gdzie: `scripts/migrate.mjs:1659, 1671` (`force`, `wasInPlay`), `1579-1614` (`keepOldSafeword`), `1019-1039` (`bedroomStashes`); `docs/handbooks/gm-handbook.en.md:1897`; `DRPG.Legacy.safeword` w `lang/en.json` i `lang/pl.json`.
+- Scenariusz: GM, któremu świat działa źle, uruchamia `game.drpg.migrate({ force: true })`, jak mówi podręcznik, a przycisk Safeword każdego gracza czyta teraz MISIUBOMBO, słowo, na które stół się nie umawiał, i karta GM-a mówi, że świat już je miał.
+- Stara pozycja: CORE-13 z 1.2.42.
+
+**CORE-27** · `minor` · przeczytane · utrzymane · S
+- "Game settings" (Ustawienia gry) nie przerysowuje się, gdy jest otwarte, a jego Save pisze z powrotem każdy wiersz różny od zapisanej wartości, więc zmiana zapisana w międzyczasie przez innego GM-a jest cofana. Okno buduje kolumny raz, bez `keepLive` i bez hooka.
+- Gdzie: `scripts/settings-window.mjs:408-433` (`saveSettings`), `490-523` (`openGameSettingsWindow`).
+- Scenariusz: GM A otwiera Game settings, żeby zmienić "Crossing rooms costs a Move" (Przejście między pokojami kosztuje Move), GM B w tym czasie wyłącza "Lock players' resources" i zapisuje, a gdy A naciska Save, blokada wraca dla całego stołu i żaden GM o tym nie wie.
+- To samo: STG-15 (sekcja 14, oba okna ustawień z E49, niesprawdzone).
+
+**CORE-28** · `minor` · przeczytane · utrzymane · S
+- `fileSizes()` zgłasza pięć nieistniejących plików jako "DID NOT ARRIVE" i ściąga cały zestaw testów dwa razy, żeby tam dojść. `loadedFiles` dodaje nazwę przed testem `text === null` i idzie przez `runTests` z `api.mjs:1285` do testów, gdzie czyta napisy z fixtur jako importy; `fileSizes` pobiera każdą nazwę z cache "reload".
+- Gdzie: `scripts/diagnostics.mjs:1095-1135` (`loadedFiles`), `1153-1178` (`fileSizes`); `scripts/api.mjs:1285`; `scripts/tests-tier0.mjs:18412, 25321-25322`; `scripts/tests-kit.mjs:1322-1324`.
+- Scenariusz: GM na hostowanym świecie, poproszony po aktualizacji o `await game.drpg.fileSizes()`, wkleja raport, że pięć plików modułu nie dotarło, na instalacji, na której dotarł każdy, po tym jak przeglądarka pobrała około 34 MB skryptów testowych z pominięciem cache.
+
+**CORE-29** · `minor` · przeczytane · utrzymane · S
+- `game.drpg.diagnoseDespair()` na przeglądarce gracza drukuje najnowszy rzut świata, także szept do innych użytkowników, choć `diagnose()` oznacza tę samą część jako tylko dla GM-a. Najnowszy rzut jest brany bez testu `visible`, jego podmiot drukowany przez `rollSubjectNow`, a `readDuality` logowane.
+- Gdzie: `scripts/diagnostics.mjs:210-220` (najnowszy rzut), `2228` (część `gmOnly` w jednym raporcie); `scripts/api.mjs:1195`; porównaj `scripts/diagnostics.mjs:68-70` (filtr części kości, E52-15).
+- Scenariusz: gracz, którego GM prosi o wklejenie `game.drpg.diagnoseDespair()`, bo jego Despair się nie liczy, postuje kartę z imieniem ucznia, którego szeptany rzut przedmiotu był ostatni, a linia konsoli pod nią mówi, czy ten rzut wyszedł z Hope, czy z Fear.
+
+**CORE-30** · `minor` · przeczytane · utrzymane · S
+- Cztery okna objaśnień nigdy się nie przerysowują: ich linie "right now" zostają z chwili otwarcia. `explainer()` woła `drpgWindow` bez `live`, a `explain.mjs` nie importuje niczego z `live.mjs`.
+- Gdzie: `scripts/explain.mjs:49-58` (`explainer`), `187-225, 279-315, 322-376, 383-413` (treści).
+- Scenariusz: nowy gracz klika pasek akcji, żeby przeczytać, co znaczy, zostawia okno otwarte i robi Search w pokoju, a okno obok paska nadal mówi "You have 2 of 2 actions left", gdy pasek mówi 1.
+- To samo: REFR-24 i REFR-56 (sekcja 16).
+
+**CORE-31** · `minor` · podejrzenie · osłabione · S
+- Gdy połączony jest tylko Assistant GM, blokada `core.permissions` głównego GM-a jest próbowana i - według odczytu Foundry przez sam moduł - odrzucana; zapisane w logu, nikomu niepowiedziane. `holdPermissions` sprawdza `isPrimaryGm()` bez roli, a `primaryGmId` wybiera Assistanta, gdy nie ma pełnego Gamemastera. Osłabione w trzech punktach: to, że v14 odrzuca zapis Assistanta, to komentarz modułu (`enforced.mjs:814-816`) bez zapisanego odczytu; czy Foundry sam pokazuje powiadomienie, nie przeczytano; a na przeglądarce gracza `closePlayerFilePicker` i `disarmPortraits` i tak zamykają przeglądarki plików. Zostaje brak blokady po stronie serwera (wgranie drogą bez FilePicker, z konsoli) i czerwona linia przy każdym ładowaniu; podejrzenie do odczytu na żywo.
+- Gdzie: `scripts/enforced.mjs:557-577` (`holdPermissions`), `579-584`, `813-820` (`canGiveBack`), `1021-1026`; `scripts/utils.mjs:485-496`.
+- Scenariusz (czytającego, zawężony): Assistant GM prowadzi sesję pod nieobecność właściciela na świecie, gdzie przełącznik uprawnień plików włączono od ostatniego ładowania właściciela, a w jego "Debug log" (Dziennik debugowania) przy każdym ładowaniu jest czerwona linia "Could not hold the file permissions", bez słowa na ekranie.
+
+**CORE-32** · `minor` · przeczytane · utrzymane · S
+- "Next time of day" naciśnięte, gdy incydent trwa przed Stage 6, odnawia akcje każdego świadka i uzupełnia żetony przeszukania na ich ekranach, choć ich zegar stoi. `applyTimeOfDayChange` woła `resetAllActions` i `SearchTokens.reset` przy każdym kroku, a zawężana jest tylko karta; `nextTimeOfDay` odmawia tylko w Eclipse, a w incydencie przed Stage 6 nie ma rundy, która by krok zatrzymała.
+- Gdzie: `scripts/clock.mjs:784-857` (`applyTimeOfDayChange`), `881-917`; `scripts/boundary.mjs:134-145, 455-462`; `scripts/actions.mjs:416-462, 468-479`.
+- Scenariusz: zabójca i ofiara walczą w kotłowni po południu, GM naciska Next time of day, żeby przenieść walkę na wieczór, a uczeń, który wydał obie akcje przed incydentem, widzi, jak jego arkusz wraca do 2 / 2, a pipy przeszukania pokoju się uzupełniają, podczas gdy HUD nadal mówi Afternoon - i wie, że GM przestawił godzinę dla kogoś.
+- 1.2.119: `day-119` - nie dotyczy (`clock.mjs` zmienia tylko `advanceTimeOfDay`: maski kończone przed każdym krokiem, `bodyPatch` w zapisie; `applyTimeOfDayChange` bez zmian).
+
+**CORE-33** · `minor` · przeczytane · utrzymane · S
+- Zmiana nazwy tabeli pokoju w "Item tables" (Tabele przedmiotów) przepina pokoje, ale zostawia jej tabele dzielone ("<old> - Tier N", "<old> - Murder Weapons") na starej nazwie, z której nic nie losuje. Rename robi `update({ name })` i `repointRooms`, który zmienia tylko flagę pokoi.
+- Gdzie: `scripts/tables-editor.mjs:1203-1213` (`repointRooms`), `1225-1248` (Rename); `scripts/tables-pools.mjs:752-754, 768-775, 893-933`.
+- Scenariusz: GM, który wypełnił "Kitchen", "Kitchen - Tier 2" i "Kitchen - Murder Weapons", zmienia nazwę "Kitchen" na "Cafeteria" w Item tables, a każdy Search broni w kuchni losuje teraz przekąski z płaskiej tabeli, podczas gdy okno nadal pokazuje obie tabele dzielone pełne noży.
+
+**CORE-34** · `minor` · przeczytane · utrzymane · S
+- Mocniejsze następne Ultimate zużyte na GM-ie, który nie jest głównym, zostawia plakietkę właściciela na arkuszu, bo tylko główny mówi właścicielom: `boostUltimate` biegnie na każdym GM-ie, `tellOwners` tylko na głównym.
+- Gdzie: `scripts/timed-effects.mjs:147-157` (`boostUltimate`), `281-288` (`tellOwners`); `scripts/call-effects.mjs:288-293, 423-446`; `scripts/bridge-asks.mjs:466-477`.
+- Scenariusz: przy dwóch GM-ach drugi uzbraja Ultimate ucznia z arkusza; druga kość jest dodana i wiersz zużyty, ale arkusz ucznia nadal pokazuje plakietkę "stronger Ultimate", a gracz oczekuje jej przy następnym Ultimate.
+- 1.2.119: `day-119` - nie dotyczy (`armCall` i `appendArmedCall` bez zmian).
+
+**`nit`**
+
+18 pozycji, pewność przeczytane, klasa S. CORE-49 do CORE-52 to obserwacje z `old-1.2.42-core`.
+
+| ID | Gdzie | Co | Weryfikacja |
+| --- | --- | --- | --- |
+| CORE-35 | `scripts/bridge-table.mjs:807-823, 858-873`; `scripts/bridge-asks.mjs:561-570, 660-667`; `scripts/projects.mjs:2357-2361`; `scripts/remnants.mjs:2513-2517` | `remnant.edit` i `project.unsabotage` nigdy nie mogą się wykonać: wiersze są tylko GM-a, a pyta o nie wyłącznie przeglądarka gracza | niesprawdzone |
+| CORE-36 | `scripts/bridge-table.mjs:628-639`; `scripts/call-gm.mjs:238-243` | karta zatwierdzenia Hope Call drukuje nazwę Call i efekt z pakietu, a żaden strażnik nie trzyma klucza Call, który czeka na GM-a; to samo: COMM-40 | niesprawdzone |
+| CORE-37 | `lang/en.json` `DRPG.Bridge.why.notPaid`; `scripts/bridge-guards.mjs:391`; `scripts/roll-draw.mjs:1179`; `scripts/frisk.mjs:802`; `scripts/config.mjs:1454-1470` | `notPaid` mówi graczowi "You haven't paid for that roll with an action", gdy ceną był Hope albo Sanity, i przy pytaniu Frisk, które nie ma rzutu | niesprawdzone |
+| CORE-38 | `scripts/gm-bridge.mjs:143-161` | każda wiadomość czatu narysowana u GM-a zaczyna dynamiczny import `messenger-app.mjs`, zanim padnie pytanie, czy to karta orzeczenia | niesprawdzone |
+| CORE-39 | `scripts/secret.mjs:657-660, 909-927, 1026-1036`; `lang/en.json:6082`, `lang/pl.json:6531` | GM, który napisał kartę tylko do graczy, czyta na niej "Its words did not reach this browser", choć ta przeglądarka je ma | niesprawdzone |
+| CORE-40 | `scripts/secret.mjs:935-951, 943-944, 1194` | wracający gracz prosi o słowa każdej zasłoniętej karty, a najnowsze cudze zasłonięte karty zajmują osiem miejsc na powiadomienia | niesprawdzone |
+| CORE-41 | `scripts/secret.mjs:224, 247, 1314-1315, 1487-1488`; `scripts/messenger-app.mjs:547-560`; `scripts/private-rolls.mjs:1265` | `gmAsk` podnosi okienko na ekranie każdego GM-a i nie jest wśród flag, których karta gracza nie może nieść | niesprawdzone |
+| CORE-42 | `scripts/migrate.mjs:80-85, 369-378, 461-465, 1599-1602` | trzy starsze klauzule oddają null, gdy odczyt kontrolny się nie uda, więc runner liczy je jako "nothing to do" i stempluje świat, wbrew regule pliku, żeby rzucać | utrzymane |
+| CORE-43 | `scripts/settings.mjs:1733-1744`; `scripts/settings-window.mjs:96, 389-390`; `scripts/i18n.mjs:144-148`; `scripts/utils.mjs:167-176` | "Document language" (Język dokumentów) proponuje "Not set yet" (Jeszcze nieustawiony) jako wybór do zapisania, co opróżnia język świata do następnego startu głównego GM-a | utrzymane |
+| CORE-44 | `scripts/api.mjs:564, 1668-1685`; `scripts/gm-items.mjs:331, 361-400` | `game.drpg.manageItems("name or id")` nie jest normalizowane: jedyna funkcja API z domyślną wartością parametru aktora obok worka opcji; objaw nieuruchomiony | utrzymane |
+| CORE-45 | `scripts/a11y.mjs:34-55, 292-322`; `scripts/room-tile.mjs:201-223, 296, 454`; `scripts/voice-tile.mjs:382, 1689-1690`; `scripts/fog.mjs:3465-3495` | `game.drpg.a11y()` nie patrzy na kafel pokoju, kafel głosu ani przełącznik pięter, choć jego lista ujawnień mówi, że czyta kafel pokoju | utrzymane |
+| CORE-46 | `scripts/timed-effects.mjs:201-212, 222-228, 354-367, 396-404` | efekt czasowy, którego zdjęcie rzuca wyjątek, i tak jest usuwany (premia zostaje na arkuszu), a wyjątek zatrzymuje koniec pozostałych wierszy; czytający `minor`, osłabione do `nit`: weryfikator nie znalazł nic, co na tej drodze rzuca | osłabione |
+| CORE-47 | `scripts/tables-pools.mjs:812-821, 893-903`; `scripts/action-search.mjs:597`; `scripts/action-report.mjs:282-283` | tabela pokoju, która na Search oddaje inną kategorię, nie jest oznaczana jako zastępstwo, więc karta nie mówi, że pokój dał coś innego | niesprawdzone |
+| CORE-48 | `scripts/tables.mjs:12-13, 26`; `scripts/tables-editor.mjs:18-20, 276`; commit 6c7c6bc5 | fasada `tables.mjs` eksportuje nazwę, której nie miała (`wireRoomFilter`, E54), wbrew regule fasady, a oba nagłówki nadal mówią o czterech | niesprawdzone |
+| CORE-49 | `scripts/hud-elapsed.mjs:199-213, 281-287, 301` | (obserwacja) stoper świadka liczy przez pauzę, która zaczyna się w czasie incydentu | niesprawdzone |
+| CORE-50 | `scripts/clock.mjs:346-352` | (obserwacja) JSDoc `advanceTimeOfDay` nazywa wołającego, który już go nie woła, i zaprzecza temu, który woła | niesprawdzone |
+| CORE-51 | `scripts/migrate.mjs:38-42, 139-142` | (obserwacja) nagłówek `migrate.mjs` nadal mówi, że `-=key` może zostać przyjęte i nic nie zrobić, wbrew odczytowi na 14.370 | niesprawdzone |
+| CORE-52 | `lang/pl.json:5470`, `lang/en.json:5111` | (obserwacja) `DRPG.Clock.eclipseStillOn` mówi po polsku o jedną rzecz więcej niż po angielsku | niesprawdzone |
+
+
+Te cztery podsekcje to przebieg K2 (audyt statyczny domenami) dla czterech domen oryginału: Despair i Hope (DESP), przedmioty, panel GM-a i projekty (ITEM), mgła, ruch i pokoje (MAP), rzuty i akcje (ROLL). Dziewięciu czytających domen (`domain-desp-a`, `domain-item-a`, `domain-item-b-gm-panel`, `domain-item-c-projects`, `domain-map-a-fog`, `domain-map-b-movement`, `domain-map-c-rooms`, `domain-roll-a-draw`, `domain-roll-b-actions`) przeczytało od początku do końca **94 pliki, 74 813 linii**, każdy plik u jednego czytającego (sumy z ich `count_note`, zgodne z `wc -l`). Do tego dochodzą nowe obserwacje czterech czytających, którzy rozliczali stare pozycje (`old-1.2.42-despair`, `-items`, `-map`, `-rolls`); samo rozliczenie starych ID jest w sekcji 13. W `master.json` jest **91 pozycji** z tymi przedrostkami: DESP 17, ITEM 25, MAP 30, ROLL 19; 73 od czytających domen, 18 z nowych obserwacji. Wagi: `blocker` 1, `major` 1, `minor` 37, `nit` 52. Sześć pozycji powtarza defekt innej (DESP-28 = DESP-21, DESP-29 = DESP-23, ITEM-40 = ITEM-29, ITEM-41 = ITEM-28, MAP-44 = ROLL-36 = ITEM-42), więc odrębnych defektów jest 85: `blocker` 1, `major` 1, `minor` 35, `nit` 48. Weryfikacja: utrzymane 45 (`blocker` 1, `major` 1, `minor` 31, `nit` 12), osłabione 8 (`minor` 3, `nit` 5), niesprawdzone 38 (wszystkie 18 nowych obserwacji, w tym trzy `minor`: DESP-28, DESP-29, ROLL-27, oraz 20 `nit`ów czytających domen); żadna pozycja nie została obalona, więc nie ma linii "wycofane". Pewność: przeczytane 81, podejrzenie 10 (DESP-22, DESP-26, DESP-28, DESP-29, DESP-36, MAP-30, MAP-31, MAP-38, MAP-42, ROLL-33). Klasa dowodu wszystkich: S (odczyt statyczny na `b5a29e73`). Wagi zmienione w weryfikacji: MAP-16 z `major` na `blocker` (`verify-urgent-2.json`), MAP-30 i MAP-39 z `minor` na `nit`.
+
+Czego nie zmierzono: żaden czytający niczego nie uruchomił, a `base-run.json` nie istniał, gdy pisali, więc testy nazwane w ich plikach są nazwane ze źródła, bez wyniku. Koszty (ITEM-32, ITEM-35, MAP-34, MAP-35, ROLL-30) nie są zmierzone ani w harnessie, ani przy stole. `lines-119.json` ma wpis dla 12 pozycji tej sekcji: naprawia (addresses) 1 (MAP-17), dotyka (touches) 3 (MAP-19, ITEM-21, DESP-27), bez związku 8; `nit`ów nie dopasowywano, a odczyty "czerwone, potem zielone" przy MAP-17 są z wiadomości commita, nie z tego audytu. Przy pozycjach bez wpisu nie piszę linii 1.2.119.
+
+### 17.4 DESP
+
+17 pozycji (`minor` 9, `nit` 8): `domain-desp-a` (14 plików, 8220 linii) i 6 nowych obserwacji `old-1.2.42-despair`.
+
+**DESP-21** · `minor` · przeczytane · utrzymane · S · `domain-desp-a-1`
+GM, który nie jest głównym, liczy Despair Call jako zapłacony, zanim główny zapisze pulę, a główny bierze cenę bez sprawdzenia: `spendDespairCall` sprawdza pulę na kopii tej przeglądarki, `routeToPrimary` wysyła `despair.adjust` z `void` i od razu odpowiada spodziewaną pulą, a na głównym `handleDespair` tylko odejmuje i `writePool` przycina do 0. Pula obniżona przez głównego w tej samej rundzie płaci mniej niż cena; prośba bez odpowiedzi zostawia Call nałożony i pulę nietkniętą, choć bridge mówi GM-owi, że zmiana nie przeszła. To droga z otwartego live checka DESP-LC1 (DESP-12).
+Gdzie: `scripts/despair.mjs:424-437` (`routeToPrimary`), `:902-928` (`spendDespairCall`), `:315` (`writePool`); `scripts/bridge-runs-records.mjs:666-674` (`handleDespair`); `scripts/bridge-table.mjs:971-980`.
+Scenariusz: Asystent GM z przydzieloną pulą widzi na pasku 3 chwilę po tym, jak główny zapłacił z niej 1, kupuje Call za 3 Despair, Call wchodzi, a pula kończy na 0 - Call za 3 kupiony za 2; gdy główny akurat się przeładowuje, to samo naciśnięcie nakłada Call, a pula zostaje na 3.
+1.2.119: bez związku: `sheet-119` nie zmienia `routeToPrimary` ani `spendDespairCall`.
+To samo: DESP-28 (`old-1.2.42-despair`, podejrzenie, niesprawdzone).
+
+**DESP-22** · `minor` · podejrzenie · osłabione · S · `domain-desp-a-2`
+Bounty wygasające na GM-ie, który nie jest głównym (`lapseBounties` biegnie u tego, kto przesunął zegar), może dostać "cancelled", choć rozliczenie głównego już zapłaciło jego Despair: `returnOwed` decyduje na kopii `despairOwed` tej przeglądarki, w kolejce `DESPAIR_KEY`, która porządkuje go względem rozliczenia tylko na głównym. Osłabione: obie kolejności są możliwe i żadnej nie zmierzono (u przesuwającego zegar przed wygaśnięciem idzie kilka czekanych kroków, główny rozlicza po 120 ms `TIMING.coalesceMs`), a komentarz w `monocub.mjs` mówi, że wygaśnięcie "usually runs before the settlement". Według 11.3 to pytanie z live checkiem, nie znalezisko.
+Gdzie: `scripts/despair.mjs:651-662` (`returnOwed`), `:49-51`, `:755-774` (`settleOwed`); `scripts/monocub.mjs:1857-1881` (`lapseBounties`); `scripts/clock.mjs:782-822`.
+Scenariusz: dwóch GM-ów; Asystent przesuwa zegar na popołudnie przy otwartym Bounty, główny rozlicza pierwszy i pula spada o 1, a u Asystenta wiersz jeszcze stoi, karta mówi, że należny Despair "is cancelled", i spadek puli zostaje.
+1.2.119: bez związku: `day-119` zmienia w `clock.mjs` tylko `advanceTimeOfDay`; `applyTimeOfDayChange` i odczyty fazy z tej drogi są nietknięte.
+
+**DESP-23** · `minor` · przeczytane · osłabione · S · `domain-desp-a-3`
+Bounty odebrane przez Monocuba na limicie Hope albo w ciemnieniu Despair daje 0 Hope, a pula, która je wystawiła, dalej jest winna swój Despair: `claimBounty` najpierw usuwa Bounty, potem `addToPurse` bierze `min(reward, room)` i 0 przy `overflowBlocksHope`, a należnego wiersza nic nie oddaje (oddaje go tylko wygaśnięcie). Osłabione: scenariusz czytającego przy zwykłej cenie nie zachodzi (Confusion kosztuje 1 Hope płacone przed rozstrzygnięciem, `monocub.mjs:1316`, `:1318`, więc Monocub z 6/6 ma 5/6 przy odbiorze); defekt zostaje dla ruchu na zlecenie (`executionCost`, `hopeCost` 0), dla ciemnienia i dla sakiewki napełnionej między ceną a odbiorem. Czy Despair ma wtedy zostać należny, nigdzie nie zapisano (pytanie do właściciela w `old-1.2.42-despair`).
+Gdzie: `scripts/monocub.mjs:1835-1845` (`claimBounty`), `:811-822` (`addToPurse`), `:1390` (`scoreMeddle`).
+Scenariusz (czytającego; weryfikacja mówi, że przy zwykłej cenie nie zachodzi): Monocub z 6/6 Hope trafia Hinder ("Przeszkódź") w ucznia z Bounty; Bounty znika dla każdego Monocuba, karta mówi "0 Hope in your purse" ("0 Hope w twojej sakiewce"), a Monokuma, który je wystawił, płaci 1 Despair przy następnej porze dnia.
+To samo: DESP-29 (`old-1.2.42-despair`, podejrzenie, niesprawdzone).
+
+**DESP-24** · `minor` · przeczytane · utrzymane · S · `domain-desp-a-4`
+Na pickerze Level Up u GM-a nowe doświadczenie bez nazwy jest pomijane, a reszta zapisywana; w paczce werdyktu liczy się to jako dane i zrzuca czekający Reinforced Blackened-a. Droga gracza odmawia pustej nazwy (tylko w `if (asPlayer)`), `applyAdvancement` ostrzega "That choice was skipped." i zapisuje pozostałe wybory, a `runAdvancementBatch` uznaje wybór za `applied` i usuwa wiersz z `deferredOfferStore`. Komentarz E10 C8 (`:835-839`) mówi, że wybór, którego arkusz nie przyjmie, zatrzymuje cały Level Up; ten nie zatrzymuje.
+Gdzie: `scripts/level-up.mjs:620-656`, `:876-881` (`applyAdvancement`), `:1184-1192` (`runAdvancementBatch`).
+Scenariusz: po trafnym werdykcie GM wybiera za ocalałego Blackened-a (1 + 3 wybory), zostawia jedną nazwę "new experience" pustą i naciska Apply ("Zastosuj"): trzy wybory są zapisane, czwartego nie ma, czekający Reinforced przepada, a mówi o tym tylko toast.
+
+**DESP-25** · `minor` · przeczytane · utrzymane · S · `domain-desp-a-5`
+Stepper + na pasku Despair nie jest trzymany na maksimum: woła `adjustDespair(user.id, +1)` bez `clamp`, a jego `disabled` to narysowane `held >= max`. Pula podniesiona przez głównego do 12, zanim pasek się przerysuje, zostawia + czynnym, a +1 przelewa się do overflow. Pip obok ma `clamp: true` od poprawki E17 e1-G4, napisanej dokładnie dla tego przelewu.
+Gdzie: `scripts/despair.mjs:1300-1305` (stepper), `:1256-1261` (pip), `:353-367`.
+Scenariusz: GM widzi pulę na 11 i naciska + w chwili, gdy rzut ucznia z Despair dopełnia ją u głównego: pula zostaje na 12, a licznik overflow rośnie o 1 - krok ku ciemnieniu, na które nikt nie zapracował.
+1.2.119: bez związku: `sheet-119` nie zmienia steppera; `adjustDespair` i `spillFrom` dostają tylko `dice`.
+
+**DESP-26** · `minor` · podejrzenie · osłabione · S · `domain-desp-a-6`
+Hope Monocuba i Hope płacącego Bribe są czytane z dokumentu na GM-ie, nie tak, jak trzymają je GM-owie: `spendCubHopeNow`, `refundCubHopeNow` i `answerBribeOnGm` liczą z `resourceValue(actor, 'hope')` i piszą przez `trustedWrite`, a nagłówek `meansWrite` (`sheet-audit.mjs:1006-1038`) nie wymienia żadnej drogi z `monocub.mjs`. Ta sama klasa co ITEM-19 i ROLL-26 (E29 r2-H24). Osłabione: weryfikator znalazł więcej oparcia, niż podał czytający, ale nie ustalił, czy zapis z konsoli jest osądzony, zanim przebieg bridge przeczyta dokument, ani jak `noteOwnDropped` traktuje zmieniony liść; nie prześledzone do końca, nie uruchomione.
+Gdzie: `scripts/monocub.mjs:788` (`spendCubHopeNow`), `:805`, `:1513` (`redeemHope`), `:1641`, `:1686-1694` (`offerBribeOnGm`, `answerBribeOnGm`), `:1139`, `:1197`, `:767-769`, `:1959-1961`.
+Scenariusz: gracz Monocuba zapisuje z konsoli Hope 6 i od razu prosi o Confusion: sprawdzenie u GM-a przechodzi na 6, GM zapisuje 5, a audyt może wziąć 5 za wartość GM-ów, zamiast cofnąć zapis z konsoli.
+
+**DESP-27** · `minor` · przeczytane · utrzymane · S · `domain-desp-a-7`
+Rzut przyznany po tym, jak nie było połączonego GM-a, daje swój Despair mimo ochrony przed Despair: `grantRolls` woła `awardRollDespair(actor, 1)` bez wiadomości, choć `rows` ją niesie (`roll-draw.mjs:2998`), a `awardRollDespair` pyta `takeDespairShield` tylko z wiadomością. Ochrona nie jest ani zużyta, ani sprawdzona, a pula dostaje punkt.
+Gdzie: `scripts/roll-draw.mjs:3028-3030` (`grantRolls`); `scripts/despair-award.mjs:121-128`.
+Scenariusz: uczeń z ochroną "next roll with Fear gives no Despair" rzuca z Fear pod nieobecność GM-a; GM wraca i naciska Grant all ("Przyznaj wszystkie"): pula rośnie o 1, a ochrona dalej stoi na późniejszy rzut.
+1.2.119: `sheet-119` dotyka (touches): głowa `awardRollDespair` dostaje `dice`, ale gałąź ochrony dalej pyta `delta > 0 && message`, a `grantRolls` dalej woła bez wiadomości, więc ochrona dalej nie jest pytana.
+
+| ID | Weryfikacja | Gdzie | Co |
+| --- | --- | --- | --- |
+| DESP-30 | niesprawdzone | `scripts/monocub.mjs:1350-1355`, `:1129-1132`, `:1213-1218` | Okno zdolności Monocuba podaje cenę wiersza, nie cenę ruchu na zlecenie (`executionCost`): z 0 Hope i przyjętym Bribe Confusion pokazuje 1 Hope, a Help przechodzi za samą akcję. |
+| DESP-31 | niesprawdzone | `scripts/monocub.mjs:1808-1821`; `scripts/despair.mjs:816-819`, `:916-917`, `:675` | `postBountyNow` sprawdza pulę do wydania, zanim dojdą należne wiersze innych GM-ów; każde inne wydanie czeka na `despairOwedStore.whenHydrated()`. |
+| DESP-32 | niesprawdzone | `scripts/monocub.mjs:1557`, `:1561`; `lang/pl.json` `DRPG.Monocub.askGiven` | Karta Ask for Hope podaje nazwę konta GM-a (`game.user.name`), nie puli, a polska linia nazywa GM-a graczem ("1 Hope od gracza Dawid"). |
+| DESP-33 | niesprawdzone | `scripts/rest.mjs:526-531` | Karta Breath z odpoczynku podaje Hope, o które proszono, nie to, które weszło (5/6 i Long Rest: karta "+2 Hope", arkusz 6). |
+| DESP-34 | niesprawdzone | `scripts/despair.mjs:1094-1103` | Komentarz nad podpisem overflow mówi, że licznik to ustawienie świata czytelne dla każdego gracza; od E05 C12 to zapis GM-ów, a klient gracza czyta 0. |
+| DESP-35 | niesprawdzone | `scripts/call-pickers.mjs:339` | Komentarz pickera Motive mówi o dziewięciu Despair; Motive kosztuje 6 (`config.mjs:2910`), 9 kosztuje New Rule. Ta sama klasa co trzy komentarze z DESP-09. |
+| DESP-36 | niesprawdzone (podejrzenie) | `scripts/calls.mjs:260`, `:325`; `scripts/call-effects.mjs:286-290`; `scripts/bridge-runs-records.mjs:598` | Pokwitowanie Hope Call liczy, ile zostało, z odczytu sprzed zapłaty GM-a (`held - cost`); Hope ruszone w tej rundzie daje kartę o jeden obok, arkusz jest dobry. |
+| DESP-37 | niesprawdzone | `scripts/tests-tier2.mjs:18502-18512` | Nazwa i komentarz testu tieru 2 opisują Meddle jako płacone przed pytaniem GM-a; od E72 C1 nic nie jest płacone przed warunkami GM-a. |
+
+### 17.5 ITEM
+
+25 pozycji (`minor` 8, `nit` 17): `domain-item-a` (11 plików, 8508 linii), `domain-item-b-gm-panel` (10, 4398), `domain-item-c-projects` (7, 8793) i 4 nowe obserwacje `old-1.2.42-items`.
+
+**ITEM-19** · `minor` · przeczytane · utrzymane · S · `domain-item-a-1`
+Efekty Hope, Health i Sanity akcji pokoju czytają arkusz takim, jaki jest, nie jak trzymają go GM-owie: `applyEffects` liczy z `target.system.resources` i pisze przez `trustedWrite`, a `handleFacilityUse` nie czeka na nic z kolejki ucznia (bez `judgedFor` i `meansWrite`). To klasa E29 r2-H24 otwarta na nowo przez efekty E93, które nie weszły na listę dróg `meansWrite`.
+Gdzie: `scripts/facilities-gm.mjs:144-158`; `scripts/sheet-audit.mjs:1000-1048`; `scripts/bridge-runs-acts.mjs:106-152`.
+Scenariusz: konsola gracza podnosi jego Hope z 2 na 5 i od razu używa akcji pokoju z projektu, która daje +1 Hope: główny zapisuje 6 jako zapis GM-a, zanim dojdzie cofnięcie do 5, i uczeń zostaje z 6 Hope tam, gdzie GM-owie mieli 2.
+1.2.119: bez związku: `sheet-119` zmienia w `sheet-audit.mjs` tylko test odrzutu w `itemFindings`; `meansWrite` nietknięte.
+
+**ITEM-20** · `minor` · przeczytane · utrzymane · S · `domain-item-a-2`
+Przepustka Pick the Lock idzie za posiadaczem po samej nazwie pokoju: `onPassCrossing` porównuje `event.to` i `event.from` z `row.room`, choć zdarzenie niesie `sceneId`, wiersz go trzyma, a `holdsPass`, który otwiera drzwi, porównuje scenę. Wejście do pokoju o tej samej nazwie na innej scenie oznacza przepustkę jako użytą, a wyjście stamtąd ją kończy.
+Gdzie: `scripts/lockpick-gm.mjs:70-81` (`onPassCrossing`); `scripts/crossing-settle.mjs:55`; `scripts/movement.mjs:1210-1214` (`holdsPass`).
+Scenariusz: uczeń otwiera zamek Storage w szkole, a potem jego token w Annex wchodzi do tamtejszego Storage i z niego wychodzi: przepustka się kończy, a drzwi szkoły, za które zapłacił, znów są przed nim zamknięte.
+
+**ITEM-21** · `minor` · przeczytane · utrzymane · S · `domain-item-b-gm-panel-1`
+Karta startu Keep Watch i karta krytycznego tail wymieniają token Spectatora jako kogoś w pokoju, w tym obserwatora zmarłego ucznia pod jego imieniem: `namesIn` i `standingIn` pomijają Monokumę, zmarłych według GM-ów i ukryty token, nic więcej, a obserwator zachowanej śmierci (od E62 C3b) sam nie jest martwy. `countsAsPresent` w `movement.mjs` pomija też Spectatora; CHAINS.md B-R7 naprawił to dla kart drzwi, nie dla tych dwóch list.
+Gdzie: `scripts/watch-gm.mjs:83-94` (`namesIn`), `:106-109`; `scripts/tail-gm.mjs:98-109` (`standingIn`), `:132-136`; `scripts/movement.mjs:3761-3772`; `scripts/spectator-dead.mjs:186-205`; `scripts/visibility.mjs:539-543`.
+Scenariusz: Sayaka ginie, GM-owie zachowują śmierć, obserwator jej gracza wchodzi do sali gimnastycznej; na starcie następnego Eclipse Kyoko, czuwająca nad salą, czyta "You see Sayaka there" ("Widzisz tam: Sayaka"), a jej mapa nie pokazuje nikogo.
+1.2.119: `fog-119` dotyka (touches): wyjątek Spectatora w `judgeArrival` usuwa rozliczone przejście, które szepcze `onWatchCrossing` (MAP-17), ale `namesIn` i `standingIn`, dwie karty z tego znaleziska, są nietknięte.
+
+**ITEM-22** · `minor` · przeczytane · utrzymane · S · `domain-item-c-projects-1`
+GM prowadzący za ucznia Work on project ("Pracuj nad projektem") albo Sabotage działa jako konto GM-a: listy są budowane z domyślnym `user = game.user`, `canSee` odpowiada GM-owi true przed sekretnością, więc w pokoju pokazuje się każdy tajny projekt (pierwszy wykonalny jest wybrany domyślnie), a postęp idzie jako `kind "gm"`, nie praca ucznia, więc reguła Tinker Monocuba (E72 C13) go nie liczy. Komentarz `sabotageTargets` sam nazywa grę za nieobecnego gracza drogą wspieraną.
+Gdzie: `scripts/action-project.mjs:66`, `:108`, `:474`, `:1165`; `scripts/projects.mjs:938-941`, `:954-956`, `:968-990`, `:1036-1037`, `:1067`, `:1592`; `scripts/bridge-runs-records.mjs:45`.
+Scenariusz: GM gra ucznia nieobecnej Bei w kuchni, otwiera Work on project i naciska Roll ("Rzuć") na domyślnym wierszu: postęp ląduje na tajnej pułapce z trucizną Aiko, o której uczeń Bei nie może wiedzieć, a później Tinker Monocuba jest tam odrzucony, bo w tej porze dnia żaden uczeń nad nią nie pracował.
+
+**ITEM-23** · `minor` · przeczytane · utrzymane · S · `domain-item-c-projects-2`
+Nowy cel odliczania w dół (zrobionego w oknie Daggerheart) zachowuje to, co zostało, nie to, co zrobione: `changeStep` przy zmianie celu pisze `start = target` i `current = min(raw, target)`, a `allProjects` czyta zrobione jako `start - raw`. Podniesienie celu dodaje postęp, obniżenie go zabiera; projekt modułu (`countsUp` true) jest dobry.
+Gdzie: `scripts/projects.mjs:1773-1774` (`changeStep`), `:2609-2611`, `:807` (`allProjects`); okno projektu `scripts/projects-ui.mjs:1229-1255`.
+Scenariusz: GM otwiera odliczanie z cechy przeciwnika, 6 z 8 zrobione, i zmienia w oknie modułu Scale na Desperate (8 -> 10): tacka pokazuje 8 z 10, dwa punkty, na które nikt nie zapracował.
+
+**ITEM-24** · `minor` · przeczytane · utrzymane · S · `domain-item-c-projects-3`
+Proponujący zna swój publiczny projekt tylko z karty czatu: `projectsToldHere` szuka w `game.messages` tajnej karty GM-a z `PROJECT_KNOWN`, a wiersz GM-ów ma `proposerTold`, więc drugiej karty nie będzie. Wyczyszczony dziennik czatu zabiera projekt z tacki i mapy na dobre; kopia wzroku, która przeżywa wyczyszczenie (`sightFor`), trzyma tylko projekty tajne. To droga, z której E101 R2 i Open 103 zdjęły wzrok i opis.
+Gdzie: `scripts/projects.mjs:338-342`, `:641-651` (`projectsToldHere`), `:661-669`, `:677-689`, `:2143`, `:322-327`; `scripts/projects-seen.mjs:159-176`.
+Scenariusz: Bea proponuje barykadę, GM zatwierdza ją w Bibliotece, do której uczeń Bei nigdy nie wszedł; na początku następnej sesji GM czyści dziennik czatu i tacka oraz mapa Bei przestają pokazywać jej projekt.
+
+**ITEM-25** · `minor` · przeczytane · utrzymane · S · `domain-item-c-projects-4`
+Lista Room w propozycji projektu podaje każdy pokój sceny, także te, do których gracz nigdy nie wszedł: `startProject` bierze `allRooms(scene)` bez filtra, choć w tym samym oknie oferta przejścia idzie przez `listenLabels` ("Unexplored room n"). Nazwy są w dokumentach regionów, które ma każda przeglądarka, więc konsola i tak je odczyta; tu podaje je interfejs.
+Gdzie: `scripts/action-project.mjs:192-203`, `:205-218`; `scripts/movement.mjs:3830-3832`.
+Scenariusz: pierwszego ranka gracz otwiera Work on project, potem Propose a project ("Zaproponuj projekt"), i czyta na liście Room "Morgue", "Hidden Lab" i każdy inny pokój szkoły, który mgła jeszcze chowa.
+
+**ITEM-26** · `minor` · przeczytane · utrzymane · S · `domain-item-c-projects-5`
+Show on the map ("Pokaż na mapie") naciśnięte przez GM-a, który nie jest głównym, pisze `projectMeta` w całości i stawia token w przeglądarce tego GM-a, poza kolejką głównego: `showProjectOnMap` pyta tylko `isGM`, `writeTokenRecord` to `serialWrite` tej przeglądarki, a `syncProjectToken` ma własną kolejkę na projekt. Każda inna droga do tokena projektu biegnie na głównym; notatka E36 e1-G5 zapisuje stratę, której ta kolejka miała zapobiec.
+Gdzie: `scripts/projects-map.mjs:746-753`, `:68-70`, `:592-599`; `scripts/projects-ui.mjs:598-605`; `scripts/projects-secrecy.mjs:308-314`.
+Scenariusz: drugi GM naciska Show on the map, gdy krok głównego zapisuje zmianę pokoju innego projektu: jeden z dwóch zapisów `projectMeta` ląduje na drugim i ginie albo pokój tamtego projektu, albo zapis tokena tego.
+
+| ID | Weryfikacja | Gdzie | Co |
+| --- | --- | --- | --- |
+| ITEM-27 | niesprawdzone | `scripts/palm.mjs:795-835`; `scripts/bridge-runs-acts.mjs:649-664`; `scripts/bridge-guards.mjs:1817-1820` | Plant przedmiotu, którego podkładający już nie ma, jest odpowiadany jak zrobiony: karta Palm mówi, że wynik przyjdzie za chwilę, akcja zostaje zapłacona, a wyniku nie ma. |
+| ITEM-28 | niesprawdzone | `scripts/inventory.mjs:843-847`, `:1371-1376`; `lang/en.json:3135`, `lang/pl.json:3333` | Szept o przepełnieniu podaje liczbę mnogą kategorii przedmiotu (`plural`), nie wspólnego limitu Gear (`capacityLabel`); polska linia dodaje "na tej scenie". Czwarte zdanie, które zostawiła poprawka ITEM-11. To samo: ITEM-41. |
+| ITEM-29 | niesprawdzone | `scripts/gm-items.mjs:1787-1798`, `:1805-1812`, `:430` | Okno Take bierze tytuł ("Take an item from {actor}", "Zabierz przedmiot postaci {actor}") z argumentu, a select "Take it from" można zmienić: tytuł mówi o innym uczniu niż ten, któremu się zabiera. Poprawka ITEM-13 objęła okna dawania, nie to. To samo: ITEM-40. |
+| ITEM-30 | niesprawdzone | `scripts/inventory.mjs:1211-1226`, `:1188-1206`, `:1121-1125` | Gałąź reguły kluczy odpowiada na nieudane usunięcie jak na czysty ruch (`ok`, `stuck` false), bez słowa do GM-ów; złodziej czyta, że wziął klucz, a klucz zostaje w skrytce. |
+| ITEM-31 | niesprawdzone | `scripts/use-items.mjs:884-997`, `:555-568` | Wyrzucenie zepsutej rzeczy ("Wyrzuć") nie czyta przedmiotu jeszcze raz po swoich dwóch oknach, jak od S08-35 robi użycie; ślad wyrzucenia może zostać dla rzeczy już w cudzej kieszeni. `sheet-119` zmienia `discardBroken`, ale `nit`ów nie dopasowywano (`lines-119.json`). |
+| ITEM-32 | niesprawdzone | `scripts/traps.mjs:33-39`, `:938-964`, `:749-751`, `:986-992` | Słuchacze pułapek nie zaczynają już od mapy uzbrojonych: każde przejście czyta najpierw dwa magazyny GM-a, a każdy zapis aktora zrzuca mapę; nagłówek mówi, że ten koszt nie jest płacony. Koszt niezmierzony. |
+| ITEM-33 | utrzymane | `scripts/gm-students.mjs:509-511`, `:623-626`, `:636-639`, `:652-663`; `scripts/death.mjs:521-549`; `lang/en.json` `DRPG.Panel.whoIsAliveNote` | Lista State w "Students" ("Uczniowie") ogłasza zachowaną śmierć i niszczy jej Truth Bullets, a notatka okna i kodu mówi o cichej naprawie z zachowanym ekwipunkiem; Apply o nic nie pyta. Samo ogłoszenie to Q3 właściciela. |
+| ITEM-34 | utrzymane | `scripts/echoes-gm.mjs:10-13`, `:56-62`, `:116-122`; `scripts/monokuma.mjs:45-47`, `:77-83` | Echoes liczy postać "Not in the class" ("Poza klasą") należącą do gracza jako żywego ucznia innego gracza; jak często gracz ma taką postać, nie wiadomo. |
+| ITEM-35 | utrzymane | `scripts/gm-panel.mjs:653-658`, `:975-980`, `:912-929`; `scripts/season-setup.mjs:268-300`, `:745`; `scripts/fog-diagnostics.mjs:845-905`; `scripts/gm-students.mjs:571-577` | Blok stanu w "GM panel" ("Panel GM-a") jest przebudowywany na każdy zapis aktora, przedmiotu i tokena w świecie, a każda budowa w Daily Life przechodzi całą listę sezonu. Czas klatki niezmierzony. |
+| ITEM-36 | utrzymane | `scripts/gm-panel.mjs:474-489`, `:599-619`; `lang/en.json` `DRPG.Tips.Sweep.Gm.panelSectionTooltip` | Panel GM-a zapomina rozwinięte sekcje za każdym razem, gdy kafel go przywraca (np. "Between sessions" ("Między sesjami") po Room setup). |
+| ITEM-37 | utrzymane | `scripts/gm-team-dialog.mjs:185-196`, `:349-353`; `scripts/assignments.mjs:131-156` | Split evenly ("Podziel po równo") w "Despair Flow" przepisuje od razu przypisanie każdego ucznia, bez pytania, w oknie, którego inne zmiany czekają na Save; Cancel tego nie cofa. |
+| ITEM-38 | utrzymane | `scripts/projects.mjs:1428-1431`, `:1814-1817`; `scripts/projects-secrecy.mjs:224`; `scripts/world-secrets.mjs:69-74` | Tajny projekt z akcją pokoju zapisuje przy ukończeniu `completedAt` w publicznym `projectMeta`, więc konsola widzi, że jakiś skończony tajny projekt daje gdzieś akcję pokoju. |
+| ITEM-39 | utrzymane | `scripts/projects-map.mjs:927-934`; `scripts/visibility.mjs:675`; `scripts/projects-tray.mjs:211` | Karta projektu u GM-a podaje w "Known by" gracza, którego mapa i tacka nie pokazują projektu od reguły as-last-seen. |
+| ITEM-40 | niesprawdzone | `scripts/gm-items.mjs:1790-1798` | Zob. ITEM-29 (ten sam defekt, z `old-1.2.42-items`). |
+| ITEM-41 | niesprawdzone | `scripts/inventory.mjs:843-847` | Zob. ITEM-28 (ten sam defekt, z `old-1.2.42-items`). |
+| ITEM-42 | niesprawdzone | `audit/AUDIT-1.2.42.md:632`, `:503` | Sekcja 9 starego raportu podaje dla zadania 13 commit 7e40243 ("D8: the first text pass, and the decisions recorded"), a zadanie 13 to b888c066; ITEM-12 i ITEM-13 stoją w liście zadania 10, a weszły commitem zadania 5 (e38d22a6). Błąd papieru, nie kodu. To samo: MAP-44, ROLL-36. |
+| ITEM-43 | niesprawdzone | `scripts/vault-store.mjs:123-129` | Komentarz mówi, że `drpgVaultConcealed` jest czytane tylko przez fallback `stashesIn`; czytają go też `unconcealStashes` (`:1063-1070`) i `pieceData` (`:1474`). |
+
+### 17.6 MAP
+
+30 pozycji (`blocker` 1, `major` 1, `minor` 10, `nit` 18): `domain-map-a-fog` (5 plików, 9813 linii), `domain-map-b-movement` (6, 8979), `domain-map-c-rooms` (14, 8616) i 3 nowe obserwacje `old-1.2.42-map`.
+
+**MAP-16** · `blocker` · przeczytane · utrzymane · S · `domain-map-c-rooms-1`
+Picker przekazania nazywa zabójcę, którego zasłania otwarcie: podczas welonu ofiara albo świadek w pokoju naciska Give ("Daj") i czyta na liście imię zabójcy. Welon od E112v nie pisze `hidden`, a `countsAsPresent` czyta tylko `hidden`, więc `othersInRoom` liczy zabójcę; `nameAsSeen` chowa imię tylko za maską (`masked`), nie za welonem (`veiled`), a bramka klienta zamyka tę drogę tylko w Eclipse. Odmowa GM-a (`transferRefusal`) przychodzi po narysowaniu listy; ten sam picker obsługuje Give i Share arkusza, Show the passage i `game.drpg.giveItemDialog`. Weryfikator podniósł z `major` na `blocker` (11.3: zdradza odpowiedź); żaden test tego nie przypina (R7404 i scenariusz 21 sprawdzają tylko maskę).
+Gdzie: `scripts/handover.mjs:46-69` (`askWhoIsHere`); `scripts/movement.mjs:3761-3772`, `:3781-3785`, `:3808-3816` (`countsAsPresent`); `scripts/mask-gm.mjs:120-124`, `:154-158` (`nameAsSeen`); `scripts/visibility.mjs:555-561`; `scripts/allowed-now.mjs:107-108`.
+Scenariusz: gracz Aiko, ofiara, nie widzi nikogo w Bibliotece, gdy otwarcie zabójcy czeka; naciska Give przy swoim notesie, a okno proponuje "Botan Kage" - zabójcę, którego jej ekran chowa i którego otwarcie z Hope schowałoby potem za "?".
+1.2.119: bez związku: `handover.mjs` nie jest w żadnej linii; `day-119` dodaje `maskedNow` obok `nameAsSeen`, nie zmieniając go, a `fog-119` zmienia `judgeArrival`, nie `countsAsPresent`.
+
+**MAP-17** · `major` · przeczytane · utrzymane · S · `domain-map-b-movement-1`
+Przejście Spectatora jest na głównym GM-ie liczone i zapisywane jak przejście ucznia, a karta czuwającego je nazywa: własna przeglądarka Spectatora nic nie zapisuje, ale na głównym `noteGmPosition` woła `judgeArrival`, gdzie `eclipseSighting` i `noteCrossing` pomijają tylko Monokumę (i Monocuba), więc przejście trafia do `crossingStore`, po 2 s idzie rozliczone przejście, a `onWatchCrossing` szepcze "{name} comes into {room}." z surowym imieniem. Wyjątek Spectatora w `auditMove` biegnie po sędzi i nic nie cofa; zachowana śmierć robi takiego obserwatora z imieniem ucznia (`death.mjs:203`). Weryfikator zostawił `major`: karta nie nazywa zabójcy, ale daje fałszywą obserwację ofiary po śmierci (alibi w Eclipse, oś czasu, podsumowanie czuwania); czy prawdziwe Foundry pozwala przeciągnąć ten token w nocnym Eclipse, nie odczytano.
+Gdzie: `scripts/movement.mjs:1103-1117` (`judgeArrival`), `:1187-1204` (`eclipseSighting`), `:1350-1363` (`noteCrossing`), `:1330-1343`; `scripts/crossing-settle.mjs:39-58`; `scripts/watch-gm.mjs:118-133` (`onWatchCrossing`).
+Scenariusz: w nocnym Eclipse ginie uczennica, GM-owie zachowują śmierć; jej gracz prowadzi Spectatora do Biblioteki, nad którą czuwa kolega, a karta czuwającego mówi "Aiko comes into Library." - uczennica, o której śmierci stół nie wie, widziana w ruchu po śmierci.
+1.2.119: `fog-119` naprawia (addresses, 0e359c53): token Spectatora omija werdykt, `eclipseSighting` i `noteCrossing`, więc nie ma wiersza ani rozliczenia dla `onWatchCrossing`; commit podaje scenariusz 93 "ghost" 18/19 czerwony na 19a04e88 i 19/19 zielony oraz R7863 - tu nie powtórzone; prawdziwe przeciągnięcie na v14 (LIVE-F119-02) niezmierzone.
+
+**MAP-18** · `minor` · przeczytane · utrzymane · S · `domain-map-a-fog-1`
+Ciało przeniesione do pokoju jest zapisywane jako odkrycie zmarłego ucznia: na głównym `reactToMove` pyta tylko o typ aktora i pokój, a `recordDiscovery` i `seedCells` nie pomijają zwłok (pomija je tylko strona widza, `isMine`), więc Move the Body ze Stage 6 zapala pokój. Zapis idzie przez `shareLedger` do wiersza ofiary i do łączonej mapy każdego Monocuba i Spectatora; u GM-a gra odsłona i dźwięk odkrycia.
+Gdzie: `scripts/fog.mjs:4326-4346` (`reactToMove`), `:1580-1627` (`recordDiscovery`), `:1691-1711` (`seedCells`), `:1906-1908`; `scripts/cleanup.mjs:1970`, `:1985`; `scripts/gm-stores.mjs:1876-1898`, `:1910-1935`.
+Scenariusz: Stage 6 zabójcy przenosi ciało ofiary do Biblioteki, do której nie wszedł jeszcze żaden uczeń: główny zapisuje Bibliotekę jako odkrytą przez ofiarę, a mapy każdego Monocuba, każdego Spectatora i mgła gracza ofiary od razu pokazują Bibliotekę pod welonem - tam, gdzie poszło ciało - a zapis GM-ów mówi, że ofiara tam była.
+1.2.119: bez związku: zmarła ofiara jest dalej uczniem dla `studentActors`, więc `ledgerRooms` z `fog-119` dalej liczy wiersz ciała; `reactToMove` i `recordDiscovery` bez zmian.
+
+**MAP-19** · `minor` · przeczytane · utrzymane · S · `domain-map-a-fog-2`
+Przejście Spectatora nie odkrywa pokoju, ale jego token stojący w pokoju jest wpisywany do rejestru przy następnym `canvasReady` głównego albo przy każdym tokenie postawionym na scenie: `seedCells` ("Same skips as recordDiscovery") pomija Mastermind i Monokumę, nie Spectatora. Pokój trafia do mapy Monocubów i do `ledgerRooms` GM-a; gdy flaga Spectatora schodzi z żywego ucznia, `forgetSpectatorMap` zostawia mu te pokoje.
+Gdzie: `scripts/fog.mjs:1691-1711`, `:1617-1619`, `:294-316`, `:325-330`, `:1381-1395`.
+Scenariusz: Chie z flagą Spectatora wchodzi do Hall, którego nikt nie odkrył; GM stawia Remnant na scenie: główny wpisuje Hall do wiersza Chie, mapa każdego Monocuba pokazuje Hall jako odkryty, a ekran GM-a gra jego odkrycie; gdy GM zdejmie flagę, uczennica Chie "odkryła" Hall.
+1.2.119: `fog-119` dotyka (touches, 2c87b5b9): `ledgerRooms` pomija nie-uczniów, więc wiersz Spectatora nie zapala już mapy GM-a; `seedCells` dalej wpisuje wiersz, mapy Monocubów nie idą przez `ledgerRooms`, a podręcznik mówi teraz, że postać przywrócona do uczniów odzyskuje swoje pokoje - dwie pozostałe awarie zostają.
+
+**MAP-20** · `minor` · przeczytane · utrzymane · S · `domain-map-a-fog-3`
+Obrys pokoju dalej podskakuje przy Reduced motion i przy `fogAnimations(false)`: `landOutline` przesuwa grupę obrysu do 0.9 pola po przekątnej przez 520 ms (`BOUNCE_MS`) i nie pyta o żaden przełącznik ruchu, a jedynym wyłącznikiem w `flashOutline` jest `quiet`, które ustawiają tylko przerysowania. Kurtyna, rozpuszczenie i dryf pytają `motionOff()`. Ciąg dalszy MAP-08.
+Gdzie: `scripts/fog-reveal.mjs:1235-1253` (`landOutline`, `BOUNCE_MS` w `:212`), `:1406-1407`, `:1461-1463`; `scripts/fog.mjs:4686-4690`.
+Scenariusz: gracz z włączonym Reduced motion wchodzi do Cafeteria: kurtyna nie gra, ale obrys skacze o pole w górę i w prawo i odbija się dwa razy.
+
+**MAP-21** · `minor` · przeczytane · utrzymane · S · `domain-map-b-movement-2`
+Odmowy weta o kluczu do sypialni i o pieczęci podają nazwę pokoju pod upuszczeniem, odkrytego czy nie i jakkolwiek dalekiego, zanim zapytana jest reguła połączonych pokoi: `restrictedFrom` biegnie przed `crossingRefused`, a jego dwie odmowy formatują `{room: to}` bez filtra mgły, który MAP-03 i E06 C11 dały zdaniu o braku połączenia. Przywrócenie u głównego wysyła graczowi tę samą nazwę (`markOf`).
+Gdzie: `scripts/movement.mjs:1726-1728`, `:1814-1815`, `:2079`, `:2098-2100`; `scripts/movement-audit.mjs:428-441`.
+Scenariusz: gracz przeciąga token z Hall na czarną plamę na drugim końcu mapy i czyta "The door to Aiko's Room is locked. You do not have that key." ("Pokój Aiko's Room jest zamknięty, a ty nie masz do niego klucza.") - nazwę i miejsce pokoju, którego nigdy nie odkrył.
+
+**MAP-22** · `minor` · przeczytane · utrzymane · S · `domain-map-b-movement-3`
+Barykada ustępuje każdemu, kto zna tajne przejście między tymi dwoma pokojami, także gdy idzie przez zabarykadowane drzwi: `passage` jest prawdą, gdy znane przejście łączy `from` i `to`, a `barricadedFrom` dostaje `passage ? "passage" : via` (gdy `restrictedFrom` dostaje poprawnie `passage && via === "passage"`). Nic nie jest odmówione, więc stuknięcie do autora barykady nie idzie, a sędzia głównego puszcza lądowanie.
+Gdzie: `scripts/movement.mjs:1726-1732` (`crossingVerdict`), `:2115-2124` (`barricadedFrom`).
+Scenariusz: Botan zna tajne przejście między Hall a Biblioteką; Aiko barykaduje drzwi Biblioteki przez Shut the Door; Botan idzie drzwiami, nie przejściem, barykada ustępuje, a Aiko się nie dowie, że ktoś próbował.
+
+**MAP-23** · `minor` · przeczytane · utrzymane · S · `domain-map-b-movement-4`
+Pokój przemianowany między zatwierdzeniem projektu przejścia a jego ukończeniem odrzuca ukończenie, a przy Secret Passage i Breach ("Wyłom") GM-owie czytają, że moduł nie umie powiedzieć dlaczego: zmiana nazwy przechodzi do wierszy przejść i do `meta.room`, nie do `passage.rooms` ani `target.room` projektu, a `passageRowFor` odpowiada szablonem, którego nie ma w `whyTable`. R983 czyta tylko dosłowne `refused: "..."`, więc tego nie trzyma.
+Gdzie: `scripts/passages-gm.mjs:1376-1385`, `:519-526`, `:641-658`, `:740`, `:1043-1061`; `scripts/fog.mjs:859-889`; `scripts/projects.mjs:1222`, `:1264`, `:1296-1298`.
+Scenariusz: GM zmienia nazwę Kitchen na Galley, gdy wypełnia się Secret Passage Botana między Hall a Kitchen; przy ostatnim Work nic nie powstaje, a karta GM-ów mówi "the module could not say why; the reason is in the GM's console" ("moduł nie umie powiedzieć dlaczego; powód jest w konsoli GM-a"), choć ściana stoi między tymi samymi dwoma pokojami.
+
+**MAP-24** · `minor` · przeczytane · utrzymane · S · `domain-map-b-movement-5`
+Główny GM czyta trasę Monocuba o większej liczbie przejść niż akcji jako odmówioną, choć Monocub nic nie płaci: `refusedOnPrimary` liczy budżet bez `crossesFree` i bez flagi Monocuba, a każda inna droga ceny przejścia je pyta. `route.stands` jest wtedy false, więc przejścia, które GM pozwolił zachować "until it leaves", nie są odbierane, a przejście głosowe głównego czeka do zapasowego terminu.
+Gdzie: `scripts/movement.mjs:3116-3122` (`refusedOnPrimary`), `:3089-3099` (`judgeMove`), `:1976-1978` (`crossesFree`), `:2767-2770` (`chargeRoute`).
+Scenariusz: Monocub bez akcji idzie jednym przeciągnięciem z Hall przez Corridor do Gym: trasa stoi na ekranie gracza, ale główny czyta ją jako odmówioną, więc przejście, które GM pozwolił mu znać do wyjścia z Hall, zostaje znane, a pokój głosowy idzie za nim dopiero przy zapasowym terminie.
+
+**MAP-25** · `minor` · przeczytane · utrzymane · S · `domain-map-b-movement-6`
+Refund the last crossing ("Zwróć ostatnie przejście") w "Students" ("Uczniowie") stawia token z powrotem na starcie przejścia, gdziekolwiek token stoi i jakkolwiek stare jest przejście: `crossingStore` nie wygasa, przesunięcie GM-a nie zapisuje przejścia, a zwrot pisze token na `row.back` z `ignoreWalls`, nie pytając, gdzie stoi. Podpowiedź przycisku nazywa dwa pokoje, nic o czasie.
+Gdzie: `scripts/movement.mjs:1407-1445` (`refundLastCrossing`), `:1418-1421`; `scripts/gm-students.mjs:293-300`.
+Scenariusz: gracz przechodzi rano z Hall do Biblioteki, wieczorem GM przeciąga jego token do Gym; GM naciska Refund the last crossing, myśląc o świeżym kroku, a token skacze z Gym na miejsce w Hall, które opuścił rano.
+
+**MAP-26** · `minor` · przeczytane · utrzymane · S · `domain-map-c-rooms-3`
+Liczniki przeszukań każdego pokoju w tej porze dnia są ustawieniem świata, które ma każda przeglądarka: `searchTokens` ze `scope: world`, kluczem `sceneId::room`, pisany przy każdym wydaniu. `WORLD_SECRET_RULES` nie ma dla niego wiersza (przejścia Eclipse wyjęto ze świata z tego samego powodu, E05 C4), `audit/harness/known-leaks.json` go nie wymienia, a żadna decyzja w `docs/` nie mówi, że to publiczne. Interfejs pokazuje graczowi tylko licznik jego pokoju.
+Gdzie: `scripts/settings.mjs:3433-3440`; `scripts/search-tokens.mjs:7-10`, `:92-95`, `:334-346`; `scripts/world-secrets.mjs:67-110`.
+Scenariusz: w Daily Life gracz wpisuje jedną linię w konsoli i widzi Kitchen na 1 z 3 i Storage room na 2 z 3 na piętrze, na którym nie był - ktoś przeszukał oba tego popołudnia - zanim znaleziono jakiekolwiek ciało.
+
+**MAP-27** · `minor` · przeczytane · utrzymane · S · `domain-map-c-rooms-4`
+Runda gotowości zostawiona przez GM-a, który się rozłączył, jest kończona jako `stop` w trakcie incydentu przy naciśnięciu następnego GM-a, a każdy pytany gracz czyta "The GM is waiting a little longer." ("GM jeszcze chwilę poczeka."): `openRoundOnPrimary` ustawia `ended: "stop"` z `cleared` przed `roundAllowed` i zapisuje to niezależnie od odpowiedzi. Poprawki E37 FG1b i FG1c wyjęły dokładnie ten sygnał czasu ze startu incydentu i z zablokowanego "go".
+Gdzie: `scripts/boundary.mjs:336-354` (`openRoundOnPrimary`), `:551-558` (`renderReadyRound`), `:47-62`.
+Scenariusz: GM A pyta graczy przed następną porą dnia i odpada; w Gym zaczyna się morderstwo; GM B naciska przejście do następnej pory dnia i każdy świadek, któremu okno rundy jeszcze stało, widzi w tej chwili "The GM is waiting a little longer", choć jego zegar nic nie pokazuje.
+
+| ID | Weryfikacja | Gdzie | Co |
+| --- | --- | --- | --- |
+| MAP-28 | niesprawdzone | `scripts/fog.mjs:3110`, `:3168-3169`, `:3173` wobec `:3183-3186`, `:2550` | Ostatni powód `diagnoseFog` jest w języku strony, gdy mgła ustępuje, a po angielsku, gdy maluje ("painted: 12 fogged, 3 veiled, 1 clear" obok polskich linii). |
+| MAP-29 | niesprawdzone | `scripts/fog-reveal.mjs:962-969`, `:1105`, `:365-370` wobec `:845-862` | Światło linii odsłony i pieczone światło pierścieni dalej rozmywa się o sześć szwów, co rośnie przy oddaleniu; S07-34 naprawił to tylko dla stałego obrysu. |
+| MAP-30 | osłabione (podejrzenie; z `minor`) | `scripts/fog.mjs:4305-4323`, `:4340-4342`; `scripts/movement.mjs:253-264`; `scripts/projects-seen.mjs:357-373` | Ruch bez czekających punktów trasy jest czytany na głównym dwa razy (zapisane celowo w scenariuszu 86), a wstrzymana karta "passage finished" może pójść dwa razy, gdy pierwsze wysłanie trwa dłużej niż cały ślizg plus 250 ms; czasu tworzenia wiadomości przy stole nikt nie zmierzył. |
+| MAP-31 | niesprawdzone (podejrzenie) | `scripts/fog.mjs:294-316`, `:4414-4431`, `:4553-4563`, `:3356-3359` | Oglądanie innego piętra gra dźwięk wejścia do pokoju, a po powrocie na piętro prowadzącego podskok obrysu i nazwę, choć nikt się nie ruszył. |
+| MAP-32 | niesprawdzone | `scripts/settings.mjs:3109-3111`; `scripts/fog.mjs:1115-1118`, `:994-1001`, `:936-937`, `:966-992` | Wyłączenie mgły pokoi przywraca każdą scenę raz na każdego połączonego GM-a, a włączenie robi tylko główny. |
+| MAP-33 | niesprawdzone | `scripts/fog.mjs:3107`, `:3157`, `:1858-1866`, `:1901-1905`, `:4452-4458` | Przy Monokumach dwóch GM-ów obrys GM-a zostaje wokół pokoju, który jego Monokuma opuścił, gdy stoi tam Monokuma drugiego GM-a. |
+| MAP-34 | niesprawdzone | `scripts/fog.mjs:3014`, `:3425-3457`, `:3465-3499` | Przyciski przełącznika pięter są budowane od nowa 100 ms po każdym przemalowaniu, zmienionym czy nie; fokus na przycisku "Attic" spada na stronę. |
+| MAP-35 | niesprawdzone | `scripts/fog.mjs:3088-3089`, `:3109`, `:325-330`, `:350-353` | Każde przemalowanie przechodzi wielokąty każdego pokoju dla kontrolek drzwi przed skrótem "unchanged", przy każdym tokenie utworzonym albo usuniętym gdziekolwiek. Ciąg dalszy MAP-13; koszt niezmierzony. |
+| MAP-36 | niesprawdzone | `scripts/fog.mjs:705-711` wobec `:629-647` | Pokój zmieniony przez aktualizację sceny przemalowuje mgłę, ale zostawia stały obrys i pokoje widza takie, jakie były. |
+| MAP-37 | niesprawdzone | `scripts/fog.mjs:836-845`; `lang/en.json` `DRPG.Rooms.renamed` | Szept GM-ów o zmianie nazwy pokoju pomija przeniesione zapisy tajnych przejść, a zmiana, która przeniosła tylko je, nic nie mówi. |
+| MAP-38 | niesprawdzone (podejrzenie) | `scripts/movement.mjs:2752`, `:3332-3366`; `scripts/actions.mjs:346-348` | Dwa szybkie przeciągnięcia na przeglądarce właściciela mogą oba przeczytać Free Move, zanim pierwsze wydanie dojdzie; druga połowa MAP-LC3, dalej otwarta. |
+| MAP-39 | osłabione (z `minor`) | `scripts/room-setup.mjs:948-955`, `:1240`, `:297-299`, `:310-311`, `:318-320`, `:984-985` | "Room setup" ("Ustawienia pokoi") pokazuje każdy nazwany region, a wiersz, z którego żaden kawałek nie może być pokojem, ma czynne pola, których Apply nie zapisuje. Osłabione: komunikat Apply podaje liczbę zmienionych pokoi (0), a podpowiedź wyłączonego przełącznika podaje powód; nic nie ginie ani nie jest źle zapisane. |
+| MAP-40 | utrzymane | `scripts/search-tokens.mjs:366-382`, `:396-401`, `:329-349`; `scripts/utils.mjs:409-415`; `scripts/clock.mjs:377`, `:815` | Kolejka liczników przeszukań trzyma tylko na jednej przeglądarce: uzupełnienie albo krok Room setup zapisany przez GM-a, który nie jest głównym, może nadpisać świeże wydanie głównego albo je przywrócić. Okno to jedna runda. |
+| MAP-41 | osłabione | `scripts/room-setup.mjs:773-790`, `:1333`; `scripts/room-tile.mjs:650-655`, `:664-689` | Room setup sprawdza każdy obraz pokoju naraz przy każdym otwarciu, raz na pokój, nie na ścieżkę. Osłabione: okno i tak rysuje każdy obraz jako miniaturę, więc pobranie i dekodowanie biorą się z miniatur; sonda dodaje HEAD na pokój. Zachowanie pamięci podręcznej nieodczytane. |
+| MAP-42 | osłabione (podejrzenie) | `scripts/room-setup.mjs:840-849`, `:871-886`; `scripts/room-tile.mjs:28-30`; `docs/dev/R-REGISTRY.md:1432` | Wstrzymany Apply w Room setup wkłada nieescapowane imię ucznia do podpowiedzi Foundry przez pusty `data-tooltip` i `aria-label`, drogą, której R4764 zabrania. Osłabione: co robią z tym `TooltipManager` i `cleanHTML` Foundry i czy wyłączony przycisk w ogóle podnosi podpowiedź, nie odczytano. |
+| MAP-43 | niesprawdzone | `docs/dev/e58/LOCAL-REPORT.md:419` | Odczyt MAP-02 z prawdziwego Foundry mówi "hidden in the corridor" o próbce, która leży w opuszczonym pokoju (x 588, środek 638 w Dorm A, 200-800); obie próbki otaczają korytarz, żadna w nim nie jest. |
+| MAP-44 | niesprawdzone | `audit/AUDIT-1.2.42.md:632` | Zob. ITEM-42 (ten sam błąd papieru, z `old-1.2.42-map`). |
+| MAP-45 | niesprawdzone | `scripts/visibility.mjs:499-507` | Komentarz nad regułą ślizgającego się sprite'a mówi więcej niż jego linia: `at &&` trzyma sprite tylko w cudzym pokoju, poza pokojami zostawia go Foundry (tak od 8d24e215). |
+
+### 17.7 ROLL
+
+19 pozycji (`minor` 10, `nit` 9): `domain-roll-a-draw` (7 plików, 8406 linii), `domain-roll-b-actions` (20, 9080) i 5 nowych obserwacji `old-1.2.42-rolls`.
+
+**ROLL-18** · `minor` · przeczytane · utrzymane · S · `domain-roll-a-draw-1`
+Przeszkadzający Call jest rzucany i zużywany w rzutach wspierających Pick the Lock, Tail Someone i Take from the Body u GM-a, choć okno rzucającego i droga samego GM-a je osłaniają: `rollTrait` osłania każdy rzut `remember: false` poza otwarciem, więc okno i pakiet nie niosą Calla, a na głównym `hostileCalls` zwraca `[]` tylko dla klucza z `SPENDS_NO_CALL`, gdzie jest sam "palm". Każdy Call nałożony ponad 60 s (`HOSTILE_GRACE`) wcześniej idzie do rzutu wspierającego, `checkRoll` flaguje uczciwy rzut, a Call znika przed rzutem akcji, na który go kupiono.
+Gdzie: `scripts/roll-draw.mjs:1857` (`SPENDS_NO_CALL`), `:1865-1869` (`hostileCalls`), `:1673-1675`, `:1715-1716`; `scripts/action-pipeline.mjs:155-157`; `scripts/action-doors.mjs:143`; `scripts/action-tail.mjs:81`; `scripts/anonymity.mjs:546`, `:561`.
+Scenariusz: Monokuma kupuje Obstacle na Aiko; dwie minuty później Aiko otwiera zamek przy świadku w pokoju: okno osłony nie pokazuje utrudnienia, GM rzuca osłonę z utrudnieniem i szepcze GM-om, że rzut "did not match", a następny rzut Hand przy zamku idzie bez Obstacle.
+
+**ROLL-19** · `minor` · przeczytane · utrzymane · S · `domain-roll-a-draw-2`
+Przy wyłączonym "Lock the roll window for players" ("Zablokuj graczom okno rzutu") okno daje uczniowi statystykę, Experiences i pole premii, a losowanie GM-a nie liczy żadnej z nich: od E29 C10 główny rzuca własną listę (Experience tylko przy kupionym Experience Call, premia przycięta do zakresu efektów). Każde użycie jest flagowane GM-om i podawane rzucającemu jako niepoliczone, a podpowiedź przełącznika opisuje tylko stan włączony.
+Gdzie: `scripts/roll-dialog.mjs:351-401` (notatka `:366-370`); `scripts/roll-draw.mjs:1517-1536` (`scoredOf`), `:2414-2427` (`checkRoll`), `:1621-1638` (`rollerLine`); `scripts/settings-window.mjs:91`.
+Scenariusz: GM wyłącza blokadę, żeby gracze sami prowadzili okna; graczka zaznacza Experience pasujące do jej Search i rzuca: okno pokazało +2, karta pokazuje sumę bez niego, ona czyta "not counted: modifier +2", a GM-owie dostają flagowany rzut uczciwej graczki.
+
+**ROLL-20** · `minor` · przeczytane · utrzymane · S · `domain-roll-a-draw-3`
+Diagnostyka wyglądu kości u gracza czyta najnowszy rzut w dzienniku, także ukryty rzut innego ucznia, i pokazuje jego autora i kości w oknie, które prosi o przesłanie tego GM-owi: `rollMessage` filtruje gracza tylko po `m.visible !== false`, a `ChatMessage#visible` odpowiada true dla każdej szeptanej wiadomości z rzutem (moduł chowa takie karty tylko przez `isContentVisible`).
+Gdzie: `scripts/dice-look.mjs:325-329` (`rollMessage`), `:365-378`, `:476-480`, `:512`.
+Scenariusz: GM prosi każdego gracza o `game.drpg.diagnoseDiceLook()` po Meddle Monocuba w kuchni; graczka w bibliotece czyta "The roll read: <gracz Monocuba> - hope d12 ..." o rzucie, którego karta jest przed nią ukryta.
+
+**ROLL-21** · `minor` · przeczytane · utrzymane · S · `domain-roll-a-draw-4`
+Gracz, który przeładuje stronę, gdy GM losuje jego statystykę z arkusza, nigdy nie zobaczy karty tego rzutu: rzucający czyta ją przez `drawsAwaited` (pamięć) i przez `readHere(..., { keep: true })` dopiero przy odpowiedzi w `playBack`; po przeładowaniu `refillReadable` czyta tylko zachowane id, a `relayDrawnDice` pomija rzucającego. GM już zapisał krok Hope albo Fear. Szerzej: rzut akcji w tym oknie zostawia jej przebieg martwy na przeładowanej przeglądarce z pobraną zapłatą.
+Gdzie: `scripts/roll-draw.mjs:595-621` (`playBack`); `scripts/private-rolls.mjs:1547-1556`, `:1581-1592`, `:1594-1606`, `:1790`.
+Scenariusz: GM prosi o reakcję Body; graczka klika, a jej karta przeglądarki przeładowuje się, gdy GM czeka na audyt; wraca do dziennika bez karty tego rzutu i rzuca jeszcze raz.
+1.2.119: bez związku: `sheet-119` dodaje w `playBack` tylko `noteThrow`; `readHere` i `keep` nietknięte.
+
+**ROLL-22** · `minor` · przeczytane · utrzymane · S · `domain-roll-b-actions-1`
+GM grający ucznia przez wiersze Infiltrate dostaje zły wynik: lokalny klient GM-a dostaje całą odpowiedź handlera, `{ reply: {...} }`, a wiersze czytają pola z jej wierzchu (`res.value?.moves`, `?.forced` i inne są `undefined`); gracz dostaje `out.reply`. Dash mówi "0 free crossings", Echoes nikogo nie słyszy, Force the Door i Pick the Lock mówią "Nothing holds the door", nawet gdy ustąpiły, a Keep Watch odmawia przy utrzymanym czuwaniu.
+Gdzie: `scripts/bridge-guards.mjs:1947-1948` (lokalnie) wobec `:1819` (gracz); `scripts/bridge-runs-acts.mjs:188`, `:204`; czytający `scripts/action-listen.mjs:278`, `:290-291`, `:323-325`, `:355-358`, `scripts/action-doors.mjs:41-44`, `:91-96`, `:152-157`, `scripts/action-watch.mjs:205-208`, `scripts/action-tail.mjs:255-258`.
+Scenariusz: GM, grając NPC-ucznia z jego arkusza, wyważa zabarykadowane drzwi z wynikiem 19; drzwi ustępują na mapie, a karta GM-a mówi "Nothing holds the door to Library".
+
+**ROLL-23** · `minor` · przeczytane · utrzymane · S · `domain-roll-b-actions-2`
+Reroll Force the Door, który drzwi nie wyważył, uruchamia całą próbę jeszcze raz: `settleForce` woła `forceDoor` z nowym wynikiem, a `forceDoor` nie ma parametru `tell`, więc znowu mówi pokojom i zostawia drugi Remnant jednej próby. `pickLock` dostał `tell` dokładnie na powtórkę Rerolla, `forceDoor` nie.
+Gdzie: `scripts/infiltrate-reroll.mjs:83-96` (`settleForce`); `scripts/doors-gm.mjs:157-198` (`forceDoor`; `tellRooms` `:179-191`, `leaveDoorTrace` `:195`) wobec `pickLock` `:205-237`.
+Scenariusz: uczeń nie wyważa zamkniętych drzwi z 9, kupuje Reroll i ma 11, dalej pudło: kolega w pokoju dostaje dwa razy "Aiko tries to force the door to Library", a śledztwo znajduje potem dwa Remnanty jednej próby przy tych drzwiach.
+
+**ROLL-24** · `minor` · przeczytane · utrzymane · S · `domain-roll-b-actions-3`
+Rerollowany Keep Watch gubi Despair rzutu: `settleInfiltrate` liczy `withHope` i przekazuje go Force i Pick, ale nie `settleWatch`, a `declareWatch` ma domyślnie `withHope = true`. Znacznik Sanity pierwszego rzutu zostaje, gdy Reroll się uda, a Reroll w pudło z Despair nic nie kosztuje; nagłówek pliku mówi, że "a watch kept or let go" jest zastępowane.
+Gdzie: `scripts/infiltrate-reroll.mjs:26`, `:33`, `:127-137`; `scripts/watch-gm.mjs:60`, `:69-75`.
+Scenariusz: uczeń pudłuje Keep Watch z Despair i dostaje znacznik Sanity, kupuje Reroll i utrzymuje czuwanie z 15: czuwanie stoi, a znacznik za pudło zostaje na arkuszu.
+
+**ROLL-25** · `minor` · przeczytane · utrzymane · S · `domain-roll-b-actions-4`
+Reroll Work on project oddaje akcję na podstawie twierdzenia samego rzucającego: `refunded` i `burst` to twierdzenia (`ROLL_CLAIMS.project`), których nie trzyma żaden fakt GM-a, a drugi `roll.bookmark` w ciągu minuty je przepisuje (`guardRollAuthor`, `keepGmBookmark`). `settleActionRefund` porównuje twierdzone `refunded` z krytykiem nowego rzutu i oddaje akcję (albo Burst) bez spojrzenia na kredyt zapłaty, który trzymają GM-owie; `relief` i `bonus` są od r2-H3 trzymane, te dwa nie.
+Gdzie: `scripts/action-pipeline.mjs:534`, `:676-690`; `scripts/reroll.mjs:1208`, `:2081-2100` (`settleActionRefund`); `scripts/actions.mjs:243-254`; `scripts/action-project.mjs:594-597`.
+Scenariusz: gracz, którego Work wyrzucił krytyk (akcja wraca), wysyła z konsoli jeszcze raz bookmark tego rzutu z `refunded` false, wydaje 3 Hope na Reroll i znów ma krytyk: klient GM-a daje postaci drugą akcję za jeden rzut.
+1.2.119: bez związku: `sheet-119` nie zmienia `settleActionRefund`.
+
+**ROLL-26** · `minor` · przeczytane · utrzymane · S · `domain-roll-b-actions-5`
+Cztery zapisy GM-a, które Reroll robi w sakiewce ucznia, dalej czytają ją z dokumentu, nie tak, jak trzymają ją GM-owie: `takeBackRefund`, `grantFreeActions` i `grantFreeMoves`, zdjęcie przejść Dash i znacznik Sanity w `declareWatch` liczą z dokumentu, choć `refundAction` obok używa `meansWrite`, a każdy z tych kluczy jest w `LEDGER` audytu. Ta sama klasa co ITEM-19 i DESP-26 (E29 r2-H24).
+Gdzie: `scripts/actions.mjs:267-280` (`takeBackRefund`), `:134-144`; `scripts/reroll.mjs:2089-2097`; `scripts/infiltrate-reroll.mjs:47`, `:49-50`; `scripts/watch-gm.mjs:72-74`.
+Scenariusz: gracz zapisuje z konsoli 5 akcji na swoim arkuszu i od razu kupuje Reroll, który traci krytyk Work: odebranie na głównym zapisuje 4, liczone z 5, zanim dojdzie cofnięcie zapisu z konsoli, i uczeń zostaje z dwiema akcjami, których stół nie dał.
+
+**ROLL-27** · `minor` · przeczytane · niesprawdzone · S · `old-1.2.42-rolls#obs1`
+Reroll Search jest trzymany twierdzenia rzucającego, że token wzięto, nie własnego znaku GM-ów: pierwsze znalezisko stoi tylko na Search, który główny oznaczył `tokenSpentAt` (`sheet-audit.mjs:2326`), a powtórka pyta tylko `bookmark.claimed === false`, które drugi `roll.bookmark` może przepisać w ciągu minuty (`guardRollAuthor`, `bridge-guards.mjs:1169-1185`). Pakiet wysłany z konsoli gracza zmienia więc odmówiony Search w losowanie z tabeli pokoju za 3 Hope, bez wydanego tokena. Nowa obserwacja czytającego stare pozycje, przeczytana w źródle, nieuruchomiona i niesprawdzona przeciwnie; ta sama klasa co ROLL-25.
+Gdzie: `scripts/reroll.mjs:1240-1245`, `:1337-1351`; `scripts/action-pipeline.mjs:532`, `:677-690`; `scripts/search-tokens.mjs:180-185`.
+Scenariusz: czytający go nie zapisał; z opisu: gracz, któremu Search odmówiono, wysyła z konsoli bookmark z `claimed` false, kupuje Reroll za 3 Hope i dostaje losowanie z tabeli pokoju bez wydanego tokena.
+
+| ID | Weryfikacja | Gdzie | Co |
+| --- | --- | --- | --- |
+| ROLL-28 | utrzymane | `scripts/roll-draw.mjs:2915-2930`, `:3034-3056`; `scripts/module.mjs:421` | Karta GM-ów z rzutami bez GM-a jest wysyłana od nowa przy każdym `ready` głównego, dopóki któryś stoi nierozstrzygnięty, a kopia drugiego GM-a trzyma czynne przyciski po decyzji głównego (Grant all ("Przyznaj wszystkie") na starej karcie nic nie robi). |
+| ROLL-29 | utrzymane | `lang/en.json` `DRPG.Rolls.unexpected`; `scripts/roll-draw.mjs:2414-2427`, `:2456-2463` | Szept GM-ów o flagowanym rzucie mówi "These parts did not count" także o kości albo premii, którą GM rzucił, a okno jej nie miało. Zawężone: tylko tekst angielski; polski ("a różnice tylko zapisuje") jest dobry w obu kierunkach. |
+| ROLL-30 | osłabione | `scripts/dice-sync.mjs:214-216`, `:957-976`, `:290-292`, `:408-417` | Na głównym każdy zapis flagi aktora poniżej pełnego Gamemastera planuje przywrócenie wyglądu kości i porównanie przełączników. Osłabione: tylko z aktywnym Dice So Nice i przy wymuszonym wyglądzie; bezwarunkowe planowanie łapie też zapis `-=dice-so-nice` (LIVE-E30-01), więc proponowana zmiana nie jest bezpieczna. Koszt niezmierzony. |
+| ROLL-31 | utrzymane | `scripts/action-tamper.mjs:45`, `:130-134`, `:146-153`; `scripts/action-listen.mjs:75-78` | Przycisk menu Tamper mówi Roll ("Rzuć") także przy wierszach Reshape a Trace i Body, które najpierw otwierają własne okno; reguła E100 punkt 6 każe wtedy Next ("Dalej"). |
+| ROLL-32 | utrzymane | `scripts/action-murder.mjs:376-385`; `scripts/action-menus.mjs:513-537` | Direct Murder czyta odpowiedź `promptForNote` jako obiekt; przy jednej statystyce otwarcia byłby to tekst i zdanie zabójcy by przepadło. Dziś `MURDER_OPENING.killer.traits` ma dwie (`config.mjs:3686`), więc to uśpione. |
+| ROLL-33 | niesprawdzone (podejrzenie) | `scripts/messenger-app.mjs:1373-1381` | Odrzucony Direct Murder oddaje jedną akcję, czymkolwiek był opłacony (`refundAction(actor, 1)` bez pokwitowania), więc Burst wraca jako zwykła akcja; czy reset po Eclipse czyni to bez znaczenia, nie ustalono. |
+| ROLL-34 | niesprawdzone | `scripts/stash-reach.mjs:557-558` | Komentarz w `stealFromVault` podaje powód (karta Search po sięgnięciu do skrytki, ROLL-10), który odszedł z 1.2.112; sam szept, który objaśnia, jest dalej dobry. |
+| ROLL-35 | niesprawdzone | `rules/code.md` w folderze agenta, linia 51; `scripts/action-rolls.mjs:78-82` | Plik reguł agenta dalej mówi, że `NEEDS_OWN_BRIEFING` żyje w `action-rolls.mjs`; odszedł razem z oknem i żaden plik modułu go nie deklaruje. Zapisane już w `docs/dev/e100/STATUS.md:95`. |
+| ROLL-36 | niesprawdzone | `audit/AUDIT-1.2.42.md:632` | Zob. ITEM-42 (ten sam błąd papieru, z `old-1.2.42-rolls`). |
+
+
+Te cztery podsekcje zamykają przebieg K2 dla dwóch ostatnich domen oryginału, wygląd i okna (UI) oraz treść (TEXT), dają wynik przebiegu K6 (cztery tabele sekcji 3 raportu 1.2.42 powtórzone na dzisiejszych plikach językowych i `config.mjs`), zbierają pozycje DOC (podręczniki, papiery i komentarze kontra kod) i jedną pozycję TEST z tury bazowej K0. Trzech czytających UI (`domain-ui-a-glass`, `domain-ui-b-kit-hud`, `domain-ui-c-sheet`) przeczytało od początku do końca **30 plików, 26 268 linii** (7/8727, 13/7725, 10/9816, sumy z ich `count_note`, zgodne z `wc -l`). Trzech czytających TEXT: `domain-text-a-config` (`config.mjs`, 5646 linii w całości, 553 zdania prozy przejrzane skryptem), `domain-text-b-lang` (47 wierszy tabel 3.1-3.4, próbka 196 kluczy z liczbami, skan treści GM-only) i `domain-text-c-terms` (`lang/en.json` 7534 linii / 6369 kluczy i `lang/pl.json` 9375 / 7456 skryptem w całości, do tego literały kluczy w 258 skryptach, 226 540 linii). Pozycje DOC to w całości nowe obserwacje pięciu czytających, którzy rozliczali stare pozycje; samo rozliczenie starych ID jest w sekcji 13. W `master.json` jest **66 pozycji** z przedrostkami UI, TEXT i DOC (UI 23, TEXT 22, DOC 21), a z TEST-01 **67**. Wagi: `blocker` 0, `major` 2, `minor` 12, `nit` 53. Dwie pozycje powtarzają defekt innej (UI-37 = UI-35, DOC-21 = DOC-13), więc odrębnych defektów jest 65: `major` 2, `minor` 12, `nit` 51; UI-25 to ten sam defekt co STG-04 z sekcji 14 i liczę go tutaj. Wagi zmienione w weryfikacji: UI-17 z `minor` na `major` (D-A1: powierzchnia wciąż na regule 1 `keepLive`), TEXT-22 z `minor` na `nit`. Żadna pozycja nie została obalona, więc nie ma linii "wycofane".
+
+Weryfikacja: `master.json` podaje utrzymane 34, osłabione 2 (UI-23, UI-29), niesprawdzone 30. Przy jedenastu nowych obserwacjach połączenie w `master.json` nie trafiło w werdykt, który jest w plikach weryfikacji (odnośniki `new_observations[0]`, `obs-1` i podobne): DOC-01 i DOC-02 (`verify-first-session/old-1.1.88-1.2.13-A.json`), DOC-09..11 (`verify-old-1.2.13-B-livefindings.json`), DOC-12..14 (`verify-old-1.2.13-C-H.json`) i TEXT-39, TEXT-41 są tam utrzymane, TEXT-40 osłabione (`verify-old-1.2.42-text.json`). Piszę werdykty z plików weryfikacji: utrzymane 44, osłabione 3, niesprawdzone 19 (UI-33, UI-35..39; DOC-03..08, DOC-15..21) plus TEST-01, który jest pomiarem bez weryfikacji przeciwnej. Pewność: przeczytane 56, zmierzone 8 (DOC-05..08 z odczytów Foundry 14.370, DOC-15, DOC-19, DOC-20 policzone skryptem po źródle, TEST-01), podejrzenie 3 (UI-23, DOC-18, DOC-21). Klasa dowodu: S, poza DOC-05..08 (F: zapisy z gałęzi `claude/e58-local`, `7875554f`) i TEST-01 (H).
+
+Czego nie zmierzono: czytający niczego nie uruchomili poza skryptami po źródle i plikach językowych, a `base-run.json` nie istniał, gdy pisali, więc testy nazwane w ich plikach są nazwane ze źródła, bez wyniku. Fakty układu (czy "Zamknij na klucz" łamie wiersz, TEXT-37; czy podłoga 0,68 dopasowania kafli jest osiągana, 3.3-09; szerokość okna po naciśnięciu karty, UI-23) i czas ładowania fontów (UI-27) wymagają stołu albo Chromium. `lines-119.json` ma wpis dla dwóch pozycji tej sekcji: dotyka (touches) UI-17, bez związku UI-22; przy pozycjach bez wpisu nie piszę linii 1.2.119.
+
+### 17.8 UI
+
+23 pozycje (`major` 1, `minor` 8, `nit` 14): `domain-ui-a-glass` (7 plików, 8727 linii: rodzina `glass*`, `chrome.mjs`, `eclipse.mjs`, `sequence.mjs`), `domain-ui-b-kit-hud` (13, 7725: `ui-kit.mjs`, `live.mjs`, `overflow.mjs`, `hud.mjs`, `hud-elapsed.mjs`, `player-status.mjs` i siedem mniejszych), `domain-ui-c-sheet` (10, 9816: rodzina `sheet*`) i 4 nowe obserwacje `first-session/old-1.2.42-ui`.
+
+**UI-17** · `major` · przeczytane · utrzymane · S · `domain-ui-b-kit-hud-1`
+Na karcie "Music" ("Muzyka") okna "Sound" ("Dźwięk") select, który po wyborze zostaje z fokusem, wstrzymuje przerysowanie całego regionu `.drpg-music-map`: `isEditing` liczy każdy SELECT z fokusem jako pisanie, bez sprawdzenia, czy lista jest otwarta, a jedyna inna pobudka to `focusout` poza region; `wireMusicMap` zapisuje na `change` i niczego nie zdejmuje z fokusu. Weryfikator podniósł z `minor` na `major` według D-A1 (powierzchnia wciąż na regule 1); test tieru 2 E44-T2 przypina to wstrzymanie jako zamierzone, więc poprawka zmienia też ten test.
+Gdzie: `scripts/live.mjs:375-382` (`isEditing`), `:157-163`, `:231-241`; `scripts/sound-panel.mjs:446-451`, `:247-253`.
+Scenariusz: dwóch GM-ów ma otwartą kartę Music; GM A wybiera playlistę dla Daily Life i zostawia tam mysz, GM B przypisuje wiersz Class Trial, a okno A pokazuje starą playlistę procesu, dopóki A nie kliknie poza wierszami.
+1.2.119: dotyka: `claude/plan-119` dodaje do `keepLive` opcjonalne `whileEditing`, ale `keptFocus` celowo dalej wstrzymuje przerysowanie przy SELECT z fokusem, a `sound-panel.mjs` opcji nie włącza; znalezisko zostaje.
+
+**UI-18** · `minor` · przeczytane · utrzymane · S · `domain-ui-a-glass-1`
+Szept otwierający Eclipse podaje postaci liczbę przejść stołu, nie jej własną: pętla szeptu czyta jedno `allowance` z `eclipseAllowance()` sprzed pętli, a każdy inny odczyt liczby postaci (`movesLeft`, tabela rozmieszczenia, sędzia, licznik przejścia) pyta `eclipseAllowanceFor`, który dodaje `timedCrossingsOf(actor.id)`, przejścia dane przez akcję pokoju.
+Gdzie: `scripts/eclipse.mjs:356-357`, `:374-384` (szept), `:85-88` (`eclipseAllowanceFor`).
+Scenariusz: gracz, którego uczeń użył udogodnienia dającego dwa dodatkowe przejścia w Eclipse, czyta przy gaśnięciu świateł "you have 2 room crossings", zatrzymuje się po dwóch i zostawia niewykorzystane dwa dane przez GM-a, a arkusz obok szeptu mówi 4.
+
+**UI-19** · `minor` · przeczytane · utrzymane · S · `domain-ui-b-kit-hud-2`
+"Save" ("Zapisz") w oknie "Despair Flow" zapisuje cały formularz reguł Overflow taki, jaki był narysowany: `readOverflowForm` idzie do `setOverflowRules` bez względu na to, którą kartę edytowano, a `setOverflowRules` bierze `on` każdego efektu z formularza i porównuje ze światem teraz, nie ze stanem, z którego formularz narysowano; każda różnica jest zapisywana i ogłaszana stołowi. Jedyna żywa część okna to linia "Right now".
+Gdzie: `scripts/gm-team-dialog.mjs:155-161`, `:225`, `:326-333`; `scripts/overflow.mjs:110-138`, `:150-165`; `scripts/sync.mjs:142`, `:529`.
+Scenariusz: Asystent GM wyłącza Earthquake w Despair Flow i zapisuje; GM, któremu Despair Flow jest otwarte od początku sesji, zmienia nazwę puli i naciska Save - Earthquake jest z powrotem włączony, a każdy gracz czyta kartę czatu, że reguły Overflow się zmieniły.
+
+**UI-20** · `minor` · przeczytane · utrzymane · S · `domain-ui-b-kit-hud-3`
+Pasek stanu gracza-Monocuba nie przerysowuje się, gdy zmienia się jego sakiewka: wiersz Hope dodaje `purseOf(actor)`, który u gracza czyta kopię `mineCubs`; `onChange` tej kopii (`onCubsChange`) odświeża tylko arkusze i woła `drpgCubsChanged`, a pasek słucha `ready`, `canvasReady`, `updateActor`, dwóch hooków efektów i `updateSetting` przefiltrowanego przez `STRIP_SETTINGS`, w którym `mineCubs` nie ma.
+Gdzie: `scripts/player-status.mjs:40-75`, `:543-551`; `scripts/monocub.mjs:246-250`, `:810-821`; `scripts/settings.mjs:3483-3486`.
+Scenariusz: Monokuma dosypuje Monocubowi 2 Hope; arkusz Monocuba pokazuje 3 Hope, pasek nad tacą Projects dalej 1, a gracz, patrząc na pasek, jak moduł każe, uznaje Confusion za nieosiągalne.
+
+**UI-21** · `minor` · przeczytane · utrzymane · S · `domain-ui-b-kit-hud-4`
+Stoper gracza spoza incydentu liczy dalej przez pauzę w czasie incydentu, a po incydencie się cofa: `clockForDisplay` oddaje mu zamrożoną kopię `lastPublicClock`, `settleElapsedPause` pisze `pausedAt` tylko na żywym zegarze, a `elapsedOf` zatrzymuje się tylko na `pausedAt` kopii, więc liczy do teraz.
+Gdzie: `scripts/hud-elapsed.mjs:199-218`, `:281-288`, `:46-56`, `:295-317`.
+Scenariusz: gracz, który nie bierze udziału w morderstwie, widzi na zegarze "On hold", gdy GM pauzuje na dziesięć minut, a linia minut idzie z 12 do 22 min; po incydencie pokazuje 13.
+
+**UI-22** · `minor` · przeczytane · utrzymane · S · `domain-ui-b-kit-hud-5`
+Podpowiedź chevronu Eclipse na HUD-zie liczy przejścia według ciemnienia bieżącej pory dnia, nie tej, w której Eclipse się otworzy: `overflowCrossings(ECLIPSE_MOVES)` jest wołane przy `clock.eclipse` fałszywym, a `stampReading` czyta wtedy stempel bieżącej pory; `eclipseAllowance`, liczba, którą Eclipse naprawdę daje, pyta przy biegnącym Eclipse i czyta stempel nadchodzący.
+Gdzie: `scripts/hud.mjs:1313-1316`; `scripts/overflow.mjs:698-706`, `:621-625`, `:1107-1118`; `scripts/eclipse.mjs:73-79`.
+Scenariusz: wylew dochodzi do X po południu i uzbraja Darkness na wieczór; GM najeżdża na chevron, czyta "Start the Evening Eclipse: 2 crossings", ogłasza dwa przejścia, a Eclipse daje jedno.
+1.2.119: bez związku: hunki `hud.mjs` w `claude/trial-119` i `claude/sheet-119` to `trialSlotFace` i listener `renderTokenHUD`; linie 1313-1316 nietknięte.
+
+**UI-23** · `minor` · podejrzenie · osłabione · S · `domain-ui-b-kit-hud-6`
+Pasek kart dopasowany przez poszerzenie okna może tracić szerokość przy pierwszym naciśnięciu karty: `grow` pisze `win.style.width`, nie `app.setPosition`, a każde naciśnięcie woła `app.setPosition({ height: "auto" })`. Osłabione: strona modułu jest jak opisano, ale awaria wymaga, żeby `ApplicationV2.setPosition` z v14 przy wywołaniu z samą wysokością wpisywał z powrotem zapamiętaną szerokość; źródła Foundry w checkoucie nie ma i nikt tego nie zmierzył. Według 11.3 to pytanie z live checkiem; waga nieustalona.
+Gdzie: `scripts/ui-kit.mjs:548-559`, `:409-413`, `:1509`.
+Scenariusz (czytającego): GM otwiera okno z kartami, które mieszczą się w jednej linii dopiero po poszerzeniu okna; pierwsze naciśnięcie karty zwęża okno i etykieta ostatniej karty jest ucięta na ramie.
+
+**UI-24** · `minor` · przeczytane · utrzymane · S · `domain-ui-c-sheet-1`
+Kafel z ceną, której uczeń nie ma czym zapłacić, ma na twarzy "free" ("za darmo"): `costLabelFor` zwraca `DRPG.Action.costFree` przy każdej zablokowanej wycenie, a `actionButton` drukuje tę etykietę na każdym kaflu poza kaflami walki; poza Class Trial Analyze to łańcuch jednego kroku, więc uczeń bez akcji dostaje wycenę zablokowaną (`nothingLeft`). Weryfikator nie znalazł testu, który przypina twarz zablokowanego kafla.
+Gdzie: `scripts/sheet-actions.mjs:1545-1552`, `:1219-1220`, `:1369-1371`; `scripts/price.mjs:155-175`; `scripts/config.mjs:1462-1469`.
+Scenariusz: gracz wydaje obie akcje po południu i patrzy na siatkę: pozostałe kafle są wyszarzone pod swoją ceną, a wyszarzony Analyze mówi "free"; gracz naciska, licząc na darmową analizę, i dowiaduje się, że nie ma czym zapłacić.
+
+**UI-25** · `minor` · przeczytane · utrzymane · S · `domain-ui-c-sheet-4`
+Arkusz Spectatora nie rysuje przycisku "Stop", a komentarz arkusza, `safeword.mjs` i podręcznik GM-a obiecują go każdemu: `sheetMode` ustawia `safeword: false` dla Spectatora, `injectSafeword` wraca przed rysowaniem, skrót klawiszowy ma `editable: []` (bez klawisza), więc zostaje tylko `game.drpg.safeword()` w konsoli; R3857 przypina `safeword: false` dla Spectatora. Czy właściciel zdecydował o zdjęciu Stopu Spectatorowi (E92 C5), nie odczytano: papier E92 jest na innej gałęzi. Nawiązuje do COMM-11 z 1.2.42 (Stop tylko na arkuszu).
+Gdzie: `scripts/sheet-mode.mjs:81`; `scripts/sheet-sidebar.mjs:903-915`; `scripts/safeword.mjs:420-436` (`:431`).
+Scenariusz: znajomy, który ogląda jako Spectator, jest poruszony sceną i szuka Stopu na swoim arkuszu, gdzie ma go każdy gracz; nie ma go, a żaden klawisz nie jest przypisany.
+To samo: STG-04 (sekcja 14, `first-session/stages-20`, niesprawdzone).
+
+`nit`y UI:
+
+| ID | Gdzie | Co |
+| --- | --- | --- |
+| UI-26 | `scripts/eclipse.mjs:330-346`, `:374-384`; `DRPG.Eclipse.yourMoves` | Szept Eclipse mówi, że zapieczętowane pokoje dalej zatrzymują gracza, w kroku zaraz po tym, jak Eclipse zdjął wszystkie pieczęcie (CALL-09). |
+| UI-27 | `scripts/glass.mjs:3810-3811`, `:3842-3846` | Kurtyna zamontowana przez watchdog (4 s, 9 s) przed załadowaniem fontów nie dostaje obserwatorów: zwinięcie tacy bez obrotu szkła, przecięcia tylko przez drift watch, aż do ponownego montażu. |
+| UI-28 | `scripts/glass.mjs:103-107`, `:3353-3355`, `:3365-3368`, `:3415-3436` | Dalej stoją cztery notatki, które wskazało UI-06 (1.2.42): limit 160 px i padding, którego `placeTiles` już nie pisze, szyny jako bloki, kafel powiadomień rosnący z kartami. |
+| UI-29 | `scripts/glass.mjs:2708-2723`; `scripts/glass-close.mjs:30`, `:54-59`; `scripts/glass-geometry.mjs:1258` | Dwa eksporty `convexOverlap` z różnymi odpowiedziami i dwa `centroid` z różnymi definicjami. Osłabione: scenariusz czytającego nie wynika z kodu (filtr `p && p.length >= 3`, R3985 złapałby zamianę); zostaje higiena. |
+| UI-30 | `scripts/glass.mjs:968-970`, `:1061`, `:1064`; `scripts/glass-geometry.mjs:112` | `COLUMN_PAD` powtarza `PAD_SIDE` z powodem, który usunął E54, a 12 jest wpisane jeszcze dwa razy jako literał; dziś wartości się zgadzają. |
+| UI-31 | `lang/en.json:686`, `lang/pl.json:683` (`DRPG.Hud.stillToActTooltip`); `scripts/hud.mjs:291-299` | Podpowiedź "Still to act" ("Zostały akcje") odsyła do listy po lewej, której moduł już nie rysuje. |
+| UI-32 | `scripts/ui-kit.mjs:586-599`, `:605`; `DRPG.Kit.scrollMore` | Sygnał przewijania mówi czytnikowi ekranu "There is more below" ("Niżej jest więcej") także wtedy, gdy więcej jest w prawo. |
+| UI-33 | `scripts/sheet-actions.mjs:233-256`; `scripts/sheet-sidebar.mjs:561-566`, `:584-589`; `scripts/sheet-inventory.mjs:183-189` | Panel zmarłego ("You are dead") i dwa puste stany mówią w drugiej osobie także w widoku arkusza u GM-a; niesprawdzone. |
+| UI-34 | `scripts/sheet.mjs:99-125`; `scripts/sheet-actions.mjs:1068-1161`; `scripts/gm-stores.mjs:111-113` | U gracza zapamiętana odpowiedź kafla Tamper nie jest zapominana po zmianie rejestru GM-ów: listener słucha klucza `gmRemnants`, który pisze tylko przeglądarka GM-a. |
+| UI-35 | `scripts/sheet-header.mjs:146-185`; `scripts/sheet.mjs:87-95` | `ResizeObserver` wiersza cech nie jest odłączany przy zamknięciu arkusza (kształt UI-14); niesprawdzone. To samo: UI-37. |
+| UI-36 | `scripts/tests-tier0.mjs:918` (R1313); `CONTRIBUTING.md:96-97`; `docs/design/typography.md:88-93` | Test trzyma `CONTRIBUTING.md` przy podłodze Legacy 10 px, a dwa inne testy trzymają arkusz przy 11 px (od E48 K6); niesprawdzone. |
+| UI-37 | `scripts/sheet-header.mjs:179-183`; `scripts/sheet.mjs:90-93` | = UI-35 (`first-session/old-1.2.42-ui`); niesprawdzone. |
+| UI-38 | `scripts/tests-tier2.mjs:50491`; `scripts/sheet-fit.mjs:178` | Dwa dosłowne niewidoczne znaki (U+00AD, U+200B) zostały w źródle po escape z UI-15; niesprawdzone. |
+| UI-39 | `styles/stained-glass.css:3438-3441`; `scripts/popup.mjs:359-362`, `:975-981` | Notatka arkusza szkła opisuje stos powiadomień z 1.2.42 (najnowsze na dole, nadmiar usuwany); od 22.09.2026 najnowsze idzie na górę, a nadmiar jest odkładany; niesprawdzone. |
+
+### 17.9 TEXT
+
+22 pozycje (`minor` 2, `nit` 20): `domain-text-a-config` 9, `domain-text-b-lang` 4, `domain-text-c-terms` 6 i 3 nowe obserwacje `old-1.2.42-text`.
+
+**Tabele treści 1.2.42 dziś** (`domain-text-b-lang`, 47 wierszy; 3.2 i 3.3 na nowo skryptem w `domain-text-c-terms`):
+
+| Tabela | Wierszy | naprawione | częściowo | otwarte | nieaktualne |
+| --- | --- | --- | --- | --- | --- |
+| 3.1 zdania mówiące co innego niż kod | 18 | 16 | 0 | 0 | 2 |
+| 3.2 dryf terminologii | 14 | 12 | 2 | 0 | 0 |
+| 3.3 za długie na swoje miejsce | 9 | 7 | 0 | 2 | 0 |
+| 3.4 informacje GM-only u gracza | 6 | 3 | 2 | 0 | 1 |
+| razem | 47 | 38 | 4 | 2 | 3 |
+
+Każdy z 18 wierszy 3.1 czyta dziś swoją liczbę z reguły albo jego klucza już nie ma (3.1-08 `DRPG.Chapter.endNote` i 3.1-14 `DRPG.Action.murderConfirm` usunięte). Częściowo: 3.2-05 killer / Blackened (glosariusz nie ma wpisu dla żadnego, więc żaden check nie trzyma podziału; `domain-text-b-lang` liczy 66 / 45 kluczy, `domain-text-c-terms` z liczbą mnogą 83 / 46), 3.2-09 OBJECTION / Objection (13 / 55-58; 11 z 13 to wiersze allow X15 i X16 zatwierdzone przez właściciela 12.11.2026), 3.4-04 `Handover.alreadyHasIt` (dawne TEXT-09, dający dalej dowiaduje się, że odbiorca ma Truth Bullet tego Remnantu; `minor`, rozliczenie w sekcji 13), 3.4-06 `Hud.trialTooltip` (HUD gracza dalej nazywa konsolę procesu GM-a; `nit`). Otwarte: 3.3-03 `HOPE_CALLS.freeCrit.effect`, 205 znaków na tooltipie kafla Call (41 słów według `domain-text-b-lang`, 45 według `domain-text-c-terms`: inna reguła liczenia słów), i 3.3-09 dwie etykiety kafli po 19 znaków (`Behind Closed Doors`, `Public Announcement`), których najdłuższe słowo zmniejsza całą siatkę; czy dochodzi do podłogi 0,68, to fakt układu (TEXT-LC3, LIVE-E66-01). Nieaktualne 3.4-05: od decyzji D1 progi są publiczne.
+
+Próbka liczb w tekstach (`domain-text-b-lang`, 196 kluczy: 77 z cyfrą, 13 zdań prozy config z cyfrą, 60 ze słownym liczebnikiem, 46 z "press"): zgodne 81 (59 z liczbą wpisaną ręcznie, 22 czytane z reguły), przycisk albo okno istnieje 40, różne 1 (`DRPG.Investigation.keyDcNote`, TEXT-30), nie liczba reguły 56, nieprześledzone 18. Skan GM-only: mapa odbiorców (`tools/text-audience.mjs`) daje 1422 klucze z odbiorcą innym niż GM-owie; 658 z kartą do gracza przejrzano pod 33 wrażliwe słowa i okna GM-a, 152 klucze przeczytano z kodem, który je wysyła: dwa znaleziska (TEXT-29, TEXT-32), trzy podejrzenia obalone, jedno zapisane jako decyzja; 796 kluczy powiadomień w przeglądarce nie oceniano klucz po kluczu.
+
+**Pomiary `domain-text-c-terms`** (skrypt po całych plikach na `b5a29e73`):
+
+| Co | Wynik |
+| --- | --- |
+| Klucze | `en.json` 6369, `pl.json` 7456; tylko w EN 0; tylko w PL 1087 = 553 bliźniaki prozy config + 534 formy `.few`/`.many` |
+| Proza config | 553 zdania, każde z polskim bliźniakiem (bez bliźniaka 0, bliźniak bez prozy 0) |
+| Rodziny liczby mnogiej | 267 w EN i 267 w PL, brakująca forma 0 po obu stronach; 213 literalnych kluczy `plural()`, brak formy 0; 81 rodzin z `.few` = `.many` przeczytanych przy liczbie, wszystkie poprawne |
+| Puste wartości, półpauzy i pauzy | 0 i 0 |
+| Różne zbiory placeholderów | 2 (`Analyze.identified`, `Analyze.critPrompt`: angielski rodzajnik `{a}`, z założenia) |
+| Zakazane warianty glosariusza | 70 reguł (wpis, strona) w zakresie `ui`: 0 trafień w EN (klucze i proza config), 0 w PL; glosariusz 147 wpisów, 25 otwartych (nic nie zakazują), 15 wycofanych |
+| Dryf 3.2 dziś | Final Truth Remnant 18 / Final Key Remnant 0, Free Move 25 / 0, "trace" poza pięcioma nazwami 0, "ślad" 0, "Mistrz Gry" 0, "morderca" 0, "karta postaci" 0 |
+| Angielskie zdania w `pl.json` | 0 (428 wartości identycznych z angielskimi to nazwy angielskie z reguły PL-k/D33a i jednostki) |
+| Rejestr polski | forma grzecznościowa 0, "proszę"/"przepraszam" 0, "please"/"sorry" 0; zaimek 2. osoby l. mn. 1 (TEXT-38); 13 z 13 podpowiedzi ustawień klienta kończy się "Dotyczy tylko tej przeglądarki."; przypadki GM bez łącznika 0 |
+| Dopełniacze spoza glosariusza | "Truth Bulleta" 1 klucz (wobec 38 "Truth Bulletu"), "tokena" 1 (wobec 30 "tokenu"): TEXT-35 |
+| Długości 3.3 (klucze / ponad cel / ponad limit) | tooltip 526 / 165 / 3 (TEXT-36); przycisk 226 / 12 / 0; karta 31 / 1 / 0; tytuł okna 274 / 18 / 0; etykieta kafla 47 / 1 / 0; podpowiedź kafla 39 / 13 / 0; HUD 27 i pasek stanu 21 bez budżetu |
+| Zasięg skryptu | 258 skryptów, 226 540 linii, 6390 literałów kluczy |
+
+**TEXT-20** · `minor` · przeczytane · utrzymane · S · `domain-text-a-config-1`
+Podpowiedź Cleaning Tool i podręcznik gracza obiecują, że tier narzędzia obniża 15 Misleading Trail; GM liczy trail przeciw 15 bez względu na narzędzie: `resolveStageSix` liczy obie akcje Stage 6, a ulga czyta tylko `toolBonusPerTier` wiersza, który ma wyłącznie `moveBody` (jedyna definicja `config.mjs:4800`, jedyny odczyt `cleanup.mjs:1791`); tier narzędzia od liczby na innej drodze to `cleanupDc`, czytany tylko przez drabinę erase i reshape.
+Gdzie: `scripts/config.mjs:691` (`ITEM_CATEGORIES.cleaningTool.hint`), `:4537-4544`; `docs/handbooks/player-handbook.en.md:623`; `scripts/cleanup.mjs:1666-1671`, `:1791-1794`.
+Scenariusz: zabójca trzyma gotowy zestaw do sprzątania Tier 3, żeby podłożyć Misleading Trail, czyta podpowiedź i podręcznik jako 15 - 3 = 12, rzuca 13, a karta GM-a liczy chybienie przeciw 15.
+
+**TEXT-21** · `minor` · przeczytane · utrzymane · S · `domain-text-a-config-2`
+Improwizowana broń trafia do świata w języku strony głównego GM-a, nie w języku dokumentów świata (miejsce D34, którego spis E57 nie objął): `grantImprovisedWeapon` przekazuje `def.unarmedImprovises.name`, które `localizeConfig` podmienia w miejscu na stronie polskiej, i opis z `game.i18n.localize`; `grantItem` zapisuje nazwę, jak przyszła, a `tierDescription` w języku świata bierze tylko, gdy opisu brak.
+Gdzie: `scripts/murder-rules.mjs:1525-1540`; `scripts/config.mjs:4132`; `scripts/inventory.mjs:867-868`; `docs/dev/e57/SPEC.md` sekcja 3.
+Scenariusz: w świecie angielskim, którego główny GM ma Foundry po polsku, zabójca chwyta broń w walce i każdy angielski gracz, który ją potem znajdzie, zabierze albo zobaczy, czyta "Improwizowana broń" z polskim opisem; przy GM-ach odwrotnie polski stół czyta angielski przedmiot.
+
+`nit`y TEXT:
+
+| ID | Gdzie | Co |
+| --- | --- | --- |
+| TEXT-22 | `scripts/config.mjs:1776-1778`; `scripts/palm.mjs:748-754`, `:921-924` | Opis Palm mówi tylko o ofierze; od 1.2.113 zauważony Palm widzi cały pokój (`tellOnlookers`), a okno Palm tego nie mówi (podręcznik gracza mówi, `:460`). Weryfikator obniżył z `minor`: tekst nie kłamie, pomija skutek. |
+| TEXT-23 | `scripts/config.mjs:2723-2726`; `scripts/doors-gm.mjs:118-124`, `:176` | Behind Closed Doors mówi, że wejdzie tylko udany Pick the Lock; Force the Door i wyłom też zdejmują pieczęć. |
+| TEXT-24 | `docs/handbooks/gm-handbook.en.md:499`; `player-handbook.en.md` sekcja 6; `scripts/call-pickers.mjs:532-547` | Oba podręczniki: Contraband niszczy dowolny przedmiot; config i picker wyłączają Truth Bullety. |
+| TEXT-25 | `scripts/config.mjs:1610`, `:1743-1746`, `:1811`, `:1826` | Proza config, której nie czyta żaden ekran, a jest tłumaczona; jedna ze słowami, których karta Listen już nie znaczy. |
+| TEXT-26 | `scripts/config.mjs:9`, `:760-763`, `:833-840`, `:2007`, `:2164-2166`, `:3536-3539` | Liczby reguł z innych plików wpisane ponownie w prozę config, wbrew pierwszej regule pliku (z higieny `findings-1.2.42/text.md`). |
+| TEXT-27 | `scripts/config.mjs:685`, `:761-763`, `:1524-1526` | Słowa prozy config różne od glosariusza, podręczników albo akcji (np. "Roll Eye" na kaflu Search, który zna sześć cech). |
+| TEXT-28 | `scripts/config.mjs:90`, `:846`, `:1577`, `:1637`, `:2665`, `:4149`, `:4299` | Sześć wskaźników w komentarzach nazywa plik albo funkcję, z których kod się wyprowadził (np. `paintFloorClock` nie istnieje). |
+| TEXT-29 | `scripts/death.mjs:257-293`; `lang/en.json:3290` (`DRPG.Chapter.keptUntilFound`), `lang/pl.json:3500` | Śmierć zachowana przez GM-ów w czasie incydentu wysyła graczom incydentu notkę pisaną dla GM-ów ("Only the GMs know of this death ... in the Students window"); byli w pokoju, więc niczego nowego się nie dowiadują. |
+| TEXT-30 | `lang/en.json:3077`, `lang/pl.json:3314` (`DRPG.Investigation.keyDcNote`); `scripts/config.mjs:1147-1152` | Notka planera: zwykłe dowody są "three to six points harder" niż Key Remnant; dla Obvious w Daily Life to 2 (8 wobec 6). Jedyny wiersz "różne" próbki. |
+| TEXT-31 | `lang/en.json:4339`, `lang/pl.json:4649` (`DRPG.Overflow.what.rot`); `scripts/overflow.mjs:899-930` | Rot mówi "everything the living carry", a zużywa też to, co leży w skrytce. |
+| TEXT-32 | `lang/en.json:3602`, `lang/pl.json:3867` (`DRPG.Handover.answerKeyMissing`); `scripts/handover.mjs:279-281`; `scripts/trial.mjs:404` | Gracz czyta, że klucz odpowiedzi GM-a zginął, i ścieżkę menu GM-a do przywrócenia go z kopii. |
+| TEXT-33 | `lang/en.json:3343`; `scripts/config.mjs:1524`; `scripts/tests-text.mjs:871-874`, `:948`, `:954` | "search tokens" małą literą w dwóch tekstach angielskich (jeden to tooltip kafla Search); `otherCase` glosariusza czyta tylko liczbę pojedynczą. |
+| TEXT-34 | `lang/en.json:735`, `:4455-4470` (i bliźniaki w `pl.json`) | Dwie nazwy projektów w dwóch zapisach: "Repair an item" / "Repair an Item", "Close the breach" / "Close the Breach". |
+| TEXT-35 | `lang/pl.json:2205`, `:8833`; `docs/glossary.json` (truth-bullet, token) | Dwa dopełniacze inne niż w glosariuszu, "Truth Bulleta" i "tokena"; nie czyta ich ani T8, ani T12. |
+| TEXT-36 | `lang/en.json:4656`, `:1245`; `lang/pl.json:3466` | Trzy tooltipy ponad limit 23 słów: `Project.everyone` 43 EN / 41 PL, `Monocub.silencedNote` 34 / 26, `Vault.neighboursHint` 19 / 25. |
+| TEXT-37 | `lang/en.json:1373` / `lang/pl.json:1420`; `lang/en.json:4682` / `lang/pl.json:5022` | Dwa przyciski, których polski jest ponad dwa razy dłuższy: "Lock" -> "Zamknij na klucz" (bez zawijania), "Pass" -> "Zrezygnuj"; czy wiersz się łamie, niezmierzone. |
+| TEXT-38 | `lang/en.json:6501` / `lang/pl.json:7037` (`DRPG.Explain.phase.classTrial`); `scripts/explain.mjs:94-104`, `:228-243` | Wyjaśnienie Class Trial mówi do klasy "wy" ("jedno z was") w oknie, które otwiera każdy, także GM. |
+| TEXT-39 | `lang/en.json:3144` (`DRPG.Vault.stashesNote`); `scripts/room-setup.mjs:498` | Liczba reguły "16+" wpisana w notkę GM-a; dziś równa `stashThreshold`. Utrzymane; przy okazji: polski bliźniak ma zdanie, którego angielski nie ma. |
+| TEXT-40 | `lang/en.json:5256`, `lang/pl.json:5641` (`DRPG.Panel.seasonChecks`); `docs/glossary.json:1428-1436` | Klucz, którego nie czyta żaden skrypt, trzymany dla papieru o scalonym oknie. Osłabione: cytowany commit `206c85bc` się nie rozwiązuje, klucz przywrócił `d7a553b6` dla R1334. |
+| TEXT-41 | `audit/AUDIT-1.2.42.md:632` | Raport podaje dla zadania 13 commit `7e40243` ("D8: the first text pass"); zmiany są w `b888c066`. Utrzymane. |
+
+### 17.10 DOC
+
+21 pozycji (`major` 1, `minor` 1, `nit` 19), wszystkie to nowe obserwacje czytających, którzy rozliczali stare pozycje: `first-session/old-1.1.88-1.2.13-A` (DOC-01..03), `live-readings-e58-delta` (DOC-04..08), `old-1.2.13-B-livefindings` (DOC-09..11), `old-1.2.13-C-H` (DOC-12..14), `old-1.2.42-tasks` (DOC-15..21). Weryfikacja z plików weryfikacji: utrzymane 8 (DOC-01, DOC-02, DOC-09..14), niesprawdzone 13. DOC-01 nie dotyczy dokumentu: to przeciek przez flagę tokena, a przedrostek DOC nadał mu plik czytającego.
+
+**DOC-01** · `major` · przeczytane · utrzymane · S · `old-1.1.88-1.2.13-A#obs1`
+Direct Murder zadeklarowany w Eclipse oznacza tokeny deklarującego dla każdej przeglądarki, także gdy światła go potem anulują: na końcu Eclipse główny GM pisze flagę `veiled` na tokenach każdej postaci z deklaracją (`veilAtTheLights` -> `veilActor` -> `token.update`) przed sądem świateł, a deklaracja anulowana przy świetle (nikogo w pokoju, świadek, druga deklaracja, odmowa GM-a) trzyma flagę do `lightsJudged` w `finally` po całym sądzie, który może czekać na odpowiedź GM-a. Same deklaracje wyszły z danych świata w E05 C3 właśnie z tego powodu (`settings.mjs:899-909`). Weryfikator dodaje: między welonem a sądem biegnie przesunięcie zegara, a `tokenShownTo` chowa token z welonem przed każdym widzem poza właścicielem i stroną zabójcy, więc anulowany deklarujący znika też z płócien innych graczy; jak długo, nie zmierzono.
+Gdzie: `scripts/eclipse.mjs:424-427`, `:529-535`; `scripts/mask-gm.mjs:443-455`, `:551-558`; `scripts/visibility.mjs:555-557`.
+Scenariusz (czytający nie zapisał jednego zdania; z opisu): gracz z listenerem `updateToken` w konsoli swojej przeglądarki widzi flagę `veiled` na tokenie ucznia, którego deklarację światła anulowały, i wie, kto planował morderstwo, które się nie otworzyło; bez konsoli inni gracze widzą, że ten token znika z mapy na czas sądu.
+
+**DOC-02** · `minor` · przeczytane · utrzymane · S · `old-1.1.88-1.2.13-A#obs2`
+Dwa wiersze `known-leaks.json`, które dają zabójcę morderstwa bezpośredniego (`foundry-masked-token-actor`, `foundry-veiled-token-actor`), mają klasę `metadata`, wagę `info` i `foundryLimit`, w pliku, którego reguła D27 mówi, że tożsamości zabójcy nie wolno odłożyć; klasa decyduje, jak wpis będzie czytany później (od 1.3.0 "only foundryLimit and deferred entries remain"). Weryfikator dodaje: `canary.mjs` ma klasę `killer-identity`, a `validateKnownLeaks` sprawdza klasę względem D27 tylko dla wiersza odroczonego (`DEFERRABLE`). Odczyt maski ma "tak" właściciela z 14.11.2026; dla welonu czytający go nie znalazł.
+Gdzie: `audit/harness/known-leaks.json` ("about" i oba wiersze); `audit/harness/lib/canary.mjs:340`, `:344`.
+Scenariusz (czytający nie zapisał; z opisu): kto po 1.3.0 przegląda wpisy, które zostają, czyta oba jako metadane o wadze `info` i nie widzi, że dają konsoli imię zabójcy.
+
+`nit`y DOC:
+
+| ID | Gdzie | Co |
+| --- | --- | --- |
+| DOC-03 | `eslint.config.mjs:48-50` | Lint ma cztery reguły, bez `no-dupe-keys`; skrypt po 271 plikach (53 556 literałów obiektów) znalazł dziś 0 powtórzonych kluczy, ale nic tego nie pilnuje; niesprawdzone. |
+| DOC-04 | `scripts/tests-tier2.mjs:1918`, `:1946` na `b5a29e73` | Poprawki testów z partii 1 linii L1 (`putBackRolls`, `env.replaceable`, R7745) są tylko na `claude/e58-local` (`git grep` na `b5a29e73`: 0); że lokalna bramka tieru 2 na 1.2.118 obleje te same testy, nie odczytano; niesprawdzone. |
+| DOC-05 | `docs/dev/e39/CALIBRATION.md:213`, `:221-222` (gałąź); `scripts/movement.mjs:3482-3495` | F: odłożenie z kopii, która nie jest w kroku (r5), nie zapisało się na 14.370; nagłówek `putBackWrite` opiera się na shimie D4. Przyczyna i czy zachodzi w grze, otwarte; niesprawdzone. |
+| DOC-06 | `docs/dev/e39/CALIBRATION.md:199-201` (gałąź) | F: sceny seeda sandboxa nie mają ścian, więc odczyty dotyczące ścian mierzą drogę zapasową, chyba że sonda narysuje własną ścianę; niesprawdzone. |
+| DOC-07 | `docs/dev/e58/LOCAL-REPORT.md:308-315`, `:390-393` (gałąź) | F: pominięcia przy stole (49 w piątym przebiegu, 17 w czwartym) to resztka E101-T10, który zostawia GM-a na usuniętej scenie albo bez sceny; bazowa lista pominięć przebiegów przy stole nie obejmuje; niesprawdzone. |
+| DOC-08 | `docs/dev/e58/LOCAL-REPORT.md:261-264` (gałąź) | F: sprawdzenie świata w bramce nie widzi magazynów GM-a (obsada incydentu stała trzy dni w magazynie, niewidoczna dla `worldDump`); niesprawdzone. |
+| DOC-09 | `scripts/trial-floor.mjs:27-28`; `scripts/floor-machine.mjs:402-410`, `:440` | Nagłówek: rebuttal "returns to open debate by itself"; kod kończy floor, a konsola pokazuje "Open the debate again". |
+| DOC-10 | `scripts/trial-floor.mjs:74-75`; `scripts/floor-machine.mjs:35-36` | JSDoc `FLOOR_MODES` mówi "The three modes" nad tabelą dziewięciu. |
+| DOC-11 | `scripts/config.mjs:4291-4303` | `TRIAL.speakSeconds` opisane jako "How long a free discussion runs", słowem, które Q14 zarezerwowało dla procesu bez otwartego floor. |
+| DOC-12 | `styles/danganronpa.css:574`, `:4670` i dalej (29 wzmianek); `styles/stained-glass.css` (5); `scripts/utils.mjs:1262` | `.drpg-summary-dialog` stylowane 34 razy i nie nosi go nic; detektor R2 liczy nazwę w stringu selektora jako emiter. |
+| DOC-13 | 26 aliasów w 15 plikach (`monocub.mjs` 7, `projects-ui.mjs` 4, `verdict.mjs` 4 i inne) | Gołe `const esc = foundry.utils.escapeHTML` urosły z 12 (1.2.13) do 26 obok wspólnego `esc` (`utils.mjs:34`), który zamienia null na pusty tekst; weryfikator przeliczył 26. To samo: DOC-21. |
+| DOC-14 | `scripts/action-rolls.mjs:90` wobec `:77-82` | JSDoc `performAction`: każda akcja zaczyna od briefingu; notatka E100 obok: Move nic nie otwiera. Przy okazji: wiersz `action-rolls.mjs` w `.claude/rules/code.md` nazywa jeszcze `NEEDS_OWN_BRIEFING`. |
+| DOC-15 | `scripts/projects-ui.mjs:957` (377 linii); `scripts/murder-rules.mjs:1658` (306) | Dwie zwykłe funkcje znów ponad 300 linii, wbrew zdaniu `.claude/rules/code.md`, że takie są tylko dwie (espree po 258 skryptach: sześć ponad 300, w tym dwie tabele i dwie fabryki); niesprawdzone. |
+| DOC-16 | `scripts/motion.mjs:38-46`; `scripts/glass.mjs:2186`; `scripts/look.mjs:20-22`; `scripts/death-fade.mjs:131-137`; `scripts/private-rolls.mjs:401-404` | "Czy Stained Glass jest włączone" czytane w pięciu miejscach z dwoma różnymi wartościami zapasowymi; po rejestracji ustawień wszystkie się zgadzają; niesprawdzone. |
+| DOC-17 | `scripts/gm-panel.mjs:227-230` wobec `:325-331` | Komentarz panelu wciąż umieszcza reset głosu w Between sessions; kafel jest w diagnostyce od E49 A2; niesprawdzone. |
+| DOC-18 | `docs/handbooks/player-brochure.en.md:3` | Broszura gracza mówi "One page." przy 2056 słowach (PL 1977); liczby stron nie zmierzono (brak silnika PDF); podejrzenie, niesprawdzone. |
+| DOC-19 | `audit/harness/skip-baseline.json` ("measured", "skips") | Zdanie "measured" mówi 17 pominięć (1.2.63), lista ma 27; `suite-merge` tury bazowej: 27 skipped; niesprawdzone. |
+| DOC-20 | `audit/AUDIT-1.2.42.md:627`, `:631`, `:701` | Liczby ID raportu 1.2.42 nie zgadzają się z jego listami: 152 wobec 157 nagłówków w `findings-1.2.42/`; wiersz zadania 13 mówi 25, wymienia 24; niesprawdzone. |
+| DOC-21 | `scripts/utils.mjs:34`; aliasy w 15 plikach | = DOC-13 (`old-1.2.42-tasks` liczy 25); żadnego wywołania aliasu z wartością nie-tekstową nie prześledzono; podejrzenie, niesprawdzone. |
+
+**Komentarze kontra kod.** Każdy z 29 plików `domain-*.json` ma listę `comments_against_code` (gdzie, co mówi komentarz, co robi kod). Te wpisy nie mają ID w `master.json` i nie przeszły weryfikacji przeciwnej jako pozycje; tam, gdzie defekt jest też znaleziskiem, ma swoje ID wyżej albo w innej sekcji (na przykład jedyny wpis `domain-text-b-lang` to TEXT-30, a notatki `glass.mjs` z UI-06 to UI-28). Razem **270 wpisów o 135 plikach**: 267 w `scripts/`, 3 w papierach (`.claude/rules/code.md` 2, `docs/dev/e59/CHAINS.md:126` 1). Najwięcej: `config.mjs` 16, `cleanup.mjs` 8, `utils.mjs` 5, `fog.mjs` 5.
+
+| Plik czytającego | Wpisów | Których plików dotyczą |
+| --- | --- | --- |
+| `domain-case-a-incident` | 9 | `murder-rules.mjs` 2, `incident-store.mjs` 2, `murder-ui.mjs` 2, `murder.mjs` 1, `cleanup.mjs` 1, `.claude/rules/code.md` 1 |
+| `domain-case-b-traces` | 13 | `cleanup.mjs` 7, `remnants.mjs` 3, `remnant-ring.mjs` 1, `cleanup-reshape.mjs` 1, `tests-tier2.mjs` 1 |
+| `domain-case-c-investigation` | 11 | `investigation.mjs` 3, `action-observe.mjs` 2, `action-analyze.mjs`, `truth-bullets.mjs`, `bridge-table.mjs`, `bridge-asks.mjs`, `utils.mjs`, `analyze.mjs` po 1 |
+| `domain-case-d-trial-floor` | 10 | `trial-floor.mjs` 4, `trial-floor-ui.mjs` 3, `trial-progress.mjs` 2, `trial.mjs` 1 |
+| `domain-case-g-death-chapter` | 10 | `chapter.mjs` 4, `body-tile.mjs` 2, `season-setup.mjs` 2, `monokuma.mjs` 1, `death.mjs` 1 |
+| `domain-comm-a-messenger` | 5 | `popup.mjs` 2, `messenger.mjs`, `notice-history-app.mjs`, `messenger-app.mjs` po 1 |
+| `domain-comm-b-calls` | 5 | `call-gm.mjs`, `call-world.mjs`, `call-pickers.mjs`, `calls.mjs`, `call-effects.mjs` po 1 |
+| `domain-comm-c-voice` | 7 | `voice.mjs` 4, `voice-client.mjs` 2, `voice-tile.mjs` 1 |
+| `domain-comm-d-audio` | 13 | `sfx-play.mjs` 4, `music-play.mjs` 2, `music-states.mjs` 2, `sound-panel.mjs` 2, `config.mjs`, `sfx.mjs`, `music.mjs` po 1 |
+| `domain-core-a-bridge` | 8 | `bridge-guards.mjs` 3, `bridge-runs-acts.mjs` 2, `bridge-table.mjs`, `bridge-asks.mjs`, `bridge-runs-records.mjs` po 1 |
+| `domain-core-b-secret` | 8 | `vault-store.mjs` 3, `secret.mjs` 2, `sync.mjs`, `relay-guard.mjs`, `iso-shield.mjs` po 1 |
+| `domain-core-c-boot-settings` | 13 | `settings.mjs` 4, `migrate.mjs` 4, `module.mjs` 3, `settings-window.mjs` 2 |
+| `domain-core-d-api-diag` | 9 | `api.mjs` 4, `diagnostics.mjs` 2, `patches.mjs`, `style-snapshot.mjs`, `hud-elapsed.mjs` po 1 |
+| `domain-core-e-utils-clock` | 12 | `utils.mjs` 3, `clock.mjs` 2, `timed-effects.mjs` 2, `states.mjs`, `events.mjs`, `tables.mjs`, `tables-editor.mjs`, `tables-pools.mjs` po 1 |
+| `domain-desp-a` | 11 | `despair.mjs` 3, `monocub.mjs` 2, `despair-award.mjs`, `level-up.mjs`, `character.mjs`, `trait-ruling.mjs`, `resource-guard.mjs`, `price.mjs` po 1 |
+| `domain-item-a` | 12 | `stash-reach.mjs` 3, `use-items.mjs` 2, `palm.mjs` 2, `traps.mjs` 2, `inventory.mjs`, `facilities.mjs`, `facilities-gm.mjs` po 1 |
+| `domain-item-b-gm-panel` | 17 | `gm-students.mjs` 4, `gm-panel.mjs` 3, `gm-campaign.mjs` 3, `gm-team-dialog.mjs` 3, `eavesdrop-gm.mjs`, `utils.mjs`, `.claude/rules/code.md`, `docs/dev/e59/CHAINS.md` po 1 |
+| `domain-item-c-projects` | 10 | `projects-secrecy.mjs`, `projects.mjs`, `projects-map.mjs`, `projects-ui.mjs`, `projects-tray.mjs` po 2 |
+| `domain-map-a-fog` | 9 | `fog.mjs` 5, `fog-reveal.mjs` 4 |
+| `domain-map-b-movement` | 6 | `movement.mjs` 3, `crossing-settle.mjs`, `passages-gm.mjs`, `passages.mjs` po 1 |
+| `domain-map-c-rooms` | 10 | `room-setup.mjs` 3, `visibility.mjs` 2, `search-tokens.mjs` 2, `rooms.mjs`, `narrow.mjs`, `boundary.mjs` po 1 |
+| `domain-roll-a-draw` | 7 | `roll-draw.mjs` 2, `roll-dialog.mjs` 2, `dice-look.mjs`, `private-rolls.mjs`, `dice-sync.mjs` po 1 |
+| `domain-roll-b-actions` | 10 | `action-rolls.mjs` 2, `reroll.mjs` 2, `action-doors.mjs`, `action-dynamic.mjs`, `actions.mjs`, `action-listen.mjs`, `action-report.mjs`, `action-menus.mjs` po 1 |
+| `domain-text-a-config` | 15 | `config.mjs` 15 |
+| `domain-text-b-lang` | 1 | `investigation.mjs` 1 (= TEXT-30) |
+| `domain-text-c-terms` | 0 | - |
+| `domain-ui-a-glass` | 10 | `glass.mjs` 3, `glass-geometry.mjs` 3, `chrome.mjs` 2, `eclipse.mjs` 1, `sequence.mjs` 1 |
+| `domain-ui-b-kit-hud` | 11 | `hud.mjs` 3, `window-scale.mjs` 2, `overflow.mjs` 2, `hud-elapsed.mjs`, `player-status.mjs`, `ui-columns.mjs`, `gm-team-dialog.mjs` po 1 |
+| `domain-ui-c-sheet` | 8 | `sheet-actions.mjs` 3, `sheet.mjs` 2, `sheet-fit.mjs` 2, `sheet-sidebar.mjs` 1 |
+| razem | 270 | 135 plików |
+
+### 17.11 TEST
+
+**TEST-01** · `minor` · zmierzone · niesprawdzone · H · `base-run.json` (`suite_shards` 3/8, `xi07_alone`)
+Test tieru 2 "grid XI07 - a betrayal declared in the Eclipse after Night opens the next morning" jest czerwony w shardzie 3 z 8 tury bazowej i zielony puszczony sam. W shardzie łamie niezmiennik I2 ("the cast reaches only its seats", sprawdzany w `tests-grid.mjs:1270`): "I2 at step 5 (act K finishingBlow): PlayerTwo's copy names the killer Aiko Hoshino, the model's null", to samo dla PlayerThree, z oknem "Which statistic?" zamkniętym bez odpowiedzi. Shard 3: 755,1 s, 229 passed, 1 failed, 1 skipped; `suite-merge` całości: 3387 passed, 1 failed, 27 skipped, 0 red, RED. Sam (`node run-tests.mjs --tier 2 --only XI07`, 16 s): 7 passed, 0 failed. `GRID_RED` jest pusty, więc test nie jest oznaczony jako oczekiwanie czerwony. Tura bazowa czyta to jako zależność od kolejności albo obciążenia shardu (4 rdzenie obok 6-12 czytających, load 1,1-2,3), czyli wadę zestawu, nie przeciek modułu. Tego nie rozstrzygnięto: powtórzenie shardu 3 w tej samej kolejności jest w `pending` i nie biegło, więc czy kopie graczy po tej kolejności testów naprawdę niosą imię zabójcy, nie wiadomo.
+Gdzie: `scripts/tests-grid.mjs:327-329` (przypadek XI07), `:1714` (wiersz testu), `:177` i `:1270` (I2), `:359-360` (`GRID_RED`); `audit/findings-1.2.118/base-run.json`.
+Scenariusz: CI dzieli suite na osiem shardów jak tura bazowa, shard 3 wychodzi czerwony na XI07, a kto puści test sam, widzi zielony i może uznać czerwień za szum.
+
+
+## 18. Czego nie zmierzono, pytania do właściciela i 1.2.119
+
+### 18.1 Czego ten audyt nie zmierzył
+
+- **Nic przy stole.** Każda pozycja, która wymaga prawdziwego Foundry, przeglądarki z układem, LiveKit albo ludzi, jest zapisana jako niezmierzona i ma przepis w `audit/findings-1.2.118/L1-HANDOFF.md`: 523 wiersze (11 `blocker`, 86 `major`, 246 `minor`, 75 ograniczających ocenę etapu do 9, 105 `nit`), plus otwarte pozycje 9.2 15-292, których przepis jest w ich własnym tekście (13.6). Linia L1 jest wstrzymana do końca audytu i poprawek (D-A2); jej odczyty do 7875554f są w raporcie jako klasa F.
+- **Odczyt kodu, nie przebieg.** Czytający i weryfikatorzy czytali źródło i nie uruchamiali harnessu (U3). Prawie każde znalezisko w 14-17 ma klasę S i pewność "przeczytane"; "zmierzone" mają tylko tura bazowa (12.2), TEST-01 i sondy (niżej).
+- **Sondy 42 i 43** (każda kontrolka naciśnięta raz; okno otwarte przy zmianie świata, porównane z oknem otwartym od nowa) nie skończyły się przed oddaniem raportu; pełne wyniki dojdą do `audit/findings-1.2.118/base-run.json`. Sonda to narzędzie, nie test: zapisuje, co widziała, i niczego nie rozstrzyga sama. Odczyty częściowe z logów (klasa H, 20.11.2026 23:03-23:25Z):
+  - sonda 43 (skończona 21.11.2026 00:04Z, `probe-43.json`): 65 okien, 64 otwarte; 395 odczytów istotnych (zmiana widoczna w oknie otwartym od nowa): 39 żywych, 356 "nieaktualnych". **Poprawka odczytu częściowego, który stał tu wcześniej:** "Room setup - 28 z 28 nieaktualnych" nie było potwierdzeniem REFR-04. Room setup jest oknem niespokojnym (różni się sam od siebie bez żadnej zmiany, bo pole `drpg-kit-step-N` dostaje przy każdym rysowaniu nowy numer) i w 208 z jego 224 odczytów różnica to tylko ten numer. Tak samo w pozostałych niespokojnych oknach: mapa śledztwa i tabele pokojów (losowe identyfikatory), trzy zakładki Class Trial (odliczanie sekund), historia powiadomień. Razem 278 z 356 "nieaktualnych" to szum, który nic nie mierzy; REFR-03 i REFR-04 zostają odczytem kodu. Sprawdziłem każdy z 356 wycinków różnicy skryptem (numery pól, identyfikatory i sekundy zamaskowane). **Zmierzone przebiegiem: 78 odczytów nieaktualnych**, każdy z różnicą w wartości, którą zmieniła sonda. 60 z nich w 19 oknach spokojnych: Season setup (pora dnia; zostaje nieaktualne także po wyjściu fokusu z pola, czyli REFR-02 potwierdzone przebiegiem), Edit campaign (pora dnia), Despair Flow (śmierć: sugerowany próg), Season checklist (przedmiot, śmierć), End the chapter (Truth Bullet), Class Trial (Remnant, śmierć), Murder (śmierć: lista zabójców i ofiar), Give / take items i jego zakładka Bullet oraz Give an item (przedmiot: liczniki Gear), Create a project (projekt), okna akcji gracza Observe, Search, Analyze, Tamper, Projects, Dynamic Action i Palm (liczba pozostałych akcji; w Analyze także Truth Bullet, w Tamper śmierć, w Projects projekt, w Palm Eclipse) oraz Reset the season (Despair, przedmiot, Truth Bullet, projekt, śmierć, Eclipse). Do tego 16 w Room setup (każda z ośmiu zakładek po śmierci: liczba żyjących uczniów i pokojów na ucznia) i 2 na mapie śledztwa (licznik problemów po Remnancie). Które z tych okien mają już pozycję REFR, nie sprawdziłem pozycja po pozycji: dopasowanie po nazwie okna daje REFR-02, -06, -07, -27, -37, -40, -41 i -52, a dla Give, Create a project, Palm i Reset the season nie znalazłem żadnej. Reguła 1 `keepLive` zmierzona przebiegiem: 7 odczytów "trzymanych przez fokus w polu", w Investigation (przedmiot, Truth Bullet, Remnant, śmierć) i Students (akcje, śmierć, Eclipse), zgodnie z REFR-05 i z oknem "Students" w 16. Odczytów "nieaktualne do wyjścia fokusu": 0;
+  - sonda 42 (skończona 23:39Z, `probe-42.json`): z 94 okien listy otwarła 44, nacisnęła 521 kontrolek - 345 z widocznym efektem, 35 "nic się nie stało", 0 wyjątków. Pozostałe 47 okien (od "investigation--map-zone", w tym "season-reset") nie zostały otwarte, bo jądro zabiło klienta GM-a sondy 42 przy braku pamięci (SIGKILL; dwie sondy szły naraz, a żyjący klient GM-a sondy 43 miał o 23:36Z 5,3 GB). "Nic się nie stało" według okna: Room setup 5 (w 4 zakładkach), Sound/Effects 1, Season setup 3, Season checklist 2, Pre-season checks 2, Investigation 16 (w 10 zakładkach i widokach mapy), Look 1, ustawienia gracza 2, historia powiadomień 3. Bo przebieg skończył się wyjątkiem, sonda nie zapisała bloku dowodów: **które to kontrolki, nie jest zapisane**, a "nic się nie stało" to kandydat na martwą kontrolkę, nie werdykt. CTRL-01 ("Reset the season") ta tura nie rozstrzyga: okno "season-reset" nie zostało otwarte.
+  - sonda 42, powtórka (21.11.2026 00:05-00:33Z, sama, `probe-42-rerun.json`): 47 okien, których pierwszy przebieg nie otworzył, i ich zakładki - 52 przejścia, wszystkie otwarte; 513 naciśnięć, 449 z efektem, **61 "nic się nie stało", tym razem każde z nazwą** (pole `nothing` w pliku: okno, tytuł, etykieta, `data-action`, miejsce, dane). 3 wyjątki pochodzą z braków harnessu, sądząc po treści błędu: dwa razy brak płótna ("Could not build the fog texture renderer.render is not a function", "Place on the map" i "Create on the map") i raz brak klasy `Folder` w `lib/shim.mjs` ("Install / reinstall" w Item tables). 61 pozycji pogrupowałem po etykiecie i atrybutach, nie czytając każdej w źródle. (A) 16 to ślepe miejsca nazwane w nagłówku sondy: 6 kroków "One fewer" na końcu zakresu, 4 wybory obrazka, 6 "Fit to view" (sam układ kamery). (B) 12 wygląda na tryb, sekcję albo filtr już wybrany ("Map" w widokach mapy sprawy, "Item", "Truth Bullet" i "Room key" w Give / take items, "Look" i "Voice" w ustawieniach, "All" w historii powiadomień). (C) 33 do przeczytania w źródle: 5 razy "Not tied to the murder: 1" w schemacie Class Trial (martwa kontrolka CTRL-02, teraz widziana przebiegiem), 22 przyciski węzłów mapy sprawy w czterech zakładkach Class Trial, 4 podtryby Give / take items ("From the tables", "From a Remnant", "Create new", "Write a new one"; por. CTRL-61), "Open Aiko Hoshino's sheet" w oknie Students (harness może nie liczyć arkusza jako nowego okna) i pusty blok okna Findings. 35 pozycji "nic się nie stało" z pierwszego przebiegu (jego 44 okna) dalej nie ma nazw.
+  - sonda 42, druga powtórka (21.11.2026 00:37-01:15Z, sama, `probe-42-rerun-2.json`): okna, które otworzył pierwszy przebieg, i trzy, których nie otworzył - 47 przejść, 46 otwartych (Palm znów nie, jak w pierwszym przebiegu); 418 naciśnięć, 381 z efektem, 36 "nic się nie stało" z nazwami, 1 wyjątek (Tamper "Roll": brak płótna w harnessie). **Jedna lista dla obu powtórek: `audit/findings-1.2.118/probe-42-nothing.json`, 97 pozycji** - każda z oknem, etykietą, `data-action`, miejscem i danymi oraz z grupą, którą nadałem po etykiecie i atrybutach, nie po przeczytaniu obsługi w źródle: A 29 (ślepe miejsca sondy: kroki na końcu zakresu, wybory pliku i obrazka, dopasowanie kamery), B 27 (wygląda na tryb, sekcję albo filtr już wybrany), C 41 do przeczytania w źródle. Z drugiej powtórki do C weszły: "Remove the picture" i "Show" w Room setup, pięć bloków z nasłuchem kliknięcia (cztery w Season checklist i Pre-season checks, jeden w Room setup) oraz "Close" w historii powiadomień gracza przy pustej historii - na 31 naciśnięć przycisku z akcją `close` w obu powtórkach 30 zamknęło okno, a to jedno nie (nieprzeczytane dalej). Pierwszy przebieg z 20.11 (35 bez nazw) jest tym zastąpiony; liczby obu przebiegów różnią się, bo to dwa przebiegi z innym stanem świata.
+- **Nie uruchomiono:** przemiatania Chromium (`audit/glass-sweep.mjs`, `audit/pack-harness.html`), lokalnej bramki (`npm run gate:local`, wymaga piaskownicy v14), scenariusza 84 (tylko `local-gate`, zakazany tutaj).
+- **Weryfikacja przeciwna ma swoją granicę.** W przebiegu kontrolek weryfikatorzy utrzymali 141 z 148 twierdzeń (95%), w domenach 80 ze 102 i 64 z 80, w etapach 211 z 236 dla najnowszych. Czytający sami próbowali obalić swoje znaleziska, więc część tej liczby jest spodziewana; ale tak wysoki odsetek może też znaczyć, że weryfikator był za łagodny. Liczba nie jest dowodem, że znaleziska są prawdziwe - jest liczbą prób, które ich nie obaliły.
+- **Duplikaty między czytającymi** są połączone w sekcjach 14-17 jako "to samo", ale nie wszędzie: część okien czytało dwóch czytających kontrolek (15.1), a te same wady wracają jako STG i jako znalezisko domeny. Liczby w 10.1 są przed łączeniem.
+- **Pokrycie (U10):** wszystkie 258 skryptów modułu bez testów (226 282 linii) przeczytane w całości przez czytających domen (29 plików, każdy plik dokładnie raz, sprawdzone skryptem); 13 plików testów i zestawu czytane tylko tam, gdzie znalezisko lub etap je cytuje.
+
+### 18.2 Pytania do właściciela i jego odpowiedzi (decyzje, których kod nie rozstrzygnie)
+
+Właściciel odpowiedział na wszystkie cztery 20.11.2026 około 23:30Z, przez koordynatora, przyjmując odpowiedzi domyślne; zapisane jako decyzje D-A5..D-A8 w `audit/findings-1.2.118/DECISIONS.md`. Liczby w 10 i 13 są sprzed tych odpowiedzi: COMM-18 liczy się tam jeszcze jako "częściowo" (po odpowiedzi: zamknięte decyzją, więc stare pozycje 1.2.42 to 330 zamkniętych i 117 częściowo).
+
+| # | Pytanie | Skąd | Odpowiedź (20.11.2026, 23:30Z) |
+| --- | --- | --- | --- |
+| Q-A119-1 | Czy zasada "bez angielskiej liczby mnogiej w polskim tekście" obejmuje Truth Bullets, Search Tokens i Calls, a nie tylko Remnanty? | `domain-text-c-terms` | zostaje jak dziś: zasada dotyczy tylko Remnantów (D-A5) |
+| Q-A119-2 | Listy całej obsady (Despair Call, Tamper) dalej nazywają zawoalowanego zabójcę z założenia linii D; czy tak ma zostać? | ROUTING.md, `day-119` | zostaje jak w linii D: listy całej obsady dalej nazywają zawoalowanego zabójcę, z decyzji (D-A6) |
+| Q-A119-3 | Czy dziennik awarii panelu GM-a może zostać po angielsku (zdania głosu i muzyki w `voice.mjs:1686, 1749`, `music-play.mjs:619-620`)? | `verify-old-1.2.42-comms` (COMM-18) | tak, jak konsola diagnostyki (zasada E65); COMM-18 zamknięte decyzją (D-A7) |
+| Q-A119-4 | `giveKeyDialog` jest osiągalne tylko z testów; zostawić czy usunąć? | `controls-06-items-sheet` | zostaje, oznaczone jako martwy kod (D-A8) |
+
+Późniejsze decyzje właściciela (21.11.2026, około 02:45Z; `DECISIONS.md`): **D-A9**, CASE-16 - GM rozstrzyga pełną liczbą, a ofiara i trzeci widzą liczbę, którą mogą znać, z dopiskiem, że dochodzi ukryta obrona, bez wartości i bez imienia. **D-A10** - po każdym wydaniu audytor sprawdza zmiany tego wydania: wydane drzewo wobec poprzedniego tagu, twierdzenia każdej linii, znaleziska, które wydanie uznaje za zamknięte, i nowe znaleziska w zmienionych plikach. Pierwsze takie sprawdzenie to 18.5.
+
+### 18.3 1.2.119
+
+> **Po wydaniu (21.11.2026):** stan każdej pozycji tej tabeli na wydanym `e515907d` jest w 18.5; "do sprawdzenia" niżej to zapis sprzed wydania.
+
+**Stan w chwili pisania:** 1.2.119 nie jest wydane (`origin/main` = `b5a29e73`, ostatni tag `v1.2.118`). Poprawki z sześciu linii (i trzech dodanych później) są według koordynatora scalone do składanki `asm-119` albo wypchnięte; ten audyt przeczytał ich różnice (`lines-119.json`, bez przebiegu) i zapisał listę koordynatora (`ROUTING.md`). Nic poniżej nie jest zmierzone na wydanym kodzie; ponowne sprawdzenie (U13) zostaje do zrobienia po wydaniu, z kodu po scaleniu.
+
+| Znalezisko | Waga | Linia, sha (według koordynatora) | Stan w raporcie |
+| --- | --- | --- | --- |
+| COMM-19 potwierdzenie Calla nazywa zamaskowanego | `blocker` | `day-119` d76fdbbc (asm 68214026) | naprawione w 1.2.119 - do sprawdzenia po wydaniu |
+| MAP-16 picker przekazania nazywa zawoalowanego | `blocker` | `day-119` d76fdbbc (seenHere: hand-over, Palm, Tail, cel pokoju Calla Hope, uczeń Monocuba) | naprawione w 1.2.119 - do sprawdzenia; listy całej obsady z założenia bez zmian (Q-A119-2) |
+| COMM-20 kafelek głosu pod zasłoną | `major` | `fog-119` ef1a6064 (asm 5a0424c2), R7864, 9.2 poz. 690 | naprawione w 1.2.119 - do sprawdzenia |
+| CORE-20 słowa karty po końcu maski | `major` | `day-119` (f5c8f041) | naprawione w 1.2.119 - do sprawdzenia |
+| COMM-24 publiczna karta Despair Call | `minor` | `day-119` (90f1c51c) | naprawione w 1.2.119 - do sprawdzenia |
+| STG-03 tablica dnia przy masce | `major` | `day-119` (maski kończą się przed każdym przesunięciem) | naprawione w 1.2.119 - do sprawdzenia |
+| MAP-17 krok Widza jako przejście | `major` | `fog-119` fc190a65 | naprawione w 1.2.119 - do sprawdzenia |
+| CASE-20 nieskończona rekursja układu mapy sprawy | `major` | `plan-119` a13d89fa (asm c3b60999, 21.11 00:08Z; R7800-R7802, 9.2 poz. 695 LIVE-C119-01) | naprawione w 1.2.119 - do sprawdzenia |
+| CTRL-10 Move up / Move down | `minor` | `plan-119` a13d89fa (asm c3b60999) | naprawione w 1.2.119 - do sprawdzenia |
+| REFR-05 reguła 1 `keepLive` | `major` | `plan-119` a13d89fa (asm c3b60999): `whileEditing` tylko w planerze; pole wyboru z fokusem dalej wstrzymuje przerysowanie, Table zostaje przy swojej regule | w części w 1.2.119 - do sprawdzenia; reszta powierzchni otwarta na 1.2.120. C1 zmienił przygotowanie jednego testu tieru 2 E09 C3 (pole tekstowe z fokusem już nie wstrzymuje przerysowania, więc test stawia fokus na polu wyboru widoczności wiersza): do przeczytania przy ponownym sprawdzeniu |
+| CTRL-01 (= CASE-19, STG-02) martwy "Reset the season" | `major` | C1 na `claude/season-119` | w toku (do soboty 10:00, inaczej 1.2.120) |
+| REFR-02 Season setup zapisuje zegar sprzed otwarcia | `major` | C1 na `claude/season-119` | w toku |
+| REFR-27 wiersze listy kontrolnej sezonu | `minor` | C1, jeśli starczy czasu | w toku |
+| zakładka Effects okna "Sound" | - | `sound-119` 28778c8e (asm 6507f0ca) | przerysowuje się przy zmianie; czy czeka na fokus (reguła 1), do sprawdzenia po wydaniu |
+| CASE-16 liczba do pobicia bez obrony zamaskowanego | `major` | - | odłożone na 1.2.120, otwarte |
+| reguła 1: karta Remnantu, Hope w Mastermind, "Students", "Sound" (Music, UI-17), historia powiadomień (REFR-01) | `major` | - | odłożone na 1.2.120, otwarte |
+| przycinanie wierszy ledgera usuniętych aktorów; kafelek Palm przy zawoalowanym jedynym w pokoju | - | - | odłożone na 1.2.120 |
+| etapy E39, E40, E43, E53, E58, E83 | - | - | odłożone na 1.2.120 (14.4) |
+
+Prośby właściciela bez numeru znaleziska scalone do `asm-119`: Dive i Scrum bez wczesnego końca, pusty obóz bez mówcy, muzyka Closing (`trial-119`); wygląd planera (`planlook-119`); stos efektów i Hope/Despair po kościach, wyrzucanie przedmiotów (`sheet-119`); kafelki Facilities z efektem akcji (`facilities-119`); efekty dźwięku per plik (`sound-119`). Dwie linie dodały pozycje 9.2 o tych samych numerach 664 i 665; koordynator przenumerował pozycje `fog-119` na 666-667 przy składaniu (`check live` zielone według koordynatora). Nowe pozycje 9.2 tego audytu nie powstały: nowe live checki są wierszami L1-HANDOFF, a jeśli wejdą do 9.2, zaczną się od 701.
+
+### 18.4 Czy zamknięte sekcje części II można przenieść do archiwum (D-A3)
+
+Skan cytowań (git grep na `claude/audit-119`, 20.11.2026): 68 linii w innych plikach cytuje `AUDIT-1.2.42`; z numerem sekcji 45 cytuje 9.2, 4 cytują 9, 2 cytują część I; nie znalazłem żadnego cytatu sekcji 0-8 ani 9.1, 9.1a, 9.3-9.3d po numerze. `CLAUDE.md` cytuje sekcję 9 i 9.2, a `tools/check.mjs live` czyta 9.2 od jej nagłówka do następnego nagłówka `##`/`###`. Wniosek: przeniesienie sekcji 0-8 (i 9.1-9.3d, gdy ich pozycje będą zamknięte) wygląda na bezpieczne według tych liczb; 9 i 9.2 muszą zostać. Trzy cytaty po numerze linii (`docs/dev/audit-113/FINDINGS.md:106, :719` -> `AUDIT-1.2.42.md:1351`; `docs/dev/e59/GAPS.md:117` -> `:1354`) wskazują inne linie, odkąd na górze stanęła część I (282e8f10): powód, by 9.2 cytować numerem pozycji, nie linią. Skan trzeba powtórzyć w dniu przeniesienia, z identyfikatorami LIVE i polskim "sekcja N" bez nazwy pliku.
+
+---
+
+### 18.5 Ponowne sprawdzenie na wydanym 1.2.119 (U13, 21.11.2026)
+
+1.2.119 wydano 21.11.2026 o 01:53Z (`v1.2.119`, tag na `e515907d`, PR #69). To ponowne sprawdzenie czytało kod po scaleniu, a nie gałęzie linii. Surowe wyniki: `audit/findings-1.2.118/recheck-119.json`.
+
+**Jak.** Każde znalezisko skierowane do 1.2.119 albo cytujące plik zmieniony między `b5a29e73` a `e515907d`, czyli 309 z 555, przeczytał jeden z dziesięciu czytających: na różnicy i na kodzie wydanym. Każde "zamknięte" i "częściowo" dostał drugi czytający, który próbował je obalić: 22 twierdzenia, 15 utrzymanych, 7 osłabionych, 0 obalonych. Pozostałe 246 znalezisk cytuje tylko pliki niezmienione; zapisuję je jako otwarte bez ponownego czytania.
+
+**Przebieg na wydanym drzewie (klasa H)**, harness z `e515907d`, jeden proces naraz:
+- tiery 0-1: 1 830 testów, 1 815 zaliczonych, 0 niezaliczonych, 16 pominiętych, 0 red (487 s);
+- wybrane testy tieru 2 linii 1.2.119: 95 zaliczonych, 0 niezaliczonych. Szesnaście fragmentów nazw: E119, S119, P119, odłożenie, planer, Season setup, lista kontrolna, testy usuwania i przycinania oraz "a reshape approved under an open dashboard survives Save".
+
+**Zmienione przygotowanie testu E09 C3** ("a reshape approved under an open dashboard survives Save") przeszło na `e515907d`. Od `plan-119` pole tekstowe z fokusem nie wstrzymuje już przerysowania panelu, więc test wstrzymuje je fokusem na polu wyboru widoczności wiersza. Dalej mierzy to, co mówi jego nazwa (Save, który niczego nie zmienił, nie pisze nad zapisem, którego okno nie narysowało). Opiera się jednak na tym, że pole wyboru dalej wstrzymuje przerysowanie, a tego reguła właściciela nie chce (REFR-05). Gdy pole wyboru przestanie wstrzymywać, test będzie potrzebował innego sposobu na wstrzymane przerysowanie.
+
+**Wynik po weryfikacji:**
+
+| Stan na 1.2.119 | Ile | Które |
+| --- | ---: | --- |
+| zamknięte | 7 | COMM-19 i MAP-16 (oba `blocker`), CASE-19, CTRL-01, STG-02 ("Reset the season"), CASE-20, MAP-17 |
+| częściowo | 15 | CORE-20, COMM-20, COMM-24, STG-03, STG-100, REFR-02, REFR-05, REFR-06, REFR-25, REFR-27, CTRL-10, STG-21, MAP-19, DOC-05, STG-32 |
+| otwarte (przeczytane) | 287 | |
+| otwarte (plik niezmieniony, nieczytane) | 246 | |
+
+Co zostaje przy "częściowo", w skrócie (pełne zdania w `recheck-119.json`):
+- CORE-20: przy dwóch GM-ach drugi GM, nieobecny w czasie maski, po jej końcu bez ujawnienia może podać imię niepocięte.
+- COMM-24: Bounty na zamaskowanego ucznia nazywa go na panelu każdego Monocuba.
+- STG-03: koniec rozdziału z "następnym rankiem" poza procesem przesuwa zegar bez zakończenia maski (`chapter.mjs:770-773`; dwóch czytających).
+- COMM-20: dok kamer Foundry przy wyłączonym kafelku (LIVE-F119-03).
+- REFR-02, REFR-27: pierwszy zapis nigdy niezapisanego ustawienia (`createSetting`) nie jest słyszany.
+- REFR-06: Edit campaign dalej się nie przerysowuje.
+- REFR-05: karta Remnantu, Hope w Mastermind i pole wyboru z fokusem.
+- CTRL-10, STG-21: Move na węźle poza pierwszą kolumną zapisuje kolejność, której Mapa nie rysuje, i nic nie mówi.
+- MAP-19: `seedCells` bez pominięcia Spectatora.
+- DOC-05, STG-32: zachowanie na 14.370 nieodczytane.
+
+**Otwarte `blocker` i `major` po 1.2.119** (dla linii 1.2.120): `blocker` - żaden. `major` - 14:
+- otwarte: CASE-16, CASE-17, CASE-18, DOC-01, REFR-01, REFR-03, REFR-04, STG-01, UI-17;
+- częściowo: CORE-20, COMM-20, REFR-02, REFR-05, STG-03.
+
+**Nowi kandydaci** wyszli przy weryfikacji. Żaden nie jest jeszcze znaleziskiem: czytał go jeden czytający (N119-5 dwóch), nikt go nie obalał i nic nie uruchomiono. Cztery pierwsze dotyczą tożsamości, więc proponuję czytać je jak `major`, dopóki weryfikacja nie powie inaczej:
+- N119-1: karta akcji pokoju (`facilities-gm.mjs:91-95, 145-176`) nazywa każdego obecnego; cięcie maski nie obejmuje zasłony. Nie przeczytano, czy akcja pokoju może się wtedy wykonać.
+- N119-2: Ghost Bet Monocuba pokazuje w pickerze "?", a po zakładzie panel pisze prawdziwe imię (`monocub.mjs:270`, `sheet-actions.mjs:372`).
+- N119-3: Bounty jak w COMM-24 wyżej.
+- N119-4: drugi GM jak w CORE-20 wyżej.
+- N119-5: koniec rozdziału jak w STG-03 wyżej.
+- N119-6: Move poza pierwszą kolumną.
+- N119-7: `createSetting` w Season setup i liście kontrolnej oraz Edit campaign bez przerysowania.
+
+Odczyty właściciela przy stole na 1.2.119 (klasa F, 21.11.2026 około 02:50Z; wszystkie trzy nowe wobec znalezisk tego audytu, skierowane do linii P):
+- OWN-119-1: strzałki planera przechodzą przez pola węzłów; węzły powinny się rozsunąć i zostawić tory.
+- OWN-119-2: sortowania kolumn inne niż Manual nic nie zmieniają, według właściciela (około 02:55Z) nawet w pierwszej kolumnie. Poza pierwszą kolumną przyczyna jest ta sama co w N119-6; dlaczego pierwsza kolumna nie słucha sortowania, ten audyt nie przeczytał. Przyczynę znalazł właściciel przy stole (około 03:00Z): sortowanie działa dopiero po Save panelu, czyli to wada zastosowania od razu i odświeżania, nie układu pierwszej kolumny.
+- OWN-119-3: najechany węzeł planera robi się jasnokremowy z nieczytelnym tekstem (`styles/components.css:3664`, reguła `:hover`). Statyczne sprawdzenia kontrastu nie obejmowały stanu najechania węzła.
+
+## Część II - raport 1.2.42 z 12.09.2026 (zapis)
+
+> Część II to zapis z 12.09.2026 i dopisków etapów. Stan każdej jej pozycji na 1.2.118 jest w części I (tabela "Gdzie jest każda kategoria" na górze). Nic tu nie jest przenumerowane ani skrócone.
+
 **Data:** 2026-09-12 · **Stan wyjściowy:** `c5435db` (`module.json` 1.2.42) · **Wynik:** wydanie **1.2.43** na gałęzi `claude/module-qa-audit-localization-hg1lhu` (1.3.0 - Stained Update wyjdzie po ręcznej redakcji tekstów).
 
 **Zakres:** 97 skryptów (89 963 linie), 5 arkuszy CSS (20 490 linii), `lang/en.json` (2 859 linii), makra, workflow wydania.
@@ -20,6 +4533,8 @@ Poprzedni audyt: `AUDIT-1.2.13.md`. Z tamtej listy LIVE-001 (tożsamości poza d
 ---
 
 ## 0. Werdykt
+
+> **Stan 1.2.118:** werdykt i oceny dziś - sekcja 10; czy zrobiono to, czego brakowało do 10 - 13.5.
 
 Moduł jest w dobrym stanie jak na 90 tysięcy linii pisanych przez jedną osobę: architektura ma jasne zasady (jedna władza nad zapisem, decyzje po `senderId`, ledgery client-scoped, `keepLive`), teksty są lepsze niż w większości komercyjnych modułów, a pętla Daily Life -> Investigation -> Class Trial -> koniec rozdziału **domyka się z interfejsu**. Nie znalazłem niczego, co uniemożliwiałoby prowadzenie kampanii przez rok.
 
@@ -46,6 +4561,8 @@ Skala jest surowa: 10 znaczy "nie ma nic, co bym zmienił". Realny cel to 9+ w k
 ---
 
 ## 1. Jak przebiegały testy na harnessie
+
+> **Stan 1.2.118:** tura bazowa dziś - 12.2.
 
 ### 1.1 Co harness potrafi, a czego nie
 
@@ -75,6 +4592,8 @@ Zmiany w harnessie w tej rundzie: czwarty klient (`p3`, właściciel Chie), glob
 ---
 
 ## 2. Co zostało naprawione w 1.2.43
+
+> **Stan 1.2.118:** czy każda poprawka 1.2.43 trzyma się dziś - 13.5.
 
 Wszystkie zmiany są w skryptach modułu; `node --check` na każdym pliku, suite bez regresji.
 
@@ -141,6 +4660,8 @@ Dwie decyzje, które warto obejrzeć na żywo: polskie zdania są ~15-25% dłuż
 ---
 
 ## 3. Analiza jakości treści
+
+> **Stan 1.2.118:** cztery tabele rozliczone - 13.4; powtórzone na dzisiejszych plikach - 17.9.
 
 Ogólnie: teksty są mocną stroną modułu. Prawie każde zdanie mówi, co robi kontrolka i po co; liczby są w większości wstrzykiwane z configu (`callEffect()`), więc 13 z 14 zdań Calli nie może się rozjechać z regułą. Zestawienie długości (skrypt `lengths.mjs` na 30 tooltipach, 254 powiadomieniach, 151 etykietach przycisków, 4 tekstach HUD): tylko jeden tooltip przekracza 120 znaków. Martwych kluczy jest 8 z 2 212 (0,36%).
 
@@ -219,6 +4740,8 @@ Po polsku wszystkie te miejsca są jeszcze ciaśniejsze. Jeśli redagujesz angie
 
 ## 4. Znaleziska otwarte - skrót per domena
 
+> **Stan 1.2.118:** stan każdego ID - 13.3; nowe znaleziska - 17.
+
 Pełne opisy z cytatami: `audit/findings-1.2.42/<domena>.md`. Tu tylko to, co zostało po 1.2.43, w kolejności wagi.
 
 **Wycieki i bezpieczeństwo**
@@ -275,6 +4798,8 @@ Pełne opisy z cytatami: `audit/findings-1.2.42/<domena>.md`. Tu tylko to, co zo
 ---
 
 ## 5. Lista zadań do 10/10
+
+> **Stan 1.2.118:** stan każdego zadania - 13.5; dzisiejsza lista zadań - 10.3.
 
 Kolejność jest według ryzyka dla rocznej kampanii, nie według łatwości. Każde zadanie ma metodę i pułapki; numery znalezisk odsyłają do `audit/findings-1.2.42/`. Szacunki są w "wieczorach" (2-3 h skupionej pracy) i są orientacyjne.
 
@@ -429,6 +4954,8 @@ Do zrobienia ręcznie:
 
 ## 6. Higiena kodu - pomiary
 
+> **Stan 1.2.118:** te same pomiary dziś - 12.3.
+
 | Miara | Wartość |
 | --- | --- |
 | Skrypty / linie | 97 / 89 963 (największy: `fog.mjs` 5 884, `action-rolls.mjs` 4 402, `murder.mjs` 4 008, `config.mjs` 4 025, `sheet.mjs` 3 935) |
@@ -447,6 +4974,8 @@ Co działa dobrze i czego nie ruszać: model "jedna władza nad zapisem" i `send
 ---
 
 ## 7. Live checks - do zrobienia na prawdziwym Foundry
+
+> **Stan 1.2.118:** każda pozycja tej listy - 13.6 (wiersze `s7`); przepisy dla stołu - `audit/findings-1.2.118/L1-HANDOFF.md`.
 
 Rzeczy, których harness nie rozstrzyga; każda to kilka minut na Forge z dwoma kontami.
 
@@ -469,6 +4998,8 @@ Rzeczy, których harness nie rozstrzyga; każda to kilka minut na Forge z dwoma 
 
 ## 8. Jak wydać 1.2.43
 
+> **Stan 1.2.118:** nieaktualne - 1.2.43 nie zostało otagowane ani wydane (13.5).
+
 Workflow `.github/workflows/release.yml` buduje paczkę z `git archive` na commicie, na którym go uruchomisz, i sprawdza teraz trzy rzeczy: `module.json` = tag, stempel `--drpg-css-version` = `module.json`, istnienie `.github/release-notes/<tag>.md`. Wszystkie trzy są w gałęzi gotowe.
 
 1. Zmerguj `claude/module-qa-audit-localization-hg1lhu` do `main` (PR albo fast-forward).
@@ -481,6 +5012,8 @@ Nie uruchamiałem workflow z gałęzi - wydanie z niezmergowanej gałęzi zostaw
 ---
 
 ## 9. Stan po naprawach - gałąź `claude/module-qa-audit-localization-hg1lhu` po 1.2.43
+
+> **Stan 1.2.118:** 9, 9.3, 9.1, 9.1a, 9.3b-9.3d rozliczone w 13.5; 9.2 - tabela w 13.6.
 
 Zadania 1-11 z sekcji 5 są zrobione na gałęzi, po jednym commicie na zadanie. Każdy commit przeszedł suite (`game.drpg.runTests({ tier: 2 })`: 117 przechodzi, 12 pada - te same 12 co przed naprawami, wszystkie wymagają prawdziwego canvasu, CSS albo Dice So Nice) i komplet scenariuszy harnessu (40-flow 35/35, 10-murder 17/17, 11-killer-secrecy 5/5, 12-social 9/9, 20-crit-hope 3/3, 30-security 6/6, 50-lang 43/43).
 
@@ -510,6 +5043,8 @@ Zadania 1-11 z sekcji 5 są zrobione na gałęzi, po jednym commicie na zadanie.
 Wydane jako 1.2.44 (decyzja z 13.09: "na koniec wrzuć całość jako release 1.2.X", co zastąpiło D10 B): `module.json` i stempel CSS mówią 1.2.44, notatki w `.github/release-notes/v1.2.44.md`, `main` przesunięty na tę gałąź, workflow Release uruchomiony z tagiem `v1.2.44`. Live checki z 9.2 pozostają do zrobienia na prawdziwym Foundry po aktualizacji.
 
 ### 9.3 Po 1.2.44: cztery stany i ekrany, które nie są biurkiem (wydane jako 1.2.45)
+
+> **Stan 1.2.118:** 13.5; jej własne pozycje 18-25 są w 13.6 jako 9.3-18..9.3-25, osobno od pozycji 18-25 listy 9.2.
 
 | Commit | Co weszło |
 | --- | --- |
@@ -551,6 +5086,8 @@ Suite 122/12, osiem scenariuszy zielone, `config-prose` 490/490.
 
 ### 9.1 Decyzje - podjęte 13.09 i wdrożone
 
+> **Stan 1.2.118:** czy dzisiejszy kod trzyma się każdej decyzji - 13.5.
+
 | # | Decyzja | Wybór | Commit |
 | --- | --- | --- | --- |
 | D1 | Progi widoczne | **A**, dynamicznie: każdy briefing drukuje progi z tabeli dla tej postaci (narzędzie w ręce, świadkowie, świeża scena), okno rzutu mówi "beat N" | `5858b2a` |
@@ -570,6 +5107,8 @@ Dodatkowo (prośba z 13.09): karta eventu dla Despair overflow na panelu (`1c0dd
 
 ### 9.1a Co zostało do zrobienia (stan po 13.09, po higienie)
 
+> **Stan 1.2.118:** 13.5.
+
 Wszystkie 152 ID z `findings-1.2.42/` są zamknięte albo rozstrzygnięte decyzją; sekcja 6 (higiena) jest zrobiona w całości (A-D powyżej). Zostają trzy rzeczy, żadna nie jest kodem do napisania teraz:
 
 | # | Co | Kto | Kiedy |
@@ -579,6 +5118,8 @@ Wszystkie 152 ID z `findings-1.2.42/` są zamknięte albo rozstrzygnięte decyzj
 | 3 | `registerSettings` (505 linii kodu, płaska lista rejestracji) i `steps()` (tabela danych) zostają długie z natury; jeśli kiedyś przeszkadzają, naturalny szew to jedna funkcja na grupę ustawień | - | opcjonalnie |
 
 ### 9.3b Przegląd 14.09 i jego wdrożenie
+
+> **Stan 1.2.118:** 13.5.
 
 Przegląd całości po 1.2.45 dał ocenę 8/10 i listę siedmiu punktów. Cztery z nich są kodem i zostały wdrożone tu; trzy nie są moje (live checki przy stole, redakcja tekstów 1.3.0) albo są nimi tylko częściowo (pomiar wydajności na żywo).
 
@@ -595,6 +5136,8 @@ Przegląd całości po 1.2.45 dał ocenę 8/10 i listę siedmiu punktów. Cztery
 Wydane jako 1.2.46: `module.json` i stempel CSS mówią 1.2.46, notatki w `.github/release-notes/v1.2.46.md`, `main` przesunięty na tę gałąź, workflow Release z tagiem `v1.2.46`.
 
 ### 9.3c Wydanie 1.2.47
+
+> **Stan 1.2.118:** 13.5.
 
 Dwadzieścia commitów, i większość z nich ma ten sam kształt: coś, co moduł trzymał w dwóch miejscach, albo pokazywał w miejscu za małym na to.
 
@@ -618,6 +5161,8 @@ Weryfikacja: suite 140 passed, 0 failed, 9 skipped; dziesięć scenariuszy zielo
 **Znaleziska tego przeglądu, których nie ruszałem:** przyciski launcherów nachodzą na pasek zakładek o 34 px, identycznie przy 1920x993 - to układ biurka sprzed tej pracy, nie stosu. Przy 280-320 px szerokości kafelek Projektów styka się z launcherami.
 
 ### 9.3d Po 1.2.47: trzy uwagi od stołu (niewydane)
+
+> **Stan 1.2.118:** 13.5.
 
 Zgłoszone 16.09, po wydaniu 1.2.47. Wszystkie trzy to jedna klasa błędu - element,
 który stoi obok swojego szkła zamiast na nim albo w nim.
@@ -697,6 +5242,8 @@ Weryfikacja całości: suite **141 passed, 0 failed, 9 skipped**; dziesięć sce
 zielonych; proza 492/492.
 
 ### 9.2 Live checks nadal otwarte
+
+> **Stan 1.2.118:** stan każdej pozycji - tabela w 13.6; przepisy na odczyt przy stole - `audit/findings-1.2.118/L1-HANDOFF.md`. Lista dalej przyjmuje nowe pozycje na końcu.
 
 Lista z sekcji 7 pozostaje w mocy; harness nie rozstrzyga żadnej z nich. Po zadaniach 8-10 doszły trzy nowe do sprawdzenia na prawdziwym Foundry:
 

@@ -1,0 +1,689 @@
+{
+ "reader": "stages-08",
+ "checkout": "claude/audit-119 at 6e900a8a; scripts/, lang/, styles/, tools/ and docs/ as on b5a29e73 (1.2.118). The repository is a shallow clone: commits of the four stages' own lines before 2ec9f48a and several the notes name are not in it.",
+ "count_expected": 4,
+ "count_note": "4 of 4 stages, in tools/stages.json order E85, E86, E18, E19 (written here E85, E86, E19, E18: E19's voice comes first in the 1.2.83 notes; the ids are the same four). Read: the three release notes whole (209 + 227 + 328 lines); the four stages.json rows; 66 registry rows (10 H81, 10 H82, 29 E19, 17 E18) by title, 6 test bodies (tier 2 H81-01 stairs, R901, R815, R833 in part, R908 and R947 by title and set-up); AUDIT 9.2 items 272-294 by id (23 items); live-items-293.json items 293-294; the three live-readings files by script; code at the file:line given in each promise, about 1100 lines in 24 files, none whole.",
+ "stages": [
+  {
+   "id": "E85",
+   "version": "1.2.81",
+   "shipped": "2026-10-23",
+   "what": "H81, the owner's smoke of 1.2.80 at a table (20.10.2026): tunnels and stairs read at the token's height and gone through both ways, a GM's choice of one way, a token dragged onto a tunnel's end going through it, and the smoke's look items (the roll window's title, a found room's reveal, the voice tile's word, the sheet's sidebar, Frisk's rows). The stage's own notes keep the owner's one-way case open as a defect.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.81.md (1-209, whole: the stage 3-8, Before installing 10-30, At the table 32-118, Changed 120-149, Known gaps 151-196, Checked 198-209)",
+    "no papers folder: docs/dev/ holds no e85/ or h81/ (ls docs/dev; git log --all -- 'docs/dev/e85*' 'docs/dev/h81*': none); the notes and the commits are the claim",
+    "tools/stages.json row E85 (planned and shipped 1.2.81, 2026-10-23, touches sockets and scenes, drills none)",
+    "docs/dev/R-REGISTRY.md: the stage's ten rows are stamped H81, not E85 (R900-R909; grep '| E85 |': 0, '| H81 |': 10)",
+    "git: a5a5e084 (the merge, #28) over 32de17e6, f8af19e8, 11ff2f7a, 36f55ea2, 9d6e6759; the checkout is shallow, and the notes' 9dcf331, dc35104 and 50b8321 (C1, C2 and the C1-C2 fix round) are not in it",
+    "audit/AUDIT-1.2.42.md 9.2 items 272-274 (lines 1146-1148), found by id",
+    "audit/findings-1.2.118/live-readings-other.json readings 9 and 58, live-readings-e58.json reading 89; docs/dev/e39/CALIBRATION.md lines 36 and 100-117 (Levels on 14.370, 16.11.2026)"
+   ],
+   "commits": 6,
+   "promises": [
+    {
+     "promise": "A tunnel or stairs goes back the way it came: from where a crossing lands, Go through takes the knower back, on one floor and up and down stairs between two floors; the end stood at is read at the token's height and the landing at the height it will stand at there",
+     "source": "v1.2.81.md 3-5, 89-93; R900",
+     "code": "scripts/movement.mjs:2594 regionsAt (the token's own elevation), :2608 piecesAt (the floor first, then testPoint with the elevation), :2479 tunnelLanding, landingElevation after it; scripts/rooms.mjs:547 floorElevation; scripts/passages-gm.mjs:2314 crossTunnel",
+     "holds": "partly",
+     "test": "R900; tier 2 \"H81-01 stairs - 'Go through' stairs takes a knower up and back down ...\" (tests-tier2.mjs:73345); A10-18 (one floor)",
+     "test_kind": "behaviour",
+     "note": "The code does what the notes say on the harness's model. The tier-2 test's own comment (tests-tier2.mjs:73351-73353) says the harness's regions ask no point its height, so the way back crossed before the fix too: it measures the height write, not the cause the owner met. The notes (151-156) keep the owner's case open, its cause measured on a model only; on 14.370 a seeded region's own elevation is {bottom: null, top: null} and its floor is a Set of level ids (CALIBRATION.md:110-113), so a room is told apart by floor, not by height, and the height cause fixed here is unlikely to be the owner's. LIVE-H81-01's only reading is the owner's defect of 20.10 (live-readings-other.json reading 58); none since."
+    },
+    {
+     "promise": "A GM makes a tunnel or stairs go one way in Room setup > Passages; only a GM writes it, logged, sent to the knowers' copies; the primary judges Go through from the GMs' record and refuses the other end; a season's reset and a rename keep it; the Mastermind is held to it",
+     "source": "v1.2.81.md 34-43",
+     "code": "scripts/passages-gm.mjs:1890-1903 setPassageWay (game.user.isGM, a tunnel only, logRow oneWay/bothWays, touch(knowersOf)), :2274 crossingWhy 'oneWay'; scripts/passages-tab.mjs:332 the tab's 'way' case; lang/en.json DRPG.Passage.tab.wayBoth, wayOnly (781)",
+     "holds": "yes",
+     "test": "R901, R902",
+     "test_kind": "both",
+     "note": "The player's refusal now reads \"You cannot go through this passage from this side.\" (lang/en.json:4984) where the notes quote \"This passage cannot be taken from this side.\": reworded later, the meaning kept. No scenario drives a one-way tunnel through the players' browsers (the notes' own gap, 185-186)."
+    },
+    {
+     "promise": "A knower's token dragged onto a tunnel end's mark (a player's) or square (a GM's) goes through once it stops, at a door's price, by the same bridge request as Go through; the module's own placings, a teleport or displace, a drag beside the mark and a climb or floor change alone go nowhere; a drag and a press at once ask once",
+     "source": "v1.2.81.md 21-25, 44-45, 73-81",
+     "code": "scripts/movement.mjs:2456-2470 tunnelStepTarget (own user only, x or y changed, TUNNEL_CROSSING, REVERT, teleport and displace refused), :2417 whilePlacing; scripts/call-world.mjs:512-513, :555-556 and scripts/cleanup.mjs:1985 (the three region teleports inside whilePlacing); scripts/sheet-sidebar.mjs:763 onTunnelStep",
+     "holds": "yes",
+     "test": "R908, R909; tier 2 \"H81 C3 drag - a GM's drag of a student's token onto a stairs' end downstairs ...\" (tests-tier2.mjs:73404); scenario 76's drag checks (76-passages.mjs:2129, :2164, :2196)",
+     "test_kind": "both",
+     "note": "LIVE-H81-03 part (d) is read on 14.370 (CALIBRATION.md:36, 16.11.2026): the module's placing write carries every option to both clients' hooks and v14's own displace arrives with teleport: true in updateToken, so the guard holds for those. A GM's mouse drag, a region teleport behaviour and the drag's parts (a)-(c) are not read."
+    },
+    {
+     "promise": "Stairs write the floor's bottom as the token's height on a crossing to another floor",
+     "source": "v1.2.81.md 26-28",
+     "code": "scripts/rooms.mjs:539-552 floorElevation; scripts/movement.mjs landingElevation (after :2511)",
+     "holds": "yes",
+     "test": "tier 2 \"H81-01 stairs\" (reads height 10 up, 0 down)",
+     "test_kind": "behaviour",
+     "note": "The notes call the height chosen, not read off v14. On 14.370 a level change in place left elevation 0 (CALIBRATION.md:114), so a token Foundry's own stairs take up stands at 0 and one a tunnel takes up at the floor's bottom; what that difference does at a table is not established (not_established)."
+    },
+    {
+     "promise": "Go through stays enabled wherever the token stands and says where to stand away from an end; a one-way tunnel says so under its name; a wall passage says to walk through its gap and has no button",
+     "source": "v1.2.81.md 94-98",
+     "code": "lang/en.json DRPG.Bridge.why.notAtPassage, DRPG.Passage.list.oneWay; styles/danganronpa.css:3788 (the row's lines)",
+     "holds": "yes",
+     "test": "R904",
+     "test_kind": "static",
+     "note": "The wall passage's line reads \"Walk through the secret passage.\" (lang/en.json:829) where the notes quote \"Walk through the gap in the wall.\": a later rewording."
+    },
+    {
+     "promise": "A tunnel end's caption is 0.36 of the grid and at least 20 px over a thicker keyline, just under its ring",
+     "source": "v1.2.81.md 99-100",
+     "code": "R903 reads movement.mjs and passages.mjs's sizes; not read further here",
+     "holds": "unread",
+     "test": "R903",
+     "test_kind": "static",
+     "note": "How it reads at play zoom is left to a table by the notes; no canvas headless."
+    },
+    {
+     "promise": "A found room opens at once: the curtain starts opening at 400 ms and is open at 1100 ms; the sound at the start; the name up for 5.4 s",
+     "source": "v1.2.81.md 109-111",
+     "code": "scripts/fog-reveal.mjs:88-92 REVEAL_SLASH_MS 250, REVEAL_HOLD_MS 150, REVEAL_PART_MS 700, DISCOVERY_MS their sum, OUTLINE_MS 5400",
+     "holds": "yes",
+     "test": "R905",
+     "test_kind": "static",
+     "note": "E49 B4a (63cdf6ba, 11.11.2026) changed the standing outline (a found room is a flash), not these times."
+    },
+    {
+     "promise": "The roll window's title lies flat in its header's whole width; the voice tile's state word stands at the top over the picture and stays while somebody speaks; the sheet's Known passages and Experience take 10 px inline padding; Frisk's row reads See what they carry, drawn as the module's other choice rows",
+     "source": "v1.2.81.md 105-136",
+     "code": "styles/components.css:1422-1530 (the state word, H81-10 and its fix round), :2404; styles/danganronpa.css:6359 .drpg-equipped-empty, :5331 (the Rest option's hover for Frisk's modes); lang/en.json DRPG.Frisk.rowLabel",
+     "holds": "yes",
+     "test": "R906, R907; the tier-2 roll window test (declared width and alignments, named in the notes 139-140, not read); scenario 75 check G (the word kept)",
+     "test_kind": "static",
+     "note": "Each look was measured in Chromium or jsdom without Foundry's or Daggerheart's CSS (the notes 106-108, 205-209); LIVE-E16-02, LIVE-E79-21 and LIVE-H81-02 hold the table's half. E87 (H84, 7a79b30c) moved the voice word under Monokuma Legacy with the buttons."
+    },
+    {
+     "promise": "Where the GMs are putting a token back, hold it as standing where the rules refuse, or saw it move while the price was taken, the primary refuses the crossing with \"That cannot be done now.\" and its console names which",
+     "source": "v1.2.81.md 51-53",
+     "code": "scripts/passages-gm.mjs:2275-2280 crossingWhy putBack, unlawful, moved (each its own English reason, the player told the closed list's generic line)",
+     "holds": "yes",
+     "test": "A10-18 (tier 2, by the notes 140); R908",
+     "test_kind": "behaviour",
+     "note": ""
+    }
+   ],
+   "registry_rows": 10,
+   "tests_read": [
+    {
+     "test": "tier 2 \"H81-01 stairs\" (tests-tier2.mjs:73345-73402)",
+     "measures": "partly",
+     "why": "Builds a scene of two floors in 14.370's shape (_id and {bottom, top} since D5, c803e68a), a Dorm and an Attic and stairs between them in a GM-store world of its own, and reads each crossTunnel answer, the spot, floor, height and actions left, up and back. It would fail if the height write went. Its own comment says the harness's regions ask no point its height, so it does not reproduce the failure the stage was built for. D5's commit says the tier-2 tests that built floors as { id, elevation: n } would have measured nothing on the new shim, and were moved to the new shape in the same commit."
+    },
+    {
+     "test": "R901 (tests-tier1.mjs:24255)",
+     "measures": "yes",
+     "why": "Stand-in scene and rows; reads the way in, the refusal at the other end in the bridge's words, the copies, the season reset and the GM-only write. Plain objects: no player's page."
+    },
+    {
+     "test": "R908 (tests-tier1.mjs:24501)",
+     "measures": "yes",
+     "why": "Pure calls of tunnelStepTarget over the cases the notes list (own move, crossing's own landing, put-back, teleport, displace, beside, across, climb only, another user). It cannot see what options v14 writes on a drag: LIVE-H81-03."
+    }
+   ],
+   "tests_to_join": [
+    "R900 to R909 (tiers 0-1)",
+    "tier 2: H81-01 stairs",
+    "tier 2: H81 C3 drag",
+    "tier 2: A10-18",
+    "tier 2: the roll window's title test",
+    "scenario 76 (the drag checks U)",
+    "scenario 75 (check G)"
+   ],
+   "scenarios": [
+    "no register row of audit/harness/README.md names E85 or H81 (grep: 0); by the notes the stage added three drag checks to 76-passages (76 U; 76-passages.mjs:2129-2230, read by their comments) and changed 75-voice-tile's check G"
+   ],
+   "live": {
+    "items": 3,
+    "read": 1,
+    "ids_read": [
+     "LIVE-H81-01 (the owner's smoke on 1.2.80, 20.10.2026: a defect; nothing read since the fix)"
+    ],
+    "note": "272 LIVE-H81-01: its one reading is the defect the stage answers, on 1.2.80; open on 1.2.81 and later. 273 LIVE-H81-02: open. 274 LIVE-H81-03: partly, part (d) read on 14.370 (16.11.2026), agrees; the drags (a)-(c) and the region teleport (f) not read. The notes also extend LIVE-E16-02 and LIVE-E79-21; not counted here."
+   },
+   "findings": [],
+   "superseded_by": [
+    "E71 text batches: the refusal words \"This passage cannot be taken from this side.\" and \"Walk through the gap in the wall.\" are reworded (lang/en.json:4984, :829)",
+    "E86 (1.2.82): a GM's board now names where each tunnel end leads; the 1.2.81 line \"A GM's board draws no mark\" no longer holds, as the 1.2.82 notes say",
+    "E87 (H84, 7a79b30c): the voice word under Monokuma Legacy is lifted with the buttons",
+    "D5 (c803e68a, 17.11.2026): the harness's floors take 14.370's shape; the stage's two tier-2 tests were moved to it"
+   ],
+   "grade": 7,
+   "provisional": "after L1",
+   "grade_reasons": "Every mechanism the notes describe is in today's code as worded, and the GM's one-way choice and the drag are held by tests that drive them (R901, R902, R908, R909, the tier-2 drag, scenario 76's drag checks). Reading found no defect. Against an 8: the first item of the owner's smoke, a tunnel that went one way, is delivered only in part - the stage itself keeps it open as a defect, the cause it fixed was measured on a model whose height reading 14.370's seeded regions do not use (CALIBRATION.md:110-113), and the one reading of LIVE-H81-01 is the owner's defect. Against a 9 besides: every look item was measured without Foundry's or Daggerheart's CSS, LIVE-H81-02 is unread and LIVE-H81-03 is read for one part of six. No base run result was joined.",
+   "missing_to_10": "A reading of LIVE-H81-01 at a v14 table with stairs between two v14 Levels and a tunnel on one floor, from the GM's and a player's browser; the owner's case closed or its cause found; LIVE-H81-02 read in both themes; LIVE-H81-03 (a)-(c) and (f) read; a scenario that drives a one-way tunnel through a player's page; the tier-2 and scenario results of the base run."
+  },
+  {
+   "id": "E86",
+   "version": "1.2.82",
+   "shipped": "2026-10-24",
+   "what": "H82, the owner's asks of 21.10 and 23.10.2026: a player's drawn roll starts its dice as the GM's card arrives and the GM's screen throws it at the GM's throw; with One dice look for the table a player's and an Assistant GM's dice carry the GM's look with no special effects but the global ones; voice moves to the new room as soon as a move ends; a GM's board names where each secret tunnel end leads and shows, dimmed, where a secret passage cuts a room's outline.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.82.md (1-227, whole: the stage 3-9, Before installing 11-29, At the table 31-117, Changed 119-152, Known gaps 154-210, Checked 212-227)",
+    "no papers folder: docs/dev/ holds no e86/ or h82/; the notes and the commits are the claim",
+    "tools/stages.json row E86 (planned and shipped 1.2.82, 2026-10-24, touches sockets, rolls and scenes, drills none)",
+    "docs/dev/R-REGISTRY.md: ten rows stamped H82 (R940-R949), none E86",
+    "git: f1849a03 (the merge, #29) over dbda7aaa (C5), 94239a33 (C6), 78f07525 (fix r2), 1dda13e8, 49f58b66, 3a1923e2; the notes' 896f6bf, 6b04250, 4e20bf6, dc78ffe, 14bb9e9 and 952a2d9 (C1-C4 and fix r1) are not in the shallow checkout",
+    "audit/AUDIT-1.2.42.md 9.2 items 275-280 (lines 1149-1154), found by id; no reading of any in the three live-readings files"
+   ],
+   "commits": 7,
+   "promises": [
+    {
+     "promise": "A player's drawn action roll or statistic from the sheet starts its dice when the GM's card reaches the player's browser, once; a hidden or private roll only where this browser may read the card; a refused roll throws nothing",
+     "source": "v1.2.82.md 54-62",
+     "code": "scripts/roll-draw.mjs:475 awaitStart, :487 startWaitOf (waits, user, readable), :496 startOnMessage, :595 playBack (throws only where nothing started)",
+     "holds": "yes",
+     "test": "R947, R948; scenario 33 A17 (9 checks, 80 ms each way); tier 2 dice checks",
+     "test_kind": "both",
+     "note": "The harness's times (495 -> 328 ms and 546 -> 327 ms with 80 ms each way) are the commits' probes; no table time. LIVE-H82-05 is the table's half."
+    },
+    {
+     "promise": "The GM's own screen throws a player's drawn roll at the GM's throw, before its message is written, once, and says a failed write in the Debug log",
+     "source": "v1.2.82.md 33-41",
+     "code": "scripts/roll-draw.mjs:1661 throwDrawn, :2522 throwOnThisScreen; private-rolls.mjs relayDrawnDice (not read whole)",
+     "holds": "yes",
+     "test": "R949; tier 2 \"a roll the GM drew whose message is not written was thrown once on the GM's screen ...\" (tests-tier2.mjs:11154); scenario 12 (no Dice So Nice, one sound); scenario 33 A17",
+     "test_kind": "both",
+     "note": "A GM failing after its card, and a primary that changes while a roll is out, are read in the code, not driven (the notes 183-186)."
+    },
+    {
+     "promise": "With One dice look for the table on, a player and an Assistant GM are held to the GM's appearance with an empty special-effects list at the next sweep; the GM's own look stays; global effects still play through Dice So Nice",
+     "source": "v1.2.82.md 13-17, 64-65",
+     "code": "scripts/dice-sync.mjs:590 sourceLookOf, :611 holdSource, :647 canonicalLook, :671 lookFrom, :728 holdsTableLook",
+     "holds": "yes",
+     "test": "R940; tier 2 \"a player who holds the GM's dice effects as 1.2.80 wrote them has them taken off at the next sweep ...\" (tests-tier2.mjs:75867)",
+     "test_kind": "behaviour",
+     "note": "The harness's Dice So Nice draws nothing, so these read the flags only; that a global effect plays on a player's throw rests on reading Dice So Nice 6.2.9's code (the notes 168-171; LIVE-H82-01)."
+    },
+    {
+     "promise": "A character's voice moves to the new room as soon as the move ends; a drag in flight moves none; a refused crossing only to the room paid for, once; the 1500 ms pass kept behind",
+     "source": "v1.2.82.md 18-20, 66-70",
+     "code": "scripts/voice.mjs:213-225 the immediate pass for a settled move (scheduleReconcile immediate), :246-259 the updateToken hook's reasons, :2082 scheduleReconcile; voice-client.mjs:644 the connect's Debug line",
+     "holds": "yes",
+     "test": "scenario 75 phase I (7 checks; 3-8 ms after the move where 1.2.81 sent it at 1507 ms, by the notes)",
+     "test_kind": "behaviour",
+     "note": "E88 C6 (c506a879, 27.10.2026) built on it: a token between rooms keeps the room it came from, so a crossing through a gap is one reconnect. The real reconnect and the server's hops are not measured (LIVE-H82-02)."
+    },
+    {
+     "promise": "On every GM's board, and no player's, under each secret tunnel end's ring the room it leads to, dimmed, a one-way tunnel's way out its own words and an arrowhead; nothing sent or written; drawn again a quarter second after a region change",
+     "source": "v1.2.82.md 43-46, 51-55",
+     "code": "scripts/passages-gm.mjs:3000 passageTunnels (gm = game.user.isGM), :3101 wayArrow, :3130 endWords; lang/en.json DRPG.Passage.mark.to, mark.from",
+     "holds": "yes",
+     "test": "R941, R942; scenario 76 check T",
+     "test_kind": "both",
+     "note": "Not drawn headless (no canvas): alpha 0.7, the arrowhead's size and the redraw on a region change are read in code (the notes 194-197, 55-56; LIVE-H82-03)."
+    },
+    {
+     "promise": "The outline a GM's browser draws for a room is cut where a secret passage of that floor runs in its wall, the cut drawn again dimmed; closing a passage draws the outline whole, opening cuts it again after 250 ms",
+     "source": "v1.2.82.md 47-50",
+     "code": "scripts/fog-doorways.mjs:851 gmPassageGaps, :863 passageCutKey, :868 floorWalls, :897 withPassageGhosts, :1779 traceGhostStretches; scripts/fog-reveal.mjs:757 ghostStyle; scripts/fog.mjs:4620 redrawFrameSoon",
+     "holds": "yes",
+     "test": "R943, R944, R945, R946; scenario 76 C (two checks)",
+     "test_kind": "both",
+     "note": "Measured equal to a knower's gap only on scenario 76's Cafeteria and R943's stand-ins (the notes 202-203; LIVE-H82-04); the Legacy cut is never drawn headless."
+    },
+    {
+     "promise": "game.drpg.perf() has a line \"drawn for this browser, asked to dice started\" beside \"asked to dice shown\"; a voice connect writes its time in the Debug log",
+     "source": "v1.2.82.md 82-87",
+     "code": "scripts/diagnostics.mjs:1904; scripts/voice-client.mjs:644",
+     "holds": "yes",
+     "test": "none found by name for the perf() line",
+     "test_kind": "none",
+     "note": "Read in code only."
+    }
+   ],
+   "registry_rows": 10,
+   "tests_read": [
+    {
+     "test": "R947 (tests-tier1.mjs:24951, title)",
+     "measures": "yes",
+     "why": "Pure calls of startWaitOf over each case the title lists (a GM's browser, another GM's message, another nonce, no flag, a start made, an unreadable message, no rolls). It cannot see the timing."
+    },
+    {
+     "test": "R940 (tests-tier1.mjs:24550, title)",
+     "measures": "partly",
+     "why": "Reads the look a forced user is held to and the put-back of effects as flags; whether Dice So Nice then holds a throw on them is not measurable in the harness (the notes 168)."
+    },
+    {
+     "test": "scenario 33 phase A17",
+     "measures": "yes",
+     "why": "By the notes and the register: a drawn roll on the player's and the GM's screens with 80 ms added each way; faces and total equal on both. Its body was not read here."
+    }
+   ],
+   "tests_to_join": [
+    "R940 to R949 (tiers 0-1)",
+    "tier 2: a player who holds the GM's dice effects as 1.2.80 wrote them has them taken off at the next sweep",
+    "tier 2: a roll the GM drew whose message is not written was thrown once on the GM's screen",
+    "scenario 33 (A17)",
+    "scenario 75 (I)",
+    "scenario 76 (T, C)",
+    "scenario 12",
+    "scenario 13"
+   ],
+   "scenarios": [
+    "no register row names E86 or H82; by the notes the stage added 75 I (7 voice checks, bound 60 -> 90 s), 76 T and two checks in 76 C, 33 A17, a one-sound check in 12 and comments in 13"
+   ],
+   "live": {
+    "items": 6,
+    "read": 0,
+    "ids_read": [],
+    "note": "275-280 (LIVE-H82-01 to -06): no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (grep for each id). The stage rewords LIVE-E16-03, not counted here."
+   },
+   "findings": [],
+   "superseded_by": [
+    "E88 C6 (c506a879): a token outside every room keeps the voice room it came from, on top of the immediate pass",
+    "E60 fix FG5 (df6fbc5f): LIVE-E60-09 starts at the GM's Dice So Nice \"Show only mine\", a later reading of the dice look on the GM's side"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "Every promise is in today's code with its named functions, and each of the four asks is held by a test that drives it (R947-R949 with 33 A17, R940 with the tier-2 sweep test, 75 I, R941-R946 with 76 T and C). Reading found no defect. Against a 9: the GM's redraw a quarter second after a region change, a GM failing after its card and a primary that changes mid-roll hold by reading alone, and the perf() line has no test found. The stage's main promise is a wait felt at a table, and every one of its six live checks is unread, so it could not go above 9 on this checkout.",
+   "missing_to_10": "LIVE-H82-05 and -06 at The Forge (the medians of asked-to-dice-started and asked-to-dice-shown); LIVE-H82-01 and -02 read; LIVE-H82-03 and -04 in both themes on a GM's, an Assistant GM's and a second GM's board; a test that drives a region change and reads the words drawn again; a test that drives a primary change mid-roll; the base run's tier-2 and scenario results."
+  },
+  {
+   "id": "E19",
+   "version": "1.2.83",
+   "shipped": "2026-10-24",
+   "what": "Voice, sound and LiveKit in the Foundry window, with the voice tile in place of the camera dock: a dropped connection shows a card and comes back by itself; LiveKit's separate window held off and Foundry's camera dock kept folded for everyone; a student killed in secret talks in the dead channel once the incident is over; no player in voice in an Eclipse; every connected account given a voice room; the murder music on the Music channel at its own volume; Breakdown and Wounded heard by every owner; the Sound window's Effects tab redrawn.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.83.md (1-328, whole; E19's parts: Before installing 15-35, the GM 41-76, the players 106-133, Changed 162-172, Known gaps 201-264)",
+    "no papers folder: docs/dev/ holds no e19/; the ledger the notes quote (\"its ledger's 35 rows read 20 met, 12 met with a live check, 2 live and 1 met as reworded\") is not in the repository (git grep E19-27: only the notes, the registry, tier 1 and scenario 75)",
+    "tools/stages.json row E19 (planned 1.2.83, with E18, shipped 1.2.83, 2026-10-24, touches sockets, drills none)",
+    "docs/dev/R-REGISTRY.md: 29 rows stamped E19 (R807-R835)",
+    "git: the merge of line B, 2ec9f48a (24.10.2026), is a shallow boundary: the line's own commits (f0f5f69, c02bdd5, ed82b62, b1457e6 and the rest) are not in the checkout; 7d071b20, 927a744c, 9595c8c4, 8f722fbe, c07dd780, 0d6ea216, b1d7dab8 are",
+    "audit/AUDIT-1.2.42.md 9.2 items 281-290 (lines 1155-1164), found by id",
+    "audit/findings-1.2.118/live-items-02.json item 56 (LIVE-E05-04, obsolete by E19 C3)"
+   ],
+   "commits": 8,
+   "promises": [
+    {
+     "promise": "A dropped voice connection shows one card \"Voice disconnected\", kept in the notice history; the browser joins again about 1, 5 and 15 s after, then checks itself every 45 s; LiveKit's own toast is not shown; a close by the server or another window says to reload and is not fought",
+     "source": "v1.2.83.md 106-113",
+     "code": "scripts/voice-client.mjs:715 RECONNECT_MS [1000, 4000, 10000] (1, 5 and 15 s summed), :755 dropCard, :767-768 the retry's step, :262 selfCheckTick, :271 selfCheck",
+     "holds": "yes",
+     "test": "R811, R812; scenario 75 phase H (a drop)",
+     "test_kind": "both",
+     "note": "Which disconnect reasons livekit-client gives and whether LiveKit AVClient rejoins by itself are not read (LIVE-E19-01)."
+    },
+    {
+     "promise": "A world setting, on by default, holds avclient-livekit's useExternalAV false on every browser, takes its box out of the settings and puts back a console's change; a change takes effect after a reload",
+     "source": "v1.2.83.md 16-20",
+     "code": "scripts/enforced.mjs:111-117 the liveKitInFoundry row (module avclient-livekit, key useExternalAV, value false, toggle SETTINGS.liveKitInFoundry); scripts/voice-client.mjs:442-443",
+     "holds": "yes",
+     "test": "R808, R810",
+     "test_kind": "both",
+     "note": "v14's names of the A/V Config fields are not read (LIVE-E19-06)."
+    },
+    {
+     "promise": "While the voice tile is on, Foundry's camera dock is kept folded and no camera opens in its own window, field by field, each player's devices, volumes, mutes, blocks and push-to-talk kept; switching the tile off gives the dock back once",
+     "source": "v1.2.83.md 21-26",
+     "code": "scripts/enforced.mjs:119 the rtcDock row, :293 rtcDockWrites, :313 rtcDockOn, :330 rtcDockRecord, :359 rtcDockGiveBack, :374 the record kept in rtcDockBefore",
+     "holds": "yes",
+     "test": "R809, R810, R830",
+     "test_kind": "both",
+     "note": "A module disabled before the tile is switched off gives nothing back (the notes' own warning). LIVE-E19-07 unread."
+    },
+    {
+     "promise": "A victim keeps the room they died in while the incident runs; once it closes, the body is found or a living outsider walks in, a death the table has not been told of talks in the dead channel, where the dead hear only each other, and a known death goes to the main room; a witness joins after the victim's answer or 1500 ms",
+     "source": "v1.2.83.md 46-52, 120-123",
+     "code": "scripts/voice.mjs:1238 olderDeath, :1265 deathVoiceGone, :988 placeVoices, :824 answerWhoAmI; scripts/voice-client.mjs:455-475 (the dead's own room and its history), :483 SPECTATOR_ROOM",
+     "holds": "superseded",
+     "test": "R815, R832, R833, R835 (their bodies read the Spectators' room today); scenario 75 phase E",
+     "test_kind": "behaviour",
+     "note": "The trigger (keeping the crime room until the first of A9's triggers) holds. Where the dead go was replaced twice: E72 C8 (12.11.2026) gave each dead account a room of its own, because in E19's one shared dead room \"two dead players heard each other, so the first learnt of a second death nobody had found\" and in the main room every living player heard a public death (voice-client.mjs:461-465); E62 C3b (13.11.2026, the owner's Q-C3b-5) sends every dead account, public or secret, to the Spectators' room (voice-client.mjs:469-471). E19's \"known death to the main room\" and \"the dead hear only each other\" no longer describe the code. The test titles still state E19's rule: finding STG-E19-1."
+    },
+    {
+     "promise": "In an Eclipse a player's browser leaves voice (no channel, no drop card, the microphone grey with the reason); the GMs share one room; after it everybody is back in their token's room without a reload; every connected account (a spectator, a GM with no Monokuma, a Monocub's player) has a voice row in and out of it",
+     "source": "v1.2.83.md 53-58, 124-126",
+     "code": "scripts/voice-client.mjs:504 silentRoomFor (the browser leaves voice on it); scripts/voice.mjs:2023 eclipseRoomFor (eclipse-gm for every GM)",
+     "holds": "yes",
+     "test": "R817, R818; scenario 75 phase B",
+     "test_kind": "both",
+     "note": "LIVE-E19-08 unread; an Eclipse ended by a rewind is read through the clock's write only (the notes 236)."
+    },
+    {
+     "promise": "Re-send everybody's voice room forgets what each browser was sent and sends every account its room again at once; a non-primary GM is told to ask the primary; reconcileVoice() runs at once",
+     "source": "v1.2.83.md 41-45",
+     "code": "scripts/voice.mjs:2608 resetAllVoice, :2082 scheduleReconcile",
+     "holds": "yes",
+     "test": "R819",
+     "test_kind": "both",
+     "note": ""
+    },
+    {
+     "promise": "The murder music is one track for everybody in the incident, on the Music channel at the player's own Music volume; the room's music paused on a player's browser and held at 0 on a GM's; a volume an earlier version parked at 0 is given back at load",
+     "source": "v1.2.83.md 27-29, 64-69, 127-130",
+     "code": "scripts/murder-music.mjs:85 murderTrackFor, :142 createRoomHold, :235 createMurderOverlay, :355 restoreDuckedMusic",
+     "holds": "yes",
+     "test": "R821, R822, R823, R824, R825; scenario 13 (the murder music, the ready path run again)",
+     "test_kind": "both",
+     "note": "Moved from music.mjs to murder-music.mjs by E41 C9a (a pure move). The Music channel following the slider is read in Foundry 14's types, not heard (LIVE-E19-02, -03)."
+    },
+    {
+     "promise": "Breakdown and Wounded play on every GM's browser and on each owner's, a co-owner's too; a state put on at load or with the wand plays nothing; no false \"your turn\" after a reload",
+     "source": "v1.2.83.md 70-72, 131-132",
+     "code": "scripts/states.mjs:381 stateSoundsFor",
+     "holds": "yes",
+     "test": "R826, R827",
+     "test_kind": "behaviour",
+     "note": "Driven on plain objects, not heard (the notes 244-245)."
+    },
+    {
+     "promise": "The Sound window's Effects tab: icons with tooltips, \"{n} of {total} assigned\", a legend for varies, a line that it saves as you go; the safeword heard whatever the Sound slider says",
+     "source": "v1.2.83.md 73-77, 133-134",
+     "code": "scripts/sfx.mjs soundEffectsHtml (the Sound window's sfx side stays in sfx.mjs, CLAUDE rules' code table)",
+     "holds": "yes",
+     "test": "R828, R829",
+     "test_kind": "static",
+     "note": "The tab's columns and icons are not measured in a browser (the notes 246)."
+    },
+    {
+     "promise": "The corner stands above Foundry's camera dock while it is shown, under Stained Glass too, and is lifted by nothing while the voice tile hides it",
+     "source": "v1.2.83.md 157-158",
+     "code": "scripts/camera-view.mjs measureCameraDock (not read here); R830's reading of --drpg-av-lift",
+     "holds": "unread",
+     "test": "R830; audit/glass-sweep.mjs (a shown and a hidden dock at every size)",
+     "test_kind": "both",
+     "note": "LIVE-E19-10 unread."
+    }
+   ],
+   "registry_rows": 29,
+   "tests_read": [
+    {
+     "test": "R815 (tests-tier1.mjs:25739-25990)",
+     "measures": "yes",
+     "why": "Calls voiceClaim, placeVoices and sendInPasses on plain objects for each case of A9's list and reads every target and every packet's recipients, the witness's wait for the victim's answer and the 1500 ms bound. Its body expects the Spectators' room for a public death and a secret one alike (the rows marked \"the main room until E72 C8\"), so it measures today's rule, not the one its title states."
+    },
+    {
+     "test": "R833 (tests-tier1.mjs:26109)",
+     "measures": "yes",
+     "why": "Reads voicePlan and the contested warning over a table of rows; its comment says the dead stand under \"(Spectators' room)\" since Q-C3b-5, while its title still says \"the dead channel\"."
+    },
+    {
+     "test": "scenario 75 phases B, E, H",
+     "measures": "unread",
+     "why": "Named by the notes and the register (the harness's LiveKit shim, lib/livekit.mjs); their bodies were not read here."
+    }
+   ],
+   "tests_to_join": [
+    "R807 to R835 (tier 1)",
+    "scenario 75 (B, E, H)",
+    "scenario 13",
+    "audit/glass-sweep.mjs (the dock at every size)"
+   ],
+   "scenarios": [
+    "no register row names E19; by the notes the stage changed 75 (E the dead channel, B the Eclipse, H a drop; 37 checks, bound 90 -> 120 s) and 13 (the murder music)"
+   ],
+   "live": {
+    "items": 10,
+    "read": 0,
+    "ids_read": [],
+    "note": "281-290 (LIVE-E19-06, -07, -01, -02, -03, -04, -05, -08, -09, -10): no reading in the three live-readings files. Item 287 (LIVE-E19-05) asks the dead channel, which the code no longer has: its text is stale against E72 C8 and E62 C3b (not re-read item by item here)."
+   },
+   "findings": [
+    {
+     "id": "STG-E19-1",
+     "severity": "nit",
+     "category": "hygiene",
+     "title": "R815's and R832's titles still say a public death talks in the main room and a secret one in the dead channel; their bodies read the Spectators' room for both",
+     "where": "scripts/tests-tier1.mjs:25739 (R815's title), :25984 (R832's title), :26109 (R833's title); docs/dev/R-REGISTRY.md rows R815, R832, R833",
+     "what_happens": "The registry and the suite's output name the rule E19 shipped; the assertions under them were moved to E62 C3b's rule (voice-client.mjs:469-471) with comments saying so. A reader of the registry or of a run's titles is told the main room holds a public death's voice.",
+     "evidence": "R815 title: \"... then a secret death talks in the dead channel and a public one in the main room, each room to its account alone ...\"; its body: \"// E62 C3b (13.11.2026; Q-C3b-5): the dead talk in the Spectators' room, for a public death as for a secret one\" and expected rows [\"killer dead in public, after\", { ...kitchen, killer: \"dead\" }], // the main room until E72 C8, where label() maps SPECTATOR_ROOM to \"dead\". R832 title: \"... a kept dead account gets the dead channel (a public death the main room) ...\".",
+     "failure_scenario": "A GM or developer reads R815's registry row to learn where a dead student's voice goes after a public death, is told the main room, and expects the living to hear the dead there, which today's code does not do.",
+     "expected": "The titles say the Spectators' room, as the bodies and the comments do.",
+     "confidence": "read",
+     "refutation_tried": "Read R815's body for a check that still expects the main room for a public death: the label maps only null to \"main\" and the public rows expect \"dead\" (the Spectators' room) with the comment \"the main room until E72 C8\"; grep of lang/en.json for the dead channel finds no player text that still says the main room. The titles were not changed in E62 C3b's or E72 C8's commits as far as this checkout shows."
+    }
+   ],
+   "superseded_by": [
+    "E72 C8 (12.11.2026): one dead room per account in place of E19's shared DEAD_ROOM, because the dead heard a second death through it (voice-client.mjs:456-465)",
+    "E62 C3b (13.11.2026, Q-C3b-5): the dead talk in the Spectators' room, public and secret alike (voice-client.mjs:469-471)",
+    "E88 C6 (c506a879): a token between rooms keeps its voice room",
+    "E41 C9a: the murder music moved to murder-music.mjs and the Sound window's music side to sound-panel.mjs (pure moves)"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "The drop card and its retries, the separate window and the dock held, the Eclipse's silence, every account's row, the re-send, the murder music and the sounds are each in today's code as worded and held by one or more of the 29 stamped tier-1 tests and scenario 75's phases. The dead channel's trigger holds, and where the dead go was replaced by two later stages, the first because E19's shared room let one dead player learn of a second death; on 1.2.118 that is fixed and is not a defect of today's code, but the stage's promise as worded no longer stands. One nit: three test titles still state E19's rule. Against a 9: the corner over the dock is not read here, and the Effects tab and the sounds are driven on plain objects only. The main promise, voice that comes back after a drop on a real LiveKit, rests on LIVE-E19-01, and all ten live checks are unread, so it could not go above 9.",
+   "missing_to_10": "LIVE-E19-01 (a real drop), -05 (the dead on a real LiveKit, reworded to the Spectators' room) and -08 (an Eclipse) read first, then the other seven; R815's, R832's and R833's titles brought to today's rule; the base run's tier-1 rows and scenario 75 joined."
+  },
+  {
+   "id": "E18",
+   "version": "1.2.83",
+   "shipped": "2026-10-24",
+   "what": "Questions to the GM and private cards, without its commit C7: a question a player waits on says until when it is open and ends one way; a card to the GMs is ruled once on the primary; a waited question is asked again of a new primary three times at most; a private card reaches every owner of the student and comes back to a reader who was away; notices to the whole table stand under the windows; the notice's bar and the messenger's bubbles; with no GM a question is not posted and its price comes back.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.83.md (1-328, whole; E18's parts: Before installing 30-35, the GM 78-104, the players 135-150, everybody 151-158, Changed 173-187, Known gaps 265-305, Checked 307-328)",
+    "no papers folder: docs/dev/ holds no e18/; the ledger the notes quote (33 rows: 30 answered, 0 open, 3 live) and the end review's 26 findings are not in the repository",
+    "tools/stages.json row E18 (planned 1.2.83, shipped 1.2.83, 2026-10-24, touches sockets, drills none; 927a744c took its tie to E17 away)",
+    "docs/dev/R-REGISTRY.md: 17 rows stamped E18 (R836-R852)",
+    "git: as E19's (the line's commits behind the shallow boundary at 2ec9f48a); C7 shipped later in 1.2.87 with E17: 29a53176 (E18 C7), f3df1f56 and 6b75dca5 (its fixes), 3719a0c8 (the merge)",
+    "audit/AUDIT-1.2.42.md 9.2 items 291-294 (lines 1165-1168); audit/findings-1.2.118/live-items-293.json items 293 and 294"
+   ],
+   "commits": 12,
+   "promises": [
+    {
+     "promise": "A question the player waits on (an Experience or Ultimate Call, a Dynamic action, the statistic a roll lists two of, an Observe at a point of interest) says \"Open until {time}.\" in each reader's own clock and language; five minutes for a Call, three for the others; the yes goes by the primary and is written only once the player's browser has it",
+     "source": "v1.2.83.md 88-93, 139-143",
+     "code": "scripts/call-gm.mjs:78 holdAsk, :175 endAtExpiry, :207 sweepAskCards, :537 keepRuling, :709 expiredOnPrimary, :735 receivedOnPrimary, :846 callGm (moved from gm-bridge.mjs by E41 C5, a pure move); bridge-wire.mjs:104, :106 ACTION_RULING_EXPIRED, ACTION_RULING_RECEIVED",
+     "holds": "yes",
+     "test": "R839, R840, R852; tier 2 E18 C0, C1 (tests-tier2.mjs:38452, :38626, :38685 by live-items-293.json); scenario 33 (C, the second A17)",
+     "test_kind": "both",
+     "note": "The time zone half has no headless half (live-items-293.json item 293)."
+    },
+    {
+     "promise": "If the player stopped waiting, no word came back in eight seconds, or the time passed, the card ends \"Nobody answered in time - ask again.\" and a Call's yes is taken back; a ruling the player used ends as ruled; a primary whose world loads ends the cards past their time",
+     "source": "v1.2.83.md 94-99",
+     "code": "scripts/call-gm.mjs:686 endSentOn, :576 (E68 C11: an expiry under a GM's hand waits for that ruling), :207 sweepAskCards; scripts/bridge-guards.mjs:1905 createWaiter",
+     "holds": "yes",
+     "test": "R839, R840; tier 2 E18 C1",
+     "test_kind": "both",
+     "note": "The end's words were reworded by E71 B12 (\"Nobody answered in time. You can ask again.\", lang/en.json:5007 DRPG.Bridge.settledExpired; live-items-293.json). The notes' gap \"the primary's end at its time still settles a card another GM is ruling on\" was closed by E68 C11 (call-gm.mjs:576, D075)."
+    },
+    {
+     "promise": "If the primary reloads or another GM becomes the primary while a question is open, the player's browser asks again, three times at most, and the question keeps its one card; a resend that differs is refused",
+     "source": "v1.2.83.md 100-102",
+     "code": "scripts/bridge-guards.mjs:2102 RESENDS = 3; scripts/call-gm.mjs:113 askMark, :119 sameAsk, :150 askAgain",
+     "holds": "yes",
+     "test": "R841; tier 2 \"a resent ask finds the card a GM posted for it by its mark and no other\" (tests-tier2.mjs:40223); scenario 61 Y1, Y2",
+     "test_kind": "both",
+     "note": "LIVE-E18-02 partly read: on 14.370 a player's page got userConnected(GM) about 5.7 s before bridge.gmReady on a GM's first load (CALIBRATION.md:138-140, 16.11.2026); a primary's F5 mid-ask and an Assistant made primary are not read."
+    },
+    {
+     "promise": "One ruling per card: a non-primary GM's press goes to the primary, which takes the card once; the GMs keep a row of who is ruling and who ruled; a second GM reads who; refusals are cards in the notice history",
+     "source": "v1.2.83.md 81-87",
+     "code": "scripts/call-gm.mjs:1077 claimOnPrimary, :1114 sayRefusedHere; scripts/bridge-wire.mjs:202 ACTION_CARD_CLAIM; scripts/gm-stores.mjs:1519 ruledCardStore",
+     "holds": "yes",
+     "test": "R842, R843; tier 2 \"two clicks on one card to the GMs rule it once\" (tests-tier2.mjs:40639); scenario 61 CL1-CL3; scenario 62 T",
+     "test_kind": "both",
+     "note": ""
+    },
+    {
+     "promise": "A private card a player missed comes back: each browser asks the connected GMs for the words it lacks at load and when a GM comes back; each GM answers only that card's readers, without the GMs' block, a line written for that reader as written; only the newest 8 raise a notice",
+     "source": "v1.2.83.md 30-34, 103, 147-150",
+     "code": "scripts/secret.mjs:935-952 askForWords (RETURN_NOTICES, REQUEST_BATCH), :958-1001 answerWordsRequest (game.user.isGM, the sender from Foundry's id, the readers named by the GM's entry or the message, wordsFor the sender), :883 ACTION_REQUEST secret.request, :1014 drawPrivateCard, :430 readersLines",
+     "holds": "yes",
+     "test": "R844, R845; scenario 73 R (a returning reader); scenario 30 (secret.request from another player's console acts on nothing)",
+     "test_kind": "both",
+     "note": "LIVE-E18-04 (v14's chat log and an old card drawn again) unread."
+    },
+    {
+     "promise": "A student two players own: the private cards, private rolls, room's sounds, clean-up words, incident cards and the victim's words reach every owner; an observer or limited reader none",
+     "source": "v1.2.83.md 103-105, 147-149",
+     "code": "scripts/utils.mjs:658 ownerIdsOf, :735 whisperToOwnerOnly, :751 whisperToOwner",
+     "holds": "yes",
+     "test": "R846; scenario 61 CO (61-gmstore-case.mjs:116)",
+     "test_kind": "both",
+     "note": "The notes' gap \"checks that a sender is the student's owner still compare with one owner, so a co-owner is refused there\" was closed by E91 C6 (utils.mjs:650-655 playerOwns, the owner's D078)."
+    },
+    {
+     "promise": "Notices to the whole table stand under Foundry's windows and a card for this reader alone, a refusal or an objection over them; the bar carries the event's title; the messenger's bubbles wear the theme, buttons at least the small text and 28 px",
+     "source": "v1.2.83.md 151-156",
+     "code": "styles/danganronpa.css #drpg-popups (E44 C8c's rule by theme); scripts/popup.mjs showPopup (data-kind still stamped, read by R847 only)",
+     "holds": "superseded",
+     "test": "R847 (rewritten per theme by E44 C8c), R848, R849, R850, R851",
+     "test_kind": "both",
+     "note": "The split by kind was reversed by E44 C8c (fd976779, 04.11.2026; the owner on 1.2.98): under Stained Glass the tile stands under the windows whatever it shows, under Monokuma Legacy every card over them. The bar's title and the bubbles hold (R848-R850)."
+    },
+    {
+     "promise": "With no GM connected a question to the GM is not posted, the player told \"No GM is connected.\" and its price given back; a Search for something specific refused before its price and dice",
+     "source": "v1.2.83.md 135-138",
+     "code": "R837's census of the calls on the GM (each reads its answer and hands back its price); action-search.mjs performSearch (not read here)",
+     "holds": "unread",
+     "test": "R836, R837; scenario 33 C (a call on the GM with no GM)",
+     "test_kind": "both",
+     "note": "Held by the census and the scenario by their titles; the roads themselves not traced here."
+    },
+    {
+     "promise": "E18 C7 (Frisk's ask by the road of the other questions, a resent Sabotage answering with its first result) is not in this version",
+     "source": "v1.2.83.md 10-11, 225-226",
+     "code": "shipped in 1.2.87: 29a53176 (E18 C7), f3df1f56 (fix c7-G1), 6b75dca5 (fix c7-G2), merged 3719a0c8; call-gm.mjs:749 (an open Frisk's answer held by its request id, E68 C11)",
+     "holds": "yes",
+     "test": "the E18 C7 tests of 1.2.87, not read here",
+     "test_kind": "none",
+     "note": "Graded with its later train; listed so the stage's whole is accounted for."
+    }
+   ],
+   "registry_rows": 17,
+   "tests_read": [
+    {
+     "test": "R841 (title and tests-tier1.mjs:6137's reference)",
+     "measures": "yes",
+     "why": "Reads the resend to a new primary at a primary's load and at its leaving, three at most. Plain objects; v14's order of a reloading GM's events is LIVE-E18-02's."
+    },
+    {
+     "test": "R846 (tier 0, title)",
+     "measures": "yes",
+     "why": "Reads the source: whisperToOwner and whisperToOwnerOnly read ownerIdsOf and every caller naming its own readers is listed with its reason. A census of the source, not a run."
+    },
+    {
+     "test": "scenario 61 Y1, Y2, CL1-CL3",
+     "measures": "yes",
+     "why": "By live-items-293.json item 294: a handover and a primary's reload, two GMs on one card; Y2's announceFirst is the one place the measured order of userConnected and gmReady is modelled. Their bodies were not read here."
+    }
+   ],
+   "tests_to_join": [
+    "R836 to R852 (tiers 0-1)",
+    "tier 2: E18 C0, C1, C2, C5 (tests-tier2.mjs:38452, :38626, :38685, :40515, :40930)",
+    "tier 2: a resent ask finds the card a GM posted for it by its mark and no other",
+    "tier 2: two clicks on one card to the GMs rule it once",
+    "scenario 30",
+    "scenario 33",
+    "scenario 61",
+    "scenario 62",
+    "scenario 73",
+    "scenario 40"
+   ],
+   "scenarios": [
+    "no register row names E18; by the notes the stage changed 30 (E18's packets from another player's console), 33 (C, A17), 61 (Y, CL, CO), 62 (T), 73 (R) and 40 (the request window's answer); the notes put CO in 76, which is 61's phase (live-items-293.json item 293)"
+   ],
+   "live": {
+    "items": 4,
+    "read": 1,
+    "ids_read": [
+     "LIVE-E18-02 (part 5's first half, a GM's first load on 14.370, 16.11.2026: agrees)"
+    ],
+    "note": "291 LIVE-E18-04 and 292 LIVE-E18-03: no reading. 293 LIVE-E18-01: open (live-items-293.json). 294 LIVE-E18-02: partly, agrees."
+   },
+   "findings": [],
+   "superseded_by": [
+    "E44 C8c (fd976779): the notice tile by theme, not by kind",
+    "E68 C11 (05dc2e29, D075): an expiry under a GM's ruling waits for it and ends once",
+    "E91 C6 (D078): a co-owner is an owner in every check (utils.mjs:650-655)",
+    "E71 B06, B12: the GM's button and the end's words reworded",
+    "E41 C5: the ask-by-card code moved to call-gm.mjs (pure moves)",
+    "E17 train 1.2.87: E18 C7 shipped"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "The clock on a waited question, the one ruling per card, the resend to a new primary, the private card given back to its readers alone and the every-owner rule are in today's code as worded, and each is held by stamped tests that drive it (R839-R841, R842-R843, R844-R846 with scenarios 61, 62, 73 and 30). Two of the stage's own known gaps were closed later (E68 C11, E91 C6), and C7 shipped in 1.2.87. Reading found no defect. Against a 9: the no-GM road and the Search's refusal were not traced here, and the notice tile's rule was replaced by the owner's later decision. The stage's main promise, one card and one answer across a primary's F5 and a handover, rests on LIVE-E18-01 and -02, one read for a part, so it could not go above 9.",
+   "missing_to_10": "LIVE-E18-01 and LIVE-E18-02 read whole with a Gamemaster, an Assistant GM and two players; LIVE-E18-03 and -04 read; the no-GM road traced and its scenario result joined; the base run's tier-2 and scenario results."
+  }
+ ],
+ "not_established": [
+  {
+   "what": "base-run.json was not on the branch when this was written (20.11.2026): no test or scenario named above was read as green or red in this audit's run; each is listed in tests_to_join.",
+   "l1": null
+  },
+  {
+   "what": "What decided the owner's one-way tunnel on 1.2.80 (LIVE-H81-01): 14.370's seeded regions carry no elevation and belong to floors by a Set of level ids (CALIBRATION.md:110-113), so the height reading 1.2.81 fixed may not be the cause; nobody has crossed stairs between two v14 Levels at a table since.",
+   "l1": {
+    "what": "A tunnel on one floor and stairs between two v14 Levels gone through and back, from a GM's and a player's browser",
+    "recipe": [
+     "On a scene with two Levels (Ground 0-10, Upper 10-20) draw a room on each floor and a tunnel on Ground, both secret; give both to a student",
+     "Turn on Verbose console logging for the GM and the player",
+     "The player presses Go through at the Ground tunnel and back; read each refusal's words and both consoles",
+     "The player goes up the stairs by Go through and back down; then the GM does the same on the student's token",
+     "Move the token upstairs with Foundry's own level control (no tunnel), then press Go through at the upper end; read the refusal and the token's elevation and level",
+     "Write down the scene, the regions' levels and elevations"
+    ],
+    "clients": "one GM, one player",
+    "theme": "default",
+    "settles_if": "agrees: every crossing goes both ways on both floors; defect: a refusal on the way back, with the console line naming the end's room",
+    "priority": "major (the stage's grade cap)"
+   }
+  },
+  {
+   "what": "Whether two tokens on one v14 Level at different elevations matter at a table: a tunnel crossing writes the floor's bottom as the token's elevation (movement.mjs landingElevation, rooms.mjs:547), while 14.370 left a token's elevation 0 when it changed level in place (CALIBRATION.md:114). The rooms are found by floor first, so the room reads are not changed on seeded regions; vision, lights and a region drawn with its own elevation band were not read.",
+   "l1": {
+    "what": "A token taken upstairs by a tunnel and one taken up by Foundry's level control, side by side",
+    "recipe": [
+     "Scene with Levels Ground 0-10 and Upper 10-20 and a room on each",
+     "Take token A up by Go through, token B up by Foundry's level control",
+     "Read both tokens' elevation and level; read game.drpg.whatIsHere at each",
+     "Give the Upper room a region elevation band 10-20 and read both tokens' rooms again",
+     "Look at both tokens' vision and the fog on the player's screen"
+    ],
+    "clients": "one GM, one player",
+    "theme": "both",
+    "settles_if": "agrees: both read the Upper room and see alike; defect: one of them reads no room or sees differently",
+    "priority": "minor"
+   }
+  },
+  {
+   "what": "Every look E85 changed (the roll window's title, the state word over a face, the sheet's 10 px, Frisk's row) was measured without Foundry's and Daggerheart's CSS: LIVE-E16-02, LIVE-E79-21, LIVE-H81-02.",
+   "l1": null
+  },
+  {
+   "what": "E86's waits at a table: from a player's Roll to the dice on the player's and the GM's screen, and from a move's end to the voice tile's Connecting (LIVE-H82-05, -06, -02); the harness's numbers are local IPC with 80 ms added.",
+   "l1": {
+    "what": "The dice's start on a player's and the GM's screen, and voice after a move",
+    "recipe": [
+     "At The Forge, GM and one player, Dice So Nice on, One dice look for the table on",
+     "The player makes 10 action rolls and 10 statistics from the sheet; read game.drpg.perf()'s asked-to-dice-started and asked-to-dice-shown medians on the player's page",
+     "On the GM's screen note whether each roll is thrown once and when",
+     "Verbose logging on; the player moves into another room 10 times; read the Debug line's connect ms and time letting go to Connecting"
+    ],
+    "clients": "one GM, one player",
+    "theme": "default",
+    "settles_if": "agrees: dice start before the answer, once a roll, voice joins within the connect's time; defect: two throws, a start after the answer, or a wait over 1.5 s",
+    "priority": "the grade cap 9"
+   }
+  },
+  {
+   "what": "E19's voice on a real LiveKit: a drop and its retries (LIVE-E19-01), the dead in the Spectators' room (LIVE-E19-05, whose text still names the dead channel), an Eclipse's silence (LIVE-E19-08).",
+   "l1": {
+    "what": "A dropped connection, a death, and an Eclipse on avclient-livekit",
+    "recipe": [
+     "Two players and a GM in regional voice",
+     "Cut player A's network for 10 s; read the cards, the rejoin times and whether LiveKit's toast shows",
+     "Kill A's character in secret in an incident; close the incident; read who hears A and where A's tile says A is",
+     "Start an Eclipse; read every player's voice state and the GMs' room; end it and read everybody's room without a reload"
+    ],
+    "clients": "one GM, two players",
+    "theme": "default",
+    "settles_if": "agrees: one card and rejoin at about 1, 5 and 15 s; the dead heard by nobody living; no player in voice in the Eclipse; defect: any living player hears the dead, a player stays connected in the Eclipse, or no rejoin",
+    "priority": "the grade cap 9"
+   }
+  },
+  {
+   "what": "The stage ledgers of E18 and E19 and the end reviews the 1.2.83 notes quote (35 and 33 rows, 26 findings) are not in the repository; the counts cannot be checked from here.",
+   "l1": null
+  },
+  {
+   "what": "E18's no-GM road (a question not posted, its price returned, a Search refused before its dice) was not traced in today's source; R837's census and scenario 33 C are taken by their titles.",
+   "l1": null
+  },
+  {
+   "what": "AUDIT 9.2 items 272-292 were read by id for their state only; their texts were not checked against today's code item by item (no live-items file covers lines 1146-1166 yet). Item 287 asks a dead channel the code no longer has.",
+   "l1": null
+  }
+ ]
+}

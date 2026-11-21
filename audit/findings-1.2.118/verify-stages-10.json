@@ -1,0 +1,367 @@
+{
+ "refuter": "verify-stages-10",
+ "of": "stages-10",
+ "checked": [
+  {
+   "ref": "E16 promise 1",
+   "claim": "Sabotage's window shows the bar sabotageHit judges, from one function",
+   "verdict": "stands",
+   "why": "The window's dc and the judge both read sabotageBar with the same relief and penalty; R985 is ok in shard 1/8.",
+   "evidence": "scripts/action-project.mjs:1276-1277 `export function sabotageBar(def = ACTIONS.sabotage, relief = 0, penalty = 0) { return easedBy(def.thresholds, relief).map(...)`; :1286 `resolveThreshold(Number(roll?.total) || 0, sabotageBar(def, relief, penalty))`; :1052 `dc: sabotageBar(def, relief, penalty).map(band => band.min).join(\" / \")`"
+  },
+  {
+   "ref": "E16 promise 2",
+   "claim": "Dynamic says 'beat N' in both windows; one card per action; a GM's own posts none",
+   "verdict": "stands",
+   "why": "The GM's band options and the roll window both read dynamicBar; the description is asked by promptForRequest (no card) and the one card is the difficulty's; a GM's own goes to askDynamicDifficulty, a window. E16-T21 and E16-T25 passed in the base run (base-run.json: shards 1-8 merged '3387 passed, 1 failed, 27 skipped' with XI07 the only failure, and no title below is in audit/harness/skip-baseline.json, so the tier-2 titles the reader calls 'not read' ran and passed).",
+   "evidence": "scripts/action-dynamic.mjs:324 `game.i18n.format(\"DRPG.Action.beat\", { n: dynamicBar(t) })`; :126 `dc: dynamicBar(band)`; :66-67 \"the GMs' one card is the difficulty's; a GM's own action is ruled in a window and posts none\"; :99-100 `if (game.user.isGM) { picked = await askDynamicDifficulty(request);`"
+  },
+  {
+   "ref": "E16 promise 3",
+   "claim": "A Dynamic success posts the GM a card with Create an item, Give, Reply; a Reroll into a success posts it, into a miss ends the unanswered card",
+   "verdict": "stands",
+   "why": "offerDynamicFind posts createItem (prefilled by, tier, room, want, roll), giveItem and reply on a success; settleDynamic posts it when the Reroll passes and the kept roll did not, and calls withdrawDynamicFind when the kept roll passed and the new one does not, which settles every unsettled card naming this roll.",
+   "evidence": "scripts/action-dynamic.mjs:225-232 `action: \"createItem\", ... data: { by: actor.id, tier: String(tier), room: room ?? \"\", want: description ?? \"\", roll: rollId ?? \"\" } }, { action: \"giveItem\" ... }, { action: \"reply\" ...`; scripts/reroll.mjs:1538-1539 `if (success && before && !passes(before)) await offerDynamicFind(actor, card); if (!success && before && passes(before)) await withdrawDynamicFind(...)`; scripts/action-dynamic.mjs:286 `for (const card of cards) await settleCall(card, { key: \"DRPG.Action.dynamicRerollMissed\" });`"
+  },
+  {
+   "ref": "E16 promise 4",
+   "claim": "'Nothing was there.' keeps the action spent, Refuse gives it back; the hint's 'No help.' keeps it spent",
+   "verdict": "stands",
+   "why": "ruledMissAction makes a searchMiss button; its handler ruleSearchMiss posts the ruling and settles with no refund; the hint card's set carries ruledMissAction(actor, \"help\").",
+   "evidence": "scripts/action-pipeline.mjs:1072-1077 `return { action: \"searchMiss\", label: ... \"DRPG.Bridge.noHelp\" : \"DRPG.Bridge.nothingThere\" ...`; :1122 `ruledMissAction(actor, \"help\"),`; scripts/messenger-app.mjs:1417 `searchMiss: ruleSearchMiss,`; :1195 `return settled(\"DRPG.Bridge.settledAnswered\");` (no refund call in :1185-1196)"
+  },
+  {
+   "ref": "E16 promise 5",
+   "claim": "In a Class Trial Analyze offers only bullets; the GMs refuse a stash hunt before its throw is read; the price or the Reroll comes back",
+   "verdict": "stands",
+   "why": "ANALYZE_TRIAL_FILTER shuts hint, stash and passage in classTrial; resolveStashSearch refuses before reading the actor; locateStash refunds on the shut row; settleStashFind returns null on a refusal (the Reroll given back).",
+   "evidence": "scripts/action-analyze.mjs:47-50 `{ row: \"hint\", shut: () => true }, { row: \"stash\", shut: () => true }, { row: \"passage\", shut: () => true }`; :342-344 `if (analyzeRowShut(\"stash\")) { if (charge) await refundPrice(actor, charge);`; scripts/stash-reach.mjs:702 `if (getClock()?.phase === \"classTrial\") return { refused: \"the Class Trial is in session\" };`; scripts/reroll.mjs:1826 `if (!out || out.refused || out.reason === \"noRoom\") return null;`"
+  },
+  {
+   "ref": "E16 promise 6",
+   "claim": "A trap's victim throws Body first on Leave a clue and Secure a trace",
+   "verdict": "stands",
+   "why": "Both indirectVictim lists start with body; the reader's lines are one off (3884, 3918), the content as said.",
+   "evidence": "scripts/config.mjs:3884-3885 `indirectVictim: { traits: [\"body\", \"hand\", \"leg\"],`; :3918-3919 the same"
+  },
+  {
+   "ref": "E16 promise 7",
+   "claim": "A failed concealment of an indirect murder's work is told to the room, naming no project",
+   "verdict": "stands",
+   "why": "On !ok the module announces concealSeen to roomAudience with the actor and room only.",
+   "evidence": "scripts/action-project.mjs:736-743 `if (!ok) { await announce({ content: ... game.i18n.format(\"DRPG.Project.concealSeen\", { actor: ..., room: ... }) ..., whisper: roomAudience(actor) });`; lang/en.json:4509 \"{actor} is busy with something in {room}, and everyone here can see roughly what.\""
+  },
+  {
+   "ref": "E16 promise 8",
+   "claim": "A Palm or Plant not sent to a GM gives the action back; one sent but unanswered stays paid",
+   "verdict": "stands",
+   "why": "nobodyTook is true only for reason noGm; both callers refund through palmBack on it; noAnswer is not matched.",
+   "evidence": "scripts/palm.mjs:239-241 `function nobodyTook(ok, reason) { return !ok && reason === \"noGm\"; }`; :213 and :390 `if (nobodyTook(res.ok, res.reason) || TRANSFER_REFUSED.includes(...`"
+  },
+  {
+   "ref": "E16 promise 9",
+   "claim": "Tamper's window shows the chosen trace's number",
+   "verdict": "stands",
+   "why": "Each row of cleanableTracesForPlayer carries dc (null for reinforced), and action-tamper.mjs hands row.dc to attemptCleanup for the window.",
+   "evidence": "scripts/cleanup.mjs (row build) `dc: t.data.reinforced ? null : cleanupDc(t.data.visibility, actor)`; scripts/action-tamper.mjs:143 `cleanup.attemptCleanup(actor, traceId, { viaAction, dc: row?.dc ?? null });`"
+  },
+  {
+   "ref": "E16 promise 11",
+   "claim": "A Loaded Die counts only where the die held",
+   "verdict": "stands",
+   "why": "loadedDieHeld reads the named die's top face; action-pipeline gates the free critical on it for a roll this browser threw, roll-draw for a drawn one, and both give the Call back when it did not hold.",
+   "evidence": "scripts/forced-roll.mjs:91-99 `export function loadedDieHeld(result) { ... return (at ? [at] : [\"hope\", \"fear\"]).some(top); }`; scripts/action-pipeline.mjs:295 `const loaded = drawn ? drawn.loaded === true : free && loadedDieHeld(result);`; scripts/roll-draw.mjs:1726 `const dieHeld = loads && loadedDieHeld(config);`"
+  },
+  {
+   "ref": "E16 promise 12",
+   "claim": "Projects is not struck through outside a room, Search still is",
+   "verdict": "stands",
+   "why": "roomBound lists search but not project; a key not in the list answers null.",
+   "evidence": "scripts/sheet-actions.mjs:975-976 `const roomBound = [\"search\", \"observe\", \"listen\", \"palm\", \"tamper\"]; if (!roomBound.includes(key)) return null;`"
+  },
+  {
+   "ref": "E16 promise 14",
+   "claim": "An old Observe card no longer shows a player the GMs' sentence; a GM reads it whole",
+   "verdict": "stands",
+   "why": "dropOldGmLines returns at once for a GM and removes, for a player, paragraphs matching observeGm's sentence; called by the messenger's two renders and secret.mjs.",
+   "evidence": "scripts/secret.mjs:357-364 `export function dropOldGmLines(root, { forGm = Boolean(game.user?.isGM) } = {}) { if (forGm || !root?.querySelectorAll) return root; ... if (said.some(re => re.test(text))) p.remove();`; scripts/messenger-app.mjs:623, :683 `dropOldGmLines(...)`"
+  },
+  {
+   "ref": "E16 promise 15",
+   "claim": "drpgStashesFound is the GMs' to write; a mark taken before it was listed reads the sheet and puts nothing back",
+   "verdict": "stands",
+   "why": "The key is in GM_FLAGS, so a player's write is judged and put back; FLAGS_MARKED_LATER keeps it out of an older mark's list so flagsHeldNow reads the document.",
+   "evidence": "scripts/sheet-audit.mjs:164-170 `const GM_FLAGS = [... \"drpgStashesFound\"];`; :211-212 `const FLAGS_MARKED_LATER = [\"drpgStashesFound\"]; const flagsMarkedBy = mark => Array.isArray(mark?.flagsMarked) ? mark.flagsMarked : MARKED_FLAGS.filter(key => !FLAGS_MARKED_LATER.includes(key));`"
+  },
+  {
+   "ref": "E16 promise 17",
+   "claim": "H83: under Stained Glass the room tile's picture and the voice tile's portrait lean with their pane",
+   "verdict": "stands",
+   "why": "The functions are where cited and called from both paint roads; the pixels need layout (R508 and R543 are in skip-baseline.json under env.layout), as the reader says. Held by R988 (source) and code reading, not by a drawing.",
+   "evidence": "scripts/glass.mjs:534 `export function seatRoomArt() {`; :676 `export function seatVoiceArt() {`; :2303, :2307, :3397-3398 the calls; audit/harness/skip-baseline.json lists \"R543 - the voice tile on the curtain keeps its box\" and \"R508 - the room tile keeps its place\""
+  },
+  {
+   "ref": "E16 grade",
+   "claim": "7, provisional after L1",
+   "verdict": "stands",
+   "why": "Four promises held in part (the Reroll's memory, the grid pick against pinItemIcons, part 1's roll window and dice look with table defects on 1.2.80 and 1.2.97 answered by later stages and unread since) and part 1's main promise on unread live checks: 11.4's 7 ('one promise delivered in part') is the nearest row; 6 needs a promise not delivered or broken by a later stage, which none is on today's code as read. The reader under-reads the tests: E16-T21 to -T39 ran and passed in the base run (base-run.json: shards 1-8 merged '3387 passed, 1 failed, 27 skipped' with XI07 the only failure, and no title below is in audit/harness/skip-baseline.json, so the tier-2 titles the reader calls 'not read' ran and passed), but that does not lift a grade held by partial promises and the live cap.",
+   "evidence": "audit/AUDIT-1.2.42.md 11.4 row 7 \"działa w zwykłej sytuacji, kilka `minor` albo jedna obietnica dowieziona w części\"; scripts/inventory.mjs:451-457 `replaceableIcon` `return img.includes(`/${MODULE_ID}/icons/item-`);` against :472-473 \"an item a GM picked art for, is left alone\"",
+   "grade_after": 7
+  },
+  {
+   "ref": "E17 promise 1",
+   "claim": "Every shared count the primary writes is written in a step of its own key",
+   "verdict": "stands",
+   "why": "Each named key exists as cited and the writers read inside serialWrite of their key (adjustDespair, addOverflow read in the step); R991 census and R992 ok in shard 1/8.",
+   "evidence": "scripts/despair.mjs:287 `export const DESPAIR_KEY = \"despair\";`; :349 `const out = await serialWrite(DESPAIR_KEY, async () => { ... const held = getDespair(userId);`; scripts/overflow.mjs:368 `const added = await serialWrite(OVERFLOW_KEY, async () => {`; scripts/search-tokens.mjs:41, scripts/clock.mjs:132, scripts/trial.mjs:759, scripts/movement.mjs:3438, scripts/projects-secrecy.mjs:70 the other keys"
+  },
+  {
+   "ref": "E17 promise 2",
+   "claim": "Despair has one writer: an Assistant's pip and Feed the Overflow go to the primary; only the primary prunes; a pip clamps and spills nothing",
+   "verdict": "stands",
+   "why": "adjustDespair routes first and asks again in the step; addOverflow (Feed the Overflow's road) asks the primary; prunePools returns unless primary; clamp skips the spill.",
+   "evidence": "scripts/despair.mjs:338-339 `const routed = await routeToPrimary(userId, delta, clamp); if (routed !== null) return routed;`; :358 `if (!clamp && delta > 0 && wanted > max) {`; :79-80 `export async function prunePools(removedId = null) { if (!isPrimaryGm()) return null;`; scripts/overflow.mjs:357 `const asked = await askPrimaryToAdd(n, reason);`; scripts/call-effects.mjs:1066 `await addOverflow(call.feedsOverflow, { reason: \"Feed the Overflow\" });`"
+  },
+  {
+   "ref": "E17 promise 3",
+   "claim": "The primary puts back a player's move into a room a rule shuts, to the last lawful spot, in either mode, and tells the player",
+   "verdict": "stands",
+   "why": "auditMove asks ctx.ruleRefused for a player's (or a GM-sent-back player's) move and calls ctx.sendBack with its spot; a GM's own move is exempt. Whether the put-back lands on 14.370 is the open LIVE-E39-12 question the reader names; the code road is as claimed.",
+   "evidence": "scripts/movement-audit.mjs:289-292 `if (users?.get(userId)?.isGM) { mover = askerOf(options?.[SENT_BACK], users); if (!mover) return exempt(\"a GM's move\"); }`; :308-314 `const refused = mover && typeof ctx.ruleRefused === \"function\" ? ctx.ruleRefused(tokenDoc) : null; if (!refused?.back) return judged; ... ctx.sendBack(tokenDoc, refused.back, {`; scripts/movement.mjs:3493-3494 `export function putBackWrite(tokenDoc, to, options = {}) { return tokenDoc.update(to, { ...options, diff: false }); }`"
+  },
+  {
+   "ref": "E17 promise 4",
+   "claim": "A player's sidebar drop into a shut room is deleted and the GMs told; a GM's drop stands",
+   "verdict": "stands",
+   "why": "noteGmCreated judges the created token and calls removeDrop on a rule; removeDrop deletes on the primary and whispers the GMs; judgeArrival reads a GM mover's spot as standing (no rule).",
+   "evidence": "scripts/movement.mjs:690 `if (judged?.rule) removeDrop(tokenDoc, judged);`; :694-703 `function removeDrop(tokenDoc, standing) { if (!isPrimaryGm()) return; ... await tokenDoc.delete();`; :1064 `} else if (mover?.isGM) now = standingHere(tokenDoc);`"
+  },
+  {
+   "ref": "E17 promise 5",
+   "claim": "The Eclipse is counted on the primary; past the allowance put back; a jump counts the rooms between; an undo within 5 s is not counted",
+   "verdict": "stands",
+   "why": "The count and the jump live in movement.mjs (eclipseSighting, roomsApart, UNDO_MS), not at the cited eclipse.mjs:1077, which is the crossing's allowance and adjacency check; the claim holds on the code.",
+   "evidence": "scripts/movement.mjs:1201 `const crossings = adjacent ? 1 : roomsApart(tokenDoc.parent, from, to);`; :1251 `const UNDO_MS = 5000;`; :1255 `Date.now() - mark.at <= UNDO_MS && roomAtSpot(tokenDoc, honoured) === mark.from`"
+  },
+  {
+   "ref": "E17 promise 7",
+   "claim": "A search token the player stopped waiting for comes back once; giveBack on the primary, guarded to the spender",
+   "verdict": "stands",
+   "why": "giveBack adds one up to the maximum in a SEARCH_KEY step on the primary; guardTokenReturn admits only the spender of that request id. 'Within two minutes' rests on PLANT_WINDOW_MS, named in runSpend's header; the Shift part not re-read.",
+   "evidence": "scripts/search-tokens.mjs:304-314 `static async giveBack(roomName, sceneId) { ... return serialWrite(SEARCH_KEY, async () => { if (!isPrimaryGm()) return null; ... Math.min(this.max, ... + 1)`; :637-640 `export function guardTokenReturn(sender, payload, ctx) { const entry = handedOut.get(payload?.spendRequestId ?? \"\"); if (entry?.kind !== \"token\") return ...`"
+  },
+  {
+   "ref": "E17 promise 8",
+   "claim": "No Eclipse over a running incident's opening or fight; chevron dimmed with the same words; the chevron asks first and 'Do it' does not",
+   "verdict": "weakened",
+   "why": "The refusal and the shared startRefusalOf hold. The last clause no longer holds as worded: since E37 (Q-E37-3, approved 01.11.2026) the GM panel's Do it runs the same toggleEclipse and so asks the same question. The reader marks the promise 'yes' without naming this narrowing by a later recorded decision, as it does for P6 and P12. Not a defect; the promise's text is superseded in part.",
+   "evidence": "scripts/boundary.mjs:84-85 \"The panel's \\\"Do it\\\" asks it too now (Q-E37-3, approved 01.11.2026): until E37 it started an Eclipse without asking\"; :104 `if (!await askEclipse(incomingTimeOfDay(getClock()))) return null;`; scripts/gm-panel.mjs:404 `eclipse: { key: \"eclipse\", run: () => import(\"./boundary.mjs\").then(m => m.toggleEclipse()) },`; .github/release-notes/v1.2.87.md:87 \"**Do it** on the GM panel's Next line starts the Eclipse without that question.\""
+  },
+  {
+   "ref": "E17 promise 9",
+   "claim": "A boundary can be taken back within five minutes; two advances by two rewinds",
+   "verdict": "stands",
+   "why": "TAKE_BACK_MS is five minutes and the depth four, so two rewinds of two advances fit; the functions and the GMs' store are where cited. Tier 2 E17-T10 ran and passed (base-run.json: shards 1-8 merged '3387 passed, 1 failed, 27 skipped' with XI07 the only failure, and no title below is in audit/harness/skip-baseline.json, so the tier-2 titles the reader calls 'not read' ran and passed).",
+   "evidence": "scripts/clock.mjs:507 `const TAKE_BACK_MS = 5 * 60_000;`; :535 `const TAKE_BACK_DEPTH = 4;`; :654 `export async function takeBackBoundary(last) {`; :688 `export async function rewindTimeOfDay() {`; scripts/gm-stores.mjs:1263 `export const takeBackStore = defineGmStore({`"
+  },
+  {
+   "ref": "E17 promise 10",
+   "claim": "The HUD's minutes are minutes played: pause, reload and breaks add nothing",
+   "verdict": "stands",
+   "why": "settleElapsedPause stamps the pause and adds the break to pausedTotalMs on the primary; settleClockAtReady reads the GMs' beat at load; beatClock stops while paused.",
+   "evidence": "scripts/hud-elapsed.mjs:46-57 `export async function settleElapsedPause(paused) { ... if (paused) { ... await setClock({ pausedAt: serverNow() });`; :154-155 `export async function beatClock() { if (!game.user?.isGM || !isPrimaryGm() || game.paused) return;`"
+  },
+  {
+   "ref": "E17 promise 11",
+   "claim": "During an incident a bystander's clock stays at the opening, also after a reload; the motive told once",
+   "verdict": "stands",
+   "why": "shownClock answers the page's last copy or clockAtOpen after a reload; a recorded 14.370 reading agrees for the no-reload case (LIVE-E17-07 partly).",
+   "evidence": "scripts/hud-elapsed.mjs:166-169 `export function shownClock(clock, { hide = false, last = null } = {}) { if (!hide) return clock; if (last) return last; return clock?.clockAtOpen ? { ...clock, ...clock.clockAtOpen } : clock; }`; scripts/rules.mjs:183, :262 tickMotive, announceOwedMotive"
+  },
+  {
+   "ref": "E17 promise 12",
+   "claim": "The Eclipse strip, a Monocub's line, a dead student's one row; the room tile's n/m searches",
+   "verdict": "stands",
+   "why": "The functions are where cited; R997-R999 ok in shard 1/8; the reader names E49 B2's redraw of the feet.",
+   "evidence": "scripts/player-status.mjs:407 `export function stillPlacing(students, ...`; :423 `export function showsDeathOnly(actor) {`; scripts/room-tile.mjs:489 `function buildSearchPips({ max, left, sealed }) {`"
+  },
+  {
+   "ref": "E17 promise 13",
+   "claim": "A rest is counted within its chapter; one taken before the update stays taken",
+   "verdict": "stands",
+   "why": "restStamp prefixes the chapter; restCovers accepts the legacy stamp too.",
+   "evidence": "scripts/rest.mjs:135-136 `export function restStamp(kind, clock) { const chapter = `c${clock.chapter ?? 1}`;`; :156 `return taken === restStamp(kind, now) || taken === legacyRestStamp(kind, now);`"
+  },
+  {
+   "ref": "E17 promise 14",
+   "claim": "The fog's dissolve settles its pictures and stops on a scene change",
+   "verdict": "stands",
+   "why": "endDissolves is hooked to canvasTearDown; R1003 ok on a fake ticker; a real canvas is LIVE-E17-06.",
+   "evidence": "scripts/fog.mjs:460 `Hooks.on(\"canvasTearDown\", () => {`; :2279 `export function endDissolves(io = DISSOLVE_IO) {`; :2287 `export function swapInFog(...`"
+  },
+  {
+   "ref": "E17 promise 15",
+   "claim": "The Mastermind knows a public project in any room of their scene; a passage's cards name every room to the Mastermind",
+   "verdict": "stands",
+   "why": "hasStoodIn takes a mastermind default from playsTheMastermind and knowsProject ends in it; roomNamerFor reads the mastermind store.",
+   "evidence": "scripts/projects.mjs:711 `export function hasStoodIn(user, room, sceneIds, { mastermind = playsTheMastermind(user) } = {}) {`; :311 `return hasStoodIn(user, room, sceneIds);`; scripts/passages-gm.mjs:2177 `export async function roomNamerFor(actor, sceneId, { mastermind = mastermindStore, ...`"
+  },
+  {
+   "ref": "E17 promise 16",
+   "claim": "E18 C7: a Frisk's ask ends when its searcher stops waiting or its primary leaves; a Sabotage sent again answers its first result",
+   "verdict": "stands",
+   "why": "Both functions are where cited; R1006 ok in shard 1/8 and its registry row says the primary's leaving ends the wait.",
+   "evidence": "scripts/frisk.mjs:982 `export async function expireFriskAsk(requestId, senderId, now = Date.now()) {`; scripts/bridge-runs-records.mjs:355 `export async function sabotageAgain(sender, ctx) {`; docs/dev/R-REGISTRY.md R1006 \"a Frisk's wait ends at once when its primary leaves for another GM\""
+  },
+  {
+   "ref": "E17 promise 17",
+   "claim": "drpgTimeOfDayChanged fires once per calendar change, a phase its own drpgPhaseChanged",
+   "verdict": "stands",
+   "why": "The clock row has separate timeOfDayHook and phaseHook entries, each run only when its reading names it.",
+   "evidence": "scripts/sync.mjs:449-450 `timeOfDayHook: (data, news) => import(\"./clock.mjs\").then(() => Hooks.callAll(\"drpgTimeOfDayChanged\", ...)), phaseHook: ... Hooks.callAll(\"drpgPhaseChanged\", ...)`; :545-547 \"`drpgTimeOfDayChanged` only when the calendar moved ... `drpgPhaseChanged` for the phase\""
+  },
+  {
+   "ref": "E17 grade",
+   "claim": "8, provisional after L1",
+   "verdict": "stands",
+   "why": "One promise in part by a recorded decision (P6), two more narrowed by later decisions (P12 and, not named by the reader, P8's Do it), no finding, the main put-back road on unread live checks and an open table reading (LIVE-E39-12) on its write: 11.4's 8 ('one promise holds only by reading or has a minor') with the cap at 9 is allowed. The weakened P8 is a superseded clause, not a broken promise, so it does not lower the grade. The tier-2 titles ran and passed (base-run.json: shards 1-8 merged '3387 passed, 1 failed, 27 skipped' with XI07 the only failure, and no title below is in audit/harness/skip-baseline.json, so the tier-2 titles the reader calls 'not read' ran and passed).",
+   "evidence": "audit/AUDIT-1.2.42.md 11.4 row 8 \"obietnice dowiezione, ale jedna trzyma się tylko odczytem kodu albo ma `minor`\" and the first cap; scripts/boundary.mjs:84-85 (Q-E37-3)",
+   "grade_after": 8
+  },
+  {
+   "ref": "E87 promise 1",
+   "claim": "H84-01: two grants at once make one key; the key check keeps one key to the owner's bedroom, repoints a dead key",
+   "verdict": "stands",
+   "why": "grantBedroomKey runs grantKeyNow inside a per-student serialWrite, so two grants on one browser are one after the other; tidyRoomKeys, repointDeadKey and reconcileBedroomKeys are where cited; issueMissingKeys runs at the primary's load. Two GMs on two browsers not queued, as the reader says.",
+   "evidence": "scripts/vault-store.mjs:285 `return serialWrite(bedroomKeyKey(actor.id), () => grantKeyNow(actor, room, { silent, scene, tidy }));`; :366 `async function repointDeadKey(actor, room) {`; :407 `async function tidyRoomKeys(actor, room) {`; :450 `export async function reconcileBedroomKeys(...`; scripts/module.mjs:541 `safely(\"bedroom keys\", issueMissingKeys);`"
+  },
+  {
+   "ref": "E87 promise 2",
+   "claim": "H84-02: a trace being described is not offered to the next Observe; a second copy refused",
+   "verdict": "stands",
+   "why": "observeCandidates removes the copied traces and those of this character's rows in the describe window; alreadyHeld whispers the refusal. The sentence now reads 'of this Remnant', a text sweep, not a change of rule.",
+   "evidence": "scripts/observe.mjs:305-306 `const already = copiedRemnants(actor); for (const id of pendingTracesOf(actor.id)) already.add(id);`; :329-331 `function pendingTracesOf(actorId) { readPending(); return [...describing].filter(([key, owner]) => owner === actorId)...`; :1172-1174 `async function alreadyHeld(actor, entry) { ... whisperToOwner(actor, ... \"DRPG.Observe.alreadyHeld\")`; lang/en.json:3648 \"You already hold a Truth Bullet of this Remnant.\""
+  },
+  {
+   "ref": "E87 promise 3",
+   "claim": "H84-03: under Stained Glass the voice tile's state word lifts with the buttons",
+   "verdict": "stands",
+   "why": "The rule reads --drpg-voice-lift, which glass.mjs sets from the box; pixels are Chromium's and LIVE-H84-03 open, as said.",
+   "evidence": "styles/components.css:2346 `top: calc(7px - var(--drpg-voice-lift, 0px));`; scripts/glass.mjs:665 `\"--drpg-voice-lift\": box.lift ?? 0`"
+  },
+  {
+   "ref": "E87 promise 4",
+   "claim": "H84-05: the Projects tray's icons keep Font Awesome under Stained Glass",
+   "verdict": "stands",
+   "why": "The chrome face is set on every descendant but an i or an fa- class; R1007 ok in shard 1/8.",
+   "evidence": "styles/stained-glass.css:1185-1186 `body.drpg-theme-stained-glass #countdowns, body.drpg-theme-stained-glass #countdowns *:not(i):not([class*=\"fa-\"]) { font-family: var(--drpg-font-chrome) !important;`"
+  },
+  {
+   "ref": "E87 promise 6",
+   "claim": "H84-06: Clear the overflow asks first, zeroes the count only on the primary; a player's request refused",
+   "verdict": "stands",
+   "why": "clearOverflowFromTab asks with drpgConfirm; clearOverflowAsGm asks the primary when another is, else resetOverflow countOnly; the bridge row is gmOnly.",
+   "evidence": "scripts/gm-team-dialog.mjs:131-138 `const answer = await drpgConfirm({ ... }); if (answer !== \"clear\") return false; const cleared = await clearOverflowAsGm();`; scripts/overflow.mjs:545-553 `if (primaryElsewhere()) { ... await requestOverflowClear(); ...} return resetOverflow({ reason: ..., countOnly: true });`; scripts/bridge-table.mjs:1005 `guards: [gmOnly(\"only a GM clears the overflow\")],`"
+  },
+  {
+   "ref": "E87 promise 7",
+   "claim": "H84-07: each trace picker option leads with the GM's name, then visibility and type, tie, subject, DC",
+   "verdict": "stands",
+   "why": "remnantPickLabel joins public.name first, then the rest; with no name the type leads.",
+   "evidence": "scripts/observe.mjs:592-599 `return [ data.public?.name || null, `${data.visibilityLabel} ${data.typeLabel}`, data.tiedToCrime ? ... : null, data.subject || null, `DC ${dc}` ].filter(Boolean).join(\" · \");`"
+  },
+  {
+   "ref": "E87-1",
+   "claim": "A proposer knows their public project only while the GM's private card is in the chat; a cleared chat loses it and nothing tells them again",
+   "verdict": "stands",
+   "why": "Tried: a second carrier on the player's browser (knowsProject's roads are proposedBy, sealedViewers, hasStoodIn; knowsWithoutRoom reads the same proposedBy; the E101 sight copy feeds canSee, not who proposed); a repost (tellProposers skips proposerTold, which createProject sets at approval); a forget that reads again (createChatMessage/deleteChatMessage only null the cache, which is rebuilt from game.messages). None restores it. The handbook promises the proposer sees it from approval wherever it is put. The situation (a GM clears the chat) is particular, so minor fits.",
+   "evidence": "scripts/projects.mjs:340-342 `function proposedBy(countdownId, user) { ... return user === game.user && projectsToldHere().has(countdownId); }`; :641-648 `for (const message of game.messages ?? []) { if (!message?.flags?.[MODULE_ID]?.secret || !message.author?.isGM) continue; const id = cardMeta(message, PROJECT_KNOWN);`; :684 `if (!row?.by || row.proposerTold || isComplete(project) || ...) continue;`; :2143 `...(!hidden && by && room ? { proposerTold: true } : {})`; docs/handbooks/gm-handbook.en.md:984 \"to its proposer from the moment you approve it, wherever you put it\"",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "E87 grade",
+   "claim": "8, provisional after L1",
+   "verdict": "stands",
+   "why": "One promise in part with a minor (E87-1, which stands), the rest held, all six live items open: 11.4's 8 and the cap at 9. The tier-2 H84 titles ran and passed (base-run.json: shards 1-8 merged '3387 passed, 1 failed, 27 skipped' with XI07 the only failure, and no title below is in audit/harness/skip-baseline.json, so the tier-2 titles the reader calls 'not read' ran and passed), which the reader did not count but which does not lift past the minor.",
+   "evidence": "audit/AUDIT-1.2.42.md 11.4 row 8; scripts/projects.mjs:340-342 (E87-1)",
+   "grade_after": 8
+  },
+  {
+   "ref": "E88 promise 1",
+   "claim": "C0: counters() and fps(): five seconds, then each effect held for 60 frames or a second; a second call refused; a console line first",
+   "verdict": "stands",
+   "why": "frameCost refuses while running; each hold ends at frames or holdMs; the run logs its expected length before measuring.",
+   "evidence": "scripts/diagnostics.mjs:1952 `const HOLD_MS = 1000;`; :1977-1981 `if (frameCostRunning) { const message = \"fps() is already running in this browser - wait for it to finish.\"; log(message); return message; }`; :2000 `while (n < frames && now - t0 < holdMs) {`; :2011 `log(`fps(): about ${...} s. ...`)`; scripts/api.mjs:1510, :1513 `fps: frameCost`, `counters: countersNow`"
+  },
+  {
+   "ref": "E88 promise 2",
+   "claim": "C1: the rings' and outline's light baked once per frame shape; live filter kept where it cannot be baked; no blur with the switch off",
+   "verdict": "stands",
+   "why": "The halo functions are where cited and haloBlurOn reads the theme's no-blur class; pixels against the live filter compared nowhere, as said.",
+   "evidence": "scripts/fog-reveal.mjs:928 `export function restrikeHalos() {`; :933 `export function haloBlurOn() {`; :1014 `function bakeTexture(g, m, bounds, pad, ...`; :1091 `export function wearHalo(sprite, { seen, key, seamFactor = 1, shape, blur = haloBlurOn(), ...`; :1181 `export function bakeOutlineHalo(group, halo, seen) {`"
+  },
+  {
+   "ref": "E88 promise 3",
+   "claim": "C2: another player's move costs the others that token's refresh; a GM's every move is that token alone",
+   "verdict": "stands",
+   "why": "movePass answers \"one\" for a GM viewer and for a token the viewer does not own; only the owner's room change widens it.",
+   "evidence": "scripts/visibility.mjs:301 `export function movePass(doc, changes, viewer = { gm: Boolean(game.user?.isGM) }) {`; :314 `if (viewer.gm || !doc?.isOwner) return \"one\";`"
+  },
+  {
+   "ref": "E88 promise 4",
+   "claim": "C3: the fog's raster and backdrop held in pictures; drift a whole pixel at most every 100 ms; reduced motion still",
+   "verdict": "stands",
+   "why": "The functions and the step are where cited; R1012 on stand-ins; the hold's wiring unrun, as said.",
+   "evidence": "scripts/fog.mjs:3982 `const RASTER_STEP_MS = 100;`; :3995 `export function driftStep(state, ms, { moving = true, snap = false } = {}) {`; :4112 `export function holdStill(node, kind) {`; :4133 `export function redrawHeld(...`"
+  },
+  {
+   "ref": "E88 promise 5",
+   "claim": "C4: a Despair write renders the Monokumas' sheets alone; a minimised sheet renders once on restore",
+   "verdict": "stands",
+   "why": "refreshSheets takes an only test and passes a minimised sheet to renderOnRestore, which wraps maximize once.",
+   "evidence": "scripts/clock.mjs:940-948 `export function refreshSheets({ only = null } = {}) { ... if (only && !only(app.document)) return; if (app.minimized === true || app._minimized === true) { ... renderOnRestore(app); return; }`; :965-967 `function renderOnRestore(app) { if (waitingRestore.has(app) || ...) return; waitingRestore.add(app);`"
+  },
+  {
+   "ref": "E88 promise 7",
+   "claim": "C6: a token outside every room keeps the voice room it came from; a Monokuma goes to the main room; only settled moves remembered (G1)",
+   "verdict": "stands",
+   "why": "keepRoomsThroughGaps' defaults keep no Monokuma and remember only a move moveVerdict settled; standDownRoomsKept clears on a non-primary.",
+   "evidence": "scripts/voice.mjs:137-138 `function standDownRoomsKept() { if (!isPrimaryGm()) roomsKept.clear(); }`; :170-171 `export function keepRoomsThroughGaps(memory, where, { stands = ..., keeps = actor => !isMonokuma(actor), settled = place => moveVerdict(place.tokenDoc) === false } = {}) {`"
+  },
+  {
+   "ref": "E88 promise 8",
+   "claim": "C7: the GM handbook's section 20 with the fps() recipe",
+   "verdict": "stands",
+   "why": "Section 20.6 'When the table lags' stands in the English handbook and section 20 in the Polish; R1016 ok in shard 1/8. The player's book and 9.5 not re-read.",
+   "evidence": "docs/handbooks/gm-handbook.en.md:1913 `### 20.6 When the table lags`; docs/handbooks/gm-handbook.pl.md:1811 `## 20. Rozwiązywanie problemów`"
+  },
+  {
+   "ref": "E88 promise 9",
+   "claim": "No world data, setting, flag, store, socket or hook added",
+   "verdict": "stands",
+   "why": "The reader read the header only. Read here: the diff 41cf2e9f..0ff95b04 (C2 to the release) over scripts/ adds no settings.register, setFlag, defineGmStore, game.socket call or new Hooks.callAll name (one Hooks.callAll(\"refreshToken\"), Foundry's own), and does not touch settings.mjs; C1 is the shallow clone's root and cannot be diffed, but its halo code (fog-reveal.mjs:900-1200) and perf-counters.mjs touch no setting, flag, socket or hook; glassBlur is read, not added.",
+   "evidence": "git diff 41cf2e9f 0ff95b04 -- scripts/ | grep -E 'settings\\.register|\\.setFlag\\(|defineGmStore|game\\.socket\\.(emit|on)|Hooks\\.(callAll|call)\\(\"' -> only `+            Hooks.callAll(\"refreshToken\", framed, { refreshPosition: true });`; scripts/fog-reveal.mjs:932 \"False while this browser has the glass's blur off (Look: ...; settings.mjs `applyTheme`)\""
+  },
+  {
+   "ref": "E88 grade",
+   "claim": "7, provisional after L1",
+   "verdict": "stands",
+   "why": "C5's skip is a promise held in part by the stage's own measurement (455 of 455 frames drawn at 24 panes), one count untraced, the main promise (a table that lags less) on unread LIVE-E88-04/-05: 11.4's 7 ('one promise delivered in part') is allowed and the cap at 9 holds. 8 would need every promise delivered.",
+   "evidence": "scripts/glass.mjs:2115-2118 \"frames drawn 455 of 455 against 455 at 24 panes, 454 against 455 at 4, 446 against 453 at 2. A pane's fill moves more than one stored step in a 66 ms frame for most of its cycle, so the skip still seldom fires\"",
+   "grade_after": 7
+  }
+ ],
+ "counts": {
+  "checked": 49,
+  "stands": 48,
+  "weakened": 1,
+  "refuted": 0
+ },
+ "scope_note": "Checked: the four stage grades, every promise marked holds 'yes' (44; none is marked 'no'), and the one finding of severity minor or above (E87-1). E16-1 is a nit and was not re-checked; the promises marked partly or superseded were read only where a grade rests on them. Code read on the checkout (scripts/, lang/, styles/, docs/ equal to b5a29e73).",
+ "not_established": [
+  "The reader writes most stage tier-2 titles as 'not read in the base run'. base-run.json's merge line reads '3387 passed, 1 failed, 27 skipped' with XI07 the only failure, and audit/harness/skip-baseline.json names none of E16-T21..T39, E17-T*, the H84 titles or E88's; so they ran and passed on b5a29e73. No per-title row is in base-run.json, so this is read from the totals, not from a line naming each test.",
+  "Whether the put-back of E17 promise 3 lands on Foundry 14.370 when the GM's copy is out of step: LIVE-E39-12 (item 650) carries a recorded defect for a diff:false write on a branch after b5a29e73; the ordinary put-back's copy state was not read at a table (as the reader says).",
+  "E87-1's table half: whether Foundry's Clear Chat Log leaves the proposer's tray empty after a reload - the reader's l1 recipe stands as written.",
+  "E17 promise 7's 'a darkening's Shift never adds a token' and E17 promise 9's 'refills once' were not re-read beyond the functions' headers and R1004's registry row."
+ ]
+}

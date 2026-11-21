@@ -1,0 +1,196 @@
+{
+ "refuter": "verify-live-items-527",
+ "of": "live-items-527",
+ "checked": [
+  {
+   "ref": "527 (LIVE-E69-05)",
+   "claim": "partly read, agrees: L1 on 14.370 read the masked token's name '?' and the module's mask-unknown.svg on the victim's, a bystander's and the killer's browsers (point 1, its token half); points 2-7 unread.",
+   "verdict": "stands",
+   "why": "The row exists (LOCAL-REPORT.md:367, 16.11.2026, Foundry 14.370, module 1.2.116 with L1's commits, the report's header :3-4 'made from origin/main at ff3e12e5 (1.2.116)'). It is a reading of item 556's row, and it touches 527's point (1). maskPatch (mask-gm.mjs:78-82) is outside every hunk of the ff3e12e5..b5a29e73 diff (the hunks start at :368), so what was read holds for 1.2.118. The reader lists the names the GM and the Spectator see, points 2-7 and the voice room as not read, which is right. The stale-text claim is confirmed: MASK_IMG is the module's own svg (:47-48).",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:367 \"on the victim's browser Chie's token reads name `?`, `texture.src` and `ring.subject.texture` `modules/danganronpa-rpg/icons/mask-unknown.svg` ... The bystander's browser holds the same (not drawn: another room); the killer's too\"; scripts/mask-gm.mjs:79-80 \"return { name: MASK_NAME, \\\"texture.src\\\": MASK_IMG, \\\"ring.enabled\\\": false, \\\"ring.subject.texture\\\": MASK_IMG\"",
+   "status_after": "partly"
+  },
+  {
+   "ref": "534 (LIVE-E43-01)",
+   "claim": "read, agrees: scenario 30's fuzz driven against the v14 sandbox, every request refused with a closed-list code, none dropped by the server, no exception, nothing polluted, only the player's own note written.",
+   "verdict": "stands",
+   "why": "The row exists and answers each ask of the item: the refusals with closed-list codes, every awaited request answered (so the server dropped none), no exception on four browsers, no pollution, writes only to PlayerOne's own note. lib/fuzz.mjs last changed in 736e55eb (E43 C4-C6). The module was 1.2.116 with L1's commits, two releases back; bridge-guards.mjs changed by 5 lines and gm-bridge.mjs by 18 since ff3e12e5, so a 1.2.118 run would send other counts. The reader says this in its note. That bears on the counts, not on the server's behaviour the item asks about.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:400 \"673 refused, each code of the closed list ... every request awaiting an answer answered - so v14's server dropped none before the GM's module; no exception on any of the four browsers; nothing polluted; the only writes the GM's six of PlayerOne's own note, put back\"; git diff --stat ff3e12e5 b5a29e73: \"scripts/bridge-guards.mjs | 5 +-\"",
+   "status_after": "read"
+  },
+  {
+   "ref": "535 (LIVE-E43-02)",
+   "claim": "read, agrees: on the sandbox the Countdowns setting names a secret project '???' everywhere, the bystander's window holds neither the name nor a list, and the member's names it.",
+   "verdict": "weakened",
+   "why": "The reading exists and covers the bystander's half and the setting. The item also asks that 'on the member the tray and the project's token carry the real name'. The paper reads only the member's Countdowns window ('the member's names it'). The reader's own note says the project token on the member's map was not named in the reading. Under 11.3 a check with a part unread is 'partly', not 'read'. The result for the part read is agrees. The tooltip that lists every player is on the GM's and the member's windows, not the bystander's. ownershipMap (projects-secrecy.mjs:370-381) still sets every player to OBSERVER.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:401 \"the bystander's Countdowns window reads \\\"No projects yet.\\\" and its DOM holds neither; the member's names it, progress \\\"? / 4\\\" (not in its room)\"; audit/AUDIT-1.2.42.md 9.2 item 535 asks also \"on the member the tray and the project's token carry the real name\"",
+   "status_after": "partly"
+  },
+  {
+   "ref": "536 (LIVE-E43-03)",
+   "claim": "read, agrees: an open project card on a player redraws as the project's when the player's token walks into its room, both themes and languages.",
+   "verdict": "stands",
+   "why": "The row exists and reads exactly what the item asks, in all four theme and language pairs. The reader left one thing open: whether the card's road moved between 1.2.116 and 1.2.118. I traced it. The card is projects-map.mjs's showProjectCard/wireProjectCard/projectCard/unknownProjectCard (:853-976). No diff hunk of ff3e12e5..b5a29e73 falls in that range; the only change near it is one deleteScene hook added at registration (:996). projects-ui.mjs's changes are the editor's scene picker.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:402 \"the card redraws as the project's (its name, description, Progress 0 / 4, Room Gym) without reopening - in all four of Stained Glass and Monokuma Legacy, English and Polish\"; git diff ff3e12e5 b5a29e73 -- scripts/projects-map.mjs hunks \"@@ -707,6 +721,28 @@\" then \"@@ -957,6 +993,7 @@ ... Hooks.on(\\\"deleteScene\\\"\"; scripts/projects-map.mjs:966 \"\\\"DRPG.Project.cardUnknown\\\"\"",
+   "status_after": "read"
+  },
+  {
+   "ref": "537 (LIVE-E40-01)",
+   "claim": "partly read, agrees: the GM's start printed nothing and checkState() was clean on a world with no chapter played; null on a player.",
+   "verdict": "stands",
+   "why": "The row exists. The paper calls the item open because the world asked for (one played through a chapter) was not there. The reader keeps 'partly' on the player's half, which does not depend on the world's history: `null` on a player's browser was read. 'Writing nothing' on the player was not recorded, and the reader's note says the timing was not recorded. state-check.mjs is not in the ff3e12e5..b5a29e73 diff.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:403 \"| LIVE-E40-01 (537), checkState | measured on this world; the item open | ... `null` on a player's browser. The item asks for a world played through a chapter: not this one\"",
+   "status_after": "partly"
+  },
+  {
+   "ref": "547 (LIVE-OWN115-01)",
+   "claim": "partly read, agrees: the latest reading (L1, 1.2.116) has the masked token '?' with the module's picture on the victim's, bystander's and killer's browsers; cards, dice colours, roll header, Listen, ring and reveal unread.",
+   "verdict": "stands",
+   "why": "Each step of the chain is on paper: the owner's report on 1.2.114 (owner-115/STATUS.md:8-9), the real face again on 1.2.115 on The Forge (e112/STATUS.md:69-83, 'The owner saw the real name and picture ... (1.2.115, The Forge)'), and L1's reading on 1.2.116 (LOCAL-REPORT.md:367). The token half of the item is read on a build whose maskPatch is 1.2.118's. One gap the reader did not list as unread: 'the killer and the GM see the name' was not read either (L1 reads the document name '?' on the killer's browser too, and nothing of the overlay). The stale-text claim is confirmed: the roll header draws subject.img, which is the masked portrait (private-rolls.mjs:1662), and uses the mystery man only where no subject is known (:1653).",
+   "evidence": "docs/dev/e112/STATUS.md:79-80 \"The owner saw the real name and picture on the victim's screen after a successful direct opening on Hope (1.2.115, The Forge)\"; scripts/private-rolls.mjs:1662 \"header.querySelector(\\\".portrait img\\\")?.setAttribute(\\\"src\\\", subject?.img || MYSTERY_MAN);\"",
+   "status_after": "partly"
+  },
+  {
+   "ref": "548 (LIVE-OWN115-02)",
+   "claim": "partly read, defect: the owner's report on 1.2.114 that a character on a Remnant was not on top; fixed in 1.2.115 (keepUnderCharacters, layer 699), the fixed state unread.",
+   "verdict": "weakened",
+   "why": "The report exists (owner-115/STATUS.md:117-118, 1.2.114), but it is the report that made the item. It came before keepUnderCharacters existed. The item asks about the fixed state (every direction of approach, reload, select, camera, the wall tile, the counter), and none of that has been read on any build. The digest the reader cites says so: 'LIVE-OWN115-02 is open'. The same stage paper sends the whole check to this row as 'Needs a local Foundry' (:152-159). A pre-fix report of the defect the item was written to check is history, not a part read. Result n/a.",
+   "evidence": "audit/findings-1.2.118/live-readings-other.json item 548 defect: \"Characters have no mesh in the harness, so the order against them is the table's: LIVE-OWN115-02 is open.\"; docs/dev/owner-115/STATUS.md:152-154 \"### Needs a local Foundry ... LIVE-OWN115-02 (audit/AUDIT-1.2.42.md 9.2, row 548): on v14 with Isometric Perspective\"",
+   "status_after": "open"
+  },
+  {
+   "ref": "549 (LIVE-E111-01)",
+   "claim": "partly read, agrees: on the sandbox the server copy under worlds/drpg-qa-gate/drpg-case/ is written after the 15-s quiet and read back by a fresh GM; file name, the missing-folder error, overwrite, times, restart and other hosts unread.",
+   "verdict": "stands",
+   "why": "Both papers say what the reader quotes. L1's branch copy, :252-264, 19.11.2026: the copy was written again at 04:58:55 UTC after the page stayed open 30 s, and a clear closed after 10.5 s came back. b5a29e73's copy, :461: a fresh GM's caseCopy row, 67 stores filled. Together they read a write landing in the world's folder on a real v14 server and a read back from it, which is part of the item's first ask. The reader lists the unread parts correctly. case-copy.mjs is byte-identical at ff3e12e5 and b5a29e73 (git diff --quiet) and SEAL_QUIET_MS is 15000 (:51), its comment 'Chosen, not measured at a table (LIVE-E111-01)' (:48).",
+   "evidence": "/tmp/verify-live-items-527/LR-l1.md:261-263 (git show origin/claude/e58-local:docs/dev/e58/LOCAL-REPORT.md) \"with the page kept open 30 s, past `SEAL_QUIET_MS` (15 s): the copy was written again at 04:58:55 UTC, and a fresh GM reads no cast. A first clear that closed the page after 10.5 s came back on the next load\"; scripts/case-copy.mjs:51 \"export const SEAL_QUIET_MS = 15000;\"",
+   "status_after": "partly"
+  },
+  {
+   "ref": "551 (LIVE-E111-03)",
+   "claim": "partly read, agrees: a fresh browser on the same machine opens as GM with the stores filled from the server copy and no click; the second computer, the change seen back on the first, and the switch-off notice unread.",
+   "verdict": "weakened",
+   "why": "The status 'partly' holds: a fresh browser with empty storage stands in for the item's second computer, and both readings exist. The result 'agrees' does not hold as written. The item asks that 'the planner and diagram are as on the first with no click'. The b5a29e73 reading records the new browser's cast differing in one field, and L1's records a change closed within 10.5 s coming back on the next load. So the state was not as on the first browser. That is the designed 15-s quiet window, not a code defect (case-copy.mjs:46-51), but the reading shows a measured gap, not a plain agreement. The reader's observation says the same, and its result should carry it: agrees by design, with the gap measured.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:461 \"Seen: the new browser's cast differed in one field from the old one's (`deniedToVictim` [] against [\\\"roleReversal\\\"]), consistent with the copy being older than the incident's last writes\"; /tmp/verify-live-items-527/LR-l1.md:263 \"A first clear that closed the page after 10.5 s came back on the next load - the copy had not been written yet\"",
+   "status_after": "partly"
+  },
+  {
+   "ref": "552 (LIVE-OWN115-03)",
+   "claim": "partly read, defect: the owner's report on 1.2.114 of a scrollbar on the event panel; fixed in 1.2.115 (fitEvents, no cap), the fixed state unread on Foundry.",
+   "verdict": "weakened",
+   "why": "The report exists (owner-115/STATUS.md:169-170, 1.2.114) and is the report that made the item. It came before fitEvents' fold. The item asks about the fixed panel at the owner's size, the fold, '+N' and a window over the lengthened panel, and none of it has been read on a real Foundry. The Chromium fits (60 of 60) are class C, not F. The digest the reader cites ends 'LIVE-OWN115-03 is open'. The pre-fix report is history, not a part read. Result n/a.",
+   "evidence": "audit/findings-1.2.118/live-readings-other.json item 552 defect: \"No window was opened over a lengthened panel in a real Foundry: LIVE-OWN115-03 is open.\"; docs/dev/owner-115/STATUS.md:169-170 \"The owner, 14.11.2026, at a real table on 1.2.114: \\\"Na karcie eventu pojawil sie scroll w trakcie morderstwa.\"",
+   "status_after": "open"
+  },
+  {
+   "ref": "553 (LIVE-E112-01)",
+   "claim": "partly read, defect: L1 on 1.2.116 read the veil (token hidden, not drawn on the victim, drawn for the killer, microphone blocked) and the killer seeing from the victim's token; fixed in source by E112v, unread on a canvas.",
+   "verdict": "weakened",
+   "why": "The row exists (LOCAL-REPORT.md:366) and says what the reader quotes. But the item was rewritten for 1.2.118's veil (910f9f94, 'AUDIT 9.2 items 553 and 662 ... the texts after F118 and E112v'): (b) now expects the killer to keep their vision because the veil no longer writes `hidden`. L1's (a) and (b) were read on the veil E112v replaced: mask-gm.mjs's veilPatch and visibility.mjs's sight rule both changed since ff3e12e5. So the recorded 'defect' is a 1.2.116-1.2.117 defect. For the item as it stands on 1.2.118, (a) and (b) are unread (item 600 / LIVE-E112V-01 holds them), not defective. What carries is (c)'s microphone write: voice.mjs is not in the ff3e12e5..b5a29e73 diff, and the veil still blocks the microphone first ('The microphone first, then the face'). So the status stays partly on (c)'s microphone half; the result for 1.2.118 is n/a, with the 1.2.116 defect kept as history.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:366 \"on the victim's browser Chie's token `hidden` and `veiled` ... PlayerThree's `BROADCAST_AUDIO` false (the microphone blocked)\"; git diff ff3e12e5 b5a29e73 -- scripts/mask-gm.mjs \"-    return { hidden: true, [`flags.${MODULE_ID}.${VEIL_FLAG}`]: true };\"; git diff --stat ff3e12e5 b5a29e73 -- scripts/voice.mjs: no output",
+   "status_after": "partly"
+  },
+  {
+   "ref": "555 (LIVE-E112-03)",
+   "claim": "partly read, defect: the owner's report (through the coordinator, 15.11.2026) that a Loaded Die is not spent on the opening; fixed in 1.2.116; the real Daggerheart window unread.",
+   "verdict": "weakened",
+   "why": "The report exists (e112/STATUS.md:8), but the paper does not say where or on which version it was seen. The harness did not reproduce the owner's 'it works', and the paper calls the critical a guess. It is also the report that made the item, before 8282b192 and 406f96a4. The item asks about the real window after the fix (the red window, a 12, the die leaving the sheet, Configure Dice), and none of it is read. The digest ends 'The real Daggerheart window is LIVE-E112-03, open'. The tier-2 failure on the sandbox (17.11) is about the test, as the reader says, with its cause unread. So no part of the item's ask is read. The stale-text claim is confirmed: SHIELD_PASSES has 0 hits in scripts/, TAKES_CALLS is call-effects.mjs:94, SPENDS_NO_CALL is roll-draw.mjs:1857. Result n/a.",
+   "evidence": "docs/dev/e112/STATUS.md:15-16 \"So the die neither loaded nor was spent on either road. The owner's \\\"it works\\\" was not reproduced; that the critical they saw was the dice's own is a guess, not a reading.\"; audit/findings-1.2.118/live-readings-other.json item 555 environment: \"the section does not say where or on which version it was seen\"",
+   "status_after": "open"
+  },
+  {
+   "ref": "556 (LIVE-E112-04)",
+   "claim": "partly read, agrees: L1 on 1.2.116 read the token and portrait as the module's '?' on the victim's, bystander's and killer's browsers; light and dark maps, ring, lists, header, voice tile, give-back, Isometric and The Forge unread.",
+   "verdict": "stands",
+   "why": "The row exists and reads points (1) and (2) in part. MASK_IMG, maskPatch and portraitOf are outside the ff3e12e5..b5a29e73 hunks, so the reading carries. The 1.2.115 report on The Forge is a defect on the build before, as the reader says. The reader's 'not read' list is complete. Its hint against (3) (L1's fifth run left masks on two portraits, LR-l1 :320-324) is labelled a hint, not a reading, which is right.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:367 \"the drawn mesh's texture that file, its nameplate `?`, drawn; the portrait the same file ... The Forge half: not checkable here\"",
+   "status_after": "partly"
+  },
+  {
+   "ref": "560 (LIVE-E116-03)",
+   "claim": "partly read, agrees: a player sees their own hidden token (the owner's answer; L1 read a hidden token drawn for its owner on 14.370); the owner's ruler and another player seeing neither unread.",
+   "verdict": "stands",
+   "why": "L1's reading exists (LOCAL-REPORT.md:366: the veil's token, Foundry `hidden`, drawn on its owner's browser on 14.370; e112v/DESIGN.md:3-5 states the same). That is the item's first half, a Foundry behaviour, so it holds on 1.2.118, where visibility.mjs still leaves an owner's hidden token to Foundry (DESIGN/STATUS V6). One sentence in the reader's evidence could be misread: 'on it the ruler was shown to the owner too (the commit after 3a4dfafa, cc87ea3b)'. That is a code change (cc87ea3b, parent 3a4dfafa, 'The owner of a hidden token sees its ruler'), not a reading, and the reader then lists the ruler as not read. rulerShownTo (visibility.mjs:940-947) is as quoted.",
+   "evidence": "docs/dev/owner-116/STATUS.md:193-195 \"the commit after 3a4dfafa shows the owner the ruler, hidden or not ... LIVE-E116-03 now reads that the owner sees both the hidden token and its ruler on v14\"; scripts/visibility.mjs:944 \"if (viewer?.owns?.(doc)) return true;\"",
+   "status_after": "partly"
+  },
+  {
+   "ref": "528 (LIVE-E113-01)",
+   "claim": "open: no reading of the discovery sound for the one who walks in.",
+   "verdict": "stands",
+   "why": "No reading in either copy of LOCAL-REPORT.md or CALIBRATION.md, nor in the three digests (grep for the id, 'discovery sound', 'body is found'). TRIAGE-9.2.md:555 classes it K, a script's job not yet driven. The GM handbook still says 'Not yet heard at a real table'.",
+   "evidence": "docs/handbooks/gm-handbook.en.md:2267 \"Not yet heard at a real table (LIVE-E113-01).\"; docs/dev/e58/TRIAGE-9.2.md:555 \"| 528 | LIVE-E113-01 | K | Hook AudioHelper.play per page\"",
+   "status_after": "open"
+  },
+  {
+   "ref": "540 (LIVE-E55-03)",
+   "claim": "open: Font Awesome under the pixel font not read on v14.",
+   "verdict": "stands",
+   "why": "No 'Font Awesome', 'fa-solid', 'fa-style-family' or 'fonts.check' in either copy of LOCAL-REPORT.md or CALIBRATION.md, or in the digests. Only R6104's static read exists (class S/H, not F).",
+   "evidence": "docs/dev/e58/TRIAGE-9.2.md:567 \"| 540 | LIVE-E55-03 | K | Pixel font on; getComputedStyle(i.fa-solid).fontFamily, document.fonts.check for Font Awesome |\"",
+   "status_after": "open"
+  },
+  {
+   "ref": "541 (LIVE-E55-04)",
+   "claim": "open: the twelve ids' querySelector on v14 not read.",
+   "verdict": "stands",
+   "why": "None of the ids (#players-active, #chat-log, #performance-stats, #effects-panel) appears in either copy of the papers or in the digests.",
+   "evidence": "docs/dev/e58/TRIAGE-9.2.md:568 \"| 541 | LIVE-E55-04 | K | GM and player: querySelector each of 12 ids with chat popout and perf stats on |\"",
+   "status_after": "open"
+  },
+  {
+   "ref": "550 (LIVE-E111-02)",
+   "claim": "open: who can fetch the copy's file not read.",
+   "verdict": "stands",
+   "why": "No 'FILES_BROWSE', private window or logged-out fetch in either copy of the papers. L1's copy readings (:252-264, :461) are a GM's own reads. The handbook still says 'whether a file can be fetched without logging in are not measured yet'.",
+   "evidence": "docs/handbooks/gm-handbook.en.md:2291 \"whether a file can be fetched without logging in are not measured yet (LIVE-E111-01, LIVE-E111-02)\"",
+   "status_after": "open"
+  },
+  {
+   "ref": "558 (LIVE-E116-01)",
+   "claim": "open: the ruler class's `visible` descriptor on 14.370 not read.",
+   "verdict": "stands",
+   "why": "No 'rulerClass' or descriptor reading in either copy of the papers. CALIBRATION.md:98 lists TokenDocument#movement's keys only. The nearest reading is the owner's chain of CONFIG.Token.rulerClass on 1.2.96 (live-readings-other.json item 356), which names the classes but not `visible`'s shape or the ruler's children. It does not settle the item.",
+   "evidence": "audit/findings-1.2.118/live-readings-other.json item 356 \"the chain of CONFIG.Token.rulerClass is TokenRulerIsometric > HourTokenRuler > DhpTokenRuler > TokenRuler > BaseTokenRuler\" (1.2.96, Foundry 14.365)",
+   "status_after": "open"
+  },
+  {
+   "ref": "observation: the server copy's 15-s window has a measured consequence",
+   "claim": "A GM change closed 10.5 s after it was not on the server copy and came back on the next load; by design; 549 and 551 should record it.",
+   "verdict": "stands",
+   "why": "Confirmed in L1's branch paper and in case-copy.mjs's own comment. The paper calls it not a module defect, and the reader keeps it by design.",
+   "evidence": "scripts/case-copy.mjs:46-48 \"fifteen seconds gathers such a burst into one, and a minute bounds what a browser closed mid-session can leave out. Chosen, not measured at a table (LIVE-E111-01).\"",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "observation: comment against code - mask-gm.mjs header, maskPatch's comment and R6028's title still name Foundry's mystery man (nit)",
+   "claim": "The comments say the mask wears Foundry's mystery man while maskPatch writes icons/mask-unknown.svg and R6028's body expects it.",
+   "verdict": "stands",
+   "why": "Each place is confirmed as quoted. R6028's registry row (R-REGISTRY.md:1560) also still reads 'a \"?\" with Foundry's mystery man'.",
+   "evidence": "scripts/mask-gm.mjs:9-10 \"the name \\\"?\\\", the *     texture Foundry's mystery man\"; :76 \"It wears the mystery man as well\"; scripts/tests-tier1.mjs:59232 \"R6028 - a masked token is a \\\"?\\\" with Foundry's mystery man\"; :59246 \"E112 item 2a (15.11.2026): the module's own \\\"?\\\" in place of Foundry's mystery man; changed on purpose.\"",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "observation: Daggerheart's tooltip lists every player on a secret project's countdown (nit, by decision)",
+   "claim": "On the member's and the GM's window the tooltip names every player as seeing the project, because ownershipMap puts every player at OBSERVER by design.",
+   "verdict": "stands",
+   "why": "The tooltip is recorded on the sandbox (LOCAL-REPORT.md:401), and the cause is in projects-secrecy.mjs's ONE LEVEL FOR EVERY PLAYER (S17-31). Nit by decision stands. It names no secret.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:401 \"\\\"This countdown is hidden to players except PlayerOne, PlayerThree, PlayerTwo\\\" - every player, from the module's one-level map\"; scripts/projects-secrecy.mjs:378-379 \"if (user.isGM) continue; ... map[user.id] = OBSERVER;\"",
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 22,
+  "stands": 16,
+  "weakened": 6,
+  "refuted": 0
+ },
+ "not_established": [
+  "base-run.json now exists (written 21:19Z, after the reader's file of 20:15Z): suite 3387 passed, 1 failed (XI07, passes alone), 27 skipped over eight shards. Every 'base-run.json does not exist' in the reader's headless_half fields is stale, not wrong when written. I did not map each named R number or tier-2 title to its shard's result.",
+  "Item 535: whether the member's project token on the map, and the module's tray on the member, carry the real name on v14. Not in L1's row.",
+  "Item 553: the microphone write ((c)) carries to 1.2.118 by the diff (voice.mjs unchanged). That the veil still reaches settleTrialVoices through veilMutedIds on E112v's flag-only veil was read in the diff's header comment, not traced through the code.",
+  "Item 547: 'the killer and the GM see the name' (the drawn name over the '?', mask-gm.mjs drawMaskName) is not read on any build. The reader's not-read list leaves it out.",
+  "The observations carry no severity of minor or above. I checked their factual claims instead: three of the nine observation entries one by one (the server copy, the comment against code, the tooltip). The count, triage-class and overlap observations were not recounted.",
+  "Five open items were checked for a missed reading (528, 540, 541, 550, 558). The other 15 open items were not searched again."
+ ]
+}

@@ -1,0 +1,732 @@
+{
+ "reader": "stages-15",
+ "checkout": "branch claude/audit-119 at 9edf6164; the code read is main b5a29e73 (1.2.118) - the branch adds files under audit/ only. Shallow clone: of the train 1.2.101's 53 commits the range 1d860414..6bf7fc76 holds 23 here, and 2b866dde (E23 C1a) and other C-commits the notes name are not objects; E96's four commits (5e7e57ba, f9eee981, 7bb13408, 4e4b190c) and its release c0ea03d2 are. Nothing run but read-only git, grep and short python over source and the base run's shard logs.",
+ "count_expected": 4,
+ "count_note": "4 of 4 stages, in tools/stages.json order E23, E24, E45, E96. Read: release notes v1.2.101 (364 lines, the train of E23, E24 and E45) and v1.2.102 (278, E96) whole; the four stages.json rows; the 100 registry rows stamped with the four stages (40 E23, 42 E24, 10 E45, 8 E96; R1482 and R1483 are E45's by their own text but stamped E24) and R1600 (stamped E21, E96's Observe test), joined by script to the base run's shard logs 1/8-4/8 (central scratch base/shards/results-suite-1..4/01-runtests.log): 99 ok, 1 skipped as the skip baseline lists it (R1385, env.layout); 7 tier-2 titles by grep (E23-T1, -T2, E24-T1, -T2, -T3, E45-T1, -T2), 4 ok in shards 2-3, 3 not in the shards that ran; AUDIT 9.2 items 402-430 (29 items) whole and their verdicts in live-items-395.json and live-items-429.json; code at the file:line given in each promise, about 1100 lines in 34 files, none whole. No docs/dev/e23, e24, e45 or e96 folder exists in this checkout or in its history (git log --name-only: none); the STATUS, STAGE.md and DIAGNOSIS papers the notes quote are not in the repository, so the notes are the claim.",
+ "stages": [
+  {
+   "id": "E23",
+   "version": "1.2.101",
+   "shipped": "2026-11-09",
+   "what": "A1 of the 1.3.0 plan: the Stained Glass curtain's turn rebuilt as baked layers moved by transform and opacity with the seam flash; the HUD's states told truly - the track band kept in the clock, the Eclipse and the pause stamped on it, the Projects tray in rows, the Event panel of one size, the narrow layout leaving the board visible, the windows the game waits on kept over the sheet, reduced motion one mechanism; and fix L / L2, the owner's Monokuma Legacy report (the players list's empty frame, the token frames in bone, Legacy's own drop-down). Shipped as one release with E24 and E45 (the owner, 08.11.2026).",
+   "claim_sources": [
+    ".github/release-notes/v1.2.101.md (1-364, whole; E23's parts 3-13, 127-145, 147-200, Known gaps 273-329, Checked 331-364)",
+    ".github/release-notes/v1.2.102.md (1-278, whole): the hotfix E96 names three of its causes in E23's commits (68fd46ca C5b twice, f26d4467 C1b)",
+    "no papers folder: docs/dev/e23/ does not exist and never did in this history; STATUS E23 Open N is quoted by the notes and AUDIT 9.2 but not in the repository",
+    "tools/stages.json row E23 (planned and shipped 1.2.101, 2026-11-09, touches [], drills [])",
+    "git log --oneline 1d860414..6bf7fc76: 23 commits here of the notes' 53 (shallow), 3 naming E23 in the subject (1fde943b fix L, 3c952c67 fix L2, 6bf7fc76); 16 commits in the history name E23, among them E96's three and the later E49 A6 (210c9b16), E100 item 10 (d1451f72) and owner-115 item 3 (a908d6f6)",
+    "audit/AUDIT-1.2.42.md 9.2 items 402-413 (lines 1292-1314); verdicts in audit/findings-1.2.118/live-items-395.json; live-readings-other.json (item 409)"
+   ],
+   "commits": 53,
+   "promises": [
+    {
+     "promise": "Under Stained Glass a change of phase or hour moves the panes as baked layers by transform and opacity, the colour arriving from the centre in about 1.2 s, the seams flashing once a pane at today's brightness; an hour's change recolours and never recuts; reduced motion gives the end state at once",
+     "source": "v1.2.101.md 127-130, 147-153",
+     "code": "scripts/glass.mjs:2537 turnPlan, :2477-2478 FLASH and FLASH_KF, :2757 bakeFlash, :2809 startTurn, :2830 lookOnScreen, :2876 glassTurn",
+     "holds": "partly",
+     "test": "R1377-R1383, R1411-R1413 (ok, shard 1/8); glass-sweep --turn (Chromium, not run here)",
+     "test_kind": "both",
+     "note": "The recolour half is superseded by E96 C2 (1.2.102): C1b painted the new look under the old at once, and the owner saw both looks on the first frame at a real table (v1.2.102.md 106-112); today the new look is baked per batch too and added on with plus-lighter (glass.mjs:2936-2977). The notes' own row E23-04 (the texture in the moving band at least 80 % of rest) was not met on the layout turn (30 % at 1600x900, v1.2.101.md 298-300) and E96's notes say it stays red on 1.2.102 (v1.2.102.md 219-221); no later notes read here say it was answered. The frame median (E23-05) is LIVE-E23-01, open."
+    },
+    {
+     "promise": "The track band stays as one line when nothing plays, so the clock keeps its height with music and without",
+     "source": "v1.2.101.md 131-132, 155-160",
+     "code": "scripts/hud.mjs:104-139 paintTrackLine (is-empty, never removed)",
+     "holds": "yes",
+     "test": "R122, R1385 (skipped headless: env.layout, in skip-baseline.json:12), R1388 (ok); tier 2 E23-T1 (tests-tier2.mjs:87065, ok in shard 3/8)",
+     "test_kind": "both",
+     "note": "The band's height is measured only in Chromium (R1385 needs layout) and at a table (LIVE-E23-02, open); E23-T1 reads the GM's own browser only (AUDIT item 403)."
+    },
+    {
+     "promise": "The phase stamp names the Eclipse during one; a paused game is stamped On hold on every client over the campaign name's row, Foundry's caption and dimming kept",
+     "source": "v1.2.101.md 131-134",
+     "code": "scripts/hud.mjs:335-337 (eclipseLabel when clock.eclipse), :365-385 (the stamp in GAME.Paused); scripts/eclipse.mjs:58 eclipseLabel",
+     "holds": "yes",
+     "test": "R1386, R1387 (ok)",
+     "test_kind": "behaviour",
+     "note": "The word is Foundry's key GAME.Paused, which the module's lang files set to On hold / Wstrzymano, so Foundry's own centred caption reads the module's word too (live-items-395.json item 410). LIVE-E23-09 (every client, a world loaded paused) open."
+    },
+    {
+     "promise": "The Projects tray's rows keep each name and count on one line in both themes, with a fade when there are more; the GM's minus and plus say what they do",
+     "source": "v1.2.101.md 135-136, 162-166, 189-190",
+     "code": "scripts/projects-tray.mjs:416 markTrayMore; lang DRPG.Project.trayLessTooltip / trayMoreTooltip",
+     "holds": "yes",
+     "test": "R1391, R1431, R1433 (ok)",
+     "test_kind": "both",
+     "note": "With the real icons: LIVE-E23-12, open."
+    },
+    {
+     "promise": "Hope's stars at 12-16 px with outlined empties; Still to act hidden in a Class Trial and during an incident",
+     "source": "v1.2.101.md 136-137; the owner's Q-E23-3 (253-256)",
+     "code": "scripts/player-status.mjs:595-628 quietActions (the incident alone)",
+     "holds": "superseded",
+     "test": "R1392 (ok; its title now says the diamond, E48 batch 5, gaps-111)",
+     "test_kind": "both",
+     "note": "Two later changes: the Hope slot is a diamond since E48 batch 5 and gaps-111 (R1392's own title), and the trial no longer quiets the row since E100 item 10 (d1451f72, the owner at a table: 'W trialu usunieto tacke ... Przywrocmy ja', player-status.mjs:595-603); a running incident still does."
+    },
+    {
+     "promise": "The Event panel is one size whatever it shows, the incident's meta in two plain lines, every kind its own accent, the ticker under no word",
+     "source": "v1.2.101.md 137-138, 162-166",
+     "code": "scripts/events.mjs (the kinds' accents, R1393); the panel's height since E49 A6 and owner-115 item 3",
+     "holds": "superseded",
+     "test": "R1393 (ok), R1394 and R1430 (ok; both titles now name E49 A6 and owner-115 item 3)",
+     "test_kind": "both",
+     "note": "'One size' was replaced by the owner's 10.11 amend: E49 A6 (210c9b16, 1.2.105) made the panel as tall as what it says, up to its box, and owner-115 item 3 (a908d6f6) made it never scroll, its cards folding past the room under it. The accents stand. LIVE-E23-10 asks for the one size and so reads the replaced shape."
+    },
+    {
+     "promise": "The narrow layout leaves the board visible under the stack; a player's strip and Projects stand before the Despair pools; the stack fades its foot when it scrolls; a GM's #players is one line at the foot, a player's hidden; desk to stack and back keeps the Despair rail and the Event card",
+     "source": "v1.2.101.md 139-141, 168-172",
+     "code": "scripts/narrow.mjs:315 markNotices, :358-368 (the homes); scripts/glass.mjs:203 gaugeFoot",
+     "holds": "yes",
+     "test": "R1398-R1401, R1421, R1422 (ok)",
+     "test_kind": "both",
+     "note": "Read on stand-in cuts; Foundry's own columns are not in the harness (STATUS E23 Open 98 via AUDIT item 404). LIVE-E23-03, -07 open."
+    },
+    {
+     "promise": "A window the game waits on (a roll, Observe, each declaration, a ruling, a ballot, Level Up, the trial's prompts, Frisk's two questions, a request to the GM) stays over the sheet, and nothing else does",
+     "source": "v1.2.101.md 142-144, 174-179, 189",
+     "code": "scripts/stacking.mjs:35-55 (KEEP_ON_TOP); scripts/ui-kit.mjs:1283 PROMPT_CLASS, :1311",
+     "holds": "yes",
+     "test": "R1404 (ok); tier 2 E23-T2 (tests-tier2.mjs:75670, ok in shard 3/8)",
+     "test_kind": "both",
+     "note": "The order is the harness's model of Foundry's window raising, from notes (AUDIT item 405, LIVE-E23-04 open)."
+    },
+    {
+     "promise": "The GM's expanded chat lies over the corner's buttons; Foundry's notices stand on a plate under the Despair pools; one look for an action tile that cannot be pressed; the glass's checkbox and radio one definition; VT323 never a synthetic bold",
+     "source": "v1.2.101.md 142-145, 176-179",
+     "code": "scripts/stained-glass.css (the toast rule now at styles/stained-glass.css:2220-2239; font-synthesis at :2193-2198; the control definition at :4120-4161)",
+     "holds": "partly",
+     "test": "R1405-R1409 (ok)",
+     "test_kind": "both",
+     "note": "Two parts of C5b (68fd46ca) broke at a real table on 1.2.101 and were mended the next day by E96 C1: the toast list's placement, written for any #notifications, pulled it into an id-less flex row and moved the right column and the voice tile (the owner's console line, LIVE-E23-08, a recorded defect); the one checkbox and radio definition took none of Foundry's mark away (the orange ring). Today the placement holds only for #ui-top > #notifications (stained-glass.css:2234) and the definition clears ::after (:4159-4161). R1406 and R1407 were green before and after E96 (v1.2.102.md 38, 54): they did not see what the table saw."
+    },
+    {
+     "promise": "Reduced motion is one mechanism: body.drpg-reduced-motion for the Look window's switch or the system's preference, following the system's change",
+     "source": "v1.2.101.md 129, 27-29, 174-179",
+     "code": "scripts/motion.mjs:125-175, :557 registerMotion; styles/motion.css:117 (the one @media (prefers-reduced-motion) left in styles/*.css, by grep)",
+     "holds": "yes",
+     "test": "R1410, R1413, R1432 (ok)",
+     "test_kind": "both",
+     "note": "What Foundry's core still animates: LIVE-E23-11, open."
+    },
+    {
+     "promise": "The corner's buttons stay tilted through every redraw; the GM's red hexagon without its light side lines",
+     "source": "v1.2.101.md 129-130, 149-152",
+     "code": "scripts/glass-blocks.mjs:80 blockTurns",
+     "holds": "yes",
+     "test": "R1382 (ok)",
+     "test_kind": "behaviour",
+     "note": "Over a session at a table: LIVE-E23-05, open (the owner's confirmation)."
+    },
+    {
+     "promise": "Under Monokuma Legacy: Foundry's players list without the module's panel look, every student's token frame in Legacy's bone (the viewer's own in bone, the others dimmer, Foundry's controlled border bone), a Legacy drop-down list of its own",
+     "source": "v1.2.101.md 122-126, 195-200",
+     "code": "styles/danganronpa.css:14027-14058 (#players under Legacy, per live-items-429.json); scripts/own-ring.mjs:267 frameColour",
+     "holds": "yes",
+     "test": "R1466, R1467, R1468 (ok)",
+     "test_kind": "both",
+     "note": "Read on the module's cascade on a planted list; the owner's bar was 217x20 on 1.2.100 (LIVE-E24-12, a defect before the fix; the fix unread at a table). Token frames on a real map not measured (the notes, 327-329)."
+    }
+   ],
+   "registry_rows": 40,
+   "tests_read": [
+    {
+     "test": "R1385 (tests-tier1, the band's box)",
+     "measures": "no",
+     "why": "Skipped headless on env.layout, as skip-baseline.json:12 lists it: the band's height and type need a browser that lays out. Headless the clock's unchanged height rests on R122's node identity and E23-T1."
+    },
+    {
+     "test": "tier 2 E23-T1 (tests-tier2.mjs:87065-87100, title and fixture read)",
+     "measures": "weak",
+     "why": "Creates a real playlist, plays two tracks and stops, and reads that this browser's band is the node it had and is-empty exactly when nothing plays; the GM's browser alone (AUDIT item 403 says so), and no height."
+    },
+    {
+     "test": "tier 2 E23-T2 (tests-tier2.mjs:75670-75740, title and set-up read)",
+     "measures": "yes",
+     "why": "Draws a real sheet, another window and a kit panel and reads the stacking order after a press on the sheet and its render(true); fails if the prompt fell under the sheet. The raising is the harness's model of v14 (LIVE-E23-04)."
+    },
+    {
+     "test": "R1406 and R1407 (registry rows; ok before and after E96 by its notes)",
+     "measures": "weak",
+     "why": "Both read the module's cascade on stand-ins without Foundry's stylesheet; both stayed green on the tree whose toasts and radios broke at the owner's table (v1.2.102.md 27-38, 44-54). E96's R3100 and R3101 read the places they missed."
+    }
+   ],
+   "tests_to_join": [
+    "glass-sweep --turn, --track, --tray, --events, --board, --corner (Chromium, outside CI, not run here)",
+    "scenario 84-viewports (local-gate; reads the windows E21 and E23 brought on screen)"
+   ],
+   "scenarios": [
+    "No register row of audit/harness/README.md names E23 as its stage; 84-viewports (E49, local-gate) names E23's windows (README.md:218). The README's glass-sweep sections (389-422) are E23's Chromium measures, not scenarios."
+   ],
+   "live": {
+    "items": 12,
+    "read": 0,
+    "ids_read": [],
+    "note": "Items 402-413 (LIVE-E23-01..12), all open but 409 partly: LIVE-E23-08's one reading is the owner's console line on 1.2.101, 09.11.2026, a defect (the toast list's parent an id-less flex row, the list static under the module's rule; live-readings-other.json), mended by E96 C1 and not read since. 410 (LIVE-E23-09) and 411 (LIVE-E23-10) carry texts the later changes outdate in part (the caption's word; the panel's one size)."
+   },
+   "findings": [],
+   "superseded_by": [
+    "E96 C1 (1.2.102): the toast list's placement (only under #ui-top) and the glass's checkbox and radio (Foundry's mark cleared, the box whole)",
+    "E96 C2 (1.2.102): the recolour, a crossfade of two baked looks",
+    "E96 C3, C4 (1.2.102): the voice tile under the tray (C3a's 7 px drop kept, the tile at the middle of the right side)",
+    "E48 batch 5 and gaps-111: Hope's slot a diamond, not a star",
+    "E49 A6 (1.2.105) and owner-115 item 3: the Event panel as tall as what it says, never scrolling, not one size",
+    "E100 item 10: Still to act shown again in a Class Trial (the incident half stands)"
+   ],
+   "grade": 7,
+   "provisional": "after L1",
+   "grade_reasons": "Today every promise of E23 that no later stage replaced is in the code and held by a test that ran green in the base run: 39 of its 40 registry rows ok in shard 1/8 and one skipped by the baseline (R1385, layout), E23-T1 and E23-T2 ok in shard 3/8. Against an 8: (1) the release that carried it broke at the first real table - the toast placement and the radio's mark of C5b and the recolour of C1b were three of the eight items the owner reported on 1.2.101 ('Cos bardzo zlego sie stalo'), each mended by E96 a day later, and the tests of C5b (R1406, R1407) were green on the broken tree; (2) one row of the stage's own measure, E23-04, was not met and is still red on the layout turn by E96's notes; (3) three of its promises were replaced by the owner's later asks (the Event panel's one size, the stars, Still to act in a trial). Capped at 9 in any case: the turn's main promise stands on LIVE-E23-01 and all twelve live items are unread at a table but the owner's one defect reading. No new finding in what I read.",
+   "missing_to_10": "LIVE-E23-01 (the turn's frames, texture and memory at a table) and the other eleven items read on v14; E23-04's layout-turn line answered or the row retired; a test of the band's height that runs where layout exists (R1385 runs only in a browser); LIVE-E23-08's 1.2.102 line read; items 410 and 411 rewritten to the shape that now stands."
+  },
+  {
+   "id": "E24",
+   "version": "1.2.101",
+   "shipped": "2026-11-09",
+   "what": "A6 and N5 of the plan with the owner's 08.11 and 09.11 reports (A1-A9): Health and Sanity shown everywhere as what is left through one helper; Sanity and the Breakdown icon private; a roll's card never naming Breakdown; a Background field that saves; Not in the class and Mark / Unmark as Monokuma on the sheet's header; the states in the module's own pixel art; one sheet step at a time; the inventory, a light client and a narrow sheet; the Safe Word's width, the Experience badges, a project's description and the Investigation dashboard's Save. touches ['sockets'] for fix G1's bridge guard.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.101.md (1-364, whole; E24's parts 7-11, 30-52, 62-122, 202-236, Known gaps 290-296, 303-304)",
+    "no papers folder: docs/dev/e24/ does not exist; the STAGE.md 'Amend 08.11' and STATUS E24 the registry rows quote are not in the repository",
+    "tools/stages.json row E24 (planned and shipped 1.2.101, with E23, touches ['sockets'], drills [])",
+    "git log --oneline 1d860414..6bf7fc76: 15 subjects name E24 (9640a33b C1b, 97f7fb17 C1c, 4d6ff6f6 C3b and 58ec87fb, 52955be4 C4b, 0cdb534d and c4f81911 C5, 337318cf C6, e6f7d41b G3, 48b91c11 G2A, f2e2ed9a G2B, 8b4b94f2 G1, da8e8a3b, 01c5b36c, 6bf7fc76); C0, C1a, C2, C3a, C4a are not objects here",
+    "audit/AUDIT-1.2.42.md 9.2 items 414-423 and 428-430 (lines 1316-1334, 1344-1348); verdicts in live-items-395.json and live-items-429.json; live-readings-other.json (items 428, 429)"
+   ],
+   "commits": 53,
+   "promises": [
+    {
+     "promise": "Health and Sanity read as what is left - the maximum less what has gone - on the sheet, the Event panel, the tracker, a student's two token bars and the Party sheet, through one helper; no stored value rewritten",
+     "source": "v1.2.101.md 30-32, 62-70, 202-209",
+     "code": "scripts/character.mjs:312 reserveFrom, :332 reserveView, :338-345 the row; scripts/sheet-sidebar.mjs:152 paintReserves, :415 paintPartyReserves; scripts/murder-ui.mjs:404 reserveLine; scripts/states.mjs:506 reserveBar, :516 wrapBarAttribute; scripts/patches.mjs:1181 token-bars-reserve, :1239 hook-party-sheet-render",
+     "holds": "yes",
+     "test": "R1441 (the census), R1442, R1446, R1447, R1449 (ok); tier 2 E24-T1 (tests-tier2.mjs:96205, ok in shard 2/8)",
+     "test_kind": "both",
+     "note": "The row's word 'Left:' and the two colours were changed by E96 C1 (the owner, 09.11): '3 / 4', Health #ff4a26 and Sanity #2ec4b6. The token bars and the Party sheet are stand-ins (LIVE-E24-01, -03, open)."
+    },
+    {
+     "promise": "Sanity is private: a player who does not own the student, an Observer included, reads Health and no Sanity on the sheet, the token bars, the Party sheet, the Event panel and the tracker, with anonymity on or off",
+     "source": "v1.2.101.md 71-75, 229-233",
+     "code": "scripts/sheet-sidebar.mjs:152 paintReserves, :415 paintPartyReserves; scripts/character.mjs:332-345 (shown false gives '?'); scripts/states.mjs:506 reserveBar",
+     "holds": "yes",
+     "test": "R1445, R1484 (ok); E24-T1 (ok)",
+     "test_kind": "both",
+     "note": "What the screens draw; a console reads the actor (the notes, 75; the handbooks say so). LIVE-E24-08 open."
+    },
+    {
+     "promise": "The Breakdown icon on a token is drawn only for its owner and the GMs; Wounded and the dead overlay for everybody",
+     "source": "v1.2.101.md 76-77; Q-E24-2",
+     "code": "scripts/states.mjs:559 wrapEffectIcons; scripts/patches.mjs:1198 state-icons-off-token",
+     "holds": "superseded",
+     "test": "R1485 (ok; its title now reads 'drawn on no token', E95 C5)",
+     "test_kind": "both",
+     "note": "Superseded by E95 C5 (1.2.104, the owner on 10.11: the icons are drawn on no token, for nobody, and both states are public badges on the sheet). The patch row breakdown-icon-private is gone; patches.mjs:1204 states the change. LIVE-E24-09's icon half is LIVE-E95-05 now (item 422 says so)."
+    },
+    {
+     "promise": "A roll's chat card never names Breakdown: a roll in Breakdown shows its extra die as Disadvantage to every reader",
+     "source": "v1.2.101.md 77-79, 207-208",
+     "code": "scripts/roll-draw.mjs (scoredOf, modifierLabel and the renderChatMessageHTML steps, as R1489's title names them; not read here)",
+     "holds": "unread",
+     "test": "R1489 (ok; a guard proven by planted faults, the notes say)",
+     "test_kind": "source",
+     "note": "Headless, Daggerheart's card is not drawn (renderTemplate answers empty text), so only the module's code is read (AUDIT item 423). LIVE-E24-10 open."
+    },
+    {
+     "promise": "The biography: a Background field in the prose face that saves itself when focus leaves it, on a tab change and when the sheet closes; opening it writes nothing; read-only where the viewer may not edit; a GM's write while you hold unsaved text stands, your next save writes nothing and tells you once, and leaving the field again saves yours",
+     "source": "v1.2.101.md 80-87, 211-216, 271",
+     "code": "scripts/sheet-sidebar.mjs:1009-1037 saveBiography (the conflict at :1027-1031), :1041 tidyBiography (:1093-1094 the held text drawn again, :1110-1115 focusout, :1136 the tab's click); scripts/sheet.mjs:90-94 (the close)",
+     "holds": "partly",
+     "test": "R123, R124, R1450 (ok); tier 2 E24-T2 (tests-tier2.mjs:96077, not in the shards that ran); scenario 71 parts F and I (not run)",
+     "test_kind": "both",
+     "note": "The conflict on a close reads wrong: finding E24-1. Q-E45-C3b-1 is E45-C3b's commit (3ae299da) but the notes give the promise under E24's biography."
+    },
+    {
+     "promise": "Mark as Monokuma / Unmark as Monokuma and Not in the class are a GM's controls on the sheet's header, no longer on the Actors directory's menu; marking a player's character asks first, Cancel the default",
+     "source": "v1.2.101.md 88-91, 213-214",
+     "code": "scripts/sheet-header.mjs:750-790; scripts/monokuma.mjs:400-420 markFromSheet (getActorContextOptions gone: grep finds it only in comments, monokuma.mjs:408, reroll-receipts.mjs:27)",
+     "holds": "yes",
+     "test": "R1486 (ok)",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "Not in the class: an NPC the GMs play leaves the ballots, Level Ups, the murder's cast, the GM panel, the census and the Calls, read by the GMs' roads as the GMs hold the flag; a Call never targets one (a Support aimed at one refused); the flag is a GM's, a player's write put back by the audit",
+     "source": "v1.2.101.md 38-44, 92-97, 229-235",
+     "code": "scripts/config.mjs:244 FLAGS.notInClass; scripts/monokuma.mjs:45 isNotInClass, :77 studentActors({ held }), :120 actingStudents; scripts/bridge-guards.mjs:1031-1048 guardArmOtherCharacter (studentActors({ held: flagsHeldNow })); scripts/sheet-audit.mjs:565 kindOf, :1238 firstMark",
+     "holds": "yes",
+     "test": "R1453, R1454, R1494, R1495 (ok); tier 2 E24-T3 (tests-tier2.mjs:96139, not in the shards that ran)",
+     "test_kind": "both",
+     "note": ""
+    },
+    {
+     "promise": "The module's own state icons in 16x16 pixel art; the primary GM's load puts them on the Breakdown and Wounded effects a world holds; the dead icon is the module's only while Daggerheart's is at its default, a change of that setting taking effect at once; a GM's own Unconscious or Defeated kept through a reload",
+     "source": "v1.2.101.md 33-37, 101-104, 230-231",
+     "code": "scripts/states.mjs:619 ownDeadIcon, :639 automationChanged (the updateSetting hook at :80), :649 reimageStates, :419 takeOverConditions, :261 clearAllSystemConditions; scripts/patches.mjs:1219 dead-icon-own",
+     "holds": "yes",
+     "test": "R1487, R1488, R1496, R1461 (ok)",
+     "test_kind": "both",
+     "note": "automationChanged reads the setting's document as v13 had it, not read on v14 (LIVE-E24-13, open)."
+    },
+    {
+     "promise": "One sheet step at a time: a part that throws leaves the others drawn and the primary GM is told once a load; the Loadout tab left; an empty Experience says so; an item in hand shows both its tags",
+     "source": "v1.2.101.md 112-114, 211-216",
+     "code": "scripts/sheet.mjs:151 SHEET_STEPS, :187 runSheetSteps; scripts/sheet-fit.mjs leaveLoadoutTab, keepTabScroll; scripts/sheet-sidebar.mjs noteEmptyExperience, injectEquippedTools",
+     "holds": "yes",
+     "test": "R1456-R1460 (ok)",
+     "test_kind": "behaviour",
+     "note": "LIVE-E24-07 open."
+    },
+    {
+     "promise": "The sheet's reserve field: a GM types the reserve; a player who owns the student has the field only while Players cannot edit is off; the token HUD's two inputs off for everybody",
+     "source": "v1.2.101.md 66-69, 231-232",
+     "code": "scripts/sheet-mode.mjs:113-123 reserveField (read at the render); scripts/sheet-sidebar.mjs:152-166, 330-387",
+     "holds": "partly",
+     "test": "R1443, R1497 (ok); R1443 holds that sheetReserve is not judged by a source read only (the notes, 323)",
+     "test_kind": "both",
+     "note": "The field is decided at a render and does not follow the lock when a GM changes it with the sheet open: finding E24-2 (controls-06-items-sheet-11)."
+    },
+    {
+     "promise": "The inventory's headings and counts readable under Stained Glass; the sheet, the roll window, the launchers, the Event panel, the item sheet and the corner's tiles dark on a client with Foundry's light theme; below 600 px the sheet in one column",
+     "source": "v1.2.101.md 115-117, 218-223, 303-304",
+     "code": "the stylesheets (R1462-R1464 read their cascade)",
+     "holds": "partly",
+     "test": "R1462, R1463, R1464 (ok)",
+     "test_kind": "both",
+     "note": "The notes' own row E24-27 (DARK-FIRST) was not met whole: 'Who you hear', the Voice fieldset and the narrow description window were not read on a light page (v1.2.101.md 303-304). LIVE-E24-06 open."
+    },
+    {
+     "promise": "The owner's 09.11 reports: the Safe Word as wide as its word; the Experience badges inside the rail with the module's mark; a project's description as wide as its form; the Investigation dashboard's Save closes it",
+     "source": "v1.2.101.md 118-122, 218-223",
+     "code": "scripts/projects-ui.mjs descriptionField (:806-829 per live-items-429.json); scripts/investigation.mjs openInvestigationDashboard",
+     "holds": "yes",
+     "test": "R1490, R1491, R1492, R1493 (ok)",
+     "test_kind": "both",
+     "note": "The description's shape was changed by E47-C6 (09.11.2026): a row of the kit's formGrid, its caption in the label column (live-items-429.json item 428). The owner's screenshot of the narrow field (LIVE-E24-11) was a defect before the fix; not read since."
+    }
+   ],
+   "registry_rows": 42,
+   "tests_read": [
+    {
+     "test": "tier 2 E24-T1 (tests-tier2.mjs:96205, title read)",
+     "measures": "yes",
+     "why": "Opens a direct murder between two players' students, hits the victim and reads the victim's sheet, the incident card for the victim, the killer and the GM as the reserve; ok in shard 2/8. Stand-in roots for the sheet's layout (Daggerheart 2.10.5's shapes)."
+    },
+    {
+     "test": "tier 2 E24-T2 (tests-tier2.mjs:96077-96137, body read)",
+     "measures": "yes",
+     "why": "Types into a student's sheet, closes it by its X and reads one save; types again while the GM writes Hope and reads the text kept and saved. It does not drive a GM's write of the Background while text is held and then a close (the road of E24-1). Not in the shards that ran."
+    },
+    {
+     "test": "R1489 (registry row)",
+     "measures": "weak",
+     "why": "A guard proven by planted faults, by the notes; Daggerheart's card is not drawn headless (AUDIT item 423), so the Breakdown word is held out of the module's own steps only."
+    },
+    {
+     "test": "R1443 (registry row and the notes, 323)",
+     "measures": "weak",
+     "why": "'sheetReserve is not judged' is held by a source read only."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: E24-T2 - the backstory at the table",
+    "tier 2: E24-T3 - a GM marks a student Not in the class on its sheet's header",
+    "scenario 71-sheet (parts A, B, F, I read E24's reserve, lock and biography on three clients)"
+   ],
+   "scenarios": [
+    "71-sheet (README.md:207, stage E45, ci): its parts A (the reserve repainted on every client), F (the biography's saves) and I (a biography written meanwhile) carry E24's promises; not run in the base run"
+   ],
+   "live": {
+    "items": 13,
+    "read": 0,
+    "ids_read": [],
+    "note": "Items 414-423 (LIVE-E24-01..10) and 428-430 (LIVE-E24-11..13): none read on v14 since the stage. Items 428 and 429 are 'partly' in live-items-429.json: each holds the owner's report that the stage answered (the narrow description on 09.11, the empty players bar under Legacy on 1.2.100), defects before the fix, no reading after. 415 quotes 'Zostalo: n / max', which E96 C1 removed; 422's icon half is LIVE-E95-05."
+   },
+   "findings": [
+    {
+     "id": "E24-1",
+     "severity": "minor",
+     "title": "A Background held unsaved when the sheet closes, after someone else changed it, is not saved and the notice asks for a field that is no longer on screen",
+     "where": "scripts/sheet.mjs:90-94 (the close saves through saveBiography); scripts/sheet-sidebar.mjs:1027-1031 (the conflict writes nothing and keeps the text on the app), :1093-1094 (a later draw puts the held text back); lang/en.json:509 DRPG.Sheet.biographyChanged",
+     "what_happens": "The close hook calls saveBiography(app). When the stored Background differs from the base the typing began from, the save writes nothing, keeps the typed text on app._drpgBiography with the new base and warns 'click outside the field again to save it over theirs'. After a close there is no field: the text waits on the closed sheet object, comes back only if the same sheet is opened again, and is gone if the page reloads before that.",
+     "evidence": "if (held.base !== undefined && held.base !== now && next !== now) {\n    app._drpgBiography = { ...held, base: now };\n    ui.notifications?.warn(game.i18n.localize(\"DRPG.Sheet.biographyChanged\"));\n    return null;\n}  (sheet-sidebar.mjs:1027-1031); Hooks.on(\"closeCharacterSheet\", app => { ... try { saveBiography(app); } ... }) (sheet.mjs:90-94)",
+     "failure_scenario": "A player writes a paragraph of Background while the GM corrects one word of it, closes the sheet with its X, reads 'click outside the field again', finds no field, and after a reload the paragraph is lost.",
+     "expected": "On a close, the conflict either saves (the typist's text, as the owner's default does on the second leave) or keeps the text where a reopening finds it, and the notice says what happened to it.",
+     "confidence": "read",
+     "refutation_tried": "Looked for another save after the close: saveBiography's callers are the focusout (sheet-sidebar.mjs:1114), the tab's click (:1136) and the close (sheet.mjs:94), none after it. Reopening the same sheet object draws the held text (sheet-sidebar.mjs:1094: area.value = editable && held ? held.value : stored), so the text is not lost while the page stands - which is why this is minor, not major. Whether Foundry v14 hands back the same sheet object on a reopen was not read (actor.sheet is cached on v13, as remembered). E24-T2 and scenario 71 I drive the conflict with the field still on screen, not a close (tests-tier2.mjs:96111-96135). Q-E45-C3b-1's default speaks of leaving the field, not of a close."
+    },
+    {
+     "id": "E24-2",
+     "severity": "minor",
+     "title": "The reserve's field does not follow Lock player resources while a sheet is open",
+     "where": "scripts/sheet-mode.mjs:113-123 (reserveField read at the render); scripts/sheet-sidebar.mjs:152-166",
+     "what_happens": "As controls-06-items-sheet-11 reads it: the field is given or withheld by the mode at a render; the lock's onChange only toggles a body class whose rules do not reach the reserve field, so an open sheet keeps the state it was drawn with.",
+     "evidence": "See controls-06-items-sheet-11 (its where and evidence); E24 fix G2B made the field the mode's (R1497).",
+     "failure_scenario": "The GM locks player resources mid-session; a player whose sheet is open still sees Health as a field, types 3 and watches it put back by the GMs.",
+     "expected": "The field follows the lock when it changes (the owner's rule: windows redraw at once).",
+     "confidence": "read",
+     "refutation_tried": "Placed here by reference, not re-traced: the reader of controls-06 traced the onChange and the CSS; the GMs' audit puts the write back, so nothing is lost but the player's trust in the field.",
+     "duplicate_of": "controls-06-items-sheet-11"
+    }
+   ],
+   "superseded_by": [
+    "E95 C5 (1.2.104): Breakdown's and Wounded's icons on no token for anybody, both states public badges on the sheet",
+    "E96 C1 (1.2.102): the row '3 / 4' with no 'Left:'; Health #ff4a26 and Sanity #2ec4b6",
+    "E47-C6: a project's description a row of the kit's formGrid",
+    "E54 (1.2.113): the sheet's code moved into sheet-*.mjs (a pure move; the promises' homes, not their behaviour)"
+   ],
+   "grade": 7,
+   "provisional": "after L1",
+   "grade_reasons": "Every promise that stands is in the code; 42 of 42 registry rows ok in shard 1/8 and E24-T1 ok in shard 2/8. The reserve, Sanity's privacy, Not in the class with the GMs' own reading of the flag (fix G1, R1494), the state icons and the header's controls are held by behaviour tests. Against an 8: two minors (E24-1, the biography's conflict on a close; E24-2 by reference, the field and the lock); one row of its own measure (E24-27, DARK-FIRST) met in part by its notes; R1489 and R1443 hold their claims by planted faults and a source read. One promise (the Breakdown icon kept private) was replaced by the owner's later rule (E95 C5), and two of its texts (the word and the colours) by E96 a day later. Capped at 9: the token bars, the Party sheet and Daggerheart's roll card are stand-ins, and the 13 live items are unread on v14.",
+   "missing_to_10": "E24-1 and E24-2 answered; LIVE-E24-01, -03, -08 and -10 read on v14 (the bars, the Party sheet, the victim's reading, the roll card), the other nine too; E24-27's three surfaces read on a light page; E24-T2 and E24-T3 and scenario 71 joined to the base run; item 415 rewritten to '3 / 4'."
+  },
+  {
+   "id": "E45",
+   "version": "1.2.101",
+   "shipped": "2026-11-09",
+   "what": "sheetMode as the one gate of the sheet, the strip, the HUD's Objection and the room tile, and of the redaction; the sheet repainting a resource-only write in place on every client with no state laid before the write (the render plan); the harness rendering a document's open windows after a write and scenario 71-sheet on the GM and two players; the bug bash (the GM's Level Up button after a player's take, a biography written meanwhile, a redacted sheet's Hope marks, the anonymity hint).",
+   "claim_sources": [
+    ".github/release-notes/v1.2.101.md (1-364, whole; E45's parts 11-13, 108-111, 238-245, Known gaps 293-294, 305, 322)",
+    "no papers folder: docs/dev/e45/ does not exist; 'STAGE E45' quoted by R1482 and R1483 is not in the repository",
+    "tools/stages.json row E45 (planned and shipped 1.2.101, with E24, touches [], drills [])",
+    "git log --oneline 1d860414..6bf7fc76: 5 subjects name E45 (32480f54 C1, ce238ee2 C1 fix, 22c15a53 C2, 9b1d47a3 C3a, 3ae299da C3b); later 20746544 (R1470) and af5cdcfc (E95 C5) name it",
+    "audit/AUDIT-1.2.42.md 9.2 items 424-427 (lines 1336-1342); verdicts in live-items-395.json; audit/harness/README.md:207 (scenario 71), :512-516 (the render after a write, a model)"
+   ],
+   "commits": 53,
+   "promises": [
+    {
+     "promise": "sheetMode(actor, user), computed once a render, is the one gate of the sheet, the strip, the HUD's Objection control, the room tile and the redaction; a Monokuma's sheet has no student's groups, headings or biography; inside a Class Trial the mode reads the trial's record only for Present",
+     "source": "v1.2.101.md 11-12, 240-241",
+     "code": "scripts/sheet-mode.mjs:41 sheetMode, :113-123 (strip, objection, tile), :126-150 RENDER_MODES, modeOf, rowGate, headerGate, sheetsFor",
+     "holds": "yes",
+     "test": "R1470 (the census of mode predicates outside sheet-mode.mjs), R1471-R1475 (ok); tier 2 E45-T1 (tests-tier2.mjs:96271, ok in shard 3/8)",
+     "test_kind": "both",
+     "note": "R1470 was touched again on 17.11 (20746544) for a new reader; the census holds on b5a29e73 (ok)."
+    },
+    {
+     "promise": "A hit, a heal, a Hope spent or given is painted into every open copy of the sheet in place; anything else draws it again; a field being typed in keeps its place; nothing is laid before the write (the old skipNextRender apparatus gone)",
+     "source": "v1.2.101.md 108-110, 241-242",
+     "code": "scripts/sheet-repaint.mjs:138-160 renderPlan (repaint only for render(options) or render(false, options) with renderContext 'updateActor' and renderData of repaintable resource keys), :163-190 installRenderPlan (falls back to the original render on a throw)",
+     "holds": "yes",
+     "test": "R1476, R1477, R1478, R1479 (ok); tier 2 E45-T2 (tests-tier2.mjs:96339, not in the shards that ran); scenario 71 part A (not run)",
+     "test_kind": "both",
+     "note": "The two argument shapes are Foundry's as remembered from v13 (the function's own comment): LIVE-E45-01 and -02 read them on v14, open. An unknown shape renders, so the risk on v14 is a flicker on every write, not a stale number."
+    },
+    {
+     "promise": "A player's Level Up taken no longer leaves the GM's button lit: the GM's open sheet is drawn again when the offer is withdrawn",
+     "source": "v1.2.101.md 110-111, 243-244, 322",
+     "code": "scripts/level-up.mjs:256-276 dropOffer (primary only, :274 renders the primary's own sheet)",
+     "holds": "partly",
+     "test": "scenario 71 part H (not run)",
+     "test_kind": "behaviour",
+     "note": "For the primary GM only; a second GM's open sheet keeps the lit button (the notes' own Known edge, 322): finding E45-1."
+    },
+    {
+     "promise": "The harness renders a document's open windows after a write, as Foundry does, named unconfirmed; scenario 71-sheet drives the sheet on the GM and two players",
+     "source": "v1.2.101.md 242-245",
+     "code": "audit/harness/client-entry.mjs renderApps; audit/harness/lib/versions.mjs UNCONFIRMED (LIVE-E45-01); audit/harness/scenarios/71-sheet.mjs",
+     "holds": "yes",
+     "test": "R1482, R1483 (ok; stamped E24)",
+     "test_kind": "source",
+     "note": "R1482 and R1483 hold the scenario's and the model's existence and names, not their results."
+    }
+   ],
+   "registry_rows": 10,
+   "tests_read": [
+    {
+     "test": "R1477 (registry row; live-items-395.json item 425)",
+     "measures": "weak",
+     "why": "Reads renderPlan's answers on stand-in arguments; there is no real ApplicationV2 headless, so the shapes it accepts are the module's guess of v14's."
+    },
+    {
+     "test": "tier 2 E45-T1 (tests-tier2.mjs:96271, title read)",
+     "measures": "yes",
+     "why": "Makes a student dead, a Monocub and an NPC not in the class by the GM's own writes and reads sheetMode's answer and the drawn stand-in for each for its owner and another player; ok in shard 3/8."
+    },
+    {
+     "test": "R1482, R1483 (registry rows)",
+     "measures": "weak",
+     "why": "They read that scenario 71's file and README row exist with ci layers and that the render model is named unconfirmed; they do not run the scenario."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: E45-T2 - a resource write repaints an open sheet without a render",
+    "scenario 71-sheet (parts A-J, 41 checks by the notes)"
+   ],
+   "scenarios": [
+    "71-sheet (audit/harness/README.md:207, stage E45, layers ci): the sheet on the GM and two players through the harness's render after a write; not run in the base run (no scenario had run when this was written)"
+   ],
+   "live": {
+    "items": 4,
+    "read": 0,
+    "ids_read": [],
+    "note": "Items 424-427 (LIVE-E45-01..04), all open. 425 and 427 name renderPlan and refreshMonocubTiles in sheet.mjs; since E54 both are scripts/sheet-repaint.mjs's (:138 and :317)."
+   },
+   "findings": [
+    {
+     "id": "E45-1",
+     "severity": "minor",
+     "title": "A second GM's open sheet keeps the Level Up button lit after a player's take",
+     "where": "scripts/level-up.mjs:256-276 (dropOffer runs on the primary and renders its own sheet alone); scripts/gm-stores.mjs:722-740 (offerStore: no change hook); scripts/gm-store.mjs (no Hooks.call or callAll, by grep)",
+     "what_happens": "The withdrawal reaches the other GMs as a merge of the offers store, which draws nothing; the button's class and tooltip on a second GM's open sheet stay until that sheet renders for another reason.",
+     "evidence": "export async function dropOffer(actorId, offerId) {\n    if (!isPrimaryGm()) return false;\n    ...\n    game.actors.get(actorId)?.sheet?.render(false);\n    return true;\n}",
+     "failure_scenario": "With two GMs at the table, a player takes the Level Up the verdict offered; the assistant GM, whose copy of the student's sheet is open, still reads '1 Level Up on offer' and a lit button.",
+     "expected": "Every GM's open sheet of that student drawn again when the offer goes.",
+     "confidence": "read",
+     "refutation_tried": "Looked for a listener on the store's merge (gm-store.mjs: no hook fired; level-up.mjs and sheet*.mjs: no drpgGmStore listener) and for a broadcast render: none. The press reads the store afresh, so nothing wrong is done - which is why minor. The notes list this edge (v1.2.101.md 322) and controls-06-items-sheet-9 found it from the controls' side.",
+     "duplicate_of": "controls-06-items-sheet-9"
+    }
+   ],
+   "superseded_by": [
+    "E54 (1.2.113): renderPlan, installRenderPlan and refreshMonocubTiles moved to sheet-repaint.mjs, the modes to sheet-mode.mjs (a pure move)"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "The stage's two goals stand on b5a29e73: one sheet mode (R1470's census and R1471-R1475, E45-T1 ok in shard 3/8) and the render plan (R1476-R1479 ok). One minor (E45-1, the notes' own known edge) keeps the third promise in part. Capped at 9 and held at 8: the render plan's whole worth rests on the argument shapes Foundry v14 hands a sheet after a write, which are the module's memory of v13, its model in the harness, and unread at a table (LIVE-E45-01, -02); E45-T2 and scenario 71, the tests that drive the repaint on three clients, were not in the part of the base run that ran.",
+   "missing_to_10": "LIVE-E45-01 to -04 read on v14 (the render options above all); E45-T2 and scenario 71 joined to the base run; E45-1 answered (every GM's sheet drawn again)."
+  },
+  {
+   "id": "E96",
+   "version": "1.2.102",
+   "shipped": "2026-11-09",
+   "what": "The hotfix of 1.2.101 after the owner played it at a real table on 09.11.2026 ('Cos bardzo zlego sie stalo w 1.2.101'): Foundry's toasts placed only under #ui-top, Foundry's mark off the glass's checkbox and radio, '3 / 4' without 'Left:', Observe back in the actions' one layout, no sideways scroll in a kit window's body, Health vermilion and Sanity teal, the curtain's recolour a true crossfade, and the voice tile on its own pane at the middle of the right side; built from v1.2.101, not from the line.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.102.md (1-278, whole: items 1-8 22-168, the ledger 170-176, the owner's answers 178-197, Known gaps 199-242, Checked 244-278)",
+    "no papers folder: docs/dev/e96/ does not exist; 'H102 DIAGNOSIS' quoted by R3120 is not in the repository",
+    "tools/stages.json row E96 (planned and shipped 1.2.102, touches [], drills []) and its $comment (E96 C1 put the hotfix before E46)",
+    "git log: 7 commits name E96 - 5e7e57ba C1, f9eee981 C2, 7bb13408 C3, 4e4b190c C4, c0ea03d2 the release, 9dbbb984 and 65024c09 the merges; git rev-list 7175878b..4e4b190c: 4",
+    "audit/AUDIT-1.2.42.md 9.2 item 409 (line 1306): LIVE-E23-08 amended by E96 C1; no LIVE-E96 id exists (grep: 0)"
+   ],
+   "commits": 5,
+   "promises": [
+    {
+     "promise": "The four placement declarations of Foundry's toast list apply only to body.drpg-theme-stained-glass #ui-top > #notifications; the plate the toasts stand on is kept wherever the list stands",
+     "source": "v1.2.102.md 22-38",
+     "code": "styles/stained-glass.css:2220-2239 (the rule at :2234), :2240-2253 (the plate)",
+     "holds": "yes",
+     "test": "R3100 (ok, shard 1/8)",
+     "test_kind": "source",
+     "note": "The cause was the owner's console line at the table; the stand-in with that parent did not reproduce the right column's move (v1.2.102.md 210-213). Whether the top right is whole at the table is LIVE-E23-08's 1.2.102 line, unread."
+    },
+    {
+     "promise": "In the glass's one checkbox and radio definition, flex none, --checkbox-checked-color the state colour and ::after content none: no orange mark, every box 22x22",
+     "source": "v1.2.102.md 40-54",
+     "code": "styles/stained-glass.css:4134-4161 (flex: none and the variable at :4151-4152, ::after at :4159-4161)",
+     "holds": "yes",
+     "test": "R3101 (ok)",
+     "test_kind": "source",
+     "note": "Which pseudo-element v14 draws its mark in was not read (the notes, 214-215). The radio has been round since gaps-radio (R4650; stained-glass.css 'A RADIO IS ROUND'), which keeps the ::after rule."
+    },
+    {
+     "promise": "DRPG.Reserve.leftRow reads '{n} / {max}' in both languages; the handbooks say '3 / 4'",
+     "source": "v1.2.102.md 56-66",
+     "code": "lang/en.json:2749, lang/pl.json:2887; scripts/character.mjs:338-345; scripts/sheet-sidebar.mjs:378",
+     "holds": "yes",
+     "test": "R3102 (ok)",
+     "test_kind": "both",
+     "note": "grep of docs/handbooks for 'Left: n' or 'Zostalo: n': 0 hits."
+    },
+    {
+     "promise": "Observe no longer asks for columns, so it is drawn as every other action; one layout for every action is E68's",
+     "source": "v1.2.102.md 68-80",
+     "code": "scripts/action-observe.mjs:306-314; scripts/action-menus.mjs:125-126, :169 (columns = true by default since E68 C12)",
+     "holds": "superseded",
+     "test": "R1600 (ok; stamped E21, its title now 'every action has it since E68 C12')",
+     "test_kind": "both",
+     "note": "The goal - Observe in the actions' one layout - holds; the layout is E68 C12's (1.2.104) briefing beside the list for every action, so Observe, still asking nothing, is drawn in columns again. The call's comment still describes the 1.2.102 state: finding E96-1."
+    },
+    {
+     "promise": "overflow-x: clip on the kit window's body, so no module window scrolls sideways; a guard, not the mend of a cause seen",
+     "source": "v1.2.102.md 82-92, 230-232",
+     "code": "styles/components.css:292-304",
+     "holds": "yes",
+     "test": "R3103 (ok)",
+     "test_kind": "source",
+     "note": "The scroll was not reproduced (545/544 and 672/670 px); whether the table's scroll came from the body was not read."
+    },
+    {
+     "promise": "Health #ff4a26 and Sanity #2ec4b6 in both themes' tokens; the marks of a cost paid in Sanity keep Despair's pink",
+     "source": "v1.2.102.md 94-104",
+     "code": "styles/danganronpa.css:68-69; styles/stained-glass.css:158-159",
+     "holds": "yes",
+     "test": "R3104, R1444 (ok)",
+     "test_kind": "source",
+     "note": ""
+    },
+    {
+     "promise": "The curtain's recolour a true crossfade: the new look baked per batch rises 0 to 1 while the old falls, each pair an isolated group with the new added on (plus-lighter); the curtain held under them for the turn's span",
+     "source": "v1.2.102.md 106-127",
+     "code": "scripts/glass.mjs:2876 glassTurn, :2936-2977 (the pair isolated, mix-blend-mode plus-lighter at :2977)",
+     "holds": "yes",
+     "test": "R3120 (ok; tests-tier1.mjs:47022, reads the layers on a stand-in curtain), R1377, R1411-R1413 (ok)",
+     "test_kind": "behaviour",
+     "note": "plus-lighter was read in headless Chromium only; a browser without it draws a thinner pane mid-fade (the notes, 216-218). A turn bakes twice the canvases (the notes, 222-225)."
+    },
+    {
+     "promise": "The voice tile on its own pane beside Foundry's tab rail, its buttons on the pane; then at the middle of the right side, at the wall, with a pane between the tray and the tile and no map between the tile and the right side",
+     "source": "v1.2.102.md 129-168",
+     "code": "scripts/glass-blocks.mjs:41-49 settleVoice (THE MIDDLE OF THE RIGHT SIDE); scripts/glass-geometry.mjs:270 buildColumn, :645 cutStrips",
+     "holds": "yes",
+     "test": "R3121, R3122 (ok)",
+     "test_kind": "behaviour",
+     "note": "At 1366x768 the tile cannot sit in the middle (the tray's rows hold it at y 260); a fifteen-tab rail not read (the notes, 201-203). The owner's 1.2.101 picture was not reproduced on any tree (204-207)."
+    }
+   ],
+   "registry_rows": 8,
+   "tests_read": [
+    {
+     "test": "R3120 (tests-tier1.mjs:47022-47052, body read)",
+     "measures": "yes",
+     "why": "Asks a recolour of a stand-in curtain and reads each batch's pair (old 1 -> 0, new 0 -> 1 on one delay), the rising layers under the moves, one end for them, the curtain's held opacity and nothing left after cancel; guards that the stand-in planned batches and moves ('this reads nothing'). It reads the plan's layers, not pixels: the first frame against rest is the glass sweep's --turn."
+    },
+    {
+     "test": "R3121 (tests-tier1.mjs:47054 on, its comment read)",
+     "measures": "yes",
+     "why": "Cuts the blocks the glass page measured on the day with the rail's pin and reads the buttons' corners against the tile's pane at three sizes, with a control that the same reader finds them off the tray's pane."
+    },
+    {
+     "test": "R3100, R3101, R3103, R3104 (registry rows; red first quoted in the notes)",
+     "measures": "weak",
+     "why": "Each reads the module's own stylesheet text or cascade for the rule E96 wrote; none can say what Foundry v14's stylesheet does beside it, which was the cause of items 1 and 2."
+    }
+   ],
+   "tests_to_join": [
+    "glass-sweep --turn, the notice, launcher and voice checks (Chromium, outside CI, not run here)"
+   ],
+   "scenarios": [
+    "No register row names E96. Its quick runs name scenarios 14, 50, 62, 71, 75 and 88 as green on its trees (v1.2.102.md 254-265); none run in the base run."
+   ],
+   "live": {
+    "items": 0,
+    "read": 0,
+    "ids_read": [],
+    "note": "E96 has no live id of its own; it amends LIVE-E23-08 (AUDIT item 409) with the 1.2.102 console line, unread. Its notes say everything in it is unchecked at a real table (209-218)."
+   },
+   "findings": [
+    {
+     "id": "E96-1",
+     "severity": "nit",
+     "title": "Observe's call still says it is drawn without columns and scrolls at 1366x768; since E68 C12 the same call draws the briefing beside the list",
+     "where": "scripts/action-observe.mjs:312-314; scripts/action-menus.mjs:125-126, :169",
+     "what_happens": "The comment explains the absent columns option as keeping Observe in the one-column layout of 1.2.99 and calls one layout for every action future work. E68 C12 (1.2.104) made columns true by default, so the absent option now gives Observe the two-column layout every action shares; the comment describes a draw that no longer happens.",
+     "evidence": "// No `columns` (E96 C1, 1.2.102): E21 fix G2 stood Observe's briefing beside its list, and Observe alone; the\n// owner's 09.11.2026: every action shares one layout, as every Call does. Observe is drawn as the other actions\n// are again (it scrolls at 1366x768, as in 1.2.99); one layout for every action is E68's, after a mockup round.  (action-observe.mjs:312-314)\n * @param {boolean}  [config.columns]  The briefing beside the list (`actionWindow`, below), true by default since\n *                                        E68 C12; false only for Level Up's two questions  (action-menus.mjs:125-126)",
+     "failure_scenario": "A developer who needs Observe in one column again reads that leaving columns out does it, and gets the two-column window.",
+     "expected": "The comment names E68 C12's default and what Observe is drawn as today.",
+     "confidence": "read",
+     "refutation_tried": "R1600's title (registry) says 'every action has it since E68 C12' and chooseVariant's signature defaults columns = true (action-menus.mjs:169), so the code and the test agree with each other and against the comment; the comment's last clause points at E68, which softens it to a nit."
+    }
+   ],
+   "superseded_by": [
+    "E68 C12 (1.2.104): one layout for every action window, the briefing beside the list, Observe's included"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "Each of the eight items is in the code as the notes say and held by a tier-1 test green in shard 1/8 (R3100-R3104, R3120-R3122, R1600); R3120 and R3121 read behaviour on stand-ins, the style tests read the module's own sheets. One nit (E96-1). Held at 8: two items are guards, not mends of a cause seen (the sideways scroll was not reproduced; the toast stand-in with the owner's parent did not reproduce the moved column), and the hotfix's whole purpose - the table the owner saw broken is whole again - has not been looked at on v14 (LIVE-E23-08's 1.2.102 line, and no live id of its own for the checkbox, the crossfade or the voice tile). Capped at 9 for that.",
+   "missing_to_10": "At a real table on v14: the toasts and the top right (LIVE-E23-08's line), the checkbox and radio with core's own stylesheet, the crossfade in Firefox and at the table's frame rate, the voice tile at the middle of the right side with the owner's rail; live ids for those three; E96-1's comment brought to E68 C12."
+  }
+ ],
+ "not_established": [
+  {
+   "what": "base-run.json was not on the branch when this was written. The base run's shard logs 1/8-4/8 were read (shard 3/8 red on one test of another stage, grid XI07); shards 5/8-8/8 and every scenario had not run. E24-T2, E24-T3, E45-T2 and scenario 71 are in tests_to_join, their result not read.",
+   "l1": null
+  },
+  {
+   "what": "The Chromium measures the two notes quote (the glass sweep's --turn, --track, --tray, --events, --board, --corner, --scheme light; the style and fit sweeps; the toast, checkbox and voice readings on stand-ins) were not re-run; the stylesheets were read only at the rules named.",
+   "l1": null
+  },
+  {
+   "what": "Whether E23-04 (the texture in the moving band at least 80 % of rest) was ever met on the layout turn after 1.2.102's notes said it stays red: no later notes were read for it and the sweep was not run.",
+   "l1": null
+  },
+  {
+   "what": "The mutant and end-review counts of the 1.2.101 notes cannot be reproduced: the stages' STATUS ledgers and review reports were never committed (no docs/dev/e23, e24, e45, e96), and 30 of the train's 53 commits are not objects in this shallow clone.",
+   "l1": null
+  },
+  {
+   "what": "Whether Foundry v14 hands back the same sheet object when a closed character sheet is opened again (E24-1: the held Background comes back only then).",
+   "l1": {
+    "what": "Whether a Background held unsaved after a conflict survives a close",
+    "recipe": [
+     "1. A GM and a player who owns a student, the student's sheet open on both.",
+     "2. The player types a sentence into Background and does not leave the field.",
+     "3. The GM changes one word of the same Background and leaves the field (saved).",
+     "4. The player closes the sheet with its X: note the notice's words.",
+     "5. The player opens the sheet again: note whether the typed sentence is in the field; then leave the field and read the stored Background.",
+     "6. Repeat 1-4, then reload the player's page before reopening: note what the field holds."
+    ],
+    "clients": "one GM, one player",
+    "theme": "default",
+    "settles_if": "agrees: the text comes back on a reopen and is saved on the next leave, and the notice says the text is kept; defect: the text is gone on a reopen, or after a reload, with no word",
+    "priority": "minor (E24-1)"
+   }
+  },
+  {
+   "what": "E23's turn, track band, board, prompts, corner, chat, #players, toasts, pause, Event panel, reduced motion and tray rows on v14 (LIVE-E23-01..12): E23's grade cap.",
+   "l1": {
+    "what": "E23's curtain and HUD at a real table",
+    "recipe": [
+     "1. Under Stained Glass at 1366x768 and 1920x1080, as GM and as a player: await game.drpg.fps({ toChat: false }) at rest, then again while changing the phase (Daily Life -> Investigation) and the time of day; write the frame count, the middle frame and the frames over 50 ms of both.",
+     "2. Watch the turn: panes moving with their texture, colour from the centre in about 1.2 s, the seam flash, no board showing through; game.drpg.perf() before and after ten turns.",
+     "3. With music following the game: document.getElementById('drpg-hud').offsetHeight at silence, after a playlist starts, a track change and a stop, on the GM's and a player's own browser.",
+     "4. Pause the game: every client's clock reads On hold / Wstrzymano, the height unchanged; a player loads the world paused.",
+     "5. ui.notifications.warn('test') and .error('test'): run the console line of AUDIT item 409 and write its four fields; the right column and the voice tile where they belong.",
+     "6. At 1024x768: the board visible and playable under the stack; the GM's #players one line at the foot, a player's none.",
+     "7. Turn on the operating system's reduced motion: nothing of the module moves in a loop, a phase change ends at once."
+    ],
+    "clients": "one GM and two players",
+    "theme": "both",
+    "settles_if": "agrees: the turn's middle frame at most 2 ms over rest, nothing seen jumping, the height constant, the toasts on their plate under the Despair pools with core's position, the board playable; defect: any of those not so, with a screenshot",
+    "priority": "E23's grade cap (9); AUDIT items 402-413"
+   }
+  },
+  {
+   "what": "E24's reserve and privacy on a real canvas and Daggerheart's own templates (LIVE-E24-01, -03, -08, -10 first): E24's grade cap.",
+   "l1": {
+    "what": "E24's reserve, Sanity's privacy and the roll card on v14",
+    "recipe": [
+     "1. Two players A and B, each owning one student, and a GM; open B's student's sheet and token on A's page.",
+     "2. The GM hits B's student: on B's sheet the bar shortens and reads 3 / 4; B's token bars say the same; A reads Health and a ? for Sanity on the sheet and no Sanity bar on the token; the token HUD's two inputs are off for A, B and the GM.",
+     "3. Open Daggerheart's Party sheet on A, B and the GM: the rows are the reserve, Sanity only for its owner and the GM.",
+     "4. Open a direct murder of A's student on B's: the victim reads both reserves on the card and the Event panel, the killer Health alone, a bystander nothing.",
+     "5. Put B's student in Breakdown and have B make a public roll: on A's and an Observer's page the card shows Disadvantage and nowhere the word Breakdown (text, tooltip, class).",
+     "6. GM: change Daggerheart's Automation death icon, kill a student: the new marker wears the GM's icon on both pages without a reload."
+    ],
+    "clients": "one GM and two players (one with Observer only on the other's student)",
+    "theme": "both",
+    "settles_if": "agrees: every reader as listed; defect: a Sanity number or bar on A's page, a bar that disagrees with the sheet, an editable HUD input, the word Breakdown on another's card",
+    "priority": "E24's grade cap (9); AUDIT items 414-423, 428-430"
+   }
+  },
+  {
+   "what": "The argument shapes Foundry v14 passes a character sheet's render after a write (LIVE-E45-01, -02): E45's grade cap.",
+   "l1": {
+    "what": "E45's render plan on v14",
+    "recipe": [
+     "1. A GM and two players, the same student's sheet open on all three; Lock player resources off.",
+     "2. In each page's console wrap that sheet's render to log its arguments (const s = game.actors.getName('<name>').sheet; const r = s.render; s.render = function (...a) { console.log(JSON.stringify(a)); return r.apply(this, a); }).",
+     "3. The owner types Health three times fast in the reserve's field, then the GM twice: write each logged argument list and whether the window flickered.",
+     "4. The GM gives the student an item: write the arguments; the sheet must draw again.",
+     "5. From the GM's console: actor.update({ 'system.resources.hitPoints.value': n }, { render: false }), then actor.sheet.render(false, { renderContext: 'updateActor' }): the sheet draws whole with the stored number.",
+     "6. A player takes a Level Up the GM offered: the button goes on the owner's and the GM's sheet; with a second GM connected, note that GM's button."
+    ],
+    "clients": "two GMs and two players",
+    "theme": "default",
+    "settles_if": "agrees: a resource write logs render(false, { renderContext: 'updateActor', renderData: { system.resources... } }) and no flicker; defect: another shape on every write (every write flickers) or a number that differs between pages",
+    "priority": "E45's grade cap (9); AUDIT items 424-427; E45-1 minor"
+   }
+  },
+  {
+   "what": "Whether the hotfix mended what the owner saw on 1.2.101 at the table: the top right, the radio's mark, the crossfade and the voice tile (no live id of E96's own).",
+   "l1": {
+    "what": "E96's eight items at a real table on v14",
+    "recipe": [
+     "1. Under Stained Glass at 2000x1072 (the owner's size), 1920x1080 and 1366x768, GM and player: run AUDIT item 409's console line; the last field must not be static; the right column and the voice tile stand where they did before 1.2.100, the tile at the middle of the right side with its buttons on its pane and glass to the wall.",
+     "2. Open Search, Observe and the Look window: no orange ring in a checked radio or checkbox, every box 22 px; read getComputedStyle(input, '::after').content and '::before'.",
+     "3. Change the phase and the hour: the first frame of the recolour is the screen at rest, in Chromium and in Firefox.",
+     "4. Open Give / take items and the GM panel: no horizontal scrollbar; write the GM panel window's width.",
+     "5. Read a sheet's reserve row (3 / 4) and the two bars' colours in both themes."
+    ],
+    "clients": "one GM, one player",
+    "theme": "both",
+    "settles_if": "agrees: each as written; new live check otherwise, with the item's number and a screenshot",
+    "priority": "E96's grade cap (9)"
+   }
+  }
+ ]
+}

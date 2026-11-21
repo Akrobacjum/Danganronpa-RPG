@@ -1,0 +1,448 @@
+{
+ "refuter": "verify-stages-18",
+ "of": "stages-18",
+ "scope": "Every finding of severity minor or above in stages-18.json (the ten joined from other lanes), the reader's five own nits (because two of them bear on the grades), every promise marked holds yes (20) or no (1), and the four stages' grades. Read on b5a29e73's source (the branch adds only audit/ files); test results from the base run's shard files results-suite-1..8 (all eight now present, 3409 tests in one name -> outcome table) and its scenario log as far as it had run at 22:09Z (up to 68-trial-zones); base-run.json lists the scenarios as pending. Nothing run.",
+ "checked": [
+  {
+   "ref": "controls-03-investigation-planner-1",
+   "claim": "Move up / Move down build their column from another graph than the Map draws (E97 C6's order tools)",
+   "verdict": "stands",
+   "why": "The Map draws caseGraph(chapter, { chapters, slots, autopsy }) with the Key plan's every slot; moveCaseNode calls caseGraph(chapter) with the defaults (chapters 'this', slots null so only stored keyPlanStore rows, autopsy false). A node drawn only through the given slots or autopsies is not in the handler's layout and the press returns at 'if (!column) return;' with nothing said. No caller or guard elsewhere found.",
+   "evidence": [
+    "scripts/investigation.mjs:1146 'const graph = caseGraph(chapter, { chapters, slots: chapter === plan.chapter ? slots : null, autopsy: autopsies });'",
+    "scripts/investigation.mjs:1929-1932 'const graph = caseGraph(chapter); ... const column = layout.columns.find(c => c.includes(id)); if (!column) return;'",
+    "scripts/case-schema.mjs:368 'export function caseGraph(chapter = getClock().chapter, { chapters = \"this\", slots: given = null, autopsy = false } = {})'"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-03-investigation-planner-12",
+   "claim": "The Map's fold drops a typed, unwritten field without a word",
+   "verdict": "stands",
+   "why": "onFold flips the reading and refreshes; its neighbours onPick, onClose and onView all call saveOpenNode(root) first, onFold does not, and wireCaseFilters' change handler does not either. The comment over wireCaseFilters says half-typed fields survive a filter change; that holds only for a field still drawn after the redraw. Part of the cause is later than E97 (every node open by default since owner-116), but the control is E97's.",
+   "evidence": [
+    "scripts/investigation.mjs:1858 'saveOpenNode(root).then(() => { reading.node = null; reading.focus = id; refresh(); });' (onClose)",
+    "scripts/investigation.mjs:1860 'onFold: () => { reading.fold = !reading.fold; refresh(); },'",
+    "scripts/investigation.mjs:1999-2002 'control.addEventListener(\"change\", () => { reading[control.dataset.drpgFilter] = control.value; refresh(); });'"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "refresh-01-04-2",
+   "claim": "The dashboard does not hear the bullets' answer keys, so 'found by', Who has what and the Map's reach stay as drawn",
+   "verdict": "weakened",
+   "why": "The keepLive watch names six stores and not bulletStore, so a key written alone is not heard. But the watch also has items: true, and other writes that follow a find (the ledger's remnantStore through the source's reveal) redraw the window after the key in the common case, as the finding's own verify file says. The gap stands for writes that touch only the key (a second finder of a trace already revealed, a handover copy whose item lands before its key). Kept minor, weakened as before.",
+   "evidence": [
+    "scripts/investigation.mjs:2412 'watch: { actors: true, items: true, stores: [remnantStore, keyPlanStore, caseSchemaStore, blackenedStore, castStore, deathStore] },'",
+    "audit/findings-1.2.118/verify-refresh-01-04.json (refresh-01-04-2: weakened, minor)"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-02-trial-zones-verdict-1",
+   "claim": "The side-pick window comes once for a whole Logic Dive",
+   "verdict": "stands",
+   "why": "The key is mode plus zone.openedAt and the window returns early once a pick is held; nothing between questions clears pickOpenFor or the pick, and requestTrialSide's only caller is this window. The code's own comment says 'once per mode's opening', so it is the design as written, but in a Logic Dive each question is a new choice and a token-less participant cannot make it.",
+   "evidence": [
+    "scripts/trial-zones-ui.mjs:437-441 'const key = `${floor.mode}|${zone.openedAt}`; if (pickOpenFor === key) return; ... if (!mine || hallTokenOf(mine.actor) || zone.picks?.[mine.actor.id]) return; pickOpenFor = key;'"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-02-trial-zones-verdict-2",
+   "claim": "Closing the side-pick window leaves no way to pick in that mode",
+   "verdict": "stands",
+   "why": "pickOpenFor is set before the window opens and a dismissal returns at 'if (asked !== \"a\" && asked !== \"b\") return;' with no notice; every later redraw meets the same key and returns. No other road to requestTrialSide found.",
+   "evidence": [
+    "scripts/trial-zones-ui.mjs:441 'pickOpenFor = key;'",
+    "scripts/trial-zones-ui.mjs:454 'if (asked !== \"a\" && asked !== \"b\") return;'"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-02-trial-zones-verdict-3",
+   "claim": "The Logic Dive set editor loses what was typed when Save refuses an incomplete set",
+   "verdict": "stands",
+   "why": "The window's Save callback only reads the form; the refusal comes after the window has closed, in saveDiveSet, which warns and answers null. Nothing reopens the editor with the typed values.",
+   "evidence": [
+    "scripts/trial-zones-ui.mjs:216 'callback: (e, b, d) => readSetForm(d.element)'",
+    "scripts/trial-zones-ui.mjs:222 'return saveDiveSet(id, asked);'",
+    "scripts/trial-zones-ui.mjs:140-143 'const refused = setRefusal(set); if (refused) { ui.notifications.warn(refused); return null; }'"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-02-trial-zones-verdict-5",
+   "claim": "The zone picker's set list does not hear a set made through its own button",
+   "verdict": "stands",
+   "why": "openZonePicker's drpgWindow has no live option; its render paints only hidden fields and the hint from the select as drawn; the edit button opens openDiveSets beside it. No listener on diveSetStore for the picker found.",
+   "evidence": [
+    "scripts/trial-zones-ui.mjs:287-305 (body: pickerHtml(...) once; render: paint() toggles hidden and the hint; '[data-drpg-dive-edit]' opens openDiveSets())"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "refresh-01-04-4",
+   "claim": "The Findings window is drawn once",
+   "verdict": "stands",
+   "why": "openFindings draws findingsNow() into the body and redraws the box only inside its own click listener; no keepLive, hook or interval. A Finding written by a zone mode's end (afterZoneStep on the primary) or by another GM is not in the open window.",
+   "evidence": [
+    "scripts/trial-zones-ui.mjs:394-398 'const draw = async () => findingsListHtml(await findingsNow()); ... <div data-drpg-findings>${await draw()}</div>'",
+    "scripts/trial-zones-ui.mjs:412 'box.innerHTML = await draw();' (inside the click handler only)"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "refresh-01-04-6",
+   "claim": "The side-pick window keeps the first question's words while a Logic Dive moves on",
+   "verdict": "stands",
+   "why": "The body and both footer labels are built once from zone.question and zone.answers; the key does not change between questions (openedAt kept), so no new window is drawn. Same root as controls-02-trial-zones-verdict-1 and -2: one window per mode opening.",
+   "evidence": [
+    "scripts/trial-zones-ui.mjs:446-449 (:448, :449) 'body: ... ${zone.question ? ... : \"\"}', footer labels 'answer: zone.answers?.a ?? \"\"' and 'zone.answers?.b'"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-01-trial-console-1",
+   "claim": "The schema's 'Not tied to the murder: N' button in the trial console does nothing",
+   "verdict": "stands",
+   "why": "The console wires wireCaseMap with a camera alone, so onFold is the default empty function and the graph's click handler returns after calling it. The author's comment at case-map.mjs:222 knows the press folds nothing there; no owner decision is cited, and the button keeps its count and aria-expanded.",
+   "evidence": [
+    "scripts/case-trial.mjs:98 'wireCaseMap(region, { camera: { get: () => camera, set: cam => { camera = cam; } } });'",
+    "scripts/case-map.mjs:445 'export function wireCaseMap(root, { onPick = () => {}, onClose = () => {}, onFold = () => {}, ...'",
+    "scripts/case-map.mjs:495 'if (t?.closest?.(\"[data-drpg-case-fold]\")) { onFold(); return; }'",
+    "scripts/case-map.mjs:222 '// the fold's tooltip only on the Map: the trial console's graph is always folded, and its press folds nothing there'"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "E97-1",
+   "claim": "R3656's title promises the real kind of each bullet and a side panel; it compares names only",
+   "verdict": "stands",
+   "why": "The test reads li.firstChild's text and compares it with bulletsOf(actor) names; the kind drawn in the span after it is never compared, and the title still names 'the side panel'. R3656 passes in shard 1/8, so it is green while measuring less than its title.",
+   "evidence": [
+    "scripts/tests-tier1.mjs:9133 '\"R3656 - ... with no node picked the side panel lists each living student by name, under each their Truth Bullets by name and what each really is'",
+    "scripts/tests-tier1.mjs:9152 'parts: [...el.querySelectorAll(\".drpg-case-student-part\")].map(part => [...part.querySelectorAll(\"li\")].map(li => li.firstChild?.textContent ?? \"\"))'"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "E73-1",
+   "claim": "The three zone rules' comments name R3907, R3910 and R3913 for what R3906, R3907 and R3908 hold",
+   "verdict": "stands",
+   "why": "Read the comments and the three rows' titles: R3906 is the Straw Poll's two thirds, R3907 Logic Dive's judgement, R3908 Scrum's turns, R3913 the console's schema.",
+   "evidence": [
+    "scripts/zone-machine.mjs:66 'THE STRAW POLL'S RULE (TR3 = 2, the plan's 2/3; R3907)'",
+    "scripts/zone-machine.mjs:79 '... is wrong; R3910)'",
+    "scripts/zone-machine.mjs:94 'A Scrum turn's seconds (`scrumTurnSeconds`; R3913)'",
+    "scripts/tests-tier1.mjs:10061 'R3906 - the Straw Poll's two thirds', :10084 'R3907 - Logic Dive's judgement', :10109 'R3908 - Scrum Debate's turns', :9385 'R3913 - the trial's case schema in the console'"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "E73-2",
+   "claim": "A wrong Logic Dive answer tells the class the right one by elimination",
+   "verdict": "stands",
+   "why": "A question has exactly answers a and b and the wrong card gives both counts publicly, so the side not held by the majority is the true one. As the reader says, telling a two-answer class it was wrong cannot avoid this; it is a wording of the promise ('shows no truth'), nit.",
+   "evidence": [
+    "scripts/zone-machine.mjs:209-210 'return over([card(floor.mode, verdict === \"tie\" ? \"DRPG.Zones.dive.tie\" : \"DRPG.Zones.dive.wrong\", words, ...'",
+    "lang/en.json:1444 '\"wrong\": \"The class is wrong, with {a} in Zone A and {b} in Zone B. The Logic Dive ends here.\"'"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "E99-1",
+   "claim": "'Once a trial' is checked on each GM before its write: two GMs pressing Send at once both post the summary",
+   "verdict": "stands",
+   "why": "Confirmed: the second check reads the local copy of trialProgress, then setTrialProgress (asked of the primary for a non-primary GM) and ChatMessage.create run on the pressing GM; recordPatchOf only filters fields and nothing on the primary refuses a second summaryShown. Severity: by 11.3 'minor' is 'wrong in a particular situation' and a duplicate public card is that; the reader's 'rare, so nit' uses rarity, which the scale does not name. Left nit because the two cards carry the same allowlisted payload and nothing hidden, but it sits on the line.",
+   "evidence": [
+    "scripts/case-summary.mjs:92-96 'if (answer !== \"send\") return null; if (trialProgress()?.summaryShown) return null; const at = Date.now(); await setTrialProgress({ summaryShown: at }); await ChatMessage.create({'",
+    "scripts/trial-progress.mjs:497 'if (typeof patch !== \"function\" && !isPrimaryGm()) return askRecord(\"patch\", { patch }, () => recordOnPrimary(\"patch\", { patch }));'"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "E99-2",
+   "claim": "The schema's Presented marks and hints read the whole chapter's Present cards, so a second trial starts with the first trial's",
+   "verdict": "weakened",
+   "why": "The defect is confirmed: casePresentations filters by the chapter flag and withdrawn only, while the ticks are one trial's since E99 next (a second trial is a real road: tier 2 'E99 next: ... a second Class Trial in the chapter starts with none' passes in shard 4/8). The severity is weakened upward: the GM's schema shows Remnants marked Presented and deductions hinted that nobody presented in this trial, which is a wrong reading in a particular situation - 11.3's 'minor', not dirt or text. 'A GM's aid' does not make wrong information cosmetic.",
+   "evidence": [
+    "scripts/case-hints.mjs:58 'if (!flag(flags.present) || flag(flags.chapter) !== chapter || flag(flags.withdrawn)) continue;'",
+    "scripts/case-trial.mjs:65 'const { presented, hints, unknown } = presentationHints(graph, casePresentations(chapter), { culpritId, ticks });'",
+    "scripts/case-schema.mjs:587 'THE TICKS ARE A TRIAL'S (E99 next ...): ... a second Class Trial in the chapter starts with no ticks'"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "E97 promise 1",
+   "claim": "Every Remnant can name who left it, for the GMs alone; the author on the ledger row and a bullet's answer key, never on an item, token or card",
+   "verdict": "stands",
+   "why": "setRemnantAuthor is GM only and ifLive; leftByOf writes into the bullet's secret; world-secrets forbids Item leftBy/leftByName and Token sourceActor/sourceName; the selects stand where cited (and two more on the Map's node editor, investigation.mjs:1415, :1448). R3370 passes in shard 1/8.",
+   "evidence": [
+    "scripts/remnants.mjs:1258-1261 'export async function setRemnantAuthor(tokenDoc, actor) { if (!game.user.isGM || !tokenDoc) return null; return setRemnantSecret(tokenDoc, authorPatch(actor), { ifLive: true }); }'",
+    "scripts/world-secrets.mjs:215 'Item: Object.freeze([\"remnantRef\", \"leftBy\", \"leftByName\"])'"
+   ]
+  },
+  {
+   "ref": "E97 promise 3",
+   "claim": "The panel has one fixed size, 1120 px, on the Map and every Table tab; the footer two rows at every width",
+   "verdict": "stands",
+   "why": "width: WIDE.width (1120) and footer rows: 2, both cited correctly; R3650 passes in shard 1/8. The pixel figures are Chromium through the style harness (K), not re-run here.",
+   "evidence": [
+    "scripts/ui-columns.mjs:30 'export const WIDE = Object.freeze({ width: 1120, cls: \"drpg-variant-columns\" });'",
+    "scripts/investigation.mjs:2296 'width: WIDE.width,'",
+    "scripts/ui-kit.mjs:153 'if (footer.rows === 2) out.rows = 2;'"
+   ]
+  },
+  {
+   "ref": "E97 promise 4",
+   "claim": "The Map is the default view; each GM's choice kept on their own User",
+   "verdict": "stands",
+   "why": "investigationView answers 'map' for no flag; the switch writes setFlag on game.user. R3652 passes in shard 1/8.",
+   "evidence": [
+    "scripts/investigation.mjs:1103-1106 'const v = user?.getFlag?.(MODULE_ID, \"investigationView\"); return INVESTIGATION_VIEWS.includes(v) ? v : \"map\";'"
+   ]
+  },
+  {
+   "ref": "E97 promise 5",
+   "claim": "The case schema is a GM store, synced, backed up, cut with the Key Remnant plan",
+   "verdict": "stands",
+   "why": "The row is as cited. The backup test the reader could not read now passes: 'Back up the case, then Restore, brings every store back' in shard 7/8 of the base run.",
+   "evidence": [
+    "scripts/gm-stores.mjs:1666-1669 'export const caseSchemaStore = defineGmStore({ name: \"caseSchema\", key: SETTINGS.gmCaseSchema, kind: \"ledger\", resetGroup: \"keyPlan\", backup: true, sync: true });'",
+    "base run shards/results-suite-7/01-runtests.json: 'Back up the case, then Restore, brings every store back' pass"
+   ]
+  },
+  {
+   "ref": "E97 promise 6",
+   "claim": "The layout: evidence left, deductions by depth, a cycle refused, fewer crossings",
+   "verdict": "stands",
+   "why": "layoutCase refuses a cycle (returns cycle with no columns) and crossings is exported; R3375 and R3651 pass in shard 1/8 (R3651 by the reader's table; not separately looked up here).",
+   "evidence": [
+    "scripts/case-layout.mjs:91-92 'const cycle = cycleOf(nodes, inputs); if (cycle.length) return { sort: order, columns: [], unrelated: [], gapAt: null, positions: {}, cycle };'",
+    "scripts/case-layout.mjs:139 'export function crossings(layout, edges = [])'"
+   ]
+  },
+  {
+   "ref": "E97 promise 7",
+   "claim": "A deduction is reachable once students other than the culprit hold strictly more than half its inputs; only the living count",
+   "verdict": "stands",
+   "why": "needed = floor(n/2)+1, the culprit filtered out of counted holders, alive filter applied. R3655 passes. The refresh gap (refresh-01-04-2) touches when it redraws, not the rule.",
+   "evidence": [
+    "scripts/case-schema.mjs:520-521 'const all = [...new Set([...holdersOf(n.id)].filter(a => ... (!alive || alive.has(a))))]; const counted = all.filter(a => a !== culpritId);'",
+    "scripts/case-schema.mjs:532 'const needed = Math.floor(inputs.length / 2) + 1;'"
+   ]
+  },
+  {
+   "ref": "E97 promise 8",
+   "claim": "Check consistency lists warnings that block nothing, marked on the nodes",
+   "verdict": "stands",
+   "why": "checkCase answers a list and blocks nothing; eleven codes today (E104's 'incomplete'), as the reader notes. R3654 passes.",
+   "evidence": [
+    "scripts/case-schema.mjs:542 'export const CASE_PROBLEMS = Object.freeze([\"noInputs\", \"cycle\", \"missing\", \"noTarget\", \"noSolution\", \"twoSolutions\", \"solutionUnreached\", \"badMode\", \"culpritOnly\", \"tooManyKeys\", \"incomplete\"]);'"
+   ]
+  },
+  {
+   "ref": "E97 promise 9",
+   "claim": "Every node is as large as its whole content, no two overlap, no clamp or ellipsis",
+   "verdict": "stands",
+   "why": "R3660 holds the placement math given measured sizes and scans the sheets for a clamp, ellipsis, nowrap or hidden overflow; the measured sizes themselves are a browser's, read only in the notes' Chromium sweep (K). Holds as far as jsdom and a CSS scan can say; the real fonts are LIVE-E97-01.",
+   "evidence": [
+    "scripts/tests-tier0.mjs:24603 'R3660 - every node of the case map is sized to its whole content ... and no rule of the module's sheets cuts a node's text (a fixed height, a line clamp, an ellipsis, nowrap or overflow hidden)'"
+   ]
+  },
+  {
+   "ref": "E97 promise 11",
+   "claim": "The camera: pan, zoom about the pointer, buttons and keys, 0.25..2, 48 px kept, the ease off under reduced motion",
+   "verdict": "stands",
+   "why": "CAMERA_LIMITS as cited; motionStill reads the module's class or the system's query. R3662 passes. Real mouse, trackpad and touch never tried, as said.",
+   "evidence": [
+    "scripts/case-view.mjs:218 'export const CAMERA_LIMITS = Object.freeze({ min: 0.25, max: 2, step: 1.25, margin: 48 });'",
+    "scripts/case-map.mjs:430 'return document.body.classList.contains(\"drpg-reduced-motion\") || Boolean(window.matchMedia?.(\"(prefers-reduced-motion: reduce)\")?.matches);'"
+   ]
+  },
+  {
+   "ref": "E97 promise 12",
+   "claim": "The realization: a preview that writes nothing, Run through the planner's road, Undo only what nobody found and Monokuma did not reveal, two GMs settled by the run's id and 300 ms",
+   "verdict": "stands",
+   "why": "Code as cited. The preview writes nothing (it warns of a planned room gone, a notification only). Undo keeps a token with any finder or a reveal. The 300 ms settle converges on one run only while the exchange delivers within it; that is LIVE-E97-04 and the reader says so. Tier 2 'E97 C10' passes in shard 2/8.",
+   "evidence": [
+    "scripts/case-realize.mjs:130-132 'await setCaseMeta(chapter, { run }); await new Promise(r => setTimeout(r, 300)); if (caseMetaOf(caseRows(chapter).meta).run !== run) return null;'",
+    "scripts/case-realize.mjs:168 'if ((finders.get(tokenId)?.size ?? 0) > 0 || revealed.has(tokenId) || revealed.has(String(mark.slot))) { left[key] = mark; kept++; continue; }'"
+   ]
+  },
+  {
+   "ref": "E97 promise 13",
+   "claim": "The question at a body: primary GM only, once a chapter, only while the case is not realized, not for the rehearsal",
+   "verdict": "stands",
+   "why": "The hook returns for a rehearsal, a non-writer, a player or a non-primary; shouldAskAtBody returns false once askedAt or run is set; askAtBody writes askedAt before the window. Tier 2 'E97 C11' passes in shard 3/8.",
+   "evidence": [
+    "scripts/case-realize.mjs:212 'if (!payload?.writer || payload.rehearsal === true || !game.user?.isGM || game.user.id !== primaryGmId()) return;'",
+    "scripts/case-realize.mjs:221 'if (m.askedAt !== null || m.run !== null) return false;'"
+   ]
+  },
+  {
+   "ref": "E97 promise 15",
+   "claim": "Nothing of the case reaches a player",
+   "verdict": "stands",
+   "why": "caseGraph answers an empty graph on a non-GM, the schema store is a GM store, mountTrialSchema and showCaseSummary return for a player (the summary itself is public by design). R3374 passes; scenario 72's result is not yet in the base run's scenario log (read at 22:09Z it had reached 68), so the scan is not cited.",
+   "evidence": [
+    "scripts/case-schema.mjs:370 'if (!game.user?.isGM) return graphOf({ chapter });'",
+    "scripts/case-trial.mjs:136 'if (!game.user?.isGM) return null;'"
+   ]
+  },
+  {
+   "ref": "E98 promise 3",
+   "claim": "E98's verify, the Map measured on a world of about 60 Remnants, was not made",
+   "verdict": "stands",
+   "why": "The 1.2.107 notes say so in words; no probe, test or reading of it found.",
+   "evidence": [
+    ".github/release-notes/v1.2.107.md:244 '- **The 60-Remnant measurement** (E98's verify): not made, headless or anywhere.'"
+   ]
+  },
+  {
+   "ref": "E73 promise 1",
+   "claim": "Room Setup's Scenes tab picks Zone A and Zone B; the tab, the Scenes report and the Pre-season check warn of none, one, the same, overlapping, a gap or unchecked",
+   "verdict": "stands",
+   "why": "zoneWarnings answers zonesNone, zonesSame, zoneMissing, zonesOverlap, zonesGap, zonesUnchecked; sceneReport carries them; isZoneRegion keeps a zone out of the rooms. R3900-R3902 pass in shard 1/8 and tier 2 'E73 C1' in shard 2/8; scenario 41 is green in the base run's scenario log.",
+   "evidence": [
+    "scripts/zone-geometry.mjs:155-168 'if (!ids.a && !ids.b) return [\"zonesNone\"]; if (ids.a && ids.a === ids.b) return [\"zonesSame\"]; ... if (!regions.a || !regions.b) return [\"zoneMissing\"]; ... if (read?.overlap) out.push(\"zonesOverlap\"); if (read?.gap) out.push(\"zonesGap\"); if (read && !read.checked) out.push(\"zonesUnchecked\");'",
+    "scripts/rooms.mjs:124 '... && !roomDecided(r) && !isZoneRegion(r));'"
+   ]
+  },
+  {
+   "ref": "E73 promise 6",
+   "claim": "When a zone mode ends by any road every token goes back to its stand in one write; the zone modes are rows of MODES with MODE_STARTS",
+   "verdict": "stands",
+   "why": "Traced here, which the reader left to not_established: every zone mode's own end answers floor null ('over'), commitFloor sends a null floor through endFloorInStep, the one writer of {} on the primary, and endFloorInStep returns the stands for a zone floor; End this mode is endFloorInStep too. The only other {} write is the season reset (trial.mjs:767), not a road out of a mode. A primary leaving mid-mode is not traced. R3905 passes; scenario 68 (42/42) is green in the base run's scenario log.",
+   "evidence": [
+    "scripts/zone-machine.mjs:128-129 'function over(cards, ...) { return { floor: null, cards, ..., zoneEnded: true };'",
+    "scripts/trial-floor.mjs:631-632 'if (result.floor === null) { written = await endFloorInStep({ withdraw: false });'",
+    "scripts/trial-floor.mjs:1372-1373 '// A zone mode's end, by any road, gives the hall's tokens their stands back (E73 C2; trial-zones.mjs). if (zoneOf(floor)) await zoneFloorEnded(floor);'"
+   ]
+  },
+  {
+   "ref": "E73 promise 8",
+   "claim": "The Class Trial console on mockup B: 1280 px, the schema's slot outside the per-second redraw",
+   "verdict": "stands",
+   "why": "consoleWidth answers 1280 and trialBodyHtml puts the slot after .drpg-trial-console, outside the live region. R3911 passes. The pinned bar and footer are CSS, not read here; the Chromium cases are the notes'.",
+   "evidence": [
+    "scripts/trial-floor-ui.mjs:1344-1346 'export function consoleWidth() { return 1280; }' (the return at :1345)",
+    "scripts/trial-floor-ui.mjs:1358 'return `<div class=\"drpg-trial-frame\">${trialConsoleHtml(view)}<div class=\"drpg-trial-schema\" data-drpg-trial-schema></div></div>`;'"
+   ]
+  },
+  {
+   "ref": "E99 promise 1",
+   "claim": "Every mode of MODES has a console start or is raised by a player; a mode without a row fails the census",
+   "verdict": "stands",
+   "why": "MODE_STARTS as cited; R3670 passes in shard 1/8.",
+   "evidence": [
+    "scripts/trial-floor.mjs:119-121 'export const MODE_STARTS = Object.freeze({ debate: Object.freeze({ action: \"openDebate\", reason: null }), objection: Object.freeze({ action: null, reason: \"raisedByPlayer\" }),'"
+   ]
+  },
+  {
+   "ref": "E99 promise 2",
+   "claim": "The case's ticks are a GM store, any GM ticks, synced, not backed up, cut with the trial's group",
+   "verdict": "stands",
+   "why": "Row as cited; R3672 passes; tier 2 'E99 next' passes in shard 4/8; scenario 63 (79/79) is green in the base run's scenario log.",
+   "evidence": [
+    "scripts/gm-stores.mjs:1681-1683 'export const caseTickStore = defineGmStore({ name: \"caseTicks\", key: SETTINGS.gmCaseTicks, kind: \"ledger\", resetGroup: \"trialProgress\", backup: false, sync: true });'"
+   ]
+  },
+  {
+   "ref": "E99 promise 3",
+   "claim": "The summary holds only what was found: found tied evidence, ticked deductions and counters, the solution only on a right vote",
+   "verdict": "stands",
+   "why": "composeCaseSummary is an allowlist: evidence only when not planned, tied and held; deductions and counters only when ticked, without text; the solution only when correct. R3671 passes in shard 1/8.",
+   "evidence": [
+    "scripts/case-summary.mjs:29-33 'if (!n.planned && n.tied === true && held.has(n.id)) take.push(...); ... if ((n.kind === \"deduction\" || n.kind === \"counter\") && ticks?.[n.id] === true) ... if (n.kind === \"solution\" && correct === true)'"
+   ]
+  },
+  {
+   "ref": "E99 promise 7",
+   "claim": "The schema in the console: read only before a trial, a tick button while one runs, mounted in E73's slot, for a GM only",
+   "verdict": "stands",
+   "why": "mountTrialSchema returns for a player; the slot is E73's; R3912-R3914 pass in shard 1/8, and the three E99 C5 tier-2 tests the reader could not read now pass (shards 6/8, 7/8, 8/8). The fold in it is dead (controls-01-trial-console-1), counted under the grade.",
+   "evidence": [
+    "scripts/case-trial.mjs:135-136 'export function mountTrialSchema(dialog) { if (!game.user?.isGM) return null;'",
+    "base run shards/results-suite-6,-7,-8/01-runtests.json: 'E99 C5: the case schema stands in the middle ...', 'E99 C5 round 4 ...', 'E99 C5: the case schema stays in the trial console in every floor state ...' pass"
+   ]
+  },
+  {
+   "ref": "E99 promise 8",
+   "claim": "On a screen 800 px tall or less the console is compact; at least 11 px of node text after Fit to view at 1366x768",
+   "verdict": "stands",
+   "why": "BREAKPOINTS.low is 800 and lowScreen reads it; R3915 passes. The 11 px and 12.6 px figures are the notes' Chromium sweep (K), with the harness's shorter header; under Foundry's header it is LIVE-E99-01, open, as the reader says.",
+   "evidence": [
+    "scripts/settings.mjs:4344 'export const BREAKPOINTS = { narrow: 1224, short: 620, low: 800 };'"
+   ]
+  },
+  {
+   "ref": "E97 grade",
+   "claim": "7, provisional after L1: three minors of other lanes on the stage's surfaces, a nit, two parts on reading alone, six live items unread",
+   "verdict": "stands",
+   "why": "The three joined minors stand (one weakened, still minor) and 11.4's 7 is 'several minor or one promise delivered in part'. The reasons that two tier-2 tests and scenarios 61 and 62 were not read no longer hold: all pass or are green in the base run (E97 C6 Remnant shard 6/8, the case backup shard 7/8; 61-gmstore-case 114/114, 62-investigation 52/52), which removes a doubt and changes no grade. Note that promises 10 and 14 carry holds 'superseded', a value the brief does not list (yes|partly|no|unread).",
+   "evidence": [
+    "audit/AUDIT-1.2.42.md:96 '| 7 | dziala w zwyklej sytuacji, kilka `minor` albo jedna obietnica dowieziona w czesci | jak obok |'"
+   ],
+   "grade_after": 7
+  },
+  {
+   "ref": "E98 grade",
+   "claim": "8, provisional after L1: Who has what by name holds; the 60-Remnant verify not made; Legacy's heads only by a Chromium reading",
+   "verdict": "weakened",
+   "why": "The grade the reader's own rows give is not 8 under 11.4. The file marks promise 3 holds 'no' (the verify not made) and promise 2 'partly'. The scale's 8 needs every promise delivered ('obietnice dowiezione'), its 7 is 'one promise delivered in part', and its 6 is 'one promise not delivered'. Taken as written, E98 is a 6. If the owner reads the 60-Remnant measurement as an unproven check (the 10 column's 'nic nieudowodnionego', a cap like the live items') rather than a promise, promise 2's 'partly' still gives 7; 8 is allowed under neither reading. Its one finding-free surface and R3658 passing do not lift it past the scale's row.",
+   "evidence": [
+    "audit/AUDIT-1.2.42.md:95-97 '| 8 | ... | obietnice dowiezione, ale jedna trzyma sie tylko odczytem kodu albo ma `minor` | ... | 7 | ... jedna obietnica dowieziona w czesci | ... | 6 | jedno `major` | jedna obietnica niedowieziona albo zepsuta przez pozniejszy etap |'",
+    "audit/findings-1.2.118/stages-18.json E98 promises[2] '\"holds\": \"no\"' and promises[1] '\"holds\": \"partly\"'"
+   ],
+   "grade_after": 6
+  },
+  {
+   "ref": "E73 grade",
+   "claim": "7, provisional after L1: every promise in today's code, several minors on its windows, two nits, seven live items unread",
+   "verdict": "stands",
+   "why": "Six joined minors stand on code, and four promises are 'partly', none 'no': 7 is what 11.4 gives for several minors. Two remarks that do not move it: three of the six minors (controls-02-trial-zones-verdict-1, -2, refresh-01-04-6) are one cause, the side-pick window drawn once per mode opening, so 'six' counts one defect three times; and the reasons 'the two tier-2 tests of the modes and Findings and scenario 68's result were not read' no longer hold - tier 2 'E73 C3, C4' passes (shard 7/8), 'E73 C6' passes (8/8), scenario 68-trial-zones is green 42/42 and 67-trial-modes green in the base run's scenario log. Promise 9 carries holds 'superseded', outside the brief's values.",
+   "evidence": [
+    "base run shards/results-suite-7/01-runtests.json 'E73 C3, C4: a Straw Poll and a Logic Dive ...' pass; results-suite-8 'E73 C6: the GM's Findings ...' pass",
+    "base run scenarios.log '  green 68-trial-zones         69.5 s  42/42 passed, 0 expected red, 0 failed'"
+   ],
+   "grade_after": 7
+  },
+  {
+   "ref": "E99 grade",
+   "claim": "8, provisional after L1: the summary's allowlist, the ticks, the hints and the slot hold; one minor of another lane and two nits of this reader",
+   "verdict": "weakened",
+   "why": "The reader's own rows mark promises 4 (Show summary once a trial) and 6 (hints after presentations) holds 'partly'. 11.4's 8 needs every promise delivered, with at most one held by reading alone or carrying a minor; 'one promise delivered in part' is already 7, and here there are two, beside controls-01-trial-console-1 (minor, stands). This pass also reads E99-2 as minor rather than nit (a GM's schema shows a former trial's Presented marks and hints), which makes two minors on the stage's surface. 7, not 8. The three E99 C5 tier-2 tests and scenario 63 the reader could not read now pass or are green, which removes a doubt and does not lift the grade.",
+   "evidence": [
+    "audit/AUDIT-1.2.42.md:95-96 (8: 'obietnice dowiezione, ale jedna trzyma sie tylko odczytem kodu albo ma `minor`'; 7: 'kilka `minor` albo jedna obietnica dowieziona w czesci')",
+    "audit/findings-1.2.118/stages-18.json E99 promises[3] and promises[5] '\"holds\": \"partly\"'"
+   ],
+   "grade_after": 7
+  }
+ ],
+ "counts": {
+  "checked": 40,
+  "stands": 36,
+  "weakened": 4,
+  "refuted": 0
+ },
+ "not_established": [
+  {
+   "what": "Promise holds values 'superseded' (E97 promises 10 and 14, E98 promise 1, E73 promise 9, E99 promise 5) are outside the brief's set (yes|partly|no|unread) and were not checked as yes or no; the five promises marked 'partly' and E97 promise 2 'unread' were not checked either, by this pass's scope.",
+   "l1": null
+  },
+  {
+   "what": "E97 promise 2 (an author a GM sets counts as a player's own) can largely be settled from source: Observe's preference reads sourceActor (observe.mjs:267 'const mine = candidates.filter(c => c.data.sourceActor === actorId);') and the incident's tie does (remnants.mjs:388 'let tied = Boolean(data.sourceActor && cast.includes(data.sourceActor));'); Tamper's filter is now visibility-based plus 'an incident trace of your own' (cleanup.mjs:218-290 comments) and was not traced to its line. No test drives a GM-set author through any of the three.",
+   "l1": null
+  },
+  {
+   "what": "Scenarios 72-canary and 88-flow-length had not reached the base run's scenario log when read (22:09Z); E97 promise 15's and E99 promise 3's player scans are cited from R3374 and R3671 alone.",
+   "l1": null
+  },
+  {
+   "what": "Whether the 300 ms settle of two GMs' Run realization holds on a real server, and whether a zone mode's stands come back when the primary GM leaves mid-mode, are not settled from source; the reader's l1 blocks for LIVE-E97-04 and the stands stand as written.",
+   "l1": null
+  }
+ ]
+}

@@ -1,0 +1,503 @@
+{
+  "reader": "domain-map-a-fog",
+  "checkout": "branch claude/audit-119, code identical to main b5a29e73 (1.2.118); base-run.json not present when read, so no test or scenario result is cited as read",
+  "files_read": [
+    {
+      "file": "scripts/fog.mjs",
+      "lines": 4833,
+      "read": "whole"
+    },
+    {
+      "file": "scripts/fog-reveal.mjs",
+      "lines": 1628,
+      "read": "whole"
+    },
+    {
+      "file": "scripts/fog-doorways.mjs",
+      "lines": 1943,
+      "read": "whole"
+    },
+    {
+      "file": "scripts/fog-geometry.mjs",
+      "lines": 492,
+      "read": "whole"
+    },
+    {
+      "file": "scripts/fog-diagnostics.mjs",
+      "lines": 917,
+      "read": "whole"
+    }
+  ],
+  "count_expected": "5 files, 9813 lines",
+  "count_note": "5 files, 9813 lines read whole (wc -l: 4833 + 1628 + 1943 + 492 + 917), matching the scope. Keys: every literal DRPG.* key in the five files (42) and the three templated families (DRPG.Fog.step.*, DRPG.Fog.stand.*, DRPG.Fog.check.*) checked by script against lang/en.json and lang/pl.json: none missing; the 26 step ids and 10 stand reasons used all exist in both.",
+  "neighbours_followed": [
+    "scripts/movement.mjs (whenAtRest 253-264 and its 250 ms grace; isCorpseToken / isCorpse 1635-1657; roomsKnownToMe 1930-1949; the Spectator's free walk 1709-1712 and 3030-3032)",
+    "scripts/gm-stores.mjs (discoveryStore 1798-1820, fogCopy 1840-1855, fogSectionFor 1858-1867, cubFogSection 1876-1898, spectatorFogSection 1910-1935)",
+    "scripts/spectator.mjs (isCubToken, isMonocubCorpse 44-62, flaggedSpectator 65-67)",
+    "scripts/spectator-dead.mjs (ensureDeadSpectator 161-214: the watcher actor flagged spectator, its token placed where the body lies)",
+    "scripts/monokuma.mjs (isSpectator 53-55)",
+    "scripts/cleanup.mjs (applyMoveBody 1925-1990: the victim's body token teleported to another room)",
+    "scripts/projects-seen.mjs (tellFoundOnEntry 357-373, postFoundDone 321-324, registerSeen 378-397)",
+    "scripts/settings.mjs (regionFog registration and its onChange 3102-3112)",
+    "scripts/sync.mjs (SYNC.fog 437-441, 526)",
+    "scripts/migrate.mjs (the Monokuma rows' clause 370-385)",
+    "scripts/motion.mjs (ENTER, BEAT 104-105, reducedMotion 135-144)",
+    "scripts/sfx-play.mjs (playSfx 460 is local; playSfxFor / playSfxForUsers 516-544)",
+    "scripts/vault-store.mjs (carryRoomOnSheets 1232-1237)",
+    "scripts/passages-gm.mjs (carryPassageRooms 1971-1994)",
+    "scripts/remnant-ring.mjs and scripts/own-ring.mjs (the 0.18 zoom guard 145 / 143 and the 60 ms observer 162 / 162)",
+    "scripts/season-setup.mjs (checkRegions caller 1022, sceneVisionReady 498-500)",
+    "audit/harness/scenarios/93-spectator.mjs (phase 'ghost' 185-202), audit/harness/scenarios/86-frame-work.mjs (the at-rest waits 255-264)",
+    "tools/check.mjs (the dashes part 30-39, 433-475)",
+    "audit/findings-1.2.118/old-1.2.42-map.json and audit/findings-1.2.42/map.md (old MAP ids)"
+  ],
+  "strengths": [
+    "Every failure of the layer ends with less fog, never more: the texture is built off-screen and swapped in only after the second guard has checked the room stood in was cleared (fog.mjs:3117-3132); each early return names itself through stand() for diagnoseFog (3183-3193).",
+    "The ledger is the GMs' secret and travels addressed twice: the socket's recipients and a userId inside the packet (fog.mjs:1162-1183); the receiving copy keeps only rows of actors this user owns (ownSection 1490-1495); a player's fog.shared reply is taken only within 10 s of the primary's ask, once per player, for characters that player owns, weak and fill-only (1320-1351, 1429-1447).",
+    "Subtraction by ERASE into one render texture instead of polygon holes (the earcut black-map story, fog.mjs:1911-1953), with a white silhouette second texture for the raster's mask (3311-3329).",
+    "The dissolve is one at a time, generation-stamped, queued, and its IO is an object the suite can fake (DISSOLVE_IO, fog.mjs:2003-2058; R1003).",
+    "Hooks are run step by step so one failing step cannot take down the next, async rejections included (fog.mjs:479-507).",
+    "Door controls are hidden on rooms the viewer cannot see and asked on both sides of the wall at two depths, failing back to Foundry where the fog shaded nothing (fog.mjs:2891-3009).",
+    "The doorway test fails closed on both of its questions (fog-doorways.mjs:375-386, 450-462), and every door is asked of the movement veto for the character drawn for (534-708), so the outline does not promise a way the veto refuses.",
+    "The halo bake (fog-reveal.mjs:884-1122) and the held raster pictures (fog.mjs:3935-4175) say in their own comments what is not the same as the live drawing and where it was not measured."
+  ],
+  "findings": [
+    {
+      "id": "domain-map-a-fog-1",
+      "domain": "MAP",
+      "severity": "minor",
+      "category": "leak",
+      "title": "A body moved into a room is recorded as the dead student's discovery: the ledger's write side has no corpse skip, so the killer's 'Move the body' lights a room on the class's map",
+      "where": "scripts/fog.mjs:4326-4346 (reactToMove: actor type and room only), 1580-1627 (recordDiscovery skips the Mastermind, a Monokuma and a Spectator), 1691-1711 (seedCells skips the Mastermind and a Monokuma); the viewer's half skips a corpse at 1906-1908 (isMine); scripts/cleanup.mjs:1970, 1985 (the victim's body token teleported); scripts/gm-stores.mjs:1876-1898 and 1910-1935 (every row joined into a Monocub's and a Spectator's map)",
+      "what_happens": "On the primary GM every move of a character token at rest runs reactToMove -> recordDiscovery(scene, tokenDoc.actor, room). Nothing on that road asks whether the token is a body (movement.mjs isCorpseToken: a dead student, or a Monocub's corpse beside the token it walks). So when Stage 6's Move the body teleports the victim's token into another room (cleanup.mjs:1985), the primary writes that room as found for the victim; the same at a GM's drag of a body and at every seed (canvasReady, createToken) for a body lying in a room. The write goes to every connected player through shareLedger: the victim's owner's own row, and the joined class map that fogSectionFor hands each Monocub's owner (cubFogSection) and sendStoreTo hands each Spectator (spectatorFogSection), each a union of every student row. The GM's ledgerRooms (the GM's clear set) grows too, and the GM's browser plays the 'a room the class found' reveal and sound for it (fog.mjs:2811-2817, 3165). isMine's own note says 'the body discovers nothing' - true for the viewer's local fog only.",
+      "evidence": "fog.mjs:4334  const actor = tokenDoc.actor;\nfog.mjs:4335  if (!actor || actor.type !== \"character\") return;\nfog.mjs:4337  const room = roomOfToken(tokenDoc);\nfog.mjs:4339  await recordDiscovery(scene, actor, room);\nfog.mjs:1615  if (isMonokuma(actor)) return false;\nfog.mjs:1619  if (isSpectator(actor)) return false;\nfog.mjs:1906  // ... Nor a Monocub's corpse beside the token it walks (E62 C3b fix): the body discovers nothing.\nfog.mjs:1908  return Boolean(token.isOwner) && actor.type === \"character\" && !flaggedSpectator(actor) && !isMonocubCorpse(token.document);\ncleanup.mjs:1970  const tokenDoc = here.scene?.tokens?.find(t => t.actorId === victim.id && !isCubToken(t)) ?? null;\ncleanup.mjs:1985  await whilePlacing([tokenDoc], () => region.teleportTokens([tokenDoc], { placement: \"random\", snap: true, pan: false }));\ngm-stores.mjs:1871  * sent, under each Monocub's own row of each scene, every room any student's row holds found",
+      "failure_scenario": "The killer's Stage 6 drags the victim's body into the Library, which no student has entered yet: the primary records the Library as found for the victim, and at once every Monocub's and every Spectator's map, and the victim's own player's fog, show the Library veiled - where the body went - and the GMs' record says the victim had been there.",
+      "expected": "A body discovers nothing on the ledger's side either: reactToMove and seedCells pass over a token movement.mjs isCorpseToken calls a body, as isMine does for the viewer's fog.",
+      "confidence": "read",
+      "refutation_tried": "Looked for a guard upstream: onUpdateToken (4305-4323) filters only isMoveChange; whilePlacing (movement.mjs) is the veto's, not the fog's; recordDiscovery's three skips read actor flags (isMastermind, isMonokuma, isSpectator) and a dead student carries none of them - the dead student's Spectator is a separate actor (spectator-dead.mjs:186-190), so the student actor keeps no spectator flag. Looked for a test that pins 'a body discovers nothing' for the ledger: grep of corpse/body with discover in scripts/tests*.mjs and audit/harness/scenarios finds none (tier 2 32517-32522 is the body discovery, not the fog). The victim's players keep OWNER of the student (ensureDeadSpectator copies playerOwners(student) to the watcher, 178-179, and takes nothing away), so fogSectionFor sends them the victim's row. Not read: whether v14's Region#teleportTokens fires updateToken with x/y on the same scene (the harness's model) - written under not_established.",
+      "tests_near": "none found for a body's or corpse's discovery; scenario 93-spectator 'ghost' (185-202) pins the Spectator's walk only. Results not read (no base-run.json).",
+      "live_check": "new live check: one GM, the killer's player, a victim whose player is connected as a Spectator; in Stage 6 move the body into a room no student has found; read the Spectator's fog and game.drpg's discoveredFor(sceneId, victimId) on the GM."
+    },
+    {
+      "id": "domain-map-a-fog-2",
+      "domain": "MAP",
+      "severity": "minor",
+      "category": "flow",
+      "title": "A Spectator's walk finds no room, but its token standing in one is seeded into the ledger at the primary's next canvasReady or any token placed on the scene",
+      "where": "scripts/fog.mjs:1691-1711 (seedCells: 'Same skips as recordDiscovery' - the Mastermind and a Monokuma, no Spectator), 1617-1619 (recordDiscovery skips a Spectator), 294-316 and 325-330 (seedDiscovery on every canvasReady and createToken), 1381-1395 (forgetSpectatorMap keeps the Spectator's own row)",
+      "what_happens": "E92 C3's rule 'its movement reveals no rooms' is written into recordDiscovery only. seedCells, which records the room every character token already stands in, skips the Mastermind and a Monokuma but not a Spectator, and it runs on the primary at every canvasReady (every scene on screen, seedDiscovery() with no scene seeds every scene with rooms) and at every createToken on the token's scene (a Remnant, a body tile's token, a watcher). A Spectator walks anywhere (movement.mjs:1709-1712, a ghost), so the room it stands in at that moment - found by nobody - is written into its own row, weak and fill-only. From there it is in the union every Monocub's and Spectator's map is built from (gm-stores.mjs cubFogSection, spectatorFogSection) and in the GM's ledgerRooms, whose growth plays the GM's discovery reveal. When the Spectator flag comes off a living student (monokuma.mjs setSpectator -> forgetSpectatorMap), the rooms in its own row are kept as the student's, so a room it entered as a ghost stays found for the student.",
+      "evidence": "fog.mjs:1696  // Same skips as `recordDiscovery`, for the same reasons: the seed is\nfog.mjs:1697  // just discovery for somebody who was already standing there, so a\nfog.mjs:1698  // token that must not record a walk must not record a stand either.\nfog.mjs:1702  if (isMastermind(actor)) continue;\nfog.mjs:1703  if (isMonokuma(actor)) continue;\nfog.mjs:1619  if (isSpectator(actor)) return false;\nfog.mjs:315   step(\"seedDiscovery\", () => seedDiscovery());\nfog.mjs:329   step(\"seedDiscovery\", () => seedDiscovery(tokenDoc?.parent ?? null));\nfog.mjs:1386  const own = new Set(rows?.[actor.id] ?? []);",
+      "failure_scenario": "Chie, flagged a Spectator, walks into the Hall nobody has found; a GM places a Remnant on the scene: the primary seeds the Hall into Chie's row, every Monocub's map shows the Hall found and the GM's screen plays its discovery; when the GM takes Chie's flag off, Chie the student has 'found' the Hall.",
+      "expected": "seedCells passes over a Spectator as recordDiscovery does (the comment at 1696-1701 already says it does).",
+      "confidence": "read",
+      "refutation_tried": "Scenario 93-spectator's 'ghost' check reads discoveredFor 1.5 s after the drag (93-spectator.mjs:190-202), with no canvasReady or createToken in between, so it does not reach the seed. Looked for a Spectator skip elsewhere on the seed's road: seedDiscovery (1657-1688) and writeCells (1208-1213) read no flag; the store's claim (gm-stores.mjs:1803-1812) skips a Monokuma only. A dead student's watcher actor carries FLAGS.spectator (spectator-dead.mjs:189), so isSpectator would answer true for it if asked.",
+      "tests_near": "scenario 93-spectator phase 'ghost' (the walk); R3856 (tier 1, the fold, pure). Results not read.",
+      "live_check": "new live check: a Spectator token stands in a room no student found; the primary GM reloads; read discoveredFor(sceneId, spectatorId) on the GM."
+    },
+    {
+      "id": "domain-map-a-fog-3",
+      "domain": "MAP",
+      "severity": "minor",
+      "category": "ux",
+      "old_id": "MAP-08",
+      "title": "The room outline still hops under Reduced motion and with fogAnimations(false)",
+      "where": "scripts/fog-reveal.mjs:1235-1253 (landOutline, BOUNCE_MS 520 at 212), called at 1406-1407 and 1461-1463 for every flash that is not quiet; scripts/fog.mjs:4686-4690 (the reduced-motion road of the reveal calls flashOutline)",
+      "what_happens": "landOutline animates the outline group by up to 0.9 of a grid square on the diagonal for 520 ms and asks no motion switch. flashOutline calls it on every arrival that is not a quiet redraw, so a player who turned on the Look window's Reduced motion, or a table that called game.drpg.fogAnimations(false) to stop the fog's animation, still sees the outline drop in and bounce twice on every room entered. The curtain, the dissolve and the drift do ask motionOff().",
+      "evidence": "fog-reveal.mjs:1235  function landOutline(group, grid) {\nfog-reveal.mjs:1236      const jump = grid * 0.9;\nfog-reveal.mjs:1238      const bounce = CanvasAnimation.animate([{ parent: bounceState, attribute: \"t\", to: 1 }], {\nfog-reveal.mjs:1239          duration: BOUNCE_MS,\nfog-reveal.mjs:1461      if (quiet) return;\nfog-reveal.mjs:1462      landOutline(group, grid);\nfog.mjs:4688  if (!bounds || !renderer || motionOff()) {\nfog.mjs:4689      flashOutline(fx, region, rect, level, { actor: tokenDoc?.actor ?? null, elevation: tokenDoc?.elevation ?? null, standing });",
+      "failure_scenario": "A player with Reduced motion on walks into the Cafeteria: the curtain does not play, but the outline jumps a square up and right and bounces twice.",
+      "expected": "The hop held still under reducedMotion() and the animation switch, as the curtain, the dissolve and the drift are (lang/en.json's hint for the setting: it 'reduces animation and motion').",
+      "confidence": "read",
+      "refutation_tried": "fog-reveal.mjs imports no reducedMotion (43-52 import BEAT, glassOn, SEAM_GLOW only); motionOff and animationsOn live in fog.mjs and are not handed to flashOutline. fadeGroup's fade follows BEAT(), which motion.css shortens; the hop has no such duration. Found no owner's decision to keep the hop (as the old item recorded).",
+      "tests_near": "none found (R1012 reads reduced motion on the raster's pictures)."
+    },
+    {
+      "id": "domain-map-a-fog-4",
+      "domain": "MAP",
+      "severity": "nit",
+      "category": "flow",
+      "title": "Switching the room fog off restores every scene once per connected GM, while switching it on is the primary's alone",
+      "where": "scripts/settings.mjs:3109-3111 (the world setting's onChange on every client); scripts/fog.mjs:1115-1118 (onFogSettingChanged), 994-1001 (restoreScenes: any GM), 936-937 (prepareScenes: primary only), 966-992 (restoreSceneVisionMode: update, then unsetFlag)",
+      "what_happens": "The regionFog setting's onChange runs on every browser. Off, every GM's browser (an Assistant GM's and a second Gamemaster's too) walks every scene and, where the visionBefore flag still stands when it reads it, writes the old vision back and unsets the flag - the same writes from each GM. On, only the primary prepares. A second GM whose restore loop is still running when the primary turns the setting back on can read the visionBefore the primary's prepare has just written and restore that scene again.",
+      "evidence": "settings.mjs:3110  import(\"./fog.mjs\").then(m => m.onFogSettingChanged()).catch(() => {});\nfog.mjs:1116  if (fogEnabled()) await prepareScenes();\nfog.mjs:1117  else await restoreScenes();\nfog.mjs:995   if (!game.user.isGM) return 0;\nfog.mjs:937   if (!isPrimaryGm() || !fogEnabled()) return { changed: 0, failed: [] };",
+      "failure_scenario": "Two GMs are connected and one turns the room fog off: each scene gets its vision written back and its flag unset twice, one GM's log naming each scene twice over the table's two consoles.",
+      "expected": "One writer for both directions (the primary), as prepareScenes is.",
+      "confidence": "read",
+      "refutation_tried": "restoreSceneVisionMode returns false once the flag is gone (970), so a GM that reads after the other's unset writes nothing; the duplicate is only for reads that land before it. The off-then-on race is a reading of the order of awaits, not a run: under not_established.",
+      "tests_near": "none found for two GMs on this setting."
+    },
+    {
+      "id": "domain-map-a-fog-5",
+      "domain": "MAP",
+      "severity": "nit",
+      "category": "ux",
+      "title": "With two GMs' Monokumas, a GM's outline stays round a room its own Monokuma has left while the other GM's Monokuma stands there",
+      "where": "scripts/fog.mjs:3107 and 3157 (the outline faded when `mine` no longer holds its room), 1858-1866 and 1901-1905 (myCurrentRooms with isMine: every Monokuma on a GM's browser), 4452-4458 (leadsHere: the outline follows the GM's own Monokuma)",
+      "what_happens": "The outline is drawn for the GM's own Monokuma (leadsHere, E51 fix FG2), but it is taken down by comparing its room with `mine`, which on a GM's browser is the rooms every Monokuma stands in. GM A's Monokuma walks from the Gym into a corridor; GM B's Monokuma is still in the Gym; A's outline of the Gym stands until A's Monokuma next arrives somewhere.",
+      "evidence": "fog.mjs:1905  if (gm) return Boolean(actor.getFlag?.(MODULE_ID, FLAGS.monokuma));\nfog.mjs:3107  if (roomOutline && !mine.has(roomOutline.room)) fadeRoomOutline();\nfog.mjs:4456  if (poolUserFor(token.actor)?.id === me) return true;",
+      "failure_scenario": "Two GMs each run a Monokuma; GM A walks theirs out of the Gym into the corridor and keeps seeing the Gym outlined as 'where you are'.",
+      "expected": "The outline taken down against the lead's rooms (standingNow's `lead`), the set it is drawn from.",
+      "confidence": "read",
+      "refutation_tried": "standWhereWeStand (4489-4505) only redraws when no outline stands; ownArrival's `entered` is null for a step into a corridor (roomEnteredByMe returns null with no room, 4528-4529), so nothing else fades it.",
+      "tests_near": "none found."
+    },
+    {
+      "id": "domain-map-a-fog-6",
+      "domain": "MAP",
+      "severity": "nit",
+      "category": "perf",
+      "title": "The floor switcher's buttons are rebuilt 100 ms after every repaint, changed or not",
+      "where": "scripts/fog.mjs:3014 (scheduleFloorSwitcher at the top of every repaintFog), 3450-3457, 3425-3447, 3465-3499 (renderFloorSwitcher: nav.replaceChildren with new buttons each time)",
+      "what_happens": "Every repaintFog - a token placed or deleted anywhere, a room's change, a store merge, an own step that changes rooms, the queued repaint behind a dissolve - schedules floorSwitcher, which on a scene of two or more floors walks myDiscoveredRooms (every actor), floorOffer (every token, every room piece by every floor) and replaces every button even when the offer and the floor on screen are the same. A keyboard focus on a floor button is dropped by the replace.",
+      "evidence": "fog.mjs:3014  scheduleFloorSwitcher();\nfog.mjs:3455  floorSwitcher();\nfog.mjs:3480  nav.replaceChildren(...offer.map(id => {",
+      "failure_scenario": "A player tabs to the 'Attic' floor button; a GM places a Remnant on the scene: the button is replaced and the focus falls back to the page.",
+      "expected": "The buttons kept when the offer and the floor shown are what they were.",
+      "confidence": "read",
+      "refutation_tried": "floorOffer returns [] at once on a scene of one floor (3381), so the cost is on scenes with floors only; the 100 ms timer coalesces a burst into one rebuild (3449-3457), not a rebuild per repaint of a burst.",
+      "tests_near": "none found."
+    },
+    {
+      "id": "domain-map-a-fog-7",
+      "domain": "MAP",
+      "severity": "nit",
+      "category": "perf",
+      "old_id": "MAP-13",
+      "title": "Every repaint walks every room's polygons for the door controls before the 'unchanged' shortcut, on every token created or deleted anywhere",
+      "where": "scripts/fog.mjs:3088-3089 (doorRooms built with regionShapes per region), above the shortcut at 3109; hooks 325-330 and 350-353 (createToken, deleteToken of any token)",
+      "what_happens": "MAP-13's first half is fixed (the readable check is cached, 3072-3078). The door controls' record added in E12 C13 calls regionShapes for every room piece of the floor on every repaint, before the signature shortcut, and createToken / deleteToken repaint for a token of any kind on every browser.",
+      "evidence": "fog.mjs:3088  doorRooms = { sceneId: scene.id, size: canvas.grid?.size ?? 100,\nfog.mjs:3089      rooms: regions.map(region => ({ shading: shading[region.name], polygons: regionShapes(region, { x: 0, y: 0 }) })) };\nfog.mjs:3109  if (signature === lastPaintSignature && findLayer()?.visible) {",
+      "failure_scenario": "A GM places thirty Key Remnants: every browser walks every room's polygon tree thirty times for an answer that is 'unchanged'.",
+      "expected": "The door record kept with the signature, or built after the shortcut.",
+      "confidence": "read",
+      "refutation_tried": "regionShapes keeps no memo (fog-geometry.mjs:62-107); repaintFog's stand-downs above 3088 return only for a scene that cannot be drawn.",
+      "tests_near": "scenario 86 counts fog.repaintFog, not the geometry walked in it."
+    },
+    {
+      "id": "domain-map-a-fog-8",
+      "domain": "MAP",
+      "severity": "nit",
+      "category": "flow",
+      "title": "A room changed through its scene's update repaints the fog but leaves the standing outline and the viewer's rooms as they were",
+      "where": "scripts/fog.mjs:705-711 (regionsReplaced: rename, vision, repaint) against 629-647 (regionChanged: also outlineRoomFlag, outlineReshaped, whereIStand)",
+      "what_happens": "The two roads to a changed region do different work: a region's own update redraws the standing outline from the room's new shape and re-reads which rooms the viewer's tokens stand in (E49 B4, E51 fix FG2); the scene-update road (scene.update({ regions: [...] }), the harness's rebuildEmbedded, LIVE-E12-03 for v14) does neither, so the outline keeps the old shape and lastMineSignature names the old rooms until the next arrival.",
+      "evidence": "fog.mjs:708  for (const [region, patch] of patches) step(\"roomRenamed\", () => noteRegionName(region, userId, patch));\nfog.mjs:709  step(\"sceneVision\", () => prepareRoomScene(scene, userId));\nfog.mjs:710  step(\"repaint\", () => repaintRoomScene(scene));\nfog.mjs:638  step(\"outlineReshaped\", () => {\nfog.mjs:646  step(\"whereIStand\", () => standWhereWeStand({ redraw: true }));",
+      "failure_scenario": "A GM reshapes the room a player stands in through a scene update: the fog repaints with the new shape while the outline round the old one stays on the player's screen.",
+      "expected": "regionsReplaced runs the same outline and standing steps per region patch.",
+      "confidence": "read",
+      "refutation_tried": "Room Setup's Apply writes regions through updateEmbeddedDocuments, which fires updateRegion (the note at 365-372), so the module's own writes take the full road; what v14 fires for a scene's own regions update is LIVE-E12-03, not read.",
+      "tests_near": "scenario 66 X5 reads the scene's update for the repaint, not the outline."
+    },
+    {
+      "id": "domain-map-a-fog-9",
+      "domain": "MAP",
+      "severity": "nit",
+      "category": "text",
+      "title": "The GMs' whisper about a room's rename leaves out the secret passage records it carried, and a rename that carried only those says nothing",
+      "where": "scripts/fog.mjs:836-845 (carryRename); lang/en.json DRPG.Rooms.renamed",
+      "what_happens": "carryRename carries the GMs' passage rows (passages-gm.mjs carryPassageRooms) and logs their count to the console, but `moved` - what the whisper is formatted from and what decides whether it is sent - holds only the sheets' and the world's counts. The text DRPG.Rooms.renamed has no passages placeholder.",
+      "evidence": "fog.mjs:836  const passages = await (await import(\"./passages-gm.mjs\")).carryPassageRooms(scene.id, from, to);\nfog.mjs:839  const moved = { ...sheets, cells: Object.keys(cells).length, ...world };\nfog.mjs:842      + `... and ${passages} secret passage record(s) carried.`);\nfog.mjs:843  if (Object.values(moved).some(Boolean)) {",
+      "failure_scenario": "A GM renames a corridor whose only records are two secret passages' ends: the passages follow the new name and no GM is told anything happened.",
+      "expected": "The whisper names the passage records too, and is sent when they alone moved.",
+      "confidence": "read",
+      "refutation_tried": "Checked the key in both languages for a passages placeholder: neither has one (en: '... and bodies found there {bodies}.').",
+      "tests_near": "tier 2 'a GM's rename of a room carries its stash, its keys, the notes of its stash found and its discovery' (named at fog.mjs:766-767); not read whether it reads the whisper."
+    },
+    {
+      "id": "domain-map-a-fog-10",
+      "domain": "MAP",
+      "severity": "nit",
+      "category": "text",
+      "title": "diagnoseFog's last reason is in the page's language when the fog stood down and in English when it painted",
+      "where": "scripts/fog.mjs:3110, 3168-3169, 3173 against 3183-3186 and 2550 (E71 C20)",
+      "what_happens": "Since E71 C20 every stand-down reason is a key under DRPG.Fog.stand and the diagnosis head lines are i18n; the three other values of the same field - 'unchanged: ...', 'painted: N fogged, M veiled, K clear', 'threw: ...' - are English literals, and 'unchanged:' is prefixed onto the localized reason, so a Polish GM reads 'unchanged: painted: ...' or 'unchanged: <Polish sentence>'.",
+      "evidence": "fog.mjs:3110  lastFogReason = `unchanged: ${lastFogReason}`;\nfog.mjs:3168  lastFogReason = `painted: ${built.fogged} fogged, ${built.veiled} veiled, `\nfog.mjs:3186  lastFogReason = fogText(`DRPG.Fog.stand.${reason}`, data);",
+      "failure_scenario": "A Polish GM runs game.drpg.diagnoseFog() on a working scene and reads 'painted: 12 fogged, 3 veiled, 1 clear' beside Polish lines.",
+      "expected": "One language for the field, as E71 C20's note at 480-485 says.",
+      "confidence": "read",
+      "refutation_tried": "CLAUDE.md keeps diagnostics.mjs's console English, but E71 C20 moved this file's diagnosis to i18n by name (fog.mjs:480-485, 2560-2562), so the mixed field is this file's own inconsistency.",
+      "tests_near": "none found."
+    },
+    {
+      "id": "domain-map-a-fog-11",
+      "domain": "MAP",
+      "severity": "nit",
+      "category": "ux",
+      "title": "The reveal's line light and the rings' baked light still blur by six seams, a width that grows as the map is zoomed out; S07-34 fixed it for the standing outline only",
+      "where": "scripts/fog-reveal.mjs:962-969 (haloBlur: Math.max(6, seam * 6), padding seam * 14), used by wearHalo 1105; 365-370 (buildRevealLayers' line halo: Math.max(6, lineWidth * 6) with lineWidth = seamWidth()); against 845-862 (seamHalo: HALO_BLUR_PX 6, HALO_PAD_PX 14 whatever the zoom)",
+      "what_happens": "E49 B4 (audit S07-34) found that a blur width in scene units (seamWidth() is 1 / zoom) handed to a filter that works in screen pixels makes the light 20 px wide at zoom 0.3 and 6 at zoom 1, and fixed the outline's seamHalo to 6 px. The two other users of the same recipe kept it: a Remnant's or own token's ring baked by wearHalo, and the reveal's line light. haloBlur's note still says it is made 'as the rings and seamHalo make it'.",
+      "evidence": "fog-reveal.mjs:962  /** The live halo's blur, as the rings and `seamHalo` make it: six times the seam, never under 6, padding 14 seams. */\nfog-reveal.mjs:966      const filter = new Blur(Math.max(6, seam * 6), 3);\nfog-reveal.mjs:367      const filter = new Blur(Math.max(6, lineWidth * 6), 3);\nfog-reveal.mjs:856  if (Blur) { const f = new Blur(HALO_BLUR_PX, 3); f.padding = HALO_PAD_PX; halo.filters = [f]; }\nfog-reveal.mjs:861  const HALO_BLUR_PX = 6;",
+      "failure_scenario": "Under Stained Glass a GM zoomed out to 0.3 sees the Remnant rings' light three times as wide as the room border's beside them, which keeps 6 px.",
+      "expected": "One screen-pixel blur for every seam's light, or a recorded reason why the rings differ.",
+      "confidence": "read",
+      "refutation_tried": "wearHalo bakes through the linear transform at the zoom struck (bakeTexture with `struck`), so the filter runs in screen pixels there as the live one did: the 1 / zoom growth reaches the texture. How it looks is a table's (LIVE-E49-04, LIVE-E88-02).",
+      "tests_near": "R3430 (the outline's blur on the harness's stand-in); none for the rings' or the reveal's."
+    },
+    {
+      "id": "domain-map-a-fog-12",
+      "domain": "MAP",
+      "severity": "minor",
+      "category": "flow",
+      "title": "A move with no pending waypoints is read twice on the primary, at the update and again at rest 250 ms or more later; a held 'passage finished' card can be posted twice when the first post is slow",
+      "where": "scripts/fog.mjs:4305-4323 (onUpdateToken: whenAtRest(...).then(reactToMove) and, with no waypoints pending, await reactToMove at once), 4340-4342 (tellFoundOnEntry on every reactToMove); scripts/movement.mjs:253-264 (whenAtRest waits at least AT_REST_GRACE_MS, 250); scripts/projects-seen.mjs:357-373 (iterates the held rows, posts, then drops)",
+      "what_happens": "For an ordinary drop the primary runs reactToMove twice. recordDiscovery's second run returns on a room already held, but tellFoundOnEntry has no such guard: it walks foundDoneStore's rows, awaits postFoundDone (a ChatMessage create) and only then drops the row. If the first post has not returned when the at-rest run starts, the second walk finds the row still there and posts the card again.",
+      "evidence": "fog.mjs:4314  whenAtRest(tokenDoc).then(() => reactToMove(tokenDoc)).catch(err => debug(\"Fog: could not read a move at rest\", err));\nfog.mjs:4320  if (tokenDoc.movement?.pending?.waypoints?.length) return;\nfog.mjs:4322  await reactToMove(tokenDoc);\nfog.mjs:4342  await (await import(\"./projects-seen.mjs\")).tellFoundOnEntry(actor, scene?.id ?? null, room);\nprojects-seen.mjs:368  await postFoundDone(userId, row.name ?? \"\");\nprojects-seen.mjs:369  await foundDoneStore.drop(key);\nmovement.mjs:263  await pause(AT_REST_GRACE_MS);",
+      "failure_scenario": "A student whose finished Secret Passage card was held walks into its room on a slow server: the player and the GMs get the 'finished' card twice.",
+      "expected": "One read of a move's entry, or the held row taken before the post.",
+      "confidence": "suspected",
+      "refutation_tried": "The double read is recorded and counted on purpose (scenario 86-frame-work.mjs:255-264, 'Recorded, not bounded'); what is not established is whether a ChatMessage create ever takes longer than the 250 ms grace plus the write before it at a real table.",
+      "tests_near": "scenario 86 (counts the two reads); none for a double card.",
+      "live_check": "new live check, under not_established."
+    },
+    {
+      "id": "domain-map-a-fog-13",
+      "domain": "MAP",
+      "severity": "nit",
+      "category": "ux",
+      "title": "Viewing another floor plays the 'room entered' sound and, back on the lead's floor, the outline's hop and name, with nobody moving",
+      "where": "scripts/fog.mjs:294-316 (every canvasReady runs revealStartingRooms), 4414-4431 (announceRoom with no `quiet`), 4553-4563 (the sound before any early return), 3356-3359 (a floor switch is a full canvas draw: the spike's reading, LIVE-E12-02)",
+      "what_happens": "revealStartingRooms is the session's first announcement, and it is run by every canvasReady. If a floor switch is a full canvas.draw on v14, as this file's own note reads the spike, each press of a floor button announces the room the lead stands in again: the sound plays even when the room has no shape on the floor viewed, and back on the lead's floor the outline lands and the name is drawn as on an arrival. standWhereWeStand's `quiet` exists for a redraw that is no arrival and is not used here.",
+      "evidence": "fog.mjs:307   step(\"revealOnArrival\", () => revealStartingRooms());\nfog.mjs:4429  else announceRoom(entered.room, token.document.actor, token.document.elevation);\nfog.mjs:4562  if (!quiet) playSfx(\"roomEntered\");",
+      "failure_scenario": "A player clicks through two floors with the switcher and hears the room-entered sound at each click.",
+      "expected": "The arrival played on a session's or scene's first draw only; a floor switch redrawn quietly.",
+      "confidence": "suspected",
+      "refutation_tried": "Whether v14's level switch fires canvasReady is the open part (LIVE-E12-02); the road from canvasReady to the sound is read whole.",
+      "tests_near": "none found."
+    }
+  ],
+  "by_decision": [
+    {
+      "what": "The GM's fog clears only the rooms the class has found (ledgerRooms), with the Mastermind's row left out, and leaves the rest of the map at the veil.",
+      "source": "scripts/fog.mjs:1505-1511 (the owner's amend to E79 C5, 14.10.2026), 1835-1836, 3237-3248"
+    },
+    {
+      "what": "A player's fog.shared reply may name any rooms for that player's own characters; it is taken only in the 10 s after the primary's ask, once, weak and fill-only, and the primary asks only when its store holds nothing.",
+      "source": "scripts/fog.mjs:1320-1331, 1353-1362, 1436-1446 (E03, audit S07-17; E04)"
+    },
+    {
+      "what": "A door into a room the veto shuts for the character drawn for (locked, sealed, another's bedroom) is drawn as wall, no gap, no glow.",
+      "source": "scripts/fog-doorways.mjs:529-533, 559-570 (the owner's D43c = 2, E51 C3)"
+    },
+    {
+      "what": "The doorway glow reaches past the border into the room beyond, cut at the first wall and where it leaves that room.",
+      "source": "scripts/fog-doorways.mjs:1282-1300 (E51 fix FG3, the owner's item 4 of 31.10.2026)"
+    },
+    {
+      "what": "A player's own token the GM hid for the opening still clears that player's room.",
+      "source": "scripts/fog.mjs:4190 (E112)"
+    },
+    {
+      "what": "A move is read at the update and again at rest on every browser, counted and not bounded.",
+      "source": "audit/harness/scenarios/86-frame-work.mjs:255-264 (E89 fix FG2, G3); scripts/fog.mjs:4309-4314"
+    },
+    {
+      "what": "The reveal is 1100 ms, the room's name keeps 5.4 s.",
+      "source": "scripts/fog-reveal.mjs:69-92 (the owner, 20.10.2026, answer D)"
+    },
+    {
+      "what": "The standing outline is not redrawn when a key is gained or the hour turns, though both change the veto's answer.",
+      "source": "scripts/fog.mjs:662-663 ('Still not heard: a key gained and the time of day')"
+    },
+    {
+      "what": "An en dash in a code comment (fog-geometry.mjs:323, 'Ramer-Douglas-Peucker' written with U+2013).",
+      "source": "tools/check.mjs:36-39 ('U+2013 is not ruled in code')"
+    },
+    {
+      "what": "setDiscovery and saveDiscoveryMatrix stay with no production caller.",
+      "source": "scripts/fog.mjs:1556-1563 (saveDiscoveryMatrix: 'for the suite's fixtures'), 1792-1797 (setDiscovery: Room Setup no longer calls it)"
+    }
+  ],
+  "comments_against_code": [
+    {
+      "where": "scripts/fog.mjs:2780-2789",
+      "comment_says": "'a GM clears every room on the map: they are running the scene and need to see all of it'",
+      "code_does": "fog.mjs:2796 `if (game.user.isGM) current = ledgerRooms(scene);` - only the rooms the class has found are cleared; the rest stay at the GM's veil (3250)."
+    },
+    {
+      "where": "scripts/fog.mjs:1612-1614",
+      "comment_says": "'`myDiscoveredRooms` already counts every room as known for a GM, so their map is unchanged'",
+      "code_does": "fog.mjs:1836 `if (gm) return ledgerRooms(scene);` - the GM's known set is the class's record, not every room."
+    },
+    {
+      "where": "scripts/fog.mjs:1696-1701",
+      "comment_says": "seedCells has the 'Same skips as `recordDiscovery`, for the same reasons'",
+      "code_does": "It skips the Mastermind and a Monokuma (1702-1703); recordDiscovery also skips a Spectator (1619) - finding 2."
+    },
+    {
+      "where": "scripts/fog.mjs:4516-4518",
+      "comment_says": "'\"Already know\" is read from the LEDGER first, which is a world setting and therefore survives the session'",
+      "code_does": "discoveredFor reads discoveryLedger(): the GMs' store on a GM, the player's fogCopy on a player (E04, D2); the world setting is lifted out (liftDiscoveryLedger, 1279-1313)."
+    },
+    {
+      "where": "scripts/fog.mjs:313-314, 496-499, 1643-1645, 1658-1661",
+      "comment_says": "seedDiscovery 'writes a world setting', is 'ONE settings update for the whole scene', and is deferred because 'a world setting may not be written before the game is ready'",
+      "code_does": "seedDiscovery writes the GM store through writeCells (1685, 1208-1213); no world setting is written."
+    },
+    {
+      "where": "scripts/fog-reveal.mjs:179-183",
+      "comment_says": "'bands at 45 degrees, on the same axis as the raster, sweeping away from the token so the room reads as opening in front of you'",
+      "code_does": "Bands are upright strips (bandQuad 250-252, 'UPRIGHT RATHER THAN DIAGONAL'), paired about the middle of the room's box (revealBandPlan 403-429); no token position reaches the plan (playDiscoveryAnimation hands revealBandPlan the room and the box only, fog.mjs:4758)."
+    },
+    {
+      "where": "scripts/fog-reveal.mjs:400-402",
+      "comment_says": "'Every point on a 45-degree line shares `x + y`, so one number places a line.'",
+      "code_does": "The next line says `c` is simply x; a line is placed by its x alone."
+    },
+    {
+      "where": "scripts/fog-reveal.mjs:1546",
+      "comment_says": "seamWidth is 'The curtain's seam core, 1.3 px on the display'",
+      "code_does": "fog-reveal.mjs:1551 `return 1.0 / (...zoom...)` - one display pixel (outlineWidths' note at 714 reads the curtain's core as 1.2 px)."
+    },
+    {
+      "where": "scripts/fog-reveal.mjs:962",
+      "comment_says": "haloBlur is the blur 'as the rings and `seamHalo` make it: six times the seam'",
+      "code_does": "seamHalo has used a fixed 6 px and 14 px padding since E49 B4 (856, 861-862) - finding 11."
+    }
+  ],
+  "hygiene": {
+    "functions_over_300": [],
+    "functions_150_to_300": [
+      "fog.mjs registerFog 268-477 (210)",
+      "fog.mjs repaintFog 3011-3181 (171)",
+      "fog.mjs playDiscoveryAnimation 4666-4833 (168)",
+      "fog-reveal.mjs flashOutline 1287-1464 (178)",
+      "fog-doorways.mjs doorwayEdges 534-708 (175)"
+    ],
+    "functions_100_to_150": [
+      "fog.mjs startDissolve (106)",
+      "fog.mjs diagnoseFog (106)",
+      "fog.mjs buildFogTexture (130)",
+      "fog-reveal.mjs buildRevealLayers (137)",
+      "fog-doorways.mjs traceOutlineGapped (122)"
+    ],
+    "duplicated_helpers": [
+      "The outline faded twice in one repaint with the same test: fog.mjs:3107 and 3157, `if (roomOutline && !mine.has(roomOutline.room)) fadeRoomOutline();` - the second can only fire when the first did not, and nothing between them changes either side.",
+      "Two computed-style colour readers: cssColour (fog.mjs:3612-3618, a string for the 2D context) and colourOf (fog-doorways.mjs:96-106, a number), both on document.documentElement.",
+      "The even-odd ring test written twice in fog-geometry.mjs: inRing (145-152) and the loop inside inFlatPolygons (274-284).",
+      "Point-to-segment distance written out again in fog-diagnostics.mjs nearestBorderTo (147-152), nearestWallTo (172-175) and nearestOutline (92-95), beside fog-geometry.mjs distanceToSegment (252-260), which doorwayReport uses.",
+      "The zoom guard written twice in fog-reveal.mjs: stageZoom (971-974) and seamWidth (1549-1552), both `zoom > 0.05 ? zoom : 1`.",
+      "'Stops a move and is no open door' read twice: wallAlongEdgeUnguarded (fog-doorways.mjs:389-396) and stopsLight (1304-1308).",
+      "MAP-15 standing part: the 0.18 log-zoom guard in fog-reveal.mjs:1565, remnant-ring.mjs:145, own-ring.mjs:143; the 60 ms body-observer settle in fog.mjs:442, remnant-ring.mjs:162, own-ring.mjs:162.",
+      "The curtain's stain palette quoted by hand: STAIN = [0x5c1238, 0x142a66] in fog.mjs:4745, 'quoted here rather than exported' from glass.mjs."
+    ],
+    "dead_code": [
+      "setDiscovery (fog.mjs:1798-1808) and saveDiscoveryMatrix (1566-1570): no caller outside the tests (git grep -w over scripts/ and audit/harness), both documented as kept.",
+      "ownTokenClearances' returned array (fog.mjs:4185-4209): built and discarded at 3303; only its side effect lastClearances is read (documented, 3285-3301).",
+      "myStore (fog.mjs:1316-1318): a one-line alias of allDiscovered, itself an alias of settings.mjs discoveryLedger (1125-1127)."
+    ],
+    "magic_numbers": [
+      "1024, the reveal's texture cap (fog.mjs:4715), against the named MAX_FOG_TEXTURE 2048 every other texture uses (MAP-15 standing).",
+      "1.4 squares per line pair and 3 / 13 lines per side in revealBandPlan (fog-reveal.mjs:423; MAP-15 standing).",
+      "250 ms for both outline redraw timers (fog.mjs:4613, 4629), 100 ms for the region repaint and the switcher (752, 3456: 'a choice, not a reading'), 60 ms for the body observer (442).",
+      "0.9 of a grid square and 1.7 hops in landOutline (fog-reveal.mjs:1236, 1243); 0.35 of OUTLINE_MS for the label's hold (1269)."
+    ],
+    "type_confusion": [
+      "ownArrival hands a TokenDocument to leadsHere and isMine (fog.mjs:4376, 4452-4453), which are written for a token placeable: isMine's `isMonocubCorpse(token.document)` (1908) then reads undefined and calls a Monocub's corpse 'mine'. No effect found today - `entered` is computed only when the lead signature from standingNow (placeables) changed - but the predicate answers wrong for that caller."
+    ]
+  },
+  "hints_for_other_passes": {
+    "dead_controls": [],
+    "stale_windows": [
+      "The standing room outline is not redrawn when the character gains a key or the hour turns, both of which change which doors the veto opens (fog.mjs:662-663, recorded): the gap or wall shown is the last arrival's.",
+      "The standing outline after a room is changed through its scene's update (finding 8)."
+    ],
+    "console_tools": [
+      "fogPeek, whyBlack, diagnoseFog and doorwayReport answer on a player's browser too (no GM gate): fogPeek(seconds) hides the fog for as long as asked, and doorwayReport prints the names of neighbouring rooms the player has not visited. Both read only what the browser already holds (the scene's image and regions are world data), so this is a note for the trust-model pass, not a finding here."
+    ],
+    "for_the_refresh_pass": [
+      "The floor switcher (#drpg-floors, fog.mjs:3465-3499) is redrawn on every repaint (finding 6), so it is live but rewrites its DOM each time."
+    ]
+  },
+  "not_established": [
+    {
+      "what": "MAP-LC4 still open: restoreSceneVisionMode restores fog.mode only when the saved value is a finite number (fog.mjs:974). If v14's CONST.FOG_MODES members are strings, switching the room fog off leaves every scene's exploration fog off and the record of the old value unset (985).",
+      "old_id": "MAP-LC4",
+      "l1": {
+        "what": "The type of scene.fog.mode and the members of CONST.FOG_MODES on Foundry 14.370.",
+        "recipe": [
+          "As GM, open the console on a scene with rooms.",
+          "Run CONST.FOG_MODES and typeof canvas.scene.fog.mode.",
+          "Run canvas.scene.getFlag('danganronpa-rpg', 'visionBefore')."
+        ],
+        "clients": "one GM",
+        "theme": "either",
+        "settles_if": "numbers: the restore works as written; strings: MAP-LC4 is a defect (fog mode never restored).",
+        "priority": "minor"
+      }
+    },
+    {
+      "what": "Finding 1's premise on v14: that Region#teleportTokens on the same scene (cleanup.mjs:1985) arrives on the primary as an updateToken with x/y, as the harness models it, so reactToMove reads the body's new room.",
+      "l1": {
+        "what": "Whether a body moved by Stage 6 is written into the discovery ledger.",
+        "recipe": [
+          "Run an incident to a death; keep the body undiscovered.",
+          "As the killer, in Stage 6, Move the body into a room no student has entered.",
+          "On the GM: game.drpg's fog discoveredFor(sceneId, victimId), or Room Setup's Fog tab for the victim.",
+          "On a connected Spectator's or Monocub's browser: is that room veiled?"
+        ],
+        "clients": "one GM, the killer's player, one Spectator or Monocub",
+        "theme": "either",
+        "settles_if": "room present: finding 1 measured; absent: the teleport takes another road and finding 1 falls to the GM-drag case only.",
+        "priority": "minor"
+      }
+    },
+    {
+      "what": "Finding 4's race: whether a second GM's restore loop, still running when the primary turns the fog back on, can restore a scene the primary has just prepared.",
+      "l1": {
+        "what": "Two GMs and the room fog switched off and on quickly.",
+        "recipe": [
+          "Two GMs connected, a world of several scenes with rooms.",
+          "GM A switches Room fog off, then on within a second.",
+          "On each scene read tokenVision and the visionBefore flag."
+        ],
+        "clients": "two GMs",
+        "theme": "either",
+        "settles_if": "every scene with rooms has tokenVision false: no race at that size; any scene with Foundry's vision back: the race is real.",
+        "priority": "nit"
+      }
+    },
+    {
+      "what": "Finding 12: whether a ChatMessage create for a held 'passage finished' card can outlast the at-rest grace (250 ms) at a real table, posting the card twice.",
+      "l1": {
+        "what": "A held Secret Passage 'finished' card delivered on entry.",
+        "recipe": [
+          "Finish a Secret Passage while its finder stands elsewhere (the card is held).",
+          "Walk the finder's token into the passage's room in one drop.",
+          "Count the 'finished' cards in the player's and the GMs' chat."
+        ],
+        "clients": "one GM, one player",
+        "theme": "either",
+        "settles_if": "one card: no double at that latency; two: finding 12 measured.",
+        "priority": "minor"
+      }
+    },
+    {
+      "what": "Finding 13: whether v14's floor switch (Scene#view({ level })) fires canvasReady (LIVE-E12-02), which decides whether the room sound replays on each floor viewed.",
+      "l1": {
+        "what": "The room-entered sound on a floor switch.",
+        "recipe": [
+          "A scene of two floors; a player's token stands in a room on floor 1.",
+          "Press the floor switcher's floor 2 button, then floor 1.",
+          "Listen for the room-entered sound and watch for the outline's hop on floor 1."
+        ],
+        "clients": "one GM, one player",
+        "theme": "either",
+        "settles_if": "no sound: no replay; a sound at each press: finding 13 measured.",
+        "priority": "nit"
+      }
+    },
+    {
+      "what": "Finding 11: how the rings' and the reveal's light read at zoom 0.3, 1 and 3 against the standing outline's (LIVE-E49-04, LIVE-E88-02).",
+      "l1": {
+        "what": "The width of the seams' light at three zooms.",
+        "recipe": [
+          "Stained Glass on; stand in a room with Remnants nearby.",
+          "Zoom to about 0.3, 1 and 3; screenshot each.",
+          "Walk into a new room at zoom 0.3 and screenshot the reveal's lines."
+        ],
+        "clients": "one GM",
+        "theme": "stained glass",
+        "settles_if": "ring light about as wide as the border's at every zoom: no defect seen; wider when zoomed out: finding 11 measured.",
+        "priority": "nit"
+      }
+    }
+  ]
+}

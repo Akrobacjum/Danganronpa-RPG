@@ -1,0 +1,123 @@
+{
+ "refuter": "verify-first-session/live-items-08",
+ "of": "first-session/live-items-08",
+ "read": "audit/findings-1.2.118/BRIEF.md; audit/AUDIT-1.2.42.md 11.2-11.3 and items 253-273 (lines 1127-1147); the reader's 21 items and 10 observations; docs/dev/e58/LOCAL-REPORT.md and docs/dev/e39/CALIBRATION.md at b5a29e73 and at origin/claude/e58-local (7875554f), diffed; live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json searched for every id of the chunk; docs/dev/e58/TRIAGE-9.2.md:276-296; .github/release-notes/v1.2.81.md",
+ "checked": [
+  {
+   "ref": "253",
+   "claim": "LIVE-E79-16 partly, as expected: on 14.370 a bystander's Countdowns window read 'No projects yet.' (LOCAL-REPORT:401, filed as LIVE-E43-02)",
+   "verdict": "stands",
+   "why": "The paper line exists, is dated 16.11.2026, on the module at 1.2.116, and reads the bystander's window drawing the module's empty line with no project name in its DOM - the item's first clause for a player who knows no project. scripts/projects-tray.mjs has no commit between v1.2.116 and b5a29e73 (git log v1.2.116..b5a29e73 -- scripts/projects-tray.mjs: empty), so the reading is on today's tray code. The parts the reader lists as unread (no countdown at all, the title, the line going and coming back, the GM's tray) are indeed not in the row. The mapping to this item is the reader's and is said to be.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:401 'LIVE-E43-02 (535), Countdowns | measured | a secret project (PlayerOne in on it, PlayerTwo not): ... the bystander's Countdowns window reads \"No projects yet.\" and its DOM holds neither'; lang/en.json:4641 '\"trayEmpty\": \"No projects yet.\"'; scripts/projects-tray.mjs:274 'line.textContent = game.i18n.localize(\"DRPG.Project.trayEmpty\");'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "256",
+   "claim": "LIVE-E79-19 partly, as expected: TokenDocument#movement with pending/passed/state read on 14.370; an API route one update, pending.waypoints empty (CALIBRATION:93-98, :128-130)",
+   "verdict": "stands",
+   "why": "The rows exist on b5a29e73's copy, dated 16.11.2026, module 1.2.116, and answer one entry of the item's own 'not measured on v14' list (the name of the pending waypoints field, which the module still reads). The milliseconds and a mouse drag are unread, as the reader says (:129-130). The 1.2.118 change to route judging (67d525f6) is named in the reader's stale_detail.",
+   "evidence": "docs/dev/e39/CALIBRATION.md:95 '`passed.waypoints`: all 20 grid steps of the route ... `pending.waypoints` empty; `method: \"api\"`; `state` completed by `updateToken`'; :98 '`TokenDocument#movement` | 22 keys: ... passed, pending, ... state'; :129-130 'A drag by mouse (`method: \"dragging\"`, where `pending` may hold the rest of a route) was not read'; scripts/movement.mjs:249 'return Boolean(tokenDoc.movement?.pending?.waypoints?.length);'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "263",
+   "claim": "LIVE-E80-01 partly, as expected: the module's placing write (teleport, displace, animate false) reached every client's hooks on 14.370; the module's own floor write not read; no whole tier 2 run after floorNamed recorded",
+   "verdict": "weakened",
+   "why": "The placing reading stands (CALIBRATION:36, LOCAL-REPORT:514). But the L1 line's report (evidence class F by the brief) records the fourth tier 2 run on the sandbox, 18.11.2026, on a tree holding floorNamed: 'Every tunnel, stairs and Secret Passage test passes'. Those include the item's own harness half ('A10-18', 'A10-18 floor jump') and 'H81-01 stairs', whose assertion is the landing floor and its height. So 'Not read: ... the module's own write of a floor' and 'No whole tier 2 run after that is recorded' are overtaken in part; the reader looked at b5a29e73's copy only. The paper names the tests by group, not one by one, so which of them ran green is not established by name. The status stays partly: 'Go through' pressed by a player on a sheet, the price, the second player's fog and tile and a canvas seen by a person remain unread.",
+   "evidence": "docs/dev/e39/CALIBRATION.md:36 'the module's writes: as assumed'; git show origin/claude/e58-local:docs/dev/e58/LOCAL-REPORT.md:366-368 '**Passages: 3 failures left of about 20** - 1037 ..., 1096 ... and 1108 ... Every tunnel, stairs and Secret Passage test passes on C1's floorNamed.'; audit/findings-1.2.118/live-readings-e58-delta.json:530 'every tunnel, stairs and Secret Passage test passes on C1's floorNamed (passages-gm.mjs:1343 on b5a29e73)'; scripts/tests-tier2.mjs:73345 'H81-01 stairs - ... the token lands by the far end on that end's floor at that floor's height'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "268",
+   "claim": "LIVE-E16-02 partly, result defect: the owner's sight at 1.2.80 of the roll title standing letter under letter is the item's one table reading",
+   "verdict": "weakened",
+   "why": "The sight exists (.github/release-notes/v1.2.81.md:3-7, :78) but it is of 1.2.80 and was fixed in 1.2.81 (H81 C2); the clause 'stoi poziomo' was added to the item by 1.2.81 in answer to it (v1.2.81.md:147), so for today's code it is the report a fix was made from - the case the reader's own rule (observation 5) does not count for 255. As a result 'defect' it describes nothing open. The reader missed a real-Foundry reading that does bear on the item today: in the sandbox's whole tier 2 run (17.11.2026, at 3bfb45a8, Daggerheart 2.12.9's real roll window) test 1134 'an opening or crisis throw holds its Reaction chip at action ...' passed, with the probe's three presses - the item's 'the Reaction chip on an opening or crisis throw' clause, in the DOM, one theme unnamed, no layout. So partly stands on that reading, with the read part as expected; the mode select width, the title bar's cover, the flat title after the fix and the place under the curtain stay unread.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:79 '**The whole run, read** (17.11.2026 03:40-07:10 UTC, at 3bfb45a8; 1565 tests, each its own call)'; :92-93 '1134 \"an opening or crisis throw holds its Reaction chip at action ...\" 3 (passed)'; .github/release-notes/v1.2.81.md:147 '- LIVE-E16-02 now also asks that the roll window's title lies flat'; :78 '**The roll window's title lies flat again.** At 1.2.80 it could stand one letter a line'",
+   "status_after": "partly (result: the part read as expected; the 1.2.80 title a defect fixed in 1.2.81)"
+  },
+  {
+   "ref": "269",
+   "claim": "LIVE-E16-04 partly, mixed: part (3) read on 14.370 - noHook skips the pre hook only, update hooks fire on every browser (CALIBRATION:38-43)",
+   "verdict": "stands",
+   "why": "The section's heading names this item's part; the row reads both writes with {noHook: true} and the update hooks on the writer and the other browser. What noHook does is Foundry's, so the module's 1.2.116 does not age it. Parts (1), (2) as asked and (4) are not in the paper; CALIBRATION:29 is an Assistant's role and flag write, rightly called only 'touching' part (2). No later reading of the other parts in the L1 delta (searched for Dice So Nice, dice look, noHook).",
+   "evidence": "docs/dev/e39/CALIBRATION.md:38 '### Read after the restart: `noHook` (AUDIT 9.2 item 20, LIVE-E16-04's part)'; :43 'no `preUpdateActor` / `preUpdateUser` for either write; `updateActor` / `updateUser` on the writer and on the other browser, each with `options.noHook === true` | both hooks skipped | differs'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "272",
+   "claim": "LIVE-H81-01 partly, defect: the owner's one-way case at 1.2.80 and the owner's words of 21.10 (seen from the GM's browser) answer part of the item's first question; no later paper closes it",
+   "verdict": "weakened",
+   "why": "The reading the reader cites exists and is about this item (v1.2.81.md:3-4, :131-135), and the defect is still written as open there. But the L1 report's fourth tier 2 run on 14.370 (18.11.2026) says every stairs and tunnel test passes on floorNamed, which includes tier 2 'H81-01 stairs' (this item's own harness half), whose assertion is the token up on the upper floor at that floor's height and back down - the item's 'whether v14 takes level with elevation in one teleport update' and 'what height the token has after stairs', for the primary GM's road. The reader's evidence and its 'No later paper closes it' leave that out. It does not close the item: the owner's case, a player's sheet road, the consoles' lines and the Debug readings stay unread, and the group line does not name the test by itself.",
+   "evidence": ".github/release-notes/v1.2.81.md:131 '- **The owner's one-way case is still open as a defect.**'; git show origin/claude/e58-local:docs/dev/e58/LOCAL-REPORT.md:368 'Every tunnel, stairs and Secret Passage test passes on C1's floorNamed.'; scripts/tests-tier2.mjs:73345 'H81-01 stairs - ... the token lands by the far end on that end's floor at that floor's height, and the way back is taken from where it landed'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "254",
+   "claim": "LIVE-E79-17 open: no reading of the Hope and Despair dice colours under Stained Glass",
+   "verdict": "stands",
+   "why": "Searched both copies of LOCAL-REPORT and CALIBRATION (b5a29e73 and origin/claude/e58-local) and the three digests for the item id, 'Hope die', 'Despair die', 'roll card', 'dualityLook': no reading. R587 is a tier 0 test, not recorded as run at the table by name.",
+   "evidence": "grep of LIVE-E79-17 over audit/findings-1.2.118/live-readings-*.json: no row; docs/dev/e58/TRIAGE-9.2.md:277 '| 254 | LIVE-E79-17 | S |'",
+   "status_after": "open"
+  },
+  {
+   "ref": "255",
+   "claim": "LIVE-E79-18 open: the digest's screenshot row is the report the 1.2.79 fix was made from, not a reading of the fix",
+   "verdict": "stands",
+   "why": "The digest's only row is the owner's undated screenshot the item quotes as not reproduced in the glass harness; the item asks a table to confirm the fix. No notice-pane reading in either copy of the papers (the 'notice' hits there are chat and toast notices of other items).",
+   "evidence": "audit/findings-1.2.118/live-readings-other.json (item 255) '\"where\": \"audit/AUDIT-1.2.42.md:1129\" ... \"outcome\": \"defect\" ... \"Addressed in 1.2.79 (the notice sheet fills its pane); not seen at a table\"'",
+   "status_after": "open"
+  },
+  {
+   "ref": "257",
+   "claim": "LIVE-E79-20 open, class T: no real LiveKit speaker measured",
+   "verdict": "stands",
+   "why": "The papers' LiveKit hits are the installed version (0.6.8) and the 'not checkable at this sandbox' count; no speaker timing anywhere.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:329 'not checkable at this sandbox | 113 | ... each needs real people, a real LiveKit, The Forge'; docs/dev/e58/TRIAGE-9.2.md:280 '| 257 | LIVE-E79-20 | T |'",
+   "status_after": "open"
+  },
+  {
+   "ref": "264",
+   "claim": "LIVE-E80-02 open: no reading of Hide/Show for players' rulers or of v14's SHOW_RULER defaults",
+   "verdict": "stands",
+   "why": "No 'ruler' or 'SHOW_RULER' reading in either copy of the papers; the one hit is 'showRuler' as a key name of TokenDocument#movement, which says nothing of who sees a ruler. No tier 2 run row names A10-15 or R601.",
+   "evidence": "docs/dev/e39/CALIBRATION.md:98 '22 keys: ... autoRotate, showRuler, user, state ...' (the only hit); docs/dev/e58/TRIAGE-9.2.md:287 '| 264 | LIVE-E80-02 | K |'",
+   "status_after": "open"
+  },
+  {
+   "ref": "270",
+   "claim": "LIVE-E16-03 open: no table reading of a player's dice drawn in the source GM's look",
+   "verdict": "stands",
+   "why": "The papers mention Dice So Nice only as installed (6.4.5) and its first-use cards in the world inventory. The owner's 1.2.97 report (scripts/dice-look.mjs:4-5) is the report later fixes were made from, so by the same rule as 255 it is not a reading of the item; the reader says so.",
+   "evidence": "scripts/dice-look.mjs:4-5 'The owner, after installing 1.2.97: \"Kostki, a wlasciwie ich wyglad miedzy graczami sie nie zgadzaja ...\"'; git show origin/claude/e58-local:docs/dev/e58/LOCAL-REPORT.md:647 'two Dice So Nice first-use cards'",
+   "status_after": "open"
+  },
+  {
+   "ref": "observation 5",
+   "claim": "a table's sight of a shipped item's own subject counts as a reading (268), a report a fix was made from does not (255, 256, 273)",
+   "verdict": "weakened",
+   "why": "Applied to 268 the rule keeps a sight of 1.2.80 whose defect 1.2.81 fixed and whose clause 'stoi poziomo' 1.2.81 wrote into the item in answer (v1.2.81.md:147); for today's code that sight is the report the fix was made from, the case the rule excludes. The status of 268 survives only on a reading the reader did not cite (LOCAL-REPORT:92-93, test 1134).",
+   "evidence": ".github/release-notes/v1.2.81.md:147 '- LIVE-E16-02 now also asks that the roll window's title lies flat'",
+   "severity_after": "none"
+  },
+  {
+   "ref": "observation 10",
+   "claim": "the triage classes the 21 as K 10, S 6, T 5 with the listed numbers",
+   "verdict": "stands",
+   "why": "Read docs/dev/e58/TRIAGE-9.2.md:276-296 row by row: K 253, 256, 261, 262, 263, 264, 265, 267, 269, 273; S 254, 255, 260, 266, 268, 270; T 257, 258, 259, 271, 272.",
+   "evidence": "docs/dev/e58/TRIAGE-9.2.md:276 '| 253 | LIVE-E79-16 | K |'; :296 '| 273 | LIVE-H81-02 | K |'",
+   "severity_after": "none"
+  }
+ ],
+ "counts": {
+  "checked": 13,
+  "stands": 9,
+  "weakened": 4,
+  "refuted": 0
+ },
+ "count_note": "Six items carry a status other than open (253, 256, 263, 268, 269, 272); all six checked. Five open items checked for a missed reading (254, 255, 257, 264, 270). The reader's observations carry no severity; two were checked as well (5 and 10). Item 267's harness half was looked at in passing: test 128 'an Experience a Call bought is in the formula ...' failed on the sandbox (LOCAL-REPORT:87-88) but is not the S02-04 test the item names, and the sandbox's Daggerheart is neither version it asks for; it stays open, not entered above.",
+ "not_established": [
+  "Which passage, tunnel and stairs tests of tier 2 passed on the sandbox's fourth run by name: the L1 report says 'every tunnel, stairs and Secret Passage test passes' as a group (LOCAL-REPORT at 7875554f :368); whether 'H81-01 stairs' and 'A10-18 floor jump' were among them, and so whether v14 took level with elevation in one update from the module, rests on that group line. New live check: read the fourth run's rows for those two names (the runner's record outside the repository).",
+  "Which theme the sandbox's tier 2 test 1134 ran in, and whether the 1.2.118 tree changed the roll window between 3bfb45a8 and b5a29e73 - not traced here.",
+  "Commit dc351047 (H81 C2) cannot be read in this shallow checkout; its id is taken from docs/dev/text-review-E65.md:78."
+ ]
+}

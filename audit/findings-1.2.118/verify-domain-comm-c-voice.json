@@ -1,0 +1,106 @@
+{
+ "refuter": "verify-domain-comm-c-voice",
+ "of": "domain-comm-c-voice",
+ "checkout": "branch claude/audit-119, scripts/ as main b5a29e73 (1.2.118); static reading only, nothing run",
+ "scope_note": "Checked every finding of severity minor or above (1 major, 3 minor) and the one control the reader lists as dead (hints_for_other_passes.dead_controls, its finding 7). The file has no controls table with verdicts; findings 5-10 are nit and were not re-checked.",
+ "checked": [
+  {
+   "ref": "domain-comm-c-voice-1",
+   "claim": "During the opening's veil the killer stays a participant of the room's LiveKit channel, so the victim's and a bystander's voice tile count them and 'Who you hear' names them with the portrait.",
+   "verdict": "stands",
+   "why": "placeVoices applies the Spectators', the eavesdrop's and the mask's rules over an account's row and no veil rule (grep 'veil' in voice.mjs: veiledIds, ownVeiled, micHold, moduleHoldsMic, settleTrialVoices only - all microphone). voiceClaim places the account by its token's room (locate()), so the killer is sent the crime room. channelCount counts every remote participant; paintList maps each to a user with participantUser (avclient-livekit's getParticipantFVTTUser, no token, flag or visibility read) and names it through voiceIdentity, which reads user.character / owned actor and nothing of a veil or mask (camera-view.mjs 205-240, no 'veil' or 'mask' in the file). mask-gm.mjs's own header names this channel as the reason the mask sends the killer to a silent room; the veil's header and e112v/DESIGN.md treat voice as the microphone alone. No test or recorded decision says the list may name a veiled killer. One limit on the scenario: an opening opened mid-day follows a token the victim may already have seen in the room before the open, so the strongest case is the Eclipse one (the declaration in the dark, the veil put on before the lights) and a bystander who enters after the open; that keeps it a rule broken in an ordinary situation of every direct murder in an Eclipse. The name needs avclient-livekit to map the participant (external, the reader's not_established); the count does not.",
+   "evidence": [
+    "scripts/voice.mjs:1074 // LISTEN'S EAVESDROP (E69 C6; eavesdrop-gm.mjs): one more rule over the account's row, after the Spectators' room.",
+    "scripts/voice.mjs:1079 // THE KILLER BEHIND A \"?\" (E69 C8; mask-gm.mjs): one more rule, after the eavesdrop's (`maskedRow`).",
+    "scripts/voice.mjs:1360 if (veiled && !trial) return { reason: \"veiled\", held: true };",
+    "scripts/voice-tile.mjs:815-816 return [...(room.remoteParticipants?.values?.() ?? [])].filter(p => p && p !== gone && !p.isLocal && p !== room.localParticipant).length;",
+    "scripts/voice-tile.mjs:1556-1558 ...map(p => participantUser(watch.client, p, room)?.id).filter(Boolean))] : []; ... who: voiceIdentity(p.user) ?? { name: p.user.name ?? \"\", img: null }",
+    "scripts/camera-view.mjs:205-208 export function voiceIdentity(user) { ... const actor = voiceActorFor(user); return { name: nameFor(user, actor), img: actor?.img || user.avatar || null, ...",
+    "scripts/mask-gm.mjs:14-16 THE VOICE. The killer is sent to a silent room of their own (... a name in the victim's voice list would defeat the mask)",
+    "scripts/mask-gm.mjs:374-375 The microphone is C6's block with one more reason (...); unlike the mask's, no silent room: the killer hears the room.",
+    "docs/dev/e112v/DESIGN.md:36 | Voice (LiveKit) | the killer's microphone held (`micHold` reason \"veiled\") | unchanged: who hears the killer is the microphone, not the token |"
+   ],
+   "severity_after": "major"
+  },
+  {
+   "ref": "domain-comm-c-voice-2",
+   "claim": "The tile's microphone tooltip, note and click notice for a floor hold leave out the holder's name: micState drops `data` on the held branch and toggleOwnMic localizes without data.",
+   "verdict": "stands",
+   "why": "floorHold returns data with name (and target); micHold returns that answer as is (voice.mjs 1380-1381). micState's first branch returns for any held answer without data; data is attached only on the muted/ptt/on returns. paintMic formats reasonLine with mic.data ?? {} and toggleOwnMic uses localize. Both lang lines carry {name}. The HUD formats with voice.data. R7103 (tests-tier1.mjs:61935) reads floorHold's data and the lang placeholders, and tier 2's E110 test reads the line's key ('floorHeld'), neither the tile's text; the micState tests (tests-tier1.mjs 16686-16721, 25963) hand no floor hold. No other producer of `mic` for paintMic or toggleOwnMic. What Foundry prints for the missing slot was not read; either way the name is missing.",
+   "evidence": [
+    "scripts/voice.mjs:1599-1600 ? { reason: \"floorHeldPair\", held: true, data: { name: nameOf(speakers[0]), target: nameOf(speakers[1]) } } : { reason: \"floorHeld\", held: true, data: { name: nameOf(speakers[0]) } };",
+    "scripts/voice-tile.mjs:918 if (answer?.held) return { state: \"held\", reason: answer.reason, info: null };",
+    "scripts/voice-tile.mjs:981 const reasonLine = mic.reason ? game.i18n.format(`DRPG.Voice.held.${mic.reason}`, mic.data ?? {}) : \"\";",
+    "scripts/voice-tile.mjs:943 notify(game.i18n.localize(`DRPG.Voice.held.${mic?.reason ?? \"offline\"}`));",
+    "lang/en.json:5913 \"floorHeld\": \"The floor is {name}'s: your microphone stays off until you get the floor or the mode ends.\","
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-comm-c-voice-3",
+   "claim": "A masked killer's tile reads 'Disconnected' / 'You are not connected to voice.' and the mic line names only the microphone and only the reveal, so the killer does not learn they hear nobody or that the time of day ends it.",
+   "verdict": "weakened",
+   "why": "The tile road is confirmed: maskedRow sends the silent room, applyBreakout leaves voice for it, voiceWord answers a special word only for external and the Eclipse's two holds, so a 'masked' hold on a disconnected Room falls to WORDS.disconnected with the offline sentence, and DRPG.Voice.held.masked says only the microphone and the reveal. But the failure scenario (the killer does not learn that she hears nobody, and reloads thinking voice broke) is contradicted by two other roads the reader did not cite: maskKiller whispers the killer DRPG.Mask.card at the mask's start, which says she can neither speak nor hear anyone until she reveals herself or the time of day ends and names the tile's Reveal button, and askReveal's window says the same (DRPG.Mask.ask). The tile itself keeps a Reveal yourself button while the mask stands. What is left is a tile word that disagrees with what the killer was told - text, not a wrong state in play.",
+   "evidence": [
+    "scripts/voice-tile.mjs:837-839 if (reason === \"external\" || reason === \"eclipse\" || reason === \"eclipseHeard\") return WORDS[reason]; ... if (state !== \"connected\") return WORDS.disconnected;",
+    "scripts/mask-gm.mjs:256 await whisperToOwnerOnly(killer, { glyph: \"ACTIONS.listen\", body: `<p>${esc(game.i18n.localize(\"DRPG.Mask.card\"))}</p>` }, { veiled: true });",
+    "lang/en.json:522 \"card\": \"You are hidden behind a \\\"?\\\" and can neither speak nor hear anyone until you reveal yourself or the time of day ends. Your voice tile has a Reveal yourself button.\"",
+    "lang/en.json:519 \"ask\": \"Your opening went well: the other players see you only as \\\"?\\\", and you can neither speak nor hear anyone. Reveal yourself now, or stay hidden until the time of day ends.\"",
+    "scripts/mask-gm.mjs:639 body: `<p>${esc(game.i18n.localize(\"DRPG.Mask.ask\"))}</p>`,"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "domain-comm-c-voice-4",
+   "claim": "A page that landed alone (landAloneFirst) and has no `desired` yet answers a drop by 'reconnecting' to its silent-room name, which landedCorrectly reads as landed once disconnected, so the drop card is dismissed with no connect, and the self-check repeats it every 45 s until the primary assigns a room.",
+   "verdict": "stands",
+   "why": "Traced whole: landAloneFirst writes client.breakoutRoom = silentRoomFor(userId) (drpg-eclipse-<id>), which silentFor matches for this user. onRoomDisconnected skips only for silentFor(desired), and desired is undefined, so voiceDropped(true) shows the card and schedules reconnect after RECONNECT_MS[0] = 1000 ms. reconnect with desired undefined calls applyBreakout(breakoutRoom, { remember: false }); landedCorrectly(silent room) returns roomState() === 'disconnected', true after a drop, so applyBreakout calls voiceBack() (the card goes) and returns 'unchanged' without game.webrtc.connect. selfCheck (SELF_CHECK_MS 45000) then finds !live(), shows the card and enqueues the same reconnect. No guard elsewhere keeps the silent name out of reconnect. The harm is narrow: the page was in a room of one before the drop, so what is wrong is the card (shown and taken down as if voice were back, again every 45 s) and that the reconnect does nothing, until the primary's answer, which is seconds normally and longer only while the account is `held` (voice.mjs 1095-1097). Wrong in a particular situation: minor holds.",
+   "evidence": [
+    "scripts/voice-client.mjs:201 client.breakoutRoom = silentRoomFor(userId);",
+    "scripts/voice-client.mjs:505 return `${ROOM_PREFIX}eclipse-${userId}`;",
+    "scripts/voice-client.mjs:735 if (applying || externalAV() || OWN_LEAVE.includes(reason) || silentFor(desired)) return;",
+    "scripts/voice-client.mjs:783 return applyBreakout(liveKitClient()?.breakoutRoom ?? null, { remember: false });",
+    "scripts/voice-client.mjs:536 if (silentFor(target) && !externalAV()) return roomState() === \"disconnected\";",
+    "scripts/voice-client.mjs:606-609 if (remember) desired = target; if (landedCorrectly(target)) { voiceBack(); return \"unchanged\"; }",
+    "scripts/voice-client.mjs:282-285 if (!externalAV() && !live()) { voiceDropped(true); if (lost?.timer) return null; return enqueue(reconnect); }"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "hints_for_other_passes.dead_controls / DRPG.Voice.trialMuteLeft ('Unblock it in Who you hear')",
+   "claim": "The whisper after a trial points the GM to 'Who you hear', which has no row for a player outside the GM's own LiveKit Room (finding domain-comm-c-voice-7, nit).",
+   "verdict": "stands",
+   "why": "restoreTrialBlock whispers the line only when forcedDeletion() is null; paintList draws rows only for remote participants of the watch's connected Room, so a player in another room or offline has no row and no block button there. The road is narrow (a Foundry with neither v14's ForcedDeletion nor Daggerheart's _del), so it stays a text nit.",
+   "evidence": [
+    "scripts/voice.mjs:1714-1717 const gone = forcedDeletion(); if (!gone) { await trialMuteStore.drop(user.id); whisperToGms(`<p>${esc(game.i18n.format(\"DRPG.Voice.trialMuteLeft\", { name: user.name }))}</p>`);",
+    "lang/en.json:5859 \"trialMuteLeft\": \"{name}'s microphone is still blocked after the trial. Unblock it in “Who you hear” on the voice tile.\",",
+    "scripts/voice-tile.mjs:1555-1556 const ids = room?.state === \"connected\" ? [...new Set([...(room.remoteParticipants?.values?.() ?? [])].map(p => participantUser(watch.client, p, room)?.id).filter(Boolean))] : [];"
+   ],
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 5,
+  "stands": 4,
+  "weakened": 1,
+  "refuted": 0
+ },
+ "not_established": [
+  {
+   "what": "Finding 1: whether avclient-livekit 0.6.8 maps a participant whose BROADCAST_AUDIO is false to its user (getParticipantFVTTUser), so that the victim's list names the veiled killer and not only counts them.",
+   "live_check": "the reader's new live check (an addition to LIVE-E112-01): the veil's voice list and count on the victim's and a bystander's browser, mid-day and after an Eclipse"
+  },
+  {
+   "what": "Finding 2: what Foundry 14.370's i18n.format writes for the missing {name} (the braces or 'undefined'); the defect stands either way.",
+   "live_check": "the reader's new live check: the voice tile's microphone in an Objection"
+  },
+  {
+   "what": "hints_for_other_passes.controls: the gear's Voice radios show 'Always on' for a stored mode 'activity'; whether that is a mislabel depends on avclient-livekit 0.6.8 (external) and was not settled by the reader or here.",
+   "live_check": "the reader's new live check: the gear's Voice section on a fresh browser profile"
+  },
+  {
+   "what": "base-run.json did not exist when the reader wrote; no result of R7103, R834, R5201, R1035 or E110-T2 is read here either.",
+   "live_check": "read audit/findings-1.2.118/base-run.json when it is written"
+  }
+ ]
+}

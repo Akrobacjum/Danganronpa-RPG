@@ -1,0 +1,307 @@
+{
+ "refuter": "verify-stages-02",
+ "of": "stages-02",
+ "method": "Each promise marked yes, each grade and each finding (all three are nit; there is none of minor or above) read against b5a29e73's source at the cited lines, the release notes, the registry, CALIBRATION.md and LOCAL-REPORT.md; the 'partly' and 'unread' promises read too. Nothing run; static reading, git log and grep only.",
+ "checked": [
+  {
+   "ref": "E30 promise 1",
+   "claim": "runTests() defaults to tier 1; tier 2 opens a window naming the world with Cancel first and default; an open incident refuses tier 2 without a window",
+   "verdict": "stands",
+   "why": "The clamp, the confirm before the run, the window's text and its buttons are as cited; the drawn window was read on 14.370 (LIVE-E30-10). No caller found that reaches runSuite at tier 2 without confirmTier2 except the open-incident road the notes name.",
+   "evidence": "scripts/tests.mjs:155 \"tier = [0, 1, 2].includes(Number(tier)) ? Number(tier) : 1;\"; :159 \"if (tier === 2 && !game.drpg?.murderState?.()) { if (await confirmTier2(confirmed) !== \\\"run\\\")\"; :200-201 \"{ action: \\\"cancel\\\", ... default: true }, { action: \\\"run\\\", ...\"; docs/dev/e58/LOCAL-REPORT.md:512 \"the drawn window: world named, Cancel first and focused, Enter cancels\""
+  },
+  {
+   "ref": "E30 promise 2",
+   "claim": "The result line gains a fourth number, red, only when it is not zero",
+   "verdict": "stands",
+   "why": "The summary is built exactly so; expectedRed and the runner's verdicts are where cited.",
+   "evidence": "scripts/tests.mjs:656 \"`${passed} passed, ${failed} failed, ${skipped} skipped${red ? `, ${red} red until a later stage` : \\\"\\\"}`\"; scripts/tests-kit.mjs:195 \"function expectedRed(stage, why, { failing = null } = {})\""
+  },
+  {
+   "ref": "E30 promise 3",
+   "claim": "An Assistant GM's relay request is judged like a player's",
+   "verdict": "stands",
+   "why": "forwardsUnjudged passes only role GAMEMASTER; LIVE-E30-06 is recorded as measured on 14.370 in LOCAL-REPORT.md (CALIBRATION.md:31 says not run there, but LOCAL-REPORT's later pass 2 replays 17's B1, C2, C3).",
+   "evidence": "scripts/relay-guard.mjs:397-399 \"export function forwardsUnjudged(sender) { return sender?.role === CONST.USER_ROLES.GAMEMASTER; }\"; docs/dev/e58/LOCAL-REPORT.md:457 \"31 (LIVE-E30-06) | measured (pass 2) | scenario 17's B1, C2 and C3 replayed with a scratch Assistant account\""
+  },
+  {
+   "ref": "E30 promise 4",
+   "claim": "migrateRemnants moves the key into the ledger, reads the row back, and only then strips the token; a Faint Prep promotion is carried; the summary lists carried, not carried, left alone and failed",
+   "verdict": "stands",
+   "why": "Read migrateRemnantToken's body as well as the header: the row is read from storage (remnantStore.persisted) and a field not held as written leaves the token untouched (unwritten). Holds by code reading only: the tier-2 test has no verdict and LIVE-E30-07 and the drill never ran, as the reader says.",
+   "evidence": "scripts/remnants.mjs:2934-2938 \"const row = key ? remnantStore.persisted(key) : null; done.unwritten = Object.entries(written.fields).filter(([field, value]) => value !== undefined && row?.[field] !== value)\"; :2676 \"await remnantStore.whenHydrated();\"; :2690-2693 the carried / notCarried / leftAlone / failed lists"
+  },
+  {
+   "ref": "E30 promise 5",
+   "claim": "npm test runs lint, checks, the gate's self-test, the suite and every scenario; GitHub runs it on each push and pull request (holds partly)",
+   "verdict": "stands",
+   "why": "The 'partly' stands and has a second reason the reader did not give: npm test runs only the scenarios whose layers include ci, not every scenario. The missing pull_request trigger is a recorded decision (ci.yml header).",
+   "evidence": "audit/harness/run-all.mjs:304 \"all.filter(s => s.name !== SUITE && Array.isArray(s.layers) && s.layers.includes(\\\"ci\\\"))\"; .github/workflows/ci.yml:46-47 \"No pull_request trigger: a PR from a line branch would run every job twice\"; :60-62 \"on: push: branches: [main, 'claude/**']\""
+  },
+  {
+   "ref": "E30 promise 6",
+   "claim": "A test that measures nothing fails; the contract's rules are read off the tier files",
+   "verdict": "stands",
+   "why": "runOne fails a test with no assertion, and the kit's self-tests plant 'an empty test' and 'a loop over nothing' with the expected verdict. The 'check contract' green line comes from a scratch log outside the repository, so it is not verifiable here; R154-R160 rest on tiers 0-1 totals.",
+   "evidence": "scripts/tests-kit.mjs:479 \"if (!ctx.assertions) return fail(\\\"measured nothing: no ok() or equal() ran\\\");\"; :510-511 \"{ expect: \\\"fail\\\", says: \\\"measured nothing\\\", entry: [\\\"an empty test\\\", () => {}] }\""
+  },
+  {
+   "ref": "E30 promise 7",
+   "claim": "No update in the module spells a deletion or replacement with -= or ==",
+   "verdict": "stands",
+   "why": "R152 scans every literal and proves itself on a planted sample first; a grep over scripts/ for a quoted key segment starting -= or == found one hit, in a comment (sheet-audit.mjs:1091).",
+   "evidence": "scripts/tests-tier0.mjs:5971-5974 the planted sample and \"the scan does not find the three writes it was built to find\"; scripts/sheet-audit.mjs:1091 \" * deletes all of that key, so the path is cut there and stripped (`system.==resources.hope.value`\" (a comment)"
+  },
+  {
+   "ref": "E30 grade",
+   "claim": "8",
+   "verdict": "stands",
+   "why": "One promise held by code reading only (the migration) and one partly, by a later recorded decision (no PR trigger; scenarios by layer). Under 11.4 a 'partly' points to 7, but a promise changed on purpose by a later stage is not one delivered in part, and the main goal (the contract) is measured by tiers 0-1. Not marked provisional after L1 though LIVE-E30-07 is open (BRIEF rule).",
+   "evidence": "audit/AUDIT-1.2.42.md:96 \"| 8 | dziala, z jednym-dwoma `minor` | obietnice dowiezione, ale jedna trzyma sie tylko odczytem kodu albo ma `minor` |\" (Polish letters dropped)",
+   "grade_after": 8
+  },
+  {
+   "ref": "E30-1",
+   "claim": "R152's name and message and five comments say -= removes nothing on v14, against the 14.370 reading",
+   "verdict": "stands",
+   "why": "Every cited line says it; tests-tier2.mjs:52117 even claims LIVE-E30-01 confirms it, while CALIBRATION.md records the opposite. The ownership comments are a different, correct reading. A text nit.",
+   "evidence": "scripts/utils.mjs:997 \" * `-=key` removes nothing in this Foundry\"; scripts/tests-tier2.mjs:52116-52118 \"`-=` keys, which remove nothing in this Foundry (the module's own notes; LIVE-E30-01 confirms it on v14)\"; docs/dev/e39/CALIBRATION.md:20 \"deleted on both; no `-=` key stored; `==` replaced the object whole\"",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "E31 claim_sources",
+   "claim": "The promises are cited to v1.2.62.md lines 63-108",
+   "verdict": "weakened",
+   "why": "v1.2.62.md has 54 lines; every E31 source line number (71-73, 74-78, 79-82, 104-108, 83-84, 85-86, 87-88, 63-66) points past the file's end. The texts quoted are there, at 11-13, 14-18, 19-22 and 46-48, 23-24, 25-26, 27-28 and 3-5. The promises are right; their places are not.",
+   "evidence": "wc -l .github/release-notes/v1.2.62.md: 54; v1.2.62.md:11-12 \"**When the GM's client refuses something a player asked for, the player now sees what was not carried out and why**\""
+  },
+  {
+   "ref": "E31 promise 1",
+   "claim": "A refused request is told to the player with what and why, in their language",
+   "verdict": "stands",
+   "why": "sayNotDone composes the line on the asker's client from closed lists; a code off the list is shown as refused. LIVE-E31-06 read in Polish under an English GM.",
+   "evidence": "scripts/bridge-guards.mjs:582-588 \"const code = REASONS.includes(reason) ? reason : \\\"refused\\\"; const said = game.i18n.format(\\\"DRPG.Bridge.notDone\\\", {\"; docs/dev/e58/LOCAL-REPORT.md:460 \"PlayerOne's toast \\\"Prosba ...nie zostala wykonana.\""
+  },
+  {
+   "ref": "E31 promise 2",
+   "claim": "A failed request is reported once; no GM or no answer gives one message, with the nothing-spent sentence",
+   "verdict": "stands",
+   "why": "The one waiter notifies through sayNotDone; the sentence's key now reads 'You keep your action and your Hope.' (meaning kept, words changed). LIVE-E31-03 read its first half with one notice.",
+   "evidence": "scripts/bridge-guards.mjs:2118-2124 \"const waiter = createWaiter({ ... notify: (action, reason, opts) => sayNotDone(action, reason, opts),\"; lang/en.json:4912 \"nothingSpent\": \"You keep your action and your Hope.\"; LOCAL-REPORT.md:458 \"one notice at 183 s\""
+  },
+  {
+   "ref": "E31 promise 3",
+   "claim": "No success line before the GM has done the work (holds partly)",
+   "verdict": "weakened",
+   "why": "The 'partly' rests on Analyze's line (not in the notes' list) and the Reroll (moved to the GM on purpose by E08+E28). The rows the notes name all declare answer \"reply\" in today's table: the loot, the Level Up offer, the project share, Plant and Steal (Palm's lines), the Eclipse move. So nothing read shows a listed row broken; what remains unread is whether each caller waits on the reply. Nearer 'yes, by the table', with the Reroll superseded.",
+   "evidence": "scripts/bridge-table.mjs:302/310 ACTION_ADVANCEMENT_OFFER answer: \"reply\"; :397/405 ACTION_PLANT \"reply\"; :483/491 ACTION_STEAL \"reply\"; :761/781 ACTION_SHARE \"reply\"; :902/912 ACTION_LOOT \"reply\"; :1066/1072 ACTION_ECLIPSE_MOVE \"reply\"; v1.2.62.md:19-21 the list (no Analyze)"
+  },
+  {
+   "ref": "E31 promise 4",
+   "claim": "A Search in another room is refused once, with its reason, and recorded on the judged scene",
+   "verdict": "stands",
+   "why": "The reader cited no line; the guard records the place it judged keyed by ctx and the run reads it back, as stated. The card's wording was not read.",
+   "evidence": "scripts/search-tokens.mjs:589-591 \"const where = actor ? locateActor(actor, { sceneId: payload.sceneId ?? null }) : null; judgedPlace.set(ctx, where); return searchSpendRefusal(...)\"; :616-618 searchSceneOf \"return judged.get(ctx)?.scene?.id ?? payload.sceneId ?? null;\""
+  },
+  {
+   "ref": "E31 promise 5",
+   "claim": "A Daggerheart relay refusal is told to the player",
+   "verdict": "stands",
+   "why": "reportRefusal ends by telling the sender with code relay; the key exists in both languages. Held by code reading only: no tier 0-1 test is named and both scenarios have no verdict.",
+   "evidence": "scripts/relay-guard.mjs:1189 \"tellRefused(sender.id, \\\"daggerheart\\\", null, \\\"relay\\\");\"; lang/en.json:4950 \"relay\": \"Only the GM can make that change.\"; lang/pl.json:5297"
+  },
+  {
+   "ref": "E31 promise 6",
+   "claim": "Windows handed off close without their animation",
+   "verdict": "stands",
+   "why": "handOff closes with animate false and runs the work after the close, even when it fails; LIVE-E31-05 measured 14-19 ms.",
+   "evidence": "scripts/live.mjs:801 \"closing = Promise.resolve(dialog?.close?.({ animate: false }));\"; LOCAL-REPORT.md:459 \"the work ran 14-19 ms after the hand-off\""
+  },
+  {
+   "ref": "E31 promise 7",
+   "claim": "One table, one runner, whitelisted fields, one leaf for who asks",
+   "verdict": "stands",
+   "why": "BRIDGE_ACTIONS rows carry guards and pick() whitelists; R161-R163 are E31's stamped rows (registry). Not refuted.",
+   "evidence": "scripts/bridge-table.mjs:906-907 \"sanitize: pick({ takerId: as.id, bodyId: as.id, ...\"; docs/dev/R-REGISTRY.md:171 \"| R161 | 0 | E31 | who asks, and whether a GM is there, is answered in one leaf, with no import cycle |\""
+  },
+  {
+   "ref": "E31 grade",
+   "claim": "8",
+   "verdict": "stands",
+   "why": "With promise 3 nearer yes than partly, one promise (the relay told) holds by code reading only and 33-bridge-paths has no verdict: 8 by 11.4. The wrong release-note line numbers do not move the grade. Not marked provisional after L1 though three live checks are open.",
+   "evidence": "audit/AUDIT-1.2.42.md:96 (the 8 row)",
+   "grade_after": 8
+  },
+  {
+   "ref": "E31-1",
+   "claim": "sayNotDone's comment quotes 'Nothing was spent.', which the language files no longer hold",
+   "verdict": "stands",
+   "why": "Confirmed, and wider than written: five more comments quote the old sentence (calls.mjs:233, bridge-asks.mjs:763, :800, :824, call-gm.mjs:902) and tier 2's at :38460. A text nit.",
+   "evidence": "scripts/bridge-guards.mjs:567 \" * sentence of its reason, and \\\"Nothing was spent.\\\" where the asker says so.\"; lang/en.json:4912 \"nothingSpent\": \"You keep your action and your Hope.\"; scripts/bridge-asks.mjs:763 \"so a failure says \\\"Nothing was spent.\\\"\"",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "E04 promise 1",
+   "claim": "The case lives in the GMs' browsers, exchanged field by field, newer wins",
+   "verdict": "stands",
+   "why": "The engine and its 66 store rows are as cited (openGmStoreEngine is at :1737, one line off). The real-table clock defect (LIVE-E04-01) is fixed by 71b726a6, an ancestor of b5a29e73; epochClock is at config.mjs:503.",
+   "evidence": "scripts/gm-store.mjs:1737 \"export async function openGmStoreEngine() {\"; grep -c 'defineGmStore(' scripts/gm-stores.mjs: 66; scripts/config.mjs:503-504 \"export function epochClock(serverTime, local) { return isEpochStamp(serverTime) ? Number(serverTime) : local;\""
+  },
+  {
+   "ref": "E04 promise 2",
+   "claim": "A player's browser holds only its part, asked again and sent again after a restore",
+   "verdict": "stands",
+   "why": "The rows carry `from` and `afterRestore` (retellDoor, retellCast, retellDeaths, retellOffers ...), as code.md says; the engine's road for a copy was not walked by the reader or by me, so this stands on the rows and R176/R182 by name.",
+   "evidence": "scripts/gm-stores.mjs:313 \"from: \\\"mastermind\\\", resetGroup: \\\"mastermind\\\"\"; :154 \"afterRestore: () => import(\\\"./mastermind.mjs\\\").then(m => m.retellDoor())\"; :432 \"... m.retellCast()\""
+  },
+  {
+   "ref": "E04 promise 3",
+   "claim": "Back up and Restore merge only what is newer, with a preview",
+   "verdict": "stands",
+   "why": "backupCase and restoreCase exist with the otherWorld option; the file read is as cited. The merge rule rests on R173/R181 by name.",
+   "evidence": "scripts/gm-stores.mjs:2287 \"export async function backupCase({ ask = false } = {})\"; :2431 \"export async function restoreCase(file, { otherWorld = false, beforeCut = false, ...\"; :2949 readTextFromFile"
+  },
+  {
+   "ref": "E04 promise 4",
+   "claim": "A health check names what is missing and offers the three roads",
+   "verdict": "stands",
+   "why": "gmStoreHealth exists (:2554); the offers rest on R174/R185 by name.",
+   "evidence": "scripts/gm-stores.mjs:2554 \"export async function gmStoreHealth() {\""
+  },
+  {
+   "ref": "E04 promise 5",
+   "claim": "The season reset is the primary's; another GM is told who; the window waits for the copies",
+   "verdict": "stands",
+   "why": "As cited.",
+   "evidence": "scripts/season-wipe.mjs:223-226 \"if (!isPrimaryGm()) { const name = game.users.get(primaryGmId())?.name ?? \\\"?\\\"; ui.notifications.warn(game.i18n.format(\\\"DRPG.GmStore.resetPrimaryOnly\\\", { name }));\"; :230 \"await whenGmStoresHydrated();\""
+  },
+  {
+   "ref": "E04 promise 6",
+   "claim": "An Analyze or a handover with no key, or stores not open within 16 s, is refused and paid back",
+   "verdict": "stands",
+   "why": "The two codes refund the Analyze's price; the handover is refused (it costs nothing, so nothing is paid back - its own comment); the bound is 16000 ms; the GMs told once per bullet.",
+   "evidence": "scripts/action-analyze.mjs:171 \"const KEY_REFUSALS = new Set([\\\"answerKeyMissing\\\", \\\"keysNotOpen\\\"]);\"; :237 \"if (charge && KEY_REFUSALS.has(refusedFor)) await refundPrice(actor, charge);\"; scripts/config.mjs:458 \"gmStoreOpenMs: 16000,\"; scripts/analyze.mjs:34-35 \"if (keyMissingTold.has(item.uuid)) return; keyMissingTold.add(item.uuid);\"; scripts/handover.mjs:270 \"A handover costs nothing, so nothing is handed back.\""
+  },
+  {
+   "ref": "E04 promise 7",
+   "claim": "A world from v1.1.0 keeps its safeword; the suite waits for the load's writes",
+   "verdict": "stands",
+   "why": "worldWasInPlay reads the stored clock, the module's actor flags and a table's category, as cited; R179/R188 by name.",
+   "evidence": "scripts/migrate.mjs:1549 \"export function worldWasInPlay({ world = null, actors = [], tables = [] } = {})\"; :1562 \"if ([...(actors ?? [])].some(actor => Object.keys(ours(actor)).some(key => key !== \\\"monokuma\\\"))) return true;\""
+  },
+  {
+   "ref": "E04 promise 8",
+   "claim": "Nothing leaves world data before the store reads it back; a failed clause leaves no stamp",
+   "verdict": "stands",
+   "why": "A failing clause is listed, the stamp not written and a permanent notice shown, as cited.",
+   "evidence": "scripts/migrate.mjs:1692-1702 \"ui.notifications.error(game.i18n.format(\\\"DRPG.Migrate.failed\\\", {...}), { permanent: true }); log(\\\"Migration: stamp NOT written, because a clause failed.\\\", report); return report;\""
+  },
+  {
+   "ref": "E04 grade",
+   "claim": "7",
+   "verdict": "refuted",
+   "why": "11.4 gives 7 for several minors or one promise delivered in part. The reader holds all eight promises 'yes', has one nit and no minor; every promise names a tier 0-1 R test (R169-R189, passed by totals). The reasons given against 8 - a real-table defect already fixed by E90 before 1.2.118, open live checks (which cap at 9, not 7), a partly read live check whose odd field is not established as a defect, a scenario with no verdict - are not anchors of the 7 row. E05 carries the same kind of fixed real-table defect (LIVE-E05-13) at 8 in the same file. At most 8 (per-test results inferred from totals, 61 unread), provisional after L1.",
+   "evidence": "audit/AUDIT-1.2.42.md:97 \"| 7 | dziala w zwyklej sytuacji, kilka `minor` albo jedna obietnica dowieziona w czesci | jak obok |\"; stages-02.json E04 promises 1-8 all \"holds\": \"yes\", findings [E04-1 nit]",
+   "grade_after": 8
+  },
+  {
+   "ref": "E04-1",
+   "claim": "Two comments say v14's socket return is unmeasured, though LIVE-E04-04 read one road",
+   "verdict": "stands",
+   "why": "Both comments say so; the reading of one road (a console's disconnect) is recorded. A real drop is still unmeasured, so the comments are incomplete rather than false. A text nit.",
+   "evidence": "scripts/gm-store.mjs:1744 \"// arrive with the states. Whether v14's socket emits \\\"connect\\\" again is LIVE-E04-04.\"; scripts/frisk.mjs:1028 \"A drop without a reload is not measured on v14, nor whether its socket emits \\\"connect\\\" again\"; LOCAL-REPORT.md:453 \"`connect` again 10 s later, no reload\"",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "E05 commits_note",
+   "claim": "4 later commits name E05",
+   "verdict": "weakened",
+   "why": "git log -E --grep '\\bE05\\b' (and --grep 'E05') finds 3: 67d525f6, 10d07d9b, 4a17f888. f0ea4293's message ('the local gate's record for 1.2.80') does not name E05.",
+   "evidence": "git log --oneline -E --grep '\\bE05\\b' | wc -l: 3; git show -s f0ea4293: \"audit/gate/local-gate.json: the local gate's record for 1.2.80\""
+  },
+  {
+   "ref": "E05 promise 1",
+   "claim": "Trap and saboteur fields are out of world data, held by one rule",
+   "verdict": "stands",
+   "why": "WORLD_SECRET_RULES.settings.projectMeta lists the fields, since E05 C1, with the later additions.",
+   "evidence": "scripts/world-secrets.mjs:70 \"fields: Object.freeze([\\\"killerId\\\", \\\"by\\\", \\\"condition\\\", \\\"trigger\\\", \\\"saboteur\\\", ...\"; :72 \"since: \\\"E05 C1\\\"\""
+  },
+  {
+   "ref": "E05 promise 2",
+   "claim": "The Eclipse's dark is the GMs'; a declaration outside an Eclipse is refused; crossings judged by the primary, the card naming the room crossed into",
+   "verdict": "weakened",
+   "why": "The refusal and the card's room are where cited, and 67d525f6 is an ancestor of b5a29e73. But this promise was wrong at a real table from 1.2.64 to 1.2.117 (LIVE-E05-13), its fix is checked only on the harness's model, and its stage tests are tier 2 with no verdict; routeLegs's logic was not traced by the reader or by me. 'yes' is code reading of names, not a road traced; 'partly read' is the honest grade of the evidence.",
+   "evidence": "scripts/bridge-runs-acts.mjs:872 \"if (!eclipse.eclipseId()) return { refused: \\\"no Eclipse is running\\\" };\"; scripts/eclipse.mjs:1237 \"const into = crossedInto(actor, to) ?? roomOfActor(actor);\"; LOCAL-REPORT.md:478 \"65 (LIVE-E05-13) | measured; **a defect found, open** (pass 2)\""
+  },
+  {
+   "ref": "E05 promise 3",
+   "claim": "The key plan is the GMs' a chapter at a time; a note is the GMs' and its writer's",
+   "verdict": "stands",
+   "why": "keyPlanStore is a store row; LIVE-E05-10 read the no-GM save as expected. Its tests are tier 2 only.",
+   "evidence": "scripts/gm-stores.mjs:1653 \"export const keyPlanStore = defineGmStore({\""
+  },
+  {
+   "ref": "E05 promise 4",
+   "claim": "A death is kept until found; two predicates; the trial asks only for known deaths",
+   "verdict": "stands",
+   "why": "The two predicates, publishDeath and the trial's count exist where cited; R192, R193, R199 are E05's rows. The dead marker is open (LIVE-E05-03), as said.",
+   "evidence": "scripts/settings.mjs:3800 \"export function isDeceased(actor) {\"; :3817 \"export function isDeadForGm(actor) {\"; scripts/death.mjs:521 \"export async function publishDeath(actor, ...\"; scripts/incident-store.mjs:1708 \"export function countsAtTrial(row, untold) {\""
+  },
+  {
+   "ref": "E05 promise 5",
+   "claim": "The Reinforced Level Up waits for the class (holds unread)",
+   "verdict": "stands",
+   "why": "The reader's 'unread' is honest. Read here: the design comment and the store say what the promise says (1 + 3 in one window and one write, or at the Final Trial's verdict; lapses at a kill and a reset), and verdict.mjs counts the waiting rows from deferredOfferStore. Still a comment-and-store reading, not a traced road; LIVE-E05-08 open.",
+   "evidence": "scripts/level-up.mjs:1057-1060 \"so the Reinforced waits for the class's next correct verdict and is picked with that survivor's Standard, 1 + 3 picks in one window and one write; or for the Final Trial's verdict\"; scripts/verdict.mjs:927-930 \"await deferredOfferStore.whenHydrated(); ... if ((deferredOfferStore.get(actor.id)?.at ?? 0) >= context.record.at) waiting++;\""
+  },
+  {
+   "ref": "E05 promise 6",
+   "claim": "The Despair counters are the GMs'; owed drop paid at the next time of day",
+   "verdict": "stands",
+   "why": "despair.mjs's header and its import of despairOwedStore are as cited; R196/R200 are E05's rows.",
+   "evidence": "scripts/despair.mjs:15-16 \"is owed, and the pool pays it at the next time of day (E05 C12\"; :23 \"import { despairOwedStore } from \\\"./gm-stores.mjs\\\";\""
+  },
+  {
+   "ref": "E05 promise 7",
+   "claim": "A trace's token keeps its neutral name and '?' picture on every screen",
+   "verdict": "weakened",
+   "why": "The promise is about what every screen draws, and the drawing is measured nowhere: the tier-2 test stands down headless (skip-baseline env.canvas), LIVE-E05-05 and -14 are open, and shownOnTrace's body was not quoted. 'yes' claims the screen half that the reader's own note says is unmeasured; it holds by code reading at most.",
+   "evidence": "audit/harness/skip-baseline.json:28 \"{ \\\"test\\\": \\\"a found trace's token keeps the neutral name\\\", \\\"probe\\\": \\\"env.canvas\\\" }\"; scripts/remnant-icons.mjs:112 \"export function shownOnTrace(tokenDoc) {\""
+  },
+  {
+   "ref": "E05 promise 9",
+   "claim": "Voice at the kill, and the LiveKit secret warning (holds partly)",
+   "verdict": "stands",
+   "why": "The voice half is the owner's A9 replacing it on purpose (voice.mjs header); the warning's pure function is where cited.",
+   "evidence": "scripts/voice.mjs:957-958 \"THE DEAD CHANNEL. A student dead in the GMs' records ... keeps the voice of the room they lie in until the first of A9's triggers\"; :2420-2421 \"A self-hosted LiveKit server's API secret, kept in a world setting (E05 C15\""
+  },
+  {
+   "ref": "E05 promise 10",
+   "claim": "The primary moves each secret into the store and reads back before removing; a failed step leaves no stamp",
+   "verdict": "stands",
+   "why": "17 clauses since 1.2.64 are right in count, but they run from migrate.mjs:559 to :857, not 559-722 (only 9 fall in that range). The failed-clause road is as cited.",
+   "evidence": "grep -n 'since: \"1.2.64\"' scripts/migrate.mjs: 559, 602, ..., 839, 857 (17); scripts/migrate.mjs:1700 \"log(\\\"Migration: stamp NOT written, because a clause failed.\\\", report);\""
+  },
+  {
+   "ref": "E05 grade",
+   "claim": "8",
+   "verdict": "weakened",
+   "why": "8's anchor allows one promise held only by code reading. Here three promises (2 the crossings, 3 the key plan and notes, 7 the neutral token) rest on tier-2 tests with no verdict and code reading alone, one of them (2) broken at a real table until 1.2.117 and fixed unmeasured there, another (7) claiming a drawing measured nowhere; promise 5 not traced by the reader; one 'partly' by decision. That is the 7 row's 'works in the ordinary situation' more than the 8 row. Not marked provisional after L1.",
+   "evidence": "audit/AUDIT-1.2.42.md:96-97 the 8 and 7 rows; stages-02.json E05 promise 2 test \"tier 2 'E05 C3' and 'E05 C4'\", promise 3 test \"tier 2 'E05 C5'\", promise 7 test \"tier 2 ... skipped headless\"",
+   "grade_after": 7
+  }
+ ],
+ "counts": {
+  "checked": 40,
+  "stands": 33,
+  "weakened": 6,
+  "refuted": 1
+ },
+ "not_established": [
+  "Per-test results of R151-R200: base-run.json does not exist, so 'passed' for every row rests on the first session's tiers 0-1 totals (1776 passed, 0 failed, 16 skipped), as the reader says; neither of us read a row on its own line.",
+  "E31 promise 3: whether every caller of the 'reply' rows waits on the reply before it posts a success line (the table declares it; each caller not traced). A script over the callers of requestLoot, requestShare, requestEclipseMove, the Plant and Steal asks would settle it.",
+  "E05 promise 2: routeLegs's charging logic on 1.2.118 at a real table (LIVE-E39-11, a mouse drag; LIVE-E05-13 again on 1.2.118).",
+  "E04 LIVE-E04-08's older cast field (deniedToVictim) - neither a defect nor its absence is shown; it does not belong in the grade until read.",
+  "BRIEF rule not met by the reader: none of the four grades is marked provisional: \"after L1\", though each rests in part on unread live checks, and no not_established entry carries an l1 block. Not a code question; noted for the coordinator."
+ ]
+}

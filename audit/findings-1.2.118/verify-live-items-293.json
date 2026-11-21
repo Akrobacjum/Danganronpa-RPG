@@ -1,0 +1,89 @@
+{
+ "refuter": "verify-live-items-293",
+ "of": "live-items-293",
+ "checked": [
+  {
+   "ref": "294",
+   "claim": "LIVE-E18-02 partly read, agrees: part (5)'s order of userConnected before bridge.gmReady measured on 14.370; parts (1)-(4) not driven",
+   "verdict": "stands",
+   "why": "The reading exists in both papers, dated 16.11.2026, Foundry 14.370, module 1.2.116 (ff3e12e5); it is the order part (5) asks (userConnected against bridge.gmReady as a GM's page loads), and the reader says itself it was a first load, not a primary's F5 mid-ask, with one Gamemaster. Between ff3e12e5 and b5a29e73 no commit touches the gmReady road (git log over gm-bridge.mjs, bridge-asks.mjs, bridge-table.mjs, bridge-guards.mjs shows only 577ae715, the log copy's wiring, and 7450e430). The stale Polish refusal is confirmed: today's lang/pl.json:5357 differs from the paper's quote. Nothing in the e58-local copies drives parts (1)-(4) (no hit for the id, the number, or 'already ruled').",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:472 \"| 52 (LIVE-E04-12) | measured | on PlayerOne's page as the GM's page loaded: `userConnected(GM, true)` (active already) at +4.8 s, `bridge.gmReady` at +10.5 s\"; docs/dev/e39/CALIBRATION.md:138 \"D10, `userConnected` before ready. On 14.370 a player's browser gets `userConnected(gm, true)` when the GM's socket connects, about 5.7 s before that GM's module sends `bridge.gmReady`\"; lang/pl.json:5357 \"\\\"alreadyRuled\\\": \\\"Ta karta jest już rozstrzygnięta przez GM-a {gm}.\\\"\"",
+   "status_after": "partly"
+  },
+  {
+   "ref": "312",
+   "claim": "LIVE-E17-07 partly read, agrees: a bystander's HUD clock stays frozen without a reload (S7-9); the Motive card, the F5, the due cards and the close not read",
+   "verdict": "stands",
+   "why": "S7-9 is on 14.370, 16.11.2026, module 1.2.116, and reads the bystander's HUD stopwatch line staying 'not started' 4 s and 16 s after the GM moved morning to noon. That line discriminates: clock.mjs:178-180 stamps a new timeOfDayStartedAt on a change of time of day, so a live clock would have read '0 min in'; it stayed, which is clockForDisplay's frozen copy (hud-elapsed.mjs:199-213), the same copy hud.mjs:503 draws the time-of-day label from. Limits the reader already names or should: one move, not two; the label itself is the paper's gloss ('the display clock frozen ...'), the stopwatch the thing read; no hud-elapsed.mjs or clock-path commit between ff3e12e5 and b5a29e73 bears on it (only 64f6da99 and 170ef249 under the files checked, neither on clockForDisplay).",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:431 \"| S7-9 (CORE-06) | measured | an incident open (a drawn opening), PlayerTwo a bystander: its stopwatch \\\"not started\\\"; the GM moved the hour (`advanceTimeOfDay`, morning to noon ...): the stopwatch stayed as it was 4 s and 16 s after - the display clock frozen on the last public hour for an outsider\"; scripts/clock.mjs:178-180 \"if (((patch.timeOfDay !== undefined && patch.timeOfDay !== before.timeOfDay) || trialEdge) && patch.timeOfDayStartedAt === undefined) { next.timeOfDayStartedAt = serverNow();\"",
+   "status_after": "partly"
+  },
+  {
+   "ref": "323",
+   "claim": "LIVE-E88-01 partly read, agrees: fps({toChat:false}) output kept for the GM and PlayerOne in both themes on the sandbox desktop; not the weakest player's machine, not a player alone in fog, not the look after, not the second call",
+   "verdict": "stands",
+   "why": "PERF-READINGS.md holds the raw fps() output, 16.11.2026, at 80dfaf06 (1.2.116 plus step 3), headed Chromium 141 on WSLg: Run 1 GM and PlayerOne in Stained Glass (22, 23 fps) and Legacy (28, 31 fps), Run 2 the GM alone at 60 fps in both; the 22-31 range matches lines 100, 133, 235, 266. A grep of the paper for 'already running', 'refus', 'afterwards' finds nothing, so the second call's refusal and the look after are indeed unrecorded. LOCAL-REPORT.md:354 itself says LIVE-E88-01 is still not measured at a table. The fps code path unchanged to b5a29e73 (only 170ef249 touches diagnostics.mjs, the Debug log).",
+   "evidence": "docs/dev/e58/PERF-READINGS.md:100 \"Watched 5 s: 111 frames, 22 fps; median 50 ms, p95 50.1 ms\"; :266 \"Watched 5.02 s: 156 frames, 31 fps\"; :299 \"Watched 5 s: 300 frames, 60 fps\"; docs/dev/e58/LOCAL-REPORT.md:354 \"weakest player's machine (LIVE-E53-01, LIVE-E33-05, LIVE-E88-01) are still not measured.\"",
+   "status_after": "partly"
+  },
+  {
+   "ref": "325",
+   "claim": "LIVE-E88-02 partly read, agrees: the counter half read on the sandbox desktop ('the GM in Stained Glass and Legacy'): one halo texture worn by 3 rings and no live ring blur",
+   "verdict": "weakened",
+   "why": "The lines cited exist and do read 'Seams' light drawn once (E88 C1): 1 texture(s) worn by 3 ring(s)' and 'the ring halos' live filters nothing of it here' (haloStats and RING_HALOS, diagnostics.mjs:1954, :2039-2046, :2091). But (a) only in Stained Glass: every Legacy block reads 0 textures on 0 rings and 'nothing of it here' for the baked light too (lines 238, 248-249, 269, 335), so 'the GM in Stained Glass and Legacy' is wrong - nothing of the rings was on the Legacy screen to read; (b) the 3 rings are of an unnamed kind, so the item's 'without drpgRemnantRingGlow ... on a GM screen with many Remnants' is not shown to be read at all; (c) the item's counter half is counters() with fps() before and after, and the reading is one fps() after E88 with no before; (d) no paper or digest names the item for it (the reader says so). What stands is a thin slice: on 14.370 in Stained Glass, rings on one GM screen wore one shared texture and carried no live halo filter. 'partly' survives only as that slice.",
+   "evidence": "docs/dev/e58/PERF-READINGS.md:103 \"Seams' light drawn once (E88 C1): 1 texture(s) worn by 3 ring(s)\" (under :96 '#### stainedGlass, the GM'); :238 \"Seams' light drawn once (E88 C1): 0 texture(s) worn by 0 ring(s)\" (under :231 '#### monokumaLegacy, the GM'); :248-249 \"the ring halos' live filters       nothing of it here / the ring halos' baked light        nothing of it here\"; :335 \"0 texture(s) worn by 0 ring(s)\"",
+   "status_after": "partly (Stained Glass only, 3 rings of unnamed kind, no before reading; correct 'and Legacy')"
+  },
+  {
+   "ref": "305",
+   "claim": "LIVE-E16-06 open: no reading of the Loaded Die on a non-default dice method nor of a pre-1.2.50 Observe card",
+   "verdict": "stands",
+   "why": "Searched b5a29e73's and claude/e58-local's (7875554f) LOCAL-REPORT.md and CALIBRATION.md for 'Loaded Die', 'loadedDie', 'freeCrit', 'Free Critical' and the id: the only Loaded Die hit is tier-2 test 229 (an armed Loaded Die on the murder's opening roll, a drawn roll) failing on the sandbox with 'the Loaded Die not loaded' - a different road from the item's action the GM does not draw. No reading missed.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:89 \"229 \\\"E112 - an armed Loaded Die loads the murder's opening roll ...\\\" 1 (failed)\"; docs/dev/e58/TRIAGE-9.2.md is the only file naming LIVE-E16-06",
+   "status_after": "open"
+  },
+  {
+   "ref": "308",
+   "claim": "LIVE-E17-02 open: Refund last crossing not driven; L1's put-back reading is related, not this item",
+   "verdict": "stands",
+   "why": "No hit for 'efund' or 'Refund last crossing' in either branch's two papers; the only 'crossing' rows are item 65's Eclipse route. refundLastCrossing does write through putBackWrite (movement.mjs:3482-3493, header naming it), so L1's stale-copy reading (cal r5) bears on its road, as the reader notes, without driving the item.",
+   "evidence": "scripts/movement.mjs:3487-3488 \"So every put-back of a token's spot - `sendBack`, `refundLastCrossing` and the bridge's send-back (bridge-runs-records.mjs `handleSendback`) - writes through here\"; claude/e58-local docs/dev/e39/CALIBRATION.md:213 \"| r5 stale copy to free, diff false | undefined | [200, 300] | [300, 300] |\"",
+   "status_after": "open"
+  },
+  {
+   "ref": "309",
+   "claim": "LIVE-E17-03 open: a send-back across Levels into a locked upper room not driven",
+   "verdict": "stands",
+   "why": "The only Levels readings on the branch are a player's own move up in place (move with level: Upper) and the ignoreWalls rows (r1-r6 on one floor); grep for 'send-back', 'sendBack', 'sent back', 'locked room' finds no driven send-back across a level. No reading missed.",
+   "evidence": "claude/e58-local docs/dev/e39/CALIBRATION.md:105 \"(`move({x: 300, y: 300, level: Upper})`), then along two waypoints down again. Everything deleted after.\"",
+   "status_after": "open"
+  },
+  {
+   "ref": "310",
+   "claim": "LIVE-E17-04 open: leaving an incident, a dropped token, a bystander's reload and the Eclipse chevron not read",
+   "verdict": "stands",
+   "why": "S7-9 has no reload (part 3 is the reload case); grep for 'close it first', 'cannotLeave', 'Averted' finds nothing; the Eclipse rows (item 65) are about crossings, not a greyed chevron during a fight. No reading missed.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:431 (S7-9: no F5 in the row); docs/dev/e58/LOCAL-REPORT.md:478 \"| 65 (LIVE-E05-13) | measured; **a defect found, open** (pass 2) | an Eclipse started (`startEclipse`, Noon, 2 crossings each)\"",
+   "status_after": "open"
+  },
+  {
+   "ref": "321",
+   "claim": "LIVE-H84-05 open: a proposer's tray row, token and card for a public project in a room never stood in not read",
+   "verdict": "stands",
+   "why": "Grep for 'proposerKnows', 'sealedViewers', 'never stood' and the id finds nothing; the nearest reading, LIVE-E43-03 (item 536) on claude/e58-local, is a project card redrawing as a character walks into an undiscovered public project's room, not a proposer told at approval. No reading missed.",
+   "evidence": "claude/e58-local docs/dev/e58/LOCAL-REPORT.md:554 \"| LIVE-E43-03 (536), the open card | measured | a public project in the Gym, which Aiko had not found; PlayerOne opens its token's card ... and walks Aiko in with it open\"",
+   "status_after": "open"
+  }
+ ],
+ "counts": {
+  "checked": 9,
+  "stands": 8,
+  "weakened": 1,
+  "refuted": 0
+ },
+ "count_note": "The reader's file has 34 items: 30 open, 4 partly, no read and no obsolete; all 4 partly items checked, and 5 open ones (305, 308, 309, 310, 321), chosen for neighbouring readings (the put-back road, S7-9, the Loaded Die test, LIVE-E43-03). Its observations carry no severity of minor or above (the one rated is a nit: the Polish handbook's overflow button), so none was in scope; not checked.",
+ "not_established": [
+  "Whether the 3 rings in PERF-READINGS.md:103 and :302 include a Remnant's ring (drpgRemnantRingGlow): the paper does not name their kinds. The item's own recipe on a GM screen with many Remnants settles it.",
+  "Whether item 52's GM page load on 16.11.2026 was a first load or a reload of the GM: the row says only 'as the GM's page loaded'. A primary's F5 mid-ask (item 294 parts 1 and 5) settles it."
+ ]
+}

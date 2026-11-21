@@ -1,0 +1,181 @@
+{
+ "refuter": "verify-live-items-05",
+ "of": "live-items-05",
+ "checked": [
+  {
+   "ref": "151",
+   "claim": "LIVE-E75-03 partly, as-expected: relayGuard().state read 'ok' on the sandbox; fingerprint entry and unreviewed not written down; on 2.12.9 not 2.10.11",
+   "verdict": "stands",
+   "why": "The reading exists at the cited lines, filed under the paper's items 18 and 19 (AUDIT 9.2 lines 837-838, the sender and the socket API), not under 151, as the reader says. By the code 'ok' needs a non-empty fingerprint and an empty unreviewed list, so on 2.12.9 the bundle's clauses (the default one included, if 2.12.9 has it) all matched REVIEWED_CASES; whether the default-branch entry was among them was not recorded. scripts/relay-guard.mjs is unchanged between the sandbox's module (ff3e12e5, 1.2.116) and b5a29e73 (git log ff3e12e5..b5a29e73 -- scripts/relay-guard.mjs: empty). L1's branch copy adds nothing (the same two rows at lr lines 573-574). The version named by the item (2.10.11) was never read, so 'partly' is the most the reading carries.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:421 \"| 18 | measured | a `system.daggerheart` listener on the GM got PlayerOne's packet ... `relayGuard().refused` stayed empty (no `unknownSender`), state `ok`.\"",
+    "docs/dev/e58/LOCAL-REPORT.md:422 \"| 19 | measured | `game.socket.listeners`, `off`, `on`, `prependAny`: functions; `relayGuard().state` `ok` |\"",
+    "docs/dev/e58/LOCAL-REPORT.md:602 \"\\\"systemVersion\\\":\\\"2.12.9\\\"\"",
+    "scripts/relay-guard.mjs:246-247 \"status.state = unnamed ? \\\"unnamed\\\" : (!status.fingerprint.length || status.unreviewed.length) ? \\\"changed\\\" : \\\"ok\\\";\"",
+    "scripts/relay-guard.mjs:107 \"\\\"TransferItem\\\", \\\"default:EVENT_HANDLERS[data.action]?.(data.data);\\\"\""
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "153",
+   "claim": "LIVE-E75-05 partly, mixed: read on 14.370 with 2.12.9 - tier 2 not 0 failed, load not clean (fixed in 1.2.117), LIVE-E30-01 and LIVE-E05-09 repeated; duplicate of 475",
+   "verdict": "stands",
+   "why": "Every cited line holds what the reader says: the heading files the tier-2 runs under 153; the third run's count; the four registrations that threw at init; LIVE-E30-01's row on 14.370; LIVE-E05-09's row. 475's head calls itself 'LIVE-E75-05 dla wersji z 12.11.2026'. The version pair the item names was not read, and the reader says so; the item's concern (issue 14806 changing LIVE-E30-01's answer) is answered on a build after 14.369. 'partly' with 'mixed' is fair.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:10 \"## Tier 2 on the sandbox (items 75, 153, 475; 16-17.11.2026, in progress)\"",
+    "docs/dev/e58/LOCAL-REPORT.md:272-273 \"**The third run** (15:27-19:23 UTC, at d5907e1b ...): **1326 passed, 214 failed, 26 skipped** of 1566.\"",
+    "docs/dev/e39/CALIBRATION.md:50 \"four registrations at `init` threw on `game.user.isGM` (LOCAL-REPORT step 3, defect 3) | - | a module defect the shim hid; fixed\"",
+    "docs/dev/e39/CALIBRATION.md:20 \"| LIVE-E30-01 | ... deleted on both; no `-=` key stored; `==` replaced the object whole ... each wrote v14's deprecation warning\"",
+    "docs/dev/e58/LOCAL-REPORT.md:473 \"| 61 (LIVE-E05-09) | measured | utils.mjs `replaceFlag` on PlayerTwo ... `forcedDeletion()` on a message's module flags removed one key and kept the other.\"",
+    "audit/AUDIT-1.2.42.md:1442 \"475. **LIVE-E76-01 - Foundry 14.370 z Daggerheart 2.12.8 i Dice So Nice 6.4.5 (E76; LIVE-E75-05 dla wersji z 12.11.2026)\"",
+    ".github/release-notes/v1.2.118.md:194-195 \"read 1326 passed, 214 failed, 26 skipped of 1566 ... no whole run since, on any Foundry.\""
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "164",
+   "claim": "LIVE-E12-02 partly, as-expected: includedInLevel by id or Level, empty Set every floor, Level elevation {bottom, top, base}, defaultLevel0000, a move up left elevation 0; the rest not read; text names lib/shim.mjs LevelList, gone since D5",
+   "verdict": "stands",
+   "why": "The rows are at CALIBRATION.md 109, 112 and 114, read 16.11.2026 on 14.370; they answer two questions the item names in its own words (includedInLevel's argument and elevation.bottom). The paper's section 5 lists change-level behaviours, a mouse drag and walls on a route as not read. The shim's model is LevelImpl now; LevelList survives only in a comment saying 'Until D5'. The other identifiers the reader cites exist at the lines given (rooms.mjs onLevel :455, floorsOf :533; fog-doorways.mjs doorwayEdges :534; fog.mjs roomShading :2861; visibility.mjs tokenShownTo :533; _getAvailableLevels only in a comment, fog.mjs:3360; glass.mjs BLOCKS :53 with no floor entry). The mapping to 164 is the digest's, as said.",
+   "evidence": [
+    "docs/dev/e39/CALIBRATION.md:109 \"a level is `{_id, name, elevation: {bottom, top, base}, background, ...}`; every scene, the seeded ones too, has `defaultLevel0000` (0-20)\"",
+    "docs/dev/e39/CALIBRATION.md:112 \"| `includedInLevel` | by id or by the Level document; an empty Set is every floor\"",
+    "docs/dev/e39/CALIBRATION.md:114 \"| the move up in place | ... **elevation stayed 0** |\"",
+    "docs/dev/e39/CALIBRATION.md:150 \"A mouse drag on the canvas, a region's teleport and change-level behaviours, walls and doors on a route ... - left to step 4's groups.\"",
+    "audit/harness/lib/shim.mjs:844-846 \"Until D5 a scene's floors were plain `{ id, name, elevation }` rows of a `LevelList` (E12 C0) ... class LevelImpl extends BaseDocument {\""
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "165",
+   "claim": "LIVE-E12-03 partly, as-expected: MOVEMENT_FIELDS lists level; a token's level is a level id; Region#levels a Set; new region's levels, testPoint, updateRegion not read",
+   "verdict": "weakened",
+   "why": "MOVEMENT_FIELDS (:99) and Region#levels (:111) are read as said, so 'partly' holds. But the evidence presents :110 as the answer to the item's 'the level of a token dropped on the map', and its 'not in the paper' list leaves that question out: :110 reads the field's form on seeded tokens and on the scratch token moved by API, not which level a token dropped on a two-level scene gets. No paper records a drop. Also text_stale is false while the note says the text still writes the MOVEMENT_FIELDS question as unread (164's like case is marked stale); under 11.3's narrow sense (a name that no longer exists) false is defensible, but the two items are treated unevenly.",
+   "evidence": [
+    "docs/dev/e39/CALIBRATION.md:99 \"| `MOVEMENT_FIELDS` | `x, y, elevation, width, height, depth, shape, level` | the same |\"",
+    "docs/dev/e39/CALIBRATION.md:110 \"| a token's level | the field `level`, a level's id (`\\\"defaultLevel0000\\\"` on a scene without levels drawn) | `level`, an id: same |\"",
+    "docs/dev/e39/CALIBRATION.md:103-105 \"a region on each floor over the same square, one region with no levels, and a token PlayerOne owns; PlayerOne moved it up in place\"",
+    "audit/AUDIT-1.2.42.md:1024 \"jakie `levels` dostaje nowy region na scenie o dwóch poziomach, jaki `level` token upuszczony na mapę\"",
+    "scripts/rooms.mjs:413-414 \"whether v14's list names `level` was not read (LIVE-E12-03)\""
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "169",
+   "claim": "LIVE-E12-07 partly, mixed: an API route with a waypoint arrived as one update on 14.370, not a series; a mouse drag through two doors not read; the text is out of date",
+   "verdict": "stands",
+   "why": "CALIBRATION.md:93 records one update per route for an API move across three rooms; section 4 D4 and section 5 say a mouse drag was not read. The stale parts check out: D4 (9a8e4f0c) models one update a route; 1.2.118 judges each leg (movement.mjs roomsAlong :3236, routeLegs :3263, R7740); the old comment at movement.mjs:560-563 still says 'a series of updates', the new one at :1600 says one update. Two small slips that do not change the status: LOCAL-REPORT.md:478 is not 'the same move' (Dorm A to the Storage through two waypoints, and the first leg Dorm A to the Hall), and the sandbox world held no walls at all (L1 CALIBRATION, third probe), so no door was on any route read - the item's 'through two doors' half is wholly unread.",
+   "evidence": [
+    "docs/dev/e39/CALIBRATION.md:93 \"| updates per route | **one**: `preMoveToken` and `preUpdateToken` once on the mover, `updateToken` and `moveToken` once on every client |\"",
+    "docs/dev/e39/CALIBRATION.md:129-130 \"A drag by mouse (`method: \\\"dragging\\\"`, where `pending` may hold the rest of a route) was not read\"",
+    "scripts/movement.mjs:561-562 \"v14 moves a token as a series of updates, and which of them carry the pending route on a client that did not drag it has not been measured.\"",
+    "scripts/movement.mjs:1600-1601 \"Foundry 14.370 sends a route with waypoints as one update (docs/dev/e39/CALIBRATION.md section 3)\"",
+    "git show origin/claude/e58-local:docs/dev/e39/CALIBRATION.md (third probe) \"**The test world holds no wall** (the seed makes its scenes with `walls: []`)\""
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "154",
+   "claim": "LIVE-E11-01 open: no reading of the reset with project tokens",
+   "verdict": "stands",
+   "why": "No paper records a player's canvas around a reset. The nearest is L1's tier-2 test 524 ('a project token sweep removes the orphans it is given ...') on 14.370, which reads documents, not the canvas the item asks about, and the delta digest maps it to no item; it passed in the third run, failed in the fourth, passed twice alone. Not a reading of 154. applyToProjectToken is at visibility.mjs:670.",
+   "evidence": [
+    "git show origin/claude/e58-local:docs/dev/e58/LOCAL-REPORT.md:372-374 \"524 \\\"a project token sweep removes the orphans it is given ...\\\" ... Each run alone twice: 524 passed both times\"",
+    "audit/findings-1.2.118/live-readings-e58-delta.json:111 \"\\\"settles\\\": \\\"no 9.2 item named\\\"\"",
+    "scripts/visibility.mjs:670 \"function applyToProjectToken(token, projectId) {\""
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "172",
+   "claim": "LIVE-E13-01 open: no reading of three browsers taken to the hall with isometric and LiveKit",
+   "verdict": "stands",
+   "why": "Searched both papers on b5a29e73, L1's copies and the three digests for the trial's start, isometric drawing and the hall: nothing records Start the Class Trial on the sandbox; L1 lists the trial's zones on a real v14 scene as needing a local Foundry.",
+   "evidence": [
+    "audit/findings-1.2.118/live-readings-other.json:932 \"the trial hall's zones on a real v14 scene (LIVE-E73-01..04), need a local Foundry.\""
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "177",
+   "claim": "LIVE-E13-06 open: no reading found in live-readings-e58.json, live-readings-other.json or the item's text",
+   "verdict": "weakened",
+   "why": "The status holds, but the search behind it left out live-readings-e58-delta.json. That digest holds L1's tier-2 test 1103, 'entering the trial makes the cast's missing tokens in the linked hall in one create ...' (tests-tier2.mjs:70948) - the item's first half as a scripted test - run on 14.370: passed in the third run, failed in the fourth, alone failed then passed, read by the paper as timing and not read further. That is not the item's own check (a person deleting a token and reading the whisper; the whisper test at :71079 is not reported), it ran on 179c2644 whose runtime differs from b5a29e73 in 15 files, and the digest names no item, so 'open' stays; the reading belongs in the item's evidence and in its l1 recipe.",
+   "evidence": [
+    "git show origin/claude/e58-local:docs/dev/e58/LOCAL-REPORT.md:372-375 \"1103 \\\"entering the trial makes the cast's missing tokens ...\\\" ... 1103 failed then passed. Not a steady regression of the merge ... Not read further.\"",
+    "audit/findings-1.2.118/live-readings-e58-delta.json:110 \"\\\"module_commit\\\": \\\"179c2644 ... against b5a29e73 15 runtime files differ\"",
+    "scripts/tests-tier2.mjs:70948 \"[\\\"entering the trial makes the cast's missing tokens in the linked hall in one create and leaving deletes only those\""
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "179",
+   "claim": "LIVE-E13-08 open: whether a player may change their own token's hidden on v14 not read",
+   "verdict": "stands",
+   "why": "No row in either paper or digest reads a player's write of hidden on their own token or castPutBack's answer; the only hidden reading on the sandbox is LIVE-E112-01's veil (another item). castPutBack exists at trial-scene.mjs:1109.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:366 \"| LIVE-E112-01 (553), the veil | **a defect found; open** | ... Chie's token `hidden` and `veiled`\"",
+    "scripts/trial-scene.mjs:1109 \"export function castPutBack(tokenDoc, changed, options, user, hall = trialScene(), held = heldHidden(tokenDoc, hall)) {\""
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "183",
+   "claim": "LIVE-E81-01 open: R294 never ran on a real Foundry; the sandbox runs are tier 2 alone",
+   "verdict": "stands",
+   "why": "The sandbox's whole runs are tier 2 (LOCAL-REPORT.md:79, 204, 272); R294 is tier 1. The nearest reading, item 23's toasts (v14 sanitises <img> handlers and <script>), is about notifications, not cleanHTML on a history card, so it does not settle 183.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:79 \"**The whole run, read** (17.11.2026 03:40-07:10 UTC, at 3bfb45a8; 1565 tests, each its own call)\"",
+    "docs/dev/e58/LOCAL-REPORT.md:425 \"| 23 | measured | v14's toasts are not escaped but sanitised: `<b>`, `<img>`, `<a>` kept as elements; `onerror`, `javascript:` and `<script>` removed\"",
+    "scripts/secret.mjs:569 \"export function cleanCardHtml(html) {\""
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "observation 9 (glass sweep sizes)",
+   "claim": "The sweep's size count is written three ways: item 184 says 22, glass-sweep.mjs:2 and CLAUDE.md say 23, the default list holds 25",
+   "verdict": "stands",
+   "why": "Counted the default --sizes list: 25 entries. The file's header says 23; AUDIT:1049 says 22.",
+   "evidence": [
+    "audit/glass-sweep.mjs:2 \"The glass harness at the 23 sizes, in Chromium\"",
+    "audit/glass-sweep.mjs:283-284 \"1920x1080,1366x768,2560x1440, ... 1366x560,844x390,640x360\" (25 sizes)",
+    "audit/AUDIT-1.2.42.md:1049 \"mierzy to funkcją `drpgNoticeCheck` we wszystkich 22 rozmiarach\""
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "observation 10 (movement.mjs comments)",
+   "claim": "movement.mjs holds two comments that disagree about how v14 writes a route",
+   "verdict": "stands",
+   "why": "Both comments read as quoted; the older one contradicts the 14.370 reading the newer one cites.",
+   "evidence": [
+    "scripts/movement.mjs:561 \"v14 moves a token as a series of updates\"",
+    "scripts/movement.mjs:1600 \"Foundry 14.370 sends a route with waypoints as one update\""
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "observation 7 (uncited ids)",
+   "claim": "LIVE-E11-02, LIVE-E12-07, LIVE-E13-07 (among others) are cited nowhere outside the list and the triage",
+   "verdict": "stands",
+   "why": "git grep outside audit/findings-1.2.118 finds each of the three only in audit/AUDIT-1.2.42.md and docs/dev/e58/TRIAGE-9.2.md.",
+   "evidence": [
+    "git grep -l LIVE-E11-02 / LIVE-E12-07 / LIVE-E13-07 -- . ':!audit/findings-1.2.118' -> audit/AUDIT-1.2.42.md docs/dev/e58/TRIAGE-9.2.md"
+   ],
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 13,
+  "stands": 11,
+  "weakened": 2,
+  "refuted": 0
+ },
+ "scope_note": "Checked every item of status read, partly or obsolete (5: all partly; none read or obsolete), 5 open items (154, 172, 177, 179, 183) and 3 of the 11 observations. The file's observations carry no severity, so none is 'minor or above'; the three checked are the factual ones that name a line.",
+ "not_established": [
+  "Whether Daggerheart 2.12.9's bundle carries the default clause the item names: state 'ok' says every clause read was reviewed, not which ones (the fingerprint was not written down; item 151). New live check, or the same as LIVE-E76-01: write relayGuard().fingerprint on the table's Daggerheart.",
+  "Which level a token dropped on a two-level scene gets on v14 (item 165): no paper records a drop.",
+  "Whether L1's tier-2 test 1103 (the cast's missing tokens made on entering the trial) going either way on 14.370 is timing or a defect, and whether it holds on b5a29e73's runtime (item 177): the paper did not read it further.",
+  "Whether judgeArrival holds a route through two doors lawful on v14: the sandbox world held no walls, so no door was on any route read (item 169; LIVE-E39-11 asks the drag)."
+ ]
+}

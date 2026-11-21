@@ -1,0 +1,277 @@
+{
+ "refuter": "verify-stages-01",
+ "of": "stages-01",
+ "method": "U1 (AUDIT-1.2.42.md 11.2), against BRIEF.md and 11.3-11.4: every promise marked holds yes or no and every grade, read against today's source at the cited lines, with a search for a test or scenario that pins or contradicts each test claim. The file has no finding of severity minor or above (E27-1, E03-1, E03-2 are nits), so none is checked as a finding; E03-2's quoted lines and readings were looked at in passing and match. Two of the reader's test claims are checked as entries of their own because they carry grade reasons. Read-only: no harness, npm, test or probe run; base-run.json absent, so no result is cited.",
+ "checked": [
+  {
+   "ref": "E01 promise 1",
+   "claim": "A Hope Call and a Dynamic action request is refused unless the character it names belongs to the sender (holds: yes)",
+   "verdict": "stands",
+   "why": "Both declarations carry knownSender, notSpectator and owns on actorId as cited. The promise holds more firmly than the reader says: its note's 'no driven check' is wrong (next entry).",
+   "evidence": "scripts/bridge-table.mjs:630 \"guards: [knownSender, notSpectator(\\\"actorId\\\"), owns(\\\"actorId\\\", \\\"sender does not own that character\\\")]\" (ACTION_HOPE_CALL); :662 the same three for ACTION_DIFFICULTY"
+  },
+  {
+   "ref": "E01 promise 1 (note and grade reason: no driven check sends a Hope Call or a Dynamic difficulty naming another player's student)",
+   "claim": "No check from a player's page sends call.approve or dynamic.difficulty for another player's student and reads the refusal (grep of 30-security and 33-bridge-paths)",
+   "verdict": "refuted",
+   "why": "Scenario 33 part H, the hostile-client matrix (E43 C5), reads every declaration of the four tables and, for each whose first owner guard is owns/ownsActorAt/gmOnly, sends from p1's console a packet with p2's student Botan in the covered field, then holds each cell to: delivered, refused by that very guard in the GM's log, told to p1 with its code, nothing written. call.approve and dynamic.difficulty both have owns(\"actorId\") with a non-empty covers list, so both are cells. The reader's grep looked for the action names, which the matrix never spells.",
+   "evidence": "audit/harness/scenarios/33-bridge-paths.mjs:2202-2204 \"Every request of the four tables whose guards hold a character to its owner ... from p1's console, each id filled as a real request would be - Botan, p2's student, in the field the owner's guard covers\"; :2216 \"H2: every cell was refused by the guard it is about, in the GM's log and to p1 with its code, and nothing was written\"; audit/harness/lib/fuzz.mjs:257 \"const at = d.guards.findIndex(g => [\\\"owns\\\", \\\"ownsActorAt\\\", \\\"gmOnly\\\"].includes(g.factory) ...\"; :262 \"body[field] = guard.covers.includes(field) || /actor/i.test(field) ? who.victimActor\""
+  },
+  {
+   "ref": "E01 promise 2",
+   "claim": "Project progress from a player is taken only for a project the sender can see, and credited to the sender Foundry names (holds: yes)",
+   "verdict": "stands",
+   "why": "canSeeProject on countdownId is the progress row's guard with the E01 comment; judge sets ctx.asker from Foundry's senderId; the run credits by: asker. The reader's note that the secrecy half is not driven also holds: the matrix in 33 H says outright that a project a player may not see is not covered there, and no test or scenario contains the refusal text.",
+   "evidence": "scripts/bridge-table.mjs:739 \"canSeeProject(\\\"countdownId\\\", \\\"sender may not see that project\\\")\"; scripts/bridge-guards.mjs:1784 \"const ctx = { asker: senderId ?? null, ...\"; scripts/bridge-runs-records.mjs:45 \"addProgress(payload.countdownId, amount, { by: asker, ...\"; audit/harness/scenarios/33-bridge-paths.mjs:2205-2206 \"Not covered here: a project a player may not see (`canSeeProject`, scenario 30's forged requests)\"; git grep \"may not see that project\" in audit/harness and scripts/tests*.mjs: only that comment"
+  },
+  {
+   "ref": "E01 promise 3",
+   "claim": "Only the player holding an object can tie its trace to a murder (holds: yes)",
+   "verdict": "stands",
+   "why": "guardTieTraceHolder answers null only for an actor of the running incident's cast that the sender owns and whose held items carry the identity.",
+   "evidence": "scripts/bridge-guards.mjs:837-842 \"const theirs = identity ? game.actors.filter(actor => cast.has(actor.id) && ownsActor(sender, actor.id)) : []; ... return \\\"no participant of the running incident the sender plays holds that object\\\";\"; scripts/bridge-table.mjs:801 \"guards: [knownSender, senderNotSpectator, guardTieTraceHolder]\""
+  },
+  {
+   "ref": "E01 promise 4",
+   "claim": "runTests({ tier: 1 }) is safe during play, with a purity line at its end naming what moved (holds: yes)",
+   "verdict": "stands",
+   "why": "The header states the check, and the runner takes worldDump before tier 0 in the first shard; rule 6 of the contract and R159 hold the dump.",
+   "evidence": "scripts/tests.mjs:26-28 \"That used to be a promise; it is a check now (E01, audit S14-01): the world is read before tier 0 and after tier 1, and any difference is a failure that names what moved.\"; :381 \"const untouched = first ? await worldDump() : null;\""
+  },
+  {
+   "ref": "E01 promise 5",
+   "claim": "game.drpg.fileSizes() lists every stylesheet and the Polish file (holds: yes)",
+   "verdict": "stands",
+   "why": "loadedFiles reads the manifest's styles and LANGUAGES; R126 holds the list to the manifest (seven stylesheets today) with a floor of nine expected files.",
+   "evidence": "scripts/diagnostics.mjs:1090-1093 \"The stylesheets now come from the manifest's own `styles`, the languages from `LANGUAGES` ...\"; scripts/tests-tier0.mjs:5680 \"ok(wanted.length >= 9, ...)\"; module.json styles: 7 entries"
+  },
+  {
+   "ref": "E01 promise 6",
+   "claim": "A GM is warned once per Daggerheart version when Daggerheart is newer, can silence it for that version, and is told of missing hook places; newer versions still load (holds: yes)",
+   "verdict": "weakened",
+   "why": "Everything holds but the word 'once'. announceNewerSystem keeps no record of having been shown: it returns early only when the silence setting equals the running version, so a GM who presses Understood without ticking the box is shown the window again at every load, on every GM browser (the setting is client-scoped). The notes (v1.2.57.md 30) and .claude/rules/release.md step 6 both say 'once per version'. A nit-level shortfall of the wording, not of the warning; R130 does not open the window, so neither reading is pinned by a test.",
+   "evidence": "scripts/requirements.mjs:379 \"if (silenced && silenced === game.system?.version) return;\"; :413 \"if (answer?.silence) await game.settings.set(MODULE_ID, SETTINGS.systemWarningSilenced, found);\"; scripts/settings.mjs:1654 \"scope: \\\"client\\\",\"; scripts/module.mjs:404 \"announceNewerSystem().catch(...\" (called at every ready); .github/release-notes/v1.2.57.md:30 \"A GM sees it once per Daggerheart version and can silence it\"",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "E01 promise 7",
+   "claim": "Daggerheart 2.6.5 is the minimum (holds: yes)",
+   "verdict": "stands",
+   "why": "The manifest says so; R130 asks only that minimum and verified are stated, not their values, as the reader notes.",
+   "evidence": "module.json relationships.systems[0].compatibility {\"minimum\": \"2.6.5\", \"verified\": \"2.12.9\"}; scripts/tests-tier1.mjs:1845 \"ok(verified && minimum, \\\"the manifest states no verified or minimum Daggerheart\\\");\""
+  },
+  {
+   "ref": "E01 promise 8",
+   "claim": "The release workflow refuses branches other than main, takes a title, checks the README and handbook stamps, and publishes a manifest pointing at its own zip (holds: yes)",
+   "verdict": "stands",
+   "why": "Each half is in release.yml; the stamp check is a step of its own (:189-197) besides R125.",
+   "evidence": ".github/workflows/release.yml:106 \"if [ \\\"${GITHUB_REF}\\\" != \\\"refs/heads/main\\\" ]; then\"; :75 \"title:\"; :197 \"run: node tools/check.mjs stamps notes --release \\\"$TAG\\\"\"; :219 \"manifest[\\\"download\\\"] = f\\\"https://github.com/{repo}/releases/download/{tag}/module.zip\\\"\"; :244 \"title=\\\"${TITLE:-${{ inputs.tag }}}\\\"\""
+  },
+  {
+   "ref": "E01 promise 9",
+   "claim": "skipped means only a fact of the environment; the harness draws the suite's dialogs; it delivers every chat message to every client (holds: yes)",
+   "verdict": "stands",
+   "why": "The contract's rule 2 (R158) and skip-baseline hold the first; 01-runtests carries the E01 real-windows comment as cited. The message-delivery half was not re-read in the harness's shim by either reader.",
+   "evidence": "audit/harness/scenarios/01-runtests.mjs:205 \"REAL WINDOWS ON THE GM (E01, 24.09.2026).\"; .claude/rules/tests.md rule 2 \"`needs()` takes only `env.*` ... or `world.*` ...; anything else FAILs (R158)\""
+  },
+  {
+   "ref": "E01 grade",
+   "claim": "8: every promise in code; against 9 the security fixes held only by declarations and R1b, so one promise holds by reading",
+   "verdict": "stands",
+   "why": "Half of the reason is refuted (the Hope Call and the Dynamic difficulty are driven in 33 H), but the other half stands: progress on a secret project the sender cannot see is driven nowhere, so promise 2's secrecy half holds by reading, which is 11.4's 8 row. With promise 6's 'once' a nit and no base run to cite, 9 is not reached; 8 is what the scale allows.",
+   "evidence": "audit/harness/scenarios/33-bridge-paths.mjs:2205-2206 \"Not covered here: a project a player may not see\"; AUDIT-1.2.42.md 11.4, row 8: \"obietnice dowiezione, ale jedna trzyma się tylko odczytem kodu albo ma `minor`\"",
+   "grade_after": 8
+  },
+  {
+   "ref": "E27 promise 1",
+   "claim": "A click or Enter on a handbook contents entry only scrolls and opens no second copy of the game (holds: yes)",
+   "verdict": "stands",
+   "why": "fillContents makes an <a> with role link, tabIndex 0 and no href; click and Enter prevent the default, stop propagation and scroll. R127 sits where cited.",
+   "evidence": "scripts/handbooks.mjs:497-509 \"const link = document.createElement(\\\"a\\\"); link.setAttribute(\\\"role\\\", \\\"link\\\"); link.tabIndex = 0; ... event.preventDefault(); event.stopPropagation(); scrollToHeading(text, heading);\"; scripts/tests-tier1.mjs:1858 \"R127 - a handbook contents entry answers its click and is not a link anything can follow\""
+  },
+  {
+   "ref": "E27 promise 2",
+   "claim": "Isometric Perspective's welcome is held closed on every client, GM included, before that module's ready, and a change by hand is put back (holds: yes)",
+   "verdict": "stands",
+   "why": "The row is in ENFORCED; the header says the value is written at setup on every client, GM included, and put back by clientSettingChanged. Scenario 15 reads it on p1 and p2 (the GM by the tier-2 test), including the stand-in's read at ready.",
+   "evidence": "scripts/enforced.mjs:92-93 \"{ id: \\\"isoWelcome\\\", module: \\\"isometric-perspective\\\", key: \\\"showWelcome\\\", value: false, toggle: SETTINGS.enforceIsoWelcome }\"; :11-17 \"Held means two things, on every client, GM included: 1. The value is written at `setup` ...\"; audit/harness/scenarios/15-held.mjs:87 \"the welcome was already held when Isometric Perspective read it at ready\"; :95 \"p1: switching the welcome back on by hand does not stick\""
+  },
+  {
+   "ref": "E27 promise 3",
+   "claim": "The checkbox is taken out of Configure Settings; a box that cannot be hidden still has its value held (holds: yes)",
+   "verdict": "stands",
+   "why": "hide() writes config false, reads it back and warns, the value having been written first; the tier-2 test sits where cited.",
+   "evidence": "scripts/enforced.mjs:181-190 \"function hide(row, entry) { ... entry.config = false; ... if (entry?.config !== false) { ... warn(`... its value is held all the same.`);\"; scripts/tests-tier2.mjs:51761 \"the table's held settings keep Isometric Perspective's welcome closed and its box out of sight\""
+  },
+  {
+   "ref": "E27 promise 4",
+   "claim": "With the GM's switch off the box comes back and each browser may switch the window on; with the module absent nothing is written (holds: yes)",
+   "verdict": "stands",
+   "why": "unhide gives config back; the switch is registered and listed; R131 sits where cited.",
+   "evidence": "scripts/enforced.mjs:194-197 \"function unhide(row, entry) { if (!hiddenFrom.has(fullKey(row))) return; try { entry.config = hiddenFrom.get(fullKey(row)); }\"; scripts/settings.mjs:1566 \"game.settings.register(MODULE_ID, SETTINGS.enforceIsoWelcome, {\"; scripts/settings-window.mjs:102 \"\\\"enforceIsoWelcome\\\", \\\"enforceDhWelcome\\\"\"; scripts/tests-tier1.mjs:2196 \"R131 - a held setting of a module that is not here writes nothing\""
+  },
+  {
+   "ref": "E27 promise 5",
+   "claim": "Written so that more such settings can be held the same way (holds: yes)",
+   "verdict": "stands",
+   "why": "ENFORCED is a table and today carries the voice rows, dhWelcome and playerFiles beside isoWelcome.",
+   "evidence": "scripts/enforced.mjs:34-35 \"E19 adds two rows here (the LiveKit tab and the camera dock, D19b); that is why this is a table\"; :53-56 \"`dhWelcome` (N1) ... `playerFiles` (N4)\""
+  },
+  {
+   "ref": "E27 grade",
+   "claim": "9, capped by 11.4 because the main promise rests on checks no table has read; one nit (E27-1)",
+   "verdict": "stands",
+   "why": "11.4 allows 9 for nits and unread live checks; 10 is closed anyway without a base run. One form gap, not a grade change: BRIEF.md asks a grade resting on unread live checks to be marked provisional \"after L1\" with an l1 block, and the stage carries neither.",
+   "evidence": "AUDIT-1.2.42.md 11.4, row 9: \"wszystko dowiezione; zostały najwyżej znaleziska `nit` albo live checki etapu jeszcze nieodczytane\"; BRIEF.md: \"A grade that rests on unread live checks is provisional, at most 9, and marked `provisional: \\\"after L1\\\"`\"; .github/release-notes/v1.2.58.md:35-37 \"Not checked at a real table yet: ...\"",
+   "grade_after": 9
+  },
+  {
+   "ref": "E02 promise 1",
+   "claim": "A player's private-card words are cleaned before they are shown, old stored cards when read, and a GM's own cards keep their buttons (holds: yes)",
+   "verdict": "weakened",
+   "why": "The road is as cited, but the cleaning it promises is, by the code's own record, known to fall short and left so: cleanCardHtml is Foundry's cleanHTML alone, and notice-history.mjs records that this cleaning lets through an iframe's srcdoc and a data-tooltip-html (the A7 design's readings) and that E83's fixes of it, the E02 verification's D01 and D13, are not in this build (E83 unshipped). The notice history adds an allowlist of its own; a private card in the chat log and the messenger does not. Measured only on the harness's stand-in; LIVE-E81-01 open. So 'cleaned' holds in part, not as a plain yes.",
+   "evidence": "scripts/secret.mjs:563-564 \"E83's fixes of the cleaning (the E02 verification's D01 and D13) are to change only this body\"; :572 \"if (typeof foundry.utils.cleanHTML === \\\"function\\\") return foundry.utils.cleanHTML(text);\"; scripts/notice-history.mjs:171-174 \"what that lets through is not what a list of past cards should draw - an iframe's `srcdoc` and a `data-tooltip-html` were the A7 design's two readings of it (CB-27), and E83's fixes of it (E02-D01, D13) are not in this build\"; tools/stages.json E83: planned 1.2.119, version null"
+  },
+  {
+   "ref": "E02 promise 2",
+   "claim": "Names, pictures and item details are escaped where they were printed as markup (holds: yes)",
+   "verdict": "stands",
+   "why": "plainText strips closed tags and then every angle bracket left over; the cited sites and R128/R129 are where named. The R129 premise caveat (toasts) is the reader's own and is fair.",
+   "evidence": "scripts/cleanup-reshape.mjs:292-295 \"export function plainText(value, max) { return String(value ?? \\\"\\\").replace(/<[^>]*>/g, \\\" \\\") /* AND EVERY ANGLE BRACKET LEFT OVER (E02, 24.09.2026; audit S05-05).\""
+  },
+  {
+   "ref": "E02 promise 3",
+   "claim": "Only a GM's message can play a sound for the GMs or one past the slider, except the real safeword card; a player's card cannot force a notice (holds: yes)",
+   "verdict": "stands",
+   "why": "soundFromMessage reads the marker off the document; popupForce counts only from a GM writer.",
+   "evidence": "scripts/sfx-play.mjs:691 \"WHO MAY MAKE A SOUND FOR EVERYBODY (E02, 24.09.2026; audit S11-27).\"; scripts/popup.mjs:1267-1268 \"const forGm = cardFlag(message, \\\"gmPopup\\\") || (cardWriter(message)?.isGM && cardFlag(message, \\\"popupForce\\\"));\""
+  },
+  {
+   "ref": "E02 promise 4",
+   "claim": "An evidence or objection card is shown only when its author plays the speaker and the speaker holds the evidence (holds: yes)",
+   "verdict": "stands",
+   "why": "Superseded by a stricter rule, as the reader says: no player's card with the flag is raised at all.",
+   "evidence": "scripts/trial.mjs:631 \"const playersCard = !author?.isGM; ...\"; :634 \"if (!playersCard) showPopup(contentOf(message), {\""
+  },
+  {
+   "ref": "E02 promise 5",
+   "claim": "A private card with nobody to read it is not posted (holds: yes, by reading)",
+   "verdict": "stands",
+   "why": "Both roads refuse: privately() on an empty whisper list or a veiled card with none, and postSecret on no recipients. No test drives it, as the reader says.",
+   "evidence": "scripts/utils.mjs:817-820 \"if (Array.isArray(list) && !list.length) { warn(\\\"A private card had nobody to read it, so it was not posted rather than posted for everybody.\\\"); return null; }\"; scripts/secret.mjs:1170-1172 \"if (!recipients.length) { error(\\\"Refused to post a private card with nobody to read it.\\\"); return null; }\""
+  },
+  {
+   "ref": "E02 promise 6",
+   "claim": "Private cards belong to the account that received them; only this world's cards of deleted messages are removed at start-up (holds: yes)",
+   "verdict": "stands",
+   "why": "secretHtml and the GM's answer both refuse an entry of another user; the tidy is this world's only. The account half is not driven, as the reader says.",
+   "evidence": "scripts/secret.mjs:657 \"if (entry.user && entry.user !== game.user?.id) return null;\"; :973 \"if (entry.user && entry.user !== game.user.id) continue;\"; :1632 \"THIS WORLD'S CARDS ONLY (E02 review, 24.09.2026).\""
+  },
+  {
+   "ref": "E02 promise 7",
+   "claim": "The private-card store has limits: 32 KB per player card with the writer told, 2000 pinned, a GM told once when the browser cannot save (holds: yes)",
+   "verdict": "stands",
+   "why": "The constants and the two notices are as cited.",
+   "evidence": "scripts/secret.mjs:169 \"export const MAX_PLAYER_BYTES = 32 * 1024;\"; :1182-1183 \"if (!game.user.isGM && packetBytes(html, meta) > MAX_PLAYER_BYTES) { ui.notifications?.warn(game.i18n.format(\\\"DRPG.Secret.tooLong\\\", ...\"; :554 \"const KEEP_PINNED = 2000;\"; :633-635 \"if (game.user?.isGM && !toldFull) { toldFull = true; ui.notifications?.error(game.i18n.localize(\\\"DRPG.Secret.storeFull\\\"), { permanent: true });\""
+  },
+  {
+   "ref": "E02 promise 7 (test: none found driving the limits; grade reason: the 32 KB limit holds by reading alone)",
+   "claim": "No test or scenario drives the store's limits",
+   "verdict": "refuted",
+   "why": "Scenario 87 D4 (in the ci register, E50) drives the 32 KB refusal from p1's messenger: it submits 33 KB of words during an incident and holds that the only toast is DRPG.Secret.tooLong and the words stay in the field. The check precedes the askGm road in postSecret, so this is E02's own refusal. The 2000-pinned cap and the full-storage notice are still not driven (git grep for KEEP_PINNED and storeFull in the tier files and scenarios: no hits), so of the reader's three reading-only parts this one is driven in part.",
+   "evidence": "audit/harness/scenarios/87-messenger-sound.mjs:697 \"const d4Long = await p1.eval(D4_SEND(`S87 D4 ${\\\"x\\\".repeat(33 * 1024)}`), { timeout: 60000 });\"; :684 \"tooLong: game.i18n.format(\\\"DRPG.Secret.tooLong\\\", { kb: 32 })\"; :723 \"&& d4Long.field === \\\"kept\\\" && sayOnly(d4Long.toasts, d4Open.tooLong)\"; audit/harness/README.md:221 \"| 87 | scenarios/87-messenger-sound.mjs | ci | exists | E50 |\""
+  },
+  {
+   "ref": "E02 promise 8",
+   "claim": "A trap that watches an object names the room where the object was used, and its title shows an apostrophe as an apostrophe (holds: yes)",
+   "verdict": "stands",
+   "why": "The room half is as cited. The title half, which the reader did not trace, also holds: the title is formatted raw because callGm escapes it, so it is escaped once.",
+   "evidence": "scripts/traps.mjs:296 \"const room = (trap.trigger.kind === \\\"item\\\" ? roomOf(actor) : trap.room) ?? roomOf(actor) ?? trap.room ?? \\\"?\\\";\"; :329-331 \"// Raw here: `callGm` escapes the title itself, and escaping twice put ... title: game.i18n.format(\\\"DRPG.Trap.alertTitle\\\", { name: trap.name }),\""
+  },
+  {
+   "ref": "E02 grade",
+   "claim": "8: every promise in code; against 9, three parts hold by reading, R129's premise fails on v14 toasts, the cleaning measured only on a stand-in with known defects left for E83",
+   "verdict": "weakened",
+   "why": "The reader names the decisive fact and does not grade it: the core promise, the cleaning of a player's words, is recorded in the code as having known defects (E02-D01, D13) not fixed in this build, which makes promise 1 delivered in part - 11.4's row 7. One of the three reading-only parts (the 32 KB refusal) is in fact driven (scenario 87 D4), which does not lift the grade back. The main promise also rests on an unread live check (LIVE-E81-01), so the grade is provisional after L1 in any case.",
+   "evidence": "AUDIT-1.2.42.md 11.4, row 7: \"działa w zwykłej sytuacji, kilka `minor` albo jedna obietnica dowieziona w części\"; scripts/notice-history.mjs:173-174 \"E83's fixes of it (E02-D01, D13) are not in this build\"",
+   "grade_after": 7
+  },
+  {
+   "ref": "E03 promise 1",
+   "claim": "Requests a player's browser sends are judged on the GM's against the sender, ownership or sight, room, stage and turn (holds: yes)",
+   "verdict": "stands",
+   "why": "judge takes the sender from Foundry's senderId; spot-checked rule functions are called by their roads.",
+   "evidence": "scripts/bridge-guards.mjs:1784 \"const ctx = { asker: senderId ?? null, ...\"; scripts/observe.mjs:741 \"const refused = observeResolveRefusal(entry, { actorId, senderId, senderIsGm, undo });\"; scripts/projects.mjs:2363 \"const why = unsabotageRefusal({ targetId, repairId, senderId });\"; scripts/reroll.mjs:417 \"return crisisUndoRefusal(actor, row.facts.crisis);\""
+  },
+  {
+   "ref": "E03 promise 2",
+   "claim": "Daggerheart's own relay requests are judged the same way, the guard registered in init before the requirements check (holds: yes)",
+   "verdict": "stands",
+   "why": "registerRelayGuard is called under safely() in init ahead of requirementsMet(); the sandbox read state ok on 14.370.",
+   "evidence": "scripts/module.mjs:167 \"safely(\\\"the Daggerheart relay guard\\\", registerRelayGuard);\"; :187 \"if (!requirementsMet()) {\"; docs/dev/e58/LOCAL-REPORT.md:422 \"| 19 | measured | `game.socket.listeners`, `off`, `on`, `prependAny`: functions; `relayGuard().state` `ok` |\""
+  },
+  {
+   "ref": "E03 promise 3",
+   "claim": "An undo needs a Reroll just before (holds: no, superseded on purpose)",
+   "verdict": "stands",
+   "why": "The receipt road is gone: a player's undo is refused whatever it carries, and R134/R135 are marked removed in E08. Stricter, not broken, so 11.4's row 6 ('broken by a later stage') does not apply.",
+   "evidence": "scripts/bridge-guards.mjs:624-626 \"export function guardUndoIsTheGms(sender, payload, ctx) { if (sender.isGM) return null; return payload?.undo || Math.trunc(Number(payload?.amount)) < 0 ? \\\"an undo is the GM's own Reroll's\\\" : null;\"; docs/dev/R-REGISTRY.md:144-145 \"(removed in E08)\""
+  },
+  {
+   "ref": "E03 promise 4",
+   "claim": "A refused request changes nothing and is told; an unexpected Daggerheart shape reaches the GMs; a waited request stops waiting (holds: yes)",
+   "verdict": "stands",
+   "why": "unknownSender toasts once and whispers the GMs; refusals are told with REASONS codes since E31, as the reader notes.",
+   "evidence": "scripts/relay-guard.mjs:1211-1220 \"function unknownSender(payload) { ... if (unknownSaid) return; unknownSaid = true; ... ui.notifications?.warn(text); whisperToGms({ tone: \\\"warning\\\", ...\""
+  },
+  {
+   "ref": "E03 promise 5",
+   "claim": "While sheets are anonymous, a character shared as Owner with every player is put back to Observer, Configure Ownership included, and the GMs told (holds: yes)",
+   "verdict": "stands",
+   "why": "Three roads (updateActor, the window closing, a sweep at ready) lead to lowerOwnership, which a GM alone writes and which whispers the name escaped; read on 14.370 with two GMs.",
+   "evidence": "scripts/anonymity.mjs:70 \"Hooks.on(\\\"updateActor\\\", actor => { lowerOwnership(actor); });\"; :73-76 \"Hooks.on(\\\"closeDocumentOwnershipConfig\\\", app => { ... lowerOwnership(doc, { closedHere: true }) ...\"; :835 \"const updated = await actor.update({ \\\"ownership.default\\\": OBSERVER });\"; docs/dev/e58/LOCAL-REPORT.md:423 \"`ownership.default` back to 2\""
+  },
+  {
+   "ref": "E03 promise 7",
+   "claim": "Fear is not rationed; more than four moves in ten seconds give the GM a note (holds: yes)",
+   "verdict": "stands",
+   "why": "judgeFear moves one step either way and never refuses for frequency; past FEAR_STEPS_NOTED in RECENT_MS it marks busy and noteBusyFear toasts the GM.",
+   "evidence": "scripts/relay-guard.mjs:160-162 \"const RECENT_MS = 10_000; ... const FEAR_STEPS_NOTED = 4;\"; :708 \"busy: steps > FEAR_STEPS_NOTED ? steps : 0\"; :1229 \"ui.notifications?.info(plural(\\\"DRPG.Relay.busyFear\\\", ...\""
+  },
+  {
+   "ref": "E03 promise 8",
+   "claim": "The Despair bar shows a pool's name even when it is the only pool (holds: yes)",
+   "verdict": "stands",
+   "why": "poolLabel answers the custom name or the account's name; R149 compares the drawn bar with it. The Reroll line was not traced by either reader.",
+   "evidence": "scripts/despair.mjs:234-236 \"export function poolLabel(user) { return poolNames()[user?.id]?.trim() || user?.name || \\\"?\\\";\""
+  },
+  {
+   "ref": "E03 promise 9",
+   "claim": "With the resource lock off, players can click Hope and the traits again (holds: yes)",
+   "verdict": "stands",
+   "why": "Every lock rule sits under body.drpg-player.drpg-resources-locked, and the class follows the setting at boot and on change.",
+   "evidence": "styles/danganronpa.css:1504 \"body.drpg-player.drpg-resources-locked .character-header-sheet .hope-section .hope-value {\"; scripts/module.mjs:695 \"document.body.classList.toggle(\\\"drpg-resources-locked\\\", Boolean(getSetting(SETTINGS.lockPlayerResources)));\"; scripts/settings.mjs:3158 \"onChange: value => document.body.classList.toggle(\\\"drpg-resources-locked\\\", Boolean(value))\""
+  },
+  {
+   "ref": "E03 grade",
+   "claim": "8, with (1) one promise held in part (a Truth Bullet edited with no GM online is listed, not put back), (2) weak tests, (3) live items partly read",
+   "verdict": "weakened",
+   "why": "The reader's own reason (1) puts the stage on 11.4's row 7, not 8: row 8 requires every promise delivered, with one at most held by reading or carrying a minor; row 7 is 'one promise delivered in part'. The partial promise is real and the notes' sentence carries no limit (the gap is a recorded deferral to E43, which does not make the promise whole). Reasons (2) and (3) only push the same way.",
+   "evidence": "AUDIT-1.2.42.md 11.4, row 7: \"jedna obietnica dowieziona w części\"; row 8: \"obietnice dowiezione, ale jedna trzyma się tylko odczytem kodu albo ma `minor`\"; .github/release-notes/v1.2.60.md:35-36 \"A player's edit of what their Truth Bullet says or is, is put back, and never carried to the other copies\"; audit/AUDIT-1.2.42.md:1660 \"Edycja Truth Bulleta zrobiona przez gracza, gdy żaden GM nie był online, nie jest cofana przy wczytaniu\"",
+   "grade_after": 7
+  }
+ ],
+ "counts": {
+  "checked": 36,
+  "stands": 30,
+  "weakened": 4,
+  "refuted": 2
+ },
+ "not_established": [
+  "Whether scenario 33 part H's cells for call.approve and dynamic.difficulty pass on b5a29e73: the base run is not written, so the matrix is cited for what it sends and asserts, not for its result.",
+  "Whether progress on a secret project the sender cannot see is refused end to end: canSeeProject is the declaration's guard, but no test, scenario or the hostile matrix sends it (33-bridge-paths.mjs:2205-2206 names scenario 30 for it; no check of scenario 30 found does). A driven check would settle it.",
+  "What Foundry 14.370's real cleanHTML keeps of an iframe srcdoc and a data-tooltip-html in a player's private card (E02 promise 1): LIVE-E81-01, or the new live check the reader names; the E02 verification paper with D01 and D13 is not in the repository.",
+  "Whether the newer-Daggerheart window re-opens at every load on a real Foundry with a newer Daggerheart until silenced (E01 promise 6): read in source only.",
+  "The harness's delivery of every chat message to every client (E01 promise 9's third half) was not re-read in the shim by this refuter."
+ ]
+}

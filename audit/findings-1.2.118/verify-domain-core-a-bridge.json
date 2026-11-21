@@ -1,0 +1,55 @@
+{
+ "refuter": "verify-domain-core-a-bridge",
+ "of": "domain-core-a-bridge",
+ "checked": [
+  {
+   "ref": "domain-core-a-bridge-1",
+   "claim": "Echoes (listen.echoes) is answered on the primary with no read of its one-action price, so a console write asks it free and as often as it likes; murder.park and murder.betrayal in an Eclipse are paid the same way, on the asker's browser.",
+   "verdict": "stands",
+   "why": "Read the whole road. The row's guards are knownSender, notSpectator, guardUndoIsTheGms and owns; none reads a payment. handleEchoes hands the actor alone to echoesFor, and echoesFor/echoesRefusal read the Eclipse, the clock's phase, the incident, the GMs' death record and the map - no action count, no ticket. The price is spent only in performEchoes on the asking browser before the ask. claimTicket exists for exactly a no-roll paid part (friskAsk, CLAIMED_ONLY) and Echoes is not among its kinds (no 'echoes' in roll-draw.mjs, sheet-audit.mjs, actions.mjs, bridge-guards.mjs). Not spending is no write, so the sheet audit sees nothing. The suite pins the reader's reading rather than the opposite: tier 2's E69-T6 judges a player's listen.echoes packet straight through G.judge with no payment made and expects a room. 30-security's E69 part sends Echoes only for another player's character. docs/dev/e69/STATUS.md 'What a console can still do' and the trust model's 'What stays open' do not name it. The park and betrayal runs (handleParkMurder, handleBetrayal) likewise read no payment; the reader rightly scopes those as one free action, not repeated information. Severity minor holds: it needs a console write, and each answer is one room, no name or count, but repeated asks walk the random ties and the answer is read on the GMs' knowledge (hidden tokens left out, a death the GMs keep left out).",
+   "evidence": [
+    "scripts/bridge-table.mjs:279  guards: [knownSender, notSpectator(\"actorId\"), guardUndoIsTheGms, owns(\"actorId\", \"sender does not own that character\")],",
+    "scripts/bridge-runs-acts.mjs:328-333  const actor = game.actors.get(payload.actorId ?? \"\"); ... const out = await echoesFor(actor);",
+    "scripts/echoes-gm.mjs:95-100  export async function echoesRefusal(actor) { if (isEclipse()) ...; if (getClock()?.phase === \"classTrial\") ...; if (murderState()?.active || isDeadForGm(actor)) ...; return null; }",
+    "scripts/action-listen.mjs:317-322  const cost = options.free ? 0 : INFILTRATE.echoes.cost; ... const paid = cost > 0 ? await spendAction(actor, cost) : null; ... const res = await requestEchoes({ actorId: actor.id });",
+    "scripts/roll-draw.mjs:930  const CLAIMED_ONLY = Object.freeze([\"friskAsk\"]);",
+    "scripts/frisk.mjs:798  if (!asker?.isGM && !(await claimTicket(searcher.id, \"friskAsk\"))) {",
+    "scripts/tests-tier2.mjs:103212  await G.judge(BRIDGE_ACTIONS, { action: \"listen.echoes\", requestId: ..., actorId: actor.id, ...packet }, player.id, ...)",
+    "scripts/bridge-runs-acts.mjs:870-879  export async function handleParkMurder(payload, sender, ctx) { ... if (!eclipse.eclipseId()) return { refused: ... }; await eclipse.writeParkedMurder({...}); }"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-core-a-bridge-2",
+   "claim": "The twelve E69/E74/E93 asks pass `local` without `onPrimary`, so on a second GM their GM halves (doors, watch, tail, eavesdrop, facility) run on that browser although each says it runs on the primary; the eavesdrop's microphone settle and the facility's once-a-time-of-day queue are then not the primary's.",
+   "verdict": "weakened",
+   "why": "The structure stands from source: createWaiter.request runs `local` on any GM unless onPrimary (bridge-guards.mjs:1947), and the twelve asks pass local alone, while the passage, lair and Frisk rows pass onPrimary. It is stronger than the reader wrote in one place: gm-stores.mjs says the eavesdrop store is 'Written, read and dropped by the primary alone', and on a second GM startEavesdrop/endEavesdrop skip settleBlock and tellOwners (both isPrimaryGm-gated), and the hook that would settle the voices (voice.mjs scheduleTrialVoices on drpgEavesdropChanged) returns at once off the primary, is fired by Hooks.callAll on the writing browser only, and the store's setting gmEavesdrops has no onChange on the primary. serialWrite is a module-level Map per browser (utils.mjs:409-415), so the facility check is not ordered across GMs. But the failure scenario as written does not happen: a GM's voice tile draws no Stop listening (myEavesdrop reads `{}` for a GM, so paintStopListening draws nothing), and the GM's list Who you hear (paintEavesdroppers) has lines only, no button; no GM-side caller of requestEavesdropStop was found. What remains needs a non-primary GM to perform a student's Listen, door, watch, tail or room action from a sheet (action-doors.mjs, action-watch.mjs, action-tail.mjs, action-facilities.mjs, action-listen.mjs call the asks; whether a GM does so in practice was not established), and for the facility race two presses at once. requestFacilityUse's own comment says 'a GM runs it on their own client', so for that row the local road is written as intended. The reader marked it suspected; it stays a question, not a measured finding.",
+   "evidence": [
+    "scripts/bridge-guards.mjs:1947  if (self.isGM && typeof local === \"function\" && (!onPrimary || self.isPrimary)) {",
+    "scripts/bridge-asks.mjs:122-125  export function requestEavesdropStop({ actorId }) { return ask(ACTION_LISTEN_STOP, { actorId }, { local: () => ... handleEavesdropStop(...) }); }",
+    "scripts/gm-stores.mjs:1150-1151  Written, read and dropped by the primary alone (eavesdrop-gm.mjs); synced, so a new primary keeps the listener where they are",
+    "scripts/eavesdrop-gm.mjs:209-213  async function settleBlock() { if (!isPrimaryGm()) return null; ... }",
+    "scripts/eavesdrop-gm.mjs:247-248  function tellOwners(actor) { if (!actor || !isPrimaryGm()) return;",
+    "scripts/voice.mjs:1840-1841  function scheduleTrialVoices({ force = false } = {}) { if (!isPrimaryGm() || (!force && !trialVoicesPending())) return;",
+    "scripts/settings.mjs:2381-2386  game.settings.register(MODULE_ID, SETTINGS.gmEavesdrops, { scope: \"client\", config: false, type: Object, default: {} });",
+    "scripts/eavesdrop-gm.mjs:276-277  export function myEavesdrop(user = game.user) { const rows = user?.isGM ? {} : (eavesdropCopy.read() ?? {});",
+    "scripts/voice-tile.mjs:1240  export function paintEavesdroppers(list, { gm = game.user?.isGM === true, rows = gm ? eavesdropsUnderWay() : [] } = {}) {",
+    "scripts/bridge-asks.mjs:55-56  Judged and carried out on the primary (facilities-gm.mjs `handleFacilityUse`); a GM runs it on their own client.",
+    "scripts/utils.mjs:409-410  export function serialWrite(key, step) { const run = (serialTails.get(key) ?? Promise.resolve()).then(() => step());"
+   ],
+   "severity_after": "minor (suspected: a question with a two-GM check, not a finding until measured)"
+  }
+ ],
+ "counts": {
+  "checked": 2,
+  "stands": 1,
+  "weakened": 1,
+  "refuted": 0
+ },
+ "scope_note": "The reader's file holds six findings: two minor (1, 2) and four nits (3-6), and no control verdicts (no surface is drawn by these files). Only the two minor findings were in this pass's scope; the nits were not re-checked.",
+ "not_established": [
+  "Finding 2: whether a non-primary GM performs a student's Listen, door, watch, tail or room action in ordinary play, and what the primary's voices do when an eavesdrop row merges in from that GM. New live check: with two GMs, the Assistant GM performs Listen (good roll) for a player's student from its sheet; read whether the listener is moved and the microphone blocked, and whether the owner's tile shows Stop listening, before and after the primary's next voice pass.",
+  "Finding 2, facility: whether two uses of one room action at the same moment, one on the primary (a player's) and one on a second GM, both pass `usedUp`. Not settleable by reading; a two-GM harness probe or a table reading.",
+  "Nits 3-6 (domain-core-a-bridge-3..6) were not re-checked in this pass."
+ ]
+}

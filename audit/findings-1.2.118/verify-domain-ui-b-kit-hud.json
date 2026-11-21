@@ -1,0 +1,82 @@
+{
+ "refuter": "verify-domain-ui-b-kit-hud",
+ "of": "domain-ui-b-kit-hud",
+ "checked": [
+  {
+   "ref": "domain-ui-b-kit-hud-1",
+   "claim": "In the Sound window's Music tab a select that keeps focus after its pick holds the .drpg-music-map region, so another GM's mapping does not show until focus leaves the rows.",
+   "verdict": "stands",
+   "why": "isEditing counts every focused SELECT as editing, with no test of whether it is open; rebuild defers on it and the only other wake is a focusout whose relatedTarget is outside the region. wireMusicMap saves on change and blurs nothing. The region's only watch is SETTINGS.musicMap, and the window has no other redraw of the rows. Tier 2 E44-T2 pins the opposite of the finding's expectation (it focuses a select, writes the map and expects the redraw held until focusout), which shows the hold is designed, not accidental - but D-A1 makes exactly that hold (rule 1, live.mjs:157-163, 231-241, 375-382) a major finding on any surface still on it. Nothing in scripts/ blurs a select after a pick, and whileEditing does not exist in live.mjs on b5a29e73. The severity rises: under D-A1 this is a surface still on rule 1, not a particular situation.",
+   "evidence": "live.mjs:380      if (tag === \"TEXTAREA\" || tag === \"SELECT\") return true;\nlive.mjs:158          if (!force && isEditing(element)) {\nlive.mjs:235          if (event?.relatedTarget && element.contains(event.relatedTarget)) return;\nsound-panel.mjs:443   * A select being chosen from holds the redraw (rule 1)\nsound-panel.mjs:446-450  keepLive(dialog, { region: \".drpg-music-map\", build: musicMapBody, watch: { settings: [SETTINGS.musicMap] }, ...\ntests-tier2.mjs:95069  \"E44-T2 - ... a focused select holds the redraw until focus leaves ...\"",
+   "severity_after": "major"
+  },
+  {
+   "ref": "domain-ui-b-kit-hud-2",
+   "claim": "Despair Flow's Save writes the whole Overflow rules form as drawn, undoing another GM's rules change made while the window was open, and announces it publicly.",
+   "verdict": "stands",
+   "why": "Save's callback always returns overflow: readOverflowForm(dialog.element); saveGmTeam passes it to setOverflowRules whenever it is non-null. setOverflowRules takes every effect's on from the form (a Boolean, never undefined from a drawn tab) and compares with the world now (overflowRules()), not with what the form was drawn from; any difference is written and announced to the table. The window's only live part is keepFresh on .drpg-overflow-now (watch SETTINGS.overflow and drpgOverflowChanged); wireMonokumaLive and wireAssignmentLive touch the other tabs. overflowRules' onChange goes to onWorldChange -> sync.mjs SYNC.overflow, whose row is bar, hud and sheets only. grep of scripts/ for drpg-window-gmteam finds only alreadyOpen and reopen, no redraw on overflowRules. Two GMs with the window open across the other's change is a particular situation, so minor holds.",
+   "evidence": "gm-team-dialog.mjs:160      overflow: readOverflowForm(dialog.element)\ngm-team-dialog.mjs:225  if (result.overflow) await setOverflowRules(result.overflow);\ngm-team-dialog.mjs:331  watch: { settings: [SETTINGS.overflow], hooks: [\"drpgOverflowChanged\"] }\noverflow.mjs:114      const current = overflowRules();\noverflow.mjs:126            on: edit.on === undefined ? current.effects[key].on : Boolean(edit.on),\noverflow.mjs:1278        effects[key] = { on: on.checked, ...\nsync.mjs:529  [SYNC.overflow]: Object.freeze([\"bar\", \"hud\", \"sheets\"]),",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-ui-b-kit-hud-3",
+   "claim": "A Monocub player's status strip does not redraw on drpgCubsChanged, so its Hope pips (sheet Hope plus purse) stay old after a purse write.",
+   "verdict": "stands",
+   "why": "The strip's Hope row adds purseOf(actor), which on a player reads cubCopy (the mineCubs client setting). That setting's onChange is onCubsChange: refreshSheets (character sheets only, clock.mjs:940-954) and Hooks.callAll('drpgCubsChanged'). The strip's listeners are ready, canvasReady, updateActor, two effect hooks (effects widget only), updateSetting filtered by STRIP_SETTINGS (no mineCubs; the comment at 666-667 says client settings fire no updateSetting), updateUser and drpgEclipseChanged. grep of scripts/ for renderPlayerStatus outside player-status.mjs and tests: none; drpgCubsChanged is heard by gm-students.mjs and hud.mjs only. addToPurseNow writes only the cub row (patchCubRow), no actor field. Ordinary for a Monocub owner, but a particular role, so minor holds.",
+   "evidence": "player-status.mjs:545            const held = hopeHeld(actor) + (isMonocub(actor) ? purseOf(actor) : 0);\nplayer-status.mjs:669-670 const STRIP_SETTINGS = new Set([SETTINGS.clock, SETTINGS.overflow, SETTINGS.overflowRules, SETTINGS.language, SETTINGS.theme, SETTINGS.murderState]);\nmonocub.mjs:248      return (cubCopy.read() ?? {})[actor.id] ?? null;\nmonocub.mjs:820      if (take > 0 || also) await patchCubRow(actor.id, ...\nsettings.mjs:3483-3485  function onCubsChange() { ... refreshSheets() ... Hooks.callAll(\"drpgCubsChanged\");\nhud.mjs:248    Hooks.on(\"drpgCubsChanged\", () => renderEvents());",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-ui-b-kit-hud-4",
+   "claim": "A bystander's stopwatch counts on through a pause during an incident (the frozen copy has no pausedAt), then drops back by the break when the incident ends.",
+   "verdict": "stands",
+   "why": "clockForDisplay returns lastPublicClock while hidden, and lastPublicClock is refreshed only when not hidden. settleElapsedPause writes pausedAt (and then pausedTotalMs) on the live clock only. elapsedOf freezes only on clock.pausedAt, so on the copy (pausedAt null unless the game was paused before the incident) it counts to now; paintElapsed's 'paused' class needs clock.pausedAt too. After the incident the live clock with the larger pausedTotalMs is read, so the minutes fall by the break. The pauseGame hook renders every HUD, so the bystander does repaint during the pause. The reload road is as the reader says: clockAtOpen holds pausedTotalMs as at open (frozenClockOf) and no pausedAt, so the pause itself freezes but the drop at the end still comes. A cosmetic stopwatch reading in one situation: minor holds.",
+   "evidence": "hud-elapsed.mjs:209-213  if (!hide) { lastPublicClock = foundry.utils.duplicate(clock); return clock; } return shownClock(clock, { hide: true, last: lastPublicClock });\nhud-elapsed.mjs:54              await setClock({ pausedAt: serverNow() });\nhud-elapsed.mjs:286      const end = paused && clock.pausedAt ? Math.max(Number(clock.pausedAt), start) : now;\nhud.mjs:204-206    Hooks.on(\"pauseGame\", paused => { settleElapsedPause(paused); renderHud();\nclock.mjs:676    for (const key of [\"season\", ..., \"timeOfDayStartedAt\", \"pausedTotalMs\"]) {",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-ui-b-kit-hud-5",
+   "claim": "The HUD's Eclipse chevron tooltip counts crossings by the running time of day's Darkness stamp, not by the stamp the Eclipse will open under.",
+   "verdict": "stands",
+   "why": "The tooltip calls overflowCrossings(ECLIPSE_MOVES) while clock.eclipse is false; overflowCrossings asks overflowIs('darkness') -> overflowEffect -> stampReading(active, getClock()), whose now is stampOf(clock) outside an Eclipse and upcoming(clock) inside one. eclipseAllowance (the number the Eclipse gives) is asked with the Eclipse running, so it reads the upcoming stamp. A Darkness for the current time of day therefore reads 1 on the tooltip and 2 in the Eclipse; one armed ahead by addOverflow's armAhead reads the other way round; and the free-placement line names no darkening. The HUD redraws on SYNC.overflow, so the tooltip is current, as the reader says. The players' numbers come from eclipseAllowance and are right, so only the GM's hover reading is wrong: minor (a wrong number the GM may say aloud), not higher.",
+   "evidence": "hud.mjs:1316                      { time: timeOfDayLabel(incoming), n: overflowCrossings(ECLIPSE_MOVES) ?? ECLIPSE_MOVES });\noverflow.mjs:681        return stampReading(state().active, getClock(), null).running;\noverflow.mjs:702      const now = clock?.eclipse ? upcoming(clock) : stampOf(clock ?? {});\noverflow.mjs:1108      if (!overflowIs(\"darkness\")) return allowance;\neclipse.mjs:74-78   const base = isFreePlacement(clock) ? null : ECLIPSE_MOVES; ... return overflowCrossings(base);\noverflow.mjs:425    await armAhead();",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-ui-b-kit-hud-6",
+   "claim": "A tab bar fitted by widening its window (inline win.style.width) loses the width at the first tab press, because the press calls app.setPosition({ height: 'auto' }).",
+   "verdict": "weakened",
+   "why": "The module side is as read: grow writes win.style.width, not app.setPosition, and every tab press calls app.setPosition({ height: 'auto' }); settleKitWidth refits only after its own width write. But the failure needs v14's ApplicationV2.setPosition to write its recorded width back onto the element on a call that names only the height. window-scale.mjs:190-194 says an ApplicationV2 writes its position 'after every render', which is not a setPosition from a tab press; no Foundry source is in this checkout and nothing measured it. The reader's own confidence is 'suspected', which the brief says is a question, not a finding. Kept as a question with its live check; severity not established.",
+   "evidence": "ui-kit.mjs:557                  win.style.width = `${Math.ceil(now + by)}px`;\nui-kit.mjs:412          try { app.setPosition({ height: \"auto\" }); } catch (err) {\nwindow-scale.mjs:190-192  An ApplicationV2 writes its own `position` onto the element after every render, so an inline width set from the render hook was overwritten a moment later",
+   "severity_after": "minor (suspected; not established)"
+  },
+  {
+   "ref": "domain-ui-b-kit-hud-7",
+   "claim": "The GM's 'Still to act' tooltip sends the GM to a roster on the left that is no longer drawn.",
+   "verdict": "stands",
+   "why": "en.json and pl.json say the roster on the left names the students; hud.mjs's own note says the roster is gone and the GM panel's line carries the count; player-status.mjs:586-589 still leans on it. No student list is built in the left column in scripts/ (the reader's search; not repeated in full here, the hud.mjs note settles it).",
+   "evidence": "en.json:686  \"stillToActTooltip\": \"Students with actions left. The roster on the left says which ones.\",\nhud.mjs:292   * THE ROSTER IS GONE.\nplayer-status.mjs:628   `${left} / ${students.length}`, \"DRPG.Hud.stillToActTooltip\", !left);",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "domain-ui-b-kit-hud-8",
+   "claim": "The scroll note says 'There is more below' also when the overflow is to the right.",
+   "verdict": "stands",
+   "why": "watchScroll's more is an OR of the vertical and the horizontal test, and the one note's text is DRPG.Kit.scrollMore in both languages, 'below' / 'Nizej'.",
+   "evidence": "ui-kit.mjs:590          const more = box.scrollHeight - box.clientHeight - box.scrollTop > SCROLL_SLACK || box.scrollWidth - box.clientWidth - box.scrollLeft > SCROLL_SLACK;\nen.json:1889  \"scrollMore\": \"There is more below. Scroll to see it.\",",
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 8,
+  "stands": 7,
+  "weakened": 1,
+  "refuted": 0
+ },
+ "not_established": [
+  "Finding 6: whether v14's ApplicationV2.setPosition({ height: 'auto' }) writes the recorded width over an inline width the kit set; no Foundry source here. The reader's l1 recipe (1024x768, both themes, a kit window with data-drpg-tab-w0, read the width before and after a tab press) settles it.",
+  "Finding 1: whether a closed native select keeps focus after its pick on every browser the table uses (Chromium does); the D-A1 severity does not depend on it, since the region also holds for a text field and for an open select.",
+  "The domain file has no controls array: no control carries a verdict dead, throws, mislabeled or wrong_audience. Of its hints, the HUD's left chevron during an Eclipse was read: rewindTimeOfDay refuses while an Eclipse runs (clock.mjs:692-712, HUD-02), so it is not dead; the rest of the hints were not checked.",
+  "No test or scenario result is cited: base-run.json was not in audit/findings-1.2.118/ when I looked, and E44-T2 is cited from its source for what it asserts, its result not read."
+ ]
+}

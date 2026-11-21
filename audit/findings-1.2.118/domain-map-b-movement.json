@@ -1,0 +1,371 @@
+{
+ "reader": "domain-map-b-movement",
+ "checkout": "claude/audit-119 at 014f9a83; the six files read as on main b5a29e73 (1.2.118)",
+ "files_read": [
+  {
+   "file": "scripts/movement.mjs",
+   "lines": 4058,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/movement-audit.mjs",
+   "lines": 492,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/passages.mjs",
+   "lines": 655,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/passages-gm.mjs",
+   "lines": 3304,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/passages-tab.mjs",
+   "lines": 404,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/crossing-settle.mjs",
+   "lines": 66,
+   "read": "whole"
+  }
+ ],
+ "count_expected": "6 files, 8979 lines (the scope's list)",
+ "count_note": "6 files and 8979 lines read whole, start to end (wc -l: 4058 + 492 + 655 + 3304 + 404 + 66 = 8979); the count matches the list. audit/findings-1.2.118/base-run.json did not exist when looked for, so no test result below is cited as read: tests are named from their source only.",
+ "neighbours_followed": [
+  "scripts/actions.mjs (takeMove 334-358, nextCrossingPrice 367-373, actionsLeft 76-78, freeActionsLeft 101-103, freeMovesLeft 106-108, canPayFor 123-126; the Monocub's actions 43-49)",
+  "scripts/rooms.mjs (floorsOf 533-536, floorElevation 547-553)",
+  "scripts/voice.mjs (keepRoomsThroughGaps 154-200, passForSettledMove 214-227: the readers of moveRefused / moveVerdict)",
+  "scripts/crossing-settle.mjs's listeners: arrival-notices.mjs (whole, 1-51), watch-gm.mjs (namesIn 84-94, startWatches 96-112, onWatchCrossing 118-134, endWatches, registerWatches 155-160), tail-gm.mjs (onTailCrossing 115-140), eavesdrop-gm.mjs (registerEavesdrops 313-331), lockpick-gm.mjs (registerLockpicks 204-224), doors-gm.mjs (onDoorCrossing 495-510; noteBedroom's header 324-362, 388-392)",
+  "scripts/spectator.mjs (header 1-14, isCubToken / isMonocubCorpse 44-62, spectatorViewer 69-80); scripts/monokuma.mjs isSpectator 53-55",
+  "scripts/sheet-audit.mjs flagsHeldNow 840-847 (what the primary's judge reads a student through)",
+  "scripts/murder-rules.mjs 830-890 (the opening roll: the victim's free Move at openingRoll)",
+  "scripts/projects.mjs 1195-1300 (the rows opensPassage, breachesWall, sealsPassage of COMPLETION_EFFECTS), whyOf 1436-1438, offerRepick 1462-1472, repickRefusal 1475-1481",
+  "scripts/fog.mjs carryRename 822-851 and carryRoomInWorld 859-889 (what a GM's rename carries)",
+  "scripts/gm-students.mjs refundButton 293-300 (the Students window's Refund last crossing)",
+  "scripts/room-setup.mjs 1298 and 1321 (the Passages tab drawn and wired with a students list fixed at open)",
+  "scripts/bridge-wire.mjs 22 (SOCKET_EVENT), bridge-guards.mjs 899-908 (guardSendbackPlace's readers of movement.mjs), bridge-table.mjs 347-357 (token.refundCrossing)",
+  "scripts/tests-tier0.mjs R983 (15720-15765), scripts/tests-tier2.mjs 'a refused crossing names no unknown room' (57301-57330) and E74-T1 (101375-101463): read for what they hold, not run",
+  "lang/en.json: every DRPG.Move.*, DRPG.Movement.*, DRPG.Vault.keyMissing, DRPG.Calls.sealedBlocked, DRPG.Passage.why.unknown, DRPG.Infiltrate.watch.* string the findings quote, read by script",
+  "audit/findings-1.2.42/map.md and audit/findings-1.2.118/old-1.2.42-map.json (for old ids still standing)"
+ ],
+ "strengths": [
+  "The veto is synchronous and fails open by design, and every rule it asks is asked again on the primary GM from the GMs' own reading of the student (flagsHeldNow / itemsHeldNow) in one synchronous step: judgeArrival and auditMove (movement.mjs:601-649, 1050-1144; movement-audit.mjs:275-420), so a console that steps past the mover's browser meets the same rules where it counts.",
+  "One keyed core for every road of a crossing: the door veto, the primary's judge, the Eclipse, 'Go through' a tunnel and the send-back's guard all ask crossingVerdict (movement.mjs:1708-1836), with keyed refusals that the player's browser says in its own language (refusal 1840-1843, tunnelRefusalText 2392-2395).",
+  "Crossings of one character are one queue on the primary (crossingKey, movement.mjs:3438-3440): the primary's own charge of a door route, a tunnel's price and the Eclipse count cannot interleave (settleRoute 2752-2759, crossTunnel passages-gm.mjs:2319).",
+  "The GMs' record of where a token stood is the only honest 'back': sightingsAfter / keptSightings (movement.mjs:742-765) cut the spot an audit put a token back from, so no reader takes a refused spot as a place stood on, and every GM keeps the record so a new primary holds the same one (586-599).",
+  "Every put-back writes the whole spot with diff:false through one road (putBackWrite, movement.mjs:3493-3495), the fix of a measured half-written put-back (76 D on the D4 shim).",
+  "The fog's contract on a refused crossing: notConnectedText names neither an unknown destination nor an unknown neighbour (movement.mjs:1905-1911), and roomsKnownToMe reads the scene the token crossed on, never the camera's (1930-1949).",
+  "A player's copy of the passages is built on the primary from the GMs' records and sent to that user alone, with no room, state or name in it (passageCopyFor, passages-gm.mjs:178-225; secretRowsFrom, passages.mjs:165-189), and a player's browser takes a copy only from the primary (passageRowsRefusal, passages.mjs:610-616).",
+  "The move backend's cut fails closed both ways: no install means no passage opens, a throw for one move leaves that move's walls whole (passages.mjs:369-390, 475-502).",
+  "Shows and finds tell the asker the same thing whatever the other knew (sharePassage, passages-gm.mjs:2230-2257; resolvePassageSearch 2454-2532), and refusals that would tell which check failed are one answer (sealRefusal 1025-1032, SIDE_REFUSED 1065).",
+  "Every refusal of the projects' passages is said in the table's language through one closed list (whyTable / whyText, passages-gm.mjs:1205-1265), with 'unknown' as the honest fallback.",
+  "The Passages tab holds no field of its own and redraws whole on every store change and on drpgPassagesTold (passages-tab.mjs:321, 402), and every write goes through one queue (busy, 322-389).",
+  "Comments carry their readings: each threshold says what chose it and whether a table read it (ROUTE_QUIET_MS 210-219, AT_REST_* 221-240, TUNNEL_REACH 2329-2332, SETTLE_MS crossing-settle.mjs:25-26)."
+ ],
+ "findings": [
+  {
+   "id": "domain-map-b-movement-1",
+   "domain": "MAP",
+   "severity": "major",
+   "category": "leak",
+   "title": "A Spectator's walk is counted and recorded as a student's crossing on the primary GM, and a watcher's card names it: the ghost of a death the GMs keep is reported walking into a watched room",
+   "where": "scripts/movement.mjs:1103-1117 (judgeArrival: sighting and noteCrossing), 1187-1204 (eclipseSighting gates a Monokuma and a Monocub only), 1350-1363 (noteCrossing gates a Monokuma only), 1330-1343 (recordCrossingInStep schedules the settle); scripts/crossing-settle.mjs:39-58; scripts/watch-gm.mjs:118-133 (onWatchCrossing names the mover)",
+   "what_happens": "A Spectator is a character flagged `spectator`, owned by its player and no student (spectator.mjs:1-14); a death the GMs keep makes one with the student's own name (tier 2 title at tests-tier2.mjs:96591). Its player's drag lands (crossingVerdict returns true for the flag, movement.mjs:1712) and its own browser records nothing (judgeMove 3030-3036: 'no fee, no crossing recorded, no trap told - a ghost'). On the primary, noteGmPosition calls judgeArrival for every move of a character (608-611) before the audit, which exempts a Spectator (movement-audit.mjs:340) but cannot undo what the judge did: verdict true, `counted` true, eclipseSighting counts it in an Eclipse (and past the allowance makes its standing unlawful), and noteCrossing records it in crossingStore, which schedules a settled crossing 2 s later (crossing-settle.mjs:39-46). The settled event reaches every listener; watch-gm.mjs onWatchCrossing sends each watcher whose post it entered or left '{name} comes into {room}.' with the Spectator actor's name and counts it in the summary at the Eclipse's end.",
+   "evidence": "movement.mjs:1190  if (clock?.eclipse !== true || !isPlaceScene(tokenDoc.parent) || student.getFlag(MODULE_ID, FLAGS.monokuma) || crossesFree(student)) return null;\nmovement.mjs:1352  if (!isPrimaryGm() || from === to || !back || !isPlaceScene(tokenDoc.parent) || student.getFlag(MODULE_ID, FLAGS.monokuma)) return;\nmovement.mjs:1117  if (putBack && !created && player) noteCrossing(tokenDoc, actor, student, was?.last?.room ?? null, own, sighting);\nmovement.mjs:3030  // Nor does a Spectator (E92 C3): no fee, no crossing recorded, no trap told - a ghost.\nwatch-gm.mjs:121   const mover = game.actors.get(event.actorId);\nwatch-gm.mjs:131   await whisperToOwnerOnly(watcher, `<p>${esc(game.i18n.format(`DRPG.Infiltrate.watch.${key}`, { name: mover.name, room: row.post }))}</p>`);\nen.json DRPG.Infiltrate.watch.entered: \"{name} comes into {room}.\"",
+   "failure_scenario": "During a Night Eclipse a student is killed and the GMs keep the death; her player watches as her Spectator and walks it into the Library a classmate keeps watch over, and the watcher's card says 'Aiko comes into Library.' - a student the table does not know is dead, seen walking after her death.",
+   "expected": "A Spectator is nobody on the primary as on its own browser (E92 C1/C3): no Eclipse sighting, no crossing recorded, no settled event - the same gate as the Monokuma's in eclipseSighting and noteCrossing.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a gate on the road: crossingVerdict (1712) and arrivalVerdict (1152-1165) let the flag through; isCorpse does not stop it (a kept death's Spectator is a new actor, not the dead one, so isDeadForGm reads no death of its own); judgingHere / judgeArrival read the actor's type only ('character', which spectatorViewer, spectator.mjs:69-80, requires of a Spectator); flagsHeldNow (sheet-audit.mjs:840-847) answers the flag either from the mark or from the document, so the stand-in still reads as a Spectator and crossingVerdict returns true, which is what makes `counted` true. auditMove's Spectator exemption (movement-audit.mjs:340) returns before rules() and does not reach the standing the judge already kept. The other listeners of the settled event key on the mover's own rows (a tail on it, its eavesdrop, its pass, its barricade, its stash or bedroom), which a Spectator does not hold, so only the watch names it; namesIn at the watch's start (watch-gm.mjs:84-94) is a different road. Outside an Eclipse the record still writes a crossingStore row and an awaitingPrice wait for the Spectator. Not run: no test drives a Spectator's move on the primary (grep of 'Spectator' with crossing, eclipse, watch or settle in the tier files finds none).",
+   "live_check": "Harness or table: a Night Eclipse with a watch over room A, a second student's player made a Spectator (or a kept death's Spectator), its token dragged from room B into A; read the watcher's chat and crossingStore.get(spectatorId) on the primary.",
+   "old_id": null
+  },
+  {
+   "id": "domain-map-b-movement-2",
+   "domain": "MAP",
+   "severity": "minor",
+   "category": "leak",
+   "title": "The veto's bedroom-key and seal refusals name the room under the drop, unexplored or not and however far, before the connected-rooms rule is asked",
+   "where": "scripts/movement.mjs:1726-1728 (restrictedFrom asked before crossingRefused at 1814-1815), 2079 (sealedBlocked with {room: to}), 2098-2100 (keyMissing with {room: to}); scripts/movement-audit.mjs:428-441 (markOf / sentBackLine send and say the bedroom's name)",
+   "what_happens": "MAP-03 and E06 C11 closed the not-connected sentence so that a token dragged onto a black patch does not come back with the room's name (notConnectedText, 1905-1911). The two refusals of restrictedFrom that name a room were left: another student's bedroom without its key says 'The door to {room} is locked. You do not have that key.' and a sealed room '{room} is sealed for this time of day.', each with `to`, the room under the drop on the mover's browser. restrictedFrom runs before the connected-rooms rule, so the drop need not be next door: a drag across the map onto any fogged bedroom names it. The primary's put-back for the same rule sends the bedroom's name to the player too (markOf 429; its note: 'which the player's own veto names in the same refusal').",
+   "evidence": "movement.mjs:1727  const blocked = restrictedFrom(actor, to, scene, mover, { via: passage && via === \"passage\" ? \"passage\" : null, keyed });\nmovement.mjs:2079  if (isSealed(to)) return refusal(keyed, \"roomSealed\", game.i18n.format(\"DRPG.Calls.sealedBlocked\", { room: to }));\nmovement.mjs:2099  return refusal(keyed, \"cannotNow\", game.i18n.format(\"DRPG.Vault.keyMissing\", { room: to }), \"bedroomShut\");\nmovement.mjs:1814  const notConnected = passage ? false : crossingRefused(scene, from, to, floors);\nmovement.mjs:1906  if (known && !known.has(to)) return game.i18n.format(\"DRPG.Move.cannotReach\", { from });",
+   "failure_scenario": "A player drags their token from the Hall onto a black patch at the far end of the map and reads 'The door to Aiko's Room is locked. You do not have that key.' - the name and the place of a room they have never found.",
+   "expected": "As notConnectedText: a room this viewer has not found is not named (DRPG.Move.cannotReach or the lock's own room-less words, DRPG.Move.locked), whichever rule refuses; or the connected-rooms rule asked before the rules that name the room.",
+   "confidence": "read",
+   "refutation_tried": "The tier 2 test 'a refused crossing names no unknown room' (tests-tier2.mjs:57301-57330) reads notConnectedText and crossingRefused only, not restrictedFrom. A GM's lock says no room (DRPG.Move.locked). roomsKnownToMe is not asked on this road. Region names and owner flags are world data every browser holds (the trust model), so a console reads this without dragging: what is broken is the fog's display contract the module chose to keep (MAP-03 'undid the fog's whole contract'), not a GM-only record. A seal's room name is announced, so for a seal what is said is where it lies. Not run.",
+   "old_id": null
+  },
+  {
+   "id": "domain-map-b-movement-3",
+   "domain": "MAP",
+   "severity": "minor",
+   "category": "bug",
+   "title": "A barricade gives to anyone who knows a secret passage between the two rooms, even when they walk in through the barricaded door",
+   "where": "scripts/movement.mjs:1726-1732 (crossingVerdict), 2115-2124 (barricadedFrom)",
+   "what_happens": "`passage` is true whenever the character knows a passage joining `from` and `to` (passesThrough, 2270-2274), whether or not the step went through it. restrictedFrom is handed via \"passage\" only when the caller read the step going through the passage (`passage && via === \"passage\"`), but barricadedFrom is handed `passage ? \"passage\" : via`, so a known passage anywhere on that wall lifts the barricade for a walk through the door itself. The knock that tells the barricade's author somebody tries the door (1620-1623) is never sent, since nothing is refused; the primary's judge asks the same verdict (arrivalVerdict 1163-1164) and lets the landing stand.",
+   "evidence": "movement.mjs:1726  const passage = joined || passesThrough(actor, from, to, scene, floors, { mover, known, elevation });\nmovement.mjs:1727  const blocked = restrictedFrom(actor, to, scene, mover, { via: passage && via === \"passage\" ? \"passage\" : null, keyed });\nmovement.mjs:1731  const barred = barricadedFrom(actor, to, scene, mover, { via: passage ? \"passage\" : via, keyed });\nmovement.mjs:2117  if (!to || [\"passage\", \"breach\", \"tunnel\"].includes(via)) return false;",
+   "failure_scenario": "Botan knows a secret passage between the Hall and the Library; Aiko barricades the Library's door with Shut the Door; Botan walks through the door, not the passage, and it gives, and Aiko is never told anyone tried it.",
+   "expected": "As the bedroom rule beside it: the barricade passed only where the step goes through the passage (`passage && via === \"passage\"`), a tunnel (`joined`) or a breach; a walk through the door is refused barricaded.",
+   "confidence": "read",
+   "refutation_tried": "Tier 2 E74-T1 (tests-tier2.mjs:101436-101439) holds the passage case only with joined: true and via: \"passage\"; no test hands a knower's walk with via null. A barricade is a flag (ROOM_FLAGS.barricaded, 106-113), not a wall, so the wall audit sees no crossing through an open door. The comment at 2109-2113 says 'A walk in through a door is refused for everyone but a GM moving a token and a Monokuma ... a passage, a breach or a tunnel (via) goes through' - the code passes the door too. Whether the owner means a knower to pass the barricaded door is written nowhere I found; the outcome (in the room) is one the knower could reach through the passage, so the harm is the door that does not give giving, and the author's knock missing. Not run.",
+   "old_id": null
+  },
+  {
+   "id": "domain-map-b-movement-4",
+   "domain": "MAP",
+   "severity": "minor",
+   "category": "flow",
+   "title": "A room renamed between a passage project's approval and its completion refuses the completion, and for a Secret Passage or a Breach the GMs are told 'the module could not say why'",
+   "where": "scripts/passages-gm.mjs:1382-1385 (passageRowFor compares the approval's room names with the map's), 1380-1381 and 1376-1378 (refusals R983 cannot read), 519-526, 641-658, 740, 1043-1061; scripts/fog.mjs:859-889 (carryRoomInWorld carries a project's meta.room only); scripts/projects.mjs:1222, 1264, 1296-1298",
+   "what_happens": "A Secret Passage or Breach keeps the approval's pick, `{ sceneId, level, wallId, seg, rooms }`, and the completion judges it again (builtPassageRow / breachStretchRow -> passageRowFor with `rooms`). A GM's rename is carried into the passages' own rows (carryPassageRooms) and into a project's room (meta.room), but not into the project's `passage.rooms` or `target.room`. At the completion passageRowFor reads the map's new names, the sorted old names differ, and it answers a template literal. That reason is not in whyTable, so whyText says DRPG.Passage.why.unknown on the GMs' repick card; R983 reads only `refused: \"...\"` literals in the judges (tests-tier0.mjs:15736-15738), so this template, the floors' ternary at 1376-1378 and the pick's fallback at 1381 are outside what it holds. A Seal the passage or Close the breach compares `target.room` with the map's sides (presetSideRefusal) and is refused 'no side in the project's room'.",
+   "evidence": "passages-gm.mjs:1383  if (named.length && named.slice().sort((p, q) => p.localeCompare(q)).join(\"\\n\") !== map.rooms.join(\"\\n\")) {\npassages-gm.mjs:1384      return { refused: `the stretch stands between ${map.rooms.join(\" and \")}, not the rooms named.` };\npassages-gm.mjs:1377      return { refused: floors.length ? \"name one of the scene's floors.\" : \"that scene has no floors.\" };\nfog.mjs:875   if (rawCountdown(id)) await applyProjectChange(id, { meta: { room: to } }, { by: { kind: \"system\" } });\ntests-tier0.mjs:15737  return [...body.matchAll(/refused:\\s*\"([^\"]+)\"/g), ...body.matchAll(/return\\s+\"([^\"]+)\";/g), ...]\nen.json DRPG.Passage.why.unknown: \"the module could not say why; the reason is in the GM's console.\"",
+   "failure_scenario": "A GM renames the Kitchen to the Galley while Botan's Secret Passage between the Hall and the Kitchen fills; at the last Work nothing is made and the GMs' card reads 'the module could not say why; the reason is in the GM's console', though the wall still stands between the same two rooms.",
+   "expected": "The rename carried into a waiting project's pick and target (as carryPassageRooms carries a passage's rows), or the stretch judged by its wall and its sides on the map; and every reason a judge can answer in whyTable, with R983 reading the non-literal ones too.",
+   "confidence": "read",
+   "refutation_tried": "carryRoomInWorld (fog.mjs:859-889) carries meta.room, plants, Neighbours lists, the lair, the gather, a seal and bodies - no project pick or target. The repick card (projects.mjs:1462-1472) lets the GM pick again, so nothing is lost for a Secret Passage or a Breach; a Seal the passage or Close the breach is only whispered (1296-1298). The rename case is the one I found where an approved pick's room names stop matching; the floors' refusals need a scene whose floors changed. Not run.",
+   "old_id": null
+  },
+  {
+   "id": "domain-map-b-movement-5",
+   "domain": "MAP",
+   "severity": "minor",
+   "category": "flow",
+   "title": "The primary GM reads a Monocub's route of more crossings than it has actions as refused, though a Monocub pays nothing: the passages it keeps 'until it leaves' are not revoked, and the primary's voice pass waits for a put-back that never comes",
+   "where": "scripts/movement.mjs:3116-3122 (refusedOnPrimary), 3089-3099 (judgeMove), against 1976-1978 (crossesFree) and 2767-2770 (chargeRoute: a Monocub moves free)",
+   "what_happens": "On the primary, for a route its owner's browser charges, refusedOnPrimary compares the student's budget (Free Move, Sprints, Bursts, actions) with the crossings. It asks neither crossesFree nor the Monocub flag, while every other road of a crossing's price does (the veto through cubStep, chargeRoute, settleCrossingOnGm, eclipseSighting). A Monocub keeps its Free Move unspent (a crossing never takes it), so its budget is 1 + its actions: a route of two crossings with no action left reads refused. judgeMove then settles route.refused true and route.stands false: voice.mjs passForSettledMove skips the immediate pass on the primary (221-224), and passages-gm.mjs onRouteSettled awaits `provisional` and revokes nothing (3248-3251).",
+   "evidence": "movement.mjs:3119  if (isEclipse() || !game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) return false;\nmovement.mjs:3120  const budget = (hasFreeMove(actor) ? 1 : 0) + freeMovesLeft(actor) + freeActionsLeft(actor) + actionsLeft(actor);\nmovement.mjs:3121  return budget < crossings.length;\nmovement.mjs:2767  if (crossesFree(actor)) {\nmovement.mjs:3093  route.stands = refused ? Promise.resolve(false) : untilQuiet(tokenDoc).then(quiet => quiet === true);",
+   "failure_scenario": "A Monocub with no actions left walks from the Hall through the Corridor into the Gym in one drag: the route stands on its player's screen, but the primary GM reads it refused, so a passage a GM let it keep until it left the Hall stays known and the voice room follows only at the backstop.",
+   "expected": "crossesFree asked here as on every other road of the price: a Monocub's route is never refused for its budget.",
+   "confidence": "read",
+   "refutation_tried": "A Monocub has actions like a player (actions.mjs:43-49) and its Free Move is never taken by a crossing (chargeRoute returns before takeMove, 2767-2770), so the budget is real and finite. The first test in refusedOnPrimary (an unlawful standing) does not apply: judgeArrival reads a Monocub's door move lawful by cubStep. voice.mjs's backstop (scheduleReconcile re-armed, 214-227) bounds the voice delay to RECONCILE_DEBOUNCE_MS; revokeLeavers is asked only from onRouteSettled, so the passage stays until the next route. Not run.",
+   "old_id": null
+  },
+  {
+   "id": "domain-map-b-movement-6",
+   "domain": "MAP",
+   "severity": "minor",
+   "category": "ux",
+   "title": "Refund last crossing stands the token back on the crossing's start wherever it stands now and however old the crossing is",
+   "where": "scripts/movement.mjs:1407-1445 (refundLastCrossing), 1418-1421 (only the price is held to its time of day); scripts/gm-students.mjs:293-300 (the button and its tooltip)",
+   "what_happens": "crossingStore keeps each character's newest crossing the GMs recorded, with no expiry. A GM's drag, gather or placing records none (noteCrossing is asked for a player's move only, 1117), so the newest crossing can be hours old and the token far from its `to`. The refund marks the row given back, gives back the price where it still applies, and writes the token to `row.back` with REVERT and ignoreWalls without asking where the token stands. The Students window's tooltip names the two rooms of the crossing ('leaving X, returning into Y') and nothing of when it was or where the token is now.",
+   "evidence": "movement.mjs:1420  const kind = row.kind === \"eclipse\" && (!row.eclipse || row.eclipse !== eclipseId()) ? null\nmovement.mjs:1421      : row.kind === \"free\" && row.mark !== timeOfDayMark() ? null : row.kind ?? null;\nmovement.mjs:1423  const token = game.scenes?.get(row.sceneId)?.tokens?.get(row.tokenId) ?? null;\nmovement.mjs:1429  await putBackWrite(token, to, { animate: false, [REVERT]: true, constrainOptions: { ignoreWalls: true } });\ngm-students.mjs:297  const note = game.i18n.format(\"DRPG.Panel.refundCrossingNote\", { leaving: roomPhrase(\"out\", row.to ?? null), returning: roomPhrase(\"into\", row.from ?? null) });",
+   "failure_scenario": "A player crosses from the Hall into the Library in the morning, and in the evening a GM drags their token to the Gym; the GM presses Refund last crossing for a nudge they believe just happened, and the token jumps from the Gym to the spot in the Hall it left that morning.",
+   "expected": "The token stood back only while it still stands in the crossing's `to` (else the price alone, and the GM told where it stands), as the Free Move is held to its time of day; the button's tooltip saying when the crossing was.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a guard on the token's room or the row's age in refundLastCrossing (1407-1445), the bridge's row (bridge-table.mjs:347-357) and the button (gm-students.mjs:293-300): none; the row's `at` is written (1334) and read by nothing on this road. The design note (1279-1298) names the nudge 'over a door's edge after the free Move' as the case. It is a GM's own button, so this is a trap for the GM, not a rule a player can use. Not run.",
+   "old_id": null
+  },
+  {
+   "id": "domain-map-b-movement-7",
+   "domain": "MAP",
+   "severity": "nit",
+   "category": "bug",
+   "title": "Two quick drags on the owner's browser can both read the Free Move before the first spend lands (MAP-LC3's second half, still standing)",
+   "where": "scripts/movement.mjs:2752 (the owner's charge is no step of any key), 3332-3366 (chargeForCrossing reads hasFreeMove, then takeMove); scripts/actions.mjs:346-348",
+   "what_happens": "The primary's own charge is a step of crossingKey (2753-2759); the owner's is not (`if (owner) return chargeRoute(...)`). takeMove reads hasFreeMove off the local document and then awaits its write, so a second route settled on that browser before the first write comes back reads the Free Move unused and takes it again. The primary records the price off the player's first write of the purse (noteCrossingPrice 1366-1382); the second write changes nothing and is no price, and nothing flags it.",
+   "evidence": "movement.mjs:2752  if (owner) return chargeRoute(tokenDoc, actor, { before, previous, crossings });\nactions.mjs:346   if (hasFreeMove(actor)) {\nactions.mjs:347       await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeMoveUsed}`]: true }, { reason: \"spend\", ref: MOVE_SPEND });",
+   "failure_scenario": "A player drops their token over a border and, while it is still sliding, drops it over the next one: both crossings say 'That was your Free Move', and one of them was free.",
+   "expected": "The owner's charges of one character serialised, or the spend read back before the next crossing is judged.",
+   "confidence": "suspected",
+   "refutation_tried": "As the old reader: no queue or pending-spend memo on the owner's road (grep of serialWrite in actions.mjs and of a memo in movement.mjs). Whether a hand can land the second drop inside one write's round trip at a real table is not established.",
+   "old_id": "MAP-LC3"
+  }
+ ],
+ "by_decision": [
+  {
+   "what": "A participant may walk out during the opening roll: the incident's lock holds at stage 'incident' only.",
+   "source": "scripts/movement.mjs:2025-2034 and scripts/murder-rules.mjs:882-884 ('the guide gives them a free Move and lets them use it or not')"
+  },
+  {
+   "what": "An arrival only the connected-rooms rule refuses stands, unlawful, and is not put back; only the doors' rules are put back.",
+   "source": "scripts/movement.mjs:846-858 (Q3 a, E17 C1); movement-audit.mjs:42-53 (RULE_CODES)"
+  },
+  {
+   "what": "The wall and floor audit only logs by default ('log'); 'sendBack' is the GMs' setting.",
+   "source": "scripts/movement-audit.mjs:19-24 (session 0, 'tylko log' at the table of 26.10)"
+  },
+  {
+   "what": "The veto and every rule under it fail open on a throw: a check that cannot be read never blocks a move.",
+   "source": "scripts/movement.mjs:1625-1627, 2042-2045, 2102-2105, 2120-2122; movement-audit.mjs:272-273"
+  },
+  {
+   "what": "A room whose geometry cannot be measured reaches every room; a room drawn apart from the rest walks anywhere.",
+   "source": "scripts/movement.mjs:3855-3863, 3911-3919 (E12 fix r2-H2, the fix list's row H2)"
+  },
+  {
+   "what": "A barricade's flag is public world data.",
+   "source": "scripts/movement.mjs:106-113 (DA47, audit/harness/known-leaks.json)"
+  },
+  {
+   "what": "A secret door's type and state are on every map; the flag DOOR_SET adds nothing a player's browser does not hold.",
+   "source": "scripts/passages-gm.mjs:1527-1541 (known leak foundry-secret-door-type)"
+  },
+  {
+   "what": "A Monocub refused a running murder's room is told 'cannotNow', the refusal itself saying the room is shut to it now.",
+   "source": "scripts/movement.mjs:2080-2093 (E72 C10, the 1.2.110 review's V1)"
+  },
+  {
+   "what": "The Mastermind passes a GM's lock and a seal (doors their side holds the key to), never the chain.",
+   "source": "scripts/movement.mjs:2058-2061, 2077"
+  },
+  {
+   "what": "A token a player drops where the student stood nowhere before is judged from nowhere, stands, and the GMs are told.",
+   "source": "scripts/movement.mjs:887-892, 1140-1142, 1461-1468"
+  },
+  {
+   "what": "A show answers the asker the same whether the one shown it knew the passage, and writes nothing for a repeat.",
+   "source": "scripts/passages-gm.mjs:2202-2214"
+  },
+  {
+   "what": "The Passages tab's 'not yet delivered' note is drawn on the primary GM's browser alone; another GM's tab never shows it.",
+   "source": "scripts/passages-gm.mjs:2038-2047 (undeliveredOf answers null off the primary)"
+  },
+  {
+   "what": "A public passage is known to every student, a Monocub and the dead included, and its cells stay for Make secret.",
+   "source": "scripts/passages.mjs:155-160, 191-199 (E80 C6, D4)"
+  }
+ ],
+ "comments_against_code": [
+  {
+   "where": "scripts/movement.mjs:3030",
+   "comment_says": "'Nor does a Spectator (E92 C3): no fee, no crossing recorded, no trap told - a ghost.'",
+   "code_does": "True of the owner's browser only: on the primary GM judgeArrival records a Spectator's crossing (noteCrossing, 1117 and 1350-1363) and counts its Eclipse crossings (eclipseSighting 1187-1204), and the settled event follows (finding 1)."
+  },
+  {
+   "where": "scripts/movement.mjs:2109-2113",
+   "comment_says": "'A walk in through a door is refused for everyone but a GM moving a token and a Monokuma (the verdict's first line); a passage, a breach or a tunnel (via) goes through.'",
+   "code_does": "crossingVerdict hands barricadedFrom via \"passage\" whenever the character knows a passage between the two rooms (1731), so a knower's walk through the door goes through too (finding 3)."
+  },
+  {
+   "where": "scripts/movement.mjs:714-718",
+   "comment_says": "forgetToken drops 'every record this client keeps under a token's id': 'The seven maps keyed by token id ... lastRoom, lastPosition, gmSeen, gmHistory, standings, standingHistory, pathRooms'.",
+   "code_does": "Nine more maps and sets are keyed by token id and are not cleared: unsettled (189), putBack (190), putBacksSent (195), awaitingQuiet (218, with a timer), moveTurns (267), refusals (282), announced (318), landing (319), placing (2414). Stale entries only, nothing found that reads one for a new id."
+  },
+  {
+   "where": "scripts/crossing-settle.mjs:60",
+   "comment_says": "forgetSettling: 'Drop every crossing waiting to settle (the suite's put-back, a world's reset).'",
+   "code_does": "No caller outside tier 2 (tests-tier2.mjs:101316); the season's reset does not call it (git grep -w forgetSettling -- scripts)."
+  },
+  {
+   "where": "scripts/passages-gm.mjs:9-12 and 41-42",
+   "comment_says": "'Nothing here writes a Wall, a Region, a Scene, a flag or a world setting' and, for E80 C5, 'The one Wall write here, and only of door and ds on a wall that already is (R560 still holds: no wall is made a secret door or created).'",
+   "code_does": "cutBreach creates walls and rewrites a wall's `c` (724-727, 739), restoreBreach rewrites and deletes walls (910-911), forceRoom writes the regions' broken flag through setRoomBroken (773), and the secret doors' state is a flag written on the wall (1619, 1682, 1488). The E15 part 2 note at 608-610 says it; the header and the E80 paragraph were not brought up to date."
+  },
+  {
+   "where": "scripts/passages.mjs:14-15",
+   "comment_says": "'A LEAF ...: it imports rooms.mjs, the GM stores, settings.mjs, utils.mjs and config.mjs and nothing else'.",
+   "code_does": "Imports config.mjs, utils.mjs, gm-stores.mjs and rooms.mjs (23-26); no settings.mjs."
+  }
+ ],
+ "hygiene": {
+  "functions_over_300": [],
+  "functions_150_to_300": 1,
+  "functions_150_to_300_list": [
+   "judgeMove, scripts/movement.mjs:2949-3100 (152 lines with its comments; measured with espree over the source)"
+  ],
+  "functions_100_to_150": [
+   "auditMove, scripts/movement-audit.mjs:275-420 (146)",
+   "crossingVerdict, scripts/movement.mjs:1708-1836 (129)"
+  ],
+  "duplicated_helpers": [
+   "A floor as one comparable id, twice: levelKey (scripts/movement.mjs:3737) and floorKey (scripts/passages-gm.mjs:2098), the same body and the same doc line.",
+   "A token's centre at a spot: centresOf (movement.mjs:2525-2529) and centreOf (movement-audit.mjs:107-110, which says it repeats the rule).",
+   "The four probe depths [0.35, 0.6, 0.85, 1] typed twice in these files: PASSAGE_SIDES (movement.mjs:2176, which says fog-doorways.mjs's are retyped) and PROBES (passages-gm.mjs:2563).",
+   "The module's socket name built three times, `module.${MODULE_ID}` at passages.mjs:28, passages-gm.mjs:74 and movement-audit.mjs:40, while bridge-wire.mjs:22 exports SOCKET_EVENT.",
+   "The players who own a student: ownersOf (passages-gm.mjs:228-230), playersOf (passages-tab.mjs:120-122) and the same filter inline at passages-gm.mjs:2060, 2246 and 2518.",
+   "Within 1 px of a segment: onWall (passages-gm.mjs:1278-1282) and cutSegment's `away` (passages.mjs:409), with distanceToSegment (fog-geometry.mjs) used beside both."
+  ],
+  "dead_code": [
+   "forgetSettling, scripts/crossing-settle.mjs:61 - reached by tier 2 alone (tests-tier2.mjs:101316).",
+   "Every other export of the six files has a caller in scripts/ or is exported for a named test (script over `export` declarations and git grep -lw, tests excluded and counted apart); none found unused."
+  ],
+  "magic_numbers": [
+   "One minute written three times for the GMs' record of where a token stood: GM_ROOM_KEPT_MS 60_000 (movement.mjs:572), roomsVisited's windowMs 60_000 (778) and sendBackRefusal's windowMs 60_000 (812).",
+   "5000 ms twice, tied only by a comment: UNDO_MS (movement.mjs:1251, 'is the crossing price's wait') and CROSSING_PRICE_MS (1299).",
+   "roomsApart's `most = 12` (movement.mjs:1227), neighbourAnswer's pad grid x 0.35 (3908) and edge grid / 2 (3941), tunnelLanding's three rings (2492), wallNeighbours' 64 probes (passages-gm.mjs:485), the overlay's 250 ms redraw and retell (3167, 3178), the overlay words' 0.36 / 0.07 / 0.38 / 0.7 (3136-3145) - each named in a comment as chosen, not measured.",
+   "BURST_MS 30_000 and AUDIT_ROWS_KEPT 1000 (movement-audit.mjs:70-71), PASSAGE_LOG_ROWS 200 (passages-gm.mjs:77), SETTLE_MS 2000 (crossing-settle.mjs:26): named constants, design numbers."
+  ],
+  "per_write_cost": [
+   "On the primary GM every move of a character runs judgeArrival, which builds the GMs' passage rows (secretRowsFrom: every row of both stores and every access cell, passages.mjs:165-189) at least twice - crossingVia -> openSegmentsFor -> knownPassages (movement.mjs:1082, passages.mjs:203) and passesThrough -> reachableFrom -> openSegmentsFor (1726, 2254-2263) - and then auditMove, which walks every wall of the scene against every point of the route (movement-audit.mjs:143-179). Counted (movement.auditMove), not timed; see not_established."
+  ]
+ },
+ "hints_for_other_passes": {
+  "dead_controls": [],
+  "stale_windows": [
+   "Room Setup's Passages tab (passages-tab.mjs:317-403): its students list is handed in at open (room-setup.mjs:1298, 1321) and its keepFresh watches the four stores, userConnected and drpgPassagesTold (402) - a student created, deleted or renamed while the tab is open is not offered by '+' or is named as before until Room Setup is opened again."
+  ],
+  "ux": [
+   "Passages tab, Close the breach (passages-tab.mjs:337-341): no question before a write that gives a wall back and lifts a forced room, while Delete asks (344, confirmDelete).",
+   "watch-gm.mjs onWatchCrossing (118-133) names any mover of a settled crossing; it trusts movement.mjs to record students only (finding 1) - for the comms / infiltration lane."
+  ]
+ },
+ "not_established": [
+  {
+   "what": "Whether the stairs link an upper floor's rooms on Foundry 14: stairLinks reads each floor's room under the stairs at elevation 0 (movement.mjs:3314), the reading H81-01 found wrong for a tunnel's end upstairs ('a floor whose rooms answer only above 0', 2189-2195) and fixed for passageRooms, endRoom and tunnelLanding, not here. If upper rooms answer only above 0, every climb by the stairs is refused 'No stairs lead from {from} to that floor' by the veto and the Eclipse, the audit's stairs exemption (movement-audit.mjs:348-353) misses and floorJumpRefused reads it as a jump. Read in source; not measured.",
+   "live": "new live check: stairs between floors on a v14 scene",
+   "l1": {
+    "what": "Whether stairLinks names both rooms of a Change Level region on a two-floor v14 scene, and whether a player's climb by those stairs is let through.",
+    "recipe": [
+     "1. On a v14 scene with two floors, draw a Change Level region over the Lab (ground) and the Attic (upper), and a room on each floor under it.",
+     "2. In the GM console: (await import('/modules/danganronpa-rpg/scripts/movement.mjs')).stairLinks(canvas.scene).",
+     "3. As a player with crossing rooms costing a Move, walk a student up the stairs and read the warning, if any."
+    ],
+    "clients": "GM and one player",
+    "theme": "default",
+    "settles_if": "settled as fine if step 2 lists ['Attic', 'Lab'] and the climb is charged one crossing; settled as a defect if step 2 omits the Attic or the climb is refused 'No stairs lead...'",
+    "priority": "minor"
+   }
+  },
+  {
+   "what": "What a Spectator's walk costs and says at a table (finding 1): whether its player moves its token during an Eclipse and whether a watcher's card names it.",
+   "live": "new live check: a Spectator walks into a watched post",
+   "l1": {
+    "what": "A Spectator's crossing on the primary: whether it is recorded and whether a watch names it.",
+    "recipe": [
+     "1. Before a Night Eclipse, student A sets Keep Watch in the Library.",
+     "2. Make student B's player a Spectator (or kill B with the death kept, so a kept death's Spectator is made).",
+     "3. Start the Eclipse; B's player drags the Spectator token into the Library.",
+     "4. Read A's chat for 'comes into Library', and on the primary GM the crossing store row for the Spectator."
+    ],
+    "clients": "GM and two players",
+    "theme": "default",
+    "settles_if": "settled as fixed if no card reaches A and no crossing row exists for the Spectator; settled as the defect if A's card names it",
+    "priority": "major"
+   }
+  },
+  {
+   "what": "The primary GM's cost per move: judgeArrival builds the GMs' passage rows two or more times per move and auditMove walks every wall of the scene against every route point. Counted by perf-counters (movement.auditMove, movement.whenAtRest), never timed; the frame time is the table's (CLAUDE.md, fps()).",
+   "live": "LIVE-E88-01 (fps at the table) for the frame; new live check for the per-move time on a map with many walls and passages",
+   "l1": {
+    "what": "How long one player move costs the primary GM on a busy map.",
+    "recipe": [
+     "1. On a scene with 300+ walls and 10+ secret passages, the primary GM runs await game.drpg.fps({ toChat: false }) while a player walks a token across several rooms.",
+     "2. Read game.drpg.counters() for movement.auditMove before and after."
+    ],
+    "clients": "GM and one player",
+    "theme": "both",
+    "settles_if": "settled as fine if the slowest twentieth of frames on the primary does not change while moves land; a defect if moves show as frames over 50 ms",
+    "priority": "nit"
+   }
+  },
+  {
+   "what": "Whether ROUTE_QUIET_MS (1500) and SETTLE_MS (2000) hold at a real table: a co-owner's tile and the settled crossing wait on them, both design numbers (movement.mjs:210-219; crossing-settle.mjs:25-26).",
+   "live": "LIVE-E79-19, LIVE-E69-04",
+   "l1": {
+    "what": "The gap from a refused step to its put-back on a co-owner's browser, and from a crossing to its settled event, on a real server.",
+    "recipe": [
+     "1. Two players co-own one student; one walks it into a room it cannot pay for.",
+     "2. With Debug on, read on the other player's browser the time from the step to the put-back.",
+     "3. On the primary, read the log line 'A crossing settled' against the move's time."
+    ],
+    "clients": "GM and two players",
+    "theme": "default",
+    "settles_if": "settled if the put-back lands under 1500 ms and the settle follows within about 2 s; a defect if the co-owner's tile draws the refused room first",
+    "priority": "minor"
+   }
+  }
+ ]
+}

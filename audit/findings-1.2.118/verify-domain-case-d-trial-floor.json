@@ -1,0 +1,58 @@
+{
+ "refuter": "verify-domain-case-d-trial-floor",
+ "of": "domain-case-d-trial-floor",
+ "checked": [
+  {
+   "ref": "domain-case-d-trial-floor-1",
+   "claim": "After Keep speaking (the default), Escape or the X on Your turn, the latch promptedFor keeps the window from opening again, and no other control in scripts/ sends a speaker's Done or Pass, so the turn runs to its clock or a GM's Skip.",
+   "verdict": "stands",
+   "why": "Read promptTurn whole. promptedFor is set to the turn's key before the window opens (176); the only reset is the thesis branch (214); any choice other than done or pass returns at 217 with the latch still set, and the 1 s tick calls promptTurn, which returns at 175 for that key. The window's watch only closes it when the key changes. Looked for another road: git grep of requestTurn, ACTION_TRIAL_TURN, \"trial.turn\" and turnOnPrimary over scripts/ (tests aside) finds the asker in trial-prompt.mjs alone - 220 for done/pass, 239 and 249 for 'over' - and the DRPG.Trial.turn.done/pass keys are read only in turnFooter. The window's own body says 'Press Done when you finish, or Pass to give up your turn', which the speaker can no longer do once the window is gone. The by_decision row (Keep speaking the default so Enter ends nothing) records the default, not the loss of Done. No test reopens the window after keep (none found). Severity kept: the turn is only held to its clock (30-120 s; the Closing's up to 300 s) and a GM's Skip still moves it - wrong in a particular situation.",
+   "evidence": "scripts/trial-prompt.mjs:175-176 `if (promptedFor === key || alreadyOpen(WINDOW_CLASS)) return;\\n    promptedFor = key;`; scripts/trial-prompt.mjs:214 `if (turnKey(trialFloor()) === key) promptedFor = null;`; scripts/trial-prompt.mjs:217 `if (choice !== \"done\" && choice !== \"pass\") return;`; scripts/trial-prompt.mjs:93 `primary: { action: \"keep\", label: game.i18n.localize(\"DRPG.Trial.turn.keep\") },`; lang/en.json DRPG.Trial.turn.body `\"{mode}: you have the floor. Press Done when you finish, or Pass to give up your turn.\"`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-case-d-trial-floor-2",
+   "claim": "When the console's live hook reopens it on a change of trialSignature, the close resolves the awaited window with null, the GM panel's tile run resolves, and the panel opens beside the detached new console.",
+   "verdict": "stands",
+   "why": "Read the chain. The live hook's `after` sets reopening, closes the dialog and reopens through a detached `.then(() => manageClassTrial())` (1699-1700). The awaited drpgWindow (rejectClose: false) then resolves null, and manageClassTrial returns null at 1805. In gm-panel.mjs the tile awaits item.run() (608) and reopens the panel for any answer but RAISED (616-617); the panel was closed before the run (`await dialog.close()`), so openGmPanel's alreadyOpen guard does not stop it, and the new console's manageClassTrial finds no console open either (the old one has closed by then). git grep finds manageClassTrial's callers in gm-panel.mjs (267, 452) and api.mjs (797) only. The comment at 1691-1697 says the null 'the handler below already returns for' - written about the console's own chain, not the panel's. Signature changes are ordinary (trialSignature = running | floorFamily). No test of the panel and the console together found (grep of drpg-window-panel with trial in tier 2: none). Which window ends on top is not read, as the reader says.",
+   "evidence": "scripts/trial-floor-ui.mjs:1699-1700 `dialog.close()\\n                        .then(() => manageClassTrial())`; scripts/trial-floor-ui.mjs:1805 `if (!action || action === \"close\") return null;`; scripts/gm-panel.mjs:608 `answer = await item.run();`; scripts/gm-panel.mjs:616-617 `if (answer === RAISED) return;\\n                openGmPanel().catch(err =>`; scripts/trial-floor-ui.mjs:1385 `return [running, floorFamily(floor)].join(\"|\");`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-case-d-trial-floor-3",
+   "claim": "An Objection inside a Testimony is family 'debate', so the console reopens at its start and end, its footer and next step become Close Debate, and that press ends the whole round with 'The debate is closed'.",
+   "verdict": "stands",
+   "why": "The machine's objection case spreads the floor (round kept) and writes mode objection (566); MODE_RULES gives objection family 'debate' (100); floorFamily returns 'closing' only for a closingOf floor, else the row's family, so a round's exchange is 'debate' and trialSignature moves from true|round to true|debate. trialButtons tests floorFamily === round / zones / closing (or closingOf) and otherwise draws closeDebate (1405); TRIAL_NEXT_STEPS answers closeDebate by its row at 183. closeDebate awaits endFloor (502), which sends op `end`; FLOOR_OPS.end takes the Closing's road only (closingOf), else endFloorInStep, the empty floor - the round is gone, and closeDebate announces DRPG.Floor.debateClosed. The machine's endMode in the same state resumes the queue (694). Tier 1 R2050's views (tests-tier1.mjs:52490-52545) hold 'a Testimony round' to endRound and 'an Objection' (on no round) to closeDebate; none hands in an Objection on a round's floor, so nothing pins the opposite. The gm handbook (1553) says an Objection in Testimony 'runs the debate's exchange' and 'the round goes on at the next speaker' afterwards, which Close Debate does not do.",
+   "evidence": "scripts/trial-floor.mjs:100 `[MODES.objection]: Object.freeze({ family: \"debate\", ...`; scripts/trial-floor.mjs:154-158 `if (floor && closingOf(floor)) return \"closing\";\\n    return floor ? (MODE_RULES[floor.mode]?.family ?? floor.mode) : \"none\";`; scripts/floor-machine.mjs:566 `pending, messageId: ..., before: [...stackOf(floor), entry], gmNote: null, ...chained`; scripts/trial-floor-ui.mjs:1405 `: { action: \"closeDebate\", default: isDefault(\"closeDebate\"),`; scripts/trial-floor-ui.mjs:502 `await endFloor();`; scripts/trial-floor.mjs:400 `end: async () => (closingOf(trialFloor()) && inClassTrial() ? (...) : endFloorInStep()),`; scripts/floor-machine.mjs:694 `if (roundOf(floor)) return nextTurn(floor, now, [{ key: \"DRPG.Floor.modeEnded\", mode: floor.mode }], ctx);`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-case-d-trial-floor-4",
+   "claim": "The Closing's GM calls (Confirm, Pick, the decision, Resume) lose the machine's refusal key, so a GM is told only 'The Closing Argument did not change.'; the eight keys are never localized.",
+   "verdict": "stands",
+   "why": "closingCall warns DRPG.Floor.closing.notDone whenever floorStep answers null (273). The ops call closingStepInStep without why (413-416), which returns null on a refusal (592). On another GM, handleTrialGm (bridge-runs-records.mjs:822-829) turns null into its own 'nothing was carried out' refusal, again without the key. The console's Closing row draws Confirm whenever closing.choice === confirm, with no check of the drawn player's connection (trial-floor-ui.mjs closingConsole), and runClosingOp (1073-1078) calls the op directly. git grep of DRPG.Floor.closing.absent / noDrawn / noChoice / nothingToResume outside the tests finds floor-machine.mjs alone, and no `localize(result.refused)` or templated `DRPG.Floor.closing.${...}` exists. The drawn speaker's drop in the choice phase is not handled by speakerGone, which acts only on a speak phase (trial-floor.mjs:606-611).",
+   "evidence": "scripts/trial-modes.mjs:273 `if (written === null) ui.notifications.warn(game.i18n.localize(\"DRPG.Floor.closing.notDone\"));`; scripts/trial-floor.mjs:413 `closingConfirm: () => closingStepInStep({ type: \"confirm\" }),`; scripts/trial-floor.mjs:592 `if (result.refused) return why ? { refused: result.refused } : null;`; scripts/floor-machine.mjs:272 `if (absent.has(ctx.drawn) || !among(ctx.drawn)) return { refused: \"DRPG.Floor.closing.absent\" };`; scripts/bridge-runs-records.mjs:829 `if (out === null) return { refused: \"nothing was carried out: the trial's floor did not take that change\" };`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-case-d-trial-floor-5",
+   "claim": "Overruling, after the floor has closed, the newest Objection of a Testimony or the Closing writes againAfterOverrule with the speaker's leftAtObjection, so the console offers 'Open the debate again (n s left)' for a debate that never ran.",
+   "verdict": "stands",
+   "why": "keepReceipt stores debateLeft = restOf(floor), which looks only for a stack entry whose before.mode is debate; a round's turn and the Closing's speech start with before: [] (turnAt in floor-machine.mjs, closing base), so debateLeft is null and leftAtObjection is the speaker's. overruleInStep, with !judged.during && !floor, writes the offer from debateLeft ?? leftAtObjection without reading receipt.mode (1540). overruleTarget picks the newest receipt of the trial not overruled whatever its mode, and barRefusal asks overruleTarget before any floor check (trial-floor.mjs:1434), so the bar's Overrule is live with no floor. TRIAL_NEXT_STEPS answers openAgain at 198 when no vote or verdict row holds. The tier 2 Overrule test (tests-tier2.mjs:48350-48363) drives the after-exchange offer in a debate only; no test hands it a round's or the Closing's receipt.",
+   "evidence": "scripts/trial-floor.mjs:1540 `if (!judged.during && !floor) change.againAfterOverrule = { messageId: id, seconds: Number(judged.receipt?.debateLeft ?? judged.receipt?.leftAtObjection) || 0 };`; scripts/trial.mjs:945 `debateLeft: restOf(floor), trialStartedAt: record.trialStartedAt ?? null, at: serverNow(), overruled: false,`; scripts/floor-machine.mjs:381 `const entry = [...stackOf(floor)].reverse().find(e => e?.before?.mode === MODES.debate);`; scripts/trial-floor.mjs:1434 `if (op === \"overrule\") return overruleTarget({ floor, ...overruleRecord(record), running }).refused ?? null;`; scripts/trial-floor.mjs:198 `[view => view.progress.againAfterOverrule, \"openAgain\"],`",
+   "severity_after": "minor"
+  }
+ ],
+ "counts": {
+  "checked": 5,
+  "stands": 5,
+  "weakened": 0,
+  "refuted": 0
+ },
+ "notes": "The reader's file holds 9 findings (5 minor, 4 nit) and no control verdicts (a domain file); the 5 minor ones were checked. The four nits (6-9) and the hints_for_other_passes lists were not checked, as outside the refuter's scope. base-run.json did not exist when looked for, so no test result is cited; tests are named from source only.",
+ "not_established": [
+  "Finding 2: which of the two windows (the GM panel or the reopened console) ends on top; two unordered promises, read at a table (new live check: open Class Trial from the GM panel, start a debate, let a player's Objection run to its rebuttal's end, and see whether the panel opens beside the console).",
+  "Finding 7 (nit, suspected by the reader): whether a real browser cancels a focused button's activation by Enter when the keydown is prevented in the capture phase - not checked here, and not measurable headless.",
+  "The nits 6, 8 and 9 and the reader's hints (dead_controls, stale_windows) were not re-read by this refuter."
+ ]
+}

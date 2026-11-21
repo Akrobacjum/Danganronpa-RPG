@@ -1,0 +1,981 @@
+{
+ "reader": "live-items-361",
+ "lines": "1235-1277",
+ "count_expected": 34,
+ "count_note": "34 found, 34 written (361-394), matching the scope.",
+ "items": [
+  {
+   "n": "361",
+   "live_id": "LIVE-E65-01",
+   "stage": "E65",
+   "asks": "As a GM whose module Language is Polski (page reloaded), run game.drpg.runTests() (tiers 0-1) and read R1060 and R972: both green, R1060's log line '... word(s) held, 0 found; M names under Polish; 0 config field(s) set and put back'; any table name in a red test's error.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json or the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026; the branch copy origin/claude/e58-local:...:475-483 unchanged) counts the row among the 397 left, not yet driven or shot. The branch copy records tiers 0-1 run at the sandbox for the first time (origin/claude/e58-local:docs/dev/e58/LOCAL-REPORT.md:306-307, 18.11.2026): 36 failed under Stained Glass, 31 under Monokuma Legacy, 'Not read yet' - which tests failed is not named, and nothing says the GM's module language was Polish (live-readings-e58-delta.json not_run: 'Tiers 0-1 at a table ... not read').",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "R1060 (scripts/tests-tier0.mjs:19417, exists; its log line at :19483 is the item's quoted line word for word) and R972 (scripts/tests-tier1.mjs:30774, exists). Headless the GM plays in English, so R1060 plants the Polish and undoes it, as the item says. base-run.json does not exist (20.11.2026), so no result of these tests on b5a29e73 is cited",
+   "note": "Subject read today: tables-pools.mjs `tableNameCandidates` (:105) and `classifyTableName` (:159), settings.mjs LANGUAGES (:4152, Polski). The item is a check of the suite's own reading on a Polish client, not of a window.",
+   "l1": {
+    "what": "R1060 and R972 on a GM whose module Language is Polski",
+    "recipe": [
+     "1. Foundry 14.370, the module at 1.2.118 or later; as the GM set Configure Settings > Danganronpa RPG > Language to Polski and reload.",
+     "2. In the console run `await game.drpg.runTests()` (tiers 0-1, read-only).",
+     "3. Copy the R1060 and R972 log lines and, if either is red, its whole error text."
+    ],
+    "clients": "one GM",
+    "theme": "default (the theme does not bear on it)",
+    "settles_if": "settled yes when both are green and R1060 reads '0 found' and '0 config field(s) set and put back'; settled no when either is red, or R1060 had to set a config field on a client already in Polish",
+    "priority": "nit (a test's reading; no player-facing behaviour rests on it)"
+   }
+  },
+  {
+   "n": "362",
+   "live_id": "LIVE-E66-01",
+   "stage": "E66",
+   "asks": "12 sets (2 themes x 2 languages x 1366x768, 1024x768, 820x1180): screenshots of the sheet's action grid, the incident's Crisis Actions, Tamper, the clean-up window, the indirect murder window and the rest window - no action name outside its tile or button, cut or broken inside a word.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json or the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026; the branch copy origin/claude/e58-local:...:475-483 unchanged) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "S",
+   "subject_exists": true,
+   "text_stale": true,
+   "stale_detail": "The pass route 'in the local gate run of release 1.2.96 (E66)' never existed: the 1.2.96 record (85e8b0e2, audit/gate/local-gate.json) has every part not-run, as every record from 1.2.90 to 1.2.118 does (read by script over the file's history). 'No screenshots from a v14 sandbox, because there was none at C5' is no longer the reason: the owner's sandbox exists since 16.11.2026 and docs/dev/e58/shots holds 24 shots, none of these windows.",
+   "duplicate_of": null,
+   "headless_half": "R1162 (scripts/tests-tier0.mjs:20505, exists): the longest word of each grid, not how a browser draws it. base-run.json does not exist (20.11.2026), so no result of these tests on b5a29e73 is cited",
+   "note": "Every action name the item lists is still drawn: scripts/config.mjs:3937 Self-Defense, :4090 Keep Your Distance, :4227 Double Role Reversal, :4054 Strike, :4102 the weapon blow, :4736 Erase a Trace, :4766 Misleading Trail, :4791 Move the Body, :2003 Conceal Your Intent, :2014 Hide the Traces, :2025 Prepare the Weapon, :2027 Set the Trap; lang/en.json holds Find Stash, Dynamic Action, Crisis Actions and Reshape a Trace.",
+   "l1": {
+    "what": "action names inside their tiles and buttons, 12 sets",
+    "recipe": [
+     "1. Set the browser to 1366x768, then 1024x768, then 820x1180.",
+     "2. In each size, under Stained Glass and Monokuma Legacy, with the module Language English and then Polski (reload each time): open a student's sheet, the incident's Crisis Actions, Tamper, the clean-up window, the indirect murder window and the rest window.",
+     "3. Screenshot each and mark any name that leaves its tile or button, is cut, or breaks inside a word."
+    ],
+    "clients": "one player (and the GM to open the incident)",
+    "theme": "both",
+    "settles_if": "settled yes when all 12 sets show every name inside its place; settled no when any name leaves its place, is cut or breaks inside a word (name, size, theme, language)",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "363",
+   "live_id": "LIVE-E66-02",
+   "stage": "E66 fix r1 F2",
+   "asks": "Module Language Polski, Foundry English: the character sheet's root carries lang=pl; list the sheet's words still in English (Daggerheart's own keys the module does not override) and whether each stands in a block the module draws or in Daggerheart's markup.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json or the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026; the branch copy origin/claude/e58-local:...:475-483 unchanged) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "none by the item's own words: the harness has no Daggerheart sheet templates. The root's attribute is set by sheet.mjs `onRenderCharacterSheet` (:208) through `markLanguage(root)` (:227; utils.mjs:113-118).",
+   "note": "The item's count holds: lang/en.json and lang/pl.json each override 94 DAGGERHEART keys today (plus GAME.Paused, 95 outside DRPG; counted by script).",
+   "l1": {
+    "what": "the sheet root's lang and the English words left on a Polish client",
+    "recipe": [
+     "1. Foundry in English; the module Language set to Polski; reload.",
+     "2. Open a student's character sheet; in the devtools read the `lang` of the sheet's root element.",
+     "3. List every English word on the sheet and, for each, whether its element is inside a block the module adds or in Daggerheart's markup."
+    ],
+    "clients": "one player",
+    "theme": "default",
+    "settles_if": "settled yes when the root reads `pl` and the list is written with its count; settled no when the root reads another language, or a module block shows English",
+    "priority": "nit"
+   }
+  },
+  {
+   "n": "364",
+   "live_id": "LIVE-E37-02",
+   "stage": "E37",
+   "asks": "With three players: the HUD's Eclipse arrow, its end button and the panel's Next time of day each give every cast player one window (Done / One moment) and the GM a window listing players; a player reloads mid-round (window returns, One moment kept), one is disconnected (counts as Done); time the round, whether anyone uses One moment, whether the GM's window goes on by itself at the last Done, whether Not now closes the players' windows.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json or the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026; the branch copy origin/claude/e58-local:...:475-483 unchanged) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "T",
+   "subject_exists": true,
+   "text_stale": true,
+   "stale_detail": "The Polish status it quotes, 'Brak połączenia - liczy się jako „Gotowe”', was reworded to 'Bez połączenia, liczy się jako „Gotowe”' by E71 B09 (8f3d53ae, 14.11.2026; lang/pl.json DRPG.Ready.status.away).",
+   "duplicate_of": null,
+   "headless_half": "tier 2 E37-T3 (scripts/tests-tier2.mjs:90941, exists) and scenario 40 part R (audit/harness/scenarios/40-flow.mjs:5, exists; four browsers). The reload mid-round, the time and v14's windows are not measured there, as the item says. base-run.json does not exist (20.11.2026), so no result of these tests on b5a29e73 is cited",
+   "note": "Subject read today: boundary.mjs `askReadiness` (:448-480; 'stop' is the GM's Not now, :382), `roundBody` (:433-439), `promptPlayer` (:575). TRIAGE-9.2.md:387 classes it 'K+T': the round's mechanics are scriptable, the human parts (how long, whether a person uses One moment) need real players.",
+   "l1": {
+    "what": "the readiness round with three real players",
+    "recipe": [
+     "1. A GM and three players, both languages over two evenings; Stained Glass one evening, Monokuma Legacy the other.",
+     "2. GM presses the HUD's Eclipse arrow, then its end button, then GM panel > Next time of day.",
+     "3. During one round a player reloads the page; another player is disconnected.",
+     "4. Note the round's length, who pressed One moment, whether the GM's window goes on by itself after the last Done, and whether the GM's Not now closes every player's window."
+    ],
+    "clients": "GM and three players",
+    "theme": "both",
+    "settles_if": "settled yes when each press gives each cast player one window, the reloaded player's window returns with its answer, the disconnected one reads 'counts as Done', and Not now closes every player window; settled no when a player gets two windows or none, the reloaded answer is lost, or a window stays after Not now",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "365",
+   "live_id": "LIVE-E37-01",
+   "stage": "E37",
+   "asks": "On the local gate's v14 sandbox, both themes: scenario 81-render-budget with real sheets (note A 'real', not 'stand-in'): renders of each sheet on a time move, a Despair write and a trial turn; visibility.applyAll passes on a time change, a pause and an Eclipse's start and end; every token as after a full pass.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "not run: audit/gate/local-gate.json:26-129, the record for 1.2.118 (19.11.2026), has every part not-run with reason no-server, scenario 81 among them (live-readings-other.json not_run names this item). No other reading found in the three digests; LOCAL-REPORT.md:323-331 counts it among the 397 left.",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "scenario 81 in the ci layer (audit/harness/scenarios/81-render-budget.mjs, exists; note A's kind is set at :102-117, 'real' when foundry.applications.instances holds a real sheet, else 'stand-in'). base-run.json does not exist (20.11.2026), so no result of these tests on b5a29e73 is cited",
+   "note": "The counter the item reads is perf-counters.mjs `visibility.applyAll` (:23). The item's last sentence ('until the local gate runs, this part is written as not run') is what the record says.",
+   "l1": {
+    "what": "scenario 81 against real Daggerheart sheets on v14",
+    "recipe": [
+     "1. On the sandbox, `npm run gate:local` (audit/gate/README.md), or scenario 81 alone against it, once per theme.",
+     "2. Check the results' note A reads `real`.",
+     "3. Read the sheet render counts for a time move, a Despair write and a trial turn, and visibility.applyAll per browser for a time change, a pause, an Eclipse start and end; screenshot the victim's, killer's and a bystander's tokens after each event."
+    ],
+    "clients": "GM and three players (the gate's pages)",
+    "theme": "both",
+    "settles_if": "settled yes when note A is `real`, the counts match the harness's budget and every token looks as after a full pass; settled no when a count exceeds the budget, note A says `stand-in`, or a token differs from a full pass",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "366",
+   "live_id": "LIVE-E37-03",
+   "stage": "E37",
+   "asks": "With countdownAutomation on and a non-project countdown beside a project: (1) a GM roll that moves countdowns at the same moment as + on the project; (2) Reveal, Hide and Delete on the non-project row at the same moment (and whether Daggerheart's Delete asks first); (3) -/+ on the non-project row at the same moment - the project keeps its +1; diagnosePatches() row countdown-update reads ok.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json or the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026; the branch copy origin/claude/e58-local:...:475-483 unchanged) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": true,
+   "stale_detail": "It names Daggerheart 2.10.x; module.json verifies 2.12.9 (relationships.systems) and the sandbox runs 2.12.9 (LOCAL-REPORT.md:302 on b5a29e73's copy). The steps do not depend on the version named, but a reading on 2.12.9 is not one on 2.10.x.",
+   "duplicate_of": null,
+   "headless_half": "tier 2 E37-T7 (scripts/tests-tier2.mjs:92073, exists) on the harness's model of the system's write, not Daggerheart's code. base-run.json does not exist (20.11.2026), so no result of these tests on b5a29e73 is cited",
+   "note": "Subject read today: patches.mjs:598-608 (row id `countdown-update`, target `DhCountdowns.updateCountdowns`); projects-secrecy.mjs:41-42 names the wrap; relay-guard.mjs:886-889 reads countdownAutomation.",
+   "l1": {
+    "what": "a project's step beside Daggerheart's own countdown writes",
+    "recipe": [
+     "1. Daggerheart 2.12.9, countdownAutomation on; one project and one countdown of another type.",
+     "2. Press + on the project at the same moment as a GM roll that moves countdowns; read both progresses.",
+     "3. Repeat with Reveal, Hide and Delete on the other row (note whether Delete asks first), then with -/+ on it.",
+     "4. Run `game.drpg.diagnosePatches()` and read the countdown-update row."
+    ],
+    "clients": "one GM (two browsers of the same GM help with timing)",
+    "theme": "default",
+    "settles_if": "settled yes when the project keeps every +1 and countdown-update reads ok; settled no when the project loses a step in any of the three, or the row is not ok",
+    "priority": "major (a project's progress lost silently)"
+   }
+  },
+  {
+   "n": "367",
+   "live_id": "LIVE-E37-05",
+   "stage": "E37",
+   "asks": "On a real server, at the end of an Eclipse that moves the time: a SYNC.eclipse packet arriving before the clock setting runs nothing (eclipsePacketNews answers null) and the clock's row runs one visibility pass when the setting lands; read perf(), counters() (visibility.applyAll) or the bus debug lines on a player's browser: how many passes, and which came first.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json or the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026; the branch copy origin/claude/e58-local:...:475-483 unchanged) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "R1205 (scripts/tests-tier1.mjs:39513, exists; pure functions) and scenario 81 part D (81-render-budget.mjs:25, exists), where the setting always lands first. base-run.json does not exist (20.11.2026), so no result of these tests on b5a29e73 is cited",
+   "note": "Subject read today: sync.mjs:576 (`[SYNC.eclipse]` handler), :585-593 (`eclipsePacketNews`, `CLOCK_READS_IT`). Localhost is a real Foundry server, so the order can be read at the sandbox; whether it is the same on a remote host is not.",
+   "l1": {
+    "what": "the order of the Eclipse packet and the clock setting on a player's browser",
+    "recipe": [
+     "1. On a player's page: `game.drpg.counters({ reset: true })` and the module's Debug setting on.",
+     "2. GM starts and ends an Eclipse that moves the time of day.",
+     "3. On the player's page read `game.drpg.counters()` (visibility.applyAll) and the debug lines: which came first, the packet or the setting, and how many passes ran."
+    ],
+    "clients": "GM and one player (two players better)",
+    "theme": "default",
+    "settles_if": "settled yes when visibility.applyAll is 1 whichever came first; settled no when it is 0 or 2, or the packet ran the Eclipse row on the old flag",
+    "priority": "major (a token left as the dark showed it)"
+   }
+  },
+  {
+   "n": "368",
+   "live_id": "LIVE-E37-06",
+   "stage": "E37 fix FG1b, FG1c",
+   "asks": "Killer, victim and a bystander: (1) in a readiness round the killer's action opens an incident; the bystander's window stays as it was, then the GM's Move the clock and Go on close the players' windows silently, the clock does not move, only the GM gets DRPG.Ready.barred; the same when the GM's window goes on by itself; (2) a second Next time of day: no day summary on the bystander, HUD kept; killer and victim see it.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json or the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026; the branch copy origin/claude/e58-local:...:475-483 unchanged) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "tier 2 E37-T9 (scripts/tests-tier2.mjs:91145, exists) and E37-T10 (:91585, exists), both on the GM's page with game.user.isGM faked; the real bystander's page is not driven, as the item says. base-run.json does not exist (20.11.2026), so no result of these tests on b5a29e73 is cited",
+   "note": "Subject read today: boundary.mjs `roundOf` (:261), `renderReadyRound` (:551), `promptPlayer` (:575, `still` at :576), the barred note at :470; day-summary.mjs `registerDaySummary` (:69). The quoted strings exist: DRPG.Ready.cancelled 'GM jeszcze chwilę poczeka.', DRPG.Summary.title 'Pora dnia dobiegła końca'.",
+   "l1": {
+    "what": "a bystander's round window and summary while an incident hides the clock",
+    "recipe": [
+     "1. GM, killer, victim and a bystander, each with a card this time of day; both languages.",
+     "2. GM presses Next time of day; while windows are open the killer's action opens an incident; note the time.",
+     "3. On the bystander's page read whether the window changed; then GM presses Move the clock and Go on; note the close time, any message, the clock and the GM's line.",
+     "4. GM presses Next time of day again; read whether the summary shows on each page and the bystander's HUD time."
+    ],
+    "clients": "GM and three players",
+    "theme": "default",
+    "settles_if": "settled yes when the bystander's window stays, then closes with no word, the clock stays, only the GM sees the barred line, and no summary reaches the bystander; settled no when the bystander sees 'GM jeszcze chwilę poczeka', any message, a moved HUD, or the summary",
+    "priority": "major (the bystander learns an incident began)"
+   }
+  },
+  {
+   "n": "369",
+   "live_id": "LIVE-E41-01",
+   "stage": "E41",
+   "asks": "With a cleared cache, both themes, as GM and player: time from opening the world to the module's ready and the HUD's first draw, perf(), and in the network panel the module's file count, total size and last file's time - on E41's version (191 files in scripts/) and on 1.2.96 (155) for comparison.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json or the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026; the branch copy origin/claude/e58-local:...:475-483 unchanged) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": true,
+   "stale_detail": "The counts are dated: scripts/ holds 271 files on b5a29e73 (git ls-files), not 191; a comparison with 1.2.96 is a historic one now - a reading today would be of 1.2.118 against a release of the reader's choosing.",
+   "duplicate_of": null,
+   "headless_half": "00-boot and every scenario boot the module in each browser (audit/harness/scenarios/00-boot.mjs, exists); R161 (scripts/tests-tier0.mjs:6444, exists) holds the import graph free of cycles. Network fetch and first paint are not measured. base-run.json does not exist (20.11.2026), so no result of these tests on b5a29e73 is cited",
+   "note": "TRIAGE-9.2.md:392 notes the sandbox is localhost, not the owner's network, so a time read there is a floor.",
+   "l1": {
+    "what": "module load time and fetch cost on v14",
+    "recipe": [
+     "1. Clear the browser cache; open the network panel.",
+     "2. Open the world as the GM, then as a player, once per theme.",
+     "3. Note the time to the module's ready and to the HUD's first draw, `game.drpg.perf()`, and the number, total size and last finish time of files under modules/danganronpa-rpg."
+    ],
+    "clients": "GM and one player",
+    "theme": "both",
+    "settles_if": "settled yes when the times and counts are written down beside the release read; settled no when the module is not ready or the HUD does not draw within the time a table accepts (the owner's call)",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "370",
+   "live_id": "LIVE-E41-02",
+   "stage": "E41",
+   "asks": "Open once each window E41 moved (Room setup with Secret passages, Look into the stashes, Item tables with Install/reinstall, Students, Edit campaign, Sound with Music and Effects, the player's sound sliders, the HUD's time-of-day stopwatch) and check each looks and works as on 1.2.96; then both verdict windows (the ordinary list, the Final Trial list starting with nobody named) and a second verdict refused with its message.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json or the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026; the branch copy origin/claude/e58-local:...:475-483 unchanged) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "S",
+   "subject_exists": true,
+   "text_stale": true,
+   "stale_detail": "Three quoted strings were reworded by E71 B10a/B11 (25423c19, 14.11.2026): the refusal 'Werdykt tego Class Trial już zapadł. Zakończ rozdział, by iść dalej.' / 'The verdict for this trial is already in. End the chapter to go on.' is now 'Ten Class Trial ma już werdykt. Następny krok podaje konsola Class Trial.' / 'This trial already has its verdict. The trial console names the next step.' (DRPG.Vote.verdictAlreadyApplied); the option 'Nikt niewskazany' is now 'Nikogo nie wskazano' (DRPG.Vote.nobodyNamed). The ordinary verdict also offers one tick per accused when two living students are accused, since E40 (16.11.2026; verdict.mjs:284-299, R7601), which the item does not name. 'As on 1.2.96' is a baseline 22 releases back.",
+   "duplicate_of": null,
+   "headless_half": "tier 2 E41-T1 to E41-T4 (scripts/tests-tier2.mjs:92391, :92438, :92556, :92606, exist) and scenarios 41, 65, 66, 74, 76, 87 (exist), 63 part K (63-class-trial.mjs:101, exists). The item's own note that no test opens the player's sliders or the stopwatch by name (git grep 02.11) was not re-read today. base-run.json does not exist (20.11.2026), so no result of these tests on b5a29e73 is cited",
+   "note": "The ordinary verdict's rule the item states holds: verdict.mjs `verdictCandidates` (:276-282) marks the dead and disables them only when not final; the Final list is 'nobody named' then every student, the count's first accused selected (:1196-1207). See observations for the Polish intro of the Final window naming the old option label.",
+   "l1": {
+    "what": "the windows E41 moved, and both verdicts, at a table",
+    "recipe": [
+     "1. As the GM, in English and in Polish: open Room setup (Secret passages tab), Look into the stashes, Item tables (Install / reinstall), Students, Edit campaign, Sound (Music, Effects); as a player the sound sliders; look at the HUD's stopwatch.",
+     "2. Run an ordinary verdict with a known living Blackened and one dead student; read the list.",
+     "3. Run a Final Trial verdict; read its first option and the selection.",
+     "4. Ask for a second verdict from the trial console and from the Mastermind window; note the refusal's words."
+    ],
+    "clients": "GM and one player",
+    "theme": "both",
+    "settles_if": "settled yes when each window opens and works, the dead student is marked and not choosable in the ordinary list, the Final list starts with 'nobody named' and selects the first accused, and the second verdict is refused with today's words; settled no when a window fails to open or work, a list is wrong, or a second verdict goes through",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "371",
+   "live_id": "LIVE-E42-02",
+   "stage": "E42",
+   "asks": "(1) The GM closes the tab when the class's Level Up window opens after an ordinary verdict and reopens: the trial console shows the stopped verdict's line and Finish the verdict; after it each survivor has one Level Up and the waiting Reinforced Blackened one; the same once for a Final verdict. (2) The GM closes the tab mid chapter end (after the clock moved, before the morning card): Finish the chapter's end, Drop the rest, Cancel are offered; after Finish the chapter, session and day move exactly once with one morning card.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json or the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026; the branch copy origin/claude/e58-local:...:475-483 unchanged) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": true,
+   "stale_detail": "The line it quotes, 'Werdykt zatrzymał się na: ...' (DRPG.Vote.verdictStopped), was removed by 25423c19 (E71 B10a/B11, 14.11.2026); the console now says 'Werdykt zatrzymał się, zanim wykonał wszystkie kroki. Dokończ werdykt.' (DRPG.Floor.next.finishVerdict, with lead.finishVerdict and the finishElsewhere pair). The buttons it names stand: DRPG.Vote.finishVerdict, DRPG.Chapter.finishEnd, DRPG.Chapter.dropRest.",
+   "duplicate_of": null,
+   "headless_half": "tier 2 E42-T1, E42-T2, E42-T4 (scripts/tests-tier2.mjs:92650, :92772, :92958, exist), each modelling the closed tab as a refused record write. The season reset's part is closed by the owner (Q-E42-3), as the item says. base-run.json does not exist (20.11.2026), so no result of these tests on b5a29e73 is cited",
+   "note": "A real reload of the GM's tab can be driven at the sandbox (TRIAGE-9.2.md:394 classes it K).",
+   "l1": {
+    "what": "a verdict and a chapter end cut by the GM's tab closing",
+    "recipe": [
+     "1. GM and three players whose students survived the trial.",
+     "2. Give an ordinary verdict; when the class's Level Up window opens, close the GM's tab and reopen the world.",
+     "3. Read the trial console's line and press Finish the verdict; count Level Up offers per player and each sheet's advancement count before and after. Repeat once for a Final verdict.",
+     "4. End the chapter with every box ticked; close the tab after the clock moved, before the morning card; reopen.",
+     "5. Read the options offered, press Finish the chapter's end, write the clock (chapter, session, day, time) before, after the close and after, and the chat cards."
+    ],
+    "clients": "GM and three players",
+    "theme": "default",
+    "settles_if": "settled yes when each survivor gets exactly one Level Up, the waiting Blackened one, and the chapter, session and day move once with one morning card; settled no when a Level Up is doubled or missing, or the clock moves twice or not at all",
+    "priority": "major (a campaign's advancement or calendar wrong)"
+   }
+  },
+  {
+   "n": "372",
+   "live_id": "LIVE-E60-05",
+   "stage": "E60",
+   "asks": "At the owner's table, GM and two players each run diagnoseDiceLook({ test: true }) (the GM also via Open dice look in Pre-season checks): Dice So Nice and Daggerheart versions, display and the Hope/Despair preset match each person's settings windows; the test throw looks as its row says; on the GM each player's row matches what the player sees.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "not checkable at the sandbox by TRIAGE-9.2.md's class T; LOCAL-REPORT.md:323-331 (16.11.2026) files it among the 113 not checkable there; no reading found in live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json or the item's text",
+   "triage_class": "T",
+   "subject_exists": true,
+   "text_stale": true,
+   "stale_detail": "It calls the window 'Ustaw sezon'; the window's title is 'Ustawienia sezonu' / 'Season setup' today (DRPG.Season.title). 'Kontrola przed sezonem' (DRPG.Panel.seasonChecks) and 'Otwórz wygląd kości' (DRPG.DiceLook.diag.open) stand.",
+   "duplicate_of": null,
+   "headless_half": "R1294 (scripts/tests-tier1.mjs:40370), R1295 (:40435), R1296 (scripts/tests-tier0.mjs:21690), E60-T14 (scripts/tests-tier2.mjs:94313), all exist, on a Dice So Nice stand-in that draws nothing. base-run.json does not exist (20.11.2026), so no result of these tests on b5a29e73 is cited",
+   "note": "T because it needs the players' own Dice So Nice settings and screens (TRIAGE-9.2.md:395). Subject: dice-look.mjs `diagnoseDiceLook` (api.mjs:80).",
+   "l1": {
+    "what": "each browser's own reading of the dice look",
+    "recipe": [
+     "1. GM and two players on their own machines.",
+     "2. Each runs `game.drpg.diagnoseDiceLook({ test: true })`; the GM also presses Open dice look in Pre-season checks.",
+     "3. Each compares the versions, display and preset rows with their own Dice So Nice and Daggerheart settings windows, and the test throw with its row; the GM compares each player's row with what the player reports."
+    ],
+    "clients": "GM and two players",
+    "theme": "default",
+    "settles_if": "settled yes when every row matches its person's settings and screen; settled no when any row differs from what that person's settings or screen show",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "373",
+   "live_id": "LIVE-E60-07",
+   "stage": "E60",
+   "asks": "With a module that adds its own colorset and texture at runtime: diagnoseDiceLook() on a GM whose look uses them does not report them missing (game.dice3d.exports COLORSETS and TEXTURELIST hold them); a browser without that module reports them missing.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json or the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026; the branch copy origin/claude/e58-local:...:475-483 unchanged) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "none: the harness has no Dice So Nice registry, so no name is read missing there (the item's words).",
+   "note": "Subject read today: dice-look.mjs:260 reads COLORSETS and TEXTURELIST off game.dice3d.exports.",
+   "l1": {
+    "what": "runtime colorsets and textures in the dice look's report",
+    "recipe": [
+     "1. On the GM's page register a colorset and a texture at runtime (a small module or a console call to Dice So Nice's API) and use them in the GM's look.",
+     "2. Run `game.drpg.diagnoseDiceLook()` on the GM and on a player page without them."
+    ],
+    "clients": "GM and one player",
+    "theme": "default",
+    "settles_if": "settled yes when the GM's report names neither as missing and the other page names both; settled no when the GM's report names them missing, or the other page does not",
+    "priority": "nit"
+   }
+  },
+  {
+   "n": "374",
+   "live_id": "LIVE-E60-08",
+   "stage": "E60",
+   "asks": "At 1366x768, both themes, roll lock on: a player's action click opens the whole window as the GM's (dice, experiences, modifiers, formula, mode), controls locked and greyed, Reaction chip empty, the mode select's tooltip names who sees the roll, debug line 'A roll window opened: ...' with actionRoll true; a statistic click: whole too, Reaction held (actionRoll false, held reaction); screenshots on player and GM.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json or the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026; the branch copy origin/claude/e58-local:...:475-483 unchanged) counts the row among the 397 left, not yet driven or shot. The owner's table reading of 03.11.2026 on 1.2.97, the reason for this item, is in commit 7bfa6fe4's message ('u gracza sie zepsulo i jest malutkie') and roll-dialog.mjs:275-276 ('Gracz rzucal klikajac akcje', on a window whose Reaction chip was held); .github/release-notes/v1.2.98.md:216-217 leaves that chip to this item. It read the window before E60 C5c's change, not the window this item asks about, and is in none of the digests.",
+   "triage_class": "S",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": "268 (in part)",
+   "headless_half": "tier 2 E60-T15 (scripts/tests-tier2.mjs:75442, exists), jsdom's cascade, no layout. base-run.json does not exist (20.11.2026), so no result of these tests on b5a29e73 is cited",
+   "note": "Subject read today: roll-dialog.mjs `noteOpening` (:284-292: actionRoll, held 'reaction' | 'action' | null) and its debug line (:294). Item 268 (LIVE-E16-02) keeps the mode select, title bar, title and Reaction chip of the same window and sends the whole-window part here.",
+   "l1": {
+    "what": "a player's roll window whole, and its Reaction chip",
+    "recipe": [
+     "1. 1366x768, roll lock on, the module's Debug setting on, both themes.",
+     "2. As a player click Observe on the sheet; screenshot the window; read the mode select's tooltip and the console line 'A roll window opened'.",
+     "3. Click a statistic on the sheet; the same.",
+     "4. Screenshot the same two windows on the GM."
+    ],
+    "clients": "GM and one player",
+    "theme": "both",
+    "settles_if": "settled yes when both windows show every section, locked and greyed, the action's chip is empty with actionRoll true and the statistic's held with held 'reaction'; settled no when a section is missing, a control is live, or the chip is held on an action",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "375",
+   "live_id": "LIVE-E60-06",
+   "stage": "E60",
+   "asks": "On Daggerheart 2.9.x with one table dice look: the GM sets a Hope/Despair preset, players keep theirs, the GM's Monokuma in the player's room; an action, a statistic, a GM Reroll and the GM's own roll all show the GM's preset on every screen, and the roll's dice options show which preset it carries (the unawaited hope() race of 2.9); a changed preset is used next; with the switch off everyone rolls as before 1.2.98.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "not checkable at the sandbox by TRIAGE-9.2.md's class T; LOCAL-REPORT.md:323-331 (16.11.2026) files it among the 113 not checkable there; no reading found in live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json or the item's text",
+   "triage_class": "T",
+   "subject_exists": true,
+   "text_stale": true,
+   "stale_detail": "It is written for Daggerheart 2.9.x and its unawaited hope(); module.json verifies 2.12.9, the sandbox runs 2.12.9. Whether 2.12.9 still has the race is not read; on 2.12.9 the item reads the look, not the race.",
+   "duplicate_of": null,
+   "headless_half": "R1298 (scripts/tests-tier1.mjs:40526, exists) and E60-T16 (scripts/tests-tier2.mjs:94380, exists) on a stand-in of Dice So Nice's hook. base-run.json does not exist (20.11.2026), so no result of these tests on b5a29e73 is cited",
+   "note": "T at the sandbox only for the version (TRIAGE-9.2.md:398: 'Owner's table on Daggerheart 2.9.x'); on today's Daggerheart its steps are K/S. The world setting is diceDualityLook (release-notes v1.2.98.md:25).",
+   "l1": {
+    "what": "one Hope/Despair look for the table",
+    "recipe": [
+     "1. Daggerheart as installed (note its version), the table dice look switch on; the GM sets a Hope/Despair preset; the GM's Monokuma in a player's room.",
+     "2. The player clicks an action, then a statistic; the GM rerolls, then rolls himself; screenshot every screen that shows each roll and run `game.messages.contents.at(-1).rolls[0].dice[0].options` after each.",
+     "3. The GM changes the preset; the player rolls again.",
+     "4. Switch the setting off; roll once each."
+    ],
+    "clients": "GM and two players",
+    "theme": "default",
+    "settles_if": "settled yes when every screen shows the GM's preset (the new one after the change) and, off, each person's own; settled no when any screen shows a player's own preset with the switch on, or the old preset after the change",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "376",
+   "live_id": "LIVE-E60-09",
+   "stage": "E60",
+   "asks": "Switch Dice So Nice's 'Show only mine' off on the GM; a player's 3D dice fall on the GM only with that GM's Monokuma in the player's room (action and statistic); with a second full GM's Monokuma there only that GM sees them; with no pool set and two full GMs none does, and diagnoseDice() names whose screen showed them.",
+   "status": "partly",
+   "result": "agrees",
+   "evidence": "live-readings-other.json item 376 (AUDIT-1.2.42.md:1250; release-notes v1.2.98.md:19-23, 164; 03.11.2026, the owner at a real table): with 'Show only mine' on, the GM saw no player's dice - the cause the item now starts by switching off; not a module defect by that reading. The item's own steps on 1.2.98 (the Monokuma rule, two GMs) are not recorded as read.",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": true,
+   "stale_detail": "It names the window 'Ustaw sezon' (today 'Ustawienia sezonu' / 'Season setup', DRPG.Season.title); the rest stands: roll-draw.mjs:717 'Could not show the dice of a roll the GM drew', diagnostics.mjs:6 diagnoseDice.",
+   "duplicate_of": null,
+   "headless_half": "R1299 (scripts/tests-tier1.mjs:41048, exists), E60-T17 (scripts/tests-tier2.mjs:94739) and E60-T18 (:94797), both exist, on the harness's Dice So Nice model. base-run.json does not exist (20.11.2026), so no result of these tests on b5a29e73 is cited",
+   "note": "The recorded reading is the owner's, before 1.2.98 shipped (04.11.2026): it settles why the GM saw nothing on 1.2.97, not the 1.2.98 rule.",
+   "l1": {
+    "what": "a player's dice on a GM's screen by that GM's Monokuma",
+    "recipe": [
+     "1. Every GM and player has 'Show only mine' off in Dice So Nice.",
+     "2. The GM's Monokuma token in the player's character's room: the player clicks an action, then a statistic; note where dice fall.",
+     "3. Move the token to another room; repeat; the GM reads the card.",
+     "4. A second full GM with a pool set and a Monokuma in the room: repeat; then with no pool set and two full GMs; run `game.drpg.diagnoseDice()` on a GM at the roll."
+    ],
+    "clients": "two GMs and one player",
+    "theme": "default",
+    "settles_if": "settled yes when dice fall on a GM only with that GM's Monokuma in the room, and with no pool and two GMs on none, diagnoseDice naming the Monokuma whose GM cannot be told; settled no when dice fall on a GM without their Monokuma there, or never fall with it",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "377",
+   "live_id": "LIVE-E44-01",
+   "stage": "E44",
+   "asks": "Both themes, GM and player: game.drpg.styleSnapshot() beside audit/style-baseline.json's row of the same surface, theme and size; Foundry's core sheet and v14's `modules` layer are present at a table (LIVE-E30-09); record every difference (copy the JSON out).",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json or the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026; the branch copy origin/claude/e58-local:...:475-483 unchanged) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": true,
+   "stale_detail": "It calls the baseline 'about 260 KB'; audit/style-baseline.json is 1,491,763 bytes on b5a29e73.",
+   "duplicate_of": null,
+   "headless_half": "audit/style-sweep.mjs in Chromium on the style harness, no Foundry; jsdom's cascade in part (the item's words).",
+   "note": "Subject read today: style-snapshot.mjs via api.mjs:201.",
+   "l1": {
+    "what": "styleSnapshot at a v14 table against the baseline",
+    "recipe": [
+     "1. Under each theme, on the GM and on a player: `copy(JSON.stringify(game.drpg.styleSnapshot()))`.",
+     "2. Save each output with the screen size; hand them over for the diff against audit/style-baseline.json."
+    ],
+    "clients": "GM and one player",
+    "theme": "both",
+    "settles_if": "settled yes when the diff is written down surface by surface (no difference, or each named); settled no when the snapshot cannot be taken, or a difference changes what a surface shows",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "378",
+   "live_id": "LIVE-E44-02",
+   "stage": "E44",
+   "asks": "The GM presses a GM panel tile (e.g. Investigation) exactly when a player's action writes a module world setting (Despair, clock): the tile's window opens once and the panel does not rebuild under the pressed button (live.mjs's pointer rule: the rebuild waits for the release, at most 5 s).",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json or the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026; the branch copy origin/claude/e58-local:...:475-483 unchanged) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "R1316 (scripts/tests-tier1.mjs:41334, exists) and tier 2 E44-T1 (scripts/tests-tier2.mjs:95008, exists), both sending pointer events themselves. base-run.json does not exist (20.11.2026), so no result of these tests on b5a29e73 is cited",
+   "note": "Subject read today: live.mjs:78 (RELEASES pointerup, pointercancel, lostpointercapture), :82 (HOLD_MAX_MS 5000), :259.",
+   "l1": {
+    "what": "a panel tile pressed while a setting is written",
+    "recipe": [
+     "1. Hold the mouse down on a GM panel tile.",
+     "2. While held, a player's action writes Despair or the clock (or a second GM page writes it).",
+     "3. Release; count the windows that open and note whether the panel redrew under the press."
+    ],
+    "clients": "GM and one player",
+    "theme": "default",
+    "settles_if": "settled yes when one window opens and the panel redraws only after the release; settled no when no window or two open, or the panel redraws under the press",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "379",
+   "live_id": "LIVE-E44-03",
+   "stage": "E44",
+   "asks": "At 1366x768 and 1920x1080, both themes, with over 150 notices: the history window is no taller than the screen, only the list scrolls, the footer (Clear left, Close right) stays in view (R299 in Foundry); Close (Foundry's close action) closes it; on open the focus is on Close (autofocus).",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json or the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026; the branch copy origin/claude/e58-local:...:475-483 unchanged) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "R299 (scripts/tests-tier1.mjs:14836, exists; skips headless at :14909, needs(env.layout())) and scenario 73 (exists), which reads only that the button stands in the footer. base-run.json does not exist (20.11.2026), so no result of these tests on b5a29e73 is cited",
+   "note": "Subject read today: notice-history-app.mjs:253 (`footerMarkup` with Clear as destructive and close on the right); ui-kit.mjs:182-187 puts autofocus on the default button.",
+   "l1": {
+    "what": "the full notice history window on v14",
+    "recipe": [
+     "1. Fill the history past 150 entries (the console or a play session).",
+     "2. At 1366x768 and 1920x1080, each theme, open it: read the window's height against the screen, which element scrolls, whether the footer stays in view, and document.activeElement.",
+     "3. Press Close."
+    ],
+    "clients": "one player (and GM once)",
+    "theme": "both",
+    "settles_if": "settled yes when the window fits, only the list scrolls, the footer stays, focus is on Close and Close closes; settled no when the window passes the screen, the footer scrolls away, or Close does nothing",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "380",
+   "live_id": "LIVE-E44-04",
+   "stage": "E44",
+   "asks": "With LiveKit, both themes, GM and player, against 1.2.98: the room tile (photo, name bar, switch, folding description), the voice tile, the small launchers in three states, 'Who you hear' with sliders, the GM's red hexagon, the Foundry tools launcher, the Foundry tools and Map tools windows and the narrow description window - the owner looks whether they look and work the same.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "not checkable at the sandbox by TRIAGE-9.2.md's class T; LOCAL-REPORT.md:323-331 (16.11.2026) files it among the 113 not checkable there; no reading found in live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json or the item's text",
+   "triage_class": "T",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "the style sweep and glass-sweep in Chromium without Foundry and without LiveKit (the item's words).",
+   "note": "Subject read today: DRPG.Voice.list.open 'Who you hear', DRPG.FoundryTools.title and mapTitle in lang/en.json. The comparison 'with 1.2.98' is the owner's eye on a release 20 back.",
+   "l1": {
+    "what": "the A8 tiles and launchers with a live LiveKit",
+    "recipe": [
+     "1. A table with LiveKit on, GM and player, each theme.",
+     "2. Look at the room tile, voice tile, launchers (greyed, GM lock, no connection), Who you hear with sliders, the GM's hexagon, Foundry tools and Map tools windows, the narrow description window; use each once."
+    ],
+    "clients": "GM and one player",
+    "theme": "both",
+    "settles_if": "settled yes when the owner finds each as it should look and work; settled no when any of them looks or works wrong (named, with a screenshot)",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "381",
+   "live_id": "LIVE-E44-05",
+   "stage": "E44",
+   "asks": "Under Monokuma Legacy on v14: in Edit campaign, Despair Flow (Overflow tab) and Season setup, - and + keep min, max and step and a message stands under a field out of range; tabs of one bar are equal width on one line, a bar that does not fit even at 11 px goes to rows.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json or the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026; the branch copy origin/claude/e58-local:...:475-483 unchanged) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": true,
+   "stale_detail": "The clause 'in 1.2.99 the window does not widen: the 25 % growth works only on the kit's frame (drpgWindow), which no window has in 1.2.99, and ten tabbed windows get it in E21' is history: E21 shipped in 1.2.100 (07.11.2026, tools/stages.json), and Despair Flow is on drpgWindow today (gm-team-dialog.mjs:277), so a reading now meets the widening. It also calls the season window 'Ustaw sezon' (today 'Ustawienia sezonu', DRPG.Season.title).",
+   "duplicate_of": null,
+   "headless_half": "R1327 (scripts/tests-tier1.mjs:42053) and R1325 (:41906), both exist, read the cascade; the style sweep measures captured windows in Chromium. base-run.json does not exist (20.11.2026), so no result of these tests on b5a29e73 is cited",
+   "note": "",
+   "l1": {
+    "what": "steppers and tab bars under Monokuma Legacy",
+    "recipe": [
+     "1. Theme Monokuma Legacy.",
+     "2. In Edit campaign, Despair Flow (Overflow) and Season setup press - at the minimum and + at the maximum of a field; type a value out of range.",
+     "3. Read whether each tab bar's tabs are of one width on one line, or in rows, and whether the window widened."
+    ],
+    "clients": "one GM",
+    "theme": "Monokuma Legacy",
+    "settles_if": "settled yes when the bounds hold, the message shows, tabs are equal on one line or in rows; settled no when a value passes a bound, no message, or tabs overflow their bar",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "382",
+   "live_id": "LIVE-E44-06",
+   "stage": "E44",
+   "asks": "On 1.2.99 under Stained Glass at a real table: the history's search field, banner, footer and an open card's text now have the glass's floor (21 px at 100 %); the owner says whether anything needs changing.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading: live-readings-other.json not_run names this item ('the owner said on 04.11.2026 he would verify on 1.2.99 and report; no reading follows'); nothing in live-readings-e58.json or live-readings-e58-delta.json.",
+   "triage_class": "T",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "the style sweep measured the sizes in Chromium (the item's words).",
+   "note": "The owner's own judgement is the reading (TRIAGE-9.2.md:405).",
+   "l1": {
+    "what": "the owner's verdict on the notice history's text sizes",
+    "recipe": [
+     "1. Under Stained Glass at 100 % zoom open the notice history with entries, the search used and a card opened.",
+     "2. The owner says whether the search, banner, footer and card text read well or need a change."
+    ],
+    "clients": "the owner (any seat)",
+    "theme": "stained glass",
+    "settles_if": "settled yes when the owner says no change is needed; settled no when the owner names a size to change",
+    "priority": "nit"
+   }
+  },
+  {
+   "n": "383",
+   "live_id": "LIVE-E44-07",
+   "stage": "E44",
+   "asks": "Project tokens look white on the GM's screen and coloured on the players'. At the table, on the GM with a project in a room and a token selected: run the given line (Isometric's enableOcclusionDynamicTile, the AlwaysVisibleContainer clone count, each project token's tint and alpha), then hide AlwaysVisibleContainer: if the hammer turns amber or green the Dynamic Tile clone is the cause; if dyn is false and it stays white, run the same line on a player.",
+   "status": "partly",
+   "result": "defect",
+   "evidence": "live-readings-other.json item 383 (AUDIT-1.2.42.md:1257; release-notes v1.2.99.md:145-146; 04.11.2026, the owner at a real table): the GM's project tokens white, the players' coloured; cause not established, the console line and the toggle not yet run.",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": true,
+   "stale_detail": "Its code reading ('no road of the module draws a project token differently on the GM: visibility.mjs applyToProjectToken returns on the GM at once') was true on 04.11 and is not the whole road since PV (13.11.2026): on a player's browser applyToProjectToken now calls paintProjectTint (visibility.mjs:670-699), which sets the sprite's tint from projects-seen.mjs `tintAsSeen` (:225) or the document's; the GM's sprite is still Foundry's own drawing of texture.tint. The owner's sighting predates PV, so the question stands, but a reading now compares a module-tinted sprite with Foundry's. remnant-ring.mjs `frameFor` still reads the document (:688).",
+   "duplicate_of": null,
+   "headless_half": "tier 2 E44-T9 (scripts/tests-tier2.mjs:95309, exists) reads the colour and opacity on the document; R5652 (scripts/tests-tier1.mjs:40940, exists) the tint chosen for a player. No canvas in the harness. base-run.json does not exist (20.11.2026), so no result of these tests on b5a29e73 is cited",
+   "note": "Related, not a duplicate: item 518 (LIVE-PV-03) asks what the player's map draws for a finished project. The project icons are white SVGs tinted (projects-map.mjs:255), so a sprite drawn without its tint reads white.",
+   "l1": {
+    "what": "why project tokens are white on the GM",
+    "recipe": [
+     "1. On the GM, a scene with a project token in a room; select any token.",
+     "2. Run the item's console line and save the output (dyn, clones, each project's tint and alpha).",
+     "3. Run `canvas.stage.children.find(c => c.name === \"AlwaysVisibleContainer\").visible = false` and look at the hammer.",
+     "4. Run the same line on a player for comparison; also read `canvas.tokens.placeables.filter(t => t.document.getFlag(\"danganronpa-rpg\", \"projectId\")).map(t => t.mesh.tint)` on both."
+    ],
+    "clients": "GM and one player",
+    "theme": "default",
+    "settles_if": "settled yes when the hammer takes its colour once the container is hidden (Isometric's clone is the cause); settled no when it stays white with dyn false (another cause; the two outputs go to diagnosis)",
+    "priority": "nit (the GM's screen alone; the document holds the right colour)"
+   }
+  },
+  {
+   "n": "384",
+   "live_id": "LIVE-E44-20",
+   "stage": "E44",
+   "asks": "Players A and B, both themes: (1) A proposes a project with a two-line description; an empty field and over 1000 characters are stopped at the field with the window open; (2) the GM's approval opens on A's text, edits it; (3) A reads the GM's text on the token's card, line breaks kept; (4) the GM edits it with A's card open and the card follows; (5) a secret project shared with A, not B: B's card names nothing, the description is not in projectMeta on A or B, A gets it on a private chat card; (6) a project from before 1.2.99: saved without a word, the edit window asks for it. Record whether the stop at the field worked in v14's real DialogV2 (Enter in the name field too).",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json or the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026; the branch copy origin/claude/e58-local:...:475-483 unchanged) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": true,
+   "stale_detail": "It names the button 'Zaproponuj'; the proposal's button is 'Wyślij do GM-a' / 'Send to the GM' (DRPG.Project.proposeButton, action-project.mjs:292), and was already so at 1.2.99 (0f468bf6:lang/pl.json:3625); 'Zaproponuj projekt' is the action's own name (DRPG.Project.startNew).",
+   "duplicate_of": null,
+   "headless_half": "R1350 (scripts/tests-tier1.mjs:42721), R1351 (scripts/tests-tier0.mjs:22060), tier 2 E44-T20 (scripts/tests-tier2.mjs:95450), scenario 30-security part 7b''' (audit/harness/scenarios/30-security.mjs:1327-1368) and 72-canary (:90), all exist. base-run.json does not exist (20.11.2026), so no result of these tests on b5a29e73 is cited",
+   "note": "Subject read today: projects-ui.mjs `descriptionField` (:819), `descriptionRefusal` (:832-835; 'long' or DRPG.Project.descriptionNeeded), PROJECT_DESCRIPTION_MAX.",
+   "l1": {
+    "what": "a project's description, end to end at a table",
+    "recipe": [
+     "1. GM, players A and B; each theme once.",
+     "2. A proposes a project in a room: submit empty, then with over 1000 characters (press the button and Enter in the name field), then a two-line text.",
+     "3. GM approves, edits the text, creates it; A double-clicks the token and reads the card; with the card open the GM edits the description in Projects.",
+     "4. GM makes a secret project with a description, shared with A only; on A and B run `game.settings.get(\"danganronpa-rpg\", \"projectMeta\")` and read the project's fields; read B's card and chat.",
+     "5. Edit a project made before 1.2.99."
+    ],
+    "clients": "GM and two players",
+    "theme": "both",
+    "settles_if": "settled yes when each refusal stands at the field with the window open, the card follows the edit, B sees nothing and no description is in projectMeta; settled no when a refusal comes only as a toast after closing, the card lags, or B or projectMeta holds the secret description",
+    "priority": "major (a secret project's text reaching a player not in on it)"
+   }
+  },
+  {
+   "n": "385",
+   "live_id": "LIVE-E44-08",
+   "stage": "E44 fix FG2",
+   "asks": "Both themes, GM and player: (1) double-clicking the title bar folds and unfolds Despair Flow, Item tables, the narrow room description window, the character sheet and another module's window; (2) a folded window closed from its bar does not flash its content; (3) a folded messenger does not mark a message read until unfolded; (4) a panel tile or the messenger launcher pressed with the window folded unfolds and raises it. Record whether a short question window folds.",
+   "status": "partly",
+   "result": "defect",
+   "evidence": "live-readings-other.json item 385 (AUDIT-1.2.42.md:1259; release-notes v1.2.100.md:174, 215; 06.11.2026, the owner at a real table on Divakuma's sheet): the character sheet did not fold - an empty transparent strip 205 x 838 px; cause the module's CSS (min-height 830px), fixed in 1.2.100 (bb0feb94; the rule leaves out .minimized and .minimizing, styles/danganronpa.css:2282; R1566). Point (1) for the sheet is to be read again; points (2)-(4) and the other windows of (1) unread (live-readings-other.json not_run).",
+   "triage_class": "S",
+   "subject_exists": true,
+   "text_stale": true,
+   "stale_detail": "It tells the two windows apart by `tableDialog` (Despair Flow 'a DialogV2 with tableDialog', Item tables 'without'); utils.mjs `tableDialog` is gone since E21 C2a (1.2.100; gm-team-dialog.mjs:285 says 'until E21 C2a', and no function of that name is left in scripts/), and both windows are on the kit's frame (gm-team-dialog.mjs:277, tables-editor.mjs:1652 `drpgWindow`).",
+   "duplicate_of": null,
+   "headless_half": "R1339 (scripts/tests-tier1.mjs:42843, exists) on stand-in windows and R1566 (scripts/tests-tier0.mjs:21742, exists); the harness has no folding (its minimize and maximize do nothing). base-run.json does not exist (20.11.2026), so no result of these tests on b5a29e73 is cited",
+   "note": "Subject read today: messenger-app.mjs:129 (a folded conversation unfolded on open), :458 (`!this.minimized` in what counts as seen); live.mjs:696 `alreadyOpen`.",
+   "l1": {
+    "what": "folding windows on v14, after the sheet's fix",
+    "recipe": [
+     "1. As GM and as player, each theme: double-click the title bar of Despair Flow, Item tables, the narrow room description window, a character sheet and another module's window; then again to unfold.",
+     "2. Fold a window, close it from its bar; watch for a flash of its content.",
+     "3. Fold the messenger, have someone write, unfold it; read the unread mark before and after.",
+     "4. With Despair Flow folded press its panel tile; with the messenger folded press its launcher.",
+     "5. Try to fold a short confirmation window."
+    ],
+    "clients": "GM and one player",
+    "theme": "both",
+    "settles_if": "settled yes when each window folds to its bar and back, nothing flashes, the message is read only after unfolding, and the tile and launcher unfold and raise; settled no when the sheet or another window stays a strip, content flashes, a folded messenger marks read, or a press leaves it folded",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "386",
+   "live_id": "LIVE-E44-09",
+   "stage": "E44",
+   "asks": "Both themes: in a tabbed module window (Room setup) and a question window (delete a Remnant in Investigation) Escape closes with no answer, and Enter in a text field presses the primary button, not another tab's.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json or the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026; the branch copy origin/claude/e58-local:...:475-483 unchanged) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": true,
+   "stale_detail": "It cites the module's note as utils.mjs ('`_onKeyDown` intercepts Escape only', 14.365); the note now stands in ui-kit.mjs:359-362 (`wireKitTabs`, which replaced utils.mjs `wirePanelTabs`).",
+   "duplicate_of": null,
+   "headless_half": "tier 2 E44-T5 (scripts/tests-tier2.mjs:95235, exists) on the harness's DialogV2 model (audit/harness/lib/shim.mjs:1759-1763 models Escape). base-run.json does not exist (20.11.2026), so no result of these tests on b5a29e73 is cited",
+   "note": "",
+   "l1": {
+    "what": "Escape and Enter in a tabbed window and a question on v14",
+    "recipe": [
+     "1. Open Room setup, switch to a second tab, type in a text field and press Enter; note which button acted.",
+     "2. Reopen and press Escape; note whether anything was saved.",
+     "3. In Investigation start deleting a Remnant and press Escape at the question."
+    ],
+    "clients": "one GM",
+    "theme": "both",
+    "settles_if": "settled yes when Escape closes with no answer and Enter presses the shown primary button; settled no when Escape answers, or Enter presses another tab's button",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "387",
+   "live_id": "LIVE-E21-01",
+   "stage": "E21",
+   "asks": "At 1366x768, 1280x800, 1024x768 and 1920x1080, both themes: every GM window on every tab and every player action window keeps its footer and buttons on screen and scrolls only its content; Observe fits with no scroll from 1366x768 up for every picked row (1120 px window, with 'All thresholds' open); the Stop button on the real sheet is on screen; after a tab click in a window that grows down, whether Foundry moves it up and how far the footer stands from the bottom.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json or the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026; the branch copy origin/claude/e58-local:...:475-483 unchanged) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": true,
+   "stale_detail": "'All thresholds' is gone: E49 A8.1 (d9557fdc, 11.11.2026) put every fact line in one Details, and R3380 (scripts/tests-tier0.mjs:24057) holds that there is no 'All thresholds' (`DRPG.Kit.allThresholds` is not in lang/). The 1120 px window stands (action-menus.mjs:274-277, E68 C12); its comment at :282-293 keeps the E21 G2 measurement with 'All thresholds' as a record of that day.",
+   "duplicate_of": null,
+   "headless_half": "R1353 (scripts/tests-tier1.mjs:43080, exists: the setPosition call after a tab press); in Chromium `node audit/style-sweep.mjs --fit` (audit/style-sweep.mjs:55-70), which places windows by its model (style-harness.html `keepInScreen`), not by Foundry. base-run.json does not exist (20.11.2026), so no result of these tests on b5a29e73 is cited",
+   "note": "",
+   "l1": {
+    "what": "every window's footer on screen at four sizes",
+    "recipe": [
+     "1. At each of the four sizes and each theme, open every GM window on each tab and every player action window.",
+     "2. Read whether the footer and its buttons are on screen and which element scrolls; open Observe and pick each row.",
+     "3. On a real character sheet read whether Stop is on screen.",
+     "4. Press a tab that makes a window grow down; note whether Foundry moves it up and the footer's distance to the bottom edge."
+    ],
+    "clients": "GM and one player",
+    "theme": "both",
+    "settles_if": "settled yes when every footer is on screen, only content scrolls, Observe does not scroll from 1366x768 up, Stop is visible; settled no when a footer or button is off screen (window, tab, size, theme)",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "388",
+   "live_id": "LIVE-E21-02",
+   "stage": "E21",
+   "asks": "On a real tablet and phone, both themes, as a player: tap a text field (history search, an action window's request field) so the keyboard comes up; record whether body's drpg-short and drpg-stacked change, whether the curtain is cut again and whether the field stays in place; then hide the keyboard and rotate - rotation re-lays the layout.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "not checkable at the sandbox by TRIAGE-9.2.md's class T; LOCAL-REPORT.md:323-331 (16.11.2026) files it among the 113 not checkable there; no reading found in live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json or the item's text",
+   "triage_class": "T",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "R1355 (scripts/tests-tier1.mjs:43173, exists); glass-sweep `?kbd=1` (audit/glass-sweep.mjs:27-30, 2650-2654) simulates the keyboard by a height change.",
+   "note": "Subject read today: settings.mjs `layoutHeight` (:4384) and the comment at :4353-4358.",
+   "l1": {
+    "what": "an on-screen keyboard and the layout",
+    "recipe": [
+     "1. On a tablet and a phone, each theme, as a player: open the notice history and tap its search; then an action window's request field.",
+     "2. Read `document.body.className` before and after the keyboard shows; watch the curtain and the field.",
+     "3. Hide the keyboard and rotate the device."
+    ],
+    "clients": "one player on a tablet and a phone",
+    "theme": "both",
+    "settles_if": "settled yes when the classes do not change with the keyboard, the field stays, and rotation re-lays the page; settled no when the layout switches on the keyboard or the field jumps away",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "389",
+   "live_id": "LIVE-E21-03",
+   "stage": "E21",
+   "asks": "On tablets and phones with Chrome or Edge, Safari and Firefox: ({ api, overlays, h }) before and after the keyboard shows; record where the page height does not fall (keyboard over the page) and where it falls and only the remembered height holds the layout.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "not checkable at the sandbox by TRIAGE-9.2.md's class T; LOCAL-REPORT.md:323-331 (16.11.2026) files it among the 113 not checkable there; no reading found in live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json or the item's text",
+   "triage_class": "T",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "none: no browser of a table was read (the item's words); R1355 (scripts/tests-tier1.mjs:43173) reads the source line that sets overlaysContent.",
+   "note": "Subject read today: settings.mjs `watchScreen` (:4484) sets navigator.virtualKeyboard.overlaysContent = true where the API exists (:4490).",
+   "l1": {
+    "what": "the VirtualKeyboard API in the table's mobile browsers",
+    "recipe": [
+     "1. On each browser (Chrome or Edge, Safari, Firefox) on a tablet and a phone, open the world.",
+     "2. Run `({ api: Boolean(navigator.virtualKeyboard), overlays: navigator.virtualKeyboard?.overlaysContent ?? null, h: innerHeight })` before and with the keyboard shown."
+    ],
+    "clients": "one player, several devices",
+    "theme": "default",
+    "settles_if": "settled yes when each browser's row is written down (api, overlays, the heights); settled no when a browser with the API still loses page height with the keyboard up",
+    "priority": "nit"
+   }
+  },
+  {
+   "n": "390",
+   "live_id": "LIVE-E22-01",
+   "stage": "E22",
+   "asks": "In every GM window with an irreversible answer (a death, a body's announcement, chapter end, sentence, Sweep, Clear Faint, delete a table, delete a Despair pool, clear the overflow, end of murder, season reset, a project's Delete, Close and count in the vote, Clear in the notice history - also as a player) Enter in a field and on the window presses Cancel and nothing changes; the irreversible button is not default and has a hatched background; in Share, Share is default and Revoke access is not. Record every window where Enter did otherwise.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json or the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026; the branch copy origin/claude/e58-local:...:475-483 unchanged) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "R1358 (scripts/tests-tier1.mjs:43351), R1360 to R1364 (:43606, :43695, :43730, :43769, :43881), R1371 (:44579), tier 2 E22-T1, E22-T2, E22-T5 (scripts/tests-tier2.mjs:95727, :95783, :95832), all exist, on the harness's DialogV2 model. base-run.json does not exist (20.11.2026), so no result of these tests on b5a29e73 is cited",
+   "note": "Labels read today: DRPG.Notices.clear 'Wyczyść historię' / 'Clear the history', DRPG.Project.shareButton 'Udostępnij…', DRPG.Project.revokeButton 'Cofnij dostęp', DRPG.Vote.tally 'Close and count'.",
+   "l1": {
+    "what": "Enter in every irreversible window on v14",
+    "recipe": [
+     "1. As the GM, each theme: open each window the item lists; press Enter in its text field if it has one, then with focus on the window.",
+     "2. Note what happened and whether anything changed; look whether the irreversible button has a focus ring on open and a hatched background.",
+     "3. In Share press Enter: it should share; Revoke access not default.",
+     "4. As a player, the notice history's Clear."
+    ],
+    "clients": "GM and one player",
+    "theme": "both",
+    "settles_if": "settled yes when Enter presses Cancel everywhere but Share, and nothing changes; settled no when Enter carries out an irreversible answer anywhere",
+    "priority": "major (a death, a chapter end or a reset by one key)"
+   }
+  },
+  {
+   "n": "391",
+   "live_id": "LIVE-E22-02",
+   "stage": "E22",
+   "asks": "Both themes, under 1224 px, as a player: red rows and buttons stand by a sentence that the GM decides (Tamper's Reshape a Trace, Direct Murder's declaration, the critic after a reshape); the default button under Legacy is dice-coloured with a stronger border, not red; a picked red row under Stained Glass readable; a locked Direct Murder tile not red; GM Team table headers and Sound > Effects groups not red; Doors' room count, no Situational playlist, no Final Truth Remnant and 'no playlists' in a neutral frame; warnings (uncovered map in Fog, privacy in Mastermind) stay red.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json or the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026; the branch copy origin/claude/e58-local:...:475-483 unchanged) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "S",
+   "subject_exists": true,
+   "text_stale": true,
+   "stale_detail": "The sentence it quotes, 'Ten świat nie ma playlist', is now 'Nie ma jeszcze playlist. Utwórz je w panelu Playlisty.' / 'No playlists yet. Make them in the Playlists sidebar.' (DRPG.Music.noPlaylists); the Situational line is DRPG.Music.noSituational.",
+   "duplicate_of": null,
+   "headless_half": "R121 (scripts/tests-tier1.mjs:44311) and R1373 (:44694), both exist, read the sheets' cascade from their text, not what is drawn; hover and press are not read. base-run.json does not exist (20.11.2026), so no result of these tests on b5a29e73 is cited",
+   "note": "",
+   "l1": {
+    "what": "where red is drawn, at rest",
+    "recipe": [
+     "1. Browser under 1224 px wide; each theme.",
+     "2. As a player open Tamper (Reshape a Trace), the Direct Murder declaration and the critic after a reshape; screenshot.",
+     "3. As the GM open GM Team (Despair Flow), Sound > Effects and Music, Doors, Fog with an uncovered map, the Mastermind window; screenshot."
+    ],
+    "clients": "GM and one player",
+    "theme": "both",
+    "settles_if": "settled yes when red stands only on the GM's road and on warnings, and the listed notes are neutral; settled no when red on a plain row, a header or a note, or a warning not red",
+    "priority": "nit"
+   }
+  },
+  {
+   "n": "392",
+   "live_id": "LIVE-E21-04",
+   "stage": "E21",
+   "asks": "Under Stained Glass at 1366x768 and 1920x1080, player and GM: a conversation with a long history and a long handbook chapter; whether the messenger's height follows its content (not a fixed 520 px) and stays on screen, only the log scrolls, the input and buttons stay visible, the 10/12 px margins do not cut bubbles; the handbook as tall as the screen less 16 px, contents and text scrolling apart.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json or the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026; the branch copy origin/claude/e58-local:...:475-483 unchanged) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "S",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "R1371 (scripts/tests-tier1.mjs:44579, exists) reads classes and the scroll region; glass-harness `?msgr=1` (audit/glass-harness.html:2567-2575) draws a smaller copy of the conversation (its markup uses drpg-messenger-body, which messenger-app.mjs does not), so Chromium has not read this window as drawn. base-run.json does not exist (20.11.2026), so no result of these tests on b5a29e73 is cited",
+   "note": "The 16 px rule is in the sheets: styles/components.css:266 and styles/narrow.css:586 (`max-height: calc(100dvh - 16px)`).",
+   "l1": {
+    "what": "the messenger and the handbooks under Stained Glass",
+    "recipe": [
+     "1. Stained Glass, 1366x768 then 1920x1080, as a player and as the GM.",
+     "2. Open a conversation with a long history; screenshot; scroll; read whether the input stays.",
+     "3. Open the player's handbook at a long chapter; screenshot; scroll the contents and the text."
+    ],
+    "clients": "GM and one player",
+    "theme": "stained glass",
+    "settles_if": "settled yes when the messenger fits and scrolls only its log with bubbles whole, and the handbook is screen-high less 16 px with two scrolls; settled no when the messenger passes the screen, hides its input, cuts bubbles, or the handbook scrolls as one",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "393",
+   "live_id": "LIVE-E21-05",
+   "stage": "E21",
+   "asks": "Both themes, as player and as GM picking for a student: the Level Up pick (standard and Reinforced, pick 3) - Cancel left, Apply right and default, the rows scroll above the footer, no Polish label cut, fits at 1366x768; compare with card M9.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json or the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026; the branch copy origin/claude/e58-local:...:475-483 unchanged) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "S",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "R1371 (scripts/tests-tier1.mjs:44579, exists); probe 08 captures the Level Up menu and, since 13.11.2026, the queue's who-picks window (audit/harness/probes/08-capture-windows.mjs:375, 420-425), not the pick-3 window itself. base-run.json does not exist (20.11.2026), so no result of these tests on b5a29e73 is cited",
+   "note": "",
+   "l1": {
+    "what": "the Level Up pick window on the kit",
+    "recipe": [
+     "1. Each theme, in Polish: open a standard and a Reinforced Level Up pick as a player and as the GM for a student.",
+     "2. Screenshot at 1366x768; read the footer's order and default, the scroll, the labels."
+    ],
+    "clients": "GM and one player",
+    "theme": "both",
+    "settles_if": "settled yes when Cancel left, Apply right as default, rows scroll above the footer, no label cut, it fits; settled no when the footer is wrong, a label is cut, or the window passes the screen",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "394",
+   "live_id": "LIVE-E22-03",
+   "stage": "E22",
+   "asks": "Both themes, as a player, in an action window (Analyze, Tamper): hover Cancel, the default button, a red row and a plain row, then Tab across the footer; record each one's background, border and text colour. Red only on the GM's road and irreversible answers; text under the cursor readable (Stained Glass: Delete, Revoke access, Clear the history, Stop in Safeword); Legacy's focus ring on the default in dice colour.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json or the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (16.11.2026; the branch copy origin/claude/e58-local:...:475-483 unchanged) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "S",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "R1373 (scripts/tests-tier1.mjs:44694, exists) reads the cascade at rest; :hover and :focus-visible are not read. base-run.json does not exist (20.11.2026), so no result of these tests on b5a29e73 is cited",
+   "note": "Labels read today: DRPG.Safeword.stopIt 'Zatrzymaj scenę' / 'Stop the scene' (the item's 'Zatrzymaj'), DRPG.Notices.clear 'Wyczyść historię'.",
+   "l1": {
+    "what": "hover and focus colours on buttons",
+    "recipe": [
+     "1. Each theme, as a player, open Analyze and Tamper.",
+     "2. Hover Cancel, the default button, a red row and a plain row; screenshot each.",
+     "3. Tab across the footer; screenshot each focus.",
+     "4. Under Stained Glass hover Delete, Revoke access, Clear the history and Safeword's Stop the scene."
+    ],
+    "clients": "one player",
+    "theme": "both",
+    "settles_if": "settled yes when red appears only on the GM's road and irreversible answers, every hovered text reads, and Legacy's default ring is dice-coloured; settled no when red on a plain control, an unreadable hovered text, or a red focus ring",
+    "priority": "nit"
+   }
+  }
+ ],
+ "observations": [
+  "Count: lines 1235-1277 of audit/AUDIT-1.2.42.md hold 34 numbered items, 361 to 394, each number once and in order (counted by script; lines 1235-1260 one per line, 1262-1276 every other line with blank lines between). Each of the 34 LIVE ids is the head of exactly one item in the whole of section 9.2, and only LIVE-E60-08 is named in another item (268, at line 1142). The stage order is E65, E66, E37, E41, E42, E60, E44, E21, E22 - the 9.2 order of release (1.2.95 to 1.2.100), not of stage number; inside E44 LIVE-E44-20 stands between -07 and -08.",
+  "Readings: three of 34 have one, each the owner's at a real table and each digested in live-readings-other.json: 376 (03.11.2026, the cause of a GM seeing no dice), 383 (04.11.2026, white project tokens, cause open), 385 (06.11.2026, the sheet's fold, fixed in 1.2.100). live-readings-e58.json and live-readings-e58-delta.json hold no reading of any item here; the sandbox's 397 'left' (LOCAL-REPORT.md:323-331) holds the 27 K and S items, the 113 'not checkable' the 7 T ones. TRIAGE-9.2.md:384-417 classes the 34 as K 19, S 8, T 7; this file keeps those classes.",
+  "A reading the digests do not carry: item 374's cause, the owner's table on 1.2.97 (03.11.2026; commit 7bfa6fe4's message and roll-dialog.mjs:275-276; release-notes v1.2.98.md:216-217): the player's roll window 'malutkie' and a held Reaction chip on what the player said was an action's roll. It led to E60 C5c and to this item; it is not a reading of the item's steps on 1.2.98.",
+  "E71's text sweep (14.11.2026) reworded strings the list quotes and the list was not swept with it: 364 (8f3d53ae, the away status), 370 and 371 (25423c19, the second verdict's refusal, the Final list's first option, the stopped verdict's line), 391 (DRPG.Music.noPlaylists). Three items call the season window 'Ustaw sezon', a title no key holds today (DRPG.Season.title 'Ustawienia sezonu' / 'Season setup'): 372, 376, 381. 384 names a button 'Zaproponuj' that was 'Wyślij do GM-a' already at 1.2.99.",
+  "Structure the items describe has moved: 385 tells two windows apart by utils.mjs `tableDialog`, gone since E21 C2a; 387's 'All thresholds' was removed by E49 A8.1 (R3380 holds its absence); 381's '1.2.99 does not widen' caveat ended with E21's 1.2.100; 383's code reading predates PV's player-only tint (visibility.mjs `paintProjectTint`, 13.11.2026); 386's note moved from utils.mjs to ui-kit.mjs. Two name older Daggerheart versions (366 2.10.x, 375 2.9.x) where module.json verifies 2.12.9. 377's baseline is 1.49 MB, not about 260 KB; 369's 191 files are 271 today.",
+  "Two pass routes rest on a local gate that never ran: 362 ('in the local gate run of release 1.2.96') and 365 ('until the local gate runs'). Every audit/gate/local-gate.json record from 1.2.90 to 1.2.118 in the file's history has every part not-run (read by script over git log --follow); 1.2.96's is 85e8b0e2.",
+  "Text, outside the list (nit, read): the Polish intro of the Final Trial verdict window names an option the window does not draw. lang/pl.json DRPG.Mastermind.verdictIntro (added by 4dadd182, 14.11.2026 06:20 UTC) says the list 'zaczyna się od „Nikt niewskazany”', but the option is DRPG.Vote.nobodyNamed 'Nikogo nie wskazano' (renamed by 25423c19 at 03:54 UTC the same day), drawn at scripts/verdict.mjs:1206 under that intro (:1213). The English intro (lang/en.json DRPG.Mastermind.verdictIntro, 'Whether the vote named the Mastermind is yours to judge. Check who it accused, then pick the outcome.') says nothing of the list or the pre-selection, so the two languages tell the GM different things. Failure scenario: a Polish GM giving the Final verdict looks for „Nikt niewskazany” and finds 'Nikogo nie wskazano'. Refutation tried: no other key holds 'Nikt niewskazany' (script over lang/pl.json), and verdict.mjs:1206 is the only option of that window; tools/check.mjs text was not run (no running anything), so whether the lint sees it is not read.",
+  "The headless halves: every test, scenario and probe the 34 items name exists on b5a29e73 (R1060, R972, R1162, R161, R1205, R1294-R1296, R1298, R1299, R1316, R1325, R1327, R1339, R1350, R1351, R1353, R1355, R1358, R1360-R1364, R1371, R1373, R121, R1566, R299; E37-T3, -T7, -T9, -T10; E41-T1..T4; E42-T1, -T2, -T4; E44-T1, -T5, -T9, -T20; E60-T14..T18; E22-T1, -T2, -T5; scenarios 00, 30, 40, 41, 63, 65, 66, 72, 73, 74, 76, 81, 87; probe 08). base-run.json did not exist when this file was written, so none of their results is cited. The sandbox's tier 2 runs (origin/claude/e58-local LOCAL-REPORT.md:304-310) compare tests 'by name' but do not write the names in the paper, so whether these tier-2 halves passed on 14.370 cannot be read from the repository."
+ ]
+}

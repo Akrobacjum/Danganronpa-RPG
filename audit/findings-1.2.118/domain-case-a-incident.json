@@ -1,0 +1,381 @@
+{
+  "reader": "domain-case-a-incident",
+  "files_read": [
+    {
+      "file": "scripts/murder-rules.mjs",
+      "lines": 4746,
+      "read": "whole"
+    },
+    {
+      "file": "scripts/murder-ui.mjs",
+      "lines": 907,
+      "read": "whole"
+    },
+    {
+      "file": "scripts/murder.mjs",
+      "lines": 37,
+      "read": "whole"
+    },
+    {
+      "file": "scripts/murder-music.mjs",
+      "lines": 389,
+      "read": "whole"
+    },
+    {
+      "file": "scripts/incident-store.mjs",
+      "lines": 1942,
+      "read": "whole"
+    }
+  ],
+  "neighbours_followed": [
+    "scripts/bridge-table.mjs (rows murder.openingResult, murder.crisis, murder.park, murder.betrayal, murder.cleanup: 516-585; ask: 1653-1660)",
+    "scripts/bridge-runs-acts.mjs (handleOpeningResult, handleCrisis, handleParkMurder, handleBetrayal: 779-904)",
+    "scripts/bridge-guards.mjs (guardUndoIsTheGms, guardCrisisAction, guardCrisisRoll: 610-659; rollRefusal, rollsFor, onRecord, judge: 1597-1827)",
+    "scripts/bridge-asks.mjs (requestOpeningResult 46-50, requestCrisisResult 960-975, requestBetrayal 1068-1080)",
+    "scripts/gm-bridge.mjs (onGmReady, registerGmBridge, onOpeningAsk, askOpeningRoll, onOpeningCancel, cancelOpeningRoll: 84-243)",
+    "scripts/utils.mjs (ownerOf, playerOwns, ownerIdsOf, stamped, announce, whisperToOwnerOnly, whisperToOwner, whisperToGms: 637-800; plural)",
+    "scripts/secret.mjs (plainSummary, splitFlags, DOCUMENT_FLAGS, GM_META: 170-290; incidentVeils, post, askGm, postAsked: 1070-1327)",
+    "scripts/settings.mjs (the incidentCast registration 2879-2915; incidentCast, incidentParticipants, incidentIndirect, incidentSeats, incidentWitness, isDeceased, pendingDeath, isDeadForGm, deadIn: 3525-3850)",
+    "scripts/gm-store.mjs (copyRecord, readMine: 1367-1384)",
+    "scripts/config.mjs (MURDER_OPENING, INCIDENT, DEFENSE, CRISIS_ACTIONS: 3682-4280; RESOLUTION_HEALTH_COST 4445-4467; TIMING ackMs, rulingMs, openingAttempts, reaskCooldownMs)",
+    "scripts/live.mjs (WORLD_HOOKS, ACTOR_HOOKS, TOKEN_HOOKS, ITEM_HOOKS: 69-72; keepLive 106-225; listenFor)",
+    "scripts/ui-kit.mjs (drpgWindow 1301-1345, drpgConfirm 1530-1543)",
+    "scripts/gm-panel.mjs (the Murder tile 249-256; the tile runner that reopens the panel 579-624)",
+    "scripts/action-murder.mjs (the crisis menu's rows 92-126; performBetrayal 239-300)",
+    "scripts/death.mjs (recordSecretDeath, tellDeathKnowers, publishDeath: 450-545)",
+    "scripts/cleanup.mjs (tamperQuote, holdsFreeCleanup 1325-1348; markResolutionStress, consumeFreeCleanup 2462-2512; cleaningTool 465)",
+    "scripts/movement.mjs (incidentRoomForGm, lockedInIncident: 1980-2046)",
+    "scripts/voice.mjs (deathVoiceGone 1265-1271) and scripts/gm-students.mjs (the Silence now cell 140-152)",
+    "scripts/mask-gm.mjs (header 1-30; opensMask, maskPatch 60-90)",
+    "scripts/perf-counters.mjs (the counters' names 10-30) and scripts/world-secrets.mjs (the Item rules, by grep)",
+    "scripts/tests-grid.mjs (cases 205-262, act 519-530, answerDialogs 1488-1520) and scripts/tests-tier2.mjs (4490-4520, 97730-97775)",
+    "docs/handbooks/gm-handbook.en.md (13.1-13.4: 1126-1130, 1160, 1172-1193, 1239-1243), docs/handbooks/player-handbook.en.md (778-779, 826, 838), lang/en.json (the DRPG.Murder keys quoted below)",
+    "the repository's path-scoped rules files code.md and trust-model.md (whole), docs/dev/e106/STATUS.md (78-92)"
+  ],
+  "strengths": [
+    "Every write of the incident runs in one per-browser queue and a transition says what it read (`expect`), so a lost race writes nothing: scripts/incident-store.mjs:327-339, 767-771; murder-rules.mjs:2434-2435, 2880-2881, 3095.",
+    "The world half is fail-closed: a field neither `PUBLIC_INCIDENT` nor the cast lists goes nowhere and is logged: scripts/incident-store.mjs:148-167, 777-778.",
+    "What each holder is sent is one function with its withheld fields and their stamps written out, and a standing packet repeats what was last sent: scripts/incident-store.mjs:563-619, 664-685.",
+    "Both socket listeners take authority from Foundry's senderId, answer on the primary GM alone and address one user: scripts/incident-store.mjs:1124-1157, 1384-1407.",
+    "A packet's `free` claim is looked up in the incident on the GM and dropped to false with nothing behind it; a packet that names no roll is let through only for a no-roll decision or a free resolution: scripts/bridge-runs-acts.mjs:846, scripts/bridge-guards.mjs:655-659.",
+    "One close per incident (`closing`, by openedAt) and a close held to the incident it read: scripts/murder-rules.mjs:3417-3429, 3567-3570.",
+    "A crisis action's receipt is closed in `finally`, whatever the pass does, so its Reroll is not lost with a refused write: scripts/murder-rules.mjs:1952-1961.",
+    "The question 'every killer is dead' closes itself when its incident is gone: scripts/murder-rules.mjs:3139-3157.",
+    "Every private card of the rules file is veiled by two local wrappers no call site can skip, and a player's browser posts none itself while an incident runs: scripts/murder-rules.mjs:108-111, scripts/secret.mjs:1189.",
+    "The murder overlay's generation counter stops a track that arrives for an incident already over, and a failed file is asked once per incident: scripts/murder-music.mjs:235-304.",
+    "The tracker is a live region with a signature that reopens it when the set of buttons changes, and its Pass and re-ask are rate-limited: scripts/murder-ui.mjs:355-373, 584-586, 733-773.",
+    "The murder window says what the GM picked instead of correcting it (one name in both seats, two rooms, a dead builder): scripts/murder-ui.mjs:136-141, 191-197, 272-294."
+  ],
+  "findings": [
+    {
+      "id": "domain-case-a-incident-1",
+      "domain": "CASE",
+      "severity": "major",
+      "category": "bug",
+      "title": "The number a victim (or a third) is told to beat leaves out the other side's defence whenever their copy of the cast holds no killer - a masked killer, and every trap - while the GM judges and prints the number with it",
+      "where": "scripts/murder-rules.mjs:258-260 (crisisDefense), 316-318 (the menu's row), 1183 (the roll window), 1773 and 1783 (the judge); scripts/incident-store.mjs:586-588 (the copy's killerId null)",
+      "what_happens": "Four rows carry `defense: { side: \"killer\" }` (Self-Defense and Role Reversal the killer's Body, Survive and Escape Together the killer's Leg). `crisisDefense` reads the defender's id off `state.killerId`. On the roller's browser `murderState()` is the world half merged with their copy of the cast, and that copy holds `killerId: null` while a mask stands (an opening on Hope or a critical, mask-gm.mjs `opensMask`) and for a trap's victim always (`castCopyFor`). So the menu row (`availableCrisisActions`, drawn by action-murder.mjs:105-122) and the roll window's `dc` (`takeCrisisAction`) read a defence of 0, while `applyCrisisAction` on the GM reads the killer's statistic and adds 1 when it is 1 or more. The result card (`announceCrisis`) then prints the GM's number to the same player.",
+      "evidence": "    const id = rule.side === \"victim\" ? state.victimId : rule.side === \"killer\" ? state.killerId : null;\n    const dh = TRAITS[rule.trait]?.dh;\n    if (!id || !dh) return 0;\n...\n    const masked = !killer && Boolean(theirs.killerId && maskStore.get(theirs.killerId));\n    if ((!seen.indirect && !masked) || killer) return { copy, withheld };\n    return { copy: { ...copy, killerId: null, killerTurnId: null }, withheld };",
+      "failure_scenario": "A direct murder opens on Hope (the killer is behind a '?'); the killer's Body is +1. The victim's menu says 'Beat 18' for Self-Defense and the roll window says the same; they roll 18 and the card they are sent reads '18 < 19': a miss, on a number nobody showed them. The same for a trap's victim against the absent builder's Body and Leg.",
+      "expected": "One number on the tile, in the roll window and in the judgement: murder-rules.mjs:232-237 ('ONE READING FOR THE MENU, THE ROLL WINDOW AND THE JUDGE'), 248-252 ('so the three cannot differ'), and gm-handbook.en.md:1160 ('It counts on the tile, in the roll window and in your judgment alike'). Whether a hidden defender's statistic counts at all is the owner's to say; today the card's number also tells the roller that the hidden killer's (a trap builder's) Body or Leg is 1 or more.",
+      "fix_sketch": "Decide the rule for a defender the roller may not know (no defence, or the judged number sent with the turn) and make the judge and the roller's two readings follow the same one; add a test that compares the roller's threshold with the GM's under a null killerId.",
+      "confidence": "read",
+      "refutation_tried": "Looked for another source of the killer's id on the roller's browser: the world half holds `active` and `stage` alone (incident-store.mjs:148-151) and the copy is the only other input of `murderState()` (187-191). Looked for a guard that leaves the defence out on the GM for a trap or a mask: `crisisDefense` asks neither `indirect` nor the mask store. git grep of crisisDefense and crisisThreshold: murder-rules.mjs and action-murder.mjs only. E64 (the defence, 12.11.2026) and E69 C8 (the mask, 13.11.2026) are one day apart; neither comment names the other.",
+      "tests_near": "R3961 (tier 1) reads the eight config rows and that `crisisThreshold` adds `crisisDefense` in the source; scenario 21-masked-killer reads the names on the cards, not a threshold; tier 2's Finishing Blow test (tests-tier2.mjs:88885) reads the falling number. None compares the roller's number with the judge's when the roller's copy holds no killer.",
+      "live_check": "Open a direct murder whose killer has Body +1 and let the opening land on Hope; on the victim's browser read the Self-Defense row of the crisis menu and the roll window ('Beat 18'), roll, and read the threshold on the result card (19)."
+    },
+    {
+      "id": "domain-case-a-incident-2",
+      "domain": "CASE",
+      "severity": "minor",
+      "category": "leak",
+      "title": "A death kept by the GMs is sent to the third of an earlier incident whose betrayal offer still stands, although they hold no seat in the incident it happened in",
+      "where": "scripts/incident-store.mjs:1225-1230 (incidentKnowers), 454-457 (castOwners asks `betrayal: true`), 399-404; scripts/death.mjs:462-470, 487",
+      "what_happens": "`incidentKnowers` answers who may know of a victim's death before the body is found, and takes it from `castOwners`. `castOwners` seats the standing betrayal offer's third as well (`betrayal: true`), which is right for the cast - `castFor` then sends that holder the offer alone - but `incidentKnowers` uses the list as it is. The offer outlives its incident until the day ends and is kept across the next open (`keep: [\"betrayal\"]`). So when a second incident of the same day kills its victim while the first one's offer stands, death.mjs writes the earlier third's player into the row's `known` and `tellDeaths` sends them the death: their copy (`mineDeaths`) holds it, `isDeadForGm` answers true on their browser and the body's token is drawn dead there (`markLocalDeath`).",
+      "evidence": "export function incidentKnowers(actor) {\n    if (!game.user?.isGM || !actor) return [];\n    const state = murderState();\n    if (!state?.active || state.victimId !== actor.id) return [];\n    return [...castOwners(readCast(), { ...state, stage: \"resolution\" })];\n}\n...\n    return new Set(incidentAudienceIds({ ...live, ...cast, indirect: incidentIndirect(cast, live) }, { betrayal: true }));",
+      "failure_scenario": "Evening: A kills B, C walked in and stayed, so C holds a betrayal offer until the day ends. Night of the same day: D kills E with nobody else in it. C's player, who was nowhere near, sees E's token marked dead and is treated as knowing that body (Frisk, Palm, the finder's notice) before anybody has found it.",
+      "expected": "Only the running incident's seats: the function's own comment (incident-store.mjs:1219-1224, 'those of the running incident's seats'), death.mjs:451-454, and the rule of E06 fix r1-G4 that tier 2 holds for the cast ('a standing betrayal offer sends its third nothing of the next incident', tests-tier2.mjs:4490).",
+      "fix_sketch": "Let incidentKnowers ask `incidentAudienceIds` at stage 'resolution' without the offer's third.",
+      "confidence": "read",
+      "refutation_tried": "Checked that the offer is still in the cast when the second incident kills: `openMurder` keeps it (murder-rules.mjs:542-543) and the sweep drops it only when the chapter or the day differs (incident-store.mjs:916). A second incident with a third candidate of its own writes a new offer before the kill (armBetrayalWindow runs inside the stage's write), and then the list names that third, who is a seat - so the case is a second incident with no third candidate. Looked for a narrowing downstream: `knowsOfDeath` reads `row.known` as written (1233-1238), `deathsFor` sends every row it passes (1262-1266). A betrayal itself is not the case: its offer is taken before it opens.",
+      "tests_near": "tests-tier2.mjs:4490 reads `castFor` for the offer's third and nothing of the deaths; scenario 19-standing-cast reads cast packets; no test calls incidentKnowers (git grep: death.mjs alone).",
+      "live_check": ""
+    },
+    {
+      "id": "domain-case-a-incident-3",
+      "domain": "UI",
+      "severity": "minor",
+      "category": "ux",
+      "title": "A tracker opened from the GM panel hands the panel back at every stage change: the tracker reopens itself outside the awaited chain, so the Murder tile's run resolves and the panel opens beside the new tracker",
+      "where": "scripts/murder-ui.mjs:760-772 (the live hook's close and reopen), 59 and 345-349 (the awaited chain), 802; scripts/gm-panel.mjs:605-618",
+      "what_happens": "The GM panel closes itself, awaits the tile's `run()` and opens again when it resolves (gm-panel.mjs). The Murder tile runs `openMurderDialog`, which awaits `openIncidentTracker`. When the stage changes while the tracker stands - the opening roll lands, a Finishing Blow ends the fight - the tracker's live hook closes the window and opens a new one from a `.then()`. Closing the window resolves the awaited `drpgWindow` with null, `openIncidentTracker` returns, the tile's run resolves and the panel reopens, while the new tracker opens by itself. Pass, the re-ask and Silence now keep the chain (`return openIncidentTracker()`); the stage change does not.",
+      "evidence": "                const again = now !== null;\n                dialog.close()\n                    .then(() => (again ? openIncidentTracker() : null))\n                    .catch(err => error(\"Could not refresh the incident tracker\", err));\n...\n                if (answer === RAISED) return;\n                openGmPanel().catch(err =>\n                    error(\"Could not reopen the GM panel\", err));",
+      "failure_scenario": "A GM opens a murder from the panel's Murder tile and watches the tracker; the killer's opening roll succeeds; the tracker redraws for the fight and the GM panel pops up with it, unasked, in the middle of the incident - and again when the fight ends.",
+      "expected": "murder-ui.mjs:341-343: 'The tracker stays AWAITED. The GM panel reopens itself when a tile's `run()` resolves ... returning early here would drop the panel on top of a live incident.'",
+      "fix_sketch": "Keep the reopen inside the awaited call (resolve the window with a 'restage' answer and `return openIncidentTracker()`), as Pass does.",
+      "confidence": "read",
+      "refutation_tried": "Read `drpgWindow`: it returns `DialogV2.wait(config)` and the tracker passes `rejectClose: false`, so a close resolves null (ui-kit.mjs:1344, murder-ui.mjs:774). The panel skips its reopen only for RAISED (live.mjs), which the tracker never answers - it has no already-open guard by design (murder-ui.mjs:680-692). Which of the two windows lands on top is not established from the source.",
+      "tests_near": "tests-tier2.mjs:97730-97775 presses the panel's Murder tile and counts the trackers, with no stage change while the run is pending (its cleanup closes a panel twice); R2057 reads the empty state. None moves the stage under a tracker opened from the panel.",
+      "live_check": "Open a murder from the GM panel, leave the tracker up, let the player roll the opening: count the windows on the GM's screen after the stage moves."
+    },
+    {
+      "id": "domain-case-a-incident-4",
+      "domain": "CASE",
+      "severity": "minor",
+      "category": "flow",
+      "title": "With two killers, Cancel on 'the victim ran out' is asked again up to three times for the same action and at every later one, and its note sends the GM to a tracker button that closes the incident with nobody dead",
+      "where": "scripts/murder-rules.mjs:1914, 1953-1958, 1583-1586, 2411-2429, 3199-3208; lang/en.json:2975 (ranOutTwoKillersNote)",
+      "what_happens": "`checkVictimSpent` asks the primary GM when the victim has no Health or Sanity left and two killers are in it; Cancel returns false and changes nothing. `applyCrisisAction` calls it before the card (1914) and again after the pass (1957), and the `updateActor` hook, held while the action is scored, marks the check owed, so `resolveCrisisAction` runs it a third time as it ends (1583-1586). Nothing remembers the Cancel, so the same window comes back two or three times in a row, and twice more at each later action; the first one also holds the action's card and the asker's answer until it is closed. The note under the question says to 'end it from the tracker later', but the tracker's only ending button is End the murder: at stage `incident` with a living victim `leftABody` is false, so that close records no death, no Blackened and no Stage 6, and its screen says the incident was interrupted.",
+      "evidence": "    const ranOut = await checkVictimSpent(done, receipt.killed);\n...\n            await passTurn();\n            // The drain at the victim's turn is the pass's; the hook leaves it to this check.\n            await checkVictimSpent(null, receipt.killed);\n...\n        if (!resolving && victimOwed) {\n            victimOwed = false;\n            checkVictimNow();",
+      "failure_scenario": "Partners in Crime; a Strike fills the victim's last marks. The primary GM reads 'End it now / Cancel', presses Cancel as the note allows, and gets the same question again at once, and a third time; later they follow the note, press End the murder on the tracker, and are told nobody died.",
+      "expected": "One question per run-out, and a way on that does what the note says: murder-rules.mjs:2425-2426 ('the question is withdrawn and the fight goes on') and lang/en.json:2975 ('let the turns go on ... and end it from the tracker later').",
+      "fix_sketch": "Remember a Cancel for the incident (by openedAt and the victim's marks) and ask again only when the GM asks; give the tracker a control that ends the fight into Stage 6, or reword the note.",
+      "confidence": "read",
+      "refutation_tried": "Checked that Cancel writes nothing a later call could read (2429: `if (!now) return false`). Checked the hook's gate: the damage is an update of the victim's Health or Sanity on the primary, `resolving` is above 0, so `victimOwed` is set (3199-3208). Traced End the murder at stage `incident` with a victim alive: `recordBlackened` and the key count both ask `leftABody` (incident-store.mjs:1815-1818), `afterNoBody` prints `afterInterrupted` (murder-rules.mjs:4218-4226). The asking itself is the owner's rule (2403-2410) and is not questioned here.",
+      "tests_near": "grid TP03 ('Partners, and two killers run the victim out') answers the question 'end now' (tests-grid.mjs:1494, 1503); no test answers Cancel.",
+      "live_check": ""
+    },
+    {
+      "id": "domain-case-a-incident-5",
+      "domain": "CASE",
+      "severity": "minor",
+      "category": "flow",
+      "title": "An opening roll's invitation is one packet: after the invited player's browser reloads nothing offers the roll again and nothing tells the GM, while the player's card still says the window comes back",
+      "where": "scripts/gm-bridge.mjs:198-218 (onOpeningAsk, askOpeningRoll), scripts/murder-rules.mjs:4437-4446 (rollOpening), 4625-4721 (throwOpeningRoll); lang/en.json:2926",
+      "what_happens": "`rollOpening` sends `murder.openingAsk` to the roller's browser once and posts the card 'This opening roll is yours'. The roll window lives in that page's `throwOpeningRoll` loop. A reload (or a crash) of that browser ends the loop; no ready hook, no `drpgPrimaryReady` listener and no card button starts it again - `throwOpeningRoll` has two callers, the packet's listener and the GM's own throw. The incident stays at `openingRoll`; the tracker goes on reading 'waiting for X's opening roll' and, on the GM who sent it, 'The invitation went to P'. Only a GM pressing Ask for the opening roll again moves it, and nothing prompts that press: the 'did not make the opening roll' whisper is sent from the player's page after three refusals, which a reload never reaches.",
+      "evidence": "async function onOpeningAsk(payload, senderId) {\n    if (payload?.action !== ACTION_OPENING_ASK) return;\n    if (payload.userId !== game.user.id) return;\n    if (!game.users.get(senderId)?.isGM) return;\n\n    const { throwOpeningRoll } = await import(\"./murder.mjs\");",
+      "failure_scenario": "The killer's player presses F5 with the opening roll's window open. Their page comes back with the card 'you cannot skip it. If you close the window, it opens again' and no window; the GM's tracker waits for a roll nobody can throw until somebody notices.",
+      "expected": "lang/en.json:2926 (DRPG.Murder.openingYours) promises the window comes back and that the GMs are told; every other question that waits on a person is asked again after a reload (gm-handbook.en.md:477, 525).",
+      "fix_sketch": "On a player's ready (and on drpgPrimaryReady) ask the primary whether an opening roll is owed to a character this user owns, and let the primary send the invitation again.",
+      "confidence": "read",
+      "refutation_tried": "git grep of throwOpeningRoll, rollOpening and askOpeningRoll in scripts/: the callers are openMurder, the tracker's re-ask (murder-ui.mjs:663-676) and the packet's listener. Read gm-bridge.mjs:84-178: the ready-time asks are the bridge's waiting requests, the Level Up offers and the store copies; none is the opening. The tracker's button is the documented remedy for a refused roll (gm-handbook.en.md:1126); the handbook says nothing of a reload.",
+      "tests_near": "none found: scenarios 13 and 33 and tier 2 drive the invitation on pages that stay connected.",
+      "live_check": ""
+    },
+    {
+      "id": "domain-case-a-incident-6",
+      "domain": "CASE",
+      "severity": "minor",
+      "category": "bug",
+      "title": "A second body the same day writes its betrayal offer over the one already standing: the earlier third loses an offer that was theirs until the day's end, with no word",
+      "where": "scripts/incident-store.mjs:876-893 (armBetrayalWindow)",
+      "what_happens": "The cast holds one `betrayal` field. `armBetrayalWindow` writes the new offer with `writeCast({ ...readCast(), betrayal: {...} })` whenever an incident moves to Stage 6 with a candidate, without asking whether another third's offer stands. The push that follows finds the earlier third no longer among the cast's holders and sends them an empty copy, so their Direct Murder tile goes dark. The file knows the case on the way back: `giveBetrayalOfferBack` refuses 'while another offer stands' (murder-rules.mjs:4120-4127).",
+      "evidence": "    await writeCast({\n        ...readCast(),\n        betrayal: {\n            thirdId: third.id,\n            killerId: killer.id,\n            chapter: clock?.chapter ?? 1,\n            day: clock?.day ?? 1\n        }",
+      "failure_scenario": "C holds an offer against A from the evening's murder. At night, on the same day, D kills E with F standing by: F's offer is written, C's is gone, and C's tile no longer lights although the day has not ended.",
+      "expected": "gm-handbook.en.md:1239: 'The offer lasts until the end of that day, the Investigation included, survives the incident closing and is single-use'.",
+      "fix_sketch": "Keep the offers by third (a split field, as `swung` is) or refuse to arm over a live one and tell the GMs.",
+      "confidence": "read",
+      "refutation_tried": "Looked for a second slot: CAST_FIELDS holds one `betrayal` (incident-store.mjs:110-116); `betrayalTarget` reads `readCast().betrayal` alone (murder-rules.mjs:3873-3874). Needs two incidents with a body and a third candidate each on one day - a particular evening, not an ordinary one.",
+      "tests_near": "the grid's TP cases and tier 2's offer tests run one offer at a time; none arms a second.",
+      "live_check": ""
+    },
+    {
+      "id": "domain-case-a-incident-7",
+      "domain": "CASE",
+      "severity": "minor",
+      "category": "bug",
+      "title": "The after-incident screen offers the betrayal against a killer (or by a third) who is dead: 'both alive' is asked on the tile and at the lights, not on the checklist's road",
+      "where": "scripts/incident-store.mjs:1887-1895 (betrayalCandidate), scripts/murder-rules.mjs:3771, 3810-3814, 3820, 4025, 4052",
+      "what_happens": "`betrayalCandidate` checks that the killer's actor exists, not that the killer is alive, although its comment asks 'is the killer still alive to be turned on?'. The player's tile asks `isDeadForGm` of both (`betrayalTarget`, 3890-3891) and so does a betrayal opened at the lights (4025, only when `taken`). The GM's checklist reads `betrayalCandidate` for its note and its destructive button and calls `openBetrayal(traitor, killer)` with nothing taken, so the dead test is skipped; `openMurder` asks nothing of the living either. The offer is armed the same way (armBetrayalWindow).",
+      "evidence": "    if (taken && (isDeadForGm(third) || isDeadForGm(killer))) return refuseBetrayal(third, \"dead\", { asked, offer: taken });\n...\n    const traitor = getClock()?.phase === \"classTrial\" ? null : betrayalCandidate(state, killer);",
+      "failure_scenario": "During Stage 6 the killer dies by a GM's hand (the Students window); the GM ends the murder and the screen says the third 'may turn on' the dead killer and offers the button; pressed, an incident opens with a dead student as its victim and an opening roll goes out.",
+      "expected": "incident-store.mjs:1855-1857 (the function's own first sentence), murder-rules.mjs:4003-4004 ('whether both of them are alive - which the tile would have asked - is asked of it here'), and BETRAYAL_WHY.dead.",
+      "fix_sketch": "Ask `isDeadForGm` of both in betrayalCandidate (or in openBetrayal on every road).",
+      "confidence": "read",
+      "refutation_tried": "Followed the three roads into openBetrayal: the tile (betrayAsPlayer, guarded by betrayalTarget), the lights (openParkedBetrayal, `taken`), the checklist (neither). The murder window lists the living only (murder-ui.mjs:89-90) but openBetrayal calls openMurder directly. The case needs a killer dead by another road before the close; rare.",
+      "tests_near": "grid TP02 opens a betrayal from the checklist with both alive; R207 reads `leftABody`; none closes an incident whose killer is dead with a third standing.",
+      "live_check": ""
+    },
+    {
+      "id": "domain-case-a-incident-8",
+      "domain": "UI",
+      "severity": "nit",
+      "category": "ux",
+      "title": "After a trap's victim has rolled and noticed the trap the tracker still reads 'waiting for their opening roll' and offers Ask for the opening roll again, which sends a second roll",
+      "where": "scripts/murder-rules.mjs:861-890 (the success branch leaves the stage), scripts/murder-ui.mjs:463-471, 627-629, 663-676",
+      "what_happens": "A victim's successful opening ends nothing: the stage stays `openingRoll` by the owner's rule and the GMs are whispered to end it from the tracker. No field records that the roll was made, so the tracker's bar goes on naming the roll it waits for and its footer keeps the re-ask; pressed, `rollOpening` sends the victim the same roll again, and a miss on it springs the trap they had noticed. The re-ask's toast ('The opening roll was offered again') is also said before `rollOpening` has done anything - when the statistic window is already open on this browser nothing is sent, and for an owner who is not connected the roll opens on the GM's own screen.",
+      "evidence": "    await whisperToGms({ tone: \"warning\", body: `<p>${game.i18n.localize(\"DRPG.Murder.victimNoticedNext\")}</p>` });\n    return { success: true, band };\n...\n        ...(state.stage === \"openingRoll\" && !state.selfInflicted ? [\n            { action: \"reask\", label: game.i18n.localize(\"DRPG.Murder.openingReask\") }\n        ] : []),",
+      "failure_scenario": "The trap's victim rolls 21 and notices; the GM opens the tracker a minute later, reads 'waiting for the victim's opening roll', presses Ask again, and the victim is made to roll a second time.",
+      "expected": "The tracker 'shows whose roll it waits for' while the opening waits (gm-handbook.en.md:1191); after the roll it waits for the GM (lang/en.json:2775).",
+      "fix_sketch": "Record the answered opening in the cast (a field of the GMs' alone) and let the bar and the footer read it.",
+      "confidence": "read",
+      "refutation_tried": "That the incident stays open is a decision (murder-rules.mjs:884-888) and is not the finding. Looked for a field the tracker could read: freshIncidentState (374-418) has none for an answered opening; `openingStillWanted` (4564-4568) reads the stage alone.",
+      "tests_near": "none found",
+      "live_check": ""
+    },
+    {
+      "id": "domain-case-a-incident-9",
+      "domain": "MAP",
+      "severity": "nit",
+      "category": "perf",
+      "title": "Every token refresh on every player's browser runs the local death mark's reads, with no counter and no early exit when this browser holds no kept death",
+      "where": "scripts/incident-store.mjs:1350-1372, 1416",
+      "what_happens": "`registerDeathCopy` puts `markLocalDeath` on `refreshToken` for every player. Each run reads the death flag twice, the user's deaths copy (cached), and scans the token's children by name, for every token, whether or not any death is kept from the table. The module's other `refreshToken` listeners count themselves for `fps()` and scenario 86 (perf-counters.mjs:18); this one has no counter, so its share is in no report.",
+      "evidence": "        Hooks.on(\"refreshToken\", token => markLocalDeath(token));\n...\n        const show = Boolean(actor) && !game.user.isGM && isDeadForGm(actor) && !isDeceased(actor);\n        let icon = token?.children?.find?.(c => c?.name === \"drpg-local-dead\") ?? null;",
+      "failure_scenario": "A player's token walks; iso-shield.mjs:100 measured about 1100 refreshToken a second on a busy map, and each also runs this listener with nothing to draw.",
+      "expected": "The repository's working instructions, the E88 row of 'Running things': another player's step costs the others that token's refresh alone, counted by the module's counters.",
+      "fix_sketch": "Return at once when the deaths copy is empty and no token wears the mark; add a `refreshToken.localDeath` counter.",
+      "confidence": "read",
+      "refutation_tried": "Read `readMine` (gm-store.mjs:1378-1384): a cached record, so no storage parse per call; the cost per run is small and was not measured here. git grep markLocalDeath: no counter, no test; docs/dev/e106/STATUS.md:84-86 names the sprite only as an overlay.",
+      "tests_near": "scenario 86-frame-work counts the named counters (perf-counters.mjs:18-30); this listener has none.",
+      "live_check": "`await game.drpg.fps({ toChat: false })` on a player's browser cannot hold this listener off alone today; a counter would let it."
+    }
+  ],
+  "by_decision": [
+    {
+      "what": "A critical Role Reversal's kill, the Health and Sanity Escape Together restores, every immunity and Survive's hint are printed on the card and applied by the GM, not by the engine.",
+      "source": "docs/handbooks/gm-handbook.en.md:1189; docs/handbooks/player-handbook.en.md:838; scripts/murder-rules.mjs:20-25"
+    },
+    {
+      "what": "A fourth person crossing into the room cancels the incident at once, with no question and no undo, and the newcomer is told nothing.",
+      "source": "scripts/murder-rules.mjs:3357-3375; docs/handbooks/gm-handbook.en.md:1186"
+    },
+    {
+      "what": "A trap victim's successful opening leaves the incident at its opening stage until a GM ends it.",
+      "source": "scripts/murder-rules.mjs:884-889; lang/en.json:2775"
+    },
+    {
+      "what": "The tracker has no 'somebody walks in' button and no already-open guard.",
+      "source": "scripts/murder-ui.mjs:631-637, 680-692; docs/handbooks/gm-handbook.en.md:1186"
+    },
+    {
+      "what": "Escape Together costs its Sanity mark; only the third's three no-roll choices are free.",
+      "source": "docs/handbooks/gm-handbook.en.md:1184; scripts/murder-rules.mjs:977-980"
+    },
+    {
+      "what": "With two killers the run-out is asked of the GM instead of ending the fight (the repetition of the question is finding 4, not the asking).",
+      "source": "scripts/murder-rules.mjs:2403-2410"
+    },
+    {
+      "what": "A betrayal is opened and told to the GMs, never asked of them.",
+      "source": "scripts/murder-rules.mjs:3982-3994"
+    },
+    {
+      "what": "A packet's `free` with nothing behind it is scored as a miss on no dice, not refused.",
+      "source": "scripts/bridge-runs-acts.mjs:832-846"
+    },
+    {
+      "what": "The queue of the incident's writes is per browser; two GMs' writes are settled by the stores' stamps and not ordered.",
+      "source": "scripts/incident-store.mjs:317-319 (LIVE-E07-10)"
+    },
+    {
+      "what": "What a console reads off documents every browser holds is recorded as Foundry's limit for the masked killer (a token keeps its actorId).",
+      "source": "scripts/mask-gm.mjs:27-29"
+    },
+    {
+      "what": "The murder music is one looped track on the Music channel and the room's music is paused on a player's browser, held at 0 on a GM's.",
+      "source": "scripts/murder-music.mjs:41-64, 113-136"
+    },
+    {
+      "what": "The bridge's crisis action answers 'reply' although its run can wait on a person (the two killers' question).",
+      "source": "scripts/bridge-table.mjs:535-537"
+    }
+  ],
+  "comments_against_code": [
+    {
+      "where": "scripts/murder.mjs:13-15 (and scripts/incident-store.mjs:33, scripts/murder-rules.mjs:49, and the row for murder.mjs in the path-scoped rules file code.md)",
+      "comment_says": "The facade re-exports thirty-three names of the store, thirty-one of the rules and three of the window (67), and exports nothing new.",
+      "code_does": "It re-exports 34, 32 and 3 (69, counted by script): `clockHiddenHere` (f7ac1e9d) and `openingProposalFor` (0f9a9a53) were added after 1.2.70."
+    },
+    {
+      "where": "scripts/murder-rules.mjs:232-237, 248-252",
+      "comment_says": "The menu, the roll window and the GM's judgement all read the threshold through `crisisThreshold`, 'so the three cannot differ'.",
+      "code_does": "They differ whenever the roller's copy of the cast holds `killerId` null (a mask, a trap): the roller's two readings add no defence, the GM's adds it (finding 1)."
+    },
+    {
+      "where": "scripts/incident-store.mjs:1219-1224 and scripts/death.mjs:451-454",
+      "comment_says": "`known` is the players of the running incident's seats.",
+      "code_does": "`castOwners` also seats the standing betrayal offer's third of an earlier incident (finding 2)."
+    },
+    {
+      "where": "scripts/incident-store.mjs:1855-1857",
+      "comment_says": "`betrayalCandidate` asks whether the killer is still alive to be turned on.",
+      "code_does": "It checks only that the killer's actor exists (1888); a dead killer passes (finding 7)."
+    },
+    {
+      "where": "scripts/murder-ui.mjs:341-343",
+      "comment_says": "The tracker stays awaited, so the GM panel does not come back over a live incident.",
+      "code_does": "The tracker's own reopen at a stage change runs outside the awaited call and the panel comes back (finding 3)."
+    },
+    {
+      "where": "scripts/murder-ui.mjs:589-593",
+      "comment_says": "The footer by role: 'Pass the turn the primary and the default'.",
+      "code_does": "Since E22 C3b Pass is one of the secondary buttons and Close is the default (643-651); the older block was left above the function."
+    },
+    {
+      "where": "scripts/murder-rules.mjs:1906-1910 and 2996-2998",
+      "comment_says": "The Sanity check for a resolution action is 'in `takeCrisisAction`'.",
+      "code_does": "It has been in `crisisRefusal` since E03 (990-992); `takeCrisisAction` only calls it."
+    },
+    {
+      "where": "scripts/cleanup.mjs:2500-2502 (neighbour)",
+      "comment_says": "The free clean-up grant is 'held null in every player's copy'.",
+      "code_does": "Since fix r2-G3 the killers' copies hold it (scripts/incident-store.mjs:543-551, 582), and cleanup.mjs `tamperQuote` reads it there."
+    },
+    {
+      "where": "the path-scoped rules file code.md, 'Where the code lives' and 'Two functions are deliberately long'",
+      "comment_says": "fog.mjs and fog-diagnostics.mjs are 'the one pair of importers outside a family' that import past a facade; everything else measured over 300 lines has been split.",
+      "code_does": "Eight files outside the murder family import incident-store.mjs or murder-ui.mjs directly (events, frisk, gm-students, investigation, key-remnants, mask-gm, monocub, voice), and `applyCrisisAction` is 306 lines (murder-rules.mjs:1658-1963)."
+    }
+  ],
+  "hygiene": {
+    "functions_over_300": [
+      {
+        "fn": "applyCrisisAction",
+        "file": "scripts/murder-rules.mjs",
+        "lines": 306
+      }
+    ],
+    "functions_150_to_300": 5,
+    "duplicated_helpers": [
+      "The 'kill the victim unless dead to the GMs' block is written three times in murder-rules.mjs (2451-2452, 2902-2904, 3475-3477), each importing `isDeadForGm` again from chapter.mjs over the static import of line 71.",
+      "`const name = actor => foundry.utils.escapeHTML(actor?.name ?? \"?\")` and the 'remnants opens the dashboard' tail are written in both afterEscape (4173, 4204-4207) and afterNoBody (4220, 4234-4237).",
+      "Two escapers side by side: `foundry.utils.escapeHTML` 33 times and `esc` 3 times in murder-rules.mjs; 13 and 3 in murder-ui.mjs.",
+      "The band rule `isCritical ? \"critical\" : (withHope ? \"hope\" : \"despair\")` is written at murder-rules.mjs:695, 838 and 1784.",
+      "`const SOCKET_EVENT = `module.${MODULE_ID}`` at incident-store.mjs:169 is one of 25 local copies in scripts/ of the name bridge-wire.mjs:22 exports.",
+      "mask-gm.mjs is imported statically (murder-rules.mjs:74) and again by `import()` at 551, 654, 772, 786 and 3575; utils.mjs `whisperToGms` statically (85) and by `import()` at 4696.",
+      "The functions of 150 to 300 lines counted above: openMurderDialog 298 (murder-ui.mjs:53-350), closeIncident 233, takeCrisisAction 222, undoLastCrisis 202, openMurder 171 (murder-rules.mjs)."
+    ],
+    "dead_code": [
+      "No export of the four code files is without a caller: a script over scripts/, audit/harness and tools found each used in production or read by a named test (splitIncident, castFieldsToWrite, countsAtTrial, blackenedWrites, murderTrackFor, murderPlayData, createRoomHold, createMurderOverlay, incidentTrackerHtml, indirectCostText are the suite's or the tools').",
+      "hopeTheUseGave, scripts/murder-rules.mjs:1650-1656: answers 0 for every item since 15.10.2026 - no row of config.mjs USABLE_EFFECTS carries `bonus` (config.mjs:870-872 says so) - so `receipt.hopeGranted` (1848) is 0 on every first throw and the take-back at 2306-2308 cannot run from one; kept on purpose for a row that may carry a bonus again.",
+      "The 1.2.65 tolerance `earned === true` in crisisSituational (murder-rules.mjs:200) and clearAdvantage (2976): only an incident left running since 1.2.65 holds that value; not shown unreachable, only improbable 53 releases on.",
+      "restoreDuckedMusic and duckedFrom, scripts/murder-music.mjs:355-379, with the setting `musicDuckedFrom`: nothing has parked a volume since E19; they run at every ready for a number only an older build wrote."
+    ],
+    "magic_numbers": [
+      "scripts/murder-ui.mjs:366 `PASS_COOLDOWN_MS = 1500`, beside `REASK_COOLDOWN_MS = TIMING.reaskCooldownMs` (357): one cooldown is in config.mjs TIMING, its twin is a literal.",
+      "scripts/murder-rules.mjs:2055 `RECENT_TURNS = 3` and scripts/murder-ui.mjs:548 `RECENT_SHOWN = 3`: one number in two constants.",
+      "scripts/incident-store.mjs:1364-1367: the local death mark's fallback size 100, scale 0.8 and alpha 0.8.",
+      "scripts/murder-rules.mjs:2555 `def.damage?.criticalAmount ?? 2`: the fallback repeats config.mjs:4069."
+    ]
+  },
+  "hints_for_other_passes": {
+    "dead_controls": [
+      "Incident tracker, Silence now, scripts/murder-ui.mjs:594-598, 703, 783-786: the button is decided once at open and is not part of `incidentSignature` (584-586), so it is missing after a death that does not move the stage (the Students window with Stage 6 declined) and still shown after the death is published or another GM silenced it - pressed then, `silenceDeadNow` answers false and the tracker reopens without it.",
+      "Incident tracker, Ask for the opening roll again, scripts/murder-ui.mjs:627-629, 663-676: each press starts another roll window on the roller's page (gm-bridge.mjs:198-206); the spare windows are not closed when the opening resolves - `resolveKillerOpening` and `resolveVictimOpening` retire the cards (murder-rules.mjs:697, 840), only a close revokes the windows (4603-4612) - and a roll on one is refused because the stage has moved.",
+      "Incident tracker, Ask for the opening roll again while the statistic window is open on this browser (`openingPickOpen`, murder-rules.mjs:4485): nothing is sent, the toast says it was offered (murder-ui.mjs:673).",
+      "The card 'This opening roll is yours' on a player's page after a reload, scripts/murder-rules.mjs:4442-4444: words only, no control, while the roll it names cannot be thrown (finding 5).",
+      "After-incident screen, the betrayal button, scripts/murder-rules.mjs:3810-3814: offered with a dead killer or third (finding 7).",
+      "The two killers' question, scripts/murder-rules.mjs:2415-2429: unlike the 'no killer left' question (3139-3157) it does not close when its incident ends elsewhere; End it now pressed then writes nothing (the `expect` at 2434-2435)."
+    ],
+    "stale_windows": [
+      "Murder window (openMurderDialog), scripts/murder-ui.mjs:89-155, 209-322: the list of the living, the killers with a finished trap, the statistic values and the rooms-apart note are read at open (and on a change of its own fields); no keepLive, so a death, a project finished or a token moved meanwhile is not shown.",
+      "Incident tracker body, scripts/murder-ui.mjs:759: watches actors, tokens, the murderState setting and drpgCastChanged; it also reads the killers' readied Cleaning Tool and its tier (838-843, an item's flag: no `items` watch) and each trace's labels, note, Reinforced mark and DC from the trace ledger (836, 854-860: a GM store, no `stores` watch), so a tool readied or a trace reshaped waits for the next actor or token update.",
+      "Incident tracker, the line 'The invitation went to {user}', scripts/murder-ui.mjs:463-465, 512-514: read from `openingInvited`, a variable of the browser that sent the invitation; another GM's tracker never shows it and it does not change when that user disconnects.",
+      "Incident tracker, the Case fact, scripts/murder-ui.mjs:519: after Enter the cast by hand the count is not restored (incident-store.mjs:1431-1438), so the line reads the plural of an undefined number.",
+      "After-incident screen (afterIncident), scripts/murder-rules.mjs:3742-3818: the room, what is owed, the betrayal's note and Move to Investigation are computed once; a phase moved or a body announced elsewhere leaves it as drawn.",
+      "The GM's Tier 0 rating window (rateTierZero, scripts/murder-rules.mjs:1481-1513) and the two killers' question: static, and both hold the crisis action's run and its asker's answer while they stand."
+    ]
+  },
+  "not_established": [
+    "Whether the reverser is meant to act again at once after a Role Reversal: `swapRoles` leaves `turnSide` 'victim' and the pass that follows hands the turn to the killers' side, now the reverser (murder-rules.mjs:2809-2851, 3045-3053). No comment, test (grid DM08 passes turns as needed) or handbook line says which order is meant; the owner's word would settle it.",
+    "Whether the defence of a hidden or absent killer is meant to count at all (finding 1 reports the two numbers; which one is right is a rule).",
+    "Whether the `drpg-local-dead` sprite takes clicks meant for the token on a player's browser: incident-store.mjs:1361-1368 sets no event mode and docs/dev/e106/STATUS.md:84-86 lists it as the one overlay left that takes the pointer. A click on such a token in a real Chromium page would settle it.",
+    "Two GMs: a second GM's own crisis action is scored on that browser (`local`), where `resolving` is that browser's counter, so the primary's `updateActor` hook (murder-rules.mjs:3199-3209) is not held and both could run the victim out. The comments name it as LIVE-E07-10; it needs two GM browsers.",
+    "resolveKillerOpening's miss calls endMurder with no stage in its `expect` (murder-rules.mjs:699-710): if two opening results were ever scored together - the roll draw off, or a GM's own throw beside a player's packet - a miss arriving second could close an incident the first had moved to the fight. Not reproduced; with the draw on a later roll supersedes the earlier one (bridge-guards.mjs:1636).",
+    "closeReceipt writes `lastCrisis` and `recent` with no `expect` (murder-rules.mjs:2094-2107): after an End the murder pressed while the two killers' question stood, the receipt lands in the GMs' record of a closed incident and stays until the next open resets it. Read: no player's copy is sent it (no seat is found); not run.",
+    "Whether an item the fight creates on the killer's sheet (the improvised tool of murder-rules.mjs:1525-1562, named by config) falls under the limit mask-gm.mjs:27-29 records for a console, or should be kept off the sheet while the killer is hidden: the owner's word.",
+    "The frame cost of the local death mark (finding 9): not measured, and not measurable with today's counters.",
+    "How the two windows of finding 3 stack on a real screen: the order of the two opens is not established from the source."
+  ]
+}

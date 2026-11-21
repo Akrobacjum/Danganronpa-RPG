@@ -1,0 +1,149 @@
+{
+ "refuter": "verify-refresh-01-04",
+ "of": "refresh-01-04",
+ "scope": "All 5 findings of minor or above (refresh-01-04-1, -2, -4, -6, -8) and 5 of the 8 nits (-3, -5, -7, -10, -11). The reader's file has no per-control verdicts (its 77 surfaces carry only 'refresh' blocks), so no dead, throws, mislabeled or wrong_audience control was there to check. Static reading of b5a29e73's scripts/ (the branch differs only under audit/); no harness, test or probe run.",
+ "checked": [
+  {
+   "ref": "refresh-01-04-1",
+   "claim": "Every live region that holds a field (the Investigation dashboard's Table and Map, a GM's Remnant card, the Mastermind window's Hope box) is on keepLive's rule 1 and redraws only after focus leaves it",
+   "verdict": "stands",
+   "why": "Read the whole road. rebuild() returns with pending = true whenever isEditing(element) and force is false, and only onFocusOut (focus leaving the region) or stop.refresh() forces it. isEditing counts a focused text input, textarea or select. No 'whileEditing' or other opt-out exists in scripts/ on this code (git grep: none). The dashboard's keepLive has region '.drpg-case-live' over the whole Table or Map with no opt-out; refresh() is called only from the GM's own view switch, filters and map controls. The Remnant card's region '.drpg-remnant-card' holds the GM card's selects, name input and two textareas, and its own comment says the GM 'is not redrawn under the hand (live.mjs's focus rule)'. The Mastermind window's region '.drpg-mm-live' holds the donor select and the amount stepper. Tests pin the deferral as designed (R1316 for the press half), which confirms the behaviour rather than refuting it. Under D-A1 (DECISIONS.md) each such surface is a major finding at b5a29e73; the Planner's fix is on another line (1.2.119), not in this code.",
+   "evidence": [
+    "scripts/live.mjs:157-161: // RULE 1. The GM is typing in here; come back when they are not. / if (!force && isEditing(element)) { pending = true; record.deferred++;",
+    "scripts/live.mjs:375-381: function isEditing(element) { ... if (tag === \"INPUT\") return !PRESSED_INPUTS.has(...); if (tag === \"TEXTAREA\" || tag === \"SELECT\") return true;",
+    "scripts/investigation.mjs:2409-2412: live = keepLive(dialog, { region: \".drpg-case-live\", build: buildCase, watch: { actors: true, items: true, stores: [remnantStore, keyPlanStore, caseSchemaStore, blackenedStore, castStore, deathStore] },",
+    "scripts/remnant-ring.mjs:250-257: A GM typing in it is not redrawn under the hand (live.mjs's focus rule). */ ... keepLive(app, { region: \".drpg-remnant-card\", ... watch: { items: true, tokens: true, stores: [remnantStore] },",
+    "scripts/remnant-ring.mjs:437-444: <input type=\"text\" data-drpg-public=\"name\" ... <textarea rows=\"3\" data-drpg-public=\"playerText\" ... <textarea rows=\"3\" data-drpg-public=\"analyzedText\"",
+    "scripts/mastermind.mjs:524-525: <select name=\"donor\" data-drpg-enter=\"[data-drpg-give]\">... ${stepper({ name: \"amount\", value: 1, min: 1, ...",
+    "scripts/mastermind.mjs:701-704: keepLive(dialog, { region: \".drpg-mm-live\", build: hopeBox, ... watch: { actors: true, hooks: [\"drpgDespairOwedChanged\"] },"
+   ],
+   "severity_after": "major"
+  },
+  {
+   "ref": "refresh-01-04-2",
+   "claim": "The Investigation dashboard does not watch bulletStore, so a Truth Bullet's answer key that lands after its item leaves 'found by', Who has what and the Map's reach as drawn",
+   "verdict": "weakened",
+   "why": "The gap is real: every 'found by' reads secretOf (bulletStore.get), and the watch names six stores, not bulletStore; listenFor hears only the stores named. But the failure scenario as written (a first find of a Key Remnant by Observe) is mostly answered by another write: createTruthBullet calls setSecret and then revealSourceOf, which for a trace still hidden (or an incident trace not yet found) un-hides the token and writes the ledger row's foundAt through setRemnantSecret - remnantStore, which the dashboard does watch - after the key. So on the primary and, if the GMs' exchange delivers the two stores' merges in write order, on a second GM, the dashboard redraws once more after the key is in. The window the finding describes is left for a second finder of a trace already revealed (revealRemnantToFinder returns at once, markFound skips a row with foundAt), for bulletStore amendments with no item or ledger write, and for an exchange that delivers bulletStore after remnantStore (not read). The Analyze amendments named (analyzedText) are written with an item.update on the holder's copy where the reading is shown, which items: true hears. Severity minor holds: a narrower situation, two GMs, never a wrong write.",
+   "evidence": [
+    "scripts/investigation.mjs:321: const secret = secretOf(item.uuid);",
+    "scripts/investigation.mjs:2412: watch: { actors: true, items: true, stores: [remnantStore, keyPlanStore, caseSchemaStore, blackenedStore, castStore, deathStore] },",
+    "scripts/truth-bullets.mjs:183-184: if (!game.user.isGM || !uuid) return {}; return bulletStore.get(uuid) ?? {};",
+    "scripts/truth-bullets.mjs:761 then :787: await setSecret(item.uuid, { ... }); ... await revealSourceOf(sceneId, remnantId);",
+    "scripts/remnants.mjs:1587: if (!tokenDoc.hidden && (!incident || readRemnantLedger()[keyOf(tokenDoc)]?.incidentFound)) return tokenDoc;",
+    "scripts/remnants.mjs:1592-1593: if (tokenDoc.hidden) await tokenDoc.update({ hidden: false }); ... await markFound(tokenDoc, via);",
+    "scripts/remnants.mjs:1638-1639: if (!key || readRemnantLedger()[key]?.foundAt) return; await setRemnantSecret(trace, { foundAt: Date.now(), foundVia: via || \"find\" }, { ifLive: true });"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "refresh-01-04-3",
+   "claim": "With no floor open the trial console's Reveal list hears none of its sources (keyPlanStore, ledger, trace tokens, bullets)",
+   "verdict": "stands",
+   "why": "The console's region watches every module world setting, three hooks and two stores; keyPlanStore and remnantStore are client settings heard only through watch.stores, and neither is named; the one-second forced refresh returns while no floor is open. The press of a stale row re-reads and refuses, so nit holds. missingKeyRows itself was not re-read line by line.",
+   "evidence": [
+    "scripts/trial-floor-ui.mjs:1674: watch: { hooks: [\"drpgBallotsChanged\", \"userConnected\", \"updateScene\"], stores: [blackenedStore, deathStore] },",
+    "scripts/trial-floor-ui.mjs:1795-1796: if (!trialFloor() || pressing) return; live.refresh();"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "refresh-01-04-4",
+   "claim": "The Findings window is drawn once and redraws only after its own Edit, Delete or Confirm; a Finding a zone mode writes at its end is not shown while the console counts it",
+   "verdict": "stands",
+   "why": "openFindings draws findingsNow() into the body and rebuilds the box only inside its own click listener; there is no keepLive, keepFresh, Hooks.on or interval for it, and no other file names the window's class or calls openFindings except api.mjs and the console's button. afterZoneStep writes the Finding into trialProgress on the primary; the console's region hears every module world setting, so its 'Findings (n)' counts it. The Add footer closes the window, so only an outside write shows the gap.",
+   "evidence": [
+    "scripts/trial-zones-ui.mjs:394: const draw = async () => findingsListHtml(await findingsNow());",
+    "scripts/trial-zones-ui.mjs:399-412: render: (event, dialog) => { const box = ...; box?.addEventListener(\"click\", async e => { ... box.innerHTML = await draw();",
+    "scripts/trial-zones.mjs:199-201: if (rec.finding) { const list = ...; patch.findings = [...list, { id: findingId(), ...rec.finding, at: Date.now(), confirmed: false, edited: false }];",
+    "scripts/trial-floor-ui.mjs:1118: const n = Array.isArray(view.progress?.findings) ? view.progress.findings.length : 0;",
+    "scripts/trial-floor-ui.mjs:1760: return void import(\"./trial-zones-ui.mjs\").then(m => m.openFindings())"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "refresh-01-04-5",
+   "claim": "The Logic Dive sets window redraws only after its own Edit or Delete",
+   "verdict": "stands",
+   "why": "openDiveSets' render hook is one click listener that rebuilds the list after its own press; nothing hears diveSetStore. editDiveSet with an id whose row is gone reads was = null and opens the New title with empty fields, as the scenario says.",
+   "evidence": [
+    "scripts/trial-zones-ui.mjs:343-353: list.addEventListener(\"click\", async e => { ... list.innerHTML = rows();",
+    "scripts/trial-zones-ui.mjs:187-192: const was = id ? diveSetStore.get(id) : null; ... title: game.i18n.localize(was ? \"DRPG.Zones.dive.editor.editTitle\" : \"DRPG.Zones.dive.editor.newTitle\"),"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "refresh-01-04-6",
+   "claim": "The side-pick window keeps question 1's words and answer labels through a Logic Dive's next question and stays after the mode ends; a press then counts for the question now on the floor",
+   "verdict": "stands",
+   "why": "offerSidePick draws zone.question and zone.answers into the body and the footer labels once, with no render hook, interval or close; no other file names 'drpg-side-pick'. diveQuestion moves to the next question through phase(), which spreads the old zone and patches question and answers, keeping openedAt (so the key `${floor.mode}|${zone.openedAt}` is unchanged and no new window is drawn). The press sends only { actorId, side }; sideOnPrimary checks a zone mode holds the floor and the machine's pick case writes zone.picks[actorId] = side on the zone as it is now, so the side counts for question 2. After the mode the press is refused ('no zone mode holds the floor now'), told by the bridge. The reader's doubt about sideOnPrimary's body is settled: read.",
+   "evidence": [
+    "scripts/trial-zones-ui.mjs:437 and 446-449: const key = `${floor.mode}|${zone.openedAt}`; ... body: ...${zone.question ? ... } ... label: game.i18n.format(\"DRPG.Zones.pick.side\", { zone: ..., answer: zone.answers?.a ?? \"\" })",
+    "scripts/zone-machine.mjs:135: return { ...floor, ...top, seconds, startedAt: now, gmNote: null, zone: { ...zone, ...patch, phase: name, step: (Number(zone.step) || 0) + 1 } };",
+    "scripts/zone-machine.mjs:232: return { floor: phase(floor, \"vote\", seconds, now, { question, answers, counts: null, set: { ...zone.set, index } }), cards: [...cards, told] };",
+    "scripts/zone-machine.mjs:393: return { floor: { ...floor, zone: { ...zone, picks: { ...(zone.picks ?? {}), [event.actorId]: event.side } } }, cards: [] };",
+    "scripts/trial-zones.mjs:352-356: if (!isZoneMode(floor?.mode)) return { refused: \"no zone mode holds the floor now\" }; ... const out = await floorMod.zoneStepInStep({ type: \"pick\", actorId, side });"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "refresh-01-04-7",
+   "claim": "A ballot window left open stays after the vote is closed and counted",
+   "verdict": "stands",
+   "why": "The only close of a ballot window is castBallot's loop when a newer ballot arrives; the window's render hook only wires the radios; closeVote asks the primary and nothing closes the player's window. The refusal at Cast is said, so nit holds.",
+   "evidence": [
+    "scripts/vote.mjs:816-817: for (const app of foundry.applications?.instances?.values?.() ?? []) { if (app.rendered && app.options?.classes?.includes(\"drpg-ballot\")) app.close();",
+    "scripts/vote.mjs:836: render: (event, dialog) => wireBallot(dialog?.element, wanted),",
+    "scripts/vote.mjs:318-320: export async function closeVote() { const reply = await askVote(\"close\");"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "refresh-01-04-8",
+   "claim": "The Mastermind window reads the pick, the lair and the Hope box's recipient once; Apply with the pick unchanged writes the drawn lair over another GM's newer lair",
+   "verdict": "stands",
+   "why": "Read the whole road. The lair select is filled from readStore().room at opening; only '.drpg-mm-live' is live, and it does not hold the selects. The callback returns the select's value; applyMastermindChoice, with who === current.id, compares result.lair with readStore().room as it is now (the other GM's merged value) and calls setMastermindLair(result.lair) when they differ. Nothing closes or redraws the window on mastermindStore: no Hooks.on for it, and the class is named only in alreadyOpen and the window itself. wireMastermindGive keeps the opening's current, so a Give after another GM's change goes to the Mastermind drawn. Two GMs needed, so minor holds.",
+   "evidence": [
+    "scripts/mastermind.mjs:632: const lair = readStore().room ?? \"\";",
+    "scripts/mastermind.mjs:577-580: } else if ((result.lair || null) !== (readStore().room ?? null)) { ... await setMastermindLair(result.lair || null);",
+    "scripts/mastermind.mjs:697: const wireGive = () => wireMastermindGive(dialog, current);",
+    "scripts/mastermind.mjs:281-283: export async function setMastermindLair(room) { ... await ownWrite(() => mastermindStore.patch(RECORD, { room: room || null }));"
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "refresh-01-04-10",
+   "claim": "The turn prompts' seconds are drawn once and a GM's +30 s / -30 s does not reach them",
+   "verdict": "stands",
+   "why": "Both intervals only close the window when the turn's key changes; turnKey is built from the round's or Closing's or Scrum's openedAt and step, not startedAt, so the adjust (which moves startedAt) neither closes nor redraws the prompt. The HUD counts elsewhere, so nit holds.",
+   "evidence": [
+    "scripts/trial-prompt.mjs:66: if (floor && isRoundMode(floor.mode) && floor.round) return `${floor.round.openedAt ?? \"-\"}|${floor.round.step}`;",
+    "scripts/trial-prompt.mjs:203: if (turnKey(trialFloor()) === key) return;",
+    "scripts/zone-machine.mjs:386: return { floor: { ...floor, startedAt: now - ((Number(floor.seconds) || 0) - want) * 1000,"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "refresh-01-04-11",
+   "claim": "The held Key fee's card keeps 'Charge the Key fee' on every other GM after the fee is charged",
+   "verdict": "stands",
+   "why": "wireChargeHeld removes the button only on the pressing browser; keyChargeHeld is read only by wireChargeHeld and its hook in gm-bridge.mjs, and nothing updates the message when keysCharged is written. The comment records the choice; nothing is charged twice. Nit holds.",
+   "evidence": [
+    "scripts/key-remnants.mjs:796: button.closest(\".drpg-call-actions\")?.remove();",
+    "scripts/key-remnants.mjs:787-788: The button goes when pressed; a reload draws it again, and a second press asks again, which the stamp answers."
+   ],
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 10,
+  "stands": 9,
+  "weakened": 1,
+  "refuted": 0
+ },
+ "not_established": [
+  "refresh-01-04-2: whether the GMs' exchange delivers bulletStore's merge before remnantStore's on a second GM (if not, the dashboard's ledger redraw can still run before the key is in). Not read in gm-store.mjs's sending; new live check: two GMs, the dashboard open on the second, a first find of a hidden trace on the primary, then a second player's find of the same (already revealed) trace; read the found-by cell at 1 s and 5 s after each.",
+  "Nits refresh-01-04-9 (Season setup's scenes part), -12 (the vote window and console vote lines on a sheet change) and -13 (the console's case schema on a ledger-only write) were not checked by this refuter.",
+  "refresh-01-04-1: the Table and Map regions' fields were taken from the reader and the owner's D-A1, not each enumerated; the three other surfaces' fields were read.",
+  "No base-run.json or probe-43.json was read for this check; every verdict here is from source (class S)."
+ ]
+}

@@ -1,0 +1,134 @@
+{
+  "refuter": "verify-controls-08-rolls-actions",
+  "of": "controls-08-rolls-actions",
+  "checked": [
+    {
+      "ref": "controls-08-rolls-actions-1",
+      "claim": "Daggerheart's roll window does not redraw when the roller's last Sanity is marked while it stands open, so it shows no Breakdown disadvantage and the GM's draw flags the roll.",
+      "verdict": "weakened",
+      "why": "The module's half holds: the only redraw it asks for is updateActor with a module flag in the change, and a Sanity mark is system.resources (Breakdown follows as a status effect from syncOnce's toggleStatusEffect, not a flag; no preUpdateActor hook in resources/resource-guard/overflow/anonymity adds a drpg flag to a Sanity write). The GM's reader counts Breakdown at the draw and checkRoll pushes an advantage flag. But three things narrow it: (a) the window submits on every change of its form and each render runs forceConfig before _prepareContext, so any touch of the window by the player after the mark draws the Breakdown - only a player who presses Roll without touching anything meets it; (b) whether Daggerheart 2.12's own window rerenders on its actor's update is unread (the reader's own not_established); (c) the what_happens clause 'named to the roller' is wrong: rollerLine names only claims beyond the GM's sum in their own direction, and a source the GM counted that the window lacked is 'the GMs' to see, not the roller's'. The failure scenario (the GMs' whisper) survives.",
+      "evidence": [
+        "scripts/roll-dialog.mjs:131 \"if (!changes?.flags?.[MODULE_ID]) return;\"",
+        "scripts/roll-dialog.mjs:237 \"if (isRollDialog(this)) forceConfig(this);\" (every render, inside the wrapped _prepareContext)",
+        "audit/harness/lib/dh-dice/applications/dialogs/d20RollDialog.mjs:93 \"submitOnChange: true,\" (the glue's copy of Daggerheart's form option, :32-36 of 2.12.8 as its header cites)",
+        "scripts/states.mjs:400 \"await actor.toggleStatusEffect(state.id, { active: wanted });\"",
+        "scripts/roll-draw.mjs:1618-1619 \"a source the GM counted and the window lacked is the GMs' to see (`checkRoll`), not the roller's to be told of\"",
+        "scripts/roll-draw.mjs:2423-2424 \"if (claim.advantage !== scored.advantage) { flags.push({ kind: \\\"advantage\\\", ...\""
+      ],
+      "severity_after": "minor"
+    },
+    {
+      "ref": "controls-08-rolls-actions-2",
+      "claim": "On a second GM's chat log the 'Rolls with no GM connected' card keeps Grant all / Grant none after the first GM decided; a press there does nothing and says nothing.",
+      "verdict": "stands",
+      "why": "decideNow updates only the roll messages (author and the granted stamp); the card is another message and nothing updates or rerenders it: grep of awayCard/awayRolls in scripts/ finds only the card's creation (roll-draw.mjs:2928-2929), this render hook and the GM-only flag list (private-rolls.mjs:1265); sheet-audit.mjs's awayCard is a different card. The 'open' test runs only at a render, so GM B's copy keeps its buttons until the log redraws. A press there removes them and askToDecide answers [] (awayRowOf is null for a stamp holding granted), and the hook ignores the answer: no notice. No double grant.",
+      "evidence": [
+        "scripts/roll-draw.mjs:3045 \"if (!open) return void element.querySelector(\\\".drpg-away-actions\\\")?.remove();\"",
+        "scripts/roll-draw.mjs:3051 \"await askToDecide(ids, button.dataset.drpgAway === \\\"grant\\\");\" (answer unread)",
+        "scripts/roll-draw.mjs:2838 \"if (!stamp || typeof stamp !== \\\"object\\\" || Object.hasOwn(stamp, \\\"granted\\\")) return null;\"",
+        "scripts/roll-draw.mjs:2967 \"await row.message.update({ author: game.user.id, [`flags.${MODULE_ID}.${UNWITNESSED_FLAG}.granted`]: grant === true });\""
+      ],
+      "severity_after": "minor"
+    },
+    {
+      "ref": "controls-08-rolls-actions-3",
+      "claim": "A roll thrown with no GM keeps the line 'a GM decides later' after it was granted or not.",
+      "verdict": "stands",
+      "why": "The line is inserted whenever the stamp flag is truthy; a decided stamp still holds the object with `granted`, so the rerender after decideNow's update draws the same line. No other branch reads `granted` for the line.",
+      "evidence": [
+        "scripts/roll-draw.mjs:3037-3038 \"if (message.getFlag?.(MODULE_ID, UNWITNESSED_FLAG) && !body.querySelector(...)) { body.insertAdjacentHTML(\\\"beforeend\\\", rollStatus(\\\"unwitnessed\\\", ...\""
+      ],
+      "severity_after": "nit"
+    },
+    {
+      "ref": "controls-08-rolls-actions-4",
+      "claim": "The Dynamic difficulty window's Refuse ('Turns the action down') refuses nothing when opened from the GMs' card: it answers null, read there as the editor closed.",
+      "verdict": "stands",
+      "why": "askDynamicDifficulty folds Refuse and a closed window into null; ruleSetDifficulty returns null on null, so wireCallActions re-enables the card's buttons (no held, no settled) and nothing reaches the player. The card's own Refuse (ruleRefuseDynamic) sends false. grep finds only the two callers (action-dynamic.mjs:100, messenger-app.mjs:876). The function's own docstring says null 'means no, you cannot do that' and the player is refused - a comment against code, which supports the finding. On a GM's own student the window's Refuse ends the action with no whisper, but that GM pressed it and nothing was paid, so the harm is the card road alone; minor holds.",
+      "evidence": [
+        "scripts/action-dynamic.mjs:356 \"if (!picked || picked === \\\"refuse\\\") return null;\"",
+        "scripts/action-dynamic.mjs:314 \"Returning null is a real answer - it means \\\"no, you cannot do that\\\"\"",
+        "scripts/messenger-app.mjs:879 \"if (!ruling) return null;   // The editor was closed; the card stays open.\"",
+        "scripts/messenger-app.mjs:770-783 (held/settled return early; otherwise hold(false) re-enables)",
+        "lang/en.json DRPG.Tips.Actions.refuseTooltip \"Turns the action down. The student keeps their action.\""
+      ],
+      "severity_after": "minor"
+    },
+    {
+      "ref": "Infiltrate - the tile's menu / Roll / Next (controls-08-rolls-actions-5)",
+      "claim": "Echoes' row says Roll while its hint says 'Without a roll'.",
+      "verdict": "stands",
+      "why": "ROLLS_FROM_THE_ROW includes echoes, so its confirm is DRPG.Action.roll ('Roll'); the row's hint is 'Without a roll, learn the nearest room ...'; performEchoes throws no dice. The choice is recorded in the comment (E69 C7) and R4105 pins Infiltrate's words to Action.next/Action.roll, so this is a recorded choice whose label contradicts its own row: nit.",
+      "evidence": [
+        "scripts/action-listen.mjs:83-85 \"Echoes rolls nothing, but its press is the action ... so it says Roll with them (E69 C7). */ const ROLLS_FROM_THE_ROW = new Set([\\\"dash\\\", \\\"shut\\\", \\\"keepWatch\\\", \\\"echoes\\\"]);\"",
+        "scripts/action-listen.mjs:78 \"confirm: game.i18n.localize(ROLLS_FROM_THE_ROW.has(key) ? \\\"DRPG.Action.roll\\\" : \\\"DRPG.Action.next\\\")\"",
+        "lang/en.json DRPG.Infiltrate.row.echoes.hint \"Without a roll, learn the nearest room that holds another player's student.\""
+      ],
+      "severity_after": "nit"
+    },
+    {
+      "ref": "controls-08-rolls-actions-6",
+      "claim": "Tail Someone reads its target list once; a target who left the room is refused by the GM only after the action is paid and both rolls thrown.",
+      "verdict": "stands",
+      "why": "tailTargets (othersInRoom) is read before the window; the pick is found in that list after the window and after traitFor's GM card; spendAction, the Shadow roll and the effect roll follow with no re-check of the room; the primary's startTail asks tailRefusal -> personActionRefusal, which answers 'the character is not in that room'; handleTailStart returns it as a refusal and performTail returns null with no abort. That a refusal after the roll keeps the price is a recorded rule elsewhere (action-listen.mjs's Shut comment: a refund after the roll would hand out its Hope), which is why Shut pre-checks what the browser knows before paying (shutShutWhy); Tail has no such pre-check. Minor holds.",
+      "evidence": [
+        "scripts/action-tail.mjs:69 \"const target = targets.find(a => a.id === picked.targetId) ?? null;\"",
+        "scripts/action-tail.mjs:77 \"const paid = cost > 0 ? await spendAction(actor, cost) : null;\"",
+        "scripts/action-tail.mjs:94 \"if (!res.ok || res.value?.refused) return null;\"",
+        "scripts/frisk.mjs:164-165 \"|| there.room !== here.room) return \\\"the character is not in that room\\\";\"",
+        "scripts/bridge-runs-acts.mjs:283 \"if (out.refused) return { refused: out.refused };\""
+      ],
+      "severity_after": "minor"
+    },
+    {
+      "ref": "controls-08-rolls-actions-7",
+      "claim": "No action window redraws while open: the briefing, the rows' shut reasons and the crisis turn are the first read.",
+      "verdict": "stands",
+      "why": "Action windows go actionWindow -> wideWindow -> drpgWindow with no `live` option; drpgWindow starts keepLive only when `live` is given. grep of keepLive/live:/Hooks.on/alreadyOpen in action-*.mjs, action-menus.mjs and ui-columns.mjs finds none. The presses read again before paying (watchShutWhy at performWatch:31, echoesShutWhy at performEchoes, crisisRefusal), so the cost is a press and a toast, except Tail (finding 6). Not under keepLive's focus wait (D-A1 does not apply); a stale window under the owner's rule: minor holds.",
+      "evidence": [
+        "scripts/ui-kit.mjs:1340 \"if (live) keepLive(dialog, live);\"",
+        "scripts/ui-columns.mjs:66 \"return drpgWindow({ ...rest, width, body: columnsHtml(columns) });\" (no live)",
+        "scripts/action-watch.mjs:31 \"const why = watchShutWhy();\""
+      ],
+      "severity_after": "minor"
+    },
+    {
+      "ref": "controls-08-rolls-actions-8",
+      "claim": "The rules manager never redraws: Save writes back every drawn row's text over another GM's rewording, and Withdraw withdraws whatever motive is in force.",
+      "verdict": "stands",
+      "why": "killingGameRules and motive go onChange -> onWorldChange -> sync.mjs SYNC.rules, which redraws ['sheets', 'hud'] only; rules.mjs has no hook or keepLive; drpgWindow is called without `live`. alreadyOpen is one per browser. Save's callback sends every drawn rule's field value (the open-time text unless edited) and saveRulesEdit maps today's list onto it, so a rewording saved by another GM in between is put back. Withdraw is setMotive(null) on what is in force.",
+      "evidence": [
+        "scripts/sync.mjs:513 \"[SYNC.rules]: Object.freeze([\\\"sheets\\\", \\\"hud\\\"]),\"",
+        "scripts/rules.mjs:521 \"text: f.querySelector(`[name=\\\"text:${CSS.escape(rule.id)}\\\"]`)?.value ?? rule.text,\"",
+        "scripts/rules.mjs:431 \"export function wireMotiveWithdraw(root, { withdraw = () => setMotive(null) } = {}) {\"",
+        "scripts/settings.mjs:2779 \"onChange: () => onWorldChange(SETTINGS.killingGameRules)\""
+      ],
+      "severity_after": "minor"
+    },
+    {
+      "ref": "controls-08-rolls-actions-10",
+      "claim": "A Reroll of an action a GM rules on posts a second card with Reply alone and leaves the first card's buttons live (suspected).",
+      "verdict": "weakened",
+      "why": "Read further than the reader: settleGmRuling posts a new card with actions [reply] and touches no first card; replayRefusal does not hold back a described Search before the GM answered (only Observe while described, cleanup, Analyze of a bullet, crisis); the described Search's first card does carry 'Refuse the attempt' (declineAction, whose data carries paid: 'action' for the refund) and the ruled-miss button. Not read: whether the decline handler, at the press, reads the roll message or the Reroll's record and refuses a replaced roll, and whether a bookmark for a Search exists before the GM answers. It stays a question, not a finding.",
+      "evidence": [
+        "scripts/reroll.mjs:1109 \"if (ruledByHand(bookmark)) return await settleGmRuling(actor, bookmark, after, done);\"",
+        "scripts/reroll.mjs:1955 \"actions: [{ action: \\\"reply\\\", ...\"",
+        "scripts/action-search.mjs:186-187 \"ruledMissAction(actor), declineAction(actor, paid)\"",
+        "scripts/action-pipeline.mjs:1048 \"paid: receipt ? (receipt.pay ?? \\\"action\\\") : \\\"none\\\",\""
+      ],
+      "severity_after": "minor (suspected)"
+    }
+  ],
+  "counts": {
+    "checked": 9,
+    "stands": 7,
+    "weakened": 2,
+    "refuted": 0
+  },
+  "not_established": [
+    "Finding 1: whether Daggerheart 2.12's roll window rerenders itself on its actor's update (its source is not in this checkout); if it does, forceConfig draws the Breakdown and the finding falls. Live check: open a student's roll window at Sanity 1 on a player, mark the last Sanity from the GM, read .disadvantage-chip.selected before touching the window.",
+    "Finding 10: what the described Search's, Observe's and Analyze's first-card buttons apply when pressed after a Reroll (the decline and ruled-miss handlers in messenger-app.mjs / call-gm.mjs not read to the end).",
+    "D-A1: no surface of this lane calls keepLive (grep of keepLive across scripts/ lists none of roll-dialog, roll-draw, reroll, action-*, rules, dice-look, messenger-app), so none is on the wait-for-focus rule; nothing here rises to major on D-A1.",
+    "Findings 9 and 11 (nits) were not re-checked."
+  ]
+}

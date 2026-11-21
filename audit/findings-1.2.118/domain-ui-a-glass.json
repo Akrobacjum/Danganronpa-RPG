@@ -1,0 +1,352 @@
+{
+ "reader": "domain-ui-a-glass",
+ "checkout": "branch claude/audit-119, code identical to main b5a29e73 (1.2.118); audit/findings-1.2.118/base-run.json not present when read, so no test or scenario result is cited as read",
+ "files_read": [
+  {
+   "file": "scripts/glass.mjs",
+   "lines": 3870,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/glass-geometry.mjs",
+   "lines": 1307,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/glass-close.mjs",
+   "lines": 483,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/glass-blocks.mjs",
+   "lines": 88,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/chrome.mjs",
+   "lines": 200,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/eclipse.mjs",
+   "lines": 1502,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/sequence.mjs",
+   "lines": 1277,
+   "read": "whole"
+  }
+ ],
+ "count_expected": "7 files, 8727 lines",
+ "count_note": "7 files, 8727 lines read whole (wc -l: 3870 + 1307 + 483 + 88 + 200 + 1502 + 1277), matching the scope. Keys: every literal DRPG.* key in the seven files (eclipse.mjs 34, sequence.mjs 22, the glass and chrome files none) and the two templated families of sequence.mjs (DRPG.Sequence.mood.*, DRPG.CaseSummary.role.*) checked by script against lang/en.json and lang/pl.json: none missing in either. Function lengths by an acorn walk over each file (/tmp/domain-ui-a-glass/fnlen.mjs). Exports with no importer outside the tests listed by grep over scripts/ and audit/*.html, audit/*.mjs.",
+ "neighbours_followed": [
+  "scripts/motion.mjs (glassOn 30-45: the setting or the body class)",
+  "scripts/movement.mjs (othersInNamedRoom 3808-3817, countsAsPresent)",
+  "scripts/gm-stores.mjs (timedCrossingsOf 1099-1107, timedEffectCopy 1114-1117)",
+  "scripts/timed-effects.mjs (1-115, 340-405: eclipseCrossing rows last until an Eclipse ends; endEclipseEffects on drpgEclipseChanged false, endAtEclipseStart on true)",
+  "scripts/config.mjs (2275: eclipseCrossing amount 2, untils ['eclipse'])",
+  "scripts/call-world.mjs (clearSeals 151-158, putBackSeals 187-192, announceRestrictions 209-212, the only writers of SETTINGS.sealedRooms)",
+  "scripts/calls.mjs (60-110, 420-440: Hope and Despair Calls refused while an Eclipse runs, DRPG.Eclipse.actionsLocked)",
+  "scripts/boundary.mjs (toggleEclipse 79-127 and its readiness round, the two-GM road to endEclipse)",
+  "scripts/sync.mjs (REFRESHES phaseHook 450, KIND_NEWS clock and eclipse readings 530-600)",
+  "scripts/transitions.mjs (grep: playTrialExit, playDayStart, playDayEnd, hintTurn, holdEscape, skipTurn)",
+  "scripts/verdict.mjs (postVerdictCard 780-796, finalVerdictCard 1398-1409, verdictCardPosted 839-842)",
+  "scripts/case-summary.mjs (20-40, 70-110: the caseBoard flag of the public card)",
+  "scripts/case-schema.mjs (caseGraph 369-376)",
+  "scripts/hud.mjs (505-540: the body's data-drpg-phase written only when it differs)",
+  "scripts/live.mjs (181-195: Hooks.callAll('drpgWindowUpdated', next))",
+  "styles/*.css (grep: no-glass-effects 0 rules in every sheet; url(#drpg-brush) in components.css 2282, 2315 and stained-glass.css 943)",
+  "lang/en.json, lang/pl.json (the keys above, by script), docs/glossary.json (Eclipse kept in Polish, DB28)",
+  "audit/findings-1.2.42/ui.md, despair.md, map.md and the first session's old-1.2.42-ui.json, old-1.2.42-despair.json, old-1.2.42-map.json for old ids"
+ ],
+ "strengths": [
+  "The Eclipse keeps what only the GMs may know in their stores: the declarations of the dark (pendingMurderStore), the crossings (eclipseMoveStore, an owner's copy of their own characters only, sent addressed by the primary and taken only from a GM addressed to this user: eclipse.mjs 1306-1386, replyForMe). The killer's cards are veiled and the ruling card is gmOnly with a title that says nothing (eclipse.mjs 649-705, 735-747); an allowance is told only at the lights, so the killer never hears yes then no.",
+  "The crossing is judged twice and counted once: on the mover's browser for the words, then on the primary inside the character's crossingKey step (applyRecordedMove, countCrossingInStep), the larger of the asked and the seen count, and a crossing no GM answered goes back (eclipse.mjs 1077-1250).",
+  "The sequences write no world state and read only what the table already holds: a GM-authored card's flags (author.isGM; verdictCut and caseBoard read as claims and cut to shape, sequence.mjs 711-723, 827-846), the public vote count, and the dead by the published flag only (isDeceased, never a death the GMs keep: sequence.mjs 926-934).",
+  "The curtain's fast path is real and stated: an unchanged signature costs one measurement (curtainGeometry 1950-1954), the rotation sheet is written only when its text changes (writeRotations 911-912), and unmount lets go of everything it started (observers, sidebar watch, loop, probe, rotation table: glass.mjs 2282-2313).",
+  "The cut is pure and separately readable: glass-geometry.mjs and glass-close.mjs import nothing from the page, and glass.mjs measures the page for them (stackPage, deskPage), so a test can hand the cut its boxes (cutBoxes).",
+  "chrome.mjs dresses only inside a .drpg-panel since E44 C4b and skips the notice history's snapshots, so another module's or Daggerheart's table is not touched (chrome.mjs 156-161)."
+ ],
+ "findings": [
+  {
+   "id": "domain-ui-a-glass-1",
+   "domain": "DESP",
+   "severity": "minor",
+   "category": "text",
+   "title": "The Eclipse's opening whisper tells a character with a room action's extra crossings the table's allowance, not their own",
+   "where": "scripts/eclipse.mjs:356-357 and 374-384 (startEclipse's per-actor whisper); eclipse.mjs:85-88 (eclipseAllowanceFor, which the whisper does not ask)",
+   "what_happens": "startEclipse reads the table's allowance once (eclipseAllowance(), 2, or 1 under a darkening) and whispers every acting student 'You are in {room} and have {n} room crossings' with that n. A character holding an eclipseCrossing timed effect (a room action's +2, config.mjs 2275, a row that lasts until the Eclipse ends: timed-effects.mjs 402-403) may cross allowance + 2: movesLeft, the sheet's budget line, the crossing's own card (countCrossingInStep 1218, 1242) and the primary's judge all read eclipseAllowanceFor(actor). Only this whisper reads the table's number.",
+   "evidence": "eclipse.mjs:356  const allowance = eclipseAllowance();\neclipse.mjs:380  await whisperToOwner(actor, `<p>${free\neclipse.mjs:382      : plural(\"DRPG.Eclipse.yourMoves\", { n: allowance, room }, \"n\")\neclipse.mjs:87   return base === null ? null : base + (actor?.id ? timedCrossingsOf(actor.id) : 0);",
+   "failure_scenario": "A player whose student used a facility granting two extra Eclipse crossings reads 'you have 2 room crossings' as the lights go out, stops after two and leaves the two the GM gave them unused, while the sheet beside the whisper says 4.",
+   "expected": "The whisper names the character's own allowance (eclipseAllowanceFor(actor)), as every other surface of the Eclipse does.",
+   "confidence": "read",
+   "refutation_tried": "Looked for the row ending before the whisper: eclipseCrossing's only until is 'eclipse' (config.mjs 2275) and endAtEclipseStart ends rows of 'timeOfDay' and 'day'; the 'eclipse' rows end on drpgEclipseChanged false (timed-effects.mjs 403), so the row stands when startEclipse whispers. Looked for a test reading the whisper's number: no test or scenario names DRPG.Eclipse.yourMoves (grep). The free-placement Night Eclipse is not touched (allowance null, the free text).",
+   "old_id": null
+  },
+  {
+   "id": "domain-ui-a-glass-2",
+   "domain": "DESP",
+   "severity": "nit",
+   "category": "text",
+   "title": "The Eclipse's whisper says sealed rooms still stop the player, in the step right after the Eclipse lifted every seal",
+   "where": "scripts/eclipse.mjs:330-346 (clearSeals as the Eclipse opens, CALL-09) then 374-384 (the whisper); lang/en.json DRPG.Eclipse.yourMoves",
+   "what_happens": "startEclipse clears the sealed rooms and the restrictions (call-world.mjs clearSeals writes SETTINGS.sealedRooms to []) on the stated rule that a seal bought 'until this time of day ends' must not hold during placement, and the whisper that follows says 'locked doors and sealed rooms still stop you'. No seal can be set during the Eclipse: the Calls that seal are refused while it runs (calls.mjs 426, DRPG.Eclipse.actionsLocked), and the only other writer is putBackSeals at a take-back.",
+   "evidence": "eclipse.mjs:342  const { clearSeals } = await import(\"./call-effects.mjs\");\neclipse.mjs:343  await clearSeals();\nen.json DRPG.Eclipse.yourMoves.other: \"... Drag your token into a connected room; locked doors and sealed rooms still stop you.\"",
+   "failure_scenario": "A player whose route home ran through a room sealed that afternoon reads the whisper, takes the long way round and spends both crossings, though the seal was lifted a moment before.",
+   "expected": "The whisper names what still stops a crossing in an Eclipse (locked doors, a chain is gone too), or nothing about seals.",
+   "confidence": "read",
+   "refutation_tried": "Grep for writers of SETTINGS.sealedRooms: call-world.mjs 154 (the clear) and 189 (putBackSeals, called by clock.mjs takeBackBoundary only). The incident's murder room refuses a Monocub, but movement.mjs 2083-2084 says that refusal no longer reads as a Seal. A failed clearSeals is caught and logged (eclipse.mjs 344-346), the one road on which a seal would still stand.",
+   "old_id": null
+  },
+  {
+   "id": "domain-ui-a-glass-3",
+   "domain": "UI",
+   "severity": "nit",
+   "category": "ux",
+   "title": "A curtain the watchdog mounts before the fonts arrive never gets its observers: no tray-fold turn, recuts only through the drift watch",
+   "where": "scripts/glass.mjs:3810-3811 (refreshGlass's mount waits for document.fonts.ready, then mount() and observe() only when no curtain stands); glass.mjs:3842-3846 (the 4 s and 9 s watchdog calls mount() alone)",
+   "what_happens": "registerGlass calls refreshGlass, which defers the mount to document.fonts.ready. If the fonts are not in by 4000 ms, the watchdog finds no curtain and calls mount(), which pushes the curtain and starts the loop but connects no observer. When the fonts then arrive, go() sees curtains.length > 0 and skips both mount() and observe(). observe() is called nowhere else, so that page has no MutationObserver on Foundry's columns, no ResizeObserver on the blocks or the rails and no watchTrayFold for the session; only the drift watch (two samples 500 ms apart) and the resize listener recut it.",
+   "evidence": "glass.mjs:3810  const go = () => { if (glassRoom() && !curtains.length) { mount(); observe(); } };\nglass.mjs:3811  (document.fonts?.ready ?? Promise.resolve()).then(go, go);\nglass.mjs:3845  if (!j || !j.painted || ...) { log(\"curtain watchdog: rebuilding\", glassReport()); if (j) j.placed = false; mount(); }",
+   "failure_scenario": "A player on a slow connection whose Stained Glass faces take over four seconds to load folds the Projects tray all evening and the glass jumps to the new cut a second later instead of turning with it, and a block that appears is recut a second late.",
+   "expected": "Whatever mounts the curtain also observes it (the watchdog calls observe() after mount(), or mount() does).",
+   "confidence": "read",
+   "refutation_tried": "Looked for another caller of observe(): grep finds only 3810. Looked for a later refreshGlass that would observe: with a curtain up refreshGlass goes to rebuild() (3804), never to go(). R1420 covers a theme switched before the fonts arrive, not the watchdog's mount. Whether fonts.ready takes over 4 s at a real table is not measured (not_established).",
+   "old_id": null
+  },
+  {
+   "id": "domain-ui-a-glass-4",
+   "domain": "UI",
+   "severity": "nit",
+   "category": "hygiene",
+   "title": "glass.mjs still carries the four notes UI-06 named: a 160 px cap and a padding push placeTiles no longer makes, rails as blocks, a notice tile that grows with its cards",
+   "where": "scripts/glass.mjs:103-107, 3353-3355, 3365-3368, 3415-3436",
+   "what_happens": "The 1.2.42 audit's UI-06 (the first session's reading: partly, these four notes standing) is still open on 1.2.118. placeTiles only clears a paddingTop that moduleLayout already cleared at 1208 in the same pass, so it always answers false and j.placed and the watchdog's j.placed = false do nothing; its comment describes a capped padding push, and rebuildAll's comments say it pushes the rails and writes padding.",
+   "evidence": "glass.mjs:3415  /* the scene controls and the sidebar tabs start below the corner panes, 24 px under the strip's top.\nglass.mjs:3416     The shift is capped: the GM's sidebar is a column of real work, and 160 px is as much of it as the\nglass.mjs:3417     glass may take. Padding (with border-box), not margin, ...\nglass.mjs:1222  /* MARGIN, NOT PADDING, AND IT MAY BE NEGATIVE.\nglass.mjs:3423  /* NOTHING TO PLACE ONCE THE RAILS ARE BLOCKS.\nglass.mjs:93    /* FOUNDRY'S TWO RAILS ARE NOT BLOCKS ...\nglass.mjs:107   a taller stack of cards is measured and the tile grows to hold it. */\nglass.mjs:71    /* THE NOTICE TILE IS NOT MEASURED.",
+   "failure_scenario": "A contributor tuning the rail's placement reads that placeTiles pushes the rails down with a capped padding and edits a function that does nothing, while the margin that really places the rail is in moduleLayout.",
+   "expected": "The four notes say what the code does, and placeTiles with j.placed goes.",
+   "confidence": "read",
+   "refutation_tried": "Grep for writers of paddingTop on #scene-controls or #sidebar: moduleLayout 1208 clears it, unmount 2292 clears it, placeTiles 3431-3433 clears it; nothing sets it, so placeTiles cannot return true.",
+   "old_id": "UI-06"
+  },
+  {
+   "id": "domain-ui-a-glass-5",
+   "domain": "UI",
+   "severity": "nit",
+   "category": "hygiene",
+   "title": "Two exported convexOverlap functions with different answers, and two centroid helpers with different definitions, in the same family",
+   "where": "scripts/glass.mjs:2708-2723 (convexOverlap: the overlap polygon or null); scripts/glass-close.mjs:54-59 (convexOverlap: a boolean, the separating-axis test); glass-geometry.mjs:1258 (centroid: the bounding box's middle) against glass-close.mjs:30 (centroid: the mean of the corners, glass-geometry's meanOf)",
+   "what_happens": "glass.mjs uses its own convexOverlap to clip the frost (3006) and treats the answer as a polygon; glass-close.mjs's is a test ('a shared edge is not an overlap', a copy of glass-geometry's overlaps). The names collide across files that read each other's names (glass.mjs imports from glass-close.mjs), so an import changed to the other file's convexOverlap would turn a polygon into true. centroid has the same split: the turn's matching (turnPlan 2555-2558) uses the box middle, the fill's slides (slidePlan) the corners' mean.",
+   "evidence": "glass.mjs:2708        export function convexOverlap(a, b) { ... return out.length >= 3 && Math.abs(area(out)) > 0.5 ? out : null;\nglass-close.mjs:54    export function convexOverlap(A, B) { ... return true; }\nglass-geometry.mjs:1258 export const centroid = poly => { const bb = bboxOf(poly); return [(bb.x0 + bb.x1) / 2, (bb.y0 + bb.y1) / 2]; };\nglass-close.mjs:30    const centroid = poly => { const n = poly.length; return [poly.reduce(...) / n, ...]; };",
+   "failure_scenario": "A later stage moving the frost's clip into glass-close.mjs imports convexOverlap from there, the frost is clipped to path('M...true') and the panes that stand lose their blur on every fold of the tray.",
+   "expected": "One name per meaning (overlapPolygon / overlapsConvex), and one centroid.",
+   "confidence": "read",
+   "refutation_tried": "Checked that today's callers each use their own file's: glass.mjs 3006 its own, glass-close.mjs 133 and 388 its own; no wrong import today, so this is a trap, not a fault.",
+   "old_id": null
+  },
+  {
+   "id": "domain-ui-a-glass-6",
+   "domain": "UI",
+   "severity": "nit",
+   "category": "hygiene",
+   "title": "COLUMN_PAD restates PAD_SIDE on a reason E54 removed, and the same 12 is typed again as a literal twice",
+   "where": "scripts/glass.mjs:968-970 (COLUMN_PAD = 12), 1061 and 1064 (2 * 12); glass-geometry.mjs:112 (export const PAD_SIDE = 12)",
+   "what_happens": "The comment says PAD_SIDE 'lives inside curtainShapes' and is 'stated twice because the two are in different scopes'. Since E54 PAD_SIDE is an export of glass-geometry.mjs, and glass.mjs already imports PAD_FAR from the same line (31) but keeps its own 12, plus two bare 12s in pinRightColumn's room for the Despair rail's pad.",
+   "evidence": "glass.mjs:968  /* `PAD_SIDE` from the partition, which lives inside `curtainShapes`. One number, stated\nglass.mjs:969     twice because the two are in different scopes; if it ever moves, both move. */\nglass.mjs:970  const COLUMN_PAD = 12;\nglass.mjs:1061 const fitW = dspR != null ? Math.floor(innerWidth - dspR - 2 * 12 - (base + slack) - gap) : wideW;\nglass-geometry.mjs:112 export   const PAD_SIDE = 12, PAD_FAR = 10, HUG = 120;",
+   "failure_scenario": "A stage widening the panes' pad changes PAD_SIDE, the launchers' clearance (clearLaunchers, 2 * COLUMN_PAD) and the right column's room keep 12, and the launchers' pane edge lands on the band's again - the half-pixel ambiguity clearLaunchers' comment (1126-1128) was written to remove.",
+   "expected": "glass.mjs imports PAD_SIDE and uses it in all three places.",
+   "confidence": "read",
+   "refutation_tried": "Checked the import line (glass.mjs 31): PAD_FAR, not PAD_SIDE. The values agree today, so nothing is drawn wrong.",
+   "old_id": null
+  }
+ ],
+ "by_decision": [
+  {
+   "what": "The day's board shows the dead greyed with 'we remember' by the published flag, and a Spectator's start board is everybody's while its end board is the heading and the mood alone.",
+   "source": "scripts/sequence.mjs:911-934 (E94 C2, Q-E61-9, the owner's 12.11 for the Spectator)"
+  },
+  {
+   "what": "The school's mood counts the Hope of a student whose death nobody has found, so the word does not move on a secret death.",
+   "source": "scripts/sequence.mjs:1109-1114 (E94 C4, the owner's 12.11 rule)"
+  },
+  {
+   "what": "An allowed declaration in the dark is told to the killer only at the lights; a refusal at once.",
+   "source": "scripts/eclipse.mjs:739-747 (E08+E28 C19b, D6's gap, the owner's decision of 03.10)"
+  },
+  {
+   "what": "askAtTheLights blocks the rest of endEclipse on the GM until answered, and a closed window refuses.",
+   "source": "scripts/eclipse.mjs:994-1009"
+  },
+  {
+   "what": "An Eclipse may open at Stage 6 of an incident, and its end then posts a public card naming no time of day.",
+   "source": "scripts/eclipse.mjs:179-185 and 467-483 (E17 C7, E59 CHAINS.md B-H3, Q-115-1)"
+  },
+  {
+   "what": "The trial's exit plays no sound of its own (End the trial's card carries it).",
+   "source": "scripts/sequence.mjs:68-71 (the owner's decision of 12.11.2026)"
+  },
+  {
+   "what": "'Eclipse' stays English in the Polish file ('Eclipse ({time})').",
+   "source": "docs/glossary.json (DB28: Eclipse a neuter term kept)"
+  },
+  {
+   "what": "The Final Trial's verdict card carries verdictAt but no verdictCut, so no cut-in plays for it and a late browser whose newest event is that card plays nothing.",
+   "source": "scripts/verdict.mjs:1398-1409 against sequence.mjs:711-716 and 1229-1231; read as the Final verdict's own card (E41 C10b), not confirmed as a decision in a stage paper - see not_established"
+  }
+ ],
+ "comments_against_code": [
+  {
+   "where": "scripts/chrome.mjs:190-198",
+   "comment_says": "`drpgWindowUpdated` IS FIRED BY NOBODY ... `grep -rn drpgWindowUpdated` over the whole tree returns this line and nothing else (16.09).",
+   "code_does": "live.mjs:195 fires Hooks.callAll(\"drpgWindowUpdated\", next) on every keepLive redraw, and chrome.mjs:150 itself says so (keepLive, then drpgWindowUpdated)."
+  },
+  {
+   "where": "scripts/chrome.mjs:31-32 and 84-90",
+   "comment_says": "Under Monokuma Legacy nothing else in this file runs; the filters are 'Stained Glass only; the sheet gates the url()s on the theme and on the glass-effects switch'.",
+   "code_does": "markLoneInitials runs in both themes before the gate (144, 173-174); injectFilters puts the SVG in every client's body at ready whatever the theme (188); no stylesheet has a glass-effects class any more (grep no-glass-effects: 0), and components.css 2282, 2315 use url(#drpg-brush)."
+  },
+  {
+   "where": "scripts/glass.mjs:3438",
+   "comment_says": "A one-line account of the curtain for the Look dialog.",
+   "code_does": "Read only by the watchdog's log() (3845); tests-text.mjs 2348 records the same."
+  },
+  {
+   "where": "scripts/glass-geometry.mjs:13-20",
+   "comment_says": "Apply the glass's angle, read the box the browser actually produced, and slide the rail in by whatever it is over the edge. One extra reflow per rebuild.",
+   "code_does": "railRule (glass.mjs 812-865) computes the rotated hull from layout values and never reads the box back; its own comment (glass.mjs 798-806) says reading back does not work."
+  },
+  {
+   "where": "scripts/glass-geometry.mjs:21-28 against 29-33",
+   "comment_says": "MAX_TILT is the angle the rails reserve room for; the shard reserves the swing at MAX_TILT.",
+   "code_does": "railSwing reserves at RAIL_LEAN (5 deg), as the next comment says; MAX_TILT is read only for the band's lift in railBox (glass.mjs 1577)."
+  },
+  {
+   "where": "scripts/glass-geometry.mjs:34-35",
+   "comment_says": "how much wider than the tiles' box the strip runs: STRIP_LEAN, 26, plus the clearance 14",
+   "code_does": "Stands over no code (the STRIP_SLACK it described is gone, UI-06 (b)); the next line is the STRIP_ANGLE comment."
+  },
+  {
+   "where": "scripts/glass.mjs:103-107, 3353-3355, 3365-3368, 3415-3436",
+   "comment_says": "the notice tile grows with its cards; placeTiles pushes the rails down with a capped padding; the rails are blocks",
+   "code_does": "See finding domain-ui-a-glass-4 (UI-06, open)."
+  },
+  {
+   "where": "scripts/glass.mjs:968-969",
+   "comment_says": "PAD_SIDE lives inside curtainShapes, so it is stated twice in different scopes.",
+   "code_does": "PAD_SIDE is an export of glass-geometry.mjs since E54 (finding domain-ui-a-glass-6)."
+  },
+  {
+   "where": "scripts/eclipse.mjs:9-12 and 1067-1069",
+   "comment_says": "each player gets exactly 2 room crossings; 'Crossings are limited to two'.",
+   "code_does": "The Night Eclipse places freely (ECLIPSE_FREE_PLACEMENT), a darkening gives one (overflowCrossings), and a room action adds crossings per character (eclipseAllowanceFor). DESP-18's other two comments (42-44, 625 at 1.2.42) are fixed (now 51-54)."
+  },
+  {
+   "where": "scripts/sequence.mjs:1213-1214",
+   "comment_says": "Every connected browser plays these three live.",
+   "code_does": "lateSequence collects four kinds (trialEntry, dayStart, verdictCut, caseSummary: 1219-1237)."
+  }
+ ],
+ "hygiene": {
+  "functions_over_300": [],
+  "functions_150_to_300": [
+   "glass-geometry.mjs cutStrips 645-903 (259)",
+   "glass-geometry.mjs buildColumn 270-516 (247)",
+   "glass.mjs moduleLayout 1163-1353 (191)",
+   "glass-geometry.mjs stackShapes 937-1126 (190)",
+   "glass-close.mjs fillHole 169-356 (188)",
+   "glass.mjs glassTurn 2876-3059 (184)",
+   "eclipse.mjs startEclipse 238-389 (152)"
+  ],
+  "functions_100_to_150": [
+   "glass.mjs turnPlan 2537-2664 (128)",
+   "sequence.mjs playSequence 183-289 (107)"
+  ],
+  "duplicated_helpers": [
+   "Three bounding-box helpers: glass-geometry.mjs bboxOf (12) and bbox (90) answer the same {x0,y0,x1,y1}, boxOf (1303) the same padded and rounded.",
+   "onEdge (glass.mjs 1611) and onBorder (glass-geometry.mjs 1260) are the same function.",
+   "split (glass-geometry.mjs 68) and splitPoly (glass-close.mjs 35) are copies with a different degenerate rule (dedupe at 0.5 against 0.01 px, glass-close also drops area <= 0.25); thickness and area are copied the same way (glass-geometry 91, 94; glass-close 29, 95; and a third area inside glass.mjs convexOverlap 2709).",
+   "convexOverlap and centroid each name two different functions (finding domain-ui-a-glass-5).",
+   "Three readings of 'is the theme on' inside the family: glass.mjs themeOn (2186) reads the setting only; roomPlacement 338, placeFlatRoomTile 433 and voicePlacement 652 read the body class; chrome.mjs reads motion.mjs glassOn (the setting or the class). Mid-switch they can disagree in one pass.",
+   "Two resize listeners both call schedule: observe()'s (3680) and registerGlass's (3855); debounced into one refresh, so harmless."
+  ],
+  "dead_code": [
+   "placeTiles, glass.mjs 3428-3436, with j.placed (3355) and the watchdog's j.placed = false (3845): it clears a padding nothing writes (finding domain-ui-a-glass-4).",
+   "Exports read only by tests, as their notes say: glass.mjs rotationWrites, glassLifecycle, paneOrder, pendingTurnHint, startTurn, followFrames, FLASH_KF, paneShade; glass-close.mjs tilingReading, visibleAt, overlapsIn, paneRange, slender; sequence.mjs dayStartElement and dayEndElement (aliases of dayBoardElement), sequenceNow, sceneTargetOf, whenSceneDrawn."
+  ],
+  "magic_numbers": [
+   "glass.mjs timing: the 150 ms debounce (3674, 431), onStateChange's 60 ms (3655) and TURN() + 80/120 (3642, 3654), the watchdog's 1500/4000/9000 ms (3841-3842), the drift watch's 500 ms and DRIFT 4 (3751, 3769), the pulse's 66 ms gate (3788), the objection's 250 ms (3499), the urgent scan's 500/700 ms (3483, 3489), beatAt's 1600 ms and the urgent beat's 1.6 s period (2137, 3474).",
+   "glass.mjs geometry: the notice pane's lean 0.22 x width (224, 343) and its skirt 34 + 8 (225), written 42 in roomPlacement (343); F - 24 (357); the 2 * 12 pads (1061, 1064); railBox's pad 8 and skirts 14/34 (1570, 1605); clearLaunchers' 14 and 8 (1115, 1117).",
+   "glass-close.mjs fill: 0.55 of the target (323), the 24 px least width (178, 257, 268), 1.3/1.5/2.2 multipliers (175, 263, 275), 16 and 24 tries (242, 278, 300), REFERENCE_SCREEN 1366x768, GRID_CELL 1.2, LIFT 1.6 (each with its reading).",
+   "sequence.mjs: FADE_MS 320 and FADE_STEP 90 (419), the title's 180 ms fade (616), the opening's 50 ms (569), caseBoardOf's 80 nodes, 160 links, 200 and 1200 characters (831-836), the title's 12 letters and a name's 18 (396, 751)."
+  ]
+ },
+ "hints_for_other_passes": {
+  "dead_controls": [
+   "None in these seven files: the sequences draw no control (Escape only, sequence.mjs 1184-1194), and the Eclipse's controls are boundary.mjs's (toggleEclipse, the placement table) and the ruling card's buttons (call-gm.mjs)."
+  ],
+  "stale_windows": [
+   "Module windows' glass title bands may keep the hour's old colour after a trial's entry or exit: entryPieces (glass.mjs 3277) clears onStateChange's timer, the only road that recolours an open band (3651-3654) short of that window's next render (suspected; not_established 1).",
+   "askAtTheLights (eclipse.mjs 1010-1040) is a modal that reads the room and the victim at the lights and is not redrawn; a token moved while it stands open is judged by the window's names (by design: the lights are the moment)."
+  ],
+  "perf": [
+   "The trial's entry and exit build the fill synchronously on the frame of the event (glass-close.mjs fillHole, with regroup passes of up to 24 cuts per corner pair; glass.mjs entryPieces paints the curtain three times, 3296-3299) and redraw a full-screen canvas every frame while panes slide (sequence.mjs slideCanvas): measured headless only; LIVE-E61-01 is the table's reading.",
+   "The pulse draws every layer whole when any pane moves a 1/255 step, which its own note says is nearly every frame on a curtain (glass.mjs 2110-2118); LIVE-E23-01 and fps() are the table's readings."
+  ]
+ },
+ "not_established": [
+  {
+   "what": "Suspected: a module window's glass band keeps the old hour's seam colour through the Class Trial. playTrialEntry and playTrialExit write data-drpg-phase, then (after an import) entryPieces calls clearTimeout(stateTimer) (glass.mjs 3277), cancelling the onStateChange timer whose flash and repaint (3651-3654) are the only road that recolours an open band; dressBand repaints a band only when its window renders again (3613). Whether the HUD's own write of the attribute (hud.mjs 538) lands more than 60 ms earlier, so that the timer fires first, depends on the order of the sync row's refreshes and was not settled.",
+   "l1": {
+    "what": "Whether an open module window's title band takes the Class Trial's colour when the trial begins.",
+    "recipe": [
+     "Under Stained Glass, as GM and as a player, open a module window that does not redraw on the clock (the messenger, a Projects window).",
+     "Start the Class Trial from the console with the sequences on.",
+     "After the entry ends, compare the window's title band seams with the curtain's: both should be the trial's colour.",
+     "Repeat for End the trial."
+    ],
+    "clients": "one GM, one player",
+    "theme": "stained glass",
+    "settles_if": "the band is the trial's colour within a second: not a fault; it keeps Daily Life's colour until the window is redrawn: a stale-colour finding (nit).",
+    "priority": "nit"
+   }
+  },
+  {
+   "what": "Suspected: after an unpause the pause band's job stays in `windows` (pruneWindows keeps a job whose element is connected, glass.mjs 3663, and the pause job has no app for closeApplicationV2) with its pulse canvas removed from the page (3867), so pulseFrame keeps drawing that detached canvas every 66 ms until the next pause. Holds only if Foundry v14 keeps #pause in the page while unpaused, which was not read.",
+   "l1": {
+    "what": "Whether #pause stays in the DOM after an unpause on v14, and whether glass.mjs's windows list keeps its job.",
+    "recipe": [
+     "Under Stained Glass as GM, pause and unpause the game.",
+     "In the console: document.getElementById('pause')?.isConnected.",
+     "Then (await import('/modules/danganronpa-rpg/scripts/glass.mjs')).glassLifecycle().windows.filter(w => !w.app)."
+    ],
+    "clients": "one GM",
+    "theme": "stained glass",
+    "settles_if": "#pause gone or the list empty: nothing to fix; #pause connected and a job with no app listed: a per-frame waste (nit).",
+    "priority": "nit"
+   }
+  },
+  {
+   "what": "Suspected: two hearings of one trial edge racing through playTrialEntry's (or playTrialExit's) await before either reaches playSequence would call entryPieces twice; the second start is refused (started) and its release() calls holdPulse(false), restarting the pulse's clock under the first sequence's copies, the jump the hand-over exists to avoid. sync.mjs coalesces the clock's row (one drpgPhaseChanged per change after ready), so the window is the moment of ready (catchUpSequences against a live hook); not driven.",
+   "l1": null
+  },
+  {
+   "what": "How often document.fonts.ready takes longer than the watchdog's 4 s at a real table (finding domain-ui-a-glass-3's trigger).",
+   "l1": {
+    "what": "The time from ready to document.fonts.ready on a player's first load of the world under Stained Glass.",
+    "recipe": [
+     "Clear the browser cache of a player's machine.",
+     "Load the world under Stained Glass with the console open.",
+     "Read performance.now() at the 'ready' log and after await document.fonts.ready; check that glassLifecycle().observers is not 0 once the curtain stands."
+    ],
+    "clients": "one player on the slowest connection at the table",
+    "theme": "stained glass",
+    "settles_if": "fonts in under 4 s and observers > 0: the finding is theoretical at this table; observers 0: it occurs.",
+    "priority": "nit"
+   }
+  },
+  {
+   "what": "The Final Trial's verdict card carries verdictAt but no verdictCut (verdict.mjs 1405), so no cut-in plays for the Mastermind's verdict; no stage paper read here says whether that is meant. A question for the stages lane (E61, E41 C10b), not a finding.",
+   "l1": null
+  }
+ ]
+}

@@ -1,0 +1,342 @@
+{
+ "reader": "domain-text-a-config",
+ "files_read": [
+  {
+   "file": "scripts/config.mjs",
+   "lines": 5646,
+   "read": "whole, start to end, in 12 chunks (1-450, 450-900, 900-1400, 1400-1900, 1900-2400, 2400-2900, 2900-3400, 3400-3900, 3900-4350, 4350-4800, 4800-5250, 5250-5646)"
+  }
+ ],
+ "count_note": "One file of 5646 lines, as the scope names; read whole. Of it 3364 lines are comment lines (a script count of lines starting with /*, * or //), 15 are functions, the rest tables. 553 config prose strings walked by script (i18n-config.mjs walkConfigProse); 107 exports; 112 + 14 comment pointers of the form file.mjs `name` / `name` in file.mjs checked by script. The handbooks were read in the sections that state config's numbers (player-handbook.en.md sections 4-6, 8, 10 and the Holding ready note; gm-handbook.en.md 6.2 and the lines grep found for Overflow, Key fee, Contraband, Misleading Trail), not whole. tools/check.mjs part `prose` and tools/config-prose.mjs read for what they cover.",
+ "neighbours_followed": [
+  "scripts/i18n-config.mjs (whole, 98 lines: CONFIG_TABLES, PROSE_KEYS, walkConfigProse, keepEnglish / configEnglish)",
+  "tools/check.mjs part prose (503-516) and the header's description of it (45-47); tools/config-prose.mjs proseCoverage (54-61); tools/stale-pl.mjs header (1-42)",
+  "scripts/cleanup.mjs (tamperPriceSkip 1316-1323, concealFromWitnesses 1380-1470, attemptStageSix's cover 1640-1675, resolveStageSix's relief 1775-1800, handBack 2395-2440, the outcome's faint 1037)",
+  "scripts/action-project.mjs (concealSabotage 1185-1250, CONCEALED_WITH_DESPAIR 649-652, 726)",
+  "scripts/palm.mjs (the theft's and the plant's tellings 725-760, 900-930)",
+  "scripts/action-listen.mjs (performListen 210-260)",
+  "scripts/action-analyze.mjs (askForHint 248-262); scripts/action-briefing.mjs (palm facts 315-321, the frame's number 350)",
+  "scripts/murder-rules.mjs (killer's opening 740-800, victim's opening 830-890, grantImprovisedWeapon 1515-1545, announceCrisis 4280-4340)",
+  "scripts/inventory.mjs grantItem (784-875: the description given wins over the world-language fallback); scripts/utils.mjs worldLocalize (147-195)",
+  "scripts/doors-gm.mjs (what holds a door 118-124, the seal lifted 176); scripts/call-pickers.mjs (Contraband's reach 520-560)",
+  "scripts/monocub.mjs (purse 751-765, bounty lapse 1848-1880, betWindowNow 1894-1905, meddle's bonus 1414-1417)",
+  "scripts/rest.mjs (Breath's gain 515-532); scripts/death.mjs markDeceased (66-90); scripts/traps.mjs (onActionResolved 1026-1046, the passage trigger 1097-1110)",
+  "scripts/settings.mjs (ROOMS.searchTokensPerRoom as a setting's default, 1555); scripts/reroll.mjs (the step labels 920-935)",
+  "docs/handbooks/player-handbook.en.md 248-595, 597-700, 718-850; docs/handbooks/gm-handbook.en.md 484-505, 582, 1222, 1280, 1342, 2051, 2255",
+  "docs/dev/e57/SPEC.md section 3 (the S02-74 sites), docs/dev/R-REGISTRY.md R1154 and R6603",
+  "audit/findings-1.2.42/text.md (whole headings and the config.mjs rows), audit/findings-1.2.118/old-1.2.42-text.json, audit/AUDIT-1.2.13.md (config.mjs rows: A26, Q4-Q7, C's split, F4)"
+ ],
+ "strengths": [
+  "The numbers a sentence states are mostly filled from the rule: `fillProse` and `PROSE_NUMBERS` (config.mjs:2999-3044) put a Call's cost, damage, progress, drain, turns and the finishing blow's multiplier into the text, so the Despair and Hope Call tiles, Strike, Pin and the Finishing Blow cannot drift from their tables. A script over the 553 config prose strings found every placeholder the English carries in its Polish twin too (0 mismatches).",
+  "Every config prose string has a Polish twin in lang/pl.json (553/553 by the same script, which is what `node tools/check.mjs prose` holds), and the 53 identical ones are glossary names kept English on purpose (Truth Bullet, the Remnant kinds, Call names).",
+  "Every export is in the `DRPG` aggregate (107 exports, 106 in the aggregate plus `DRPG` itself; R1233), and every TIMING, TRIAL and FACILITIES key but one (FACILITIES.timedUntil) has a reader outside the file.",
+  "The rules' numbers agree with both handbooks wherever I compared them: the Search, Observe, Analyze, Listen, Project, Sabotage, Dash, Shut, Force, Pick, Keep Watch, Palm and Frisk thresholds; the 16 Despair Calls' and 10 Hope Call tiles' prices; the Overflow's 20, its range 6-60 and its 13 darkenings; the opening rolls (8 and 20, the Key Remnant scale 5/4/3); the eleven crisis thresholds; Tamper's 9/12/15/18 ladder, the floor of 8, the fresh scene's 3, the trail's 15 and the body's 16.",
+  "The comments that record a measurement carry it and check out when recomputed: the Monocub first tier 11 (104 of 144 throws of 2d12, 72.2%; config.mjs:3531-3533), the Palm steal at 10 (77.8%) against a Search Tier 1 at 12 (65.3%) (1805-1807), the victim's opening at 20 with no Night disadvantage (16.7%; 3739-3742).",
+  "The defensive `callsGm` predicates (config.mjs:1963-1994) never throw into the sheet's render, and answer the safe stripe on an unknown world.",
+  "TABLE_NAME_WORDS and TABLE_COPY_WORDS (817-860) freeze the English before i18n.mjs rewrites the tables in place, so a Polish GM no longer writes a second set of table names or descriptions into a shared world."
+ ],
+ "findings": [
+  {
+   "id": "domain-text-a-config-1",
+   "domain": "TEXT",
+   "severity": "minor",
+   "category": "text",
+   "title": "A Cleaning Tool's hint, and the player handbook, promise its tier off a Misleading Trail's 15; the GM scores the trail at 15 whatever the tool",
+   "where": "scripts/config.mjs:691 (ITEM_CATEGORIES.cleaningTool.hint) and 4537-4544 (the CLEANUP note); docs/handbooks/player-handbook.en.md:623 (Holding ready); scripts/cleanup.mjs:1666-1671 and 1791-1794",
+   "what_happens": "The item hint a player reads on every Cleaning Tool says \"advantage on every clean-up roll but Move the Body, and its tier off the number to beat\", and the player handbook says a Cleaning Tool in hand gives advantage and takes its tier off the threshold for a clean-up, except Move the Body. The code splits it the other way for the trail: attemptStageSix arms the tool's advantage for every key but moveBody, and resolveStageSix takes a tier off only where the action's row has `toolBonusPerTier` - Move the Body alone (config.mjs:4799-4800). CLEANUP.actions.misleadingTrail has no such field, so its threshold is `atLeastFloor(15 - 0)`, and its briefing prints the plain 15 (action-briefing.mjs:350). The GM handbook says it right (gm-handbook.en.md:1222 names the tier only for Move the Body).",
+   "evidence": "config.mjs:691   hint: \"Readied, it makes cleaning up easier: advantage on every clean-up roll but Move the Body, and its tier off the number to beat, never below the minimum. ...\"\ncleanup.mjs:1666  // Moving a body is the one Stage 6 action a Cleaning Tool helps with by\ncleanup.mjs:1667  // lowering the number rather than by granting advantage - see\ncleanup.mjs:1671  if (CLEANUP.toolAdvantage && tool && key !== \"moveBody\") calls.armSituational(1);\ncleanup.mjs:1791  const relief = def.toolBonusPerTier ? cleaningTier(held) * def.toolBonusPerTier : 0;\nconfig.mjs:4766-4773  misleadingTrail: { label: \"Misleading Trail\", ..., threshold: 15, ... }   // no toolBonusPerTier\nplayer-handbook.en.md:623  A Cleaning Tool in hand does the same for a clean-up, except Move the Body, where it takes its tier off the threshold and gives no advantage.",
+   "failure_scenario": "A killer readies a Tier 3 cleaning kit to plant a Misleading Trail, reads the hint and the handbook as 15 - 3 = 12, rolls a 13, and the GM's card scores it a miss against 15.",
+   "expected": "One rule in three places: either the trail takes the tool's tier off (a `toolBonusPerTier` on its row), or the hint and the player handbook say the tier comes off the erase and reshape alone and advantage is what the tool gives a trail.",
+   "confidence": "read",
+   "refutation_tried": "Looked for another relief on the trail's road: resolveStageSix is the only scorer of misleadingTrail and moveBody (cleanup.mjs:1719), both doors reach it (action-tamper.mjs:162, the Stage 6 panel), and its `relief` reads the row's own field; cleanupDc's tool tier serves the erase and reshape road only (resolveCleanup). The roll window and the briefing say 15, so the window and the score agree; only the item hint and the player handbook overstate. No test reads a trail scored with a tool in hand (grep of the tier files for misleading with tool or tier found none)."
+  },
+  {
+   "id": "domain-text-a-config-2",
+   "domain": "TEXT",
+   "severity": "minor",
+   "category": "flow",
+   "title": "The improvised weapon is written into the world in the primary GM's page language, not the world's document language (a D34 site E57's census missed)",
+   "where": "scripts/murder-rules.mjs:1525-1540 (grantImprovisedWeapon); scripts/config.mjs:4132 (the weapon-blow crisis row's `unarmedImprovises.name`, config prose under the PROSE_KEYS field `name`); scripts/inventory.mjs:867-868; docs/dev/e57/SPEC.md section 3",
+   "what_happens": "An unarmed weapon blow (the killer's crisis row at config.mjs:4101) that lands creates a real Crime Tool on the killer's sheet on the primary GM's browser. Its name is `def.unarmedImprovises.name`, which i18n.mjs `localizeConfig` has swapped in place to the page's language (pl.json: \"Improwizowana broń\"), and its description is `game.i18n.localize(\"DRPG.Murder.improvisedNote\")`, the page's language too. grantItem writes the world-language tier line (worldLocalize, E57 C3) only when no description was given, and this caller gives one. D34 (R1154, R6603) says what the module writes into a world document is in the world's document language; E57's census of the S02-74 sites listed grantItem's tier sentence and the tier-3 rewrite only.",
+   "evidence": "murder-rules.mjs:1530  const item = await grantItem(actor, {\nmurder-rules.mjs:1532      name: def.unarmedImprovises.name,\nmurder-rules.mjs:1538      description: `<p>${game.i18n.localize(\"DRPG.Murder.improvisedNote\")}</p>`\ninventory.mjs:867   // In the world's document language (E57 C3), and only where no description was given.\ninventory.mjs:868   const fallbackDescription = !description && hasTier ? await tierDescription({ category, kind, tier }) : \"\";\nlang/pl.json, the same row's DRPG.Config key for unarmedImprovises.name = \"Improwizowana broń\"",
+   "failure_scenario": "In an English world whose primary GM runs Foundry in Polish, a killer snatches a weapon mid-fight and every English player who later finds, loots or is shown it reads \"Improwizowana broń\" with a Polish description; with the GMs the other way round, a Polish table reads an English item.",
+   "expected": "The item's name and description through worldLocalize (the row's DRPG.Config key for unarmedImprovises.name, and DRPG.Murder.improvisedNote), as grantItem's own tier line is.",
+   "confidence": "read",
+   "refutation_tried": "Checked whether grantItem translates a given name or description: it does not (inventory.mjs:784-870, the name and the description are written as passed). Checked where the crisis action runs: on the primary GM through bridge-runs-acts.mjs:799-850 `resolveCrisisAction`, so the GM's page language decides. Checked E57's papers for the site: SPEC.md section 3 names two sites, neither this. Other config prose written into documents found by a grep of `name:` with a config table: case-realize.mjs:271 (TRUTH_BULLET_TYPES.autopsy.label as a fallback name), whose Polish twin is the same English words, so no difference shows there."
+  },
+  {
+   "id": "domain-text-a-config-3",
+   "domain": "TEXT",
+   "severity": "minor",
+   "category": "text",
+   "title": "Palm's description says the victim notices; since 1.2.113 a noticed Palm is also told to everyone in the room, and nothing in the Palm window says so",
+   "where": "scripts/config.mjs:1776-1778 (ACTIONS.palm.description); scripts/palm.mjs:748-754 and 921-924 (tellOnlookers); lang/en.json DRPG.Action.dcPalm",
+   "what_happens": "The tile's description reads \"When you take or leave something, Shadow decides whether they notice, and Hand decides whether it works. If they catch you taking, they also learn what you took.\" Since privacy line 2 (#7, the owner's rule of 13.11.2026) a theft or a plant the target notices is also told to the students who see it (`tellOnlookers`): the hand by name, the item with Despair on the Shadow roll. The briefing's one fact line (dcPalm: \"To take: Shadow {unseen}+ to stay unseen, then Hand {take}+ ...\") and the Steal strings say nothing of the room either. The player handbook does (player-handbook.en.md:460).",
+   "evidence": "config.mjs:1776  description: \"When you take or leave something, Shadow decides whether they notice, and Hand decides whether \"\nconfig.mjs:1777      + \"it works. If they catch you taking, they also learn what you took. You can force a Frisk they refuse or \"\npalm.mjs:748   // AND THE ROOM (privacy line 2, #7; the owner's rule of 13.11.2026): the students who see it read the hand by its\npalm.mjs:752   const { tellOnlookers } = await import(\"./frisk.mjs\");\npalm.mjs:753   await tellOnlookers(thief, victim, `<p>${game.i18n.format(took && !unseenWithHope ? \"DRPG.Steal.wTaking\" : \"DRPG.Steal.wHand\", ...",
+   "failure_scenario": "A player Palms a classmate in a crowded dining hall expecting at worst the victim to notice; the Shadow roll misses and every student in the room gets a card naming the thief.",
+   "expected": "The description (or the briefing's fact) says that when they notice, the room sees whose hand it was.",
+   "confidence": "read",
+   "refutation_tried": "Looked for the room in every Palm surface a player reads before the roll: the description and hint (config.mjs:1774-1778), the briefing's palm case (action-briefing.mjs:315-321, one dcPalm line), and every DRPG.Palm / DRPG.Steal string with 'room' or 'see' in it (two, neither about onlookers). The Frisk's open mode does say the room sees (DRPG.Frisk openHint); the unseen theft and plant do not."
+  },
+  {
+   "id": "domain-text-a-config-4",
+   "domain": "TEXT",
+   "severity": "nit",
+   "category": "text",
+   "title": "Behind Closed Doors says only a successful Pick the Lock still gets a student in; Force the Door lifts the seal for everyone and a breach lifts it too",
+   "where": "scripts/config.mjs:2723-2726 (DESPAIR_CALLS.behindClosedDoors.effect); scripts/doors-gm.mjs:118-124, 176; docs/handbooks/player-handbook.en.md:429-431 and 345",
+   "what_happens": "The Call's effect line, which the Monokuma reads on the tile and the table reads on the card, is \"Seals a room until the time of day ends; a successful Pick the Lock still gets a student in, and those inside stay.\" Force the Door counts a seal among what holds the door at INFILTRATE.force.lockDc (18) and, when it gives, lifts the seal for the rest of its time of day (doors-gm.mjs:176 `liftSeal`), which opens the room to everybody; a finished Breach the Wall lifts it as well (handbook 345).",
+   "evidence": "config.mjs:2725  effect: \"Seals a room until the time of day ends; a successful Pick the Lock still gets a student in, and those inside stay.\"\ndoors-gm.mjs:124     seal: isSealed(room) };\ndoors-gm.mjs:176         if (holds.seal) await (await import(\"./call-world.mjs\")).liftSeal(room);\nconfig.mjs:2206  force: Object.freeze({ traits: Object.freeze([\"body\"]), cost: 1, lockDc: 18, noise: \"adjacent\" }),",
+   "failure_scenario": "A Monokuma spends 2 Despair sealing the library, believing only a lockpick gets in; a student forces the door at 18 and the whole class walks in for the rest of the time of day.",
+   "expected": "The effect names the ways through: Pick the Lock lets one student in, Force the Door or a breach lifts the seal.",
+   "confidence": "read",
+   "refutation_tried": "Checked that the seal a Force lifts is the Call's seal and not a different lock: doors-gm.mjs:118-124 reads `isSealed(room)` from call-world.mjs, the same store `sealsRoom` writes. The handbooks' Despair tables say only \"Seals a room for one time of day\", so they are not wrong, only short."
+  },
+  {
+   "id": "domain-text-a-config-5",
+   "domain": "DOC",
+   "severity": "nit",
+   "category": "text",
+   "title": "Both handbooks say Contraband destroys any one item; config and the picker exclude Truth Bullets",
+   "where": "docs/handbooks/player-handbook.en.md (section 6, Contraband row); docs/handbooks/gm-handbook.en.md:499; scripts/config.mjs:2864 and 711; scripts/call-pickers.mjs:532-547",
+   "what_happens": "The Despair Call tables read \"Destroys any one item\" (player) and \"Destroy any one item\" (GM). The Call's own effect says \"it cannot destroy a Truth Bullet\", the Truth Bullet category's hint says \"Contraband cannot destroy it\", and the picker skips the category (`if (!category || category === \"truthBullet\") continue;`).",
+   "evidence": "gm-handbook.en.md:499  | Contraband | 4 | Destroy any one item |\nconfig.mjs:2864  effect: \"Destroys one item a student carries, or one left on a body; it cannot destroy a Truth Bullet.\"\ncall-pickers.mjs:532   * A Truth Bullet: never. ...",
+   "failure_scenario": "A GM plans to answer a decisive Truth Bullet with Contraband from the handbook's table and finds at the table that the picker does not offer it.",
+   "expected": "The two rows say \"any one item but a Truth Bullet\" (and the Polish pair the same).",
+   "confidence": "read",
+   "refutation_tried": "Read the picker's reach (call-pickers.mjs:520-560) and found no road that offers a bullet; the rules-parity tool (docs/dev/e57/SPEC.md section 5) holds the Calls' prices on the handbooks' rows, not their effect cells, so nothing checks this sentence."
+  },
+  {
+   "id": "domain-text-a-config-6",
+   "domain": "TEXT",
+   "severity": "nit",
+   "category": "hygiene",
+   "title": "Config prose no screen reads, translated all the same, one of it with words the Listen card stopped meaning",
+   "where": "scripts/config.mjs:1610 (ACTIONS.analyze.hintFailure), 1743-1746 (ACTIONS.listen.thresholds[].result and critical.result), 1811 (ACTIONS.palm.unseen.label), 1826 (ACTIONS.palm.failure)",
+   "what_happens": "Read by nothing outside config.mjs and the prose walk (git grep over scripts/ without tests): `hintFailure` \"No help.\" (the GM's button and the player's card say DRPG.Bridge.noHelp, \"No hint.\"); Listen's \"Pick one room; learn whether anyone is there.\", \"Pick one room; see the tokens of everyone in it.\" and \"See every player token in all adjacent rooms.\" (performListen reads only `min`, and says counts and names from DRPG.Listen.*; the eavesdrop and the names, not tokens, are what a hit gives); Palm's unseen label \"Keep your hands out of sight\" (reroll.mjs reads the frisk and rummage labels only) and Palm's failure \"Your hand comes away empty.\". Each has a Polish twin in lang/pl.json that a translator keeps.",
+   "evidence": "config.mjs:1610  hintFailure: \"No help.\",\nconfig.mjs:1744  { min: 18, result: \"Pick one room; see the tokens of everyone in it.\" }\naction-listen.mjs:223  const namedFrom = Math.max(...def.thresholds.map(t => t.min));\ni18n-config.mjs:34  \"aloneNote\", \"chip\", \"note\", \"when\", \"hintFailure\", \"instruction\", ...",
+   "failure_scenario": "A translator or a GM editing the rules reads that a Listen at 18 shows tokens and that an unhelped hint says \"No help.\"; neither is what the table sees.",
+   "expected": "Dead prose dropped from the tables (and pl.json), or read where its action says the result.",
+   "confidence": "read",
+   "refutation_tried": "Grepped scripts/ (tests excluded) for each field by name and by path: hintFailure appears only in i18n-config.mjs's field list; `.result` is read for Analyze's hint ladder (action-analyze.mjs:250-253), Sabotage's bands (action-project.mjs:1116) and nowhere for Listen; `palm?.unseen` has no reader; Palm resolves its miss with DRPG.Steal.* strings (palm.mjs:740-754)."
+  },
+  {
+   "id": "domain-text-a-config-7",
+   "domain": "TEXT",
+   "severity": "nit",
+   "category": "hygiene",
+   "title": "Rule numbers that live in other files and are typed again into config prose, against the file's own first rule",
+   "where": "scripts/config.mjs:9 (\"If a rule changes in the guide, change it HERE and nowhere else.\"), 2007, 2164-2166, 3536-3539, 760-763 and 833-840; scripts/action-project.mjs:649; scripts/rest.mjs:527; scripts/monocub.mjs:1416",
+   "what_happens": "Three rule numbers have no row in config.mjs and their sentence there types the digit: an indirect murder's concealment with Despair adds CONCEALED_WITH_DESPAIR = 1 (action-project.mjs:649) and config says \"the project gains +1 progress\"; Breath gives `full ? 2 : 1` Hope (rest.mjs:527) and REST.options.breath says \"Grants 2 Hope\" / \"Grants 1 Hope\"; Confusion's lower tier arms `amount: help ? 1 : -1` (monocub.mjs:1416) and its four sentences type +1 and -1. The usables' \"Restores N\" lines in TIER_EFFECTS and USABLE_KIND_EFFECTS type the amounts USABLE_EFFECTS holds (878-883), outside PROSE_NUMBERS. The old text audit counted ten such sentences (audit/findings-1.2.42/text.md, Hygiene metrics); these are the config-side ones standing.",
+   "evidence": "action-project.mjs:649  const CONCEALED_WITH_DESPAIR = 1;\nconfig.mjs:2007  successWithDespair: \"The others see nothing, and the project gains +1 progress.\",\nrest.mjs:527   const gain = full ? 2 : 1;\nconfig.mjs:2166  breath: { label: \"Breath\", long: \"Grants 2 Hope\", short: \"Grants 1 Hope\" }\nmonocub.mjs:1416  key: \"meddle\", grants: \"bonus\", amount: help ? 1 : -1, ...",
+   "failure_scenario": "A GM retunes Breath or the Despair concealment bonus in the file the header points at, finds no number there, edits the code, and the window still prints the old figure.",
+   "expected": "Each number a row of its table, and the sentence filled through PROSE_NUMBERS as the Calls' are.",
+   "confidence": "read",
+   "refutation_tried": "Grepped config.mjs for a field the three readers could take the number from (none: INDIRECT_MURDER.concealIntent has aloneBonus only, REST.options has labels only, MONOCUB.meddle.thresholds carry `grants` and no amount). The table descriptions are frozen on purpose (TABLE_COPY_WORDS), which is a reason the usables' text stays English in world data, not a reason for its digit to be typed.",
+   "old_id": "audit/findings-1.2.42/text.md, Hygiene metrics (hard-coded rule numbers inside sentences)"
+  },
+  {
+   "id": "domain-text-a-config-8",
+   "domain": "TEXT",
+   "severity": "nit",
+   "category": "text",
+   "title": "Words in config prose that differ from the glossary, the handbooks or the action they describe",
+   "where": "scripts/config.mjs:1524 (search hint), 1525-1526 (search description), 685 (crimeTool hint), 761-763 (TIER_EFFECTS.usable)",
+   "what_happens": "Search's description opens \"Roll Eye:\" although the action lists six statistics with Eye the default and the rest a proposal (1517; handbook 267); it says \"a Murder Weapon or a cleaning tool\" beside the category's \"Cleaning Tool\". Search's hint says \"search tokens\" where the glossary term is \"Search Token\" with its case held (docs/glossary.json search-token, otherCase true) and en.json writes it capitalised 34 times of 35. The Murder Weapon hint names \"the Tamper stage\", a name both handbooks never use (they say \"the clean-up\"; en.json has it in 5 keys). TIER_EFFECTS.usable writes \"(sanity relief)\" in lower case beside USABLE_KINDS' \"Sanity Relief\", the old text audit's recommendation, still standing.",
+   "evidence": "config.mjs:1524  hint: \"Loot the room for something you name. Spends one of its search tokens.\",\nconfig.mjs:1525  description: \"Roll Eye: the higher the total, the better the find, ... If what you \"\nconfig.mjs:1526      + \"find counts as a Murder Weapon or a cleaning tool, your search leaves a Remnant.\",\nconfig.mjs:685   ... One used to strike breaks when the Tamper stage ends.\"\nconfig.mjs:761   1: \"Restores 1 Health (healing) or 1 Sanity (sanity relief), by its kind.\",",
+   "failure_scenario": "A player reads \"Roll Eye\" on the Search tile and never proposes Head for a search of a library, which the window would have let them.",
+   "expected": "The glossary's cases, the handbooks' name for the stage, and a Search description that says Eye unless a GM approves another.",
+   "confidence": "read",
+   "refutation_tried": "Whether `node tools/check.mjs text` reports the lower-case Search Token on a config string was not read (the base run is not written); the other three are not glossary entries, so no lint catches them.",
+   "old_id": "audit/findings-1.2.42/text.md section 3 (the Sanity / Stress row: capitalise \"Sanity Relief\" in TIER_EFFECTS.usable)"
+  },
+  {
+   "id": "domain-text-a-config-9",
+   "domain": "TEXT",
+   "severity": "nit",
+   "category": "hygiene",
+   "title": "Six comment pointers name a file or a function the code moved away from",
+   "where": "scripts/config.mjs:90, 846, 1577 and 1637, 2665, 4149, 4299",
+   "what_happens": "A script over the 126 pointers of the forms file.mjs `name` and `name` in file.mjs found these not defined (nor re-exported) where they point: 90 `murder.mjs`, `CAST_FIELDS` (incident-store.mjs; murder.mjs holds no code and does not re-export it); 846 tables.mjs `tableDescription` (tables-pools.mjs; tables.mjs does not re-export it); 1577 `callsGmFor` in sheet.mjs and 1637 \"the cost-stripe note in sheet.mjs\" (sheet-actions.mjs:1473-1477, a private function since E54); 2665 facilities-gm.mjs `handleFacilityUse` (bridge-runs-acts.mjs:106, as config.mjs:2297 itself says); 4149 murder.mjs `finishIncident` (murder-rules.mjs:1856, not re-exported by the facade); 4299 `paintFloorClock` in hud.mjs (defined nowhere in scripts/).",
+   "evidence": "config.mjs:2665  * the row, and on the primary GM, which refuses it (facilities-gm.mjs `handleFacilityUse`, sheet-audit.mjs\nconfig.mjs:2297  before P2 (bridge-runs-acts.mjs `handleFacilityUse`), and so does a new project's editor. */\nbridge-runs-acts.mjs:106  export async function handleFacilityUse(payload, sender) {\nconfig.mjs:4299  * stop - see `paintFloorClock` in hud.mjs, which is where the red mark is put",
+   "failure_scenario": "Somebody following TRIAL.speakSeconds' note to the red bar opens hud.mjs and finds no paintFloorClock anywhere.",
+   "expected": "Each pointer names the file the code lives in now.",
+   "confidence": "read",
+   "refutation_tried": "Each NOTDEF checked by hand against the facades' export lines (grep -c of the name in murder.mjs and tables.mjs: 0) and by git grep for the function's definition across scripts/; false hits of the script (a parameter `viaAction`, a wire name `project.change` that bridge-table.mjs carries) left out."
+  }
+ ],
+ "by_decision": [
+  {
+   "what": "The module's wording lives in config.mjs beside the rules' numbers (5646 lines, 3364 of them comment), not in the language files; 1.2.13 proposed splitting rules from copy at 3955 lines.",
+   "source": "scripts/config.mjs:11-26 (the wording is finished copy here; the handbooks are written from it); i18n-config.mjs and D34 (E57 C3) carry its Polish through lang/pl.json; AUDIT-1.2.13.md C ('config.mjs 3955: rozdzielic reguly od kopii') and F4 ('czesciowo, i celowo'). The split has not been made; the file has grown by 1691 lines since."
+  },
+  {
+   "what": "A DC reaches a player's screen on some actions (the crisis tiles, Tamper's ladder and frame, Find Stash) and never on Observe or an identifying Analyze.",
+   "source": "old TEXT-14, recorded as a decision (old-1.2.42-text.json); player-handbook.en.md section 8 'Reading the difficulty ladder' states the shape and says the number is never shown."
+  },
+  {
+   "what": "Faint Remnants on the map are cleared at a chapter's end on the GM's tick, while a Faint Truth Bullet is kept by the chapter's sweep: config's Faint notes speak of both and read as contradictory side by side.",
+   "source": "config.mjs:1090-1102 (the bullet) and 2087-2092 (the Remnant); chapter.mjs:440 and 660-661 (`sweepTruthBullets` keeps Faint; `clearFaintRemnants`); gm-handbook.en.md:1280."
+  },
+  {
+   "what": "Search's trace grows louder the better the find (Hidden at 8, Obvious on a critical) and the Dynamic table's grows quieter the harder the act.",
+   "source": "config.mjs:1527-1538 and 2129-2139; player-handbook.en.md 'Search' warning and the Dynamic table's IMPORTANT note."
+  },
+  {
+   "what": "The built-in item tables' names and descriptions stay English in every world.",
+   "source": "config.mjs:805-820 and 844-860 (TABLE_NAME_WORDS, TABLE_COPY_WORDS; E14's 'wbudowane pule zostaja angielskie')."
+  }
+ ],
+ "comments_against_code": [
+  {
+   "where": "scripts/config.mjs:1956-1960",
+   "comment_says": "Both [callsGm predicates] also go through dynamic imports on purpose ... the cached module registry makes the call as cheap as a property read.",
+   "code_does": "Neither imports anything: analysableBulletCount, workableProjectCount and murderParksForGm read `globalThis.game?.drpg` (1965, 1972, 1989)."
+  },
+  {
+   "where": "scripts/config.mjs:2101-2104 (SABOTAGE_CONCEAL)",
+   "comment_says": "Rolled *before* the sabotage itself, so a failure is known while there is still a choice - the player may back out having spent nothing.",
+   "code_does": "A failed concealment goes on to the sabotage with no question (action-project.mjs:1206-1216, 'A FAILURE IS PUBLIC, AND THERE IS NO WALKING AWAY FROM IT (Dawid 18.09)', R40); only a closed concealment window aborts (1193). The table's own `failure` text and the handbook say the sabotage goes on."
+  },
+  {
+   "where": "scripts/config.mjs:3800-3803 (CRISIS_ACTIONS)",
+   "comment_says": "The prose under each outcome is shown to the GM, because \"the victim takes something of the killer's ...\" is a sentence a human has to finish.",
+   "code_does": "announceCrisis puts the band's sentence on a card to the GMs and the incident's audience, the actor among them (murder-rules.mjs:4311-4340); the sentences are second person to the roller ('You keep your feet'), and no outcome reads as the quoted one."
+  },
+  {
+   "where": "scripts/config.mjs:4549-4552 (CLEANUP.outcome)",
+   "comment_says": "The trace that replaces it is Faint, so a GM clearing Faint traces can take it - unlike the failure's, which is not faint and is not going anywhere.",
+   "code_does": "Both failures leave a Faint trace: `failureHope: { removes: false, leaves: { visibility: \"subtle\", faint: true } }`, `failureDespair: ... faint: true` (4596-4597), written as `faint: outcome.leaves.faint` (cleanup.mjs:1037); the player handbook says the Tamper Remnant a clean-up leaves is Faint."
+  },
+  {
+   "where": "scripts/config.mjs:2597-2610 (OVERFLOW.effects)",
+   "comment_says": "THE EIGHT, AND ONLY ONE OF THEM HAPPENS ... Untick all eight and the overflow never fires.",
+   "code_does": "OVERFLOW.effects holds 13 darkenings since E93 C6 added five room-action states, all in the hat by default (2662-2681)."
+  },
+  {
+   "where": "scripts/config.mjs:3213-3216 (TRAP_TRIGGERS)",
+   "comment_says": "choosing it is visible next to the eight that are watched",
+   "code_does": "Nine triggers carry a `watch` (alone, enters, search, rest, item, project, sabotage, stash, passage); Find Passage's was added by E80 C3."
+  },
+  {
+   "where": "scripts/config.mjs:3452-3456, 3501 and 2767-2769 (MONOCUB, meddle.hopeCost, fuelTheCub)",
+   "comment_says": "that Hope only exists because a GM chose to convert Despair into it. A Monocub who has not been given any cannot Meddle at all ... /** Hope spent on top of the action. Comes only from a GM's conversion. */",
+   "code_does": "A Monocub's Hope is its sheet and its purse together (monocub.mjs:751-756); Redeem gives +1 Hope from nothing once a game day (config.mjs:3553-3571), and a Bribe, a Bounty and a Ghost Bet pay Hope into the purse."
+  },
+  {
+   "where": "scripts/config.mjs:2337-2339 and 2357-2358 (HOPE_CALLS.experience, .ultimate)",
+   "comment_says": "Experience: 'Waits for the GM - see the note on Ultimate above.' Ultimate: 'IT WAITS FOR THE GM (Dawid, 29.08), like Experience below.'",
+   "code_does": "Experience is the row above Ultimate (2337 before 2347); each note points the wrong way."
+  },
+  {
+   "where": "scripts/config.mjs:2366-2368",
+   "comment_says": "Every other Call is safe to self-serve because what it does is not arguable: Support grants advantage, Pain takes two Health.",
+   "code_does": "Pain is a Despair Call (2745), not a Hope Call; of the Hope Calls a Bribe also waits for an answer (a Monocub's, 2549-2552)."
+  },
+  {
+   "where": "scripts/config.mjs:4814-4816 (CLEANUP.conceal)",
+   "comment_says": "Called at the top of both Stage 6 entry points - `attemptCleanup` and `attemptStageSix` - so it covers \"akcje rozwiazania\" as a whole.",
+   "code_does": "attemptStageSix skips the concealment for Move the Body (cleanup.mjs:1654: `key === \"moveBody\" ? \"alone\" : await concealFromWitnesses(actor)`), as the player handbook says."
+  },
+  {
+   "where": "scripts/config.mjs:79-86 (FLAGS.swungWeapon)",
+   "comment_says": "Character: the id of the weapon this character actually swung. Written by the crisis roll, read by Stage 6's confiscation.",
+   "code_does": "Nothing writes the flag; it lives in the GMs' incident cast (the next entry's own LEGACY note, 89-93), and incident-store.mjs:1524 only lifts and scrubs it."
+  },
+  {
+   "where": "scripts/config.mjs:112-113 (FLAGS.deceased)",
+   "comment_says": "Shape: `{ chapter, day, timeOfDay }`",
+   "code_does": "markDeceased writes `{ chapter, day, timeOfDay, phase, epoch, deathId, sinceVerdict, cause? }` (death.mjs:83-84); config.mjs:128-129 itself names the record's `deathId`."
+  },
+  {
+   "where": "scripts/config.mjs:1724-1727 (ACTIONS.listen)",
+   "comment_says": "one list of rows without groups, seven once E74 adds its four",
+   "code_does": "`variants` holds eight rows (1736), as INFILTRATE does (2193-2215)."
+  },
+  {
+   "where": "scripts/config.mjs:4930-4931 and 5082-5083 (SFX)",
+   "comment_says": "a GM hunting for the door sound should not have to read forty-odd rows ... the thirty that fire once or twice a session do not [vary]",
+   "code_does": "SFX_EVENTS holds 69 rows, 13 with `vary` and 56 without (script count)."
+  },
+  {
+   "where": "scripts/config.mjs:90, 846, 1577, 1637, 2665, 4149, 4299",
+   "comment_says": "pointers to murder.mjs `CAST_FIELDS`, tables.mjs `tableDescription`, sheet.mjs `callsGmFor` and its cost-stripe note, facilities-gm.mjs `handleFacilityUse`, murder.mjs `finishIncident`, hud.mjs `paintFloorClock`",
+   "code_does": "finding domain-text-a-config-9: incident-store.mjs, tables-pools.mjs, sheet-actions.mjs, bridge-runs-acts.mjs, murder-rules.mjs, and no paintFloorClock anywhere."
+  }
+ ],
+ "hygiene": {
+  "functions_over_300": [],
+  "functions_150_to_300": 0,
+  "functions": "15, the longest fillProse (12 lines); the file is tables and comments.",
+  "file_size": "5646 lines, 3364 comment lines (59.6%); the file the 1.2.13 audit proposed to split at 3955 lines.",
+  "duplicated_helpers": [
+   "The Palm's numbers for the two hands are read by name in three places: action-briefing.mjs:316-318 (dcPalm), palm.mjs PALM_PARTS (52-68) and reroll.mjs:928-929 (labels).",
+   "ACTIONS.listen and INFILTRATE.listen both say Listen's statistic and cost (1733-1734 and 2194)."
+  ],
+  "dead_code": [
+   "FACILITIES.timedUntil (config.mjs:2292): no reader in scripts/ outside tests (git grep: config.mjs and tests-tier0.mjs:25587 alone).",
+   "INFILTRATE.tail.perDay (2197): null, read by nothing (the comment at 2186 calls it documentation of 'no daily limit').",
+   "isEpochStamp (497): exported and in the aggregate, called only inside config.mjs (epochClock, staleStamp) and by tests.",
+   "The dead prose of finding domain-text-a-config-6: ACTIONS.analyze.hintFailure, ACTIONS.listen.thresholds[].result and critical.result, ACTIONS.palm.unseen.label, ACTIONS.palm.failure."
+  ],
+  "magic_numbers": [
+   "Finding domain-text-a-config-7: CONCEALED_WITH_DESPAIR = 1 (action-project.mjs:649), Breath's 2/1 (rest.mjs:527), Confusion's +1/-1 (monocub.mjs:1416) - rules outside config, typed again in its prose.",
+   "murder-rules.mjs:2555 reads `def.damage?.criticalAmount ?? 2`, a second copy of Strike's criticalAmount 2 (config.mjs:4069) as the fallback."
+  ],
+  "misleading_names": [
+   "`refundStress` (CLEANUP.outcome.critical, transformAction, misleadingTrail, moveBody, conceal) gives back the step that paid, an action for a non-killer's Tamper (cleanup.mjs:2431-2434 handBack); the name and the comment at 4556-4557 ('Morderca odzyskuje 1 stres') say Sanity."
+  ],
+  "prose_checks_run": "553 config prose strings: 0 missing in pl.json, 0 placeholder mismatches, 0 en or em dashes in English or Polish, 53 identical (glossary names)."
+ },
+ "hints_for_other_passes": {
+  "dead_controls": [],
+  "stale_windows": [],
+  "what_check_prose_covers": "`node tools/check.mjs prose` (tools/check.mjs:505-516 with tools/config-prose.mjs:54-61) holds only that every key of DRPG.Config.* walked from config.mjs exists in lang/pl.json and none extra, plus the tool's usage exit. It does not compare placeholders (parity's placeholder check is over en.json, which holds no config prose), does not see a Polish value left in English or stale against a changed English (that is check part `text`'s T9 through tools/stale-pl.mjs and tools/pl-reviewed.json), does not know whether a config string is read by any screen (finding -6), does not check numbers typed into prose (finding -7), and says nothing about the handbooks. The placeholder comparison this reader ran by script found 0 mismatches today.",
+  "neighbour_comments": [
+   "murder-rules.mjs:804-806 (resolveVictimOpening's header): 'success - they get a free Move and a bad feeling'; the function grants no Move (it reports to the GMs, 883-888), and MURDER_OPENING.victim.hope says nothing of a Move.",
+   "gm-handbook.en.md:2255 says a GM counts only the unfound bodies one of the roller's players may know of 'so the player's window and the GM's score read one number'; domain-case-b-traces-1 found the scoring road skips that filter."
+  ],
+  "for_the_sound_lane": "The 69 SFX_EVENTS hints each say who hears a sound; I did not trace their play sites (sfx-play.mjs, the card flags)."
+ },
+ "not_established": [
+  {
+   "item": "Whether `node tools/check.mjs text` flags config's lower-case 'search tokens' (finding -8): the base run is not written (audit/findings-1.2.118/base-run.json absent when read), so no result of a check or test is cited here.",
+   "l1": null
+  },
+  {
+   "item": "Whether the 69 Sound panel hints say truly who hears each sound: not traced to the play sites.",
+   "l1": null
+  },
+  {
+   "item": "The cost of the three callsGm predicates on each render of the action grid (analysableBullets and projectsAvailableIn per tile per render): not measured; game.drpg.counters() at a table would count it.",
+   "l1": {
+    "what": "how often the action grid's GM-stripe predicates run during a busy time of day",
+    "recipe": [
+     "Open a student's sheet with 3 Truth Bullets and a project in the room.",
+     "Run game.drpg.counters() before and after a minute of Hope and Sanity changes from another player.",
+     "Compare the sheet's repaint count with the predicate calls if a counter names them."
+    ],
+    "clients": "1 GM, 1 player",
+    "theme": "default",
+    "settles_if": "no counter rises with the predicates, or they run once per repaint and the repaint count is small; a finding if they run per tile per write",
+    "priority": "nit"
+   }
+  },
+  {
+   "item": "Finding -2 at a table: whether a world with documentLanguage set to English and a Polish primary GM writes the improvised weapon in Polish.",
+   "l1": {
+    "what": "the improvised weapon's name and description in a world whose document language differs from the primary GM's page",
+    "recipe": [
+     "Set the world's document language to English; run the primary GM's Foundry in Polish.",
+     "Open a direct murder whose killer carries no Murder Weapon.",
+     "Have the killer take the weapon blow from the crisis menu and land it.",
+     "Open the killer's inventory on an English player's browser and read the new item's name and description."
+    ],
+    "clients": "1 GM (Polish page), 2 players (English pages)",
+    "theme": "default",
+    "settles_if": "English name and description: the finding falls; 'Improwizowana bron' with the Polish note: it stands",
+    "priority": "minor"
+   }
+  }
+ ]
+}

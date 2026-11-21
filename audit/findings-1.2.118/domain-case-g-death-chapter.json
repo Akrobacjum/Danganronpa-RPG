@@ -1,0 +1,470 @@
+{
+ "reader": "domain-case-g-death-chapter",
+ "checkout": "claude/audit-119 (scripts/ as on b5a29e73, 1.2.118)",
+ "files_read": [
+  {
+   "file": "scripts/death.mjs",
+   "lines": 803,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/death-fade.mjs",
+   "lines": 340,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/body.mjs",
+   "lines": 1223,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/body-tile.mjs",
+   "lines": 449,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/chapter.mjs",
+   "lines": 1077,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/season-wipe.mjs",
+   "lines": 959,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/season-reset.mjs",
+   "lines": 169,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/season-setup.mjs",
+   "lines": 1640,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/season-exceptions.mjs",
+   "lines": 187,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/day-summary.mjs",
+   "lines": 288,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/assignments.mjs",
+   "lines": 204,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/monokuma.mjs",
+   "lines": 434,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/spectator.mjs",
+   "lines": 123,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/spectator-ui.mjs",
+   "lines": 103,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/spectator-dead.mjs",
+   "lines": 497,
+   "read": "whole"
+  }
+ ],
+ "count_expected": "15 files, 8496 lines",
+ "count_note": "15 files and 8496 lines read, as the scope lists (wc -l on b5a29e73's copies: 8496). 302 named functions found by a brace-counting script over the 15 files. 274 DRPG.* key literals in the 15 files checked by script against lang/en.json and lang/pl.json: none missing in either. Keys built at run time (DRPG.Chapter.step.${key}, DRPG.Season.step.${key}, DRPG.Season.hint.${key}, DRPG.Season.group.${key}, DRPG.Season.section.${section}, DRPG.Season.reportCard.${key}) were not enumerated. base-run.json was not present when this was written, so no test or scenario result is cited as read.",
+ "neighbours_followed": [
+  "scripts/settings.mjs (deathRecord, isDeceased, pendingDeath, isDeadForGm, deadIn, deathRecordFor 3795-3865; bodyDiscovery 3990-3997; setBodyDiscovery 4030-4037)",
+  "scripts/utils.mjs (ownerIdsOf 658-661; workingScene 611-613)",
+  "scripts/incident-store.mjs (incidentKnowers 1225-1230; knowsOfDeath 1233-1238)",
+  "scripts/gm-stores.mjs (deathStore and deathCopy 498-518; pendingBodyStore 1025-1040; bodyHeardStore 1042-1053)",
+  "scripts/gm-students.mjs (applyAliveStates 600-688: the Students window's state list, its Monocub-to-alive in one step)",
+  "scripts/monocub.mjs (setMonocub 140-216, its `watcher` option at 207-211)",
+  "scripts/movement.mjs (isCorpseToken 1635-1638; isCorpse 1649-1657)",
+  "scripts/remnants.mjs (remnantsOn 3248-3251; dropRemnantSecret 1283-1288)",
+  "scripts/investigation.mjs (confirmSweepBullets and its note 355-398; the Body found footer 2029-2030)",
+  "scripts/gm-team-dialog.mjs (the Split evenly button 187-201, its run 349-352)",
+  "scripts/gm-panel.mjs (bodyDialog 440-442; the Next line's waiting discovery and setup branches 940-990)",
+  "scripts/fog.mjs (re-export of checkRegions, 99); scripts/fog-diagnostics.mjs (checkRegions 547; sceneUncoveredShare 881-907)",
+  "scripts/resource-guard.mjs (stampOf, noteOwnWrite 319-345)",
+  "lang/en.json and lang/pl.json (every DRPG.* literal of the 15 files, by script; DRPG.Chapter.*, DRPG.Season.*, DRPG.Assign.splitEvenly/splitDone read)",
+  "audit/findings-1.2.118/controls-10-setup-config.json and controls-13-case-death-chapter.json (their findings on these files, for cross-reference)",
+  "audit/findings-1.2.118/old-1.2.42-core.json and old-1.2.42-case.json (open or partly items naming these files: CORE-LC5, CASE-LC5, both live checks)"
+ ],
+ "strengths": [
+  "A death the GMs keep is a row and nothing on the actor: no flag, no status, no bullet deleted until the discovery or a GM's hand, and a row whose save failed falls back to a public death rather than a lost one (death.mjs:165-175, 458-489, persisted() read back at 483).",
+  "One function writes what deceased means (markDeceased, death.mjs:67-125), with the body tile and the dead watch each tried on their own so a failure in either keeps the death (107-122).",
+  "The discovery is the primary GM's alone and queued on one promise, so a teleport's burst of updateToken announces one body once (body.mjs:125-163, 165-181); its stamp is written before the gather and the card (294-295), and only a published death is named (272-284, 443-452).",
+  "Who walked in is decided from reads taken in one synchronous step off the primary's mark (body.mjs:737-809), witnesses counted as students not tokens (680-700).",
+  "The witnesses' discovery waits for the GM's word and survives a reload or a GM leaving (pendingBodyStore, body.mjs:840-856, 951-963), with 'Not yet' the default under Enter (937-939).",
+  "The End of chapter is one ordered list with a record: a step done is not run again, the clock and the morning move to the ending's own targets (endMoves, chapter.mjs:574-581), the phase is re-read before every step (953-969), and a stopped end is finished or dropped from the window (1009-1077).",
+  "The season reset writes its cut before any step and nothing when the cut fails (season-wipe.mjs:806-812), asks primacy again after the typed word and before every step (343-354, 888), and keeps a record that opens the next window on what it left, only while the clock stands where it left it (unfinishedGroups, 748-755).",
+  "The registry of season state refuses a second entry, an unknown group and an entry that clears nothing, at load (season-reset.mjs:76-104), and lifetimeProblems holds the world settings' lifetimes to it (147-169).",
+  "The day summary reads only the facts this browser was sent (secretSummaries, day-summary.mjs:166-182) and shows nothing on a browser whose clock is hidden for an incident (85-99).",
+  "The death fade is DOM only, writes nothing, and goes to its end state at once under reduced motion, the table's switch off, a correction or Escape (death-fade.mjs:278-299); its rest-state write touches only a class the body carries (154-170).",
+  "Two GMs making one watcher are settled to one on the primary, by the smallest id, the same answer on every browser (spectator-dead.mjs:381-439).",
+  "A Spectator's own moment travels with no student id in the token options (spectator-dead.mjs:25-33, 450-461)."
+ ],
+ "findings": [
+  {
+   "id": "domain-case-g-death-chapter-1",
+   "domain": "CORE",
+   "severity": "major",
+   "category": "flow",
+   "title": "Reset the season, Season setup's only door to the reset, closes the window and never opens the reset",
+   "where": "scripts/season-setup.mjs:1200-1204 (the press), 1213-1215 (what follows the window)",
+   "what_happens": "The frame's button sets resetAsked and calls dialog.close(). drpgWindow is called with rejectClose: false, so the closed window answers null; line 1214 returns null on !result before line 1215 reads resetAsked. End the chapter, wired the same way beside it, works only because its flag is read before the null test (1213). season-wipe.mjs resetSeason is reached from nowhere else in the interface since E101 moved it out of the footer.",
+   "evidence": "season-setup.mjs:1200  dialog.element.querySelector(\"[data-drpg-reset-season]\")?.addEventListener(\"click\", ev => {\nseason-setup.mjs:1202      resetAsked = true;\nseason-setup.mjs:1203      dialog.close();\nseason-setup.mjs:1213  if (endAsked) return endTheChapter(() => import(\"./chapter.mjs\").then(m => m.openChapterEndDialog()));\nseason-setup.mjs:1214  if (!result || result === \"close\") return null;\nseason-setup.mjs:1215  if (resetAsked) return (await import(\"./season-wipe.mjs\")).resetSeason();",
+   "failure_scenario": "A GM at a season's end opens Season setup and presses Reset the season: the window closes and nothing else happens, so the season cannot be reset from the interface.",
+   "expected": "The press opens the reset's own typed-word window (season-wipe.mjs resetSeason), as season-setup.mjs:1294-1299 says.",
+   "confidence": "read",
+   "refutation_tried": "Read the order of the three tests after the window (1213-1215) and the close: no other answer reaches result when the window is closed by dialog.close(). Searched for another door to resetSeason in scripts/ outside tests: none found besides 1215. This is the same defect as controls-10-setup-config-1, found independently on the domain read; that file's refutation (ui-kit.mjs:1344, R4055's text match) agrees.",
+   "cross_ref": "controls-10-setup-config-1",
+   "tests_near": "R4055 and the tier 1 test at scripts/tests-tier1.mjs:20694 match the source line by regular expression and press nothing; result not read (no base-run.json)."
+  },
+  {
+   "id": "domain-case-g-death-chapter-2",
+   "domain": "CASE",
+   "severity": "minor",
+   "category": "ux",
+   "title": "The death window's 'keep it for the GMs' box is ticked for the incident's victim and stays ticked when the GM picks someone else",
+   "where": "scripts/death.mjs:736-745 (the default, computed once), 761-763 (the box), 773 and 787 (its answer handed to killCharacter)",
+   "what_happens": "During an incident the window opens with the victim chosen and the secret box ticked (secretByDefault). Nothing listens to the select: chooseFirst (795-803) only enables the button. A GM who chooses another student keeps the tick, and killCharacter(secret: true) keeps that student's death as a GMs' row: no flag, no marker, their Truth Bullets kept, known only to their owners (incidentKnowers answers [] for anyone but the victim, incident-store.mjs:1225-1230), while the card names the death to the incident's audience as 'kept until found' (death.mjs:283-297).",
+   "evidence": "death.mjs:739  const secretByDefault = actor ? actor.id === victimId : alive.some(a => a.id === victimId);\ndeath.mjs:762  <input type=\"checkbox\" name=\"secret\"${secretByDefault ? \" checked\" : \"\"} />\ndeath.mjs:773  return id ? { id, keepBullets: f.keepBullets.checked, secret: f.secret.checked } : false;\ndeath.mjs:787  return Boolean(await killCharacter(dying, { keepBullets: result.keepBullets, secret: Boolean(result.secret) }));",
+   "failure_scenario": "Mid-incident a GM opens A character dies to carry out Monokuma's punishment on a bystander, switches the select from the victim to the bystander and confirms: the bystander's death is hidden from the table until somebody walks in on the body, which the GM did not mean.",
+   "expected": "The box follows the student chosen: ticked for the running incident's victim, the kill's own default (killCharacter: secret ?? isIncidentVictim, death.mjs:176), unticked for anyone else unless the GM ticks it.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a change listener on the select or the box in the window's render (779: chooseFirst alone) and in ui-kit's drpgWindow use here: none. Checked that a non-victim's kept death is reachable: killCharacter takes secret from the answer (787) before its own default (176). The label (DRPG.Chapter.keepSecretUntilFound) is visible beside the select, so the GM can see the tick: hence minor, not major. No test found that changes the select with the box drawn ticked (searched tests-tier2 for keepSecretUntilFound: not searched exhaustively)."
+  },
+  {
+   "id": "domain-case-g-death-chapter-3",
+   "domain": "CORE",
+   "severity": "minor",
+   "category": "bug",
+   "title": "Split evenly divides the dead too, so the pools it makes can read 'uneven' on the season checklist at once",
+   "where": "scripts/assignments.mjs:131-156 (autoAssign over students(), dead included); scripts/season-setup.mjs:717-735 (the row counts the living only); scripts/gm-team-dialog.mjs:349-352 (the button's toast)",
+   "what_happens": "autoAssign deals every student in name order, alternating pools, the dead and the Monocubs included (students() is studentActors() sorted, assignments.mjs:54-56). The despairSplit row counts living students per pool and leaves the dead out (season-setup.mjs:721), and its rule is 'Pools may differ by at most one living student'. A split made mid-season, after deaths, can give one pool two living students more than the other; the button says 'Students split evenly between Monokumas.' and the checklist says 'The pools are uneven'.",
+   "evidence": "assignments.mjs:144  for (const actor of students()) {\nassignments.mjs:149      map[actor.id] = gms[index % gms.length].id;\nseason-setup.mjs:721  if (isDeadForGm(actor)) continue;          // the dead do not roll, so they are no weight on a pool\nen.json DRPG.Assign.splitDone: \"Students split evenly between Monokumas.\"",
+   "failure_scenario": "In chapter 3, with two of eight students dead and both in the first pool's alternate seats, a GM presses Split evenly in Despair Flow: one Monokuma watches two living students and the other four, and the Season checklist warns of an uneven split right after the toast said it was even.",
+   "expected": "Split evenly deals the living (the despairSplit row's own measure, season-setup.mjs:409-423 and S-4), and gives the dead a pool afterwards or leaves them where they were.",
+   "confidence": "read",
+   "refutation_tried": "Checked whether students() leaves the dead out: it is studentActors() sorted, which filters Monokumas, NPCs and Spectators only (monokuma.mjs:77-84). Checked whether the dead matter to a pool: the row's own comment says they do not roll (season-setup.mjs:721). Found no test that splits with a dead student (not searched exhaustively). Severity minor: Despair still flows, only the GMs' share of living students is off."
+  },
+  {
+   "id": "domain-case-g-death-chapter-4",
+   "domain": "CORE",
+   "severity": "nit",
+   "category": "flow",
+   "title": "The season reset makes a Spectator for every Monocub and takes it away again in the same step, the churn A113-C2-4 closed for the Students window",
+   "where": "scripts/season-wipe.mjs:453-458 (wipeStudent's deaths part); scripts/monocub.mjs:207-211 (`watcher: false` and why); scripts/death.mjs:683-692 (clearSeasonDeaths runs removeAllDeadSpectators before the students)",
+   "what_happens": "For a Monocub the reset's deaths part calls setMonocub(actor, false, { quiet: true }) with no `watcher: false`, so monocubBecomesWatcher makes a new watcher actor (the old ones were already removed by removeAllDeadSpectators) and re-links the Monocub's walking token to it with the moment 'spectator'; the next line's reviveCharacter then deletes that token with 'return' and the actor. monocub.mjs's own note names this: 'a token come and gone on every browser and the player's curtain bare, then lit'. gm-students.mjs:645-650 passes `watcher: false` for the same sequence; the reset does not.",
+   "evidence": "season-wipe.mjs:457  if (actor.getFlag(MODULE_ID, \"monocub\")) await setMonocub(actor, false, { quiet: true });\nseason-wipe.mjs:458  if (isDeceased(actor)) await reviveCharacter(actor, { quiet: true, silent: true });\nmonocub.mjs:211      else if (watcher && isDeceased(actor)) await D.monocubBecomesWatcher(actor);",
+   "failure_scenario": "A GM resets a season with two Monocubs: each Monocub's player sees the curtain go bare and light again, and every browser sees an actor and a token made and deleted, for nothing the reset keeps.",
+   "expected": "The reset passes `watcher: false` as the Students window does (gm-students.mjs:645-650), since the revive follows.",
+   "confidence": "read",
+   "refutation_tried": "Read setMonocub's branch (monocub.mjs:205-212): with watcher defaulting true and the student deceased, monocubBecomesWatcher runs. Read monocubBecomesWatcher (spectator-dead.mjs:326-359): with cub tokens present it makes a watcher by ensureWatcherActorOnly (none exists after removeAllDeadSpectators, death.mjs:688) and re-links the tokens. Read reviveCharacter (death.mjs:619-628) and removeDeadSpectator (233-260): the watcher is found by its watcherOf flag and its tokens and actor deleted. The tier 2 test for A113-C2-4 (tests-tier2.mjs:19021) drives the Students window, not wipeStudent. Nit: the end state is right."
+  },
+  {
+   "id": "domain-case-g-death-chapter-5",
+   "domain": "CASE",
+   "severity": "nit",
+   "category": "flow",
+   "title": "A discovery reached while the GM's 'Students found a body' prompt stands is never asked by the prompt",
+   "where": "scripts/body.mjs:906-913 (one prompt at a time), 915-949 (the rows read once at its start), 849-855 (a walk into a room already waiting does not ask again)",
+   "what_happens": "promptPendingBodies reads the waiting rows once (917) and asks them in turn; a second room whose witnesses reach the count meanwhile writes its row and calls askPendingBodies, which hands back the running promise (908). When that prompt ends nothing reads the rows again, and further walks into the second room return before asking (850-851). The row is asked again only at the next trigger: another room reaching the count, a reload or GM store hydration, or a GM leaving (956-963). The GM panel's Next line names only the oldest waiting row (gm-panel.mjs:949).",
+   "evidence": "body.mjs:908  askingPending ??= promptPendingBodies().catch(err => {\nbody.mjs:917  const rows = pendingBodyDiscoveries({ held: flagsHeldNow });\nbody.mjs:922  for (const row of rows) {\nbody.mjs:850  if (standing && bodies.has(standing.victimId) && (standing.chapter ?? clock.chapter) === clock.chapter\nbody.mjs:851      && (standing.epoch ?? epoch) === epoch) return null;",
+   "failure_scenario": "Two students find one body while the GM still has the prompt for another room open; the GM answers Not yet to the first, and the second discovery is never offered by a prompt - its witnesses were told privately and the table waits until the GM opens Body found.",
+   "expected": "The prompt reads the waiting rows again after its last answer (or each turn), so every row written while it stood is asked (the owner's decision A of 13.11.2026, body.mjs:840-846).",
+   "confidence": "read",
+   "refutation_tried": "Searched for other callers of askPendingBodies: body.mjs alone (855, 957-962) and the facade's re-export (chapter.mjs:56). Checked the Body found window: it names every waiting row in its note (body.mjs:1180-1182), so the GM can still announce it by hand, and the GM panel's Next line shows the oldest (gm-panel.mjs:947-950): hence nit. No test drives two pending rooms with a prompt open (not searched exhaustively)."
+  },
+  {
+   "id": "domain-case-g-death-chapter-6",
+   "domain": "CASE",
+   "severity": "nit",
+   "category": "ux",
+   "title": "Body found's 'Whose body?' offers a Monocub, unmarked, though no walk-in ever names one",
+   "where": "scripts/body.mjs:1164-1172 (the list: every student dead for the GMs); 771-778 and 654-668 (the walk-in's rule leaves a Monocub out, BODY-2)",
+   "what_happens": "The GM's list is studentActors().filter(isDeadForGm): a Monocub keeps the deceased flag, so it is offered as a body beside the dead of every earlier chapter, marked only when this chapter announced it. Named, runDiscovery announces it (the named victim is in victims whatever bodiesToDiscover says, 399-401, 279), stamps it as found and posts 'the body of X' while X walks the map as a Monocub.",
+   "evidence": "body.mjs:1167  const dead = studentActors().filter(isDeadForGm);\nbody.mjs:1170  const label = announcedAlready(a, flagsHeldNow) ? game.i18n.format(\"DRPG.Chapter.victimAnnounced\", { name }) : name;\nbody.mjs:659   if (!view || !deadIn(view, pending) || view.getFlag(MODULE_ID, FLAGS.monocub)) return false;",
+   "failure_scenario": "A GM announcing a second murder picks from a list that holds a Monocub of chapter 1 between two names; picking it posts a public card announcing the Monocub's body.",
+   "expected": "The list leaves out Monocubs (or marks them), by the rule the walk-in reads (bodiesToDiscover).",
+   "confidence": "read",
+   "refutation_tried": "Checked runDiscovery for a Monocub guard on the named victim (209-300): only the Eclipse and 'announced already' refuse. Checked whether isDeadForGm is false for a Monocub: it reads the flag and the row only (settings.mjs:3817-3850). The GM chooses the name, so the trap needs a mis-pick: nit."
+  },
+  {
+   "id": "domain-case-g-death-chapter-7",
+   "domain": "CORE",
+   "severity": "nit",
+   "category": "bug",
+   "title": "The bare-glass rest state counts an NPC character the player owns as a student, so a dead student's player who also owns one keeps the lit curtain",
+   "where": "scripts/death-fade.mjs:115-125 (restsBare); scripts/monokuma.mjs:77-84 (studentActors leaves out FLAGS.notInClass too)",
+   "what_happens": "restsBare walks the player's owned characters and skips Monokumas and Spectators only; a character marked 'Not in the class' (an NPC the player was given) counts as a living student, so restsBare answers false and the curtain never rests bare while that student is dead. Every other roster of students in the module leaves the NPC out (studentActors, studentCensus).",
+   "evidence": "death-fade.mjs:119  if (actor?.type !== \"character\" || !actor.testUserPermission?.(user, \"OWNER\")) continue;\ndeath-fade.mjs:120  if (actor.getFlag?.(MODULE_ID, FLAGS.monokuma) || actor.getFlag?.(MODULE_ID, FLAGS.spectator)) continue;\ndeath-fade.mjs:122  if (!isDeadForGm(actor) || actor.getFlag?.(MODULE_ID, FLAGS.monocub)) return false;",
+   "failure_scenario": "A player who also runs a shopkeeper NPC the GM gave them dies in an incident: the fade plays and the glass lights again at its rest step after a reload or the next settle, not bare as for every other dead student.",
+   "expected": "restsBare reads the one roster's rule (FLAGS.notInClass left out), or says why an NPC keeps the curtain lit.",
+   "confidence": "read",
+   "refutation_tried": "Checked the fade itself: playCurtain('fade') ends in setRest(true) at 3600 ms (death-fade.mjs:76-77, 244), so the bare state is reached once; it is the settle on a reload (305) and on drpgDeathsChanged/updateActor (334-339) that reads restsBare and lights it again. A player owning an NPC is rare (classCandidates names NPCs as characters no player owns, monokuma.mjs:266-269): nit."
+  },
+  {
+   "id": "domain-case-g-death-chapter-8",
+   "domain": "CORE",
+   "severity": "nit",
+   "category": "ux",
+   "title": "Check rooms checks the scene on screen while its row judges the school, and files the result under the screen's scene",
+   "where": "scripts/season-setup.mjs:1016-1038 (wireRoomCheck: checkRegions() of canvas.scene, lastRoomChecks keyed by canvas.scene.id); 268-277 and 520-521 (the rooms row judges the viewed scene only when it is a place scene, else homeScene, and says which)",
+   "what_happens": "With the GM looking at a scene that holds no room (the trial hall, a side map), the rooms row reads 'This row checks School' and judges the school, while the row's own Check rooms button runs checkRegions() on the scene on screen, prints that scene's findings under the row and records them under that scene's id, so the row's mark does not move.",
+   "evidence": "season-setup.mjs:276  const viewed = judged === undefined ? workingScene() : null;\nseason-setup.mjs:277  const roomScene = judged !== undefined ? judged : isPlaceScene(viewed) ? viewed : homeScene();\nseason-setup.mjs:1022  const findings = checkRegions();\nseason-setup.mjs:1026  if (canvas?.scene?.id) lastRoomChecks.set(canvas.scene.id, roomCheckProblems(findings));",
+   "failure_scenario": "A GM in the trial hall opens the Season checklist, presses Check rooms under 'This row checks School' and reads the hall's findings as the school's.",
+   "expected": "Check rooms checks the scene the row judges (roomScene), or the row names the scene the button checks.",
+   "confidence": "read",
+   "refutation_tried": "Checked checkRegions' default: fog-diagnostics.mjs:547 takes canvas?.scene. Checked workingScene: the viewed scene, else the active one (utils.mjs:611-613), so a viewed hall is no place scene and the row falls to homeScene. Nit: the findings list names its scene's regions, and a GM usually checks from the map being drawn."
+  }
+ ],
+ "by_decision": [
+  {
+   "what": "A kept death's watcher is a new world actor named after the student, owned by the student's player, with a token where the body lies: a console can read the death off it before anybody finds the body.",
+   "source": "scripts/spectator-dead.mjs:18-23 ('the owner accepted that a console can read the death off them (Q-C3b-1)'), the coordinator's spec of 13.11.2026 (e64968c6)"
+  },
+  {
+   "what": "The discovery sound plays on a walker's own browser for any body lying in the room, kept or public, of any chapter, before and without an announcement.",
+   "source": "scripts/body.mjs:1009-1019 and 965-970 (the owner's decision B of 13.11.2026)"
+  },
+  {
+   "what": "The witnesses' count of two writes a waiting row and asks the GM instead of announcing.",
+   "source": "scripts/body.mjs:840-846 (the owner's decision A of 13.11.2026)"
+  },
+  {
+   "what": "A lone finder is told privately and nothing is announced; the rule of two stays.",
+   "source": "scripts/body.mjs:819-832 (the owner's Q1, 26.09.2026)"
+  },
+  {
+   "what": "A death the GMs keep is published by no trial and no chapter's end; at the trial its student is living to the table and the GM who opened it is told how many there are.",
+   "source": "scripts/death.mjs:552-569 and chapter.mjs:649-651 (the owner's Q3, 26.09.2026, and the amendment of that day)"
+  },
+  {
+   "what": "Another GM's Announce or End of chapter is refused and told whose it is, not forwarded to the primary.",
+   "source": "scripts/body.mjs:165-181 (E11 fix r1-G2); scripts/chapter.mjs:818-828"
+  },
+  {
+   "what": "The End of chapter window opens with the reveal, the sweep, the Faint clean-up and the Key Remnants ticked whenever each has a count.",
+   "source": "scripts/chapter.mjs:316-321 (the owner's Q-E21-1 (c), 'as the owner's default keeps them')"
+  },
+  {
+   "what": "Every death lays a body tile, an execution's too, and every tile goes at the Class Trial's end; the tile is drawn at alpha 0 and its caption is on the corpse's token.",
+   "source": "scripts/body-tile.mjs:11-17, 33-43, 58-66 (E63, the owner's rules of 11.11.2026 and the report of 13.11.2026)"
+  },
+  {
+   "what": "No Spectator for a dead student no player owns at the death.",
+   "source": "scripts/spectator-dead.mjs:114-127 (the owner's decision of 13.11.2026, 1.2.113)"
+  },
+  {
+   "what": "A Spectator's browser still receives every public message; only its own messages are refused, hidden and removed.",
+   "source": "scripts/spectator-ui.mjs:55-67 (DRPG-D1 of 12.11.2026, 'a known limit')"
+  },
+  {
+   "what": "Students' assignment to the Monokumas goes with the season (the assignments group, ticked by default).",
+   "source": "scripts/assignments.mjs:185-192 and season-wipe.mjs:58-61 (D36 = option 2)"
+  },
+  {
+   "what": "The season reset's word is compared exactly, case and all.",
+   "source": "scripts/season-wipe.mjs:336-342 (E11 fix r2-H4)"
+  }
+ ],
+ "comments_against_code": [
+  {
+   "where": "scripts/chapter.mjs:8-13",
+   "comment_says": "'the body is found ... everyone is called to the scene, and the phase turns to Investigation'.",
+   "code_does": "The discovery writes a hold and no phase (body.mjs:347-357, D5: 'THE DISCOVERY IS NOT THE INVESTIGATION'); the GM starts the Investigation."
+  },
+  {
+   "where": "scripts/chapter.mjs:22-26 and 206-216",
+   "comment_says": "The sweep 'used to be a tick in the end-of-chapter window' and 'stays available because a GM asks: the button is in the Investigation Dashboard, next to the one that clears Faint Remnants'.",
+   "code_does": "The sweep is a tick of End of chapter again (CHAPTER_END_STEPS 'sweep', chapter.mjs:656-657; option 'sweep' ticked when it has a count, 326, 350), and investigation.mjs:357-360 says neither the sweep nor the Faint clean-up has a button since E64-inv."
+  },
+  {
+   "where": "scripts/chapter.mjs:380-383",
+   "comment_says": "'One screen with counts, because two of these three cannot be undone'.",
+   "code_does": "The window carries four steps marked permanent (the reveal, the sweep, the Faint clean-up, the Key Remnants, chapter.mjs:345-352) besides the clock."
+  },
+  {
+   "where": "scripts/chapter.mjs:48, 51, 53; scripts/season-setup.mjs:72",
+   "comment_says": "Notes on imports ('A leaf (season-exceptions.mjs alone): the registry...', 'The engine (config.mjs alone): the moment this browser's GM stores open...', 'A leaf (config.mjs alone): the scenes of the discovery window...', 'E57 C4 (D35): the header's \"?\" - its own line').",
+   "code_does": "No import follows any of them: the imports went to death.mjs, body.mjs and season-wipe.mjs in the E54 and E42 C5 moves and the notes stayed."
+  },
+  {
+   "where": "scripts/body-tile.mjs:12-13",
+   "comment_says": "'the tile is laid when the death is the table's ... (`leaveBody`, from chapter.mjs `markDeceased`'.",
+   "code_does": "markDeceased is death.mjs's since E54 (death.mjs:67-125); chapter.mjs only re-exports it (57)."
+  },
+  {
+   "where": "scripts/body-tile.mjs:174",
+   "comment_says": "bodyRoomOf is 'The one reader of \"the body's room\" (E72 amend[16])'.",
+   "code_does": "No module code calls bodyRoomOf (git grep: tests and scenario 78 only); body.mjs, frisk.mjs's road and this file's own followers read bodyPlaceOf."
+  },
+  {
+   "where": "scripts/season-setup.mjs:1310-1313",
+   "comment_says": "The Season checklist has 'Pre-season checks its secondary button ... the window closes with where it was, the checks' window answers, and this one comes back there'.",
+   "code_does": "The footer is Close alone (1349), and 1344-1348 says Pre-season checks was folded into the rows in E101 item 2."
+  },
+  {
+   "where": "scripts/season-setup.mjs:1470-1475",
+   "comment_says": "preSessionReport is 'The Pre-season checks window's body ...: the cast, the scenes, the voice rows, the room pictures and the anonymity audit'.",
+   "code_does": "It returns the room pictures, the voice rows, the dice look and the anonymity audit (1508-1513); the cast and the scenes left it in E101 item 2 (1497-1500)."
+  },
+  {
+   "where": "scripts/monokuma.mjs:261-263",
+   "comment_says": "classCandidates are 'The characters Pre-season's checks name as NPCs to mark'.",
+   "code_does": "They are the Season checklist's npcs row (season-setup.mjs:312-320, 'a row of Pre-season's cast part until E101 item 2')."
+  },
+  {
+   "where": "scripts/death.mjs:53, 104, 114, 211, 509; scripts/body-tile.mjs:197",
+   "comment_says": "'the Players window' and its 'dead'.",
+   "code_does": "The window is the Students window (gm-students.mjs; DRPG.Chapter.keptUntilFound tells the GM 'the Students window')."
+  }
+ ],
+ "hygiene": {
+  "functions_over_300": [
+   "season-setup.mjs steps (268-683, 416 lines; most of it row data and comments)"
+  ],
+  "functions_150_to_300": 4,
+  "functions_150_to_300_list": [
+   "season-wipe.mjs wipeSeason (765-959, 195)",
+   "season-wipe.mjs resetSeason (206-370, 165)",
+   "body.mjs runDiscovery (209-372, 164)",
+   "death.mjs killCharacter (158-310, 153)"
+  ],
+  "functions_counted": 302,
+  "duplicated_helpers": [
+   "A character's non-GM owners, five times: utils.mjs ownerIdsOf (658-661), spectator-dead.mjs playerOwners (110-112), death.mjs tellDeathKnowers inline (495), monokuma.mjs playedByAPlayer (414-416) and classCandidates inline (268).",
+   "A user's own students, four rules: death-fade.mjs restsBare (115-125) and spectator-dead.mjs ownStudentOf (464-468) leave out Monokumas and Spectators but not FLAGS.notInClass; spectator.mjs spectatorViewer (74-84) leaves out Monokumas; monokuma.mjs ownedStudents (142-144) Monokumas and Spectators (finding 7).",
+   "'Only the primary GM, tell whose it is' written four times with three keys: body.mjs discoveryHere (176-181), chapter.mjs chapterEndHere (864-869), season-wipe.mjs resetSeason (223-227, again at 350-354).",
+   "A death's record built twice with the same fields: death.mjs markDeceased (83-84) and recordSecretDeath (460-461).",
+   "Where a body lies in a room, two readings: by its token's room (body.mjs publishFoundBodies 425, tellLoneFinder 1087) and by its tile, else token (bodyPlaceOf: checkBodyFound 788-791, bodiesLyingIn 978, promptPendingBodies 928). They agree while the tile follows its token (body-tile.mjs followBody); a body moved to another scene keeps its tile where it was (body-tile.mjs:321-322).",
+   "The monocub flag read by a literal key in season-wipe.mjs:457 (actor.getFlag(MODULE_ID, \"monocub\")) beside FLAGS.monocub everywhere else in these files."
+  ],
+  "dead_code": [
+   "body-tile.mjs bodyRoomOf (175) and tileCentre (102): no caller in scripts/ outside the tests (bodyRoomOf also scenario 78).",
+   "Exports read only by the suite: body-tile.mjs heldBodyTiles (260), death-fade.mjs flickerOnsets (93), season-reset.mjs lifetimeProblems (147), day-summary.mjs summarySince (190, a wrapper of summarySinceOf).",
+   "spectator.mjs SPECTATOR_TALK_FLAG (25): read by nothing since owner-116, kept only for monokuma.mjs setSpectator to unset (as its own note says).",
+   "Exported and reached only from game.drpg (api.mjs): assignments.mjs excludedStudents (101), pruneAssignments (168)."
+  ],
+  "magic_numbers": [
+   "spectator-dead.mjs:49-50 OWNER = 3, NONE = 0 typed by hand where monokuma.mjs:334 reads CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER.",
+   "chapter.mjs:295 86400000 (a day in ms) inline.",
+   "season-setup.mjs:1248 morningLine.slice(0, 400) inline.",
+   "death-fade.mjs:318 SETTLE_MS 1500, with no note of how it was chosen; body.mjs:530-531 BODY_ANNOUNCED_WAIT_MS 1500 and BODY_ANNOUNCED_STALE_MS 60000, both said 'chosen, not measured'.",
+   "body-tile.mjs:424-432 the caption's sizes grid * 0.36, 0.07, 0.05 (H81-06 cited for the first two)."
+  ],
+  "per_write_cost": [
+   "body.mjs:1057-1069 heardByEveryone writes one bodyHeardStore patch per student per body found, awaited one by one before the gather (16 students: 16 store writes per body).",
+   "spectator-ui.mjs:98 every updateActor carrying flags, on every browser, repaints the Spectator body class and imports and repaints the voice tile's buttons."
+  ]
+ },
+ "hints_for_other_passes": {
+  "dead_controls": [
+   "Season setup, Reset the season (season-setup.mjs:1200-1215): finding 1, controls-10-setup-config-1."
+  ],
+  "stale_windows": [
+   "A character dies (death.mjs:714-788): the living list and the secret box's default are read at open (finding 2; controls-13-case-death-chapter-9 for the list).",
+   "Students found a body (body.mjs:931-942): drawn per row from the read at the prompt's start; a row written meanwhile is not asked (finding 5).",
+   "Body found (body.mjs:1101-1223): rooms, the dead, the 'announced this chapter' marks and the waiting note read at open (controls-13-case-death-chapter-9).",
+   "End of chapter (chapter.mjs:385-514): counts and shut boxes read at open; the clock guard (opened) catches a moved clock but not a moved count (controls-13-case-death-chapter-5).",
+   "Reset the season's window (season-wipe.mjs:233, 286-333): the tallies are read once; the list follows the ticks (313-318) but not the world.",
+   "The Season checklist's rows are built once per open (season-setup.mjs:1323-1325; controls-10-setup-config-3)."
+  ],
+  "perf": [
+   "The GM panel's Next line builds the whole checklist (season-setup.mjs steps(), with sceneUncoveredShare's region areas, every scene's secret doors and vision, the hall's report) each time it is computed in Daily Life (gm-panel.mjs:975-977): how often that is per write was not traced (not_established 2).",
+   "spectator.mjs spectatorViewer walks every actor with a permission test per call; visibility.mjs:654 and 1199 and fog.mjs:2798 ask it during repaints (not_established 3)."
+  ],
+  "texts": [
+   "All 274 DRPG.* literals of the 15 files exist in en.json and pl.json; the run-time keys (DRPG.Chapter.step.*, DRPG.Season.step.*/hint.*/group.*/section.*/reportCard.*) were not enumerated here."
+  ]
+ },
+ "not_established": [
+  {
+   "item": "After a Class Trial every body tile goes (clock.mjs reconcilePhase), and bodyPlaceOf then reads each corpse at its token (body-tile.mjs:158-172), so checkBodySound (body.mjs:1021-1049) may play the discovery sound to the first walk of each student into a room where an earlier corpse's token stands - an executed student's, or a death never announced - which nobody heard at a gather. Whether that is decision B's 'a body on the map is a body' or a sound with no body to find was not settled from source.",
+   "evidence_class": "S",
+   "confidence": "suspected",
+   "live_check": "new live check: the walk-in sound after a trial at a corpse token",
+   "l1": {
+    "what": "Whether the discovery sound plays after the Class Trial's end for an executed student's token left on the school map",
+    "recipe": [
+     "Run a chapter to a verdict that executes a student whose token stands in a school room.",
+     "End the trial (the tiles go).",
+     "As a player who did not stand in that room at the trial, walk a token into it.",
+     "Listen for the discovery sound on that player's browser and read bodyHeardStore on the primary GM."
+    ],
+    "clients": "1 GM, 2 players",
+    "theme": "default",
+    "settles_if": "Sound and a new bodyHeardStore row: the walk-in sound plays for an execution's corpse (a finding unless the owner says decision B covers it). No sound: not a defect.",
+    "priority": "minor"
+   }
+  },
+  {
+   "item": "The cost of season-setup.mjs steps() when the GM panel's Next line is computed (gm-panel.mjs:975-977): the region-area sums of sceneUncoveredShare, every scene's secret doors and vision, the hall's report and the Dice So Nice and LiveKit reads, per Next-line render; how often the panel computes the line per world write was not traced.",
+   "evidence_class": "S",
+   "confidence": "suspected",
+   "live_check": "new live check: the panel's Next line cost on a world of several scenes",
+   "l1": {
+    "what": "How long the GM panel's Next line takes on a real world with several scenes and rooms, and how often it is computed during Daily Life",
+    "recipe": [
+     "Open the GM panel on a world with 3+ scenes and 20+ rooms, in Daily Life.",
+     "Run await game.drpg.fps({ toChat: false }) while players move tokens and spend actions.",
+     "Read game.drpg.counters() for the panel's renders, and time one call of firstOutstandingStep() in the console with performance.now()."
+    ],
+    "clients": "1 GM, 3 players",
+    "theme": "both",
+    "settles_if": "Under a few ms a call and no panel render per token move: no defect. Tens of ms per render, or a render per move: a perf finding.",
+    "priority": "nit"
+   }
+  },
+  {
+   "item": "The per-refresh cost of spectator.mjs spectatorViewer (a walk of every actor with testUserPermission) where visibility.mjs and fog.mjs ask it during repaints, and of spectator-ui.mjs's repaint on every actor flags update.",
+   "evidence_class": "S",
+   "confidence": "suspected",
+   "live_check": "LIVE-E88-01 (fps at the table) covers the frame time; no reading of these two counters is recorded",
+   "l1": {
+    "what": "Whether spectatorViewer and paintSpectatorUi show in the frame and work counters on a player's browser",
+    "recipe": [
+     "On a player's browser with 30 actors in the world, run await game.drpg.fps({ toChat: false }) while another player drags a token.",
+     "Read game.drpg.counters() for visibility and fog repaints during the drag."
+    ],
+    "clients": "1 GM, 2 players",
+    "theme": "both",
+    "settles_if": "No measurable share of the frame: no defect. A visible share on a player's browser: a perf finding for the lane.",
+    "priority": "nit"
+   }
+  },
+  {
+   "item": "Whether Foundry v14 sends the kept death's watcher actor and its token to the other players' browsers (they are default NONE ownership; spectator-dead.mjs:180-192, 199-205) - the owner accepted a console reading it (Q-C3b-1), so this only sizes what a console can read.",
+   "evidence_class": "S",
+   "confidence": "suspected",
+   "live_check": "new live check: a kept death's watcher on a bystander's browser",
+   "l1": {
+    "what": "Whether a bystander's game.actors and canvas tokens hold a kept death's watcher while nobody has found the body",
+    "recipe": [
+     "As GM, kill the running incident's victim with the box ticked (kept).",
+     "On a bystander's browser run game.actors.filter(a => a.getFlag('danganronpa-rpg','spectator')).map(a => a.name) and canvas.tokens.placeables.filter(t => t.document.actor?.getFlag('danganronpa-rpg','spectator')).length."
+    ],
+    "clients": "1 GM, 2 players",
+    "theme": "default",
+    "settles_if": "Present: a console reads the death (as Q-C3b-1 accepted). Absent: Foundry does not send it.",
+    "priority": "nit"
+   }
+  },
+  {
+   "item": "Findings 2-8 were read, not run: a harness probe for each (the death window's select changed with the box ticked; Split evenly with two dead; a season reset with a Monocub watching the createActor hook; two rooms reaching the count with a prompt open; Body found with a Monocub; restsBare with an NPC owned; Check rooms from the trial hall) would measure them. No test or scenario result is cited: base-run.json was not present.",
+   "evidence_class": "S",
+   "confidence": "read",
+   "live_check": ""
+  }
+ ]
+}

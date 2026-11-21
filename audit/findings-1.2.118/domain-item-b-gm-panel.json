@@ -1,0 +1,469 @@
+{
+ "reader": "domain-item-b-gm-panel",
+ "checkout": "claude/audit-119 (scripts/ as main b5a29e73, 1.2.118)",
+ "files_read": [
+  {
+   "file": "scripts/gm-campaign.mjs",
+   "lines": 385,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/gm-students.mjs",
+   "lines": 686,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/gm-team-dialog.mjs",
+   "lines": 743,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/gm-panel.mjs",
+   "lines": 1152,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/gm-overlay.mjs",
+   "lines": 122,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/echoes-gm.mjs",
+   "lines": 127,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/watch-gm.mjs",
+   "lines": 161,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/tail-gm.mjs",
+   "lines": 178,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/eavesdrop-gm.mjs",
+   "lines": 333,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/doors-gm.mjs",
+   "lines": 511,
+   "read": "whole"
+  }
+ ],
+ "count_expected": "10 files, 4398 lines (the scope's list)",
+ "count_note": "10 of 10 files read start to end, 4398 of 4398 lines; the sum was checked with wc -l. gm-store.mjs and gm-stores.mjs were followed as neighbours only (the store rows of eavesdrops, watches, tails, barricades, bedroom notes, crossings), as the scope says.",
+ "neighbours_followed": [
+  "scripts/live.mjs 20-80, 106-353, 395-560 (keepLive, its focus and press rules, listenFor - world settings, actors, tokens, items, stores - capture and restore of dirty fields)",
+  "scripts/monokuma.mjs 28-135 (isMonokuma, isNotInClass, isSpectator, studentActors, actingStudents)",
+  "scripts/spectator-dead.mjs 1-80, 150-210 (the dead student's watcher: named after the student, flag spectator, token hidden:false)",
+  "scripts/spectator.mjs 1-60; scripts/visibility.mjs 539-563 (a Spectator's token shown to its owner alone)",
+  "scripts/movement.mjs 1290-1345 (recordCrossingInStep, scheduleSettle), 3020-3035 (a Spectator records no crossing), 3749-3772 (countsAsPresent)",
+  "scripts/crossing-settle.mjs 1-60 (CROSSING_SETTLED)",
+  "scripts/utils.mjs 436-446 (hiddenByGm)",
+  "scripts/death.mjs 495-566 (publishDeath, tellUnfoundDeaths)",
+  "scripts/despair.mjs 810-870 (convertDespairToHope, creditHopeFromDespair)",
+  "scripts/mastermind.mjs 497-556 (the second donation widget)",
+  "scripts/assignments.mjs 101-161 (assign, setAssignments, autoAssign)",
+  "scripts/clock.mjs 400-475 (the morning line read at the roll-over, openingDayPatch)",
+  "scripts/eclipse.mjs 237-240 (startEclipse runs on the GM who presses); scripts/boundary.mjs 96-145 (nextTimeOfDay, toggleEclipse)",
+  "scripts/settings.mjs 1829-1834 (morningLineDraft is a client setting), 3817-3819 (isDeadForGm)",
+  "scripts/season-setup.mjs 65, 268-520 (steps), 745-747 (firstOutstandingStep), 1248",
+  "scripts/fog-diagnostics.mjs 845-905 (sceneUncoveredShare, read on every panel redraw)",
+  "scripts/trial-floor.mjs 221-224 (trialStepText escapes the runner's name)",
+  "scripts/sync.mjs 430-575 (the hooks drpgTimeOfDayChanged, drpgEclipseChanged)",
+  "scripts/voice.mjs 255-320, 1850-1866 and scripts/voice-tile.mjs 1810-1838 (who listens to drpgEavesdropChanged)",
+  "scripts/gm-stores.mjs 1145-1200 (eavesdropStore, eavesdropCopy rows)",
+  "scripts/bridge-runs-acts.mjs 195-334 (the runs of door.shut, door.force, door.pick, door.knock, watch.declare, tail.start, listen.eavesdrop, listen.stop, listen.echoes)",
+  "scripts/bridge-table.mjs 176-280 (their rows and guards)",
+  "scripts/config.mjs 49-51 (moduleVersion), 335-356 (TIME_OF_DAY_LABELS, PHASES; localized by i18n-config.mjs:18), 439 (coalesceMs 120)",
+  "scripts/tests-tier0.mjs 21652 (R1291), 25990 (R7163); scripts/tests-tier1.mjs 38712 (R6403), 59049-59064 (R6023)",
+  "docs/dev/e59/CHAINS.md 125-126 (B-R6, B-R7); docs/dev/e69/STATUS.md 40-66; docs/dev/e94/STATUS.md 90-105",
+  "lang/en.json, lang/pl.json: 53 keys the lane files draw read by script (texts below)",
+  "audit/findings-1.2.42/core.md, despair.md, text.md (old items naming these files); audit/findings-1.2.118/controls-05-gm-panel-stores.json and first-session/controls-06-gm-panel-campaign.json (findings of the controls pass on the same windows, not repeated here)"
+ ],
+ "strengths": [
+  "The Students window's row buttons are one promise each: close, run, reopen (handOff, gm-students.mjs:338-361), so the GM panel never comes back over a death dialog still asking; and its Apply is driven by the answer it is handed, compared with the state at the write (gm-students.mjs:616-686), so a row the world moved since the draw is not written back blind.",
+  "keepLive carries only fields the GM touched and redraws on focusout with relatedTarget (live.mjs:212-242), so the Students table is redrawn before Apply's click reads it: an untouched row reads the world as it is at Apply.",
+  "Edit campaign asks before each field that does more than correct (chapter, Class Trial), reads the clock again at the write, and re-checks the Eclipse before setClock (gm-campaign.mjs:308-345); correctsTheHour calls off an assembly before a correction moves the hour (gm-campaign.mjs:53-59, 357-359).",
+  "Despair Flow's destructive answers default to Cancel (drpgConfirm), and a Revoke is checked against the opted-in list at the press, not the list drawn at open (gm-team-dialog.mjs:366-384).",
+  "The GMs' halves (watch, tail, doors, eavesdrop, Echoes) read the places the GMs hold (gmPlaceOf) and the totals off the GMs' record of each roll through the bridge's `rolled` rows (bridge-table.mjs:176-235); every hook acts on the primary alone.",
+  "doors-gm.mjs tellRooms asks movement.mjs countsAsPresent and names each room as each listener knows it (doors-gm.mjs:131-151, 186-190; CHAINS.md B-R6, B-R7; R7163, R7164).",
+  "The eavesdrop copy goes to its owner alone (recipients, replyForMe; eavesdrop-gm.mjs:238-311), and the owner's first ask moved to ready after the v14 init reading of 16.11.2026 (eavesdrop-gm.mjs:326-331).",
+  "The GMs' overlay exists only on a GM's browser and is found by name on each canvas, never kept (gm-overlay.mjs:30-55).",
+  "The Next line's buttons run the same roads as the HUD (toggleEclipse, nextTimeOfDay; gm-panel.mjs:402-454), name what they do (NEXT_GO, gm-panel.mjs:1047-1064), and the panel does not come back over a window a tile only raised (RAISED, gm-panel.mjs:613-616)."
+ ],
+ "findings": [
+  {
+   "id": "domain-item-b-gm-panel-1",
+   "domain": "ITEM",
+   "severity": "minor",
+   "category": "leak",
+   "title": "Keep Watch's start card and a critical tail's card name a Spectator's token as someone in the room - a dead student's watcher among them, under the dead student's name",
+   "where": "scripts/watch-gm.mjs:83-94 (namesIn), 106-109; scripts/tail-gm.mjs:98-109 (standingIn), 132-136; against scripts/movement.mjs:3761-3772 (countsAsPresent); scripts/spectator-dead.mjs:186-205; scripts/visibility.mjs:539-543",
+   "what_happens": "Both lists of who stands in a room skip a Monokuma, the dead as the GMs hold them and a hidden token, and nothing else. A Spectator is a character with the spectator flag and an unhidden token that walks free and is shown to its owner alone. Since E62 C3b every student who dies - a death the GMs keep included - gets a watcher actor named after the student, flagged spectator, with an unhidden token where the body lies; that actor is not itself dead (the death is on the student's id), so isDeadForGm is false for it. namesIn and standingIn therefore name the watcher - by the dead student's name - and any E92 Spectator, where movement.mjs's one answer (no Monokuma, no Spectator, no dead, no hidden) leaves them out. CHAINS.md B-R7 fixed this for the door cards and the breach's ('the door cards reached a Spectator'); these two lists were not in its scope.",
+   "evidence": "watch-gm.mjs:89  if (!student || student.type !== \"character\" || token.hidden || skip.has(student.id)) continue;\nwatch-gm.mjs:90  if (student.getFlag(MODULE_ID, FLAGS.monokuma) || isDeadForGm(student) || roomOfToken(token) !== room) continue;\ntail-gm.mjs:103  if (!actor || actor.type !== \"character\" || hiddenByGm(token) || skip.has(actor.id)) continue;\ntail-gm.mjs:104  if (actor.getFlag(MODULE_ID, FLAGS.monocub) || actor.getFlag(MODULE_ID, FLAGS.monokuma) || isDeadForGm(actor)) continue;\nmovement.mjs:3768  if (actor.getFlag(MODULE_ID, FLAGS.spectator)) return false;\nspectator-dead.mjs:189  name: student.name, type: \"character\", img: student.img, ownership,\nspectator-dead.mjs:191  flags: { [MODULE_ID]: { [FLAGS.spectator]: true, ...(kept ? {} : { [FLAGS.watcherOf]: student.id }) } }\nspectator-dead.mjs:202  ... watcher.getTokenDocument({ ...look, x: at.x, y: at.y, elevation: at.elevation ?? 0, hidden: false })\nvisibility.mjs:543  if (flaggedSpectator(tokenDoc.actor)) return viewer.owns(tokenDoc) ? \"show\" : \"hide\";",
+   "failure_scenario": "Sayaka is killed and the GMs keep the death; her player's watcher walks into the gym; at the next Eclipse's start Kyoko, keeping watch over the gym, is told 'You see Sayaka there' while her map shows nobody - a dead student reported standing in a room, from a token her browser does not draw.",
+   "expected": "One answer for who is in a room, as R7163 states it: 'for every card a room's people are sent' - countsAsPresent (or its rule) in namesIn and standingIn.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a Spectator test in both functions and their callers: none. Checked that the watcher is not caught as dead: the flag is on the new actor only (spectator-dead.mjs:12-13), isDeadForGm reads the actor's own record (settings.mjs:3817-3819). Checked hidden: the watcher's token is created hidden:false (spectator-dead.mjs:202) and hidden only by the module's visibility. R7163 (tests-tier0.mjs:25990) holds tellRooms and tellBreach only; R6403 (tests-tier1.mjs:38712) reads only that the two sites join with listOf; R6023 is Echoes. The live crossing cards of a watch are not touched: a Spectator records no crossing (movement.mjs:3030-3032), so CROSSING_SETTLED never names one. Echoes is not touched: echoCounts refuses the spectator flag (echoes-gm.mjs:59).",
+   "old_id": null,
+   "tests_near": "R7163, R6403 (tier 0 and 1, results not read: base-run.json is not on the branch)",
+   "live_check": "new live check: one GM, two players; kill A's student with the death kept; walk A's watcher into room R; B declares Keep Watch in R; start the Eclipse; read B's card."
+  },
+  {
+   "id": "domain-item-b-gm-panel-2",
+   "domain": "ITEM",
+   "severity": "nit",
+   "category": "text",
+   "title": "The Students window's State list publishes a kept death and destroys its Truth Bullets, where the window's note and the code's own note say the list is a quiet repair that keeps the inventory",
+   "where": "scripts/gm-students.mjs:509-511, 623-626, 636-639, 652-663; scripts/death.mjs:521-549; lang/en.json DRPG.Panel.whoIsAliveNote",
+   "what_happens": "On a 'Dead, not found' row (a death the GMs keep) the State list offers Alive, Dead, not found, Dead and Monocub. Dead and Monocub both run makeKnown -> publishDeath, which destroys the victim's Truth Bullets (unless the kill kept them), writes the death to the world, tells whoever held a copy and publishes the crime's ties. The window's note says 'The State column fixes a mis-click. The change is saved when you press Apply, with no announcement' and places 'a death destroys Truth Bullets' under the row's buttons; the note in applyAliveStates says 'Dying through the DROPDOWN keeps the inventory AND stays quiet (F16)'. The publish itself is the owner's decision (Q3, recorded at 509-510 and 623-625); what the GM is told is not.",
+   "evidence": "gm-students.mjs:626  const makeKnown = a => (pendingDeath(a) ? publishDeath(a) : markDeceased(a));\ngm-students.mjs:636  // Dying through the DROPDOWN keeps the inventory AND stays quiet (F16).\ngm-students.mjs:654  if (!isDeceased(actor)) died = await makeKnown(actor);\ndeath.mjs:525  const removed = row.keepBullets ? 0 : await destroyBullets(actor);\nen.json Panel.whoIsAliveNote: \"The State column fixes a mis-click. The change is saved when you press Apply, with no announcement. ... The row's buttons act at once, with every effect: a death destroys Truth Bullets.\"",
+   "failure_scenario": "A GM sees 'Dead, not found' on Sayaka's row and picks Dead to tidy the list before a session; on Apply the death is the table's and the Truth Bullets she carried are gone, which the note above the table said only the row's buttons do.",
+   "expected": "The note (and the code comment) say that Dead or Monocub on a 'Dead, not found' row makes the death known as the discovery does, Truth Bullets included.",
+   "confidence": "read",
+   "refutation_tried": "Read publishDeath whole: it is the discovery's road (death.mjs:502-520) and destroys bullets unless keepBullets. Checked that the unfound option exists only on such rows (gm-students.mjs:134) and that the publish is a recorded decision (gm-students.mjs:509-510, 623-625: 'its record, its Truth Bullets and its row go as the discovery takes them') - so the behaviour stands as a decision and only the two texts are the finding.",
+   "old_id": null
+  },
+  {
+   "id": "domain-item-b-gm-panel-3",
+   "domain": "ITEM",
+   "severity": "nit",
+   "category": "bug",
+   "title": "Echoes counts a character marked Not in the class that a player owns as a living student of another player",
+   "where": "scripts/echoes-gm.mjs:10-13 (the rule), 56-62 (echoCounts), 116-122; scripts/monokuma.mjs:45-47, 77-83",
+   "what_happens": "echoCounts refuses a body, a hidden token, a Monokuma, a Monocub, a Spectator and a character no player owns, and nothing else: a character carrying notInClass - not a student by studentActors' rule - counts when a player other than the asker owns it.",
+   "evidence": "echoes-gm.mjs:59  if (flag(\"monokuma\") || flag(\"monocub\") || flag(\"spectator\")) return false;\nechoes-gm.mjs:60  if (!owners.length) return false;\nmonokuma.mjs:82  return !isMonokuma(flags) && !isNotInClass(flags) && !isSpectator(flags);",
+   "failure_scenario": "A player owns a guest character the GM marked Not in the class, standing in the kitchen; another player's Echoes answers 'the kitchen' though no student stands there.",
+   "expected": "The header's 'a living student of another player': the student roster's rule, notInClass refused as well.",
+   "confidence": "read",
+   "refutation_tried": "R6023 (tests-tier1.mjs:59049-59064) feeds a body, Monokuma, Monocub, Spectator, hidden, no owner, own player and a non-character, no notInClass case. The flag is the GMs' to write (gm-students.mjs:228-236, the audit's GM_FLAGS), so a player cannot add or keep it. How often a player owns such a character is not known; hence nit.",
+   "old_id": null
+  },
+  {
+   "id": "domain-item-b-gm-panel-4",
+   "domain": "ITEM",
+   "severity": "nit",
+   "category": "perf",
+   "title": "The GM panel's standing block is rebuilt on every actor, item and token write in the world, and each Daily Life build walks the whole season checklist",
+   "where": "scripts/gm-panel.mjs:653-658 (watch: actors, items, tokens, two stores and every module world setting), 975-980 (firstOutstandingStep with no list), 912-929 (keyPlanStatus in an Investigation); scripts/season-setup.mjs:268-300, 745; scripts/fog-diagnostics.mjs:845-905; scripts/gm-students.mjs:571-577 (the Students table, the same on every actor write)",
+   "what_happens": "keepLive coalesces the writes (120 ms, config.mjs:439) and then builds the block: in Daily Life nextStep falls through to firstOutstandingStep(), whose default runs steps({ roomScene: homeScene() }) - about twenty rows over the roster, the room census, the area sum over every room piece of the school and namedRegions of every scene; in an Investigation keyPlanStatus walks every scene's traces. A player's every step is an updateToken, and a Daggerheart roll writes its actor several times. fog-diagnostics.mjs:855-858 already notes the area sum 'is read on every redraw of the GM panel'. The Students window rebuilds its whole table (a sheetMode and a standingOffers per row) on the same actor writes.",
+   "evidence": "gm-panel.mjs:657  watch: { actors: true, items: true, tokens: true, stores: [keyPlanStore, caseSchemaStore] }\ngm-panel.mjs:977  outstanding = firstOutstandingStep(setupList);\nseason-setup.mjs:745  export function firstOutstandingStep(list = steps({ roomScene: homeScene() })) {",
+   "failure_scenario": "A GM keeps the panel open through a busy Daily Life; each settled step of any of five players rebuilds the block and the checklist on the GM's browser - how much frame time that takes was not measured.",
+   "expected": "Measured once (perf()'s `live..drpg-gmp-standing` sample, perf-timings.mjs) before deciding; the checklist's answer could be kept until a setting or a roster change.",
+   "confidence": "read",
+   "refutation_tried": "Checked that the branch is the ordinary one: an incident, a round, an Eclipse, a stopped end, a trial, a held body and a waiting body all return earlier (gm-panel.mjs:819-967), so a plain Daily Life reaches 977. Scenario 86 (frame work) does not open the panel (its source names no panel region), so no count of this exists. The cost is unmeasured: severity nit, not more.",
+   "old_id": null,
+   "live_check": "new live check: perf() at a table, GM panel open in Daily Life, four players walking for a minute; read the `live..drpg-gmp-standing` sample count and its middle time."
+  },
+  {
+   "id": "domain-item-b-gm-panel-5",
+   "domain": "ITEM",
+   "severity": "nit",
+   "category": "ux",
+   "title": "The GM panel forgets which sections the GM unfolded every time a tile brings it back",
+   "where": "scripts/gm-panel.mjs:474-489 (open from the phase alone), 599-619 (close, run, openGmPanel anew); lang/en.json DRPG.Tips.Sweep.Gm.panelSectionTooltip",
+   "what_happens": "Every tile closes the panel, runs, and opens a new panel; buildSections opens a section only by the phase (`inSeason && !section.collapsed`), and keepLive carries folds only across a rebuild inside one window. So Between sessions and Diagnostics, collapsed by default, fold again after each tile pressed in them.",
+   "evidence": "gm-panel.mjs:480  const open = inSeason && !section.collapsed;\ngm-panel.mjs:605  await dialog.close();\ngm-panel.mjs:617  openGmPanel().catch(err =>",
+   "failure_scenario": "Between sessions a GM opens Between sessions, presses Room Setup, closes it, and the panel returns with the section folded; each further tile there costs the unfold again.",
+   "expected": "The panel reopened by a tile opens the sections it closed with.",
+   "confidence": "read",
+   "refutation_tried": "Searched buildSections and openGmPanel for a kept fold (a variable, a client setting, localStorage): none. The tooltip says the panel keeps the choice 'while it stays open', which is true and is the limit of it; no decision records the reset after a tile.",
+   "old_id": null
+  },
+  {
+   "id": "domain-item-b-gm-panel-6",
+   "domain": "ITEM",
+   "severity": "nit",
+   "category": "ux",
+   "title": "Despair Flow's Split evenly rewrites every student's assignment at once, without a question, in a window whose other changes wait for Save",
+   "where": "scripts/gm-team-dialog.mjs:185-196, 349-353; scripts/assignments.mjs:131-156",
+   "what_happens": "Split evenly answers the window, autoAssign writes a new map at once (every student but those set to '- nobody -', in name order) and the window opens again. Picks made earlier and saved are replaced; Cancel afterwards undoes nothing. Revoke asks first because 'every other destruction in this module asks first' (97-98); this one does not.",
+   "evidence": "gm-team-dialog.mjs:349  if (result === \"auto\" || result?.op === \"auto\") {\ngm-team-dialog.mjs:350      await autoAssign();\nassignments.mjs:149  map[actor.id] = gms[index % gms.length].id;",
+   "failure_scenario": "A GM with a hand-made split of eight students presses Split evenly on the Students tab to see what it would do, then Cancel: the hand-made split is gone.",
+   "expected": "A question before the write, Cancel the default, as Revoke has; or the split drawn into the selects for Save to write.",
+   "confidence": "read",
+   "refutation_tried": "The TEAM-01 note (38-48) records that the three buttons act at once and that the assignments are rebuilt, not that Split evenly needs no question; autoAssign keeps only '- nobody -' rows (assignments.mjs:145-147).",
+   "old_id": null
+  }
+ ],
+ "by_decision": [
+  {
+   "what": "The next morning's line typed in Edit campaign is a client draft of the GM who types it; with two GMs the line of the GM who moves the clock to the new day is used, and another GM's draft stays on that GM's browser (and reaches a later morning when that GM next rolls a day over). The field's hint (DRPG.Clock.morningLineHint) does not say so.",
+   "source": "docs/dev/e94/STATUS.md:101-102 ('Defaults taken, owner to confirm'); gm-campaign.mjs:190-201, 246; clock.mjs:409-432, 445-448; settings.mjs:1829-1834 (scope client); eclipse.mjs:239 (startEclipse runs on the GM who presses)"
+  },
+  {
+   "what": "A tail's card and Echoes name a room by its region's name, a room the asker never explored included, while the door cards were changed to name a room as each listener knows it (B-R6).",
+   "source": "docs/dev/e69/STATUS.md:46-47, 64-65 (defaults, owner to confirm); echoes-gm.mjs:18-19; tail-gm.mjs:133-135; CHAINS.md:125 (B-R6, doors-gm.mjs:186-190)"
+  },
+  {
+   "what": "Dead or Monocub on a 'Dead, not found' row of the Students window publishes the death as the discovery does.",
+   "source": "gm-students.mjs:509-510, 623-626 (the owner's Q3); death.mjs:508-514 (finding 2 is the text only)"
+  },
+  {
+   "what": "Keep Watch is refused when the Eclipse to come leads into Night, and only before an Eclipse.",
+   "source": "watch-gm.mjs:15-17, 55 (Q-E74-2's default; docs/dev/e74/STATUS.md)"
+  },
+  {
+   "what": "The eavesdropper is one more participant of the room's LiveKit channel, which the voice tile counts.",
+   "source": "eavesdrop-gm.mjs:9-12 (the answer (a); LIVE-E69-03)"
+  },
+  {
+   "what": "An eavesdrop's free repeat is on the room listened into, whatever room it is listened from.",
+   "source": "eavesdrop-gm.mjs:25-26, 82-85; docs/dev/e69/STATUS.md:42-43"
+  },
+  {
+   "what": "Edit campaign's chapter field corrects the number only; End the chapter is the road that ends one.",
+   "source": "gm-campaign.mjs:301-312 (E11 C6, the orchestrator's decision of 10.10.2026); DRPG.Clock.chapterCorrect"
+  },
+  {
+   "what": "With one GM and nobody to grant a pool to, Despair Flow opens on Overflow with the other three tabs folded.",
+   "source": "gm-team-dialog.mjs:411-421 (E101 item 6, the owner's yes of 12.11.2026)"
+  },
+  {
+   "what": "The Debug log holds this page load's failures only, the newest 60.",
+   "source": "gm-panel.mjs:685-697 (E109; Q-E43-6's follow-up, R7640)"
+  },
+  {
+   "what": "Who is set to '- nobody -' in Despair Flow is world data any player can read.",
+   "source": "lang/en.json DRPG.Assign.footnote (said to the GM in the window)"
+  },
+  {
+   "what": "A knock at a barricade reaches its author even where the GMs read the author's token as not in the room.",
+   "source": "doors-gm.mjs:445-448 (the owner's rule #9, 13.11.2026)"
+  }
+ ],
+ "comments_against_code": [
+  {
+   "where": "scripts/gm-panel.mjs:167, 641-642, 660-661, 802",
+   "comment_says": "'The panel is thirty tiles long'; rebuilding the tiles 'would be forty buttons redrawn'; 'which of thirty of them'.",
+   "code_does": "PANEL_SECTIONS holds 13 tiles (3 + 3 + 4 + 3, gm-panel.mjs:177-364)."
+  },
+  {
+   "where": "scripts/gm-panel.mjs:644-651",
+   "comment_says": "'Every input to both answers is either a flag on an actor ... or one of this module's world settings ..., which is exactly what keepLive listens to' (plus the items, tokens and two stores since E11).",
+   "code_does": "nextStep also reads GM stores the block does not watch: the pending bodies (pendingBodyDiscoveries, 949), the deaths store (isDeadForGm through actingStudents, 816, and bodiesToDiscover, 1069), the sheet marks (flagsHeldNow, 949, 1069) and the last health report (caseWarning, 1090); controls-05-gm-panel-stores-4 found two of them stale."
+  },
+  {
+   "where": "scripts/gm-panel.mjs:8-11",
+   "comment_says": "'This file re-exports the four names they export'.",
+   "code_does": "gm-students.mjs exports 3 names and gm-campaign.mjs 8; the facade re-exports 4 (35-36). season-setup.mjs imports six of gm-campaign's directly (season-setup.mjs:65)."
+  },
+  {
+   "where": ".claude/rules/code.md, the rows of gm-panel.mjs, gm-students.mjs and gm-campaign.mjs",
+   "comment_says": "gm-panel.mjs holds 'the public roll's window (openPublicRollDialog); 8 names of its own'; gm-students.mjs and gm-campaign.mjs: 'every name it exports re-exported'.",
+   "code_does": "The public roll's window is gone (E60 C5a; R1291, tests-tier0.mjs:21652); gm-panel.mjs has 13 exports of its own; changeRole and campaignRows, readClockForm, applyCampaignForm, endChapterPart, endTheChapter, morningLineRow are not re-exported."
+  },
+  {
+   "where": "scripts/gm-campaign.mjs:13-17",
+   "comment_says": "'gm-panel.mjs re-exports ... so ... the panel's tile reaches the window through it'.",
+   "code_does": "The panel has no Edit campaign tile since E49 A1e (gm-panel.mjs:274-280); its doors are game.drpg.editClock and Season setup, which draws the rows itself."
+  },
+  {
+   "where": "scripts/gm-campaign.mjs:262-264",
+   "comment_says": "'this window has no field to turn it off with - it is ended from the panel'.",
+   "code_does": "The panel has no Eclipse tile (gm-panel.mjs:223-226); it is ended from the HUD's chevron or the Next line, as DRPG.Clock.eclipseStillOn now says. Old CORE-14 (findings-1.2.42/core.md): its comparison and text are fixed (gm-campaign.mjs:363-368), this sentence not."
+  },
+  {
+   "where": "scripts/gm-campaign.mjs:336-341",
+   "comment_says": "The Eclipse is 'Read again here, with nothing awaited between it and the write'.",
+   "code_does": "Between the re-check (342) and setClock (361) the write awaits correctsTheHour's import('./call-effects.mjs') and cancelGather() (357-359) whenever the hour is corrected."
+  },
+  {
+   "where": "scripts/gm-students.mjs:47-49",
+   "comment_says": "'THE DROPDOWN IS STILL THE REPAIR TOOL, exactly as it was - it moves the two flags and nothing else'.",
+   "code_does": "Apply publishes a kept death (626), sends a Monocub invitation (662), revives through reviveCharacter (651) and ties an incident victim's traces and offers Stage 6 (670)."
+  },
+  {
+   "where": "scripts/gm-students.mjs:636-639",
+   "comment_says": "'Dying through the DROPDOWN keeps the inventory AND stays quiet (F16)'.",
+   "code_does": "On a 'Dead, not found' row publishDeath destroys the victim's Truth Bullets (death.mjs:525) - finding 2."
+  },
+  {
+   "where": "scripts/gm-students.mjs:674-679",
+   "comment_says": "'a student made a Monocub by the dropdown and Apply gets the box the next time the window opens, one made by the row's Invite as the open table redraws ... A caller that hands both at once - the suite, the console - gets both in this pass'.",
+   "code_does": "Since E72 C6 neither the list nor Invite makes a Monocub; both send an invitation (offerMonocub, 662), so isMonocub(actor) is false right after and a silence handed with state 'monocub' is not applied in that pass (680)."
+  },
+  {
+   "where": "scripts/gm-team-dialog.mjs:4-5",
+   "comment_says": "Despair Flow is 'opened from Between sessions and from the season checklist'.",
+   "code_does": "Its tile is Season setup's row (gm-panel.mjs:377-379, SEASON_TILES) since E49 A1e; Between sessions holds no such tile (gm-panel.mjs:274-280)."
+  },
+  {
+   "where": "scripts/gm-team-dialog.mjs:267-269, 317-319",
+   "comment_says": "'Flipping a Monokuma flag in the top table does not live-update the roster below it'; 'Everything else here is a setting being edited - pool names, who is a Monokuma, ...'.",
+   "code_does": "The Monokuma box is gone since E101 item 6 (474-475, 210-212): the role is set in the Students window."
+  },
+  {
+   "where": "scripts/gm-team-dialog.mjs:727-732",
+   "comment_says": "'a row whose actor is ticked a Monokuma is left out'.",
+   "code_does": "readAssignmentForm (734-743) checks no Monokuma tick; there is none to read. The roster is students() at open (270)."
+  },
+  {
+   "where": "scripts/eavesdrop-gm.mjs:47",
+   "comment_says": "EAVESDROP_CHANGED is 'The hook fired on every browser where a row of the store changes'.",
+   "code_does": "Hooks.callAll is local and called only by changed() (216-220), which runs where startEavesdrop and endEavesdrop run - the primary. Another GM's merge of the row fires nothing, so voice-tile.mjs:1828's repaint of the GMs' list does not run there."
+  },
+  {
+   "where": "scripts/utils.mjs:437-438",
+   "comment_says": "'Every reading of \"a token the GM has hidden is not in the scene\" asks this' (hiddenByGm).",
+   "code_does": "watch-gm.mjs:89 reads token.hidden directly (the same value today, a second spelling)."
+  },
+  {
+   "where": "docs/dev/e59/CHAINS.md:126 (B-R7)",
+   "comment_says": "'Who is in the room three ways ... fixed 9edb4f66, R7163'.",
+   "code_does": "watch-gm.mjs namesIn and tail-gm.mjs standingIn are two more ways, without the Spectator rule (finding 1)."
+  },
+  {
+   "where": "scripts/gm-students.mjs:596; scripts/death.mjs:509",
+   "comment_says": "'the Players window'.",
+   "code_does": "The window is titled Students (DRPG.Panel.whoIsAlive, gm-students.mjs:537); gm-panel.mjs:190-191 still argues for the name 'Players'."
+  }
+ ],
+ "hygiene": {
+  "functions_over_300": [],
+  "functions_150_to_300": [
+   "aliveTableHtml, gm-students.mjs:67-226 (160)",
+   "nextStep, gm-panel.mjs:814-1003 (190)"
+  ],
+  "functions_120_to_150": [
+   "openGmTeamDialog, gm-team-dialog.mjs:240-388 (149)",
+   "openWhoIsAliveDialog, gm-students.mjs:458-593 (136)",
+   "buildContent, gm-team-dialog.mjs:435-566 (132)",
+   "applyCampaignForm, gm-campaign.mjs:256-385 (130)"
+  ],
+  "how_measured": "espree over the ten files, every function node of 60 lines or more (script in /tmp/domain-item-b-gm-panel/fns.mjs); the five GM halves have none over 60.",
+  "duplicated_helpers": [
+   "The players who own an actor, typed as a one-line filter in echoes-gm.mjs:65 (playerOwners), eavesdrop-gm.mjs:60 (ownersOf), lockpick-gm.mjs:47, mask-gm.mjs:188, death.mjs:495, passages-gm.mjs:229 and 2060.",
+   "Who stands in a room: watch-gm.mjs namesIn (83-94), tail-gm.mjs standingIn (98-109) and movement.mjs countsAsPresent (3761-3772), with three different exclusion lists (finding 1).",
+   "The Despair-to-Hope donation widget twice: gm-students.mjs:101-106 and 429-449, mastermind.mjs:497-556. The two have diverged: the mastermind's carries data-drpg-enter and MM-02's warning at 0, the Students window's neither (controls-06-gm-panel-campaign-1 and -2). The old hygiene line of findings-1.2.42/despair.md:276 (three copies) is partly standing: two remain.",
+   "A time of day as one mark, three shapes: eavesdrop-gm.mjs:57 markNow (chapter:day:time), tail-gm.mjs:38-40 tailDay (chapter:day), movement.mjs:1320-1322 timeOfDayMark (season.chapter.session.day.time).",
+   "The module's version read two ways in one file: moduleVersion() for the panel (gm-panel.mjs:555) and game.modules.get(MODULE_ID)?.version for the Debug log's Copy (762).",
+   "Escaping in one file through esc and foundry.utils.escapeHTML side by side (gm-panel.mjs:559, 1099; gm-team-dialog.mjs throughout; gm-campaign.mjs:169-170)."
+  ],
+  "dead_code": [
+   "No unreachable function found. Exported for the suite and read nowhere else in scripts/ (git grep over scripts/ without tests): buildSections, nextGoKey, advanceHtml, seasonUnderway (gm-panel.mjs), despairFlowLayout, despairFlowMarkup, readMonokumaForm (gm-team-dialog.mjs), nearestEchoRoom, echoCounts (echoes-gm.mjs), eavesdropsFor (eavesdrop-gm.mjs), openExits, pickTrace, endAllBarricades (doors-gm.mjs)."
+  ],
+  "magic_numbers": [
+   "The morning line: textarea maxlength 200 (gm-campaign.mjs:200) and a cut at 400 on save (gm-campaign.mjs:246; season-setup.mjs:1248).",
+   "gm-panel.mjs:1150 86400000 (a day) inline, and `days < 1` reads a backup of 23 hours ago as 'today'; gm-panel.mjs:720 a stack cut to 4 lines.",
+   "doors-gm.mjs:425 KNOCK_MS 15000, a timing kept beside its use, not in config.mjs TIMING ('Every timing and size ... Named here', config.mjs:358-362).",
+   "eavesdrop-gm.mjs:154 EAVESDROP_GRACE_MS + 50."
+  ],
+  "keys": [
+   "The Level Up button's label is the key DRPG.Advance.buttonTooltip (gm-students.mjs:197): a tooltip's key read as a label.",
+   "53 DRPG keys the lane files draw were read by script in lang/en.json; none missing. Parity is tools/check.mjs's (not run here)."
+  ]
+ },
+ "hints_for_other_passes": {
+  "dead_controls": [
+   "None new. Known on the same windows: controls-06-gm-panel-campaign-1 (Enter in a Monocub's donation row presses Apply), -2 (Give Hope with 0 says nothing), -4 (three presses shown to a non-primary GM and refused)."
+  ],
+  "stale_windows": [
+   "The GMs' 'Who you hear' list on a GM who is not the primary: its eavesdroppers (voice-tile.mjs:1240 paintEavesdroppers, eavesdrop-gm.mjs:202-206) repaint on drpgEavesdropChanged (voice-tile.mjs:1828), which fires on the primary alone (eavesdrop-gm.mjs:216-220). Whether another repaint (a LiveKit event, updateUser) covers it was not traced.",
+   "The GM panel's standing block reads the deaths store and the sheet marks as well as the two stores controls-05-gm-panel-stores-4 names (gm-panel.mjs:816, 949, 1069).",
+   "Edit campaign's next-morning field shows this browser's draft only; another GM's typed line is not shown (gm-campaign.mjs:195-201; by decision, docs/dev/e94/STATUS.md:101-102).",
+   "Known: controls-05-gm-panel-stores-1 (Edit campaign writes the clock as drawn), -2 (Despair Flow's Save writes the form as drawn), -6 (Students' Level Up count), -8 (Debug log)."
+  ],
+  "texts": [
+   "DRPG.Panel.nextKeysToPlace names an Investigation 'Key Remnants tab' the window does not have (known: controls-06-gm-panel-campaign-3).",
+   "DRPG.Panel.whoIsAliveNote (finding 2)."
+  ]
+ },
+ "old_items_touched": [
+  {
+   "old_id": "CORE-01 (findings-1.2.42/core.md)",
+   "status": "fixed",
+   "evidence": "The Daily Life line points at the Eclipse (gm-panel.mjs:996-999) and the advance button stands on the clock's line in every phase (1113-1128)."
+  },
+  {
+   "old_id": "CORE-10",
+   "status": "fixed",
+   "evidence": "The chapter is a stepper never shorter than the clock (gm-campaign.mjs:145-173), read back with that max (82-93)."
+  },
+  {
+   "old_id": "CORE-14",
+   "status": "partly",
+   "evidence": "The warning fires only when the clock moved (gm-campaign.mjs:363-368) and names the chevron (DRPG.Clock.eclipseStillOn); the comment at gm-campaign.mjs:262-264 still says the panel."
+  },
+  {
+   "old_id": "CORE-19",
+   "status": "fixed",
+   "evidence": "nextStartTrial once every planned Key is found (gm-panel.mjs:925-927)."
+  },
+  {
+   "old_id": "findings-1.2.42/text.md:113-117 (gm-panel.mjs:1025 inline 'free Move' tooltips)",
+   "status": "obsolete",
+   "evidence": "The panel's table moved to the Students window, whose foot icon reads DRPG.Actions.freeMoveAvailable / freeMoveSpent (gm-students.mjs:122-128)."
+  },
+  {
+   "old_id": "findings-1.2.42/despair.md:276 (hygiene: the donation widget three times)",
+   "status": "partly",
+   "evidence": "Two copies remain (gm-students.mjs, mastermind.mjs) and have diverged (hygiene)."
+  }
+ ],
+ "not_established": [
+  {
+   "what": "Finding 1 was read, not run: the watcher's token on a real table and the card's text.",
+   "l1": {
+    "what": "Whether a Keep Watch start card names a dead student's watcher or a Spectator standing in the post",
+    "recipe": [
+     "1. Kill player A's student in an incident and keep the death (no discovery).",
+     "2. Walk A's watcher token into room R.",
+     "3. Player B declares Keep Watch standing in R and passes.",
+     "4. Start the Eclipse.",
+     "5. Read B's whispered card."
+    ],
+    "clients": "1 GM, 2 players",
+    "theme": "default",
+    "settles_if": "The card lists the dead student's name: finding 1 stands. It lists nobody: it falls.",
+    "priority": "minor"
+   }
+  },
+  {
+   "what": "Finding 4's cost: no reading of how long the standing block's rebuild takes, or how often it runs at a table.",
+   "l1": {
+    "what": "The GM panel's rebuild count and time in a Daily Life",
+    "recipe": [
+     "1. GM opens the GM panel in Daily Life with the season set up.",
+     "2. Four players walk their tokens for one minute.",
+     "3. GM runs game.drpg.perf() and reads the live..drpg-gmp-standing line."
+    ],
+    "clients": "1 GM, 4 players",
+    "theme": "both",
+    "settles_if": "A middle time under a few ms and a count near the number of settled steps: nit stands or falls to none; tens of ms: perf minor.",
+    "priority": "nit"
+   }
+  },
+  {
+   "what": "Whether drpgEclipseChanged(false) can fire on the primary before ready (sync.mjs: 'Before ready (no heard) every one runs'), which would make endWatches drop every declared watch, the ones with no post yet included (watch-gm.mjs:138-153, 158-160). Not traced: the order of the sync rows at a load was not read.",
+   "l1": {
+    "what": "Whether a GM reload before an Eclipse drops declared watches",
+    "recipe": [
+     "1. Player declares Keep Watch (kept).",
+     "2. The primary GM reloads.",
+     "3. GM reads, in the console, the GM store watches (gm-stores.mjs watchStore) row of that character."
+    ],
+    "clients": "1 GM, 1 player",
+    "theme": "default",
+    "settles_if": "The row stands after the reload: no question; gone: a new finding (major for Keep Watch).",
+    "priority": "minor"
+   }
+  },
+  {
+   "what": "A tail of a target who does not cross while an incident runs is not ended by the incident (tail-gm.mjs:87-92 is asked only at the target's settled crossing, 124), and goes on once the incident closes until a body is announced or the day ends. Whether the rule ('Silent: ... an incident running', tail-gm.mjs:26-27) means 'ends' or 'sends nothing while' is a question for the owner, not settled from source."
+  },
+  {
+   "what": "Whether an incident's start ends an eavesdrop at once: nothing in eavesdrop-gm.mjs hears the incident (325 lists the time of day, the Eclipse, the phase and the deaths); the end comes from the voice pass's sweep (listensInForce, 182-189), whose trigger by the incident's write (voice.mjs RECONCILE_HOOKS) was not traced. A harness probe with one eavesdrop and an incident opened would settle it."
+  },
+  {
+   "what": "The microphone block's lift after an eavesdrop ends is a setTimeout in the primary's page (eavesdrop-gm.mjs:154); a primary that reloads inside EAVESDROP_GRACE_MS leaves the block until the next settle. How soon that settle comes at a table was not measured (LIVE-E69-03 reads the grace itself)."
+  },
+  {
+   "what": "No test or scenario result was read: audit/findings-1.2.118/base-run.json is not on the branch. R6023, R6403, R7163, R1291, R1317 are named from their source only."
+  }
+ ]
+}

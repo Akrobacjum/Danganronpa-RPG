@@ -1,0 +1,175 @@
+{
+ "refuter": "verify-live-items-02",
+ "of": "live-items-02",
+ "checked": [
+  {
+   "ref": "51 (LIVE-E04-11)",
+   "claim": "read, as-expected: two tabs of one browser as the GM each placed a trace, both rows on both tabs, nothing lost (16.11.2026, 14.370).",
+   "verdict": "stands",
+   "why": "The row exists on b5a29e73's copy and unchanged on origin/claude/e58-local (line 623 there); it is about this item (two tabs of one browser, traces). Module at the reading: 1.2.116 with L1's commits (LOCAL-REPORT.md:4, :636 ff3e12e5); gm-store.mjs, gm-stores.mjs and case-copy.mjs are unchanged from ff3e12e5 to b5a29e73 (git diff --stat empty), so the road read is today's. The reader's note that only a GM's tabs were read is right.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:471 '| 51 (LIVE-E04-11) | measured | two tabs of one browser as the GM ... a trace placed from each - both rows in the shared store (`gmRemnants`, `gmTraceDigest`) on both tabs, both tokens on the map; nothing lost |'",
+   "status_after": "read"
+  },
+  {
+   "ref": "52 (LIVE-E04-12)",
+   "claim": "read, as-expected: on a player's page userConnected(GM, true) came about 5.7 s before bridge.gmReady; the item text is stale on 'not checked' and on the harness sentence (D10, 4c407e78).",
+   "verdict": "stands",
+   "why": "Row and CALIBRATION D10 found as cited; AUDIT item 656 at line 1611 says only the GM's entry is read. 4c407e78 (17.11.2026, 'D10: a GM is heard as its socket connects') is an ancestor of b5a29e73 and cluster.mjs:720-724 announce a GM first by default (announceFirst ??= isGM). b5a29e73's audit/harness/README.md:683-685 still has the pre-D10 sentence. gm-bridge.mjs changed since 1.2.116 only in the ruling-card render hook (F118), not onGmReady.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:472 'userConnected(GM, true) (active already) at +4.8 s, `bridge.gmReady` at +10.5 s'; docs/dev/e39/CALIBRATION.md:138-140 'D10, `userConnected` before ready. On 14.370 a player's browser gets `userConnected(gm, true)` when the GM's socket connects, about 5.7 s before'; audit/harness/cluster.mjs:723 'announceFirst ??= isGM(account.id);'",
+   "status_after": "read"
+  },
+  {
+   "ref": "56 (LIVE-E05-04)",
+   "claim": "obsolete: the rule 'the victim leaves the room's voice at the killing' was replaced by E19 C3's dead channel (A9); item 287 (LIVE-E19-05) asks today's rule.",
+   "verdict": "stands",
+   "why": "Confirmed in source: at v1.2.64 a dead student's row went to the main room at once; today voice.mjs keeps the dead student in the room's voice until deathVoiceGone's first trigger. The subject the item asks is replaced, and the replacement is named (item 287, AUDIT:1161). The commit id 3a94c32f could not be checked: this clone is shallow and git does not know it; deathVoiceGone's history here reaches only the merge 2ec9f48a (24.10.2026, 'Merge line B (E16 part 1, E19, ...)'). The substance does not rest on the id.",
+   "evidence": "git show v1.2.64:scripts/voice.mjs:505-509 'their voice leaves the room with them ... row.claim = CLAIM.dead; row.why = \"dead, and not back as a Monocub - the main room\"'; scripts/voice.mjs:957-958 'keeps the voice of the room they lie in until the first of A9's triggers (`deathVoiceGone`): until then they play the scene out with the killer'; scripts/voice.mjs:1265 'export async function deathVoiceGone(actor, facts)'",
+   "status_after": "obsolete"
+  },
+  {
+   "ref": "61 (LIVE-E05-09)",
+   "claim": "read, as-expected: replaceFlag on a user and forcedDeletion() on a message's flags, read back on 14.370.",
+   "verdict": "stands",
+   "why": "Row exists and names both operators on the documents the item names (a user, a chat message). utils.mjs changed since ff3e12e5 only in hiddenByGm (6/4 lines), not replaceFlag or forcedDeletion.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:473 'utils.mjs `replaceFlag` on PlayerTwo: `{keep, gone, nested}` replaced whole by `{only: 3}`, the same on a player's browser; `forcedDeletion()` on a message's module flags removed one key and kept the other. Put back'",
+   "status_after": "read"
+  },
+  {
+   "ref": "62 (LIVE-E05-10)",
+   "claim": "read, as-expected: a note saved with no GM online reached a GM who logged in from a fresh browser within 15 s.",
+   "verdict": "stands",
+   "why": "Row exists and is about this item; the fuzz put-back race it mentions is the harness's (lib/fuzz.mjs). pre-session-note.mjs (saveNote at :200) is unchanged since ff3e12e5. Scenario 61's Z6 and O2 are at the cited lines.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:474 'with no GM online PlayerOne's `saveNote` answered \"kept\"; a GM logged in from a fresh browser held the note (`gmNotes`, `noteFor`) within 15 s'; audit/harness/scenarios/61-gmstore-case.mjs:1844 'check(\"Z6: a note p1 saved while no GM was connected was kept on p1's browser, and reached the primary GM who came next\"'",
+   "status_after": "read"
+  },
+  {
+   "ref": "63 (LIVE-E05-11)",
+   "claim": "read, mixed: the setting's shape and server types read from an install of avclient-livekit 0.6.8; the warning silent for Tavern; the comment's 'first GM writes custom' not seen.",
+   "verdict": "stands",
+   "why": "Row found as quoted; question 11 records the side reading and the default. voice.mjs:2429-2430 still says a world with no serverType gets 'custom' from the first GM, and voice.mjs is unchanged since ff3e12e5. One limit the reader states and I confirm: 'Nothing written' - the warning was read by calling liveKitSecretWarning on shapes, not from a stored Tavern setting; the v14-dependent half (the registered shape) was read from the install. 'mixed' rests on the side reading only; the two asks agree.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:475 'its server types `custom` and `tavern`; voice.mjs `liveKitSecretWarning` warns for custom with a secret and not for Tavern with one. The module's note that the first GM to connect gives the world `serverType: \"custom\"` was not seen ... Nothing written'; scripts/voice.mjs:2429-2430 'A world with no `serverType` is given the default, \"custom\", by the first GM to connect.'",
+   "status_after": "read"
+  },
+  {
+   "ref": "64 (LIVE-E05-12)",
+   "claim": "read, as-expected: dropRollBookmarks removed lastAction from an unlinked token's delta on 14.370; the world's stamp not mentioned in the row.",
+   "verdict": "weakened",
+   "why": "The deletion on the delta's path is read as the item asks, but the row called dropRollBookmarks() directly, not the 1.2.64 clause, and records no stamp; the item's last clause ('i swiat dostaje stempel') and the triage's recipe ('read the token _source and the world stamp') name the stamp as part of the check. The reader saw the gap in its note and still wrote 'read'. By 11.3 a check read in part is 'partly'. The stale name (action-rolls.mjs is a facade, the function is action-pipeline.mjs:873, re-exported at action-rolls.mjs:53) is confirmed.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:476 '`dropRollBookmarks()` `{ dropped: 1 }`, the delta's module flags `{}` after ... A deletion on the delta's path works on 14.370' (no stamp); docs/dev/e58/TRIAGE-9.2.md:87 '| 64 | LIVE-E05-12 | K | Write lastAction to an unlinked token's delta, run dropRollBookmarks; read the token _source and the world stamp |'; audit/AUDIT-1.2.42.md:888 '... flaga znika ze zrodla tokenu i swiat dostaje stempel' (Polish marks left out here)",
+   "status_after": "partly"
+  },
+  {
+   "ref": "65 (LIVE-E05-13)",
+   "claim": "partly, defect: one updateToken per waypoint route on 14.370, the card names the scene's room; a third room reached on an allowance of two; fixed in 1.2.118 on the harness's model only; a mouse drag not read.",
+   "verdict": "stands",
+   "why": "The row on b5a29e73's copy says 'a defect found, open'; the fix is in b5a29e73: 67d525f6 (17.11.2026) is an ancestor, release notes v1.2.118:99-109 describe it and say it is checked on the harness's model and that a mouse drag was not read (LIVE-E39-11, item 649). roomsAlong :3236, routeLegs :3263, R7740 in tests-tier1.mjs:7871, roomsVisited :778, crossedInto eclipse.mjs:1279 all present. The reading was on the pre-fix movement.mjs (it changed 102 lines since ff3e12e5), so no reading of today's road exists, as the reader says. 'partly' fits: the item says dragged, the reading moved by the API.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:478 'measured; **a defect found, open** (pass 2) ... one `updateToken` on the GM ... **The Eclipse's limit is passed by one room** when a single move's first leg crosses a room ... A mouse drag not driven'; .github/release-notes/v1.2.118.md:107-108 'L1's reading was a move made through Foundry's API; the fix is checked on the harness's model of 14.370.'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "67 (LIVE-E06-01)",
+   "claim": "partly, mixed: the victim saw no incident look, no event panel and no sound while the killer threw; after a failed opening three veiled cards and Foundry's private-roll stub; after a Hope opening one card and no killer's name; music unread.",
+   "verdict": "stands",
+   "why": "Row and question 7 found as quoted. The stale point holds: mask-gm.mjs:18-19 and lang/en.json:2956-2957 (the key at :2956 names the killer, victimSomeoneMoves at :2957 says 'Someone'). A side note the reader did not make: mask-gm.mjs changed 101 lines since ff3e12e5 (E112v: the veil writes no Foundry hidden), but that touches the killer's token, not the curtain, music or event card the item asks, so the reading still bears on today's code.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:481 'after a failed opening (Chie's Body -20), the same - but its chat shows three veiled cards placed for everybody ... and Foundry's stub ... After a Hope opening: `drpg-incident-here`, one event card ... the words \"Someone is moving on you ...\"; no \"Chie\" anywhere ... Sounds: none captured'; scripts/mask-gm.mjs:18-19 'Every copy but the killers' holds `killerId` and `killerTurnId` null while the mask stands ... the victim's first whisper says \"someone\"'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "68 (LIVE-E06-02)",
+   "claim": "partly, mixed: a bystander's console held the GM's drawn roll with nothing of the actor, but title 'Duality Roll'; Reroll half, options.data and 2.6.5 not read.",
+   "verdict": "stands",
+   "why": "Row found as quoted, on Daggerheart 2.12.9. module.json:22 verifies 2.12.9 (minimum 2.6.5 at :21). reroll-receipts.mjs:5-12 says the receipts went with E08+E28 C8. private-rolls.mjs:723 and :783-784 empty the titles; private-rolls.mjs unchanged since ff3e12e5. Which field held 'Duality Roll' is not in the row, as the reader says.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:477 'speaker `{ actor: null, alias: \"Monokuma\" }`; title \"Duality Roll\"; no `trait` in the roll's options ... Not read: the Reroll half ..., whether `options.data` is empty, Daggerheart 2.6.5'; module.json:22 '\"verified\": \"2.12.9\"'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "70 (LIVE-E06-04)",
+   "claim": "partly, as-expected: on a bystander the veiled ruling card and the GM roll's stub reached ui.chat.notify, the private card did not; the dot and the sound not read; the roller without Dice So Nice not driven.",
+   "verdict": "stands",
+   "why": "Row found as quoted; the reader's limit of 'as-expected' to the notify calls matches the row.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:479 'each reached `ui.chat.notify`; the private result card (not visible to PlayerTwo) did not. No `AudioHelper.play` on PlayerTwo, and no dot element found by the probe's selector in v14's sidebar: the dot and the sound themselves not read. The roller without Dice So Nice not driven'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "71 (LIVE-E06-05)",
+   "claim": "partly, mixed: the GM's card reached the caller in 53-61 ms with the GM's header; the fallback card hid its header; a GM's F5 mid-press not driven; the item's 'no avatar and no name' is against the code's design.",
+   "verdict": "stands",
+   "why": "Row found as quoted (the paper writes 'measured' but its own row says 'Not driven: a GM's F5 mid-press', which is the r2-G3 clause; 'partly' is right). safeword.mjs:123-126 and :468-472 state the GM's header as the design; styles/danganronpa.css:7403 hides only the unsigned card's header; config.mjs:407 safewordAnswerMs 3000. safeword.mjs unchanged since ff3e12e5.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:480 'its header the GM's (\"GM 5s ago\", the GM's avatar - by the module's design, which names the GM, never the caller) ... Not driven: a GM's F5 mid-press'; scripts/safeword.mjs:470-471 'A GM's card keeps its header, which names that GM.'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "53 (LIVE-E05-01)",
+   "claim": "open: no reading of a witness player's console through a whole chapter.",
+   "verdict": "stands",
+   "why": "No row for 53 in either copy of LOCAL-REPORT.md (b5a29e73: group 3 at :467-481; origin/claude/e58-local: group 3 at :621-633, the 152 added lines being tier-2 runs and probes for test 404), none in CALIBRATION.md (either copy) and none in the three digests. Nearest reading not mentioned by the reader: S7-4 (LOCAL-REPORT.md:417) read PlayerOne's console holding every message with the secret cards' content as the placeholder '-' - one moment, messages only, not worldScan through a chapter, so it does not settle the item.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:417 '| S7-4 (CASE-03) | measured | v14 delivers every message to every browser: PlayerOne's console held all 13 the GM held ... the content is the placeholder `-`'; docs/dev/e58/TRIAGE-9.2.md:76 '| 53 | LIVE-E05-01 | K | Run worldScan in the witness player's console through the whole chapter; check the victim's deceased flag |'",
+   "status_after": "open"
+  },
+  {
+   "ref": "58 (LIVE-E05-06)",
+   "claim": "open: item 65's reading quotes the crossing card's words but not whose log it was on nor that no other player's log drew it.",
+   "verdict": "stands",
+   "why": "Item 65's row says 'Aiko's card' (PlayerOne's) and reads no other player's log; CALIBRATION.md section 3 (the three-room move read on the mover, the GM and a bystander) is not in an Eclipse and records no card on the bystander's log. No other paper found.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:478 'Aiko's card \"Noon Eclipse - Hall / You are now in Hall, with 1 crossing left during this Eclipse.\"' (middle dot written as a hyphen here); docs/dev/e39/CALIBRATION.md:86-89 'PlayerOne's page moved Aiko ... Read on the mover, the primary GM and a bystander (p2) ... its two whispered cards were undone'",
+   "status_after": "open"
+  },
+  {
+   "ref": "69 (LIVE-E06-03)",
+   "claim": "open: no reading of Dice So Nice per account; item 376's owner reading ('Show only mine') is a neighbour.",
+   "verdict": "stands",
+   "why": "No Dice So Nice reading of who animates which roll in either LOCAL-REPORT copy or CALIBRATION copy (grep for 'Dice So Nice' finds only the environment line and first-use cards). AUDIT:1250 (item 376) holds the owner's 03.11.2026 reading as the reader says. despair-award.mjs:332 waitMs 4000 and private-rolls.mjs maskSplit (:1794, :1815) present.",
+   "evidence": "audit/AUDIT-1.2.42.md:1250 'z \"tylko moje\" GM nie widzial kosci graczy (zmierzone przez wlasciciela 03.11.2026)' (Polish marks left out here); scripts/despair-award.mjs:332 'return rollSubject(message, { waitMs: 4000 });'",
+   "status_after": "open"
+  },
+  {
+   "ref": "74 (LIVE-E06-08)",
+   "claim": "open: no reading of a ruling card's lines and buttons on a player's Chat tab.",
+   "verdict": "stands",
+   "why": "No row for 74. S7-2 (LOCAL-REPORT.md:428) is the GM's log; item 70's row has a veiled ruling card visible on a bystander but reads no lines or buttons; S7-4 reads console data, not the drawn card. secret.mjs:1021 still names LIVE-E06-08. Nothing on the e58-local branch adds a reading.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:428 'the ruling card of a player's thread reaches the GM's chat log (\"Foundry tools\") with enabled \"Approve: Hand (+1)\", \"Change to: ...\", \"Refuse\" buttons that do nothing'; scripts/secret.mjs:1021 'Whether v14's log draws anything around them is LIVE-E06-08.'",
+   "status_after": "open"
+  },
+  {
+   "ref": "75 (LIVE-E32-01)",
+   "claim": "open: the tier 2 runs filed under items 75, 153 and 475 name no grid case and no grid time.",
+   "verdict": "stands",
+   "why": "Confirmed on b5a29e73's copy and on the branch: the fourth run (179c2644, 1372/187/18 of 1577) and the fifth (both themes, 227 and 140 min for tiers 0-2) give totals only. The reader cited b5a29e73's lines alone and not the branch's runs; the delta digest already says item 75's question is not answered. A clue neither the reader nor the digest raises: the fifth run's 49 new skips are probes the grid also asks (world.studentTokensOnScreen 24, world.namedRooms 14; tests-grid.mjs:1582-1586), but the paper attributes them to E101-T10 leaving no scene on view, not to a world short of students or rooms, and names no grid case - so it does not answer the item.",
+   "evidence": "git show origin/claude/e58-local:docs/dev/e58/LOCAL-REPORT.md:309-311 '49 new skips, all \"a scene on screen\" probes (`world.studentTokensOnScreen` 24, `world.namedRooms` 14, `world.sceneOnScreen` 7, `world.playerCharactersInRooms` 3) and one `env.canvas`'; :312 'The new skips come from E101-T10'; audit/findings-1.2.118/live-readings-e58-delta.json (item 75/153/475, :359-365) 'Item 75's own ask (grid cases skipped, time added) is not answered'",
+   "status_after": "open"
+  },
+  {
+   "ref": "observation 1 (count)",
+   "claim": "34 items in lines 877-913, numbered 49-82, one header at 904.",
+   "verdict": "stands",
+   "why": "Counted by script: 34 lines starting with a number and a dot in 877-913, 49..82 with none missing or doubled; line 904 is 'Po E32+E07 (1.2.66) ...', line 867 the E04 header.",
+   "evidence": "audit/AUDIT-1.2.42.md:904 'Po E32+E07 (1.2.66) doszly te, ktorych harness nie rozstrz...' (Polish marks left out here)"
+  },
+  {
+   "ref": "observation 5 (UNCONFIRMED list)",
+   "claim": "audit/harness/lib/versions.mjs's UNCONFIRMED list still carries six ids read on the sandbox on 16.11.2026.",
+   "verdict": "stands",
+   "why": "LIVE-E04-11, E04-12, E05-09, E05-10, E05-12 and E05-13 are in the list; the list's header says an id leaves it 'when audit/live has run it at a table'. Whether a headless sandbox reading counts is not said, as the reader says. The reader's cited line 32 is right (the sentence runs at :31-32).",
+   "evidence": "audit/harness/lib/versions.mjs:31-32 'what the harness models of v14 that nobody has yet tried on it. One leaves this list when audit/live has run it at a table.'; :63-65 '\"LIVE-E04-11\", \"LIVE-E04-12\", ... \"LIVE-E05-09\", \"LIVE-E05-10\", \"LIVE-E05-12\", \"LIVE-E05-13\"'"
+  },
+  {
+   "ref": "observation 9 (harness README)",
+   "claim": "audit/harness/README.md:683-685 still says a joining client is announced only once ready; true since D10 of a player only.",
+   "verdict": "stands",
+   "why": "Confirmed at b5a29e73 and in the working tree (now unmodified: git status shows no change to it, so the hedge 'modified by another hand ... may differ by two' no longer applies; the lines are 683-685 either way).",
+   "evidence": "audit/harness/README.md:683-685 'A client that joins is announced to the others only once it is ready; whether v14 fires their `userConnected` before its listeners exist is LIVE-E04-12.'"
+  }
+ ],
+ "counts": {
+  "checked": 20,
+  "stands": 19,
+  "weakened": 1,
+  "refuted": 0
+ },
+ "not_established": [
+  "Commit 3a94c32f (item 56, E19 C3) is not in this shallow clone; the item's obsolete status rests on the source at v1.2.64 and b5a29e73, not on the id.",
+  "Every reading checked here is on the module at 1.2.116 with line L1's commits (LOCAL-REPORT.md:4, :636), not on b5a29e73. For items 51, 52, 61, 62, 63, 64, 68, 70 and 71 the files read are unchanged from ff3e12e5 to b5a29e73 (git diff --stat); which of L1's own runtime commits of 16.11.2026 the sandbox served at each row is not stated in the rows. Item 65's road changed after its reading (the fix); item 67's mask-gm.mjs changed in a part the item does not ask.",
+  "The reader's file has no findings with a severity; its observations carry none either. Three observations were checked (1, 5, 9); the other six were read against the same sources and agree, but are not written as checks.",
+  "Item 64 to 'partly': the world's stamp after the 1.2.64 clause on 14.370 - new live check: run the clause through migrate.mjs (not the function alone) on an unlinked token's delta and read the clause's stamp."
+ ]
+}

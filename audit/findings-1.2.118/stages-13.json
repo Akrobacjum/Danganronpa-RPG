@@ -1,0 +1,823 @@
+{
+  "reader": "stages-13",
+  "checkout": "branch claude/audit-119 at 45889481; the code read is main b5a29e73 (1.2.118, module.json) - the branch adds files under audit/ only. Shallow clone (grafted, earliest 32fd204f of 14.10.2026): E66's 13 commits and its release f371f594 are in it; of 1.2.97's 60, 20 (E42's 15, E41's fix FG5 85e8b0e2 - grafted, no parent - and FG2b c0b2118c, the train's three, the release 0c70ce85); none of E37's. Nothing run but read-only git, grep, wc and short python over source and the base run's result files.",
+  "count_expected": 4,
+  "count_note": "4 of 4 stages, in tools/stages.json order E66, E37, E41, E42. Read: release notes v1.2.96 (238) and v1.2.97 (320) whole; the four stages.json rows; 52 registry rows by title (17 E66, 14 E37, 11 E41, 10 E42) and each one's outcome in the base run's shard 1/8 by script (52 of 52 pass); 29 tier-2 titles by grep (3 E66, 9 E37, 4 E41, 13 E42) and 10 of them in shards 2/8 and 3/8 (10 of 10 pass; the other 19 are in shards 4-8, not written when this was read); AUDIT 9.2 items 362-371 (10 items) by id and their verdicts in live-items-361.json; the three live-readings digests by grep; the base run's npm test log lines 14-42, 198 and 275-280 (text and prose; the log ends at the scenarios, exit 143, so no scenario result exists); code at the file:line given in each promise, about 1400 lines in 30 files, of them boundary.mjs:60-162 and :236-520, season-wipe.mjs:820-959, verdict.mjs:276-320, :460-480 and :1179-1330, settings.mjs:1170-1215 and :4150-4215 read whole; none of the 30 files whole. No docs/dev/<stage>/ folder exists for any of the four (the ledgers are outside the repository, docs/dev/METHOD.md:3-5), so the stages are graded on the notes, the registry, the tests and the code.",
+  "stages": [
+    {
+      "id": "E66",
+      "version": "1.2.96",
+      "shipped": "2026-11-01",
+      "what": "One road for numbers, lists, dates and names in the page's language (pageLanguage, listOf, localeFormat, plural families, proseOf), one name per action, option and Call in English and Polish (Remnant, Reroll in Polish), lang on the module's containers, the documents' language setting (D196), and batch B01a - 59 rewritten texts the owner approved, with rule O19. Shipped alone; touches scenes (a Remnant token's name).",
+      "claim_sources": [
+        ".github/release-notes/v1.2.96.md (1-238, whole)",
+        "tools/stages.json row E66 (planned and shipped 1.2.96, 2026-11-01, touches [\"scenes\"], drills none)",
+        "no docs/dev/e66/ in the repository: the stage's spec, ledger and STATUS lived outside it (docs/dev/METHOD.md:3-5); the stage's own papers in the tree are docs/dev/text-batch-B01a.json (docs/dev/README.md row), docs/text-style.md sections 2, 13, 14 and docs/glossary.json, read only where a promise names them",
+        "docs/dev/R-REGISTRY.md:648-664 (R1150-R1166, 17 rows stamped E66)",
+        "scripts/tests-tier2.mjs:90567, :90631, :90667 (E66-T1 to E66-T3)",
+        "audit/AUDIT-1.2.42.md 9.2 items 362-363 (lines 1236-1237); audit/findings-1.2.118/live-items-361.json items 362, 363",
+        "git: c014681b..f371f594, 14 commits in the checkout (C1 8e9d40e9 to fix r2 C 7efb4e58, and the release f371f594) - all the stage's commits the notes name",
+        "the base run's shard 1/8, 2/8 and 3/8 results (central scratch base/shards/results-suite-{1,2,3}/01-runtests.json) and its npm test log lines 14, 35-42, 198, 275-278 (the text and prose parts)"
+      ],
+      "commits": 14,
+      "promises": [
+        {
+          "promise": "Every number, list, date and time a text shows goes through one road in the language the page was built in (not Foundry's, not the browser's): pageLanguage and LANGUAGES in settings.mjs, listOf, localeFormat, plural in utils.mjs; a player who declines the reload keeps the page's language",
+          "source": "v1.2.96.md 78-86, 139-143",
+          "code": "scripts/settings.mjs:4152 LANGUAGES, :4160 moduleLanguage (Object.hasOwn), :4187 pageLanguage, :4196 setPageLanguage; scripts/utils.mjs:66 listOf, :94 localeFormat, :565 plural (Intl.PluralRules on pageLanguage at :573)",
+          "holds": "yes",
+          "test": "R1150, R1151, R1152, R1165 (all ok, shard 1/8); the text lint T20 'localeCalls read 258 found 0 (files 258, inHelpers 4, allowed 1, noLocale 0)' in the base run's npm test log line 198",
+          "test_kind": "both",
+          "note": "The one allowance is requirements.mjs:245 (Intl.PluralRules in the requirements window, which loads before the module's language does), listed in tests-text.mjs:2530 with stage E66 and its reason."
+        },
+        {
+          "promise": "The module's windows (content and title), the character sheet, the HUD, the notice stack, the launchers, tiles and panels carry lang with the page's language; a Polish file that does not load leaves the page in English",
+          "source": "v1.2.96.md 87-90",
+          "code": "scripts/utils.mjs:116 (the one setAttribute(\"lang\") of the module); scripts/i18n.mjs fetchLanguageFile",
+          "holds": "partly",
+          "test": "R1153 (the sheet by its render hook's source), R1166 (the refused and 404 language file)",
+          "test_kind": "both",
+          "note": "Windows, HUD and stack are measured on the harness's DOM; the sheet's lang is read from the source only - the harness has no Daggerheart sheet templates - and is LIVE-E66-02, open. Held by reading for the sheet."
+        },
+        {
+          "promise": "A new hidden world setting documentLanguage, empty by default, written once by the primary GM's first start while empty; a second GM never writes it; nothing writes a document in it yet",
+          "source": "v1.2.96.md 94-99",
+          "code": "scripts/settings.mjs:1733-1742 (choices \"\" and LANGUAGES), :4206 documentLanguage; scripts/i18n.mjs:145-148 seedDocumentLanguage (isGM, isPrimaryGm, only while empty); scripts/utils.mjs:167 worldLocalize",
+          "holds": "yes",
+          "test": "R1154, R1164 (ok)",
+          "test_kind": "both",
+          "note": "\"Not shown in the settings window\" is superseded by E57 C3: settings-window.mjs:94-96 shows it in the game section since a document is written through it (R1154's title says so)."
+        },
+        {
+          "promise": "One name per action, option and Call, the same in English and Polish, Title Case and American spelling; the thing a scene leaves behind is a Remnant; no retired Polish name left in pl.json; T28 in FAIL",
+          "source": "v1.2.96.md 17-46",
+          "code": "scripts/config.mjs:3937 Self-Defense, :4054 Strike, :4078 Pin Them Down, :4090 Keep Your Distance, :4138 Finishing Blow; lang/en.json and lang/pl.json DRPG.Remnant.tokenName both \"Remnant\" (read by script)",
+          "holds": "yes",
+          "test": "R1161, R1162 (ok); T28 'retiredHits read 316 found 0 (rows 15, due 15, pending 0)', npm test log line 40",
+          "test_kind": "source",
+          "note": "Whether every renamed name fits its tile at a real size is LIVE-E66-01 (open); R1162 measures only each grid's longest word."
+        },
+        {
+          "promise": "Reroll said by its name in Polish, verbs included: no \"przerzu\" left in lang/pl.json or the Polish handbooks",
+          "source": "v1.2.96.md 38-41",
+          "code": "lang/pl.json and docs/handbooks/*.md: 0 hits of \"przerzu\" in any case (grep -ci over the seven files)",
+          "holds": "yes",
+          "test": "R1161 (holds pl.json and the Polish handbooks to no \"przerzu\", fix r2 C)",
+          "test_kind": "source",
+          "note": ""
+        },
+        {
+          "promise": "A count before a word that agrees with it picks the right form for every number in both languages (58 keys became plural families); the crisis hindrance card names the actions and turns instead of its raw key",
+          "source": "v1.2.96.md 58-66",
+          "code": "scripts/utils.mjs:565-590 plural; lang/en.json holds 534 keys ending .one or .other today (counted by script)",
+          "holds": "yes",
+          "test": "R1155, R1156, R1157 (the census over both files, with its allow table), R1158 (the fragments' cases); tier 2 E66-T1 (the hindrance card, not in the shards read)",
+          "test_kind": "both",
+          "note": "The '58 keys' figure was not recounted against 1.2.95; the census R1157 holds the rule on today's files."
+        },
+        {
+          "promise": "A rule's number a text shows is filled from the module's rule tables where the text is made (proseOf, PROSE_NUMBERS); the Indirect Murder's estimate reads 4 to 5",
+          "source": "v1.2.96.md 73-77, 141-142",
+          "code": "scripts/utils.mjs:594 proseOf; scripts/murder-ui.mjs:896 indirectCostText",
+          "holds": "yes",
+          "test": "R1159, R1160, R1163 (ok)",
+          "test_kind": "both",
+          "note": ""
+        },
+        {
+          "promise": "Strike's miss no longer promises an Obvious Remnant on a critical failure (a critical is always a success)",
+          "source": "v1.2.96.md 57",
+          "code": "scripts/config.mjs:4072-4073 (failure text: nothing on Hope, Sanity and an Evident Remnant on Despair); :4075 failureRemnant still holds critical: \"obvious\"",
+          "holds": "yes",
+          "test": "",
+          "test_kind": "",
+          "note": "The text holds. The table key stays and is unreachable (murder-rules.mjs:1866-1870); the comment that says so counts three such entries where seven stand - finding E66-1."
+        },
+        {
+          "promise": "A trace token or row a build before 1.2.96 named \"Trace\" or \"Ślad\" still reads as not described",
+          "source": "v1.2.96.md 103-107",
+          "code": "scripts/remnants.mjs:1383 LEGACY_NEUTRAL_WORDS [\"Trace\", \"Ślad\"], :1385-1394 neutralWords and isNeutralName, :1366 publicOf",
+          "holds": "yes",
+          "test": "tier 2 E66-T3 (ok, shard 3/8)",
+          "test_kind": "behaviour",
+          "note": ""
+        },
+        {
+          "promise": "Every confirm window of the module says its own Yes and No (Tak / Nie on a Polish page)",
+          "source": "v1.2.96.md 91-93",
+          "code": "scripts/ui-kit.mjs:1519-1535 drpgConfirm (the yes names its effect, the no is its role's word)",
+          "holds": "superseded",
+          "test": "",
+          "test_kind": "",
+          "note": "Superseded by E21 C5a (1.2.100): the module's confirms moved onto the kit's frame, whose yes is labelled by what it does, not Yes/Tak. The promise's aim (the module's own words in the page's language) still holds."
+        },
+        {
+          "promise": "59 texts of batch B01a, approved by the owner, landed in config.mjs and lang/; rule O19 in the style guide",
+          "source": "v1.2.96.md 47-56, 147-149",
+          "code": "docs/dev/text-batch-B01a.json; docs/text-style.md O19",
+          "holds": "superseded",
+          "test": "the text part's batch check, npm test log lines 275-278: 'the owner's later word supersedes the approved after of 20 text(s)', 'the after landed en 39, pl 39; changed since the batch 40', '0 problem(s)'",
+          "test_kind": "source",
+          "note": "Landed as promised in 1.2.96; since then the owner's later word replaced 20 of them (E46, E68 and later batches), and the check holds the other 39 landed."
+        },
+        {
+          "promise": "A give-back is whispered only when the refund went through; the price lines say a skipped action step is not needed",
+          "source": "v1.2.96.md 67-69",
+          "code": "scripts/price.mjs refundPrice, priceLine, paidLine",
+          "holds": "yes",
+          "test": "tier 2 E66-T2 (ok, shard 2/8); R1155",
+          "test_kind": "behaviour",
+          "note": ""
+        }
+      ],
+      "registry_rows": 17,
+      "tests_read": [
+        {
+          "test": "R1150-R1166 (17 rows, tiers 0 and 1)",
+          "measures": "yes",
+          "why": "All 17 ok in the base run's shard 1/8 (by script over 01-runtests.json). Each is pinned to one road; R1153 reads the sheet's lang off the render hook's source and R1162 only the longest word of each grid, so neither measures a drawn sheet or a drawn tile."
+        },
+        {
+          "test": "tier 2 E66-T2 (tests-tier2.mjs:90631)",
+          "measures": "yes",
+          "why": "ok in shard 2/8. Drives refundPrice with a receipt that cannot give back and reads the whisper, the answer and the refused Objection's line."
+        },
+        {
+          "test": "tier 2 E66-T3 (tests-tier2.mjs:90667)",
+          "measures": "yes",
+          "why": "ok in shard 3/8. Plants rows and tokens named by both old words on an English and a Polish browser and reads the finder's Observe naming the copy after the subject."
+        },
+        {
+          "test": "tier 2 E66-T1 (tests-tier2.mjs:90567)",
+          "measures": "unread",
+          "why": "Not in shards 1-3; its result was not read. By its title it writes the hindrance and the block on the crisis cards in both languages."
+        }
+      ],
+      "tests_to_join": [
+        "tier 2: E66-T1 - a crisis Pin them down writes the hindrance and a critical Keep your distance the block on their cards",
+        "scenario 50-lang (the Polish switch on the page, named by settings.mjs's pageLanguage comment)"
+      ],
+      "scenarios": [
+        "none names E66 in audit/harness/README.md's register; scenario 50-lang's players switch language on the page (settings.mjs:4176-4177) - its body not read"
+      ],
+      "live": {
+        "items": 2,
+        "read": 0,
+        "ids_read": [],
+        "note": "362 LIVE-E66-01 (the names in their tiles at 12 sets) and 363 LIVE-E66-02 (lang on the sheet's root) open: no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json; LOCAL-REPORT.md counts both among the rows left (live-items-361.json). The local gate for 1.2.96 ran no part (85e8b0e2's record, live-items-361 observations)."
+      },
+      "findings": [
+        {
+          "id": "E66-1",
+          "severity": "nit",
+          "category": "hygiene",
+          "title": "Strike's failure table still names an Obvious Remnant on a critical, and the comment that calls such keys unreachable documentation counts three where seven stand",
+          "where": "scripts/config.mjs:4075 (Strike), :3991, :4087, :4099, :4134, :4161, :4209 (failureRemnant with a critical key); scripts/murder-rules.mjs:1866-1870",
+          "what_happens": "E66 took the critical clause out of Strike's failure sentence because a critical is always a success. The failure tables keep critical keys, and murder-rules.mjs's failure branch reads failureRemnant?.[band] with band only hope or despair, so none of them is read. The comment beside that read says 'Three entries in config.mjs carry a `critical` key in their FAILURE tables'; a script count gives seven failureRemnant rows with a critical key (and two failureRemnantReinforced rows).",
+          "evidence": "scripts/config.mjs:4075: 'failureRemnant: { despair: \"evident\", critical: \"obvious\" }' (Strike); murder-rules.mjs:1866-1870: 'a critical is always a success, so this branch sees `hope` and `despair` and nothing else. Three entries in config.mjs carry a `critical` key in their FAILURE tables, left as documentation of the guide's own layout; none of them is reachable'",
+          "failure_scenario": "A writer checking whether a crisis action's miss can leave an Obvious Remnant reads Strike's table, finds 'critical: \"obvious\"', and the comment that should explain it gives a count that does not match the file.",
+          "expected": "The comment's count matches the tables (or the unreachable keys go), so the table no longer says what E66's text took out.",
+          "confidence": "read",
+          "refutation_tried": "Looked for another reader of failureRemnant that sees a critical band: action-project.mjs:1311, reroll.mjs:1464 and bridge-runs-records.mjs:241 take the whole object for other actions, cleanup.mjs:1870 is the clean-up's table; none reads a crisis action's critical failure. No crisis failure text in en.json says 'critical' or 'Obvious' (script). The behaviour is right; only the comment and the dead keys are wrong."
+        }
+      ],
+      "superseded_by": [
+        "E21 (1.2.100): the module's confirms on the kit's frame (ui-kit.mjs drpgConfirm), whose yes names its effect - the 17 Tak / Nie confirms",
+        "E57 (1.2.113) C3: documentLanguage shown in the game's settings window (settings-window.mjs:94-96) and written into documents",
+        "E71 (1.2.113): 'trace' in longer sentences and the texts E66 only re-routed",
+        "the owner's later word in E46, E68 and later batches: 20 of B01a's 59 approved texts replaced (npm test log line 275)"
+      ],
+      "grade": 8,
+      "provisional": "after L1",
+      "grade_reasons": "Every promise of the stage is in today's code and its 17 registry rows are all ok in the base run's shard 1/8; the two tier-2 tests read (E66-T2, E66-T3) are ok; the text lint holds T20 and T28 at 0 and the prose 553/553. The parts later stages replaced (the confirms, the hidden setting, 20 of B01a's texts) were replaced on purpose, not broken. Against a 9: the sheet's lang is held only by reading its render hook's source (R1153), and whether the new names fit their tiles is measured only by the longest word (R1162) - both are the stage's own LIVE-E66-01 and -02, unread; one nit (E66-1). Tier 2's E66-T1 and the scenarios were not joined.",
+      "missing_to_10": "LIVE-E66-01 and LIVE-E66-02 read at a table; E66-T1's base-run result joined; E66-1 closed (the comment's count or the dead keys)."
+    },
+    {
+      "id": "E37",
+      "version": "1.2.97",
+      "shipped": "2026-11-03",
+      "what": "One road each for the clock and the Eclipse: a readiness round (Done / One moment) before a GM's press moves the clock, toggleEclipse for the HUD's chevron and the panel's Do it, the day summary at every boundary, the sync bus as one table of refreshes (KIND_REFRESH) with one visibility pass a clock change, every road of Despair a GM can take written on the primary GM, and small gaps (the Move briefing's next price, every Search tells a trap, the projects' queue around Daggerheart's countdown writes). Ships with E41 and E42 in one train.",
+      "claim_sources": [
+        ".github/release-notes/v1.2.97.md (1-320, whole: Before installing 18-143, E37 145-168, Known gaps 226-284, Checked 286-320)",
+        "tools/stages.json row E37 (planned and shipped 1.2.97, 2026-11-03, touches [\"sockets\", \"scenes\"], drills none)",
+        "no docs/dev/e37/: the ledger the notes cite ('E37 Open 11', 'Open 52') is outside the repository (docs/dev/METHOD.md:3-5)",
+        "docs/dev/R-REGISTRY.md:665-678 (R1192-R1205, 14 rows)",
+        "scripts/tests-tier2.mjs:90755-91836 and :92073, :92167 (E37-T2 to E37-T10; E37-T1 does not exist)",
+        "audit/AUDIT-1.2.42.md 9.2 items 364-368 (lines 1238-1242); live-items-361.json items 364-368",
+        "audit/harness/README.md:215 (scenario 81-render-budget, the one register row naming E37)",
+        "git: none of E37's 17 commits is in the checkout (the history is grafted at 85e8b0e2, E41 FG5); the train's release 0c70ce85 and 8a064d52 are"
+      ],
+      "commits": 0,
+      "promises": [
+        {
+          "promise": "Before a GM's press that starts an Eclipse, ends one or moves the time of day (the HUD's chevron, Do it, Next time of day), every connected player owning a student of the cast is asked Done or One moment; the GM's window lists each as Done, One moment, No answer yet or Not connected - counts as Done, goes on by itself when all connected said Done, past the others after a confirmation (Wait the default); no round in an incident before Stage 6, in a Class Trial or with nobody to ask",
+          "source": "v1.2.97.md 68-77, 114-117",
+          "code": "scripts/boundary.mjs:96 toggleEclipse, :134 nextTimeOfDay, :273 roundUsers (no GM, OWNER of an actingStudents actor), :294 roundReading ('away' counted as done), :316-320 roundAllowed (classTrial, an incident not at 'resolution'), :330 openRoundOnPrimary, :448 askReadiness, :491 roundWindow (keepLive)",
+          "holds": "yes",
+          "test": "R1195, R1204 (ok); tier 2 E37-T3, E37-T9 (not in the shards read)",
+          "test_kind": "both",
+          "note": "At a real table it is LIVE-E37-02 (open)."
+        },
+        {
+          "promise": "The round's record readyRound is the primary's to write, in a step of READY_KEY; ready.open and ready.end GM only, ready.answer from a known sender about that sender alone",
+          "source": "v1.2.97.md 25-28, 56-59",
+          "code": "scripts/boundary.mjs:236 READY_KEY; writes at :354 (open), :374 (answer, sender.id only), :399 (end), :414 (clearReadyRound since E42 C4), each inside serialWrite(READY_KEY) and behind isPrimaryGm()",
+          "holds": "yes",
+          "test": "R1196 (ok)",
+          "test_kind": "source",
+          "note": "answerOnPrimary refuses a sender who plays no student the round asks (:375)."
+        },
+        {
+          "promise": "One road for the Eclipse (D44b): the chevron and Do it call one function; a start asks E17's question (Not yet the default); an end asks nothing when every placing student crossed, else the placement table with End and move the clock, End without advancing, Close; one SYNC.eclipse per end",
+          "source": "v1.2.97.md 78-82",
+          "code": "scripts/hud.mjs:1324-1325 and scripts/gm-panel.mjs:404 both import boundary.mjs toggleEclipse; boundary.mjs:96-128",
+          "holds": "yes",
+          "test": "R1194 (ok); tier 2 E37-T2 (not in the shards read)",
+          "test_kind": "both",
+          "note": ""
+        },
+        {
+          "promise": "The day summary opens at every end of a time of day - an Eclipse's start and any move of the clock forward with no Eclipse - once a browser; none for a rewind, a new season or chapter or an Eclipse's end; a bystander of a running incident is shown none",
+          "source": "v1.2.97.md 83-86, 118-120",
+          "code": "scripts/day-summary.mjs:142 summaryWindow, :69 registerDaySummary",
+          "holds": "yes",
+          "test": "R1197 (ok); tier 2 E37-T4 (not read), E37-T10 (ok, shard 2/8)",
+          "test_kind": "both",
+          "note": "Known edge E37 Open 19 (a page loaded during an Eclipse shows no summary at its end) stands as the notes say."
+        },
+        {
+          "promise": "The sync bus is one frozen table: every SYNC kind a row of names of REFRESHES; one visibility pass a change of the clock and none for a pause; a Despair write renders the Monokumas' sheets and no student's; two new kinds, ready and incident",
+          "source": "v1.2.97.md 59, 149-153",
+          "code": "scripts/sync.mjs:28 SYNC (incident :49, ready :77), :462 KIND_REFRESH, :599 refreshNames, :614 refresh, :585-593 eclipsePacketNews",
+          "holds": "yes",
+          "test": "R1198, R1205 (ok); scenario 81-render-budget (its base-run result not read)",
+          "test_kind": "both",
+          "note": "The sheets 81 counts are the harness's stand-ins (notes 154-155); the real sheets are LIVE-E37-01, open; an Eclipse packet ahead of its setting on a real server is LIVE-E37-05, open."
+        },
+        {
+          "promise": "Every road of Despair a GM can take is written by the primary GM's browser, which another GM's asks (despair.set, despair.all, despair.roster, overflow.take, overflow.check, all GM only); with no primary connected it writes there",
+          "source": "v1.2.97.md 56-59, 87-90",
+          "code": "scripts/despair.mjs:293 setDespair, :376 primaryElsewhere, :449 fillAllDespair; overflow.mjs takeOverflow, checkOverflow",
+          "holds": "yes",
+          "test": "R1202 (ok); tier 2 E37-T8 (not read)",
+          "test_kind": "both",
+          "note": ""
+        },
+        {
+          "promise": "Converting Despair into Hope gives what fits and refuses only a pool with nothing to spend; it and Fuel a Monocub credit Hope the same way, the card naming the paying pool privately",
+          "source": "v1.2.97.md 89-92",
+          "code": "scripts/despair.mjs:810 convertDespairToHope",
+          "holds": "yes",
+          "test": "tier 2 E37-T6 (not read)",
+          "test_kind": "behaviour",
+          "note": "Read from the function's head only; the base-run result of E37-T6 not read."
+        },
+        {
+          "promise": "Daggerheart's own whole writes of the countdowns run in the projects' queue (DhCountdowns.updateCountdowns wrapped once on a GM, contract row countdown-update)",
+          "source": "v1.2.97.md 63-66",
+          "code": "scripts/patches.mjs:598 (row countdown-update); scripts/projects-ui.mjs:265 wrapCountdownUpdate",
+          "holds": "partly",
+          "test": "R1201 (ok); tier 2 E37-T7 (not read; it drives a model of the system's write)",
+          "test_kind": "both",
+          "note": "The notes' own ledger row E37-29 is partial: Daggerheart's real code is LIVE-E37-03 (open); the tray's -/+ on a non-project row stays outside by design."
+        },
+        {
+          "promise": "The Move briefing says what the next room takes (Free Move, Sprint, Burst, an action), in takeMove's order",
+          "source": "v1.2.97.md 121-123",
+          "code": "scripts/actions.mjs:367 nextCrossingPrice",
+          "holds": "yes",
+          "test": "R1200 (ok)",
+          "test_kind": "both",
+          "note": ""
+        },
+        {
+          "promise": "A Search that takes something out of a stash and a Search for something specific set off a trap armed for 'somebody searches', as an ordinary Search does",
+          "source": "v1.2.97.md 124-125",
+          "code": "scripts/action-search.mjs:223-224 (specific), :239-241 searchTold, :613 (the ordinary road)",
+          "holds": "partly",
+          "test": "tier 2 E37-T5 (ok, shard 3/8)",
+          "test_kind": "behaviour",
+          "note": "The stash half is superseded: since 1.2.112 a Search reaches no stash (the owner's rule of 13.11.2026; action-search.mjs:230-232 'searchStash, gone in 1.2.112'), and E37-T5's title says the stash Search 'since 1.2.112, draws from the room'. The specific half holds."
+        },
+        {
+          "promise": "The patches' contract row token-ruler reads the whole ruler class chain, so another module's ruler over the module's is not a failure",
+          "source": "v1.2.97.md 110-112",
+          "code": "scripts/patches.mjs (row token-ruler)",
+          "holds": "yes",
+          "test": "R1203 (ok)",
+          "test_kind": "behaviour",
+          "note": "Not read in patches.mjs itself; the row's test drives the three outcomes."
+        }
+      ],
+      "registry_rows": 14,
+      "tests_read": [
+        {
+          "test": "R1192-R1205 (14 rows; R1190, R1191 unused by D197)",
+          "measures": "yes",
+          "why": "All 14 ok in shard 1/8. R1196, R1199, R1201, R1202 are source readings of where a write stands; R1195, R1197, R1198, R1200, R1204, R1205 drive the pure readers and the bus on stand-ins."
+        },
+        {
+          "test": "tier 2 E37-T5 (tests-tier2.mjs:91685)",
+          "measures": "yes",
+          "why": "ok in shard 3/8. Arms a trap for a Search in a room, runs a Search there and a Search for something specific, and reads that each fired once with the ordinary Search's shape, and the ledger's prune."
+        },
+        {
+          "test": "tier 2 E37-T10 (tests-tier2.mjs:91585)",
+          "measures": "yes",
+          "why": "ok in shard 2/8. Hands day-summary.mjs's listener a clock move during an incident and reads a summary on the GM and none on a bystander's page as posed on the GM - not a separate player's browser."
+        },
+        {
+          "test": "tier 2 E37-T2, -T3, -T4, -T6, -T7, -T8, -T9",
+          "measures": "unread",
+          "why": "Not in shards 1-3; read by title only."
+        }
+      ],
+      "tests_to_join": [
+        "tier 2: E37-T2 - one road for the Eclipse",
+        "tier 2: E37-T3 - the readiness round",
+        "tier 2: E37-T4 - the summary at every boundary",
+        "tier 2: E37-T6 - one road of Despair to Hope",
+        "tier 2: E37-T7 - Daggerheart's own whole writes of the countdowns wait in the projects' queue",
+        "tier 2: E37-T8 - every any-GM road of Despair writes on the primary GM",
+        "tier 2: E37-T9 - an incident's start leaves the readiness round as it stands",
+        "scenario 81-render-budget",
+        "scenarios 30, 33, 40, 61, 63, 65, 72, 73, 83 (the train's gate list, v1.2.97.md 297-300)"
+      ],
+      "scenarios": [
+        "81-render-budget (audit/harness/README.md:215, layers ci and local-gate, the one row naming E37): what one event renders and passes on the GM and three players; its sheets are the harness's stand-ins",
+        "the train's gates also ran 30, 33, 40, 61, 63, 65, 66, 67, 72, 73, 74, 83, 87 and 00 (v1.2.97.md 297-300); none of their base-run results was read"
+      ],
+      "live": {
+        "items": 5,
+        "read": 0,
+        "ids_read": [],
+        "note": "364 LIVE-E37-02, 365 LIVE-E37-01, 366 LIVE-E37-03, 367 LIVE-E37-05 and 368 LIVE-E37-06 all open (live-items-361.json). 365's route is the local gate, whose record for 1.2.118 has every part not run with reason no-server, scenario 81 among them (live-readings-other.json:928). LIVE-E37-04 is unused (D197)."
+      },
+      "findings": [],
+      "superseded_by": [
+        "the owner's stash rule of 13.11.2026 (1.2.112): a Search reaches no stash, so the 'Search from a stash tells a trap' half has no subject (action-search.mjs:230-232)",
+        "E42 (same train) C4: clearReadyRound, the season reset's write of readyRound (boundary.mjs:411)",
+        "E71 (1.2.113): the round's and the summary's texts reworded (8f3d53ae, the away status; live-items-361 observations)"
+      ],
+      "grade": 8,
+      "provisional": "after L1",
+      "grade_reasons": "Every promise is in today's code at the place the notes name, and the 14 registry rows are ok in shard 1/8; of nine tier-2 tests two were read in the base run (E37-T5, E37-T10), both ok. Reading the readiness round end to end (boundary.mjs:236-420) found the record written only on the primary inside READY_KEY, the answer held to its sender, a stale round read as none and a barred 'go' moving nothing. Against a 9: two promises are held by the harness's models only - the real sheets of the render budget (E37-23, partial in the stage's own ledger) and Daggerheart's own countdown code (E37-29, partial) - and the stage's main promise, the round at a table, stands on LIVE-E37-02 and -06, unread; all five live items are open. One promise's half lost its subject in 1.2.112 (the stash Search). No finding; seven tier-2 tests and the scenarios were not joined. None of the stage's commits is in the checkout.",
+      "missing_to_10": "LIVE-E37-01, -02, -03, -05 and -06 read; E37-T2 to -T4 and -T6 to -T9 and scenario 81 joined from the base run; the stash half of 'every Search tells' marked as gone with 1.2.112 in the stage's notes."
+    },
+    {
+      "id": "E41",
+      "version": "1.2.97",
+      "shipped": "2026-11-03",
+      "what": "The file split, wave 2: nine of the largest files (action-rolls, gm-bridge, gm-panel, hud, vault, tables, vote, music, sfx) each a facade over 35 new files, the API unchanged; a clean-up first (dead action code, dead config fields, numbers held twice, the DRPG aggregate, a Search's draw as a list of steps, an inherited action key refused); one owner of both verdicts - one lock, one list in which nobody is left out, one card and one GM summary.",
+      "claim_sources": [
+        ".github/release-notes/v1.2.97.md (E41 170-198; Before installing 93-98, 128-136; Known gaps 238-249, 264-269)",
+        "tools/stages.json row E41 (with E37, planned and shipped 1.2.97, touches [\"sockets\", \"rolls\", \"scenes\"], drills none)",
+        "no docs/dev/e41/: the ledger ('E41 Open 77', 'Open 45') is outside the repository",
+        ".claude/rules/code.md (the code map's wave-2 rows and paragraph, lines 61-92 and 129-140)",
+        "docs/dev/R-REGISTRY.md:679-689 (R1230-R1240, 11 rows)",
+        "scripts/tests-tier2.mjs:92391, :92438, :92556, :92606 (E41-T1 to E41-T4)",
+        "audit/AUDIT-1.2.42.md 9.2 items 369-370 (lines 1243-1244); live-items-361.json items 369, 370 and its observations",
+        "git: 85e8b0e2 (fix FG5, grafted, no parent) and c0b2118c (fix FG2b) of the 26 the notes count; the rest are not in the checkout"
+      ],
+      "commits": 2,
+      "promises": [
+        {
+          "promise": "Nine files become facades over 35 new files, each keeping its name and re-exporting every name it exported; the module's API unchanged; vault.mjs and tables.mjs no code",
+          "source": "v1.2.97.md 128-136, 180-184",
+          "code": "scripts/vault.mjs (41 lines, 4 export-from lines), scripts/tables.mjs (26 lines, 2 export-from lines), scripts/gm-bridge.mjs (263 lines), scripts/action-rolls.mjs (328); every new file of the code map's wave-2 rows exists (wc over the 35)",
+          "holds": "yes",
+          "test": "R1235, R1238, R1239 (the bridge's crawls, ok); tools/moved-only.mjs on each move commit (the notes; not re-run)",
+          "test_kind": "source",
+          "note": "The API surface tools/api-surface.json gains only E42's finishChapterEnd (:243)."
+        },
+        {
+          "promise": "Three files stand over the stage's 1500 lines: tables-editor.mjs (1668, the owner's Q-E41-1), vault-store.mjs (1552) and hud.mjs (1560), read as about 1500",
+          "source": "v1.2.97.md 182-184; .claude/rules/code.md:137-140",
+          "code": "today (wc -l): tables-editor.mjs 1795, hud.mjs 1717, bridge-table.mjs 1660, vault-store.mjs 1605",
+          "holds": "partly",
+          "test": "",
+          "test_kind": "",
+          "note": "Held by nothing; later stages grew four files past 1500, one (bridge-table.mjs) not named anywhere - finding E41-1."
+        },
+        {
+          "promise": "The clean-up: the generic action's dead code and two keys gone; config.mjs's dead fields gone or read; the numbers held twice read from one place; the DRPG aggregate holds every export of config.mjs; a Search's draw is a frozen list of steps with an injectable random source; an inherited action key refused as unknown",
+          "source": "v1.2.97.md 174-179",
+          "code": "scripts/action-rolls.mjs:95 performAction, :301-306 (DRPG.Action.unknown, no default); scripts/tables-pools.mjs:973 DRAW_STEPS, :992 drawItem (rng, tables)",
+          "holds": "yes",
+          "test": "R1230, R1231, R1232, R1233, R1234, R1240 (ok)",
+          "test_kind": "both",
+          "note": ""
+        },
+        {
+          "promise": "One owner of the verdict: both windows and both applies in verdict.mjs, one refusal and one running flag; the Final verdict writes its lock first, so a second GM's browser cannot give it again",
+          "source": "v1.2.97.md 185-187, 96-98",
+          "code": "scripts/verdict.mjs:460 verdictRefusal, :1179 openFinalVerdictDialog (asks verdictRefusal at :1181), :1262-1278 applyFinalVerdict (verdictRunning held in try/finally), :1313 the record written first; scripts/mastermind.mjs:48 re-exports the two names",
+          "holds": "yes",
+          "test": "R1236 (ok); tier 2 E41-T2 (ok, shard 2/8)",
+          "test_kind": "both",
+          "note": ""
+        },
+        {
+          "promise": "Both lists name every student, the known Blackened among them; the ordinary verdict's dead listed, marked and not choosable, opening on Nobody is executed when the accused is a known Blackened; the Final Trial's lists every student after Nobody named, opens on the accused dead or alive, any choosable",
+          "source": "v1.2.97.md 93-98; the owner's Q-E41-2",
+          "code": "scripts/verdict.mjs:276-282 verdictCandidates, :313-318 candidateOptions, :1203-1207 the Final window's options",
+          "holds": "partly",
+          "test": "R1237 (ok); tier 2 E41-T1, E41-T4 (not read)",
+          "test_kind": "both",
+          "note": "Changed on purpose by E40's work in 1.2.117 (the owner's answer of 16.11.2026): with two or more accused living at the table the ordinary verdict offers one tick per accused instead of the select (verdict.mjs:284-311 accusedChoices, R7601). The Final list holds as E41 wrote it."
+        },
+        {
+          "promise": "One card and one GM summary builder carrying both verdicts' words unchanged",
+          "source": "v1.2.97.md 185-187",
+          "code": "scripts/verdict.mjs:804 verdictCardContent, :818 verdictSummaryContent",
+          "holds": "yes",
+          "test": "R1236; tier 2 E41-T3 (ok, shard 3/8)",
+          "test_kind": "both",
+          "note": ""
+        },
+        {
+          "promise": "The Sound window's sfx side and E41-15's Effects rows carried to E73 (C9b not built: the move closed a static import cycle)",
+          "source": "v1.2.97.md 188-189, 244-249",
+          "code": "scripts/sfx.mjs:8-14 and scripts/sound-panel.mjs:15-22 still say 'E41-16 is carried to E73'; .claude/rules/code.md:137; tools/stages.json E73 shipped 1.2.108",
+          "holds": "no",
+          "test": "",
+          "test_kind": "",
+          "note": "E73 shipped without it and no paper of E73 names it - finding E41-2."
+        }
+      ],
+      "registry_rows": 11,
+      "tests_read": [
+        {
+          "test": "R1230-R1240 (11 rows, tiers 0 and 1)",
+          "measures": "yes",
+          "why": "All ok in shard 1/8; R1235 ran 143 assertions, R1238 29, R1239 9 (the bridge's crawls over the six files). Most are source readings (a declaration's file, a key's absence); R1234 and R1240 drive the draw and performAction."
+        },
+        {
+          "test": "tier 2 E41-T2 (tests-tier2.mjs:92438)",
+          "measures": "yes",
+          "why": "ok in shard 2/8. A second Final verdict after the first, one while the card is on its way, and a second GM's browser reading the record in that seam: each refused, no second card."
+        },
+        {
+          "test": "tier 2 E41-T3 (tests-tier2.mjs:92556)",
+          "measures": "yes",
+          "why": "ok in shard 3/8. A correct Final verdict's public card and GM whisper read against the builders, and the record naming nobody."
+        },
+        {
+          "test": "tier 2 E41-T1, E41-T4",
+          "measures": "unread",
+          "why": "Not in shards 1-3. E41-T4's 'opens on s2' is over one accused, so E40's tick list for two does not touch it."
+        }
+      ],
+      "tests_to_join": [
+        "tier 2: E41-T1 - the Final Trial's window lists every student and opens on the accused",
+        "tier 2: E41-T4 - nobody is left out of the ordinary verdict",
+        "scenarios 33-bridge-paths, 63-class-trial, 30-security (the moved bridge and the verdict windows)"
+      ],
+      "scenarios": [
+        "none names E41 in the register; the train's gate list (v1.2.97.md 297-300) ran 33-bridge-paths 68/68 and 63-class-trial 70/70 at its gates - not read in the base run"
+      ],
+      "live": {
+        "items": 2,
+        "read": 0,
+        "ids_read": [],
+        "note": "369 LIVE-E41-01 (load time; its '191 files' is 271 in scripts/ today, 258 not counting tests-*) and 370 LIVE-E41-02 (each moved window once, both verdict windows) open; text_stale on both (live-items-361.json). live-items-361's observations also record a Polish/English mismatch in the Final verdict window's intro (DRPG.Mastermind.verdictIntro, added 14.11.2026 by 4dadd182) - not E41's, not counted here."
+      },
+      "findings": [
+        {
+          "id": "E41-1",
+          "severity": "nit",
+          "category": "hygiene",
+          "title": "The split's size bound is held by nothing and has eroded: four files of the module stand over 1500 lines where the code map names three, and bridge-table.mjs (1660) is named by no paper",
+          "where": ".claude/rules/code.md:137-140 (\"Three files stand over the stage's 1500 lines: tables-editor.mjs (1668) ... vault-store.mjs (1552) and hud.mjs (1560)\"), :80 (hud.mjs \"1639 lines since E23\"), :84 (tables-editor.mjs \"about 1670 lines\"); scripts/tables-editor.mjs (1795), scripts/hud.mjs (1717), scripts/bridge-table.mjs (1660), scripts/vault-store.mjs (1605)",
+          "what_happens": "E41's notes and the code map it wrote give the files over the stage's 1500 lines and their sizes at the stage's end. Since then later stages grew them (hud.mjs 1560 -> 1717, tables-editor.mjs 1668 -> 1795, vault-store.mjs 1552 -> 1605) and grew bridge-table.mjs past the line (1660), which the map's bridge-table row and paragraph do not name. No test or check reads a file's length (grep of the tier files and tools/ for a 1500-line bound: none).",
+          "evidence": ".claude/rules/code.md:137-140: 'Three files stand over the stage's 1500 lines: tables-editor.mjs (1668), accepted by the owner (Q-E41-1), and vault-store.mjs (1552) and hud.mjs (1560), read as about 1500'; wc -l on b5a29e73's tree: 1795 tables-editor.mjs, 1717 hud.mjs, 1660 bridge-table.mjs, 1605 vault-store.mjs",
+          "failure_scenario": "A stage author reads the code map to decide where new bridge code goes, takes bridge-table.mjs as within the split's bound, and adds to a file already 160 lines over it, with nothing to say so.",
+          "expected": "The map's sizes say today's numbers, or the bound is held by a check that names the files allowed over it.",
+          "confidence": "read",
+          "refutation_tried": "Looked for a check of file length in tools/check.mjs, tools/*.mjs and the tier files (grep for 1500 beside 'line': only unrelated numbers); looked for a later paper accepting bridge-table.mjs over 1500 (code.md names only sheet-actions.mjs, 1545, for wave 3). The bound is the stage's own goal, not a rule of play, hence nit."
+        },
+        {
+          "id": "E41-2",
+          "severity": "nit",
+          "category": "hygiene",
+          "title": "E41-16 (the Sound window in one file) and E41-15's Effects rows were carried to E73, which shipped in 1.2.108 without them, and three places still say E73 will do it",
+          "where": "scripts/sfx.mjs:12-13 ('E41-16 is carried to E73'); scripts/sound-panel.mjs:21-22 ('E41-16 is carried to E73, which writes its sfx rows here'); .claude/rules/code.md:89, :137; .github/release-notes/v1.2.97.md:244-249; tools/stages.json E73 (version 1.2.108, shipped 2026-11-12)",
+          "what_happens": "The 1.2.97 notes carried E41-15 and E41-16 to E73 with default (b), unanswered. E73 shipped on 12.11.2026; its notes (v1.2.108.md) and docs/dev/e73/ name neither, and the Effects tab was rewritten in place in sfx.mjs by E46 (sfx.mjs:588). The comments and the agent rules still point the work at a stage that is closed, so it has no owner.",
+          "evidence": "scripts/sound-panel.mjs:20-22: 'a static import cycle in which the module did not boot. E41-16 is carried to E73, which writes its sfx rows here.'; grep 'E41-1[56]' over .github/release-notes/*.md and docs/dev/*/*.md: only v1.2.97.md",
+          "failure_scenario": "A developer opening sound-panel.mjs reads that E73 will move the sfx rows here and leaves them in sfx.mjs, while E73 shipped a week earlier without them.",
+          "expected": "The hand-off names a stage still to ship, or says the move was dropped, with the cycle it would close.",
+          "confidence": "read",
+          "refutation_tried": "Searched every release note and every docs/dev folder for E41-15 and E41-16 (none after v1.2.97.md), and docs/dev/e73/ for 'E41', 'sound-panel' and 'Effects' (none); read sfx.mjs:588 (the Effects tab on the kit, E46-C4, still in sfx.mjs). Whether the owner later answered (b) outside the repository cannot be read; the code's comments still name E73 either way."
+        }
+      ],
+      "superseded_by": [
+        "E40's work in 1.2.117 (the owner's answer of 16.11.2026): the ordinary verdict over two living accused offers ticks instead of the select (verdict.mjs:284-311)",
+        "E54 (1.2.113), wave 3: more files split, the module's count from 191 to 265",
+        "E71 (1.2.113): the verdict's refusal text reworded ('This trial already has its verdict. The trial console names the next step.', lang/en.json:2450; the notes quote the old one)"
+      ],
+      "grade": 7,
+      "provisional": "after L1",
+      "grade_reasons": "The split stands as described (the facades, the new files, the API surface with one row added by E42), the clean-up's absences hold (R1230-R1233, R1240), the draw is a list of steps (R1234), and the one verdict holds - one lock written first, one refusal, one list, one card - with E41-T2 and E41-T3 ok in the base run. All 11 registry rows are ok in shard 1/8. Against an 8: one promise was delivered in part and is now homeless (E41-15 partial, E41-16 not built, carried to a stage that shipped without them: E41-2); the size bound the stage set holds nowhere and has eroded (E41-1); both nits. The ordinary list's one-select rule was changed on purpose for two accused (E40), not broken. Both live items are open and their text stale. E41-T1, E41-T4 and the scenarios were not joined; 2 of the stage's 26 commits are in the checkout.",
+      "missing_to_10": "E41-16's owner named (a stage to ship, or dropped with its cycle written) and the three comments corrected (E41-2); the size bound either held by a check or the map's sizes brought to today's (E41-1); LIVE-E41-01 and -02 read; E41-T1 and E41-T4 joined."
+    },
+    {
+      "id": "E42",
+      "version": "1.2.97",
+      "shipped": "2026-11-03",
+      "what": "Irreversible procedures on one step runner (steps.mjs runSteps, stepsReport) with a record each: the ordinary and the Final verdict, the execution, the End of chapter (chapterEnd, Finish the chapter's end, Drop the rest) and the season reset (seasonReset, resumed from where it stopped); a registry of season state (season-reset.mjs registerSeasonState) each owner registering its group; a lifetime tag on every world setting (WORLD_LIFETIMES, D36), the reset clearing gmAssignments, readyRound and chapterEnd.",
+      "claim_sources": [
+        ".github/release-notes/v1.2.97.md (E42 200-224; Before installing 29-36, 43-51, 52-55, 99-109; Known gaps 250-254, 270-281)",
+        "tools/stages.json row E42 (with E41, planned and shipped 1.2.97, touches [\"sockets\", \"scenes\"], drills none)",
+        "no docs/dev/e42/: the ledger ('E42 Open 20', 'Open 30') is outside the repository",
+        "docs/dev/R-REGISTRY.md:690-699 (R1250-R1259, 10 rows)",
+        "scripts/tests-tier2.mjs:92650-93965 (E42-T1 to E42-T13)",
+        "audit/AUDIT-1.2.42.md 9.2 item 371 (line 1245); live-items-361.json item 371",
+        "git: f10b6d81 (C1a) to 8c7e711c (fix FG3b), 15 commits in the checkout, all the notes count (14) plus 29512441 (C5a0); the train's 8a064d52 and release 0c70ce85"
+      ],
+      "commits": 15,
+      "promises": [
+        {
+          "promise": "One runner: each step in its own try/catch, a throw or false failed and named, the record saved after each step, a done step not run again; one report of what was done, kept, failed and not run, used by both verdicts and the chapter's end",
+          "source": "v1.2.97.md 205-208",
+          "code": "scripts/steps.mjs:59 runSteps, :135 stepsReport; callers verdict.mjs:631, :653, trial-progress.mjs:161, chapter.mjs:953, :995, season-wipe.mjs:888",
+          "holds": "yes",
+          "test": "R1250, R1251, R1252 (ok)",
+          "test_kind": "both",
+          "note": "R1252's title says 'FINAL_VERDICT_STEPS the Final Trial's six keys'; since E72 the table holds seven ('finalBets', verdict.mjs:583-585) and the test's body reads seven - finding E42-1."
+        },
+        {
+          "promise": "The ordinary and the Final verdict stop and are finished the same way: the console names where one stopped, Finish the verdict runs only the steps left, each survivor's Level Up and a waited Reinforced given once (D4); the Final verdict's outcome stays out of the world's record until its card",
+          "source": "v1.2.97.md 99-101",
+          "code": "scripts/verdict.mjs:628 runVerdict, :907 keepGiving, :1050 verdictStopped, :1106 finishVerdict, :1312-1314 (the record first, the outcome in the GMs' store, keepFinalOutcome :1326)",
+          "holds": "yes",
+          "test": "tier 2 E42-T1, -T2, -T3, -T10, -T11 (not in the shards read)",
+          "test_kind": "behaviour",
+          "note": "A real tab closed in a Level Up window is LIVE-E42-02 (open); the harness models the closed tab as a refused record write (notes 240-242)."
+        },
+        {
+          "promise": "An End of chapter that stops is kept with what it did; the Next line says so; End the chapter asks Finish the chapter's end, Drop the rest or Cancel (the default); Finish moves the chapter, the session and the morning once, runs on the primary, is refused in another phase; no new end while a stopped one stands",
+          "source": "v1.2.97.md 101-105",
+          "code": "scripts/chapter.mjs:574 endMoves, :653 CHAPTER_END_STEPS, :838 applyChapterEnd, :953 runSteps with stop, :1019 finishChapterEnd; scripts/api.mjs:868 game.drpg.finishChapterEnd",
+          "holds": "yes",
+          "test": "R1253, R1259 (ok); tier 2 E42-T4 (not read), E42-T5 (ok, shard 2/8), E42-T12 (ok, shard 2/8)",
+          "test_kind": "both",
+          "note": ""
+        },
+        {
+          "promise": "A season reset that did not finish is named by the next Reset the season, which opens with only the groups it did not finish ticked and leaves the remembered exceptions as they are, while the clock still reads the position that reset left",
+          "source": "v1.2.97.md 106-109",
+          "code": "scripts/season-wipe.mjs:820-831 writeRecord (with clockPosition), :888-889 runSteps (stop: !isPrimaryGm()), :899 the record's last write",
+          "holds": "partly",
+          "test": "tier 2 E42-T6 (ok, shard 3/8), E42-T8 (not read), E42-T13 (ok, shard 3/8)",
+          "test_kind": "behaviour",
+          "note": "As the notes' own Known gaps say: a failed write of the record does not stop the reset (writeRecord's catch, :827-829, E42 Open 30), and a tab closed mid-reset is read in the code, not driven (Open 31, 49). The plan's 'report the same way' does not hold for the reset, which reports in 1.2.96's words (no stepsReport in season-wipe.mjs; Open 20; the notes say the stage reads partial)."
+        },
+        {
+          "promise": "A registry of season state: every reset group has exactly one entry registered by the file that owns it; the reset walks them in its order and the window draws its rows and counts from the same entries; season-reset.mjs a leaf",
+          "source": "v1.2.97.md 209-212",
+          "code": "scripts/season-reset.mjs:76 registerSeasonState (169 lines); 32 registerSeasonState( calls outside the tests (grep); season-exceptions.mjs:46 RESET_GROUPS; season-wipe.mjs:686 the clock's entry with clock, readyRound, chapterEnd",
+          "holds": "yes",
+          "test": "R1254, R1255, R1258 (ok)",
+          "test_kind": "both",
+          "note": ""
+        },
+        {
+          "promise": "Every world setting has a lifetime (season, campaign, table); a tier-0 test fails on an untagged setting or a season setting no reset clears; the reset clears gmAssignments, readyRound and chapterEnd and keeps everything 1.2.96's kept",
+          "source": "v1.2.97.md 43-51",
+          "code": "scripts/settings.mjs:1196 WORLD_LIFETIMES over SEASON_SETTINGS, CAMPAIGN_SETTINGS (:1176), TABLE_SETTINGS (:1185) - 20, 11 and 40 today (71) where the notes counted 19, 11 and 34 (64)",
+          "holds": "yes",
+          "test": "R1256 (ok); tier 2 E42-T7, E42-T9 (not read)",
+          "test_kind": "both",
+          "note": "The tag has held through 7 settings added since (R1256 green on 71)."
+        },
+        {
+          "promise": "The trial record's fields stand in one table with their lifetime, equal to 1.2.96's",
+          "source": "v1.2.97.md 211-212",
+          "code": "scripts/trial-progress.mjs:339 TRIAL_RECORD",
+          "holds": "yes",
+          "test": "R1257 (ok), R1032 (ok)",
+          "test_kind": "source",
+          "note": ""
+        },
+        {
+          "promise": "E42's two records are the primary's to write: chapterEnd inside the end's queue in chapter.mjs, seasonReset inside wipeSeason behind isPrimaryGm()",
+          "source": "v1.2.97.md 29-36",
+          "code": "scripts/season-wipe.mjs:823 (isPrimaryGm before every write); scripts/chapter.mjs:849 (the end's queue)",
+          "holds": "yes",
+          "test": "R1259 (ok)",
+          "test_kind": "source",
+          "note": "R1259 reads names and text, so a write through a helper handed the key in a variable is not seen (E42 Open 51, the notes' own)."
+        }
+      ],
+      "registry_rows": 10,
+      "tests_read": [
+        {
+          "test": "R1250-R1259 (10 rows, tiers 0 and 1)",
+          "measures": "yes",
+          "why": "All ok in shard 1/8; R1250 (9 assertions) and R1251 drive runSteps and stepsReport with planted steps; R1254 (14) and R1256 (6) plant entries and settings the checks must name; R1259 is a source reading."
+        },
+        {
+          "test": "tier 2 E42-T5, E42-T12 (shard 2/8), E42-T6, E42-T13 (shard 3/8)",
+          "measures": "yes",
+          "why": "All four ok. T5 and T12 drive a stopped End of chapter (the Finish, Drop the rest, a GM sorting first connecting mid-end); T6 plants a throwing entry in the registry; T13 resumes a reset only at the clock's position it wrote."
+        },
+        {
+          "test": "tier 2 E42-T1 to -T4, -T7 to -T11",
+          "measures": "unread",
+          "why": "Not in shards 1-3; by title they drive the verdict's Level Ups stopped at three points, the Final verdict's Finish, the execution, the chapter's end stopped at its third step, the assignments, a reset's resume, the whole-world read (one group, Open 52) and the Despair fill on a second GM."
+        }
+      ],
+      "tests_to_join": [
+        "tier 2: E42-T1, E42-T2, E42-T3, E42-T4, E42-T7, E42-T8, E42-T9, E42-T10, E42-T11",
+        "scenario 65-season (the owner's choice C on Q-E42-3: the reset checked on the harness, E42-T6 to -T8 and 65)",
+        "scenario 63-class-trial"
+      ],
+      "scenarios": [
+        "none names E42 in the register; the owner's Q-E42-3 answer 'Bierzemy C' puts the reset's check on 65-season and E42-T6 to -T8 (v1.2.97.md 220-222); 65's base-run result was not read"
+      ],
+      "live": {
+        "items": 1,
+        "read": 0,
+        "ids_read": [],
+        "note": "371 LIVE-E42-02 open, text_stale (E71 reworded the stopped verdict's line, 25423c19); LIVE-E42-01 was never written (Q-E42-3: no live try). The reset has no live item by the owner's choice."
+      },
+      "findings": [
+        {
+          "id": "E42-1",
+          "severity": "nit",
+          "category": "text",
+          "title": "R1252's name says the Final Trial's verdict has six steps; since E72 its table and the test's own body hold seven",
+          "where": "docs/dev/R-REGISTRY.md:692 and scripts/tests-tier0.mjs:21057 (the name: \"`FINAL_VERDICT_STEPS` the Final Trial's six keys in order\"); scripts/tests-tier0.mjs:21070-21071 (FINAL, seven keys); scripts/verdict.mjs:583-585",
+          "what_happens": "E72 (12.11.2026) added the Ghost Bets' step 'finalBets' to FINAL_VERDICT_STEPS and changed R1252's list with a 'CHANGED ON PURPOSE' note, but not its name, which the registry is generated from. The test passes on seven keys under a name that promises six.",
+          "evidence": "scripts/tests-tier0.mjs:21070-21071: '// CHANGED ON PURPOSE (E72, 12.11.2026; the coordinator's bug): the Final's Ghost Bets settled, \"finalBets\" (R3815). const FINAL = [\"finalSentence\", \"finalCard\", \"finalClose\", \"finalExecution\", \"finalLevelUps\", \"finalBets\", \"mastermind\"];'",
+          "failure_scenario": "A reviewer reading the registry to see what holds the Final verdict's steps counts six from R1252's row and takes the seventh, finalBets, as untested.",
+          "expected": "The test's name names the steps it holds, or names none by count.",
+          "confidence": "read",
+          "refutation_tried": "Read the body (21057-21105): it compares against the seven-key list and the needs map with finalBets: \"finalCard\"; checked whether another row holds finalBets (R3815, per the comment). The behaviour is held; only the name is wrong."
+        }
+      ],
+      "superseded_by": [
+        "E72 (1.2.110): the Final verdict's table gains 'finalBets' (verdict.mjs:583-585)",
+        "E73 (1.2.108) C7: E42 Open 50 (R311's census of Level Up reads) closed - R311's held pattern tightened (v1.2.108.md:141-143)",
+        "E71 (1.2.113): the stopped verdict's and the reset's lines reworded"
+      ],
+      "grade": 7,
+      "provisional": "after L1",
+      "grade_reasons": "The runner, the registry and the lifetimes stand as described and are held: R1250-R1259 all ok in shard 1/8, four of thirteen tier-2 tests ok in the base run (the chapter's end stopped and finished, the primary's hold, the reset's planted failure and its resume at the clock's position), and the lifetime tag has held 7 later settings (71 tagged). Reading wipeSeason end to end (season-wipe.mjs:820-959) found every step asking the primary again and the record written only by it. Against an 8: one promise is delivered in part by the stage's own account - the reset does not report through stepsReport (Open 20) and its record is best effort (a failed write does not stop it, Open 30; a closed tab read, not driven, Open 31 and 49) - and its main promise, a procedure stopped by a closed tab and finished once, is measured by a refused write standing in for the tab (LIVE-E42-02, open). One nit (E42-1). Nine tier-2 tests and 65-season were not joined.",
+      "missing_to_10": "The reset reported through stepsReport, and a failed write of its record told; LIVE-E42-02 read at a table; E42-T1 to -T4 and -T7 to -T11 and 65-season joined; E42-1's name corrected."
+    }
+  ],
+  "not_established": [
+    {
+      "what": "base-run.json was not on the branch when this was written (20.11.2026, after 20:24Z). The base run's shards 1/8 to 3/8 (central scratch base/shards) were read: all 52 registry rows ok, and E66-T2, E66-T3, E37-T5, E37-T10, E41-T2, E41-T3, E42-T5, E42-T6, E42-T12, E42-T13 ok. Shard 3/8 had one failure, grid XI07 (a betrayal declared in the Eclipse after Night), not one of these stages' tests. The other 19 tier-2 tests and every scenario named are in tests_to_join; the npm test that would have run the scenarios was stopped (exit 143) before them.",
+      "l1": null
+    },
+    {
+      "what": "The stages' ledgers (the 'Open' rows the notes cite: E37 Open 11, 19, 29, 52, 55; E41 Open 45, 77; E42 Open 9, 20, 30, 31, 43, 44, 46, 49-56) are outside the repository; each is taken from the notes' Known gaps and checked against the code only where a promise names it.",
+      "l1": null
+    },
+    {
+      "what": "Whether the renamed names fit their tiles at a real size (LIVE-E66-01).",
+      "l1": {
+        "what": "Whether every renamed action, option and Call name fits its tile or button, not cut and not broken mid-word (LIVE-E66-01)",
+        "recipe": [
+          "On a v14 world with the module on 1.2.118, open a student's character sheet as its player, Actions tab",
+          "At browser window sizes 1366x768, 1024x768 and 820x1180, in Stained Glass and in Monokuma Legacy, with the module's Language on English and then on Polski (reload after each change)",
+          "At each of the 12 sets read the action grid, Crisis Actions, the Tamper, clean-up, Indirect Murder and Rest windows: every name inside its tile or button, whole",
+          "Note any name cut, overflowing or broken inside a word, with the size, theme and language"
+        ],
+        "clients": "one player (and the GM to open an incident for the Crisis Actions)",
+        "theme": "both",
+        "settles_if": "agrees: every name whole in all 12 sets; defect: any name cut or broken mid-word in any set",
+        "priority": "E66's grade cap (nit-to-minor if a name breaks)"
+      }
+    },
+    {
+      "what": "Whether the character sheet's root carries the page's lang on a real Daggerheart sheet (LIVE-E66-02); R1153 reads only the render hook's source.",
+      "l1": {
+        "what": "The character sheet's root carries lang=\"pl\" on a Polish page over an English Foundry, and which words stay English (LIVE-E66-02)",
+        "recipe": [
+          "Foundry's language English; the module's Language setting Polski; reload the page",
+          "Open a student's character sheet; in the browser's tools read the sheet root's lang attribute",
+          "List the words on the sheet that stay in English and, for each, whether it stands in a block the module draws"
+        ],
+        "clients": "one GM or one player",
+        "theme": "default",
+        "settles_if": "agrees: the root reads lang=\"pl\" and every English word is Daggerheart's own; defect: no lang or lang=\"en\" on the root, or an English word in a block the module draws",
+        "priority": "E66's grade cap"
+      }
+    },
+    {
+      "what": "The readiness round and the day summary at a real table, with a reload, an away player and a bystander (LIVE-E37-02, LIVE-E37-06).",
+      "l1": {
+        "what": "The readiness round at a real table: one window per player of the cast, the GM's list, a reload mid-round, an away player (LIVE-E37-02, with LIVE-E37-06's bystander)",
+        "recipe": [
+          "A GM and three players, each owning a living student; one of them closes their tab before the round",
+          "In Daily Life the GM presses Next time of day on the GM panel: each connected player gets one window with Done and One moment, the GM's window lists all three, the away one as Not connected - counts as Done",
+          "One player answers One moment, then reloads the page mid-round: after the reload the window comes back with Done alone",
+          "All connected players press Done: the GM's window goes on by itself, the clock moves once, every player sees one summary card of the time of day that ended",
+          "Repeat with the HUD's chevron to start an Eclipse (E17's question first, Not yet the default) and with its end",
+          "With an incident open (before Stage 6), a bystander's player reads no readiness window and no summary when the GM moves the clock",
+          "Time each round from the press to the clock's move"
+        ],
+        "clients": "one GM, three players (one away, one reloading, one a bystander for the incident step)",
+        "theme": "both",
+        "settles_if": "agrees: one window per asked player, the GM's list as described, the reload asked again, the clock moved once, no summary on the bystander; defect: a second window, a missed player, a clock moved twice or not at all, or a summary on the bystander",
+        "priority": "E37's grade cap (major if the clock moves twice or a player is never asked)"
+      }
+    },
+    {
+      "what": "Scenario 81 with the module's real sheets on v14 (LIVE-E37-01): every local-gate record from 1.2.90 to 1.2.118 has every part not run.",
+      "l1": {
+        "what": "Scenario 81-render-budget on a real v14 with the module's real character sheets (LIVE-E37-01)",
+        "recipe": [
+          "On the local gate's v14 sandbox at :30099, run npm run gate:local (audit/gate/README.md), which runs the scenarios whose layers include local-gate, 81 among them",
+          "Read 81's results file: the visibility passes, sheets drawn and tokens shown after each event, in both themes; note A must name real sheets, not stand-ins"
+        ],
+        "clients": "the sandbox's GM and three players (the scenario's own)",
+        "theme": "both",
+        "settles_if": "agrees: 81 green with real sheets in both themes; defect: a red check, or a Despair write that draws a student's sheet",
+        "priority": "E37's grade cap"
+      }
+    },
+    {
+      "what": "Daggerheart's real countdown write and tray inside the projects' queue (LIVE-E37-03); E37-T7 drives a model of the system's write.",
+      "l1": {
+        "what": "Daggerheart's own countdown writes inside the projects' queue, and the tray's Reveal, Hide, Delete and -/+ on a non-project row (LIVE-E37-03)",
+        "recipe": [
+          "v14 with Daggerheart 2.12.9 (module.json's verified), countdownAutomation on, one project and one countdown that is not a project",
+          "As GM, start a project's +1 and while it is in flight make a GM roll that moves the countdowns (DhCountdowns.updateCountdowns)",
+          "Read the project's progress after both: the +1 stands",
+          "On the non-project row press Reveal, Hide and Delete, and -/+ during a project's change; read diagnosePatches() for the row countdown-update"
+        ],
+        "clients": "one GM",
+        "theme": "default",
+        "settles_if": "agrees: the project's +1 stands after the system's write, countdown-update reads ok; defect: the +1 lost, or the tray's Delete holds every project's change",
+        "priority": "E37's grade cap (minor if the +1 is lost)"
+      }
+    },
+    {
+      "what": "An Eclipse packet ahead of its clock setting on a real server (LIVE-E37-05).",
+      "l1": {
+        "what": "An Eclipse packet that reaches a player before its clock setting runs nothing, and one visibility pass runs once the setting lands (LIVE-E37-05)",
+        "recipe": [
+          "A GM and a player on a real server (the sandbox is localhost; a remote host is better)",
+          "On the player's console: let n = 0; Hooks.on('drpgEclipse', () => n++) and read game.drpg.counters() before",
+          "The GM ends an Eclipse that moves the time of day",
+          "On the player read game.drpg.counters() again: visibility passes up by one for the move, the Eclipse's hook once"
+        ],
+        "clients": "one GM, one player",
+        "theme": "default",
+        "settles_if": "agrees: one pass and one hook on the player whatever the order; defect: none (tokens stale until the next move) or two",
+        "priority": "E37's grade cap"
+      }
+    },
+    {
+      "what": "The windows E41 moved and both verdict windows at a table, and the module's load time with 258 module files (LIVE-E41-01, LIVE-E41-02).",
+      "l1": {
+        "what": "The windows E41 moved, each opened once at a table, both verdict windows as C10b drew them, and the load time with today's 258 module files (LIVE-E41-02, LIVE-E41-01)",
+        "recipe": [
+          "Clear the browser cache; open the world as GM and time from the open to the module's ready and to the HUD's first draw; read game.drpg.perf() and the network panel's count of module files",
+          "Do the same as a player",
+          "As GM, in both languages, open once: Room Setup (with Tajne przejścia / Passages), the stash inspector, Item Tables (with Install), the Students window, Edit campaign, the Sound window (Music, Play, Effects tabs)",
+          "In a Class Trial with s2 accused, s3 a known Blackened and s4 dead: the ordinary verdict's select lists s3 choosable and s4 marked and disabled, and opens on s2",
+          "In a Final Trial over the same count: Nobody named first, every student choosable, opening on s2"
+        ],
+        "clients": "one GM, one player",
+        "theme": "both",
+        "settles_if": "agrees: every window opens and works as on 1.2.96, both lists as described, a load time written down; defect: a window that throws or draws empty, or a list that leaves a student out",
+        "priority": "E41's grade cap"
+      }
+    },
+    {
+      "what": "A verdict and an End of chapter stopped by a real closed tab and finished once (LIVE-E42-02); the harness stands a refused record write in for the tab.",
+      "l1": {
+        "what": "A verdict's Level Up window and an End of chapter with the GM's tab closed mid-procedure and reopened: the stopped line, Finish, each Level Up and clock move once (LIVE-E42-02)",
+        "recipe": [
+          "A GM and three players whose students survived a Class Trial",
+          "The GM gives an ordinary verdict; when the class's Level Up window opens, close the GM's tab and reopen the world",
+          "Read the trial console's 'The verdict stopped at' line; press Finish the verdict; read each survivor's Level Ups (one each) and a waited Reinforced once",
+          "Press End the chapter, Do it; close the GM's tab during the steps; reopen",
+          "Read the GM panel's Next line and press End the chapter: Finish the chapter's end, Drop the rest, Cancel (the default); press Finish",
+          "Read the clock: one chapter, one session and one morning on, once"
+        ],
+        "clients": "one GM, three players",
+        "theme": "default",
+        "settles_if": "agrees: each stop named, Finish gives each Level Up and each clock move exactly once; defect: a Level Up given twice or lost, a clock moved twice, or no Finish offered",
+        "priority": "E42's grade cap (major if a Level Up or a chapter move doubles)"
+      }
+    },
+    {
+      "what": "Whether the owner answered E41-15 and E41-16's default (b) outside the repository (the notes say 'unanswered'); finding E41-2 stands on the comments either way.",
+      "l1": null
+    },
+    {
+      "what": "The notes' counts not recounted against their parents: E66's 58 keys turned into plural families, the 92 files of E66's diff, E41's 151 files and 35 new, E37's 60 files; the moved-only runs of E41's moves were not re-run (no running).",
+      "l1": null
+    },
+    {
+      "what": "patches.mjs's token-ruler row, despair.mjs's other roads (addPool, removePool, setPoolLabel), overflow.mjs and day-summary.mjs beyond summaryWindow's head were not read; their promises rest on R1202, R1203, R1197 and the tier-2 titles.",
+      "l1": null
+    }
+  ]
+}

@@ -1,0 +1,1220 @@
+{
+ "reader": "stages-26",
+ "checkout": "branch claude/audit-119; the code under audit is main b5a29e73 (1.2.118). Read with git log/grep/show and short python3 over source text; nothing run (no harness, npm, test, scenario or probe). Scratch under /tmp/stages-26.",
+ "lane": "K3 stages (method U5); the seven rows of tools/stages.json with version null other than none: E39, E40, E43, E53, E58, E83, E26, in that order",
+ "count_expected": 7,
+ "count_note": "7 of 7 rows read. All seven have version and shipped null. None is shipped as a stage; five (E39, E40, E43, E53, E26) have pieces that shipped inside other trains, graded as 'what shipped'; E58 (in progress, paused) and E83 (planned, nothing begun) are not graded. The registry stamps no row with any of the seven ids (its Since column names the train a number shipped in); rows naming a stage in their titles are counted under registry_rows instead.",
+ "read": [
+  {
+   "file": "tools/stages.json",
+   "lines": "103-109 and the $comment (whole)",
+   "how": "python3 json"
+  },
+  {
+   "file": "docs/dev/e39/STATUS.md",
+   "lines": "1-188",
+   "how": "whole"
+  },
+  {
+   "file": "docs/dev/e39/CALIBRATION.md",
+   "lines": "1-151 (sections 1, 3, 4, 5; 2 by heading)",
+   "how": "parts"
+  },
+  {
+   "file": "docs/dev/e40/STATUS.md",
+   "lines": "1-541 (300-440 by row heads)",
+   "how": "mostly whole"
+  },
+  {
+   "file": "docs/dev/e43/STATUS.md",
+   "lines": "1-208",
+   "how": "whole, long cells cut at 600 characters"
+  },
+  {
+   "file": "docs/dev/e53/STATUS.md",
+   "lines": "1-71",
+   "how": "whole"
+  },
+  {
+   "file": "docs/dev/e26/STATUS.md",
+   "lines": "1-79",
+   "how": "whole"
+  },
+  {
+   "file": "docs/dev/e58/LOCAL-REPORT.md, TRIAGE-9.2.md, PERF-READINGS.md",
+   "lines": "1-60 and headings; 1-30; headings",
+   "how": "parts"
+  },
+  {
+   "file": "docs/dev/plan-114/ADDED.md",
+   "lines": "15-35",
+   "how": "whole range"
+  },
+  {
+   "file": "release notes v1.2.112, 113, 116, 117, 118",
+   "lines": "every line naming one of the seven ids",
+   "how": "grep, lines around each hit"
+  },
+  {
+   "file": "scripts/state-check.mjs, allowed-now.mjs",
+   "lines": "70-118; 40-137",
+   "how": "read"
+  },
+  {
+   "file": "scripts/truth-bullets.mjs",
+   "lines": "1325-1475, 1940-1965",
+   "how": "read"
+  },
+  {
+   "file": "scripts/movement.mjs",
+   "lines": "3479-3495",
+   "how": "read"
+  },
+  {
+   "file": "scripts/anonymity.mjs",
+   "lines": "805-818",
+   "how": "read"
+  },
+  {
+   "file": "scripts/tests-tier1.mjs R5100; tests-tier2.mjs E40-T1",
+   "lines": "60174-60220; 27861-27916",
+   "how": "whole bodies"
+  },
+  {
+   "file": "audit/perf-baseline.json; audit/live/perf-baseline.mjs",
+   "lines": "keys, revisions, budget heads, attempts' last; 76-120",
+   "how": "python3 json; read"
+  },
+  {
+   "file": "audit/findings-1.2.118/live-readings-e58.json, -other.json, -e58-delta.json",
+   "lines": "rows for the stages' LIVE ids",
+   "how": "python3 json"
+  }
+ ],
+ "stages": [
+  {
+   "id": "E39",
+   "version": null,
+   "shipped": null,
+   "planned": "1.2.119 (tools/stages.json:103, no `with`; leads the row group E39-E83)",
+   "standing": "partly shipped inside other stages: its tests and scenarios in 1.2.112 and 1.2.113 (E108's and E54's trains), its shim calibration and the module fixes it found in 1.2.118 (E118's C1 line); not marked shipped, the part that needs a v14 table (LIVE-E39-01 partly read, LIVE-E39-02 to -19 unread) is what keeps it open",
+   "what": "Tests and the harness, no table behaviour of its own: the movement rules end to end (scenario 70), every ACTIONS row driven (scenario 99), the project entry's cases (tier 2 E39-T1), every transfer mode held to a road (E35-T10), a move between the trial hall's zones (68 M), Find Stash/Passage and Frisk banded (99 flat, 99 frisk); then (line claude/shim-118) the harness's shim set to what Foundry 14.370 did (D3 update diff, D4 one update per route, D5 Levels, D6 a role change logs out, D10 a GM heard at connect, D11 the move on the caller's options) and the module fixes that found (a route charged room by room, every put-back through putBackWrite with diff: false, a passage's floor, the GMs' mark).",
+   "pieces_shipped": [
+    {
+     "piece": "C1 70-movement, C2 99-actions, C3 E35-T10, C4 E39-T1",
+     "version": "1.2.112",
+     "commits": "0ec727b6, 6a243316, c027ac6e, fbb29935 (merge f26044e8)"
+    },
+    {
+     "piece": "68 M, 99 flat, 99 frisk",
+     "version": "1.2.113",
+     "commits": "30a10b5b, c5840f11 (merge 288c0f42)"
+    },
+    {
+     "piece": "the shim calibration D3-D6, D10, D11 and the module fixes (route charged room by room, putBackWrite, floorNamed, the mark fix)",
+     "version": "1.2.118",
+     "commits": "9a8e4f0c, 67d525f6, 224f99a2, c803e68a, 909dc019, 5b9269ba, b17b9867, a90a0dc4, 1c3a7b3a, 4c407e78, d84481ee, d57f754a (merge 55067e60)"
+    }
+   ],
+   "claim_sources": [
+    "tools/stages.json row E39 (line 103: planned 1.2.119, version null, touches null, drills [])",
+    "docs/dev/e39/STATUS.md (1-188, whole); docs/dev/e39/CALIBRATION.md (1-151; sections 1, 3, 4, 5 read, section 2 by its heading)",
+    ".github/release-notes/v1.2.112.md (8-9, 18-19, 138-140, 250-251, 264), v1.2.113.md (8, 14, 171-172), v1.2.117.md (92-97), v1.2.118.md (4-9, 99-123, 183-188) - grep of the stage id, the lines around each hit read",
+    "git log --oneline b5a29e73 -E --grep '\\bE39\\b': 45 commits, of them 15 are ledger or release commits that only move the row; first tag of each by git describe --contains",
+    "audit/AUDIT-1.2.42.md 9.2 items 512 (LIVE-E39-01) and 640-657 (LIVE-E39-02 to -19), line heads read",
+    "audit/findings-1.2.118/live-readings-e58.json, -other.json, -e58-delta.json (rows for LIVE-E39-01 and LIVE-E39-12)"
+   ],
+   "commits": 45,
+   "promises": [
+    {
+     "promise": "70-movement: a refusal names no undiscovered room; a vetoed last leg keeps the room paid for; ten crossings at once each paid once; Refund at the exact price, a second refused; an Afternoon Eclipse's allowance, the crossing past it refused and, from a console, put back",
+     "source": "e39/STATUS.md C1 (0ec727b6)",
+     "code": "audit/harness/scenarios/70-movement.mjs (240 lines); README.md:206 (register row, stage E39)",
+     "holds": "yes",
+     "test": "scenario 70-movement",
+     "test_kind": "behaviour",
+     "note": "The file exists and the register names it ci; its result in this audit's base run was not read. The plan's 'shim calibration against one real v14 move' is LIVE-E39-01, read in part (below)."
+    },
+    {
+     "promise": "99-actions: every ACTIONS row driven from p1's page with a census that fails on a row without a driver; each row's price; the thresholds of Search, Projects, Listen and Sabotage at one below, at each band and on a critical; Find Stash and Find Passage at 15/16/critical; Palm's Frisk in both modes",
+     "source": "e39/STATUS.md C2 (6a243316), c5840f11",
+     "code": "audit/harness/scenarios/99-actions.mjs:240 (flat), :321 (frisk); README.md:233",
+     "holds": "yes",
+     "test": "scenario 99-actions",
+     "test_kind": "behaviour",
+     "note": "Mutants recorded in the paper (resolveThreshold, resolveStashSearch, resolvePassageSearch, friskPerson): all KILLED; the definitions are kept outside the repository, so the counts cannot be reproduced here."
+    },
+    {
+     "promise": "tier 2 E39-T1: the one project entry's fifteen cases (null for no project, an empty change, +1, a fill crossing once, a full bar renamed not crossing again, the clamps, a frozen bar refused, a target of 0 written as 1)",
+     "source": "e39/STATUS.md C4 (fbb29935)",
+     "code": "scripts/tests-tier2.mjs:81096",
+     "holds": "yes",
+     "test": "tier 2 \"the one entry's cases, one after another on fresh projects (E39-T1) ...\"",
+     "test_kind": "behaviour",
+     "note": "The S09 list the plan names is not in the repository; the cases are the ones changeStep's header states (default taken, owner to confirm, Q-E39 in STATUS)."
+    },
+    {
+     "promise": "tier 2 E35-T10 holds every mode of TRANSFER_POLICY to a road it drives (a census, then each mode into full hands)",
+     "source": "e39/STATUS.md C3",
+     "code": "scripts/tests-tier2.mjs:78236",
+     "holds": "yes",
+     "test": "tier 2 \"each owner change's refusal and result reach its asker in its own words ...\" (E35-T10)",
+     "test_kind": "behaviour",
+     "note": "The paper's mutant (a sixth mode `lend`) SURVIVED before C3 and was KILLED after it."
+    },
+    {
+     "promise": "68 M: a move between the trial hall's zones runs no step of a crossing (no veto, no fee, no GM store changed, no crossing packet)",
+     "source": "e39/STATUS.md line claude/e39-43-113, 30a10b5b",
+     "code": "audit/harness/scenarios/68-trial-zones.mjs:330 begin(\"M\", ...), :384",
+     "holds": "yes",
+     "test": "scenario 68-trial-zones part M",
+     "test_kind": "behaviour",
+     "note": "Register row 68 names E73, not E39 (README.md:203); the part is E39's by its commit."
+    },
+    {
+     "promise": "The shim moves, diffs and keeps Levels as 14.370 did (D3, D4, D5), a role change logs out (D6), a GM is heard at connect (D10), the move on the caller's options (D11), each red first in 00-boot",
+     "source": "e39/STATUS.md line claude/shim-118; CALIBRATION.md section 4; v1.2.118.md 4-9",
+     "code": "audit/harness/lib/shim.mjs (TOKEN MOVEMENT, Levels), client-entry.mjs; commits 9a8e4f0c, 5b9269ba, c803e68a, b17b9867, 4c407e78, d84481ee",
+     "holds": "partly",
+     "test": "scenario 00-boot (the stand-in's checks); every scenario and the eight shards by the line's own runs",
+     "test_kind": "both",
+     "note": "Built on one real move read by L1 (LIVE-E39-01, CALIBRATION.md:82-116); every detail not read was assumed and written as LIVE-E39-02 to -19, all unread. D7 (a region's owner), D8 (the writer's copy of another User) and D9 (noHook fires the update hooks on 14.370) are proposed and not built (CALIBRATION.md:134-146): the harness still silences the update hooks under noHook, which 14.370 does not."
+    },
+    {
+     "promise": "Every put-back of a token's spot writes through putBackWrite with diff: false, every coordinate it names sent whatever the writer's copy holds",
+     "source": "e39/STATUS.md (224f99a2); movement.mjs header",
+     "code": "scripts/movement.mjs:3481-3495 putBackWrite; R7741 holds sendBack, refundLastCrossing and handleSendback to it",
+     "holds": "no",
+     "test": "tier 0 R7741 (source census); tier 2 \"a put-back writes every coordinate it names, whatever the writer's copy of the token holds\" (tests-tier2.mjs:27432)",
+     "test_kind": "both",
+     "note": "Green on the D4 shim by the line's runs; red at a table on 14.370 (line L1, 18-19.11.2026, branch papers digested in live-readings-e58-delta.json, item 650): the tier-2 test failed and the staged race (the writer's copy out of step, updateSource) wrote nothing by five roads. Finding E39-1."
+    },
+    {
+     "promise": "A route of one update judged leg by leg and charged room by room, in an Eclipse and in Daily Life",
+     "source": "e39/STATUS.md (67d525f6); v1.2.118.md 99-109",
+     "code": "scripts/movement.mjs:3236 roomsAlong, :3263 routeLegs",
+     "holds": "yes",
+     "test": "R7740 (named E40 in its title, stamped E118); scenario 70-movement",
+     "test_kind": "behaviour",
+     "note": "Graded with E118 by stages-25; held here on the shim's model only; the mouse drag through rooms is LIVE-E39-11, unread."
+    }
+   ],
+   "registry_rows": 0,
+   "registry_note": "No registry row is stamped E39 (R-REGISTRY.md: the Since column names the train a number first shipped in, and E39's numbers shipped under E54 and E118) and no row's title names E39. The stage's R blocks R5100-R5199 and R6200-R6299 hold no row of E39's own (R5100 is E40's); the shim line's R7740-R7744 are titled by the line and stamped E118. The stage is held by tier-2 tests named in their titles and by scenarios 70 and 99, whose register rows name E39.",
+   "tests_read": [
+    {
+     "test": "tier 2 E39-T1 (tests-tier2.mjs:81096, head and the case list read)",
+     "measures": "yes",
+     "why": "Each case is a fresh project and a read of the entry's answer and of the bar; the paper's mutants on the clamp, the crossing's !wasDone and the frozen check were each KILLED."
+    },
+    {
+     "test": "tier 2 \"a put-back writes every coordinate it names ...\" (tests-tier2.mjs:27432, title read)",
+     "measures": "weak",
+     "why": "Headless it measures the shim's diff, which is the module's assumption of v14; at a table (L1, LIVE-E39-12) the same test is red, so the green headless reading is the model's."
+    },
+    {
+     "test": "scenario 68-trial-zones part M (68-trial-zones.mjs:330-384)",
+     "measures": "yes",
+     "why": "Reads every store named in the paper whole on the primary and the wire for every crossing packet, with the canary scan at the end of the part."
+    }
+   ],
+   "tests_to_join": [
+    "scenario 70-movement",
+    "scenario 99-actions",
+    "scenario 68-trial-zones (part M)",
+    "scenario 00-boot",
+    "tier 2: E39-T1",
+    "tier 2: E35-T10",
+    "tier 2: a put-back writes every coordinate it names, whatever the writer's copy of the token holds"
+   ],
+   "tests_note": "no base-run.json in audit/findings-1.2.118 when this was written: the result of this test in the audit's base run was not read",
+   "scenarios": [
+    "70-movement (README.md:206, stage E39)",
+    "99-actions (README.md:233, stage E39)",
+    "68-trial-zones part M (README.md:203 names E73)",
+    "00-boot (the stand-in's checks, D3-D11 red first there)",
+    "66-rooms and 76-passages (re-run on the corrected shim, by the paper)"
+   ],
+   "live": {
+    "items": 19,
+    "read": 1,
+    "ids_read": [
+     "LIVE-E39-01 (partial: CALIBRATION.md:82-116, one move with a waypoint across three rooms and one stair; a mouse drag not read)",
+     "LIVE-E39-12 (on the L1 branch only, 18-19.11.2026: defect; not on b5a29e73's papers)"
+    ],
+    "note": "LIVE-E39-02 to -11 and -13 to -19 (AUDIT 9.2 items 640-649, 651-657) have no reading in any readings file. LIVE-E39-12's readings are on claude/e58-local (head 7875554f, not an ancestor of b5a29e73), digested in live-readings-e58-delta.json.",
+    "l1": {
+     "what": "The shim's assumed details of a v14 move and the put-back from a copy out of step",
+     "recipe": [
+      "On the 30099 sandbox with a GM and one player, drag a student's token by mouse across two rooms with a waypoint (method dragging) and read options._movement, _priorRegions and the hook order on the mover, the primary GM and a bystander (LIVE-E39-02 to -09, -11).",
+      "With a GM's copy of the token one step behind (a move still on its way), have the module send the token back (a vetoed crossing) and read the token's spot on every page and on the server (LIVE-E39-12).",
+      "Write a guarded flag a player's pending write already left and read the GMs' mark (LIVE-E39-16, -17)."
+     ],
+     "clients": "a GM and one player (a bystander page for the hooks)",
+     "theme": "default",
+     "settles_if": "the shim's model holds if every field matches lib/shim.mjs; the put-back promise holds if the token lands at the put-back's spot on every page, and fails if it stays where the move left it",
+     "priority": "minor (E39-1); stage cap 9"
+    }
+   },
+   "findings": [
+    {
+     "id": "E39-1",
+     "severity": "minor",
+     "category": "bug",
+     "title": "putBackWrite's promise - every coordinate sent whatever the writer's copy holds - did not hold on Foundry 14.370 for a copy out of step",
+     "where": "scripts/movement.mjs:3481-3495 (putBackWrite and its header); scripts/tests-tier2.mjs:27432",
+     "what_happens": "The header says a put-back written while a newer move is on its way reads the old spot in the writer's copy, and that diff: false sends every coordinate it names whatever the copy holds. On 14.370 (L1, 18-19.11.2026) the tier-2 test of that promise failed at a table, and the staged case - the GM's copy set out of step with updateSource, a put-back by update with diff: false, with recursive: false, with both, updateEmbeddedDocuments and move - wrote nothing: the GM's socket emitted x and y, PlayerOne received no write of x and kept the old spot. A fresh copy's control also failed in one probe, so the cause (client, server or movement steps) is not separated.",
+     "evidence": "export function putBackWrite(tokenDoc, to, options = {}) {\n    return tokenDoc.update(to, { ...options, diff: false });\n}  (movement.mjs:3493-3495; the same body at 179c2644, the tree L1 ran). live-readings-e58-delta.json item 650: 'r5: ... a write to the free square with diff: false: not written (answer undefined), PlayerOne kept (300,300)'.",
+     "evidence_class": "F",
+     "confidence": "measured",
+     "failure_scenario": "A player's illegal crossing is put back by the primary GM while that GM's copy of the token is a step behind; the put-back does not land, and the token stays past the veto on every browser.",
+     "expected": "A put-back that lands whatever the writer's copy holds, or a guard that reads the server's spot and writes again; held by a test that is green at a table.",
+     "refutation_tried": "Checked that L1's tree had today's putBackWrite (git show 179c2644:scripts/movement.mjs:3493-3495, identical). Looked for a second write or a read-back after putBackWrite in sendBack and handleSendback: none named in R7741's census. The staged copy (updateSource) is artificial and one fresh-copy control failed too, so whether the race occurs in play, and why the server did not apply the write, stay open (not_established).",
+     "l1": {
+      "what": "Whether a put-back from a copy out of step lands on 14.370",
+      "recipe": [
+       "Two GM pages and one player on the sandbox; the player drags their token into a room the movement rules refuse while the primary's copy still holds the previous move.",
+       "Read the token's x and y on the server (another GM's page) and on the player's page 2 s after the put-back."
+      ],
+      "clients": "2 GMs, 1 player",
+      "theme": "default",
+      "settles_if": "lands: the finding falls to the staged case; stays past the veto: the finding is confirmed in play",
+      "priority": "minor"
+     }
+    },
+    {
+     "id": "E39-2",
+     "severity": "nit",
+     "category": "hygiene",
+     "title": "anonymity.mjs still says the updateActor hook of Configure Ownership's noHook save was never read on v14; E39's calibration read it",
+     "where": "scripts/anonymity.mjs:808-817; docs/dev/e39/CALIBRATION.md:38-43 (and dice-sync.mjs:142 '(in the harness; on v14 LIVE-E16-04)')",
+     "what_happens": "CALIBRATION.md's row of 16.11.2026: on 14.370 the window's noHook save reached the primary GM's updateActor with options.noHook true; noHook skips only the pre hook. The comment above lowerOwnership still says the reading has not been made and that the harness takes the pessimistic reading, which is now known to be the wrong one for v14 (D9, not built).",
+     "evidence": "\" * `updateActor` hook for that save has not been read off a live v14 table\n * (AUDIT §9), so three roads lead here\"  (anonymity.mjs:811-812) against CALIBRATION.md:40 '(a) `updateActor` reached the primary GM, with `options.noHook === true`'.",
+     "evidence_class": "S",
+     "confidence": "read",
+     "failure_scenario": "A developer reading anonymity.mjs believes the primary's updateActor road is unproven on v14 and keeps the harness's silencing model, so 44 tier-2 tests that name noHook keep measuring a world 14.370 does not have.",
+     "expected": "The comment says what 14.370 did and names D9 as the harness's open difference.",
+     "refutation_tried": "Read the code under the comment: it already keeps all three roads, so behaviour is safe either way; only the comment and the harness model are stale. Searched scripts/ for another comment naming the reading: none."
+    }
+   ],
+   "superseded_by": [
+    "E118 (1.2.118) carries the shim-118 part as its C1 line and grades it (stages-25)"
+   ],
+   "grade": 7,
+   "provisional": "after L1",
+   "grade_reasons": "Graded on what shipped: the tests and scenarios of 1.2.112-1.2.113 (each promise held by a named scenario or tier-2 test whose body reads behaviour) and the shim calibration of 1.2.118. One promise of the shipped part is contradicted at a table (E39-1: the put-back, measured on 14.370 in a staged case) and one is delivered in part (the shim: D7-D9 not built, LIVE-E39-02 to -19 unread, so most of the model of a v14 move is assumed). By 11.4 one promise in part sets 7; the cap of 9 for unread live checks also applies and the grade is provisional. No result of the base run was read.",
+   "missing_to_10": "E39-1 settled at a table and the put-back made to land whatever the copy holds; D9 (noHook fires the update hooks) built and the 44 tier-2 tests that name noHook read again; D7 and D8 read and built or dropped; LIVE-E39-02 to -19 read; scenario 70, 99 and the named tier-2 tests green in a base run; the mutants' definitions kept where they can be run again."
+  },
+  {
+   "id": "E40",
+   "version": null,
+   "shipped": null,
+   "planned": "1.2.119 (tools/stages.json:104, with E39)",
+   "standing": "partly shipped inside other stages: C1 in 1.2.112, C2-C5, the regex tests (item 4) and settle -> until (item 5) in 1.2.113, the shared allowed-now rule and 18-trial's extensions in 1.2.116, the two-accused verdict and the matrix's dimensions in 1.2.117 (as E117's feature), R7740 in 1.2.118; not marked shipped because the plan's 'Done when' keeps open parts (the mutation run in no gate, flows class-trial and mastermind partial) and LIVE-E40-01 to -03",
+   "what": "The trial and the state, by tests: a wrong verdict sentences and the trial's close executes (DC36), game.drpg.checkState() with three invariants run at the primary's ready and after every scenario, the phase x action matrix, 18-trial with real ballots and leak scans after every step, the regex tests of tier 0 rewritten to behaviour, settle() followed by until() at chat-card sites, a 12-rule mutation run, one allowed-now rule for every phase gate, and (the owner's ask) two accused each on a tick.",
+   "pieces_shipped": [
+    {
+     "piece": "C1 E40-T1",
+     "version": "1.2.112",
+     "commits": "3752cc66"
+    },
+    {
+     "piece": "C2-C5 (checkState, its callers, E40-T3, 18-trial), item 4 (regex tests), item 5 (settle -> until), 18-trial two Blackened, checkState after 72's reset",
+     "version": "1.2.113",
+     "commits": "merge 288c0f42; dce86743, c94e3d6e"
+    },
+    {
+     "piece": "18-trial second trial, Final Trial, late player, GM reload; allowed-now.mjs; call-gm.mjs cardGone; R7560",
+     "version": "1.2.116",
+     "commits": "36090364, 6457a028, d2c6e0e5, dd195457, dc159200 (merge 41255e85)"
+    },
+    {
+     "piece": "D1 the other gates on allowed-now, D2 E40-T7 and the A10/A11 columns, D3 18-trial's last rows, D4 brochure row, D5 two accused (R7601-R7603, E40-T8)",
+     "version": "1.2.117",
+     "commits": "7450e430, 7ac58f0e, c5b0470f, ce79f234 (merge c4781e13)"
+    }
+   ],
+   "claim_sources": [
+    "tools/stages.json row E40 (line 104)",
+    "docs/dev/e40/STATUS.md (1-541: 1-160, 155-300, 441-541 read whole; 300-440, the line claude/e39-40-116's C1-C7 rows, by their first 600 characters each); ITEM4.md by its headings and the counts STATUS quotes; ITEM4-A..D not read",
+    ".github/release-notes/v1.2.112.md, v1.2.113.md, v1.2.116.md (151-194, 223, 261), v1.2.117.md (6-10, 16, 83-87, 160-166, 212-216, 238-239) - grep of the stage id",
+    "git log --oneline b5a29e73 -E --grep '\\bE40\\b': 41 commits",
+    "audit/AUDIT-1.2.42.md 9.2 items 537 (LIVE-E40-01), 562 (-02), 563 (-03)"
+   ],
+   "commits": 41,
+   "promises": [
+    {
+     "promise": "DC36: a wrong verdict in the Class Trial sentences the accused and kills nobody, its card saying the execution waits; the trial's close executes once and stamps executedAt",
+     "source": "e40/STATUS.md C1",
+     "code": "scripts/verdict.mjs (postVerdictCard, readSentence); trial-progress.mjs sentenceOf, executeAtExit",
+     "holds": "yes",
+     "test": "tier 2 \"the verdict sentences but kills nobody; the condemned dies when the trial closes (E40-T1, DC36)\" (tests-tier2.mjs:27861); scenario 18-trial",
+     "test_kind": "behaviour",
+     "note": "The test reads the one actor alive after the verdict and dead after the close, the record, and the two card texts (body read)."
+    },
+    {
+     "promise": "game.drpg.checkState(): a pure stateProblems and a GM-only reader with three invariants (world-secrets.mjs's rules, no passage*/frisk* module flag on any document, the clock's phase and counters), run at the primary GM's ready and after every scenario",
+     "source": "e40/STATUS.md C2, C3",
+     "code": "scripts/state-check.mjs:34, :43, :77 stateProblems, :113 checkState; scripts/api.mjs:81, :1181; scripts/module.mjs:416; audit/harness/cluster.mjs:1249-1266",
+     "holds": "yes",
+     "test": "R5100 (tests-tier1.mjs:60174, body read); every ci scenario's after-check in cluster.mjs; 72-canary after the reset (72-canary.mjs:1124-1126)",
+     "test_kind": "behaviour",
+     "note": "The handbooks do not name checkState (grep: 0 in gm-handbook.en.md and .pl.md), as the paper left it."
+    },
+    {
+     "promise": "The phase x action matrix: the sheet's tile and the press agree on every key of ACTIONS in daily life, an Eclipse, the Class Trial and a fight; then (D2) the trial floor's modes and the A10/A11 columns",
+     "source": "e40/STATUS.md C4, D2",
+     "code": "scripts/sheet-actions.mjs:1279 and action-rolls.mjs:208 both through allowedNow",
+     "holds": "yes",
+     "test": "tier 2 E40-T3 (tests-tier2.mjs:50519), E40-T7 (:50830)",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "One shared 'allowed now' rule, a road a row (action, person, transfer, passageShare, passageFind; then callHope, callDespair, cubLock, handover, proposal), each caller asking it in its own place",
+     "source": "e40/STATUS.md line claude/e39-40-116 C4, line claude/e40-117 D1",
+     "code": "scripts/allowed-now.mjs:48 ROADS, :133 allowedNow; callers action-rolls.mjs:137, :208, bridge-guards.mjs:707, calls.mjs:67, :106, :424, frisk.mjs:169, handover.mjs:49, inventory.mjs:1102, monocub.mjs:707-708, passages-gm.mjs:2114, :2400, sheet-actions.mjs:634, :1279",
+     "holds": "yes",
+     "test": "tier 2 E40-T4 (:50690), E40-T6 (:50752), E40-T3",
+     "test_kind": "behaviour",
+     "note": "Left on purpose outside the rule: the Eclipse's budget line, directMurderIsFree and moveDragSaid (STATUS D1); the paper counts 149 phase reads in scripts/ it did not read one by one."
+    },
+    {
+     "promise": "18-trial: the trial on the browsers that do each step with world and chat scans for the Blackened after every step; two Blackened, a second trial with Nobody, the Final Trial, a late player, a GM's reload, a reset during a suicide incident, D4's offer applied once, a death before and after discovery, preselection",
+     "source": "e40/STATUS.md C5 and the three lines",
+     "code": "audit/harness/scenarios/18-trial.mjs (458 lines); README.md:181",
+     "holds": "yes",
+     "test": "scenario 18-trial",
+     "test_kind": "behaviour",
+     "note": "Season-wipe on a played world is LIVE-E40-02, unread; the ballot windows drawn on real browsers are its local layer, not built."
+    },
+    {
+     "promise": "Two accused, each on a tick: the verdict window ticks each living accused, a wrong verdict executes exactly the ticked, none ticked gives no verdict",
+     "source": "e40/STATUS.md D5; v1.2.117.md 16",
+     "code": "scripts/verdict.mjs:166-168, :244, :248, :261 verdictAnswer, :294 accusedChoices, :306 executedChoice, :320 holdWrongWithoutTick",
+     "holds": "yes",
+     "test": "R7601, R7602, R7603; tier 2 E40-T8 (tests-tier2.mjs:27460); 18-trial preselection",
+     "test_kind": "both",
+     "note": "The call in openVerdictDialog going round verdictAnswer is read, not driven: its mutant SURVIVED (the harness's verdictWindow holds the answer back). The window on v14 is LIVE-E40-03, unread."
+    },
+    {
+     "promise": "The regex tests (item 4): of tier 0's entries that read behaviour as text, 8 driven in place, 29 driven in tier 2, 74 kept and marked text guards; R25, R55, R69, R87, R95 removed",
+     "source": "e40/STATUS.md item 4; ITEM4.md",
+     "code": "docs/dev/e40/ITEM4.md and ITEM4-A..D (the slice tables); R-REGISTRY.md rows marked '(removed in E40)'",
+     "holds": "unread",
+     "test": "the 29 tier-2 tests named in the slice files; R5170, R5171",
+     "test_kind": "both",
+     "note": "Not re-counted here: the slice files were not read and the 111 entries were not checked one by one."
+    },
+    {
+     "promise": "settle() -> until() at chat-card sites: 60 sites now wait for their card after the kept settle, 119 keep the settle alone; the hook group measured whole and one site converted",
+     "source": "e40/STATUS.md item 5",
+     "code": "scripts/tests-tier2.mjs (the sites)",
+     "holds": "unread",
+     "test": "the tier-2 tests holding the sites",
+     "test_kind": "behaviour",
+     "note": "No time recorded before and after (v1.2.117.md 163); not re-counted here."
+    },
+    {
+     "promise": "The 12-rule mutation run, 12 of 12 FAIL, into the release gate",
+     "source": "e40/STATUS.md 'The mutation run'",
+     "code": "none in the repository: the runner and its definitions are kept outside it",
+     "holds": "partly",
+     "test": "-",
+     "test_kind": "-",
+     "note": "Recorded (12 of 12) but in no gate and not repeatable from the repository, as the 1.2.117 notes (162-163) say; GATES.md (E59) names it E40's."
+    }
+   ],
+   "registry_rows": 9,
+   "registry_note": "No registry row is stamped E40 (the Since column names the train): the rows naming E40 in their titles are R4752, R5100, R5170, R5171 (stamped E54), R7560 (E112), R7601-R7603 (E117), R7740 (E118).",
+   "tests_read": [
+    {
+     "test": "R5100 (tests-tier1.mjs:60174-60220, whole)",
+     "measures": "yes",
+     "why": "Plants a world secret, four passage/Frisk flags (an actor, a token's delta, a region, a wall) and a bad clock on fixtures and reads the codes; then checkState on the suite's world, quiet and on a player. It guards against an empty rule list (must on the secret flag)."
+    },
+    {
+     "test": "tier 2 E40-T1 (tests-tier2.mjs:27861-27916, whole)",
+     "measures": "yes",
+     "why": "Two states of one actor and both cards' words; would fail on a kill at the verdict or none at the close."
+    },
+    {
+     "test": "tier 2 E40-T8 (tests-tier2.mjs:27460, title read)",
+     "measures": "weak",
+     "why": "Drives the window but holds applyVerdict back, so the readers of two executed are read, not driven, with one of two ticked (STATUS D5 says so)."
+    }
+   ],
+   "tests_to_join": [
+    "R5100",
+    "R7560",
+    "R7601",
+    "R7602",
+    "R7603",
+    "tier 2: E40-T1",
+    "tier 2: E40-T3",
+    "tier 2: E40-T4",
+    "tier 2: E40-T5",
+    "tier 2: E40-T6",
+    "tier 2: E40-T7",
+    "tier 2: E40-T8",
+    "scenario 18-trial",
+    "scenario 72-canary (checkState after the reset)",
+    "scenario 65-season"
+   ],
+   "tests_note": "no base-run.json in audit/findings-1.2.118 when this was written: the result of this test in the audit's base run was not read",
+   "scenarios": [
+    "18-trial (README.md:181, stage E40)",
+    "72-canary (checkState after the season reset)",
+    "every ci scenario (cluster.mjs's after-check)",
+    "65-season R1 (mutant 12)",
+    "63-class-trial (the trial end to end, by the paper)"
+   ],
+   "live": {
+    "items": 3,
+    "read": 1,
+    "ids_read": [
+     "LIVE-E40-01 (partial: LOCAL-REPORT.md:403 - checkState at the primary's start ok, null on a player, on a world with murders and projects but no chapter played)"
+    ],
+    "note": "LIVE-E40-02 (season-wipe on a played world copy) and LIVE-E40-03 (the two-accused window on v14) have no reading.",
+    "l1": {
+     "what": "checkState on a played world, season-wipe on a world copy, the two-accused window",
+     "recipe": [
+      "Copy a v14 world played through at least one chapter; start it as the primary GM and read the console for state-check warnings (LIVE-E40-01).",
+      "On that copy run resetSeason with every group ticked, then game.drpg.checkState() and the local gate's whole-world diff (LIVE-E40-02).",
+      "In a Class Trial with two accused alive, open the verdict window: two ticks, Wrong held with none ticked, a wrong verdict executing exactly the ticked (LIVE-E40-03)."
+     ],
+     "clients": "a GM and three players",
+     "theme": "both",
+     "settles_if": "checkState says nothing false and the reset leaves no secret behind: read; a warning that is wrong or a leftover: defect",
+     "priority": "stage cap 9"
+    }
+   },
+   "findings": [
+    {
+     "id": "E40-1",
+     "severity": "nit",
+     "category": "hygiene",
+     "title": "A Truth Bullet's put-back writes null for a guarded flag the bullet never had, so a key world-secrets.mjs forbids (remnantRef) comes back, empty",
+     "where": "scripts/truth-bullets.mjs:1327-1342 (GUARDED_BULLET_FLAGS, guardedValues), :1404-1412 (revertPlayerBulletEdit); scripts/world-secrets.mjs:210-215",
+     "what_happens": "The guard records every guarded flag as `getFlag(...) ?? null`, remnantRef among them; the put-back writes the guard's value for each path the player touched. A player's console write of remnantRef on their own bullet (or of the module's flags whole, which touches every guarded path) is put back as remnantRef: null, not as no key. world-secrets.mjs names a null remnantRef on an Item as a world secret, so checkState and the canary would name it. No secret is in it. E40's paper named this and asked the owner; it is still so on b5a29e73.",
+     "evidence": "values[`flags.${MODULE_ID}.${key}`] = item.getFlag(MODULE_ID, key) ?? null;  (truth-bullets.mjs:1340)\nif (guard && path in guard) patch[path] = guard[path];  (:1408)\n// ... the bullet's `remnantRef` flag ... is gone - a `null` one as well  (world-secrets.mjs:211-213)",
+     "evidence_class": "S",
+     "confidence": "read",
+     "failure_scenario": "A player writes remnantRef onto their bullet from the console; the primary GM puts it back as remnantRef: null, and at the next start the GM's console warns of a world secret on that item though nothing secret is in it.",
+     "expected": "A put-back of a field that was absent removes it (forcedDeletion() or unsetFlag), as the paper's question proposes.",
+     "refutation_tried": "Looked for a later cleaner: liftBulletRefs (truth-bullets.mjs:1940) would take it off but runs once as the migration clause liftBulletRefs (migrate.mjs:788, since 1.2.64), not again. Looked for a test pinning null: none found by grep of remnantRef in the put-back tests. The owner's answer to the paper's question was not found in docs/dev/e40 or the release notes."
+    }
+   ],
+   "superseded_by": [
+    "E117 (1.2.117) shipped the two-accused verdict built on this line as its own feature",
+    "D5 changed what 18-trial's preselection check reads (two ticks, no select)",
+    "E59 GATES.md records the mutation run as E40's, not gated"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "What shipped holds as written and each piece read here has a named test whose body reads behaviour (R5100, E40-T1, E40-T3/T6/T7, 18-trial). One promise is delivered in part and said so (the 12-rule mutation run recorded but in no gate and not repeatable from the repository), one rests on reading (the two-accused window's answer, mutant survived), and items 4 and 5 were not re-counted here. One nit (E40-1). By 11.4 that is 8; capped at 9 and provisional for LIVE-E40-01 (partly read), -02 and -03 (unread). No base-run result was read.",
+   "missing_to_10": "The mutation run's definitions in the repository and the run in a gate; E40-1 settled (a deletion, not null); the verdict window's answer driven through verdictAnswer; LIVE-E40-01 on a played world, -02 and -03 read; flows class-trial and mastermind covered; the named tests green in a base run."
+  },
+  {
+   "id": "E43",
+   "version": null,
+   "shipped": null,
+   "planned": "1.2.119 (tools/stages.json:105, with E40)",
+   "standing": "partly shipped inside other stages: C1-C7 in 1.2.112, Open 103, the whole-season canary, E43-F10 and E43-T1 in 1.2.113, projectLabel (with E53) and E43-F11 in 1.2.116, the README chapter, the scene of a project's room (option (c) and B) and P1 (facilityState) in 1.2.117 (as E117's feature); not marked shipped: the matrix never ran on v14, the local gate has not run, the canary plants no closingClaims, diveSets, claimTicket or passage* keys",
+   "what": "The second security round: diagnoses on game.drpg, the voice plan by where each account goes, one registry of the GMs' secret fields, the fuzz of every request from a player's console (scenario 30) and the hostile-client matrix (scenario 33), the README chapter 'What a player with a console always sees', Open 96 and 103, a whole-season canary, and the fixes the canary found (the Mask's two cards veiled, a sealed repair's end card).",
+   "pieces_shipped": [
+    {
+     "piece": "C1-C7: diagnoseSecrets/diagnoseTraps, voicePlan, SECRET_FIELDS, the fuzz, the matrix, the README draft, Open 96",
+     "version": "1.2.112",
+     "commits": "092c18e1, 736e55eb, e52ce98e (merge 28f131aa)"
+    },
+    {
+     "piece": "Open 103, the season canary, E43-F10, E43-T1, LIVE-E43-01..03 written",
+     "version": "1.2.113",
+     "commits": "59d1c3c1, ad22a09f, 85132985, 467bdc0f"
+    },
+    {
+     "piece": "projectLabel(id, user), E43-F11",
+     "version": "1.2.116",
+     "commits": "c436aacf, 8f1178bd"
+    },
+    {
+     "piece": "the README chapter placed, the room's scene (c) and B, P1 facilityState, the Debug log's dropped count",
+     "version": "1.2.117",
+     "commits": "5278b9ed, a48e822e, 170ef249, a56ffb13 (merge a64ceb36)"
+    }
+   ],
+   "claim_sources": [
+    "tools/stages.json row E43 (line 105)",
+    "docs/dev/e43/STATUS.md (1-208, whole, long table cells to their first 600 characters); FINDINGS.md, SCENES.md and README-CHAPTER.md by the rows STATUS quotes, not whole",
+    ".github/release-notes/v1.2.112.md (9, 132, 250-251), v1.2.113.md (171-172, 207), v1.2.116.md (120, 133), v1.2.117.md (27, 41, 64, 79, 166-169, 216) - grep of the stage id",
+    "git log --oneline b5a29e73 -E --grep '\\bE43\\b': 38 commits (of them 12 from the E44 and E68-E89 rounds that name E43 as a later stage, and the ledger rows)",
+    "audit/AUDIT-1.2.42.md 9.2 items 534-536 (LIVE-E43-01 to -03)"
+   ],
+   "commits": 38,
+   "promises": [
+    {
+     "promise": "game.drpg.diagnoseSecrets() and game.drpg.diagnoseTraps(), the latter GM only",
+     "source": "e43/STATUS.md C1",
+     "code": "scripts/api.mjs:1262-1263",
+     "holds": "yes",
+     "test": "R5200",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "The voice plan grouped by where each account is sent, '(sent nowhere)' and ACCOUNTS WITH NO CHARACTER; contestedOf names no false conflict",
+     "source": "e43/STATUS.md C2",
+     "code": "scripts/voice.mjs:940 contestedOf, :2475 voicePlan",
+     "holds": "yes",
+     "test": "R5201, R5202",
+     "test_kind": "behaviour",
+     "note": "The paper's sample output is reconstructed from the code, not copied from a run (it says so)."
+    },
+    {
+     "promise": "One registry of the fields only the GMs hold, registered by the files that own the lists",
+     "source": "e43/STATUS.md C3; Q-E43-5",
+     "code": "scripts/gm-store.mjs:93-108 registerSecretFields, SECRET_FIELDS; gm-stores.mjs:404-405",
+     "holds": "yes",
+     "test": "R5203 (tier 0)",
+     "test_kind": "text",
+     "note": "A census of registrations, not a behaviour test."
+    },
+    {
+     "promise": "The fuzz: every request of the four tables in six shapes and every other module packet in three, from a player's console, each refused with a code of the closed list, nothing written",
+     "source": "e43/STATUS.md C4",
+     "code": "audit/harness/lib/fuzz.mjs; scenarios/30-security.mjs:17, :7161",
+     "holds": "yes",
+     "test": "scenario 30-security (its last part)",
+     "test_kind": "behaviour",
+     "note": "Read once on 14.370 by L1 (LIVE-E43-01: 673 refused, each with a code of the closed list); L1 found a race in the harness library's own put-back (one note flag left), not the module's."
+    },
+    {
+     "promise": "The hostile-client matrix: every request naming another player's character or a GM's road, delivery proven on the GM before the effect is checked",
+     "source": "e43/STATUS.md C5",
+     "code": "audit/harness/scenarios/33-bridge-paths.mjs part H",
+     "holds": "yes",
+     "test": "scenario 33-bridge-paths",
+     "test_kind": "behaviour",
+     "note": "Never run on v14 (v1.2.117.md 166-167)."
+    },
+    {
+     "promise": "The README chapter 'What a player with a console always sees', each sentence read against the code and known-leaks.json; the Privacy sentence beside leak:S17-64 replaced",
+     "source": "e43/STATUS.md line claude/e43-117",
+     "code": "README.md:308",
+     "holds": "yes",
+     "test": "check readme-leaks (registry, by the paper)",
+     "test_kind": "text",
+     "note": "Placed on the owner's consent of 16.11.2026."
+    },
+    {
+     "promise": "Open 96: a project's card opened while its project was unknown turns into it on discovery",
+     "source": "e43/STATUS.md C7",
+     "code": "scripts/projects-map.mjs showProjectCard",
+     "holds": "yes",
+     "test": "R5204",
+     "test_kind": "behaviour",
+     "note": "LIVE-E43-03 read as expected (LOCAL-REPORT.md:402), both themes and languages."
+    },
+    {
+     "promise": "Open 103 and the season canary: a secret project's description rides the insider's sight copy; 72 walks a chapter's end, a second chapter and the reset with every marker scanned; the Mask's two cards veiled (E43-F10)",
+     "source": "e43/STATUS.md line claude/e39-43-113",
+     "code": "scripts/projects.mjs sightFor, receiveSight; scripts/mask-gm.mjs (the two cards); audit/harness/lib/canary.mjs",
+     "holds": "yes",
+     "test": "scenario 72-canary; tier 2 E43-T1 (tests-tier2.mjs:103362)",
+     "test_kind": "behaviour",
+     "note": "The canary plants no closingClaims, diveSets, claimTicket or passage* keys (v1.2.117.md 168): its scan is wide but not every secret is seeded."
+    },
+    {
+     "promise": "projectLabel(id, user) and a sealed repair's end card named to each reader as they may read it (E43-F11)",
+     "source": "e43/STATUS.md line claude/e53-116",
+     "code": "scripts/projects-secrecy.mjs:168 nameAs, :187 labelFor",
+     "holds": "yes",
+     "test": "R7541; 72-canary 'a sealed repair's end'",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "The scene of a project's room: picked by a GM where several scenes hold the room's name (option c), found from the proposer's token otherwise (option B); a completed project's room action says why it does not stand, and a clock set back counts as completing now (P1)",
+     "source": "e43/STATUS.md line claude/e43-117; v1.2.117.md 27, 41",
+     "code": "scripts/projects.mjs:148 projectSceneRule, :190 detectedSceneFor, :232 roomSceneChoices; scripts/facilities.mjs:193 facilityState, :211 completionAfterClockBack",
+     "holds": "yes",
+     "test": "R7641, R7642, R7643, R7644; scenario 99 (facilities)",
+     "test_kind": "behaviour",
+     "note": "Graded in E117 (stages-25); the owner's own P1 symptom stays unexplained by option (c), as the paper says."
+    }
+   ],
+   "registry_rows": 8,
+   "registry_note": "No row stamped E43. Rows naming E43 in their titles: R5200-R5204 (E54), R7124 (E56, built in E109), R7541 (E112), R7640 (E117); R7641-R7644 are the E43 line's under E117.",
+   "tests_read": [
+    {
+     "test": "R5203 (tests-tier0.mjs:25445, title read)",
+     "measures": "weak",
+     "why": "Tier 0 census of the registry's owners against setting keys and flags: holds the shape, not that a field registered is kept off a player's browser (that is the canary's)."
+    },
+    {
+     "test": "scenario 30-security's fuzz part (30-security.mjs:7161 head read)",
+     "measures": "yes",
+     "why": "Every request read off the GM's module tables, sent in six shapes from a player's page, each refusal's code read and the GM's writes watched; the paper's mutants M1-M4 killed."
+    }
+   ],
+   "tests_to_join": [
+    "R5200",
+    "R5201",
+    "R5202",
+    "R5203",
+    "R5204",
+    "R7541",
+    "R7640",
+    "tier 2: E43-T1",
+    "scenario 30-security",
+    "scenario 33-bridge-paths",
+    "scenario 72-canary",
+    "scenario 93-spectator",
+    "scenario 99-actions (facilities)"
+   ],
+   "tests_note": "no base-run.json in audit/findings-1.2.118 when this was written: the result of this test in the audit's base run was not read",
+   "scenarios": [
+    "30-security (the fuzz, its last part; register row 30 names <=1.2.50)",
+    "33-bridge-paths part H (the matrix)",
+    "72-canary (the season walk)",
+    "31-fuzz and 32-case-security: register rows 'planned', stage E43 (README.md:186-187), never built - finding E43-1"
+   ],
+   "live": {
+    "items": 3,
+    "read": 3,
+    "ids_read": [
+     "LIVE-E43-01 (mixed: LOCAL-REPORT.md:400 - the fuzz on 14.370, 673 refused with closed-list codes; the harness's own put-back race found)",
+     "LIVE-E43-02 (as expected: LOCAL-REPORT.md:401)",
+     "LIVE-E43-03 (as expected: LOCAL-REPORT.md:402)"
+    ],
+    "note": "All three read once by L1 outside the local gate, on headless pages. The matrix (scenario 33 H) and the Mask's cards at a table (LIVE-E69-05) are not read; the local gate has not run (local-gate.json: 8 parts not-run).",
+    "l1": {
+     "what": "The hostile-client matrix on v14 and the Mask's two cards at a table",
+     "recipe": [
+      "Run scenario 33's part H against the 30099 sandbox with a GM and three players.",
+      "Open a Mask with no incident running and end it; read every player's chat log for the killer's name (LIVE-E69-05)."
+     ],
+     "clients": "a GM and three players",
+     "theme": "default",
+     "settles_if": "every request refused as headless and no name in a bystander's log: read; otherwise defect",
+     "priority": "stage cap 9"
+    }
+   },
+   "findings": [
+    {
+     "id": "E43-1",
+     "severity": "nit",
+     "category": "hygiene",
+     "title": "The scenario register still plans 31-fuzz and 32-case-security for E43, though the stage folded both into scenarios 30 and 33",
+     "where": "audit/harness/README.md:186-187; docs/dev/e43/STATUS.md Q-E43-4",
+     "what_happens": "Q-E43-4's default (no new scenario number: the fuzz is 30's last part, the matrix 33's) was built in 1.2.112, but the register keeps two rows 'planned' under E43 whose files will not exist; the 1.2.117 notes list them as an open part of E43's Done-when.",
+     "evidence": "| 31 | scenarios/31-fuzz.mjs | ci, local-gate | planned | E43 | malformed packets to every bridge entry and socket ... |\n| 32 | scenarios/32-case-security.mjs | ci | planned | E43 | the hostile-client matrix ... |",
+     "evidence_class": "S",
+     "confidence": "read",
+     "failure_scenario": "Whoever closes E43 reads two planned scenarios as missing work and builds them again, or ships E43 with two planned rows the release check counts as unbuilt.",
+     "expected": "The two rows marked as folded into 30 and 33 (or removed), with the fuzz's local-gate layer named on row 30.",
+     "refutation_tried": "Looked for a later decision keeping 31 and 32 as their own scenarios: none in e43/STATUS.md, the release notes 1.2.112-1.2.118 or plan-114/ADDED.md; Q-E43-4 is still 'default taken, owner to confirm', so the owner may yet want the files - hence nit."
+    }
+   ],
+   "superseded_by": [
+    "E112 (1.2.116) changed what the README chapter had to say (the veil's flag, the mask's picture); the chapter was rewritten for it before placing",
+    "E109 (1.2.115) built E43-F7's ring (Q-E43-6)",
+    "E117 (1.2.117) shipped the room's scene and P1 as its own feature"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "Each shipped promise read here holds and has a named test; the three LIVE-E43 items have readings on 14.370 (two as expected, the fuzz mixed only for a harness race). One promise holds in part: the canary does not seed every secret key the plan names, and the matrix has never run on v14. One nit (E43-1). 8 by 11.4; provisional while the matrix and the gate's parts stay unread at a table. No base-run result read.",
+   "missing_to_10": "The canary seeded with closingClaims, diveSets, claimTicket and passage* keys; scenario 33 H run on v14 in the local gate; the register's rows 31-32 settled; the harness fuzz's put-back race fixed; the named tests green in a base run."
+  },
+  {
+   "id": "E53",
+   "version": null,
+   "shipped": null,
+   "planned": "1.2.119 (tools/stages.json:106, with E43)",
+   "standing": "partly shipped inside other stages: C1 (perf() costs), C2 (the budget's machinery), C3 (the balance log), C4 (projectLabel), P1 and P2 merged in 1.2.116 (merge 88ed05b3); L1's frame readings on the owner's PC in 1.2.117 (PERF-READINGS.md); not marked shipped: every budget threshold is null, perf-baseline.json `runs` is empty, LIVE-E53-01 and LIVE-E33-05 are not measured on the machine and map the budget names",
+   "what": "The performance budget and the balance log: perf() prints what the table's own work cost with counts and p50/p95; a budget held by `node tools/check.mjs budget` against every recorded run; a balance log behind a world switch, off by default, read against the exact count of 2d12; plus E43's projectLabel(id, user) and two owner asks on project actions (P1, P2).",
+   "pieces_shipped": [
+    {
+     "piece": "C1 perf-timings and costLines, C2 the budget, C3 the balance log, C4 projectLabel, P1, P2",
+     "version": "1.2.116",
+     "commits": "d1186625, d78dd134, a73b8f73, c436aacf, 2832f8e4 (merge 88ed05b3)"
+    },
+    {
+     "piece": "frame readings at the sandbox (no budget run)",
+     "version": "1.2.117",
+     "commits": "fe086939"
+    }
+   ],
+   "claim_sources": [
+    "tools/stages.json row E53 (line 106)",
+    "docs/dev/e53/STATUS.md (1-71, whole)",
+    ".github/release-notes/v1.2.116.md (120, 138, 190-201, 215-225, 263, 272), v1.2.117.md (103, 246)",
+    "audit/perf-baseline.json (keys, perfFunction.revisions, budget.lines' heads, runs, attempts' last entry); audit/live/perf-baseline.mjs:76-120",
+    "git log --oneline b5a29e73 -E --grep '\\bE53\\b': 23 commits (12 are ledger rows)",
+    "audit/AUDIT-1.2.42.md 9.2 item 561 (LIVE-E53-01)"
+   ],
+   "commits": 23,
+   "promises": [
+    {
+     "promise": "perf() prints each cost with its count, p50 and p95 by nearest rank, 'none since this browser loaded' where nothing ran, the audit's cost marked not measured off the primary; the roll's round trip as p50/p95",
+     "source": "e53/STATUS.md C1",
+     "code": "scripts/perf-timings.mjs; scripts/diagnostics.mjs:1654 costLines, :1749-1923 perfReport",
+     "holds": "yes",
+     "test": "R7540 (tests-tier1.mjs:62629); scenario 86-frame-work",
+     "test_kind": "behaviour",
+     "note": "Every millisecond of the test is jsdom's; the table's numbers are LIVE-E53-01."
+    },
+    {
+     "promise": "The budget: perf-baseline.json `budget` held by `node tools/check.mjs budget` against every run, blocking lines failing over budget; while runs is empty each line prints 'not measured'",
+     "source": "e53/STATUS.md C2, Q1, Q2",
+     "code": "tools/perf-budget.mjs; tools/check.mjs:1947-1948 (PARTS.budget); audit/perf-baseline.json budget.lines (every max null), runs []",
+     "holds": "partly",
+     "test": "check budget's planted cases (9) run first on every call; mutants B1-B7 by the paper",
+     "test_kind": "both",
+     "note": "The machinery holds; the budget holds nothing: every threshold is null by the coordinator's word until L1 has measured and the owner gives numbers, and no run is recorded. This is the stage's main promise and it is not in effect on 1.2.118."
+    },
+    {
+     "promise": "The balance log: off by default, recording only, on the primary after each drawn roll's record; the exact count over the 144 throws of 2d12; the store backed up and in no reset group",
+     "source": "e53/STATUS.md C3; Q-E53-3",
+     "code": "scripts/balance-log.mjs:47 balanceRowOf, :64 noteBalanceRoll, :93 exactCount; gm-stores.mjs balanceLogStore; docs/dev/balance.md; one GM handbook line in each language",
+     "holds": "yes",
+     "test": "R7542 (tests-tier1.mjs:62746); tier 2 E53-T1 (tests-tier2.mjs:103325)",
+     "test_kind": "behaviour",
+     "note": "docs/balance.md was moved to docs/dev/balance.md so it does not ship (check package)."
+    },
+    {
+     "promise": "projectLabel(id, user) (E43's goal)",
+     "source": "e53/STATUS.md C4",
+     "code": "scripts/projects-secrecy.mjs:168 nameAs, :187 labelFor",
+     "holds": "yes",
+     "test": "R7541",
+     "test_kind": "behaviour",
+     "note": "Also listed under E43."
+    },
+    {
+     "promise": "P2: a project action's use limit per character (none, timeOfDay, day); P1: a secret project's room action reaches an insider through the sight copy, not only a card",
+     "source": "e53/STATUS.md (P2), (P1)",
+     "code": "config.mjs FACILITIES.limits; facilities.mjs cleanFacility, usedUp; bridge-runs-acts.mjs handleFacilityUse; scripts/facility-uses.mjs; projects.mjs sightFor, receiveSight",
+     "holds": "yes",
+     "test": "R7543; scenario 99 'facility limits' (14/14 by the paper) and its facilities check",
+     "test_kind": "behaviour",
+     "note": "Which road the owner saw at the table is still not known (the paper says so)."
+    },
+    {
+     "promise": "For the release that carries E53: perf-baseline.json's revision E53 written with the shipped version, since perf-baseline.mjs --run refuses a served build of another version",
+     "source": "e53/STATUS.md 'For the release that carries E53'",
+     "code": "audit/perf-baseline.json perfFunction.revisions[1] (stage E53, version 1.2.116); audit/live/perf-baseline.mjs:103, :118-120",
+     "holds": "partly",
+     "test": "-",
+     "test_kind": "-",
+     "note": "The code shipped in 1.2.116, so 1.2.116 was right for that build; today's module is 1.2.118 with the same perfReport body (sha256 fb46d56f... computed here), and no revision is recorded for it. Finding E53-1."
+    }
+   ],
+   "registry_rows": 3,
+   "registry_note": "No row stamped E53. R7540, R7541, R7542 name E53 in their titles and are stamped E112; R7543 (P2) is the line's and names no stage.",
+   "tests_read": [
+    {
+     "test": "R7540 and R7542 (titles read; bodies not read)",
+     "measures": "unread",
+     "why": "Read by their titles and the paper's mutant counts only."
+    },
+    {
+     "test": "check budget (tools/check.mjs:1948, tools/perf-budget.mjs by its role)",
+     "measures": "weak",
+     "why": "With runs empty and every max null it prints 'not measured' for each line: by design a fact of the data, and the planted cases keep it from passing on nothing; it cannot hold a frame time until a run exists."
+    }
+   ],
+   "tests_to_join": [
+    "R7540",
+    "R7541",
+    "R7542",
+    "R7543",
+    "tier 2: E53-T1",
+    "check budget",
+    "scenario 86-frame-work",
+    "scenario 99-actions (facility limits)",
+    "scenario 72-canary",
+    "scenario 93-spectator"
+   ],
+   "tests_note": "no base-run.json in audit/findings-1.2.118 when this was written: the result of this test in the audit's base run was not read",
+   "scenarios": [
+    "86-frame-work (105/105 by the paper)",
+    "99-actions (facility limits, facilities)",
+    "72-canary and 93-spectator (projectLabel)"
+   ],
+   "live": {
+    "items": 1,
+    "read": 0,
+    "ids_read": [],
+    "note": "LIVE-E53-01: partial readings only (LOCAL-REPORT.md:342-346, PERF-READINGS.md 1-357): a high-end desktop on the seed's small flat scene, Stained Glass about 43 ms a frame with four windows and 16.7 ms alone; no world copy, the probe's Chromium on SwiftShader, no run appended. LIVE-E33-05 (the baseline) likewise not measured. The budget's own targets (1366x768, the largest isometric map) were not used.",
+    "l1": {
+     "what": "The performance baseline and the budget's first run",
+     "recipe": [
+      "Record a perfFunction revision for the served version (finding E53-1).",
+      "On a 1366x768 laptop drawing on a GPU, with the world copy (DRPG_FIXTURES) and the largest isometric map, run node audit/live/perf-baseline.mjs --run in both themes.",
+      "Give the owner the readings for the null thresholds."
+     ],
+     "clients": "a GM and one player",
+     "theme": "both",
+     "settles_if": "a run appended to runs and check budget holding it: measured; a refusal: not run, with its reason",
+     "priority": "stage cap 9"
+    }
+   },
+   "findings": [
+    {
+     "id": "E53-1",
+     "severity": "nit",
+     "category": "flow",
+     "title": "perf-baseline.json records today's perfReport body only for 1.2.116, so a baseline run against a sandbox serving 1.2.118 is refused",
+     "where": "audit/perf-baseline.json perfFunction.revisions (E53, 1.2.116, bodySha256 fb46d56f...); audit/live/perf-baseline.mjs:103, :118-120",
+     "what_happens": "The probe accepts a served build only at a version recorded for this checkout's body. The body is unchanged since 1.2.116 (sha256 computed here over diagnostics.mjs:1749-1923 equals the E53 revision's), but the only version recorded for it is 1.2.116. L1's sandbox at 1.2.118 would read 'could not run' on this line alone, before the world copy and the GPU.",
+     "evidence": "const versions = recordedBodies(doc).filter(b => b.sha256 === now).map(b => b.version).filter(Boolean);  (perf-baseline.mjs:103)\nelse couldNotRun.push({ needs: `danganronpa-rpg at the version this checkout's perfReport body is recorded for (${versions.join(\", \") ...`  (:120)",
+     "evidence_class": "S",
+     "confidence": "read",
+     "failure_scenario": "The owner starts the baseline run (LIVE-E33-05) on the sandbox serving 1.2.118 and is told it could not run because 1.2.116 is not installed.",
+     "expected": "The release that carries E53 records the body again under the version it ships (the paper's own checklist), or the probe accepts an unchanged body at a later version.",
+     "refutation_tried": "Read the probe's comment (perf-baseline.mjs:96-102): a body unchanged across releases 'may be recorded again under the newer version' - the remedy is by design and the refusal says what it needs, so this is a chore left, not a defect in the probe; E53 has not shipped, and its checklist names the step for its release. Nit."
+    }
+   ],
+   "superseded_by": [],
+   "grade": 7,
+   "provisional": "after L1",
+   "grade_reasons": "C1, C3, C4, P1 and P2 hold as written with named tests. The main promise - a performance budget held to measured runs - is delivered in part: the check exists and cannot pass on nothing, but every threshold is null and no run is recorded, by the owner's and the coordinator's decision until a table measures. By 11.4 one promise in part sets 7; it also rests on unread live checks (LIVE-E53-01 partial, LIVE-E33-05 not measured), so at most 9 and provisional. One nit (E53-1). No base-run result read; R7540 and R7542 were read by title only.",
+   "missing_to_10": "A run on the machine and map the budget names appended to perf-baseline.json; the owner's thresholds written; perf-baseline.json's revision for the shipped version; R7540/R7542 and E53-T1 read and green in a base run; LIVE-E53-01 and LIVE-E33-05 read."
+  },
+  {
+   "id": "E58",
+   "version": null,
+   "shipped": null,
+   "planned": "1.2.119 (tools/stages.json:107, with E53)",
+   "standing": "in progress and paused: the local line L1 (branch claude/e58-local, head 7875554f, not an ancestor of b5a29e73) is paused until after the audit; its papers up to 1.2.117 and some of its harness and test fixes are merged (1.2.117, 1.2.118); the stage's own goal - every open AUDIT 9.2 item read in the sandbox or carried into the notes as not checked, and the local gate's parts run - is not met",
+   "what": "The final check in the 30099 sandbox (plan-114/ADDED.md:15-17): the open live checks of AUDIT 9.2 read on Foundry v14, and the local gate's parts not run brought to a run; migrations on copies of real worlds (scenario 64, planned) and a clean install (scenario 16, planned).",
+   "pieces_shipped": [
+    {
+     "piece": "docs/dev/e58/LOCAL-REPORT.md (660 lines on b5a29e73), TRIAGE-9.2.md, PERF-READINGS.md; docs/dev/e39/CALIBRATION.md (step 3); audit/live fitted to 14.370",
+     "version": "1.2.117",
+     "commits": "fe086939 and L1's merged commits (v1.2.117.md 98-103)"
+    },
+    {
+     "piece": "L1's harness and test fixes: the move into the caller's options, an owner kept against a deletion, scripted dice, the player presser and dialog seam, a User's active, a Reroll's real roll at a table",
+     "version": "1.2.118",
+     "commits": "d84481ee, d57f754a, 3279f120, 179c2644, 5eadb04c, a01e4629"
+    }
+   ],
+   "claim_sources": [
+    "tools/stages.json row E58 (line 107)",
+    "docs/dev/plan-114/ADDED.md:15-29 (the work moved into E58)",
+    "docs/dev/e58/LOCAL-REPORT.md (1-60 and its headings), TRIAGE-9.2.md (1-30), PERF-READINGS.md (headings)",
+    ".github/release-notes/v1.2.117.md (92-103), v1.2.118.md (4-12, 188)",
+    "audit/gate/local-gate.json (commit ec1478d5, 8 parts not-run, no-server, verdict incomplete)",
+    "audit/findings-1.2.118/live-readings-e58.json (94 readings: 24 as-expected, 19 defect, 15 mixed, 15 partial, 19 in progress, 2 not checkable; 35 not run) and live-readings-e58-delta.json (25 more readings on the branch)",
+    "git log --oneline b5a29e73 -E --grep '\\bE58\\b': 30 commits (most are ledger rows naming the stage)"
+   ],
+   "commits": 30,
+   "promises": [
+    {
+     "promise": "Every open AUDIT 9.2 item checked in the sandbox, closed with what it measured, or carried into the 1.3.0 notes as not checked",
+     "source": "plan-114/ADDED.md:16",
+     "code": "docs/dev/e58/TRIAGE-9.2.md (the worklist), LOCAL-REPORT.md step 4 groups 1-3",
+     "holds": "partly",
+     "test": "-",
+     "test_kind": "-",
+     "note": "At 1.2.117: of 565 rows, 33 measured, 1 defect open, 113 not checkable there, 8 closed by their own text, 410 not yet driven (v1.2.117.md 98-100). The live-items lanes of this audit count the rest."
+    },
+    {
+     "promise": "The local gate's eight parts run on a v14 sandbox, or written as not run with the real error",
+     "source": "plan-114/ADDED.md:17",
+     "code": "audit/gate/local-gate.json",
+     "holds": "no",
+     "test": "-",
+     "test_kind": "-",
+     "note": "Every part not-run, reason no-server, bound to ec1478d5; L1 ran a dry run only (v1.2.117.md 101)."
+    },
+    {
+     "promise": "Scenarios 16-first-run and 64-migration-drill",
+     "source": "audit/harness/README.md:179, :205",
+     "code": "none: both 'planned', stage E58",
+     "holds": "no",
+     "test": "-",
+     "test_kind": "-",
+     "note": "64 moved to E58 when E38 shipped (v1.2.113.md 152)."
+    }
+   ],
+   "registry_rows": 0,
+   "registry_note": "No registry row is stamped E58 or names it; the stage's output is readings and papers, and its test fixes went in under the shim line (E118).",
+   "tests_read": [],
+   "tests_to_join": [],
+   "tests_note": "No test belongs to E58; the readings are evidence class F for other stages.",
+   "scenarios": [
+    "16-first-run (README.md:179, planned, E58)",
+    "64-migration-drill (README.md:205, planned, E58)"
+   ],
+   "live": {
+    "items": 0,
+    "read": 0,
+    "ids_read": [],
+    "note": "No AUDIT 9.2 item carries an id LIVE-E58-n; the stage's subject is the whole of 9.2 (items 15-663) and the local gate.",
+    "l1": {
+     "what": "The rest of AUDIT 9.2 and the local gate",
+     "recipe": [
+      "Resume line L1 from 7875554f after the audit; take TRIAGE-9.2.md's K and S rows not yet driven.",
+      "Run npm run gate:local on the release commit with the sandbox up."
+     ],
+     "clients": "a GM and three players (gm2 for the scenarios that need it)",
+     "theme": "both",
+     "settles_if": "each item read or carried as not checked with its reason; local-gate.json with every part run or not run with its real error",
+     "priority": "not graded"
+    }
+   },
+   "findings": [],
+   "superseded_by": [],
+   "grade": "not graded",
+   "grade_reasons": "Not shipped and not done: its goal is the readings themselves, which stand at about 6 % of 9.2 on the merged papers and the gate's parts are all not run. No test carries its stamp or name. What shipped of it is papers (evidence for other stages) and harness fixes graded under E118.",
+   "missing_to_10": "L1 resumed and finished; every 9.2 item read or carried; the local gate run; scenarios 16 and 64 built or dropped."
+  },
+  {
+   "id": "E83",
+   "version": null,
+   "shipped": null,
+   "planned": "1.2.119 (tools/stages.json:108, with E58)",
+   "standing": "planned, nothing of its own shipped: the final audit pass before 1.3.0 - every shipped stage re-reviewed by the audit's method in a separate run and its findings fixed in one pass (docs/dev/METHOD.md:164-166); the code names it as the owner of two future changes (secret.mjs:563, notice-history.mjs:174; R-tier-0 interface row tests-tier0.mjs:15044) and the gate README names it as ci-record's reader (audit/gate/README.md:73, ci-record.mjs:8)",
+   "what": "The auditor's review of every shipped stage and one pass of fixes, then the local gate on the release commit for 1.3.0 (with E26).",
+   "pieces_shipped": [],
+   "claim_sources": [
+    "tools/stages.json row E83 (line 108)",
+    "git grep E83 on b5a29e73 outside the registry (30 hits, read): METHOD.md:164, audit/gate/README.md:73, audit/gate/ci-record.mjs:8, scripts/secret.mjs:563, scripts/notice-history.mjs:174, scripts/tests-tier0.mjs:15044, docs/dev/e59/GATES.md and STATUS.md, docs/dev/e26/STATUS.md:60, docs/dev/e38/STATUS.md:77, docs/dev/e93/REVIEW-111.md:47, :498",
+    "no docs/dev/e83/ folder; no LIVE-E83 id in AUDIT 9.2",
+    "git log --oneline b5a29e73 -E --grep '\\bE83\\b': 16 commits, every one a ledger row or a mention (8282b192 names it in passing)"
+   ],
+   "commits": 16,
+   "promises": [
+    {
+     "promise": "E83's fixes of the cleaning (the E02 verification's D01 and D13) change only cleanCardHtml's body",
+     "source": "scripts/secret.mjs:556-566; notice-history.mjs:174",
+     "code": "scripts/secret.mjs:567 cleanCardHtml (Foundry's cleanHTML)",
+     "holds": "unread",
+     "test": "tests-tier0.mjs:15044 (the interface row requires E83 named in the comment)",
+     "test_kind": "text",
+     "note": "Not built; the interface is kept for it."
+    }
+   ],
+   "registry_rows": 0,
+   "registry_note": "No registry row stamped E83 or naming it.",
+   "tests_read": [],
+   "tests_to_join": [],
+   "tests_note": "No test of its own.",
+   "scenarios": [],
+   "live": {
+    "items": 0,
+    "read": 0,
+    "ids_read": [],
+    "note": "No LIVE-E83 id; 9.2 item 532 (LIVE-E59-01) and E26's 1.3.0 gate wait for 'E83's local gate'."
+   },
+   "findings": [
+    {
+     "id": "E83-1",
+     "severity": "nit",
+     "category": "hygiene",
+     "title": "METHOD.md says E83 is not yet a row of tools/stages.json; it has been one since 1.2.95",
+     "where": "docs/dev/METHOD.md:164-166; tools/stages.json:108",
+     "what_happens": "The method's 'What the method does not catch' says the final audit pass is 'E83, not yet a row of tools/stages.json'. The row exists (added with E65's plan, v1.2.95.md:31) and is planned 1.2.119; METHOD.md was last changed on 16.11.2026 (f4781817) without this.",
+     "evidence": "- What the stages' own reviews missed: the owner's plan puts a final audit pass before 1.3.0 (E83, not yet a row of\n  `tools/stages.json`)  (METHOD.md:164-165)\n{\"id\": \"E83\", \"planned\": \"1.2.119\", \"with\": \"E58\", ...}  (stages.json:108)",
+     "evidence_class": "S",
+     "confidence": "read",
+     "failure_scenario": "A stage author reads METHOD.md, takes E83 for an unscheduled idea and does not leave its checks to it.",
+     "expected": "The sentence names E83's row and its planned version.",
+     "refutation_tried": "Checked whether 'row' meant something else (a gate row): the file speaks of tools/stages.json by name. Checked git log for the row's first appearance: v1.2.95.md:31 lists E83 among the rows E65 added."
+    }
+   ],
+   "superseded_by": [],
+   "grade": "not graded",
+   "grade_reasons": "Planned and not begun: no papers (no docs/dev/e83), no stamped or named tests, nothing shipped. This audit may be read as its ground, but nothing on b5a29e73 says so.",
+   "missing_to_10": "The stage run: every stage re-reviewed, the findings fixed in one pass, the local gate on the release commit."
+  },
+  {
+   "id": "E26",
+   "version": null,
+   "shipped": null,
+   "planned": "1.3.0 (tools/stages.json:109, no `with`)",
+   "standing": "partly shipped inside another stage: the part that needs no Foundry ('E26 prep', line claude/e26-prep) shipped in 1.2.113 (E54's train); the release itself - README blocks, the tag v1.3.0, the stamps, the notes, the ship, the published manifest checked - is planned for 1.3.0 after the owner's review",
+   "what": "The 1.3.0 release: font licences named and shipped, the modified pixel face renamed out of its Reserved Font Name, a reproducible module.zip with nothing it should not ship, module.json held to D1, the README's install and settings text; then the release steps and the published package checked.",
+   "pieces_shipped": [
+    {
+     "piece": "prep C1-C6: font licences (R6300), DRPG Pixel rename and check fonts, reproducible zip and check package, crlf-writers, module.json D1 (R6301), README draft, release.yml's git archive pinned",
+     "version": "1.2.113",
+     "commits": "569e8217, c31d9b0d, 362221ce, e0c44d4e, 2ab48f7c, 78271c31"
+    }
+   ],
+   "claim_sources": [
+    "tools/stages.json row E26 (line 109)",
+    "docs/dev/e26/STATUS.md (1-79, whole); README-DRAFT.md (1-30 read)",
+    ".github/release-notes/v1.2.113.md (8, 118, 180)",
+    "git log --oneline b5a29e73 -E --grep '\\bE26\\b': 26 commits (8 the prep line's, the rest ledger rows)"
+   ],
+   "commits": 26,
+   "promises": [
+    {
+     "promise": "Every shipped font with its own licence named and its text in fonts/",
+     "source": "e26/STATUS.md C1",
+     "code": "fonts/README.md, LICENSE-SpecialElite.txt, OFL-PressStart2P.txt, OFL-VT323.txt",
+     "holds": "yes",
+     "test": "R6300 (tests-tier1.mjs:61777); check fonts (tools/check.mjs:799-813, PARTS.fonts :1942)",
+     "test_kind": "both",
+     "note": ""
+    },
+    {
+     "promise": "The modified Press Start 2P renamed DRPG Pixel in its name tables, glyphs byte-equal",
+     "source": "e26/STATUS.md C2, Measured",
+     "code": "fonts/pixel.woff2, pixel-ext.woff2; styles/danganronpa.css:2732-2766 ('DRPG Pixel')",
+     "holds": "yes",
+     "test": "check fonts (reads each woff2's name table); glass-sweep --accents by the paper",
+     "test_kind": "both",
+     "note": "The name tables were not re-read here (no fontTools in this container); check fonts reads them on every quick gate."
+    },
+    {
+     "promise": "module.zip the same bytes on any git config, no macros/ and no 'DM' in lang/ or handbooks; release.yml's git archive pinned with -c core.autocrlf=false -c core.eol=lf",
+     "source": "e26/STATUS.md C3, C6",
+     "code": "tools/build-package.mjs; tools/crlf-writers.mjs; .github/workflows/release.yml:205-209",
+     "holds": "yes",
+     "test": "check package (tools/check.mjs:256-266, planted package with eight faults)",
+     "test_kind": "both",
+     "note": "Another git version's deflate is not measured (the paper says so); the workflow step was not run here."
+    },
+    {
+     "promise": "module.json: no maximum anywhere, a verified Daggerheart no older than D1's 2.10.5 and its minimum",
+     "source": "e26/STATUS.md C4",
+     "code": "module.json:7-8 (Foundry minimum 14.364, verified 14.365), :21-22 (Daggerheart minimum 2.6.5, verified 2.12.9)",
+     "holds": "yes",
+     "test": "R6301",
+     "test_kind": "behaviour",
+     "note": "Daggerheart's verified moved from 2.12.8 to 2.12.9 in 1.2.117, inside D1."
+    },
+    {
+     "promise": "The README text the plan asks for, as a draft for the owner",
+     "source": "e26/STATUS.md C5, Q-E26P-1",
+     "code": "docs/dev/e26/README-DRAFT.md; README.md (grep 'Why they are required': 0)",
+     "holds": "partly",
+     "test": "-",
+     "test_kind": "-",
+     "note": "A draft by design; not pasted, waiting for the owner's yes."
+    },
+    {
+     "promise": "The seven Polish 'MG' where the glossary says 'GM' passed to the text lines",
+     "source": "e26/STATUS.md Measured, Q-E26P-5",
+     "code": "lang/pl.json, docs/handbooks/gm-handbook.pl.md, player-handbook.pl.md: `grep -cow MG` 0, 0, 0",
+     "holds": "yes",
+     "test": "-",
+     "test_kind": "-",
+     "note": "Fixed since by another line; not by E26."
+    }
+   ],
+   "registry_rows": 2,
+   "registry_note": "R6300 and R6301 name 'E26 prep' in their titles; both are stamped E54 (the train they shipped in).",
+   "tests_read": [
+    {
+     "test": "R6300, R6301 (titles read)",
+     "measures": "unread",
+     "why": "Bodies not read; check fonts and check package are read by their headers and part lines only."
+    }
+   ],
+   "tests_to_join": [
+    "R6300",
+    "R6301",
+    "check fonts",
+    "check package",
+    "scenario 00-boot"
+   ],
+   "tests_note": "no base-run.json in audit/findings-1.2.118 when this was written: the result of this test in the audit's base run was not read",
+   "scenarios": [
+    "00-boot (reads the stylesheets the prep changed; 35/35 by the paper)"
+   ],
+   "live": {
+    "items": 0,
+    "read": 0,
+    "ids_read": [],
+    "note": "The paper names LIVE-E26-01 (the published manifest installs on a clean v14 with Daggerheart at verified) and LIVE-E26-02 (the owner's smoke before promote); neither is a row of AUDIT 9.2 (grep LIVE-E26: 0 hits) - finding E26-1. The renamed face at a table is not a LIVE row by Q-E26P-4's default.",
+    "l1": {
+     "what": "The 1.3.0 package at a table",
+     "recipe": [
+      "Install the release's manifest URL on a clean Foundry v14 with Daggerheart at its verified version.",
+      "Open a Monokuma Legacy page with a Polish campaign name and read that the HUD and tabs draw 'DRPG Pixel' from pixel.woff2?v=4 and pixel-ext.woff2?v=5."
+     ],
+     "clients": "a GM",
+     "theme": "Monokuma Legacy",
+     "settles_if": "installs and draws the face: read; an install error or a fallback face: defect",
+     "priority": "not graded for the release part"
+    }
+   },
+   "findings": [
+    {
+     "id": "E26-1",
+     "severity": "nit",
+     "category": "hygiene",
+     "title": "E26's two live checks (LIVE-E26-01, -02) are named in its paper but are not rows of AUDIT 9.2",
+     "where": "docs/dev/e26/STATUS.md:51-58; audit/AUDIT-1.2.42.md 9.2 (grep LIVE-E26: 0)",
+     "what_happens": "The stage's paper says the published manifest's install and the owner's smoke are live checks, under ids of their own, but 9.2 - the list every results file and `check live` read - holds neither, so no reader of 9.2 sees them.",
+     "evidence": "- LIVE-E26-01 (the plan): the published manifest installs on a clean Foundry v14 with Daggerheart at `verified`\n- LIVE-E26-02 (the plan): the owner's smoke at a table before `promote`.  (e26/STATUS.md:53-56)",
+     "evidence_class": "S",
+     "confidence": "read",
+     "failure_scenario": "At 1.3.0 the release notes' 'not checked in a real Foundry' line is written from 9.2 and leaves out the manifest install, which nobody then tries before the release is public.",
+     "expected": "Both rows written into 9.2 (or the paper says they are release steps, not live checks).",
+     "refutation_tried": "Searched AUDIT-1.2.42.md and the release notes for the ids and for 'manifest installs': none. They may be meant to be written with the release itself (the paper's 'Left for the release'), which is why this is a nit."
+    }
+   ],
+   "superseded_by": [],
+   "grade": 9,
+   "grade_scope": "the prep part shipped in 1.2.113 only; the 1.3.0 release is not graded (not done)",
+   "grade_reasons": "Each shipped prep promise holds today and is held by a test or a check part that runs on every quick gate (R6300, R6301, check fonts, check package); the README draft is a draft by the owner's rule. One nit (E26-1). No promise of the prep rests on a live check, so no cap; 9 rather than 10 because no base-run result was read and the name tables were not re-read here. The release part is not graded: not begun.",
+   "missing_to_10": "The base run's check fonts, check package, R6300 and R6301 green; LIVE-E26-01/-02 written; then the release itself."
+  }
+ ],
+ "not_established": [
+  {
+   "what": "The result of every test and scenario named in tests_to_join in this audit's base run.",
+   "why": "audit/findings-1.2.118/base-run.json did not exist when this file was written.",
+   "live_check": "none: the base run settles it",
+   "l1": null
+  },
+  {
+   "what": "Whether the put-back race of E39-1 occurs in play, and whether the client or the server drops the write.",
+   "why": "L1's case was staged with updateSource and one fresh-copy control failed too (live-readings-e58-delta.json item 650).",
+   "live_check": "LIVE-E39-12 part 3",
+   "l1": {
+    "what": "The put-back from a copy out of step, in play",
+    "recipe": [
+     "Two GM pages and one player; the player crosses into a refused room twice in quick succession so the second move is on its way when the first is put back.",
+     "Read the token on the server and the player's page."
+    ],
+    "clients": "2 GMs, 1 player",
+    "theme": "default",
+    "settles_if": "the token at the put-back's spot: race does not bite in play; past the veto: E39-1 confirmed in play",
+    "priority": "minor"
+   }
+  },
+  {
+   "what": "How many of the 44 tier-2 tests and 17-assistant that name noHook read differently once the harness fires update hooks under noHook as 14.370 did (CALIBRATION.md D9).",
+   "why": "D9 is not built; no test was re-read for it here.",
+   "live_check": "none: a harness change (D9) and a read of each test",
+   "l1": null
+  },
+  {
+   "what": "E40's item 4 (111 tier-0 entries sorted into driven or text guards) and item 5 (settle -> until at 179 sites) as counted in its paper.",
+   "why": "ITEM4-A..D and the tier-2 sites were not re-read one by one.",
+   "live_check": "none: a static recount",
+   "l1": null
+  },
+  {
+   "what": "The mutant counts quoted in the E39, E40, E43 and E53 papers.",
+   "why": "The mutants' definitions and runners are kept outside the repository (each paper says so).",
+   "live_check": "none: the definitions handed over",
+   "l1": null
+  },
+  {
+   "what": "Whether the renamed pixel face's name tables read 'DRPG Pixel' today.",
+   "why": "No fontTools in this container; check fonts was not run (reader rule).",
+   "live_check": "none: the base run's npm run quick",
+   "l1": null
+  }
+ ]
+}

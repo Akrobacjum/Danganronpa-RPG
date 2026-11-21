@@ -1,0 +1,73 @@
+{
+ "refuter": "verify-domain-item-c-projects",
+ "of": "domain-item-c-projects",
+ "checked": [
+  {
+   "ref": "domain-item-c-projects-1",
+   "claim": "A GM running a student's Work on Project or Sabotage is offered every secret project in the room, and the Work is filed as kind 'gm', so the Monocub's Tinker does not count it as that student's work.",
+   "verdict": "stands",
+   "why": "Read the whole road. performProject, workOnProject and sabotageTargets call projectsAvailableIn(place), projectsListedIn(place) and sabotageTargetsIn(place, { anyRoom }) with no user, so `user` is game.user; visibleProjects filters by canSee, which answers true for any GM before it reads secrecy. The module's own comment in sabotageTargets says a GM opening a student's sheet 'to play an absent player's character' is a student standing in one room, and narrows the room reach only (anyRoom = isMonokuma(actor)), not the secrecy. On a GM, addProgress is called with actorId alone (no by, no kind), so mover is game.user.id and kind becomes 'gm'; applyProjectChange notes work only for WORK_KINDS (player, call, reroll). No other road found that hands the character's owner as the reader on a GM's own client; the bridge's projectWithinReach passes the sender but a GM never goes through it. The tier-2 E72 C13 test pins that a 'gm' change is not a student's work; it does not cover a GM acting for a student, so it does not pin the opposite. Minor holds: it needs a GM playing a student in a room with someone else's secret project.",
+   "evidence": "scripts/action-project.mjs:66 `const here = room ? projectsAvailableIn(place) : [];`; :474 `const listed = projectsListedIn(place);`; :575 `applied = await addProgress(project.id, progress, { actorId: actor.id, rollId: rollInHand(actor)?.messageId ?? null, relief, bonus });`; :1153-1155 `A GM opening a student's sheet - to test it, to play an absent player's character, ...`; scripts/projects.mjs:954 `export function projectsAvailableIn(place, user = game.user) {`; :851 `return allProjects().filter(p => canSee(p.id, user));`; :1026 `const mover = by ?? game.user.id;`; :1036-1037 `{ by: { kind: kind ?? (mover === game.user.id ? \"gm\" : \"player\"), userId: mover, actorId } }`; :1067 `const WORK_KINDS = new Set([\"player\", \"call\", \"reroll\"]);`; :1592 `if (result?.changed && !result.removed && clean.delta > 0 && WORK_KINDS.has(who.kind) && who.actorId) {`; scripts/projects-secrecy.mjs:331 `if (user?.isGM) return true;`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-item-c-projects-2",
+   "claim": "A target change on a down-counting countdown keeps what is left, not what is done, so raising the target adds progress and lowering it takes progress away.",
+   "verdict": "stands",
+   "why": "Checked the arithmetic and the road. allProjects reads done as start - raw when countsUp is false; changeStep reads `up` before any meta write and, on change.target, writes start = target and current = min(raw, target), so done becomes target - raw. countsUp answers false for a countdown with no projectMeta row, and setProjectMeta stamps countsUp false on the first write of such a countdown, so the direction stays down through the edit. The project manager lists allProjects (every countdown, Daggerheart's included) for a GM and its Save always passes result.target through projectEditChange into the step, so a Scale change of such a countdown reaches the clamp. With the target unchanged the clamp is a no-op (min(raw, oldStart) = raw), so only a real change of target is wrong. No tier test of a target change on a down-counting countdown: the tier-2 test of Daggerheart's direction (tests-tier2.mjs:68042) writes a room and an action and the countdown's own current, never a target. Minor holds.",
+   "evidence": "scripts/projects.mjs:807 `const current = up ? raw : Math.max(0, start - raw);`; :1669 `const up = countsUp(countdownId);`; :1773-1774 `// One clamp for both directions ... if (change.target !== undefined) next.progress = { ...next.progress, start: change.target, current: Math.min(raw, change.target) };`; :786 `if (!Object.keys(meta).length) return false;`; scripts/projects-secrecy.mjs:281 `... && rawCountdown(countdownId)) open.countsUp = false;`; scripts/projects-ui.mjs:689 `const projects = allProjects();`; :1229-1232 `const change = combineChanges(projectEditChange({ ... target: result.target,`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-item-c-projects-3",
+   "claim": "A proposer's knowledge of a public project rests on a GM's chat card alone; a cleared chat log takes the project off their tray and map, and proposerTold stops it being sent again.",
+   "verdict": "stands",
+   "why": "Read the whole road. On a player's browser proposedBy answers from projectsToldHere, which walks game.messages for a GM's secret card carrying PROJECT_KNOWN; the createChatMessage and deleteChatMessage hooks only empty the cache, so a deleted card is read as gone. The sight copy that survives a cleared log (sightFor) holds secret projects only (`if (!isSecret(project.id)) continue;`), so it carries nothing for a public project's proposer. tellProposers, the only resend, skips every row with proposerTold, which createProject sets when it tells the proposer. knowsWithoutRoom reads proposedBy and sealedViewers, and sealedViewers is written only by a reveal. No guard on chat deletion was found (grep of deleteChatMessage over scripts/: gm-bridge.mjs, case-trial.mjs's keepLive, projects.mjs's cache reset). What a Clear Chat Log does on v14 (that it deletes every message) is Foundry's ordinary behaviour, not read on a table here. Minor holds: it needs a proposer who never stood in the room and a cleared log or a deleted card.",
+   "evidence": "scripts/projects.mjs:341 `return user === game.user && projectsToldHere().has(countdownId);`; :644-646 `for (const message of game.messages ?? []) { if (!message?.flags?.[MODULE_ID]?.secret || !message.author?.isGM) continue;`; :502 `if (!isSecret(project.id)) continue;`; :683 `if (!row?.by || row.proposerTold || isComplete(project) || isSecret(project.id) || !roomOf(project.id)) continue;`; :2143 `...(!hidden && by && room ? { proposerTold: true } : {})`; :1963-1965 `const forget = () => { toldHere = null; wordsHere = null; }; Hooks.on(\"createChatMessage\", forget); Hooks.on(\"deleteChatMessage\", forget);`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-item-c-projects-4",
+   "claim": "The proposal window's Room list names every room of the scene, rooms the fog still hides among them, while the same window names the rooms beyond a wall as Listen does.",
+   "verdict": "stands",
+   "why": "Read startProject: rooms = allRooms(locateActor(actor)?.scene), which is roomNames(scene) with no filter, and every name goes into the Room select. The same function imports roomsKnownToMe and uses listenLabels for the passage offer and the presets, so the unfiltered list is the odd one in its own window. Looked for another player-facing list that names every room as a sign the names are treated as open: call-pickers.mjs pickRoom lists roomNames for Behind Closed Doors and Public Announcement, which are Despair Calls (the Mastermind's side, whose fog knows every room), so it does not show the names are public to a student. The names are in region documents every browser holds, as the finding says. Minor kept: it names rooms, not who did what, and the finding does not claim more.",
+   "evidence": "scripts/action-project.mjs:194 `const rooms = allRooms(locateActor(actor)?.scene);`; :200-203 `...rooms.map(r => `<option value=\"${foundry.utils.escapeHTML(r)}\"...`; :215-218 `const { roomsKnownToMe, passageRooms } = await import(\"./movement.mjs\"); ... listenLabels(offer.neighbours, roomsKnownToMe(here.scene))`; scripts/movement.mjs:3830-3832 `export function allRooms(scene) { return roomNames(scene); }`; scripts/call-pickers.mjs:516 `const rooms = roomNames(await gatherSceneOf(actor));` (config.mjs:2724, 2884 target \"room\")",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-item-c-projects-5",
+   "claim": "Show on the map pressed by a GM who is not the primary writes projectMeta whole and places the token on that browser, outside the primary's queue.",
+   "verdict": "stands",
+   "why": "Read the whole road. showProjectOnMap asks only game.user.isGM; writeTokenRecord is serialWrite(COUNTDOWNS_KEY, ...), and serialWrite is a per-browser promise chain (utils.mjs serialTails), so on a second GM it orders nothing against the primary's steps. setProjectMeta has only an isGM gate and writes projectMeta whole from this browser's copy. syncProjectToken likewise has isGM only and its own per-project queue on this browser, while syncProjectTokens, onProjectTokenMoved and onProjectTokenDeleted each return off the primary. The manager's button is wired for any GM. The tier-0 census (tests-tier0.mjs:16925-16968) holds a mapHidden write to be inside a serialWrite of COUNTDOWNS_KEY, which writeTokenRecord is; it does not ask which browser, so it does not pin the opposite. The overlap itself is not measured, as the finding says. Minor holds: two GMs and a write landing together.",
+   "evidence": "scripts/projects-map.mjs:747-751 `export async function showProjectOnMap(countdownId) { if (!game.user.isGM || !rawCountdown(countdownId)) return null; await writeTokenRecord(countdownId, { mapHidden: false }); ... await syncProjectToken(countdownId);`; :68-70 `return serialWrite(COUNTDOWNS_KEY, () => setProjectMeta(countdownId, patch));`; :593 `if (!game.user.isGM || !countdownId || !game.ready) return 0;`; :657 `if (!isPrimaryGm() || options?.[MODULE_MOVE]) return;`; :710 `... || !isPrimaryGm()) return;`; scripts/utils.mjs:410 `const run = (serialTails.get(key) ?? Promise.resolve()).then(() => step());`; scripts/projects-secrecy.mjs:272 `if (!game.user.isGM) return null;` and :313 `await game.settings.set(MODULE_ID, SETTINGS.projectMeta, { ...projectMeta(), [countdownId]: next });`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-item-c-projects-6",
+   "claim": "A secret project with a room action stamps completedAt in the public projectMeta at its completion.",
+   "verdict": "stands",
+   "why": "Checked (nit, read for completeness): the facility row's onCrossed returns a meta patch of completedAt, written through setProjectMeta; completedAt is in neither PROJECT_SECRET_FIELDS nor PROJECT_SECRET_WHILE_SECRET, so it goes to projectMeta. Nit holds.",
+   "evidence": "scripts/projects.mjs:1429-1430 `has: meta => Boolean(meta.facility), onCrossed: ({ id }) => ({ meta: { [id]: { completedAt: facilityOrdinal() } } }),`; scripts/projects-secrecy.mjs:111-112 `PROJECT_SECRET_FIELDS = Object.freeze([\"killerId\", \"by\", ... \"secretName\", \"viewers\"]);`",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "domain-item-c-projects-7",
+   "claim": "The GM's card lists as Known by a player whose map and tray do not show the project since the as-last-seen rule, against its comment.",
+   "verdict": "stands",
+   "why": "Checked (nit): knownBy is knowsProject alone; the player's token also asks tokenShownAsSeen. The comment says the two cannot disagree. Nit holds.",
+   "evidence": "scripts/projects-map.mjs:927 `// The same predicate that draws the token for each of them - so this list and`; :931 `const knownBy = game.users.filter(u => !u.isGM && knowsProject(project.id, u))`; scripts/visibility.mjs:675 `if (knowsProject(projectId) && tokenShownAsSeen(projectId)) {`",
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 7,
+  "stands": 7,
+  "weakened": 0,
+  "refuted": 0
+ },
+ "not_established": [
+  "Finding 3: what v14's Clear Chat Log deletes (every message, secret GM cards included) was not read on a table; the module's own scenarios 72 and 99 treat a cleared log as an ordinary event, but the reading is not in this file.",
+  "Finding 5: whether the two projectMeta writes actually overlap at a table (a second GM's Show on the map against the primary's step) is not measured; the road is read.",
+  "Finding 1: how often a GM plays a student's Work at a real table, and whether the owner wants a GM-run Work to count for the Tinker rule, is not recorded anywhere found; the code's comment names the flow as supported."
+ ]
+}

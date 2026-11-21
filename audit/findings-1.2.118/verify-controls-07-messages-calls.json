@@ -1,0 +1,106 @@
+{
+ "refuter": "verify-controls-07-messages-calls",
+ "of": "controls-07-messages-calls",
+ "checked": [
+  {
+   "ref": "controls-07-messages-calls-1",
+   "claim": "A GM's notice of a no-thread ruling card (gmOnly, or no player) carries the card's buttons, and a press in the notice only closes it",
+   "verdict": "stands",
+   "why": "callGm's no-thread road whispers with gmPopup (call-gm.mjs:976-986); onCreateChatMessage lets a gmPopup card through for a GM and hands showPopup the words as wordsOf gives them, with no onClick and not sticky (popup.mjs:1267-1298); a GM's words keep .drpg-call-actions (secret.mjs:321-335 strips them for a player only); wireCallActions is called only at messenger-app.mjs:684 and gm-bridge.mjs:158, neither on a .drpg-popup; no stylesheet rule hides .drpg-call-action(s) inside a notice (grep of styles/: danganronpa.css:11716-11740, 13938-13960, 14413, stained-glass.css:3259, all generic or messenger-scoped); so the button press bubbles to the card's click and dismisses it. Real posters: traps.mjs:323-348 (fireTrap, rearmTrap), eclipse.mjs:685-700 (approveMurder, refuseMurder), projects.mjs:1463-1471 (repickProjectTarget). No test reads buttons inside a notice (grep of tests*.mjs and scenarios for .drpg-popup with drpg-call). The card in the GMs' chat log stays rulable, so minor holds.",
+   "evidence": "popup.mjs:1267-1269 \"const forGm = cardFlag(message, \\\"gmPopup\\\") || (cardWriter(message)?.isGM && cardFlag(message, \\\"popupForce\\\")); if (game.user.isGM && whisper.length && !forGm) return;\"; popup.mjs:1287 \"showPopup(await wordsOf(message), {\"; popup.mjs:1072-1076 \"if (!sticky || onClick) { card.addEventListener(\\\"click\\\", () => { onClick?.(); dismiss({ reason: \\\"user\\\" });\"; call-gm.mjs:979-982 \"callCard: true, ...(receipt ? {} : { gmPopup: true, popupTitle: gmOnly ? game.i18n.localize(\\\"DRPG.Action.murderRulingTitle\\\") : title,\"; messenger-app.mjs:617-620 cardPreview removes .drpg-call-actions on the messenger's road only",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-07-messages-calls-2",
+   "claim": "A ruling card that finds nothing to rule on (item handed over, character deleted, ask the primary no longer holds) hands its buttons back and says nothing on screen",
+   "verdict": "stands",
+   "why": "ruleItemWorksOrItemNoEffectOrItemRefuse reads the item before the itemRefuse branch and returns null when it is gone (messenger-app.mjs:938-941), so Refuse cannot settle either; claimCard drops the claim on a null outcome and says nothing (bridge-asks.mjs:1337-1343); wireCallActions then re-enables the buttons with no notification (messenger-app.mjs:766-783). transferItem deletes the last piece (inventory.mjs:1199). The creative-use card is posted by promptAndCallGm with no expires (use-items.mjs:595-610; call-gm.mjs:1306), so sweepAskCards (call-gm.mjs:207-216, askCardExpiry null -> continue) never ends it. For a Call's Approve, answerHopeCall answers false when yesOnPrimary holds no ask (bridge-asks.mjs:708-713; call-gm.mjs:476-484), and yesOnPrimary's only word is warn() - console.warn plus the session log (utils.mjs:333-336), on the primary's browser. Refuse of a Call always answers true (bridge-asks.mjs:715-718), so that half is Approve and the Dynamic's two buttons only, as the finding's control list says. The GM can still delete the card from the chat log, so 'no button can close it' is literal but not 'nothing can'; minor holds.",
+   "evidence": "messenger-app.mjs:939-941 \"const actor = game.actors.get(data.by); const item = actor?.items?.get(data.item); if (!actor || !item) return null;   // Handed over meanwhile; nothing to rule on.\"; bridge-asks.mjs:1341 \"await askCardClaim(message.id, outcome?.settled || outcome?.held ? \\\"done\\\" : \\\"drop\\\");\"; messenger-app.mjs:783 \"hold(false);\"",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-07-messages-calls-4",
+   "claim": "The GM's open roster keeps its rows (preview, badge) while messages, reads and settles change them; only the launcher redraws",
+   "verdict": "stands",
+   "why": "The four messenger hooks call renderLauncher alone (messenger-app.mjs:41-50); renderLauncher only toggles the roster on its own click (toggleRoster, 1542-1549); buildRoster is called from toggleRoster and the no-argument openMessenger (114) only, and rosterRow only from buildRoster (1606). The comment at 45-49 records the choice as deliberate (E50 fix FG2), before the owner's rule of 20.11.2026. The roster is a short-lived panel closed on any outside click (1617-1627), which keeps the window of staleness small; minor kept rather than raised, since it is not a keepLive focus wait.",
+   "evidence": "messenger-app.mjs:43-50 \"Hooks.on(\\\"drpgMessengerMessage\\\", () => renderLauncher()); Hooks.on(\\\"drpgMessengerRead\\\", () => renderLauncher()); /* ... An open roster keeps the rows it was drawn with, as it does for a message or a read. */ Hooks.on(\\\"drpgMessengerEdited\\\", () => renderLauncher());\"",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-07-messages-calls-5",
+   "claim": "A GM's notice of a thread ask keeps 'Awaiting a ruling' after another GM ruled it or it expired",
+   "verdict": "stands",
+   "why": "The GM's notice is a copy drawn once through cardPreview (messenger-app.mjs:553-563), which removes the buttons but not the awaiting line. popup.mjs listens to createChatMessage, deleteChatMessage and updateChatMessage only (1132-1140); onUpdateChatMessage returns unless the change carries the overruled flag (1165-1167); onDeleteChatMessage closes on deletion only (1184-1188). The only other dispatchers of drpg-dismiss are closeLoose (527) and trimStack's park, neither keyed to a settle. The notice history marks its entry settled (notice-history.mjs:1265-1276) but that is the history, not the card on screen. settleCall rewrites the message's words, which reaches the bubble (drpgMessengerEdited -> replaceMessage, messenger-app.mjs:602-604), not the notice.",
+   "evidence": "popup.mjs:1165-1167 \"export function onUpdateChatMessage(message, change) { const flags = change?.flags?.[MODULE_ID]; if (!flags || !(OVERRULED_FLAG in flags) || !message?.getFlag?.(MODULE_ID, OVERRULED_FLAG)) return;\"",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-07-messages-calls-6",
+   "claim": "The Call pickers' rows are drawn once; the confirmation's live header follows actors and module settings but not the Despair debt store, and Talent's shut rows are read once",
+   "verdict": "stands",
+   "why": "choose() calls callWindow with no live and no render (call-pickers.mjs:565-579), so every picker's rows are fixed at opening. confirmCall's live watches { actors: true } on .drpg-call-header alone (calls.mjs:761-766); listenFor adds module updateSetting but clientSettingChanged only for watch.stores (live.mjs:310-345), and none is named. spendableDespair subtracts owedOf (despair.mjs:597-610), a GM-store read. The debt half is narrower than the finding says: a settlement writes the pools setting in the same step (despair.mjs:768-770), which wakes the header; the gap is a store-only write (oweDespair for a Bounty, 636-639; another GM's merged row), on a GM with a Despair Call's confirmation open. The picker half, which carries the failure scenario, is confirmed.",
+   "evidence": "call-pickers.mjs:568-576 \"const picked = await callWindow({ ...ask, layout: \\\"action\\\", title: game.i18n.localize(promptKey), body: `<form>${callRowsHtml(...)}</form>`, footer: { primary: {...} } });\"; calls.mjs:761-765 \"live: readHeld ? { region: \\\".drpg-call-header\\\", build: () => callHeader(call, kind, { held: readHeld() }), watch: { actors: true },\"",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-07-messages-calls-7",
+   "claim": "A chat message typed and not sent is lost when the reader presses the Note tab and comes back",
+   "verdict": "stands",
+   "why": "onSwitch sets this.tab and calls this.render() (messenger-app.mjs:386-391); _renderHTML builds the textarea empty (255-262) and _replaceHTML replaces the content whole (380-382). The window holds noteSaid and noteShown only (185, 192); no draft field, no _preRender capture. The failed-send road (404-427) is not reached by a tab press. Same root as controls-03-investigation-planner-15.",
+   "evidence": "messenger-app.mjs:386-391 \"wireKitTabs(this.element, { onSwitch: key => { this.tab = key; this.render(); } });\"; 257 \"<textarea name=\\\"text\\\" rows=\\\"1\\\"...></textarea>\"",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-07-messages-calls-8",
+   "claim": "'Create an item' with the item tables already open raises them without the card's preset, and says nothing",
+   "verdict": "stands",
+   "why": "ruleCreateItem hands openItemTables a preset (messenger-app.mjs:1336-1350); openItemTables returns RAISED before it reads the preset (tables-editor.mjs:1623). wireCallActions reads RAISED (a string, live.mjs:688) as no settle and gives the buttons back (messenger-app.mjs:772-783), no notification. No road in tables-editor.mjs hands an open window a new preset. Only the prefill is lost; minor (a particular situation) holds.",
+   "evidence": "tables-editor.mjs:1623 \"if (alreadyOpen(\\\"drpg-window-tables\\\")) return RAISED;\"",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-07-messages-calls-9",
+   "claim": "The notice history's list holds a change to drawn entries while focus is inside it, until focus leaves, and puts new entries behind a pill while scrolled or focused",
+   "verdict": "stands",
+   "why": "changed() sets stale and does not redraw while focus is in the list (notice-history-app.mjs:363-378); the focusout listener redraws once focus leaves (304-307). The wait is wider than keepLive's rule 1: it is any focus in the list, not a text field (a summary focused by the click that opened an entry is enough), and there is no field in the list to keep. The reader filed it nit as a recorded A7 design (comment at 357-362); D-A1 (DECISIONS.md, 20.11.2026) is the owner's later call on exactly this kind of wait-for-focus and says a surface still on it is a major finding. The severity is raised for that rule, not for its table cost, which is small.",
+   "evidence": "notice-history-app.mjs:374-377 \"} else if (focused) { this.stale = true; if (this.syncChrome(root)) this.redraw(); } else this.redraw();\"; 304-306 \"root.addEventListener(\\\"focusout\\\", event => { ... if (this.stale && !(event.relatedTarget && list?.contains(event.relatedTarget))) this.redraw();\"",
+   "severity_after": "major"
+  },
+  {
+   "ref": "controls-07-messages-calls-10",
+   "claim": "The GM's roster rows are li elements with a click listener only, unreachable from the keyboard",
+   "verdict": "stands",
+   "why": "rosterRow builds an li with a click listener and no tabindex, role or key handler (messenger-app.mjs:1631-1664); no other file names drpg-messenger-roster-row (grep of scripts/, tests aside); a11y.mjs CONTROLS lists button, a[href], [role=button] and fields (a11y.mjs:70-71), so the sweep does not see it. The Players list's context entry and game.drpg.openMessenger are other ways in, so nit holds.",
+   "evidence": "messenger-app.mjs:1632-1633 \"const li = document.createElement(\\\"li\\\"); li.className = \\\"drpg-messenger-roster-row\\\";\"; 1660 \"li.addEventListener(\\\"click\\\", () => {\"",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "controls-07-messages-calls-11",
+   "claim": "'Rearm the trap' on a deleted trap project settles the card 'The trap is watching again.' and writes a row for the gone id",
+   "verdict": "stands",
+   "why": "rearmTrap patches the trigger for whatever id it is given and answers true (traps.mjs:375-382); patchTrigger asks nothing of the project (projects-secrecy.mjs:257-260); ruleRearmTrap settles DRPG.Trap.rearmed on true (messenger-app.mjs:1000-1002). A project's removal drops its secret row (projects.mjs:1928) and prunes its trap ledger, but not the alert card, so a later press writes a new row for the gone id. Nothing fires from it; nit holds.",
+   "evidence": "traps.mjs:378 \"await serialWrite(COUNTDOWNS_KEY, () => patchTrigger(projectId, { armed: true, firedAt: null }));\" ... \"return true;\"",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "The ruling cards' buttons / Approve / Refuse (Hope Call); Set the difficulty / Refuse (Dynamic); Works / Works, no effect / Refuse (Tier 0) - verdict silent",
+   "claim": "The control rows' silent verdicts rest on finding 2",
+   "verdict": "stands",
+   "why": "Read with finding 2: a null or false answer re-enables the buttons with no on-screen word (messenger-app.mjs:766-783; bridge-asks.mjs:1337-1343). Refuse on a Hope Call is not part of it: answerHopeCall answers true for a refusal (bridge-asks.mjs:715-718).",
+   "evidence": "bridge-asks.mjs:715-718 \"game.socket.emit(SOCKET_EVENT, { action: ACTION_DONE, requestId, userId: asker, value: false }, { recipients: [asker] }); return true;\"",
+   "severity_after": "minor"
+  }
+ ],
+ "counts": {
+  "checked": 11,
+  "stands": 11,
+  "weakened": 0,
+  "refuted": 0
+ },
+ "not_established": [
+  "Whether a GM's notice of a no-thread card (finding 1) shows the buttons as pressable on a real Foundry: read from source only, no probe-42 row read (audit/findings-1.2.118/probe-42.json not consulted for this window).",
+  "Finding 6's debt half: how often a GM-store-only write of despairOwed lands while a Despair Call's confirmation is open was not measured; the settlement road writes the pools setting too and wakes the header.",
+  "Findings 3 and 12 (nit, stale_state and unknown) were not re-checked: outside this refuter's scope (below minor, and not dead, throws, mislabeled or wrong_audience).",
+  "No test or scenario result was read (base-run.json not consulted); every verdict here is a static reading of b5a29e73's source."
+ ]
+}

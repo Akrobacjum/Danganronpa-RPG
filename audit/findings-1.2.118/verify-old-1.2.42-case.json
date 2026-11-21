@@ -1,0 +1,274 @@
+{
+ "refuter": "verify-old-1.2.42-case",
+ "of": "old-1.2.42-case",
+ "checked": [
+  {
+   "ref": "CASE-01",
+   "claim": "fixed: the ledger has no socket of its own; gms.* packets from a non-GM or to a non-GM are refused before any answer",
+   "verdict": "stands",
+   "why": "Read gmsRefusal and onPacket: the refusal is asked before every action of the switch, and the engine's listener is put up only when game.user is a GM. No rm.ledger/rm.secret/rm.full string left in scripts/ (git grep found only form.secret in projects-ui). remnantData answers null on a player's browser, so the GM-side builders are the only producers of rows; R170 and 61-gmstore-case B5 exist under those names (result not read: no base-run.json).",
+   "evidence": [
+    "scripts/gm-store.mjs:660-662 `if (!ctx.amGM) return \"this client is not a GM\"; if (!ctx.senderIsGM) return \"the sender is not a GM\";`",
+    "scripts/gm-store.mjs:1741-1742 `if (game.user?.isGM) { game.socket.on(SOCKET_EVENT, (packet, senderId) => engine.onPacket(packet, senderId));`",
+    "scripts/remnants.mjs:1938 `if (!game.user.isGM) return null;`",
+    "audit/harness/scenarios/61-gmstore-case.mjs:401 `check(\"B5: a gms.delta forged by a player changes nothing on the GM, ...`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "CASE-02",
+   "claim": "fixed: lastCrisis lives in the cast (CAST_FIELDS), never in murderState; a participant's copy holds it null",
+   "verdict": "stands",
+   "why": "splitIncident lets only PUBLIC_INCIDENT keys (active, stage) into the world half; lastCrisis is a CAST_FIELDS entry, so it goes to the cast; castCopyFor sets lastCrisis null and withholds it; the world-secrets rule for murderState is only [active, stage]. Every lastCrisis write in scripts/ (murder-rules.mjs:382, 2103) goes through writeState.",
+   "evidence": [
+    "scripts/gm-stores.mjs:394 `\"killerId\", ... \"recent\", \"lastCrisis\", \"betrayal\", \"swung\", ...INCIDENT_METHOD,`",
+    "scripts/incident-store.mjs:158-160 `if (Object.hasOwn(PUBLIC_INCIDENT, key)) world[key] = value; else if (CAST_FIELDS.includes(key)) cast[key] = value; else neither.push(key);`",
+    "scripts/incident-store.mjs:578 `const copy = { ...theirs, lastCrisis: null, ...`",
+    "scripts/world-secrets.mjs:140-141 `murderState: Object.freeze({ only: Object.freeze([\"active\", \"stage\"]),`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "CASE-03",
+   "claim": "fixed: incident cards are veiled (neutral alias, whole table as whisper list), words by addressed socket",
+   "verdict": "stands",
+   "why": "Followed every poster the claim names back to post(): murder-rules.mjs, cleanup.mjs and cleanup-reshape.mjs wrap whisperToOwner/announce with veiled: true; death.mjs passes veiled: true; utils.mjs whisperToOwner/whisperToOwnerOnly/whisperToGms/announce all end in privately(); post() veils whenever incidentVeils() is true (a speaker actor or token, or any non-GM recipient, while an incident runs or a mask stands) and a player's browser hands such a card to the GM (askGm). No ChatMessage.create in murder-rules, murder-ui, death, cleanup, cleanup-reshape, incident-store, body or action-murder. S7-4 on 14.370 (LOCAL-REPORT.md:417) read alias null. Remaining doubt (the reader's own not_established, kept): LOCAL-REPORT.md:481 read three veiled cards drawn on the victim's chat 'placed for everybody', which the hide at secret.mjs:1026-1032 should have prevented; that is presence, not names.",
+   "evidence": [
+    "scripts/secret.mjs:1103-1106 `if (!incidentRuns() && !standingMask()) return false; if (speaker?.actor || speaker?.token) return true; return (whisper ?? []).some(id => !game.users?.get(id)?.isGM);`",
+    "scripts/secret.mjs:1190-1194 `...(veiled ? { speaker: { alias: game.i18n.localize(\"DRPG.Secret.speaker\") } } : {}), content: STUB, whisper: veiled ? everyone() : recipients,`",
+    "scripts/cleanup-reshape.mjs:21-22 `export const whisperToOwner = (actor, content, extra = {}) => whisperToOwnerPlain(actor, content, { veiled: true, ...extra });`",
+    "scripts/death.mjs:294-295 `// The audience of a death card mid-incident is the incident's cast. veiled: true,`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "CASE-04",
+   "claim": "fixed: betrayal offer and swing memo live in the cast; no setFlag of betrayalWindow or swungWeapon left",
+   "verdict": "stands",
+   "why": "git grep of both flag names outside tests: config.mjs (the names), incident-store.mjs:1513-1524 (the lift that unsets them), season-wipe.mjs:489 (unset), sheet-audit.mjs:165 (GM-only list); no writer. armBetrayalWindow writes the cast. The tier-1 test reads betrayalTarget's source for readCast().betrayal and against FLAGS.betrayalWindow - a source-text pin, which measures what the claim says it pins.",
+   "evidence": [
+    "scripts/incident-store.mjs:883-886 `// In the cast, never on the actor: ... await writeCast({ ...readCast(), betrayal: {`",
+    "scripts/tests-tier1.mjs:880-883 `ok(/readCast\\(\\)\\.betrayal/.test(body), ...); ok(!/FLAGS\\.betrayalWindow/.test(body),`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "CASE-05",
+   "claim": "fixed: the dashboard's Save reads only rows on screen and only fields the GM changed, written only where the drawn value still holds",
+   "verdict": "stands",
+   "why": "readCaseFields filters traces to those with a name.<row> field in the form, and `changed` keeps a field only when dirty and different from its drawn value; applyDashboardSave writes a field only through writable(...) against traceShows(data). An absent row yields no write at all.",
+   "evidence": [
+    "scripts/investigation.mjs:1687-1689 `traces: traces.filter(({ token, scene }) => q(`name.${rowKey(scene.id, token.id)}`)`",
+    "scripts/investigation.mjs:1671-1676 `if (!node || !isDirty(node)) continue; ... if (!same(value, drawn)) fields[field] = { value, drawn };`",
+    "scripts/investigation.mjs:2490-2491 `const take = writable(row.fields, traceShows(data), refused,`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "CASE-06",
+   "claim": "fixed: a Reroll of an erase rebuilds the trace from the ledger row (recreationDataFor), under its own id",
+   "verdict": "stands",
+   "why": "recreationDataFor reads remnantData(token) - the ledger row - and carries type, band, faint, reinforced, the tie in three states, source, item identity, room, chapter, epoch, day, time of day, placedAt and the public words; erase() takes it before removeRemnant; undoLastCleanup places it with keepId. The old defect (an Evident Prep trace with no source, room or stamp) does not happen. Not carried: foundAt/foundVia and tieWaitsFor (remnants.mjs:1958, 1991-1992), and placeRemnant writes foundAt null and a hidden token, so whether a found trace comes back as found is a separate question (not_established).",
+   "evidence": [
+    "scripts/cleanup-reshape.mjs:107-112 `const d = remnantData(token); if (!d) return null; return { _id: token.id, ... type: d.type, visibility: d.visibility,`",
+    "scripts/cleanup.mjs:949 `receipt.erased = recreationDataFor(token);`",
+    "scripts/cleanup.mjs:2117 `const back = await placeRemnant(data, { keepId: true });`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "CASE-07",
+   "claim": "fixed: ballots fire drpgBallotsChanged on the primary and, as a synced GM store, on another GM; the console and vote window watch it",
+   "verdict": "stands",
+   "why": "vote.mjs calls Hooks.callAll('drpgBallotsChanged') at 208, 253, 478, 515, 1030; the gmBallots client setting's onChange fires it on a merge; both regions of trial-floor-ui watch it with userConnected. ballotStore is sync: true.",
+   "evidence": [
+    "scripts/settings.mjs:2227 `onChange: () => Hooks.callAll(\"drpgBallotsChanged\")`",
+    "scripts/gm-stores.mjs:771-773 `export const ballotStore = defineGmStore({ name: \"ballots\", key: SETTINGS.gmBallots, kind: \"ledger\", resetGroup: \"trialProgress\", backup: false, sync: true`",
+    "scripts/trial-floor-ui.mjs:1987 `watch: { hooks: [\"drpgBallotsChanged\", \"userConnected\"] }`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "CASE-08",
+   "claim": "partly: vote.mjs and bridge-table/guards guard game.user; gm-bridge.mjs:200 and :229 still read game.user.id bare",
+   "verdict": "weakened",
+   "why": "The two unguarded reads are confirmed, but the list of what is still bare is incomplete: onGmReady (a GM -> player listener) calls askForOffers, which reads game.user.isGM bare. So a GM-ready packet reaching a client whose game.user is null throws there too. The status partly holds; the 'still wrong' part names two of at least three places. Whether game.user can be null at that moment on v14 stays unmeasured, as the reader says.",
+   "evidence": [
+    "scripts/gm-bridge.mjs:200 `if (payload.userId !== game.user.id) return;`",
+    "scripts/gm-bridge.mjs:229 `if (payload.userId !== game.user.id) return;`",
+    "scripts/gm-bridge.mjs:90-92 `resendOnGmReady(); // And the Level Ups ... askForOffers();`",
+    "scripts/gm-bridge.mjs:260-261 `function askForOffers() { if (game.user.isGM) return;`",
+    "scripts/vote.mjs:154 `if (!game.user || game.user.isGM) return;`"
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "CASE-09",
+   "claim": "fixed: remnant.edit's ownership guard reads the ledger (remnantSourceOf); since E08 the row is gmOnly",
+   "verdict": "weakened",
+   "why": "The flag read is gone, but the defect as written - every player's edit is refused - still happens, now on purpose: gmOnly is the row's first guard, the only asker is retuneRemnant's non-GM branch, and a GM's own retune never takes the bridge (it writes directly). So remnantSourceOf is reached only by a GM's console packet. The player road the guard served was replaced by the GM's own Reroll (E08), which is 'obsolete' in 11.3's sense, not 'fixed'. The cited control check (30-security.mjs:2244) calls retuneRemnant on the GM directly and does not pass through remnant.edit, so it pins the GM's direct write, not this row.",
+   "evidence": [
+    "scripts/bridge-table.mjs:813 `gmOnly(\"an undo is the GM's own Reroll's\"),`",
+    "scripts/remnants.mjs:2513-2516 `if (!game.user.isGM) { const { requestRemnantEdit } = await import(\"./gm-bridge.mjs\"); const res = await requestRemnantEdit(sceneId, tokenId, { visibility, type, remove });`",
+    "audit/harness/scenarios/30-security.mjs:2240-2241 `await gm.eval(`const R = await import(...remnants.mjs\"); await R.retuneRemnant(canvas.scene.id, ...`"
+   ],
+   "status_after": "obsolete"
+  },
+  {
+   "ref": "CASE-10",
+   "claim": "fixed: (a) the comment matches, (b) the tracker's Ask again exists with a cooldown, (c) a noticed trap whispers the GMs",
+   "verdict": "stands",
+   "why": "All three read. (b) reaskOpening is behind REASK_COOLDOWN_MS and goes through rollOpening; (c) whisperToGms(DRPG.Murder.victimNoticedNext) runs after a success, and both language files hold the key. Checked a side road: after a noticed trap the stage stays openingRoll, so Ask again stays offered; a second throw is refused on the GM by roll-draw.mjs ('that character's roll of that action has been thrown already', keyed on the incident's openedAt), so the re-ask cannot re-open a resolved trap. No test found for (c), as the reader says.",
+   "evidence": [
+    "scripts/murder-ui.mjs:627-629 `...(state.stage === \"openingRoll\" && !state.selfInflicted ? [ { action: \"reask\", label: game.i18n.localize(\"DRPG.Murder.openingReask\") }`",
+    "scripts/murder-rules.mjs:889 `await whisperToGms({ tone: \"warning\", body: `<p>${game.i18n.localize(\"DRPG.Murder.victimNoticedNext\")}</p>` });`",
+    "scripts/roll-draw.mjs:1153-1154 `return rowsOf(actor.id, key).some(row => row.incident?.openedAt === state.openedAt) ? \"that character's roll of that action has been thrown already\" : null;`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "CASE-11",
+   "claim": "decision: today's automatic tie is D5's (participants or the incident's room), not the finding's proposal",
+   "verdict": "weakened",
+   "why": "The code reading is right (placeRemnant ties only a cast member's trace or one in the room locateActor(victim) gives), but 'decision' is not one of 11.3's four statuses. The old defect - every trace anywhere tied while an incident runs - no longer happens, and D5 (AUDIT-1.2.42.md:688) chose the replacement; that is 'fixed' by D5. The reader's own observation (the room follows the victim's token after Move the body) is a nit on that fix, not a reason to keep a status outside the vocabulary.",
+   "evidence": [
+    "scripts/remnants.mjs:387-391 `let tied = Boolean(data.sourceActor && cast.includes(data.sourceActor)); if (!tied) { const { locateActor } = ...; const where = locateActor(game.actors.get(state.victimId));`",
+    "audit/AUDIT-1.2.42.md:688 `| D5 | Wiązanie śladów w incydencie | **B**, tylko uczestnicy albo pokój incydentu, reszta do decyzji GMa |`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "CASE-12",
+   "claim": "fixed: one deleteToken hook on the primary tombstones every deleted trace's row",
+   "verdict": "weakened",
+   "why": "The hook is real and covers the four token-deletion roads of the old finding (the sweep's deleteEmbeddedDocuments, a retune's remove, both Reroll undos, a GM's own Delete) as long as a primary GM is connected when deleteToken fires. But another road with the same fault was not looked at: a trace whose whole scene is deleted. No deleteScene handler touches the ledger (git grep: only projects-map.mjs:996 listens to deleteScene), and the file's own list of orphan causes (remnants.mjs:3181-3184) does not name it; whether v14 fires deleteToken for a deleted scene's tokens is not read here. If it does not, those rows stay as orphans, counted only as an info row of the health check (gm-stores.mjs:2585-2586). No test pins the hook (the reader says so).",
+   "evidence": [
+    "scripts/remnants.mjs:1876-1878 `Hooks.on(\"deleteToken\", (doc, options) => { if (options?.drpgReset) return; if (!isPrimaryGm() || !doc?.getFlag?.(MODULE_ID, REMNANT_FLAGS.isRemnant)) return;`",
+    "scripts/projects-map.mjs:996 `Hooks.on(\"deleteScene\", (scene, options, userId) => { void onPickedSceneDeleted(scene, userId); });`",
+    "scripts/gm-stores.mjs:2585 `const orphans = Object.keys(remnantStore.entries()).filter(key => !reached.has(key)).length;`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "CASE-13",
+   "claim": "fixed: (a) secret.card words only from a GM or the card's author; (b) a player's trace is rebuilt by narrowPlayerRemnant",
+   "verdict": "stands",
+   "why": "(a) onSecretPacket waits for the message and refuses words unless the sender is a GM or its author, and bounds and cleans a player's words. (b) narrowPlayerRemnant keeps type within prep/resolution, reinforced false, tie null, source/room/place from the sender's own token; it runs for every non-GM sender. One overstatement in the evidence: 'the band is the GMs' record of the roll' holds only for Search, Sabotage and Dynamic (traceBandOf); another action's band is the packet's visibility, checked only against REMNANT_VISIBILITY_LABELS - an open point the trust model records, not the old defect.",
+   "evidence": [
+    "scripts/secret.mjs:1462-1467 `if (!sender?.isGM) { const message = game.messages.get(payload.id) ?? await messageArrives(payload.id); const author = ...; if (!message || author !== senderId) {`",
+    "scripts/remnants.mjs:865 `const PLAYER_REMNANT_TYPES = new Set([\"prep\", \"resolution\"]);`",
+    "scripts/remnants.mjs:893-897 `type: PLAYER_REMNANT_TYPES.has(data.type) ? data.type : \"prep\", visibility: data.visibility, ... reinforced: false, ... tiedToCrime: null,`",
+    "scripts/bridge-runs-records.mjs:247 `return band ? { fields: { \"data.visibility\": band } } : { why: \"that roll leaves no trace\" };`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "CASE-14",
+   "claim": "partly: the issued list and the union base are fixed; pendingVoters names only connected participants, so 'Every ballot is in.' can sit beside '3 of 4'",
+   "verdict": "stands",
+   "why": "Confirmed: vote.issued is written at the open; ballotBase is the union; a new ballot window closes the old; pendingVoters uses trialParticipants() whose default is connected = true (vote.mjs:567, 586), and both the console and the vote window print DRPG.Vote.allIn on an empty list.",
+   "evidence": [
+    "scripts/vote.mjs:567 `export function trialParticipants({ connected = true } = {}) {`",
+    "scripts/vote.mjs:642-644 `return trialParticipants().filter(({ user }) => !back.has(user.id))`",
+    "scripts/trial-floor-ui.mjs:1228 `: `<p>${game.i18n.localize(\"DRPG.Vote.allIn\")}</p>`;`"
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "CASE-15",
+   "claim": "fixed: Tamper's price is taken after the concealment; a closed main window refunds unless a concealment roll landed",
+   "verdict": "stands",
+   "why": "Both doors read: attemptCleanup and attemptStageSix call concealFromWitnesses, then chargeTamper, then rollTrait; a null roll returns releaseTamper(actor, charge, { rolled: cover === 'rolled' }), which refunds unless rolled. The Tamper menu itself charges nothing (action-tamper.mjs:128, 184). A rollTrait that throws rather than returning null is not handed to releaseTamper (try/finally only clears the situational die), which is outside the old finding.",
+   "evidence": [
+    "scripts/cleanup.mjs:625-628 `const cover = await concealFromWitnesses(actor); if (!cover) return null; const charge = await chargeTamper(actor);`",
+    "scripts/cleanup.mjs:693 `if (!roll) return releaseTamper(actor, charge, { rolled: cover === \"rolled\" });`",
+    "scripts/cleanup.mjs:1542-1550 `if (rolled) { ... return null; } if (charge) await refundPrice(actor, charge);`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "CASE-LC1",
+   "claim": "fixed: S7-4 read on 14.370 - a player reads alias null and the placeholder on the module's private cards",
+   "verdict": "stands",
+   "why": "LOCAL-REPORT.md:417 is the S7-4 row and says what the reader quotes; :481 records veiled cards placed for everybody on the victim's browser. As a live check of section 7 its status in 11.3's vocabulary is 'read, agrees' (the reader wrote 'fixed'); the substance holds.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:417 `| S7-4 (CASE-03) | measured | ... Of the module's secret cards a player reads the alias (null) and the whisper list; the content is the placeholder `-`, ...`",
+    "docs/dev/e58/LOCAL-REPORT.md:481 `its chat shows three veiled cards placed for everybody (\"To: GM, PlayerOne, PlayerThree, PlayerTwo\", the placeholder `-`, no words reached it)`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "CASE-LC2",
+   "claim": "open: an invitation that reaches the player before its cast copy (or before its listeners) ends with no roll window and no GM whisper",
+   "verdict": "stands",
+   "why": "Sample of an open item, checked for 'already fixed': not fixed. onOpeningAsk runs throwOpeningRoll once; the loop breaks when openingStillWanted is false, and the GM whisper is sent only when it is true; askOpeningRoll asks only that the user is active. writeState pushes the cast before the world write, so the ordinary order holds by construction, as the reader says. No retry on the player's side found.",
+   "evidence": [
+    "scripts/murder-rules.mjs:4564-4567 `function openingStillWanted(side, actorId) { const state = murderState(); if (!state?.active || state.stage !== \"openingRoll\") return false;`",
+    "scripts/murder-rules.mjs:4667 `if (!openingStillWanted(side, actorId)) break;`",
+    "scripts/gm-bridge.mjs:213 `if (!userId || !game.users.get(userId)?.active) return false;`",
+    "scripts/incident-store.mjs:824-826 `pushCastToParticipants(castNext, castBefore, publicNext, publicBefore); try { await game.settings.set(MODULE_ID, SETTINGS.murderState, publicNext);`"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "CASE-LC3",
+   "claim": "partly: the clean-up receipt is a synced GM store; Observe's pending rows stay on one GM's browser (sync false)",
+   "verdict": "stands",
+   "why": "cleanupAttemptStore is sync: true; observeStore is sync: false; observe.mjs's own header says it does not reach a second GM; the lost road whispers every GM and the owner and refunds nothing. No table reading exists, so as a live check nothing is read; the code half is partly fixed as stated.",
+   "evidence": [
+    "scripts/gm-stores.mjs:1504-1505 `name: \"cleanupAttempts\", key: SETTINGS.gmCleanupAttempts, kind: \"ledger\", resetGroup: \"incident\", backup: false, sync: true,`",
+    "scripts/gm-stores.mjs:697-698 `name: \"observe\", key: SETTINGS.observePending, ... kind: \"ledger\", resetGroup: \"remnants\", backup: false, sync: false,`",
+    "scripts/observe.mjs:78 `WHAT THIS DOES NOT DO, said plainly: it does not reach a SECOND GM.`"
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "CASE-LC4",
+   "claim": "open: a primary GM leaving mid-objection - only the primary advances the floor",
+   "verdict": "stands",
+   "why": "Sample of an open item, checked for 'already fixed': not fixed. advanceIfDue returns unless isPrimaryGm(); the one-second ticker runs on every client with an open floor, so another GM who becomes primary advances it; with no GM connected nothing writes the transition. Nothing read at a table.",
+   "evidence": [
+    "scripts/trial-floor.mjs:1721-1724 `async function advanceIfDue() { if (advancing) return; const floor = trialFloor(); if (!floor || !isPrimaryGm()) return;`",
+    "scripts/trial-floor.mjs:1821-1831 `ticker = setInterval(() => { ... advanceIfDue(); }, 1000);`"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "CASE-LC5",
+   "claim": "partly: Move the body still runs the discovery check on the body's own move; since 1.2.113 a count of two asks the primary GM first",
+   "verdict": "stands",
+   "why": "Every token move on the primary runs maybeBodyFound, the body's teleport included; the room is the moved token's; witnesses in that room are told privately and the room's discovery is written waiting, and the GM is asked before the announcement. The running incident's killers count as involved, so a room with one bystander plus the killer does not reach the count, but two others do.",
+   "evidence": [
+    "scripts/murder-rules.mjs:3175-3188 `Hooks.on(\"updateToken\", (tokenDoc, changes) => { if (!isMoveChange(changes)) return; if (!isPrimaryGm()) return; ... m.maybeBodyFound(tokenDoc)`",
+    "scripts/cleanup.mjs:1987 `await whilePlacing([tokenDoc], () => region.teleportTokens([tokenDoc], { placement: \"random\", snap: true, pan: false }));`",
+    "scripts/body.mjs:815-816 `if (witnesses.length > 1) { for (const w of witnesses) await tellLoneFinder(w.actor, scene, room, { company: true }); }`"
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "CASE-LC6",
+   "claim": "open: two GMs each holding the tracker through a stage change - each window decides alone, not read with two GMs",
+   "verdict": "stands",
+   "why": "Sample of an open item, checked for 'already fixed': nothing settles it. Each tracker compares its own signature (stage|selfInflicted) with the one it opened with, closes and reopens once behind `settling`, and closes without reopening when the incident is gone; no cross-GM coordination exists or is needed by the code. Still unread at a table.",
+   "evidence": [
+    "scripts/murder-ui.mjs:584-585 `function incidentSignature(now) { return now ? [now.stage, now.selfInflicted].join(\"|\") : null; }`",
+    "scripts/murder-ui.mjs:762-772 `if (settling) return; const now = signature(); if (now === openedWith) return; settling = true; ... dialog.close().then(() => (again ? openIncidentTracker() : null))`"
+   ],
+   "status_after": "open"
+  }
+ ],
+ "counts": {
+  "checked": 21,
+  "stands": 17,
+  "weakened": 4,
+  "refuted": 0
+ },
+ "count_note": "Every item with status fixed (13), partly (4: CASE-08, CASE-14, CASE-LC3, CASE-LC5) and the one with the non-vocabulary status 'decision' (CASE-11) was checked: 18. The file holds only 3 'open' items (CASE-LC2, LC4, LC6), so the sample of 5 is all 3. No item is 'obsolete'. The 3 new_observations are all severity nit, so none fell under 'minor or above'; two were read in passing and agree with the code (remnants.mjs:390-391 reads locateActor(victim); cleanup-reshape.mjs:89-90 still says 'recreating is handing the flags back'); the third (the task-13 commit in AUDIT-1.2.42.md:632) could not be read because this clone does not hold 7e40243 or b888c066.",
+ "not_established": [
+  "CASE-12: whether Foundry v14 fires deleteToken for the tokens of a deleted scene. If not, a deleted scene's traces keep live ledger rows (orphans counted only by gmStoreHealth). Settled by: on a v14 sandbox, delete a scene holding a trace with a GM connected, then read game.drpg's ledger row for that key (tombstoned or live).",
+  "CASE-06: whether a trace that had been found (foundAt set, token un-hidden) and is erased, then put back by the clean-up Reroll, comes back found. recreationDataFor carries no foundAt/foundVia and placeRemnant writes foundAt null and a hidden token (remnants.mjs:562-566, 653); whether a player who had found it but holds no copy loses sight of it was not traced.",
+  "CASE-08: whether game.user can be null on v14 when a module socket packet arrives during page teardown; the reader's question stands, and now covers gm-bridge.mjs:261 as well.",
+  "CASE-LC1 / CASE-03: why LOCAL-REPORT.md:481 saw veiled cards drawn on the victim's chat although secret.mjs:1026-1032 hides a veiled card with no words; not settled from source.",
+  "No pinned test result was read: audit/findings-1.2.118/base-run.json does not exist; the tests and scenarios named above were found by name only."
+ ]
+}

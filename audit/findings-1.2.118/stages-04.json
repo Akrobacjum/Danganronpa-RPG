@@ -1,0 +1,952 @@
+{
+ "reader": "stages-04",
+ "checkout": "branch claude/audit-119 at caa7ce94; the code read is main b5a29e73 (1.2.118); history shallow (57 grafts), earliest commit 2026-10-14, no tags",
+ "read": [
+  {
+   "file": ".github/release-notes/v1.2.67.md",
+   "lines": "1-145",
+   "of": 145,
+   "how": "whole"
+  },
+  {
+   "file": ".github/release-notes/v1.2.68.md",
+   "lines": "1-230",
+   "of": 230,
+   "how": "whole"
+  },
+  {
+   "file": ".github/release-notes/v1.2.69.md",
+   "lines": "1-284",
+   "of": 284,
+   "how": "whole"
+  },
+  {
+   "file": ".github/release-notes/v1.2.70.md",
+   "lines": "1-115",
+   "of": 115,
+   "how": "whole"
+  },
+  {
+   "file": "tools/stages.json",
+   "lines": "rows E28, E29, E33, E34 and the $comment",
+   "how": "by script"
+  },
+  {
+   "file": "audit/AUDIT-1.2.42.md",
+   "lines": "16-127 (section 11) whole; items 94-136 (928-980) by grep, the first 400 characters of each",
+   "how": "part"
+  },
+  {
+   "file": "audit/findings-1.2.118/live-items-03.json, live-items-04.json",
+   "lines": "rows 94-136",
+   "how": "by script"
+  },
+  {
+   "file": "audit/findings-1.2.118/live-readings-e58.json, live-readings-other.json",
+   "lines": "every reading naming LIVE-E28/E29/E33/E34",
+   "how": "by script (3 readings, all LIVE-E33-05; one names LIVE-E33-01 in passing)"
+  },
+  {
+   "file": "scripts/roll-draw.mjs",
+   "lines": "75-135, 268-395, 2756-3066; the function index of the whole (3066)",
+   "how": "part"
+  },
+  {
+   "file": "scripts/sheet-audit.mjs",
+   "lines": "2600-2700; the function index (3405)",
+   "how": "part"
+  },
+  {
+   "file": "scripts/private-rolls.mjs",
+   "lines": "900-1000, 1260-1330",
+   "of": 1951,
+   "how": "part"
+  },
+  {
+   "file": "scripts/incident-store.mjs",
+   "lines": "255-420; its export list",
+   "of": 1942,
+   "how": "part"
+  },
+  {
+   "file": "scripts/monocub.mjs",
+   "lines": "1015-1100",
+   "of": 1979,
+   "how": "part"
+  },
+  {
+   "file": "scripts/murder.mjs",
+   "lines": "1-37",
+   "of": 37,
+   "how": "whole"
+  },
+  {
+   "file": "scripts/reroll-receipts.mjs",
+   "lines": "60-150",
+   "how": "part"
+  },
+  {
+   "file": "scripts/relay-guard.mjs",
+   "lines": "70-80, 485-505",
+   "of": 1282,
+   "how": "part"
+  },
+  {
+   "file": "scripts/hud.mjs",
+   "lines": "260-300",
+   "how": "part"
+  },
+  {
+   "file": "scripts/config.mjs",
+   "lines": "4840-4900, 3493-3500",
+   "how": "part"
+  },
+  {
+   "file": "scripts/tests-tier0.mjs",
+   "lines": "8023-8075 (R215), 8632-8660 (R220), 13410-13430 (R221), 13466-13500 (R291)",
+   "how": "part"
+  },
+  {
+   "file": "scripts/tests-tier1.mjs",
+   "lines": "10985-11030 (R217), 11170-11218 (R219), 11220-11240 (R290), 11273-11350 (R303)",
+   "how": "part"
+  },
+  {
+   "file": "scripts/tests-tier2.mjs",
+   "lines": "62339-62420 (one test whole); test titles by grep",
+   "how": "part"
+  },
+  {
+   "file": "audit/harness/scenarios/83-roll-integrity.mjs",
+   "lines": "1-60 by grep, the phase and list lines 62-1499",
+   "of": 1501,
+   "how": "part"
+  },
+  {
+   "file": "audit/harness/README.md",
+   "lines": "178, 217 (register rows); grep for the four ids",
+   "how": "part"
+  },
+  {
+   "file": ".claude/rules/code.md",
+   "lines": "10-50, 108-140",
+   "how": "part"
+  },
+  {
+   "file": "tools/moved-only.mjs",
+   "lines": "1-30, grep of its readings 87-150",
+   "of": 1770,
+   "how": "part"
+  },
+  {
+   "file": "docs/dev/R-REGISTRY.md",
+   "lines": "220-245 and grep for the four ids",
+   "how": "part"
+  },
+  {
+   "file": "audit/gate/local-gate.json",
+   "lines": "the part sandbox-83-roll-integrity",
+   "how": "by script"
+  }
+ ],
+ "count_expected": 4,
+ "count_note": "Four stages as the scope names them (E28, E29, E33, E34), in tools/stages.json order. E28 shipped in one train with E08; E08's Reroll is left to its own reader. Live items counted: 16 + 15 + 10 + 2 = 43 (9.2 items 94-136), matching the ids in the notes.",
+ "stages": [
+  {
+   "id": "E28",
+   "version": "1.2.67",
+   "shipped": "2026-10-05",
+   "what": "Released with E08 as one train (1.2.67): the primary GM's browser throws the dice of every player's action roll and of every statistic clicked on a sheet, scores each result from its own roll and keeps a record of it; with no GM an action is refused before its price and any other roll is stamped and moves nothing until a GM grants it (the away card, Grant all / Grant none); on a Daggerheart build the draw was not written for the players roll in their own browsers and the GMs are told once per version; every resolution reads the GMs' record of its roll; a player's private card in an incident is posted by the primary GM; a player's party transfer is refused. The Reroll moved onto the GM is E08's and is not graded here.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.67.md (1-145, whole; the E28 part is lines 6-10, 19-23, 27-49, 62-65, 69-71, 89-115, 119-126; lines 50-61 and 72-88 are E08's Reroll)",
+    "tools/stages.json row E28 (planned and shipped 1.2.67, 2026-10-05, with E08, touches sockets and rolls, drills none)",
+    "docs/dev/R-REGISTRY.md: no row is stamped E28; the train's rows R215-R219 carry E08's stamp (R-REGISTRY.md:225-229), and the tier files mark the stage's tests 'E08+E28 Cn' in their comments (tests-tier2.mjs: 140 mentions of E28)",
+    "no docs/dev/e28/ or docs/dev/e08/ folder; the stage plan the code cites ('the plan's 3.2', '3.4', '3.8') is not in the repository",
+    "audit/AUDIT-1.2.42.md 9.2 items 94-109 (lines 928-943), LIVE-E28-01 to -16; their state from audit/findings-1.2.118/live-items-03.json rows 94-109 and the two live-readings files",
+    "commits: the checkout is shallow (57 grafts in .git/shallow) and its history starts 2026-10-14 with no tags; no commit of 03-05.10.2026 can be read. git log --grep E28 finds 3 later commits (from 2026-10-24), none of the stage"
+   ],
+   "commits": 0,
+   "promises": [
+    {
+     "promise": "The primary GM's browser throws the dice of a player's action roll and of a statistic clicked on a sheet, writes the roll's message and keeps its record; the roller's browser configures the roll, asks the GM and plays the answer back as its own",
+     "source": "v1.2.67.md 6-10, 27-35",
+     "code": "scripts/roll-draw.mjs:287-299 drawsHere (a player's roll with a primary GM; an action roll the module claimed or a statistic from the sheet), :302-308 sheetRollOf, :330-341 drawOrThrow, :349-385 drawAndPlay (bridgeRequest roll.draw with timeoutMs DRAW_ANSWER_MS, then playBack), :1297 drawOnGm, :2579 writeDrawnMessage, :2602 keepRecord",
+     "holds": "yes",
+     "test": "tier 2 \"a drawn roll's copy on its roller's browser is the GM's roll - its total, its statistic and its modifiers, whatever its window claimed\" (tests-tier2.mjs:8513), \"a drawn roll is thrown on the GM's dice: the faces, the keep and the critical a packet names are not the roll's\" (:8963), \"a drawn roll is the kind its action makes it and runs every one of Daggerheart's steps, whatever the packet says\" (:9016); scenario 33 (A17, the draw's timing) and 40-flow",
+     "test_kind": "behaviour",
+     "note": "What the roller sees (dice in their own colours, the header naming their character, no GM shown as the roller) is read on a canvas nowhere: LIVE-E28-01, -02 and -14 open. Since E76 the seam is chosen per build (seamFor, :139; reviewTraitRoad, :164) and since H82 C5 the dice start at the GM's message (:475-531); since DH212 3 the roller is told 'The GM is throwing your dice.' after 600 ms (:395-407)."
+    },
+    {
+     "promise": "A draw not answered within 30 seconds is not made and the player is told",
+     "source": "v1.2.67.md 33-35",
+     "code": "scripts/roll-draw.mjs:85 DRAW_ANSWER_MS = 30_000, :365 (the request's timeoutMs), :373 (no answer: return, nothing played)",
+     "holds": "yes",
+     "test": "R303 part 3 (tests-tier1.mjs:11273, the waiter driven with fakes and a recording clock); scenario 15-held (E33's silent GM)",
+     "test_kind": "both",
+     "note": "The 30 s is chosen, not measured (the code's own comment, :77-84); a background tab's throttled timers are LIVE-E28-07, open."
+    },
+    {
+     "promise": "With no GM connected an action is not made and nothing is paid; any other roll is thrown, its card says it was thrown with no GM, and it moves no Hope, Sanity or Despair",
+     "source": "v1.2.67.md 41-43",
+     "code": "scripts/action-rolls.mjs:75 THROWS_NO_DICE, :117 (refused before the first await); scripts/roll-draw.mjs:331-334 (refused again at the draw), :2774 awayFromGms, :2790-2810 throwUnwitnessed (resources skipped, the stamp), :2812 stampUnwitnessed, :3034 onRenderUnwitnessed (DRPG.Rolls.unwitnessed)",
+     "holds": "yes",
+     "test": "R303 parts 1-2 (source reads: the refusal before the first await, the four lines before original.call); scenario 15-held A1-A5 and G1-G4 (by R303's header)",
+     "test_kind": "both",
+     "note": "R303's two first parts read the source only (its header says so); the driven half is scenario 15's, whose result was not read. LIVE-E28-05 open."
+    },
+    {
+     "promise": "When a GM connects the primary gets one card of the rolls made with no GM: Grant all gives each what it would have moved, once; Grant none gives nothing; an assistant GM's click is decided on the primary",
+     "source": "v1.2.67.md 44-49",
+     "code": "scripts/roll-draw.mjs:2836 awayRowOf (never a message with a GM's flags, a reaction marked), :2915 askAboutUnwitnessed (primary only), :2944 decideUnwitnessed (one queue), :2955 askToDecide (onPrimary: true), :2961 decideNow (the mark written before the grant, the author handed to the GM), :2995 grantRolls (one write per character, reactions skipped, Despair for Fear)",
+     "holds": "yes",
+     "test": "tier 2 \"Grant all grants each stamped roll once\" (21174), \"Grant all asked of the primary GM is decided there once, and refused from a player\" (21031); R219 (onPrimary, the waiter driven, askToDecide read in its source)",
+     "test_kind": "both",
+     "note": "Known gap still true: grantRolls calls Daggerheart's addDualityResourceUpdates alone (:3013), so no countdown ticks and no trigger fires on a grant. The race of two GMs clicking at once is LIVE-E28-11, open (the harness has one GM in that test)."
+    },
+    {
+     "promise": "On a Daggerheart build the draw was not written for, the players' rolls are thrown in their own browsers as before and the GMs are told once for that version",
+     "source": "v1.2.67.md 19-23",
+     "code": "scripts/roll-draw.mjs:109-127 reviewBuild (build's three steps in order, the configuration hook by template, Duality hooks, fromData/toMessage/buildEvaluate/dualityUpdate), :139 seamFor, :268-276 announceRollDraw (once per version through SETTINGS.rollDrawWarned); lang/en.json DRPG.Rolls.notDrawnHere",
+     "holds": "yes",
+     "test": "R217 (tests-tier1.mjs:10985: this world's class passes and is wrapped, four fakes each refused with its reason); tier 2 \"a roll the GM has no record of yet is looked for once more before it is refused, and on a build the draw was not written for the packet's numbers stand and the GMs are told once\" (11322)",
+     "test_kind": "both",
+     "note": "LIVE-E28-04 partly read: on Foundry 14.370 with Daggerheart 2.12.9 the players' pages evaluated no duality roll (docs/dev/e58/LOCAL-REPORT.md:268-270, :477; live-items-03 row 97), which agrees with the draw being on; the fallback itself was never seen at a table."
+    },
+    {
+     "promise": "Every resolution reads the GM's record of its roll: a roll that is not the player's, was thrown for another action, was already scored, is too old or did not earn the result is refused and the player told why",
+     "source": "v1.2.67.md 89-95",
+     "code": "scripts/roll-draw.mjs:2638 rollRecord, :2647 drawnRecordOf, :2682 rollOnRecord; scripts/bridge-guards.mjs:1665-1668 (rollRecordRetryMs, the record looked for once more)",
+     "holds": "yes",
+     "test": "R218 (tests-tier0.mjs:8072: no declaration takes a roll's result from the packet, every declaration that scores a roll read live); scenario 83 F5b and F5c (a crisis packet with an invented roll, then a total of 99; 83-roll-integrity.mjs:1340-1420)",
+     "test_kind": "both",
+     "note": "R218 reads the bridge's declarations; 83's two rows drive the refusal on four clients. The retry after a change of primary is LIVE-E28-16, open."
+    },
+    {
+     "promise": "A roll that carried something the GM's browser did not expect is flagged to the GMs, not refused, and rollFlags() lists the last half hour",
+     "source": "v1.2.67.md 36-40, 120-121",
+     "code": "scripts/roll-draw.mjs:2414 checkRoll, :2432 FLAG_KINDS, :2472 rollFlags",
+     "holds": "superseded",
+     "test": "tier 2 \"a +5 term on a drawn roll is not counted and the GMs are told once\" and its siblings (9974-9999)",
+     "test_kind": "behaviour",
+     "note": "Superseded by E29 (1.2.68): what a window adds beyond the GMs' list is now not counted, the GMs whispered and the roller told (legalRollOf, :1599; rollerLine, :1621). rollFlags() stays as the record of it."
+    },
+    {
+     "promise": "A player's private cards in an incident are posted by the primary GM's browser and name no player as author",
+     "source": "v1.2.67.md 62-63",
+     "code": "scripts/secret.mjs cardWriter (named at roll-draw.mjs:3041-3042 as fix r2-H5's)",
+     "holds": "unread",
+     "test": "scenario 13-murder-signals (885, 1565 by live-items-03 row 108)",
+     "test_kind": "behaviour",
+     "note": "secret.mjs was not read in this pass; the promise is taken from the comment at roll-draw.mjs:3041-3042 and the live-items reader's neighbours. LIVE-E28-15 open."
+    },
+    {
+     "promise": "A player's transfer of an item to a party (Daggerheart 2.10.6 and later) waits for the GM, who is told once a session",
+     "source": "v1.2.67.md 64-65",
+     "code": "scripts/relay-guard.mjs:76 TRANSFER = \"DhTransferItem\", :495-499 (refused as 'an item transfer, which waits for the GM in this game', once: true)",
+     "holds": "yes",
+     "test": "none found by this reader for the party transfer packet",
+     "test_kind": "none",
+     "note": "'Waits' means refused: nothing is queued for the GM to approve; the owner's Q1 (a) of 03.10.2026 left the transfer to a later stage (the comment at :492-494). Whether Daggerheart 2.12.9 still sends that packet is LIVE-E28-08, open."
+    },
+    {
+     "promise": "A Meddle's dice are thrown by the GM, and a Meddle the GM refuses posts no dice",
+     "source": "v1.2.67.md 100-101",
+     "code": "scripts/monocub.mjs:1270 cubAbilityOnGm, :1036 postCubRoll",
+     "holds": "superseded",
+     "test": "R301 (E33)",
+     "test_kind": "source",
+     "note": "Superseded by E33 C10: one table of a Monocub's abilities, the GM throwing its own 2d12 (cubAbilityOnGm); see E33."
+    },
+    {
+     "promise": "A statistic rolled from the sheet keeps its own card while an action's roll is under way, is a reaction even Shift-clicked, and stays readable to its roller after a reload",
+     "source": "v1.2.67.md 102-106",
+     "code": "scripts/roll-draw.mjs:337-340 (supersedingRoll with keepCard: true), :2280 LEGAL_READERS (the kind row), :2803 (no GM: config.actionType = \"reaction\" for a student, E33 fix r1-G2)",
+     "holds": "partly",
+     "test": "scenario 83 L3 (\"p3's statistic off the sheet, a reaction, and an action\", 83-roll-integrity.mjs:261)",
+     "test_kind": "behaviour",
+     "note": "With a GM the kind row makes it a reaction; with no GM it was thrown as an action until E33 fix r1-G2 (the comment at :2782-2788 records 15-held's A3 reading Hope +1 at ba0cade). Held today; the reload half was not traced by this reader."
+    }
+   ],
+   "registry_rows": 0,
+   "registry_note": "No registry row carries E28. The train's five rows are stamped E08: R215 (tier 0), R216, R217, R219 (tier 1), R218 (tier 0). Of them R217, R218 and R219 test E28's draw.",
+   "tests_read": [
+    {
+     "test": "R217 (tests-tier1.mjs:10985-)",
+     "measures": "yes",
+     "why": "Reads this world's DualityRoll through reviewBuild, the seam's state and the patch row, then four fake classes that each differ in one place and must each be refused with its own reason, and seamFor's decision on them. It would fail if the wrap went onto an unreviewed build. It does not drive the fallback on the GM (tier 2's test does)."
+    },
+    {
+     "test": "R219 (tests-tier1.mjs:11170-11218)",
+     "measures": "partly",
+     "why": "Drives the waiter with fakes as an assistant GM and as the primary and reads which requests run where; then reads in the source that askToDecide and four other requests carry onPrimary: true and that the card's click goes through askToDecide. The race of two real GMs is not driven (its own header says so)."
+    },
+    {
+     "test": "R303 (tests-tier1.mjs:11273-)",
+     "measures": "partly",
+     "why": "Parts 1 and 2 match exact lines of performAction, drawOrThrow, throwUnwitnessed, stampUnwitnessed, onRenderUnwitnessed, awayMoves and grantRolls; part 3 drives the 30 s wait on fakes. A source read: it fails when a line changes, not when the behaviour does; scenario 15 is the driven half."
+    },
+    {
+     "test": "R215 (tests-tier0.mjs:8023-8070)",
+     "measures": "yes",
+     "why": "E08's (no player packet carries an undo): every declaration's sanitizer asked with a player's and a GM's undo, the guard called on six inputs. Listed because it is the train's; it does not test E28's draw."
+    }
+   ],
+   "tests_to_join": [
+    "R215, R216, R217, R218, R219 (tiers 0-1; base run not available when this was written)",
+    "tier 2: a drawn roll's copy on its roller's browser is the GM's roll - its total, its statistic and its modifiers, whatever its window claimed",
+    "tier 2: a drawn roll is thrown on the GM's dice: the faces, the keep and the critical a packet names are not the roll's",
+    "tier 2: a drawn roll is the kind its action makes it and runs every one of Daggerheart's steps, whatever the packet says",
+    "tier 2: Grant all grants each stamped roll once",
+    "tier 2: Grant all asked of the primary GM is decided there once, and refused from a player",
+    "tier 2: a roll the GM has no record of yet is looked for once more before it is refused, and on a build the draw was not written for the packet's numbers stand and the GMs are told once",
+    "scenario 15-held",
+    "scenario 30-security",
+    "scenario 33-bridge-paths",
+    "scenario 40-flow",
+    "scenario 83-roll-integrity (L3, F5b, F5c)"
+   ],
+   "scenarios": [
+    "15-held (register row, audit/harness/README.md:178: 'a GM away and back (E08+E28 C18)')",
+    "no register row names E28 alone; 30-security (32 mentions of E28), 33-bridge-paths (13), 40-flow (21) and 13-murder-signals (16) cite its commits in their bodies (counted by grep, not read)"
+   ],
+   "live": {
+    "items": 16,
+    "read": 0,
+    "partly": 1,
+    "ids_partly": [
+     "LIVE-E28-04"
+    ],
+    "note": "Items 94-109. Fifteen open with no reading in either live-readings file (live-items-03 rows 94-109). LIVE-E28-04 partly: the sandbox's player pages evaluated no duality roll on 2.12.9 (as expected); the fallback on another build not read. Several items' text is stale (live-items-03: subject_exists true, text_stale true on 01, 03, 04, 10-13)."
+   },
+   "findings": [],
+   "superseded_by": [
+    "E29 (1.2.68): flagged but counted became not counted (LEGAL_ROLL_MODIFIERS, legalRollOf)",
+    "E33 (1.2.69): the Meddle's GM throw became the Monocub's one table (cubAbilityOnGm); a statistic thrown with no GM a reaction (fix r1-G2)",
+    "E76 (1.2.109): the seam chosen per build for Daggerheart 2.12 (seamFor, reviewTraitRoad)",
+    "H82 C5 and DH212 3: the roller's dice start at the GM's message, and the roller is told the GM is throwing"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "Graded although the registry carries no row stamped E28: the stage shipped as one train with E08, the registry stamps the train's five rows E08 (R215-R219, three of them E28's), and the tier files mark about 140 tier-2 places 'E08+E28 Cn'; the notes are its papers. Every promise of the stage traced is in today's code at the place named, two replaced on purpose by E29 and E33, and the draw's core is driven by tier 2 and by scenarios 15, 33 and 83. Against a 9: the no-GM road and the onPrimary decision are held in tiers 0-1 by source reads (R303 parts 1-2, R219's second half) with the driven half in scenario 15 and tier 2, whose results were not read; one promise (the incident's private cards posted by the GM) was not traced by this reader. Against a 10 and capped at 9: of 16 live items none is read and one is partly read, and the stage's main promise - what the roller sees of a roll the GM threw - stands only on the harness. Tiers 0-1, tier 2 and the scenarios of the base run were not available; no result is claimed.",
+   "missing_to_10": "LIVE-E28-01, -02, -03 and -14 read at a table (the dice and the header as the roller, a GM and a bystander see them); -05 and -11 (no GM, Grant all from two GMs at once); -04's fallback on a changed build; -07 and -16 (a background tab, a change of primary mid-draw); a tier 0-1 test that drives the no-GM refusal rather than matching its lines; the base run's results joined.",
+   "l1": {
+    "what": "the drawn roll at a table: the roller's dice in their own colours, the header naming the roller's character, the round trip from Roll to dice, and rollFlags() over a chapter",
+    "recipe": [
+     "1. Foundry 14.370, Daggerheart current, Dice So Nice on; a GM and two players, each in their own browser.",
+     "2. Each player rolls an action (a Search) and a statistic from the sheet, then Shift-clicks one.",
+     "3. On each screen read: who the dice fall for and in which colours, the card's header, the whisper line; time Roll to dice on the roller.",
+     "4. Disconnect the GM, roll an action and a statistic as a player; reconnect, read the away card, press Grant all once from an assistant GM.",
+     "5. At the end of the evening run game.drpg.rollFlags() on the primary GM and save the output."
+    ],
+    "clients": "GM, assistant GM (for step 4), two players",
+    "theme": "both",
+    "settles_if": "settled yes when no GM is ever shown as the roller, the dice are the roller's colours, the action is refused with no GM and Grant all moves Hope once, and rollFlags() holds no flag of an honest roll; settled no on any false flag or a GM shown as the roller",
+    "priority": "grade cap 9 (E28's main promise)"
+   }
+  },
+  {
+   "id": "E29",
+   "version": "1.2.68",
+   "shipped": "2026-10-06",
+   "what": "The primary GM's browser judges every write a player's browser makes on that player's own student and its items: put back at once, flagged to the GMs with Undo and Keep, or only listed in sheetWrites(); an away card for sheet changes made while no GM watched; a drawn roll counts only what the GMs hold (one list, LEGAL_ROLL_MODIFIERS), the roller told what was not counted; a Call that changes a roll bought on the primary GM, an Experience or an Ultimate armed only with a GM's yes; the drawn roll built from the GM's own options; a module write names its reason from one closed list.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.68.md (1-230, whole)",
+    "tools/stages.json row E29 (planned and shipped 1.2.68, 2026-10-06, touches sockets and rolls, drills none)",
+    "docs/dev/R-REGISTRY.md rows R220, R221 (tier 0) and R290 (tier 1), stamped E29 (lines 230-232)",
+    "no docs/dev/e29/ folder; the stage plan ('the stage plan's 3.2', '3.8') and the handoff file the tests cite (E29-handoff-fixW.md, tests-tier1.mjs:11226) are not in the repository",
+    "audit/AUDIT-1.2.42.md 9.2 items 110-124 (lines 947-961), LIVE-E29-01 to -15; their state from live-items-03 rows 110-116 and live-items-04 rows 117-124",
+    "commits: none of 05-06.10.2026 in the shallow checkout; git log --grep E29 finds 4 later commits (from 2026-10-31)"
+   ],
+   "commits": 0,
+   "promises": [
+    {
+     "promise": "Every write a player's browser makes on its own student and items is judged on the primary GM: statistics, experiences, maxima, roll rules, bonuses, Level Up choices, a class's hit points, the module's records and armed Calls put back at once; a gain of Health, Sanity or actions nothing covers, a module item taken off and an item added flagged with Undo and Keep; the rest listed",
+     "source": "v1.2.68.md 4-6, 28-45",
+     "code": "scripts/sheet-audit.mjs:27 (the header's table), :240 HELD_PATH, :1275 judgeWrite, :1297 judgeNow, :1424 actorFindings, :1517 putBackNow, :1715 meansFindings, :1910 onItemWrite; GM_FLAGS :164, MARKED_FLAGS :198",
+     "holds": "yes",
+     "test": "tier 2 \"a player's statistic is put back, a GM's stands\" (58044), \"with lockPlayerResources off a player's statistic is listed and stands, and a roll rule is still put back\" (58146), \"a rest outside a rest room is put back\" (58266), \"Undo does not overwrite a later change, and the GMs' card says so\" (58528); scenarios 30-security (49 mentions of E29) and 61-gmstore-case",
+     "test_kind": "behaviour",
+     "note": "Driven on the harness. Whether ordinary play at a table raises a false put-back or card is LIVE-E29-03, open; whether the write's reason (drpgWrite) reaches the primary's hooks on v14 is LIVE-E29-01, open."
+    },
+    {
+     "promise": "With 'Players cannot edit Actions, Hope, Health, Sanity or statistics' on, the Party sheet's pips and the token HUD's bars are display-only for players",
+     "source": "v1.2.68.md 17-21",
+     "code": "scripts/settings.mjs:3150-3158 (lockPlayerResources, the body class on change); scripts/module.mjs:695; styles/danganronpa.css:1504, :1515-1517 (the Party sheet's toggles), :5886-5888 (the trait inputs); scripts/hud.mjs:278-290 stillTokenBars",
+     "holds": "yes",
+     "test": "scenario 15-held (hands the hook a HUD's shape, by the comment at hud.mjs:268-269); scenario 83 F1b (the Party sheet's pips from p1's console, 83-roll-integrity.mjs:931)",
+     "test_kind": "behaviour",
+     "note": "Since E24 C1b (08.11.2026) a student's Health and Sanity bars are off for everybody through their attribute (hud.mjs:271-276); this stage's rule still holds for any other bar. Not seen on a canvas: LIVE-E29-02, open."
+    },
+    {
+     "promise": "A drawn roll counts only what the GMs hold: one list of what may add to it; what the window added beyond it is not counted, the GMs whispered and the roller told 'The GM counted ...; not counted: ...'",
+     "source": "v1.2.68.md 52-54, 69-74",
+     "code": "scripts/config.mjs:4871-4885 LEGAL_ROLL_MODIFIERS (13 rows), :4868 HOSTILE_GRACE; scripts/roll-draw.mjs:2280 LEGAL_READERS, :2359 expectedFor, :1599 legalRollOf, :1621 rollerLine, :1641 tellRoller; lang/en.json DRPG.Rolls.notCounted",
+     "holds": "yes",
+     "test": "R291 (tier 0, E33's: every row has a tier-2 fixture); tier 2 \"a +5 term on a drawn roll is not counted and the GMs are told once\" (9974), \"an advantage die nothing grants on a drawn roll is not counted ...\" (9989), \"a Reroll keeps the legal modifiers, not the claim ...\" (8641)",
+     "test_kind": "both",
+     "note": "The notes' list named the hidden stash's step; that row left the list in 1.2.112 with the owner's rule fixes of 13.11.2026 (config.mjs:4857, roll-draw.mjs:1807). The notes' own gap - 'a bare advantage die with no Call behind it has no test of its own' (v1.2.68.md 207) - is closed today by tier 2 at 9989. The list was switched on from the harness's reading, not a table's rollFlags() (Known gaps, 163-165): LIVE-E29-03."
+    },
+    {
+     "promise": "The GM's browser builds a drawn roll from options of its own, and a request carrying any other option is refused and told",
+     "source": "v1.2.68.md 64-68",
+     "code": "scripts/roll-draw.mjs:534 DRAWN_OPTIONS, :559 drawPacketOf, :1585 drawnOptions, :1599 legalRollOf",
+     "holds": "yes",
+     "test": "tier 2 \"a drawn roll's options are the GM's own: what a packet's options say is written over or refused, and Daggerheart's constructor finds what it reads\" (9061); \"a drawn roll holding a term that is neither a die, a number nor + or - is refused, and nothing is thrown\" (9120)",
+     "test_kind": "behaviour",
+     "note": "Daggerheart's own roll classes run in the harness since E33 C2a (audit/harness/README.md:426). The card's success line on a reaction asked from the chat is gone as a result (Known gaps 188-189; LIVE-E29-10 open)."
+    },
+    {
+     "promise": "What the GM throws is read when it throws, after every write heard on that character is judged; it waits up to 16 seconds for the GM's records, or is refused 'That cannot be done now.'",
+     "source": "v1.2.68.md 75-80",
+     "code": "scripts/config.mjs:458 gmStoreOpenMs: 16000; scripts/roll-draw.mjs:83, :1281 (marksOpen); scripts/sheet-audit.mjs:696 inOrder, :712 judgedFor",
+     "holds": "yes",
+     "test": "tier 2 \"a drawn roll waits for the GMs' marks, and with none open in time it is refused, told\" (9692); \"what a drawn roll throws is the GMs' record once its waits are over ...\" (9618)",
+     "test_kind": "behaviour",
+     "note": "The wait at a real primary's first seconds is LIVE-E29-13 (a), open."
+    },
+    {
+     "promise": "A Call that changes a roll is bought on the primary GM's browser; an Experience or an Ultimate is armed only with a GM's yes, kept a minute by the primary; a card left by a primary who has gone arms nothing",
+     "source": "v1.2.68.md 55-60",
+     "code": "scripts/bridge-guards.mjs:1087 CALL_YES_MS = 60 * 1000, :1122 guardArmGmYes; scripts/roll-draw.mjs:1265 takeCallPayment",
+     "holds": "yes",
+     "test": "scenario 33 A13 (an assistant GM's yes through call.yes, by AUDIT 9.2 item 121); tier 2 \"a drawn roll applies only the Calls the GMs hold armed ...\" (10643)",
+     "test_kind": "behaviour",
+     "note": "The 60 s is not measured by any test (live-items-04 row 121: CALL_YES_MS is read only at bridge-guards.mjs); LIVE-E29-12 open."
+    },
+    {
+     "promise": "A drawn roll of an action that lists one statistic is held to it; with no pick the lowest listed is thrown and the GMs told",
+     "source": "v1.2.68.md 81-89",
+     "code": "scripts/roll-draw.mjs:1888 traitKeyOf, :2020 pickSpecOf, :2039 pickKeyOf, :2068 gmPickOf, :2205 traitReading",
+     "holds": "yes",
+     "test": "tier 2 \"every definition and part that lists one statistic is expected at it, and a roll of it on another is flagged while one on it is clean\" (15988), \"a crisis action that lists one statistic is held to it at its character's turn ...\" (16091); scenario 83 F9 and L17",
+     "test_kind": "behaviour",
+     "note": "The GM's pick card holding its roll at a table is LIVE-E29-11, open."
+    },
+    {
+     "promise": "A module write names its reason from one closed list, sent only with a player's write the GMs judge",
+     "source": "v1.2.68.md 155-159",
+     "code": "scripts/resource-guard.mjs WRITE_REASONS (trustedWrite, trustedCreate, trustedDelete)",
+     "holds": "yes",
+     "test": "R220 (tests-tier0.mjs:8632: the list read live, every road's options read in every file, run first on a fixture with nine planted faults)",
+     "test_kind": "source",
+     "note": "R220's list has grown since (E93 C3 added 'facility', and others after 'gmRuling'); the census was extended by E33 C1a to every other document write."
+    },
+    {
+     "promise": "Setting a student up and restoring a starting sheet are a GM's",
+     "source": "v1.2.68.md 153-154",
+     "code": "scripts/character.mjs initCharacter, restoreStartingSheet (the GM gate before the first write)",
+     "holds": "yes",
+     "test": "R221 (tests-tier0.mjs:13410: every writing function of character.mjs is gated before its first write, or private and called only from one that is)",
+     "test_kind": "source",
+     "note": "character.mjs was not read whole; the gate is taken from R221's census, whose result was not read."
+    },
+    {
+     "promise": "A Search's find stands only when the GM spent that Search's token; a gain stands as far as play covers it (a refund of the last 30 minutes, a Rest, an item used, a Call's grant)",
+     "source": "v1.2.68.md 96-105, 148-149",
+     "code": "scripts/search-tokens.mjs:173-182 (tokenSpentAt, markSpent); scripts/sheet-audit.mjs:220 CREDIT_KEPT_MS, :523 creditOf, :1776 coverOf, :1800 restCovers, :1844 itemCovers, :1864 callCovers, :224 ROLL_COVER_MS",
+     "holds": "yes",
+     "test": "tier 2 \"a Relief rest's Hope is put back and its Meal stands\" (58345); scenario 40-flow (the day by AUDIT 9.2 item 124)",
+     "test_kind": "behaviour",
+     "note": "The relay's credit for a roll the GM did not draw was narrowed by E33 to one roll per gain (a 'covered' row, sheet-audit.mjs:1926-1985). LIVE-E29-15 open."
+    },
+    {
+     "promise": "Sheet changes made while no GM was watching are compared at the primary's load or a takeover and shown on one card with Undo, Keep, Undo all and Accept all",
+     "source": "v1.2.68.md 46-51",
+     "code": "scripts/sheet-audit.mjs:301 AWAY_CARD, :1238 firstMark, :1255 refillMarks",
+     "holds": "yes",
+     "test": "scenario 15-held (register row: 'a sheet changed while away (E29 C7)'); R2073 (E47's, the card's buttons on the kit)",
+     "test_kind": "behaviour",
+     "note": "As good as the returning GM's copy of the marks (Known gaps 183-184); LIVE-E29-06 open."
+    }
+   ],
+   "registry_rows": 3,
+   "tests_read": [
+    {
+     "test": "R220 (tests-tier0.mjs:8632-8733)",
+     "measures": "yes",
+     "why": "Asks the live WRITE_REASONS, reads every module file's writes and forwarders and refuses an unlisted reason or a bare protected item flag; the reader is first run on a fixture with nine planted faults and logs what it read, so an empty read would show. A source census: a flag built elsewhere and passed by name is not seen (its header says so)."
+    },
+    {
+     "test": "R221 (tests-tier0.mjs:13410-)",
+     "measures": "partly",
+     "why": "A census of character.mjs's functions by regular expression: a writer must hold the GM gate before its first write or be private and called only from a gated one. Fails when a writer loses its gate; a write by a form the WRITE pattern does not list would pass unseen."
+    },
+    {
+     "test": "R290 (tests-tier1.mjs:11220-)",
+     "measures": "partly",
+     "why": "Reads every resourceMax( and system.resources read inside a GM's audit job and one level down, against a list of three accepted reads; arrow helpers are not followed (its header says so)."
+    },
+    {
+     "test": "tier 2 \"a player's statistic is put back, a GM's stands\" (tests-tier2.mjs:58044) and its siblings to 58588",
+     "measures": "yes",
+     "why": "Named here by title only: the sheet audit's put-back, its setting off, a rest, a Relief rest, Undo over a later change. Bodies not read in this pass."
+    }
+   ],
+   "tests_to_join": [
+    "R220, R221, R290 (tiers 0-1)",
+    "tier 2: a player's statistic is put back, a GM's stands",
+    "tier 2: with lockPlayerResources off a player's statistic is listed and stands, and a roll rule is still put back",
+    "tier 2: Undo does not overwrite a later change, and the GMs' card says so",
+    "tier 2: a drawn roll's options are the GM's own: what a packet's options say is written over or refused, and Daggerheart's constructor finds what it reads",
+    "tier 2: a drawn roll waits for the GMs' marks, and with none open in time it is refused, told",
+    "tier 2: an advantage die nothing grants on a drawn roll is not counted and the GMs are told once",
+    "tier 2: every definition and part that lists one statistic is expected at it, and a roll of it on another is flagged while one on it is clean",
+    "scenario 15-held",
+    "scenario 30-security",
+    "scenario 61-gmstore-case",
+    "scenario 83-roll-integrity (F1, F1b, F1c, F2, F9)"
+   ],
+   "scenarios": [
+    "15-held (register row, audit/harness/README.md:178: 'a sheet changed while away (E29 C7)')",
+    "no register row names E29 alone; 30-security (49 mentions), 61-gmstore-case (9), 83-roll-integrity (9) and 40-flow (13) cite it in their bodies (counted by grep)"
+   ],
+   "live": {
+    "items": 15,
+    "read": 0,
+    "partly": 0,
+    "note": "Items 110-124, all open with no reading (live-items-03 rows 110-116, live-items-04 rows 117-124). LIVE-E29-01 (the write's reason reaching the primary's hooks on v14) is the premise the whole audit rests on; LIVE-E29-03 (a chapter with no false put-back) is the stage's main verify. LIVE-E29-14 holds nine questions in one item (live-items-04 row 123)."
+   },
+   "findings": [],
+   "superseded_by": [
+    "E33 (1.2.69): the relay's credit for a roll the GM did not draw became one roll per gain; every player write on its own student through the judged road (R220's census extended)",
+    "E24 C1b (1.2.101): a student's Health and Sanity bars disabled for everybody by their attribute",
+    "the owner's rule fixes of 13.11.2026 in 1.2.112: the hidden stash's step left LEGAL_ROLL_MODIFIERS"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "Every promise traced is in today's code at the place named (sheet-audit.mjs, config.mjs's one list, roll-draw.mjs's legal roll, bridge-guards.mjs's GM yes, hud.mjs and the stylesheet for the display-only controls), three refined since by later stages; the core is driven by a wide tier 2 and by scenarios 15, 30, 61 and 83; its three registry rows are censuses of source. Against a 9: two promises are held only by source censuses read here (R220, R221; character.mjs was not read whole), and the 60 s of a GM's yes has no test. Capped at 9 and below it: the stage's own verify - an ordinary chapter at a table with no false put-back, card or 'not counted' line - is LIVE-E29-03, unread, and so is the premise that a player's write reaches the primary's hooks with its reason on v14 (LIVE-E29-01); 15 of 15 live items are open. The base run's results were not available.",
+   "missing_to_10": "LIVE-E29-01 and -03 read at a table (the reason on the primary's hooks; a chapter with sheetWrites() and rollFlags() read at its end), then -02 (the pips and bars as a player), -04, -05, -06 and -14; a test that measures CALL_YES_MS; R221's pattern widened to every write form or replaced by a driven check; the base run's results joined.",
+   "l1": {
+    "what": "an ordinary chapter with no false put-back, no false card and no false 'not counted' line, and sheetWrites() and rollFlags() read at its end",
+    "recipe": [
+     "1. Foundry 14.370, Daggerheart current, lockPlayerResources on (default); a GM and two players.",
+     "2. Play one Daily Life day and one investigation: rests, an item used, a Level Up, a Call bought on the GM, a Reroll, a refund.",
+     "3. As a player, try the Party sheet's pips and the token HUD's bars (they should not take input).",
+     "4. As a player, delete a module item on Daggerheart's own sheet; read the GM's card and press Undo.",
+     "5. At the end run game.drpg.sheetWrites() and game.drpg.rollFlags() on the primary GM and save both."
+    ],
+    "clients": "GM, two players",
+    "theme": "default",
+    "settles_if": "settled yes when every row of sheetWrites() is one a person made by hand and no ordinary play left a put-back, a card or a 'not counted' line; settled no on any row or line ordinary play caused",
+    "priority": "grade cap 9 (E29's main promise, LIVE-E29-03)"
+   }
+  },
+  {
+   "id": "E33",
+   "version": "1.2.69",
+   "shipped": "2026-10-07",
+   "what": "Puts 1.2.68 under test: scenario 83 plays every legal road of a player's roll and sheet, then changes sent from a player's browser console, each read on four browsers; sheetWrites() names who sent what was not taken (refused, forged, rewrite, covered rows, folded within 30 s); a message a player writes with a GM's flags counts for nothing; with it the GM's public roll, a Monocub's abilities as one table, a private roll's whisper written before its mode, a statistic thrown with no GM a reaction, an incident's failed write put back, a Call's bonus carried by the roll, dice at other faces named, and perf()'s round trip of a drawn roll.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.69.md (1-284, whole)",
+    "tools/stages.json row E33 (planned and shipped 1.2.69, 2026-10-07, touches sockets and rolls, drills none)",
+    "docs/dev/R-REGISTRY.md rows R291, R300, R301, R302 (tier 0) and R303 (tier 1), stamped E33 (lines 233, 242-245)",
+    "no docs/dev/e33/ folder; the stage plan and the review's probe logs the code cites (e33-review/secprobe1.log, secprobe2.log) are not in the repository",
+    "audit/AUDIT-1.2.42.md 9.2 items 125-134 (lines 965-975), LIVE-E33-01 to -10; their state from live-items-04 rows 125-134 and the two live-readings files",
+    "audit/harness/README.md:217 (scenario 83's register row); audit/gate/local-gate.json (part sandbox-83-roll-integrity)",
+    "commits: none of 06-07.10.2026 in the shallow checkout; git log --grep E33 finds 6 later commits (from 2026-10-31)"
+   ],
+   "commits": 0,
+   "promises": [
+    {
+     "promise": "Scenario 83, in the ci and local-gate layers, plays every legal road of a player's roll and sheet from each player's own page and reads nothing raised; then changes sent from a player's console, each put back or never applied and each named with that player",
+     "source": "v1.2.69.md 4-6, 34-39, 242-250",
+     "code": "audit/harness/scenarios/83-roll-integrity.mjs (1501 lines): legal roads L1-L18 (phases at 207-727), console changes F1-F9 (904-1499; the list at 1499 holds 15)",
+     "holds": "yes",
+     "test": "scenario 83-roll-integrity (ci, local-gate)",
+     "test_kind": "behaviour",
+     "note": "Grown since: E35 C5 added L12-L16, and the console changes are 15 today where the notes counted thirteen. Its local-gate half has never run: audit/gate/local-gate.json part sandbox-83-roll-integrity is not-run, reason no-server. Result in the base run not read."
+    },
+    {
+     "promise": "sheetWrites() names who sent what was not taken: refused (a Daggerheart request the primary refused), forged (a message with a flag only a GM writes), rewrite (a roll's dice a player rewrote, put back, once per message and player); a refused or forged row folds the same trace from the same player about the same student within 30 s (times) and keeps up to twelve changes; a covered row names the roll that covered one Hope",
+     "source": "v1.2.69.md 40-56",
+     "code": "scripts/sheet-audit.mjs:2632-2637 TRACE_WORDS, :2640 TRACE_KEYS (rewrite: null), :2647 recordTrace (primary only), :2655 traceNow, :2679 foldChange, :2690 traceFolds; scripts/relay-guard.mjs:164 WARN_EVERY_MS = 30_000, :554 TRACE_PATHS = 12; scripts/reroll-receipts.mjs:89 warnGms (once per message, user and kind), :134-137 the rewrite row only when warned; scripts/sheet-audit.mjs:1926 rollCovering, :1985 (the covered row)",
+     "holds": "yes",
+     "test": "tier 2 \"a player's message with the drawn flag is not read as drawn and awards nothing and is named once\" (62339), \"a refused relay write on another's student leaves a row naming its sender\" (62487), \"a rewrite put back leaves a row naming the player\" (62523), \"a burst of refused relay requests about one student keeps every path and item it asked on the row of its key\" (62671)",
+     "test_kind": "behaviour",
+     "note": "The rewrite's 'once per message and player' rests on an in-memory set capped at FIRST_KEPT (reroll-receipts.mjs:89-93): after the primary reloads, a second rewrite of the same message leaves a second row. Matches the notes' 'not folded' gap; not written as a finding. The rows' user is Foundry's message author, assumed and not read at a table: LIVE-E33-10."
+    },
+    {
+     "promise": "A message a player's browser writes with a GM's flags counts for nothing: never read as drawn, never on the away card, never granted, never read as drawn by a Reroll; the GMs whispered once per message",
+     "source": "v1.2.69.md 57-63",
+     "code": "scripts/private-rolls.mjs:1266 GM_ONLY_FLAGS, :1268 forgedFlagsOf, :1279 gmOnlyFlagsIn, :1288 isDrawnRoll (author.isGM), :1307 isPublicRoll; scripts/roll-draw.mjs:2836-2849 awayRowOf (forgedFlagsOf first)",
+     "holds": "yes",
+     "test": "tier 2 \"a player's message with the drawn flag is not read as drawn and awards nothing and is named once\" (62339-62411, read whole: three messages authored by a player, the Despair pool and the relay's verdict read, the folded row checked); \"a GM's card with the same flags stands\" (62413); scenario 83 F4, F4b, F4c, F8",
+     "test_kind": "behaviour",
+     "note": "Everything rests on message.author being the creating user: on the harness assumed, at a table not read (LIVE-E33-10, open)."
+    },
+    {
+     "promise": "The GM's public roll: with rolls forced private, a tile in the GM panel's Right now group and game.drpg.publicRoll(formula, { flavor }) throw the one roll every player reads, speaking as the GM, never as a selected token; a player's message with the flag stays private and is a forged row",
+     "source": "v1.2.69.md 64-71",
+     "code": "scripts/private-rolls.mjs:1327 publicRoll (GM only, the speaker written out), :926-936 (whisperRoll leaves a GM's flagged message as it arrived); scripts/api.mjs:1190; scripts/gm-panel.mjs:213 (a comment where the tile was); lang/en.json DRPG.Settings.forcePrivateRolls.hint ('Only a GM's game.drpg.publicRoll macro is seen by everyone')",
+     "holds": "partly",
+     "test": "tier 2 tests of publicRoll (not located by title in this pass)",
+     "test_kind": "behaviour",
+     "note": "Superseded in part by E60 C5a (1.2.98): the panel's tile was removed; the macro and API road stand, and the setting's hint was updated to match. A formula Foundry refuses is not modelled (Known gaps 177-180). LIVE-E33-04 open."
+    },
+    {
+     "promise": "A Monocub's abilities are one table: Confusion is one row of MONOCUB.abilities with one executor, one picker and one request (monocub.ability); the GM throws the 2d12; a second ability is one row and one resolver; isCrimeSilenced and isCallSilenced are new, isSilenced an alias",
+     "source": "v1.2.69.md 12-27, 127-133",
+     "code": "scripts/config.mjs:3493-3497 (abilities.meddle, label Confusion), :3600 (tinker, E72 C13's second row); scripts/bridge-table.mjs:588-589 ACTION_CUB_ABILITY (DRPG.Bridge.what.monocub.ability); scripts/monocub.mjs:1270 cubAbilityOnGm, :1036 postCubRoll; scripts/api.mjs:991-999 (isCrimeSilenced, isCallSilenced, isSilenced: isCrimeSilenced), :1009-1012",
+     "holds": "yes",
+     "test": "R301 (tests-tier0.mjs:8197), R300 (13500); tier 2 \"a Meddle's +1 the window writes is in the roll it sends and scored without an alarm\" (9961); scenario 83 L8",
+     "test_kind": "both",
+     "note": "The 'second ability is one row' claim was later borne out: E72 C13 added Tinker as a row (config.mjs:3600, TIER_WORDS step at monocub.mjs:1052). LIVE-E33-06 and -09 open."
+    },
+    {
+     "promise": "A private roll keeps its whisper: the readers written first and on their own, the mode after and apart; the mode written only where the readers are the GMs and the roller; nothing reads Foundry 13's roll-mode constant or writes core.rollMode",
+     "source": "v1.2.69.md 112-119",
+     "code": "scripts/private-rolls.mjs:911 whisperRoll, :944-946 (claimed: writeWhisper then writeMode), :895-903 (a failed mode write said once in the debug log); grep of the module's non-test files for DICE_ROLL_MODES and core.rollMode: 0 uses (two comments, migrate.mjs:1464 and private-rolls.mjs:833)",
+     "holds": "yes",
+     "test": "R302 (tests-tier0.mjs:8589: every module file free of the constant and the flag, the list paired before the mode on each road)",
+     "test_kind": "source",
+     "note": "Whether Foundry 14 applies a roll's mode before or after the module's hook is not read (Known gaps 172-176); LIVE-E33-03 open."
+    },
+    {
+     "promise": "A statistic Shift-clicked on a sheet while no GM is connected is thrown as a reaction and, granted, moves neither Hope nor Despair",
+     "source": "v1.2.69.md 72-76",
+     "code": "scripts/roll-draw.mjs:2782-2803 throwUnwitnessed (config.actionType = \"reaction\" for a student not a Monokuma), :2856 awayMoves, :2995-3029 grantRolls (reactions skipped for resources and Despair)",
+     "holds": "yes",
+     "test": "R303 part 2 (source read); scenario 15-held A3 (by the comment at roll-draw.mjs:2786-2787)",
+     "test_kind": "both",
+     "note": "R303 says the Despair's reaction guard is 'read here and driven nowhere' (its header): 15's G3 throws Hope over Fear."
+    },
+    {
+     "promise": "A silent GM, or one who leaves: a drawn roll whose GM never answers ends after 30 s as not answered, nothing posted, the player told once; a GM leaving while a Search's picker is open refuses the draw the same way",
+     "source": "v1.2.69.md 77-84",
+     "code": "scripts/roll-draw.mjs:85, :365, :373",
+     "holds": "yes",
+     "test": "R303 part 3; scenario 15-held; tier 2 (the draw's wait, by the notes)",
+     "test_kind": "both",
+     "note": "A GM leaving while a roll window, not a picker, is open is read in the code only (Known gaps 183-185). LIVE-E33-07 open."
+    },
+    {
+     "promise": "An incident's write that fails is put back: the cast first, and when the world half fails the cast is put back and the error goes to the caller; a put-back that fails logs its own error and the first is rethrown",
+     "source": "v1.2.69.md 120-126",
+     "code": "scripts/incident-store.mjs:259-286 castPutBack (with the fix r2-G3 note), :361-391 restoreState (try around the settings write, castPutBack, throw), :767 writeState",
+     "holds": "yes",
+     "test": "the incident grid's XI08 and XI09 and its I16, I17 (scripts/tests-grid.mjs; 12 mentions of E33)",
+     "test_kind": "behaviour",
+     "note": "What came before the failed write stands (a crisis action's effect, a close's earlier steps): Known gaps 186-191, deliberate."
+    },
+    {
+     "promise": "A Call's bonus reaches the roll (written read-only into the window's bonus field and sent with the roll); a Hope or Fear die at other faces is named 'dice' with one whisper",
+     "source": "v1.2.69.md 97-111",
+     "code": "scripts/config.mjs:4877 (the callBonus row), :4872-4874 (the faces rows); scripts/roll-draw.mjs:2432 FLAG_KINDS",
+     "holds": "yes",
+     "test": "tier 2 \"a Meddle's +1 the window writes is in the roll it sends and scored without an alarm\" (9961), \"a d20 Hope die on a drawn roll is not counted and the GMs are told once\" (9992), its Fear twin (9999)",
+     "test_kind": "behaviour",
+     "note": "Measured on the harness's stand-in of Daggerheart's window only (the notes say so); LIVE-E33-09 open."
+    },
+    {
+     "promise": "perf() reports a drawn roll's round trip: of the last fifty draws this browser took part in, how many, the median and the slowest; nothing sent or stored",
+     "source": "v1.2.69.md 134-140",
+     "code": "scripts/roll-draw.mjs:965 TRIPS_KEPT = 50, :968 keepTrip, :975 drawTimings, :384 (the roller's trip kept); scripts/diagnostics.mjs:1885-1888",
+     "holds": "yes",
+     "test": "tier 2 perf() test (by the notes 207-210: it once counted trips by a list kept at fifty)",
+     "test_kind": "behaviour",
+     "note": "LIVE-E33-05 partly: perf() answered on Foundry 14.370 in both themes on the GM and a player (16.11.2026, docs/dev/e58/PERF-READINGS.md:37-40 and others), but no roll was drawn, so each 'Rolls the GM drew' line read 'none'; the round trip is unmeasured."
+    }
+   ],
+   "registry_rows": 5,
+   "tests_read": [
+    {
+     "test": "tier 2 \"a player's message with the drawn flag is not read as drawn and awards nothing and is named once\" (tests-tier2.mjs:62339-62411, whole)",
+     "measures": "yes",
+     "why": "Creates three messages authored by a connected player (Despair with drawn and rollId, a critical with rollId, a plain critical), reads isDrawnRoll on each, whether the Monokuma's pool moved, the forged rows (user, student, paths, count), the whispers and the relay's verdict on +1 Hope after each critical. It fails on any of those. It needs a connected player (needs(world.atLeast(...))), so a world without one skips it rather than passes."
+    },
+    {
+     "test": "R291 (tests-tier0.mjs:13466-13498, whole)",
+     "measures": "yes",
+     "why": "Pairs the list's keys, tier 2's fixture keys and situationReading's branches from source, with a floor (13 rows, at least 6 branches) so an empty read fails. A text census: that the fixtures move the roll is tier 2's."
+    },
+    {
+     "test": "R303 (tests-tier1.mjs:11273-)",
+     "measures": "partly",
+     "why": "As under E28: two source matches and one driven wait."
+    },
+    {
+     "test": "R301 (tests-tier0.mjs:8197-8236)",
+     "measures": "partly",
+     "why": "Read by its title and its log line: the rows of MONOCUB.abilities against the resolver tables and one bridge action taking no result. Body not read whole."
+    },
+    {
+     "test": "scenario 83-roll-integrity (phase list 62-1499 read; the checks not read one by one)",
+     "measures": "yes",
+     "why": "Each legal road is played from a player's own page and read on four clients; each console change has a helper of its own that asks what ran, what was undone and the row naming the player. Its result was not read."
+    }
+   ],
+   "tests_to_join": [
+    "R291, R300, R301, R302 (tier 0), R303 (tier 1)",
+    "tier 2: a player's message with the drawn flag is not read as drawn and awards nothing and is named once",
+    "tier 2: a GM's card with the same flags stands",
+    "tier 2: a refused relay write on another's student leaves a row naming its sender",
+    "tier 2: a rewrite put back leaves a row naming the player",
+    "tier 2: a burst of refused relay requests about one student keeps every path and item it asked on the row of its key",
+    "tier 2: a Meddle's +1 the window writes is in the roll it sends and scored without an alarm",
+    "tier 2: a d20 Hope die on a drawn roll is not counted and the GMs are told once (and its Fear twin)",
+    "the incident grid's XI08, XI09, I15-I17",
+    "scenario 83-roll-integrity",
+    "scenario 15-held",
+    "scenario 30-security"
+   ],
+   "scenarios": [
+    "83-roll-integrity (register row audit/harness/README.md:217: layers ci and local-gate, 'E33'): every legal road read clean, the five owner changes of E35 C5, and the console changes each traced; the row says twelve of them, the file holds fifteen (finding E33-1)",
+    "15-held (the silent GM and the no-GM reaction, by the notes 77-84 and roll-draw.mjs:2786)"
+   ],
+   "live": {
+    "items": 10,
+    "read": 0,
+    "partly": 1,
+    "ids_partly": [
+     "LIVE-E33-05"
+    ],
+    "note": "Items 125-134. LIVE-E33-05 partly (perf() answers on v14, no drawn roll in the window). LIVE-E33-01 open, and the gate's own record writes its part not-run (no-server). The other eight open with no reading (live-items-04 rows 125-134). LIVE-E33-10 (the author Foundry stamps on a player's message) is the premise of the forged and drawn readings."
+   },
+   "findings": [
+    {
+     "id": "E33-1",
+     "severity": "nit",
+     "category": "hygiene",
+     "title": "Scenario 83's register row and its header count fewer console changes than the scenario runs",
+     "where": "audit/harness/README.md:217 ('twelve [changes] from a player's console', its own word for them avoided here); audit/harness/scenarios/83-roll-integrity.mjs:9-10 (the header: 'C5b appends the [console changes] (F1-F7)'), :1499 (the list of 15, under a const whose name is the word for a console change: F1, F1b, F2, F3, F5a, F7, F4, F4b, F4c, F6a, F6b, F5c, F5b, F8, F9)",
+     "what_happens": "The register says twelve, the 1.2.69 notes said thirteen (v1.2.69.md 243-244), the header names F1-F7, and the scenario's own list holds fifteen, F8 (a Frisk's packets) and F9 (one statistic) among them.",
+     "evidence": "const <the list, its name not repeated here> = [\"F1\", \"F1b\", \"F2\", \"F3\", \"F5a\", \"F7\", \"F4\", \"F4b\", \"F4c\", \"F6a\", \"F6b\", \"F5c\", \"F5b\", \"F8\", \"F9\"]; (83-roll-integrity.mjs:1499)",
+     "failure_scenario": "A reader of the harness README who sees 'twelve' in 83's row and fifteen F rows in a results file takes three of them for extra or unexplained, or a later change that drops one passes unnoticed against a count that was already wrong.",
+     "expected": "The register row and the header name the count the list holds, or no count.",
+     "confidence": "read",
+     "refutation_tried": "Looked for a definition under which twelve is right: of the fifteen, F1b and F1c (a check, not in the list) and F4b and F4c are variants; counting only F1-F9 by number gives nine, with letters fifteen; no reading gives twelve. git log of the README row was not readable past the shallow history."
+    }
+   ],
+   "superseded_by": [
+    "E60 C5a (1.2.98): the GM panel's Public roll tile removed; game.drpg.publicRoll stays",
+    "E35 C5: scenario 83 extended with the five owner changes (L12-L16)",
+    "E72 C13: the Monocub's second ability (Tinker) as one row, as this stage built for"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "Every promise traced is in today's code at the place named, the main one by a scenario (83) that plays each legal road and each console change on four clients and is in the ci layer, and the traces' rows by tier-2 tests that drive them (one read whole: it would fail on each of its nine readings). Its five registry rows are source censuses with floors. Against a 9: two promises hold in tiers 0-1 by source reads only (R302's whisper-before-mode, R303's no-GM reaction, whose Despair half is 'driven nowhere' by its own header), one in part since E60 removed the tile, and one nit (E33-1). Capped at 9: the stage's main promise - 83 through the local gate on v14 with Daggerheart's real window - has never run (local-gate.json: not-run, no-server), every forged and drawn reading rests on the author Foundry stamps (LIVE-E33-10, unread), and of 10 live items none is read and one is partly read. The base run's results were not available.",
+   "missing_to_10": "The local gate's sandbox-83-roll-integrity part run and passed (LIVE-E33-01); LIVE-E33-10 read (a player's message authored by that player on v14); LIVE-E33-02, -03 and -09 on Daggerheart's real window; perf()'s round trip with a drawn roll (LIVE-E33-05); a driven check of the no-GM reaction's Despair guard; 83's register row and header corrected (E33-1); the base run's results joined.",
+   "l1": {
+    "what": "scenario 83's legal roads and a player's console changes on a real Foundry, through the local gate",
+    "recipe": [
+     "1. On the sandbox at :30099 with Daggerheart 2.6.5, then the current 2.12.x, run npm run gate:local in audit/harness so the part sandbox-83-roll-integrity runs.",
+     "2. Read audit/gate/local-gate.json: the part's status and its evidence.",
+     "3. At a table, as a player, press Daggerheart's 'Reroll action roll' and the die button on a drawn card and on an own roll; read sheetWrites() on the primary GM.",
+     "4. With forcePrivateRolls on, roll as a Monocub with another student in its room, and as a GM from a student's sheet; read each message's whisper list on a player's console."
+    ],
+    "clients": "GM, three players (the gate's pages), or a GM and two players at a table",
+    "theme": "both",
+    "settles_if": "settled yes when the gate part is 'passed' with 0 flags and 0 rows on the legal roads and every console change traced to its sender; settled no on a flag of a legal road or an untraced change",
+    "priority": "grade cap 9 (E33's main promise, LIVE-E33-01)"
+   }
+  },
+  {
+   "id": "E34",
+   "version": "1.2.70",
+   "shipped": "2026-10-08",
+   "what": "Wave 1 of the file split (D23 option 1): five long files - murder.mjs, fog.mjs, projects.mjs, projects-ui.mjs, call-effects.mjs - cut by pure moves into eleven new files behind facades that keep every name they exported at 1.2.69; a move checker (tools/moved-only.mjs, its planted pairs as check moves) and the lint's no-import-assign. Nothing the module does was to change.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.70.md (1-115, whole)",
+    "tools/stages.json row E34 (planned and shipped 1.2.70, 2026-10-08, touches null, drills none)",
+    ".claude/rules/code.md:10-50 ('Where the code lives', the rows of the eleven files) and :114-120 ('That is wave 1 (E34, 1.2.70) whole')",
+    "tools/moved-only.mjs:1-150 (its header and the dated readings of its planted pairs: 11 of 11, 35 of 35, 40 of 40 at E34, 43 of 43 today)",
+    "docs/dev/R-REGISTRY.md: no row stamped E34; the stage added no test by design (v1.2.70.md 87-88); tier 0 rows re-pointed to the new files carry 'E34 C7a/C8/fix r2-G2' comments (tests-tier0.mjs:3690, 5783, 7486-7494, 7822-7828; tests-tier1.mjs:917)",
+    "no docs/dev/e34/ folder; the plan the code cites ('plan E34 4.3', 'the E34 plan, 2.2') is not in the repository",
+    "audit/AUDIT-1.2.42.md 9.2 items 135-136 (lines 979-980), LIVE-E34-01 and -02",
+    "commits: none of 07-08.10.2026 in the shallow checkout and no tags, so the move proof cannot be re-derived here (stages-22's E54 could, with its commits in the checkout); git log --grep E34: 0 commits"
+   ],
+   "commits": 0,
+   "promises": [
+    {
+     "promise": "murder.mjs holds no code: the incident's record in incident-store.mjs (the one new file that listens on the socket), the rules in murder-rules.mjs, the window and the tracker in murder-ui.mjs, each re-exported",
+     "source": "v1.2.70.md 41-46",
+     "code": "scripts/murder.mjs:1-37 (three export-from statements, no code); scripts/incident-store.mjs (1942 lines, 3 socket listeners), scripts/murder-rules.mjs (4746, none), scripts/murder-ui.mjs (907, none)",
+     "holds": "yes",
+     "test": "the suite's census reads of murder.mjs's family (tests-tier0.mjs:7486-7494, 7822-7828, the writes read in every file murder.mjs was split into); check moves (the tool's own planted pairs)",
+     "test_kind": "source",
+     "note": "None of the three imports murder.mjs (grep: 0). 46 module files import murder.mjs today. The header's count of re-exported names is stale (finding E34-1)."
+    },
+    {
+     "promise": "The fog split: fog.mjs keeps the layer, the ledger, the dissolve and the raster; fog-geometry.mjs (no state), fog-doorways.mjs, fog-reveal.mjs, fog-diagnostics.mjs",
+     "source": "v1.2.70.md 47-51",
+     "code": "scripts/fog.mjs (4833 lines):75-99 (imports from the four, re-exports seamWidth, rezoomRoomOutline, whatIsHere, checkRegions, sceneUncoveredPercent); scripts/fog-geometry.mjs (492, no import at all), fog-doorways.mjs (1943), fog-reveal.mjs (1628), fog-diagnostics.mjs (917)",
+     "holds": "yes",
+     "test": "check moves; the suite's reads re-pointed (tests-tier0.mjs comments)",
+     "test_kind": "source",
+     "note": "fog-diagnostics.mjs imports vault-store.mjs past its facade (fog-diagnostics.mjs:53), recorded by code.md:131-134 as measured (E41's wave). No new file of E34 imports its own facade (grep of the eleven for their facade's name: 0)."
+    },
+    {
+     "promise": "Projects: secret fields and who may see them in projects-secrecy.mjs; the tray in projects-tray.mjs. Calls: the pickers in call-pickers.mjs; sealed rooms, the silence, the chain and the called assembly in call-world.mjs",
+     "source": "v1.2.70.md 52-57",
+     "code": "scripts/projects.mjs:55-60 (from projects-secrecy.mjs); scripts/projects-ui.mjs:34-43 (refreshProjects, hideUndiscovered from projects-tray.mjs); scripts/call-effects.mjs:45-51 (pickTarget from call-pickers.mjs, names from call-world.mjs)",
+     "holds": "yes",
+     "test": "check moves",
+     "test_kind": "source",
+     "note": "projects-tray.mjs imports projects.mjs (:36) and call-pickers.mjs imports it by import() (:450): another family's facade, not their own; allowed by code.md's rules."
+    },
+    {
+     "promise": "Each of the five old files still exports every name it exported at 1.2.69, each the same function; game.drpg offers the same functions",
+     "source": "v1.2.70.md 16-22",
+     "code": "the facades above; tools/api-surface.json (game.drpg's surface, not compared here)",
+     "holds": "unread",
+     "test": "tools/moved-only.mjs run on each moving commit and on the whole stage (the notes 95-99); not re-run",
+     "test_kind": "none",
+     "note": "Cannot be re-derived: no 1.2.69 tree is in the checkout. Today murder.mjs re-exports 69 names, two more than the 67 its header and code.md:33 give (finding E34-1); one of the two, openingProposalFor, was added by E68 C9 (0f9a9a53), a later stage, not lost by this one."
+    },
+    {
+     "promise": "A checker for moves: node tools/moved-only.mjs <base> [<head>], red unless every line moved, was promoted, is an import or a header, and every name read means what it meant; its 40 planted pairs run as node tools/check.mjs moves, in CI with the other checks",
+     "source": "v1.2.70.md 58-66",
+     "code": "tools/moved-only.mjs (1770 lines): :1-30 the parts, :109-150 the dated readings (40 of 40 on 08.10.2026 after fix r2-G1; 43 of 43 since E41), :1610 PLANTED, :1684 selfCheck; tools/check.mjs:55, :688-691 moves, :1925 PARTS",
+     "holds": "yes",
+     "test": "check moves (the tool's own planted pairs)",
+     "test_kind": "behaviour",
+     "note": "The audit's README records the base run's check as 25 parts all green (audit/findings-1.2.118/README.md:77-78), moves among them; that line is the run's summary, not a per-part file. Later waves (E41, E54) used the tool on their commits (stages-22's E54 re-derived seven)."
+    },
+    {
+     "promise": "The lint refuses an assignment to an imported name (no-import-assign)",
+     "source": "v1.2.70.md 67-69",
+     "code": "eslint.config.mjs:2, :37, :48 (\"no-import-assign\": \"error\")",
+     "holds": "yes",
+     "test": "npm run lint (base run: 418 files, 0 problems, audit/findings-1.2.118/README.md:78)",
+     "test_kind": "source",
+     "note": ""
+    },
+    {
+     "promise": "Nothing the module does changes: the suite reads the same tests in the same order with the same results and reasons as 1.2.69, every scenario the same checks",
+     "source": "v1.2.70.md 28-32, 84-94",
+     "code": "n/a (a claim about a run of 08.10.2026)",
+     "holds": "unread",
+     "test": "the stage's own npm test at 2c7ad5a (937 passed, 0 failed, 17 skipped), as the notes record it",
+     "test_kind": "none",
+     "note": "K only: 2c7ad5a is not in the checkout. LIVE-E34-01 (the fog at a table, its console reports as on 1.2.69, the load time) and -02 (the Murder window and tracker) are open; the fog has since been changed again by E17 part 2 (live-items-04 row 135)."
+    }
+   ],
+   "registry_rows": 0,
+   "registry_note": "The stage added no test (v1.2.70.md 87-88); its proof is the move checker and the suite unchanged. Tier 0's reads of moved code were re-pointed at the new files and each pointed back once and failed (v1.2.70.md 97-99).",
+   "tests_read": [
+    {
+     "test": "tests-tier0.mjs:7486-7494 (the census of the incident's writes, re-pointed by E34 C8 and fix r2-G2)",
+     "measures": "yes",
+     "why": "Reads every file murder.mjs was split into and the facade, so a write moved to any of them is still read; its comment records 88 names read in murder-rules.mjs and 0 in murder.mjs on 07.10.2026."
+    },
+    {
+     "test": "check moves (tools/moved-only.mjs selfCheck, :1684-)",
+     "measures": "yes",
+     "why": "A fixture repository with every planted problem, red unless exactly those are reported, matched one to one; it proves the checker can see what it is for. It does not re-check E34's own commits."
+    }
+   ],
+   "tests_to_join": [
+    "check moves and lint (the base run's quick part: green by README.md:77-78)",
+    "tier 0's census of the incident's writes (the row at tests-tier0.mjs:7486)"
+   ],
+   "scenarios": [
+    "no register row names E34; the notes say every scenario read the same checks at 1.2.70 (v1.2.70.md 89-90)"
+   ],
+   "live": {
+    "items": 2,
+    "read": 0,
+    "partly": 0,
+    "note": "Items 135-136, both open (live-items-04 rows 135-136). Their labels and diagnostics still exist; LIVE-E34-01's text is stale on the fog, changed again by E17 part 2 C9 (1.2.87)."
+   },
+   "findings": [
+    {
+     "id": "E34-1",
+     "severity": "nit",
+     "category": "hygiene",
+     "title": "murder.mjs's header and code.md give the facade 67 names (33, 31, 3); it re-exports 69 (34, 32, 3), and one was added after the split against the facade rule",
+     "where": "scripts/murder.mjs:13-15 ('thirty-three of incident-store.mjs's, thirty-one of murder-rules.mjs's and three of murder-ui.mjs's'), :23-37; .claude/rules/code.md:15-16 ('exports nothing new'), :33 ('the 67 names it exported at 1.2.69 (33 from the store, 31 from the rules, 3 from the window)'); scripts/eclipse.mjs:720",
+     "what_happens": "Counting the three export lists gives 34 names from incident-store.mjs, 32 from murder-rules.mjs and 3 from murder-ui.mjs. E68 C9 (0f9a9a53, 10.11.2026) appended openingProposalFor to the rules' list and eclipse.mjs imports it through the facade, a new name the code.md rule says a facade never takes; the extra store name was already there at the earliest copy the shallow history holds (d0c804e6), so whether 1.2.70 itself exported 33 or 34 cannot be read.",
+     "evidence": "takeDeclaredBetrayal, rollOpening, closeOpeningRoll, throwOpeningRoll, resolveOpening, openingProposalFor\n} from \"./murder-rules.mjs\";   (murder.mjs:35-36)\nconst { openingProposalFor: read } = await import(\"./murder.mjs\");   (eclipse.mjs:720)",
+     "failure_scenario": "A stage that changes the incident checks a facade's export set against the header's 67 before a move, finds 69, and either takes the two for something the move added or stops trusting the count the move checker is compared with.",
+     "expected": "The header and code.md's row give the names the facade exports today, and a name added after the split is exported by the file of its role and imported from there.",
+     "confidence": "read",
+     "refutation_tried": "Counted the names by script over the three export statements (34, 32, 3); looked for a name listed twice (none); read git log -p of murder.mjs (two commits in the shallow history: d0c804e6 carries the 34-name store list, 0f9a9a53 adds openingProposalFor). The facade rule is code.md's (lines 15-16), not a rule of the move checker, so no check goes red."
+    }
+   ],
+   "superseded_by": [
+    "E41 (1.2.97) and E54 (1.2.113): waves 2 and 3 of the same split, by the same tool",
+    "E68 C9: a name added to murder.mjs's facade after the split (E34-1)",
+    "E17 part 2 C9 (1.2.87): the fog changed again, so LIVE-E34-01's comparison with 1.2.69 no longer reads the split alone"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "Graded although no registry row carries E34: the stage added no test by design, its proof is a tool that is in the repository and green in the base run's check (moves), and its claims about today's tree can be read. What can be read holds: murder.mjs holds no code, the eleven files are where the notes and code.md put them, incident-store.mjs alone of the incident's three listens on the socket, none of the eleven imports its own facade, fog-geometry.mjs imports nothing, the checker and the lint rule are in place and run in CI. Against a 9: the stage's main promise - pure moves, every name kept, the suite read the same - rests on its own run of 08.10.2026, whose commits are not in the checkout, so it is K and was not re-derived here; and one nit (E34-1). Capped at 9 in any case while LIVE-E34-01 and -02 are open.",
+   "missing_to_10": "The stage's commits (1.2.69 to 2c7ad5a) fetched and moved-only re-run over them, or the facades' export sets at v1.2.69 and v1.2.70 compared as stages-22 did for E54; LIVE-E34-01 and -02 read at a table; murder.mjs's header and code.md:33 corrected and openingProposalFor imported from murder-rules.mjs (E34-1).",
+   "l1": {
+    "what": "the fog and the Murder window on the split files at a table",
+    "recipe": [
+     "1. Foundry 14.370 on the current release; a GM and one player on a scene with rooms and fog.",
+     "2. Walk the player into a new room; watch the reveal, the door glow and the room's outline land, fade and recolour at a change of the hour; zoom in and out.",
+     "3. On the GM run game.drpg.diagnoseFog(), whyBlack(), whatIsHere(), checkRegions() and fogPeek(); compare with a 1.2.69 reading if one exists (none in the repository).",
+     "4. Open the Murder window and the tracker, press 'Ask for the opening roll again', play a crisis action, Stage 6 and a betrayal offer.",
+     "5. Time the world's load (F5 to the canvas ready) on the GM."
+    ],
+    "clients": "GM, one player",
+    "theme": "both",
+    "settles_if": "settled yes when each step draws and answers with no console error; settled no on an error naming one of the eleven files or a missing name",
+    "priority": "grade cap 9 (LIVE-E34-01, -02)"
+   }
+  }
+ ],
+ "not_established": [
+  {
+   "what": "The base run's results: audit/findings-1.2.118/base-run.json did not exist when this was written (the base run had reached its suite shards: scratchpad base/shards.status 'suite: 01-runtests'). No test or scenario named above is claimed green; each is listed in tests_to_join. Only the quick part's summary in the audit's README was read (lint 0 problems, check 25 parts green, the gate's self-test 37/37).",
+   "live": "none (a central run)",
+   "l1": null
+  },
+  {
+   "what": "The four stages' own commits (03-08.10.2026) are outside the shallow checkout; none of the stage's commit messages, red-first readings or mutant counts could be read, and E34's move proof could not be re-derived.",
+   "live": "none (fetch the history or the tags v1.2.66-v1.2.70)",
+   "l1": null
+  },
+  {
+   "what": "Whether message.author on a player's chat message is always that player on Foundry 14.370: the forged rows, isDrawnRoll, the away card and the rewrite rows all rest on it.",
+   "live": "LIVE-E33-10",
+   "l1": {
+    "what": "the author and timestamp Foundry stamps on a message a player's browser creates",
+    "recipe": [
+     "1. Foundry 14.370; a GM and one player.",
+     "2. On the player's console: await ChatMessage.create({ content: 'x', author: game.users.find(u => u.isGM).id }) and note whether it is refused or stored.",
+     "3. On the GM's console read the new message's author.id and _stats.createdTime / timestamp.",
+     "4. Repeat with a timestamp two days back in the create data."
+    ],
+    "clients": "GM, one player",
+    "theme": "default",
+    "settles_if": "settled yes when the stored author is the player (or the create is refused) and the timestamp is the server's; settled no when a player can store a GM as author",
+    "priority": "grade cap 9 (E33)"
+   }
+  },
+  {
+   "what": "Whether a player's write on their own student reaches the primary GM's updateActor, updateItem and deleteItem hooks with the module's drpgWrite option on v14; the whole sheet audit's reasoning about a write's cause rests on it.",
+   "live": "LIVE-E29-01",
+   "l1": {
+    "what": "a module option key on a player's own actor and item writes, as the primary GM's hooks receive it",
+    "recipe": [
+     "1. Foundry 14.370; a GM and one player.",
+     "2. On the GM's console: Hooks.on('updateActor', (d, c, o, u) => console.log('drpg', o.drpgWrite, u)); the same for updateItem and deleteItem.",
+     "3. As the player, spend an action and use an item on the own student (module roads that name a reason).",
+     "4. Read the GM's console lines."
+    ],
+    "clients": "GM, one player",
+    "theme": "default",
+    "settles_if": "settled yes when each hook logs the reason the module named and the player's id; settled no when the option arrives undefined",
+    "priority": "grade cap 9 (E29)"
+   }
+  },
+  {
+   "what": "secret.mjs cardWriter and the incident's private cards posted by the primary GM (E28's promise 8) were not read in this pass.",
+   "live": "LIVE-E28-15",
+   "l1": null
+  },
+  {
+   "what": "character.mjs was not read whole: R221's gate is taken from its census.",
+   "live": "none (a second static reading)",
+   "l1": null
+  },
+  {
+   "what": "The tier-2 publicRoll tests and the perf() round-trip test were not located by title; the claims about them come from the notes.",
+   "live": "none (a second static reading)",
+   "l1": null
+  }
+ ]
+}

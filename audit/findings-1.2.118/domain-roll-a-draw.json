@@ -1,0 +1,366 @@
+{
+ "reader": "domain-roll-a-draw",
+ "files_read": [
+  {
+   "file": "scripts/roll-draw.mjs",
+   "lines": 3066,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/roll-dialog.mjs",
+   "lines": 1350,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/private-rolls.mjs",
+   "lines": 1951,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/dice-sync.mjs",
+   "lines": 1172,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/dice-look.mjs",
+   "lines": 553,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/roll-marks.mjs",
+   "lines": 87,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/forced-roll.mjs",
+   "lines": 227,
+   "read": "whole"
+  }
+ ],
+ "count_note": "7 files, 8406 lines, as the scope names them (wc -l on b5a29e73's tree, which the branch leaves unchanged under scripts/). Each read start to end. base-run.json was not in audit/findings-1.2.118 when this file was written, so no test or scenario result is cited as read; tests are named from their source only.",
+ "neighbours_followed": [
+  "scripts/action-pipeline.mjs (rollTrait 140-178: `supporting = !remember && !calls.TAKES_CALLS.has(actionKey)` and the shield; throwDice 184-320: the claim's facts, the window always opened, the drawn road's spend and Loaded Die)",
+  "scripts/call-effects.mjs (the shield 82-97 with TAKES_CALLS; pendingCalls 192-194 shielded; armedCallsShown 202-205 not shielded; consumeCalls / consumeCallsByNonce 466-489)",
+  "scripts/action-doors.mjs:143 (Pick the Lock's cover, `remember: false, actionKey: \"pickCover\"`), scripts/action-tail.mjs:81 (`tailUnseen`), scripts/anonymity.mjs:546 and 561 (`lootCover`), scripts/frisk.mjs:398 and scripts/palm.mjs:331 (`palm`)",
+  "scripts/config.mjs (LEGAL_ROLL_MODIFIERS 4871-4885, HOSTILE_GRACE 4869, CRITICAL 1259-1262)",
+  "scripts/settings.mjs (lockRollDialog 3123-3130, default true, config false; TABLE_SETTINGS 1186-1193) and scripts/settings-window.mjs:91 (the privacy section that draws the switch)",
+  "scripts/module.mjs:381-383 and 418-422 (registerRollDraw, registerUnwitnessedRolls, announceRollDraw and askAboutUnwitnessed at every ready)",
+  "scripts/critical.mjs header (a critical's Hope, no Stress cleared)",
+  "lang/en.json (DRPG.Rolls.*, DRPG.RollDialog.*, DRPG.Settings.lockRollDialog, DRPG.DiceLook.diag.*)",
+  "docs/handbooks/gm-handbook.en.md:91 (the lock named among the table's switches)",
+  "audit/harness/lib/dh-dice/dice/dualityRoll.mjs:105-119 (isCritical, withHope, withFear: the copy of Daggerheart's getters)",
+  "audit/harness/lib/shim.mjs:953-960 (ChatMessage#visible as the harness models it: a whispered roll is visible to all)",
+  "audit/harness/scenarios/83-roll-integrity.mjs:223-230, 378-381 (its Obstacle, thrown on a statistic from the sheet, not on a supporting roll)",
+  "scripts/tests-tier2.mjs (git grep for hostileCalls, SPENDS_NO_CALL, pickCover, tailUnseen, lootCover beside a Call: 9814, 9862, 10009, 18091, 18175 read by their comments)"
+ ],
+ "strengths": [
+  "The GM throws its own roll from its own list: the dice at the rules' faces, the kind, the critical, every flat source and the advantage dice are written fresh by the primary (roll-draw.mjs legalRollOf 1599-1612, drawnOptions 1585-1591, termsOf 1549-1558); the packet's roll keeps only its class and, where nothing differs, its formula, and its own options are never carried (THE GM'S OWN OPTIONS, 1560-1584).",
+  "What the draw reads is read in one step after the audit's wait (expectedFor 2359-2371: readyFor, then judgedFor, then every row with no await between), so a write that lands during a pick card's wait is judged before the dice.",
+  "A draw belongs to an action being taken: payments are tickets seen landing on this GM (notePayments 1032-1053), a draw takes one in the same tick as the last look (drawRefusal 1138-1185), a later roll of the action supersedes the older unsettled one (keepRecord 2602-2612), and two draws of one action at once are refused (drawOnGm's `drawing` lock 1301-1320).",
+  "A resend is answered from the record by Foundry's sender and the request id, never by the packet (drawAgainOf 2626-2635), so a primary that reloads between its message and its answer does not judge the roll twice.",
+  "Every roll's privacy is keyed on its subject at the last moment, and the module's own rolls are emptied of their character as they are created (private-rolls.mjs neutralRollSource 719-729, neutralRollOf 778-801, enforceContentVisibility 469-504).",
+  "Who may read a drawn roll is each browser's own set, asked before core's rule and written nowhere (readableRule 1616-1631, isReadableHere 1602-1606); nobody's whisper list names the roller.",
+  "The dice of a masked killer reach non-insiders without the roller's user id or character (maskSplit 1815-1821, used by both relays 1794 and 1875).",
+  "The window's lock is written before Daggerheart draws its context, and only where the method reads as the one read (roll-dialog.mjs wrapPrepareContext 215-246), with a said fallback; a Call armed while a window stands open waits for the next roll (windowCalls 117-128).",
+  "The Loaded Die is loaded on one roll instance's evaluate and lifted in a finally, once per purchase (forced-roll.mjs loadDie 176-227), and a die whose faces come from elsewhere is read as not held (loadedDieHeld 91-100).",
+  "A roll thrown with no GM moves nothing until a GM grants it, its stamp is held to its author owning the character and to no GM-only flag (roll-draw.mjs awayRowOf 2836-2848), and the grant is decided on the primary, one decision at a time (askToDecide 2955-2959, decideUnwitnessed 2944-2948).",
+  "No function in the seven files is over 150 lines (the longest: whisperRoll 118, throwDrawn 106, onRenderApplication 102), and each wait is a named constant marked chosen or measured.",
+  "dice-look.mjs is read-only: a player's run reads its own User alone and none of the GMs' store (lookView 339-380)."
+ ],
+ "findings": [
+  {
+   "id": "domain-roll-a-draw-1",
+   "domain": "ROLL",
+   "severity": "minor",
+   "category": "bug",
+   "title": "A hindering Call is thrown and spent on the supporting rolls of Pick the Lock, Tail Someone and Take from the Body on the GM, while the roller's window and the GM's own road shield them",
+   "where": "scripts/roll-draw.mjs:1857 (SPENDS_NO_CALL holds \"palm\" alone), 1865-1869 (hostileCalls), 1673-1675 and 1715-1716 (throwDrawn applies and spends them); scripts/action-pipeline.mjs:155-157 (rollTrait shields every `remember: false` roll but the opening); scripts/action-doors.mjs:143, scripts/action-tail.mjs:81, scripts/anonymity.mjs:546 and 561 (the three supporting rolls with an action key)",
+   "what_happens": "rollTrait on the roller's browser shields every `remember: false` roll except an opening (`supporting = !remember && !calls.TAKES_CALLS.has(actionKey)`), so the window of Pick the Lock's cover (`pickCover`), Tail Someone's notice roll (`tailUnseen`) and a Take's cover (`lootCover`) opens with no Call, and the packet names none. On the primary, hostileCalls returns [] only for a key in SPENDS_NO_CALL or for no key at all; these three keys are neither, so every hindering Call armed on the character more than HOSTILE_GRACE (60 s) before the draw - a Monokuma's Obstacle, a Meddle's -1 - is thrown into the supporting roll and spent with it (`used = [...applied, ...hostile]`). The claim lacks that die, so checkRoll raises an `advantage` (or `modifier`) flag and the GMs get the 'did not match' whisper for an honest roll; rollerLine tells the roller nothing (the claim had nothing extra). The Call is then gone before the action's own roll (`pick`, `tail`, `loot`), which it was bought for. SPENDS_NO_CALL's own comment (1853-1856) says it mirrors rollTrait's `remember: false`, and the note at 1813-1815 says such a roll 'is given none'; the three keys came later (E68 C10, E69 C3, E74 C4) and were not added.",
+   "evidence": "roll-draw.mjs:1857  const SPENDS_NO_CALL = new Set([\"palm\"]);\nroll-draw.mjs:1866      if (SPENDS_NO_CALL.has(key) || (!key && claimed !== false)) return [];\nroll-draw.mjs:1869      return armedCallsShown(actor, { held }).filter(call => hinders(call) && !named.has(call?.nonce) && !(Number(call.at) > armedBy));\nroll-draw.mjs:1715      const used = [...applied, ...hostile].map(call => call.nonce);\nroll-draw.mjs:1716      if (used.length) await spendCallsByNonce(actor, used);\naction-pipeline.mjs:157 ... const supporting = !remember && !calls.TAKES_CALLS.has(actionKey);\naction-doors.mjs:143  const cover = await rollTrait(actor, rule.cover.trait, { remember: false, actionKey: \"pickCover\",\ncall-effects.mjs:193      if (shielded) return [];   (pendingCalls; armedCallsShown at 202-205 has no shield)",
+   "failure_scenario": "A Monokuma buys an Obstacle on Aiko; two minutes later Aiko picks a lock with a witness in the room: her cover window shows no disadvantage, the GM throws the cover at disadvantage and whispers the GMs that her roll 'did not match', and the lock's Hand roll that follows is thrown with no Obstacle at all.",
+   "expected": "The drawn road gives a supporting roll the Calls the roller's road gives it - none but an opening's - so the Obstacle waits for the action's own roll and a legal road raises no flag (the trust model's layer two, scenario 83's rule).",
+   "confidence": "read",
+   "refutation_tried": "Looked for a shield on the GM's side: armedCallsShown (call-effects.mjs:202-205) reads the flag and the Confusions with no `shielded` test, and the GM's module-level shield is 0 while it draws someone else's roll. Looked for another gate on these keys in throwDrawn and expectedFor: none (situationReading answers 0 for them, the `calls` row is 0, the `hostile` row carries the dice). Looked for a test that pins the opposite: git grep finds no tier-2 or scenario test that arms a hindering Call before a pickCover, tailUnseen or lootCover roll; scenario 83's Obstacle (223-230, 378-381) is thrown on a statistic from the sheet, where the hostile row is meant to apply. The GM's own road (a GM driving the sheet) shields on its own browser, so the two roads disagree. Not run.",
+   "tests_near": "Tier 2 tests read by their comments at scripts/tests-tier2.mjs:9814, 9862, 10009 (hostile Calls named and unnamed on action rolls) and 18091, 18175 (E112's opening); none drives a supporting roll with an action key."
+  },
+  {
+   "id": "domain-roll-a-draw-2",
+   "domain": "ROLL",
+   "severity": "minor",
+   "category": "ux",
+   "title": "With 'Lock the roll window for players' off, the window hands a student the statistic, the Experiences and the bonus box, and the GM's draw counts none of them: every use is flagged to the GMs and told to the roller as not counted",
+   "where": "scripts/roll-dialog.mjs:351-401 (the lock-off branch) and its note at 366-370; scripts/roll-draw.mjs:1517-1536 (scoredOf: experiences only as far as an Experience Call bought, the rest clamped into the effects' range), 2414-2427 (checkRoll), 1621-1638 (rollerLine); scripts/settings-window.mjs:91 (the switch is drawn there)",
+   "what_happens": "The lock-off branch imposes what a Call bought and leaves 'which trait, which experience, the roll mode, the free-text bonus' to the player (roll-dialog.mjs:368-370). Since E29 C10 the primary throws its own list: an Experience without a Talent/Experience Call is not counted (`experiences.slice(0, expected.experiences)`, the row's bound 0 without the Call), a typed bonus is clamped into the character's effects' range, and a statistic other than the action's is not thrown. So with the switch off, a player who ticks an Experience or types a bonus sees the window's formula include it, the GM throws without it, checkRoll records `modifier` (or `trait`), the GMs get the 'did not match' whisper and the roller gets 'The GM counted ...; not counted: ...'. The switch's own hint ('Players cannot change ... Experiences, or bonus') describes only the on state; nothing on the off state says these controls no longer count.",
+   "evidence": "roll-dialog.mjs:368-370  * So the terms of the purchase are imposed here too (`forceConfig`, before the\n *   window is drawn), and only the things that are the PLAYER's are left alone:\n *   which trait, which experience, the roll mode, the free-text bonus.\nroll-dialog.mjs:401          else freeBonus(root, app);\nroll-draw.mjs:1520      const experiences = claim.experiences.slice(0, expected.experiences);\nroll-draw.mjs:1525      const effects = Math.min(high, Math.max(low, rest));\nroll-draw.mjs:2419      if (claim.flat - claim.traitValue !== scored.flat - scored.traitValue || claim.experiences.length > scored.experiences.length) {",
+   "failure_scenario": "A GM turns the lock off so players can drive their windows; a player ticks the Experience that fits her Search and rolls: her window showed +2, the card shows the total without it, she is told 'not counted: modifier +2', and the GMs read a flagged roll from an honest player.",
+   "expected": "Either the off state leaves only what the draw counts (the mode, a statistic for a roll whose action names none), or the switch's text says that what the player picks there is a claim the GM does not count.",
+   "confidence": "read",
+   "refutation_tried": "Checked that the switch is reachable: settings.mjs:3123-3130 registers it with config: false, but settings-window.mjs:91 draws it in the module's own settings window, and the GM handbook (line 91) lists it. Checked whether the draw counts a window's Experience without a Call: the `experience` reader answers row.bound (1) only when an applied Call grants `experience` (roll-draw.mjs:2289). Checked a statistic from the sheet: there the roller's statistic stands (traitFrom null, `trait = expected.trait ?? claim.trait`), so this does not cover a sheet roll's statistic. The default is on, which is why this is minor. Not run.",
+   "old_id": ""
+  },
+  {
+   "id": "domain-roll-a-draw-3",
+   "domain": "ROLL",
+   "severity": "minor",
+   "category": "leak",
+   "title": "A player's dice look diagnostic reads the newest roll in the log, another student's hidden one included, and shows its author and its dice in the window it asks them to send the GM",
+   "where": "scripts/dice-look.mjs:325-329 (rollMessage: `gm || m.visible !== false`), 365-378 (`by = message.author?.id`, throwLook of its dice), 476-480 (the 'Roll:' line), 512 (the player's intro asks them to copy it to the GM)",
+   "what_happens": "With no message id, a player's run picks the newest message with rolls whose `visible` is not false. Foundry's ChatMessage#visible answers true for every whispered message that holds a roll (private-rolls.mjs:452-458 states it; the harness models it so, audit/harness/lib/shim.mjs:953-960) - only `isContentVisible` hides it. So a player's run reads the newest roll whoever it is about, and the window and console print 'Roll: <author> - hope d12: ..., advantage d6 ...' with the dice's classes, faces and modifiers (how many advantage or disadvantage dice, `kh`). For a roll not drawn (a Monocub's Meddle in another room, a roll thrown with no GM, Daggerheart's own item roll) the author is the other player; for a drawn one it is the GM, which still says that a roll was made. The module hides such a card whole because 'Kaede rolled something is itself information' (private-rolls.mjs:465-467).",
+   "evidence": "dice-look.mjs:325  /** The roll message a run reads: the one named, else the newest with dice this browser may read. */\ndice-look.mjs:328      return game.messages.contents.filter(m => (m.rolls?.length ?? 0) > 0 && (gm || m.visible !== false)).at(-1) ?? null;\ndice-look.mjs:368          let by = message.author?.id ?? null, audience = null;\ndice-look.mjs:478          lines.push(`${word(\"DRPG.DiceLook.diag.roll\")}: ${by} - ${view.roll.dice.map(dieLine).join(\"; \") || \"-\"}`);",
+   "failure_scenario": "The GM asks every player to run game.drpg.diagnoseDiceLook() after a Monocub's Meddle in the kitchen; a player in the library reads 'The roll read: <the Monocub's player> - hope d12 ...' about a roll whose card is hidden from her.",
+   "expected": "A player's run reads only a roll this browser may read (`isContentVisible`, or the module's own `isReadableHere`), as its own comment says.",
+   "confidence": "read",
+   "refutation_tried": "Every browser holds the document, so a console learns nothing new; the finding is about the module's own window showing an honest player what the chat log hides from them. Looked for a later filter: lookView and viewLines print the roll as read; no isContentVisible test anywhere in dice-look.mjs (git grep). Foundry's own getter is not on this machine: its behaviour is the module's own note and the harness's model. Not run."
+  },
+  {
+   "id": "domain-roll-a-draw-4",
+   "domain": "ROLL",
+   "severity": "minor",
+   "category": "flow",
+   "title": "A player who reloads while the GM draws their statistic from the sheet never reads that roll's card: the GM settles it, and the card is hidden on the roller's own browser for good",
+   "where": "scripts/roll-draw.mjs:595-621 (playBack: `readHere(messageId, { keep: true })` only at the answer); scripts/private-rolls.mjs:1547-1556 and 1581-1592 (readHere keep, refillReadable reads only kept ids), 1594-1606 (drawsAwaited, memory only), 1790 (relayDrawnDice leaves the roller out)",
+   "what_happens": "A statistic from the sheet the GM drew is the GM's message whispered to the GMs (claimed, keepCard). Its roller reads it through `drawsAwaited` while the draw is under way and through `readableHere` once the answer is played back, where `keep` writes the id to the client setting `readableRolls`. A reload between the GM's message and the answer loses both: the answer goes to a browser that is gone, playBack never runs, the id is never kept, and relayDrawnDice sends `dice.show` to the audience less the roller (`id !== by?.id`). After the reload refillReadable finds nothing for it, and enforceContentVisibility hides the card. The GM has already written its Hope or Fear step (throwDrawn 1710-1713). Wider than this file: an action's roll in the same window leaves its pipeline dead on the reloaded browser with the payment taken (the action's own abort never runs).",
+   "evidence": "roll-draw.mjs:610      readHere(messageId, { keep: true });\nprivate-rolls.mjs:1555      if (keep) void keepReadable(messageId);\nprivate-rolls.mjs:1586          ids = Array.isArray(kept) ? kept.filter(id => typeof id === \"string\" && game.messages?.has(id)) : [];\nprivate-rolls.mjs:1790      const recipients = audience.filter(id => id !== game.user?.id && id !== by?.id);",
+   "failure_scenario": "A GM asks for a Body reaction; the player clicks it and her tab reloads while the GM waits on the audit; she comes back to a log with no card of that roll, and rolls again.",
+   "expected": "The roller can read every roll the GM drew for them (the owner's 27.09 rule the r2-H7 note cites), after a reload too.",
+   "confidence": "read",
+   "refutation_tried": "Looked for another road that makes the roller's message readable: startOnMessage starts dice only; signAsRoller heads a card already readable; showRelayedDice runs readHere only for recipients of dice.show, which exclude `by`. The window is the draw's own: up to PAY_WAIT_MS, PICK_WAIT_MS and the audit's wait on the GM, so it is short but not empty. Whether a reload in that window happens at a table is not measured.",
+   "old_id": ""
+  },
+  {
+   "id": "domain-roll-a-draw-5",
+   "domain": "ROLL",
+   "severity": "nit",
+   "category": "ux",
+   "title": "The GMs' card of rolls thrown with no GM is posted again at every ready of the primary while one stands undecided, and a second GM's copy keeps live buttons after the primary decided",
+   "where": "scripts/roll-draw.mjs:2915-2930 (askAboutUnwitnessed lists every undecided stamp in the log and posts a card, no look for a card already standing); scripts/module.mjs:421 (called at every ready); roll-draw.mjs:3034-3056 (onRenderUnwitnessed removes the buttons only at a render, and on the clicking browser)",
+   "what_happens": "Each load of the primary GM posts one more 'Rolls with no GM connected' card for the same undecided rolls, so a GM who reloads twice before deciding has three. A decision updates the rolls' messages, not the card: on another GM's browser the card is not redrawn and its Grant all / Grant none stay; a press there asks the primary, which finds every roll decided (awayRowOf null) and answers [] - nothing is said.",
+   "evidence": "roll-draw.mjs:2917      const rows = (messages ?? game.messages?.contents ?? []).map(awayRowOf).filter(Boolean);\nroll-draw.mjs:2928      return whisperToGms(awayRollsCard(lines),\nmodule.mjs:421      askAboutUnwitnessed().catch(err =>\nroll-draw.mjs:3045          if (!open) return void element.querySelector(\".drpg-away-actions\")?.remove();",
+   "failure_scenario": "A player rolled with nobody connected; the GM reloads twice while setting up the session and finds three identical cards in chat; the second GM presses Grant all on an old one after the first GM already did and sees nothing happen.",
+   "expected": "One card per undecided set (or the earlier card redrawn), and a press on a decided card says it was decided.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a dedupe of the card (a flag check, a message search for `awayCard`): none in askAboutUnwitnessed or its caller. The decision itself is safe: it runs once on the primary's queue (decideUnwitnessed). Not run."
+  },
+  {
+   "id": "domain-roll-a-draw-6",
+   "domain": "ROLL",
+   "severity": "nit",
+   "category": "text",
+   "title": "The GMs' whisper of a flagged roll says 'These parts did not count' also for a die or a bonus the GM threw and the window lacked",
+   "where": "lang/en.json DRPG.Rolls.unexpected; scripts/roll-draw.mjs:2414-2427 (checkRoll), 2456-2463 (tellUnexpected)",
+   "what_happens": "checkRoll records every difference in both directions: a claim of more than the GM counted, and a GM's number above the claim (an `advantage` flag where the GM threw a hindering Call's die or a Night's die the window did not show, a `modifier` flag where the GM counted a Call's bonus the window lacked, a `pick` flag where no card came). The one sentence over the list says each 'did not count', which is true only of the first kind; the second kind is a part the GM did count. rollerLine already tells the roller only the first kind (1626).",
+   "evidence": "en.json DRPG.Rolls.unexpected: \"{name}'s roll did not match the roll the GM expected, so the GM rolled the expected one. These parts did not count: {list}. game.drpg.rollFlags() lists it.\"\nroll-draw.mjs:2423      if (claim.advantage !== scored.advantage) {",
+   "failure_scenario": "With finding 1's Obstacle, the GMs read 'These parts did not count: advantage dice 0, expected -1 (the GM counted: a hindering Call armed before the roll)' - a die that was counted.",
+   "expected": "The whisper says the GM threw its own numbers and lists the differences, without saying each 'did not count'.",
+   "confidence": "read",
+   "refutation_tried": "flagText (2444-2453) builds each line as '{what} {claimed}, expected {expected}' with no direction; the header sentence is the only frame. Not run."
+  },
+  {
+   "id": "domain-roll-a-draw-7",
+   "domain": "ROLL",
+   "severity": "nit",
+   "category": "perf",
+   "title": "On the primary, every actor flag write below full Gamemaster schedules a dice-look put-back and the switches' comparison, whether or not it touches Dice So Nice's flags",
+   "where": "scripts/dice-sync.mjs:214-216 (updateActor with any `changes.flags`), 957-976 (onActorWritten: `touched` decides only for a full Gamemaster), 290-292 (switchesMoved, with worldCopyMoved's stableJson of the world copy at 408-417)",
+   "what_happens": "A write by a player or an Assistant of any flag of any actor reaches onActorWritten with `touched` false and still runs afterSwitchesHeld (four settings compared, and the world copy of every actor's overlay stringified) and a 400 ms timer per actor, after which putBackOverlay compares that actor's overlay and role looks with the store's. The module's own flags on a student move often (Calls, notes, marks a player's browser writes). Each pass is small and nothing is written when nothing moved.",
+   "evidence": "dice-sync.mjs:215          if (changes?.flags !== undefined) onActorWritten(actor, userId, touchesLook(changes.flags));\ndice-sync.mjs:974      if (created) void diceLookStore.patch(actor.id, { look: null, roles: null });\ndice-sync.mjs:975      afterSwitchesHeld(() => schedule(ACTOR + actor.id));",
+   "failure_scenario": "During a busy Investigation the primary GM's browser compares the dice-look switches and stringifies the world copy at every player flag write, for writes that cannot have moved a look.",
+   "expected": "A write that does not touch `flags.dice-so-nice` schedules nothing (a `noHook` write is caught at the next message anyway, checkMessage 1101-1113).",
+   "confidence": "read",
+   "refutation_tried": "The schedule may be meant as a catch for a write that reaches the overlay in a shape touchesLook misses; touchesLook reads the hook's expanded diff, where any write of the overlay carries the `dice-so-nice` key. Not measured: the counters of scenario 86 do not name this path."
+  }
+ ],
+ "by_decision": [
+  {
+   "what": "A roll thrown with no GM is thrown on the player's browser and moves nothing until a GM grants it on the dice that browser reports; an action's roll is not made at all.",
+   "source": "roll-draw.mjs:2725-2753 (C18, the plan's 3.7; the owner's Q3 (a)); .claude/rules/trust-model.md 'What stays open'."
+  },
+  {
+   "what": "A payment is the roller's own write and its refund too: a console that pays, draws and hands itself the action back has paid as far as the GM sees.",
+   "source": "roll-draw.mjs:900-912 (WHAT THIS DOES NOT CLOSE)."
+  },
+  {
+   "what": "A Take's Hand and its cover are drawn on no ticket; a later draw is drawn and ignored, not refused, so a console learns totals that count for nothing.",
+   "source": "roll-draw.mjs:1164-1171, 1187-1206 (E68 loot bind; the owner's Q8)."
+  },
+  {
+   "what": "A statistic from the sheet the GM drew keeps Daggerheart's card, whose formula carries the statistic's value, readable by its audience.",
+   "source": "private-rolls.mjs:33-46 (WHAT A ROLL STILL SAYS), 1911-1921."
+  },
+  {
+   "what": "A GM sees a player's 3D dice only with one of its own Monokumas in the roller's room; every GM still reads the card.",
+   "source": "private-rolls.mjs:1704-1714 (E60 C5e, the owner's rule)."
+  },
+  {
+   "what": "The Loaded Die and the roller's play-back swap CONFIG.Dice.randomUniform for the length of one evaluate (narrowed from the old A4, AUDIT-1.2.13.md); any other roll evaluated on that browser inside the same evaluate would read the scripted faces.",
+   "source": "forced-roll.mjs:37-49; roll-draw.mjs:623-651. Whether an evaluate on v14 ever waits on a macrotask is in not_established."
+  },
+  {
+   "what": "A forced user's own Dice So Nice effects are written empty; global effects of other GMs still reach a throw.",
+   "source": "dice-sync.mjs:18-33 (H82 C1, the stage's default (a))."
+  },
+  {
+   "what": "A throw's own die-term appearance (DSN's API) is not put back.",
+   "source": "dice-sync.mjs:101-104."
+  }
+ ],
+ "comments_against_code": [
+  {
+   "where": "scripts/roll-draw.mjs:1813-1815 and 1853-1856",
+   "comment_says": "A supporting roll (rollTrait's `remember: false`) is given no Call; SPENDS_NO_CALL is the actions whose roll spends no Call per that flag.",
+   "code_does": "SPENDS_NO_CALL is {\"palm\"} alone; pickCover, tailUnseen and lootCover are `remember: false` with their own keys and are given every hindering Call (finding 1)."
+  },
+  {
+   "where": "scripts/roll-dialog.mjs:366-370",
+   "comment_says": "With the lock off, which trait, which experience, the roll mode and the free-text bonus are the player's.",
+   "code_does": "The GM's draw counts no Experience without a Call, clamps the bonus into the effects' range and throws the action's statistic (roll-draw.mjs scoredOf 1517-1536); only the mode and a sheet roll's statistic stay the player's (finding 2)."
+  },
+  {
+   "where": "scripts/roll-dialog.mjs:1165-1169 (markChipCount)",
+   "comment_says": "Trap 55: this window opens for a student ONLY when something is forced, so the chip is the entire report.",
+   "code_does": "The window opens on every roll again since 28.08 (the same file's 668-670 and 932-953): the chip is not the only report."
+  },
+  {
+   "where": "scripts/dice-look.mjs:325",
+   "comment_says": "else the newest with dice this browser may read",
+   "code_does": "Filters on `m.visible`, which is true for any whispered roll; reading is `isContentVisible` (finding 3)."
+  },
+  {
+   "where": "scripts/private-rolls.mjs:1168 (the `context` claim of roll.draw), 1146-1147, 617-618",
+   "comment_says": "The context carries a Search's category and stash; the GM reads the room's hidden stash; 'the stash ... the packet names'.",
+   "code_does": "Since 1.2.112 no stash is sent or read: CONTEXT_SENT (roll-draw.mjs:535-536) has no stash field and the stash row is gone (roll-draw.mjs 1806-1807)."
+  },
+  {
+   "where": "scripts/dice-sync.mjs:38-39",
+   "comment_says": "Each write replaces both flags whole.",
+   "code_does": "writeLooks (1140-1166) replaces three flags (appearance, sfxList, roleAppearance since E108) and the `saved` marker."
+  },
+  {
+   "where": "scripts/roll-draw.mjs:531-532 with private-rolls.mjs:1155",
+   "comment_says": "The situation's dice field still travels; nothing on the GM reads it.",
+   "code_does": "Matches, but the whitelist still sanitizes and forwards it (`situational: as.num`, drawRollOnGm 1199-1201) into drawOnGm's packet, where throwDrawn's destructuring drops it: a field carried for nothing."
+  }
+ ],
+ "hygiene": {
+  "functions_over_300": [],
+  "functions_150_to_300": 0,
+  "functions_100_to_150": [
+   "private-rolls.mjs whisperRoll 911-1028 (118)",
+   "roll-draw.mjs throwDrawn 1661-1766 (106)",
+   "roll-dialog.mjs onRenderApplication 305-406 (102)"
+  ],
+  "duplicated_helpers": [
+   "Three 'show these dice here, or play the dice sound' helpers: roll-draw.mjs playDice (708-719), roll-draw.mjs throwOnThisScreen (2522-2534), private-rolls.mjs playRolls (1886-1893), each with its own Dice So Nice test and fallback.",
+   "onGmTerms's local `die` and `sign` (roll-draw.mjs:1399-1400) are dieJson and signJson (1458-1459) written again.",
+   "The roll window's dice and bonus count (roll-dialog.mjs callDice 1074-1082, pendingAmount 1001-1012) and the GM's (roll-draw.mjs diceOf 2266, bonusOf 2268-2269): the same sums, kept in step by comment.",
+   "Daggerheart's preset fields listed twice: dice-sync.mjs PRESET_FIELDS (873) and dice-look.mjs PRESET_KEYS (50), the same nine names; `overlayOf` defined in both files (dice-sync.mjs:920 cloned, dice-look.mjs:332 raw) and the DSN constant in both.",
+   "The first roll of a message read from its document or its creation data, JSON-parsed: private-rolls.mjs rollNonceOf (590-597) and roll-draw.mjs stampUnwitnessed (2813-2816).",
+   "The `forcePrivateRolls` read wrapped in try/catch in two places (roll-draw.mjs seesPlayersDice 2516-2520, roll-dialog.mjs audienceOf 916-922) and bare in four (private-rolls.mjs 912, 1502, 1749, 1763)."
+  ],
+  "dead_code": [
+   "The packet's `situational` field: built by drawPacketOf (roll-draw.mjs:582), sanitized and forwarded (private-rolls.mjs:1155, 1199-1201), dropped by throwDrawn's parameters - documented as read by nothing.",
+   "recordOf's `situationFrom` (roll-draw.mjs:2369, 2375-2376): always the constant \"gm\" since E29 C9.",
+   "isPublicRoll (private-rolls.mjs:1301): read by tier 2 and scenario 12 only (git grep -w); no module reader.",
+   "standInSeam, paymentsOf, forgetPayments, worldCopyIdle, forgetFuses, ageFuses: exported for the suite alone (each says so)."
+  ],
+  "magic_numbers": [
+   "roll-draw.mjs: the 128-character cap on a context field and a listed string (545, 557), and the action key's `/^[a-zA-Z]{1,32}$/` written twice (1300, 1666); the 100 ms poll between wakes (1015).",
+   "roll-draw.mjs's waits are named and marked chosen: DRAW_ANSWER_MS 30000, PAY_WAIT_MS 1500, PICK_WAIT_MS 2000, GRANT_WAIT_MS 2000, DRAW_SIGN_MS 600 ('about twice the harness's 325 ms').",
+   "dice-sync.mjs: the 64-character cut of a preset field (878) and dice-look.mjs's slices of 16, 8 and 64 (239-242, 284) unnamed; nextStamp's `% 1000` and `* 1000` (440-447).",
+   "roll-dialog.mjs CURTAIN_GAP 8 and ADVANTAGE_CAP 3 named; private-rolls.mjs SUBJECTS_KEPT and READABLE_KEPT both 500, each a bound 'not a measured session'."
+  ]
+ },
+ "hints_for_other_passes": {
+  "dead_controls": [
+   "The GMs' card of rolls thrown with no GM, Grant all / Grant none on a GM's browser that did not press them (roll-draw.mjs:3034-3056): live after the primary decided, a press answers [] and says nothing (finding 5).",
+   "Grant all on the clicking browser: the buttons are removed before askToDecide answers (3050-3051), so a refused or failed ask leaves the card with no buttons and no word until it is redrawn."
+  ],
+  "stale_windows": [
+   "The dice look window (dice-look.mjs:534-551): one-shot, and a second diagnoseDiceLook() while it stands open draws nothing (`alreadyOpen`), so the window keeps the first reading while the console prints the new one.",
+   "The GMs' card of rolls thrown with no GM is not redrawn when a roll on it is decided (finding 5).",
+   "A roll window redraws on a module flag of its character (roll-dialog.mjs:130-140) and not on a Confusion arriving through the GMs' store (documented at 106-110), nor on a change of the statistic a GM's pick card names."
+  ],
+  "for_controls_pass": [
+   "The roll window's locked controls (roll-dialog.mjs lockControls 876-896): dice selects, trait select, advantage chips, experience chips, bonus input, mode select, the reaction chip (paintReaction 481-493). A locked chip's click warns 'DRPG.RollDialog.locked'; a disabled select says nothing on click (only its tooltip)."
+  ]
+ },
+ "not_established": [
+  {
+   "item": "Whether Daggerheart's roll window resolves its promise before or after `closeApplicationV2` fires. drawAndPlay reads the claim's `facts.calls` right after buildConfigure returns (roll-draw.mjs:350-365); onCloseApplication writes them (roll-dialog.mjs:77). If the build goes on first, a statistic from the sheet sends `calls: []` and a Call the window applied is not counted (flagged `advantage`, the roller told 'not counted').",
+   "l1": {
+    "what": "Whether a Call a player's roll window applied is named in the drawn packet.",
+    "recipe": [
+     "1. As a player, buy a Support on your own character (or have one armed by another player).",
+     "2. Click a statistic on the sheet; the window opens with the advantage chip held.",
+     "3. Roll.",
+     "4. As the GM, run game.drpg.rollFlags() and read the roll's record (game.drpg debug or rollStore) for `used.calls`."
+    ],
+    "clients": "GM and one player",
+    "theme": "default",
+    "settles_if": "the record names the Support's nonce and no `advantage` flag: the close hook ran first; no nonce and a flag: the build went on first.",
+    "priority": "minor"
+   }
+  },
+  {
+   "item": "Whether Daggerheart 2.12's MoveContext#toJSON keeps the module's own keys on a roll's options (drpgRollNonce, drpgUnwitnessed): rollNonceOf, claimRollMessage and stampUnwitnessed read them off the message's roll. detachOptions's note says its toJSON leaves `evaluated` out; what else it leaves was not read here. LIVE-E76-04 is the stage's live check.",
+   "l1": {
+    "what": "A drawn roll's and an unwitnessed roll's message carry their nonce on 2.12.",
+    "recipe": [
+     "1. On Daggerheart 2.12.x, as a player, roll a Search (drawn) and read game.messages.contents.at(-1).rolls[0].options.drpgRollNonce on the GM.",
+     "2. Log every GM out; as the player click a statistic; read the new message's flags.<module>.unwitnessed."
+    ],
+    "clients": "GM and one player",
+    "theme": "default",
+    "settles_if": "both present: the claim road holds on 2.12; either missing: claims and stamps do not match there.",
+    "priority": "minor"
+   }
+  },
+  {
+   "item": "Whether any evaluate the GM or the roller runs waits on a macrotask while CONFIG.Dice.randomUniform is swapped (forced-roll.mjs loadDie 197-224; roll-draw.mjs rollerCopyOf 642-649). If it does, a second roll evaluated on that browser in that time (the primary draws several players' rolls) takes the swapped randomiser. The old A4 (AUDIT-1.2.13.md) was narrowed to one instance's evaluate on the reading that evaluation is microtasks only.",
+   "l1": {
+    "what": "Concurrent draws on one primary with a Loaded Die armed.",
+    "recipe": [
+     "1. Two players; one with a Loaded Die armed.",
+     "2. Both press an action roll in the same second.",
+     "3. Read both records' faces on the GM (rollFlags / rollStore)."
+    ],
+    "clients": "GM and two players",
+    "theme": "default",
+    "settles_if": "only the Loaded Die's roll shows a 12 on its named die: the swap is held to its instance; the other roll shows a 12 on its first die: it leaked.",
+    "priority": "minor"
+   }
+  },
+  {
+   "item": "Foundry 14's ActiveEffect change shape that effectRange (roll-draw.mjs:1873-1885) reads: it treats a change as subtracted only where `change.type === \"subtract\"` and every other type as added, and LEGAL_READERS.kind (2302-2303) reads a critical from any change of `system.rules.roll.guaranteedCritical`, whatever its value or mode. Neither the v14 schema nor Daggerheart's effect types were on this machine.",
+   "l1": {
+    "what": "A student with an effect lowering roll bonuses, and one with an effect setting guaranteedCritical false.",
+    "recipe": [
+     "1. Give a student an active effect with a negative roll bonus by Daggerheart's own effect editor.",
+     "2. Roll an action as the player; read the record's `legal.effects` on the GM."
+    ],
+    "clients": "GM and one player",
+    "theme": "default",
+    "settles_if": "the range's low end is the effect's value: read right; 0 with a flag: the type name differs.",
+    "priority": "nit"
+   }
+  },
+  {
+   "item": "Whether a GM may set a message's author on v14 (roll-draw.mjs decideNow 2968, said in its own note as not measured). If refused, a Grant writes nothing, the roll stays undecided and is listed again at the next ready (finding 5's duplication).",
+   "l1": {
+    "what": "Grant all on a roll thrown with no GM.",
+    "recipe": [
+     "1. With no GM connected, as a player click a statistic.",
+     "2. Log a GM in; press Grant all on the card.",
+     "3. Read the roll message's author and flags.<module>.unwitnessed.granted."
+    ],
+    "clients": "GM and one player",
+    "theme": "default",
+    "settles_if": "author the GM and granted true: the road holds; an error in the GM's console: refused.",
+    "priority": "minor"
+   }
+  },
+  {
+   "item": "Finding 1 and finding 4 were read, not run: a harness probe arming an Obstacle on a player's character 61 s before a Pick the Lock with a witness would settle finding 1 (the cover's record would name the Obstacle in `used.calls` and carry an `advantage` flag); a probe that reloads a player's page between the GM's message and its answer would settle finding 4."
+  }
+ ]
+}
