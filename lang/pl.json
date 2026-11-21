@@ -5411,6 +5411,7 @@
       "settledDeclined": "{name} odrzuca prośbę.",
       "settledApproved": "{name} zatwierdza prośbę.",
       "settledHandled": "{name} spełnia prośbę.",
+      "settledNoCharacter": "{name} zamyka kartę: tej postaci nie ma już w świecie, więc nie ma o czym decydować.",
       "settledExpired": "Nikt nie odpowiedział na czas. Możesz zapytać jeszcze raz.",
       "settledGone": "Gracz już nie czekał.",
       "settledUnconfirmed": "{name} odpowiada, ale nie wiadomo, czy odpowiedź dotarła.",

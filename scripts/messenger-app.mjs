@@ -1007,7 +1007,10 @@ async function ruleRefuseTrait(action, data) {
 async function ruleItemWorksOrItemNoEffectOrItemRefuse(action, data, message = null) {
     const actor = game.actors.get(data.by);
     const item = actor?.items?.get(data.item);
-    if (!actor || !item) return null;   // Handed over meanwhile; nothing to rule on.
+    // Gone before the press (1.2.122, the audit's CTRL-23): the card settles with its line, where a null gave the
+    // buttons back and said nothing - an item handed over left a card no button could close, Refuse included.
+    if (!actor) return settled("DRPG.Bridge.settledNoCharacter");
+    if (!item) return settled("DRPG.Items.rulingGone");
     const { grantItemEffect, ruleCreativeUse } = await import("./use-items.mjs");
     if (action === "itemRefuse") {
         const { postToThread } = await import("./messenger.mjs");
@@ -1028,12 +1031,6 @@ async function ruleItemWorksOrItemNoEffectOrItemRefuse(action, data, message = n
     }
     if (done?.gone) return settled("DRPG.Items.rulingGone");
     return done ? settled("DRPG.Bridge.settledHandled") : null;
-}
-
-async function ruleOpenMurder(action, data) {
-    const { openMurder } = await import("./murder.mjs");
-    const opened = await openMurder({ killerId: data.killer, victimId: data.victim });
-    return opened ? settled("DRPG.Bridge.settledHandled") : null;
 }
 
     // The two halves of the direct-murder gate. The declaration is already
@@ -1124,7 +1121,7 @@ async function ruleDeclineProject(action, data, message = null) {
     // No action to refund: starting a project is a declaration, and the
     // cost is paid by working on it afterwards.
     const actor = game.actors.get(data.by);
-    if (!actor) return null;
+    if (!actor) return settled("DRPG.Bridge.settledNoCharacter");   // Deleted meanwhile (CTRL-23): said, not silent.
     const { postToThread } = await import("./messenger.mjs");
     const owner = rulingThread(actor, message);
     const note = `<p><em>${foundry.utils.escapeHTML(
@@ -1199,7 +1196,7 @@ async function ruleReply(action, data, message = null) {
     // the module's own answer to that has always been the thread the card
     // is already sitting in.
     const actor = game.actors.get(data.by);
-    if (!actor) return null;
+    if (!actor) return settled("DRPG.Bridge.settledNoCharacter");   // Deleted meanwhile (CTRL-23): said, not silent.
 
     // On the kit (E21 C6a): Send on the right, the default; Cancel on the left. DialogV2 answers a button's callback or,
     // when that is null, its action, so Cancel answers "cancel" and a closed window null; neither is a `{ text }`, which
@@ -1253,7 +1250,7 @@ async function ruleReply(action, data, message = null) {
  */
 async function ruleSearchMiss(action, data, message = null) {
     const actor = game.actors.get(data.by);
-    if (!actor) return null;
+    if (!actor) return settled("DRPG.Bridge.settledNoCharacter");   // Deleted meanwhile (CTRL-23): said, not silent.
     const { postToThread } = await import("./messenger.mjs");
     const owner = rulingThread(actor, message);
     if (owner) {
@@ -1279,7 +1276,7 @@ async function ruleSearchMiss(action, data, message = null) {
  */
 async function ruleObserveMiss(action, data, message = null) {
     const actor = game.actors.get(data.by);
-    if (!actor) return null;
+    if (!actor) return settled("DRPG.Bridge.settledNoCharacter");   // Deleted meanwhile (CTRL-23): said, not silent.
 
     const { chargeObserveMiss } = await import("./observe.mjs");
     await chargeObserveMiss(actor);
@@ -1352,12 +1349,12 @@ function refundOnCard(data) {
 }
 
 async function ruleDecline(action, data, message = null) {
-    // What was paid comes BACK. Same reasoning as `declineMurder`: a refusal
+    // What was paid comes BACK: a refusal
     // here is the GM overruling the declaration rather than the rules
     // resolving it, and a player who spent an action on a question that was
     // never answered has spent nothing.
     const actor = game.actors.get(data.by);
-    if (!actor) return null;
+    if (!actor) return settled("DRPG.Bridge.settledNoCharacter");   // Deleted meanwhile (CTRL-23): said, not silent.
 
     const receipt = refundOnCard(data);
     const { postToThread } = await import("./messenger.mjs");
@@ -1423,7 +1420,7 @@ async function ruleGiveItem(action, data) {
     // exists already, so it goes straight onto the sheet rather than into a
     // table first.
     const actor = game.actors.get(data.by);
-    if (!actor) return null;
+    if (!actor) return settled("DRPG.Bridge.settledNoCharacter");   // Deleted meanwhile (CTRL-23): said, not silent.
     const { gmGiveItemDialog } = await import("./gm-items.mjs");
     const given = await gmGiveItemDialog(actor);
     return given ? settled("DRPG.Bridge.settledHandled") : null;
@@ -1439,24 +1436,6 @@ async function ruleKeyRemnantHere(action, data) {
     return placed ? settled("DRPG.Bridge.settledHandled") : null;
 }
 
-async function ruleDeclineMurder(action, data, message = null) {
-    // The refusal is the GM overruling the declaration, not the rules
-    // resolving it - so the action comes back. A witness in the room is the
-    // other thing, and that one keeps the attempt spent (see
-    // `performDirectMurder`).
-    const actor = game.actors.get(data.killer);
-    if (!actor) return null;
-    const { refundAction } = await import("./actions.mjs");
-    await refundAction(actor, 1);
-    const { postToThread } = await import("./messenger.mjs");
-    const owner = rulingThread(actor, message);
-    const note = `<p><em>${foundry.utils.escapeHTML(
-        game.i18n.format("DRPG.Bridge.declined", { name: game.user.name }))}</em></p>`;
-    if (owner) await postToThread(owner.id, note);
-    ui.notifications.info(game.i18n.format("DRPG.Bridge.declinedGm", { name: actor.name }));
-    return settled("DRPG.Bridge.settledDeclined");
-}
-
 /** What each button on a ruling card does, by its action. GM side, by construction. */
 const CARD_ACTIONS = {
     approveCall: ruleApproveCallOrRefuseCall,
@@ -1468,7 +1447,6 @@ const CARD_ACTIONS = {
     itemWorks: ruleItemWorksOrItemNoEffectOrItemRefuse,
     itemNoEffect: ruleItemWorksOrItemNoEffectOrItemRefuse,
     itemRefuse: ruleItemWorksOrItemNoEffectOrItemRefuse,
-    openMurder: ruleOpenMurder,
     approveMurder: ruleApproveMurderOrRefuseMurder,
     refuseMurder: ruleApproveMurderOrRefuseMurder,
     plantTrapItem: rulePlantTrapItem,
@@ -1488,7 +1466,6 @@ const CARD_ACTIONS = {
     createItem: ruleCreateItem,
     giveItem: ruleGiveItem,
     keyRemnantHere: ruleKeyRemnantHere,
-    declineMurder: ruleDeclineMurder,
     // E72 C5: a Monocub's Ask for Hope, answered once by whichever GM clicks (monocub.mjs `answerHopeAsk`).
     cubGiveHope: ruleCubHope,
     cubNotNow: ruleCubHope
@@ -1497,14 +1474,14 @@ const CARD_ACTIONS = {
 /** Give 1, Give 2 or Not now on a Monocub's Ask for Hope (E72 C5): the GM's own Despair, or none. */
 async function ruleCubHope(action, data) {
     const actor = game.actors.get(data.actor);
-    if (!actor) return null;
+    if (!actor) return settled("DRPG.Bridge.settledNoCharacter");   // Deleted meanwhile (CTRL-23): said, not silent.
     const { answerHopeAsk } = await import("./monocub.mjs");
     const words = await answerHopeAsk(actor, action === "cubGiveHope" ? Number(data.n) || 0 : 0);
     return words ? { settled: words } : null;
 }
 
 /** The rule of the button pressed, handed the card it is on (`message`, fix early-C2-G2), or null for none. */
-async function runCallAction(action, data, message = null) {
+export async function runCallAction(action, data, message = null) {
     const rule = CARD_ACTIONS[action];
     if (!rule) return null;
     return rule(action, data, message);

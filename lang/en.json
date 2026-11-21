@@ -5056,6 +5056,7 @@
       "settledDeclined": "Turned down by {name}.",
       "settledApproved": "Approved by {name}.",
       "settledHandled": "Handled by {name}.",
+      "settledNoCharacter": "Closed by {name}: the character is no longer in the world, so there is nothing to rule on.",
       "settledExpired": "Nobody answered in time. You can ask again.",
       "settledGone": "The player was no longer waiting.",
       "settledUnconfirmed": "Answered by {name}, but nothing confirms that the answer arrived.",

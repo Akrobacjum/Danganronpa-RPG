@@ -17314,6 +17314,40 @@ const INVARIANTS = [
             "the masked killer's tile word was not its own ([word, line] for the mask's hold with the Room disconnected, absent, connected; an ordinary disconnect)");
     }],
 
+    ["R8263 - a ruling card whose subject is gone settles and says so, and the card table holds no road no card draws: a creative use of an item no longer at hand closes with \"nothing to rule on\", every card of a deleted character with its own line, and openMurder and declineMurder are not rulings (messenger-app.mjs `runCallAction`, `CARD_ACTIONS`; 1.2.122, the audit's CTRL-23, CTRL-76, ROLL-33)", async () => {
+        /*
+         * The audit of 1.2.118. CTRL-23: a handler that found no character or no item answered null, which gave the
+         * buttons back and said nothing - an item handed over before the press left a card no button could close, Refuse
+         * included. CTRL-76 and ROLL-33: `openMurder` (an incident opened from a card's data, with no window's checks) and
+         * `declineMurder` (one action back whatever paid for the declaration) were rulings no card of the module draws -
+         * the Eclipse's gate posts approveMurder and refuseMurder (eclipse.mjs). Each ruling asked with a character that is
+         * not in this world (nothing is written: each answers before any write), the creative use with a real character
+         * and an item it does not hold, and the card table's keys read off the source. Red at 21bf5d18: null for each, and
+         * both dead keys in the table (and no export of `runCallAction`, which the suite reads now).
+         */
+        const M = await import("./messenger-app.mjs");
+        must(typeof M.runCallAction === "function", "messenger-app.mjs exports no runCallAction - this would measure nothing");
+        const someone = game.actors.find(a => a.type === "character");
+        must(someone, "no character in this world - this would measure nothing");
+        const NOBODY = "R8263Nobody00000";
+        const lineOf = answer => answer?.settled ?? null;
+        const gone = game.i18n.format("DRPG.Bridge.settledNoCharacter", { name: game.user.name });
+        const read = {
+            itemGone: lineOf(await M.runCallAction("itemRefuse", { by: someone.id, item: "R8263NoItem00000" })) === game.i18n.format("DRPG.Items.rulingGone", { name: game.user.name })
+        };
+        for (const [action, data] of [["itemRefuse", { by: NOBODY, item: "x" }], ["searchMiss", { by: NOBODY }], ["observeMiss", { by: NOBODY }],
+            ["decline", { by: NOBODY, paid: "none" }], ["giveItem", { by: NOBODY }], ["cubNotNow", { actor: NOBODY }]]) {
+            read[action] = lineOf(await M.runCallAction(action, data)) === gone;
+        }
+        const sources = await moduleSources();
+        const table = bodyOf(stripComments(sources.get("messenger-app.mjs") ?? ""), "const CARD_ACTIONS = {", { until: "};" }) ?? "";
+        must(/approveMurder:/.test(table), "the card table was not read off messenger-app.mjs - this would measure nothing");
+        read.dead = ["openMurder", "declineMurder"].filter(key => new RegExp(`\\b${key}:`).test(table));
+        equal(stableJson(read), stableJson({ itemGone: true, itemRefuse: true, searchMiss: true, observeMiss: true, decline: true,
+            giveItem: true, cubNotNow: true, dead: [] }),
+            "a ruling with nothing to rule on did not settle with its line, or the card table still holds a road no card draws");
+    }],
+
     ["R539 - the GM's block in the list is Foundry's block and never undoes the module's: the button is built only in a GM's list; its click writes the user's `permissions.BROADCAST_AUDIO` flipped from what Foundry answers now and nothing else; where `moduleHoldsMic` holds the microphone or a death is kept secret the button is disabled with its line and `toggleBlock` writes nothing; it refuses a player's client, the GM's own account and a user who is not of this world", async () => {
         /*
          * E78 C5, 14.10.2026; the A9 design's R392 (A9-5; the E78 plan's D2 gave it this number), the owner's Q4 (the
