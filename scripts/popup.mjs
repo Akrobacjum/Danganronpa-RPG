@@ -1138,6 +1138,23 @@ export function registerPopups() {
        after a second murder there were two. */
     Hooks.on("deleteChatMessage", onDeleteChatMessage);
     Hooks.on("updateChatMessage", onUpdateChatMessage);
+    // A private card's `settled` comes with its words, not on the document (secret.mjs `remember`): REFR-16, below.
+    Hooks.on("drpgSecretStored", followSettled);
+}
+
+/**
+ * A NOTICE OF AN ASK GOES WHEN ITS CARD IS RULED (1.2.122, the audit's REFR-16). A notice is a copy of the card, drawn
+ * once: when another GM ruled the ask, or its time ran out, settleCall wrote the card again and the bubbles and the log
+ * redrew, while the notice on this screen still read "Awaiting a ruling". It closes now as a withdrawn card's does
+ * (`onDeleteChatMessage`), the card itself saying the ruling where it stands; a ruling's mark reaches this browser on the
+ * document's update (a card that is not private) or with a private card's words (`drpgSecretStored`).
+ */
+export function followSettled(message) {
+    if (!message?.id || !cardFlag(message, MESSENGER_FLAGS.settled)) return;
+    for (const card of document.querySelectorAll(".drpg-popup[data-drpg-message]")) {
+        if (card.dataset.drpgMessage !== message.id || card.classList.contains("leaving")) continue;
+        card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { reason: "code" } }));
+    }
 }
 
 /**
@@ -1164,6 +1181,7 @@ export function overruledStamp() {
  */
 export function onUpdateChatMessage(message, change) {
     const flags = change?.flags?.[MODULE_ID];
+    if (flags && MESSENGER_FLAGS.settled in flags) followSettled(message);
     if (!flags || !(OVERRULED_FLAG in flags) || !message?.getFlag?.(MODULE_ID, OVERRULED_FLAG)) return;
     if (!message.author?.isGM) return;
     queueMicrotask(() => {

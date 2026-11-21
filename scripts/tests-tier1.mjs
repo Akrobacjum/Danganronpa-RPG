@@ -17385,6 +17385,53 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson([true, 0, true]), "the GM's notice of a ruling card carried its buttons, or was not drawn ([drawn, buttons in it, its words])");
     }],
 
+    ["R8265 - a GM's notice of an ask closes once the card is ruled elsewhere: a settle that reaches this browser as the document's update or as a private card's words stored takes the notice off, and a card not ruled keeps it (popup.mjs `onUpdateChatMessage`, `followSettled`; 1.2.122, the audit's REFR-16)", async () => {
+        /*
+         * The audit of 1.2.118 (REFR-16): every GM gets a notice of an ask; when one GM rules it, settleCall writes the
+         * card again and every bubble and the log redraw, but the notices on the other GMs' screens are copies, reached
+         * only by a deletion or an overruled Objection's mark - so they kept "Awaiting a ruling". Three cards made here (no
+         * world write) as R8264 makes its card, each drawn as a notice; one then settled through the document's update, one
+         * through the words' store (`drpgSecretStored`, the road a private card's `settled` takes), one left. Red at
+         * 21bf5d18: all three notices still standing.
+         */
+        must(game.user?.isGM, "the notices measured here are a GM's");
+        const NH = await import("./notice-history.mjs");
+        const P = await import("./popup.mjs");
+        const { MESSAGE_FLAG } = await import("./utils.mjs");
+        const made = id => ({
+            id, author: game.user, whisper: [game.user.id], rolls: [], content: `<p>${id} asks</p>`,
+            flags: { [MODULE_ID]: { [MESSAGE_FLAG]: true, gmPopup: true } },
+            getFlag(scope, key) { return this.flags?.[scope]?.[key]; }
+        });
+        const cards = ["R8265UpdatedCard", "R8265StoredCard1", "R8265LeftAlone01"].map(made);
+        const byId = new Map(cards.map(m => [m.id, m]));
+        must(!Object.hasOwn(game.messages, "get"), "game.messages already answers get for itself - the suite's stand-in would hide it");
+        await NH.holdNoticeHistory(true);
+        const realGet = game.messages.get;
+        game.messages.get = function (key, ...rest) { return byId.get(key) ?? realGet.call(this, key, ...rest); };
+        const standing = id => [...document.querySelectorAll(`.drpg-popup[data-drpg-message="${id}"]`)].some(c => !c.classList.contains("leaving"));
+        let read = null;
+        try {
+            for (const m of cards) await P.onCreateChatMessage(m);
+            const drawn = cards.map(m => standing(m.id));
+            cards[0].flags[MODULE_ID].settled = true;
+            P.onUpdateChatMessage(cards[0], { flags: { [MODULE_ID]: { settled: true } } });
+            cards[1].flags[MODULE_ID].settled = true;
+            Hooks.callAll("drpgSecretStored", cards[1]);
+            // Words stored for a card still waiting (an edit, a late arrival) take nothing off.
+            Hooks.callAll("drpgSecretStored", cards[2]);
+            P.onUpdateChatMessage(cards[2], { flags: { [MODULE_ID]: { popupTitle: "R8265" } } });
+            await new Promise(resolve => setTimeout(resolve, 0));
+            read = [drawn, cards.map(m => standing(m.id))];
+        } finally {
+            delete game.messages.get;
+            for (const m of cards) for (const c of document.querySelectorAll(`.drpg-popup[data-drpg-message="${m.id}"]`)) c.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            NH.holdNoticeHistory(false);
+        }
+        equal(stableJson(read), stableJson([[true, true, true], [false, false, true]]),
+            "a notice of a card ruled elsewhere stayed, or one not ruled went ([drawn per card], [standing after: settled by update, settled by its words, left])");
+    }],
+
     ["R539 - the GM's block in the list is Foundry's block and never undoes the module's: the button is built only in a GM's list; its click writes the user's `permissions.BROADCAST_AUDIO` flipped from what Foundry answers now and nothing else; where `moduleHoldsMic` holds the microphone or a death is kept secret the button is disabled with its line and `toggleBlock` writes nothing; it refuses a player's client, the GM's own account and a user who is not of this world", async () => {
         /*
          * E78 C5, 14.10.2026; the A9 design's R392 (A9-5; the E78 plan's D2 gave it this number), the owner's Q4 (the
