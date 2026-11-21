@@ -64,8 +64,8 @@ export function registerCameraView() {
        imports this file and both of them), and a static import here would close a cycle (R161). Before they bind - a
        moment at load, before any dock renders - nobody is hidden, as `seenHere` before its own binding. */
     import("./visibility.mjs").then(m => { veiledHere = user => m.voiceVeiledHere(user); }).catch(err => error("Could not bind the veil's rule for the camera dock", err));
-    import("./mask-gm.mjs").then(m => {
-        maskedHere = user => { const actor = m.myMask(user); return Boolean(actor) && m.nameAsSeen(actor) === m.MASK_NAME; };
+    Promise.all([import("./mask-gm.mjs"), import("./spectator.mjs")]).then(([m, s]) => {
+        maskedHere = maskRuleOf(m, { spectator: () => Boolean(s.spectatorViewer?.()) });
     }).catch(err => error("Could not bind the mask's rule for the camera dock", err));
     // A veil or a mask going up or down shows on the dock at once (the owner's rule for every window), not at its next render.
     Hooks.on("updateToken", (doc, changes) => onTokenChange(doc, changes));
@@ -200,6 +200,21 @@ export const HIDDEN_PLATE = "?";
 export function hiddenFromHere(user, { veiled = veiledHere, masked = maskedHere } = {}) {
     if (!user || user.isGM || game.user?.isGM || user.id === game.user?.id) return false;
     return Boolean(veiled(user) || masked(user));
+}
+
+/**
+ * The dock's mask rule (`maskedHere`), from mask-gm.mjs's names: a participant whose character stands behind a mask this
+ * browser does not see through. A Spectator sees through it (1.2.122, the audit's r121-M-6): the Spectator's map draws
+ * "? (name)" over the token (mask-gm.mjs `drawMaskName`), and the GM handbook says the Spectators see the name - the dock
+ * read "?" there, after the pickers' rule (`nameAsSeen`), which answers "?" to every player who does not own the character.
+ * `m` and `spectator` are the suite's.
+ */
+export function maskRuleOf(m, { spectator = () => false } = {}) {
+    return user => {
+        const actor = m.myMask(user);
+        if (!actor || spectator()) return false;
+        return m.nameAsSeen(actor) === m.MASK_NAME;
+    };
 }
 
 /** Whether a token's write moved a veil or a mask (their flags, set or taken off): the dock's plates are read again. */

@@ -17787,6 +17787,26 @@ const INVARIANTS = [
         equal(read, 1, "one speaker event read the tile's hold more than once (the reads counted)");
     }],
 
+    ["R8280 - a Spectator's camera dock names a masked killer as the Spectator's map does; another player's reads \"?\" (camera-view.mjs `maskRuleOf`; 1.2.122, the audit's r121-M-6)", async () => {
+        /*
+         * The audit of 1.2.121 (r121-M-6): the dock's mask rule was nameAsSeen, "?" to every player who does not own the
+         * character, a Spectator included, while the Spectator's map draws "? (name)" over the token (mask-gm.mjs
+         * `drawMaskName`) and the GM handbook says the Spectators see the name. The rule asked with mask-gm.mjs's own
+         * functions and a mask stood in (`myMask` answering a character for the user), as a Spectator's browser and as
+         * another player's. Red at 21bf5d18: no `maskRuleOf` (the dock read "?" for both).
+         */
+        const C = await import("./camera-view.mjs");
+        const K = await import("./mask-gm.mjs");
+        must(typeof C.maskRuleOf === "function", "camera-view.mjs has no maskRuleOf - this would measure nothing");
+        const someone = game.actors.find(a => a.type === "character");
+        must(someone, "no character in this world - this would measure nothing");
+        const m = { myMask: () => someone, nameAsSeen: () => K.MASK_NAME, MASK_NAME: K.MASK_NAME };
+        const user = { id: "R8280User0000000", isGM: false };
+        const read = [C.maskRuleOf(m, { spectator: () => true })(user), C.maskRuleOf(m, { spectator: () => false })(user),
+            C.maskRuleOf({ ...m, myMask: () => null }, { spectator: () => false })(user)];
+        equal(stableJson(read), stableJson([false, true, false]), "the dock's mask rule ([a Spectator's browser hides, another player's hides, no mask hides])");
+    }],
+
     ["R539 - the GM's block in the list is Foundry's block and never undoes the module's: the button is built only in a GM's list; its click writes the user's `permissions.BROADCAST_AUDIO` flipped from what Foundry answers now and nothing else; where `moduleHoldsMic` holds the microphone or a death is kept secret the button is disabled with its line and `toggleBlock` writes nothing; it refuses a player's client, the GM's own account and a user who is not of this world", async () => {
         /*
          * E78 C5, 14.10.2026; the A9 design's R392 (A9-5; the E78 plan's D2 gave it this number), the owner's Q4 (the

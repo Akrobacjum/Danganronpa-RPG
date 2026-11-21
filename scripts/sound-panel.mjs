@@ -450,7 +450,9 @@ export async function openSoundDialog() {
              * with the old playlist - true only until it was read. The rows are a region of their own, woken by the
              * map's key alone: another key of the module, the Effects tab's `sfxMap` among them, redraws nothing here
              * (the Effects tab's own region follows `sfxMap`, below).
-             * A select being chosen from with the pointer holds the redraw until the press is let go (rule 1); a select
+             * A select being chosen from with the pointer holds the redraw only until the click that opened its list is let
+             * go (rule 1): the list stays open after the release, and a redraw then closes it (the audit's r121-R-3,
+             * measured in Chromium; 1.2.122, r121-R-9 - this said "until the press is let go" as if the pick were held); a select
              * left focused after its pick holds nothing (UI-17, the line claude/refresh-120, 21.11.2026: until then it
              * held the rows until the GM clicked elsewhere) and has the focus again after the redraw; a dirty select and
              * a row's save marker are carried across (rule 2); `after` wires the new selects, whose answer finds its

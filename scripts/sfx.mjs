@@ -869,7 +869,9 @@ export function wireSoundRows(root) {
             });
         }
         /* one file's own box: left after an edit, it replaces that file alone, in its place (`withSoundFileAt`; emptied, it
-           removes it). The box being typed in holds the redraw (keepLive). */
+           removes it). The box being typed in does NOT hold the redraw: the Effects region is whileEditing (sound-panel.mjs),
+           so a redraw carries the typed text and the focus to the new box, and in Chromium the replaced box fires its change
+           at the redraw (the audit's r121-R-1, measured by it; live.mjs's, line R1). 1.2.122, r121-R-9. */
         for (const box of row.querySelectorAll("[data-drpg-sfx-file-box]")) {
             box.addEventListener("change", () => write(soundValueOf(withSoundFileAt(ownSoundsFor(key), Number(box.dataset.drpgSfxFileBox), box.value))));
         }

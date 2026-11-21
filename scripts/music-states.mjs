@@ -107,8 +107,8 @@ export function trialMusicState(floor, phase, { mapped = key => Boolean(playlist
  */
 export function voteMusicPlays(record, clock, { mapped = key => Boolean(playlistFor(key)), floor = null } = {}) {
     if (clock?.phase !== "classTrial" || !record || record.chapter !== clock.chapter || record.verdictApplied) return false;
-    // A floor opened after the vote's first opening plays its own music (1.2.122, the audit's STG-95; the coordinator's
-    // default, asked of the owner): the modes' own rows already won over the vote's, and an Objection or a debate lost to it.
+    // A floor opened after the vote's first opening plays its own music (1.2.122, the audit's STG-95; the owner's choice of
+    // 21.11.2026): the modes' own rows already won over the vote's, and an Objection or a debate lost to it.
     if (floor?.mode) return false;
     const opened = Boolean(record.vote?.open || record.voteClosed || record.voteOpenedAt != null);
     return opened && mapped("trial.vote");
@@ -203,8 +203,10 @@ export const MUSIC_STATES = [
     /*
      * THE VOTE (E110 part 3, 14.11.2026; the coordinator's survey): from the vote's opening to the verdict, a playlist of
      * its own - only once one is mapped; unmapped, the trial's music plays on as before. The vote ends every floor
-     * (trial-floor.mjs `endFloorForVoteInStep`), but a floor can open again before the verdict (a tie argued on): while
-     * one is open its music plays, and the vote's comes back when it ends (1.2.122, the audit's STG-95). R7107, R8274.
+     * (trial-floor.mjs `endFloorForVoteInStep`), but a floor can open again before the verdict (a tie argued on), so a
+     * mode does compete with it: while a floor is open its music plays, Objection and Nonstop Debate included, and the
+     * vote's comes back when it ends, until the verdict (1.2.122, the audit's STG-95; the owner's choice of 21.11.2026).
+     * R7107, R8274.
      */
     {
         key: "trial.vote", labelKey: "DRPG.Music.state.trialVote", randomTrack: true,
