@@ -798,7 +798,8 @@ export function wireTokenButtons(root, scene, recount, { tokens = SearchTokens }
             const typed = Number(input.value);
             if (!Number.isFinite(typed) || !Number.isFinite(was) || typed === was) return;
             input.dataset.drpgShown = String(typed);
-            await tokens.setFor(room, tokens.left(room, scene) + (typed - was), scene);
+            // The step, not this browser's count plus it (r122-lane-B-7): the primary adds it to its own (`stepFor`).
+            await tokens.stepFor(room, typed - was, scene);
             // The write comes back through `recount` below like anybody
             // else's, so there is no second copy of "what the cell says".
             recount(root);

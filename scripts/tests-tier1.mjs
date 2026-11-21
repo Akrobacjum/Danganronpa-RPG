@@ -52636,7 +52636,9 @@ const INVARIANTS = [
         must(cells.length > 0, "Searching drew no token cell - nothing below is read");
         // The stand-in: two tokens a room, the cap 3; a write recorded, the count it leaves read back.
         const counts = new Map(), writes = [];
-        const tokens = { max: 3, left: room => counts.get(room) ?? 0, setFor: async (room, n) => { writes.push([room, n]); counts.set(room, n); } };
+        // Since 1.2.123 a step travels as a step (`stepFor`, r122-lane-B-7); the stand-in adds it to its own count, as the primary does.
+        const tokens = { max: 3, left: room => counts.get(room) ?? 0, setFor: async (room, n) => { writes.push([room, n]); counts.set(room, n); },
+            stepFor: async (room, d) => { const n = Math.max(0, Math.min(3, (counts.get(room) ?? 0) + d)); writes.push([room, n]); counts.set(room, n); } };
         const td = cells[0];
         const input = td.querySelector("input[data-drpg-token]");
         const room = input.dataset.drpgToken;
