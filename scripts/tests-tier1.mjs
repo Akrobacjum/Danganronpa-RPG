@@ -17272,6 +17272,31 @@ const INVARIANTS = [
         }), "the dock showed a hidden participant's box, or did not put it back as it was when the veil went ([B's display, D's] in each mode, then the veil gone)");
     }],
 
+    ["R8261 - the voice tile names who holds the floor: a microphone the floor holds keeps the hold's names, on the tile's line, its tooltip and the notice of a press (voice-tile.mjs `micState`, `paintMic`, `toggleOwnMic`; 1.2.122, the audit's COMM-27)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-27): micHold answers a player the floor leaves out with { held, reason: floorHeld |
+         * floorHeldPair, data: { name, target } }; micState dropped `data` on its held branch, so paintMic formatted the
+         * line and the tooltip with no name, and toggleOwnMic localized the key with its {name} never filled - while the
+         * HUD's trial row names them (hud.mjs). A stand-in tile (a mic button and its note) painted from micState of each
+         * hold, and the press's notice caught. Red at 21bf5d18: no name in any of the three.
+         */
+        const V = await import("./voice-tile.mjs");
+        const read = [];
+        for (const [reason, data] of [["floorHeld", { name: "R8261 Aiko" }], ["floorHeldPair", { name: "R8261 Aiko", target: "R8261 Botan" }]]) {
+            const tile = document.createElement("div");
+            tile.innerHTML = `<button class="drpg-voice-mic"></button><p class="drpg-voice-tile-note" id="r8261-note"></p>`;
+            const mic = V.micState({ hold: { held: true, reason, data }, settings: null });
+            V.paintMic(tile, mic, { key: null });
+            let said = "";
+            await V.toggleOwnMic({ mic, settings: null, notify: text => { said = text; } });
+            const names = Object.values(data);
+            read.push([reason, mic.state, ...[tile.querySelector(".drpg-voice-tile-note").textContent,
+                tile.querySelector(".drpg-voice-mic").dataset.tooltipText ?? "", said].map(text => names.every(n => text.includes(n)) && !text.includes("{"))]);
+        }
+        equal(stableJson(read), stableJson([["floorHeld", "held", true, true, true], ["floorHeldPair", "held", true, true, true]]),
+            "the tile's floor-held line, tooltip or a press's notice did not name who holds the floor ([reason, state, line names them, tooltip names them, notice names them])");
+    }],
+
     ["R539 - the GM's block in the list is Foundry's block and never undoes the module's: the button is built only in a GM's list; its click writes the user's `permissions.BROADCAST_AUDIO` flipped from what Foundry answers now and nothing else; where `moduleHoldsMic` holds the microphone or a death is kept secret the button is disabled with its line and `toggleBlock` writes nothing; it refuses a player's client, the GM's own account and a user who is not of this world", async () => {
         /*
          * E78 C5, 14.10.2026; the A9 design's R392 (A9-5; the E78 plan's D2 gave it this number), the owner's Q4 (the

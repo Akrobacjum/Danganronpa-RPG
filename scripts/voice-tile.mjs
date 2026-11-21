@@ -92,8 +92,14 @@
  * Escape, heard on the list in the capture phase and stopped there so Foundry's menu does not open, and a pointer
  * outside it close the list and give the focus back to the speaker button; Tab stays inside it.
  *
- * The tile and the list send no socket and no packet, write no world setting and no document but the GM's block,
- * and set an element's volume only in `setPeerVolume`.
+ * The list sends no socket and no packet and writes no world setting and no document but the GM's block
+ * (`toggleBlock`), and sets an element's volume only in `setPeerVolume`. Three buttons later stages put on the tile
+ * do send or write, each through another file's function (1.2.122, the audit's STG-52): Reveal yourself
+ * (`paintReveal`, owner-115/E112) asks the primary GM through mask-gm.mjs `requestReveal`, a bridge request; the
+ * Spectators' switch (`paintSpectatorTalk`, E92 round 3) writes a flag on the player's own User document through
+ * spectator-ui.mjs `toggleSpectatorTalk`; OBJECTION! (`paintObjection`, E70 C11) is hud.mjs `objectionControl`'s
+ * button, whose press is trial.mjs `raiseObjection`, which asks the primary GM (`trial.object`). The viewer's own microphone writes this browser's
+ * client setting alone (`toggleOwnMic`).
  *
  * THE STATE WORD (E79 C15, 1.2.79; the owner's N10 of 14.10.2026, N12 and N15 of 15.10.2026). The tile says in one
  * word how this browser's voice stands, running as the clock's ticker does (utils.mjs
@@ -940,7 +946,8 @@ function onVoiceApplying() {
  */
 export function micState({ hold, settings = game.webrtc?.settings } = {}) {
     const answer = hold === undefined ? micHold() : hold;
-    if (answer?.held) return { state: "held", reason: answer.reason, info: null };
+    // The hold's words go with it (1.2.122, the audit's COMM-27): the floor's {name} and {target}, as the HUD reads them.
+    if (answer?.held) return { state: "held", reason: answer.reason, info: null, ...(answer.data ? { data: answer.data } : {}) };
     if (answer?.reason === "external" || answer?.reason === "offline") return { state: "offline", reason: answer.reason, info: null };
     if (answer?.reason === "gmBlock") return { state: "gmBlock", reason: answer.reason, info: null };
     const info = answer?.reason ?? null;
@@ -965,7 +972,7 @@ export function micState({ hold, settings = game.webrtc?.settings } = {}) {
 export async function toggleOwnMic({ mic = micState(), settings = game.webrtc?.settings,
     notify = text => ui.notifications?.info(text) } = {}) {
     if (!MIC_FREE.includes(mic?.state)) {
-        notify(game.i18n.localize(`DRPG.Voice.held.${mic?.reason ?? "offline"}`));
+        notify(game.i18n.format(`DRPG.Voice.held.${mic?.reason ?? "offline"}`, mic?.data ?? {}));
         return false;
     }
     if (typeof settings?.set !== "function") return false;
