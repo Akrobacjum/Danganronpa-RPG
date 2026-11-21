@@ -1004,10 +1004,12 @@ export function registerProjectsMap() {
         onProjectTokenMoved(tokenDoc, changes, options)
             .catch(err => error("Could not move a project with its token", err));
     });
-    /* WHO SEES A PROJECT'S TOKEN, ASKED AGAIN WHEN THE COUNTDOWNS CHANGE (E36 C4; audit S09-19). A share,
-       a revoke, a seal and a reveal change the countdown's ownership, which `knowsProject` reads, and write
-       Daggerheart's setting alone: no token moved and no module setting changed, so no browser ran its
-       visibility pass, and a player let in on a secret project saw its token only at their next move. Every
+    /* WHO SEES A PROJECT'S TOKEN, ASKED AGAIN WHEN THE COUNTDOWNS CHANGE (E36 C4; audit S09-19). A seal and a
+       reveal write Daggerheart's setting alone: no token moved and no module setting changed, so no browser ran its
+       visibility pass. A share or a revoke wrote it too until S17-31 and writes no countdown since; its pass comes from
+       `drpgProjectSightChanged` (projects.mjs, through sync.mjs), and a player let in on a secret project saw its
+       token only at their next move before either (the audit's D 175, 1.2.122: until then this said a share changes
+       the countdown's ownership). Every
        browser hears its own copy of the setting change; the pass is each browser's (visibility.mjs). */
     Hooks.on("updateSetting", setting => {
         if (setting?.key !== COUNTDOWNS_KEY) return;

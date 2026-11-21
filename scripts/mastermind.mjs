@@ -10,9 +10,10 @@
  * D6 already established Foundry ships to every client regardless of
  * ownership) costs nothing to use. The Mastermind's identity is exactly the
  * opposite: it must be unreadable from ANY client but a GM's. So it lives in a
- * client-scoped setting on GM browsers only, synced GM-to-GM over a socket the
- * server addresses to named recipients - the same treatment `truth-bullets.mjs`
- * gives the answer key, just for a single actor id instead of a ledger.
+ * GM store (`mastermindStore`, below; since E04), held on GM browsers only and
+ * merged GM to GM - the same treatment the answer key gets. Until the audit's
+ * D 277 (1.2.122) this said a client setting synced over a socket of its own,
+ * the design before 1.2.63.
  *
  * Everything else the guide asks for is either already built or genuinely
  * small:

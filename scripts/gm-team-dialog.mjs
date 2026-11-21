@@ -1,8 +1,10 @@
 /**
  * Danganronpa RPG - the GM team panel ("Despair Flow").
  * ---------------------------------------------------------------------------
- * Four tabs - pools, Monokumas, students, overflow - opened from Between
- * sessions and from the season checklist (audit S10-73: this header described
+ * Four tabs - pools, Monokumas, students, overflow - opened from Season setup's
+ * row of tiles (gm-panel.mjs SEASON_TILES `gmTeam`, since E49 A1e; "from Between
+ * sessions" until the audit's D 166, 1.2.122) and from the season checklist
+ * (audit S10-73: this header described
  * the first two and a "more" menu that no longer exists). The first two are the
  * questions that used to be two separate dialogs with two separate shortcuts on
  * screen (a gear on the Despair widget):

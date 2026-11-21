@@ -1210,10 +1210,12 @@ export const maskStore = defineGmStore({
 /**
  * THE OPENING'S VEIL (E112, 15.11.2026; the owner's request 1: "gdy morderca rzuca, dopoki nie rzuci otwarcia, jego token
  * powinien byc niewidzialny dla ofiary, a sam morderca wyciszony"). A row per character the opening of a direct murder
- * hides, keyed by its actor id: `{ actorId, userIds, why, openedAt, tokens, at }` - `userIds` its owners, whose microphone
+ * hides, keyed by its actor id: `{ actorId, userIds, why, openedAt, hides, tokens, at }` - `userIds` its owners, whose microphone
  * the veil blocks, `why` "lights" (put up as an Eclipse ends, for a declaration the lights judge) or "opening", `openedAt`
- * the incident's, `tokens` each token's `{ sceneId, tokenId, hidden }`, its own `hidden` before the veil, written back at
- * the end (mask-gm.mjs `liftVeil`). Written, read and dropped by the primary alone; synced, so a new primary lifts what no
+ * the incident's, `hides` "module" since E112v, `tokens` each token's `{ sceneId, tokenId }`: the veil is the module's flag
+ * and the token's own `hidden` is not touched. A row from before E112v (no `hides`; 1.2.116-1.2.117) carries each token's
+ * `hidden` before the veil, and only such a row's is written back at the end (mask-gm.mjs `liftVeil`, `writtenWithHidden`; the
+ * audit's D 275, 1.2.122: until then this described the older row alone). Written, read and dropped by the primary alone; synced, so a new primary lifts what no
  * opening holds any more (`settleVeils`); not backed up: a row is worth one opening. Cut by the reset's "actions" group.
  * No player copy - a player reads the token's flag, which names nobody - and no old key.
  */
@@ -1692,8 +1694,11 @@ export const keyPlanStore = defineGmStore({
 
 /**
  * THE CASE SCHEMA (E97 C3, 11.11.2026): what a GM builds on a chapter's evidence in the Investigation panel's Map - a
- * row per node, `${chapter}:${nodeId}`: `{ kind, label, text, inputs, refutes, mode, order, made }`, and one
- * `${chapter}:meta` `{ sort, manual, run, askedAt }` (case-schema.mjs, its only reader and writer). The case worked
+ * row per node, `${chapter}:${nodeId}`, of case-schema.mjs NODE_FIELDS (32 names: `kind`, `label`, `text`, `inputs`,
+ * `refutes`, `mode`, `order`, `made` and the evidence's and the zones' own), and one `${chapter}:meta` of META_FIELDS
+ * (`sort`, `manual`, `run`, `askedAt`, `made`, `autopsies`, `autopsySent`), counted 21.11.2026. case-schema.mjs writes it
+ * alone; investigation.mjs reads its entries too (`planToClear`). The audit's D 281, 1.2.122: until then this named the
+ * first eight and four and called case-schema.mjs the only reader. The case worked
  * out ahead of the trial, so the GMs' alone (R3374); any GM writes it, an Assistant too (Q8). Backed up and synced like
  * the Key Remnant plan it is built beside, and cut with it (`resetGroup` "keyPlan"); no `exists`, as a node names no
  * document. No old key: nothing held it before 1.2.107.

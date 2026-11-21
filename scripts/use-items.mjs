@@ -20,10 +20,11 @@
  *            tier 0 is "open to creative use" and has no table entry, so
  *            it goes to the GM as a ruling.
  *
- *   EQUIP    a Crime Tool or a Cleaning Tool, held ready. One per category -
- *            you have two hands and the fiction only ever cares which single
- *            object you are swinging. `murder.mjs` reads this before it falls
- *            back to "the best one you own".
+ *   EQUIP    a Crime Tool or a Cleaning Tool, held ready. One thing in a hand in
+ *            all, whatever its category: readying one puts down whatever else
+ *            was ready (`toggleEquipped`, Dawid 27.08; this said "one per
+ *            category" until the audit's D 144, 1.2.122). `murder.mjs` reads
+ *            this before it falls back to "the best one you own".
  *
  * Neither costs an action. The guide charges actions for finding, making and
  * hiding things; drinking what you already found is not one of the ten.
@@ -619,11 +620,6 @@ async function useCreatively(actor, item) {
 
 /** Which of the two this particular item is being used for. */
 async function askWhichResource(item, effect) {
-    // The one preview a row with a Hope bonus gets (tier 3's until 15.10.2026): under the darkening it must
-    // not promise the Hope `restore` will skip (review of CALL-05).
-    const bonusNote = () => (overflowBlocksHope()
-        ? game.i18n.localize("DRPG.Overflow.noHopeNow")
-        : game.i18n.format("DRPG.Items.choiceBonus", { n: effect.bonus?.hope ?? 0 }));
     const rows = effect.choose.map((key, i) => `
         <label class="drpg-choice">
             <input type="radio" name="what" value="${key}"${i === 0 ? " checked" : ""}>
@@ -633,6 +629,11 @@ async function askWhichResource(item, effect) {
                 <small>${game.i18n.format("DRPG.Items.restoreN", { n: effect.amount })}</small>
             </span>
         </label>`).join("");
+    // The one preview a row with a Hope bonus gets (tier 3's until 15.10.2026): under the darkening it must
+    // not promise the Hope `restore` will skip (review of CALL-05).
+    const bonusNote = () => (overflowBlocksHope()
+        ? game.i18n.localize("DRPG.Overflow.noHopeNow")
+        : game.i18n.format("DRPG.Items.choiceBonus", { n: effect.bonus?.hope ?? 0 }));
 
     // On the kit's frame (E21 C5a).
     const picked = await drpgWindow({
@@ -804,7 +805,8 @@ function describe(restored) {
  * A usable item is one-shot: spend a charge, and break when it runs out.
  *
  * `break`, not `delete`. The empty packet is still in the bag and still counts
- * against the two you may carry, so using the last of your kit is a moment that
+ * against the three you may carry (config.mjs ITEM_CATEGORIES.usable's limit, 3 since 02.09.2026; "two" until
+ * the audit's D 145, 1.2.122), so using the last of your kit is a moment that
  * costs you something afterwards as well as at the time - see BROKEN_ITEMS.
  *
  * `held` is the item as the GMs hold it, where a GM's road read it so (E29 fix r2-H19: a

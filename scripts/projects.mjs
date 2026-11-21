@@ -2559,8 +2559,12 @@ async function announceTrapReady(countdownId, name, { watched = false, armed = f
                     : ""}`,
                 request: name,
                 /*
-                 * THE ONE TRIGGER THAT NEEDS SOMETHING TO EXIST FIRST. Seven of
-                 * the eight watch a place; this one watches an OBJECT, and
+                 * THE ONE TRIGGER THAT NEEDS SOMETHING TO EXIST FIRST. Nine
+                 * triggers watch (config.mjs TRAP_TRIGGERS, read 21.11.2026);
+                 * four watch a place (alone, enters, search, rest), project,
+                 * sabotage, stash and passage watch a thing that already
+                 * stands, and this one watches an OBJECT the GM has yet to
+                 * name ("seven of the eight" until the audit's D 178, 1.2.122), and
                  * until the GM says what the object is and which room it is
                  * lying in there is nothing to watch. So the receipt carries
                  * the button rather than a sentence asking them to remember.

@@ -172,9 +172,12 @@ export const VAULT_FLAGS = {
      * authority in `stealFromVault`.
      *
      * It lives on the finder because the alternative lives on the room, and the
-     * room is the screen its owner opens to check their own things. Neither is
-     * hidden from a console - this module has no secrets from a determined
-     * player - but only one of them is somewhere the victim looks by accident.
+     * room is the screen its owner opens to check their own things. The list is
+     * still world data on the finder's actor, which any console reads (no
+     * world-secrets rule names it); since E16 it is a GM's flag, a player's own
+     * write of it put back by the GMs' audit (sheet-audit.mjs `GM_FLAGS`), and the
+     * GMs read it as they hold it (`flagsHeldNow`). The hiding places themselves
+     * are the GMs' store's since 1.2.122 (hidden-stashes.mjs; the audit's D 93-94).
      */
     found: "drpgStashesFound",
     /**
@@ -1649,18 +1652,19 @@ export function vaultContents(actor) {
  * is invisible to everybody but its owner and the Mastermind; beating 16 on a
  * Head roll opens ONE of them to ONE person, permanently.
  *
- * WHERE THE RECORD LIVES, and why on the finder rather than on the room.
- * Either is world data and therefore readable from any console - this module
- * has no secrets from a determined player, and never claims to. What differs is
- * where somebody looks by accident: a flag on the region is on the screen the
- * owner opens to check their own room, while a flag on the finder's sheet is
- * somewhere the owner has no reason to be. Same leak on paper, a different one
- * in practice.
+ * WHERE THE RECORD LIVES, and why on the finder rather than on the room. The
+ * module keeps from a player's console what belongs to somebody else (the trust
+ * model, D2; the GM stores since E04; world-secrets.mjs since E05): since 1.2.122
+ * a hidden stash is a row of the GMs' store, not an entry of its room's region
+ * (hidden-stashes.mjs). The found list is still world data on the finder's
+ * actor - a flag a console reads - chosen over the room, which is the screen the
+ * owner opens to check their own things.
  *
- * WRITTEN BY A GM'S CLIENT, though the finder owns their own actor and could
- * write it themselves. The write is the only thing standing between "rolled a
- * 16" and "reads other people's hiding places", so it goes the same way every
- * other verdict in this module goes - see `resolveStashSearch`.
+ * WRITTEN BY A GM'S CLIENT, though the finder owns their own actor. Since E16 a
+ * player's own write of it is put back by the GMs' audit (sheet-audit.mjs
+ * `GM_FLAGS`), and every GM-side read of it takes the list as the GMs hold it
+ * (`flagsHeldNow`, stash-reach.mjs `flagsAsHeld`): the GM's write in
+ * `resolveStashSearch` is what opens a hiding place to its finder.
  * ========================================================================== */
 
 /** One key per stash, so two stashes in one room stay separate. */

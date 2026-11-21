@@ -44,9 +44,14 @@ import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
  * only the living, the Monocub dialog only the dead, and the repair table
  * could move the flags but refused to run either procedure properly.
  *
- * THE DROPDOWN IS STILL THE REPAIR TOOL, exactly as it was - it moves the two
- * flags and nothing else, which is what you want after a mis-click. The two
- * row buttons are the real procedures:
+ * THE DROPDOWN IS STILL THE REPAIR TOOL - it keeps the bag and posts no card,
+ * which is what you want after a mis-click - but it is no longer the two flags
+ * and nothing else (`applyAliveStates`, read 21.11.2026; "the two flags and
+ * nothing else" until the audit's D 163, 1.2.122): Dead on a death the GMs kept
+ * publishes it (`publishDeath`, its Truth Bullets with it), Monocub sends the
+ * invitation (`offerMonocub`), Alive revives (`reviveCharacter`), and the running
+ * incident's victim made dead ties the chapter's traces and offers Stage 6. The
+ * two row buttons are the real procedures:
  *
  *   Kill                 `openDeathDialog` for that one character, with the
  *                        warning about the inventory it destroys.
@@ -606,7 +611,7 @@ export async function openWhoIsAliveDialog(options = {}) {
 }
 
 /**
- * Write what the Players window was told, row by row, outside in: deceased first,
+ * Write what the Students window was told, row by row, outside in: deceased first,
  * then Monocub, then silence. Answers how many CHARACTERS changed (E51 C7, 31.10.2026;
  * audit S10-60): the ids written go into a Set, so a row whose state and silence both
  * moved is one, where the window's toast used to say "2 characters changed" over it.
@@ -691,10 +696,11 @@ export async function applyAliveStates(chosen = {}) {
 
         // Silence only means anything for a cub, and only after the state above has
         // settled. THE WINDOW DRAWS THE BOX FOR A CURRENT MONOCUB ONLY (E51 C7; audit
-        // S10-60): a student made a Monocub by the dropdown and Apply gets the box the
-        // next time the window opens, one made by the row's Invite as the open table
-        // redraws (`keepLive`). A caller that hands both at once - the suite, the
-        // console - gets both in this pass, counted as one character.
+        // S10-60). Since E72 C6 neither the dropdown nor the row's Invite makes a Monocub:
+        // both send an invitation (`offerMonocub`), and the box appears once the player
+        // accepts and the open table redraws (`keepLive`). So a silence handed with
+        // state "monocub" in one pass is not applied in it - `isMonocub` is still false
+        // (the audit's D 165, 1.2.122; until then this said both were applied at once).
         if (isMonocub(actor) && "silenced" in want && want.silenced !== isCrimeSilenced(actor)) {
             await setSilenced(actor, want.silenced);
             changed.add(actor.id);

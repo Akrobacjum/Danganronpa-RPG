@@ -69,7 +69,7 @@ export const COUNTDOWNS = "Countdowns";
  */
 export const COUNTDOWNS_KEY = `${DH}.${COUNTDOWNS}`;
 
-/** Raw per-project metadata: { [countdownId]: { room, indirectMurder, scale, glyph } } - a secret project's room and mark are the GMs' (`PROJECT_SECRET_WHILE_SECRET`). */
+/** Raw per-project metadata: { [countdownId]: { room, indirectMurder, glyph, tokenId, tokenScene, mapHidden, ... } } - no `scale`: a project's size is its countdown's `progress.start` (the audit's D 180, 1.2.122); a secret project's room and mark are the GMs' (`PROJECT_SECRET_WHILE_SECRET`). */
 export function projectMeta() {
     return game.settings.get(MODULE_ID, SETTINGS.projectMeta) ?? {};
 }
@@ -352,9 +352,14 @@ export function canSee(countdownId, user = game.user) {
  * progress bar named "Prepare the poison" sitting in everyone's sidebar would
  * give the whole plot away before it started.
  *
- * Secrecy is enforced through the countdown's own `ownership` map - default
- * NONE, with explicit access for the killer and anyone they (or the GM) later
- * choose to let in. GMs always see everything regardless.
+ * Secrecy was first enforced through the countdown's own `ownership` map -
+ * default NONE, with explicit access for the killer and anyone let in. Since
+ * S17-31 it is not: the map gives every player OBSERVER (`ownershipMap`, below),
+ * because every browser holds it. Who is in on a secret project is the GMs'
+ * store (`viewersOf`, `sharedIds`) and, on a player's browser, the GMs' card
+ * (`toldSight`); the tray takes the row out for those not in on it
+ * (projects-tray.mjs). GMs see everything. (The audit's D 173, 1.2.122; until
+ * then this paragraph described the map before S17-31.)
  * ========================================================================== */
 
 const NONE = 0;        // CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE

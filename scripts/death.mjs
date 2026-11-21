@@ -101,7 +101,7 @@ export async function markDeceased(actor, { record: when = null, phase = null, c
 
     /* THE BODY, WHERE THE TOKEN LIES (E63 C0, 11.11.2026; the owner on E95 Q3: "gdy postac umiera ... Nie gdy zostaje
        Monocubem"). Here, the one function every public death passes - a death public at once, a kept death made the
-       table's (`publishDeath`), the Players window's "dead" - so no road lays a second. Handed the record just written,
+       table's (`publishDeath`), the Students window's "dead" - so no road lays a second. Handed the record just written,
        not the GMs' mark, which may not hold it yet (body-tile.mjs `leaveBody`). Tried on its own: a tile that cannot be
        laid does not undo the death. */
     try {
@@ -111,7 +111,7 @@ export async function markDeceased(actor, { record: when = null, phase = null, c
     }
 
     /* THE DEAD WATCH (E62 C3b, 13.11.2026; spectator-dead.mjs): the student's Spectator where the body lies, made here
-       for a death public at once and the Players window's "dead", and found here for a kept death made the table's
+       for a death public at once and the Students window's "dead", and found here for a kept death made the table's
        (`publishDeath`), whose link then leaves the GMs' row for the watcher's flag. `silent` by default: every caller
        but `killCharacter` is a GM's correction or a publication, and only a death in play fades (SB-C3 #17). None for an
        NPC, a student no player owns at the death (1.2.113, the owner's decision of 13.11.2026; `isNpcAtDeath`). */
@@ -208,7 +208,7 @@ export async function killCharacter(actor, { keepBullets = false, secret = null,
     }
     if (!secretly) {
         if (!keepBullets) removed = await destroyBullets(actor);
-        // The record and the token marker, which the Players window's repair
+        // The record and the token marker, which the Students window's repair
         // dropdown writes on its own (F16) - one place decides what deceased means.
         record = await markDeceased(actor, { phase, cause, chapter, silent });
     }
@@ -506,7 +506,7 @@ async function tellDeathKnowers(actor, known = [], { dropped = false } = {}) {
  * tombstone is what a copy weighs its loss against - and whoever held a copy is told.
  * Idempotent: its head reads the GMs' row (`deathStore`), so a death already public answers
  * its record and a body nobody killed null. Run by the body's discovery (`runDiscovery`, through
- * `publishFoundBodies`), by a GM's hand - the Players window's "dead" (gm-students.mjs
+ * `publishFoundBodies`), by a GM's hand - the Students window's "dead" (gm-students.mjs
  * `applyAliveStates`) and the console's `game.drpg.publishDeath` (api.mjs) - and by a verdict
  * that executes a student whose death the GMs hold (trial-progress.mjs `executeAtExit`, E10 fix r1-G4:
  * the GM named them in the verdict's window, which told that GM whose death it is). Nothing

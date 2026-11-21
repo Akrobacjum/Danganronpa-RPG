@@ -673,7 +673,8 @@ function wireManagerViewerLocks(root) {
 }
 
 /**
- * Write every row back: image, room, the murder flag and secrecy. A row's Delete is its own button since E47-C6
+ * Write every row back: room, the murder flag and secrecy (no picture since E49 FT batch 3: "image" until the audit's
+ * D 179, 1.2.122). A row's Delete is its own button since E47-C6
  * (`wireManagerDeletes`), so nothing here deletes.
  */
 async function applyProjectManager(result, projects) {
@@ -1085,7 +1086,8 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
     const traitOptions = projectTraitOptions(currentTrait);
 
     /*
-     * THE NINE TRIGGERS, AND R13 IN BOTH DIRECTIONS.
+     * THE TEN ROWS, AND R13 IN BOTH DIRECTIONS (TRAP_TRIGGERS: nine watched and
+     * `manual`, read 21.11.2026; "the nine triggers" until the audit's D 177, 1.2.122).
      *
      * Built from `TRAP_TRIGGERS` rather than typed out, so a trigger the module
      * watches for cannot be missing from this list and a row in this list
@@ -1094,7 +1096,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
      * like a trap nobody walked into.
      *
      * `manual` is on the list on purpose. It is today's behaviour, and putting
-     * it beside the eight the module watches is what makes "I will keep an eye
+     * it beside the nine the module watches is what makes "I will keep an eye
      * on this myself" a decision rather than the only thing available.
      */
     // Off the GMs' store, not off `start`: `allProjects()` returns the countdown

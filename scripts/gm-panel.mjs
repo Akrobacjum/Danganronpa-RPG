@@ -7,8 +7,11 @@
  *
  * Two of its windows live in files of their own since E41 C7a (1.2.97): the
  * Students window in gm-students.mjs and Edit campaign in gm-campaign.mjs. This
- * file re-exports the four names they export, so an importer of the panel
- * imports this file as before.
+ * file re-exports four of their names (`openWhoIsAliveDialog`, `applyAliveStates`, `correctsTheHour`,
+ * `openClockDialog`), the four it exported before the move, so an importer of the panel imports this file as before;
+ * the other names they export (gm-students.mjs 3 in all, gm-campaign.mjs 11, counted 21.11.2026) are imported from
+ * their own files (season-setup.mjs reads gm-campaign.mjs's directly). "the four names they export" until the
+ * audit's D 158, 1.2.122.
  */
 
 import { MODULE_ID, moduleVersion, TIMES_OF_DAY } from "./config.mjs";
@@ -164,7 +167,8 @@ export function injectLauncher() {
 /*
  * WHAT OPENS, AND WHEN.
  * --------------------------------------------------------------------------
- * The panel is thirty tiles long and a GM uses about five of them in any given
+ * The panel is thirteen tiles long (PANEL_SECTIONS: 3 + 3 + 4 + 3, counted 21.11.2026; "thirty" until the audit's
+ * D 156, 1.2.122) and a GM uses a few of them in any given
  * minute. Which five is not a mystery - it is written on the clock. So each
  * section declares the phases it belongs to, and the panel opens with those
  * expanded and everything else folded away.
@@ -188,7 +192,10 @@ const PANEL_SECTIONS = [
              * deciding "Sayaka should have this" is already looking at Sayaka.
              *
              * "Players", not "Player status": the window stopped being a
-             * read-out the moment it grew the row buttons.
+             * read-out the moment it grew the row buttons. It is titled
+             * Students since (DRPG.Panel.whoIsAlive, "Students" in en.json,
+             * read 21.11.2026); the comments that still say "the Players
+             * window" mean this one (the audit's D 172, 1.2.122).
              */
             { key: "whoIsAlive", icon: "fa-heart-pulse", labelKey: "DRPG.Panel.whoIsAlive",
               run: () => openWhoIsAliveDialog() },
@@ -655,12 +662,14 @@ export async function openGmPanel() {
  * Two regions rather than one, deliberately. They change on different clocks:
  * the suggestion line moves whenever anybody spends anything, the tiles only
  * when the world opens or closes a door. Rebuilding the tiles on every actor
- * update would be forty buttons redrawn each time a player marks a Stress.
+ * update would be thirteen tiles redrawn each time a player marks a Stress.
  *
- * Every input to both answers is either a flag on an actor (actions left, the
- * free Move, dead or a Monocub) or one of this module's world settings (the
- * clock, the incident, the Eclipse, the trial's floor and progress), which is
- * exactly what `keepLive` listens to. Since E11 fix r1-G4 the next line also reads
+ * The inputs to both answers are flags on an actor (actions left, the free Move, dead or a Monocub), this module's
+ * world settings (the clock, the incident, the Eclipse, the trial's floor and progress) and, on a GM, four GM stores
+ * the block does not name one by one: the deaths kept (`isDeadForGm`), the sheet marks (`flagsHeldNow`), the bodies
+ * waiting (`pendingBodyStore`, watched since 1.2.122) and the case's last health report (`drpgCaseHealthChanged`,
+ * watched since 1.2.122). The deaths and the sheet marks are not watched: a change of either redraws the block only
+ * when something it does watch moves (the audit's D 157, 1.2.122, which found it; read in the code, not measured). Since E11 fix r1-G4 the next line also reads
  * the students' items (an autopsy issued), the Key Remnants' tokens and the case's
  * Key count in the Key plan's store (`keysToPlace`), so the standing block watches
  * those three as well (tier 0 R19 asks the items of a window that reads bullets;
@@ -679,7 +688,7 @@ function keepPanelFresh(dialog) {
     });
 
     /* THE TILES WAKE ON THEIR OWN KEYS (E44 C2b, 04.11.2026; audit S10-58). Without `settings` every write of a
-       module setting redrew forty buttons, a player's action among them. What the tiles print is the clock (the
+       module setting redrew the thirteen tiles, a player's action among them. What the tiles print is the clock (the
        phase opens a section, `clock.eclipse` shuts the murder tile: `isEclipse`), the incident (since E47-C3 it keeps
        the murder tile live in an Eclipse and marks it current: `murderState`) and the case's backup mark (the case
        tile's age, `backupAge`), read by `buildSections` and nothing else, in every state; R1317 builds the
@@ -845,7 +854,7 @@ async function openFailureLog() {
  *
  * So one line at the top says it, with the button that does it. The tiles below
  * are unchanged and still reachable; this only saves the GM from working out
- * which of thirty of them the current state calls for.
+ * which of the thirteen the current state calls for.
  *
  * Ordered by urgency, and the first match wins. An incident interrupts
  * everything, an Eclipse is a window everyone is waiting inside, and the rest
