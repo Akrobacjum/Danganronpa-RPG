@@ -5820,5 +5820,26 @@
    "class": "F",
    "new": true
   }
- ]
+ ],
+ "probe_44": {
+  "ran": "21.11.2026 ~04:15Z, alone, on e515907d (probe copied into the worktree's harness), 2 min 28 s, exit 0",
+  "result_file": "audit/findings-1.2.118/probe-44.json",
+  "totals": {
+   "windows": 96,
+   "opened": 94,
+   "regions": 55,
+   "matches": 55,
+   "wrong": 0,
+   "threw": 0
+  },
+  "regions_read": 13,
+  "regions_not_read_by_the_probe": {
+   ".drpg-mm-live": "the Mastermind's window is not in probe 08's list; the defect hopebox-120 fixes (build hopeBox returned the box's inside)",
+   ".drpg-objection-live": "read in source: logBody returns <div class=\"drpg-objection-live\"> (trial.mjs:1670)",
+   ".drpg-ready-body": "read in source: roundBody returns <div class=\"drpg-ready-body\"> (boundary.mjs:438)",
+   ".drpg-project-card": "read in source: draw returns <div class=\"drpg-panel drpg-remnant-card drpg-project-card\"> (projects-map.mjs:944)",
+   ".drpg-remnant-card": "read in source: each of draw's three returns starts with <div class=\"drpg-panel drpg-remnant-card\"> (remnant-ring.mjs:419, 459, 505); an empty build is skipped (live.mjs `if (!next) return`)"
+  },
+  "reading": "Of the 18 keepLive regions in the module, 13 measured (all return the region), 4 read in source (all return the region), 1 is the Mastermind box hopebox-120 fixes. call-pickers.mjs and ui-kit.mjs pass a caller's region through and were not read separately. Each build was called once in the window's state as opened."
+ }
 }
