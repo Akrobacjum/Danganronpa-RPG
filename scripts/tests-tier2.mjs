@@ -104336,6 +104336,44 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ before: [true, false], after: [false, true], boxes: [true, true] }),
             "{before, after: [the backup line says never, says today] before and after a backup made with the window open; boxes: [the keys' box opened and ticked, the GM's unticked sweep kept]} - the chapter's end window shows the world as it is");
     }],
+    ["1.2.122 MAP-23 - a room renamed while a passage project waits is carried into its pick and its target, and the stretch's rooms that no longer match are said in words of their own (scripts/passages-gm.mjs `carryPassageRooms`, `carryProjectPicks`, `passageRowFor`, `whyCode`; the audit's MAP-23, 1.2.122 line WORLD): an open project picked between two rooms of a scene, and another sealing a passage from one of them, read the new name after the rename's carry; one of another scene is left; the mismatch's refusal has its code", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line WORLD. The audit's MAP-23 (domain-map-b-movement-4): the rename carried the passages' rows
+         * and a project's room, not a waiting project's pick (`passage.rooms`) nor its target (`target.room`), so the
+         * completion was refused and the GMs read "the module could not say why". Driven: three projects of the test's own,
+         * their GMs' halves written as the approval writes them (`applyProjectChange` meta); the carry run as fog.mjs's
+         * rename runs it (`carryPassageRooms`, the scene's id, the old and the new name). Read: the picks and targets after,
+         * and the code of the refusal a mismatch answers. Put back: the projects. Red at 21bf5d18: nothing was carried and the
+         * refusal had no code.
+         */
+        const P = await import("./projects.mjs");
+        const PG = await import("./passages-gm.mjs");
+        const { secretsOf } = await import("./projects-secrecy.mjs");
+        const scene = canvas?.scene;
+        must(scene, "no scene on screen");
+        const OLD = "SUITE 122 Kitchen", NEW = "SUITE 122 Galley", OTHER = "SUITE 122 Hall";
+        const ids = [];
+        const read = {};
+        try {
+            for (const name of ["passage", "seal", "elsewhere"]) ids.push((await P.createProject({ name: `SUITE 1.2.122 MAP-23 ${name}`, target: 6, room: OTHER }))?.id ?? null);
+            must(ids.every(Boolean), "could not create the projects - this would measure nothing");
+            const pick = sceneId => ({ sceneId, level: null, wallId: "SUITE122WALL", seg: { x1: 0, y1: 0, x2: 50, y2: 0 }, rooms: [OTHER, OLD] });
+            await P.applyProjectChange(ids[0], { meta: { passage: pick(scene.id) } }, { by: { kind: "gm" } });
+            await P.applyProjectChange(ids[1], { meta: { target: { preset: "closeBreach", room: OLD, sceneId: scene.id, breachId: "SUITE122B" } } }, { by: { kind: "gm" } });
+            await P.applyProjectChange(ids[2], { meta: { passage: pick("SUITE122OTHERSCENE") } }, { by: { kind: "gm" } });
+            await settle();
+            must(secretsOf(ids[0]).passage?.rooms?.includes(OLD), "the pick was not kept in the GMs' half - this would measure nothing");
+            await PG.carryPassageRooms(scene.id, OLD, NEW);
+            await settle();
+            read.picks = [secretsOf(ids[0]).passage?.rooms ?? null, secretsOf(ids[1]).target?.room ?? null, secretsOf(ids[2]).passage?.rooms ?? null];
+            read.code = PG.whyCode("the stretch stands between other rooms than the ones picked.");
+        } finally {
+            for (const id of ids) if (id) await P.deleteProject(id);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ picks: [[OTHER, NEW], NEW, [OTHER, OLD]], code: "roomsPicked" }),
+            "{picks: [the passage's pick, the target's room, another scene's pick] after the rename's carry; code: the mismatch's refusal's code} - a waiting project follows its room's new name");
+    }],
     ["PV-DOORS-T1 - the people in the character's own room always see who works its doors, and everyone behind a barricade hears a knock (scripts/doors-gm.mjs `shutDoor`, `forceDoor`, `pickLock`, `knockDoor`; the owner's rules #8 and #9, 13.11.2026): Shut the Door, a Force missed with Hope and a Pick whose Shadow cover passed each send the other student in the character's room a card naming the character, and nobody in the room beyond one; a Pick whose cover failed and a Force missed with Despair tell both rooms, as before; a walk refused at a barricade is heard by everyone in the barricaded room - its author and the student beside them - and never by the walker", async () => {
         /*
          * Privacy line 1 (doors), 13.11.2026. Judged as the primary judges the player's packets (`G.judge`), each roll a

@@ -19543,7 +19543,8 @@ const INVARIANTS = [
             "that wall is not on that floor.", "the stretch does not stand between two rooms.", "a room beside the stretch is on another floor.",
             `the stretch is shorter than ${P.PICK_SHORTEST} px.`, "the stretch's two ends stand between different rooms.",
             "the stretch overlaps another passage on that wall.", "the stretch overlaps another passage on that wall.",
-            "the stretch stands between R561 Hall and R561 Kitchen, not the rooms named.", ["R561 Hall", "R561 Upstairs"], ["R561 Hall", "R561 Kitchen"]]),
+            // A literal of whyTable's since 1.2.122 (MAP-23): the rooms it named go to the GM's debug log, not the reason.
+            "the stretch stands between other rooms than the ones picked.", ["R561 Hall", "R561 Upstairs"], ["R561 Hall", "R561 Kitchen"]]),
         "[the console's road on a door, on a wall that stops nobody, with no floor, with a floor the scene has not, on another floor's wall, on a wall inside one room, beside another floor's room, 5 px long, from one pair of rooms to another, from inside a taken stretch, over one, with rooms of its own; the rooms it writes on the second floor and for the right rooms named] - it must refuse what the pick refuses");
         const createOn = (wallId, x1, x2, y = 800) => P.createPassage({ sceneId: con.id, wallId, seg: { x1, y1: y, x2, y2: y }, level: "R561L1" }, { stores, scene: con });
         const conFirst = await createOn("W1", 1234.5, 1334.5);
