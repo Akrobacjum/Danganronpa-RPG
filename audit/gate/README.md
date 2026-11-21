@@ -11,8 +11,9 @@ A release passes two layers (decision D47, E30):
    reused and named in the release's summary (INFRA, 1.2.121).
 2. **local-gate** - what the headless harness cannot do: the suite's tier 2 in
    both themes on a real Foundry v14, the whole-world diff around it, the
-   scenarios whose layers include `local-gate`, and the drills a stage names in
-   `tools/stages.json`. It runs on a machine with a v14 sandbox, writes
+   scenarios whose layers include `local-gate`, the drills a stage names in
+   `tools/stages.json`, and the press part (`scripts/live.mjs` in Chromium,
+   below). It runs on a machine with a v14 sandbox, writes
    `local-gate.json`, and `release.yml` checks that file with `verify-gate.mjs`.
 
 | File | Written by | What it is |
@@ -38,15 +39,16 @@ what it wrote in a commit of its own on top. Not an amend: the file names the
 commit it ran on, and the verifier wants that commit to be an ancestor of the
 one being released, with every bound path unchanged since (the module's
 scripts, styles, lang, fonts, icons, module.json, this writer, gate-lib,
-audit/live, the harness seed and the local-gate scenarios; release notes and
-docs are not bound).
+audit/live, the harness seed, the local-gate scenarios and the press part's two
+scripts; release notes and docs are not bound).
 
 Settings: `DRPG_SANDBOX_URL` (default `http://localhost:30099`, loopback
 only), `DRPG_SANDBOX_WORLD` (the only world it may write to; must match
 `/(gate|copy|qa)/i`), `DRPG_SANDBOX_USERS` (JSON; default GM, PlayerOne,
 PlayerTwo, PlayerThree, none with a password), `DRPG_FIXTURES` (the private
-world copies for drills), `DRPG_GATE_KEY` (signs the file). Options:
-`--parts live,sandbox,drills`, `--merge` (replace only the parts run now),
+world copies for drills), `DRPG_GATE_KEY` (signs the file), `DRPG_CHROMIUM`
+(the Chromium executable for the press part, when Playwright has none of its
+own). Options: `--parts live,sandbox,drills,press`, `--merge` (replace only the parts run now),
 `--dry-run` (probe the sandbox and list the parts, each not-run with reason
 `dry-run`; nothing runs and nothing is written).
 
@@ -67,6 +69,25 @@ runner broke, not the module) or `not-run` with a reason:
 | stale-module | no | the served files differ from this commit |
 | no-playwright, no-browser | no | the runner's own dependencies are missing |
 | adapter-missing | no | the scenario needs something the sandbox adapter lacks |
+| no-script | no | a script the press part runs is not in this checkout |
+| no-chromium | record mode only | the press part found no Chromium (`DRPG_CHROMIUM` unset, none of Playwright's own); let through in record mode with the notes line, refused in enforce, waiver or none |
+
+THE PRESS PART (`press-live-region`; the audit's check of 1.2.121, r121-R-6;
+the owner's answer (b), 21.11.2026). `audit/live-press.mjs` and
+`audit/live-redraw.mjs` load `scripts/live.mjs` in Chromium on a page of their
+own: a press on a redrawn region, a pick, a redraw under a GM typing and under
+an open list - what jsdom cannot show. They need no Foundry, so the part runs
+on every gate run, sandbox or none; no CI job installs a browser, so CI does
+not run it. `npm run press` in `audit/harness` runs the same two by hand. The
+part counts each script's `ok` and `FAIL` lines and reads its closing
+"N failing": failed on any FAIL; passed only when there is none, each script
+printed its tally and agreed with it, and at least one line was ok; error when
+a script ends without its tally; not-run `no-chromium` when Playwright launched
+none. Its evidence is `evidence/press-live-region.json`, both outputs counted.
+Read here on 21.11.2026: Playwright 1.56.1 found no browser of its own
+(not-run, no-browser then; no-chromium since); with `DRPG_CHROMIUM=/opt/pw-browsers/chromium` passed,
+11 ok and 0 FAIL; with the press hold taken out of `live.mjs` on a throwaway
+commit, failed, `audit/live-press.mjs: 3 failing`.
 
 ## The ci layer's record (E59 C0)
 

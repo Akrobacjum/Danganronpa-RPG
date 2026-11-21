@@ -3648,7 +3648,7 @@ const REGRESSIONS = [
 
         // The order both halves of this depend on, one file up.
         const live = stripComments(sources.get("live.mjs") ?? "");
-        const rebuild = bodyOf(live, "const rebuild = (force = false)", { until: "const schedule =" });
+        const rebuild = bodyOf(live, "const rebuild = (force = false, { picked = false } = {})", { until: "const schedule =" });
         const restored = rebuild.indexOf("restore(next, carried)");
         const after = rebuild.indexOf("after(next)");
         ok(restored > 0 && after > 0,

@@ -11,7 +11,8 @@
     "suite": "node run-all.mjs suite",
     "scenarios": "node run-all.mjs scenarios",
     "gate:local": "node ../gate/local-gate.mjs",
-    "gate:verify": "node ../gate/verify-gate.mjs"
+    "gate:verify": "node ../gate/verify-gate.mjs",
+    "press": "node ../live-press.mjs && node ../live-redraw.mjs"
   },
   "devDependencies": {
     "eslint": "10.11.0",

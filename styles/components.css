@@ -2771,6 +2771,10 @@ body .application.drpg-window-rooms .drpg-room-picture {
     cursor: pointer;
 }
 body .application.drpg-window-rooms td.drpg-data-col-picture { white-space: normal; }
+/* the clear button only over a picture (the audit's check of 1.2.121, r121-R-11; the line claude/refresh-120 for 1.2.122):
+   "Remove the picture" stood under a room with none. Keyed on the thumbnail's `src`, which the cell draws from the stored
+   picture, a pick sets and the button takes off (room-setup.mjs `wireForm`), so it follows all three with no listener */
+body .application.drpg-window-rooms img.drpg-room-picture:not([src]) ~ button[data-drpg-picture-clear] { display: none; }
 body .application.drpg-window-rooms .drpg-room-picture-say > .drpg-box { margin: 4px 0 0; }
 /* the Passages tab (E46-C2b, 09.11.2026; the owner's A10 of 11.10): its eight columns one width a kind, as E80 fix r1-G5
    chose them in danganronpa.css (the Rooms column the room tabs' 220 px above), but Kind 80 -> 96 and the state 150 -> 134:

@@ -1054,6 +1054,15 @@ export function untouchedRoomRow(row, now) {
     return out;
 }
 
+/** Each room of `scene` with no start lock stored, and the start lock it reads now (the lock itself): Room setup's open. */
+function startLocksAtOpen(scene) {
+    const out = new Map();
+    for (const [room, pieces] of namedByName(scene)) {
+        if (pieces.length && pieces.every(piece => piece.getFlag(MODULE_ID, ROOM_FLAGS.lockedAtStart) == null)) out.set(room, pieces.some(startLocked));
+    }
+    return out;
+}
+
 /**
  * The named regions of a scene by name - Room Setup's own map (E12 C2a): every name, with the
  * pieces of it that can be rooms, marked or not (none for a name only a Teleport or a player's
@@ -1077,7 +1086,7 @@ function namedByName(scene) {
  * Every write lands on every region of the row's name (E12 C2a, `updateRoom`): one write to the
  * piece `regionsByName` held left a Kitchen of two pieces locked on one of them (66 D1).
  */
-async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
+async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene, openedStartLocks = null }) {
     const changed = new Set();
     // Rooms whose BEDROOM OWNER moved in this Apply. Collected rather than acted
     // on inline because the seeding below has to run after the stash matrix has
@@ -1123,10 +1132,17 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
         /* THE ROOM AS IT STANDS FOR EVERY COLUMN THE GM LEFT AS DRAWN (REFR-03, `untouchedRoomRow`), read here at the press,
            so `same` below compares only what the GM changed. A stored picture `safeRoomImage` refuses stands as the cell
            drew it, no picture, so the row's Apply still writes null over it (E77 C1). */
+        /* AN UNSET START LOCK IS PINNED TO WHAT THE WINDOW SHOWED AT ITS OPEN (the audit's check of 1.2.121, r121-R-5; the line
+           claude/refresh-120 for 1.2.122). With no start lock stored, `startLocked` reads the lock itself, so a lock forced
+           while the window stood open read as the start lock, the untouched column took it (REFR-03), and Apply - which pins
+           the start lock on every row (below) - pinned it to the forced lock. Untouched and unset, the column keeps the
+           start lock the window drew at its open (`startLocksAtOpen`), as it did before the column followed the world. */
+        const unsetStart = pieces.every(piece => piece.getFlag(MODULE_ID, ROOM_FLAGS.lockedAtStart) == null);
+        const startAtOpen = unsetStart && openedStartLocks?.has(drawnRow.room) ? openedStartLocks.get(drawnRow.room) : wasLockedAtStart;
         const row = untouchedRoomRow(drawnRow, {
             owner: before.owner ?? "", table: before.table ?? "", favours: before.favours, hinders: before.hinders,
             description: before.description, image: before.image && safeRoomImage(before.image) === null ? "" : before.image,
-            shortRest: beforeRest.short, longRest: beforeRest.long, locked: wasLocked, lockedAtStart: wasLockedAtStart,
+            shortRest: beforeRest.short, longRest: beforeRest.long, locked: wasLocked, lockedAtStart: startAtOpen,
             broken: wasBroken, noSearch: wasSealed, notShared: wasNotShared
         });
         /* THE PICTURE IS JUDGED BEFORE THE ROW IS COMPARED (E77 C1). A path `safeRoomImage` refuses is not
@@ -1365,6 +1381,8 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
         return null;
     }
     const rooms = Array.from(namedByName(scene).keys()).sort((a, b) => a.localeCompare(b));
+    // The start lock each room with none stored shows at the open, which an untouched column keeps (`applyRoomRows`, r121-R-5).
+    const openedStartLocks = startLocksAtOpen(scene);
     const passagesTab = await import("./passages-tab.mjs");
 
     const { studentActors, studentCensus } = await import("./monokuma.mjs");
@@ -1589,7 +1607,7 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
        given to an owner in one Apply counted 3 (the tier-2 "Room Setup writes to the scene it was
        opened on ...", before this commit, 11.10.2026). It is now the rooms any of the three touched. */
     const { changed: rowsChanged, ownerMoved } = await applyRoomRows(rowResults,
-        { REST_FLAGS, setRestRoom, scene });
+        { REST_FLAGS, setRestRoom, scene, openedStartLocks });
     const changed = new Set(rowsChanged);
 
     if (result.stashes && typeof result.stashes === "object") {

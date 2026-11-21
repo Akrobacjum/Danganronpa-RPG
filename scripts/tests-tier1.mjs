@@ -42358,8 +42358,9 @@ const INVARIANTS = [
             const target = usable.find(n => n.matches(TEXT)) ?? usable.find(n => n.matches("select"))
                 ?? usable.find(n => n.matches("input")) ?? usable[0] ?? null;
             const kind = !target ? "none" : target.matches(TEXT) ? "text" : target.localName === "select" ? "select" : target.localName === "input" ? target.type : target.localName;
-            let want = null, caret = null;
+            let want = null, caret = null, drawn = null;
             if (target) {
+                drawn = kind === "checkbox" ? target.checked : target.value;
                 target.focus();
                 if (document.activeElement !== target) return { field: kind, focused: false };
                 if (kind === "text") { target.value = `${target.value}R7974`; caret = 2; target.setSelectionRange(caret, caret); want = target.value; }
@@ -42376,6 +42377,11 @@ const INVARIANTS = [
                 read.focus = Boolean(now?.contains(active)) && active.localName === target.localName && (active.getAttribute("name") ?? "") === (target.getAttribute("name") ?? "");
                 if (want !== null) read.value = (kind === "checkbox" ? active.checked : active.value) === want;
                 if (caret !== null) read.caret = active.selectionStart === caret;
+                /* The value put back before the field is left (the line claude/refresh-120 for 1.2.122): a field drawn anew
+                   owes the `change` the GM's leave would fire (live.mjs `oweChange`), and the Sound window's Effects box
+                   saves on it - left with "R7974" in it, it wrote sfxMap (read on this tier 1, 21.11.2026). */
+                if (kind === "checkbox") active.checked = drawn;
+                else if (kind === "text" || kind === "select") active.value = drawn;
             }
             active?.blur?.();
             return read;
@@ -42459,6 +42465,72 @@ const INVARIANTS = [
             stop();
             host.remove();
         }
+    }],
+
+    ["R8540 - live.mjs on an artificial region (the line claude/refresh-120 for 1.2.122; the audit's check of 1.2.121, r121-R-1): a field that saves on `change`, typed in and redrawn under the GM, saves nothing at the redraw - with Chromium's removal events emulated (`change`, `blur`, `focusout` on the focused field, read in Chromium 153) - and saves the whole word once when the GM leaves it, whether or not more was typed after the redraw", async () => {
+        /*
+         * The line claude/refresh-120 for 1.2.122, 21.11.2026; r121-R-1 (MAJOR, a regression of `whileEditing`'s default):
+         * removing a focused text field whose value changed since its focus fires `change`, `blur` and `focusout` on it,
+         * synchronously, in Chromium 153 (audit/live-redraw.mjs reads it there); jsdom fires nothing. So the removal is
+         * emulated here for the test's length - `replaceWith` of a node holding the focused field dispatches the three on
+         * it first, when its value differs from what it held at the focus - and a value written by script is the typing.
+         * Two runs: a word typed, redrawn, then more typed, then left; a word typed, redrawn, then left. The saves (a
+         * `change` listener on the window's element, as the Remnant card's and the planner's are) are read after the
+         * redraw and after the leave. Red on 1eee4d62: the fragment saved at the redraw, and in the second run nothing
+         * more at the leave.
+         */
+        const { keepLive } = await import("./live.mjs");
+        const proto = Element.prototype, real = proto.replaceWith;
+        const atFocus = new WeakMap();
+        const onFocus = e => { if (e.target?.tagName === "INPUT") atFocus.set(e.target, e.target.value); };
+        const run = async more => {
+            let built = 0;
+            const saves = [];
+            const build = () => { built++; return `<div class="drpg-t-r8540"><input type="text" name="words" value=""></div>`; };
+            const host = document.createElement("div");
+            host.style.cssText = "position:fixed;left:-3000px;top:0;width:200px";
+            host.innerHTML = build();
+            document.body.appendChild(host);
+            host.addEventListener("change", e => { if (e.target?.name === "words") saves.push(e.target.value); });
+            const app = { element: host, options: { window: { title: "test" } } };
+            const stop = keepLive(app, { region: ".drpg-t-r8540", build, delay: 0, watch: { hooks: [LIVE_PROBE] } });
+            try {
+                const field = host.querySelector("[name=words]");
+                field.focus();
+                field.value = "ab";
+                const before = built;
+                Hooks.callAll(LIVE_PROBE);
+                await wait(140);
+                const now = host.querySelector("[name=words]");
+                const atRedraw = { rebuilt: built > before, saves: [...saves], focus: document.activeElement === now && now !== field };
+                if (more) now.value = `${now.value}c`;
+                now.blur();
+                await wait(50);
+                return { ...atRedraw, left: [...saves] };
+            } finally {
+                stop();
+                host.remove();
+            }
+        };
+        let read;
+        document.addEventListener("focusin", onFocus, true);
+        proto.replaceWith = function (...nodes) {
+            const active = document.activeElement;
+            if (active?.tagName === "INPUT" && this.contains(active) && active.value !== atFocus.get(active)) {
+                for (const type of ["change", "blur", "focusout"]) active.dispatchEvent(new Event(type, { bubbles: type !== "blur" }));
+            }
+            return real.apply(this, nodes);
+        };
+        try {
+            read = { more: await run(true), left: await run(false) };
+        } finally {
+            proto.replaceWith = real;
+            document.removeEventListener("focusin", onFocus, true);
+        }
+        equal(JSON.stringify(read), JSON.stringify({
+            more: { rebuilt: true, saves: [], focus: true, left: ["abc"] },
+            left: { rebuilt: true, saves: [], focus: true, left: ["ab"] }
+        }), "[typed, redrawn, more typed, left; typed, redrawn, left: drawn again; saved at the redraw; the focus on the new field; saved after the leave]");
     }],
 
     ["R1317 - a region held to its settings is held to what it prints (E44 C2b; E44-07): a region with `watch.settings` rebuilds on its own key and not on another key of the module or another module's key of that name; every `keepLive(` call in scripts/ that names `settings` belongs to a window this test opens or to one of the three it names as unopenable in tier 1 (the readiness round's, the incident tracker and, since E44 C9, a project token's card), and each region it opens, built once with `game.settings.get` counted, reads no key of the module it does not declare - the GM panel's tiles and the Sound window's two regions among them", async () => {
@@ -65980,6 +66052,46 @@ const INVARIANTS = [
             return [start, Math.round(worst * 100) / 100 >= 4.3];
         });
         equal(stableJson(read), stableJson(WORDS.map(w => [w, true])), "[each window rule: its words' worst contrast over the ground on white, in every state, at least 4.3:1]");
+    }],
+    ["R8541 - the Season checklist's repaint keeps a row's button and the row in its place, so a press between its pointerdown and its click is heard (the audit's check of 1.2.121, r121-R-7; the line claude/refresh-120 for 1.2.122): season-setup.mjs `relistRows` and `repaintStep` over the same steps take no node out of the list; a button whose action changes is the same node, its action and words the fresh row's; a reorder still puts the rows in the steps' order; a click on the pressed button after the repaint reaches the list's listener", async () => {
+        /* Red on 1eee4d62: every standing row appended again and every button replaced on every repaint - read in Chromium
+           153 on 21.11.2026, either one between a press's pointerdown and its click lost the click (heard 0 of 1), so the
+           checklist's follow of the world (`followChecklist`) could eat a press. jsdom keeps a removed node's click, so the
+           removals that take the pressed button or its row out are read here (a MutationObserver's records), not the click
+           alone. Pure over a detached list. */
+        const S = await import("./season-setup.mjs");
+        must(typeof S.relistRows === "function", "season-setup.mjs has no relistRows - this would measure nothing");
+        const step = (key, done) => ({ key, done, fix: () => 0, undo: () => 0, undoKey: "DRPG.Season.checkClean", hintKey: "DRPG.Season.checkClean", missing: () => [] });
+        const box = document.createElement("div");
+        document.body.append(box);
+        const read = {};
+        try {
+            box.innerHTML = S.setupRows([step("name", false), step("cast", false)]);
+            const ul = box.querySelector("ul.drpg-checklist");
+            const pressed = ul.querySelector('li[data-drpg-key="name"] > button[data-drpg-action]');
+            must(pressed?.dataset.drpgAction === "do", "the name row drew no Do button - this would measure nothing");
+            let heard = 0;
+            ul.addEventListener("click", ev => { if (ev.target?.closest?.("button[data-drpg-action]")) heard++; });
+            // the removals that took the pressed button out (it, or its row): the mark and the line under the title are drawn anew
+            const removed = () => watch.takeRecords().reduce((n, r) => n + [...r.removedNodes].filter(node => node === pressed || node.contains?.(pressed)).length, 0);
+            const watch = new MutationObserver(() => {});
+            watch.observe(ul, { childList: true, subtree: true });
+            S.relistRows(ul, [step("name", false), step("cast", false)]);
+            read.same = { removed: removed(), button: ul.querySelector('li[data-drpg-key="name"] > button[data-drpg-action]') === pressed };
+            S.relistRows(ul, [step("name", true), step("cast", false)]);
+            const now = ul.querySelector('li[data-drpg-key="name"] > button[data-drpg-action]');
+            read.changed = { removed: removed(), button: now === pressed, action: pressed.dataset.drpgAction,
+                words: pressed.textContent.trim() === game.i18n.localize("DRPG.Season.checkClean") };
+            pressed.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+            read.heard = heard;
+            S.relistRows(ul, [step("cast", false), step("name", true)]);
+            read.order = [...ul.querySelectorAll(":scope > li.drpg-check-row")].map(li => li.dataset.drpgKey);
+            watch.disconnect();
+        } finally {
+            box.remove();
+        }
+        equal(stableJson(read), stableJson({ changed: { action: "undo", button: true, removed: 0, words: true }, heard: 1, order: ["cast", "name"], same: { button: true, removed: 0 } }),
+            "{same: a repaint over the same steps - removals that took the pressed button out, the button the same node; changed: the row done - the same removals, the button the same node, its action, its words; heard: a click on the pressed button after; order: a reorder}");
     }],
 ];
 
