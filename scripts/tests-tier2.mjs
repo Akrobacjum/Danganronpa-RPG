@@ -108096,6 +108096,32 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ before: [true, false], after: [true, true, true] }),
             "{before, after: [the student there at the open offered, the one who came in offered(, the choice kept)]} - the picker follows the room");
     }],
+    ["1.2.123 REFR-40 - End the chapter's warnings come and go in place: a typeless bullet's warning and the Final Truth's line that appear while the window stands are put in where a fresh window draws them, and taken out when they go (scripts/chapter.mjs `refreshChapterEnd`; the auditor's recheck of REFR-40, 1.2.123 line WORLD)", async () => {
+        /*
+         * 21.11.2026, 1.2.123 line WORLD. The auditor's recheck of 1.2.122's REFR-40: `refreshChapterEnd` replaced a warning
+         * only where the window and the fresh form both held it, so one that appeared (a bullet with no type handed out
+         * meanwhile, a Mastermind set) was not shown and one that went stayed. Driven off the page, as the window's watch
+         * runs it: a form built by `chapterEndForm` with neither, then refreshed with both (two typeless bullets held by
+         * "SUITE Aiko", a Mastermind with no Final Truth placed), then with neither again. Read: whether each is in the
+         * window, and the window's columns against a fresh form's - the same pieces in the same order. Red at 14bb0d92:
+         * neither warning was put in.
+         */
+        const C = await import("./chapter.mjs");
+        const base = { chapter: 1, session: 1, day: 1, sweepable: 2, keyable: 1, backup: "x" };
+        const both = { ...base, typeless: 2, holders: ["SUITE Aiko"], mastermind: true, finalTruthPlaced: false };
+        const host = document.createElement("div");
+        host.innerHTML = C.chapterEndForm(base);
+        const shape = root => [...root.querySelectorAll(".drpg-wide-col")].map(col => [...col.children].map(c => c.outerHTML));
+        const has = mark => Boolean(host.querySelector(mark));
+        const fresh = form => { const t = document.createElement("div"); t.innerHTML = form; return t; };
+        const read = {};
+        C.refreshChapterEnd(host, C.chapterEndForm(both));
+        read.came = [has("[data-drpg-typeless]"), has("[data-drpg-final-truth]"), stableJson(shape(host)) === stableJson(shape(fresh(C.chapterEndForm(both))))];
+        C.refreshChapterEnd(host, C.chapterEndForm(base));
+        read.went = [has("[data-drpg-typeless]"), has("[data-drpg-final-truth]"), stableJson(shape(host)) === stableJson(shape(fresh(C.chapterEndForm(base))))];
+        equal(stableJson(read), stableJson({ came: [true, true, true], went: [false, false, true] }),
+            "{came: [the typeless warning in, the Final Truth's line in, the columns as a fresh window draws them]; went: [the same after both went]} - the warnings follow the case in place");
+    }],
     ["1.2.122 REFR-40 - End the chapter follows the world while it stands: a backup made with the window open moves its 'last backup' line, and a count that changes opens or shuts its box in place, the GM's own untick kept (scripts/chapter.mjs `openChapterEndDialog`, `refreshChapterEnd`, `chapterEndForm`; the audit's REFR-40, 1.2.122 line WORLD)", async () => {
         /*
          * 21.11.2026, 1.2.122 line WORLD. The audit's REFR-40 (controls-13-case-death-chapter-5): the window was drawn once.
