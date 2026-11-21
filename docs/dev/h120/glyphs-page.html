@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Token HUD glyphs (1.2.120 line H)</title>
+<link rel="stylesheet" href="../../../styles/danganronpa.css">
+<link rel="stylesheet" href="../../../styles/stained-glass.css">
+<link rel="stylesheet" href="../../../styles/pixel-icons.css">
+<style>
+/* The new drawings beside the lock they come from, each at 1x (24 px, as the HUD draws it) and 4x, Bone on Ink. Every
+   glyph is the theme's `--drpg-pix-<name>` as the sheets declare it (Stained Glass's over Legacy's where it has one). */
+html, body { margin: 0; }
+body { background: #1d1a21; color: #e4ded8; font-family: sans-serif; width: 900px; padding: 16px; box-sizing: border-box; }
+h1 { font-size: 16px; margin: 0 0 12px; }
+.row { display: flex; gap: 24px; }
+.g { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 190px; padding: 10px; border: 1px solid #e4ded855; }
+.g .big, .g .small { background: currentColor; -webkit-mask: var(--glyph) center / contain no-repeat; mask: var(--glyph) center / contain no-repeat; image-rendering: pixelated; }
+.g .big { width: 96px; height: 96px; }
+.g .small { width: 24px; height: 24px; }
+.g span { font-size: 13px; text-align: center; }
+</style>
+</head>
+<body>
+<h1 id="title"></h1>
+<div class="row">
+  <div class="g" style="--glyph: var(--drpg-pix-lock)"><div class="big"></div><div class="small"></div><span>lock (existing)</span></div>
+  <div class="g" style="--glyph: var(--drpg-pix-lock-open)"><div class="big"></div><div class="small"></div><span>lock-open (new)</span></div>
+  <div class="g" style="--glyph: var(--drpg-pix-stairs)"><div class="big"></div><div class="small"></div><span>stairs (new)</span></div>
+</div>
+<script>
+const theme = new URLSearchParams(location.search).get("theme") ?? "monokuma-legacy";
+document.body.classList.add(`drpg-theme-${theme}`);
+document.getElementById("title").textContent = theme === "stained-glass"
+    ? "Stained Glass: glass:lock, glass:lock-open (new), legacy:stairs (new; the glass has no row of its own and wears it)"
+    : "Monokuma Legacy: legacy:lock, legacy:lock-open (new), legacy:stairs (new)";
+document.body.dataset.ready = "1";
+</script>
+</body>
+</html>
