@@ -107329,6 +107329,205 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson({ more: n(read.emptied) - n(read.before), back: read.back === read.before }), stableJson({ more: 1, back: true }),
             `the Season checklist's intro did not follow the world (before, emptied, back: ${stableJson(read)})`);
     }],
+    ["Room setup's token count typed through a redraw lands as typed: Backspace, a redraw, then a digit writes that digit, and two digits typed over a count with a redraw between them write the number (the audit's check of 1.2.121, r121-R-2; the line claude/refresh-120 for 1.2.122)", async () => {
+        /*
+         * r121-R-2 (measured in Chromium by the audit): a count typed through a redraw landed wrong - "10" over 3 wrote 8,
+         * and Backspace, a redraw, then "1" wrote 0. Its cause is r121-R-1: the field the redraw removes fires `change` on
+         * its way out (Chromium 153: `change`, `blur`, `focusout`, synchronously, read by audit/live-redraw.mjs), and
+         * `wireTokenButtons` sends the fragment as a step from the drawn count. Here that removal is emulated for the
+         * test's length, as R8540 does; Room setup drawn as a GM opens it, the first room's count set to a start, then
+         * the field typed in as a person does, another GM's write of the second room's description redrawing the window
+         * between the keystrokes, and the field left. Read: the room's tokens in the world after each leave. The tokens
+         * and the room's flags are put back. Red on 1eee4d62: the fragment written at the redraw.
+         */
+        needs(env.dialogs(), "Room setup is drawn and typed in");
+        needs(world.atLeast("namedRooms", 2), "Room setup lists two rooms of the scene on screen");
+        const V = await import("./vault.mjs");
+        const VS = await import("./vault-store.mjs");
+        const M = await import("./movement.mjs");
+        const { SearchTokens } = await import("./search-tokens.mjs");
+        const { roomRegions } = await import("./rooms.mjs");
+        const scene = canvas.scene;
+        const [roomA, roomB] = M.allRooms(scene);
+        must(roomA && roomB, "the scene on screen holds no two rooms - this would measure nothing");
+        const max = SearchTokens.max;
+        must(max >= 2, `the rooms hold at most ${max} tokens - this would measure nothing`);
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-rooms").length, "Room setup stands open already");
+        const form = () => of("drpg-window-rooms")[0]?.element;
+        const count = () => form()?.querySelector(`input[data-drpg-token="${CSS.escape(roomA)}"]`);
+        const desc = () => form()?.querySelector(`[name="${CSS.escape(`desc:${roomB}`)}"]`);
+        const was = roomRegions(scene, roomB).map(piece => [piece, foundry.utils.deepClone(piece.flags?.[MODULE_ID] ?? {})]);
+        const tokensWere = SearchTokens.left(roomA, scene);
+        const proto = Element.prototype, real = proto.replaceWith;
+        const atFocus = new WeakMap();
+        const onFocus = e => { if (e.target?.tagName === "INPUT") atFocus.set(e.target, e.target.value); };
+        let redraws = 0;
+        const redraw = async () => {
+            redraws++;
+            await VS.updateRoom(scene, roomB, { [`flags.${MODULE_ID}.${VS.VAULT_FLAGS.description}`]: `SUITE r121-R-2 ${redraws}` });
+            await until(() => desc()?.defaultValue === `SUITE r121-R-2 ${redraws}`, 2000).catch(() => {});
+            await settle();
+        };
+        const type = text => { const field = count(); field.value = text; field.dispatchEvent(new Event("input", { bubbles: true })); };
+        const leave = async () => { count()?.blur(); await settle(); await wait(200); };
+        const read = {};
+        let answer = null;
+        document.addEventListener("focusin", onFocus, true);
+        proto.replaceWith = function (...nodes) {
+            const active = document.activeElement;
+            if (active?.tagName === "INPUT" && this.contains(active) && active.value !== atFocus.get(active)) {
+                for (const t of ["change", "blur", "focusout"]) active.dispatchEvent(new Event(t, { bubbles: t !== "blur" }));
+            }
+            return real.apply(this, nodes);
+        };
+        try {
+            await SearchTokens.setFor(roomA, 1, scene);
+            answer = Promise.resolve().then(() => V.openRoomSetupDialog()).catch(err => `threw: ${err.message}`);
+            await until(() => count()?.value === "1" && desc(), 6000).catch(() => {});
+            must(count()?.value === "1" && desc(), "Room setup drew no token count at 1 or no description - this would measure nothing");
+            // Backspace, a redraw, then "2"
+            count().focus();
+            type("");
+            await redraw();
+            type("2");
+            await leave();
+            read.backspace = SearchTokens.left(roomA, scene);
+            // two digits over the count, a redraw between them (only where the rooms hold ten or more)
+            if (max >= 12) {
+                await SearchTokens.setFor(roomA, 3, scene);
+                await until(() => count()?.value === "3", 2000).catch(() => {});
+                count().focus();
+                type("1");
+                await redraw();
+                type("12");
+                await leave();
+                read.digits = SearchTokens.left(roomA, scene) === 12;
+            } else read.digits = true;
+            of("drpg-window-rooms")[0]?.element?.querySelector('footer button[data-action="cancel"]')?.click();
+            await Promise.race([answer, wait(6000)]);
+        } finally {
+            proto.replaceWith = real;
+            document.removeEventListener("focusin", onFocus, true);
+            for (const app of of("drpg-window-rooms")) await app.close().catch(() => {});
+            await Promise.race([answer, wait(6000)]);
+            for (const [piece, flags] of was) {
+                for (const k of Object.keys(piece.flags?.[MODULE_ID] ?? {})) if (!Object.hasOwn(flags, k)) await piece.unsetFlag(MODULE_ID, k);
+                for (const [k, value] of Object.entries(flags)) await piece.setFlag(MODULE_ID, k, value);
+            }
+            if (SearchTokens.left(roomA, scene) !== tokensWere) await SearchTokens.setFor(roomA, tokensWere, scene);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ backspace: 2, digits: true }),
+            `[Backspace, a redraw, "2": the room's tokens; two digits over 3 with a redraw between them write 12 (read only where the rooms hold 12 or more: ${max})]`);
+    }],
+    ["Room setup's Apply keeps an unset start lock at what it read at the open when the room's lock is forced while the window stands open (the audit's check of 1.2.121, r121-R-5; the line claude/refresh-120 for 1.2.122)", async () => {
+        /*
+         * r121-R-5: a room with no start lock stored reads its lock as the start lock (vault-store.mjs `startLocked`), Room
+         * setup's untouched columns follow the world at the press (REFR-03), and Apply pins the start lock on every row - so a
+         * lock forced while the window stood open was pinned as the room's start lock, and the season's reset would lock the
+         * door. Here: the first room unlocked with no start lock stored, Room setup opened, the room locked while it stands
+         * (vault-store.mjs `writeRoomLock`, the one writer), the window's redraw let land, the room's description typed (a
+         * row with nothing changed is skipped whole by Apply's `same`, read in the code, and never reaches the start lock's
+         * pin), Apply pressed. Read: the stored start lock, the lock, the description. The room's flags are put back. Red
+         * on 1eee4d62: the start lock stored as locked (true); green here: false.
+         */
+        needs(env.dialogs(), "Room setup is drawn and its Apply pressed");
+        needs(world.atLeast("namedRooms", 1), "Room setup lists a room of the scene on screen");
+        const V = await import("./vault.mjs");
+        const VS = await import("./vault-store.mjs");
+        const M = await import("./movement.mjs");
+        const { roomRegions, flagOver } = await import("./rooms.mjs");
+        const scene = canvas.scene;
+        const [room] = M.allRooms(scene);
+        must(room, "the scene on screen holds no room - this would measure nothing");
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-rooms").length, "Room setup stands open already");
+        const field = name => of("drpg-window-rooms")[0]?.element?.querySelector(`[name="${CSS.escape(name)}"]`);
+        const pieces = () => roomRegions(scene, room);
+        const was = pieces().map(piece => [piece, foundry.utils.deepClone(piece.flags?.[MODULE_ID] ?? {})]);
+        const read = {};
+        let answer = null;
+        try {
+            for (const piece of pieces()) {
+                if (piece.getFlag(MODULE_ID, M.ROOM_FLAGS.lockedAtStart) != null) await piece.unsetFlag(MODULE_ID, M.ROOM_FLAGS.lockedAtStart);
+            }
+            await VS.writeRoomLock(scene, room, false);
+            await settle();
+            answer = Promise.resolve().then(() => V.openRoomSetupDialog()).catch(err => `threw: ${err.message}`);
+            await until(() => field(`startlocked:${room}`), 6000).catch(() => {});
+            must(field(`startlocked:${room}`)?.checked === false, "Room setup drew no unticked start-lock box for the room - this would measure nothing");
+            await VS.writeRoomLock(scene, room, true);
+            await settle();
+            await until(() => field(`locked:${room}`)?.checked === true, 2000).catch(() => {});
+            read.redrawn = field(`locked:${room}`)?.checked === true;
+            field(`desc:${room}`).value = "SUITE r121-R-5";
+            field(`desc:${room}`).dispatchEvent(new Event("input", { bubbles: true }));
+            of("drpg-window-rooms")[0]?.element?.querySelector('footer button[data-action="ok"]')?.click();
+            await Promise.race([answer, wait(8000)]);
+            await settle();
+            // each piece's own (`flagOver` skips a stored false): one value when they agree, else the list
+            const starts = [...new Set(pieces().map(piece => piece.getFlag(MODULE_ID, M.ROOM_FLAGS.lockedAtStart) ?? null))];
+            read.start = starts.length === 1 ? starts[0] : starts;
+            read.locked = Boolean(flagOver(pieces(), M.ROOM_FLAGS.locked));
+            read.desc = flagOver(pieces(), VS.VAULT_FLAGS.description) === "SUITE r121-R-5";
+        } finally {
+            for (const app of of("drpg-window-rooms")) await app.close().catch(() => {});
+            await Promise.race([answer, wait(6000)]);
+            for (const [piece, flags] of was) {
+                for (const key of Object.keys(piece.flags?.[MODULE_ID] ?? {})) if (!Object.hasOwn(flags, key)) await piece.unsetFlag(MODULE_ID, key);
+                for (const [key, value] of Object.entries(flags)) await piece.setFlag(MODULE_ID, key, value);
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ desc: true, locked: true, redrawn: true, start: false }),
+            "[the description typed written; the lock forced while open kept; the window drew it before Apply; the start lock Apply stored: as the window read it at the open, unlocked]");
+    }],
+    ["Room setup shows the button that removes a room's picture only over a picture (the audit's check of 1.2.121, r121-R-11; the line claude/refresh-120 for 1.2.122)", async () => {
+        /*
+         * r121-R-11: "Remove the picture" stood under a room with no picture. Here: the first room's picture unset, Room
+         * setup opened, the clear button's computed display read (jsdom's cascade of the module's sheets, lib/css.mjs); a
+         * picture set on the thumbnail as the picker's answer sets it (utils.mjs `wirePortraitPickers`), read again; the
+         * button pressed, read again. Writes nothing but the unset, put back. Red on 1eee4d62: shown with no picture.
+         */
+        needs(env.dialogs(), "Room setup is drawn");
+        needs(world.atLeast("namedRooms", 1), "Room setup lists a room of the scene on screen");
+        const V = await import("./vault.mjs");
+        const VS = await import("./vault-store.mjs");
+        const M = await import("./movement.mjs");
+        const { roomRegions } = await import("./rooms.mjs");
+        const scene = canvas.scene;
+        const [room] = M.allRooms(scene);
+        must(room, "the scene on screen holds no room - this would measure nothing");
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-rooms").length, "Room setup stands open already");
+        const root = () => of("drpg-window-rooms")[0]?.element;
+        const picture = () => root()?.querySelector(`img[data-drpg-portrait="${CSS.escape(room)}"]`);
+        const clear = () => picture()?.closest("td")?.querySelector("[data-drpg-picture-clear]");
+        const shown = () => (clear() ? getComputedStyle(clear()).display !== "none" : null);
+        const was = roomRegions(scene, room).map(piece => [piece, piece.getFlag(MODULE_ID, VS.VAULT_FLAGS.image)]);
+        const read = {};
+        let answer = null;
+        try {
+            for (const [piece, image] of was) if (image != null) await piece.unsetFlag(MODULE_ID, VS.VAULT_FLAGS.image);
+            await settle();
+            answer = Promise.resolve().then(() => V.openRoomSetupDialog()).catch(err => `threw: ${err.message}`);
+            await until(() => clear(), 6000).catch(() => {});
+            must(clear() && !picture().hasAttribute("src"), "Room setup drew no picture cell without a picture for the room - this would measure nothing");
+            read.none = shown();
+            picture().setAttribute("src", "icons/svg/door-closed.svg");
+            read.picked = shown();
+            clear().click();
+            read.cleared = shown();
+        } finally {
+            for (const app of of("drpg-window-rooms")) await app.close().catch(() => {});
+            await Promise.race([answer, wait(6000)]);
+            for (const [piece, image] of was) if (image != null) await piece.setFlag(MODULE_ID, VS.VAULT_FLAGS.image, image);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ cleared: false, none: false, picked: true }),
+            "[the clear button shown: with no picture; with one picked; once pressed]");
+    }],
     ["Room setup keeps the digits typed in a search-token count while the window redraws, and writes nothing until they are sent (room-setup.mjs `recountTokenCells`, `afterRedraw`; the line claude/setup-120, after claude/refresh-120 let a field with no name stop holding a redraw)", async () => {
         /*
          * Room setup drawn as a GM opens it. The GM types digits into the first room's token count (no `change` yet) and

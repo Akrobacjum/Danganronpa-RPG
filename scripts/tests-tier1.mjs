@@ -42186,8 +42186,9 @@ const INVARIANTS = [
             const target = usable.find(n => n.matches(TEXT)) ?? usable.find(n => n.matches("select"))
                 ?? usable.find(n => n.matches("input")) ?? usable[0] ?? null;
             const kind = !target ? "none" : target.matches(TEXT) ? "text" : target.localName === "select" ? "select" : target.localName === "input" ? target.type : target.localName;
-            let want = null, caret = null;
+            let want = null, caret = null, drawn = null;
             if (target) {
+                drawn = kind === "checkbox" ? target.checked : target.value;
                 target.focus();
                 if (document.activeElement !== target) return { field: kind, focused: false };
                 if (kind === "text") { target.value = `${target.value}R7974`; caret = 2; target.setSelectionRange(caret, caret); want = target.value; }
@@ -42204,6 +42205,11 @@ const INVARIANTS = [
                 read.focus = Boolean(now?.contains(active)) && active.localName === target.localName && (active.getAttribute("name") ?? "") === (target.getAttribute("name") ?? "");
                 if (want !== null) read.value = (kind === "checkbox" ? active.checked : active.value) === want;
                 if (caret !== null) read.caret = active.selectionStart === caret;
+                /* The value put back before the field is left (the line claude/refresh-120 for 1.2.122): a field drawn anew
+                   owes the `change` the GM's leave would fire (live.mjs `oweChange`), and the Sound window's Effects box
+                   saves on it - left with "R7974" in it, it wrote sfxMap (read on this tier 1, 21.11.2026). */
+                if (kind === "checkbox") active.checked = drawn;
+                else if (kind === "text" || kind === "select") active.value = drawn;
             }
             active?.blur?.();
             return read;
@@ -42287,6 +42293,72 @@ const INVARIANTS = [
             stop();
             host.remove();
         }
+    }],
+
+    ["R8540 - live.mjs on an artificial region (the line claude/refresh-120 for 1.2.122; the audit's check of 1.2.121, r121-R-1): a field that saves on `change`, typed in and redrawn under the GM, saves nothing at the redraw - with Chromium's removal events emulated (`change`, `blur`, `focusout` on the focused field, read in Chromium 153) - and saves the whole word once when the GM leaves it, whether or not more was typed after the redraw", async () => {
+        /*
+         * The line claude/refresh-120 for 1.2.122, 21.11.2026; r121-R-1 (MAJOR, a regression of `whileEditing`'s default):
+         * removing a focused text field whose value changed since its focus fires `change`, `blur` and `focusout` on it,
+         * synchronously, in Chromium 153 (audit/live-redraw.mjs reads it there); jsdom fires nothing. So the removal is
+         * emulated here for the test's length - `replaceWith` of a node holding the focused field dispatches the three on
+         * it first, when its value differs from what it held at the focus - and a value written by script is the typing.
+         * Two runs: a word typed, redrawn, then more typed, then left; a word typed, redrawn, then left. The saves (a
+         * `change` listener on the window's element, as the Remnant card's and the planner's are) are read after the
+         * redraw and after the leave. Red on 1eee4d62: the fragment saved at the redraw, and in the second run nothing
+         * more at the leave.
+         */
+        const { keepLive } = await import("./live.mjs");
+        const proto = Element.prototype, real = proto.replaceWith;
+        const atFocus = new WeakMap();
+        const onFocus = e => { if (e.target?.tagName === "INPUT") atFocus.set(e.target, e.target.value); };
+        const run = async more => {
+            let built = 0;
+            const saves = [];
+            const build = () => { built++; return `<div class="drpg-t-r8540"><input type="text" name="words" value=""></div>`; };
+            const host = document.createElement("div");
+            host.style.cssText = "position:fixed;left:-3000px;top:0;width:200px";
+            host.innerHTML = build();
+            document.body.appendChild(host);
+            host.addEventListener("change", e => { if (e.target?.name === "words") saves.push(e.target.value); });
+            const app = { element: host, options: { window: { title: "test" } } };
+            const stop = keepLive(app, { region: ".drpg-t-r8540", build, delay: 0, watch: { hooks: [LIVE_PROBE] } });
+            try {
+                const field = host.querySelector("[name=words]");
+                field.focus();
+                field.value = "ab";
+                const before = built;
+                Hooks.callAll(LIVE_PROBE);
+                await wait(140);
+                const now = host.querySelector("[name=words]");
+                const atRedraw = { rebuilt: built > before, saves: [...saves], focus: document.activeElement === now && now !== field };
+                if (more) now.value = `${now.value}c`;
+                now.blur();
+                await wait(50);
+                return { ...atRedraw, left: [...saves] };
+            } finally {
+                stop();
+                host.remove();
+            }
+        };
+        let read;
+        document.addEventListener("focusin", onFocus, true);
+        proto.replaceWith = function (...nodes) {
+            const active = document.activeElement;
+            if (active?.tagName === "INPUT" && this.contains(active) && active.value !== atFocus.get(active)) {
+                for (const type of ["change", "blur", "focusout"]) active.dispatchEvent(new Event(type, { bubbles: type !== "blur" }));
+            }
+            return real.apply(this, nodes);
+        };
+        try {
+            read = { more: await run(true), left: await run(false) };
+        } finally {
+            proto.replaceWith = real;
+            document.removeEventListener("focusin", onFocus, true);
+        }
+        equal(JSON.stringify(read), JSON.stringify({
+            more: { rebuilt: true, saves: [], focus: true, left: ["abc"] },
+            left: { rebuilt: true, saves: [], focus: true, left: ["ab"] }
+        }), "[typed, redrawn, more typed, left; typed, redrawn, left: drawn again; saved at the redraw; the focus on the new field; saved after the leave]");
     }],
 
     ["R1317 - a region held to its settings is held to what it prints (E44 C2b; E44-07): a region with `watch.settings` rebuilds on its own key and not on another key of the module or another module's key of that name; every `keepLive(` call in scripts/ that names `settings` belongs to a window this test opens or to one of the three it names as unopenable in tier 1 (the readiness round's, the incident tracker and, since E44 C9, a project token's card), and each region it opens, built once with `game.settings.get` counted, reads no key of the module it does not declare - the GM panel's tiles and the Sound window's two regions among them", async () => {
