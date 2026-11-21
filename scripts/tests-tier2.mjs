@@ -104275,6 +104275,81 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             project: { label: "SUITE typing", kind: "sanity" }, saved: { label: "SUITE typing", savedOver: false } }),
             "{room: [the rows' names, the soup's difficulty and typed text, the focused field's name]; project: [the typed name, the first effect]; saved: [the project's action after Save, whether Save said it went over another GM's - it did not: the window showed theirs]} - the editors follow another GM's Save, what is typed kept");
     }],
+    ["1.2.122 REFR-52 - Palm's two pickers follow the table while they stand open: the Palm window's \"Whose pockets?\" offers a student who walks in and drops one who leaves, the pick kept while its student stays; the steal's pick drops a thing the victim no longer carries and offers one they pick up, the pick kept (scripts/palm.mjs `choosePalm`, `chooseStolenItem`; action-menus.mjs `chooseVariant`'s `live`; the audit's REFR-52, 1.2.122 line WORLD)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line WORLD. The audit's REFR-52, Palm's part (MAP's is Rifle's, stash-reach.mjs): both lists
+         * were drawn once, so a student who left was still offered and one who came in was not, and a thing the victim had
+         * handed on stayed in the steal's pick. Driven on the scene on screen: three living students with tokens, the
+         * second stood in the first one's room, the third in another; the Palm window opened for the first and the second
+         * picked; the third stood in the room, then the second stood out of it. Then the steal's pick opened on the third
+         * with two things of the suite's carried, the second picked; the first deleted, a third given. Read: the targets
+         * offered after each step and the pick, the things offered after each step and the pick. Put back: the windows,
+         * the things, the tokens. Red at 21bf5d18: each list stayed as drawn.
+         */
+        needs(env.dialogs(), "the windows are read as drawn");
+        const P = await import("./palm.mjs");
+        const M = await import("./movement.mjs");
+        const { AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const scene = canvas.scene;
+        const withToken = livingStudents().filter(a => scene.tokens.some(t => t.actorId === a.id));
+        must(withToken.length >= 3, "fewer than three living students with a token on the scene on screen - this would measure nothing");
+        const [thief, second, third] = withToken;
+        const tokenOf = a => scene.tokens.find(t => t.actorId === a.id);
+        const was = [thief, second, third].map(a => ({ token: tokenOf(a), x: tokenOf(a).x, y: tokenOf(a).y }));
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const HERE = M.roomOfActor(thief);
+        must(HERE, "the first student stands in no room - this would measure nothing");
+        const ELSEWHERE = M.allRooms(scene).find(r => r !== HERE);
+        must(ELSEWHERE, "the scene has one room - this would measure nothing");
+        const standIn = async (a, room) => { await tokenOf(a).update(M.positionIn(room, tokenOf(a)), { ...PLACE }); await settle(); };
+        const winWith = sel => [...foundry.applications.instances.values()].find(app => app?.element?.isConnected && app.element.querySelector?.(sel)) ?? null;
+        const ids = sel => [...(winWith(sel)?.element?.querySelectorAll(`${sel} option`) ?? [])].map(o => o.value);
+        const pickOf = sel => winWith(sel)?.element?.querySelector(sel)?.value ?? null;
+        const shut = async sel => { const app = winWith(sel); if (app) await app.close().catch(() => {}); await settle(); };
+        // By the fields' names, which the windows had before 1.2.122 too, so the red reads the lists and not a class.
+        const WHO = 'select[name="who"]', ITEM = 'select[name="item"]';
+        const made = [];
+        const read = {};
+        try {
+            await standIn(second, HERE);
+            await standIn(third, ELSEWHERE);
+            const targets = M.othersInRoom(thief).filter(a => a?.type === "character");
+            must(targets.some(a => a.id === second.id), "the second student is not in the first one's reach - this would measure nothing");
+            void P.choosePalm(thief, ACTIONS.palm, targets, []);
+            must(await until(() => ids(WHO).length > 0, 4000), "the Palm window did not draw its targets");
+            const who = winWith(WHO).element.querySelector(WHO);
+            who.value = second.id;
+            await standIn(third, HERE);
+            await until(() => ids(WHO).includes(third.id), 3000);
+            read.walkedIn = { third: ids(WHO).includes(third.id), pick: pickOf(WHO) === second.id };
+            await standIn(second, ELSEWHERE);
+            await until(() => !ids(WHO).includes(second.id), 3000);
+            read.left = { second: ids(WHO).includes(second.id), third: ids(WHO).includes(third.id) };
+            await shut(WHO);
+            const give = name => third.createEmbeddedDocuments("Item", [moduleItemData(name)], { [AUDIT_ASIDE]: true });
+            made.push(...await give("SUITE REFR52 cup"), ...await give("SUITE REFR52 pen"));
+            const pool = made.filter(i => third.items.has(i.id));
+            void P.chooseStolenItem(third, pool);
+            must(await until(() => ids(ITEM).length >= 2, 4000), "the steal's pick did not draw the suite's things");
+            const item = winWith(ITEM).element.querySelector(ITEM);
+            item.value = made[1].id;
+            await made[0].delete({ [AUDIT_ASIDE]: true });
+            await until(() => !ids(ITEM).includes(made[0].id), 3000);
+            made.push(...await give("SUITE REFR52 key"));
+            await until(() => ids(ITEM).includes(made[2].id), 3000);
+            read.pockets = { cup: ids(ITEM).includes(made[0].id), key: ids(ITEM).includes(made[2].id), pick: pickOf(ITEM) === made[1].id };
+        } finally {
+            await shut(WHO);
+            await shut(ITEM);
+            for (const item of made) if (item.parent?.items?.has(item.id)) await item.delete({ [AUDIT_ASIDE]: true });
+            for (const w of was) if (w.token.x !== w.x || w.token.y !== w.y) await w.token.update({ x: w.x, y: w.y }, { ...PLACE });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ walkedIn: { third: true, pick: true }, left: { second: false, third: true }, pockets: { cup: false, key: true, pick: true } }),
+            "{walkedIn: [the third student offered, the second still picked]; left: [the second offered, the third offered] after the second left; pockets: [the deleted cup offered, the given key offered, the pen still picked]}");
+    }],
     ["1.2.122 REFR-22 - the rules manager does not put another GM's work back: a rule another GM reworded while the window stood keeps their words when this GM saves a revoke of another, the motive shown follows a new one at once, and Withdraw withdraws the motive drawn (scripts/rules.mjs `openRulesManager`, `saveRulesEdit`, `wireMotiveWithdraw`, `motiveMark`; the audit's REFR-22, 1.2.122 line WORLD)", async () => {
         /*
          * 21.11.2026, 1.2.122 line WORLD. The audit's REFR-22 (controls-08-rolls-actions-8): the window drew the rules and the
