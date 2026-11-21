@@ -2716,6 +2716,9 @@
       "reset": "Wyłącz utwór",
       "playing": "Gra „{track}”.",
       "wasReset": "Utwór wyłączony, a to, co przerwał, wraca tam, gdzie stanęło.",
+      "resetStopped": "Utwór wyłączony. Nic nie czekało na jego koniec, więc nic innego nie wraca.",
+      "nothingToReset": "Żaden utwór nie grał, więc nic się nie zmieniło.",
+      "primaryOnly": "Muzykę włącza i wyłącza tylko przeglądarka GM-a {name}. Poproś GM-a {name} albo naciśnij to u niego.",
       "noTrack": "Najpierw wybierz utwór.",
       "noTracks": "Ta playlista nie ma utworów",
       "playFailed": "Ten utwór nie chciał zagrać. Zajrzyj do konsoli.",
@@ -4476,6 +4479,7 @@
         "other": "Do pokoju {room} trafia {n} postaci."
       },
       "destroyed": "Przedmiot „{item}” zostaje zniszczony.",
+      "destroyedNotice": "Contraband niszczy twój przedmiot „{item}”.",
       "effectFailed": "Call {call} jest opłacony, ale jego efektu nie udało się zastosować.",
       "refunded": "{call} nic nie dał, więc koszt ({cost}) wraca.",
       "silenced": "{name} nie może wydawać Hope Calls, dopóki zegar się nie przesunie.",

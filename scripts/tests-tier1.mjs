@@ -17484,6 +17484,28 @@ const INVARIANTS = [
             "the approval card does not print the table's effect, or still prints the packet's ([reads proseOf(call, \"effect\"), reads payload.effect])");
     }],
 
+    ["R8268 - a restriction answers whether it was written: `restrict` on a browser that may not write the world answers false, as `sealRoom` does, so a Silence or a Chain is not announced over nothing (call-world.mjs `restrict`; 1.2.122, the audit's COMM-26, its second half)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-26): sealRoom answered the write, restrict answered true whatever `writeWorld` did,
+         * and Silence and Chain announced on it. Asked here with this browser standing in as a player's (an own `isGM`
+         * false on this user, taken off after): `writeWorld` refuses before any write, so nothing is written. Red at
+         * 21bf5d18: true. The race of two GMs writing the whole value at once is not measured here (it stays open).
+         */
+        const W = await import("./call-world.mjs");
+        const someone = game.actors.find(a => a.type === "character");
+        must(someone && game.user.isGM, "no character, or this browser is not a GM's - this would measure nothing");
+        const before = JSON.stringify(W.restrictions());
+        Object.defineProperty(game.user, "isGM", { value: false, configurable: true });
+        let answer = null;
+        try {
+            answer = await W.restrict(someone, { silenced: true });
+        } finally {
+            delete game.user.isGM;
+        }
+        equal(stableJson([answer, JSON.stringify(W.restrictions()) === before, game.user.isGM]), stableJson([false, true, true]),
+            "restrict answered true for a write it did not make, or wrote ([its answer, the restrictions unchanged, this browser a GM's again])");
+    }],
+
     ["R539 - the GM's block in the list is Foundry's block and never undoes the module's: the button is built only in a GM's list; its click writes the user's `permissions.BROADCAST_AUDIO` flipped from what Foundry answers now and nothing else; where `moduleHoldsMic` holds the microphone or a death is kept secret the button is disabled with its line and `toggleBlock` writes nothing; it refuses a player's client, the GM's own account and a user who is not of this world", async () => {
         /*
          * E78 C5, 14.10.2026; the A9 design's R392 (A9-5; the E78 plan's D2 gave it this number), the owner's Q4 (the

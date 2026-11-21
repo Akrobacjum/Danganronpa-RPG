@@ -2588,6 +2588,9 @@
       "reset": "Stop the track",
       "playing": "Playing “{track}”.",
       "wasReset": "The track stopped, and the music it interrupted picks up where it left off.",
+      "resetStopped": "The track stopped. Nothing was paused for it, so nothing else comes back.",
+      "nothingToReset": "No track was playing, so nothing changed.",
+      "primaryOnly": "Only {name}'s browser plays and stops the music. Ask {name}, or press it there.",
       "noTrack": "Pick a track first.",
       "noTracks": "This playlist has no tracks",
       "playFailed": "That track would not play. See the console.",
@@ -4194,6 +4197,7 @@
         "other": "{n} characters were moved to {room}."
       },
       "destroyed": "“{item}” is destroyed.",
+      "destroyedNotice": "Monokuma has destroyed your “{item}” with Contraband.",
       "effectFailed": "You paid for {call}, but its effect could not be applied.",
       "refunded": "{call} had no effect, so the {cost} you paid comes back to you.",
       "silenced": "{name} cannot spend Hope Calls until this time of day ends.",

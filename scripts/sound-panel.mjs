@@ -283,8 +283,12 @@ function wireSoundPlay(root) {
     });
 
     root.querySelector("[data-drpg-reset-music]")?.addEventListener("click", async () => {
-        await resetMusic();
-        ui.notifications.info(game.i18n.localize("DRPG.Music.wasReset"));
+        // Said as it went (1.2.122, the audit's COMM-50): nothing playing, a track stopped with nothing to give back,
+        // or a track stopped and the music it interrupted back. Refused (null) is said by `resetMusic`.
+        const done = await resetMusic();
+        if (!done) return;
+        const key = !done.stopped && !done.given ? "DRPG.Music.nothingToReset" : done.given ? "DRPG.Music.wasReset" : "DRPG.Music.resetStopped";
+        ui.notifications.info(game.i18n.localize(key));
     });
 
     /*

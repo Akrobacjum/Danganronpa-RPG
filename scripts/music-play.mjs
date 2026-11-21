@@ -24,7 +24,7 @@
 
 import { MODULE_ID, SITUATIONAL_PLAYLIST } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
-import { isPrimaryGm, debug, log, warn, error } from "./utils.mjs";
+import { isPrimaryGm, primaryGmId, debug, log, warn, error } from "./utils.mjs";
 import { count } from "./perf-counters.mjs";
 import {
     stateDef, currentState, musicMap, playlistFor, isCuePlaylist, dropCueMappings, recheckMusicKeys
@@ -265,7 +265,7 @@ export function registerMusic() {
         if (game.user?.isGM) mapSeen = { ...(musicMap() ?? {}) };
         watchManualPlayback();
         watchManualEnd();
-        adoptRunningInterruption();
+        if (enabled()) adoptOnBecomingPrimary();
         // Not immediate: at `ready` the canvas and the clock are still settling,
         // and the first thing a GM sees should not be a fade triggered by a
         // state that is about to change again.
@@ -281,6 +281,31 @@ export function registerMusic() {
             .then(() => applyMurderMusic())
             .catch(err => error("Could not settle the murder music at ready", err));
     });
+}
+
+/**
+ * THE GM WHO BECOMES THE PRIMARY TAKES OVER THE MUSIC (1.2.122, the audit's COMM-30). `interrupted`, `silenced` and
+ * `playingState` live in the primary's tab, and a GM's `ready` adopted a running cue only while it was already the
+ * primary: after the primary left, the next state change played its playlist over a cue still on repeat, and the old
+ * holds stayed flagged. On this browser's first apply as the primary (`adopted`), the world is read as at `ready`: a
+ * cue running is adopted with what it holds, and with none, playlists still held while nothing plays are the silence's.
+ * `schedule` on a GM that is not the primary says it is to be done again.
+ */
+let adopted = false;
+
+function adoptOnBecomingPrimary() {
+    adopted = true;
+    adoptRunningInterruption();
+    if (interrupted || silenced) return;
+    try {
+        const held = playlistsHolding().map(p => p.id);
+        if (held.length && !anythingPlaying()) {
+            silenced = { held };
+            debug(`Music: adopted ${held.length} held playlist(s) as a silence already in progress.`);
+        }
+    } catch (err) {
+        error("Could not check for a silence already running", err);
+    }
 }
 
 /**
@@ -343,7 +368,11 @@ function adoptRunningInterruption() {
  *   catalogue, which today is the Objection alone.
  */
 function schedule({ now = false } = {}) {
-    if (!enabled()) return;
+    if (!enabled()) {
+        // Not the primary now: the next time it is, it takes over what is running (`adoptOnBecomingPrimary`).
+        if (!isPrimaryGm()) adopted = false;
+        return;
+    }
     if (settleTimer) {
         clearTimeout(settleTimer);
         settleTimer = null;
@@ -396,6 +425,8 @@ function enabled() {
  */
 async function apply() {
     if (!enabled()) return;
+    // A GM who has just become the primary takes over what is running (1.2.122, the audit's COMM-30).
+    if (!adopted) adoptOnBecomingPrimary();
 
     // The GM is playing something of their own. Their choice outranks the state
     // machine until it finishes; `resume` picks the thread back up.
@@ -1005,7 +1036,11 @@ function onManualStart(sound) {
  */
 function watchManualEnd() {
     Hooks.on("updatePlaylist", (playlist, changes) => {
-        if (!enabled()) return;
+        /* The primary's, whether or not the music follows the game state (1.2.122, the audit's COMM-31): Play does its own
+           bookkeeping so that it works with the switch off (`playTrack`), and the cue stopped from Foundry's Playlists
+           sidebar is the end of that record too - it left the music it paused paused and flagged. With the switch off
+           `interrupted` is only ever Play's. */
+        if (!isPrimaryGm()) return;
         if (ourDoing()) return;
         if (changes.playing !== false) return;
         if (!interrupted) return;
@@ -1100,6 +1135,7 @@ export async function playTrack(track, soundId) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
     }
+    if (refusedOffPrimary()) return null;
 
     const playlist = situationalPlaylist();
     if (!playlist) {
@@ -1181,6 +1217,7 @@ export async function resetMusic() {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
     }
+    if (refusedOffPrimary()) return null;
 
     const record = interrupted;
     interrupted = null;
@@ -1196,11 +1233,13 @@ export async function resetMusic() {
     const situational = situationalPlaylist();
     if (situational) cues.add(situational.id);
 
+    let stopped = 0;
     for (const id of cues) {
         const playlist = game.playlists.get(id);
         if (!playlist) continue;
         if (!playlist.playing && !playlist.sounds.some(s => s.playing || s.pausedTime)) continue;
         await stopPlaylistDead(playlist);
+        stopped++;
     }
 
     // What comes back. The record if there is one; otherwise whatever is left
@@ -1222,6 +1261,22 @@ export async function resetMusic() {
     schedule();
 
     log(`Music: reset. ${giveBack.length} playlist(s) given back.`);
+    // What the press did, for its notice (1.2.122, the audit's COMM-50): it said a track stopped and the music came
+    // back whatever it found. Truthy as `true` was.
+    return { stopped, given: giveBack.length };
+}
+
+/**
+ * PLAY AND STOP THE TRACK ON THE PRIMARY GM ALONE (1.2.122, the audit's COMM-29). The music's record - the cue, what it
+ * holds, the body's silence (`interrupted`, `silenced`) - lives in the primary's tab, and both buttons were open to
+ * every GM: an assistant's Play left the primary's record empty, and an assistant's Stop during the body's silence gave
+ * the afternoon back over it, nothing on the primary silencing it again. Another GM is told whose browser carries the
+ * music out, and nothing is done. True when refused.
+ */
+function refusedOffPrimary() {
+    if (isPrimaryGm()) return false;
+    const name = game.users?.get(primaryGmId() ?? "")?.name ?? "?";
+    ui.notifications.warn(game.i18n.format("DRPG.Music.primaryOnly", { name }));
     return true;
 }
 

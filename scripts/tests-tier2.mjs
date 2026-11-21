@@ -102452,6 +102452,150 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ setting: [false, 1], gm: [NAME, true, false], revealed: [NAME, true] }),
             "{setting: [the name in Countdowns, the levels its map gives the players]; gm: [the GMs' name, the insider sees it, another does not]; revealed: [its name in the setting, another sees it]} - a secret project kept out of Countdowns");
     }],
+    ["1.2.122 COMM-29 COMM-30 COMM-31 COMM-50 - the music's record stays on the primary GM: another GM's Play and Stop the track are refused with the primary's name, a cue stopped from the Playlists sidebar gives back what Play held with the switch off, Stop the track says what it did, and a GM who becomes the primary takes over a silence still held (music-play.mjs `playTrack`, `resetMusic`, `watchManualEnd`, `adoptOnBecomingPrimary`; sound-panel.mjs; the audit's COMM-29, COMM-30, COMM-31, COMM-50)", async () => {
+        /*
+         * The audit of 1.2.118. COMM-31: with "Music follows the game state" off (the default) Play paused the ambient
+         * playlist and the cue's end was watched only with the switch on, so a cue stopped in the sidebar left the ambient
+         * paused and flagged. COMM-50: Stop the track always said a track stopped and the music came back. COMM-29: Play
+         * and Stop the track ran on any GM while the record lives on the primary. COMM-30: a GM who became the primary
+         * adopted nothing, so playlists held for a silence stayed held. Here, two fixture playlists - an ambient one
+         * playing and the cue playlist (made unless the world holds one) - and the switch as found: Play, the cue stopped
+         * through its own document as the sidebar stops it, Stop the track with nothing playing; then this browser stood
+         * in as an assistant (a GM before it in the primary's order, `game.users.filter` stood in) for Play and Stop;
+         * then, with the switch on and nothing mapped, the ambient held while this browser is not the primary and the
+         * order put back: the next apply as the primary. Everything is deleted or put back after. Red at 21bf5d18: the
+         * ambient still paused after the sidebar's stop, Stop the track answering true, the assistant's Play played, the
+         * held ambient left held.
+         */
+        must(game.user.isGM, "the music is a GM's");
+        const P = await import("./music-play.mjs");
+        const U = await import("./utils.mjs");
+        const { SITUATIONAL_PLAYLIST } = await import("./config.mjs");
+        const { setSetting } = await import("./settings.mjs");
+        must(U.isPrimaryGm(), "this browser is not the primary GM - this would measure nothing");
+        const enabledWas = getSetting(SETTINGS.musicEnabled);
+        const mapWas = foundry.utils.deepClone(getSetting(SETTINGS.musicMap) ?? {});
+        const users = game.users;
+        const [hadFilter, realFilter] = [Object.prototype.hasOwnProperty.call(users, "filter"), users.filter];
+        const [hadGet, realGet] = [Object.prototype.hasOwnProperty.call(users, "get"), users.get];
+        const before = { id: "!!SuiteEarlierGm", name: "SUITE earlier GM", active: true, isGM: true, role: CONST.USER_ROLES.GAMEMASTER };
+        const standIn = on => {
+            if (on) {
+                users.filter = function (fn, ...a) { return [...realFilter.call(this, fn, ...a), ...[before].filter(fn)]; };
+                users.get = function (id, ...a) { return id === before.id ? before : realGet.call(this, id, ...a); };
+                return;
+            }
+            if (hadFilter) users.filter = realFilter; else delete users.filter;
+            if (hadGet) users.get = realGet; else delete users.get;
+        };
+        const warns = [], realWarn = ui.notifications.warn;
+        const made = [];
+        const wait = async () => { await settle(); await until(() => false, 300); await settle(); };
+        const read = {};
+        /* The harness's CONST has no PLAYLIST_MODES, which the music engine reads: Foundry's values stood in for the test
+           (DISABLED -1, SEQUENTIAL 0, SHUFFLE 1, SIMULTANEOUS 2, as remembered, not read in v14's source), taken off after. */
+        const modesStoodIn = !CONST.PLAYLIST_MODES && Object.isExtensible(CONST);
+        if (modesStoodIn) Object.defineProperty(CONST, "PLAYLIST_MODES", { value: { DISABLED: -1, SEQUENTIAL: 0, SHUFFLE: 1, SIMULTANEOUS: 2 }, configurable: true });
+        must(CONST.PLAYLIST_MODES, "no playlist modes in this Foundry, and none could be stood in - this would measure nothing");
+        try {
+            await setSetting(SETTINGS.musicEnabled, false);
+            const ambient = await Playlist.create({ name: "SUITE COMM-31 ambient", mode: 0,
+                sounds: [{ name: "SUITE ambient one", path: "sounds/lock.wav" }] });
+            made.push(ambient);
+            let cue = P.situationalPlaylist();
+            if (!cue) {
+                cue = await Playlist.create({ name: SITUATIONAL_PLAYLIST, mode: 0 });
+                made.push(cue);
+            }
+            const [track] = await cue.createEmbeddedDocuments("PlaylistSound", [{ name: "SUITE COMM-31 cue", path: "sounds/notify.wav" }]);
+            await ambient.playAll();
+            await ambient.sounds.contents[0].update({ playing: true });
+            await wait();
+            const played = await P.playTrack(track.id);
+            await wait();
+            read.play = [Boolean(played), ambient.playing, P.musicStatus().interrupted];
+            await cue.update({ playing: false });
+            await track.update({ playing: false });
+            await wait();
+            read.sidebarStop = [ambient.playing, P.musicStatus().interrupted, Boolean(ambient.getFlag(MODULE_ID, "held"))];
+            await ambient.stopAll();
+            await wait();
+            read.nothing = await P.resetMusic();
+
+            ui.notifications.warn = text => { warns.push(String(text)); };
+            standIn(true);
+            read.assistant = [U.isPrimaryGm(), await P.playTrack(track.id), await P.resetMusic(), track.playing,
+                warns.filter(w => w.includes(before.name)).length];
+            standIn(false);
+            ui.notifications.warn = realWarn;
+
+            await setSetting(SETTINGS.musicMap, {});
+            await setSetting(SETTINGS.musicEnabled, true);
+            await wait();
+            standIn(true);
+            P.refreshMusic({ now: true });
+            await wait();
+            await ambient.update({ playing: false, [`flags.${MODULE_ID}.held`]: true });
+            await ambient.sounds.contents[0].update({ playing: false, pausedTime: 3 });
+            await wait();
+            standIn(false);
+            P.refreshMusic({ now: true });
+            await until(() => ambient.playing, 4000);
+            await wait();
+            read.takeover = [ambient.playing, Boolean(ambient.getFlag(MODULE_ID, "held"))];
+        } finally {
+            standIn(false);
+            ui.notifications.warn = realWarn;
+            for (const p of made) { if (game.playlists.get(p.id)) { await p.stopAll().catch(() => {}); await p.delete(); } }
+            const left = P.situationalPlaylist();
+            if (left && !made.includes(left)) for (const s of left.sounds.filter(s => s.name === "SUITE COMM-31 cue")) await s.delete();
+            await setSetting(SETTINGS.musicMap, mapWas);
+            await setSetting(SETTINGS.musicEnabled, enabledWas);
+            P.refreshMusic({ now: true });
+            await settle();
+            if (modesStoodIn) delete CONST.PLAYLIST_MODES;
+        }
+        equal(stableJson(read), stableJson({
+            play: [true, false, true], sidebarStop: [true, false, false], nothing: { stopped: 0, given: 0 },
+            assistant: [false, null, null, false, 2], takeover: [true, false]
+        }), "the music's record left the primary, a cue stopped in the sidebar kept what it held, or Stop the track did not say what it did "
+            + "({play: [played, the ambient playing, a cue recorded]; sidebarStop: [the ambient playing, a cue recorded, the ambient flagged held]; "
+            + "nothing: Stop the track's answer with nothing playing; assistant: [primary, Play's answer, Stop's answer, the cue playing, notices naming the primary]; "
+            + "takeover: [the held ambient playing, still flagged] after this browser became the primary})");
+    }],
+    ["1.2.122 COMM-36 - Contraband tells the owner of the item it destroys, privately, as Silence and Chain tell theirs (call-effects.mjs `destroyItemEffect`, `tell`; the audit's COMM-36)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-36): the item was deleted on the GM and the public card named only the item; its
+         * owner was told nothing, where every other Despair Call aimed at a student tells the student. An item given to a
+         * student here, Contraband's effect run on this GM through `applyCall` (nothing is paid: the effect alone); read
+         * the private words sent to the owner's players (`wordsSent`). The item is gone after, as the Call does; the cards
+         * are deleted. Red at 21bf5d18: no words to the owner.
+         */
+        needs(world.atLeast("livingStudents", 1), "a student whose item is destroyed");
+        const INV = await import("./inventory.mjs");
+        const { applyCall } = await import("./call-effects.mjs");
+        const [owner] = cast(1);
+        const readers = game.users.filter(u => !u.isGM && owner.testUserPermission(u, "OWNER")).map(u => u.id);
+        must(readers.length, `${owner.name} has no player - this would measure nothing`);
+        const NAME = "SUITE COMM-36 crowbar";
+        const from = game.messages.contents.length;
+        let item = null, told = null, gone = null;
+        try {
+            item = await INV.grantItem(owner, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+            must(item, "the item could not be given - this would measure nothing");
+            const packets = await wordsSent(async () => {
+                await applyCall(game.user.character ?? owner, "contraband", "despair", { item });
+                await settle();
+            });
+            gone = !owner.items.get(item.id);
+            told = packets.filter(w => w.to.some(id => readers.includes(id)) && w.html.includes(NAME)).length;
+        } finally {
+            if (item && owner.items.get(item.id)) await owner.items.get(item.id).delete();
+            for (const m of game.messages.contents.slice(from)) await m.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson([gone, told]), stableJson([true, 1]), "Contraband did not destroy the item, or did not tell its owner once ([gone, private words to the owner's players naming it])");
+    }],
     ["1.2.122 COMM-38 - a Call aimed at a secret project names it in its confirmation as the picker did, not \"???\" (calls.mjs `describeChoice`, projects-secrecy.mjs `shownName`; the audit's COMM-38)", async () => {
         /*
          * The audit of 1.2.118 (COMM-38): the picker names each project by the name its reader may know, and the
