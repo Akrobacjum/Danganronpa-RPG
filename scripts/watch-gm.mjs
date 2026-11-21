@@ -106,7 +106,7 @@ export async function declareWatch({ actor, total = 0, isCritical = false, withH
         // The Sanity track as the GMs hold it, mark and maximum (the audit's ROLL-26, 1.2.122; sheet-audit.mjs `meansWrite`).
         const { meansWrite } = await import("./sheet-audit.mjs");
         await meansWrite(actor, async ({ stress }, maxOf) => {
-            const max = Number(maxOf("stress") ?? actor.system?.resources?.stress?.max) || 0, now = Number(stress) || 0;
+            const max = Number(maxOf("stress")) || 0, now = Number(stress) || 0;
             const next = Math.min(max, now + 1);
             if (next !== now) await trustedWrite(actor, { "system.resources.stress.value": next }, { reason: "infiltrate" });
         });

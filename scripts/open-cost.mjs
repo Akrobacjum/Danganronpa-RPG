@@ -41,8 +41,9 @@ export const WARM_IMPORTS = Object.freeze({
        its doors (action-listen.mjs reaches action-tail.mjs and action-doors.mjs) and the Reroll that replays an Infiltrate
        roll (reroll.mjs, infiltrate-reroll.mjs). Each is imports and functions, nothing run at load. action-facilities.mjs,
        a rest's room actions, was here until fix line 113f (13.11.2026): the sheet imports it statically since, for the
-       Facilities tile's reason, so it loads at boot. */
-    everyone: Object.freeze(["settings-window.mjs", "look.mjs", "voice-panel.mjs", "notice-history-app.mjs", "frisk.mjs",
+       Facilities tile's reason, so it loads at boot. And look.mjs since 1.2.122 (DOC-16): motion.mjs imports its one
+       reading of the theme, `isStainedGlass`, so it loads at boot too. */
+    everyone: Object.freeze(["settings-window.mjs", "voice-panel.mjs", "notice-history-app.mjs", "frisk.mjs",
         "trial-modes.mjs", "trial-floor-ui.mjs", "trial-zones-ui.mjs",
         "action-tail.mjs", "action-doors.mjs", "infiltrate-reroll.mjs"]),
     /* The GMs' own: Room setup's Passages tab and the Class Trial console's case schema and summary; and the room action
