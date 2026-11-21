@@ -49,7 +49,7 @@ import {
     ACTION_OPENING_RESULT, ACTION_CLEANUP, ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_BRIBE_OFFER, ACTION_BRIBE_ANSWER, ACTION_LOOT,
     ACTION_NOTE_SAVE, ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_BULLET_GIVE, ACTION_FACILITY_USE, ACTION_DASH,
     ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK, ACTION_WATCH_DECLARE, ACTION_DOOR_KNOCK,
-    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL
+    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL, ACTION_MASK_VEIL
 } from "./bridge-wire.mjs";
 import {
     handleObserveTarget, handleCleanupTraces, handleObserveResolve, handleAnalyzeResolve, handleAdvancement,
@@ -60,7 +60,7 @@ import {
     handleBetrayal, handleCleanup, handleCubAbility, handleCubAnswer, handleBribeOffer, handleBribeAnswer, handleHopeCall, handleCallYes, handleDynamicAnswer,
     handleRulingExpired, handleRulingReceived, handleDifficulty, handleTraitRuling, handleFacilityUse, handleDash,
     handleTailStart, tailRolls, handleDoorShut, handleDoorForce, handleDoorPick, pickRolls, handleWatchDeclare, handleDoorKnock,
-    handleEavesdrop, handleEavesdropStop, handleEchoes, handleMaskReveal
+    handleEavesdrop, handleEavesdropStop, handleEchoes, handleMaskReveal, handleMaskVeil
 } from "./bridge-runs-acts.mjs";
 import {
     handleProgress, handleShare, TRACE_OF_ROLL, handleRemnant, traceBandOf, progressOf, repairOf, handleTieTrace,
@@ -293,6 +293,23 @@ export const BRIDGE_ACTIONS = table({
         run: handleMaskReveal,
         // The asker's "?" goes when the token's look comes back; nothing is said.
         answer: "ack"
+    },
+    /*
+     * THE OPENING'S VEIL, ASKED OF THE PRIMARY BY ANOTHER GM (1.2.122; the audit's STG-31). The veil is the primary's to
+     * write (mask-gm.mjs `settleVeilsNow`, `veilAtTheLights`), and on another GM's browser both answered nothing, so an
+     * Eclipse ended or a murder opened there put the veil up only once the primary heard the incident's write - the
+     * killer's token drawn for the victim meanwhile. That GM asks here and waits for the answer.
+     */
+    [ACTION_MASK_VEIL]: {
+        label: "DRPG.Bridge.what.mask.veil",
+        guards: [gmOnly("only a GM asks for the opening's veil")],
+        sanitize: pick({ what: as.oneOf("lights", "lift", "judged", "settle"), killerIds: as.raw }),
+        run: handleMaskVeil,
+        answer: "reply",
+        claims: {
+            what: "one of four, each the primary's own road (mask-gm.mjs `veilOnPrimary`); anything else does nothing",
+            killerIds: "read on the primary against its own declarations of this Eclipse (`pendingMurderStore`, eclipse.mjs): an id with none is veiled or lifted by nothing"
+        }
     },
     [ACTION_ADVANCEMENT]: {
         label: "DRPG.Bridge.what.advancement.apply",
@@ -575,7 +592,7 @@ export const BRIDGE_ACTIONS = table({
         prepare: () => import("./cleanup.mjs"),
         sanitize: pick({ actorId: as.id, tokenId: as.id, key: as.text, targetId: as.id, total: as.num, isCritical: as.bool,
             withHope: as.bool, viaAction: as.bool, undo: as.gmFlag, grant: as.bool, price: as.raw, transform: as.raw, change: as.raw,
-            rollId: as.id }),
+            rollId: as.id, cover: as.num, coverRollId: as.id }),
         run: handleCleanup,
         answer: "reply",
         // Each of Stage 6's actions throws a clean-up's roll, read off the GMs' record of it (E08+E28 C17).
@@ -585,6 +602,8 @@ export const BRIDGE_ACTIONS = table({
             targetId: "resolveStageSix (cleanup.mjs) judges who may be framed and where the body lies",
             price: "bounded on arrival against PRICE_CHAINS by the resolvers (T-1), and given back no further than the GMs' credit holds it (cleanup.mjs paidBack)",
             transform: "bounded on arrival against CLEANUP.transform by resolveCleanup (G-20)",
+            cover: "a concealment's critical, read on the roller's browser (the trust model's open item): given back by the GM at most CLEANUP.conceal.refundStress.critical, and only with a witness the GM reads in the room (cleanup.mjs coverGiveBack, CASE-27)",
+            coverRollId: "the cover's roll, judged by coverGiveBack (cleanup.mjs): the GMs' record of it must name this sender and character and a critical, and gives back once",
             change: "bounded on arrival against CLEANUP.transform by resolveCleanup (Z5)",
             rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal), and written on only by noteFactOfRoll (action-pipeline.mjs): the sender's own row of that message, its character and a clean-up"
         }

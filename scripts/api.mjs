@@ -541,6 +541,8 @@ export const DrpgApi = {
     dropRemnant,
     placeRemnant: async (data = {}, options = {}) => (game.user.isGM && !sceneNamed("placeRemnant", data?.scene
         ?? (data?.sceneId ? game.scenes.get(data.sceneId) : null))) ? null : placeRemnant(data, options),
+    /** A scene's Remnants, and a room's: one frozen ref each (remnants.mjs `traceRefsOf`), not TokenDocuments, since
+        1.2.98 (E60 C1b) - no `update` or `delete`; a GM's ref carries the token as `document` (the GM handbook, 20.5). */
     remnantsOn,
     remnantsInRoom,
     revealRemnant,

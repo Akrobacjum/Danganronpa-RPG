@@ -25,6 +25,7 @@ import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
 import { WIDE, choiceRowHtml, wideWindow } from "./ui-columns.mjs";
 import { PROPOSAL_NOTE_MAX } from "./trait-ruling.mjs";
 import { holdRowLines } from "./ui-hold.mjs";
+import { keepLive } from "./live.mjs";
 
 
 /**
@@ -159,6 +160,34 @@ export function requestFieldHtml({ prompt, placeholder, optional = true, when = 
     </label>`;
 }
 
+/**
+ * THE ROWS FOLLOW THE TABLE WHILE THE MENU STANDS (1.2.122 line MURDER; 1.2.121's line K left the crisis menu with no
+ * live refresh; the audit's REFR-21; the owner's rule "Zawsze odswiezamy okna od razu przy zmianie"). A caller hands
+ * `live`: `options()` reads the rows again, `watch` is keepLive's (`actors`, `settings`, `hooks` ...), and `closeWhen()`,
+ * when it answers a key of lang, closes the menu and says that sentence - the crisis menu's turn gone to the other side or
+ * its incident over. The list (`.drpg-choice-list`) is rebuilt from the fresh rows, the first usable one checked, and
+ * keepLive carries the row the player picked (live.mjs keys a radio by its name and value). A row's details, fields and
+ * facts stay as drawn: the menu's own rows are the turn's numbers and shut reasons. Chromium's press order on a rebuilt
+ * row is not measured here (jsdom; the 1.2.120 lesson, r120-P-1).
+ */
+function keepRowsLive(dialog, live, rowsOf) {
+    keepLive(dialog, {
+        region: ".drpg-choice-list",
+        build: () => {
+            const list = live.options?.() ?? [];
+            const first = list.find(o => !o.disabled)?.value ?? null;
+            return `<div class="drpg-choice-list">${rowsOf(list, first)}</div>`;
+        },
+        watch: live.watch ?? {},
+        after: () => {
+            const why = live.closeWhen?.();
+            if (!why) return;
+            ui.notifications.info(game.i18n.localize(why));
+            dialog.close().catch(() => {});
+        }
+    });
+}
+
 /** Whatever was typed into that field, from a dialog that has already closed. */
 export function readRequestField(root) {
     return root?.querySelector('[name="request"]')?.value.trim() ?? "";
@@ -265,6 +294,7 @@ export async function chooseVariant({
                 drawn = dialog;
                 dialog.element?.addEventListener("change", e => { if (e.target?.name === "variant") checkedNow = e.target.value; });
             }
+            if (live && typeof live.options === "function") keepRowsLive(dialog, live, rowsOf);
             if (liveRows || options.some(o => o.confirm)) followConfirmLabel(dialog, confirmFor);
             if (columns) {
                 holdFields(dialog);
@@ -274,8 +304,12 @@ export async function chooseVariant({
                 globalThis.document?.fonts?.ready?.then(() => holdRowLines(dialog.element)).catch(() => {});
             }
             atTop(dialog);
-            // A caller's live regions in `extra` (`live(dialog)`; palm.mjs's targets, the audit's REFR-52, 1.2.122).
-            live?.(dialog);
+            /* A caller's live regions in `extra` (`live(dialog)`; palm.mjs's targets, the audit's REFR-52, 1.2.122). `live`
+               comes in three shapes, one per line of 1.2.122 that gave it one, told apart by what it holds: a function
+               (palm.mjs, line WORLD), `{ rows(), watch }` (level-up.mjs, line DESP: `liveRows` above, a one-column window's)
+               and `{ options(), watch, closeWhen() }` (action-murder.mjs, line MURDER: `keepRowsLive`). Until the assembly
+               this line called an object too, and Level Up's menu threw once drawn. */
+            if (typeof live === "function") live(dialog);
             // The caller's own wiring once drawn (1.2.122: the Projects window keeps its rows live, REFR-36).
             onRender?.(event, dialog);
         },
@@ -306,7 +340,7 @@ export async function chooseVariant({
  * every action window"). `actionWindow` is the one builder of an action's window, as call-pickers.mjs `callWindow` is the
  * Calls': the briefing in the left column, the question in the right, in ui-columns.mjs's window of one stated width
  * (`WIDE`, 1120 px). `chooseVariant` opens through it (every action menu), and so do the windows an action draws itself
- * (Listen's room, Move's briefing, a project picked to work on); R3200 holds the list. The right column ends in the
+ * (Listen's room, a project picked to work on; Move's briefing went with the Move window, E100 item 1); R3200 holds the list. The right column ends in the
  * statistic's slot (`TRAIT_SLOT`: `traitFieldHtml`'s field, and E68 C4's proposal and the player's "how"), under the rows
  * and the caller's `extra`: the owner's Q3 of round M keeps the field there. What it measured: S/stages/E68/STATUS.md E68-C12.
  *
@@ -332,8 +366,8 @@ const TRAIT_SLOT = "drpg-action-trait";
  * on every render (`wireDetails`), before the caller's own `render`.
  */
 export function actionWindow({ brief = "", ask = "", classes = [], render = null, ...rest } = {}) {
-    // A window that asks nothing (Move's briefing) is its left column alone, at half the width: an empty right column
-    // would be 540 px of nothing.
+    // A window that asks nothing is its left column alone, at half the width: an empty right column would be 540 px of
+    // nothing. Move's briefing was the one such window until E100 item 1 took it away; the branch is kept for the next.
     return wideWindow({
         ...(ask ? {} : { width: WIDE.width / 2 }),
         ...rest,
@@ -399,7 +433,7 @@ export function detailsStack(layers = []) {
 }
 
 /** The toggle opens and shuts its box and writes the setting; Enter on it does what a click does (the kit's form takes no part). */
-function wireDetails(dialog) {
+export function wireDetails(dialog) {
     const root = dialog?.element;
     if (!root) return;
     for (const toggle of root.querySelectorAll(".drpg-action-details-toggle")) {
@@ -564,6 +598,18 @@ export async function promptForNote(actor, { title, prompt, placeholder, traits 
         },
         rejectClose: false
     }).catch(() => "");
-    if (propose) return result && typeof result === "object" ? result : { note: "", proposed: null };
-    return typeof result === "string" ? result : "";
+    return noteAnswerOf(result, traits);
+}
+
+/**
+ * `promptForNote`'s answer, in one shape for each caller (the audit's ROLL-32, 1.2.122): a caller that hands `traits` -
+ * Direct Murder's declaration - reads `{ note, proposed }` whatever the list holds, and one that hands none the sentence
+ * alone. Until 1.2.122 a list of one statistic answered the string, and the declaration's destructuring lost the
+ * sentence (latent: MURDER_OPENING's killer lists two). A list of one proposes nothing: `proposed` is null, as a closed
+ * window's. Pure (R8223).
+ */
+export function noteAnswerOf(result, traits = null) {
+    if (traits === null || traits === undefined) return typeof result === "string" ? result : "";
+    if (result && typeof result === "object") return { note: String(result.note ?? ""), proposed: result.proposed ?? null };
+    return { note: typeof result === "string" ? result : "", proposed: null };
 }

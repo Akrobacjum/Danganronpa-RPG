@@ -352,6 +352,45 @@ async function keepSeasonKeyPlan() {
     } catch (err) {
         error(`Season reset: could not trim the kept Key Remnant plan to chapter ${keptChapter}`, err);
     }
+    try {
+        const trimmed = await keepOnlyCaseChapter(keptChapter);
+        if (trimmed) log(`Season reset: the case schema and the Logic Dive sets are kept for chapter ${keptChapter} only, without last season's marks (${trimmed} row(s)).`);
+    } catch (err) {
+        error(`Season reset: could not trim the kept case schema to chapter ${keptChapter}`, err);
+    }
+}
+
+/*
+ * THE CASE SCHEMA AND THE DIVE SETS ARE KEPT AS THE PLAN IS (the audit's CASE-52, 1.2.122). They joined the reset's
+ * group `keyPlan` after its keep hook was written (E97, E73), and a kept group writes no cut, so every chapter's rows
+ * rode into the new season with last season's marks: a chapter's meta row is read by its number alone (case-schema.mjs
+ * `caseMetaOf`), so its planned Autopsies read as sent (`autopsySent`), its question at a body as asked (`askedAt`), its
+ * realization as run (`run`, `made`), and a planned Truth Bullet as given (`given`). Now the kept chapter's rows alone
+ * stay, those marks taken off them, and a Logic Dive set of another chapter goes, one of the kept chapter loses when
+ * and how it was last played. On the primary, as `keepOnlyKeyPlanChapter`. Answers how many rows it dropped or wrote.
+ * Red at 21bf5d18 (tier 2 "1.2.122 CASE-52").
+ */
+const CASE_MARKS = Object.freeze(["autopsySent", "askedAt", "run", "made", "given"]);
+const DIVE_MARKS = Object.freeze(["usedAt", "endedAt", "stoppedAt", "outcome"]);
+
+export async function keepOnlyCaseChapter(chapter) {
+    if (!game.user.isGM) return 0;
+    const { caseSchemaStore, diveSetStore } = await import("./gm-stores.mjs");
+    let n = 0;
+    const trim = async (store, keep, marks) => {
+        const drop = [];
+        for (const [key, row] of Object.entries(store.entries() ?? {})) {
+            if (!keep(key, row)) { drop.push(key); continue; }
+            if (!row || typeof row !== "object" || !marks.some(m => Object.hasOwn(row, m))) continue;
+            // A field the store merges is taken off by writing it null (gm-store.mjs `writeFields`), which each reader reads as none.
+            await store.patch(key, Object.fromEntries(marks.filter(m => Object.hasOwn(row, m)).map(m => [m, null])));
+            n++;
+        }
+        if (drop.length) { await store.dropMany(drop); n += drop.length; }
+    };
+    await trim(caseSchemaStore, key => Number(String(key).split(":")[0]) === Number(chapter), CASE_MARKS);
+    await trim(diveSetStore, (key, row) => Number(row?.chapter) === Number(chapter), DIVE_MARKS);
+    return n;
 }
 
 registerSeasonState({ group: "keyPlan", clear: clearSeasonKeyPlan, keep: keepSeasonKeyPlan });
@@ -522,14 +561,27 @@ export function keyPlanStatus() {
             finders: Array.from(finders.get(r.token.id) ?? [])
         }));
 
+    /* A SLOT IS A KEY REMNANT WHEN IT HOLDS ONE (the audit's CASE-29, 1.2.122). `keyPlan` answers at least five slots
+       whatever was written, and `missing` counted every slot not found - a blank one, and one at or past the case's count
+       (`caseKeyCount`: four on Despair, three on a critical; the realization leaves those 'overLimit') - so "every planned
+       Key Remnant has been found" never came for a case of three or four, and the GM's line read "4 of 5". `missingKeyRows`'
+       rule now: a slot inside the case's count that holds a trace or words, or was found (`keyed`). `planned` counts those,
+       `total` adds the Key Remnants found off the plan, which `foundAny` counts too. Red at 21bf5d18 (R8227). */
+    const limit = caseKeyCount(plan.chapter);
+    for (const e of entries) {
+        e.keyed = (limit === null || e.slot < limit) && Boolean(e.found || e.tokenId || e.name || e.text);
+    }
     const found = entries.filter(e => e.found).length;
+    const keyed = entries.filter(e => e.keyed).length;
     return {
         entries,
         placed: entries.filter(e => e.placed).length,
         found,
         offPlan,
         foundAny: found + offPlan.length,
-        missing: entries.filter(e => !e.found).length
+        planned: keyed,
+        total: keyed + offPlan.length,
+        missing: entries.filter(e => e.keyed && !e.found).length
     };
 }
 
@@ -722,7 +774,7 @@ export async function chargeForUnfoundKeys() {
         // With the way to ask again on the card (E109, DISAGREEMENTS.json D27, D28): `wireChargeHeld` wires it on a GM's browser.
         await whisperToGms({ tone: "warning", body: `<p>${plural("DRPG.Case.chargeHeld", { n: fee.held })}</p><div class="drpg-call-actions">`
             + `<button type="button" data-drpg-key-charge data-tooltip="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Case.chargeAgainHint"))}">${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Case.chargeAgain"))}</button></div>` },
-            { flags: { [MODULE_ID]: { keyChargeHeld: true } } });
+            { flags: { [MODULE_ID]: { keyChargeHeld: true, keyChargeChapter: now } } });
         return null;
     }
     const short = fee.short;
@@ -789,14 +841,58 @@ export async function askToChargeForUnfoundKeys() {
  */
 export function wireChargeHeld(message, element) {
     if (!game.user?.isGM || !cardFlag(message, "keyChargeHeld") || !cardWriter(message)?.isGM) return;
+    watchHeldCharges();
+    /* A CARD THAT HAS NOTHING TO CHARGE OFFERS NOTHING (the audit's REFR-67 and STG-30, 1.2.122). The button stayed on
+       every other GM after the fee was charged - by another GM's press or the trial's own charge - and a reload drew it
+       again; and its press charged whatever chapter the clock was in, the card's or not. Drawn, and again whenever the
+       trial's record or the clock is written (`watchHeldCharges`), the button is there only while this card's chapter
+       (`keyChargeChapter`, written with it since 1.2.122; a card without one is from before and offers nothing) is the
+       clock's and no fee is stamped; a press asks the same again first. Red at 21bf5d18 (tier 2 "1.2.122 REFR-67"). */
+    void dropStaleCharge(message, element);
     element.addEventListener("click", async event => {
         const button = event.target?.closest?.("[data-drpg-key-charge]");
         if (!button) return;
         event.preventDefault();
         button.closest(".drpg-call-actions")?.remove();
+        if (await heldChargeStale(message)) {
+            ui.notifications.info(game.i18n.localize("DRPG.Case.chargeStale"));
+            return;
+        }
         await askToChargeForUnfoundKeys();
         const { trialProgress } = await import("./vote.mjs");
         if (trialProgress()?.keysCharged) ui.notifications.info(game.i18n.localize("DRPG.Case.chargeDone"));
+    });
+}
+
+/** Whether a held Key fee's card has nothing left to charge: the fee stamped, or the clock in another chapter than the card's. */
+export async function heldChargeStale(message) {
+    const { trialProgress } = await import("./vote.mjs");
+    if (trialProgress()?.keysCharged) return true;
+    const chapter = cardFlag(message, "keyChargeChapter");
+    return !Number.isFinite(Number(chapter)) || chapter === null || Number(chapter) !== Number(getClock().chapter);
+}
+
+/** Take a stale held card's button away (`heldChargeStale`). Answers whether it did. */
+async function dropStaleCharge(message, element) {
+    if (!element?.querySelector?.("[data-drpg-key-charge]") || !(await heldChargeStale(message))) return false;
+    element.querySelector("[data-drpg-key-charge]")?.closest(".drpg-call-actions")?.remove();
+    return true;
+}
+
+let heldChargesWatched = false;
+
+/** Once a load: the trial's record or the clock written, every held card drawn in this browser's log is read again. */
+function watchHeldCharges() {
+    if (heldChargesWatched) return;
+    heldChargesWatched = true;
+    const keys = [`${MODULE_ID}.${SETTINGS.trialProgress}`, `${MODULE_ID}.${SETTINGS.clock}`];
+    Hooks.on("updateSetting", setting => {
+        if (!keys.includes(setting?.key)) return;
+        for (const button of document.querySelectorAll("[data-drpg-key-charge]")) {
+            const card = button.closest("[data-message-id]");
+            const message = game.messages?.get(card?.dataset?.messageId ?? "");
+            if (message && cardFlag(message, "keyChargeHeld")) void dropStaleCharge(message, card);
+        }
     });
 }
 

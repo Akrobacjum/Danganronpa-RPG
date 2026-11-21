@@ -1090,6 +1090,7 @@
       "murderSpendsAnyway": "Potwierdzając, wydajesz akcję bez względu na wynik. Czy się udało, dowiesz się po zakończeniu Eclipse albo wcześniej, jeśli GM ją odrzuci.",
       "murderPromptParked": "Co robisz i jak? Notatka trafia do GM-a razem ze zgłoszeniem, a GM ma ją przed sobą także po zakończeniu Eclipse.",
       "murderParkedConfirm": "Podejmij próbę",
+      "murderDeclareYes": "Zadeklaruj morderstwo",
       "murderParked": "Zgłoszenie jest przyjęte. Jeśli GM odmówi, dowiesz się od razu; jeśli pozwoli, nic nie usłyszysz do końca Eclipse. Wtedy incydent się otworzy, jeśli zostaniesz z kimś sam na sam i żaden incydent nie będzie jeszcze otwarty.",
       "murderParkedToast": "Zgłoszenie przyjęte. Wynik poznasz po zakończeniu Eclipse.",
       "murderSecondDeclaration": "{killer} też zgłasza Direct Murder podczas Eclipse, ale incydent jest już otwarty. Próba zostaje odrzucona, a akcja przepada.",
@@ -2905,6 +2906,8 @@
       "reshapeRulingGone": "Tego Remnantu już nie ma, więc nie ma czego zmieniać. Gracz dostaje o tym wiadomość.",
       "reshapeUnsent": "Karta ze zmianą Remnantu nie została wysłana, więc na Remnancie nic nie zapisano. Jeśli był to krytyk przy Erase a Trace, Remnant jest już wymazany; w przeciwnym razie rozstrzygnij zmianę na głos i, jeśli się zgadzasz, zmień Remnant ręcznie.",
       "reshapeUnsentPlayer": "Twoja wersja Remnantu nie dotarła do GM-a i nic na nim nie zapisano. Opowiedz ją przy stole.",
+      "reshapeSettledGone": "Remnant już zniknął, więc nic nie zostało przekształcone.",
+      "reshapeDeclinedGone": "{name} odrzuca przekształcenie. Remnant, nad którym pracujesz, już zniknął.",
       "reshapeVoided": "Cofnięte przez Reroll albo zastąpione późniejszą próbą, zanim {name} rozstrzygnął.",
       "reshapeTakenBack": "Reroll albo późniejsza próba zajęła miejsce tej, więc ta karta już o niczym nie rozstrzyga.",
       "alreadyRuled": "Ta zmiana Remnantu jest już rozstrzygnięta ({name}).",
@@ -2955,7 +2958,10 @@
     },
     "Murder": {
       "openingReask": "Poproś o rzut otwarcia ponownie",
-      "openingReaskSent": "Prośba o rzut otwarcia poszła jeszcze raz: przy pułapce do ofiary, w przeciwnym razie do zabójcy.",
+      "openingReaskSent": "Prośba o rzut otwarcia poszła jeszcze raz do gracza {name}.",
+      "openingReaskHere": "Nikt, kto gra uczniem {name}, nie jest połączony, więc rzut otwarcia odbył się tutaj.",
+      "openingReaskNoticed": "Nic nie poszło: ofiara pułapki wykonała już rzut otwarcia i zauważyła pułapkę.",
+      "openingReaskNone": "Nic nie poszło: okno statystyki otwarcia jest już otwarte albo zostało zamknięte bez wyboru.",
       "openingReaskWait": "Prośba poszła przed chwilą. Odczekaj kilka sekund i spróbuj znowu.",
       "victimNoticedNext": "Ofiara zauważa pułapkę. Incydent zatrzymuje się na otwarciu i sam z siebie nie ruszy dalej. Ofiara może użyć Free Move, jeśli jeszcze go ma; incydent zakończysz przyciskiem „Zakończ morderstwo” w oknie śledzenia incydentu.",
       "openTitle": "Morderstwo",
@@ -3001,6 +3007,7 @@
       "rerollLost": "Rerolla akcji kryzysowej nie dało się przeprowadzić: brakuje jej zapisu albo incydent zdążył się zamknąć lub pójść dalej. Zostaje pierwszy rzut, a Hope wraca do gracza. Jeśli incydent się w tym czasie zamknął, sprawdź ręcznie Remnant tej akcji i arkusze.",
       "trackerState": "{stage} · tura {turn} · działa: {side}",
       "trackerWaiting": "{stage} · czeka na rzut otwarcia: {name}",
+      "trackerNoticed": "{stage} · {name} zauważa pułapkę; zakończ incydent, gdy zechcesz",
       "trackerInvited": "Zaproszenie dostaje {user}.",
       "trackerTurnLine": "Tura {turn} - {side}: {action}, {result}.",
       "trackerResult": {
@@ -3014,6 +3021,9 @@
       "passTooSoon": "Turę oddano przed chwilą. Naciśnij Oddaj turę jeszcze raz, by oddać następną.",
       "endMurder": "Zakończ morderstwo",
       "endConfirm": "Przestać śledzić to morderstwo? Utracone Health i Sanity, przedmioty i Remnanty zostają, jak są.",
+      "betrayalOfferKept": "{kept} nadal ma do końca dnia propozycję zdrady wobec {killer}, więc {third} nie dostaje propozycji zdrady za to ciało.",
+      "afterPhaseMoved": "Faza zmieniła się od otwarcia tego okna, więc zostaje taka, jaka jest teraz.",
+      "endConfirmSelf": "Zakończenie zapisuje śmierć ucznia {name}. GM-owie trzymają ją dla siebie, dopóki ktoś nie znajdzie ciała.",
       "afterTitle": "Po incydencie",
       "afterIntro": "{killer} przeciw {victim}. Wszystko poniżej wynika z tego, jak skończył się incydent, a moduł już go nie śledzi.",
       "afterRoom": "Ciało leży w pokoju {room}.",
@@ -3146,6 +3156,7 @@
       "nightNoteIndirect": "Jest noc: rzut otwarcia ofiary ma utrudnienie.",
       "betrayalNote": "Do końca dnia {third} może zwrócić się przeciw postaci {killer}, jeśli {killer} wciąż żyje. Poza Eclipse to jedyne zabójstwo, którego zdrajca nie musi wcześniej zgłaszać; podczas Eclipse zdradę tylko się zgłasza, a zaczyna się, gdy Eclipse się skończy.",
       "betrayalButton": "{third} zwraca się przeciw zabójcy",
+      "betrayalYes": "Zdradź zabójcę",
       "betrayalTitle": "Zdrada",
       "betrayalIntro": "{third} zwraca się przeciw postaci {killer}. Jeśli incydent jeszcze trwa, kończy się, a nowe morderstwo zaczyna się od rzutu otwarcia: zabójcą jest {third}, ofiarą {killer}.",
       "betrayalRule": "Zdrada otwiera osobny incydent, więc tego dnia są dwa zabójstwa, a każde ma własnego Blackened. Możesz zdecydować do końca dnia.",
@@ -3181,7 +3192,7 @@
       "criticalChoiceHp": "Oba z Health",
       "criticalChoiceStress": "Oba z Sanity",
       "ranOutTwoKillers": "{victim} nie ma już Health ani Sanity, a po stronie zabójców stoją {killers}. Zakończyć incydent?",
-      "ranOutTwoKillersNote": "Po „Zakończ incydent” zaczyna się etap Tamper. Po „Anuluj” tury idą dalej, a incydent zakończysz później w oknie śledzenia incydentu.",
+      "ranOutTwoKillersNote": "Po „Zakończ incydent” zaczyna się etap Tamper. Po „Anuluj” tury idą dalej, a to pytanie wróci po następnej akcji kryzysowej.",
       "ranOutEndNow": "Zakończ incydent",
       "crowdedTitle": "Za dużo osób",
       "crowded": "{name} wchodzi zaraz po postaci {third}. W pokoju są teraz cztery osoby, więc incydent zostaje odwołany.",
@@ -3551,6 +3562,7 @@
       "nobodyFoundYou": "Nikt jeszcze nie znalazł twojego ciała.",
       "youFoundBody": "W pokoju {room} znajdujesz ciało postaci {name}. Nikt inny go jeszcze nie widział i na razie nic nie jest ogłaszane.",
       "youFoundBodyWith": "W {room} znajdujesz ciało: {name}. Nie jesteś tu sam i nic nie zostaje ogłoszone, dopóki GM o tym nie zdecyduje.",
+      "pendingGone": "Odkrycie ciała ucznia {name} już nie czeka: w międzyczasie ktoś je ogłosił albo zniknęło, więc nic więcej się nie stało.",
       "pendingTitle": "Uczniowie znaleźli ciało",
       "pendingBody": "W {room} leży ciało: {name}. Widzą je już: {names}. Ogłosić znalezienie teraz?",
       "pendingNote": "Ogłoś sprowadza wszystkich na miejsce i odtwarza dźwięk znalezienia całemu stołowi. Jeszcze nie zostawia je w oczekiwaniu: ogłosisz je później przyciskiem Znaleziono ciało w oknie Investigation.",
@@ -5271,6 +5283,7 @@
         "listen.stop": "Przestań słuchać",
         "listen.echoes": "Echoes",
         "mask.reveal": "Ujawnij się",
+        "mask.veil": "Zasłona otwarcia, o którą GM prosi głównego GM-a",
         "door.shut": "Shut the Door",
         "door.force": "Force the Door",
         "door.pick": "Pick the Lock",
@@ -5682,7 +5695,6 @@
       "noCharacters": "W tym świecie nie ma żywych uczniów.",
       "installTables": "Utwórz tabele przedmiotów",
       "despairFlow": "Despair Flow",
-      "clearFaint": "Wyczyść Faint Remnanty",
       "sweepBullets": "Zbierz Truth Bullets",
       "sweepNone": "Nie ma czego zbierać: każdy Truth Bullet w grze jest Faint albo Final.",
       "sweepConfirm": {
@@ -5698,12 +5710,6 @@
         "many": "Zebrano {n} Truth Bulletów.",
         "other": "Zebrano {n} Truth Bulletów."
       },
-      "faintCleared": {
-        "one": "Wyczyszczono {n} Faint Remnant.",
-        "few": "Wyczyszczono {n} Faint Remnanty.",
-        "many": "Wyczyszczono {n} Faint Remnantów.",
-        "other": "Wyczyszczono {n} Faint Remnantów."
-      },
       "voiceReset": "Napraw głos",
       "studentsLeft": {
         "one": "{n} uczeń ma jeszcze akcje",
@@ -5716,14 +5722,6 @@
         "badFormula": "„{formula}” to nie jest formuła rzutu."
       },
       "failed": "To nie zadziałało. Szczegóły znajdziesz w Dzienniku debugowania, w sekcji Diagnostyka.",
-      "faintNone": "Nie ma Faint Remnantów do wyczyszczenia: każdy pozostały Faint Remnant jest Reinforced albo powiązany ze zbrodnią.",
-      "faintConfirm": {
-        "one": "Usunąć {n} Faint Remnant ze wszystkich scen?",
-        "few": "Usunąć {n} Faint Remnanty ze wszystkich scen?",
-        "many": "Usunąć {n} Faint Remnantów ze wszystkich scen?",
-        "other": "Usunąć {n} Faint Remnantów ze wszystkich scen?"
-      },
-      "faintConfirmNote": "Reinforced Remnanty i wszystko powiązane ze zbrodnią zostają w spokoju. Reszta znika na dobre.",
       "stateColumn": "Stan",
       "state": {
         "alive": "Żyje",
@@ -7124,7 +7122,7 @@
         "incident": "Incydent, Blackened, zdrada wciąż dostępna i każde morderstwo zgłoszone w ciemności",
         "trialFloor": "Głos w Class Trial",
         "trialProgress": "Postęp Class Trial i jego głosowanie",
-        "keyPlan": "Plan Key Remnantów",
+        "keyPlan": "Plan Key Remnantów, mapa sprawy i zestawy Logic Dive (zachowane: rozdział, na którym kończy się sezon, bez znaczników poprzedniego sezonu)",
         "searchTokens": "Search Tokeny wydane w każdym pokoju",
         "discovered": "Które pokoje zostały odkryte",
         "bodyFound": "Znalezione ciało, które czeka na decyzję GM-a, i zapis, czyje ciała znaleziono",
@@ -9268,6 +9266,7 @@
       },
       "chargeAgain": "Pobierz opłatę za Key Remnanty",
       "chargeAgainHint": "Liczy opłatę za Key Remnanty jeszcze raz w przeglądarce głównego GM-a; wstrzymuje ją znowu, dopóki brakuje klucza odpowiedzi",
+      "chargeStale": "Ta karta nie ma już czego pobrać: opłata za Key Remnanty jest pobrana albo zegar jest w innym rozdziale.",
       "chargeDone": "Opłata za Key Remnanty w tej rozprawie jest już pobrana.",
       "fillFromTraces": "Uzupełnij z ich Remnantów ({n})",
       "filled": {

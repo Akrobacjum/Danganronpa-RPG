@@ -375,11 +375,11 @@ function evidenceByStudent() {
 /**
  * The Truth Bullet sweep, asked for by a person (Z7).
  *
- * The twin of `confirmClearFaint` in remnants.mjs, and deliberately the same
- * shape: count first, say the number, take the answer, report what happened.
- * Neither has a button since E64-inv (End the chapter runs both clean-ups,
- * chapter.mjs `chapterEndForm`); both stay the confirmed road scenario 62 and
- * the suite sweep through.
+ * Count first, say the number, take the answer, report what happened. No button
+ * since E64-inv (End the chapter runs both clean-ups, chapter.mjs
+ * `chapterEndForm`); it stays the confirmed road the suite sweeps through. Its
+ * twin for the Faint Remnants, remnants.mjs's Clear Faint question, had no caller and nothing
+ * driving it, and is gone (the audit's CTRL-56, 1.2.122).
  *
  * The count is the sweep's own answer (chapter.mjs `sweepPlan`, E09 C1), so the
  * confirm cannot promise a number the sweep will not deliver. It was the same

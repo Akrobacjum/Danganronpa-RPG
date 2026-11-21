@@ -21,6 +21,8 @@
  *   L  (after K) a full localStorage: gm's refuses the discovery store's key and p1's its fog copy's, and a Fog cell gm
  *      ticks and a room p1 walks into still clear on gm's drawn fog (L1), and the ticked room is under the veil on p1's (L2)
  *      (1.2.120 line F).
+ *   V  (after L, gm2 here) 1.2.122 line MURDER, the audit's STG-31: gm2 puts up the lights' veil and ends the lights
+ *      through the primary (`mask.veil`): a killer with a declaration veiled, one with none not (V1), lifted at the end (V2).
  *   I  the owner's world of 20.11.2026 (1.2.119 line F): two GM users, gm2 gone, a season reset's discovery cut two
  *      hours ahead of gm's clock, as a reset made on gm2's computer with its clock ahead writes it; p1 walks Aiko into
  *      a room, and gm's record holds it, after gm's reload too, p1's copy holds it, and gm is told once (I1, I2). Last:
@@ -439,6 +441,33 @@ export async function run(api) {
         Boolean(tickL && walkL) && l1?.[tickL] === "clear" && walkedL === walkL && l2?.[walkL] === "clear" && stored === false, J({ tickL, walkL, walkedL, l1, l2, stored }));
     check("L2: p1's localStorage refuses its fog copy: the room gm ticked for Aiko is under the veil on p1's drawn fog, found and not stood in, before p1 moves anything (1.2.120 line F)",
         p1L?.[tickL] === "veil", J({ tickL, p1L }));
+
+    /* ------------------------------------------------------------------ V */
+    /* 1.2.122 line MURDER (the audit's STG-31): the opening's veil is the primary's to write, and on a GM who is not the
+       primary the lights' veil (`veilAtTheLights`) and their end (`lightsJudged`) answered nothing, so an Eclipse ended
+       there put the veil up only once the primary heard the incident's write. gm2 asks the primary now (`mask.veil`) and
+       waits. A declaration of this Eclipse is written on gm for Aiko alone (`pendingMurderStore`); gm2 asks the lights'
+       veil for Aiko and Botan, then ends the lights. Red at 749b35b5: gm2's veil answered 0 and gm held no row. Put back:
+       the declaration, any veil left. */
+    phase("V the opening's veil asked of the primary by the second GM", { flow: "mask" });
+    const VEILS = `const S = ${imp("gm-stores.mjs")}; return [S.veilStore.get("${IDS.aiko}")?.why ?? null, S.veilStore.has("${IDS.botan}")];`;
+    await gm.eval(`const S = ${imp("gm-stores.mjs")}; await S.pendingMurderStore.patch("${IDS.aiko}", { killerId: "${IDS.aiko}", eclipse: "SUITE122V", room: null, note: "" }); return true;`, { timeout: 30000 });
+    await settle(500);
+    let v1 = null, row1 = null, row2 = null;
+    try {
+        v1 = await gm2.eval(`return (${imp("mask-gm.mjs")}).veilAtTheLights(["${IDS.aiko}", "${IDS.botan}"]);`, { timeout: 30000 });
+        row1 = await until(() => gm.eval(VEILS), r => r?.[0] === "lights");
+        await gm2.eval(`await (${imp("mask-gm.mjs")}).lightsJudged(); return true;`, { timeout: 30000 });
+        row2 = await until(() => gm.eval(VEILS), r => r?.[0] === null);
+    } finally {
+        await gm.eval(`const S = ${imp("gm-stores.mjs")}; if (S.pendingMurderStore.has("${IDS.aiko}")) await S.pendingMurderStore.drop("${IDS.aiko}");
+            if (S.veilStore.get("${IDS.aiko}")) await (${imp("mask-gm.mjs")}).lightsJudged(); return true;`, { timeout: 30000 });
+        await settle(500);
+    }
+    check("V1: gm2, not the primary, puts up the lights' veil through the primary: Aiko, who holds a declaration, veiled for the lights, Botan, who holds none, not (1.2.122, the audit's STG-31)",
+        v1 === 1 && J(row1) === J(["lights", false]), J({ v1, row1 }), { flow: "mask" });
+    check("V2: gm2's end of the lights lifts the veil through the primary (1.2.122, the audit's STG-31)",
+        J(row2) === J([null, false]), J({ row2 }), { flow: "mask" });
 
     /* ------------------------------------------------------------------ I */
     /* 1.2.119 line F (the owner's item #2 of 20.11.2026: the GM's fog stopped showing the rooms the players found, F5 did

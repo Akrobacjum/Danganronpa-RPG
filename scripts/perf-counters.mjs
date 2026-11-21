@@ -16,6 +16,8 @@
  *
  * THE NAMES (each counted where the work runs, `<file>.<what>`):
  *   refreshToken.visibility | .ownRing | .remnantRing | .remnantIcons   one per run of that `refreshToken` listener
+ *   refreshToken.localDeath | .mask                                     the same, incident-store.mjs's and mask-gm.mjs's (1.2.122,
+ *                                                                       the audit's CASE-58 and CASE-71)
  *   ownRing.rebuilt | .skipped | .kept, remnantRing (the same)         a ring drawn again, a paint that drew none, a
  *                                                                       refresh that kept the drawing standing (E88 C2)
  *   remnantRing.ledgerPass | .sightPass, remnantRing.passPainted        the next frame's ring pass after a ledger change

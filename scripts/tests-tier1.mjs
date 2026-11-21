@@ -45461,7 +45461,7 @@ const INVARIANTS = [
             buttons: [["cancel", true, "cancel"], ["reset", false, "destructive"]]
         }), "[the root's kit and own classes, the kit bodies in the window, the fields with autofocus, the footer in tree order: action, default, role]");
     }],
-    ["R1360 - the case's irreversible windows (E22 C3b; E22-01, E22-03, E22-05; S06-08, S13-04, S13-05): Who died? (death.mjs `openDeathDialog`), the body's announcement (`openBodyDiscoveryDialog`) and the chapter's end (`openChapterEndDialog`), each opened with DialogV2.wait stood in for, ask with their consequence destructive and named by its effect, Cancel the default and the first submit button in the tree, and Who died? and the body's room open on \"- choose -\" with that button shut, or, while an incident is open, on its victim and the victim's room with it open; Sweep Truth Bullets, Clear Faint Remnants, Delete the Remnant, End the murder (the tracker's and the fight's), the Final Trial's verdict and a stopped end's Finish and Drop ask with the destructive role", async () => {
+    ["R1360 - the case's irreversible windows (E22 C3b; E22-01, E22-03, E22-05; S06-08, S13-04, S13-05): Who died? (death.mjs `openDeathDialog`), the body's announcement (`openBodyDiscoveryDialog`) and the chapter's end (`openChapterEndDialog`), each opened with DialogV2.wait stood in for, ask with their consequence destructive and named by its effect, Cancel the default and the first submit button in the tree, and Who died? and the body's room open on \"- choose -\" with that button shut, or, while an incident is open, on its victim and the victim's room with it open; Sweep Truth Bullets, Delete the Remnant, End the murder (the tracker's and the fight's), the Final Trial's verdict and a stopped end's Finish and Drop ask with the destructive role", async () => {
         /*
          * E22 C3b, 06.11.2026; audit S06-08 ("They are dead", "Announce it" and "Do it" were Bone buttons and the default
          * under Enter; Who died? opened on the first living student and the body's window on the first room: one Enter
@@ -45469,9 +45469,11 @@ const INVARIANTS = [
          * DialogV2.wait stood in for (it answers null: nobody dies, no body is announced, no chapter ends) and their configs
          * read: the footer in tree order (ui-kit.mjs's header: Enter presses the first submit button), each button's role,
          * default and disabled, the consequence's label, and the select's first option. The other questions are read off
-         * their sources (each needs a world state tier 1 may not make: a bullet to sweep, a Faint trace, an incident, a
+         * their sources (each needs a world state tier 1 may not make: a bullet to sweep, an incident, a
          * Mastermind, a stopped end): the yes of each on the destructive role. Red on C3a's tree: "They are dead" was the
          * primary, the default, and first in the tree.
+         * Clear Faint Remnants was among them until 1.2.122, which took the question out: no control opened it since
+         * E64-inv (the audit's CTRL-56; End the chapter clears the Faint Remnants).
          *
          * BOTH STATES THE TABLE CAN BE IN (E21 C3 fix, 06.11.2026; CI run 42200796353 on 9f271c34, suite 1/8). This test
          * refused to run with an incident open (a `must`), and 01-runtests' A1 runs tiers 0-1 with one open - the handbook's
@@ -45539,15 +45541,14 @@ const INVARIANTS = [
         const destructiveYes = text => /yes:\s*\{\s*role:\s*"destructive"/.test(text);
         const sources = {
             sweep: destructiveYes(fnSource(investigationBy(read2), "confirmSweepBullets")),
-            clearFaint: destructiveYes(fnSource(read2("remnants.mjs"), "confirmClearFaint")),
             deleteTrace: destructiveYes(fnSource(investigationBy(read2), "deleteTraceRow")),
             endMurderTracker: destructiveYes(fnSource(read2("murder-ui.mjs"), "openIncidentTracker")),
             endMurderFight: destructiveYes(fnSource(read2("murder-rules.mjs"), "killerFell")),
             finalVerdict: (t => /destructive:\s*\[[^\]]*action:\s*"correct"[\s\S]*action:\s*"wrong"/.test(t) && /default:\s*"cancel"/.test(t) && !/primary:/.test(t))(fnSource(read2("verdict.mjs"), "openFinalVerdictDialog")),
             stoppedEnd: /destructive:\s*\[\{\s*action:\s*"finish"[\s\S]*action:\s*"drop"/.test(fnSource(chapterBy(read2), "askStoppedEnd"))
         };
-        must(Object.values(sources).length === 7 && fnSource(investigationBy(read2), "confirmSweepBullets").length > 200, "a source was not read - this would measure nothing");
-        equal(stableJson(sources), stableJson({ sweep: true, clearFaint: true, deleteTrace: true, endMurderTracker: true, endMurderFight: true, finalVerdict: true, stoppedEnd: true }),
+        must(Object.values(sources).length === 6 && fnSource(investigationBy(read2), "confirmSweepBullets").length > 200, "a source was not read - this would measure nothing");
+        equal(stableJson(sources), stableJson({ sweep: true, deleteTrace: true, endMurderTracker: true, endMurderFight: true, finalVerdict: true, stoppedEnd: true }),
             "[the questions read off their sources: whether each one's yes is on the destructive role]");
     }],
     ["R1361 - the chapter's end window says why a box is shut and marks what cannot be undone (E22 C3b; S12-19, S06-47; the owner's Q-E21-1 (c)): chapter.mjs `chapterEndForm` draws a box at 0 disabled with its words in the fine print and its reason after them, the four permanent boxes - the reveal, the sweep, the Faint clean-up, the Key Remnants - ticked with their counts, `drpg-destructive` on the label and \"cannot be undone\" in its words, and the Final Truth note only with a Mastermind set", async () => {
@@ -46207,7 +46208,8 @@ const INVARIANTS = [
             ["call-gm.mjs#askForRequest", /gmRoute: \[\{\s*action: "send",\s*label: game\.i18n\.localize\("DRPG\.Bridge\.send"\)/, "DRPG.Bridge.send"],
             ["cleanup-reshape.mjs#askTransform", /gmRoute: \[\{\s*action: "change",\s*label: game\.i18n\.localize\("DRPG\.Cleanup\.transformChange"\)/, "DRPG.Cleanup.transformNote"],
             ["cleanup-reshape.mjs#askTransformChange", /gmRoute: \[\{\s*action: "go",\s*label: game\.i18n\.localize\("DRPG\.Cleanup\.transformGo"\)/, "DRPG.Cleanup.transformActionNote"],
-            ["action-murder.mjs#performDirectMurder", /yes: \{ role: "gmRoute", label: game\.i18n\.localize\("DRPG\.Dialog\.yes"\) \}/, "DRPG.Action.murderConfirmEclipse"],
+            // Its yes names its effect since 1.2.122 (the audit's STG-65).
+            ["action-murder.mjs#performDirectMurder", /yes: \{ role: "gmRoute", label: game\.i18n\.localize\("DRPG\.Action\.murderDeclareYes"\) \}/, "DRPG.Action.murderConfirmEclipse"],
             // Since E72 by calls.mjs `callAsksGm` (a row a GM rules, or Talent's tile of two such rows; read in `tiles` below).
             ["calls.mjs#confirmCall", /gmRoute: asksGm,/, "DRPG.Calls.waitsForGm"],
             // E68 C4: a crisis row whose statistic a GM approves, and a project's statistic proposal; each sentence says the GM approves.
@@ -49058,6 +49060,8 @@ const INVARIANTS = [
             "infiltrate-reroll.mjs settleWatch": "a Keep Watch's Reroll, the first throw's Sanity mark given back where it no longer stands (1.2.122, ROLL-24)",
             "cleanup.mjs markResolutionStress": "the resolution's Sanity price, written",
             "cleanup.mjs restoreStress": "a refund of Sanity, written",
+            // 1.2.122, the audit's CASE-27: the cover's critical given back on the GM, its marks counted on the attempt's receipt.
+            "cleanup.mjs coverGiveBack": "the cover critical's Sanity given back on the GM, the marks it moved read for the receipt",
             "cleanup.mjs resolveCleanup": "the receipt's Sanity before the attempt, for a Reroll",
             "cleanup.mjs tamperWatchBlock": "a threshold: no Sanity left and watched refuses the concealment",
             "config.mjs LEGAL_ROLL_MODIFIERS": "the legal roll's reader for Breakdown's die (roll-draw.mjs), a rule's table",
@@ -61532,6 +61536,133 @@ const INVARIANTS = [
         ];
         equal(stableJson(read), stableJson([true, true, false, false, false, false]),
             "[Hope, critical, Despair, a failure, a trap, self-inflicted] - whether the opening hides the killer");
+    }],
+    ["R8221 - the pickers' veil and the voice tile's veil are one predicate, and their answers never differ (scripts/mask-gm.mjs `veilHidesHere`, `veiledFromHere`, `userVeiledFromHere`; visibility.mjs `voiceVeiledHere`; 1.2.122 line MURDER, a known gap since 1.2.119): on stand-in scenes - a veiled token this browser hides, a veiled one it shows, a token not veiled, a token on a second scene - asked of each student and of the one player owning it, as a player's browser and as a GM's, the two answer alike; `voiceVeiledHere` walks no tokens of its own", async () => {
+        /* 21.11.2026, 1.2.122 line MURDER. `veiledFromHere` (an actor, mask-gm.mjs) and `voiceVeiledHere` (a user,
+           visibility.mjs) each looped over every scene's tokens with a flag reader and a GM test of its own. Stand-ins; the
+           verdict `shown` handed in as the browser's `tokenShownTo` would answer. Red at 21bf5d18: mask-gm.mjs had no
+           userVeiledFromHere. */
+        const K = await import("./mask-gm.mjs");
+        ok(typeof K.userVeiledFromHere === "function" && typeof K.veilHidesHere === "function", "mask-gm.mjs has no one veil predicate for both callers");
+        if (typeof K.userVeiledFromHere !== "function") return;
+        const flagged = { flags: { [MODULE_ID]: { [K.VEIL_FLAG]: true } } };
+        const owners = { aHid: "uHid", aShown: "uShown", aPlain: "uPlain", aFar: "uFar" };
+        const actorOf = id => ({ id, testUserPermission: (u, level) => level === "OWNER" && owners[id] === u.id });
+        const token = (id, actorId, veiled) => ({ id, actorId, actor: actorOf(actorId), ...(veiled ? flagged : { flags: {} }) });
+        const scenes = [{ tokens: [token("tHid", "aHid", true), token("tShown", "aShown", true), token("tPlain", "aPlain", false)] }, { tokens: [token("tFar", "aFar", true)] }];
+        const shown = doc => (doc.id === "tHid" || doc.id === "tFar" || doc.id === "tPlain" ? "hide" : "show");
+        const me = { id: "uMe", isGM: false };
+        const out = [];
+        for (const gm of [false, true]) for (const [actorId, userId] of Object.entries(owners)) {
+            const byActor = K.veiledFromHere(actorOf(actorId), { scenes, shown, user: { ...me, isGM: gm } });
+            const byUser = K.userVeiledFromHere({ id: userId, isGM: false }, { scenes, shown, user: me, gm });
+            out.push([gm, actorId, byActor, byUser]);
+        }
+        equal(stableJson(out.map(([gm, id, a, u]) => [gm, id, a, a === u])), stableJson([
+            [false, "aHid", true, true], [false, "aShown", false, true], [false, "aPlain", false, true], [false, "aFar", true, true],
+            [true, "aHid", false, true], [true, "aShown", false, true], [true, "aPlain", false, true], [true, "aFar", false, true]
+        ]), "[a GM's browser, the student, veiled from here by the pickers' rule, the voice's rule agreeing]");
+        // The voice tile's own call, on characters the map's rule reads (visibility.mjs `tokenShownTo`): a viewer of no
+        // Eclipse beside the killers' side of "aShown", rooms not enforced - the veiled "aHid" hidden, "aShown" shown.
+        const VIS = await import("./visibility.mjs");
+        const character = id => ({ ...actorOf(id), type: "character", getFlag: () => undefined });
+        const drawnTokens = [{ tokens: [{ id: "tHid", actorId: "aHid", actor: character("aHid"), ...flagged }, { id: "tShown", actorId: "aShown", actor: character("aShown"), ...flagged },
+            { id: "tPlain", actorId: "aPlain", actor: character("aPlain"), flags: {} }] }];
+        const viewer = { gm: false, eclipse: false, enforcing: false, rooms: new Set(), lair: null, spectator: false, killersSide: new Set(["aShown"]), owns: () => false };
+        const voice = ["uHid", "uShown", "uPlain"].map(id => {
+            const subject = { id, isGM: false };
+            const byVoice = VIS.voiceVeiledHere(subject, { viewer, scenes: drawnTokens });
+            const byPickers = K.userVeiledFromHere(subject, { scenes: drawnTokens, shown: doc => VIS.tokenShownTo(doc, viewer), user: me, gm: false });
+            return [id, byVoice, byVoice === byPickers];
+        });
+        equal(stableJson(voice), stableJson([["uHid", true, true], ["uShown", false, true], ["uPlain", false, true]]),
+            "[the subject, the voice tile's veil, the pickers' rule agreeing] on the map's own verdict");
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/visibility.mjs`).then(lfText);
+        const body = fnSource(src, "voiceVeiledHere");
+        equal(stableJson([body.includes("userVeiledFromHere("), /\bfor\s*\(/.test(body)]), stableJson([true, false]),
+            "[voiceVeiledHere asks the one predicate, walks tokens of its own]");
+    }],
+    ["R8222 - a betrayal is offered only while both the third and the killer live (scripts/incident-store.mjs `betrayalCandidate`; the audit's CASE-26, 1.2.122 line MURDER): an incident that left a body with a third on the killer's side answers the third; with the killer dead, or the third dead, it answers none", async () => {
+        /* 21.11.2026, 1.2.122 line MURDER. The audit's CASE-26: the checklist and the offer's arming read betrayalCandidate,
+           which asked only that the killer's actor exists. Pure reading: a hand-built state, two students of this world, the
+           deaths answered by the test's own `deadNow`. Red at 21bf5d18: the dead killer's case answered the third. */
+        needs(world.atLeast("livingStudents", 3), "a killer, a victim and a third");
+        const S = await import("./incident-store.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { isMonokuma } = await import("./monokuma.mjs");
+        const [killer, victim, third] = livingStudents().filter(a => !isMonokuma(a));
+        const state = { killerId: killer.id, victimId: victim.id, thirdId: third.id, thirdSide: "killer", endedBy: "finishingBlow", stage: "resolution" };
+        const dead = ids => a => ids.includes(a?.id);
+        const read = [[], [killer.id], [third.id]].map(ids => S.betrayalCandidate(state, killer, dead(ids))?.id ?? null);
+        equal(stableJson(read), stableJson([third.id, null, null]), "[the candidate with both alive, with the killer dead, with the third dead]");
+    }],
+    ["R8223 - a declaration's note window answers `{ note, proposed }` to a caller that lists statistics, however many (scripts/action-menus.mjs `promptForNote`, `noteAnswerOf`; action-murder.mjs `performDirectMurder`; the audit's ROLL-32, 1.2.122 line MURDER): a list of two answered by the window, a list of one answered by its sentence, a closed window, and a caller with no list", async () => {
+        /* 21.11.2026, 1.2.122 line MURDER. The audit's ROLL-32: with one statistic listed the window answered the sentence as a
+           string, and `const { note, proposed } = ...` read note undefined. Pure readings of the answer's shape. Red at
+           21bf5d18: action-menus.mjs had no noteAnswerOf. */
+        const A = await import("./action-menus.mjs");
+        ok(typeof A.noteAnswerOf === "function", "action-menus.mjs has no noteAnswerOf: the answer's shape depends on the list's length");
+        if (typeof A.noteAnswerOf !== "function") return;
+        const read = [
+            A.noteAnswerOf({ note: "with a pipe", proposed: "body" }, ["body", "hand"]),
+            A.noteAnswerOf("with a pipe", ["body"]),
+            A.noteAnswerOf(null, ["body"]),
+            A.noteAnswerOf("with a pipe", null),
+            A.noteAnswerOf(null, null)
+        ];
+        equal(stableJson(read), stableJson([{ note: "with a pipe", proposed: "body" }, { note: "with a pipe", proposed: null }, { note: "", proposed: null }, "with a pipe", ""]),
+            "[two listed, one listed, one listed and closed, no list, no list and closed]");
+    }],
+    ["R8225 - End the murder's question says the yes records the death of a student by their own hand at Stage 6 (scripts/murder-ui.mjs `endRecordsDeath`, the tracker's `end`; murder-rules.mjs `endMurder`, `closeIncident`; the audit's CTRL-82, 1.2.122 line MURDER): the rule reads true for a self-inflicted incident at Stage 6 alone, the close kills on the same two fields, and the sentence it adds names the student in both languages", async () => {
+        /* 21.11.2026, 1.2.122 line MURDER. The audit's CTRL-82: the question had one sentence for every incident, and for a
+           self-inflicted one at Stage 6 its yes records the death. Pure readings, and the source of endMurder's kill.
+           Red at 21bf5d18: murder-ui.mjs had no endRecordsDeath. */
+        const U = await import("./murder-ui.mjs");
+        ok(typeof U.endRecordsDeath === "function", "murder-ui.mjs has no endRecordsDeath: the question never says the yes kills");
+        if (typeof U.endRecordsDeath !== "function") return;
+        const read = [{ selfInflicted: true, stage: "resolution" }, { selfInflicted: true, stage: "openingRoll" }, { selfInflicted: false, stage: "resolution" }, null].map(U.endRecordsDeath);
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/murder-rules.mjs`).then(lfText);
+        const kills = fnSource(src, "closeIncident").includes(`state?.selfInflicted && state.stage === "resolution"`);
+        const line = game.i18n.format("DRPG.Murder.endConfirmSelf", { name: "Aiko" });
+        equal(stableJson([read, kills, line.includes("Aiko") && line !== "DRPG.Murder.endConfirmSelf"]), stableJson([[true, false, false, false], true, true]),
+            "[the rule for Stage 6 self-inflicted, its opening, a murder at Stage 6, no incident; endMurder's close (`closeIncident`) kills on the same fields; the sentence names the student]");
+    }],
+    ["R8226 - Body found's 'Whose body?' offers the dead but no Monocub (scripts/body.mjs `bodyCandidates`; the audit's CASE-68, 1.2.122 line MURDER): of a living student, a dead one and a dead one who walks as a Monocub, the list holds the dead one alone", async () => {
+        /* 21.11.2026, 1.2.122 line MURDER. The audit's CASE-68: the list was every student dead for the GMs, a Monocub among
+           them. Stand-ins, the deaths answered by the test's own `dead`. Red at 21bf5d18: body.mjs had no bodyCandidates. */
+        const B = await import("./body.mjs");
+        const { FLAGS } = await import("./config.mjs");
+        ok(typeof B.bodyCandidates === "function", "body.mjs has no bodyCandidates: a Monocub is offered as a body");
+        if (typeof B.bodyCandidates !== "function") return;
+        const actor = (id, monocub) => ({ id, getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.monocub ? monocub : undefined) });
+        const list = [actor("living", false), actor("dead", false), actor("cub", true)];
+        equal(stableJson(B.bodyCandidates(list, { dead: a => a.id !== "living" }).map(a => a.id)), stableJson(["dead"]), "the students 'Whose body?' offers");
+    }],
+    ["R8227 - a token's redraw on a player's browser costs the local death mark nothing while no death is kept here, and the mask's listener walks no scene (scripts/incident-store.mjs `markLocalDeath`; mask-gm.mjs `registerMasks`; perf-counters.mjs; the audit's CASE-58 and CASE-71, 1.2.122 line MURDER): a stand-in token with no mark, this browser's copy of the deaths empty, is not read past its children and is counted once; the mask's `refreshToken` listener counts itself and asks the own mask only when one of this player's own tokens turned its mask", async () => {
+        /* 21.11.2026, 1.2.122 line MURDER. CASE-58: every refresh ran the death reads and a children scan with no counter.
+           CASE-71: every refresh on a player's browser walked every token of every scene (`noticeOwnMask` -> `myMask`). A
+           stand-in token whose `actor` counts its reads; the counters' delta (`snapshot`, `delta`); and the listener's
+           source (`registerMasks`). Nothing written. Red at 21bf5d18: markLocalDeath was not exported. */
+        const S = await import("./incident-store.mjs");
+        const P = await import("./perf-counters.mjs");
+        const { deathCopy } = await import("./gm-stores.mjs");
+        ok(typeof S.markLocalDeath === "function", "incident-store.mjs does not export markLocalDeath");
+        if (typeof S.markLocalDeath !== "function") return;
+        must(!Object.keys(deathCopy.read() ?? {}).length, "this browser's copy of the deaths holds one - the early way out would not be read");
+        let reads = 0;
+        const token = { get actor() { reads++; return null; }, children: [] };
+        const before = P.snapshot();
+        S.markLocalDeath(token);
+        const counted = P.delta(before, P.snapshot())?.["refreshToken.localDeath"] ?? 0;
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/mask-gm.mjs`).then(lfText);
+        const reg = fnSource(src, "registerMasks");
+        const refresh = reg.match(/Hooks\.on\("refreshToken", token => \{([\s\S]*?)\}\);/)?.[1] ?? null;
+        const K = await import("./mask-gm.mjs");
+        const mine = flag => ({ id: "SUITE8227TOKEN00", isOwner: true, flags: { [MODULE_ID]: flag ? { [K.MASK_FLAG]: true } : {} } });
+        const turned = typeof K.ownMaskTurned === "function"
+            ? [K.ownMaskTurned(mine(false)), K.ownMaskTurned(mine(false)), K.ownMaskTurned(mine(true)), K.ownMaskTurned({ ...mine(true), isOwner: false, id: "SUITE8227OTHER00" })] : null;
+        equal(stableJson([reads, counted, refresh !== null && refresh.includes('count("refreshToken.mask")') && refresh.includes("ownMaskTurned(token)") && refresh.indexOf("ownMaskTurned") < refresh.indexOf("noticeOwnMask"), turned]),
+            stableJson([0, 1, true, [true, false, true, false]]), "[the token's actor read, the death mark counted, the mask's refresh listener counted and asking the own mask behind `ownMaskTurned`, its answers: a first redraw, the same again, the mask on, another's token]");
     }],
     ["R7400 - a Remnant and a project token are drawn under every character whatever their sort (scripts/remnant-ring.mjs `traceLayer`, `keepUnderCharacters`, `paint`; owner-115 item 2): a trace's mesh goes to the sort layer just under Foundry's tokens, above its tiles and drawings, once - the primary group told to sort again only when the layer moved; a token with no mesh is left; `paint` puts a Remnant or a project token there before it asks whether the token is seen, and never a character", async () => {
         /* owner-115 item 2, 14.11.2026; the owner at a table on 1.2.114: "Gdy token postaci jest w tym samym miejscu co remnant,

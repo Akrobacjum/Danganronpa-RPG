@@ -3147,8 +3147,10 @@ const REGRESSIONS = [
             "nothing bounds the step a Tamper packet claims to have paid");
         ok(/async function handBack\(/.test(cleanup),
             "the critical is back to healing Sanity the attempt may never have spent");
+        // The concealment's own refund is kept for the attempt's packet and given back on the GM since 1.2.122 (the audit's
+        // CASE-27; cleanup.mjs `takeCoverRefund`, `coverGiveBack`; tier 2 "1.2.122 CASE-27" drives both sides).
         const conceal = bodyOf(cleanup, "async function concealFromWitnesses");
-        ok(/restoreStress\(/.test(conceal.slice(0, 1600)),
+        ok(/coverRefunds\.set\(/.test(conceal.slice(0, 3200)) && /async function coverGiveBack\([\s\S]{0,1600}restoreStress\(/.test(cleanup),
             "the concealment's own refund is gone - that one is not the attempt's price");
 
         // The step travels: the roll context, both sides of the bridge, the replay.
@@ -8979,6 +8981,8 @@ const REGRESSIONS = [
             ["call-world.mjs", "fallbackGather", "scene", "the room's tokens, drawn round the assembly point (Token documents)"],
             // The trace's token through its ref since E60 C1b (remnants.mjs `remnantById`), `scene.tokens.get()` until then.
             ["cleanup.mjs", "undoLastCleanup", "remnantById().document", "the trace token a clean-up left behind"],
+            // 1.2.122 line MURDER (the audit's CASE-31): an erased trace put back shown as it stood.
+            ["cleanup.mjs", "undoLastCleanup", "back", "the trace token an erase's Reroll put back, shown again as it stood"],
             // E92 C6: the player's own User document, its "Spectator talk" switch.
             ["spectator-ui.mjs", "toggleSpectatorTalk", "user", "the player's own Spectator talk switch, a flag on its own User (E92 C6; the voice tile's button since round 3)"],
             ["incident-store.mjs", "retireOpeningNotices", "game.messages.get()", "the GMs' opening notices"],
@@ -9192,6 +9196,8 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#murder.cleanup#transform", "judged: bounded against CLEANUP.transform; C10 stores the proposal on the attempt row (the card carries only the tag); without both a name and a text it is no rewrite, the critical erases (resolveEraseRoad, C11)"],
             ["PACKET gm-bridge.mjs#murder.cleanup#change", "judged: bounded against CLEANUP.transform (Z5); without both a name and a text no reshape is put to the GMs (resolveTransformRoad, C11)"],
             ["PACKET gm-bridge.mjs#murder.cleanup#rollId", "judged: bridge-guards.mjs rollRefusal reads the result from the GMs' roll row (E28); the packet's number is a claim"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#cover", "judged: cleanup.mjs coverGiveBack bounds it to CLEANUP.conceal.refundStress.critical and gives it back only with a witness the GM reads in the room (the audit's CASE-27, 1.2.122)"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#coverRollId", "judged: cleanup.mjs coverGiveBack reads the GMs' roll row it names - this sender's, this character's, a critical - and marks it resolved \"cover\", once (CASE-27, 1.2.122)"],
             ["PACKET gm-bridge.mjs#remnant.place#data", "judged: narrowPlayerRemnant rebuilds a player's trace from a whitelist; C5 decides a Sabotage trace's tie by worksOwnMurder from the GMs' roll row, never the packet"],
             ["PACKET gm-bridge.mjs#remnant.place#rollId", "judged: the GMs' roll row (noteFactOfRoll) gives the band (traceBandOf) and, from C5, the sabotaged project and its actor"],
             ["PACKET gm-bridge.mjs#remnant.tieForItem#identity", "judged: guardTieTraceHolder - only the holder, in the fight; remnants.mjs tieTraceForItem writes the tie, and C4's prep checks it keeps the three states (read in the code); since fix r1-G1 the copies learn it when the death is the table's, or at the fight's close (tieWaitNow)"],
@@ -14701,7 +14707,8 @@ const REGRESSIONS = [
                 && /scene: esc\(scene\?\.name \?\? "\?"\)/.test(fnSource(code("traps.mjs"), "alert")),
             oneScene: /place\.scene\.id === projectScene\(countdownId\)\?\.id/.test(fnSource(code("projects.mjs"), "standsAtProject"))
                 && /standsAtProject\(\{ room, scene \}, trap\.id\)/.test(fnSource(code("traps.mjs"), "armedIn"))
-                && /return sameRoom\(actor, victim\);/.test(fnSource(cleanupBy(code), "bodyIsHere"))
+                // Where the body lies, on the killer's scene, floor and room (1.2.122 line MURDER, the audit's CASE-32).
+                && /return samePlace\(locateActor\(actor\), locateActor\(victim, \{ body: true \}\)\);/.test(fnSource(cleanupBy(code), "bodyIsHere"))
                 && /DRPG\.Panel\.noSceneNamed/.test(fnSource(api, "sceneNamed"))
                 && /if \(room && game\.user\?\.isGM && !sceneOfRoom\(room\)\)/.test(fnSource(api, "createProjectNamed")),
             putBack: /if \(!roomFlagSeen\.has\(region\.id\)\) return keepRoomFlag\(region, undefined, false, author\);/.test(fnSource(movement, "judgeRoomFlagChange"))
@@ -23539,6 +23546,8 @@ const REGRESSIONS = [
             "gm-items.mjs": {"action": 1, "heading": 2},
             // 1.2.122 line TEXT (TEXT-32): the missing answer key's one send to the owner and the GMs is two, the owner's and the GMs'
             "handover.mjs": {"built": 1, "heading": 2, "line": 14, "message": 1},
+            // 1.2.122 line MURDER (the audit's CASE-25): the GMs told a standing betrayal offer was kept (`armBetrayalWindow`).
+            "incident-store.mjs": {"line": 1},
             "inventory.mjs": {"card": 3, "line": 3}, 
             "key-remnants.mjs": {"card": 1, "line": 2}, "level-up.mjs": {"heading": 1, "line": 4},
             // E69 C8 (13.11.2026): the killer's own cards behind the "?" (mask-gm.mjs), its start and its end at the time of day.
@@ -27148,7 +27157,8 @@ const REGRESSIONS = [
         const sources = new Map(await otherSources());
         const over = fnSource(stripComments(sources.get("overflow.mjs") ?? ""), "announceOverflow");
         ok(/murderState\(\)/.test(over) && /incidentAudienceIds\(/.test(over) && /veiled:\s*true/.test(over), "announceOverflow posts a darkening to the whole table while an incident runs");
-        const end = fnSource(stripComments(sources.get("eclipse.mjs") ?? ""), "endEclipse");
+        // The end's body is `endEclipseNow` since 1.2.122 (`endEclipse` lets go of the lights' dice around it, r121-K-3).
+        const end = fnSource(stripComments(sources.get("eclipse.mjs") ?? ""), "endEclipseNow");
         ok(/murderState\(\)/.test(end) && /DRPG\.Eclipse\.ended/.test(bodyOf(end, "if (advance)", { until: "} else {" })), "endEclipse tells the bystanders nothing of the lights coming back while an incident runs");
     }],
     ["R7182 - the third of an incident was there, for the discovery as for its sound (E59 C-115, CHAINS.md B-M4; Q-115-9, the coordinator's word: GM 13.4's rule, \"that body's own killers or the third of its incident (they were there)\"): body.mjs `inThatDeath` read the running incident's third alone, gone at the close, and the discovery's witnesses (`checkBodyFound`'s `involved`) never left the third out; the close (murder-rules.mjs `closeIncident`) keeps the third and whoever walked out of the incident on the victim's death row (its `keepThoseThere`, the row's `there`), `inThatDeath` reads the row and the running incident's `departed` too, and `involved` asks `inThatDeath` of the body lying here", async () => {

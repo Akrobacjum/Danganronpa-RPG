@@ -46,7 +46,8 @@
  * `node tools/moved-only.mjs` proves line by line. Above it are murder-ui.mjs,
  * which reads five of its names (`openMurder`, `rollOpening`, `passTurn`,
  * `endMurder`, `openingInvited`), and murder.mjs, which re-exports the
- * thirty-one names of this file it exported before, so importers keep importing
+ * names of this file it exported then (thirty-two, counted on 21.11.2026:
+ * `openingProposalFor`, E68 C9 0f9a9a53, came after 1.2.70), so importers keep importing
  * murder.mjs; nothing here imports either back: R161 counts an `export ... from`
  * as an edge, and the import would close a cycle. Below it are
  * incident-store.mjs, config.mjs, monokuma.mjs, settings.mjs, gm-stores.mjs,
@@ -83,7 +84,7 @@ import { dropRemnant, traceFeedback, publishTiesFor, fightKey, remnantById } fro
 import { closeOpen } from "./live.mjs";
 import {
     announce as announcePlain, whisperToGms, whisperToOwner as whisperToOwnerPlain, ownerOf,
-    ownerIdsOf, gmIds, isPrimaryGm, hiddenByGm, log, warn, error, plural, listOf, proseOf, debug, esc, cardHead, markFired
+    ownerIdsOf, gmIds, isPrimaryGm, primaryGmId, hiddenByGm, worldLocalize, log, warn, error, plural, listOf, proseOf, debug, esc, cardHead, markFired
 } from "./utils.mjs";
 // The kit's frame (E21 C3a): the fight's questions and the checklists after it, answering as before.
 import { drpgWindow, drpgConfirm, tipText } from "./ui-kit.mjs";
@@ -234,7 +235,9 @@ function isFreeTake(def, side, state) {
  * WINDOW AND THE JUDGE (E51 C1; the owner's amendment of 14.10): the menu's "Beat N" (`availableCrisisActions`), the
  * `dc` `takeCrisisAction` hands the roll window, read at the roll and not when the menu opened, and the GM's
  * `applyCrisisAction`, which scores the total against it on the GM's own state - the window's number is what the
- * player is told, never what is judged.
+ * player is told, never what is judged. One reading on one state: a copy of the cast that names no killer (a mask, a
+ * trap) reads a lower number than the GM's, and says a hidden defence is added (`crisisDefenseHidden`, 1.2.121's
+ * CASE-16; the audit's D1 of 1.2.122).
  */
 export function crisisThreshold(key, state = murderState(), { traitOf } = {}) {
     const def = CRISIS_ACTIONS[key];
@@ -520,6 +523,14 @@ export async function openMurder({ killerId, victimId, indirect = false, opening
     const killer = game.actors.get(killerId);
     const victim = game.actors.get(victimId);
     if (!killer || !victim) return null;
+    /* NOT ON THE DEAD (the audit's REFR-37, 1.2.122): the murder window reads the living once, and a death recorded while
+       it stood (the Students list's Kill, another GM, a Despair Call) left that student in both lists; Open the incident
+       then wrote a fresh incident and sent the opening roll for them. Refused here, on every road, as the GMs know it. */
+    const dead = [killer, victim].find(a => isDeadForGm(a));
+    if (dead) {
+        ui.notifications.warn(game.i18n.format("DRPG.Chapter.alreadyDead", { name: dead.name }));
+        return null;
+    }
 
     /*
      * ONE PERSON ON BOTH SIDES.
@@ -901,6 +912,11 @@ export async function resolveVictimOpening({ total, isCritical, withHope }) {
     }
 
     await tellGms(def[band]);
+    /* THE ROLL IS ANSWERED (the audit's CASE-57 and CTRL-30, 1.2.122): the stage stays the opening by the owner's rule,
+       and nothing recorded that the roll was made, so the tracker went on waiting for it and offered to ask again - a
+       second roll, whose miss sprang the trap the victim had noticed. `endedBy: "noticed"` (the cast's, the GMs'; no
+       body ending, `leftABody`) is what the tracker's bar and footer read now. Against the stage as it was read. */
+    await writeState({ endedBy: "noticed" }, { expect: { stage: "openingRoll", openedAt: state.openedAt } });
 
     // The struggle to notice leaves its own trace. Stage 4's only Remnant, and
     // it belongs to the victim's roll rather than the killer's - see the note on
@@ -1565,20 +1581,27 @@ async function rateTierZero(actor, item, rule) {
  *
  * @returns {Promise<string|null>} the item's id, so a Reroll can take it back.
  */
-async function grantImprovisedWeapon(actor, def, band, done) {
+export async function grantImprovisedWeapon(actor, def, band, done) {
     const tier = def.unarmedImprovises?.[band];
     if (tier === undefined) return null;
 
+    /* IN THE WORLD'S DOCUMENT LANGUAGE (the audit's TEXT-21, 1.2.122; D34, R1154): the item is a world document every
+       browser reads, and its name was the config prose `localizeConfig` had swapped to this GM's page language, its
+       description `game.i18n` - a Polish GM's "Improwizowana broń" in an English world. Both through `worldLocalize`,
+       the config prose by its key (`DRPG.Config.CRISIS_ACTIONS.<row>.unarmedImprovises.name`), the page's text where the
+       world names no language. Red at 21bf5d18 (tier 2 "1.2.122 TEXT-21"): the page's name in a Polish world. */
+    const row = Object.keys(CRISIS_ACTIONS).find(key => CRISIS_ACTIONS[key] === def) ?? "weaponAttack";
+    const name = await worldLocalize(`DRPG.Config.CRISIS_ACTIONS.${row}.unarmedImprovises.name`) || def.unarmedImprovises.name;
     const { grantItem } = await import("./inventory.mjs");
     const item = await grantItem(actor, {
         reason: "incident",
-        name: def.unarmedImprovises.name,
+        name,
         category: "crimeTool",
         tier,
         // The killer is mid-incident and cannot go and put something down;
         // a GM's ruling outranks the carry cap here.
         override: true,
-        description: `<p>${game.i18n.localize("DRPG.Murder.improvisedNote")}</p>`
+        description: `<p>${await worldLocalize("DRPG.Murder.improvisedNote")}</p>`
     });
 
     if (!item) return null;
@@ -1618,6 +1641,8 @@ async function grantImprovisedWeapon(actor, def, band, done) {
  */
 export async function resolveCrisisAction(options = {}) {
     if (!game.user.isGM) return null;
+    // A new crisis action may ask the two killers' question again (`checkVictimSpent`, CASE-23).
+    if (!resolving) spentAsked = null;
     resolving++;
     try {
         return await applyCrisisAction(options);
@@ -1949,7 +1974,7 @@ async function applyCrisisAction({
     // The third party's decisions are "automatyczny, darmowy wybór" - free in
     // the guide's own words - so they are exempt from the Sanity a resolution
     // action normally costs, exactly as they are exempt from the check for it
-    // in `takeCrisisAction`.
+    // in `crisisRefusal` (since E03; `takeCrisisAction` asks it there).
     if (def.kind === "resolution" && !def.noRoll) await spendStress(actor, done);
 
     // Before the card is written, so "they run out" is on the same card as the
@@ -2438,6 +2463,37 @@ function isSpent(actor) {
  *   action's own resolution asks: the victim is added to it if this killed them.
  * @returns {Promise<boolean>} true if this ended the incident.
  */
+/*
+ * THE TWO KILLERS' QUESTION IS ASKED ONCE A TURN (the audit's CASE-23, 1.2.122). `applyCrisisAction` asks it before the
+ * card and after the pass, and the actor hook held while the action is scored asks it a third time as it ends, and
+ * nothing remembered a Cancel: the same window came back two or three times in a row for one action. A question open
+ * here, or one cancelled during this crisis action (`spentAsked`, the incident's `openedAt`, let go as the next action
+ * starts in `resolveCrisisAction`), is not asked again; the next crisis action asks it once more - which its note now says, where it sent the GM to a tracker button that closes the incident with
+ * nobody dead. Red at 21bf5d18 (tier 2 "1.2.122 CASE-23"): three windows for one action.
+ */
+let spentAsked = null;
+
+/**
+ * A QUESTION GOES WITH ITS INCIDENT (the audit's REFR-39, 1.2.122; `killerFell`'s rule of E68 T6, made one helper):
+ * `drpgConfirm(options)` about the incident `state`, closed unanswered - null, as a closed window answers - once the
+ * world's half says the running incident is not that one (`openedAt`) or, with `stage`, not at that stage. Heard on the
+ * incident setting's update, which every client hears whichever GM wrote it. The two killers' question here and the
+ * tracker's End the murder (murder-ui.mjs) ask through it; its yes no longer runs on an incident that moved on.
+ */
+export async function askWhileIncident(state, stage, options) {
+    const asked = () => { const now = murderState(); return Boolean(now?.active) && now.openedAt === state?.openedAt && (!stage || now.stage === stage); };
+    let question = null;
+    const shut = dialog => { if (dialog && !asked()) dialog.close()?.catch?.(err => debug("Could not close the question of an incident that moved on", err)); };
+    const watch = Hooks.on("updateSetting", setting => { if (setting?.key === `${MODULE_ID}.${SETTINGS.murderState}`) shut(question); });
+    try {
+        const render = options?.render;
+        const answer = await drpgConfirm({ ...options, render: (event, dialog) => { question = dialog; render?.(event, dialog); shut(dialog); } });
+        return asked() ? answer : null;
+    } finally {
+        Hooks.off("updateSetting", watch);
+    }
+}
+
 async function checkVictimSpent(done = null, killed = null) {
     if (!game.user.isGM) return false;
 
@@ -2446,6 +2502,7 @@ async function checkVictimSpent(done = null, killed = null) {
 
     const victim = game.actors.get(state.victimId);
     if (!isSpent(victim)) return false;
+    const askedKey = String(state.openedAt ?? "");
 
     // One killer: the incident is over and closing it is bookkeeping.
     //
@@ -2456,10 +2513,13 @@ async function checkVictimSpent(done = null, killed = null) {
     // because the guide does not say, and the wrong silent default here is one
     // nobody can undo.
     if (killerIds(state).length > 1) {
+        if (spentAsked?.key === askedKey) return false;
+        spentAsked = { key: askedKey };
         const names = killerIds(state)
             .map(id => game.actors.get(id)?.name).filter(Boolean)
             .map(n => foundry.utils.escapeHTML(n)).join(" & ");
-        const now = await drpgConfirm({
+        // Closed unanswered once the incident is no longer this one in its fight (the audit's REFR-39, `askWhileIncident`).
+        const now = await askWhileIncident(state, "incident", {
             classes: ["drpg-panel"],
             title: game.i18n.localize("DRPG.Murder.ranOutTitle"),
             body: `<div>
@@ -2474,6 +2534,7 @@ async function checkVictimSpent(done = null, killed = null) {
             rejectClose: false
         });
         if (!now) return false;
+        spentAsked = null;
     }
 
     // Against the incident it read (E32 C4): the hook's check and the action's, or two
@@ -3041,7 +3102,7 @@ async function spendStress(actor, done) {
      *
      * This branch used to be `return` - the action went through and cost
      * nothing, which was the quiet half of the same deadlock the guard in
-     * `takeCrisisAction` describes: a victim on an empty stress track got their
+     * `crisisRefusal` describes (moved there from `takeCrisisAction` by E03): a victim on an empty stress track got their
      * way out free, and the incident lost the one currency that was still
      * moving it towards an ending.
      *
@@ -3800,7 +3861,14 @@ async function afterIncident(state) {
             ? "DRPG.Murder.afterIndirect"
             : "DRPG.Murder.afterDirect"));
 
-    const alreadyInvestigating = getClock().phase === "investigation";
+    const phaseAtOpen = getClock().phase;
+    const alreadyInvestigating = phaseAtOpen === "investigation";
+    /* THE BODY'S BUTTON ON THE GM WHO CAN PRESS IT (the audit's CTRL-79, 1.2.122). Any GM may end a murder and so open
+       this checklist, but only the primary GM announces a body (body.mjs `discoveryHere`): on another GM the primary
+       button - the one Enter presses - closed the window and was refused. There it is not drawn, and the note says whose
+       the announcement is, in the words the refusal used. */
+    const announcesHere = isPrimaryGm();
+    const primaryName = game.users.get(primaryGmId() ?? "")?.name ?? "?";
 
     // Zdrada. The guide's fifth walk-in entry, and the one place two bodies come
     // from: "po zabiciu pierwszego oryginalnego uczestnika" the newcomer may
@@ -3838,12 +3906,14 @@ async function afterIncident(state) {
                 third: foundry.utils.escapeHTML(traitor.name),
                 killer: foundry.utils.escapeHTML(killer?.name ?? "?")
             })}</p>` : ""}
+            ${announcesHere ? "" : `<p class="notes">${game.i18n.format("DRPG.Chapter.bodyPrimaryOnly", { name: foundry.utils.escapeHTML(primaryName) })}</p>`}
         </div>`,
         footer: {
             // THE BODY FIRST, AND IT NO LONGER STARTS STAGE 7 (D5). Announcing
             // the discovery and starting the investigation are two decisions
             // now, and this window offers them in that order.
-            primary: { action: "body", label: game.i18n.localize("DRPG.Chapter.bodyTitle"), tooltip: tipText("DRPG.Tips.Trial.bodyFoundTooltip") },
+            // None on a GM who is not the primary (the kit draws no primary for null; CTRL-79).
+            primary: announcesHere ? { action: "body", label: game.i18n.localize("DRPG.Chapter.bodyTitle"), tooltip: tipText("DRPG.Tips.Trial.bodyFoundTooltip") } : null,
             secondary: [
                 ...(alreadyInvestigating ? [] : [{
                     action: "investigation",
@@ -3869,6 +3939,13 @@ async function afterIncident(state) {
         // Only the phase. Announcing the body is its own button above, and
         // since D5 it is its own beat: the discovery holds the game in Daily
         // Life until a GM presses this or moves the clock.
+        // AS THE CLOCK STOOD WHEN IT WAS OFFERED (the audit's REFR-41, 1.2.122): a checklist answered late - the
+        // Investigation begun meanwhile, or the Class Trial sitting - wrote "investigation" over the phase it found.
+        // A phase moved since the window opened is left as it is, and the GM told.
+        if (getClock().phase !== phaseAtOpen) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Murder.afterPhaseMoved"));
+            return null;
+        }
         const { setPhase } = await import("./clock.mjs");
         return setPhase("investigation");
     }
@@ -4407,13 +4484,20 @@ async function announceCrisis(actor, def, { key = null, success, band, total, th
     return { card, hiddenCopy };
 }
 
-/** Whether `userId`'s own copy of the cast hides the defence of crisis row `key` (`crisisDefenseHidden`): never a GM's. */
+/**
+ * Whether `userId`'s own copy of the cast hides the defence of crisis row `key` (`crisisDefenseHidden`): never a GM's.
+ * THE COPY'S OWN SEATS, NOT THE GMS' (the auditor's r121-K-1, 1.2.122): the copy was laid over the GMs' state, so a
+ * reader whose copy holds no seat at all - a third whose Escape Together failed has left (`thirdLeaves`) before the
+ * card is written, and is sent it as its actor (`also`) - read the GMs' killer and was sent the full line, the killer's
+ * Leg in it, in a trap or behind a mask. The ids are the copy's alone now: a seat the copy does not name is hidden.
+ * Red at 749b35b5 (tier 2 "1.2.122 r121-K-1"): the third's card held the threshold.
+ */
 function defenseHiddenFor(userId, key, state) {
     const user = game.users.get(userId);
     if (!user || user.isGM) return false;
     const world = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
-    const copy = castFor(userId, readCast(), world);
-    return crisisDefenseHidden(key, { ...state, ...world, ...copy, active: true, stage: "incident" });
+    const copy = castFor(userId, readCast(), world) ?? {};
+    return crisisDefenseHidden(key, { ...state, ...world, ...copy, killerId: copy.killerId ?? null, victimId: copy.victimId ?? null, active: true, stage: "incident" });
 }
 
 /**

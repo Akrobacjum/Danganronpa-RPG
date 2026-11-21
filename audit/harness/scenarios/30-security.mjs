@@ -7058,6 +7058,22 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         JSON.stringify({ p2: maskView.p2?.viaActor, p3: maskView.p3?.viaActor }),
         { knownLeak: "foundry-masked-token-actor", measured: maskWas?.done === true });
 
+    /* 1.2.122 line MURDER (the audit's STG-31): the opening's veil asked of the primary (`mask.veil`, a GM's road: 97-two-gms
+       V is its legal use), forged from p2's console for Aiko at the lights - refused gmOnly, logged on the GM, and the GMs'
+       veils as they were. */
+    const readVeils = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); return Object.keys(S.veilStore.entries() ?? {}).sort();`;
+    const veilsBefore = await gm.eval(readVeils);
+    await gm.eval(`(await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures(); return true;`);
+    await p2.eval(`game.socket.emit("${SOCKET}", { action: "mask.veil", userId: "${p2.userId}", requestId: "forge-mask-veil", what: "lights", killerIds: ["${ids.aiko}"] },
+        { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) }); return true;`);
+    await settle(900);
+    const veilsAfter = await gm.eval(readVeils);
+    const veilRefusals = await gm.eval(`return (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
+        .filter(e => e.message.includes('Refused a "mask.veil"')).map(e => e.message);`);
+    check("SECURITY: p2's console asking the primary for the opening's veil (mask.veil) is refused (gmOnly) and logged - the GMs' veils as they were",
+        JSON.stringify(veilsBefore) === JSON.stringify(veilsAfter) && veilRefusals.some(r => /only a GM asks for the opening's veil/.test(r)),
+        JSON.stringify({ veilsBefore, veilsAfter, veilRefusals }), { flow: "mask" });
+
     /* FORGERIES OF A TAIL (E69 C3, 12.11.2026). `tail.start` from p1's console: Botan's character tailing Aiko, and Aiko
        tailing Botan with no roll named - each refused, no tail kept on the GM. The legal road is 33's E69-B. */
     phase("forgeries of a tail", { flow: "tail" });

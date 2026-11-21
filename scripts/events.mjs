@@ -641,11 +641,12 @@ export function bodyCard(clock) {
         if (game.user.isGM) {
             try {
                 const status = keyPlanStatus();
-                if (status.entries.length) {
+                if (status.total) {
                     // `foundAny`, so a Key Remnant found off the plan is not
-                    // missing from the line that says how solvable the case is (F18).
+                    // missing from the line that says how solvable the case is (F18);
+                    // `total`, the slots that hold one and those found off the plan (CASE-29).
                     meta = plural("DRPG.Events.bodyMetaGm",
-                        { found: status.foundAny, total: status.entries.length }, "total");
+                        { found: status.foundAny, total: status.total }, "total");
                 }
             } catch { /* the plan is the GM's and may not exist yet */ }
         }

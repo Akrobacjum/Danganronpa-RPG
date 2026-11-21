@@ -9,8 +9,8 @@
  * token's again when a GM deletes the tile or none was laid.
  *
  * THE OWNER'S RULES OF 11.11.2026 (E63; E95 Q2, Q3, Q8), which replace DC6's "only the murdered" and E95's Monocub
- * edge: the tile is laid when the death is the table's, every death, an execution's too (`leaveBody`, from chapter.mjs
- * `markDeceased`; a death the GMs keep lays none until it is made known, QUESTIONS E63 Q1); it follows its corpse's token
+ * edge: the tile is laid when the death is the table's, every death, an execution's too (`leaveBody`, from death.mjs
+ * `markDeceased`, which chapter.mjs re-exports since E54; a death the GMs keep lays none until it is made known, QUESTIONS E63 Q1); it follows its corpse's token
  * until the student gets up as a Monocub (`followBody`, Q3); every body tile goes at the Class Trial's end (clock.mjs
  * `reconcilePhase`, `removeBodyTiles`), and a student's at a revive or the season's reset. The readers ask any browser,
  * the player's included (anonymity.mjs's greying asks the loot gate there); the writers are the GMs' alone, and the
@@ -171,7 +171,11 @@ export function bodyPlaceOf(actor, { scenes = game.scenes ?? [], tokenPlace = a 
         via: "token", doc: place.tokenDoc ?? null };
 }
 
-/** The room `actor`'s body lies in (`bodyPlaceOf`'s), or null. The one reader of "the body's room" (E72 amend[16]). */
+/**
+ * The room `actor`'s body lies in (`bodyPlaceOf`'s), or null (E72 amend[16]). Called by no module code today - the suite
+ * and scenario 78 read it; body.mjs, frisk.mjs's road and this file's followers read `bodyPlaceOf` (the audit's D48 of
+ * 1.2.122: this called it "the one reader").
+ */
 export function bodyRoomOf(actor, options = {}) {
     return bodyPlaceOf(actor, options)?.room ?? null;
 }

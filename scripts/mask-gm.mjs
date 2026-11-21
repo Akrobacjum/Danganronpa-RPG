@@ -6,10 +6,12 @@
  * opening roll succeeds with Hope, or is a critical (`opensMask`), hides its killer until they reveal themselves or the
  * time of day ends:
  *
- *   - THE "?" TOKEN. The primary GM rewrites the killer's tokens on every place scene (`maskPatch`): the name "?", the
- *     texture Foundry's mystery man, no ring, no name or bars drawn, and one flag, `masked: true`, which says that this
+ *   - THE "?" TOKEN. The primary GM rewrites the killer's tokens on every scene, the trial hall's included (`tokensOf`,
+ *     `maskPatch`): the name "?", the module's own "?" picture (`MASK_IMG`, icons/mask-unknown.svg since 1.2.116), no ring, no name or bars drawn, and one flag, `masked: true`, which says that this
  *     token is hidden and nothing about whose it is. What it looked like is kept in the GMs' store `masks` alone
  *     (gm-stores.mjs `maskStore`), never in a flag or a world setting, and written back at the end (`restorePatch`).
+ *     The Actor's portrait wears the same "?" since E112 item 2b, kept on the row and written back (`portraitOf`,
+ *     `portraitBack`; the audit's D271 of 1.2.122: this header did not say so).
  *     A GM's browser, and a Spectator's (the coordinator's default: a Spectator sees through it, as it sees secret
  *     projects), draws the character's own name over the "?" (`drawMaskName`), from the documents it already holds.
  *   - THE VOICE. The killer is sent to a silent room of their own (voice.mjs `maskedRow`; the coordinator's answer of
@@ -36,6 +38,7 @@ import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { isPrimaryGm, log, error, whisperToOwnerOnly, esc, forcedDeletion } from "./utils.mjs";
 import { maskStore, veilStore } from "./gm-stores.mjs";
+import { count } from "./perf-counters.mjs";
 
 /**
  * The name a masked token wears, and its picture. THE MODULE'S OWN "?" (E112 item 2a, 15.11.2026; the owner: "Morderca
@@ -73,7 +76,7 @@ export function lookOf(token) {
  * The patch that masks a token. Pure (R6029). THE RING'S SUBJECT TOO (owner-115 item 1b, 14.11.2026; the coordinator's road
  * (a)): a v14 token's dynamic ring draws its own subject texture (`ring.subject.texture`, fvtt-types 14.370
  * client/documents/token.d.mts RingSubjectSchema, null for the token's own picture), which the patch left, so a ring put
- * back on by anyone kept the killer's art. It wears the mystery man as well, and gets its own back (R7402).
+ * back on by anyone kept the killer's art. It wears the mask's "?" (`MASK_IMG`) as well, and gets its own back (R7402).
  */
 export function maskPatch() {
     return { name: MASK_NAME, "texture.src": MASK_IMG, "ring.enabled": false, "ring.subject.texture": MASK_IMG, displayName: DISPLAY_NONE,
@@ -538,6 +541,8 @@ let settling = Promise.resolve();
  * its character. One settle at a time, in the order asked. Answers `{ lifted, veiled }` on the primary, else null.
  */
 export function settleVeils() {
+    // Another GM asks the primary and waits for it (STG-31, `veilOnPrimary`): its own settle would write nothing.
+    if (game.user?.isGM && !isPrimaryGm()) return askPrimaryVeil("settle");
     const run = () => settleVeilsNow();
     const next = settling.then(run, run);
     settling = next.catch(() => null);
@@ -583,7 +588,8 @@ async function settleVeilsNow() {
  * one cancelled at the lights is lifted as it is (`liftAtTheLights`).
  */
 export async function veilAtTheLights(killerIds = []) {
-    if (!game.user?.isGM || !isPrimaryGm()) return 0;
+    if (!game.user?.isGM) return 0;
+    if (!isPrimaryGm()) return (await askPrimaryVeil("lights", killerIds))?.veiled ?? 0;
     await veilStore.whenHydrated();
     lightsJudging = true;
     let n = 0;
@@ -597,7 +603,8 @@ export async function veilAtTheLights(killerIds = []) {
  * of it at `lightsJudged`. A row the opening took over, or none, is left. On the primary; answers whether it lifted.
  */
 export function liftAtTheLights(actorId) {
-    if (!game.user?.isGM || !isPrimaryGm()) return Promise.resolve(false);
+    if (!game.user?.isGM) return Promise.resolve(false);
+    if (!isPrimaryGm()) return askPrimaryVeil("lift", [actorId]).then(out => Boolean(out?.lifted));
     const run = () => (veilStore.get(actorId ?? "")?.why === "lights" ? liftVeil(actorId, "the lights cancelled it") : false);
     const next = settling.then(run, run);
     settling = next.catch(() => null);
@@ -606,7 +613,41 @@ export function liftAtTheLights(actorId) {
 
 export async function lightsJudged() {
     lightsJudging = false;
+    if (game.user?.isGM && !isPrimaryGm()) return askPrimaryVeil("judged");
     return settleVeils();
+}
+
+/*
+ * THE VEIL FROM ANOTHER GM'S BROWSER (1.2.122; the audit's STG-31). The veil is the primary's to write, and on another GM
+ * the lights' veil (`veilAtTheLights`), their lift (`liftAtTheLights`), their end (`lightsJudged`) and the open's settle
+ * (`settleVeils`) answered nothing, so an Eclipse ended or a murder opened there put the veil up only once the primary
+ * heard the incident's write: the killer's token drawn for the victim meanwhile. That GM now asks the primary
+ * (`mask.veil`, bridge-asks.mjs `requestMaskVeil`) and waits for its answer; the primary runs its own road
+ * (`veilOnPrimary`). The lights' killers are held to the primary's own declarations of the Eclipse. Measured with a
+ * second GM in scenario 97-two-gms (1.2.122 STG-31); tier 2 reads the primary's side (`veilOnPrimary`) alone.
+ */
+async function askPrimaryVeil(what, killerIds = []) {
+    try {
+        const { requestMaskVeil } = await import("./bridge-asks.mjs");
+        const res = await requestMaskVeil({ what, killerIds });
+        return res.ok ? res.value ?? null : null;
+    } catch (err) {
+        error("Could not ask the primary GM for the opening's veil", err);
+        return null;
+    }
+}
+
+/** The primary's side of `mask.veil` (`askPrimaryVeil`): answers what its road did, or null off the primary. */
+export async function veilOnPrimary({ what, killerIds = [] } = {}) {
+    if (!game.user?.isGM || !isPrimaryGm()) return null;
+    const { pendingMurderStore } = await import("./gm-stores.mjs");
+    const declared = (Array.isArray(killerIds) ? killerIds : [])
+        .filter(id => typeof id === "string" && pendingMurderStore.has(id) && game.actors.get(id));
+    if (what === "lights") return { veiled: await veilAtTheLights(declared) };
+    if (what === "lift") return { lifted: declared.length ? await liftAtTheLights(declared[0]) : false };
+    if (what === "judged") return { settled: Boolean(await lightsJudged()) };
+    if (what === "settle") return { settled: Boolean(await settleVeils()) };
+    return null;
 }
 
 /* ------------------------------ a token made while a mask or a veil stands ------------------------------ */
@@ -732,13 +773,36 @@ function drawMaskName(token) {
  */
 let shownHere = null;
 
-/** Whether this browser does not draw a veiled token of `actor` (`tokenShownTo` "hide"): never on a GM's. */
-export function veiledFromHere(actor, { scenes = game.scenes, shown = shownHere, user = game.user } = {}) {
-    if (!actor || user?.isGM || typeof shown !== "function") return false;
-    for (const scene of scenes ?? []) for (const token of scene.tokens ?? []) {
-        if (token.actorId === actor.id && isVeiledToken(token) && shown(token) === "hide") return true;
+/*
+ * ONE VEIL PREDICATE FOR THE PICKERS AND THE VOICE TILE (1.2.122 line MURDER; a known gap since 1.2.119). The pickers asked
+ * `veiledFromHere` of an actor and the voice tile asked visibility.mjs `voiceVeiledHere` of a user, each with a loop of its
+ * own over every scene's tokens, two flag readers (`isVeiledToken`, visibility.mjs's own `veiledToken`) and two GM tests -
+ * one rule written twice, which could drift apart. Both now ask `veilHidesHere`: some veiled token on a scene that
+ * `isTheirs` claims, which `shown` - this browser's `tokenShownTo` - answers "hide" for, and never on a GM's browser.
+ * `veiledFromHere` claims an actor's tokens; `userVeiledFromHere`, which the voice tile reads through `voiceVeiledHere`,
+ * the tokens of every actor `subject` owns. R8221 holds that for a user owning one student the two never differ.
+ */
+export function veilHidesHere(isTheirs, { scenes = game.scenes, shown = shownHere, gm = Boolean(game.user?.isGM) } = {}) {
+    if (gm || typeof shown !== "function" || typeof isTheirs !== "function") return false;
+    for (const scene of scenes ?? []) for (const token of scene?.tokens ?? []) {
+        if (isVeiledToken(token) && isTheirs(token) && shown(token) === "hide") return true;
     }
     return false;
+}
+
+/** Whether this browser does not draw a veiled token of `actor` (`tokenShownTo` "hide"): never on a GM's. */
+export function veiledFromHere(actor, { scenes = game.scenes, shown = shownHere, user = game.user } = {}) {
+    if (!actor) return false;
+    return veilHidesHere(token => token.actorId === actor.id, { scenes, shown, gm: Boolean(user?.isGM) });
+}
+
+/**
+ * Whether the veil hides `subject` - a user - from this browser: a veiled token of a character they own that this browser
+ * does not draw. Never for a GM's account, nor for this browser's own (`user`), nor on a GM's browser.
+ */
+export function userVeiledFromHere(subject, { scenes = game.scenes, shown = shownHere, user = game.user, gm = Boolean(user?.isGM) } = {}) {
+    if (!subject || subject.isGM || subject.id === user?.id) return false;
+    return veilHidesHere(token => Boolean(token.actor?.testUserPermission?.(subject, "OWNER")), { scenes, shown, gm });
 }
 
 /** `actors` without those whose veiled token this browser does not draw (`veiledFromHere`): a picker's room, as it sees it. */
@@ -767,12 +831,32 @@ export function registerMasks() {
     import("./visibility.mjs").then(m => { shownHere = doc => m.tokenShownTo(doc, m.viewerHere(d => Boolean(d?.isOwner))); }).catch(() => {});
     // By `import()`: secret.mjs is reached from gm-stores.mjs (through notice-history.mjs), which this file imports.
     import("./secret.mjs").then(m => m.setNameMask(namesHiddenFrom, { stands: anyMaskStands, masked: maskedNow })).catch(err => error("Could not hand the cards the masked names", err));
+    /* THE OWN MASK WHEN AN OWN TOKEN'S MASK TURNS, NOT ON EVERY REDRAW (the audit's CASE-71, 1.2.122): `noticeOwnMask`
+       walked every token of every scene on each `refreshToken` of a player's browser, whether or not a mask stood. It is
+       asked now only when a token this player owns is redrawn with its mask flag other than the redraw before saw it
+       (`ownMaskFlags`, one flag read a redraw), and at ready (below); counted (`refreshToken.mask`) as the other refresh
+       listeners are. No token hook of its own: a mask's write redraws the token, and the censuses of the room, trial
+       and passage roads read none here. */
     Hooks.on("refreshToken", token => {
+        count("refreshToken.mask");
         drawMaskName(token);
-        if (!game.user?.isGM) noticeOwnMask();
+        if (!game.user?.isGM && ownMaskTurned(token)) noticeOwnMask();
     });
     if (game.user?.isGM) return;
     noticeOwnMask();
+}
+
+/* Whether each of this player's own tokens wore the mask at its last redraw, by token id (`ownMaskTurned`). */
+const ownMaskFlags = new Map();
+
+/** Whether `token` is this player's own and its mask flag differs from its last redraw's (the first redraw counts). */
+export function ownMaskTurned(token) {
+    const doc = token?.document ?? token;
+    if (!doc?.id || !doc.isOwner) return false;
+    const masked = isMaskedToken(doc);
+    if (ownMaskFlags.get(doc.id) === masked) return false;
+    ownMaskFlags.set(doc.id, masked);
+    return true;
 }
 
 /* The mask this browser last saw on its own character (an actor id, or null), so a redraw that changes nothing is quiet. */

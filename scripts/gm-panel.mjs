@@ -975,6 +975,8 @@ export function nextStep(clock, { setupList, incident = game.drpg?.murderState?.
         } catch {
             status = null;
         }
+        // `missing` counts the slots that hold a Key Remnant inside the case's count since CASE-29 (key-remnants.mjs
+        // `keyPlanStatus`, line MURDER); `keysAllFound` reads the case's own count first (CORE-19, line CORE; R8116).
         let keys = null;
         try { keys = caseKeyCount(); } catch { keys = null; }
         if (keysAllFound(status, keys)) {

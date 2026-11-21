@@ -1168,6 +1168,8 @@ async function ruleApproveReshape(action, data) {
        and the card says so - where `null` leaves the card open to be answered. The
        same split `ruleApproveMurderOrRefuseMurder` draws. */
     if (applied === false) return settled("DRPG.Cleanup.reshapeVoided");
+    // The Remnant gone: settled, said so (cleanup-reshape.mjs `applyReshapeRuling`, the audit's CTRL-55, 1.2.122).
+    if (applied === "gone") return settled("DRPG.Cleanup.reshapeSettledGone");
     return applied ? settled("DRPG.Bridge.settledApproved") : null;
 }
 

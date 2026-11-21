@@ -402,7 +402,23 @@ export async function startEclipse() {
  * @param {boolean} [options.advance]  Also advance the clock. Default true -
  *   the Eclipse sits *between* times of day, so ending one begins the next.
  */
-export async function endEclipse({ advance = true } = {}) {
+export async function endEclipse(options = {}) {
+    /* THE LIGHTS' DICE GO WHATEVER HAPPENS (the auditor's r121-K-3, 1.2.122): they are held as the Eclipse ends and let go
+       in the judgement's `finally`, and a throw between the two - the clock's write, the take-back - left them held, so a
+       murder opened afterwards at no lights read this Eclipse's watches (watch-gm.mjs `heldAtTheLights`). Let go here as
+       well, whichever way the end comes out; a second release is nothing. Red at 749b35b5 (tier 2 "1.2.122 r121-K-3"). */
+    try {
+        return await endEclipseNow(options);
+    } finally {
+        try {
+            (await import("./watch-gm.mjs")).releaseTheLights();
+        } catch (err) {
+            error("Could not let go of the watches' dice after the Eclipse's end", err);
+        }
+    }
+}
+
+async function endEclipseNow({ advance = true } = {}) {
     if (!game.user.isGM) return null;
     if (!isEclipse()) return null;
     // Its name, read while it still has one: the lights below judge what was declared in it.

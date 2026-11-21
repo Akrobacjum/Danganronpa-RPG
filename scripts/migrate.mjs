@@ -1060,8 +1060,8 @@ const CLAUSES = [
         since: "1.2.105",
         /*
          * THE OPEN CASE'S BODIES, ONCE (E63 C3, 11.11.2026; QUESTIONS E63 Q6, the owner's "yes"). 1.2.104 laid a body tile
-         * only when a dead student became a Monocub; from 1.2.105 every death made the table's lays one (chapter.mjs
-         * `markDeceased`) and becoming a Monocub lays none, so a student who died before the update and becomes a Monocub
+         * only when a dead student became a Monocub; from 1.2.105 every death made the table's lays one (death.mjs
+         * `markDeceased`, chapter.mjs's until E54) and becoming a Monocub lays none, so a student who died before the update and becomes a Monocub
          * after it would walk away with their body until the trial. Once, on the primary: every student dead and public,
          * not a Monocub, whose case is open (monocub.mjs `caseOpen`) and with no tile of this death (`bodiesToLay`) gets
          * one at their token (body-tile.mjs `leaveBody`, which reads the death as the GMs hold it; a corpse's token has not
