@@ -59704,7 +59704,8 @@ const INVARIANTS = [
             return { mode: m.mode, actions: m.actions, calls: m.calls, use: m.rows.use, levelUp: m.levelUp, strip: m.strip, objection: m.objection,
                 tile: m.tile, safeword: m.safeword, acts: m.header.acts, spectator: m.spectator };
         };
-        // The Stop came back to a Spectator's sheet in 1.2.122 (line UI; the audit of 1.2.118, UI-25, STG-04): changed on purpose.
+        // The Stop came back to a Spectator's sheet in 1.2.122 (line UI; the audit of 1.2.118, UI-25, STG-04): changed on
+        // purpose, the owner's choice of 21.11.2026 ("Safeword u spectatora zgoda").
         const want = { mode: "spectator", actions: null, calls: false, use: false, levelUp: false, strip: "none", objection: false, tile: false, safeword: true, acts: false, spectator: true };
         equal(stableJson({ owner: read(owner), gm: read(gm) }), stableJson({ owner: want, gm: want }), "[sheetMode of a Spectator for its owner and a GM]");
     }],

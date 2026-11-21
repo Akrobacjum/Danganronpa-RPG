@@ -24,8 +24,8 @@
  *     with this default (21.11.2026). The sheet is no road to them: its Effects tab is the module's Rules tab on every
  *     character sheet (sheet-actions.mjs `replaceEffectsTab`), and Daggerheart's effects display is hidden (the audit
  *     of 1.2.120, H-2). The road left is the console, `actor.toggleStatusEffect(id)` (Foundry's), which the GM
- *     handbook's section on the HUD names; a GM-only road on the sheet is the owner's to decide (1.2.122 line UI's
- *     proposal to the coordinator).
+ *     handbook's section on the HUD names. A GM-only road on the sheet was proposed (1.2.122 line UI) and the owner
+ *     declined it, 21.11.2026 ("Nie").
  *   - the movement palette: v14's movement actions (walk, fly, ...); the module's moves are judged by rooms, never by it.
  *   - target: Daggerheart's rolls against a target read the user's targets, which the canvas still sets with the T key
  *     over a token; the module's own rolls read none (private-rolls.mjs clears a roll's `system.targets`). Not a double
@@ -46,7 +46,8 @@
  * double right-click on their own token, and a sheet's prototype-token control where a player is offered one, open
  * Foundry's token settings past the HUD; on a browser whose user is not a GM such a window is hidden as it is drawn and
  * closed (`refuseTokenConfig`, at the render hooks of v14's TokenApplication and its two kinds), and the player told
- * once a minute that a token's settings are the GM's. Whether v14 still opens it on those roads is not read: LIVE.
+ * once a minute that a token's settings are the GM's. The owner, 21.11.2026: "Gm ustawia - graczom zabieramy". Whether
+ * v14 still opens it on those roads is not read: LIVE.
  *
  * WHAT STAYS, FOR A GM: bring to front, the floor's palette, lock, the token's settings and visibility, and Daggerheart's
  * companion or party button where Daggerheart draws one, with Daggerheart's picture and words.
