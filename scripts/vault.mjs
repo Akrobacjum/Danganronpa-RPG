@@ -26,7 +26,7 @@
 
 export {
     VAULT_FLAGS, KEY_FLAG, keyRoomOf, keysHeldBy, mayEnterBedroom, grantBedroomKey, bedroomKeyKey, reconcileBedroomKeys,
-    takeOldOwnersKeys, roomTable, roomDescription, safeRoomImage, roomImage, roomFavours, favoursCategory, roomHinders,
+    takeOldOwnersKeys, roomTable, roomDescription, safeRoomImage, safePortrait, roomImage, roomFavours, favoursCategory, roomHinders,
     hindersCategory, regionsByName, vaultOwnerOf, stashesIn, stashIn, stashRoomsFor, primaryStashRoom,
     setStash, ensureBedroomStash, bedroomStashGaps, forgetAllStashesFound, unconcealStashes, startLocked, isConcealed,
     vaultRoomFor, stashRoomOfItem, stashItemsIn, allBedrooms, allBedroomsAnywhere, bedroomOwnerAnywhere,

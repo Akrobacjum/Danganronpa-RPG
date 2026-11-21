@@ -195,8 +195,10 @@ export const FLOWS = Object.freeze([
         entry: { bridge: ["eclipse.move"], sockets: ["eclipse.mjs"] }, scenarios: ["33-bridge-paths", "70-movement"], status: "partial", stage: "E39" },
     // E08+E28 C15 (04.10.2026): 40-flow drives a player's Plant end to end, both of its rolls on the GMs' record.
     // E50 fix FG2 (30.10.2026; the end review's G7): 87-messenger-sound's part E presses a body's Take on a player's page.
+    // 1.2.122 (the audit's CORE-25): which of a player's stashes are hidden is the GMs' store's and each owner's copy, asked
+    // and sent on hidden-stashes.mjs's socket (`stash.hiddenAsk`, `stash.hidden`); not driven on a player's page yet.
     { id: "give-take-stash", what: "Things changing hands: a handover, a plant, a steal, a found stash, a body looted",
-        entry: { bridge: ["handover.item", "handover.bullet", "action.plant", "vault.findStash", "action.steal", "action.friskUnseen", "vault.steal", "body.loot"] },
+        entry: { bridge: ["handover.item", "handover.bullet", "action.plant", "vault.findStash", "action.steal", "action.friskUnseen", "vault.steal", "body.loot"], sockets: ["hidden-stashes.mjs"] },
         scenarios: ["30-security", "33-bridge-paths", "40-flow", "83-roll-integrity", "87-messenger-sound"], status: "partial", stage: "E39" },
     // E80 part 2 C3 (19.10.2026): an open Frisk - the ask, the answer from the window the primary opened, the force. The
     // tier-2 tests A11-7 and A11-8 drive it on the primary; 30-security sends a player's frisk.ask and an outsider's answer.

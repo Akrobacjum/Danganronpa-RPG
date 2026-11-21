@@ -69,7 +69,7 @@ export const COUNTDOWNS = "Countdowns";
  */
 export const COUNTDOWNS_KEY = `${DH}.${COUNTDOWNS}`;
 
-/** Raw per-project metadata: { [countdownId]: { room, indirectMurder, scale, glyph } } - a secret project's room and mark are the GMs' (`PROJECT_SECRET_WHILE_SECRET`). */
+/** Raw per-project metadata: { [countdownId]: { room, indirectMurder, glyph, tokenId, tokenScene, mapHidden, ... } } - no `scale`: a project's size is its countdown's `progress.start` (the audit's D 180, 1.2.122); a secret project's room and mark are the GMs' (`PROJECT_SECRET_WHILE_SECRET`). */
 export function projectMeta() {
     return game.settings.get(MODULE_ID, SETTINGS.projectMeta) ?? {};
 }
@@ -145,7 +145,9 @@ export function toldSight(countdownId) {
     return { in: held.in === true, name: typeof held.name === "string" ? held.name : null,
         murder: held.murder === true, room: typeof held.room === "string" && held.room ? held.room : null,
         roomScene: typeof held.roomScene === "string" && held.roomScene ? held.roomScene : null,
-        facility: !Object.hasOwn(held, "facility") ? undefined : held.facility && typeof held.facility === "object" ? held.facility : null };
+        facility: !Object.hasOwn(held, "facility") ? undefined : held.facility && typeof held.facility === "object" ? held.facility : null,
+        // When it was completed, beside its room action (ITEM-38, 1.2.122); null where the copy carries none.
+        completedAt: held.completedAt && typeof held.completedAt === "object" ? held.completedAt : null };
 }
 
 /**
@@ -220,8 +222,14 @@ export function labelFor({ name = "", secret = false, secretName = null, sees = 
  * AND THE SCENE A GM PICKED FOR ITS ROOM (option (c), 16.11.2026; docs/dev/e43/SCENES.md): `roomScene`, beside `room` and
  * for the same reason - a secret project with no token on the map would otherwise say on any console which scene's room
  * it stands in. Read through projects.mjs `roomSceneOf`; it rides the sight copy with the room (`toldSight`).
+ *
+ * AND WHEN IT WAS COMPLETED (1.2.122 line ITEMS; the audit's ITEM-38): `completedAt`, which the completion row of a
+ * project with a room action stamps (projects.mjs `onCrossed`), told any console that a secret project gives a room
+ * action somewhere and the time of day it was finished. The GMs' row's while the project is secret, as `facility` is; the
+ * insiders read it off their sight copy (`toldSight`, projects.mjs `sightFor`), and facilities.mjs `completedAtOf` reads it
+ * where this browser holds it. A world from before is lifted by migrate.mjs `liftSecretCompletedAt`.
  */
-export const PROJECT_SECRET_WHILE_SECRET = Object.freeze(["description", "facility", "indirectMurder", "room", "roomScene", "roomSceneByGm"]);
+export const PROJECT_SECRET_WHILE_SECRET = Object.freeze(["completedAt", "description", "facility", "indirectMurder", "room", "roomScene", "roomSceneByGm"]);
 
 /**
  * The secret fields of one project: the store's row on a GM, `{}` on anybody else. A player's browser
@@ -344,9 +352,14 @@ export function canSee(countdownId, user = game.user) {
  * progress bar named "Prepare the poison" sitting in everyone's sidebar would
  * give the whole plot away before it started.
  *
- * Secrecy is enforced through the countdown's own `ownership` map - default
- * NONE, with explicit access for the killer and anyone they (or the GM) later
- * choose to let in. GMs always see everything regardless.
+ * Secrecy was first enforced through the countdown's own `ownership` map -
+ * default NONE, with explicit access for the killer and anyone let in. Since
+ * S17-31 it is not: the map gives every player OBSERVER (`ownershipMap`, below),
+ * because every browser holds it. Who is in on a secret project is the GMs'
+ * store (`viewersOf`, `sharedIds`) and, on a player's browser, the GMs' card
+ * (`toldSight`); the tray takes the row out for those not in on it
+ * (projects-tray.mjs). GMs see everything. (The audit's D 173, 1.2.122; until
+ * then this paragraph described the map before S17-31.)
  * ========================================================================== */
 
 const NONE = 0;        // CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE

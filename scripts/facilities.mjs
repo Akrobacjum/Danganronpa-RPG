@@ -226,7 +226,7 @@ export async function restampSetBack(clock = getClock()) {
     const { allProjects, applyProjectChange } = await import("./projects.mjs");
     let n = 0;
     for (const project of allProjects()) {
-        const stamp = completionAfterClockBack(metaFor(project.id).completedAt ?? null, clock);
+        const stamp = completionAfterClockBack(completedAtOf(project.id), clock);
         if (!stamp) continue;
         await applyProjectChange(project.id, { meta: { completedAt: stamp } }, { by: { kind: "system" } });
         n++;
@@ -338,7 +338,17 @@ export async function setProjectFacility(projectId, raw) {
 export function projectFacilityOf(projectId) {
     const meta = metaFor(projectId);
     const raw = secretsOf(projectId).facility ?? meta.facility ?? (game.user?.isGM ? null : toldOnPlayer(projectId));
-    return { facility: raw ? cleanFacility(raw) : null, completedAt: meta.completedAt ?? null };
+    return { facility: raw ? cleanFacility(raw) : null, completedAt: completedAtOf(projectId) };
+}
+
+/**
+ * When a project was completed, where this browser holds it (1.2.122; the audit's ITEM-38): the GMs' row of a secret
+ * project on a GM (projects-secrecy.mjs `PROJECT_SECRET_WHILE_SECRET`), projectMeta's of a public one, and an insider's
+ * sight copy on a player's browser (`toldSight`); null where none says.
+ */
+export function completedAtOf(projectId) {
+    return secretsOf(projectId).completedAt ?? metaFor(projectId).completedAt
+        ?? (game.user?.isGM ? null : toldSight(projectId)?.completedAt) ?? null;
 }
 
 /**

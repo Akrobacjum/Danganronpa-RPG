@@ -127,7 +127,7 @@ import { micHold, moduleHoldsMic, broadcastAudioKnown } from "./voice.mjs";
 import { SETTINGS, getSetting, setSetting, getClock } from "./settings.mjs";
 import { avclientActive, voiceApplying } from "./voice-client.mjs";
 import { voiceIdentity, voiceActorFor, measureCameraDock } from "./camera-view.mjs";
-import { safeRoomImage } from "./vault.mjs";
+import { safePortrait } from "./vault.mjs";
 import { cssString } from "./room-tile.mjs";
 import { reducedMotion, TURN } from "./motion.mjs";
 import { error, plural, tickerRuns } from "./utils.mjs";
@@ -734,7 +734,7 @@ function cancel(watch, slot) {
 const painted = new WeakMap();
 
 /**
- * A voice's portrait: the first of `voiceIdentity`'s `faces` that `safeRoomImage` accepts, else `null` (E78 fix
+ * A voice's portrait: the first of `voiceIdentity`'s `faces` that `safeRoomImage` accepts (or the mask, `safePortrait`, since 1.2.122), else `null` (E78 fix
  * h76-HF1, 14.10.2026). Until then the tile judged `img` alone, the character's picture before the avatar, so a
  * character on Foundry's default `.svg` (refused) drew no face though the avatar would pass (round 1's sec
  * SEC-R1-4, measured there). On The Forge `safeRoomImage` also takes the Assets Library, so a face kept there is
@@ -742,7 +742,8 @@ const painted = new WeakMap();
  */
 function voicePortrait(who) {
     for (const path of who?.faces ?? []) {
-        const image = safeRoomImage(path);
+        // The room pictures' filter and the module's mask, the "?" (vault-store.mjs `safePortrait`, STG-100).
+        const image = safePortrait(path);
         if (image) return image;
     }
     return null;

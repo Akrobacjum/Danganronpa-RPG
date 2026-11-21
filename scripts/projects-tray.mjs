@@ -27,7 +27,9 @@
  * because the render hook calls them; projects-ui.mjs does not re-export them.
  * E79 C12 adds a sixth the hook calls, `showTrayToPlayer`, on the same terms,
  * and E23 C3a two more, `labelTrayControls` and `markTrayMore`, and the fix of
- * 13.11.2026 one more, `addTrayTitle`.
+ * 13.11.2026 one more, `addTrayTitle`. With `refreshProjects`, `hideUndiscovered`,
+ * `keepNarrativeShown`, `nameSecretRows` and `paintSeen` (PV) that is fourteen
+ * exported names (counted 21.11.2026; the audit's D 181, 1.2.122).
  * No module state: the fold is a client setting.
  */
 
@@ -344,7 +346,9 @@ export function paintProgress(root, user = game.user, { section = null, standing
  * A ROW AS ITS READER LAST SAW IT (PV, 13.11.2026; the owner's rule #2). Daggerheart draws the row from the live
  * countdown; the tag's numbers are written again with the snapshot's (`seen.current / seen.start`), or "?" for a
  * project this browser has never seen (`seen: "unknown"`), and the row is marked (`data-drpg-seen`) with a tooltip
- * that says which. The bar's width is read off the tag after this, so it follows. Exported for the suite (R5644).
+ * that says which. The bar's width is read off the tag after this, so it follows. Exported, though no
+ * file imports it by name (read 21.11.2026): R5644 reaches it through `paintProgress` ("exported for the suite (R5644)"
+ * until the audit's D 182, 1.2.122).
  */
 export function paintSeen(row, seen) {
     row.dataset.drpgSeen = seen.seen;

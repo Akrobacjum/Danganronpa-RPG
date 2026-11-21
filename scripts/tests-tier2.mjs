@@ -58134,6 +58134,17 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 gone: (report, id) => !S.bodyHeardStore.has(id),
                 back: id => S.bodyHeardStore.get(id)?.deathId === "SUITE113DEATH000"
             },
+            // A hidden stash, through its store (1.2.122, CORE-25): in a room of the scene on screen no region is named, so
+            // no stash list draws it and no player is told of a stash there.
+            hiddenStashes: {
+                seed: async () => {
+                    const key = `${canvas.scene?.id}|${holder.id}|SUITE 1.2.122 backed-up room`;
+                    await S.hiddenStashStore.patch(key, { sceneId: canvas.scene?.id, actorId: holder.id, room: "SUITE 1.2.122 backed-up room" });
+                    return key;
+                },
+                gone: (report, id) => !S.hiddenStashStore.has(id),
+                back: id => S.hiddenStashStore.get(id)?.room === "SUITE 1.2.122 backed-up room"
+            },
             // A room action's timed effect, through its store (Q-E93-3, 12.11.2026): a crossing for a day no clock here is on.
             timedEffects: {
                 seed: async () => {
@@ -68970,7 +68981,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const warned = [];
         const letter = id => ({ [a.id]: "A", [b.id]: "B", [c.id]: "C" })[id] ?? id;
         const stored = (scene, room) => scene.regions.filter(r => r.name === room)
-            .map(r => { const list = r.getFlag(MODULE_ID, V.VAULT_FLAGS.stashes); return Array.isArray(list) ? list.map(e => `${letter(e.actorId)}${e.concealed ? " hidden" : ""}`).sort() : null; });
+            /* A stored list, read with the hidden stashes the GMs' store holds since 1.2.122 (the audit's CORE-25: a hidden
+               stash is no entry of the region), as `stashesIn` answers them; null where the region stores no list. */
+            .map(r => { const list = r.getFlag(MODULE_ID, V.VAULT_FLAGS.stashes); return Array.isArray(list) ? V.stashesIn(room, scene).map(e => `${letter(e.actorId)}${e.concealed ? " hidden" : ""}`).sort() : null; });
         const msgsBefore = new Set(game.messages.contents.map(m => m.id));
         const made = [];
         const stash = async (actor, room, name) => {
@@ -83292,7 +83305,17 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const rowOf = row => root.querySelector(`[data-countdown="${row}"]`);
             const shown = entries.map(entry => [Boolean(entry.visible(rowOf(placed))), Boolean(entry.visible(rowOf("suiteE36T4NoProject")))]);
             entries[2].onClick(new Event("click"), rowOf("suiteE36T4NoProject"));
-            const gone = await road(() => entries[2].onClick(new Event("click"), rowOf(placed)), () => Boolean(project(placed)));
+            /* The project row's Delete asks first since 1.2.122 (the audit's CTRL-29; tier 2's "1.2.122 ITEM-23 ..." answers
+               it Cancel): answered yes here, through DialogV2.wait as the manager above is driven, so the road is the delete. */
+            const ownAsk = Object.getOwnPropertyDescriptor(D, "wait");
+            D.wait = async () => true;
+            let gone;
+            try {
+                gone = await road(() => entries[2].onClick(new Event("click"), rowOf(placed)), () => Boolean(project(placed)));
+            } finally {
+                if (ownAsk) Object.defineProperty(D, "wait", ownAsk);
+                else delete D.wait;
+            }
             seen.menu = { menu, shown, clicked, held: gone.held.read, after: gone.after };
 
             const removed = await road(() => P.deleteProject(id), () => Boolean(project(id)));
@@ -99844,7 +99867,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                     doors: await applyWith([`locked:${ROOM}`, el => { el.checked = true; }]),
                     search: await applyWith([`nosearch:${ROOM}`, el => { el.checked = true; }]),
                     rest: await applyWith([`short:${ROOM}`, el => { el.checked = true; }]),
-                    stashes: await applyWith([`stash:${ROOM}:${b.id}`, el => { el.value = "hidden"; }]),
+                    // An open stash's cell (1.2.122, CORE-25: a hidden one is the GMs' store's, and writes no region).
+                    stashes: await applyWith([`stash:${ROOM}:${b.id}`, el => { el.value = "open"; }]),
                     description: await applyWith([`desc:${ROOM}`, el => { el.value = "E46-T1 words"; }]),
                     fog: await applyWith([`fog:${ROOM}:${a.id}`, el => { el.checked = !el.checked; }]),
                     passages: await applyWith(["[data-drpg-pane=\"passages\"] [data-drpg-passages]", () => {}])
@@ -110555,6 +110579,845 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ first: whole, second: whole }),
             "[after each write to the Mastermind's Hope: the box there, its pool select, its amount, its Give, the Hope written]");
     }],
+    ["1.2.122 REFR-45 - the Mastermind window follows the GMs' record while it stands: a Mastermind named elsewhere draws the Give Hope box and the pick, a lair moved elsewhere moves its select, Apply untouched writes nothing back, a lair picked with nobody named is stored (CTRL-48), and a pick made here is kept over another GM's change", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line ITEMS; the audit's REFR-45, CTRL-48 and the rest of r120-F-6. mastermind.mjs
+         * `openMastermindDialog` read the pick, the lair and whether the Give Hope box stood once, at the open; only the
+         * box was live. Here a stand-in for another GM writes the GMs' record (mastermind.mjs `setMastermind`,
+         * `setMastermindLair`) while the window stands, with no field touched: the box, the pick and the lair must follow,
+         * and Apply pressed untouched must leave the record as the other GM left it. Then, with nobody named, a lair is
+         * picked and Apply pressed: the lair is stored. Last, a lair picked here (not applied) is kept while another GM
+         * names another Mastermind, and Apply writes that lair and leaves their pick. The record is put back.
+         */
+        const MM = await import("./mastermind.mjs");
+        const { placeRoomNames } = await import("./rooms.mjs");
+        needs(env.dialogs(), "the Mastermind's window is drawn and its selects read");
+        const [a, b] = cast(2);
+        const rooms = placeRoomNames();
+        must(rooms.length >= 2, `only ${rooms.length} rooms on the place scenes`);
+        const [r1, r2] = rooms;
+        const wasActor = MM.mastermindActor()?.id ?? null, wasLair = MM.mastermindLair();
+        const appOf = () => [...foundry.applications.instances.values()].find(x => x?.rendered && x.element?.isConnected && x.options?.classes?.includes("drpg-window-mastermind"));
+        const q = sel => appOf()?.element?.querySelector(sel) ?? null;
+        const open = async () => {
+            const opening = Promise.resolve().then(() => MM.openMastermindDialog()).catch(() => null);
+            must(await until(() => q("select[name=who]"), 6000), "the Mastermind's window did not open");
+            document.activeElement?.blur?.();
+            // Wrapped: an async function's returned promise is awaited by its caller, and this one settles at the close.
+            return { opening };
+        };
+        const apply = async opening => {
+            q('footer button[data-action="save"]')?.click();
+            await Promise.race([opening, wait(4000)]);
+            await settle();
+        };
+        const read = {};
+        let opening = null;
+        try {
+            await MM.clearMastermind();
+            await settle();
+            ({ opening } = await open());
+            read.noBoxAtOpen = !q("[data-drpg-give]");
+            await MM.setMastermind(a, { room: r1 });
+            read.boxDrawn = Boolean(await until(() => q("[data-drpg-give]"), 3000));
+            read.pickFollows = Boolean(await until(() => q("select[name=who]")?.value === a.id, 2000));
+            read.lairFollows = Boolean(await until(() => q("select[name=lair]")?.value === r1, 2000));
+            await MM.setMastermindLair(r2);
+            read.lairMoved = Boolean(await until(() => q("select[name=lair]")?.value === r2, 2000));
+            await apply(opening); opening = null;
+            read.applyUntouchedKeeps = MM.mastermindActor()?.id === a.id && MM.mastermindLair() === r2;
+
+            await MM.clearMastermind();
+            await settle();
+            ({ opening } = await open());
+            const lair = q("select[name=lair]");
+            lair.value = r1; lair.dispatchEvent(new Event("change", { bubbles: true }));
+            await apply(opening); opening = null;
+            read.lairWithNobody = MM.mastermindActor() === null && MM.mastermindLair() === r1;
+
+            await MM.setMastermind(a, { room: r1 });
+            await settle();
+            ({ opening } = await open());
+            const lair2 = q("select[name=lair]");
+            lair2.value = r2; lair2.dispatchEvent(new Event("change", { bubbles: true }));
+            await MM.setMastermind(b, { room: r1 });
+            read.pickFollowsTyped = Boolean(await until(() => q("select[name=who]")?.value === b.id, 2000)) && q("select[name=lair]")?.value === r2;
+            await apply(opening); opening = null;
+            read.applyWritesOwn = MM.mastermindActor()?.id === b.id && MM.mastermindLair() === r2;
+        } finally {
+            appOf()?.close();
+            if (opening) await Promise.race([opening, wait(3000)]);
+            if (wasActor) await MM.setMastermind(game.actors.get(wasActor), { room: wasLair });
+            else { await MM.clearMastermind(); if (wasLair) await MM.setMastermindLair(wasLair); }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ applyUntouchedKeeps: true, applyWritesOwn: true, boxDrawn: true, lairFollows: true, lairMoved: true,
+            lairWithNobody: true, noBoxAtOpen: true, pickFollows: true, pickFollowsTyped: true }),
+            "[Apply untouched keeps the other GM's record] [Apply writes the lair picked here, not the pick] [the box drawn once a Mastermind is named] [the lair follows] [the lair moves] [a lair with nobody stored] [no box at the open] [the pick follows] [the pick follows while a lair is typed]");
+    }],
+    ["1.2.122 CTRL-35 - the Students window's Monocub row: Enter in the amount presses that row's Give Hope and the window stays, Give with the amount emptied says why, and another GM's Level Up offer redraws the row's Level Up count (CTRL-83, REFR-48)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line ITEMS; the audit's CTRL-35, CTRL-83 and REFR-48 (gm-students.mjs `openWhoIsAliveDialog`).
+         * Enter in a Monocub row's amount pressed the footer's Apply (the form's first submit): the window closed and no Hope
+         * was given. Give with an emptied amount returned with no word. The Level Up button counts the standing offers from
+         * offerStore, which the table's region did not watch. Here, on this GM: a living student made a Monocub (its flag,
+         * put back), this GM's pool at 5, the window opened, 2 typed and Enter pressed in the amount (a keydown as the
+         * browser sends it: utils.mjs `guardTextFields` hears keydown; the implicit submission itself is the browser's and
+         * jsdom does not run it, so the window's staying is read from the Give's effect and the window still drawn); then
+         * the amount emptied and Give clicked: the warning read; then a standing offer written straight into offerStore as
+         * another GM's merge (its row put back): the row's Level Up reads the count.
+         */
+        needs(env.dialogs(), "the Students window is drawn and its row pressed");
+        const GP = await import("./gm-panel.mjs");
+        const D = await import("./despair.mjs");
+        const M = await import("./monocub.mjs");
+        const { offerStore, cubStore } = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { resourceValue } = await import("./character.mjs");
+        const { plural } = await import("./utils.mjs");
+        const [cub] = livingStudents().filter(a => !M.isMonocub(a));
+        must(Boolean(cub), "no living student to make a Monocub - this would measure nothing");
+        const HOPE = "system.resources.hope.value";
+        const putBack = sheetAsFound(cub, [HOPE, `flags.${MODULE_ID}.${FLAGS.monocub}`]);
+        const cubRowWas = foundry.utils.deepClone(cubStore?.get(cub.id) ?? null);
+        const offerWas = foundry.utils.deepClone(offerStore.get(cub.id) ?? null);
+        const despairWas = D.getDespair(game.user.id);
+        const alive = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-alive"));
+        const el = () => alive()[0]?.element ?? null;
+        const warned = ui.notifications.warn;
+        const warns = [];
+        const read = {};
+        try {
+            ui.notifications.warn = text => { warns.push(String(text)); return null; };
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await D.setDespair(game.user.id, 5);
+            await trustedWrite(cub, { [HOPE]: 0 }, { reason: "gmRuling" });
+            await settle();
+            void Promise.resolve().then(() => GP.openWhoIsAliveDialog()).catch(() => null);
+            must(await until(() => el()?.querySelector(`[data-drpg-give="${CSS.escape(cub.id)}"]`), 6000),
+                "the Students window drew no Give on the Monocub's row - this would measure nothing");
+            el().querySelector(`[name="donor:${CSS.escape(cub.id)}"]`).value = game.user.id;
+            const amount = el().querySelector(`[name="amount:${CSS.escape(cub.id)}"]`);
+            amount.value = "2";
+            amount.focus();
+            amount.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+            read.enterGives = Boolean(await until(() => resourceValue(cub, "hope") === 2, 4000));
+            read.windowStays = alive().length === 1;
+            const again = el()?.querySelector(`[name="amount:${CSS.escape(cub.id)}"]`);
+            if (again) again.value = "";
+            el()?.querySelector(`[data-drpg-give="${CSS.escape(cub.id)}"]`)?.click();
+            await settle();
+            read.emptySaysWhy = warns.includes(game.i18n.format("DRPG.Monocub.giveAtLeast", { n: 1 }));
+            const label = plural("DRPG.Advance.standing", { n: 1 });
+            const button = () => el()?.querySelector(`[data-drpg-levelup="${CSS.escape(cub.id)}"]`);
+            read.levelUpDrawn = Boolean(button());
+            await offerStore.patch(cub.id, { offers: [{ id: "suite122offer", kind: "standard", extra: 0, deferred: 0, at: Date.now() }] });
+            read.offerCounted = Boolean(await until(() => button()?.textContent.trim() === label, 3000));
+        } finally {
+            ui.notifications.warn = warned;
+            for (const a of alive()) await a.close().catch(() => {});
+            if (offerWas) await offerStore.patch(cub.id, offerWas);
+            else if (offerStore.has(cub.id)) await offerStore.drop(cub.id);
+            await putBack();
+            if (cubStore) {
+                if (cubRowWas) await cubStore.patch(cub.id, cubRowWas);
+                else if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            }
+            await D.setDespair(game.user.id, despairWas);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ emptySaysWhy: true, enterGives: true, levelUpDrawn: true, offerCounted: true, windowStays: true }),
+            "[an emptied amount says why] [Enter in the amount gives the Hope] [the row has a Level Up] [another GM's offer is counted on it] [the window stays]");
+    }],
+    ["1.2.122 REFR-07 - Despair Flow's Save writes only what this GM changed: a pool name, a student's assignment and the Overflow threshold another GM wrote while the window stood stay theirs after a Save that changed nothing, no rules card is posted, and Split evenly asks before it writes (REFR-26, UI-19, ITEM-37)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line ITEMS; the audit's REFR-07, REFR-26, UI-19 and ITEM-37 (gm-team-dialog.mjs
+         * `openGmTeamDialog`, `saveGmTeam`). The window is drawn once, and its Save wrote every field as drawn: the pool
+         * names, the whole assignment map (a row written meanwhile dropped) and the whole Overflow rules form, announced to
+         * the table when it differed. Here, with the window open and no field touched, a stand-in for another GM renames
+         * this GM's pool (despair.mjs `setPoolLabel`), gives an unassigned student an explicit pool (the setting
+         * `gmAssignments`) and moves the Overflow threshold (overflow.mjs `setOverflowRules`, whose card is counted
+         * before Save): Save is pressed and the three read back. Then Split evenly is pressed and its question answered
+         * Cancel: the map is as it was. All put back; the cards this test made are deleted.
+         */
+        needs(env.dialogs(), "Despair Flow is drawn and its buttons pressed");
+        const T = await import("./gm-team-dialog.mjs");
+        const D = await import("./despair.mjs");
+        const A = await import("./assignments.mjs");
+        const O = await import("./overflow.mjs");
+        const { OVERFLOW } = await import("./config.mjs");
+        const gms = D.monokumas();
+        must(gms.length >= 1, "no Monokuma pool to name - this would measure nothing");
+        const me = gms.find(u => u.id === game.user.id) ?? gms[0];
+        const mapWas = foundry.utils.deepClone(getSetting(SETTINGS.gmAssignments) ?? {});
+        const student = A.students().find(a => !Object.hasOwn(mapWas, a.id));
+        must(Boolean(student), "every student has an explicit pool - this would measure nothing");
+        const namesWas = foundry.utils.deepClone(getSetting(SETTINGS.poolNames) ?? {});
+        const rulesWas = foundry.utils.deepClone(getSetting(SETTINGS.overflowRules) ?? {});
+        const x = O.overflowRules().threshold;
+        const x2 = x > OVERFLOW.range.min ? x - 1 : x + 1;
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const app = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes("drpg-window-gmteam"));
+        const ask = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes("drpg-window-splitask"));
+        const read = {};
+        let opening = null;
+        try {
+            opening = Promise.resolve().then(() => T.openGmTeamDialog()).catch(() => null);
+            must(await until(() => app()?.element?.querySelector('[name="ovf-threshold"]'), 6000), "Despair Flow did not open with its Overflow tab");
+            await D.setPoolLabel(me.id, "Suite122 pool");
+            await game.settings.set(MODULE_ID, SETTINGS.gmAssignments, { ...mapWas, [student.id]: me.id });
+            await O.setOverflowRules({ threshold: x2 });
+            await settle();
+            const cardsBefore = game.messages.contents.filter(m => !had.has(m.id)).length;
+            /* One row changed here, so the Save writes the division (and would drop the other GM's row if it wrote the map
+               drawn at the open, the audit's REFR-07): another student's select set to this pool. */
+            const mine = A.students().find(a => a.id !== student.id && !Object.hasOwn(mapWas, a.id)) ?? null;
+            const select = mine ? app().element.querySelector(`[name="assign.${CSS.escape(mine.id)}"]`) : null;
+            if (select) { select.value = me.id; select.dispatchEvent(new Event("change", { bubbles: true })); }
+            read.ownRow = Boolean(select);
+            app().element.querySelector('footer button[data-action="save"]')?.click();
+            await Promise.race([opening, wait(4000)]); opening = null;
+            await settle();
+            read.name = D.poolLabel(me) === "Suite122 pool";
+            read.assignment = A.assignments()[student.id] === me.id && (!mine || A.assignments()[mine.id] === me.id);
+            read.threshold = O.overflowRules().threshold === x2;
+            read.noCard = game.messages.contents.filter(m => !had.has(m.id)).length === cardsBefore;
+
+            const mapNow = stableJson(A.assignments());
+            opening = Promise.resolve().then(() => T.openGmTeamDialog()).catch(() => null);
+            must(await until(() => app()?.element?.querySelector('footer button[data-action="auto"]'), 6000), "Despair Flow drew no Split evenly");
+            // Split evenly is the Students tab's button (`TAB_BUTTONS`): that tab first, as a GM reaches it.
+            app().element.querySelector('nav.drpg-tabs [data-drpg-tab-key="students"]')?.click();
+            await settle();
+            app().element.querySelector('footer button[data-action="auto"]').click();
+            read.asked = Boolean(await until(() => ask(), 3000));
+            ask()?.element?.querySelector('footer button[data-action="cancel"]')?.click();
+            await settle();
+            read.cancelKeeps = stableJson(A.assignments()) === mapNow;
+        } finally {
+            for (let i = 0; i < 3; i++) { ask()?.close(); app()?.close(); await settle(); }
+            if (opening) await Promise.race([opening, wait(3000)]);
+            await game.settings.set(MODULE_ID, SETTINGS.gmAssignments, mapWas);
+            await game.settings.set(MODULE_ID, SETTINGS.poolNames, namesWas);
+            await game.settings.set(MODULE_ID, SETTINGS.overflowRules, rulesWas);
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ asked: true, assignment: true, cancelKeeps: true, name: true, noCard: true, ownRow: true, threshold: true }),
+            "[Split evenly asks] [the other GM's assignment kept, and the row changed here written] [Cancel on the question writes nothing] [the other GM's pool name kept] [no rules card from the Save] [a second unassigned student to change here] [the other GM's threshold kept]");
+    }],
+    ["1.2.122 REFR-32 - the Project manager follows the projects while it stands (a project made elsewhere gets its row, a room moved elsewhere moves its select, a tick made here is carried), ticking Secret unlocks the row's player ticks (REFR-62), and the project window's Save writes only what it changed (REFR-35) and says a project deleted meanwhile is gone (CTRL-74)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line ITEMS; the audit's REFR-32, REFR-62, REFR-35 and CTRL-74 (projects-ui.mjs
+         * `openProjectManager`, `wireProjectManager`, `openProjectDialog`). The manager kept only its progress figures live;
+         * a public row's player ticks stood disabled after Secret was ticked; the project window's Save wrote every field
+         * as drawn and said "Projects updated." whatever the step answered. Two public projects of the suite's own (put
+         * back: deleted), the second made while the manager stands; the first's room moved by `applyProjectChange` as
+         * another GM's change would be. Warnings read from `ui.notifications.warn`, put back.
+         */
+        needs(env.dialogs(), "the Project manager and the project window are drawn and pressed");
+        needs(world.atLeast("playerAccounts", 1), "a player column in the manager");
+        const P = await import("./projects.mjs");
+        const UI = await import("./projects-ui.mjs");
+        const { placeRoomNames } = await import("./rooms.mjs");
+        const rooms = placeRoomNames();
+        must(rooms.length >= 2, `only ${rooms.length} rooms on the place scenes`);
+        const [r1, r2] = rooms;
+        const made = [];
+        const warned = ui.notifications.warn, warns = [];
+        const of = cls => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes(cls));
+        const q = (cls, sel) => of(cls)?.element?.querySelector(sel) ?? null;
+        const read = {};
+        let opening = null;
+        try {
+            ui.notifications.warn = text => { warns.push(String(text)); return null; };
+            const a = (await P.createProject({ name: "SUITE 122 manager A", target: 4, room: r1, trait: "head", description: "Suite 122." }))?.id ?? null;
+            must(a, "could not create a project - this would measure nothing");
+            made.push(a);
+            await settle();
+            opening = Promise.resolve().then(() => UI.openProjectManager()).catch(() => null);
+            must(await until(() => q("drpg-window-projects", `[name="room.${a}"]`), 6000), "the manager did not open on the suite's row");
+            const b = (await P.createProject({ name: "SUITE 122 manager B", target: 4, room: r2, trait: "head", description: "Suite 122." }))?.id ?? null;
+            must(b, "could not create the second project - this would measure nothing");
+            made.push(b);
+            read.newRow = Boolean(await until(() => q("drpg-window-projects", `[name="room.${b}"]`), 3000));
+            const secret = q("drpg-window-projects", `[name="secret.${a}"]`);
+            read.lockedPublic = [...of("drpg-window-projects").element.querySelectorAll(`[name="viewers.${a}"]`)].every(box => box.disabled);
+            secret.checked = true; secret.dispatchEvent(new Event("change", { bubbles: true }));
+            read.unlocked = [...of("drpg-window-projects").element.querySelectorAll(`[name="viewers.${a}"]`)].every(box => !box.disabled);
+            await P.applyProjectChange(a, { meta: { room: r2 } }, { by: { kind: "gm" } });
+            read.roomFollows = Boolean(await until(() => q("drpg-window-projects", `[name="room.${a}"]`)?.value === r2, 3000));
+            read.tickCarried = Boolean(q("drpg-window-projects", `[name="secret.${a}"]`)?.checked);
+            of("drpg-window-projects")?.element?.querySelector('footer button[data-action="cancel"]')?.click();
+            await Promise.race([opening, wait(3000)]); opening = null;
+            await settle();
+
+            const editOf = id => Promise.resolve().then(() => UI.openProjectDialog({ project: P.allProjects().find(p => p.id === id) })).catch(() => null);
+            opening = editOf(a);
+            must(await until(() => q("drpg-project-form", "form [name=room]"), 6000), "the project window did not open");
+            await P.applyProjectChange(a, { meta: { room: r1 } }, { by: { kind: "gm" } });
+            await settle();
+            q("drpg-project-form", 'footer button[data-action="save"]')?.click();
+            await Promise.race([opening, wait(4000)]); opening = null;
+            await settle();
+            read.roomKept = P.roomOf(a) === r1;
+
+            opening = editOf(b);
+            must(await until(() => q("drpg-project-form", "form [name=room]"), 6000), "the project window did not open on the second project");
+            await P.deleteProject(b);
+            await settle();
+            warns.length = 0;
+            q("drpg-project-form", 'footer button[data-action="save"]')?.click();
+            await Promise.race([opening, wait(4000)]); opening = null;
+            read.goneSaid = warns.includes(game.i18n.localize("DRPG.Project.gone"));
+        } finally {
+            ui.notifications.warn = warned;
+            for (const cls of ["drpg-project-form", "drpg-window-projects"]) of(cls)?.close();
+            if (opening) await Promise.race([opening, wait(3000)]);
+            for (const id of made) if (P.allProjects().some(p => p.id === id)) await P.deleteProject(id);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ goneSaid: true, lockedPublic: true, newRow: true, roomFollows: true, roomKept: true, tickCarried: true, unlocked: true }),
+            "[the window says a project deleted meanwhile is gone] [a public row's ticks drawn locked] [a project made elsewhere has its row] [a room moved elsewhere moves its select] [the window's Save keeps the room another GM set] [the Secret tick carried over the redraw] [Secret ticked unlocks the row's ticks]");
+    }],
+    ["1.2.122 ITEM-23 - a countdown that counts down keeps the progress done when its target changes, up or down, and the tray's row menu Delete asks first and Cancel keeps the project (CTRL-29)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line ITEMS; the audit's ITEM-23 (projects.mjs `changeStep`'s clamp) and CTRL-29 (projects-ui.mjs
+         * `projectRowMenu`). A countdown made in Daggerheart's own window stores what is LEFT (`countsUp` false), and a new
+         * target kept what was left: 6 done of 8 raised to 10 read 8 done, lowered to 4 read 2 done. A project of the suite's
+         * own, made to count down (`meta.countsUp`), 2 taken off its bar (6 done), its target set to 10 and then 4 by the
+         * entry's one change; the progress done read each time (`allProjects`). Then the tray's Delete entry, wrapped as the
+         * tray wraps it, pressed on the project's row: a question must stand, Cancel answered, the project still there.
+         * Deleted at the end.
+         */
+        needs(env.dialogs(), "the tray's Delete question is drawn and answered");
+        const P = await import("./projects.mjs");
+        const UI = await import("./projects-ui.mjs");
+        const read = {};
+        let id = null, pressing = null;
+        const done = () => P.allProjects().find(p => p.id === id)?.current ?? null;
+        const question = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected
+            && (a.title ?? a.options?.window?.title) === game.i18n.localize("DRPG.Project.delete"));
+        try {
+            id = (await P.createProject({ name: "SUITE 122 countdown", target: 8, trait: "head", description: "Suite 122." }))?.id ?? null;
+            must(id, "could not create a project - this would measure nothing");
+            await P.applyProjectChange(id, { meta: { countsUp: false } }, { by: { kind: "gm" } });
+            await P.applyProjectChange(id, { delta: -2 }, { by: { kind: "gm" } });
+            must(done() === 6, `the countdown reads ${done()} done, not 6 - this would measure nothing`);
+            await P.applyProjectChange(id, { target: 10 }, { by: { kind: "gm" } });
+            read.raised = done();
+            await P.applyProjectChange(id, { target: 4 }, { by: { kind: "gm" } });
+            read.lowered = done();
+
+            const [entry] = UI.projectRowMenu([{ label: "CONTROLS.CommonDelete", onClick: () => null }]);
+            const row = document.createElement("div");
+            row.dataset.countdown = id;
+            pressing = Promise.resolve().then(() => entry.onClick(new Event("click"), row)).catch(() => null);
+            read.asked = Boolean(await until(() => question(), 3000));
+            question()?.element?.querySelector('footer button[data-action="cancel"]')?.click();
+            await Promise.race([pressing, wait(3000)]); pressing = null;
+            await settle();
+            read.kept = P.allProjects().some(p => p.id === id);
+        } finally {
+            question()?.close();
+            if (pressing) await Promise.race([pressing, wait(3000)]);
+            if (id && P.allProjects().some(p => p.id === id)) await P.deleteProject(id);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ asked: true, kept: true, lowered: 4, raised: 6 }),
+            "[the tray's Delete asks] [Cancel keeps the project] [done after the target lowered to 4] [done after the target raised to 10]");
+    }],
+    ["1.2.122 REFR-09 - Give a room key follows the world while it stands: a key handed to the student elsewhere leaves the list, the pick made of another room is kept", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line ITEMS; the audit's REFR-09 (gm-items.mjs: only the hub's holdings were live; the give and
+         * take windows' lists stayed as opened). The key window for a student, with two rooms of other owners offered; the
+         * second picked; the first room's key granted to the student by `grantBedroomKey` as another GM's give (the item
+         * deleted at the end): the first room must leave the list and the pick stay on the second.
+         */
+        needs(env.dialogs(), "the key window is drawn and its list read");
+        const GI = await import("./gm-items.mjs");
+        const V = await import("./vault.mjs");
+        const [who, b, c] = cast(3);
+        /* Two rooms of the scene on screen given owners for the test (the room's owner flag, put back), where the world
+           has fewer than two bedrooms of other owners whose key the student lacks: the harness world has none. */
+        const owned = [];
+        const lacking = () => V.allBedroomsAnywhere().filter(v => v.owner && v.owner.id !== who.id && !V.keysHeldBy(who, { stashed: true }).has(v.room));
+        const itemsWere = new Map(game.actors.map(a => [a.id, new Set(a.items.map(i => i.id))]));
+        if (lacking().length < 2) {
+            const free = [...(canvas?.scene?.regions ?? [])].filter(r => r.name && !r.getFlag(MODULE_ID, V.VAULT_FLAGS.owner));
+            const names = [...new Set(free.map(r => r.name))].slice(0, 2);
+            for (const [i, name] of names.entries()) {
+                for (const region of free.filter(r => r.name === name)) {
+                    await region.setFlag(MODULE_ID, V.VAULT_FLAGS.owner, [b, c][i].id);
+                    owned.push(region);
+                }
+            }
+            await settle();
+        }
+        const rooms = lacking();
+        const [first, second] = rooms;
+        const app = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.element.querySelector('form [name="room"]')
+            && a.element.querySelector('form [name="recipient"]'));
+        const offered = room => [...(app()?.element?.querySelector('form [name="room"]')?.options ?? [])].some(o => o.value === room);
+        const read = {};
+        let opening = null;
+        try {
+            must(rooms.length >= 2, `only ${rooms.length} bedrooms of other owners whose key ${who.name} lacks - this would measure nothing`);
+            opening = Promise.resolve().then(() => GI.giveKeyDialog(who)).catch(() => null);
+            must(await until(() => offered(first.room) && offered(second.room), 6000), "the key window did not open with both rooms");
+            const select = app().element.querySelector('form [name="room"]');
+            select.value = second.room;
+            select.dispatchEvent(new Event("change", { bubbles: true }));
+            await V.grantBedroomKey(who, first.room);
+            read.gone = Boolean(await until(() => !offered(first.room), 3000));
+            read.pickKept = app()?.element?.querySelector('form [name="room"]')?.value === second.room;
+        } finally {
+            app()?.close();
+            if (opening) await Promise.race([opening, wait(3000)]);
+            for (const region of owned) await region.unsetFlag(MODULE_ID, V.VAULT_FLAGS.owner);
+            await settle();
+            for (const actor of game.actors) {
+                const was = itemsWere.get(actor.id) ?? new Set();
+                for (const item of actor.items.filter(i => !was.has(i.id))) await item.delete();
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ gone: true, pickKept: true }), "[the key handed elsewhere left the list] [the pick of another room kept]");
+    }],
+    ["1.2.122 REFR-09 (the rest) - Give a Truth Bullet's Remnant list and the Autopsy's rows follow the world while they stand: a trace placed elsewhere joins the list with the pick kept, and a student renamed elsewhere is renamed in the Autopsy with a box the GM unticked kept unticked", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line ITEMS; the rest of the audit's REFR-09 (gm-items.mjs: the Remnant list was read at the
+         * open, and the Autopsy's rows were drawn once). Give a Truth Bullet for a student, on From a Remnant with the
+         * first trace picked; a trace placed on the scene on screen (`placeRemnant`, dropped at the end) must join the
+         * list and the pick stay. Then the Autopsy, with the first living student's box unticked by hand; a second
+         * student renamed (put back) must be drawn under the new name and the first box stay unticked. Red at 21bf5d18:
+         * neither list moved.
+         */
+        needs(env.dialogs(), "the two windows are drawn and their lists read");
+        needs(world.atLeast("remnantTokens", 1), "a trace on a scene for the list's first pick");
+        needs(world.atLeast("sceneOnScreen", 1), "a scene on screen for the trace placed");
+        const GI = await import("./gm-items.mjs");
+        const [who, other] = cast(2);
+        const find = selector => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.element.querySelector(selector));
+        const read = {};
+        let opening = null, placed = null;
+        const wasName = other.name;
+        const NEW = `${wasName} SUITE 1.2.122 REFR-09`;
+        try {
+            opening = Promise.resolve().then(() => GI.giveTruthBulletDialog(who)).catch(() => null);
+            const picker = () => find('form [name="remnant"]')?.element?.querySelector('form [name="remnant"]') ?? null;
+            must(await until(() => picker()?.options?.length, 6000), "Give a Truth Bullet did not open with a Remnant list");
+            const before = picker().options.length;
+            const keep = picker().options[0].value;
+            picker().value = keep;
+            placed = await placedTrace("REFR-09 a trace placed while the window stands");
+            must(placed, "no trace was placed - this would measure nothing");
+            read.joined = Boolean(await until(() => [...(picker()?.options ?? [])].some(o => o.value === placed.id), 3000));
+            read.count = (picker()?.options?.length ?? 0) - before;
+            read.pickKept = picker()?.value === keep;
+            find('form [name="remnant"]')?.close();
+            await Promise.race([opening, wait(3000)]);
+            opening = Promise.resolve().then(() => GI.issueAutopsyDialog()).catch(() => null);
+            // The rows' fieldset by its window's class, which 21bf5d18 drew too (the fieldset's own mark is this line's).
+            const set = () => find(".drpg-window-autopsy, form [name=target]")?.element?.querySelector("form fieldset") ?? null;
+            must(await until(() => set()?.querySelector(`[name=target][value="${who.id}"]`), 6000), "the Autopsy did not open with the student's row");
+            const box = set().querySelector(`[name=target][value="${who.id}"]`);
+            box.checked = !box.checked;
+            box.dispatchEvent(new Event("change", { bubbles: true }));
+            const ticked = box.checked;
+            await other.update({ name: NEW });
+            read.renamed = Boolean(await until(() => set()?.textContent?.includes(NEW), 3000));
+            read.handKept = set()?.querySelector(`[name=target][value="${who.id}"]`)?.checked === ticked;
+        } finally {
+            find(".drpg-window-autopsy, form [name=target]")?.close();
+            find('form [name="remnant"]')?.close();
+            if (opening) await Promise.race([opening, wait(3000)]);
+            if (other.name !== wasName) await other.update({ name: wasName });
+            if (placed) await dropTrace(placed);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ joined: true, count: 1, pickKept: true, renamed: true, handKept: true }),
+            "[the trace placed joined the list] [one row more] [the pick kept] [the Autopsy's row renamed] [the GM's own tick kept]");
+    }],
+    ["1.2.122 REFR-51 (the rest) - the case window's lines, the restore preview's counts and Give back follow the world while they stand: another GM's Back up mark redraws the age line, a trace placed meanwhile has the preview counted and drawn again, and Give back's facts changed elsewhere open it again on the new ones", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line ITEMS; the rest of the audit's REFR-51 (gm-stores.mjs `openCaseWindow`,
+         * `openRestoreDialog`; enforced.mjs `openGiveBackFoundry`: each drew its facts once). The case window open, the
+         * case's mark written as another GM's Back up would (`caseMark`, put back): the age line must name them. The
+         * restore preview open on this world's own case file, a trace placed (dropped at the end): its list must be
+         * counted and drawn again (a mark left in it gone; the numbers themselves need not move). Give back open, the
+         * kept values written elsewhere (`foundryBefore`, put back): the window must close and open again, and its body
+         * differ. Not read here: the Back up question's early warning, which follows
+         * the engine's hydration - a tier-2 run cannot move it. Red at 21bf5d18: none of the three moved.
+         */
+        needs(env.dialogs(), "the three windows are drawn and read");
+        needs(world.atLeast("sceneOnScreen", 1), "a scene on screen for the trace placed");
+        const S = await import("./gm-stores.mjs");
+        const E = await import("./enforced.mjs");
+        const find = cls => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.element.classList.contains(cls));
+        const markWas = foundry.utils.deepClone(getSetting(SETTINGS.caseMark) ?? {});
+        const keptWas = foundry.utils.deepClone(getSetting(SETTINGS.foundryBefore) ?? {});
+        const WHO = "SUITE 1.2.122 REFR-51";
+        const read = {};
+        let opening = null, placed = null;
+        try {
+            opening = Promise.resolve().then(() => S.openCaseWindow()).catch(() => null);
+            must(await until(() => find("drpg-window-case-copy")?.element?.querySelector("[data-drpg-case-age]"), 6000), "the case window did not open");
+            await game.settings.set(MODULE_ID, SETTINGS.caseMark, { ...markWas, lastBackupAt: Date.now(), lastBackupBy: WHO });
+            read.age = Boolean(await until(() => find("drpg-window-case-copy")?.element?.querySelector("[data-drpg-case-age]")?.textContent?.includes(WHO), 3000));
+            find("drpg-window-case-copy")?.close();
+            await Promise.race([opening, wait(3000)]);
+
+            const text = JSON.stringify(await S.caseFileNow());
+            opening = Promise.resolve().then(() => S.openRestoreDialog(text)).catch(() => null);
+            const list = () => find("drpg-window-restore-case")?.element?.querySelector("form ul") ?? null;
+            must(await until(() => list()?.children?.length, 6000), "the restore preview did not open with its counts");
+            /* A row written here after the file counts as "kept newer here" before and after, so the numbers need not move;
+               what is read is that the list was counted and drawn again: a mark left in it is gone once it is. */
+            list().insertAdjacentHTML("beforeend", "<li data-suite-r51></li>");
+            placed = await placedTrace("REFR-51 a trace placed while the preview stands");
+            must(placed, "no trace was placed - this would measure nothing");
+            read.counts = Boolean(await until(() => list() && !list().querySelector("[data-suite-r51]"), 3000));
+            find("drpg-window-restore-case")?.close();
+            await Promise.race([opening, wait(3000)]);
+
+            opening = Promise.resolve().then(() => E.openGiveBackFoundry()).catch(() => null);
+            must(await until(() => find("drpg-window-give-back"), 6000), "Give back did not open");
+            const first = find("drpg-window-give-back");
+            const body = first.element.querySelector("form")?.innerHTML ?? "";
+            await game.settings.set(MODULE_ID, SETTINGS.foundryBefore, keptWas.automation ? {} : { ...keptWas, automation: { suite: true } });
+            const again = await until(() => { const app = find("drpg-window-give-back"); return app && app !== first ? app : null; }, 3000);
+            read.giveBack = Boolean(again) && (again?.element?.querySelector("form")?.innerHTML ?? "") !== body;
+        } finally {
+            for (const cls of ["drpg-window-case-copy", "drpg-window-restore-case", "drpg-window-give-back"]) find(cls)?.close();
+            if (opening) await Promise.race([opening, wait(3000)]);
+            await game.settings.set(MODULE_ID, SETTINGS.caseMark, markWas);
+            await game.settings.set(MODULE_ID, SETTINGS.foundryBefore, keptWas);
+            await settle();
+            find("drpg-window-give-back")?.close();
+            if (placed) await dropTrace(placed);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ age: true, counts: true, giveBack: true }),
+            "[the case window's age line names the other GM's Back up] [the preview counted again] [Give back opened again on its new facts]");
+    }],
+    ["1.2.122 PROBE43 - Despair Flow's suggested Overflow threshold follows the living students while the window stands: a student marked dead elsewhere, and revived, redraws the line, and the threshold typed stays", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line ITEMS; the auditor's probe 43 on 1.2.121 (probe-43-121.json, despair-flow, change
+         * "death": the live window read "Suggested for 4 students and 1 pool: 14" where a fresh one read the new count;
+         * unchanged since 1.2.118). Despair Flow open, a number typed in the threshold; a living student marked dead
+         * (`markDeceased`, revived at the end): the line must read what `overflowSuggestionNow` answers, again after the
+         * revive, and the typed number stay. Red at 21bf5d18: the line kept the open's count.
+         */
+        needs(env.dialogs(), "Despair Flow is drawn and its line read");
+        needs(world.atLeast("livingStudents", 2), "two living students, one to mark dead");
+        const T = await import("./gm-team-dialog.mjs");
+        const C = await import("./chapter.mjs");
+        const { studentCensus } = await import("./monokuma.mjs");
+        const who = studentCensus().living[0];
+        const app = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.element.querySelector(".drpg-overflow-suggested"));
+        const line = () => app()?.element?.querySelector(".drpg-overflow-suggested")?.textContent?.trim() ?? null;
+        const read = {};
+        let opening = null, died = false;
+        try {
+            opening = Promise.resolve().then(() => T.openGmTeamDialog()).catch(() => null);
+            must(await until(() => line(), 6000), "Despair Flow did not open with its suggested line");
+            const field = app().element.querySelector('[name="ovf-threshold"]');
+            must(field, "no threshold field - the typed number would measure nothing");
+            field.value = "37";
+            field.dispatchEvent(new Event("input", { bubbles: true }));
+            const before = line();
+            await C.markDeceased(who);
+            died = true;
+            const want = T.overflowSuggestionNow();
+            must(want !== before, "the suggestion does not move with one death - this would measure nothing");
+            read.dead = Boolean(await until(() => line() === want, 3000));
+            await C.reviveCharacter(who, { quiet: true });
+            died = false;
+            read.revived = Boolean(await until(() => line() === before, 3000));
+            read.typed = app()?.element?.querySelector('[name="ovf-threshold"]')?.value === "37";
+        } finally {
+            app()?.close();
+            if (opening) await Promise.race([opening, wait(3000)]);
+            if (died || C.isDeceased(who)) await C.reviveCharacter(who, { quiet: true });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ dead: true, revived: true, typed: true }),
+            "[the line read the count after the death] [and after the revive] [the typed threshold kept]");
+    }],
+    ["1.2.122 STG-28 - a bedroom key granted while the world's document language is not this GM's page's is named and described in the world's language", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line ITEMS; the code half of the audit's STG-28 (vault-store.mjs `grantBedroomKey`; the
+         * Document language setting, settings.mjs `documentLanguage`). The key was named in the granting GM's browser's
+         * language. Here the setting is set to the language this page is not in (put back), a key to a room of the place
+         * scenes granted to a student (deleted at the end), and its name and the first words of its text read against
+         * lang/<that language>.json as fetched (`DRPG.Vault.keyName`, `keyDescription`). Red on 21bf5d18: the name in the
+         * page's language.
+         */
+        const V = await import("./vault.mjs");
+        const { placeRoomNames } = await import("./rooms.mjs");
+        const page = game.i18n.lang === "pl" ? "pl" : "en";
+        const other = page === "pl" ? "en" : "pl";
+        const json = await fetch(`modules/${MODULE_ID}/lang/${other}.json`).then(r => (r.ok ? r.json() : null)).catch(() => null);
+        must(json, `lang/${other}.json was not fetched - this would measure nothing`);
+        const nameOf = room => String(foundry.utils.getProperty(json, "DRPG.Vault.keyName") ?? "").replace("{room}", room);
+        const [who] = cast(1);
+        const room = placeRoomNames().find(r => !V.keysHeldBy(who, { stashed: true }).has(r));
+        must(room, "no room whose key the student lacks - this would measure nothing");
+        const was = getSetting(SETTINGS.documentLanguage) ?? "";
+        const had = new Set(who.items.map(i => i.id));
+        const read = {};
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.documentLanguage, other);
+            const key = await V.grantBedroomKey(who, room, { silent: true });
+            must(key, "no key was granted - this would measure nothing");
+            const made = who.items.get(key.id) ?? key;
+            read.name = made.name === nameOf(room);
+            const lead = String(foundry.utils.getProperty(json, "DRPG.Vault.keyDescription") ?? "").split("{")[0].trim();
+            read.text = Boolean(lead) && String(made.system?.description ?? "").includes(lead);
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.documentLanguage, was);
+            for (const item of who.items.filter(i => !had.has(i.id))) await item.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ name: true, text: true }), "[the key's name in the world's language] [its text in the world's language]");
+    }],
+    ["1.2.122 REFR-36 - the Projects window follows the projects while it stands: a project made in the character's room unstrikes Work on project and draws its select, with no reopen", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line ITEMS; the audit's REFR-36 (action-project.mjs `performProject`, drawn once). A student
+         * stood alone in a room with no project (`standAlone`, put back) opens Projects, free; with the window standing a
+         * public project is made in that room (deleted at the end); the window's Work on project must lose its struck-through
+         * state and draw "Which project?" naming the new project. The window is closed with Cancel. Red on 21bf5d18: the row
+         * stays struck through.
+         */
+        needs(env.dialogs(), "the Projects window is drawn and read while it stands");
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the worker alone");
+        const [actor] = cast(1);
+        const { performAction } = await import("./action-rolls.mjs");
+        const P = await import("./projects.mjs");
+        const stood = await standAlone(actor);
+        const made = [];
+        const app = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.element.querySelector('input[name="variant"][value="work"]'));
+        const work = () => app()?.element?.querySelector('input[name="variant"][value="work"]') ?? null;
+        const read = {};
+        let opening = null;
+        try {
+            opening = Promise.resolve().then(() => performAction(actor, "project", { free: true })).catch(() => null);
+            must(await until(() => work(), 6000), "the Projects window did not open");
+            read.struckAtOpen = Boolean(work()?.disabled);
+            const id = (await P.createProject({ name: "SUITE 122 action window", target: 4, room: stood.room, trait: "head", description: "Suite 122." }))?.id ?? null;
+            must(id, "could not create a project - this would measure nothing");
+            made.push(id);
+            read.unstruck = Boolean(await until(() => work() && !work().disabled, 3000));
+            read.listed = Boolean(app()?.element?.querySelector(`select[name="project"] option[value="${id}"]`));
+        } finally {
+            app()?.element?.querySelector('footer button[data-action="cancel"]')?.click();
+            if (opening) await Promise.race([opening, wait(3000)]);
+            app()?.close();
+            for (const id of made) await P.deleteProject(id).catch(() => {});
+            await stood.back();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ listed: true, struckAtOpen: true, unstruck: true }),
+            "[the new project in Which project?] [Work on project struck through at the open] [Work on project live after the project was made]");
+    }],
+    ["1.2.122 ITEM-38 - a secret project with a room action, completed, stamps its completedAt in the GMs' row and not in projectMeta, and the action's lifetime still reads it", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line ITEMS; the audit's ITEM-38 (projects.mjs's facility completion row writes `completedAt`
+         * through projects-secrecy.mjs `setProjectMeta`, which sent every field but PROJECT_SECRET_WHILE_SECRET's to
+         * projectMeta, a world setting every browser holds). A secret project of the suite's own with a room action (its
+         * `facility`, the GMs' half) and a target of 1 is filled; then read: projectMeta's row of it holds no completedAt, the
+         * GMs' row does, and facilities.mjs `projectFacilityOf` answers it. Deleted at the end. Red on 21bf5d18: projectMeta's
+         * row held completedAt.
+         */
+        const P = await import("./projects.mjs");
+        const S = await import("./projects-secrecy.mjs");
+        const F = await import("./facilities.mjs");
+        let id = null;
+        const read = {};
+        try {
+            id = (await P.createProject({ name: "SUITE 122 secret action", target: 1, trait: "head", secret: true, description: "Suite 122." }))?.id ?? null;
+            must(id && P.isSecret(id), "could not create a secret project - this would measure nothing");
+            await P.applyProjectChange(id, { meta: { facility: { label: "Suite 122 tea", effects: [], costsAction: false, lifetime: { kind: "forever" } } } }, { by: { kind: "gm" } });
+            must(S.secretsOf(id).facility, "the room action was not stored - this would measure nothing");
+            await P.applyProjectChange(id, { delta: 1 }, { by: { kind: "gm" } });
+            await settle();
+            must(P.allProjects().find(p => p.id === id)?.complete, "the project did not complete - this would measure nothing");
+            const open = getSetting(SETTINGS.projectMeta)?.[id] ?? {};
+            read.publicHolds = Object.hasOwn(open, "completedAt");
+            read.gmsHold = Boolean(S.secretsOf(id).completedAt);
+            read.actionReads = Boolean(F.projectFacilityOf(id).completedAt);
+            /* A world from before: the stamp written back into projectMeta raw, as 1.2.121 left it, and the GMs' row's let go;
+               the lift migrate.mjs `liftSecretCompletedAt` runs takes it out again into the store. */
+            const stamp = foundry.utils.deepClone(S.secretsOf(id).completedAt);
+            const meta = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
+            meta[id] = { ...(meta[id] ?? {}), completedAt: stamp };
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            await P.liftSecretProjectMarks();
+            await settle();
+            read.lifted = !Object.hasOwn(getSetting(SETTINGS.projectMeta)?.[id] ?? {}, "completedAt") && Boolean(S.secretsOf(id).completedAt);
+        } finally {
+            if (id && P.allProjects().some(p => p.id === id)) await P.deleteProject(id);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ actionReads: true, gmsHold: true, lifted: true, publicHolds: false }),
+            "[the room action reads its completion] [the GMs' row holds completedAt] [an old world's stamp lifted out of projectMeta] [projectMeta's row holds completedAt]");
+    }],
+    ["1.2.122 CORE-25 - a hidden stash is no entry of any region: hidden, its room's region lists nobody of it and the GMs' store holds it, a GM still reads it hidden; made open it is the region's again; and a world from before is lifted off its region into the store", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line ITEMS; the audit's CORE-25 (vault-store.mjs `setStash`, `stashesOn`; hidden-stashes.mjs).
+         * A stash's hiding place was an entry `{ actorId, concealed: true }` of its room's region, which every browser holds.
+         * Here, on a room of the scene on screen with no stash of the student's (put back as found): the stash made hidden
+         * (`setStash`), every piece of the room read for an entry naming the student, the GMs' store read for its row, and
+         * `stashIn` read as a GM reads it; then made open, then removed. Last, a world from before 1.2.122: the region's
+         * list written with a hidden entry raw, and hidden-stashes.mjs `liftHiddenStashes` run (migrate.mjs's clause): the
+         * entry off the region, the row in the store. Red on 21bf5d18: the region listed the hidden stash.
+         */
+        needs(world.atLeast("namedRooms", 1), "a room to put a stash in");
+        const V = await import("./vault.mjs");
+        const { roomRegions, roomNames } = await import("./rooms.mjs");
+        const { gmStoreByName } = await import("./gm-store.mjs");
+        const scene = canvas?.scene;
+        must(scene, "no scene on screen - this would measure nothing");
+        const [who, old] = cast(2);
+        const room = roomNames(scene).find(r => !V.stashIn(r, who.id, scene) && !V.stashIn(r, old.id, scene));
+        must(room, "every room holds a stash of the student's - this would measure nothing");
+        const pieces = () => roomRegions(scene, room);
+        const before = pieces().map(r => [r, foundry.utils.deepClone(r.getFlag(MODULE_ID, V.VAULT_FLAGS.stashes) ?? null)]);
+        const lists = actor => pieces().some(r => (r.getFlag(MODULE_ID, V.VAULT_FLAGS.stashes) ?? []).some?.(e => e?.actorId === actor.id));
+        const listsHim = () => lists(who);
+        const carriesConcealed = () => pieces().some(r => (r.getFlag(MODULE_ID, V.VAULT_FLAGS.stashes) ?? []).some?.(e => e && Object.hasOwn(e, "concealed")));
+        const store = () => gmStoreByName("hiddenStashes");
+        const rowOf = (actor = who) => Object.keys(store()?.entries() ?? {}).some(k => k === `${scene.id}|${actor.id}|${room}`);
+        const read = {};
+        try {
+            await V.setStash(room, who.id, { concealed: true, scene });
+            await settle();
+            read.hidden = { region: listsHim(), field: carriesConcealed(), store: rowOf(), gm: V.stashIn(room, who.id, scene)?.concealed === true };
+            await V.setStash(room, who.id, { concealed: false, scene });
+            await settle();
+            read.open = { region: listsHim(), store: rowOf(), gm: V.stashIn(room, who.id, scene)?.concealed === false };
+            await V.setStash(room, who.id, { present: false, scene });
+            await settle();
+            read.gone = !V.stashIn(room, who.id, scene) && !rowOf();
+
+            /* The lift reads the store back from storage before it takes anything off a region, and tier 2 swallows the
+               stores' saves (CLAUDE.md: "tier 2 runs the lifts that remove world data with their store's save swallowed, and
+               the world data stays"): here it must refuse - throw, the region's entry kept, the row in the store's memory.
+               Where the save lands (a real table, a load after), the entry goes; either is read, and nothing else passes. */
+            const lift = await import("./hidden-stashes.mjs").then(m => m.liftHiddenStashes).catch(() => null);
+            // A second student's, whose row has no tombstone (the first's drop above leaves one, which a weak write does not pass).
+            for (const region of pieces()) await region.setFlag(MODULE_ID, V.VAULT_FLAGS.stashes, [{ actorId: old.id, concealed: true }]);
+            await settle();
+            let threw = false;
+            try { if (lift) await lift({ flags: V.VAULT_FLAGS }); } catch { threw = true; }
+            await settle();
+            const region = lists(old), stored = rowOf(old);
+            read.lifted = Boolean(lift) && (threw ? region && stored : !region && stored) && V.stashIn(room, old.id, scene)?.concealed === true;
+        } finally {
+            for (const actor of [who, old]) if (rowOf(actor)) await store()?.drop(`${scene.id}|${actor.id}|${room}`);
+            for (const [region, flag] of before) {
+                if (flag === null) await region.unsetFlag(MODULE_ID, V.VAULT_FLAGS.stashes);
+                else await region.setFlag(MODULE_ID, V.VAULT_FLAGS.stashes, flag);
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ gone: true, hidden: { field: false, gm: true, region: false, store: true },
+            lifted: true, open: { gm: true, region: true, store: false } }),
+            "[removed: no stash, no row] [hidden: a field `concealed` on the region, a GM reads it hidden, the region lists the student, the store's row] "
+                + "[lifted: refused with the entry kept, or taken off with the row in the store - hidden to a GM either way] [open: a GM reads it open, the region lists the student, the store's row]");
+    }],
+    ["1.2.122 ITEM-04 - a Gear dragged onto a sheet beside one stowed, with an empty hand, is held to the Gear shape as the module's own roads are: one of the two goes into the hand, and the owner's other stowed piece is left", async () => {
+        /*
+         * The audit's ITEM-04 (1.2.118's unrouted list, B; verify: weakened): D4 (13.09.2026) chose "auto-ready on every
+         * way in", and every module road ends on inventory.mjs `keepGearShape`, but a drop from a compendium, the
+         * sidebar or another sheet is Foundry's own create, which only `preCreateItem` saw, and that counts the slots
+         * alone - so two Gear could stand stowed for good. One student, their Gear put in a stash, one Tool granted
+         * stowed (an empty hand); then a second Tool made by a plain create with none of the module's marks, as a drop
+         * makes it. Read: how many of the group stand stowed, and whether either is in a hand. Red at 21bf5d18: two
+         * stowed, none held.
+         */
+        const INV = await import("./inventory.mjs");
+        const { isEquipped, stowedInGroup } = await import("./use-items.mjs");
+        const { ITEM_CATEGORIES } = await import("./config.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const [actor] = cast(1);
+        const group = ITEM_CATEGORIES.tool?.limitGroup ?? null;
+        must(group, "a Tool shares no group of slots - the shape this reads is not there");
+        const inGroup = i => ITEM_CATEGORIES[i.getFlag(MODULE_ID, INV.ITEM_FLAGS.category)]?.limitGroup === group;
+        const NAMES = ["SUITE 1.2.122 ITEM-04 a granted Tool", "SUITE 1.2.122 ITEM-04 a dropped Tool"];
+        const flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        const stowed = [];
+        let read = null;
+        try {
+            for (const i of actor.items.filter(i => inGroup(i) && !INV.isStashed(i))) {
+                stowed.push([i, i.getFlag(MODULE_ID, INV.ITEM_FLAGS.location)]);
+                await i.update({ [flag("location")]: INV.LOCATIONS.vault });
+            }
+            const one = await INV.grantItem(actor, { name: NAMES[0], category: "tool", tier: 1, override: true, quiet: true });
+            await sheetAuditIdle();
+            must(one && stowedInGroup(actor, group).length === 1 && !isEquipped(one) && INV.canCarry(actor, "tool").ok,
+                "the student does not hold exactly one stowed Gear with a slot free - this would measure nothing");
+            const data = one.toObject();
+            delete data._id;
+            data.name = NAMES[1];
+            await actor.createEmbeddedDocuments("Item", [data]);
+            await settle();
+            await sheetAuditIdle();
+            const both = actor.items.filter(i => NAMES.includes(i.name));
+            read = [both.length, stowedInGroup(actor, group).length, both.filter(i => isEquipped(i)).length];
+        } finally {
+            for (const i of actor.items.filter(i => NAMES.includes(i.name))) await i.delete();
+            for (const [i, was] of stowed) if (actor.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([2, 1, 1]),
+            "a Gear made by a plain create beside one stowed left two stowed and none held ([the two Tools, stowed of the group, held])");
+    }],
+
+    ["1.2.122 REFR-52 - the use question's preview follows the table while it stands: a healing kit's line reads what it would heal, and a Health mark healed elsewhere redraws it to restore nothing, with no reopen", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line ITEMS; MAP's REFR-52 for use-items.mjs (`confirmUse`, its line computed once at the open).
+         * A student with one Health mark (put back) is given a Tier 1 healing kit (deleted at the end) and uses it: the
+         * question stands with "would restore 1 Health"; the mark is then healed by a GM's write, and the line must read that
+         * the use would restore nothing, the window still open. Answered Cancel. Red on 21bf5d18: the line kept its promise.
+         */
+        needs(env.dialogs(), "the use question is drawn and read while it stands");
+        const INV = await import("./inventory.mjs");
+        const U = await import("./use-items.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const [actor] = cast(1);
+        const HP = "system.resources.hitPoints.value";
+        const putBack = sheetAsFound(actor, [HP]);
+        const had = new Set(actor.items.map(i => i.id));
+        // The question by its first line (DRPG.Items.confirmUse), the preview its second paragraph: read so on 21bf5d18 too.
+        const asks = el => el?.textContent?.includes(game.i18n.format("DRPG.Items.confirmUse", { item: "Suite 122 kit" }));
+        const app = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && asks(a.element));
+        const line = () => [...(app()?.element?.querySelectorAll(".window-content p, form p, p") ?? [])]
+            .find(p => !asks(p) && p.textContent.trim())?.textContent?.trim() ?? null;
+        const read = {};
+        let using = null;
+        try {
+            await trustedWrite(actor, { [HP]: 1 }, { reason: "gmRuling" });
+            const kit = await INV.grantItem(actor, { name: "Suite 122 kit", category: "usable", tier: 1, goal: "healing", quiet: true });
+            must(kit, "no kit was granted - this would measure nothing");
+            using = Promise.resolve().then(() => U.useItem(actor, actor.items.get(kit.id) ?? kit)).catch(() => null);
+            must(await until(() => line(), 6000), "the use question did not open with its preview");
+            read.promises = line() !== game.i18n.localize("DRPG.Items.wouldRestoreNothing");
+            await trustedWrite(actor, { [HP]: 0 }, { reason: "gmRuling" });
+            read.redrawn = Boolean(await until(() => line() === game.i18n.localize("DRPG.Items.wouldRestoreNothing"), 3000));
+        } finally {
+            app()?.element?.querySelector('footer button[data-action="cancel"]')?.click();
+            if (using) await Promise.race([using, wait(3000)]);
+            app()?.close();
+            for (const item of actor.items.filter(i => !had.has(i.id))) await item.delete();
+            await putBack();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ promises: true, redrawn: true }), "[the line promised a Health mark at the open] [the line reads nothing to restore after the mark was healed]");
+    }],
     ["the Sound window's Music row picked with the pointer writes its key at once, and another GM's mapping shows on the open window while the row's select keeps the focus", async () => {
         /*
          * Line P (claude/move-120, 21.11.2026), measured against the owner's rule "Zawsze odswiezamy okna od razu przy
@@ -110663,9 +111526,12 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await MM.clearMastermind();
             await settle();
             const before = [resourceValue(a, "hope"), resourceValue(b, "hope"), D.getDespair(donor.id), D.owedOf(donor.id)];
-            await give();
+            /* Since 1.2.122 (the audit's REFR-45: the whole form follows the record) the Give Hope box goes with the
+               Mastermind, so there is no Give to press; where a box still stands, its press must refuse and say why. */
+            const boxGone = Boolean(await until(() => !box(), 2000));
+            if (!boxGone) await give();
             read.cleared = { same: stableJson([resourceValue(a, "hope"), resourceValue(b, "hope"), D.getDespair(donor.id), D.owedOf(donor.id)]) === stableJson(before),
-                told: warned.includes(game.i18n.localize("DRPG.Mastermind.noneSet")) };
+                told: boxGone || warned.includes(game.i18n.localize("DRPG.Mastermind.noneSet")) };
         } finally {
             ui.notifications.warn = warn;
             appOf()?.close();
@@ -110682,7 +111548,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
         }
         equal(stableJson(read), stableJson({ cleared: { same: true, told: true }, changed: { a: 0, b: 3 }, redrawn: true }),
-            "[cleared: Give changed nothing; it said no Mastermind is set] [changed: A's Hope, B's Hope after Give 1] [the box read the new Mastermind's Hope]");
+            "[cleared: Give changed nothing; no Give box stood, or its press said no Mastermind is set] [changed: A's Hope, B's Hope after Give 1] [the box read the new Mastermind's Hope]");
     }],
     ["the open planner draws a node written to the case while it stands open - with no field focused, with a field focused that holds nothing typed, and with text typed in it: the focus, the caret and the text kept, and a field another write changed under the typing keeps the text and is marked (investigation.mjs `openInvestigationDashboard`, live.mjs `keepLive` `whileEditing`; the owner, 20.11.2026: \"by okna zawsze odswiezaly sie przed zaladowaniem okna od nowa (np. Planer)\", \"Zawsze odswiezamy okna od razu przy zmianie\"; the line claude/plan-119)", async () => {
         /*

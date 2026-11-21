@@ -23,7 +23,7 @@
 import { MODULE_ID, FLAGS, BEDROOM_KEY_FLAG, LOOT, REMNANT_VISIBILITY } from "./config.mjs";
 import { capacityLabel, isStashed, transferItem, transferRefusal } from "./inventory.mjs";
 import { createTruthBullet, truthBulletData, secretOf, isTruthBullet, bulletAsHeld, unanalysedType } from "./truth-bullets.mjs";
-import { whisperToOwner, whisperToOwnerOnly, log, warn, error, isPrimaryGm, forcedDeletion, plural, serialWrite, ownerIdsOf, gmIds, announce, whisperToGms, listOf } from "./utils.mjs";
+import { whisperToOwner, whisperToOwnerOnly, log, warn, error, isPrimaryGm, forcedDeletion, plural, serialWrite, ownerIdsOf, gmIds, announce, whisperToGms, listOf, worldLocalize } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 import { answerKeysRefusal, lootTraceStore, deathStore, lootRollStore } from "./gm-stores.mjs";
 import { getClock } from "./settings.mjs";
@@ -928,10 +928,11 @@ async function mintLootBullet(taker, body, loot) {
         if (loot.sceneId && loot.tokenId) await revealRemnantToFinderById(loot.sceneId, loot.tokenId, { via: "loot" });
 
         await createTruthBullet(taker, {
-            name: game.i18n.format("DRPG.Loot.bulletName", { item: loot.item }),
+            // In the world's language, not the GM's browser's (STG-28; utils.mjs `worldLocalize`): the taker reads it.
+            name: await worldLocalize("DRPG.Loot.bulletName", { item: loot.item }),
             realType: "neutral",
             visibility: "evident",
-            playerText: game.i18n.format("DRPG.Loot.bulletText", {
+            playerText: await worldLocalize("DRPG.Loot.bulletText", {
                 item: loot.item, who: body.name
             }),
             img: loot.img,

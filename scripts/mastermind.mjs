@@ -10,9 +10,10 @@
  * D6 already established Foundry ships to every client regardless of
  * ownership) costs nothing to use. The Mastermind's identity is exactly the
  * opposite: it must be unreadable from ANY client but a GM's. So it lives in a
- * client-scoped setting on GM browsers only, synced GM-to-GM over a socket the
- * server addresses to named recipients - the same treatment `truth-bullets.mjs`
- * gives the answer key, just for a single actor id instead of a ledger.
+ * GM store (`mastermindStore`, below; since E04), held on GM browsers only and
+ * merged GM to GM - the same treatment the answer key gets. Until the audit's
+ * D 277 (1.2.122) this said a client setting synced over a socket of its own,
+ * the design before 1.2.63.
  *
  * Everything else the guide asks for is either already built or genuinely
  * small:
@@ -39,7 +40,7 @@ import { announce, ownerOf, primaryGmId, isPrimaryGm, log, error, wholeNumber } 
 import { stepper, emptyOption, drpgWindow, drpgConfirm, tipAttr, tipText } from "./ui-kit.mjs";
 import { mastermindStore, doorCopy, mastermindUndecided } from "./gm-stores.mjs";
 import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
-import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
+import { alreadyOpen, keepLive, isDirty, RAISED } from "./live.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
 // E41 C10b (1.2.97): the Final Trial's verdict is verdict.mjs's, on the ordinary verdict's lock, list, card and summary;
@@ -565,32 +566,45 @@ function wireMastermindGive(dialog) {
 
 // Only the Apply button reaches here, and it always brings an object - so
 // an empty `who` is the GM choosing "Nobody" on purpose.
-async function applyMastermindChoice(result, current) {
+//
+// ONLY WHAT WAS CHANGED HERE (1.2.122 line ITEMS; the audit's REFR-45 and CTRL-48). The form follows the GMs' record
+// while it stands, and says which field the GM changed against what it was drawn from (`whoChanged`, `lairChanged`): a
+// field left alone is the record's, perhaps another GM's since the open, and is not written. The Mastermind compared is
+// the one named now. A lair picked with nobody named is stored on its own (the record keeps the room apart from the pick,
+// `setMastermindLair`); until 1.2.122 Apply returned before the lair was read, and nothing said so.
+async function applyMastermindChoice(result) {
     const who = result.who ?? null;
+    const current = mastermindActor();
+    const lair = result.lair || null;
+    const lairChanged = result.lairChanged !== false && lair !== (readStore().room ?? null);
 
-    if (!who) {
+    if (result.whoChanged !== false && !who) {
         if (current) {
             await clearMastermind();
             ui.notifications.info(game.i18n.localize("DRPG.Mastermind.cleared"));
         }
+        if (lairChanged && lair) {
+            await setMastermindLair(lair);
+            ui.notifications.info(game.i18n.format("DRPG.Mastermind.lairStored", { room: lair }));
+        }
         return null;
     }
 
-    if (who !== current?.id) {
+    if (result.whoChanged !== false && who !== current?.id) {
         const picked = game.actors.get(who);
-        await setMastermind(picked, { room: result.lair || null });
+        await setMastermind(picked, { room: lairChanged ? lair : (readStore().room ?? null) });
         // Setting it used to confirm nothing at all: no notification, no
         // whisper, no entry. The secret must not go to chat, but the person who
         // just set it is entitled to know it took.
         ui.notifications.info(game.i18n.format("DRPG.Mastermind.confirmed",
             { name: picked?.name ?? "?" }));
-    } else if ((result.lair || null) !== (readStore().room ?? null)) {
+    } else if (lairChanged) {
         // Same Mastermind, different lair: the private whisper follows the
         // room without renaming anybody.
-        await setMastermindLair(result.lair || null);
+        await setMastermindLair(lair);
     }
 
-    return who;
+    return mastermindActor()?.id ?? null;
 }
 
 /**
@@ -615,13 +629,6 @@ export async function openMastermindDialog() {
     // the others yet would open on "nobody", and a GM would pick again on top.
     await mastermindStore.whenHydrated();
 
-    const students = studentActors();
-    const current = mastermindActor();
-
-    const options = students.map(a =>
-        `<option value="${a.id}"${a.id === current?.id ? " selected" : ""}>${
-            foundry.utils.escapeHTML(a.name)}</option>`).join("");
-
     const { monokumas, donorLabel } = await import("./despair.mjs");
     const hopeBox = () => mastermindHopeBox({ monokumas, donorLabel });
 
@@ -638,22 +645,28 @@ export async function openMastermindDialog() {
        place scene's room names
        (rooms.mjs `placeRoomNames`), and a lair no place scene has is kept as its own chosen
        option, as the project manager keeps a project's room (projects-ui.mjs `roomSelectOptions`). */
-    const lair = readStore().room ?? "";
-    const lairRooms = placeRoomNames();
-    const roomOptions = [...lairRooms.map(r =>
-        `<option value="${foundry.utils.escapeHTML(r)}"${r === lair ? " selected" : ""}>${
-            foundry.utils.escapeHTML(r)}</option>`),
-    ...(lair && !lairRooms.includes(lair) ? [`<option value="${foundry.utils.escapeHTML(lair)}" selected>${
-        foundry.utils.escapeHTML(game.i18n.format("DRPG.Project.roomElsewhere", { room: lair }))}</option>`] : [])].join("");
-
-    const result = await drpgWindow({
-        title: game.i18n.localize("DRPG.Mastermind.dialogTitle"),
-        classes: ["drpg-panel", "drpg-window-mastermind"],
-        body: `<form>
-            <p class="drpg-warning">${game.i18n.localize("DRPG.Mastermind.privacyWarning")}</p>
+    /* THE WHOLE FORM FOLLOWS THE GMS' RECORD (1.2.122 line ITEMS, 21.11.2026; the audit's REFR-45 and the rest of
+       r120-F-6; the owner's rule "Zawsze odswiezamy okna od razu przy zmianie"). The pick, the lair and whether the Give
+       Hope box stood were read once, at the open: with nobody named then, the box was not drawn until a reopen, and
+       another GM's pick or lair was not shown. The form is one live region now, drawn from the store as it is at each
+       redraw; a select the GM changed here is carried (live.mjs `capture`), and Apply writes only a field whose value is
+       not the one it was drawn from (`isDirty`), so a lair or a pick another GM set meanwhile is not written back (tier 2's "1.2.122 REFR-45 ..."). */
+    const formBody = () => {
+        const current = mastermindActor();
+        const options = studentActors().map(a =>
+            `<option value="${a.id}"${a.id === current?.id ? " selected" : ""}>${
+                foundry.utils.escapeHTML(a.name)}</option>`).join("");
+        const lair = readStore().room ?? "";
+        const lairRooms = placeRoomNames();
+        const roomOptions = [...lairRooms.map(r =>
+            `<option value="${foundry.utils.escapeHTML(r)}"${r === lair ? " selected" : ""}>${
+                foundry.utils.escapeHTML(r)}</option>`),
+        ...(lair && !lairRooms.includes(lair) ? [`<option value="${foundry.utils.escapeHTML(lair)}" selected>${
+            foundry.utils.escapeHTML(game.i18n.format("DRPG.Project.roomElsewhere", { room: lair }))}</option>`] : [])].join("");
+        return `<div class="drpg-mm-form">
             <label>${game.i18n.localize("DRPG.Mastermind.whoIs")}
                 <select name="who"${tipAttr("DRPG.Tips.Sweep.Trial.mastermindWhoTooltip")}>
-                    <option value="">${game.i18n.localize("DRPG.Mastermind.nobody")}</option>
+                    <option value=""${current ? "" : " selected"}>${game.i18n.localize("DRPG.Mastermind.nobody")}</option>
                     ${options}
                 </select></label>
             <p class="notes">${game.i18n.localize("DRPG.Mastermind.dialogIntro")}</p>
@@ -670,6 +683,15 @@ export async function openMastermindDialog() {
                 <legend>${game.i18n.localize("DRPG.Monocub.giveHope")}</legend>
                 <div class="drpg-mm-live">${hopeBox()}</div>
             </fieldset>` : ""}
+        </div>`;
+    };
+
+    const result = await drpgWindow({
+        title: game.i18n.localize("DRPG.Mastermind.dialogTitle"),
+        classes: ["drpg-panel", "drpg-window-mastermind"],
+        body: `<form>
+            <p class="drpg-warning">${game.i18n.localize("DRPG.Mastermind.privacyWarning")}</p>
+            ${formBody()}
         </form>`,
         footer: {
             primary: {
@@ -687,9 +709,10 @@ export async function openMastermindDialog() {
                 // is `null`, a deliberate clear is `{ who: "" }`.
                 callback: (e, b, d) => {
                     const q = name => d.element.querySelector(`[name=${name}]`);
+                    // With what each was drawn from (REFR-45): Apply writes only what the GM changed here.
                     return {
-                        who: q("who").value,
-                        lair: q("lair")?.value ?? ""
+                        who: q("who").value, whoChanged: isDirty(q("who")),
+                        lair: q("lair")?.value ?? "", lairChanged: Boolean(q("lair") && isDirty(q("lair")))
                     };
                 }
             },
@@ -710,15 +733,20 @@ export async function openMastermindDialog() {
                the owner's rule "Zawsze odswiezamy okna od razu przy zmianie"): the amount typed is carried and has the focus
                back (live.mjs `whileEditing`). Until then it waited for the focus to leave the box. R7972. */
             keepLive(dialog, {
-                region: ".drpg-mm-live",
+                region: ".drpg-mm-form",
                 /* The region's own element, wrapper and all (live.mjs replaces the region with the build's first element):
                    until 1.2.120 (21.11.2026) the build was `hopeBox`, whose first element is the Hope line, so the first
                    redraw put that line where the box stood - the pool's select, the amount and Give gone, and the region
-                   lost to every later change (tier 2's "the Mastermind's Give Hope box stays whole ..."). */
-                build: () => `<div class="drpg-mm-live">${hopeBox()}</div>`,
+                   lost to every later change (tier 2's "the Mastermind's Give Hope box stays whole ..."). Since 1.2.122 the
+                   region is the whole form (REFR-45), the box inside it. */
+                build: formBody,
                 // A pool's debt changes with no actor's write (E05 C12): its store's hook. The Mastermind's store too: the
-                // Hope line reads the Mastermind named now, which another GM may change or clear (F-6, 21.11.2026).
-                watch: { actors: true, hooks: ["drpgDespairOwedChanged"], stores: [mastermindStore] },
+                // pick, the lair and the Hope line read the record as it is now, which another GM may change or clear
+                // (F-6, 21.11.2026). The rooms' names: a region's, on any scene.
+                watch: { actors: true, hooks: ["drpgDespairOwedChanged", "createRegion", "updateRegion", "deleteRegion"], stores: [mastermindStore] },
+                /* The Hope box is redrawn at once with a field focused in it (the line claude/refresh-120, 21.11.2026; REFR-05;
+                   the owner's rule "Zawsze odswiezamy okna od razu przy zmianie"): the amount typed is carried and has the focus
+                   back (live.mjs `whileEditing`). Until then it waited for the focus to leave the box. R7972. */
                 whileEditing: true,
                 after: wireGive
             });
@@ -731,7 +759,7 @@ export async function openMastermindDialog() {
     // into a `null` that used to fall all the way through to the clear.
     if (!result || result === "cancel") return null;
 
-    return applyMastermindChoice(result, current);
+    return applyMastermindChoice(result);
 }
 
 /* ==========================================================================

@@ -7,8 +7,11 @@
  *
  * Two of its windows live in files of their own since E41 C7a (1.2.97): the
  * Students window in gm-students.mjs and Edit campaign in gm-campaign.mjs. This
- * file re-exports the four names they export, so an importer of the panel
- * imports this file as before.
+ * file re-exports four of their names (`openWhoIsAliveDialog`, `applyAliveStates`, `correctsTheHour`,
+ * `openClockDialog`), the four it exported before the move, so an importer of the panel imports this file as before;
+ * the other names they export (gm-students.mjs 3 in all, gm-campaign.mjs 11, counted 21.11.2026) are imported from
+ * their own files (season-setup.mjs reads gm-campaign.mjs's directly). "the four names they export" until the
+ * audit's D 158, 1.2.122.
  */
 
 import { MODULE_ID, moduleVersion, TIMES_OF_DAY } from "./config.mjs";
@@ -16,7 +19,7 @@ import { getClock, clockSummary, phaseLabel, campaignName } from "./clock.mjs";
 import { actionsLeft } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { studentActors, actingStudents } from "./monokuma.mjs";
-import { error, plural, esc, primaryGmId, hiddenByGm } from "./utils.mjs";
+import { error, plural, esc, primaryGmId, isPrimaryGm, hiddenByGm } from "./utils.mjs";
 import { keepLive, alreadyOpen, RAISED } from "./live.mjs";
 import { launcher, drpgWindow, box, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
 import { SETTINGS, bodyDiscovery, bodyFoundSinceTrial, seasonEpoch } from "./settings.mjs";
@@ -24,7 +27,7 @@ import { bodiesToDiscover, announcedIn, chapterEndStopped, pendingBodyDiscoverie
 import { flagsHeldNow } from "./sheet-audit.mjs";
 import { roomOfToken } from "./movement.mjs";
 import { keyPlanStatus, keysToPlace, autopsyIssued } from "./investigation.mjs";
-import { caseMark, caseWarning, healthLine, keyPlanStore, caseSchemaStore } from "./gm-stores.mjs";
+import { caseMark, caseWarning, healthLine, keyPlanStore, caseSchemaStore, pendingBodyStore } from "./gm-stores.mjs";
 import { firstOutstandingStep } from "./season-setup.mjs";
 import { roundOf, readyRecord } from "./boundary.mjs";
 import { trialNextStep, trialStepView, trialStepText } from "./trial-floor.mjs";
@@ -162,7 +165,8 @@ export function injectLauncher() {
 /*
  * WHAT OPENS, AND WHEN.
  * --------------------------------------------------------------------------
- * The panel is thirty tiles long and a GM uses about five of them in any given
+ * The panel is thirteen tiles long (PANEL_SECTIONS: 3 + 3 + 4 + 3, counted 21.11.2026; "thirty" until the audit's
+ * D 156, 1.2.122) and a GM uses a few of them in any given
  * minute. Which five is not a mystery - it is written on the clock. So each
  * section declares the phases it belongs to, and the panel opens with those
  * expanded and everything else folded away.
@@ -186,7 +190,10 @@ const PANEL_SECTIONS = [
              * deciding "Sayaka should have this" is already looking at Sayaka.
              *
              * "Players", not "Player status": the window stopped being a
-             * read-out the moment it grew the row buttons.
+             * read-out the moment it grew the row buttons. It is titled
+             * Students since (DRPG.Panel.whoIsAlive, "Students" in en.json,
+             * read 21.11.2026); the comments that still say "the Players
+             * window" mean this one (the audit's D 172, 1.2.122).
              */
             { key: "whoIsAlive", icon: "fa-heart-pulse", labelKey: "DRPG.Panel.whoIsAlive",
               run: () => openWhoIsAliveDialog() },
@@ -225,7 +232,7 @@ const PANEL_SECTIONS = [
             //   Listen in on a voice room - removed outright (Dawid, 13.09):
             //     LiveKit shows the listener's tile to the room, so it never
             //     was a way to listen unseen. The voice reset it also carried
-            //     is a tile under Between sessions.
+            //     is a tile under Diagnostics since E49 A2 (its own note there).
         ]
     },
     {
@@ -326,7 +333,11 @@ const PANEL_SECTIONS = [
             // (voice.mjs `resetAllVoice`), no longer everybody to the main room.
             // Here since E49 A2 (the owner, 10.11.2026: "Re-send everybody's voice room wrzucmy do diagnostics"): it
             // repairs a voice room that went wrong, which is what this section is for; it was in Between sessions.
+            // DRAWN DISABLED ON A GM WHO IS NOT THE PRIMARY (1.2.122 line ITEMS; the audit's CTRL-85), with the words its
+            // refusal said, as the Settings tile is drawn for a GM who may not: only the primary re-sends the rooms.
             { key: "voiceReset", icon: "fa-microphone-lines", labelKey: "DRPG.Panel.voiceReset",
+              disabled: () => !isPrimaryGm(),
+              disabledReason: () => game.i18n.format("DRPG.Voice.resetRefused.primary", { name: game.users.get(primaryGmId())?.name ?? "?" }),
               run: async () => {
                   const { resetAllVoice } = await import("./voice.mjs");
                   const { avclientActive } = await import("./voice-client.mjs");
@@ -469,13 +480,21 @@ const EXTRA_ACTIONS = {
  * GM's folded sections back after a rebuild. Without it the fold state is keyed
  * positionally, which is fine until a section is added or removed.
  */
+/* THE FOLDS A TILE'S PANEL COMES BACK WITH (1.2.122 line ITEMS; the audit's ITEM-36). A tile closes the panel and a new
+   one opens after it, and a section opened only by the phase: Between sessions and Diagnostics, folded by default, folded
+   again after each tile pressed in them. The sections as they stood when the tile was pressed are kept here, read by the
+   next panel's first build and then dropped; the redraws inside one window keep theirs as before (live.mjs `capture`). */
+let keptFolds = null;
+
 export function buildSections() {
     // The clock decides what opens. See the note on PANEL_SECTIONS.
     const phase = getClock().phase;
     const current = currentTile(phase);
+    const folds = keptFolds;
+    keptFolds = null;
     return `<div class="drpg-gmp-sections">${PANEL_SECTIONS.map(section => {
         const inSeason = section.always || section.phases?.includes(phase);
-        const open = inSeason && !section.collapsed;
+        const open = folds && Object.hasOwn(folds, section.key) ? folds[section.key] : inSeason && !section.collapsed;
         const title = esc(game.i18n.localize(`DRPG.Panel.section.${section.key}`));
         return `
         <details class="drpg-gmp-section${section.dim ? " dim" : ""}${
@@ -493,7 +512,8 @@ export function buildSections() {
  */
 export function tileHtml(item, current = null) {
     const blocked = Boolean(item.disabled?.());
-    const reason = blocked ? esc(game.i18n.localize(item.disabledReason)) : "";
+    // A key, or a function for a reason that names somebody (the voice reset's, CTRL-85).
+    const reason = blocked ? esc(typeof item.disabledReason === "function" ? item.disabledReason() : game.i18n.localize(item.disabledReason)) : "";
     const why = `drpg-gmp-why-${item.key}`;
     return `
                 <button type="button" class="drpg-gmp-button${
@@ -600,6 +620,9 @@ export async function openGmPanel() {
                 ev.preventDefault();
                 const item = lookup.get(button.dataset.drpgRun);
                 if (!item) return;
+                // The sections as the GM left them, for the panel the tile brings back (ITEM-36, `buildSections`).
+                keptFolds = Object.fromEntries([...dialog.element.querySelectorAll("details.drpg-gmp-section[data-drpg-key]")]
+                    .map(node => [node.dataset.drpgKey, node.open]));
                 await dialog.close();
                 let answer = null;
                 try {
@@ -637,12 +660,14 @@ export async function openGmPanel() {
  * Two regions rather than one, deliberately. They change on different clocks:
  * the suggestion line moves whenever anybody spends anything, the tiles only
  * when the world opens or closes a door. Rebuilding the tiles on every actor
- * update would be forty buttons redrawn each time a player marks a Stress.
+ * update would be thirteen tiles redrawn each time a player marks a Stress.
  *
- * Every input to both answers is either a flag on an actor (actions left, the
- * free Move, dead or a Monocub) or one of this module's world settings (the
- * clock, the incident, the Eclipse, the trial's floor and progress), which is
- * exactly what `keepLive` listens to. Since E11 fix r1-G4 the next line also reads
+ * The inputs to both answers are flags on an actor (actions left, the free Move, dead or a Monocub), this module's
+ * world settings (the clock, the incident, the Eclipse, the trial's floor and progress) and, on a GM, four GM stores
+ * the block does not name one by one: the deaths kept (`isDeadForGm`), the sheet marks (`flagsHeldNow`), the bodies
+ * waiting (`pendingBodyStore`, watched since 1.2.122) and the case's last health report (`drpgCaseHealthChanged`,
+ * watched since 1.2.122). The deaths and the sheet marks are not watched: a change of either redraws the block only
+ * when something it does watch moves (the audit's D 157, 1.2.122, which found it; read in the code, not measured). Since E11 fix r1-G4 the next line also reads
  * the students' items (an autopsy issued), the Key Remnants' tokens and the case's
  * Key count in the Key plan's store (`keysToPlace`), so the standing block watches
  * those three as well (tier 0 R19 asks the items of a window that reads bullets;
@@ -652,11 +677,16 @@ function keepPanelFresh(dialog) {
     keepLive(dialog, {
         region: ".drpg-gmp-standing",
         build: () => buildPanelContent(),
-        watch: { actors: true, items: true, tokens: true, stores: [keyPlanStore, caseSchemaStore] }
+        /* And the two sources the Next line and the red case line read that none of these wakes (1.2.122 line ITEMS; the
+           audit's REFR-46): the bodies waiting for the GM's word (a GM store whose write fires only its own key) and the
+           case's last health report (`drpgCaseHealthChanged`). A GM connecting or leaving changes who the primary is,
+           which the Next line's two primary-only buttons read (CTRL-85). */
+        watch: { actors: true, items: true, tokens: true, stores: [keyPlanStore, caseSchemaStore, pendingBodyStore],
+            hooks: ["drpgCaseHealthChanged", "userConnected"] }
     });
 
     /* THE TILES WAKE ON THEIR OWN KEYS (E44 C2b, 04.11.2026; audit S10-58). Without `settings` every write of a
-       module setting redrew forty buttons, a player's action among them. What the tiles print is the clock (the
+       module setting redrew the thirteen tiles, a player's action among them. What the tiles print is the clock (the
        phase opens a section, `clock.eclipse` shuts the murder tile: `isEclipse`), the incident (since E47-C3 it keeps
        the murder tile live in an Eclipse and marks it current: `murderState`) and the case's backup mark (the case
        tile's age, `backupAge`), read by `buildSections` and nothing else, in every state; R1317 builds the
@@ -668,7 +698,11 @@ function keepPanelFresh(dialog) {
     keepLive(dialog, {
         region: ".drpg-gmp-sections",
         build: () => buildSections(),
-        watch: { settings: [SETTINGS.clock, SETTINGS.murderState, SETTINGS.caseMark] }
+        /* And Foundry's permission table (1.2.122 line ITEMS; the audit's REFR-47: the Settings tile is drawn disabled for
+           a GM who may not modify settings, and a grant while the panel stood left it so) and a GM connecting or leaving
+           (the voice reset is drawn disabled off the primary, CTRL-85). Neither is a key of the module, which R1317
+           holds `settings` to. */
+        watch: { settings: [SETTINGS.clock, SETTINGS.murderState, SETTINGS.caseMark], settingKeys: ["core.permissions"], hooks: ["userConnected"] }
     });
 }
 
@@ -707,7 +741,7 @@ async function openFailureLog() {
     // The page's language (E66 C1), where it was the browser's locale.
     const when = at => localeFormat("time", at);
 
-    const body = rows.length
+    const listOf = rows => rows.length
         ? `<ul class="drpg-failure-log">${rows.map(r => `
             <li class="drpg-failure ${esc(r.level)}">
                 <div class="drpg-failure-head">
@@ -718,6 +752,13 @@ async function openFailureLog() {
                 ${r.stack ? `<pre class="drpg-failure-stack">${esc(r.stack.split("\n").slice(0, 4).join("\n"))}</pre>` : ""}
             </li>`).join("")}</ul>`
         : `<p>${esc(game.i18n.localize("DRPG.Failures.none"))}</p>`;
+    const head = (dropped, kept) => dropped ? `<p class="notes">${esc(plural("DRPG.Failures.dropped", { n: dropped, kept }))}</p>` : "";
+    /* THE LOG FOLLOWS WHILE IT STANDS (1.2.122 line ITEMS; the audit's REFR-50): the rows were read once, so a failure
+       while the GM read the log - a new row, a count rising - showed only on a reopen, and Copy copied the rows of the
+       open. utils.mjs `record` fires no hook (a hook inside the error road could fail into it again), so the window
+       reads the log twice a second while it stands and redraws its list when what it would print has changed; Copy
+       reads the log at the press. */
+    const signature = () => JSON.stringify([sessionFailuresDropped(), sessionFailures().map(r => [r.at, r.count, r.message])]);
 
     // On the kit (E21 C2b): Close the default, Copy secondary, and Clear the log destructive - it throws away what
     // this browser kept, and nothing brings it back (E22, A4).
@@ -727,8 +768,7 @@ async function openFailureLog() {
         width: "wide",
         body: `<div>
             <p class="notes">${esc(game.i18n.localize("DRPG.Failures.intro"))}</p>
-            ${dropped ? `<p class="notes">${esc(plural("DRPG.Failures.dropped", { n: dropped, kept: rows.length }))}</p>` : ""}
-            ${body}
+            <div class="drpg-failure-live">${head(dropped, rows.length)}${listOf(rows)}</div>
         </div>`,
         footer: {
             close: { role: "close", action: "close" },
@@ -745,6 +785,18 @@ async function openFailureLog() {
             destructive: rows.length ? [{ action: "clear", label: game.i18n.localize("DRPG.Failures.clear"),
                 tooltip: tipText("DRPG.Tips.Gm.clearTheLogTooltip") }] : []
         },
+        render: (event, dialog) => {
+            let seen = signature();
+            const timer = setInterval(() => {
+                const region = dialog.element?.isConnected ? dialog.element.querySelector(".drpg-failure-live") : null;
+                if (!region) return clearInterval(timer);
+                const now = signature();
+                if (now === seen) return;
+                seen = now;
+                const fresh = sessionFailures();
+                region.innerHTML = `${head(sessionFailuresDropped(), fresh.length)}${listOf(fresh)}`;
+            }, 500);
+        },
         rejectClose: false
     });
 
@@ -756,6 +808,7 @@ async function openFailureLog() {
     if (action === "copy") {
         // The dropped rows' line in diagnose()'s English words, as the rest of the copy is English (R7640).
         const { failuresDroppedLine } = await import("./diagnostics.mjs");
+        const rows = sessionFailures(), dropped = sessionFailuresDropped();
         const text = [
             `Danganronpa RPG ${game.modules.get(MODULE_ID)?.version ?? "?"} - `
                 + `Foundry ${game.version} - ${game.user.name} - ${new Date().toISOString()}`,
@@ -770,6 +823,8 @@ async function openFailureLog() {
             ui.notifications.info(game.i18n.localize("DRPG.Failures.copied"));
         } catch (err) {
             error("Could not copy the debug log", err);
+            // Said to the presser too (1.2.122 line ITEMS; the audit's CTRL-87): the log came back and nothing said why.
+            ui.notifications.warn(game.i18n.localize("DRPG.Failures.copyFailed"));
         }
         // Back to the log - the button copied, it did not mean "and close".
         return openFailureLog();
@@ -797,7 +852,7 @@ async function openFailureLog() {
  *
  * So one line at the top says it, with the button that does it. The tiles below
  * are unchanged and still reachable; this only saves the GM from working out
- * which of thirty of them the current state calls for.
+ * which of the thirteen the current state calls for.
  *
  * Ordered by urgency, and the first match wins. An incident interrupts
  * everything, an Eclipse is a window everyone is waiting inside, and the rest
@@ -1032,11 +1087,21 @@ export function nextLineHtml(step) {
             <span class="drpg-gmp-next-label">${game.i18n.localize("DRPG.Panel.nextLabel")}</span>
             <span class="drpg-gmp-next-text">${step.text}</span>
             ${step.action
-                ? `<button type="button" class="drpg-gmp-next-go" data-drpg-run="${step.action}">
+                ? `<button type="button" class="drpg-gmp-next-go" data-drpg-run="${step.action}"${primaryOnlyAttrs(step.action)}>
                        ${esc(game.i18n.localize(go))}</button>`
                 : ""}
             ${setup}
         </div>`;
+}
+
+/* TWO NEXT-LINE ROADS ARE THE PRIMARY'S (1.2.122 line ITEMS; the audit's CTRL-85): End the chapter and the body's
+   announcement run on the primary GM's browser alone (chapter.mjs, body.mjs `discoveryHere`), and another GM's press
+   closed the panel to be refused with the primary's name. On such a GM the button stands disabled with those words. */
+const PRIMARY_ONLY = Object.freeze({ chapterEnd: "DRPG.Chapter.endPrimaryOnly", bodyDialog: "DRPG.Chapter.bodyPrimaryOnly" });
+function primaryOnlyAttrs(action) {
+    const key = PRIMARY_ONLY[action];
+    if (!key || isPrimaryGm()) return "";
+    return ` disabled title="${esc(game.i18n.format(key, { name: game.users.get(primaryGmId())?.name ?? "?" }))}"`;
 }
 
 /* THE NEXT LINE'S BUTTON SAYS WHAT IT DOES (E22 C2b, O11; S04-37, S13-04). It said "Do it" for every step; it names

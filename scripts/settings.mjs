@@ -531,6 +531,14 @@ export const SETTINGS = {
      */
     gmLockpicks: "gmLockpicks",
     mineLockpicks: "mineLockpicks",
+    /**
+     * THE HIDDEN STASHES (1.2.122 line ITEMS; the audit's CORE-25): a GM store (gm-stores.mjs `hiddenStashStore`), a row
+     * per hidden stash `<sceneId>|<actorId>|<room>` `{ sceneId, actorId, room }`, and each player's copy of their own
+     * characters' (every one for the Mastermind's player; `mineHiddenStashes`, `hiddenStashCopy`), which vault-store.mjs
+     * `stashesOn` reads. Out of the rooms' region data, which every browser holds (hidden-stashes.mjs). Synced and backed up.
+     */
+    gmHiddenStashes: "gmHiddenStashes",
+    mineHiddenStashes: "mineHiddenStashes",
     /** A player's own characters' project-action uses (P2; gm-stores.mjs `facilityUseCopy`), which their Facilities rows read. */
     mineFacilityUses: "mineFacilityUses",
     /**
@@ -2386,6 +2394,19 @@ export function registerSettings() {
         default: {}
     });
     game.settings.register(MODULE_ID, SETTINGS.mineLockpicks, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The hidden stashes (1.2.122, CORE-25): the GMs' store and each player's copy (hidden-stashes.mjs).
+    game.settings.register(MODULE_ID, SETTINGS.gmHiddenStashes, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.mineHiddenStashes, {
         scope: "client",
         config: false,
         type: Object,

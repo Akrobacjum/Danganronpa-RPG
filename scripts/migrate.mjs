@@ -1143,6 +1143,44 @@ const CLAUSES = [
         }
     },
     {
+        key: "liftSecretCompletedAt",
+        since: "1.2.122",
+        /*
+         * A SECRET PROJECT'S COMPLETION TIME OUT OF WORLD DATA (1.2.122 line ITEMS; the audit's ITEM-38). Until 1.2.122 the
+         * completion row of a project with a room action stamped `completedAt` in projectMeta, which every browser holds,
+         * so any console read that a secret project gives a room action and when it was finished. `completedAt` is one of
+         * projects-secrecy.mjs `PROJECT_SECRET_WHILE_SECRET` now, so the lift of 1.2.113 (`liftSecretProjectMarks`, its rules
+         * as written there: into the store weak and fill-only, out of projectMeta only what the store reads back) is run
+         * once more for a world that went through it before the field was on its list; then the insiders are sent their
+         * sight again, which carries it. Idempotent: a world with none to move reports nothing.
+         */
+        run: async () => {
+            const { liftSecretProjectMarks, retellSights } = await import("./projects.mjs");
+            const report = await liftSecretProjectMarks();
+            if (report?.lifted) await retellSights();
+            return report?.notPrimary || report?.lifted ? report : null;
+        }
+    },
+    {
+        key: "liftHiddenStashes",
+        since: "1.2.122",
+        /*
+         * A HIDDEN STASH OUT OF THE ROOMS' REGION DATA (1.2.122 line ITEMS; the audit's CORE-25). Until 1.2.122 a stash's
+         * hiding place was an entry of its room's region, `drpgStashes` `{ actorId, concealed }` (or the legacy
+         * `drpgVaultConcealed` beside the owner flag), which every browser holds: a player's console read which rooms hold
+         * a hidden stash and whose. Once, on the primary, after the GM store's copies arrived, with the rules written on
+         * hidden-stashes.mjs `liftHiddenStashes`: each hidden one into the store `hiddenStashes` (weak, fill-only), read
+         * back, and only then off its region; the region keeps its open stashes as `{ actorId }`. Every player is sent
+         * their copy after. A row not read back leaves its region as it was and throws, so the next load tries again.
+         */
+        run: async () => {
+            const { liftHiddenStashes } = await import("./hidden-stashes.mjs");
+            const { VAULT_FLAGS } = await import("./vault.mjs");
+            const report = await liftHiddenStashes({ flags: VAULT_FLAGS });
+            return report?.notPrimary || report?.lifted ? report : null;
+        }
+    },
+    {
         key: "bodyTilesUnseen",
         since: "1.2.113",
         /*
