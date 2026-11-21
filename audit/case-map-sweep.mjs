@@ -24,6 +24,9 @@
  *            (pl, glass, 1366x768) had it over "Wniosek / Nonstop Debate", which no check here read;
  *   fold     the unrelated evidence's fold: its words larger than its box, or its box over a node (round 5);
  *   footer   each button of the window's footer in view, named, its words inside its box (round 6);
+ *   hover    (line P of 1.2.120) the first node face in view hovered by the pointer: its name's ink against the ground it
+ *            is drawn on under the pointer (the window, the node's fill and Stained Glass's brush, composited) under WCAG AA
+ *            4.5; its control, on the first page under glass, the brush planted back under the pointer must read;
  *   size     while a trial runs, under glass, at 800 px of height or less: the smallest node text after Fit to view
  *            at least 11 px (the owner, 12.11, round 6; MIN_TEXT);
  *   the numbers: nodes, the tallest node, the graph's viewport, the canvas; the trial console's slot, and after Fit to
@@ -294,6 +297,55 @@ async function readMap(page, { plantBox = false, staleLayout = false, plantBar =
     }, { plantBox, staleLayout, plantBar, plantNarrow });
 }
 
+/* A NODE UNDER THE POINTER IS READ (line P of 1.2.120; the owner, 21.11.2026: "Po najechaniu myszka caly node robi sie
+   bialy"). The first node face standing in the viewport is hovered by the pointer, and its name's ink is read by WCAG 2
+   against the ground it is drawn on, composited as Chromium paints it: the first opaque ground of its ancestors, the
+   node's own fill, then Stained Glass's brush (its `::before`, drawn behind the words) at the opacity it has under the
+   pointer. Under AA 4.5 the page fails ("hover: ..."). Until the fix the brush was full cream under cream words (1.06:1).
+   With `plant`, the brush is put back on every node under the pointer (the control: it must read under glass). */
+async function readHover(page, { plant = false } = {}) {
+    if (plant) await page.addStyleTag({ content: ".drpg-case-canvas > button.drpg-case-node[data-drpg-node]:hover { --brush-on: 1 !important; }" });
+    const sel = await page.evaluate(() => {
+        const g = document.querySelector(".drpg-case-graph")?.getBoundingClientRect();
+        const face = [...document.querySelectorAll(".drpg-case-canvas > button.drpg-case-node[data-drpg-node]")].find(b => {
+            if (getComputedStyle(b).display === "none") return false;
+            const r = b.getBoundingClientRect();
+            return g && r.width > 0 && r.top >= g.top && r.bottom <= g.bottom && r.left >= g.left && r.right <= g.right && r.bottom <= innerHeight && r.right <= innerWidth;
+        });
+        return face ? `.drpg-case-canvas > button.drpg-case-node[data-drpg-node="${CSS.escape(face.dataset.drpgNode)}"]` : null;
+    });
+    if (!sel) return null;
+    await page.hover(sel);
+    await page.waitForTimeout(300);
+    const read = await page.evaluate(s => {
+        const b = document.querySelector(s);
+        const rgba = c => { const m = String(c).match(/rgba?\(([^)]+)\)/); if (!m) return null; const [r, g, bl, a = 1] = m[1].split(/[ ,/]+/).filter(Boolean).map(Number); return { r, g, b: bl, a }; };
+        const over = (top, under) => ({ r: top.r * top.a + under.r * (1 - top.a), g: top.g * top.a + under.g * (1 - top.a), b: top.b * top.a + under.b * (1 - top.a), a: 1 });
+        let ground = { r: 0, g: 0, b: 0, a: 1 };
+        const chain = [];
+        for (let el = b.parentElement; el; el = el.parentElement) chain.push(el);
+        const opaque = chain.findIndex(el => (rgba(getComputedStyle(el).backgroundColor)?.a ?? 0) >= 1);
+        for (const el of (opaque >= 0 ? chain.slice(0, opaque + 1) : chain).reverse()) {
+            const c = rgba(getComputedStyle(el).backgroundColor);
+            if (c && c.a > 0) ground = over(c, ground);
+        }
+        const fill = rgba(getComputedStyle(b).backgroundColor);
+        if (fill && fill.a > 0) ground = over(fill, ground);
+        const pre = getComputedStyle(b, "::before");
+        const brush = rgba(pre.backgroundColor);
+        const shown = pre.content !== "none" && pre.display !== "none" ? Number(pre.opacity) : 0;
+        if (brush && brush.a > 0 && shown > 0) ground = over({ ...brush, a: brush.a * shown }, ground);
+        const name = b.querySelector(".drpg-case-node-name") ?? b;
+        const ink = rgba(getComputedStyle(name).color);
+        const lum = c => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b); };
+        const inkOn = ink.a < 1 ? over(ink, ground) : ink;
+        const [hi, lo] = [lum(inkOn), lum(ground)].sort((x, y) => y - x);
+        return { id: b.dataset.drpgNode, ratio: Math.round(((hi + 0.05) / (lo + 0.05)) * 100) / 100, brush: shown };
+    }, sel);
+    await page.mouse.move(0, 0);
+    return read;
+}
+
 const server = await serve();
 const base = `http://127.0.0.1:${server.address().port}`;
 const styles = JSON.parse(fs.readFileSync(path.join(REPO, "module.json"), "utf8")).styles ?? [];
@@ -334,6 +386,12 @@ try {
                     const footHas = await page.evaluate(() => { const b = document.querySelector("footer.drpg-kit-footer button"); if (b) Object.assign(b.style, { position: "fixed", top: `${innerHeight + 40}px` }); return Boolean(b); });
                     const footRead = footHas ? ((await readMap(page)).cut ?? []).filter(c => c.startsWith("footer:")).length : 0;
                     const ok = box.cut?.length > 0 && stale.overlaps?.length > 0 && (!planted.bar || barRead > 0) && (!footHas || footRead > 0);
+                    // the hover's control (line P of 1.2.120): the brush planted back under the pointer must read, under glass
+                    const plantedHover = theme === "glass" ? await readHover(page, { plant: true }) : null;
+                    await load();
+                    const hoverOk = theme !== "glass" || plantedHover === null || plantedHover.ratio < 4.5;
+                    console.log(`control  ${hoverOk ? "ok  " : "FAIL"} the brush planted under the pointer read ${plantedHover ? `${plantedHover.ratio}:1 on ${plantedHover.id}` : "no face in view on this page"}`);
+                    if (!hoverOk) failed++;
                     console.log(`control  ${ok ? "ok  " : "FAIL"} C5's box read ${box.cut?.length ?? 0} cut(s); the drawn places with 120 px nodes read ${stale.overlaps?.length ?? 0} overlap(s); the bar planted over a node read ${planted.bar ? barRead : "no bar on this page"}; a footer button put off the screen read ${footHas ? footRead : "no footer on this page"}`);
                     if (!ok) failed++;
                     controlled = true;
@@ -350,11 +408,14 @@ try {
                     await load();
                 }
                 const r = await readMap(page);
+                const hover = await readHover(page);
+                r.hover = hover;
+                if (hover && hover.ratio < 4.5) (r.cut ??= []).push(`hover: ${hover.id}'s name at ${hover.ratio}:1 under the pointer, under AA 4.5 (the brush at ${hover.brush})`);
                 if (/^class-trial/.test(w.id) && (r.controls ?? 0) > 0 && theme === MIN_TEXT.theme && vh <= MIN_TEXT.maxHeight && r.fit && r.fit.minText < MIN_TEXT.px)
                     (r.cut ??= []).push(`fit text ${r.fit.minText} px under ${MIN_TEXT.px} (a trial runs, ${theme}, ${vh} px high)`);
                 const bad = (r.cut?.length ?? 1) + (r.overlaps?.length ?? 0) + (r.error ? 1 : 0);
                 if (bad) failed++;
-                const line = `${bad ? "FAIL" : "ok  "} ${lang} ${theme.padEnd(6)} ${vw}x${vh} ${w.id.padEnd(25)} nodes ${r.nodes} controls ${r.controls ?? 0} open [${(r.open ?? []).join(",")}] tallest ${r.tallest} px, viewport ${r.viewport?.join("x")}, canvas ${r.canvas?.join("x")}, measured ${r.measured}${r.slot ? `, slot ${r.slot.join("x")}` : ""}${r.fit ? `, fit ${r.fit.z} text ${r.fit.minText} px` : ""}${r.revealed === null ? "" : `, revealed ${r.revealed}`}; cut ${r.cut?.length ?? "-"}, overlaps ${r.overlaps?.length ?? "-"}${r.error ? `; ${r.error}` : ""}`;
+                const line = `${bad ? "FAIL" : "ok  "} ${lang} ${theme.padEnd(6)} ${vw}x${vh} ${w.id.padEnd(25)} hover ${r.hover ? `${r.hover.ratio}:1` : "-"} nodes ${r.nodes} controls ${r.controls ?? 0} open [${(r.open ?? []).join(",")}] tallest ${r.tallest} px, viewport ${r.viewport?.join("x")}, canvas ${r.canvas?.join("x")}, measured ${r.measured}${r.slot ? `, slot ${r.slot.join("x")}` : ""}${r.fit ? `, fit ${r.fit.z} text ${r.fit.minText} px` : ""}${r.revealed === null ? "" : `, revealed ${r.revealed}`}; cut ${r.cut?.length ?? "-"}, overlaps ${r.overlaps?.length ?? "-"}${r.error ? `; ${r.error}` : ""}`;
                 console.log(line);
                 for (const c of [...(r.cut ?? []), ...(r.overlaps ?? []).map(o => `overlap ${o}`)]) console.log(`       ${c}`);
                 rows.push({ lang, theme, size: `${vw}x${vh}`, id: w.id, width, ...r });

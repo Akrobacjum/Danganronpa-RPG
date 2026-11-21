@@ -105260,6 +105260,218 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(seen), stableJson({ top: true, told: true, written: false, still: true }),
             "Move up on the top of a column did not stay, wrote the kept order, or said nothing (top: it stood at the top, told: the notice, written: the meta row changed, still: at the top after)");
     }],
+    /* ------------------------------------------------------------------------------------------------------------------
+     * Line P of 1.2.120 (claude/move-120, 21.11.2026): the planner's Move in every column (N119-6); R8010-R8019 for its
+     * tier-0 tests.
+     * ------------------------------------------------------------------------------------------------------------------ */
+    ["the planner's Move moves a deduction past the first column one place as drawn, and back, the column kept in the GM's order (investigation.mjs `moveCaseNode`, case-view.mjs `mapPlace`; line P of 1.2.120, N119-6)", async () => {
+        /*
+         * Four deductions of this chapter: a and b resting on nothing (one column), x resting on b and y on a (the next
+         * column), under the sort "kind", which draws x above y (by name). The faces' and fields' tops of x and y are then
+         * swapped in the drawn canvas, as a browser's measured relayout can stand them (case-view.mjs `relayoutCaseMap`
+         * under "uncrossed"; jsdom measures nothing, so the test writes them): y drawn above x. y's Move down pressed, then
+         * its Move up. Read: x's and y's order as drawn before, after each press, and the chapter's kept sort. The meta row
+         * is put back as found.
+         * Red at e515907d: the move swapped in the layout's order (x before y), so Move down on y found it last and wrote
+         * nothing; and the Map drew deductions past the first column by their inputs whatever the order kept.
+         */
+        const S = await import("./case-schema.mjs");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const ch = getClock().chapter;
+        const id = k => `suite-p120-${k}`;
+        const metaWas = S.caseRows(ch).meta;
+        let win = null;
+        const seen = {};
+        const pair = root => {
+            const x = parseFloat(root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id("y")}"]`)?.style.left ?? "NaN");
+            return [...(root?.querySelectorAll(".drpg-case-canvas > .drpg-case-edit[data-drpg-edit]") ?? [])]
+                .filter(el => parseFloat(el.style.left) === x).sort((a, b) => parseFloat(a.style.top) - parseFloat(b.style.top))
+                .map(el => el.dataset.drpgEdit).filter(e => e === id("x") || e === id("y")).map(e => e.slice(-1)).join("");
+        };
+        const press = (root, step) => root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id("y")}"] [data-drpg-case-move="${step}"]`)?.click();
+        try {
+            await S.setCaseNode(ch, id("a"), { kind: "deduction", label: "SUITE P120 a", inputs: [] });
+            await S.setCaseNode(ch, id("b"), { kind: "deduction", label: "SUITE P120 b", inputs: [] });
+            await S.setCaseNode(ch, id("x"), { kind: "deduction", label: "SUITE P120 x", inputs: [id("b")] });
+            await S.setCaseNode(ch, id("y"), { kind: "deduction", label: "SUITE P120 y", inputs: [id("a")] });
+            await S.setCaseMeta(ch, { sort: "kind" });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            await until(() => pair(root).length === 2, 3000).catch(() => {});
+            seen.kind = pair(root);
+            // the tops a measured relayout can write: y's and x's swapped, face and fields
+            const swap = sel => {
+                const [p, q] = [root?.querySelector(sel(id("x"))), root?.querySelector(sel(id("y")))];
+                if (p && q) [p.style.top, q.style.top] = [q.style.top, p.style.top];
+            };
+            swap(k => `.drpg-case-canvas > [data-drpg-node="${k}"]`);
+            swap(k => `.drpg-case-canvas > .drpg-case-edit[data-drpg-edit="${k}"]`);
+            seen.before = pair(root);
+            press(root, 1);
+            await until(() => pair(root) === "xy", 3000).catch(() => {});
+            await settle();
+            seen.down = pair(root);
+            seen.sort = S.caseMetaOf(S.caseRows(ch).meta).sort;
+            press(root, -1);
+            await until(() => pair(root) === "yx", 3000).catch(() => {});
+            await settle();
+            seen.up = pair(root);
+        } finally {
+            if (win) await win.close().catch(() => {});
+            for (const k of ["a", "b", "x", "y"]) await S.dropCaseNode(ch, id(k)).catch(() => {});
+            const was = S.caseMetaOf(metaWas);
+            await S.setCaseMeta(ch, { sort: was.sort, manual: was.manual }).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({ kind: "xy", before: "yx", down: "xy", sort: "manual", up: "yx" }),
+            "Move down and Move up on a deduction past the first column did not move it one place as drawn ({kind: x and y top to bottom as drawn by kind, before: as drawn after the relayout's tops, down: after y's Move down, sort: the kept sort, up: after its Move up})");
+    }],
+
+    ["the planner's sort picked on the open Map redraws its column in the new order at once, with no Save (investigation.mjs `onSort`; the owner, 21.11.2026: \"dziala dopiero po save, czyli okno investigation nie odswieza sie dalej poprawnie\"; line P of 1.2.120)", async () => {
+        /*
+         * Three deductions resting on nothing (one column), labelled so that "By kind" (by name) and the kept order "By
+         * hand" order them differently: c, a, b by hand. The dashboard drawn on the Map under "By hand"; the sort select
+         * set to "kind" and changed as the GM picks it, then back to "manual". Read: the three's drawn order after each pick,
+         * before any Save, and the chapter's kept sort. The meta row is put back as found.
+         */
+        const S = await import("./case-schema.mjs");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const ch = getClock().chapter;
+        const id = k => `suite-p120s-${k}`;
+        const metaWas = S.caseRows(ch).meta;
+        let win = null;
+        const seen = {};
+        const order = root => ["a", "b", "c"].map(k => [k, parseFloat(root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id(k)}"]`)?.style.top ?? "NaN")])
+            .filter(([, y]) => Number.isFinite(y)).sort((p, q) => p[1] - q[1]).map(([k]) => k).join("");
+        const pick = (root, sort) => {
+            const select = root?.querySelector("[data-drpg-case-sort]");
+            if (!select) return false;
+            /* as a GM's pick with the pointer: pressed (live.mjs holds the region from `pointerdown`), focused, picked in
+               the browser's own list - whose release the page is not sent (assumed, LIVE: a native select's popup) - and the
+               select keeps the focus */
+            select.dispatchEvent(new (globalThis.PointerEvent ?? MouseEvent)("pointerdown", { bubbles: true }));
+            select.focus();
+            select.value = sort;
+            select.dispatchEvent(new Event("change", { bubbles: true }));
+            return true;
+        };
+        try {
+            for (const k of ["a", "b", "c"]) await S.setCaseNode(ch, id(k), { kind: "deduction", label: `SUITE P120S ${k}`, inputs: [] });
+            await S.setCaseMeta(ch, { sort: "manual", manual: { ...S.caseMetaOf(metaWas).manual, [id("c")]: -3, [id("a")]: -2, [id("b")]: -1 } });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            await until(() => order(root).length === 3, 3000).catch(() => {});
+            seen.manual = order(root);
+            seen.picked = pick(root, "kind");
+            await until(() => order(root) === "abc", 3000).catch(() => {});
+            seen.kind = order(root);
+            seen.kept = S.caseMetaOf(S.caseRows(ch).meta).sort;
+            pick(root, "manual");
+            await until(() => order(root) === "cab", 3000).catch(() => {});
+            seen.back = order(root);
+        } finally {
+            if (win) await win.close().catch(() => {});
+            for (const k of ["a", "b", "c"]) await S.dropCaseNode(ch, id(k)).catch(() => {});
+            const was = S.caseMetaOf(metaWas);
+            await S.setCaseMeta(ch, { sort: was.sort, manual: was.manual }).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({ manual: "cab", picked: true, kind: "abc", kept: "kind", back: "cab" }),
+            "the sort picked on the open Map did not redraw its column at once ({manual: the drawn order by hand, picked: the select found, kind: after By kind was picked, kept: the chapter's sort, back: after By hand again})");
+    }],
+    ["the planner's node fields on the Map are written on each change, and the Map draws them at once with no Save and no leaving it: a \"Rests on\" tick draws its line, a trial mode and a name are kept (investigation.mjs `wireMap`; the owner's rule, 20.11.2026: \"Zawsze odswiezamy okna od razu przy zmianie\"; line P of 1.2.120)", async () => {
+        /*
+         * Two deductions resting on nothing, the dashboard drawn on the Map with every node open (the default). In x's
+         * fields: the box for a in "Rests on" ticked, the trial mode set to Nonstop Debate (the select focused, as a pick
+         * leaves it), the name changed - each with the `change` a GM's tick, pick or leaving the field sends. Read, with the
+         * window open and nothing else pressed: whether the line a>x is drawn, the mode x's fields are drawn with and where
+         * the focus is, and x's stored inputs, mode and name. The rows go after.
+         * Red at e515907d: nothing was written until the GM left the Map or closed the window (with every node open there is
+         * no Close), so the line was not drawn and the store held none of the three (audit 1.2.118 controls-03, findings
+         * 5, 12 and 14).
+         */
+        const S = await import("./case-schema.mjs");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const ch = getClock().chapter;
+        const id = k => `suite-p120e-${k}`;
+        const flagWas = game.user.getFlag(MODULE_ID, "caseMapFaces");
+        let win = null;
+        const seen = {};
+        const fire = node => node?.dispatchEvent(new Event("change", { bubbles: true }));
+        try {
+            if (flagWas !== undefined) await game.user.unsetFlag(MODULE_ID, "caseMapFaces");
+            await S.setCaseNode(ch, id("a"), { kind: "deduction", label: "SUITE P120E a", inputs: [] });
+            await S.setCaseNode(ch, id("x"), { kind: "deduction", label: "SUITE P120E x", inputs: [] });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            const fields = () => root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id("x")}"]`);
+            await until(() => fields(), 3000).catch(() => {});
+            const box = [...(fields()?.querySelectorAll('.drpg-case-fold-list input[type="checkbox"]') ?? [])].find(b => b.name.endsWith(`:${id("a")}`));
+            seen.box = Boolean(box);
+            if (box) { box.checked = true; fire(box); }
+            await until(() => root?.querySelector(`path[data-drpg-edge="${id("a")}>${id("x")}"]`), 3000).catch(() => {});
+            seen.line = Boolean(root?.querySelector(`path[data-drpg-edge="${id("a")}>${id("x")}"]`));
+            // a pick leaves the focus on the select, which holds the store's own echo (live.mjs): the write redraws itself
+            const mode = fields()?.querySelector(`select[name="case:${ch}:${id("x")}:mode"]`);
+            if (mode) { mode.focus(); mode.value = "debate"; fire(mode); }
+            await until(() => fields()?.dataset?.drpgTrialMode === "debate", 3000).catch(() => {});
+            seen.modeDrawn = fields()?.dataset?.drpgTrialMode ?? null;
+            seen.focus = document.activeElement?.getAttribute?.("name") === `case:${ch}:${id("x")}:mode`;
+            const label = fields()?.querySelector(`[name="case:${ch}:${id("x")}:label"]`);
+            if (label) { label.value = "SUITE P120E typed"; fire(label); }
+            await until(() => S.caseNodeOf(S.caseRows(ch).rows?.[id("x")])?.label === "SUITE P120E typed", 3000).catch(() => {});
+            const row = S.caseNodeOf(S.caseRows(ch).rows?.[id("x")]);
+            seen.kept = { inputs: row?.inputs ?? null, mode: row?.mode ?? null, label: row?.label ?? null };
+            seen.open = Boolean(win.app?.rendered);
+        } finally {
+            if (win) await win.close().catch(() => {});
+            for (const k of ["a", "x"]) await S.dropCaseNode(ch, id(k)).catch(() => {});
+            if (flagWas !== undefined) await game.user.setFlag(MODULE_ID, "caseMapFaces", flagWas);
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({ box: true, line: true, modeDrawn: "debate", focus: true, kept: { inputs: [id("a")], mode: "debate", label: "SUITE P120E typed" }, open: true }),
+            "a node's fields on the open Map were not written and drawn at once ({box: the Rests on box found, line: the line a>x drawn, modeDrawn: the mode x's fields are drawn with after the pick, the select focused; focus: the focus back on the mode select; kept: x's stored inputs, mode and name, open: the window still open})");
+    }],
+    ["the planner's open Map lists a Logic Dive set saved while it stands open, in the node's set picker, with nothing pressed (investigation.mjs `openInvestigationDashboard`'s `watch.stores`; the owner's rule, 20.11.2026: \"Zawsze odswiezamy okna od razu przy zmianie\"; line P of 1.2.120)", async () => {
+        /*
+         * A deduction planning a Logic Dive, the dashboard drawn on the Map; a set written into the GMs' store (gm-stores.mjs
+         * `diveSetStore`, as the sets window's save writes it) while it stands open. Read: whether the node's set picker
+         * lists it. The set and the row go after. Red at e515907d: the window did not hear the store (audit 1.2.118
+         * controls-03, finding 6), so the picker kept the sets it was drawn with.
+         */
+        const S = await import("./case-schema.mjs");
+        const { diveSetStore } = await import("./gm-stores.mjs");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const ch = getClock().chapter, id = "suite-p120d-x", set = "suite-p120d-set";
+        let win = null;
+        const seen = {};
+        try {
+            await S.setCaseNode(ch, id, { kind: "deduction", label: "SUITE P120D x", inputs: [], mode: "dive" });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            const picker = () => root?.querySelector(`select[name="case:${ch}:${id}:diveSet"]`);
+            await until(() => picker(), 3000).catch(() => {});
+            seen.before = [...(picker()?.options ?? [])].some(o => o.value === set);
+            await diveSetStore.patch(set, { name: "SUITE P120D set", conclusion: null, questions: [{ text: "q", answers: ["a", "b"], right: 0 }] });
+            await until(() => [...(picker()?.options ?? [])].some(o => o.value === set), 3000).catch(() => {});
+            seen.after = [...(picker()?.options ?? [])].some(o => o.value === set);
+        } finally {
+            if (win) await win.close().catch(() => {});
+            await diveSetStore.drop(set);
+            await S.dropCaseNode(ch, id).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({ before: false, after: true }),
+            "the open Map's set picker did not list a Logic Dive set saved while it stood open ({before: listed before the save, after: listed after it})");
+    }],
+
+
+
+
 
     ["a planned Truth Bullet removed from the planner takes its links with it: the deductions that rested on it no longer name it, the counter refuting one of them keeps its target, and the case's check names nothing missing (case-schema.mjs `dropCaseNode`, `refsCut`; the owner, 19.11.2026: \"Przyjmujemy ze usuniecie bulleta usuwa tez jego polaczenia\"; the line claude/plan-119)", async () => {
         /*
