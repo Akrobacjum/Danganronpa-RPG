@@ -5422,6 +5422,7 @@
       "settledGone": "Gracz już nie czekał.",
       "settledUnconfirmed": "{name} odpowiada, ale nie wiadomo, czy odpowiedź dotarła.",
       "alreadyRuled": "Ta karta jest już rozstrzygnięta przez GM-a {gm}.",
+      "askNotHeld": "Gracz już nie czeka na tę kartę: przeładował stronę i zapytał ponownie albo minął jej czas. Nic nie zostało wysłane.",
       "notTheirCharacter": "Ta karta wskazuje postać, której jej autor nie jest właścicielem. Nic nie zostało rozstrzygnięte, a karta jest zamknięta.",
       "claimBusy": "Tę kartę rozstrzyga właśnie GM {gm}.",
       "alreadySettled": "Ta karta ma już odpowiedź.",

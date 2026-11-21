@@ -707,11 +707,14 @@ export function answerTraitRuling(requestId, asker, trait) {
  * the card stays open. `messageId` is the card pressed: a yes is kept only for the ask held on it
  * (fix early-C2-G2); a GM's call that names no card is judged by the request alone.
  */
-export async function answerHopeCall(requestId, asker, verdict, messageId = null) {
+export async function answerHopeCall(requestId, asker, verdict, messageId = null, out = null) {
     if (!game.user.isGM || !requestId || !asker) return false;
     if (verdict) {
         const res = await ask(ACTION_CALL_YES, { rid: requestId, asker, messageId }, {
             onPrimary: true, local: () => yesOnPrimary(requestId, asker, game.user.id, messageId) });
+        // `out.told` (1.2.122, the audit's CTRL-23): the bridge said why it was not carried out; a false with none is the
+        // primary holding no such ask, which the card's ruling says (messenger-app.mjs).
+        if (out) out.told = !res.ok;
         return res.ok && res.value === true;
     }
     game.socket.emit(SOCKET_EVENT, {
@@ -746,12 +749,13 @@ export async function askReshapeRuling(verdict, { by, trace, attempt } = {}) {
  * once the player has it (`keepRuling`). True once sent; false when the primary holds no such ask - one its player
  * stopped waiting for - and the card is left as it is. `messageId` is the card pressed, as `answerHopeCall` takes it.
  */
-export async function answerDynamic(requestId, asker, ruling, messageId = null) {
+export async function answerDynamic(requestId, asker, ruling, messageId = null, out = null) {
     if (!game.user.isGM || !requestId || !asker) return false;
     const refuse = !ruling;
     const res = await ask(ACTION_DYNAMIC_ANSWER, {
         rid: requestId, asker, tier: refuse ? 0 : Number(ruling.tier), trait: refuse ? null : ruling.trait ?? null, refuse, messageId
     }, { onPrimary: true, local: () => dynamicOnPrimary(requestId, asker, refuse ? false : ruling, game.user.id, messageId) });
+    if (out) out.told = !res.ok;   // As answerHopeCall's (CTRL-23).
     return res.ok && res.value === true;
 }
 

@@ -928,7 +928,8 @@ async function askItemEffect(item) {
 async function ruleApproveCallOrRefuseCall(action, data, message = null) {
     const { answerHopeCall } = await import("./gm-bridge.mjs");
     const yes = action === "approveCall";
-    if (!(await answerHopeCall(data.rid, data.asker, yes, message?.id ?? null))) return null;
+    const out = {};
+    if (!(await answerHopeCall(data.rid, data.asker, yes, message?.id ?? null, out))) return askNotHeld(out);
     return yes ? { held: true } : settled("DRPG.Bridge.settledDeclined");
 }
 
@@ -947,12 +948,26 @@ async function ruleSetDifficulty(action, data, message = null) {
     });
     if (!ruling) return null;   // The editor was closed; the card stays open.
     const { answerDynamic } = await import("./gm-bridge.mjs");
-    return (await answerDynamic(data.rid, data.asker, ruling, message?.id ?? null)) ? { held: true } : null;
+    const out = {};
+    return (await answerDynamic(data.rid, data.asker, ruling, message?.id ?? null, out)) ? { held: true } : askNotHeld(out);
+}
+
+/**
+ * A ruling on an ask the primary no longer holds (1.2.122, the audit's CTRL-23): the player reloaded and asked again
+ * elsewhere, or its time ran out. The buttons came back with a line in the console alone, so the GM pressed again; the
+ * card says so now and settles with "The player was no longer waiting.". Where the bridge said why (no primary to ask,
+ * no answer: `out.told`), the buttons come back and nothing more is said.
+ */
+function askNotHeld(out) {
+    if (out?.told) return null;
+    ui.notifications.warn(game.i18n.localize("DRPG.Bridge.askNotHeld"));
+    return settled("DRPG.Bridge.settledGone");
 }
 
 async function ruleRefuseDynamic(action, data, message = null) {
     const { answerDynamic } = await import("./gm-bridge.mjs");
-    return (await answerDynamic(data.rid, data.asker, false, message?.id ?? null)) ? { held: true } : null;
+    const out = {};
+    return (await answerDynamic(data.rid, data.asker, false, message?.id ?? null, out)) ? { held: true } : askNotHeld(out);
 }
 
 /**

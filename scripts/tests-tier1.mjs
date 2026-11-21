@@ -17807,6 +17807,34 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson([false, true, false]), "the dock's mask rule ([a Spectator's browser hides, another player's hides, no mask hides])");
     }],
 
+    ["R8281 - a ruling on a Call's or a Dynamic action's ask the primary no longer holds says so and closes the card, where its buttons came back with a line in the console alone (messenger-app.mjs `askNotHeld`; bridge-asks.mjs `answerHopeCall`, `answerDynamic`'s `out`; 1.2.122, the audit's CTRL-23, its second half)", async () => {
+        /*
+         * The audit of 1.2.118 (CTRL-23): Approve on a Call and both Dynamic buttons answered false when the primary held
+         * no such ask (the player reloaded and asked again, or its time ran out); the buttons came back and the GM saw
+         * nothing. On this primary GM, the three rulings pressed through `runCallAction` with an ask no primary holds: the
+         * primary answers at once, before any write (call-gm.mjs `yesOnPrimary`, `dynamicOnPrimary`). Red at 21bf5d18:
+         * null for each, no notice.
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM - the ask would travel, and this would measure nothing");
+        needs(world.atLeast("playerAccounts", 1), "an asker");
+        const M = await import("./messenger-app.mjs");
+        const player = game.users.find(u => !u.isGM);
+        const data = { rid: "R8281NoSuchAsk00", asker: player.id };
+        const warns = [], realWarn = ui.notifications.warn;
+        ui.notifications.warn = text => { warns.push(String(text)); };
+        const line = game.i18n.format("DRPG.Bridge.settledGone", { name: game.user.name });
+        let read = null;
+        try {
+            read = [];
+            for (const action of ["approveCall", "refuseDynamic"]) read.push((await M.runCallAction(action, data))?.settled === line);
+            read.push(warns.filter(w => w === game.i18n.localize("DRPG.Bridge.askNotHeld")).length);
+        } finally {
+            ui.notifications.warn = realWarn;
+        }
+        equal(stableJson(read), stableJson([true, true, 2]), "a ruling on an ask nobody holds came back silent ([Approve settled, Refuse settled, notices])");
+    }],
+
     ["R539 - the GM's block in the list is Foundry's block and never undoes the module's: the button is built only in a GM's list; its click writes the user's `permissions.BROADCAST_AUDIO` flipped from what Foundry answers now and nothing else; where `moduleHoldsMic` holds the microphone or a death is kept secret the button is disabled with its line and `toggleBlock` writes nothing; it refuses a player's client, the GM's own account and a user who is not of this world", async () => {
         /*
          * E78 C5, 14.10.2026; the A9 design's R392 (A9-5; the E78 plan's D2 gave it this number), the owner's Q4 (the

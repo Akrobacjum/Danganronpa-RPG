@@ -5067,6 +5067,7 @@
       "settledGone": "The player was no longer waiting.",
       "settledUnconfirmed": "Answered by {name}, but nothing confirms that the answer arrived.",
       "alreadyRuled": "{gm} already ruled on this card.",
+      "askNotHeld": "The player is no longer waiting on this card: they reloaded and asked again, or its time ran out. Nothing was sent.",
       "notTheirCharacter": "This card names a character its writer does not own. Nothing was ruled, and the card is closed.",
       "claimBusy": "{gm} is ruling on this card right now.",
       "alreadySettled": "This card has already been answered.",

@@ -41054,7 +41054,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const V2 = await newCard(() => judged("dynamic.difficulty", { actorId: lent.id, description: "E18 fix early-C2-G2", actorName: lent.name, room: null }, player.id, rV),
                 "the resend's card");
             await withAnsweredWindows(() => ({ tier: 2, trait: "agility" }), () => press(V, "setDifficulty"));
-            await press(V, "refuseDynamic");
+            // Since 1.2.122 (the audit's CTRL-23) a press on a card whose ask the primary does not hold closes that card
+            // ("The player was no longer waiting."), so its refusal is no longer there to press: read that it closed.
+            read.push(Boolean(cardFlag(game.messages.get(V.id), "settled")));
             read.push(kept(V2), Boolean(await B.answerDynamic(rV, player.id, { tier: 1, trait: "agility" }, V2.id)));
             await settle(300);
             read.push(kept(V2));
@@ -41066,8 +41068,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             for (const message of created) await message.delete().catch(() => {});
             await settle();
         }
-        equal(stableJson(read), stableJson([false, true, true, null, true, ["dynamic", "lent", 1]]),
-            "a GM's yes or ruling pressed on a card went to the ask held on another card under the same request: the yes on an Experience's card let the Ultimate's arm through, or the difficulty set on a card for the player's character was kept for another, or the second card's own press was not taken (in order: the Ultimate's arm after the first card's yes, the second card's yes, the arm then; the ruling on the second card after the first card's difficulty and refusal, the second card's difficulty, the ruling then)");
+        equal(stableJson(read), stableJson([false, true, true, true, null, true, ["dynamic", "lent", 1]]),
+            "a GM's yes or ruling pressed on a card went to the ask held on another card under the same request: the yes on an Experience's card let the Ultimate's arm through, or the difficulty set on a card for the player's character was kept for another, or the second card's own press was not taken (in order: the Ultimate's arm after the first card's yes, the second card's yes, the arm then; the first card closed after its difficulty (1.2.122, CTRL-23), the ruling on the second card after it, the second card's difficulty, the ruling then)");
     }],
 
     ["the primary ends an ask's card at the time the card shows: a card past it ends as expired, one before it stays open, and a player's card is not touched (E18 C2)", async () => {
