@@ -22,7 +22,7 @@
 import { MODULE_ID } from "./config.mjs";
 import { spectatorViewer, spectatorUserIds, talksWithSpectators, SPECTATOR_LISTEN_FLAG } from "./spectator.mjs";
 import { error, log, isPrimaryGm } from "./utils.mjs";
-import { SAFEWORD_FLAG } from "./safeword.mjs";
+import { SAFEWORD_FLAG, safewordCard } from "./safeword.mjs";
 
 const SPECTATOR_BODY_CLASS = "drpg-spectator";
 
@@ -79,7 +79,16 @@ function spectatorAuthor(message) {
  * `awaitCard`), and the three parts below took it for the Spectator's chat: refused on its own browser, so no card, no
  * banner and no pause, while the press reported the card posted. The card carries the safeword's flag and the
  * safeword's own shape (its heading's class, one short paragraph); a message with the flag and any other content is
- * chat as before, so the flag is no road for a Spectator's words into the log.
+ * chat as before.
+ *
+ * The shape is a substring and a length, and a console writes both: the auditor's check of 1.2.122 (r122-E-2) posted
+ * the flag, the heading's class and "The knife is in the Kitchen" from a Spectator's console, and it passed all three
+ * parts. Comparing the words to `safewordCard()` cannot settle it, since the card is in its poster's language and a
+ * GM's browser can build only its own. So what passes is never drawn or kept as written: a Spectator's flagged card is
+ * drawn on every browser with that browser's own card (`drawOwnCard`), and the primary GM writes its own card's words
+ * over one whose words are not its own (`dropSpectatorMessage`). What stays: the words reach every browser in the
+ * created message before the primary's write (as any message of a Spectator's does, below), and a card posted while no
+ * GM is connected keeps its words in the log, where every browser draws it as the card: no primary heard it made.
  */
 export function isSafewordCard(message) {
     const flagged = message?.getFlag?.(MODULE_ID, SAFEWORD_FLAG) ?? message?.flags?.[MODULE_ID]?.[SAFEWORD_FLAG];
@@ -112,8 +121,26 @@ export function hiddenSpectatorMessage(message, { now = Date.now() } = {}) {
     return at > 0 && now - at < SPECTATOR_FRESH_MS;
 }
 
+/**
+ * Draws a Spectator's safeword card with this browser's own card's words (r122-E-2, above); answers whether it did.
+ * `byWatcher`, whether a Spectator wrote it, is handed by the suite, whose world holds none.
+ */
+export function drawOwnCard(message, element, { byWatcher = spectatorAuthor(message) } = {}) {
+    if (!byWatcher || !isSafewordCard(message) || !element?.querySelector) return false;
+    const body = element.querySelector(".message-content") ?? element;
+    body.innerHTML = safewordCard().content;
+    return true;
+}
+
+/** The words the primary writes over a Spectator's safeword card, or null when they are its own card's already. */
+export function ownCardWords(message) {
+    const own = safewordCard().content;
+    return String(message?.content ?? "") === own ? null : own;
+}
+
 function hideSpectatorMessage(message, element) {
-    if (hiddenSpectatorMessage(message) && !isSafewordCard(message)) element?.remove?.();
+    if (drawOwnCard(message, element)) return;
+    if (hiddenSpectatorMessage(message)) element?.remove?.();
 }
 
 function noteSpectatorMessage(message) {
@@ -122,9 +149,15 @@ function noteSpectatorMessage(message) {
 
 async function dropSpectatorMessage(message) {
     try {
-        if (!isPrimaryGm() || !message?.author || message.author.isGM || isSafewordCard(message)) return;
+        if (!isPrimaryGm() || !message?.author || message.author.isGM) return;
         const { senderNotSpectator } = await import("./bridge-guards.mjs");
         if (!(await senderNotSpectator(message.author))) return;
+        if (isSafewordCard(message)) {
+            // The card stays; its words become this GM's own card's (r122-E-2, above), once: the update's echo matches.
+            const own = ownCardWords(message);
+            if (own !== null) await message.update({ content: own });
+            return;
+        }
         log(`Removed a chat message ${message.author.name} posted as a Spectator.`);
         await message.delete();
     } catch (err) {

@@ -1489,6 +1489,11 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
                 // as the description's is `desc:<room>`, and the button that empties the cell it stands in.
                 wirePortraitPickers(form, { prefix: "img:" });
                 wirePictureWarnings(form);
+                /* What Remove the picture shows (the audit of 1.2.118's click probe, probe-42-rerun-2.json, row C[34]: a
+                   press with no visible effect): it empties the hidden field and takes the thumbnail's `src` off, and
+                   `wirePictureWarnings`' observer of that `src` empties the warning line under it; nothing is written
+                   until Apply. On a row with no picture, as the probe's Cafeteria was, the cell is empty already and a
+                   press changes nothing on the screen. */
                 for (const button of form.querySelectorAll("[data-drpg-picture-clear]")) {
                     button.addEventListener("click", () => {
                         const cell = button.closest("td");

@@ -153,14 +153,18 @@ export function trimHudFor(element, user) {
     }
 }
 
-/* The token settings refused on this browser, and when the player was last told (`refuseTokenConfig`). */
+/* The token settings windows being closed on this browser now, and when the player was last told (`refuseTokenConfig`).
+   A window leaves the set when its close settles: Foundry keeps one sheet object per token document (TokenDocument#sheet,
+   as remembered for v13; v14 not read), so the same window drawn again by a second double right-click is refused again.
+   The set held every window ever refused until the auditor's check of 1.2.122 (r122-E-1), and a reopened one stood. */
 const refusedConfigs = new WeakSet();
 let configToldAt = -Infinity;
 
 /**
  * A token's settings window, drawn on a browser whose user is not a GM: hidden at once and closed (H-3). Hooked at
  * `renderTokenApplication`, `renderTokenConfig` and `renderPrototypeTokenConfig` (hud.mjs `registerHud`); a window
- * reached by two of them is closed once. Answers whether it closed one (R8421 reads it).
+ * reached by two of them in one render is closed once, and drawn again later it is closed again. Answers whether it
+ * closed one (R8421 reads it).
  */
 export function refuseTokenConfig(app, element, user = game.user) {
     try {
@@ -168,7 +172,8 @@ export function refuseTokenConfig(app, element, user = game.user) {
         refusedConfigs.add(app);
         const root = element?.style ? element : element?.[0] ?? app.element;
         if (root?.style) root.style.display = "none";
-        Promise.resolve(app.close?.()).catch(err => error("Could not close a token's settings", err));
+        Promise.resolve(app.close?.()).catch(err => error("Could not close a token's settings", err))
+            .finally(() => refusedConfigs.delete(app));
         const now = Date.now();
         if (now - configToldAt > 60_000) {
             configToldAt = now;

@@ -66463,6 +66463,11 @@ const INVARIANTS = [
         try {
             answers = [T.refuseTokenConfig(player.app, player.element, { isGM: false }), T.refuseTokenConfig(player.app, player.element, { isGM: false }),
                 T.refuseTokenConfig(gm.app, gm.element, { isGM: true })];
+            /* The same window drawn again once its close has settled, as Foundry's cached TokenConfig is by a second double
+               right-click: refused again (r122-E-1; red at dcd9d406, where the set kept it and answered false). */
+            for (let i = 0; i < 5; i++) await Promise.resolve();
+            player.element.style.display = "";
+            answers.push(T.refuseTokenConfig(player.app, player.element, { isGM: false }));
         } finally {
             if (ui.notifications) ui.notifications.info = was;
         }
@@ -66473,8 +66478,8 @@ const INVARIANTS = [
         T.trimHudFor(root, { isGM: true });
         equal(stableJson({ answers, closed: [player.app.closed, gm.app.closed], hidden: [player.element.style.display, gm.element.style.display], told: told <= 1,
             marked, promoted: [root.classList.contains(T.NO_HUD_CLASS), root.getAttribute("aria-hidden"), tokenHudControls(root).length > 0] }),
-        stableJson({ answers: [true, false, false], closed: [1, 0], hidden: ["none", ""], told: true, marked: [true, "true"], promoted: [false, null, true] }),
-        "{answers: a player's window, again, a GM's; closed and hidden: each; told at most once; marked: a player's root; promoted: the same root trimmed for a GM}");
+        stableJson({ answers: [true, false, false, true], closed: [2, 0], hidden: ["none", ""], told: true, marked: [true, "true"], promoted: [false, null, true] }),
+        "{answers: a player's window, again in the same render, a GM's, the player's drawn again after its close; closed and hidden: each; told at most once; marked: a player's root; promoted: the same root trimmed for a GM}");
     }],
     ["R8422 - a priced tile nothing can pay for does not say 'free' (the audit of 1.2.118, UI-24; 1.2.122 line UI): sheet-actions.mjs `costLabelFor` for Analyze outside a Class Trial with no action left, and for Tamper with no action and a full Sanity track, says what its chain's first step costs, as the stripe does", async () => {
         /* Red at 21bf5d18: DRPG.Action.costFree ('free') on a blocked quote, and no export. A stand-in student: nothing written. */
@@ -66689,6 +66694,29 @@ const INVARIANTS = [
             unflagged: SU.isSafewordCard(msg({ content: card.content }))
         }), stableJson({ spectator: true, monokuma: false, card: true, words: false, unflagged: false }),
         "{spectator, monokuma: the sheet's Stop; card: the safeword's card passes; words: a flagged message of other words; unflagged: the card's words with no flag}");
+    }],
+    ["R8439 - a Spectator's safeword card is drawn and kept in the card's own words, whatever words it was posted with (the auditor's check of 1.2.122, r122-E-2; 1.2.123 line UI): spectator-ui.mjs `drawOwnCard` draws a flagged card of the heading's class and a Spectator's own words with this browser's card, leaves a message no Spectator wrote as drawn, and `ownCardWords` is the primary's card for those words and null for its own card", async () => {
+        /* Red at dcd9d406: neither function, and a console's card with the flag, the heading's class and ~550 characters of
+           its own words passed the shape test, was drawn on every browser and was not removed by the primary. */
+        const SU = await import("./spectator-ui.mjs");
+        must(typeof SU.drawOwnCard === "function" && typeof SU.ownCardWords === "function",
+            "spectator-ui.mjs has no drawOwnCard or ownCardWords - a Spectator's words under the safeword's flag stay in the log");
+        const { safewordCard, SAFEWORD_FLAG } = await import("./safeword.mjs");
+        const card = safewordCard();
+        const words = '<h3 class="drpg-safeword-heading">x</h3><p>The knife is in the Kitchen</p>';
+        const msg = content => ({ content, getFlag: (scope, key) => scope === MODULE_ID && key === SAFEWORD_FLAG ? true : undefined });
+        const drawn = content => {
+            const element = document.createElement("li");
+            element.innerHTML = `<div class="message-content">${content}</div>`;
+            return element;
+        };
+        const watched = drawn(words), student = drawn(words);
+        const answers = [SU.drawOwnCard(msg(words), watched, { byWatcher: true }), SU.drawOwnCard(msg(words), student, { byWatcher: false })];
+        const own = drawn(card.content).querySelector(".message-content").innerHTML;
+        equal(stableJson({ answers, watched: watched.querySelector(".message-content").innerHTML === own, kitchen: watched.textContent.includes("Kitchen"),
+            student: student.textContent.includes("Kitchen"), write: SU.ownCardWords(msg(words)) === card.content, again: SU.ownCardWords(msg(card.content)) }),
+        stableJson({ answers: [true, false], watched: true, kitchen: false, student: true, write: true, again: null }),
+        "{answers: a Spectator's card redrawn, a student's left; watched: drawn as this browser's card; kitchen: the words gone; student: left as posted; write: the primary's words; again: none for its own card}");
     }],
     ["R8431 - the token HUD's on toggles and its focus read under Stained Glass with high contrast (the audit of 1.2.120, H-1, H-7; 1.2.122 line UI): a rule under high contrast and the glass gives `.control-icon.active` the Bone ground and the Ink glyph after the high-contrast ground, and the glass draws the focus ring inside the hexagon (a negative `outline-offset`)", async () => {
         /* Red at 21bf5d18: the high-contrast rule (1,5,1) took the on toggle's ground to Ink under an Ink glyph, and the
