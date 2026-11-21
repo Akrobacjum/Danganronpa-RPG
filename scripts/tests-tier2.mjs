@@ -105392,6 +105392,53 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "the deleted Remnant's links stayed (gone: the road's answer, token: still on the map, inputs: the deduction's after, missing: the check's)");
     }],
 
+    ["the Mastermind's Give Hope box stays whole when it is drawn again (1.2.120, 21.11.2026; found by the line claude/refresh-120): with the window open, a write to the Mastermind's sheet redraws the box with the new Hope, and the pool's select, the amount and Give are still in it - and the next write redraws it again", async () => {
+        /*
+         * 21.11.2026. mastermind.mjs `openMastermindDialog` keeps the box live (`.drpg-mm-live`, watching actors), and
+         * live.mjs puts the build's first element where the region stood. The build was `hopeBox`, the box's inside, whose
+         * first element is the Hope line: so the first redraw left that line where the box stood - the pool's select, the
+         * amount and Give gone - and with no `.drpg-mm-live` left, every later change redrew nothing. Here a Mastermind is
+         * named (the GM store's write, put back), the window opened with no field focused, the Mastermind's Hope written
+         * twice (put back): after each write the box reads the Hope written and holds its three controls. Red on e515907d:
+         * after the first write no box at all.
+         */
+        const MM = await import("./mastermind.mjs");
+        needs(env.dialogs(), "the Mastermind's window is drawn and its box read");
+        const [who] = cast(1);
+        const wasActor = MM.mastermindActor()?.id ?? null, wasLair = MM.mastermindLair();
+        const hopeWas = who.system?.resources?.hope?.value ?? 0;
+        const appOf = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes("drpg-window-mastermind"));
+        const box = () => appOf()?.element?.querySelector(".drpg-mm-live") ?? null;
+        const readBox = held => {
+            const el = box();
+            return { box: Boolean(el), hope: el?.querySelector("p.notes")?.textContent.trim() === game.i18n.format("DRPG.Mastermind.hopeReadout", { held }),
+                donor: Boolean(el?.querySelector("select[name=donor]")), amount: Boolean(el?.querySelector("[name=amount]")), give: Boolean(el?.querySelector("[data-drpg-give]")) };
+        };
+        const read = {};
+        let opening = null;
+        try {
+            await MM.setMastermind(who);
+            await settle();
+            opening = Promise.resolve().then(() => MM.openMastermindDialog()).catch(() => null);
+            must(await until(() => box()?.querySelector("[name=amount]"), 6000), "the Mastermind's window did not open on its Hope box");
+            document.activeElement?.blur?.();
+            for (const [step, held] of [["first", hopeWas === 2 ? 4 : 2], ["second", hopeWas === 3 ? 5 : 3]]) {
+                await who.update({ "system.resources.hope.value": held });
+                await until(() => readBox(held).hope, 2000);
+                read[step] = readBox(held);
+            }
+        } finally {
+            appOf()?.close();
+            if (opening) await Promise.race([opening, wait(3000)]);
+            await who.update({ "system.resources.hope.value": hopeWas });
+            if (wasActor) await MM.setMastermind(game.actors.get(wasActor), { room: wasLair });
+            else await MM.clearMastermind();
+            await settle();
+        }
+        const whole = { amount: true, box: true, donor: true, give: true, hope: true };
+        equal(stableJson(read), stableJson({ first: whole, second: whole }),
+            "[after each write to the Mastermind's Hope: the box there, its pool select, its amount, its Give, the Hope written]");
+    }],
     ["the open planner draws a node written to the case while it stands open - with no field focused, with a field focused that holds nothing typed, and with text typed in it: the focus, the caret and the text kept, and a field another write changed under the typing keeps the text and is marked (investigation.mjs `openInvestigationDashboard`, live.mjs `keepLive` `whileEditing`; the owner, 20.11.2026: \"by okna zawsze odswiezaly sie przed zaladowaniem okna od nowa (np. Planer)\", \"Zawsze odswiezamy okna od razu przy zmianie\"; the line claude/plan-119)", async () => {
         /*
          * The dashboard drawn on the Map as this GM opens it, a fixture deduction in it; then three writes of a new deduction
