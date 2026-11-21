@@ -17242,6 +17242,36 @@ const INVARIANTS = [
             + "(both modes: B's plate, D's, D's tooltip; player names only: D's; a write that moves no flag: boxes read, D's plate; the veil gone: boxes read, D's plate, its tooltip; the GM's rule; the dock's mark is the mask's)");
     }],
 
+    ["R8260 - the camera dock draws no box for a participant the veil or a mask hides from this reader: the box with its avatar and video is taken off the dock in every nameplate mode, Off included, and put back as it was when the veil goes (1.2.122, the audit's COMM-20 residue inside the module)", async () => {
+        /*
+         * 1.2.121 line M2 wrote "?" on a hidden participant's plate (R7931), but left the rest of the box: Foundry's dock
+         * draws the account's avatar (or the camera) in it, so a killer behind the opening's veil was still counted on the
+         * dock and shown by their player's picture, and with nameplates Off `relabel` returned before it asked whether the
+         * participant was hidden at all. Now the box is taken off (`relabel`, its `display` kept and put back). A stand-in
+         * dock of two boxes as Foundry draws them (an avatar, a video, the plate), D hidden: in the three modes, then the
+         * veil gone through the token hook's handler. What avclient-livekit draws outside the dock stays LIVE-F119-03.
+         * Red at 21bf5d18: D's box shown in every mode.
+         */
+        needs(world.atLeast("playerAccounts", 2), "two accounts besides the GM's, each with a box on the dock");
+        const C = await import("./camera-view.mjs");
+        const [b, d] = game.users.filter(user => user.id !== game.user.id && !user.isGM).slice(0, 2);
+        const root = document.createElement("div");
+        root.innerHTML = [b, d].map(u => `<div class="camera-view" data-user="${u.id}" style="display: flex"><img class="user-avatar" src="icons/svg/mystery-man.svg"><video class="user-camera"></video><div class="player-name ellipsis"><strong>${foundry.utils.escapeHTML(u.name)}</strong><strong>x</strong></div></div>`).join("");
+        const shown = u => root.querySelector(`.camera-view[data-user="${u.id}"]`)?.style.display ?? null;
+        const MODES = { OFF: 0, PLAYER_ONLY: 1, BOTH: 2 };
+        const hidden = user => user?.id === d.id;
+        const read = {};
+        for (const [key, mode] of Object.entries(MODES)) {
+            C.relabelCameraDock(root, { hidden, plate: { MODES, mode } });
+            read[key] = [shown(b), shown(d)];
+        }
+        C.onTokenChange({}, { flags: { [MODULE_ID]: { [`${"-="}veiled`]: null } } }, { root, hidden: () => false });
+        read.back = [shown(b), shown(d)];
+        equal(stableJson(read), stableJson({
+            OFF: ["flex", "none"], PLAYER_ONLY: ["flex", "none"], BOTH: ["flex", "none"], back: ["flex", "flex"]
+        }), "the dock showed a hidden participant's box, or did not put it back as it was when the veil went ([B's display, D's] in each mode, then the veil gone)");
+    }],
+
     ["R539 - the GM's block in the list is Foundry's block and never undoes the module's: the button is built only in a GM's list; its click writes the user's `permissions.BROADCAST_AUDIO` flipped from what Foundry answers now and nothing else; where `moduleHoldsMic` holds the microphone or a death is kept secret the button is disabled with its line and `toggleBlock` writes nothing; it refuses a player's client, the GM's own account and a user who is not of this world", async () => {
         /*
          * E78 C5, 14.10.2026; the A9 design's R392 (A9-5; the E78 plan's D2 gave it this number), the owner's Q4 (the

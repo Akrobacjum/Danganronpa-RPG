@@ -46,9 +46,10 @@
  * through (mask-gm.mjs `nameAsSeen`, the pickers' rule) - has every name on the
  * plate written "?" in every mode that draws one, the account name too (it names
  * the player, and so the character), and put back when the veil or the mask goes
- * (`relabelCameraDock`, on the token's write). What the dock draws besides the
- * plate - the video, the avatar, the box itself - is avclient-livekit's and
- * Foundry's, LIVE-F119-03: not measured headless.
+ * (`relabelCameraDock`, on the token's write). Since 1.2.122 the box goes too -
+ * its avatar, its video and its place on the dock, in every nameplate mode,
+ * Off included (`showBox`, R8260) - and comes back as it stood. What
+ * avclient-livekit draws outside the dock is LIVE-F119-03: not measured headless.
  */
 
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
@@ -344,9 +345,26 @@ function nameplateMode() {
  * (`hiddenFromHere`), every name on the plate for "?", the plate as Foundry drew it kept on the label and put back once
  * they are not (COMM-20, the header).
  */
+/** A dock's box taken off (`shown` false) or put back as it stood: its inline `display` kept in `data-drpg-box` meanwhile. */
+function showBox(box, shown) {
+    if (!shown) {
+        if (box.dataset.drpgBox === undefined) box.dataset.drpgBox = box.style.display ?? "";
+        box.style.display = "none";
+        return;
+    }
+    if (box.dataset.drpgBox === undefined) return;
+    box.style.display = box.dataset.drpgBox;
+    delete box.dataset.drpgBox;
+}
+
 function relabel(box, userId, { hidden = hiddenFromHere, plate = nameplateMode() } = {}) {
     const user = game.users.get(userId);
     if (!user) return;
+
+    // The box itself, in every mode (1.2.122, the audit's COMM-20 residue): the plate's "?" below still left the box -
+    // the account's avatar or the camera, and one more box on the dock - and with nameplates Off nothing was asked at
+    // all. A hidden participant's box is taken off, its own `display` kept on it and put back when they are not.
+    showBox(box, !hidden(user));
 
     // Nothing is drawn at all.
     if (plate && plate.mode === plate.MODES.OFF) return;
