@@ -64499,6 +64499,20 @@ const INVARIANTS = [
             stableJson({ unknown: "refused", noGm: "refused", row: ["actorId", "key", "nonce", "note"], card: [false, true] }),
             "{unknown, noGm: how the run answers a key that is no Call and one needing no GM; row: what the run is handed; card: [the packet's name or effect read, the table's effect read]}");
     }],
+    ["R8114 - Next time of day waits for an incident to end or reach Stage 6 (1.2.122 line CORE; the audit of 1.2.118, CORE-32; the owner's answer of 21.11.2026, option (a)): boundary.mjs `incidentHoldsTheHour` answers true for an incident at its opening roll or its fight and false at Stage 6 (`resolution`) and with none; `nextTimeOfDay` asks it after the Eclipse's refusal and before the players' round, warns `DRPG.Panel.advanceDuringIncident` and moves nothing", async () => {
+        /* Red at 21bf5d18: no `incidentHoldsTheHour` - the panel's move refilled every bystander's actions and restocked the
+           rooms mid-incident while their HUD kept the old hour. Pure answers over handed states, and the press's order read
+           in its source (opening an incident is tier 2's, and its move a GM's write). */
+        const B = await import("./boundary.mjs");
+        must(typeof B.incidentHoldsTheHour === "function", "boundary.mjs exports no incidentHoldsTheHour");
+        const answers = await Promise.all([{ active: true, stage: "openingRoll" }, { active: true, stage: "incident" }, { active: true, stage: "resolution" }, null]
+            .map(state => B.incidentHoldsTheHour(state)));
+        const press = fnSource((new Map(await moduleSources())).get("boundary.mjs") ?? "", "nextTimeOfDay");
+        equal(stableJson({ answers, press: /advanceDuringEclipse[\s\S]{0,700}if \(await incidentHoldsTheHour\(\)\) \{\s*ui\.notifications\.warn\(game\.i18n\.localize\("DRPG\.Panel\.advanceDuringIncident"\)\);\s*return null;\s*\}\s*const ready = await askReadiness\("next"\);/.test(press),
+            worded: game.i18n.localize("DRPG.Panel.advanceDuringIncident") !== "DRPG.Panel.advanceDuringIncident" }),
+        stableJson({ answers: [true, true, false, false], press: true, worded: true }),
+            "{answers: [the opening roll, the fight, Stage 6, no incident] - whether the move waits; press: refused and told before the round; worded: the notice has a text}");
+    }],
     ["R8050 - Foundry's token HUD holds only the controls kept (1.2.120 line H; the owner, 21.11.2026: \"Niepotrzebne jest: combat, target, movement action, assign status, liczby na gorze i na dole i elevation\"): token-hud.mjs `trimHudFor` on Daggerheart 2.12.8's tokenHUD.hbs as drawn for a GM leaves the floor's palette, bring to front, the companion's button, lock, the token's settings and visibility, with no input, status palette, movement palette, target or combat; as drawn for a player it leaves nothing, the HUD marked not to be drawn (the owner, 21.11.2026: \"Niech gracz nie ma menu tokena\")", async () => {
         /*
          * 21.11.2026, 1.2.120 line H. The harness draws no token HUD (no canvas), so this hands the transform the markup

@@ -90,6 +90,12 @@ export const WORLD_SECRET_RULES = Object.freeze({
             empty: true,
             since: "E05 C5", why: "the Key Remnant plan: each clue's name, what it says, its analysis, the GM's note and its token (S01-01, S05-02)"
         }),
+        /* NO RULE FOR THE SEARCH TOKENS, BY THE OWNER'S DECISION OF 21.11.2026 (the audit of 1.2.118, MAP-26; relayed by the
+           1.2.122 coordinator: "Ui to pokazuje. Zostawiamy jak jest"). `searchTokens` (settings.mjs, a world setting) holds
+           each room's count left this time of day; the room tile shows a player the count of the room they stand in
+           (room-tile.mjs), so the counts are public by design. A console also reads the other rooms' counts - which rooms
+           were searched, and how often - and that is accepted with them. Named here so that nobody adds a rule for it, or
+           lifts it into a store, believing it an oversight. */
         // The darkening's stamp is public (its card is); the count behind it is the GMs' record (overflow.mjs).
         overflow: Object.freeze({
             fields: Object.freeze(["count"]),

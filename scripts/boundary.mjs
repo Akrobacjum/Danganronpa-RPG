@@ -126,6 +126,12 @@ export async function toggleEclipse() {
     return null;
 }
 
+/** Whether an incident runs and has not reached Stage 6 (`resolution`): the panel's Next time of day waits for it (CORE-32). Exported for R8114. */
+export async function incidentHoldsTheHour(state = undefined) {
+    const now = state === undefined ? (await import("./murder.mjs")).murderState() : state;
+    return Boolean(now) && now.stage !== "resolution";
+}
+
 /**
  * "Next time of day" on the GM panel (E37 C3; moved here from gm-panel.mjs `EXTRA_ACTIONS.advance`): refused during an
  * Eclipse, whose own end moves the clock (`DRPG.Panel.advanceDuringEclipse`), then the readiness round, then the same
@@ -135,6 +141,15 @@ export async function nextTimeOfDay() {
     if (!game.user.isGM) return null;
     if (isEclipse()) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.advanceDuringEclipse"));
+        return null;
+    }
+    /* NOT INSIDE AN INCIDENT BEFORE STAGE 6 (1.2.122; the audit of 1.2.118, CORE-32; the owner's answer of 21.11.2026,
+       option (a)). The clock moves in private while an incident runs (clock.mjs, "WHILE A MURDER RUNS"), but this move
+       refilled every bystander's actions and restocked every room's search tokens - world writes every browser draws at
+       once - while their HUD kept the old hour: a tell of the hour moved for somebody. So the panel's Next time of day is
+       refused until the incident ends or reaches Stage 6 (its stage `resolution`), and the GM is told which. */
+    if (await incidentHoldsTheHour()) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.advanceDuringIncident"));
         return null;
     }
     const ready = await askReadiness("next");

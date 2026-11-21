@@ -5610,6 +5610,7 @@
       "advanceOffEclipse": "Trwa Eclipse: jego koniec przesuwa zegar.",
       "advanceOffTrial": "Trwa Class Trial: koniec rozdziału przesuwa zegar.",
       "advanceDuringEclipse": "Trwa Eclipse: zegar przesunie dopiero jego koniec. Zakończ je strzałką przy zegarze.",
+      "advanceDuringIncident": "Trwa incydent, który nie doszedł do Stage 6. Zakończ go albo naciśnij Przejdź do Stage 6 w Śledzeniu incydentu, zanim przesuniesz porę dnia.",
       "jump": "Edytuj kampanię",
       "resetHint": "Daje wszystkim pełne akcje. Przy samej poprawce zostaw wyłączone.",
       "section": {
