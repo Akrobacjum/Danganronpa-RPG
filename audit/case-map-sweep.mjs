@@ -27,7 +27,9 @@
  *   hover    (line P of 1.2.120) the first node face in view hovered by the pointer: its name's ink against the ground it
  *            is drawn on under the pointer (the window, the node's fill and Stained Glass's brush, composited) under WCAG AA
  *            4.5; its control, on the first page under glass, the brush planted back under the pointer must read;
- *   toolbar  (line P of 1.2.120) the order's select and the plan's at one computed font size;
+ *   toolbar  (line P of 1.2.120) the order's select and the plan's at one computed font size; no control of the
+ *            Map's tools or its view switch over another or past the window's content box (`--width <px>` draws every
+ *            window at that width, to read it narrow);
  *   through  (line P of 1.2.120) a drawn line's stretch inside a node's box other than its own two ends;
  *   size     while a trial runs, under glass, at 800 px of height or less: the smallest node text after Fit to view
  *            at least 11 px (the owner, 12.11, round 6; MIN_TEXT);
@@ -53,8 +55,11 @@ const REPO = path.resolve(HERE, "..");
 const args = process.argv.slice(2);
 const shotsAt = args.indexOf("--shots");
 const SHOTS = shotsAt >= 0 ? path.resolve(args[shotsAt + 1]) : null;
-const DIRS = args.filter((a, i) => !a.startsWith("--") && !["--shots", "--chromium", "--ids", "--scale"].includes(args[i - 1])).map(d => path.resolve(d));
+const DIRS = args.filter((a, i) => !a.startsWith("--") && !["--shots", "--chromium", "--ids", "--scale", "--width"].includes(args[i - 1])).map(d => path.resolve(d));
 /* `--scale <n>` (E99 round 4): the screenshots' device scale (1 by default; 2 for shots a person reads). */
+/* `--width <px>` (line P of 1.2.120): every window drawn at that width instead of its own, to read the toolbar narrow. */
+const widthAt = args.indexOf("--width");
+const WIDTH = widthAt >= 0 ? Number(args[widthAt + 1]) || null : null;
 const scaleAt = args.indexOf("--scale");
 const SCALE = scaleAt >= 0 ? Number(args[scaleAt + 1]) || 1 : 1;
 /* `--ids <regexp>` (E99 round 4): which captures of the manifests are swept - the Map's by default, the trial console's
@@ -119,6 +124,11 @@ async function readMap(page, { plantBox = false, staleLayout = false, plantBar =
     return page.evaluate(async ({ plantBox, staleLayout, plantBar, plantNarrow, plantThrough, plantSmall }) => {
         // the toolbar read's control (line P of 1.2.120): the order's select planted at 9 px must read
         if (plantSmall) document.querySelector("select[data-drpg-case-sort]")?.style.setProperty("font-size", "9px", "important");
+        // and its overlap read's (line P of 1.2.120): the tools' second control planted over their first must read
+        if (plantSmall) {
+            const [a, b] = [...document.querySelectorAll(".drpg-case-tools :is(button, select)")];
+            if (a && b) { const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect(); b.style.transform = `translate(${ra.left - rb.left + 4}px, ${ra.top - rb.top}px)`; }
+        }
         const V = await import("/scripts/case-view.mjs");
         await document.fonts.ready;
         if (plantBox) {
@@ -213,6 +223,23 @@ async function readMap(page, { plantBox = false, staleLayout = false, plantBar =
             if (sortSel && planSel) {
                 const [a, b] = [sortSel, planSel].map(el => parseFloat(getComputedStyle(el).fontSize));
                 if (Math.abs(a - b) > 0.5) cut.push(`toolbar: the order's select at ${a} px beside the plan's at ${b} px`);
+            }
+        }
+        /* THE TOOLBAR'S CONTROLS APART AND INSIDE IT (line P of 1.2.120; the owner reported the toolbar overlapping): every
+           button and select of the Map's tools (`.drpg-case-tools`) and the view switch above them, by their boxes - no two
+           overlapping by more than half a pixel, none past the window's content box on either side. */
+        {
+            const content = document.querySelector(".window-content")?.getBoundingClientRect();
+            const controls = [...document.querySelectorAll(".drpg-case-tools :is(button, select), .drpg-case-switch-bar button")]
+                .filter(el => el.offsetWidth > 0).map(el => ({ el, r: el.getBoundingClientRect(), name: el.textContent.trim().slice(0, 20) || el.className }));
+            for (let i = 0; i < controls.length; i++) {
+                const a = controls[i];
+                if (content && (a.r.left < content.left - 0.5 || a.r.right > content.right + 0.5)) cut.push(`toolbar: ${a.name} past the window's edge`);
+                for (let j = i + 1; j < controls.length; j++) {
+                    const b = controls[j];
+                    if (Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left) > 0.5 && Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top) > 0.5)
+                        cut.push(`toolbar: ${a.name} over ${b.name}`);
+                }
             }
         }
         /* NO LINE THROUGH A NODE (line P of 1.2.120; the owner: "Linie w planerze - niech omijaja nodes"): every drawn line's
@@ -431,7 +458,7 @@ try {
                 /* THE WIDTH FOUNDRY GIVES THE WINDOW (E99 round 5): the capture's is the harness's screen's (1008 px, its jsdom
                    screen less 8 px a side). The trial console asks 1280 px (trial-floor-ui.mjs `consoleWidth`), held by the kit
                    to the screen less 8 px a side (ui-kit.mjs `kitWidth`); the Map keeps the capture's width, as before. */
-                const width = /^class-trial/.test(w.id) ? Math.min(1280, vw - 16) : (w.width ?? 1120);
+                const width = WIDTH ?? (/^class-trial/.test(w.id) ? Math.min(1280, vw - 16) : (w.width ?? 1120));
                 const page = await browser.newPage({ viewport: { width: vw, height: vh }, deviceScaleFactor: SHOTS ? SCALE : 1 });
                 const load = async () => {
                     await page.route("**/case-map-sweep-page", r => r.fulfill({ contentType: "text/html", body: pageHtml(styles, html, w.title, width, theme, vh) }));
@@ -453,10 +480,11 @@ try {
                     const ok = box.cut?.length > 0 && stale.overlaps?.length > 0 && (!planted.bar || barRead > 0) && (!footHas || footRead > 0);
                     // the toolbar read's control (line P of 1.2.120): the order's select planted small must read
                     const small = await readMap(page, { plantSmall: true });
-                    const smallRead = (small.cut ?? []).filter(c => c.startsWith("toolbar:")).length;
+                    const smallRead = (small.cut ?? []).filter(c => c.startsWith("toolbar: the order's")).length
+                        && (small.cut ?? []).filter(c => / over /.test(c) && c.startsWith("toolbar:")).length;
                     const hasSelects = await page.evaluate(() => Boolean(document.querySelector("select[data-drpg-case-sort]") && document.querySelector("select[data-drpg-case-add-plan]")));
                     await load();
-                    console.log(`control  ${!hasSelects || smallRead ? "ok  " : "FAIL"} the order's select planted at 9 px read ${hasSelects ? smallRead : "no toolbar on this page"}`);
+                    console.log(`control  ${!hasSelects || smallRead ? "ok  " : "FAIL"} the order's select planted at 9 px and a tool planted over another read ${hasSelects ? (small.cut ?? []).filter(c => c.startsWith("toolbar:")).length : "no toolbar on this page"} toolbar cut(s)`);
                     if (hasSelects && !smallRead) failed++;
                     // the through read's control (line P of 1.2.120): a node moved onto a drawn line must read
                     const onLine = await readMap(page, { plantThrough: true });
