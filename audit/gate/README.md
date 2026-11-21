@@ -70,6 +70,7 @@ runner broke, not the module) or `not-run` with a reason:
 | no-playwright, no-browser | no | the runner's own dependencies are missing |
 | adapter-missing | no | the scenario needs something the sandbox adapter lacks |
 | no-script | no | a script the press part runs is not in this checkout |
+| no-chromium | record mode only | the press part found no Chromium (`DRPG_CHROMIUM` unset, none of Playwright's own); let through in record mode with the notes line, refused in enforce, waiver or none |
 
 THE PRESS PART (`press-live-region`; the audit's check of 1.2.121, r121-R-6;
 the owner's answer (b), 21.11.2026). `audit/live-press.mjs` and
@@ -81,10 +82,10 @@ not run it. `npm run press` in `audit/harness` runs the same two by hand. The
 part counts each script's `ok` and `FAIL` lines and reads its closing
 "N failing": failed on any FAIL; passed only when there is none, each script
 printed its tally and agreed with it, and at least one line was ok; error when
-a script ends without its tally; not-run `no-browser` when Playwright launched
+a script ends without its tally; not-run `no-chromium` when Playwright launched
 none. Its evidence is `evidence/press-live-region.json`, both outputs counted.
 Read here on 21.11.2026: Playwright 1.56.1 found no browser of its own
-(not-run, no-browser); with `DRPG_CHROMIUM=/opt/pw-browsers/chromium` passed,
+(not-run, no-browser then; no-chromium since); with `DRPG_CHROMIUM=/opt/pw-browsers/chromium` passed,
 11 ok and 0 FAIL; with the press hold taken out of `live.mjs` on a throwaway
 commit, failed, `audit/live-press.mjs: 3 failing`.
 

@@ -207,7 +207,8 @@ export async function verify({ repo, tag, waiver = "", mode = "record", key = ""
     /* 12, 13 */
     let waived = false, recorded = false;
     if (notRun.length && required) {
-        const unwaivable = notRun.filter(p => !G.REASONS[p.reason]?.waivable);
+        // A reason marked `recordable` (the press part's no-chromium) is let through by record mode alone, never by a waiver.
+        const unwaivable = notRun.filter(p => !G.REASONS[p.reason]?.waivable && !(mode !== "enforce" && G.REASONS[p.reason]?.recordable));
         const why = [];
         if (G.NO_WAIVER.includes(version)) why.push(`${version} ships only on a passed gate, in either mode`);
         if (unwaivable.length) why.push(`not run for a reason that is the gate's own fault: ${unwaivable.map(p => `${p.id} (${p.reason})`).join(", ")}`);
@@ -491,6 +492,18 @@ async function selfTest() {
         await expect("a non-waivable reason: refused (record)", wv(unwaivable, { mode: "record" }), { ok: false, says: "the gate's own fault" });
         await expect("a non-waivable reason: refused (enforce)", wv(unwaivable, { mode: "enforce", waiver: tag }), { ok: false, says: "the gate's own fault" });
         await expect("an unknown mode: refused", wv(notRunDoc, { mode: "lenient" }), { ok: false, says: "record (the default) or enforce" });
+        /* THE PRESS PART WITH NO CHROMIUM ON THE GATE'S MACHINE (21.11.2026): as every Foundry part not run for a waivable
+           reason - let through in record mode with the notes line, refused in enforce, waiver or none. The case with the press
+           part passed and the rest not run is "record: required, parts not run (waivable), notes line" above. */
+        const noChromium = G.seal({ ...written2, parts: written2.parts.map(p => p.layer === "press" ? { ...p, reason: "no-chromium", why: "self-test: no Chromium" } : p) });
+        await expect("record: the press part not run for no Chromium, the rest not run (waivable), notes line: pass, recorded", wv(noChromium, { mode: "record" }), { ok: true, recorded: true });
+        await expect("enforce: the same with a waiver listing every part not run: refused, the press part's no Chromium", async () => {
+            write(base, `audit/gate/waivers/${tag}.md`, `Parts not run: ${noChromium.parts.filter(p => p.status === "not-run").map(p => p.id).join(", ")}\n`); save(base, noChromium);
+            try { return await verify({ repo: base, tag, mode: "enforce", waiver: tag, envCheck: ENV_OK }); }
+            finally { fs.rmSync(path.join(base, "audit/gate/waivers"), { recursive: true, force: true }); }
+        }, { ok: false, says: "press-live-region" });
+        const liveNoBrowser = G.seal({ ...noChromium, parts: noChromium.parts.map(p => p.id === "live-stained-glass" ? { ...p, reason: "no-browser", why: "self-test" } : p) });
+        await expect("record: a live part not run for no-browser: refused, the gate's own fault", wv(liveNoBrowser, { mode: "record" }), { ok: false, says: "live-stained-glass (no-browser)" });
 
         /* Later commits. */
         save(base, fresh());

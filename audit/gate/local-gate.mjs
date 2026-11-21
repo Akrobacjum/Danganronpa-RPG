@@ -135,7 +135,8 @@ parts = [...parts, ...press.map(p => DRY ? notRun(p, "dry-run", "--dry-run: no p
  * "ok" and "FAIL" lines counted and its closing "<name>: N failing" read. Failed when any line is FAIL; passed only when
  * none is, each script printed its tally and agreed with it, and at least one line was ok; a script that ends without its
  * tally is error (it broke, which is not the module failing) unless Playwright could not launch a browser (not-run,
- * no-browser). The evidence is the two outputs, counted, in evidence/press-live-region.json.
+ * no-chromium: record mode lets it through with the notes line, enforce refuses it). The evidence is the two outputs,
+ * counted, in evidence/press-live-region.json.
  */
 function runPress(part) {
     const missing = G.PRESS_SCRIPTS.filter(f => !fs.existsSync(path.join(REPO, f)));
@@ -151,7 +152,7 @@ function runPress(part) {
             fail: lines.filter(l => l.startsWith("FAIL ")).length, failing: tally ? Number(tally[1]) : null, output: out.slice(-12000) };
     });
     const unlaunched = runs.find(r => r.failing === null && /Executable doesn't exist|Failed to launch|browserType\.launch/i.test(r.output));
-    if (unlaunched) return notRun(part, "no-browser", `${unlaunched.file}: ${unlaunched.output.split("\n").find(l => /launch|Executable/i.test(l))?.trim() ?? "Playwright launched no browser"}`);
+    if (unlaunched) return notRun(part, "no-chromium", `${unlaunched.file}: ${unlaunched.output.split("\n").find(l => /launch|Executable/i.test(l))?.trim() ?? "Playwright launched no browser"}`);
     const broke = runs.find(r => r.failing === null || r.failing !== r.fail || (r.exit !== 0) !== (r.fail > 0));
     const passed = runs.reduce((n, r) => n + r.ok, 0), failed = runs.reduce((n, r) => n + r.fail, 0);
     const status = broke ? "error" : failed ? "failed" : passed > 0 ? "passed" : "error";

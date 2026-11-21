@@ -36,7 +36,10 @@ export const REASONS = Object.freeze({
     "no-playwright": { waivable: false, means: "Playwright is not installed (npm ci in audit/harness)" },
     "no-browser": { waivable: false, means: "Playwright has no browser to launch" },
     "adapter-missing": { waivable: false, means: "the scenario needs a hook the sandbox adapter lacks" },
-    "no-script": { waivable: false, means: "a script the part runs is not in this checkout" }
+    "no-script": { waivable: false, means: "a script the part runs is not in this checkout" },
+    /* The press part's machine had no Chromium (21.11.2026): let through in record mode with the notes line, as a Foundry
+       part with no sandbox is, and refused in enforce, waiver or none - the live parts' no-browser stays the gate's fault. */
+    "no-chromium": { waivable: false, recordable: true, means: "the press part found no Chromium: DRPG_CHROMIUM is unset and Playwright has none of its own" }
 });
 export const STATUSES = Object.freeze(["passed", "failed", "error", "not-run"]);
 export const LIVE_PARTS = Object.freeze([
