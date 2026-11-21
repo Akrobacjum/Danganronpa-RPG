@@ -106806,6 +106806,64 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson({ answer, inTime: took !== null && took < 3000, standing, told }), stableJson({ answer: null, inTime: true, standing: false, told: true }),
             "{answer: what the unanswered window answered; inTime: within 3 s of a 300 ms time; standing: the window still open; told: the warning shown}");
     }],
+    ["1.2.122 CASE-33 - Observe's target step answers alike for a room holding nothing and a room holding a trace: a key, before anything is paid; the empty room is ruled at the paid resolve, on a card the GMs answer (observe.mjs `chooseObserveTarget`, `scoreObserve`; audit 1.2.118 domain-case-c-investigation 2)", async () => {
+        /*
+         * Line INVEST of 1.2.122 (routed by the coordinator from line CORE). A character of the suite's own, owned by a
+         * connected player, standing alone in a one-room scene of the suite's own (no Remnant there); and the world's
+         * player character in a room with a trace laid at its feet. Each asked for a target as General, Non-obvious and
+         * Follow my traces, on the primary, as the bridge's run asks. Read: each answer's fields and `ok`. Then the empty
+         * room's General key resolved with a total of 5 (as its paid roll's resolve): whether a card went out naming the
+         * total for the GMs to rule on. The actor, scene, trace and cards go after.
+         * Red at 21bf5d18: the empty room answered `{ ok: false, reason: "none" }` and the trace's `{ ok: true, key }` -
+         * before any payment, the one fact the file's header says the observer must not know.
+         */
+        const O = await import("./observe.mjs");
+        const R = await import("./rooms.mjs");
+        const remnants = await import("./remnants.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        needs(env.primaryGm(), "the target step is the primary GM's");
+        const { player, actor: seated, where } = await playerInRoom();
+        const room = "SUITE 122k the empty room";
+        let scene = null, lone = null, trace = null;
+        const shapeOf = a => ({ ok: a?.ok ?? null, fields: Object.keys(a ?? {}).sort().join(",") });
+        const seen = { empty: {}, trace: {} };
+        const cards = [];
+        const onCard = m => { cards.push(m); };
+        try {
+            scene = await Scene.create({ name: "SUITE 122k a room with nothing", width: 800, height: 400, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: room, shapes: [{ type: "rectangle", x: 0, y: 0, width: 400, height: 400 }], flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            lone = await Actor.create({ name: "SUITE 122k the lone observer", type: "character", ownership: { [player.id]: 3 } });
+            await scene.createEmbeddedDocuments("Token", [{ actorId: lone.id, actorLink: true, name: lone.name, x: 100, y: 100, width: 1, height: 1 }]);
+            const { locateActor } = await import("./movement.mjs");
+            must(locateActor(lone)?.room === room, `the suite's character does not stand in ${room} - this would measure nothing`);
+            trace = await remnants.placeRemnant({ type: "prep", visibility: "evident", scene: where.scene, x: where.tokenDoc.x, y: where.tokenDoc.y, note: "SUITE 122k a trace at their feet" });
+            must(trace, "the trace was not placed");
+            for (const declaration of ["general", "nonObvious", "followTraces"]) {
+                seen.empty[declaration] = shapeOf(await O.chooseObserveTarget({ actorId: lone.id, declaration, userId: player.id }));
+                seen.trace[declaration] = shapeOf(await O.chooseObserveTarget({ actorId: seated.id, declaration, userId: player.id }));
+            }
+            const asked = await O.chooseObserveTarget({ actorId: lone.id, declaration: "general", userId: player.id });
+            Hooks.on("createChatMessage", onCard);
+            const res = asked?.ok && asked.key ? await O.resolveObserve({ key: asked.key, total: 5, isCritical: false, actorId: lone.id, senderId: player.id, senderIsGm: false }) : null;
+            await settle();
+            const want = game.i18n.format("DRPG.Action.observeGm", { total: 5, n: (await import("./config.mjs")).OBSERVE_FAIL_STRESS });
+            let words = "";
+            for (const m of cards) if (m.getFlag(MODULE_ID, "gmAsk")) words += String(await wordsOf(m, 300));
+            seen.ruled = res?.ruled === true && words.includes(want);
+        } finally {
+            Hooks.off("createChatMessage", onCard);
+            for (const m of cards) await m.delete().catch(() => {});
+            if (trace) {
+                await remnants.dropRemnantSecret(trace).catch(() => {});
+                if (where.scene.tokens.has(trace.id)) await where.scene.deleteEmbeddedDocuments("Token", [trace.id]);
+            }
+            if (lone) await lone.delete().catch(() => {});
+            if (scene) await scene.delete().catch(() => {});
+        }
+        const same = { ok: true, fields: "key,ok" };
+        equal(stableJson(seen), stableJson({ empty: { followTraces: same, general: same, nonObvious: same }, ruled: true, trace: { followTraces: same, general: same, nonObvious: same } }),
+            "{empty, trace: each declaration's answer in a room with nothing and in one with a trace - ok and its fields; ruled: the empty room's paid resolve sent the GMs a card with its total}");
+    }],
     ["a planned Truth Bullet removed from the planner takes its links with it: the deductions that rested on it no longer name it, the counter refuting one of them keeps its target, and the case's check names nothing missing (case-schema.mjs `dropCaseNode`, `refsCut`; the owner, 19.11.2026: \"Przyjmujemy ze usuniecie bulleta usuwa tez jego polaczenia\"; the line claude/plan-119)", async () => {
         /*
          * A planned bullet, two deductions resting on it and a counter refuting the first, written in this chapter; the bullet

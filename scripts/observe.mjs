@@ -201,7 +201,26 @@ export async function chooseObserveTarget({ actorId, declaration, request = "", 
     if (!candidates.length) {
         // The room is picked clean of traces. If it is also holding nothing this
         // declaration can find, that is the Daily Life fallback as before.
-        if (!secret) return { ok: false, reason: "none" };
+        /* NOTHING HERE IS NOT SAID BEFORE IT IS PAID FOR (line INVEST of 1.2.122; audit 1.2.118
+           domain-case-c-investigation 2). This step runs before the player pays (action-observe.mjs `observeRanked`),
+           and it answered `{ ok: false, reason: "none" }` for a room with nothing to find and a key for a room with a
+           trace - so a General, Non-obvious or Follow my traces asked, read off the wire and the roll window closed told,
+           for nothing, the one thing this file's header says the observer must not know. Now such a room gets a key
+           too, marked `nothingHere`, and the paid roll's resolve rules on it (`scoreObserve`): the GMs' card the
+           player's browser used to post (action-observe.mjs `observeRulingCall`). A Something specific is asked after
+           its roll, so it keeps its answer. Tier 2 "1.2.122 CASE-33". */
+        if (!secret && declaration === DECLARATIONS.specific) return { ok: false, reason: "none" };
+        if (!secret) {
+            const emptyKey = foundry.utils.randomID();
+            readPending();
+            pending.set(emptyKey, {
+                at: Date.now(), actorId, by: userId, room, declaration, request,
+                tokenId: null, sceneId: where.scene?.id ?? null, dc: null, data: null, nothingHere: true
+            });
+            await writePending();
+            log(`Observe: ${actor.name} is sweeping ${room}, which holds nothing this declaration can find; the GMs rule on the roll.`);
+            return { ok: true, key: emptyKey };
+        }
 
         /* Otherwise the project IS the target. Nothing else in this file needs a
            branch for that: it takes the same key, the same pending entry and the
@@ -805,6 +824,21 @@ async function scoreObserve(actor, entry, key, { total, isCritical, undo, rollId
        nothing to create and nothing to describe - the whole of the result is
        whether the total cleared the project's own number. A miss still costs
        the Sanity every missed Observe costs: the action was spent looking. */
+    /* A ROOM WITH NOTHING TO FIND (line INVEST of 1.2.122): ruled by the GMs on a card, as the player's browser did
+       when the target step still said so (`chooseObserveTarget`). Nothing is written to the character here: the card's
+       Miss charges the miss, as before. A Reroll asks again, on a card of its own. */
+    if (entry.nothingHere) {
+        entry.result = { success: false, bulletId: null, projectId: null, stress: 0, ruled: true };
+        await keepResult(rolls, roll, key, entry);
+        const [{ observeRulingCall }, { callGm }, { ACTIONS }] = await Promise.all([import("./action-observe.mjs"), import("./gm-bridge.mjs"), import("./config.mjs")]);
+        const { locateActor } = await import("./movement.mjs");
+        const scene = entry.sceneId ? game.scenes.get(entry.sceneId) ?? null : null;
+        const here = locateActor(actor);
+        await callGm(actor, observeRulingCall(actor, { label: ACTIONS.observe?.label ?? "Observe", roll: { trait: "eye", total, isCritical },
+            request: entry.request ?? "", declaration: entry.declaration ?? null, where: here?.room ? here : { room: entry.room, scene } }));
+        return { success: false, key, ruled: true };
+    }
+
     if (entry.projectOnly) {
         const found = await noticeSecretProject(actor, entry, total, isCritical);
         if (!found) {

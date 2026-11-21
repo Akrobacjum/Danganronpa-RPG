@@ -63474,7 +63474,8 @@ const INVARIANTS = [
         };
         const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : "")));
         const callOf = (text, fn) => (fnSource(text, fn).match(/callGm\(actor, \{[\s\S]*?\n {4}\}\);/)?.[0] ?? "");
-        const observe = callOf(await src("action-observe.mjs"), "ruleObserve"), analyze = callOf(await src("action-analyze.mjs"), "askForHint");
+        // Observe's card is built by `observeRulingCall` since line INVEST of 1.2.122 (the primary's resolve posts it too)
+        const observe = fnSource(await src("action-observe.mjs"), "observeRulingCall"), analyze = callOf(await src("action-analyze.mjs"), "askForHint");
         const reroll = fnSource(await src("reroll.mjs"), "settleGmRuling");
         equal(stableJson([drawn({ roll }), drawn({ roll, criticalHint: true }), drawn({ roll: { ...roll, isCritical: false }, criticalHint: true }),
             /criticalHint:\s*true/.test(observe), /criticalHint:\s*true/.test(analyze),

@@ -16626,7 +16626,8 @@ const REGRESSIONS = [
             ["gm-bridge.mjs#askHopeCallByCard", "gm", null, "the run of `call.approve`, on the primary GM"],
             ["gm-bridge.mjs#askDynamicByCard", "gm", null, "the run of `dynamic.difficulty`, on the primary GM"],
             ["gm-bridge.mjs#askTraitByCard", "gm", null, "the run of `trait.ruling`, on the primary GM"],
-            ["gm-bridge.mjs#askObserveByCard", "gm", null, "observe.mjs `chooseObserveTarget`, on a GM"]
+            ["gm-bridge.mjs#askObserveByCard", "gm", null, "observe.mjs `chooseObserveTarget`, on a GM"],
+            ["observe.mjs#scoreObserve", "gm", null, "an Observe of a room with nothing to find, ruled at its paid resolve (line INVEST of 1.2.122; audit 1.2.118 domain-case-c-investigation 2): `resolveObserve` runs on a GM, the run of `observe.resolve` or a GM's own"]
         ];
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(?:const|let|var)\s+([\w$]+))?/gm;
         const readCalls = sources => {

@@ -210,26 +210,21 @@ async function observeAnything(actor, def, cost, request = "") {
 }
 
 /**
- * Hand a roll that has already happened to the GM as a ruling.
- *
- * Nothing about the price travels on this card. The action was paid before the
- * dice and stays paid on every answer, "nothing was there" included - that one
- * is the Observe's own result and charges its miss (see `missAction`). A card
- * never posted is no answer: `paid` comes back (E18 C0).
+ * THE GMs' CARD FOR AN OBSERVE TO RULE ON (`ruleObserve`'s, out of it by line INVEST of 1.2.122): the arguments of
+ * `callGm` for `actor`'s roll (`roll`: its trait, total and critical), the request, the declared way of looking and the
+ * room it was made in. Exported for observe.mjs, whose resolve rules on a room with nothing to find on the primary GM
+ * (`scoreObserve`, audit 1.2.118 domain-case-c-investigation 2).
  */
-async function ruleObserve(actor, def, roll, request, title = null, paid = null, declaration = null) {
-    const { callGm } = await import("./gm-bridge.mjs");
-    const label = title ?? def.label;
+export function observeRulingCall(actor, { label, roll, request = "", declaration = null, where = null }) {
     // Both halves from one lookup: `locateActor` answers without the canvas, so
     // it names the scene as well as the room. The scene is what the card has to
     // carry - a GM answering this is usually looking at a different map, and a
     // room name alone sent the clue to whatever "Kitchen" was in front of THEM
     // (audit A6).
-    const where = locateActor(actor);
+    where ??= locateActor(actor);
     const room = where?.room ?? roomOfActor(actor);
     const sceneId = where?.scene?.id ?? null;
-
-    const sent = await callGm(actor, {
+    return {
         title: label,
         what: "observe.resolve",
         nothingSpent: true,
@@ -260,7 +255,23 @@ async function ruleObserve(actor, def, roll, request, title = null, paid = null,
             },
             missAction(actor)
         ]
-    });
+    };
+}
+
+/**
+ * Hand a roll that has already happened to the GM as a ruling.
+ *
+ * Nothing about the price travels on this card. The action was paid before the
+ * dice and stays paid on every answer, "nothing was there" included - that one
+ * is the Observe's own result and charges its miss (see `missAction`). A card
+ * never posted is no answer: `paid` comes back (E18 C0).
+ */
+async function ruleObserve(actor, def, roll, request, title = null, paid = null, declaration = null) {
+    const { callGm } = await import("./gm-bridge.mjs");
+    const label = title ?? def.label;
+    const call = observeRulingCall(actor, { label, roll, request, declaration });
+    const room = call.room;
+    const sent = await callGm(actor, call);
 
     // Not posted - the last GM left after the action started (E18 C0, S10-26): the action
     // comes back, as with a window closed before the dice, and no ruling is noted for Reroll.
