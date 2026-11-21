@@ -80,10 +80,12 @@ function sizeOf(sizes, id, g) {
  * what it refutes, a deduction resting on nothing) keeps its row order under the placed ones. The first column, and a
  * layout given no edges, stand as before. Deterministic: the same layout, sizes and edges give the same places.
  *
- * UNDER THE SORT "MANUAL" (`layout.sort`, line P, 1.2.120; the owner asked for Move up / Move down to set the order by
- * hand): a column keeps the GM's row order exactly, and centres only as far as that order allows - the same pooling,
- * over the rows instead of the aims; a node with no input stands right under the node before it. Until then the aims
- * decided the order and the GM's order broke ties alone (N119-6: Move wrote an order nobody saw). Tier 0 R8010.
+ * UNDER A SORT (`layout.sort`, line P, 1.2.120; the owner asked for Move up / Move down to set the order by hand, then
+ * for every sort to work): under "manual", "kind", "room" and "state" a column keeps the layout's row order exactly, and
+ * centres only as far as that order allows - the same pooling, over the rows instead of the aims; a node with no input
+ * stands right under the node before it. Until then the aims decided the order and the sort broke ties alone (N119-6:
+ * Move wrote an order nobody saw; a sort changed nothing past the first column). Under "uncrossed", or a layout naming
+ * no sort, the aims order the column as before. Tier 0 R8010, R8013.
  */
 export function mapPlace(layout, g = MAP_GEOMETRY, sizes = null, { gapH = 0, edges = null } = {}) {
     const at = {};
@@ -116,9 +118,9 @@ export function mapPlace(layout, g = MAP_GEOMETRY, sizes = null, { gapH = 0, edg
     };
     /* The column packed (pooled adjacent violators): the aimed nodes by aim, then the rest by row under them. Answers the
        y under the last node, its row gap included.
-       THE GM'S ORDER KEPT (`fixed`, the sort "manual"; line P, 1.2.120, N119-6): until then a manual order only broke
-       ties between equal aims, so Move on a deduction past the first column wrote an order the Map did not draw. With
-       `fixed`, every node of the column stands in row order (the GM's), each as near its aim as that order allows: the
+       THE SORT'S ORDER KEPT (`fixed`: every sort but "uncrossed"; line P, 1.2.120, N119-6): until then a sort's order only
+       broke ties between equal aims, so Move on a deduction past the first column wrote an order the Map did not draw. With
+       `fixed`, every node of the column stands in row order (the sort's), each as near its aim as that order allows: the
        same pooling over that order, a node with no aim weighing nothing (its block's top is -Infinity, so it joins the
        block above it, right under the node before, or stands at the column's top). Tier 0 R8010. */
     const packColumn = (list, aims, top, c, fixed = false) => {
@@ -161,6 +163,11 @@ export function mapPlace(layout, g = MAP_GEOMETRY, sizes = null, { gapH = 0, edg
         }
         return y;
     };
+    /* EVERY SORT BUT "FEWER CROSSINGS" KEEPS ITS ORDER IN EVERY COLUMN (line P of 1.2.120; the owner, 21.11.2026: "Sortowanie
+       dalej wydaje sie nie dzialac w planerze"; "manual" first, then by kind, by room and by state): past the first column
+       the inputs' heights decided the order whatever the sort, so a sort changed nothing there. "uncrossed" keeps
+       ordering by the inputs, the order that crosses least; a layout that names no sort (the pure callers) too. */
+    const fixedOrder = ["manual", "kind", "room", "state"].includes(layout?.sort);
     const gapRow = Number.isInteger(layout?.gapAt) && (layout?.unrelated?.length ?? 0) > 0 ? layout.gapAt : null;
     let gapY = null, bottom = top + g.pitch;
     for (let c = 0; c < colCount; c++) {
@@ -178,7 +185,7 @@ export function mapPlace(layout, g = MAP_GEOMETRY, sizes = null, { gapH = 0, edg
         };
         const aims = c > 0 && Array.isArray(edges) ? aimsOf(list, c) : null;
         if (aims && aims.size) {
-            y = packColumn(list, aims, top, c, layout?.sort === "manual");
+            y = packColumn(list, aims, top, c, fixedOrder);
             bottom = Math.max(bottom, y);
             continue;
         }

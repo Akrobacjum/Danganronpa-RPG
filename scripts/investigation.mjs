@@ -1871,6 +1871,34 @@ function wireMap(dialog, reading, refresh) {
     const root = dialog.element;
     const chapterNow = () => Number(root?.querySelector(".drpg-case-live")?.dataset.drpgChapter ?? mapChapterOf(reading).chapter);
     const fail = key => err => error(game.i18n.localize(`DRPG.CaseMap.failed.${key}`), err);
+    /* A NODE'S FIELDS ARE WRITTEN ON EACH CHANGE (line P of 1.2.120; the owner's rule of 20.11.2026, "Zawsze odswiezamy okna
+       od razu przy zmianie", and of 12.11.2026, "Moduly przy edycji nie powinny czekac na save"). With every node open (the
+       default since owner-116) no node closes, so until then a tick in "Rests on", a trial mode or a name was written only
+       when the GM left the Map or closed the window: the line was not drawn, the consistency check read the old case and
+       no other GM saw it (audit 1.2.118 controls-03, findings 5, 12 and 14). Now a `change` inside a node's fields - a
+       tick, a pick, a text field left; never a keystroke - writes that node's changed fields (`saveFieldsIn`, the road its
+       close takes) and redraws, the focus given back to the field the GM is in by its name, its caret where it was: the
+       store's own echo would be held while a select keeps the focus (live.mjs). Once per window: a redraw keeps the root.
+       Tier 2 "the planner's node fields on the Map are written on each change". */
+    if (root && !root.dataset.drpgNodeOnChange) {
+        root.dataset.drpgNodeOnChange = "1";
+        root.addEventListener("change", event => {
+            const fields = event.target?.closest?.(".drpg-case-canvas > .drpg-case-edit");
+            if (!fields || !event.target.getAttribute?.("name")) return;
+            saveFieldsIn(fields).then(() => {
+                if (!root.isConnected) return;
+                const active = document.activeElement;
+                const name = active && root.contains(active) ? active.getAttribute?.("name") : null;
+                let start = null, end = null;
+                try { start = active?.selectionStart ?? null; end = active?.selectionEnd ?? null; } catch { /* a type with no caret */ }
+                refresh();
+                const field = name ? root.querySelector(`[name="${CSS.escape(name)}"]`) : null;
+                if (!field || field === active) return;
+                field.focus({ preventScroll: true });
+                try { if (start !== null && end !== null) field.setSelectionRange(start, end); } catch { /* a type with no caret */ }
+            });
+        });
+    }
     /* A node's mode select shows that mode's planned-minigame rows (`zoneRows`), and its button opens the Logic Dive sets
        (13.11.2026). Once per window: a redraw keeps the root. */
     if (root && !root.dataset.drpgZoneRows) {
@@ -2493,10 +2521,13 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
                reach `clientSettingChanged` and nothing else, so a ruling or another GM's Save
                left this window drawing the world from before it, and its Save wrote that back
                over. `stores` hears both (live.mjs `listenFor`). */
+            /* The Logic Dive sets are heard too (line P of 1.2.120; audit 1.2.118 controls-03, finding 6): a node planning a
+               Logic Dive lists them in its set picker, which kept the sets it was drawn with until the window was opened
+               again. */
             live = keepLive(dialog, {
                 region: ".drpg-case-live",
                 build: buildCase,
-                watch: { actors: true, items: true, stores: [remnantStore, keyPlanStore, caseSchemaStore, blackenedStore, castStore, deathStore], where: CASE_WATCH },
+                watch: { actors: true, items: true, stores: [remnantStore, keyPlanStore, caseSchemaStore, blackenedStore, castStore, deathStore, diveSetStore], where: CASE_WATCH },
                 /* a focused field nobody typed in does not hold the redraw (live.mjs `whileEditing`; the owner, 20.11.2026, the
                    line claude/plan-119): with every node open on the Map a GM's focus is in a field most of the time */
                 whileEditing: true,

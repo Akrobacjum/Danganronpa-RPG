@@ -512,6 +512,22 @@
       "on": "--drpg-case-mode-scrum",
       "size": "small",
       "where": "the planner's kind chip on a deduction with a trial mode (1.2.119 round 4): .application:is(.drpg-window-case, .drpg-window-trial) :is([data-drpg-type], [data-drpg-kind]) > .drpg-case-node-head > .drpg-case-node-kind on .drpg-case-mode--scrum"
+    },
+    {
+      "id": "case-node-hover-sg",
+      "theme": "stained-glass",
+      "text": "--drpg-kit-btn-ink",
+      "on": "--drpg-kit-hover-bg",
+      "size": "small",
+      "where": "a planner node under the pointer (line P of 1.2.120; the owner: \"Po najechaniu myszka caly node robi sie bialy\"): body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node]:hover, no brush (--brush-on: 0); the ground has alpha: Chromium's, audit/case-map-sweep.mjs's hover read (9.65:1 on 21.11.2026)"
+    },
+    {
+      "id": "case-node-hover-lg",
+      "theme": "monokuma-legacy",
+      "text": "--drpg-kit-btn-ink",
+      "on": "--drpg-kit-hover-bg",
+      "size": "small",
+      "where": "a planner node under the pointer (line P of 1.2.120), as the Stained Glass row; the ground has alpha: Chromium's, audit/case-map-sweep.mjs's hover read (7.97:1 on 21.11.2026)"
     }
   ],
   "hours": {

@@ -41693,6 +41693,59 @@ const INVARIANTS = [
         }
     }],
 
+    ["R8012 - live.mjs on an artificial region: a select picked with the pointer redraws at once through its own `refresh()`, and a forced `refresh()` asked during a press stays forced when the press is let go (line P of 1.2.120; the owner, 21.11.2026: \"dziala dopiero po save, czyli okno investigation nie odswieza sie dalej poprawnie\"): a `change` inside the region ends the press; a forced redraw wanted under a press runs at its release though a select of the region holds the focus", async () => {
+        /*
+         * Line P, 21.11.2026. Red at e515907d: the pick's `refresh()` was put off by the press (`held`), and its release
+         * asked an unforced rebuild, which the focused select held until the focus left the region - the planner's sort and
+         * the Table's filters waited for Save's click. The press dispatched by hand, as R1316's (the harness has no pointer;
+         * a native select's popup at a table is LIVE-E44-02's kind).
+         */
+        const { keepLive } = await import("./live.mjs");
+        let built = 0;
+        const build = () => { built++; return `<div class="drpg-t-r8012"><select data-drpg-t="pick"><option value="a">a</option><option value="b">b</option></select>`
+            + `<button type="button" data-drpg-t="press">press</button></div>`; };
+        const host = document.createElement("div");
+        host.style.cssText = "position:fixed;left:-3000px;top:0;width:200px";
+        host.innerHTML = build();
+        document.body.appendChild(host);
+        const app = { element: host, options: { window: { title: "test" } } };
+        let stop = null;
+        const wire = () => host.querySelector('[data-drpg-t="pick"]')?.addEventListener("change", () => stop?.refresh?.());
+        stop = keepLive(app, { region: ".drpg-t-r8012", build, delay: 0, whileEditing: true, watch: { hooks: [LIVE_PROBE] }, after: wire });
+        wire();
+        const Pointer = globalThis.PointerEvent ?? MouseEvent;
+        const fire = (node, type) => node.dispatchEvent(new Pointer(type, { bubbles: true, cancelable: true }));
+        const pick = () => host.querySelector('.drpg-t-r8012 [data-drpg-t="pick"]');
+        try {
+            const read = {};
+            // a pick with the pointer: pressed, focused, changed, never let go on the page
+            let before = built;
+            fire(pick(), "pointerdown");
+            pick().focus();
+            pick().value = "b";
+            pick().dispatchEvent(new Event("change", { bubbles: true }));
+            await wait(140);
+            read.pick = built - before;
+            fire(host, "pointerup");
+            await wait(60);
+            // a forced refresh asked under a press on the button, the select then focused, the press let go
+            before = built;
+            fire(host.querySelector('[data-drpg-t="press"]'), "pointerdown");
+            stop.refresh();
+            await wait(60);
+            const during = built - before;
+            pick().focus();
+            fire(host.querySelector('[data-drpg-t="press"]'), "pointerup");
+            await wait(140);
+            read.forced = [during, built - before];
+            equal(stableJson(read), stableJson({ pick: 1, forced: [0, 1] }),
+                "{pick: rebuilds within 140 ms of a select's change under a press never let go; forced: [rebuilds while the press was held, rebuilds by 140 ms after its release with the select focused]}");
+        } finally {
+            stop();
+            host.remove();
+        }
+    }],
+
     ["R1317 - a region held to its settings is held to what it prints (E44 C2b; E44-07): a region with `watch.settings` rebuilds on its own key and not on another key of the module or another module's key of that name; every `keepLive(` call in scripts/ that names `settings` belongs to a window this test opens or to one of the three it names as unopenable in tier 1 (the readiness round's, the incident tracker and, since E44 C9, a project token's card), and each region it opens, built once with `game.settings.get` counted, reads no key of the module it does not declare - the GM panel's tiles and the Sound window's two regions among them", async () => {
         /*
          * E44 C2b, 04.11.2026; the plan's risk ("keepLive with keys may fail to rebuild a region that depends on a key it

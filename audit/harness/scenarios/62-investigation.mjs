@@ -83,9 +83,11 @@
  *      (two on the school, no road of the module's, made by the GM). The owner's doubled token of 27.10 had no road of
  *      the module's to show here: LIVE-E51-04 (AUDIT 9.2 item 358).
  *   M  (line P of 1.2.120, N119-6) both GMs open the Map on four deductions of the chapter, two of them past the first
- *      column and drawn by their inputs (y above x); the GM types a name into x's field, gm2 presses y's Move down: x
+ *      column and drawn by their inputs under "fewer crossings" (y above x); the GM types a name into x's field, gm2 presses y's Move down: x
  *      stands above y on gm2's Map and at once on the GM's open one, the typed name kept, the sort "manual" on both. At
- *      e515907d the move found y last in the layout's order and wrote nothing (M2 red).
+ *      e515907d the move found y last in the layout's order and wrote nothing (M2 red). Then gm2 ticks a "Rests on" box
+ *      on its open Map, and the GM's open Map draws the line with no Save (M3; red at e515907d: nothing was written until
+ *      gm2 left the Map).
  * Each phase counts its own checks, and a closing check per phase fails one that measured
  * nothing (CLAUDE.md: a test can pass by measuring nothing).
  *
@@ -968,7 +970,7 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
     begin("M", "gm2 moves a deduction past the first column on its Map, and the GM's open Map draws the move at once, a name typed there kept", "gm-store");
     /* Line P of 1.2.120 (N119-6; the owner's rule for every window, "Zawsze odswiezamy okna od razu przy zmianie"). Four
        deductions of the clock's chapter, written on the GM: a and b resting on nothing, x on b and y on a, under the sort
-       "kind" - so a Map centres x on b and y on a and draws y above x. Both GMs open the Map; the GM types a name into x's
+       "uncrossed" (fewer crossings) - so a Map draws them by their inputs, y above x. Both GMs open the Map; the GM types a name into x's
        field; gm2 presses y's Move down. Read on the GM's open window: x's and y's order as drawn (each node's fields' top)
        before and after, the typed name, and the chapter's kept sort on both GMs. Put back: the four nodes and the meta row.
        Red at e515907d: gm2's Move down on y found it last in the layout's order and wrote nothing (M1, M2). */
@@ -1002,7 +1004,7 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
             await S.setCaseNode(ch, ids.b, { kind: "deduction", label: "S62 M b", inputs: [] });
             await S.setCaseNode(ch, ids.x, { kind: "deduction", label: "S62 M x", inputs: [ids.b] });
             await S.setCaseNode(ch, ids.y, { kind: "deduction", label: "S62 M y", inputs: [ids.a] });
-            await S.setCaseMeta(ch, { sort: "kind" });
+            await S.setCaseMeta(ch, { sort: "uncrossed" });
             await E.gmStoresIdle(); return true;`, { timeout: 30000 });
         await gm2.eval(`${until} const S = await import("${repoUrl}/scripts/case-schema.mjs"); const C = await import("${repoUrl}/scripts/clock.mjs");
             return Boolean(await until(() => S.caseRows(C.getClock().chapter).rows["${mIds.y}"], 10000));`, { timeout: 30000 });
@@ -1017,6 +1019,13 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
         mRead.kept = await gm.eval(`const C = await import("${repoUrl}/scripts/clock.mjs");
             return globalThis.__s62m?.app?.element?.querySelector('[name="case:' + C.getClock().chapter + ':${mIds.x}:label"]')?.value ?? null;`);
         mRead.sort = { gm: await mSort(gm), gm2: await mSort(gm2) };
+        /* A node's field changed on gm2's open Map is written at once (line P, investigation.mjs wireMap's `change`): gm2
+           ticks b in a's "Rests on", and the GM's open Map draws the line b>a with nothing else pressed. */
+        mRead.ticked = await gm2.eval(`const box = [...(globalThis.__s62m?.app?.element?.querySelectorAll('.drpg-case-edit[data-drpg-edit="${mIds.a}"] .drpg-case-fold-list input[type="checkbox"]') ?? [])]
+                .find(b => b.name.endsWith(":${mIds.b}"));
+            if (!box) return false;
+            box.checked = true; box.dispatchEvent(new Event("change", { bubbles: true })); return true;`);
+        mRead.lineOnGm = await gm.eval(`${mMap} return Boolean(await until(() => globalThis.__s62m?.app?.element?.querySelector('path[data-drpg-edge="${mIds.b}>${mIds.a}"]'), 10000));`, { timeout: 30000 });
     } finally {
         await mClose(gm).catch(() => {});
         await mClose(gm2).catch(() => {});
@@ -1032,6 +1041,8 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
         mRead?.gmBefore === "yx" && mRead?.gm2Before === "yx" && mRead?.typed === true, J(mRead));
     verdict("gm2's Move down on y draws x above y on gm2's Map and at once on the GM's open Map, the name the GM typed kept, the sort \"manual\" on both GMs",
         mRead?.gm2After === "xy" && mRead?.gmAfter === "xy" && mRead?.kept === "S62 M typed" && J(mRead?.sort) === J({ gm: "manual", gm2: "manual" }), J(mRead));
+    verdict("a \"Rests on\" box gm2 ticks on its open Map is drawn as a line on the GM's open Map at once, with no Save",
+        mRead?.ticked === true && mRead?.lineOnGm === true, J(mRead));
 
     /* ------------------------------ every phase measured ------------------------------ */
 
