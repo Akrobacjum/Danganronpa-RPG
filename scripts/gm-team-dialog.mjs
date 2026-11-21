@@ -376,6 +376,19 @@ export async function openGmTeamDialog({ draft = null } = {}) {
                 // The count is the GMs' store since E05 C12, whose write fires its own hook.
                 watch: { settings: [SETTINGS.overflow], hooks: ["drpgOverflowChanged"] }
             });
+            /* THE SUGGESTED THRESHOLD FOLLOWS THE CAST (1.2.122 line ITEMS; the auditor's probe 43 on 1.2.121, unchanged
+               since 1.2.118): "Suggested for 4 students and 1 pool: 14" was worked out at the open, so a death or a revive
+               meanwhile left the old count beside the field. Written in place like the count above; the field itself is
+               not touched, so a number typed there stays. A death is an actor's flag once published, or a death the GMs
+               keep (`drpgDeathsChanged`); a student made or removed, or turned Monokuma, an actor write. */
+            keepFresh(dialog, {
+                run: root => {
+                    const line = root.querySelector(".drpg-overflow-suggested");
+                    const text = overflowSuggestionNow();
+                    if (line && line.textContent !== text) line.textContent = text;
+                },
+                watch: { actors: true, hooks: ["drpgDeathsChanged", "drpgCubsChanged"] }
+            });
         },
         rejectClose: false
     });

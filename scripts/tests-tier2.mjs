@@ -107109,6 +107109,50 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ age: true, counts: true, giveBack: true }),
             "[the case window's age line names the other GM's Back up] [the preview counted again] [Give back opened again on its new facts]");
     }],
+    ["1.2.122 PROBE43 - Despair Flow's suggested Overflow threshold follows the living students while the window stands: a student marked dead elsewhere, and revived, redraws the line, and the threshold typed stays", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line ITEMS; the auditor's probe 43 on 1.2.121 (probe-43-121.json, despair-flow, change
+         * "death": the live window read "Suggested for 4 students and 1 pool: 14" where a fresh one read the new count;
+         * unchanged since 1.2.118). Despair Flow open, a number typed in the threshold; a living student marked dead
+         * (`markDeceased`, revived at the end): the line must read what `overflowSuggestionNow` answers, again after the
+         * revive, and the typed number stay. Red at 21bf5d18: the line kept the open's count.
+         */
+        needs(env.dialogs(), "Despair Flow is drawn and its line read");
+        needs(world.atLeast("livingStudents", 2), "two living students, one to mark dead");
+        const T = await import("./gm-team-dialog.mjs");
+        const C = await import("./chapter.mjs");
+        const { studentCensus } = await import("./monokuma.mjs");
+        const who = studentCensus().living[0];
+        const app = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.element.querySelector(".drpg-overflow-suggested"));
+        const line = () => app()?.element?.querySelector(".drpg-overflow-suggested")?.textContent?.trim() ?? null;
+        const read = {};
+        let opening = null, died = false;
+        try {
+            opening = Promise.resolve().then(() => T.openGmTeamDialog()).catch(() => null);
+            must(await until(() => line(), 6000), "Despair Flow did not open with its suggested line");
+            const field = app().element.querySelector('[name="ovf-threshold"]');
+            must(field, "no threshold field - the typed number would measure nothing");
+            field.value = "37";
+            field.dispatchEvent(new Event("input", { bubbles: true }));
+            const before = line();
+            await C.markDeceased(who);
+            died = true;
+            const want = T.overflowSuggestionNow();
+            must(want !== before, "the suggestion does not move with one death - this would measure nothing");
+            read.dead = Boolean(await until(() => line() === want, 3000));
+            await C.reviveCharacter(who, { quiet: true });
+            died = false;
+            read.revived = Boolean(await until(() => line() === before, 3000));
+            read.typed = app()?.element?.querySelector('[name="ovf-threshold"]')?.value === "37";
+        } finally {
+            app()?.close();
+            if (opening) await Promise.race([opening, wait(3000)]);
+            if (died || C.isDeceased(who)) await C.reviveCharacter(who, { quiet: true });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ dead: true, revived: true, typed: true }),
+            "[the line read the count after the death] [and after the revive] [the typed threshold kept]");
+    }],
     ["1.2.122 STG-28 - a bedroom key granted while the world's document language is not this GM's page's is named and described in the world's language", async () => {
         /*
          * 21.11.2026, 1.2.122 line ITEMS; the code half of the audit's STG-28 (vault-store.mjs `grantBedroomKey`; the
