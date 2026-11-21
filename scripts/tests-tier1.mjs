@@ -64631,6 +64631,19 @@ const INVARIANTS = [
         }), stableJson({ player: [plain.id], palm: true, conceal: true, gm: 2 }),
         "{player: who a player's browser that hides the veiled token counts; palm, conceal: each counts the room through seenHere; gm: a GM's browser leaves nobody out}");
     }],
+    ["R8434 - the token HUD's new glyphs are recorded once, as the release said (the audit of 1.2.120, H-6; 1.2.122 line UI): tools/glyphs.json's rows for legacy:lock-open, legacy:stairs and glass:lock-open, drawn for 1.2.120's token HUD, each say they were seen by the owner on the HUD's shots (the v1.2.120 notes: 'approved on its shots') and not in a drawing round of their own, where they said 'not yet seen by the owner' or 'not approved'", async () => {
+        /* Red at fefe61d6: two rows said "not yet seen by the owner" and one "not approved by the owner in a drawing round",
+           while the v1.2.120 notes said the HUD was approved on its shots. Read off the served file. */
+        needs(env.tools(), "the rows are read in tools/glyphs.json (an installed module's zip leaves tools/ out)");
+        const G = await import("./tests-glyphs.mjs");
+        const text = await fetch(`/modules/${MODULE_ID}/tools/glyphs.json`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""));
+        const rows = G.parseGlyphs(text).glyphs.filter(g => ["legacy:lock-open", "legacy:stairs", "glass:lock-open"].includes(`${g.family}:${g.name}`));
+        must(rows.length === 3, `${rows.length} of the three HUD glyph rows read - this would measure nothing`);
+        equal(stableJson(rows.map(g => [`${g.family}:${g.name}`, /not yet seen by the owner|not approved by the owner/.test(g.from ?? ""),
+            /seen by the owner on the token HUD's shots with 1\.2\.120/.test(g.from ?? ""), /not in a drawing round of its own/.test(g.from ?? "")])),
+        stableJson([["legacy:lock-open", false, true, true], ["legacy:stairs", false, true, true], ["glass:lock-open", false, true, true]]),
+        "[each HUD glyph row: its name, an old 'not seen / not approved', the shots seen with 1.2.120, no drawing round of its own]");
+    }],
 ];
 
 /**
