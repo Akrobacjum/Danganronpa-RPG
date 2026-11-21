@@ -906,7 +906,7 @@ export async function requestCleanableTraces(actorId, { mine = false, quiet = fa
  * Hand a thrown Observe to the GM to be scored.
  *
  * The answer is the whisper the player gets when the GM's client has finished -
- * a Truth Bullet on their sheet or 2 Sanity - which can wait on the GM
+ * a Truth Bullet on their sheet, a project found, or the Sanity a miss marks - which can wait on the GM
  * describing what was found, so the request waits only for the "got it", and a
  * refusal after it is still told.
  */

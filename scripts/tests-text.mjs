@@ -2364,7 +2364,7 @@ export const UI_LITERAL_ALLOW = Object.freeze({
     "scripts/verdict.mjs runVerdict": { n: 1, why: "console only: steps.mjs runSteps names its procedure by `label` in its error() lines alone" },
     "scripts/incident-store.mjs PUBLIC_INCIDENT": { n: 2, why: "each world-half field's reason, data the suite and world-secrets.mjs read; no screen draws it" },
     "scripts/inventory.mjs OLD_TIER_THREE": { n: 2, why: "an old item's description in each language, compared to find items to migrate; never shown" },
-    "scripts/monocub.mjs answerBribeOnGm": { n: 4, why: "console only: why a Bribe is closed unpaid, written by warn() (\"was closed unpaid: ...\"); the players are told by key (bribeUnpaid)" },
+    "scripts/monocub.mjs answerBribeOnGm": { n: 3, why: "console only: why a Bribe is closed unpaid, written by warn() (\"was closed unpaid: ...\"); the players are told by key (bribeUnpaid). 3 since 1.2.122 DESP-26, which moved the Hope checks into hopeHeld's callback" },
     "scripts/passages-gm.mjs MAP_REFUSALS": { n: 1, why: "MAP_REFUSALS.short, a template the closed list whyTable names (code short, DRPG.Passage.why.short); a template is not matched whole" },
     "scripts/passages-gm.mjs TUNNEL_REFUSALS": { n: 5, why: "console only: the console's words for a tunnel's codes (createPassage, a GM's game.drpg call); the pick says the code" },
     "scripts/projects-ui.mjs openProjectDialog": { n: 1, why: "a data-drpg-when-trigger value, compared with the select's option value; an id, not words" },

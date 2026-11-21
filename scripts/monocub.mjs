@@ -3,10 +3,11 @@
  * ---------------------------------------------------------------------------
  * Guide, p. 16: "Po śmierci, gdy jego class trial się zakończy, gracz może
  * dołączyć do DMów jako Monocub." A dead student's player, opted in by
- * agreement with the table, keeps the same character sheet and gets exactly
- * two things to do with it: Move, and Meddle - nudging a living player's next
- * roll from the sidelines. Meddle is one row of `MONOCUB.abilities` (E33 C10): the
- * table and its executor are under THE ABILITIES below.
+ * agreement with the table, keeps the same character sheet and moves its token
+ * freely, and has the rows of `MONOCUB.abilities` to act with - five since E72
+ * (`CUB_RESOLVERS`: Meddle, nudging a living player's next roll from the
+ * sidelines; Redeem; Ask for Hope; Tinker; the Ghost Bet). The table and its
+ * executor are under THE ABILITIES below.
  *
  * A Monocub is not a Monokuma. It stays a `character` actor with no special
  * flag on the token, keeps the normal action budget (refilled by the same
@@ -14,7 +15,9 @@
  * same room-restricted vision every other student has. What changes is the
  * action panel on the sheet: the abilities' tiles instead of the full grid
  * (Meddle first; the Move tile beside it went in E103 - the token moves, free),
- * and a Hope total that only a GM can top up, by converting their own Despair.
+ * and a Hope total, the sheet's and the purse's (THE PURSE below), that grows by
+ * a GM's Despair turned into Hope, Redeem, an Ask for Hope a GM gives, a Bribe,
+ * a Bounty and a Ghost Bet won.
  *
  * MEDDLE'S ROLL. The guide marks its difficulty table "Stat: -" - the one roll
  * in the system with no trait behind it. Daggerheart's own `rollTrait` insists
@@ -42,7 +45,7 @@
  * `appendArmedCall` sends it there.
  */
 
-import { MODULE_ID, FLAGS, MONOCUB, ACTIONS_RESOURCE, HOPE_CALLS, DESPAIR_CALLS } from "./config.mjs";
+import { MODULE_ID, FLAGS, MONOCUB, ACTIONS_RESOURCE, HOPE_CALLS, DESPAIR_CALLS, STARTING } from "./config.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { isDeceased, isDeadForGm } from "./chapter.mjs";
 import { isMonokuma } from "./monokuma.mjs";
@@ -804,6 +807,26 @@ export function cubHopeTotal(actor) {
 }
 
 /*
+ * THE HOPE AS THE GMS HOLD IT (the audit's DESP-26, 1.2.122). The Monocub's roads read and wrote the sheet's Hope off the
+ * document on the GM (`resourceValue`), where a console's raised Hope the audit has not put back yet stands: it passed the
+ * price check and was written back, less the price, as a GM's value - and a Bribe's payer's the same. The other price
+ * roads read and write through sheet-audit.mjs `meansWrite` since E29 fix r2-H24 (price.mjs, rest.mjs, level-up.mjs), and
+ * so do these now: the price's check (`cubHopeHeld`), its payment and refund, Redeem, and the Bribe's payer. On a player's
+ * browser `meansWrite` reads the sheet, as before. The purse is the GMs' own row and is read as it is.
+ */
+async function hopeHeld(actor, step) {
+    const { meansWrite } = await import("./sheet-audit.mjs");
+    // The maximum as the GMs hold it, the rules' where they hold none (as price.mjs and rest.mjs read it): never the
+    // document's on a GM, where a console's raised maximum may stand (R290's census).
+    return meansWrite(actor, (held, maxOf) => step(Math.max(0, Number(held?.hope) || 0), maxOf("hope") || STARTING.hopeMax));
+}
+
+/** A Monocub's Hope as the GMs hold it: the purse and the sheet's Hope the GMs hold (`hopeHeld`). */
+export async function cubHopeHeld(actor) {
+    return purseOf(actor) + await hopeHeld(actor, hope => hope);
+}
+
+/*
  * One lock a Monocub for every write of its purse (E72 fix round, review #3): each writer reads the purse and writes it
  * after an await (patchCubRow waits for the store), so two in step - a price and a Bribe, two Bets - each wrote its
  * own sum over the other's. Innermost always: nothing inside it takes another lock.
@@ -820,7 +843,7 @@ async function spendCubHopeNow(actor, n) {
     const fromPurse = Math.min(purse, Math.max(0, n));
     const fromSheet = Math.max(0, n - fromPurse);
     if (fromPurse) await patchCubRow(actor.id, { purse: purse - fromPurse });
-    if (fromSheet) await trustedWrite(actor, { "system.resources.hope.value": resourceValue(actor, "hope") - fromSheet }, { reason: "price" });
+    if (fromSheet) await hopeHeld(actor, hope => trustedWrite(actor, { "system.resources.hope.value": Math.max(0, hope - fromSheet) }, { reason: "price" }));
     return { purse: fromPurse, sheet: fromSheet };
 }
 
@@ -837,8 +860,8 @@ async function refundCubHopeNow(actor, paid) {
     if (purse && room) await patchCubRow(actor.id, { purse: purseOf(actor) + Math.min(purse, room) });
     // Held to the limit less the purse (the second review's #4): a purse that filled since the price leaves no room past it.
     if (sheet) {
-        await trustedWrite(actor, { "system.resources.hope.value": Math.min(resourceMax(actor, "hope") - purseOf(actor), resourceValue(actor, "hope") + sheet) },
-            { reason: "refund" });
+        await hopeHeld(actor, (hope, max) => trustedWrite(actor, { "system.resources.hope.value": Math.min(max - purseOf(actor), hope + sheet) },
+            { reason: "refund" }));
     }
 }
 
@@ -1230,7 +1253,7 @@ export async function cubAbilityRefusalOnGm(actor, row, key, target, choice) {
     if (blocked) return blocked.why;
     const price = priceOf(actor, row);
     if (actionsLeft(actor) < price.cost) return "the Monocub has no action left for it";
-    if (cubHopeTotal(actor) < price.hopeCost) return "the Monocub has not the Hope for it";
+    if (await cubHopeHeld(actor) < price.hopeCost) return "the Monocub has not the Hope for it";
     return CUB_TARGETS[row.target].refuses(actor, target);
 }
 
@@ -1550,8 +1573,8 @@ async function scoreTinker(actor, target, choice, total, isCritical, row, paid =
  */
 async function redeemHope(actor) {
     // Held to the limit with the purse counted (E72 C14; DC37): the sheet takes it, up to the limit less the purse.
-    await trustedWrite(actor, { "system.resources.hope.value": Math.min(resourceMax(actor, "hope") - purseOf(actor), resourceValue(actor, "hope") + 1) },
-        { reason: "gmRuling" });
+    await hopeHeld(actor, (hope, max) => trustedWrite(actor, { "system.resources.hope.value": Math.min(max - purseOf(actor), hope + 1) },
+        { reason: "gmRuling" }));
     await patchCubRow(actor.id, { redeemDay: gameDayNow() });
     await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Monocub.redeemDone")}</p>`, { veiled: true });
     log(`${actor.name} (a Monocub) used Redeem: +1 Hope.`);
@@ -1561,7 +1584,8 @@ async function redeemHope(actor) {
 /**
  * ASK FOR HOPE (E72 C5; audit S18-60): the GMs' card in the Monocub's thread (call-gm.mjs `callGm`), Give 1, Give 2 or
  * Not now, ruled once by whichever GM clicks (`claimCard`, messenger-app.mjs's `cubGiveHope` and `cubNotNow`, which
- * call `answerHopeAsk`). The ask stays open in the Monocub's row (`askOpen`) until a GM answers it.
+ * call `answerHopeAsk`). The ask's mark in the Monocub's row shuts the next ask while its time of day lasts
+ * (`askStillOpen`: the same game day and time of day; the 1.2.110 review), answered or not.
  */
 async function postHopeAsk(actor) {
     const { callGm } = await import("./gm-bridge.mjs");
@@ -1681,7 +1705,7 @@ export async function offerBribeOnGm({ actorId, cubId } = {}, sender = null) {
         const cost = bribeCost();
         const open = cub ? (cubRowOf(cub)?.bribes ?? {}) : {};
         const refused = why ?? (Object.values(open).some(b => b?.from === payer.id) ? "an offer of this pair is still open"
-            : resourceValue(payer, "hope") < cost ? "the payer has not the Hope for it" : null);
+            : await hopeHeld(payer, hope => hope) < cost ? "the payer has not the Hope for it" : null);
         if (refused) {
             warn(`Refused a Bribe of ${payer?.name ?? actorId} to ${cub?.name ?? cubId}: ${refused}.`);
             return null;
@@ -1723,21 +1747,25 @@ export async function answerBribeOnGm({ cubId, bribeId, accept } = {}, sender = 
         // paid nothing (review #6).
         // The room read and the purse written under the Monocub's purse lock too (the second review's #3): bribe, payer, purse,
         // the one order every road takes them in.
+        // The payer's Hope as the GMs hold it, read and written in the payer's audit queue (DESP-26, `hopeHeld`).
         const unpaid = await serialWrite(`drpg-bribe-payer:${offer.from}`, () => purseWrite(cub.id, async () => {
             const room = resourceMax(cub, "hope") - cubHopeTotal(cub);
-            const why = !isMonocub(cub) ? "the Monocub is not one now" : !payer || isDeadForGm(payer) ? "the payer is gone"
-                : resourceValue(payer, "hope") < offer.cost ? "the payer has not the Hope for it"
+            if (!isMonocub(cub)) return "the Monocub is not one now";
+            if (!payer || isDeadForGm(payer)) return "the payer is gone";
+            return hopeHeld(payer, async hope => {
+                const why = hope < offer.cost ? "the payer has not the Hope for it"
                     : overflowBlocksHope() ? "the darkening blocks Hope" : room < offer.cost ? "the Monocub's Hope is full" : null;
-            if (why) return why;
-            await trustedWrite(payer, { "system.resources.hope.value": resourceValue(payer, "hope") - offer.cost }, { reason: "call" });
-            const took = await addToPurseNow(cub, offer.cost);
-            // Paid whole or not at all: a purse that took less (the darkening fell meanwhile) gives it back, the payer is paid back.
-            if (took < offer.cost) {
-                if (took > 0) await patchCubRow(cub.id, { purse: Math.max(0, purseOf(cub) - took) });
-                await trustedWrite(payer, { "system.resources.hope.value": resourceValue(payer, "hope") + offer.cost }, { reason: "refund" });
-                return "the Monocub's Hope is full";
-            }
-            return null;
+                if (why) return why;
+                await trustedWrite(payer, { "system.resources.hope.value": hope - offer.cost }, { reason: "call" });
+                const took = await addToPurseNow(cub, offer.cost);
+                // Paid whole or not at all: a purse that took less (the darkening fell meanwhile) gives it back, the payer is paid back.
+                if (took < offer.cost) {
+                    if (took > 0) await patchCubRow(cub.id, { purse: Math.max(0, purseOf(cub) - took) });
+                    await trustedWrite(payer, { "system.resources.hope.value": hope }, { reason: "refund" });
+                    return "the Monocub's Hope is full";
+                }
+                return null;
+            });
         }));
         if (unpaid) {
             warn(`A Bribe of ${offer.fromName} to ${cub.name} was closed unpaid: ${unpaid}.`);

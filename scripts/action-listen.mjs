@@ -48,13 +48,17 @@ export function listenLabels(neighbours, known) {
 
 /** Each row's icon in the Infiltrate window. */
 const ROW_ICONS = Object.freeze({ listen: "fa-ear-listen", echoes: "fa-tower-broadcast", tail: "fa-shoe-prints", dash: "fa-person-running", shut: "fa-road-barrier", force: "fa-hand-fist", pick: "fa-key", keepWatch: "fa-eye" });
-/** The rows whose action is built on this branch; the rest stand greyed with "Not built yet" (docs/dev/e69/SPEC.md). */
+/**
+ * The rows whose action is built. Every key of `ACTIONS.listen.variants` is here since E74 (eight of eight, config.mjs), so
+ * no row is greyed "Not built yet" today; the branch stays for a row a later stage adds before its action (docs/dev/e69/SPEC.md).
+ */
 const BUILT = new Set(["listen", "echoes", "tail", "dash", "shut", "force", "pick", "keepWatch"]);
 
 /**
  * THE INFILTRATE WINDOW'S ROWS (E69 C1, 12.11.2026; DA28: one list, no groups). One row a key of `ACTIONS.listen.variants`
  * (config.mjs `INFILTRATE`'s order), each with its price and why it is shut: Listen in a room with no neighbour (until
- * C1 that was a warning after the tile was pressed), a row not built yet. Read by `performListen` and by tier 1's R3756.
+ * C1 that was a warning after the tile was pressed), Keep Watch, Echoes and Shut the Door by their own rules, a row not
+ * built yet (none today: `BUILT`). Read by `performListen` and by tier 1's R3756.
  */
 export function infiltrateRows(actor) {
     const scene = locateActor(actor)?.scene ?? null;

@@ -8330,7 +8330,8 @@ const REGRESSIONS = [
             refusalFirst: at("cubAbilityRefusalOnGm(") > -1 && at("cubAbilityRefusalOnGm(") < at("spendAction(") && at("spendAction(") < at("spendCubHope("),
             priceBeforeDice: at("spendCubHope(") > -1 && at("spendCubHope(") < at("CUB_ROLLS["),
             // Since E72 C17 the price is `priceOf`'s (a move to order costs its `executionCost`): changed on purpose.
-            priceAsked: /const price = priceOf\(actor, row\)/.test(onGm) && /actionsLeft\(actor\)\s*<\s*price\.cost/.test(onGm) && /cubHopeTotal\(actor\)\s*<\s*price\.hopeCost/.test(onGm),
+            priceAsked: /const price = priceOf\(actor, row\)/.test(onGm) && /actionsLeft\(actor\)\s*<\s*price\.cost/.test(onGm) && // CHANGED ON PURPOSE BY 1.2.122 (the audit's DESP-26): the price is held to the Hope the GMs hold, not the sheet's.
+            /await cubHopeHeld\(actor\)\s*<\s*price\.hopeCost/.test(onGm),
             serial: /serialWrite\(`drpg-cub-ability:\$\{actorId\}`/.test(run)
         };
         equal(JSON.stringify(read), JSON.stringify({ executorPays: false, refusalFirst: true, priceBeforeDice: true, priceAsked: true, serial: true }),
@@ -8550,7 +8551,9 @@ const REGRESSIONS = [
             // offerBribeOnGm and answerBribeOnGm read the payer's Hope, a living student's (E72 C15), and no Monocub's.
             // CHANGED ON PURPOSE BY THE E72 FIX ROUND (12.11.2026, review #3): the price and the refund read under the
             // purse's lock, in spendCubHopeNow and refundCubHopeNow, which spendCubHope and refundCubHope run.
-            JSON.stringify([["answerBribeOnGm", "cubHopeTotal", "offerBribeOnGm", "redeemHope", "refundCubHopeNow", "setMonocub", "spendCubHopeNow"], false]),
+            // CHANGED ON PURPOSE BY 1.2.122 (the audit's DESP-26): the payer's and the Monocub's Hope are read as the GMs hold
+            // them (`hopeHeld`, sheet-audit.mjs `meansWrite`); offerBribeOnGm reads no sheet now, the others name its path.
+            JSON.stringify([["answerBribeOnGm", "cubHopeTotal", "redeemHope", "refundCubHopeNow", "setMonocub", "spendCubHopeNow"], false]),
             "a Monocub threshold reads the sheet's Hope alone ([the functions of monocub.mjs that read it, CUB_BLOCKS reads it])");
     }],
 

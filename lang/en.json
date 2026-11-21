@@ -3910,6 +3910,7 @@
       "tail": {
         "nobody": "Nobody else stands in this room to tail.",
         "gone": "{name} is not in this room any more.",
+        "actionBack": "The tail did not begin: {name} walked out of the room first, so your action is back.",
         "prompt": "Pick whom to follow. Shadow {n} or more and they do not notice you; below it they learn your name, but the tail goes on.",
         "who": "Whom",
         "unseenTitle": "Tail Someone: staying unseen",
@@ -5832,6 +5833,7 @@
       "actionOwed": "The critical is gone, but you have no action left for the Reroll to take back.",
       "gmReasked": "The GM's first ruling no longer stands. The GM gets your request again with the new result.",
       "rulingVoid": "Rerolled: {old} no longer stands, the result is now {new}. Rule again.",
+      "rulingReplaced": "A Reroll replaced this roll. Its new card asks again.",
       "lootStands": "The dice are rewritten, but the moment is not. What you took is in your hands, and the body looks as it did."
     },
     "Audit": {

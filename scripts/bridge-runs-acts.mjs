@@ -125,7 +125,10 @@ export async function handleFacilityUse(payload, sender) {
         /* A GM's action closes for everyone this time of day; a project's for its character by the project's limit (P2:
            none, this time of day - the rule before P2 and the default - or today). */
         const limit = offer.source === "project" ? offer.facility.limit ?? "timeOfDay" : "timeOfDay";
-        if (usedUp(facilityUseStore.get(offer.key), limit)) {
+        // A row the draw of this very roll wrote (roll-draw.mjs `closeFacilityAtDraw`, STG-39) is this use's own, not a use.
+        const held = facilityUseStore.get(offer.key);
+        const own = held?.pending === true && typeof payload.rollId === "string" && [held.rollId, held.messageId].includes(payload.rollId);
+        if (!own && usedUp(held, limit)) {
             return { refused: limit === "day" ? "that room action has been used already today" : "that room action has been used already this time of day" };
         }
         if (offer.source === "project") {
@@ -136,7 +139,7 @@ export async function handleFacilityUse(payload, sender) {
             }
         }
         const success = offer.source === "project" || Boolean(payload.isCritical) || Number(payload.total) >= offer.action.dc;
-        await facilityUseStore.patch(offer.key, { mark, actorId: actor.id, userId: sender?.id ?? null, at: Date.now(), success });
+        await facilityUseStore.patch(offer.key, { mark, actorId: actor.id, userId: sender?.id ?? null, at: Date.now(), success, pending: false });
         // Its owners are sent their uses, so their Facilities window greys the row with its reason (P2, facility-uses.mjs).
         if (offer.source === "project") tellUsesOf(actor);
         if (offer.source === "gm") await closeForAll(offer.key, mark);

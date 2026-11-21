@@ -534,7 +534,8 @@ function startOnMessage(message) {
  * for a part of its action's definition that names a statistic, and never over `TOLD_AS`);
  * and the situation's dice as this browser armed them (call-effects.mjs `situationalAdvantage`),
  * which the GM no longer reads: it reads every action's situation for itself (E29 C9,
- * `LEGAL_READERS`). The field still travels; nothing on the GM reads it.
+ * `LEGAL_READERS`). The field still travels - private-rolls.mjs's whitelist sanitizes it (`situational: as.num`) and
+ * forwards it into `drawOnGm`'s packet - and `throwDrawn` drops it unread.
  */
 export const DRAWN_OPTIONS = Object.freeze([ROLL_NONCE, "actionType", "roll", "experiences", "guaranteedCritical", "extraFormula", "data"]);
 const CONTEXT_SENT = Object.freeze({ category: "text", goal: "text", projectId: "id", targetProjectId: "id", side: "text",
@@ -1044,7 +1045,9 @@ function notePayments(actor, changes = null, options = null, userId = null) {
     const writer = game.users?.get(userId ?? "");
     if (!was || !writer || (writer.isGM && options?.[PAID_AS_PLAYER] !== true)) return;
     const tickets = ticketsOf(actor.id);
-    const paid = (pay, size = 1) => tickets.push({ at: Date.now(), pay, kinds: [], size });
+    // `form`: what took the payment, a Burst (`grant`) or the actions, written on the roll's record once a draw takes it
+    // (`drawnPayment`; the audit's ROLL-25, 1.2.122).
+    const paid = (pay, size = 1, form = pay) => tickets.push({ at: Date.now(), pay, kinds: [], size, form });
     const undo = (pay, n) => {
         for (let i = tickets.length - 1; i >= 0 && n > 0; i--) {
             if (tickets[i].pay === pay && !tickets[i].kinds.length) { tickets.splice(i, 1); n--; }
@@ -1053,7 +1056,7 @@ function notePayments(actor, changes = null, options = null, userId = null) {
     const rise = Math.max(0, now.action - was.action) + Math.max(0, now.grant - was.grant);
     if (rise) undo("action", rise);
     // The payment's size, so a draw of a price above one reads it (`ticketCovers`): what this write took down.
-    else if (now.action < was.action || now.grant < was.grant) paid("action", paymentSize(was, now));
+    else if (now.action < was.action || now.grant < was.grant) paid("action", paymentSize(was, now), now.grant < was.grant ? "grant" : "action");
     if (now.hope < was.hope) paid("hope", was.hope - now.hope);
     else if (now.hope > was.hope) undo("hope", now.hope - was.hope);
     if (now.stress > was.stress) paid("stress");
@@ -1189,8 +1192,19 @@ async function drawRefusal(actor, key, context) {
     const handed = !ticket.kinds.length && RIDES_ONLY.includes(key) ? handedOver(actor.id, key) : null;
     if (handed) ticket.kinds.push(handed.cover);
     ticket.kinds.push(key);
+    drawnPayment.set(`${actor.id}:${key}`, ticket.form ?? ticket.pay ?? null);
     return null;
 }
+
+/*
+ * WHAT PAID FOR A DRAWN ROLL, ON ITS RECORD (the audit's ROLL-25, 1.2.122 line DESP). A Reroll of a Work gives back or
+ * takes back the critical's action, and it read what paid (`burst`) and whether the critical's action came back
+ * (`refunded`) off the roller's bookmark, claims a second roll.bookmark inside the minute may rewrite. The ticket a
+ * draw takes says what this GM saw pay - the actions (`action`) or a Burst (`grant`), or a step of a price chain - and
+ * that is written on the record as `paid` (`drawOnGm`, after the throw), for reroll.mjs `settleActionRefund` to read.
+ * A record a GM drew for itself has none: no ticket, and the bookmark is that GM's own.
+ */
+const drawnPayment = new Map();
 
 /*
  * A TAKE'S ROLLS NAME THEIR BODY, AND THE FIRST OF EACH COUNTS (E68 C10 loot bind, 10.11.2026; the owner's Q8 "nie", E68
@@ -1311,6 +1325,7 @@ export async function drawOnGm(packet, sender, { requestId = null } = {}) {
     if (lock) drawing.add(lock);
     try {
         if (!await marksOpen()) return { refused: "the GMs' marks of the characters are not open on this GM's browser" };
+        if (lock) drawnPayment.delete(lock);
         const why = actor && !sender?.isGM ? await drawRefusal(actor, key, contextSent(packet.context)) : null;
         if (why) return { refused: why };
         const { murderState } = await import("./murder.mjs");
@@ -1322,9 +1337,11 @@ export async function drawOnGm(packet, sender, { requestId = null } = {}) {
             await (await import("./handover.mjs")).bindLootRoll(actor.id, contextSent(packet.context).bodyId, key, rollStore.get(out.reply.rollId));
         }
         if (out?.reply) keepTrip("drew", { at: Date.now(), written, answered: performance.now() - arrived });
+        const form = lock ? drawnPayment.get(lock) : null;
+        if (out?.reply?.rollId && typeof form === "string" && rollStore.get(out.reply.rollId)) await rollStore.patch(out.reply.rollId, { paid: form });
         return out;
     } finally {
-        if (lock) drawing.delete(lock);
+        if (lock) { drawing.delete(lock); drawnPayment.delete(lock); }
     }
 }
 
@@ -1773,6 +1790,7 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     });
     // The balance log (E53 C3): the roll as the GMs recorded it, kept only while the world's switch is on.
     await noteBalanceRoll(rollStore.get(rollId));
+    if (key === "facility") await closeFacilityAtDraw(actor, told.context, { rollId, messageId: message.id }, sender);
     if (flags.length) await tellUnexpected(actor, flags);
     await tellRoller(sender, legal);
     return { reply: { rollId, messageId: message.id, faces: facesOf(roll), total: roll.total, loaded: dieHeld, roll: legal.json } };
@@ -2022,6 +2040,33 @@ async function facilityOfDraw(actor, context, { open = false } = {}) {
     if (F.facilityShut("gm", overflowFacilityStates())) return null;
     const { facilityUseStore } = await import("./gm-stores.mjs");
     return facilityUseStore.get(F.gmActionKey(place.scene.id, place.room, id))?.mark === F.facilityMark() ? null : action;
+}
+
+/**
+ * A GM'S ROOM ACTION IS CLOSED BY ITS DRAWN ROLL (the audit's STG-39, 1.2.122). Once anyone uses one, a failed roll too, it
+ * is closed for everyone until the next time of day; the row and the public closing were written only by `facility.use`,
+ * which the roller's browser sends after the roll - so a console that read a failed drawn roll and sent nothing left the
+ * action open, for itself and the table, and tried again for an action each time. Now the draw writes the use row first,
+ * `pending` and naming its roll (`rollId`, `messageId`: the use packet names the message), and closes the action for all (facilities-gm.mjs `closeForAll`): a second draw
+ * finds it closed (`facilityOfDraw`), and the `facility.use` that names this roll carries it out over its own pending row
+ * (bridge-runs-acts.mjs `handleFacilityUse`). One never sent leaves the action closed with no effects given.
+ */
+async function closeFacilityAtDraw(actor, context, { rollId, messageId }, sender) {
+    try {
+        const id = typeof context?.facilityId === "string" ? context.facilityId : null;
+        const { gmPlaceOf } = await import("./movement.mjs");
+        const place = gmPlaceOf(actor);
+        if (!id || !place?.room) return;
+        const F = await import("./facilities.mjs");
+        const { facilityUseStore } = await import("./gm-stores.mjs");
+        const key = F.gmActionKey(place.scene.id, place.room, id), mark = F.facilityMark();
+        await facilityUseStore.whenHydrated();
+        if (facilityUseStore.get(key)?.mark === mark) return;
+        await facilityUseStore.patch(key, { mark, actorId: actor.id, userId: sender?.id ?? null, at: Date.now(), success: false, pending: true, rollId, messageId });
+        await (await import("./facilities-gm.mjs")).closeForAll(key, mark);
+    } catch (err) {
+        error("Could not close a room action at its roll's draw", err);
+    }
 }
 
 /** The clean-up's step a packet's context names (cleanup.mjs `cleanupKey`): one of Stage 6's actions, else the clean-up itself. */
