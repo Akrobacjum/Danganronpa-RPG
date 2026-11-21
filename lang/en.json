@@ -721,7 +721,7 @@
         "dive": "Logic Dive",
         "scrum": "Scrum Debate"
       },
-      "trialTooltip": "The Class Trial. The GM runs the debate from the trial console.",
+      "trialTooltip": "The Class Trial is under way.",
       "trialClockTooltip": "How long this part of the debate has left.",
       "trialEveryone": "Everyone",
       "trialVersus": "vs {who}",
@@ -3612,7 +3612,7 @@
       "keyAlreadyHeld": "You already have a key to {room}. You still hold only one.",
       "changedMidway": "“{name}” changed on {from}'s sheet (used, broken, stashed, or gone) before it reached {to}. Nothing changed hands.",
       "changedMidwayKept": "“{name}” changed on {from}'s sheet (used, broken, stashed, or gone) before it reached {to}, and its copy could not be taken back. Take the copy off {to}'s sheet.",
-      "alreadyHasIt": "They already hold a Truth Bullet of this Remnant, so they get no second one.",
+      "alreadyHasIt": "Nothing changed hands: “{name}” stays with you.",
       "shared": "{who} now has a copy of “{name}”.",
       "gave": "“{name}” is now {who}'s.",
       "gaveOne": {
@@ -6546,6 +6546,7 @@
       },
       "phase": {
         "eclipseTitle": "Eclipse",
+        "eclipseDark": "The lights are out. Everyone places their token, {reach}, or {night} at night, and nobody sees who went where. Your actions are already refilled, but you can spend them only on a Direct Murder, and nobody makes a Call until the lights come up.",
         "eclipse": "The lights are out. Everyone places their token, {reach} or anywhere at night, and nobody sees who went where. Your actions are already refilled, but you can spend them only on a Direct Murder, and nobody makes a Call until the lights come up.",
         "eclipseReach": { "one": "up to {n} connected room", "other": "up to {n} connected rooms" },
         "dailyLife": "Ordinary days inside the school. You have {actions} each time of day to search rooms, work on projects, rest, talk, and prepare. No body has been found yet this chapter, and this is when you decide who you trust.",

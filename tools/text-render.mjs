@@ -97,6 +97,8 @@ export const PLACEHOLDERS = Object.freeze({
         "keys", "carried", "forms", "step", "store", "system", "counted", "rules",
         // E66 C4: a number with its unit, written by a `DRPG.Unit.*` family or the Eclipse's reach.
         "reach", "short", "long", "wounded",
+        // 1.2.122 (R8462): the darkened night's reach beside the day's, the same family's text (explain.mjs `eclipseExplanation`).
+        "night",
         // E66 fix r1 F7: the vote's noun, `Events.voteMetaGmBallots` counted on the total (events.mjs `voteMetaLine`).
         "ballots",
         // E57 C12: a straw poll's answer and question, a solved dive's finding, a split's counts, a project's life, a badge's end, a

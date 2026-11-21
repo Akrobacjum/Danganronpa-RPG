@@ -118,3 +118,23 @@ one test more (R7745), no skip more (the shim's objects are writable, so `env.re
 So the look of 1.2.114-1.2.121 differs from 1.2.113's on two things only, both intended, and the three baselines now match
 this tree. They are still not a standing gate: no CI job runs them (CI installs no browser for them; style-sweep.mjs's
 header), and making them one is a workflow change this line does not make.
+
+## 7. .claude/rules/code.md, three more passages (the audit's unrouted D-8, D-159, D-282; read 21.11.2026 on aa0f6767)
+
+- **D-8, "the one pair of importers outside a family"** (wave 2's paragraph and vault-store.mjs's row): eight files outside
+  the murder family import incident-store.mjs or murder-ui.mjs directly - events, frisk, gm-students, investigation,
+  key-remnants, mask-gm, monocub, voice (grep of `from "./incident-store.mjs"`, `"./murder-ui.mjs"` and their `import()`).
+  Proposed: "fog.mjs and fog-diagnostics.mjs import vault-store.mjs past its facade (a static cycle otherwise, R161); and
+  events, frisk, gm-students, investigation, key-remnants, mask-gm, monocub and voice import incident-store.mjs or
+  murder-ui.mjs past murder.mjs."
+- **D-159, the rows of gm-panel.mjs, gm-students.mjs and gm-campaign.mjs**: gm-panel.mjs has no `openPublicRollDialog`
+  (E60 C5a; R1291) and 13 names of its own; gm-students.mjs exports 3, of which gm-panel.mjs re-exports 2 (not
+  `changeRole`); gm-campaign.mjs exports 11, of which 2 (not `untouchedKept`, `changedField`, `followCampaignFields`,
+  `readClockForm`, `endChapterPart`, `endTheChapter`, `campaignRows`, `morningLineRow`, `applyCampaignForm`). Proposed:
+  gm-panel.mjs's row without "and the public roll's window (`openPublicRollDialog`)" and with "13 names of its own";
+  gm-students.mjs "3 names exported, 2 of them re-exported"; gm-campaign.mjs "11 names exported, 2 of them re-exported".
+- **D-282, "Two functions are deliberately long"**: measured with espree, `registerSettings` 1976 lines, gm-store.mjs
+  `createGmStoreEngine` 1007 lines (a factory holding the engine, `makeHandle` inside it), murder-rules.mjs
+  `applyCrisisAction` 308. Proposed: "Three functions are deliberately long: `registerSettings` (a flat registration table),
+  `steps()` (a data table) and gm-store.mjs `createGmStoreEngine` (the engine's closure); `applyCrisisAction` (308 lines)
+  is over the audit's 300 and not split yet."

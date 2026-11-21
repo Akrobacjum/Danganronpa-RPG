@@ -20399,7 +20399,8 @@ const REGRESSIONS = [
         }
         const sources = await moduleSources();
         const src = file => stripComments(sources.get(file) ?? "");
-        read.roads = [/export function eclipseExplanation\(crossings = overflowCrossings\(ECLIPSE_MOVES\) \?\? ECLIPSE_MOVES\)/.test(src("explain.mjs")),
+        // changed on purpose (1.2.122, R8462): a second parameter, the darkened night's crossings
+        read.roads = [/export function eclipseExplanation\(crossings = overflowCrossings\(ECLIPSE_MOVES\) \?\? ECLIPSE_MOVES, night = overflowCrossings\(null\)\)/.test(src("explain.mjs")),
             /baseActions\(\{ wounded: costsAction \}\) - dark/.test(src("actions.mjs")), // E64 C1c: Wounded's action is Daily Life's alone
             /game\.i18n\.format\(card\.key, \{[^}]*\bseconds\b[^}]*\}\)/.test(fnSource(src("trial-floor.mjs"), "postFloorCard") ?? ""),
             /"DRPG\.Floor\.holdingDebateOver", \{ seconds: Math\.abs\(left\), step: adjustStep\(floor\) \}/.test(src("trial-floor-ui.mjs")),

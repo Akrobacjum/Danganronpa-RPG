@@ -733,7 +733,7 @@
         "dive": "Logic Dive",
         "scrum": "Scrum Debate"
       },
-      "trialTooltip": "Class Trial. Debatą kieruje GM ze swojej konsoli.",
+      "trialTooltip": "Trwa Class Trial.",
       "trialClockTooltip": "Ile zostało tej części debaty.",
       "trialEveryone": "Wszyscy",
       "trialVersus": "kontra {who}",
@@ -3875,7 +3875,7 @@
       "keyAlreadyHeld": "Masz już klucz do pokoju {room}. Nadal masz tylko jeden.",
       "changedMidway": "Przedmiot „{name}” zmienił się na arkuszu postaci {from}, zanim trafił do postaci {to}: został zużyty, zepsuty, schowany do skrytki albo zniknął. Kopię zabrano postaci {to}, więc nic nie zmienia właściciela.",
       "changedMidwayKept": "Przedmiot „{name}” zmienił się na arkuszu postaci {from}, zanim trafił do postaci {to}: został zużyty, zepsuty, schowany do skrytki albo zniknął. Kopii nie dało się zabrać postaci {to}, więc przedmiotu jest o jedną sztukę za dużo. Usuń ją ręcznie z arkusza postaci {to}.",
-      "alreadyHasIt": "Ta osoba ma już Truth Bullet z tego Remnantu, więc nie dostaje drugiego.",
+      "alreadyHasIt": "Nic nie zmieniło właściciela: „{name}” zostaje u ciebie.",
       "shared": "{who} ma teraz kopię Truth Bulletu „{name}”.",
       "gave": "{who} ma teraz przedmiot „{name}”.",
       "gaveOne": {
@@ -7085,6 +7085,7 @@
       },
       "phase": {
         "eclipseTitle": "Eclipse",
+        "eclipseDark": "Światła są zgaszone. Każdy ustawia swój token: można przejść {reach}, a nocą {night}. Nikt nie widzi, kto dokąd poszedł. Akcje są już odnowione, ale do powrotu świateł można je wydać tylko na Direct Murder i nikt nie używa Calli.",
         "eclipse": "Światła są zgaszone. Każdy ustawia swój token: można przejść {reach}, a nocą gdziekolwiek na mapie. Nikt nie widzi, kto dokąd poszedł. Akcje są już odnowione, ale do powrotu świateł można je wydać tylko na Direct Murder i nikt nie używa Calli.",
         "eclipseReach": {
           "one": "do {n} połączonego pokoju",

@@ -9208,6 +9208,54 @@ const INVARIANTS = [
         equal(JSON.stringify({ view: map.view, names: missing("names"), actions: missing("actions") }), JSON.stringify({ view: "map", names: [], actions: [] }),
             "{view: the region drawn after the Map button; names: the Table's fields the Map lacks; actions: its row buttons the Map lacks}");
     }],
+    ["R8462 - the Eclipse's explanation under the Overflow's darkness gives the night its rooms, not \"anywhere\", in both languages: explain.mjs `eclipseExplanation(crossings, night)` with `night` the darkened night's crossings (overflow.mjs `overflowCrossings(null)`: null without the darkness, `freeBecomes` with it) (1.2.122; the 1.2.42 audit's 3.1-03, TEXT-04's verification)", async () => {
+        /*
+         * 1.2.122 line STG, 21.11.2026. 3.1-03 / TEXT-04: `DRPG.Explain.phase.eclipse` read its day's reach off
+         * `overflowCrossings(ECLIPSE_MOVES)` but said "or anywhere at night" whatever the Overflow did, while the darkness
+         * turns free placement into `freeBecomes` (2) rooms (overflow.mjs `overflowCrossings`). Called with the numbers
+         * given, in each language with its file's DRPG block in place of this browser's (R1160's way); nothing is written.
+         * Red at aa0f6767: the second argument was ignored and both languages said anywhere.
+         */
+        const S = await import("./settings.mjs"), E = await import("./explain.mjs");
+        const files = {};
+        for (const code of ["en", "pl"]) files[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => r.json());
+        const own = game.i18n.translations, was = S.setPageLanguage("en");
+        const read = {};
+        try {
+            for (const code of ["en", "pl"]) {
+                game.i18n.translations = { ...own, DRPG: files[code].DRPG };
+                S.setPageLanguage(code);
+                const dark = E.eclipseExplanation(1, 2), light = E.eclipseExplanation(2, null);
+                read[code] = { darkAnywhere: /anywhere|gdziekolwiek/.test(dark), darkNight: /up to 2 \S+ \S+ at night|nocą do 2 /.test(dark),
+                    lightAnywhere: /anywhere|gdziekolwiek/.test(light), left: /[{}]|DRPG\./.test(dark + light) };
+            }
+        } finally {
+            game.i18n.translations = own;
+            S.setPageLanguage(was);
+        }
+        const want = { darkAnywhere: false, darkNight: true, lightAnywhere: true, left: false };
+        equal(JSON.stringify(read), JSON.stringify({ en: want, pl: want }),
+            "{darkAnywhere: the darkened explanation still says anywhere; darkNight: it names the night's 2 rooms; lightAnywhere: without the darkness it still says anywhere; left: a placeholder or key left} per language");
+    }],
+    ["R8461 - a Truth Bullet given to a student who already holds one of its Remnant tells the giver only that nothing changed hands, in both languages: handover.mjs whispers `DRPG.Handover.alreadyHasIt`, and its words neither say the recipient holds anything nor name them (1.2.122; the audit's 3.4-04, TEXT-09 verified as still open)", async () => {
+        /*
+         * 1.2.122 line STG, 21.11.2026. The 1.2.42 audit's 3.4-04 (TEXT-09, verified minor on 1.2.118): the giver of a Truth
+         * Bullet whose copy the recipient already held was told "They already hold a Truth Bullet of this Remnant" - which
+         * of a Remnant's bullets another student holds is theirs, not the giver's to learn. Read off the language files and
+         * the whisper's road in handover.mjs. Red at aa0f6767: both values said the recipient holds one.
+         */
+        const src = stripComments((await otherSources()).find(([f]) => f === "handover.mjs")?.[1] ?? "");
+        must(src.length > 1000, "handover.mjs did not load - this test would read nothing");
+        const road = bodyOf(src, "DRPG.Handover.alreadyHasIt", { back: 240 });
+        const files = {};
+        for (const code of ["en", "pl"]) files[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const words = Object.fromEntries(Object.entries(files).map(([code, f]) => [code, String(f?.DRPG?.Handover?.alreadyHasIt ?? "")]));
+        must(words.en && words.pl, "DRPG.Handover.alreadyHasIt is missing in a language - this test would read nothing");
+        const tellsHolding = { en: /already|hold|has |{who}/i, pl: /już|ma |posiada|{who}/i };
+        equal(JSON.stringify({ road: /copy === HELD_COPY/.test(road), told: Object.fromEntries(Object.entries(words).map(([c, w]) => [c, tellsHolding[c].test(w)])) }),
+            JSON.stringify({ road: true, told: { en: false, pl: false } }),
+            "the giver's line for a copy the recipient already holds still says they hold one, or names them (en, pl)");
+    }],
     ["R3656 - who has what, by name, on the Map (E97 C7; the owner's Q-A of 11.11 and E47-21): the Who has what list (`.drpg-case-students`) names each living student, under each their Truth Bullets by name, then their other items by name - names only, the kind drawn beside a bullet is not compared; a dead student is not listed", async () => {
         /*
          * E97 C7, 12.11.2026. Read off the drawn window (opened on the Map) against the world:
