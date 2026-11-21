@@ -8,7 +8,11 @@
  *
  * That placement window is the Eclipse. During it:
  *   · nobody sees anybody else's token, in any room
- *   · each player gets exactly 2 room crossings, free of the action economy
+ *   · each player gets the Eclipse's crossings, free of the action economy:
+ *     2 (ECLIPSE_MOVES), 1 under a darkening (`overflowCrossings`), none to
+ *     count in the free placement of ECLIPSE_FREE_PLACEMENT, and a room
+ *     action's extra crossings on top for that character (`eclipseAllowanceFor`)
+ *     - the audit of 1.2.118, D-249: this said "exactly 2"
  *   · crossings still respect doors and gaps - you move through connected
  *     rooms, not across the map
  *
@@ -1159,9 +1163,11 @@ export function placementStatus() {
 /**
  * Judge a crossing made while the Eclipse is running.
  *
- * Returns true when the move is allowed. Crossings are limited to two, and to
- * rooms actually connected to the one you are leaving - the guide's "2
- * connected rooms", not two arbitrary hops.
+ * Returns true when the move is allowed. Crossings are limited to the
+ * character's allowance (`eclipseAllowanceFor`: the guide's 2, 1 under a
+ * darkening, a room action's extra on top; none counted in a free placement),
+ * and to rooms actually connected to the one you are leaving - the guide's
+ * "connected rooms", not arbitrary hops (D-249).
  *
  * The last argument is the suite's (R558, E79 fix r1-G4): tier 1 writes nothing, so it hands in a
  * running Eclipse's clock, its own passage rows in the copy's shape (`known`), and a recorder for the
