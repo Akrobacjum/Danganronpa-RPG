@@ -31,7 +31,7 @@
 import { MODULE_ID, FACILITIES, TRAITS, TIMES_OF_DAY, TIME_OF_DAY_LABELS } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
 import { plural, isPrimaryGm } from "./utils.mjs";
-import { roomFlag, writablePieces } from "./rooms.mjs";
+import { roomFlag, roomRegions, flagOver, writablePieces } from "./rooms.mjs";
 import { metaFor, secretsOf, toldSight } from "./projects-secrecy.mjs";
 import { cardMeta } from "./secret.mjs";
 
@@ -271,10 +271,18 @@ export function facilityTimesLeft(facility, completedAt, clock = getClock()) {
  * WHERE
  * ========================================================================== */
 
-/** The GM's actions of a room on a scene, cleaned as they are read (a flag edited by hand is held to the list too). */
+/**
+ * The GM's actions of a room on a scene, cleaned as they are read (a flag edited by hand is held to the list too).
+ *
+ * WHAT ITS SAVE WROTE, BEFORE THE ROOM IS MARKED (1.2.122 line MAP; the audit's REFR-30). `setRoomActions` writes every
+ * piece that can be a room (`writablePieces`, marked or not: Room Setup is where a named region becomes one), and this read
+ * the marked pieces alone (`roomFlag`), so an action saved on a new map before the first Apply read as none: the count
+ * stayed 0, the editor reopened empty and a second Save wrote over the first. A name with no marked piece reads the pieces
+ * the Save wrote; a room reads its own as before, so no player's road - each reads a room a token stands in - changes.
+ */
 export function roomActions(scene, room) {
     if (!scene || !room) return [];
-    const stored = roomFlag(scene, room, FACILITIES.flag);
+    const stored = roomFlag(scene, room, FACILITIES.flag) ?? (roomRegions(scene, room).length ? null : flagOver(writablePieces(scene, room), FACILITIES.flag));
     return Array.isArray(stored) ? cleanActions(stored) : [];
 }
 

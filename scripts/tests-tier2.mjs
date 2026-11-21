@@ -107387,6 +107387,258 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "Room setup wrote over the digits typed in a token count, or sent them unasked (text: the count's text after the redraw; world: the room's tokens untouched)");
     }],
 
+    ["1.2.122 MAP-30 - a held Secret Passage's \"finished\" card is posted once on its finder's entry, though the primary reads the move twice and the first post is slow (scripts/fog.mjs `reactToMove`; projects-seen.mjs `tellFoundOnEntry`; the audit's MAP-30)", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026; the audit's MAP-30. The primary reads an ordinary drop twice, at the update and again
+         * at rest 250 ms or more later (fog.mjs `onUpdateToken`, movement.mjs `whenAtRest`), and each read walked the held
+         * cards (`tellFoundOnEntry`), which posts and only then drops the row: a post slower than the grace was posted twice.
+         * The row's drop after the first post is slowed here past the grace (the store's drop held 700 ms, put back after),
+         * so the race the finding names - the second walk finding the row the first has posted and not yet dropped - is on
+         * the harness's own clock. The cards are counted as they are sent to the player (the socket's `secret.card`). A held card for a student's player, in a room the student's token does
+         * not stand in, then the token moved into it by this GM. Read: the cards posted naming the passage, and the held row.
+         * Put back: the token, the row, the store's drop, the socket's emit.
+         */
+        needs(env.primaryGm(), "the held cards are the primary GM's (`holdFoundDone`, `tellFoundOnEntry`)");
+        needs(world.atLeast("studentTokensOnScreen", 2), "two students with tokens in rooms on the scene on screen");
+        needs(world.atLeast("occupiedRooms", 2), "two rooms with a token in them");
+        const PS = await import("./projects-seen.mjs");
+        const { roomOfToken } = await import("./movement.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { foundDoneStore } = await import("./gm-stores.mjs");
+        const SEC = await import("./secret.mjs");
+        const scene = canvas.scene;
+        const tokenOf = a => scene?.tokens?.find(t => t.actorId === a.id) ?? null;
+        const userOf = a => game.users.find(u => !u.isGM && a.testUserPermission(u, "OWNER")) ?? null;
+        const student = livingStudents().find(a => tokenOf(a) && roomOfToken(tokenOf(a)) && userOf(a));
+        must(student, "no living student with a player and a token standing in a room - this would measure nothing");
+        const token = tokenOf(student), user = userOf(student);
+        const target = scene.tokens.find(t => t.id !== token.id && roomOfToken(t) && roomOfToken(t) !== roomOfToken(token));
+        must(target, "no token stands in another room - this would measure nothing");
+        const room = roomOfToken(target), NAME = `SUITE MAP30 passage ${foundry.utils.randomID(6)}`, CD = `MAP30${foundry.utils.randomID(8)}`;
+        const was = { x: token.x, y: token.y };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const made = [];
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const drop = foundDoneStore.drop, ownDrop = Object.getOwnPropertyDescriptor(foundDoneStore, "drop");
+        let read = null;
+        try {
+            await foundDoneStore.whenHydrated();
+            const held = await PS.holdFoundDone(CD, NAME, [user.id], { room, sceneId: scene.id });
+            must(held.held.includes(user.id), "the card was not held - the student stands in the room already, this would measure nothing");
+            socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "secret.card" && String(packet.html ?? "").includes(NAME) && (options?.recipients ?? []).includes(user.id)) made.push(1);
+                return send.call(this, event, packet, options, ...rest);
+            };
+            Object.defineProperty(foundDoneStore, "drop", { configurable: true, writable: true,
+                value: async function (...args) { await new Promise(r => setTimeout(r, 700)); return drop.apply(this, args); } });
+            await token.update({ x: target.x, y: target.y }, { ...PLACE });
+            await until(() => made.length >= 1, 4000);
+            await wait(1500);
+            read = [roomOfToken(token) === room, made.length, Object.keys(foundDoneStore.entries() ?? {}).filter(k => k.endsWith(CD)).length];
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            if (ownDrop) Object.defineProperty(foundDoneStore, "drop", ownDrop); else delete foundDoneStore.drop;
+            for (const m of game.messages.filter(m => String(SEC.secretHtml(m) ?? m.content ?? "").includes(NAME))) await m.delete().catch(() => {});
+            for (const key of Object.keys(foundDoneStore.entries() ?? {})) if (key.endsWith(CD)) await foundDoneStore.drop(key);
+            if (token.x !== was.x || token.y !== was.y) await token.update(was, { ...PLACE });
+            await settle();
+        }
+        equal(stableJson(read), stableJson([true, 1, 0]), "[the token in the passage's room, the 'finished' cards posted, the held rows left]");
+    }],
+
+    ["1.2.122 REFR-30 - a room's actions saved in Room Setup before the room is marked read back as saved: the editor and the count read the pieces the Save wrote (scripts/facilities.mjs `roomActions`, `setRoomActions`; room-setup.mjs; the audit's REFR-30)", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026; the audit's REFR-30. Room Setup's Edit is live on every named region that may be a
+         * room (`possible`), its Save writes through `writablePieces` (every piece that can be a room, marked or not), and
+         * the editor and the count read through `roomFlag` - marked rooms only - so before the first Apply an action saved
+         * read as none, and the editor reopened empty. A scene of the suite's own with a named region not marked a room and
+         * a marked one; an action saved on each. Read: the actions each reads back. Put back: the scene.
+         */
+        const R = await import("./rooms.mjs");
+        const F = await import("./facilities.mjs");
+        const NEW = "SUITE REFR30 Kitchen", OLD = "SUITE REFR30 Hall";
+        let scene = null, read = null;
+        try {
+            scene = await Scene.create({ name: "SUITE REFR30 Floor", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [
+                { name: NEW, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }], behaviors: [] },
+                { name: OLD, shapes: [{ type: "rectangle", x: 1000, y: 0, width: 800, height: 800 }], flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            await settle();
+            must(R.roomRegions(scene, NEW).length === 0 && R.writablePieces(scene, NEW).length === 1 && R.roomRegions(scene, OLD).length === 1,
+                "the Kitchen is a room already or no piece of it can be one, or the Hall is no room - this would measure nothing");
+            const wrote = [await F.setRoomActions(scene, NEW, [{ label: "Brew tea" }]), await F.setRoomActions(scene, OLD, [{ label: "Sweep" }])];
+            await settle();
+            read = [wrote.map(list => list?.length ?? null), F.roomActions(scene, NEW).map(a => a.label), F.roomActions(scene, OLD).map(a => a.label)];
+        } finally {
+            await scene?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[1, 1], ["Brew tea"], ["Sweep"]]),
+            "[the actions each Save wrote, what the unmarked Kitchen reads back, what the marked Hall reads back]");
+    }],
+
+    ["1.2.122 REFR-13 - Look inside the stashes follows the stashes while it stands open: a thing stowed appears, a thing taken out goes, and asking again raises the window it is (scripts/stash-reach.mjs `openVaultInspector`; the audit's REFR-13; the owner's rule \"Zawsze odswiezamy okna od razu przy zmianie\")", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026; the audit's REFR-13. The inspector listed what stood at the open and never redrew,
+         * and a second call only raised that copy. A scene of the suite's own with one stash room of a student's; one thing
+         * stashed there, the window opened; a second thing stashed, then the first taken off the sheet; the window asked
+         * for again. Read: whether the window names each thing after each step, and what the second call answered. Put
+         * back: the window, the things, the scene.
+         */
+        needs(env.dialogs(), "the window is read as drawn");
+        const R = await import("./rooms.mjs");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { RAISED } = await import("./live.mjs");
+        const { AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const [owner] = cast(1);
+        const STORE = "SUITE REFR13 Storage", ONE = "SUITE REFR13 a stashed lamp", TWO = "SUITE REFR13 a stashed rope";
+        const winOf = () => [...foundry.applications.instances.values()].find(app => app?.options?.classes?.includes("drpg-window-stashes") && app.element?.isConnected) ?? null;
+        const text = () => winOf()?.element?.querySelector(".drpg-vault-inspector")?.textContent ?? "";
+        const stash = name => owner.createEmbeddedDocuments("Item", [moduleItemData(name, { [INV.ITEM_FLAGS.location]: INV.LOCATIONS.vault, [INV.ITEM_FLAGS.stashRoom]: STORE })],
+            { [AUDIT_ASIDE]: true, [INV.CAP_OVERRIDE]: true });
+        const made = [];
+        let scene = null, read = null;
+        try {
+            must(!winOf(), "the stash window is open already - this would measure the copy it was");
+            scene = await Scene.create({ name: "SUITE REFR13 Floor", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: STORE, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true, [V.VAULT_FLAGS.stashes]: [{ actorId: owner.id, concealed: false }] } }, behaviors: [] }]);
+            made.push(...await stash(ONE));
+            await settle();
+            must(V.stashItemsIn(owner, STORE, scene).some(i => i.name === ONE), `${owner.name}'s stashed thing does not read as lying in "${STORE}" - this would measure nothing`);
+            void V.openVaultInspector();
+            await until(() => text().includes(ONE), 4000);
+            const opened = [text().includes(ONE), text().includes(TWO)];
+            made.push(...await stash(TWO));
+            await until(() => text().includes(TWO), 3000);
+            const stowed = [text().includes(ONE), text().includes(TWO)];
+            await made[0].delete({ [AUDIT_ASIDE]: true });
+            await until(() => !text().includes(ONE), 3000);
+            const taken = [text().includes(ONE), text().includes(TWO)];
+            const again = await V.openVaultInspector();
+            read = { opened, stowed, taken, again: again === RAISED };
+        } finally {
+            await winOf()?.close();
+            for (const item of made) if (owner.items.has(item.id)) await item.delete({ [AUDIT_ASIDE]: true });
+            await scene?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ opened: [true, false], stowed: [true, true], taken: [false, true], again: true }),
+            "{opened, stowed, taken: [the window names the lamp, the rope] at the open, after the rope was stashed, after the lamp was taken; again: a second call raised the window}");
+    }],
+
+    ["1.2.122 REFR-08 REFR-49 - the Eclipse's placement table follows the crossings while it stands open, and the readiness round's GM window follows the cast (scripts/boundary.mjs `placementTable`, `roundWindow`; the audit's REFR-08, REFR-49; the owner's rule \"Zawsze odswiezamy okna od razu przy zmianie\")", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026. REFR-08: the placement table was drawn once from the rows read at the press, so a
+         * student who crossed while the GM held it open stayed at 0. REFR-49: the readiness round's window watched the round,
+         * the clock, the Eclipse's crossings and who is connected, not the characters, so a student who died or changed owner
+         * kept the old row. Driven on this GM: an Eclipse started on the clock (no free placement), the table opened and a
+         * crossing of one student counted in the GMs' store; then, the Eclipse ended, a round for Next time of day written
+         * open by this GM, its window opened and one student of the cast renamed. Read: the student's cell before and after
+         * the crossing; whether the round's window names the new name. Put back: the windows, the store's row, the name,
+         * the round's setting, the clock.
+         */
+        needs(env.primaryGm(), "the placement and the round are read on the primary GM");
+        needs(env.dialogs(), "the windows are read as drawn");
+        needs(env.playersConnected(), "the round asks the connected players of the cast");
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a connected player, whom the round asks");
+        const B = await import("./boundary.mjs");
+        const C = await import("./clock.mjs");
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { eclipseId, incomingTimeOfDay } = await import("./settings.mjs");
+        const { ECLIPSE_FREE_PLACEMENT } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const student = livingStudents().find(a => game.users.some(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER")));
+        must(student, "no living student with a connected player - this would measure nothing");
+        const was = foundry.utils.deepClone(getClock());
+        const roundWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.readyRound) ?? {});
+        const nameWas = student.name, renamed = `${nameWas} REFR49`;
+        const winOf = cls => [...foundry.applications.instances.values()].find(app => app?.options?.classes?.includes(cls) && app.element?.isConnected) ?? null;
+        const cellOf = win => [...(win?.element?.querySelectorAll(".drpg-placement-body tbody tr") ?? [])]
+            .find(tr => tr.querySelector("td")?.textContent === nameWas)?.querySelectorAll("td")?.[2]?.textContent?.trim() ?? null;
+        const read = {};
+        try {
+            await setClock({ eclipse: true, eclipseStartedAt: Date.now(), ...(ECLIPSE_FREE_PLACEMENT.includes(incomingTimeOfDay(getClock())) ? { timeOfDay: "morning" } : {}) });
+            await settle();
+            must(E.isEclipse() && E.eclipseAllowance() !== null && eclipseId(), "no counted Eclipse runs - this would measure nothing");
+            await S.eclipseMoveStore.drop(student.id);
+            void B.placementTable();
+            await until(() => winOf("drpg-window-eclipse-end"), 4000);
+            const table = winOf("drpg-window-eclipse-end");
+            must(table, "the placement table did not open - this would measure nothing");
+            const before = cellOf(table);
+            await S.eclipseMoveStore.patch(student.id, { used: 1, seen: 1, eclipse: eclipseId() });
+            await until(() => cellOf(table) !== before, 3000);
+            read.table = [before?.startsWith("0") ?? null, cellOf(table)?.startsWith("1") ?? null];
+            await table.close();
+            await S.eclipseMoveStore.drop(student.id);
+            await setClock({ eclipse: false });
+            await settle();
+            const round = { id: foundry.utils.randomID(), kind: "next", boundary: C.boundaryStamp(getClock()), by: game.user.id, at: Date.now(), answers: {} };
+            await game.settings.set(MODULE_ID, SETTINGS.readyRound, round);
+            await settle();
+            void B.roundWindow(round);
+            await until(() => winOf("drpg-ready-gm"), 4000);
+            const win = winOf("drpg-ready-gm");
+            must(win, "the readiness round's window did not open - this would measure nothing");
+            const body = () => win.element?.querySelector(".drpg-ready-body")?.textContent ?? "";
+            const named = body().includes(nameWas);
+            await student.update({ name: renamed });
+            await until(() => body().includes(renamed), 3000);
+            read.round = [named, body().includes(renamed)];
+            if (win.element?.isConnected) await win.close();
+        } finally {
+            for (const cls of ["drpg-window-eclipse-end", "drpg-ready-gm"]) await winOf(cls)?.close();
+            if (student.name !== nameWas) await student.update({ name: nameWas });
+            await S.eclipseMoveStore.drop(student.id);
+            await game.settings.set(MODULE_ID, SETTINGS.readyRound, roundWas);
+            await setClock(was);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ table: [true, true], round: [true, true] }),
+            "{table: [the student's cell read 0 at the open, 1 after a crossing counted]; round: [the window names the student, names the new name after a rename]}");
+    }],
+
+    ["1.2.122 MAP-27 - a readiness round left open by a GM who is gone is ended \"go\", with nothing told, when the next GM's press finds a round may not run (a Class Trial, an incident before Stage 6), as a barred \"go\" is (scripts/boundary.mjs `openRoundOnPrimary`; the audit's MAP-27)", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026; the audit's MAP-27, against E37 fix FG1b and FG1c. `openRoundOnPrimary` wrote a round
+         * whose GM was gone `ended: "stop"` before it asked `roundAllowed`, whatever that answered, and every player whose
+         * round window was still up read `DRPG.Ready.cancelled` ("The GM is waiting a little longer") at the moment a GM
+         * moved the hidden clock of an incident - the timing signal FG1b and FG1c took out of the incident's start and of a
+         * barred "go". Driven on this GM, the primary: the phase set to the Class Trial (`roundAllowed` false, as an incident
+         * before Stage 6), a round for Next time of day written open at this boundary by a GM no world holds, then the next
+         * GM's press (`openRoundOnPrimary`). Read: the answer's round and `cleared`, and the record's end. Put back: the
+         * round's setting and the clock.
+         */
+        needs(env.primaryGm(), "the round is opened and ended on the primary GM");
+        const B = await import("./boundary.mjs");
+        const C = await import("./clock.mjs");
+        const was = foundry.utils.deepClone(getClock());
+        const roundWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.readyRound) ?? {});
+        let read = null;
+        try {
+            if (was?.eclipse) await setClock({ eclipse: false });
+            await setClock({ phase: "classTrial" });
+            await settle();
+            const id = foundry.utils.randomID();
+            await game.settings.set(MODULE_ID, SETTINGS.readyRound, { id, kind: "next", boundary: C.boundaryStamp(getClock()), by: "MAP27GONEGM00000", at: Date.now(), answers: {} });
+            await settle();
+            must(B.roundOf(B.readyRecord(), getClock())?.id === id, "the round written is not open over this clock - this would measure nothing");
+            const out = await B.openRoundOnPrimary({ kind: "next", by: game.user.id });
+            await settle();
+            const record = B.readyRecord();
+            read = [out?.reply?.round ?? null, out?.reply?.cleared ?? null, record.id === id, record.ended ?? null];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.readyRound, roundWas);
+            await setClock(was);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([null, true, true, "go"]),
+            "[the round the press opened, whether the gone GM's round was cleared, the record still that round, how it ended] - a round cleared while none may run told every player of it that the GM was waiting");
+    }],
+
     ["1.2.122 ITEM-19 - a room action's Hope and Health effects count from what the GMs hold of the student, not from a write of the player's their put-back has not undone (scripts/facilities-gm.mjs `applyEffects`; sheet-audit.mjs `meansWrite`; the audit's ITEM-19)", async () => {
         /*
          * 1.2.122 line MAP, 21.11.2026; the audit's ITEM-19, the E29 r2-H24 class reopened by E93. `applyEffects` read the

@@ -82,7 +82,7 @@ import {
     LAYER_NAME, VEIL_ALPHA, REVEAL_SLASH_MS, REVEAL_HOLD_MS, DISCOVERY_MS, freeOwned, clearTransient, watchdog,
     findLayer, FX_GROUP, OUTLINE_NAME, roomOutline, buildRevealLayers, revealBandPlan, destroyRevealLayers,
     revealLinePositions, drawRevealFrame, flashOutline, ensurePixelFont, fadeRoomOutline, seamWidth,
-    rezoomRoomOutline, recolourRoomOutline
+    rezoomRoomOutline, recolourRoomOutline, holdOutlineHops
 } from "./fog-reveal.mjs";
 import { sceneUncoveredShare } from "./fog-diagnostics.mjs";
 // The one census of rooms (E20 C1): vault-store.mjs reaches fog.mjs by no static import, so this makes no cycle
@@ -708,6 +708,17 @@ function regionsReplaced(scene, changes, userId) {
     for (const [region, patch] of patches) step("roomRenamed", () => noteRegionName(region, userId, patch));
     step("sceneVision", () => prepareRoomScene(scene, userId));
     step("repaint", () => repaintRoomScene(scene));
+    /* And the outline's steps of `regionChanged`, per region the scene's update changed (1.2.122 line MAP; the audit's
+       MAP-36): this road repainted the fog with the new shapes and left the standing outline round the old one, and the
+       rooms this viewer's tokens stand in as they were, until the next arrival. */
+    for (const [region, patch] of patches) {
+        step("outlineRoomFlag", () => outlineAfterRoomFlag(region, patch));
+        step("outlineReshaped", () => {
+            const standing = roomOutline;
+            if (standing?.region?.parent === scene && region?.name === standing.room) redrawOutline(standing.room);
+        });
+    }
+    step("whereIStand", () => standWhereWeStand({ redraw: true }));
 }
 
 /**
@@ -836,10 +847,12 @@ async function carryRename(scene, from, to, pieces) {
         const passages = await (await import("./passages-gm.mjs")).carryPassageRooms(scene.id, from, to);
         await dropRenameRecords(scene, from, to);
         repaintRoomScene(scene);
-        const moved = { ...sheets, cells: Object.keys(cells).length, ...world };
+        // The passages' records counted with the rest (1.2.122 line MAP; the audit's MAP-37): the GMs' whisper left them out,
+        // and a rename that carried only those said nothing.
+        const moved = { ...sheets, cells: Object.keys(cells).length, ...world, passages: Number(passages) || 0 };
         log(`"${from}" on "${scene.name}" was renamed "${to}": ${moved.keys} key(s), ${moved.items} stashed item(s), `
             + `${moved.found} found note(s), ${moved.cells} discovery row(s), ${moved.projects} project(s), ${moved.plants} plant(s), `
-            + `${moved.lists} Neighbours list(s), ${moved.lair} lair, ${moved.gather} assembly, ${moved.sealed} seal, ${moved.bodies} body record(s) and ${passages} secret passage record(s) carried.`);
+            + `${moved.lists} Neighbours list(s), ${moved.lair} lair, ${moved.gather} assembly, ${moved.sealed} seal, ${moved.bodies} body record(s) and ${moved.passages} secret passage record(s) carried.`);
         if (Object.values(moved).some(Boolean)) {
             await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Rooms.renamed", { from, to, scene: scene.name, ...moved }))}</p>`);
         }
@@ -2155,6 +2168,7 @@ let animationsOn = true;
 
 export function fogAnimations(on = true) {
     animationsOn = Boolean(on);
+    holdOutlineHops(!animationsOn);
     if (!animationsOn) clearTransient();
     repaintFog();
     return animationsOn;
@@ -2539,6 +2553,10 @@ function disarmRendererFailsafe() {
  * line runs at load, before Foundry has read the language file (E71 C20).
  */
 let lastFogReason = null;
+/* The last paint's or stand-down's own reason, which an unchanged repaint names (1.2.122 line MAP; the audit's MAP-28): the
+   field was "unchanged: " in English on the localized reason, once more at every unchanged repaint, and the paint's and the
+   throw's lines were English beside the localized stand-downs. Every value is the page's language now (`DRPG.Fog.reason`). */
+let lastFogOwn = null;
 
 /**
  * A plain-language report of what the fog layer is doing right now.
@@ -3165,10 +3183,21 @@ export function repaintFog() {
         }
 
         const { mine, discovered, current, opened } = fogSets(scene);
+        /* The outline is taken down against the rooms it is drawn for (1.2.122 line MAP; the audit's MAP-33): the lead's,
+           `leadsHere` - on a GM its own Monokuma's. `mine` on a GM is every Monokuma's rooms, so with two GMs' Monokumas a
+           GM's outline stood round a room its own had left while the other's stood there. A player's lead is `mine`. */
+        const leadRooms = game.user.isGM ? leadRoomsHere() : mine;
         const shading = roomShading({ regions, current, discovered });
         lastShading = shading;
+        /* The rooms' polygons walked when a door control first asks them, once a repaint (1.2.122 line MAP; the audit's
+           MAP-35): built here, above the "unchanged" shortcut, every repaint - a token placed or deleted anywhere - walked
+           every room's polygon tree for an answer that was unchanged, door control or none. */
+        let doorPolygons = null;
         doorRooms = { sceneId: scene.id, size: canvas.grid?.size ?? 100,
-            rooms: regions.map(region => ({ shading: shading[region.name], polygons: regionShapes(region, { x: 0, y: 0 }) })) };
+            get rooms() {
+                doorPolygons ??= regions.map(region => ({ shading: shading[region.name], polygons: regionShapes(region, { x: 0, y: 0 }) }));
+                return doorPolygons;
+            } };
         const ink = colourOf("--drpg-ink", 0x1a1620);
 
         // Nothing to do if the picture would come out the same. The layer has
@@ -3186,10 +3215,10 @@ export function repaintFog() {
         // Before the "unchanged" shortcut: a GM's signature does not depend on
         // where their Monokuma stands, so a walk from a room into a corridor
         // left that room's outline, name and glow standing until the next paint.
-        if (roomOutline && !mine.has(roomOutline.room)) fadeRoomOutline();
+        if (roomOutline && !leadRooms.has(roomOutline.room)) fadeRoomOutline();
 
         if (signature === lastPaintSignature && findLayer()?.visible) {
-            lastFogReason = `unchanged: ${lastFogReason}`;
+            lastFogReason = fogText("DRPG.Fog.reason.unchanged", { reason: lastFogOwn ?? fogText("DRPG.Fog.stand.notRunYet") });
             return true;
         }
 
@@ -3236,7 +3265,7 @@ export function repaintFog() {
         // room, for a corridor, for nowhere at all - ends it. Measured against
         // where the tokens ACTUALLY are, not against the Eclipse-adjusted set:
         // an Eclipse dims the room, it does not move you out of it.
-        if (roomOutline && !mine.has(roomOutline.room)) fadeRoomOutline();
+        if (roomOutline && !leadRooms.has(roomOutline.room)) fadeRoomOutline();
 
         // One at a time: two rooms found in the same instant is a tie nobody
         // needs broken, and the second reveal would only clear the first.
@@ -3247,12 +3276,11 @@ export function repaintFog() {
         if (opened.length) playDiscoveryAnimation(opened[0], null, { standing: mine.has(opened[0]) });
 
         lastPaintSignature = signature;
-        lastFogReason = `painted: ${built.fogged} fogged, ${built.veiled} veiled, `
-            + `${clearHere.length} clear`;
+        lastFogReason = lastFogOwn = fogText("DRPG.Fog.reason.painted", { fogged: built.fogged, veiled: built.veiled, clear: clearHere.length });
         return true;
     } catch (err) {
         error("Could not repaint the fog of war", err);
-        lastFogReason = `threw: ${err?.message ?? err}`;
+        lastFogReason = lastFogOwn = fogText("DRPG.Fog.reason.threw", { error: String(err?.message ?? err) });
         return false;
     } finally {
         // Every way out, a stand-down included: the doors follow what was shaded, or Foundry (E12 C13).
@@ -3265,7 +3293,7 @@ export function repaintFog() {
 /** Hide the layer and record why, in one line, for `diagnoseFog`: `reason` is the id of a key under DRPG.Fog.stand,
     said in the page's language (E71 C20), with `data` for its placeholders. */
 function stand(reason, data = null) {
-    lastFogReason = fogText(`DRPG.Fog.stand.${reason}`, data);
+    lastFogReason = lastFogOwn = fogText(`DRPG.Fog.stand.${reason}`, data);
     lastPaintSignature = "";
     lastLedgerSeen = null;
     readableCache = { sceneId: null, level: null, count: -1, readable: 0 };
@@ -3543,15 +3571,27 @@ function scheduleFloorSwitcher() {
  * keeps its element between renders, so a sibling survives them) or on the page; none when
  * nothing is offered. How it looks under either theme, and that the curtain cuts no pane for it
  * (glass.mjs `BLOCKS` does not name it), are the live check's, not measured here.
+ *
+ * KEPT WHEN NOTHING IT SHOWS CHANGED (1.2.122 line MAP; the audit's MAP-34). Every repaint schedules this, and it replaced
+ * every button each time: a keyboard focus on a floor button fell back to the page when a GM placed a Remnant anywhere.
+ * The buttons are rebuilt only when the scene, the offer, the floor on screen, a floor's name, the language or the
+ * viewer's words differ from what they were drawn for (`data-drpg-floors-key`). Exported for the suite (R8343).
  */
-function renderFloorSwitcher(scene, offer, here, { everyFloor = false } = {}) {
+export function renderFloorSwitcher(scene, offer, here, { everyFloor = false } = {}) {
     const old = document.getElementById(FLOORS_ID);
     if (!scene || !offer.length) {
         old?.remove();
         return;
     }
     const floors = floorsOf(scene);
+    const names = offer.map(id => floors.find(floor => floor.id === id)?.name ?? "");
+    const key = JSON.stringify([scene.id, offer, here, names, Boolean(everyFloor), game.i18n?.lang ?? ""]);
+    if (old && old.dataset.drpgFloorsKey === key) {
+        placeFloorSwitcher(old);
+        return;
+    }
     const nav = old ?? document.createElement("nav");
+    nav.dataset.drpgFloorsKey = key;
     nav.id = FLOORS_ID;
     // Its language, the page's (E66 fix r1 F1, STATUS Open 19); a floor's own name is the GM's, as written.
     markLanguage(nav);
@@ -3572,6 +3612,11 @@ function renderFloorSwitcher(scene, offer, here, { everyFloor = false } = {}) {
         });
         return button;
     }));
+    placeFloorSwitcher(nav);
+}
+
+/** Beside the campaign HUD, or on the page (`renderFloorSwitcher`). */
+function placeFloorSwitcher(nav) {
     const hud = document.getElementById("drpg-hud");
     if (hud?.parentElement) {
         if (nav.previousElementSibling !== hud) hud.after(nav);
@@ -4404,6 +4449,9 @@ async function onUpdateToken(tokenDoc, changes) {
     await reactToMove(tokenDoc);
 }
 
+/** The room each token was last read entering on the primary (`reactToMove`), by token id; null for none. */
+const enteredRoom = new Map();
+
 /** What a move of the token changes here: this viewer's fog and arrival, and the primary GM's ledger. */
 async function reactToMove(tokenDoc) {
     count("fog.reactToMove");
@@ -4422,11 +4470,17 @@ async function reactToMove(tokenDoc) {
         if (isCorpseToken(tokenDoc)) return;
         const scene = tokenDoc.parent;
         const room = roomOfToken(tokenDoc);
+        /* ONE ENTRY, ONE READ OF IT (1.2.122 line MAP; the audit's MAP-30). A drop is read twice here, at the update and at
+           rest (`onUpdateToken`), and the held cards' walk posts before it drops the row: a post slower than the at-rest
+           grace was posted twice (tier 2 "1.2.122 MAP-30", red at 21bf5d18: two cards). The room this token was last read
+           entering is kept, before anything is awaited, and the second read of the same entry walks no card. */
+        const entered = enteredRoom.get(tokenDoc.id);
+        enteredRoom.set(tokenDoc.id, room ?? null);
         if (!room) return;
         await recordDiscovery(scene, actor, room);
         /* A Secret Passage's "finished" card held for this character's player since it was finished elsewhere (PV,
            13.11.2026; the owner's rule #3): posted on this entry. By `import()`: projects-seen.mjs reaches this file. */
-        await (await import("./projects-seen.mjs")).tellFoundOnEntry(actor, scene?.id ?? null, room);
+        if (entered !== room) await (await import("./projects-seen.mjs")).tellFoundOnEntry(actor, scene?.id ?? null, room);
     } catch (err) {
         error("Could not record a room discovery", err);
     }
@@ -4549,6 +4603,17 @@ function leadsHere(token, gm = game.user.isGM) {
 export function leadMoveHeld(tokens = canvas?.tokens?.placeables ?? [], lead = leadsHere) {
     return tokens.some(token => Boolean(token?.document?.movement?.pending?.waypoints?.length) && lead(token));
 }
+/** The rooms the tokens the outline follows here stand in now (`leadsHere`; MAP-33). `tokens` and `lead` are the suite's. */
+export function leadRoomsHere(tokens = canvas?.tokens?.placeables ?? [], lead = leadsHere) {
+    const rooms = new Set();
+    for (const token of tokens) {
+        if (!lead(token)) continue;
+        const room = roomOfToken(token.document);
+        if (room) rooms.add(room);
+    }
+    return rooms;
+}
+
 /** The rooms this viewer's tokens stand in now, as `lastMineSignature` and `lastLeadSignature` hold them, in one walk of
     the drawn tokens; `without`, a token's id left out (a `deleteToken` the placeables may still hold). */
 function standingNow({ without = null } = {}) {

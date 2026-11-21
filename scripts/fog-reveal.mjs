@@ -42,7 +42,7 @@
 
 import { boundsOf } from "./movement.mjs";
 import { debug, error } from "./utils.mjs";
-import { BEAT, glassOn, SEAM_GLOW } from "./motion.mjs";
+import { BEAT, glassOn, SEAM_GLOW, reducedMotion } from "./motion.mjs";
 import { traceRegionPathsAt, regionShapes, clamp01, largestPiece } from "./fog-geometry.mjs";
 import {
     colourOf, GLOW_NAME, doorwayEdges, doorwayLight, addDoorwayGlow, traceOutlineGapped, outlineColour, tunnelMarks, addTunnelMarks, recolourTunnelMarks,
@@ -1232,7 +1232,28 @@ export function bakeOutlineHalo(group, halo, seen) {
 // UP AND TO THE RIGHT, on the same reasoning as `bandQuad`: the isometric
 // module on The Forge rotates the canvas, so a hop expressed on the
 // diagonal here arrives as a clean vertical one there.
+/* HELD STILL WHERE THE MOTION IS (1.2.122 line MAP; the audit's MAP-20): under this browser's Reduced motion (the Look
+   window, or the system's) and while `game.drpg.fogAnimations(false)` holds the fog's animation (fog.mjs hands it in,
+   `holdOutlineHops`), as the curtain, the dissolve and the drift already were. The outline lands where it stands. */
+let hopsHeld = false;
+
+/** fog.mjs `fogAnimations`: whether the outline's landing is held still (true while the fog's animation is off). */
+export function holdOutlineHops(held) {
+    hopsHeld = Boolean(held);
+    return hopsHeld;
+}
+
+/** Whether a landing would hop now: neither Reduced motion nor the fog's animation switch holds it. For the suite. */
+export function outlineHops() {
+    return !hopsHeld && !reducedMotion();
+}
+
 function landOutline(group, grid) {
+    if (!outlineHops()) {
+        group.x = 0;
+        group.y = 0;
+        return;
+    }
     const jump = grid * 0.9;
     const bounceState = { t: 0 };
     const bounce = CanvasAnimation.animate([{ parent: bounceState, attribute: "t", to: 1 }], {

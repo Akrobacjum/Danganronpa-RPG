@@ -82,7 +82,9 @@ export const PLACEHOLDERS = Object.freeze({
         // E66 C4 (01.11.2026): the numbers config.mjs `PROSE_NUMBERS` and the builders put where a digit stood.
         "drain", "mult", "worth", "fewest",
         // E57 C12: "Alive: {alive}/{total}", the fog's diagnosis in pixels, a reserve's maximum, a lock's bands, a Bounty's Hope, a count.
-        "alive", "amplitude", "core", "d", "openings", "span", "y", "hpMax", "sanity", "sanityMax", "clean", "cover", "reward", "entered", "grid", "section"],
+        "alive", "amplitude", "core", "d", "openings", "span", "y", "hpMax", "sanity", "sanityMax", "clean", "cover", "reward", "entered", "grid", "section",
+        // 1.2.122 line MAP: the fog's paint counted (`DRPG.Fog.reason.painted`) and a rename's passage records (`DRPG.Rooms.renamed`).
+        "fogged", "veiled", "clear", "passages"],
         // The needsCode line (14.11.2026; NEEDSCODE.md #56, #57, S7): the sequences' living count (`Sequence.daySub`), "alive" above.
         values: both(RENDER_NS) },
     action: { names: ["action", "stat"], from: "action" },

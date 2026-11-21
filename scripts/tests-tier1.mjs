@@ -64350,6 +64350,103 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify([false, true, false, true]),
             "[a Monocub's two crossings with its free Move and no action, a student's the same, a student's with one action, a Monocub standing unlawfully] - refused on the primary");
     }],
+    ["R8341 - the room outline's landing holds still under Reduced motion and while the fog's animation is off, and hops otherwise (1.2.122 line MAP; scripts/fog-reveal.mjs `landOutline`, `outlineHops`, `holdOutlineHops`; fog.mjs `fogAnimations`; the audit's MAP-20)", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026; the audit's MAP-20. `landOutline` hopped the outline 0.9 of a square for 520 ms on
+         * every arrival and asked no switch: a player with the Look window's Reduced motion, or a table that called
+         * `game.drpg.fogAnimations(false)`, still saw the room drop in and bounce twice, where the curtain, the dissolve and
+         * the drift held still. The harness draws no canvas, so the switch is read (`outlineHops`) under each of the two and
+         * neither, and `landOutline` is held to ask it before it animates (its source). The body class and the switch put
+         * back as found; `whyBlack` reads the switch.
+         */
+        const FR = await import("./fog-reveal.mjs");
+        const F = await import("./fog.mjs");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/fog-reveal.mjs`).then(lfText));
+        const land = fnSource(src, "landOutline");
+        must(/^function landOutline\(/.test(land), "fog-reveal.mjs has no function landOutline - this would measure nothing");
+        const wasOn = F.whyBlack().animationsOn !== false, body = document.body.classList, hadClass = body.contains("drpg-reduced-motion");
+        const read = [];
+        try {
+            body.remove("drpg-reduced-motion");
+            F.fogAnimations(true);
+            read.push(typeof FR.outlineHops === "function" ? FR.outlineHops() : "none");
+            body.add("drpg-reduced-motion");
+            read.push(typeof FR.outlineHops === "function" ? FR.outlineHops() : "none");
+            body.remove("drpg-reduced-motion");
+            F.fogAnimations(false);
+            read.push(typeof FR.outlineHops === "function" ? FR.outlineHops() : "none");
+        } finally {
+            F.fogAnimations(wasOn);
+            if (hadClass) body.add("drpg-reduced-motion"); else body.remove("drpg-reduced-motion");
+        }
+        read.push(land.indexOf("outlineHops()") >= 0 && land.indexOf("outlineHops()") < land.indexOf("CanvasAnimation.animate"));
+        equal(JSON.stringify(read), JSON.stringify([true, false, false, true]),
+            "[the landing hops with neither switch, under Reduced motion, with the fog's animation off, landOutline asks before it animates]");
+    }],
+
+    ["R8342 - the fog's last reason is in one language, an unchanged repaint names the last paint once, and a room's rename tells the GMs of the secret passage records it carried (1.2.122 line MAP; scripts/fog.mjs `repaintFog`, `carryRename`; lang DRPG.Fog.reason, DRPG.Rooms.renamed; the audit's MAP-28, MAP-37)", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026. MAP-28: diagnoseFog's `lastReason` was "unchanged: " in English prefixed onto the
+         * localized stand-down, once more at every unchanged repaint, and the paint's and the throw's lines were English.
+         * MAP-37: carryRename counted the passages' records it carried in the console's line alone; the GMs' whisper and its
+         * condition (`moved`) left them out. Read off the source (tier 1 paints no canvas and renames no room) and the two
+         * language files: every write of the field through `fogText`, the unchanged one naming `lastFogOwn` and never the
+         * field itself; `moved` holding `passages`; both languages' `renamed` naming {passages} and the three reasons.
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/fog.mjs`).then(lfText));
+        const writes = [...src.matchAll(/lastFogReason = ([^;]+);/g)].map(m => m[1]).filter(w => w !== "null");
+        must(writes.length >= 4, `fog.mjs writes lastFogReason ${writes.length} times - this would measure nothing`);
+        const carry = fnSource(src, "carryRename");
+        const [en, pl] = await Promise.all(["en", "pl"].map(l => fetch(`/modules/${MODULE_ID}/lang/${l}.json`).then(r => r.json())));
+        const reasons = d => ["unchanged", "painted", "threw"].every(k => typeof d?.DRPG?.Fog?.reason?.[k] === "string");
+        equal(JSON.stringify([writes.every(w => /fogText\(/.test(w) && !/`/.test(w.split("fogText(")[0])),
+            writes.filter(w => /reason\.unchanged/.test(w)).length === 1 && writes.every(w => !/\$\{lastFogReason\}/.test(w)),
+            /\bpassages: Number\(passages\)/.test(carry), [en, pl].map(d => /\{passages\}/.test(d?.DRPG?.Rooms?.renamed ?? "")), [en, pl].map(reasons)]),
+            JSON.stringify([true, true, true, [true, true], [true, true]]),
+            "[every write of the fog's reason localized, the unchanged one once and never on itself, the rename's count holding the passages, both languages' rename naming them, both holding the three reasons]");
+    }],
+    ["R8343 - the fog's standing outline and its floor buttons follow what they show and nothing else (1.2.122 line MAP; scripts/fog.mjs `leadRoomsHere`, `renderFloorSwitcher`, `repaintFog`, `regionsReplaced`; the audit's MAP-33, MAP-34, MAP-35, MAP-36)", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026. MAP-33: on a GM the outline was taken down against every Monokuma's rooms, so with two
+         * GMs' Monokumas one GM's outline stood round a room its own had left; it is taken down against the lead's rooms now
+         * (`leadRoomsHere`, read here with stand-in tokens and a stand-in lead). MAP-34: every repaint rebuilt the floor
+         * buttons, dropping a keyboard focus on one; drawn twice with the same offer they are the same nodes, and a floor
+         * changed rebuilds them (driven on a scene of plain objects; the switcher taken off the page after). MAP-35: the door
+         * controls' polygons were walked above the "unchanged" shortcut on every repaint; they are a getter now, walked when
+         * a door first asks. MAP-36: a room changed through its scene's update ran the repaint alone; it runs the outline's
+         * and the standing's steps of a region's own update too. The last two off the source (tier 1 paints no canvas).
+         */
+        const F = await import("./fog.mjs");
+        must(typeof F.leadRoomsHere === "function" && typeof F.renderFloorSwitcher === "function", "fog.mjs has no leadRoomsHere or renderFloorSwitcher - this would measure nothing");
+        const R = await import("./rooms.mjs");
+        const region = (name, x) => ({ id: `R8343${name}`, name, levels: new Set(), behaviors: [], bounds: { x, y: 0, width: 400, height: 400 },
+            testPoint: p => p.x >= x && p.x <= x + 400 && p.y >= 0 && p.y <= 400, getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined) });
+        const scene = { id: "R8343S", name: "R8343", grid: { size: 100 }, levels: [{ id: "a", name: "Ground", elevation: { bottom: 0 } }, { id: "b", name: "Attic", elevation: { bottom: 10 } }],
+            regions: new Set([region("R8343 Gym", 0), region("R8343 Hall", 500)]) };
+        const tok = (id, x, lead) => ({ id, lead, document: { id, x, y: 100, width: 1, height: 1, elevation: 0, parent: scene } });
+        const mine = tok("own", 100, true), other = tok("other", 600, false);
+        const lead = [...F.leadRoomsHere([mine, other], t => t.lead)];
+        must(document.getElementById("drpg-floors") === null, "a floor switcher stands on the page already - this would measure the page's");
+        let nodes = null;
+        try {
+            F.renderFloorSwitcher(scene, ["a", "b"], "a");
+            const first = [...(document.getElementById("drpg-floors")?.children ?? [])];
+            F.renderFloorSwitcher(scene, ["a", "b"], "a");
+            const again = [...(document.getElementById("drpg-floors")?.children ?? [])];
+            F.renderFloorSwitcher(scene, ["a", "b"], "b");
+            const moved = [...(document.getElementById("drpg-floors")?.children ?? [])];
+            nodes = [first.length, again.every((b, i) => b === first[i]), moved.some((b, i) => b !== first[i]), moved.map(b => b.getAttribute("aria-pressed"))];
+        } finally {
+            document.getElementById("drpg-floors")?.remove();
+        }
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/fog.mjs`).then(lfText));
+        const repaint = fnSource(src, "repaintFog"), replaced = fnSource(src, "regionsReplaced");
+        const fades = [...repaint.matchAll(/if \(roomOutline && !(\w+)\.has\(roomOutline\.room\)\) fadeRoomOutline\(\);/g)].map(m => m[1]);
+        equal(JSON.stringify([lead, nodes, fades, /get rooms\(\)/.test(repaint) && !/rooms: regions\.map/.test(repaint),
+            ["outlineRoomFlag", "outlineReshaped", "whereIStand"].map(id => replaced.includes(`step("${id}"`))]),
+            JSON.stringify([["R8343 Gym"], [2, true, true, ["false", "true"]], ["leadRooms", "leadRooms"], true, [true, true, true]]),
+            "[the lead's rooms, [buttons, the same nodes drawn again, rebuilt for another floor, pressed], the outline's two fades against, the door polygons a getter, the scene update's outline and standing steps]");
+    }],
 ];
 
 /**
