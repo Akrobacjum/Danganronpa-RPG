@@ -67,6 +67,7 @@ import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
 import { warn, error, isPrimaryGm, whisperToGms, esc, listOf } from "./utils.mjs";
 import { drpgWindow, box, tipText } from "./ui-kit.mjs";
+import { keepFresh } from "./live.mjs";
 
 /**
  * @typedef {object} EnforcedRow
@@ -950,6 +951,7 @@ export async function openGiveBackFoundry() {
     const give = { action: "give", label: game.i18n.localize("DRPG.GiveBack.giveBack") };
     const hold = { action: "hold", label: game.i18n.localize("DRPG.GiveBack.holdAgain") };
     const offered = facts.givenBack ? [...(facts.retry && facts.fullGm ? [give] : []), hold] : facts.fullGm ? [give] : [];
+    let stale = false;
     // Two actions and nothing to answer: both secondary, Close the default (E21 rule 3).
     const choice = await drpgWindow({
         title: game.i18n.localize("DRPG.GiveBack.title"),
@@ -957,9 +959,22 @@ export async function openGiveBackFoundry() {
         // On the kit's frame, as wide as its widest table (ui-kit.mjs `fitKitWidth`; utils.mjs `tableDialog` until E21 C2a).
         fit: true,
         body: `<form>${giveBackContent(facts)}</form>`,
+        /* DRAWN AGAIN WHEN ITS FACTS MOVE (1.2.122 line ITEMS; the audit's REFR-51, Give back's part): another GM's Give
+           back or Hold them again left this window offering what was no longer true. The facts are read again on each
+           change of the two settings they read; when they differ, the window closes and opens again on the new ones -
+           its buttons are the facts' own, and it holds nothing typed. */
+        render: (event, dialog) => keepFresh(dialog, {
+            run: () => {
+                if (JSON.stringify(giveBackFacts()) === JSON.stringify(facts)) return;
+                stale = true;
+                void dialog.close();
+            },
+            watch: { settingKeys: [`${MODULE_ID}.${SETTINGS.foundryGivenBack}`, `${MODULE_ID}.${SETTINGS.foundryBefore}`] }
+        }),
         footer: { secondary: offered, close: { role: "close", action: "close" } },
         rejectClose: false
     });
+    if (stale && !choice) return openGiveBackFoundry();
     try {
         if (choice === "give") sayGivenBack(await giveBackFoundry());
         else if (choice === "hold") {

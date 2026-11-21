@@ -24,6 +24,7 @@ import { MODULE_ID, FLAGS, TIMING, LEVEL_UP, moduleVersion } from "./config.mjs"
 import { SETTINGS, getClock, getSetting, setSetting, incidentCast, seasonEpoch, deathRecordFor } from "./settings.mjs";
 import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, localeFormat, listOf } from "./utils.mjs";
 import { emptyOption, drpgWindow, drpgConfirm, box, checkList, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
+import { keepFresh } from "./live.mjs";
 import {
     configureGmStore, openGmStoreEngine, defineGmStore, defineGmCopy, gmStoreByName, gmStoreHandles, gmStoresHydrated, whenGmStoresHydrated, gmStoresIdle,
     gmStoreHydration, gmStoreSkew, gmStoreNow, onGmStoresHydrated, flatToSection, previewSection, mergeSections, writeFields, dropKey, newerStamps, RECORD,
@@ -2352,16 +2353,27 @@ export async function backupCase({ ask = false } = {}) {
         return null;
     }
     if (ask) {
-        const waiting = gmStoreHydration().waiting.map(id => game.users.get(id)?.name ?? id);
-        const early = !gmStoresHydrated() && waiting.length;
+        /* THE EARLY WARNING FOLLOWS THE COPIES (1.2.122 line ITEMS; the audit's REFR-51, the Back up question's part): it
+           was read at the open, so the other GMs' copies arriving meanwhile left "not all copies have arrived" standing
+           over a file that holds them. Read again while the question stands (`followWhileOpen`): the engine's hydration
+           fires no hook of its own. */
+        const earlyHtml = () => {
+            const waiting = gmStoreHydration().waiting.map(id => game.users.get(id)?.name ?? id);
+            return !gmStoresHydrated() && waiting.length
+                ? box("warning", `<p>${esc(game.i18n.format("DRPG.Case.backupEarly", { names: listOf(waiting) }))}</p>`) : "";
+        };
         // The kit's question (E21 C2b): the yes says what it does, Cancel the role's word.
         const yes = await drpgConfirm({
             classes: ["drpg-panel", "drpg-window-backup"],
             yes: { label: game.i18n.localize("DRPG.Case.backupNow") },
             title: game.i18n.localize("DRPG.Case.backupTitle"),
             // The early copy's warning a kit box since E47-C3 (E21's carried warning site, homed in E47).
-            body: `<p>${esc(game.i18n.localize("DRPG.Case.backupWhat"))}</p>${early
-                ? box("warning", `<p>${esc(game.i18n.format("DRPG.Case.backupEarly", { names: listOf(waiting) }))}</p>`) : ""}`,
+            body: `<p>${esc(game.i18n.localize("DRPG.Case.backupWhat"))}</p><div data-drpg-backup-early>${earlyHtml()}</div>`,
+            render: (event, dialog) => followWhileOpen(dialog, root => {
+                const slot = root.querySelector("[data-drpg-backup-early]");
+                const html = earlyHtml();
+                if (slot && slot.innerHTML !== html) slot.innerHTML = html;
+            }),
             rejectClose: false
         });
         if (!yes) return null;
@@ -2969,19 +2981,42 @@ export function healthBody(report, { restorable = false } = {}) {
  * merge: the same two functions the two tiles called, nothing of the engine (gm-store.mjs) touched. The last copy's age
  * a fact row; Close. GM-only, as both are. Answers what the action answered, or null when closed.
  */
+/* A window's facts read again every half second while it stands, for facts that fire no hook (the engine's hydration,
+   case-copy.mjs's memory; 1.2.122, REFR-51). `paint` writes only what changed. Ends when the window leaves the page. */
+const FOLLOW_MS = 500;
+function followWhileOpen(dialog, paint) {
+    const timer = setInterval(() => {
+        const root = dialog?.element;
+        if (!root?.isConnected) return clearInterval(timer);
+        try { paint(root); } catch (err) { clearInterval(timer); error("A case window could not read its facts again", err); }
+    }, FOLLOW_MS);
+}
+
 export async function openCaseWindow() {
     if (!game.user?.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Case.gmOnly"));
         return null;
     }
-    const mark = caseMark();
-    const age = mark.lastBackupAt
-        ? game.i18n.format("DRPG.Case.row.lastBackup", { when: localeFormat("dateTime", mark.lastBackupAt), who: mark.lastBackupBy ?? "" })
-        : game.i18n.localize("DRPG.Case.row.neverBackedUp");
+    const ageText = () => {
+        const mark = caseMark();
+        return mark.lastBackupAt
+            ? game.i18n.format("DRPG.Case.row.lastBackup", { when: localeFormat("dateTime", mark.lastBackupAt), who: mark.lastBackupBy ?? "" })
+            : game.i18n.localize("DRPG.Case.row.neverBackedUp");
+    };
+    const age = ageText();
     /* THE SERVER COPY (E111, 14.11.2026): its state in a second fact row, and "Write the copy now" - a GM's own press,
        which reads the folder first and then writes (case-copy.mjs `writeServerCopy({ explicit: true })`). */
     const copies = await import("./case-copy.mjs");
     const copyLine = copyLineText(copies.copyStatus());
+    /* BOTH LINES FOLLOW (1.2.122 line ITEMS; the audit's REFR-51, the case window's part): another GM's Back up and a
+       copy written or found meanwhile left the lines as the window first read them. Read again while it stands
+       (`followWhileOpen`): the server copy's state is case-copy.mjs's memory, which fires no hook. */
+    const paintCase = root => {
+        for (const [selector, text] of [["[data-drpg-case-age]", ageText()], ["[data-drpg-case-server]", copyLineText(copies.copyStatus())]]) {
+            const line = root.querySelector(selector);
+            if (line && line.textContent !== text) line.textContent = text;
+        }
+    };
     const choice = await drpgWindow({
         help: WINDOW_HELP.theCase,
         title: game.i18n.localize("DRPG.Case.tile"),
@@ -2989,6 +3024,7 @@ export async function openCaseWindow() {
         // The age a fact row in the kit's body ink (components.css `.drpg-briefing-facts`), the health report's own words.
         body: `<p class="drpg-briefing-facts" data-drpg-case-age>${esc(age)}</p>
             <p class="drpg-briefing-facts" data-drpg-case-server>${esc(copyLine)}</p>`,
+        render: (event, dialog) => followWhileOpen(dialog, paintCase),
         footer: {
             primary: { action: "backup", label: game.i18n.localize("DRPG.Case.backup"), tooltip: tipText("DRPG.Tips.Gm.backUpTooltip") },
             secondary: [{ action: "restore", label: game.i18n.localize("DRPG.Case.restoreFromFile"), tooltip: tipText("DRPG.Tips.Gm.restoreFromAFileTooltip") },
@@ -3093,7 +3129,7 @@ export async function openRestoreDialog(text = null) {
         return null;
     }
     const known = Object.entries(preview.stores).filter(([, c]) => !c.unknown);
-    const rows = known.map(([name, c]) => {
+    const rowsOf = entries => entries.map(([name, c]) => {
         const store = storeLabel(name);
         const line = c.record ? game.i18n.format("DRPG.Case.previewRecord", { store })
             : game.i18n.format("DRPG.Case.previewStore", { store, add: c.add, refresh: c.refresh, kept: c.keptNewerHere, cut: c.beforeCut, remove: c.remove });
@@ -3101,13 +3137,29 @@ export async function openRestoreDialog(text = null) {
             c.notThisWorld ? plural("DRPG.Case.previewNotThisWorld", { n: c.notThisWorld }) : ""].filter(Boolean);
         return `<li>${esc([line, ...more].join(" "))}</li>`;
     }).join("");
+    const rows = rowsOf(known);
+    /* THE COUNTS FOLLOW THE STORES (1.2.122 line ITEMS; the audit's REFR-51, the restore preview's part): "adds 3,
+       refreshes 2" was counted against the stores at the open, and another GM's write meanwhile changed what Restore
+       would do. Counted again on every change of a store the file holds a section of; the ticks below the list are
+       not redrawn, so what the GM ticked stays. Which other-world records are offered is read at the open. */
+    const followCounts = dialog => keepFresh(dialog, {
+        run: root => {
+            const list = root.querySelector("[data-drpg-restore-rows]");
+            const now = previewRestore(file);
+            if (!list || now.refused) return;
+            const html = rowsOf(Object.entries(now.stores).filter(([, c]) => !c.unknown));
+            if (list.innerHTML !== html) list.innerHTML = html;
+        },
+        watch: { stores: gmStoreHandles().filter(h => h.spec.backup) }
+    });
     // `tick`, not `box` (E47-C3): the kit's `box` is imported into this file.
     const tick = (name, label) => `<label class="drpg-checkbox"><input type="checkbox" name="${name}" /> ${esc(label)}</label>`;
     const records = known.filter(([, c]) => c.record).map(([name]) => name);
     const answer = await drpgWindow({
         title: game.i18n.localize("DRPG.Case.restoreTitle"),
         classes: ["drpg-panel", "drpg-window-restore-case"],
-        body: `<form><ul>${rows}</ul>
+        render: (event, dialog) => followCounts(dialog),
+        body: `<form><ul data-drpg-restore-rows>${rows}</ul>
             ${preview.otherWorld ? tick("otherWorld", game.i18n.format("DRPG.Case.otherWorld", { title: preview.world?.title ?? preview.world?.id ?? "?" })) : ""}
             ${records.map(name => tick(`record-${name}`, game.i18n.format("DRPG.Case.otherWorldRecord", { store: storeLabel(name) }))).join("")}
             ${tick("beforeCut", game.i18n.localize("DRPG.Case.beforeCut"))}

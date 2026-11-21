@@ -106992,6 +106992,123 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(stableJson(read), stableJson({ gone: true, pickKept: true }), "[the key handed elsewhere left the list] [the pick of another room kept]");
     }],
+    ["1.2.122 REFR-09 (the rest) - Give a Truth Bullet's Remnant list and the Autopsy's rows follow the world while they stand: a trace placed elsewhere joins the list with the pick kept, and a student renamed elsewhere is renamed in the Autopsy with a box the GM unticked kept unticked", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line ITEMS; the rest of the audit's REFR-09 (gm-items.mjs: the Remnant list was read at the
+         * open, and the Autopsy's rows were drawn once). Give a Truth Bullet for a student, on From a Remnant with the
+         * first trace picked; a trace placed on the scene on screen (`placeRemnant`, dropped at the end) must join the
+         * list and the pick stay. Then the Autopsy, with the first living student's box unticked by hand; a second
+         * student renamed (put back) must be drawn under the new name and the first box stay unticked. Red at 21bf5d18:
+         * neither list moved.
+         */
+        needs(env.dialogs(), "the two windows are drawn and their lists read");
+        needs(world.atLeast("remnantTokens", 1), "a trace on a scene for the list's first pick");
+        needs(world.atLeast("sceneOnScreen", 1), "a scene on screen for the trace placed");
+        const GI = await import("./gm-items.mjs");
+        const [who, other] = cast(2);
+        const find = selector => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.element.querySelector(selector));
+        const read = {};
+        let opening = null, placed = null;
+        const wasName = other.name;
+        const NEW = `${wasName} SUITE 1.2.122 REFR-09`;
+        try {
+            opening = Promise.resolve().then(() => GI.giveTruthBulletDialog(who)).catch(() => null);
+            const picker = () => find('form [name="remnant"]')?.element?.querySelector('form [name="remnant"]') ?? null;
+            must(await until(() => picker()?.options?.length, 6000), "Give a Truth Bullet did not open with a Remnant list");
+            const before = picker().options.length;
+            const keep = picker().options[0].value;
+            picker().value = keep;
+            placed = await placedTrace("REFR-09 a trace placed while the window stands");
+            must(placed, "no trace was placed - this would measure nothing");
+            read.joined = Boolean(await until(() => [...(picker()?.options ?? [])].some(o => o.value === placed.id), 3000));
+            read.count = (picker()?.options?.length ?? 0) - before;
+            read.pickKept = picker()?.value === keep;
+            find('form [name="remnant"]')?.close();
+            await Promise.race([opening, wait(3000)]);
+            opening = Promise.resolve().then(() => GI.issueAutopsyDialog()).catch(() => null);
+            // The rows' fieldset by its window's class, which 21bf5d18 drew too (the fieldset's own mark is this line's).
+            const set = () => find(".drpg-window-autopsy, form [name=target]")?.element?.querySelector("form fieldset") ?? null;
+            must(await until(() => set()?.querySelector(`[name=target][value="${who.id}"]`), 6000), "the Autopsy did not open with the student's row");
+            const box = set().querySelector(`[name=target][value="${who.id}"]`);
+            box.checked = !box.checked;
+            box.dispatchEvent(new Event("change", { bubbles: true }));
+            const ticked = box.checked;
+            await other.update({ name: NEW });
+            read.renamed = Boolean(await until(() => set()?.textContent?.includes(NEW), 3000));
+            read.handKept = set()?.querySelector(`[name=target][value="${who.id}"]`)?.checked === ticked;
+        } finally {
+            find(".drpg-window-autopsy, form [name=target]")?.close();
+            find('form [name="remnant"]')?.close();
+            if (opening) await Promise.race([opening, wait(3000)]);
+            if (other.name !== wasName) await other.update({ name: wasName });
+            if (placed) await dropTrace(placed);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ joined: true, count: 1, pickKept: true, renamed: true, handKept: true }),
+            "[the trace placed joined the list] [one row more] [the pick kept] [the Autopsy's row renamed] [the GM's own tick kept]");
+    }],
+    ["1.2.122 REFR-51 (the rest) - the case window's lines, the restore preview's counts and Give back follow the world while they stand: another GM's Back up mark redraws the age line, a trace placed meanwhile has the preview counted and drawn again, and Give back's facts changed elsewhere open it again on the new ones", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line ITEMS; the rest of the audit's REFR-51 (gm-stores.mjs `openCaseWindow`,
+         * `openRestoreDialog`; enforced.mjs `openGiveBackFoundry`: each drew its facts once). The case window open, the
+         * case's mark written as another GM's Back up would (`caseMark`, put back): the age line must name them. The
+         * restore preview open on this world's own case file, a trace placed (dropped at the end): its list must be
+         * counted and drawn again (a mark left in it gone; the numbers themselves need not move). Give back open, the
+         * kept values written elsewhere (`foundryBefore`, put back): the window must close and open again, and its body
+         * differ. Not read here: the Back up question's early warning, which follows
+         * the engine's hydration - a tier-2 run cannot move it. Red at 21bf5d18: none of the three moved.
+         */
+        needs(env.dialogs(), "the three windows are drawn and read");
+        needs(world.atLeast("sceneOnScreen", 1), "a scene on screen for the trace placed");
+        const S = await import("./gm-stores.mjs");
+        const E = await import("./enforced.mjs");
+        const find = cls => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.element.classList.contains(cls));
+        const markWas = foundry.utils.deepClone(getSetting(SETTINGS.caseMark) ?? {});
+        const keptWas = foundry.utils.deepClone(getSetting(SETTINGS.foundryBefore) ?? {});
+        const WHO = "SUITE 1.2.122 REFR-51";
+        const read = {};
+        let opening = null, placed = null;
+        try {
+            opening = Promise.resolve().then(() => S.openCaseWindow()).catch(() => null);
+            must(await until(() => find("drpg-window-case-copy")?.element?.querySelector("[data-drpg-case-age]"), 6000), "the case window did not open");
+            await game.settings.set(MODULE_ID, SETTINGS.caseMark, { ...markWas, lastBackupAt: Date.now(), lastBackupBy: WHO });
+            read.age = Boolean(await until(() => find("drpg-window-case-copy")?.element?.querySelector("[data-drpg-case-age]")?.textContent?.includes(WHO), 3000));
+            find("drpg-window-case-copy")?.close();
+            await Promise.race([opening, wait(3000)]);
+
+            const text = JSON.stringify(await S.caseFileNow());
+            opening = Promise.resolve().then(() => S.openRestoreDialog(text)).catch(() => null);
+            const list = () => find("drpg-window-restore-case")?.element?.querySelector("form ul") ?? null;
+            must(await until(() => list()?.children?.length, 6000), "the restore preview did not open with its counts");
+            /* A row written here after the file counts as "kept newer here" before and after, so the numbers need not move;
+               what is read is that the list was counted and drawn again: a mark left in it is gone once it is. */
+            list().insertAdjacentHTML("beforeend", "<li data-suite-r51></li>");
+            placed = await placedTrace("REFR-51 a trace placed while the preview stands");
+            must(placed, "no trace was placed - this would measure nothing");
+            read.counts = Boolean(await until(() => list() && !list().querySelector("[data-suite-r51]"), 3000));
+            find("drpg-window-restore-case")?.close();
+            await Promise.race([opening, wait(3000)]);
+
+            opening = Promise.resolve().then(() => E.openGiveBackFoundry()).catch(() => null);
+            must(await until(() => find("drpg-window-give-back"), 6000), "Give back did not open");
+            const first = find("drpg-window-give-back");
+            const body = first.element.querySelector("form")?.innerHTML ?? "";
+            await game.settings.set(MODULE_ID, SETTINGS.foundryBefore, keptWas.automation ? {} : { ...keptWas, automation: { suite: true } });
+            const again = await until(() => { const app = find("drpg-window-give-back"); return app && app !== first ? app : null; }, 3000);
+            read.giveBack = Boolean(again) && (again?.element?.querySelector("form")?.innerHTML ?? "") !== body;
+        } finally {
+            for (const cls of ["drpg-window-case-copy", "drpg-window-restore-case", "drpg-window-give-back"]) find(cls)?.close();
+            if (opening) await Promise.race([opening, wait(3000)]);
+            await game.settings.set(MODULE_ID, SETTINGS.caseMark, markWas);
+            await game.settings.set(MODULE_ID, SETTINGS.foundryBefore, keptWas);
+            await settle();
+            find("drpg-window-give-back")?.close();
+            if (placed) await dropTrace(placed);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ age: true, counts: true, giveBack: true }),
+            "[the case window's age line names the other GM's Back up] [the preview counted again] [Give back opened again on its new facts]");
+    }],
     ["1.2.122 STG-28 - a bedroom key granted while the world's document language is not this GM's page's is named and described in the world's language", async () => {
         /*
          * 21.11.2026, 1.2.122 line ITEMS; the code half of the audit's STG-28 (vault-store.mjs `grantBedroomKey`; the
