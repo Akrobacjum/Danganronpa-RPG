@@ -900,6 +900,46 @@ const REGRESSIONS = [
         equal(JSON.stringify(problems.slice(0, 40)), "[]", `the one prefix (${problems.length} problem(s), ${Object.keys(texts).length} file(s), ${names.length} named glyph(s))`);
     }],
 
+    ["R8460 - a UI label the handbooks quote is one the module still draws (1.2.122, STG-27; E57's plan T10, never built): every row of docs/dev/e57/LABELS.md - a bold or italic span of a handbook that was a whole lang value - whose span still stands in that handbook, so marked, is a value of that language's lang file today; two spans that are the register's states, not labels, are named and let through", async () => {
+        /*
+         * 1.2.122 line STG, 21.11.2026. The audit's E57-1 read 25 distinct spans (33 rows) the handbooks still quoted under
+         * words no key of their language held any more - **Add pool** for "Grant pool", *I'll pass (nothing spent)* for
+         * "Pass", **Takes part** for "In the hall" - and nothing compared a quoted label with its key: every handbook test
+         * and `check text` were green. LABELS.md is E57's table (3053 rows); a span that some other key still holds is
+         * not drift (the listed key may have gone while the words stayed). Red at 5813f569: the 25.
+         */
+        needs(env.tools(), "docs/dev is read from the repository (an installed module's zip leaves it out, as it leaves tools/)");
+        const get = async path => { try { const r = await fetch(`/modules/${MODULE_ID}/${path}`, { cache: "no-cache" }); return r.ok ? await lfText(r) : ""; } catch { return ""; } };
+        const table = await get("docs/dev/e57/LABELS.md");
+        must(table.includes("| Handbook | Line | Label | Key(s) |"), "docs/dev/e57/LABELS.md did not load - this test would read nothing");
+        const values = {};
+        for (const lang of ["en", "pl"]) {
+            const out = new Set();
+            const walk = o => { if (typeof o === "string") out.add(o); else if (o && typeof o === "object") Object.values(o).forEach(walk); };
+            walk(JSON.parse(await get(`lang/${lang}.json`) || "{}"));
+            values[lang] = out;
+        }
+        /* The register's row states (diagnosePatches: ok, failed, unknown) are written in italics and once equalled
+           DRPG.Cleanup.miss; they are states, not a label of that key. */
+        const NOT_LABELS = new Set(["en failed", "pl nieudane"]);
+        const books = new Map(), stale = new Set();
+        let rows = 0;
+        for (const line of bodyOf(table, "| Handbook | Line | Label | Key(s) |", { until: "\n## " }).split("\n")) {
+            const m = line.match(/^\| ([a-z-]+)\.(en|pl) \| \d+ \| (.*?) \| `/);
+            if (!m) continue;
+            rows++;
+            const [, book, lang, label] = m;
+            if (values[lang].has(label) || NOT_LABELS.has(`${lang} ${label}`)) continue;
+            const name = `${book}.${lang}`;
+            if (!books.has(name)) books.set(name, await get(`docs/handbooks/${name}.md`));
+            const text = books.get(name);
+            const esc = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            if (text.includes(`**${label}**`) || new RegExp(`(?<![*\\w])\\*${esc}\\*(?![*\\w])`).test(text)) stale.add(`${name}: ${label}`);
+        }
+        must(rows > 3000, `LABELS.md gave ${rows} rows - this test would read nothing`);
+        equal(JSON.stringify([...stale].sort()), "[]", "the handbooks quote these labels under words no key of their language holds");
+    }],
+
     ["R1313 - CONTRIBUTING.md's \"The CSS contract\" names each detector of the CSS lint (importantCount, colourLiterals, strayCommentEnds, duplicateRules, deadClasses), the floor (21 px scaled under Stained Glass; under Monokuma Legacy 11 px for `--drpg-text-xs` and the rungs 11 to 14, a rung under it at its own size - never the old \"10 px per rung\", UI-36), the 390 px rule and the three commands - node tools/check.mjs css, node tools/check.mjs contrast, node audit/style-sweep.mjs (E44 C1c; E44-04)", async () => {
         /*
          * E44 C1c, 04.11.2026 (audit S17-35: no CSS contract). The section is what a contributor reads before

@@ -1,5 +1,5 @@
 {
-  "about": "Every leak of a secret to a player's browser that a harness run has reproduced: what it is, which stage closes it, and where the harness sees it. A leak the audit lists that no run has reproduced is not here. Read by cluster.mjs (the check option knownLeak) and lib/canary.mjs (a hit an entry's match rules describe is that leak) and validated by node tools/check.mjs registry. An entry that stops reproducing fails its check, and so does an entry whose closing stage has shipped. D27: the killer's identity, the answer key, plans, GM notes, and anything critical or high may not be deferred; a metadata leak of medium or lower may be, as deferred: \"1.3.x (D27)\", described in README.md. From 1.3.0 only foundryLimit and deferred entries remain.",
+  "about": "Every leak of a secret to a player's browser that a harness run has reproduced: what it is, which stage closes it, and where the harness sees it. A leak the audit lists that no run has reproduced is not here. Read by cluster.mjs (the check option knownLeak) and lib/canary.mjs (a hit an entry's match rules describe is that leak) and validated by node tools/check.mjs registry. An entry that stops reproducing fails its check, and so does an entry whose closing stage has shipped. D27: the killer's identity, the answer key, plans, GM notes, and anything critical or high may not be deferred; a metadata leak of medium or lower may be, as deferred: \"1.3.x (D27)\", described in README.md. A leak that gives the killer's identity may stand only as a foundryLimit, filed under the class killer-identity with its severity, never as metadata (DOC-02, 21.11.2026). From 1.3.0 only foundryLimit and deferred entries remain.",
   "schema": 1,
   "leaks": [
     {
@@ -124,8 +124,9 @@
     {
       "id": "foundry-masked-token-actor",
       "findings": ["A113-C5-2"],
-      "class": "metadata",
-      "severity": "info",
+      "class": "killer-identity",
+      "severity": "high",
+      "classNote": "Filed as metadata of severity info until 21.11.2026 (DOC-02): it resolves the \"?\" to the killer's name, so it is the killer's identity, a Foundry limit the module cannot close. The audit's reader of 1.2.118 records the owner's yes to this reading on 14.11.2026; this checkout holds no copy of that answer.",
       "what": "A killer behind a \"?\" after a murder's opening keeps their token document's actorId, so a player's browser console resolves the \"?\" to the killer's actor and name; the token's name, picture and flags, the cast copies and the module's packets name nobody, and nothing in the interface does.",
       "foundryLimit": "Foundry v14 sends every Token document to every connected client, and a token's actorId is what makes it that character's token: the module cannot point it at another actor without breaking the killer's own moves, sheet and rolls.",
       "detectedBy": [{"scenario": "30-security", "check": "a masked token's actor is read from a player's console - on p2 and p3 the \"?\" token's actorId resolves to the killer's name"}],
@@ -135,13 +136,25 @@
     {
       "id": "foundry-veiled-token-actor",
       "findings": ["A113-C5-2", "LIVE-E112-01"],
-      "class": "metadata",
-      "severity": "info",
+      "class": "killer-identity",
+      "severity": "high",
+      "classNote": "Filed as metadata of severity info until 21.11.2026 (DOC-02): it resolves the veiled tokens to the opening's killer, so it is the killer's identity. No owner's answer accepting it as a Foundry limit was found (nor by the audit's DOC-02); asked of the owner through the coordinator, 1.2.122.",
       "what": "While a direct murder's opening waits, the killer's tokens (and a third's on the killers' side) carry the veil's flag on every scene, so a player's browser console lists the flagged character tokens and resolves them by actorId to the opening's killer; since E112v the veil writes no Foundry hidden, so no character token turns hidden for it. The module's interface shows nothing - its voice tile neither counts nor names the killer for a player the veil hides them from since 1.2.119 (voice-tile.mjs personOf, R7864); what avclient-livekit's own window shows is LIVE-F119-03 - and the GMs' store of the veil does not reach a player.",
       "foundryLimit": "Foundry v14 sends every Token document to every connected client, with its flags and its actorId, and the veil is the module's per-browser hiding: every browser that must not draw the killer's token has to be told which token it is, so what it reads a console reads (in the token's flags, a player's own cast copy or a packet alike; docs/dev/e112v/DESIGN.md section 3), and the killer's own browser reads the same flag to hold its microphone.",
       "detectedBy": [{"scenario": "21-masked-killer", "check": "a veiled token's actor is read from a player's console - on p1 and p2 the tokens carrying the veil's flag resolve to the opening's killer"}],
       "readme": "leak:foundry-veiled-token-actor",
       "measuredAt": "E112, 16.11.2026, on ed57d862: p1 (the victim) and p2 (a bystander) each listed one token with flags.danganronpa-rpg.veiled and one hidden character token, both resolving to 'Chie Mori'. Again at E112v, 16.11.2026, on dd9a56ed (road (b)): in 21-masked-killer, phase 'road', while Chie's opening waited, p1 and p2 each listed one token with flags.danganronpa-rpg.veiled resolving to 'Chie Mori' and no hidden character token (the check 'road: no character token turns hidden for the veil' green); the veil store held 0 rows on p1 and p2 and 1 on the GM. A third on the killers' side was not in this scenario (its tokens take the same patch, mask-gm.mjs veilPatch)"
+    },
+    {
+      "id": "foundry-barricade-flag",
+      "findings": ["DA47", "STG-38"],
+      "class": "metadata",
+      "severity": "low",
+      "what": "A barricaded room carries one region flag (movement.mjs ROOM_FLAGS.barricaded, drpgBarricaded) that every browser holds, so a player's console reads which rooms are barricaded. Who put the barricade up and how strong it is stay in the GMs' store barricades. Public on purpose: the owner's DA47.",
+      "foundryLimit": "Foundry v14 sends every Scene's regions with their flags to every connected client, and the walker's own browser has to read the barricade to refuse a walk in through its door (movement.mjs roomBarricaded, barricadedFrom); the owner chose the public flag for that (DA47, E74).",
+      "detectedBy": [{"scenario": "33-bridge-paths", "check": "E74-A2: a barricaded room is read from a player's console - p2's browser reads the room's barricade flag while the barricade stands"}],
+      "readme": "leak:foundry-barricade-flag",
+      "measuredAt": "1.2.122 line STG, 21.11.2026, on a16477c6 with these edits: scenario 33 E74-A, p2 read the barricade flag (movement.mjs roomBarricaded) true for Aiko's barricade of Dorm A at strength 12, the GMs' row [\"Dorm A\", 12]"
     }
   ]
 }

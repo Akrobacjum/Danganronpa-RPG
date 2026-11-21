@@ -89032,6 +89032,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const clockBefore = foundry.utils.deepClone(getClock());
         const storedRecord = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
         const activeBefore = game.scenes.active ?? null;
+        /* THE SCENE ON VIEW PUT BACK (1.2.122, DOC-07). On the owner's sandbox (claude/e58-local LOCAL-REPORT.md, 17-18.11.2026)
+           this test left the GM viewing the new hall it deleted ("state:viewedScene SCENEACADEMY0000 -> <the hall>", or null),
+           and 17, then 49, tests after it skipped for want of a scene on screen: a real v14 moves a GM's canvas with the
+           active scene, which the harness's does not, so the leftover was never read headless. */
+        const viewedBefore = canvas?.scene ?? null;
         const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
         must(!of("drpg-window-season").length, "Season setup stands open already");
         must(!clockBefore.eclipse, "an Eclipse holds the trial shut");
@@ -89082,6 +89087,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await game.settings.set(MODULE_ID, "sceneRoles", rolesBefore);
             R.forgetSceneRoles();
             if (activeBefore && !activeBefore.active) await activeBefore.activate();
+            if (viewedBefore && canvas?.scene?.id !== viewedBefore.id && game.scenes.get(viewedBefore.id)) await viewedBefore.view();
             await oldHall?.delete();
             await newHall?.delete();
             await settle();

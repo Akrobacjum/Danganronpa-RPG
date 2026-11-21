@@ -1,6 +1,6 @@
 # Danganronpa RPG - Ulotka ucznia
 
-*Jedna strona. Moduł 1.2.120 na Daggerheart.*
+*Krótka lektura przed pierwszą sesją, około sześciu wydrukowanych stron. Moduł 1.2.120 na Daggerheart.*
 
 **Jesteś** Ultimate: to ta jedna rzecz, którą twoja postać robi najlepiej, wpisana na arkuszu pod jej imieniem. Twoje sześć statystyk to Leg, Body, Hand, Eye, Shadow i Head.
 

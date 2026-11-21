@@ -162,6 +162,6 @@ the last). A stage adds its LIVE rows there before its train ships; the release 
 - Anything the local gate would see: it has not run (section 9, step 4).
 - What a skipped check would have let through: no step's counterfactual is measured; the defect classes and the
   overlaps above are judged, and the races were reasoned or reproduced headless, not seen at a table.
-- What the stages' own reviews missed: the owner's plan puts a final audit pass before 1.3.0 (E83, not yet a row of
-  `tools/stages.json`) - every stage from E01 re-reviewed by the audit's method in a separate run, its findings fixed
+- What the stages' own reviews missed: the owner's plan puts a final audit pass before 1.3.0 (E83, a row of
+  `tools/stages.json` since 1.2.95, planned 1.2.123 with E58 as read on 21.11.2026; this said "not yet a row" until then) - every stage from E01 re-reviewed by the audit's method in a separate run, its findings fixed
   in one pass, then E26 ships 1.3.0. Until it has run, a stage verified only by this method is verified only by it.

@@ -78,8 +78,8 @@ None named after E38: this line stops here. Not built of the plan is listed abov
 
 ## Live-only parts (not run: no v14 server)
 
-Each is an item of `audit/AUDIT-1.2.42.md` 9.2, in Polish, with its drill. The items' numbers 508-511 follow 507 on
-main at 1.2.111 (renumbered at the merge of 984d1fb1); a merge with another line's items may have to renumber them.
+Each is an item of `audit/AUDIT-1.2.42.md` 9.2, in Polish, with its drill: items 519-522 (read 21.11.2026, STG-81; this
+paragraph named 508-511 until then).
 
 - LIVE-E38-01 (item 519): the primary GM's F5 during a player's drawn roll ends in one `rolls` record or a message.
 - LIVE-E38-02 (item 520): a room switch while a second GM edits Room Setup loses none of their changes.

@@ -2111,6 +2111,12 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         typeof e74a.p1?.room === "string" && e74a.p1.room !== "" && e74a.p1?.actions === 2
             && JSON.stringify(e74a.row) === JSON.stringify([e74a.p1.room, e74a.p1.total]) && e74a.p2 === true && e74a.logged.length === 0,
         JSON.stringify(e74a), { flow: "door-shut" });
+    /* THE BARRICADE'S FLAG IS PUBLIC (DA47; 1.2.122, STG-38): the room's flag that the walker's own browser reads to refuse a
+       walk in is world data, so a console reads which rooms are barricaded - never by whom or how strongly, which stay in the
+       GMs' store. Red on purpose, a Foundry limit (known-leaks.json foundry-barricade-flag). */
+    check("E74-A2: a barricaded room is read from a player's console - p2's browser reads the room's barricade flag while the barricade stands",
+        e74a.p2 !== true, JSON.stringify({ p2: e74a.p2, room: e74a.p1?.room ?? null }),
+        { knownLeak: "foundry-barricade-flag", measured: typeof e74a.p1?.room === "string" && e74a.p1.room !== "" && e74a.row !== null, flow: "door-shut" });
 
     /* E74-B. A WALK REFUSED AT A BARRICADE, FROM p1'S OWN PAGE (E74, 12.11.2026). The legal control of `door.knock`: Dorm A
        and Dorm B are made neighbours (Room Setup's word), Botan stands in Dorm B behind a barricade of his own (the GMs'

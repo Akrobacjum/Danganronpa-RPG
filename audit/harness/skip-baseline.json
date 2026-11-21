@@ -1,6 +1,6 @@
 {
   "$comment": "Every suite test the headless harness cannot answer, with the probe that says why (needs() in scripts/tests-kit.mjs). 01-runtests fails on a skip not listed here (something stopped being answerable) and on a listed one that now answers (keep the list exact, and say in the commit why it moved). env.* only: the harness builds its own world, so a world.* skip there is a fixture defect, and 01-runtests refuses it whatever this file says.",
-  "measured": "01-runtests on the E05 branch at C13, 27.09.2026, module 1.2.63: 17 skipped, env.layout 8, env.cascade 3, env.systemSheets 2, env.canvas 2, env.fonts 1, env.webAnimations 1",
+  "measured": "The list below holds 27 skips (counted 21.11.2026 on 21bf5d18, 1.2.121: env.layout 16, env.cascade 4, env.canvas 3, env.systemSheets 2, env.fonts 1, env.webAnimations 1), and 01-runtests holds each run of the whole suite to it by name and probe. This sentence read 17 until then: the first reading, 01-runtests on the E05 branch at C13, 27.09.2026, module 1.2.63 (env.layout 8, env.cascade 3, env.systemSheets 2, env.canvas 2, env.fonts 1, env.webAnimations 1); DOC-19.",
   "skips": [
     { "test": "R12 - every standing window fits the screen Foundry calls a minimum", "probe": "env.layout" },
     { "test": "R111 - the book in the corner opens the handbooks", "probe": "env.layout" },
