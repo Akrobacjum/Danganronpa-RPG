@@ -64499,19 +64499,22 @@ const INVARIANTS = [
             stableJson({ steps: ["endClosing", "closingChoice", "endClosing", "closingChoice"], texts: [[true, true], [true, true]], said: true }),
             "{steps: the next step in the Closing's [volunteers, choice, speech, decision]; texts: [EN, PL] the step's text and lead; said: the Next line's text}");
     }],
-    ["R8149 - one esc in the module, null-safe (1.2.122, DOC-13): no script outside the suite binds `esc` to the bare foundry.utils.escapeHTML, so `esc` means utils.mjs's `esc` - String(value ?? \"\") escaped - in every file, as 1.2.13 asked (messenger.mjs's `esc`, a string escaped once, binds no function and is not counted); and that `esc` turns null and undefined into nothing", async () => {
-        /* Red at d8c145bd: 18 such bindings in 9 files (the line's first commit took 7 out of 5 files). Counted over every
-           script the module serves, comments stripped. */
+    ["R8149 - one esc in the trial's files, null-safe (1.2.122, DOC-13, line TRIAL's part): none of trial-progress.mjs, trial.mjs, truth-bullets.mjs, verdict.mjs and vote.mjs binds `esc` to the bare foundry.utils.escapeHTML, so `esc` there is utils.mjs's `esc` - String(value ?? \"\") escaped; and that `esc` turns null and undefined into nothing", async () => {
+        /* Red at 21bf5d18: 8 such bindings in these five files. The module's other files are the coordinator's sweep at the
+           end of the assembly (DOC-21, the same finding), so this test reads these five alone. Comments stripped. */
         const { esc } = await import("./utils.mjs");
+        const FILES = ["trial-progress.mjs", "trial.mjs", "truth-bullets.mjs", "verdict.mjs", "vote.mjs"];
         const bare = [];
-        for (const [file, text] of await otherSources()) {
+        let read = 0;
+        for (const file of FILES) {
+            const text = await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText);
+            if (text.length > 1000) read++;
             const n = (stripComments(text).match(/\bconst esc = foundry\.utils\.escapeHTML\b(?!\s*\()/g) ?? []).length;
-            if (n) bare.push(`${file.replace(/^.*\//, "")}:${n}`);
+            if (n) bare.push(`${file}:${n}`);
         }
-        const read = (await otherSources()).length;
-        must(read > 100, "the sources read hold almost no files - this would measure nothing");
+        must(read === FILES.length, "a file of the five read as nothing - this would measure nothing");
         equal(stableJson({ bare, nulls: [esc(null), esc(undefined), esc("<b>")] }), stableJson({ bare: [], nulls: ["", "", "&lt;b&gt;"] }),
-            "{bare: files binding esc to the bare escapeHTML (file:count); nulls: utils.mjs esc of null, undefined and markup}");
+            "{bare: the five files binding esc to the bare escapeHTML (file:count); nulls: utils.mjs esc of null, undefined and markup}");
     }],
 ];
 

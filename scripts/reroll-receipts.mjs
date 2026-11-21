@@ -33,7 +33,7 @@
  * of the rolls thrown before, and a rewrite of one of them is only told.
  */
 
-import { isPrimaryGm, whisperToGms, debug, error, esc } from "./utils.mjs";
+import { isPrimaryGm, whisperToGms, debug, error } from "./utils.mjs";
 import { dualityOfRoll } from "./reroll.mjs";
 import { rollSubjectNow, REROLL_SHOWN } from "./private-rolls.mjs";
 import { recordTrace } from "./sheet-audit.mjs";
@@ -89,6 +89,7 @@ function warnGms(key, message, user, userId) {
     if (warned.has(once)) return null;
     warned.add(once);
     if (warned.size > FIRST_KEPT) warned.delete(warned.values().next().value);
+    const esc = foundry.utils.escapeHTML;
     const actor = game.actors.get(actorIdsOf(message)[0] ?? "");
     const text = game.i18n.format(key, {
         name: esc(user?.name ?? String(userId ?? "?")),

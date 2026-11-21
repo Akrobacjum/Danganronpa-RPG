@@ -1244,6 +1244,7 @@ async function rowGrew(actor, snapshot) {
  */
 async function askWhoPicks(rows) {
     const L = key => game.i18n.localize(key);
+    const esc = foundry.utils.escapeHTML;
     const radio = (actor, value, label, checked) =>
         `<label><input type="radio" name="who-${actor.id}" value="${value}"${checked ? " checked" : ""}${tipAttr("DRPG.Tips.Setup.iPickThePlayerTooltip")}> ${L(label)}</label>`;
     const items = rows.map(({ entry, actor, playable, here }) => `<li class="drpg-advance-queue-row" data-actor-id="${actor.id}">

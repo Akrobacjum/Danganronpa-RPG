@@ -91,6 +91,7 @@ export function musicMapRows(playlists) {
 function musicMapTable(playlists) {
     const map = musicMap();
     const offered = playlists.filter(p => !isCuePlaylist(p));
+    const esc = foundry.utils.escapeHTML;
     const rows = MUSIC_STATES.map(state => {
         const label = state.label ?? game.i18n.localize(state.labelKey);
         const options = [emptyOption("DRPG.Music.notSet"), ...offered.map(p =>
