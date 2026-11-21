@@ -106764,11 +106764,17 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await O.setOverflowRules({ threshold: x2 });
             await settle();
             const cardsBefore = game.messages.contents.filter(m => !had.has(m.id)).length;
+            /* One row changed here, so the Save writes the division (and would drop the other GM's row if it wrote the map
+               drawn at the open, the audit's REFR-07): another student's select set to this pool. */
+            const mine = A.students().find(a => a.id !== student.id && !Object.hasOwn(mapWas, a.id)) ?? null;
+            const select = mine ? app().element.querySelector(`[name="assign.${CSS.escape(mine.id)}"]`) : null;
+            if (select) { select.value = me.id; select.dispatchEvent(new Event("change", { bubbles: true })); }
+            read.ownRow = Boolean(select);
             app().element.querySelector('footer button[data-action="save"]')?.click();
             await Promise.race([opening, wait(4000)]); opening = null;
             await settle();
             read.name = D.poolLabel(me) === "Suite122 pool";
-            read.assignment = A.assignments()[student.id] === me.id;
+            read.assignment = A.assignments()[student.id] === me.id && (!mine || A.assignments()[mine.id] === me.id);
             read.threshold = O.overflowRules().threshold === x2;
             read.noCard = game.messages.contents.filter(m => !had.has(m.id)).length === cardsBefore;
 
@@ -106792,8 +106798,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
             await settle();
         }
-        equal(stableJson(read), stableJson({ asked: true, assignment: true, cancelKeeps: true, name: true, noCard: true, threshold: true }),
-            "[Split evenly asks] [the other GM's assignment kept] [Cancel on the question writes nothing] [the other GM's pool name kept] [no rules card from the Save] [the other GM's threshold kept]");
+        equal(stableJson(read), stableJson({ asked: true, assignment: true, cancelKeeps: true, name: true, noCard: true, ownRow: true, threshold: true }),
+            "[Split evenly asks] [the other GM's assignment kept, and the row changed here written] [Cancel on the question writes nothing] [the other GM's pool name kept] [no rules card from the Save] [a second unassigned student to change here] [the other GM's threshold kept]");
     }],
     ["1.2.122 REFR-32 - the Project manager follows the projects while it stands (a project made elsewhere gets its row, a room moved elsewhere moves its select, a tick made here is carried), ticking Secret unlocks the row's player ticks (REFR-62), and the project window's Save writes only what it changed (REFR-35) and says a project deleted meanwhile is gone (CTRL-74)", async () => {
         /*
