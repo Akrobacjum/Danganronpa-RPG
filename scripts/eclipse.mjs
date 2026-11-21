@@ -51,7 +51,8 @@ export { ECLIPSE_MOVES };
  * That naming is not cosmetic - it is what decides the allowance. The ones in
  * ECLIPSE_FREE_PLACEMENT (Night, today) let you start anywhere on the map - unless
  * the darkening has pulled that back to two crossings (`freeBecomes` in the
- * overflow table); the other three are the handbook's two connected rooms.
+ * overflow table); the other four (one Eclipse leads into each of the five times
+ * of day, config.mjs TIMES_OF_DAY) are the handbook's two connected rooms.
  * ========================================================================== */
 
 /** "Morning Eclipse", "Night Eclipse" - what this placement window is called. */

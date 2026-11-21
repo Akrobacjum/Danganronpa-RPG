@@ -5,9 +5,10 @@
  * a maximum of 12 per GM."
  *
  * Daggerheart only models a single shared Fear pool, so this replaces its
- * tracker with one row per full Gamemaster. Assistant GMs are deliberately
- * excluded: they are helpers, not Monokumas, and the guide gives Despair only
- * to the two people running the killing game.
+ * tracker with one row per full Gamemaster. An Assistant GM has none unless a
+ * GM grants one (`addPool`, the world's extra pools): `monokumas()` takes every
+ * full Gamemaster and those Assistants alone, since the guide gives Despair to
+ * the people running the killing game.
  *
  * Pools are on every screen with their counts public (D3); what a player's copy
  * masks is the overflow's caption. The spend itself is announced with the Call,
@@ -1085,7 +1086,7 @@ export function renderDespairBar() {
         wrapper.id = WIDGET_ID;
         wrapper.classList.toggle("single", gms.length === 1);
         wrapper.classList.toggle("gm-editable", game.user.isGM);
-        // `masked` used to hide the pips from a player; the count is public since D3 - see `buildRow`.
+        // `masked` used to hide the pips from a player; the count is public since D3 - see `despairRowOf`.
         wrapper.classList.remove("masked");
 
         /*
@@ -1392,7 +1393,7 @@ function stepper(icon, handler, disabled, ghost = false, label = "", tip = "") {
         button.setAttribute("aria-label", label);
     }
 
-    // A shape, not a control. See `buildRow`.
+    // A shape, not a control. See `despairRowOf`.
     if (ghost) {
         button.tabIndex = -1;
         button.setAttribute("aria-hidden", "true");

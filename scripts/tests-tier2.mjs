@@ -62258,6 +62258,77 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ opened: true, left: [], came: true, closed: null, paid: 0 }),
             "{the list at the opening names the one student there; after that student left; after the third came in; what closing the window answers; the actions it cost}");
     }],
+    ["1.2.122 REFR-52 - Level Up's picker follows the sheet while it stands: a statistic's value written meanwhile is shown at its new value, the statistic picked stays picked, and an experience added meanwhile is offered (scripts/level-up.mjs `wireForm`; the audit's REFR-52, 1.2.122 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP. The audit's REFR-52 (row 45, "Level Up, the player's pick"): each pick's detail was
+         * read once, when its option was drawn. The GM's own picker drawn on this GM (`__dialogWindows`) for a student of the
+         * cast; its one pick set to a statistic and the second statistic picked; then that statistic's value written +1 on the
+         * sheet, and the option changed to "+1 to an experience" and an experience added. Read: the picked statistic's option
+         * words before and after, whether it is still the one picked, and whether the new experience is offered. The player's
+         * half - the offer gone said above the picks, Apply sending nothing - is read off the source: no headless player draws
+         * the picker here. Put back: the window, the statistic, the experience. Red at 3b0f9b61: the old value stood.
+         */
+        needs(env.dialogs(), "the picker is drawn and read");
+        const L = await import("./level-up.mjs");
+        const { TRAITS } = await import("./config.mjs");
+        const [student] = cast(1);
+        const dhs = Object.values(TRAITS).map(t => t.dh);
+        const dh = dhs[1];
+        must(dh, "fewer than two statistics - this would measure nothing");
+        const valueWas = foundry.utils.getProperty(student, `system.traits.${dh}.value`) ?? 0;
+        const expsWas = foundry.utils.deepClone(student.system.experiences ?? {});
+        const el = () => [...(foundry.applications.instances?.values?.() ?? [])].map(a => (a.element instanceof HTMLElement ? a.element : a.element?.[0]))
+            .find(e => e?.isConnected && e.classList?.contains("drpg-advance")) ?? null;
+        const traitOption = () => el()?.querySelector(`select[name="pick.0.trait"] option[value="${dh}"]`)?.textContent ?? "";
+        const sign = v => (v > 0 ? `+${v}` : `${v}`);
+        const read = {};
+        let opening = null;
+        try {
+            opening = L.openAdvancement(student, "standard");
+            await until(() => el(), 3000);
+            const option = el()?.querySelector('select[data-pick="0"]');
+            must(option, "the picker drew no pick - this would measure nothing");
+            option.value = "trait";
+            option.dispatchEvent(new Event("change", { bubbles: true }));
+            await settle();
+            const trait = el()?.querySelector('select[name="pick.0.trait"]');
+            must(trait, "the statistic's select was not drawn - this would measure nothing");
+            trait.value = dh;
+            trait.dispatchEvent(new Event("change", { bubbles: true }));
+            read.before = traitOption().includes(`(${sign(valueWas)})`);
+            await student.update({ [`system.traits.${dh}.value`]: valueWas + 1 });
+            await settle();
+            await until(() => traitOption().includes(`(${sign(valueWas + 1)})`), 1500);
+            read.after = traitOption().includes(`(${sign(valueWas + 1)})`);
+            read.kept = el()?.querySelector('select[name="pick.0.trait"]')?.value === dh;
+            option.value = "experienceUp";
+            option.dispatchEvent(new Event("change", { bubbles: true }));
+            await settle();
+            const id = "suiteR52exp";
+            await student.update({ [`system.experiences.${id}`]: { name: "SUITE REFR-52", value: 2 } });
+            await settle();
+            await until(() => el()?.querySelector(`select[name="pick.0.experience"] option[value="${id}"]`), 1500);
+            read.added = Boolean(el()?.querySelector(`select[name="pick.0.experience"] option[value="${id}"]`));
+        } finally {
+            for (const app of [...(foundry.applications.instances?.values?.() ?? [])]) {
+                const e = app.element instanceof HTMLElement ? app.element : app.element?.[0];
+                if (e?.classList?.contains("drpg-advance")) await app.close().catch(() => {});
+            }
+            await opening?.catch?.(() => null);
+            const gone = Object.keys(student.system.experiences ?? {}).filter(k => !Object.hasOwn(expsWas, k));
+            const { forcedDeletion } = await import("./utils.mjs");
+            const del = forcedDeletion?.();
+            const unset = Object.fromEntries(gone.map(k => [`system.experiences.${k}`, del]));
+            // The experience added is deleted with v14's ForcedDeletion (utils.mjs `forcedDeletion`; CLAUDE.md).
+            await student.update({ [`system.traits.${dh}.value`]: valueWas, ...(del ? unset : {}) });
+            await settle();
+        }
+        const src = stripComments((await moduleSources()).get("level-up.mjs") ?? "");
+        read.player = [/keepLive\(dialog, \{ region: "\.drpg-advance-gone", build: goneHtml, watch: \{ stores: \[offerCopy, offerStore\] \} \}\)/.test(src),
+            /if \(asPlayer && !standingOffers\(actor\)\.some\(o => o\.id === offer\.id\)\) \{/.test(src)];
+        equal(stableJson(read), stableJson({ before: true, after: true, kept: true, added: true, player: [true, true] }),
+            "{the statistic's words at its value; at the value written meanwhile; still the one picked; the experience added meanwhile offered; the player's half off the source [the offer gone said above the picks, Apply sends nothing]}");
+    }],
     ["1.2.122 CTRL-21 - Level Up's menu follows the offers while it stands: an offer taken off the store takes its Take back row with it, a new one adds its row, and the confirm says the row checked (scripts/level-up.mjs `openAdvancementFor`; action-menus.mjs `chooseVariant`'s `live`; the audit's CTRL-21, 1.2.122 line DESP)", async () => {
         /*
          * 21.11.2026, 1.2.122 line DESP. The audit's CTRL-21: the menu listed the standing offers as they were at the open;

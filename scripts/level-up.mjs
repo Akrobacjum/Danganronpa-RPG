@@ -7,9 +7,11 @@
  *   Reinforced  - a Blackened who survived a wrong vote picks THREE - with the
  *                 class's next Standard, or at the Final Trial (E05 C11).
  *
- * Options (repeatable - picking "+1 max Health" three times means +3):
- *   +1 max Health · +1 max Sanity · +1 to a trait · +1 to an experience ·
- *   a new experience at +2
+ * Options (repeatable - a Reinforced's three picks may be the same one): LEVEL_UP_OPTIONS
+ * in config.mjs since E64 C6 (DA39) - +1 to a statistic (`trait`), +1 to an experience
+ * (`experienceUp`), a new experience at STARTING.experienceValue, +2 (`experienceNew`).
+ * A point in Head raises Sanity's maximum by 1, in Body or Leg Health's
+ * (LEVEL_UP_TRAIT_RESOURCES); no pick raises a maximum by itself.
  */
 
 import { MODULE_ID, FLAGS, LEVEL_UP, LEVEL_UP_OPTIONS, LEVEL_UP_TRAIT_RESOURCES, TRAITS, STARTING, TRIAL } from "./config.mjs";
@@ -18,6 +20,7 @@ import { log, error, isPrimaryGm, ownerIdsOf, plural, proseOf, esc } from "./uti
 import { offerStore, offerCopy, deferredOfferStore } from "./gm-stores.mjs";
 import { gmStoresQuiet } from "./gm-store.mjs";
 import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
+import { keepLive } from "./live.mjs";
 
 
 
@@ -645,11 +648,17 @@ export async function openAdvancement(actor, kind = "standard", { extraPicks = 0
             },
             close: { role: "cancel", action: "cancel", callback: () => "cancel" }
         },
-        render: (event, dialog) => wireForm(dialog, picks, actor, experiences),
+        render: (event, dialog) => wireForm(dialog, picks, actor, asPlayer ? offer : null),
         rejectClose: false
     });
 
     if (!result || result === "cancel") return null;
+    // A player's offer taken back or spent while the window stood: said here, nothing sent (REFR-52; the primary
+    // refuses such picks too, `requestAdvancement`'s run).
+    if (asPlayer && !standingOffers(actor).some(o => o.id === offer.id)) {
+        ui.notifications.warn(game.i18n.format("DRPG.Advance.takeBackGone", { name: actor.name }));
+        return null;
+    }
 
     /* AN EXPERIENCE TO RAISE THAT IS NOT THERE is refused HERE, on the screen of the person who
        picked it (E10 C8, 1.2.71; audit S03-22), a GM's as well as a player's. The window warned that
@@ -756,9 +765,19 @@ export function traitRaisesNote(dh) {
         .filter(Boolean).join(", ");
 }
 
-/** Swap the detail control whenever a pick's option changes. */
-function wireForm(dialog, picks, actor, experiences) {
+/*
+ * THE PICKER FOLLOWS THE SHEET AND THE OFFER (1.2.122 line DESP; the audit's REFR-52, the owner's rule "Zawsze odswiezamy
+ * okna od razu przy zmianie"). Each pick's detail - the statistics with their values, the experiences with theirs - was
+ * read once, when the option was drawn: a value another write changed while the window stood showed the old number, and
+ * an experience added or removed meanwhile was not offered or was offered gone. Each detail is redrawn from the sheet on
+ * every write of the character or its items (live.mjs `keepLive`), the pick in it carried as a changed field's value is.
+ * A player's picker also says, above the picks, when the offer it was opened for is taken back or spent meanwhile
+ * (`offer`, the owner's copy of the offers watched), and its Apply sends nothing then (`openAdvancement`).
+ */
+/** Swap the detail control whenever a pick's option changes, and keep it true while the window stands. */
+function wireForm(dialog, picks, actor, offer = null) {
     const root = dialog.element;
+    const detailOf = (option, i) => `<div class="drpg-advance-detail" data-detail="${i}">${buildDetail(option, i, actor, listExperiences(actor))}</div>`;
 
     for (let i = 0; i < picks; i++) {
         const select = root.querySelector(`select[data-pick="${i}"]`);
@@ -766,11 +785,27 @@ function wireForm(dialog, picks, actor, experiences) {
         if (!select || !detail) continue;
 
         const refresh = () => {
-            detail.innerHTML = buildDetail(select.value, i, actor, experiences);
+            root.querySelector(`[data-detail="${i}"]`)?.replaceWith(toNode(detailOf(select.value, i)));
         };
         select.addEventListener("change", refresh);
         refresh();
+        keepLive(dialog, { region: `[data-detail="${i}"]`, build: () => detailOf(select.value, i), watch: { actors: true, items: true } });
     }
+    if (offer) {
+        const form = root.querySelector("form");
+        if (form && !form.querySelector(".drpg-advance-gone")) form.insertAdjacentHTML("afterbegin", '<div class="drpg-advance-gone"></div>');
+        const goneHtml = () => `<div class="drpg-advance-gone">${standingOffers(actor).some(o => o.id === offer.id) ? ""
+            : `<p class="drpg-advance-note">${foundry.utils.escapeHTML(game.i18n.format("DRPG.Advance.takeBackGone", { name: actor.name }))}</p>`}</div>`;
+        root.querySelector(".drpg-advance-gone")?.replaceWith(toNode(goneHtml()));
+        keepLive(dialog, { region: ".drpg-advance-gone", build: goneHtml, watch: { stores: [offerCopy, offerStore] } });
+    }
+}
+
+/** One element from markup. */
+function toNode(html) {
+    const holder = document.createElement("div");
+    holder.innerHTML = html.trim();
+    return holder.firstElementChild;
 }
 
 function buildDetail(option, index, actor, experiences) {

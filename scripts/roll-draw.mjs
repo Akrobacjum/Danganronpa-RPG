@@ -534,7 +534,8 @@ function startOnMessage(message) {
  * for a part of its action's definition that names a statistic, and never over `TOLD_AS`);
  * and the situation's dice as this browser armed them (call-effects.mjs `situationalAdvantage`),
  * which the GM no longer reads: it reads every action's situation for itself (E29 C9,
- * `LEGAL_READERS`). The field still travels; nothing on the GM reads it.
+ * `LEGAL_READERS`). The field still travels - private-rolls.mjs's whitelist sanitizes it (`situational: as.num`) and
+ * forwards it into `drawOnGm`'s packet - and `throwDrawn` drops it unread.
  */
 export const DRAWN_OPTIONS = Object.freeze([ROLL_NONCE, "actionType", "roll", "experiences", "guaranteedCritical", "extraFormula", "data"]);
 const CONTEXT_SENT = Object.freeze({ category: "text", goal: "text", projectId: "id", targetProjectId: "id", side: "text",

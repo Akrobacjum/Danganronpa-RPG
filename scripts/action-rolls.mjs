@@ -5,10 +5,11 @@
  * repeatable actions."
  *
  * Every action opens with a briefing of what it does, then either resolves
- * itself (Search, Work on Project, Sabotage, Palm, Tamper, Rest, Move) or
- * sends a ruling card to the GM (Observe with nothing to rank, Analyze's hint,
- * Listen, a Dynamic threshold, Direct Murder) - because those are the ones
- * the guide wants a human to judge.
+ * itself (Search, Work on Project, Sabotage, Palm, Tamper, Rest, Move, and
+ * Listen, whose card is built on the roller's browser - only its eavesdrop asks
+ * the primary) or sends a ruling card to the GM (Observe with nothing to rank,
+ * Analyze's hint, a Dynamic threshold, Direct Murder) - because those are the
+ * ones the guide wants a human to judge.
  *
  * Movement is not here: crossing a room boundary charges itself, in
  * movement.mjs.
@@ -26,8 +27,9 @@
  * and Rest to action-observe.mjs, action-analyze.mjs, action-listen.mjs and
  * action-rest.mjs; Direct Murder with the betrayal and the fight's menu to
  * action-murder.mjs; the Dynamic action to action-dynamic.mjs. This file keeps
- * its name and every name it exported - the 62 that moved are re-exported
- * under the imports - so every importer still imports action-rolls.mjs, and
+ * its name and every name it exported - 56 re-exported with `export { ... }
+ * from` and `currentRoom` (movement.mjs `roomOfActor` under that name), 57,
+ * counted off this file on 21.11.2026 - so every importer still imports action-rolls.mjs, and
  * none of the fourteen imports it. What stays is `performAction` with its
  * dispatch (`THROWS_NO_DICE`) and `currentRoom`; new
  * code goes into the file of its role, not here.

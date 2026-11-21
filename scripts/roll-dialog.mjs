@@ -1173,8 +1173,9 @@ export function explainAdvantage(sign, count, capped, sources) {
 /**
  * Put the number on the chip.
  *
- * Trap 55: this window opens for a student ONLY when something is forced, so
- * the chip is the entire report. A chip that looks identical at one die and at
+ * Trap 55, written when this window opened for a student only when something was
+ * forced; it opens on every roll again since 28.08 (`maybeRollItself` removed,
+ * below), and the chip is still the window's one report of the advantage. A chip that looks identical at one die and at
  * three tells a player they have advantage while saying nothing about the
  * advantage they are actually getting - and the tooltip is a hover away on a
  * modal they are about to dismiss with the one live button on it.

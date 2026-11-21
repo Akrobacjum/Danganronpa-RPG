@@ -1973,9 +1973,9 @@ export async function endReplacedRuling(actor, bookmark) {
 }
 
 /**
- * Observe, Analyze, Direct Murder and a described Search all end in a human
- * ruling. A die cannot take that back, so the GM is asked again with the new
- * number and told the previous answer no longer stands.
+ * An Observe with nothing to rank, an Analyze's hint and a described Search end in a human ruling (`ruledByHand`
+ * sends only those here; Direct Murder keeps no row a Reroll replays). A die cannot take that back, so the GM is asked
+ * again with the new number and told the previous answer no longer stands.
  */
 async function settleGmRuling(actor, bookmark, after, done) {
     const { callGm } = await import("./gm-bridge.mjs");
@@ -2046,7 +2046,9 @@ async function settleRemnant(actor, bookmark, visibility, done, drop = null, gat
         if (visibility === null) return {};
 
         if (!drop) {
-            // Placed on a player's behalf, so this client never learned its id.
+            // No caller reaches this today: every settleRemnant call passes a drop (the Search's, the project's and
+            // the Sabotage's), and since E08+E28 C2 the GM's own fact names a player's trace. Kept for a caller
+            // that has no drop to offer: the trace is the GM's to place by hand.
             done.push(game.i18n.localize("DRPG.Reroll.remnantManual"));
             return {};
         }

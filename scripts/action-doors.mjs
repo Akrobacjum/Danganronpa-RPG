@@ -8,8 +8,8 @@
  *
  * Force the Door (E74 C3; `INFILTRATE.force`): the door picked among the rooms next to this one, named as Listen names
  * them (a room never entered is "Unexplored room n"), one action, a Body roll drawn on the GM, then `door.force`, which
- * reads what holds the door on the GM (doors-gm.mjs `forceDoor`). Pick the Lock and Keep Watch come in later commits
- * (docs/dev/e74/STATUS.md).
+ * reads what holds the door on the GM (doors-gm.mjs `forceDoor`). Pick the Lock is `performPick` below (E74 C4); Keep
+ * Watch is action-watch.mjs (E74 C6).
  */
 
 import { INFILTRATE } from "./config.mjs";

@@ -3,10 +3,11 @@
  * ---------------------------------------------------------------------------
  * Guide, p. 16: "Po śmierci, gdy jego class trial się zakończy, gracz może
  * dołączyć do DMów jako Monocub." A dead student's player, opted in by
- * agreement with the table, keeps the same character sheet and gets exactly
- * two things to do with it: Move, and Meddle - nudging a living player's next
- * roll from the sidelines. Meddle is one row of `MONOCUB.abilities` (E33 C10): the
- * table and its executor are under THE ABILITIES below.
+ * agreement with the table, keeps the same character sheet and moves its token
+ * freely, and has the rows of `MONOCUB.abilities` to act with - five since E72
+ * (`CUB_RESOLVERS`: Meddle, nudging a living player's next roll from the
+ * sidelines; Redeem; Ask for Hope; Tinker; the Ghost Bet). The table and its
+ * executor are under THE ABILITIES below.
  *
  * A Monocub is not a Monokuma. It stays a `character` actor with no special
  * flag on the token, keeps the normal action budget (refilled by the same
@@ -14,7 +15,9 @@
  * same room-restricted vision every other student has. What changes is the
  * action panel on the sheet: the abilities' tiles instead of the full grid
  * (Meddle first; the Move tile beside it went in E103 - the token moves, free),
- * and a Hope total that only a GM can top up, by converting their own Despair.
+ * and a Hope total, the sheet's and the purse's (THE PURSE below), that grows by
+ * a GM's Despair turned into Hope, Redeem, an Ask for Hope a GM gives, a Bribe,
+ * a Bounty and a Ghost Bet won.
  *
  * MEDDLE'S ROLL. The guide marks its difficulty table "Stat: -" - the one roll
  * in the system with no trait behind it. Daggerheart's own `rollTrait` insists
@@ -1580,7 +1583,8 @@ async function redeemHope(actor) {
 /**
  * ASK FOR HOPE (E72 C5; audit S18-60): the GMs' card in the Monocub's thread (call-gm.mjs `callGm`), Give 1, Give 2 or
  * Not now, ruled once by whichever GM clicks (`claimCard`, messenger-app.mjs's `cubGiveHope` and `cubNotNow`, which
- * call `answerHopeAsk`). The ask stays open in the Monocub's row (`askOpen`) until a GM answers it.
+ * call `answerHopeAsk`). The ask's mark in the Monocub's row shuts the next ask while its time of day lasts
+ * (`askStillOpen`: the same game day and time of day; the 1.2.110 review), answered or not.
  */
 async function postHopeAsk(actor) {
     const { callGm } = await import("./gm-bridge.mjs");

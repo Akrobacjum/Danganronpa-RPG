@@ -181,9 +181,10 @@ export function rollTone(roll) {
 /**
  * The flags every roll card carries - its header, and its outcome as a colour.
  *
- * Five cards in this file went out with neither, so they arrived in flat
- * neutral ink and with no title on their popup while `report()`'s carried both.
- * Same roll, same kind of card, two different surfaces.
+ * Five cards went out with neither, so they arrived in flat neutral ink and with
+ * no title on their popup while `report()`'s carried both. Same roll, same kind of
+ * card, two different surfaces. Since E41 C4 none of them is in this file: the
+ * callers are action-analyze.mjs, action-listen.mjs and action-observe.mjs.
  */
 export function rollCardFlags(def, roll) {
     return { flags: { [MODULE_ID]: { popupTitle: def.label, popupTone: rollTone(roll) } } };
@@ -192,7 +193,7 @@ export function rollCardFlags(def, roll) {
 /**
  * The header for a card that reports a roll and nothing more about it.
  *
- * Five call sites in this file had these exact three slots written out
+ * Five call sites (now in action-analyze.mjs, action-listen.mjs and action-observe.mjs, E41 C4) had these exact three slots written out
  * longhand, and they had drifted: four used `Label - total · <em>Critical</em>`
  * and Listen used `Label · Shadow · total`, with the trait name typed in as an
  * English literal rather than read off the roll. Same card, three shapes.

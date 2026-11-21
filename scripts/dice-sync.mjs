@@ -35,8 +35,9 @@
  * module's when DSN was there first) one sweep of every such User, offline ones too; at a user's connect; and
  * after any update of such a User, read on the state the update left - never on who wrote it or on anything a
  * player's packet says, so a player's console, DSN's own six-write save, its GM push or another GM's edit are
- * the same case. A change of the source's own look reaches everyone. Each write replaces both flags whole
- * (v14's ForcedReplacement), so a scope a player added goes too.
+ * the same case. A change of the source's own look reaches everyone. Each write replaces its flags whole
+ * (v14's ForcedReplacement): `appearance`, `sfxList`, `roleAppearance` (since E108) and the `saved` marker
+ * (`writeLooks`), so a scope a player added goes too.
  *
  * THE SOURCE'S OWN LOOK (E16 fix r1-G1, 19.10.2026; findings C3-S1 and C3-C3). An Assistant GM may write any
  * User (LIVE-E30-04), the source's too, and until this fix the primary spread whatever the source's flags then
