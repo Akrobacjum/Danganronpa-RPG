@@ -355,7 +355,6 @@ function roomSceneAnswer(root) {
  * the Annex took the Gym's project's room away (scenario 66 A1 at 180df61, 11.10.2026).
  */
 function roomSelectOptions(rooms, current) {
-    const esc = foundry.utils.escapeHTML;
     const kept = current && !rooms.includes(current)
         ? [`<option value="${esc(current)}" selected>${esc(game.i18n.format("DRPG.Project.roomElsewhere", { room: current }))}</option>`]
         : [];
@@ -379,7 +378,6 @@ function roomSelectOptions(rooms, current) {
  * Save any more.
  */
 function projectManagerRows(projects, rooms, { always = new Set(), players = playerList() } = {}) {
-    const esc = foundry.utils.escapeHTML;
     const t = key => game.i18n.localize(key);
     const cells = p => {
         const secret = isSecret(p.id);
@@ -889,7 +887,6 @@ export function projectTraitOptions(current = "") {
  * `.drpg-panel label` the textarea took 59 of 544 px; R1492 holds the width).
  */
 export function descriptionField(value = "") {
-    const esc = foundry.utils.escapeHTML;
     const id = `drpg-description-${foundry.utils.randomID(8)}`;
     return {
         label: game.i18n.localize("DRPG.Project.description"),
@@ -1125,7 +1122,6 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
        block Indirect murder shows (`data-drpg-when-murder`); "Which project" carries its `data-drpg-when-trigger` on both
        halves of its row (formGrid's row `attrs` since E47-KFa; projects-ui.mjs's `rowWhen` string-inserted it before). The notes are the kit's fine print, the warnings its warning box. */
     const t = key => game.i18n.localize(key);
-    const esc = foundry.utils.escapeHTML;
     const uid = foundry.utils.randomID(6);
     const idOf = name => `drpg-project-${name}-${uid}`;
     const trapRows = formGrid([

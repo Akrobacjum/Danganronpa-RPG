@@ -66594,22 +66594,25 @@ const INVARIANTS = [
         equal(JSON.stringify([b.state.busy, b.drawn().filter(l => l.startsWith("mix"))]), JSON.stringify([false, []]),
             "[whether a dissolve is busy after an old sprite's drop threw, the mixes the layer still draws]");
     }],
-    ["R8149 - one esc in the trial's files, null-safe (1.2.122, DOC-13, line TRIAL's part): none of trial-progress.mjs, trial.mjs, truth-bullets.mjs, verdict.mjs and vote.mjs binds `esc` to the bare foundry.utils.escapeHTML, so `esc` there is utils.mjs's `esc` - String(value ?? \"\") escaped; and that `esc` turns null and undefined into nothing", async () => {
-        /* Red at 21bf5d18: 8 such bindings in these five files. The module's other files are the coordinator's sweep at the
-           end of the assembly (DOC-21, the same finding), so this test reads these five alone. Comments stripped. */
+    ["R8149 - one esc in the module's files, null-safe (1.2.122, DOC-13 and DOC-21; line TRIAL's five files, then the coordinator's sweep of the rest): no file the module loads binds `esc` to the bare foundry.utils.escapeHTML, so `esc` everywhere is utils.mjs's `esc` - String(value ?? \"\") escaped; and that `esc` turns null and undefined into nothing", async () => {
+        /* Red at 21bf5d18: 8 such bindings in trial-progress.mjs, trial.mjs, truth-bullets.mjs, verdict.mjs and vote.mjs
+           (line TRIAL's part, DOC-13), and 18 in nine other files (cleanup-reshape, handover, inventory, level-up, monocub 7,
+           passages-gm, projects-ui 4, reroll-receipts, sound-panel; the coordinator's sweep in the 1.2.122 assembly, DOC-21).
+           Read over every file the module loads from module.mjs, the suite's own aside (tests-kit.mjs `otherSources`);
+           a call (`escapeHTML(body)`, messenger.mjs) is not a binding. Comments stripped. */
         const { esc } = await import("./utils.mjs");
-        const FILES = ["trial-progress.mjs", "trial.mjs", "truth-bullets.mjs", "verdict.mjs", "vote.mjs"];
+        const SWEPT = ["trial-progress.mjs", "trial.mjs", "truth-bullets.mjs", "verdict.mjs", "vote.mjs", "cleanup-reshape.mjs", "handover.mjs",
+            "inventory.mjs", "level-up.mjs", "monocub.mjs", "passages-gm.mjs", "projects-ui.mjs", "reroll-receipts.mjs", "sound-panel.mjs"];
+        const sources = await otherSources();
+        const unread = SWEPT.filter(f => (sources.find(([file]) => file === f)?.[1].length ?? 0) < 1000);
+        must(sources.length > 100 && !unread.length, `the module's files, or ${unread.join(", ")} of the fourteen swept, read as nothing - this would measure nothing`);
         const bare = [];
-        let read = 0;
-        for (const file of FILES) {
-            const text = await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText);
-            if (text.length > 1000) read++;
+        for (const [file, text] of sources) {
             const n = (stripComments(text).match(/\bconst esc = foundry\.utils\.escapeHTML\b(?!\s*\()/g) ?? []).length;
             if (n) bare.push(`${file}:${n}`);
         }
-        must(read === FILES.length, "a file of the five read as nothing - this would measure nothing");
         equal(stableJson({ bare, nulls: [esc(null), esc(undefined), esc("<b>")] }), stableJson({ bare: [], nulls: ["", "", "&lt;b&gt;"] }),
-            "{bare: the five files binding esc to the bare escapeHTML (file:count); nulls: utils.mjs esc of null, undefined and markup}");
+            "{bare: the module's files binding esc to the bare escapeHTML (file:count); nulls: utils.mjs esc of null, undefined and markup}");
     }],
     ["R8349 - on a GM the outline is taken down against its own Monokuma's rooms, the rooms it is drawn for, and on a player against its own characters' (1.2.122 line MAP; scripts/fog.mjs `repaintFog`, `leadRoomsHere`, `leadsHere`; the audit's MAP-33, the mutant R8343 let through)", async () => {
         /*

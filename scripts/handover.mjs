@@ -23,7 +23,7 @@
 import { MODULE_ID, FLAGS, BEDROOM_KEY_FLAG, LOOT, REMNANT_VISIBILITY } from "./config.mjs";
 import { capacityLabel, isStashed, transferItem, transferRefusal } from "./inventory.mjs";
 import { createTruthBullet, truthBulletData, secretOf, isTruthBullet, bulletAsHeld, unanalysedType } from "./truth-bullets.mjs";
-import { whisperToOwner, whisperToOwnerOnly, log, warn, error, isPrimaryGm, forcedDeletion, plural, serialWrite, ownerIdsOf, gmIds, announce, whisperToGms, listOf, worldLocalize } from "./utils.mjs";
+import { whisperToOwner, whisperToOwnerOnly, log, warn, error, isPrimaryGm, forcedDeletion, plural, serialWrite, ownerIdsOf, gmIds, announce, whisperToGms, listOf, worldLocalize, esc } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 import { answerKeysRefusal, lootTraceStore, deathStore, lootRollStore } from "./gm-stores.mjs";
 import { getClock } from "./settings.mjs";
@@ -709,7 +709,6 @@ async function lootCover(taker, body, names, cover) {
     // `coverRequired`), and a GM's own button with its Shadow window closed is the GM's ruling, said to nobody.
     if (!rolled) return [];
     const held = rolled && (Boolean(cover.isCritical) || Number(cover.total) >= LOOT.cover.threshold);
-    const esc = foundry.utils.escapeHTML;
     await whisperToOwner(taker, `<p>${game.i18n.localize(held ? "DRPG.Loot.coverHeld" : "DRPG.Loot.coverMissed")}</p>`);
     if (held) return [];
     const { isDeceased } = await import("./chapter.mjs");

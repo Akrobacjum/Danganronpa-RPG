@@ -12,7 +12,7 @@
 import { MODULE_ID, ITEM_CATEGORIES, ITEM_DURABILITY, LIMIT_GROUPS, TIER_EFFECTS, USABLE_KINDS, USABLE_KIND_EFFECTS, USABLE_EFFECTS, itemIcon,
     BEDROOM_KEY_FLAG, ACTIONS, PROJECT_SCALE }
     from "./config.mjs";
-import { whisperToOwner, whisperToGms, log, warn, error, serialWrite, worldLocalize } from "./utils.mjs";
+import { whisperToOwner, whisperToGms, log, warn, error, serialWrite, worldLocalize, esc } from "./utils.mjs";
 // E57 C3 (D34): an item's tier line in the world's document language; its own line.
 import { trustedWrite, trustedCreate, trustedDelete } from "./resource-guard.mjs";
 
@@ -1188,7 +1188,6 @@ export async function transferItem(from, to, item, { mode, quiet = false, asker 
         const name = held.name;
         const pieces = piecesOf(held);
         const hushFrom = quiet && mode !== "plant", hushTo = quiet && mode === "plant";
-        const esc = foundry.utils.escapeHTML;
 
         /*
          * ONE PIECE OFF THE GIVER, COUNTED AGAIN AS THE GMS HOLD IT NOW (E35 fix e1-G1; the review's SEC-1). The count
