@@ -53988,6 +53988,67 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
     }],
 
+    ["1.2.122 CTRL-13 CTRL-24 REFR-53 - the conversation window keeps what is typed across its tabs, and its Note dot and participants line follow the world while it stands open (messenger-app.mjs `DrpgMessengerApp`: `_replaceHTML`, `refreshNote`, `refreshHead`; the audit's CTRL-13, CTRL-24, REFR-53)", async () => {
+        /*
+         * The audit of 1.2.118: a press of either tab rendered the window whole, so a chat message typed and not sent was
+         * gone after a visit to the Note tab (CTRL-24), and a note typed and not saved after a visit to the Chat tab
+         * (CTRL-13); the Note tab's dot was drawn once, so a note written while the window stood on Chat drew no dot, and
+         * the participants line read the users once (REFR-53). In a world the stores have never opened, a GM's window on a
+         * player's thread: a message typed, Note pressed, a note typed, Chat pressed, then Note again; the note written by
+         * another road while the window stands on Chat; a GM's account renamed. Red at 21bf5d18: both boxes empty after the
+         * round trip, no dot, the old name.
+         */
+        needs(world.atLeast("playerAccounts", 1), "the window shows a player's thread");
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const M = await import("./messenger-app.mjs");
+        const [one] = game.users.filter(u => !u.isGM);
+        const before = noteFlagsNow();
+        const kept = [SETTINGS.messengerLastRead, SETTINGS.messengerWindowPositions]
+            .map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, key))]);
+        const earlier = M.DrpgMessengerApp.instances.get(one.id) ?? null;
+        const nameWas = game.user.name;
+        let app = null;
+        let read = null;
+        try {
+            if (earlier) await earlier.close();
+            await E.withGmStoreWorld(`suite-tabs-${foundry.utils.randomID(8)}`, async () => {
+                app = new M.DrpgMessengerApp(one.id);
+                M.DrpgMessengerApp.instances.set(one.id, app);
+                app.tab = "chat";
+                await app.render({ force: true });
+                await settle();
+                const press = async key => { app.element.querySelector(`[data-drpg-tab-key="${key}"]`)?.click(); await settle(); await until(() => app.tab === key, 500); await settle(); };
+                const chatBox = () => app.element?.querySelector(".drpg-messenger-input textarea") ?? null;
+                const noteBox = () => app.element?.querySelector(".drpg-messenger-note-text") ?? null;
+                chatBox().value = "SUITE CTRL-24 typed and not sent";
+                await press("note");
+                noteBox().value = "SUITE CTRL-13 typed and not saved";
+                await press("chat");
+                const chatBack = chatBox()?.value ?? null;
+                await press("note");
+                const noteBack = noteBox()?.value ?? null;
+                await press("chat");
+                const dotBefore = Boolean(app.element.querySelector('[data-drpg-tab-key="note"] .drpg-messenger-tab-dot'));
+                await S.noteStore.patch(one.id, { text: "SUITE REFR-53 a note written meanwhile", updatedAt: Date.now(), byGm: true });
+                await settle();
+                const dotAfter = Boolean(app.element.querySelector('[data-drpg-tab-key="note"] .drpg-messenger-tab-dot'));
+                await game.user.update({ name: "SUITE REFR-53 renamed GM" });
+                await settle();
+                const line = app.element.querySelector(".drpg-messenger-participants")?.textContent ?? "";
+                read = [chatBack, noteBack, dotBefore, dotAfter, line.includes("SUITE REFR-53 renamed GM")];
+            });
+        } finally {
+            if (game.user.name !== nameWas) await game.user.update({ name: nameWas });
+            if (app) await app.close();
+            for (const [key, value] of kept) await game.settings.set(MODULE_ID, key, value);
+            await putNoteFlagsBack(before);
+        }
+        equal(stableJson(read), stableJson(["SUITE CTRL-24 typed and not sent", "SUITE CTRL-13 typed and not saved", false, true, true]),
+            "the window lost what was typed on a tab press, or its Note dot or participants line did not follow ([the chat box after Note and back, "
+            + "the note box after Chat and back, the dot before a note, the dot after one written meanwhile, the line names a renamed GM])");
+    }],
+
     ["the case health check names a secret project and a note this browser does not hold, and a restore's flags keep a newer note's date", async () => {
         /*
          * E05 fix r1-G4, 27.09.2026; reviews M4 = S1-m5, M6 = S1-m6. A GM browser that lost its

@@ -60,6 +60,13 @@ export function registerMessengerUi() {
     Hooks.on("drpgNotesChanged", () => {
         for (const app of DrpgMessengerApp.instances.values()) app.refreshNote();
     });
+    /* A user created, renamed or given another role (1.2.122, the audit's REFR-53): the open windows' title and
+       participants line read the users at their render alone. Followed in place, never redrawn under the typing. */
+    for (const hook of ["createUser", "updateUser", "deleteUser"]) {
+        Hooks.on(hook, () => {
+            for (const app of DrpgMessengerApp.instances.values()) app.refreshHead();
+        });
+    }
 
     // A quick way in from the Players sidebar, mirroring how avclient-livekit
     // adds its own breakout-room entries to the same context menu.
@@ -191,6 +198,14 @@ export class DrpgMessengerApp extends DrpgApp() {
      */
     noteShown = null;
 
+    /**
+     * What stood typed in the two boxes when the window was last drawn over (1.2.122, the audit's CTRL-13 and CTRL-24):
+     * a tab press renders the window whole, and the box of the tab it leaves is not drawn at all, so its words are kept
+     * here and given back when that tab is drawn again (`_replaceHTML`). `note` is null while the note box holds the
+     * note it was drawn with; `noteBase` is the note the typing started from, still the base a Save is judged against.
+     */
+    drafts = { chat: "", note: null, noteBase: null };
+
     constructor(playerUserId) {
         const options = { id: `drpg-messenger-${playerUserId}` };
         // Only set `position` when there is a saved one - passing `undefined`
@@ -305,6 +320,7 @@ export class DrpgMessengerApp extends DrpgApp() {
         area.className = "drpg-messenger-note-text";
         area.value = context.note;
         this.noteShown = context.note;
+        area.drpgShown = context.note;
         area.placeholder = game.i18n.localize("DRPG.Note.placeholder");
         setTip(area, game.user.isGM && game.user.id !== this.playerUserId
             ? "DRPG.Tips.Sweep.More.noteReadersGmTooltip" : "DRPG.Tips.Sweep.More.noteReadersTooltip");
@@ -347,6 +363,9 @@ export class DrpgMessengerApp extends DrpgApp() {
                     this.noteSaid = game.i18n.localize(outcome === "sent" ? "DRPG.Note.sentToGms"
                         : outcome === "kept" ? "DRPG.Note.keptUntilGm" : "DRPG.Note.saved");
                     status.textContent = this.noteSaid;
+                    // Saved: what the box holds is the note now, no draft to keep over the redraw.
+                    area.drpgShown = area.value;
+                    this.drafts.note = null;
                     this.render();
                 }
             } finally {
@@ -365,6 +384,7 @@ export class DrpgMessengerApp extends DrpgApp() {
      * was drawn with - never over what is being typed. No redraw.
      */
     refreshNote() {
+        if (this.rendered) this.refreshHead();
         if (!this.rendered || this.tab !== "note") return;
         const area = this.element?.querySelector(".drpg-messenger-note-text");
         const status = this.element?.querySelector(".drpg-messenger-note-status");
@@ -377,8 +397,54 @@ export class DrpgMessengerApp extends DrpgApp() {
         status.textContent = noteStatus(this.playerUserId);
     }
 
+    /**
+     * The window's head followed in place (1.2.122, the audit's REFR-53): the Note tab's dot from the note as it stands,
+     * the participants line and the title from the users. Drawn once at the render until then, so a note written while
+     * the window stood on Chat drew no dot, and a GM renamed or added kept the old line.
+     */
+    refreshHead() {
+        if (!this.rendered || !this.element) return;
+        const player = game.users.get(this.playerUserId);
+        const gms = gmIds().map(id => game.users.get(id)).filter(Boolean);
+        const line = this.element.querySelector(".drpg-messenger-participants");
+        const words = participantsLine(player, gms);
+        if (line && line.textContent !== words) line.textContent = words;
+        if (this.window?.title?.nodeType === 1 && this.window.title.textContent !== this.title) this.window.title.textContent = this.title;
+        const tab = this.element.querySelector('nav.drpg-tabs [data-drpg-tab-key="note"]');
+        if (!tab) return;
+        const bar = tab.closest("nav.drpg-tabs");
+        const has = Boolean(noteFor(this.playerUserId).trim());
+        const dot = tab.querySelector(".drpg-messenger-tab-dot");
+        if (has && !dot) {
+            const made = document.createElement("span");
+            made.className = "drpg-messenger-tab-dot";
+            tab.append(made);
+        } else if (!has && dot) dot.remove();
+        if (has) bar.dataset.hasNote = "true";
+        else delete bar.dataset.hasNote;
+    }
+
     async _replaceHTML(result, content, _options) {
+        // What was typed and not sent or saved survives the redraw (CTRL-13, CTRL-24): read off the boxes drawn over...
+        const chatWas = content.querySelector(".drpg-messenger-input textarea");
+        if (chatWas) this.drafts.chat = chatWas.value;
+        const noteWas = content.querySelector(".drpg-messenger-note-text");
+        if (noteWas) {
+            const typed = noteWas.value !== (noteWas.drpgShown ?? noteWas.value);
+            this.drafts.note = typed ? noteWas.value : null;
+            this.drafts.noteBase = typed ? noteWas.drpgShown : null;
+        }
         content.replaceChildren(result);
+        // ...and given back to the box of the tab drawn now. A note's draft keeps its base: a Save still asks whether
+        // the note changed under it (`saveNote`'s `base`).
+        const chatNow = content.querySelector(".drpg-messenger-input textarea");
+        if (chatNow && this.drafts.chat) chatNow.value = this.drafts.chat;
+        const noteNow = content.querySelector(".drpg-messenger-note-text");
+        if (noteNow && this.drafts.note !== null) {
+            noteNow.value = this.drafts.note;
+            noteNow.drpgShown = this.drafts.noteBase;
+            this.noteShown = this.drafts.noteBase;
+        }
     }
 
     _onRender(context, options) {
@@ -420,7 +486,10 @@ export class DrpgMessengerApp extends DrpgApp() {
             } finally {
                 textarea.disabled = false;
             }
-            if (sent) textarea.value = "";
+            if (sent) {
+                textarea.value = "";
+                this.drafts.chat = "";
+            }
             else if (outcome.maybePosted) ui.notifications.warn(game.i18n.localize("DRPG.Messenger.sendUnsure"));
             else if (!outcome.told) ui.notifications.error(game.i18n.localize("DRPG.Messenger.sendFailed"));
             textarea.focus();
