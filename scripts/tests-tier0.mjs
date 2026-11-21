@@ -23437,7 +23437,9 @@ const REGRESSIONS = [
                Trial's bets line (verdict.mjs), and the unlock card moved from room-setup.mjs to vault-store.mjs `writeRoomLock`
                (E91 C4, D038), every one in a form this census names. */
             "monocub.mjs": {"built": 3, "line": 18, "message": 1}, "movement.mjs": {"action": 3, "card": 4},
-            "murder-rules.mjs": {"action": 1, "card": 5, "heading": 3, "line": 9, "message": 6},
+            // murder-rules.mjs message 6 -> 8 (1.2.120 line K, CASE-16): `announceCrisis` posts the GMs' card and, for the seats a
+            // defence is hidden from, a second copy, by the same `announce({ content, whisper })` form as before.
+            "murder-rules.mjs": {"action": 1, "card": 5, "heading": 3, "line": 9, "message": 8},
             "music.mjs": {"card": 1}, "observe.mjs": {"card": 2, "heading": 1, "line": 3},
             "overflow.mjs": {"built": 1, "message": 2}, "palm.mjs": {"built": 2, "line": 2}, "passages-gm.mjs": {"line": 4},
             "price.mjs": {"line": 2}, "private-rolls.mjs": {"message": 1}, "projects-map.mjs": {"card": 1, "line": 1},
