@@ -776,10 +776,29 @@ function nextReconnect() {
     lost.timer = timer;
 }
 
-/** Back where this browser was: its `desired` room (reported to the GMs), else the room LiveKit had. */
+/**
+ * Where a reconnect goes, from its facts (1.2.122, the audit's COMM-28): `desired` - the room it was told; `ask` - a page
+ * that landed alone (`landAloneFirst`) and was told no room asks the primary again and keeps the card until the answer
+ * moves it, where reapplying the room of one it sat in read a disconnected Room as "landed", took the card down and
+ * made no connect; `main` - the same page with no GM connected joins the main room, as `catchUpVoice` does; `had` -
+ * else the room LiveKit had. Pure.
+ */
+export function reconnectRoad({ told = desired !== undefined, alone = landedAlone, gms = activeGmIds().length } = {}) {
+    if (told) return "desired";
+    if (alone) return gms ? "ask" : "main";
+    return "had";
+}
+
+/** Back where this browser was: its `desired` room (reported to the GMs), else the room LiveKit had (`reconnectRoad`). */
 function reconnect() {
     if (!lost && live()) return Promise.resolve("unchanged");
-    if (desired !== undefined) return applyAndReport(desired, null);
+    const road = reconnectRoad();
+    if (road === "desired") return applyAndReport(desired, null);
+    if (road === "ask") {
+        askWhereIBelong();
+        return Promise.resolve("waiting");
+    }
+    if (road === "main") return applyBreakout(null, { remember: false });
     return applyBreakout(liveKitClient()?.breakoutRoom ?? null, { remember: false });
 }
 

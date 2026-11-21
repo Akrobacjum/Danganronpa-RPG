@@ -17666,6 +17666,22 @@ const INVARIANTS = [
             "a co-owner's own card did not go to the co-owner's thread, or another road moved ([the co-owner posting, a GM posting with no asker, an asker named])");
     }],
 
+    ["R8276 - a page that landed alone and was told no room reconnects by asking the primary again, not by leaving voice: the card stays until the answer moves it, and with no GM connected it joins the main room (voice-client.mjs `reconnectRoad`; 1.2.122, the audit's COMM-28)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-28): landAloneFirst points the first connect at the account's own silent room, and a
+         * drop in that window ran reconnect with `desired` still undefined, so it applied that silent room - which
+         * applyBreakout reads as landed whenever the Room is disconnected - took the drop card down at once and made no
+         * connect, until the self-check 45 s later. The road for each set of facts, handed in. Red at 21bf5d18: no
+         * `reconnectRoad` (reconnect applied the room LiveKit had).
+         */
+        const V = await import("./voice-client.mjs");
+        must(typeof V.reconnectRoad === "function", "voice-client.mjs has no reconnectRoad - this would measure nothing");
+        const read = [{ told: true, alone: true, gms: 1 }, { told: false, alone: true, gms: 1 }, { told: false, alone: true, gms: 0 }, { told: false, alone: false, gms: 1 }]
+            .map(facts => V.reconnectRoad(facts));
+        equal(stableJson(read), stableJson(["desired", "ask", "main", "had"]),
+            "a reconnect took the wrong road ([told a room, landed alone with a GM, landed alone with none, neither])");
+    }],
+
     ["R539 - the GM's block in the list is Foundry's block and never undoes the module's: the button is built only in a GM's list; its click writes the user's `permissions.BROADCAST_AUDIO` flipped from what Foundry answers now and nothing else; where `moduleHoldsMic` holds the microphone or a death is kept secret the button is disabled with its line and `toggleBlock` writes nothing; it refuses a player's client, the GM's own account and a user who is not of this world", async () => {
         /*
          * E78 C5, 14.10.2026; the A9 design's R392 (A9-5; the E78 plan's D2 gave it this number), the owner's Q4 (the
