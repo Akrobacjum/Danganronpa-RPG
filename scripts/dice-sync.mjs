@@ -866,7 +866,8 @@ export function fuseStoppedFor(key) {
  * below full Gamemaster is put back; a write by any full Gamemaster is held as the copy, as every switch's is - E16's
  * rule, full Gamemasters are trusted - not only the source's own browser's: the end review's S-n3). Every browser lays it on each throw it draws (dice-look.mjs `layDualityLook`, on
  * `diceSoNiceRollStart`), whatever the thrower's own setting. Daggerheart 2.10 and later colour those dice by Dice So Nice
- * roles and keep no preset: nothing is written, and the diagnostic says `rolesUnforced`. What a table draws is LIVE-E60-06.
+ * roles and keep no preset: nothing is written, and the diagnostic says `rolesUnforced` where the table's look is not forced
+ * on this user (a forced look carries the source's role looks since E108). What a table draws is LIVE-E60-06.
  */
 const DH_APPEARANCE = "daggerheart.Appearance";
 const DUALITY_KINDS = Object.freeze(["hope", "fear", "advantage", "disadvantage"]);

@@ -41009,7 +41009,8 @@ const INVARIANTS = [
                 missingTexture: v => { v.browser.registry.missing = [{ kind: "texture", name: "R1294 skulls" }]; },
                 missingMaterial: v => { v.browser.registry.missing = [{ kind: "material", name: "R1294 glass" }]; },
                 dsnApiMoved: v => { v.browser.dsn.api.allCustomization = false; v.browser.dsn.version = "6.4.4"; },
-                rolesUnforced: v => { v.browser.system.roles = true; v.browser.system.version = "2.12.4"; v.browser.dhPreset = null; },
+                // Since 1.2.122 (STG-78) on a table whose look is not forced: a forced one carries the source's role looks.
+                rolesUnforced: v => { v.browser.system.roles = true; v.browser.system.version = "2.12.4"; v.browser.dhPreset = null; v.forcing = false; },
                 otherBrowser: v => { v.gm = true; v.users.push(user("u2", false)); }
             };
             const read = view => L.lookFindings(view);
@@ -41306,19 +41307,21 @@ const INVARIANTS = [
             "[the key; scope, a String, its default, in Foundry's list; held with the switches; one of the table's settings]");
     }],
 
-    ["R5465 - the dice look's diagnostic no longer says Daggerheart's roles are unforced where this browser lays Daggerheart's dice (E108): dice-look.mjs `lookFindings` raises `rolesUnforced` on Daggerheart 2.10 and later only while no table look is laid here (`browser.tableLook`)", async () => {
+    ["R5465 - the dice look's diagnostic no longer says Daggerheart's roles are unforced where this browser lays Daggerheart's dice (E108): dice-look.mjs `lookFindings` raises `rolesUnforced` on Daggerheart 2.10 and later only while no table look is laid here (`browser.tableLook`) and the table's look is not forced on this user (1.2.122, the audit's STG-78)", async () => {
         /*
          * E108, 13.11.2026. `rolesUnforced` ("Daggerheart {version} colors its Hope and Despair dice by Dice So Nice roles,
          * which the table's forced look does not set") was true of every forced table on 2.10 and later until E108; with
          * Daggerheart's look chosen this browser lays the roles' colorsets on each throw, and the sentence would be false.
-         * A view as R1294 builds one, on 2.12.8. Red before E108: raised whatever `tableLook` holds.
+         * A view as R1294 builds one, on 2.12.8. Red before E108: raised whatever `tableLook` holds. Since 1.2.122 (the audit's STG-78)
+         * not raised either where the table's look is forced on this user: E108 made the forced look carry the source's role
+         * looks, so the sentence was false there; raised where the look is not forced. Red at 21bf5d18: `none` read ["rolesUnforced"].
          */
         const L = await import("./dice-look.mjs");
         ok(typeof L.lookFindings === "function", "dice-look.mjs exports no lookFindings");
         if (typeof L.lookFindings !== "function") return;
-        const view = tableLook => ({
-            gm: false, me: "u1", forcing: true, sourceId: "g1",
-            users: [{ id: "u1", name: "R5465 u1", here: true, gm: false, active: true, forced: true, holds: true, stopped: null, overlays: [],
+        const view = (tableLook, forcing = true) => ({
+            gm: false, me: "u1", forcing, sourceId: "g1",
+            users: [{ id: "u1", name: "R5465 u1", here: true, gm: false, active: true, forced: forcing, holds: forcing, stopped: null, overlays: [],
                 display: { visibility: "all", showOthersSFX: true, imageQuality: "high", read: true } }],
             browser: { module: "1.2.112", foundry: "14.370", system: { id: "daggerheart", version: "2.12.8", roles: true },
                 dsn: { version: "6.4.5", active: true, ready: true, api: { allCustomization: true } },
@@ -41329,8 +41332,9 @@ const INVARIANTS = [
         const laid = { hope: { colorset: "daggerheart-hope-colorset", system: "standard" }, fear: { colorset: "daggerheart-fear-colorset", system: "standard" },
             advantage: null, disadvantage: null };
         const codes = v => L.lookFindings(v).map(f => f.code).sort();
-        equal(stableJson({ none: codes(view(null)), laid: codes(view(laid)) }), stableJson({ none: ["rolesUnforced"], laid: [] }),
-            "[the codes raised on 2.12.8 with no table look laid here, and with Daggerheart's laid]");
+        equal(stableJson({ none: codes(view(null)), laid: codes(view(laid)), notForced: codes(view(null, false)) }),
+            stableJson({ none: [], laid: [], notForced: ["rolesUnforced"] }),
+            "[the codes raised on 2.12.8 with the table's look forced on this user and none laid here, with Daggerheart's laid, and with the look not forced]");
     }],
 
     ["R5467 - the table's dice look carries the source Gamemaster's Dice So Nice role looks (E108, Q-E108-2): dice-sync.mjs `lookFrom` answers the source's `roleAppearance`, each role's library die owned by the source where it names none, and none as an empty one; `holdsTableLook` reads a user's own role look as not the table's", async () => {

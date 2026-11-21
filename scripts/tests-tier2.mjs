@@ -95045,6 +95045,78 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "the GMs' store reads in the player's run; packets sent; hooks heard; the test throw's dice; the throws shown]");
     }],
 
+    ["1.2.122 ROLL-20 - a player's dice look reads only a roll that player may read: with another student's roll whispered to the GMs and its author newest in the log, a player's run (stood in) reads their own roll before it, never the hidden one, and a run named at the hidden message reads none (scripts/dice-look.mjs `rollMessage`, `readableBy`; the audit's ROLL-20, 1.2.122 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP. The audit's ROLL-20: `rollMessage` took the newest message with rolls whose
+         * `visible` is not false, and Foundry's `visible` is true for every whispered roll (the card shows that somebody
+         * rolled; the harness's shim models it so), so a player's run printed another student's hidden roll - its author
+         * and its dice - in the window it asks them to send the GM. On the GM, two players stood in as E60-T14 stands one
+         * in: the first player's own roll first, then a roll by the second player whispered to the GMs and its author. Read: the
+         * message the first player's run reads with no id, and with the hidden message's id; the second player's run
+         * (the author) and the GM's. Put back: both messages. Red at 21bf5d18: the first player's run read the hidden one.
+         */
+        const players = game.users.filter(u => !u.isGM);
+        must(players.length >= 2, "two player users - this would measure nothing");
+        const [reader, author] = players;
+        const L = await import("./dice-look.mjs");
+        const roll = { class: "DualityRoll", formula: "1d12 + 1d12", total: 13, evaluated: true,
+            dice: [{ faces: 12, total: 9, results: [{ result: 9, active: true }] }, { faces: 12, total: 4, results: [{ result: 4, active: true }] }] };
+        const made = [];
+        const read = {};
+        try {
+            const open = await ChatMessage.create({ content: "<p>SUITE ROLL-20 own</p>", author: reader.id, rolls: [roll] });
+            made.push(open);
+            const gms = game.users.filter(u => u.isGM).map(u => u.id);
+            const hidden = await ChatMessage.create({ content: "<p>SUITE ROLL-20 hidden</p>", author: author.id, rolls: [roll], whisper: [...gms, author.id] });
+            made.push(hidden);
+            must(open?.author?.id === reader.id && hidden && hidden.author?.id === author.id, "the reader's own roll and a hidden roll of the author's to read - this would measure nothing");
+            const runOf = async (user, messageId = null) => (await L.diagnoseDiceLook({ show: false, gm: false, user, messageId }))?.view?.roll?.messageId ?? null;
+            const name = id => id === hidden.id ? "hidden" : id === open.id ? "own" : id === null ? null : "other";
+            read.reader = name(await runOf(reader));
+            read.readerNamed = name(await runOf(reader, hidden.id));
+            read.author = name(await runOf(author));
+            read.gm = name((await L.diagnoseDiceLook({ show: false }))?.view?.roll?.messageId ?? null);
+        } finally {
+            for (const m of made) await m?.delete?.();
+        }
+        equal(stableJson(read), stableJson({ reader: "own", readerNamed: null, author: "hidden", gm: "hidden" }),
+            "{the message a player's run reads; the same run named at the hidden one; the hidden roll's author's run; the GM's run}");
+    }],
+    ["1.2.122 CTRL-68 - the dice look's Copy report waits for the copy, says so and brings the window back: a copy that works says Copied, one the browser refuses says it could not and how to copy by hand, and each time the window opens again until Close (scripts/dice-look.mjs `showLookWindow`; the audit's CTRL-68, 1.2.122 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP. The audit's CTRL-68: the button started the copy unawaited (`void`), answered
+         * "copy" and the window closed with no word, a refused copy included; the Diagnose window's Copy report awaits,
+         * says Copied and comes back (diagnostics.mjs `openReport`). On the GM, the clipboard stood in (one copy that
+         * works, then one that throws) and the window answered Copy, Copy, Close through the harness's queue. Read: the copies
+         * asked, the notices shown, how many windows opened. Put back: the clipboard, the queue. Red at 21bf5d18: one
+         * window, no notice.
+         */
+        const L = await import("./dice-look.mjs");
+        const clipboard = game.clipboard;
+        const copies = [];
+        let fail = false;
+        game.clipboard = { copyPlainText: async value => { copies.push(typeof value === "string" && value.length > 0); if (fail) throw new Error("SUITE CTRL-68 refused"); fail = true; } };
+        const said = [];
+        const { info, warn } = ui.notifications;
+        ui.notifications.info = (m, ...r) => { said.push(["info", m]); return info.call(ui.notifications, m, ...r); };
+        ui.notifications.warn = (m, ...r) => { said.push(["warn", m]); return warn.call(ui.notifications, m, ...r); };
+        const windows = [];
+        globalThis.__dialogAnswers.push(c => { windows.push(c); return "copy"; }, c => { windows.push(c); return "copy"; }, c => { windows.push(c); return "close"; });
+        try {
+            await L.diagnoseDiceLook({ show: true });
+            await until(() => windows.length >= 3, 3000);
+            await settle();
+        } finally {
+            game.clipboard = clipboard;
+            ui.notifications.info = info;
+            ui.notifications.warn = warn;
+            globalThis.__dialogAnswers.length = 0;
+        }
+        const ours = said.filter(([, m]) => [game.i18n.localize("DRPG.Diagnose.copied"), game.i18n.localize("DRPG.DiceLook.diag.copyFailed")].includes(m));
+        equal(stableJson({ windows: windows.length, copies, said: ours.map(([kind, m]) => [kind, m === game.i18n.localize("DRPG.Diagnose.copied") ? "copied" : "copyFailed"]) }),
+            stableJson({ windows: 3, copies: [true, true], said: [["info", "copied"], ["warn", "copyFailed"]] }),
+            "{windows opened; copies asked, each with the report; the notices: kind and which}");
+    }],
     ["E60-T16 - one Hope and Despair look for the table (E60 C5d; E60-17, Q-C5-2): the source Gamemaster's browser keeps its Daggerheart Hope and Despair preset in the world (`diceDualityLook`) as it changes; a player's drawn roll, its Reroll and a GM's own roll each reach Dice So Nice's `diceSoNiceRollStart` with that look on their Hope and Fear dice (the message's rolls keeping their own is R1298's, on the roll handed in: the harness keeps no die's options in a message's rolls, so its reading here cannot fail); the laid copy keeps the ghost and secret marks Dice So Nice stamped on the roll, and the throw history keeps the roll as drawn; with the table's look switched off none is laid; and a player's write of the world's copy is put back by the primary", async () => {
         /*
          * E60 C5d, 03.11.2026; the owner's answer to Q-C5-2 ("tak"); the investigation's cause 2 (dice/findings.md: the

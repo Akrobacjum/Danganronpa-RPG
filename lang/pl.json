@@ -5096,6 +5096,7 @@
       "diag": {
         "title": "Wygląd kości",
         "open": "Otwórz wygląd kości",
+        "copyFailed": "Nie udało się skopiować raportu. Zaznacz jego tekst na dole okna i skopiuj go ręcznie.",
         "introGm": "Wygląd kości widziany u ciebie. U gracza sprawdzi go tylko on sam.",
         "introPlayer": "Co ta przeglądarka odczytuje z wyglądu twoich kości. Skopiuj tekst z dołu okna i wyślij go GM-owi.",
         "who": "Użytkownik",
@@ -5144,7 +5145,7 @@
           "missingTexture": "Dice So Nice w tej przeglądarce nie ma tekstury „{name}”, więc kości, które jej używają, rysują się tu bez tekstury.",
           "missingMaterial": "Dice So Nice w tej przeglądarce nie ma materiału „{name}”, więc kości, które go używają, rysują się tu z materiałem automatycznym.",
           "dsnApiMoved": "Dice So Nice {version} kopiuje tylko część wyglądu GM-a; resztę gracze mają po swojemu.",
-          "rolesUnforced": "Daggerheart {version} koloruje kości Hope i Despair rolami Dice So Nice, których wymuszony wygląd stołu nie ustawia.",
+          "rolesUnforced": "Daggerheart {version} koloruje kości Hope i Despair rolami Dice So Nice. Wygląd stołu nie jest wymuszony w tej przeglądarce, więc widać jej własne wyglądy ról.",
           "otherBrowser": "Przeglądarki użytkownika {name} nie odczytuje się tutaj. Poproś, by uruchomił game.drpg.diagnoseDiceLook() i przesłał ci tekst."
         }
       }

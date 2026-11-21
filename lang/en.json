@@ -4748,6 +4748,7 @@
       "diag": {
         "title": "Dice look",
         "open": "Open the dice look",
+        "copyFailed": "The report could not be copied. Select its text at the foot of the window and copy it by hand.",
         "introGm": "The dice look as seen here. A player's own look only they can check.",
         "introPlayer": "What this browser reads of your dice look. Copy the text at the foot of the window and send it to your GM.",
         "who": "User",
@@ -4796,7 +4797,7 @@
           "missingTexture": "Dice So Nice on this browser has no texture \"{name}\", so dice that use it are drawn with no texture here.",
           "missingMaterial": "Dice So Nice on this browser has no material \"{name}\", so dice that use it are drawn in the automatic material here.",
           "dsnApiMoved": "Dice So Nice {version} copies only part of the GM's look; players fill in the rest their own way.",
-          "rolesUnforced": "Daggerheart {version} colors its Hope and Despair dice by Dice So Nice roles, which the table's forced look does not set.",
+          "rolesUnforced": "Daggerheart {version} colors its Hope and Despair dice by Dice So Nice roles. The table's look is not forced on this browser, so they show its own role looks.",
           "otherBrowser": "{name}'s browser is not read here. Ask them to run game.drpg.diagnoseDiceLook() and send you its text."
         }
       }
