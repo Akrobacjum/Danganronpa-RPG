@@ -464,8 +464,10 @@ export function requestReadyEnd({ roundId, outcome }) {
  * or null for a character that is not there.
  */
 export function requestArmCall(actorId, call, timeoutMs = TIMING.rulingMs) {
+    // Its refusal says nothing was spent (1.2.122, the audit's COMM-37): the one notice of a Call not armed, the Call
+    // adding none of its own (calls.mjs `spendHopeCall`).
     return ask(ACTION_ARM, { actorId, call }, {
-        timeoutMs,
+        timeoutMs, nothingSpent: true,
         local: async () => {
             const actor = game.actors.get(actorId);
             if (!actor) return null;

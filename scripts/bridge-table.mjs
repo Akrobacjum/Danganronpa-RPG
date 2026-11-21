@@ -631,7 +631,8 @@ export const BRIDGE_ACTIONS = table({
         // `cost` and `actorName` are sent and never read: the price comes from HOPE_CALLS
         // here, the name from the character (E02; E31). `nonce` names the purchase a GM's
         // yes is kept for (E29 fix r2-H4; `yesOnPrimary`).
-        sanitize: pick({ actorId: as.id, key: as.text, callLabel: as.text, effect: as.text, note: as.text, nonce: as.text }),
+        // No `effect` since 1.2.122 (the audit's COMM-40): the card prints the GM's own table's sentence, never the packet's.
+        sanitize: pick({ actorId: as.id, key: as.text, callLabel: as.text, note: as.text, nonce: as.text }),
         run: handleHopeCall,
         // Not patient (E18 C2, S10-51): the primary's "got it" comes as the card goes up, so none within
         // TIMING.ackMs is an ask no GM's listener took, said at once rather than after the ruling's clock (R840).

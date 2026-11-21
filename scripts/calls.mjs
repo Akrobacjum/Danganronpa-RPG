@@ -302,10 +302,12 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
 
         // Do the thing, not just charge for it.
         const { applyCall } = await import("./call-effects.mjs");
-        const { lines: done, failed } = await applyCall(actor, key, "hope", choice, { nonce });
+        const { lines: done, failed, told = false, left = null } = await applyCall(actor, key, "hope", choice, { nonce });
 
         if (failed && gmPays) {
-            ui.notifications.warn(game.i18n.format("DRPG.Calls.notArmedNotCharged", { call: call.label }));
+            // Said once (1.2.122, the audit's COMM-37): where the bridge has told why it was not carried out, this adds
+            // nothing; a refusal it did not say - one the primary answered without a reason - is said here.
+            if (!told) ui.notifications.warn(game.i18n.format("DRPG.Calls.notArmedNotCharged", { call: call.label }));
             log(`${call.label} was not armed by the GM; ${actor.name} was not charged.`);
             return null;
         }
@@ -324,7 +326,9 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
             return null;
         }
 
-        await postHopeCallCard(actor, call, note, done, held - call.cost);
+        // What is left, from the primary's own payment where it paid (1.2.122, the audit's DESP-36): `held` is this
+        // browser's reading from before the arm, and a Hope that moved in that round trip made the card one off.
+        await postHopeCallCard(actor, call, note, done, gmPays && Number.isFinite(left) ? left : held - call.cost);
         log(`${actor.name} spent ${call.cost} Hope on ${call.label}.`);
         Hooks.callAll("drpgHopeCall", { actor, key, call, note, choice });
         return call;

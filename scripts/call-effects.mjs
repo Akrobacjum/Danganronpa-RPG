@@ -278,7 +278,7 @@ export function alreadyArmed(actor, call) {
  * With no GM connected the bridge says so (`noGm`), and nothing is armed or paid. A GM - a
  * Monokuma, a Monocub's Meddle resolved on the GM - writes it directly.
  */
-export async function armCall(actor, { key, kind, grants, amount = null, from = null, nonce = null, quiet = false }) {
+export async function armCall(actor, { key, kind, grants, amount = null, from = null, nonce = null, quiet = false, out = null }) {
     if (!actor || !grants) return null;
 
     // `amount` only means something for `grants: "bonus"` - Monocub's Meddle is
@@ -296,7 +296,15 @@ export async function armCall(actor, { key, kind, grants, amount = null, from = 
         // refuse, and null here is "not armed, and nothing was charged".
         const { requestArmCall } = await import("./gm-bridge.mjs");
         const res = await requestArmCall(actor.id, payload);
-        if (!res.ok || !res.value) return null;
+        /* `out` (1.2.122): what the caller's card and notices need of the answer. `told` - the bridge has said why it was
+           not carried out (`ask` says every refusal, a missing GM and a silence), so the caller says nothing more (the
+           audit's COMM-37); `left` - the Hope the primary left the buyer after its payment, the receipt's number (the
+           audit's DESP-36: the card printed the asker's reading from before the arm). */
+        if (!res.ok || !res.value) {
+            if (out) out.told = !res.ok;
+            return null;
+        }
+        if (out && Number.isFinite(res.value?.left)) out.left = res.value.left;
         log(`The GM armed ${key} on ${actor.name} (${grants}).`);
         return true;
     }
@@ -988,7 +996,7 @@ class NothingToDo extends Error {}
  * -------------------------------------------------------------------------- */
 
 // --- effects that arm the next roll ---
-async function grantEffect(actor, call, choice, done, { key, kind, nonce = null }) {
+async function grantEffect(actor, call, choice, done, { key, kind, nonce = null, out = null }) {
     // Support and Approval arm someone else; the rest arm the caller.
     const beneficiary = choice.target ?? actor;
 
@@ -1001,14 +1009,15 @@ async function grantEffect(actor, call, choice, done, { key, kind, nonce = null 
         throw new NothingToDo(`${beneficiary.name} already holds ${key}`);
     }
 
-    const armed = await armCall(beneficiary, { key, kind, grants: call.grants, from: actor.id, nonce });
+    const armed = await armCall(beneficiary, { key, kind, grants: call.grants, from: actor.id, nonce, out });
 
     // `armCall` returns null when the flag could not be written - no GM
     // online to forward it, or the write itself failed. Announcing it
     // anyway is how six Hope bought a Free Critical that was never armed
     // and never refunded, because the receipt line made the Call look
     // like it had done something.
-    if (!armed) throw new Error(`could not arm ${key} on ${beneficiary.name}`);
+    // A refusal the bridge has said is no fault (COMM-37): kept out of the error log, as DESP-19 kept the refund's.
+    if (!armed) throw out?.told ? new NothingToDo(`${key} on ${beneficiary.name} was refused`) : new Error(`could not arm ${key} on ${beneficiary.name}`);
 
     // The genitive: "{name} może teraz użyć {what}" (`grantWords`).
     done.push(game.i18n.format("DRPG.Calls.armed", {
@@ -1298,7 +1307,7 @@ async function silenceEffect(actor, call, choice, done) {
         ui.notifications.warn(game.i18n.format("DRPG.Calls.alreadySilenced", { name: choice.target.name }));
         throw new NothingToDo(`${choice.target.name} is already silenced`);
     }
-    await restrict(choice.target, { silenced: true });
+    if (!(await restrict(choice.target, { silenced: true }))) throw new Error(`could not silence ${choice.target.name}`);
     done.push(game.i18n.format("DRPG.Calls.silenced", { name: cardName(choice.target) }));
     await tell(choice.target, "DRPG.Calls.silencedNotice");
 }
@@ -1311,7 +1320,7 @@ async function chainEffect(actor, call, choice, done) {
     }
     const { roomOfActor } = await import("./movement.mjs");
     const here = roomOfActor(choice.target);
-    await restrict(choice.target, { chained: true, room: here });
+    if (!(await restrict(choice.target, { chained: true, room: here }))) throw new Error(`could not chain ${choice.target.name}`);
     // The room stays off the public card (privacy line 2, #5; the owner's rule of 13.11.2026): the card is the table's, and
     // where the target stands is theirs and the GMs' to know. The target's own notice names it.
     done.push(game.i18n.format("DRPG.Calls.chained", { name: cardName(choice.target) }));
@@ -1371,8 +1380,12 @@ async function destroyItemEffect(actor, call, choice, done) {
     // player's console this deleted the item, with no Despair spent.
     if (!game.user.isGM) throw new NothingToDo();
     const name = choice.item.name;
+    const owner = choice.item.parent?.documentName === "Actor" ? choice.item.parent : null;
     await choice.item.delete();
     done.push(game.i18n.format("DRPG.Calls.destroyed", { item: name }));
+    // Its owner told, privately, as Silence and Chain tell theirs (1.2.122, the audit's COMM-36): the public card named
+    // the item alone, and the player found an empty slot later.
+    if (owner) await tell(owner, "DRPG.Calls.destroyedNotice", { item: name });
 }
 
 /**
@@ -1396,10 +1409,12 @@ export async function applyCall(actor, key, kind, choice = {}, { nonce = null } 
     const done = [];
     // Lines for a veiled card beside the public one (`progressEffect`): `{ line, whisper }`, the GMs added by the poster.
     const secret = [];
+    // What the primary's answer to an arm said (`armCall`'s `out`): `told` and `left`, handed back to the caller.
+    const out = {};
 
     try {
         // The branches, in the order they have always run.
-        if (call.grants) await grantEffect(actor, call, choice, done, { key, kind, nonce });
+        if (call.grants) await grantEffect(actor, call, choice, done, { key, kind, nonce, out });
         if (call.grantsHope && choice.target) await hopeFromDespairEffect(actor, call, choice, done);
         if (call.feedsOverflow) await feedOverflowEffect(actor, call, choice, done);
         if (call.damage && choice.target) await damageEffect(actor, call, choice, done);
@@ -1417,7 +1432,7 @@ export async function applyCall(actor, key, kind, choice = {}, { nonce = null } 
         if (call.gathersEveryone && choice.room) await gatherEffect(actor, call, choice, done);
         if (call.target === "item" && choice.item) await destroyItemEffect(actor, call, choice, done);
     } catch (err) {
-        if (err instanceof NothingToDo) return { lines: done, failed: true, secret };
+        if (err instanceof NothingToDo) return { lines: done, failed: true, secret, ...out };
         // A Call that has been paid for and did nothing must say so, and must
         // give the price back. Failing quietly is how "Contribution adds no
         // progress, no error" happened.
@@ -1432,5 +1447,5 @@ export async function applyCall(actor, key, kind, choice = {}, { nonce = null } 
     // Nothing thrown, but nothing happened either: a Call whose every branch was
     // skipped because the picker came back empty is still a Call that took the
     // resource and delivered none of what it promised.
-    return { lines: done, failed: done.length === 0, secret };
+    return { lines: done, failed: done.length === 0, secret, ...out };
 }

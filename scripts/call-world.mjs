@@ -134,8 +134,9 @@ export function isChained(actor) {
 export async function restrict(actor, patch) {
     const all = { ...restrictions() };
     all[actor.id] = { ...(all[actor.id] ?? {}), ...patch };
-    await writeWorld(SETTINGS.restrictions, all);
-    return true;
+    // The write's answer, as `sealRoom`'s (1.2.122, the audit's COMM-26): true whatever `writeWorld` did announced a
+    // Silence or a Chain that nothing had written.
+    return Boolean(await writeWorld(SETTINGS.restrictions, all));
 }
 
 /**
