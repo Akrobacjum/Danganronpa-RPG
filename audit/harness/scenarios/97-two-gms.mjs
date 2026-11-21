@@ -15,6 +15,9 @@
  *      client reads gm2, and the seed GM back makes it the primary again (A4).
  *   B  the GMs' store both ways: a row gm2 writes is held by gm, a row gm writes by gm2, each by the store's own
  *      exchange (gm-store.mjs), and a removal on one is a removal on the other (B1-B3).
+ *   K  (run before I, while gm2 is here) the GMs' drawn fog, `diagnoseFog().shading` on gm and on gm2, with no repaint
+ *      asked by the scenario: every student's row emptied on gm (K0), a Fog cell ticked on gm (K1) and unticked on gm2
+ *      (K2), p1 walking Aiko into a room nobody found (K3), Room setup's Hide all and Apply on gm2 (K4) (1.2.120 line F).
  *   I  the owner's world of 20.11.2026 (1.2.119 line F): two GM users, gm2 gone, a season reset's discovery cut two
  *      hours ahead of gm's clock, as a reset made on gm2's computer with its clock ahead writes it; p1 walks Aiko into
  *      a room, and gm's record holds it, after gm's reload too, p1's copy holds it, and gm is told once (I1, I2). Last:
@@ -333,6 +336,58 @@ export async function run(api) {
         madeH2.picked === true && J(onGmH2) === J([[IDS.gm]]) && onGm2H2 === 0, J({ picked: madeH2.picked, onGmH2, onGm2H2 }));
     await gm.eval(`const P = ${imp("projects.mjs")}; if (${J(madeH.id)}) await P.deleteProject(${J(madeH.id)}).catch(() => {}); return true;`, { timeout: 60000 });
     await settle(1000);
+
+    /* ------------------------------------------------------------------ K */
+    /* 1.2.120 line F (the owner's report of 21.11.2026: "Mgla u GMa nie odswieza sie wcale" - the GM's fog does not refresh
+       at all). The GM's DRAWN fog - what the last repaint shaded (`diagnoseFog().shading`), read on gm and on gm2 - after
+       each road that changes the class's map, with no repaint called by this scenario: J reads its map after calling
+       `repaintFog()` itself, so it never measured that a GM redraws on its own. Roads: a Fog cell ticked on gm, the same
+       cell unticked on gm2, a student p1 walks into a room nobody found, Room setup's Hide all and Apply on gm2 (not the
+       primary). On e515907d every road followed on both GMs headless (K1-K4 green); the harness renders no texture, so
+       the dissolve that can hold every repaint at a table (R8030) is not reached here: LIVE-F120-01. */
+    phase("K the GMs' drawn fog follows every road, with no repaint asked", { flow: "discovery-ledger" });
+    const SHADE = `const F = ${imp("fog.mjs")}; return F.diagnoseFog().shading ?? null;`;
+    const both = async (done, ms = 6000) => ({ gm: await until(() => gm.eval(SHADE), done, ms), gm2: await until(() => gm2.eval(SHADE), done, ms) });
+    // Every student's row on the scene emptied on gm first (`setDiscovery` with no actor, as the console's Hide all is),
+    // so the rooms K ticks and walks into are rooms nobody has found; the GMs' drawn fog follows that too (K0).
+    const allFog = s => Boolean(s) && Object.keys(s).length > 0 && Object.values(s).every(v => v === "fog");
+    await gm.eval(`const F = ${imp("fog.mjs")}; await F.setDiscovery(game.scenes.get("${IDS.scene}"), { value: false }); return true;`, { timeout: 60000 });
+    const k0 = await both(allFog);
+    const darkK = Object.keys(k0.gm ?? {}).sort();
+    const aikoAt = await gm.eval(`return (${imp("movement.mjs")}).roomOfToken(game.scenes.get("${IDS.scene}").tokens.get("TOKAIKO000000000"));`);
+    const tickK = darkK.find(room => room !== aikoAt) ?? null, walkK = darkK.find(room => room !== aikoAt && room !== tickK) ?? null;
+    check("K0: every student's row emptied on gm: every room fogged on gm's drawn fog and on gm2's, with no repaint asked, and two rooms left to tick and to walk into (1.2.120 line F)",
+        allFog(k0.gm) && allFog(k0.gm2) && Boolean(tickK && walkK), J({ k0, aikoAt, tickK, walkK }));
+    await gm.eval(`const F = ${imp("fog.mjs")}; await F.setDiscovery(game.scenes.get("${IDS.scene}"), { actorId: "${IDS.aiko}", rooms: [${J(tickK)}], value: true }); return true;`, { timeout: 60000 });
+    const k1 = await both(s => s?.[tickK] === "clear");
+    check("K1: a Fog cell gm ticks clears its room on gm's drawn fog and on gm2's, with no repaint asked (1.2.120 line F)",
+        k1.gm?.[tickK] === "clear" && k1.gm2?.[tickK] === "clear", J({ tickK, k1 }));
+    await gm2.eval(`const F = ${imp("fog.mjs")}; await F.setDiscovery(game.scenes.get("${IDS.scene}"), { actorId: "${IDS.aiko}", rooms: [], value: true }); return true;`, { timeout: 60000 });
+    const k2 = await both(s => s?.[tickK] === "fog");
+    check("K2: the same cell unticked on gm2, the other GM: its room is fogged again on both GMs' drawn fog (1.2.120 line F)",
+        k2.gm?.[tickK] === "fog" && k2.gm2?.[tickK] === "fog", J({ tickK, k2 }));
+    await gm.eval(`const t = game.scenes.get("${IDS.scene}").tokens.get("TOKAIKO000000000");
+        await game.drpg.setActions(t.actor, 3); await t.actor.setFlag("${MOD}", "freeMoveUsed", false); return true;`, { timeout: 60000 });
+    await settle(600);
+    const walkedK = await p1.eval(`const M = ${imp("movement.mjs")}; const t = game.scenes.get("${IDS.scene}").tokens.get("TOKAIKO000000000");
+        const to = M.positionIn(${J(walkK)}, t); await t.update({ x: to.x, y: to.y }); await new Promise(r => setTimeout(r, 1500)); return M.roomOfToken(t);`, { timeout: 60000 });
+    const k3 = await both(s => s?.[walkK] === "clear");
+    check("K3: p1 walks Aiko into a room nobody had found: it clears on gm's drawn fog and on gm2's, with no repaint asked (1.2.120 line F)",
+        walkedK === walkK && k3.gm?.[walkK] === "clear" && k3.gm2?.[walkK] === "clear", J({ walkK, walkedK, k3 }));
+    const boxesK = await gm2.eval(`const V = ${imp("vault.mjs")}; let boxes = 0;
+        globalThis.__dialogAnswers.push(async config => {
+            const ok = (config.buttons ?? []).find(b => b.action === "ok");
+            const element = document.createElement("dialog"), form = document.createElement("form");
+            if (typeof config.content === "string") form.innerHTML = config.content; else if (config.content) form.append(config.content.cloneNode(true));
+            element.append(form);
+            for (const box of form.querySelectorAll('input[type="checkbox"][name^="fog:"]')) if (!box.disabled) { box.checked = false; boxes += 1; }
+            return ok.callback(new globalThis.window.Event("click"), { form }, { element });
+        });
+        try { await V.openRoomSetupDialog(); } finally { globalThis.__dialogAnswers.length = 0; }
+        return boxes;`, { timeout: 60000 });
+    const k4 = await both(allFog);
+    check("K4: Hide all and Apply on Room setup's Fog tab on gm2, not the primary: every room fogged on gm's drawn fog and on gm2's, with no repaint asked (1.2.120 line F)",
+        boxesK > 0 && allFog(k4.gm) && allFog(k4.gm2), J({ boxesK, k4 }));
 
     /* ------------------------------------------------------------------ I */
     /* 1.2.119 line F (the owner's item #2 of 20.11.2026: the GM's fog stopped showing the rooms the players found, F5 did
