@@ -137,13 +137,16 @@ function actionsOf(actor) {
  * The Eclipse in its own words, with how far a token may go: the crossings an Eclipse allows as movement.mjs counts
  * them (`overflowCrossings(ECLIPSE_MOVES)`, fewer under the Overflow's darkness), not "two" written in (E66 C4,
  * 01.11.2026; E66-18). `crossings` is for a reader that has the number already.
+ *
+ * THE NIGHT UNDER THE DARKNESS (1.2.122; the 1.2.42 audit's 3.1-03, TEXT-04's verification): a night's placement is
+ * free (`overflowCrossings(null)` is null) and the sentence says "anywhere at night" - but the Overflow's darkness turns
+ * it into `freeBecomes` rooms, and the sentence went on saying anywhere. `night` is that number, null when the night is
+ * free; with a number the darkened key names it. R8462.
  */
-export function eclipseExplanation(crossings = overflowCrossings(ECLIPSE_MOVES) ?? ECLIPSE_MOVES, { nightFree = overflowCrossings(null) === null } = {}) {
-    /* A night's free placement only while the Overflow's Darkness does not take it (`overflowCrossings(null)` answers
-       ECLIPSE_MOVES under it, null without): the sentence said "or anywhere at night" under Darkness too (1.2.122 line
-       TEXT; the audit of 1.2.118's unrouted TEXT-04). */
-    return t(nightFree ? "DRPG.Explain.phase.eclipse" : "DRPG.Explain.phase.eclipseDark",
-        { reach: plural("DRPG.Explain.phase.eclipseReach", { n: crossings }) });
+export function eclipseExplanation(crossings = overflowCrossings(ECLIPSE_MOVES) ?? ECLIPSE_MOVES, night = overflowCrossings(null)) {
+    const reach = plural("DRPG.Explain.phase.eclipseReach", { n: crossings });
+    if (night === null || night === undefined) return t("DRPG.Explain.phase.eclipse", { reach });
+    return t("DRPG.Explain.phase.eclipseDark", { reach, night: plural("DRPG.Explain.phase.eclipseReach", { n: night }) });
 }
 
 /**

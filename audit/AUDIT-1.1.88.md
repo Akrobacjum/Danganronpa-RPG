@@ -185,7 +185,7 @@ końca:
 5. Rozważyć: `CHANGELOG.md` (masz świetne opisy commitów - warto je wystawić),
    ewentualnie `pl.json` (makra są po polsku, `en.json` po angielsku - spójność
    językowa do rozważenia).
-6. Obejrzeć na żywej scenie izometrycznej cztery obszary z sekcji powyżej.
+6. Obejrzeć na żywej scenie izometrycznej cztery obszary z sekcji powyżej. (Dopisek 21.11.2026, CL-LIVE: sekcja ma trzy obszary - mgła z pierścieniami Remnantów, CSS na żywo, głos per pokój z muzyką; czwartego nie było. Stan każdego: OA-1..OA-3 w AUDIT-1.2.42.md 13.1.)
 
 Po punktach 1–4 to jest moduł, który spokojnie pokażesz obcemu i na którym
 zaczniesz pierwsze sesje bez ryzyka wywrotki.

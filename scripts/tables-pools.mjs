@@ -668,9 +668,10 @@ export function rolesForPoolItem(name) {
  * Sleeping draught, Lethal poison, Gift. Nothing ever read them: no screen
  * offered them, and the note that used to sit here argued they were guide
  * content rather than dead code and should stay. Asked directly, Dawid's answer
- * was that they do not need wiring up, so the rule lives where the rest of the
- * guide's unimplemented content lives - the handbook, and the audit that
- * records the decision - rather than as an export nothing imports.
+ * was that they do not need wiring up, and that they stay a rule of the
+ * handbook. No handbook names them (grep of docs/handbooks for the three, 21.11.2026;
+ * the audit's Q12): the decision is recorded in audit/AUDIT-1.2.13.md alone
+ * (Q12, answered "nie trzeba podpinać"), not as an export nothing imports.
  */
 
 /**

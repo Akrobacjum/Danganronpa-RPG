@@ -127,7 +127,7 @@
       "class": "killer-identity",
       "severity": "high",
       "classNote": "Filed as metadata of severity info until 21.11.2026 (DOC-02): it resolves the \"?\" to the killer's name, so it is the killer's identity, a Foundry limit the module cannot close. The audit's reader of 1.2.118 records the owner's yes to this reading on 14.11.2026; this checkout holds no copy of that answer.",
-      "what": "A killer behind a \"?\" after a murder's opening keeps their token document's actorId, so a player's browser console resolves the \"?\" to the killer's actor and name; the token's name, picture and flags, the cast copies and the module's packets name nobody, and nothing in the interface does.",
+      "what": "A killer behind a \"?\" after a murder's opening keeps their token document's actorId, so a player's browser console resolves the \"?\" to the killer's actor and name; the token's name, picture and flags, the cast copies and the module's packets name nobody, and nothing in the interface does. Since 1.2.116 the actor's own portrait wears the \"?\" too while its name stands (mask-gm.mjs writes its img), and another player's browser shuts that actor's sheet (anonymity.mjs `maskedSheetClosed`): the actor's name is world data a console reads all the same (read 21.11.2026; the audit's D-276).",
       "foundryLimit": "Foundry v14 sends every Token document to every connected client, and a token's actorId is what makes it that character's token: the module cannot point it at another actor without breaking the killer's own moves, sheet and rolls.",
       "detectedBy": [{"scenario": "30-security", "check": "a masked token's actor is read from a player's console - on p2 and p3 the \"?\" token's actorId resolves to the killer's name"}],
       "readme": "leak:foundry-masked-token-actor",
@@ -155,6 +155,17 @@
       "detectedBy": [{"scenario": "33-bridge-paths", "check": "E74-A2: a barricaded room is read from a player's console - p2's browser reads the room's barricade flag while the barricade stands"}],
       "readme": "leak:foundry-barricade-flag",
       "measuredAt": "1.2.122 line STG, 21.11.2026, on a16477c6 with these edits: scenario 33 E74-A, p2 read the barricade flag (movement.mjs roomBarricaded) true for Aiko's barricade of Dorm A at strength 12, the GMs' row [\"Dorm A\", 12]"
+    },
+    {
+      "id": "foundry-spectator-chat",
+      "findings": ["E92", "STG-35"],
+      "class": "metadata",
+      "severity": "low",
+      "what": "A chat message a Spectator's own console forces past its browser's refusal is sent by Foundry's server to every browser before the primary GM's browser removes it (spectator-ui.mjs dropSpectatorMessage), so a console listening for createChatMessage on another player's browser reads its words for that moment. Nothing stays: no browser holds or draws it after the GMs have had it.",
+      "foundryLimit": "Foundry v14 gives a module no way to refuse a player's chat document before the server sends it to every connected client; the Spectator's own browser refuses it first (preCreateChatMessage, a courtesy a console steps past) and the primary GM deletes it on arrival.",
+      "detectedBy": [{"scenario": "93-spectator", "check": "chat2: a Spectator's message forced past its own browser is heard on p1's for a moment - p1's createChatMessage hook was handed its words before the GMs removed it"}],
+      "readme": "leak:foundry-spectator-chat",
+      "measuredAt": "1.2.122 line STG, 21.11.2026, on aacab044 with these edits: scenario 93 phase chat, p3's console posted with its preCreateChatMessage hook taken off (posted: console true); p1's createChatMessage hook was handed \"E92 SPECTATOR SAYS 2\"; afterwards no message held or drawn on gm, p1 or p3. Before this, the scenario's own console road posted nothing headless (the shim's Hooks.events is a copy), so neither half had been read"
     }
   ]
 }

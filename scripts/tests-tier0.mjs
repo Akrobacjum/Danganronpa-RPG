@@ -13,7 +13,7 @@ import { atReadableFloor } from "./tests-css.mjs";
 import {
     ok, needs, env, world, equal, must, wait, lf, lfText, moduleSources, otherSources, stripComments, moduleStyles, bodyOf,
     topLevelFunction, fnSource, lineAround, withGuards, lineAt, stripStrings, stringLiterals, STANDING, cast,
-    markerProblem, runOne, scriptDice, answerDialogs, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
+    markerProblem, runOne, scriptDice, answerDialogs, standIn, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
     DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
     bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, panelText, HUD_FAMILY, hudText, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs,
@@ -6227,6 +6227,32 @@ const REGRESSIONS = [
             && /__dialogAnswers !== realDialogs\.answers/.test(suite);
         equal(JSON.stringify([wrapped, atEnd]), JSON.stringify([true, true]),
             "tier 2 runs a test outside the dialog answers, does not take them off in a finally, or does not read the dialogs real at the end (wrapped, read at the end)");
+    }],
+    ["R7745 - a test's stand-in for what Foundry holds read-only is its own property, put back as found, and one it cannot make is a probe", async () => {
+        /*
+         * E58 L1, 19.11.2026: on the sandbox (Foundry 14.370) `game.i18n.format` is Localization.prototype's, neither writable nor
+         * configurable, so a test's `game.i18n.format = fn` threw (R2077, R3980 and two tier-2 tests); a Module's `active` is its
+         * own, fixed; `foundry.utils` and `foundry.canvas` are frozen. tests-kit.mjs `standIn` shadows an inherited read-only
+         * property with an own one and puts back what stood; `replaceable` (env.replaceable) says where nothing can stand in.
+         * Planted here: each of the four shapes, on objects of the test's own. Red before the kit had either (no export).
+         */
+        const K = await import("./tests-kit.mjs");
+        must(typeof K.standIn === "function" && typeof K.env.replaceable === "function", "the kit has no standIn or env.replaceable");
+        const proto = {}; Object.defineProperty(proto, "say", { value: () => "real", writable: false, configurable: false });
+        const inherited = Object.create(proto);
+        const back = K.standIn(inherited, "say", () => "stand-in");
+        const during = [inherited.say(), Object.hasOwn(inherited, "say")];
+        back();
+        const after = [inherited.say(), Object.hasOwn(inherited, "say")];
+        const owned = { say: () => "own" }, ownBack = K.standIn(owned, "say", () => "stand-in");
+        const ownDuring = owned.say();
+        ownBack();
+        const fixed = {}; Object.defineProperty(fixed, "active", { value: true, writable: false, configurable: false });
+        const holds = (obj, key) => K.env.replaceable(obj, key, "R7745").holds;
+        equal(JSON.stringify([during, after, ownDuring, owned.say(), Object.getOwnPropertyDescriptor(owned, "say").writable,
+            holds(inherited, "say"), holds(owned, "say"), holds(fixed, "active"), holds(Object.freeze({ f: 1 }), "f"), holds(Object.freeze({}), "g")]),
+        JSON.stringify([["stand-in", true], ["real", false], "stand-in", "own", true, true, true, false, false, false]),
+        "a stand-in was not an own property, was not put back as found, or a read-only one was called replaceable");
     }],
 
     ["R155 - every expectedRed names a stage that has not shipped", async () => {
@@ -20418,8 +20444,8 @@ const REGRESSIONS = [
         }
         const sources = await moduleSources();
         const src = file => stripComments(sources.get(file) ?? "");
-        // 1.2.122 line TEXT (TEXT-04): a second parameter, `nightFree`, follows the crossings
-        read.roads = [/export function eclipseExplanation\(crossings = overflowCrossings\(ECLIPSE_MOVES\) \?\? ECLIPSE_MOVES[,)]/.test(src("explain.mjs")),
+        // changed on purpose (1.2.122, R8462): a second parameter, the darkened night's crossings
+        read.roads = [/export function eclipseExplanation\(crossings = overflowCrossings\(ECLIPSE_MOVES\) \?\? ECLIPSE_MOVES, night = overflowCrossings\(null\)\)/.test(src("explain.mjs")),
             /baseActions\(\{ wounded: costsAction \}\) - dark/.test(src("actions.mjs")), // E64 C1c: Wounded's action is Daily Life's alone
             /game\.i18n\.format\(card\.key, \{[^}]*\bseconds\b[^}]*\}\)/.test(fnSource(src("trial-floor.mjs"), "postFloorCard") ?? ""),
             /"DRPG\.Floor\.holdingDebateOver", \{ seconds: Math\.abs\(left\), step: adjustStep\(floor\) \}/.test(src("trial-floor-ui.mjs")),
@@ -23212,7 +23238,7 @@ const REGRESSIONS = [
         must(typeof UI.projectManagerBody === "function", "projects-ui.mjs has no projectManagerBody - the manager's body cannot be drawn here, so its order would not be read");
         const actor = studentActors()[0] ?? null;
         must(actor, "no student to draw the proposal for - its order would not be read");
-        const I = game.i18n, own = { localize: I.localize, format: I.format };
+        const I = game.i18n, back = [];
         const D = foundry.applications.api.DialogV2, ownWait = Object.getOwnPropertyDescriptor(D, "wait");
         const runs = (list, i) => list.filter((k, n) => k !== list[n - 1]);
         const read = (html, buttons = []) => ({
@@ -23223,8 +23249,8 @@ const REGRESSIONS = [
         const got = {};
         let seen = null;
         try {
-            I.localize = key => `[[k:${key}]]`;
-            I.format = key => `[[k:${key}]]`;
+            // standIn: v14's `format` is Localization.prototype's, read-only there (tests-kit.mjs).
+            back.push(standIn(I, "localize", key => `[[k:${key}]]`), standIn(I, "format", key => `[[k:${key}]]`));
             D.wait = async cfg => { seen = cfg; return null; };
             const drawn = () => read(typeof seen?.content === "string" ? seen.content : seen?.content?.outerHTML ?? "", seen?.buttons ?? []);
             const projects = ["R2077PROJECTA", "R2077PROJECTB"].map((id, n) => ({ id, name: `R2077 project ${n}`, current: n, start: 4, img: "" }));
@@ -23239,7 +23265,7 @@ const REGRESSIONS = [
             await AP.startProject(actor);
             got.propose = drawn();
         } finally {
-            Object.assign(I, own);
+            for (const putBack of back.reverse()) putBack();
             if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
         }
         // A preset's rows (the world's walls and items, not the window's order) out of the proposal before the compare.
@@ -27573,29 +27599,23 @@ const REGRESSIONS = [
         if (!/proseOf\(\s*USABLE_KIND_EFFECTS\[kind\]\s*,\s*give\.tier\s*\)/.test(items)) wrong.push("gm-items.mjs's receipt does not fill the usable's sentence");
         equal(JSON.stringify(wrong), "[]", "[a number told twice, or a sentence its reader does not fill]");
     }],
-    ["R8070 - two texts the auditor's unrouted list named say no more than holds (1.2.122 line TEXT; the audit of 1.2.118's unrouted items, TEXT-04, TEXT-09 and TEXT-LC2): the Eclipse's explainer promises a night's placement anywhere only while the Overflow's Darkness does not take it away (explain.mjs `eclipseExplanation`, `nightFree`), and the giver of a Truth Bullet the receiver already holds a copy of is told only that nothing changed hands", async () => {
+    ["R8070 - a text the auditor's unrouted list named says no more than holds (1.2.122 line TEXT; the audit of 1.2.118's unrouted items, TEXT-04, TEXT-09 and TEXT-LC2): the giver of a Truth Bullet the receiver already holds a copy of is told only that nothing changed hands", async () => {
         /*
          * 1.2.122 line TEXT, 21.11.2026; the owner: everything the auditor named goes into 1.2.122.
-         * TEXT-04: overflow.mjs `overflowCrossings(null)` turns a night's free placement into ECLIPSE_MOVES rooms under
-         * Darkness, and the sentence still said "or anywhere at night". TEXT-09 / TEXT-LC2: DRPG.Handover.alreadyHasIt,
+         * TEXT-04 (the Eclipse's "or anywhere at night" under Darkness) was fixed twice, by TEXT and by STG (3.1-03); the
+         * assembly kept STG's, which names the night's rooms, and its test is R8462. TEXT-09 / TEXT-LC2: DRPG.Handover.alreadyHasIt,
          * whispered to the giver (handover.mjs `mintCopy`'s HELD_COPY), said "They already hold a Truth Bullet of this
          * Remnant" - a fact about the receiver's evidence (AUDIT-1.2.42.md 3.4, fixed in task 13 as "Nothing changed
-         * hands.", reworded back in E71 B08 with no owner's verdict). Red at aa564cca: both.
+         * hands.", reworded back in E71 B08 with no owner's verdict). Red at aa564cca.
          */
-        const E = await import("./explain.mjs");
         const wrong = [];
-        const dark = E.eclipseExplanation(2, { nightFree: false }), light = E.eclipseExplanation(2, { nightFree: true });
-        if (/anywhere|gdziekolwiek/.test(dark)) wrong.push(`under Darkness: ${dark}`);
-        if (!/anywhere|gdziekolwiek/.test(light)) wrong.push(`with the night free: ${light}`);
-        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/explain.mjs`, { cache: "no-cache" }).then(lfText));
-        if (!/nightFree\s*=\s*overflowCrossings\(\s*null\s*\)\s*===\s*null/.test(fnSource(src, "eclipseExplanation"))) wrong.push("eclipseExplanation does not ask the Overflow whether the night is free");
         for (const code of ["en", "pl"]) {
             const json = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => r.json());
             const text = json?.DRPG?.Handover?.alreadyHasIt ?? "";
             must(text.length > 5, `${code} DRPG.Handover.alreadyHasIt is missing - this reads nothing`);
             if (/already|ma już|Remnant/.test(text)) wrong.push(`${code} alreadyHasIt: ${text}`);
         }
-        equal(JSON.stringify(wrong), "[]", "[what the two texts still say beyond what holds]");
+        equal(JSON.stringify(wrong), "[]", "[what the text still says beyond what holds]");
     }],
 ];
 

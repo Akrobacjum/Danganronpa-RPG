@@ -735,7 +735,7 @@
         "dive": "Logic Dive",
         "scrum": "Scrum Debate"
       },
-      "trialTooltip": "Class Trial. Debatą kieruje GM ze swojej konsoli.",
+      "trialTooltip": "Trwa Class Trial.",
       "trialClockTooltip": "Ile zostało tej części debaty.",
       "trialEveryone": "Wszyscy",
       "trialVersus": "kontra {who}",
@@ -7136,7 +7136,7 @@
       "phase": {
         "eclipseTitle": "Eclipse",
         "eclipse": "Światła są zgaszone. Każdy ustawia swój token: można przejść {reach}, a nocą gdziekolwiek na mapie. Nikt nie widzi, kto dokąd poszedł. Akcje są już odnowione, ale do powrotu świateł można je wydać tylko na Direct Murder i nikt nie używa Calli.",
-        "eclipseDark": "Światła są zgaszone. Każdy ustawia swój token: można przejść {reach}. Nikt nie widzi, kto dokąd poszedł. Akcje są już odnowione, ale do powrotu świateł można je wydać tylko na Direct Murder i nikt nie używa Calli.",
+        "eclipseDark": "Światła są zgaszone. Każdy ustawia swój token: można przejść {reach}, a nocą {night}. Nikt nie widzi, kto dokąd poszedł. Akcje są już odnowione, ale do powrotu świateł można je wydać tylko na Direct Murder i nikt nie używa Calli.",
         "eclipseReach": {
           "one": "do {n} połączonego pokoju",
           "few": "do {n} połączonych pokoi",

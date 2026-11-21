@@ -49,7 +49,8 @@ import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
  * row buttons are the real procedures:
  *
  *   Kill                 `openDeathDialog` for that one character, with the
- *                        warning about the inventory it destroys.
+ *                        warning about the Truth Bullets it destroys (the rest
+ *                        of the sheet stays; "the inventory" until the audit's Q3).
  *   Invite as a Monocub  the guide's offer to somebody already dead.
  *
  * The Monocub half of the old window comes across whole: how much Hope a cub

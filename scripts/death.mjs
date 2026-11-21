@@ -618,8 +618,9 @@ async function offerStageSix(victim) {
 }
 
 /**
- * Undo the marking. The inventory does NOT come back - those documents are
- * gone - so this is for a mis-click, not for a resurrection.
+ * Undo the marking. The Truth Bullets a death destroyed do NOT come back - those documents are gone; the rest of the
+ * sheet never went (`killCharacter`, decision D1 as it stands) - so this is for a mis-click, not for a resurrection.
+ * (Until 21.11.2026 this said "the inventory": the audit's Q3.)
  */
 export async function reviveCharacter(actor, { quiet = false, silent = false } = {}) {
     if (!game.user.isGM || !actor) return false;
