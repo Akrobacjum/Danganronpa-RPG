@@ -64396,6 +64396,46 @@ const INVARIANTS = [
             stableJson({ keys: ["mastermind", "name"], same: true, under: true, state: "done", list: true }),
             "{keys: the rows after, in the steps' order; same, under: the standing row the same node, with what stood under it; state: drawn again; list: the same list}");
     }],
+    ["R8541 - the Season checklist's repaint keeps a row's button and the row in its place, so a press between its pointerdown and its click is heard (the audit's check of 1.2.121, r121-R-7; the line claude/refresh-120 for 1.2.122): season-setup.mjs `relistRows` and `repaintStep` over the same steps take no node out of the list; a button whose action changes is the same node, its action and words the fresh row's; a reorder still puts the rows in the steps' order; a click on the pressed button after the repaint reaches the list's listener", async () => {
+        /* Red on 1eee4d62: every standing row appended again and every button replaced on every repaint - read in Chromium
+           153 on 21.11.2026, either one between a press's pointerdown and its click lost the click (heard 0 of 1), so the
+           checklist's follow of the world (`followChecklist`) could eat a press. jsdom keeps a removed node's click, so the
+           removals that take the pressed button or its row out are read here (a MutationObserver's records), not the click
+           alone. Pure over a detached list. */
+        const S = await import("./season-setup.mjs");
+        must(typeof S.relistRows === "function", "season-setup.mjs has no relistRows - this would measure nothing");
+        const step = (key, done) => ({ key, done, fix: () => 0, undo: () => 0, undoKey: "DRPG.Season.checkClean", hintKey: "DRPG.Season.checkClean", missing: () => [] });
+        const box = document.createElement("div");
+        document.body.append(box);
+        const read = {};
+        try {
+            box.innerHTML = S.setupRows([step("name", false), step("cast", false)]);
+            const ul = box.querySelector("ul.drpg-checklist");
+            const pressed = ul.querySelector('li[data-drpg-key="name"] > button[data-drpg-action]');
+            must(pressed?.dataset.drpgAction === "do", "the name row drew no Do button - this would measure nothing");
+            let heard = 0;
+            ul.addEventListener("click", ev => { if (ev.target?.closest?.("button[data-drpg-action]")) heard++; });
+            // the removals that took the pressed button out (it, or its row): the mark and the line under the title are drawn anew
+            const removed = () => watch.takeRecords().reduce((n, r) => n + [...r.removedNodes].filter(node => node === pressed || node.contains?.(pressed)).length, 0);
+            const watch = new MutationObserver(() => {});
+            watch.observe(ul, { childList: true, subtree: true });
+            S.relistRows(ul, [step("name", false), step("cast", false)]);
+            read.same = { removed: removed(), button: ul.querySelector('li[data-drpg-key="name"] > button[data-drpg-action]') === pressed };
+            S.relistRows(ul, [step("name", true), step("cast", false)]);
+            const now = ul.querySelector('li[data-drpg-key="name"] > button[data-drpg-action]');
+            read.changed = { removed: removed(), button: now === pressed, action: pressed.dataset.drpgAction,
+                words: pressed.textContent.trim() === game.i18n.localize("DRPG.Season.checkClean") };
+            pressed.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+            read.heard = heard;
+            S.relistRows(ul, [step("cast", false), step("name", true)]);
+            read.order = [...ul.querySelectorAll(":scope > li.drpg-check-row")].map(li => li.dataset.drpgKey);
+            watch.disconnect();
+        } finally {
+            box.remove();
+        }
+        equal(stableJson(read), stableJson({ changed: { action: "undo", button: true, removed: 0, words: true }, heard: 1, order: ["cast", "name"], same: { button: true, removed: 0 } }),
+            "{same: a repaint over the same steps - removals that took the pressed button out, the button the same node; changed: the row done - the same removals, the button the same node, its action, its words; heard: a click on the pressed button after; order: a reorder}");
+    }],
 ];
 
 /**

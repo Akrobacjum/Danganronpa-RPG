@@ -1007,9 +1007,25 @@ export function repaintStep(li, step) {
     else if (nextMissing) detail?.querySelector(":scope > .drpg-setup-hint")?.after(nextMissing);
     const button = li.querySelector(":scope > button[data-drpg-action]");
     const nextButton = fresh.querySelector(":scope > button[data-drpg-action]");
-    if (button && nextButton) button.replaceWith(nextButton);
+    if (button && nextButton) sameButton(button, nextButton);
     else if (button) button.remove();
     else if (nextButton) li.append(nextButton);
+}
+
+/**
+ * A ROW'S BUTTON IS WRITTEN OVER, NOT REPLACED (the audit's check of 1.2.121, r121-R-7; the line claude/refresh-120 for
+ * 1.2.122). The checklist follows the world (`followChecklist`, every row through `relistRows` and `repaintStep`), and
+ * the button was swapped for the fresh one on every repaint: a repaint between a press's pointerdown and its click took
+ * the pressed node out of the list, and the click went nowhere the list's listener hears (read in Chromium 153 on
+ * 21.11.2026: a button replaced between pointerdown and click, heard 0 of 1; its attribute written in place, 1 of 1).
+ * The node stays, and its attributes and words become the fresh one's - the listener reads the action off the button at
+ * the click, so a press lands on the action the row shows then. R8541.
+ */
+function sameButton(button, next) {
+    if (button.isEqualNode(next)) return;
+    for (const { name } of [...button.attributes]) if (!next.hasAttribute(name)) button.removeAttribute(name);
+    for (const { name, value } of next.attributes) if (button.getAttribute(name) !== value) button.setAttribute(name, value);
+    if (button.innerHTML !== next.innerHTML) button.innerHTML = next.innerHTML;
 }
 
 /**
@@ -1076,9 +1092,18 @@ export function relistRows(ul, list) {
     const fresh = new Map([...box.content.querySelectorAll("li.drpg-check-row[data-drpg-key]")].map(li => [li.dataset.drpgKey, li]));
     const keys = list.map(step => step.key);
     for (const [key, li] of standing) if (!keys.includes(key)) li.remove();
+    /* A ROW IN ITS PLACE IS NOT MOVED (the audit's check of 1.2.121, r121-R-7). Every standing row was appended again on
+       every repaint, and a move is a removal: read in Chromium 153 on 21.11.2026, a row appended again between a press's
+       pointerdown and its click lost the click (heard 0 of 1), as a replaced button did; attributes written in place kept
+       it (1 of 1). Each row now goes after the one before it only when it does not stand there already. */
+    let prev = null;
     for (const step of list) {
-        const li = standing.get(step.key);
-        if (li) { ul.append(li); repaintStep(li, step); } else if (fresh.get(step.key)) ul.append(fresh.get(step.key));
+        const li = standing.get(step.key) ?? fresh.get(step.key);
+        if (!li) continue;
+        const here = prev ? prev.nextElementSibling : ul.firstElementChild;
+        if (here !== li) { if (prev) prev.after(li); else ul.prepend(li); }
+        if (standing.has(step.key)) repaintStep(li, step);
+        prev = li;
     }
     return [...ul.querySelectorAll(":scope > li.drpg-check-row[data-drpg-key]")].map(li => li.dataset.drpgKey);
 }
