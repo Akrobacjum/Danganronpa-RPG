@@ -667,6 +667,44 @@ export async function run({ gm, p1, p2, p4, check, phase, settle, connect, disco
         await p4.eval(`for (const card of document.querySelectorAll(".drpg-popup")) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } })); return true;`);
     }
 
+    phase("R4: a return of more cards than the notice tile holds raises the newest eight of them");
+    /* 1.2.123 (the auditor's check of 1.2.122, r122-lane-B-1). 1.2.122 gave a return's eight notices to the first answers,
+       and a GM answers in the order asked - the chat's, oldest first - so a return raised its oldest cards; and each ask
+       set the count again. p4 is away while the GM posts ten cards to it and the GMs, one after another; it comes back with
+       the storage it left and asks at its ready (secret.mjs `askForWords`). Once the answers have settled, p4's notice
+       history holds the newest eight of the ten, and no other. Red at 14bb0d92: the oldest eight. NOT MEASURED HERE: a
+       second ask whose answers overlap the first's (a second GM's ready) - by the time this page can ask again the first
+       ask is answered, and an ask then finds nothing to ask (read 21.11.2026: 0 cards). The two share one round by
+       construction (`returnRound` is the answers', not an ask's); a mutant that gives each answer its own round raises all ten. */
+    await settle(800);
+    await disconnect("p4");
+    const r4Storage = await storageOf("p4");
+    const r4Posted = await gm.eval(`const U = await import("${repoUrl}/scripts/utils.mjs"); const ids = [];
+        for (let i = 0; i < 10; i++) {
+            const card = await U.announce({ content: "<p>S73 R4 card " + i + "</p>", whisper: ["${P4}", game.user.id] });
+            ids.push(card?.id ?? null);
+            await new Promise(r => setTimeout(r, 30));
+        }
+        return ids;`, { timeout: 60000 });
+    let r4 = null;
+    try {
+        await connect("p4", { storage: r4Storage });
+        r4 = await p4.eval(`${UNTIL}
+            const S = await import("${repoUrl}/scripts/secret.mjs");
+            const NH = await import("${repoUrl}/scripts/notice-history.mjs");
+            const ids = ${J(r4Posted)};
+            await until(() => ids.every(id => S.secretHtml(game.messages.get(id)) !== null), 10000);
+            await new Promise(r => setTimeout(r, 3000));
+            const kept = new Set(NH.noticeEntries().map(e => e.messageId).filter(Boolean));
+            return { words: ids.filter(id => S.secretHtml(game.messages.get(id)) !== null).length,
+                raised: ids.map((id, i) => (kept.has(id) ? i : null)).filter(i => i !== null) };`, { timeout: 60000 });
+        check("R4: back from an absence of ten cards, the player is raised the newest eight of them",
+            r4Posted.every(Boolean) && r4.words === 10 && J(r4.raised) === J([2, 3, 4, 5, 6, 7, 8, 9]), J({ r4Posted, r4 }));
+    } finally {
+        await gm.eval(`for (const id of ${J(r4Posted)}) if (id) await game.messages.get(id)?.delete(); return true;`);
+        await p4.eval(`for (const card of document.querySelectorAll(".drpg-popup")) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } })); return true;`);
+    }
+
     phase("S3: the safeword with no GM connected - the caller's own card names nobody in another player's history window");
     /* E81 fix r2-H1 (13.10.2026; review round 2's C2-1, which the correctness review measured in the harness at eefa79f:
        p1's window tagged the entry "PlayerTwo"). With no GM connected the caller posts the public card itself

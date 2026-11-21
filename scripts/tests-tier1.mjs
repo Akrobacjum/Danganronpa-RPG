@@ -65605,8 +65605,9 @@ const INVARIANTS = [
             "CORE-24": [(place.match(/broadcast\(SYNC\.gather,/g) ?? []).length, /\}\s*if \(moved\.length\) broadcast\(SYNC\.gather, \{ scene: \[\.\.\.scenes\], tokenIds: moved \}\);/.test(place),
                 /const scenes = Array\.isArray\(scene\) \? scene : \[scene\];/.test(pan)],
             "CORE-29": /\.find\(m => \(m\.rolls\?\.length \?\? 0\) > 0 && \(gm \|\| m\.visible !== false\)\)/.test(diag),
-            "CORE-40": [/for \(const id of mine\) noticeOnReturn\.add\(id\);\s*returnNoticesLeft = RETURN_NOTICES;/.test(fnSource(secret, "askForWords")),
-                /if \(!message \|\| returnNoticesLeft <= 0\) return false;\s*returnNoticesLeft -= 1;/.test(fnSource(secret, "cardOnReturn"))],
+            // Since 1.2.123 (r122-lane-B-1) the slots are the newest of a round's answers, and no ask sets a count again.
+            "CORE-40": [/for \(const id of mine\) noticeOnReturn\.add\(id\);/.test(fnSource(secret, "askForWords")) && !/RETURN_NOTICES/.test(fnSource(secret, "askForWords") ?? ""),
+                /\.sort\(\(a, b\) => time\(b\) - time\(a\)\)\.slice\(0, RETURN_NOTICES\)/.test(fnSource(secret, "cardOnReturn"))],
             "CASE-66": /setMonocub\(actor, false, \{ quiet: true, watcher: false \}\)/.test(wipe),
             "CASE-70": [/const scene = roomRowScene\(\) \?\? null;\s*const findings = checkRegions\(scene\);/.test(check), /lastRoomChecks\.set\(scene\.id,/.test(check), /canvas\?\.scene/.test(check)],
             "MAP-32": /if \(!game\.user\.isGM \|\| !isPrimaryGm\(\)\) return 0;/.test(fog),

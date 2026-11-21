@@ -1025,28 +1025,40 @@ function writtenByGm(message) {
  *
  * NOT EVERY CARD OF A LONG ABSENCE IS A NOTICE. A browser that opens the game for the first time holds the
  * words of none of its cards - up to `secretCardsKept` of them - and each would land in the middle of the
- * screen and in the history at once. Only the newest `RETURN_NOTICES` of an ask raise one; the rest are
+ * screen and in the history at once. Only the newest `RETURN_NOTICES` of a return raise one; the rest are
  * read where they are, in the chat log and the messenger. A choice of this commit's, not a measurement.
  *
  * THE SLOTS GO TO THE CARDS ANSWERED (1.2.122; the audit of 1.2.118, CORE-40). A veiled card is addressed to everyone,
  * so a returning player asks for every veiled card it has no words for, its own and every other participant's; the GMs
  * answer only its own. The slots went to the newest of all it asked, so after an incident full of veiled cards to others
- * the player's own returned cards raised none. Now every card asked may raise one, and the first `RETURN_NOTICES`
- * answered do (`returnNoticesLeft`, set again at each ask).
+ * the player's own returned cards raised none. Now every card asked may raise one, and of those answered the newest
+ * `RETURN_NOTICES` do.
+ *
+ * THE NEWEST OF THE ANSWERED, ONCE A RETURN (1.2.123; the auditor's check of 1.2.122, r122-lane-B-1). 1.2.122 gave the
+ * slots to the first answers, and a GM answers in the order asked, the chat's - oldest first - so a return raised its
+ * oldest cards; and each ask set the count again, so a second GM's ready during the answers gave up to eight more. Now
+ * the answers are gathered until none has come for `RETURN_SETTLE_MS` (`returnRound`), and the newest `RETURN_NOTICES`
+ * of them by the card's time raise their notice, in the order they came; every ask whose answers fall in one round
+ * shares its eight. A round that ends gives way to the next one's eight, as 1.2.121's asks each had.
  */
 const ACTION_REQUEST = "secret.request";
 /** gm-bridge.mjs's "a GM's world has loaded" (`ACTION_GM_READY`), spelled here: that file imports this one. */
 const ACTION_GM_READY = "bridge.gmReady";
 /** Card ids in one ask, and the most one ask is answered for: a long absence is asked in several. */
 const REQUEST_BATCH = 100;
-/** The newest cards of one ask whose words raise a notice when they come: two stacks of the notice tile's four. */
+/** The newest cards of one return whose words raise a notice when they come: two stacks of the notice tile's four. */
 const RETURN_NOTICES = 8;
+/**
+ * How long a return waits after its last answer before it picks the cards that raise a notice: a GM sends its answers one
+ * card after another as it reads them, so a gap this long ends them. A choice of 1.2.123's, not a measurement.
+ */
+const RETURN_SETTLE_MS = 600;
 /** Cards this browser asked the GMs for whose words have not come yet. */
 const asked = new Set();
-/** Of those, the ones whose words may raise a notice when they come; the first `RETURN_NOTICES` answered do. */
+/** Of those, the ones whose words may raise a notice when they come; the newest `RETURN_NOTICES` answered of a round do. */
 const noticeOnReturn = new Set();
-/** How many of this ask's answers may still raise a notice (`RETURN_NOTICES` at each ask). */
-let returnNoticesLeft = 0;
+/** The answers of the return being gathered: `{ ids, done, settle, timer }`, or null between returns (`returnRound`). */
+let returnRound = null;
 /** Cards whose words did not come by the end of their wait: drawn with `elsewhereHtml`. */
 const unfilled = new Set();
 /** Cards a wait is running for, so a card drawn again starts no second one. */
@@ -1097,7 +1109,6 @@ export function askForWords(gmUserIds = null) {
     if (gms.length && mine.length) {
         for (const id of mine) asked.add(id);
         for (const id of mine) noticeOnReturn.add(id);
-        returnNoticesLeft = RETURN_NOTICES;
         for (let i = 0; i < mine.length; i += REQUEST_BATCH) {
             game.socket.emit(SOCKET_EVENT, { action: ACTION_REQUEST, ids: mine.slice(i, i + REQUEST_BATCH) }, { recipients: gms });
         }
@@ -1158,9 +1169,20 @@ export function answerWordsRequest(payload, senderId) {
 async function cardOnReturn(id) {
     if (!asked.delete(id)) return false;
     if (!noticeOnReturn.delete(id)) return false;
+    if (!game.messages?.get(id)) return false;
+    // Gathered with the round's other answers; once none has come for RETURN_SETTLE_MS, only the newest raise one.
+    const round = returnRound ?? (returnRound = { ids: [], timer: null, settle: null, done: null });
+    if (!round.done) round.done = new Promise(resolve => { round.settle = resolve; });
+    round.ids.push(id);
+    clearTimeout(round.timer);
+    round.timer = setTimeout(() => {
+        if (returnRound === round) returnRound = null;
+        const time = cardId => Number(game.messages?.get(cardId)?.timestamp) || 0;
+        round.settle(new Set([...round.ids].sort((a, b) => time(b) - time(a)).slice(0, RETURN_NOTICES)));
+    }, RETURN_SETTLE_MS);
+    const chosen = await round.done;
     const message = game.messages?.get(id);
-    if (!message || returnNoticesLeft <= 0) return false;
-    returnNoticesLeft -= 1;
+    if (!chosen.has(id) || !message) return false;
     // Imported here: popup.mjs imports this file, and a static import back is the cycle R161 fails.
     const { onCreateChatMessage } = await import("./popup.mjs");
     await onCreateChatMessage(message);
