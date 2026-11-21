@@ -182,7 +182,15 @@ export async function run({ gm, p1, note, settle, repoUrl }) {
     const focusField = client => client.eval(`const P = globalThis.__probe42; const el = P?.app?.element;
         const f = el ? [...el.querySelectorAll("input:not([type=hidden]):not([disabled]), select:not([disabled]), textarea:not([disabled])")].find(x => !x.closest("[hidden]")) : null;
         if (!f) return false; f.focus(); return document.activeElement === f ? (f.name || f.id || f.tagName.toLowerCase()) : false;`, { timeout: 30000 });
+    /* Written after every window (DRPG_STALE_OUT), and each window caught on its own: the run of 21.11.2026 on
+       1eee4d62 lost its GM to a JavaScript heap out of memory after 34 windows and, ending in a throw, wrote no evidence
+       at all. Now the rows read so far stay, and a window that throws is written `notWalked` with the error. */
+    const save = (changed, ended) => {
+        if (!OUT) return;
+        try { fs.mkdirSync(path.dirname(OUT), { recursive: true }); fs.writeFileSync(OUT, `${JSON.stringify({ about: "probe 43 (audit/harness/probes/43-stale-windows.mjs): each window of probe 08's list left open while one thing in the world changed, set beside the same window opened fresh. A reading, not a verdict.", ended, changes: changes.map(c => ({ id: c.id, what: c.what })), totals, worldChanged: changed, windows: rows }, null, 1)}\n`); } catch { /* the notes hold the rows */ }
+    };
     for (const w of windows) {
+      try {
         const client = clients[w.client ?? "gm"];
         const row = { id: w.id, client: w.client ?? "gm", opener: (w.opener ?? `${w.module} ${w.call}`).slice(0, 160), readings: [] };
         const openOnce = async () => {
@@ -281,12 +289,19 @@ export async function run({ gm, p1, note, settle, repoUrl }) {
         rows.push(row);
         const count = v => row.readings.filter(r => r.verdict === v).length;
         note(w.id, `"${row.title}": ${row.readings.length} reading(s) - ${count("live")} live, ${count("stale") + count("partly")} stale, ${count("stale-until-blur")} stale until the focus left, ${count("held-by-focus")} held by the focus in a field, ${count("live-under-focus")} live under it, ${count("not-shown")} not shown, ${count("confounded")} confounded, ${count("failed")} failed${row.restless ? "; restless" : ""}`);
+      } catch (err) {
+        rows.push({ id: w.id, notWalked: String(err?.message ?? err).slice(0, 300) });
+        note(w.id, `not walked (${String(err?.message ?? err).slice(0, 160)})`);
+      }
+      save(null, "in progress");
     }
-    const changed = await onGm(`${dump} const diff = K.dumpDiff(globalThis.__probe43dump, d).map(x => x.unit); delete globalThis.__probe43dump; delete globalThis.__probe43snap; delete globalThis.__probe43; return diff;`);
-    note("the world", changed.length ? `${changed.length} unit(s) differ after the last restore: ${changed.slice(0, 10).join(", ")}` : "the world dump is equal before and after");
+    let changed = null;
+    try { changed = await onGm(`${dump} const diff = K.dumpDiff(globalThis.__probe43dump, d).map(x => x.unit); delete globalThis.__probe43dump; delete globalThis.__probe43snap; delete globalThis.__probe43; return diff;`);
+    note("the world", changed.length ? `${changed.length} unit(s) differ after the last restore: ${changed.slice(0, 10).join(", ")}` : "the world dump is equal before and after"); }
+    catch (err) { note("the world", `not compared: ${String(err?.message ?? err).slice(0, 200)}`); }
     note("totals", JSON.stringify(totals));
     const evidence = { about: "probe 43 (audit/harness/probes/43-stale-windows.mjs): each window of probe 08's list left open while one thing in the world changed, set beside the same window opened fresh. A reading, not a verdict.",
-        changes: changes.map(c => ({ id: c.id, what: c.what })), totals, worldChanged: changed, windows: rows };
+        ended: "done", changes: changes.map(c => ({ id: c.id, what: c.what })), totals, worldChanged: changed, windows: rows };
     if (OUT) { fs.mkdirSync(path.dirname(OUT), { recursive: true }); fs.writeFileSync(OUT, `${JSON.stringify(evidence, null, 1)}\n`); }
     return evidence;
 }
