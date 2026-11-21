@@ -40,6 +40,7 @@
  * line, and the footnote a sentence, saying it gives the passage at the next season's reset and nothing now.
  */
 
+import { MODULE_ID } from "./config.mjs";
 import { error, listOf, esc } from "./utils.mjs";
 import { drpgWindow, drpgConfirm, dataTable, chip as kitChip, chips, tipAttr, tipText } from "./ui-kit.mjs";
 import { keepFresh } from "./live.mjs";
@@ -318,7 +319,12 @@ export function wirePassagesTab(root, scene, { dialog = null, stores = PASSAGE_S
     confirm = confirmDelete, roomOf = studentRoomOn, show = showPassage, pick = startPassagePick, actors, users, told } = {}) {
     const box = root?.querySelector?.("[data-drpg-passages]");
     if (!box || !game.user?.isGM) return null;
-    const draw = () => { box.innerHTML = passagesTabBody(scene, { stores, students, actors, users, told }); };
+    /* THE STUDENTS AND THEIR PLAYERS AS THEY ARE NOW (the audit's REFR-59, 1.2.122, 21.11.2026): `students` was the list
+       taken when Room Setup opened, and the tab heard only the passages' stores, so a student made, renamed or given to
+       another player showed on the next store change or a reopen. `students` may be a function, read at every draw, and
+       the tab redraws on an actor made or deleted, a name, an ownership or a module flag written, and a user changed. */
+    const studentsNow = () => (typeof students === "function" ? students() : students) ?? [];
+    const draw = () => { box.innerHTML = passagesTabBody(scene, { stores, students: studentsNow(), actors, users, told }); };
     let busy = Promise.resolve();
 
     const work = async (act, passageId, actorId) => {
@@ -399,6 +405,8 @@ export function wirePassagesTab(root, scene, { dialog = null, stores = PASSAGE_S
             .catch(err => error("The pick of a new tunnel failed", err))
             .then(draw);
     });
-    if (dialog) keepFresh(dialog, { run: draw, watch: { stores: [stores.map, ...(stores.season ? [stores.season] : []), stores.access, stores.mastermind], hooks: ["userConnected", "drpgPassagesTold"] } });
+    if (dialog) keepFresh(dialog, { run: draw, watch: { stores: [stores.map, ...(stores.season ? [stores.season] : []), stores.access, stores.mastermind],
+        hooks: ["userConnected", "drpgPassagesTold", "createActor", "deleteActor", "updateUser"],
+        where: [["updateActor", (actor, change) => Boolean(change) && ("name" in change || "ownership" in change || change.flags?.[MODULE_ID] !== undefined)]] } });
     return { draw, settled: () => busy };
 }

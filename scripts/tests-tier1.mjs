@@ -19572,7 +19572,8 @@ const INVARIANTS = [
         // E41 C6 (1.2.97): Room Setup moved out of vault.mjs into room-setup.mjs.
         const vault = await fetch(`/modules/${MODULE_ID}/scripts/room-setup.mjs`).then(lfText).then(stripComments);
         const opener = fnSource(vault, "openRoomSetupDialog");
-        ok(/passagesTab\.passagesTabHtml\(scene, \{ students \}\)/.test(opener) && /passagesTab\.wirePassagesTab\(root, scene, \{ dialog, students \}\)/.test(opener),
+        // Since 1.2.122 (REFR-59) the tab is wired with the students read at each draw (`studentActors`), drawn first from the list.
+        ok(/passagesTab\.passagesTabHtml\(scene, \{ students \}\)/.test(opener) && /passagesTab\.wirePassagesTab\(root, scene, \{ dialog, students: \(\) => studentActors\(\) \}\)/.test(opener),
             "Room Setup does not draw and wire the Passages tab for the scene it was opened on");
     }],
     ["R562 - showing a secret passage: the 'Known passages' list names each passage the character knows by its rooms as the viewer may name them and says where the way is shut; a show is judged on the primary GM - the phase, the giver alive, in no incident and no Monocub, a secret passage it knows (a closed, unknown or made-up one refused alike), the one shown it a student beside it on its scene and floor, alive (a death nobody has found is not named) - writes 'shown', a log row and the stamp, and tells each owner of the one shown it, on a card of their own, the two rooms as that owner may know them with the sound - every room only to the owner the door names for the Mastermind -, the asker with no room, and the GMs on a card of their own; a show to one who knows it already writes and tells nothing but the asker's same card; only the owner the door names shows as the Mastermind; the packet carries three ids and with no GM nothing is sent", async () => {
@@ -57802,6 +57803,62 @@ const INVARIANTS = [
         const read = { healing: pick(await ask("usable", "healing")), tool: pick(await ask("tool", null)) };
         equal(stableJson(read), stableJson({ healing: ["Screwdriver", "tool", true], tool: ["Screwdriver", "tool", null] }),
             "{healing, tool: [the find, its category, substitute] asked for Healing and for a tool from a flat room table holding a screwdriver} - another category is said as a substitute");
+    }],
+    ["R8504 - the Passages tab reads its students at every draw and redraws when an actor is made, renamed or given away (scripts/passages-tab.mjs `wirePassagesTab`; room-setup.mjs hands it `studentActors`; the audit's REFR-59, 1.2.122 line WORLD): on a window's element, a passage of the suite's own stores, the grant menu offers the two students listed; a third added to the list and a rename heard (`updateActor` with a name) offer the third and show the new name, and the tab hears an actor made or deleted and a user changed", async () => {
+        /* 21.11.2026, 1.2.122 line WORLD. The audit's REFR-59 (controls-11-map-rooms-7): `students` was Room Setup's list of
+           the open and the tab heard only the passages' stores. The stores, scene and rooms are R561's (an engine of the
+           suite's own, nothing of the world written); the students are stand-ins read through a function, as Room Setup
+           hands `studentActors` now. Red at 21bf5d18: the tab took the list as it was handed and drew nothing new. */
+        const { TIMING } = await import("./config.mjs");
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const T = await import("./passages-tab.mjs");
+        let now = 9_500_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R8504GM", isGM: () => true, isPrimary: () => true, worldId: () => "R8504WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R8504GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => now++,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r8504${name}`, key: `r8504${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "r8504mm", key: "r8504mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const box = (id, name, x, y, width, height) => ({ id, name, behaviors: [], getFlag: () => true, shapes: [{ x, y, width, height }] });
+        const scene = { id: "R8504SCENE", grid: { size: 100 }, levels: [],
+            regions: [box("R8504RH", "R8504 Hall", 1200, 200, 800, 200), box("R8504RK", "R8504 Kitchen", 1200, 400, 800, 400)] };
+        const P1 = `${scene.id}.r8504p1`;
+        await stores.map.patchMany({ [P1]: { sceneId: scene.id, level: null, shape: "wall", passageWallId: "R8504WALL", passageSeg: { x1: 1234, y1: 400, x2: 1300, y2: 400 },
+            rooms: ["R8504 Kitchen", "R8504 Hall"], state: "secret", startAccess: [] } });
+        const person = (id, name) => ({ id, name, type: "character", getFlag: () => undefined, testUserPermission: () => false });
+        const list = [person("R8504A", "R8504 Aiko"), person("R8504B", "R8504 Botan")];
+        const actors = new Map(list.map(a => [a.id, a]));
+        const app = { element: document.createElement("div") };
+        app.element.innerHTML = T.passagesTabHtml(scene, { stores, students: [...list] });
+        document.body.append(app.element);
+        const offered = () => [...app.element.querySelectorAll('[data-drpg-menu-of="grant"] [data-drpg-actor]')].map(b => b.textContent.trim()).sort();
+        let read = null;
+        try {
+            const tab = T.wirePassagesTab(app.element, scene, { dialog: app, stores, students: () => [...list], actors, users: [] });
+            tab.draw();
+            const before = offered();
+            // A student made, and one renamed, heard through `updateActor` alone: the hooks of a made or deleted actor and of
+            // a user are read in the source below, as calling them here would run every listener of the module on a stand-in.
+            const late = person("R8504C", "R8504 Chie");
+            list.push(late);
+            actors.set(late.id, late);
+            list[0].name = "R8504 Aiko renamed";
+            Hooks.callAll("updateActor", list[0], { name: list[0].name }, {}, "R8504");
+            await wait(TIMING.coalesceMs * 3);
+            const src = fnSource(stripComments(new Map(await otherSources()).get("passages-tab.mjs") ?? ""), "wirePassagesTab");
+            read = { before, made: offered(), hooks: ["createActor", "deleteActor", "updateUser"].every(h => src.includes(`"${h}"`)) };
+        } catch (err) {
+            read = { threw: String(err?.message ?? err).slice(0, 80) };
+        } finally {
+            app.element.remove();
+        }
+        equal(stableJson(read), stableJson({ before: ["R8504 Aiko", "R8504 Botan"], made: ["R8504 Aiko renamed", "R8504 Botan", "R8504 Chie"], hooks: true }),
+            "{before, made: the grant menu's students before and after a student was made and another renamed; hooks: the tab hears an actor made or deleted and a user} - the tab reads its students now");
     }],
     ["R5380 - the closing curtain stands under the open windows, the title and its band over them (styles/danganronpa.css THE SEQUENCES; the owner's ask of 13.11.2026: \"zamkniecie kurtyny niech bedzie pod otwartymi oknami, napis i jego tlo na otwartych oknach\"): read through the module's cascade in both themes, on a desk and a stacked screen, for the trial's entry and its exit with the glass and with the lids, the host is no box of its own (`display: contents`), its curtain layer is fixed under Foundry's window layer (`--z-index-window` less 2) and over every other z-index the module's sheets state under that layer, and takes the clicks it covers; its title layer is fixed at 99980, over every window, and lets the clicks through; the notice stack stands over the curtain - under the windows under Stained Glass, over them under Monokuma Legacy; the verdict's cut-in and the day's boards keep the one host at 99980; every window open on this page stands between the two layers", async () => {
         /*
