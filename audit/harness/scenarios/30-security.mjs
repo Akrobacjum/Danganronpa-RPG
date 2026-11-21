@@ -6929,6 +6929,17 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         if (actionsLeft(who) < 2) await trustedWrite(who, { "system.resources.actions.value": 3 }, { reason: "gmRuling" });
         await new Promise(r => setTimeout(r, 400));
         await spendAction(who, 2, { quiet: true }); }`;
+    /* The action opened again first (1.2.122, the assembly): since STG-39 (roll-draw.mjs `closeFacilityAtDraw`, line DESP)
+       the draw of a GM's room action closes it for the table, and the Hand draw above drew SECfac, so a second draw read
+       it closed and refused both payments - the check then measured the closing, not the Toll. Its use rows and the
+       public closing are taken off here and put back after the check. */
+    const facOpenWas = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); await S.facilityUseStore.whenHydrated();
+        const rows = foundry.utils.deepClone(S.facilityUseStore.entries() ?? {});
+        for (const k of Object.keys(rows)) if (k.endsWith(":SECfac")) await S.facilityUseStore.drop(k);
+        const closed = foundry.utils.deepClone(game.settings.get("${MOD}", "facilityClosed") ?? {});
+        await game.settings.set("${MOD}", "facilityClosed", {});
+        return { rows: Object.fromEntries(Object.entries(rows).filter(([k]) => k.endsWith(":SECfac"))), closed };`, { timeout: 60000 });
+    await settle(500);
     const tollDraw = {
         toll: tollWas?.toll ?? null,
         one: await drawnRoll(p1, ids.aiko, "facility", "eye", { hope: 9, fear: 3 }, { context: { facilityId: "SECfac" } }),
@@ -6946,6 +6957,11 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     check("SECURITY: under Toll the GM draws no roll of a GM's room action on a console's payment of one action, and draws it on a payment of two",
         tollDraw.toll === 1 && tollDraw.one?.messageId === null && Boolean(tollDraw.two?.messageId),
         JSON.stringify(tollDraw), { flow: "facility" });
+    await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        for (const k of Object.keys(S.facilityUseStore.entries() ?? {})) if (k.endsWith(":SECfac")) await S.facilityUseStore.drop(k);
+        for (const [k, row] of Object.entries(${JSON.stringify(facOpenWas?.rows ?? {})})) await S.facilityUseStore.patch(k, row);
+        await game.settings.set("${MOD}", "facilityClosed", ${JSON.stringify(facOpenWas?.closed ?? {})}); return true;`, { timeout: 60000 });
+    await settle(500);
     /* A ROOM ACTION SHUT BY LOCKDOWN IS NOT DRAWN (the coordinator's check of 12.11.2026: each new state read where a roll
        is drawn). Its use was refused after the roll (facilities.mjs `facilityShut` in `handleFacilityUse`), but the GM drew
        the roll a console paid for. Now refused at the draw (roll-draw.mjs `facilityOfDraw`). Red at ca2a649: drawn. */

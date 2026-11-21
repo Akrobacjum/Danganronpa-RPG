@@ -2,7 +2,7 @@
  "handbook": "docs/handbooks/gm-handbook.en.md",
  "facts": [
   {"id": "s0.p1.f1", "unit": "s0.p1", "place": "(before the first section), line 3", "text": "The handbook is for the Foundry VTT v14 module \"Danganronpa RPG\".", "kind": "rule", "keywords": ["Foundry VTT v14", "Danganronpa RPG"]},
-  {"id": "s0.p1.f2", "unit": "s0.p1", "place": "(before the first section), line 3", "text": "The module's version is 1.2.121.", "kind": "number", "keywords": ["1.2.121"]},
+  {"id": "s0.p1.f2", "unit": "s0.p1", "place": "(before the first section), line 3", "text": "The module's version is 1.2.122.", "kind": "number", "keywords": ["1.2.122"]},
   {"id": "s0.p1.f3", "unit": "s0.p1", "place": "(before the first section), line 3", "text": "The module is built on the Daggerheart system.", "kind": "rule", "keywords": ["Daggerheart"]},
   {"id": "s0.p2.f1", "unit": "s0.p2", "place": "(before the first section), line 5", "text": "This is the handbook for the people running the killing game.", "kind": "rule", "keywords": ["handbook", "killing game"]},
   {"id": "s0.p2.f2", "unit": "s0.p2", "place": "(before the first section), line 5", "text": "The handbook follows the order a season is built and played.", "kind": "rule", "keywords": ["order"]},
