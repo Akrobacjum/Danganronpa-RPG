@@ -12,8 +12,10 @@
  * fewer search tokens in every room, one action less each.
  *
  * WHAT THIS FILE OWNS is the counter, the moment it fires, and the readers that
- * answer "is it dark right now, and by how much". It owns no effect of its own:
- * `actionBudget`, `SearchTokens.max` and `eclipseAllowance` each ask it a
+ * answer "is it dark right now, and by how much" - and three effects of its own:
+ * Rot and the Earthquake, which it carries out (`rotEverything`, `shakeProjects`),
+ * and the Despair darkening's Hope block, its own `preUpdateActor` hook. The rest
+ * it does not own: `actionBudget`, `SearchTokens.max` and `eclipseAllowance` each ask it a
  * question and apply their own answer, because each of those is already the
  * single place its number is decided and a second place would be a second
  * truth.
@@ -672,7 +674,7 @@ function later(a, b) {
 /**
  * Which debuff is running right now, or null.
  *
- * THE STAMP CARRIES THE KEY, not just "dark / not dark". One of eight happens,
+ * THE STAMP CARRIES THE KEY, not just "dark / not dark". One of thirteen happens,
  * so every reader has to ask which one - and the caption and the card have to
  * be able to name it.
  */
@@ -789,7 +791,7 @@ export async function checkOverflow({ ahead = false, target: claimed = null } = 
             /*
              * NOTHING IN THE HAT, NOTHING HAPPENS - AND NOTHING IS PAID.
              *
-             * A GM who has unticked all eight has turned the mechanic off; charging
+             * A GM who has unticked all thirteen has turned the mechanic off; charging
              * the threshold for a debuff that cannot be drawn would quietly empty a
              * counter they are watching climb, which is the opposite of off.
              */
@@ -801,7 +803,7 @@ export async function checkOverflow({ ahead = false, target: claimed = null } = 
             }
 
             // One of them, evenly. A weighted draw was tempting and is a second
-            // dial nobody asked for; eight equal chances is a rule a table can hold
+            // dial nobody asked for; equal chances among those ticked is a rule a table can hold
             // in its head.
             const drawn = pool[Math.floor(Math.random() * pool.length)];
 

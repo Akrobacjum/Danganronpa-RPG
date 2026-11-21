@@ -16,8 +16,9 @@
  * one number that cannot be written in CSS because it depends on what is in the
  * stack today.
  *
- * FOUR THINGS MOVE, AND ONE OF THEM IS A CONTAINER. The clock, the Despair rail
- * and the Event card are the module's own and are moved as themselves. The card
+ * FIVE THINGS MOVE (`STACKED`), AND TWO OF THEM ARE CONTAINERS. The clock, the Despair rail
+ * and the Event card are the module's own and are moved as themselves; the tiles' row
+ * (E77 C8, below) is this file's own element, and its two members are moved into it. The card
  * renders next to the rail and follows it at its next render, but until then it
  * stood where the screen left it: a desk turned into a stack kept the card in
  * Foundry's top bar, under the stack (E23 C4b, S12-08), so it is moved with the
@@ -33,7 +34,7 @@
  * observer below is Foundry rebuilding `#ui-right`, which happens on a scene
  * change and not on a render.
  *
- * The curtain draws over the stack, cut for it: `stackShapes` in glass.mjs is a
+ * The curtain draws over the stack, cut for it: `stackShapes` (glass-geometry.mjs since E54) is a
  * partition for this shape rather than for the desk's three columns. It stands
  * down only where the stack has to scroll - under 620 px of height - because a
  * row scrolled under the ceiling can have no glass cut for it.

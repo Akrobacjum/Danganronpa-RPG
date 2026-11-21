@@ -469,10 +469,10 @@ export async function resetActionsFor(actor, { keepGrants = false } = {}) {
                 [`flags.${MODULE_ID}.${FLAGS.freeMoveUsed}`]: false,
                 // What makes Sprint and Burst last "until the end of this time of
                 // day" without anything measuring time - see the note above
-                // `freeActionsLeft`. Zeroed rather than deleted: `-=key` does
-                // nothing in this Foundry without a forced replacement, and a grant
-                // that survived its own expiry is a Call the player gets to spend
-                // twice.
+                // `freeActionsLeft`. Zeroed rather than deleted: a delete would need
+                // `forcedDeletion()` (a `-=key` deletes on 14.370 but writes v14's
+                // deprecation warning, LIVE-E30-01, docs/dev/e39/CALIBRATION.md); a grant that survived its own expiry is a Call the
+                // player gets to spend twice.
                 [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: 0,
                 [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: 0
             })

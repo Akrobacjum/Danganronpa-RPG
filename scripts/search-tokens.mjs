@@ -352,13 +352,13 @@ export class SearchTokens {
     /**
      * Set one room's counter outright.
      *
-     * The Room Setup table's −1 / +1 / reset controls, which move a single room
+     * Room Setup's - and + and refill button on a room's row (a kit stepper since E46-C2a), which move a single room
      * rather than restocking the map: a GM who has just ruled that a cupboard
      * was already turned out wants that cupboard empty, not every room in the
      * building refilled.
      *
-     * Clamped to 0…max. Without the clamp the arrows are held down and the
-     * counter goes to −3, which every screen that reads `left()` then renders
+     * Clamped to 0 to max. Without the clamp the - is held down and the
+     * counter goes to -3, which every screen that reads `left()` then renders
      * as a room owing three searches.
      *
      * @returns {Promise<number|null>}  The value actually stored.
@@ -451,7 +451,9 @@ export class SearchTokens {
 /**
  * The season reset's searchTokens group (E42 C3; a run of season-setup.mjs `wipeSeason` until then): the keyed refill,
  * quiet - in a step of SEARCH_KEY (E17 fix e1-G3; the review's E17P1-R3): written outside it, a reset landing while
- * the primary's spend step ran could be written over by that step's copy of the old counts.
+ * the primary's spend step ran could be written over by that step's copy of the old counts. That queue is one browser's
+ * (utils.mjs `serialWrite`), so it closes the race only on the primary: since 1.2.122 (MAP-40) `reset` on any other GM
+ * asks the primary to write it (`gmWriteOnPrimary`), and only a GM with no primary to ask writes it here.
  */
 export async function clearSeasonSearchTokens() {
     await SearchTokens.reset({ notify: false });

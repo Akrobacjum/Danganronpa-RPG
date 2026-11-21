@@ -117,8 +117,8 @@ export function registerStates() {
  * A FLAG TAKEN AWAY IS A CHANGE TOO (E15 part 1 fix e1-G3, 25.10.2026; finding E15p1-END-3). A
  * revive (death.mjs `reviveCharacter`, the season reset's revive-all) unsets `deceased`, and the
  * key a deletion arrives under is the flag's own (a ForcedDeletion, as the harness writes it) or
- * `-=deceased` (a `-=` spelling; which one v14's `unsetFlag` hands this hook is LIVE-E30-03's, not
- * measured): read only by its own name, a revived student showed no Wounded or Breakdown until the
+ * `-=deceased` (a `-=` spelling; measured 16.11.2026 on 14.370, LIVE-E30-03 in docs/dev/e39/CALIBRATION.md: after
+ * `unsetFlag` and a `_del` write both hooks got the ForcedDeletion instance, never a plain value or a missing key): read only by its own name, a revived student showed no Wounded or Breakdown until the
  * next Health or Sanity write while the budget and the dice read the tracks (tier 1 R980 at
  * c93be060: the `-=` spellings read as no change). Every spelling, and the module's whole flags
  * deleted at once, now count; voice.mjs `reconcileTrigger` reads the same. Exported for R980.

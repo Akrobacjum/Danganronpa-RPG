@@ -1733,10 +1733,12 @@ export async function openItemTables({ preset = null, poolError = null, draft = 
 
     // ONE tier table, ANY number of room tables (F5.5, 2026-08-25).
     //
-    // An item lives in exactly one tier pool - that is what the tier is - so
-    // the tier family is a dropdown with a single choice ("-" for an item that
-    // only ever appears in rooms). Room tables keep the checkboxes: a knife can
-    // sit in the Kitchen and the Workshop at once.
+    // An item lives in exactly one tier pool - that is what the tier is - and
+    // the form does not ask for it: `readNewItemForm` derives it from the
+    // category and the tier (`tierTableIdFor`, the pane naming it: `wireNewItemForm`),
+    // so an item added here goes into its tier pool whenever one exists and a
+    // room-only entry is not made from this form. Room tables keep the checkboxes:
+    // a knife can sit in the Kitchen and the Workshop at once.
     // By the flags (E14 fix e1-G2): a tier pool the GM renamed in the sidebar is still on the Tier pools tab.
     const tierTables = tables.filter(t => isTierPoolTable(t));
     const roomTablesList = tables.filter(t => !isTierPoolTable(t));

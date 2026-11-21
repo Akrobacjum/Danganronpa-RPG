@@ -473,7 +473,8 @@ export const KIND_REFRESH = Object.freeze({
      */
     [SYNC.clock]: Object.freeze(["assembly", "bar", "hud", "sheets", "eclipse", onlyWhen("visibility", "moved"),
         onlyWhen("timeOfDayHook", "timeOfDay"), onlyWhen("phaseHook", "phase"), onlyWhen("eclipseHook", "eclipse")]),
-    /* Every other kind re-renders open character sheets, and this one did not: the action panel and the Calls panel
+    /* Most kinds re-render open character sheets (despair the Monokumas' alone; trial, fog, gather and ready none), and
+       this one did not: the action panel and the Calls panel
        both read `isEclipse()` at render time (see sheet.mjs), so a sheet already open when the Eclipse starts or ends
        was left showing the pre-Eclipse state - actions and Calls looking clickable when they are not, or still greyed
        out a whole time of day after they came back. */

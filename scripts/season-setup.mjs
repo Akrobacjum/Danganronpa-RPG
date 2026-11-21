@@ -69,8 +69,6 @@ import { alreadyOpen, handOff, RAISED } from "./live.mjs";
 import { secretDoorsOn } from "./passages.mjs";
 import { convertSecretDoors } from "./passages-gm.mjs";
 
-// E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
-
 export { resetTallies, resetGoesHtml, resetSeason, RESET_STEPS, RESET_CHOICES, wipeStudent, placeCast, seasonResetRecord, unfinishedGroups } from "./season-wipe.mjs";
 
 

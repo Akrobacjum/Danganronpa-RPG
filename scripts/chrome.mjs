@@ -28,8 +28,8 @@
  * under Stained Glass only, so under Monokuma Legacy each was the browser's
  * spinner. The twelve fields are ui-kit.mjs `stepper`s now, with their - and +
  * in the markup, and this pass wires them (`wireSteppers`) in both themes,
- * before its theme gate (R1327). Under "Monokuma Legacy" nothing else in this
- * file runs.
+ * before its theme gate (R1327), and so does `markLoneInitials`. Under "Monokuma
+ * Legacy" the selects and tables are not dressed.
  */
 
 import { log } from "./utils.mjs";
@@ -86,8 +86,9 @@ function dressTable(table) {
    is an ink blot: both are SVG filters, and a filter has to exist in the document
    before `filter: url(#id)` can find it. One hidden <svg> with two <filter>s, put
    in the body once. Cheap: a displacement map on a button-sized box costs less
-   than the box's own text. Stained Glass only; the sheet gates the `url()`s on
-   the theme and on the glass-effects switch. */
+   than the box's own text. Put in every browser's body at ready, whatever the
+   theme; the stylesheets that use the `url()`s (components.css, stained-glass.css)
+   decide where they show. */
 const FILTERS_ID = "drpg-filters";
 export function injectFilters() {
     if (document.getElementById(FILTERS_ID)) return;
@@ -187,14 +188,8 @@ export function markLoneInitials(root) {
 export function registerChrome() {
     injectFilters();
     Hooks.on("renderApplicationV2", app => dressChrome(app?.element));
-    /* `drpgWindowUpdated` IS FIRED BY NOBODY, and has not been.
-       The hook was added so a window redrawing part of itself would keep its
-       decorations - the pass is idempotent and marks what it has done - and the
-       other half was never written: `grep -rn drpgWindowUpdated` over the whole
-       tree returns this line and nothing else (16.09).
-       Kept rather than deleted, because the intention is sound and the listener
-       is the cheap half: anything in this module that rebuilds part of an open
-       window can fire it and get its chrome back. If nothing ever does, this is
-       one registration at ready and no cost at all. */
+    /* `drpgWindowUpdated`: a window that redraws part of itself keeps its decorations - the pass is idempotent and
+       marks what it has done. Fired by live.mjs's `keepLive` on every region it redraws (LAT-14, 20.09: until then
+       nothing fired it, and a live region came back undressed). */
     Hooks.on("drpgWindowUpdated", el => dressChrome(el));
 }

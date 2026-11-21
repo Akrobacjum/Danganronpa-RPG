@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG - the Event panel (theme "Stained Glass").
+ * Danganronpa RPG - the Event panel (both themes since 1.2.47: `eventsWindowActive`, below).
  * ---------------------------------------------------------------------------
  * A narrow panel under the Despair rail that says what is happening and has no
  * button in it. It takes over the three standing threats the clock used to
@@ -15,8 +15,8 @@
  * fact that an incident is running is itself part of what the killer is
  * hiding.
  *
- * Under "Monokuma Legacy" this panel is not rendered and the clock keeps its
- * rows, so that theme stays exactly the look it was.
+ * Under "Monokuma Legacy" too since 1.2.47 ("BOTH THEMES", below): the clock
+ * kept its rows there until then.
  */
 
 import { MODULE_ID, TRIAL, MONOCUB } from "./config.mjs";
@@ -86,7 +86,7 @@ function eventsWindowActive() {
    a keyboard, and "or else" is half of what a motive IS. It is `note` on the
    card now, and the tooltip keeps its copy for the hover. */
 
-/* ---- the three cards ------------------------------------------------------ */
+/* ---- the cards (nine builders feed `renderEvents`) ------------------------- */
 
 /**
  * The motive's card on the Event panel. `view` is who looks (E17 fix p2-G3, 26.10.2026; the end review's E17p2-R3): a

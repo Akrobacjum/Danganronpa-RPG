@@ -44,7 +44,9 @@ const SOCKET_EVENT = `module.${MODULE_ID}`;
 const ACTION_ROWS = "eavesdrop.rows";
 const ACTION_ROWS_ASK = "eavesdrop.rowsAsk";
 
-/** The hook fired on every browser where a row of the store changes: voice.mjs settles the block on it. */
+/** The hook fired where a row is written - `startEavesdrop`, `endEavesdrop` and the sweep, on the primary GM: voice.mjs
+ *  settles the block on it. Local (`Hooks.callAll`): another GM's merge of the row fires nothing, so voice-tile.mjs's
+ *  repaint of the GMs' list runs on the primary alone. */
 export const EAVESDROP_CHANGED = "drpgEavesdropChanged";
 
 /**
@@ -212,7 +214,7 @@ async function settleBlock() {
     return settleTrialVoices();
 }
 
-/** A row changed: the owners told, the voice placed again at once, every browser's hook. */
+/** A row changed: the owners told, the voice placed again at once, this browser's hook (`EAVESDROP_CHANGED`). */
 function changed(actor) {
     tellOwners(actor);
     Hooks.callAll(EAVESDROP_CHANGED, { actorId: actor?.id ?? null });

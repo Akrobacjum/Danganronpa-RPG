@@ -194,7 +194,7 @@ function floorFieldsOf(level) {
  * LEAVE THE BODY (E95 C2, 10.11.2026; E63 C0, 11.11.2026: the owner's "gdy postac umiera ... Nie gdy zostaje
  * Monocubem"). Lays `actor`'s body on the map as a tile where their token stands, and answers the tile document, or null.
  * GM only, on the GM's browser that made the death the table's: death.mjs `markDeceased`, the one function every public
- * death passes (`killCharacter` in public, `publishDeath` of a kept death, the Players window's "dead"), handing the
+ * death passes (`killCharacter` in public, `publishDeath` of a kept death, the Students window's "dead"), handing the
  * record it has just written - and migrate.mjs's clause for a 1.2.104 world (E63 C3), which hands none. A death the GMs
  * keep lays nothing until it is made known (QUESTIONS E63 Q1); becoming a Monocub lays nothing. No bridge action and no
  * socket, and core Foundry lets no player create a tile. None is laid:

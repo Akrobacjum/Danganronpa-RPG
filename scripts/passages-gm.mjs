@@ -6,9 +6,14 @@
  * and each player's copy of the passages their own characters know (`passageCopyFor`), which
  * the primary GM sends to that player alone (`pushPassageCopies`): on every change it writes,
  * on every change it merges from another GM, when a player's characters change hands, after a
- * restore and when a player asks (`passage.request`). Nothing here writes a Wall, a Region, a
- * Scene, a flag or a world setting: a passage is the GMs' until a character learns it (the E79
- * plan's D2 and D38), and then it is in that character's owners' copies and nowhere else.
+ * restore and when a player asks (`passage.request`). No passage is written into a Wall, a
+ * Region, a Scene, a flag or a world setting: a passage is the GMs' until a character learns it
+ * (the E79 plan's D2 and D38), and then it is in that character's owners' copies and nowhere
+ * else. What the map does write here: a breach's walls (`cutBreach` creates them and rewrites a
+ * wall's `c`, `restoreBreach` rewrites and deletes them), a forced room's broken flag
+ * (`forceRoom`, movement.mjs `setRoomBroken`), and the secret doors - their `door` and `ds`
+ * (`convertSecretDoors`, `putBackSecretDoor`, `settleSecretDoors`) and the GM's state of each
+ * as a flag on its wall (`doorSetData`).
  *
  * Since C5 the GMs' Passages tab (passages-tab.mjs) works through the same functions, and three
  * watches run on the primary GM alone: a wall moved off a passage's stretch or deleted marks the
@@ -37,8 +42,9 @@
  * 'Convert to passages' (`convertSecretDoors`) makes each an ordinary wall, shut, and a passage along
  * it that nobody knows where it stands between two rooms; and while one stands, the primary GM writes
  * back any change of its state a player makes (`putBackSecretDoor`, on `updateWall`), the audit reading
- * it shut until that write lands (`secretDoorHeldShut`). The one Wall write here, and only of `door`
- * and `ds` on a wall that already is (R560 still holds: no wall is made a secret door or created).
+ * it shut until that write lands (`secretDoorHeldShut`). Its Wall writes are of `door`, `ds` and the
+ * state's flag on a wall that already is (R560 still holds: no wall is made a secret door, and none is
+ * created but a breach's hole in `cutBreach`).
  * Since E80 fix r1-G1 the write is back to the state a GM last left the door in, and the doors are gone over
  * when a GM's browser takes the primary's place - at its ready, and when a GM leaves (`settleSecretDoors`) - so
  * a change made with no primary to hear it is put back too. Since E80 fix r2-G9 that state is a flag on the door
