@@ -154,6 +154,7 @@ async function sweepPending() {
             dropped++;
         }
     }
+    for (const [key, { entry }] of unpaid) if (!(entry.at >= cutoff)) unpaid.delete(key);
     if (dropped) await writePending();
 }
 
@@ -177,9 +178,17 @@ async function sweepPending() {
  *
  * @returns {Promise<{ok: boolean, key?: string, reason?: string}>}
  */
-export async function chooseObserveTarget({ actorId, declaration, request = "", userId = null, asked = null } = {}) {
+export async function chooseObserveTarget({ actorId, declaration, request = "", userId = null, asked = null, key: given = null, paid = false } = {}) {
     if (!game.user.isGM) return { ok: false, reason: "notGm" };
     sweepPending();
+    /* AN UNPAID ASK WRITES NOTHING AND LOGS NOTHING (line INVEST of 1.2.122; the coordinator's 21.11, CASE-33's rest). A
+       General, Non-obvious or Follow my traces is asked before the player pays, so its row is held in this browser's
+       memory alone (`unpaid`) - no write to the GMs' store, which every GM now holds, and no log line - and is written
+       through and logged at its paid resolve (`resolveObserve`). Its key names its declaration, so a resolve whose row
+       the memory lost (a reload of this GM between the two) chooses again on the same declaration (`given`, `paid`). */
+    const ranked = [DECLARATIONS.general, DECLARATIONS.nonObvious, DECLARATIONS.followTraces].includes(declaration);
+    const held = ranked && !paid;
+    const newKey = () => given ?? (ranked ? `${declaration}.${foundry.utils.randomID()}` : foundry.utils.randomID());
 
     const actor = game.actors.get(actorId);
     if (!actor) return { ok: false, reason: "noActor" };
@@ -210,14 +219,10 @@ export async function chooseObserveTarget({ actorId, declaration, request = "", 
            its roll, so it keeps its answer. Tier 2 "1.2.122 CASE-33". */
         if (!secret && declaration === DECLARATIONS.specific) return { ok: false, reason: "none" };
         if (!secret) {
-            const emptyKey = foundry.utils.randomID();
-            readPending();
-            pending.set(emptyKey, {
+            const emptyKey = await keepRow(newKey(), {
                 at: Date.now(), actorId, by: userId, room, declaration, request,
                 tokenId: null, sceneId: where.scene?.id ?? null, dc: null, data: null, nothingHere: true
-            });
-            await writePending();
-            log(`Observe: ${actor.name} is sweeping ${room}, which holds nothing this declaration can find; the GMs rule on the roll.`);
+            }, () => log(`Observe: ${actor.name} is sweeping ${room}, which holds nothing this declaration can find; the GMs rule on the roll.`), held);
             return { ok: true, key: emptyKey };
         }
 
@@ -228,17 +233,13 @@ export async function chooseObserveTarget({ actorId, declaration, request = "", 
            would never reach the GM at all - the observer's client drops to a
            ruling card when the target lookup says "nothing here", so a room
            whose only secret was a project could not be searched. */
-        const onlyKey = foundry.utils.randomID();
-        readPending();
-        pending.set(onlyKey, {
+        const onlyKey = await keepRow(newKey(), {
             at: Date.now(), actorId, by: userId, room, declaration, request,
             tokenId: null, sceneId: where.scene?.id ?? null,
             dc: PROJECT_OBSERVE.dc, data: null,
             projectId: secret.id, projectOnly: true
-        });
-        // Written through like the trace's own declaration below (ACT-08).
-        await writePending();
-        log(`Observe: ${actor.name} is sweeping ${room}, which holds nothing but a secret project (DC ${PROJECT_OBSERVE.dc}).`);
+        // Written through like the trace's own declaration below (ACT-08), once paid.
+        }, () => log(`Observe: ${actor.name} is sweeping ${room}, which holds nothing but a secret project (DC ${PROJECT_OBSERVE.dc}).`), held);
         return { ok: true, key: onlyKey };
     }
 
@@ -300,7 +301,7 @@ export async function chooseObserveTarget({ actorId, declaration, request = "", 
         chosen = declaration === DECLARATIONS.nonObvious ? shelf[shelf.length - 1] : shelf[0];
     }
 
-    return { ok: true, key: await pendObserve({ actor, userId, where, declaration, request, chosen, secret }) };
+    return { ok: true, key: await pendObserve({ actor, userId, where, declaration, request, chosen, secret, key: newKey(), held }) };
 }
 
 /**
@@ -351,10 +352,8 @@ function pendingTracesOf(actorId) {
 }
 
 /** Write one Observe's pending row for the trace `chosen` (and the project `secret`, if any), and answer its key. */
-async function pendObserve({ actor, userId, where, declaration, request, chosen, secret = null }) {
-    const key = foundry.utils.randomID();
-    readPending();
-    pending.set(key, {
+async function pendObserve({ actor, userId, where, declaration, request, chosen, secret = null, key = foundry.utils.randomID(), held = false }) {
+    return keepRow(key, {
         at: Date.now(),
         actorId: actor.id,
         // The account that asked for this key (E03) - see `observeResolveRefusal`.
@@ -369,14 +368,51 @@ async function pendObserve({ actor, userId, where, declaration, request, chosen,
         /* Carried alongside the trace, scored against the same total and at its
            own difficulty. A non-obvious sweep that clears both takes both. */
         projectId: secret?.id ?? null
-    });
+    // Written through at once: the roll that answers this arrives minutes later, and a GM who reloads in between used to
+    // lose the declaration (ACT-08) - at once once paid, since line INVEST of 1.2.122 (`keepRow`).
+    }, () => log(`Observe: ${actor.name} is looking at a ${chosen.data.visibility} ${chosen.data.type} in ${where.room} (DC ${chosen.dc}).`), held);
+}
 
-    // Written through at once: the roll that answers this arrives minutes later,
-    // and a GM who reloads in between used to lose the declaration (ACT-08).
+/**
+ * A declaration's row kept: written through and its log line said (`say`; `pending`, the GMs' store), or, `held`, kept in
+ * this browser's memory alone until it is paid for (`unpaid`; `resolveObserve` writes it through and says it then).
+ * Answers the key.
+ */
+const unpaid = new Map();
+async function keepRow(key, entry, say, held = false) {
+    if (held) {
+        unpaid.set(key, { entry, say });
+        return key;
+    }
+    readPending();
+    pending.set(key, entry);
     await writePending();
-
-    log(`Observe: ${actor.name} is looking at a ${chosen.data.visibility} ${chosen.data.type} in ${where.room} (DC ${chosen.dc}).`);
+    say();
     return key;
+}
+
+/** How many asks this browser holds unpaid (`unpaid`): the suite's, which counts the keys a target step minted. */
+export function heldAskCount() {
+    return unpaid.size;
+}
+
+/** The row of `key` written through now that its roll is paid: held in memory (`unpaid`), or chosen again on the
+ *  declaration its key names when the memory lost it. Answers the row, or null. */
+async function paidRow(key, actorId, senderId) {
+    const held = unpaid.get(key);
+    if (held) {
+        unpaid.delete(key);
+        readPending();
+        pending.set(key, held.entry);
+        await writePending();
+        held.say();
+        return pending.get(key) ?? null;
+    }
+    const declaration = typeof key === "string" ? key.split(".")[0] : null;
+    if (!actorId || ![DECLARATIONS.general, DECLARATIONS.nonObvious, DECLARATIONS.followTraces].includes(declaration)) return null;
+    const again = await chooseObserveTarget({ actorId, declaration, userId: senderId, key, paid: true });
+    readPending();
+    return again?.ok ? pending.get(key) ?? null : null;
 }
 
 /**
@@ -718,7 +754,8 @@ export async function resolveObserve({ key, total, isCritical = false, undo = fa
     readPending();
     await sweepPending();
 
-    const entry = pending.get(key);
+    // an ask held unpaid is written through here, at its paid roll (line INVEST of 1.2.122; `chooseObserveTarget`)
+    const entry = pending.get(key) ?? (undo ? null : await paidRow(key, actorId, senderId));
     if (!entry) {
         /*
          * NO RECORD, AND BOTH SCREENS ARE TOLD (ACT-08, 20.09).
@@ -804,6 +841,8 @@ async function scoreObserve(actor, entry, key, { total, isCritical, undo, rollId
     // produced is recorded here rather than sent to the observer and quoted
     // back: the bullet is part of the answer key's bookkeeping, and the player's
     // client has no business knowing which item id to name.
+    // the empty room's card the earlier throw was ruled on (`nothingHere`, below), read before the undo clears the result
+    const earlierCard = undo && entry.nothingHere ? entry.result?.cardId ?? null : null;
     if (undo) await undoPrevious(actor, entry);
 
     entry.at = Date.now();
@@ -827,14 +866,26 @@ async function scoreObserve(actor, entry, key, { total, isCritical, undo, rollId
        when the target step still said so (`chooseObserveTarget`). Nothing is written to the character here: the card's
        Miss charges the miss, as before. A Reroll asks again, on a card of its own. */
     if (entry.nothingHere) {
-        entry.result = { success: false, bulletId: null, projectId: null, stress: 0, ruled: true };
-        await keepResult(rolls, roll, key, entry);
-        const [{ observeRulingCall }, { callGm }, { ACTIONS }] = await Promise.all([import("./action-observe.mjs"), import("./gm-bridge.mjs"), import("./config.mjs")]);
+        const [{ observeRulingCall }, { callGm, callCardHtml }, { ACTIONS }] = await Promise.all([import("./action-observe.mjs"), import("./gm-bridge.mjs"), import("./config.mjs")]);
         const { locateActor } = await import("./movement.mjs");
         const scene = entry.sceneId ? game.scenes.get(entry.sceneId) ?? null : null;
         const here = locateActor(actor);
-        await callGm(actor, observeRulingCall(actor, { label: ACTIONS.observe?.label ?? "Observe", roll: { trait: "eye", total, isCritical },
-            request: entry.request ?? "", declaration: entry.declaration ?? null, where: here?.room ? here : { room: entry.room, scene } }));
+        const call = observeRulingCall(actor, { label: ACTIONS.observe?.label ?? "Observe", roll: { trait: "eye", total, isCritical },
+            request: entry.request ?? "", declaration: entry.declaration ?? null, where: here?.room ? here : { room: entry.room, scene } });
+        /* A REROLL RE-SCORES THE SAME ASK ON THE SAME CARD (line INVEST of 1.2.122; the coordinator's 21.11, CASE-33's rest):
+           the earlier throw's card, not yet ruled, is written again with the new number and its buttons, and no second card
+           is posted. A card the GMs already ruled keeps its ruling, and the new number goes on a card of its own. */
+        let cardId = null;
+        const earlier = earlierCard ? game.messages?.get(earlierCard) ?? null : null;
+        const { cardFlag, updateSecret } = await import("./secret.mjs");
+        if (earlier && earlier.getFlag(MODULE_ID, "secret") && !cardFlag(earlier, "settled")) {
+            await updateSecret(earlier, callCardHtml(actor, call));
+            cardId = earlier.id;
+        } else {
+            await callGm(actor, { ...call, onPosted: message => { cardId = message?.id ?? null; } });
+        }
+        entry.result = { success: false, bulletId: null, projectId: null, stress: 0, ruled: true, cardId };
+        await keepResult(rolls, roll, key, entry);
         return { success: false, key, ruled: true };
     }
 
@@ -1396,7 +1447,7 @@ export async function describeFind(actor, entry, isCritical, fallbackName, store
  */
 export function pendingShape(key) {
     readPending();
-    const entry = pending.get(key);
+    const entry = pending.get(key) ?? unpaid.get(key)?.entry;
     if (!entry) return null;
     return {
         declaration: entry.declaration,

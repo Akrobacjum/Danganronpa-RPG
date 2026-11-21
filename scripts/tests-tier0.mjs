@@ -25815,6 +25815,23 @@ const REGRESSIONS = [
         equal(JSON.stringify({ waits: wait > 0 && /!game\.user\?\.isGM && !murderState\(\)\?\.active/.test(body), told: told > wait, beforeLoop: loop > told, timing: /openingCopyWaitMs:\s*\d+/.test(cfg) }),
             JSON.stringify({ waits: true, told: true, beforeLoop: true, timing: true }), "{waits: a player's browser with no incident waits; told: the GMs are told after the wait; beforeLoop: both before the loop; timing: the wait is a TIMING row}");
     }],
+    ["R8184 - a body carried into a room by Move the body counts as the room walked in on (the owner's decision of 21.11.2026; line INVEST of 1.2.122, the audit's CASE-LC5 of 1.2.42): murder-rules.mjs `registerMurder`'s token-move hook hands every move on the primary to body.mjs `maybeBodyFound`, with no test of whose token moved or why, and body.mjs records the decision beside it", async () => {
+        /*
+         * Line INVEST of 1.2.122. Source read, comments stripped for the hook: its only returns before the discovery's
+         * check are "not a move" and "not the primary". A future exception for a carried body (the victim's token, a
+         * Stage 6 move) turns this red, as the owner's decision would then have changed.
+         */
+        const read = async f => fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(lfText);
+        const rules = stripComments(await read("murder-rules.mjs")), body = await read("body.mjs");
+        const reg = fnSource(rules, "registerMurder");
+        // the hook's text from its registration to the discovery's check (a match: nothing found reads as nothing)
+        const before = reg.match(/Hooks\.on\("updateToken"[\s\S]*?(?=maybeBodyFound)/)?.[0] ?? "";
+        must(before.length > 0, "the token-move hook does not reach maybeBodyFound - this would measure nothing");
+        const returns = [...before.matchAll(/if \(([^)]*(?:\([^)]*\))?[^)]*)\) return/g)].map(m => m[1].trim());
+        equal(JSON.stringify({ returns, noException: !/victim|corpse|moveBody|isBody|bodyOf/i.test(before), recorded: body.includes("THE OWNER'S DECISION OF 21.11.2026") }),
+            JSON.stringify({ returns: ["!isMoveChange(changes)", "!isPrimaryGm()"], noException: true, recorded: true }),
+            "{returns: the hook's early returns before the discovery's check; noException: none names a body, a victim or Move the body; recorded: body.mjs names the owner's decision}");
+    }],
     ["R7835 - one file of an event is replaced in its own box (1.2.119, the owner on the shot: \"niech kazdy wiersz wyglada jak ten pierwszy (tzn wklejalny link a nie sama nazwa)\"; sfx-play.mjs `withSoundFileAt`): a file's box edited replaces that file alone, in its place; emptied, it removes it; a path another file already holds drops this one rather than double it; a pasted list of several puts the first in its place and the rest after it, none twice; the same path or an index outside the list changes nothing", async () => {
         /*
          * Line P of 1.2.119 (the sound item), 20.11.2026; until the owner's answer this number held "a name on one line,

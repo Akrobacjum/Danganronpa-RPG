@@ -106898,7 +106898,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await describeWindow()?.close();
             await Promise.race([resolving, wait(5000)]);
             seen.markedAfter = Boolean(observeStore.get(first.key)?.describing);
-            const second = await O.chooseObserveTarget({ actorId: actor.id, declaration: "general", userId: player.id });
+            // written through as a paid one is (an unpaid ask is held in memory alone since CASE-33's rest)
+            const second = await O.chooseObserveTarget({ actorId: actor.id, declaration: "general", userId: player.id, paid: true });
             must(second?.ok && second.key && O.pendingShape(second.key), "the second Observe found nothing to aim at - this would measure nothing");
             const row = observeStore.get(second.key);
             await observeStore.patch(second.key, { ...row, describing: { at: Date.now(), total: 30, isCritical: false, rollId: null, by: player.id } });
@@ -106942,7 +106943,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const ch = getClock().chapter;
         let away = null, named = null;
         try {
-            away = await User.create({ name: "SUITE 122n away", role: CONST.USER_ROLES.PLAYER });
+            away = await CONFIG.User.documentClass.create({ name: "SUITE 122n away", role: CONST.USER_ROLES.PLAYER });
             must(away && !away.active, "the suite's account is connected - this would measure nothing");
             await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...(stored ?? {}), chapter: ch, vote: { open: true, round: 917, picks: {}, issued: [away.id] } });
             await settle();
@@ -106954,6 +106955,64 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
         }
         equal(stableJson({ named: named?.includes(away?.id) ?? null }), stableJson({ named: true }), "{named: the account handed a ballot and gone is among the pending voters}");
+    }],
+    ["1.2.122 CASE-33 rest - an unpaid Observe ask writes no row to the GMs' store and logs nothing, its paid resolve writes and rules it; a Reroll of an empty room's Observe writes the new number on the same card, posting none; a key the memory lost is chosen again on its declaration (observe.mjs `chooseObserveTarget`, `resolveObserve`, `scoreObserve`)", async () => {
+        /*
+         * Line INVEST of 1.2.122 (the coordinator's 21.11: CASE-33's two rests). A character of the suite's own, owned by a
+         * connected player, alone in a one-room scene of the suite's own. A General Observe asked: the GMs' store and the
+         * console's log lines read. Resolved with 5 (its paid roll): the store's row and the cards posted. Rerolled with 7
+         * (`undo`, as the GM's Reroll replays it): the cards posted, and the first card's words. Then a key of the form the
+         * target step mints, never asked here, resolved with 6: whether a row was written for it. Cards, actor, scene go.
+         * Red at e56432fc: the ask wrote its row and a log line, and the Reroll posted a second card.
+         */
+        const O = await import("./observe.mjs");
+        const R = await import("./rooms.mjs");
+        const { observeStore } = await import("./gm-stores.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        needs(env.primaryGm(), "the target step is the primary GM's");
+        const { player } = await playerInRoom();
+        let scene = null, lone = null;
+        const cards = [];
+        const onCard = m => { cards.push(m); };
+        const logWas = console.log;
+        const logged = [];
+        const seen = {};
+        try {
+            scene = await Scene.create({ name: "SUITE 122o an empty room", width: 800, height: 400, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: "SUITE 122o room", shapes: [{ type: "rectangle", x: 0, y: 0, width: 400, height: 400 }], flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            lone = await Actor.create({ name: "SUITE 122o observer", type: "character", ownership: { [player.id]: 3 } });
+            await scene.createEmbeddedDocuments("Token", [{ actorId: lone.id, actorLink: true, name: lone.name, x: 100, y: 100, width: 1, height: 1 }]);
+            console.log = (...args) => { logged.push(args.join(" ")); return logWas.apply(console, args); };
+            const asked = await O.chooseObserveTarget({ actorId: lone.id, declaration: "general", userId: player.id });
+            console.log = logWas;
+            must(asked?.ok && asked.key, `the ask answered no key: ${stableJson(asked)}`);
+            seen.askWrote = Boolean(observeStore.get(asked.key));
+            seen.askLogged = logged.filter(l => l.includes("Observe:")).length;
+            Hooks.on("createChatMessage", onCard);
+            await O.resolveObserve({ key: asked.key, total: 5, isCritical: false, actorId: lone.id, senderId: player.id, senderIsGm: false });
+            await settle();
+            seen.paidWrote = Boolean(observeStore.get(asked.key)?.result);
+            seen.cardsFirst = cards.length;
+            const first = cards[0] ?? null;
+            await O.resolveObserve({ key: asked.key, total: 7, isCritical: false, actorId: lone.id, undo: true, senderIsGm: true });
+            await settle();
+            seen.cardsAfterReroll = cards.length;
+            const { OBSERVE_FAIL_STRESS } = await import("./config.mjs");
+            const w7 = game.i18n.format("DRPG.Action.observeGm", { total: 7, n: OBSERVE_FAIL_STRESS });
+            seen.sameCardNewNumber = first ? String(await wordsOf(game.messages.get(first.id) ?? first, 300)).includes(w7) : null;
+            const lost = `general.SUITE122o${foundry.utils.randomID(6)}`;
+            await O.resolveObserve({ key: lost, total: 6, isCritical: false, actorId: lone.id, senderId: player.id, senderIsGm: false });
+            await settle();
+            seen.lostChosenAgain = Boolean(observeStore.get(lost)?.result);
+        } finally {
+            console.log = logWas;
+            Hooks.off("createChatMessage", onCard);
+            for (const m of cards) await m.delete().catch(() => {});
+            if (lone) await lone.delete().catch(() => {});
+            if (scene) await scene.delete().catch(() => {});
+        }
+        equal(stableJson(seen), stableJson({ askWrote: false, askLogged: 0, paidWrote: true, cardsFirst: 1, cardsAfterReroll: 1, sameCardNewNumber: true, lostChosenAgain: true }),
+            "{askWrote, askLogged: a row in the GMs' store and log lines after the unpaid ask; paidWrote: the row after the paid resolve; cardsFirst, cardsAfterReroll: cards posted; sameCardNewNumber: the first card carries the Reroll's 7; lostChosenAgain: a key the memory lost resolved to a row}");
     }],
     ["a planned Truth Bullet removed from the planner takes its links with it: the deductions that rested on it no longer name it, the counter refuting one of them keeps its target, and the case's check names nothing missing (case-schema.mjs `dropCaseNode`, `refsCut`; the owner, 19.11.2026: \"Przyjmujemy ze usuniecie bulleta usuwa tez jego polaczenia\"; the line claude/plan-119)", async () => {
         /*
