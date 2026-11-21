@@ -29,7 +29,7 @@
  *            4.5; its control, on the first page under glass, the brush planted back under the pointer must read;
  *   toolbar  (line P of 1.2.120) the order's select and the plan's at one computed font size; no control of the
  *            Map's tools or its view switch over another or past the window's content box (`--width <px>` draws every
- *            window at that width, to read it narrow);
+ *            window at that width, to read it narrow); the tools on one row in a window 1000 px wide or wider;
  *   through  (line P of 1.2.120) a drawn line's stretch inside a node's box other than its own two ends;
  *   size     while a trial runs, under glass, at 800 px of height or less: the smallest node text after Fit to view
  *            at least 11 px (the owner, 12.11, round 6; MIN_TEXT);
@@ -124,7 +124,9 @@ async function readMap(page, { plantBox = false, staleLayout = false, plantBar =
     return page.evaluate(async ({ plantBox, staleLayout, plantBar, plantNarrow, plantThrough, plantSmall }) => {
         // the toolbar read's control (line P of 1.2.120): the order's select planted at 9 px must read
         if (plantSmall) document.querySelector("select[data-drpg-case-sort]")?.style.setProperty("font-size", "9px", "important");
-        // and its overlap read's (line P of 1.2.120): the tools' second control planted over their first must read
+        // and its overlap read's (line P of 1.2.120): the tools' second control planted over their first must read; and its
+        // rows read's: the order select planted 700 px wide must wrap the tools
+        if (plantSmall) document.querySelector("select[data-drpg-case-sort]")?.style.setProperty("width", "700px", "important");
         if (plantSmall) {
             const [a, b] = [...document.querySelectorAll(".drpg-case-tools :is(button, select)")];
             if (a && b) { const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect(); b.style.transform = `translate(${ra.left - rb.left + 4}px, ${ra.top - rb.top}px)`; }
@@ -229,6 +231,21 @@ async function readMap(page, { plantBox = false, staleLayout = false, plantBar =
            button and select of the Map's tools (`.drpg-case-tools`) and the view switch above them, by their boxes - no two
            overlapping by more than half a pixel, none past the window's content box on either side. */
         {
+            /* AND ON ONE ROW FROM 1000 PX (the coordinator, 21.11.2026: the order select's empty tail pushed "All open" to a row
+               of its own): the tools' rows, a control joining the row whose vertical span it overlaps (buttons and selects
+               of one row stand a few pixels apart in height); a window 1000 px wide or wider whose tools take two is a cut.
+               1000, not 1100: at 1100 they took one row before the fix too; the wrap was at the harness's 1008 px window
+               (two rows under Stained Glass before `field-sizing: content` on the order select, one after). */
+            const toolRects = [...document.querySelectorAll(".drpg-case-tools :is(button, select)")].filter(el => el.offsetWidth > 0)
+                .map(el => el.getBoundingClientRect()).sort((p, q) => p.top - q.top);
+            const rows = [];
+            for (const r of toolRects) {
+                const row = rows.find(w => r.top < w.bottom - 0.5 && r.bottom > w.top + 0.5);
+                if (row) { row.top = Math.min(row.top, r.top); row.bottom = Math.max(row.bottom, r.bottom); } else rows.push({ top: r.top, bottom: r.bottom });
+            }
+            window.__sweepToolRows = rows.length;
+            const appWidth = document.querySelector(".application")?.offsetWidth ?? 0;
+            if (appWidth >= 1000 && rows.length > 1) cut.push(`toolbar: ${rows.length} rows in a window ${appWidth} px wide`);
             const content = document.querySelector(".window-content")?.getBoundingClientRect();
             const controls = [...document.querySelectorAll(".drpg-case-tools :is(button, select), .drpg-case-switch-bar button")]
                 .filter(el => el.offsetWidth > 0).map(el => ({ el, r: el.getBoundingClientRect(), name: el.textContent.trim().slice(0, 20) || el.className }));
@@ -383,7 +400,7 @@ async function readMap(page, { plantBox = false, staleLayout = false, plantBar =
             revealed = f.top >= g.top - 0.5 && f.top < g.bottom && f.left >= g.left - 0.5 && f.right <= g.right + 0.5;
             if (!revealed) cut.push(`${id}: not brought into view (face at ${Math.round(f.left - g.left)},${Math.round(f.top - g.top)} in ${Math.round(g.width)}x${Math.round(g.height)})`);
         }
-        return { nodes: nodes.length, controls: canvas.querySelectorAll(":scope > [data-drpg-case-tick], :scope > [data-drpg-case-start-node]").length, revealed, open: [...open.keys()], tallest: Math.max(...boxes.map(b => Math.round(b.bottom - b.top))),
+        return { toolRows: window.__sweepToolRows ?? null, nodes: nodes.length, controls: canvas.querySelectorAll(":scope > [data-drpg-case-tick], :scope > [data-drpg-case-start-node]").length, revealed, open: [...open.keys()], tallest: Math.max(...boxes.map(b => Math.round(b.bottom - b.top))),
             viewport: graph ? [graph.clientWidth, graph.clientHeight] : null, canvas: [parseFloat(canvas.style.width), parseFloat(canvas.style.height)],
             measured: canvas.dataset.drpgMeasured ?? null, slot, fit, bar: Boolean(bar), cut, overlaps };
     }, { plantBox, staleLayout, plantBar, plantNarrow, plantThrough, plantSmall });
@@ -481,7 +498,8 @@ try {
                     // the toolbar read's control (line P of 1.2.120): the order's select planted small must read
                     const small = await readMap(page, { plantSmall: true });
                     const smallRead = (small.cut ?? []).filter(c => c.startsWith("toolbar: the order's")).length
-                        && (small.cut ?? []).filter(c => / over /.test(c) && c.startsWith("toolbar:")).length;
+                        && (small.cut ?? []).filter(c => / over /.test(c) && c.startsWith("toolbar:")).length
+                        && (small.cut ?? []).filter(c => / rows in a window /.test(c)).length;
                     const hasSelects = await page.evaluate(() => Boolean(document.querySelector("select[data-drpg-case-sort]") && document.querySelector("select[data-drpg-case-add-plan]")));
                     await load();
                     console.log(`control  ${!hasSelects || smallRead ? "ok  " : "FAIL"} the order's select planted at 9 px and a tool planted over another read ${hasSelects ? (small.cut ?? []).filter(c => c.startsWith("toolbar:")).length : "no toolbar on this page"} toolbar cut(s)`);
@@ -522,7 +540,7 @@ try {
                     (r.cut ??= []).push(`fit text ${r.fit.minText} px under ${MIN_TEXT.px} (a trial runs, ${theme}, ${vh} px high)`);
                 const bad = (r.cut?.length ?? 1) + (r.overlaps?.length ?? 0) + (r.error ? 1 : 0);
                 if (bad) failed++;
-                const line = `${bad ? "FAIL" : "ok  "} ${lang} ${theme.padEnd(6)} ${vw}x${vh} ${w.id.padEnd(25)} hover ${r.hover ? `${r.hover.ratio}:1` : "-"} nodes ${r.nodes} controls ${r.controls ?? 0} open [${(r.open ?? []).join(",")}] tallest ${r.tallest} px, viewport ${r.viewport?.join("x")}, canvas ${r.canvas?.join("x")}, measured ${r.measured}${r.slot ? `, slot ${r.slot.join("x")}` : ""}${r.fit ? `, fit ${r.fit.z} text ${r.fit.minText} px` : ""}${r.revealed === null ? "" : `, revealed ${r.revealed}`}; cut ${r.cut?.length ?? "-"}, overlaps ${r.overlaps?.length ?? "-"}${r.error ? `; ${r.error}` : ""}`;
+                const line = `${bad ? "FAIL" : "ok  "} ${lang} ${theme.padEnd(6)} ${vw}x${vh} ${w.id.padEnd(25)} toolbar rows ${r.toolRows ?? "-"} hover ${r.hover ? `${r.hover.ratio}:1` : "-"} nodes ${r.nodes} controls ${r.controls ?? 0} open [${(r.open ?? []).join(",")}] tallest ${r.tallest} px, viewport ${r.viewport?.join("x")}, canvas ${r.canvas?.join("x")}, measured ${r.measured}${r.slot ? `, slot ${r.slot.join("x")}` : ""}${r.fit ? `, fit ${r.fit.z} text ${r.fit.minText} px` : ""}${r.revealed === null ? "" : `, revealed ${r.revealed}`}; cut ${r.cut?.length ?? "-"}, overlaps ${r.overlaps?.length ?? "-"}${r.error ? `; ${r.error}` : ""}`;
                 console.log(line);
                 for (const c of [...(r.cut ?? []), ...(r.overlaps ?? []).map(o => `overlap ${o}`)]) console.log(`       ${c}`);
                 rows.push({ lang, theme, size: `${vw}x${vh}`, id: w.id, width, ...r });
