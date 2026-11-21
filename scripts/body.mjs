@@ -723,6 +723,13 @@ export function witnessesOf({ tokens = [], room = null, bodies = new Set(), stud
  * Two is the count, and at least one of the two has to be unconnected to the
  * incident - a room full of nothing but killers and accomplices is not a
  * discovery.
+ *
+ * A BODY CARRIED INTO A ROOM COUNTS AS THE ROOM WALKED IN ON - THE OWNER'S DECISION OF 21.11.2026 (asked by line INVEST
+ * of 1.2.122 through the coordinator; the audit's CASE-LC5 of 1.2.42 found the choice written nowhere; the owner: yes, as
+ * the code does). Every token move on the primary comes here, the victim's token moved by Stage 6's Move the body
+ * included (cleanup.mjs), and the room read is the moved token's: a body carried into a room where two students stand,
+ * one uninvolved, is found there - each told privately and the GM asked, as a walk-in is (1.2.113's decisions A and B),
+ * while the killer's Stage 6 still runs. Tier 0 R8184 holds the move hook to it.
  */
 // Queued with the GM's own announcement - see `enqueueBodyWork`.
 export function maybeBodyFound(tokenDoc) {

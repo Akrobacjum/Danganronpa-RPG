@@ -4733,6 +4733,22 @@ export async function throwOpeningRoll(side, actorId, trait = null, { hindrance 
     // every attempt to dismiss it reopened the window twice more - measured:
     // closing it took three closes, and four abandoned incidents left four
     // stacked "Body Roll" windows warning about a murder that no longer existed.
+    /* AN INVITATION THAT CAME BEFORE THIS BROWSER'S COPY OF THE INCIDENT WAITS FOR IT (line INVEST of 1.2.122; the audit's
+       CASE-LC2 of 1.2.42): `openingStillWanted` reads the seat from this browser's copy, and an invitation that reached a
+       player before it - a reload, or a copy still on its way - ended at once and nobody was told; the GM's tracker waited
+       until the GM pressed Ask again. A player's browser with no running incident waits for its copy a few seconds, and
+       if none comes the GMs are told the window could not open. Tier 0 R8183; the race itself is a table's. */
+    if (!game.user?.isGM && !murderState()?.active) {
+        const until = Date.now() + TIMING.openingCopyWaitMs;
+        while (Date.now() < until && !murderState()?.active) await new Promise(resolve => setTimeout(resolve, 100));
+        if (!murderState()?.active) {
+            const { whisperToGms } = await import("./utils.mjs");
+            await whisperToGms({ tone: "warning", body: `<p>${game.i18n.format("DRPG.Murder.openingNoCopy", {
+                name: foundry.utils.escapeHTML(actor.name) })}</p>` });
+            return null;
+        }
+    }
+
     const MAX_ATTEMPTS = TIMING.openingAttempts;
     /* ONE WINDOW AT A TIME (1.2.122; CASE-24). The primary sends the invitation again when the invited browser asks at its
        ready (bridge-runs-acts.mjs `reaskOwedOpening`), and a primary's own reload makes the player ask too: a page whose

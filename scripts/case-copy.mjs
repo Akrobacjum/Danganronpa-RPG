@@ -131,9 +131,10 @@ async function fetchCopy(path) {
 
 /**
  * List the folder and merge every copy in it into this browser's stores, by `restoreCase`'s merge. Answers
- * `{ read, copies, newest }`: how many merged, what was found by name, and the path of the newest by `exportedAt`;
- * or `{ refused }` ("notGm", "list", "fetch"). A copy that will not parse or is refused by the merge is counted,
- * named nowhere, and left.
+ * `{ read, bad, count, newest, newestFile }`: how many merged, how many would not be read, how many the folder lists,
+ * the path of the newest by `exportedAt` and that file; or `{ refused }` ("notGm", "quiet", "list"). A copy that will
+ * not fetch or parse, or that the merge refuses, is counted in `bad`, named nowhere, and left (corrected by line INVEST of
+ * 1.2.122: this named `copies` and a "fetch" refusal, which it never answered).
  */
 export async function readServerCopies() {
     if (!game.user?.isGM) return { refused: "notGm" };

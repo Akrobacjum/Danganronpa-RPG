@@ -109217,6 +109217,278 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson({ answer, inTime: took !== null && took < 3000, standing, told }), stableJson({ answer: null, inTime: true, standing: false, told: true }),
             "{answer: what the unanswered window answered; inTime: within 3 s of a 300 ms time; standing: the window still open; told: the warning shown}");
     }],
+    ["1.2.122 CASE-33 - Observe's target step answers alike for a room holding nothing and a room holding a trace: a key, before anything is paid; the empty room is ruled at the paid resolve, on a card the GMs answer (observe.mjs `chooseObserveTarget`, `scoreObserve`; audit 1.2.118 domain-case-c-investigation 2)", async () => {
+        /*
+         * Line INVEST of 1.2.122 (routed by the coordinator from line CORE). A character of the suite's own, owned by a
+         * connected player, standing alone in a one-room scene of the suite's own (no Remnant there); and the world's
+         * player character in a room with a trace laid at its feet. Each asked for a target as General, Non-obvious and
+         * Follow my traces, on the primary, as the bridge's run asks. Read: each answer's fields and `ok`. Then the empty
+         * room's General key resolved with a total of 5 (as its paid roll's resolve): whether a card went out naming the
+         * total for the GMs to rule on. The actor, scene, trace and cards go after.
+         * Red at 21bf5d18: the empty room answered `{ ok: false, reason: "none" }` and the trace's `{ ok: true, key }` -
+         * before any payment, the one fact the file's header says the observer must not know.
+         */
+        const O = await import("./observe.mjs");
+        const R = await import("./rooms.mjs");
+        const remnants = await import("./remnants.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        needs(env.primaryGm(), "the target step is the primary GM's");
+        const { player, actor: seated, where } = await playerInRoom();
+        const room = "SUITE 122k the empty room";
+        let scene = null, lone = null, trace = null;
+        const shapeOf = a => ({ ok: a?.ok ?? null, fields: Object.keys(a ?? {}).sort().join(",") });
+        const seen = { empty: {}, trace: {} };
+        const cards = [];
+        const onCard = m => { cards.push(m); };
+        try {
+            scene = await Scene.create({ name: "SUITE 122k a room with nothing", width: 800, height: 400, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: room, shapes: [{ type: "rectangle", x: 0, y: 0, width: 400, height: 400 }], flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            lone = await Actor.create({ name: "SUITE 122k the lone observer", type: "character", ownership: { [player.id]: 3 } });
+            await scene.createEmbeddedDocuments("Token", [{ actorId: lone.id, actorLink: true, name: lone.name, x: 100, y: 100, width: 1, height: 1 }]);
+            const { locateActor } = await import("./movement.mjs");
+            must(locateActor(lone)?.room === room, `the suite's character does not stand in ${room} - this would measure nothing`);
+            trace = await remnants.placeRemnant({ type: "prep", visibility: "evident", scene: where.scene, x: where.tokenDoc.x, y: where.tokenDoc.y, note: "SUITE 122k a trace at their feet" });
+            must(trace, "the trace was not placed");
+            for (const declaration of ["general", "nonObvious", "followTraces"]) {
+                seen.empty[declaration] = shapeOf(await O.chooseObserveTarget({ actorId: lone.id, declaration, userId: player.id }));
+                seen.trace[declaration] = shapeOf(await O.chooseObserveTarget({ actorId: seated.id, declaration, userId: player.id }));
+            }
+            const asked = await O.chooseObserveTarget({ actorId: lone.id, declaration: "general", userId: player.id });
+            Hooks.on("createChatMessage", onCard);
+            const res = asked?.ok && asked.key ? await O.resolveObserve({ key: asked.key, total: 5, isCritical: false, actorId: lone.id, senderId: player.id, senderIsGm: false }) : null;
+            await settle();
+            const want = game.i18n.format("DRPG.Action.observeGm", { total: 5, n: (await import("./config.mjs")).OBSERVE_FAIL_STRESS });
+            let words = "";
+            for (const m of cards) if (m.getFlag(MODULE_ID, "gmAsk")) words += String(await wordsOf(m, 300));
+            seen.ruled = res?.ruled === true && words.includes(want);
+        } finally {
+            Hooks.off("createChatMessage", onCard);
+            for (const m of cards) await m.delete().catch(() => {});
+            if (trace) {
+                await remnants.dropRemnantSecret(trace).catch(() => {});
+                if (where.scene.tokens.has(trace.id)) await where.scene.deleteEmbeddedDocuments("Token", [trace.id]);
+            }
+            if (lone) await lone.delete().catch(() => {});
+            if (scene) await scene.delete().catch(() => {});
+        }
+        const same = { ok: true, fields: "key,ok" };
+        equal(stableJson(seen), stableJson({ empty: { followTraces: same, general: same, nonObvious: same }, ruled: true, trace: { followTraces: same, general: same, nonObvious: same } }),
+            "{empty, trace: each declaration's answer in a room with nothing and in one with a trace - ok and its fields; ruled: the empty room's paid resolve sent the GMs a card with its total}");
+    }],
+    ["1.2.122 CASE-37 - a find waiting on its describe window is marked on its row, and a row left marked by a reload is finished when the primary's stores open: the copy made under the prefilled name, the row resolved, no window asked (observe.mjs `scoreObserve`, `recoverDescribing`; audit 1.2.118 domain-case-c-investigation 6)", async () => {
+        /*
+         * Line INVEST of 1.2.122 (the coordinator's 21.11: the rest of CASE-37). The world's player character in a room, two
+         * undescribed traces of the suite's laid at its feet. Part 1: a General Observe aimed (`chooseObserveTarget`) and
+         * resolved with 30; while its describe window stands, its row in the GMs' store of pending Observes is read; then
+         * the window closed. Part 2: a second Observe aimed, its row marked as a reload would leave it (`describing`, no
+         * result), then `recoverDescribing` run. Read: the mark while the window stood and after; how many it finished,
+         * whether a describe window opened, the character's new bullets and the row's result. Items, keys and traces go.
+         * Red at b841a765: no mark, and no recovery (observe.mjs exported no recoverDescribing).
+         */
+        const O = await import("./observe.mjs");
+        const { observeStore } = await import("./gm-stores.mjs");
+        const remnants = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        needs(env.dialogs(), "the describe window is drawn");
+        needs(env.primaryGm(), "the Observe is resolved on the primary GM");
+        must(typeof O.recoverDescribing === "function", "observe.mjs exports no recoverDescribing");
+        const { player, actor, where } = await playerInRoom();
+        const had = new Set(actor.items.map(i => i.id));
+        const describeWindow = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.window?.title === game.i18n.localize("DRPG.Observe.describeTitle"));
+        const traces = [];
+        const seen = {};
+        try {
+            for (const n of [1, 2]) traces.push(await remnants.placeRemnant({ type: "prep", visibility: "evident", scene: where.scene, x: where.tokenDoc.x, y: where.tokenDoc.y, note: `SUITE 122m trace ${n}` }));
+            must(traces.every(Boolean), "the traces were not placed - this would measure nothing");
+            const first = await O.chooseObserveTarget({ actorId: actor.id, declaration: "general", userId: player.id });
+            must(first?.ok && first.key, "the first Observe found nothing to aim at - this would measure nothing");
+            const resolving = O.resolveObserve({ key: first.key, total: 30, isCritical: false, actorId: actor.id, senderId: player.id, senderIsGm: false });
+            await until(() => describeWindow()?.element, 4000).catch(() => {});
+            seen.windowed = Boolean(describeWindow());
+            seen.markedWhileOpen = Boolean(observeStore.get(first.key)?.describing);
+            await describeWindow()?.close();
+            await Promise.race([resolving, wait(5000)]);
+            seen.markedAfter = Boolean(observeStore.get(first.key)?.describing);
+            // written through as a paid one is (an unpaid ask is held in memory alone since CASE-33's rest)
+            const second = await O.chooseObserveTarget({ actorId: actor.id, declaration: "general", userId: player.id, paid: true });
+            must(second?.ok && second.key && O.pendingShape(second.key), "the second Observe found nothing to aim at - this would measure nothing");
+            const row = observeStore.get(second.key);
+            await observeStore.patch(second.key, { ...row, describing: { at: Date.now(), total: 30, isCritical: false, rollId: null, by: player.id } });
+            await settle();
+            const before = actor.items.size;
+            let opened = false;
+            const watch = () => { if (describeWindow()) opened = true; };
+            const timer = setInterval(watch, 20);
+            seen.finished = await Promise.race([O.recoverDescribing(), wait(5000).then(() => "timeout")]);
+            clearInterval(timer);
+            watch();
+            seen.opened = opened;
+            seen.newBullets = actor.items.size - before;
+            seen.resolved = Boolean(observeStore.get(second.key)?.result?.success);
+        } finally {
+            await describeWindow()?.close().catch(() => {});
+            for (const item of [...actor.items]) {
+                if (had.has(item.id)) continue;
+                const uuid = item.uuid;
+                await item.delete().catch(() => {});
+                await bullets.dropSecret?.(uuid);
+            }
+            for (const t of traces.filter(Boolean)) {
+                await remnants.dropRemnantSecret(t).catch(() => {});
+                if (where.scene.tokens.has(t.id)) await where.scene.deleteEmbeddedDocuments("Token", [t.id]);
+            }
+        }
+        equal(stableJson(seen), stableJson({ windowed: true, markedWhileOpen: true, markedAfter: false, finished: 1, opened: false, newBullets: 1, resolved: true }),
+            "{windowed: the first find's describe window opened; markedWhileOpen, markedAfter: its row marked while it stood and after; finished: rows the recovery finished; opened: a describe window during it; newBullets: bullets it made; resolved: the second row's result a success}");
+    }],
+    ["1.2.122 CASE-14 - a ballot handed to a player who then left is still named as out: the vote's pending voters are everybody handed one who has not answered, connected or not (vote.mjs `pendingVoters`; the audit's CASE-14 of 1.2.42, its rest)", async () => {
+        /*
+         * Line INVEST of 1.2.122 (the auditor's unrouted list, B). An account of the suite's own, not connected, handed a
+         * ballot in an open round of the running chapter's trial record (its `vote.issued`), nobody's ballot in. Read:
+         * whether `pendingVoters` names that account. The record and the account put back.
+         * Red at 22e053f2: only the connected participants were read, so the console said "Every ballot is in." beside a
+         * count still one short.
+         */
+        const V = await import("./vote.mjs");
+        const stored = game.settings.get(MODULE_ID, SETTINGS.trialProgress);
+        const ch = getClock().chapter;
+        let away = null, named = null;
+        try {
+            away = await CONFIG.User.documentClass.create({ name: "SUITE 122n away", role: CONST.USER_ROLES.PLAYER });
+            must(away && !away.active, "the suite's account is connected - this would measure nothing");
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...(stored ?? {}), chapter: ch, vote: { open: true, round: 917, picks: {}, issued: [away.id] } });
+            await settle();
+            must(V.trialProgress()?.vote?.open === true, "the record does not read an open vote - this would measure nothing");
+            named = (V.pendingVoters() ?? []).map(p => p.user?.id);
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored ?? {});
+            if (away) await away.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson({ named: named?.includes(away?.id) ?? null }), stableJson({ named: true }), "{named: the account handed a ballot and gone is among the pending voters}");
+    }],
+    ["1.2.122 CASE-33 rest - an unpaid Observe ask writes no row to the GMs' store and logs nothing, its paid resolve writes and rules it; a Reroll of an empty room's Observe writes the new number on the same card, posting none; a key the memory lost is chosen again on its declaration (observe.mjs `chooseObserveTarget`, `resolveObserve`, `scoreObserve`)", async () => {
+        /*
+         * Line INVEST of 1.2.122 (the coordinator's 21.11: CASE-33's two rests). A character of the suite's own, owned by a
+         * connected player, alone in a one-room scene of the suite's own. A General Observe asked: the GMs' store and the
+         * console's log lines read. Resolved with 5 (its paid roll): the store's row and the cards posted. Rerolled with 7
+         * (`undo`, as the GM's Reroll replays it): the cards posted, and the first card's words. Then a key of the form the
+         * target step mints, never asked here, resolved with 6: whether a row was written for it. Cards, actor, scene go.
+         * Red at e56432fc: the ask wrote its row and a log line, and the Reroll posted a second card.
+         */
+        const O = await import("./observe.mjs");
+        const R = await import("./rooms.mjs");
+        const { observeStore } = await import("./gm-stores.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        needs(env.primaryGm(), "the target step is the primary GM's");
+        const { player } = await playerInRoom();
+        let scene = null, lone = null;
+        const cards = [];
+        const onCard = m => { cards.push(m); };
+        const logWas = console.log;
+        const logged = [];
+        const seen = {};
+        try {
+            scene = await Scene.create({ name: "SUITE 122o an empty room", width: 800, height: 400, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: "SUITE 122o room", shapes: [{ type: "rectangle", x: 0, y: 0, width: 400, height: 400 }], flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            lone = await Actor.create({ name: "SUITE 122o observer", type: "character", ownership: { [player.id]: 3 } });
+            await scene.createEmbeddedDocuments("Token", [{ actorId: lone.id, actorLink: true, name: lone.name, x: 100, y: 100, width: 1, height: 1 }]);
+            console.log = (...args) => { logged.push(args.join(" ")); return logWas.apply(console, args); };
+            const asked = await O.chooseObserveTarget({ actorId: lone.id, declaration: "general", userId: player.id });
+            console.log = logWas;
+            must(asked?.ok && asked.key, `the ask answered no key: ${stableJson(asked)}`);
+            seen.askWrote = Boolean(observeStore.get(asked.key));
+            seen.askLogged = logged.filter(l => l.includes("Observe:")).length;
+            Hooks.on("createChatMessage", onCard);
+            await O.resolveObserve({ key: asked.key, total: 5, isCritical: false, actorId: lone.id, senderId: player.id, senderIsGm: false });
+            await settle();
+            seen.paidWrote = Boolean(observeStore.get(asked.key)?.result);
+            seen.cardsFirst = cards.length;
+            const first = cards[0] ?? null;
+            await O.resolveObserve({ key: asked.key, total: 7, isCritical: false, actorId: lone.id, undo: true, senderIsGm: true });
+            await settle();
+            seen.cardsAfterReroll = cards.length;
+            const { OBSERVE_FAIL_STRESS } = await import("./config.mjs");
+            const w7 = game.i18n.format("DRPG.Action.observeGm", { total: 7, n: OBSERVE_FAIL_STRESS });
+            seen.sameCardNewNumber = first ? String(await wordsOf(game.messages.get(first.id) ?? first, 300)).includes(w7) : null;
+            const lost = `general.SUITE122o${foundry.utils.randomID(6)}`;
+            await O.resolveObserve({ key: lost, total: 6, isCritical: false, actorId: lone.id, senderId: player.id, senderIsGm: false });
+            await settle();
+            seen.lostChosenAgain = Boolean(observeStore.get(lost)?.result);
+        } finally {
+            console.log = logWas;
+            Hooks.off("createChatMessage", onCard);
+            for (const m of cards) await m.delete().catch(() => {});
+            if (lone) await lone.delete().catch(() => {});
+            if (scene) await scene.delete().catch(() => {});
+        }
+        equal(stableJson(seen), stableJson({ askWrote: false, askLogged: 0, paidWrote: true, cardsFirst: 1, cardsAfterReroll: 1, sameCardNewNumber: true, lostChosenAgain: true }),
+            "{askWrote, askLogged: a row in the GMs' store and log lines after the unpaid ask; paidWrote: the row after the paid resolve; cardsFirst, cardsAfterReroll: cards posted; sameCardNewNumber: the first card carries the Reroll's 7; lostChosenAgain: a key the memory lost resolved to a row}");
+    }],
+    ["1.2.122 probe 43 - the Map's problem count follows a Remnant renamed and deleted under a deduction resting on it, with \"All open\" on and off, as a Map opened fresh counts it (investigation.mjs `caseMapRegion`, `CASE_WATCH`; the auditor's probe 43 on 1.2.121)", async () => {
+        /*
+         * Line INVEST of 1.2.122. A Remnant of the suite's own placed; a deduction of the suite's own resting on that
+         * Remnant alone, once for each drawing ("All open" on, then off); for each change - the Remnant renamed, then deleted -
+         * the standing Map's "Problems: n" read after the redraw, the window closed and opened again on the same world and
+         * read again. The two must agree, and the deletion must show (the deduction then rests on nothing).
+         * Not red at 8de67faf (this line's head over 21bf5d18), measured; red when the Map hears neither the token's
+         * deletion nor the Remnants' store (both roads cut: a mutant, 21.11.2026; one alone still redraws). Probe 43's
+         * "stale" problem counts on the five Map views
+         * (probe-43-121.json, the change `trace`) come from its own fresh reading - its reopen runs probe 08's seed
+         * again, and SEED_CASE picks the deductions' inputs out of the evidence as it then stands (`ev.slice(1, 3)`), so
+         * the window opened fresh draws another case than the one that stood. A probe that reopens without the seed reads
+         * every view live (a scratch probe, 21.11.2026: the five views x a Remnant placed, then
+         * renamed and deleted - the window's words, fields and controls equal to a seedless reopen's). This test holds what
+         * that run read.
+         */
+        const S = await import("./case-schema.mjs");
+        const Rm = await import("./remnants.mjs");
+        const I = await import("./investigation.mjs");
+        needs(env.dialogs(), "the Map is read on its drawn window");
+        const chapter = I.keyPlan().chapter, id = "suite122p43";
+        const count = root => Number(root?.textContent.match(/Problems: (\d+)/)?.[1] ?? 0);
+        const seen = [];
+        let token = null, win = null;
+        try {
+            for (const allOpen of [true, false]) {
+                token = await Rm.placeRemnant({ type: "prep", visibility: "evident", x: 0, y: 0, scene: canvas.scene, chapter, note: "suite 122 probe 43" });
+                must(token, "no Remnant was placed - this would measure nothing");
+                await Rm.setRemnantPublic(token, { name: "SUITE 122 p43 trace", playerText: "A suite's trace." });
+                const ev = S.caseGraph(chapter).nodes.find(n => n.evidence && n.label === "SUITE 122 p43 trace");
+                must(ev, "the Remnant is no node of the case - this would measure nothing");
+                await S.setCaseNode(chapter, id, { kind: "deduction", label: "SUITE 122 p43 deduction", inputs: [ev.id] });
+                await gmStoresIdle();
+                const steps = [["renamed", () => Rm.setRemnantPublic(token, { name: "SUITE 122 p43 trace", playerText: "Renamed." })],
+                    ["deleted", async () => { await Rm.dropRemnantSecret(token).catch(() => {}); await token.delete(); token = null; }]];
+                for (const [what, change] of steps) {
+                    win = await drawnCaseWindow({ view: "map", allOpen });
+                    await settle();
+                    const before = count(win.app?.element);
+                    const was = win.app?.element?.querySelector(".drpg-case-live");
+                    await change();
+                    await until(() => win.app.element.querySelector(".drpg-case-live") !== was || null, 3000).catch(() => {});
+                    await settle();
+                    const live = count(win.app?.element);
+                    await win.close(); win = null;
+                    win = await drawnCaseWindow({ view: "map", allOpen });
+                    await settle();
+                    const fresh = count(win.app?.element);
+                    await win.close(); win = null;
+                    seen.push({ allOpen, what, before, live, fresh });
+                }
+                await S.dropCaseNode(chapter, id);
+                await gmStoresIdle();
+            }
+        } finally {
+            if (win) await win.close().catch(() => {});
+            await S.dropCaseNode(chapter, id).catch(() => {});
+            if (token) { await Rm.dropRemnantSecret(token).catch(() => {}); await token.delete().catch(() => {}); }
+            await gmStoresIdle();
+        }
+        must(seen.length === 4, "a reading is missing - this would measure less than it says");
+        equal(stableJson(seen.map(s => ({ ...s, followed: s.live === s.fresh }))), stableJson(seen.map(s => ({ ...s, followed: true }))), "a standing Map counts the problems a Map opened fresh counts");
+        equal(stableJson(seen.filter(s => s.what === "deleted").map(s => s.live - s.before)), stableJson([1, 1]), "the Remnant deleted under the deduction did not add its problem on the standing Map, in each drawing");
+    }],
     ["a planned Truth Bullet removed from the planner takes its links with it: the deductions that rested on it no longer name it, the counter refuting one of them keeps its target, and the case's check names nothing missing (case-schema.mjs `dropCaseNode`, `refsCut`; the owner, 19.11.2026: \"Przyjmujemy ze usuniecie bulleta usuwa tez jego polaczenia\"; the line claude/plan-119)", async () => {
         /*
          * A planned bullet, two deductions resting on it and a counter refuting the first, written in this chapter; the bullet

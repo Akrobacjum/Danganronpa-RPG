@@ -197,8 +197,9 @@ export async function confirmUndoRealization({ chapter = keyPlan().chapter } = {
  * discovery (`writer`, the primary - body.mjs `runDiscovery` runs there on both roads), a payload not the suite's
  * rehearsal, a chapter with a case built (a schema row or a Key slot not yet on the map) whose realization has not
  * run and that was not asked yet: a small window, "Show the preview" or "Not now". Nothing is handed `waitUntil`: the
- * gather does not wait for it, and the window opens after the stamp. Answering writes `askedAt`, so a second body asks
- * nothing.
+ * gather does not wait for it, and the window opens after the stamp. `askedAt` is written as the question opens, before
+ * any answer, so a second body asks nothing - and nor does a reload of the primary while the question stands, which
+ * counts as asked (corrected by line INVEST of 1.2.122: this said answering wrote it).
  */
 export function registerCaseAsk() {
     /* the planned Autopsy goes out first, with no window (13.11.2026; `sendPlannedAutopsy`). On the primary GM alone,

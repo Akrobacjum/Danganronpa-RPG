@@ -509,7 +509,8 @@ function tableBody(markup) {
  * the head "Really" with its tooltip (S12-52: it is what the bullets are by the GMs' answer key), each bullet by name
  * since E64-inv; then the other items by name (E64-inv). Every head of the dashboard's tables is cut at two lines with its
  * whole name in `title` (`lines: 2`; under Legacy's pixel face a one-word head such as "Reinforced" is as wide as the
- * column) - but the last two, short words, the Breakdown's tooltip the sentence. Exported for R2067.
+ * column) - but the last two, short words, the Breakdown's tooltip the sentence. Not exported: R2067 reads it through
+ * `caseStudentTable`, which is (corrected by line INVEST of 1.2.122; it said "Exported for R2067").
  */
 function caseStudentColumns() {
     const L = key => game.i18n.localize(key);
@@ -819,7 +820,8 @@ export function caseKeyRows({ plan, status, placed, limit }) {
     return plan.entries.length ? tableBody(caseKeyTable({ plan, status, placed, limit })) : "";
 }
 
-/** The Key Remnants planner's columns, in the hand table's order (D31). Exported for R2067 and R2068. */
+/** The Key Remnants planner's columns, in the hand table's order (D31). Not exported: R2067 and R2068 read them through
+ *  `caseKeyTable`, which is (corrected by line INVEST of 1.2.122; it said "Exported for R2067 and R2068"). */
 function caseKeyColumns() {
     const L = key => game.i18n.localize(key);
     return [
@@ -963,9 +965,11 @@ function caseKeyPanel({ plan, status, placed, limit }) {
         ${caseKeyTable({ plan, status, placed, limit })}
         <p class="notes">${game.i18n.localize("DRPG.Investigation.createNote")}</p>
         <p class="notes">${game.i18n.format("DRPG.Investigation.keyDcNote", {
-            // Read off OBSERVE_DC so the sentence cannot drift from the rule it
-            // describes (S-5): the numbers are already there, and the first audit
-            // read them as a proposal because nothing said so.
+            // The list is read off OBSERVE_DC (S-5): the numbers are already there, and the first audit read them as a
+            // proposal because nothing said so. The rest of the sentence is the language files' words, which nothing
+            // checks against the rule: "three to six points harder" reads OBSERVE_DC's gaps between a Key and the other
+            // kinds of a band as 2 to 6 (Obvious daily life 8 against a Key's 6; line INVEST of 1.2.122, the audit's
+            // comment check 240 - the text itself is the text line's).
             list: REMNANT_VISIBILITY
                 .map(band => `${REMNANT_VISIBILITY_LABELS[band] ?? band} ${
                     OBSERVE_DC[band]?.key ?? "?"}`)
@@ -2403,9 +2407,10 @@ async function placeFinalFromDashboard(action) {
 
 /**
  * The Investigation at a glance - and, now, the one place a GM edits any of
- * it. One window, three tabs sharing a single Save, because the questions
- * they answer ("what are my clues", "have I placed them", "who has found
- * what") are one GM's one sitting, not three separate trips through the panel.
+ * it. One window sharing a single Save, because the questions it answers
+ * ("what are my clues", "have I placed them", "who has found what") are one
+ * GM's one sitting, not separate trips through the panel. Two views (E97): the
+ * Map (the case's graph, `caseMapRegion`) and the Table, of four tabs:
  *
  *   Traces        every Remnant on every scene - the old per-scene Remnant
  *                 Manager, widened to the whole world, plus the `public`
@@ -2413,14 +2418,16 @@ async function placeFinalFromDashboard(action) {
  *                 "ONE RECORD, THREE VIEWS").
  *   Key Remnants  the planner, folded in, now showing how many the opening
  *                 roll actually allows this chapter.
+ *   Final Truth   the Final Truth Remnant's form (`caseFinalPanel`, the tab
+ *                 "final"; on the Map, in the overview), placed by Save.
+ *   Who has what  each student's Truth Bullets and items (E98 C4).
  *
- * THE ENDGAME IS NOT HERE. This window used to carry a third tab holding the
- * Mastermind's identity and the Final Truth Remnant, which meant two screens
- * could write the same two records - and two screens that write one record are
- * two chances to write it differently. Both live on the Mastermind window now,
- * which is the one place the endgame is edited; traces typed `final` still
- * appear in the Traces table here like every other trace, because reading them
- * is not the same act as deciding them.
+ * THE MASTERMIND IS NOT HERE. This window once carried the Mastermind's
+ * identity beside the Final Truth Remnant, which meant two screens could write
+ * the same record; the Mastermind is the Mastermind window's alone. The Final
+ * Truth Remnant's form came back to this window (26.08), and the tab says it
+ * (corrected by line INVEST of 1.2.122; until then this said the endgame was
+ * not here at all, and three tabs).
  *
  * Information only beyond that: an earlier version also handed each Monokuma
  * Despair for every Key Remnant nobody reached, which turned the GM's own
@@ -2688,7 +2695,8 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
     // `shownTraces`/`shownKeyPlan` snapshots of S1-m7 and E05 C5).
     /* SAVE SAVES AND CLOSES (E24 C6; the owner, 09.11.2026: "Przycisk save nie zamyka okna investigation").
        Since E09 C13 the window reopened itself here so the GM saw the saved state; the owner calls that a
-       defect. The six other buttons keep their reopen (`runDashboardButton` above, with `said`). What a Save
+       defect. The five other buttons of the footer (New Remnant, the Autopsy, Body found, the realization's preview, Clear
+       the plan) keep their reopen (`runDashboardButton` above, with `said`). What a Save
        did not save is told by a toast that stays up until the GM dismisses it, so it outlives the window:
        a field refused because the world moved under it (`applyDashboardSave`, its own permanent warning
        with the GM's typed value - the one place that value still exists, which a window redrawn from the

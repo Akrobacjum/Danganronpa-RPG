@@ -97,24 +97,19 @@ async function observeRanked(actor, def, cost, options, declaration) {
 }
 
 /**
- * Specific: roll, then say what you were after.
+ * Specific: the sentence typed with the declaration, then the roll, then the target.
  *
- * The order used to be the other way round - type the request, let the GM fix a
- * target, then roll - and the reason given was that a GM who already knew the
- * total could pick a target to suit the number. That reason still holds, and it
- * is still honoured: what moves is the QUESTION, not the number. The request
- * travels in `requestObserveTarget`, which carries no total; the roll is only
- * sent afterwards, in `requestObserveResolve`. The GM picks blind exactly as
- * before.
- *
- * What is gained is that nobody types a sentence for a roll they have not made
- * yet, and the two declarations that never used the sentence stopped asking for
- * one at all.
+ * The player types what they are after in the declaration window, before the
+ * dice (`askDeclaration`'s request box), and it arrives here as `request`. The GM
+ * still picks blind: the request travels in `requestObserveTarget`, which carries
+ * no total, and the roll is sent afterwards, in `requestObserveResolve`.
  *
  * A roll cannot be taken back, so every path from here spends the action and
- * produces an answer. A cancelled request drops to the General reading rather
- * than throwing the throw away, and a GM who has nothing to point at gets a
- * ruling built on the dice already on the table - never a second roll.
+ * produces an answer. An empty request is scored as a General sweep (told to the
+ * player), and a GM who has nothing to point at, or closes the picker, gets a
+ * ruling built on the dice already on the table - never a second roll. (Corrected
+ * by line INVEST of 1.2.122: this said the sentence came after the roll and that a
+ * cancelled request dropped to General.)
  */
 async function observeSpecific(actor, def, cost, request = "") {
     // The sentence was typed in the declaration window, before the dice - see
@@ -210,26 +205,21 @@ async function observeAnything(actor, def, cost, request = "") {
 }
 
 /**
- * Hand a roll that has already happened to the GM as a ruling.
- *
- * Nothing about the price travels on this card. The action was paid before the
- * dice and stays paid on every answer, "nothing was there" included - that one
- * is the Observe's own result and charges its miss (see `missAction`). A card
- * never posted is no answer: `paid` comes back (E18 C0).
+ * THE GMs' CARD FOR AN OBSERVE TO RULE ON (`ruleObserve`'s, out of it by line INVEST of 1.2.122): the arguments of
+ * `callGm` for `actor`'s roll (`roll`: its trait, total and critical), the request, the declared way of looking and the
+ * room it was made in. Exported for observe.mjs, whose resolve rules on a room with nothing to find on the primary GM
+ * (`scoreObserve`, audit 1.2.118 domain-case-c-investigation 2).
  */
-async function ruleObserve(actor, def, roll, request, title = null, paid = null, declaration = null) {
-    const { callGm } = await import("./gm-bridge.mjs");
-    const label = title ?? def.label;
+export function observeRulingCall(actor, { label, roll, request = "", declaration = null, where = null }) {
     // Both halves from one lookup: `locateActor` answers without the canvas, so
     // it names the scene as well as the room. The scene is what the card has to
     // carry - a GM answering this is usually looking at a different map, and a
     // room name alone sent the clue to whatever "Kitchen" was in front of THEM
     // (audit A6).
-    const where = locateActor(actor);
+    where ??= locateActor(actor);
     const room = where?.room ?? roomOfActor(actor);
     const sceneId = where?.scene?.id ?? null;
-
-    const sent = await callGm(actor, {
+    return {
         title: label,
         what: "observe.resolve",
         nothingSpent: true,
@@ -260,7 +250,23 @@ async function ruleObserve(actor, def, roll, request, title = null, paid = null,
             },
             missAction(actor)
         ]
-    });
+    };
+}
+
+/**
+ * Hand a roll that has already happened to the GM as a ruling.
+ *
+ * Nothing about the price travels on this card. The action was paid before the
+ * dice and stays paid on every answer, "nothing was there" included - that one
+ * is the Observe's own result and charges its miss (see `missAction`). A card
+ * never posted is no answer: `paid` comes back (E18 C0).
+ */
+async function ruleObserve(actor, def, roll, request, title = null, paid = null, declaration = null) {
+    const { callGm } = await import("./gm-bridge.mjs");
+    const label = title ?? def.label;
+    const call = observeRulingCall(actor, { label, roll, request, declaration });
+    const room = call.room;
+    const sent = await callGm(actor, call);
 
     // Not posted - the last GM left after the action started (E18 C0, S10-26): the action
     // comes back, as with a window closed before the dice, and no ruling is noted for Reroll.
@@ -286,13 +292,11 @@ export function observeModeLine(declaration) {
 const OBSERVE_MODES = Object.freeze(["general", "nonObvious", "followTraces", "specific", "anything"]);
 
 /**
- * How are you looking? The guide's declarations, and nothing else.
+ * How are you looking? The guide's five declarations, and the request box for the two that end with a person reading
+ * it ("specific" and "anything", `requestFieldHtml`'s `when`); the other three never show it (corrected by line INVEST
+ * of 1.2.122: this said there was no text box and four buttons).
  *
- * No text box here any more. Two of the four buttons never used what was typed
- * in it, and the two that did were asking for a description of a search that had
- * not happened yet - see `observeSpecific`.
- *
- * @returns {Promise<"general"|"specific"|"nonObvious"|"followTraces"|"anything"|null>}
+ * @returns {Promise<{declaration: "general"|"specific"|"nonObvious"|"followTraces"|"anything", request: string}|null>}
  */
 async function askDeclaration(actor, def) {
     // Ordered by who answers, not by how the guide lists them.

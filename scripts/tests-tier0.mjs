@@ -16676,7 +16676,8 @@ const REGRESSIONS = [
             ["gm-bridge.mjs#askHopeCallByCard", "gm", null, "the run of `call.approve`, on the primary GM"],
             ["gm-bridge.mjs#askDynamicByCard", "gm", null, "the run of `dynamic.difficulty`, on the primary GM"],
             ["gm-bridge.mjs#askTraitByCard", "gm", null, "the run of `trait.ruling`, on the primary GM"],
-            ["gm-bridge.mjs#askObserveByCard", "gm", null, "observe.mjs `chooseObserveTarget`, on a GM"]
+            ["gm-bridge.mjs#askObserveByCard", "gm", null, "observe.mjs `chooseObserveTarget`, on a GM"],
+            ["observe.mjs#scoreObserve", "gm", null, "an Observe of a room with nothing to find, ruled at its paid resolve (line INVEST of 1.2.122; audit 1.2.118 domain-case-c-investigation 2): `resolveObserve` runs on a GM, the run of `observe.resolve` or a GM's own"]
         ];
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(?:const|let|var)\s+([\w$]+))?/gm;
         const readCalls = sources => {
@@ -23414,7 +23415,7 @@ const REGRESSIONS = [
             ["migrate.mjs", "*", "E49", 1, 0, 0], ["movement-audit.mjs", "auditMove", "E49", 2, 0, 0], ["movement.mjs", "keepRoomFlag", "E49", 1, 0, 0],
             ["movement.mjs", "removeDrop", "E49", 1, 0, 0], ["movement.mjs", "tellUnlawful", "E49", 1, 0, 0], ["movement.mjs", "tellDropped", "E49", 1, 0, 0],
             ["murder-rules.mjs", "resolveVictimOpening", "E49", 1, 0, 0], ["murder-rules.mjs", "applyCrisisAction", "E49", 1, 0, 0], ["murder-rules.mjs", "swapRoles", "E49", 1, 0, 0],
-            ["murder-rules.mjs", "refuseBetrayal", "E49", 1, 0, 0], ["murder-rules.mjs", "throwOpeningRoll", "E49", 1, 0, 0], ["observe.mjs", "resolveObserve", "E49", 2, 0, 0],
+            ["murder-rules.mjs", "refuseBetrayal", "E49", 1, 0, 0], ["murder-rules.mjs", "throwOpeningRoll", "E49", 2, 0, 0], ["observe.mjs", "resolveObserve", "E49", 2, 0, 0],
             ["relay-guard.mjs", "reportRefusal", "E49", 1, 0, 0], ["relay-guard.mjs", "unknownSender", "E49", 1, 0, 0], ["relay-guard.mjs", "shapeWarning", "E49", 1, 0, 0],
             ["relay-guard.mjs", "announce", "E49", 3, 0, 0], ["remnants.mjs", "dropRemnant", "E49", 1, 0, 0], ["reroll-receipts.mjs", "warnGms", "E49", 1, 0, 0],
             ["roll-draw.mjs", "tellUnexpected", "E49", 1, 0, 0], ["rules.mjs", "setMotive", "E49", 1, 0, 0], ["rules.mjs", "dueCard", "E49", 1, 0, 0],
@@ -23506,8 +23507,10 @@ const REGRESSIONS = [
             "monocub.mjs": {"built": 3, "line": 19, "message": 1}, "movement.mjs": {"action": 3, "card": 5},
             // murder-rules.mjs message 6 -> 8 (1.2.121 line K, CASE-16): `announceCrisis` posts the GMs' card and, for the seats a
             // defence is hidden from, a second copy, by the same `announce({ content, whisper })` form as before.
-            "murder-rules.mjs": {"action": 1, "card": 5, "heading": 3, "line": 9, "message": 8},
-            "music.mjs": {"card": 1}, "observe.mjs": {"card": 2, "heading": 1, "line": 3},
+            // line INVEST of 1.2.122: murder-rules.mjs +1 card (an opening that found no copy of the incident, R8183), observe.mjs
+            // +2 cards (a find left waiting, told to the GMs at recovery and while its window stands; CASE-37)
+            "murder-rules.mjs": {"action": 1, "card": 6, "heading": 3, "line": 9, "message": 8},
+            "music.mjs": {"card": 1}, "observe.mjs": {"card": 4, "heading": 1, "line": 3},
             "overflow.mjs": {"built": 1, "message": 2}, "palm.mjs": {"built": 2, "line": 2}, "passages-gm.mjs": {"line": 4},
             "price.mjs": {"line": 2}, "private-rolls.mjs": {"message": 1}, "projects-map.mjs": {"card": 1, "line": 1},
             // S17-31's three sight cards (522cd601, 12 lines) are a player's copy of the GMs' sight since E101's review, R2: 9.
@@ -25778,6 +25781,121 @@ const REGRESSIONS = [
         const want = Object.fromEntries(Object.keys(result).map(k => [k, { through: 0, atSide: true, back: true }]));
         equal(JSON.stringify(result), JSON.stringify(want),
             "{each sort, at the least sizes and with every third node 140 px: through - stretches of the counter's two lines through a node not their own end (the first three named); atSide - each line ends on its target's near side (right for the line back, left beside it), inside its height; back - the counter's line to d3 goes back to an earlier column}");
+    }],
+    ["R8181 - a counter's line back that skips a column passes through no node (line INVEST of 1.2.122; the audit's r120-P-4, its rest; case-view.mjs `routePlan`): a counter refuting a deduction in its own column and one two columns back, with deductions standing in the column between at every height, is routed to the earlier one without a stretch through any node's box but its own two ends, under every sort, at the least sizes and with every third node 140 px tall; and each line ends on its target's near side: the right one for the line back, the left one beside it", async () => {
+        /*
+         * Line INVEST of 1.2.122, 22.11.2026. Pure. The case: six Remnants, four deductions on them (d1-d4), four on those
+         * in the next column (e1-e4), f1 on e1 and e2 in the third, and k1 refuting f1 and d3 - so k1 stands in f1's column
+         * and its line to d3 goes back two columns, across e1-e4. Red at 1.2.122's first commit (b841a765): a line back ran
+         * at the counter's height across the columns between, through whatever stood there.
+         */
+        const V = await import("./case-view.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const g = V.MAP_GEOMETRY;
+        const T = i => `S.R8181${i}`;
+        const traces = Array.from({ length: 6 }, (_, i) => ({ key: T(i), type: "prep", name: `t${i}`, tiedToCrime: true }));
+        const rows = {
+            d1: { kind: "deduction", label: "d1", inputs: [T(0)] }, d2: { kind: "deduction", label: "d2", inputs: [T(1)] },
+            d3: { kind: "deduction", label: "d3", inputs: [T(2), T(3)] }, d4: { kind: "deduction", label: "d4", inputs: [T(4), T(5)] },
+            e1: { kind: "deduction", label: "e1", inputs: ["d1"] }, e2: { kind: "deduction", label: "e2", inputs: ["d2"] },
+            e3: { kind: "deduction", label: "e3", inputs: ["d3"] }, e4: { kind: "deduction", label: "e4", inputs: ["d4"] },
+            f1: { kind: "deduction", label: "f1", inputs: ["e1", "e2"] },
+            k1: { kind: "counter", label: "k1", refutes: ["d3", "f1"] }
+        };
+        const graph = S.graphOf({ chapter: 6, traces, rows });
+        const segsOf = d => {
+            const out = [];
+            let x = 0, y = 0, end = null;
+            for (const c of String(d).match(/[MHVQ][^MHVQ]*/g) ?? []) {
+                const v = c.slice(1).trim().split(/[\s,]+/).map(Number);
+                if (c[0] === "M") [x, y] = v;
+                else if (c[0] === "H") { out.push({ h: true, y, a: Math.min(x, v[0]), b: Math.max(x, v[0]) }); x = v[0]; }
+                else if (c[0] === "V") { out.push({ h: false, x, a: Math.min(y, v[0]), b: Math.max(y, v[0]) }); y = v[0]; }
+                else if (c[0] === "Q") [x, y] = [v[2], v[3]];
+                end = { x, y };
+            }
+            return { segs: out, end };
+        };
+        const read = (sort, tall) => {
+            const layout = layoutCase(graph, { sort });
+            const ids = Object.keys(layout.positions);
+            const sizes = tall ? new Map(ids.filter((_, i) => i % 3 === 0).map(id => [id, { w: g.nodeW, h: 140 }])) : null;
+            const at = V.mapPlace(layout, g, sizes, { edges: graph.edges }).at;
+            const routes = V.routeEdges(graph.edges, at, g);
+            const through = [];
+            let atSide = true;
+            for (const e of graph.edges.filter(x => x.from === "k1")) {
+                const { segs, end } = segsOf(routes.get(`${e.from}>${e.to}`) ?? "");
+                const t = at[e.to];
+                // a line back to an earlier column ends on its target's right side, one beside it in its own column on its left
+                const side = t && at.k1 && t.x < at.k1.x ? t.x + t.w : t?.x;
+                if (!end || !t || Math.abs(end.x - side) >= 0.6 || end.y < t.y || end.y > t.y + t.h) atSide = false;
+                for (const sg of segs) {
+                    for (const [id, p] of Object.entries(at)) {
+                        if (id === e.from || id === e.to) continue;
+                        const [x0, x1, y0, y1] = [p.x, p.x + p.w, p.y, p.y + p.h];
+                        const hit = sg.h ? sg.y > y0 + 0.5 && sg.y < y1 - 0.5 && Math.min(sg.b, x1) - Math.max(sg.a, x0) > 0.5
+                            : sg.x > x0 + 0.5 && sg.x < x1 - 0.5 && Math.min(sg.b, y1) - Math.max(sg.a, y0) > 0.5;
+                        if (hit) through.push(`${e.from}>${e.to} ${id}`);
+                    }
+                }
+            }
+            const back = graph.edges.some(e => e.from === "k1" && at[e.to] && at.k1 && at[e.to].x < at.k1.x);
+            return { through: through.length, atSide, back, ...(through.length ? { first: through.slice(0, 3) } : {}) };
+        };
+        const result = {};
+        for (const sort of ["kind", "manual", "uncrossed", "room", "state"]) for (const tall of [false, true]) result[`${sort}${tall ? "+tall" : ""}`] = read(sort, tall);
+        const want = Object.fromEntries(Object.keys(result).map(k => [k, { through: 0, atSide: true, back: true }]));
+        equal(JSON.stringify(result), JSON.stringify(want),
+            "{each sort, at the least sizes and with every third node 140 px: through - stretches of the counter's two lines through a node not their own end (the first three named); atSide - each line ends on its target's near side (right for the line back, left beside it), inside its height; back - the counter's line to d3 goes back to an earlier column}");
+    }],
+    ["R8182 - a packet's listener on a browser reads `game.user` guarded (line INVEST of 1.2.122; the audit's CASE-08 of 1.2.42, its rest): gm-bridge.mjs `onOpeningAsk`, `onOpeningCancel` and `askForOffers`, and secret.mjs `onSecretPacket`, read no `game.user.` bare - a packet that arrives while a page closes and `game.user` is null throws in none of them", async () => {
+        /*
+         * Line INVEST of 1.2.122 (the auditor's unrouted list, B). Source read, comments stripped. Red at 22e053f2: the
+         * opening roll's two listeners compared `payload.userId !== game.user.id`, `askForOffers` and `onSecretPacket`'s
+         * request branch read `game.user.isGM`.
+         */
+        const read = async f => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(lfText));
+        const bridge = await read("gm-bridge.mjs"), secret = await read("secret.mjs");
+        const bare = text => [...text.matchAll(/\bgame\.user\.(?!\?)\w+/g)].map(m => m[0]);
+        const found = {
+            onOpeningAsk: bare(fnSource(bridge, "onOpeningAsk")), onOpeningCancel: bare(fnSource(bridge, "onOpeningCancel")),
+            askForOffers: bare(fnSource(bridge, "askForOffers")), onSecretPacket: bare(fnSource(secret, "onSecretPacket"))
+        };
+        must(Object.keys(found).every(k => fnSource(k === "onSecretPacket" ? secret : bridge, k).length > 40), "a listener was not found in its file - this would measure nothing");
+        equal(JSON.stringify(found), JSON.stringify({ onOpeningAsk: [], onOpeningCancel: [], askForOffers: [], onSecretPacket: [] }), "{each listener: the bare reads of game.user in it}");
+    }],
+    ["R8183 - an opening-roll invitation that reaches a player before their copy of the incident waits for it, and tells the GMs when none comes (line INVEST of 1.2.122; the audit's CASE-LC2 of 1.2.42): murder-rules.mjs `throwOpeningRoll`, on a browser that is not a GM's and holds no running incident, waits `TIMING.openingCopyWaitMs` for its copy before it reads the seat, and with none whispers the GMs DRPG.Murder.openingNoCopy - before the loop that reads the seat", async () => {
+        /*
+         * Line INVEST of 1.2.122 (the auditor's unrouted list, B). Source read, comments stripped: the wait and the whisper,
+         * and their order against the loop's first `openingStillWanted`. The race itself - the invitation before the copy -
+         * is a table's (a LIVE item proposed with this line). Red at 22e053f2: no wait; the loop's first read ended it.
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/murder-rules.mjs`).then(lfText));
+        const body = fnSource(src, "throwOpeningRoll");
+        must(body.length > 500, "throwOpeningRoll was not found - this would measure nothing");
+        const wait = body.indexOf("TIMING.openingCopyWaitMs"), told = body.indexOf("DRPG.Murder.openingNoCopy"), loop = body.indexOf("for (let attempt");
+        const cfg = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/config.mjs`).then(lfText));
+        equal(JSON.stringify({ waits: wait > 0 && /!game\.user\?\.isGM && !murderState\(\)\?\.active/.test(body), told: told > wait, beforeLoop: loop > told, timing: /openingCopyWaitMs:\s*\d+/.test(cfg) }),
+            JSON.stringify({ waits: true, told: true, beforeLoop: true, timing: true }), "{waits: a player's browser with no incident waits; told: the GMs are told after the wait; beforeLoop: both before the loop; timing: the wait is a TIMING row}");
+    }],
+    ["R8184 - a body carried into a room by Move the body counts as the room walked in on (the owner's decision of 21.11.2026; line INVEST of 1.2.122, the audit's CASE-LC5 of 1.2.42): murder-rules.mjs `registerMurder`'s token-move hook hands every move on the primary to body.mjs `maybeBodyFound`, with no test of whose token moved or why, and body.mjs records the decision beside it", async () => {
+        /*
+         * Line INVEST of 1.2.122. Source read, comments stripped for the hook: its only returns before the discovery's
+         * check are "not a move" and "not the primary". A future exception for a carried body (the victim's token, a
+         * Stage 6 move) turns this red, as the owner's decision would then have changed.
+         */
+        const read = async f => fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(lfText);
+        const rules = stripComments(await read("murder-rules.mjs")), body = await read("body.mjs");
+        const reg = fnSource(rules, "registerMurder");
+        // the hook's text from its registration to the discovery's check (a match: nothing found reads as nothing)
+        const before = reg.match(/Hooks\.on\("updateToken"[\s\S]*?(?=maybeBodyFound)/)?.[0] ?? "";
+        must(before.length > 0, "the token-move hook does not reach maybeBodyFound - this would measure nothing");
+        const returns = [...before.matchAll(/if \(([^)]*(?:\([^)]*\))?[^)]*)\) return/g)].map(m => m[1].trim());
+        equal(JSON.stringify({ returns, noException: !/victim|corpse|moveBody|isBody|bodyOf/i.test(before), recorded: body.includes("THE OWNER'S DECISION OF 21.11.2026") }),
+            JSON.stringify({ returns: ["!isMoveChange(changes)", "!isPrimaryGm()"], noException: true, recorded: true }),
+            "{returns: the hook's early returns before the discovery's check; noException: none names a body, a victim or Move the body; recorded: body.mjs names the owner's decision}");
     }],
     ["R7835 - one file of an event is replaced in its own box (1.2.119, the owner on the shot: \"niech kazdy wiersz wyglada jak ten pierwszy (tzn wklejalny link a nie sama nazwa)\"; sfx-play.mjs `withSoundFileAt`): a file's box edited replaces that file alone, in its place; emptied, it removes it; a path another file already holds drops this one rather than double it; a pasted list of several puts the first in its place and the rest after it, none twice; the same path or an index outside the list changes nothing", async () => {
         /*

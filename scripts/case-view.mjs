@@ -28,8 +28,10 @@
  * open node's face's width where it is drawn (`openW`: a map with no fields; on the Map its fields take the face's width
  * as clicked, `relayoutCaseMap`), the gap between columns, the pitch between rows when every node
  * is its least height (so the gap between two nodes of a column is `pitch - nodeH`), the margin around the graph and the
- * room the column heads take above it. Read by `mapPlace` and by the stylesheet's node rule (components.css "THE CASE
- * MAP", whose least width and height and open width are these three numbers).
+ * room the column heads take above it. Read by `mapPlace` and the routes; `openW` is read by no script, and the
+ * stylesheet's node rule (components.css "THE CASE MAP") states its least width and height and the open width (352px)
+ * on its own, so these numbers and those are kept equal by hand (corrected by line INVEST of 1.2.122: this said the
+ * stylesheet read them).
  *
  * THE COLUMNS 80 PX APART (the owner, 13.11.2026: "Wnioski w planerze/schemacie sprawy sa za blisko bulletow i za blisko
  * siebie. Chodzi o odstep miedzy kolumnami"): 48 px until then. Measured in Chromium at 1366x768 (STATUS): the Map's
@@ -323,7 +325,26 @@ function routePlan(shown, at, g, choose = new Map()) {
         const hi = across ? (after.length ? Math.min(...after) : right(T) + g.colGap) : T.x;
         const before = Object.values(at).filter(p => p.x < hi).map(right);
         const lo = before.length ? Math.max(...before) : hi - g.colGap;
-        info.set(e, { back, hi, lo, end: across ? right(T) : T.x, owner: `${back ? "back:" : ""}${e.from}`, ex: back ? S.x : right(S), ys: midOf(S, g) });
+        /* AND ONE THAT SKIPS A COLUMN TAKES A FREE HEIGHT ACROSS IT (line INVEST of 1.2.122; the audit's r120-P-4, its rest):
+           no lane is kept for a line back (`mapPlace`: its source is placed after the columns it passes), so where a node
+           of a column between stands at the counter's height the line drops, in the gutter before the counter's column,
+           to the nearest height every column between leaves free by `LANE` (below them all at the least), runs across
+           there, and turns in its track as before. Tier 0 R8181. */
+        const ys = midOf(S, g);
+        let detour = null;
+        if (across) {
+            const between = Object.values(at).filter(p => p.x > T.x && p.x < S.x);
+            const blocked = between.map(p => [p.y - LANE, p.y + (p.h ?? g.nodeH) + LANE]);
+            const free = y => blocked.every(([a, b]) => y <= a || y >= b);
+            if (!free(ys)) {
+                const tries = blocked.flatMap(([a, b]) => [a - 1, b + 1]).filter(free).sort((a, b) => Math.abs(a - ys) - Math.abs(b - ys));
+                const y = tries[0] ?? Math.max(...blocked.map(([, b]) => b)) + 1;
+                const left = Object.values(at).filter(p => p.x < S.x).map(right);
+                const from = left.length ? Math.max(...left) : S.x - g.colGap;
+                detour = { x: r1((from + S.x) / 2), y: r1(y) };
+            }
+        }
+        info.set(e, { back, hi, lo, end: across ? right(T) : T.x, owner: `${back ? "back:" : ""}${e.from}`, ex: back ? S.x : right(S), ys, detour });
     }
     // the gutters and their owners
     const gutters = new Map();
@@ -352,7 +373,10 @@ function routePlan(shown, at, g, choose = new Map()) {
     const placed = [];
     for (const e of shown) {
         const i = info.get(e), x = tx(e);
-        placed.push({ y: i.ys, a: Math.min(i.ex, x), b: Math.max(i.ex, x), owner: i.owner });
+        if (i.detour) {
+            placed.push({ y: i.ys, a: Math.min(i.ex, i.detour.x), b: Math.max(i.ex, i.detour.x), owner: i.owner });
+            placed.push({ y: i.detour.y, a: Math.min(i.detour.x, x), b: Math.max(i.detour.x, x), owner: i.owner });
+        } else placed.push({ y: i.ys, a: Math.min(i.ex, x), b: Math.max(i.ex, x), owner: i.owner });
     }
     // the ports, target by target (left to right, top to bottom)
     const byTarget = new Map();
@@ -403,6 +427,14 @@ function routePlan(shown, at, g, choose = new Map()) {
 /** One route's path and its three stretches. */
 function routePath(e, at, plan) {
     const i = plan.info.get(e), x = plan.tx(e), yp = plan.port.get(e), end = i.end;
+    // a line back that skips a column (`routePlan`'s `detour`): down to a free height before the counter's column, across it
+    if (i.detour) {
+        const { x: dx, y: dy } = i.detour;
+        const segs = [{ h: true, y: i.ys, a: Math.min(i.ex, dx), b: Math.max(i.ex, dx) }, { h: false, x: dx, a: Math.min(i.ys, dy), b: Math.max(i.ys, dy) },
+            { h: true, y: dy, a: Math.min(dx, x), b: Math.max(dx, x) }, { h: false, x, a: Math.min(dy, yp), b: Math.max(dy, yp) },
+            { h: true, y: yp, a: Math.min(x, end), b: Math.max(x, end) }];
+        return { segs, d: `M${r1(i.ex)} ${r1(i.ys)} H${r1(dx)} V${r1(dy)} H${r1(x)} V${r1(yp)} H${r1(end)}` };
+    }
     const segs = [{ h: true, y: i.ys, a: Math.min(i.ex, x), b: Math.max(i.ex, x) }, { h: false, x, a: Math.min(i.ys, yp), b: Math.max(i.ys, yp) },
         { h: true, y: yp, a: Math.min(x, end), b: Math.max(x, end) }];
     if (Math.abs(yp - i.ys) < 0.5 && !i.back) return { segs, d: `M${r1(i.ex)} ${r1(i.ys)} H${r1(end)}` };

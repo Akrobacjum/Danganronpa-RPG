@@ -202,7 +202,7 @@ export function registerGmBridge() {
  */
 async function onOpeningAsk(payload, senderId) {
     if (payload?.action !== ACTION_OPENING_ASK) return;
-    if (payload.userId !== game.user.id) return;
+    if (payload.userId !== game.user?.id) return;
     if (!game.users.get(senderId)?.isGM) return;
 
     const { throwOpeningRoll } = await import("./murder.mjs");
@@ -231,7 +231,7 @@ export function askOpeningRoll({ userId, actorId, side, trait, hindrance = 0 }) 
  */
 async function onOpeningCancel(payload, senderId) {
     if (payload?.action !== ACTION_OPENING_CANCEL) return;
-    if (payload.userId !== game.user.id) return;
+    if (payload.userId !== game.user?.id) return;
     if (!game.users.get(senderId)?.isGM) return;
 
     const { closeOpeningRoll } = await import("./murder.mjs");
@@ -263,6 +263,7 @@ function onAdvancementOffers(payload, senderId) {
  * client then.
  */
 function askForOffers() {
-    if (game.user.isGM) return;
+    // guarded (line INVEST of 1.2.122; R8182): a GM's ready packet can arrive while this page closes
+    if (!game.user || game.user?.isGM) return;
     void ask(ACTION_ADVANCEMENT_ASK, {});
 }
