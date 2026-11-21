@@ -9502,6 +9502,55 @@ const SCENARIOS = [
             "{floated: the box floated; redrawn: the card was drawn again under it; kept: the words in the box after; focused: it kept the focus; saved: what the record holds once it was left}");
     }],
 
+    ["1.2.123 r122-D-R1 - on the Investigation window's Table a filter change keeps what was typed in the Final Truth form and the Key limit's tick: only the fields the dashboard's write writes are taken as drawn (investigation.mjs `wireCaseFilters`, `saveFieldsIn`; the auditor's recheck of 1.2.122, r122-D-R1)", async () => {
+        /*
+         * Line INVEST of 1.2.123. The dashboard drawn on its Table; the Final Truth form's name, words and note typed, and
+         * the Key limit's "Place more than the opening roll allows" ticked where it is drawn; then the Order filter changed
+         * (a redraw). Read: each of those fields in the window after the redraw.
+         * Red at 14bb0d92 (1.2.122): the filter wrote the window's changed fields first (`saveDrawnForm`, 1.2.122's CTRL-11),
+         * and that marked every changed field of the form as drawn while `applyDashboardSave` writes only the Remnants,
+         * the Key rows and the case schema - so the redraw drew the Final Truth form from its kept words and the tick from
+         * nothing, and Save or a close asked nothing.
+         * The tick is drawn only where the chapter has a Key limit (`caseKeyCount`); the harness's world has none, so
+         * there it reads "not drawn" and the tick's half is the fix's by name only (`notWrittenHere`), not read here.
+         */
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        let win = null;
+        const read = {}, typed = { finalName: "SUITE D-R1 name", finalText: "SUITE D-R1 words", finalNote: "SUITE D-R1 note" };
+        try {
+            win = await drawnCaseWindow({ view: "table" });
+            const root = win.app?.element;
+            await settle();
+            must(root?.querySelector('[name="finalName"]'), "the Table drew no Final Truth form - this would measure nothing");
+            for (const [name, value] of Object.entries(typed)) {
+                const f = win.field(name);
+                f.value = value;
+                f.dispatchEvent(new Event("input", { bubbles: true }));
+                f.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+            const tick = win.field("keyOverride");
+            if (tick) { tick.checked = true; tick.dispatchEvent(new Event("change", { bubbles: true })); }
+            const order = root.querySelector('[data-drpg-filter="order"]');
+            must(order && order.options.length > 1, "the Table drew no Order filter with a choice - this would measure nothing");
+            const was = root.querySelector(".drpg-case-live");
+            order.value = [...order.options].find(o => o.value !== order.value).value;
+            order.dispatchEvent(new Event("change", { bubbles: true }));
+            await until(() => root.querySelector(".drpg-case-live") !== was || null, 4000).catch(() => {});
+            await settle();
+            read.redrawn = root.querySelector(".drpg-case-live") !== was;
+            for (const name of Object.keys(typed)) read[name] = win.field(name)?.value ?? null;
+            read.keyOverride = tick ? win.field("keyOverride")?.checked ?? null : "not drawn";
+        } finally {
+            if (win) {
+                for (const name of Object.keys(typed)) { const f = win.field(name); if (f) { f.value = ""; f.dispatchEvent(new Event("input", { bubbles: true })); } }
+                await win.close().catch(() => {});
+            }
+            await gmStoresIdle();
+        }
+        equal(stableJson(read), stableJson({ ...typed, redrawn: true, keyOverride: read.keyOverride === "not drawn" ? "not drawn" : true }),
+            "{redrawn: the Table drawn again by the filter; the Final Truth form's fields and the Key limit's tick after it}");
+    }],
+
     ["1.2.122 CASE-74 - an incident's automatic tie reads the room the victim died in, not the room the body was carried to (scripts/remnants.mjs `placeRemnant`; death.mjs `recordSecretDeath`; the audit's CASE-74, 1.2.122 line MURDER): after the kill and the body moved to another room, a trace left in the room of the death is tied to the crime and one left where the body now lies is not", async () => {
         /*
          * 1.2.122, the audit's CASE-74. A trace left during an incident by nobody of its cast is tied to the crime when it

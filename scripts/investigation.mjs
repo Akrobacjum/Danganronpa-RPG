@@ -1912,8 +1912,15 @@ function saveDrawnForm(root) {
 }
 
 /** The changed fields inside `scope` (a node's editor or the window's form), written one write after another. */
+/* ONLY WHAT THE WRITE WRITES IS TAKEN AS DRAWN (the line INVEST of 1.2.123; the auditor's r122-D-R1). `applyDashboardSave`
+   writes the Remnants, the Key rows and the case schema; the Final Truth form (`FINAL_FIELDS`, placed by Save or asked at
+   a close, `offerFinalOnClose`) and the Key limit's tick (`keyOverride`, read by Save's placing) are not its. Until this
+   line every changed `[name]` field was marked drawn here, so 1.2.122's filter (`wireCaseFilters`, which writes first)
+   dropped them: the redraw drew the Final Truth form from its kept words and the tick from nothing, and Save or a close
+   asked nothing (tier 2 "1.2.123 r122-D-R1"). Left out, they stay changed and the redraw carries them. */
+const notWrittenHere = field => field.name === "keyOverride" || FINAL_FIELDS.includes(field.name);
 function saveFieldsIn(scope) {
-    const fields = scope ? [...scope.querySelectorAll("[name]")].filter(isDirty) : [];
+    const fields = scope ? [...scope.querySelectorAll("[name]")].filter(f => isDirty(f) && !notWrittenHere(f)) : [];
     if (!fields.length) return nodeWrites;
     const result = readCaseFields(scope);
     const drawn = fields.map(field => [field, keepDrawn(field)]);
