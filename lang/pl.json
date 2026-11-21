@@ -4303,6 +4303,10 @@
       },
       "editor": {
         "until": "Trwa",
+        "dropped": { "one": "Nie zapisano {n} wiersza: akcja musi mieć nazwę, a efekt tego rodzaju - tekst.", "few": "Nie zapisano {n} wierszy: akcja musi mieć nazwę, a efekt tego rodzaju - tekst.", "many": "Nie zapisano {n} wierszy: akcja musi mieć nazwę, a efekt tego rodzaju - tekst.", "other": "Nie zapisano {n} wiersza: akcja musi mieć nazwę, a efekt tego rodzaju - tekst." },
+        "keptOthers": "Zostały obok twoich, bo inny GM dodał je, gdy okno było otwarte: {items}.",
+        "needsName": "Najpierw nazwij akcję. Nic nie zapisano, a to, co wpisano, wróciło do okna.",
+        "savedOver": "Inny GM zmienił tę akcję, gdy okno było otwarte. Zapisano twoją w jej miejsce.",
         "trait": "Statystyka",
         "roomTitle": "Facilities: {room}",
         "saveProject": "Zapisz akcję",

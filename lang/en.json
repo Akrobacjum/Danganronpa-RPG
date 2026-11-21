@@ -4020,6 +4020,10 @@
       },
       "editor": {
         "until": "Lasts",
+        "dropped": { "one": "{n} line was not saved: an action needs a name, and an effect of this kind its text.", "other": "{n} lines were not saved: an action needs a name, and an effect of this kind its text." },
+        "keptOthers": "Kept beside yours, added by another GM while this window was open: {items}.",
+        "needsName": "Name the action first. Nothing was saved, and what you typed is back in the window.",
+        "savedOver": "Another GM changed this action while the window was open. Yours is saved over it.",
         "trait": "Statistic",
         "roomTitle": "Facilities: {room}",
         "saveProject": "Save the action",

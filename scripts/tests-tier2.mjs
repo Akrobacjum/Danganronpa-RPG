@@ -104122,6 +104122,70 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ empty: true, typed: false, told: true }),
             "{empty, typed: Plant shut before and after a name was typed; told: the GM warned of an answer with no name} - Plant waits for the item's name");
     }],
+    ["1.2.122 CTRL-71 REFR-58 - the action editors say what Save did not keep and keep another GM's work: a room's unnamed action with an effect is not saved and the GM is told; an action another GM added while the window was open stays beside this GM's and is named; a project's action saved with no name writes nothing, says so and opens again on what was typed (scripts/facility-editor.mjs `editRoomActions`, `droppedLines`, `mergedRoomActions`, `editProjectFacility`; the audit's CTRL-71 and REFR-58, 1.2.122 line WORLD)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line WORLD. CTRL-71 (controls-11-map-rooms-4): the cleaning dropped an unnamed action and an
+         * effect with no text and the window closed with no word; a project's action with no name was lost. REFR-58
+         * (controls-11-map-rooms-5): the second GM's Save wrote the whole list over the first's. Driven on a scene of the
+         * test's own (one room, one action "SUITE soup" of id SUITE122a): the room's editor answered as drawn
+         * (`withFormAnswered`), its second row given an effect and no name, and while it is open the room's flag written as
+         * another GM's Save writes it, with "SUITE tea" added; a project's editor answered with an effect and no name, then,
+         * reopened, with a name. Read: the room's actions, the project's action, what the GM was told, and the effect the
+         * reopened window drew. Put back: the project, the scene. Red at 21bf5d18: "SUITE tea" was gone, nothing was told,
+         * and the project's editor did not open again.
+         */
+        const R = await import("./rooms.mjs");
+        const F = await import("./facilities.mjs");
+        const E = await import("./facility-editor.mjs");
+        const P = await import("./projects.mjs");
+        const { FACILITIES } = await import("./config.mjs");
+        const { plural } = await import("./utils.mjs");
+        const ROOM = "SUITE 122 Kitchen";
+        const said = [];
+        const own = { warn: ui.notifications.warn, info: ui.notifications.info };
+        const read = {};
+        let scene = null, id = null;
+        try {
+            scene = await Scene.create({ name: "SUITE 1.2.122 CTRL-71 a school", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: ROOM, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true, [FACILITIES.flag]: [{ id: "SUITE122a", label: "SUITE soup", trait: "eye", dc: 12, effects: [{ kind: "sanity", n: 1, scope: "self" }] }] } }, behaviors: [] }]);
+            await settle();
+            for (const k of ["warn", "info"]) ui.notifications[k] = (msg, ...rest) => { said.push(String(msg)); return own[k].call(ui.notifications, msg, ...rest); };
+            await withFormAnswered(element => {
+                const pick = element.querySelector('[name="a1.e0.kind"]');
+                if (pick) pick.value = "sanity";
+                return true;
+            }, async () => {
+                const D = foundry.applications.api.DialogV2, wait0 = D.wait;
+                D.wait = async cfg => {
+                    await F.setRoomActions(scene, ROOM, [...F.roomActions(scene, ROOM), { id: "SUITE122b", label: "SUITE tea", trait: "eye", dc: 12, effects: [] }]);
+                    return wait0.call(D, cfg);
+                };
+                try { await E.editRoomActions(scene, ROOM); } finally { D.wait = wait0; }
+            });
+            await settle();
+            read.room = F.roomActions(scene, ROOM).map(a => a.label);
+            read.roomTold = [said.includes(plural("DRPG.Facility.editor.dropped", { n: 1 })), said.some(s => s.includes("SUITE tea"))];
+            id = (await P.createProject({ name: "SUITE 1.2.122 CTRL-71 a project", target: 6, room: ROOM }))?.id ?? null;
+            must(id, "could not create a project - this would measure nothing");
+            const drawn = [];
+            await withFormAnswered((element, n) => {
+                drawn.push(element.querySelector('[name="p.e0.kind"]')?.value ?? null);
+                if (n === 0) { element.querySelector('[name="p.e0.kind"]').value = "sanity"; return true; }
+                if (n === 1) { element.querySelector('[name="p.label"]').value = "SUITE brew"; return true; }
+                return false;
+            }, () => E.editProjectFacility(P.allProjects().find(p => p.id === id)));
+            await settle();
+            read.project = [(await F.projectFacilityOf(id)).facility?.label ?? null, drawn, said.includes(game.i18n.localize("DRPG.Facility.editor.needsName"))];
+        } finally {
+            Object.assign(ui.notifications, own);
+            if (id) await P.deleteProject(id);
+            if (scene) await scene.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ room: ["SUITE soup", "SUITE tea"], roomTold: [true, true], project: ["SUITE brew", ["", "sanity"], true] }),
+            "{room: the room's actions after Save; roomTold: [the dropped line told, the other GM's action named]; project: [its action's name after the second Save, the first effect each window drew, the missing name told]} - the editors keep what is typed and say what is not saved");
+    }],
     ["PV-DOORS-T1 - the people in the character's own room always see who works its doors, and everyone behind a barricade hears a knock (scripts/doors-gm.mjs `shutDoor`, `forceDoor`, `pickLock`, `knockDoor`; the owner's rules #8 and #9, 13.11.2026): Shut the Door, a Force missed with Hope and a Pick whose Shadow cover passed each send the other student in the character's room a card naming the character, and nobody in the room beyond one; a Pick whose cover failed and a Force missed with Despair tell both rooms, as before; a walk refused at a barricade is heard by everyone in the barricaded room - its author and the student beside them - and never by the walker", async () => {
         /*
          * Privacy line 1 (doors), 13.11.2026. Judged as the primary judges the player's packets (`G.judge`), each roll a

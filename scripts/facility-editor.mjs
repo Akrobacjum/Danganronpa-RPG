@@ -10,9 +10,10 @@
  */
 
 import { FACILITIES, TRAITS } from "./config.mjs";
-import { esc, wholeNumber } from "./utils.mjs";
+import { esc, wholeNumber, plural, listOf } from "./utils.mjs";
 import { drpgWindow, stepper, toggle, tipAttr, tipText } from "./ui-kit.mjs";
-import { roomActions, setRoomActions, setProjectFacility, projectFacilityOf } from "./facilities.mjs";
+import { roomActions, setRoomActions, setProjectFacility, projectFacilityOf, cleanAction, cleanEffect, cleanFacility } from "./facilities.mjs";
+import { stableJson } from "./gm-store.mjs";
 
 const t = key => game.i18n.localize(`DRPG.Facility.editor.${key}`);
 
@@ -100,9 +101,39 @@ export function readRoomActions(form) {
     return out;
 }
 
+/*
+ * WHAT SAVE DOES NOT KEEP IS SAID (the audit's CTRL-71, 1.2.122, 21.11.2026). The cleaning drops an action with no name and
+ * an effect of a kind that needs its text with none (facilities.mjs `cleanAction`, `cleanEffect`), and the window closed on
+ * Save with no word of it. `droppedLines` counts what the GM typed and the cleaning refuses - a row left wholly blank, as
+ * the editor draws two, is no line - and Save tells it.
+ */
+export function droppedLines(raw) {
+    let n = 0;
+    for (const action of Array.isArray(raw) ? raw : []) {
+        const effects = Array.isArray(action?.effects) ? action.effects : [];
+        if (!cleanAction(action)) { if (effects.length) n++; continue; }
+        n += effects.filter(e => !cleanEffect(e)).length;
+    }
+    return n;
+}
+
+/*
+ * ANOTHER GM'S SAVE, NOT WRITTEN OVER (the audit's REFR-58, 1.2.122, 21.11.2026). Each editor is drawn once and its Save
+ * wrote the whole list, so the second of two GMs to press Save took out the first one's new action with neither told.
+ * The window is not redrawn under the GM's hands (its form is the whole window); at Save the room's list is read again,
+ * and an action another GM added meanwhile - an id the window did not open with - is kept beside this GM's and named.
+ * Pure: answers `{ list, kept }`.
+ */
+export function mergedRoomActions(saved, openedIds, now) {
+    const list = Array.isArray(saved) ? [...saved] : [];
+    const kept = (Array.isArray(now) ? now : []).filter(a => a?.id && !openedIds.has(a.id) && !list.some(b => b?.id === a.id));
+    return { list: [...list, ...kept].slice(0, FACILITIES.maxActions), kept };
+}
+
 /** Open a room's editor on `scene`; Save writes the room's actions at once. Answers the actions written, or null. */
 export async function editRoomActions(scene, room) {
     if (!game.user?.isGM || !scene || !room) return null;
+    const opened = new Set(roomActions(scene, room).map(a => a.id));
     const result = await drpgWindow({
         title: game.i18n.format("DRPG.Facility.editor.roomTitle", { room }),
         classes: ["drpg-panel", "drpg-facility-window"],
@@ -115,7 +146,12 @@ export async function editRoomActions(scene, room) {
         rejectClose: false
     });
     if (!Array.isArray(result)) return null;
-    return setRoomActions(scene, room, result);
+    const dropped = droppedLines(result);
+    const { list, kept } = mergedRoomActions(result, opened, roomActions(scene, room));
+    const written = await setRoomActions(scene, room, list);
+    if (written && dropped) ui.notifications.warn(plural("DRPG.Facility.editor.dropped", { n: dropped }));
+    if (written && kept.length) ui.notifications.info(game.i18n.format("DRPG.Facility.editor.keptOthers", { items: listOf(kept.map(a => a.label)) }));
+    return written;
 }
 
 /** The body of a project's editor: its action's name, effects, whether it costs an action, and its lifetime. */
@@ -154,10 +190,16 @@ export function readProjectFacility(form) {
     };
 }
 
-/** Open a project's editor; Save gives the project its action, Remove takes it off. Answers what was written, or null. */
-export async function editProjectFacility(project) {
+/**
+ * Open a project's editor; Save gives the project its action, Remove takes it off. Answers what was written, or null.
+ * A Save with no name writes nothing, says so and opens the editor again on what was typed (`draft`; CTRL-71, 1.2.122);
+ * one made after another GM changed the action meanwhile says that it was saved over theirs (REFR-58, 1.2.122).
+ */
+export async function editProjectFacility(project, { draft = null } = {}) {
     if (!game.user?.isGM || !project?.id) return null;
-    const { facility } = await projectFacilityOf(project.id);
+    const { facility: stored } = await projectFacilityOf(project.id);
+    const facility = draft ?? stored;
+    const opened = stableJson(stored ?? null);
     const result = await drpgWindow({
         title: game.i18n.format("DRPG.Facility.editor.projectTitle", { project: project.name }),
         classes: ["drpg-panel", "drpg-facility-window"],
@@ -172,5 +214,14 @@ export async function editProjectFacility(project) {
     });
     if (result === "remove") return setProjectFacility(project.id, null);
     if (!result || typeof result !== "object") return null;
-    return setProjectFacility(project.id, result);
+    if (!cleanFacility(result)) {
+        ui.notifications.warn(t("needsName"));
+        return editProjectFacility(project, { draft: result });
+    }
+    const dropped = droppedLines([{ ...result, id: null }]);
+    const changed = stableJson((await projectFacilityOf(project.id)).facility ?? null) !== opened;
+    const written = await setProjectFacility(project.id, result);
+    if (written && dropped) ui.notifications.warn(plural("DRPG.Facility.editor.dropped", { n: dropped }));
+    if (written && changed) ui.notifications.info(t("savedOver"));
+    return written;
 }
