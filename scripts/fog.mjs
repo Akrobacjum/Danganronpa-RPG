@@ -992,7 +992,9 @@ export async function restoreSceneVisionMode(scene) {
 }
 
 async function restoreScenes() {
-    if (!game.user.isGM) return 0;
+    /* The primary's alone, as `prepareScenes` is (1.2.122; the audit of 1.2.118, MAP-32): the setting's onChange runs on
+       every browser, and every GM wrote each scene's vision back and unset its flag, the same writes once per GM. */
+    if (!game.user.isGM || !isPrimaryGm()) return 0;
     let restored = 0;
     for (const scene of game.scenes ?? []) {
         if (await restoreSceneVisionMode(scene)) restored++;

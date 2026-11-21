@@ -36,10 +36,14 @@
  * IT MEASURES INSTEAD OF BELIEVING.
  *
  * Each clause returns what it changed and the report carries it up. A migration
- * that returns `true` cannot be checked, and in this Foundry it cannot even be
- * trusted: deleting a key with the `-=key` syntax can be accepted and do
- * nothing at all. Any clause that REMOVES something has to verify by reading it
- * back, not by the write having resolved.
+ * that returns `true` cannot be checked, and a write that resolved is not a
+ * write that landed. This file once said a `-=key` delete "can be accepted and
+ * do nothing at all"; on Foundry 14.370 it does delete, with v14's deprecation
+ * warning (LIVE-E30-01, read 16.11.2026 on an actor's and a token's flags,
+ * docs/dev/e39/CALIBRATION.md), and the module deletes with `forcedDeletion()`
+ * or `unsetFlag` (CLAUDE.md). The rule stands on its own: any clause that
+ * REMOVES something verifies by reading it back, not by the write having
+ * resolved.
  *
  * Silent when it changed nothing. It runs at `ready` on the primary GM's client
  * every time the version moves, and a migration that announces itself every
@@ -98,7 +102,14 @@ const SEEDED_CHIME = "sounds/notify.wav";
  * that distinguishes them - whether this world has already been through a
  * build that carried the clause. `force: true` ignores the gate, so the repair
  * route is untouched, and that is the only moment anybody wants every clause
- * re-entered regardless.
+ * re-entered regardless - EXCEPT A CLAUSE MARKED `seeds: true`, whose gate holds
+ * when forced too (1.2.122; the audit of 1.2.118, CORE-26). The GM handbook gives
+ * `game.drpg.migrate({ force: true })` as the safe repair, and forced, the
+ * safeword's clause wrote the language file's old word over a stamped world whose
+ * GM never typed one (its only guard is `from`, which a stamped world has) and told
+ * the GMs the world "already had it", and the bedrooms' clause gave back every
+ * stash a GM had removed (TRAP 76) - the very seeds the gate exists to stop. A
+ * world never stamped has been through nothing, so it still runs them.
  *
  * Empty at E0 by design. The clauses named in the plan arrive with the stages
  * that need them: the messenger chime (E2, and then taken back out again by the
@@ -138,8 +149,10 @@ const CLAUSES = [
          *
          * Deletes the key rather than blanking it, through the same write the
          * panel uses: "never assigned" and "assigned to nothing" have to stay
-         * one state, and `-=key` cannot be trusted to remove anything in this
-         * Foundry - so the whole object is written back and read back.
+         * one state, and a delete is read back rather than trusted (`-=key` does
+         * delete on 14.370 with a deprecation warning, LIVE-E30-01, but the module
+         * spells no delete that way: R152) - so the whole object is written back
+         * and read back.
          */
         run: async () => {
             const map = getSetting(SETTINGS.sfxMap) ?? {};
@@ -372,10 +385,8 @@ const CLAUSES = [
                     const actor = game.actors.get(id);
                     return actor && isMonokuma(actor) && rooms?.length;
                 }));
-            if (stillThere) {
-                error("Could not clear the Monokuma rows from the discovery ledger");
-                return null;
-            }
+            // Thrown, not answered null (1.2.122; CORE-42): the world is not stamped and the next load tries again.
+            if (stillThere) throw new Error("the Monokuma rows are still in the discovery ledger after the write");
 
             await import("./fog.mjs").then(m => {
                 m.reconcileMirror?.();
@@ -388,6 +399,8 @@ const CLAUSES = [
 
     {
         key: "keepOldSafeword",
+        // Seeds a word, so its gate holds when forced too (1.2.122; CORE-26: see `seeds` in the note on `since`).
+        seeds: true,
         since: "1.1.39",
         /*
          * TRAP 109 - A WORLD IN PLAY KEEPS THE WORD IT ALREADY USES.
@@ -459,10 +472,8 @@ const CLAUSES = [
             // now depends on, and a write that resolved is not a write that
             // landed.
             const check = getSetting(SETTINGS.motive) ?? {};
-            if (!Number.isFinite(check.remaining)) {
-                error("The motive record could not be given a timer");
-                return null;
-            }
+            // Thrown, not answered null (1.2.122; CORE-42): the world is not stamped and the next load tries again.
+            if (!Number.isFinite(check.remaining)) throw new Error("the motive record has no timer after the write");
 
             await whisperToGms(`<p>${plural("DRPG.Motive.migrated", {
                 n: MOTIVE.defaultTimesOfDay
@@ -1018,6 +1029,8 @@ const CLAUSES = [
     {
         key: "bedroomStashes",
         since: "1.2.91",
+        // Seeds a stash, so its gate holds when forced too (1.2.122; CORE-26: see `seeds` in the note on `since`).
+        seeds: true,
         /*
          * A STASH FOR EVERY BEDROOM THAT HAS NONE (E89 C8, 1.2.91; E89-23, the owner's answer Q-E89-4 of 30.10.2026).
          * Until 1.2.91 Room Setup's Stashes tab wrote an empty list over a room marked after its owner was given, and
@@ -1596,10 +1609,8 @@ export async function keepOldSafeword({ from = "", wasInPlay = false } = {}) {
 
     // Read back rather than believed: this decides what a safety control says,
     // and a write that resolved is not a write that landed.
-    if (String(getSetting(SETTINGS.safeword) ?? "").trim() !== legacy) {
-        error("Could not keep this world's existing safeword");
-        return null;
-    }
+    // Thrown, not answered null (1.2.122; CORE-42): the world is not stamped and the next load tries again.
+    if (String(getSetting(SETTINGS.safeword) ?? "").trim() !== legacy) throw new Error("this world's existing safeword did not stay after the write");
 
     // The sheets have already been drawn by the time a migration runs - it is
     // started at `ready` and not awaited - so they are asked to redraw rather than
@@ -1668,7 +1679,7 @@ export async function migrate1_2_0({ force = false, quiet = false, wasInPlay = n
         // Already been through a build that carried this clause - see the note
         // on `since`. An unstamped world has been through nothing, so it runs
         // everything, which is also exactly what a brand-new world needs.
-        if (!force && from && !foundry.utils.isNewerVersion(clause.since, from)) {
+        if ((!force || clause.seeds === true) && from && !foundry.utils.isNewerVersion(clause.since, from)) {
             report.skipped.push(clause.key);
             continue;
         }

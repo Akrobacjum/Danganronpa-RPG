@@ -1812,8 +1812,12 @@ export async function openGmStoreEngine() {
         listening = true;
         if (game.user?.isGM) {
             game.socket.on(SOCKET_EVENT, (packet, senderId) => engine.onPacket(packet, senderId));
-            // A socket that comes back after a drop re-exchanges: deltas sent while it was down
-            // arrive with the states. Whether v14's socket emits "connect" again is LIVE-E04-04.
+            // A socket that comes back after a drop sends its hello again, and the other GMs answer with their
+            // states (the engine's exchange; that a delta sent while it was down arrives with them is read from
+            // the engine, not at a table). v14 does emit "connect" again: on 14.370 `game.socket.disconnect()` then
+            // `connect()` from a GM's console emitted "connect" 10 s later with no reload, and a document written
+            // meanwhile never reached that GM's copy (docs/dev/e58/LOCAL-REPORT.md item 44, LIVE-E04-04: one road,
+            // a console's drop; a real network loss is not measured).
             game.socket.on("connect", () => engine.sendHello());
             Hooks.on("userConnected", (user, connected) => engine.onUserConnected(user, connected));
             window.addEventListener?.("storage", ev => { if (ev?.key) engine.onStorage(ev.key, ev.newValue); });

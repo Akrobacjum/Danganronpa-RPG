@@ -150,12 +150,17 @@ export function registerGmBridge() {
              * is wired now as the messenger wires its bubble; the claim on the primary (`claimCard`) keeps the two
              * copies to one ruling. Read after the import, a microtask: the secret swap draws the words in this same
              * hook dispatch, and a card with words to come holds no button before it.
+             *
+             * ASKED BEFORE THE IMPORT (1.2.122; the audit of 1.2.118, CORE-38). The import ran first, for every message
+             * drawn on a GM - a whole log's worth at each load - and only then was the card asked whether it rules on
+             * anything. The question waits for the same microtask (`Promise.resolve()`), and messenger-app.mjs is
+             * imported only for a card that answers yes. Counts of work, not frame time (not measured).
              */
-            import("./messenger-app.mjs")
-                .then(m => {
+            Promise.resolve()
+                .then(() => {
                     const body = element?.querySelector?.(".message-content") ?? element;
-                    if (!cardFlag(message, "callCard") && !body?.querySelector?.("[data-drpg-call]")) return;
-                    m.wireCallActions(body, message);
+                    if (!cardFlag(message, "callCard") && !body?.querySelector?.("[data-drpg-call]")) return null;
+                    return import("./messenger-app.mjs").then(m => m.wireCallActions(body, message));
                 })
                 .catch(err => debug("Could not wire a ruling card in the log", err));
         });

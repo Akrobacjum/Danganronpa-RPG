@@ -367,10 +367,13 @@ export async function setClock(patch = {}) {
  *
  * @param {object} [options]
  * @param {boolean} [options.resetActions]      Refill everyone's actions. Off by
- *   default - that is the START of the Eclipse's job, not the clock's, and
- *   nothing in the ordinary flow turns it on any more. The GM panel's "also
- *   refill" checkbox passes it explicitly when a correction needs it, which is
- *   the one remaining caller and deliberately a manual one.
+ *   default - that is the START of the Eclipse's job, not the clock's. Two
+ *   callers turn it on: the GM panel's Next time of day (boundary.mjs
+ *   `nextTimeOfDay`, the hour moved on with no Eclipse) and the chapter's end
+ *   on to the next morning (chapter.mjs, through `setTimeOfDay`). Edit
+ *   campaign's "also refill" box does not come here: it calls `resetAllActions`
+ *   and the search tokens' reset itself (gm-campaign.mjs `applyCampaignForm`).
+ *   Read 21.11.2026 (1.2.122; the audit's CORE-50).
  * @param {boolean} [options.resetSearchTokens] Restock every room.
  * @param {boolean} [options.announce]          Post the new time of day to chat.
  */

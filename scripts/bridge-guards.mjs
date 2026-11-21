@@ -201,6 +201,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["missing", /^no token was spent under that request$/],
     ["badRequest", /^that offer buys .+ pick\(s\), the packet carried .+$/],
     ["badRequest", /^a pick names something that is not an option$/],
+    // 1.2.122 (CASE-61): observe.target's declaration not one of observe.mjs DECLARATIONS (`handleObserveTarget`).
+    ["badRequest", /^that is not a way of looking an Observe knows$/],
     // E64: an offer of statistic points alone (the DA39 migration; bridge-runs-acts.mjs `handleAdvancement`).
     ["badRequest", /^that offer is for statistics only$/],
     ["badRequest", /^a new experience has no name$/],
@@ -564,7 +566,7 @@ export function requestLabel(action) {
  * The one message a player is shown when a request of theirs was not carried
  * out (E31): what, and why, composed on the player's own client in the
  * player's language - `DRPG.Bridge.notDone` with the request's label and the
- * sentence of its reason, and "Nothing was spent." where the asker says so. A
+ * sentence of its reason, and `DRPG.Bridge.nothingSpent` ("You keep your action and your Hope.") where the asker says so. A
  * code not on the closed list is shown as `refused`, so a packet cannot pick
  * the sentence. Returns the text it showed.
  *

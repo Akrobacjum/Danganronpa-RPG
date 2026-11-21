@@ -106981,6 +106981,174 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "Season setup did not follow the world while open, or lost what the GM typed (time and word: shown as the world's and still untouched, name: the GM's text)");
     }],
 
+    ["1.2.122 CORE-26 - the repair the handbook names does not seed again: game.drpg.migrate({ force: true }) on a stamped world whose safeword is the default leaves it the default and says nothing, and skips the bedrooms' stash clause; both clauses are marked as seeding (migrate.mjs `seeds`, `migrate1_2_0`; the audit of 1.2.118, CORE-26)", async () => {
+        /*
+         * 1.2.122 line CORE, 21.11.2026. Forced, the safeword's clause (its one guard `from`, which a stamped world has) wrote
+         * the language file's old word over a world whose GM never typed one, and whispered "This world already has the
+         * safeword ...", and the bedrooms' clause gave back each stash a GM had removed. A world stamped with this version and
+         * the default safeword: the forced pass of the two clauses alone. Read: the safeword after, the report's skipped
+         * clauses, the cards posted. The stamp and the safeword are put back as found, any card deleted. Red at 21bf5d18: the
+         * safeword became the legacy word, one card posted, neither clause skipped.
+         */
+        needs(env.primaryGm());
+        const G = await import("./migrate.mjs");
+        const { DEFAULT_SAFEWORD } = await import("./settings.mjs");
+        const { moduleVersion } = await import("./config.mjs");
+        const stampBefore = getSetting(SETTINGS.migratedVersion);
+        const wordBefore = getSetting(SETTINGS.safeword);
+        const msgsBefore = new Set(game.messages.contents.map(m => m.id));
+        let read = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.migratedVersion, moduleVersion());
+            if (getSetting(SETTINGS.safeword) !== DEFAULT_SAFEWORD) await game.settings.set(MODULE_ID, SETTINGS.safeword, DEFAULT_SAFEWORD);
+            await settle();
+            const report = await G.migrate1_2_0({ force: true, quiet: true, only: ["keepOldSafeword", "bedroomStashes"] });
+            await settle();
+            read = { word: getSetting(SETTINGS.safeword) === DEFAULT_SAFEWORD, skipped: [...(report?.skipped ?? [])].sort(), failed: report?.failed ?? null,
+                cards: game.messages.contents.filter(m => !msgsBefore.has(m.id)).length };
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.migratedVersion, stampBefore);
+            if (getSetting(SETTINGS.safeword) !== wordBefore) await game.settings.set(MODULE_ID, SETTINGS.safeword, wordBefore);
+            const posted = game.messages.filter(m => !msgsBefore.has(m.id)).map(m => m.id);
+            if (posted.length) await ChatMessage.deleteDocuments(posted);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ word: true, skipped: ["bedroomStashes", "keepOldSafeword"], failed: [], cards: 0 }),
+            "{word: the default safeword kept; skipped: the two seeding clauses held by their gate though forced; failed: none; cards: none posted}");
+    }],
+
+    ["1.2.122 CORE-39 - the GM who whispered a card to players alone reads on it that this browser keeps its words for them, at once, not that they did not reach it (secret.mjs `heldForReaders`, `drawPrivateCard`, `shownWordsOf`; the audit of 1.2.118, CORE-39)", async () => {
+        /*
+         * 1.2.122 line CORE, 21.11.2026. Since E38 the author GM keeps the words of a card it whispers to players alone
+         * (`authorHold`) and does not read them; the card in its log was drawn, four seconds later, "A private card. Its
+         * words did not reach this browser." - false on the one browser that holds them. A card posted by this GM to one
+         * player alone (as utils.mjs `whisperToOwnerOnly` posts a tail's card), then drawn into a detached element and read
+         * as the messenger reads it. The card is deleted after. Red at 21bf5d18: no `heldForReaders`, and the drawn card
+         * held the stub (the wait not yet run) and never the new line.
+         */
+        needs(env.primaryGm());
+        const S = await import("./secret.mjs");
+        const player = game.users.find(u => !u.isGM && u.active) ?? game.users.find(u => !u.isGM);
+        must(player, "no player account to whisper to - this would measure nothing");
+        const line = game.i18n.localize("DRPG.Secret.wordsHeldForReaders");
+        const elsewhere = game.i18n.localize("DRPG.Secret.wordsElsewhere");
+        let posted = null, read = null;
+        try {
+            posted = await S.postSecret({ content: "<p>SUITE 1.2.122 CORE-39 words for the player alone</p>", whisper: [player.id] });
+            await settle();
+            const m = posted?.id ? game.messages.get(posted.id) : null;
+            must(m, "the card was not posted - this would measure nothing");
+            const el = document.createElement("div");
+            el.innerHTML = `<div class="message-content">${m.content ?? ""}</div>`;
+            S.drawPrivateCard(m, el);
+            const drawn = el.textContent ?? "";
+            read = { held: typeof S.heldForReaders === "function" ? S.heldForReaders(m) : "no heldForReaders", ownReads: S.secretHtml(m) === null,
+                drawn: [drawn.includes(line), drawn.includes(elsewhere)], bubble: String(S.shownWordsOf(m) ?? "").includes(line) };
+        } finally {
+            if (posted?.id && game.messages.get(posted.id)) await ChatMessage.deleteDocuments([posted.id]);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ held: true, ownReads: true, drawn: [true, false], bubble: true }),
+            "{held: this browser keeps the words for the readers; ownReads: the author still does not read them; drawn: the log's card says so at once, not that they did not reach it; bubble: the messenger's bubble says the same}");
+        ok(line !== "DRPG.Secret.wordsHeldForReaders", "DRPG.Secret.wordsHeldForReaders has no text in this language");
+    }],
+
+    ["1.2.122 REFR-02 - a field left as drawn is the world's at the write, not the press's: Edit campaign and Season setup with the chapter moved, while the chapter's question stands open the time of day is moved (and, in Season setup, the safeword set) elsewhere; Cancel writes neither back (gm-campaign.mjs `untouchedKept`'s `KEPT_FIELDS`, `applyCampaignForm`; season-setup.mjs `openSeasonSetup`; the audit of 1.2.118, REFR-02's rest, LIVE-R121-02)", async () => {
+        /*
+         * 1.2.122 line CORE, 21.11.2026. `untouchedKept` took a field left as drawn from the clock at the press, but
+         * `applyCampaignForm` asks its questions before it writes, and a question may stand a minute: a time of day moved
+         * (the HUD's step, another GM) or a safeword set while it stood was written back with the press's value. Each window
+         * drawn as a GM opens it, its chapter field moved one on, its primary pressed; while the chapter's question stands
+         * the time of day moves one on and, in Season setup, the safeword is set; the question is answered Cancel. Read: the
+         * time of day after (the moved one), the chapter (kept by the Cancel), the safeword. The clock and the safeword are
+         * put back as found. Red at 21bf5d18: the press's time of day and safeword were written back.
+         */
+        needs(env.dialogs(), "the windows are drawn and their buttons pressed");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const G = await import("./gm-campaign.mjs");
+        const SS = await import("./season-setup.mjs");
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-clock").length && !of("drpg-window-season").length, "Edit campaign or Season setup stands open already");
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const wordBefore = getSetting(SETTINGS.safeword);
+        const read = {};
+        const round = async (cls, open, primary, withWord) => {
+            const answer = Promise.resolve().then(open).catch(err => `threw: ${err.message}`);
+            await until(() => of(cls)[0]?.element?.querySelector('form [name="chapter"]'), 6000).catch(() => {});
+            const el = of(cls)[0]?.element;
+            must(el?.querySelector('form [name="chapter"]'), `${cls} drew no chapter field - this would measure nothing`);
+            const chapter = Number(getClock().chapter);
+            el.querySelector('form [name="chapter"]').value = String(chapter + 1);
+            el.querySelector(`footer button[data-action="${primary}"]`)?.click();
+            await until(() => of("drpg-window-correction")[0]?.element, 6000).catch(() => {});
+            const asked = of("drpg-window-correction")[0]?.element ?? null;
+            const moved = TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(getClock().timeOfDay) + 1) % TIMES_OF_DAY.length];
+            await setClock({ timeOfDay: moved });
+            if (withWord) await game.settings.set(MODULE_ID, SETTINGS.safeword, "SUITE set meanwhile");
+            await settle();
+            asked?.querySelector('footer button[data-action="cancel"]')?.click();
+            await Promise.race([answer, wait(8000)]);
+            await settle();
+            const c = getClock();
+            return { asked: Boolean(asked), timeOfDay: c.timeOfDay === moved, chapter: Number(c.chapter) === chapter,
+                ...(withWord ? { word: getSetting(SETTINGS.safeword) } : {}) };
+        };
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clockBefore, phase: "dailyLife", eclipse: false });
+            await settle();
+            read.edit = await round("drpg-window-clock", () => G.openClockDialog(), "ok", false);
+            read.season = await round("drpg-window-season", () => SS.openSeasonSetup(), "save", true);
+        } finally {
+            for (const cls of ["drpg-window-correction", "drpg-window-clock", "drpg-window-season"]) for (const app of of(cls)) await app.close().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            if (getSetting(SETTINGS.safeword) !== wordBefore) await game.settings.set(MODULE_ID, SETTINGS.safeword, wordBefore);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ edit: { asked: true, timeOfDay: true, chapter: true },
+            season: { asked: true, timeOfDay: true, chapter: true, word: "SUITE set meanwhile" } }),
+            "{edit, season: the chapter's question asked; the time of day moved while it stood kept; the chapter kept by Cancel; the safeword set meanwhile kept}");
+    }],
+
+    ["1.2.122 CORE-27 - the game's settings window follows a setting changed elsewhere while it stands open, and its Save does not write a row left as drawn back over it; a row the GM changed is written (settings-window.mjs `followSettingRows`, `saveSettings`; the audit of 1.2.118, CORE-27, REFR-28, STG-15)", async () => {
+        /*
+         * 1.2.122 line CORE, 21.11.2026. The window drawn as a GM opens it; while it stands, despairFromRolls is turned
+         * elsewhere (another GM's own window); then the GM changes moveAudit and presses Save. Read: the despairFromRolls box
+         * (shown as the world's now, still untouched), the two values after Save. Both put back as found. Red at 21bf5d18:
+         * the box showed the value it was drawn with and Save wrote it back.
+         */
+        needs(env.dialogs(), "the window is drawn and its Save pressed");
+        const W = await import("./settings-window.mjs");
+        const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-game-settings"));
+        must(of().length === 0, "a game settings window stands open already");
+        const get = k => game.settings.get(MODULE_ID, k);
+        const was = { despairFromRolls: get("despairFromRolls"), moveAudit: get("moveAudit") };
+        const audits = Object.keys(game.settings.settings.get(`${MODULE_ID}.moveAudit`)?.choices ?? {});
+        must(audits.length > 1, "moveAudit has no second choice to pick");
+        const audit = audits.find(v => v !== was.moveAudit);
+        const read = {};
+        try {
+            const done = Promise.resolve().then(() => W.openGameSettingsWindow()).catch(err => `threw: ${err?.message}`);
+            await until(() => of()[0]?.element?.querySelector('[name="despairFromRolls"]'), 6000).catch(() => {});
+            const root = of()[0]?.element;
+            const box = root?.querySelector('[name="despairFromRolls"]');
+            must(box && root.querySelector('[name="moveAudit"]'), "the window drew no despairFromRolls or moveAudit - this would measure nothing");
+            await game.settings.set(MODULE_ID, "despairFromRolls", !was.despairFromRolls);
+            await until(() => box.checked === !was.despairFromRolls, 2000).catch(() => {});
+            read.box = { shown: box.checked === !was.despairFromRolls, untouched: typeof W.untouchedField === "function" ? W.untouchedField(box) : "no untouchedField" };
+            root.querySelector('[name="moveAudit"]').value = audit;
+            root.querySelector('footer button[data-action="save"]')?.click();
+            await Promise.race([done, wait(6000)]);
+            await settle();
+            read.after = { despairFromRolls: get("despairFromRolls") === !was.despairFromRolls, moveAudit: get("moveAudit") === audit };
+        } finally {
+            for (const a of of()) await a.close().catch(() => {});
+            for (const k of Object.keys(was)) if (get(k) !== was[k]) await game.settings.set(MODULE_ID, k, was[k]);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ box: { shown: true, untouched: true }, after: { despairFromRolls: true, moveAudit: true } }),
+            "{box: the row shown as the world's and still untouched; after: the value set elsewhere kept, the row the GM changed written}");
+    }],
+
     ["the Season checklist's rows follow the world while it stands open: the campaign's name taken off elsewhere turns its row, and put back turns it again (season-setup.mjs `followChecklist`; the audit of 1.2.118, controls-10-setup-config finding -3; the line claude/season-119)", async () => {
         /*
          * The Season checklist drawn as a GM opens it, from a clock with a campaign name. While it stands open the name is

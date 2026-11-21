@@ -38551,7 +38551,7 @@ const INVARIANTS = [
         must(setup.length > 1000 && cub.length > 1000, "season-wipe.mjs or monocub.mjs is not among the module's sources - this would measure nothing");
         const deaths = bodyOf(fnSource(setup, "wipeStudent"), "deaths:", { until: "items:" });
         const setter = fnSource(cub, "setMonocub");
-        equal(JSON.stringify([/setMonocub\(actor,\s*false,\s*\{\s*quiet:\s*true\s*\}\)/.test(deaths), /reviveCharacter\(actor,\s*\{\s*quiet:\s*true(?:,\s*silent:\s*true)?\s*\}\)/.test(deaths),
+        equal(JSON.stringify([/setMonocub\(actor,\s*false,\s*\{\s*quiet:\s*true(?:,\s*watcher:\s*false)?\s*\}\)/.test(deaths), /reviveCharacter\(actor,\s*\{\s*quiet:\s*true(?:,\s*silent:\s*true)?\s*\}\)/.test(deaths),
             /if\s*\(!quiet\)\s*ui\.notifications\.info\(/.test(setter)]), JSON.stringify([true, true, true]),
             "[the reset takes the Monocub off quietly; it revives quietly; setMonocub's toast asks !quiet]");
     }],
@@ -64180,6 +64180,203 @@ const INVARIANTS = [
             edit: /untouchedKept\(dialog\.element\.querySelector\("form"\), readClockForm\(dialog\)\)/.test(clockDialog) }),
         stableJson({ out: { campaignName: "typed", chapter: 2, day: 5, phase: "investigation", session: 4, timeOfDay: "night", safeword: "set elsewhere" }, season: true, edit: true }),
             "{out: the fields written - the name and the phase changed, the rest as the clock holds them; season, edit: the two callbacks read through it}");
+    }],
+    ["R8100 - what Edit campaign and Season setup left as drawn is named for the write, and End the chapter asks who may end it at the press (1.2.122 line CORE; the audit of 1.2.118, REFR-02's rest and CTRL-86): gm-campaign.mjs `untouchedKept` names under `KEPT_FIELDS` each field it took from the world (the safeword too, where given) and no field the GM changed; `applyCampaignForm` reads them from the clock with nothing awaited before `setClock`, and Season setup's safeword line reads them; `mayEndChapterHere` answers false and warns on a GM who is not the primary, and both windows' End the chapter ask it before they close", async () => {
+        /* Red at 21bf5d18: no `KEPT_FIELDS`, no `mayEndChapterHere`. Pure over a detached form, and text reads of the three
+           functions; the press itself is the tier-2 "1.2.122 REFR-02" test. */
+        const G = await import("./gm-campaign.mjs");
+        must(typeof G.KEPT_FIELDS === "symbol" && typeof G.mayEndChapterHere === "function", "gm-campaign.mjs has no KEPT_FIELDS or no mayEndChapterHere");
+        const form = document.createElement("form");
+        form.innerHTML = `<input name="campaignName" value="drawn" /><input name="chapter" value="2" /><input name="day" value="3" />`
+            + `<select name="phase"><option value="dailyLife" selected>a</option><option value="investigation">b</option></select>`
+            + `<input name="session" value="4" /><select name="timeOfDay"><option value="morning" selected>m</option><option value="noon">n</option></select>`
+            + `<input name="safeword" value="drawn word" />`;
+        form.querySelector('[name="campaignName"]').value = "typed";
+        const clock = { campaignName: "elsewhere", chapter: 2, day: 5, phase: "classTrial", session: 4, timeOfDay: "night" };
+        const out = G.untouchedKept(form, { campaignName: "typed", chapter: 2, day: 3, phase: "dailyLife", session: 4, timeOfDay: "morning", safeword: "drawn word" },
+            { clock, safeword: "set elsewhere" });
+        const src = new Map(await moduleSources());
+        const apply = fnSource(src.get("gm-campaign.mjs") ?? "", "applyCampaignForm");
+        const season = fnSource(src.get("season-setup.mjs") ?? "", "openSeasonSetup"), edit = fnSource(src.get("gm-campaign.mjs") ?? "", "openClockDialog");
+        const asksFirst = body => /if \(!mayEndChapterHere\(\)\) return;\s*endAsked = true;/.test(body);
+        const warned = [];
+        const realWarn = ui.notifications?.warn;
+        let answer = null;
+        try {
+            if (ui.notifications) ui.notifications.warn = text => { warned.push(String(text)); };
+            answer = [G.mayEndChapterHere({ primary: false }), G.mayEndChapterHere({ primary: true })];
+        } finally {
+            if (ui.notifications) ui.notifications.warn = realWarn;
+        }
+        equal(stableJson({ kept: out[G.KEPT_FIELDS], json: JSON.parse(JSON.stringify(out)).campaignName,
+            readNow: /const now = getClock\(\);\s*for \(const name of kept\)[^\n]*patch\[name\] = now\[name\];\s*\/\/[^\n]*\n\s*\/\/[^\n]*\n\s*if \(correctsTheHour\(getClock\(\), patch\)\)/.test(apply),
+            word: /KEPT_FIELDS\] \?\? \[\]\)\.includes\("safeword"\)/.test(season), asks: [asksFirst(season), asksFirst(edit)],
+            here: [answer, warned.length] }),
+        stableJson({ kept: ["chapter", "day", "phase", "session", "timeOfDay", "safeword"], json: "typed", readNow: true, word: true, asks: [true, true],
+            here: [[false, true], 1] }),
+            "{kept: the fields named as taken from the world; json: the answer as JSON still the GM's name; readNow: the clock read again after the questions, right before the hour's check and the write; word: Season setup's safeword line reads them; asks: Season setup's and Edit campaign's End the chapter ask first; here: [as a GM not the primary, as the primary], warnings}");
+    }],
+    ["R8101 - a settings window's row left as drawn follows its setting, and one the person changed keeps their value (1.2.122 line CORE; the audit of 1.2.118, CORE-27, REFR-28, STG-15): settings-window.mjs `followSettingRows` on a row drawn with the other value than the one stored, told the setting changed (a recorder for Hooks), sets the field to the stored value as drawn (`untouchedField` still true); a second row the person changed is left; `saveSettings` skips a field `untouchedField` reads as drawn", async () => {
+        /* Red at 21bf5d18: no `followSettingRows`, no `untouchedField`. Two rows of `settingRowHtml` in a detached-then-attached
+           element (attached so the follow does not let go), each box's drawn state turned against the stored one by hand;
+           nothing of the world is written - the recorder stands in for Foundry's Hooks, so nothing else hears. */
+        const W = await import("./settings-window.mjs");
+        must(typeof W.followSettingRows === "function" && typeof W.untouchedField === "function", "settings-window.mjs has no followSettingRows or no untouchedField");
+        const keys = ["despairFromRolls", "chargeMovement"];
+        must(keys.every(k => game.settings.settings.get(`${MODULE_ID}.${k}`)?.type === Boolean), "the two rows are not switches - this would measure nothing");
+        const handlers = new Map();
+        const hooks = { on: (name, fn) => { handlers.set(name, fn); return name; }, off: name => { handlers.delete(name); } };
+        const root = document.createElement("div");
+        root.innerHTML = keys.map(k => W.settingRowHtml(k)).join("");
+        const box = k => root.querySelector(`[name="${k}"]`);
+        const stored = Object.fromEntries(keys.map(k => [k, game.settings.get(MODULE_ID, k) === true]));
+        box("despairFromRolls").defaultChecked = !stored.despairFromRolls;
+        box("despairFromRolls").checked = !stored.despairFromRolls;
+        box("chargeMovement").defaultChecked = stored.chargeMovement;
+        box("chargeMovement").checked = !stored.chargeMovement;
+        const changedByHand = W.untouchedField(box("chargeMovement"));
+        let read;
+        document.body.append(root);
+        try {
+            W.followSettingRows(root, { hooks });
+            for (const k of keys) handlers.get("updateSetting")?.({ key: `${MODULE_ID}.${k}` });
+            read = { heard: [...handlers.keys()].sort(), follows: [box("despairFromRolls").checked === stored.despairFromRolls, W.untouchedField(box("despairFromRolls"))],
+                kept: [box("chargeMovement").checked === !stored.chargeMovement, W.untouchedField(box("chargeMovement"))], changedByHand };
+        } finally {
+            root.remove();
+        }
+        const save = fnSource((new Map(await moduleSources())).get("settings-window.mjs") ?? "", "saveSettings");
+        equal(stableJson({ ...read, saveSkips: /if \(untouchedField\(field\)\) continue;/.test(save) }),
+            stableJson({ heard: ["clientSettingChanged", "createSetting", "updateSetting"], follows: [true, true], kept: [true, false], changedByHand: false, saveSkips: true }),
+            "{heard: the hooks followed; follows: the row left as drawn now shows the stored value and is still untouched; kept: the row changed by hand keeps its value and stays changed; saveSkips: Save skips an untouched field}");
+    }],
+    ["R8102 - Observe's target step takes only a way of looking Observe knows (1.2.122 line CORE; the audit of 1.2.118, CASE-61): bridge-table.mjs's `observe.target` row hands its run each of observe.mjs `DECLARATIONS` as sent and anything else - an unknown word, an object - as null, and `handleObserveTarget` refuses a null one with a reason the closed list reads as `badRequest`, before anything is chosen or kept on the GM's pending row", async () => {
+        /* Red at 21bf5d18: the row took the declaration raw (`as.raw`), so "x" and an object reached `chooseObserveTarget`,
+           which read them as General and kept them on the pending row for an hour. Pure: the row's sanitizer and the run
+           with a null declaration, which returns before observe.mjs is asked anything. */
+        const T = await import("./bridge-table.mjs");
+        const W = await import("./bridge-wire.mjs");
+        const B = await import("./bridge-guards.mjs");
+        const R = await import("./bridge-runs-acts.mjs");
+        const O = await import("./observe.mjs");
+        const row = T.BRIDGE_ACTIONS[W.ACTION_OBSERVE_TARGET];
+        must(typeof row?.sanitize === "function", "the observe.target row has no sanitizer");
+        const declared = v => row.sanitize({ actorId: "R8102A", declaration: v, request: "" }).declaration;
+        const refused = await R.handleObserveTarget({ actorId: "R8102A", declaration: null, request: "" }, { isGM: false, id: "R8102U" }, {});
+        equal(stableJson({ known: Object.values(O.DECLARATIONS).map(declared), unknown: [declared("x"), declared({ general: 1 }), declared(""), declared(undefined)],
+            run: refused?.refused ? B.reasonOf(refused.refused) : stableJson(refused) }),
+        stableJson({ known: Object.values(O.DECLARATIONS), unknown: [null, null, null, null], run: "badRequest" }),
+            "{known: each declaration Observe knows as the run is handed it; unknown: a word it does not know, an object, empty, none; run: the reason a null one is refused with}");
+    }],
+    ["R8103 - the small fixes of 1.2.122 line CORE hold in the source (the audit of 1.2.118, CORE-38, CORE-42, CORE-29, CORE-40, CASE-66, CASE-70, MAP-32): gm-bridge.mjs asks a drawn message whether it rules on anything before it imports messenger-app.mjs; migrate.mjs's three older clauses whose read-back failed throw, so the world is not stamped, where they answered null; diagnoseDespair reads on a player only a roll that player may see; a returning player's notice slots go to the cards answered; the season reset tells a Monocub's end to make no Spectator; Check rooms checks the scene its row judges; the room fog's restore is the primary's alone", async () => {
+        /* Red at 21bf5d18: the import came first; the three clauses logged and answered null (the runner's "nothing to do").
+           Text reads, the kit's cuts; what they read is named in each row. */
+        const src = new Map(await moduleSources());
+        const bridge = fnSource(src.get("gm-bridge.mjs") ?? "", "registerGmBridge");
+        const migrate = src.get("migrate.mjs") ?? "";
+        const safe = fnSource(migrate, "keepOldSafeword");
+        const diag = fnSource(src.get("diagnostics.mjs") ?? "", "diagnoseDespair");
+        const secret = src.get("secret.mjs") ?? "";
+        const wipe = src.get("season-wipe.mjs") ?? "", check = fnSource(src.get("season-setup.mjs") ?? "", "wireRoomCheck");
+        const fog = fnSource(src.get("fog.mjs") ?? "", "restoreScenes");
+        equal(stableJson({
+            "CORE-29": /\.find\(m => \(m\.rolls\?\.length \?\? 0\) > 0 && \(gm \|\| m\.visible !== false\)\)/.test(diag),
+            "CORE-40": [/for \(const id of mine\) noticeOnReturn\.add\(id\);\s*returnNoticesLeft = RETURN_NOTICES;/.test(fnSource(secret, "askForWords")),
+                /if \(!message \|\| returnNoticesLeft <= 0\) return false;\s*returnNoticesLeft -= 1;/.test(fnSource(secret, "cardOnReturn"))],
+            "CASE-66": /setMonocub\(actor, false, \{ quiet: true, watcher: false \}\)/.test(wipe),
+            "CASE-70": [/const scene = roomRowScene\(\) \?\? null;\s*const findings = checkRegions\(scene\);/.test(check), /lastRoomChecks\.set\(scene\.id,/.test(check), /canvas\?\.scene/.test(check)],
+            "MAP-32": /if \(!game\.user\.isGM \|\| !isPrimaryGm\(\)\) return 0;/.test(fog),
+            "CORE-38": /if \(!cardFlag\(message, "callCard"\) && !body\?\.querySelector\?\.\("\[data-drpg-call\]"\)\) return null;\s*return import\("\.\/messenger-app\.mjs"\)/.test(bridge),
+            "CORE-42": [/if \(stillThere\) throw new Error\(/.test(migrate), /if \(!Number\.isFinite\(check\.remaining\)\) throw new Error\(/.test(migrate),
+                /!== legacy\) throw new Error\(/.test(safe), /Could not clear the Monokuma rows|could not be given a timer|Could not keep this world's existing safeword/.test(migrate)]
+        }), stableJson({ "CORE-29": true, "CORE-40": [true, true], "CASE-66": true, "CASE-70": [true, true, false], "MAP-32": true, "CORE-38": true, "CORE-42": [true, true, true, false] }),
+            "{each finding: whether its fix stands in the source as read}");
+    }],
+    ["R8104 - every API function whose first parameter is the actor takes a name or an id there, a default and an options bag beside it included (1.2.122 line CORE; the audit of 1.2.118, CORE-44): api.mjs `actorPosition` answers 0 for gm-items.mjs `openItemManager(actor = null, { give = null } = {})`, the function game.drpg.manageItems hands on, as for `(actor, { quiet })` and `(actor)`, and -1 for an options bag alone", async () => {
+        /* Red at 21bf5d18: `actorPosition` was not exported, and it answered -1 for `actor = null, { ... } = {}`, so
+           manageItems("Aoi") reached openItemManager as a string. Pure: stand-in functions and the real one's text. */
+        const A = await import("./api.mjs");
+        must(typeof A.actorPosition === "function", "api.mjs exports no actorPosition");
+        const { openItemManager } = await import("./gm-items.mjs");
+        const read = [openItemManager, function a(actor = null, { give = null } = {}) {}, function b(actor, { quiet = false } = {}) {}, function c(actor) {},
+            function d({ actorId } = {}) {}, function e(name, actor) {}].map(fn => A.actorPosition(fn));
+        equal(stableJson(read), stableJson([0, 0, 0, 0, -1, 1]),
+            "[openItemManager, actor with a default and a bag, actor and a bag, actor alone, a bag alone, actor second] - where the actor is coerced");
+    }],
+    ["R8105 - Copy report says so when the copy fails (1.2.122 line CORE; the audit of 1.2.118, CTRL-69): diagnostics.mjs `openReport` with a clipboard that refuses warns the person once, in their language (`DRPG.Diagnose.copyFailed`), tells nothing of a copy, and brings the window back as before", async () => {
+        /* Red at 21bf5d18: the failure went to the console alone and the window came back as after a copy that worked.
+           The window, the clipboard and both notices are the test's stand-ins; nothing is posted. */
+        const D = await import("./diagnostics.mjs");
+        const answers = ["copy", "close"], told = [], warned = [], windows = [];
+        const result = await D.openReport("R8105 report text", {
+            wait: async config => { windows.push(Boolean(config)); return answers.shift() ?? null; },
+            copy: async () => { throw new Error("R8105 the clipboard refused"); },
+            notify: text => told.push(String(text)), warnUser: text => warned.push(String(text)), silences: []
+        });
+        equal(stableJson({ result, windows: windows.length, told, warned }),
+            stableJson({ result: "close", windows: 2, told: [], warned: [game.i18n.localize("DRPG.Diagnose.copyFailed")] }),
+            "{result: the button that closed it; windows: drawn; told: copy notices; warned: the failure said}");
+        ok(game.i18n.localize("DRPG.Diagnose.copyFailed") !== "DRPG.Diagnose.copyFailed", "DRPG.Diagnose.copyFailed has no text in this language");
+    }],
+    ["R8106 - Foundry's A/V window's two held fields say why they are greyed (1.2.122 line CORE; the audit of 1.2.118, CTRL-58): enforced.mjs `disableHeldAvFields`, held, gives the dock's box and each user's Pop out a title and a tooltip in this user's language (`DRPG.Enforced.avFieldHeld`), and nothing to a field it does not hold", async () => {
+        /* Red at 21bf5d18: the fields were disabled with no title or tooltip. A detached form of the window's field names. */
+        const E = await import("./enforced.mjs");
+        const form = document.createElement("form");
+        form.innerHTML = `<input type="checkbox" name="client.hideDock"><input type="checkbox" name="client.users.R8106A00000000000.popout"><input type="checkbox" name="client.voice.mode">`;
+        const count = E.disableHeldAvFields(form, { on: true });
+        const why = game.i18n.localize("DRPG.Enforced.avFieldHeld");
+        equal(stableJson({ count, fields: [...form.querySelectorAll("[name]")].map(f => [f.name, f.disabled, f.title === why, f.dataset.tooltip === why]),
+            worded: why !== "DRPG.Enforced.avFieldHeld" }),
+        stableJson({ count: 2, fields: [["client.hideDock", true, true, true], ["client.users.R8106A00000000000.popout", true, true, true], ["client.voice.mode", false, false, false]], worded: true }),
+            "{count: fields held; each field: [name, disabled, its title the reason, its tooltip the reason]; worded: the key has a text}");
+    }],
+    ["R8107 - two presses of the safeword open one confirmation (1.2.122 line CORE; the audit of 1.2.118, COMM-55): safeword.mjs `safewordDialog` asked again while its window stands opens no second window and answers false at once; once the first is closed the next press opens one again; nothing is posted", async () => {
+        /* Red at 21bf5d18: each press opened a window of its own (read on 14.370: "a fast double press opens two"). DialogV2.wait
+           held by a stand-in that keeps each window until the test answers it (as R1369); every window closed (null). */
+        const S = await import("./safeword.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const held = [];
+        const had = new Set(game.messages.map(m => m.id));
+        const read = {};
+        D.wait = config => new Promise(resolve => held.push({ config, resolve }));
+        try {
+            const first = S.safewordDialog(null);
+            await until(() => held.length >= 1, 3000);
+            const second = await Promise.race([S.safewordDialog(null), wait(3000).then(() => "unanswered")]);
+            await wait(50);
+            read.whileOpen = { windows: held.length, second };
+            held.shift()?.resolve(null);
+            read.first = await Promise.race([first, wait(3000).then(() => "unanswered")]);
+            const third = S.safewordDialog(null);
+            read.again = await until(() => held.length >= 1, 3000) ? held.length : 0;
+            held.shift()?.resolve(null);
+            await Promise.race([third, wait(3000)]);
+            read.posted = game.messages.filter(m => !had.has(m.id)).length;
+        } finally {
+            for (const w of held.splice(0)) w.resolve(null);
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+        }
+        equal(stableJson(read), stableJson({ whileOpen: { windows: 1, second: false }, first: false, again: 1, posted: 0 }),
+            "{whileOpen: windows standing and the second press's answer; first: the first window's answer closed; again: windows after a later press; posted}");
+    }],
+    ["R8108 - Document language's \"Not set yet\" is shown only while the language is not set, and never saved (1.2.122 line CORE; the audit of 1.2.118, CORE-43): settings-window.mjs `settingRowHtml(\"documentLanguage\")` on a world whose language is set draws no empty choice, and `fieldValue` answers nothing for an empty pick of it, so Save writes nothing; another select's empty choice is read as before", async () => {
+        /* Red at 21bf5d18: the empty choice was drawn whatever the world held, and `fieldValue` (then not exported) answered
+           "" for it, which Save wrote. Pure: the row's markup and the reader over detached fields. */
+        const W = await import("./settings-window.mjs");
+        must(typeof W.fieldValue === "function", "settings-window.mjs exports no fieldValue");
+        const reg = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.documentLanguage}`);
+        must(reg?.choices && Object.hasOwn(reg.choices, ""), "documentLanguage has no empty choice - this would measure nothing");
+        const stored = String(game.settings.get(MODULE_ID, SETTINGS.documentLanguage) ?? "");
+        const row = document.createElement("div");
+        row.innerHTML = W.settingRowHtml("documentLanguage");
+        const values = [...row.querySelectorAll("select option")].map(o => o.value);
+        const pick = (name, value) => { const f = document.createElement("select"); f.name = name; f.innerHTML = `<option value="${value}" selected>x</option>`; return f; };
+        equal(stableJson({ empty: values.includes(""), set: stored !== "", read: W.fieldValue(pick(SETTINGS.documentLanguage, ""), reg) ?? "nothing",
+            other: W.fieldValue(pick("R8108other", ""), { choices: { "": "a", b: "b" } }) }),
+        stableJson({ empty: stored === "", set: stored !== "", read: "nothing", other: "" }),
+            "{empty: the row offers the empty choice; set: the world's language is set; read: an empty pick of it as Save reads it; other: another select's empty choice}");
     }],
     ["R8050 - Foundry's token HUD holds only the controls kept (1.2.120 line H; the owner, 21.11.2026: \"Niepotrzebne jest: combat, target, movement action, assign status, liczby na gorze i na dole i elevation\"): token-hud.mjs `trimHudFor` on Daggerheart 2.12.8's tokenHUD.hbs as drawn for a GM leaves the floor's palette, bring to front, the companion's button, lock, the token's settings and visibility, with no input, status palette, movement palette, target or combat; as drawn for a player it leaves nothing, the HUD marked not to be drawn (the owner, 21.11.2026: \"Niech gracz nie ma menu tokena\")", async () => {
         /*

@@ -5917,6 +5917,7 @@
       "heldNothing": "Ustawienia Foundry zostały oddane, więc moduł nie trzyma teraz żadnego z nich: automatyki Vulnerable i Defeated z Daggerheart, uprawnienia do plików i pilnowane ustawienia graczy zostają takie, jakie są. Przejmij je znowu, żeby moduł grał tak, jak powinien, albo zostaw je oddane."
     },
     "Enforced": {
+      "avFieldHeld": "Kamery pokazuje kafelek głosu stołu, więc to pole zostaje bez zmian. GM może wyłączyć kafelek głosu w ustawieniach gry.",
       "filesPutBack": "Moduł cofnął zmianę uprawnień do plików. Dopóki włączone jest „Bez przeglądarki plików dla graczy”, Gracze i Zaufani Gracze nie mogą przeglądać ani wysyłać plików.",
       "filesFirstHold": "„Bez przeglądarki plików dla graczy” odebrało te uprawnienia: {lost}. Wyłączenie tego ustawienia ich nie przywróci. Nadaj je ponownie w uprawnieniach Foundry albo naciśnij „Oddaj ustawienia Foundry” w ustawieniach tego modułu.",
       "lost": {
@@ -6588,7 +6589,8 @@
       "speaker": "Monokuma",
       "storeFull": "Pamięć tej przeglądarki jest pewnie pełna: prywatne karty i klucze odpowiedzi przestają się tu zapisywać. Usuń stare wiadomości czatu, ale nie czyść danych strony, bo stracisz klucze odpowiedzi.",
       "tooLong": "Ta wiadomość ma ponad {kb} KB, więc jest za długa, by wysłać ją prywatnie. Podziel ją na krótsze.",
-      "wordsElsewhere": "Prywatna karta. Jej treść nie dotarła do tej przeglądarki."
+      "wordsElsewhere": "Prywatna karta. Jej treść nie dotarła do tej przeglądarki.",
+      "wordsHeldForReaders": "Prywatna karta dla jej odbiorców. Ta przeglądarka przechowuje jej treść dla nich."
     },
     "Legacy": {
       "safeword": "MISIUBOMBO"
@@ -7150,6 +7152,7 @@
       "intro": "Wszystko, co moduł potrafi tu sprawdzić, w jednym tekście. Skopiuj go i wyślij osobie, która ci pomaga.",
       "copy": "Kopiuj raport",
       "copied": "Raport jest w schowku. Wklej go (Ctrl+V) tam, gdzie ma trafić.",
+      "copyFailed": "Nie udało się skopiować raportu. Zaznacz jego tekst w oknie i skopiuj go klawiszami Ctrl+C.",
       "gmOnly": "Tę część raportu sprawdza tylko przeglądarka GM-a. Zbierz raport w przeglądarce GM-a, żeby ją zobaczyć.",
       "silencesTitle": "Wyciszone przez ciebie ostrzeżenia",
       "showAgain": "Pokaż znowu",

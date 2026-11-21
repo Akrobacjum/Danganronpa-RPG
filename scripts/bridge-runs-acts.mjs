@@ -49,6 +49,8 @@ import { tellUsesOf } from "./facility-uses.mjs";
     // which Remnants are in the room, what they are, what the difficulty is -
     // is exactly what the observer must not know. See observe.mjs.
 export async function handleObserveTarget(payload, sender, ctx) {
+    // An unknown declaration arrives null (the row's `as.oneOf`; CASE-61) and is refused, never read as General.
+    if (!payload.declaration) return { refused: "that is not a way of looking an Observe knows" };
     const { chooseObserveTarget } = await import("./observe.mjs");
     const result = await chooseObserveTarget({
         actorId: payload.actorId,

@@ -440,7 +440,10 @@ const HELD_AV_FIELDS = '[name="client.hideDock"], [name^="client.users."][name$=
 
 /**
  * The fields of the A/V Config window the `rtc` row holds are disabled while it
- * is held, so a player is not offered a choice that springs back (D19).
+ * is held, so a player is not offered a choice that springs back (D19), and each
+ * says why in its title and tooltip (`DRPG.Enforced.avFieldHeld`; 1.2.122, the
+ * audit of 1.2.118, CTRL-58: until then two greyed boxes with no word). Whether
+ * v14's own A/V window draws a reason of its own is not read (LIVE-E19-06).
  *
  * @returns {number} how many fields were disabled.
  */
@@ -448,7 +451,12 @@ export function disableHeldAvFields(root, { on = false } = {}) {
     const el = root?.querySelectorAll ? root : root?.[0];
     if (!on || !el?.querySelectorAll) return 0;
     const fields = [...el.querySelectorAll(HELD_AV_FIELDS)];
-    for (const field of fields) field.disabled = true;
+    const why = game.i18n.localize("DRPG.Enforced.avFieldHeld");
+    for (const field of fields) {
+        field.disabled = true;
+        field.title = why;
+        field.dataset.tooltip = why;
+    }
     return fields.length;
 }
 

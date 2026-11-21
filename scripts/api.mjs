@@ -1665,17 +1665,20 @@ export function asActor(value, key = "", actors = game.actors) {
     return actors.getName(value) ?? named[0];
 }
 
-/** Which positional parameter, if any, is the actor. */
-function actorPosition(fn) {
+/** Which positional parameter, if any, is the actor. Exported for R8104 (1.2.122). */
+export function actorPosition(fn) {
     try {
         const src = Function.prototype.toString.call(fn);
         const open = src.indexOf("(");
         if (open < 0) return -1;
         const params = src.slice(open + 1, src.indexOf(")", open));
         // Destructured or defaulted parameters are left alone: `{actorId}` is an
-        // options bag, not an actor, and must not be coerced.
+        // options bag, not an actor, and must not be coerced. A first parameter
+        // named `actor` is the actor with a default or without one (1.2.122; the
+        // audit of 1.2.118, CORE-44): `openItemManager(actor = null, { give } = {})`
+        // was handed on unwrapped, so manageItems("Aoi") reached it as a string.
         if (params.includes("{")) {
-            const flat = params.split(",").map(p => p.trim());
+            const flat = params.split(",").map(p => p.split("=")[0].trim());
             return flat[0] === "actor" ? 0 : -1;
         }
         return params.split(",").map(p => p.split("=")[0].trim()).indexOf("actor");

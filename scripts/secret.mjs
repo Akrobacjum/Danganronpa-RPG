@@ -125,9 +125,22 @@ const WORDS_CEILING_MS = 4000;
  * What a card whose words never came here shows instead of the stub: the stub's own mark
  * (so `isStub` still says no words are held) around DRPG.Secret.wordsElsewhere.
  */
-function elsewhereHtml() {
-    const line = foundry.utils.escapeHTML(game.i18n?.localize("DRPG.Secret.wordsElsewhere") ?? "");
+function elsewhereHtml(message = null) {
+    const key = heldForReaders(message) ? "DRPG.Secret.wordsHeldForReaders" : "DRPG.Secret.wordsElsewhere";
+    const line = foundry.utils.escapeHTML(game.i18n?.localize(key) ?? "");
     return `<p class="notes" data-drpg-secret>${line}</p>`;
+}
+
+/**
+ * Whether this browser keeps `message`'s words for its readers and does not read them itself (E38's `authorHold`: a GM's
+ * card to players alone). Such a card was drawn "Its words did not reach this browser" after its wait, which was false on
+ * the one browser that holds them and read like a failed delivery (1.2.122; the audit of 1.2.118, CORE-39); it is drawn
+ * with a line of its own (`DRPG.Secret.wordsHeldForReaders`), at once. Exported for R8109.
+ */
+export function heldForReaders(message) {
+    if (!message?.id || !message.flags?.[MODULE_ID]?.[SECRET_FLAG]) return false;
+    const entry = read()[message.id];
+    return Boolean(entry?.authorHold && (!entry.user || entry.user === game.user?.id));
 }
 
 /**
@@ -820,7 +833,7 @@ export function wordsOf(message, ms = WORDS_CEILING_MS) {
             else waiting.delete(message.id);
             /* A NOTICE THAT WAITED IN VAIN SAYS SO (E18 C4): it drew the stub's dash. Still the stub's mark, so a
                reader asking `isStub` of the answer (the Chat pip's) reads that no words came. */
-            resolve(html ?? (isStub(message.content) ? elsewhereHtml() : message.content ?? ""));
+            resolve(html ?? (isStub(message.content) ? elsewhereHtml(message) : message.content ?? ""));
         };
         const timer = setTimeout(() => {
             debug(`Secret cards: the words for ${message.id} never arrived; `
@@ -967,6 +980,12 @@ function writtenByGm(message) {
  * words of none of its cards - up to `secretCardsKept` of them - and each would land in the middle of the
  * screen and in the history at once. Only the newest `RETURN_NOTICES` of an ask raise one; the rest are
  * read where they are, in the chat log and the messenger. A choice of this commit's, not a measurement.
+ *
+ * THE SLOTS GO TO THE CARDS ANSWERED (1.2.122; the audit of 1.2.118, CORE-40). A veiled card is addressed to everyone,
+ * so a returning player asks for every veiled card it has no words for, its own and every other participant's; the GMs
+ * answer only its own. The slots went to the newest of all it asked, so after an incident full of veiled cards to others
+ * the player's own returned cards raised none. Now every card asked may raise one, and the first `RETURN_NOTICES`
+ * answered do (`returnNoticesLeft`, set again at each ask).
  */
 const ACTION_REQUEST = "secret.request";
 /** gm-bridge.mjs's "a GM's world has loaded" (`ACTION_GM_READY`), spelled here: that file imports this one. */
@@ -977,8 +996,10 @@ const REQUEST_BATCH = 100;
 const RETURN_NOTICES = 8;
 /** Cards this browser asked the GMs for whose words have not come yet. */
 const asked = new Set();
-/** Of those, the ones whose words raise a notice when they come (`RETURN_NOTICES`). */
+/** Of those, the ones whose words may raise a notice when they come; the first `RETURN_NOTICES` answered do. */
 const noticeOnReturn = new Set();
+/** How many of this ask's answers may still raise a notice (`RETURN_NOTICES` at each ask). */
+let returnNoticesLeft = 0;
 /** Cards whose words did not come by the end of their wait: drawn with `elsewhereHtml`. */
 const unfilled = new Set();
 /** Cards a wait is running for, so a card drawn again starts no second one. */
@@ -1028,8 +1049,8 @@ export function askForWords(gmUserIds = null) {
     const mine = stubs.filter(m => (m.whisper ?? []).includes(me)).map(m => m.id);
     if (gms.length && mine.length) {
         for (const id of mine) asked.add(id);
-        const newest = stubs.filter(m => mine.includes(m.id)).sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
-        for (const m of newest.slice(0, RETURN_NOTICES)) noticeOnReturn.add(m.id);
+        for (const id of mine) noticeOnReturn.add(id);
+        returnNoticesLeft = RETURN_NOTICES;
         for (let i = 0; i < mine.length; i += REQUEST_BATCH) {
             game.socket.emit(SOCKET_EVENT, { action: ACTION_REQUEST, ids: mine.slice(i, i + REQUEST_BATCH) }, { recipients: gms });
         }
@@ -1089,7 +1110,8 @@ async function cardOnReturn(id) {
     if (!asked.delete(id)) return false;
     if (!noticeOnReturn.delete(id)) return false;
     const message = game.messages?.get(id);
-    if (!message) return false;
+    if (!message || returnNoticesLeft <= 0) return false;
+    returnNoticesLeft -= 1;
     // Imported here: popup.mjs imports this file, and a static import back is the cycle R161 fails.
     const { onCreateChatMessage } = await import("./popup.mjs");
     await onCreateChatMessage(message);
@@ -1120,8 +1142,10 @@ export function drawPrivateCard(message, element) {
         if (isVeiled(message)) {
             element.classList.add("drpg-veiled");
             element.style.display = "none";
+        } else if (heldForReaders(message)) {
+            body.innerHTML = elsewhereHtml(message);
         } else if (wordless(message)) {
-            if (unfilled.has(message.id)) body.innerHTML = elsewhereHtml();
+            if (unfilled.has(message.id)) body.innerHTML = elsewhereHtml(message);
             else giveUpLater([message]);
         }
         trim();
@@ -1139,7 +1163,7 @@ export function drawPrivateCard(message, element) {
  * Not `contentOf` itself, whose callers rewrite a card from what it reads (call-gm.mjs `keepRuling`).
  */
 export function shownWordsOf(message) {
-    return unfilled.has(message?.id) && wordless(message) ? elsewhereHtml() : contentOf(message);
+    return (heldForReaders(message) || unfilled.has(message?.id)) && wordless(message) ? elsewhereHtml(message) : contentOf(message);
 }
 
 /** A card the store must never age out: a messenger thread's. */

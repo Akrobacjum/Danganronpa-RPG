@@ -50,7 +50,7 @@
  *
  * THE TRIAL HALL (E79 C11, 1.2.79; the owner's N6 of 14.10.2026). In a Class Trial the tile was an empty pane
  * (`viewerRoom`'s `trial`), and the owner read it as broken. Now it shows the hall, the same for everybody: the
- * name, picture and words the GMs gave the linked hall in Room Setup's Scenes tab (trial-scene.mjs `hallRoom`,
+ * name, picture and words the GMs gave the linked hall in Season setup's Scenes part (trial-scene.mjs `hallRoom`,
  * the one reader of them), or the trial's own label when no name is set (`hallView`). They are drawn as a
  * room's are - text only, the picture through `safeRoomImage` again - with no search tokens and no project,
  * which a hall does not have. A GM's change of them repaints the tile (`updateScene` of the hall).

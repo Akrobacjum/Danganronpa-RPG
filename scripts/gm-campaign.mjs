@@ -23,7 +23,7 @@ import { SETTINGS } from "./settings.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { resetAllActions } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
-import { error, esc, wholeNumber } from "./utils.mjs";
+import { error, esc, wholeNumber, isPrimaryGm, primaryGmId } from "./utils.mjs";
 import { stepper, stepperId, drpgWindow, drpgConfirm, formGrid, helpText, box, roleButton, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
 import { alreadyOpen, RAISED } from "./live.mjs";
 import { trialScene } from "./rooms.mjs";
@@ -82,17 +82,47 @@ async function confirmCorrection(titleKey, textKey, more = "") {
  * it: a time of day moved on the HUD, a trial started (a phase back to Investigation can end the floor, clock.mjs
  * `reconcilePhase`) or another GM's safeword written while the window stood open was undone with no question. A field the
  * GM changed is written as before, with the questions `applyCampaignForm` asks. Pure but for `getClock`.
+ *
+ * AND THE NAMES OF WHAT WAS LEFT, FOR THE WRITE (1.2.122 line CORE; REFR-02's rest, LIVE-R121-02 "Nie zrobione"). The value
+ * taken at the press is still a value of the press: `applyCampaignForm` asks its questions (a chapter moved, the trial
+ * entered) before it writes, and a GM may leave one open for a minute, so a time of day another GM or the HUD moved while
+ * the question stood was written back, and a safeword set meanwhile overwritten. So the answer also carries, under
+ * `KEPT_FIELDS` (a symbol: a spread keeps it, a JSON reading of the answer does not see it), the names of the fields left
+ * as drawn, and the write takes each of those from the world as it stands just before it (`applyCampaignForm`; Season
+ * setup's safeword likewise). R8100.
  */
+export const KEPT_FIELDS = Symbol("drpg.keptFields");
 export function untouchedKept(form, result, { clock = getClock(), safeword = undefined } = {}) {
     const out = { ...result };
+    const kept = [];
     const field = name => form?.querySelector?.(`[name="${name}"]`) ?? null;
     for (const name of ["campaignName", "chapter", "day", "phase", "session", "timeOfDay"]) {
         const el = field(name);
         if (!el || changedField(el) || clock?.[name] === undefined || clock?.[name] === null) continue;
         out[name] = clock[name];
+        kept.push(name);
     }
-    if (safeword !== undefined && field("safeword") && !changedField(field("safeword"))) out.safeword = safeword;
+    if (safeword !== undefined && field("safeword") && !changedField(field("safeword"))) {
+        out.safeword = safeword;
+        kept.push("safeword");
+    }
+    out[KEPT_FIELDS] = kept;
     return out;
+}
+
+/**
+ * WHETHER THIS GM MAY END THE CHAPTER, ASKED AT THE PRESS (1.2.122 line CORE; the audit of 1.2.118, CTRL-86). End the chapter
+ * closed Edit campaign (and Season setup) without its Apply and asked "End the chapter now?" before chapter.mjs told a GM
+ * who is not the primary that only the primary ends a chapter - what was typed was gone and a destructive question
+ * answered for nothing. Now the press asks first, with chapter.mjs's own words (`DRPG.Chapter.endPrimaryOnly`), and on a
+ * GM who is not the primary the window stays as it is. chapter.mjs still refuses on its own road. Answers whether the
+ * press may go on. `primary` stands in for `isPrimaryGm()` (R8100 asks it as a GM who is not the primary).
+ */
+export function mayEndChapterHere({ primary = isPrimaryGm() } = {}) {
+    if (primary) return true;
+    const name = game.users.get(primaryGmId())?.name ?? "?";
+    ui.notifications?.warn(game.i18n.format("DRPG.Chapter.endPrimaryOnly", { name }));
+    return false;
 }
 
 /** Whether a form field holds other than what it was drawn with: a select's choice, a box's tick, a field's text. */
@@ -296,6 +326,7 @@ export async function openClockDialog({ roads = {} } = {}) {
             followCampaignFields(dialog);
             dialog.element.querySelector("[data-drpg-end-chapter]")?.addEventListener("click", ev => {
                 ev.preventDefault();
+                if (!mayEndChapterHere()) return;
                 endAsked = true;
                 dialog.close();
             });
@@ -352,12 +383,16 @@ export async function applyCampaignForm(result) {
      * nothing happened is a warning a GM stops reading.
      *
      * Compared against the clock as it stands at the moment of the write, not the
-     * one this window was built from: it is not a live window, and a GM may leave
-     * it open while somebody starts an Eclipse or the time of day turns. The
-     * session counter and the phase are deliberately not in the comparison - they
-     * are bookkeeping, not time.
+     * one this window was built from: a GM may leave it open (or leave one of the
+     * questions below open) while somebody starts an Eclipse or the time of day
+     * turns. Since the line claude/setup-120 the window's untouched fields follow the
+     * clock (`followCampaignFields`), and since 1.2.122 a field left as drawn is
+     * taken from the clock just before the write (`KEPT_FIELDS`), so `moved` reads
+     * the fields this write sets. The session counter and the phase are
+     * deliberately not in the comparison - they are bookkeeping, not time.
      */
     const before = getClock();
+    const kept = new Set(result?.[KEPT_FIELDS] ?? []);
 
     /* THE PHASE SELECT IS A DOOR INTO A TRIAL TOO (E10 C11, 1.2.71; audit S06-33; D17). Moving it to
        Class Trial in a chapter whose trial has a verdict blanks that verdict (`reconcilePhase`), so it
@@ -379,7 +414,7 @@ export async function applyCampaignForm(result) {
        before the trial's question, so that question reads the chapter actually written. Measured in tier 2
        "Edit campaign asks before it changes the chapter or opens the trial and Cancel applies the rest". */
     let chapter = result.chapter;
-    if (chapter !== Number(getClock().chapter)
+    if (!kept.has("chapter") && chapter !== Number(getClock().chapter)
         && !(await confirmCorrection("DRPG.Clock.chapterCorrectTitle", "DRPG.Clock.chapterCorrect"))) {
         chapter = getClock().chapter;
     }
@@ -392,7 +427,7 @@ export async function applyCampaignForm(result) {
        write activates the hall as Start the Class Trial's does, and the question named only the budget and the
        charge. One sentence, only when a hall is linked - with none the table stays. Scenario 41 d1 reads it. */
     let phase = result.phase;
-    if (phase === "classTrial" && getClock().phase !== "classTrial") {
+    if (!kept.has("phase") && phase === "classTrial" && getClock().phase !== "classTrial") {
         const hall = trialScene();
         const moves = hall ? game.i18n.format("DRPG.TrialScene.phaseSwitchesScene", { hall: esc(hall.name) }) : "";
         if (isEclipse()) {
@@ -425,6 +460,11 @@ export async function applyCampaignForm(result) {
         session: result.session,
         timeOfDay: result.timeOfDay
     };
+    /* WHAT THE GM LEFT AS DRAWN IS THE WORLD'S AT THE WRITE (1.2.122; `untouchedKept`'s KEPT_FIELDS): read here, with
+       nothing awaited between this and `setClock`, so a time of day, a chapter or a phase another writer moved while a
+       question above stood open is not written back. */
+    const now = getClock();
+    for (const name of kept) if (name in patch && now?.[name] !== undefined && now?.[name] !== null) patch[name] = now[name];
     // Before the write, as the rewind's: the write's own `onChange` reaches the primary GM's `runPendingGather`
     // before a line after it would run. See `correctsTheHour`.
     if (correctsTheHour(getClock(), patch)) {
@@ -433,9 +473,11 @@ export async function applyCampaignForm(result) {
 
     await setClock(patch);
 
-    const moved = result.timeOfDay !== before.timeOfDay
-        || result.day !== (before.day ?? 1)
-        || chapter !== before.chapter;
+    // A field taken from the world at the write is not this write's move (1.2.122).
+    const moves = (name, was) => !kept.has(name) && patch[name] !== was;
+    const moved = moves("timeOfDay", before.timeOfDay)
+        || moves("day", before.day ?? 1)
+        || moves("chapter", before.chapter);
     if (before.eclipse && moved) {
         ui.notifications.warn(game.i18n.localize("DRPG.Clock.eclipseStillOn"));
     }

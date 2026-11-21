@@ -559,11 +559,12 @@ export function requestSabotage(targetId, difficulty, { rollId = null, actorId =
 }
 
 /**
- * Taking a sabotage back writes the same two settings. It is only ever called by
- * Reroll, after the Call has already been paid for and the new roll is about to
- * replace the old effect, so the player has nothing to race against; it waits
- * for the thaw all the same, because the Reroll says the sabotage was undone
- * only once it was (E31 review).
+ * Taking a sabotage back, asked of the primary GM: a road that is only ever refused (1.2.122; the audit of 1.2.118,
+ * CORE-35). Its one caller is projects.mjs `undoSabotage`'s player branch (`!game.user.isGM`), and since E08+E28 C8 the
+ * row is a GM's alone (`gmOnly("an undo is the GM's own Reroll's")`): the Reroll is made on the GM (E08) and calls
+ * `undoSabotage` there, which writes locally and never asks this. So a player's call is refused `undoIsTheGms`, and
+ * `handleUnsabotage` runs only for a packet 30-security forges, which is why the row and this ask stay. Until 1.2.122
+ * this said the Reroll called it, from a player's browser, after the Call was paid.
  */
 export function requestUndoSabotage(targetId, repairId, actorId = null) {
     return ask(ACTION_UNSABOTAGE, { targetId, repairId, actorId });
@@ -658,9 +659,12 @@ export function requestRemnant(data, rollId = null) {
 }
 
 /**
- * Retune or remove a Remnant a player's own action left behind - a reroll has
- * changed how well they hid it, or removed the reason for the trace entirely.
- * Editing tokens is GM-only, same as creating them.
+ * Retune or remove a Remnant, asked of the primary GM: a road that is only ever refused (1.2.122; the audit of 1.2.118,
+ * CORE-35). Its one caller is remnants.mjs `retuneRemnant`'s player branch (`!game.user.isGM`), and every caller of
+ * `retuneRemnant` is a GM's (the Reroll, a handover, the clean-up's reshape), which writes locally. Since E08+E28 C8 the
+ * row is a GM's alone (`gmOnly("an undo is the GM's own Reroll's")`), so a player's call is refused `undoIsTheGms`, and
+ * `handleRemnantEdit` runs only for a packet 30-security forges, which is why the row and this ask stay. Until 1.2.122
+ * this said a player's reroll retuned the trace through it.
  */
 export function requestRemnantEdit(sceneId, tokenId, patch) {
     return ask(ACTION_REMNANT_EDIT, { sceneId, tokenId, patch });
@@ -821,9 +825,10 @@ export function requestTraitRuling({ actorId, kind, key, variant = null, propose
  * ONE OF THE TWO REQUESTS THAT ANSWER THEIR VALUE, NOT THE BRIDGE'S RESULT
  * (E31), with `requestCleanableTraces`: the GM's `{ ok, key?, reason? }`, or
  * null when the request was not carried out, which has been said once already
- * with "Nothing was spent.". Its callers and 30-security read `.ok` and `.key`
- * off it, and the GM's own `ok: false` (an empty room, a declaration it does not
- * know) is a ruling, told apart from null.
+ * with `DRPG.Bridge.nothingSpent`. Its callers and 30-security read `.ok` and `.key`
+ * off it, and the GM's own `ok: false` (an empty room, no room) is a ruling, told
+ * apart from null; a declaration it does not know is refused by the bridge
+ * (`badRequest`, 1.2.122), so it answers null.
  *
  * @returns {Promise<{ok: boolean, key?: string, reason?: string}|null>}
  */

@@ -454,7 +454,8 @@ export async function wipeStudent(actor, key, { left = null } = {}) {
             const { reviveCharacter } = await import("./chapter.mjs");
             const { setMonocub } = await import("./monocub.mjs");
             // Quiet (E51 C6; audit S06-46): the reset's own report says what it did, not a toast per Monocub.
-            if (actor.getFlag(MODULE_ID, "monocub")) await setMonocub(actor, false, { quiet: true });
+            // No Spectator made for the revive on the next line to take away (1.2.122; CASE-66), as the Students window passes it.
+            if (actor.getFlag(MODULE_ID, "monocub")) await setMonocub(actor, false, { quiet: true, watcher: false });
             if (isDeceased(actor)) await reviveCharacter(actor, { quiet: true, silent: true });
             // Everybody comes back whole, the living too: `reverse` resources, 0 is unharmed.
             await trustedWrite(actor, { "system.resources.hitPoints.value": 0, "system.resources.stress.value": 0 },
