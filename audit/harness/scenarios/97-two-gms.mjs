@@ -30,7 +30,8 @@
  *      its shading) at once and after gm's reload, and p1's copy (J1).
  *   K  1.2.121 line M1 (the audit's CORE-20 residue, N119-4): a card rewritten naming Chie while her mask stood, gm2 and
  *      p2 away; the time of day ends the mask, gm2 fetches the words, gm leaves, and gm2 serves p2 with Chie "?" (K1);
- *      gm2's own rewrite reaches p2 cut too (K2). Red at e515907d: K1 and K2 named her.
+ *      gm2's own rewrite reaches p2 cut too (K2). Red at e515907d: K1 and K2 named her. And her reveal on gm reaches
+ *      gm2, connected, which forgets the same masked rows (K4; 1.2.122 line CORE, r121-M-3; red at 21bf5d18).
  *
  * What this cannot see: a real F5 (a new process with the old localStorage, no cookie, IndexedDB or cache; the
  * order of "inactive", "active" and `ready` on v14 is LIVE-E30-05 and LIVE-E04-12), and a real server's delivery
@@ -574,6 +575,15 @@ export async function run(api) {
         return got;`);
     check("K3: gm's rewrite of the card after the mask ended sends gm2 the masked rows it kept (Chie's)",
         toGm2K.length > 0 && toGm2K.every(ids => J(ids) === J([IDS.chie])), J(toGm2K));
+    /* K4 (1.2.122 line CORE; the audit of 1.2.121, r121-M-3): Chie reveals herself on gm (mask-gm.mjs `endMask` calls
+       secret.mjs `forgetHeldMask` with `tell`), and gm2 - connected - forgets the same rows, so its next serve names her.
+       Red at 21bf5d18: gm2 kept Chie's row, and the name stayed "?" on every card it served. */
+    const heldOn = c => c.eval(`${CARD_K} return (game.settings.get("${MOD}", "secretCards")?.[card()?.id]?.hid ?? []).map(r => r.id);`);
+    const heldBefore = await heldOn(gm2);
+    await gm.eval(`const S = ${imp("secret.mjs")}; await S.forgetHeldMask("${IDS.chie}", { tell: true }); return true;`);
+    const heldAfter = await until(() => heldOn(gm2), ids => !ids.includes(IDS.chie), 6000);
+    check("K4: a reveal on gm takes the revealed killer off the masked rows gm2 keeps (r121-M-3)",
+        J(heldBefore) === J([IDS.chie]) && Array.isArray(heldAfter) && !heldAfter.includes(IDS.chie), J({ heldBefore, heldAfter }));
     await gm.eval(`${CARD_K} await card()?.delete(); return true;`);
     await settle(800);
 
