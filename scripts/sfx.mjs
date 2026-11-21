@@ -652,7 +652,14 @@ function soundEffectsTableParts() {
     return soundEffectsTable(table, groups);
 }
 
-/** Which rows have their list of files open, on this page: a redraw of the tab draws them open again. */
+/*
+ * Which rows have their list of files open, on this page: a redraw of the tab draws them open again, and so does the Sound
+ * window opened again. ON PURPOSE, AND WHY A PROBE READS IT AS STALE (1.2.123; the audit's probe 43 on 1.2.121, entry
+ * `sound--files`): probe 08's entry presses the Monocub row's chip on every opening, and the chip toggles this set, so
+ * each fresh opening shows the fold the last press left, flipped. In all 14 changes of the probe's run the undo's LIVE
+ * reading equals the apply's FRESH one and only the controls differ (probe-43-121.json, read 21.11.2026): the standing
+ * window did not move with the world, and nothing in the world moves the fold.
+ */
 const openFileLists = new Set();
 
 /** A path's last part, the name a GM knows a file by (the whole path is the name's tooltip). */

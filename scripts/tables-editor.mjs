@@ -721,7 +721,7 @@ function newItemPaneHtml(preset, presetTargets, roomTablesList, draft = null) {
                          class="drpg-tables-preview" />
                     <input type="hidden" name="img.new" value="${esc(draft?.img || preset?.img || "")}" />
                     <label>${game.i18n.localize("DRPG.Items.name")}
-                        <input type="text" name="newName" value="${esc(draft?.name ?? preset?.name ?? "")}"${tipAttr("DRPG.Tips.Sweep.Setup.newItemNameTooltip")}
+                        <input type="text" name="newName" value="${esc(draft?.name ?? preset?.name ?? "")}" data-drpg-prefill="${esc(draft?.name == null ? preset?.name ?? "" : "")}"${tipAttr("DRPG.Tips.Sweep.Setup.newItemNameTooltip")}
                                placeholder="${esc(game.i18n.localize("DRPG.Items.namePlaceholder"))}" /></label>
                 </div>
                 ${itemPictureGrid(draft?.img || preset?.img || "")}
@@ -1488,9 +1488,17 @@ export async function openItemTables({ preset = null, poolError = null, draft = 
         /* A CARD'S PRESET REACHES AN OPEN WINDOW (1.2.122, the audit's CTRL-25): raised as it stood, the window dropped the
            card's category, tier, room and name and the GM retyped them. Its rows save as they change, so the one thing
            a close can lose is what was typed in Add an item: with nothing there, the window is opened again on the
-           preset; with something, it stays as it is, and the GM is told the card's details were not carried. */
+           preset; with something, it stays as it is, and the GM is told the card's details were not carried.
+           WHAT A CARD FILLED IN IS NOT TYPED (1.2.123, the audit's r122-G-1): the name box is filled from the preset, so
+           tables one card opened held that card's want and a second card's press found it "typed" and was refused. A
+           field counts as typed when it differs from what the window filled it with (`data-drpg-prefill`: the preset's
+           name; empty for a draft, which is the GM's own typing, and for the description, which no preset fills). */
         const open = [...foundry.applications.instances.values()].find(app => app.options?.classes?.includes("drpg-window-tables"));
-        const typed = ["newName", "newText"].some(name => String(open?.element?.querySelector(`[name="${name}"]`)?.value ?? "").trim());
+        const typed = ["newName", "newText"].some(name => {
+            const field = open?.element?.querySelector(`[name="${name}"]`);
+            const now = String(field?.value ?? "").trim();
+            return Boolean(now) && now !== String(field?.dataset?.drpgPrefill ?? "").trim();
+        });
         if (typed || !open) {
             ui.notifications.warn(game.i18n.localize("DRPG.Items.tablesOpenNoPreset"));
             return RAISED;

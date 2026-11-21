@@ -75,9 +75,13 @@ export async function sealRoom(room) {
  * (`sealPeriod`).
  */
 export async function liftSeal(room) {
-    const sealed = sealedRooms();
-    if (!game.user?.isGM || !room || !sealed.includes(room)) return 0;
-    return (await writeWorld(SETTINGS.sealedRooms, sealed.filter(name => name !== room))) ? 1 : 0;
+    if (!game.user?.isGM || !room) return 0;
+    // In the queue the seals are written in (1.2.123, the audit's r122-G-7): read where it writes (`inCallWorldQueue`).
+    return inCallWorldQueue(async () => {
+        const sealed = sealedRooms();
+        if (!sealed.includes(room)) return 0;
+        return (await writeWorld(SETTINGS.sealedRooms, sealed.filter(name => name !== room))) ? 1 : 0;
+    });
 }
 
 /**
@@ -100,11 +104,14 @@ export function sealPeriod() {
  * seal moved, else 0.
  */
 export async function carrySealedRoom(from, to, stillStands = false) {
-    const sealed = sealedRooms();
-    if (!game.user?.isGM || !from || !to || from === to || !sealed.includes(from)) return 0;
-    const next = new Set(sealed.filter(room => stillStands || room !== from));
-    next.add(to);
-    return (await writeWorld(SETTINGS.sealedRooms, Array.from(next))) ? 1 : 0;
+    if (!game.user?.isGM || !from || !to || from === to) return 0;
+    return inCallWorldQueue(async () => {
+        const sealed = sealedRooms();
+        if (!sealed.includes(from)) return 0;
+        const next = new Set(sealed.filter(room => stillStands || room !== from));
+        next.add(to);
+        return (await writeWorld(SETTINGS.sealedRooms, Array.from(next))) ? 1 : 0;
+    });
 }
 
 /** Per-actor restrictions: { [actorId]: { silenced, chained, room } }. */
@@ -166,9 +173,20 @@ function onPrimaryElsewhere() {
  * `{ kind: "restrict", actorId, silenced, chained, room }` merged into that student's row as `restrict` always merged its
  * patch (a Chain's room with it). The primary's (the bridge's run, or its own Call) and a lone GM's. Answers whether it wrote.
  */
+/*
+ * EVERY WRITER OF THE TWO SETTINGS IN ONE QUEUE (1.2.123, the audit's r122-G-7). COMM-26 queued Seal, Silence and Chain,
+ * but a breach's lift, a rename's carry, the time of day's clear and the boundary's put-back read and wrote the same two
+ * settings beside the queue, so a lift and a seal started together each read the list before the other wrote it, and the
+ * lifted room came back (measured on the harness: the tier-2 test "1.2.123 r122-G-7", red at 14bb0d92). Each now reads
+ * inside its step, after the step before it wrote. On one browser: a GM's write elsewhere still reaches it by the setting.
+ */
+function inCallWorldQueue(step) {
+    return serialWrite("drpg-call-world", step);
+}
+
 export function writeCallWorld({ kind, room = null, actorId = null, silenced = false, chained = false } = {}) {
     if (!game.user?.isGM) return Promise.resolve(false);
-    return serialWrite("drpg-call-world", async () => {
+    return inCallWorldQueue(async () => {
         if (kind === "seal") {
             if (!room) return false;
             const current = new Set(sealedRooms());
@@ -196,11 +214,13 @@ export function writeCallWorld({ kind, room = null, actorId = null, silenced = f
  */
 export async function clearSeals() {
     if (!game.user.isGM) return null;
-    if (!sealedRooms().length && !Object.keys(restrictions()).length) return false;
-    await game.settings.set(MODULE_ID, SETTINGS.sealedRooms, []);
-    await game.settings.set(MODULE_ID, SETTINGS.restrictions, {});
-    await announceRestrictions();
-    return true;
+    return inCallWorldQueue(async () => {
+        if (!sealedRooms().length && !Object.keys(restrictions()).length) return false;
+        await game.settings.set(MODULE_ID, SETTINGS.sealedRooms, []);
+        await game.settings.set(MODULE_ID, SETTINGS.restrictions, {});
+        await announceRestrictions();
+        return true;
+    });
 }
 
 /**
@@ -232,10 +252,12 @@ registerSeasonState({ group: "assembly", clear: clearSeasonAssembly, settings: [
  */
 export async function putBackSeals({ sealed = [], restrictions: held = {} } = {}) {
     if (!game.user.isGM) return null;
-    await game.settings.set(MODULE_ID, SETTINGS.sealedRooms, [...(sealed ?? [])]);
-    await game.settings.set(MODULE_ID, SETTINGS.restrictions, foundry.utils.deepClone(held ?? {}));
-    await announceRestrictions();
-    return true;
+    return inCallWorldQueue(async () => {
+        await game.settings.set(MODULE_ID, SETTINGS.sealedRooms, [...(sealed ?? [])]);
+        await game.settings.set(MODULE_ID, SETTINGS.restrictions, foundry.utils.deepClone(held ?? {}));
+        await announceRestrictions();
+        return true;
+    });
 }
 
 /**

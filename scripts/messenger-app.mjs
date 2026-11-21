@@ -1509,7 +1509,7 @@ async function ruleCubHope(action, data) {
 export async function runCallAction(action, data, message = null) {
     const rule = CARD_ACTIONS[action];
     if (!rule) return null;
-    if (message && actsOnCardCharacter(action) && !writerOwns(message, data?.by)) {
+    if (message && actsOnCardCharacter(action) && !writerOwns(message, data?.[CARD_CHARACTER_FIELD[action] ?? "by"])) {
         ui.notifications.warn(game.i18n.localize("DRPG.Bridge.notTheirCharacter"));
         return settled("DRPG.Bridge.settledNotTheirs");
     }
@@ -1526,8 +1526,16 @@ export async function runCallAction(action, data, message = null) {
 const CARD_CHARACTER_RULINGS = Object.freeze(new Set(["itemWorks", "itemNoEffect", "itemRefuse", "declineProject", "reply",
     "searchMiss", "observeMiss", "decline", "giveItem"]));
 
+/*
+ * AND THE TWO THAT NAME THEIR CHARACTER ANOTHER WAY (1.2.123, the audit's r122-G-3, the rest of COMM-21). Give and Not now
+ * on a Monocub's Ask for Hope read `data.actor`, not `data.by`, and were in no list: a card a player's console posted
+ * naming a friend's Monocub turned a GM's press into the GM's Despair as that Monocub's Hope. The module's own Ask card is
+ * a GM's (monocub.mjs `postHopeAsk` runs on a GM), so it passes `writerOwns` as before.
+ */
+const CARD_CHARACTER_FIELD = Object.freeze({ cubGiveHope: "actor", cubNotNow: "actor" });
+
 function actsOnCardCharacter(action) {
-    return CARD_CHARACTER_RULINGS.has(action);
+    return CARD_CHARACTER_RULINGS.has(action) || Object.hasOwn(CARD_CHARACTER_FIELD, action);
 }
 
 /** Whether the card's writer may name `actorId`: a GM's card, or a player's about a character that player owns. */

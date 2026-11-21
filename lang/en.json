@@ -6057,7 +6057,8 @@
         "gmUnblock": "Unblock {name}'s microphone",
         "gmHeld": "You cannot block this microphone now.",
         "gmSecretDead": "This death is still a secret: a block would give it away.",
-        "gmNoBlock": "This version of Foundry has no microphone permission, so you cannot block a microphone from here."
+        "gmNoBlock": "This version of Foundry has no microphone permission, so you cannot block a microphone from here.",
+        "gmRoleBlocks": "{name}'s role does not allow the microphone, so there is nothing of theirs to unblock. To let them speak, allow it for that role in Foundry's permission settings."
       },
       "panel": {
         "legend": "Voice",

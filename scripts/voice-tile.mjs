@@ -1500,10 +1500,13 @@ function heldLine(hold) {
  * @param {(text: string) => void} [options.notify]
  * @param {object} [options.perms]  Foundry's `CONST.USER_PERMISSIONS`, handed in by R1546: without BROADCAST_AUDIO
  *   nothing is written and the GM is told (E52-13)
+ * @param {(user: User) => boolean} [options.ownKey]  whether the user holds a BROADCAST_AUDIO of their own, not the role's;
+ *   handed in by R539, whose stand-in writes do not reach the document (1.2.123, r122-G-R1)
  * @returns {Promise<boolean>} whether it wrote
  */
 export async function toggleBlock(user, { holds = target => moduleHoldsMic(target), settings = game.webrtc?.settings,
-    notify = text => ui.notifications?.warn(text), perms = globalThis.CONST?.USER_PERMISSIONS } = {}) {
+    notify = text => ui.notifications?.warn(text), perms = globalThis.CONST?.USER_PERMISSIONS,
+    ownKey = target => Object.prototype.hasOwnProperty.call(target?._source?.permissions ?? {}, "BROADCAST_AUDIO") } = {}) {
     if (!game.user?.isGM) return false;
     if (!user?.id || user.id === game.user.id || game.users.get(user.id) !== user) return false;
     if (!broadcastAudioKnown(perms)) {
@@ -1516,6 +1519,14 @@ export async function toggleBlock(user, { holds = target => moduleHoldsMic(targe
         return false;
     }
     const allowed = settings?.getUser?.(user.id)?.canBroadcastAudio ?? true;
+    /* AN UNBLOCK WITH NOTHING TO TAKE OFF SAYS SO (1.2.123, the audit's r122-G-R1). A user with no key of their own whose
+       role withholds the microphone is blocked by the role: the deletion below wrote nothing, this answered true and the
+       row drew Blocked again with no word. Nothing is written then (an explicit true is what COMM-46 named wrong), and the
+       GM is told it is the role's rule. */
+    if (!allowed && !ownKey(user)) {
+        notify(game.i18n.format("DRPG.Voice.list.gmRoleBlocks", { name: user.name }));
+        return false;
+    }
     /* An unblock takes the user's own key off (1.2.122, the audit's COMM-46), as the trial's restore does (voice.mjs
        `restoreTrialBlock`): an explicit true left a world whose roles withhold the microphone with one player granted
        it. The GM's block is recorded nowhere (voice.mjs), so a grant the user held of their own before it is not put

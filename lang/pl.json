@@ -6499,7 +6499,8 @@
         "gmUnblock": "Odblokuj mikrofon: {name}",
         "gmHeld": "Tego mikrofonu nie możesz teraz zablokować.",
         "gmSecretDead": "Ta śmierć jest jeszcze tajemnicą: blokada by ją zdradziła.",
-        "gmNoBlock": "Ta wersja Foundry nie ma uprawnienia do mikrofonu, więc stąd nie zablokujesz żadnego mikrofonu."
+        "gmNoBlock": "Ta wersja Foundry nie ma uprawnienia do mikrofonu, więc stąd nie zablokujesz żadnego mikrofonu.",
+        "gmRoleBlocks": "Rola gracza {name} nie pozwala na mikrofon, więc nie ma czego odblokować. Aby dopuścić mikrofon, zezwól na niego tej roli w ustawieniach uprawnień Foundry."
       },
       "panel": {
         "legend": "Głos",
