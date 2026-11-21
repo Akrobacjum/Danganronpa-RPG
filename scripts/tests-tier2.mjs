@@ -17892,6 +17892,157 @@ const SCENARIOS = [
         }
     }],
 
+    ["E120 - the lights veil only a killer they can still open, and lift one they cancel before they judge the next: never a killer the room alone cancels", async () => {
+        /*
+         * 1.2.120 line M2; the audit's DOC-01 (audit/findings-1.2.118, first-session old-1.1.88-1.2.13-A obs1, re-checked
+         * open on 1.2.119). `endEclipse` veiled every declaration's killer before the lights judged (mask-gm.mjs
+         * `veilAtTheLights`), and a killer the lights then cancelled stayed veiled until `lightsJudged`, after the whole
+         * judgement and any window it asks a GM: drawn on no player's map, and flagged `veiled` in every browser's world data
+         * - the mark of a declaration that came to nothing. Two declarations of one Eclipse: the first's killer stands with
+         * one other and is refused by the GM at the lights (its window answered "no"); the second's stands alone. The Eclipse
+         * ends; read on this GM, in order, each write of the veil's flag to either killer's tokens and each card sent to
+         * either killer's player (`secret.card`). The veil's own work - a killer the lights open is veiled and the opening
+         * takes the row over - is E112's test above.
+         */
+        needs(env.primaryGm(), "the veil is the primary GM's");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "two killers whose players are sent the lights' answers");
+        needs(world.atLeast("livingStudents", 3), "two killers and one other");
+        needs(world.atLeast("studentTokensOnScreen", 3), "the three are stood in rooms by their tokens");
+        needs(world.atLeast("namedRooms", 3), "a room is left to the pair and one to the lone killer");
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [first, second] = livingStudents().filter(player);
+        const [other] = livingStudents().filter(a => a !== first && a !== second && !player(a));
+        must(other, "no student without a player to stand with the first killer - this would measure something else");
+        equal(M.murderState(), null, "an incident was already running when this scenario started");
+        const tag = new Map([[first.id, "first"], [second.id, "second"]]);
+        const ownerTag = new Map([[player(first).id, "first"], [player(second).id, "second"]]);
+        const events = [];
+        const watch = Hooks.on("updateToken", (doc, changes) => {
+            const f = changes?.flags?.[MODULE_ID] ?? {};
+            if (!tag.has(doc.actorId) || !("veiled" in f || "-=veiled" in f)) return;
+            events.push(`${tag.get(doc.actorId)}:${doc._source.flags?.[MODULE_ID]?.veiled ? "veiled" : "lifted"}`);
+        });
+        const socket = game.socket;
+        const ownEmit = Object.getOwnPropertyDescriptor(socket, "emit");
+        const send = socket.emit;
+        const D = foundry.applications.api.DialogV2;
+        const ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+        const wait = D.wait;
+        const title = game.i18n.localize("DRPG.Action.murderOpensTitle");
+        let asked = 0;
+        const stood = [await aloneTogether(first, other, { asked: true })];
+        try {
+            stood.push(await aloneTogether(second, null, { asked: true }));
+            await E.startEclipse();
+            await settle();
+            const id = E.eclipseId();
+            ok(E.isEclipse() && id, `the Eclipse did not open, or has no name (${id})`);
+            for (const [at, killer, room] of [[1, first, stood[0].room], [2, second, stood[1].room]]) {
+                await S.pendingMurderStore.patch(killer.id, { room, note: "SUITE E120 declared in the dark", at, approved: null, eclipse: id });
+            }
+            socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "secret.card") for (const to of options?.recipients ?? []) if (ownerTag.has(to)) events.push(`${ownerTag.get(to)}:told`);
+                return send.call(this, event, packet, options, ...rest);
+            };
+            D.wait = async function (config, ...rest) {
+                if (config?.window?.title !== title) return wait.call(this, config, ...rest);
+                asked++;
+                return "no";
+            };
+            await E.endEclipse({ advance: false });
+            await settle();
+        } finally {
+            Hooks.off("updateToken", watch);
+            if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await S.pendingMurderStore.dropMany([first.id, second.id].filter(k => S.pendingMurderStore.has(k)));
+            for (const k of [first.id, second.id]) if (S.veilStore.has(k)) await S.veilStore.drop(k);
+            for (const s of [...stood].reverse()) await s.back();
+        }
+        const tokensOf = a => game.scenes.contents.flatMap(scene => scene.tokens.filter(t => t.actorId === a.id));
+        const n = tokensOf(first).length;
+        must(n > 0, `${first.name} has no token - this would measure nothing`);
+        equal(stableJson([asked, events, [first, second].map(a => tokensOf(a).some(t => t._source.flags?.[MODULE_ID]?.veiled))]),
+            stableJson([1, [...Array(n).fill("first:veiled"), ...Array(n).fill("first:lifted"), "first:told", "second:told"], [false, false]]),
+            "the lights veiled a killer the room alone cancels, or lifted one they cancelled only after judging the next (the GM's windows asked; "
+            + "in order, each write of the veil to either killer's tokens and each card to either killer's player; a veil left on either)");
+    }],
+
+    ["E120 - the masks end before every write of a day's board stamp, so the chapter end's next morning outside a trial draws no masked killer on either board", async () => {
+        /*
+         * 1.2.120 line M2; the audit's STG-03 residue and N119-5 (two readers): End chapter with "next morning" moves the
+         * clock through clock.mjs `setTimeOfDay` with the start board's stamp and the end board's (chapter.mjs, the
+         * "morning" step; transitions.mjs `boardsOf` "both"), straight to `setClock`, which ended masks only on entering the
+         * Class Trial - so with a mask standing outside a trial both boards drew the killer's place on the same write. Since
+         * 1.2.120 `setClock` ends the masks before any write that stamps a board (`writesBoardStamp`), whatever road writes
+         * it. A direct murder on Hope (the killer masked), the incident closed, the clock at Evening of Daily Life; the
+         * chapter's end asked for the next morning alone (`applyChapterEnd`). At the clock's write that lands on the morning,
+         * read on this browser: the time of day, the start and the end stamps for the board, the picture the day's board
+         * composes for the killer then (sequence.mjs `dayEndBoard`, as E119's test) and whether a mask still stands.
+         */
+        needs(env.primaryGm(), "the chapter's end runs on the primary GM alone (`applyChapterEnd`)");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const C = await import("./chapter.mjs"), Q = await import("./sequence.mjs");
+        const M = await import("./murder.mjs"), K = await import("./mask-gm.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        const { trialFloor } = await import("./trial-floor.mjs");
+        must(!M.murderState() && !bodyDiscovery() && !isEclipse() && !trialFloor(), "an incident, a body's hold, an Eclipse or a trial is open - this would measure something else");
+        must(!C.chapterEndStopped(), "a chapter's end stands unfinished - the end would be refused, and this would measure nothing");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = C.livingStudents().filter(owner);
+        const was = foundry.utils.deepClone(getClock());
+        const characters = game.actors.filter(a => a.type === "character");
+        const actionsWas = characters.map(a => [a, a.system?.resources?.actions?.value ?? null, a.system?.resources?.actions?.max ?? null]);
+        const settingsWas = Object.fromEntries(["sealedRooms", "restrictions", "motive", "searchTokens", "bodyFound", "readyRound", "sequences", "chapterEnd", "morningLineDraft"]
+            .filter(key => SETTINGS[key]).map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS[key]) ?? null)]));
+        const faceWas = [killer._source.img ?? null, killer._source.prototypeToken?.texture?.src ?? null];
+        const real = "worlds/suite/e120-board-killer.webp";
+        const reads = [];
+        const watch = Hooks.on("updateSetting", setting => {
+            if (setting?.key !== `${MODULE_ID}.${SETTINGS.clock}` || getClock().timeOfDay !== "morning" || reads.length) return;
+            const c = getClock();
+            const b = Q.dayEndBoard({ clock: c, students: studentActors() });
+            reads.push([c.timeOfDay, c.dayBoard === c.day, c.nightBoard === c.day - 1, b.cast.find(x => x.id === killer.id)?.img ?? null, K.maskStands(killer.id)]);
+        });
+        let ended = null;
+        try {
+            await killer.update({ img: real });
+            await setClock({ phase: "dailyLife", timeOfDay: "evening", refilledFor: null });
+            await settle();
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
+            await M.endMurder({ reason: "test", followUp: false });
+            await settle();
+            must(K.maskStands(killer.id), "the opening on Hope put up no mask - this would measure nothing");
+            const c = getClock();
+            ended = await C.applyChapterEnd({ nextMorning: true, opened: { chapter: c.chapter, session: c.session, day: c.day ?? 1, phase: c.phase } });
+            await settle();
+            Q.endSequence("cut");
+        } finally {
+            Hooks.off("updateSetting", watch);
+            Q.endSequence("cut");
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
+            await setClock(was);
+            for (const [actor, value, max] of actionsWas) {
+                await actor.update({ "system.resources.actions.value": value, ...(max === null ? {} : { "system.resources.actions.max": max }) });
+            }
+            for (const [k, value] of Object.entries(settingsWas)) await game.settings.set(MODULE_ID, SETTINGS[k], value ?? (k === "morningLineDraft" ? "" : {}));
+            await killer.update(faceWas[1] ? { img: faceWas[0], "prototypeToken.texture.src": faceWas[1] } : { img: faceWas[0] });
+            await settle();
+        }
+        equal(stableJson([Boolean(ended), reads]), stableJson([true, [["morning", true, true, real, false]]]),
+            "the chapter's end did not land on the next morning with both boards stamped, or a mask still stood as it landed and the board drew the killer behind it "
+            + "(the end ran; at the landing: the time of day, the start stamp, the end stamp, the killer's picture on the board, a mask standing)");
+    }],
+
     ["E119 - a card's words kept while a mask stood stay cut for a reader outside it after the mask ends, served or rewritten, unless the killer revealed themselves", async () => {
         /*
          * 1.2.119 (20.11.2026), the audit's adversarial pass through the coordinator: "a card that hid a masked killer as

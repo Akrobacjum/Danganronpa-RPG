@@ -177,6 +177,18 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
                 V.tokenShownTo(t, viewer), t.parent === canvas.scene ? Boolean(canvas.tokens.get(t.id)?.visible) : null, V.rulerShownTo(t, viewer)]);
         }
         return { tokens: out, portrait: game.actors.get("${ids.chie}").img };`;
+    /* A camera dock standing open on the victim's page from before the veil to after the mask (1.2.120, COMM-20; the
+       owner's rule that an open window shows a change at once): Foundry's `#camera-views` with a box for Chie's player,
+       drawn once by the dock's own render hook and never again - so what it reads later is the module's refresh on the
+       token's write (camera-view.mjs `onTokenChange`), not a render. */
+    const MOUNTED = `return [...(document.getElementById("camera-views")?.querySelectorAll("strong") ?? [])].map(x => x.textContent === "?" ? "?" : "named");`;
+    await p1.eval(`const u = game.users.get("${p3.userId}"), root = document.createElement("section");
+        root.id = "camera-views";
+        root.innerHTML = '<div class="camera-view" data-user="' + u.id + '"><div class="player-name"><strong>' + u.name + '</strong><strong>Chie</strong></div></div>';
+        document.body.append(root);
+        Hooks.callAll("renderCameraViews", null, root);
+        return true;`);
+    const mountedBefore = await p1.eval(MOUNTED);
     await p3.eval(`globalThis.__forceRoll = { hope: 11, fear: 5 }; ` + HOLD);
     await gm.eval(`await game.drpg.openMurder({ killerId: "${ids.chie}", victimId: "${ids.aiko}", openingTrait: "body" }); return true;`, { timeout: 60000 });
     await settle(900);
@@ -203,6 +215,24 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
     const voiced = { victim: await p1.eval(VOICE), bystander: await p2.eval(VOICE), killer: await p3.eval(VOICE), gm: await gm.eval(VOICE) };
     check("road: while veiled, Chie's player is hidden from the victim's and the bystander's voice tiles and not from her own or the GM's (1.2.119 line F)",
         JSON.stringify(voiced) === JSON.stringify({ victim: true, bystander: true, killer: false, gm: false }), JSON.stringify(voiced), { flow: "murder-incident" });
+    /* THE CAMERA DOCK AND THE MAP AGREE (1.2.120 line M2; the audit's COMM-20 residue): with the voice tile off, Foundry's
+       dock may draw a box for the veiled killer (avclient-livekit's to decide, LIVE-F119-03), and the module's relabel
+       wrote her character's name on it (camera-view.mjs `relabel`). A box for Chie's player as Foundry's template draws it
+       (the account name, then the character's first word), relabelled on each browser by the dock's own pass with its real
+       rules and plate mode (`relabelCameraDock`; before 1.2.120 the render hook, red at e515907d: "named" everywhere): "?" for both on the victim's and the bystander's, her names on her own
+       and the GM's. The same box is read again under the mask and after it, below. */
+    const DOCK = `const C = await import("${repoUrl}/scripts/camera-view.mjs");
+        const u = game.users.get("${p3.userId}"), root = document.createElement("div");
+        root.innerHTML = '<div class="camera-view" data-user="' + u.id + '"><div class="player-name"><strong>' + u.name + '</strong><strong>Chie</strong></div></div>';
+        // Before 1.2.120 the dock's render hook was the only pass: run as Foundry runs it.
+        if (typeof C.relabelCameraDock === "function") C.relabelCameraDock(root); else Hooks.callAll("renderCameraViews", null, root);
+        return [...root.querySelectorAll("strong")].map(x => x.textContent).map(t => t === "?" ? "?" : "named");`;
+    const dockOf = async () => ({ victim: await p1.eval(DOCK), bystander: await p2.eval(DOCK), killer: await p3.eval(DOCK), gm: await gm.eval(DOCK) });
+    const docked = await dockOf();
+    check("road: while veiled, the camera dock's plate for Chie's player reads \"?\" on the victim's and the bystander's browsers and names her on her own and the GM's (1.2.120, COMM-20)",
+        JSON.stringify(docked) === JSON.stringify({ victim: ["?", "?"], bystander: ["?", "?"], killer: ["named", "named"], gm: ["named", "named"] }),
+        JSON.stringify(docked), { flow: "murder-incident" });
+    const mountedVeiled = await p1.eval(MOUNTED);
     /* A GM'S HIDDEN ON A VEILED TOKEN IS KEPT (E112v; the coordinator's ask of 16.11.2026, mutant M4): the veil writes no
        `hidden`, so one on a veiled token is a GM's, and `show()` leaves it to Foundry rather than forcing the sprite on for
        the token's owner. Read on the harness's model of Foundry's refresh, which hides a hidden token from every player.
@@ -282,10 +312,24 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
         && [scored.victim, scored.bystander].every(r => r.tokens.length === tokenIds.length && r.portrait === MASK
             && r.tokens.every(t => t[0] === "?" && t[1] === MASK && t[2] === true && t[3] === false)),
         JSON.stringify(scored), { flow: "murder-incident" });
+    const dockMasked = await dockOf();
+    check("road: under the mask, the camera dock's plate for Chie's player reads \"?\" on the victim's and the bystander's browsers and names her on her own and the GM's (1.2.120, COMM-20)",
+        JSON.stringify(dockMasked) === JSON.stringify({ victim: ["?", "?"], bystander: ["?", "?"], killer: ["named", "named"], gm: ["named", "named"] }),
+        JSON.stringify(dockMasked), { flow: "murder-incident" });
+    const mountedMasked = await p1.eval(MOUNTED);
     await gm.eval(`await game.drpg.endMurder({ reason: "test", followUp: false });
         await (await import("${repoUrl}/scripts/mask-gm.mjs")).endMask("${ids.chie}", "suite"); return true;`, { timeout: 60000 });
     await settle(900);
     const roadAfter = await p1.eval(VIEW);
+    const dockAfter = await dockOf();
+    check("road: once the mask ends, the camera dock names Chie's player on every browser again (1.2.120, COMM-20)",
+        Object.values(dockAfter).every(r => JSON.stringify(r) === JSON.stringify(["named", "named"])), JSON.stringify(dockAfter), { flow: "murder-incident" });
+    const mountedAfter = await p1.eval(MOUNTED);
+    await p1.eval(`document.getElementById("camera-views")?.remove(); return true;`);
+    const mounted = { before: mountedBefore, veiled: mountedVeiled, masked: mountedMasked, after: mountedAfter };
+    check("road: a camera dock left open on the victim's page names Chie's player, reads \"?\" as the veil goes up and through the mask, and names her again as it ends - with no render of the dock (1.2.120, COMM-20)",
+        JSON.stringify(mounted) === JSON.stringify({ before: ["named", "named"], veiled: ["?", "?"], masked: ["?", "?"], after: ["named", "named"] }),
+        JSON.stringify(mounted), { flow: "murder-incident" });
     check("road: once the mask ends, the victim's browser holds Chie's tokens and portrait as they were, shown",
         roadAfter.portrait === "suite/CHIEPORTRAIT.webp" && roadAfter.tokens.length === tokenIds.length
         && roadAfter.tokens.every(t => t[0] !== "?" && t[1] === "suite/CHIETOKEN.webp" && t[2] === false && t[3] === false && t[4] === false),

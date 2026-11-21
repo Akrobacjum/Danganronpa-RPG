@@ -33,14 +33,43 @@
  * (Foundry's `AVSettings.NAMEPLATE_MODES`). Off means off - no label is
  * created. "Player names only" means the account name was asked for on purpose,
  * so the account name is what stays.
+ *
+ * BUT A PERSON THE MAP HIDES FROM THIS READER IS NAMED BY NOBODY (1.2.120 line M2;
+ * the audit's COMM-20 residue, through the coordinator of 21.11.2026). "Voice
+ * already scopes who is in a call to your room" stopped being the whole story
+ * with E112's veil: the veiled killer stays in the room's channel, and with the
+ * voice tile off Foundry's dock may draw their box (if avclient-livekit lists
+ * them), on which this relabel wrote their character's full name. Now a
+ * participant `hiddenFromHere` answers true for - the opening's veil hides their
+ * token from this browser (visibility.mjs `voiceVeiledHere`, the map's rule, as
+ * the voice tile asks it), or they stand behind a mask this browser does not see
+ * through (mask-gm.mjs `nameAsSeen`, the pickers' rule) - has every name on the
+ * plate written "?" in every mode that draws one, the account name too (it names
+ * the player, and so the character), and put back when the veil or the mask goes
+ * (`relabelCameraDock`, on the token's write). What the dock draws besides the
+ * plate - the video, the avatar, the box itself - is avclient-livekit's and
+ * Foundry's, LIVE-F119-03: not measured headless.
  */
 
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
 import { poolLabel } from "./despair.mjs";
 import { error, AV_LIFT_EVENT } from "./utils.mjs";
+import { MODULE_ID } from "./config.mjs";
+import { SETTINGS } from "./settings.mjs";
 
 export function registerCameraView() {
     Hooks.on("renderCameraViews", onRenderCameraViews);
+    /* The two rules a plate is hidden by, bound by `import()`: both files reach this one's importers (the voice tile
+       imports this file and both of them), and a static import here would close a cycle (R161). Before they bind - a
+       moment at load, before any dock renders - nobody is hidden, as `seenHere` before its own binding. */
+    import("./visibility.mjs").then(m => { veiledHere = user => m.voiceVeiledHere(user); }).catch(err => error("Could not bind the veil's rule for the camera dock", err));
+    import("./mask-gm.mjs").then(m => {
+        maskedHere = user => { const actor = m.myMask(user); return Boolean(actor) && m.nameAsSeen(actor) === m.MASK_NAME; };
+    }).catch(err => error("Could not bind the mask's rule for the camera dock", err));
+    // A veil or a mask going up or down shows on the dock at once (the owner's rule for every window), not at its next render.
+    Hooks.on("updateToken", (doc, changes) => onTokenChange(doc, changes));
+    // And the Eclipse's darkness, which the veil's verdict reads for the killers' side (visibility.mjs `tokenShownTo`).
+    Hooks.on("updateSetting", setting => { if (setting?.key === `${MODULE_ID}.${SETTINGS.clock}` && anyHiddenPlate()) relabelCameraDock(dockRoot()); });
 
     /*
      * HOW HIGH THE FLOOR IS, published for the CSS.
@@ -155,6 +184,66 @@ export function measureCameraDock() {
     }
 }
 
+/** The veil's rule and the mask's for this browser (`registerCameraView` binds both); nobody until then. */
+let veiledHere = () => false;
+let maskedHere = () => false;
+
+/** The name a hidden participant's plate reads: mask-gm.mjs `MASK_NAME`, the "?" a masked token wears (R7931 holds the two equal). */
+export const HIDDEN_PLATE = "?";
+
+/**
+ * Whether this browser's dock names `user` by nobody (COMM-20, the header): the opening's veil hides their token from
+ * here, or a mask this browser does not see through stands over their character. Never on a GM's browser, for this
+ * browser's own account or for a GM's.
+ */
+export function hiddenFromHere(user, { veiled = veiledHere, masked = maskedHere } = {}) {
+    if (!user || user.isGM || game.user?.isGM || user.id === game.user?.id) return false;
+    return Boolean(veiled(user) || masked(user));
+}
+
+/** Whether a token's write moved a veil or a mask (their flags, set or taken off): the dock's plates are read again. */
+export function movesAPlate(changes) {
+    const f = changes?.flags?.[MODULE_ID];
+    if (!f || typeof f !== "object") return false;
+    // Set, or taken off as Foundry's diff may carry a deletion (the key with its deletion prefix, R152's spelling).
+    return ["veiled", "masked"].some(key => key in f || `-=${key}` in f);
+}
+
+/** The token hook: every plate of the dock read again when a veil or a mask moved. `root` and `hidden` are the suite's. */
+export function onTokenChange(doc, changes, { root = dockRoot(), hidden = hiddenFromHere } = {}) {
+    if (!movesAPlate(changes)) return 0;
+    return relabelCameraDock(root, { hidden });
+}
+
+/** Whether a veil or a mask stands on any token this browser holds: the clock's write reads the plates only then. */
+function anyHiddenPlate() {
+    for (const scene of game.scenes ?? []) for (const token of scene.tokens ?? []) {
+        const f = (token.flags ?? token._source?.flags)?.[MODULE_ID];
+        if (f?.veiled || f?.masked) return true;
+    }
+    return false;
+}
+
+/** The dock's element, or null: Foundry's CameraViews (`ui.webrtc`), else `#camera-views`. */
+function dockRoot() {
+    const el = ui?.webrtc?.element;
+    return (el instanceof HTMLElement ? el : el?.[0]) ?? document.getElementById("camera-views") ?? null;
+}
+
+/** Every `.camera-view[data-user]` of `root` relabelled (`relabel`). Answers how many boxes it read. */
+export function relabelCameraDock(root, { hidden = hiddenFromHere, plate = nameplateMode() } = {}) {
+    if (!root) return 0;
+    let n = 0;
+    // `.camera-view` specifically: the note in `onRenderCameraViews`.
+    for (const box of root.querySelectorAll(".camera-view[data-user]")) {
+        const userId = box.dataset.user;
+        if (!userId) continue;
+        relabel(box, userId, { hidden, plate });
+        n++;
+    }
+    return n;
+}
+
 function onRenderCameraViews(app, element) {
     try {
         const root = element instanceof HTMLElement ? element : element?.[0];
@@ -162,15 +251,11 @@ function onRenderCameraViews(app, element) {
 
         root.classList.add("drpg-camera-dock");
 
-        // `.camera-view` specifically. `[data-user]` alone also matches the
+        // `.camera-view` specifically (`relabelCameraDock`). `[data-user]` alone also matches the
         // `.user-controls` bar (templates/apps/av/controls.hbs), which holds no
         // nameplate - and the text-matching fallback below would then go
         // rummaging through a row of buttons looking for a name.
-        for (const box of root.querySelectorAll(".camera-view[data-user]")) {
-            const userId = box.dataset.user;
-            if (!userId) continue;
-            relabel(box, userId);
-        }
+        relabelCameraDock(root);
     } catch (err) {
         error("Could not style the camera dock", err);
     }
@@ -254,22 +339,38 @@ function nameplateMode() {
     };
 }
 
-/** Swap Foundry's truncated (or hardcoded) charname for the real one. */
-function relabel(box, userId) {
+/**
+ * Swap Foundry's truncated (or hardcoded) charname for the real one - or, for a participant hidden from this browser
+ * (`hiddenFromHere`), every name on the plate for "?", the plate as Foundry drew it kept on the label and put back once
+ * they are not (COMM-20, the header).
+ */
+function relabel(box, userId, { hidden = hiddenFromHere, plate = nameplateMode() } = {}) {
     const user = game.users.get(userId);
     if (!user) return;
 
-    const plate = nameplateMode();
-    if (plate) {
-        const { MODES, mode } = plate;
-        // Nothing is drawn at all.
-        if (mode === MODES.OFF) return;
-        // The account name is exactly what this mode asks for - leave it.
-        if (mode === MODES.PLAYER_ONLY) return;
-    }
+    // Nothing is drawn at all.
+    if (plate && plate.mode === plate.MODES.OFF) return;
 
     const label = box.querySelector(".player-name");
     if (!label) return;
+    const parts = label.querySelectorAll("strong").length ? [...label.querySelectorAll("strong")] : [label];
+
+    if (hidden(user)) {
+        if (label.dataset.drpgPlate === undefined) label.dataset.drpgPlate = JSON.stringify(parts.map(p => p.textContent));
+        for (const p of parts) p.textContent = HIDDEN_PLATE;
+        label.dataset.tooltip = HIDDEN_PLATE;
+        return;
+    }
+    if (label.dataset.drpgPlate !== undefined) {
+        let was = [];
+        try { was = JSON.parse(label.dataset.drpgPlate); } catch { was = []; }
+        parts.forEach((p, i) => { if (typeof was[i] === "string") p.textContent = was[i]; });
+        delete label.dataset.drpgPlate;
+        delete label.dataset.tooltip;
+    }
+
+    // The account name is exactly what this mode asks for - leave it.
+    if (plate && plate.mode === plate.MODES.PLAYER_ONLY) return;
 
     const name = displayNameFor(user);
     if (!name) return;

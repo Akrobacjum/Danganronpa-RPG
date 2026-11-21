@@ -17160,6 +17160,86 @@ const INVARIANTS = [
         }
     }],
 
+    ["R7930 - a clock write stamps a day's board only with a stamp the clock does not carry: a start or end board's day moved, or a discovery's announcement newer; a stamp taken away, kept, or no stamp at all is none", async () => {
+        /*
+         * 1.2.120 line M2; the audit's STG-03 residue and N119-5. `setClock` ends the masks before a write that stamps a
+         * day's board (clock.mjs `writesBoardStamp`), so the chapter end's next morning - `setTimeOfDay` with both stamps,
+         * which ended none - draws no masked killer (tier 2 "E120 - the masks end before every write of a day's board
+         * stamp"). The predicate on the roads' own patches: the chapter end's morning, the roll-over's start stamp, Evening
+         * to Night's end stamp, a discovery's stamp (new and heard again), the Eclipse's take-back of its opening (a stamp
+         * taken away), Edit campaign's day alone, and a clock put back with the stamps it had. Red at e515907d: no such
+         * function.
+         */
+        const C = await import("./clock.mjs");
+        ok(typeof C.writesBoardStamp === "function", "clock.mjs has no writesBoardStamp - setClock cannot tell a write that stamps a board");
+        if (typeof C.writesBoardStamp !== "function") return;
+        const before = { day: 3, dayBoard: 3, nightBoard: 2, bodyBoard: { upTo: 50, key: "1:2:50", day: 3, timeOfDay: "noon" } };
+        const read = [
+            C.writesBoardStamp(before, { day: 4, dayBoard: 4, nightBoard: 3, timeOfDay: "morning" }),
+            C.writesBoardStamp(before, { dayBoard: 4 }),
+            C.writesBoardStamp(before, { nightBoard: 3 }),
+            C.writesBoardStamp(before, { bodyBoard: { upTo: 60, key: "1:2:60", day: 3, timeOfDay: "afternoon" } }),
+            C.writesBoardStamp(before, { bodyBoard: { ...before.bodyBoard } }),
+            C.writesBoardStamp(before, { dayBoard: null, eclipse: false }),
+            C.writesBoardStamp(before, { day: 5 }),
+            C.writesBoardStamp(before, { ...before }),
+            C.writesBoardStamp({}, { dayBoard: 1 }),
+            C.writesBoardStamp({}, {})
+        ];
+        equal(JSON.stringify(read), JSON.stringify([true, true, true, true, false, false, false, false, true, false]),
+            "[the chapter end's morning, a start stamp, an end stamp, a new discovery, the same discovery, a stamp taken away, a day alone, the clock put back, a first stamp, nothing]");
+    }],
+
+    ["R7931 - the camera dock names nobody the veil or a mask hides from this reader: every name on their plate reads \"?\" in each mode that draws one, put back when it goes; a GM's dock names everyone", async () => {
+        /*
+         * 1.2.120 line M2; the audit's COMM-20 residue (recheck-119.json, the verifier's residue: camera-view.mjs
+         * `relabel` writes `displayNameFor`'s character name on every `.camera-view[data-user]`, no veil or mask asked).
+         * With the voice tile off, Foundry's dock draws a box for each participant avclient-livekit lists - the veiled
+         * killer stays in the room's channel (E112) - and the module wrote their full character name on it. Now
+         * `relabelCameraDock` asks `hiddenFromHere` (the map's veil rule, `voiceVeiledHere`, and the pickers' mask rule,
+         * `nameAsSeen`). A stand-in dock of two boxes as Foundry's template draws them (the account name, then the
+         * character's first word, each a `<strong>`), D hidden: both modes that draw a plate, then the veil gone through the
+         * token hook's handler (`onTokenChange`), a token write that moves neither flag, and the GM's own rule (this browser
+         * is a GM's: nobody hidden). Whether avclient-livekit draws such a box, and its video and avatar, is LIVE-F119-03.
+         * Red at e515907d: the dock's render hook wrote D's character name.
+         */
+        needs(world.atLeast("playerAccounts", 2), "two accounts besides the GM's, each with a box on the dock");
+        const C = await import("./camera-view.mjs");
+        const K = await import("./mask-gm.mjs");
+        const [b, d] = game.users.filter(user => user.id !== game.user.id && !user.isGM).slice(0, 2);
+        const first = user => String(user.character?.name ?? "").split(" ").shift();
+        const root = document.createElement("div");
+        root.innerHTML = [b, d].map(u => `<div class="camera-view" data-user="${u.id}"><div class="player-name ellipsis"><strong>${foundry.utils.escapeHTML(u.name)}</strong><strong>${foundry.utils.escapeHTML(first(u))}</strong></div></div>`).join("");
+        const plateOf = u => [...root.querySelectorAll(`.camera-view[data-user="${u.id}"] .player-name strong`)].map(s => s.textContent);
+        const tipOf = u => root.querySelector(`.camera-view[data-user="${u.id}"] .player-name`)?.dataset.tooltip ?? null;
+        const MODES = { OFF: 0, PLAYER_ONLY: 1, BOTH: 2 };
+        const both = { MODES, mode: MODES.BOTH }, playerOnly = { MODES, mode: MODES.PLAYER_ONLY };
+        const hidden = user => user?.id === d.id;
+        const paint = typeof C.relabelCameraDock === "function"
+            ? plate => C.relabelCameraDock(root, { hidden, plate })
+            : () => Hooks.callAll("renderCameraViews", null, root);
+        const full = u => C.voiceIdentity(u)?.name ?? null;
+        const read = {};
+        paint(both);
+        read.both = [plateOf(b), plateOf(d), tipOf(d)];
+        paint(playerOnly);
+        read.playerOnly = plateOf(d);
+        if (typeof C.onTokenChange === "function") {
+            read.quiet = C.onTokenChange({}, { name: "x" }, { root, hidden: () => false });
+            read.stillHidden = plateOf(d);
+            read.lifted = C.onTokenChange({}, { flags: { [MODULE_ID]: { [`${"-="}veiled`]: null } } }, { root, hidden: () => false });
+            read.back = [plateOf(d), tipOf(d) === foundry.utils.escapeHTML(full(d))];
+        }
+        read.gm = typeof C.hiddenFromHere === "function" ? C.hiddenFromHere(d, { veiled: () => true, masked: () => true }) : null;
+        read.sameMark = C.HIDDEN_PLATE === K.MASK_NAME;
+        equal(stableJson(read), stableJson({
+            both: [[b.name, full(b)], ["?", "?"], "?"], playerOnly: ["?", "?"],
+            quiet: 0, stillHidden: ["?", "?"], lifted: 2, back: [[d.name, full(d)], true],
+            gm: false, sameMark: true
+        }), "the dock named a hidden participant, or did not name them again when the veil went, or hid one on a GM's dock "
+            + "(both modes: B's plate, D's, D's tooltip; player names only: D's; a write that moves no flag: boxes read, D's plate; the veil gone: boxes read, D's plate, its tooltip; the GM's rule; the dock's mark is the mask's)");
+    }],
+
     ["R539 - the GM's block in the list is Foundry's block and never undoes the module's: the button is built only in a GM's list; its click writes the user's `permissions.BROADCAST_AUDIO` flipped from what Foundry answers now and nothing else; where `moduleHoldsMic` holds the microphone or a death is kept secret the button is disabled with its line and `toggleBlock` writes nothing; it refuses a player's client, the GM's own account and a user who is not of this world", async () => {
         /*
          * E78 C5, 14.10.2026; the A9 design's R392 (A9-5; the E78 plan's D2 gave it this number), the owner's Q4 (the

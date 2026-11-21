@@ -422,9 +422,17 @@ export async function endEclipse({ advance = true } = {}) {
     /* THE OPENING'S VEIL FROM THE START OF THE TIME OF DAY (E112; the owner's answer (4)): the killers the lights below will
        judge are veiled while the Eclipse still hides every token, and `lightsJudged` settles once they have judged
        (mask-gm.mjs `veilAtTheLights`). On the primary GM; another GM's end veils at each open instead. */
+    /* AND ONLY THOSE THE LIGHTS CAN STILL OPEN (1.2.120 line M2; the audit's DOC-01, through the coordinator of 21.11.2026).
+       Every declaration's killer was veiled here, and one the lights then cancelled - alone, or with witnesses - stayed
+       veiled until `lightsJudged`, after the whole judgement and any window it asks a GM: their token was drawn on no
+       player's map and flagged `veiled` in every browser's world data, a mark of a declaration that came to nothing.
+       Now the room is read here by the judgement's own reading (`standingAtTheLights`), so a killer it cancels is never
+       veiled, and one cancelled at the lights for any other reason - a second declaration, the GM's refusal, a refused
+       betrayal - is lifted as it is cancelled (`judgePendingMurders`, mask-gm.mjs `liftAtTheLights`). Tier 2 "E120 - the
+       lights veil only a killer they can still open". */
     try {
         await pendingMurderStore.whenHydrated();
-        await (await import("./mask-gm.mjs")).veilAtTheLights(Object.keys(pendingMurders(ending)));
+        await (await import("./mask-gm.mjs")).veilAtTheLights(await killersTheLightsCanOpen(ending));
     } catch (err) {
         error("Could not veil the killers the lights will judge", err);
     }
@@ -843,6 +851,35 @@ export async function liftPendingMurders() {
 }
 
 /**
+ * Where `killer` stands at the lights and who stands with them (`room`, `present`): the one reading the judgement and the
+ * veil before it make (`judgePendingMurders`, `killersTheLightsCanOpen`), so the two cannot read two rooms. The second
+ * argument's readers are movement.mjs's.
+ */
+function standingAtTheLights(killer, parked, { othersInNamedRoom, locateActor, lawfulRoomOf }) {
+    const where = locateActor(killer);
+    const room = where?.room ?? parked?.room;
+    const present = where?.room ? othersInNamedRoom(where.room, killer, where.scene, lawfulRoomOf) : [];
+    return { room, present };
+}
+
+/**
+ * The killers of the Eclipse `id`'s declarations the lights can still open (DOC-01, 1.2.120): a betrayal's - it has no
+ * room test - and a direct murder's whose killer stands with exactly one other. The rest the judgement cancels on the
+ * room alone, so the veil is not put on them (`endEclipse`). Whether a second declaration or the GM's refusal cancels one
+ * is known only at the lights; those are lifted there.
+ */
+async function killersTheLightsCanOpen(id) {
+    const all = pendingMurders(id);
+    const mv = await import("./movement.mjs");
+    return Object.keys(all).filter(killerId => {
+        const killer = game.actors.get(killerId);
+        if (!killer) return false;
+        if (all[killerId]?.betrayal) return true;
+        return standingAtTheLights(killer, all[killerId], mv).present.length === 1;
+    });
+}
+
+/**
  * The lights come up: judge every declaration made in the Eclipse `id` - the one
  * `endEclipse` is ending, named before the clock moved.
  *
@@ -909,9 +946,10 @@ async function judgePendingMurders(id, taken = new Map()) {
            Where the primary ends the Eclipse: the judge's record is the primary's alone, so a co-GM who
            ends it reads every student where they stand, as before (read in the code; not driven). */
         const parked = all[killerId];
-        const where = locateActor(killer);
-        const room = where?.room ?? parked.room;
-        const present = where?.room ? othersInNamedRoom(where.room, killer, where.scene, lawfulRoomOf) : [];
+        const { room, present } = standingAtTheLights(killer, parked, { othersInNamedRoom, locateActor, lawfulRoomOf });
+        // A killer the lights cancel is shown again at once, not after the whole judgement (DOC-01: `endEclipse`'s note).
+        const lift = () => import("./mask-gm.mjs").then(m => m.liftAtTheLights(killerId))
+            .catch(err => error("Could not lift the veil of a killer the lights cancelled", err));
 
         // Veiled, as the ruling is (E05, S11-02): the document would name the killer's
         // actor and their player at the moment the lights judged them.
@@ -935,12 +973,14 @@ async function judgePendingMurders(id, taken = new Map()) {
         if (parked.betrayal) {
             const { openParkedBetrayal } = await import("./murder.mjs");
             if (!await openParkedBetrayal(killerId, parked.betrayal.killerId, taken.get(killerId) ?? null, parked.note ?? "", parked.proposed ?? null)) {
+                await lift();
                 await say(game.i18n.localize("DRPG.Action.murderRefused"), true);
             }
             continue;
         }
 
         if (present.length !== 1) {
+            await lift();
             const reason = present.length === 0
                 ? game.i18n.localize("DRPG.Action.murderNobody")
                 : plural("DRPG.Action.murderWitness", { n: present.length - 1 });
@@ -958,6 +998,7 @@ async function judgePendingMurders(id, taken = new Map()) {
         }
 
         if (murderState()) {
+            await lift();
             await say(game.i18n.localize("DRPG.Action.murderRefused"), true);
             await whisperToGms(`<p>${game.i18n.format("DRPG.Action.murderSecondDeclaration", {
                 killer: foundry.utils.escapeHTML(killer.name)
@@ -972,6 +1013,7 @@ async function judgePendingMurders(id, taken = new Map()) {
         // on its own. Either answer names the opening's statistic (E68 C9): the card's, or the window's.
         const ruled = parked.approved === true ? (parked.trait ?? null) : await askAtTheLights(killer, victim, room, parked);
         if (ruled === false) {
+            await lift();
             await say(game.i18n.localize("DRPG.Action.murderRefused"), true);
             continue;
         }
