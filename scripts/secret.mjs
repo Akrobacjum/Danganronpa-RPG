@@ -1575,7 +1575,7 @@ export async function onSecretPacket(payload, senderId) {
     }
     // Another GM's reveal (r121-M-3): the same rows forgotten here, told by a GM to a GM alone.
     if (payload?.action === ACTION_UNMASK) {
-        if (game.user.isGM && game.users.get(senderId ?? "")?.isGM && typeof payload.actorId === "string") await forgetHeldMask(payload.actorId);
+        if (game.user?.isGM && game.users.get(senderId ?? "")?.isGM && typeof payload.actorId === "string") await forgetHeldMask(payload.actorId);
         return;
     }
     // A GM whose world has loaded can answer: ask it for what this browser holds no words of.
