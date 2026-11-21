@@ -23286,7 +23286,9 @@ const REGRESSIONS = [
         }
         const box = (kind, state, toast = false) => [1, "drpg-box", kind, state, "a <b> & c", toast];
         equal(JSON.stringify(drawn), JSON.stringify({ notDrawn: box("warning", "notDrawn"), waitsForGm: box("warning", "waitsForGm", true), unwitnessed: box("warning", "unwitnessed"),
-            awayNothing: box("info", "awayNothing"), awayHope: box("info", "awayHope"), awayDespair: box("info", "awayDespair") }),
+            awayNothing: box("info", "awayNothing"), awayHope: box("info", "awayHope"), awayDespair: box("info", "awayDespair"),
+            // A stamped roll decided (1.2.122, REFR-54 and REFR-19): information, nothing waits.
+            awayDecided: box("info", "awayDecided") }),
             "{each state: [elements, class, the box's kind, its state, its words, said in a toast]}");
         let refused = null;
         try { D.rollStatus("noSuchState", "x"); } catch (err) { refused = err.message; }
@@ -23439,7 +23441,7 @@ const REGRESSIONS = [
             /* Merged with E72 and E91 (12.11.2026): the Monocubs' veiled lines and its built cards (E72 C2-C17), the Final
                Trial's bets line (verdict.mjs), and the unlock card moved from room-setup.mjs to vault-store.mjs `writeRoomLock`
                (E91 C4, D038), every one in a form this census names. */
-            "monocub.mjs": {"built": 3, "line": 18, "message": 1}, "movement.mjs": {"action": 3, "card": 4},
+            "monocub.mjs": {"built": 3, "line": 19, "message": 1}, "movement.mjs": {"action": 3, "card": 4},
             // murder-rules.mjs message 6 -> 8 (1.2.121 line K, CASE-16): `announceCrisis` posts the GMs' card and, for the seats a
             // defence is hidden from, a second copy, by the same `announce({ content, whisper })` form as before.
             "murder-rules.mjs": {"action": 1, "card": 5, "heading": 3, "line": 9, "message": 8},

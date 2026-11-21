@@ -154,7 +154,7 @@ async function tellRooms(scene, rooms, text, skip = new Set(), { also = null, in
  * Force a door on the primary GM (the run of `door.force`): `room` the room beyond, `total`, `isCritical` and `withHope`
  * the Body roll's off the GMs' record. Answers `{ refused }` or `{ forced, held: [what held it], heard }`.
  */
-export async function forceDoor({ actor, room, total = 0, isCritical = false, withHope = true }) {
+export async function forceDoor({ actor, room, total = 0, isCritical = false, withHope = true, tell = true }) {
     const M = await import("./movement.mjs");
     const { getClock } = await import("./settings.mjs");
     const { isChained } = await import("./call-world.mjs");
@@ -180,7 +180,10 @@ export async function forceDoor({ actor, room, total = 0, isCritical = false, wi
     let heard = 0;
     const saw = new Set();
     const loud = forced || !withHope;
-    if (loud) {
+    // `tell` false: a Reroll's replay (infiltrate-reroll.mjs), whose rooms the first throw told and whose Remnant it left,
+    // as a pick's replay (`pickLock`); it ran the whole attempt again, told the rooms twice and left a second Remnant of
+    // one attempt (the audit's ROLL-23, 1.2.122).
+    if (tell && loud) {
         const near = [...new Set([...M.neighbouringRooms(place.scene, place.room), ...M.neighbouringRooms(place.scene, room)])]
             .filter(r => r !== place.room && r !== room);
         // The room as each listener knows it (E59 on the 1.2.115 line, CHAINS.md B-R6; R7164): one they have not found is
@@ -189,10 +192,12 @@ export async function forceDoor({ actor, room, total = 0, isCritical = false, wi
         const banging = async student => game.i18n.format("DRPG.Infiltrate.force.banging", { room: (await roomNamerFor(student, place.scene.id))(room, 1) });
         heard = await tellRooms(place.scene, near, banging, new Set([actor.id]));
     }
-    await tellRooms(place.scene, loud ? [place.room, room] : [place.room], game.i18n.format(forced ? "DRPG.Infiltrate.force.forcedBy" : "DRPG.Infiltrate.force.triedBy",
-        { name: actor.name, room }), new Set([actor.id]), { into: saw });
+    if (tell) {
+        await tellRooms(place.scene, loud ? [place.room, room] : [place.room], game.i18n.format(forced ? "DRPG.Infiltrate.force.forcedBy" : "DRPG.Infiltrate.force.triedBy",
+            { name: actor.name, room }), new Set([actor.id]), { into: saw });
+    }
     // Every attempt leaves a Remnant: evident where it was heard (a pass, a miss with Despair), subtle otherwise.
-    if (held.length) await leaveDoorTrace(actor, forced || !withHope ? "evident" : "subtle", "force", room);
+    if (tell && held.length) await leaveDoorTrace(actor, forced || !withHope ? "evident" : "subtle", "force", room);
     // A bedroom's owner: told on walking back in, or at once where they stand in it; nothing more where they saw it forced.
     if (forced && holds.lock) await noteBedroom({ scene: place.scene, room, kind: "forced", told: saw, by: actor });
     log(`${actor.name} ${forced ? "forced" : "failed to force"} the door to ${room} (${sum}; held by ${held.join(", ") || "nothing"}).`);

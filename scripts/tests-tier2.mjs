@@ -21947,6 +21947,92 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             `a drawn roll's wait is not the draw's own clock (${clockMs} ms), settled before it or other than noAnswer, was said other than once, or took an answer after it (drawAndPlay asks with DRAW_ANSWER_MS, returns on no message, has no late; the clock between the waiter's two; sent; clocks and answer after the "got it"; when the clock fired; after a late answer; said; waiting)`);
     }],
 
+    ["1.2.122 REFR-19 - the GMs' card of rolls thrown with no GM follows its decision on every GM and is posted once: decided, the card is marked and drawn with no buttons and the way it went, a press on a copy drawn before says so, the roll's own line says it was granted, a second ask posts no second card, and a granted roll's Despair is taken by a protection from Despair (scripts/roll-draw.mjs `askAboutUnwitnessed`, `settleAwayCards`, `onRenderUnwitnessed`, `grantRolls`; the audit's REFR-19, ROLL-28, REFR-54 and DESP-27, 1.2.122 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP. REFR-19 and ROLL-28: a decision updated the rolls' messages, never the card, so a
+         * second GM's copy kept Grant all and Grant none and a press there did nothing and said nothing; and each ready of
+         * the primary posted one more card for the same rolls. REFR-54: the roll's own line said "a GM decides later" after
+         * a GM had. DESP-27: the Grant gave a roll's Despair with no message, so a room action's protection from Despair was
+         * neither used nor consulted. The player's half as "Grant all grants each stamped roll once" makes it, for a player's
+         * character in a room (E93-T8's `playerInRoom`) given that protection: a 3 and a 9 (with Fear). Read: the card asked
+         * twice (the second's answer), a copy of the card drawn before the decision (its buttons, then a press on it: the
+         * notice), the card after Grant all (its mark, drawn: buttons, the decided line), the roll drawn (its line), and the
+         * Monokuma's pool and the protection. Put back: the messages, the protection, the pool, the setting. Red at 21bf5d18:
+         * a second card, no mark, the waiting line, the pool +1 and the protection standing.
+         */
+        const D = await import("./roll-draw.mjs");
+        const P = await import("./despair.mjs");
+        const T = await import("./timed-effects.mjs");
+        const F = await import("./facilities.mjs");
+        const { applyEffects } = await import("./facilities-gm.mjs");
+        const { cardFlag, STUB } = await import("./secret.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const monokuma = (await import("./assignments.mjs")).monokumaFor(actor);
+        must(monokuma, `${actor.name} has no Monokuma to feed - this would measure nothing`);
+        const drawn = async message => {
+            const li = document.createElement("li");
+            li.className = "chat-message message";
+            li.innerHTML = `<header class="message-header"></header><div class="message-content">${STUB}</div>`;
+            Hooks.callAll("renderChatMessageHTML", message, li);
+            await wait(0);
+            return li;
+        };
+        const settingWas = game.settings.get(MODULE_ID, SETTINGS.despairFromRolls);
+        const poolWas = P.getDespair(monokuma.id);
+        const effectsWas = T.timedEffectsOf(actor.id).length;
+        const made = [];
+        const said = [];
+        const info = ui.notifications.info;
+        const read = {};
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.despairFromRolls, true);
+            // The roll first (the primary's chat hook gives a fresh roll's point as it lands), then the protection.
+            const { message } = await neutralRoll(actor, { faces: { hope: 3, fear: 9 } });
+            must(message, "no roll was thrown - this would measure nothing");
+            made.push(message.id);
+            await message.update({ author: player.id, [`flags.${MODULE_ID}.${D.UNWITNESSED_FLAG}`]: { nonce: foundry.utils.randomID(), actorId: actor.id, at: Date.now() } });
+            await settle();
+            const effect = F.cleanEffect({ kind: "despairShield", until: "timeOfDay" });
+            must(effect, "no despairShield effect - this would measure nothing");
+            await applyEffects(actor, [effect], where, player);
+            await settle();
+            must(T.timedEffectsOf(actor.id).length === effectsWas + 1, "the protection from Despair was not given - this would measure nothing");
+            const pool0 = P.getDespair(monokuma.id);
+            const card = await D.askAboutUnwitnessed([message]);
+            must(card, "no GMs' card was posted - this would measure nothing");
+            made.push(card.id);
+            await until(() => Array.isArray(cardFlag(card, "awayRolls")));
+            const second = await D.askAboutUnwitnessed();
+            if (second) made.push(second.id);
+            read.second = second ? "posted" : "none";
+            const before = await drawn(card);
+            read.before = Boolean(before.querySelector(".drpg-away-actions [data-drpg-away]"));
+            await D.decideUnwitnessed([message.id], true);
+            await settle();
+            ui.notifications.info = (m, ...r) => { said.push(m); return info.call(ui.notifications, m, ...r); };
+            before.querySelector('[data-drpg-away="none"]')?.click();
+            await settle();
+            ui.notifications.info = info;
+            read.stalePress = said.includes(game.i18n.localize("DRPG.Rolls.awayAlreadyDecided"));
+            const after = await drawn(game.messages.get(card.id));
+            read.card = { mark: cardFlag(game.messages.get(card.id), "awayDecided") ?? null, buttons: Boolean(after.querySelector("[data-drpg-away]")),
+                line: after.textContent.includes(game.i18n.localize("DRPG.Rolls.awayDecidedGrant")) };
+            const rollLi = await drawn(game.messages.get(message.id));
+            read.rollLine = rollLi.textContent.includes(game.i18n.localize("DRPG.Rolls.unwitnessedGranted")) ? "granted"
+                : rollLi.textContent.includes(game.i18n.localize("DRPG.Rolls.unwitnessed")) ? "waiting" : "none";
+            read.despair = { rose: P.getDespair(monokuma.id) - pool0, shieldLeft: T.timedEffectsOf(actor.id).length - effectsWas };
+        } finally {
+            ui.notifications.info = info;
+            for (const id of made) await game.messages.get(id)?.delete();
+            for (const m of game.messages.filter(m => m.speaker?.actor === actor.id && m.whisper?.length && Date.now() - (m.timestamp ?? 0) < 60000)) await m.delete();
+            for (const row of T.timedEffectsOf(actor.id).slice(effectsWas)) await T.endTimedEffect(row.id);
+            await P.setDespair(monokuma.id, poolWas);
+            await game.settings.set(MODULE_ID, SETTINGS.despairFromRolls, settingWas);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ second: "none", before: true, stalePress: true, card: { mark: true, buttons: false, line: true }, rollLine: "granted", despair: { rose: 0, shieldLeft: 0 } }),
+            "{a second ask; the copy drawn before had buttons; a press on it said already decided; the card after: its mark, buttons, the decided line; the roll's own line; the Monokuma's pool's rise and the protections left}");
+    }],
     ["Grant all grants each stamped roll once", async () => {
         /*
          * E08+E28 C18, 04.10.2026; the plan's 3.7. A roll thrown while no GM was connected is
@@ -103805,6 +103891,91 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ shut: ["done", ["subtle"]], pickBands: ["evident", "subtle", "subtle", "hidden", "hidden"],
             knock: [null, 1], again: [{ told: false }, 1], far: "the character is not in that room", held: [true, false, false], sanity: [1, 1] }),
             "{shut: [answer, the Remnants placed]; pickBands; knock, again: [answer (none: a report nobody waits on), the author's cards]; far; held: [the post, another room, another student]; sanity: [after a miss with Despair, after one with Hope]} - the doors' Remnants, the knock and the watch's rules");
+    }],
+    ["1.2.122 ROLL-23 - a Reroll of Force the Door that did not force it neither tells the rooms again nor leaves a second Remnant, and a Reroll of Keep Watch is judged on the new roll's duality: the first throw's Sanity mark goes when the Reroll keeps the watch, one is charged for a Reroll into a miss with Despair, and never twice (scripts/infiltrate-reroll.mjs `settleForce`, `settleWatch`; doors-gm.mjs `forceDoor`'s `tell`; the audit's ROLL-23 and ROLL-24, 1.2.122 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP. ROLL-23: `settleForce` ran `forceDoor` whole again, so the character's room (and, on
+         * a loud miss, the rooms next door) was told a second time and a second Remnant left for one attempt; a pick's
+         * replay was given `tell` for this. ROLL-24: `settleWatch` declared with no `withHope` (default true), so a Reroll
+         * into a miss with Despair cost no Sanity and the first throw's mark stayed when the Reroll kept the watch. E74-T9's
+         * rooms: the character in A, its door to B locked, another student in A beside it; the replays driven as reroll.mjs
+         * hands them (`settleInfiltrate`, as E74-T11 drives a pick's). Read: the cards the other student was sent and the
+         * Remnants placed by a loud miss's replay; the Sanity after three watch replays. Put back: everything. Red at
+         * 21bf5d18: one card and one Remnant; Sanity [1, 0, 1].
+         */
+        const S = await import("./gm-stores.mjs");
+        const M = await import("./movement.mjs");
+        const W = await import("./watch-gm.mjs");
+        const { settleInfiltrate } = await import("./infiltrate-reroll.mjs");
+        const { INFILTRATE } = await import("./config.mjs");
+        const { remnantData } = await import("./remnants.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { roomRegions } = await import("./rooms.mjs");
+        needs(world.atLeast("namedRooms", 2), "a room and its door's room");
+        const { player, actor } = await playerInRoom();
+        const other = game.actors.find(a => a.type === "character" && a.id !== actor.id && !a.testUserPermission(player, "OWNER")
+            && !a.getFlag(MODULE_ID, FLAGS.monokuma) && canvas?.scene?.tokens?.some(t => t.actorId === a.id));
+        must(other, "no student the player does not own with a token on the scene on screen - this would measure nothing");
+        must((Number(actor.system?.resources?.stress?.max) || 0) >= 2, `${actor.name}'s Sanity holds fewer than two marks - this would measure nothing`);
+        const scene = canvas.scene;
+        const tokens = [actor, other].map(a => scene.tokens.find(t => t.actorId === a.id));
+        const rooms = M.allRooms(scene);
+        must(rooms.length >= 3, "the scene on screen has fewer than three rooms");
+        const [A, B, C] = rooms;
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const was = { at: tokens.map(t => ({ x: t.x, y: t.y })), stress: actor.system.resources.stress.value, tokens: new Set(scene.tokens.map(t => t.id)) };
+        const flagsWere = [];
+        for (const room of [A, B, C]) for (const piece of roomRegions(scene, room)) flagsWere.push([piece, foundry.utils.deepClone(piece.flags?.[MODULE_ID] ?? {})]);
+        const seenIds = new Set(game.messages.map(m => m.id));
+        const cards = who => game.messages.filter(m => !seenIds.has(m.id) && m.speaker?.actor === who.id && m.whisper?.length).length;
+        const traces = () => scene.tokens.filter(t => !was.tokens.has(t.id) && remnantData(t)?.action === "infiltrate").length;
+        const stress = () => Number(actor.system.resources.stress.value) || 0;
+        const setStress = async n => { await trustedWrite(actor, { "system.resources.stress.value": n }, { reason: "gmRuling" }); await settle(); };
+        const low = INFILTRATE.keepWatch.dc - 1;
+        const read = {};
+        try {
+            for (const [room, list] of [[A, [B]], [B, [A, C]], [C, [B]]]) for (const piece of roomRegions(scene, room)) await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.neighbours, list.join(", "));
+            for (const piece of roomRegions(scene, B)) await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.locked, true);
+            await tokens[0].update(M.positionIn(A, tokens[0]), { ...PLACE });
+            await tokens[1].update(M.positionIn(A, tokens[1]), { ...PLACE });
+            await settle();
+            // ROLL-23: a loud miss (with Despair) replayed into another miss.
+            const done = [];
+            const patch = await settleInfiltrate(actor, { actionKey: "force", forced: false, forceRoom: B }, { total: 10, isCritical: false, withHope: false }, done);
+            await settle();
+            read.force = { forced: patch?.forced ?? null, cards: cards(other), traces: traces() };
+            // ROLL-24: (1) a miss with Despair marked, rerolled into a kept watch; (2) a miss with Hope, rerolled into a miss with
+            // Despair; (3) a miss with Despair marked, rerolled into another.
+            read.sanity = [];
+            await setStress(0);
+            await W.declareWatch({ actor, total: low, withHope: false });
+            await settleInfiltrate(actor, { actionKey: "keepWatch", watchKept: false }, { total: INFILTRATE.keepWatch.dc, isCritical: false, withHope: true }, [], { withHope: false, isCritical: false });
+            await settle();
+            read.sanity.push(stress());
+            if (S.watchStore.get(actor.id)) await S.watchStore.drop(actor.id);
+            await setStress(0);
+            await settleInfiltrate(actor, { actionKey: "keepWatch", watchKept: false }, { total: low, isCritical: false, withHope: false }, [], { withHope: true, isCritical: false });
+            await settle();
+            read.sanity.push(stress());
+            await setStress(1);
+            await settleInfiltrate(actor, { actionKey: "keepWatch", watchKept: false }, { total: low, isCritical: false, withHope: false }, [], { withHope: false, isCritical: false });
+            await settle();
+            read.sanity.push(stress());
+        } finally {
+            if (S.watchStore.get(actor.id)) await S.watchStore.drop(actor.id);
+            await M.setRoomBroken(scene, B, false);
+            for (const t of scene.tokens.filter(t => !was.tokens.has(t.id))) await t.delete();
+            for (const [piece, flags] of flagsWere) {
+                for (const key of Object.keys(piece.flags?.[MODULE_ID] ?? {})) if (!Object.hasOwn(flags, key)) await piece.unsetFlag(MODULE_ID, key);
+                for (const [key, value] of Object.entries(flags)) await piece.setFlag(MODULE_ID, key, value);
+            }
+            for (const m of game.messages.filter(m => !seenIds.has(m.id) && m.whisper?.length && [actor.id, other.id].includes(m.speaker?.actor))) await m.delete();
+            await trustedWrite(actor, { "system.resources.stress.value": was.stress }, { reason: "gmRuling" });
+            for (const [i, t] of tokens.entries()) if (scene.tokens.has(t.id)) await t.update(was.at[i], { ...PLACE });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ force: { forced: false, cards: 0, traces: 0 }, sanity: [0, 1, 1] }),
+            "{force: a loud miss's replay - forced, the cards the student in the room was sent, the Remnants placed; sanity: after a marked miss rerolled into a kept watch, a miss with Hope rerolled into a miss with Despair, a marked miss rerolled into another}");
     }],
     ["E74-T10 - a watch of 18 or more puts one hindrance die on the killer's opening roll against the watcher, named in the killer's window as a hindrance die and nowhere with its cause (scripts/watch-gm.mjs `openingHindrance`, murder-rules.mjs `rollOpening`, roll-draw.mjs `situationReading`, roll-dialog.mjs `advantageSources`; E74 C6; DA44 option A, the owner 12.11.2026): the victim's running watch of 18 and a critical one hinder the GM's draw by one die, one of 17, one not yet at its post and none do not, and the victim's own side is never hindered; the invitation to the killer's browser carries `hindrance: 1` and nothing of the watch, the watcher or the victim, and the card that goes with it reads the same with and without; the window names the die a hindrance die", async () => {
         /*

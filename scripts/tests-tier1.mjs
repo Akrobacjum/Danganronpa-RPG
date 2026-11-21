@@ -32567,6 +32567,36 @@ const INVARIANTS = [
             "[whether the dissolve could be stood down, what its end did after the scene was left, whether a dissolve is busy, queued, the frames drawn before]");
     }],
 
+    ["R8381 - every supporting roll with an action key spends no Call on the GM's draw, as the roller's window shields it (1.2.122 line DESP; the audit's ROLL-18): each `rollTrait(..., { remember: false, actionKey: \"<key>\" })` in the module names a key of roll-draw.mjs `SPENDS_NO_CALL` or of call-effects.mjs `TAKES_CALLS`", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP. action-pipeline.mjs `rollTrait` shields every `remember: false` roll but the
+         * murder's opening, so its window opens with no Call; roll-draw.mjs `hostileCalls` answered none only for a key of
+         * `SPENDS_NO_CALL` (then "palm" alone) or a roll naming no key. Pick the Lock's cover, Tail Someone's notice roll
+         * and Take from the Body's cover name a key and were in neither: the GM threw every hindering Call armed long enough
+         * into them and spent it. Read off the source: each keyed `remember: false` roll's key, and the two lists. Red at
+         * 21bf5d18: pickCover, tailUnseen and lootCover in neither.
+         */
+        const sources = await moduleSources();
+        const listOf = (file, name) => {
+            const line = stripComments(sources.get(file) ?? "").match(new RegExp(`const ${name} = (?:Object\\.freeze\\()?new Set\\(\\[([^\\]]*)\\]\\)`));
+            return line ? [...line[1].matchAll(/"([^"]+)"/g)].map(m => m[1]) : null;
+        };
+        const spends = listOf("roll-draw.mjs", "SPENDS_NO_CALL"), takes = listOf("call-effects.mjs", "TAKES_CALLS");
+        must(spends && takes, "roll-draw.mjs SPENDS_NO_CALL or call-effects.mjs TAKES_CALLS was not read - this would measure nothing");
+        const keyed = new Set();
+        // The module's files, not the suite's (a test may roll any key it likes), each call to its statement's end.
+        for (const [file, text] of sources) {
+            if (/^tests/.test(file)) continue;
+            for (const call of stripComments(text).matchAll(/\brollTrait\s*\([\s\S]*?\)\s*;/g)) {
+                if (!/remember:\s*false/.test(call[0])) continue;
+                const key = call[0].match(/actionKey:\s*"([^"]+)"/)?.[1];
+                if (key) keyed.add(key);
+            }
+        }
+        must(keyed.size >= 3, `only ${keyed.size} keyed supporting roll(s) read - this would measure nothing`);
+        const loose = [...keyed].filter(key => !spends.includes(key) && !takes.includes(key)).sort();
+        equal(stableJson(loose), "[]", "[the keys of supporting rolls (`remember: false`) the GM's draw would throw and spend hindering Calls into]");
+    }],
     ["R8380 - the Despair panel's overflow caption takes the pointer as the panel's controls do (1.2.122 line DESP; the audit's CTRL-28): under `#drpg-despair`'s `pointer-events: none` the caption computes `auto`, as the pool's count does, so its tooltip - the GM's real count past the threshold and why a full counter has not fired - can show on a desk layout; in Chromium audit/caption-hit.mjs measures the hit itself", async () => {
         /*
          * 21.11.2026, 1.2.122 line DESP. The panel is `pointer-events: none` so the canvas takes clicks through it, and its

@@ -554,37 +554,33 @@ export async function diagnoseDiceLook({ messageId = null, test = false, show = 
     } catch { /* a console without table() still has the text */ }
     if (show) {
         const { alreadyOpen } = await import("./live.mjs");
-        if (!alreadyOpen("drpg-window-dice-look")) void showLookWindow(view, findings, lines, text).catch(err => error("Could not show the dice look", err));
+        /* The read-out (E21 C2b): Close, the default; Copy report secondary. Copy report waits for the copy, says it was
+           copied - or that it was not, and how to copy by hand - and brings the window back, as the Diagnose window's does
+           (diagnostics.mjs `openReport`). Until 1.2.122 it started the copy unawaited and closed the window with no word, a
+           failed copy included (the audit's CTRL-68). Not awaited: the run answers its view while the window stands. */
+        if (!alreadyOpen("drpg-window-dice-look")) void (async () => {
+            for (;;) {
+                const action = await drpgWindow({
+                    classes: ["drpg-panel", "drpg-window-dice-look"],
+                    width: "wide",
+                    title: word("DRPG.DiceLook.diag.title"),
+                    body: windowHtml(view, findings, lines),
+                    footer: {
+                        secondary: [{ action: "copy", label: game.i18n.localize("DRPG.Diagnose.copy"), tooltip: tipText("DRPG.Tips.Sweep.Gm.copyReportTooltip") }],
+                        close: { role: "close", action: "close" }
+                    },
+                    rejectClose: false
+                });
+                if (action !== "copy") return;
+                try {
+                    await game.clipboard.copyPlainText(text);
+                    ui.notifications?.info(game.i18n.localize("DRPG.Diagnose.copied"));
+                } catch (err) {
+                    error("Could not copy the dice look", err);
+                    ui.notifications?.warn(game.i18n.localize("DRPG.DiceLook.diag.copyFailed"));
+                }
+            }
+        })().catch(err => error("Could not show the dice look", err));
     }
     return { view, findings, text };
-}
-
-/**
- * The read-out (E21 C2b): Close, the default; Copy report secondary. Copy report waits for the copy, says it was copied
- * - or that it was not, and how to copy by hand - and brings the window back, as the Diagnose window's does
- * (diagnostics.mjs `openReport`). Until 1.2.122 it started the copy unawaited and closed the window with no word, a
- * failed copy included (the audit's CTRL-68).
- */
-async function showLookWindow(view, findings, lines, text) {
-    for (;;) {
-        const action = await drpgWindow({
-            classes: ["drpg-panel", "drpg-window-dice-look"],
-            width: "wide",
-            title: word("DRPG.DiceLook.diag.title"),
-            body: windowHtml(view, findings, lines),
-            footer: {
-                secondary: [{ action: "copy", label: game.i18n.localize("DRPG.Diagnose.copy"), tooltip: tipText("DRPG.Tips.Sweep.Gm.copyReportTooltip") }],
-                close: { role: "close", action: "close" }
-            },
-            rejectClose: false
-        });
-        if (action !== "copy") return action;
-        try {
-            await game.clipboard.copyPlainText(text);
-            ui.notifications?.info(game.i18n.localize("DRPG.Diagnose.copied"));
-        } catch (err) {
-            error("Could not copy the dice look", err);
-            ui.notifications?.warn(game.i18n.localize("DRPG.DiceLook.diag.copyFailed"));
-        }
-    }
 }
