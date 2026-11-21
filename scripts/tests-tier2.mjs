@@ -82090,7 +82090,17 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const rowOf = row => root.querySelector(`[data-countdown="${row}"]`);
             const shown = entries.map(entry => [Boolean(entry.visible(rowOf(placed))), Boolean(entry.visible(rowOf("suiteE36T4NoProject")))]);
             entries[2].onClick(new Event("click"), rowOf("suiteE36T4NoProject"));
-            const gone = await road(() => entries[2].onClick(new Event("click"), rowOf(placed)), () => Boolean(project(placed)));
+            /* The project row's Delete asks first since 1.2.122 (the audit's CTRL-29; tier 2's "1.2.122 ITEM-23 ..." answers
+               it Cancel): answered yes here, through DialogV2.wait as the manager above is driven, so the road is the delete. */
+            const ownAsk = Object.getOwnPropertyDescriptor(D, "wait");
+            D.wait = async () => true;
+            let gone;
+            try {
+                gone = await road(() => entries[2].onClick(new Event("click"), rowOf(placed)), () => Boolean(project(placed)));
+            } finally {
+                if (ownAsk) Object.defineProperty(D, "wait", ownAsk);
+                else delete D.wait;
+            }
             seen.menu = { menu, shown, clicked, held: gone.held.read, after: gone.after };
 
             const removed = await road(() => P.deleteProject(id), () => Boolean(project(id)));
