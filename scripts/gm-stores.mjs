@@ -2797,8 +2797,9 @@ export function gmStoreStatus(client = game.settings?.storage?.get?.("client")) 
 
 let lastHealth = null;
 let healthOpen = false;
-/** How long the quiet health recheck gathers the changes of the backed-up stores before it runs (CASE-72). */
-const RECHECK_GATHER_MS = 2000;
+/** How long the quiet health recheck gathers the changes of the backed-up stores before it runs (CASE-72). Under the
+    1.5 s scenario 61's Z3 gives a restore's merge to clear the red line (2 s read red there, 21.11.2026). */
+const RECHECK_GATHER_MS = 750;
 
 /* THE LAST REPORT, AND A HOOK WHEN IT CHANGES (1.2.122 line ITEMS; the audit's REFR-46). The GM panel's red case line
    reads `caseWarning`, and the report was a variable set with no event: a restore that filled the case left the red line
@@ -3114,7 +3115,7 @@ export function registerCaseHealth() {
        for one more: a restore's stores arrive one flush at a time. */
     /* GATHERED, AND WITHOUT THE BYTES (1.2.122 line ITEMS; the audit's CASE-72). Every write of a backed-up store on the
        primary ran the whole check again while a row was missing - every scene's traces, every bullet, and a read and
-       parse of every store's key for a byte count no red line reads. The changes of two seconds are one recheck now, and
+       parse of every store's key for a byte count no red line reads. The changes of 0.75 s are one recheck now, and
        the recheck leaves the bytes out (`gmStoreHealth({ bytes: false })`; the window and diagnostics still count them). */
     let rechecking = false, again = false, gathering = null;
     const recheck = async () => {

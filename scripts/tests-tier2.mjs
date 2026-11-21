@@ -107174,9 +107174,12 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await MM.clearMastermind();
             await settle();
             const before = [resourceValue(a, "hope"), resourceValue(b, "hope"), D.getDespair(donor.id), D.owedOf(donor.id)];
-            await give();
+            /* Since 1.2.122 (the audit's REFR-45: the whole form follows the record) the Give Hope box goes with the
+               Mastermind, so there is no Give to press; where a box still stands, its press must refuse and say why. */
+            const boxGone = Boolean(await until(() => !box(), 2000));
+            if (!boxGone) await give();
             read.cleared = { same: stableJson([resourceValue(a, "hope"), resourceValue(b, "hope"), D.getDespair(donor.id), D.owedOf(donor.id)]) === stableJson(before),
-                told: warned.includes(game.i18n.localize("DRPG.Mastermind.noneSet")) };
+                told: boxGone || warned.includes(game.i18n.localize("DRPG.Mastermind.noneSet")) };
         } finally {
             ui.notifications.warn = warn;
             appOf()?.close();
@@ -107193,7 +107196,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
         }
         equal(stableJson(read), stableJson({ cleared: { same: true, told: true }, changed: { a: 0, b: 3 }, redrawn: true }),
-            "[cleared: Give changed nothing; it said no Mastermind is set] [changed: A's Hope, B's Hope after Give 1] [the box read the new Mastermind's Hope]");
+            "[cleared: Give changed nothing; no Give box stood, or its press said no Mastermind is set] [changed: A's Hope, B's Hope after Give 1] [the box read the new Mastermind's Hope]");
     }],
     ["the open planner draws a node written to the case while it stands open - with no field focused, with a field focused that holds nothing typed, and with text typed in it: the focus, the caret and the text kept, and a field another write changed under the typing keeps the text and is marked (investigation.mjs `openInvestigationDashboard`, live.mjs `keepLive` `whileEditing`; the owner, 20.11.2026: \"by okna zawsze odswiezaly sie przed zaladowaniem okna od nowa (np. Planer)\", \"Zawsze odswiezamy okna od razu przy zmianie\"; the line claude/plan-119)", async () => {
         /*
