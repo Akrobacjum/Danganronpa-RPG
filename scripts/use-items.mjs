@@ -934,6 +934,15 @@ export async function discardBroken(actor, item) {
     // spent nothing and thrown nothing away.
     if (!roll) return null;
 
+    /* READ AGAIN AFTER THE TWO WINDOWS (1.2.122 line ITEMS; the audit's ITEM-31), as `useItem` does since S08-35: the
+       question and the roll wait on the player, and the item can go meanwhile - Palmed, handed over, taken by a GM, put
+       away. Gone, a copy now or stashed, nothing is placed or deleted, and the player is told. */
+    const now = actor.items.get(item.id);
+    if (!now || onlyCopied(now) || isStashed(now)) {
+        ui.notifications.warn(game.i18n.format("DRPG.Items.discardGone", { item: name }));
+        return null;
+    }
+
     const hit = roll.isCritical
         ? BROKEN_ITEMS.critical
         : resolveThreshold(roll.total, BROKEN_ITEMS.thresholds);

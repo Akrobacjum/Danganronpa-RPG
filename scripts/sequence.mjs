@@ -726,7 +726,7 @@ function safeProgress() {
     try { return getSetting(SETTINGS.trialProgress) ?? null; } catch { return null; }
 }
 
-/* The sentenced's picture through the module's one filter of image paths (vault-store.mjs `safeRoomImage`, as the voice
+/* The sentenced's picture through the module's one filter of image paths (vault-store.mjs `safeRoomImage`, and the mask's "?" since 1.2.122: `safePortrait`, as the voice
    tile reads a portrait), read at ready by `import()` so this file stays a leaf: vault-store.mjs reaches most of the
    module. Before it is read, and for Foundry's stand-in silhouette, the initial stands instead of a portrait. */
 let safeImage = () => null;
@@ -1295,7 +1295,7 @@ export function registerSequences() {
     if (ready) return;
     ready = true;
     setTimeout(() => { catchUpSequences().catch(err => console.error(`${MODULE_ID} | a late sequence failed`, err)); }, 0);
-    import("./vault-store.mjs").then(m => { safeImage = m.safeRoomImage; }).catch(() => null);
+    import("./vault-store.mjs").then(m => { safeImage = m.safePortrait; }).catch(() => null);
     window.addEventListener("keydown", onEscape, { capture: true });
     Hooks.on("drpgPhaseChanged", onPhaseChanged);
     Hooks.on("createChatMessage", message => {

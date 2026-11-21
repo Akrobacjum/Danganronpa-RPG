@@ -484,7 +484,12 @@ function replaceableIcon(img) {
  *
  * IT LOOKS FIRST AND REFUSES TO GUESS. Only a picture the module itself put
  * there - or none at all - is replaced; a Truth Bullet wearing the photograph
- * of the trace it came from, or an item a GM picked art for, is left alone.
+ * of the trace it came from, or an item a GM picked art for from outside the
+ * module's drawings, is left alone. A drawing of the module's own picked in
+ * the item form's grid (H83, tables-editor.mjs `wireItemPicture`) cannot be
+ * told from a placeholder an older category left (`replaceableIcon` reads the
+ * path alone), so it IS reset to the category's drawing - the 1.2.86 notes say
+ * so, and this header did not until 1.2.122 (the audit's STG-55).
  * `all: true` drops that rule for a GM who wants every module item reset to its
  * category's placeholder, and says so in what it reports.
  *
@@ -854,10 +859,11 @@ export async function grantItem(actor, {
                 // `quiet` said, so an unseen Plant into full pockets named itself to its victim. No road passes
                 // `quiet` here since D42 refuses that Plant (inventory.mjs `transferItem`), and the rule holds for any.
                 if (!quiet) {
+                    // The limit that was hit (1.2.122 line ITEMS; the audit's ITEM-28, ITEM-41): the shared Gear's for a
+                    // Murder Weapon, a Cleaning Tool or a Tool, as the refusals beside this one say (`capacityLabel`).
                     await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Vault.overflowed", {
                         item: foundry.utils.escapeHTML(name),
-                        category: foundry.utils.escapeHTML(
-                            ITEM_CATEGORIES[category]?.plural ?? category)
+                        category: foundry.utils.escapeHTML(capacityLabel(category))
                     })}</p>`);
                 }
             } else {
@@ -1236,6 +1242,15 @@ export async function transferItem(from, to, item, { mode, quiet = false, asker 
                     await whisperToOwner(to, `<p>${game.i18n.format("DRPG.Handover.keyAlreadyHeld", { room: esc(keyRoom) })}</p>`);
                 }
                 log(`${to.name} already held a key to ${keyRoom}; the one from ${from.name} was not copied.`);
+                /* A STUCK REMOVAL IS SAID HERE TOO (1.2.122 line ITEMS; the audit's ITEM-30): `takeOne` answers `stuck`
+                   when the giver's piece could not be taken off (a refused delete resolves quietly), and this branch
+                   answered a clean move - stuck false, no GM told - where the main road below says both. */
+                if (taken.stuck) {
+                    await whisperToGms({ tone: "warning", body: `<p>${game.i18n.format(TRANSFER_STUCK[mode], {
+                        name: esc(name), from: esc(from.name), to: esc(to.name)
+                    })}</p>` });
+                    return { ok: true, copy: null, left: taken.left, keyHeld: keyRoom, stuck: true };
+                }
                 return { ok: true, copy: null, left: taken.left, keyHeld: keyRoom, stuck: false };
             }
         }

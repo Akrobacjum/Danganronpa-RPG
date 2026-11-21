@@ -120,7 +120,10 @@ export const VAULT_FLAGS = {
      */
     stashes: "drpgStashes",
     /**
-     * LEGACY, and read only through `stashesIn`'s fallback.
+     * LEGACY. Read by `stashesIn`'s fallback (the stash list of a region the new tab never wrote), cleared at the
+     * season reset with the stashes it hides (`unconcealStashes`), and carried over a room's rename with the room's
+     * other flags (`pieceData`) - nothing else reads it (the audit's ITEM-43, 1.2.122: this said "read only through
+     * `stashesIn`'s fallback").
      *
      * Whether the bedroom owner's stash was hidden, back when a room had one
      * stash and the room was the stash. `setStash` writes `stashes` instead, so
@@ -628,6 +631,21 @@ const ROOM_IMAGE_TYPES = new Set(["jpg", "jpeg", "png", "webp", "avif"]);
  * owner sets and the account's avatar (voice-tile.mjs `voicePortrait`) - so on The Forge a player's portrait
  * may be any file of that host, which every browser of their voice room then fetches.
  */
+/*
+ * A PORTRAIT'S PATH (1.2.122 line ITEMS; the audit's STG-100): `safeRoomImage`'s, and one SVG besides - the module's own
+ * mask, the "?" a masked student wears (mask-gm.mjs `MASK_IMG`). The sequence boards and the voice tile read a portrait
+ * through the room pictures' filter, which refuses every SVG (E77 fix r1-G1, above), so the "?" the notes say those two
+ * surfaces wear was a letter, or the next face. Only that file of the module's own folder passes, by its exact path; no
+ * other SVG does.
+ */
+const MASK_PORTRAIT = `modules/${MODULE_ID}/icons/mask-unknown.svg`;
+export function safePortrait(path) {
+    const safe = safeRoomImage(path);
+    if (safe) return safe;
+    const text = typeof path === "string" ? path.trim().replace(/^\//, "") : "";
+    return text === MASK_PORTRAIT ? MASK_PORTRAIT : null;
+}
+
 export function safeRoomImage(path) {
     if (typeof path !== "string") return null;
     const text = path.trim();

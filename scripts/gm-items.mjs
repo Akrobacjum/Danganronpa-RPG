@@ -40,7 +40,7 @@ function recipientOptions(students, selectedId) {
 }
 import { whisperToOwner, log, error, plural, cardHead, esc, serialWrite, listOf } from "./utils.mjs";
 import { kitTabs, wireKitTabs, shownTab, drpgWindow, box, emptyOption, formGrid, modeBar, tipAttr, tipText } from "./ui-kit.mjs";
-import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
+import { alreadyOpen, keepLive, keepFresh, RAISED } from "./live.mjs";
 import { homeScene } from "./rooms.mjs";
 
 
@@ -151,6 +151,24 @@ function wireItemManager(dialog, target, ctx = null) {
         build: holdings,
         // Items for what they are carrying, actors because a stash lives on the
         // sheet and the summary counts it.
+        watch: { items: true, actors: true }
+    });
+    followTheWorld(dialog, "who");
+}
+
+/*
+ * THE LISTS FOLLOW THE STUDENT'S THINGS (1.2.122 line ITEMS; the audit's REFR-09; the owner's rule "Zawsze odswiezamy
+ * okna od razu przy zmianie"). Only the hub's holdings were live: the Give tab's "Gear 1/3" counts, its keys not held
+ * and the Take list stayed as opened, and so did the give and take windows of their own. Each list is already drawn
+ * again, its pick kept, when the student select changes (the handlers of `wireGiveForm`, `wireBulletForm`,
+ * `showKeyChoices`' callers and Take's); a change of any item or actor runs those same handlers, as a change of the
+ * select to the student it shows. What is typed stays (nothing typed is redrawn). The Remnant list is the one read
+ * at the open: a trace placed or erased elsewhere is not drawn until a reopen (the trace's own pick is judged again at
+ * Give).
+ */
+function followTheWorld(dialog, field) {
+    keepFresh(dialog, {
+        run: root => root.querySelector(`form [name="${field}"]`)?.dispatchEvent(new Event("change")),
         watch: { items: true, actors: true }
     });
 }
@@ -515,6 +533,7 @@ export async function giveKeyDialog(actor, { bedrooms = null } = {}) {
                 const who = game.actors.get(form.elements.recipient.value);
                 if (who) showChoices(form, ok, who);
             });
+            followTheWorld(dialog, "recipient");
         },
         footer: {
             primary: {
@@ -558,7 +577,10 @@ function keyChoices(who, allBedrooms, keysHeldBy) {
 function showKeyChoices(form, choices) {
     const { options, empty } = choices;
     if (!form?.elements?.room) return choices;
+    // The pick kept where it is still offered (REFR-09: the list is drawn again as the world changes).
+    const keep = form.elements.room.value;
     form.elements.room.innerHTML = options;
+    if (keep && [...form.elements.room.options].some(o => o.value === keep)) form.elements.room.value = keep;
     form.elements.room.disabled = Boolean(empty);
     const line = form.querySelector("[data-drpg-key-empty]");
     if (line) {
@@ -578,6 +600,14 @@ async function giveKeyNow(who, room, grantBedroomKey) {
     if (made) {
         ui.notifications.info(game.i18n.format("DRPG.Vault.keyGivenGm",
             { room, actor: who.name }));
+    } else {
+        /* SAID (1.2.122 line ITEMS; the audit's CTRL-59): `grantBedroomKey` answers null for a student who already holds
+           the key, carried or stashed (handed over by another student while this list stood), and the window came back
+           with no word. The reason it can name, else that nothing was given. */
+        const { keysHeldBy } = await import("./vault.mjs");
+        ui.notifications.warn(keysHeldBy(who, { stashed: true }).has(room)
+            ? game.i18n.format("DRPG.Vault.keyAlreadyHeld", { room, actor: who.name })
+            : game.i18n.localize("DRPG.Vault.keyNotGiven"));
     }
     return Boolean(made);
 }
@@ -749,7 +779,15 @@ function dialogScope(dialog, gate = () => {}) {
 /** The give form's own rules: the table drives the item list, category and tier; the recipient rebuilds the counts; the roles follow tier and home. */
 function wireGiveForm(dialog, tables = game.tables, scope = null) {
     if (!scope) {
-        const paint = () => holdGive(dialog.element, gateGive(dialog.element.querySelector("form"), (shownTab(dialog.element) ?? "existing") === "existing"));
+        /* GIVE OFF ON AN EMPTY PANE (1.2.122 line ITEMS; the audit's CTRL-61), as the hub holds its own: with no item
+           tables From the tables draws only its line, and Give read the Create new pane instead - a "needs a name"
+           warning, or the other pane's item given. */
+        const paint = () => {
+            const form = dialog.element.querySelector("form");
+            const existing = (shownTab(dialog.element) ?? "existing") === "existing";
+            if (existing && !form?.elements?.exTable) return holdGive(dialog.element, false, game.i18n.localize("DRPG.Items.existingEmpty"));
+            holdGive(dialog.element, gateGive(form, existing));
+        };
         wireKitTabs(dialog.element, { win: dialog.element, app: dialog, onSwitch: paint });
         scope = dialogScope(dialog, paint);
     }
@@ -1065,7 +1103,7 @@ export async function gmGiveItemDialog(actor) {
             { key: "create", label: game.i18n.localize("DRPG.Items.tabCreateNew"),
               html: parts.create, tooltip: tipText("DRPG.Tips.Sweep.Gm.tabCreateNewTooltip") }
         ])}${recipientRows(recipients, "DRPG.Items.overCapNote", "drpg-give")}</form>`,
-        render: (event, dialog) => { wireGiveForm(dialog); wireKindNotes(dialog); },
+        render: (event, dialog) => { wireGiveForm(dialog); wireKindNotes(dialog); followTheWorld(dialog, "recipient"); },
         footer: {
             primary: { action: "ok", label: game.i18n.localize("DRPG.Items.give"), callback: (e, b, d) => readGiveForm(d),
                        tooltip: tipText("DRPG.Tips.Gm.giveAnItemTooltip") },
@@ -1235,8 +1273,15 @@ function bulletCreatePane(fill = null, { nameField = "name" } = {}) {
 /** The name follows the picked trace; the trace list follows the recipient. */
 function wireBulletForm(dialog, traces, traceContextLine, scope = null) {
     if (!scope) {
-        wireKitTabs(dialog.element, { win: dialog.element, app: dialog });
-        scope = dialogScope(dialog);
+        // Give off on From a Remnant with no trace to pick (CTRL-61), with the hub's own reason.
+        const paint = () => {
+            const existing = (shownTab(dialog.element) ?? "create") === "existing";
+            const empty = existing && !dialog.element.querySelector("form")?.elements?.remnant;
+            holdGive(dialog.element, !empty, empty ? game.i18n.localize("DRPG.TruthBullet.remnantEmpty") : null);
+        };
+        wireKitTabs(dialog.element, { win: dialog.element, app: dialog, onSwitch: paint });
+        scope = dialogScope(dialog, paint);
+        paint();
     }
     const form = scope.form;
     if (!form) return;
@@ -1495,7 +1540,7 @@ export async function giveTruthBulletDialog(actor, { scenes: only = null, fill =
               html: bulletCreatePane(fill), tooltip: tipText("DRPG.Tips.Sweep.Gm.tabWriteNewTooltip") }
             /* a planned Truth Bullet (E104) opens on Write new, filled in, its recipient and Tell as planned */
         ], { active: fill || !traces.length ? "create" : "existing" })}${recipientRows(recipients, "DRPG.TruthBullet.secretNote", "drpg-bullet", { tell: fill?.tell ?? true })}</form>`,
-        render: (event, dialog) => wireBulletForm(dialog, traces, traceContextLine),
+        render: (event, dialog) => { wireBulletForm(dialog, traces, traceContextLine); followTheWorld(dialog, "recipient"); },
         footer: {
             primary: { action: "ok", label: game.i18n.localize("DRPG.TruthBullet.give"), callback: (e, b, d) => readBulletForm(d),
                        tooltip: tipText("DRPG.Tips.Gm.giveATruthBulletTooltip") },
@@ -1787,11 +1832,13 @@ async function takeItemDialog(actor, { only = null } = {}) {
     const result = await drpgWindow({
         // The title says which of the three buttons opened this - see
         // `FILTERED` above.
+        //
+        // GENERIC ON PURPOSE, as the three give windows' since ITEM-13 (1.2.122 line ITEMS; the audit's CTRL-60, ITEM-29,
+        // ITEM-40): the hub always passes its student, and the title named them while "Take it from" chose whose item
+        // goes - a GM who changed the select read one student's name over another's list.
         title: filtered
             ? game.i18n.localize(filtered.title)
-            : actor
-                ? game.i18n.format("DRPG.Items.takeFrom", { actor: actor.name })
-                : game.i18n.localize("DRPG.Items.take"),
+            : game.i18n.localize("DRPG.Items.take"),
         classes: ["drpg-panel", "drpg-window-take"],
         body: `<form>
             <label>${game.i18n.localize("DRPG.Items.takeFromWhom")}
@@ -1807,9 +1854,14 @@ async function takeItemDialog(actor, { only = null } = {}) {
             form?.elements?.recipient?.addEventListener("change", () => {
                 const who = game.actors.get(form.elements.recipient.value);
                 // `namedItem`, not `form.elements.item` - see the note on the
-                // callback below.
-                if (who) form.elements.namedItem("item").innerHTML = optionsFor(who);
+                // callback below. The pick kept where it is still there (REFR-09).
+                if (!who) return;
+                const list = form.elements.namedItem("item");
+                const keep = list.value;
+                list.innerHTML = optionsFor(who);
+                if (keep && [...list.options].some(o => o.value === keep)) list.value = keep;
             });
+            followTheWorld(dialog, "recipient");
         },
         footer: {
             primary: {
@@ -1846,7 +1898,9 @@ async function takeItemDialog(actor, { only = null } = {}) {
     const who = game.actors.get(result.recipient) ?? initial;
     const item = who.items.get(result.id);
     if (!item) {
-        ui.notifications.warn(game.i18n.format("DRPG.Items.nothingToTake", { actor: who.name }));
+        // An item gone meanwhile is said as gone (CTRL-60): "carries nothing the module tracks" is untrue of a student who
+        // carries other things; that line stays for the list that was empty.
+        ui.notifications.warn(game.i18n.format(result.id ? "DRPG.Items.itemGone" : "DRPG.Items.nothingToTake", { actor: who.name }));
         return false;
     }
 

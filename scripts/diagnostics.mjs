@@ -2330,6 +2330,8 @@ export async function openReport(text, { wait = config => drpgWindow(config),
                 notify(localize("DRPG.Diagnose.copied"));
             } catch (err) {
                 error("Could not copy the report", err);
+                // Said to the presser too (the audit's CTRL-87), in the page's language as the copied line is.
+                ui.notifications?.warn(game.i18n.localize("DRPG.Failures.copyFailed"));
             }
             continue;
         }

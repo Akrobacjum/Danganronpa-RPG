@@ -29,7 +29,7 @@ import { MODULE_ID } from "./config.mjs";
 import { dialogContent, error, listOf } from "./utils.mjs";
 import { kitTabs, wireKitTabs, drpgWindow, drpgConfirm, dataTable, box, tipAttr, tipText } from "./ui-kit.mjs";
 import { setOverflowRules, overflowSection, overflowNowLine, readOverflowForm, overflowStatus, clearOverflowAsGm, overflowSuggestionLine } from "./overflow.mjs";
-import { alreadyOpen, keepFresh, reopen, RAISED } from "./live.mjs";
+import { alreadyOpen, keepFresh, reopen, isDirty, RAISED } from "./live.mjs";
 import { SETTINGS } from "./settings.mjs";
 
 
@@ -153,11 +153,20 @@ function gmTeamButtons({ gms, actors, roster, candidates, removable }) {
     const primary = {
             action: "save",
             label: game.i18n.localize("DRPG.Assign.save"),
+            /* ONLY WHAT THIS GM CHANGED (1.2.122 line ITEMS; the audit's REFR-07, REFR-26 and UI-19). The window is drawn
+               once and Save wrote every field of it as drawn - the pool names, every Monokuma's pool, the whole assignment
+               map and the whole Overflow rules form - so another GM's change made while it stood was written back, and a
+               rules change was announced to the table again. Each read now keeps a field only where its value is not the
+               one it was drawn from (live.mjs `isDirty`); what was left alone is the world's as it is at Save. Tier 2's
+               "1.2.122 REFR-07 ...". */
             callback: (event, button, dialog) => ({
                 pools: readPoolNameForm(dialog, gms),
-                monokumas: readMonokumaForm(dialog, actors),
+                monokumas: readMonokumaForm(dialog, actors).map(row => {
+                    const select = dialog.element.querySelector(`[name="pool.${CSS.escape(row.id)}"]`);
+                    return select && !isDirty(select) ? { id: row.id, pool: undefined } : row;
+                }),
                 assignments: roster.length ? readAssignmentForm(dialog, roster) : null,
-                overflow: readOverflowForm(dialog.element)
+                overflow: changedOverflow(dialog.element)
             })
     };
     if (candidates.length) {
@@ -200,6 +209,29 @@ function gmTeamButtons({ gms, actors, roster, candidates, removable }) {
 /** The footer buttons each tab shows beside Save and Close (ui-kit.mjs `wireKitTabs`). */
 const TAB_BUTTONS = Object.freeze({ pools: ["addPool", "removePool"], students: ["auto"] });
 
+/**
+ * The Overflow rules this GM changed, in the shape `setOverflowRules` takes (REFR-26, UI-19): a threshold, an effect's
+ * `on` or its `by` only where its field is not as drawn - `setOverflowRules` keeps every field an edit does not carry.
+ * Null when nothing was changed, so Save writes and announces nothing of the rules.
+ */
+function changedOverflow(root) {
+    const form = readOverflowForm(root);
+    if (!form) return null;
+    const field = name => root.querySelector(`[name="${name}"]`);
+    const out = { effects: {} };
+    let any = false;
+    const threshold = field("ovf-threshold");
+    if (threshold && isDirty(threshold) && form.threshold !== undefined) { out.threshold = form.threshold; any = true; }
+    for (const [key, effect] of Object.entries(form.effects ?? {})) {
+        const on = field(`ovf-${key}-on`), by = field(`ovf-${key}-by`);
+        const edit = {};
+        if (on && isDirty(on)) edit.on = effect.on;
+        if (by && isDirty(by) && effect.by !== undefined) edit.by = effect.by;
+        if (Object.keys(edit).length) { out.effects[key] = edit; any = true; }
+    }
+    return any ? out : null;
+}
+
 /** Write the four things the form edits, in the order the reads depend on. */
 async function saveGmTeam(result) {
     try {
@@ -218,7 +250,16 @@ async function saveGmTeam(result) {
         }
         await setPools(pools);
 
-        if (result.assignments) await setAssignments(result.assignments);
+        /* The rows changed here, over the map as it is now (REFR-07): `setAssignments` writes the setting whole, and the
+           map drawn at the open would drop a row another GM wrote meanwhile. "(fallback)" picked takes a row out. */
+        if (result.assignments && Object.keys(result.assignments).length) {
+            const map = { ...assignments() };
+            for (const [id, value] of Object.entries(result.assignments)) {
+                if (value === FALLBACK_PICK) delete map[id];
+                else map[id] = value;
+            }
+            await setAssignments(map);
+        }
 
         // Saved through the same button as the rest - every pane stays in the
         // DOM, which is the whole reason the kit's tabs (`kitTabs`) work this way.
@@ -264,9 +305,9 @@ export async function openGmTeamDialog({ draft = null } = {}) {
         return null;
     }
 
-    // Fixed at open time. Flipping a Monokuma flag in the top table does not
-    // live-update the roster below it - reopen once after saving if a change
-    // there should also change who is available to divide up as a student.
+    // Fixed at open time: who is a Monokuma is the Students window's Role (E101 item 6), and a character made one while
+    // this window stands has no row here until a reopen; Save keeps the world's pool for it (`readMonokumaForm`, R4473)
+    // and writes only the rows the GM changed (REFR-07).
     const roster = students();
     const candidates = poolCandidates();
     const extraIds = new Set(extraPoolUserIds());
@@ -314,9 +355,11 @@ export async function openGmTeamDialog({ draft = null } = {}) {
 
             /* THE ONE NUMBER ON THIS WINDOW THAT MOVES WHILE IT IS OPEN.
 
-               Everything else here is a setting being edited - pool names, who is a
-               Monokuma, which pool feeds whom, the overflow rules - and none of it
-               changes underneath the GM. The spilled-Despair count does, constantly:
+               Everything else here is a setting being edited - pool names, which pool
+               feeds whom, the overflow rules. With one GM none of it changes underneath;
+               with two it can, and it is not redrawn here: Save writes only the fields
+               this GM changed (the primary's callback, REFR-07, UI-19), so the other
+               GM's change stands. The spilled-Despair count changes constantly:
                every Call that overfills a pool, every Key Remnant shortfall, every
                boundary. Measured on 11.09 with this window open: the count went from 84
                to 89 and the line went on reading 84.
@@ -347,8 +390,20 @@ export async function openGmTeamDialog({ draft = null } = {}) {
     const carried = result?.draft ?? null;
 
     if (result === "auto" || result?.op === "auto") {
-        await autoAssign();
-        ui.notifications.info(game.i18n.localize("DRPG.Assign.splitDone"));
+        /* ASKED FIRST (1.2.122 line ITEMS; the audit's ITEM-37): Split evenly writes a new map at once over every pick made
+           and saved, and Cancel afterwards undoes nothing - the window's other changes wait for Save. Cancel first and the
+           default, as Revoke's question (`confirmRemovePool`). */
+        const answer = await drpgConfirm({
+            title: game.i18n.localize("DRPG.Assign.splitEvenly"),
+            classes: ["drpg-panel", "drpg-narrow", "drpg-window-splitask"],
+            body: `<p>${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Assign.splitAsk"))}</p>`,
+            yes: { role: "destructive", action: "split", label: game.i18n.localize("DRPG.Assign.splitEvenly"), callback: () => "split" },
+            rejectClose: false
+        });
+        if (answer === "split") {
+            await autoAssign();
+            ui.notifications.info(game.i18n.localize("DRPG.Assign.splitDone"));
+        }
         return openGmTeamDialog({ draft: carried });
     }
     /* THROUGH `reopen` WHERE THE ROAD MAY AWAIT NOTHING (LIVE-REOPEN-01, review of
@@ -700,12 +755,13 @@ function wireAssignmentLive(dialog, gms) {
  * READING
  * ========================================================================== */
 
+// The names this GM changed (REFR-07): a box left as drawn is the world's, perhaps another GM's since the open.
 function readPoolNameForm(dialog, gms) {
     const root = dialog.element;
     const map = {};
     for (const user of gms) {
-        const value = root.querySelector(`[name="poolName.${CSS.escape(user.id)}"]`)?.value ?? "";
-        map[user.id] = value.trim();
+        const field = root.querySelector(`[name="poolName.${CSS.escape(user.id)}"]`);
+        if (field && isDirty(field)) map[user.id] = field.value.trim();
     }
     return map;
 }
@@ -726,18 +782,17 @@ export function readMonokumaForm(dialog, actors) {
  * renamed a pool turned each student's fallback ("*") into an explicit assignment to the first pool,
  * and the window stopped showing who had never been assigned; a student just ticked as a Monokuma on
  * the next tab was given an assignment too. Measured at 8de5a242 by tier 2 (E15-T8): a rename and
- * a student ticked a Monokuma wrote all four students. Now a row is written when the world held one or the
- * GM changed its select (`data-drpg-was`, what it showed when drawn), and a row whose actor is ticked
- * a Monokuma is left out. The setting is written whole (assignments.mjs `setAssignments`), so a row
- * left out stays a fallback.
+ * a student ticked a Monokuma wrote all four students. Since 1.2.122 (the audit's REFR-07) the read answers only the
+ * rows whose select the GM changed (`data-drpg-was`, what it showed when drawn), "(fallback)" as `FALLBACK_PICK`, and
+ * Save lays them over the map as it is at Save (`saveGmTeam`): until then a row the world held at the open was read
+ * back as drawn and the map written whole, so a row another GM wrote meanwhile was dropped.
  */
 function readAssignmentForm(dialog, roster) {
     const root = dialog.element;
     const map = {};
     for (const actor of roster) {
         const select = root.querySelector(`[name="assign.${CSS.escape(actor.id)}"]`);
-        if (!select?.value) continue;   // "(fallback)" (`FALLBACK_PICK`): a fallback stays one
-        if (select.dataset.drpgExplicit === "1" || select.value !== select.dataset.drpgWas) map[actor.id] = select.value;
+        if (select && select.value !== select.dataset.drpgWas) map[actor.id] = select.value;
     }
     return map;
 }

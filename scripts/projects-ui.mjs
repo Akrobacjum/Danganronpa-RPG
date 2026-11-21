@@ -32,7 +32,8 @@ import { emptyOption, drpgConfirm, drpgWindow, dataTable, formGrid, helpText, bo
 import { SETTINGS } from "./settings.mjs";
 // The projects' queue key, from the file that keeps it (projects.mjs does not re-export it), as traps.mjs and fog.mjs read it.
 import { COUNTDOWNS_KEY } from "./projects-secrecy.mjs";
-import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
+import { alreadyOpen, keepLive, isDirty, RAISED } from "./live.mjs";
+import { projectSecretStore } from "./gm-stores.mjs";
 // The scale option's count (E71, 12.11.2026): its own line, so the utils import above stays as other lines edit it.
 import {
     leaveIconOnly, keepNarrativeShown, localiseRawKeys, hideUndiscovered, nameSecretRows, showTrayToPlayer, paintProgress, applyCollapsed, addCollapseControl,
@@ -243,7 +244,10 @@ export function projectRowMenu(entries) {
             entry[clickKey] = function (event, target) {
                 const element = target ?? (event instanceof HTMLElement ? event : null);
                 const id = projectOf(element);
-                if (id) return deleteProject(id);
+                /* ASKED, AND SAID (1.2.122 line ITEMS; the audit's CTRL-29): the tray's Delete deleted the project at once,
+                   with no question and no word, where the manager's and the project window's Delete ask first (E22) and
+                   say "1 deleted.". The same question and the same lines (`deleteAsked`). */
+                if (id) return deleteAsked(id);
                 return typeof click === "function" ? queuedCountdownWrite(() => click.call(this, event, target)) : undefined;
             };
         }
@@ -445,6 +449,15 @@ function projectManagerColumns(players) {
 }
 
 /**
+ * The manager's table in its live region (REFR-32): the region's own element, wrapper and all, as live.mjs replaces the
+ * region with the build's first element.
+ */
+function projectManagerTable(projects, rooms, { always = new Set(), players = playerList() } = {}) {
+    const { columns, headGroups } = projectManagerColumns(players);
+    return `<div class="drpg-projects-live">${dataTable({ columns, headGroups, rows: projectManagerRows(projects, rooms, { always, players }), rowAttrs: r => ({ "data-project": r.project }) })}</div>`;
+}
+
+/**
  * The manager's body (E47-C6): the intro, the table and the two notes under it (the kit's fine print, the block centred
  * in the window as the intro is - the owner's 09.11 note on the mockup: "nie jest wysrodkowany ten tekst w menadzerze
  * projektow", the grey ink kept). Exported for the suite (R2076, R2077), which draws it from projects it makes up.
@@ -456,10 +469,9 @@ export function projectManagerBody(projects, rooms, { always = new Set(), player
        one player knows and across a row to see who knows one project. The names used to be
        repeated in every row as a wrapping run of labels, which at sixteen players was a
        paragraph per project and no two rows lined up. */
-    const { columns, headGroups } = projectManagerColumns(players);
     return `<form>
             <p>${game.i18n.localize("DRPG.Project.manageIntro")}</p>
-            ${dataTable({ columns, headGroups, rows: projectManagerRows(projects, rooms, { always, players }), rowAttrs: r => ({ "data-project": r.project }) })}
+            ${projectManagerTable(projects, rooms, { always, players })}
             <div class="drpg-project-notes">${helpText("DRPG.Project.secretNote")}${helpText("DRPG.Project.deleteNote")}</div>
         </form>`;
 }
@@ -481,6 +493,26 @@ async function confirmProjectDelete(project) {
 }
 
 /**
+ * A Delete asked and said (CTRL-29, CTRL-74): the project as the world holds it now, the question, the step, and a line
+ * by what the step answered - "1 deleted." for a project removed, "That project no longer exists." for one gone
+ * meanwhile. Answers true when it was removed.
+ */
+async function deleteAsked(id, fallback = null) {
+    const project = allProjects().find(p => p.id === id) ?? fallback;
+    if (!project) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Project.gone"));
+        return false;
+    }
+    if (!(await confirmProjectDelete(project))) return false;
+    if (!(await deleteProject(project.id))) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Project.gone"));
+        return false;
+    }
+    ui.notifications.info(game.i18n.format("DRPG.Project.savedWithDeletions", { n: 1 }));
+    return true;
+}
+
+/**
  * The manager's Delete buttons (E47-C6; the owner's M16 note): each asks `confirmProjectDelete` and, on its yes, deletes
  * the project (`deleteProject`, the write the Save made for a ticked box before), says so as the Save did, and takes the
  * rows of every project gone out of the window in place - a sabotage pair goes together (F5) - with a room's group row
@@ -492,11 +524,7 @@ export function wireManagerDeletes(root, projects = []) {
         btn.addEventListener("click", async ev => {
             ev.preventDefault();
             const id = btn.dataset.drpgDelete;
-            const project = allProjects().find(p => p.id === id) ?? projects.find(p => p.id === id);
-            if (!project) return;
-            if (!(await confirmProjectDelete(project))) return;
-            if (!(await deleteProject(project.id))) return;
-            ui.notifications.info(game.i18n.format("DRPG.Project.savedWithDeletions", { n: 1 }));
+            if (!(await deleteAsked(id, projects.find(p => p.id === id) ?? null))) return;
             const alive = new Set(allProjects().map(p => p.id));
             for (const tr of root.querySelectorAll("tr[data-project]")) if (!alive.has(tr.dataset.project)) tr.remove();
             for (const group of root.querySelectorAll("tr.drpg-data-group")) {
@@ -538,52 +566,56 @@ export function projectWindowWidth() {
  */
 const DEFAULT_PROJECT_IMG = "icons/magic/time/hourglass-yellow-green.webp";
 
-/** The live progress figures and the per-row edit buttons. */
-function wireProjectManager(dialog, projects, rooms) {
+/** The project window's fields an edit writes only where the GM changed them (REFR-35, `openProjectDialog`'s Save). */
+const EDIT_FIELDS = Object.freeze(["name", "target", "img", "glyph", "room", "trait", "description"]);
 
-    /* PROGRESS MOVES WHILE THIS WINDOW IS OPEN, AND THAT IS WHAT IT IS FOR.
-
-       A player spends an action on a project and the number in here changes -
-       from their client, so nothing tells this window about it. It is the screen
-       a GM has up for most of a Daily Life (see the panel's note on the tile),
-       which is exactly the stretch when the figures move. Measured on 11.09 with
-       the manager open: a project went 0/4 to 1/4 and the cell still read 0/4.
-
-       Only the figures, written in place: every other cell here is a control the
-       GM is editing and Apply is what saves them, so swapping the table out would
-       discard half-finished work and unwire the row buttons below. A project
-       being CREATED or deleted elsewhere still needs the window reopening; that
-       is a rarer event and a louder one. */
-    keepFresh(dialog, {
-        run: root => {
-            for (const project of allProjects()) {
-                const cell = root.querySelector(
-                    `[data-drpg-progress="${CSS.escape(project.id)}"]`);
-                if (!cell) continue;
-                const text = projectLabel(project, { name: false });
-                if (cell.textContent !== text) cell.textContent = text;
-            }
+/**
+ * The manager's table, live, and the per-row buttons.
+ *
+ * THE WHOLE TABLE FOLLOWS THE PROJECTS (1.2.122 line ITEMS; the audit's REFR-32; the owner's rule "Zawsze odswiezamy
+ * okna od razu przy zmianie"). Until 1.2.122 only the progress figures were written in place (measured on 11.09: a
+ * project went 0/4 to 1/4 and the cell still read 0/4), and "a project being CREATED or deleted elsewhere still needs the
+ * window reopening": a project approved from a card, made by a preset, deleted, moved by a token's drag, renamed, sealed
+ * or shared elsewhere was not drawn. The table is a live region now (`keepLive`), redrawn on the Countdowns, projectMeta,
+ * the GMs' store of the secret projects, the sight's hook, the rooms and the players: what the GM changed in a row is
+ * carried over the redraw (live.mjs `capture`), and Save writes a row's room only where its select is not as drawn
+ * (`readManager`'s `roomChanged`), so a room another GM gave it meanwhile is not put back. The rows' buttons are wired
+ * again after each redraw.
+ */
+function wireProjectManager(dialog, projects, rooms, { always = () => new Set() } = {}) {
+    wireManagerRows(dialog, dialog.element, projects, rooms);
+    keepLive(dialog, {
+        region: ".drpg-projects-live",
+        build: () => {
+            const now = allProjects();
+            return projectManagerTable(now, placeRoomNames(), { always: always(now) });
         },
-        watch: { settingKeys: ["daggerheart.Countdowns"] }
+        // Full keys (`settingKeys`), not `settings`: R1317 holds every region that names `settings` to a window it opens.
+        watch: { settingKeys: [`${MODULE_ID}.projectMeta`, COUNTDOWNS_KEY], stores: [projectSecretStore],
+            hooks: ["drpgProjectSightChanged", "createRegion", "updateRegion", "deleteRegion", "createUser", "deleteUser"] },
+        after: root => wireManagerRows(dialog, root, projects, rooms)
     });
+}
 
-    for (const btn of dialog.element.querySelectorAll("[data-drpg-project-facility]")) {
+/** The buttons of the manager's rows, under `root` (the table's region after a redraw, the window at the open). */
+function wireManagerRows(dialog, root, projects, rooms) {
+    for (const btn of root.querySelectorAll("[data-drpg-project-facility]")) {
         btn.addEventListener("click", async ev => {
             ev.preventDefault();
-            const project = projects.find(p => p.id === btn.dataset.drpgProjectFacility);
+            const project = allProjects().find(p => p.id === btn.dataset.drpgProjectFacility);
             if (!project) return;
             const { editProjectFacility } = await import("./facility-editor.mjs");
             await editProjectFacility(project);
         });
     }
 
-    for (const btn of dialog.element.querySelectorAll("[data-drpg-edit]")) {
+    for (const btn of root.querySelectorAll("[data-drpg-edit]")) {
         btn.addEventListener("click", async ev => {
             ev.preventDefault();
-            const project = projects.find(p => p.id === btn.dataset.drpgEdit);
+            const project = allProjects().find(p => p.id === btn.dataset.drpgEdit);
             if (!project) return;
             // The rows first (1.2.115, R7301): closing the window to edit one project dropped what the others were changed to.
-            const rows = readManager(dialog, projects);
+            const rows = readManager(dialog);
             await dialog.close();
             await applyProjectManager(rows, projects);
             await openProjectDialog({ project, rooms });
@@ -595,15 +627,49 @@ function wireProjectManager(dialog, projects, rooms) {
        gone through every scene draw (projects-map.mjs `onProjectTokenDeleted`), so the way back
        is a GM's choice, in the window that holds every other choice about a project. In place,
        as the figures above are: reopening the window would drop what the GM has ticked. */
-    for (const btn of dialog.element.querySelectorAll("[data-drpg-show-on-map]")) {
+    for (const btn of root.querySelectorAll("[data-drpg-show-on-map]")) {
         btn.addEventListener("click", async ev => {
             ev.preventDefault();
             const { showProjectOnMap } = await import("./projects-map.mjs");
-            await showProjectOnMap(btn.dataset.drpgShowOnMap);
-            btn.remove();
+            /* THE BUTTON STAYS, AND SAYS WHY, WHEN NO TOKEN COULD BE PLACED (1.2.122 line ITEMS; the audit's CTRL-73):
+               the project's room is on no place scene, or it has none. It was taken away whatever came back. */
+            const placed = await showProjectOnMap(btn.dataset.drpgShowOnMap);
+            if (placed) btn.remove();
+            else ui.notifications.warn(game.i18n.localize("DRPG.Project.notPlaced"));
         });
     }
-    wireManagerDeletes(dialog.element, projects);
+    wireManagerDeletes(root, projects);
+    wireManagerViewerLocks(root);
+}
+
+/*
+ * A ROW'S SECRET OR INDIRECT TICK UNLOCKS ITS PLAYER TICKS (1.2.122 line ITEMS; the audit's REFR-62), as the project
+ * window's do (`wireViewerLock`, E15 part 1 fix e1-G1): a public project's ticks are drawn disabled under "This project is
+ * public", and the manager had no such wiring, so a GM sealing a project here could not choose who sees it. Unticking
+ * both locks them again, as drawn.
+ */
+function wireManagerViewerLocks(root) {
+    for (const row of root.querySelectorAll("tr[data-project]")) {
+        const id = row.dataset.project;
+        const secret = row.querySelector(`[name="secret.${CSS.escape(id)}"]`);
+        const murder = row.querySelector(`[name="murder.${CSS.escape(id)}"]`);
+        const boxes = [...row.querySelectorAll(`[name="viewers.${CSS.escape(id)}"]`)];
+        if (!secret || !boxes.length) continue;
+        const drawnLocked = boxes.every(box => box.disabled);
+        if (!drawnLocked) continue;
+        const tip = boxes[0].dataset.tooltip ?? "";
+        const sync = () => {
+            const open = secret.checked || Boolean(murder?.checked);
+            for (const box of boxes) {
+                box.disabled = !open;
+                if (open) delete box.dataset.tooltip;
+                else box.dataset.tooltip = tip;
+            }
+        };
+        secret.addEventListener("change", sync);
+        murder?.addEventListener("change", sync);
+        sync();
+    }
 }
 
 /**
@@ -625,7 +691,9 @@ async function applyProjectManager(result, projects) {
            to the one the window had read. Compared with the room the window opened with. */
         /* A room changed here finds its scene again from the proposer's token, unless a GM picked it by hand (option B,
            16.11.2026; `roomSceneOnRoomChange`): the manager has no picker (Q-SC-3), the editor is where one is picked. */
-        const room = (entry.room || null) !== (before?.room ?? null)
+        // Since the table is live (REFR-32), "changed" is against what the row's select was drawn from (`roomChanged`).
+        const roomChanged = entry.roomChanged ?? ((entry.room || null) !== (before?.room ?? null));
+        const room = roomChanged && (entry.room || null) !== (roomOf(entry.id) ?? null)
             ? { room: entry.room || null, ...(await roomSceneOnRoomChange(entry.id, entry.room || null)) } : null;
 
         // A project that has only just been marked as an indirect murder is
@@ -695,7 +763,10 @@ export async function openProjectManager() {
         return made ? openProjectManager() : undefined;
     }
     const content = projectManagerBody(projects, rooms, { always: await alwaysSecretIds(projects) });
-    const leaveWith = then => (e, b, d) => ({ then, rows: readManager(d, projects) });
+    const leaveWith = then => (e, b, d) => ({ then, rows: readManager(d) });
+    // Which presets are always secret, read once here so the live table's build is synchronous (REFR-32).
+    const { PASSAGE_PRESETS } = await import("./passages-gm.mjs");
+    const always = list => new Set((list ?? []).filter(p => p?.id && PASSAGE_PRESETS[secretsOf(p.id).target?.preset]?.secret === "always").map(p => p.id));
 
     const result = await drpgWindow({
         title: game.i18n.localize("DRPG.Project.manageTitle"),
@@ -707,7 +778,7 @@ export async function openProjectManager() {
         body: content,
         // Save still to answer: Cancel (E21 rule 3), the answer "cancel" as before.
         footer: {
-            primary: { action: "save", label: game.i18n.localize("DRPG.Assign.save"), tooltip: tipText("DRPG.Tips.Sweep.Actions.saveManagerTooltip"), callback: (e, b, d) => readManager(d, projects) },
+            primary: { action: "save", label: game.i18n.localize("DRPG.Assign.save"), tooltip: tipText("DRPG.Tips.Sweep.Actions.saveManagerTooltip"), callback: (e, b, d) => readManager(d) },
             secondary: [
                 /* Create and Share leave this window for another and reopen it after; each takes the rows with it, as Save
                    does (1.2.115, R7301: until then they answered their word alone and a room changed in a row was lost). */
@@ -720,7 +791,7 @@ export async function openProjectManager() {
         },
         // The per-row edit buttons need a live click against the dialog's actual
         // DOM, and they close the manager first so the two windows never stack.
-        render: (event, dialog) => wireProjectManager(dialog, projects, rooms),
+        render: (event, dialog) => wireProjectManager(dialog, projects, rooms, { always }),
         rejectClose: false
     });
 
@@ -1151,7 +1222,9 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
                 passageTo: f.passageTo?.value || null,
                 passage: f.passage?.value || null,
                 // As typed; judged below (E44 C9).
-                description: d.element.querySelector('[name="description"]')?.value ?? ""
+                description: d.element.querySelector('[name="description"]')?.value ?? "",
+                // Which of the fields the GM changed against what they were drawn from (REFR-35): an edit writes those.
+                changed: new Set(EDIT_FIELDS.filter(name => [...d.element.querySelectorAll(`form [name="${name}"]`)].some(isDirty)))
             };
         }
     };
@@ -1186,11 +1259,8 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
 
     if (result === "delete") {
         // Destructive (E22; S09-24): Cancel the default and the first submit button, so Enter deletes nothing (E22-T5).
-        const sure = await confirmProjectDelete(project);
-        if (!sure) return null;
-        await deleteProject(project.id);
-        ui.notifications.info(game.i18n.format("DRPG.Project.savedWithDeletions", { n: 1 }));
-        return { deleted: true };
+        // Said by what the step answered (CTRL-74): a project deleted elsewhere meanwhile is gone, not deleted here.
+        return await deleteAsked(project.id, project) ? { deleted: true } : null;
     }
 
     if (!result.name) {
@@ -1225,34 +1295,49 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
             ui.notifications.warn(game.i18n.localize("DRPG.Project.needsKiller"));
             return null;
         }
+        /* ONLY THE FIELDS CHANGED HERE (1.2.122 line ITEMS; the audit's REFR-35). Every field was handed to the step as the
+           window drew it, so a room the project gained meanwhile from a token's drag or another GM's manager, or a name or
+           size another GM changed, was put back, and the token walked back. A name, size, picture, glyph, room, statistic
+           or description is written where its field is not as drawn (`changed`); the room the scene's pick is read
+           against is the one the project will stand in. */
+        const mine = name => result.changed?.has(name) ?? true;
+        const roomNext = mine("room") ? result.room || null : roomOf(project.id) ?? null;
         // One change of the entry (E36 C2): the edit and the secrecy in one step.
         const change = combineChanges(projectEditChange({
             ...(killerId ? { killerId } : {}),
-            name: result.name,
-            target: result.target,
-            img: result.img,
-            glyph: result.glyph,
-            room: result.room,
+            ...(mine("name") ? { name: result.name } : {}),
+            ...(mine("target") ? { target: result.target } : {}),
+            ...(mine("img") ? { img: result.img } : {}),
+            ...(mine("glyph") ? { glyph: result.glyph } : {}),
+            ...(mine("room") ? { room: result.room } : {}),
             /* The scene of its room (options (c) and B): a pick the GM changed in the picker is theirs (`roomSceneByGm`); a room
                changed with the picker left alone is found again from the proposer's token, unless a GM picked by hand
                (`roomSceneOnRoomChange`); otherwise nothing is written, so a world with no duplicate keeps its rows. */
             ...(result.roomScene?.byGm ? { roomScene: result.roomScene.scene, roomSceneByGm: true }
-                : (result.room || null) !== (roomOf(project.id) ?? null) ? await roomSceneOnRoomChange(project.id, result.room || null) : {}),
-            trait: result.trait,
+                : roomNext !== (roomOf(project.id) ?? null) ? await roomSceneOnRoomChange(project.id, roomNext) : {}),
+            ...(mine("trait") ? { trait: result.trait } : {}),
             indirectMurder: result.murder,
             condition: result.condition,
-            description: result.description,
+            ...(mine("description") ? { description: result.description } : {}),
             // ARMED STATE SURVIVES AN EDIT. A GM who opens a watching trap to
             // fix a typo in its name must not thereby take it off watch - and
             // must not re-arm one that has already spoken either, which is the
             // same rule read from the other end (trap 153).
+            //
+            // READ AT SAVE, NOT AT THE OPEN (1.2.122 line ITEMS; the audit's REFR-34): a trap that fired while the
+            // window stood (traps.mjs `stampFired` writes `firedAt` alone) was written back armed and silent no more.
             trigger: result.murder
-                ? { ...result.trigger, armed: Boolean(startTrigger?.armed),
-                    firedAt: startTrigger?.firedAt ?? null,
+                ? { ...result.trigger, armed: Boolean((secretsOf(project.id).trigger ?? startTrigger)?.armed),
+                    firedAt: (secretsOf(project.id).trigger ?? startTrigger)?.firedAt ?? null,
                     condition: result.condition }
                 : null
         }), secrecyChange(project.id, result.secret || result.murder || alwaysSecret, result.viewers, result.was));
-        if (change) await applyProjectChange(project.id, change, { by: { kind: "gm" } });
+        // Said by what the step answered (CTRL-74): no such project any more is said, not "Projects updated.".
+        const done = change ? await applyProjectChange(project.id, change, { by: { kind: "gm" } }) : true;
+        if (!done) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Project.gone"));
+            return null;
+        }
         ui.notifications.info(game.i18n.localize("DRPG.Project.saved"));
         return { id: project.id, name: result.name };
     }
@@ -1625,11 +1710,14 @@ async function openCreateDialog(rooms = placeRoomNames()) {
     return openProjectDialog({ rooms });
 }
 
-function readManager(dialog, projects) {
+// The rows the table draws now (REFR-32: it is live, so a project made since the open has a row, and one deleted none).
+function readManager(dialog) {
     const form = dialog.element.querySelector("form");
-    return projects.map(p => ({
+    const ids = [...form.querySelectorAll("tr[data-project]")].map(tr => tr.dataset.project);
+    return ids.map(id => ({ id, name: allProjects().find(p => p.id === id)?.name ?? null })).map(p => ({
         id: p.id,
         room: form.querySelector(`[name="room.${p.id}"]`)?.value ?? "",
+        roomChanged: (() => { const select = form.querySelector(`[name="room.${p.id}"]`); return select ? isDirty(select) : false; })(),
         murder: form.querySelector(`[name="murder.${p.id}"]`)?.checked ?? false,
         secret: form.querySelector(`[name="secret.${p.id}"]`)?.checked ?? false,
         // Who the GM says knows about it, for the rows where that list is shown
@@ -1748,12 +1836,27 @@ export async function openShareDialog(preselectId = null) {
 
     if (!result || result === "cancel") return;
 
+    /* A REFUSAL SAID ON A GM'S BROWSER TOO (1.2.122 line ITEMS; the audit's CTRL-75). A player's road says its refusal
+       through the bridge (`bridgeRequest`); a GM's own step only logged it, and the window closed with no word. The two
+       a GM can meet are said before the step - the project gone, or no longer secret (revealed while this stood); any
+       other refusal after it. */
+    if (game.user.isGM) {
+        const why = !allProjects().some(p => p.id === result.project) ? "DRPG.Project.gone"
+            : !isSecret(result.project) ? "DRPG.Bridge.why.notSecret" : null;
+        if (why) {
+            ui.notifications.warn(game.i18n.localize(why));
+            return;
+        }
+    }
     // "Revoked." only when it was (E05): a builder is never taken off their own project, and that was said.
     if (result.revoke) {
         if (!await unshareWith(result.project, result.player)) return;
     }
-    // "Project shared." only when it was (E31): a refusal has been said, and a public project is not shared.
-    else if (!await shareWith(result.project, result.player)) return;
+    // "Project shared." only when it was (E31): a player's refusal has been said, and a public project is not shared.
+    else if (!await shareWith(result.project, result.player)) {
+        if (game.user.isGM) ui.notifications.warn(game.i18n.localize("DRPG.Bridge.why.refused"));
+        return;
+    }
 
     ui.notifications.info(game.i18n.localize(result.revoke ? "DRPG.Project.revoked" : "DRPG.Project.shared"));
 }

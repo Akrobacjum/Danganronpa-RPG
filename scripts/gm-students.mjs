@@ -29,7 +29,7 @@ import { studentActors, isMonokuma, isNotInClass, isSpectator, markFromSheet, se
 import { error, plural, esc, wholeNumber } from "./utils.mjs";
 import { stepper, drpgWindow, dataTable, iconButton, roleButton, tipAttr, tipText } from "./ui-kit.mjs";
 import { keepLive, alreadyOpen, handOff, RAISED } from "./live.mjs";
-import { crossingStore } from "./gm-stores.mjs";
+import { crossingStore, offerStore } from "./gm-stores.mjs";
 import { roomPhrase } from "./rooms.mjs";
 import { isDeadWatcher } from "./spectator-dead.mjs";
 import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
@@ -92,6 +92,11 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invi
          * on every row under a head of three columns fewer. Since E49 A3 there is no gate to misread: the cells and the
          * heads are built on every student's row and in every table.
          */
+        /* ENTER IN THE ROW MEANS ITS GIVE HOPE (1.2.122 line ITEMS; the audit's CTRL-35). The row sits in the window's one
+           form, whose first submit is Apply, so Enter in the pool or the amount pressed Apply: the window closed and no Hope
+           was given. The two fields name the row's button, as the Mastermind window's do (utils.mjs `guardTextFields`, the
+           third rule, MM-02). Tier 2's "1.2.122 CTRL-35 ...". */
+        const giveOf = row => `[data-drpg-give="${row.id}"]`;
         const none = `<span class="drpg-alive-none" aria-label="${esc(L("DRPG.Monocub.notCub"))}" data-tooltip="${esc(L("DRPG.Monocub.notCub"))}">-</span>`;
         const cubCells = {
             // The sheet's and the purse's (E72 C14; DC37), the purse named in the tooltip when it holds any.
@@ -99,9 +104,9 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invi
                 ? `<span data-tooltip="${esc(game.i18n.format("DRPG.Monocub.purseTip", { n: purseOf(a) }))}">${cubHopeTotal(a)} / ${resourceMax(a, "hope")}</span>`
                 : `${resourceValue(a, "hope")} / ${resourceMax(a, "hope")}`) : none,
             give: !cub ? none : donors ? `
-                <select name="donor:${a.id}"${tipAttr("DRPG.Tips.Gm.monokumaPoolTooltip")}>${donors}</select>
+                <select name="donor:${a.id}" data-drpg-enter="${esc(giveOf(a))}"${tipAttr("DRPG.Tips.Gm.monokumaPoolTooltip")}>${donors}</select>
                 ${stepper({ name: `amount:${a.id}`, value: 1, min: 1, compact: true,
-                    attrs: { "data-tooltip": tipText("DRPG.Tips.Gm.amountTooltip") } })}
+                    attrs: { "data-drpg-enter": giveOf(a), "data-tooltip": tipText("DRPG.Tips.Gm.amountTooltip") } })}
                 <button type="button" class="drpg-mini-button" data-drpg-give="${a.id}"${tipAttr("DRPG.Tips.Gm.giveTooltip")}>
                     ${L("DRPG.Monocub.give")}</button>` : "-",
             silenced: cub
@@ -433,7 +438,13 @@ function wireAliveTable(dialog, { openDeathDialog, offerMonocub, cancelMonocubOf
             const actor = game.actors.get(id);
             const donorId = dialog.element.querySelector(`[name="donor:${id}"]`)?.value;
             const amount = wholeNumber(dialog.element.querySelector(`[name="amount:${id}"]`)?.value, { min: 0, fallback: 0 });
-            if (!actor || !donorId || amount <= 0) return;
+            if (!actor || !donorId) return;
+            // SAYS WHY (1.2.122 line ITEMS; the audit's CTRL-83): an empty or 0 amount returned with no word, where the
+            // Mastermind window's same button warns (MM-02). Tier 2's "1.2.122 CTRL-35 ...".
+            if (amount <= 0) {
+                ui.notifications.warn(game.i18n.format("DRPG.Monocub.giveAtLeast", { n: 1 }));
+                return;
+            }
 
             const { convertDespairToHope } = await import("./despair.mjs");
             await convertDespairToHope(donorId, actor, amount);
@@ -572,7 +583,9 @@ export async function openWhoIsAliveDialog(options = {}) {
                 region: ".drpg-alive-live",
                 build: table,
                 // A death kept by the GMs writes no actor (E05 C10): its store's change is the sign; so is a Monocub's row (E72 C2).
-                watch: { actors: true, hooks: ["drpgDeathsChanged", "drpgDespairOwedChanged", "drpgCrossingsChanged", "drpgCubsChanged", "drpgCastChanged"] },
+                // The standing Level Up offers too (1.2.122 line ITEMS; the audit's REFR-48): the Level Up button counts them,
+                // and another GM's offer merged here writes no actor and fires no hook, only the store's key. Tier 2's "1.2.122 CTRL-35 ...".
+                watch: { actors: true, hooks: ["drpgDeathsChanged", "drpgDespairOwedChanged", "drpgCrossingsChanged", "drpgCubsChanged", "drpgCastChanged"], stores: [offerStore] },
                 after: wireAll
             });
         },
@@ -633,10 +646,15 @@ export async function applyAliveStates(chosen = {}) {
         // Order matters: a Monocub is a dead student with a second flag, so the
         // flags are set from the outside in - deceased first, then Monocub.
         //
-        // Dying through the DROPDOWN keeps the inventory AND stays quiet (F16).
-        // This half of the window is the repair tool: nobody expects a select to
-        // empty a bag or to announce a death to the table, and the row's own Kill
-        // button is the one that runs the real procedure, warning and all.
+        // Dying through the DROPDOWN keeps the inventory AND stays quiet (F16) - for a
+        // student no death was kept for. This half of the window is the repair tool:
+        // nobody expects a select to empty a bag or to announce a death to the table,
+        // and the row's own Kill button is the one that runs the real procedure,
+        // warning and all. A "Dead, not found" row is the exception (the owner's Q3,
+        // `makeKnown` above): Dead or Monocub there makes the kept death known as the
+        // discovery does - written to the world, its Truth Bullets destroyed unless the
+        // kill kept them (death.mjs `publishDeath`); the window's note says so since
+        // 1.2.122 (the audit's ITEM-33).
         if (want.state !== stateOf(actor)) {
             // A death this pass makes, not one the GMs kept: that one went through `killCharacter`.
             const living = !isDeadForGm(actor);

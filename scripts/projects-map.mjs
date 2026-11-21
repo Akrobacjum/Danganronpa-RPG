@@ -743,9 +743,23 @@ async function onPickedSceneDeleted(scene, userId) {
     }
 }
 
-/** The manager's "Show on the map": a project a GM deleted from the map goes back on it. GM only. */
+/**
+ * The manager's "Show on the map": a project a GM deleted from the map goes back on it. GM only. Answers the token, or
+ * null when none could be placed (no room, or a room on no place scene: the manager says so, CTRL-73).
+ *
+ * ON THE PRIMARY (1.2.122 line ITEMS; the audit's ITEM-26). Every other road to a project's token runs on the primary;
+ * this one wrote projectMeta whole and placed the token on whichever GM pressed it, in a queue only that browser ordered,
+ * so a second GM's press beside a primary's step could put back the other's copy (the loss E36 fix e1-G5 stopped). On a
+ * GM who is not the primary it is one change of the entry asked of the primary (a meta change of `mapHidden`, whose
+ * step's sync places the token there); the token is read here once it has arrived, a second and a half at most.
+ */
 export async function showProjectOnMap(countdownId) {
     if (!game.user.isGM || !rawCountdown(countdownId)) return null;
+    if (!isPrimaryGm()) {
+        await applyProjectChange(countdownId, { meta: { mapHidden: false } }, { by: { kind: "gm" } });
+        for (let i = 0; i < 15 && !projectTokenOf(countdownId); i++) await new Promise(r => setTimeout(r, 100));
+        return projectTokenOf(countdownId);
+    }
     await writeTokenRecord(countdownId, { mapHidden: false });
     /* On the scene that holds its room, whatever this GM is looking at (E12 C5): the one road to a token (E36 C4). */
     await syncProjectToken(countdownId);
@@ -874,7 +888,11 @@ function showProjectCard(app, element) {
         // ... and the player's copy of the GMs' sight (14.11.2026, R7110): projects.mjs `descriptionOf` reads it before the card's
         // words since Open 103, so a card whose words landed before the copy redrew the old words and nothing drew it again
         // (scenario 30, one red in five at 52f19e2a).
-        watch: { settings: ["projectMeta"], settingKeys: [COUNTDOWNS_KEY], hooks: ["drpgSecretStored", "drpgRouteSettled", "drpgSeenChanged"], stores: [discoveryStore, fogCopy, projectSightCopy] },
+        // ... and, on a GM, the GMs' store of the secret projects (1.2.122 line ITEMS; the audit's REFR-33): a share or a
+        // revoke changes only its `viewers`, and a secret project's name, room and condition live there - none writes
+        // projectMeta or the Countdowns, so "Knows it is there" stood as drawn. The sight's hook as well.
+        watch: { settings: ["projectMeta"], settingKeys: [COUNTDOWNS_KEY], hooks: ["drpgSecretStored", "drpgRouteSettled", "drpgSeenChanged", "drpgProjectSightChanged"],
+            stores: [discoveryStore, fogCopy, projectSightCopy, projectSecretStore] },
         after: wireProjectCard
     }));
     // Sized for a stat block; this is a card, exactly as the trace's is - and a frame
@@ -924,10 +942,13 @@ export function projectCard(project) {
         rows.push([t("DRPG.Project.cardStatus"), esc(t(`DRPG.Project.${status}`))]);
         rows.push([t("DRPG.Project.cardSecrecy"),
             esc(t(isSecret(project.id) ? "DRPG.Project.cardSecret" : "DRPG.Project.cardPublic"))]);
-        // The same predicate that draws the token for each of them - so this list and
-        // what each player's map shows cannot disagree, but for the Mastermind's player, whose own
-        // map knows every room and whom this lists by the record alone, so that a GM's shared
-        // screen does not name them (projects.mjs `playsTheMastermind`, E17 fix p2-G3).
+        // Who knows of it by the record (`knowsProject`): who has stood in its room, its builders, those let in -
+        // listed by the record alone for the Mastermind's player, whose own map knows every room, so that a GM's
+        // shared screen does not name them (projects.mjs `playsTheMastermind`, E17 fix p2-G3). NOT what each
+        // player's map shows now (1.2.122 line ITEMS; the audit's ITEM-39): since PV (13.11.2026) a player's token
+        // and tray row also ask what that player saw last (projects-seen.mjs `asSeen`), so a public project made in a
+        // room after their last visit is listed here and is not on their map until they walk in again. This GM's
+        // browser cannot read a player's seen record (a client setting of theirs), so the list cannot ask it.
         const knownBy = game.users.filter(u => !u.isGM && knowsProject(project.id, u))
             .map(u => esc(u.name));
         rows.push([t("DRPG.Project.cardKnownBy"),

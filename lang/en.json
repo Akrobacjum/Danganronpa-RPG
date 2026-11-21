@@ -622,6 +622,7 @@
       "save": "Save",
       "splitEvenly": "Split evenly",
       "splitDone": "Students split evenly between Monokumas.",
+      "splitAsk": "Split evenly gives every student a pool again, in name order, and replaces the pools picked so far. A student set to nobody stays so. It is saved at once.",
       "failed": "The division could not be saved. See the Debug log.",
       "noMonokumas": "Nobody holds a Despair pool: this world has no Gamemaster account. Give one the Gamemaster role, then open Despair Flow again.",
       "nobody": "- nobody -",
@@ -1116,6 +1117,7 @@
     },
     "Items": {
       "autoReadied": "“{item}” is now in your hand: you can keep only one piece of {group} stowed.",
+      "discardGone": "“{item}” is no longer in your hands, so nothing was thrown away.",
       "useGone": "“{item}” is no longer in your hands, so nothing happens.",
       "rulingOpen": "A ruling on “{item}” is already being made. Answer this card once it is done.",
       "rulingGone": "Closed by {name}: the item is used up or no longer at hand, so there is nothing to rule on.",
@@ -1136,7 +1138,6 @@
       "caption": "Give / take",
       "give": "Give an item",
       "take": "Take an item away",
-      "takeFrom": "Take an item from {actor}",
       "takeFromWhom": "Take it from",
       "whichItem": "Which item?",
       "category": "Category",
@@ -1165,6 +1166,7 @@
       "gave": "{actor} received “{item}”.",
       "took": "You took “{item}” from {actor}.",
       "nothingToTake": "{actor} carries nothing the module tracks.",
+      "itemGone": "That item is no longer on {actor}.",
       "failed": "That did not work. See the console.",
       "useTitle": "Use “{item}”",
       "useTooltip": "Use this item.",
@@ -1420,6 +1422,7 @@
       "endFinalTrial": "End the Final Trial",
       "confirmed": "{name} is the Mastermind. Only the GMs and {name}'s player know.",
       "cleared": "Nobody is the Mastermind now, and the Mastermind's room is unset.",
+      "lairStored": "The Mastermind's room is {room}. Nobody is the Mastermind yet.",
       "finalBanner": "THE FINAL TRIAL",
       "finalAnnounce": "This is the last Class Trial. Everything the students have been told about this place is on trial, and so is whoever told them.",
       "finalRemnantsTitle": "Final Truth Remnants",
@@ -3259,6 +3262,8 @@
       "whichKey": "Whose room?",
       "giveKeyNote": "The key is a copy: the owner keeps theirs. Only bedrooms with an owner are listed, never the receiver's own or one they already hold a key to.",
       "keyGivenGm": "{actor} now holds the key to {room}.",
+      "keyAlreadyHeld": "{actor} already holds the key to {room}, so nothing was given.",
+      "keyNotGiven": "The key was not given. The Debug log in Diagnostics says why.",
       "keyDuplicatesTaken": "{actor} held more than one key to {room}: one is kept, and the extra copies were taken.",
       "keyTakenGm": "{actor} no longer holds the key to {room}: the room is not theirs any more.",
       "keyTakenBack": "Your key to {room} was taken back: the room is not yours any more.",
@@ -4653,6 +4658,7 @@
       "noPlayers": "There are no players to share with.",
       "player": "Player",
       "gone": "That project no longer exists.",
+      "notPlaced": "No token was placed: the project's room is on no scene, or it has no room.",
       "alreadyFull": "{name} is already at {current}/{target}, and no more progress fits.",
       "alreadyEmpty": "{name} is already at 0, and there is no progress to take away.",
       "noneHere": "There is no project you can work on in {room}.",
@@ -5212,8 +5218,8 @@
       "nextEclipse": "The Eclipse is running. End it once everyone has placed their token.",
       "nextBodyFound": "A body has been found. Start the Investigation when the room is ready.",
       "nextKeysToPlace": {
-        "one": "{n} Key Remnant of this case is not on the map yet. Place it from the Investigation window's Key Remnants tab.",
-        "other": "{n} Key Remnants of this case are not on the map yet. Place them from the Investigation window's Key Remnants tab."
+        "one": "{n} Key Remnant of this case is not on the map yet. In the Investigation window, press Place on the map on its node in the Map view, or use the Key Remnants tab in the Table view.",
+        "other": "{n} Key Remnants of this case are not on the map yet. In the Investigation window, press Place on the map on their nodes in the Map view, or use the Key Remnants tab in the Table view."
       },
       "nextAutopsy": "The autopsy Truth Bullet has not been issued this chapter. Issue it to everyone alive.",
       "nextBodyAsked": "Students found a body in {room}, and it waits for your word: announce it, or leave it for now.",
@@ -5308,7 +5314,7 @@
       "seasonChecks": "Pre-season checks",
       "foundryReport": "Foundry and modules",
       "whoIsAlive": "Students",
-      "whoIsAliveNote": "The State column fixes a mis-click. The change is saved when you press Apply, with no announcement. Role changes at once. The row's buttons act at once, with every effect: a death destroys Truth Bullets. Monocub, by its button or in the State list, sends an invitation: the student becomes a Monocub when their player accepts the Monocub Rule.",
+      "whoIsAliveNote": "The State column fixes a mis-click. The change is saved when you press Apply, with no announcement, except on a “Dead, body not found” row, where Dead or Monocub makes the death known as finding the body does and destroys the Truth Bullets. Role changes at once. The row's buttons act at once, with every effect: a death destroys Truth Bullets. Monocub, by its button or in the State list, sends an invitation: the student becomes a Monocub when their player accepts the Monocub Rule.",
       "doColumn": "Do",
       "refundCrossing": "Refund the last crossing",
       "refundCrossingNote": "{leaving} back {returning}",
@@ -6624,7 +6630,8 @@
       "clear": "Clear the log",
       "cleared": "The debug log on this browser is now empty.",
       "copy": "Copy to clipboard",
-      "copied": "Debug log copied. Paste it (Ctrl+V) wherever it needs to go."
+      "copied": "Debug log copied. Paste it (Ctrl+V) wherever it needs to go.",
+      "copyFailed": "This browser did not let the text be copied to the clipboard. Nothing was copied."
     },
     "Fog": {
       "scenesPrepared": {
@@ -7367,6 +7374,7 @@
       "castVictim": "Victim",
       "castThird": "Third person involved, if any",
       "castEnter": "Enter the cast",
+      "castNeedsTwo": "Pick both the killer and the victim. Nothing was entered.",
       "previewRecord": "{store}: another world's, taken only if you tick it below.",
       "previewClamped": {"one": "{n} row has a time later than the clock allows: it would be given the current time.", "other": "{n} rows have times later than the clock allows: they would be given the current time."},
       "previewNotThisWorld": {"one": "{n} row is another world's and is left out.", "other": "{n} rows are another world's and are left out."},
