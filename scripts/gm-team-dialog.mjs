@@ -80,10 +80,11 @@ function readTeamDraft(root, gms, actors) {
  */
 function flowShown() {
     const gms = monokumas();
-    const cast = game.actors.filter(a => a.type === "character").sort((a, b) => a.id.localeCompare(b.id));
+    // `isMonokuma` reads the flag alone: no actor-type test is added here, so R3858's census of them stands as it was.
+    const kumas = game.actors.filter(a => isMonokuma(a)).sort((a, b) => a.id.localeCompare(b.id));
     return JSON.stringify([
         gms.map(u => [u.id, poolLabel(u)]),
-        cast.filter(a => isMonokuma(a)).map(a => [a.id, poolFor(a) ?? null]),
+        kumas.map(a => [a.id, poolFor(a) ?? null]),
         Object.entries(assignments() ?? {}).sort(([a], [b]) => a.localeCompare(b)),
         overflowRules()
     ]);
