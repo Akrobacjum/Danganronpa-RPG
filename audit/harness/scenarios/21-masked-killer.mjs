@@ -365,6 +365,41 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
     check("masked: nothing the victim's browser was sent or draws names Chie, shows her portrait or token picture, or carries her id, her token's id or p3's - the cards' words, the chat documents, the drawn messages, the notices and their history, the Event card, the relayed dice and whose dice they play as, the cast",
         victim.n === 0, JSON.stringify(victim.hits), { flow: "murder-incident" });
     check("masked: nor the bystander's", bystander.n === 0, JSON.stringify(bystander.hits), { flow: "murder-incident" });
+
+    /* A NAME THE MARKUP WRITES ESCAPED (1.2.123; the auditor's check of 1.2.122, r122-C-1). A card writes a name through
+       `escapeHTML`, so a name holding & (on any card), ' or " (on a card no DOM drew first) never stood in the markup as
+       the name, and secret.mjs `maskNames` returned it uncut. Chie is named `Chie "C" O'Mori & Co` while her mask stands,
+       and the GM posts two cards to the victim and itself: a plain one, as Frisk's "caught" line is written, and one cut by
+       reader (a line for the victim alone, `data-drpg-you`). Read on the victim's browser, a reader outside the mask: each
+       card's words came, and neither holds the name, escaped or not. Read on the killer's own browser as the control: the
+       same name on a card to her. Red at 14bb0d92: the victim held the name on both. Her name is put back after. */
+    const ODD = `Chie "C" O'Mori & Co`;
+    const users = { p1: await p1.eval(`return game.user.id;`), p3: await p3.eval(`return game.user.id;`) };
+    const oddName = await gm.eval(`const a = game.actors.get("${ids.chie}"); const was = a.name; await a.update({ name: ${JSON.stringify(ODD)} }); return was;`);
+    let odd = null;
+    try {
+        await settle(600);
+        const posted = await gm.eval(`const U = await import("${repoUrl}/scripts/utils.mjs");
+            const name = foundry.utils.escapeHTML(${JSON.stringify(ODD)});
+            const plain = await U.announce({ content: "<p>R123 plain: " + name + " caught you going through their pockets.</p>", whisper: ["${users.p1}", game.user.id] });
+            const cut = await U.announce({ content: '<p>R123 cut: seen by all.</p><p data-drpg-you="${users.p1}">R123 cut: ' + name + ' turned to you.</p>', whisper: ["${users.p1}", game.user.id] });
+            const own = await U.announce({ content: "<p>R123 own: " + name + " is you.</p>", whisper: ["${users.p3}", game.user.id] });
+            return { plain: plain?.id ?? null, cut: cut?.id ?? null, own: own?.id ?? null };`, { timeout: 30000 });
+        await settle(1500);
+        const READ = id => `const S = await import("${repoUrl}/scripts/secret.mjs");
+            const html = String(S.secretHtml(game.messages.get("${id}")) ?? "");
+            const box = document.createElement("div"); box.innerHTML = html;
+            const name = ${JSON.stringify(ODD)}, text = box.textContent;
+            return { came: text.includes("R123"), named: text.includes(name) || html.includes(name) || html.includes(foundry.utils.escapeHTML(name)), cut: text.includes("? ") };`;
+        odd = { posted, plain: await p1.eval(READ(posted.plain)), cut: await p1.eval(READ(posted.cut)), own: await p3.eval(READ(posted.own)) };
+        await gm.eval(`for (const id of ${JSON.stringify(Object.values(posted))}) await game.messages.get(id)?.delete(); return true;`);
+    } finally {
+        await gm.eval(`await game.actors.get("${ids.chie}").update({ name: ${JSON.stringify(oddName)} }); return true;`);
+        await settle(600);
+    }
+    check("masked: a killer's name holding &, ' and \" is \"?\" to the victim on a plain card and on a card cut by reader, where the markup writes it escaped, and stands on the killer's own card (r122-C-1)",
+        odd.plain.came && !odd.plain.named && odd.plain.cut && odd.cut.came && !odd.cut.named && odd.cut.cut && odd.own.came && odd.own.named,
+        JSON.stringify(odd), { flow: "murder-incident" });
     check("masked: the killer's own browser still reads her name on her Strike's card, and her Sanity's line as her own",
         insiders.killer.strike && insiders.killer.you && !insiders.killer.sanity, JSON.stringify(insiders), { flow: "murder-incident" });
 

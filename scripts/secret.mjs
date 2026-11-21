@@ -558,23 +558,36 @@ export async function forgetHeldMask(actorId, { tell = false } = {}) {
     return n;
 }
 
-/** `html` with every whole occurrence of `names` - in its text and its attributes - written "?". */
+/**
+ * `html` with every whole occurrence of `names` - in its text and its attributes - written "?"; byte for byte when none
+ * stands in it.
+ *
+ * READ IN THE TEXT, NOT IN THE MARKUP (1.2.123; the auditor's check of 1.2.122, r122-C-1). A precheck returned the words
+ * as they came when no name stood in the markup as written - but a card writes a name escaped (`esc`, `escapeHTML`), so
+ * a name holding "&" ("Ren & Co", written "Ren &amp; Co") never stood in it, and on a card not drawn through a DOM first
+ * (Frisk's "caught" line) neither did one holding ' or " ("Ren O'Hara", written "Ren O&#39;Hara"): the killer's name went
+ * to a reader outside the mask in clear. The words are parsed and their text and attributes read decoded, every time a
+ * mask stands; they are written back only where a name was cut.
+ */
 export function maskNames(html, names) {
     const list = [...new Set((names ?? []).filter(n => typeof n === "string" && n.trim()))].sort((a, b) => b.length - a.length);
     if (!list.length) return html;
     const quote = n => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const re = new RegExp(`(?<![\\p{L}\\p{N}])(?:${list.map(quote).join("|")})(?![\\p{L}\\p{N}])`, "gu");
-    if (!list.some(n => html.includes(n))) return html;
     const wrap = document.createElement("template");
     wrap.innerHTML = html;
+    let cut = false;
     const walk = node => {
-        if (node.nodeType === 3) { if (re.test(node.data)) node.data = node.data.replace(re, "?"); re.lastIndex = 0; return; }
-        for (const attr of node.attributes ?? []) if (re.test(attr.value)) { node.setAttribute(attr.name, attr.value.replace(re, "?")); re.lastIndex = 0; }
+        if (node.nodeType === 3) { if (re.test(node.data)) { node.data = node.data.replace(re, "?"); cut = true; } re.lastIndex = 0; return; }
+        for (const attr of node.attributes ?? []) {
+            if (re.test(attr.value)) { node.setAttribute(attr.name, attr.value.replace(re, "?")); cut = true; }
+            re.lastIndex = 0;
+        }
         re.lastIndex = 0;
         for (const child of node.childNodes ?? []) walk(child);
     };
     for (const child of wrap.content.childNodes) walk(child);
-    return wrap.innerHTML;
+    return cut ? wrap.innerHTML : html;
 }
 
 /**
