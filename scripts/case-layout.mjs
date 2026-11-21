@@ -93,8 +93,16 @@ export function layoutCase(graph, { sort = "kind", manual = {} } = {}) {
 
     const depth = new Map();
     const into = new Map(nodes.map(n => [n.id, inputs.filter(e => e.to === n.id).map(e => e.from)]));
+    /* A LOOP THROUGH A COUNTER'S TARGETS (the audit's reading, 20.11.2026; the line claude/plan-119). `cycleOf` reads input
+       edges alone, and a counter with no inputs takes its targets' depth, so two counters refuting each other, or a counter
+       refuting the deduction that rests on it, recursed until the stack ran out and the Map could not open. A node whose
+       depth is being worked out (`working`) reads as 1 to whatever reaches it again: the two counters stand at depth 1,
+       and a counter beside a loop at its target's otherwise. Never thrown. Tier 1 R7802. */
+    const working = new Set();
     const depthOf = id => {
         if (depth.has(id)) return depth.get(id);
+        if (working.has(id)) return 1;
+        working.add(id);
         const n = byId.get(id);
         let d = 0;
         if (!n.evidence) {
@@ -105,6 +113,7 @@ export function layoutCase(graph, { sort = "kind", manual = {} } = {}) {
                 d = Math.max(1, ...targets.map(e => depthOf(e.to)));
             } else d = 1;
         }
+        working.delete(id);
         depth.set(id, d);
         return d;
     };

@@ -31336,8 +31336,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * ruling, and the GM's next Save wrote that back over it. Three halves, on one fixture
          * in a chapter of its own that nobody has planned:
          *   - the ruling lands while the window stands open, and the row shows it;
-         *   - a Save that changed nothing, pressed while a redraw is held off (focus inside the
-         *     window, live.mjs RULE 1) over a write the window has not drawn, writes nothing:
+         *   - a Save that changed nothing, pressed while a redraw is held off (a select focused
+         *     in the window, live.mjs RULE 1) over a write the window has not drawn, writes nothing:
          *     no ledger write, nothing refused, and no Key plan row for the chapter - which
          *     every Save used to fill in by scale, making the chapter a planned one;
          *   - a name the GM typed before a second ruling is marked, refused at Save and told
@@ -31391,7 +31391,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             equal(win.field(`text.${key}`)?.value, "SUITE reshaped words", "the open dashboard still shows the words the ruling replaced");
 
             /* ---- a Save that changed nothing writes nothing, even over a write it has not drawn ---- */
-            win.field(`text.${key}`).focus();
+            /* The redraw held off by a focused select (live.mjs RULE 1): since the line claude/plan-119 (20.11.2026) a focused
+               text field no longer holds the dashboard's redraw (`whileEditing`), and a select still does. */
+            win.field(`vis.${key}`).focus();
             await remnants.setRemnantPublic(token, { name: "SUITE another GM's name" });
             await gmStoresIdle();
             await wait(300);
@@ -105109,6 +105111,437 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(stableJson(read), stableJson([{ landed: true, sent: false }, 0, 500, 300]),
             "a move heard with no origin in its record was undone by a waiting put-back (the answer, updates heard after it, this copy's x and y)");
+    }],
+    /* ------------------------------------------------------------------------------------------------------------------
+     * C1's block on the line claude/plan-119 (20.11.2026): the planner's logic for 1.2.119 - Move up and down (#1), a
+     * removal's links (#3), the planner redrawn when the case changes (#12); R7800-R7819 for its tier-0 and tier-1 tests.
+     * ------------------------------------------------------------------------------------------------------------------ */
+    ["the planner's Move down moves a node one place down its column, in the drawing and in the chapter's kept order, and Move up moves it back (investigation.mjs `moveCaseNode`; the owner, 19.11.2026: \"Funkcja move up/down przestała działać\"; the line claude/plan-119)", async () => {
+        /*
+         * Three deductions resting on nothing - one column - written in this chapter, the dashboard drawn on the Map as this GM
+         * opens it. Read: the three's drawn order (each node's face, top to bottom), then the first one's Move down pressed
+         * and the order again, the chapter's kept order (`manual`) and sort, then Move up on the same node and the order once
+         * more. The chapter's meta row is put back as found.
+         */
+        const S = await import("./case-schema.mjs");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const ch = getClock().chapter;
+        const ids = ["suite-r7800-a", "suite-r7800-b", "suite-r7800-c"];
+        const metaWas = S.caseRows(ch).meta;
+        let win = null;
+        const seen = {};
+        const order = root => ids.map(id => [id, parseFloat(root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id}"]`)?.style.top ?? root?.querySelector(`[data-drpg-node="${id}"]`)?.style.top ?? "NaN")])
+            .filter(([, y]) => Number.isFinite(y)).sort((a, b) => a[1] - b[1]).map(([id]) => id);
+        try {
+            for (const [i, id] of ids.entries()) await S.setCaseNode(ch, id, { kind: "deduction", label: `SUITE R7800 ${"abc"[i]}`, inputs: [] });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            await until(() => order(root).length === 3, 3000).catch(() => {});
+            const before = order(root);
+            seen.drawn = before.length;
+            const first = before[0];
+            root?.querySelector(`.drpg-case-edit[data-drpg-edit="${first}"] [data-drpg-case-move="1"]`)?.click();
+            await until(() => order(root)[1] === first, 3000).catch(() => {});
+            const down = order(root);
+            seen.down = down.indexOf(first) - before.indexOf(first);
+            const meta = S.caseMetaOf(S.caseRows(ch).meta);
+            seen.kept = { sort: meta.sort, after: Number.isFinite(meta.manual[first]) && Number.isFinite(meta.manual[before[1]]) && meta.manual[first] > meta.manual[before[1]] };
+            root?.querySelector(`.drpg-case-edit[data-drpg-edit="${first}"] [data-drpg-case-move="-1"]`)?.click();
+            await until(() => order(root)[0] === first, 3000).catch(() => {});
+            seen.up = order(root).indexOf(first);
+        } finally {
+            if (win) await win.close().catch(() => {});
+            for (const id of ids) await S.dropCaseNode(ch, id).catch(() => {});
+            const was = S.caseMetaOf(metaWas);
+            await S.setCaseMeta(ch, { sort: was.sort, manual: was.manual }).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({ drawn: 3, down: 1, kept: { sort: "manual", after: true }, up: 0 }),
+            "Move down and Move up did not move a node one place in its column, drawn and kept ({drawn: the three drawn, down: places moved by Move down, kept: the sort and whether the kept order has it after its neighbour, up: its place after Move up})");
+    }],
+
+    ["the planner's Move moves a node the evidence column draws from the Key plan and the chapter's planned Autopsies - the Autopsy's node one place in its column, drawn and kept, and back (investigation.mjs `moveCaseNode`, `caseMapGraph`; the line claude/plan-119, 20.11.2026)", async () => {
+        /*
+         * The evidence column holds nodes no schema row names: the Key plan's slots, written or not (key-remnants.mjs
+         * `keyPlan`), and the chapter's planned Autopsies, at least one (investigation.mjs `autopsyCount`). The Map draws them
+         * (`caseMapRegion`); a move laid out over a graph without them found no column for such a node and did nothing, and
+         * a node beside them was moved against a column the Map does not draw. Here: the dashboard drawn on the Map as this
+         * GM opens it, the chapter's first Autopsy's node found in the drawing's column, its Move up pressed (Move down if it
+         * stands first) and its place read, drawn and kept, then the other way. The chapter's meta row is put back as found.
+         * Red at b5a29e73 (v1.2.118).
+         */
+        const S = await import("./case-schema.mjs");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const ch = getClock().chapter, id = "autopsy";
+        const metaWas = S.caseRows(ch).meta;
+        let win = null;
+        const seen = {};
+        const columnOf = root => {
+            const x = parseFloat(root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id}"]`)?.style.left ?? "NaN");
+            return [...(root?.querySelectorAll(".drpg-case-canvas > .drpg-case-edit[data-drpg-edit]") ?? [])]
+                .filter(el => parseFloat(el.style.left) === x).sort((a, b) => parseFloat(a.style.top) - parseFloat(b.style.top)).map(el => el.dataset.drpgEdit);
+        };
+        try {
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            await until(() => columnOf(root).includes(id), 3000).catch(() => {});
+            const before = columnOf(root);
+            must(before.length > 1, `the Autopsy's column holds ${before.length} node(s) - nothing to move it past`);
+            /* up where it can: below the evidence the column draws a gap, then the loose Remnants (case-layout.mjs `gapAt`),
+               and a move across the gap is refused by design - the Autopsy is the last node above it in this world */
+            const at = before.indexOf(id), step = at > 0 ? -1 : 1;
+            root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id}"] [data-drpg-case-move="${step}"]`)?.click();
+            await until(() => columnOf(root).indexOf(id) === at + step, 3000).catch(() => {});
+            seen.moved = columnOf(root).indexOf(id) - at;
+            const manual = S.caseMetaOf(S.caseRows(ch).meta).manual;
+            seen.kept = Number.isFinite(manual[id]) && Number.isFinite(manual[before[at + step]]) && Math.sign(manual[id] - manual[before[at + step]]) === step;
+            root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id}"] [data-drpg-case-move="${-step}"]`)?.click();
+            await until(() => columnOf(root).indexOf(id) === at, 3000).catch(() => {});
+            seen.back = columnOf(root).indexOf(id) - at;
+            seen.step = step;
+        } finally {
+            if (win) await win.close().catch(() => {});
+            const was = S.caseMetaOf(metaWas);
+            await S.setCaseMeta(ch, { sort: was.sort, manual: was.manual }).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson({ moved: seen.moved, kept: seen.kept, back: seen.back }), stableJson({ moved: seen.step, kept: true, back: 0 }),
+            "the Autopsy's node did not move one place in the evidence column, drawn and kept, and back (moved: places moved, kept: the kept order agrees, back: its place after the other move against where it began)");
+    }],
+
+    ["a node at the top of the planner's column pressed Move up stays, nothing is written, and the GM is told it cannot move further up (investigation.mjs `moveCaseNode`; the coordinator's default for #1, 20.11.2026; the line claude/plan-119)", async () => {
+        /*
+         * Until this line a move that could not happen returned with no word, which reads at a table as the button not
+         * working. Three deductions resting on nothing, the dashboard drawn on the Map; the topmost of the three in the
+         * drawing is moved to the column's top first if it is not there, then its Move up pressed. Read: the notices said (the
+         * GM's info, caught here), whether the chapter's meta row changed, and the node's place. The meta row is put back as
+         * found. Red at b5a29e73: no notice.
+         */
+        const S = await import("./case-schema.mjs");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const ch = getClock().chapter;
+        const ids = ["suite-r7802-a", "suite-r7802-b", "suite-r7802-c"];
+        const metaWas = S.caseRows(ch).meta;
+        const info = ui.notifications.info;
+        const toasts = [];
+        let win = null;
+        const seen = {};
+        const columnOf = (root, id) => {
+            const x = parseFloat(root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id}"]`)?.style.left ?? "NaN");
+            return [...(root?.querySelectorAll(".drpg-case-canvas > .drpg-case-edit[data-drpg-edit]") ?? [])]
+                .filter(el => parseFloat(el.style.left) === x).sort((a, b) => parseFloat(a.style.top) - parseFloat(b.style.top)).map(el => el.dataset.drpgEdit);
+        };
+        try {
+            for (const [i, id] of ids.entries()) await S.setCaseNode(ch, id, { kind: "deduction", label: `SUITE R7802 ${"abc"[i]}`, inputs: [] });
+            /* the column's order kept, the three first: so the one pressed is at the top whatever else the chapter holds */
+            await S.setCaseMeta(ch, { sort: "manual", manual: { ...S.caseMetaOf(metaWas).manual, [ids[0]]: -3, [ids[1]]: -2, [ids[2]]: -1 } });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            await until(() => columnOf(root, ids[0]).length > 0, 3000).catch(() => {});
+            seen.top = columnOf(root, ids[0])[0] === ids[0];
+            const metaBefore = JSON.stringify(S.caseRows(ch).meta ?? null);
+            ui.notifications.info = (message, ...rest) => { toasts.push(String(message)); return null; };
+            root?.querySelector(`.drpg-case-edit[data-drpg-edit="${ids[0]}"] [data-drpg-case-move="-1"]`)?.click();
+            await until(() => toasts.length > 0, 3000).catch(() => {});
+            await settle();
+            seen.told = toasts.includes(game.i18n.format("DRPG.CaseMap.moveEnd.up", { name: "SUITE R7802 a" }));
+            seen.written = JSON.stringify(S.caseRows(ch).meta ?? null) !== metaBefore;
+            seen.still = columnOf(root, ids[0])[0] === ids[0];
+        } finally {
+            ui.notifications.info = info;
+            if (win) await win.close().catch(() => {});
+            for (const id of ids) await S.dropCaseNode(ch, id).catch(() => {});
+            const was = S.caseMetaOf(metaWas);
+            await S.setCaseMeta(ch, { sort: was.sort, manual: was.manual }).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({ top: true, told: true, written: false, still: true }),
+            "Move up on the top of a column did not stay, wrote the kept order, or said nothing (top: it stood at the top, told: the notice, written: the meta row changed, still: at the top after)");
+    }],
+
+    ["a planned Truth Bullet removed from the planner takes its links with it: the deductions that rested on it no longer name it, the counter refuting one of them keeps its target, and the case's check names nothing missing (case-schema.mjs `dropCaseNode`, `refsCut`; the owner, 19.11.2026: \"Przyjmujemy ze usuniecie bulleta usuwa tez jego polaczenia\"; the line claude/plan-119)", async () => {
+        /*
+         * A planned bullet, two deductions resting on it and a counter refuting the first, written in this chapter; the bullet
+         * removed through the planner's road (`dropCaseNode`, what the editor's Remove calls after its question). Read: the
+         * deductions' and the counter's lists, and the check's "missing" for the four. Red at b5a29e73: both deductions kept
+         * naming the bullet and the check named it twice, for good.
+         */
+        const S = await import("./case-schema.mjs");
+        const ch = getClock().chapter;
+        const ids = { bullet: "bullet-suite-cut", a: "deduction-suite-cut-a", b: "deduction-suite-cut-b", c: "counter-suite-cut" };
+        let read = null;
+        try {
+            await S.setCaseNode(ch, ids.bullet, { kind: "bullet", label: "SUITE cut bullet" });
+            await S.setCaseNode(ch, ids.a, { kind: "deduction", label: "SUITE cut a", inputs: [ids.bullet] });
+            await S.setCaseNode(ch, ids.b, { kind: "deduction", label: "SUITE cut b", inputs: [ids.bullet, ids.a] });
+            await S.setCaseNode(ch, ids.c, { kind: "counter", label: "SUITE cut c", refutes: [ids.a] });
+            await gmStoresIdle();
+            await S.dropCaseNode(ch, ids.bullet);
+            await gmStoresIdle();
+            const rows = S.caseRows(ch).rows;
+            const missing = S.checkCase(S.caseGraph(ch)).filter(p => p.code === "missing" && Object.values(ids).includes(p.node)).map(p => [p.node, p.ref]);
+            read = { bullet: Boolean(rows[ids.bullet]), a: rows[ids.a]?.inputs ?? null, b: rows[ids.b]?.inputs ?? null, c: rows[ids.c]?.refutes ?? null, missing };
+        } finally {
+            for (const id of Object.values(ids)) await S.dropCaseNode(ch, id).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(read), stableJson({ bullet: false, a: [], b: [ids.a], c: [ids.a], missing: [] }),
+            "the bullet's removal did not take its links (bullet: its row there, a and b: the deductions' inputs, c: the counter's targets, missing: the check's)");
+    }],
+
+    ["a reference left by a removal before 1.2.119 is cut when a GM opens the investigation dashboard, and one to a node still there is kept (case-schema.mjs `pruneDroppedRefs`; the line claude/plan-119)", async () => {
+        /*
+         * The shape of a world from before this line: a planned bullet and a deduction resting on it and on a second bullet,
+         * then the first bullet's row dropped bare from the GMs' store - as `dropCaseNode` did until now, leaving the
+         * deduction naming it. The dashboard opened as a GM opens it. Read: the deduction's inputs and the check's
+         * "missing" for it, before the open and after. Red at b5a29e73: the reference stayed, and the check named it.
+         */
+        const S = await import("./case-schema.mjs");
+        const { caseSchemaStore } = await import("./gm-stores.mjs");
+        const ch = getClock().chapter;
+        const ids = { gone: "bullet-suite-old-gone", kept: "bullet-suite-old-kept", d: "deduction-suite-old" };
+        let win = null;
+        const read = {};
+        const missingOf = () => S.checkCase(S.caseGraph(ch)).filter(p => p.code === "missing" && p.node === ids.d).map(p => p.ref);
+        try {
+            await S.setCaseNode(ch, ids.gone, { kind: "bullet", label: "SUITE old gone" });
+            await S.setCaseNode(ch, ids.kept, { kind: "bullet", label: "SUITE old kept" });
+            await S.setCaseNode(ch, ids.d, { kind: "deduction", label: "SUITE old", inputs: [ids.gone, ids.kept] });
+            await caseSchemaStore.drop(S.caseKeyOf(ch, ids.gone));
+            await gmStoresIdle();
+            read.before = { inputs: S.caseRows(ch).rows[ids.d]?.inputs ?? null, missing: missingOf() };
+            win = await drawnCaseWindow({ view: "map" });
+            await until(() => (S.caseRows(ch).rows[ids.d]?.inputs ?? []).length === 1, 3000).catch(() => {});
+            read.after = { inputs: S.caseRows(ch).rows[ids.d]?.inputs ?? null, missing: missingOf() };
+        } finally {
+            if (win) await win.close().catch(() => {});
+            for (const id of Object.values(ids)) await S.dropCaseNode(ch, id).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(read), stableJson({ before: { inputs: [ids.gone, ids.kept], missing: [ids.gone] }, after: { inputs: [ids.kept], missing: [] } }),
+            "the old removal's reference was not cut at the dashboard's open, or the live one went (before and after: the deduction's inputs and the check's missing)");
+    }],
+
+    ["a reference to something gone that no removal cut is drawn in the node's list ticked, and unticked it comes off at the window's close (investigation.mjs `schemaEditor`; the line claude/plan-119)", async () => {
+        /*
+         * A token deleted on the map by hand, a Key slot gone and the like leave a reference no road cuts. Here a deduction
+         * resting on a Remnant key no scene holds, the dashboard drawn on the Map: its "Rests on" list read for a box named
+         * for the key, ticked; the box unticked and the window closed (which saves, the owner's 13.11.2026). Read: the box,
+         * then the deduction's inputs and the check's "missing". Red at b5a29e73: no box - the reference could not be taken off.
+         */
+        const S = await import("./case-schema.mjs");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const ch = getClock().chapter, id = "deduction-suite-gone-box", ref = "SCENENONE0000000.TOKNONE000000000";
+        let win = null;
+        const read = {};
+        try {
+            await S.setCaseNode(ch, id, { kind: "deduction", label: "SUITE gone box", inputs: [ref] });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            const box = () => root?.querySelector(`[name="${CSS.escape(`case:${ch}:${id}:in:${ref}`)}"]`) ?? null;
+            await until(() => box(), 3000).catch(() => {});
+            read.box = box() ? { checked: box().checked, said: box().closest("label")?.textContent.trim() === game.i18n.format("DRPG.CaseMap.goneRef", { ref }) } : null;
+            if (box()) { box().checked = false; box().dispatchEvent(new Event("change", { bubbles: true })); }
+            await win.close();
+            win = null;
+            await until(() => (S.caseRows(ch).rows[id]?.inputs ?? [ref]).length === 0, 4000).catch(() => {});
+            read.inputs = S.caseRows(ch).rows[id]?.inputs ?? null;
+            read.missing = S.checkCase(S.caseGraph(ch)).filter(p => p.code === "missing" && p.node === id).length;
+        } finally {
+            if (win) await win.close().catch(() => {});
+            await S.dropCaseNode(ch, id).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(read), stableJson({ box: { checked: true, said: true }, inputs: [], missing: 0 }),
+            "a reference to something gone was not drawn ticked, or unticked did not come off (box: drawn, ticked and named; inputs after the close; missing: the check's)");
+    }],
+
+    ["a Remnant deleted from the dashboard takes the planner's links to it with it (investigation.mjs `deleteTraceRow`, case-schema.mjs `cutRemnantRefs`; the coordinator's point 3, 20.11.2026; the line claude/plan-119)", async () => {
+        /*
+         * A trace placed on the scene on screen and a deduction resting on it and on nothing else gone; the trace deleted
+         * through the dashboard's road (`deleteTraceRow`, its question answered Yes from the queue). Read: the token, the
+         * deduction's inputs and the check's "missing" for it. Red at b5a29e73: the deduction kept naming the deleted trace.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the trace is placed on the scene on screen");
+        const S = await import("./case-schema.mjs");
+        const I = await import("./investigation.mjs");
+        const R = await import("./remnants.mjs");
+        const scene = canvas.scene, ch = getClock().chapter, id = "deduction-suite-remnant-cut";
+        let trace = null, read = null;
+        try {
+            trace = await R.placeRemnant({ type: "prep", visibility: "evident", faint: false, tiedToCrime: false, scene, x: 140, y: 60, note: "SUITE remnant cut" });
+            must(trace?.id, "the trace was not placed - this would measure nothing");
+            await R.setRemnantPublic(trace, { name: "SUITE remnant cut" });
+            const key = R.keyOf(trace);
+            await S.setCaseNode(ch, id, { kind: "deduction", label: "SUITE remnant cut", inputs: [key] });
+            await gmStoresIdle();
+            globalThis.__dialogAnswers?.push(true);
+            const gone = await I.deleteTraceRow(`${scene.id}__${trace.id}`);
+            await gmStoresIdle();
+            read = { gone, token: scene.tokens.has(trace.id), inputs: S.caseRows(ch).rows[id]?.inputs ?? null,
+                missing: S.checkCase(S.caseGraph(ch, { chapters: "all" })).filter(p => p.code === "missing" && p.node === id).length };
+        } finally {
+            if (trace && scene.tokens.has(trace.id)) { await R.dropRemnantSecret(trace).catch(() => {}); await scene.deleteEmbeddedDocuments("Token", [trace.id]).catch(() => {}); }
+            await S.dropCaseNode(ch, id).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(read), stableJson({ gone: true, token: false, inputs: [], missing: 0 }),
+            "the deleted Remnant's links stayed (gone: the road's answer, token: still on the map, inputs: the deduction's after, missing: the check's)");
+    }],
+
+    ["the open planner draws a node written to the case while it stands open - with no field focused, with a field focused that holds nothing typed, and with text typed in it: the focus, the caret and the text kept, and a field another write changed under the typing keeps the text and is marked (investigation.mjs `openInvestigationDashboard`, live.mjs `keepLive` `whileEditing`; the owner, 20.11.2026: \"by okna zawsze odswiezaly sie przed zaladowaniem okna od nowa (np. Planer)\", \"Zawsze odswiezamy okna od razu przy zmianie\"; the line claude/plan-119)", async () => {
+        /*
+         * The dashboard drawn on the Map as this GM opens it, a fixture deduction in it; then three writes of a new deduction
+         * to the GMs' case store while the window stands open - this GM's own write, which reaches the window through the
+         * same store hook as another GM's merged in (live.mjs `listenFor`'s `stores`). First with nothing focused in the
+         * window; then with the fixture's Name field focused and untouched; then with it focused, a word typed in it and
+         * part of it selected; then the same field written in the store meanwhile. Read each time: whether the new node is
+         * drawn within 2 s, where the focus is, the field's text and caret, and the field's mark. Red at b5a29e73: a
+         * focused field held every redraw until the focus left the region, and with every node open on the Map
+         * (owner-116) a GM's focus is in a field most of the time; red at 88ad9a26 for a field typed in, which still held.
+         */
+        const S = await import("./case-schema.mjs");
+        needs(env.dialogs(), "the dashboard is drawn and focused on its window");
+        const ch = getClock().chapter, base = "deduction-suite-live", added = ["deduction-suite-live-1", "deduction-suite-live-2", "deduction-suite-live-3"];
+        let win = null;
+        const seen = {};
+        try {
+            await S.setCaseNode(ch, base, { kind: "deduction", label: "SUITE live base" });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            const drawn = id => Boolean(root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id}"]`));
+            const label = () => win.field(`case:${ch}:${base}:label`);
+            await until(() => drawn(base), 3000).catch(() => {});
+            const write = async (i) => {
+                await S.setCaseNode(ch, added[i], { kind: "deduction", label: `SUITE live ${i + 1}` });
+                await until(() => drawn(added[i]), 2000).catch(() => {});
+                return drawn(added[i]);
+            };
+            document.activeElement?.blur?.();
+            seen.none = await write(0);
+            label()?.focus();
+            const focused = document.activeElement === label();
+            seen.untouched = { focused, drawn: await write(1), focus: document.activeElement === label() };
+            label()?.focus();
+            if (label()) { label().value = "SUITE live typed"; label().dispatchEvent(new Event("input", { bubbles: true })); label().setSelectionRange(5, 9); }
+            const drawnTyped = await write(2);
+            seen.typed = { drawn: drawnTyped, focus: document.activeElement === label(), kept: label()?.value === "SUITE live typed",
+                caret: [label()?.selectionStart, label()?.selectionEnd] };
+            /* the same field written meanwhile (another GM's Save of it): the text typed stays, the field is marked */
+            await S.setCaseNode(ch, base, { label: "SUITE live elsewhere" });
+            await until(() => label()?.classList.contains("drpg-moved-under"), 2000).catch(() => {});
+            seen.under = { kept: label()?.value === "SUITE live typed", marked: Boolean(label()?.classList.contains("drpg-moved-under")), focus: document.activeElement === label() };
+        } finally {
+            if (win) {
+                const typed = win.field(`case:${ch}:${base}:label`);
+                if (typed) typed.value = typed.defaultValue;
+                await win.close().catch(() => {});
+            }
+            for (const id of [base, ...added]) await S.dropCaseNode(ch, id).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({ none: true, untouched: { focused: true, drawn: true, focus: true },
+            typed: { drawn: true, focus: true, kept: true, caret: [5, 9] }, under: { kept: true, marked: true, focus: true } }),
+            "the open planner did not draw a node written meanwhile (none: no focus; untouched: a field focused and untouched - drawn, focus kept; typed: text typed - drawn, focus, text and caret kept; under: the same field written meanwhile - text kept, marked, focus kept)");
+    }],
+
+    ["the open planner draws at once what changes on the map that it shows - a Remnant's token deleted by hand, with no ledger write after it, takes its node off; a room's region made puts the room in a planned Remnant's room list and deleted takes it out - and a token that is no Remnant moved redraws nothing (investigation.mjs `CASE_WATCH`, live.mjs `watch.where`; the owner, 20.11.2026: \"Tak. Zawsze odswiezamy okna od razu przy zmianie\"; the line claude/plan-119)", async () => {
+        /*
+         * The dashboard drawn on the Map. A trace placed on the scene on screen and a deduction resting on it; its token then
+         * deleted by hand with `drpgReset` in the delete's options, so remnants.mjs's own `deleteToken` hook writes no
+         * tombstone - a deletion whose ledger write comes from another GM, or none - and the Map must hear the token itself.
+         * A planned Remnant written with no room, and a region marked a room made on the scene and then deleted. A token
+         * with no Remnant flag moved (the world's first such token, put back after). Read: the trace's node drawn within
+         * 2 s of each, the room in the planned row's list, and whether the region element was replaced by the move.
+         * Red at 88ad9a26: the dashboard heard no token and no region.
+         */
+        const S = await import("./case-schema.mjs");
+        const R = await import("./remnants.mjs");
+        needs(env.dialogs(), "the dashboard is drawn on its window");
+        needs(world.atLeast("sceneOnScreen"), "the trace and the room are made on the scene on screen");
+        const scene = canvas.scene, ch = getClock().chapter, ded = "deduction-suite-map-live", inc = "incident-suite-map-live";
+        let win = null, trace = null, region = null, key = null;
+        const seen = {};
+        const other = scene.tokens.find(t => !t.getFlag(MODULE_ID, R.REMNANT_FLAGS.isRemnant));
+        const otherAt = other ? { x: other.x, y: other.y } : null;
+        try {
+            trace = await R.placeRemnant({ type: "prep", visibility: "evident", faint: false, tiedToCrime: false, scene, x: 180, y: 60, note: "SUITE map live", chapter: ch });
+            must(trace?.id, "the trace was not placed - this would measure nothing");
+            await R.setRemnantPublic(trace, { name: "SUITE map live" });
+            key = R.keyOf(trace);
+            await S.setCaseNode(ch, ded, { kind: "deduction", label: "SUITE map live", inputs: [key] });
+            await S.setCaseNode(ch, inc, { kind: "incident", label: "SUITE map live planned", type: "prep" });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            const nodeOf = id => root?.querySelector(`[data-drpg-node="${CSS.escape(id)}"], .drpg-case-edit[data-drpg-edit="${CSS.escape(id)}"]`) ?? null;
+            const rooms = () => [...(root?.querySelector(`.drpg-case-edit[data-drpg-edit="${inc}"] select[name="${CSS.escape(`case:${ch}:${inc}:room`)}"]`)?.options ?? [])].map(o => o.value);
+            await until(() => nodeOf(key), 3000).catch(() => {});
+            seen.drawn = Boolean(nodeOf(key));
+            const live = () => root?.querySelector(".drpg-case-live");
+            if (other) {
+                const before = live();
+                await other.update({ x: other.x + 100 }, { animate: false });
+                await wait(800);
+                seen.moved = live() === before;
+            } else seen.moved = true;
+            [region] = await scene.createEmbeddedDocuments("Region", [{ name: "SUITE live room", shapes: [{ type: "rectangle", x: 0, y: 0, width: 200, height: 200 }],
+                flags: { [MODULE_ID]: { room: true } } }]);
+            must(region?.id, "the room's region was not made");
+            await until(() => rooms().includes("SUITE live room"), 2000).catch(() => {});
+            seen.roomIn = rooms().includes("SUITE live room");
+            await scene.deleteEmbeddedDocuments("Region", [region.id]);
+            region = null;
+            await until(() => !rooms().includes("SUITE live room"), 2000).catch(() => {});
+            seen.roomOut = !rooms().includes("SUITE live room");
+            await scene.deleteEmbeddedDocuments("Token", [trace.id], { drpgReset: true });
+            await until(() => !nodeOf(key), 2000).catch(() => {});
+            seen.gone = !nodeOf(key);
+        } finally {
+            if (win) await win.close().catch(() => {});
+            if (other && otherAt) await other.update(otherAt, { animate: false }).catch(() => {});
+            if (region) await scene.deleteEmbeddedDocuments("Region", [region.id]).catch(() => {});
+            if (trace) { await R.dropRemnantSecret(trace).catch(() => {}); if (scene.tokens.has(trace.id)) await scene.deleteEmbeddedDocuments("Token", [trace.id]).catch(() => {}); }
+            for (const id of [ded, inc]) await S.dropCaseNode(ch, id).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({ drawn: true, moved: true, roomIn: true, roomOut: true, gone: true }),
+            "the open planner did not show a change on the map at once, or redrew for a token it does not show (drawn: the trace's node at the start, moved: no redraw for a non-Remnant token's move, roomIn and roomOut: the room in the planned row's list, gone: the deleted token's node off)");
+    }],
+
+    ["the planner's Map opens on a case with two counters refuting each other and a counter refuting the deduction that rests on it, and draws all four (case-layout.mjs `layoutCase`; the audit's reading, relayed by the coordinator on 20.11.2026; the line claude/plan-119)", async () => {
+        /*
+         * The two shapes written in this chapter as the Map's editor writes them (a counter's "Refutes", a deduction's "Rests
+         * on"), then the dashboard drawn on the Map as this GM opens it. Read: each node's fields drawn, and whether the
+         * dashboard's open threw. Red at de1d5072: the layout recursed until the stack ran out and the Map did not open
+         * (tier 1 R7802 holds the pure path).
+         */
+        const S = await import("./case-schema.mjs");
+        needs(env.dialogs(), "the dashboard is drawn on its window");
+        const ch = getClock().chapter;
+        const ids = ["counter-suite-loop-a", "counter-suite-loop-b", "counter-suite-loop-c", "deduction-suite-loop"];
+        let win = null, read = null;
+        try {
+            await S.setCaseNode(ch, ids[0], { kind: "counter", label: "SUITE loop a", refutes: [ids[1]] });
+            await S.setCaseNode(ch, ids[1], { kind: "counter", label: "SUITE loop b", refutes: [ids[0]] });
+            await S.setCaseNode(ch, ids[2], { kind: "counter", label: "SUITE loop c", refutes: [ids[3]] });
+            await S.setCaseNode(ch, ids[3], { kind: "deduction", label: "SUITE loop d", inputs: [ids[2]] });
+            await gmStoresIdle();
+            let threw = null;
+            win = await drawnCaseWindow({ view: "map" }).catch(err => { threw = String(err?.message ?? err); return null; });
+            const root = win?.app?.element;
+            await until(() => ids.every(id => root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id}"]`)), 3000).catch(() => {});
+            read = { threw, drawn: ids.filter(id => root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id}"]`)).length };
+        } finally {
+            if (win) await win.close().catch(() => {});
+            for (const id of ids) await S.dropCaseNode(ch, id).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(read), stableJson({ threw: null, drawn: 4 }), "the Map did not open on a refutes loop, or drew fewer than its four nodes (threw: the open's error, drawn: the nodes drawn)");
     }],
 ];
 

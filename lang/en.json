@@ -2289,6 +2289,7 @@
           "orderTooltip": "By room puts tied Remnants first, then sorts by room; Newest first goes by chapter, day, and time of day",
           "restsOnBoxTooltip": "Ticked, the Map draws a link from that node into this one, and Check consistency follows it",
           "refutesBoxTooltip": "Ticked, the Map draws a link from this counter to that node, and Check consistency follows it",
+          "goneRefBoxTooltip": "What this names is no longer in the case. Untick it to remove the link",
           "remnantsTabTooltip": "Every Remnant on the map, to filter and change; your changes wait for Save",
           "keyTabTooltip": "The chapter's planned Key Remnants: their words, who found each, and Place for those not on the map",
           "finalTabTooltip": "The Final Truth Remnants on the map, who found each, and the form that places another",
@@ -7363,6 +7364,7 @@
     "CaseMap": {
       "noDiveSet": "- no set -",
       "diveSetGone": "(a set since deleted)",
+      "goneRef": "“{ref}” (gone: untick to remove)",
       "autopsySent": "Sent to the students.",
       "autopsyWhen": "Goes to every living student when body {n} is found, if this Autopsy has a name or words and is within the chapter's count.",
       "autopsyNth": "{label} {n}",
@@ -7419,7 +7421,7 @@
       "noMode": "- no trial mode -",
       "nothingToRefute": "No deduction to refute yet.",
       "removeNode": "Remove from the case",
-      "removeAsk": "Remove {name} from the case? A node that rests on it keeps naming it, and Check consistency reports it.",
+      "removeAsk": "Remove {name} from the case? It also comes off every node that rests on it or refutes it.",
       "addDeduction": "Add deduction",
       "addCounter": "Add counter",
       "addSolution": "Add solution",
@@ -7428,6 +7430,10 @@
       "sortLabel": "Order in a column",
       "moveUp": "Move up",
       "moveDown": "Move down",
+      "moveEnd": {
+        "up": "{name} cannot move further up.",
+        "down": "{name} cannot move further down."
+      },
       "notSaved": "Your changes were not saved. They are still in the fields.",
       "field": {
         "img": "Picture",
