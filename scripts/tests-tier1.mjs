@@ -32573,6 +32573,51 @@ const INVARIANTS = [
             "[queued while the dissolve is young, queued 10 s on, whether a dissolve is still busy]");
     }],
 
+    ["R8031 - a write the browser could not store still tells what draws it (1.2.120 line F; the owner's report of 21.11.2026, \"Mgla u GMa nie odswieza sie wcale\", cured by Reset the season): gm-store.mjs over a storage that refuses every write hands its `changed` the store's key and the value memory holds, for a GM's store and for a player's copy", async () => {
+        /*
+         * 1.2.120 line F, 21.11.2026. A store's readers are redrawn by its client setting's `onChange` (settings.mjs: the
+         * discovery store's and the fog copy's run `onWorldChange` of the fog), and Foundry runs that only once the value
+         * is in localStorage. With the origin full the store took every write in memory and nothing on screen heard of
+         * it: the GM's fog stood as drawn for every room found, ticked or reset, through any F5, until something freed the
+         * room - the season's reset empties the stores. Headless on 25231254, gm's localStorage refusing the discovery
+         * key (scenario 97 L): the record took the tick, the untick and the walk, gm's drawn fog none. Red there, measured:
+         * [[], {"Gym": true}] (memory took the write, nobody heard it). The copy's half, each part of the fix taken out
+         * alone: no `changed` after its failed write [null, [], {"Gym": true}]; no catch ["R8031 full", [], ...]. The real `changed` calls the registered setting's
+         * `onChange` (gm-store.mjs's env); scenario 97 L reads it through the fog.
+         */
+        const G = await import("./gm-store.mjs");
+        const quiet = { warn: () => {}, error: () => {}, debug: () => {} };
+        const heard = [];
+        const engineOf = gm => {
+            const flushes = [];
+            const eng = G.createGmStoreEngine({
+                selfId: () => gm ? "R8031GM" : "R8031P", isGM: () => gm, isPrimary: () => gm, worldId: () => "R8031WORLD",
+                activeGmIds: () => [], primaryGmId: () => "R8031GM", senderIsGM: () => true, userName: u => u, send: () => {},
+                storage: { read: () => null, write: async () => { const e = new Error("R8031 full"); e.name = "QuotaExceededError"; throw e; } },
+                changed: (key, value) => heard.push([gm ? "gm" : "player", key, value]),
+                readLegacy: () => undefined, now: () => 5_000_000,
+                timers: { set: fn => { flushes.push(Promise.resolve().then(fn)); return flushes.length; }, clear: () => {} },
+                clock: () => ({}), log: quiet, notify: () => {}, text: key => key
+            });
+            return { eng, settle: async () => { for (let i = 0; i < 4; i++) await Promise.all(flushes); } };
+        };
+        const gm = engineOf(true);
+        const store = gm.eng.define({ name: "r8031", key: "r8031Key", kind: "ledger", sync: false, backup: false });
+        await store.patch("SCENE/ACTOR", { Gym: true });
+        await gm.settle();
+        const onGm = heard.filter(([who]) => who === "gm").map(([, key, value]) => [key, value?.worlds?.R8031WORLD?.e?.["SCENE/ACTOR"] ?? null]);
+        equal(JSON.stringify([onGm, store.get("SCENE/ACTOR")]), JSON.stringify([[["r8031Key", { Gym: true }]], { Gym: true }]),
+            "[what the store's readers heard of a write that could not be stored (key, the cells), what memory holds]");
+
+        const player = engineOf(false);
+        const copy = player.eng.defineCopy({ name: "r8031copy", key: "r8031Copy", fallback: null });
+        let threw = null;
+        try { await copy.receive({ Gym: true }, 5_000_000 - 10); } catch (err) { threw = err?.message ?? String(err); }
+        const onPlayer = heard.filter(([who]) => who === "player").map(([, key]) => key);
+        equal(JSON.stringify([threw, onPlayer, copy.read()]), JSON.stringify([null, ["r8031Copy"], { Gym: true }]),
+            "[whether taking the copy threw, what its readers heard, what the copy reads]");
+    }],
+
     ["R1023 - one table says what each mode of the floor allows (E70 C1, S18-79): trial-floor.mjs `modeAllows(floor, kind, actorId)` answers, on every floor of today's three modes and with none, what `maySpeak`, `floorRefusal` and `targetRefusal` answered at 1.2.89, and those three answer it still", async () => {
         /*
          * E70 C1, 27.10.2026; E70-03 (amend 4 (e)). `maySpeak`, `floorRefusal` and `targetRefusal` each spelled the

@@ -18,6 +18,9 @@
  *   K  (run before I, while gm2 is here) the GMs' drawn fog, `diagnoseFog().shading` on gm and on gm2, with no repaint
  *      asked by the scenario: every student's row emptied on gm (K0), a Fog cell ticked on gm (K1) and unticked on gm2
  *      (K2), p1 walking Aiko into a room nobody found (K3), Room setup's Hide all and Apply on gm2 (K4) (1.2.120 line F).
+ *   L  (after K) a full localStorage: gm's refuses the discovery store's key and p1's its fog copy's, and a Fog cell gm
+ *      ticks and a room p1 walks into still clear on gm's drawn fog (L1), and the ticked room is under the veil on p1's (L2)
+ *      (1.2.120 line F).
  *   I  the owner's world of 20.11.2026 (1.2.119 line F): two GM users, gm2 gone, a season reset's discovery cut two
  *      hours ahead of gm's clock, as a reset made on gm2's computer with its clock ahead writes it; p1 walks Aiko into
  *      a room, and gm's record holds it, after gm's reload too, p1's copy holds it, and gm is told once (I1, I2). Last:
@@ -388,6 +391,48 @@ export async function run(api) {
     const k4 = await both(allFog);
     check("K4: Hide all and Apply on Room setup's Fog tab on gm2, not the primary: every room fogged on gm's drawn fog and on gm2's, with no repaint asked (1.2.120 line F)",
         boxesK > 0 && allFog(k4.gm) && allFog(k4.gm2), J({ boxesK, k4 }));
+
+    /* ------------------------------------------------------------------ L */
+    /* 1.2.120 line F, the owner's reading of 21.11.2026: after Reset the season the GM's fog worked again, and in 1.2.119's
+       report F5 had not helped. A store's readers are redrawn by its client setting's `onChange`, which Foundry (and the
+       harness) runs only once the value is in localStorage: with the origin full, the store changed in memory and the
+       fog never heard of it. Here gm's localStorage refuses the discovery store's key and p1's its fog copy's, as a full
+       origin does; on 25231254 the record took the tick and the walk and gm's drawn fog stayed as drawn (L1 red), and
+       the reset cured it at the table by emptying the stores. Put back at the phase's end. */
+    phase("L a full localStorage: the GM's fog still follows", { flow: "discovery-ledger" });
+    const REFUSE = key => `const P = Object.getPrototypeOf(localStorage); globalThis.__lSet ??= P.setItem;
+        P.setItem = function (k, v) { if (String(k) === "${MOD}.${key}") { const e = new Error("The quota has been exceeded."); e.name = "QuotaExceededError"; throw e; } return globalThis.__lSet.call(this, k, v); };
+        return true;`;
+    const PUT_BACK = `if (globalThis.__lSet) { Object.getPrototypeOf(localStorage).setItem = globalThis.__lSet; delete globalThis.__lSet; } return true;`;
+    await gm.eval(`const F = ${imp("fog.mjs")}; await F.setDiscovery(game.scenes.get("${IDS.scene}"), { value: false }); return true;`, { timeout: 60000 });
+    const l0 = await until(() => gm.eval(SHADE), allFog);
+    const aikoL = await gm.eval(`return (${imp("movement.mjs")}).roomOfToken(game.scenes.get("${IDS.scene}").tokens.get("TOKAIKO000000000"));`);
+    const darkL = Object.keys(l0 ?? {}).filter(room => room !== aikoL).sort();
+    const [tickL, walkL] = darkL;
+    await gm.eval(REFUSE("gmDiscovery"));
+    await p1.eval(REFUSE("mineFog"));
+    let l1, l2, walkedL, p1L, stored;
+    try {
+        await gm.eval(`const F = ${imp("fog.mjs")}; await F.setDiscovery(game.scenes.get("${IDS.scene}"), { actorId: "${IDS.aiko}", rooms: [${J(tickL)}], value: true }); return true;`, { timeout: 60000 });
+        l1 = await until(() => gm.eval(SHADE), s => s?.[tickL] === "clear");
+        // Before any move of p1's: a token's step repaints p1's fog on its own, whatever the copy told it.
+        p1L = await until(() => p1.eval(SHADE), s => s?.[tickL] === "veil");
+        await gm.eval(`const t = game.scenes.get("${IDS.scene}").tokens.get("TOKAIKO000000000");
+            await game.drpg.setActions(t.actor, 3); await t.actor.setFlag("${MOD}", "freeMoveUsed", false); return true;`, { timeout: 60000 });
+        await settle(600);
+        walkedL = await p1.eval(`const M = ${imp("movement.mjs")}; const t = game.scenes.get("${IDS.scene}").tokens.get("TOKAIKO000000000");
+            const to = M.positionIn(${J(walkL)}, t); await t.update({ x: to.x, y: to.y }); await new Promise(r => setTimeout(r, 1500)); return M.roomOfToken(t);`, { timeout: 60000 });
+        l2 = await until(() => gm.eval(SHADE), s => s?.[walkL] === "clear");
+        // What storage holds of the walk, read back through the store (`persisted`): Aiko's cell, true only had the write gone in.
+        stored = await gm.eval(`return (${imp("gm-store.mjs")}).gmStoreByName("discovery").persisted("${IDS.scene}/${IDS.aiko}")?.[${J(walkL)}] === true;`);
+    } finally {
+        await gm.eval(PUT_BACK);
+        await p1.eval(PUT_BACK);
+    }
+    check("L1: gm's localStorage refuses the discovery store (a full origin): a Fog cell gm ticks clears its room on gm's drawn fog, and so does a room p1 walks Aiko into, though neither is stored (1.2.120 line F)",
+        Boolean(tickL && walkL) && l1?.[tickL] === "clear" && walkedL === walkL && l2?.[walkL] === "clear" && stored === false, J({ tickL, walkL, walkedL, l1, l2, stored }));
+    check("L2: p1's localStorage refuses its fog copy: the room gm ticked for Aiko is under the veil on p1's drawn fog, found and not stood in, before p1 moves anything (1.2.120 line F)",
+        p1L?.[tickL] === "veil", J({ tickL, p1L }));
 
     /* ------------------------------------------------------------------ I */
     /* 1.2.119 line F (the owner's item #2 of 20.11.2026: the GM's fog stopped showing the rooms the players found, F5 did
