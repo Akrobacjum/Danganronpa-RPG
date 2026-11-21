@@ -5152,6 +5152,7 @@
       "installAction": "Install / reinstall",
       "renameNote": "A tier table's name must keep its category and tier. A room table can take any other name.",
       "renamed": "Renamed to “{name}”.",
+      "familyRenamed": "Renamed with it: {items}.",
       "deleteConfirm": { "one": "Delete “{name}” and the {n} item in it? This cannot be undone.", "other": "Delete “{name}” and the {n} items in it? This cannot be undone." },
       "deleted": "Deleted “{name}”."
     },

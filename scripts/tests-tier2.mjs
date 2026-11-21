@@ -103991,6 +103991,90 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ frisk: ["ran", 0], plant: "refused" }),
             "{frisk: [the run ended, the actions it left spent]; plant: the code of a Plant's answer for an item not held} - a refusal before the rolls hands the action back, and a run that did nothing says so");
     }],
+    ["1.2.122 CORE-33 REFR-57 CTRL-70 - Item tables: a room table renamed takes its split tables with it, a Remove and a change made outside move the list's count, and an Add refused for its missing name comes back with what was typed (scripts/tables-editor.mjs `renameRoomFamily`, `freshTableCounts`, `newItemPaneHtml`'s draft; tables-pools.mjs `roomTableSuffix`; the audit's CORE-33, REFR-57 and CTRL-70, 1.2.122 line WORLD)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line WORLD. CORE-33 (domain-core-e-utils-clock-3): a Rename repointed the rooms and left
+         * "<old> - Tier 2" and "<old> - Murder Weapons" on the old base, read by no draw. REFR-57 (controls-10-setup-config-8):
+         * Remove redrew the entries and not the list's count, and nothing heard a table change made elsewhere. CTRL-70
+         * (controls-10-setup-config-9): an Add refused for a missing name reopened the form empty. Driven as the 1.2.115
+         * rename test drives the window: the test's own tables (a flat one with two entries, its Tier 2 and its Murder
+         * Weapons), the window drawn, the flat table picked and renamed through the prompt; then a row's Remove pressed; an
+         * entry made on the Murder Weapons table through Foundry's API (as its own sheet would); then the Add an item tab
+         * filled with a description and the flat table's tick, no name, and Add pressed. Read: the tables' names, the
+         * counts the list shows, and the form of the window that comes back. Put back: the windows, the tables.
+         * Red at 21bf5d18: the split tables kept the old base, the counts stood, and the form came back empty.
+         */
+        const T = await import("./tables.mjs");
+        const TAG = "SUITE 122 tables", OLD = `${TAG} Pantry`, NEW = `${TAG} Larder`;
+        const appWith = test => [...foundry.applications.instances.values()].find(a => a.element?.isConnected && test(a.element));
+        const tablesApp = () => appWith(el => el.classList.contains("drpg-window-tables"));
+        const closeAll = async test => { for (let n = 0; n < 4; n += 1) { const app = appWith(test); if (!app) break; try { await app.close(); } catch { /* gone */ } await settle(); } };
+        const made = [];
+        const read = {};
+        let opening = null;
+        const queue = Array.isArray(globalThis.__dialogAnswers) ? globalThis.__dialogAnswers : null;
+        try {
+            const entry = text => ({ type: "text", text, name: text, weight: 1, range: [1, 1] });
+            made.push(await RollTable.create({ name: OLD, formula: "1d2", flags: { [MODULE_ID]: { roomPool: true } }, results: [entry("SUITE a ladle"), entry("SUITE a pot")] }));
+            for (const suffix of ["Tier 2", "Murder Weapons"]) made.push(await RollTable.create({ name: `${OLD} - ${suffix}`, formula: "1d1", flags: { [MODULE_ID]: { roomPool: true } }, results: [entry(`SUITE ${suffix}`)] }));
+            await settle();
+            opening = T.openItemTables();
+            await until(() => tablesApp());
+            await settle();
+            let el = tablesApp()?.element;
+            const pick = el?.querySelector(`[data-drpg-pool-pane="rooms"] [data-drpg-table="${CSS.escape(made[0].id)}"]`);
+            must(pick, "the Room pools tab lists no button for the test's table - this would measure nothing");
+            pick.click();
+            await settle();
+            const answer = () => NEW;
+            queue?.push(answer);
+            el.querySelector('[data-drpg-pool-pane="rooms"] [data-drpg-rename-table]')?.click();
+            if (!queue) {
+                await until(() => appWith(e => e.querySelector('input[name="tableName"]')), 6000);
+                const prompt = appWith(e => e.querySelector('input[name="tableName"]'))?.element;
+                const field = prompt?.querySelector('input[name="tableName"]');
+                if (field) field.value = NEW;
+                prompt?.querySelector('footer button[data-action="ok"]')?.click();
+            }
+            await until(() => game.tables.getName(NEW), 6000);
+            await settle();
+            if (queue?.includes(answer)) queue.splice(queue.indexOf(answer), 1);
+            read.names = made.map(t => game.tables.get(t.id)?.name ?? null);
+            const count = t => el.querySelector(`[data-drpg-table="${CSS.escape(t.id)}"]`)?.closest("tr")?.querySelector("[data-drpg-table-count]")?.textContent ?? null;
+            const drop = el.querySelector(`[data-drpg-drop][data-drpg-drop-table="${CSS.escape(made[0].id)}"]`);
+            must(drop, "the flat table's entries show no Remove - this would measure nothing");
+            drop.click();
+            await until(() => game.tables.get(made[0].id)?.results.size === 1, 4000);
+            await settle();
+            read.removed = [game.tables.get(made[0].id)?.results.size ?? null, count(made[0])];
+            await made[2].createEmbeddedDocuments("TableResult", [entry("SUITE a cleaver")]);
+            await settle();
+            await settle();
+            read.outside = [made[2].results.size, count(made[2])];
+            el.querySelector('button[role="tab"][data-drpg-tab-key="newItem"]')?.click();
+            const form = el.querySelector("form");
+            form.newText.value = "SUITE 122 typed and refused";
+            const tick = form.querySelector(`[name="target:${CSS.escape(made[0].id)}"]`);
+            if (tick) tick.checked = true;
+            form.newName.value = "";
+            const before = tablesApp();
+            el.querySelector('footer button[data-action="add"]')?.click();
+            await until(() => tablesApp() && tablesApp() !== before, 6000);
+            await settle();
+            el = tablesApp()?.element;
+            const back = el?.querySelector("form");
+            read.carried = [back?.newText?.value ?? null, Boolean(back?.querySelector(`[name="target:${CSS.escape(made[0].id)}"]`)?.checked)];
+        } finally {
+            await closeAll(e => e.querySelector('input[name="tableName"]'));
+            await closeAll(e => e.classList.contains("drpg-window-tables"));
+            try { await Promise.race([opening, wait(2000)]); } catch { /* closed rather than answered */ }
+            for (const table of made) if (game.tables.get(table.id)) await game.tables.get(table.id).delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ names: [NEW, `${NEW} - Tier 2`, `${NEW} - Murder Weapons`], removed: [1, "1"], outside: [2, "2"],
+            carried: ["SUITE 122 typed and refused", true] }),
+            "{names: the three tables after the Rename; removed: [entries, the list's count] after a Remove; outside: the same after an entry made elsewhere; carried: [the description, the tick] of the form that came back} - the window keeps the tables' family, counts and the typed form true");
+    }],
     ["PV-DOORS-T1 - the people in the character's own room always see who works its doors, and everyone behind a barricade hears a knock (scripts/doors-gm.mjs `shutDoor`, `forceDoor`, `pickLock`, `knockDoor`; the owner's rules #8 and #9, 13.11.2026): Shut the Door, a Force missed with Hope and a Pick whose Shadow cover passed each send the other student in the character's room a card naming the character, and nobody in the room beyond one; a Pick whose cover failed and a Force missed with Despair tell both rooms, as before; a walk refused at a barricade is heard by everyone in the barricaded room - its author and the student beside them - and never by the walker", async () => {
         /*
          * Privacy line 1 (doors), 13.11.2026. Judged as the primary judges the player's packets (`G.judge`), each roll a

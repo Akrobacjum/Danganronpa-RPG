@@ -26,16 +26,16 @@
 
 import { MODULE_ID, ITEM_CATEGORIES, EQUIPPABLE, ITEM_TIERS, itemIcon } from "./config.mjs";
 import { cardWarn } from "./chat-card.mjs";
-import { whisperToGms, log, error, plural, esc}
+import { whisperToGms, log, error, plural, esc, listOf }
     from "./utils.mjs";
 import { kitTabs, wireKitTabs, drpgWindow, drpgConfirm, drpgPrompt, dataTable, box, tipAttr, tipText } from "./ui-kit.mjs";
 import { pickableCategories } from "./inventory.mjs";
-import { alreadyOpen, reopen, RAISED } from "./live.mjs";
+import { alreadyOpen, reopen, RAISED, keepFresh } from "./live.mjs";
 import { showRoomGroup } from "./ui-hold.mjs";
 import {
     classifyTableName, tierTablesFor, existingTableName, tableDescription, isTierPoolTable, poolShapeOf,
     poolNameRefusal, USABLE_GOALS, ITEM_POOLS, MULTI_ROLE_TIER, rolesForPoolItem, tierTableIdFor, roomTableNames,
-    tableForRoom, moduleTables, ROOM_GROUP_ORDER, groupKeyOf, groupLabel, classifyEntryName
+    tableForRoom, moduleTables, ROOM_GROUP_ORDER, groupKeyOf, groupLabel, classifyEntryName, roomTableSuffix
 } from "./tables-pools.mjs";
 
 
@@ -889,7 +889,10 @@ function wireItemPicture(root) {
 }
 
 /** The "add an item" tab: what the entry is, where it can go, what else it can do. */
-function newItemPaneHtml(preset, presetTargets, roomTablesList) {
+function newItemPaneHtml(preset, presetTargets, roomTablesList, draft = null) {
+    /* WHAT WAS TYPED COMES BACK (the audit's CTRL-70, 1.2.122, 21.11.2026). Add an item refused for a missing name or
+       pool reopened the window from the preset alone, its form empty - the description, picture, tier, roles and ticks
+       gone, unsaid. `draft` is the form as read at the press (`readNewItemForm`), drawn over the preset. */
     /*
      * WHAT ELSE THIS ENTRY CAN DO (E8).
      *
@@ -906,7 +909,7 @@ function newItemPaneHtml(preset, presetTargets, roomTablesList) {
      * use than one redundant box.
      */
     const roleChecks = EQUIPPABLE.map(key =>
-        `<label class="drpg-check"><input type="checkbox" name="role:${key}"${tipAttr("DRPG.Tips.Sweep.Setup.newItemRoleTooltip", { tier: MULTI_ROLE_TIER }, { title: true })} />
+        `<label class="drpg-check"><input type="checkbox" name="role:${key}"${draft?.roles?.includes(key) ? " checked" : ""}${tipAttr("DRPG.Tips.Sweep.Setup.newItemRoleTooltip", { tier: MULTI_ROLE_TIER }, { title: true })} />
             ${foundry.utils.escapeHTML(ITEM_CATEGORIES[key]?.label ?? key)}</label>`).join("");
 
     /*
@@ -926,7 +929,7 @@ function newItemPaneHtml(preset, presetTargets, roomTablesList) {
      * on nothing.
      */
     const categoryList = pickableCategories();
-    const presetValue = preset?.category ?? null;
+    const presetValue = draft?.category ?? preset?.category ?? null;
     // Exactly one row carries `selected`. Matching the key as well would mark
     // BOTH usable kinds when a preset says `usable`, and a select with two
     // selected options quietly keeps the last one.
@@ -938,28 +941,28 @@ function newItemPaneHtml(preset, presetTargets, roomTablesList) {
             c === presetChoice ? " selected" : ""}>${esc(c.label)}</option>`).join("");
 
     const tiers = ITEM_TIERS.map(t => `<option value="${t}"${
-        t === Number(preset?.tier ?? 2) ? " selected" : ""}>${
+        t === Number(draft?.tier ?? preset?.tier ?? 2) ? " selected" : ""}>${
         game.i18n.format("DRPG.Items.tierN", { n: t })}</option>`).join("");
 
     const roomChecks = roomTablesList.map(t => `<label class="drpg-inline-check">
         <input type="checkbox" name="target:${t.id}"${tipAttr("DRPG.Tips.Sweep.Setup.newItemRoomTableTooltip")}${
-            presetTargets.has(t.id) ? " checked" : ""} /> ${esc(t.name)}</label>`).join(" ");
+            (draft ? draft.tables?.includes(t.id) : presetTargets.has(t.id)) ? " checked" : ""} /> ${esc(t.name)}</label>`).join(" ");
 
     return `
             <fieldset class="drpg-tables-new">
                 <legend>${game.i18n.localize("DRPG.Tables.addItem")}</legend>
                 <div class="drpg-tables-new-head">
-                    <img src="${esc(preset?.img || itemIcon(presetChoice?.key ?? categoryList[0]?.key))}" alt=""
+                    <img src="${esc(draft?.img || preset?.img || itemIcon(presetChoice?.key ?? categoryList[0]?.key))}" alt=""
                          class="drpg-tables-preview" />
-                    <input type="hidden" name="img.new" value="${esc(preset?.img || "")}" />
+                    <input type="hidden" name="img.new" value="${esc(draft?.img || preset?.img || "")}" />
                     <label>${game.i18n.localize("DRPG.Items.name")}
-                        <input type="text" name="newName" value="${esc(preset?.name ?? "")}"${tipAttr("DRPG.Tips.Sweep.Setup.newItemNameTooltip")}
+                        <input type="text" name="newName" value="${esc(draft?.name ?? preset?.name ?? "")}"${tipAttr("DRPG.Tips.Sweep.Setup.newItemNameTooltip")}
                                placeholder="${esc(game.i18n.localize("DRPG.Items.namePlaceholder"))}" /></label>
                 </div>
-                ${itemPictureGrid(preset?.img || "")}
+                ${itemPictureGrid(draft?.img || preset?.img || "")}
                 <label>${game.i18n.localize("DRPG.Items.description")}
                     <textarea name="newText" rows="2"${tipAttr("DRPG.Tips.Sweep.Setup.newItemDescriptionTooltip")}
-                        placeholder="${esc(game.i18n.localize("DRPG.Items.descriptionPlaceholder"))}"></textarea></label>
+                        placeholder="${esc(game.i18n.localize("DRPG.Items.descriptionPlaceholder"))}">${esc(draft?.description ?? "")}</textarea></label>
                 <label>${game.i18n.localize("DRPG.Items.category")}
                     <select name="newCategory"${tipAttr("DRPG.Tips.Setup.categoryTooltip")}>${categories}</select></label>
                 <label>${game.i18n.localize("DRPG.Items.tier")}
@@ -1212,6 +1215,29 @@ async function repointRooms(from, to) {
     return done;
 }
 
+/*
+ * AND SO DO ITS SPLIT TABLES (the audit's CORE-33, 1.2.122, 21.11.2026). A room's draw reads its base and the base's
+ * suffixes - "<base> - Tier N", "<base> - <plural>" (tables-pools.mjs `roomTableNames`, `isRoomTableOf`) - so once the
+ * rooms named the new base, "Kitchen - Tier 2" and "Kitchen - Murder Weapons" were read by no draw while the window still
+ * listed them full of knives. Each table of the old base's family is renamed to the new base with its suffix, unless a
+ * table already carries that name (then it is left, and named in the log). Not when another table still carries the old
+ * name, as `repointRooms`. Answers the new names.
+ */
+async function renameRoomFamily(from, to) {
+    if (!from || !to || from === to || game.tables?.getName?.(from)) return [];
+    const done = [];
+    for (const table of [...(game.tables ?? [])]) {
+        const suffix = roomTableSuffix(from, table.name);
+        if (suffix === null) continue;
+        const name = `${to} - ${suffix}`;
+        if (game.tables.getName(name)) { log(`Item table "${table.name}" kept its name: "${name}" exists.`); continue; }
+        await table.update({ name });
+        done.push(name);
+    }
+    if (done.length) log(`Item table "${from}" renamed "${to}": ${done.length} split table(s) followed (${done.join(", ")}).`);
+    return done;
+}
+
 function wirePaneHeading(pane, root, { current, show, nameEl }) {
     /* ITS OWN TWO BUTTONS, LOOKED UP HERE (22.09). When this was split out of
        `wirePoolPane` (1.2.44) the listeners came with it and the two lookups stayed
@@ -1236,12 +1262,19 @@ function wirePaneHeading(pane, root, { current, show, nameEl }) {
             const was = current().name;
             await current().update({ name });
             await repointRooms(was, name);
+            const family = pane.dataset.drpgPoolPane === "tiers" ? [] : await renameRoomFamily(was, name);
             showPoolName(nameEl, name);
             const button = root.querySelector(`[data-drpg-table="${CSS.escape(current().id)}"]`);
             const entry = button?.querySelector("span");
             if (entry) entry.textContent = shortPoolName(name);
             if (button) button.title = name;
+            for (const renamed of family) {
+                const row = root.querySelector(`[data-drpg-table="${CSS.escape(game.tables.getName(renamed)?.id ?? "")}"]`);
+                if (row?.querySelector("span")) row.querySelector("span").textContent = shortPoolName(renamed);
+                if (row) row.title = renamed;
+            }
             ui.notifications.info(game.i18n.format("DRPG.Tables.renamed", { name }));
+            if (family.length) ui.notifications.info(game.i18n.format("DRPG.Tables.familyRenamed", { items: listOf(family) }));
         } catch (err) {
             error("Could not rename an item table", err);
         }
@@ -1310,6 +1343,24 @@ function wirePaneHeading(pane, root, { current, show, nameEl }) {
  * was dead for the same reason - deleting an entry, ticking a role
  * and renaming in place are all in these three listeners.
  */
+/**
+ * Every list's count and name as the tables hold them now, written into the rows' own spans (nodes nobody edits). Place
+ * moved both lists' counts; Remove moved neither, so a list said 14 where the table held 12 (the audit's REFR-57,
+ * 1.2.122). Since then the window also hears the tables change - a Remove, a Place, Foundry's own table sheet, another GM
+ * - and writes the counts and names again (`openItemTables`, `keepFresh`). The entries of the table on screen are not
+ * redrawn from outside: their fields are edited in place, and each saves itself.
+ */
+function freshTableCounts(root) {
+    for (const button of root?.querySelectorAll?.("[data-drpg-table]") ?? []) {
+        const t = game.tables.get(button.dataset.drpgTable);
+        if (!t) continue;
+        const badge = button.closest("tr")?.querySelector("[data-drpg-table-count]");
+        if (badge && badge.textContent !== String(t.results.size)) badge.textContent = t.results.size;
+        const label = button.querySelector("span");
+        if (label && button.title !== t.name) { label.textContent = shortPoolName(t.name); button.title = t.name; }
+    }
+}
+
 function wirePaneRows(pane, root, show) {
     pane.addEventListener("click", async ev => {
         const place = ev.target.closest("[data-drpg-place]");
@@ -1321,11 +1372,7 @@ function wirePaneRows(pane, root, show) {
                 // The counts in BOTH lists move when an entry is copied
                 // out of one pool into another, and the pane that is not
                 // on screen is the one a GM is most likely to check next.
-                for (const button of root.querySelectorAll("[data-drpg-table]")) {
-                    const t = game.tables.get(button.dataset.drpgTable);
-                    const badge = button.closest("tr")?.querySelector("[data-drpg-table-count]");
-                    if (t && badge) badge.textContent = t.results.size;
-                }
+                freshTableCounts(root);
             }
             return;
         }
@@ -1334,7 +1381,7 @@ function wirePaneRows(pane, root, show) {
         if (drop) {
             ev.preventDefault();
             const table = game.tables.get(drop.dataset.drpgDropTable);
-            if (await dropResult(table, drop.dataset.drpgDrop)) show(table);
+            if (await dropResult(table, drop.dataset.drpgDrop)) { show(table); freshTableCounts(root); }
             return;
         }
 
@@ -1614,7 +1661,7 @@ async function addItemFrom(action) {
  *   and re-picking all three here would be answering a question they have just
  *   answered.
  */
-export async function openItemTables({ preset = null, poolError = null } = {}) {
+export async function openItemTables({ preset = null, poolError = null, draft = null } = {}) {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
     // other, so the older one goes on looking authoritative while showing
@@ -1670,8 +1717,8 @@ export async function openItemTables({ preset = null, poolError = null } = {}) {
             { key: "editRooms", label: game.i18n.localize("DRPG.Tables.tabRoomPools"), tooltip: tipText("DRPG.Tips.Sweep.Setup.tabRoomPoolsTooltip"),
               html: poolPaneHtml("rooms", roomTablesList, selected, poolError?.family === "rooms" ? poolError : null) },
             { key: "newItem", label: game.i18n.localize("DRPG.Tables.tabNewItem"), tooltip: tipText("DRPG.Tips.Sweep.Setup.tabNewItemTooltip"),
-              html: newItemPaneHtml(preset, presetTargets, roomTablesList) }
-        ], { active: poolError ? (poolError.family === "rooms" ? "editRooms" : "editTiers") : preset ? "newItem" : null })}</form>`,
+              html: newItemPaneHtml(preset, presetTargets, roomTablesList, draft) }
+        ], { active: poolError ? (poolError.family === "rooms" ? "editRooms" : "editTiers") : preset || draft ? "newItem" : null })}</form>`,
         /* THE FOOTER BY ROLE (E21 C2b, E22): Add an item the primary; Create table secondary; Install / reinstall
            destructive (it rebuilds the default set: never the default); Close, since every row saves itself. */
         footer: {
@@ -1740,6 +1787,8 @@ export async function openItemTables({ preset = null, poolError = null } = {}) {
 
             for (const pane of root.querySelectorAll("[data-drpg-pool-pane]")) wirePoolPane(pane, root);
             root.querySelector('[data-drpg-pool-pane] input[aria-invalid="true"]')?.focus();
+            // The lists' counts and names follow the tables, whoever changed them (`freshTableCounts`; REFR-57, 1.2.122).
+            keepFresh(dialog, { run: el => freshTableCounts(el), watch: { hooks: ["createTableResult", "deleteTableResult", "updateRollTable"] } });
         },
         rejectClose: false
     });
@@ -1770,11 +1819,11 @@ export async function openItemTables({ preset = null, poolError = null } = {}) {
 
     if (!action.name) {
         ui.notifications.warn(game.i18n.localize("DRPG.Tables.needsName"));
-        return reopen("drpg-window-tables", () => openItemTables({ preset }));
+        return reopen("drpg-window-tables", () => openItemTables({ preset, draft: action }));
     }
     if (!action.tables.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Tables.needsTable"));
-        return reopen("drpg-window-tables", () => openItemTables({ preset }));
+        return reopen("drpg-window-tables", () => openItemTables({ preset, draft: action }));
     }
 
     await addItemFrom(action);

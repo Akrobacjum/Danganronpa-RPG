@@ -5515,6 +5515,7 @@
       "installAction": "Zainstaluj / przeinstaluj",
       "renameNote": "Nazwa tabeli Tier musi zachować jej kategorię i Tier. Tabela pokoju może mieć każdą inną nazwę.",
       "renamed": "Zmieniono nazwę na „{name}”.",
+      "familyRenamed": "Razem z nią zmieniono nazwy tabel: {items}.",
       "deleteConfirm": {
         "one": "Usunąć tabelę „{name}” razem z {n} przedmiotem? Tego nie da się cofnąć.",
         "few": "Usunąć tabelę „{name}” razem z {n} przedmiotami? Tego nie da się cofnąć.",
