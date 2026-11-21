@@ -1429,9 +1429,9 @@ export function seasonResetPart() {
  * Open buttons, the First session rows - "moves OUT of Season setup into a NEW window opened by its own button in the
  * row", and Pre-season checks with it, as a button there). The window Season setup's rows were until then, as they were:
  * the intro, the rows (`setupRows`), the First session rows (`firstSessionHtml`), the note; a row's Do it or Open a round
- * trip that brings this window back (`wireSetupSteps`), Check rooms in place (`wireRoomCheck`). Pre-season checks its
- * secondary button, as it was Season setup's until E49 A1e: the window closes with where it was, the checks' window
- * answers, and this one comes back there. Close, a read-out's (E21 C2b): nothing here is a form. Opened by Season setup's
+ * trip that brings this window back (`wireSetupSteps`), Check rooms in place (`wireRoomCheck`). Pre-season checks was its
+ * secondary button until E101 item 2 folded its checks into the rows and the further checks under them (`fillMoreChecks`,
+ * `preSessionReport`): the footer is Close alone, a read-out's (E21 C2b): nothing here is a form. Opened by Season setup's
  * tile (gm-panel.mjs `SEASON_TILES`) and the Next line's Go (`EXTRA_ACTIONS.seasonChecklist`).
  */
 export async function openSeasonChecklist({ draft = null, opened = null } = {}) {
@@ -1589,8 +1589,9 @@ export async function foundryReport({ contract = null } = {}) {
 }
 
 /**
- * The Pre-season checks window's body (E20 C3, from `runPreSessionChecks`, so the suite reads it without a window):
- * the cast, the scenes, the voice rows, the room pictures and the anonymity audit. `av` hands the A/V facts in
+ * The Season checklist's further checks (E20 C3 as the Pre-season checks window's body, from `runPreSessionChecks`, so the
+ * suite reads it without a window; under the checklist's rows since E101 item 2): the room pictures, the voice rows, the
+ * dice look and the anonymity audit - the cast and the scenes left it for the rows in E101 item 2 (below). `av` hands the A/V facts in
  * (`{ mode, on, available }`, R1510), `scenes` the scenes whose room pictures are checked and `head` their HEAD
  * request (R1510, R1511, E20-T2), `contract` a run of the contract (patches.mjs `runContract`; R1541), `diceLook` the
  * dice look's findings (dice-look.mjs `lookFindings`; R1300); each is the world's unless handed.

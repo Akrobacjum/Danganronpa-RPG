@@ -64209,12 +64209,12 @@ const INVARIANTS = [
             if (ui.notifications) ui.notifications.warn = realWarn;
         }
         equal(stableJson({ kept: out[G.KEPT_FIELDS], json: JSON.parse(JSON.stringify(out)).campaignName,
-            readNow: /const now = getClock\(\);\s*for \(const name of kept\)[^\n]*patch\[name\] = now\[name\];\s*\/\/[^\n]*\n\s*\/\/[^\n]*\n\s*if \(correctsTheHour\(getClock\(\), patch\)\)/.test(apply),
+            readNow: /takeKept\(\);\s*\/\/[^\n]*\n\s*\/\/[^\n]*\n\s*if \(correctsTheHour\(getClock\(\), patch\)\) \{\s*await import\("\.\/call-effects\.mjs"\)[^\n]*\n\s*takeKept\(\);\s*\}\s*await setClock\(patch\);/.test(apply),
             word: /KEPT_FIELDS\] \?\? \[\]\)\.includes\("safeword"\)/.test(season), asks: [asksFirst(season), asksFirst(edit)],
             here: [answer, warned.length] }),
         stableJson({ kept: ["chapter", "day", "phase", "session", "timeOfDay", "safeword"], json: "typed", readNow: true, word: true, asks: [true, true],
             here: [[false, true], 1] }),
-            "{kept: the fields named as taken from the world; json: the answer as JSON still the GM's name; readNow: the clock read again after the questions, right before the hour's check and the write; word: Season setup's safeword line reads them; asks: Season setup's and Edit campaign's End the chapter ask first; here: [as a GM not the primary, as the primary], warnings}");
+            "{kept: the fields named as taken from the world; json: the answer as JSON still the GM's name; readNow: the clock read again after the questions, and again after the assembly's call-off, right before the write; word: Season setup's safeword line reads them; asks: Season setup's and Edit campaign's End the chapter ask first; here: [as a GM not the primary, as the primary], warnings}");
     }],
     ["R8101 - a settings window's row left as drawn follows its setting, and one the person changed keeps their value (1.2.122 line CORE; the audit of 1.2.118, CORE-27, REFR-28, STG-15): settings-window.mjs `followSettingRows` on a row drawn with the other value than the one stored, told the setting changed (a recorder for Hooks), sets the field to the stored value as drawn (`untouchedField` still true); a second row the person changed is left; `saveSettings` skips a field `untouchedField` reads as drawn", async () => {
         /* Red at 21bf5d18: no `followSettingRows`, no `untouchedField`. Two rows of `settingRowHtml` in a detached-then-attached
@@ -64387,7 +64387,7 @@ const INVARIANTS = [
         stableJson({ empty: stored === "", set: stored !== "", read: "nothing", other: "" }),
             "{empty: the row offers the empty choice; set: the world's language is set; read: an empty pick of it as Save reads it; other: another select's empty choice}");
     }],
-    ["R8109 - a GM playing a student is told what the run did, as a player is (1.2.122 line CORE; the audit of 1.2.118, ROLL-22 and CORE-22): bridge-guards.mjs `createWaiter`, asked on a GM with a `local` that is the row's run (`localRun`), answers the run's reply as the value, a refusal as refused with its code said once, a later one pending; a `local` that is not a run answers as before; the twelve Infiltrate and room asks of bridge-asks.mjs pass `localRun`, and the four with no roll ask the primary (`onPrimary`)", async () => {
+    ["R8109 - a GM playing a student is told what the run did, as a player is (1.2.122 line CORE; the audit of 1.2.118, ROLL-22 and CORE-22): bridge-guards.mjs `createWaiter`, asked on a GM with a `local` that is the row's run (`localRun`), answers the run's reply as the value, a refusal as refused with its code said once, a later one pending; a `local` that is not a run answers as before; the twelve Infiltrate and room asks of bridge-asks.mjs pass `localRun` and ask the primary (`onPrimary`)", async () => {
         /* Red at 21bf5d18: no `localRun` - a GM's own client settled with the run's whole answer, so a Dash read
            `{ reply: { moves: 2 } }.moves` and a refusal read as a done. A waiter built with fakes (as R165), and the asks'
            sources cut by the kit. */
@@ -64412,7 +64412,7 @@ const INVARIANTS = [
         equal(stableJson({ ...read, told, runs, primary }), stableJson({
             reply: { ok: true, value: { forced: true, held: [] } }, refused: { ok: false, refused: true, reason: "notYours" },
             later: { ok: true, pending: true }, plain: { ok: true, value: { ok: true, key: "K" } }, told: [["door.force", "notYours"]],
-            runs: [], primary: ["requestDoorKnock", "requestEavesdropStop", "requestEchoes", "requestMaskReveal"] }),
+            runs: [], primary: names }),
             "{reply, refused, later: a run's three answers as the GM's caller reads them; plain: a local that is not a run; told: what was said; runs: asks not read as their run; primary: asks the primary carries out}");
     }],
     ["R8110 - Echoes is answered only against its price (1.2.122 line CORE; the audit of 1.2.118, CORE-21): bridge-runs-acts.mjs `handleEchoes`, asked for a living student by a player whose payment this GM never saw, is refused `notPaid`; asked by a GM it is judged as before (not refused for the price)", async () => {
@@ -64512,6 +64512,39 @@ const INVARIANTS = [
             worded: game.i18n.localize("DRPG.Panel.advanceDuringIncident") !== "DRPG.Panel.advanceDuringIncident" }),
         stableJson({ answers: [true, true, false, false], press: true, worded: true }),
             "{answers: [the opening roll, the fight, Stage 6, no incident] - whether the move waits; press: refused and told before the round; worded: the notice has a text}");
+    }],
+    ["R8115 - a parked murder and a betrayal declared in an Eclipse are written only against their price (1.2.122 line CORE; the audit of 1.2.118, CORE-21's rest): bridge-runs-acts.mjs `handleParkMurder` and `handleBetrayal`'s Eclipse branch claim the payment's ticket of a player's declaration (`claimedFor`) before anything is written, and refuse `notPaid` with none; a GM pays nothing here; roll-draw.mjs claims `park` and `betrayal` and draws neither", async () => {
+        /* Red at 21bf5d18: no `claimedFor` - both declarations were written with no payment read. Scenario 61 P3a drives the
+           parked murder from a player's console with nothing paid; no road drives an honest betrayal in an Eclipse, so its
+           claim is read here in the source, with the park's and the kinds claimed only. */
+        const src = new Map(await moduleSources());
+        const acts = src.get("bridge-runs-acts.mjs") ?? "";
+        const claimed = fnSource(acts, "claimedFor");
+        const park = fnSource(acts, "handleParkMurder"), betray = fnSource(acts, "handleBetrayal");
+        const refusal = 'return { refused: "no payment of that character\'s stands for that roll" }';
+        const B = await import("./bridge-guards.mjs");
+        equal(stableJson({
+            claimedFor: [/if \(!sender \|\| sender\.isGM\) return true;/.test(claimed), /return claimTicket\(actorId, kind\);/.test(claimed)],
+            park: park.includes(`if (!(await claimedFor(sender, payload.killerId, "park"))) ${refusal};`),
+            betrayal: betray.includes(`if (!(await claimedFor(sender, payload.actorId, "betrayal"))) ${refusal};`)
+                && betray.indexOf("claimedFor(") > betray.indexOf("betrayalDeclared(payload.actorId)") && betray.indexOf("claimedFor(") < betray.indexOf("const parked"),
+            kinds: /const CLAIMED_ONLY = Object\.freeze\(\["friskAsk", "echoes", "park", "betrayal"\]\);/.test(src.get("roll-draw.mjs") ?? ""),
+            code: B.reasonOf("no payment of that character's stands for that roll")
+        }), stableJson({ claimedFor: [true, true], park: true, betrayal: true, kinds: true, code: "notPaid" }),
+            "{claimedFor: a GM pays nothing, a player's ticket is claimed; park, betrayal: claimed before the write, refused notPaid; kinds: claimed only, never drawn; code: what the asker is told}");
+    }],
+    ["R8116 - the Next line offers the Class Trial once the case's own Key Remnants are found (1.2.122 line CORE; the audit's CORE-19, left partly): gm-panel.mjs `keysAllFound` reads the case's count against the keys found on and off the plan, so a case of 3 found on a five-slot plan is done and one of 3 with 2 found is not; with no count every slot must be found, as before; and `nextStep` asks it", async () => {
+        /* Red at 21bf5d18: no `keysAllFound` - `missing` counted every slot nobody found, a blank one too, so a case of 3 or 4
+           Key Remnants never read "Start the Class Trial". Pure over handed statuses, and the caller's source. */
+        const P = await import("./gm-panel.mjs");
+        must(typeof P.keysAllFound === "function", "gm-panel.mjs exports no keysAllFound");
+        const status = (found, foundAny, missing) => ({ entries: [{}, {}, {}, {}, {}], found, foundAny, missing });
+        const read = [P.keysAllFound(status(3, 3, 2), 3), P.keysAllFound(status(2, 3, 3), 3), P.keysAllFound(status(2, 2, 3), 3),
+            P.keysAllFound(status(5, 5, 0), null), P.keysAllFound(status(4, 4, 1), null), P.keysAllFound({ entries: [] }, 3)];
+        const caller = fnSource((new Map(await moduleSources())).get("gm-panel.mjs") ?? "", "nextStep");
+        equal(stableJson({ read, asked: /if \(keysAllFound\(status, keys\)\) \{/.test(caller) && /keys = caseKeyCount\(\)/.test(caller) }),
+            stableJson({ read: [true, true, false, true, false, false], asked: true }),
+            "{read: [3 of a case of 3 found on the plan, 2 on and 1 off it, 2 of 3, every slot with no count, a slot left with no count, no plan]; asked: nextStep reads it with the case's count}");
     }],
     ["R8050 - Foundry's token HUD holds only the controls kept (1.2.120 line H; the owner, 21.11.2026: \"Niepotrzebne jest: combat, target, movement action, assign status, liczby na gorze i na dole i elevation\"): token-hud.mjs `trimHudFor` on Daggerheart 2.12.8's tokenHUD.hbs as drawn for a GM leaves the floor's palette, bring to front, the companion's button, lock, the token's settings and visibility, with no input, status palette, movement palette, target or combat; as drawn for a player it leaves nothing, the HUD marked not to be drawn (the owner, 21.11.2026: \"Niech gracz nie ma menu tokena\")", async () => {
         /*

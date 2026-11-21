@@ -1421,7 +1421,7 @@ export function voiceDiagnosis() {
  * thing that ever writes them - and a character it has not touched reads
  * `max: 0` on both tracks, which is indistinguishable from a character who has
  * been beaten unconscious. The sheet grows a button while that is true (see
- * `injectInitButton` in sheet.mjs); this answers the same question for the
+ * `injectInitButton` in sheet-header.mjs since E54); this answers the same question for the
  * whole roster at once.
  */
 export function diagnoseCharacters({ toChat = true, roster = studentActors(), assigned = assignments() } = {}) {
@@ -1534,9 +1534,9 @@ export function diagnoseCharacters({ toChat = true, roster = studentActors(), as
 /**
  * @param {object} [options]
  * @param {boolean} [options.toChat] Whisper it as well as returning it.
- *   `false` is for callers that put the result on screen themselves - the
- *   Pre-session checks tile shows both reports in one window, and a whispered
- *   copy of each underneath it is the same answer twice.
+ *   `false` is for callers that put the result on screen themselves - the one
+ *   report (`gatherReport`'s parts) asks it so; no window calls diagnoseCharacters
+ *   or diagnoseDespair since the Pre-session checks tile went (E101 item 2).
  */
 function report(title, lines, { toChat = true } = {}) {
     const text = lines.join("\n");

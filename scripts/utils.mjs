@@ -435,7 +435,7 @@ export function serverNow() {
 
 /**
  * WHETHER A GM HID A TOKEN (E112, 15.11.2026): Foundry's `hidden`. Every reading of "a token the GM has hidden is not in
- * the scene" asks this. The opening's veil hides a killer's token from the other players and leaves them in the room - a
+ * the scene" asks this but one, read 21.11.2026: watch-gm.mjs reads `token.hidden` itself (the same value today). The opening's veil hides a killer's token from the other players and leaves them in the room - a
  * witness, a target, a finder, as before; until E112v it was Foundry's `hidden` as well, and this read past the flag
  * (mask-gm.mjs `VEIL_FLAG`). Since E112v's road (b) the veil writes no `hidden`, so a `hidden` on a veiled token is a
  * GM's, and counts as any other (R7705). Pure.
@@ -994,9 +994,10 @@ export function forcedReplacement(value) {
 /**
  * The value that deletes a key in a document write, or null in a Foundry without one.
  *
- * `-=key` removes nothing in this Foundry (the measured notes in actions.mjs,
- * music.mjs, fog.mjs and migrate.mjs) and R152 refuses that spelling anywhere in
- * the module. v14 names the deletion `foundry.data.operators.ForcedDeletion`, and
+ * R152 refuses the `-=key` spelling anywhere in the module. The notes in actions.mjs,
+ * music.mjs, fog.mjs and migrate.mjs once said it removes nothing in this Foundry; on
+ * 14.370 it does delete, with v14's deprecation warning (LIVE-E30-01, read 16.11.2026
+ * on an actor's and a token's flags, docs/dev/e39/CALIBRATION.md; CLAUDE.md). v14 names the deletion `foundry.data.operators.ForcedDeletion`, and
  * Daggerheart writes it as the global `_del`. Null means the caller unsets one
  * flag at a time instead (E30, 24.09.2026) - or writes the null where every
  * reader of that key reads null as the key gone (call-effects.mjs `consumeCalls`
@@ -1219,7 +1220,9 @@ function parseCssColour(raw) {
 }
 
 /**
- * Put the guard on every window this module opens.
+ * Put the guard on every DialogV2 window this module opens (`renderDialogV2`). The kit's ApplicationV2 windows
+ * (messenger-app.mjs, handbooks.mjs, notice-history-app.mjs, room-tile.mjs) are not guarded; none carries
+ * `data-drpg-field` or `data-drpg-enter` today (read 21.11.2026), so only the pointerdown blur is missing there.
  *
  * Scoped by class rather than by a list of windows: a window added next year
  * gets this for free, and Daggerheart's own dialogs are left alone. Verified on
@@ -1296,8 +1299,8 @@ export function injectSelectPickerSkin() {
  *
  * Expects `<img data-drpg-portrait="{id}">` (or a bare `data-drpg-portrait`
  * for a single-image form) beside `<input type="hidden" name="img.{id}">`
- * (`prefix` names another than `img.`; or `name="img"`) - the same markup `projects-ui.mjs` and
- * `investigation.mjs` both build their portrait cells from.
+ * (`prefix` names another than `img.`; or `name="img"`) - the markup its two callers build their portrait cells from
+ * (investigation.mjs and room-setup.mjs, read 21.11.2026; projects-ui.mjs built it once and builds none now).
  *
  * THE HIDDEN FIELD IS THE RECORD; THE `<img>` IS A VIEW OF IT. Both are written
  * when somebody picks a file, and the field is what a Save reads - so in a live
@@ -1326,7 +1329,7 @@ export function wirePortraitPickers(root, { defaultImg = null, prefix = "img." }
          * that as "it did not take" and picks again.
          *
          * Before the wiring guard below, because this runs again after every
-         * rebuild (`wireAll` in investigation.mjs) and that is the moment the two
+         * rebuild (`wireCase` in investigation.mjs, its one caller; there is no `wireAll`) and that is the moment the two
          * have drifted apart.
          *
          * ONLY WHEN THE FIELD SAYS SOMETHING. A thumbnail drawn from a default
@@ -1378,9 +1381,10 @@ export function wirePortraitPickers(root, { defaultImg = null, prefix = "img." }
          * a table entry's picture, and until now it was an `<img alt="">` with a
          * click listener: not focusable, so unreachable by keyboard at all, and
          * marked decorative, so a screen reader skipped it in silence. Four call
-         * sites build this markup (investigation.mjs, projects-ui.mjs twice,
-         * tables.mjs) and every one of them had the same hole. (Three since
-         * 1.2.86: tables-editor.mjs's new item picks its picture from radio cells, H83.)
+         * sites built this markup then (investigation.mjs, projects-ui.mjs twice,
+         * tables.mjs) and every one of them had the same hole. (Two call it on
+         * 21.11.2026: investigation.mjs and room-setup.mjs; tables-editor.mjs's new
+         * item picks its picture from radio cells since 1.2.86, H83.)
          *
          * WORSE, `game.drpg.a11y()` REPORTED IT CLEAN. Its sweep looks at
          * `button, a[href], [role=button], input, select, textarea` - an image
@@ -1389,7 +1393,7 @@ export function wirePortraitPickers(root, { defaultImg = null, prefix = "img." }
          * repository opens its own notes with: a check that passes because it
          * measured nothing.
          *
-         * Fixed here rather than at the four call sites for the reason a11y.mjs
+         * Fixed here rather than at the call sites for the reason a11y.mjs
          * gives for sweeping: an attribute added where the markup is written is
          * an attribute the NEXT portrait will not have. This function already
          * has to visit every one of them to attach the listener, so it is the

@@ -516,9 +516,10 @@ Hooks.once("ready", () => {
     // roll's dice as thrown are kept from the moment the bridge can be asked anything.
     safely("the roll keeper", registerRollKeeper);
     safely("the GM bridge", registerGmBridge);
-    // After the API, because the migration it kicks off reads the clock, and
-    // after the other socket listeners for the same reason they are ordered:
-    // the GM-to-GM ledger sync is a socket conversation like any other.
+    // After the other socket listeners, for the reason they are ordered: the
+    // GM-to-GM ledger sync is a socket conversation like any other. (It kicked
+    // off a migration that read the clock until E04; its two passes are
+    // migrate.mjs clauses since, truth-bullets.mjs's own note says.)
     safely("Truth Bullets", registerTruthBullets);
     // After the other socket listeners and the bridge: a GM hands a player a
     // ballot on the socket, and a player who loads while a vote is open asks the
@@ -560,12 +561,13 @@ Hooks.once("ready", () => {
  * when there is nothing to change.
  */
 function refreshTableCopyOnLoad() {
-    // ONE CLIENT, NOT EVERY GM (audit A12). All four of these load-time passes
-    // WRITE - tables, actors, items, a world setting - and with two Monokumas
+    // ONE CLIENT, NOT EVERY GM (audit A12). All five of these load-time passes
+    // (this one, reconcileRemnantActorOnLoad, tellProposersOnLoad, issueMissingKeys
+    // and sealProjects; counted 21.11.2026) WRITE - tables, actors, items, a world setting - and with two Monokumas
     // at the table they were each running twice on the same documents at the
     // same moment. Same rule and same reason as `runMigrationOnLoad`.
     //
-    // The gate is here rather than inside the functions on purpose: all four are
+    // The gate is here rather than inside the functions on purpose: all five are
     // on `game.drpg` as repair routes, and a GM running one by hand must not be
     // refused because another GM's client happens to sort first.
     if (!isPrimaryGm()) return;
@@ -588,13 +590,22 @@ function refreshTableCopyOnLoad() {
  * `reconcileRemnantActor` in remnants.mjs.
  */
 function reconcileRemnantActorOnLoad() {
-    // One client - see `refreshTableCopyOnLoad`. `adoptQuestionMark` inside it
-    // already asked this for its own sweep; the ownership raise did not.
+    // One client - see `refreshTableCopyOnLoad`. (Its question-mark sweep left it
+    // for the migrate.mjs clause `questionMarkIcon`; the ownership raise stayed.)
     if (!isPrimaryGm()) return;
 
     import("./remnants.mjs")
         .then(m => m.reconcileRemnantActor())
         .catch(err => error("Could not reconcile the Remnant actor", err));
+}
+
+/** The proposers of older projects told, on the primary GM alone (projects.mjs `tellProposers`). */
+function tellProposersOnLoad() {
+    // One client, as the keys below: the primary GM, which holds the GMs' rows and writes the marks.
+    if (!isPrimaryGm()) return;
+    import("./projects.mjs")
+        .then(m => m.tellProposers())
+        .catch(err => error("Could not tell the proposers of the older projects", err));
 }
 
 /**
@@ -608,14 +619,6 @@ function reconcileRemnantActorOnLoad() {
  *
  * Silent, and writes nothing when nothing is missing.
  */
-function tellProposersOnLoad() {
-    // One client, as the keys below: the primary GM, which holds the GMs' rows and writes the marks.
-    if (!isPrimaryGm()) return;
-    import("./projects.mjs")
-        .then(m => m.tellProposers())
-        .catch(err => error("Could not tell the proposers of the older projects", err));
-}
-
 function issueMissingKeys() {
     // One client - see `refreshTableCopyOnLoad`. Two GMs reaching this together
     // is two clients creating the same key on the same actor.
@@ -644,7 +647,7 @@ function sealProjects() {
      * ONE CLIENT DOES THE WRITING (audit A12), and the check is INSIDE the
      * closure rather than in front of the hook.
      *
-     * This was the worst of the four to run twice: `writeCountdown` read the
+     * This was the worst of the five to run twice: `writeCountdown` read the
      * whole Countdowns setting, changed one entry and wrote the whole thing
      * back, so two GMs resealing together was a lost update - one of them
      * overwrote the other's ownership map, on the one record whose whole

@@ -932,8 +932,9 @@ const ROLLED_TOGETHER = Object.freeze([Object.freeze(["palm", "steal"]), Object.
 /** The parts that only ride a ticket their partner was drawn or claimed on, and are paid by nothing of their own (`paysFor`). */
 const RIDES_ONLY = Object.freeze(["rummage", "frisk", "tail", "pick"]);
 /** The parts only the GM claims (`claimTicket`), never drawn: a draw named so would make a second ask's ticket a force could ride.
-    Echoes' ask since 1.2.122 (bridge-runs-acts.mjs `handleEchoes`, CORE-21): an act with no roll, paid by one action. */
-const CLAIMED_ONLY = Object.freeze(["friskAsk", "echoes"]);
+    Echoes' ask, a parked murder and a betrayal in an Eclipse since 1.2.122 (bridge-runs-acts.mjs `claimedFor`, CORE-21): acts
+    with no roll, each paid by one action. */
+const CLAIMED_ONLY = Object.freeze(["friskAsk", "echoes", "park", "betrayal"]);
 /** The rolls of an act that costs no action, drawn on no ticket (`drawRefusal`): a Take's Hand and its cover's Shadow (E68 C10). */
 const PAID_BY_NOTHING = Object.freeze(["loot", "lootCover"]);
 /** The price chain an action's roll is paid by, where it has one (PRICE_CHAINS; cleanup.mjs `chargeTamper`). */

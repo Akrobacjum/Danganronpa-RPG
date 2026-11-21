@@ -23,7 +23,7 @@ import { SETTINGS, bodyDiscovery, bodyFoundSinceTrial, seasonEpoch } from "./set
 import { bodiesToDiscover, announcedIn, chapterEndStopped, pendingBodyDiscoveries } from "./chapter.mjs";
 import { flagsHeldNow } from "./sheet-audit.mjs";
 import { roomOfToken } from "./movement.mjs";
-import { keyPlanStatus, keysToPlace, autopsyIssued } from "./investigation.mjs";
+import { keyPlanStatus, keysToPlace, autopsyIssued, caseKeyCount } from "./investigation.mjs";
 import { caseMark, caseWarning, healthLine, keyPlanStore, caseSchemaStore } from "./gm-stores.mjs";
 import { firstOutstandingStep } from "./season-setup.mjs";
 import { roundOf, readyRecord } from "./boundary.mjs";
@@ -922,7 +922,9 @@ export function nextStep(clock, { setupList, incident = game.drpg?.murderState?.
         } catch {
             status = null;
         }
-        if (status?.entries?.length && status.missing === 0) {
+        let keys = null;
+        try { keys = caseKeyCount(); } catch { keys = null; }
+        if (keysAllFound(status, keys)) {
             return { text: game.i18n.localize("DRPG.Panel.nextStartTrial"), action: "trial" };
         }
         return { text: game.i18n.localize("DRPG.Panel.nextInvestigation"), action: "investigation" };
@@ -1108,6 +1110,19 @@ function buildPanelContent() {
                      the Investigation window's Map, Place on the map (investigation.mjs placeIncident). */ ""}
                 ${studentsLeftHtml()}
             </div>`;
+}
+
+/**
+ * WHETHER EVERY KEY REMNANT OF THE CASE HAS BEEN FOUND (1.2.122 line CORE; the audit's CORE-19, left partly). A plan holds
+ * five slots at least, and `missing` counts every slot nobody found, a blank one too, while a case has 5, 4 or 3 Key
+ * Remnants by its opening roll: so a case of 3 or 4 never read "Start the Class Trial". With the case's count
+ * (`caseKeyCount`), the case's keys found - the plan's and those off it (`foundAny`) - against it; with none, every slot as
+ * before. Pure. Exported for R8116.
+ */
+export function keysAllFound(status, keys = null) {
+    if (!status?.entries?.length) return false;
+    if (Number.isFinite(keys) && keys > 0) return Number(status.foundAny ?? status.found ?? 0) >= keys;
+    return status.missing === 0;
 }
 
 /**

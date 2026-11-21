@@ -1040,6 +1040,9 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     phase("F9: the opening's statistic, picked on the primary, is the one a second GM's re-ask sends", { flow: "trait-ruling" });
     await connect("gm2");
     await settle(1500);
+    /* Since 1.2.122 (CASE-24) an invitation that reaches a page whose opening window still stands opens no second window
+       (murder-rules.mjs `throwOpeningRoll`'s in-flight guard), so the re-ask is read as the invitation gm2 sends p3 - its
+       statistic - beside the one roll p3 holds. Until 1.2.122 the re-ask stacked a second window, and F9 counted two rolls. */
     await p3.eval(`globalThis.__heldOpenings = []; globalThis.__heldTraits = []; const a = game.actors.get("${IDS.chie}");
         const { TRAIT_BY_GM } = await import("${repoUrl}/scripts/action-rolls.mjs");
         a.rollTrait = function (dh, config) {
@@ -1059,8 +1062,14 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     const f9reask = await gm2.eval(`${CAST} const end = Date.now() + 6000;
         while (M.murderState()?.openingTrait !== "hand" && Date.now() < end) await new Promise(r => setTimeout(r, 100));
         const held = M.murderState()?.openingTrait ?? null;
-        const asked = await M.rollOpening("killer", M.murderState());
-        return { held, asked: asked?.asked ?? null };`, { timeout: 60000 });
+        const socket = game.socket, send = socket.emit, invites = [];
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "murder.openingAsk") invites.push(packet.trait ?? null);
+            return send.call(this, event, packet, options, ...rest);
+        };
+        let asked;
+        try { asked = await M.rollOpening("killer", M.murderState()); } finally { socket.emit = send; }
+        return { held, asked: asked?.asked ?? null, invites };`, { timeout: 60000 });
     /* THE SECOND ROLL IS WAITED FOR, NOT A FIXED 800 MS (gaps-61, 12.11.2026). F9 read p3 800 ms after gm2's re-ask
        returned, and under load the re-ask's roll reached p3 later: measured with a probe of this scenario stamping each
        roll p3 held against the moment gm2 began, 32 loaded runs, every one with both rolls - 20 at 4 in parallel the
@@ -1068,14 +1077,13 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
        1027 the closest). A plain loaded 20 (4 in parallel) read 1 red, F9 with `held: [["finesse",true]]`, the second
        roll not yet held; a delay of 1500 ms planted on p3's second roll reads the same red. So p3 is read once it holds
        two rolls or 5 s have passed: a re-ask that never reaches p3 still fails here. */
-    const f9p3 = await p3.eval(`const end = Date.now() + 5000;
-        while ((globalThis.__heldTraits ?? []).length < 2 && Date.now() < end) await new Promise(r => setTimeout(r, 50));
-        return { held: globalThis.__heldTraits, copy: (await import("${repoUrl}/scripts/settings.mjs")).incidentCast().openingTrait ?? null };`);
+    await settle(1500);
+    const f9p3 = await p3.eval(`return { held: globalThis.__heldTraits, copy: (await import("${repoUrl}/scripts/settings.mjs")).incidentCast().openingTrait ?? null };`);
     const picksAfter = { gm: await gm.eval(PICKS), gm2: await gm2.eval(PICKS) };
-    check("F9: the primary's pick is kept in the cast and a second GM's re-ask sends it without asking again; the killer's player throws Hand both times, as the GM's, and their copy holds no pick",
+    check("F9: the primary's pick is kept in the cast and a second GM's re-ask sends it without asking again; the killer's player is invited to Hand both times and throws it, as the GM's, in one window (1.2.122: no second window while one stands), and their copy holds no pick",
         f9open.stage === "openingRoll" && f9open.trait === "hand" && f9reask.held === "hand" && f9reask.asked === true
         && picksAfter.gm - picksBefore.gm === 1 && picksAfter.gm2 === picksBefore.gm2
-        && J(f9p3.held) === J([["finesse", true], ["finesse", true]]) && f9p3.copy === null,
+        && J(f9reask.invites) === J(["hand"]) && J(f9p3.held) === J([["finesse", true]]) && f9p3.copy === null,
         J({ f9open, f9reask, f9p3, picksBefore, picksAfter }), { flow: "trait-ruling" });
     /* E32+E07 fix r2-G4 (03.10.2026; the correctness review's m3): the request cards go when the
        murder closes, whichever GM posted them. Each GM kept the ids of the cards it posted, and the
@@ -1199,7 +1207,16 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         await t.update(M.positionIn("Storage", t), { teleport: true, movementAction: "displace", animate: false });
         await game.drpg.setClock({ eclipse: true, eclipseStartedAt: Date.now() });
         return { was, alone: M.othersInRoom(game.actors.get("${IDS.chie}")).length === 0 && M.roomOfActor(game.actors.get("${IDS.chie}")) === "Storage" };`, { timeout: 60000 });
+    /* UNPAID FIRST (1.2.122 line CORE; the audit of 1.2.118, CORE-21's rest): p3's console parks Chie's murder with no action
+       spent - the primary claims no ticket for it and parks nothing. Red at 21bf5d18: it was parked. */
     await p3.eval(`const X = await import("${repoUrl}/scripts/eclipse.mjs");
+        await X.parkDirectMurder({ killerId: "${IDS.chie}", room: "Storage", note: "E05 61 P3 unpaid" }); return true;`, { timeout: 60000 });
+    await settle(2400);
+    const unpaid = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); return Boolean(S.pendingMurderStore.get("${IDS.chie}"));`);
+    check("P3a: a parked murder a player's console declares with no action paid is not parked (CORE-21)", unpaid === false, String(unpaid));
+    // Paid first, as the Eclipse tile pays: the primary claims the payment's ticket before it parks (1.2.122, CORE-21).
+    await p3.eval(`const X = await import("${repoUrl}/scripts/eclipse.mjs");
+        await (await import("${repoUrl}/scripts/actions.mjs")).spendAction(game.actors.get("${IDS.chie}"), 1);
         await X.parkDirectMurder({ killerId: "${IDS.chie}", room: "Storage", note: "E05 61 P3" }); return true;`, { timeout: 60000 });
     await settle(900);
     await gm.eval(`await game.drpg.ruleOnParkedMurder("${IDS.chie}", true); return true;`, { timeout: 30000 });

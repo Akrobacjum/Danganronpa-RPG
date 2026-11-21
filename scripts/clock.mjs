@@ -7,11 +7,12 @@
  * Afternoon, Evening, Night. Advancing the clock restocks every room's search
  * tokens.
  *
- * It does NOT refill the action economy. Actions and the free Move come back
- * when the Eclipse - the placement window that sits between two times of day -
+ * It does NOT refill the action economy by itself. Actions and the free Move come
+ * back when the Eclipse - the placement window that sits between two times of day -
  * BEGINS; see `startEclipse` in eclipse.mjs, which is where that finally became
- * true rather than merely written down (Z2). Doing it here as well would hand
- * the table two budgets for one boundary.
+ * true rather than merely written down (Z2). The one road with no Eclipse, the GM
+ * panel's Skip the Eclipse (boundary.mjs `nextTimeOfDay`), asks `advanceTimeOfDay`
+ * for the refill, once a boundary (`refilledFor`); see its JSDoc below.
  *
  * Chapters are not advanced automatically - how many sessions a chapter runs is
  * the GM's call, and the guide explicitly allows stretching one when no murder
@@ -316,8 +317,10 @@ export async function setClock(patch = {}) {
     /*
      * STAGE 7 STARTING IS WHAT ENDS THE DISCOVERY (D5).
      *
-     * `setPhase` and "Edit campaign" both come through here, and they are the
-     * only two answers that end the record. A time-of-day change deliberately
+     * Every write here that changes the phase ends the record - `setPhase`, Edit
+     * campaign, Start the Class Trial, End the trial, the season's reset, the
+     * trial scene's `followPhase` and a console's `setClock` (read 21.11.2026; this
+     * said `setPhase` and Edit campaign were the only two). A time-of-day change deliberately
      * does NOT: the record is also what stops `maybeBodyFound` announcing the
      * same corpse a second time and what holds `freshSceneBonus` at zero, and
      * clearing it on the hour would hand both of those back - a re-announcement

@@ -69,9 +69,12 @@ const SEEDED_CHIME = "sounds/notify.wav";
  * One entry per saved shape this update changes.
  *
  * Each stage that changes a saved shape appends here rather than writing its
- * own migration somewhere else. The clauses are independent of each other -
- * none assumes another has run - which is why the list is in the order they
- * were written rather than by `since` (CORE-16).
+ * own migration somewhere else. The list is in the order the clauses were written
+ * rather than by `since` (CORE-16), and that order is load-bearing for four of them,
+ * each of which says so (read 21.11.2026): `faintIntoSecrets` after `truthBulletShape`,
+ * `liftDiscoveryLedger` after `forgetMonokumaWalks`, `migrateRemnantsOnce` after
+ * `neutralTraceNames`, and `liftIncidentFight` after the method's lift. A new clause
+ * goes at the end unless it reads another's result, and then after it.
  *
  *   key    stable identifier, used in the report and in the console
  *   since  the build that introduced the clause. NOT DOCUMENTATION: a clause is
@@ -111,20 +114,22 @@ const SEEDED_CHIME = "sounds/notify.wav";
  * stash a GM had removed (TRAP 76) - the very seeds the gate exists to stop. A
  * world never stamped has been through nothing, so it still runs them.
  *
- * Empty at E0 by design. The clauses named in the plan arrive with the stages
- * that need them: the messenger chime (E2, and then taken back out again by the
- * same clause), trial playlists (E6), stash seeding and `stashRoom` (E11), the
- * old motive record (E14) and the safeword (E15).
+ * Empty at E0 by design. The clauses named in the plan arrived with the stages
+ * that needed them: the messenger chime (E2, and then taken back out again by the
+ * same clause), trial playlists (E6), the old motive record (E14) and the safeword
+ * (E15). The plan's "stash seeding and `stashRoom` (E11)" never became a clause; the
+ * one stash clause is `bedroomStashes` (E89 C8).
  *
  * A CLAUSE THAT REPAIRS SOMETHING THE BOOT PASSES HAVE ALREADY READ MUST ASK
  * THEM TO RUN AGAIN. This function is started at `ready` and not awaited, so
  * that a slow pass cannot hold the interface shut - which means `issueMissingKeys`,
  * `sealProjects` and the rest may well have read the OLD shape a moment before
  * a clause fixed it. Ordering does not solve that and pretending it does is how
- * a world ends up looking migrated and behaving as if it were not. The clause
- * that changes bedroom keys re-runs the bedroom-key pass itself; the one that
- * changes projects re-runs project secrecy. It is three lines at the bottom of
- * the clause and it is not optional.
+ * a world ends up looking migrated and behaving as if it were not. A clause that
+ * changes projects re-runs project secrecy (`resealSecretProjects`, the one such
+ * clause today); a clause that changed bedroom keys would re-run the bedroom-key
+ * pass - none does (read 21.11.2026). It is lines at the bottom of the clause and
+ * it is not optional.
  */
 const CLAUSES = [
     {
@@ -1178,7 +1183,7 @@ export function bodyTileAlphaPatches(scenes) {
 }
 
 /**
- * The clause `bodyTilesUnseen`'s pass, exported for the suite: writes `bodyTileAlphaPatches` over `scenes` and reads each
+ * The clause `bodyTilesUnseen`'s pass, exported though no test names it (R5873 drives `bodyTileAlphaPatches`): writes `bodyTileAlphaPatches` over `scenes` and reads each
  * tile back. Answers `{ hidden }`, the tiles at alpha 0 now, or null when there was none to write; throws when a tile read
  * back is still drawn, so the world is not stamped and the next load tries again. GM only.
  */

@@ -1037,8 +1037,9 @@ export const SETTINGS = {
      * forever; there is no broadcast, only a recipient-addressed whisper.
      *
      * Read by movement.mjs (locked doors, sealed rooms), fog.mjs (the
-     * Mastermind knows the building, not who is in it), vault.mjs (a
-     * concealed stash is their own furniture) and - since 26.08 -
+     * Mastermind knows the building, not who is in it), stash-reach.mjs (a
+     * concealed stash is their own furniture; vault.mjs, a facade since E41 C6,
+     * holds no code) and - since 26.08 -
      * visibility.mjs, but only through `myLairRoom()`: standing in their own
      * room shows them the cast, anywhere else they are exactly as blind as
      * every other player's client.
@@ -2694,9 +2695,9 @@ export function registerSettings() {
 
     // The Key Remnant plan: a GM store since E05 (`keyPlanStore`), a row per chapter
     // and slot. No `onChange`, as the world key had none: the dashboard that shows the
-    // plan reads it at each redraw, and a redraw comes from the world's own changes
-    // (live.mjs `keepLive`) - so another GM's edit reaches an open dashboard at its next
-    // one, and not the moment it merges (read, not measured at a table).
+    // plan watches this store among its stores (investigation.mjs `keepLive`'s `stores`),
+    // and keepLive redraws on the store's `clientSettingChanged`, another GM's merge
+    // included (live.mjs). Until 21.11.2026 this said the edit waited for the next redraw.
     game.settings.register(MODULE_ID, SETTINGS.gmKeyPlan, {
         scope: "client",
         config: false,
@@ -3719,8 +3720,9 @@ export function incidentSeats(cast, state, { stage = state?.stage } = {}) {
  *   · the names come from `incidentCast`, never from the world setting - a
  *     bystander's browser holds none of them and must go on holding none; so
  *     does whether it is a trap (E05 C8), by `incidentIndirect`'s rule
- *   · a seat is decided by OWNERSHIP, because `game.user.character` is a field
- *     nothing at this table ever sets (see hud.mjs's own note on that)
+ *   · a seat is decided by OWNERSHIP, with `game.user.character` preferred where it
+ *     is set - the primary GM sets it by account name since E79 C10 (user-match.mjs),
+ *     and it picks the student played among two owned (below)
  *   · a GM witnesses every incident, but owns no seat in it - owning every
  *     actor in the world would otherwise make every incident read as theirs
  *   · AND THE KILLER OF A TRAP IS NOT A WITNESS. They built it and walked
@@ -4506,7 +4508,7 @@ export function effectiveScale() {
 /* The screen's factor changes when the window does, and so can its shape; the theme
    follows once the resize has settled, and only when one of the two actually differs. */
 let screenWatched = false, screenTimer = 0, screenFactor = 0, screenShape = "";
-/* The scale is not the only thing a resize can change: crossing 1200 px of width
+/* The scale is not the only thing a resize can change: crossing BREAKPOINTS.narrow (1224 px) of width
    restacks the module and crossing 620 px of height puts the glass to sleep, and
    both can happen without the factor moving a hundredth (it is at its floor on every
    screen under 1792 x 1008 anyway). One key covers all three. */

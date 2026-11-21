@@ -1127,14 +1127,6 @@ export const BRIDGE_ACTIONS = table({
         answer: "reply"
     },
     /*
-     * A PLAYER'S PRIVATE CARD WHILE AN INCIDENT RUNS (E08+E28 fix r2-H5, 05.10.2026; review
-     * S2-3). Posted by this GM, as its author, so that no incident card names the player whose
-     * browser asked for it (secret.mjs `askGm`, `postAsked`). Held to what the player could have
-     * posted themselves: it speaks as no character or as one the sender owns, it is read by users
-     * of this world, and it weighs what a player's words may. Not resent to a GM who reloads: a
-     * card posted before the reload would be posted twice.
-     */
-    /*
      * UNDO OR KEEP, DECIDED ON THE PRIMARY GM (E29 C5, 05.10.2026; the plan's 2.9). A player's
      * write the GMs' audit flagged is decided once: another GM's click on the card asks the
      * primary (sheet-audit.mjs `askToDecideWrite`), whose decisions run one after another and
@@ -1552,6 +1544,15 @@ export const BRIDGE_ACTIONS = table({
             refuse: "the GM's Refuse: the asker is told the Observe was refused, and nothing is written"
         }
     },
+    /*
+     * A PLAYER'S PRIVATE CARD WHILE AN INCIDENT RUNS (E08+E28 fix r2-H5, 05.10.2026; review
+     * S2-3). Posted by this GM, as its author, so that no incident card names the player whose
+     * browser asked for it (secret.mjs `askGm`, `postAsked`). Held to what the player could have
+     * posted themselves: it speaks as no character or as one the sender owns, it is read by users
+     * of this world, and it weighs what a player's words may. Not resent to a GM who reloads: a
+     * card posted before the reload would be posted twice. (Moved over its row on 21.11.2026: it
+     * stood above `audit.decide`'s since a split.)
+     */
     [ACTION_CARD]: {
         label: "DRPG.Bridge.what.card.post",
         guards: [knownSender, senderNotSpectator, guardCardSpeaker, guardCardReaders],
