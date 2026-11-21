@@ -56,6 +56,7 @@ export async function askWhoIsHere(actor, { title, intro, note, okLabel, listBox
        no scene - could not act on. `locateActor` is the one reading of where the character is (`roomOfActor` is its
        room, and has not asked the camera since E12 C3, the other half of S08-23). */
     const { othersInRoom, locateActor } = await import("./movement.mjs");
+    const liveKit = await import("./live.mjs");
     const room = locateActor(actor)?.room ?? null;
     // as this browser sees the room: a veiled killer it does not draw is not listed (mask-gm.mjs `seenHere`, 1.2.119)
     const here = room ? seenHere(othersInRoom(actor)) : [];
@@ -80,8 +81,28 @@ export async function askWhoIsHere(actor, { title, intro, note, okLabel, listBox
             <p class="notes">${note}</p>
         </form>`,
         footer: {
-            primary: { action: "ok", label: okLabel, callback: (e, b, d) => d.element.querySelector("[name=target]").value },
+            primary: { action: "ok", label: okLabel, callback: (e, b, d) => d.element.querySelector("[name=target]").value || "cancel" },
             close: { role: "cancel", action: "cancel" }
+        },
+        /* WHO IS HERE, AS IT STANDS (the audit's REFR-31, 1.2.122, 21.11.2026). The list was the room at the open: a
+           character who walked in was not offered, and one who had left still was (the GM's check then refused it). It is
+           read again whenever a token or an actor changes, the choice kept while its character is still here; with nobody
+           left, the button is shut. */
+        render: (event, dialog) => {
+            const { keepFresh } = liveKit;
+            keepFresh(dialog, { watch: { tokens: true, actors: true }, run: el => {
+                const select = el?.querySelector?.("[name=target]");
+                if (!select) return;
+                const where = locateActor(actor)?.room ?? null;
+                const now = where === room ? seenHere(othersInRoom(actor)) : [];
+                const ids = now.map(a => a.id);
+                if (ids.join() === [...select.options].map(o => o.value).join()) return;
+                const was = select.value;
+                select.innerHTML = now.map(a => `<option value="${a.id}">${foundry.utils.escapeHTML(nameAsSeen(a))}</option>`).join("");
+                select.value = ids.includes(was) ? was : ids[0] ?? "";
+                const ok = el.querySelector('footer button[data-action="ok"]');
+                if (ok) ok.disabled = !ids.length;
+            } });
         },
         rejectClose: false
     });

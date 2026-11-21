@@ -104241,6 +104241,56 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ section: true, withdrawn: null, rules: ["SUITE 122 rule two, reworded"] }),
             "{section: the motive section shows the motive set while the window stood; withdrawn: the motive after Withdraw; rules: after a Save that revoked the first} - the manager follows the table and puts nothing back");
     }],
+    ["1.2.122 REFR-31 - the handover picker's list follows the room while it is open: a student whose token is placed into the giver's room is offered, and the choice already made is kept (scripts/handover.mjs `askWhoIsHere`; the audit's REFR-31, 1.2.122 line WORLD)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line WORLD. The audit's REFR-31 (controls-11-map-rooms-6): the list was read once at the open.
+         * Driven: a connected player's character in its room, a second student placed there and a third elsewhere; the
+         * picker drawn on this GM (`askWhoIsHere`, as Give asks it); the third's token placed into the room as a walk-in
+         * leaves it. Read: the options before and after, and the chosen value. Put back: the window, the tokens.
+         * Red at 21bf5d18: the third was not offered.
+         */
+        needs(env.dialogs(), "the picker is drawn and its select read");
+        needs(world.atLeast("namedRooms", 2), "the giver's room and one beyond");
+        const M = await import("./movement.mjs");
+        const H = await import("./handover.mjs");
+        const { actor, where } = await playerInRoom();
+        const scene = where.scene;
+        const others = game.actors.filter(a => a.type === "character" && a.id !== actor.id && !a.getFlag(MODULE_ID, FLAGS.monokuma)
+            && !a.getFlag(MODULE_ID, FLAGS.monocub) && scene.tokens.some(t => t.actorId === a.id && !t.hidden));
+        must(others.length >= 2, "fewer than two other students with a token on the giver's scene - this would measure nothing");
+        const [near, late] = others;
+        const away = M.allRooms(scene).find(r => r !== where.room);
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const tok = a => scene.tokens.find(t => t.actorId === a.id);
+        const was = [near, late].map(a => ({ t: tok(a), x: tok(a).x, y: tok(a).y }));
+        const title = "SUITE 1.2.122 REFR-31 who";
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.element && a.options?.window?.title === title) ?? null;
+        const read = {};
+        let pending = null;
+        try {
+            await tok(near).update(M.positionIn(where.room, tok(near)), { ...PLACE });
+            await tok(late).update(M.positionIn(away, tok(late)), { ...PLACE });
+            await settle();
+            pending = H.askWhoIsHere(actor, { title, intro: room => room, note: "", okLabel: "OK" });
+            must(await until(() => Boolean(drawn()), 8000), "the picker did not draw");
+            const select = () => drawn().element.querySelector("[name=target]");
+            const ids = () => [...select().options].map(o => o.value);
+            read.before = [ids().includes(near.id), ids().includes(late.id)];
+            select().value = near.id;
+            await tok(late).update(M.positionIn(where.room, tok(late)), { ...PLACE });
+            await settle();
+            await settle();
+            read.after = [ids().includes(near.id), ids().includes(late.id), select().value === near.id];
+            drawn().element.querySelector('footer button[data-action="cancel"]')?.click();
+            await Promise.race([pending, wait(3000)]);
+        } finally {
+            if (drawn()) await drawn().close();
+            for (const w of was) if (scene.tokens.has(w.t.id)) await w.t.update({ x: w.x, y: w.y }, { ...PLACE });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ before: [true, false], after: [true, true, true] }),
+            "{before, after: [the student there at the open offered, the one who came in offered(, the choice kept)]} - the picker follows the room");
+    }],
     ["PV-DOORS-T1 - the people in the character's own room always see who works its doors, and everyone behind a barricade hears a knock (scripts/doors-gm.mjs `shutDoor`, `forceDoor`, `pickLock`, `knockDoor`; the owner's rules #8 and #9, 13.11.2026): Shut the Door, a Force missed with Hope and a Pick whose Shadow cover passed each send the other student in the character's room a card naming the character, and nobody in the room beyond one; a Pick whose cover failed and a Force missed with Despair tell both rooms, as before; a walk refused at a barricade is heard by everyone in the barricaded room - its author and the student beside them - and never by the walker", async () => {
         /*
          * Privacy line 1 (doors), 13.11.2026. Judged as the primary judges the player's packets (`G.judge`), each roll a
