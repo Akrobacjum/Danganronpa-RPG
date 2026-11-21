@@ -4153,6 +4153,18 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         Boolean(bullet) && JSON.stringify(bulletAfter) === JSON.stringify(bulletBefore) && toldRewrite.reverted && !toldRewrite.unrestored,
         JSON.stringify({ bulletBefore, bulletAfter, toldRewrite }));
 
+    /* A GUARDED FLAG THE BULLET NEVER HAD (1.2.122, STG-103): p2 writes `remnantRef` - written by nothing since E05 C13, a
+       key world-secrets.mjs says no Item may carry, a null one as well - onto Botan's bullet from its console. The primary
+       puts it back as no key: until 1.2.122 as `remnantRef: null` (the copy records an absent flag as null). Red at
+       21bf5d18. */
+    await p2.eval(`const b = game.actors.get("${ids.botan}").items.get("${bullet}");
+        await b.update({ "flags.${MOD}.remnantRef": "SEC.forged" }, { drpgAutomated: true }); return true;`);
+    await settle(1500);
+    const refLeft = await gm.eval(`const b = game.actors.get("${ids.botan}").items.get("${bullet}");
+        return b ? (Object.hasOwn(b.flags?.["${MOD}"] ?? {}, "remnantRef") ? b.flags["${MOD}"].remnantRef : "absent") : "no bullet";`);
+    check("SECURITY: a player's write of a guarded flag the bullet never had is put back as no key, not as null (1.2.122, STG-103)",
+        refLeft === "absent", JSON.stringify({ refLeft }));
+
     /*
      * A bullet with no record is not called "put back". The GM's copy is dropped
      * by hand here - the state a bullet is in on a browser that never saw a GM
@@ -5674,7 +5686,11 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         const had = b ? Object.hasOwn(b.flags?.["${MOD}"] ?? {}, "remnantRef") ? b.flags["${MOD}"].remnantRef : "absent" : "no bullet";
         if (had === null) await b.unsetFlag("${MOD}", "remnantRef");
         return { had, now: b ? (Object.hasOwn(b.flags?.["${MOD}"] ?? {}, "remnantRef") ? b.flags["${MOD}"].remnantRef : "absent") : "no bullet" };`);
-    note("the bullet's remnantRef left by the put-right, taken off (E40 C3)", JSON.stringify(leftover));
+    /* Since 1.2.122 (STG-103) the put-back deletes a guarded flag the copy holds as null (truth-bullets.mjs
+       `revertPlayerBulletEdit`), and the bullet ends the phase with no `remnantRef`; the unset above stays as the cleanup
+       it was. Read on 21bf5d18 as well: green there, so the measure of STG-103 is the check of p2's own write above. */
+    check("SECURITY: the phase ends with no remnantRef on Botan's bullet (1.2.122, STG-103)",
+        leftover.had === "absent" && leftover.now === "absent", JSON.stringify(leftover));
 
     /*
      * 8. DAGGERHEART'S GM RELAY (E03, 24.09.2026; audit S16-01).

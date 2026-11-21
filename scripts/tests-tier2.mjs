@@ -105007,6 +105007,475 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ thresholds: [C.atLeastFloor(full - bonus), full], bonus: [bonus, 0, bonus], otherCopy: false, otherOwnReading: 0 }),
             "{thresholds: [the knower's, the other's]; bonus: [the knower's, the other's, with no roller]; otherCopy: the body in the other's copy; otherOwnReading: the other's copy's reading} - the GM's fresh scene follows what the roller may know");
     }],
+    ["1.2.122 CTRL-08 - the Logic Dive set editor opens again as typed when its Save is refused (scripts/trial-zones-ui.mjs `editDiveSet`; the audit's CTRL-08, CASE-47, STG-19): a set with a name and a question whose right answer is not marked is told 'Mark the right answer...', no set is saved, and a second editor stands with the name, the question and both answers as typed and the reason above the form; its Cancel saves nothing", async () => {
+        /* Drawn on this GM (`__dialogWindows`). Red at 21bf5d18: the toast, no set, and no editor - everything typed gone. */
+        needs(env.dialogs(), "the editor is drawn, typed into and pressed");
+        const U = await import("./trial-zones-ui.mjs");
+        const { diveSetStore } = await import("./gm-stores.mjs");
+        await diveSetStore.whenHydrated();
+        const before = new Set(Object.keys(diveSetStore.entries() ?? {}));
+        const editors = () => [...foundry.applications.instances.values()].filter(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes("drpg-dive-editor"));
+        const told = [];
+        const own = ui.notifications.warn;
+        ui.notifications.warn = (text, ...rest) => { told.push(String(text)); return own.call(ui.notifications, text, ...rest); };
+        const read = {};
+        let first = null;
+        try {
+            first = U.editDiveSet(null);
+            await until(() => editors().length === 1, 6000);
+            const el = editors()[0]?.element;
+            must(el, "the set editor was not drawn");
+            const put = (name, value) => { const f = el.querySelector(`[name="${name}"]`); if (f) { f.value = value; f.dispatchEvent(new Event("input", { bubbles: true })); } };
+            put("name", "SUITE CTRL-08 set");
+            put("q0.question", "SUITE CTRL-08 was the window shut?");
+            put("q0.a", "Shut");
+            put("q0.b", "Open");
+            const save = el.querySelector('footer button[data-action="save"]');
+            const form = el.querySelector("form");
+            if (form && save) form.requestSubmit(save);
+            await until(() => editors().length === 1 && editors()[0].element !== el, 6000);
+            const again = editors()[0]?.element ?? null;
+            const v = name => again?.querySelector(`[name="${name}"]`)?.value ?? null;
+            read.again = again ? [v("name"), v("q0.question"), v("q0.a"), v("q0.b"), again.querySelector("[data-drpg-dive-refused]")?.textContent?.trim() ?? null] : null;
+            read.told = told.slice();
+            read.saved = Object.keys(diveSetStore.entries() ?? {}).filter(id => !before.has(id)).length;
+            again?.querySelector('footer button[data-action="cancel"]')?.click();
+            read.answer = await Promise.race([first, wait(4000).then(() => "unanswered")]);
+            read.after = Object.keys(diveSetStore.entries() ?? {}).filter(id => !before.has(id)).length;
+        } finally {
+            ui.notifications.warn = own;
+            for (const app of editors()) await app.close().catch(() => {});
+            for (const id of Object.keys(diveSetStore.entries() ?? {}).filter(id => !before.has(id))) await diveSetStore.drop(id).catch(() => {});
+            await gmStoresIdle();
+        }
+        const why = game.i18n.localize("DRPG.Zones.dive.editor.noTruth");
+        equal(stableJson(read), stableJson({ again: ["SUITE CTRL-08 set", "SUITE CTRL-08 was the window shut?", "Shut", "Open", why], told: [why], saved: 0, answer: null, after: 0 }),
+            "{again: the second editor's [name, question, answers, reason]; told; saved: sets after the refusal; answer: Cancel's; after: sets after Cancel}");
+    }],
+    ["1.2.122 CTRL-47 - a Finding's words are saved only when there are words to save, and the Findings window follows the trial's record (scripts/trial-zones-ui.mjs `askFindingText`, `openFindings`; the audit's CTRL-47, REFR-43, STG-24): Edit's Save is greyed with the field emptied and with the words it already has, pressable once they change; the word 'cancel' typed and saved is a Finding's words, not a Cancel; a Finding written into the record while the window stands is listed in it at once", async () => {
+        /* Drawn on this GM. Red at 21bf5d18: Save stood pressable on an empty field and wrote nothing, 'cancel' was read as
+           Cancel, and the list stood as drawn. The record's Findings are put back at the end. */
+        needs(env.dialogs(), "the Findings window is drawn and pressed");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which writes the trial's record");
+        const U = await import("./trial-zones-ui.mjs");
+        const { trialProgress, setTrialProgress } = await import("./vote.mjs");
+        const raw = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const row = id => ({ id, text: `SUITE ${id}`, question: null, mode: null, at: Date.now(), confirmed: false, edited: true });
+        const windows = cls => [...foundry.applications.instances.values()].filter(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes(cls));
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const read = {};
+        let opened = null;
+        try {
+            await setTrialProgress({ findings: [row("ctrl47a")] });
+            await settle();
+            opened = U.openFindings();
+            await until(() => windows("drpg-findings-window").length === 1, 6000);
+            const list = () => [...(windows("drpg-findings-window")[0]?.element?.querySelectorAll("[data-drpg-finding]") ?? [])].map(li => li.dataset.drpgFinding);
+            read.drawn = list();
+            await setTrialProgress(record => ({ findings: [...(record.findings ?? []), row("ctrl47b")] }));
+            read.live = await until(() => list().includes("ctrl47b"), 4000) ? list() : list();
+            windows("drpg-findings-window")[0].element.querySelector('[data-drpg-finding="ctrl47a"] [data-drpg-finding-act="edit"]')?.click();
+            await until(() => windows("drpg-finding-text").length === 1, 6000);
+            const el = windows("drpg-finding-text")[0]?.element;
+            const field = el?.querySelector('[name="text"]');
+            const save = el?.querySelector('footer button[data-action="ok"]');
+            const type = v => { field.value = v; field.dispatchEvent(new Event("input", { bubbles: true })); return Boolean(save.disabled); };
+            read.held = field && save ? [Boolean(save.disabled), type(""), type("cancel")] : null;
+            if (save && !save.disabled) el.querySelector("form")?.requestSubmit(save);
+            read.saved = await until(() => (trialProgress().findings ?? []).some(f => f.id === "ctrl47a" && f.text === "cancel"), 5000);
+        } finally {
+            for (const cls of ["drpg-finding-text", "drpg-findings-window"]) for (const app of windows(cls)) await app.close().catch(() => {});
+            await Promise.race([opened, wait(3000)]);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, raw).catch(() => {});
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ drawn: ["ctrl47a"], live: ["ctrl47a", "ctrl47b"], held: [true, true, false], saved: true }),
+            "{drawn: the window's list; live: after a write of the record; held: Save greyed [as opened on its own words, emptied, 'cancel' typed]; saved: 'cancel' written as the words}");
+    }],
+    ["1.2.122 REFR-71 - the Logic Dive sets window and the zone picker's set list follow the GMs' store (scripts/trial-zones-ui.mjs `openDiveSets`, `diveFieldsHtml`; the audit's REFR-71, CTRL-09, STG-20): a set written into the store while the sets window stands is listed in it, and one deleted is gone from it, with no press of the window's own", async () => {
+        /* Drawn on this GM. Red at 21bf5d18: the list was rebuilt only after its own Edit or Delete. The picker's half needs
+           a Class Trial with zones and is driven in the zone picker's test below; here `diveFieldsHtml` is read for the set. */
+        needs(env.dialogs(), "the sets window is drawn and read");
+        const U = await import("./trial-zones-ui.mjs");
+        const { diveSetStore } = await import("./gm-stores.mjs");
+        await diveSetStore.whenHydrated();
+        const ID = `suiteR71${foundry.utils.randomID(6)}`;
+        const windows = () => [...foundry.applications.instances.values()].filter(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes("drpg-dive-sets-window"));
+        const listed = () => Boolean(windows()[0]?.element?.querySelector(`[data-drpg-dive-set="${ID}"]`));
+        const read = {};
+        let opened = null;
+        try {
+            opened = U.openDiveSets();
+            await until(() => windows().length === 1, 6000);
+            read.before = listed();
+            await diveSetStore.patch(ID, { name: "SUITE REFR-71 set", conclusion: null, made: Date.now(), by: game.user.id,
+                questions: [{ question: "SUITE Q", a: "Yes", b: "No", truth: "a" }], usedAt: null, endedAt: null, stoppedAt: null, outcome: null });
+            read.added = await until(() => listed(), 4000);
+            const box = document.createElement("div");
+            box.innerHTML = typeof U.diveFieldsHtml === "function" ? U.diveFieldsHtml({ plan: { setId: ID } }) : "";
+            read.picker = box.querySelector('select[name="setId"]')?.value ?? null;
+            await diveSetStore.drop(ID);
+            read.gone = await until(() => !listed(), 4000);
+        } finally {
+            for (const app of windows()) await app.close().catch(() => {});
+            await Promise.race([opened, wait(3000)]);
+            await diveSetStore.drop(ID).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(read), stableJson({ before: false, added: true, picker: ID, gone: true }),
+            "{before: the set before it is written; added: listed once written; picker: the picker's set fields choose it; gone: unlisted once deleted}");
+    }],
+    ["1.2.122 CASE-47 - the zone picker keeps what was typed when its Start cannot start the mode, and follows the sets (scripts/trial-zones-ui.mjs `openZonePicker`; the audit's CASE-47, CTRL-46, CTRL-09, STG-20): a Straw Poll with an answer left blank is told why and the picker stands again with the question and the answer typed and the reason above it, no floor written; Logic Dive with no set chosen is told 'Pick a Logic Dive set.' and stands again; a set written into the GMs' store while the picker stands is offered in its select", async () => {
+        /* Drawn on this GM, in a Class Trial of the suite's own hall and zones (the planned minigames' fixture). Red at
+           21bf5d18: the picker closed on each refusal, the typed words gone, the Logic Dive with no set said nothing, and the
+           select stood as drawn. */
+        needs(env.dialogs(), "the picker is drawn, typed into and pressed");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM");
+        const U = await import("./trial-zones-ui.mjs");
+        const R = await import("./rooms.mjs");
+        const { diveSetStore } = await import("./gm-stores.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const roles = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.sceneRoles) ?? {});
+        const SET = `suiteC47${foundry.utils.randomID(6)}`;
+        const pickers = () => [...foundry.applications.instances.values()].filter(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes("drpg-zone-picker"));
+        const told = [];
+        const own = ui.notifications.warn;
+        const read = {};
+        let hall = null, opened = null;
+        const press = el => { const b = el?.querySelector('footer button[data-action="start"]'); if (b) el.querySelector("form")?.requestSubmit(b); };
+        const nextPicker = async el => { await until(() => pickers().length === 1 && pickers()[0].element !== el, 6000); return pickers()[0]?.element ?? null; };
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            hall = await Scene.create({ name: "SUITE C47 the trial hall", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            const [za, zb] = await hall.createEmbeddedDocuments("Region", [
+                { name: "SUITE Zone A", shapes: [{ type: "rectangle", x: 0, y: 0, width: 1000, height: 1000 }], behaviors: [] },
+                { name: "SUITE Zone B", shapes: [{ type: "rectangle", x: 1000, y: 0, width: 1000, height: 1000 }], behaviors: [] }]);
+            await game.settings.set(MODULE_ID, SETTINGS.sceneRoles, { ...roles, trial: hall.id, zones: { a: za.id, b: zb.id } });
+            R.forgetSceneRoles();
+            await settle();
+            ui.notifications.warn = (text, ...rest) => { told.push(String(text)); return own.call(ui.notifications, text, ...rest); };
+            opened = U.openZonePicker({ mode: "straw" });
+            await until(() => pickers().length === 1, 6000);
+            let el = pickers()[0]?.element;
+            must(el, "the zone picker was not drawn");
+            el.querySelector('[name="question"]').value = "SUITE C47 locked from where?";
+            el.querySelector('[name="a"]').value = "Inside";
+            press(el);
+            el = await nextPicker(el);
+            read.straw = el ? [el.querySelector('[name="question"]')?.value, el.querySelector('[name="a"]')?.value, el.querySelector('[name="b"]')?.value,
+                el.querySelector("[data-drpg-zone-refused]")?.textContent?.trim() ?? null] : null;
+            read.floor = Boolean(getSetting(SETTINGS.trialQueue)?.active);
+            // Logic Dive with no set chosen: its select taken out, as a store with no set draws none.
+            const dive = el?.querySelector('[name="mode"][value="dive"]');
+            if (dive) { dive.checked = true; dive.dispatchEvent(new Event("change", { bubbles: true })); }
+            el?.querySelector('select[name="setId"]')?.remove();
+            press(el);
+            el = await nextPicker(el);
+            read.dive = el ? [el.querySelector('[name="mode"]:checked')?.value ?? null, el.querySelector("[data-drpg-zone-refused]")?.textContent?.trim() ?? null] : null;
+            read.told = told.slice();
+            await diveSetStore.patch(SET, { name: "SUITE C47 set", conclusion: null, made: Date.now(), by: game.user.id,
+                questions: [{ question: "SUITE Q", a: "Yes", b: "No", truth: "a" }], usedAt: null, endedAt: null, stoppedAt: null, outcome: null });
+            read.offered = await until(() => Boolean(pickers()[0]?.element?.querySelector(`select[name="setId"] option[value="${SET}"]`)), 4000);
+        } finally {
+            ui.notifications.warn = own;
+            for (const app of pickers()) await app.close().catch(() => {});
+            await Promise.race([opened, wait(3000)]);
+            await diveSetStore.drop(SET).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.sceneRoles, roles).catch(() => {});
+            R.forgetSceneRoles();
+            if (hall) await hall.delete().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue).catch(() => {});
+            await setClock(clock).catch(() => {});
+            await gmStoresIdle();
+            await settle();
+        }
+        const L = k => game.i18n.localize(k);
+        equal(stableJson(read), stableJson({
+            straw: ["SUITE C47 locked from where?", "Inside", "", L("DRPG.Zones.noAnswers")], floor: false,
+            dive: ["dive", L("DRPG.Zones.noSet")], told: [L("DRPG.Zones.noAnswers"), L("DRPG.Zones.noSet")], offered: true
+        }), "{straw: the picker again [question, Zone A, Zone B, reason]; floor: a mode started; dive: again [the mode, reason]; told; offered: a set written meanwhile in the select}");
+    }],
+    ["1.2.122 CTRL-43 - Re-point offers no student the Objection is already aimed at, and its refusal says its own reason (scripts/trial.mjs `repointDialog`; trial-floor.mjs `repointRefusal`; the audit's CTRL-43, STG-92): with an Objection on the floor the window lists neither the objector nor the target; a GM's redirect at the target is told 'The Objection is already aimed at that student.'", async () => {
+        /* Drawn on this GM over a planted Objection (the floor's setting, put back). Red at 21bf5d18: the target listed and
+           chosen, its Re-point refused as "You cannot do that right now." */
+        needs(env.dialogs(), "the Re-point window is drawn and read");
+        needs(world.atLeast("connectedPlayersWithCharacter", 3), "an objector, a target and a third participant, each with a player here");
+        const { isPrimaryGm, serverNow } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM");
+        const T = await import("./trial.mjs");
+        const F = await import("./trial-floor.mjs");
+        const { trialParticipants } = await import("./vote.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const windows = () => [...foundry.applications.instances.values()].filter(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === game.i18n.localize("DRPG.Floor.repoint"));
+        const read = {};
+        let opened = null;
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            const ids = trialParticipants({ connected: true }).map(p => p.actor.id);
+            must(ids.length >= 3, "fewer than three participants with a player here");
+            const [holder, target, third] = ids;
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, { active: true, mode: "objection", holderId: holder, targetId: target, seconds: 60,
+                startedAt: serverNow(), pending: false, messageId: null, before: [], gmNote: null, topic: null, order: null, current: null, round: null, closing: null });
+            await settle();
+            opened = T.repointDialog();
+            await until(() => windows().length === 1, 6000);
+            const options = [...(windows()[0]?.element?.querySelectorAll('select[name="target"] option') ?? [])].map(o => o.value);
+            read.lists = [options.includes(holder), options.includes(target), options.includes(third)];
+            read.same = F.repointRefusal(F.trialFloor(), target);
+        } finally {
+            for (const app of windows()) await app.close().catch(() => {});
+            await Promise.race([opened, wait(3000)]);
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue).catch(() => {});
+            await setClock(clock).catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ lists: [false, false, true], same: "DRPG.Floor.repointSame" }),
+            "{lists: [the objector, the target, a third participant] in the window; same: the floor's reason for the target}");
+    }],
+    ["1.2.122 CTRL-04 - a Closing Argument call the machine refuses is told by its own reason (scripts/trial-modes.mjs `closingCall`; trial-floor.mjs `closingStepRefusal`; the audit's CTRL-04, CASE-41): with the Closing's speaker speaking, Confirm the speaker is told 'The Closing Argument is not waiting for a speaker now.' and Continue with a decision to make none 'There is no decision to make now.', not 'The Closing Argument did not change.', and the floor stands as it was", async () => {
+        /* On this primary GM, over a planted Closing in its speaker's stretch (the floor's setting, put back). Red at
+           21bf5d18: each press said only DRPG.Floor.closing.notDone. */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a participant to speak");
+        const { isPrimaryGm, serverNow } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM");
+        const M = await import("./trial-modes.mjs");
+        const { trialParticipants } = await import("./vote.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const told = [];
+        const own = ui.notifications.warn;
+        const read = {};
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            const [speaker] = trialParticipants().map(p => p.actor.id);
+            const floor = { active: true, mode: "closing", holderId: speaker, targetId: null, seconds: 300, startedAt: serverNow(), pending: false, messageId: null,
+                before: [], gmNote: null, topic: null, order: null, current: null, round: null, closing: { phase: "speak", step: 1, openedAt: serverNow(), count: 1 } };
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, floor);
+            await settle();
+            const stood = stableJson(getSetting(SETTINGS.trialQueue));
+            ui.notifications.warn = (text, ...rest) => { told.push(String(text)); return own.call(ui.notifications, text, ...rest); };
+            read.confirm = await M.confirmClosingSpeaker();
+            read.continue = await M.continueClosing(speaker);
+            ui.notifications.warn = own;
+            read.told = told.slice();
+            read.stood = stableJson(getSetting(SETTINGS.trialQueue)) === stood;
+        } finally {
+            ui.notifications.warn = own;
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue).catch(() => {});
+            await setClock(clock).catch(() => {});
+            await settle();
+        }
+        const L = k => game.i18n.localize(k);
+        equal(stableJson(read), stableJson({ confirm: null, continue: null, told: [L("DRPG.Floor.closing.noChoice"), L("DRPG.Floor.closing.noDecision")], stood: true }),
+            "{confirm, continue: what each call answered; told: the notices; stood: the floor unchanged}");
+    }],
+    ["1.2.122 CASE-35 - a GM's retype of a trace moves a copy that showed Key only by its kind back to Neutral, analysable, and an analysed copy to the new kind (scripts/truth-bullets.mjs `propagateVerdicts`; the audit's CASE-35): a Key copy unanalysed, retyped to Resolution, shows Neutral and can be analysed; the analysed copy shows Resolution; both answer keys say Resolution", async () => {
+        /* The fixture trace (`traceCopies`) and a copy of it made as a Key. Red at 21bf5d18: the Key copy showed Resolution,
+           not analysable, and read as having its reading (`hasReading`). */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace stands on the scene on screen");
+        const T = await import("./truth-bullets.mjs");
+        const R = await import("./remnants.mjs");
+        const F = T.TRUTH_BULLET_FLAGS;
+        const [student] = cast(1);
+        const fx = await traceCopies(student);
+        let key = null, read = null;
+        try {
+            key = await T.createTruthBullet(student, { name: "SUITE CASE-35 key", realType: "key", visibility: "evident", playerText: "SUITE CASE-35",
+                remnantId: fx.token.id, sceneId: canvas.scene.id, analyzed: null });
+            must(key && key.getFlag(MODULE_ID, F.shownType) === "key" && !key.getFlag(MODULE_ID, F.analyzed), "the Key copy does not show its kind unanalysed - this would measure nothing");
+            await settle();
+            await R.setRemnantFlags(fx.token, { type: "resolution" });
+            await settle();
+            const analysed = fx.copies[0];
+            read = { key: [key.getFlag(MODULE_ID, F.shownType), T.isAnalysable(key), T.hasReading(key), T.secretOf(key.uuid)?.realType ?? null],
+                analysed: [analysed.getFlag(MODULE_ID, F.shownType), T.secretOf(analysed.uuid)?.realType ?? null] };
+        } finally {
+            if (key && student.items.has(key.id)) await student.items.get(key.id).delete().catch(() => {});
+            if (key) await T.dropSecret(key.uuid).catch(() => {});
+            await fx.back();
+        }
+        equal(stableJson(read), stableJson({ key: ["neutral", true, false, "resolution"], analysed: ["resolution", "resolution"] }),
+            "{key: the Key copy's [shown kind, analysable, has its reading, the key's kind]; analysed: the analysed copy's [shown kind, the key's kind]}");
+    }],
+    ["1.2.122 CTRL-41 - the trial console follows what its footer and its Reveal list read, and its own reopen stays in the chain that opened it (scripts/trial-floor-ui.mjs `manageClassTrial`; the audit's CTRL-41, CTRL-42, REFR-70, CASE-39): with no trial running and no Mastermind, Start the Final Trial is greyed; a Mastermind picked while the console stands makes it pressable with no other write; the trial started under the open console reopens it, and the promise the first console was opened with does not answer while the new one stands", async () => {
+        /* Drawn on this GM. Red at 21bf5d18: the button stayed greyed (the Mastermind's store was not watched), and the
+           live reopen answered the first promise null at once - the GM panel's tile then opened the panel beside it. */
+        needs(env.dialogs(), "the console is drawn and read");
+        needs(world.atLeast("livingStudents", 1), "a student to pick as the Mastermind");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM");
+        const UI = await import("./trial-floor-ui.mjs");
+        const { mastermindStore } = await import("./gm-stores.mjs");
+        const { closeOpen } = await import("./live.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const pickBefore = mastermindStore.record()?.actorId ?? null;
+        const [student] = cast(1);
+        const consoles = () => [...foundry.applications.instances.values()].filter(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes("drpg-window-trial"));
+        const finalButton = () => consoles()[0]?.element?.querySelector('footer button[data-action="toggleFinal"]') ?? null;
+        const read = {};
+        let opened = null, answered = "pending";
+        try {
+            await setClock({ ...clock, phase: "investigation", finalTrial: false });
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            if (pickBefore) await mastermindStore.patch("record", { actorId: null });
+            await gmStoresIdle();
+            await settle();
+            opened = UI.manageClassTrial().then(v => { answered = v; return v; });
+            await until(() => finalButton(), 6000);
+            read.before = finalButton()?.disabled ?? null;
+            await mastermindStore.patch("record", { actorId: student.id, room: null });
+            read.picked = await until(() => finalButton() && !finalButton().disabled, 4000);
+            const first = consoles()[0];
+            await setClock({ ...getClock(), phase: "classTrial" });
+            read.reopened = await until(() => consoles().length === 1 && consoles()[0] !== first, 6000);
+            await wait(400);
+            read.answered = answered;
+        } finally {
+            closeOpen("drpg-window-trial");
+            await Promise.race([opened, wait(3000)]);
+            await mastermindStore.patch("record", { actorId: pickBefore }).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue).catch(() => {});
+            await setClock(clock).catch(() => {});
+            await gmStoresIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ before: true, picked: true, reopened: true, answered: "pending" }),
+            "{before: Start the Final Trial greyed; picked: pressable after the pick; reopened: a new console for the trial; answered: the first promise while the new console stands}");
+    }],
+    ["1.2.122 REFR-73 - Season setup's scenes part follows another GM's links and keeps this GM's own (scripts/trial-scene.mjs `wireScenesTab`; the audit's REFR-73): drawn with no hall linked, a hall linked meanwhile is the hall select's value at once, its drawn value with it, so Apply would write nothing back; a school select this GM changed is kept as changed", async () => {
+        /* The part drawn into the page and wired as Season setup wires it (scenesTabHtml, wireScenesTab), the world's links
+           put back. Red at 21bf5d18: the selects stood as drawn - 'no hall linked' - until the window was opened again. */
+        const S = await import("./trial-scene.mjs");
+        const R = await import("./rooms.mjs");
+        const roles = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.sceneRoles) ?? {});
+        const box = document.createElement("form");
+        let hall = null, other = null;
+        const read = {};
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.sceneRoles, { ...roles, trial: null, zones: null });
+            R.forgetSceneRoles();
+            hall = await Scene.create({ name: "SUITE REFR-73 hall", width: 1000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            other = await Scene.create({ name: "SUITE REFR-73 school", width: 1000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            box.innerHTML = S.scenesTabHtml(R.sceneRoles());
+            document.body.append(box);
+            S.wireScenesTab(box, () => {});
+            const school = box.querySelector('[name="scenes:school"]'), trial = box.querySelector('[name="scenes:trial"]');
+            must(school && trial, "the scenes part draws no school or hall select - this would measure nothing");
+            read.drawn = trial.value;
+            if (![...school.options].some(o => o.value === other.id)) { const o = document.createElement("option"); o.value = other.id; school.append(o); }
+            school.value = other.id;
+            school.dispatchEvent(new Event("change"));
+            await game.settings.set(MODULE_ID, SETTINGS.sceneRoles, { ...R.sceneRoles(), trial: hall.id });
+            R.forgetSceneRoles();
+            read.followed = await until(() => trial.value === hall.id, 3000);
+            read.drawnNow = trial.dataset.drawn === hall.id;
+            read.kept = school.value === other.id;
+        } finally {
+            box.remove();
+            await game.settings.set(MODULE_ID, SETTINGS.sceneRoles, roles).catch(() => {});
+            R.forgetSceneRoles();
+            if (hall) await hall.delete().catch(() => {});
+            if (other) await other.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ drawn: "", followed: true, drawnNow: true, kept: true }),
+            "{drawn: the hall select as drawn; followed: the hall linked meanwhile; drawnNow: its drawn value moved with it; kept: the school this GM changed}");
+    }],
+    ["1.2.122 CTRL-02 - the case schema in the trial console unfolds the evidence not tied to the murder, and hears a trace placed while it stands (scripts/case-trial.mjs `liveSchema`; the audit's CTRL-02, STG-16, REFR-69): with a trace of this chapter tied to nothing, 'Not tied to the murder: N' stands folded; its press unfolds it - the trace's node drawn - and a second press folds it again; a second trace placed meanwhile is counted on the folded line", async () => {
+        /* Drawn on this GM: the console before a trial, its schema slot, two traces of the suite's own. Red at 21bf5d18: the
+           press did nothing (the console handed the graph no onFold), and the line stood at its count as drawn. */
+        needs(env.dialogs(), "the console is drawn and pressed");
+        needs(world.atLeast("sceneOnScreen"), "the traces stand on the scene on screen");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM");
+        const UI = await import("./trial-floor-ui.mjs");
+        const { placeRemnant } = await import("./remnants.mjs");
+        const { closeOpen } = await import("./live.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const consoles = () => [...foundry.applications.instances.values()].filter(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes("drpg-window-trial"));
+        const slot = () => consoles()[0]?.element?.querySelector("[data-drpg-trial-schema]") ?? null;
+        const fold = () => slot()?.querySelector("[data-drpg-case-fold]") ?? null;
+        const tokens = [];
+        const read = {};
+        let opened = null;
+        try {
+            await setClock({ ...clock, phase: "investigation" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            tokens.push(await placeRemnant({ type: "prep", visibility: "evident", x: 0, y: 0, scene: canvas.scene, chapter: getClock().chapter, note: "SUITE CTRL-02 first" }));
+            must(tokens[0], "the first trace was not placed - this would measure nothing");
+            await settle();
+            opened = UI.manageClassTrial();
+            await until(() => fold(), 6000);
+            const id = tokens[0].id;
+            const drawnNode = () => [...(slot()?.querySelectorAll("button[data-drpg-node]") ?? [])].some(b => String(b.dataset.drpgNode).includes(id));
+            const n = () => Number(fold()?.textContent.match(/\d+/)?.[0] ?? NaN);
+            read.folded = [fold()?.getAttribute("aria-expanded") ?? null, drawnNode()];
+            const before = n();
+            tokens.push(await placeRemnant({ type: "prep", visibility: "evident", x: 100, y: 0, scene: canvas.scene, chapter: getClock().chapter, note: "SUITE CTRL-02 second" }));
+            read.counted = await until(() => n() === before + 1, 4000);
+            fold()?.click();
+            read.open = await until(() => fold()?.getAttribute("aria-expanded") === "true" && drawnNode(), 4000);
+            fold()?.click();
+            read.again = await until(() => fold()?.getAttribute("aria-expanded") === "false" && !drawnNode(), 4000);
+        } finally {
+            closeOpen("drpg-window-trial");
+            await Promise.race([opened, wait(3000)]);
+            for (const t of tokens) await t?.delete().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue).catch(() => {});
+            await setClock(clock).catch(() => {});
+            await gmStoresIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ folded: ["false", false], counted: true, open: true, again: true }),
+            "{folded: [the line's aria-expanded, the trace's node drawn]; counted: a trace placed meanwhile on the line; open: after a press; again: after a second press}");
+    }],
+    ["1.2.122 REFR-68 - the vote window follows a student's sheet (scripts/trial-floor-ui.mjs `openVoteDialog`, `PARTICIPANT_WRITES`; the audit's REFR-68): before the ballots go out it names who would get one; a student marked not in the class while it stands is no longer named, with no other write; unmarked, named again", async () => {
+        /* Drawn on this GM in a Class Trial with no vote open. Red at 21bf5d18: the window heard ballots, users and settings
+           alone, so the list stood as drawn. The flag is put back. */
+        needs(env.dialogs(), "the vote window is drawn and read");
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a participant with a player here");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM");
+        const UI = await import("./trial-floor-ui.mjs");
+        const { trialParticipants } = await import("./vote.mjs");
+        const { closeOpen } = await import("./live.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const windows = () => [...foundry.applications.instances.values()].filter(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes("drpg-window-vote"));
+        const read = {};
+        let opened = null, student = null, had;
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await settle();
+            student = trialParticipants({ connected: true })[0]?.actor ?? null;
+            must(student, "no participant to mark - this would measure nothing");
+            had = student.getFlag(MODULE_ID, FLAGS.notInClass);
+            const named = () => (windows()[0]?.element?.querySelector(".drpg-vote-status")?.textContent ?? "").includes(student.name);
+            opened = UI.openVoteDialog();
+            await until(() => windows().length === 1, 6000);
+            read.before = named();
+            await student.setFlag(MODULE_ID, FLAGS.notInClass, true);
+            read.marked = await until(() => !named(), 4000);
+            await student.unsetFlag(MODULE_ID, FLAGS.notInClass);
+            read.back = await until(() => named(), 4000);
+        } finally {
+            closeOpen("drpg-window-vote");
+            await Promise.race([opened, wait(3000)]);
+            if (student && had !== undefined) await student.setFlag(MODULE_ID, FLAGS.notInClass, had).catch(() => {});
+            else if (student?.getFlag(MODULE_ID, FLAGS.notInClass) !== undefined) await student.unsetFlag(MODULE_ID, FLAGS.notInClass).catch(() => {});
+            await setClock(clock).catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ before: true, marked: true, back: true }),
+            "{before: the student named among the recipients; marked: gone once marked not in the class; back: named again once unmarked}");
+    }],
     ["1.2.121 CASE-17 - the GM scores a Tamper's fresh scene with the bodies its roller's player may know, on the scoring's own road (scripts/cleanup.mjs `resolveCleanup`, `cleanupVerdict`, `unfoundBodyIn`; sheet-audit.mjs `actorAsHeld`; the audit's CASE-17, 1.2.121 line K): with a body of this chapter in the GMs' deaths that the roller's player may not know, an investigator's bare-handed Tamper of an Evident trace on a total one under the number their own browser shows is a miss - the trace stands - and the threshold read off the stand-in the scoring hands `cleanupDc` is the one read off the document", async () => {
         /*
          * 21.11.2026, 1.2.121 line K. The audit's CASE-17 (domain-case-b-traces-1, re-read on v1.2.119): `resolveCleanup`

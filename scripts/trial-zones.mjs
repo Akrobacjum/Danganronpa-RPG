@@ -369,10 +369,14 @@ export async function findingsNow() {
     return [...(trialProgress().findings ?? [])];
 }
 
-/** The record's Findings written whole (another GM's write goes to the primary as the record's own patch). */
-async function writeFindings(list) {
+/**
+ * A press on the Findings written as its operation (trial-progress.mjs `applyFindingOp`), applied on the primary to the
+ * list as its step finds it - another GM's travels as the record's patch `{ findingsOp }` (1.2.122, CASE-48: the whole
+ * list read earlier, written as an object patch, put back an older list over a Finding a zone mode had added).
+ */
+async function writeFindings(op) {
     const { setTrialProgress } = await import("./vote.mjs");
-    await setTrialProgress({ findings: list });
+    await setTrialProgress({ findingsOp: op });
 }
 
 /** A card of a GM's press on the Findings, public (TR28 = 1). */
@@ -391,7 +395,7 @@ export async function addFinding(text) {
     const words = String(text ?? "").trim().slice(0, (Number(TRIAL.modes.zones.answerLength) || 80) * 3);
     if (!words) return null;
     const id = findingId();
-    await writeFindings([...(await findingsNow()), { id, text: words, question: null, mode: null, at: Date.now(), confirmed: false, edited: true }]);
+    await writeFindings({ act: "add", row: { id, text: words, at: Date.now() } });
     await findingCard("DRPG.Zones.findings.added", { text: words });
     return id;
 }
@@ -403,7 +407,7 @@ export async function editFinding(id, text) {
     const row = list.find(f => f.id === id);
     const words = String(text ?? "").trim().slice(0, (Number(TRIAL.modes.zones.answerLength) || 80) * 3);
     if (!row || !words || words === row.text) return false;
-    await writeFindings(list.map(f => (f.id === id ? { ...f, text: words, edited: true } : f)));
+    await writeFindings({ act: "edit", id, text: words });
     await findingCard("DRPG.Zones.findings.edited", { was: row.text, text: words });
     return true;
 }
@@ -414,7 +418,7 @@ export async function deleteFinding(id) {
     const list = await findingsNow();
     const row = list.find(f => f.id === id);
     if (!row) return false;
-    await writeFindings(list.filter(f => f.id !== id));
+    await writeFindings({ act: "delete", id });
     await findingCard("DRPG.Zones.findings.deleted", { text: row.text });
     return true;
 }
@@ -425,7 +429,7 @@ export async function confirmFinding(id) {
     const list = await findingsNow();
     const row = list.find(f => f.id === id);
     if (!row || row.confirmed) return false;
-    await writeFindings(list.map(f => (f.id === id ? { ...f, confirmed: true } : f)));
+    await writeFindings({ act: "confirm", id });
     await findingCard("DRPG.Zones.findings.confirmed", { text: row.text });
     return true;
 }

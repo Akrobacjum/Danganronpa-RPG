@@ -1551,6 +1551,60 @@ export function wireScenesTab(root, block = () => {}) {
     });
     wirePicture();
     redraw();
+    followRoles(root, { school, trial, zoneSelects, redraw });
+}
+
+/**
+ * THE SCENES PART FOLLOWS THE WORLD (1.2.122, REFR-73; the owner's rule that an open window shows a change at once). Another
+ * GM's link of the school or the hall, or of the hall's zones, while this Season setup stands: a select this GM has not
+ * changed (its value still the one it was drawn with, `dataset.drawn`) takes the new link and is drawn with it - Apply
+ * then compares against it and writes nothing back - and one this GM changed is kept as typed. A scene or a region made,
+ * changed or deleted redraws the report. The hooks go when the window does. Not followed: the cast's ticks (a GM's own
+ * work in the cast box is kept as it stands).
+ */
+function followRoles(root, { school, trial, zoneSelects, redraw }) {
+    const hooks = [];
+    const off = () => { for (const [name, id] of hooks.splice(0)) Hooks.off(name, id); };
+    const alive = () => {
+        if (root?.isConnected && school.isConnected) return true;
+        off();
+        return false;
+    };
+    const take = (select, now) => {
+        const was = select.dataset.drawn ?? "";
+        if (select.value !== was || (now ?? "") === was) return false;
+        if (now && ![...select.options].some(o => o.value === now)) {
+            const option = document.createElement("option");
+            option.value = now;
+            option.textContent = game.scenes.get(now)?.name ?? now;
+            select.append(option);
+        }
+        select.value = now ?? "";
+        select.dataset.drawn = now ?? "";
+        return true;
+    };
+    const follow = () => {
+        if (!alive()) return;
+        const roles = game.settings.get(MODULE_ID, SETTINGS.sceneRoles) ?? {};
+        take(school, roles.school ?? "");
+        const hallMoved = take(trial, roles.trial ?? "");
+        if (hallMoved) trial.dispatchEvent(new Event("change"));
+        const [a, b] = zoneSelects();
+        for (const [select, id] of [[a, roles.zones?.a], [b, roles.zones?.b]]) {
+            if (!select) continue;
+            // The hall followed: its zones are drawn afresh (the hall's change above), as the world now names them.
+            if (hallMoved) {
+                select.value = id ?? "";
+                select.dataset.drawn = id ?? "";
+            } else take(select, id ?? "");
+        }
+        redraw();
+    };
+    const report = () => { if (alive()) redraw(); };
+    for (const name of ["updateSetting", "createSetting"]) {
+        hooks.push([name, Hooks.on(name, setting => { if (setting?.key === `${MODULE_ID}.${SETTINGS.sceneRoles}`) follow(); })]);
+    }
+    for (const name of ["createScene", "updateScene", "deleteScene", "createRegion", "updateRegion", "deleteRegion"]) hooks.push([name, Hooks.on(name, report)]);
 }
 
 /**

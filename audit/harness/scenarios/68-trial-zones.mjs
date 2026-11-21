@@ -33,6 +33,9 @@
  *     in the primary's order, never the primary while it is here - and presses the bar's Skip (`advanceFloorNow`, the
  *     bridge's "floor.now"): the primary counts the poll at once, and gm3 is not told the floor moved on. Red at
  *     ceb9e9c8: the row's sanitizer named five modes, the primary read the poll's mode as null and refused "movedOn".
+ *   W (the side-pick window, drawn; 1.2.122): Chie's hall token taken off the hall and p3 drawing its windows, a Logic
+ *     Dive of two questions: p3's window for question 1 with its words; its Cancel told and the window offered again 15 s
+ *     later; Zone A pressed; question 2 gets its own window with its words, and its floor no pick; the mode's end closes it.
  * The canary's player scan runs after every phase (`canary.scan`).
  *
  * What it cannot see (LIVE-E73-01..04): v14 regions with holes and Levels, a move on a real server's latency, the
@@ -406,6 +409,58 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, check, phase, settle, cana
         await game.settings.set("danganronpa-rpg", SETTINGS.chargeMovement, ${J(chargeWas)}); return true;`, { timeout: 30000 });
     await backOnStands();
     await canary.scan({ phase: "M" });
+
+    /* ------------------------------ W. the side-pick window, drawn (1.2.122) ------------------------------ */
+    /* CASE-46, CTRL-06, CTRL-07, REFR-44: p3 draws its windows as a person's browser does (`__dialogWindows`), Chie's hall
+       token taken off the hall, a Logic Dive of two questions whose truth is Zone A both times. Read on p3: the window for
+       question 1 with its words; Escape-free dismissal (the window's Cancel) told, and the window offered again
+       (`PICK_AGAIN_MS`, 15 s); Zone A pressed; the count gives question 2, whose window stands with question 2's words and
+       answers and whose floor holds no pick; the mode ended, the window closes itself. Red at 21bf5d18: one window for the
+       mode, never again after a Cancel, question 1's pick counted for question 2. */
+    begin("W", "a participant with no hall token is asked each Logic Dive question in a window that follows the floor");
+    await gm.eval(`const t = game.scenes.get("${hallId}").tokens.find(t => t.actorId === "${IDS.chie}"); globalThis.__s68chie = t.toObject(); await t.delete();
+        const { diveSetStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
+        await diveSetStore.patch("s68w", { name: "S68 W set", conclusion: null, made: Date.now(), questions: [
+            { question: "S68 W Q1 the lamp?", a: "On", b: "Off", truth: "a" }, { question: "S68 W Q2 the coat?", a: "Wet", b: "Dry", truth: "a" }] });
+        return true;`, { timeout: 30000 });
+    await p3.eval(`globalThis.__s68wWas = globalThis.__dialogWindows; globalThis.__dialogWindows = true; globalThis.__s68told = [];
+        const own = ui.notifications.warn; globalThis.__s68own = own;
+        ui.notifications.warn = (text, ...rest) => { globalThis.__s68told.push(String(text)); return own.call(ui.notifications, text, ...rest); }; return true;`);
+    await gm.eval(`await game.drpg.startLogicDive("s68w"); return true;`, { timeout: 30000 });
+    const pickOn = () => p3.eval(`const end = Date.now() + 6000; const find = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.element?.isConnected && a.options?.classes?.includes("drpg-side-pick"));
+        while (!find() && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        const app = find(); return app ? { text: app.element.textContent.replace(/\s+/g, " "), buttons: [...app.element.querySelectorAll("footer button[data-action]")].map(b => b.textContent.trim()) } : null;`, { timeout: 30000 });
+    const pressOn = action => p3.eval(`const app = [...foundry.applications.instances.values()].find(a => a.rendered && a.element?.isConnected && a.options?.classes?.includes("drpg-side-pick"));
+        const b = app?.element?.querySelector('footer button[data-action="${action}"]'); if (!b) return false; b.click(); return true;`);
+    const w1 = await pickOn();
+    verdict("p3, with no hall token, is asked question 1 in the side-pick window, its words and its answers on the window",
+        Boolean(w1) && w1.text.includes("S68 W Q1 the lamp?") && w1.buttons.some(t => t.includes("On")), J(w1));
+    await pressOn("cancel");
+    await settle(600);
+    const dismissed = await p3.eval(`return { told: globalThis.__s68told.slice(), open: [...foundry.applications.instances.values()].some(a => a.rendered && a.element?.isConnected && a.options?.classes?.includes("drpg-side-pick")) };`);
+    const toldLine = await p3.eval(`return game.i18n.format("DRPG.Zones.pick.dismissed", { seconds: 15 });`);
+    await settle(15500);
+    const offered = await pickOn();
+    verdict("Cancel on it is told, and the window is offered again for the same question (15 s later)",
+        dismissed.told.includes(toldLine) && !dismissed.open && Boolean(offered) && offered.text.includes("S68 W Q1 the lamp?"), J({ dismissed, offered }));
+    await pressOn("a");
+    await settle(1000);
+    await gm.eval(`await game.drpg.countNow(); ${F} await F.advanceFloorNow(); return true;`, { timeout: 30000 });
+    await settle(1500);
+    const w2 = await pickOn();
+    const q2Floor = await gm.eval(`${F} const f = F.trialFloor(); return f ? { question: f.zone?.question ?? null, picks: f.zone?.picks ?? null } : null;`);
+    verdict("question 2: its own window with its words and answers, and the floor holds no pick carried from question 1",
+        Boolean(w2) && w2.text.includes("S68 W Q2 the coat?") && w2.buttons.some(t => t.includes("Wet")) && !w2.text.includes("S68 W Q1")
+        && q2Floor?.question === "S68 W Q2 the coat?" && J(q2Floor?.picks) === J({}), J({ w2, q2Floor }));
+    await gm.eval(`await game.drpg.endMode(); return true;`, { timeout: 30000 });
+    await settle(1500);
+    const shut = await p3.eval(`return [...foundry.applications.instances.values()].some(a => a.rendered && a.element?.isConnected && a.options?.classes?.includes("drpg-side-pick"));`);
+    verdict("the mode ended: the window closes itself", shut === false, J({ shut }));
+    await p3.eval(`globalThis.__dialogWindows = globalThis.__s68wWas; ui.notifications.warn = globalThis.__s68own; return true;`);
+    await gm.eval(`${F} if (F.trialFloor()) await F.endFloor(); const { diveSetStore } = await import("${repoUrl}/scripts/gm-stores.mjs"); await diveSetStore.drop("s68w");
+        const data = globalThis.__s68chie; delete data._id; await game.scenes.get("${hallId}").createEmbeddedDocuments("Token", [data]); return true;`, { timeout: 30000 });
+    await backOnStands();
+    await canary.scan({ phase: "W" });
 
     /* ------------------------------ restore ------------------------------ */
     await gm.eval(`${F} if (F.trialFloor()) await F.endFloor();

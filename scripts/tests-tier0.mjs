@@ -19923,7 +19923,9 @@ const REGRESSIONS = [
                 "Zones.scrum.openedBare", "Zones.scrum.begins", "Zones.panel.straw.vote", "Zones.panel.dive.vote", "Zones.panel.dive.pause",
                 "Zones.panel.scrum.setup", "Zones.panel.scrum.speak",
                 // The Scrum's Confer (the owner's 13.11.2026): its card and its panel line, read off `conferSeconds` and the clock.
-                "Zones.scrum.confer", "Zones.panel.scrum.confer"
+                "Zones.scrum.confer", "Zones.panel.scrum.confer",
+                // 1.2.122 (CTRL-03, REFR-66, CTRL-07): Your turn's seconds left and Keep speaking's 20 s, the side pick's 15 s.
+                "Trial.turn.left", "Trial.turn.keepNote", "Zones.pick.dismissed"
             ].map(key => [key, "S"]),
             ...[
                 "Action.searchTokensLeft", "Events.overflowMetaGm", "Explain.room.tokens",
@@ -19966,7 +19968,7 @@ const REGRESSIONS = [
         const reasons = {};
         for (const why of ALLOW.values()) reasons[why] = (reasons[why] ?? 0) + 1;
         equal(JSON.stringify({ read: found.length > 0, flat: found.filter(k => !ALLOW.has(k)), stale: [...ALLOW.keys()].filter(k => !found.includes(k)), fixture, reasons }),
-            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 81, S: 39, R: 29, D: 1, P: 1, T: 1, G: 1 } }),
+            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 81, S: 42, R: 29, D: 1, P: 1, T: 1, G: 1 } }),
             "[the census read something; the values it finds that are no family and not in the allow table; the allow rows it no longer finds; "
             + "what it finds on its planted case (a flat English counter, a Polish predicate before a unit and before a noun; not a family, not a name); "
             + "the allow rows by reason]");

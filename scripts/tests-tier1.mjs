@@ -28058,7 +28058,7 @@ const INVARIANTS = [
             ["DRPG.Tips.Trial.rightAnswerZoneATooltip","trial-zones-ui.mjs","questionRows"],
             ["DRPG.Tips.Trial.findingWhenSolvedTooltip","trial-zones-ui.mjs","editDiveSet"],
             ["DRPG.Tips.Trial.thesisTooltip","trial-zones-ui.mjs","pickerHtml"],
-            ["DRPG.Tips.Trial.setTooltip","trial-zones-ui.mjs","pickerHtml"],
+            ["DRPG.Tips.Trial.setTooltip","trial-zones-ui.mjs","diveFieldsHtml"],
             ["DRPG.Tips.Trial.editTooltip","trial-zones-ui.mjs","findingsListHtml"],
             ["DRPG.Tips.Trial.deleteTooltip","trial-zones-ui.mjs","findingsListHtml"],
             ["DRPG.Tips.Trial.monokumaConfirmsTooltip","trial-zones-ui.mjs","findingsListHtml"],
@@ -59964,9 +59964,10 @@ const INVARIANTS = [
          * 13.11.2026): action-tail.mjs 1 (Tail Someone's targets, after `othersInRoom`) and facilities-gm.mjs 1 (a room
          * action's "for those present", after `occupantsOf`), classified in CENSUS.md. Merged with r112 (1.2.112,
          * 13.11.2026): gm-team-dialog.mjs 2 (E101's `despairFlowMarkup`), classified in CENSUS.md. E56 part 2 (14.11.2026):
-         * monokuma.mjs 9 -> 8, E92 C1's `ownSpectator` removed (nothing called it); its CENSUS.md row says so.
+         * monokuma.mjs 9 -> 8, E92 C1's `ownSpectator` removed (nothing called it); its CENSUS.md row says so. 1.2.122 (CASE-50): anonymity.mjs 1 -> 0, `myCharacter`
+         * asks `chooseOwnStudent` now; its CENSUS.md row says so.
          */
-        const CENSUS = { "action-tail.mjs": 1, "anonymity.mjs": 1, "camera-view.mjs": 2, "cleanup.mjs": 1, "config.mjs": 1, "dh-settings.mjs": 1, "diagnostics.mjs": 1, "events.mjs": 1, "facilities-gm.mjs": 1,
+        const CENSUS = { "action-tail.mjs": 1, "camera-view.mjs": 2, "cleanup.mjs": 1, "config.mjs": 1, "dh-settings.mjs": 1, "diagnostics.mjs": 1, "events.mjs": 1, "facilities-gm.mjs": 1,
             "fog.mjs": 5, "gm-stores.mjs": 3, "gm-students.mjs": 1, "gm-team-dialog.mjs": 2, "hud.mjs": 1, "monocub.mjs": 2, "monokuma.mjs": 8,
             "movement.mjs": 2, "palm.mjs": 1, "passages-gm.mjs": 3, "passages.mjs": 1, "patches.mjs": 1, "player-status.mjs": 1,
             "private-rolls.mjs": 1, "projects-ui.mjs": 1, "projects.mjs": 1, "relay-guard.mjs": 2, "reroll.mjs": 1, "roll-dialog.mjs": 1,
@@ -64655,6 +64656,163 @@ const INVARIANTS = [
             list: box.querySelector("ul.drpg-checklist") === ul }),
             stableJson({ keys: ["mastermind", "name"], same: true, under: true, state: "done", list: true }),
             "{keys: the rows after, in the steps' order; same, under: the standing row the same node, with what stood under it; state: drawn again; list: the same list}");
+    }],
+    ["R8140 - a Logic Dive's side pick is asked once a question (1.2.122; CASE-46, CTRL-06, REFR-44, STG-17, STG-25): zone-machine.mjs `diveQuestion` puts the next question on the floor with no pick of the question before - a token-less participant's Zone A for question 1 is not counted for question 2 - and trial-zones-ui.mjs `pickRoundOf` names a pick per mode's opening and per question, none in the count's pause, none with no zone floor", async () => {
+        /* Red at 21bf5d18: the picks were carried to the next question (phase() spreads the zone), and the side-pick window
+           was keyed by the mode's opening alone - no `pickRoundOf`. Pure. */
+        const M = await import("./zone-machine.mjs");
+        const U = await import("./trial-zones-ui.mjs");
+        const start = M.zoneStart(null, { type: "zone", mode: "dive", question: "Q1", answers: { a: "A1", b: "B1" }, set: { id: "S", index: 0, total: 2 } }, { now: 0 });
+        const picked = { ...start.floor, zone: { ...start.floor.zone, picks: { chie: "a" } } };
+        const counted = M.zoneStep(picked, { type: "due" }, { now: 61_000, sides: { a: ["chie"], b: [] }, participants: 1 });
+        const next = M.zoneStep({ ...counted.floor, zone: { ...counted.floor.zone, counts: { a: 1, b: 0 } } }, { type: "due" },
+            { now: 67_000, truth: "a", next: { question: "Q2", answers: { a: "A2", b: "B2" }, index: 1 } });
+        const round = typeof U.pickRoundOf === "function" ? U.pickRoundOf : () => "no pickRoundOf";
+        const straw = M.zoneStart(null, { type: "zone", mode: "straw", question: "S", answers: { a: "x", b: "y" } }, { now: 5 });
+        equal(stableJson({
+            q1Picks: counted.floor?.zone?.picks ?? null, q2: next.floor?.zone?.question ?? null, q2Picks: next.floor?.zone?.picks ?? null,
+            keys: [round(start.floor), round(counted.floor), round(next.floor), round(straw.floor), round(null)]
+        }), stableJson({
+            q1Picks: { chie: "a" }, q2: "Q2", q2Picks: {},
+            keys: ["dive|0|0", null, "dive|0|1", "straw|5|0", null]
+        }), "{q1Picks: kept through the count's pause; q2: the next question; q2Picks: none carried; keys: [question 1, its pause, question 2, a Straw Poll, no floor]}");
+    }],
+    ["R8141 - a press on the Findings is an operation the primary applies to the list as its step finds it (1.2.122, CASE-48): trial-progress.mjs `applyFindingOp` adds a GM's Finding beside one a zone mode added meanwhile, edits, deletes and confirms by id, refuses an empty add and a doubled id, and `findingsStep` reads the record handed to it; trial-zones.mjs's writer sends `findingsOp`, never the list it read", async () => {
+        /* Red at 21bf5d18: no applyFindingOp - every press wrote the whole list it had read as an object patch. */
+        const P = await import("./trial-progress.mjs");
+        must(typeof P.applyFindingOp === "function" && typeof P.findingsStep === "function", "trial-progress.mjs has no applyFindingOp/findingsStep - a press writes the list it read");
+        const zone = { id: "z1", text: "The door was locked", question: "Q", mode: "straw", at: 1, confirmed: false, edited: false };
+        const gm = { id: "g1", text: "A GM's own", question: null, mode: null, at: 2, confirmed: false, edited: true };
+        const added = P.applyFindingOp([zone], { act: "add", row: { id: "g1", text: " A GM's own ", at: 2 } });
+        const src = fnSource(await fetch(`/modules/${MODULE_ID}/scripts/trial-zones.mjs`).then(lfText), "writeFindings");
+        must(src.length > 40, "trial-zones.mjs writeFindings read as nothing - this would measure nothing");
+        equal(stableJson({
+            added, twice: P.applyFindingOp(added, { act: "add", row: { id: "g1", text: "again" } }).length, empty: P.applyFindingOp([zone], { act: "add", row: { id: "g2", text: "  " } }).length,
+            edited: P.applyFindingOp([zone, gm], { act: "edit", id: "z1", text: "Locked from inside" }).map(f => [f.text, f.edited]),
+            deleted: P.applyFindingOp([zone, gm], { act: "delete", id: "z1" }).map(f => f.id),
+            confirmed: P.applyFindingOp([zone, gm], { act: "confirm", id: "g1" }).map(f => f.confirmed),
+            step: P.findingsStep({ act: "delete", id: "z1" })({ findings: [zone, gm] }).findings.map(f => f.id),
+            writer: [/findingsOp/.test(src), /findings:\s*list/.test(src)]
+        }), stableJson({
+            added: [zone, gm], twice: 2, empty: 1,
+            edited: [["Locked from inside", true], ["A GM's own", true]], deleted: ["g1"], confirmed: [false, true], step: ["g1"],
+            writer: [true, false]
+        }), "{added: beside the zone's; twice: a doubled id; empty: an empty add; edited; deleted; confirmed; step: the record handed in; writer: [sends findingsOp, writes a list]}");
+    }],
+    ["R8142 - the trial's refusals say the mode they are about (1.2.122; CASE-40, CTRL-36, CTRL-37, CASE-65): trial-floor.mjs `floorFamily` answers a round's Objection and rebuttal as the round's, the next step End the round, not Close Debate; `floorRefusal` says a zone mode allows no Objection by the mode's name; the console's mode picker greys Nonstop Debate with the machine's startBusy over a round, the Closing and a zone mode, and with 'already running' in the debate and its exchange", async () => {
+        /* Red at 21bf5d18: the round's exchange read 'debate' (Close Debate the step), a Straw Poll's OBJECTION! said an
+           Objection was running, and Nonstop Debate said 'The debate is already running.' in a Testimony. */
+        const F = await import("./trial-floor.mjs");
+        const UI = await import("./trial-floor-ui.mjs");
+        const round = { order: ["a", "b"], step: 2, openedAt: 1 };
+        const view = floor => ({ floor, running: true, afterwards: true, stopped: null, runner: null, finalNow: false,
+            progress: { voteClosed: false, verdictApplied: false, debateAgain: false, againAfterOverrule: null, vote: { open: false } } });
+        const title = floor => {
+            const box = document.createElement("div");
+            box.innerHTML = UI.modePickerHtml({ floor, progress: {} });
+            return box.querySelector('[data-drpg-mode-action="openDebate"]')?.getAttribute("title") ?? null;
+        };
+        const L = k => game.i18n.localize(k);
+        const objection = { active: true, mode: "objection", holderId: "a", targetId: "b", round, startedAt: 1, seconds: 60 };
+        equal(stableJson({
+            family: [F.floorFamily(objection), F.floorFamily({ ...objection, mode: "rebuttal" }), F.floorFamily({ ...objection, round: null }), F.floorFamily({ active: true, mode: "testimony", round })],
+            next: [F.trialNextStep(view(objection)), F.trialNextStep(view({ ...objection, round: null }))],
+            straw: F.floorRefusal({ active: true, mode: "straw", zone: { phase: "vote" }, startedAt: 1, seconds: 45 }),
+            picker: [title({ active: true, mode: "testimony", round }), title({ active: true, mode: "straw", zone: { phase: "vote" } }), title({ active: true, mode: "debate" }), title({ ...objection, round: null })]
+        }), stableJson({
+            family: ["round", "round", "debate", "round"], next: ["endRound", "closeDebate"],
+            straw: game.i18n.format("DRPG.Trial.objectionNoneInMode", { mode: L("DRPG.Floor.mode.straw") }),
+            picker: [L("DRPG.Floor.startBusy"), L("DRPG.Floor.startBusy"), L("DRPG.Floor.bar.inDebate"), L("DRPG.Floor.bar.inDebate")]
+        }), "{family: [a round's Objection, its rebuttal, a debate's Objection, the Testimony]; next: [a round's Objection, a debate's]; straw: OBJECTION! in a Straw Poll; picker: Nonstop Debate's title in [a Testimony, a Straw Poll, the debate, a debate's Objection]}");
+    }],
+    ["R8143 - the console's footer says why a button is held (1.2.122; CTRL-38, CTRL-44): Show summary greyed before the verdict says it is sent after the verdict, in a Final Trial that a Final Trial has none, and after the verdict carries no such reason; Finish the verdict on a GM who is not the verdict's runner is greyed with the runner's name, and pressable on the runner", async () => {
+        /* Red at 21bf5d18: no title on either, and Finish the verdict drawn enabled on every GM. */
+        const UI = await import("./trial-floor-ui.mjs");
+        const K = await import("./ui-kit.mjs");
+        const F = await import("./trial-floor.mjs");
+        const other = game.users.find(u => u.isGM && u.id !== game.user.id) ?? { id: "otherGM000000000", name: "?" };
+        const view = (over, p = {}) => {
+            const v = { floor: null, running: true, afterwards: true, finalNow: false, mastermind: true, stopped: null, runner: null, table: null, restrictive: false, ...over,
+                progress: { voteClosed: false, verdictApplied: false, debateAgain: false, againAfterOverrule: null, closing: null, vote: { open: false }, summaryShown: null, ...p } };
+            v.next = F.trialNextStep(v);
+            return v;
+        };
+        const button = (v, action) => K.footerButtons(UI.consoleFooter(v)).find(b => b.action === action) ?? null;
+        const read = b => (b ? [Boolean(b.disabled), b.tooltip ?? null] : null);
+        const L = k => game.i18n.localize(k);
+        equal(stableJson({
+            summary: [read(button(view({}), "caseSummary")), read(button(view({ finalNow: true }, { voteClosed: true, verdictApplied: true }), "caseSummary")),
+                read(button(view({}, { voteClosed: true, verdictApplied: true }), "caseSummary"))],
+            finish: [read(button(view({ stopped: "Level Ups", runner: other.id }, { voteClosed: true, verdictApplied: true }), "finishVerdict")),
+                read(button(view({ stopped: "Level Ups", runner: game.user.id }, { voteClosed: true, verdictApplied: true }), "finishVerdict"))]
+        }), stableJson({
+            summary: [[true, L("DRPG.CaseSummary.afterVerdict")], [true, L("DRPG.CaseSummary.noneInFinal")], [false, null]],
+            finish: [[true, game.i18n.format("DRPG.Vote.finishOtherGm", { name: game.users.get(other.id)?.name ?? "?" })], [false, null]]
+        }), "{summary: [before the verdict, a Final Trial's, after the verdict]; finish: [on a GM who is not the runner, on the runner]}");
+    }],
+    ["R8144 - the case schema in the console starts a mode by the mode picker's rule (1.2.122, CTRL-45): case-trial.mjs `trialSchemaHtml` over an open debate greys only the debate's own start, with 'already running'; over a round, the Closing or a zone mode every start, with 'Another mode is running'; with no floor none", async () => {
+        /* Red at 21bf5d18: every start greyed whenever any floor was open, with 'Another mode is running. End it first.' */
+        const T = await import("./case-trial.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const node = (id, kind, extra = {}) => ({ id, kind, evidence: kind === "trace", name: id, label: id, ...extra });
+        const graph = { chapter: 1, nodes: [node("e1", "trace"), node("d1", "deduction", { mode: "testimony" }), node("d2", "deduction", { mode: "debate" })],
+            edges: [{ from: "e1", to: "d1", kind: "input" }, { from: "e1", to: "d2", kind: "input" }] };
+        const draw = (floorOpen, floorMode) => {
+            const box = document.createElement("div");
+            box.innerHTML = T.trialSchemaHtml({ graph, layout: layoutCase(graph), floorOpen, floorMode });
+            return [...box.querySelectorAll("button[data-drpg-case-start]")].map(b => `${b.dataset.drpgCaseStart}:${b.disabled}:${!b.disabled ? "-" : b.title === game.i18n.localize("DRPG.Floor.bar.inDebate") ? "inDebate" : "busy"}`);
+        };
+        const debateStart = draw(false, null).find(s => s.startsWith("openDebate"));
+        must(debateStart, "the plant's debate node draws no start - this reads nothing of the debate's own");
+        equal(stableJson({ none: draw(false, null), debate: draw(true, "debate"), round: draw(true, "testimony") }),
+            stableJson({ none: ["startTestimony:false:-", "openDebate:false:-"], debate: ["startTestimony:false:-", "openDebate:true:inDebate"], round: ["startTestimony:true:busy", "openDebate:true:busy"] }),
+            "{none: no floor; debate: an open debate; round: a Testimony on the floor}");
+    }],
+    ["R8145 - a round's start window greys the first row's Move up, after every move and draw (1.2.122, CTRL-40): trial-floor-ui.mjs `openRoundWindow`'s order is wired by its render, and reads that way in its source", async () => {
+        /* Red at 21bf5d18: every row's Move up was the same, the first one pressable and moving nothing. Read off the
+           source (tier 1 opens no window of the trial): the wiring greys the first row's button, after a move and a draw. */
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/trial-floor-ui.mjs`).then(lfText);
+        const body = fnSource(src, "openRoundWindow");
+        must(body.length > 200, "openRoundWindow read as nothing - this would measure nothing");
+        equal(stableJson({ hold: /up\.disabled = li === list\.firstElementChild/.test(body), calls: (body.match(/holdFirst\(\);/g) ?? []).length }),
+            stableJson({ hold: true, calls: 3 }), "{hold: the first row's button greyed; calls: after a move, after a draw, at the render}");
+    }],
+    ["R8146 - an Overrule after its exchange offers the debate again only over a debate, and three one-line fixes hold (1.2.122; CASE-42, CASE-49, STG-41, CTRL-05): trial-floor.mjs `againOffer` gives a debate's receipt its debate's rest, a receipt older than its mode the seconds it holds, and a Testimony's or the Closing's receipt no offer; verdict.mjs's line to the GMs names the told Monocubs escaped; anonymity.mjs's ownership toast escapes the student's name; trial-prompt.mjs hears the floor's first write (createSetting) as it hears its update", async () => {
+        /* Red at 21bf5d18: no `againOffer` (the offer was written for any receipt), the two names raw, and trial-prompt.mjs
+           heard updateSetting alone. The three lines are read off the source: the harness fires updateSetting for a first
+           write as well (gm-store.mjs's note), so no headless run tells the hooks apart, and a Monocub told after a wrong
+           verdict is no fixture of tier 1. */
+        const F = await import("./trial-floor.mjs");
+        const offer = typeof F.againOffer === "function" ? F.againOffer : () => "no againOffer";
+        const src = async file => fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText);
+        const remind = fnSource(await src("verdict.mjs"), "remindOnWrongVerdict");
+        const guard = fnSource(await src("anonymity.mjs"), "onPreUpdateActor");
+        const hooks = fnSource(await src("trial-prompt.mjs"), "registerTrialPrompt");
+        equal(stableJson({
+            offers: [offer({ mode: "debate", debateLeft: 140, leftAtObjection: 60 }), offer({ mode: null, debateLeft: null, leftAtObjection: 90 }),
+                offer({ mode: "testimony", debateLeft: null, leftAtObjection: 23 }), offer({ mode: "closing", debateLeft: null, leftAtObjection: 200 })],
+            escaped: [/listOf\(touched\.map\(actor => esc\(actor\.name\)\)\)/.test(remind), /\{ actor: esc\(actor\.name\) \}/.test(guard)],
+            hooks: [/"updateSetting", "createSetting"/.test(hooks)]
+        }), stableJson({
+            offers: [{ seconds: 140 }, { seconds: 90 }, null, null], escaped: [true, true], hooks: [true]
+        }), "{offers: [a debate's receipt, one with no mode, a Testimony's, the Closing's]; escaped: [the Monocubs' names, the toast's name]; hooks: both heard}");
+    }],
+    ["R8147 - Take from the Body asks for the student the screens are about, and opens with the anonymity switch off (1.2.122; CASE-50, CTRL-33): anonymity.mjs `myCharacter` is monokuma.mjs `chooseOwnStudent` over the account's students, as hud.mjs `viewerActor` asks it - the assigned one, the only one, the one whose token is controlled, never a Spectator - and the sheet's render hook, with the switch off, puts the Take's button on a body's sheet for a player who does not own it (`addLootButton`) before it returns", async () => {
+        /* Red at 21bf5d18: a rule of its own (the first owned actor in the world's order), and the hook returned before any
+           Take with the switch off. Read off the source: the harness's players own one student each, and a player's render
+           of a dead student's sheet with the switch off is no fixture of tier 1 (the GM's browser is never a taker).
+           `chooseOwnStudent` itself is R1117's. */
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/anonymity.mjs`).then(lfText);
+        const mine = fnSource(src, "myCharacter");
+        const hook = fnSource(src, "onRenderSheet");
+        // The switch-off road: the `if (!enforcing())` block, up to its own return.
+        const off = hook.match(/if \(!enforcing\(\)\) \{[\s\S]*?\n {12}return;\n {8}\}/)?.[0] ?? "";
+        must(hook.length > 100, "onRenderSheet read as nothing - this would measure nothing");
+        equal(stableJson({
+            chooser: [/chooseOwnStudent\(ownedStudents\(\)/.test(mine), /assigned: game\.user\.character/.test(mine), /controlled/.test(mine), /owned\[0\]/.test(mine)],
+            offRoad: [/if \(!enforcing\(\)\) \{/.test(off), /addLootButton\(root, actor\)/.test(off), /sheetMode\(actor, game\.user, \{ app \}\)\.viewer/.test(off)]
+        }), stableJson({ chooser: [true, true, true, false], offRoad: [true, true, true] }),
+            "{chooser: [chooseOwnStudent over the account's students, the assigned one, the controlled tokens, the first owned actor]; offRoad: [the switch off has a road, it adds the Take's button, for a viewer who does not own the sheet]}");
     }],
 ];
 

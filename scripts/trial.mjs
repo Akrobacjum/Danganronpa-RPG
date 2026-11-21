@@ -1013,7 +1013,7 @@ export async function markOverruled(messageId, { objectorId = null, state = null
         }
     }
     const { trialEventCard } = await import("./trial-floor-ui.mjs");
-    const esc = foundry.utils.escapeHTML;
+
     const lines = state
         ? [game.i18n.format("DRPG.Floor.overrule.card", { name: esc(name), state: esc(state) })]
         : [game.i18n.format("DRPG.Floor.overrule.cardOver", { name: esc(name) }), game.i18n.localize("DRPG.Floor.overrule.over")];
@@ -1525,15 +1525,17 @@ export async function objectionButtonState(actor) {
  */
 export async function repointDialog() {
     if (!game.user.isGM) return null;
-    const { trialFloor, FLOOR_MODES } = await import("./trial-floor.mjs");
+    const { trialFloor, FLOOR_MODES, repointRefusal } = await import("./trial-floor.mjs");
     const floor = trialFloor();
     if (floor?.mode !== FLOOR_MODES.objection && floor?.mode !== FLOOR_MODES.rebuttal) return null;
     const { livingStudentsForGm } = await import("./chapter.mjs");
     // Only the trial's participants (E51 C6; E51-40) whose player is connected (E110 C1).
     const { trialParticipants } = await import("./vote.mjs");
     const taking = new Set(trialParticipants({ connected: true }).map(p => p.actor.id));
+    // Not the present target either (1.2.122; CTRL-43, STG-92): it was listed and chosen, so the window's first answer
+    // asked for the target the Objection already had, and was refused as "You cannot do that right now".
     const choices = livingStudentsForGm()
-        .filter(student => student.id !== floor.holderId && taking.has(student.id))
+        .filter(student => student.id !== floor.holderId && student.id !== floor.targetId && taking.has(student.id))
         .sort((a, b) => a.name.localeCompare(b.name));
     if (!choices.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Trial.objectionNobody"));
@@ -1544,8 +1546,8 @@ export async function repointDialog() {
         classes: ["drpg-panel"],
         body: `<form>
             <label>${game.i18n.localize("DRPG.Floor.repointTo")}
-                <select name="target"${tipAttr("DRPG.Tips.Sweep.Trial.repointTargetTooltip")}>${choices.map(student => `<option value="${student.id}"${
-                    student.id === floor.targetId ? " selected" : ""}>${foundry.utils.escapeHTML(student.name)}</option>`).join("")}</select></label>
+                <select name="target"${tipAttr("DRPG.Tips.Sweep.Trial.repointTargetTooltip")}>${choices.map(student =>
+                    `<option value="${student.id}">${foundry.utils.escapeHTML(student.name)}</option>`).join("")}</select></label>
         </form>`,
         footer: {
             primary: { action: "repoint", label: game.i18n.localize("DRPG.Floor.repoint"), tooltip: tipText("DRPG.Tips.Trial.rePointTooltip"),
@@ -1555,6 +1557,13 @@ export async function repointDialog() {
         rejectClose: false
     });
     if (!targetId || targetId === "cancel") return null;
+    // The floor's own reason, said before the request (the primary answers only that it was not done): the target taken
+    // already, or its player gone since the window opened (`repointRefusal`'s repointSame, repointAbsent).
+    const why = repointRefusal(trialFloor(), targetId);
+    if (why) {
+        ui.notifications.warn(game.i18n.localize(why));
+        return null;
+    }
     const { requestRepoint } = await import("./gm-bridge.mjs");
     const res = await requestRepoint(targetId);
     return res.ok ? (res.value ?? null) : null;

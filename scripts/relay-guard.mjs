@@ -1094,8 +1094,10 @@ function numberOf(value) {
 
 /**
  * Text read off a packet, made safe to show: no markup, and not a page long.
- * A toast's escaping is not something this file has measured on v14, so what
- * reaches one carries no angle brackets to begin with.
+ * On Foundry 14.370 a toast is sanitised, not escaped: `<b>`, `<img>` and `<a>`
+ * are drawn as elements, handlers and scripts removed (AUDIT 9.2 item 23, read
+ * 16.11.2026; docs/dev/e58/LOCAL-REPORT.md), so what reaches one carries no
+ * angle brackets to begin with.
  */
 export function plainWhat(text) {
     const flat = textOf(text ?? "").replace(/[<>]/g, "").replace(/\s+/g, " ").trim();
@@ -1194,9 +1196,11 @@ function reportRefusal(verdict, sender) {
  * A sender Foundry did not name - no id, or one no user has - is said, once a
  * session, because if Foundry stopped naming senders on a system channel every
  * player's Daggerheart cost would stop landing and nobody would know why.
- * Whether Foundry v14 names them there is NOT measured: the harness stamps a
- * sender on every packet it relays (cluster.mjs), so it cannot tell. Live check
- * in AUDIT §9.2, item 18.
+ * On Foundry 14.370 it does: a `system.daggerheart` listener on the GM got a
+ * player's packet with the sender's id as its second argument (AUDIT 9.2 item
+ * 18, read 16.11.2026; docs/dev/e58/LOCAL-REPORT.md). Not read: a Hope roll's own
+ * packet. The harness stamps a sender on every packet it relays (cluster.mjs),
+ * so it cannot tell either way.
  *
  * A named user this client sees as disconnected - a tab closed right after a
  * roll, a reconnect in flight - is not that failure, and is only logged.

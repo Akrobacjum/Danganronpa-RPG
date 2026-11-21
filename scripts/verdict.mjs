@@ -38,7 +38,7 @@ import { trialBlackenedIds, trialBlackenedActors, whenTrialReadable } from "./mu
 import { deferredOfferStore, verdictStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
 import { judgedFor, flagsHeldNow } from "./sheet-audit.mjs";
-import { announce, whisperToGms, whisperToOwner, primaryGmId, log, warn, error, plural, listOf } from "./utils.mjs";
+import { announce, whisperToGms, whisperToOwner, primaryGmId, log, warn, error, plural, listOf, esc } from "./utils.mjs";
 import { deathRecordFor } from "./settings.mjs";
 import { trialProgress, setTrialProgress, executionLines, executeAtExit } from "./trial-progress.mjs";
 import { runSteps, stepsReport } from "./steps.mjs";
@@ -105,7 +105,7 @@ export async function openVerdictDialog() {
     // this window opens the tally has scrolled away and the GM is being asked to
     // remember it. A close with no ballot records a tie too (E10 C1).
     const tiedVote = Boolean(progress.tied);
-    const esc = foundry.utils.escapeHTML;
+
 
     /* WHO IS DEAD, AS THE GMS HOLD IT, READ ONCE (E10 C4, 1.2.71; Q-E10-1). The window marks the
        dead " - dead" and they stay on its lists (the amend of 27.09: the class may vote for the
@@ -311,7 +311,7 @@ export function executedChoice(rows, ticked = []) {
 
 /** The students' `<option>`s of a `verdictCandidates` list, its "Nobody" row left to the window, which words it. */
 function candidateOptions(rows) {
-    const esc = foundry.utils.escapeHTML, deadShort = game.i18n.localize("DRPG.Chapter.deadShort");
+    const deadShort = game.i18n.localize("DRPG.Chapter.deadShort");
     return rows.filter(row => row.id).map(row => `<option value="${row.id}"${row.selected ? " selected" : ""}${
         row.disabled ? " disabled" : ""}>${esc(row.name)}${row.dead ? ` - ${deadShort}` : ""}</option>`).join("");
 }
@@ -776,7 +776,7 @@ async function readSentence(context) {
  */
 export async function postVerdictCard(record) {
     const executed = (record?.sentenced ?? record?.executedIds ?? []).map(id => game.actors.get(id)).filter(Boolean);
-    const esc = foundry.utils.escapeHTML;
+
     /* WHO WILL BE EXECUTED, AND WHEN (E70 C4; DC36). The card said "{name} has been executed." with the death's
        sound; nobody dies at the verdict now. In the trial it says the sentence waits for the trial's end; a verdict
        given after End the trial is carried out straight after this card (`runVerdict`), whose own card says so. The
@@ -1004,7 +1004,8 @@ export async function remindOnWrongVerdict(context) {
         await whisperToOwner(actor, `<p><strong>${game.i18n.localize("DRPG.Monocub.wrongVerdictTitle")}</strong></p>`
             + `<p>${game.i18n.localize("DRPG.Monocub.wrongVerdictCard")}</p>`, { veiled: true });
     }
-    if (touched.length) context?.lines?.push(game.i18n.format("DRPG.Monocub.wrongVerdictTold", { names: listOf(touched.map(actor => actor.name)) }));
+    // Escaped (1.2.122, CASE-49): a line is drawn as markup in the GMs' card, and a name is its owner's to write.
+    if (touched.length) context?.lines?.push(game.i18n.format("DRPG.Monocub.wrongVerdictTold", { names: listOf(touched.map(actor => esc(actor.name))) }));
     return touched.map(actor => actor.name);
 }
 
@@ -1356,7 +1357,7 @@ async function finalContext(record) {
 
 /** The Final Trial's summary to the GMs (`verdictSummaryContent`'s fields), with where it stopped (`stepsReport`'s warnings). */
 function finalSummary(final, report) {
-    const esc = foundry.utils.escapeHTML;
+
     return {
         title: "DRPG.Mastermind.verdictTitle",
         summary: game.i18n.format("DRPG.Mastermind.verdictSummary", {
