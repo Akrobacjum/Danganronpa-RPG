@@ -1130,6 +1130,25 @@ const CLAUSES = [
         }
     },
     {
+        key: "liftSecretCompletedAt",
+        since: "1.2.122",
+        /*
+         * A SECRET PROJECT'S COMPLETION TIME OUT OF WORLD DATA (1.2.122 line ITEMS; the audit's ITEM-38). Until 1.2.122 the
+         * completion row of a project with a room action stamped `completedAt` in projectMeta, which every browser holds,
+         * so any console read that a secret project gives a room action and when it was finished. `completedAt` is one of
+         * projects-secrecy.mjs `PROJECT_SECRET_WHILE_SECRET` now, so the lift of 1.2.113 (`liftSecretProjectMarks`, its rules
+         * as written there: into the store weak and fill-only, out of projectMeta only what the store reads back) is run
+         * once more for a world that went through it before the field was on its list; then the insiders are sent their
+         * sight again, which carries it. Idempotent: a world with none to move reports nothing.
+         */
+        run: async () => {
+            const { liftSecretProjectMarks, retellSights } = await import("./projects.mjs");
+            const report = await liftSecretProjectMarks();
+            if (report?.lifted) await retellSights();
+            return report?.notPrimary || report?.lifted ? report : null;
+        }
+    },
+    {
         key: "bodyTilesUnseen",
         since: "1.2.113",
         /*

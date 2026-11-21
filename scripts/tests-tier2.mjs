@@ -107066,6 +107066,48 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ listed: true, struckAtOpen: true, unstruck: true }),
             "[the new project in Which project?] [Work on project struck through at the open] [Work on project live after the project was made]");
     }],
+    ["1.2.122 ITEM-38 - a secret project with a room action, completed, stamps its completedAt in the GMs' row and not in projectMeta, and the action's lifetime still reads it", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line ITEMS; the audit's ITEM-38 (projects.mjs's facility completion row writes `completedAt`
+         * through projects-secrecy.mjs `setProjectMeta`, which sent every field but PROJECT_SECRET_WHILE_SECRET's to
+         * projectMeta, a world setting every browser holds). A secret project of the suite's own with a room action (its
+         * `facility`, the GMs' half) and a target of 1 is filled; then read: projectMeta's row of it holds no completedAt, the
+         * GMs' row does, and facilities.mjs `projectFacilityOf` answers it. Deleted at the end. Red on 21bf5d18: projectMeta's
+         * row held completedAt.
+         */
+        const P = await import("./projects.mjs");
+        const S = await import("./projects-secrecy.mjs");
+        const F = await import("./facilities.mjs");
+        let id = null;
+        const read = {};
+        try {
+            id = (await P.createProject({ name: "SUITE 122 secret action", target: 1, trait: "head", secret: true, description: "Suite 122." }))?.id ?? null;
+            must(id && P.isSecret(id), "could not create a secret project - this would measure nothing");
+            await P.applyProjectChange(id, { meta: { facility: { label: "Suite 122 tea", effects: [], costsAction: false, lifetime: { kind: "forever" } } } }, { by: { kind: "gm" } });
+            must(S.secretsOf(id).facility, "the room action was not stored - this would measure nothing");
+            await P.applyProjectChange(id, { delta: 1 }, { by: { kind: "gm" } });
+            await settle();
+            must(P.allProjects().find(p => p.id === id)?.complete, "the project did not complete - this would measure nothing");
+            const open = getSetting(SETTINGS.projectMeta)?.[id] ?? {};
+            read.publicHolds = Object.hasOwn(open, "completedAt");
+            read.gmsHold = Boolean(S.secretsOf(id).completedAt);
+            read.actionReads = Boolean(F.projectFacilityOf(id).completedAt);
+            /* A world from before: the stamp written back into projectMeta raw, as 1.2.121 left it, and the GMs' row's let go;
+               the lift migrate.mjs `liftSecretCompletedAt` runs takes it out again into the store. */
+            const stamp = foundry.utils.deepClone(S.secretsOf(id).completedAt);
+            const meta = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
+            meta[id] = { ...(meta[id] ?? {}), completedAt: stamp };
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            await P.liftSecretProjectMarks();
+            await settle();
+            read.lifted = !Object.hasOwn(getSetting(SETTINGS.projectMeta)?.[id] ?? {}, "completedAt") && Boolean(S.secretsOf(id).completedAt);
+        } finally {
+            if (id && P.allProjects().some(p => p.id === id)) await P.deleteProject(id);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ actionReads: true, gmsHold: true, lifted: true, publicHolds: false }),
+            "[the room action reads its completion] [the GMs' row holds completedAt] [an old world's stamp lifted out of projectMeta] [projectMeta's row holds completedAt]");
+    }],
     ["the Sound window's Music row picked with the pointer writes its key at once, and another GM's mapping shows on the open window while the row's select keeps the focus", async () => {
         /*
          * Line P (claude/move-120, 21.11.2026), measured against the owner's rule "Zawsze odswiezamy okna od razu przy

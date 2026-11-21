@@ -508,7 +508,8 @@ function sightFor(userId, { also = [], held = [] } = {}) {
         /* Its room action, to those in on it (P1, 15.11.2026; the owner's DRPG-D1 "Dostaja"): a GM's private card carried it
            alone until then, and a chat log cleared took the row out of the insider's Facilities (scenario 99). Not to a
            Spectator, whom the card never told either. */
-        const facility = inside ? { facility: secretsOf(project.id).facility ?? null } : {};
+        // And when it was completed, which the action's lifetime is counted from (ITEM-38, 1.2.122: the GMs' row's while secret).
+        const facility = inside ? { facility: secretsOf(project.id).facility ?? null, completedAt: secretsOf(project.id).completedAt ?? null } : {};
         sight[project.id] = { in: inside, name, ...(typeof words === "string" && words ? { description: words } : {}), ...sightExtras(project.id), ...facility };
         stamps[project.id] = now;
     }
