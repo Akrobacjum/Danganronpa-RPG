@@ -407,6 +407,27 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl, IDS, relo
                listed it - the class E101 R2 closed for the sight. Read on p1 after every message is deleted, and after a reload
                of p1's page, which asks the GMs for its sight again. */
             if (secret) {
+                /* WHEN IT WAS COMPLETED, ON BOTH BROWSERS (1.2.123; the auditor's r122-ITEMS-R-1 and R-2, regressions of
+                   ITEM-38). R-1: the insider's page reads the completion the GMs hold (facilities.mjs `completedAtOf`, from
+                   the sight copy), where `receiveSight` dropped it and the timed action stood for good. R-2: a Save of the
+                   action in the editor (`setProjectFacility`, facility-editor.mjs's road) keeps the GMs' completedAt, where
+                   it read projectMeta alone and stamped now; read against a time written first that no Save could stamp
+                   (seven times of day ahead). Red at 14bb0d92: p1 null, and the Save's stamp now. */
+                const doneAt = await gm.eval(`return (${imp("facilities.mjs")}).completedAtOf(${J(made.id)});`);
+                await settle(800);
+                const doneOnP1 = await p1.eval(`return (${imp("facilities.mjs")}).completedAtOf(${J(made.id)});`);
+                check("facilities: a completed secret project's completion time is on its insider's page as the GMs hold it (r122-ITEMS-R-1)",
+                    Boolean(doneAt) && J(doneOnP1) === J(doneAt), J({ doneAt, doneOnP1 }));
+                const kept = await gm.eval(`const P = ${imp("projects.mjs")}, F = ${imp("facilities.mjs")}, copy = v => JSON.parse(JSON.stringify(v ?? null));
+                    const was = copy(F.completedAtOf(${J(made.id)})), mark = was ? { ...was, at: Number(was.at) + 7 } : null;
+                    if (mark) await P.applyProjectChange(${J(made.id)}, { meta: { completedAt: mark } }, { by: { kind: "gm" } });
+                    const before = copy(F.completedAtOf(${J(made.id)}));
+                    await F.setProjectFacility(${J(made.id)}, F.projectFacilityOf(${J(made.id)}).facility);
+                    const after = copy(F.completedAtOf(${J(made.id)}));
+                    if (was) await P.applyProjectChange(${J(made.id)}, { meta: { completedAt: was } }, { by: { kind: "gm" } });
+                    return { mark, before, after };`, { timeout: 30000 });
+                check("facilities: a Save of a completed secret project's action in the editor keeps its completion time (r122-ITEMS-R-2)",
+                    Boolean(kept?.mark) && J(kept.before) === J(kept.mark) && J(kept.after) === J(kept.mark), J(kept));
                 await gm.eval(`await ChatMessage.deleteDocuments(game.messages.map(m => m.id)); return true;`, { timeout: 30000 });
                 await settle(1500);
                 const read = () => p1.eval(`return (${imp("action-facilities.mjs")}).facilitiesRows(game.actors.get("${IDS.aiko}")).some(r => r.label === ${J(label)});`);

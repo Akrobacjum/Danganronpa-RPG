@@ -450,7 +450,11 @@ async function tellSight(countdownId) {
        (`sightFor`): a change of either is told again. A plain project's mark is its name alone, as before. */
     // And the scene picked for that room (options (c) and B, 16.11.2026): a pick changed is told again, as a room is.
     const { murder, room, roomScene } = sightExtras(countdownId);
-    const mark = `${name}${murder ? "|murder" : ""}${room ? `|room:${room}` : ""}${roomScene ? `|scene:${roomScene}` : ""}`;
+    /* And when it was completed (1.2.123; r122-ITEMS-R-1): an insider's sight carries it (`sightFor`), and a completion
+       changed none of the rest, so it was never sent - the timed action stood for good on the insider's page. */
+    const doneAt = secretsOf(countdownId).completedAt;
+    const done = doneAt && typeof doneAt === "object" ? `|done:${doneAt.season ?? 0}.${doneAt.chapter ?? 0}.${doneAt.at ?? 0}` : "";
+    const mark = `${name}${murder ? "|murder" : ""}${room ? `|room:${room}` : ""}${roomScene ? `|scene:${roomScene}` : ""}${done}`;
     const letIn = inside.filter(id => told[id] !== mark);
     const letWatch = watchers.filter(id => told[id] !== `watch:${mark}`);
     const letOut = Object.keys(told).filter(id => told[id] !== false && !inside.includes(id) && !watchers.includes(id) && game.users.get(id));
@@ -545,6 +549,14 @@ export async function retellSights() {
     return sent;
 }
 
+/* A completion's time as facilities.mjs `facilityOrdinal` writes it, `{ season, chapter, at }`, numbers only; null otherwise. */
+function ordinalOf(value) {
+    if (!value || typeof value !== "object") return null;
+    const n = key => (Number.isFinite(Number(value[key])) ? Number(value[key]) : null);
+    const [season, chapter, at] = [n("season"), n("chapter"), n("at")];
+    return chapter === null || at === null ? null : { season: season ?? 0, chapter, at };
+}
+
 /** Player: take a GM's answer where it is newer (`projectSightCopy`), for this world's projects only; then say what changed. */
 async function receiveSight(sight, stamps) {
     const before = projectSightCopy.read() ?? {};
@@ -561,7 +573,11 @@ async function receiveSight(sight, stamps) {
             room: typeof row.room === "string" && row.room ? row.room : null,
             // The scene picked for the room (options (c) and B): an id, or none.
             roomScene: typeof row.roomScene === "string" && row.roomScene ? row.roomScene : null,
-            ...(Object.hasOwn(row, "facility") ? { facility: row.facility ? cleanFacility(row.facility) : null } : {}) };
+            ...(Object.hasOwn(row, "facility") ? { facility: row.facility ? cleanFacility(row.facility) : null } : {}),
+            /* When it was completed (1.2.123; the auditor's r122-ITEMS-R-1, a regression of ITEM-38): `sightFor` sends it to
+               an insider, and it was dropped here, so facilities.mjs `completedAtOf` read null on the player's browser and a
+               completed secret project's timed action stood for good. Kept as facilities.mjs `facilityOrdinal` writes it. */
+            ...(Object.hasOwn(row, "completedAt") ? { completedAt: ordinalOf(row.completedAt) } : {}) };
     }
     const taken = await projectSightCopy.receive(mine, own);
     if (taken) noticeSight(before, projectSightCopy.read() ?? {});
