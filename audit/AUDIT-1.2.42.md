@@ -4646,7 +4646,11 @@ Surowe wyniki: `audit/findings-1.2.118/recheck-122.json`.
 - tiery 0-1: 1 978 testów, 1 963 zaliczonych, 0 niezaliczonych, 16 pominiętych, 0 red;
 - testy tieru 2 z "1.2.122" w nazwie: 294 zaliczonych, 0 niezaliczonych (runner pisze też "288 tests ran"; skąd różnica, nie czytałem);
 - sonda 44: 78 z 78 regionów zwraca sam region; otwarto 96 ze 100 okien (o `action-loot` niżej);
-- sonda 43, wszystkie 74 okna, ze stertą GM-a po gc po każdym oknie: w toku. Po 16 oknach 136 -> 288 MB, wobec 472 -> 4 967 MB w tych samych 16 oknach na 1.2.121 (`probe-43-heap.json`). Poprawka INVEST trzyma się więc od końca do końca, na razie na 16 oknach. Wynik całości dopiszę.
+- sonda 43, wszystkie 74 okna, ze stertą GM-a po gc po każdym oknie (`probe-43-122.json`): zatrzymana po 2 godzinach, po 68 oknach. Sterta GM-a 136 MB po pierwszym oknie, najwyżej 420 MB, 348 MB po 68.; na 1.2.121 GM padł przy 34. oknie z limitem 8 GB. Poprawka INVEST (`ede0cbe7`) trzyma się więc na 68 oknach. Dwa prawdziwe odczyty sondy z 1.2.121 są zamknięte: Despair Flow i lista kontrolna sezonu idą za śmiercią. Nadal nieaktualne, w oknach spokojnych, już na 1.2.118 (18.1) i bez nazwanej pozycji w żadnej linii (`recheck-122.json`, `probe_43_open`, poza 73 pozycjami i licznikami trendu):
+  - okna akcji gracza Observe, Search, Analyze, Tamper, Projects, Dynamic Action: "You have 3" zostaje po zmianie liczby akcji; Analyze nie widzi danego Truth Bullet, Tamper trzyma zmarłego na liście "Who to frame". Wszystkie rysują `briefingBlock` (`action-briefing.mjs:60`) raz przy otwarciu, żaden plik nie używa `keepLive`;
+  - okno Murder GM-a (`murder-ui.mjs:53`): listy zabójcy i ofiary trzymają ucznia, który właśnie zmarł;
+  - mapa sprawy w trzech widokach: liczba dedukcji w otwartym oknie odstaje od świata; niewyjaśnione, jak dwa odczyty na 1.2.121;
+  - okno Projects GM-a: po utworzeniu projektu inny widok niż w świeżym oknie; nie przeczytano, czy to nieaktualność.
 
 **Jak czytano.** Osiem torów, w każdym pierwszy czytający (każdy commit linii, diff wobec `v1.2.121`), potem drugi, który próbował obalić każde znalezisko, regresję i każde twierdzenie albo prośbę oznaczone jako niespełnione:
 - A: TEXT, STG i commity składania; B: CORE i WORLD; C: TRIAL i MURDER; D: INVEST i sterta; E: MAP i UI; F: DESP i ITEMS; G: COMM; H: R1 i reguła okien w całym wydaniu.

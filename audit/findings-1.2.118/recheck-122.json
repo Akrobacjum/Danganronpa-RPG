@@ -7,7 +7,7 @@
   "tiers_0_1": "1978 ran, 1963 passed, 0 failed, 16 skipped, 0 red (562 s), 14bb0d92's own harness",
   "tier_2_selected": "--only \"1.2.122\": 288 ran, 294 passed, 0 failed, 0 skipped, 0 red (403 s; the runner's two counts differ, not read why)",
   "probe_44": "100 windows, 96 opened, 78 of 78 live regions return the region. action-palm and ballot are not opened on any version (the probe's); action-loot and action-loot--long opened on 1.2.121 and not in this run: see not_established_audit (not a regression by the rerun)",
-  "probe_43": "running at the time of writing (all 74 windows, the GM heap after gc per window): 16 windows read, 136 -> 288 MB, against 472 -> 4967 MB on 1.2.121 at the same 16 (probe-43-heap.json) - INVEST's a11y observer (ede0cbe7) holds end to end so far. Added when it ends.",
+  "probe_43": "all 74 windows on 14bb0d92 with the GM heap after gc per window (probe-43-122.json): stopped at the 2-hour limit after 68 windows (67 opened; action-palm not, as on every version). GM heap after gc 136 MB at the first window, 420 MB at its peak, 348 MB at the 68th; on 1.2.121 the GM ran out of an 8 GB heap at the 34th - INVEST's a11y observer (ede0cbe7) holds over 68 windows. heldByFocus 1, liveUnderFocus 68. probe 43's two real readings of 1.2.121 are closed: Despair Flow and the Season checklist follow a death. Restless (noise): Room setup's 8 tabs, Sound Files, three Class Trial tabs.",
   "press_hold_mutant": "the R1 line's claim (cb945182), unread by lane H, run by the audit on 14bb0d92 in Chromium (/opt/pw-browsers/chromium): live-press.mjs 5 ok, 0 failing, live-redraw.mjs 6 ok, 0 failing (the claim's 11 ok, 0 FAIL, npm run press); with the press hold taken out of a copy of live.mjs (live.mjs:186 `if (held)` -> `if (false)`), live-press.mjs 3 failing (edit-then-move, edit-then-add, edit-then-box: the press heard 0 times), the control and pick ok - the claim holds"
  },
  "method": "8 lanes (A TEXT+STG+assembly, B CORE+WORLD, C TRIAL+MURDER, D INVEST+heap, E MAP+UI, F DESP+ITEMS, G COMM, H R1+the window rule), each a first reader on the shipped tree and its diff against v1.2.121 (every commit of the line; lane F was sent back once for the 24 commits it had not read), then a second reader who tried to overturn every finding, regression and every claim or ask marked no/partly/not done. Two items measured in Chromium (H-R1, by both readers; the refuter from the real card's code), C-1 and two others in jsdom with verbatim copies; the rest read.",
@@ -2219,5 +2219,34 @@
  },
  "not_established_audit": [
   "Probe 08's Take from the Body seed (action-loot): on 14bb0d92 the window opened in 6 of 11 scratch runs (4 misses, 1 run gave no reading; probes 42 and 44 missed it too), on 1eee4d62 in 5 of 5; in a miss, p1 had not seen the body's death or its items 12 s after the GM's seed (the GM's side the same as on 1.2.121). Probe 43 was running beside every run. Load or a slower path to a player's copy of a death: not told apart. Rerun 21.11.2026 ~19:45Z, 8 pairs alternating 1eee4d62 and 14bb0d92 under the same load (probe 43 beside): 6 of 6 readable runs opened on each, 2 runs on each gave no reading (the cluster under load); 1.2.122 has not missed in its last 11 readable runs, its 4 misses came close together earlier. Read as timing under load, not a regression of 1.2.122; not settled. A table check: a player beside a body that a GM kills on a published death opens Take from the Body at once."
- ]
+ ],
+ "probe_43_open": {
+  "about": "Stale readings on 14bb0d92 in calm windows that 1.2.118's probe 43 already measured (AUDIT 18.1: 60 readings in 19 windows) and that no line was given by name; outside the 73 rows and the trend's counts, origin old. The owner's rule: a window redraws at once on any change.",
+  "rows": [
+   {
+    "id": "p43-1",
+    "windows": "the player's action windows Observe, Search, Analyze, Tamper, Projects, Dynamic Action",
+    "what": "'Costs 1 action. You have 3' stays after the action count changes (a fresh window says 2); Analyze also keeps 'You have nothing left to analyze' after a Truth Bullet is given; Tamper's 'Who to frame' keeps a student who died; Projects keeps the GM-judges line after a project changes",
+    "where": "scripts/action-briefing.mjs:60 briefingBlock, drawn once at open: action-observe.mjs:313, action-search.mjs:664, action-analyze.mjs:459, action-tamper.mjs:43, action-project.mjs:129, action-dynamic.mjs:69 (none of these files uses keepLive)"
+   },
+   {
+    "id": "p43-2",
+    "windows": "the GM's Murder window (openMurderDialog)",
+    "what": "the Killer and Victim lists keep a student who just died (and miss one brought back)",
+    "where": "scripts/murder-ui.mjs:53 openMurderDialog (the file's keepLive is the incident tracker's, not this window's)"
+   },
+   {
+    "id": "p43-3",
+    "windows": "the case Map, views map-modes, map-move, map-moved",
+    "what": "the deduction count and the node list in the open window lag the world: a fresh window shows deductions the live one does not (map-moved: one more each reading, including 'Probe 43 deduction' after a case-node change). Unexplained, as on 1.2.121 (2 strays there); may be the probe's seed writes landing late",
+    "where": "scripts/investigation.mjs (the Map); not placed"
+   },
+   {
+    "id": "p43-4",
+    "windows": "the GM's Projects window",
+    "what": "after a project is created the live window shows the Name/Description form and a fresh one the list: the window's view state, not read whether stale",
+    "where": "not placed"
+   }
+  ]
+ }
 }
