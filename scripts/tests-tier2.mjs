@@ -64991,10 +64991,18 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             if (none && cfg?.render) {
                 const root = document.createElement("div");
                 root.innerHTML = cfg.content?.innerHTML ?? String(cfg.content ?? "");
-                cfg.render({}, { element: root });
-                const select = root.querySelector('select[data-pick="0"]');
-                select.value = "experienceUp";
-                select.dispatchEvent(new Event("change"));
+                // CHANGED ON PURPOSE BY 1.2.122 (the audit's REFR-52): a pick's detail reads the sheet as it is drawn
+                // (level-up.mjs `wireForm`), not the list read at the window's opening, so the student is shaped as it
+                // was at the opening while the detail is drawn too.
+                const again = preparedAs(student, system => { system.experiences = experiences; });
+                try {
+                    cfg.render({}, { element: root });
+                    const select = root.querySelector('select[data-pick="0"]');
+                    select.value = "experienceUp";
+                    select.dispatchEvent(new Event("change"));
+                } finally {
+                    again?.();
+                }
                 detail = { amber: root.querySelectorAll(".notification").length, notes: [...root.querySelectorAll(".drpg-advance-detail .drpg-advance-note")].map(text) };
             }
             return { read, none, detail };
