@@ -393,7 +393,6 @@ export function hasReading(item) {
  *   callers are the ones holding the item and its flags.
  */
 export function bulletDescription(playerText, analyzedText = "") {
-
     const first = playerText ? `<p>${esc(playerText)}</p>` : "";
     if (!analyzedText) return first;
     return `${first}<p class="drpg-bullet-analysis"><strong>${

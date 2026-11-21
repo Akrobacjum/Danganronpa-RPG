@@ -1563,8 +1563,10 @@ export function wireScenesTab(root, block = () => {}) {
  * then compares against it and writes nothing back - and one this GM changed is kept as typed. A scene or a region made,
  * changed or deleted redraws the report. The cast's ticks follow another GM's cast (the store `trialCast`): a tick this
  * GM has not changed (`checked` still its `defaultChecked`) takes the cast's value as its drawn one, so Apply writes
- * nothing back for it; one this GM changed is kept. A student added to the world meanwhile is not drawn until the window
- * opens again. The hooks go when the window does.
+ * nothing back for it; one this GM changed is kept. A student created or deleted meanwhile (1.2.123, r122-C-5) redraws the
+ * hall's cast list from the world, the ticks this GM changed kept as changed; until then a new student was not drawn until
+ * the window opened again. The hooks go when the window closes (`closeApplicationV2` of the window that holds `root`);
+ * until 1.2.123 they went only at the next event after it, as `alive()` still does for a part drawn outside a window.
  */
 function followRoles(root, { school, trial, zoneSelects, redraw, castBox = null, hall = () => null }) {
     const hooks = [];
@@ -1621,6 +1623,17 @@ function followRoles(root, { school, trial, zoneSelects, redraw, castBox = null,
             input.checked = now;
         }
     };
+    const students = () => {
+        if (!alive() || !castBox) return;
+        const scene = hall();
+        if (!scene || castBox.querySelector("[data-drpg-cast]")?.dataset.drpgCast !== scene.id) return;
+        const ticks = () => castBox.querySelectorAll('input[type="checkbox"][name^="cast:"]');
+        const changed = new Map([...ticks()].filter(input => input.checked !== input.defaultChecked).map(input => [input.name, input.checked]));
+        castBox.innerHTML = castPickerHtml(scene);
+        for (const input of ticks()) if (changed.has(input.name)) input.checked = changed.get(input.name);
+    };
+    for (const name of ["createActor", "deleteActor"]) hooks.push([name, Hooks.on(name, students)]);
+    hooks.push(["closeApplicationV2", Hooks.on("closeApplicationV2", app => { if (app?.element?.contains?.(root)) off(); })]);
     const castSetting = `${MODULE_ID}.${trialCastStore.spec.key}`;
     hooks.push(["clientSettingChanged", Hooks.on("clientSettingChanged", key => { if (key === castSetting) cast(); })]);
     for (const name of ["updateSetting", "createSetting"]) {

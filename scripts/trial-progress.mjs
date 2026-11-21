@@ -235,7 +235,6 @@ export async function executionLines() {
  * card without the name is asked in STATUS (default: the name, as an ordinary trial's card).
  */
 async function postExecutionCard(executed) {
-
     try {
         await announce({
             flags: { [MODULE_ID]: { executionCard: true, sfx: { key: "execution", gm: true } } },

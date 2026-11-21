@@ -1112,7 +1112,6 @@ async function closeRound(progress) {
        among names that each carried the room (`countBallots`). The bar is drawn, not read: it is
        hidden from a screen reader, which has the count beside it. */
     const share = n => Math.round(100 * n / Math.max(1, issued));
-
     // The two that count ballots are plural families on {total} (E66 C3, the census); the one-name line is a ratio.
     const accusing = { names: listOf(accused.map(r => esc(named(r.id)))), n: Math.min(...accused.map(r => r.n)), total: issued };
     const sentence = noMajority

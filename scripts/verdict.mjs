@@ -106,7 +106,6 @@ export async function openVerdictDialog() {
     // remember it. A close with no ballot records a tie too (E10 C1).
     const tiedVote = Boolean(progress.tied);
 
-
     /* WHO IS DEAD, AS THE GMS HOLD IT, READ ONCE (E10 C4, 1.2.71; Q-E10-1). The window marks the
        dead " - dead" and they stay on its lists (the amend of 27.09: the class may vote for the
        dead), but the owner's answer (c) of 08.10.2026 is that the GM may pick a LIVING student to
@@ -776,7 +775,6 @@ async function readSentence(context) {
  */
 export async function postVerdictCard(record) {
     const executed = (record?.sentenced ?? record?.executedIds ?? []).map(id => game.actors.get(id)).filter(Boolean);
-
     /* WHO WILL BE EXECUTED, AND WHEN (E70 C4; DC36). The card said "{name} has been executed." with the death's
        sound; nobody dies at the verdict now. In the trial it says the sentence waits for the trial's end; a verdict
        given after End the trial is carried out straight after this card (`runVerdict`), whose own card says so. The
@@ -1357,7 +1355,6 @@ async function finalContext(record) {
 
 /** The Final Trial's summary to the GMs (`verdictSummaryContent`'s fields), with where it stopped (`stepsReport`'s warnings). */
 function finalSummary(final, report) {
-
     return {
         title: "DRPG.Mastermind.verdictTitle",
         summary: game.i18n.format("DRPG.Mastermind.verdictSummary", {
