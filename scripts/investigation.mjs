@@ -1013,6 +1013,8 @@ function caseKeyPanel({ plan, status, placed, limit }) {
  * drawn into the form the next time it is drawn, on the Table or the Map. A reload forgets it. Tier 2 "1.2.122 CASE-36".
  */
 let finalDraft = null;
+/** The standing dashboard's own road to a node asked of it (`openInvestigationDashboard({ node })`); null while none stands. */
+let caseHandOff = null;
 
 /** The Final Truth form's fields of `final` (`readDashboardForm`'s), or null when it holds nothing a GM typed or picked. */
 function finalDraftOf(final) {
@@ -2440,7 +2442,10 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
     // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-case")) return RAISED;
+    /* A NODE ASKED OF THE WINDOW THAT STANDS (1.2.123; the audit's r122-C-3): the trial console's schema asks for its
+       pressed node here, and the early answer left the window on the node it stood on - raised, with `node` never read.
+       The standing window takes the node now (`caseHandOff`). Tier 2 "1.2.123 r122-C-3". */
+    if (alreadyOpen("drpg-window-case")) { if (node) caseHandOff?.(node); return RAISED; }
 
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
@@ -2580,6 +2585,18 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
         },
         render: (event, dialog) => {
             drawnRoot = dialog.element;
+            /* The Map on that node, as a pick opens it: the open node's fields written first; from the Table the view goes
+               back to the Map as the opening with a node does, the switch pressed with it and the GM's own view left as
+               stored. */
+            caseHandOff = id => {
+                (reading.view === "map" ? saveOpenNode(drawnRoot) : Promise.resolve()).then(() => {
+                    reading.view = "map";
+                    reading.node = id;
+                    reading.focus = id;
+                    for (const b of drawnRoot?.querySelectorAll?.('[data-drpg-slot="switch"] button[data-drpg-mode]') ?? []) b.setAttribute("aria-pressed", String(b.dataset.drpgMode === "map"));
+                    live?.refresh?.();
+                }, err => error("Could not open the node asked of the Investigation window", err));
+            };
             wireCase(dialog);
             wireCaseFilters(dialog, reading, () => live?.refresh?.());
             wireMap(dialog, reading, () => live?.refresh?.());
@@ -2664,6 +2681,7 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
         },
         rejectClose: false
     });
+    caseHandOff = null;
 
     /* CLOSED WITH A NODE OPEN, NOT BY SAVE (the owner, 12.11.2026): its fields written now, off the element as it was
        closed (a closed window's element keeps its fields), before a button's reopened window reads the world. Save
