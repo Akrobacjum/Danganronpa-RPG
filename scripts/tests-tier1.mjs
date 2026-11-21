@@ -17297,6 +17297,23 @@ const INVARIANTS = [
             "the tile's floor-held line, tooltip or a press's notice did not name who holds the floor ([reason, state, line names them, tooltip names them, notice names them])");
     }],
 
+    ["R8262 - a killer behind a \"?\" reads a word of their own on the voice tile, not \"Disconnected\": the module took them out of voice on purpose, and the line says they hear nobody until they reveal themselves or the time of day changes (voice-tile.mjs `voiceWord`, `WORDS`; 1.2.122, the audit's COMM-42)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-42): maskedRow sends the masked killer's account a silent room, which this browser
+         * applies by leaving voice, and voiceWord read the hold for the external and Eclipse cases only - so the tile said
+         * "Disconnected" with "You are not connected to voice.", the reading the owner called an error (N10). The word for
+         * the mask's hold in each Room state a silent room leaves, and an ordinary disconnect beside it; the mask's line in
+         * both languages names the hearing and the time of day. Red at 21bf5d18: "disconnected" for the mask.
+         */
+        const V = await import("./voice-tile.mjs");
+        const hold = { held: true, reason: "masked" };
+        const read = ["disconnected", null, "connected"].map(state => V.voiceWord({ hold, state }))
+            .map(w => [w.word.split(".").pop(), w.line.split(".").pop()]);
+        read.push(Object.values(V.voiceWord({ hold: null, state: "disconnected" })).map(k => k.split(".").pop()));
+        equal(stableJson(read), stableJson([["hidden", "masked"], ["hidden", "masked"], ["hidden", "masked"], ["disconnected", "offline"]]),
+            "the masked killer's tile word was not its own ([word, line] for the mask's hold with the Room disconnected, absent, connected; an ordinary disconnect)");
+    }],
+
     ["R539 - the GM's block in the list is Foundry's block and never undoes the module's: the button is built only in a GM's list; its click writes the user's `permissions.BROADCAST_AUDIO` flipped from what Foundry answers now and nothing else; where `moduleHoldsMic` holds the microphone or a death is kept secret the button is disabled with its line and `toggleBlock` writes nothing; it refuses a player's client, the GM's own account and a user who is not of this world", async () => {
         /*
          * E78 C5, 14.10.2026; the A9 design's R392 (A9-5; the E78 plan's D2 gave it this number), the owner's Q4 (the
@@ -17341,6 +17358,9 @@ const INVARIANTS = [
         const gmRig = voiceTileRig(V, [b, d], { settings: () => settings, gm: () => true });
         const playerRig = voiceTileRig(V, [b, d], { settings: () => settings, gm: () => false });
         const updates = [], spied = [b, d, game.user], own = spied.map(user => Object.getOwnPropertyDescriptor(user, "update"));
+        // 1.2.122, the audit's COMM-46: an unblock takes the user's own key off (v14's ForcedDeletion, else
+        // Daggerheart's _del), so the role's rule stands again; an explicit true only where neither exists.
+        const unblocked = (await import("./utils.mjs")).forcedDeletion() ?? true;
         for (const user of spied) user.update = async data => { updates.push(tag(`${user.id}:${JSON.stringify(data)}`)); return user; };
         const seen = [];
         try {
@@ -17389,7 +17409,7 @@ const INVARIANTS = [
             held.click();
             free.click();
             await new Promise(resolve => setTimeout(resolve, 0));
-            seen.push([disabled, updates.splice(0).join(",") === (worldHold?.held ? "" : `B:${JSON.stringify({ "permissions.BROADCAST_AUDIO": !worldAllowed })}`)]);
+            seen.push([disabled, updates.splice(0).join(",") === (worldHold?.held ? "" : `B:${JSON.stringify({ "permissions.BROADCAST_AUDIO": worldAllowed ? false : unblocked })}`)]);
         } finally {
             spied.forEach((user, i) => {
                 if (own[i]) Object.defineProperty(user, "update", own[i]);
@@ -17411,7 +17431,7 @@ const INVARIANTS = [
             [true, false, "true", true, true, null, false],
             true,
             [[true, true, false, false, false, false, false, false],
-                ["B:{\"permissions.BROADCAST_AUDIO\":false}", "B:{\"permissions.BROADCAST_AUDIO\":true}"], ["gmSecretDead", "gmHeld", "gmSecretDead"]],
+                ["B:{\"permissions.BROADCAST_AUDIO\":false}", `B:${JSON.stringify({ "permissions.BROADCAST_AUDIO": unblocked })}`], ["gmSecretDead", "gmHeld", "gmSecretDead"]],
             [true, true],
             true]),
         "[the GM's list: per row the block, disabled, pressed, struck, its name, the line shown, described by it - B free, D's death kept secret | "

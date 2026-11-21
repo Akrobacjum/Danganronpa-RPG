@@ -136,7 +136,7 @@ import { voiceIdentity, voiceActorFor, measureCameraDock } from "./camera-view.m
 import { safeRoomImage } from "./vault.mjs";
 import { cssString } from "./room-tile.mjs";
 import { reducedMotion, TURN } from "./motion.mjs";
-import { error, plural, tickerRuns } from "./utils.mjs";
+import { error, plural, tickerRuns, forcedDeletion } from "./utils.mjs";
 import { tile as kitTile, launcher, launcherState, pixelGlyph, sliderList, slider as kitSlider, setTip } from "./ui-kit.mjs";
 import { refreshGlass, seatVoiceArt } from "./glass.mjs";
 import { spectatorViewer, talksWithSpectators } from "./spectator.mjs";
@@ -175,6 +175,9 @@ const WORDS = {
     external: { word: "DRPG.Voice.tile.state.external", line: "DRPG.Voice.held.external" },
     eclipse: { word: "DRPG.Voice.tile.state.eclipsed", line: "DRPG.Voice.held.eclipse" },
     eclipseHeard: { word: "DRPG.Voice.tile.state.eclipsed", line: "DRPG.Voice.held.eclipseHeard" },
+    // The mask's own (1.2.122, the audit's COMM-42): the module took the killer out of voice on purpose (voice.mjs
+    // `maskedRow`, a silent room this browser applies by leaving), which "Disconnected" read as a fault.
+    masked: { word: "DRPG.Voice.tile.state.hidden", line: "DRPG.Voice.held.masked" },
     connecting: { word: "DRPG.Voice.tile.state.connecting", line: "DRPG.Voice.held.connecting" },
     disconnected: { word: "DRPG.Voice.tile.state.disconnected", line: "DRPG.Voice.held.offline" },
     blocked: { word: "DRPG.Voice.tile.state.blocked", line: "DRPG.Voice.held.gmBlock" },
@@ -865,7 +868,7 @@ function veiledParticipant(watch, p, room) {
  */
 export function voiceWord({ face = false, hold = null, state = null, applying = false } = {}) {
     const reason = hold?.reason;
-    if (reason === "external" || reason === "eclipse" || reason === "eclipseHeard") return WORDS[reason];
+    if (reason === "external" || reason === "eclipse" || reason === "eclipseHeard" || reason === "masked") return WORDS[reason];
     if (applying === true || CONNECTING.includes(state)) return WORDS.connecting;
     if (state !== "connected") return WORDS.disconnected;
     if (reason === "gmBlock") return WORDS.blocked;
@@ -1491,7 +1494,11 @@ export async function toggleBlock(user, { holds = target => moduleHoldsMic(targe
         return false;
     }
     const allowed = settings?.getUser?.(user.id)?.canBroadcastAudio ?? true;
-    await user.update({ "permissions.BROADCAST_AUDIO": !allowed });
+    /* An unblock takes the user's own key off (1.2.122, the audit's COMM-46), as the trial's restore does (voice.mjs
+       `restoreTrialBlock`): an explicit true left a world whose roles withhold the microphone with one player granted
+       it. The GM's block is recorded nowhere (voice.mjs), so a grant the user held of their own before it is not put
+       back either: the role's rule stands. In a Foundry with neither deletion marker the write is true, as before. */
+    await user.update({ "permissions.BROADCAST_AUDIO": allowed ? false : (forcedDeletion() ?? true) });
     return true;
 }
 
