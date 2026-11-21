@@ -1109,8 +1109,9 @@ export function guardTextFields(root) {
      * button, and then across the window for a field that sits in neither.
      *
      * FOCUS MOVES TO THE BUTTON BEFORE THE CLICK, and that is not tidiness.
-     * `keepLive` defers a rebuild while focus is inside the region it is about to
-     * replace (see `isEditing`), so pressing the button with the caret still in
+     * `keepLive` deferred a rebuild while focus was inside the region it is about to
+     * replace (see `isEditing`; a region with `whileEditing: false` still does, the
+     * default since the line claude/refresh-120 does not), so pressing the button with the caret still in
      * the number would have written the Hope and left the readout showing the old
      * figure until the GM clicked away - a donation that looks like it did
      * nothing, and invites a second press.

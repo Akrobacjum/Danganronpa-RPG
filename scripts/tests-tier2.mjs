@@ -105447,6 +105447,147 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ other: true, picked: true, focus: true }),
             "[the row another GM mapped shows its playlist; the row picked in keeps its playlist; the focus on the select picked in]");
     }],
+    ["every second and on a pool's change, a window with the focus in it is drawn again with the focus kept (the line claude/refresh-120, 21.11.2026; REFR-05; the owner's rules \"Zawsze odswiezamy okna od razu przy zmianie\" and \"R1 niech leci od razu wszystkie okna\"): the Mastermind's Hope box shows the Mastermind's new Hope while its amount is typed in, the amount and the focus kept; the trial console's tick, every second while a floor is open, keeps the focus on the bar's button the GM is on", async () => {
+        /*
+         * The line claude/refresh-120, 21.11.2026; the audit of 1.2.118's REFR-05 residue: the Hope box (mastermind.mjs
+         * `openMastermindDialog`, the region `.drpg-mm-live`) waited for the focus to leave it. Here a Mastermind is named
+         * (the GM store's own write, put back), the window opened, the amount typed, and the Mastermind's Hope written
+         * (an actor's write, which the region watches): the box reads the new Hope with the typed amount and the focus
+         * still in it. Then the trial console (trial-floor-ui.mjs `manageClassTrial`), whose region is drawn again by a
+         * forced refresh every second while a floor is open: the focus on one of the bar's buttons, read after three
+         * seconds of ticks. The console holds no field (read 21.11.2026), so the button is what a GM holds there. Red on
+         * e515907d: the Hope box still read the old Hope, and the tick dropped the focus. Red at 8473eed9 too, on the
+         * Hope box alone: its build returned the box's inside, so its first redraw left the Hope line where the box stood
+         * and the region was gone (mastermind.mjs, fixed in the same commit as this test). A select's list open under a
+         * tick is not measured: jsdom draws no list (a table's).
+         */
+        const MM = await import("./mastermind.mjs");
+        const F = await import("./trial-floor.mjs");
+        const UI = await import("./trial-floor-ui.mjs");
+        const { closeOpen } = await import("./live.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        needs(env.dialogs(), "the two windows are drawn and their fields focused");
+        must(isPrimaryGm(), "this browser is not the primary GM - the floor it reads is the primary's to write");
+        const [who] = cast(1);
+        const wasActor = MM.mastermindActor()?.id ?? null, wasLair = MM.mastermindLair();
+        const hopeWas = who.system?.resources?.hope?.value ?? 0;
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const appOf = cls => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes(cls));
+        const read = {};
+        let opening = null;
+        try {
+            await MM.setMastermind(who);
+            await settle();
+            opening = Promise.resolve().then(() => MM.openMastermindDialog()).catch(() => null);
+            must(await until(() => appOf("drpg-window-mastermind")?.element?.querySelector(".drpg-mm-live [name=amount]"), 6000), "the Mastermind's window did not open on its Hope box");
+            const box = () => appOf("drpg-window-mastermind").element.querySelector(".drpg-mm-live");
+            const amount = box().querySelector("[name=amount]");
+            amount.focus();
+            amount.value = "3";
+            const next = Math.max(0, Math.min(6, hopeWas === 2 ? 4 : 2));
+            await who.update({ "system.resources.hope.value": next });
+            await until(() => box()?.querySelector("p.notes")?.textContent.includes(String(next)), 2000);
+            const field = box()?.querySelector("[name=amount]");
+            read.hope = { shows: game.i18n.format("DRPG.Mastermind.hopeReadout", { held: next }) === box()?.querySelector("p.notes")?.textContent.trim(),
+                value: field?.value === "3", focus: Boolean(field) && document.activeElement === field, redrawn: field !== amount };
+            appOf("drpg-window-mastermind")?.close();
+            await Promise.race([opening, wait(3000)]);
+
+            closeOpen("drpg-window-trial");
+            await until(() => !document.querySelector(".drpg-window-trial"), 5000);
+            await setClock({ ...clock, phase: "classTrial" });
+            await F.startFloor({ seconds: 300 });
+            await settle();
+            UI.manageClassTrial().catch(() => {});
+            must(await until(() => appOf("drpg-window-trial")?.element?.querySelector(".drpg-trial-console [data-drpg-bar]"), 6000), "the trial console did not open on a floor with its bar");
+            const app = appOf("drpg-window-trial");
+            const button = app.element.querySelector(".drpg-trial-console [data-drpg-bar]:not([disabled])");
+            must(button, "the console's bar has no button to stand on");
+            const bar = button.dataset.drpgBar;
+            button.focus();
+            // The ticks counted as the region's element replaced, read every 100 ms.
+            let ticks = 0, last = app.element.querySelector(".drpg-trial-console");
+            for (let t = 0; t < 32; t++) {
+                await wait(100);
+                const now = app.element.querySelector(".drpg-trial-console");
+                if (now && now !== last) { ticks++; last = now; }
+            }
+            const now = document.activeElement;
+            read.tick = { ticks: ticks >= 2, focus: Boolean(now?.matches?.(`.drpg-trial-console [data-drpg-bar="${bar}"]`)), redrawn: now !== button };
+        } finally {
+            appOf("drpg-window-mastermind")?.close();
+            if (opening) await Promise.race([opening, wait(3000)]);
+            closeOpen("drpg-window-trial");
+            await until(() => !document.querySelector(".drpg-window-trial"), 5000);
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await setClock(clock);
+            await who.update({ "system.resources.hope.value": hopeWas });
+            if (wasActor) await MM.setMastermind(game.actors.get(wasActor), { room: wasLair });
+            else await MM.clearMastermind();
+            const fresh = game.messages.filter(m => !seen.has(m.id)).map(m => m.id);
+            if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ hope: { focus: true, redrawn: true, shows: true, value: true }, tick: { focus: true, redrawn: true, ticks: true } }),
+            "[the Hope box: the focus on the amount; drawn again; the new Hope read; the amount typed kept] [the console's tick: the focus on the bar's button; drawn again; two ticks or more in 3.2 s]");
+    }],
+    ["the case dashboard draws at once, with a trace's name being typed in its Table, a trace's words changed elsewhere and an item given to a student - the Remnants tab's row and the Who has what tab - the typed name, the focus and the caret kept (the line claude/refresh-120, 21.11.2026; the owner's rule \"Zawsze odswiezamy okna od razu przy zmianie\" and his reading of 21.11: the dashboard did not follow until Save)", async () => {
+        /*
+         * The line claude/refresh-120, 21.11.2026. The dashboard is one live region (`.drpg-case-live`, every tab of the
+         * Table and the Map), redrawn under a focused field since 1.2.119; the owner read on 21.11 that the dashboard did
+         * not follow until Save (its column sort is line P's). Here, without Save: the Table opened, a fixture trace's
+         * name being typed (the caret at 4), then its words written as another GM's ruling writes them
+         * (`setRemnantPublic`, a GM store write) and a tool given to a student (an item write): both shown at once - the
+         * row's words, the student's row on Who has what - with the typed name, its focus and caret still there. The
+         * trace and the tool are taken away after.
+         */
+        const remnants = await import("./remnants.mjs");
+        const INV = await import("./inventory.mjs");
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace stands on the scene on screen");
+        needs(env.dialogs(), "the dashboard is read off its drawn window");
+        const scene = canvas.scene;
+        const [who] = cast(1);
+        let token = null, win = null, tool = null;
+        const read = {};
+        try {
+            token = await remnants.placeRemnant({ type: "prep", visibility: "evident", x: 0, y: 0, scene, chapter: getClock().chapter,
+                note: "test fixture - refresh-120 the dashboard follows" });
+            must(token, "could not place the fixture trace");
+            await remnants.setRemnantPublic(token, { name: "SUITE R120 as drawn", playerText: "SUITE R120 words as drawn" });
+            await gmStoresIdle();
+            const key = `${scene.id}__${token.id}`;
+            win = await drawnCaseWindow();
+            must(win.field(`name.${key}`)?.value === "SUITE R120 as drawn", "the dashboard does not list the fixture trace as drawn");
+            const name = win.field(`name.${key}`);
+            name.focus();
+            name.value = "SUITE R120 typed";
+            name.setSelectionRange(4, 4);
+            await remnants.setRemnantPublic(token, { playerText: "SUITE R120 words changed elsewhere" });
+            await gmStoresIdle();
+            read.words = Boolean(await until(() => win.field(`text.${key}`)?.value === "SUITE R120 words changed elsewhere", 3000));
+            tool = await INV.grantItem(who, { name: "SUITE R120 tool", category: "tool", tier: 1, override: true, quiet: true });
+            must(tool, "the fixture tool was not given");
+            const who_ = () => win.app?.element?.querySelector('[data-drpg-part="who"]')?.textContent ?? "";
+            read.who = Boolean(await until(() => who_().includes("SUITE R120 tool"), 3000));
+            const now = win.field(`name.${key}`);
+            read.typed = { value: now?.value === "SUITE R120 typed", focus: Boolean(now) && document.activeElement === now, caret: now?.selectionStart === 4, redrawn: now !== name };
+        } finally {
+            if (win) await win.close().catch(() => {});
+            if (tool) await tool.delete().catch(() => {});
+            if (token) {
+                await remnants.dropRemnantSecret(token).catch(() => {});
+                await token.delete().catch(() => {});
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ typed: { caret: true, focus: true, redrawn: true, value: true }, who: true, words: true }),
+            "[the name being typed: its caret, its focus, the row drawn again, the typed name] [Who has what lists the tool given] [the row shows the words changed elsewhere]");
+    }],
     ["the open planner draws a node written to the case while it stands open - with no field focused, with a field focused that holds nothing typed, and with text typed in it: the focus, the caret and the text kept, and a field another write changed under the typing keeps the text and is marked (investigation.mjs `openInvestigationDashboard`, live.mjs `keepLive` `whileEditing`; the owner, 20.11.2026: \"by okna zawsze odswiezaly sie przed zaladowaniem okna od nowa (np. Planer)\", \"Zawsze odswiezamy okna od razu przy zmianie\"; the line claude/plan-119)", async () => {
         /*
          * The dashboard drawn on the Map as this GM opens it, a fixture deduction in it; then three writes of a new deduction

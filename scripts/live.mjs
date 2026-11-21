@@ -31,11 +31,13 @@
  *
  * Hence the two rules below, and they are the whole design:
  *
- *   1. NEVER REDRAW UNDER THE CURSOR. If focus is in a text field of the
- *      region, the rebuild waits until focus leaves - unless the region asks
- *      for `whileEditing`, the owner's rule of 20.11.2026 ("Zawsze odswiezamy
- *      okna od razu przy zmianie"): then it is rebuilt at once, what was typed
- *      carried and the focus and caret given back. A select, a button or a box
+ *   1. NEVER REDRAW UNDER THE CURSOR - NOR WAIT FOR IT. Until 1.2.119, with
+ *      the focus in a text field of the region, the rebuild waited until focus
+ *      left. The owner's rule of 20.11.2026 ("Zawsze odswiezamy okna od razu
+ *      przy zmianie"), for every window since the line claude/refresh-120
+ *      ("R1 niech leci od razu wszystkie okna", 21.11.2026): the region is
+ *      rebuilt at once, what was typed carried and the focus and caret given
+ *      back (`whileEditing`, on unless a region says `false`). A select, a button or a box
  *      never holds it (the line claude/refresh-120, 21.11.2026: a select left
  *      focused after its pick held the Sound window's Music rows, UI-17), and
  *      whatever had the focus gets it back after the rebuild. A press of the
@@ -111,17 +113,20 @@ const living = new Set();
  *                                   not: what was typed is carried, and the
  *                                   field gets the focus and its caret back
  *                                   (`focusOf`). An IME's composition still
- *                                   holds it. Without it a focused text field
- *                                   holds the rebuild until focus leaves; a
- *                                   focused select, button or box holds it in
- *                                   neither case.
+ *                                   holds it. On by default since the line
+ *                                   claude/refresh-120 (the owner, 21.11.2026:
+ *                                   "R1 niech leci od razu wszystkie okna");
+ *                                   `false` makes a focused text field hold the
+ *                                   rebuild until focus leaves, as every region
+ *                                   did before 1.2.119. A focused select, button
+ *                                   or box holds it in neither case.
  * @returns {Function} Stop listening. Idempotent; also called automatically
  *                     when the window closes or the region goes away.
  */
-export function keepLive(app, { region, build, watch = {}, delay = TIMING.coalesceMs, after = null, whileEditing = false } = {}) {
+export function keepLive(app, { region, build, watch = {}, delay = TIMING.coalesceMs, after = null, whileEditing = true } = {}) {
     if (!app || typeof build !== "function" || !region) return () => {};
 
-    const record = { app, region, at: Date.now(), refreshes: 0, deferred: 0, watch, build };
+    const record = { app, region, at: Date.now(), refreshes: 0, deferred: 0, watch, build, whileEditing, wake: null };
     living.add(record);
 
     let stopped = false;
@@ -177,9 +182,12 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
            okna zawsze odswiezaly sie przed zaladowaniem okna od nowa (np. Planer)", and "Zawsze odswiezamy okna od razu przy
            zmianie"). With `whileEditing` the region is rebuilt with the focus in one of its text fields: what was typed is
            carried (RULE 2, `capture` and `restore`), a field another GM changed meanwhile keeps the typed text and is
-           marked, and the same field gets the focus back with its caret where it was (`focusOf`). The case dashboard asks
-           it: with every node open on its Map (owner-116) a GM's focus sits in a field most of the time, and the Map stayed
-           as it was drawn until the focus left the region. An IME's composition holds it as before.
+           marked, and the same field gets the focus back with its caret where it was (`focusOf`). The case dashboard asked
+           it first: with every node open on its Map (owner-116) a GM's focus sits in a field most of the time, and the Map
+           stayed as it was drawn until the focus left the region. Every region since the line claude/refresh-120 (the
+           owner, 21.11.2026: "R1 niech leci od razu wszystkie okna"): the default, a region that cannot follow it saying
+           `whileEditing: false`; R7974 wakes every region of the windows it opens with a field focused. An IME's
+           composition holds it as before.
            A SELECT HOLDS NOTHING, IN ANY REGION (the line claude/refresh-120, 21.11.2026; UI-17, REFR-05). Until this line a
            select counted as typing, and with `whileEditing` it still held, for its list may be open under the pointer:
            a select left focused after its pick - the Sound window's Music rows save on `change` - held its whole region
@@ -247,6 +255,8 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
     };
 
     const schedule = foundry.utils.debounce(rebuild, delay);
+    // A rebuild by the road a watched event takes, the focus rule and all (`liveRegions`, for the suite).
+    record.wake = () => schedule();
 
     const listeners = listenFor(watch, schedule);
 
@@ -1013,11 +1023,13 @@ export function closeOpen(className) {
 
 /**
  * The regions kept live on one window (every window, with none named): each one's selector, what wakes it and its
- * build. For R1317, which builds every region that names `watch.settings` once with `game.settings.get` counted, and
+ * build, whether it is rebuilt under a focused field, `wake` (a rebuild asked as a watched event asks it) and its counts.
+ * For R7974, which wakes every region of every window it opens with a field focused, and R1317, which builds every region that names `watch.settings` once with `game.settings.get` counted, and
  * holds what it read to what it declared (E44 C2b): a region held to its keys must name every key it prints.
  */
 export function liveRegions(app = null) {
-    return [...living].filter(r => !app || r.app === app).map(r => ({ region: r.region, watch: r.watch, build: r.build }));
+    return [...living].filter(r => !app || r.app === app).map(r => ({ region: r.region, watch: r.watch, build: r.build,
+        whileEditing: r.whileEditing, wake: r.wake, refreshes: () => r.refreshes, deferred: () => r.deferred }));
 }
 
 /** What is currently keeping itself true. For the diagnostics window. */

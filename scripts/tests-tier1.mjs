@@ -1382,7 +1382,9 @@ const INVARIANTS = [
         document.body.appendChild(host);
 
         const app = { element: host, options: { window: { title: "test" } } };
-        const stop = keepLive(app, { region: ".drpg-t-focus", build, delay: 0, watch: { hooks: [LIVE_PROBE] } });
+        /* `whileEditing: false`: the rule as every region kept it until the line claude/refresh-120 made the redraw under a
+           focused field the default (21.11.2026; R7970, R7974); a region that cannot follow the owner's rule still says so. */
+        const stop = keepLive(app, { region: ".drpg-t-focus", build, delay: 0, whileEditing: false, watch: { hooks: [LIVE_PROBE] } });
 
         try {
             const field = host.querySelector("input[name=f]");
@@ -41570,7 +41572,8 @@ const INVARIANTS = [
         host.innerHTML = build();
         document.body.appendChild(host);
         const app = { element: host, options: { window: { title: "test" } } };
-        const stop = keepLive(app, { region: ".drpg-t-r1315", build, delay: 0, watch: { hooks: [LIVE_PROBE] } });
+        // `whileEditing: false` (the default since the line claude/refresh-120 is true): the text field's hold is the opt-out's.
+        const stop = keepLive(app, { region: ".drpg-t-r1315", build, delay: 0, whileEditing: false, watch: { hooks: [LIVE_PROBE] } });
         const region = () => host.querySelector(".drpg-t-r1315");
         /* Focus one field, ask a redraw of this region alone (LIVE_PROBE), read whether it ran; then let focus go, so a
            held redraw is answered before the next field is tried. */
@@ -41823,6 +41826,97 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify({ fresh: true, pill: true, scroll: true, focus: true, unreadBefore: true, unreadAfter: 0, focusAfter: true, closed: true }),
             "[a new notice listed at once; the pill shown; the scroll kept; the focus on the older entry's line; unread entries before; unread entries after reading; the focus kept; Close closed the window]");
     }],
+    ["R7974 - every live region of the windows a GM opens with nothing staged is redrawn at once with the focus in it (the line claude/refresh-120; the owner's rules \"Zawsze odswiezamy okna od razu przy zmianie\" and, 21.11.2026, \"R1 niech leci od razu wszystkie okna\"): the GM panel, Sound, Students, the item manager, the incident tracker, the trial console with its case schema, the vote, Investigation and the notice history - per region, its first field focused (a text field before a select, a select before a box, else a button), a value put in it that is not saved, the region woken as a watched event wakes it: drawn again, the focus on the same field, its value and caret kept", async () => {
+        /*
+         * The line claude/refresh-120, 21.11.2026: keepLive's `whileEditing` is the default, so no region waits for the
+         * focus to leave it. Each window opened by its own opener as the GM, each of its regions (live.mjs `liveRegions`)
+         * driven through `wake` - the debounce a watched event goes through, the focus rule and all - with nothing
+         * written: a typed value, a select's pick and a box ticked with no `change` save nothing. That the build reads
+         * the world anew is each region's own (the windows' tests, UI-17's tier 2 among them); this holds that a field
+         * focused never stands between a change and the window. Read on 21.11.2026: none of these regions holds a text
+         * field, the Students table holds selects and a box, the Sound window's rows selects. NOT OPENED HERE, each
+         * needing a world write tier 1 may not make or a sheet the harness does not render: the readiness round's window
+         * (an open round), the objection log (an Objection presented), a project token's card and a Remnant's card (a
+         * token's sheet), a Call's window (a Call bought); the Mastermind's Hope box, drawn only while a Mastermind is
+         * named, and the trial console's tick, which runs only while a floor is open - both tier 2's "every second and on a
+         * pool's debt ...". A region on a tab that is not showing is shown first, by its tab.
+         */
+        needs(env.dialogs(), "the windows are drawn and their regions driven");
+        must(game.user.isGM, "these windows are a GM's");
+        const L = await import("./live.mjs");
+        const [student] = studentActors();
+        must(student, "the harness world holds a student - the item manager opens on one");
+        const OPENERS = [
+            ["gm-panel", "drpg-window-panel", () => import("./gm-panel.mjs").then(m => m.openGmPanel())],
+            ["sound", "drpg-window-sound", () => import("./sound-panel.mjs").then(m => m.openSoundDialog())],
+            ["students", "drpg-window-alive", () => import("./gm-students.mjs").then(m => m.openWhoIsAliveDialog())],
+            ["items", "drpg-window-items", () => import("./gm-items.mjs").then(m => m.openItemManager(student))],
+            ["incident", "drpg-window-incident", () => import("./murder-ui.mjs").then(m => m.openIncidentTracker())],
+            ["trial", "drpg-window-trial", () => import("./trial-floor-ui.mjs").then(m => m.manageClassTrial()),
+                app => app.element?.querySelector("[data-drpg-trial-schema] > .drpg-case-trial-live")],
+            ["vote", "drpg-window-vote", () => import("./trial-floor-ui.mjs").then(m => m.openVoteDialog())],
+            ["case", "drpg-window-case", () => import("./investigation.mjs").then(m => m.openInvestigationDashboard())],
+            ["notices", "drpg-window-notices", () => import("./notice-history-app.mjs").then(m => m.openNotices())]
+        ];
+        const appOf = cls => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes(cls));
+        const TEXT = 'input[type="text"], input[type="number"], input[type="search"], input:not([type]), textarea';
+        const probe = async (app, r) => {
+            const region = () => app.element?.querySelector(r.region) ?? null;
+            const pane = region()?.closest("[data-drpg-pane]");
+            if (pane?.hidden) app.element.querySelector(`nav.drpg-tabs [data-drpg-tab-key="${CSS.escape(pane.dataset.drpgPane)}"]`)?.click();
+            const el = region();
+            if (!el) return { field: "no region" };
+            const usable = [...el.querySelectorAll('input:not([type="hidden"]), textarea, select, button, summary')]
+                .filter(n => !n.disabled && !n.closest("[hidden]"));
+            const target = usable.find(n => n.matches(TEXT)) ?? usable.find(n => n.matches("select"))
+                ?? usable.find(n => n.matches("input")) ?? usable[0] ?? null;
+            const kind = !target ? "none" : target.matches(TEXT) ? "text" : target.localName === "select" ? "select" : target.localName === "input" ? target.type : target.localName;
+            let want = null, caret = null;
+            if (target) {
+                target.focus();
+                if (document.activeElement !== target) return { field: kind, focused: false };
+                if (kind === "text") { target.value = `${target.value}R7974`; caret = 2; target.setSelectionRange(caret, caret); want = target.value; }
+                else if (kind === "select") { const other = [...target.options].find(o => o.value !== target.value && !o.disabled); if (other) target.value = other.value; want = target.value; }
+                else if (kind === "checkbox") { target.checked = !target.checked; want = target.checked; }
+            }
+            const before = r.refreshes();
+            r.wake();
+            await wait(450);
+            const now = region(), active = document.activeElement;
+            // `now` found at all: a build that returns something else than the region's own element loses the region (the Hope box did).
+            const read = { field: kind, rebuilt: Boolean(now) && r.refreshes() > before && now !== el };
+            if (target) {
+                read.focus = Boolean(now?.contains(active)) && active.localName === target.localName && (active.getAttribute("name") ?? "") === (target.getAttribute("name") ?? "");
+                if (want !== null) read.value = (kind === "checkbox" ? active.checked : active.value) === want;
+                if (caret !== null) read.caret = active.selectionStart === caret;
+            }
+            active?.blur?.();
+            return read;
+        };
+        const read = {};
+        for (const [label, cls, open, settled = () => true] of OPENERS) {
+            const was = appOf(cls);
+            must(!was, `the ${label} window is open - close it: this test opens its own`);
+            const opening = Promise.resolve().then(open).catch(err => `threw: ${err.message}`);
+            try {
+                const opened = await until(() => appOf(cls) && settled(appOf(cls)), 6000);
+                if (!opened) { read[label] = `did not open: ${await Promise.race([opening, wait(50).then(() => "pending")])}`; continue; }
+                await wait(300);
+                const app = appOf(cls);
+                const regions = L.liveRegions(app);
+                if (!regions.length) { read[label] = "no live region"; continue; }
+                for (const r of regions) read[`${label} ${r.region}`] = await probe(app, r);
+            } finally {
+                await appOf(cls)?.close?.();
+                await Promise.race([opening, wait(3000)]);
+            }
+        }
+        const good = r => typeof r === "object" && r.rebuilt === true && r.focus !== false && r.value !== false && r.caret !== false && r.focused !== false;
+        must(Object.keys(read).length >= 12, `only ${Object.keys(read).length} regions were read: ${stableJson(read)}`);
+        equal(stableJson(Object.fromEntries(Object.entries(read).filter(([, r]) => !good(r)))), "{}",
+            `[the regions not drawn again at once with their field's focus, value and caret kept, of ${Object.keys(read).length} read: ${stableJson(read)}]`);
+    }],
+
     ["R1317 - a region held to its settings is held to what it prints (E44 C2b; E44-07): a region with `watch.settings` rebuilds on its own key and not on another key of the module or another module's key of that name; every `keepLive(` call in scripts/ that names `settings` belongs to a window this test opens or to one of the three it names as unopenable in tier 1 (the readiness round's, the incident tracker and, since E44 C9, a project token's card), and each region it opens, built once with `game.settings.get` counted, reads no key of the module it does not declare - the GM panel's tiles and the Sound window's two regions among them", async () => {
         /*
          * E44 C2b, 04.11.2026; the plan's risk ("keepLive with keys may fail to rebuild a region that depends on a key it
