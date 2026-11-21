@@ -155,6 +155,17 @@
       "detectedBy": [{"scenario": "33-bridge-paths", "check": "E74-A2: a barricaded room is read from a player's console - p2's browser reads the room's barricade flag while the barricade stands"}],
       "readme": "leak:foundry-barricade-flag",
       "measuredAt": "1.2.122 line STG, 21.11.2026, on a16477c6 with these edits: scenario 33 E74-A, p2 read the barricade flag (movement.mjs roomBarricaded) true for Aiko's barricade of Dorm A at strength 12, the GMs' row [\"Dorm A\", 12]"
+    },
+    {
+      "id": "foundry-spectator-chat",
+      "findings": ["E92", "STG-35"],
+      "class": "metadata",
+      "severity": "low",
+      "what": "A chat message a Spectator's own console forces past its browser's refusal is sent by Foundry's server to every browser before the primary GM's browser removes it (spectator-ui.mjs dropSpectatorMessage), so a console listening for createChatMessage on another player's browser reads its words for that moment. Nothing stays: no browser holds or draws it after the GMs have had it.",
+      "foundryLimit": "Foundry v14 gives a module no way to refuse a player's chat document before the server sends it to every connected client; the Spectator's own browser refuses it first (preCreateChatMessage, a courtesy a console steps past) and the primary GM deletes it on arrival.",
+      "detectedBy": [{"scenario": "93-spectator", "check": "chat2: a Spectator's message forced past its own browser is heard on p1's for a moment - p1's createChatMessage hook was handed its words before the GMs removed it"}],
+      "readme": "leak:foundry-spectator-chat",
+      "measuredAt": "1.2.122 line STG, 21.11.2026, on aacab044 with these edits: scenario 93 phase chat, p3's console posted with its preCreateChatMessage hook taken off (posted: console true); p1's createChatMessage hook was handed \"E92 SPECTATOR SAYS 2\"; afterwards no message held or drawn on gm, p1 or p3. Before this, the scenario's own console road posted nothing headless (the shim's Hooks.events is a copy), so neither half had been read"
     }
   ]
 }

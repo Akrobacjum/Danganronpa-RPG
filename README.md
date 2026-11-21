@@ -303,7 +303,9 @@ killer's tokens carry the veil's mark on every browser (the veil no longer
 sets Foundry's own hidden), so a console can tell which tokens they are and
 whose. <!-- leak:foundry-veiled-token-actor --> A room barricaded with Shut
 the Door carries a mark every browser holds, so a console can tell which rooms
-are barricaded, though not by whom or how strongly. <!-- leak:foundry-barricade-flag -->
+are barricaded, though not by whom or how strongly. <!-- leak:foundry-barricade-flag --> A chat message a
+Spectator's console forces through reaches every browser for a moment before the
+GM's browser removes it. <!-- leak:foundry-spectator-chat -->
 It is a curtain, not a
 wall, and it works at a table that does not go looking behind it.
 

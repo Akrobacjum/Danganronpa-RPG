@@ -185,7 +185,16 @@ const SINCE_CORRECTED = Object.freeze([
 /* A removed test's row names what removed it where the working stage at --write did not: R214 went in feba55c3 (13.11.2026,
    the 1.2.112 stash change), and the row read "(removed in E54)" (STG-47). */
 const REMOVED_IN = Object.freeze({ R214: "1.2.112, feba55c3" });
-const correctedSince = r => { const n = rKey(r) / 100; return SINCE_CORRECTED.find(c => n >= c.from && n <= c.to)?.since ?? null; };
+/* The rows E54's stamp took from other lines (STG-85, 1.2.122): tools/registry-since.json, its own `about` saying how each
+   was read. Missing or unreadable, nothing is corrected from it and --write keeps the kept stamps. */
+let titleStamps = null;
+const stampsFromFile = () => {
+    if (titleStamps) return titleStamps;
+    try { titleStamps = JSON.parse(fs.readFileSync(path.join(path.dirname(url.fileURLToPath(import.meta.url)), "registry-since.json"), "utf8")).rows ?? {}; }
+    catch { titleStamps = {}; }
+    return titleStamps;
+};
+const correctedSince = r => { const n = rKey(r) / 100; return SINCE_CORRECTED.find(c => n >= c.from && n <= c.to)?.since ?? stampsFromFile()[r] ?? null; };
 
 /** The block's text, generated from the tier files, keeping what is not generated; `stage` stamps what is new. */
 export function renderRBlock(repo, existing, stage = workingStage(repo).id) {
