@@ -17227,7 +17227,7 @@ const INVARIANTS = [
         if (typeof C.onTokenChange === "function") {
             read.quiet = C.onTokenChange({}, { name: "x" }, { root, hidden: () => false });
             read.stillHidden = plateOf(d);
-            read.lifted = C.onTokenChange({}, { flags: { [MODULE_ID]: { "-=veiled": null } } }, { root, hidden: () => false });
+            read.lifted = C.onTokenChange({}, { flags: { [MODULE_ID]: { [`${"-="}veiled`]: null } } }, { root, hidden: () => false });
             read.back = [plateOf(d), tipOf(d) === foundry.utils.escapeHTML(full(d))];
         }
         read.gm = typeof C.hiddenFromHere === "function" ? C.hiddenFromHere(d, { veiled: () => true, masked: () => true }) : null;

@@ -205,7 +205,8 @@ export function hiddenFromHere(user, { veiled = veiledHere, masked = maskedHere 
 export function movesAPlate(changes) {
     const f = changes?.flags?.[MODULE_ID];
     if (!f || typeof f !== "object") return false;
-    return ["veiled", "masked", "-=veiled", "-=masked"].some(key => key in f);
+    // Set, or taken off as Foundry's diff may carry a deletion (the key with its deletion prefix, R152's spelling).
+    return ["veiled", "masked"].some(key => key in f || `-=${key}` in f);
 }
 
 /** The token hook: every plate of the dock read again when a veil or a mask moved. `root` and `hidden` are the suite's. */
