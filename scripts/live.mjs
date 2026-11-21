@@ -205,10 +205,11 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
            select counted as typing, and with `whileEditing` it still held, for its list may be open under the pointer:
            a select left focused after its pick - the Sound window's Music rows save on `change` - held its whole region
            until the GM clicked elsewhere, and so did a field with no name, which had nothing to be found by again. A list
-           opened by the pointer is held by the press (RULE 1 for a hand, above) until it is let go; the pick is carried as
-           a dirty field; and whatever had the focus in the region, a select, a box or a field with no name, gets it back
-           after the rebuild, found by its key (`focusKey`). R7970. A list opened from the keyboard (Alt+Down) is not held,
-           and whether a browser's own select list sends the page its `pointerup` is not measured headless: a table's. */
+           open in the region holds it, by the mouse or from the keyboard (below, r121-R-3; this said until 1.2.123 that only
+           the press held a pointer's list and that a keyboard's was not held - the audit's check of 1.2.122, r122-H-9); the
+           pick is carried as a dirty field; and whatever had the focus in the region, a select, a box or a field with no
+           name, gets it back after the rebuild, found by its key (`focusKey`). R7970. Whether a headed browser's own select
+           list sends the page its `pointerup`, and whether Foundry's app and Firefox know `select:open`, is a table's. */
         /* A SELECT'S LIST OPEN IN THE REGION HOLDS IT, FORCED OR NOT (the line claude/refresh-120 for 1.2.122; the audit's
            check of 1.2.121, r121-R-3, measured in Chromium 153: any redraw shut a list opened by the mouse or by Alt+Down -
            the select drawn anew is another element, and a browser's list belongs to the one it opened from). Read off the
@@ -247,7 +248,13 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
             heldForced = false;
             listWanted = false;
             listForced = false;
-            replaceQuietly(element, next);
+            /* QUIET ONLY WHERE THE FOCUS COMES BACK (r122-H-R1; the audit's check of 1.2.122, the line claude/refresh-120 for
+               1.2.123). The quiet removal swallows the old field's blur and change on the promise that the new field takes the
+               focus and owes the change (`oweChange`). A focused field the new tree holds no field for - a key that does not
+               resolve there - would lose both: the words typed shown nowhere and saved by nothing. So that removal is let
+               speak, as before r121-R-1: its blur saves what was typed. */
+            if (!keep || findKeyed(next, keep.key)) replaceQuietly(element, next);
+            else element.replaceWith(next);
             restore(next, carried);
             record.refreshes++;
             if (after) after(next);
@@ -519,8 +526,8 @@ function listenFor(watch, schedule) {
  * Focus inside a text field, a text area or something contenteditable - all
  * three are reasons to leave the DOM alone, unless the region asks for
  * `whileEditing`. A select is not, since the line claude/refresh-120 (UI-17):
- * it keeps focus after its pick as a button does, and a list open under the
- * pointer is held by the press. A focused BUTTON is not: a button keeps focus after it is pressed, and a window whose
+ * it keeps focus after its pick as a button does, and its list, while open, holds
+ * the rebuild of its own (`listOpen`, r121-R-3). A focused BUTTON is not: a button keeps focus after it is pressed, and a window whose
  * buttons freeze it the moment anybody clicks one is the stale window again
  * with extra steps.
  *
@@ -563,18 +570,23 @@ function focusKey(node, root, named) {
         const parent = at.parentElement;
         if (at !== node && (at.dataset?.drpgKey || at.id)) return `a:${keyFor(at, root, named)}>${path.join("/")}`;
         if (!parent) break;
-        path.unshift([...parent.children].indexOf(at));
+        path.unshift(childIndex(at));
     }
     return own;
 }
 
 /** The focus given back to the element that had it before the rebuild, its caret where it was (`focusOf`). */
 function giveFocusBack(element, { key, start, end }) {
-    const named = keysOf(element);
-    const field = [...element.querySelectorAll("*")].find(node => focusKey(node, element, named) === key);
+    const field = findKeyed(element, key);
     if (!field || typeof field.focus !== "function") return;
     field.focus({ preventScroll: true });
     try { if (start !== null && end !== null) field.setSelectionRange(start, end); } catch { /* a type with no caret */ }
+}
+
+/** The element of `element` whose `focusKey` is `key`, or null (`giveFocusBack`, and the rebuild's choice of a quiet removal). */
+function findKeyed(element, key) {
+    const named = keysOf(element);
+    return [...element.querySelectorAll("*")].find(node => focusKey(node, element, named) === key) ?? null;
 }
 
 /** Is the focus in a field of the region that takes a caret - text, a text area, something contenteditable? A select,
@@ -728,9 +740,24 @@ function keyFor(element, root, named = null) {
     for (let node = element; node && node !== root; node = node.parentElement) {
         const parent = node.parentElement;
         if (!parent) break;
-        path.unshift([...parent.children].indexOf(node));
+        path.unshift(childIndex(node));
     }
     return `p:${path.join("/")}`;
+}
+
+/*
+ * A NODE'S PLACE AMONG ITS SIBLINGS, FLOAT-TEXT'S PLACEHOLDER NOT COUNTED (r122-H-R1; the audit's check of 1.2.122, the line
+ * claude/refresh-120 for 1.2.123). float-text.mjs lifts a focused text area and stands a hidden placeholder of its own
+ * (`drpg-float-text-hold`, its HOLD_CLASS) before it in its parent. The Remnant card's two text boxes have no name, key or
+ * id, so they are keyed by place: 1 in the old label (after the placeholder), 0 in the new one, which has none - the typed
+ * words and the focus were looked for at a place the new tree does not hold. The class is written here, not imported:
+ * float-text.mjs is a page module live.mjs does not load.
+ */
+const FLOAT_HOLD = "drpg-float-text-hold";
+function childIndex(node) {
+    let i = 0;
+    for (let at = node.previousElementSibling; at; at = at.previousElementSibling) if (!at.classList?.contains(FLOAT_HOLD)) i++;
+    return i;
 }
 
 /** Every named element of the region and its key (see `keyFor`), read in one pass. */

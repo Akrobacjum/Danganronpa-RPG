@@ -43265,6 +43265,73 @@ const INVARIANTS = [
         }), "[typed, redrawn, more typed, left; typed, redrawn, left: drawn again; saved at the redraw; the focus on the new field; saved after the leave]");
     }],
 
+    ["R8545 - live.mjs on an artificial region (the line claude/refresh-120 for 1.2.123; the audit's check of 1.2.122, r122-H-R1): a nameless text box with float-text's placeholder before it, typed in and redrawn, keeps the words and the focus and saves once at the leave; a focused box the new tree has no place for is removed unsilenced, so its own blur saves what was typed", async () => {
+        /*
+         * r122-H-R1 (MAJOR, a regression of r121-R-1's quiet removal): the Remnant card's two text boxes have no name, key or
+         * id, so live.mjs keys them by place, and float-text.mjs stands a hidden placeholder (`drpg-float-text-hold`) before
+         * a lifted box - 1 in the old label, 0 in the new. The words and the focus were looked for where the new tree has
+         * nothing, and the quiet removal swallowed the blur that saves the card. Chromium's removal is emulated as in R8540
+         * (blur on the focused box when it changed since its focus). Two runs: `hold`, the card's box with the placeholder;
+         * `gone`, a box whose new tree holds no place for it (the region drawn with one box fewer). The saves are the box's
+         * own blur listener, wired after every redraw as the card's is. Red on 14bb0d92: `hold` kept nothing and saved
+         * nothing; `gone` saved nothing.
+         */
+        const { keepLive } = await import("./live.mjs");
+        const proto = Element.prototype, real = proto.replaceWith;
+        const atFocus = new WeakMap();
+        const onFocus = e => { if (e.target?.tagName === "TEXTAREA") atFocus.set(e.target, e.target.value); };
+        const run = async gone => {
+            let built = 0;
+            const saves = [];
+            const build = () => { built++; return `<div class="drpg-t-r8542"><label>A <textarea data-was=""></textarea></label>${
+                gone && built > 1 ? "" : "<label>B <textarea data-was=\"\"></textarea></label>"}</div>`; };
+            const host = document.createElement("div");
+            host.style.cssText = "position:fixed;left:-3000px;top:0;width:200px";
+            host.innerHTML = build();
+            document.body.appendChild(host);
+            const wire = root => { for (const area of root.querySelectorAll("textarea")) area.addEventListener("blur", () => { if (area.value !== area.dataset.was) saves.push(area.value); }); };
+            wire(host);
+            const app = { element: host, options: { window: { title: "test" } } };
+            const stop = keepLive(app, { region: ".drpg-t-r8542", build, delay: 0, watch: { hooks: [LIVE_PROBE] }, after: wire });
+            try {
+                const field = host.querySelectorAll("textarea")[gone ? 1 : 0];
+                field.focus();
+                if (!gone) field.before(Object.assign(document.createElement("div"), { className: "drpg-float-text-hold", hidden: true }));
+                field.value = "ab";
+                const before = built;
+                Hooks.callAll(LIVE_PROBE);
+                await wait(140);
+                const now = host.querySelector("textarea");
+                const atRedraw = { rebuilt: built > before, saves: [...saves], kept: gone ? null : now.value === "ab" && document.activeElement === now };
+                if (!gone) { now.value = "abc"; now.blur(); }
+                await wait(50);
+                return { ...atRedraw, left: [...saves] };
+            } finally {
+                stop();
+                host.remove();
+            }
+        };
+        let read;
+        document.addEventListener("focusin", onFocus, true);
+        proto.replaceWith = function (...nodes) {
+            const active = document.activeElement;
+            if (active?.tagName === "TEXTAREA" && this.contains(active) && active.value !== atFocus.get(active)) {
+                for (const type of ["blur", "focusout"]) active.dispatchEvent(new Event(type, { bubbles: type !== "blur" }));
+            }
+            return real.apply(this, nodes);
+        };
+        try {
+            read = { hold: await run(false), gone: await run(true) };
+        } finally {
+            proto.replaceWith = real;
+            document.removeEventListener("focusin", onFocus, true);
+        }
+        equal(JSON.stringify(read), JSON.stringify({
+            hold: { rebuilt: true, saves: [], kept: true, left: ["abc"] },
+            gone: { rebuilt: true, saves: ["ab"], kept: null, left: ["ab"] }
+        }), "[hold: drawn again; saved at the redraw; the words and the focus kept; saved after the leave. gone: drawn again; saved at the redraw (its own blur); -; after]");
+    }],
+
     ["R1317 - a region held to its settings is held to what it prints (E44 C2b; E44-07): a region with `watch.settings` rebuilds on its own key and not on another key of the module or another module's key of that name; every `keepLive(` call in scripts/ that names `settings` belongs to a window this test opens or to one of the three it names as unopenable in tier 1 (the readiness round's, the incident tracker and, since E44 C9, a project token's card), and each region it opens, built once with `game.settings.get` counted, reads no key of the module it does not declare - the GM panel's tiles and the Sound window's two regions among them", async () => {
         /*
          * E44 C2b, 04.11.2026; the plan's risk ("keepLive with keys may fail to rebuild a region that depends on a key it
@@ -58852,6 +58919,61 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ before: ["R8504 Aiko", "R8504 Botan"], made: ["R8504 Aiko renamed", "R8504 Botan", "R8504 Chie"], hooks: true }),
             "{before, made: the grant menu's students before and after a student was made and another renamed; hooks: the tab hears an actor made or deleted and a user} - the tab reads its students now");
     }],
+    ["R8546 - the Passages tab is not drawn again by a module flag written on an actor that changes nothing it shows: the grant menu opened with '+' stays open and the same node, and a rename still draws it again (scripts/passages-tab.mjs `wirePassagesTab`'s `draw`; the audit's check of 1.2.122, r122-H-2; the line claude/refresh-120 for 1.2.123)", async () => {
+        /* r122-H-2: the tab's watch hears every module flag written on any actor (an action spent, a step, a Call), and its
+           draw rewrote the box at each one: the '+' menu drawn shut, a press lost. The stores, scene and students are R8504's
+           stand-ins. Red on 14bb0d92: the menu was drawn again, shut, at the flag write. */
+        const { TIMING } = await import("./config.mjs");
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const T = await import("./passages-tab.mjs");
+        let now = 9_500_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R8546GM", isGM: () => true, isPrimary: () => true, worldId: () => "R8546WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R8546GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => now++,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r8546${name}`, key: `r8546${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "r8546mm", key: "r8546mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const box = (id, name, x, y, width, height) => ({ id, name, behaviors: [], getFlag: () => true, shapes: [{ x, y, width, height }] });
+        const scene = { id: "R8546SCENE", grid: { size: 100 }, levels: [],
+            regions: [box("R8546RH", "R8546 Hall", 1200, 200, 800, 200), box("R8546RK", "R8546 Kitchen", 1200, 400, 800, 400)] };
+        const P1 = `${scene.id}.r8546p1`;
+        await stores.map.patchMany({ [P1]: { sceneId: scene.id, level: null, shape: "wall", passageWallId: "R8546WALL", passageSeg: { x1: 1234, y1: 400, x2: 1300, y2: 400 },
+            rooms: ["R8546 Kitchen", "R8546 Hall"], state: "secret", startAccess: [] } });
+        const person = (id, name) => ({ id, name, type: "character", getFlag: () => undefined, testUserPermission: () => false });
+        const list = [person("R8546A", "R8546 Aiko"), person("R8546B", "R8546 Botan")];
+        const actors = new Map(list.map(a => [a.id, a]));
+        const app = { element: document.createElement("div") };
+        app.element.innerHTML = T.passagesTabHtml(scene, { stores, students: [...list] });
+        document.body.append(app.element);
+        const offered = () => [...app.element.querySelectorAll('[data-drpg-menu-of="grant"] [data-drpg-actor]')].map(b => b.textContent.trim()).sort();
+        let read = null;
+        try {
+            const tab = T.wirePassagesTab(app.element, scene, { dialog: app, stores, students: () => [...list], actors, users: [] });
+            tab.draw();
+            const menu = () => app.element.querySelector('[data-drpg-menu-of="grant"]');
+            app.element.querySelector('[data-drpg-passage-act="menu"][data-drpg-menu="grant"]')?.click();
+            const opened = menu();
+            must(opened && !opened.hidden, "the '+' of the grant menu opened nothing - this would measure nothing");
+            Hooks.callAll("updateActor", list[0], { flags: { [MODULE_ID]: { r8546Spent: 1 } } }, {}, "R8546");
+            await wait(TIMING.coalesceMs * 3);
+            const flag = { same: menu() === opened, open: menu()?.hidden === false };
+            list[0].name = "R8546 Aiko renamed";
+            Hooks.callAll("updateActor", list[0], { name: list[0].name }, {}, "R8546");
+            await wait(TIMING.coalesceMs * 3);
+            read = { flag, rename: { redrawn: menu() !== opened, shown: offered().includes("R8546 Aiko renamed") } };
+        } catch (err) {
+            read = { threw: String(err?.message ?? err).slice(0, 80) };
+        } finally {
+            app.element.remove();
+        }
+        equal(stableJson(read), stableJson({ flag: { open: true, same: true }, rename: { redrawn: true, shown: true } }),
+            "{flag: after a module flag that changes nothing on the tab - the grant menu the same node, still open; rename: drawn again, the new name offered}");
+    }],
     ["R8505 - a student made a Spectator keeps the cards its player posted as a student in the log: a message of that account an hour old is drawn, one of the last moment - the one the primary is about to remove - is not (scripts/spectator-ui.mjs `hiddenSpectatorMessage`, `SPECTATOR_FRESH_MS`; the audit's STG-05, 1.2.122 line WORLD)", async () => {
         /* 21.11.2026, 1.2.122 line WORLD. The audit's STG-05 (stages-20 E92-2): `renderChatMessageHTML` removed every message
            of an account that is a Spectator's now, its student's whole history too. A player who plays one character, that
@@ -61154,7 +61276,7 @@ const INVARIANTS = [
             "fog.mjs": 5, "gm-stores.mjs": 3, "gm-students.mjs": 1, "gm-team-dialog.mjs": 2, "hud.mjs": 1, "monocub.mjs": 2, "monokuma.mjs": 8,
             "movement.mjs": 2, "palm.mjs": 1, "passages-gm.mjs": 3, "passages.mjs": 1, "patches.mjs": 1, "player-status.mjs": 1,
             "private-rolls.mjs": 1, "projects-ui.mjs": 1, "projects.mjs": 1, "relay-guard.mjs": 2, "reroll.mjs": 1, "roll-dialog.mjs": 1,
-            "roll-draw.mjs": 1, "settings.mjs": 1, "window-scale.mjs": 1, "sfx.mjs": 1, "sheet-audit.mjs": 6, "sheet-mode.mjs": 1, "sheet-inventory.mjs": 1, "sheet.mjs": 1, "sheet-repaint.mjs": 1, "sheet-sidebar.mjs": 2, "spectator-dead.mjs": 1, "spectator.mjs": 1, "states.mjs": 1, "trial-scene.mjs": 4,
+            "roll-draw.mjs": 1, "settings.mjs": 1, "window-scale.mjs": 1, "sfx.mjs": 1, "sheet-audit.mjs": 6, "sheet-mode.mjs": 1, "sheet.mjs": 1, "sheet-repaint.mjs": 1, "sheet-sidebar.mjs": 2, "spectator-dead.mjs": 1, "spectator.mjs": 1, "states.mjs": 1, "trial-scene.mjs": 4,
             "trial-zones-ui.mjs": 1, "user-match.mjs": 3, "visibility.mjs": 2, "voice.mjs": 4 };
         const counted = {};
         for (const [file, text] of await otherSources()) {
@@ -66546,12 +66668,15 @@ const INVARIANTS = [
         must(student, "no student stands in a room - this would measure nothing");
         let renders = 0;
         const app = { document: { id: "R8425-elsewhere", type: "character" }, rendered: true, render() { renders++; } };
+        // The student as a stand-in whose sheet is this window (window-scale.mjs `isCharacterSheet`, R8438): the room's
+        // reads go to the student through its prototype.
+        const asSheet = Object.create(student, { sheet: { get: () => app } });
         const key = "R8425-stand-in";
         ui.windows[key] = app;
         let counts;
         try {
             I.noteRoomSignature(app);
-            app.document = student;
+            app.document = asSheet;
             const moved = I.redrawRoomSheets();
             I.noteRoomSignature(app);
             const still = I.redrawRoomSheets();
@@ -66565,6 +66690,72 @@ const INVARIANTS = [
         equal(stableJson({ counts, hooked, forgets: /\["createToken", "deleteToken"\]\)\s*Hooks\.on\(hook, doc => \{\s*forgetTamper\(\);\s*roomChanged\(doc\?\.parent/.test(reg) }),
             stableJson({ counts: [1, 0, 1], hooked: ["updateToken", "createToken", "deleteToken", "createItem", "updateItem", "deleteItem", "updateRegion"], forgets: true }),
             "{counts: [renders after the room moved, after it stood, in all]; hooked: the hooks registerSheetTweaks listens on; forgets: a token made or taken away forgets the Tamper cache and redraws its scene's sheets}");
+    }],
+    ["R8438 - the room watch redraws a character's sheets and no other window of a character (the auditor's check of 1.2.122, r122-E-R1; 1.2.123 line UI): sheet-inventory.mjs `redrawRoomSheets` renders the window a character keeps as its sheet when its room moved, and neither Configure Ownership nor Daggerheart's character settings of the same character, which note no signature and were redrawn on every token move and item change", async () => {
+        /* Red at 14bb0d92: `openCharacterSheets` took every rendered window whose document is a character, so the two
+           other windows rendered on each pass. Stand-in windows in `ui.windows`, taken out again; nothing written. */
+        const I = await import("./sheet-inventory.mjs");
+        needs(world.atLeast("studentsInRooms"), "a student standing in a room");
+        const { roomOfActor } = await import("./movement.mjs");
+        const student = studentActors().find(a => roomOfActor(a));
+        must(student, "no student stands in a room - this would measure nothing");
+        const renders = { sheet: 0, ownership: 0, settings: 0 };
+        const win = name => ({ rendered: true, render() { renders[name]++; } });
+        const sheet = win("sheet"), ownership = win("ownership"), settings = win("settings");
+        const actor = Object.create(student, { sheet: { get: () => sheet } });
+        for (const app of [sheet, ownership, settings]) app.document = actor;
+        const keys = ["R8438-sheet", "R8438-ownership", "R8438-settings"];
+        [sheet, ownership, settings].forEach((app, i) => { ui.windows[keys[i]] = app; });
+        let drawn;
+        try {
+            drawn = [I.redrawRoomSheets(), I.redrawRoomSheets({ scene: game.scenes.get(student.getActiveTokens?.()?.[0]?.document?.parent?.id) ?? null, all: true })];
+        } finally {
+            for (const key of keys) delete ui.windows[key];
+        }
+        equal(stableJson({ drawn: drawn.map(n => n >= 1), renders: { ownership: renders.ownership, settings: renders.settings }, sheet: renders.sheet >= 1 }),
+            stableJson({ drawn: [true, true], renders: { ownership: 0, settings: 0 }, sheet: true }),
+            "{drawn: a pass by signature and a pass for the scene drew something; renders: the ownership and settings windows rendered; sheet: the sheet rendered}");
+    }],
+    ["R8547 - the room watch does not render a sheet under a player typing in it, and renders it once when the focus leaves it; a sheet whose focus is on a box renders at once (the audit's check of 1.2.122, r122-H-6; the line claude/refresh-120 for 1.2.123): sheet-inventory.mjs `redrawRoomSheets`", async () => {
+        /* r122-H-6: a token made or taken away or a region written rendered every open sheet on its scene in full, with no hold
+           for a field being typed in. Stand-in sheets in `ui.windows` as R8438's, each with an element of its own holding a
+           text field and a box; the pass for the scene (`all`) asked with the text field focused, then the field left; and
+           with the box focused. Taken out again; nothing written. Red on 14bb0d92: rendered at once under the typing. */
+        const I = await import("./sheet-inventory.mjs");
+        needs(world.atLeast("studentsInRooms"), "a student standing in a room");
+        const { roomOfActor } = await import("./movement.mjs");
+        const student = studentActors().find(a => roomOfActor(a));
+        must(student, "no student stands in a room - this would measure nothing");
+        const renders = { typed: 0, box: 0 };
+        const win = name => {
+            const element = document.createElement("div");
+            element.innerHTML = `<input type="text" name="r8544"><input type="checkbox" name="r8544box">`;
+            document.body.append(element);
+            return { rendered: true, element, render() { renders[name]++; } };
+        };
+        const typed = win("typed"), box = win("box");
+        const keys = ["R8544-typed", "R8544-box"];
+        let read;
+        try {
+            for (const [i, app] of [typed, box].entries()) { app.document = Object.create(student, { sheet: { get: () => app } }); ui.windows[keys[i]] = app; }
+            delete ui.windows[keys[1]];
+            typed.element.querySelector("[name=r8544]").focus();
+            const drawn = I.redrawRoomSheets({ all: true });
+            const atTyping = renders.typed;
+            typed.element.querySelector("[name=r8544]").blur();
+            await wait(30);
+            const afterLeave = renders.typed;
+            delete ui.windows[keys[0]];
+            ui.windows[keys[1]] = box;
+            box.element.querySelector("[name=r8544box]").focus();
+            const boxDrawn = I.redrawRoomSheets({ all: true });
+            read = { typed: { drawn, atTyping, afterLeave }, box: { drawn: boxDrawn, renders: renders.box } };
+        } finally {
+            for (const key of keys) delete ui.windows[key];
+            for (const app of [typed, box]) app.element.remove();
+        }
+        equal(stableJson(read), stableJson({ box: { drawn: 1, renders: 1 }, typed: { afterLeave: 1, atTyping: 0, drawn: 0 } }),
+            "{typed: [counted drawn, rendered while typed in, rendered after the leave]; box: [counted drawn, rendered with a box focused]}");
     }],
     ["R8426 - the scroll signal says which way the more lies (the audit of 1.2.118, UI-32; 1.2.122 line UI): ui-kit.mjs `watchScroll` on a box with more below says `DRPG.Kit.scrollMore`, on one with more only to the right `DRPG.Kit.scrollMoreRight`, and hides the line when nothing is past the edge", async () => {
         /* Red at 21bf5d18: the one line, "There is more below", for a box whose more was to the right. jsdom lays nothing

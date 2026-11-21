@@ -1746,10 +1746,19 @@ function followAutopsyTargets(dialog, isDeadForGm) {
         const box = event.target?.closest?.("[name=target]");
         if (box) hand.set(box.value, box.checked);
     });
+    /* DRAWN AGAIN ONLY WHEN THE CAST IT SHOWS CHANGED (the audit's check of 1.2.122, r122-H-5; the line claude/refresh-120 for
+       1.2.123). Every actor write anywhere ran this - a Daggerheart roll writes its actor several times - and each took
+       every box out and drew it again, so a tick whose box was taken out between its press and its release was lost.
+       The rows show each student's name and death alone; with the GM's ticks left out they are compared with the last
+       drawn, and an equal cast is not drawn again. */
+    let cast = autopsyTargetRows(studentActors(), isDeadForGm);
     keepFresh(dialog, {
         run: root => {
             const set = root.querySelector("[data-drpg-autopsy-who]");
             if (!set) return;
+            const now = autopsyTargetRows(studentActors(), isDeadForGm);
+            if (now === cast) return;
+            cast = now;
             const focused = [...set.querySelectorAll("[name=target]")].find(i => i === document.activeElement)?.value ?? null;
             for (const label of set.querySelectorAll("label.drpg-checkbox")) label.remove();
             set.insertAdjacentHTML("beforeend", autopsyTargetRows(studentActors(), isDeadForGm, hand));

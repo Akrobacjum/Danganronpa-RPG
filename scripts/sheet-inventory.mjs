@@ -15,6 +15,7 @@ import { isStashed, categoriesInGroup, isBroken, countInGroup, onlyCopied } from
 import { isEquipped, isUsable, usedCreatively, isEquippable, noDiscardNow } from "./use-items.mjs";
 import { sceneOfActor, roomOfActor, othersInRoom } from "./movement.mjs";
 import { GM_ROUTE_CLASS, error } from "./utils.mjs";
+import { isCharacterSheet } from "./window-scale.mjs";
 import { drpgConfirm, setTip } from "./ui-kit.mjs";
 import { modeOf, rowGate, sheetMode } from "./sheet-mode.mjs";
 import { dropTab, wearMarkup, classSafe, bulletBadges } from "./sheet-item.mjs";
@@ -1050,19 +1051,56 @@ export function noteRoomSignature(app) {
     if (app?.document) ROOM_SIGNATURES.set(app, roomSignature(app.document));
 }
 
-/** The open character sheets, rendered and not folded away. */
+/**
+ * The open character sheets, rendered and not folded away: the windows a character keeps as its sheet, and no other
+ * window of a character (window-scale.mjs `isCharacterSheet`). Read by the document's type alone it took Configure
+ * Ownership and Daggerheart's character settings for sheets too, and as no render of theirs notes a signature, the room
+ * watch redrew them on every token move and item change, under a GM setting them (the auditor's check of 1.2.122,
+ * r122-E-R1).
+ */
 function openCharacterSheets() {
     const out = new Set();
     for (const app of [...Object.values(ui.windows ?? {}), ...(foundry.applications?.instances?.values() ?? [])]) {
-        if (app?.document?.type === "character" && app.rendered) out.add(app);
+        if (app?.rendered && isCharacterSheet(app)) out.add(app);
     }
     return [...out];
+}
+
+/*
+ * NOT RENDERED UNDER A PLAYER TYPING IN IT (the audit's check of 1.2.122, r122-H-6; the line claude/refresh-120 for 1.2.123).
+ * The room watch renders a sheet in full (`render(false)`, which sheet-repaint.mjs `renderPlan` does not repaint) on another
+ * student's step into or out of its room, any token made or taken away (a trace laid or erased) and any region written on its
+ * scene. A render redraws Daggerheart's fields from the document, and in Chromium a removed focused field that was typed in
+ * fires its change and blur inside the removal (read on 21.11.2026 for `replaceWith` and for `innerHTML`) - what Foundry 14's
+ * render does with them is not read here (LIVE). So a sheet with a field typed in focused - a text input, a text area, a
+ * contenteditable - is not rendered now, and is rendered once, when the focus leaves it.
+ */
+const TYPED_INPUTS = new Set(["text", "search", "email", "url", "tel", "password", "number", ""]);
+function typingIn(app) {
+    const el = app?.element instanceof HTMLElement ? app.element : app?.element?.[0] ?? null;
+    const active = document.activeElement;
+    if (!el || !active || !el.contains(active)) return false;
+    if (active.isContentEditable || active.tagName === "TEXTAREA") return true;
+    return active.tagName === "INPUT" && TYPED_INPUTS.has(String(active.getAttribute("type") ?? "").toLowerCase());
+}
+const RENDER_OWED = new WeakSet();
+function renderWhenLeft(app) {
+    if (RENDER_OWED.has(app)) return;
+    const el = app.element instanceof HTMLElement ? app.element : app.element?.[0];
+    RENDER_OWED.add(app);
+    const left = () => setTimeout(() => {
+        if (el.contains(document.activeElement)) return;
+        el.removeEventListener("focusout", left);
+        RENDER_OWED.delete(app);
+        try { if (app.rendered) app.render(false); } catch (err) { error("Could not redraw a sheet for a change in its room", err); }
+    }, 0);
+    el.addEventListener("focusout", left);
 }
 
 /**
  * Redraw the open sheets whose room parts moved: `all` for every sheet whose character stands on `scene` (a room's
  * region written), else only those whose `roomSignature` differs from the one they were drawn with. Answers the
- * number of sheets asked to render (the suite reads it).
+ * number of sheets asked to render (the suite reads it); one put off while a player types in it is not counted.
  */
 export function redrawRoomSheets({ scene = null, all = false } = {}) {
     let drawn = 0;
@@ -1071,6 +1109,7 @@ export function redrawRoomSheets({ scene = null, all = false } = {}) {
         if (all) {
             if (scene && sceneOfActor(actor)?.id !== scene.id) continue;
         } else if (ROOM_SIGNATURES.has(app) && ROOM_SIGNATURES.get(app) === roomSignature(actor)) continue;
+        if (typingIn(app)) { renderWhenLeft(app); continue; }
         try {
             app.render(false);
             drawn++;
