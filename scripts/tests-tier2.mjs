@@ -85823,7 +85823,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const exempt = (src.match(/const THROWS_NO_DICE = new Set\(\[([^\]]*)\]\)/)?.[1] ?? "").split(",").map(x => x.trim().replace(/"/g, "")).filter(Boolean).sort();
         const callsGm = Object.entries(ACTIONS).filter(([, def]) => def?.callsGm === true || typeof def?.callsGm === "function").map(([key]) => key);
         const call = fnSource(bridge, "callGm");
-        const refunds = ["performPalm", "resolvePlant"].map(name => /nobodyTook\(res\.ok, res\.reason\)[^;]*await palmBack\(actor, paid\)/.test(fnSource(src, name).replace(/\s+/g, " ")));
+        // Since 1.2.122 (the audit's CASE-34) both refund through one helper, which an unseen Frisk shares (palm.mjs
+        // `handBackIfRefusedBeforeRolls`): read in each road, and the helper's own noGm and refund.
+        const handBack = fnSource(src, "handBackIfRefusedBeforeRolls").replace(/\s+/g, " ");
+        const refunds = ["performPalm", "resolvePlant"].map(name => /await handBackIfRefusedBeforeRolls\(actor, paid, res\)/.test(fnSource(src, name))
+            && /nobodyTook\(res\?\.ok, res\?\.reason\)[^;]*;[^]*?await palmBack\(actor, paid\)/.test(handBack));
         const nobody = fnSource(src, "nobodyTook");
         equal(stableJson({ before: refusal >= 0 && firstPrice > refusal, exempt, held: callsGm.filter(key => exempt.includes(key) && key !== "directMurder"),
             callGm: /if \(!gmOnline\(\)\) \{\s*sayNotDone\(what, "noGm"[\s\S]{0,80}?return false;/.test(call), refunds, noGm: /!ok && reason === "noGm"/.test(nobody) }),
@@ -103934,6 +103938,58 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(stableJson(read), stableJson({ given: [1, 1], after: { threw: false, first: [1, 1], second: [0, 0], warned: true } }),
             "{given: each one's Body above what it was; after: whether the boundary threw, [rows, Body above] of the one whose write failed and of the other, the GM warned} - one failed take-back keeps its row and holds no other");
+    }],
+    ["1.2.122 CASE-34 ITEM-27 - an unseen Frisk the primary refuses before its rolls are read gives its action back, as a Steal's and a Plant's do; and a Plant of an item no longer in the planter's pockets is answered as refused, not done (scripts/frisk.mjs `performFrisk`; palm.mjs `handBackIfRefusedBeforeRolls`, `plantOnPerson`; the audit's CASE-34 and ITEM-27, 1.2.122 line WORLD): a GM's own unseen Frisk of a student who stands in another room is refused 'not there' after both rolls and leaves the actions where they stood before it was paid; `plantOnPerson` asked for an item the planter does not hold answers a refusal of the closed list's 'refused' code", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line WORLD. CASE-34 (domain-case-c-investigation-3): `performFrisk` read the answer for its card
+         * only, so a Frisk the one gate refused (the target walked out while the two roll windows were open) kept its action
+         * spent. Driven: this GM's own unseen Frisk (the searcher's browser is this GM's, as E80 r2's `gmFrisk` drives the open
+         * one), the target's token moved to another room first - the state the target's walk-out leaves - so `friskPerson`
+         * refuses it on the gate; the rolls are thrown as the suite throws a GM's. ITEM-27 (domain-item-a-3): `plantOnPerson`
+         * answered null for an item the planter no longer carries, which the runner answers as done. Asked directly, as the
+         * run of `action.plant` asks it, with an id the planter holds no item under. Put back: the actions, the token, the
+         * cards. Red at 21bf5d18: the Frisk's actions read one fewer, and the Plant answered null.
+         */
+        const M = await import("./movement.mjs");
+        const F = await import("./frisk.mjs");
+        const V = await import("./vault.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { actionsLeft } = await import("./actions.mjs");
+        needs(world.atLeast("namedRooms", 2), "two rooms: the searcher's and the target's");
+        const { theirs, other } = playerAndCharacters();
+        must(other, "the world has no character this player does not play");
+        const here = M.locateActor(theirs), there = M.locateActor(other);
+        must(here?.room && there?.tokenDoc && here.scene?.id === there.scene?.id, "the two characters do not stand on one scene - this would measure nothing");
+        const away = M.allRooms(here.scene).find(r => r !== here.room);
+        must(away, "the scene has no second room");
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const tokenWas = { x: there.tokenDoc.x, y: there.tokenDoc.y };
+        const ACT = "system.resources.actions.value";
+        const putBack = sheetAsFound(theirs, [ACT]);
+        const seen = new Set(game.messages.map(m => m.id));
+        const read = {};
+        try {
+            await there.tokenDoc.update(M.positionIn(away, there.tokenDoc), { ...PLACE });
+            await settle();
+            const top = Math.max(2, actionsLeft(theirs));
+            await trustedWrite(theirs, { [ACT]: top }, { reason: "gmRuling" });
+            await settle();
+            const run = F.performFrisk(theirs, ACTIONS.palm, other, "unseen", { cost: 1, room: here.room });
+            const out = await Promise.race([run, wait(15000).then(() => "timeout")]);
+            await settle();
+            read.frisk = [out === "timeout" ? "timeout" : "ran", top - actionsLeft(theirs)];
+            const answer = await V.plantOnPerson({ plannerId: theirs.id, victimId: other.id, itemId: "SUITE122ITEM27x", total: 30, isCritical: true, unseenTotal: 30, unseenCritical: true });
+            read.plant = answer?.refused ? G.reasonOf(answer.refused) : answer;
+        } finally {
+            if (there.scene.tokens.has(there.tokenDoc.id)) await there.tokenDoc.update(tokenWas, { ...PLACE });
+            await putBack();
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ frisk: ["ran", 0], plant: "refused" }),
+            "{frisk: [the run ended, the actions it left spent]; plant: the code of a Plant's answer for an item not held} - a refusal before the rolls hands the action back, and a run that did nothing says so");
     }],
     ["PV-DOORS-T1 - the people in the character's own room always see who works its doors, and everyone behind a barricade hears a knock (scripts/doors-gm.mjs `shutDoor`, `forceDoor`, `pickLock`, `knockDoor`; the owner's rules #8 and #9, 13.11.2026): Shut the Door, a Force missed with Hope and a Pick whose Shadow cover passed each send the other student in the character's room a card naming the character, and nobody in the room beyond one; a Pick whose cover failed and a Force missed with Despair tell both rooms, as before; a walk refused at a barricade is heard by everyone in the barricaded room - its author and the student beside them - and never by the walker", async () => {
         /*
