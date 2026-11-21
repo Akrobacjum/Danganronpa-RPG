@@ -2677,6 +2677,7 @@
       "trailAction": "Misleading Trail",
       "trailWho": "Who to frame",
       "trailNobody": "There is nobody left to frame.",
+      "trailGone": "{name} can no longer be framed.",
       "moveAction": "Move the Body",
       "moveHint": "Spend {n} Sanity and roll Body to drag the body to a connected room. If it moves, you leave an Evident Remnant.",
       "bodyNotHere": "The body is not in this room. You have to be with it to move it.",

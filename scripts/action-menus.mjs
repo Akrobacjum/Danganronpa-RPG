@@ -371,7 +371,7 @@ export function actionWindow({ brief = "", ask = "", classes = [], render = null
     return wideWindow({
         ...(ask ? {} : { width: WIDE.width / 2 }),
         ...rest,
-        render: (event, dialog) => { wireDetails(dialog); return render?.(event, dialog); },
+        render: (event, dialog) => { wireDetails(dialog); wireLiveBriefings(dialog); return render?.(event, dialog); },
         classes: [...new Set(["drpg-panel", ...classes, "drpg-action-window"])],
         columns: [{ cls: "drpg-variant-brief", html: brief }, ...(ask ? [{ cls: "drpg-variant-ask", html: ask }] : [])]
     });
@@ -430,6 +430,47 @@ export function detailsStack(layers = []) {
     const shown = layers.filter(layer => layer?.html);
     return shown.length ? `<div class="drpg-details-stack">${shown.map(layer =>
         `<div class="drpg-details-layer" data-drpg-when="${esc(layer.when)}">${layer.html}</div>`).join("")}</div>` : "";
+}
+
+/*
+ * THE BRIEFINGS KEPT LIVE (the auditor's probe 43, p43-1, 1.2.123; action-briefing.mjs `briefingBlock`). A briefing drawn
+ * under an id keeps its builder here (`keepBriefing`, the newest 64: a builder lives as long as its window is likely to);
+ * `wireLiveBriefings` stands keepLive on its two regions in a drawn window - the lead (`.drpg-briefing-block`) and its own
+ * lines in Details (`.drpg-briefing-live`) - each rebuilt from a fresh draw of the whole block. The lines bound to a row
+ * are lit again for the row picked (`syncDetails`'s rule). Kept here, not in action-briefing.mjs, which imports this file.
+ */
+const liveBriefings = new Map();
+/** The writes a briefing reads: the character's budget and Sanity, its items (tools, bullets), the tokens (the room, who is there), and the hour (WORLD_HOOKS). */
+const BRIEFING_WATCH = Object.freeze({ actors: true, items: true, tokens: true, hooks: ["drpgDeathsChanged"] });
+
+export function keepBriefing(id, build) {
+    liveBriefings.set(id, build);
+    while (liveBriefings.size > 64) liveBriefings.delete(liveBriefings.keys().next().value);
+}
+
+function wireLiveBriefings(dialog) {
+    const root = dialog?.element;
+    if (!root) return;
+    for (const id of new Set([...root.querySelectorAll("[data-drpg-brief]")].map(node => node.dataset.drpgBrief))) {
+        const build = liveBriefings.get(id);
+        if (typeof build !== "function") continue;
+        const part = cls => () => {
+            const holder = document.createElement("div");
+            holder.innerHTML = build();
+            return holder.querySelector(`.${cls}[data-drpg-brief="${CSS.escape(id)}"]`)?.outerHTML ?? `<div class="${cls}" data-drpg-brief="${esc(id)}"></div>`;
+        };
+        keepLive(dialog, { region: `.drpg-briefing-block[data-drpg-brief="${CSS.escape(id)}"]`, build: part("drpg-briefing-block"), watch: BRIEFING_WATCH });
+        keepLive(dialog, {
+            region: `.drpg-briefing-live[data-drpg-brief="${CSS.escape(id)}"]`, build: part("drpg-briefing-live"), watch: BRIEFING_WATCH,
+            after: element => {
+                const value = root.querySelector('input[name="variant"]:checked')?.value;
+                if (value === undefined) return;
+                for (const layer of element?.querySelectorAll?.(".drpg-details-layer") ?? []) {
+                    layer.classList.toggle(UNPICKED, !String(layer.dataset.drpgWhen ?? "").split(/\s+/).includes(value));
+                }
+            }
+        });
+    }
 }
 
 /** The toggle opens and shuts its box and writes the setting; Enter on it does what a click does (the kit's form takes no part). */

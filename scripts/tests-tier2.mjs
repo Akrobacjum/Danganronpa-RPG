@@ -91945,6 +91945,136 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ rows: pair.map(a => a.id).sort(), others: 0, boxes: 0, warning: [true, true, true, true] }),
             "{the two Monokumas' rows; rows of a character that is no Monokuma; checkboxes on the tab; the warning [a warning box, shown, above the table, both names]}");
     }],
+    ["1.2.123 p43-1 - an action window's briefing follows the character while it stands: \"You have 3\" reads 2 once an action is spent meanwhile, as a fresh window would (scripts/action-briefing.mjs `briefingBlock`; action-menus.mjs `keepBriefing`, `wireLiveBriefings`; the auditor's probe 43, 1.2.123 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.123 line DESP. The auditor's p43-1 (first measured on 1.2.118, AUDIT 18.1): Observe, Search,
+         * Analyze, Tamper, Projects and a Dynamic action draw `briefingBlock` once, at the open, and kept the count. The menu
+         * every one of them opens (`chooseVariant`, through `actionWindow`) drawn on this GM (`__dialogWindows`) with
+         * Observe's briefing, for a student of the cast with 3 actions; then the actions written to 2 on the sheet. Read: the
+         * price's line in Details before and after, and the lead's words still there. Put back: the window, the actions.
+         * Red at e7605e9f: the line stayed at 3.
+         */
+        needs(env.dialogs(), "the window is drawn and read");
+        const { ACTIONS } = await import("./config.mjs");
+        const { briefingBlock } = await import("./action-briefing.mjs");
+        const { chooseVariant } = await import("./action-menus.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { plural } = await import("./utils.mjs");
+        const [actor] = cast(1);
+        const def = ACTIONS.observe;
+        const actionsWas = foundry.utils.getProperty(actor, "system.resources.actions.value");
+        const el = () => [...(foundry.applications.instances?.values?.() ?? [])].map(a => (a.element instanceof HTMLElement ? a.element : a.element?.[0]))
+            .find(e => e?.isConnected && e.querySelector('input[name="variant"][value="suiteP43"]')) ?? null;
+        const box = () => el()?.querySelector(".drpg-action-details-box")?.textContent.replace(/\s+/g, " ") ?? "";
+        const line = n => plural("DRPG.Action.willCost", { n: def.cost ?? 1, left: n });
+        const read = {};
+        let opening = null;
+        try {
+            await trustedWrite(actor, { "system.resources.actions.value": 3 }, { reason: "gmRuling" });
+            await settle();
+            opening = chooseVariant({ actor, title: "SUITE p43-1", intro: briefingBlock(actor, "observe", def), options: [{ value: "suiteP43", label: "SUITE" }] });
+            await until(() => el(), 3000);
+            read.before = box().includes(line(3));
+            await trustedWrite(actor, { "system.resources.actions.value": 2 }, { reason: "gmRuling" });
+            await settle();
+            await until(() => box().includes(line(2)), 1500);
+            read.after = box().includes(line(2));
+            read.lead = Boolean(el()?.querySelector(".drpg-briefing-block p"));
+        } finally {
+            for (const app of [...(foundry.applications.instances?.values?.() ?? [])]) {
+                const e = app.element instanceof HTMLElement ? app.element : app.element?.[0];
+                if (e?.querySelector?.('input[name="variant"][value="suiteP43"]')) await app.close().catch(() => {});
+            }
+            await opening?.catch?.(() => null);
+            await trustedWrite(actor, { "system.resources.actions.value": actionsWas }, { reason: "gmRuling" });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ before: true, after: true, lead: true }),
+            "{the price's line at 3 actions; at 2 once spent meanwhile; the lead still drawn}");
+    }],
+    ["1.2.123 p43-1 - Analyze's window follows the bullets while it stands: a student with nothing to analyze is given a Truth Bullet, and its row is no longer shut and its select offers the bullet (scripts/action-analyze.mjs `askWhatToAnalyze`; the auditor's probe 43, 1.2.123 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.123 line DESP. The auditor's p43-1: Analyze kept "You have nothing left to analyze" after a Truth
+         * Bullet was given. The GM's free Analyze for a student of the cast with no analysable bullet, drawn on this GM
+         * (`__dialogWindows`); then a Truth Bullet made for that student (`createTruthBullet`). Read: the bullet row shut
+         * before, open after, and the bullet in the select. Put back: the window (Cancel: nothing is paid), the bullet.
+         * Red at e7605e9f: the row stayed shut.
+         */
+        needs(env.dialogs(), "the window is drawn and read");
+        const A = await import("./action-rolls.mjs");
+        const T = await import("./truth-bullets.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const actor = cast(4).find(a => !T.analysableBullets(a).length);
+        must(actor, "every student of the cast holds an analysable bullet - this would measure nothing");
+        const el = () => [...(foundry.applications.instances?.values?.() ?? [])].map(a => (a.element instanceof HTMLElement ? a.element : a.element?.[0]))
+            .find(e => e?.isConnected && e.querySelector('input[name="variant"][value="bullet"]') && e.querySelector('input[name="variant"][value="passage"], input[name="variant"][value="hint"]')) ?? null;
+        const shut = () => Boolean(el()?.querySelector('input[name="variant"][value="bullet"]')?.disabled);
+        let bullet = null, opening = null;
+        const read = {};
+        try {
+            opening = A.performAction(actor, "analyze", { free: true });
+            await until(() => el(), 3000);
+            must(el(), "the Analyze window did not open - this would measure nothing");
+            read.before = shut();
+            bullet = await T.createTruthBullet(actor, { name: "SUITE p43-1 a torn note", playerText: "SUITE p43-1" });
+            await sheetAuditIdle();
+            await settle();
+            await until(() => !shut(), 1500);
+            read.after = shut();
+            read.offered = Boolean(bullet && el()?.querySelector(`select[name="bullet"] option[value="${bullet.id}"]`));
+        } finally {
+            for (const app of [...(foundry.applications.instances?.values?.() ?? [])]) {
+                const e = app.element instanceof HTMLElement ? app.element : app.element?.[0];
+                if (e?.querySelector?.('input[name="variant"][value="bullet"]')) await app.close().catch(() => {});
+            }
+            await opening?.catch?.(() => null);
+            if (bullet && actor.items.get(bullet.id)) await bullet.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ before: true, after: false, offered: true }),
+            "{the bullet row shut with nothing to analyze; shut once a bullet was given meanwhile; the bullet in the select}");
+    }],
+    ["1.2.123 p43-1 - Tamper's whom to frame follows who is alive while the window stands: a student who dies leaves the select, and the others stay (scripts/action-tamper.mjs `chooseTamper`, `runTamperChoice`; the auditor's probe 43, 1.2.123 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.123 line DESP. The auditor's p43-1: Tamper's "Who to frame" kept a student who died. The GM's
+         * free Tamper for a student of the cast, drawn on this GM (`__dialogWindows`); then another student marked dead
+         * (death.mjs `markDeceased`, the published flag `livingStudents` reads). Read: the select's students before and
+         * after. Put back: the window (Cancel), the death (`reviveCharacter`). Red at e7605e9f: the dead student stayed.
+         */
+        needs(env.dialogs(), "the window is drawn and read");
+        const A = await import("./action-rolls.mjs");
+        const D = await import("./death.mjs");
+        const [actor, victim] = cast(2);
+        must(victim, "fewer than two students - this would measure nothing");
+        const el = () => [...(foundry.applications.instances?.values?.() ?? [])].map(a => (a.element instanceof HTMLElement ? a.element : a.element?.[0]))
+            .find(e => e?.isConnected && e.querySelector('input[name="variant"][value="frame"]')) ?? null;
+        const listed = () => [...(el()?.querySelectorAll('select[name="who"] option') ?? [])].map(o => o.value);
+        let opening = null, marked = false;
+        const read = {};
+        try {
+            opening = A.performAction(actor, "tamper", { free: true });
+            await until(() => el(), 3000);
+            must(el(), "the Tamper window did not open - this would measure nothing");
+            read.before = listed().includes(victim.id);
+            const others = listed().filter(id => id !== victim.id);
+            marked = Boolean(await D.markDeceased(victim, { silent: true }));
+            must(marked, "the student could not be marked dead - this would measure nothing");
+            await settle();
+            await until(() => !listed().includes(victim.id), 2000);
+            read.after = listed().includes(victim.id);
+            read.others = stableJson(listed()) === stableJson(others);
+        } finally {
+            for (const app of [...(foundry.applications.instances?.values?.() ?? [])]) {
+                const e = app.element instanceof HTMLElement ? app.element : app.element?.[0];
+                if (e?.querySelector?.('input[name="variant"][value="frame"]')) await app.close().catch(() => {});
+            }
+            await opening?.catch?.(() => null);
+            if (marked) await D.reviveCharacter(victim, { quiet: true, silent: true });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ before: true, after: false, others: true }),
+            "{the victim-to-be offered at the open; offered once dead; the other students as they were}");
+    }],
     ["1.2.123 r122-H-7 - Despair Flow follows another GM's change while it stands: the Overflow rules written meanwhile are what the window shows, and a pool's name this GM typed and did not save is kept, while the fields it left as drawn show the world (scripts/gm-team-dialog.mjs `flowShown`, `changedDraft`; the audit's r122-F-4 and r122-H-7, 1.2.123 line DESP)", async () => {
         /*
          * 21.11.2026, 1.2.123 line DESP. The audit's r122-H-7: the window showed the pools, assignments and Overflow rules of

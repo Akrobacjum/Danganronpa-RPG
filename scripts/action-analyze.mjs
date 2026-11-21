@@ -30,6 +30,7 @@ import { rollCardFlags, rollHead } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
 import { requestFieldHtml, readRequestField, chooseVariant } from "./action-menus.mjs";
 import { tipAttr } from "./ui-kit.mjs";
+import { keepLive } from "./live.mjs";
 
 /*
  * ONE CLASS TRIAL FILTER FOR ANALYZE (E16 part 2 C3, 26.10.2026; audit S02-70, the owner's D16: "Płatne opcje Analyze w
@@ -110,14 +111,15 @@ export async function performAnalyze(actor, def, options) {
 
     const asked = preselected
         ? { choice: preselected.id, request: "" }
-        : await askWhatToAnalyze(actor, def, bullets);
+        : await askWhatToAnalyze(actor, def, bullets, () => analysableBullets(actor));
     const choice = asked?.choice ?? null;
     if (!choice || choice === "cancel") return null;
 
     // "hint", "stash" and "passage" are literal action ids; anything else is the
     // bullet id the "bullet" row's own select returned above.
     const ruled = choice === "hint" || choice === "stash" || choice === "passage";
-    const subject = ruled ? null : (bullets.find(b => b.id === choice) ?? null);
+    // The list as it stands now: a bullet given while the window stood is offered there (p43-1, 1.2.123).
+    const subject = ruled ? null : (analysableBullets(actor).find(b => b.id === choice) ?? null);
     if (!ruled && !subject) return null;
 
     /*
@@ -448,25 +450,34 @@ async function locatePassage(actor, def, roll, request = "", charge = null) {
  *   id the select names (null where it names none), `request` the hint's sentence ("" for every other row); null
  *   when the window was closed.
  */
-async function askWhatToAnalyze(actor, def, bullets) {
+async function askWhatToAnalyze(actor, def, bullets, fresh = () => bullets) {
     // Two variants and one select, rather than two buttons and one select: the
     // select belongs to the first variant only, and as a footer button pair
     // there was nothing to say so. It rides along as `extra` and is simply not
     // read when the hint is what was chosen.
-    const picked = await chooseVariant({
-        actor,
-        title: def.label,
-        intro: briefingBlock(actor, "analyze", def),
-        // Every row rolls (E100 item 6, R4105: one word per kind of button; "Do it" until then).
-        confirm: game.i18n.localize("DRPG.Action.roll"),
-        options: [
+    /* THE ROWS AND THE BULLETS FOLLOW THE SHEET (the auditor's probe 43, p43-1, 1.2.123). Drawn once, a window opened with
+       no bullet kept "You have nothing left to analyze" after a GM gave one, and its select never offered it. The rows
+       (`rowsFor`) are rebuilt from a fresh read of the analysable bullets (`fresh`, truth-bullets.mjs `analysableBullets`)
+       on every write of the character or an item (action-menus.mjs `keepRowsLive`), the row picked carried; and so is the
+       bullet's select (`whichBullet`, a region of its own, the bullet picked carried by keepLive). */
+    const whichBullet = list => `<div class="drpg-analyze-which">${list.length
+        ? `<label>${game.i18n.localize("DRPG.Analyze.whichBullet")}
+                <select name="bullet"${tipAttr("DRPG.Tips.Sweep.Actions.analyzeBulletTooltip")}>${list
+                    .map(b => `<option value="${b.id}">${
+                        foundry.utils.escapeHTML(b.name)}</option>`).join("")}</select></label>`
+        : ""}</div>`;
+    const rowsFor = list => [
             {
                 value: "bullet", icon: "fa-magnifying-glass-chart",
                 label: game.i18n.localize("DRPG.Analyze.analyseBullet"),
-                hint: plural("DRPG.Analyze.analyseBulletHint", { n: bullets.length }),
-                disabled: !bullets.length,
+                hint: plural("DRPG.Analyze.analyseBulletHint", { n: list.length }),
+                disabled: !list.length,
                 why: game.i18n.localize("DRPG.Analyze.noBullets")
             },
+            ...rowsAfterBullet
+        // In a Class Trial the rows the filter shuts are not offered at all (`ANALYZE_TRIAL_FILTER`), never greyed.
+        ].filter(option => !analyzeRowShut(option.value));
+    const rowsAfterBullet = [
             {
                 value: "hint", icon: "fa-comment-question", gmRoute: true,
                 label: game.i18n.localize("DRPG.Analyze.askHint"),
@@ -493,14 +504,17 @@ async function askWhatToAnalyze(actor, def, bullets) {
                 label: game.i18n.localize("DRPG.Analyze.findPassage"),
                 hint: game.i18n.format("DRPG.Analyze.findPassageHint", { n: def.passageThreshold })
             }
-        // In a Class Trial the rows the filter shuts are not offered at all (`ANALYZE_TRIAL_FILTER`), never greyed.
-        ].filter(option => !analyzeRowShut(option.value)),
-        extra: `${bullets.length
-            ? `<label>${game.i18n.localize("DRPG.Analyze.whichBullet")}
-                <select name="bullet"${tipAttr("DRPG.Tips.Sweep.Actions.analyzeBulletTooltip")}>${bullets
-                    .map(b => `<option value="${b.id}">${
-                        foundry.utils.escapeHTML(b.name)}</option>`).join("")}</select></label>`
-            : ""}${requestFieldHtml({
+        ];
+    const picked = await chooseVariant({
+        actor,
+        title: def.label,
+        intro: briefingBlock(actor, "analyze", def),
+        // Every row rolls (E100 item 6, R4105: one word per kind of button; "Do it" until then).
+        confirm: game.i18n.localize("DRPG.Action.roll"),
+        options: rowsFor(bullets),
+        live: { options: () => rowsFor(fresh()), watch: { actors: true, items: true } },
+        onRender: (event, dialog) => keepLive(dialog, { region: ".drpg-analyze-which", build: () => whichBullet(fresh()), watch: { actors: true, items: true } }),
+        extra: `${whichBullet(bullets)}${requestFieldHtml({
                 prompt: game.i18n.format("DRPG.Action.gmPrompt", { action: def.label }),
                 placeholder: game.i18n.localize("DRPG.Action.placeholder.analyze"),
                 // A GM reads it on the hint alone (E51 C1; audit S02-51 (a)): shown with every row, it asked the
