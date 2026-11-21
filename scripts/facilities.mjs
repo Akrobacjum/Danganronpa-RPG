@@ -325,7 +325,10 @@ export async function setProjectFacility(projectId, raw) {
     if (raw !== null && !facility) return null;
     const { allProjects, applyProjectChange } = await import("./projects.mjs");
     const done = allProjects().find(p => p.id === projectId)?.complete === true;
-    const stamp = facility && done && !metaFor(projectId).completedAt ? { completedAt: facilityOrdinal() } : {};
+    /* `completedAtOf`, not projectMeta's alone (1.2.123; the auditor's r122-ITEMS-R-2, a regression of ITEM-38): a secret
+       project's completedAt is the GMs' row's, which `metaFor` never holds, so every Save in the action editor of a
+       completed secret project stamped now and restarted its lifetime. */
+    const stamp = facility && done && !completedAtOf(projectId) ? { completedAt: facilityOrdinal() } : {};
     const result = await applyProjectChange(projectId, { meta: { facility, ...stamp } });
     return result ? facility : null;
 }
