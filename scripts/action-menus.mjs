@@ -166,7 +166,7 @@ export function readRequestField(root) {
 
 export async function chooseVariant({
     actor, title, intro = "", prompt = "", options = [], traits = null,
-    extra = "", confirm = null, traitNote = "", showShut = false, columns = true
+    extra = "", confirm = null, traitNote = "", showShut = false, columns = true, onRender = null
 } = {}) {
     const usable = options.filter(o => !o.disabled);
     // `showShut`: a window whose every row is shut still opens, the rows greyed with their reasons and one button
@@ -247,6 +247,8 @@ export async function chooseVariant({
                 globalThis.document?.fonts?.ready?.then(() => holdRowLines(dialog.element)).catch(() => {});
             }
             atTop(dialog);
+            // The caller's own wiring once drawn (1.2.122: the Projects window keeps its rows live, REFR-36).
+            onRender?.(event, dialog);
         },
         footer: !usable.length ? { close: "close" } : {
             primary: {

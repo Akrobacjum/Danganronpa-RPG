@@ -66,7 +66,8 @@ import { ROOM_FLAGS, roomBroken } from "./movement.mjs";
 import { isDeceased, getClock } from "./settings.mjs";
 import { SEARCH_FLAGS } from "./search-tokens.mjs";
 import {
-    whisperToOwner, whisperToGms, log, error, plural, serialWrite, esc, isPrimaryGm, forgeAsset, localeFormat, announce, listOf
+    whisperToOwner, whisperToGms, log, error, plural, serialWrite, esc, isPrimaryGm, forgeAsset, localeFormat, announce, listOf,
+    worldLocalize
 } from "./utils.mjs";
 // A leaf (it imports config.mjs alone): what a room is, and the writer of its flag.
 import {
@@ -291,6 +292,24 @@ export async function grantBedroomKey(actor, room, { silent = false, scene, tidy
 /** The queue key of a student's key grants (`grantBedroomKey`). */
 export const bedroomKeyKey = actorId => `bedroomKey/${actorId}`;
 
+/*
+ * A KEY'S NAME AND TEXT IN THE WORLD'S LANGUAGE (1.2.122 line ITEMS; the code half of the audit's STG-28). The Document
+ * language setting is "the language of the documents the module writes into this world, one for everyone", and a
+ * bedroom key was named and described in the language of the GM's browser that granted it: an English table's sheets
+ * held keys named in Polish. They are written through `worldLocalize` now, as a granted item's tier line is. A key
+ * written before, in the GM's language, is still the module's own: the readers that tell a grant's name or text from a
+ * GM's own words (`keyNamesOf`, `keyTextsOf`) take either language's.
+ */
+const KEY_NAME = "DRPG.Vault.keyName", KEY_TEXT = "DRPG.Vault.keyDescription";
+export const keyNameFor = room => worldLocalize(KEY_NAME, { room });
+const keyTextFor = async (room, owner) => `<p>${await worldLocalize(KEY_TEXT, { room: esc(room), owner: esc(owner ?? "-") })}</p>`;
+async function keyNamesOf(room) {
+    return new Set([game.i18n.format(KEY_NAME, { room }), await keyNameFor(room)]);
+}
+async function keyTextsOf(room, owner) {
+    return new Set([`<p>${game.i18n.format(KEY_TEXT, { room: esc(room), owner: esc(owner ?? "-") })}</p>`, await keyTextFor(room, owner)]);
+}
+
 /** `grantBedroomKey`'s step, inside its queue. */
 async function grantKeyNow(actor, room, { silent, scene, tidy = false }) {
     /* Every write queued on the student judged first (E11 C10), so a key this GM made a moment ago
@@ -323,13 +342,11 @@ async function grantKeyNow(actor, room, { silent, scene, tidy = false }) {
     if (repointed) return repointed;
     const item = await grantItem(actor, {
         reason: "gmRuling",
-        name: game.i18n.format("DRPG.Vault.keyName", { room }),
+        // In the world's language (STG-28: `keyNameFor`, `keyTextFor`).
+        name: await keyNameFor(room),
         category: "bedroomKey",
         tier: null,
-        description: `<p>${game.i18n.format("DRPG.Vault.keyDescription", {
-            room: foundry.utils.escapeHTML(room),
-            owner: foundry.utils.escapeHTML(owner?.name ?? "-")
-        })}</p>`,
+        description: await keyTextFor(room, owner?.name ?? "-"),
         // NO PICTURE NAMED HERE. `grantItem` falls back to the category's own
         // icon, and the category has had one since v1.1.60 - this line was
         // Foundry's padlock, hard-coded, which is why keys were the one thing
@@ -368,9 +385,14 @@ async function grantKeyNow(actor, room, { silent, scene, tidy = false }) {
  */
 async function repointDeadKey(actor, room) {
     const held = itemsHeldNow(actor);
-    const text = name => `<p>${game.i18n.format("DRPG.Vault.keyDescription", {
-        room: foundry.utils.escapeHTML(name), owner: foundry.utils.escapeHTML(actor.name ?? "-") })}</p>`;
-    const ownGrant = item => (item.system?.description ?? actor.items.get(item.id)?.system?.description) === text(keyRoomOf(item));
+    // The grant's text in either language it was written in (STG-28: `keyTextsOf`), read once per room asked.
+    const texts = new Map();
+    for (const item of held) {
+        const r = keyRoomOf(item);
+        if (r && !texts.has(r)) texts.set(r, await keyTextsOf(r, actor.name ?? "-"));
+    }
+    const text = name => texts.get(name) ?? new Set();
+    const ownGrant = item => text(keyRoomOf(item)).has(item.system?.description ?? actor.items.get(item.id)?.system?.description);
     const dead = held.filter(item => keyRoomOf(item) && !bedroomOwnerAnywhere(keyRoomOf(item)) && ownGrant(item));
     if (dead.length !== 1) return null;
     const keyed = keyRooms(held, { stashed: true });
@@ -385,8 +407,8 @@ async function repointDeadKey(actor, room) {
     if (!key) return null;
     const was = keyRoomOf(dead[0]);
     const changes = { [`flags.${MODULE_ID}.${KEY_FLAG}`]: room };
-    if (key.name === game.i18n.format("DRPG.Vault.keyName", { room: was })) changes.name = game.i18n.format("DRPG.Vault.keyName", { room });
-    if (key.system?.description === text(was)) changes["system.description"] = text(room);
+    if ((await keyNamesOf(was)).has(key.name)) changes.name = await keyNameFor(room);
+    if (text(was).has(key.system?.description)) changes["system.description"] = await keyTextFor(room, actor.name ?? "-");
     try {
         await trustedWrite(key, changes, { reason: "setup" });
     } catch (err) {
@@ -528,12 +550,11 @@ export async function takeOldOwnersKeys(left) {
  * room, carried or stashed, as the GMs hold it (`itemsHeldNow` after `judgedFor`), loses every such key by a GM's ruling
  * (`trustedDelete`, "gmRuling"), whatever its text says; the GM is told who lost one ("keyCopiesTakenGm") and each holder is
  * whispered ("keyCopyTakenBack"). The new owner's own keys stay, and one whose text is the module's own for the old owner
- * (`grantBedroomKey`'s, in this GM's language) is rewritten for them. Answers the holders who lost one.
+ * (`grantBedroomKey`'s, in the language it was written in: the GM's until 1.2.122, the world's since, STG-28) is rewritten for them. Answers the holders who lost one.
  */
 async function keyCopiesAfterOwnerLeft(room, old, owner) {
-    const text = name => `<p>${game.i18n.format("DRPG.Vault.keyDescription", {
-        room: foundry.utils.escapeHTML(room), owner: foundry.utils.escapeHTML(name ?? "-") })}</p>`;
-    const before = text(old.name), after = text(owner?.name);
+    // The old owner's grant text in either language (STG-28), the new owner's in the world's.
+    const before = await keyTextsOf(room, old.name), after = await keyTextFor(room, owner?.name);
     const holders = [];
     for (const actor of game.actors ?? []) {
         if (actor.id === old.id || !actor.items?.some(i => i.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) === room)) continue;
@@ -541,8 +562,8 @@ async function keyCopiesAfterOwnerLeft(room, old, owner) {
         const keys = itemsHeldNow(actor).filter(item => keyRoomOf(item) === room).map(held => actor.items.get(held.id)).filter(Boolean);
         if (!keys.length) continue;
         if (actor.id === owner?.id) {
-            if (before === after) continue;
-            for (const key of keys.filter(key => key.system?.description === before)) {
+            if (before.has(after)) continue;
+            for (const key of keys.filter(key => before.has(key.system?.description))) {
                 try {
                     await trustedWrite(key, { "system.description": after }, { reason: "gmRuling" });
                 } catch (err) {
@@ -1269,7 +1290,8 @@ export async function carryRoomOnSheets(scene, from, to, pieces = roomRegions(sc
             const changes = {};
             if (key) {
                 changes[`flags.${MODULE_ID}.${KEY_FLAG}`] = to;
-                if (held.name === game.i18n.format("DRPG.Vault.keyName", { room: from })) changes.name = game.i18n.format("DRPG.Vault.keyName", { room: to });
+                // A name the module wrote, in either language (STG-28); the new one in the world's.
+                if ((await keyNamesOf(from)).has(held.name)) changes.name = await keyNameFor(to);
                 keys++;
             }
             if (stash) {

@@ -43,7 +43,7 @@ import { roomOf, setProjectMeta, tokenRefOf, allProjects, isComplete, knowsProje
 import { metaFor, rawCountdown, COUNTDOWNS_KEY } from "./projects-secrecy.mjs";
 import { boundsOf, roomAt } from "./movement.mjs";
 import { sceneOfRoom, isMoveChange, roomRegions } from "./rooms.mjs";
-import { log, error, whisperToGms, esc, plural, isPrimaryGm, serialWrite } from "./utils.mjs";
+import { log, error, whisperToGms, esc, plural, isPrimaryGm, serialWrite, worldLocalize } from "./utils.mjs";
 // The card a project token opens stays true while it is open (E44 C9). live.mjs imports config.mjs and utils.mjs alone (R161).
 import { keepLive } from "./live.mjs";
 import { tipAttr } from "./ui-kit.mjs";
@@ -321,7 +321,8 @@ export async function placeProjectToken(countdownId, { scene = null } = {}) {
                name is in the countdown, hidden from the interface and not from
                the console (S09-05); anybody allowed to know reads it from there
                (`remnant-ring.mjs` does the same for traces). */
-            name: game.i18n.localize("DRPG.Project.tokenName"),
+            // In the world's language, as every document the module writes (STG-28; utils.mjs `worldLocalize`).
+            name: await worldLocalize("DRPG.Project.tokenName"),
             actorId: actor.id,
             actorLink: false,
             x: spot.x + nudge.dx,

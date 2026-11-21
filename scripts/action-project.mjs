@@ -154,6 +154,7 @@ export async function performProject(actor, def, options) {
                 why: game.i18n.localize("DRPG.Project.nothingToSabotage")
             }
         ],
+        onRender: (event, dialog) => keepProjectRowsLive(dialog, actor, sight),
         // Both targets ride along (ROLL-12): which project to push, and which
         // to break. Sabotage used to open a second window that asked for the
         // same two things this one already showed.
@@ -178,19 +179,90 @@ export async function performProject(actor, def, options) {
 
     if (!picked) return null;
     if (picked.value === "start") return startProject(actor);
+    // The lists as they are now (REFR-36: the window's rows followed the projects while it stood, so the pick may name a
+    // project made since the open).
+    const placeNow = locateActor(actor);
+    const hereNow = placeNow?.room ? projectsAvailableIn(placeNow, sight) : [];
+    const breakableNow = sabotageTargetsIn(placeNow, { anyRoom: isMonokuma(actor), user: sight });
     // Straight through to the action it always was - its own concealment roll,
     // its own trace - with the target read off THIS window.
     if (picked.value === "sabotage") {
-        const target = breakable.find(pr => pr.id === picked.form?.querySelector("[name=sabotage]")?.value)
-            ?? breakable[0];
+        const target = breakableNow.find(pr => pr.id === picked.form?.querySelector("[name=sabotage]")?.value)
+            ?? breakableNow[0] ?? breakable[0];
         return performSabotage(actor, ACTIONS.sabotage, options, { project: target });
     }
 
     // The window is closed by now, but `chooseVariant` hands back the form it
     // was read from, so the field is still there to be read.
-    const chosen = here.find(pr => pr.id === picked.form?.querySelector("[name=project]")?.value)
-        ?? here[0];
+    const chosen = hereNow.find(pr => pr.id === picked.form?.querySelector("[name=project]")?.value)
+        ?? hereNow[0] ?? here[0];
     return workOnProject(actor, def, options, { project: chosen });
+}
+
+/*
+ * THE PROJECTS WINDOW FOLLOWS THE PROJECTS (1.2.122 line ITEMS; the audit's REFR-36; the owner's rule "Zawsze odswiezamy
+ * okna od razu przy zmianie"). The rows' state and the two selects were built once: a project made, finished, frozen or
+ * let into in the character's room left "Work on" struck through, or a project listed, until the window was reopened.
+ * Kept fresh in place on what the lists read - the Countdowns and projectMeta, the GMs' store and a player's sight copy,
+ * the discovery record, a token's move: each of the two rows is struck through or not by its list now, with its line,
+ * and its select drawn again with the pick kept (a select the open did not draw, for a list that was empty, is added in
+ * the form beside the other). The roll judges the pick again before anything is paid, as it did.
+ */
+async function keepProjectRowsLive(dialog, actor, sight) {
+    const { projectsAvailableIn, sabotageTargetsIn } = await import("./projects.mjs");
+    const { isMonokuma } = await import("./monokuma.mjs");
+    const { keepFresh } = await import("./live.mjs");
+    const { COUNTDOWNS_KEY } = await import("./projects-secrecy.mjs");
+    const { discoveryStore, fogCopy, projectSecretStore, projectSightCopy } = await import("./gm-stores.mjs");
+    const paintRow = (root, value, n, line) => {
+        const input = root.querySelector(`input[name="variant"][value="${value}"]`);
+        const label = input?.closest("label.drpg-choice");
+        if (!input || !label) return;
+        input.disabled = !n;
+        label.classList.toggle("unavailable", !n);
+        const small = label.querySelector(".drpg-choice-text small");
+        if (small && small.textContent !== line) small.textContent = line;
+    };
+    const paintSelect = (root, name, when, prompt, tip, list) => {
+        let select = root.querySelector(`select[name="${name}"]`);
+        if (!select && list.length) {
+            const form = root.querySelector("form");
+            const slot = form?.querySelector(".drpg-action-trait") ?? null;
+            const wrap = document.createElement("div");
+            wrap.innerHTML = `<label class="drpg-specific-note" data-drpg-when="${when}">
+                <span>${game.i18n.localize(prompt)}</span>
+                <select name="${name}"${tipAttr(tip)}></select>
+            </label>`;
+            const node = wrap.firstElementChild;
+            // Where the open draws it: after the rows and before the statistic's slot, which may stand deeper in the form.
+            if (slot?.parentNode) slot.parentNode.insertBefore(node, slot);
+            else form?.append(node);
+            select = node.querySelector("select");
+        }
+        if (!select) return;
+        const keep = select.value;
+        const html = projectOptionsHtml(list);
+        if (select.innerHTML === html) return;
+        select.innerHTML = html;
+        if (keep && [...select.options].some(o => o.value === keep)) select.value = keep;
+    };
+    keepFresh(dialog, {
+        run: root => {
+            const place = locateActor(actor);
+            const room = place?.room ?? null;
+            const here = room ? projectsAvailableIn(place, sight) : [];
+            const breakable = sabotageTargetsIn(place, { anyRoom: isMonokuma(actor), user: sight });
+            paintRow(root, "work", here.length, here.length ? plural("DRPG.Project.workOnHint", { n: here.length })
+                : room ? game.i18n.format("DRPG.Project.noneHere", { room }) : game.i18n.localize("DRPG.Action.noRoomNote"));
+            paintRow(root, "sabotage", breakable.length, breakable.length ? plural("DRPG.Project.sabotageHint", { n: breakable.length })
+                : game.i18n.localize("DRPG.Project.nothingToSabotage"));
+            paintSelect(root, "project", "work", "DRPG.Project.whichWork", "DRPG.Tips.Sweep.Actions.workWhichTooltip", here);
+            paintSelect(root, "sabotage", "sabotage", "DRPG.Project.whichSabotage", "DRPG.Tips.Sweep.Actions.sabotageWhichTooltip", breakable);
+        },
+        watch: { settingKeys: [COUNTDOWNS_KEY, `${MODULE_ID}.projectMeta`], tokens: true,
+            stores: [discoveryStore, fogCopy, projectSecretStore, projectSightCopy],
+            hooks: ["drpgProjectSightChanged", "drpgSecretStored", "drpgSeenChanged"] }
+    });
 }
 
 /** The proposal's rows under their Kind (CTRL-72): a row shown only under the kinds its `data-drpg-show` names. */

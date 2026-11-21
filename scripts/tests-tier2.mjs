@@ -106989,6 +106989,83 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(stableJson(read), stableJson({ gone: true, pickKept: true }), "[the key handed elsewhere left the list] [the pick of another room kept]");
     }],
+    ["1.2.122 STG-28 - a bedroom key granted while the world's document language is not this GM's page's is named and described in the world's language", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line ITEMS; the code half of the audit's STG-28 (vault-store.mjs `grantBedroomKey`; the
+         * Document language setting, settings.mjs `documentLanguage`). The key was named in the granting GM's browser's
+         * language. Here the setting is set to the language this page is not in (put back), a key to a room of the place
+         * scenes granted to a student (deleted at the end), and its name and the first words of its text read against
+         * lang/<that language>.json as fetched (`DRPG.Vault.keyName`, `keyDescription`). Red on 21bf5d18: the name in the
+         * page's language.
+         */
+        const V = await import("./vault.mjs");
+        const { placeRoomNames } = await import("./rooms.mjs");
+        const page = game.i18n.lang === "pl" ? "pl" : "en";
+        const other = page === "pl" ? "en" : "pl";
+        const json = await fetch(`modules/${MODULE_ID}/lang/${other}.json`).then(r => (r.ok ? r.json() : null)).catch(() => null);
+        must(json, `lang/${other}.json was not fetched - this would measure nothing`);
+        const nameOf = room => String(foundry.utils.getProperty(json, "DRPG.Vault.keyName") ?? "").replace("{room}", room);
+        const [who] = cast(1);
+        const room = placeRoomNames().find(r => !V.keysHeldBy(who, { stashed: true }).has(r));
+        must(room, "no room whose key the student lacks - this would measure nothing");
+        const was = getSetting(SETTINGS.documentLanguage) ?? "";
+        const had = new Set(who.items.map(i => i.id));
+        const read = {};
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.documentLanguage, other);
+            const key = await V.grantBedroomKey(who, room, { silent: true });
+            must(key, "no key was granted - this would measure nothing");
+            const made = who.items.get(key.id) ?? key;
+            read.name = made.name === nameOf(room);
+            const lead = String(foundry.utils.getProperty(json, "DRPG.Vault.keyDescription") ?? "").split("{")[0].trim();
+            read.text = Boolean(lead) && String(made.system?.description ?? "").includes(lead);
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.documentLanguage, was);
+            for (const item of who.items.filter(i => !had.has(i.id))) await item.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ name: true, text: true }), "[the key's name in the world's language] [its text in the world's language]");
+    }],
+    ["1.2.122 REFR-36 - the Projects window follows the projects while it stands: a project made in the character's room unstrikes Work on project and draws its select, with no reopen", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line ITEMS; the audit's REFR-36 (action-project.mjs `performProject`, drawn once). A student
+         * stood alone in a room with no project (`standAlone`, put back) opens Projects, free; with the window standing a
+         * public project is made in that room (deleted at the end); the window's Work on project must lose its struck-through
+         * state and draw "Which project?" naming the new project. The window is closed with Cancel. Red on 21bf5d18: the row
+         * stays struck through.
+         */
+        needs(env.dialogs(), "the Projects window is drawn and read while it stands");
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the worker alone");
+        const [actor] = cast(1);
+        const { performAction } = await import("./action-rolls.mjs");
+        const P = await import("./projects.mjs");
+        const stood = await standAlone(actor);
+        const made = [];
+        const app = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.element.querySelector('input[name="variant"][value="work"]'));
+        const work = () => app()?.element?.querySelector('input[name="variant"][value="work"]') ?? null;
+        const read = {};
+        let opening = null;
+        try {
+            opening = Promise.resolve().then(() => performAction(actor, "project", { free: true })).catch(() => null);
+            must(await until(() => work(), 6000), "the Projects window did not open");
+            read.struckAtOpen = Boolean(work()?.disabled);
+            const id = (await P.createProject({ name: "SUITE 122 action window", target: 4, room: stood.room, trait: "head", description: "Suite 122." }))?.id ?? null;
+            must(id, "could not create a project - this would measure nothing");
+            made.push(id);
+            read.unstruck = Boolean(await until(() => work() && !work().disabled, 3000));
+            read.listed = Boolean(app()?.element?.querySelector(`select[name="project"] option[value="${id}"]`));
+        } finally {
+            app()?.element?.querySelector('footer button[data-action="cancel"]')?.click();
+            if (opening) await Promise.race([opening, wait(3000)]);
+            app()?.close();
+            for (const id of made) await P.deleteProject(id).catch(() => {});
+            await stood.back();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ listed: true, struckAtOpen: true, unstruck: true }),
+            "[the new project in Which project?] [Work on project struck through at the open] [Work on project live after the project was made]");
+    }],
     ["the Sound window's Music row picked with the pointer writes its key at once, and another GM's mapping shows on the open window while the row's select keeps the focus", async () => {
         /*
          * Line P (claude/move-120, 21.11.2026), measured against the owner's rule "Zawsze odswiezamy okna od razu przy
