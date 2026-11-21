@@ -647,7 +647,9 @@ export const CAMERA_READERS = Object.freeze({
     /* A planned Remnant's room against the working scene's, to say in one line that it is gone (13.11.2026), as New Remnant
        then reads the same scene. */
     "investigation.mjs#placeIncident": "window",
-    "season-setup.mjs#steps": "window",
+    /* The scene the Season checklist's rooms row judges, and its Check rooms checks (1.2.122, CASE-70; `steps` and
+       `wireRoomCheck` read it through this since). */
+    "season-setup.mjs#roomRowScene": "window",
     "room-setup.mjs#openRoomSetupDialog": "window",
 
     "diagnostics.mjs#voiceDiagnosis": "diagnose",
@@ -658,8 +660,6 @@ export const CAMERA_READERS = Object.freeze({
     "fog-diagnostics.mjs#sceneUncoveredPercent": "diagnose",
     /* Its worst floor by name (E20 fix round, C-4): the same reading, floor by floor. */
     "fog-diagnostics.mjs#sceneUncoveredShare": "diagnose",
-    /* Season setup's Check rooms (E20 C1): it records the errors of the map check under the scene on screen. */
-    "season-setup.mjs#wireRoomCheck": "diagnose",
     "fog.mjs#diagnoseFog": "diagnose",
     "fog.mjs#doorwayReport": "diagnose",
     "fog.mjs#whyBlack": "diagnose",

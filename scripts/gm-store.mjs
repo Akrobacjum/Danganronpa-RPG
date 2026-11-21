@@ -921,10 +921,16 @@ export function createGmStoreEngine(env) {
         return schedule(st);
     }
 
-    /* A value memory holds and storage refused, told to its readers as a stored one is (1.2.120 line F; `flush`). */
+    /* A value memory holds and storage refused, told to its readers as a stored one is (1.2.120 line F; `flush`). While
+       it is told, `telling` names the key, so the engine's own `clientSettingChanged` listener (`onClientSettingChanged`,
+       which forgets memory on a write it did not make) leaves this one alone: since 1.2.122 the real env fires that hook
+       too (r120-F-4). */
+    let telling = null;
     function tellChanged(key, value) {
+        telling = key;
         try { env.changed?.(key, value); }
         catch (err) { env.log.error(`The GM store could not tell the readers of "${key}" of a change`, err); }
+        finally { telling = null; }
     }
 
     function peers() {
@@ -1605,6 +1611,7 @@ export function createGmStoreEngine(env) {
 
     /** A write to a store key this engine did not make (the suite's raw restore): the cache is dropped. */
     function onClientSettingChanged(fullKey) {
+        if (telling !== null && fullKey === `${MODULE_ID}.${telling}`) return;
         for (const st of stores.values()) {
             if (fullKey === `${MODULE_ID}.${st.spec.key}` && !st.writing) { st.worlds.clear(); st.lastRaw = null; }
         }
@@ -1749,8 +1756,16 @@ const engine = createGmStoreEngine({
         write: (key, value) => game.settings.set(MODULE_ID, key, value)
     },
     /* A write that could not be stored: its client setting's `onChange`, as Foundry runs it after a stored write (1.2.120
-       line F). `game.settings.settings` is Foundry's map of registered settings, keyed "module.key". */
-    changed: (key, value) => game.settings?.settings?.get?.(`${MODULE_ID}.${key}`)?.onChange?.(value, {}),
+       line F), and then the `clientSettingChanged` hook Foundry fires beside it (1.2.122; the audit of 1.2.120, r120-F-4):
+       the live windows (live.mjs `watch.stores`), the GMs' owed-Despair bar, the passage frame, the case backup and the
+       health recheck listen to the hook, not to the onChange, so under a full storage they heard nothing. The engine's own
+       listener for that hook knows the key is its own telling and keeps memory (`tellChanged`). `game.settings.settings`
+       is Foundry's map of registered settings, keyed "module.key". */
+    changed: (key, value) => {
+        const fullKey = `${MODULE_ID}.${key}`;
+        try { game.settings?.settings?.get?.(fullKey)?.onChange?.(value, {}); }
+        finally { Hooks.callAll("clientSettingChanged", fullKey, value, {}); }
+    },
     readLegacy: key => {
         try { return structuredClone(game.settings.get(MODULE_ID, key)); } catch { return undefined; }
     },
@@ -1812,8 +1827,12 @@ export async function openGmStoreEngine() {
         listening = true;
         if (game.user?.isGM) {
             game.socket.on(SOCKET_EVENT, (packet, senderId) => engine.onPacket(packet, senderId));
-            // A socket that comes back after a drop re-exchanges: deltas sent while it was down
-            // arrive with the states. Whether v14's socket emits "connect" again is LIVE-E04-04.
+            // A socket that comes back after a drop sends its hello again, and the other GMs answer with their
+            // states (the engine's exchange; that a delta sent while it was down arrives with them is read from
+            // the engine, not at a table). v14 does emit "connect" again: on 14.370 `game.socket.disconnect()` then
+            // `connect()` from a GM's console emitted "connect" 10 s later with no reload, and a document written
+            // meanwhile never reached that GM's copy (docs/dev/e58/LOCAL-REPORT.md item 44, LIVE-E04-04: one road,
+            // a console's drop; a real network loss is not measured).
             game.socket.on("connect", () => engine.sendHello());
             Hooks.on("userConnected", (user, connected) => engine.onUserConnected(user, connected));
             window.addEventListener?.("storage", ev => { if (ev?.key) engine.onStorage(ev.key, ev.newValue); });

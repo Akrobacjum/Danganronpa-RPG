@@ -108,10 +108,14 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_OBSERVE_TARGET]: {
         label: "DRPG.Bridge.what.observe.target",
         guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
-        sanitize: pick({ actorId: as.id, declaration: as.raw, request: as.text }),
+        /* The declaration is one of observe.mjs's DECLARATIONS or nothing (1.2.122; the audit of 1.2.118, CASE-61): until
+           1.2.122 it was taken raw, an unknown one went down the General branch and its value - any string, any object -
+           stood on the GM's pending row for an hour. The words are spelt here, not imported: this table imports no rule
+           file but the floor's (observe.mjs reaches the bridge again); R8102 holds them to DECLARATIONS. */
+        sanitize: pick({ actorId: as.id, declaration: as.oneOf("general", "specific", "nonObvious", "followTraces"), request: as.text }),
         run: handleObserveTarget,
         answer: "reply", patient: true, resend: true,
-        claims: { declaration: "compared to DECLARATIONS by chooseObserveTarget (observe.mjs); an unknown one is answered with a reason, never used" }
+        claims: { declaration: "one of observe.mjs DECLARATIONS by the sanitizer (as.oneOf); anything else arrives null and handleObserveTarget refuses it, badRequest, before chooseObserveTarget reads it" }
     },
     [ACTION_CLEANUP_TRACES]: {
         label: "DRPG.Bridge.what.cleanup.traces",
@@ -628,10 +632,11 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_HOPE_CALL]: {
         label: "DRPG.Bridge.what.call.approve",
         guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
-        // `cost` and `actorName` are sent and never read: the price comes from HOPE_CALLS
-        // here, the name from the character (E02; E31). `nonce` names the purchase a GM's
+        // `cost`, `actorName`, `callLabel` and `effect` are sent and never read: the price, the name and the effect
+        // come from HOPE_CALLS here (E02; E31; 1.2.122, CORE-36), the character's name from the character. `key` is
+        // refused unless it names a Call that waits for a GM (`handleHopeCall`). `nonce` names the purchase a GM's
         // yes is kept for (E29 fix r2-H4; `yesOnPrimary`).
-        sanitize: pick({ actorId: as.id, key: as.text, callLabel: as.text, effect: as.text, note: as.text, nonce: as.text }),
+        sanitize: pick({ actorId: as.id, key: as.text, note: as.text, nonce: as.text }),
         run: handleHopeCall,
         // Not patient (E18 C2, S10-51): the primary's "got it" comes as the card goes up, so none within
         // TIMING.ackMs is an ask no GM's listener took, said at once rather than after the ruling's clock (R840).
@@ -1340,7 +1345,7 @@ export const BRIDGE_ACTIONS = table({
         run: handleFloorRepoint,
         answer: "reply",
         claims: {
-            targetId: "held by trial.mjs repointOnPrimary to a living student, one of the trial's participants (vote.mjs trialParticipants, connected or not; E51 C6), the floor lets the objector aim at (trial-floor.mjs mayObjectTo, targetRefusal); a GM's request only"
+            targetId: "held by trial.mjs repointOnPrimary to a living student, one of the trial's participants (vote.mjs trialParticipants; E51 C6) whose player is connected (trial-floor.mjs repointRefusal, absentOf; E110 C1), the floor lets the objector aim at (trial-floor.mjs mayObjectTo, targetRefusal); a GM's request only"
         }
     },
     /*

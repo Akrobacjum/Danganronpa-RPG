@@ -386,8 +386,8 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
     });
 }
 
-/* The Scenes tab last (E13 C5; the owner's answer Q-E13-1 e, 09.10.2026): it is set once a season,
-   the others every session. Its panel is trial-scene.mjs's (`scenesTabHtml`). The Passages tab
+/* The Scenes tab stood last from E13 C5 (the owner's answer Q-E13-1 e, 09.10.2026) until E101 item 5 moved the school,
+   the hall and the cast to Season setup's Scenes part (trial-scene.mjs `scenesTabHtml`, drawn there). The Passages tab
    after Doors (E79 C5; the plan's D31 mockup): a secret passage is a way between two rooms, as a
    door is. Its panel is passages-tab.mjs's (`passagesTabHtml`), and its buttons write at once. */
 export const ROOM_SETUP_TABS = Object.freeze([
@@ -1305,9 +1305,9 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
     /* NO ROOM IS NO REFUSAL (E13 C5; the owner's answer Q-E13-1 e, 09.10.2026). This refused a
        scene with no named region, so the GM of a world with no rooms yet could not reach the
        Scenes tab, and over a scene whose only named region was a Teleport (no room) it opened on
-       Bedrooms (read in the code, 12.10). It opens on the Scenes tab whenever its scene holds no room
-       (`roomSetupTab`), the room tabs empty or listing the regions still to be marked; only
-       with no scene at all is there nothing to open. */
+       Bedrooms (read in the code, 12.10). Since E101 item 5 there is no Scenes tab: over a scene with no room it
+       opens on Rooms (`roomSetupTab`'s fallback), empty or listing the regions still to be marked; only with no
+       scene at all is there nothing to open. */
     if (!scene) {
         ui.notifications.warn(game.i18n.localize("DRPG.Vault.noRooms"));
         return null;

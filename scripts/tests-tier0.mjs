@@ -23428,7 +23428,7 @@ const REGRESSIONS = [
             // (a `message`, as the end without advancing), and overflow.mjs `announceOverflow`'s card built once and either
             // announced or whispered veiled to the incident's audience (a `built`).
             "eavesdrop-gm.mjs": {"card": 1}, "eclipse.mjs": {"action": 3, "heading": 1, "line": 3, "message": 3},
-            "enforced.mjs": {"line": 2}, "facilities-gm.mjs": {"card": 2}, "fog.mjs": {"line": 1}, "frisk.mjs": {"built": 7, "message": 2},
+            "enforced.mjs": {"line": 3}, "facilities-gm.mjs": {"card": 2}, "fog.mjs": {"line": 1}, "frisk.mjs": {"built": 7, "message": 2},
             "gm-items.mjs": {"action": 1, "heading": 2},
             // 1.2.122 line TEXT (TEXT-32): the missing answer key's one send to the owner and the GMs is two, the owner's and the GMs'
             "handover.mjs": {"built": 1, "heading": 2, "line": 14, "message": 1},

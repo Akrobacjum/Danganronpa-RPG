@@ -178,15 +178,34 @@ export function threadStats() {
  * everyone else's badge, so this is deliberately client-scoped.
  * -------------------------------------------------------------------------- */
 
-function readMap() {
-    count("messenger.readMap");
+/*
+ * ONE SECTION PER WORLD AND LOGIN (1.2.122; the audit of 1.2.118, COMM-23). A client setting is one item for the whole
+ * browser, every world and every login on it (notice-history.mjs keys its own value by world and user for that reason),
+ * and the read map was `{ <thread's player id>: stamp }` with no reader in it: a GM who read Aiko's thread on a browser
+ * marked it read for Aiko's own login there, and back. It is `{ "<world>.<user>": { <thread>: stamp } }` now
+ * (`readSection`); a map from before 1.2.122 - its values plain numbers - is read as this login's until it writes its
+ * own section, so nothing read turns unread at the update. That a client setting is one item per browser on v14 is the
+ * notice history's reading too, not read at a table here.
+ */
+const readSection = () => `${game.world?.id ?? "world"}.${game.user?.id ?? "user"}`;
+
+function allReadMaps() {
     try {
-        return game.settings.get(MODULE_ID, SETTINGS.messengerLastRead) ?? {};
+        const all = game.settings.get(MODULE_ID, SETTINGS.messengerLastRead);
+        return all && typeof all === "object" && !Array.isArray(all) ? all : {};
     } catch {
         // Not registered yet (settings run before this does, but stay quiet
         // rather than throwing if module load order ever changes).
         return {};
     }
+}
+
+/** This world's and this login's read map, `{ <thread's player id>: stamp }`. Exported for R8112. */
+export function readMap(all = allReadMaps(), section = readSection()) {
+    count("messenger.readMap");
+    const mine = all[section];
+    if (mine && typeof mine === "object" && !Array.isArray(mine)) return mine;
+    return Object.fromEntries(Object.entries(all).filter(([, at]) => typeof at === "number"));
 }
 
 function lastReadAt(playerUserId) {
@@ -203,7 +222,8 @@ export async function markThreadRead(playerUserId) {
     // The newest message's own stamp, not this browser's clock (COMM-15): a
     // sender whose clock runs ahead would otherwise leave a bubble unread
     // while it is on screen, and one running behind would arrive read.
-    const map = { ...readMap(), [playerUserId]: newest };
+    const all = allReadMaps(), section = readSection();
+    const map = { ...all, [section]: { ...readMap(all, section), [playerUserId]: newest } };
     await game.settings.set(MODULE_ID, SETTINGS.messengerLastRead, map);
     Hooks.callAll("drpgMessengerRead", playerUserId);
 }

@@ -30,7 +30,8 @@
  *   SETTINGS_SECTIONS        both lists, the client's first: every one of the 35 in exactly one (R3420)
  *   firstSentence(text)      a hint's first sentence; `restOf(text)` the rest, the tooltip
  *   settingRowHtml(key)      one setting's row: its control by type (kit `toggle`, `stepper`, a select), its line
- *   saveSettings(form, user) every changed field written as Foundry's own form wrote it; a reload asked once
+ *   saveSettings(form, user) every field the person changed in the window written as Foundry's own form wrote it; a reload asked once
+ *   followSettingRows(root)  the rows the person left as drawn follow their setting while the window stands open
  *   openSettingsWindow()     this browser's window: Save (the default) and Cancel
  *   openGameSettingsWindow() the game's settings: Save (the default) and Cancel; `gameSettingsColumns(user)` its columns
  *
@@ -39,7 +40,18 @@
  * and a setting left as it was is not written at all; when one written carries `requiresReload`, the reload is asked
  * once after the last write, through Foundry's own `SettingsConfig.reloadConfirm({ world })` (`world` when a world
  * setting asked: Foundry then reloads every client), in `askReload` below. Nothing of a setting
- * row is written before Save; Cancel and the window's close write nothing. The volumes and the Voice section are not
+ * row is written before Save; Cancel and the window's close write nothing.
+ *
+ * ONLY WHAT WAS CHANGED HERE, AND THE ROWS FOLLOW THE WORLD (1.2.122 line CORE; the audit of 1.2.118, CORE-27, REFR-28 and
+ * STG-15; the owner's rule "Zawsze odswiezamy okna od razu przy zmianie"). Until 1.2.122 Save wrote every field whose value
+ * differed from the setting at the press, and nothing redrew a window that stood open: a world row another GM saved
+ * meanwhile (or a messenger sound the Sound window wrote) still showed the old value, differed, and was written back over
+ * the newer one with nobody told. Foundry's own form has the same compare-with-now shape; the module's windows no longer
+ * do. A field is written only when it holds other than what it was drawn with (`untouchedField`: a box's tick, a select's
+ * choice, a field's text against its default, as gm-campaign.mjs `changedField` reads Edit campaign's), and while the
+ * window stands each row left as drawn follows its setting (`followSettingRows`: `updateSetting` and `createSetting` for a
+ * world row, `clientSettingChanged` for this browser's) - its value and its default both, so the window shows the world and
+ * Save still counts it untouched. A row the person changed keeps what they set. R8101, R8102. The volumes and the Voice section are not
  * setting rows (`data-drpg-setting`) and keep their own writes, at once, as the Look window had them: a volume is heard
  * while it moves, and a device is tried as it is picked; the section says so in a line of its own.
  *
@@ -162,6 +174,16 @@ const DICE_LOOK_WORDS = Object.freeze({ own: "DRPG.Settings.forceDiceLook.choice
     daggerheart: "DRPG.Settings.forceDiceLook.choices.daggerheart" });
 const isDiceLook = key => (SETTINGS[key] ?? key) === SETTINGS.forceDiceLook;
 
+/*
+ * "NOT SET YET" IS A STATE, NOT A CHOICE (1.2.122; the audit of 1.2.118, CORE-43). Document language lists "" among its
+ * choices so that Foundry's default check finds its default there (settings.mjs, E66 fix r1 F12, R1164), and this window
+ * drew it as a choice a GM could save: the world's language emptied, and each browser then wrote documents in its own page
+ * language - the mixed log D196 exists to stop - until the primary's next ready seeded it again. The "" choice is drawn
+ * only while the setting is empty, and Save never writes "" for it.
+ */
+const UNSET_ONLY = Object.freeze([SETTINGS.documentLanguage]);
+const unsetOnly = key => UNSET_ONLY.includes(SETTINGS[key] ?? key);
+
 /** One setting's control: a switch for a Boolean, a select for choices, a stepper for a number with a range. */
 function controlHtml(key, reg, value, off) {
     const name = SETTINGS[key] ?? key;
@@ -170,7 +192,8 @@ function controlHtml(key, reg, value, off) {
     if (reg.type === Boolean && !diceLook) return toggle({ name, checked: value === true, label, disabled: off });
     const id = stepperId();
     const head = `<label class="drpg-settings-label" for="${esc(id)}">${esc(label)}</label>`;
-    const choices = diceLook ? Object.fromEntries(DICE_LOOK_CHOICES.map(v => [v, DICE_LOOK_WORDS[v]])) : reg.choices;
+    const all = diceLook ? Object.fromEntries(DICE_LOOK_CHOICES.map(v => [v, DICE_LOOK_WORDS[v]])) : reg.choices;
+    const choices = all && unsetOnly(key) && String(value ?? "") !== "" ? Object.fromEntries(Object.entries(all).filter(([v]) => v !== "")) : all;
     if (choices) {
         const options = Object.entries(choices).map(([v, words]) =>
             `<option value="${esc(v)}"${String(value) === v ? " selected" : ""}>${esc(localize(words))}</option>`).join("");
@@ -375,8 +398,61 @@ function syncTheme(root, theme) {
     }
 }
 
-/* A field's value as the setting's type holds it; undefined when the field says nothing a setting can take. */
-function fieldValue(field, reg) {
+/** Whether a field still holds what the window drew it with (its default): a box's tick, a select's choice, a field's text. */
+export function untouchedField(field) {
+    if (field?.tagName === "SELECT") return [...field.options].every(o => o.selected === o.defaultSelected);
+    if (field?.type === "checkbox" || field?.type === "radio") return field.checked === field.defaultChecked;
+    return field?.value === field?.defaultValue;
+}
+
+/* A field set to `value` as drawn: shown and as its default, so it still reads untouched. */
+function drawAgain(field, value) {
+    const text = String(value ?? "");
+    if (field.tagName === "SELECT") for (const o of field.options) o.defaultSelected = o.selected = o.value === text;
+    else if (field.type === "checkbox" || field.type === "radio") field.defaultChecked = field.checked = value === true;
+    else field.value = field.defaultValue = text;
+}
+
+/**
+ * THE ROWS LEFT AS DRAWN FOLLOW THEIR SETTING (1.2.122; see the header's "ONLY WHAT WAS CHANGED HERE"). On `root`, a
+ * window's element: a write of a setting a row shows - heard as `updateSetting` or `createSetting` for a world one (a
+ * setting never stored is created on its first write), `clientSettingChanged` for this browser's - sets that row's field
+ * to the value now stored, when the field is untouched (`untouchedField`); a field the person changed keeps their value.
+ * The dice look's row follows either of its two settings. A redrawn field fires `change`, so the theme's rows and the
+ * scale's line follow it as they follow a pick. Let go when the element is gone; wired once per element. Answers a
+ * function that lets go. `hooks` stands in for Foundry's `Hooks` (R8101 hands it a recorder, so nothing else hears).
+ */
+export function followSettingRows(root, { hooks = globalThis.Hooks } = {}) {
+    if (!root || root.dataset?.drpgFollowsSettings) return () => {};
+    root.dataset.drpgFollowsSettings = "1";
+    const ids = [];
+    const stop = () => { for (const [name, id] of ids) hooks.off(name, id); ids.length = 0; };
+    const follow = fullKey => {
+        if (!root.isConnected) return stop();
+        const key = String(fullKey ?? "");
+        if (!key.startsWith(`${MODULE_ID}.`)) return;
+        const name = key.slice(MODULE_ID.length + 1);
+        const diceLook = name === SETTINGS.diceLookKind || name === SETTINGS.forceDiceLook;
+        const rowKey = diceLook ? SETTINGS.forceDiceLook : name;
+        const row = [...root.querySelectorAll("[data-drpg-setting]")].find(r => r.dataset.drpgSetting === rowKey);
+        const field = row ? [...row.querySelectorAll("[name]")].find(f => f.name === rowKey) : null;
+        const reg = game.settings.settings.get(`${MODULE_ID}.${rowKey}`);
+        if (!field || !reg || !untouchedField(field)) return;
+        let value;
+        try { value = diceLook ? diceLookChoice() : game.settings.get(MODULE_ID, rowKey); } catch { return; }
+        if (reg.type === Number && Number.isFinite(Number(value))) value = Number(Number(value).toFixed(6));
+        if (field.tagName === "SELECT" && unsetOnly(rowKey) && String(value ?? "") !== "") for (const o of [...field.options]) if (o.value === "") o.remove();
+        drawAgain(field, value);
+        field.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+    ids.push(["updateSetting", hooks.on("updateSetting", setting => follow(setting?.key))]);
+    ids.push(["createSetting", hooks.on("createSetting", setting => follow(setting?.key))]);
+    ids.push(["clientSettingChanged", hooks.on("clientSettingChanged", key => follow(key))]);
+    return stop;
+}
+
+/* A field's value as the setting's type holds it; undefined when the field says nothing a setting can take. Exported for R8108. */
+export function fieldValue(field, reg) {
     if (reg.type === Boolean) return field.checked === true;
     if (reg.type === Number) {
         /* As every number field of the module, through utils.mjs `wholeNumber` (R1127): here the count of steps from
@@ -387,6 +463,7 @@ function fieldValue(field, reg) {
         return steps === null ? undefined : Number((min + steps * step).toFixed(6));
     }
     const v = String(field.value);
+    if (v === "" && unsetOnly(field.name)) return undefined;
     return reg.choices && !Object.hasOwn(reg.choices, v) ? undefined : v;
 }
 
@@ -400,8 +477,10 @@ async function askReload({ world = false } = {}) {
 }
 
 /**
- * Write every setting of the window whose field holds a value other than the setting's: by `game.settings.set` (its
- * `onChange` runs there), a world one only for a user who may modify settings, a disabled field never. Then, when a
+ * Write every setting of the window whose field the person changed (`untouchedField`: not what the window drew) and that
+ * holds a value other than the setting's: by `game.settings.set` (its `onChange` runs there), a world one only for a user
+ * who may modify settings, a disabled field never. A field left as drawn is never written, so a change made elsewhere
+ * while the window stood is not undone (1.2.122). Then, when a
  * setting written carries `requiresReload`, `reload({ world })` once. Answers `{ written, refused, reload }`: the keys
  * written, the world keys refused to this user, and whether a reload was asked (`"world"`, `"client"` or null).
  */
@@ -413,6 +492,7 @@ export async function saveSettings(form, user = game.user, { reload = askReload 
         const key = field.name;
         const reg = game.settings.settings.get(`${MODULE_ID}.${key}`);
         if (!reg || field.disabled || field.closest("[data-drpg-setting]")?.dataset.drpgSetting !== key) continue;
+        if (untouchedField(field)) continue;
         if (reg.scope === "world" && !mayModifyWorld(user)) { refused.push(key); continue; }
         if (isDiceLook(key)) {
             for (const [name, value] of diceLookWrites(String(field.value))) {
@@ -473,6 +553,8 @@ export async function openSettingsWindow() {
             scale?.addEventListener("change", follow);
             wireVolumeSliders(root);
             if (voice) placeVoice(root, voice);
+            // The rows left as drawn follow their setting while the window stands (1.2.122).
+            followSettingRows(root);
             // After the voice is placed, a section's content: now and once the fonts are in (E101 F3).
             holdSectionHeight(root);
             globalThis.document?.fonts?.ready?.then(() => holdSectionHeight(root)).catch(() => {});
@@ -514,6 +596,8 @@ export async function openGameSettingsWindow() {
         render: (event, dialog) => {
             const root = dialog.element;
             wireSections(root);
+            // The rows left as drawn follow their setting while the window stands (1.2.122).
+            followSettingRows(root);
             // One size whichever section is shown (E101 F3): now and once the fonts are in.
             holdSectionHeight(root);
             globalThis.document?.fonts?.ready?.then(() => holdSectionHeight(root)).catch(() => {});

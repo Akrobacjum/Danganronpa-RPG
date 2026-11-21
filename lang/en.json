@@ -5234,6 +5234,7 @@
       "advanceOffEclipse": "The Eclipse is running: its end moves the clock on.",
       "advanceOffTrial": "A Class Trial is running: the chapter's end moves the clock on.",
       "advanceDuringEclipse": "An Eclipse is running, and its end moves the clock. End it from the clock's chevron.",
+      "advanceDuringIncident": "An incident is running and has not reached Stage 6. End it, or press Move to Stage 6 in the incident tracker, before you move the time of day.",
       "jump": "Edit campaign",
       "resetHint": "Gives everyone full actions. Leave it off for a plain correction.",
       "section": {
@@ -5506,6 +5507,8 @@
       "heldNothing": "Foundry's settings were given back, so the module holds none of them now: Daggerheart's Vulnerable and Defeated automations, the file permissions, and the players' held settings stay as they are. Hold them again so the module plays as it should, or leave them given back."
     },
     "Enforced": {
+      "filesNeedFullGm": "The file permissions are not held this session: only a full Gamemaster can change Foundry's permissions, and the primary GM is an Assistant GM. They are held again when a full Gamemaster connects.",
+      "avFieldHeld": "The table's voice tile shows the cameras, so this stays as it is. A GM can turn the voice tile off in the game's settings.",
       "filesPutBack": "The module put back a change to the file permissions. While “Keep players out of the file browser” is on, Players and Trusted Players cannot browse or upload files.",
       "filesFirstHold": "“Keep players out of the file browser” took away these permissions: {lost}. Turning it off does not give them back. Grant them again in Foundry's permissions, or press “Give back Foundry's settings” in this module's settings.",
       "lost": {
@@ -6132,7 +6135,8 @@
       "speaker": "Monokuma",
       "storeFull": "This browser's storage is likely full: private cards and answer keys stop saving here. Delete old chat messages, but do not clear the site's data, which holds the answer keys.",
       "tooLong": "That message is over {kb} KB, too long to send privately. Split it into shorter ones.",
-      "wordsElsewhere": "A private card. Its words did not reach this browser."
+      "wordsElsewhere": "A private card. Its words did not reach this browser.",
+      "wordsHeldForReaders": "A private card to its readers. This browser keeps its words for them."
     },
     "Legacy": {
       "safeword": "MISIUBOMBO"
@@ -6607,6 +6611,7 @@
       "intro": "Everything the module can check here, as one text. Copy it and send it to whoever is helping you.",
       "copy": "Copy report",
       "copied": "Report copied. Paste it (Ctrl+V) wherever it needs to go.",
+      "copyFailed": "The report could not be copied. Select its text in the window and copy it with Ctrl+C.",
       "gmOnly": "This part of the report can only run in a GM's browser. Open the report in a GM's browser to see it.",
       "silencesTitle": "Warnings you silenced",
       "showAgain": "Show again",

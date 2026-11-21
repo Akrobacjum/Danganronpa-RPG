@@ -20,7 +20,7 @@
  * below, is the comment that stood over the first run in gm-bridge.mjs.
  */
 
-import { TRAITS, LEVEL_UP, LEVEL_UP_OPTIONS } from "./config.mjs";
+import { TRAITS, LEVEL_UP, LEVEL_UP_OPTIONS, HOPE_CALLS } from "./config.mjs";
 import { whisperToGms, debug, error, esc, serialWrite } from "./utils.mjs";
 import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 import {
@@ -49,6 +49,8 @@ import { tellUsesOf } from "./facility-uses.mjs";
     // which Remnants are in the room, what they are, what the difficulty is -
     // is exactly what the observer must not know. See observe.mjs.
 export async function handleObserveTarget(payload, sender, ctx) {
+    // An unknown declaration arrives null (the row's `as.oneOf`; CASE-61) and is refused, never read as General.
+    if (!payload.declaration) return { refused: "that is not a way of looking an Observe knows" };
     const { chooseObserveTarget } = await import("./observe.mjs");
     const result = await chooseObserveTarget({
         actorId: payload.actorId,
@@ -324,9 +326,19 @@ export async function handleMaskReveal(payload) {
  * ECHOES (E69 C7, 13.11.2026; echoes-gm.mjs). The nearest room by crossings with a living student of another player, read
  * on this GM. Answers `{ reply: { room, steps } }`, `room` null when there is none.
  */
-export async function handleEchoes(payload) {
+export async function handleEchoes(payload, sender = null) {
     const actor = game.actors.get(payload.actorId ?? "");
     if (!actor) return { refused: "no such character" };
+    /* THE PRICE IS SEEN WHERE THE ANSWER IS GIVEN (1.2.122; the audit of 1.2.118, CORE-21). Echoes costs one action, paid
+       on the asker's browser before it asks (action-listen.mjs `performEchoes`), and this answered with no sight of that
+       payment: a console asked it free and as often as it liked, and each answer is the GMs' knowledge - the nearest room
+       with a living student of another player, ties broken at random per ask. A player's ask now claims the payment's
+       ticket on this GM, as an open Frisk's ask does (roll-draw.mjs `claimTicket`, kind `echoes`, claimed only), and is
+       refused `notPaid` with none. A GM's own ask pays nothing here: a GM's write is no ticket. */
+    if (sender && !sender.isGM) {
+        const { claimTicket } = await import("./roll-draw.mjs");
+        if (!(await claimTicket(actor.id, "echoes"))) return { refused: "no payment of that character's stands for that roll" };
+    }
     const { echoesFor } = await import("./echoes-gm.mjs");
     const out = await echoesFor(actor);
     if (out.refused) return { refused: out.refused };
@@ -507,6 +519,30 @@ export async function handleAdvancementOffer(payload, sender, ctx) {
  */
 export async function handleAdvancementAsk(payload, sender, ctx) {
     whenGmStoresAudible().then(() => sendOffersTo(sender.id)).catch(err => error("Could not answer an owner's offers", err));
+    reaskOwedOpening(sender).catch(err => error("Could not ask an opening roll again", err));
+}
+
+/**
+ * AN OPENING ROLL OWED TO THIS PLAYER IS ASKED AGAIN WHEN THEIR BROWSER COMES BACK (1.2.122; the audit of 1.2.118,
+ * CASE-24). The invitation is one packet, and its roll window lives in the invited page's loop (murder-rules.mjs
+ * `throwOpeningRoll`): a reload ended the loop, nothing offered the roll again and nothing told the GM, while the
+ * player's card says the window comes back. The player's browser asks the primary at its own ready, and again at each
+ * primary's ready, with this row's packet (gm-bridge.mjs `askForOffers`); the primary now also sends the invitation again
+ * when the incident waits on an opening roll whose roller this sender owns, alone or with others (`rollOpening`, as the tracker's "Ask for the
+ * opening roll" does; the statistic picked is kept in the cast). A page whose window still stands opens no second one
+ * (`throwOpeningRoll`'s in-flight guard). Answers whether it asked. Not measured on a real reload (LIVE).
+ */
+async function reaskOwedOpening(sender) {
+    if (!sender || sender.isGM) return false;
+    const { murderState, rollOpening } = await import("./murder.mjs");
+    const state = murderState();
+    if (state?.stage !== "openingRoll") return false;
+    const side = state.indirect ? "victim" : "killer";
+    const actor = game.actors.get(side === "killer" ? state.killerId : state.victimId);
+    // Any owner's return (D078's co-owners): the invitation goes, as the tracker's re-ask sends it, to the one `rollOpening` asks.
+    if (!actor || !actor.testUserPermission?.(sender, "OWNER")) return false;
+    await rollOpening(side, state);
+    return true;
 }
 
 /**
@@ -1030,6 +1066,9 @@ export async function handleCubAbility(payload, sender, ctx) {
  * answers `{ later: true }`.
  */
 export async function handleHopeCall(payload, sender, ctx) {
+    /* Only a Call that waits for a GM's yes is put before the GMs (1.2.122; the audit of 1.2.118, CORE-36): a key that is
+       no Call, or one that needs no GM, raised a card a GM ruled on as if the module had written it. */
+    if (!HOPE_CALLS[payload.key]?.needsGm) return { refused: "nothing was carried out: that is no Call that waits for a GM's yes" };
     return askHopeCallByCard(payload, ctx);
 }
 

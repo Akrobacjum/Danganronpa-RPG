@@ -449,7 +449,7 @@ async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
             lines.push("");
             lines.push("TIER 2 - REFUSED: an incident is open in this world.");
             record({ tier: 2, name: "tier 2 would not start on top of an open incident", outcome: "fail", assertions: null,
-                message: "Close it from the incident tracker (Close the murder) and run again.\n"
+                message: "End it from the incident tracker (End the murder) and run again.\n"
                     + "The scenarios end every incident they find, so this one would go with them." });
             tier = 1;
         }
@@ -498,7 +498,7 @@ async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
              * puts back the empty links, not the hall - and come back in the `finally` at the end. A test
              * that needs a hall links one of its own and puts back what it found. A run cut off half
              * way (the tab closed) leaves the links empty, as it leaves the fixture it was in; the GM
-             * links them again in Room Setup's Scenes tab.
+             * links them again in Season setup's Scenes part (Room Setup's Scenes tab until E101 item 5).
              */
             if (game.settings.settings.has(`${MODULE_ID}.sceneRoles`)) {
                 const roles = game.settings.get(MODULE_ID, "sceneRoles") ?? {};
@@ -644,7 +644,7 @@ async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
                 await game.settings.set(MODULE_ID, "sceneRoles", heldRoles);
             } catch (err) {
                 record({ tier: 2, name: "tier 2 put the world's scene links back", outcome: "fail", assertions: null,
-                    message: `${err?.message ?? String(err)}\nlink them again in Room Setup's Scenes tab: ${JSON.stringify(heldRoles)}` });
+                    message: `${err?.message ?? String(err)}\nlink them again in Season setup's Scenes part: ${JSON.stringify(heldRoles)}` });
             }
         }
     }

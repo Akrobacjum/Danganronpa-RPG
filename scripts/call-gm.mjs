@@ -30,7 +30,7 @@
 import { MODULE_ID, TRAITS, HOPE_CALLS, TIMING } from "./config.mjs";
 import { cardWarn } from "./chat-card.mjs";
 import {
-    whisperToGms, ownerOf, isPrimaryGm, debug, warn, error, esc, serverNow, localeFormat
+    whisperToGms, ownerOf, isPrimaryGm, debug, warn, error, esc, serverNow, localeFormat, proseOf
 } from "./utils.mjs";
 import { forgetCallYes, sayNotDone, gmOnline, noteCallYes } from "./bridge-guards.mjs";
 import { contentOf, cardFlag, cardMeta } from "./secret.mjs";
@@ -234,12 +234,18 @@ export async function askHopeCallByCard(payload, ctx) {
      * GM holds the same `HOPE_CALLS`, so the number never had to travel; a key
      * this side does not know prints as "?". Every other field is escaped, and
      * since E31 `cost` is not on the declaration's whitelist at all.
+     *
+     * AND THE NAME AND THE EFFECT LIKEWISE (1.2.122; the audit of 1.2.118, CORE-36): the card printed the packet's
+     * `callLabel` for a key this side did not know and always the packet's `effect`, so a console could put "a free
+     * critical" under Experience on a card the GM ruled on as the module's. Both are this side's table's now
+     * (`HOPE_CALLS`, the effect's prose as calls.mjs `spendHopeCall` sends it); the run refuses a key that is no Call
+     * waiting for a GM (bridge-runs-acts.mjs `handleHopeCall`), and neither field is on the row's whitelist any more.
      */
     const call = HOPE_CALLS[payload.key] ?? null;
     const posted = await callGm(actor, {
-        title: game.i18n.format("DRPG.Calls.approveTitle", { call: call?.label ?? payload.callLabel ?? "" }),
+        title: game.i18n.format("DRPG.Calls.approveTitle", { call: call?.label ?? "" }),
         request: payload.note ?? "",
-        body: `<p>${esc(payload.effect ?? "")}</p><p class="notes">${
+        body: `<p>${esc(call ? proseOf(call, "effect") : "")}</p><p class="notes">${
             game.i18n.format("DRPG.Calls.approveCost", { cost: Number.isFinite(call?.cost) ? call.cost : "?" })}</p>`,
         gmBody: game.i18n.localize("DRPG.Calls.approveHint"),
         actions: [

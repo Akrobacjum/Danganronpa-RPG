@@ -62,7 +62,7 @@ import { scenesReportOf } from "./trial-scene.mjs";
 import { log, error, plural, workingScene, esc, localeFormat, listOf } from "./utils.mjs";
 import { stepperId, drpgWindow, checkList, formGrid, box, roleButton, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
 // Edit campaign's fields, reader, writes and End the chapter part (E49 A1e): gm-campaign.mjs never reaches back here.
-import { campaignRows, readClockForm, applyCampaignForm, endChapterPart, endTheChapter, morningLineRow, untouchedKept, followCampaignFields } from "./gm-campaign.mjs";
+import { campaignRows, readClockForm, applyCampaignForm, endChapterPart, endTheChapter, morningLineRow, untouchedKept, followCampaignFields, KEPT_FIELDS, mayEndChapterHere } from "./gm-campaign.mjs";
 import { alreadyOpen, handOff, RAISED } from "./live.mjs";
 // Foundry's secret doors and the players' rulers (E80 C5): the doors as the map holds them, their
 // conversion, and the permissions in force where `core.permissions` names none.
@@ -251,6 +251,17 @@ function undecidedRegionNames(scenes = Array.from(game.scenes ?? [])) {
 }
 
 /**
+ * The scene the rooms row judges (E13 C5's rule A): the scene on the GM's screen when it is a place, else the school
+ * (`homeScene`). One function since 1.2.122 (the audit of 1.2.118, CASE-70): the row's Check rooms checked
+ * `canvas.scene` and filed the result under its id while the row judged the school - a GM in the trial hall read the
+ * hall's findings under "This row checks School", and the row's mark did not move. Now both read this.
+ */
+export function roomRowScene() {
+    const viewed = workingScene();
+    return isPlaceScene(viewed) ? viewed : homeScene();
+}
+
+/**
  * One row per thing a season needs, each able to say whether it is done.
  *
  * `missing` returns the names it is waiting on, so a row can say "3: Aoi, Leon,
@@ -273,8 +284,7 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
        11.10, rule A). They read the scene on the GM's screen, and a GM viewing the trial hall -
        where every GM is taken for the trial since E13 C3, and which holds no room since C1 - was
        told the season had no rooms. On a scene that is no place they read the school (`homeScene`). */
-    const viewed = judged === undefined ? workingScene() : null;
-    const roomScene = judged !== undefined ? judged : isPlaceScene(viewed) ? viewed : homeScene();
+    const roomScene = judged !== undefined ? judged : roomRowScene();
     /* WAITING FOR THE CAST (E20 C1, S06-28). On an empty world every row over the students ticked:
        `.every` on an empty list is true, so "Starting Health" and "Everybody has an Ultimate" read done
        while only "The cast exists" was red. Those rows wait now - not done, no cross, no button - and
@@ -540,7 +550,7 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
              * every road into the Class Trial takes the table to the hall and back (trial-scene.mjs
              * `followPhase`); with neither the trial opens wherever the table is, as before 1.2.74.
              * `optional: true` for that reason - a table that holds its trial on the school's map
-             * has decided something. The button opens Room Setup on the Scenes tab.
+             * has decided something. The button opens Season setup, whose Scenes part links them (E101 item 5).
              */
             /* AND THE HALL'S TOKENS (E51 C8; audit S17-49): nothing the Scenes tab warns of in it - a student with no
                token the module can make, a second token, an unlinked one, a room region, a dark hall (trial-scene.mjs
@@ -1054,6 +1064,18 @@ function followChecklist(dialog, { rewire = null } = {}) {
         rewire?.();
     }, TIMING.coalesceMs);
     for (const name of names) ids.push([name, Hooks.on(name, () => { if (!root.isConnected) return stop(); repaint(); })]);
+    /* AND THE MASTERMIND'S PICK (1.2.122; the audit of 1.2.118, REFR-27's residue). The Mastermind is a GM store
+       (mastermind.mjs `mastermindStore`), whose write fires `clientSettingChanged` alone - no world setting, no actor - so
+       a Mastermind picked in The Mastermind window beside the checklist left its row, and "Mastermind feeds no pool", as
+       drawn. Heard for that store's key alone, read off the store's own handle (nothing outside the engine names a store's
+       key, R171): the other client keys are written often and the rows read none of them. */
+    let mastermindKey = null;
+    import("./gm-stores.mjs").then(m => { mastermindKey = `${MODULE_ID}.${m.mastermindStore.spec.key}`; })
+        .catch(err => error("The Season checklist could not follow the Mastermind", err));
+    ids.push(["clientSettingChanged", Hooks.on("clientSettingChanged", key => {
+        if (!root.isConnected) return stop();
+        if (mastermindKey && key === mastermindKey) repaint();
+    })]);
 }
 
 /** The checklist's intro: how many required rows are still to do, or that the season is ready. */
@@ -1090,11 +1112,13 @@ function wireRoomCheck(dialog) {
     checkButton?.addEventListener("click", async ev => {
         ev.preventDefault();
         const [{ checkRegions }, { roomCheckHtml }] = await Promise.all([import("./fog.mjs"), import("./fog-diagnostics.mjs")]);
-        const findings = checkRegions();
+        // The scene the row judges, not the one on screen (`roomRowScene`; CASE-70).
+        const scene = roomRowScene() ?? null;
+        const findings = checkRegions(scene);
         /* What the rooms row and Pre-season's scene line read (`lastRoomChecks`, E20 C1): the problems - the errors and the
            warnings that break the fog (`roomCheckProblems`, E20 fix round G-1), where the errors alone were kept; and the
            rooms row drawn again with them, where it kept the mark the window opened with. */
-        if (canvas?.scene?.id) lastRoomChecks.set(canvas.scene.id, roomCheckProblems(findings));
+        if (scene?.id) lastRoomChecks.set(scene.id, roomCheckProblems(findings));
         repaintStep(dialog.element.querySelector('li.drpg-check-row[data-drpg-key="rooms"]'), steps().find(s => s.key === "rooms"));
         if (!findings.length) {
             checkOut.innerHTML = `<p class="notes">${
@@ -1102,7 +1126,7 @@ function wireRoomCheck(dialog) {
             return;
         }
         // Each explanation once, above the list, and a Show on map per row in place of raw coordinates (E20 C2, S07-14).
-        checkOut.innerHTML = roomCheckHtml(findings, canvas?.scene?.id ?? null);
+        checkOut.innerHTML = roomCheckHtml(findings, scene?.id ?? null);
     });
     if (checkOut) import("./fog-diagnostics.mjs").then(({ wireShowOnMap }) => wireShowOnMap(checkOut))
         .catch(err => error("Could not wire Show on map", err));
@@ -1273,6 +1297,8 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
             // End the chapter (Edit campaign's part): the window closes without its Save, then the question.
             dialog.element.querySelector("[data-drpg-end-chapter]")?.addEventListener("click", ev => {
                 ev.preventDefault();
+                // Asked at the press, the window kept on a GM who is not the primary (CTRL-86; gm-campaign.mjs).
+                if (!mayEndChapterHere()) return;
                 endAsked = true;
                 dialog.close();
             });
@@ -1337,7 +1363,8 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
     // Only when it moved. Every write to this setting redraws every open sheet
     // (see its `onChange`), and pressing Save on this window is something a GM
     // does repeatedly.
-    if (result.safeword !== safeword()) {
+    // A safeword left as drawn is the world's at this line, not the press's (1.2.122; gm-campaign.mjs `KEPT_FIELDS`).
+    if (!(result[KEPT_FIELDS] ?? []).includes("safeword") && result.safeword !== safeword()) {
         await setSetting(SETTINGS.safeword, result.safeword);
         log(`Safeword set to "${safeword()}".`);
     }

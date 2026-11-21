@@ -1025,8 +1025,9 @@ async function dropFriskAsks(why = "This GM is no longer the primary") {
  * the ask, and the target's yes after it posted the list to a searcher whose action was back. So a GM whose socket comes
  * back drops every ask it holds, with nothing posted, as a reload would have (A11: a reload or a new primary ends an ask
  * with no dice thrown): the searcher's wait, where it still runs, runs out and hands the action back, and an answer is
- * told `missing`. A drop without a reload is not measured on v14, nor whether its socket emits "connect" again
- * (LIVE-E04-04; gm-store.mjs listens for the same). Answers the ask ids it dropped; the first connect holds none.
+ * told `missing`. v14's socket does emit "connect" again after a drop without a reload: read on 14.370 for a console's
+ * `game.socket.disconnect()` then `connect()` (docs/dev/e58/LOCAL-REPORT.md item 44, LIVE-E04-04; gm-store.mjs listens
+ * for the same); a real network loss is not measured. Answers the ask ids it dropped; the first connect holds none.
  */
 export function friskSocketBack() {
     if (!game.user?.isGM || !friskAsks.size) return Promise.resolve([]);

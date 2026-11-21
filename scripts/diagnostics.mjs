@@ -207,7 +207,12 @@ export function diagnoseDespair({ toChat = true } = {}) {
         lines.push(`   ${actor.name} → ${monokumaFor(actor)?.name ?? "nobody"}`);
     }
 
-    const last = [...game.messages].reverse().find(m => (m.rolls?.length ?? 0) > 0);
+    /* The newest roll THIS user may see (1.2.122; the audit of 1.2.118, CORE-29): on a player's browser every message of the
+       world is held, another user's whisper too, and this printed the newest of them - its speaker, its subject, and in
+       the console how its duality landed. The one report runs this part on a GM alone (`gmOnly`); the console command is
+       anybody's, so it holds to the rule the dice part holds to (E52-15): a GM every roll, a player what is visible. */
+    const gm = game.user?.isGM === true;
+    const last = [...game.messages].reverse().find(m => (m.rolls?.length ?? 0) > 0 && (gm || m.visible !== false));
     if (last) {
         lines.push("");
         lines.push(`Most recent roll message: type "${last.type}", speaker actor "${last.speaker?.actor ?? "(none)"}", `
@@ -2294,6 +2299,7 @@ export function activeSilences({ system = systemWarningSilence(), showAgain = sh
  */
 export async function openReport(text, { wait = config => drpgWindow(config),
     copy = value => game.clipboard.copyPlainText(value), notify = message => ui.notifications?.info(message),
+    warnUser = message => ui.notifications?.warn(message),
     silences = activeSilences() } = {}) {
     const localize = key => game.i18n.localize(key);
     let left = [...silences];
@@ -2330,6 +2336,10 @@ export async function openReport(text, { wait = config => drpgWindow(config),
                 notify(localize("DRPG.Diagnose.copied"));
             } catch (err) {
                 error("Could not copy the report", err);
+                /* Said on screen too (1.2.122; the audit of 1.2.118, CTRL-69): the console line drew nothing, and the window
+                   came back as after a copy that worked, so a GM on a table whose browser refuses the clipboard pasted
+                   nothing without knowing why. The text stays selectable in the window. */
+                warnUser(localize("DRPG.Diagnose.copyFailed"));
             }
             continue;
         }
