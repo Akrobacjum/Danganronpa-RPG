@@ -79,6 +79,11 @@ function sizeOf(sizes, id, g) {
  * members' aims), and never above the column's top. A node with no input from an earlier column (a counter beside
  * what it refutes, a deduction resting on nothing) keeps its row order under the placed ones. The first column, and a
  * layout given no edges, stand as before. Deterministic: the same layout, sizes and edges give the same places.
+ *
+ * UNDER THE SORT "MANUAL" (`layout.sort`, line P, 1.2.120; the owner asked for Move up / Move down to set the order by
+ * hand): a column keeps the GM's row order exactly, and centres only as far as that order allows - the same pooling,
+ * over the rows instead of the aims; a node with no input stands right under the node before it. Until then the aims
+ * decided the order and the GM's order broke ties alone (N119-6: Move wrote an order nobody saw). Tier 0 R8010.
  */
 export function mapPlace(layout, g = MAP_GEOMETRY, sizes = null, { gapH = 0, edges = null } = {}) {
     const at = {};
@@ -110,16 +115,24 @@ export function mapPlace(layout, g = MAP_GEOMETRY, sizes = null, { gapH = 0, edg
         return out;
     };
     /* The column packed (pooled adjacent violators): the aimed nodes by aim, then the rest by row under them. Answers the
-       y under the last node, its row gap included. */
-    const packColumn = (list, aims, top, c) => {
-        const aimed = list.filter(n => aims.has(n.id)).sort((a, b) => aims.get(a.id) - aims.get(b.id) || a.row - b.row);
+       y under the last node, its row gap included.
+       THE GM'S ORDER KEPT (`fixed`, the sort "manual"; line P, 1.2.120, N119-6): until then a manual order only broke
+       ties between equal aims, so Move on a deduction past the first column wrote an order the Map did not draw. With
+       `fixed`, every node of the column stands in row order (the GM's), each as near its aim as that order allows: the
+       same pooling over that order, a node with no aim weighing nothing (its block's top is -Infinity, so it joins the
+       block above it, right under the node before, or stands at the column's top). Tier 0 R8010. */
+    const packColumn = (list, aims, top, c, fixed = false) => {
+        const aimed = fixed ? [...list].sort((a, b) => a.row - b.row)
+            : list.filter(n => aims.has(n.id)).sort((a, b) => aims.get(a.id) - aims.get(b.id) || a.row - b.row);
+        const topOf = b => (b.count ? b.sum / b.count : -Infinity);
         const blocks = [];
         for (const n of aimed) {
             const h = sizeOf(sizes, n.id, g).h;
             // a block: its nodes, its height with the gaps between them, and the sum of each member's wanted top less
             // its offset in the block, whose mean is the block's best top
-            let b = { ids: [n.id], hs: [h], height: h, sum: aims.get(n.id) - h / 2, count: 1 };
-            b.y = b.sum / b.count;
+            const aimedHere = aims.has(n.id);
+            let b = { ids: [n.id], hs: [h], height: h, sum: aimedHere ? aims.get(n.id) - h / 2 : 0, count: aimedHere ? 1 : 0 };
+            b.y = topOf(b);
             while (blocks.length) {
                 const p = blocks[blocks.length - 1];
                 if (p.y + p.height + rowGap <= b.y) break;
@@ -127,7 +140,7 @@ export function mapPlace(layout, g = MAP_GEOMETRY, sizes = null, { gapH = 0, edg
                 const shift = p.height + rowGap;
                 b = { ids: [...p.ids, ...b.ids], hs: [...p.hs, ...b.hs], height: p.height + rowGap + b.height,
                     sum: p.sum + b.sum - shift * b.count, count: p.count + b.count };
-                b.y = b.sum / b.count;
+                b.y = topOf(b);
             }
             blocks.push(b);
         }
@@ -141,7 +154,7 @@ export function mapPlace(layout, g = MAP_GEOMETRY, sizes = null, { gapH = 0, edg
             });
             y = by;
         }
-        for (const n of list.filter(m => !aims.has(m.id))) {
+        for (const n of fixed ? [] : list.filter(m => !aims.has(m.id))) {
             const s = sizeOf(sizes, n.id, g);
             at[n.id] = { x: cols[c].x, y, w: s.w, h: s.h };
             y += s.h + rowGap;
@@ -165,7 +178,7 @@ export function mapPlace(layout, g = MAP_GEOMETRY, sizes = null, { gapH = 0, edg
         };
         const aims = c > 0 && Array.isArray(edges) ? aimsOf(list, c) : null;
         if (aims && aims.size) {
-            y = packColumn(list, aims, top, c);
+            y = packColumn(list, aims, top, c, layout?.sort === "manual");
             bottom = Math.max(bottom, y);
             continue;
         }
@@ -489,7 +502,8 @@ export const cameraTransform = cam => `translate(${Math.round(Number(cam?.x) || 
 /* ---- WHAT A BROWSER DOES WITH THE DRAWN MAP ---- */
 
 /** The place data `caseGraphHtml` writes on the canvas (`data-drpg-place`): the shown layout's positions, the gap, the
- *  fold and the edges. Null where there is none or it does not read. */
+ *  fold and the sort (the edges are read off the drawn paths, `relayoutCaseMap`). Null where there is none or it does not
+ *  read. */
 function placeData(canvas) {
     try {
         const d = JSON.parse(canvas?.dataset?.drpgPlace ?? "null");
@@ -542,7 +556,7 @@ export function relayoutCaseMap(canvas, g = MAP_GEOMETRY) {
         const [from, to] = JSON.parse(p.dataset.drpgEnds || "[]");
         return { from, to, kind: p.classList.contains("drpg-case-edge--input") ? "input" : p.classList.contains("drpg-case-edge--refutes") ? "refutes" : "other" };
     });
-    const place = mapPlace({ positions: data.positions ?? {}, gapAt: data.gapAt ?? null, unrelated: data.unrelated ?? [] }, g, sizes,
+    const place = mapPlace({ positions: data.positions ?? {}, gapAt: data.gapAt ?? null, unrelated: data.unrelated ?? [], sort: data.sort ?? null }, g, sizes,
         { gapH: gap?.offsetHeight || 0, edges: drawn });
     if (data.fold && place.gapY !== null) place.height = Math.max(place.height, place.gapY + Math.max(g.pitch, (gap?.offsetHeight || 0) + g.pad));
     for (const [id, b] of buttons) {

@@ -326,7 +326,8 @@ export function caseGraphHtml({ graph, layout, finders = null, authors = null, s
     // the fold's tooltip only on the Map: the trial console's graph is always folded, and its press folds nothing there
     const gap = place.gapY === null ? "" : `<div class="drpg-case-gap" style="top: ${place.gapY}px; width: ${MAP_GEOMETRY.nodeW}px; left: ${MAP_GEOMETRY.pad}px">`
         + `<button type="button" class="drpg-case-fold" data-drpg-case-fold aria-expanded="${fold ? "false" : "true"}"${editors ? tipAttr("DRPG.Tips.Case.notTiedToTheTooltip") : ""}>${esc(F("DRPG.CaseMap.unrelated", { n: unrelated.size }))}</button></div>`;
-    const data = JSON.stringify({ positions: shown?.positions ?? {}, gapAt: shown?.gapAt ?? null, unrelated: [...unrelated], fold: Boolean(fold && unrelated.size) });
+    // the sort too (line P, 1.2.120): under "manual" `mapPlace` keeps the GM's order in every column, and the relayout must
+    const data = JSON.stringify({ positions: shown?.positions ?? {}, gapAt: shown?.gapAt ?? null, unrelated: [...unrelated], fold: Boolean(fold && unrelated.size), sort: layout?.sort ?? null });
     const width = place.width;
     return `<div class="drpg-case-canvas" style="width: ${width}px; height: ${place.height}px" role="group" aria-label="${esc(label)}" data-drpg-place="${esc(data)}"${open ? ` data-drpg-all-open="1"` : ""}>`
         + heads.join("")

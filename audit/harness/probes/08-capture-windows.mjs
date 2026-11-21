@@ -267,6 +267,17 @@ const SEED_SFX = `const X = await import(\`\${repoUrl}/scripts/sfx.mjs\`);
 const DROP_SFX = `const X = await import(\`\${repoUrl}/scripts/sfx.mjs\`);
     await X.setSoundFor("monocub", globalThis.__probe08sfx ?? null);
     delete globalThis.__probe08sfx;`;
+/* 1.2.120 line P (N119-6; the owner asked for Move up / Move down to set the order by hand): the typed case under the
+   sort "kind", a deduction of the second column open (its Move buttons shown), kept as it stands and after its Move down
+   is pressed; the chapter's sort and kept order put back after. For audit/case-map-sweep.mjs --shots (docs/dev/p120). */
+const SEED_MOVE = SEED_TYPES + `
+    globalThis.__probe08case.meta = CS.caseMetaOf(CS.caseRows(ch).meta);
+    await CS.setCaseMeta(ch, { sort: "kind" });`;
+const DROP_MOVE = `{
+        const m = globalThis.__probe08case?.meta;
+        if (m) await (await import(\`\${repoUrl}/scripts/case-schema.mjs\`)).setCaseMeta(globalThis.__probe08case.ch, { sort: m.sort ?? null, manual: m.manual ?? {} });
+    }
+    ` + DROP_TYPES;
 /* E99 C5: the trial's Case schema window over the same case, a deduction ticked and two nodes given a startable mode;
    the ticks and the modes taken back after. */
 const SEED_TRIAL = SEED_CASE + `
@@ -391,6 +402,9 @@ export const WINDOWS = [
     { id: "investigation--map-types-faces", module: "investigation.mjs", before: SEED_TYPES, after: DROP_TYPES, perTab: false, call: "m.openInvestigationDashboard({ allOpen: false })" },
     { id: "investigation--map-crowd", module: "investigation.mjs", before: SEED_CROWD, after: DROP_TYPES, perTab: false, call: "m.openInvestigationDashboard({ allOpen: false })" },
     { id: "investigation--map-modes", module: "investigation.mjs", before: SEED_MODES, after: DROP_TYPES, perTab: false, call: "m.openInvestigationDashboard({ allOpen: false })" },
+    { id: "investigation--map-move", module: "investigation.mjs", before: SEED_MOVE, after: DROP_MOVE, perTab: false, click: '[data-drpg-node="probe08-d1"]', call: "m.openInvestigationDashboard({ allOpen: false })" },
+    { id: "investigation--map-moved", module: "investigation.mjs", before: SEED_MOVE, after: DROP_MOVE, perTab: false,
+        click: ['[data-drpg-node="probe08-d1"]', '.drpg-case-edit[data-drpg-edit="probe08-d1"] [data-drpg-case-move="1"]'], call: "m.openInvestigationDashboard({ allOpen: false })" },
     { id: "case-realize", module: "case-realize.mjs", before: SEED_CASE, after: DROP_CASE, call: "m.openRealization()" },
     // E64-inv: the preview with a run's marks (its Undo) and New Remnant, both held to 1366x768 unscrolled (style-sweep.mjs STILL).
     { id: "case-realize--made", module: "case-realize.mjs", before: SEED_MADE, after: DROP_MADE, call: "m.openRealization()" },

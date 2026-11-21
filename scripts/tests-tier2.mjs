@@ -105260,6 +105260,64 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(seen), stableJson({ top: true, told: true, written: false, still: true }),
             "Move up on the top of a column did not stay, wrote the kept order, or said nothing (top: it stood at the top, told: the notice, written: the meta row changed, still: at the top after)");
     }],
+    /* ------------------------------------------------------------------------------------------------------------------
+     * Line P of 1.2.120 (claude/move-120, 21.11.2026): the planner's Move in every column (N119-6); R8010-R8019 for its
+     * tier-0 tests.
+     * ------------------------------------------------------------------------------------------------------------------ */
+    ["the planner's Move moves a deduction past the first column one place as drawn, and back, the column kept in the GM's order (investigation.mjs `moveCaseNode`, case-view.mjs `mapPlace`; line P of 1.2.120, N119-6)", async () => {
+        /*
+         * Four deductions of this chapter: a and b resting on nothing (one column), x resting on b and y on a (the next
+         * column), under the sort "kind", so the Map centres x on b and y on a and draws y above x. The dashboard drawn on
+         * the Map; y's Move down pressed, then its Move up. Read: x's and y's order in their column as drawn (each node's
+         * fields' top) before, after each press, and the chapter's kept sort. The meta row is put back as found.
+         * Red at e515907d: the move swapped in the layout's order (x before y), so Move down on y found it last and said it
+         * could not move further down; and once "manual" was written the aims ordered the column again.
+         */
+        const S = await import("./case-schema.mjs");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const ch = getClock().chapter;
+        const id = k => `suite-p120-${k}`;
+        const metaWas = S.caseRows(ch).meta;
+        let win = null;
+        const seen = {};
+        const pair = root => {
+            const x = parseFloat(root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id("y")}"]`)?.style.left ?? "NaN");
+            return [...(root?.querySelectorAll(".drpg-case-canvas > .drpg-case-edit[data-drpg-edit]") ?? [])]
+                .filter(el => parseFloat(el.style.left) === x).sort((a, b) => parseFloat(a.style.top) - parseFloat(b.style.top))
+                .map(el => el.dataset.drpgEdit).filter(e => e === id("x") || e === id("y")).map(e => e.slice(-1)).join("");
+        };
+        const press = (root, step) => root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id("y")}"] [data-drpg-case-move="${step}"]`)?.click();
+        try {
+            await S.setCaseNode(ch, id("a"), { kind: "deduction", label: "SUITE P120 a", inputs: [] });
+            await S.setCaseNode(ch, id("b"), { kind: "deduction", label: "SUITE P120 b", inputs: [] });
+            await S.setCaseNode(ch, id("x"), { kind: "deduction", label: "SUITE P120 x", inputs: [id("b")] });
+            await S.setCaseNode(ch, id("y"), { kind: "deduction", label: "SUITE P120 y", inputs: [id("a")] });
+            await S.setCaseMeta(ch, { sort: "kind" });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            await until(() => pair(root).length === 2, 3000).catch(() => {});
+            seen.before = pair(root);
+            press(root, 1);
+            await until(() => pair(root) === "xy", 3000).catch(() => {});
+            await settle();
+            seen.down = pair(root);
+            seen.sort = S.caseMetaOf(S.caseRows(ch).meta).sort;
+            press(root, -1);
+            await until(() => pair(root) === "yx", 3000).catch(() => {});
+            await settle();
+            seen.up = pair(root);
+        } finally {
+            if (win) await win.close().catch(() => {});
+            for (const k of ["a", "b", "x", "y"]) await S.dropCaseNode(ch, id(k)).catch(() => {});
+            const was = S.caseMetaOf(metaWas);
+            await S.setCaseMeta(ch, { sort: was.sort, manual: was.manual }).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({ before: "yx", down: "xy", sort: "manual", up: "yx" }),
+            "Move down and Move up on a deduction past the first column did not move it one place as drawn ({before: y and x top to bottom as drawn, down: after y's Move down, sort: the kept sort, up: after its Move up})");
+    }],
+
 
     ["a planned Truth Bullet removed from the planner takes its links with it: the deductions that rested on it no longer name it, the counter refuting one of them keeps its target, and the case's check names nothing missing (case-schema.mjs `dropCaseNode`, `refsCut`; the owner, 19.11.2026: \"Przyjmujemy ze usuniecie bulleta usuwa tez jego polaczenia\"; the line claude/plan-119)", async () => {
         /*
