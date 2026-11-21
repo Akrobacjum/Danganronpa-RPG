@@ -1,0 +1,360 @@
+{
+  "reader": "domain-ui-c-sheet",
+  "checkout": "claude/audit-119 (scripts/ as on main b5a29e73, 1.2.118)",
+  "files_read": [
+    {
+      "file": "scripts/sheet.mjs",
+      "lines": 242,
+      "read": "whole"
+    },
+    {
+      "file": "scripts/sheet-audit.mjs",
+      "lines": 3405,
+      "read": "whole"
+    },
+    {
+      "file": "scripts/sheet-actions.mjs",
+      "lines": 1558,
+      "read": "whole"
+    },
+    {
+      "file": "scripts/sheet-sidebar.mjs",
+      "lines": 1254,
+      "read": "whole"
+    },
+    {
+      "file": "scripts/sheet-header.mjs",
+      "lines": 942,
+      "read": "whole"
+    },
+    {
+      "file": "scripts/sheet-inventory.mjs",
+      "lines": 1017,
+      "read": "whole"
+    },
+    {
+      "file": "scripts/sheet-item.mjs",
+      "lines": 434,
+      "read": "whole"
+    },
+    {
+      "file": "scripts/sheet-fit.mjs",
+      "lines": 462,
+      "read": "whole"
+    },
+    {
+      "file": "scripts/sheet-mode.mjs",
+      "lines": 153,
+      "read": "whole"
+    },
+    {
+      "file": "scripts/sheet-repaint.mjs",
+      "lines": 349,
+      "read": "whole"
+    }
+  ],
+  "count_note": "Ten files, 9816 lines (wc -l), as the scope names them; each read start to end. .claude/rules/code.md's row still says sheet-actions.mjs is '1545 lines, the family's longest'; it is 1558 today. sheet-audit.mjs (3405 lines, about 41 % of this lane's bytes) was read whole, but its judgement arithmetic (credit, hopeLeft, movesOf) was read for shape and text, not re-derived case by case: the second reader of the security lane should not count this file as re-proved. One read-only static check was run by mistake beside the reading - `node tools/check.mjs text` (no harness, no Foundry, nothing written); its two T22 reports on sheet keys are cited only as a pointer, not as a finding.",
+  "neighbours_followed": [
+    "scripts/config.mjs (ACTION_GRID 1945, PRICE_CHAINS 1454-1475, SHEET_SIZE 525)",
+    "scripts/price.mjs (quotePrice 132-182, priceLabel 324-327, stripeKindFor 393-398)",
+    "scripts/window-scale.mjs (actionsTabHeight 81-83, callsHeight 90-92, rescaleSheets 17-23)",
+    "scripts/anonymity.mjs (redactSheet 168-173, redactValues 639-720: what a viewer's sheet keeps)",
+    "scripts/movement.mjs (tunnelStepTarget 2456-2469, isLocked 2140-2145, settleCrossingOnGm 3447-3459)",
+    "scripts/passages-gm.mjs (crossTunnel 2314-2375: a GM's drag pays the student's price)",
+    "scripts/cleanup.mjs (framingCandidates 1591-1596)",
+    "scripts/gm-stores.mjs (remnantStore 111-113: no player copy; timedEffectCopy 1114-1117)",
+    "scripts/settings.mjs (remnantSecrets key 375-376; mineTimedEffects / gmTimedEffects onChange 2343-2357)",
+    "scripts/sync.mjs (sheets, monokumaSheets rows 409-419)",
+    "scripts/clock.mjs (refreshSheets 940-975)",
+    "scripts/safeword.mjs (registerSafeword 420-436: the keybinding, unbound)",
+    "scripts/timed-effects.mjs (effectBadges 248-251)",
+    "scripts/tests-tier1.mjs R3857 (58486-58500: a Spectator's sheet has no Stop)",
+    "scripts/tests-tier0.mjs R48 (3121-3165: what it reads of the tile's price)",
+    "scripts/tests-tier2.mjs 'H81 C3 drag' (73404) and E95 C5 sheet states (99060-99135)",
+    "lang/en.json and lang/pl.json (DRPG.Price.nothingLeft, DRPG.Action.costFree, DRPG.Chapter.deadPanel*, DRPG.Items.noneReadied, DRPG.Safeword.*)",
+    "audit/findings-1.2.42/ui.md (UI-13, UI-14, UI-15) and comms.md (COMM-11); audit/findings-1.2.118/old-1.2.42-comms.json (COMM-11 'partly')"
+  ],
+  "strengths": [
+    "One gate per render: sheetMode builds every visibility and editability answer once (sheet-mode.mjs:41-123) and every step reads it through SHEET_STEPS, so the dead/Monokuma/NPC/Spectator/viewer splits are in one table, not in 27 functions.",
+    "Each sheet step runs in its own try and a failed one is named to the primary GM once (sheet.mjs:151-198, requirements.mjs announceSheetSteps): one broken Daggerheart selector no longer takes the Calls or the Actions tab with it.",
+    "The flicker repair decides from the render's own arguments, not from a mark laid before the write (sheet-repaint.mjs:138-185), and fails to a render on any shape it does not know; a tile in flight is never replaced (refreshPricedTiles 269-281) and a Call window raises its twin rather than opening a second (sheet-actions.mjs:806-813).",
+    "A viewer is drawn no pip tooltip, no armed-Call stack and no budget hover at all (sheet-header.mjs:487-546), and the redaction strips the same again (anonymity.mjs redactValues) - nothing GM-only is left to CSS; the GM-only 'Really:' badge is gated on the mode's realBullets / game.user.isGM in both places that draw it (sheet-inventory.mjs:880, sheet-item.mjs:268).",
+    "Sanity that a viewer may not read is emptied, not hidden, on every sheet whether or not anonymity is enforced, slots removed because their count is the maximum (sheet-sidebar.mjs:218-237); the Party sheet does the same (415-448).",
+    "Typed backstory survives a render (held on the app with selection and focus), saves once on focusout, tab change or close, and refuses to write over another browser's newer text with one warning (sheet-sidebar.mjs:999-1161).",
+    "Every row control on the inventory is fronted by one capture-phase guard that drops a row whose item is gone and re-renders (sheet-sidebar.mjs:471-485), so a silent theft never leaves seven dead buttons.",
+    "Player-supplied strings (Ultimate, rule text, item names, room names) go through textContent or escapeHTML everywhere they are drawn; flag values printed into class attributes go through classSafe (sheet-item.mjs:351-353).",
+    "The GMs' audit judges every player write in one queue per student, records the writer Foundry named, posts its cards to the GMs only (whisperToGms) and decides Undo/Keep once on the primary with the row marked before any write (sheet-audit.mjs:2537-2583, 2856-2884), so two GMs' clicks write once.",
+    "Old UI-13 (two sheet sizes in two files) is closed: SHEET_SIZE in config.mjs:525 is read by sheet-fit.mjs:395 and window-scale.mjs. Old UI-15 (the invisible soft hyphen) is closed: sheet-fit.mjs:167 writes it as \\u00AD. Old UI-14 is closed for the tile fitter (sheet.mjs:87-95), though the trait row's newer observer repeats its shape (finding 5)."
+  ],
+  "findings": [
+    {
+      "id": "domain-ui-c-sheet-1",
+      "domain": "UI",
+      "severity": "minor",
+      "category": "text",
+      "title": "A priced tile the student cannot pay for says 'free' on its face: Analyze reads 'free' every time the actions run out outside a trial",
+      "where": "scripts/sheet-actions.mjs:1545-1552 (costLabelFor), 1219-1220 and 1369-1371 (actionButton); scripts/price.mjs:155-175 (quotePrice's nothingLeft); scripts/config.mjs:1462-1469 (analyze's chain, one step outside the Class Trial)",
+      "what_happens": "For a key of PRICE_CHAINS (objection, analyze, tamper) the tile's cost line is costLabelFor, which answers DRPG.Action.costFree ('free' / 'za darmo') whenever the quote is blocked. A blocked quote is the one with nothing left to pay with. Outside the Class Trial Analyze's chain is a single action step (stepsBeyondFirst: 'classTrial'), so a student who has spent both actions has a blocked Analyze quote: the tile is dimmed (affordable = !priced.blocked) and its tooltip says 'No action left, so there is nothing to pay for Analyze with.', while the cost line on the tile's face says 'free'. Tamper does the same with no action and a full Sanity track, and Analyze in a trial with no action, no Hope and no Sanity. The stripe meanwhile keeps the ordinary 'action' or 'gm' colour (stripeKindFor's fallback), so the tile is the only one in the grid whose price line contradicts its stripe and its hover.",
+      "evidence": "sheet-actions.mjs:1219  const priced = PRICE_CHAINS[key] ? priceQuoteFor(actor, key) : null;\nsheet-actions.mjs:1220  const affordable = priced ? !priced.blocked : canPayFor(actor, cost);\nsheet-actions.mjs:1547  if (PRICE_CHAINS[key]) {\nsheet-actions.mjs:1548      const quote = priceQuoteFor(actor, key);\nsheet-actions.mjs:1549      return quote.blocked\nsheet-actions.mjs:1550          ? game.i18n.localize(\"DRPG.Action.costFree\")\nsheet-actions.mjs:1551          : priceLabel(quote);\nconfig.mjs:1468  stepsBeyondFirst: \"classTrial\"\nlang/en.json DRPG.Price.nothingLeft.analyzeOneStep: \"No action left, so there is nothing to pay for Analyze with.\"",
+      "failure_scenario": "A player spends both actions in the afternoon and looks at the grid: the other tiles are greyed under their price, and Analyze, greyed too, reads 'free' - they press it expecting a free analysis and are told there is nothing to pay with.",
+      "expected": "A blocked tile's face says the price it would cost (the first step, '1 action') or nothing, never 'free'; the tooltip already carries the refusal.",
+      "confidence": "read",
+      "refutation_tried": "Looked for a test that pins the 'free' label on a blocked quote: R48 (tests-tier0.mjs:3121-3165) only asserts costLabelFor contains priceLabel( and that the tooltip carries priced?.blocked; no test reads the face of a blocked tile. Checked that a blocked quote can reach a drawn tile: the noPrice floor (dead, Monocub, Monokuma) draws no grid (sheetMode actions), but nothingLeft is an ordinary state and Analyze is in ACTION_GRID (config.mjs:1945). git log -S on the two lines finds only a merge of 14.10.2026 (32fd204f) and the gate record after it, so no stage paper records 'free' as the intended wording.",
+      "old_id": null
+    },
+    {
+      "id": "domain-ui-c-sheet-2",
+      "domain": "UI",
+      "severity": "nit",
+      "category": "text",
+      "title": "The dead panel and two empty states speak to the player in the second person on the GM's view of the sheet too",
+      "where": "scripts/sheet-actions.mjs:233-256 (the dead panel: DRPG.Chapter.deadPanelTitle 'You are dead', DRPG.Class.deadStill 'your microphone is off'); scripts/sheet-sidebar.mjs:561-566 and scripts/sheet-inventory.mjs:183-189 (DRPG.Items.noneReadied 'You are holding nothing ready'); scripts/sheet-sidebar.mjs:584-589 (DRPG.SheetNotes.noExperiences 'You start with two at +2')",
+      "what_happens": "mode.actions is 'dead' on any sheet its viewer may edit, a GM's included (sheet-mode.mjs:60), and the panel is built from player-addressed keys. The same function already gives the GM its own line for the unfound case (mode.gm ? DRPG.Chapter.deadUnfound : DRPG.Chapter.nobodyFoundYou, sheet-actions.mjs:251), so the second person on the rest is not a choice but an omission.",
+      "evidence": "sheet-actions.mjs:238  heading.textContent = game.i18n.localize(\"DRPG.Chapter.deadPanelTitle\");\nsheet-actions.mjs:251  unfound.textContent = game.i18n.localize(mode.gm ? \"DRPG.Chapter.deadUnfound\" : \"DRPG.Chapter.nobodyFoundYou\");\nlang/en.json DRPG.Chapter.deadPanelTitle: \"You are dead\"",
+      "failure_scenario": "A GM opens a murdered student's sheet to check their items and reads 'You are dead' and 'In it your microphone is off' as the panel's heading.",
+      "expected": "The GM's view says it of the student ('Dead', 'they speak outside the trial'), as deadUnfound already does.",
+      "confidence": "read",
+      "refutation_tried": "Checked whether a GM ever reaches the panel: sheetMode actions is null only for a sheet the viewer cannot edit or a Spectator, and a GM's app.isEditable is true. docs/text-style.md was not re-read for a rule on addressing the GM on a player's surface.",
+      "old_id": null
+    },
+    {
+      "id": "domain-ui-c-sheet-3",
+      "domain": "UI",
+      "severity": "nit",
+      "category": "ux",
+      "title": "On a player's browser the Tamper tile's cached answer is never forgotten when the GMs' ledger changes: the listener that should forget it hears a key only a GM's browser writes",
+      "where": "scripts/sheet.mjs:99-125 (the clientSettingChanged listener on SETTINGS.remnantSecrets); scripts/sheet-actions.mjs:1068-1161 (tamperAnswers, tamperKey, tamperBlock, askTamper); scripts/settings.mjs:375 and scripts/gm-stores.mjs:111-113 (the key is the GMs' store 'gmRemnants', no player copy)",
+      "what_happens": "tamperBlock caches 'nothing of yours here' / 'only Reinforced' per actor under the key room|timeOfDay|day|session, and the only other way out of the cache is forgetTamper, called when clientSettingChanged names remnantSecrets. That key is the GMs' Remnant store, written on GMs' browsers alone and with no player copy, so on a player's browser the listener never fires: a trace of the player's laid, erased or swept in the same room and time of day leaves the tile as it was cached. The tile is struck through only when both branches are shut (no erasable trace of theirs and no framing candidate, framingCandidates being every other living student, cleanup.mjs:1591-1596), so the visible case is narrow: a cast down to two.",
+      "evidence": "sheet.mjs:123  Hooks.on(\"clientSettingChanged\", key => {\nsheet.mjs:124      if (key === `${MODULE_ID}.${SETTINGS.remnantSecrets}`) forgetTamper();\nsettings.mjs:375  remnantSecrets: \"gmRemnants\",\ngm-stores.mjs:111  export const remnantStore = defineGmStore({\nsheet-actions.mjs:1080  return `${roomOfActor(actor) ?? \"-\"}|${clock.timeOfDay}|${clock.day}|${clock.session}`;",
+      "failure_scenario": "With two students left, the killer's player opens their sheet in the kitchen (Tamper struck: 'You know of no Remnant in this room'), Searches there and leaves a trace, and the Tamper tile stays struck through with the same sentence until they change room or the hour turns.",
+      "expected": "The cache is dropped on the player's browser when something it depends on changes there (a trace this player placed, the clock, a re-render after an own action), or the struck state is not cached across the player's own actions.",
+      "confidence": "read",
+      "refutation_tried": "Searched scripts/ for any other caller of forgetTamper or writer of tamperAnswers (none; only sheet.mjs:124 and sheet-actions.mjs:1085, 1152) and for a player copy of the Remnant store or a hook fired on it (remnants.mjs fires none; gm-stores.mjs has no copy row for 'remnants'). The tile stays pressable (roomBlockFor's note, 956-961), so this is advice gone stale, not a refusal.",
+      "old_id": null
+    },
+    {
+      "id": "domain-ui-c-sheet-4",
+      "domain": "UI",
+      "severity": "minor",
+      "category": "ux",
+      "title": "A Spectator's sheet draws no Stop, and the sheet's own comment still says the Stop is present for everyone",
+      "where": "scripts/sheet-mode.mjs:81 (safeword: !monokuma && !spectator); scripts/sheet-sidebar.mjs:903-915 (injectSafeword); scripts/safeword.mjs:420-436 (the keybinding, editable [] at 431)",
+      "what_happens": "Since E92 C5 a Spectator's sheet, like a Monokuma's, draws no safeword button; the remaining doors are a keybinding that ships unbound and game.drpg.safeword() in the console. safeword.mjs promises the Stop to 'anyone ... spectator', and injectSafeword's doc comment says 'Present for everyone'. This is old COMM-11, already rated 'partly' by old-1.2.42-comms.json; it is repeated here because the sheet's own text now contradicts its gate.",
+      "evidence": "sheet-mode.mjs:81  safeword: !monokuma && !spectator,\nsheet-sidebar.mjs:903  * Present for everyone - a Monokuma's player is at the same table, and a\nsheet-sidebar.mjs:915  if (mode && !mode.safeword) return;\nsafeword.mjs:431  editable: [],",
+      "failure_scenario": "A friend watching as a Spectator is upset by a scene and looks for the Stop on their own sheet, where every player has it; there is none, and no key is bound.",
+      "expected": "Either the Spectator's sheet keeps the Stop (it is a person at the table, not a student), or the comment and safeword.mjs's promise say who has no on-screen door.",
+      "confidence": "read",
+      "refutation_tried": "R3857 (tests-tier1.mjs:58486-58500) pins 'no Stop' under 'the owner's E92 goal (5)'; docs/dev/e92/STATUS.md says nothing of the safeword, so whether the owner chose the Stop's removal in those words is not established (as old-1.2.42-comms.json noted). Searched the HUD, voice tile, spectator line and messenger for another Stop control: none.",
+      "old_id": "COMM-11"
+    },
+    {
+      "id": "domain-ui-c-sheet-5",
+      "domain": "UI",
+      "severity": "nit",
+      "category": "perf",
+      "title": "The trait row's ResizeObserver is not disconnected when the sheet closes (UI-14's shape, again)",
+      "where": "scripts/sheet-header.mjs:146-185 (fitTraitRow keeps app._drpgTraitFit); scripts/sheet.mjs:87-95 (closeCharacterSheet disconnects only app._drpgTileFit)",
+      "what_happens": "fitTraitRow makes a new ResizeObserver on every render and disconnects the previous one from app._drpgTraitFit, but the close hook that fixed UI-14 disconnects only the tile fitter's. A closed sheet keeps an observer on its detached row (and the row alive) until that sheet is rendered again; a sheet never reopened keeps it for the session. Each render also adds a document.fonts.ready.then that runs the six-step measure a second time once fonts are ready (already ready after the first load), so every render measures the row twice.",
+      "evidence": "sheet-header.mjs:179  try { app?._drpgTraitFit?.disconnect(); } catch { /* already gone */ }\nsheet-header.mjs:183  if (app) app._drpgTraitFit = observer;\nsheet-header.mjs:184  document.fonts?.ready?.then(() => { width = null; fit(); }).catch(() => {});\nsheet.mjs:91  try { app?._drpgTileFit?.disconnect(); } catch { /* already gone */ }",
+      "failure_scenario": "A GM who opens and closes thirty student sheets in a session holds thirty detached header rows and their observers; nothing visible goes wrong.",
+      "expected": "The close hook disconnects _drpgTraitFit as it does _drpgTileFit.",
+      "confidence": "read",
+      "refutation_tried": "Searched scripts/ for _drpgTraitFit: written and disconnected only in sheet-header.mjs:179-183. The leak is one observer per app, bounded by the actors opened; no frame cost was measured.",
+      "old_id": "UI-14"
+    }
+  ],
+  "by_decision": [
+    {
+      "what": "Wounded and Breakdown are public on the sheet for every reader, a Breakdown badge telling another player that Sanity is gone.",
+      "source": "scripts/sheet-sidebar.mjs:178-191 (E95 C5, the owner's 'Breakdown i wounded maja byc publiczne', 10.11.2026); tests-tier2.mjs:99060-99135"
+    },
+    {
+      "what": "'Go through' is enabled wherever the token stands and says where to stand on the press, because nothing redraws the list as the token moves.",
+      "source": "scripts/sheet-sidebar.mjs:667-674 (H81-03, the owner's item 4b, 20.10.2026)"
+    },
+    {
+      "what": "A GM's own drag of a student's token onto a tunnel end takes it through at the student's door price, through the bridge on the primary (sheetMode.passages is true for a GM on every sheet).",
+      "source": "scripts/sheet-sidebar.mjs:708-766; tests-tier2.mjs:73404 'H81 C3 drag - a GM's drag of a student's token onto a stairs' end ... at a door's price'"
+    },
+    {
+      "what": "The Tamper and room tiles dim as advice and stay pressable; the press is what refuses.",
+      "source": "scripts/sheet-actions.mjs:944-961"
+    },
+    {
+      "what": "Present's button reads the trial's muted dead only when pressed or drawn, never through the mode the strip and tile read, so a muted-dead change does not redraw the sheet.",
+      "source": "scripts/sheet-mode.mjs:64-72 (E70 C10, E45 C1 fix; R1013)"
+    },
+    {
+      "what": "No inventory tab, groups, Equipped, Experience or biography on a Monokuma's sheet; the data stays and comes back when unmarked.",
+      "source": "scripts/sheet-inventory.mjs:45-56 (E95 C7); scripts/sheet-mode.mjs:83-84 (S03-33)"
+    },
+    {
+      "what": "No edit button for the rules on the sheet's Rules tab; the GM panel's Rules tile is the one door.",
+      "source": "scripts/sheet-actions.mjs:150-162 (Dawid, 28.08)"
+    },
+    {
+      "what": "The sheet grows for the Calls once per sheet and never re-asserts a height; under the glass the Actions tab grows by what it is short, never past the screen.",
+      "source": "scripts/sheet-fit.mjs:376-448 (Dawid 28.08; 22.09 measurement)"
+    },
+    {
+      "what": "With lockPlayerResources off the statistics and the four maxima a player writes are listed and stand; Burst, Sprint and the free Move are flagged either way; items are judged either way.",
+      "source": "scripts/sheet-audit.mjs:27-40, 1762-1773 (the owner's Q2 (a), 05.10.2026)"
+    },
+    {
+      "what": "A discard's ticket is this browser's memory: a primary's F5 between the trace and the delete costs one flagged card; a discard trace asked for with no roll still earns its ticket.",
+      "source": "scripts/sheet-audit.mjs:2108-2131 (E51 fix FG5); .claude/rules/trust-model.md layer two"
+    },
+    {
+      "what": "A player's own deletion of armed entries stands, except a hindering, Despair or GM-armed Call, which stands only behind a roll of theirs heard after it was armed; a roll a console posts first covers it.",
+      "source": "scripts/sheet-audit.mjs:625-650 (E29 fix r2-H7; the owner's Q3 (a), the orchestrator's (b))"
+    },
+    {
+      "what": "A Hope repaint toggles only the diamonds already drawn; a new Hope maximum renders the sheet.",
+      "source": "scripts/sheet-repaint.mjs:91-101 (E24 fix G2B; R1477)"
+    }
+  ],
+  "comments_against_code": [
+    {
+      "where": "scripts/sheet.mjs:37-38",
+      "comment_says": "'The price a tile is about to charge, quoted from the same table the charge reads (T-1). Synchronous by design - this file calls it from a render path.'",
+      "code_does": "sheet.mjs (the facade since E54) imports nothing from price.mjs and calls no quote; the quote is sheet-actions.mjs's (priceQuoteFor, 1534-1536). The same block of orphaned notes (sheet.mjs:22-44) describes imports the facade no longer has."
+    },
+    {
+      "where": "scripts/sheet.mjs:99-125 and scripts/sheet-actions.mjs:1068-1072",
+      "comment_says": "A trace erased, one planted or a sweep 'are writes to remnantSecrets', which forgetTamper hangs on.",
+      "code_does": "remnantSecrets is the GMs' store 'gmRemnants' (settings.mjs:375), written on GMs' browsers only and with no player copy (gm-stores.mjs:111-113), so on a player's browser - where the Tamper tile's ledger answer is cached - the listener never fires (finding 3)."
+    },
+    {
+      "where": "scripts/sheet-sidebar.mjs:903-907",
+      "comment_says": "'Present for everyone - a Monokuma's player is at the same table, and a character who died an hour ago does not stop being someone's evening.'",
+      "code_does": "injectSafeword returns before drawing for a Monokuma's and a Spectator's sheet (sheet-sidebar.mjs:914-915, sheet-mode.mjs:81)."
+    },
+    {
+      "where": "scripts/sheet-fit.mjs:390-392",
+      "comment_says": "'Grown ONCE per sheet, and only upwards.'",
+      "code_does": "growForCalls sets the height to callsHeight(window.innerHeight) = min(980, vh - 40) (window-scale.mjs:90-92) whenever the height is under 980, so a sheet already within 40 px of the bottom of a short screen is made shorter."
+    },
+    {
+      "where": "scripts/sheet-fit.mjs:379-380",
+      "comment_says": "'(850 wide - see `scaleWindow` in settings.mjs)'",
+      "code_does": "scaleWindow lives in window-scale.mjs since E54 W3; settings.mjs only re-exports it (settings.mjs:16-17)."
+    },
+    {
+      "where": "scripts/sheet-actions.mjs:1432-1437",
+      "comment_says": "stillMoveTile is 'The tile a Monocub's panel draws'.",
+      "code_does": "No panel draws a Move tile since E103: ACTION_GRID has no 'move' (config.mjs:1945), injectMonocubPanel draws only monocubTiles (334-406) and refreshPricedTiles only PRICE_CHAINS keys, so actionButton's `key === \"move\"` branch (1429) is reached by the suite alone."
+    },
+    {
+      "where": "scripts/sheet-actions.mjs:431-436",
+      "comment_says": "moveDragSaid: 'The HUD's Move row and the Monocub's Move tile ask it.'",
+      "code_does": "Only player-status.mjs:527 asks it; the Monocub's Move tile is gone (E103)."
+    },
+    {
+      "where": "scripts/sheet-actions.mjs:424-427",
+      "comment_says": "'A character that is no Monocub, which the panel never holds, still reads the next price.'",
+      "code_does": "The only callers (injectMonocubPanel 403 and refreshMonocubTiles in sheet-repaint.mjs:320) are inside the Monocub panel, so the moveLine branch is unreachable outside the suite; the comment says so in passing but keeps the branch."
+    }
+  ],
+  "hygiene": {
+    "functions_over_300": [],
+    "functions_150_to_300": 3,
+    "functions_150_to_300_list": [
+      "sheet-actions.mjs:1200 actionButton (231)",
+      "sheet-actions.mjs:785 runCall (158)",
+      "sheet-actions.mjs:175 injectActionPanel (152)"
+    ],
+    "functions_100_to_150": [
+      "sheet-sidebar.mjs:1041 tidyBiography (121)",
+      "sheet-audit.mjs:3024 compareOne (118)",
+      "sheet-inventory.mjs:137 groupInventory (107)"
+    ],
+    "how_measured": "espree over the ten files (audit/harness/node_modules, read-only), every function node's first to last line; script in /tmp/domain-ui-c-sheet/fnlen.mjs.",
+    "duplicated_helpers": [
+      "The root of an element, `element instanceof HTMLElement ? element : element?.[0]`, written 17 times (sheet-fit 6, sheet-sidebar 6, sheet-header 2, sheet-item 2, sheet.mjs 1).",
+      "leaveLoadoutTab (sheet-fit.mjs:19-36) and dropTab (sheet-item.mjs:12-28) are the same tab-leaving code twice; dropTab also removes the nav link.",
+      "The mark the held readers read, `actor?.type === \"character\" && isPrimaryGm() && gmStoresHydrated() ? sheetMarkStore.get(actor.id) : null` with the Monokuma test, is spelt in itemsHeldNow (787), itemMarkedBefore (807) and heldMark (931).",
+      "An item row's picture, name, Broken tag, wear and tier markup is built three times (sheet-inventory.mjs:107-123, 282-283, 432-440) and a fourth time in the Equipped list (sheet-sidebar.mjs:541-546)."
+    ],
+    "dead_code": [
+      "stillMoveTile (sheet-actions.mjs:1439-1459) and actionButton's `key === \"move\"` branch (1429): no tile in the app is keyed 'move' since E103; reached by R4100/R4472 only.",
+      "monocubMoveNote's moveLine branch (sheet-actions.mjs:427) for a character that is no Monocub: no app caller outside the Monocub panel.",
+      "needsInit (sheet-header.mjs:600-603) and dropBiographyTab (sheet-sidebar.mjs:39-41) are one-line wrappers.",
+      "headerGate (sheet-mode.mjs:145-147): exported for the suite, no app caller (it says so)."
+    ],
+    "magic_numbers": [
+      "sheet-audit.mjs:1918 `at - 30_000`: the consumptions' half minute inline, named only in the comment at 1874.",
+      "sheet-audit.mjs:2135 and 2518 the 80-character cut (ticketName) and 77/80 (shown), each a literal; ticketName's 80 must match remnants' narrowPlayerRemnant cut (the comment says so), with no shared constant.",
+      "sheet-sidebar.mjs:1080 area.rows = 8."
+    ],
+    "perf_shape": [
+      "Every render of a student's sheet builds ten tiles, each asking roomBlockFor (locateActor, SearchTokens, neighbouringRooms, othersInRoom twice) and a price quote, plus fitActionTiles' and fitTraitRow's forced layouts (up to seven measure steps, twice once fonts are ready) - counts of work read off the source, not measured.",
+      "sheet-audit.mjs rollCovering (1926-1942) and callsCover's find (2012-2027) walk the whole chat log newest to oldest and `continue` past messages older than the window instead of stopping; the per-message test is cheap, so this is a shape, not a measured cost."
+    ]
+  },
+  "hints_for_other_passes": {
+    "dead_controls": [
+      "The flagged write's card (sheet-audit.mjs:2942-2948) and the away card's row buttons (3218-3227) remove their buttons before asking the primary; a refused or unanswered ask leaves the card with no buttons until it is drawn again, the bridge's toast the only word.",
+      "The Monocub panel's Bribe Accept / Refuse (sheet-actions.mjs:384-388) disable themselves and never re-enable or read the answer; a refusal leaves both greyed until a render.",
+      "The 'the way is shut' label of Known passages is drawn at render from where the token stood (sheet-sidebar.mjs:624-630) and nothing redraws the list on a token's move (its own note, 667-674)."
+    ],
+    "stale_windows": [
+      "The Mastermind's lair line (sheet-sidebar.mjs:800-827) reads the room's lock off region flags (movement.mjs isLocked) and is redrawn only by its own press's render; a GM's lock in Room Setup or a breach changes the regions, which renders no actor sheet, so the line keeps 'open' and a Lock that asks lock:true again.",
+      "The Tamper tile's cached struck-through state on a player's browser (finding 3).",
+      "The Monocub panel's purse, Bribe, Bounty and Ghost Bet lines (sheet-actions.mjs:354-393) read the owner's copy; whether a copy change redraws the sheet was not traced in this lane (no row for it in registerSheetTweaks; timed effects have one, settings.mjs:2343-2357)."
+    ],
+    "for_the_security_lane": [
+      "sheet-audit.mjs was read whole for leaks and flows; its cards go to whisperToGms only and the writer is told one coded line. The arithmetic of the credit and of hopeLeft was not re-derived here."
+    ]
+  },
+  "not_established": [
+    {
+      "what": "Whether an Ultimate being typed survives a render of the sheet. The field is a contenteditable span committed on blur (sheet-header.mjs:841-910); unlike the backstory (sheet-sidebar.mjs:1099-1128) nothing holds its typed text or focus across a render, and a render that replaces .character-details either drops the text (no blur on removal) or saves the half-typed text (blur on removal) and drops the focus. Which one Chromium does in Foundry's render is not read.",
+      "live": "new live check: Ultimate typed while the GM writes a non-repaintable field",
+      "l1": {
+        "what": "What happens to an Ultimate half typed when the sheet renders under the typist",
+        "recipe": [
+          "Open a student's sheet on the player's browser and click the Ultimate line",
+          "Type 'Brilliant ch' and leave the caret in the field",
+          "On the GM's browser change that student's actions (a pip on the header) or give an item, so the sheet renders (not a Hope write, which repaints)",
+          "On the player's browser read the Ultimate line and whether it still has focus, then read actor.getFlag('danganronpa-rpg','ultimate') in the console"
+        ],
+        "clients": "GM and one player",
+        "theme": "default",
+        "settles_if": "the typed text and the focus are still there -> no finding; the text is gone, or the flag holds 'Brilliant ch' and the focus is lost -> a minor ux finding (the backstory's hold applied to the Ultimate)",
+        "priority": "minor"
+      }
+    },
+    {
+      "what": "The cost of one student sheet render at a table: ten tiles each locating the actor and quoting a price, two layout fitters, and clock.refreshSheets rendering every open sheet on each clock, timed-effect or passage-copy change (redrawPassageSheets on a GM renders every open student sheet). Counts read off the source only.",
+      "live": "LIVE-E88-01 (fps()) and LIVE-E33-05 (the performance baseline)",
+      "l1": {
+        "what": "Frame time and work of a sheet render",
+        "recipe": [
+          "Open three student sheets on the GM's browser",
+          "Run await game.drpg.fps({ toChat: false }) while another browser moves the clock one time of day",
+          "Read the frames over 33 ms and the clock.refreshSheets.rendered counter in the report"
+        ],
+        "clients": "GM and one player",
+        "theme": "both",
+        "settles_if": "no frame over 50 ms on the clock change -> no finding; frames over 50 ms attributed to the sheet pass -> a perf finding",
+        "priority": "nit"
+      }
+    },
+    {
+      "what": "Whether the repaint path is taken at a table at all (renderContext 'updateActor' and renderData as v14 hands them): if not, every Hope, Health and Sanity write renders the sheet, which is the safe failure, and the repaint code is dead there.",
+      "live": "LIVE-E45-01, LIVE-E45-02",
+      "l1": {
+        "what": "Whether a resource write repaints or renders",
+        "recipe": [
+          "Open a student's sheet on the owner's and the GM's browsers",
+          "From the GM's console write one Hope on that student",
+          "Read game.drpg.counters() for a sheet render on both browsers, or watch the Inventory tab's scroll stay put"
+        ],
+        "clients": "GM and one player",
+        "theme": "default",
+        "settles_if": "no render on either -> the repaint holds; a render -> the repaint is not reached on v14",
+        "priority": "minor"
+      }
+    }
+  ]
+}

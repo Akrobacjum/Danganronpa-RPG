@@ -1,0 +1,318 @@
+{
+ "refuter": "verify-old-1.2.42-map",
+ "of": "old-1.2.42-map",
+ "scope_note": "Every item of status fixed or partly (19 of 21; no item is obsolete), the one open item (MAP-LC4; the file has only one open item, so the sample of 5 is 1) and the one decision (MAP-12), and the 3 new_observations (all nit; none is minor or above, checked anyway). Static reading of today's source (scripts/ identical to b5a29e73) and git show; nothing run; audit/findings-1.2.118/base-run.json absent when read, so no test or scenario result is cited.",
+ "checked": [
+  {
+   "ref": "MAP-01",
+   "claim": "fixed: inTheIncident reads the cast's leaf (incidentParticipants, incidentCast), not the world half, so the killer and the victim see their incident's trace",
+   "verdict": "stands",
+   "why": "Read inTheIncident and its one caller myIncidentTrace: the world half is asked for `active` alone; the ids come from incidentParticipants(), which reads incidentCast() (the GMs' store on a GM, the participant's own copy on a player). Followed the copy's shape in incident-store.mjs castCopyFor: a victim's copy keeps victimId even where killerId is nulled (indirect or masked), and a killer's copy keeps killerId, so both stay entitled; a bystander's copy is {} and gets nothing. grep of killerId/victimId/thirdId in visibility.mjs finds only the cast reads. Scenario 81 G1/G3/G5 read the three viewers (layers ci and local-gate); its result was not read (no base-run.json).",
+   "evidence": [
+    "scripts/visibility.mjs:764-765 `const state = game.settings.get(MODULE_ID, SETTINGS.murderState); if (!state?.active) return false;`",
+    "scripts/visibility.mjs:779-782 `const ids = new Set(incidentParticipants()); ... if (cast.thirdId && cast.thirdSide !== \"killer\") ids.delete(cast.thirdId);`",
+    "scripts/settings.mjs:3608-3611 `export function incidentParticipants() { const cast = incidentCast(); return [cast.killerId, cast.victimId, cast.thirdId].filter(Boolean); }`",
+    "scripts/incident-store.mjs:588 `return { copy: { ...copy, killerId: null, killerTurnId: null }, withheld };` (victimId kept)",
+    "audit/harness/scenarios/81-render-budget.mjs:304-306 `check(\"G1: ... p1 (the victim) and p3 (the killer) show it, p2 (a bystander) does not\"`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "MAP-02",
+   "claim": "partly: a sprite sliding into the viewer's room is held hidden while it stands in another room (read on 14.370), but not while its centre is in no room",
+   "verdict": "weakened",
+   "why": "The code half is as the reader says: the hold is `at && !myRooms().has(at)`, so a sprite whose centre roomAt answers null for (the space between two rooms that do not touch) is left to Foundry; and that space is lit for a player (fog.mjs's header: 'a lit corridor'), so nothing of the module's fog covers a sprite drawn there. The reading LOCAL-REPORT.md:419 says she was drawn at x 1155 and 'never drawn further left', and continued into the Cafeteria, which suggests Foundry writes `visible` back on slide frames (the module calls no show() for the verdict 'room'); if so the gap frames are drawn too. But no sample lies in the gap, and whether a gap frame is drawn is not measured, so the standing half is a question (the reader's own confidence 'suspected'), not a part that 'still happens' by 11.3. The status partly is kept as the reader's best reading, resting on an unmeasured half.",
+   "evidence": [
+    "scripts/visibility.mjs:503 `const sliding = token.x !== token.document.x || token.y !== token.document.y;`",
+    "scripts/visibility.mjs:507 `if (at && !myRooms().has(at)) hide(token);`",
+    "scripts/movement.mjs:2545 `if (!scene?.regions?.size) return null;` (roomAt answers null outside every room)",
+    "scripts/fog.mjs:548-549 `visibility.mjs still hides other characters' TOKENS to their own room, so a lit corridor never means \"you can see who is standing in it\".`",
+    "docs/dev/e58/LOCAL-REPORT.md:419 `hidden in the corridor (last hidden at x 588), first drawn at x 1155 ... never drawn further left. Limit: headless drew 33 frames in 9 s`"
+   ],
+   "status_after": "partly (the standing half unmeasured; new live check as in the reader's not_established)",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "MAP-03",
+   "claim": "fixed: a refused crossing no longer names unknown rooms; the list and the {to} are cut to the rooms this viewer knows",
+   "verdict": "weakened",
+   "why": "The old list ('From here you can reach') is fixed as read: notConnectedText cuts it and drops an unknown {to}. But the same fault - a refusal that names the room under a drop the viewer has never found - stands on another road of the same veto. crossingVerdict asks restrictedFrom before the connected-rooms rule, and restrictedFrom's bedroom refusal formats DRPG.Vault.keyMissing with {room: to} (and the seal's DRPG.Calls.sealedBlocked with {room: to}) with no fog filter; the veto shows the string as a toast. A player who drags onto a black patch that is another student's bedroom is told its name, at any distance (the bedroom rule is asked before adjacency); the primary's put-back says the same (movement-audit.mjs sentBackLine). A seal's name is public, but its place on the map is not. The reader's refutation followed neighbouringRooms' readers and not the veto's other refusals. The same defect is domain-map-b-movement-2 (stands, minor, in verify-domain-map-b-movement.json). The tier 2 test it cites reads notConnectedText and crossingRefused only.",
+   "evidence": [
+    "scripts/movement.mjs:1727 `const blocked = restrictedFrom(actor, to, scene, mover, { via: ... , keyed });` (before crossingRefused)",
+    "scripts/movement.mjs:2079 `if (isSealed(to)) return refusal(keyed, \"roomSealed\", game.i18n.format(\"DRPG.Calls.sealedBlocked\", { room: to }));`",
+    "scripts/movement.mjs:2099 `return refusal(keyed, \"cannotNow\", game.i18n.format(\"DRPG.Vault.keyMissing\", { room: to }), \"bedroomShut\");`",
+    "scripts/movement.mjs:1619 `ui.notifications.warn(allowed);`",
+    "lang/en.json:3233 `\"keyMissing\": \"The door to {room} is locked. You do not have that key.\"`",
+    "scripts/movement-audit.mjs:439 `if (payload?.rule === \"bedroomShut\" && ...) return game.i18n.format(\"DRPG.Vault.keyMissing\", { room: payload.room });`"
+   ],
+   "status_after": "partly",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "MAP-04",
+   "claim": "fixed: the GM's discovery comparison is keyed by scene id and reset by stand(), so a scene change seeds silently",
+   "verdict": "stands",
+   "why": "Read fogSets: `opened` is computed only when the record's sceneId is this scene's, and the record is rewritten every paint; stand() nulls it; ledgerRooms is per scene (no floor filter), so a floor change compares like with like; lastLedgerSeen has no other writer (grep). The scene-change road of the old defect does not happen. A question left (not a finding, not established): on a second GM whose own copy of the discovery store is behind, the first paint seeds from that copy and the hydration's merge then writes the client setting gmDiscovery, whose onChange repaints - so `opened` could hold rooms found while that GM was away and play one curtain for one of them; whether the first paint precedes the merge at a real load was not traced.",
+   "evidence": [
+    "scripts/fog.mjs:2813-2816 `if (lastLedgerSeen?.sceneId === scene.id) { opened = ... } lastLedgerSeen = { sceneId: scene.id, rooms: new Set(current) };`",
+    "scripts/fog.mjs:3188 `lastLedgerSeen = null;` (stand)",
+    "scripts/fog.mjs:1515 `for (const [actorId, list] of Object.entries(ledger?.[scene.id] ?? {})) {` (ledgerRooms, per scene)",
+    "scripts/settings.mjs:3075-3080 `game.settings.register(MODULE_ID, SETTINGS.discoveryLedger, { scope: \"client\", ... onChange: () => onWorldChange(SETTINGS.discoveredRooms) });`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "MAP-05",
+   "claim": "fixed: the outline fade stands above the 'unchanged' shortcut in repaintFog",
+   "verdict": "stands",
+   "why": "Read repaintFog from its top to the shortcut: the only returns above the fade are stand-downs (which hide the layer) and queueBehindDissolve (re-run when the dissolve ends); the fade at 3107 reads `mine`, where the viewer's tokens stand, not the Eclipse-adjusted set.",
+   "evidence": [
+    "scripts/fog.mjs:3107 `if (roomOutline && !mine.has(roomOutline.room)) fadeRoomOutline();`",
+    "scripts/fog.mjs:3109 `if (signature === lastPaintSignature && findLayer()?.visible) {`",
+    "scripts/fog.mjs:3017 `if (queueBehindDissolve()) return false;`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "MAP-06",
+   "claim": "fixed: roomEnteredByMe treats the Mastermind as having seen every room",
+   "verdict": "stands",
+   "why": "Both callers of playDiscoveryAnimation for an arrival (ownArrival 4401, revealStartingRooms 4428) take isNew from roomEnteredByMe, whose `seen` is true for iAmTheMastermind(); the third caller (repaintFog's `opened`, 3165) is fed on a GM's browser only.",
+   "evidence": [
+    "scripts/fog.mjs:4538-4541 `const seen = game.user.isGM || iAmTheMastermind() || discoveredFor(scene.id, actor.id).includes(room) || animatedAlready.has(key);`",
+    "scripts/fog.mjs:2812 `if (game.user.isGM) {` (the only producer of `opened`)"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "MAP-07",
+   "claim": "fixed: the drift tick keeps one MediaQueryList, reads the ink at most twice a second, redraws the backdrop only on a change and uses one scratch matrix",
+   "verdict": "stands",
+   "why": "Read driftTick whole and pinToScreen: none of the four named per-frame costs remains; motionOff() is a boolean and a kept query's `matches`.",
+   "evidence": [
+    "scripts/motion.mjs:128 `reducedQuery ??= window.matchMedia?.(\"(prefers-reduced-motion: reduce)\") ?? null;`",
+    "scripts/fog.mjs:3806-3807 `if (now - inkCache.at > 500) inkCache = { at: now, value: colourOf(\"--drpg-ink\", 0x1a1620) };`",
+    "scripts/fog.mjs:3884 `if (!drawn || drawn.w !== width || drawn.h !== height || drawn.ink !== ink) {`",
+    "scripts/fog.mjs:3781 `this.transform.setFromMatrix((scratchMatrix ??= new PIXI.Matrix()).copyFrom(parent.worldTransform).invert());`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "MAP-08",
+   "claim": "partly: fog.mjs reads motion.mjs's reducedMotion, but the outline's landing hop still runs under Reduced motion",
+   "verdict": "stands",
+   "why": "Confirmed both halves: motionOff() reads motion.mjs's reducedMotion (body class first); landOutline animates the group by 0.9 of a square over BOUNCE_MS with no motion check, and is reached on the reduced-motion road too (playDiscoveryAnimation calls flashOutline when motionOff(), and flashOutline lands the outline unless quiet).",
+   "evidence": [
+    "scripts/fog.mjs:2110-2112 `function motionOff() { return !animationsOn || reducedMotion(); }`",
+    "scripts/fog.mjs:4688-4689 `if (!bounds || !renderer || motionOff()) { flashOutline(fx, region, rect, level, {...});`",
+    "scripts/fog-reveal.mjs:1235-1239 `function landOutline(group, grid) { const jump = grid * 0.9; ... duration: BOUNCE_MS,`",
+    "scripts/fog-reveal.mjs:1407 `if (!quiet) landOutline(group, grid);` and 1462 `landOutline(group, grid);`"
+   ],
+   "status_after": "partly",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "MAP-09",
+   "claim": "fixed: clearLayer frees owned textures before destroying the FX group",
+   "verdict": "stands",
+   "why": "Read clearLayer, freeOwned, clearTransient, tearDownLayer and the canvasTearDown hook; the one writer of drpgOwnedTexture outside the outline halo (fog-doorways.mjs:1531, the glow's field) is freed by freeOwned on each road that destroys the FX group's children; the faders (fog-reveal.mjs:1526, 1533) free before destroy.",
+   "evidence": [
+    "scripts/fog.mjs:4271-4275 `else { freeOwned(child); child.destroy({ children: true }); }`",
+    "scripts/fog-reveal.mjs:108-111 `const owned = node.drpgOwnedTexture; if (owned) { node.drpgOwnedTexture = null; if (!owned.destroyed) owned.destroy(true); }`",
+    "scripts/fog-doorways.mjs:1531 `glow.drpgOwnedTexture = field;`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "MAP-10",
+   "claim": "fixed: noBudget, noBudgetLong and Eclipse.noMovesLeft fit their uses; Eclipse.notConnected is gone",
+   "verdict": "stands",
+   "why": "Read each key in both languages and each caller: noBudget is the short refusal (veto 1835, charge toast 3355), noBudgetLong only where the charge put the token back (3360), noMovesLeft says 'stays where it was', true of the veto and of the end of a put-back; no Eclipse.notConnected key in lang/en.json or a caller in scripts/.",
+   "evidence": [
+    "lang/en.json:4374 `\"noMovesLeft\": \"Your Eclipse crossings are used up, so your token stays where it was.\"`",
+    "lang/en.json:4426 `\"noBudget\": \"No Free Move and no actions left.\"`",
+    "lang/en.json:4428 `\"noBudgetLong\": \"You have no Free Move and no actions left, so your token was put back.\"`",
+    "scripts/movement.mjs:3354-3361 `await sendBack(tokenDoc, previous, from); ui.notifications.warn(game.i18n.localize(\"DRPG.Move.noBudget\")); ... \"DRPG.Move.noBudgetLong\"`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "MAP-11",
+   "claim": "fixed: a route refused at a later crossing puts the token back in the last room paid for, on both the economy's and the Eclipse's branch",
+   "verdict": "stands",
+   "why": "Read chargeRoute: both branches move `standing` to each paid crossing's own spot and send back to it; chargeForCrossing's put-back takes `previous`, which is that standing. Within one route each takeMove is awaited before the next crossing reads the budget. The race of two separate drags is MAP-LC3's, not this one.",
+   "evidence": [
+    "scripts/movement.mjs:2797-2803 `if (!allowed) { await sendBack(tokenDoc, standing, from); return false; } allowedSoFar++; standing = spot ?? standing;`",
+    "scripts/movement.mjs:2841-2846 `let standing = previous; for (const [from, to, , spot] of crossings) { const paid = await chargeForCrossing(actor, from, to, tokenDoc, standing); if (!paid) return false; standing = spot ?? standing; }`"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "MAP-12",
+   "claim": "decision: the ledger is a GM store plus each player's own cells (D2, variant B)",
+   "verdict": "stands",
+   "why": "Checked as an extra (status 'decision' is outside 11.3's four words, the reader's own label for a decided item). The world setting's writers are the season clear and the lift (fog.mjs:1255, 1307) and the migration clause (migrate.mjs:365), each writing it empty or narrower; every reader goes through discoveryLedger, which answers by role.",
+   "evidence": [
+    "scripts/settings.mjs:3509-3511 `const rows = game.user?.isGM ? (gmStoreByName(\"discovery\")?.entries() ?? {}) : liveFields(readMine(\"fog\"), ...);`",
+    "scripts/fog.mjs:1307 `await game.settings.set(MODULE_ID, SETTINGS.discoveredRooms, {});`"
+   ],
+   "status_after": "decision (as recorded; by 11.3 'obsolete' or 'fixed by decision')"
+  },
+  {
+   "ref": "MAP-13",
+   "claim": "partly: the region guard is cached, but doorRooms walks every region's polygons on every repaint above the shortcut, and the token hooks are not narrowed",
+   "verdict": "stands",
+   "why": "Confirmed: readableCache guards the first pass; doorRooms is rebuilt from regionShapes(region, ...) for every region before the signature shortcut at 3109; regionShapes keeps no memo; createToken and deleteToken call repaintFog for any token.",
+   "evidence": [
+    "scripts/fog.mjs:3088-3089 `doorRooms = { sceneId: scene.id, ..., rooms: regions.map(region => ({ shading: shading[region.name], polygons: regionShapes(region, { x: 0, y: 0 }) })) };`",
+    "scripts/fog.mjs:327 `step(\"repaint\", () => repaintFog());` (createToken) and 351 (deleteToken)",
+    "scripts/fog-geometry.mjs:62-63 `export function regionShapes(region, rect) { const out = [];`"
+   ],
+   "status_after": "partly",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "MAP-14",
+   "claim": "fixed: the seven stale comments of fog.mjs and movement.mjs are gone or true",
+   "verdict": "stands",
+   "why": "Grepped the old phrases ('pass 4', '220ms', 'header note', FOG_BUILD) in fog*.mjs and movement.mjs and read each hit: fogBuild reads the manifest; the one 'header note' left (fog.mjs:4331, on recordDiscovery) points at a header that exists (1573-1579); '220' only as history at 252; regionsAt is not exported; onPreCreateToken's note matches the code.",
+   "evidence": [
+    "scripts/fog.mjs:107 `const fogBuild = () => `${game?.modules?.get?.(MODULE_ID)?.version ?? \"?\"} · glow-field`;`",
+    "scripts/fog.mjs:4331 `// gets - see the header note on `recordDiscovery`.` with scripts/fog.mjs:1575-1579 `GM-only, and only the PRIMARY one writes - `updateToken` fires on every client ...`",
+    "scripts/movement.mjs:2594 `function regionsAt(scene, x, y, tokenDoc, level = levelOf(tokenDoc)) {` (not exported)"
+   ],
+   "status_after": "fixed"
+  },
+  {
+   "ref": "MAP-15",
+   "claim": "partly: glassOn, SEAM_GLOW and polylineLength consolidated; the 0.18 zoom guard and the 60 ms settle are in three files; bare numbers remain",
+   "verdict": "weakened",
+   "why": "The standing half is confirmed and is larger than written. The reader did not read scripts/fog-diagnostics.mjs, and the old hygiene list it settles named 'point-segment distance x3' beside 'polyline length x4': the three point-to-segment loops moved out of fog.mjs (v1.2.42 lines 1790, 1841, 1861) stand inline in fog-diagnostics.mjs, with a polyline run beside one of them, though fog-geometry.mjs exports distanceToSegment and fog.mjs and passages-gm.mjs use it. So 'one polylineLength' and the consolidation are not whole. Status partly kept.",
+   "evidence": [
+    "scripts/fog-diagnostics.mjs:91 `run += Math.hypot(dx, dy);`",
+    "scripts/fog-diagnostics.mjs:95 `best = Math.min(best, Math.hypot(at.x - (ax + dx * t), at.y - (ay + dy * t)));`",
+    "scripts/fog-diagnostics.mjs:152 `const d = Math.hypot(at.x - (ax + dx * t), at.y - (ay + dy * t));`",
+    "scripts/fog-diagnostics.mjs:175 `const d = Math.hypot(at.x - (c[0] + dx * t), at.y - (c[1] + dy * t));`",
+    "scripts/fog-geometry.mjs:252 `export function distanceToSegment(px, py, x1, y1, x2, y2) {`",
+    "scripts/fog-reveal.mjs:1565, remnant-ring.mjs:145, own-ring.mjs:143 `< 0.18) return;`; fog.mjs:442, remnant-ring.mjs:162, own-ring.mjs:162 `}, 60);`"
+   ],
+   "status_after": "partly",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "MAP-LC1",
+   "claim": "partly: the sliding-sprite check read once on 14.370; a Monokuma's walk and the gap between rooms not sampled",
+   "verdict": "stands",
+   "why": "The reading says what the reader quotes, and the two named samples bracket the gap with none in it (x 588 + 50 = 638, inside Dorm A 200-800; x 1155 + 50 = 1205, inside the Cafeteria from 1200). The newest L1 copy (origin/claude/e58-local) has no later row for it (grep of 'ruler', E116 and the slide found nothing new for this item).",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:419 `| 15, S7-7 (MAP-02) | measured | ... hidden in the corridor (last hidden at x 588), first drawn at x 1155 ...`",
+    "audit/harness/lib/seed.mjs:132-133 `Dorm A ... x: 200, ... width: 600` / `Cafeteria ... x: 1200, ... width: 800`"
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "MAP-LC2",
+   "claim": "partly: the ruler's visible is asked of one predicate on every write (owner-116); the shape on v14 and a second seat's view are unread (LIVE-E116-01, -02)",
+   "verdict": "stands",
+   "why": "Read hourRulerFor's setter, rulerHere and rulerShownTo; hideMovementTrail still writes the one-off false from hide(). No reading of E116 or the ruler in LOCAL-REPORT.md or CALIBRATION.md, on b5a29e73 or on origin/claude/e58-local (grep); 9.2 items 558-559 hold the checks open. Part (a) rests on the dated sandbox reading of 03.09 the comment records.",
+   "evidence": [
+    "scripts/fog-doorways.mjs:1901-1906 `set visible(value) { ... const on = Boolean(value) && rulerAllowed(this); if (accessor) super.visible = on; else RULER_SHOWN.set(this, on); }`",
+    "scripts/visibility.mjs:1006-1011 `function rulerHere(token) { ... if (hiddenByUs.has(token)) return false; return rulerShownTo(token.document, viewerHere(...)); }`",
+    "scripts/visibility.mjs:911-913 `CONFIRMED ON 14.365 (sandbox, 03.09; audit Q9): the trail is `token.ruler`, an own property ... it has a `visible` flag.`"
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "MAP-LC3",
+   "claim": "partly: the Eclipse half is settled in code (the primary's own tally); the Free Move half (two drags inside one write's round trip) stands",
+   "verdict": "weakened",
+   "why": "The code reading holds: on the owner's browser settleRoute calls chargeRoute outside any serial key, and takeMove reads hasFreeMove and then awaits its write, so a second drag's settle can read the flag unspent. But this is a live check and nothing of it was read at a table, and its standing half is the reader's own 'suspected'; by U11 a live check is closed in part only by a recorded reading, never by reasoning (the refuters of ITEM-LC2..8 and CORE-LC1/3/6 applied the same rule). The code half stays as a statement about the code.",
+   "evidence": [
+    "scripts/movement.mjs:2752 `if (owner) return chargeRoute(tokenDoc, actor, { before, previous, crossings });`",
+    "scripts/actions.mjs:346-348 `if (hasFreeMove(actor)) { await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeMoveUsed}`]: true }, ...); return \"free\"; }`"
+   ],
+   "status_after": "open",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "MAP-LC4",
+   "claim": "open: restoreSceneVisionMode restores fog.mode only when the saved value is a finite number",
+   "verdict": "stands",
+   "why": "Sample of an open item, checked for 'already fixed': not fixed. The restore still asks Number.isFinite, and when fog.mode was saved the exploration fallback was saved null, so a string mode restores neither; the record is then unset. No reading of CONST.FOG_MODES or the type of scene.fog.mode exists in LOCAL-REPORT.md, CALIBRATION.md (either copy) or the live-readings digests (grep). The file has only this one open item, so the sample of 5 is 1.",
+   "evidence": [
+    "scripts/fog.mjs:583-584 `fogMode: scene.fog?.mode ?? null, fogExploration: scene.fog?.mode === undefined ? (scene.fog?.exploration ?? null) : null,`",
+    "scripts/fog.mjs:974-975 `if (Number.isFinite(before.fogMode)) update[\"fog.mode\"] = before.fogMode; else if (typeof before.fogExploration === \"boolean\") ...`",
+    "scripts/fog.mjs:985 `await scene.unsetFlag(MODULE_ID, VISION_BEFORE);`"
+   ],
+   "status_after": "open",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "MAP-LC5",
+   "claim": "fixed: switching scenes as GM plays no curtain, by the code",
+   "verdict": "weakened",
+   "why": "The code reading stands (as MAP-04). But 'fixed' is not a live check's status and the reader records no reading at a table ('No reading at a table is recorded for it; the status is the code's'); by U11 and 11.3 a live check with no reading is open.",
+   "evidence": [
+    "scripts/fog.mjs:2813 `if (lastLedgerSeen?.sceneId === scene.id) {`"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "MAP-LC6",
+   "claim": "fixed: a token dropped on a scene off screen seeds that scene's ledger",
+   "verdict": "weakened",
+   "why": "The code reading stands: the createToken hook hands its own scene to seedDiscovery, and seedCells reads that scene's documents; the other two callers seed every scene with rooms. A tier 2 test names the case (result not read: no base-run.json). But no table reading exists, and a live check is closed only by one (U11); status open, the code half fixed.",
+   "evidence": [
+    "scripts/fog.mjs:329 `step(\"seedDiscovery\", () => seedDiscovery(tokenDoc?.parent ?? null));`",
+    "scripts/fog.mjs:1678 `for (const one of scene ? [scene] : scenesWithRooms()) seedCells(one, cells);`",
+    "scripts/tests-tier2.mjs:66853 `[\"the fog draws a two-piece room from both pieces and seeds it on a scene off screen\", async () => {`"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "obs-1",
+   "claim": "nit: LOCAL-REPORT.md:419 calls x 588 'the corridor', though that sample's centre is inside Dorm A",
+   "verdict": "stands",
+   "why": "Recomputed on the seeded map: a 1x1 token at x 588 on the 100 px grid has its centre at 638, inside Dorm A (200-800).",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:419 `hidden in the corridor (last hidden at x 588)`",
+    "audit/harness/lib/seed.mjs:120 `grid: { size: 100, distance: 5, type: 1 },`"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "obs-2",
+   "claim": "nit: AUDIT-1.2.42.md:632 cites 7e40243 for task 13; the task's commit is b888c066",
+   "verdict": "stands",
+   "why": "git show: 7e402433 is 'D8: the first text pass, and the decisions recorded' and touches no fog or motion file; b888c066 is 'Task 13: the findings that had no task, and the tally corrected' and its message names 'MAP-15: one glassOn() and one SEAM_GLOW table in motion.mjs', touching scripts/fog.mjs and scripts/motion.mjs.",
+   "evidence": [
+    "audit/AUDIT-1.2.42.md:632 `| 13 - rozliczenie | `7e40243` | ...`",
+    "git show b888c066 `- MAP-15: one glassOn() and one SEAM_GLOW table in motion.mjs.`"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "obs-3",
+   "claim": "nit: the comment over the sliding-sprite hold says more than its line does",
+   "verdict": "stands",
+   "why": "The comment says the sprite stays hidden 'while the sprite is not yet in a room of mine'; the line holds it only while it is in another room (`at &&`).",
+   "evidence": [
+    "scripts/visibility.mjs:499 `While the sprite is not yet in a room of mine it stays hidden;`",
+    "scripts/visibility.mjs:507 `if (at && !myRooms().has(at)) hide(token);`"
+   ],
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 24,
+  "stands": 18,
+  "weakened": 6,
+  "refuted": 0
+ },
+ "not_established": [
+  "MAP-02's gap frames: whether 14.370 draws a sliding character whose centre is between two rooms that do not touch (the hold at visibility.mjs:507 does not cover it, and the corridor is lit). New live check: the LOCAL-REPORT.md:419 sampling run with a sample forced while the centre is at x 800-1200 on the seeded map, reading token.visible there; and once for a Monokuma.",
+  "MAP-04's sibling road: on a second GM whose copy of the discovery store is behind (discoveries made while that GM was away), whether the first canvasReady paint seeds lastLedgerSeen before the store's merge, so that the merge's repaint (gmDiscovery's onChange, settings.mjs:3080) plays one curtain and sound for a room found earlier. Not traced through gm-store.mjs's open and exchange; new live check: two GMs, the second away while a player finds a room, then the second loads with the scene on screen.",
+  "MAP-03's remaining road (domain-map-b-movement-2): whether bedroom names on a real campaign map are already known to players by other means (door plates, the handbook), which would lower the bedroom half to a place leak only; a question for the owner, not a measurement.",
+  "Results of the tests and scenarios named as pins (81 G1-G5, 60-ledger, 66 W4, tier 2 'a refused crossing names no unknown room', E17-T4, R1012, R7523, R7703): base-run.json absent, not read."
+ ]
+}

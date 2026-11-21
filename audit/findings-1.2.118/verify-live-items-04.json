@@ -1,0 +1,122 @@
+{
+ "refuter": "verify-live-items-04",
+ "of": "live-items-04",
+ "checked": [
+  {
+   "ref": "129",
+   "claim": "LIVE-E33-05 partly read: perf() answered on a real Foundry in both themes on the GM and a player; none of the round-trip numbers read",
+   "verdict": "weakened",
+   "why": "The readings exist, are dated 16.11.2026, on Foundry 14.370 with the module at 80dfaf06 (1.2.116 with L1 step 3, recent enough), and say what the reader quotes: on all four perf() reports the three lines of 'Rolls the GM drew' read 'none since this browser loaded'. But that is the whole of what the item asks: the drawn roll's round trip on a player and on the GM in both themes, then world-manifest.mjs --write and perf-baseline.mjs --run. None of the three was read (no roll was drawn in those windows, no world copy, runs empty). That perf() ran is the precondition of the reading, not a part of it, and the paper itself writes this id as still not measured. The sandbox is also not the item's setting ('the owner's table'; the paper names the owner's own Chrome on Windows as unmeasured). Section 11.3's 'partly' needs a read part; here no part the item asks was read, so the count is open. The digests' outcome 'partial' (live-readings-e58.json:390-396, live-readings-other.json:449-457) is the same over-count carried forward. The rest of the entry stands: triage T (TRIAGE-9.2.md:152), the overlap with item 561 (AUDIT-1.2.42.md:1586 'także LIVE-E33-05'), and the stale detail (perf-baseline.mjs stamps by --stage, :22 and :274-276; --run needs --world and --scene, :295; perf-baseline.json attempts stamped E30, E33, E53, status not-measured, runs 0, worldCopy lost). The L1 branch adds nothing: its LOCAL-REPORT.md line 506 repeats the 'still not measured' sentence and PERF-READINGS.md is the same file there; live-readings-e58-delta.json names no LIVE-E33 id.",
+   "evidence": [
+    "docs/dev/e58/PERF-READINGS.md:37-40 'Rolls the GM drew (the last fifty this browser took part in): / drawn here, packet in to answer out: none since this browser loaded / drawn for this browser, asked to dice shown: none since this browser loaded / drawn for this browser, asked to dice started: none since this browser loaded' (the same at :76-79, :176-179, :211-214)",
+    "docs/dev/e58/LOCAL-REPORT.md:353-354 'The owner's own Chrome on Windows, the largest isometric map and the weakest player's machine (LIVE-E53-01, LIVE-E33-05, LIVE-E88-01) are still not measured.'",
+    "docs/dev/e58/LOCAL-REPORT.md:346 '... no roll drawn and no canvas drawn since load in that window, so those lines read \"none\"'",
+    "audit/AUDIT-1.2.42.md:969 '129. **LIVE-E33-05 - `perf()` po E29 przy stole właściciela (Q3 (a)):** obieg rzutu losowanego u gracza i u GM-a, w obu motywach; najpierw `world-manifest.mjs <kopia> --write` ..., potem `perf-baseline.mjs --run --stage E33`.'",
+    "audit/perf-baseline.json: status 'not-measured', runs [] (0), worldCopy.status 'lost', attempts at 2026-09-24 (E30), 2026-10-07 (E33), 2026-11-16T14:26:15Z (E53)",
+    "/tmp/verify-live-items-04/LR-l1.md:506 (git show origin/claude/e58-local:docs/dev/e58/LOCAL-REPORT.md, head 7875554f) 'weakest player's machine (LIVE-E53-01, LIVE-E33-05, LIVE-E88-01) are still not measured.'"
+   ],
+   "status_after": "open (perf() ran on the sandbox, but no part the item asks - the round trip, the world copy, the baseline run - was read; the paper writes the id as not measured)"
+  },
+  {
+   "ref": "125",
+   "claim": "LIVE-E33-01 open: scenario 83 through the local gate on v14 was never run; the gate records the part as not run",
+   "verdict": "stands",
+   "why": "Checked for a missed reading. The gate's record for 1.2.118 holds sandbox-83-roll-integrity as not-run, reason no-server; the dry run of 16.11 (LOCAL-REPORT.md:573) ran no part; the 83-roll-integrity 109/111 then 111/111 of LOCAL-REPORT.md:561-562 is the headless validation run (the shim's world collections, ':543-548'), not the sandbox. No paper on b5a29e73 or on the L1 branch (grep of '83-roll', 'sandbox-83', 'gate:local') records scenario 83 against the v14 server. DH212/STATUS.md:81-82 says the same of 1.2.108. Text-stale detail (2.10.x vs module.json:22 '2.12.9') confirmed.",
+   "evidence": [
+    "audit/gate/local-gate.json:103 part 'sandbox-83-roll-integrity', status 'not-run', reason 'no-server', why 'nothing answered at http://localhost:30099 (connect ECONNREFUSED 127.0.0.1:30099)', commit ec1478d5, 2026-11-19T04:28:59Z",
+    "docs/dev/e58/LOCAL-REPORT.md:557 '**The validation run** (one harness at a time, flock; ~/drpg/l1-probes/val3.log ...)'",
+    "docs/dev/DH212/STATUS.md:81-82 'One run on a real Foundry 14.365 with Daggerheart 2.12.8 - the local gate (`npm run gate:local`), and LIVE-E33-01 (scenario 83 on a real table).'",
+    "module.json:21-22 '\"minimum\": \"2.6.5\", \"verified\": \"2.12.9\"'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "127",
+   "claim": "LIVE-E33-03 open: forcePrivateRolls on 14.36x, applyMode({}, 'gm'), the roll-mode constant's deprecation line and Dice So Nice for the whisper's readers never read",
+   "verdict": "stands",
+   "why": "Checked for a missed reading. No paper on b5a29e73 or the L1 branch names forcePrivateRolls or applyMode (grep: 0 hits in LOCAL-REPORT.md, CALIBRATION.md and both L1 copies). The nearest readings are neighbours, not this item: S7-3 reads v14's chat-bar mode as core.messageMode and a player's 'self' roll whispered to the GM, with no forcePrivateRolls; S7-4 reads that v14 sends every message to every browser. The tier-2 test that cites the id stands in v14's applyMode by one of its own (tests-tier2.mjs:24413-24416), so even a pass on the sandbox would not read what v14 does.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:429 '| S7-3 (ROLL-14) | measured | v14's chat-bar mode is `core.messageMode` (not `core.rollMode`); set to \"self\" on PlayerOne, the roll window takes \"self\" and locks it ...'",
+    "scripts/tests-tier2.mjs:24414-24416 '... with v14's `applyMode` stood in by one that writes, for \"gm\", the GMs' whisper and a field besides it (what the real one writes besides is not known here)'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "131",
+   "claim": "LIVE-E33-07 open: the GM leaving or the primary reloading while a player's Search is being drawn never read",
+   "verdict": "stands",
+   "why": "Checked for a missed reading. There is one near reading the reader does not name: item 37's (LIVE-E31-03) on 16.11.2026, where the GM's page closed 2 s after PlayerOne's statistic ask for a Search reached it, and the player was told after TIMING.rulingMs (180 s). That is a GM leaving during the ruling ask, before any roll was drawn; the item asks a GM leaving while the roll is being drawn, bounded by DRAW_ANSWER_MS (30 s), and whether the action and its price come back. So it is a neighbour and does not part-read this item; status open holds. Worth naming beside the item for L1.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:458 '| 37 (LIVE-E31-03) | measured, its first half (pass 2) | PlayerOne's statistic ask (Search, Hand) reached the GM (the card made, acknowledged) and the GM's page closed 2 s later: one notice at 183 s - `TIMING.rulingMs` (180 s) after the ask ...'",
+    "audit/AUDIT-1.2.42.md:971 '131. **LIVE-E33-07 - GM wychodzi albo główny GM przeładowuje, gdy Search gracza jest losowany:** co gracz widzi do 30 s; akcja i jej cena z powrotem; nic nie zostaje'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "134",
+   "claim": "LIVE-E33-10 open: a player-created message's author and the server's handling of timestamp and _stats.createdTime never read",
+   "verdict": "stands",
+   "why": "Checked for a missed reading. The only nearby line is the one the reader already names: LOCAL-REPORT.md:607 lists _stats.createdTime of the documents the new world held, all written at its creation; no player's chat message with a client-written timestamp. The tier-2 test citing the id makes the message from the GM's page as C5a's test does (tests-tier2.mjs:62788-62789), so it does not read a player's browser's create. Text-stale '(v13 i v14)' confirmed: module.json:7 core minimum 14.364.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:607 '| What the world holds | a read-only page as GM listing each document and its `_stats.createdTime` | every one written on 15.11.2026 between 20:42:42 and 20:43:33 UTC, at the world's creation and its first GM login ...'",
+    "scripts/tests-tier2.mjs:62785-62787 'the harness's server keeps the client's `timestamp` and stamps `createdTime` itself (cluster.mjs `applyOp`), and whether v13 and v14 do both at a table is LIVE-E33-10.'",
+    "module.json:7 '\"minimum\": \"14.364\"'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "118",
+   "claim": "LIVE-E29-09 open: with Dice So Nice, the advantage dice shown on the roller's screen being the GM's never read",
+   "verdict": "stands",
+   "why": "Checked for a missed reading. The sandbox had Dice So Nice 6.4.5, and the papers name it only for its first-use cards and for item 70, where the roller without Dice So Nice was not driven; no line reads which advantage dice fell on a roller's screen. The L1 delta digest names no LIVE-E29 id. The id is cited nowhere outside AUDIT and TRIAGE (git grep).",
+   "evidence": [
+    "docs/dev/e39/CALIBRATION.md:4 '... Daggerheart 2.12.9, Dice So Nice 6.4.5, Isometric ...'",
+    "docs/dev/e58/LOCAL-REPORT.md:479 '| 70 (LIVE-E06-04) | measured, in part (pass 2) | ... The roller without Dice So Nice not driven |'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "obs-5",
+   "claim": "Only item 129 has a recorded reading; LOCAL-REPORT.md names none of the 34 ids outside line 354; TRIAGE gives K 27, S 4 (135, 136, 140, 144), T 3 (122, 129, 146)",
+   "verdict": "stands",
+   "why": "Grep of each of the 34 ids in LOCAL-REPORT.md, CALIBRATION.md and both L1 copies: the only hits are LIVE-E33-05 at LOCAL-REPORT.md:354 and its L1 twin at :506. The TRIAGE rows for 117-150 parse to K 27, S 4 [135, 136, 140, 144], T 3 [122, 129, 146]. (Per the verdict on 129 above, even that one reading did not measure what the item asks, as the observation itself says.)",
+   "evidence": [
+    "docs/dev/e58/TRIAGE-9.2.md:152 '| 129 | LIVE-E33-05 | T | perf() at the owner's table with their world copy |'",
+    "docs/dev/e58/LOCAL-REPORT.md:354 'weakest player's machine (LIVE-E53-01, LIVE-E33-05, LIVE-E88-01) are still not measured.'"
+   ]
+  },
+  {
+   "ref": "obs-6",
+   "claim": "Eighteen of the 34 ids are cited nowhere in the repository outside AUDIT-1.2.42.md and TRIAGE-9.2.md",
+   "verdict": "stands",
+   "why": "git grep at b5a29e73 with audit/findings-1.2.118, AUDIT-1.2.42.md and TRIAGE-9.2.md left out gives no file for exactly LIVE-E29-08..15, LIVE-E33-06, -07, -08, LIVE-E34-02, LIVE-E09-02, -03, -05, LIVE-E10-04, -06, -07 - the reader's eighteen.",
+   "evidence": [
+    "git grep -l 'LIVE-<id>\\b' b5a29e73 -- . ':!audit/findings-1.2.118' ':!audit/AUDIT-1.2.42.md' ':!docs/dev/e58/TRIAGE-9.2.md': empty for the 18 ids listed"
+   ]
+  },
+  {
+   "ref": "obs-10",
+   "claim": "Item 149's quoted English and Polish sentences are 1.2.72's and were reworded by 6cc82c5a (E71 B12)",
+   "verdict": "stands",
+   "why": "v1.2.72's en.json has 'This game leaves that change to the GM.'; today's en.json and pl.json have the reworded relay reason and toast at the lines the reader gives; 6cc82c5a is E71 B12. Scenario 30's match on the diagnostics' English line stands at 30-security.mjs:5908.",
+   "evidence": [
+    "git show v1.2.72:lang/en.json:2637 '\"relay\": \"This game leaves that change to the GM.\",'",
+    "lang/en.json:4950 '\"relay\": \"Only the GM can make that change.\",'",
+    "lang/en.json:6996 '\"refused\": \"The module refused a Daggerheart change from {name}: {what}. Nothing changed.\",'",
+    "lang/pl.json:8795 '\"refused\": \"Moduł odrzucił zmianę Daggerhearta od gracza {name}: {what}. Nic się nie zmieniło.\",'",
+    "audit/harness/scenarios/30-security.mjs:5908 'logged: failures.filter(e => e.message.includes(`Refused a Daggerheart \"countdownsFromAction\" from ${name}: ...'"
+   ]
+  }
+ ],
+ "counts": {
+  "checked": 9,
+  "stands": 8,
+  "weakened": 1,
+  "refuted": 0
+ },
+ "not_established": [
+  "Items read/partly/obsolete in the file: one (129); all of them checked. The file has no findings and no observation with a severity; three of its ten observations (5, 6, 10) were checked by hand, the others (1-4, 7-9) were spot-read and not given a verdict.",
+  "Whether the tier-2 tests that cite LIVE-E33-02, -03, -05, -10, LIVE-E09-04, LIVE-E10-02, -03 passed on the sandbox in L1's one-test-per-call run was not looked up test by test; each stands in or drives from the GM's page (e.g. tests-tier2.mjs:24414-24416, 62788), so a pass would not read the item as asked.",
+  "Item 131's neighbour (LOCAL-REPORT.md:458, item 37) is a GM leaving during the ruling ask, not during the draw; whether the draw phase behaves the same at a table is LIVE-E33-07's to settle at L1."
+ ]
+}

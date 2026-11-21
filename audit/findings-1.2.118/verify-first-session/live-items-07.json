@@ -1,0 +1,172 @@
+{
+ "refuter": "verify-first-session/live-items-07",
+ "of": "first-session/live-items-07",
+ "read": "the reader's file whole (34 items, 12 observations); audit/AUDIT-1.2.42.md 11.2-11.3 and lines 1093-1126; the three live-readings digests; LOCAL-REPORT.md and CALIBRATION.md on b5a29e73 and on origin/claude/e58-local (7875554f), the rows cited and a keyword grep for the items checked; the source lines cited",
+ "scope_note": "All five items marked partly (228, 236, 237, 239, 249) checked; six open items checked for a missed reading (219, 229, 238, 245, 246, 248); the file has no 'read' or 'obsolete' item. Its observations carry no severity, so none is of severity minor or above; two factual ones checked anyway.",
+ "checked": [
+  {
+   "ref": "228",
+   "claim": "LIVE-E78-06 partly read, as-expected: liveKitConnectionSettings reaches a player's browser at world scope (third question's road); the server's refusal and the blocked player's speech not read.",
+   "verdict": "stands",
+   "why": "The cited row exists at the cited line, is dated 16.11.2026 on the 1.2.116 sandbox (Foundry 14.370), and says the setting is world scope and read on a player's browser with value {}; that is the road of the item's third question. The reader says plainly the mapping is its own and that the other two questions are not read. No other reading of BROADCAST_AUDIO written by a player found on main or on origin/claude/e58-local (LR-branch:518 is item 553's veil, a GM-side value, not a player's write). The handbook line still says the blocked player's try is not tried.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:475 '| 63 (LIVE-E05-11) | measured | avclient-livekit 0.6.8 registers `liveKitConnectionSettings` at world scope (a player's browser reads it), `config: false`, default `{}` ... the value stays `{}` here after several GM logins (A/V off in this world). Nothing written'",
+    "docs/dev/e58/LOCAL-REPORT.md:3-4 'made from origin/main at ff3e12e5 (1.2.116, \"Merge 1.2.116 (#66)\")'",
+    "scripts/voice.mjs:2426 'world scope - so every browser receives it'",
+    "docs/handbooks/gm-handbook.en.md:2195 'Whether a blocked player who tries from their own browser can still be heard has not been tried at a table yet (LIVE-E78-06).'"
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "236",
+   "claim": "LIVE-E78-14 partly read, result defect: the owner's report of 14.10.2026 on 1.2.77 (only the second drag counted); the fix of 1.2.78 not read at a table.",
+   "verdict": "weakened",
+   "why": "The reading exists and is about this item, but it is the 1.2.77 report that produced the item, from before the fix (7ac773ba, first in 1.2.78); the item asks whether the first drag counts after the fix, and the reader itself writes that no reading of that is recorded. A pre-fix report is not a part of the item read on a recent enough module, and 'result: defect' reads as a live defect at the table where the code has since changed. The reader counted 233-235, also owner's pre-fix readings, as open; the same rule makes this open. The only post-fix reading near it, LOCAL-REPORT:478 (item 65, 16.11.2026), is an API move (TokenDocument#move) whose first room was named at once - not a mouse drag, so it does not drive the road the fix covers (pending waypoints of a drag, CALIBRATION:129-130).",
+   "evidence": [
+    ".github/release-notes/v1.2.78.md:106-108 'Which of the two readings happened at the owner's table is not measured. The fix covers both, but neither was seen on a real Foundry v14 (LIVE-E78-14).'",
+    "audit/findings-1.2.118/live-readings-other.json:719-727 'environment: the owner at a real table, on 1.2.77' ... 'measured in the harness only (scenario 74, phase L) ... no re-reading at a table is recorded.'",
+    "docs/dev/e39/CALIBRATION.md:129-130 'A drag by mouse (`method: \"dragging\"`, where `pending` may hold the rest of a route) was not read'",
+    "docs/dev/e58/LOCAL-REPORT.md:478 '65 (LIVE-E05-13) ... PlayerOne moving Aiko through `TokenDocument#move` with waypoints ... A mouse drag not driven (the API's move).'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "237",
+   "claim": "LIVE-E84-01 partly read, mixed: the 1.2.77 report found the defect; after the fix, on the 1.2.116 sandbox in headless Chromium, a player's Search from the grid went through and its roll was drawn on the GM; The Forge, Firefox, a statistic click and the console line not read.",
+   "verdict": "stands",
+   "why": "Part (2) is a post-fix reading on a recent module (1.2.116, which carries WINDOW_CLOCK from 1.2.78): every player ask goes through the one bridge waiter built with WINDOW_CLOCK, so a Search reaching the GM and being drawn there is the Chromium half of what the item asks. The rows cited exist at the cited lines and say what the reader says. Part (1) alone would not hold (pre-fix), but the status rests on part (2). Lines and the English sentence checked.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:428 'S7-2 (ROLL-06) | measured ... proposing Hand, approved on the GM: PlayerOne's Daggerheart window \"Search · beat 8 / 12 / 18: Aiko Hoshino\" ... the private result card \"Search · Dorm A · 25 ...\"'",
+    "docs/dev/e58/LOCAL-REPORT.md:429 'a Search with Fear (Hope 5, Fear 8), drawn by the GM and whispered to the GM'",
+    "docs/dev/e58/LOCAL-REPORT.md:268-270 'a recorder on each player's page logged every duality roll evaluated there through the whole third run: none ... With a GM connected the module draws a player's roll on the GM'",
+    "scripts/bridge-guards.mjs:1891 'export const WINDOW_CLOCK = Object.freeze({ set: (fn, ms) => setTimeout(fn, ms), ...'; :1905 'export function createWaiter({ ... clock = WINDOW_CLOCK,'; :2119 'const waiter = createWaiter({'",
+    "lang/en.json:952 '\"failed\": \"That action could not be completed. Tell the GM.\",'"
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "239",
+   "claim": "LIVE-E79-02 partly read, as-expected: one of five side questions (movement.passed.waypoints) read for an API route on 16.11.2026; the rest, ignoreWalls on an update among them, not read.",
+   "verdict": "weakened",
+   "why": "The cited CALIBRATION rows exist and say what the reader says (all 20 grid steps in passed.waypoints, pending empty, constrainOptions among TokenDocument#movement's 22 keys). But the reader missed a second reading: origin/claude/e58-local's CALIBRATION section 6, 'The third probe' (19.11.2026, Foundry 14.370), read that an update carrying constrainOptions.ignoreWalls - where the module's put-back puts it - went through a wall that stopped the same update without it. That is the item's side question 'whether v14 honours constrainOptions.ignoreWalls on an update', and audit/findings-1.2.118/live-readings-e58-delta.json maps it to item 239. So 'Not read: ... ignoreWalls on an update' is wrong and two of the side questions are read. The status stays partly; the main ask (the audit in log mode, dropped 0, a GM on another scene, floors) has no reading on either copy.",
+   "evidence": [
+    "docs/dev/e39/CALIBRATION.md:95 '| the waypoints | `passed.waypoints`: all 20 grid steps of the route ... `pending.waypoints` empty; `method: \"api\"`'",
+    "git show origin/claude/e58-local:docs/dev/e39/CALIBRATION.md:217-219 'r2 plainly to the square past the wall: written, and **stopped at the wall** (349, 300). - **r3 with `constrainOptions: { ignoreWalls: true }` on top of the update's options - the module's put-back (movement.mjs `putBackWrite`): went through the wall to (400, 300).**'",
+    "git show origin/claude/e58-local:docs/dev/e58/LOCAL-REPORT.md:286-289 '19.11.2026: C1's third probe for test 404 (walls) ... With `constrainOptions: { ignoreWalls: true }` on top of the update's options - where the module's put-back puts it - the token went through the wall (r3)'",
+    "audit/findings-1.2.118/live-readings-e58-delta.json:358-366 '\"item\": \"239\", \"live_id\": \"LIVE-E79-02\" ... \"settles\": \"item 239 (LIVE-E79-02), its side question 'whether v14 honours constrainOptions.ignoreWalls on an update'\"'"
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "249",
+   "claim": "LIVE-E79-12 partly read, as-expected: SETTINGS_MODIFY true for an Assistant (a player's refusal not tried) and userConnected about 5.7 s before the joiner's ready (for a GM joining); the match, the card, the cleared character and a player's rename not read.",
+   "verdict": "stands",
+   "why": "Both cited rows exist at the cited lines, dated 16.11.2026 on 14.370 with module 1.2.116, and say what the reader quotes; the reader names both limits (the Assistant's allow, not a player's refusal; a GM joining seen by a player, not a player joining seen by the primary). user-match.mjs schedules its pass on userConnected(user, true), so the hook's timing before the joiner's ready is the order the item asks about. No reading of a player's write of a world setting or of a player's rename found on main or on the branch (grep for SETTINGS_MODIFY, 'lacks permission', 'rename').",
+   "evidence": [
+    "docs/dev/e39/CALIBRATION.md:29 '| LIVE-E30-04 | a scratch user \"CALIB Assistant\" (role 3, no password) ... `isGM` true, `can(\"SETTINGS_MODIFY\")` true ... A world setting of the module written and put back: passed.'",
+    "docs/dev/e58/LOCAL-REPORT.md:472 '52 (LIVE-E04-12) | measured | on PlayerOne's page as the GM's page loaded: `userConnected(GM, true)` (active already) at +4.8 s, `bridge.gmReady` at +10.5 s'",
+    "scripts/user-match.mjs:293 'Hooks.on(\"userConnected\", (user, connected) => { if (connected) schedule(user?.id); });'"
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "219",
+   "claim": "LIVE-E77-15 open: no reading of the co-owners' room tile timing or of the put-back's round trip.",
+   "verdict": "stands",
+   "why": "grep of b5a29e73's and origin/claude/e58-local's LOCAL-REPORT.md and CALIBRATION.md for ROUTE_QUIET, 'room tile', 'two players own', co-own, LIVE-E77-15, and the three digests: no row. The duplicate note to 256 is a matter of text, not of a reading.",
+   "evidence": [
+    "(no hit) grep -i 'ROUTE_QUIET\\|room tile\\|two players own\\|co-own\\|E77-1' over the four paper copies"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "229",
+   "claim": "LIVE-E78-07 open: no reading of a LiveKit drop or of avclient-livekit's private API names on the table's version.",
+   "verdict": "stands",
+   "why": "The sandbox ran avclient-livekit 0.6.8 with A/V off and no LiveKit server; grep for _liveKitClient, liveKitRoom and getParticipantFVTTUser in all four paper copies finds nothing. Open holds.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:475 '(A/V off in this world)'",
+    "(no hit) grep '_liveKitClient\\|liveKitRoom\\|getParticipant' over the four paper copies"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "238",
+   "claim": "LIVE-E79-01 open: no reading of a secret passage crossed or refused by drag, ruler, keyboard or code update.",
+   "verdict": "stands",
+   "why": "No paper reads a passage crossed at the table. The branch's third probe (19.11.2026) shows a token update from code stopped at a plain wall, which is Foundry's own wall, with no passage and no module cut involved, so it reads none of the item's roads through or beside a passage. The branch's tier-2 passage tests passing on real Foundry (LR-branch:366-368) are tests, not the item's table steps; whether one of them drives a crossing by update is not established here.",
+   "evidence": [
+    "git show origin/claude/e58-local:docs/dev/e39/CALIBRATION.md:209 '| r2 wall | DhTokenDocument | [349, 300] | [349, 300] |'",
+    "git show origin/claude/e58-local:docs/dev/e58/LOCAL-REPORT.md:368 'Every tunnel, stairs and Secret Passage test passes on C1's floorNamed.'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "245",
+   "claim": "LIVE-E79-08 open: no reading of the GM's drags through a passage, nor of whether v14 holds a GM's own move to walls.",
+   "verdict": "weakened",
+   "why": "A missed partial reading: origin/claude/e58-local's CALIBRATION section 6 (18-19.11.2026, Foundry 14.370) has the GM's page move Aiko's token by update; r2, plainly to the square past a wall made for the probe, came back from the server stopped at the wall (349,300), seen by PlayerOne. That answers the item's side question - 'whether Foundry 14 holds a GM's own drag to the walls at all' (the item: if not, both tokens pass and the Monokuma cut changes nothing) - for a GM's update from code: it does. Not a mouse drag, and no passage; the mapping is this refuter's, and the paper does not name the item. The main ask (Monokuma through the gap, a student who does not know it) stays unread, so partly.",
+   "evidence": [
+    "git show origin/claude/e58-local:docs/dev/e39/CALIBRATION.md:156-157 'with the steps the coordinator sent from C1, as written: before each run the GM moves the token'",
+    "git show origin/claude/e58-local:docs/dev/e39/CALIBRATION.md:206-209 '| run | the GM's answer | the GM's copy | PlayerOne sees (the server) | ... | r2 wall | DhTokenDocument | [349, 300] | [349, 300] |'",
+    "git show origin/claude/e58-local:docs/dev/e39/CALIBRATION.md:217 'r2 plainly to the square past the wall: written, and **stopped at the wall** (349, 300).'",
+    "scripts/passages.mjs:448-449 'Whether Foundry 14 holds a GM's own drag to the walls at all is not measured here ... LIVE-E79-08.'"
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "246",
+   "claim": "LIVE-E79-09 open: no reading of the welcome journal held or of daggerheart.welcome-message on a real server.",
+   "verdict": "stands",
+   "why": "grep for 'welcome' in all four paper copies and the three digests: no hit. The stale Polish label the reader names is a text matter only.",
+   "evidence": [
+    "(no hit) grep -i 'welcome' over LOCAL-REPORT.md and CALIBRATION.md on b5a29e73 and origin/claude/e58-local"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "248",
+   "claim": "LIVE-E79-11 open: no reading of FILES_BROWSE / FILES_UPLOAD held off for players on v14.",
+   "verdict": "stands",
+   "why": "grep for FILES_, 'file brows' in all four paper copies and the digests: no hit.",
+   "evidence": [
+    "(no hit) grep -i 'FILES_\\|file brows' over the four paper copies and live-readings-*.json"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "obs-41-o2",
+   "claim": "Observation: scenario 41's check o2 is labelled 'Room Setup's Scenes tab' while its code opens Season setup.",
+   "verdict": "stands",
+   "why": "Read: the code imports season-setup.mjs and calls openSeasonSetup, and the check's label names Room Setup's Scenes tab. A text mismatch in a harness label (no severity given; nit at most).",
+   "evidence": [
+    "audit/harness/scenarios/41-trial-scene.mjs:564 'const SS = await import(\"${repoUrl}/scripts/season-setup.mjs\");'; :569 'const pending = SS.openSeasonSetup();'",
+    "audit/harness/scenarios/41-trial-scene.mjs:585 'check(\"o2: the GM writes the hall's name, picture and words in Room Setup's Scenes tab in the trial'"
+   ]
+  },
+  {
+   "ref": "obs-E82",
+   "claim": "Observation: item 239 names a rehearsal 'E82' that is not a stage of tools/stages.json.",
+   "verdict": "stands",
+   "why": "tools/stages.json read by script: 105 rows, no E82; movement-audit.mjs says the same.",
+   "evidence": [
+    "scripts/movement-audit.mjs:23-24 'No stage holds the default after it: E82, which this said would, is not a row of tools/stages.json (read 12.11.2026, E64 C8; the orphan D193)'"
+   ]
+  }
+ ],
+ "counts": {
+  "checked": 13,
+  "stands": 10,
+  "weakened": 3,
+  "refuted": 0
+ },
+ "status_changes": [
+  "236 partly -> open: the only reading is the 1.2.77 report from before the fix; nothing on the fixed code is read",
+  "245 open -> partly: the e58-local branch's third probe (19.11.2026) shows a GM's update stopped at a wall on 14.370, the item's side question"
+ ],
+ "not_established": [
+  "Whether a tier-2 test that passed on the branch's sandbox (LR-branch:366-368, 'Every tunnel, stairs and Secret Passage test passes') drives a secret passage crossed by a token update from code, which would be a partial reading for item 238; the tests were not read.",
+  "Whether the branch's third probe's r2 came from the GM's page in the same way as section 6's first probe: the third probe says 'the same sandbox and token' and its table's column is 'the GM's answer', which this refuter reads as the GM's update; the paper does not say who wrote r2 in words.",
+  "Item 239's ignoreWalls reading is on the e58-local branch's tree (runtime scripts as 179c2644 by the delta digest), not on b5a29e73; the delta digest says movement.mjs and bridge-runs-records.mjs are the same on the road read, not re-checked here."
+ ]
+}

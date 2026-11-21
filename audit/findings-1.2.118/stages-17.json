@@ -1,0 +1,681 @@
+{
+ "reader": "stages-17",
+ "checkout": "branch claude/audit-119 at d0b71dc3; the code read is main b5a29e73 (1.2.118) - the branch adds files under audit/ only. Shallow clone (git rev-parse --is-shallow-repository: true; 1852 commits): some C-commits the notes name are not objects (listed per stage). Nothing run but read-only git, grep and short python over the source and the base run's shard logs.",
+ "count_expected": 4,
+ "count_note": "4 of 4 stages, in tools/stages.json order E48, E49, E63, E76. Read: release notes v1.2.105 (453 lines, the train of E48, E49, E63) and v1.2.106 (218, E76) whole; v1.2.109 lines 1-20, 105-120, 292-345 (E76b); v1.2.107:288, v1.2.112:117, v1.2.113:18-32 by grep; docs/dev/e76/STATUS.md lines 1-150 of 178; no docs/dev/e48, e49 or e63 folder exists. The four stages.json rows and the comment's passages naming them. 120 registry rows stamped with the four (E48 33, E49 74, E63 6, E76 7) joined by script to the audit's base run, shard logs 1/8-5/8 (central scratch base/shards/results-suite-1..5/01-runtests.log; base-run.json not on the branch): 120 ok, 0 skipped, 0 failed (shard 1/8 holds tiers 0-1). Tier-2 titles naming a stage, found by script in tests-tier2.mjs: E48 5, E49 9 (+1 of E93 naming E49), E63 7, E76 0 by id (24 'dice look' titles); joined to shards 2-5: 14 ok, 2 skipped by skip-baseline.json (env.layout), 7 not in shards 1-5 (shards 6-8 had not run). AUDIT 9.2 items 463-481 (19 items) through live-items-463.json; the three live-readings files grepped by id. Code at the file:line given in each promise, about 900 lines in 20 files (body-tile.mjs 1-80 and 200-347, death.mjs 60-115, clock.mjs 1025-1066, migrate.mjs 1036-1060 and 1200-1224, relay-guard.mjs 810-855, roll-draw.mjs 130-175, dice-sync.mjs 715-815, season-setup.mjs 1195-1218, settings-window.mjs 1-40, gm-panel.mjs 300-315, popup.mjs 743-779, operators.mjs 105-129, tests R3400 and R3600 whole), none whole. E49 is a stage of 74 rows and about 30 commit groups: its promises are sampled by group, not each row read.",
+ "stages": [
+  {
+   "id": "E48",
+   "version": "1.2.105",
+   "shipped": "2026-11-12",
+   "what": "One meaning per colour and one glyph set: Stained Glass wears one hand-drawn set on its 24 grid from tools/glyphs.json (E48 G1-G4, batch 5's 60 chrome icons and 6 markers), Monokuma Legacy keeps Font Awesome and its 8/12-grid drawings; gold for Hope alone, the hour off the controls and a neutral ramp; forced colours, the a11y watch and the Event panel as one region, reduced motion and a theme switch leaving nothing running; Legacy at parity (K6); the GM's mic lock drawing; the critical's notice cut in with its own line (K7). Shipped in one train with E49 and E63.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.105.md (1-453, whole: E48's part 9-23, Before installing 55-85, G1-G4 87-100, batch 5 102-118, mic lock 120-125, colours 127-136, accessibility 138-146, critical 148-157, Legacy 159-172, owner's answers 320-333, Known gaps 359-417, Checked 419-453)",
+    "tools/stages.json row E48 (planned and shipped 1.2.105, touches null, drills [])",
+    "no docs/dev/e48 folder in the checkout; the STATUS files the notes quote are not in the repository",
+    ".github/release-notes/v1.2.107.md:288 (the owner's 'E48 akcept' of batch 5) and v1.2.112.md:117 (batch 5's diamond and dot on the sheet and strip)",
+    "audit/AUDIT-1.2.42.md 9.2 items 473-474 (LIVE-E48-06, LIVE-E48-02, lines 1434-1436); live-items-463.json for their state",
+    "git log --oneline --grep=E48: 75 commits in this shallow clone (the train's range v1.2.104..51f6194e is 145 by the notes; d0d34db5 (G1) is not an object here, 2c229e38 (K7) is)"
+   ],
+   "commits": 75,
+   "promises": [
+    {
+     "promise": "The glyphs come from one source: tools/glyphs.json and tools/glyph-map.mjs write the sprite, pixel-icons.css and the SVG data URIs, under one prefix --drpg-pix-",
+     "source": "v1.2.105.md 9-11, 87-100",
+     "code": "tools/glyphs.json, tools/glyph-map.mjs, tools/chrome-icons.mjs (all present); styles/pixel-icons.css",
+     "holds": "yes",
+     "test": "R3333, R3349 (tier 0)",
+     "test_kind": "both",
+     "note": "R3333 plants a drift and reads it seen; R3349 reads the retired prefixes absent."
+    },
+    {
+     "promise": "Stained Glass wears the one set on every keyed element; Legacy keeps its icons as before (option A); every drawing Stained Glass wears is on the 24 grid",
+     "source": "v1.2.105.md 9-15, 93-97, 102-109",
+     "code": "styles/stained-glass.css, styles/pixel-icons.css; tests-glyphs.mjs ELEMENTS, SAME",
+     "holds": "yes",
+     "test": "R3334-R3339, R3347, R3348, R3596",
+     "test_kind": "behaviour",
+     "note": "R3347/R3348 read computed masks on the harness's pages, not a real Foundry; batch 5 waited for the owner at release and was accepted in 1.2.107 (v1.2.107.md:288). The chrome icons' size in a real Foundry is a Known gap (v1.2.105.md:372)."
+    },
+    {
+     "promise": "Gold means Hope and nothing else; the hour colours the panes and decorations, never a control; the five hours a neutral ramp",
+     "source": "v1.2.105.md 15-17, 127-136",
+     "code": "styles/*.css tokens --drpg-gold*, --drpg-sg-hope, --drpg-glass-accent",
+     "holds": "yes",
+     "test": "R3410, R3411, R3412 (tier 0)",
+     "test_kind": "static",
+     "note": "Read off the served sheets' text; the notes' Known gaps (399-401) keep the window headers, tables and section bars on the hour by the owner's (a)."
+    },
+    {
+     "promise": "Forced colours keep every state; the a11y watch reads the module's windows; the Event panel is one steady region while it holds cards (empty, still removed); reduced motion and a theme switch leave nothing running",
+     "source": "v1.2.105.md 17-20, 138-146",
+     "code": "scripts/events.mjs:1078, :1085 (an empty panel removed), :1096-1100; scripts/a11y.mjs liveRegions",
+     "holds": "yes",
+     "test": "R3440, R3461, R3462, R3463; tier 2 E48-K4 (ok, shard 3), E48-K5 (ok, shard 2)",
+     "test_kind": "behaviour",
+     "note": "The panel's empty removal is as the notes said it stays (Known gaps 381). The screen reader itself is LIVE-E48-06, open."
+    },
+    {
+     "promise": "The GM's manual mic lock wears its own drawing under the glass, with no blocked stroke over it",
+     "source": "v1.2.105.md 20-22, 120-125",
+     "code": "styles/stained-glass.css (mic-lock); voice tile is-gm-blocked",
+     "holds": "yes",
+     "test": "R3460, R3511; scenario 75-voice-tile",
+     "test_kind": "behaviour",
+     "note": "Scenario 75's result in the base run not read."
+    },
+    {
+     "promise": "A critical's notice cuts in (and no other), and says what happened: its glyph, 'Critical success' and who rolled, the name only for its owner and a GM; reduced motion stills it",
+     "source": "v1.2.105.md 22-23, 148-157",
+     "code": "scripts/popup.mjs:743-760 critLine (:746 the name only for a GM or the actor's owner), :771-779 cutCritical (still under reduced motion), :919",
+     "holds": "yes",
+     "test": "R3464, R3465; tier 2 E48-K7 x2 (ok, shards 4 and 5)",
+     "test_kind": "behaviour",
+     "note": "The sound slot and the cut at a table: LIVE-E48-02, open."
+    },
+    {
+     "promise": "Monokuma Legacy to parity: the sheet's tab, the Calls' frames, the 11 px floor, the tiles at most 110 px, the sheet's scroll, the notice window's ground, the voice tile clear of the launchers",
+     "source": "v1.2.105.md 20-21, 159-172, 285-287",
+     "code": "styles/danganronpa.css (Legacy rules); scripts/window-scale.mjs sheetBandFoot",
+     "holds": "yes",
+     "test": "R3500-R3508, R3522; tier 2 E48-K6 (the sheet scrolls to its last row)",
+     "test_kind": "both",
+     "note": "E48-K6's tier-2 result is not in shards 1-5. The sheet's active tab was later lost on Daggerheart 2.12.8 at a table (the owner, 12.11.2026, on 1.2.108) and restored by E100 (R4110): a later Daggerheart broke it, a later stage mended it."
+    }
+   ],
+   "registry_rows": 33,
+   "tests_read": [
+    {
+     "test": "R3333 (tier 0, registry row and log line read)",
+     "measures": "yes",
+     "why": "Rebuilds the sprite and the stylesheets' URIs from glyphs.json and reads them equal, with a planted drift seen; it would fail if a drawing drifted from its source."
+    },
+    {
+     "test": "R3410-R3412 (tier 0, registry rows)",
+     "measures": "weak",
+     "why": "Read the served sheets' text for a token outside its selectors and the hour tokens' CIEDE2000 distance: they hold the rule as written, not what a screen shows."
+    },
+    {
+     "test": "tier 2 E48-K7 (two tests, tests-tier2.mjs:51577, :51628)",
+     "measures": "yes",
+     "why": "Posts a critical's card and a Hope result's and reads data-drpg-cut, the wipe's length and the first line per client; fails if a non-critical cut in or the line named the roller to another player."
+    },
+    {
+     "test": "R3462, R3463 (tier 1, registry rows)",
+     "measures": "yes",
+     "why": "Read the DOM of the Event panel for one live region rewritten in place, and the panels' keyboard roles; what a reader says is LIVE-E48-06."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: E48-K6 - the character sheet scrolls to its last row in both themes (not in shards 1-5)",
+    "scenario 75-voice-tile",
+    "scenario 71-sheet"
+   ],
+   "scenarios": [
+    "No register row of audit/harness/README.md names E48; the notes name scenarios 71 and 75 (the quick checks) and 75-voice-tile 41/41 for the mic lock"
+   ],
+   "live": {
+    "items": 2,
+    "read": 0,
+    "ids_read": [],
+    "note": "LIVE-E48-06 (the Event panel in a screen reader, item 473) and LIVE-E48-02 (the critical's cut and slot, item 474) open, no reading in live-readings-*.json (live-items-463.json). The notes also name LIVE-E48-03 (the sheet's scroll on Daggerheart's sheet), which has no row in 9.2."
+   },
+   "findings": [],
+   "superseded_by": [
+    "1.2.107: the owner's 'E48 akcept' of batch 5's 66 drawings (v1.2.107.md:288), the Known gap closed",
+    "1.2.112: batch 5's diamond and dot drawn as the sheet's and strip's Hope and Action marks (v1.2.112.md:117), the Known gap 366-368 closed",
+    "E100 (1.2.112): the sheet's chosen tab on Daggerheart 2.12.8 (R4110), after the owner saw it unmarked at a table on 1.2.108"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "Every promise read is in the code and held by a test green in the base run: all 33 registry rows (14 tier 0, 19 tier 1) ok in shard 1/8, and 4 of the 5 E48 tier-2 titles ok in shards 2-5 (E48-K6 not in them). The two Known gaps that bore on the stage's promises (the owner's look at batch 5; the sheet's markers) were closed in 1.2.107 and 1.2.112. Held at 8 and not 9: most of the stage is a look, read on the harness's pages or as stylesheet text (R3410-R3412 static), never in a real Foundry's frame (the chrome icons' size is the notes' own gap), and the one part a real table touched (the sheet's tab) was lost on Daggerheart 2.12 until E100. Both live items unread: cap 9, provisional after L1. No finding of my own.",
+   "missing_to_10": "LIVE-E48-06 and LIVE-E48-02 read at a table; LIVE-E48-03 given a 9.2 row and read; the glass's chrome icons read in a real Foundry frame in both themes; E48-K6's tier-2 result joined from the base run.",
+   "l1": {
+    "what": "the Event panel as a live region in a screen reader, and a critical's cut with the Critical sound slot at a table, both themes",
+    "recipe": [
+     "1. Foundry 14.370, Daggerheart current, one GM and one player; the player with NVDA in Firefox (and, if at hand, VoiceOver in Safari).",
+     "2. Start a Class Trial so the Event panel is drawn; let two cards change; note what the reader says and whether it says the whole panel again.",
+     "3. Assign a file to the Critical sound slot; the player rolls actions until one is critical (or the GM forces one); note the notice's wipe, its first line (glyph, 'Critical success', the roller's name) on the roller's and the GM's screen, and who hears the slot.",
+     "4. Repeat 2-3 under Stained Glass and Monokuma Legacy, English and Polish; then turn reduced motion on and roll a critical again."
+    ],
+    "clients": "GM, one player (two browsers)",
+    "theme": "both",
+    "settles_if": "settled yes when the reader announces only the changed card, the critical's notice cuts in with its line for its owner and the GM and none for another player, the slot plays for the roller alone and reduced motion stills the cut; settled no on any of those failing",
+    "priority": "grade cap 9 (E48's look and accessibility promises)"
+   }
+  },
+  {
+   "id": "E49",
+   "version": "1.2.105",
+   "shipped": "2026-11-12",
+   "what": "The look finished: one settings window per browser the same for every seat, the game's settings behind the GM panel's Settings tile, every module setting config: false behind one DRPG Settings button; Season setup the one place a season is set up (Edit campaign at its top, its tiles, Reset the season inside it) and the Season checklist a window of its own; the GM panel's tiles, its four moves and centred top; the wrench's character settings window and a glyph for each statistic; Details in every action window; fields, tables, Passages and the Event panel; the sheet's two feet, the turn line and another player's '?'; the curtain, the room outline, the messenger and the whole chat log in one style (chatCard).",
+   "claim_sources": [
+    ".github/release-notes/v1.2.105.md (1-453, whole: E49's part 24-36, Before installing 65-71, Details 174-184, GM panel 186-195, settings and Season setup 197-212, the character settings window 214-223, fields 225-232, curtain/sheet/map/chat 234-254, owner's answers 334-347, Known gaps 359-417)",
+    "tools/stages.json row E49 (planned and shipped 1.2.105, with E48, touches [], drills [])",
+    "no docs/dev/e49 folder; A8-details.md and the STATUS files the notes quote are not in the repository",
+    "audit/AUDIT-1.2.42.md 9.2 items 468-472 (LIVE-E49-01, -02, -04, -05, -07; lines 1424-1432); live-items-463.json for their state",
+    "audit/findings-1.2.118/controls-10-setup-config.json findings 1, 2, 4 and verify-controls-10-setup-config.json (9 checked, 9 stand); domain-core-c-boot-settings.json finding 2",
+    "git log --oneline --grep=E49: 111 commits in this shallow clone; 2e752cdb (A1) and d6680c1f (A1d) are objects here"
+   ],
+   "commits": 111,
+   "promises": [
+    {
+     "promise": "Every module setting config: false; the module's row in Configure Settings one button, DRPG Settings; values under the same keys",
+     "source": "v1.2.105.md 65-69",
+     "code": "scripts/settings.mjs:1996 registerMenu (SETTINGS_MENU); grep 'config: true' in settings.mjs: only two comments (:1407, :1786)",
+     "holds": "yes",
+     "test": "R3420 (every one of the 35 in exactly one section), R3530-R3532",
+     "test_kind": "both",
+     "note": "What Foundry's own menu does with it on v14 is LIVE-E49-02, open."
+    },
+    {
+     "promise": "One settings window per browser, the same for a GM and a player; the game's settings a window of their own behind the GM panel's Settings tile, for a user Foundry lets modify settings",
+     "source": "v1.2.105.md 24-25, 202-204",
+     "code": "scripts/settings-window.mjs:10-27 (two places), openSettingsWindow, openGameSettingsWindow; scripts/gm-panel.mjs:311-315 (the tile)",
+     "holds": "partly",
+     "test": "R3530, R3531, R3532; tier 2 'the DRPG Settings window saves as Foundry's form did' and 'the game's settings window saves as this browser's does' (not in shards 1-5)",
+     "test_kind": "both",
+     "note": "The windows stand as promised (a GM alone also has the verbose log since E100 item 3). Neither redraws while open and Save writes back a row another writer changed meanwhile (controls-10-setup-config-4, minor; domain-core-c-boot-settings-2): E49-2."
+    },
+    {
+     "promise": "Season setup the one place a season is set up: Edit campaign at its top, a row of tiles for its windows, Reset the season inside it; the Season checklist a window of its own",
+     "source": "v1.2.105.md 25-26, 205-210",
+     "code": "scripts/season-setup.mjs:1199-1204 (the press), :1213-1215 (after the window), :1316 openSeasonChecklist; scripts/gm-panel.mjs:305-309 (no reset tile since A1d)",
+     "holds": "no",
+     "test": "R3580-R3587 (tier 1); R4055 and tests-tier1.mjs:20693 match the line 'if (resetAsked) return ...' by regular expression and press nothing; tier 2 E49-A1e (ok, shard 5) drives Save, not Reset",
+     "test_kind": "static",
+     "note": "Reset the season no longer opens: since E101's warning frame (1.2.112) the press closes the window, the wait answers null and the null check returns before resetAsked is read (E49-1, major; controls-10-setup-config-1, upheld by its verifier). Season setup's Save also writes the six clock fields and the safeword as drawn at open (controls-10-setup-config-2, major by that reader)."
+    },
+    {
+     "promise": "The GM panel's tiles one height with their icon in their label's ink; its four moves; its top centred",
+     "source": "v1.2.105.md 26-28, 186-195",
+     "code": "scripts/gm-panel.mjs buildSections (:474)",
+     "holds": "yes",
+     "test": "R3406, R2080, R3540-R3544; tier 2 'the panel's tiles in a row are one height ...' (skipped in shard 5 by env.layout, as skip-baseline.json lists it)",
+     "test_kind": "both",
+     "note": "Measured in Chromium by the notes' style sweep (not re-run); headless it is a skip by baseline; LIVE-E49-01 open."
+    },
+    {
+     "promise": "The wrench's character settings window on the module's look, Scars, Proficiency and Max Evasion Increase hidden and their values kept on save, its labels in Polish too; a glyph for each of the six statistics there and on the sheet",
+     "source": "v1.2.105.md 28-30, 70-71, 214-223",
+     "code": "scripts/dh-settings.mjs:9-27, :69; scripts/stat-glyphs.mjs (markStatName, STAT_ICONS)",
+     "holds": "yes",
+     "test": "R3550-R3556, R3590-R3595; tier 2 'the character settings window keeps a hidden field's value through a save' (ok, shard 3)",
+     "test_kind": "both",
+     "note": "Read on the harness's stand-ins of Daggerheart 2.6.5's window and sheet (Known gaps 387-389); not on 2.12.9, which module.json now verifies."
+    },
+    {
+     "promise": "'Details' in every action window: every fact line in one box, opened and shut without the window changing size, remembered per player and computer (actionDetailsOpen)",
+     "source": "v1.2.105.md 30-31, 68-69, 174-184",
+     "code": "scripts/action-menus.mjs:333-420 (DETAILS_ROWS, the box, settings.mjs actionDetailsOpen :181, :1686); scripts/a11y.mjs:293-294 (Details listed since gaps-111)",
+     "holds": "yes",
+     "test": "R3380-R3385; tier 2 E49-A8-T1 (skipped by env.layout, baseline)",
+     "test_kind": "both",
+     "note": "The one-size half is measured only in Chromium on harness pages (not re-run); a11y()'s gap closed by gaps-111."
+    },
+    {
+     "promise": "Fields fill their column, a pool's category from one select, Passages' five buttons in their cell, the Event panel as tall as its cards; the sheet's two feet, the turn line, another player's maxima a '?'",
+     "source": "v1.2.105.md 31-34, 225-242",
+     "code": "styles/components.css, styles/danganronpa.css; sheet-header.mjs moveFeetHtml",
+     "holds": "yes",
+     "test": "R3346, R3483-R3489, R3520 and A4-A7's rows (registry, all ok)",
+     "test_kind": "both",
+     "note": "Layout halves measured in Chromium by the notes; not re-run."
+    },
+    {
+     "promise": "The curtain, the room outline, the messenger and the whole chat log in one style; the module's chat card (chatCard)",
+     "source": "v1.2.105.md 34-36, 236-254",
+     "code": "scripts/chat-card.mjs; styles/base.css (module.json loads it first)",
+     "holds": "yes",
+     "test": "R3480-R3482, R3490, R3510, R3521, R3430-R3436; tier 2 'the standing outline's light is drawn again when the hour turns, on a real canvas' (not in shards 1-5)",
+     "test_kind": "both",
+     "note": "Read without Foundry's own chat stylesheet: LIVE-E49-03, named in the notes, has no row in 9.2."
+    },
+    {
+     "promise": "Foundry's combat tracker and Daggerheart's effects display hidden for every user; no picture on a project",
+     "source": "v1.2.105.md 72-79",
+     "code": "styles/danganronpa.css:8113-8125",
+     "holds": "yes",
+     "test": "R3577, R3578; tier 2 E36-T4",
+     "test_kind": "static",
+     "note": "These rows are the 'Foundry shows through' tail, stamped by the train; listed here because the notes file them under the same release."
+    }
+   ],
+   "registry_rows": 74,
+   "tests_read": [
+    {
+     "test": "R3530 (tests-tier1.mjs:20104, comment and start read)",
+     "measures": "yes",
+     "why": "Two stand-in users with and without SETTINGS_MODIFY read the client columns and the Look window's old rows in the gear's window; fails if a GM's gear held a world row. It does not open Foundry's menu."
+    },
+    {
+     "test": "R4055 and the test at tests-tier1.mjs:20693 (read through controls-10's quotes and the source line they match)",
+     "measures": "no",
+     "why": "They match the text 'if (resetAsked) return ...' in season-setup.mjs and press nothing; the line is there and unreachable, so both stay green over E49-1."
+    },
+    {
+     "test": "tier 2 E49-A1e - Season setup's Save writes what Edit campaign's Apply writes (tests-tier2.mjs:69266; ok, shard 5)",
+     "measures": "yes",
+     "why": "Drives both windows from one clock and reads the same writes; it does not press Reset the season."
+    },
+    {
+     "test": "tier 2 E49-A8-T1 and the panel's one-height test (skipped, env.layout, skip-baseline.json:30-31)",
+     "measures": "no",
+     "why": "Skipped headless by their own probe; their half is the notes' Chromium sweep."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: the DRPG Settings window saves as Foundry's form did",
+    "tier 2: the game's settings window saves as this browser's does",
+    "tier 2: the standing outline's light is drawn again when the hour turns, on a real canvas",
+    "scenario 84-viewports (local-gate only, never run: Known gaps 404; LIVE-E49-05)",
+    "scenarios 41, 50, 61, 65, 66, 88 (the notes' quick checks)"
+   ],
+   "scenarios": [
+    "84-viewports (audit/harness/README.md:218, the one register row naming E49; layer local-gate; never run on a Foundry, audit/gate/local-gate.json all not-run per live-items-463.json)",
+    "66 (the GMs' warning as the new chat card, 76/76 by the notes)",
+    "86 (the outline's render counted once more, 104/104 by the notes)"
+   ],
+   "live": {
+    "items": 5,
+    "read": 0,
+    "ids_read": [],
+    "note": "LIVE-E49-01, -02, -04, -05, -07 (items 468-472) open with no reading (live-items-463.json). The notes also name LIVE-E49-03 and LIVE-E49-A8-01..04, which have no row in 9.2; audit/style-sweep.mjs:977 names a 'LIVE-E49-06' that has none either."
+   },
+   "findings": [
+    {
+     "id": "E49-1",
+     "severity": "major",
+     "title": "Reset the season inside Season setup, the place E49 put it, does nothing: the window closes and no reset opens",
+     "where": "scripts/season-setup.mjs:1199-1204, :1210, :1213-1215; scripts/gm-panel.mjs:305-309; lang/en.json:3341 (DRPG.Chapter.lastChapter sends the GM there)",
+     "what_happens": "The press sets resetAsked and closes the window; the DialogV2 wait with rejectClose: false answers null, and the line after End the chapter's returns on !result before resetAsked is read. E49 A1d took the GM panel's reset tile away and made Season setup its one door; the E101 warning frame (1.2.112) is the press as it stands. The last chapter's warning tells the GM to press it.",
+     "evidence": "dialog.element.querySelector(\"[data-drpg-reset-season]\")?.addEventListener(\"click\", ev => {\n    ev.preventDefault();\n    resetAsked = true;\n    dialog.close();\n});\n...\nrejectClose: false\n});\nif (endAsked) return endTheChapter(...);\nif (!result || result === \"close\") return null;\nif (resetAsked) return (await import(\"./season-wipe.mjs\")).resetSeason();  (season-setup.mjs:1200-1215)",
+     "failure_scenario": "At a season's last chapter the GM follows the warning to Season setup and presses Reset the season: the window closes, nothing opens and nothing is said, and no other control starts a reset.",
+     "expected": "resetAsked read before the null check, as endAsked is, so the press opens season-wipe.mjs resetSeason.",
+     "confidence": "read",
+     "evidence_class": "S",
+     "refutation_tried": "Read the order myself at season-setup.mjs:1195-1215; looked for another door (gm-panel.mjs:305-309 says the tile is gone since A1d; the panel comment still calls it 'Season setup's destructive button', a footer button it no longer is); the tests that name the line match it as text. Already found by controls-10-setup-config-1 and upheld by verify-controls-10-setup-config.json; written here as the stage promise it breaks.",
+     "duplicate_of": "controls-10-setup-config-1"
+    },
+    {
+     "id": "E49-2",
+     "severity": "minor",
+     "title": "The two settings windows E49 built draw once and their Save writes back a row another writer changed while they stood open",
+     "where": "scripts/settings-window.mjs:408-437 (saveSettings compares with the setting at Save, not with the value drawn), 445-523 (no listener)",
+     "what_happens": "A field the GM never touched whose setting changed meanwhile differs from the stored value at Save and is written, so the older value wins. E49 promised the windows save 'as Foundry's form did' (each changed field once); against a change made elsewhere they undo it.",
+     "evidence": "const value = fieldValue(field, reg);\nif (value === undefined || value === game.settings.get(MODULE_ID, key)) continue;\nawait game.settings.set(MODULE_ID, key, value);  (settings-window.mjs, quoted by controls-10-setup-config-4)",
+     "failure_scenario": "Two GMs have the game's settings open; one turns Force private rolls off and saves, the other changes Room visibility and saves: Force private rolls is on again and neither window said so.",
+     "expected": "rows redrawn on updateSetting / clientSettingChanged, or Save writes only rows changed in the window.",
+     "confidence": "read",
+     "evidence_class": "S",
+     "refutation_tried": "Not re-derived: taken from controls-10-setup-config-4 (and domain-core-c-boot-settings-2), both upheld by their verifiers where verified; noted here because the windows and their Save are E49 A1/A1d's. Season setup's own stale Save (controls-10-setup-config-2, major there) is the same shape in E49 A1e's window.",
+     "duplicate_of": "controls-10-setup-config-4"
+    }
+   ],
+   "superseded_by": [
+    "E101 (1.2.112): Reset the season moved from Season setup's footer into a warning frame in its body; the press as it stands does nothing (E49-1)",
+    "E100 item 3 (1.2.112): the gear's window holds one GM-only row, the verbose log (R4102)",
+    "gaps-111 (13.11.2026): game.drpg.a11y() lists Details (a11y.mjs:293-294), the Known gap closed",
+    "1.2.105's Known gap on DRPG.Chapter.lastChapter: closed, the text now names Season setup (lang/en.json:3341, lang/pl.json:3557) - which points at E49-1's dead button"
+   ],
+   "grade": 6,
+   "provisional": null,
+   "grade_reasons": "Most of E49 is in the code as the notes say, and all 74 of its registry rows (5 tier 0, 69 tier 1) are ok in shard 1/8; of the 9 tier-2 titles naming it, 5 ok, 2 skipped by baseline (env.layout), 3 not in shards 1-5. Capped at 6 by 11.4: one promise of the stage - Reset the season inside Season setup, the one place E49 made for it - is broken by a later stage on 1.2.118 (E49-1, major, its tests read the line as text). Besides: the windows it built undo another writer's change on Save (E49-2, minor; and Season setup's Save, controls-10-2); the layout promises (one height, Details without a size change, every field filling its column) are measured only in Chromium on harness pages; the character settings window and the stat glyphs were read on Daggerheart 2.6.5 stand-ins while module.json now verifies 2.12.9; all five live items unread and three ids the notes name have no 9.2 row.",
+   "missing_to_10": "E49-1 fixed with a tier-2 test that presses Reset the season and reads the reset's window open; both settings windows and Season setup redrawn on their sources or writing only changed rows (E49-2, controls-10-2); the character settings window and the stat glyphs read on Daggerheart 2.12.9; LIVE-E49-01, -02, -04, -05 (scenario 84 at a real zoom), -07 read; LIVE-E49-03 and -A8-01..04 given 9.2 rows and read; the three unread tier-2 titles joined.",
+   "l1": {
+    "what": "the DRPG Settings windows on v14 for a GM, an Assistant GM and a player; the GM panel's tiles one height; Season setup's Reset the season pressed",
+    "recipe": [
+     "1. Foundry 14.370, a GM, an Assistant GM and a player, each in a browser, 1366x768.",
+     "2. Each opens Configure Settings: note the module's one row and what DRPG Settings opens; change a client setting with requiresReload and Save.",
+     "3. The GM opens the GM panel's Settings tile; note who else can open it (the Assistant GM by Foundry's SETTINGS_MODIFY).",
+     "4. The GM opens Season setup on a test world and presses Reset the season in its warning frame: note whether the reset's own window opens.",
+     "5. Read the GM panel's tiles in a row in both themes and languages for one height and a visible icon in every state."
+    ],
+    "clients": "GM, Assistant GM, one player",
+    "theme": "both",
+    "settles_if": "settled yes when each seat sees the same browser window, the game's window opens for a user Foundry lets modify settings alone, and Reset the season opens the reset's window; settled no when the press only closes Season setup (E49-1, read in source)",
+    "priority": "major (E49-1)"
+   }
+  },
+  {
+   "id": "E63",
+   "version": "1.2.105",
+   "shipped": "2026-11-12",
+   "what": "The body tile's rules from the owner's answers to E95's Q2, Q3 and Q8: a tile at every death the table knows, an execution too; a death the GMs keep lays none until it is known; the tile follows the corpse's token until the student is a Monocub; every body tile goes when a Class Trial ends, and a student's at a revive or the season's reset; a 1.2.104 world's open case gets its bodies once (migration openCaseBodies).",
+   "claim_sources": [
+    ".github/release-notes/v1.2.105.md 37-39 (the stage), 57-64 (the migration), 256-270 (C0-C4, fix 85a13b56, merge b4786a80), 348-349 (the owner's answers), 373-378 and 407-409 (Known gaps, live checks)",
+    "tools/stages.json row E63 (planned and shipped 1.2.105, with E49, touches [\"scenes\"], drills [])",
+    "no docs/dev/e63 folder, and QUESTIONS E63 / STAGE E63 quoted by the tests are not in the repository (live-items-463.json item 464 note: git log --all -- docs/dev/e63 finds no commit)",
+    ".github/release-notes/v1.2.113.md:23-27 (the owner's report of a third token; the tile laid unseen)",
+    "audit/AUDIT-1.2.42.md 9.2 items 463-467 (LIVE-E63-01..05, lines 1414-1422); live-items-463.json for their state",
+    "git log --oneline --grep=E63: 12 commits here; f85debd9 (C3), 907d0574 (C4), 85a13b56, b4786a80 and 91f3a150 are objects, e734b080 (C0), 236c48d8 (C1), c2ad2739 (C2) are not"
+   ],
+   "commits": 12,
+   "promises": [
+    {
+     "promise": "Every death the table knows leaves a body tile where the token lies, an execution too; the GM is told of a body with nowhere to lie outside the Class Trial",
+     "source": "v1.2.105.md 37-38, 258-260",
+     "code": "scripts/death.mjs:67 markDeceased, :102-111 (leaveBody with the record it wrote); scripts/body-tile.mjs:64-66 isBodyDeath (any record), :72-74 noTokenWarns, :222-243 leaveBody",
+     "holds": "yes",
+     "test": "R3400 (tier 0: the only leaveBody calls are death.mjs markDeceased and migrate.mjs layOpenCaseBodies), R3401; tier 2 'every death leaves its body where its token lies' (ok, shard 4)",
+     "test_kind": "both",
+     "note": "Since fix-113h (1.2.113) the tile is laid at alpha 0 and its caption drawn on the corpse's token (body-tile.mjs:33-44): the rule stands as data, the picture the stage laid does not. What a v14 table draws of an alpha-0 tile is LIVE-E95-01."
+    },
+    {
+     "promise": "A death the GMs keep leaves none until it is known",
+     "source": "v1.2.105.md 38, 348",
+     "code": "death.mjs markDeceased is reached by publishDeath for a kept death; R3400 reads that recordSecretDeath names no export of body-tile.mjs",
+     "holds": "yes",
+     "test": "R3400; tier 2 'a kept death leaves no body until it is the table's' (ok, shard 5)",
+     "test_kind": "both",
+     "note": "LIVE-E63-02 open."
+    },
+    {
+     "promise": "The tile follows the corpse's token until the student is a Monocub",
+     "source": "v1.2.105.md 38-39, 261-262",
+     "code": "scripts/body-tile.mjs:295-311 followedTile, :327-341 followBody (the moving GM's browser, a corpse token), :344-347 registerBodyFollow; module.mjs:256",
+     "holds": "yes",
+     "test": "R3402, R3403; tier 2 'the body follows its corpse token, not its Monocub' (ok, shard 3)",
+     "test_kind": "both",
+     "note": "Refined by E62 C3b: a Monocub leaves a corpse token beside the token it walks, and the tile follows the corpse (isCorpseToken), so 'until the student is a Monocub' reads now 'the corpse, never the walker'. Move the body's reach still asks the walker's room for a Monocub victim (domain-case-b-traces-7, minor, cleanup.mjs:151-155): not E63's code, noted for the road it shares."
+    },
+    {
+     "promise": "Every body tile goes when a Class Trial ends, the executed's too, after the sentence; a student's at a revive or the season's reset",
+     "source": "v1.2.105.md 39, 263-264",
+     "code": "scripts/clock.mjs:1035-1046 (after executeAtExit), :1056-1062 (a retried sentence); scripts/death.mjs:659-661 (revive), :678-692 (the season's deaths, held: false); body-tile.mjs:273-289 removeBodyTiles",
+     "holds": "yes",
+     "test": "R3404 (tier 0, source order); tier 2 'the Class Trial's end takes every body off the map' and 'a suite's trial end leaves the table's bodies' (both not in shards 1-5)",
+     "test_kind": "both",
+     "note": "A second GM's End the trial lays and removes in order only while the primary answers within the bridge's clocks (the notes' Known gap 373-375; LIVE-E63-03)."
+    },
+    {
+     "promise": "A 1.2.104 world's open case gets its bodies once, on the primary, removing nothing, reported by name",
+     "source": "v1.2.105.md 57-64, 265-266",
+     "code": "scripts/migrate.mjs:1040-1057 (clause openCaseBodies, primary only), :1206-1222 layOpenCaseBodies",
+     "holds": "yes",
+     "test": "R3405; tier 2 'a 1.2.104 world gets the open case's bodies once' (ok, shard 2)",
+     "test_kind": "both",
+     "note": "A world updating today goes to 1.2.118, which also runs bodyTilesUnseen (fix-113h); LIVE-E63-05 needs a fixture world, open."
+    }
+   ],
+   "registry_rows": 6,
+   "tests_read": [
+    {
+     "test": "R3400 (tests-tier0.mjs:23922-23960, read)",
+     "measures": "yes",
+     "why": "Reads every leaveBody call site off the served sources with a planted text first and a must() on each file served; fails if a second road laid a tile or the Monocub's edge came back. A source read: what the call does is the tier-2 test's."
+    },
+    {
+     "test": "tier 2 'every death leaves its body where its token lies' (tests-tier2.mjs:98048; ok, shard 4)",
+     "measures": "yes",
+     "why": "Kills a student with a token on the GM's scene and reads the tile's corner, size and flag; a death with no token reads the GM told."
+    },
+    {
+     "test": "tier 2 'the Class Trial's end takes every body off the map' (tests-tier2.mjs:98227-98240, comment read)",
+     "measures": "yes",
+     "why": "By its comment: a public death, a Monocub's tile, a plain tile and an executed third student, then the phase moved out; reads each tile and the plain one kept. Its base-run result is not in shards 1-5."
+    },
+    {
+     "test": "R3404 (registry row)",
+     "measures": "weak",
+     "why": "Reads in source that removeBodyTiles follows executeAtExit in reconcilePhase; does not drive two GMs."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: becoming a Monocub lays no body",
+    "tier 2: the Class Trial's end takes every body off the map",
+    "tier 2: a suite's trial end leaves the table's bodies",
+    "scenario 10-murder (38/38 by the notes)",
+    "scenario 63-class-trial (71/71 by the notes)",
+    "scenario 78-death-map (fix-113h's roads)"
+   ],
+   "scenarios": [
+    "No register row names E63; the notes name 10-murder and 63-class-trial; 78-death-map (register row: fix-113h) reads what a death lays on the map road by road"
+   ],
+   "live": {
+    "items": 5,
+    "read": 1,
+    "ids_read": [
+     "LIVE-E63-01"
+    ],
+    "note": "LIVE-E63-01 partly, outcome a defect: the owner at a real table on 1.2.112 (13.11.2026) saw three things at a death, the third this tile drawn with the token's picture (body-tile.mjs:33-35; v1.2.113.md:23-27); answered by fix-113h (alpha 0). LIVE-E63-02..05 open, no reading (live-items-463.json); -03 needs a second GM, -05 a fixture world, neither of which line L1 had."
+   },
+   "findings": [
+    {
+     "id": "E63-1",
+     "severity": "nit",
+     "title": "Two comments say markDeceased is chapter.mjs's; since E54 it is death.mjs's",
+     "where": "scripts/body-tile.mjs:12-13; scripts/migrate.mjs:1046-1047",
+     "what_happens": "The body tile's header and the migration clause name chapter.mjs `markDeceased` as the one road that lays a body; E54 D1 moved markDeceased to death.mjs (death.mjs:67), and chapter.mjs only re-exports it (chapter.mjs:57). The tier-0 test of the rule itself names death.mjs.",
+     "evidence": " * edge: the tile is laid when the death is the table's, every death, an execution's too (`leaveBody`, from chapter.mjs\n * `markDeceased`; ...  (body-tile.mjs:12-13)\nexport async function markDeceased(actor, ...  (death.mjs:67)\nexport { livingStudents, livingStudentsForGm, markDeceased, ... } from \"./death.mjs\";  (chapter.mjs:57)",
+     "failure_scenario": "A developer following the header to the road that lays a body opens chapter.mjs and finds only a re-export line.",
+     "expected": "the comments name death.mjs `markDeceased`.",
+     "confidence": "read",
+     "evidence_class": "S",
+     "refutation_tried": "The name does reach through the facade, so the sentence is not false about what can be imported; but it is a where-it-lives statement and R3400's expected calls name [\"death.mjs\", \"markDeceased\"]. gm-panel.mjs:305-309's comment and the others were not swept for the same move."
+    }
+   ],
+   "superseded_by": [
+    "fix-113h (1.2.113): the tile is data at alpha 0, its caption drawn on the corpse's token, older tiles set unseen once (migrate.mjs bodyTilesUnseen), after the owner's report of a third token at a table",
+    "E62 C3b (1.2.109) and its fix: a Monocub's corpse is a token of its own, which the tile follows (body-tile.mjs:331-336)"
+   ],
+   "grade": 7,
+   "provisional": "after L1",
+   "grade_reasons": "The rules are in the code as promised: one road lays a body (R3400), a kept death lays none, the tile follows its corpse, the trial's end, a revive and the reset take it, the migration lays a 1.2.104 world's bodies once; all 6 registry rows ok in shard 1/8, 4 of its 7 tier-2 titles ok in shards 2-5. Held at 7: the one reading at a real table (LIVE-E63-01) was a defect - the tile the stage laid was a third token on the map - and the visible half was replaced by fix-113h, so what the owner sees rests on a later line; the trial's-end behaviour test, the Monocub test and the fence test are not in the base run's read shards; the two-GM ordering is a stated gap (LIVE-E63-03); the stage's papers (STAGE and QUESTIONS E63) are not in the repository; one nit. Four live items unread: cap 9, provisional after L1.",
+   "missing_to_10": "LIVE-E63-02..05 read (a second GM and a 1.2.104 fixture world); LIVE-E95-01 (an alpha-0 tile drawn to nobody on v14); the three tier-2 titles joined; the E63 papers committed or their absence recorded; E63-1's comments brought to death.mjs.",
+   "l1": {
+    "what": "a body at every death, a kept death laying none until known, the Class Trial's end taking every body with two GMs, the body following its corpse at a drag and at Move the body, a 1.2.104 world's open case",
+    "recipe": [
+     "1. Foundry 14.370, the primary GM, a second GM and two players; a scene with rooms; both themes, one player in Polish.",
+     "2. Kill a student in public: the GM checks in the Tiles layer that one body tile (alpha 0) lies at the token and the caption is on the corpse's token; the players see two things (corpse and Spectator), no third.",
+     "3. Run an incident whose death the GMs keep: confirm no tile until the discovery publishes it, then one.",
+     "4. Drag a corpse's token into another room (GM) and run Stage 6's Move the body: the tile moves with it; the Monocub's walking token leaves it.",
+     "5. Run a Class Trial with a sentence; the second GM presses End the trial: every body tile goes, the executed's too; repeat with the primary's browser slowed or reloading.",
+     "6. On a copy of a 1.2.104 world with a dead public non-Monocub before its trial, update and read the migration notice and `laid` in the primary's console."
+    ],
+    "clients": "primary GM, second GM, two players",
+    "theme": "both",
+    "settles_if": "settled yes when each road lays or removes exactly the tiles the rules name and no player sees a third token; settled no on a stray tile, a tile left after the trial or a tile that stays behind its corpse",
+    "priority": "grade cap 9 (E63's whole promise; LIVE-E63-01..05)"
+   }
+  },
+  {
+   "id": "E76",
+   "version": "1.2.106",
+   "shipped": "2026-11-12",
+   "what": "Newer Daggerheart and Foundry: a player's save in Daggerheart 2.12.5's shape no longer dropped (C2); the GM's draw left off a Daggerheart 2.12 whose rollTrait builds a MoveContext (C3 part); Dice So Nice 6.4's saved marker written with the table's look (C6); the harness runs Foundry's old keys -= and == both ways (C4, scenarios 91 and 92); the passages' cut pinned to Foundry 14.370's typings (C5). Its second part - the harness's relay and dice copies from 2.12.8 and E76b (the module's marks through MoveContext, the GM's draw on 2.12 again) - shipped in 1.2.109, its tests stamped E76.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.106.md (1-218, whole)",
+    "docs/dev/e76/STATUS.md (1-178; 1-150 read, the second part 94-123)",
+    ".github/release-notes/v1.2.109.md:3-4, 111-116, 292-345 (E76b and the 2.12.8 copies), 438, 454-462",
+    "tools/stages.json row E76 (planned and shipped 1.2.106, touches [\"sockets\",\"rolls\"], drills [])",
+    "audit/AUDIT-1.2.42.md 9.2 items 475-481 (LIVE-E76-01..07, lines 1442-1454); live-items-463.json and live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json",
+    "git log --oneline --grep=E76: 37 commits here; 987c0742, 7130fb45, a6ecbbb9 and 2f8e48b9 are objects"
+   ],
+   "commits": 37,
+   "promises": [
+    {
+     "promise": "A player's save is judged the same way in either shape - the sender must own the token, the total must be a number - and the one judged total forwarded in both shapes; up to 2.12.4 as before",
+     "source": "v1.2.106.md 9-15, 70-81; e76/STATUS.md 21-35",
+     "code": "scripts/relay-guard.mjs:514 (dispatch), :816-855 judgeSave (:821-823 the owner check, :833-838 the shape and the total, :846-853 both shapes)",
+     "holds": "yes",
+     "test": "R3600 (tests-tier1.mjs:5234; ok, shard 1); scenario 33 A8",
+     "test_kind": "both",
+     "note": "That 2.12.5+'s own handler marks the card from it is LIVE-E76-02, open; since C1b (1.2.109) scenario 33's A8 runs through the 2.12.8 relay copy."
+    },
+    {
+     "promise": "On Daggerheart 2.12 no player's roll is drawn by the GM: a rollTrait that builds a MoveContext, or cannot be read, leaves the draw off, and the GMs are told once per version",
+     "source": "v1.2.106.md 16-23, 40-57, 83-90",
+     "code": "scripts/roll-draw.mjs:139-145 seamFor, :164-172 reviewTraitRoad, :201, :274 (the whisper DRPG.Rolls.notDrawnHere)",
+     "holds": "superseded",
+     "test": "R3602 (revised in E76b; ok, shard 1)",
+     "test_kind": "behaviour",
+     "note": "Narrowed by E76b (1.2.109): a MoveContext that keeps the caller's event is 'ok' and the GM draws again (reviewTraitRoad :170); 'changed' stands for a MoveContext that keeps none, none offered or an unreadable rollTrait. On the owner's sandbox (14.370, Daggerheart 2.12.9, 16.11.2026) a player's Search was drawn by the GM (LIVE-E76-04 partly, agrees)."
+    },
+    {
+     "promise": "With One dice look for the table on, the module writes Dice So Nice's saved marker { appearance: true, sfx: true } with the look to every player, trusted player and Assistant GM, offline ones too; a full GM's own look never; off, nothing",
+     "source": "v1.2.106.md 24-28, 58-65, 92-104",
+     "code": "scripts/dice-sync.mjs:542-546 isForced (role below GAMEMASTER), :719 SAVED_MARK, :722-730 markedSaved / holdsTableLook, :783-795 sweep, :801-814 putBack, :1140-1165 writeLooks",
+     "holds": "yes",
+     "test": "R3603 (tests-tier1.mjs:24630; ok, shard 1), R940; scenario 17 G1b; tier 2 'dice look' titles (24 in tests-tier2.mjs; their lines in shards 2-5 read ok, none failed)",
+     "test_kind": "both",
+     "note": "What 6.4.5 draws from the marker at a table is LIVE-E76-07, open; since E108 the look carries the role looks too."
+    },
+    {
+     "promise": "The harness runs Foundry's old keys both ways, 'ignored' the default, each results file recording its reading; the module needs no change (sheet-audit.mjs judges a -= part as the whole key)",
+     "source": "v1.2.106.md 29-32, 106-115; e76/STATUS.md 37-53",
+     "code": "audit/harness/lib/operators.mjs:105-129 (LEGACY_READINGS, readingFromEnv defaulting to 'honoured' since 16.11.2026), scenarios/91-old-keys-ignored.mjs:9, 92-old-keys-honoured.mjs:9",
+     "holds": "superseded",
+     "test": "scenarios 91 and 92 (register rows README.md:225-226, layer ci)",
+     "test_kind": "behaviour",
+     "note": "The mechanism holds; the default flipped to 'honoured' after LIVE-E76-03 / LIVE-E30-01 were read on 14.370 (16.11.2026, the owner's sandbox: -= deletes and == replaces on an actor's and a token's flags, with v14's deprecation warning). Fields other than flags not read. The base run's scenario results are not read."
+    },
+    {
+     "promise": "What the passages' cut leans on in Foundry's sweep is pinned to Foundry 14.370 as its published typings declare it",
+     "source": "v1.2.106.md 117-123",
+     "code": "PassageMovePolygon / clipPassages (R3601's subject)",
+     "holds": "yes",
+     "test": "R3601 (tests-tier1.mjs:18434; ok, shard 1)",
+     "test_kind": "static",
+     "note": "Typings, not Foundry's source; whether 14.370's sweep keeps the cut pieces and a released drag is LIVE-E76-06 (and LIVE-E79-01), open."
+    },
+    {
+     "promise": "(1.2.109, E76b) The module's roll marks carried through Daggerheart 2.12's MoveContext; a 2.12 roll's outcome filled where 2.10 wrote it; a critical read off config.evaluated",
+     "source": "v1.2.109.md 111-116, 292-322; e76/STATUS.md 94-123",
+     "code": "scripts/roll-marks.mjs (87 lines: carryMarks, adoptMarks); roll-draw.mjs:199-209; critical.mjs; fillRollFacts",
+     "holds": "yes",
+     "test": "R3604, R3605, R3606 (ok, shard 1); scenarios 20, 83, 40, 88 (by the notes)",
+     "test_kind": "both",
+     "note": "Measured on the harness's copies of 2.12.8; read on the sandbox with 2.12.9 for one Search (LIVE-E76-04 partly); the card, Hope, Calls and Reroll at a table not read."
+    }
+   ],
+   "registry_rows": 7,
+   "tests_read": [
+    {
+     "test": "R3600 (tests-tier1.mjs:5234-5280, read whole)",
+     "measures": "yes",
+     "why": "Drives judgeRelay with both shapes for the sender's own token and another's, five bad totals, two totals in one packet, a fractional total and a null saveTotal beside a result; fails on a drop of a good save, a forward of a bad one, or two different numbers forwarded. Stubs, not Daggerheart's handler."
+    },
+    {
+     "test": "R3603 (tests-tier1.mjs:24630, comment read)",
+     "measures": "yes",
+     "why": "Pure on stubs: a user is behind the table's look until both marks are true, so the sweep and put-back write it. Scenario 17 G1b holds the write on every client (result not read)."
+    },
+    {
+     "test": "R3602 (tests-tier1.mjs:11047, registry row)",
+     "measures": "yes",
+     "why": "Reads seamFor on four builds, including a MoveContext with and without the event and an unreadable rollTrait; reads text, as the seam does."
+    },
+    {
+     "test": "R3601 (registry row)",
+     "measures": "weak",
+     "why": "A pin to foundry-vtt-types 14.370.0 and the harness's own sweep; it cannot see Foundry's runtime, only its declared shape."
+    }
+   ],
+   "tests_to_join": [
+    "scenario 33-bridge-paths (A8 through the 2.12.8 relay)",
+    "scenario 17-assistant (G1b)",
+    "scenarios 91-old-keys-ignored and 92-old-keys-honoured",
+    "scenarios 20-crit-hope, 83-roll-integrity, 40-flow, 88-flow-length (E76b)",
+    "scenario 30-security part 8 (the 2.12.8 relay)"
+   ],
+   "scenarios": [
+    "91-old-keys-ignored and 92-old-keys-honoured (audit/harness/README.md:225-226, the two register rows naming E76, layer ci)",
+    "33-bridge-paths A8, 17-assistant G1b, 83-roll-integrity, 20-crit-hope (named in the notes)"
+   ],
+   "live": {
+    "items": 7,
+    "read": 3,
+    "ids_read": [
+     "LIVE-E76-01",
+     "LIVE-E76-03",
+     "LIVE-E76-04"
+    ],
+    "note": "-01 partly, a defect: on 1.2.116 the load threw at init on every browser (fixed in 1.2.117), and tier 2 on the sandbox did not reach 0 failed in either theme (live-readings-e58-delta.json); run on Daggerheart 2.12.9, not the 2.12.8 the item names. -03 partly, agrees: honoured on flags. -04 partly, agrees: a Search drawn by the GM on 2.12.9. -02, -05, -06, -07 open with no reading. module.json now verifies Daggerheart 2.12.9 (raised in 1.2.117) while Foundry stays verified 14.365."
+   },
+   "findings": [],
+   "superseded_by": [
+    "E76b (1.2.109, 2f8e48b9): the 1.2.106 rule 'no player's roll drawn by the GM on 2.12' narrowed to builds whose MoveContext keeps no event; the whisper and console line no longer come on 2.12.8/2.12.9",
+    "E58 L1 (16.11.2026): the harness's default reading of -= and == flipped from 'ignored' to 'honoured' after LIVE-E76-03 was read (operators.mjs:106-111)",
+    "1.2.117: module.json's Daggerheart verified raised to 2.12.9 on the owner's decision"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "Each promise is in the code: the save judged and forwarded in both shapes (read whole at relay-guard.mjs:816-855), the draw's road read off rollTrait and MoveContext, the saved marker written and held, the harness's two readings; all 7 registry rows (R3600-R3606, tier 1) ok in shard 1/8. Two promises of 1.2.106 were superseded by the stage's own second part and by a recorded reading, as they meant to be. Held at 8: the save's whole point - Daggerheart 2.12.5+'s handler marking the card - is measured only on the harness's copy (LIVE-E76-02 open); R3601 pins typings, not Foundry; the dice look and the saved marker have no table reading (-05, -07); the one table reading of the load and tier 2 was not clean (-01, a defect fixed later and a tier 2 short of 0 failed); the scenarios the notes cite were not read in the base run. Live items unread: cap 9, provisional after L1. No finding of my own.",
+   "missing_to_10": "LIVE-E76-02, -05, -06, -07 read and -01 read clean on Daggerheart 2.12.9 with tier 2 at 0 failed; the card, Hope, Calls and Reroll of a drawn roll at a table (-04's rest); a Foundry 14.364/14.365 reading of -= (the module's minimum and verified versions); scenarios 17, 33, 83, 91 and 92 joined from the base run.",
+   "l1": {
+    "what": "a player's save on Daggerheart 2.12.x marked once; a drawn action roll on 2.12.x with its card, Hope, Calls and Reroll; the table's dice look and DSN 6.4.5's saved marker",
+    "recipe": [
+     "1. Foundry 14.370, Daggerheart 2.12.9 (the verified build), Dice So Nice 6.4.5, a GM and two players.",
+     "2. A player rolls a save from a chat card with a save: the card is marked once, by the primary GM, with the total and the critical.",
+     "3. A player rolls an action: the GM throws the dice, the module's window, claim, Loaded Die, Calls and card read as on 2.10; the GM rerolls it once.",
+     "4. With One dice look for the table on: a player who never saved a look and one who did each roll; read each one's dice look and effects and their flag dice-so-nice.saved; add a module that registers default effects and roll again."
+    ],
+    "clients": "GM, two players",
+    "theme": "both",
+    "settles_if": "settled yes when the save is marked once, the roll is drawn by the GM with every module mark, and both players throw the table's look with no package effects; settled no on any of these",
+    "priority": "grade cap 9 (LIVE-E76-02, -04, -05, -07)"
+   }
+  }
+ ],
+ "not_established": [
+  {
+   "what": "base-run.json was not on the branch when this was written. Shards 1/8-5/8 were read (shard 3/8 red on one test of another stage, grid XI07); shards 6/8-8/8 and every scenario had not run. Seven tier-2 titles of these stages (E48-K6; E49's two settings-window saves and the outline on a real canvas; E63's Monocub, trial's-end and fence tests) and every scenario named are in tests_to_join, their result not read.",
+   "l1": null
+  },
+  {
+   "what": "The Chromium measures the 1.2.105 notes quote (the style sweep's --panel, --details --every-pick, the glass sweep at 25 sizes, forced-sweep.mjs, the voice tile 199 -> 8 px) were not re-run; the stylesheets were read only at the rules named.",
+   "l1": null
+  },
+  {
+   "what": "The commits of E48 G1 (d0d34db5) and E63 C0-C2 (e734b080, 236c48d8, c2ad2739) are not objects in this shallow clone; the red-first runs, mutant counts and owner's approve pages the notes quote cannot be reproduced from the repository (no docs/dev/e48, e49, e63; the approve pages and STATUS files were never committed).",
+   "l1": null
+  },
+  {
+   "what": "When exactly Reset the season stopped opening (E49-1): the history before 3c14ff2d (the 1.2.113 assembly) is not in the clone, where the order of the checks already stands; that E101 (1.2.112) moved the press into the frame is taken from controls-10-setup-config-1 and the 1.2.112 notes, not from a diff.",
+   "l1": null
+  },
+  {
+   "what": "Whether Foundry 14.364/14.365 - the module's minimum and verified - ignore or honour -= and ==: the one reading is 14.370's (LIVE-E76-03); scenario 91 still models the 'ignored' reading.",
+   "l1": null
+  },
+  {
+   "what": "Whether Daggerheart 2.12.9's own save handler marks the card from what judgeSave forwards, and what its MoveContext keeps: the harness's copies are 2.12.8's (LIVE-E76-02, -04).",
+   "l1": {
+    "what": "a player's save on Daggerheart 2.12.x marked once; a drawn action roll on 2.12.x with its card, Hope, Calls and Reroll; the table's dice look and DSN 6.4.5's saved marker",
+    "recipe": [
+     "1. Foundry 14.370, Daggerheart 2.12.9 (the verified build), Dice So Nice 6.4.5, a GM and two players.",
+     "2. A player rolls a save from a chat card with a save: the card is marked once, by the primary GM, with the total and the critical.",
+     "3. A player rolls an action: the GM throws the dice, the module's window, claim, Loaded Die, Calls and card read as on 2.10; the GM rerolls it once.",
+     "4. With One dice look for the table on: a player who never saved a look and one who did each roll; read each one's dice look and effects and their flag dice-so-nice.saved; add a module that registers default effects and roll again."
+    ],
+    "clients": "GM, two players",
+    "theme": "both",
+    "settles_if": "settled yes when the save is marked once, the roll is drawn by the GM with every module mark, and both players throw the table's look with no package effects; settled no on any of these",
+    "priority": "grade cap 9 (LIVE-E76-02, -04, -05, -07)"
+   }
+  },
+  {
+   "what": "Whether the character settings window's hidden fields and the six statistics' glyphs hold on Daggerheart 2.12.9's own window and sheet: read on 2.6.5 stand-ins (v1.2.105.md:387-389).",
+   "l1": null
+  },
+  {
+   "what": "LIVE-E63-01's table reading was on 1.2.112; what a death lays on the map since fix-113h (one tile at alpha 0, the caption on the corpse) has not been seen at a table.",
+   "l1": {
+    "what": "a body at every death, a kept death laying none until known, the Class Trial's end taking every body with two GMs, the body following its corpse at a drag and at Move the body, a 1.2.104 world's open case",
+    "recipe": [
+     "1. Foundry 14.370, the primary GM, a second GM and two players; a scene with rooms; both themes, one player in Polish.",
+     "2. Kill a student in public: the GM checks in the Tiles layer that one body tile (alpha 0) lies at the token and the caption is on the corpse's token; the players see two things (corpse and Spectator), no third.",
+     "3. Run an incident whose death the GMs keep: confirm no tile until the discovery publishes it, then one.",
+     "4. Drag a corpse's token into another room (GM) and run Stage 6's Move the body: the tile moves with it; the Monocub's walking token leaves it.",
+     "5. Run a Class Trial with a sentence; the second GM presses End the trial: every body tile goes, the executed's too; repeat with the primary's browser slowed or reloading.",
+     "6. On a copy of a 1.2.104 world with a dead public non-Monocub before its trial, update and read the migration notice and `laid` in the primary's console."
+    ],
+    "clients": "primary GM, second GM, two players",
+    "theme": "both",
+    "settles_if": "settled yes when each road lays or removes exactly the tiles the rules name and no player sees a third token; settled no on a stray tile, a tile left after the trial or a tile that stays behind its corpse",
+    "priority": "grade cap 9 (E63's whole promise; LIVE-E63-01..05)"
+   }
+  }
+ ]
+}

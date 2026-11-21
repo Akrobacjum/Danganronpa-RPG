@@ -1,0 +1,330 @@
+{
+ "reader": "domain-core-a-bridge",
+ "checkout": "branch claude/audit-119; scripts/ as on main b5a29e73 (1.2.118)",
+ "files_read": [
+  {
+   "file": "scripts/bridge-table.mjs",
+   "lines": 1660,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/bridge-asks.mjs",
+   "lines": 1344,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/bridge-guards.mjs",
+   "lines": 2163,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/bridge-runs-acts.mjs",
+   "lines": 1065,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/bridge-runs-records.mjs",
+   "lines": 943,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/bridge-wire.mjs",
+   "lines": 205,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/gm-bridge.mjs",
+   "lines": 263,
+   "read": "whole"
+  }
+ ],
+ "count_note": "7 files, 7643 lines, the count of the scope paragraph (wc -l on today's checkout). BRIDGE_ACTIONS holds 100 declarations (98 `label:` keys and the two `handover()` rows), bridge-wire.mjs 105 `ACTION_` wire names besides SOCKET_EVENT; every `DRPG.Bridge.what.<wire name>` (105) and every `DRPG.Bridge.why.<code>` of REASONS (81) is present in lang/en.json and lang/pl.json (read by a python script over the flattened files). audit/findings-1.2.118/base-run.json did not exist when looked for (20.11.2026), so no test or scenario result is cited as read; tests are named from their source.",
+ "neighbours_followed": [
+  "scripts/echoes-gm.mjs (whole, 127 lines: echoesFor, echoesRefusal, echoCounts, the owner's 10.11 (b) note at 10-16)",
+  "scripts/action-listen.mjs (performEchoes 301-328, performDash 330-356, echoesShutWhy 91-92, the Infiltrate rows 60-75)",
+  "scripts/action-murder.mjs (the betrayal's and the parked murder's payment, 275-300 and 355-385)",
+  "scripts/roll-draw.mjs (the tickets: 880-960, claimTicket 1218, takeCallPayment 1265-1271)",
+  "scripts/frisk.mjs (askToFrisk's ticket claim 755-815)",
+  "scripts/call-gm.mjs (askHopeCallByCard 220-257, askDynamicByCard 259-290, yesOnPrimary 475-492, dynamicOnPrimary 499-520, sendOnFromPrimary 562-570, expiredOnPrimary 709-726, receivedOnPrimary 735-752)",
+  "scripts/call-effects.mjs (playerArmRefusal, ownArmRefusal, alreadyArmed 226-253)",
+  "scripts/monocub.mjs (cubAbilityOnGm 1255-1322 and its caller 1150-1178)",
+  "scripts/remnants.mjs (placeRemnant 320-340, retuneRemnant 2509-2520)",
+  "scripts/projects.mjs (addProgress 1004-1020, sabotageProject 2219-2228, undoSabotage 2345-2365)",
+  "scripts/eclipse.mjs (recordMove 1140-1158)",
+  "scripts/movement.mjs (the send-back's fallback 3530-3550)",
+  "scripts/handover.mjs (markBodyDisturbed 736-760), scripts/cleanup-reshape.mjs (370-390), scripts/reroll.mjs (1436, 1994-2032): the GM-side callers of retuneRemnant and undoSabotage",
+  "scripts/doors-gm.mjs (shutDoor 98-116), scripts/watch-gm.mjs (declareWatch 59-78), scripts/tail-gm.mjs (startTail 57-70), scripts/eavesdrop-gm.mjs (startEavesdrop 109-130, endEavesdrop 149-157), scripts/mask-gm.mjs (revealMask 325-335), scripts/facilities-gm.mjs (header): which say 'on the primary GM'",
+  "scripts/passages-gm.mjs (shareRefusal 2133-2163: a death nobody found is cannotNow)",
+  "scripts/action-dynamic.mjs (80-130), scripts/action-observe.mjs (observeSpecific 119-146): what nothingSpent says against what was paid",
+  "scripts/pre-session-note.mjs (noteTooLong 148-150)",
+  "scripts/private-rolls.mjs:106, scripts/traps.mjs:835, scripts/search-tokens.mjs:548 (the other three judge() tables)",
+  "scripts/config.mjs (PRICE_CHAINS 1454-1470, STARTING.despairMax 310, INFILTRATE.echoes 2195-2196)",
+  "lang/en.json, lang/pl.json (DRPG.Bridge.what.*, DRPG.Bridge.why.*, DRPG.Bridge.notDone, nothingSpent, unnamed, alreadyRuled, claimBusy, alreadySettled; DRPG.Calls.armed*; DRPG.Project.*)",
+  "docs/dev/e69/STATUS.md (C7 Echoes, 'What a console can still do')",
+  "audit/harness/scenarios/30-security.mjs 6945-6960 and 33-bridge-paths.mjs 2002-2062 (the E69 forged and legal Echoes roads)",
+  ".claude/rules/trust-model.md (layer one, layer two, 'What stays open', 'How to add a bridge action')"
+ ],
+ "strengths": [
+  "One runner for every table: `judge` (bridge-guards.mjs:1780-1827) asks prepare, the sender Foundry names (`senderOf`, 61-64), the guards in order, the whitelist (`pick`, 1526-1535) and the roll records, and only then acknowledges and runs; a throw anywhere ends as one `failed` refusal, never a silent ack.",
+  "A result is the GMs' record of its roll, not the packet's: `rollsFor` judges every named roll before it claims any (1674-1678), marks them in memory with nothing awaited between the last question and the last mark, and on the record for a GM who takes over; a packet number that differs is logged and never used (`onRecord`, 1687-1703).",
+  "The packet never writes to the shared packet object (the runner's note 1738-1747), and every run is handed a fresh whitelisted copy: `as.gmFlag` (1516) makes a player's `undo` false whatever it says.",
+  "Refusals travel as a code of a closed list only (REASONS, REASON_PATTERNS, `tellRefused` clamps an unknown code to `refused`, 530), composed in the player's language on the player's own client (`sayNotDone`, 581-596), so nothing the GM worked out reaches a refused player; all 81 codes have a sentence in both languages.",
+  "The waiter resolves once and never rejects (`createWaiter`, 1905-2091), keeps a closed map so a late ack, done or refusal is never said twice, and is built from injected parts so R165 drives it with fakes; `WINDOW_CLOCK` (1891) records the real-browser `setTimeout` receiver failure of 14.10.2026 with its date.",
+  "Resends carry the same request id and are bounded (`RESENDS = 3`, 2102); the primary's arrival is the GM-ready packet, not `userConnected` (gm-bridge.mjs:103-111, measured on a live reload), and only the primary's arrival triggers it (COMM-05's fix, gm-bridge.mjs:84-89).",
+  "Asked again, answered as before: `again` (bridge-guards.mjs:1795-1807, sabotageAgain bridge-runs-records.mjs:355-360) answers a resent Sabotage with its first result, keyed by Foundry's sender, instead of refusing the roll it settled.",
+  "A Hope Call that waits for a GM's yes is armed only with a yes the primary kept for that user, character, Call and nonce, within a minute, once (`guardArmGmYes`, 1122-1132), and a yes whose receipt never came is taken back (`forgetCallYes`).",
+  "The player's road of `call.arm` pays from the Hope the GMs hold inside the buyer's audit queue (`gmMeansWrite`, bridge-runs-records.mjs:582-587) and refunds if the arm throws (591-595); a replayed purchase is answered by its nonce, not charged twice (572).",
+  "Every row a student's character asks through names `notSpectator` or `senderNotSpectator` right after `knownSender`, read on the flags as the GMs hold them (bridge-guards.mjs:1442-1478).",
+  "The share of a secret project asks `canSee` again in the run with nothing awaited between it and the write (prepare imports projects.mjs, bridge-table.mjs:776-778; handleShare bridge-runs-records.mjs:95-96).",
+  "Crisis packets that name no roll are scored on no dice, and a `free` claim is believed only when the incident on the GM holds the grant (bridge-runs-acts.mjs:804-846).",
+  "A Dynamic action's band reads only a ruling a GM wrote (`dynamicRulingOf` with `cardWriter(...).isGM`, bridge-runs-records.mjs:261-271).",
+  "The wire names are a leaf (bridge-wire.mjs imports config.mjs alone) so the table, runs and asks share them without a static cycle (the E41 C5a note, 10-17)."
+ ],
+ "findings": [
+  {
+   "id": "domain-core-a-bridge-1",
+   "domain": "CORE",
+   "severity": "minor",
+   "category": "leak",
+   "title": "Echoes is answered on the primary with no sight of its one-action price, so a player's console asks it free and as often as it likes; a parked murder and a betrayal in an Eclipse are carried out the same way",
+   "where": "scripts/bridge-table.mjs:277-284 (`listen.echoes`: knownSender, notSpectator, guardUndoIsTheGms, owns; no ticket); scripts/bridge-runs-acts.mjs:327-334 (handleEchoes); scripts/echoes-gm.mjs:95-127 (echoesRefusal, echoesFor: no payment read); scripts/action-listen.mjs:317-320 (the action is spent on the asker's browser before requestEchoes); scripts/bridge-runs-acts.mjs:870-879 and 892-904 with scripts/action-murder.mjs:285 and 369 (park and betrayal, paid on the asker's browser)",
+   "what_happens": "Echoes costs one action (config.mjs:2196 `INFILTRATE.echoes.cost: 1`), paid by `spendAction` on the asking player's browser (action-listen.mjs:318-319), and the primary answers `listen.echoes` from the GMs' reading of the map with no question about that payment: no ticket is claimed (roll-draw.mjs `claimTicket`, which an open Frisk's ask claims for exactly this shape of no-roll paid act, frisk.mjs:797-802), and the action count is not read. A console that calls `requestEchoes({ actorId })` (or emits the packet) is answered every time. Each answer is the GMs' knowledge: the nearest room by crossings holding a living student of another player, with the dead as the GMs hold them (including a death nobody has found) and hidden tokens left out; ties are broken at random per ask (echoes-gm.mjs:45), so repeated asks walk every tied room. `murder.park` and `murder.betrayal` in an Eclipse are the same shape - one action on the asker's browser, a declaration written on the primary with no payment read - but they are one-shot declarations, so the cost there is one free action, not repeated information.",
+   "evidence": "bridge-table.mjs:277  [ACTION_LISTEN_ECHOES]: {\nbridge-table.mjs:279      guards: [knownSender, notSpectator(\"actorId\"), guardUndoIsTheGms, owns(\"actorId\", \"sender does not own that character\")],\nbridge-table.mjs:281      run: handleEchoes,\naction-listen.mjs:317  const cost = options.free ? 0 : INFILTRATE.echoes.cost;\naction-listen.mjs:319  const paid = cost > 0 ? await spendAction(actor, cost) : null;\naction-listen.mjs:321  const { requestEchoes } = await import(\"./bridge-asks.mjs\");\nechoes-gm.mjs:107  export async function echoesFor(actor, { random = Math.random } = {}) {\nechoes-gm.mjs:108      const why = await echoesRefusal(actor);\nfrisk.mjs:798      if (!asker?.isGM && !(await claimTicket(searcher.id, \"friskAsk\"))) {",
+   "failure_scenario": "A player with no actions left in the afternoon calls Echoes twenty times from the browser console: each answer names a room, the ties come out one after another, and the GMs see nothing but twenty log lines 'Echoes for Aiko from Library: ...'.",
+   "expected": "The price of a paid act with no roll is judged where the act is judged, as the Frisk ask's is: the primary claims the payment's ticket (or spends the action itself) before it answers, and refuses `notPaid` with none.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a GM-side read of the payment on every road of the answer: echoesFor and echoesRefusal (echoes-gm.mjs:95-127) read the phase, the incident, the death and the map only; handleEchoes (bridge-runs-acts.mjs:327-334) passes the actor alone; no guard of the row reads actions; `git grep -i echoes` in roll-draw.mjs, sheet-audit.mjs and actions.mjs finds nothing, so no ticket kind names it. The sheet audit cannot help: not spending is no write. The trust model's 'What stays open' (.claude/rules/trust-model.md) speaks of a payment a console makes and hands back around a drawn roll, not of a no-roll act served with no payment at all; docs/dev/e69/STATUS.md 'What a console can still do' does not list it. Scenario 30's E69 part (30-security.mjs:6948-6958) forges Echoes only for another player's character; scenario 33's E69-C (33-bridge-paths.mjs:2002-2062) drives the paid legal road. Not run.",
+   "l1": {
+    "what": "Whether the primary answers Echoes for a character with 0 actions left, asked from that player's console",
+    "recipe": "1. One GM, one player whose student stands in a room with neighbours. 2. Spend the student's actions to 0. 3. On the player's console: `const m = await import('/modules/danganronpa-rpg/scripts/bridge-asks.mjs'); for (let i = 0; i < 5; i++) console.log(await m.requestEchoes({ actorId: '<id>' }));`. 4. Read the answers and the student's actions.",
+    "clients": "GM 1, player 1",
+    "theme": "default",
+    "settles_if": "five answers with a room and actions still 0: the finding stands; a refusal (notPaid or similar): it falls",
+    "priority": "minor"
+   }
+  },
+  {
+   "id": "domain-core-a-bridge-2",
+   "domain": "CORE",
+   "severity": "minor",
+   "category": "flow",
+   "title": "A GM's own Infiltrate and room actions run on that GM's browser even when it is not the primary, while their GM halves are written 'on the primary GM'",
+   "where": "scripts/bridge-asks.mjs:58-149 (requestFacilityUse, requestDoorShut, requestDoorForce, requestDoorPick, requestDoorKnock, requestWatchDeclare, requestTailStart, requestEavesdrop, requestEavesdropStop, requestEchoes, requestMaskReveal, requestDash: `local` with no `onPrimary`); against scripts/bridge-asks.mjs:221-253, 276-284, 1086-1105, 1177-1240 (the passages, the lair and the Frisk rows, which pass `onPrimary: true`); scripts/bridge-guards.mjs:1947 (the waiter runs `local` on any GM unless `onPrimary`)",
+   "what_happens": "`createWaiter.request` runs a request's `local` on any GM's browser, and asks the primary only where the asker passed `onPrimary` (bridge-guards.mjs:1947). The twelve asks of E69, E74 and E93 pass `local` alone, so on an Assistant GM (or any second GM) a press of the Infiltrate tile or a room action for a character runs doors-gm.mjs `shutDoor`, watch-gm.mjs `declareWatch`, tail-gm.mjs `startTail`, eavesdrop-gm.mjs `startEavesdrop`/`endEavesdrop`, facilities-gm through `handleFacilityUse` on that browser. Each of those says it runs 'on the primary GM' (doors-gm.mjs:99, watch-gm.mjs:59, tail-gm.mjs:5 and 58, eavesdrop-gm.mjs:14 and 109), and some of their work is gated on `isPrimaryGm()` there: `endEavesdrop` gives the listener's microphone back through `settleBlock` (eavesdrop-gm.mjs:154), which returns null off the primary (209-213), and the row's `changed` fires its hook and schedules the voice pass on the browser that wrote (216-220), so on a second GM the primary learns of the end only through the store's merge; and `handleFacilityUse` holds its once-a-time-of-day check in `serialWrite`, one browser's queue (bridge-runs-acts.mjs:121), so a use on the second GM and a player's use on the primary are not ordered against each other. The E79/E80/E91 rows beside them chose `onPrimary` for the same kind of world write.",
+   "evidence": "bridge-asks.mjs:65  export function requestDoorShut({ actorId, total = 0, rollId = null }) {\nbridge-asks.mjs:67      return ask(ACTION_DOOR_SHUT, packet, {\nbridge-asks.mjs:68          local: () => import(\"./bridge-runs-acts.mjs\").then(m => m.handleDoorShut(packet, game.user))\nbridge-asks.mjs:242      const res = await ask(ACTION_PASSAGE_CROSS, { actorId, passageId }, {\nbridge-asks.mjs:243          onPrimary: true,\nbridge-guards.mjs:1947  if (self.isGM && typeof local === \"function\" && (!onPrimary || self.isPrimary)) {\ndoors-gm.mjs:99   * Put a barricade up on the primary GM (the run of `door.shut`): ...\nbridge-runs-acts.mjs:121      return serialWrite(`facility:${offer.key}`, async () => {",
+   "failure_scenario": "With two GMs at the table, the Assistant GM presses 'Stop listening' for a student it is playing: the eavesdrop row ends, but the microphone block is settled only if the primary reacts to the store's change, which this road does not ask of it.",
+   "expected": "One writer for each of these records, as the passages' and the Frisk's asks have: `onPrimary: true` on the twelve asks, or a note beside each saying why a second GM's own client may write it.",
+   "confidence": "suspected",
+   "refutation_tried": "Read each GM half for a primary check of its own: shutDoor, declareWatch, startTail and startEavesdrop have none (they write GM stores, which every GM holds and the engine merges, so the write itself is not lost); endEavesdrop's settleBlock is primary-only (eavesdrop-gm.mjs:209-213), and the primary's voice pass reads every row when it runs (`voiceTargets`, 178-181), so it may catch up on its next pass. Whether the primary reacts to a store change from another GM by settling the voices was not traced (voice.mjs not read), nor whether any GM-side caller presses these for a student in practice; a GM's own NPC is the usual case. No test found that drives these asks from a second GM (33-bridge-paths runs an Assistant GM for other rows).",
+   "l1": {
+    "what": "Whether a second GM's Stop listening and Shut the Door, pressed for a student on that GM's browser, end in the same state as on the primary",
+    "recipe": "1. Two GMs (primary A, second B), one player. 2. On B, open the student's sheet, start an eavesdrop (Listen, a good roll), then press Stop listening on B. 3. Read on A `game.drpg` eavesdrop rows and the player's microphone block. 4. On B, Shut the Door for the same student; read A's barricade store and the room's flag.",
+    "clients": "GM 2, player 1",
+    "theme": "default",
+    "settles_if": "the microphone stays blocked or A's records differ from B's: the finding stands; the same state on A as a press on A would leave: it falls to a nit about the missing onPrimary",
+    "priority": "minor"
+   }
+  },
+  {
+   "id": "domain-core-a-bridge-3",
+   "domain": "CORE",
+   "severity": "nit",
+   "category": "hygiene",
+   "title": "`remnant.edit` and `project.unsabotage` can never be carried out: the rows are a GM's alone and only a player's browser ever asks them",
+   "where": "scripts/bridge-table.mjs:807-823 and 858-873 (gmOnly rows); scripts/bridge-asks.mjs:561-570 and 660-667 (requestUndoSabotage, requestRemnantEdit); their only callers, scripts/projects.mjs:2357-2361 and scripts/remnants.mjs:2513-2517, behind `if (!game.user.isGM)`",
+   "what_happens": "Since E08+E28 C8 both rows refuse a player with 'an undo is the GM's own Reroll's'. Their asks are called from one place each, `undoSabotage` and `retuneRemnant`, and only on a player's browser; a GM, the primary or not, takes the local branch of both functions (projects.mjs:2363 on, remnants.mjs:2519 on), and every caller of those functions found is GM-side (reroll.mjs:1436, 2020, 2032; handover.mjs:754-755; cleanup-reshape.mjs:383; cleanup.mjs:2153). So `handleRemnantEdit` and `handleUnsabotage` run only for a forged packet, and the `sender.isGM &&` test at bridge-runs-records.mjs:337 is always true where it runs. The asks' comments still describe the old road: requestRemnantEdit 'a reroll has changed how well they hid it' (bridge-asks.mjs:660-664), requestUndoSabotage 'It is only ever called by Reroll' (561-567), while the Reroll calls `undoSabotage` on the GM.",
+   "evidence": "bridge-table.mjs:813  gmOnly(\"an undo is the GM's own Reroll's\"),\nbridge-table.mjs:864  gmOnly(\"an undo is the GM's own Reroll's\"),\nremnants.mjs:2513  if (!game.user.isGM) {\nremnants.mjs:2515      const res = await requestRemnantEdit(sceneId, tokenId, { visibility, type, remove });\nprojects.mjs:2357  if (!game.user.isGM) {\nprojects.mjs:2359      const res = await requestUndoSabotage(targetId, repairId, actorId);\nbridge-asks.mjs:562   * Taking a sabotage back writes the same two settings. It is only ever called by\nbridge-asks.mjs:563   * Reroll, ...",
+   "failure_scenario": "A developer reads requestUndoSabotage's comment, adds a player-side caller expecting the thaw to land, and every call is refused 'Only the GM can take a result back'.",
+   "expected": "The two player branches and their asks gone (the rows kept for the refusal the suite reads), or the comments saying that the road is a refusal kept for 30-security.",
+   "confidence": "read",
+   "refutation_tried": "`git grep -n 'retuneRemnant\\|undoSabotage('` over scripts/ (tests left out) lists every caller; each is in a GM-only function or behind isGM. The rows stay meaningful as refusals: 30-security forges them (the row comments say so), so the declarations are not dead, only their run.",
+   "l1": null
+  },
+  {
+   "id": "domain-core-a-bridge-4",
+   "domain": "CORE",
+   "severity": "nit",
+   "category": "text",
+   "title": "A Hope Call's approval card prints the packet's Call name and effect, and no guard holds the key to a Call that waits for a GM",
+   "where": "scripts/bridge-table.mjs:628-639 (`call.approve`: knownSender, notSpectator, owns); scripts/call-gm.mjs:238-243 (title from `call?.label ?? payload.callLabel`, body from `payload.effect`)",
+   "what_happens": "The row judges only that the sender owns the character. The run puts on every GM's card the title from HOPE_CALLS when the key is known and the packet's `callLabel` when it is not, and always the packet's `effect` line (escaped). So a console can raise an approval card for a key that is no Call, or for a real Call with an effect line that is not the table's ('a free critical' under Experience). Nothing is armed beyond the table: an unknown key is refused at `call.arm` (call-effects.mjs `playerArmRefusal`/`ownArmRefusal`), and an approved key arms the table's `grants`; the card is a text the GM rules on as if the module wrote it.",
+   "evidence": "bridge-table.mjs:630      guards: [knownSender, notSpectator(\"actorId\"), owns(\"actorId\", \"sender does not own that character\")],\ncall-gm.mjs:238  const call = HOPE_CALLS[payload.key] ?? null;\ncall-gm.mjs:240      title: game.i18n.format(\"DRPG.Calls.approveTitle\", { call: call?.label ?? payload.callLabel ?? \"\" }),\ncall-gm.mjs:242      body: `<p>${esc(payload.effect ?? \"\")}</p>...",
+   "failure_scenario": "A player's console asks approval of 'Experience' with the effect 'roll with advantage and a free critical'; the GM reads the module's card, approves, and the roll gets the Experience bonus alone.",
+   "expected": "The card's title and effect from the GM's own table (as its cost already is since E02), and the row refusing a key that is not a Hope Call waiting for a GM's yes.",
+   "confidence": "read",
+   "refutation_tried": "Read the cost line: it comes from HOPE_CALLS since E02 (call-gm.mjs:229-243), so the pattern exists; the label and the effect did not follow it. Checked what an approval buys: guardArmGmYes keys the yes by Call key and the arm takes the table's grants (bridge-runs-records.mjs:515-521), so no rule is broken - only the GM's card text. Escaping holds (`esc`, `callGm` escapes the title).",
+   "l1": null
+  },
+  {
+   "id": "domain-core-a-bridge-5",
+   "domain": "CORE",
+   "severity": "nit",
+   "category": "text",
+   "title": "`notPaid` tells a player 'You haven't paid for that roll with an action' where the price was Hope or Sanity, and for a Frisk ask, which has no roll",
+   "where": "lang/en.json DRPG.Bridge.why.notPaid ('You haven't paid for that roll with an action. Take the action again.'; Polish 'Ten rzut nie ma opłaconej akcji. Wykonaj akcję jeszcze raz.'); scripts/bridge-guards.mjs:391; scripts/roll-draw.mjs:1179 (drawRefusal) and scripts/frisk.mjs:802 (askToFrisk); scripts/config.mjs:1454-1470 (PRICE_CHAINS: an Analyze or an Objection paid with Hope or Sanity past its first step)",
+   "what_happens": "One reason, 'no payment of that character's stands for that roll', is told for every missing ticket. A ticket is any step of the action's price chain the GM saw land (roll-draw.mjs:884-888: 'the later step of the action's price chain, a Hope or a Sanity mark'), and the Frisk ask's refusal has no roll at all. The sentence names an action and a roll in each case.",
+   "evidence": "bridge-guards.mjs:391  [\"notPaid\", /^no payment of that character's stands for that roll$/],\nfrisk.mjs:802          return { refused: \"no payment of that character's stands for that roll\" };\nconfig.mjs:1462  analyze: {\nconfig.mjs:1465            { pay: \"hope\", amount: 1 },",
+   "failure_scenario": "In a Class Trial a player out of actions pays an Analyze with Hope, the payment reaches a just-reloaded primary late, and the player reads 'You haven't paid for that roll with an action. Take the action again.' with no action to take.",
+   "expected": "A sentence that names the payment, not the action (\"The GM did not see this paid. Try again.\"), per docs/text-style.md.",
+   "confidence": "read",
+   "refutation_tried": "Checked that a Hope step can be the ticket: roll-draw.mjs:884-888 and CHAIN_OF (analyze, cleanup -> tamper, 934) say so. Whether a player meets this sentence at a table needs a late payment, which is rare; the wording is wrong regardless.",
+   "l1": null
+  },
+  {
+   "id": "domain-core-a-bridge-6",
+   "domain": "CORE",
+   "severity": "nit",
+   "category": "perf",
+   "title": "Every chat message rendered on a GM's browser starts a dynamic import of messenger-app.mjs before it is asked whether it is a ruling card",
+   "where": "scripts/gm-bridge.mjs:143-161",
+   "what_happens": "The second renderChatMessageHTML hook runs `import(\"./messenger-app.mjs\")` for each message drawn on any GM, and only inside the `.then` reads `cardFlag(message, \"callCard\")` and queries for `[data-drpg-call]`. The hook above it (136-142) asks its flag first and imports only for a held Key fee's card. The comment explains why the button query waits for the microtask (the secret swap draws the words in the same dispatch); the `callCard` flag test does not need to wait. A module already loaded is a cache hit, so the cost is a promise and a microtask per message, paid for the whole log at every load.",
+   "evidence": "gm-bridge.mjs:143  Hooks.on(\"renderChatMessageHTML\", (message, element) => {\ngm-bridge.mjs:154      import(\"./messenger-app.mjs\")\ngm-bridge.mjs:155          .then(m => {\ngm-bridge.mjs:157              if (!cardFlag(message, \"callCard\") && !body?.querySelector?.(\"[data-drpg-call]\")) return;",
+   "failure_scenario": "A GM loads a world with a 500-message log: 500 import promises and querySelector calls run during the log's draw, for the few cards that hold a ruling.",
+   "expected": "The cheap flag read before the import, or one shared resolved module reference; measured with game.drpg.counters() if it matters.",
+   "confidence": "read",
+   "refutation_tried": "Foundry draws the log in batches, and a cached import() is fast; no frame time is claimed. Counts of work only, not measured.",
+   "l1": null
+  }
+ ],
+ "by_decision": [
+  {
+   "what": "Echoes leaves out a body nobody has found, so a player who knows a classmate's token stands one door away and hears a farther room (or nobody) learns that classmate does not count - a death the GMs keep is one of the reasons.",
+   "source": "scripts/echoes-gm.mjs:10-13 ('WHO COUNTS (the owner's 10.11 (b)): ... no body (dead as the GMs hold it, a secret death too)'; 'Read here, on the GM, because a player's browser does not know a death the GMs keep'). Every browser holds the tokens (.claude/rules/trust-model.md, Listen's lines), so the inference is open to an honest player too; finding 1 makes it repeatable for free."
+  },
+  {
+   "what": "Player text on the bridge carries no length bound in the whitelist (`as.text`): a Dynamic action's description, a Hope Call's note and effect, an Observe's request, a parked murder's and a betrayal's note reach the GMs' cards uncut, while the pre-session note and card.post are held to MAX_PLAYER_BYTES (pre-session-note.mjs:148-150, secret.mjs cardTooLong).",
+   "source": "scripts/bridge-guards.mjs:1502-1503 ('No length bound is added to text: a bound could cut a note a player wrote honestly, and E43's fuzz stage owns it'); E43 is unshipped (tools/stages.json)."
+  },
+  {
+   "what": "A roll is spent when the run refuses after the roll was claimed (a facility already used, a Listen roll below the band, a discard in the Class Trial).",
+   "source": "scripts/bridge-guards.mjs:1564-1568 ('a run that then refuses has spent the roll as it spent the dice'); bridge-runs-records.mjs:131-135."
+  },
+  {
+   "what": "A GM's yes for an Experience or Ultimate is used up by `guardArmGmYes` before `guardArmLiving` asks about the beneficiary, so a Call refused for a body nobody found has spent its yes.",
+   "source": "scripts/bridge-guards.mjs:1081-1084 ('Asked after the buyer's own refusals ... and before `guardArmLiving`, which stays last') and 986-992 (rule D asked last so the two answers differ only where the living one is armed)."
+  },
+  {
+   "what": "A queued declaration (`queue: \"project\"`) is acknowledged on arrival, before its guards, and so answers `reply` only.",
+   "source": "scripts/bridge-guards.mjs:1724-1730 (the E31 review)."
+  },
+  {
+   "what": "A Work's trace takes the band its packet names, and a console that sends no `remnant.place` leaves no trace.",
+   "source": "scripts/bridge-runs-records.mjs:224-228 and .claude/rules/trust-model.md 'What stays open'."
+  },
+  {
+   "what": "A forged `free` crisis claim is scored as a failure, not refused.",
+   "source": "scripts/bridge-runs-acts.mjs:832-846 (G-18)."
+  },
+  {
+   "what": "With no GM connected, every request is refused before it is sent (`noGm`), never broadcast.",
+   "source": "scripts/bridge-guards.mjs:1960-1962 and 2116-2118."
+  }
+ ],
+ "comments_against_code": [
+  {
+   "where": "scripts/bridge-guards.mjs:108-112",
+   "comment_says": "'Guards change nothing. Until E08+E28 C8 one kind did - a guard named `...Receipt` spent a Reroll receipt ... C8 retired them.'",
+   "code_does": "Two guards change state today: `guardCallProgress` takes the Call's payment ticket (roll-draw.mjs `takeCallPayment` pushes \"call\" on the ticket, 1265-1271), which is why the progress row asks it last (bridge-table.mjs:746-748); `guardArmGmYes` deletes the GM's yes and records it as taken (1122-1132)."
+  },
+  {
+   "where": "scripts/bridge-runs-acts.mjs:45 (and .claude/rules/trust-model.md 'How to add a bridge action', step 3)",
+   "comment_says": "'A run never emits a packet and never calls `refuse`.'",
+   "code_does": "handleFriskAsk emits the request's own `bridge.done` later through its `reply` (bridge-runs-acts.mjs:724-727), and handleAdvancementAsk's `sendOffersTo` emits `advancement.offers` (518-528); both are recorded beside their rows, not in the rule."
+  },
+  {
+   "where": "scripts/bridge-guards.mjs:150-152 (and trust-model.md step 3: 'a run never answers a done for nothing')",
+   "comment_says": "A resolver that answers null for work it did not do is a refusal, `nothing was carried out: ...`.",
+   "code_does": "handleCubAbility answers `{ reply: out }` whatever cubAbilityOnGm returned (bridge-runs-acts.mjs:1010-1017), so a refused or unpaid Monocub move (cubAbilityOnGm returns null, monocub.mjs:1280, 1293, 1313) is answered done with null; the Monocub is whispered `moveRefused` by the GM, and the caller reads the null (monocub.mjs:1164-1173), so nothing goes wrong at the table."
+  },
+  {
+   "where": "scripts/bridge-guards.mjs:1383-1384, 1708, 1711, 1856-1857 (and the header, 6-7)",
+   "comment_says": "'A declaration in one of the three tables (gm-bridge.mjs, traps.mjs, search-tokens.mjs)'; 'see `prepare` in gm-bridge.mjs'; '`ask` in gm-bridge.mjs'.",
+   "code_does": "BRIDGE_ACTIONS, `prepare` and `ask` live in bridge-table.mjs since E41 C5b, and `judge` serves four tables - ROLL_ACTIONS in private-rolls.mjs:106 too, as the same file says at 1446 ('the four tables') and trust-model.md says."
+  },
+  {
+   "where": "scripts/bridge-table.mjs:1124-1131",
+   "comment_says": "'A PLAYER'S PRIVATE CARD WHILE AN INCIDENT RUNS ... Not resent to a GM who reloads.'",
+   "code_does": "The comment stands above the `audit.decide` row, after the Reroll's; the `card.post` row it describes is at 1550-1562 with no comment of its own."
+  },
+  {
+   "where": "scripts/bridge-asks.mjs:561-567 and 660-664",
+   "comment_says": "requestUndoSabotage 'is only ever called by Reroll'; requestRemnantEdit retunes 'a Remnant a player's own action left behind - a reroll has changed how well they hid it'.",
+   "code_does": "Both are called only from a player's browser and always refused (finding 3); the Reroll runs on the GM and calls undoSabotage and retuneRemnant locally."
+  },
+  {
+   "where": "scripts/bridge-runs-records.mjs:46",
+   "comment_says": "debug line 'Applied N progress to X on behalf of a player.'",
+   "code_does": "Printed for a GM sender too (the run takes `kind: sender.isGM ? \"gm\" : \"player\"` one line above)."
+  },
+  {
+   "where": "scripts/bridge-runs-acts.mjs:48-50, 65-70, 336-337, 530-533, 642-648, 666-669, 689-691, 769-770, 779-781, 793-797, 858-869, 881-891, 906-910",
+   "comment_says": "Each run's comment, indented four spaces as a statement inside a function would be.",
+   "code_does": "They stand at the top level above exported functions: the indentation of the old `if (action === ...)` branches of onSocket, kept by the pure moves of E31 and E41 C5a. Cosmetic."
+  }
+ ],
+ "hygiene": {
+  "functions_over_300": [],
+  "functions_150_to_300": 1,
+  "functions_150_to_300_list": [
+   "createWaiter, scripts/bridge-guards.mjs:1905-2091 (187 lines, a factory of eight closures)"
+  ],
+  "data_tables_over_300": [
+   "BRIDGE_ACTIONS, scripts/bridge-table.mjs:107-1602 (1496 lines, 100 declarations: data, as registerSettings is)",
+   "REASON_PATTERNS, scripts/bridge-guards.mjs:177-483 (306 lines of patterns)"
+  ],
+  "duplicated_helpers": [
+   "The socket name and two wire names typed twice: SOCKET_EVENT at bridge-wire.mjs:22 and bridge-guards.mjs:35; ACTION_DONE \"bridge.done\" at bridge-wire.mjs:191 and bridge-guards.mjs:1865 (bridge-guards.mjs is held to importing config.mjs and utils.mjs alone, R161; bridge-wire.mjs is a leaf of config.mjs, so the import would close no cycle).",
+   "The local road's refusal said 23 times in bridge-asks.mjs as `if (out?.refused) sayNotDone(ACTION_X, reasonOf(out.refused));` followed by one of three return shapes; one helper would carry the action name once.",
+   "`game.actors.get(payload.actorId ?? \"\")` then `return { refused: \"no such character\" }` opens 12 runs of bridge-runs-acts.mjs.",
+   "The nonce cut `String(...).slice(0, 32)` written three times (bridge-guards.mjs:1091, bridge-runs-records.mjs:519, 571); the guard's key and the run's replay test must agree on it.",
+   "Each row's `label` is `DRPG.Bridge.what.<wire name>`, and requestLabel builds the same key from the action (bridge-guards.mjs:559); the field is read only by tests (tests-kit.mjs:2134, tests-tier0.mjs:20883) that pin it to that key."
+  ],
+  "dead_code": [
+   "The player branches of retuneRemnant (remnants.mjs:2513-2517) and undoSabotage (projects.mjs:2357-2361), requestRemnantEdit and requestUndoSabotage (bridge-asks.mjs:568-570, 665-667), and the runs handleRemnantEdit and handleUnsabotage for any honest sender (finding 3).",
+   "`sender.isGM &&` in handleRemnantEdit (bridge-runs-records.mjs:337): the row is gmOnly, so it is always true where it runs."
+  ],
+  "magic_numbers": [
+   "Project progress bounded by `STARTING.despairMax` (12), the Despair pool's maximum, in `project.progress`'s inRange (bridge-table.mjs:744): the largest progress a Call or a roll adds is 2 (config.mjs:1666-1668, 2386, 2823), so the bound is a borrowed number, not the rule's.",
+   "`pause(300)` in guardSendbackPlace (bridge-guards.mjs:916): the one retry's wait, no constant and no reading.",
+   "DRAWN_TERMS_MAX 64 and DRAWN_FORMULA_MAX 512 (bridge-guards.mjs:1223-1224): named, and their note says 'not measured on a table's largest roll'.",
+   "`as.id` takes strings of 1-128 characters (bridge-guards.mjs:1509); the unlisted option key is cut to 40 (1246); the nonce to 32 (above).",
+   "CALL_YES_MS 60 s, CALL_YES_KEPT 100 (bridge-guards.mjs:1087-1088), ROLL_REPORT_MS 60 s (1167), RESENDS 3 (2102): named, each with its reason in a note, none measured."
+  ],
+  "memory": [
+   "`settledHere` (bridge-guards.mjs:1599) gains one string per roll settled on the primary and is never pruned; a session's worth is small, and the record's `resolved` is the durable half."
+  ]
+ },
+ "hints_for_other_passes": {
+  "dead_controls": [
+   "No control is drawn by these files. The roads behind controls that end in a refusal for every honest caller: a player-side Reroll of a trace or a sabotage, `remnant.edit` and `project.unsabotage` (finding 3)."
+  ],
+  "stale_windows": [
+   "None drawn here. gm-bridge.mjs wires the ruling cards' buttons in the GM's chat log on renderChatMessageHTML (143-161) and a held Key fee's card (136-142); a card re-drawn after its words land is wired again, which the controls pass of the messenger may want to read with messenger-app.mjs `wireCallActions`."
+  ],
+  "for_controls_and_trust": [
+   "The Infiltrate tile's Echoes row (controls-08) is answered by the primary with no payment read (finding 1); the controls lane should read the same for any other no-roll row that costs an action.",
+   "The twelve E69/E74/E93 asks run `local` on a non-primary GM (finding 2): a two-GM probe of the Infiltrate tile and the Facilities tile would settle it."
+  ]
+ },
+ "not_established": [
+  {
+   "what": "Whether a resent `call.arm` can charge twice when the primary paid the Hope and left before `appendArmedCall` landed: the new primary finds no armed entry with the nonce (bridge-runs-records.mjs:571-572) and judges the purchase again on a Hope already lowered. The window is two awaits wide; not traced beyond these files.",
+   "l1": {
+    "what": "A Support's arm whose primary closes its browser between the Hope write and the arm",
+    "recipe": "1. Two GMs, one player with 3 Hope. 2. Pause the primary's browser in DevTools on appendArmedCall during a Support. 3. Close the primary's tab. 4. Read the buyer's Hope and the beneficiary's armed list on the second GM after the resend.",
+    "clients": "GM 2, player 2",
+    "theme": "default",
+    "settles_if": "Hope down by twice the cost with one Call armed: a new finding; down by one cost: nothing to report",
+    "priority": "minor"
+   }
+  },
+  {
+   "what": "Finding 2's consequence on the voice block and on the facility's once-a-time-of-day rule: voice.mjs and the stores' merge were not read, so whether the primary settles a second GM's eavesdrop end by itself is open.",
+   "l1": "see finding 2's l1 block"
+  },
+  {
+   "what": "Every tier and scenario named here (R1b, R162-R166, R164, R220, 30-security E69 part, 33-bridge-paths E69-C) is named from its source; base-run.json did not exist when read, so no result is claimed.",
+   "l1": null
+  }
+ ]
+}

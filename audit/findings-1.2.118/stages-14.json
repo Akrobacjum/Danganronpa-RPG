@@ -1,0 +1,644 @@
+{
+ "reader": "stages-14",
+ "checkout": "branch claude/audit-119 at 45889481; the code read is main b5a29e73 (1.2.118, module.json) - the branch adds files under audit/ only. Shallow clone: 1840 commits; the commits the notes name for E44 C1a-C2c and E21 C1a-C1d are not objects here. Nothing run but read-only git, grep and short python over source and the base run's shard logs.",
+ "count_expected": 4,
+ "count_note": "4 of 4 stages, in tools/stages.json order E60, E44, E21, E22. Read: release notes v1.2.98 (248 lines), v1.2.99 (255) and v1.2.100 (276) whole; the four stages.json rows; 78 registry rows by title (15 E60, 33 E44, 30 E21 of which 15 name E22) and their outcome in the base run's shards 1-3 (central scratch, base/shards/results-suite-1..3/01-runtests.log) by script: 78 of 78 ok; 25 tier-2 titles by grep (11 E60, 8 E44, 1 E21, 5 E22), 7 of them ok in shards 2-3 (E60-T16, -T18, -T19, E44-T4, -T5, E22-T2, -T5), the rest not in the shards read; two tier-2 bodies whole (E60-T17, E22-T1); AUDIT 9.2 items 268, 372-401 (31 items) by id and their verdicts in live-items-327.json, -361.json and -395.json; code at the file:line given in each promise, about 900 lines in 30 files, none whole. No docs/dev/e60, e44, e21 or e22 folder exists or ever existed in this history; the notes are the papers. E22 has no registry row of its own stamp (the train's rows are stamped E21); it is graded on the rows and tier-2 tests that name it.",
+ "stages": [
+  {
+   "id": "E60",
+   "version": "1.2.98",
+   "shipped": "2026-11-04",
+   "what": "Traces read through one ref each (the token with its row of the GMs' store; D38 = 1 kept an unfound trace a hidden token), the visibility band of every Remnant on the dashboard's Remnants tab and on the GM's Remnant card, D153 (a hand-over and a GM's Give in the receiver's finds' queue), and a dice group from the owner's feedback: Public roll off the GM panel, the dice look diagnostic in Season setup's Pre-season checks, the player's roll window whole, one Hope and Despair look for the table, and a GM's screen throwing a player's 3D dice only with that GM's Monokuma in the roller's room.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.98.md (1-248, whole: Before installing 17-110, Traces 112-132, Dice 134-164, Known gaps 166-219, Checked 221-248)",
+    "no papers folder: docs/dev/e60/ does not exist and git log --name-only shows none ever committed; the STATUS and ledger the notes quote (STATUS Open 2, 16, 18, 30, 41, 46, 50-55) are not in the repository, so the notes are the claim",
+    "tools/stages.json row E60 (planned and shipped 1.2.98, 2026-11-04, touches sockets, rolls, scenes; drills none)",
+    "git log --oneline --no-merges 55f03746..c4210b4d: 22 commits, 21 naming E60 (C1a f7bb7671 to fix FG6 e8a76c53 and the release 4bf9c9d8); 17 later commits name E60 (E38, E54, E97, E108 and test commits)",
+    "audit/AUDIT-1.2.42.md 9.2 items 372-376 (lines 1246-1250) and item 268 (LIVE-E16-02, amended by C5c, line 1142); their verdicts in audit/findings-1.2.118/live-items-361.json and -327.json"
+   ],
+   "commits": 22,
+   "promises": [
+    {
+     "promise": "Every trace is read through one frozen ref, its trace token with its row of the GMs' store; a row with no trace token is no trace for any reader and the health check counts it an orphan (FG1); the row holds the trace's spot from placement",
+     "source": "v1.2.98.md 116-120, 39-43",
+     "code": "scripts/remnants.mjs:617 traceRowOf, :3230-3245 traceRefsOf (loops over the scene's tokens flagged isRemnant, so a row without a token yields nothing), :3248 remnantsOn, :3264-3270 remnantById, :3277 sceneOfRemnant, :3290 remnantsInRoom",
+     "holds": "yes",
+     "test": "R1280, R1281, R1282 (ok, shard 1/8); tier 2 E60-T1 (tests-tier2.mjs:94030) and E60-T19 (:94842, ok in shard 3/8); 62-investigation D1, D7 and 30-security's 7k by the notes",
+     "test_kind": "both",
+     "note": "R1281 is a source census (no file outside the trace's readers names isRemnant). The macro edge the notes keep (Open 53) is finding E60-1."
+    },
+    {
+     "promise": "A GM sets every Remnant's band, found or not, on the Remnants tab's Visibility column and on the GM's Remnant card, one road (setRemnantFlags); the copies already made keep theirs; a band change marks nothing GM-edited, and a Reroll of the action or of the clean-up leaves a band a GM set",
+     "source": "v1.2.98.md 69-75; FG2",
+     "code": "scripts/investigation.mjs:610 caseTraceRows; scripts/remnant-ring.mjs:306-325 wireCardEditing (the card's select through setRemnantFlags, and since today a missing row throws and says cardSaveFailed); scripts/remnants.mjs:2181-2205 setRemnantFlags writes visibility, gmBand and gmBandAt, :924 gmSetBand; scripts/bridge-guards.mjs:860-862 removalRefusal's gmBand reason; scripts/reroll.mjs:2065; scripts/cleanup.mjs:2152-2154",
+     "holds": "yes",
+     "test": "R1288 (ok); tier 2 E60-T8 (:94119) and E60-T20 (:94920), not read in the base run",
+     "test_kind": "both",
+     "note": "The notes' Open 51 (the card saying saved when the row went) no longer reads true: the card's handler throws when setRemnantFlags answers nothing (remnant-ring.mjs:318) and shows DRPG.Remnant.cardSaveFailed."
+    },
+    {
+     "promise": "D153: Give a Truth Bullet from a Remnant to a student who already holds its copy gives none and says so; the check and the copy run in the receiver's finds' queue with Observe's find, a hand-over and Monokuma's Reveal, on one GM's browser (across GMs carried to E38)",
+     "source": "v1.2.98.md 76-79, 188-191",
+     "code": "scripts/handover.mjs:294 (the check and the copy in one step of the queue); scripts/gm-items.mjs:1430-1440, :1581 (since E38 the give goes to the primary); scripts/bridge-table.mjs:1582; scripts/bridge-runs-records.mjs:918",
+     "holds": "yes",
+     "test": "R1289 (the census of createTruthBullet inside serialWrite(observeFindKey(...)), ok); tier 2 E60-T9 (:94242), not read",
+     "test_kind": "both",
+     "note": "The cross-GM race the stage carried was closed by E38 (1.2.113): the give is carried to the primary (bridge-wire.mjs:204)."
+    },
+    {
+     "promise": "No Public roll tile on the GM panel; the roll stays a GM's macro, game.drpg.publicRoll",
+     "source": "v1.2.98.md 66-68",
+     "code": "scripts/gm-panel.mjs:208-213 (the tile's absence noted where it stood); scripts/private-rolls.mjs:1327 publicRoll; scripts/api.mjs:1190",
+     "holds": "yes",
+     "test": "R1291 (ok)",
+     "test_kind": "source",
+     "note": "The repository's agent rules still name the removed window in gm-panel.mjs's row (finding E60-2), a gap the notes kept at the owner's default."
+    },
+    {
+     "promise": "The dice look diagnostic: game.drpg.diagnoseDiceLook({ messageId, test }), one window and a part of the report, asking no other browser anything; reached from Season setup's Pre-season checks, not the GM panel",
+     "source": "v1.2.98.md 80-86, 144-146",
+     "code": "scripts/dice-look.mjs:391 lookFindings, :236 throwLook, :524 diagnoseDiceLook; scripts/season-setup.mjs:1382-1393 wireDiceLookButton, :1453; scripts/diagnostics.mjs:2219 REPORT_SECTIONS (its diceLook part)",
+     "holds": "yes",
+     "test": "R1294, R1295, R1296, R1300, R1301 (ok); tier 2 E60-T14 (:94313), not read",
+     "test_kind": "both",
+     "note": "What it reads of each real browser's Dice So Nice is LIVE-E60-05 and -07, open."
+    },
+    {
+     "promise": "A player's roll window is drawn whole, as the GM's, with every lock kept; the one-line summary and the audience chip gone; the mode select's tooltip says who sees the roll",
+     "source": "v1.2.98.md 99-101",
+     "code": "no code in scripts/ outside the suite names collapseLocked or drpg-locked-away, drpg-roll-summary, drpg-mode-chip (grep, 0 hits; R1297 holds the same)",
+     "holds": "yes",
+     "test": "R1297 (ok); tier 2 E60-T15 (:75442) and the mode select's tooltip test, not read",
+     "test_kind": "both",
+     "note": "On a real screen: LIVE-E60-08 and LIVE-E16-02, open."
+    },
+    {
+     "promise": "One Hope and Despair look for the table: the source full Gamemaster's Daggerheart preset kept in the world setting diceDualityLook and laid on every throw each browser's Dice So Nice draws, display only; on Daggerheart 2.10 and later nothing is laid",
+     "source": "v1.2.98.md 25-34, 57-60, 93-97",
+     "code": "scripts/settings.mjs:1533 diceDualityLook; scripts/dice-sync.mjs:864-911 keepDualityLook; scripts/dice-look.mjs:79-95 registerDiceLook and onRollStart, :183 layDualityLook; scripts/patches.mjs:830 the contract row",
+     "holds": "partly",
+     "test": "R1298 (ok); tier 2 E60-T16 (:94380, ok in shard 2/8)",
+     "test_kind": "both",
+     "note": "As shipped it applies to Daggerheart 2.9 and older only; the module verifies 2.12.9 (module.json:22), where E108 (1.2.112) lays the table's look by Daggerheart's colorsets (dice-look.mjs:100-110). On today's Daggerheart this promise is superseded, not broken. The preset path is read in code and the harness's Dice So Nice draws nothing (LIVE-E60-06, open)."
+    },
+    {
+     "promise": "With Force private player rolls on, a GM's screen throws a player's 3D dice only while one of that GM's own Monokumas stands in the roller's room on the same scene; a Monokuma whose GM cannot be told admits nobody; every GM still reads the card, a GM outside the room has it headed with the roller (quiet dice.show); a GM's own rolls and, with the setting off, every roll reach every GM, a Reroll's included",
+     "source": "v1.2.98.md 87-92, 147-150",
+     "code": "scripts/private-rolls.mjs:1715-1727 gmsInRoomOf, :1747-1752 diceAudienceIds (everyGm for a GM's own roll or the setting off), :1797 the quiet dice.show, :1506; scripts/monokuma.mjs:359 poolOwnerOf; scripts/roll-draw.mjs:2519",
+     "holds": "yes",
+     "test": "R1299, R1302 (ok); tier 2 E60-T17 (:94739, read whole), E60-T18 (:94797, ok in shard 2/8), E60-T21 (:94963); 12-social's dice checks, 33-bridge-paths A17 and A17b, 72-canary by the notes",
+     "test_kind": "behaviour",
+     "note": "Measured on the harness's Dice So Nice model; what a real GM's screen draws is LIVE-E60-09 (partly: only the owner's pre-ship reading of 'Show only mine')."
+    }
+   ],
+   "registry_rows": 15,
+   "tests_read": [
+    {
+     "test": "tier 2 E60-T17 (tests-tier2.mjs:94739-94796)",
+     "measures": "yes",
+     "why": "Moves the world's Monokuma into the player's character's room and out again, draws a roll for the player each time with showForRoll stood in, and reads whether this screen threw, whether this GM and the roller are in the drawn audience and whether the GM reads the card. It would fail if a GM outside the room were thrown the dice. It reads the harness's Dice So Nice model, not a drawn throw."
+    },
+    {
+     "test": "R1280-R1282, R1288, R1289, R1291, R1294-R1302 (registry rows; titles read, bodies not)",
+     "measures": "weak",
+     "why": "All 15 ok in the base run's shard 1/8. By their titles R1281, R1289, R1291, R1297 and R1300 are source censuses (no name, key or class left in scripts/); R1280, R1282, R1294, R1295, R1298, R1299 and R1302 are pure calls on stand-ins. They pin the rules, not a drawn window or a throw."
+    },
+    {
+     "test": "tier 2 E60-T16, E60-T18, E60-T19 (titles)",
+     "measures": "yes",
+     "why": "ok in the base run's shards 2/8 and 3/8; bodies not read."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: E60-T1, E60-T8, E60-T9, E60-T14, E60-T15, E60-T17, E60-T20, E60-T21 and the mode select's tooltip test (shards 4-8 of the base run not read)",
+    "scenario 12-social (dice checks)",
+    "scenario 30-security (7k)",
+    "scenario 33-bridge-paths (A17, A17b)",
+    "scenario 62-investigation (D1, D7)",
+    "scenario 72-canary (S17-64 as an expected red, the bystander check)",
+    "scenario 83-roll-integrity"
+   ],
+   "scenarios": [
+    "no register row of audit/harness/README.md names E60 (grep: 0 hits); by the notes the stage changed 12-social (two dice checks to the Monokuma rule, 26 to 28), 33-bridge-paths (A17, A17b: the Assistant GM's own Monokuma), 62-investigation (D1, D7), 30-security (7k) and 72-canary (S17-64 reported as an expected red, the known leak; the bystander check with its positive control)"
+   ],
+   "live": {
+    "items": 6,
+    "read": 0,
+    "ids_read": [],
+    "note": "Items 372-376 (LIVE-E60-05, -07, -08, -06, -09) and 268 (LIVE-E16-02 as amended). 376 is partly read: the owner's reading of 03.11.2026, before 1.2.98 shipped, settles why a GM saw no player's dice on 1.2.97 (Dice So Nice's 'Show only mine'), not the 1.2.98 rule (live-items-361.json). The other five have no reading; LOCAL-REPORT.md:323-331 files 372 and 375 as not checkable at the sandbox. LIVE-E60-01 to -04 were never written (dropped with D38 = 1)."
+   },
+   "findings": [
+    {
+     "id": "E60-1",
+     "severity": "nit",
+     "title": "game.drpg.remnantsOn and remnantsInRoom answer frozen refs since C1b, and nothing a macro author reads says so",
+     "where": "scripts/remnants.mjs:3248-3251, :3290-3293; scripts/api.mjs:544-545 (no comment, unlike its neighbours); docs/handbooks/gm-handbook.en.md section 20.5 (no line names either call); tools/api-surface.json:117-118",
+     "what_happens": "Both calls answer traceRefsOf's frozen refs, not TokenDocuments. A macro written for 1.2.97 that calls .update() on what they answer fails. The 1.2.98 notes list this under Known gaps (Open 53: the handbooks' API table does not say so); on 1.2.118 the handbook still names neither call and api.mjs carries no comment for them.",
+     "evidence": "export function remnantsOn(scene) {\n    if (!scene) return [];\n    return traceRefsOf(readRemnantLedger(), scene, scene.tokens);\n}  (remnants.mjs:3248-3251); api.mjs:544-545 \"    remnantsOn,\\n    remnantsInRoom,\"",
+     "failure_scenario": "A GM's old macro that hides every Remnant in a room through game.drpg.remnantsInRoom(...).forEach(t => t.update({ hidden: true })) throws on 1.2.98 and later, and no handbook line tells the GM why.",
+     "expected": "The handbook's macro section (or api.mjs's comment) says the two calls answer refs with their token reachable, as the notes promised to record.",
+     "confidence": "read",
+     "refutation_tried": "Grepped docs/handbooks/*.md for remnantsOn and remnantsInRoom (0 hits) and api.mjs for a comment beside them (none; dropRemnant above them has one). Looked for a later stage that made the refs answer update(): traceRef is still the builder (remnants.mjs:3242). The notes themselves record the gap, so this is a known edge left open, not a new defect."
+    },
+    {
+     "id": "E60-2",
+     "severity": "nit",
+     "title": "The repository's agent rules still give gm-panel.mjs the public roll's window, which C5a removed",
+     "where": ".claude/rules/code.md:77 (gm-panel.mjs's row: \"`seasonUnderway` and the public roll's window (`openPublicRollDialog`)\"); scripts/gm-panel.mjs:211-213",
+     "what_happens": "No function openPublicRollDialog exists in scripts/ (grep: 0 hits outside comments); the panel's own comment says the tile and its window went in E60 C5a. The rules row still lists it among gm-panel.mjs's names. The notes kept it at the owner's default (STATUS Open 30: the owner's file).",
+     "evidence": "gm-panel.mjs:211-213: \"//   Public roll - removed (the owner, 03.11.2026: \\\"Usunmy funkcje public roll\\n//     z gm panel\\\"; E60 C5a). E33 C12 put it here with its window; the roll\\n//     itself stays a GM's macro\"",
+     "failure_scenario": "Whoever next edits the GM panel reads in the rules that gm-panel.mjs holds openPublicRollDialog and looks for a window that is not there.",
+     "expected": "The row names what the file holds today; the owner corrects it (the notes recorded a corrected text for him).",
+     "confidence": "read",
+     "refutation_tried": "Grepped scripts/ for openPublicRollDialog (comments only) and the registry for a test that holds the rules row to the code (none found). The notes say the row is the owner's to change, so this is recorded and still open."
+    }
+   ],
+   "superseded_by": [
+    "E108 (1.2.112): the table's Hope and Despair look on Daggerheart 2.10 and later, by Daggerheart's colorsets (dice-look.mjs:100-110) - on today's verified Daggerheart 2.12.9 C5d's preset path lays nothing",
+    "E76 (1.2.106): the four dice topics of newer versions the stage carried (Dice So Nice roles, ALL_CUSTOMIZATION, MoveContext, DEFAULT_SFX)",
+    "E38 (1.2.113): D153 across two GMs - a GM's Give carried to the primary's finds' queue (gm-items.mjs:1437, bridge-table.mjs:1582)"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "Every promise of the stage is in the code on 1.2.118 at the place named, and its two halves are held by tests that drive them: one ref per trace (R1280-R1282, E60-T1, E60-T19), the band on both roads (R1288, E60-T8, E60-T20), D153 (R1289, E60-T9), and the Monokuma rule (R1299, R1302, E60-T17, read whole, E60-T18); all 15 registry rows are ok in the base run's tiers 0-1 and E60-T16, -T18, -T19 ok in its shards 2-3. Two gaps the stage carried were closed by later stages (E38, E76). Against a 9: the stage's dice half - who sees a player's dice, the whole window, the one look - stands on the harness's Dice So Nice model, which draws nothing, and none of its six live items is read (376 partly, by a reading taken before the release); the one-look promise applies only to Daggerheart 2.9 and older and is moot on today's verified Daggerheart. Two nits (E60-1, E60-2), both known edges the notes recorded. Eight tier-2 tests and the six scenarios were not joined.",
+   "missing_to_10": "Readings of LIVE-E60-09 (the Monokuma rule on a real GM's screen, with a second full Gamemaster), -08 and LIVE-E16-02 (the whole window in both themes), -05 and -07 (the diagnostic on each browser); the macro note for remnantsOn and remnantsInRoom (E60-1); the rules row corrected (E60-2); the base run's tier 2 and scenarios joined."
+  },
+  {
+   "id": "E44",
+   "version": "1.2.99",
+   "shipped": "2026-11-05",
+   "what": "One window kit for the module's windows before E21 (scripts/ui-kit.mjs, styles/components.css, the footer by button roles, one tab system, one number stepper, a word in every empty choice), the CSS lint, budget, contrast check and computed-style snapshot, live.mjs that loses no press and keeps a raised window up, every window foldable, the notice history and the room, voice and launcher tiles on the kit, the approved mockups recorded, and the owner's additions of 04.11.2026: the project icon at full opacity, notices by theme, Delete a Remnant on the dashboard, and a project's required description on its token's card.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.99.md (1-255, whole: Before installing 18-95, the parts 97-159, the owner's answers 161-182, Known gaps 184-227, Checked 229-255)",
+    "no papers folder: docs/dev/e44/ does not exist and none was ever committed; docs/design/windows.md (the approved cards, C7a) is the stage's product, named by R1334, not read whole",
+    "tools/stages.json row E44 (planned and shipped 1.2.99, 2026-11-05, touches scenes, sockets; drills none)",
+    "git log --oneline --no-merges c4210b4d..7bb71bb9: 23 commits, 22 naming E44 (C2c fix ce05486c to FG6 4dac4f1d and the release c194a687); the notes count 29 on top of 1.2.98 and name C1a 34bbeecf, C1b 75b4f4d2, C1c 43fb2405, C1d 5c782856, the C1 fix 6837fc65, C2a 0ce3f1d1, C2b 53569208 and C2c adb0ea88, none of which is an object in this checkout (git cat-file fails; shallow clone)",
+    "audit/AUDIT-1.2.42.md 9.2 items 377-386 (lines 1251-1260); their verdicts in live-items-361.json"
+   ],
+   "commits": 23,
+   "promises": [
+    {
+     "promise": "The CSS lint with its budget (tools/css-budget.json), a contrast check and the computed-style snapshot game.drpg.styleSnapshot() with its Chromium sweep",
+     "source": "v1.2.99.md 97-108",
+     "code": "scripts/tests-css.mjs; tools/css-budget.json; scripts/style-snapshot.mjs (api.mjs:201); tools/check.mjs parts css and contrast",
+     "holds": "yes",
+     "test": "R1310-R1314 (ok in shard 1/8); node tools/check.mjs, 25 parts green in the base run's quick (README of this folder)",
+     "test_kind": "source",
+     "note": "The style sweep and the contrast numbers in the notes were not re-run here."
+    },
+    {
+     "promise": "live.mjs: a pressed checkbox, radio, button or range holds no refresh; a press inside a refreshing region waits for its release; a region tied to settings refreshes on its own keys only; every opener answers RAISED when its window was open and the GM panel does not come back; one approval, one Monocub ability and one call-off window at a time (D176)",
+     "source": "v1.2.99.md 110-118",
+     "code": "scripts/live.mjs:688 RAISED, :696-720 alreadyOpen (unfolds a folded window, then raises it); live.mjs:78-82 the pointer release and HOLD_MAX_MS by live-items-361.json's subject reading",
+     "holds": "yes",
+     "test": "R1315-R1319 (ok); tier 2 E44-T1 (:95008), E44-T2 (:95069), E44-T3 (:95146), E44-T4 (:95181, ok in shard 2/8)",
+     "test_kind": "both",
+     "note": "With a real pointer at a v14 table: LIVE-E44-02, open."
+    },
+    {
+     "promise": "The kit: one frame, a footer by button roles (closing word left, primary right and first in the tree), one tab system and shared controls, at the look the owner approved; styles/components.css with no !important and no colour literal",
+     "source": "v1.2.99.md 120-127",
+     "code": "scripts/ui-kit.mjs:1302-1320 drpgWindow, BUTTON_ROLES; styles/components.css",
+     "holds": "yes",
+     "test": "R1320-R1323, R1334 (ok); tier 2 E44-T5 (:95235, ok in shard 3/8)",
+     "test_kind": "both",
+     "note": "Every later window stage builds on it (E21, E22, E46, E47)."
+    },
+    {
+     "promise": "One tab system, one number stepper in both themes, no window's collapse blocked (scripts/no-collapse.mjs removed), and a word in every empty choice",
+     "source": "v1.2.99.md 50-65, 126",
+     "code": "scripts/no-collapse.mjs is gone (ls: no such file); ui-kit.mjs stepper, emptyOption, kitTabs",
+     "holds": "yes",
+     "test": "R1324-R1329 (ok)",
+     "test_kind": "both",
+     "note": "The stepper and the tabs under Monokuma Legacy on v14: LIVE-E44-05, open."
+    },
+    {
+     "promise": "Every module window may fold, a short question window does not, and a tile or launcher pressed while its window is folded unfolds and raises it; a folded messenger marks no message read",
+     "source": "v1.2.99.md 50-55; FG2",
+     "code": "scripts/ui-kit.mjs:1313 (minimizable: true in drpgWindow); scripts/live.mjs:710 (maximize before bringToFront); messenger-app.mjs:129, :458 by live-items-361.json",
+     "holds": "partly",
+     "test": "R1339 (ok), R1566 (ok); the harness's minimize and maximize do nothing",
+     "test_kind": "source",
+     "note": "At the owner's table on 06.11.2026 the character sheet did not fold (LIVE-E44-08, a recorded defect; the module's 830 px floor); fixed beside E21 in 1.2.100 (bb0feb94, styles/danganronpa.css:2282). The question windows on DialogV2.wait kept Foundry's default and do not fold (Open 101, carried to E21). The rest of the item is unread."
+    },
+    {
+     "promise": "The notice history on the kit: one scrolling list, Clear on the left as destructive and never the default, Close on the right; notices by theme - under Stained Glass the tile stands under every window, under Monokuma Legacy every card over them",
+     "source": "v1.2.99.md 66-70",
+     "code": "notice-history-app.mjs:253 footerMarkup (by live-items-361.json); styles/danganronpa.css:5978-5990 (#drpg-popups at 99990), :5992-6009 (body.drpg-theme-stained-glass #drpg-popups one under --z-index-app)",
+     "holds": "yes",
+     "test": "R1330, R1331 (ok); R847 per theme and the glass sweep's window check by the notes",
+     "test_kind": "both",
+     "note": "LIVE-E44-03 and -06 (the history at the screen's height, at the glass's text floor) open."
+    },
+    {
+     "promise": "A project's token at full opacity, a token placed before brought up to it, its colour unchanged",
+     "source": "v1.2.99.md 71-73",
+     "code": "scripts/config.mjs:3101-3121 PROJECT_TOKEN (alpha: 1); scripts/projects-map.mjs:335, :522-523 (the sync raises alpha)",
+     "holds": "yes",
+     "test": "tier 2 E44-T9 (:95309), not read",
+     "test_kind": "behaviour",
+     "note": "The owner's white GM tokens (LIVE-E44-07) are a recorded sighting, cause not established; since PV (13.11.2026) a player's tint is the module's paintProjectTint and the GM's is Foundry's (live-items-361.json item 383)."
+    },
+    {
+     "promise": "Delete a Remnant on the dashboard's Remnants tab: asks first naming it, removes the token and the case's row together; a reinforced one refused with its notice",
+     "source": "v1.2.99.md 74-76",
+     "code": "scripts/remnants.mjs:3312-3327 removeRemnant (reinforced refused before the row is dropped, then the token)",
+     "holds": "yes",
+     "test": "R1337 (ok); tier 2 E44-T10 (:95364), not read",
+     "test_kind": "both",
+     "note": "A GM's delete of a reinforced trace's token on the map is not refused (Open 84, the owner's default)."
+    },
+    {
+     "promise": "A project's required description, at most 1000 characters, refused on every road and never cut; a public project's in projectMeta, a secret one's in the GMs' store projectSecrets with descriptionTold, held out of projectMeta by world-secrets.mjs; drawn on the project token's card for whoever knows the project",
+     "source": "v1.2.99.md 26-37, 77-82",
+     "code": "scripts/config.mjs:3183 PROJECT_DESCRIPTION_MAX; scripts/projects.mjs:1497-1505 (cleanProjectChange refuses a long one), :396-419 (descriptionTold); scripts/world-secrets.mjs:74-76 (description among the whileSecret fields)",
+     "holds": "yes",
+     "test": "R1338, R1340, R1350, R1351 (ok); R9, R190; tier 2 E44-T20 (:95450), not read; 30-security 7b''' to 7b'''' and 72-canary by the notes",
+     "test_kind": "both",
+     "note": "The card that does not turn into the project on discovery (Open 96) was carried to E43 and its fix is on main (e52ce98e, E43 C7), though E43 is not shipped."
+    }
+   ],
+   "registry_rows": 33,
+   "tests_read": [
+    {
+     "test": "R1310-R1340, R1350, R1351 (33 registry rows; titles read)",
+     "measures": "weak",
+     "why": "All 33 ok in the base run's shard 1/8. Most are source or cascade reads (R1313, R1318, R1324, R1328, R1329, R1335, R1336 census the source; R1323, R1325, R1331, R1333 read the jsdom cascade in each theme); R1315-R1317 drive live.mjs on artificial regions. None can see a fold, a pointer or a drawn window."
+    },
+    {
+     "test": "tier 2 E44-T4 and E44-T5 (titles)",
+     "measures": "yes",
+     "why": "ok in shards 2/8 and 3/8: two approvals asked at once open one window; a kit window drawn on the GM carries its classes and footer. Bodies not read."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: E44-T1, E44-T2, E44-T3, E44-T9, E44-T10, E44-T20 (shards 4-8 not read)",
+    "scenario 30-security (7b''', 7b'''b, 7b'''')",
+    "scenario 63 (B6, the second press's raised)",
+    "scenario 72-canary",
+    "probe 08 (window captures; not a scenario)"
+   ],
+   "scenarios": [
+    "the one register row naming E44 is probe 08 (audit/harness/README.md:170, a capture tool, not a check); by the notes the stage changed 30-security (a secret project's description) and 72-canary, and fixed scenario 63's B6 for RAISED (ce05486c)"
+   ],
+   "live": {
+    "items": 10,
+    "read": 0,
+    "ids_read": [],
+    "note": "Items 377-386. Two are partly read, both as defects at the owner's table: 383 (LIVE-E44-07, 04.11.2026: a GM's project tokens white, the players' coloured; cause not established, the console line not run) and 385 (LIVE-E44-08, 06.11.2026: the character sheet did not fold, fixed in 1.2.100 by bb0feb94; the rest unread). The other eight have no reading; 380 and 382 need LiveKit and the owner's eye. LOCAL-REPORT.md:323-331 files them among the rows not checkable at the sandbox."
+   },
+   "findings": [],
+   "superseded_by": [
+    "E21 (1.2.100): every remaining window onto the kit's frame (R1335 and R1336, red on purpose until then), the 25 % growth of a tab bar, the question windows' fold (Open 101); utils.mjs tableDialog retired",
+    "E22 (1.2.100): the footer roles' language (red the GM's road and an irreversible answer)",
+    "PV (13.11.2026): a player's project token tint drawn by the module (visibility.mjs paintProjectTint), which changes what LIVE-E44-07 compares"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "Each promise is in today's code at the place named (no-collapse.mjs gone, minimizable on every drpgWindow, RAISED and the unfold in alreadyOpen, the notices by theme in the sheet, PROJECT_TOKEN.alpha 1, the reinforced refusal before the row goes, the description cut on every road and its whileSecret rule); all 33 registry rows are ok in the base run's tiers 0-1 and E44-T4, -T5 in its shards. Reading found no defect of mine. Against a 9: the fold, the most visible change of the release, is modelled by a harness whose minimize and maximize do nothing, and its one table reading was a defect (the sheet; fixed in the next release, re-read nowhere since); the GM's white project tokens are a recorded sighting with no cause; and the computed-style sweep the notes rest the look on was not re-run. Against a 10 besides: none of the ten live items is read whole, two are recorded defects. Six tier-2 tests and three scenarios were not joined.",
+   "missing_to_10": "Readings of LIVE-E44-08 (every window folds and unfolds on v14, the sheet after bb0feb94), -07 (the console line and the toggle on the GM), -03, -05 and -09; a test of a fold that a real ApplicationV2 draws (the harness cannot); the base run's tier 2 and scenarios joined."
+  },
+  {
+   "id": "E21",
+   "version": "1.2.100",
+   "shipped": "2026-11-07",
+   "what": "Every module window on the kit's frame (drpgWindow and DrpgApp) and the windows the fit sweep reaches measured at five sizes; a tab press that repositions its window; the action briefings by the picked row; Observe that stands still; the safeword's Stop in view on the sheet; window widths stated by the kit; an on-screen keyboard that no longer shrinks the layout, on touch only; and beside the stage the character sheet that folds.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.100.md (1-276, whole: Before installing 20-118, C1-C6 120-159, the fix round 161-170, beside the stages 172-176, the owner's answers 178-192, Known gaps 194-245, Checked 247-276)",
+    "no papers folder: docs/dev/e21/ does not exist and none was ever committed; the STATUS E21 Open items the notes and 9.2 quote are not in the repository",
+    "tools/stages.json row E21 (planned and shipped 1.2.100, 2026-11-07, touches [] - none; drills none)",
+    "git log --oneline --no-merges 7bb71bb9..1d860414: 24 commits, 20 naming E21, 11 naming E22 (shared); the notes count 28 on top of 1.2.99 and name C1a 51cf33de, C1b 04bcd678, C1c 0488f32d, C1d e85fefc4, 83fc6864 and c00d4867, none an object in this checkout (shallow clone)",
+    "audit/AUDIT-1.2.42.md 9.2 items 387-389, 392, 393, 398-401 (lines 1262-1290); verdicts in live-items-361.json and live-items-395.json"
+   ],
+   "commits": 24,
+   "promises": [
+    {
+     "promise": "Every DialogV2 call and every ApplicationV2 class of scripts/ goes through ui-kit.mjs (drpgWindow or DrpgApp); tableDialog, fitWindowToTable, fitWindowToTabs and pinFooterAcrossScroll retired",
+     "source": "v1.2.100.md 3-8, 47-48, 130-136",
+     "code": "grep of scripts/ outside ui-kit.mjs and the suite for DialogV2.wait/confirm/prompt, new DialogV2 and extends ApplicationV2: comment lines only (action-menus.mjs:219, safeword.mjs:388, trial-floor-ui.mjs:35 and others); no tableDialog function left",
+     "holds": "yes",
+     "test": "R1335 (E44's census, green since C6a), R1357, R1358, R1371 (ok)",
+     "test_kind": "source",
+     "note": "Held by source census; what v14 draws is LIVE-E21-01 and -09."
+    },
+    {
+     "promise": "A tab press repositions its window, a growth is held to the first width, a pane is hidden by hidden alone; the fit sweep at 1920x1080, 1366x768, 1280x800, 1024x768 and 390x844",
+     "source": "v1.2.100.md 114-115, 122-126, 259-260",
+     "code": "scripts/ui-kit.mjs wireKitTabs, keepInScreen, fitKitTabs (R1353's names); audit/style-sweep.mjs --fit",
+     "holds": "yes",
+     "test": "R1353, R1356 (ok); the Chromium fit sweep's \"1378 readings, 1378 fit\" by the notes, not re-run",
+     "test_kind": "both",
+     "note": "Whether Foundry keeps the window's top on the screen after a tab press is LIVE-E21-01, open."
+    },
+    {
+     "promise": "The action windows' briefings say the thresholds of the picked row; Observe stands still - 1120 px with the briefing beside the list, no scrolling at 1366x768 and up, its crime's ladder shown and the others under All thresholds",
+     "source": "v1.2.100.md 104-107; C5b, G2",
+     "code": "scripts/action-menus.mjs:277-289 (WIDE 1120 px, the columns); scripts/ui-columns.mjs:9; scripts/action-briefing.mjs briefingBlock",
+     "holds": "yes",
+     "test": "R1366, R1600 (ok)",
+     "test_kind": "both",
+     "note": "Since E68 C12 (10.11.2026) every action window has layout B (R1600's title); the promise stands in that wider form. Open 102 (two of Observe's states scroll 15-16 px at 1024x768 under the glass) is a known edge."
+    },
+    {
+     "promise": "The safeword's Stop stays in view on the sheet; the sheet is held to the screen's height and folds on a double-click of its bar",
+     "source": "v1.2.100.md 111-113; bb0feb94",
+     "code": "scripts/window-scale.mjs scaleWindow, scaleMemo (R1367's names; the file since E54 W3); styles/danganronpa.css:2276-2282 (the 830 px floor leaves out .minimized and .minimizing)",
+     "holds": "yes",
+     "test": "R1367, R1566 (ok)",
+     "test_kind": "both",
+     "note": "The sheet's fold is to be read again at the table (the notes' own line on LIVE-E44-08)."
+    },
+    {
+     "promise": "A kit window's width is stated to the kit, not by a stylesheet rule; Sound under Monokuma Legacy 918 px",
+     "source": "v1.2.100.md 108-110; W1",
+     "code": "scripts/windows.mjs windowWidthFor (E54 W1 moved it there), ui-kit.mjs fitKitWidth; scripts/sound-panel.mjs:390-391 (width \"wide\", then the table's measure)",
+     "holds": "partly",
+     "test": "R1376 (ok)",
+     "test_kind": "source",
+     "note": "The widths are the kit's, as promised. The 918 px of Sound under Legacy is no longer a stated number: the window opens wide and fits its table (sound-panel.mjs:390), and a later comment records it widening from 918 to 1004 px at 1366x768 before a fix (components.css:3021-3023). Changed by later stages, not broken; LIVE-E21-08 open."
+    },
+    {
+     "promise": "An on-screen keyboard does not switch the layout: a fall of the height alone with focus in a text field keeps the layout height, on touch only (a coarse pointer, or a visual viewport shorter than the page); the height is read again a tick after the focus leaves",
+     "source": "v1.2.100.md 116-118; C1d, G2",
+     "code": "scripts/settings.mjs:4352-4371 (the rule and its desk exception), :4373-4380 keyboardPossible, :4384-4387 layoutHeight, :4389 keyboardUp, :4399 shortScreen",
+     "holds": "yes",
+     "test": "R1355, R1601 (ok)",
+     "test_kind": "behaviour",
+     "note": "Real tablet and phone keyboards: LIVE-E21-02 and -03, class T, open."
+    },
+    {
+     "promise": "A closing word with the action \"close\" carries no callback (v14 closes the window on that action before DialogV2 runs a callback)",
+     "source": "v1.2.100.md 82-83 (End the murder), 166-168; G2",
+     "code": "scripts/ui-kit.mjs footerButtons throws on one (R1602's title)",
+     "holds": "yes",
+     "test": "R1602 (ok)",
+     "test_kind": "source",
+     "note": "The premise - what v14 does with action \"close\" - is LIVE-E21-06, open; the harness models it (b4cb88cf, R4673)."
+    }
+   ],
+   "registry_rows": 15,
+   "tests_read": [
+    {
+     "test": "R1352-R1357, R1359, R1365-R1368, R1376, R1566, R1600-R1602 (15 rows stamped E21 whose titles name E21 alone; titles read)",
+     "measures": "weak",
+     "why": "All ok in the base run's shard 1/8. R1355 and R1601 drive layoutHeight with stood-in heights and focus; R1353 drives the kit's tab press; the rest read the source or the jsdom cascade. A fit on a screen is the Chromium sweep's, not these tests'."
+    },
+    {
+     "test": "tier 2 E21-T1 (tests-tier2.mjs:95630, title)",
+     "measures": "yes",
+     "why": "The readiness round's GM window and the incident tracker opened by their world write read only their module keys; not read in the base run (shards 4-8)."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: E21-T1 and \"the Blackened's rule window records nothing on Cancel\"",
+    "scenario 13 (the GM's pick in the kit's footer order)",
+    "scenario 87 (its timing fixes in C1)",
+    "scenario 50 (the handbook's label)",
+    "scenario 84-viewports (local-gate layer, E49's, holds E21's windows on the screen)"
+   ],
+   "scenarios": [
+    "no ci row of the register names E21 as its stage; row 84 (84-viewports, local-gate layer, stage E49) holds \"the windows E21 and E23 brought onto the screen\" at 1366x768 and 1280x720 and three zooms (audit/harness/README.md:218); the README's fit-sweep section names E21 C1c (:356-366)"
+   ],
+   "live": {
+    "items": 9,
+    "read": 0,
+    "ids_read": [],
+    "note": "Items 387-389, 392, 393 and 398-401 (LIVE-E21-01 to -09): none has a reading in live-readings-e58.json, -other.json or -e58-delta.json; 388 and 389 need a real tablet and phone (class T). 401's probe is scriptable (TRIAGE-9.2.md:424). The local gate for 1.2.100 holds no result (the notes)."
+   },
+   "findings": [],
+   "superseded_by": [
+    "E68 C12 (1.2.104): layout B for every action window, the briefing beside the list (R1600)",
+    "E54 W1 and W3 (1.2.113): a window's width moved to windows.mjs and the slider scaling to window-scale.mjs, pure moves",
+    "E46 and E47 (1.2.103): the 112 lines left on the warning's red, the item manager's footer, the trial console's footer under Legacy (carried by the notes)"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "The stage's goal - every window on the kit's frame - holds on 1.2.118 by the source census (R1335, R1357, R1358, R1371, no DialogV2 outside ui-kit.mjs by grep), and its other promises are in the code at the places named; the 15 rows of its own and the 15 it shares with E22 are ok in the base run's tiers 0-1. Reading found no defect. Against a 9: the stage is about what fits a screen, and every fit it claims was measured in Chromium on captured windows with no Foundry stylesheet (not re-run here) or modelled in jsdom; none of its nine live items is read, two need a real tablet; Sound's stated width has since become a measured one. Tier 2 and four scenarios were not joined.",
+   "missing_to_10": "Readings of LIVE-E21-01 and -09 (the fit on v14 at four sizes and the windows the sweep cannot reach), -02 and -03 (a real keyboard), -06 (action \"close\" on v14); the fit sweep re-run on b5a29e73; the base run's tier 2 and scenarios joined."
+  },
+  {
+   "id": "E22",
+   "version": "1.2.100",
+   "shipped": "2026-11-07",
+   "what": "A4, the buttons' language, shipped with E21: every footer button has a role; red means the road through the GM and an answer that cannot be undone, nothing else; the primary is Bone; an irreversible answer is destructive and never the default under Enter; one footer arrangement (the closing word first on the left, the primary last on the right); Cancel where a question is withdrawn; buttons renamed to say what they do; the safeword's Stop it the default with its room on every road; the proposal sent from one window.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.100.md (the same file as E21, read whole; E22's parts 8-12, 59-103, C3b, C4, C5c, C5d, C6b, G1, G2)",
+    "no papers folder: docs/dev/e22/ does not exist; the STATUS E21 Open items 9.2 quotes for E22's rows are not in the repository",
+    "tools/stages.json row E22 (with E21, shipped 1.2.100, 2026-11-07, touches sockets; drills none)",
+    "git log --oneline --no-merges 7bb71bb9..1d860414 --grep=E22: 11 commits (C2b, C3b, C4, C5c, C5d 256a2358, C6a, C6b dd87f9f7, fix G1 a5a09a4e, fix G2 bd985203 and 6cc41725, the release 4311ce25); one later commit names it (b9dab19d, E107)",
+    "audit/AUDIT-1.2.42.md 9.2 items 390, 391, 394-397 (lines 1268-1282); verdicts in live-items-361.json and live-items-395.json"
+   ],
+   "commits": 11,
+   "promises": [
+    {
+     "promise": "Red is the GM's road and an irreversible answer, nothing else: every gmRoute row and footer button stands in one census with a sentence naming the GM; GM_ROUTE_CLASS is utils.mjs's alone; Analyze's GM sentence by the hint row alone; Find Stash and Find Passage plain",
+     "source": "v1.2.100.md 59-68; C5c, C6b, G2",
+     "code": "scripts/utils.mjs GM_ROUTE_CLASS (exported since 1.2.100); scripts/action-murder.mjs:324 (Direct Murder's yes, role gmRoute); scripts/action-project.mjs startProject with GM_ROUTE_CLASS",
+     "holds": "yes",
+     "test": "R121 (ok), R1373, R1374, R1580, R1581 (ok); tier 2 E22-T3 (:95942), not read",
+     "test_kind": "both",
+     "note": "E107 part 2 (b9dab19d) changed the sheet's tile that waits for a GM to the GM chip instead of the red; R121 reads it off the cascade since."
+    },
+    {
+     "promise": "Irreversible answers are destructive and never the default; Cancel is the default and the first button Enter reaches: death, the body announced, the chapter's end, verdicts, End the murder, End the trial, End of chapter, Start the Final Trial, Delete a project, Revoke access, Clear the history, Reset the season, Close and count",
+     "source": "v1.2.100.md 73-81",
+     "code": "scripts/death.mjs openDeathDialog, scripts/body.mjs openBodyDiscoveryDialog, scripts/chapter.mjs openChapterEndDialog (R1360's names); scripts/murder-ui.mjs incidentButtons (R1363); scripts/trial-floor-ui.mjs trialFooter (R1364); scripts/use-items.mjs:906-907 and scripts/sheet-inventory.mjs:296-298 (discard and remove, destructive, Cancel the default)",
+     "holds": "yes",
+     "test": "R1360-R1364 (ok); tier 2 E22-T1 (:95727, read), E22-T2 (:95783, ok in shard 2/8), E22-T5 (:95832, ok in shard 3/8)",
+     "test_kind": "behaviour",
+     "note": "E22-T1 presses Enter as the harness's DialogV2 models it (form.requestSubmit with the first submit button); what v14 does with Enter is LIVE-E22-01, open."
+    },
+    {
+     "promise": "One footer: the closing word first on the left (Close where nothing is left to answer, Cancel where a question is withdrawn, never the caller's own words), the primary last on the right, destructive answers on the left after the closing word; the notice history alone keeps Close on the right",
+     "source": "v1.2.100.md 69-72",
+     "code": "scripts/ui-kit.mjs BUTTON_ROLES and footerButtons (R1321, R1336)",
+     "holds": "yes",
+     "test": "R1336 (E44's, green since C6a), R1358 (ok)",
+     "test_kind": "source",
+     "note": "Held by the census of footers; the face under the pointer and the focus ring are LIVE-E22-03, open."
+    },
+    {
+     "promise": "Buttons renamed to say what they do (the Next line's steps, Record the death, Announce the body, End chapter {n}, End the murder, Open the incident ...)",
+     "source": "v1.2.100.md 84-93",
+     "code": "lang/en.json and lang/pl.json (27 keys gained, 13 lost by the notes); seven question windows still answer with DRPG.Dialog.yes (finding E22-1)",
+     "holds": "partly",
+     "test": "R1358, R1360 (the labels of the windows they open); scenario 50's handbook label by the notes",
+     "test_kind": "both",
+     "note": "The named renames stand; the notes themselves left four irreversible answers labelled \"Yes\" (the goal review's m9). Today seven call sites in six files do (E22-1)."
+    },
+    {
+     "promise": "Enter in Reset the season's RESET field cancels; with the verdict in, Enter closes the trial console; End the murder now ends the murder (its button no longer carries the action close)",
+     "source": "v1.2.100.md 78-83",
+     "code": "scripts/season-wipe.mjs resetSeason (R1359: no autofocus on RESET); scripts/trial-floor-ui.mjs trialFooter (R1364); scripts/ui-kit.mjs footerButtons refuses a close with a callback (R1602)",
+     "holds": "yes",
+     "test": "R1359, R1363, R1364, R1602 (ok)",
+     "test_kind": "both",
+     "note": "Rests on the premise of LIVE-E21-06 (what v14 does with action close), open."
+    },
+    {
+     "promise": "The project proposal is one window, sent once by callGm; a closed or cancelled window sends nothing and says so",
+     "source": "v1.2.100.md 37-39, 99-101",
+     "code": "scripts/action-project.mjs startProject (R1370's names)",
+     "holds": "yes",
+     "test": "R1370 (ok); tier 2 E22-T4 (:95993, MARKED), not read",
+     "test_kind": "both",
+     "note": ""
+    },
+    {
+     "promise": "The safeword: Stop it is the default and red, Enter presses it; from the keybinding or game.drpg.safeword() its packet carries the player's own character's room (callerStudent(), null for a GM)",
+     "source": "v1.2.100.md 40-42, 102-103",
+     "code": "scripts/safeword.mjs:388 (safewordDialog on the kit, answering as the confirm it was)",
+     "holds": "yes",
+     "test": "R1369 (ok)",
+     "test_kind": "both",
+     "note": "LIVE-E22-04 partly read: two of its doors on a player's page at the sandbox, 16.11.2026, agree (live-items-395.json item 395)."
+    }
+   ],
+   "registry_rows": 0,
+   "tests_read": [
+    {
+     "test": "R121, R1358, R1360-R1364, R1369-R1371, R1373, R1374, R1580, R1581 (15 rows stamped E21 whose titles name E22's C-numbers or E22-NN; titles read)",
+     "measures": "weak",
+     "why": "All ok in the base run's shard 1/8. They census the source (every gmRoute and footer button, the colours' rule) and open windows with DialogV2.wait stood in for; they read roles and classes, not a face on a screen."
+    },
+    {
+     "test": "tier 2 E22-T1 (tests-tier2.mjs:95727-95782)",
+     "measures": "yes",
+     "why": "Opens Who died? and the body's announcement on the GM, presses the first submit button as the harness models Enter, and reads that nobody died, no body setting changed and no card was posted; it would fail if the first button were the irreversible one. It measures the harness's DialogV2 model of Enter."
+    },
+    {
+     "test": "tier 2 E22-T2, E22-T5 (titles)",
+     "measures": "yes",
+     "why": "ok in shards 2/8 and 3/8: Enter in End the trial's question ends nothing; Enter in a project's Delete deletes nothing and in Share revokes nobody."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: E22-T1, E22-T3, E22-T4 (shards 4-8 not read)",
+    "scenario 13 (the GM's pick in the kit's footer order)",
+    "scenario 50 (the handbook's label)",
+    "scenario 18-trial (the vote's Close and count)"
+   ],
+   "scenarios": [
+    "no register row of audit/harness/README.md names E22 (grep: 0 hits); by the notes scenario 13 was fixed for the kit's footer order (144cdd53) and 50 for a handbook label (286f97af)"
+   ],
+   "live": {
+    "items": 6,
+    "read": 0,
+    "ids_read": [],
+    "note": "Items 390, 391, 394-397 (LIVE-E22-01 to -06). 395 (LIVE-E22-04) is partly read: two F readings of 16.11.2026 on Foundry 14.370, headless pages, touch two of its doors on a player's page and agree (live-items-395.json); the other five have no reading."
+   },
+   "findings": [
+    {
+     "id": "E22-1",
+     "severity": "nit",
+     "title": "Seven question windows still answer with a bare \"Yes\", where E22 renamed buttons to say what they do; the notes counted four",
+     "where": "scripts/action-murder.mjs:263 (the betrayal's primary), :324 (Direct Murder's declaration, gmRoute); scripts/mastermind.mjs:451 (toggle the Final Trial); scripts/sheet-header.mjs:624 (the starting resources); scripts/sheet-inventory.mjs:298 (remove an item, destructive); scripts/use-items.mjs:694 (use an item), :907 (discard, destructive)",
+     "what_happens": "Each passes label: game.i18n.localize(\"DRPG.Dialog.yes\"). Their roles are right (the two deletions destructive with Cancel the default, the declaration on the GM's road), so Enter does no harm; but the answer says \"Yes\" rather than what it does, against the stage's rule that a button names its effect (v1.2.100.md 84-93; R1360's \"the kit's yes names its effect\" in trial-floor-ui.mjs:581). The notes' Known gaps list four in four files (sheet.mjs, use-items.mjs, mastermind.mjs, action-murder.mjs); today there are seven sites in six files.",
+     "evidence": "sheet-inventory.mjs:296-298: \"/* ... the item is deleted, which cannot be undone - the destructive\\n   role, Cancel the default (E22). */\\nconst sure = await drpgConfirm({ classes: [\\\"drpg-panel\\\"], yes: { role: \\\"destructive\\\", label: game.i18n.localize(\\\"DRPG.Dialog.yes\\\") },\"",
+     "failure_scenario": "A player throwing away an item reads a red \"Yes\" beside Cancel, where every other irreversible window of the module names its answer (Record the death, End chapter 2).",
+     "expected": "Each answer names its effect (Discard it, Remove it, Declare it ...), in English and Polish.",
+     "confidence": "read",
+     "refutation_tried": "Grepped scripts/ for DRPG.Dialog.yes outside the suite (7 sites) and read each call; checked that the roles are set (so this is text, not a wrong default). Looked for a test that holds every yes to a named label: R1360 reads only the case's three windows. sheet.mjs's site the notes named moved to sheet-header.mjs in E54; sheet-inventory.mjs:298 and use-items.mjs:907 are counted beyond the notes' four, or were among them under other files - either way the gap stands and is a known edge."
+    }
+   ],
+   "superseded_by": [
+    "E107 part 2 (b9dab19d): a sheet tile that waits for a GM wears the GM chip, not the red",
+    "E46 and E47 (1.2.103): the lines left on the warning's red that the fix round sorted (Open 83, 106)"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "Graded although no registry row carries the stamp E22: the release shipped E21 and E22 as one train and the registry stamps their shared rows E21; 15 of those rows name E22's C-numbers in their titles (R121, R1358, R1360-R1364, R1369-R1371, R1373, R1374, R1580, R1581) and tier 2 holds E22-T1 to -T5, so the stage has tests of its own by name. All 15 rows are ok in the base run, and E22-T2 and -T5 in its shards; E22-T1, read whole, presses Enter in two irreversible windows and reads that nothing happened. The roles, the defaults and the GM's road are in the code at the places named. Against a 9: every promise about Enter rests on the harness's DialogV2 model of Enter and of action close, which no v14 reading confirms (LIVE-E22-01, LIVE-E21-06); the faces under the pointer are Chromium readings not re-run; one promise is delivered in part (E22-1, a nit, seven bare Yes answers). One live item of six partly read. Tier 2's other three tests and three scenarios not joined.",
+   "missing_to_10": "Readings of LIVE-E22-01 (Enter in each irreversible window on v14) and LIVE-E21-06, -02, -03, -05, -06 (the faces on a screen); the seven Yes answers named (E22-1); a registry stamp of its own, or a line in the registry saying the train's rows are stamped E21; the base run's tier 2 and scenarios joined."
+  }
+ ],
+ "not_established": [
+  {
+   "what": "base-run.json was not on the branch when this was written (20.11.2026 ~20:40Z). The base run's shard logs 1/8 to 3/8 were read (shard 3 red on one test of another stage, grid XI07); shards 4/8 to 8/8 and every scenario had not run. Every tier-2 test and scenario not listed as ok above is in its stage's tests_to_join, its result not read.",
+   "l1": null
+  },
+  {
+   "what": "The Chromium measurements the notes quote (E44's style and glass sweeps, E21's fit sweep \"1378 readings, 1378 fit\", E22's 6.46:1 hover contrast) were not re-run; the stylesheets behind them were read only at the rules named.",
+   "l1": null
+  },
+  {
+   "what": "The mutant counts and end-review counts the three notes give cannot be reproduced: the stages' STATUS ledgers and review reports were never committed (no docs/dev/e60, e44, e21, e22).",
+   "l1": null
+  },
+  {
+   "what": "Whether a player's 3D dice fall on a GM's screen exactly while that GM's Monokuma stands in the roller's room, the roll window is whole, and the dice look diagnostic reads each browser's own settings (E60; LIVE-E60-05, -08, -09, LIVE-E16-02).",
+   "l1": {
+    "what": "The dice promises of E60 on a real table: a player's 3D dice on a GM's screen only with that GM's Monokuma in the roller's room, the roll window whole, and the dice look check run on each browser",
+    "recipe": [
+     "1. Every GM and player switches Dice So Nice's 'Show only mine' off (the 1.2.98 notes, Before installing 2).",
+     "2. With Force private player rolls on, put the GM's Monokuma token in the player's character's room; the player clicks an action (Observe) and then a statistic on the sheet: note whether the dice fall on the GM's screen and whether the GM reads the card.",
+     "3. Move the Monokuma to another room and repeat: the dice must not fall on the GM's screen, the card is still read, headed with the roller.",
+     "4. On the player's screen, in both themes at 1366x768, the roll window opens whole (dice, experiences, modifiers, formula, mode select) and the mode select's tooltip says who sees the roll.",
+     "5. Each person runs game.drpg.diagnoseDiceLook({ test: true }) on their own browser; the GM also opens Season setup, Pre-season checks, Dice look, and presses Open the dice look.",
+     "6. With a second full Gamemaster connected, repeat 2 with that GM's Monokuma and with no pool set (no GM sees the dice)."
+    ],
+    "clients": "two GMs and two players",
+    "theme": "both",
+    "settles_if": "agrees: the dice fall on a GM's screen exactly while that GM's Monokuma stands in the room, the window is whole and the diagnostic names each browser's own settings; defect: dice on a GM's screen with the Monokuma out of the room or none in it, a collapsed window, or a diagnostic that reads another browser",
+    "priority": "E60's grade cap (9); LIVE-E60-05, -08, -09 (items 372, 374, 376); the per-item recipes are in live-items-361.json"
+   }
+  },
+  {
+   "what": "Whether every module window folds and unfolds on v14 (the harness's minimize and maximize do nothing), whether Escape and Enter behave in DialogV2 as the harness models, and why a GM's project tokens drew white at the owner's table (E44; LIVE-E44-03, -05, -07, -08, -09).",
+   "l1": {
+    "what": "The kit's windows on v14: folding, Escape and Enter, the notice history at the screen's height, the stepper and tabs under Monokuma Legacy, and why a GM's project tokens draw white",
+    "recipe": [
+     "1. As GM and as player, each theme: double-click the title bar of Despair Flow, Item tables, the character sheet and another module's window; each folds and unfolds; a short question window does not fold.",
+     "2. Fold the messenger with an unread message; it is not marked read until unfolded; press its launcher: it unfolds and comes to the front.",
+     "3. Open the notice history with more than 150 entries at 1366x768 and 1920x1080: only the list scrolls, Clear left, Close right, the foot in view.",
+     "4. Under Monokuma Legacy open Edit campaign and Despair Flow's Overflow: the stepper's - and + step inside the range; the tabs stand on one line.",
+     "5. In Room setup and in the Remnant delete question press Escape (closes, nothing written) and Enter (the default only).",
+     "6. On the GM with a project in a room, run the console line of LIVE-E44-07 (Isometric's occlusion setting, the AlwaysVisibleContainer clone count, each project token's tint and alpha) and hide AlwaysVisibleContainer."
+    ],
+    "clients": "one GM and one player",
+    "theme": "both",
+    "settles_if": "agrees: every window folds and unfolds as listed, Escape and Enter do what the harness models, the history fits, and the white tokens are traced to a clone outside the module; defect: a window that does not fold, a folded window a tile leaves folded, a history taller than the screen, or white project tokens drawn by a module road",
+    "priority": "E44's grade cap (9); LIVE-E44-03, -05, -07, -08, -09 (items 379, 381, 383, 385, 386); recipes in live-items-361.json"
+   }
+  },
+  {
+   "what": "Whether every window's footer stays on a real v14 screen at four sizes after each tab, whether Foundry keeps a window's top on the screen after a tab press, and what a real tablet's keyboard does to the layout (E21; LIVE-E21-01 to -09).",
+   "l1": {
+    "what": "Every module window on the kit's frame fitting a real v14 screen, and the on-screen keyboard on a real tablet and phone",
+    "recipe": [
+     "1. At 1366x768, 1280x800, 1024x768 and 1920x1080, each theme, as GM: open each GM window and press each of its tabs; the footer and its buttons stay in view and the window's top stays on the screen after a tab press.",
+     "2. As player: open each action window (Observe, Search, Analyze, Tamper, Rest, Projects, Palm); Observe does not scroll at 1366x768 and up; the briefing shows the picked row's thresholds.",
+     "3. On the character sheet the safeword's Stop stays in view at the bottom-left; the sheet folds on a double-click of its bar.",
+     "4. In the console as GM run the LIVE-E21-06 line (a drpgWindow with a footer button whose action is close) and note what it answers.",
+     "5. On a real tablet and a phone, focus a text field (the notice history's search, a request field): the layout does not switch to the short layout and the curtain is not cut again; read navigator.virtualKeyboard.overlaysContent.",
+     "6. During a real chapter, open the windows the fit sweep cannot reach (the case's, the trial's, Palm, the incident tracker) at 1366x768 and 390x844."
+    ],
+    "clients": "one GM and one player, plus a tablet and a phone",
+    "theme": "both",
+    "settles_if": "agrees: every footer in view at each size, Observe still, the Stop visible, the keyboard switching nothing; defect: a footer off the screen, a window whose top leaves the screen after a tab press, or a layout that re-cuts under a keyboard",
+    "priority": "E21's grade cap (9); LIVE-E21-01 to -09 (items 387-389, 392, 393, 398-401); recipes in live-items-361.json and live-items-395.json"
+   }
+  },
+  {
+   "what": "Whether Enter in each irreversible GM window on v14 presses Cancel and what v14 does with a footer button whose action is close - the premise of E22's Enter promises and of End the murder's fix (E22; LIVE-E22-01, LIVE-E21-06).",
+   "l1": {
+    "what": "The buttons' language at a v14 table: Enter in each irreversible GM window presses Cancel, red stands only on the GM's road and on destructive answers, and the safeword's Stop it is the default",
+    "recipe": [
+     "1. As GM, each theme: open Who died?, the body's announcement, the chapter's end, End the trial, Delete a project, Reset the season (type RESET), the vote's Close and count; press Enter in each: nothing irreversible happens.",
+     "2. In Share, Enter shares; Revoke access is not the default.",
+     "3. As player below 1224 px: open the Tamper menu (Reshape a Trace), Direct Murder's declaration and Analyze; the red rows and buttons are the ones that go to the GM and their sentence says so.",
+     "4. Hover Cancel, the default, a red row and a plain row in Analyze and Tamper under each theme; note the hover face and the focus ring.",
+     "5. Open Safeword from the sheet, the keybinding and game.drpg.safeword() as player and by the keybinding as GM: Stop it is red, the default and first; Enter presses it; the GMs' card names the player's room."
+    ],
+    "clients": "one GM and one player",
+    "theme": "both",
+    "settles_if": "agrees: no Enter commits an irreversible answer, red marks only the GM's road and destructive answers, Stop it is the default on every road; defect: an Enter that kills, announces, ends or deletes, or a red button that does not go to the GM",
+    "priority": "E22's grade cap (9); LIVE-E22-01 to -06 (items 390, 391, 394-397); recipes in live-items-361.json and live-items-395.json"
+   }
+  },
+  {
+   "what": "Whether the white GM project tokens of 04.11.2026 still show on 1.2.118, where a player's sprite is now tinted by the module (PV) and the GM's by Foundry: the sighting predates the change (live-items-361.json item 383).",
+   "l1": null
+  }
+ ]
+}

@@ -2025,7 +2025,7 @@ let lastLedgerSeen = null;
  * them, and the suite hands them a fake ticker and fake textures of its own (R1003) - its own state with them, so
  * running it touches nothing of the layer on screen.
  */
-const DISSOLVE = { generation: 0, busy: false, queued: false, previous: null, since: null };
+const DISSOLVE = { generation: 0, busy: false, queued: false, previous: null, since: null, end: null };
 const DISSOLVE_IO = {
     state: DISSOLVE,
     get PIXI() { return globalThis.PIXI; },
@@ -2066,13 +2066,23 @@ export function queueBehindDissolve(io = DISSOLVE_IO) {
     const state = io.state;
     if (!state.busy) return false;
     /* A DISSOLVE PAST ITS BOUND HOLDS NOTHING (1.2.120 line F; R8030 C). Its end is due at the watchdog's bound
-       (`fadeMs() + 750`); one that has not come a second after that will not come, and a repaint queued behind it
-       would wait for a reload. It is let go - its generation retired, so a late end of it puts nothing back - and
-       this repaint draws. */
+       (`fadeMs() + 750`); one that has not come a second after that may not come, and a repaint queued behind it
+       would wait for a reload. It is ended here, by its own end (`state.end`): the incoming fog shown, the sprites it
+       replaced and its mix dropped, the flag released - and its late end, if it comes, finds itself done.
+       1.2.120 retired its generation instead (`endDissolves`), and a retired dissolve's end takes away its mix and
+       nothing else, as a scene left wants: with the incoming sprite still kept off and a repaint that found nothing
+       to change, the layer drew no fog at all until the next change (AUDIT 18.6, r120-F-1; R8032 A). */
     const at = io.now?.();
     if (Number.isFinite(at) && Number.isFinite(state.since) && at - state.since > io.fadeMs() + DISSOLVE_STUCK_MS) {
         warn(`Fog: a dissolve held the fog for ${Math.round(at - state.since)} ms and was let go; the fog is drawn again.`);
-        endDissolves(io);
+        // This repaint draws now; the end must not start another behind it.
+        state.queued = false;
+        const end = state.end;
+        if (typeof end === "function") {
+            try { end(); } catch (err) { error("Fog: a dissolve let go at its bound could not end itself", err); }
+        }
+        // An end that could not release (none kept, or one that threw before its release): the flag goes anyway.
+        if (state.busy) endDissolves(io);
         return false;
     }
     state.queued = true;
@@ -2087,6 +2097,7 @@ function releaseDissolve(io) {
     state.busy = false;
     state.previous = null;
     state.since = null;
+    state.end = null;
     if (!state.queued) return;
     state.queued = false;
     io.repaint();
@@ -2264,17 +2275,24 @@ function startDissolve(container, { sprite, previous, previousTexture, texture, 
            catches a throw and logs it: a sprite or a texture that would not be destroyed left `busy` true, and every
            repaint after it was queued behind a dissolve that had ended - the fog changed for nothing until a reload or
            another scene. Now it is released in `finally`, still last. Not seen at a table: LIVE-F120-01. */
+        /* ONCE, AND CURRENT OR NOT DECIDED FIRST (1.2.121 line F). Run by the watchdog and, past the bound, by
+           `queueBehindDissolve`: the second call does nothing. Whether it is the running dissolve is read before
+           anything here can throw - the scratch's destroy came first and a throw there skipped the release
+           (AUDIT 18.6, r120-F-2; R8032 B). */
+        let ended = false;
         const done = () => {
-            let current = false;
+            if (ended) return;
+            ended = true;
+            const current = generation === state.generation;
             try {
-                scratch.destroy({ children: true });
-                if (generation !== state.generation) {
+                try { scratch.destroy({ children: true }); }
+                catch (err) { debug("Fog: a dissolve's scratch could not be destroyed", err); }
+                if (!current) {
                     // A newer dissolve owns the layer now. Take away only what this one put there, and never the
                     // texture the running one mixes from - its own end frees that with the rest.
                     if (mix.drpgTexture !== state.previous) io.dropSprite(mix);
                     return;
                 }
-                current = true;
                 if (!sprite.destroyed) {
                     sprite.renderable = true;
                     sprite.alpha = 1;
@@ -2306,6 +2324,7 @@ function startDissolve(container, { sprite, previous, previousTexture, texture, 
                 renderer.render(scratch, { renderTexture: mixTexture, clear: true });
             }
         });
+        state.end = done;
         io.watchdog(animation, io.fadeMs() + 750, done);
     } catch (err) {
         debug("Fog: could not dissolve between two states; swapping outright", err);
@@ -2333,6 +2352,7 @@ export function endDissolves(io = DISSOLVE_IO) {
     state.queued = false;
     state.previous = null;
     state.since = null;
+    state.end = null;
 }
 
 export function swapInFog(container, texture, maskTexture, rect, io = DISSOLVE_IO) {

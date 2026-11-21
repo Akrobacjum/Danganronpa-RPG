@@ -1,0 +1,83 @@
+{
+ "refuter": "verify-domain-ui-c-sheet",
+ "of": "domain-ui-c-sheet",
+ "checkout": "claude/audit-119 at 530fd7bc; scripts/ as main b5a29e73 (1.2.118)",
+ "scope_note": "Checked every finding of severity minor or above (1 and 4), the one stale_state finding below minor (3), and every item the file lists under hints_for_other_passes.dead_controls (three) and stale_windows (two besides finding 3). Findings 2 and 5 (nit, no stale or dead claim) were not re-checked. No harness, test or probe was run; base-run.json was not read. The domain file names no surface on keepLive (grep of scripts/sheet*.mjs for keepLive finds none), so D-A1 adds no major here.",
+ "checked": [
+  {
+   "ref": "domain-ui-c-sheet-1",
+   "claim": "A blocked priced tile (Analyze with no action outside a trial, Tamper with no action and a full Sanity track) prints 'free' on its face while it is dimmed and its tooltip refuses.",
+   "verdict": "stands",
+   "why": "costLabelFor answers DRPG.Action.costFree whenever the quote is blocked, and actionButton prints that label on the face of every tile that is not a fight tile. quotePrice returns blockedKind 'nothingLeft' with the chain's refusal when no step can pay; outside the Class Trial Analyze is a one-step chain (stepsBeyondFirst 'classTrial'), so a student with no action left gets a blocked quote. affordable = !priced.blocked dims it and the tooltip carries priced.blocked. refreshPricedTiles rebuilds the same tile through actionButton, so the repaint does not change the label. stripeKindFor returns the fallback stripe for a blocked quote with no pay, as the reader says. No test pins the face of a blocked tile: R48 reads only that costLabelFor contains priceLabel( and that actionButton reads priced?.blocked; R48's own comment names 'a Sanity step read as free' as one of the ways a tile lies. The only other 'free' paths (Monocub tiles at 465-476) are not priced chains. Severity minor holds: a wrong price on the tile in a specific, ordinary state, refused on the press with the right sentence.",
+   "evidence": "sheet-actions.mjs:1549-1551 'return quote.blocked ? game.i18n.localize(\"DRPG.Action.costFree\") : priceLabel(quote);'; sheet-actions.mjs:1220 'const affordable = priced ? !priced.blocked : canPayFor(actor, cost);'; sheet-actions.mjs:1427 '<span class=\"drpg-action-cost\">${costLabel}</span>'; price.mjs:158-171 (no step -> blocked: nothingLeft.<key>OneStep); config.mjs:1468 'stepsBeyondFirst: \"classTrial\"'; price.mjs:393 'if (!quote?.pay) return quote?.blocked ? fallback : \"free\";'; sheet-repaint.mjs:275 'node.replaceWith(actionButton(actor, key, def));'; tests-tier0.mjs:3145-3147 (R48 reads only priceLabel()",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-ui-c-sheet-3",
+   "claim": "On a player's browser the Tamper tile's cached answer is never dropped when the GMs' Remnant ledger changes, because forgetTamper hangs on clientSettingChanged for SETTINGS.remnantSecrets, which only a GM's browser writes.",
+   "verdict": "stands",
+   "why": "SETTINGS.remnantSecrets is 'gmRemnants', the key of the GMs' store row 'remnants', and gm-stores.mjs has no copy row 'from: \"remnants\"', so a player's browser never writes the key and the listener never fires there. forgetTamper is the only clear of tamperAnswers; tamperBlock returns the cached answer while the key room|timeOfDay|day|session is unchanged, and a render after the player's own action keeps that key. framingCandidates is every other living student who is not the victim or a Monokuma, so the struck state needs no erasable own trace and no candidate: the narrow case the reader names. Nit holds: advice on a tile that stays pressable.",
+   "evidence": "sheet.mjs:123-125 'Hooks.on(\"clientSettingChanged\", key => { if (key === `${MODULE_ID}.${SETTINGS.remnantSecrets}`) forgetTamper(); });'; settings.mjs:375 'remnantSecrets: \"gmRemnants\",'; gm-stores.mjs:112 'name: \"remnants\", key: SETTINGS.remnantSecrets,' (no player copy row); sheet-actions.mjs:1079-1081 tamperKey; sheet-actions.mjs:1109-1111 'const seen = tamperAnswers.get(actor.id); if (seen?.key === key) return seen.blocked;'; cleanup.mjs:1591-1596 framingCandidates",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "domain-ui-c-sheet-4",
+   "claim": "A Spectator's sheet draws no Stop, while the sheet's comment and safeword.mjs promise the Stop to everyone including a Spectator.",
+   "verdict": "stands",
+   "why": "sheetMode sets safeword false for a Spectator and injectSafeword returns before drawing when mode.safeword is false. The other doors are the keybinding, registered with editable [] (unbound), and game.drpg.safeword() in the console; grep of scripts/ for safeword finds no other drawn control (voice-tile.mjs, hud-elapsed.mjs, popup.mjs, events.mjs only read or show the card). R3857 pins safeword:false for a Spectator. The GM handbook also promises the sheet's button to a Spectator, which widens the contradiction: 'Every character sheet carries a safeword button ... Anyone may press it - player, GM, dead, Monocub, Spectator'. No E92 paper on the branch records the owner choosing to take the Stop from the Spectator; the plan docs/dev/plans/E92.md is on claude/plan-130, not reachable here. Minor holds: a safety door missing for one role, with two off-screen doors left.",
+   "evidence": "sheet-mode.mjs:81 'safeword: !monokuma && !spectator,'; sheet-sidebar.mjs:903 '* Present for everyone - a Monokuma's player is at the same table, and a'; sheet-sidebar.mjs:915 'if (mode && !mode.safeword) return;'; safeword.mjs:422-424 'the promise is \"anyone may: player, GM, dead, Monocub, spectator\"'; safeword.mjs:431 'editable: [],'; api.mjs:839 'safeword: () => import(\"./safeword.mjs\")...'; docs/handbooks/gm-handbook.en.md:1794 'Every character sheet carries a **safeword button** bottom-left ... **Anyone may press it** - player, GM, dead, Monocub, Spectator'; tests-tier1.mjs:58486-58498 (R3857 want safeword: false)",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "sheet-audit.mjs flagged write card and away card / Undo, Keep, Undo all, Accept all (hint: dead_controls)",
+   "claim": "The cards remove their buttons before asking the primary, so a refused or unanswered ask leaves a card with no buttons until it is drawn again.",
+   "verdict": "weakened",
+   "why": "The description of the click is right (the buttons go before askToDecideWrite), but the controls are not dead: on success decideWrite rewrites the card through updateSecret (the card is drawn again with the decision), and a null answer because another GM decided first means that GM's decision already rewrote the card. What is left is a failed ask (no primary, a timeout), where bridgeRequest tells the GM and the card stays without buttons until the next render of the chat message. That is a silent-ish loss of the controls on a failure path, nit, not a dead control.",
+   "evidence": "sheet-audit.mjs:2945-2946 'element.querySelector(\".drpg-audit-actions\")?.remove(); await askToDecideWrite(rowId, ...)'; sheet-audit.mjs:2891-2894 askToDecideWrite answers null on !res.ok; sheet-audit.mjs:2880-2881 'else if (card) await updateSecret(card, flaggedCard({ ...row, decided }), ...)'; sheet-audit.mjs:3218-3227 wireAwayCard removes the row's actions before asking",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "Monocub panel / Bribe Accept and Refuse (hint: dead_controls)",
+   "claim": "Accept and Refuse disable themselves, never re-enable or read the answer, and a refusal leaves both greyed until a render.",
+   "verdict": "refuted",
+   "why": "Only the pressed button is disabled (button.disabled = true on the one clicked), so a refusal leaves the other enabled, not both greyed. The answer is not read by the button, but a carried-out answer changes the Monocub's row (its bribes), which reaches the owner's copy (mineCubs) or the GMs' store (gmCubs); both settings register onChange: onCubsChange, which runs clock.refreshSheets() and renders every open character sheet, so the line and its buttons are redrawn. What remains is a nit: after a refused answer the pressed button stays disabled until the next render, with the bridge's toast as the word.",
+   "evidence": "sheet-actions.mjs:384-388 'button.addEventListener(\"click\", async () => { button.disabled = true; ... await requestBribeAnswer({ cubId: actor.id, bribeId: item.id, accept }); });'; settings.mjs:3266-3279 gmCubs and mineCubs 'onChange: onCubsChange'; settings.mjs:3483-3485 'function onCubsChange() { import(\"./clock.mjs\").then(m => m.refreshSheets())...'; clock.mjs:940-953 refreshSheets renders every open character sheet",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "Known passages / 'the way is shut' label (hint: dead_controls)",
+   "claim": "The shut label is drawn at render from where the token stood and nothing redraws the list on a token's move.",
+   "verdict": "weakened",
+   "why": "registerSheetTweaks has no hook that redraws the list on updateToken (onTunnelStep goes through and draws nothing), and the code's own note says so. But a crossing that pays writes the actor (takeMove: flags freeMoveUsed or freeMoveGrants, or spendAction), and a flag write is not a resource-only write, so renderPlan answers 'render' and the sheet redraws with the new room. The label is stale only for a move that writes nothing on the actor (a crossing with no price, a GM's drag, a step inside a room) and for a lock or bedroom-key change, which no sheet hook hears. It is a label, not a control (the 'Go through' button stays enabled by decision H81-03), so it is a stale_state item under the owner's rule, minor.",
+   "evidence": "sheet-sidebar.mjs:624-628 'const from = here?.scene?.id === scene.id ? here.room : null; ... const shut = !opens(actor, passage, scene, { from, ... })'; sheet-sidebar.mjs:667-672 (no hook draws the list on a token's move); sheet.mjs:77 'Hooks.on(\"drpgPassagesChanged\", redrawPassageSheets);' and 84-86 (updateToken -> onTunnelStep only); actions.mjs:346-353 'await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeMoveUsed}`]: true } ...'; sheet-repaint.mjs:144-146 renderPlan repaints only resource keys",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "Mastermind's lair line / Lock-Unlock state (hint: stale_windows)",
+   "claim": "The lair line reads the room's lock off region flags and is redrawn only by its own press's render; a GM's lock in Room Setup or a breach leaves it showing the old state.",
+   "verdict": "stands",
+   "why": "lairLocked reads isLocked over the regions at draw time. The only redraw in lairBlock is actor.sheet?.render(false) in its own click's finally. writeRoomLock writes the regions (updateRoom -> updateEmbeddedDocuments) and only posts a chat card on an unlock; the updateRegion hooks in scripts/ (fog.mjs:375, movement.mjs:398, passages-gm.mjs:3294, room-tile.mjs:761, visibility.mjs:87, voice.mjs:373) render no actor sheet, and refreshSheets is called from no region road. So on the Mastermind's browser the line keeps 'open' after a GM's lock and the button asks lock:true again, which writeRoomLock answers as no change, after which the press's render corrects the line. Minor under D-A1's standing rule: a value shown stale until the sheet renders for another reason.",
+   "evidence": "sheet-sidebar.mjs:800-801 'return [...(game.scenes ?? [])].some(scene => roomRegions(scene, room).length && isLocked(scene, room));'; sheet-sidebar.mjs:816-824 '... await requestLairLock({ actorId: actor.id, lock: !locked }); ... finally { actor.sheet?.render(false); }'; vault-store.mjs:764-771 writeRoomLock; passages-gm.mjs:3294 'Hooks.on(\"updateRegion\", () => redrawPassagesSoon());' (GM overlay only); movement.mjs:2140-2145 isLocked",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "Monocub panel / purse, Bribe, Bounty and Ghost Bet lines (hint: stale_windows)",
+   "claim": "The lines read the owner's copy and whether a copy change redraws the sheet was not traced.",
+   "verdict": "refuted",
+   "why": "Traced: purseOf and cubPanelLines read cubRowOf / cubsFor, that is the GMs' store gmCubs on a GM and the copy mineCubs on the owner. Both settings register onChange: onCubsChange, which runs clock.refreshSheets() (every open character sheet rendered, a minimised one on restore) and calls drpgCubsChanged. The panel is therefore redrawn on every change of what it shows, on either browser.",
+   "evidence": "monocub.mjs:246-249 'if (game.user?.isGM) return cubStore.get(actor.id) ?? null; return (cubCopy.read() ?? {})[actor.id] ?? null;'; monocub.mjs:335-343 cubPanelLines; settings.mjs:3266-3279 'onChange: onCubsChange' on gmCubs and mineCubs; settings.mjs:3483-3485 onCubsChange -> refreshSheets",
+   "severity_after": "none"
+  }
+ ],
+ "counts": {
+  "checked": 8,
+  "stands": 4,
+  "weakened": 2,
+  "refuted": 2
+ },
+ "not_established": [
+  "Whether the owner chose, in words, to take the Stop off a Spectator's sheet (E92 C5): docs/dev/plans/E92.md is on claude/plan-130, not on this branch, and docs/dev/e92/STATUS.md does not name the safeword.",
+  "Whether a failed audit ask (no primary GM) leaves the chat card buttonless until reload at a real table, or whether Foundry re-renders the message sooner: not read off a table; new live check: press Undo on a flagged write's card while the primary GM is disconnected and read the card.",
+  "Whether onCubsChange fires for a copy written by cubCopy.receive on the owner's browser at v14 (a client setting's onChange on set): read from the shim's model and Foundry's documented behaviour, not measured here."
+ ]
+}

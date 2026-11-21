@@ -1,0 +1,357 @@
+{
+ "refuter": "verify-live-items-01",
+ "of": "live-items-01",
+ "checked": [
+  {
+   "ref": "15",
+   "claim": "read, as-expected: a token walking into the viewer's room is first drawn at the border (MAP-02)",
+   "verdict": "stands",
+   "why": "The row exists on b5a29e73's copy, names item 15 and S7-7 together, dated 16.11.2026 on 14.370 with module 1.2.116 (the line made from ff3e12e5); it says what the item asks, with the sampling limit the reader quotes. The fix's comment is where the reader says.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:419 '| 15, S7-7 (MAP-02) | measured | PlayerTwo's canvas sampled each frame ... first drawn at x 1155 ... Limit: headless drew 33 frames in 9 s'",
+    "docs/dev/e39/CALIBRATION.md:5 'this module 1.2.116 (the checkout, symlinked)'",
+    "scripts/visibility.mjs:494 'THE DOCUMENT ARRIVES BEFORE THE SPRITE DOES (MAP-02)'"
+   ],
+   "status_after": "read"
+  },
+  {
+   "ref": "17",
+   "claim": "read, as-expected: the safeword key, bound and pressed with no sheet open, opens the confirmation; the label the item quotes is stale",
+   "verdict": "stands",
+   "why": "Row confirmed. The label change confirmed: 968a0a27's diff replaces 'Safeword - stop the scene' with 'Safeword: stop the scene' in lang/en.json; the commit is in v1.2.113; the old string has 0 hits in lang/ and scripts/.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:420 '| 17 (COMM-11) | measured | the action is registered (\"Safeword: stop the scene\"), no default key; bound to F9 ...'",
+    "lang/en.json:6090 '\"keybinding\": \"Safeword: stop the scene\",'",
+    "git show 968a0a27 -- lang/en.json: '-      \"keybinding\": \"Safeword - stop the scene\",' / '+      \"keybinding\": \"Safeword: stop the scene\",'",
+    "scripts/safeword.mjs:428-434 'game.keybindings.register(MODULE_ID, \"safeword\", { ... editable: [], ...'"
+   ],
+   "status_after": "read"
+  },
+  {
+   "ref": "18",
+   "claim": "partly: the sender's id reaches a system.daggerheart listener and relayGuard().refused holds no unknownSender; a Hope roll's own packet not read",
+   "verdict": "stands",
+   "why": "The row says exactly this, including its own limit. The comment the reader names as stale still says the sender is not measured.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:421 '| 18 | measured | a `system.daggerheart` listener on the GM got PlayerOne's packet with the sender's id as its second argument ... The packet was an action Daggerheart's switch ignores; a Hope roll's own packet not read'",
+    "scripts/relay-guard.mjs:1197-1199 'Whether Foundry v14 names them there is NOT measured ... Live check in AUDIT §9.2, item 18.'"
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "19",
+   "claim": "read, as-expected: game.socket's listeners, off, on and prependAny are functions; relayGuard().state ok",
+   "verdict": "stands",
+   "why": "Row confirmed; it answers both halves of the item (the state and prependAny).",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:422 '| 19 | measured | `game.socket.listeners`, `off`, `on`, `prependAny`: functions; `relayGuard().state` `ok`'",
+    "scripts/relay-guard.mjs:247-248 'status.state = unnamed ? \"unnamed\" : ... ? \"changed\" : \"ok\";'"
+   ],
+   "status_after": "read"
+  },
+  {
+   "ref": "20",
+   "claim": "read, mixed: (a) updateActor reaches the primary with noHook, (b) closeDocumentOwnershipConfig fires on the window's GM, (c) default back to 2, with a GM that is not the primary",
+   "verdict": "stands",
+   "why": "CALIBRATION's after-restart table records all three readings with a scratch second GM made primary, as the item asks; 'mixed' is against the shim's noHook (D9), which the shim and 30-security's comment still carry.",
+   "evidence": [
+    "docs/dev/e39/CALIBRATION.md:42 '(a) `updateActor` reached the primary GM, with `options.noHook === true` ...; (b) `closeDocumentOwnershipConfig` fired on the window's GM; (c) `ownership.default` went back from 3 to 2 (OBSERVER)'",
+    "docs/dev/e58/LOCAL-REPORT.md:423 '| 20 | measured | with two GMs, the non-primary one saving Configure Ownership on Aiko ...'",
+    "audit/harness/scenarios/30-security.mjs:4090-4091 'The harness's `noHook` silences the `updateActor` hook as well as the `pre` one'"
+   ],
+   "status_after": "read"
+  },
+  {
+   "ref": "21",
+   "claim": "obsolete: the Reroll receipt and rerollLastAction are gone since 1.2.67",
+   "verdict": "stands",
+   "why": "Both names give 0 hits over scripts/, lang/, audit/harness and tools/ (git grep -c prints nothing). bfb4b613 and 7d297f84 exist, dated 03.10 and 04.10.2026, both contained in v1.2.67. Today's Reroll is one ask made on the GM. The item's own text says obsolete.",
+   "evidence": [
+    "git grep -c -F rerollReceiptRetryMs -- scripts lang audit/harness tools: no output (0)",
+    "git log -1 bfb4b613: '2026-10-03 E08+E28 C4a: the Reroll is asked of the GM and made there as one unit' (tag v1.2.67)",
+    "scripts/bridge-asks.mjs:1008-1011 'export function requestReroll(actorId, ...) { return ask(ACTION_REROLL, { actorId }, { ... local: () => import(\"./reroll.mjs\").then(m => m.rerollOnGm(...'",
+    "audit/AUDIT-1.2.42.md:840 '**Nieaktualne od 1.2.67:** pokwitowań już nie ma (E08+E28 C8)'"
+   ],
+   "status_after": "obsolete"
+  },
+  {
+   "ref": "22",
+   "claim": "partly, mixed: a route made through TokenDocument#move is one update with every grid step, the floor field is level; a mouse drag not read",
+   "verdict": "stands",
+   "why": "CALIBRATION section 3 holds the reading; the report's row 22 points to it; the triage header says item 22 is that move. 'Partly' is right: the item asks a drag, and the paper says a drag by mouse was not read.",
+   "evidence": [
+    "docs/dev/e39/CALIBRATION.md:93 '| updates per route | **one**: `preMoveToken` and `preUpdateToken` once on the mover, `updateToken` and `moveToken` once on every client'",
+    "docs/dev/e39/CALIBRATION.md:110 '| a token's level | the field `level`, a level's id (`\"defaultLevel0000\"` on a scene without levels drawn)'",
+    "docs/dev/e39/CALIBRATION.md:129-130 'A drag by mouse (`method: \"dragging\"` ...) was not read'",
+    "docs/dev/e58/LOCAL-REPORT.md:424 '| 22 | measured (M) | LIVE-E39-01's move (CALIBRATION.md section 3) |'",
+    "git log -1 67d525f6: '2026-11-17 movement.mjs: a route of one update is judged leg by leg' (tag v1.2.118)"
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "23",
+   "claim": "read, mixed: v14's toasts are sanitised, not escaped; a name with markup is drawn as markup in a GM toast",
+   "verdict": "stands",
+   "why": "Row confirmed; the toast that draws the name unescaped is at anonymity.mjs:800, as the reader says. The comments calling a toast's escaping unmeasured are there.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:425 '| 23 | measured | v14's toasts are not escaped but sanitised: `<b>`, `<img>`, `<a>` kept as elements ...'",
+    "scripts/anonymity.mjs:800 'ui.notifications.warn(game.i18n.format(\"DRPG.Anonymity.blocked\", { actor: actor.name }));'",
+    "scripts/relay-guard.mjs:1097 'A toast's escaping is not something this file has measured on v14'"
+   ],
+   "status_after": "read"
+  },
+  {
+   "ref": "25",
+   "claim": "read, mixed (LIVE-E30-01): a '-=' key deletes on an actor's and a token's flags, with v14's warning; the item's harness sentence is stale",
+   "verdict": "stands",
+   "why": "CALIBRATION row confirmed; operators.mjs defaults to 'honoured' and says it was measured; scenario 91-old-keys-ignored exists; 6bb98cd8 is the root rules file's correction (v1.2.117).",
+   "evidence": [
+    "docs/dev/e39/CALIBRATION.md:20 '| LIVE-E30-01 | ... | deleted on both; no `-=` key stored; `==` replaced the object whole ...'",
+    "audit/harness/lib/operators.mjs:121 'if (asked === undefined || asked === \"\") return \"honoured\";'",
+    "audit/harness/scenarios/91-old-keys-ignored.mjs exists"
+   ],
+   "status_after": "read"
+  },
+  {
+   "ref": "26",
+   "claim": "read, mixed (LIVE-E30-02): create() a new instance each call, _del an instance, a replacement at OPERATOR_VALUE; operators.mjs's header is stale",
+   "verdict": "stands",
+   "why": "CALIBRATION row confirmed. operators.mjs:20-22 still says create() hands back one shared instance while :50-51 makes a new one.",
+   "evidence": [
+    "docs/dev/e39/CALIBRATION.md:26 '`ForcedDeletion.create() !== ForcedDeletion.create()`. `_del` is a global instance of ForcedDeletion (not a function)'",
+    "audit/harness/lib/operators.mjs:22 'ForcedDeletion value and `create()` hands back one shared instance.'",
+    "audit/harness/lib/operators.mjs:51 'static create() { return new ForcedDeletion(); }'"
+   ],
+   "status_after": "read"
+  },
+  {
+   "ref": "27",
+   "claim": "read, mixed (LIVE-E30-03): _preUpdate before the hook, operator instances, an emptied or no-op update not sent; the harness's diff is built since D3",
+   "verdict": "stands",
+   "why": "CALIBRATION rows 27-28 confirmed; 5b9269ba (D3, v1.2.118) and shim.mjs:380 diff an update; README:574-582 still says the update is not diffed, as the reader says.",
+   "evidence": [
+    "docs/dev/e39/CALIBRATION.md:27 '`_preUpdate` ran before the `preUpdateActor` hook, every time ... The write of a value already there: `preUpdateActor` ran, then nothing'",
+    "audit/harness/lib/shim.mjs:380 'const sent = context?.diff === false ? update : { ...U.diffChanges(this._source, update), _id: this.id };'",
+    "audit/harness/README.md:574-575 'The server does not diff: an update that changes nothing is still broadcast and fires the update hooks.'"
+   ],
+   "status_after": "read"
+  },
+  {
+   "ref": "29",
+   "claim": "read, as-expected (LIVE-E30-04): an Assistant's role 4 write refused by the server, a world setting written",
+   "verdict": "stands",
+   "why": "CALIBRATION row confirmed, with a scratch Assistant of role 3.",
+   "evidence": [
+    "docs/dev/e39/CALIBRATION.md:29 '`game.user.update({role: 4})` from its console: refused by the server, \"User CALIB Assistant lacks permission to update User [id]\" ... A world setting of the module written and put back: passed.'"
+   ],
+   "status_after": "read"
+  },
+  {
+   "ref": "30",
+   "claim": "read, mixed (LIVE-E30-05): userConnected(user, false) with active already false; a role change logs the user out",
+   "verdict": "stands",
+   "why": "CALIBRATION row confirmed; b17b9867 (D6, v1.2.118) and cluster.mjs:539 now log a user out.",
+   "evidence": [
+    "docs/dev/e39/CALIBRATION.md:30 'the hook came once, `(user, false)` ... with `user.active` already false inside it. The role change: PlayerTwo's page went from `/game` to `/join` within 5 s (logged out)'",
+    "audit/harness/cluster.mjs:539 'if (left) left.goneWhy = \"was logged out: its role changed\";'"
+   ],
+   "status_after": "read"
+  },
+  {
+   "ref": "31",
+   "claim": "read, as-expected (LIVE-E30-06): scenario 17's B1, C2, C3 replayed on the sandbox with a scratch Assistant",
+   "verdict": "weakened",
+   "why": "The reading exists and is what the report row says, but the item asks for 'scenario 17-assistant ... at least sections B and C'. The scenario was not run (CALIBRATION records LIVE-E30-06 as not checkable through the adapter); three of its checks were replayed by hand. Sections B and C hold B2-B5 and C4 as well, which no reading records (C1's subject is item 29's). The reader says so in its own note and still writes 'read'. A part of the ask was read: 'partly' fits section 11.3 better.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:457 '| 31 (LIVE-E30-06) | measured (pass 2) | scenario 17's B1, C2 and C3 replayed with a scratch Assistant account'",
+    "docs/dev/e39/CALIBRATION.md:31 '| LIVE-E30-06 | - | not run here: 17-assistant needs a fifth account and page hooks the sandbox adapter lacks'",
+    "audit/harness/scenarios/17-assistant.mjs:123 'check(\"B2: a player's change to another student through the relay changes nothing ...'; :130 'B3'; :147 'B4'; :174 'B5'; :188 'C4: the Assistant is offered a Despair pool ...'",
+    "audit/AUDIT-1.2.42.md:853 'scenariusz `17-assistant` na sandboksie z kontem Assistant GM, przynajmniej sekcje B i C'"
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "33",
+   "claim": "read, as-expected (LIVE-E30-09): seven sheets in module.json's order, each @import in layer modules; --drpg-window-max 1400px",
+   "verdict": "stands",
+   "why": "CALIBRATION row confirmed; module.json at 1.2.118 lists the same seven sheets in the same order.",
+   "evidence": [
+    "docs/dev/e39/CALIBRATION.md:34 'all seven sheets, in module.json's order (base, motion, danganronpa, stained-glass, pixel-icons, components, narrow), each an `@import` in layer `modules` ... `--drpg-window-max` 1400px'",
+    "module.json styles: ['styles/base.css', 'styles/motion.css', 'styles/danganronpa.css', 'styles/stained-glass.css', 'styles/pixel-icons.css', 'styles/components.css', 'styles/narrow.css']"
+   ],
+   "status_after": "read"
+  },
+  {
+   "ref": "34",
+   "claim": "read, as-expected (LIVE-E30-10): the tier 2 window names the world, Cancel first and focused, Enter cancels, world unchanged",
+   "verdict": "stands",
+   "why": "CALIBRATION row confirmed; the shot exists.",
+   "evidence": [
+    "docs/dev/e39/CALIBRATION.md:35 'a DialogV2: title \"Tier 2 writes to DRPG QA Gate\" ... buttons Cancel (autofocus) then \"Run tier 2 on DRPG QA Gate\"; focus on Cancel; Enter answered `{refused: \"cancelled\", passed: 0, results: 0}`; nothing changed.'",
+    "docs/dev/e58/shots/e30-10-tier2-dialog.png exists"
+   ],
+   "status_after": "read"
+  },
+  {
+   "ref": "37",
+   "claim": "partly, as-expected (LIVE-E31-03): the GM's page closed after an acknowledged ask; one notice at 183 s; the return of a GM not read",
+   "verdict": "stands",
+   "why": "Row confirmed, its own word 'its first half'. The Polish sentence the item quotes is gone: pl.json:5301 reads the new one and the old string has 0 hits in lang/.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:458 '| 37 (LIVE-E31-03) | measured, its first half (pass 2) | ... one notice at 183 s ... Not read: a GM back before that clock'",
+    "lang/pl.json:5301 '\"noAnswer\": \"GM nie odpowiedział na czas.\",'",
+    "git grep -n 'Klient GM-a nie odpowiedział' -- lang: no output"
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "39",
+   "claim": "read, as-expected (LIVE-E31-05): handOff runs the work 14-20 ms after the hand-off with reduced motion on or off",
+   "verdict": "stands",
+   "why": "Row confirmed. The reading times handOff on 'a DialogV2'; both windows the item names are drawn by drpgWindow (a DialogV2) and hand off through the same function, which closes with animate: false, so the mechanism read is theirs. The moved line numbers are right: gm-students.mjs:354 and season-setup.mjs:1098 are the handOff calls today, and at v1.2.62 gm-panel.mjs:742 and season-setup.mjs:560 were. Not verified: the commit bc2a114d the reader names for the move; this clone is shallow and the id does not resolve.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:459 '| 39 (LIVE-E31-05) | measured (pass 2) | live.mjs `handOff` on a DialogV2, three times each way: the work ran 14-19 ms ... 16-20 ms with the module's `reducedMotion` on'",
+    "scripts/live.mjs:801 'closing = Promise.resolve(dialog?.close?.({ animate: false }));'",
+    "scripts/gm-students.mjs:354 'const trip = handOff(dialog, async () => {'",
+    "scripts/season-setup.mjs:1098 'onHandOff(handOff(dialog, () => reopen({ draft, opened: before })));'",
+    "git show v1.2.62:scripts/gm-panel.mjs line 742 'const trip = handOff(dialog, async () => {'"
+   ],
+   "status_after": "read"
+  },
+  {
+   "ref": "40",
+   "claim": "read, as-expected (LIVE-E31-06): a Polish player's refusal told in Polish, the GM's log in English with the player's name",
+   "verdict": "stands",
+   "why": "Row confirmed and says exactly what the item asks.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:460 '| 40 (LIVE-E31-06) | measured (pass 2) | PlayerOne's module language Polish (the GM's English) ... the GM's log in English \"Refused a \"handover.item\" request over the socket from PlayerOne ...\"'"
+   ],
+   "status_after": "read"
+  },
+  {
+   "ref": "41",
+   "claim": "read, defect (LIVE-E04-01): at the owner's table on 31.10.2026 serverTime was the server's uptime; fixed in 1.2.93",
+   "verdict": "stands",
+   "why": "The reading is written into the item's own text with date, Foundry and Daggerheart versions and figures, and the release notes of 1.2.93 say the same; 71b726a6 is contained in v1.2.93 (git tag --contains, sorted). The subject is Foundry's clock, so the module version of the reading does not age it. epochClock is at config.mjs:503.",
+   "evidence": [
+    "audit/AUDIT-1.2.42.md:869 '**Odpowiedziane 31.10.2026 przy stole właściciela: nie.** Foundry 14.365 na The Forge ... `game.time.serverTime` 2811317 przy `Date.now()` 1793415993407'",
+    ".github/release-notes/v1.2.93.md:3-4 'It repairs one fault measured at the owner's table on 31.10.2026 (Foundry 14.365 on The Forge, Daggerheart 2.6.5, the GM's browser).'",
+    "scripts/config.mjs:503-504 'export function epochClock(serverTime, local) { return isEpochStamp(serverTime) ? Number(serverTime) : local;'"
+   ],
+   "status_after": "read"
+  },
+  {
+   "ref": "44",
+   "claim": "partly, mixed (LIVE-E04-04): connect comes again after a console disconnect; a write made meanwhile never reached the GM; a real network loss and the stores' exchange not read",
+   "verdict": "stands",
+   "why": "Row confirmed, its own word 'one road'. The comments the reader calls stale still say the connect is not measured.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:453 '| 44 (LIVE-E04-04) | measured, one road | ... `game.socket.disconnect()` then `connect()` from the GM's console did ... the write PlayerOne made meanwhile ... never reached the GM's copy'",
+    "scripts/gm-store.mjs:1744 'Whether v14's socket emits \"connect\" again is LIVE-E04-04.'",
+    "scripts/frisk.mjs:1028 '(LIVE-E04-04; gm-store.mjs listens for the same)'"
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "48",
+   "claim": "partly, mixed (LIVE-E04-08): a fresh GM browser filled from E111's server copy, no warning; one cast field older; finishing the incident not driven",
+   "verdict": "stands",
+   "why": "Row confirmed, its own word 'in part'. The window, Restore and 'Wpisz obsadę ręcznie' exist; writeServerCopy at case-copy.mjs:166; 08eb5c3f is E111 in v1.2.115.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:461 '| 48 (LIVE-E04-08) | measured, in part (pass 2) | ... E111's copy of the case on the server filled the new browser's 67 module stores by itself ... Not driven: finishing the incident there.'",
+    "scripts/case-copy.mjs:166 'export async function writeServerCopy({ explicit = false } = {}) {'",
+    "lang/pl.json:9147 '\"enterCast\": \"Wpisz obsadę ręcznie\",'"
+   ],
+   "status_after": "partly"
+  },
+  {
+   "ref": "16",
+   "claim": "open: the trial's sticky cards under Stained Glass not driven",
+   "verdict": "stands",
+   "why": "No reading: b5a29e73's report and the L1 branch's both list 16 as left; neither digest nor the delta holds one; no shot of a notice stack in docs/dev/e58/shots on either branch.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:432 '| S7-6, S7-10, S7-11, 16 | left | not yet driven: ... a trial's sticky cards'",
+    "git show origin/claude/e58-local:docs/dev/e58/LOCAL-REPORT.md line 584: the same row, 'left'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "24",
+   "claim": "open: the player's sheet under drpg-resources-locked never looked at",
+   "verdict": "stands",
+   "why": "No reading: listed as left, shots not taken; no shot of it in docs/dev/e58/shots on either branch; grep over docs finds only the triage row.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:433 '| S7-12, S7-13, 24 | left | shots not yet taken'",
+    "docs/dev/e58/TRIAGE-9.2.md:47 '| 24 | - | S | Player sheet under drpg-resources-locked, with the setting on and off |'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "35",
+   "claim": "open (LIVE-E31-01): a real Reroll made on the GM of each listed action",
+   "verdict": "stands",
+   "why": "Open stands, with one thing the reader did not cite: the L1 branch records tier-2 Reroll tests run on the sandbox (18-19.11.2026), broken by the tests' stand-in roll and then green after batch 1. The delta digest maps them to item 89 in part and says item 35 is touched, not settled; none of those rows reads the GM's log for 'Refused a' or the player's message for each listed action.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:462 '| 35 (E31-01), 38 (E31-04) | left | a GM-side Reroll of each listed action; a plant whose answer comes late |'",
+    "audit/findings-1.2.118/live-readings-e58-delta.json (LOCAL-REPORT.md:328-343 on the branch): 'touches item 35 (LIVE-E31-01); neither is settled'",
+    "git show origin/claude/e58-local:docs/dev/e58/LOCAL-REPORT.md: 'The five Reroll tests (35, 40-43) - the tests', not the module's.' (tier-2 test numbers, not 9.2 items)"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "38",
+   "claim": "open (LIVE-E31-04): a planted item's answer arriving late",
+   "verdict": "stands",
+   "why": "No reading on either branch's report or calibration; listed as left.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:462 '| 35 (E31-01), 38 (E31-04) | left | ... a plant whose answer comes late |'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "47",
+   "claim": "open (LIVE-E04-07): two worlds in one browser; Duplicate World's id",
+   "verdict": "stands",
+   "why": "No reading: the report holds it not checkable (the setup screen is not opened) on both branches; the L1 branch adds only that a copy world for E40 waits on the owner's Duplicate World.",
+   "evidence": [
+    "docs/dev/e58/LOCAL-REPORT.md:454 '| 47 (E04-07) | not checkable here | a second world and Setup > Duplicate World: the setup screen, which this line does not open |'",
+    "git show origin/claude/e58-local:docs/dev/e58/LOCAL-REPORT.md line 556 'A copy is made with Foundry's Duplicate World on the setup screen, which this line does not op[en]'"
+   ],
+   "status_after": "open"
+  },
+  {
+   "ref": "observation 3",
+   "claim": "audit/harness/README.md names LIVE-E30-06, -07 and -10 nowhere, though line 845 says it names every LIVE-E30-nn",
+   "verdict": "stands",
+   "why": "grep -c on README.md: 06, 07 and 10 give 0; the others 1-3, as the reader counts.",
+   "evidence": [
+    "grep -c LIVE-E30-06 / -07 / -10 audit/harness/README.md: 0 / 0 / 0",
+    "audit/AUDIT-1.2.42.md:845 'Każdy ma identyfikator LIVE-E30-nn, pod którym wymienia go `audit/harness/README.md`'"
+   ],
+   "severity_after": "nit"
+  },
+  {
+   "ref": "observation 5",
+   "claim": "audit/harness/lib/versions.mjs UNCONFIRMED still lists every id of this chunk, read ones included",
+   "verdict": "stands",
+   "why": "The list holds LIVE-E30-01..10, LIVE-E31-01..06 and LIVE-E04-01..12, and the readings of 16.11 and 31.10.2026 exist as above; versions.json still holds 6.2.9, 14.0.2, 0.6.8.",
+   "evidence": [
+    "audit/harness/lib/versions.mjs:57-62 'export const UNCONFIRMED = [ \"LIVE-E30-01\", ... \"LIVE-E31-06\", \"LIVE-E04-01\", ...'",
+    "audit/harness/versions.json: '\"dice-so-nice\": \"6.2.9\", \"isometric-perspective\": \"14.0.2\", \"avclient-livekit\": \"0.6.8\"'"
+   ],
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 29,
+  "stands": 28,
+  "weakened": 1,
+  "refuted": 0
+ },
+ "not_established": [
+  "Commit bc2a114d (item 39's stale_detail, 'E41 C7a, 02.11.2026, in 1.2.97') does not resolve in this clone, which is shallow (git rev-parse --is-shallow-repository: true); the line numbers it explains were checked, the commit was not.",
+  "The reader's 12 observations carry no severity; two were checked (3 and 5, both stand). The others were not checked one by one; observations 6, 7, 8 and 9 rest on lines this check read for items 26, 27, 18, 23, 44, 21, 35, 36 and 37 and agree with them.",
+  "Items 28, 32, 36, 42, 43, 45 and 46 (open) were not searched for a missed reading beyond the report rows already quoted; the five chosen were 16, 24, 35, 38 and 47.",
+  "Item 31: whether a hand replay of B1, C2 and C3 is what the item's author meant by 'at least sections B and C' cannot be settled from paper; the scenario as written was not run on the sandbox. L1 block: what - scenario 17-assistant's sections B and C on a real v14; recipe - 1. give the sandbox adapter a fifth account (an Assistant GM, role 3) and the page hooks it lacks, 2. run node cluster.mjs scenarios/17-assistant.mjs through it, 3. read B1-B5 and C1-C4; clients - one GM, one Assistant GM, three players; theme - default; settles_if - every check of B and C green settles it read/as-expected, any red is a defect; priority - minor."
+ ]
+}

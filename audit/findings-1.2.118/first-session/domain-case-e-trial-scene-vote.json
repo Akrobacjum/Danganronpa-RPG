@@ -1,0 +1,388 @@
+{
+ "reader": "domain-case-e-trial-scene-vote",
+ "files_read": [
+  {
+   "file": "scripts/trial-scene.mjs",
+   "lines": 1718,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/trial-zones.mjs",
+   "lines": 458,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/trial-zones-ui.mjs",
+   "lines": 564,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/zone-geometry.mjs",
+   "lines": 175,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/zone-machine.mjs",
+   "lines": 428,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/vote.mjs",
+   "lines": 1108,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/verdict.mjs",
+   "lines": 1469,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/anonymity.mjs",
+   "lines": 1054,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/mask-gm.mjs",
+   "lines": 714,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/mastermind.mjs",
+   "lines": 848,
+   "read": "whole"
+  }
+ ],
+ "neighbours_followed": [
+  "scripts/trial-floor.mjs (lines 395-693 FLOOR_OPS, zoneStartInStep, zoneStepInStep, speakerGone, commitFloor; 699-719 postFloorCard; 1660-1834 advanceIfDue, isDue, registerTrialFloor, watchZoneEntry, renderTrialFloor)",
+  "scripts/trial-progress.mjs (lines 440-569: trialProgress, setTrialProgress, RECORD_FIELDS, recordOnPrimary, writeTrialProgressInStep)",
+  "scripts/bridge-table.mjs (rows mask.reveal 285-292, vote.run / vote.cast / vote.ask 1195-1251, trial.side / trial.keyword 1413-1440)",
+  "scripts/voice.mjs (lines 1725-1859: settleTrialVoices, scheduleTrialVoices, registerTrialVoices)",
+  "scripts/settings.mjs (lines 3790-3849: isDeceased, pendingDeath, isDeadForGm, mutedDeadIds, isMutedDead; 1540-1546 enforceAnonymity)",
+  "scripts/murder-rules.mjs (lines 735-797: the opening's resolution, opensMask, maskKiller, settleVeils)",
+  "scripts/utils.mjs (listOf 58-75; ownerIdsOf 657-661; whisperToOwnerOnly / whisperToOwner / whisperToGms / gmReport 730-789)",
+  "scripts/secret.mjs (lines 150-166: which words of a private card are cleaned)",
+  "scripts/ui-kit.mjs (toggle 906-909; drpgWindow 1284-1345)",
+  "scripts/ui-columns.mjs (choiceRowHtml 50-62)",
+  "scripts/action-briefing.mjs (briefingBlock 66-100: the description is escaped)",
+  "scripts/monokuma.mjs (studentActors 77-84, actingStudents 120-123, ownStudent 131-139, ownedStudents 142-144, chooseOwnStudent 160-167)",
+  "scripts/hud.mjs (viewerActor 1436-1460)",
+  "scripts/despair.mjs (poolLabel 235-237; convertDespairToHope and creditHopeFromDespair 786-870)",
+  "scripts/gm-stores.mjs (the rows mastermind 151, ballots 771, verdict 801, masks 1169, veils 1185, diveSets 1696, trialCast 1724)",
+  "scripts/room-setup.mjs (ROOM_SETUP_TABS 378-397) and scripts/season-setup.mjs (1179-1274: where the scenes part is drawn, refused and applied since E101)",
+  "scripts/visibility.mjs (48-80, 324, 618-620) and scripts/voice.mjs (1170-1190): the inline readers of the mask's and the veil's flag",
+  "scripts/eclipse.mjs (416-432, 505-538: veilAtTheLights and lightsJudged)",
+  "scripts/tests-tier2.mjs (17574-17614: the mask's portrait test), audit/harness/scenarios/68-trial-zones.mjs (145-147: trial.side)",
+  "docs/dev/e112/STATUS.md (60-193), docs/dev/e73/STATUS.md (24-25), docs/handbooks/gm-handbook.en.md (1139-1141, 1588-1602), audit/harness/known-leaks.json (rows foundry-masked-token-actor, foundry-veiled-token-actor), lang/en.json (the keys named in the findings)"
+ ],
+ "strengths": [
+  "scripts/vote.mjs:186-213 - a ballot is keyed by the sender Foundry names, judged in the vote's own turn against what the primary holds (round, voter, picks, the list computed for that voter), and kept in the GMs' store only; the world holds the round, who was handed a ballot and the totals",
+  "scripts/vote.mjs:992-1012 - countBallots is pure: more than half of the ballots that went out, for every name the vote asks for, with the tie and the missing majority folded into one answer",
+  "scripts/vote.mjs:567-592 - one participant list (one student a connected player, no Monocub, nobody on the trial's list of the dead) read as the GMs hold the flags, shared by the ballots, the rounds and the zone modes",
+  "scripts/verdict.mjs:230-243 - both verdicts are destructive buttons, Cancel is the first submit button and the default; verdict.mjs:261-263 takes only an object as a verdict",
+  "scripts/verdict.mjs:628-651 - the verdict runs as steps with the record written after each step done, and a stopped verdict has one runner (verdict.mjs:1085-1090); the Blackened a GM named live in the GMs' store only (verdict.mjs:532-539)",
+  "scripts/verdict.mjs:1312-1315 - the Final Trial's record names nobody and holds no outcome before the card; the outcome waits in the GMs' store (verdict.mjs:1326-1333)",
+  "scripts/trial-scene.mjs:456-474 - stagePlan is pure and reads a token as the module's only by its id in the hall's record, so no stage deletes a token a GM placed",
+  "scripts/trial-scene.mjs:1109-1115 - a player's change of a hall token's hidden is put back to what the GMs last wrote, and the write's own option is never read as a pass",
+  "scripts/mastermind.mjs:201-214 and 354-364 - the Mastermind's door is a boolean with stamps, addressed by recipients, answered by the primary alone about the sender Foundry names; nothing of it is world data",
+  "scripts/mastermind.mjs:679-685 and 714 - closing the Mastermind window is null and changes nothing; a deliberate clear is an object with an empty pick",
+  "scripts/zone-machine.mjs:343-428 with scripts/trial-zones.mjs:77-93 - the zone modes are one pure machine; a Logic Dive question's truth and the next question are handed in from the GMs' store in the step and never written to the floor",
+  "scripts/trial-zones.mjs:346-362 - a side picked from the window is judged in the floor's own queue on the primary: a zone mode on the floor, the character taking part, no hall token of theirs",
+  "scripts/anonymity.mjs:115-155 and 201-241 - the redaction fails closed (a throw closes the sheet), disarms by an allow-list, and empties the panes instead of hiding them",
+  "scripts/mask-gm.mjs:135-146 - the names a reader may not read are taken off the tokens every browser holds, so a card posted from a player's browser is cut the same way as a GM's"
+ ],
+ "findings": [
+  {
+   "id": "domain-case-e-trial-scene-vote-1",
+   "domain": "CASE",
+   "severity": "blocker",
+   "category": "leak",
+   "title": "A killer behind a \"?\" is named in every player's Actors list: the mask writes the \"?\" picture onto the Actor and leaves its name, its ownership and its list entry as they were",
+   "where": "scripts/mask-gm.mjs:252 (and :238); scripts/anonymity.mjs:122-126",
+   "what_happens": "A direct murder's opening that succeeds with Hope or is a critical makes the primary GM run maskKiller (murder-rules.mjs:772-774, opensMask at mask-gm.mjs:61-63). It rewrites the killer's tokens and then writes img: MASK_IMG on the killer's Actor document, which every browser holds. The Actor's name and its default ownership are not changed (Observer for every player while 'Keep character sheets anonymous' is on, which is the default: anonymity.mjs:769-777, settings.mjs:1540-1546), and nothing in scripts/ or styles/ draws, filters or hides Foundry's Actors sidebar. So for as long as the mask stands (until the reveal or the end of the time of day) exactly one student in every player's Actors list wears the question mark beside their own name. The same student's sheet is also the only one that shuts when another player opens it (anonymity.mjs:122-126), which names them by trying each entry. Until 1.2.116 (E112 item 2b) the portrait was not written and only the second tell existed.",
+   "evidence": "    for (const { token } of tokensOf(killer)) await token.update(maskPatch()).catch(err => maskFailed(killer, err));\n    // And the portrait (E112 item 2b), after the tokens: the map is what the room looks at.\n    await killer.update({ img: MASK_IMG }).catch(err => error(`Could not mask ${killer.name}'s portrait`, err));\n---\n        if (maskedSheetClosed(actor, game.user)) {\n            if (root) root.style.display = \"none\";\n            app?.close?.({ force: true, animate: false })?.catch?.(() => {});\n            return;",
+   "failure_scenario": "A player whose student is in another room opens the Actors tab in the time of day of the murder, sees one classmate listed with a \"?\" for a picture, and knows the killer before the body is found.",
+   "expected": "Nothing in the interface names the killer while the mask stands. docs/handbooks/gm-handbook.en.md:1139: 'Nobody but the killers is told who it is' and 'A player who reads the browser's console, not the interface, can still tell who is behind the \"?\"'; mask-gm.mjs:30-32 ('it needs a console, not the interface'); audit/harness/known-leaks.json:129 ('nothing in the interface does').",
+   "fix_sketch": "Keep the mask off the Actor document (tokens and the surfaces reached from a masked token only), or make every student's list entry and sheet answer alike while any mask stands.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a guard on another road: git grep for ActorDirectory, renderActorDirectory and the actors tab in scripts/ and styles/ finds nothing; nameAsSeen (mask-gm.mjs:154-158) is used by the module's own pickers only (Palm, Tail, Tamper, handover, Calls, Monocub); ownership is not lowered by the mask. The module itself treats a player's Actors tab as a place a secret can show (anonymity.mjs:771-772, remnants.mjs:994-996, projects-map.mjs:832-836). Looked for a decision: docs/dev/e112/STATUS.md:99-114 lists 'the Actors directory | actor.img | yes, (b)' as a surface where the face is now covered and does not speak of the name beside it; the owner's words quoted there ask for the token's icon and the sheet's portrait to be a question mark, not for a named entry; no paper found accepts it. What is not in this repository is Foundry's own list: that it shows an Observer the thumbnail beside the name and redraws on a change of img is Foundry's behaviour and the handbook's own sentence ('their portrait wears the same picture (the sheet, the actors' list, ...)'), not a reading of v14's source. With the anonymity switch off and default ownership None the other students are not listed for a player, and the tell is gone.",
+   "tests_near": "Tier 2 'E112 - a mask puts its question mark on the killer's portrait as well as the tokens, and gives both back exactly' (tests-tier2.mjs:17574) and R7406 pin actor.img === MASK_IMG while the mask stands, on purpose; 30-security reads the masked token's actorId from a console (known leak foundry-masked-token-actor); 21-masked-killer reads tokens, cards and the veil. None of them reads what a player's Actors list or a second player's sheet attempt shows. LIVE-E112-04 (2) asks whether the list shows the question mark, not whether that names the killer.",
+   "live_check": "v14, a GM and three players, anonymity on: a direct murder, the killer's opening on Hope. On a bystander's browser open the Actors tab: note which entry shows the \"?\" picture and the name beside it; then double-click each student there and note which sheet does not open."
+  },
+  {
+   "id": "domain-case-e-trial-scene-vote-2",
+   "domain": "CASE",
+   "severity": "minor",
+   "category": "flow",
+   "title": "A participant with no hall token picks a side once per zone mode: in a Logic Dive the first question's pick is counted for every later question, and a pick window closed without an answer does not come back",
+   "where": "scripts/trial-zones-ui.mjs:437-441; scripts/zone-machine.mjs:133-136 and :232",
+   "what_happens": "offerSidePick is the only caller of the bridge's trial.side (git grep requestTrialSide: trial-zones-ui.mjs:456 alone). It keys the offer by the mode and the zone's openedAt, sets the key before the window opens and never clears it, and returns when the floor already holds a pick for the student. A Logic Dive's next question is the same floor in a new phase: phase() spreads the zone, so openedAt and picks are carried, and diveQuestion's patch resets the question, the answers, the counts and the set's index only. sidesNow (trial-zones.mjs:62) then reads the old pick as the student's side for question 2 and after, in the count, in the majority and in the unanimity that closes a question early. The machine's pick row would accept a change of side (zone-machine.mjs:389-394 refuses only the same side); no control sends one.",
+   "evidence": "    const key = `${floor.mode}|${zone.openedAt}`;\n    if (pickOpenFor === key) return;\n    const mine = trialParticipants().find(p => p.user.id === game.user.id);\n    if (!mine || hallTokenOf(mine.actor) || zone.picks?.[mine.actor.id]) return;\n    pickOpenFor = key;\n---\n    return { floor: phase(floor, \"vote\", seconds, now, { question, answers, counts: null, set: { ...zone.set, index } }), cards: [...cards, told] };",
+   "failure_scenario": "A player whose student has no token in the hall answers Zone A to the first Logic Dive question, wants Zone B for the second, gets no window, and is counted in Zone A for the rest of the set; or closes the first window by mistake and stands in neither zone until the mode ends.",
+   "expected": "docs/handbooks/gm-handbook.en.md:1596: 'A participant with no token in the hall gets a window to pick a side', and :1602: each Logic Dive question is judged on its own count. A token holder answers each question by moving; the window is the same answer for a student without a token.",
+   "fix_sketch": "Offer the window per question (key it by the set's index or the zone's step and clear the picks in diveQuestion), and keep a control that opens it again while a zone mode holds the floor.",
+   "confidence": "read",
+   "refutation_tried": "Checked for another door to trial.side (HUD, console, events panel): none, requestTrialSide has one caller. Checked that the pick is not cleared elsewhere: phase() and diveQuestion keep it; a page reload offers the window again only while no pick is stored. Checked who is in this case: since E81 the stage makes a token for every ticked student, so it is a student the GMs unticked in the cast picker, one whose token was not made (the store not open at the entry, trial-scene.mjs:574-577, or a failed create), or one whose token was deleted; the window was built for them (docs/dev/e73/STATUS.md:24-25). A related case seen while checking: a participant whose only hall token is a hidden one of the GM's is refused the pick ('their token answers', trial-zones.mjs:356) and cannot see the token to move it.",
+   "tests_near": "Scenario 68-trial-zones (lines 145-147) sends one trial.side from a player's page by the bridge call, not through the window, and plays no second question with a pick standing; R3910 judges diveVerdict on plain counts. Nothing reads the window after the first question.",
+   "live_check": ""
+  },
+  {
+   "id": "domain-case-e-trial-scene-vote-3",
+   "domain": "CASE",
+   "severity": "minor",
+   "category": "ux",
+   "title": "The Logic Dive set editor and the Hall zones window judge the form after they have closed: a refused Save or Start loses what the GM typed, and Start with no set says nothing",
+   "where": "scripts/trial-zones-ui.mjs:221-222 with :139-144; scripts/trial-zones-ui.mjs:321-324 with scripts/trial-zones.mjs:261-272",
+   "what_happens": "editDiveSet's Save button answers the form's values, which closes the window; saveDiveSet then asks setRefusal (a name, 1-5 questions, both answers, a truth for each) and on a refusal only warns and returns null. The set - up to five questions with two answers each - is gone with the window. openZonePicker does the same for a Straw Poll and a Scrum Debate: Start closes the window, startZone asks zoneArgsRefusal and warns ('noAnswers'), and the question, the answers and the thesis have to be typed again. With Logic Dive chosen and no set in the store the Start button closes the window and returns null with no word (the 'Pick a Logic Dive set.' line of DRPG.Zones.noSet is never reached from the window).",
+   "evidence": "    if (!asked || asked === \"cancel\") return null;\n    return saveDiveSet(id, asked);\n---\n    const refused = setRefusal(set);\n    if (refused) {\n        ui.notifications.warn(refused);\n        return null;\n    }\n---\n    if (asked.mode === ZONE_MODES.dive) return asked.setId ? startLogicDive(asked.setId) : null;",
+   "failure_scenario": "A GM types a five-question Logic Dive set, forgets to tick the right answer on one question, presses Save the set, reads 'Mark the right answer of every question.' in a toast and finds the editor closed and the set not saved.",
+   "expected": "A window that cannot be applied holds its button with the reason, as the verdict window does for two accused (verdict.mjs:319-327) and the scenes part does for a clash (trial-scene.mjs:1513-1522), or it stays open with what was typed.",
+   "fix_sketch": "Hold Save and Start off with the refusal's sentence while setRefusal or zoneArgsRefusal refuses (wired on input), and say DRPG.Zones.noSet for a Logic Dive with no set.",
+   "confidence": "read",
+   "refutation_tried": "Read drpgWindow (ui-kit.mjs:1284-1345): it is DialogV2.wait and gives no hook that keeps a window open after a button's callback answered; neither window disables its button on the form's state (the editor's render wires only the names warning, trial-zones-ui.mjs:203-214; the picker's only shows and hides fields, 291-307). The node-planned start (the plan argument) refills the picker only when it is opened from a case node again.",
+   "tests_near": "R6909 reads zoneArgsRefusal's key for the GM who pressed; R6910 reads replayWarning. Neither opens the editor or the picker with a form that is refused; scenario 68 writes its sets and starts through the API.",
+   "live_check": ""
+  },
+  {
+   "id": "domain-case-e-trial-scene-vote-4",
+   "domain": "CASE",
+   "severity": "minor",
+   "category": "bug",
+   "title": "A GM's edit of the Findings writes the whole list it read earlier as an object patch, so a Finding a zone step adds in between is written over",
+   "where": "scripts/trial-zones.mjs:393-397 (callers :415, :427, :438, :449)",
+   "what_happens": "addFinding, editFinding, deleteFinding and confirmFinding each read trialProgress().findings, build a new list and hand it to setTrialProgress as an object ({ findings: list }). On another GM's browser that patch travels to the primary and is spread over the record there (trial-progress.mjs:496, 540-545); on the primary it queues behind any step already in the record's key. The primary's own afterZoneStep adds a Finding with a function patch when a Straw Poll or a Logic Dive ends by its clock (trial-zones.mjs:196-204). If that step lands between the GM's read and the GM's write, the object patch puts the older list back and the new Finding is gone from the record, though its public card was posted.",
+   "evidence": "/** The record's Findings written whole (another GM's write goes to the primary as the record's own patch). */\nasync function writeFindings(list) {\n    const { setTrialProgress } = await import(\"./vote.mjs\");\n    await setTrialProgress({ findings: list });\n}",
+   "failure_scenario": "The second GM presses 'Monokuma confirms' on an old Finding in the second the Straw Poll's clock runs out; the table reads the card 'The class thinks: ...' and the Findings list, the vote's card and the console never show that Finding.",
+   "expected": "trial-progress.mjs:487-489: 'A caller that builds its patch from a record it read earlier - a list it adds to, a vote it closes - passes the function, or a write that landed between its read and its step is written over.'",
+   "fix_sketch": "Send the operation (add, edit, delete, confirm by id) and let the primary apply it to the list its step finds; on the primary pass a function patch.",
+   "confidence": "read",
+   "refutation_tried": "Checked whether findings is outside another GM's patch: RECORD_KEPT (trial-progress.mjs:514) keeps chapter, mutedDead, objections and closing to the primary's steps, findings is not among them. Checked the window: the two writes must fall within one queue turn on the primary, or within one server round trip for another GM; the Findings window is open during zone modes by design (trial-zones-ui.mjs:392-422), so the two can meet, but rarely. Two GMs editing two different Findings at once lose one edit the same way.",
+   "tests_near": "Tier 2 E70-T1 holds two writes of different fields of the record together (the reason the key exists); nothing writes the Findings from two sides at once.",
+   "live_check": ""
+  },
+  {
+   "id": "domain-case-e-trial-scene-vote-5",
+   "domain": "CASE",
+   "severity": "minor",
+   "category": "bug",
+   "title": "The wrong verdict's line to the GMs inserts the told Monocubs' names into the card's HTML unescaped",
+   "where": "scripts/verdict.mjs:1007",
+   "what_happens": "remindOnWrongVerdict pushes a line built with listOf over actor.name into context.lines. listOf does not escape (utils.mjs:58-66 says so), verdictSummaryContent writes each line as <li>${line}</li> (verdict.mjs:823) and the card goes out through whisperToGms. A card a GM's client writes is stored and drawn as written - secret.mjs:158-160 cleans a player's words only. An actor's name is its owner's to write (the sheet's name field; sheet-audit.mjs and resource-guard.mjs hold a module item's name, not an actor's), so markup in a Monocub's name reaches the GMs' chat as markup. Every other name in the verdict's lines and cards is escaped (verdict.mjs:152, 158, 162, 172, 187, 784, 886, 1363-1364).",
+   "evidence": "    if (touched.length) context?.lines?.push(game.i18n.format(\"DRPG.Monocub.wrongVerdictTold\", { names: listOf(touched.map(actor => actor.name)) }));",
+   "failure_scenario": "A dead student's player renames their Monocub to a name holding an <img> tag with a handler; after a wrong verdict the GMs' summary card draws that tag on every GM's browser.",
+   "expected": "Names are escaped where they enter HTML, as the lines beside this one do, and as scenario 30 holds for a player's own words ('XSS: messenger escapes hostile markup at write').",
+   "fix_sketch": "esc() each name before listOf at verdict.mjs:1007.",
+   "confidence": "read",
+   "refutation_tried": "Read listOf, chatCard's caller verdictSummaryContent and secret.mjs's note on which words are cleaned; looked for a hold on an actor's name in sheet-audit.mjs and resource-guard.mjs (ITEM_GUARDED names items only). The road needs a wrong verdict and a Monocub that wrongVerdictTouches names (this case's dead, or a crime witness), so it is a particular situation; whether Foundry's own cleaning of a chat document would catch it does not apply, since the words of a private card never enter the document.",
+   "tests_near": "Tier 2 E72 C7's test (tests-tier2.mjs:19074-19102) reads who was told from the function's answer with ordinary names.",
+   "live_check": ""
+  },
+  {
+   "id": "domain-case-e-trial-scene-vote-6",
+   "domain": "ITEM",
+   "severity": "minor",
+   "category": "bug",
+   "title": "Take from the Body picks the taker by a rule of its own: for a player with two students and none assigned it is the first owned actor in the world's order, not the character the clock, the room tile and the token show",
+   "where": "scripts/anonymity.mjs:583-589 (used at :344 and :503)",
+   "what_happens": "The Take's button sits on the body's sheet, so the taker is inferred: myCharacter answers the only owned character, else game.user.character, else owned[0] - every owned actor of type character, a Spectator among them. Since E51 C4 the viewer everywhere else is monokuma.mjs chooseOwnStudent (hud.mjs:1450-1459): the assigned one, else the only student, else the one whose token the player controls, else the first by name, never a Spectator. For a player with two students and no assigned character the window therefore reads the gate, rolls Hand and sends the request for owned[0], whichever student stands by the body.",
+   "evidence": "function myCharacter() {\n    const owned = game.actors.filter(a =>\n        a.type === \"character\" && a.testUserPermission(game.user, \"OWNER\"));\n    if (owned.length === 1) return owned[0];\n    // Two characters, or none owned: the one they picked, if they picked one.\n    return game.user.character ?? owned[0] ?? null;\n}",
+   "failure_scenario": "A player with two students walks the second one to a body, selects its token, opens the body's sheet and presses Take from the Body: every row is shut with the gate's refusal, because the window asked for the first student, who stands elsewhere.",
+   "expected": "One answer to 'whose character is this screen about' (monokuma.mjs:146-154, hud.mjs:1444-1448: E51 C4 moved the clock, the room tile and the 'Where are we' window onto it for exactly this player).",
+   "fix_sketch": "Take the taker from chooseOwnStudent(ownedStudents(), { assigned, controlled }) as hud.mjs viewerActor does.",
+   "confidence": "read",
+   "refutation_tried": "With one owned student, or with a character assigned in Foundry's user configuration, both rules agree, so the case is the two-student player the vote and E51 already name (vote.mjs:545-550). The GMs' gate judges the request again (inventory.mjs transferRefusal, mode loot), so nothing is taken wrongly: the effect is a Take that cannot be made, or one made for the other student when both stand with the body (the gate is frisk.mjs personActionRefusal through inventory.mjs:1084, not read further). R509 holds the three files E51 moved, not this one.",
+   "tests_near": "R1117 (chooseOwnStudent) and R509 (no other reader of the viewer in hud.mjs, explain.mjs, room-tile.mjs); the loot scenarios (83, 87) and tier 0 hand openBodyLoot its taker.",
+   "live_check": ""
+  },
+  {
+   "id": "domain-case-e-trial-scene-vote-7",
+   "domain": "CASE",
+   "severity": "nit",
+   "category": "perf",
+   "title": "On every player's browser each token refresh walks every token of every scene to ask whether this player is behind a mask",
+   "where": "scripts/mask-gm.mjs:692-695 with :707-709 and :167-173",
+   "what_happens": "registerMasks hooks refreshToken; on a player's browser every call runs noticeOwnMask, which calls myMask: a loop over game.scenes and each scene's tokens reading the mask flag. Foundry fires refreshToken for each token it redraws, so a redraw of n tokens on the viewed scene reads n times the world's token count, whether or not any mask stands - and only the killer's owner ever has an answer other than null. The hook carries no counter of perf-counters.mjs, unlike the other refreshToken hooks (visibility.mjs:58-61, own-ring.mjs:129, remnant-icons.mjs:245, remnant-ring.mjs:131), so scenario 86 and fps() do not see it.",
+   "evidence": "    Hooks.on(\"refreshToken\", token => {\n        drawMaskName(token);\n        if (!game.user?.isGM) noticeOwnMask();\n    });\n---\n    for (const scene of game.scenes ?? []) for (const token of scene.tokens ?? []) {\n        if (isMaskedToken(token) && token.actor?.testUserPermission?.(user, \"OWNER\")) return token.actor;",
+   "failure_scenario": "At a table with 16 students and 30 Remnants on each of three scenes, another player's animated step makes every other browser read about 140 token flags per redrawn token per frame for a question whose answer changes only when a token's flags are written.",
+   "expected": "E88's rule for this hook's neighbours: work on a refresh is counted and kept to the token refreshed (the working rules' row on scenario 86: 'another player's step costs the others that token's refresh alone').",
+   "fix_sketch": "Ask myMask on a token or actor write that carries the mask flag (updateToken, createToken, deleteToken) and at ready, not on refreshToken; count the hook.",
+   "confidence": "read",
+   "refutation_tried": "The loop's body is a flag read and returns at the first masked token the user owns, so each pass is cheap; the cost in milliseconds a frame was not measured (no canvas here) and is stated as a count of reads only. noticeOwnMask returns early only after the scan (mask-gm.mjs:708-709).",
+   "tests_near": "Scenario 86-frame-work counts the counters of perf-counters.mjs; this hook increments none.",
+   "live_check": "On a player's browser at a full table: await game.drpg.fps({ toChat: false }) with and without the refreshToken hook of mask-gm.mjs held off, and compare the slowest twentieth during another player's move."
+  }
+ ],
+ "by_decision": [
+  {
+   "what": "The trial's list of the dead (mutedDead) is in the world's record during a Class Trial and names a death nobody has found.",
+   "source": "scripts/settings.mjs:3821-3830 (the owner's DC19 and TR30 = 2: 'Public on purpose'); known leak TR30"
+  },
+  {
+   "what": "A change of the Mastermind pick sends 'not you' to every other connected player, so every browser hears that a pick changed at that moment.",
+   "source": "scripts/mastermind.mjs:134-141 (E04, the owner's Q3)"
+  },
+  {
+   "what": "Health stays readable on another player's redacted sheet, from any room and for a victim whose body nobody has found; Sanity does not.",
+   "source": "scripts/anonymity.mjs:9-13 (G-44, 27.08) and 627-633 (E24 C1a, the owner's 28.10)"
+  },
+  {
+   "what": "A hall token's hidden is a draw state every browser holds, and nothing rests on a player not knowing who is in the hall.",
+   "source": "scripts/trial-scene.mjs:51-53; known leak foundry-hidden-tokens"
+  },
+  {
+   "what": "A masked or veiled token keeps its actorId and its flag, so a console resolves it to the killer.",
+   "source": "scripts/mask-gm.mjs:30-32 and 392-395; known leaks foundry-masked-token-actor and foundry-veiled-token-actor"
+  },
+  {
+   "what": "With two accused living students the wrong verdict needs at least one tick: there is no 'nobody is executed' and no other student to pick, unlike the one-accused select.",
+   "source": "scripts/verdict.mjs:164-167 and 284-299 (E40, the owner's answer of 16.11.2026)"
+  },
+  {
+   "what": "Every GM press on the Findings (add, edit, delete, confirm) is told on a public card.",
+   "source": "scripts/trial-zones.mjs:383-385 (TR21, TR28 = 1)"
+  },
+  {
+   "what": "A conviction needs more than half of the ballots that went out, silence counted; the dead hold no ballot but can be voted for, and a voter may name themselves or Monokuma.",
+   "source": "scripts/vote.mjs:12-17, 541-557, 973-977 (the guide pp. 31-32, D6); scripts/config.mjs:4415-4428"
+  },
+  {
+   "what": "A ballot window closed without an answer is not handed back by the player's own browser: the player is told to ask the GM, whose window lists who is still out.",
+   "source": "scripts/vote.mjs:855-861; lang/en.json DRPG.Vote.dismissed"
+  },
+  {
+   "what": "A Logic Dive's wrong answer or tie ends the set and shows no truth, though with two answers the wrong one names the right one.",
+   "source": "scripts/zone-machine.mjs:19-23 (TR3 = 2, TR27); docs/handbooks/gm-handbook.en.md:1602"
+  },
+  {
+   "what": "Nobody dies at the verdict: the sentence is carried out when the trial ends, and a verdict given after End the trial is carried out after its card.",
+   "source": "scripts/verdict.mjs:547-553 and 671-680 (E70 C4, the owner's DC36)"
+  },
+  {
+   "what": "At the Final Trial's verdict the Level Ups that waited for the class are handed out, to everybody but a Mastermind sentenced.",
+   "source": "scripts/verdict.mjs:1428-1435 (E05 C11, the owner's Q7 option b)"
+  },
+  {
+   "what": "An unticked student gets no hall token and is not moved after the trial, but still holds a ballot and counts in the zone modes: the tick is about the token.",
+   "source": "lang/en.json DRPG.TrialScene.reveal; scripts/trial-scene.mjs:688-697 (E81 DZ6)"
+  },
+  {
+   "what": "The mask ends at the reveal or the next time of day, not with the incident; it ends before the start-of-day board and before a Class Trial is entered.",
+   "source": "scripts/mask-gm.mjs:27-28 and 298-314; docs/dev/e112/STATUS.md:164-193"
+  }
+ ],
+ "comments_against_code": [
+  {
+   "where": "scripts/anonymity.mjs:578-581",
+   "comment_says": "myCharacter reads the viewer 'By OWNERSHIP first, then by game.user.character - the order hud.mjs settled on'.",
+   "code_does": "hud.mjs:1450-1459 has been monokuma.mjs chooseOwnStudent since E51 C4 (assigned, else the only student, else the controlled token's, else the first by name; no Spectator); anonymity.mjs:583-589 still answers owned[0] of every owned character."
+  },
+  {
+   "where": "scripts/mask-gm.mjs:9-10 and :76",
+   "comment_says": "The primary GM rewrites the killer's tokens 'on every place scene' with 'the texture Foundry's mystery man'; the ring's subject 'wears the mystery man as well'.",
+   "code_does": "tokensOf (mask-gm.mjs:206-210) walks every scene, the hall included, and the picture is the module's own icons/mask-unknown.svg since 1.2.116 (mask-gm.mjs:47-48); the header does not mention that the Actor's portrait is written too (mask-gm.mjs:252)."
+  },
+  {
+   "where": "scripts/vote.mjs:289-290",
+   "comment_says": "'Open the vote. Every player with a living or dead student gets a ballot'.",
+   "code_does": "trialParticipants (vote.mjs:573-583) hands none to the dead while config.mjs:4428 deadCastBallots is false, nor to a Monocub or anybody on the trial's list of the dead."
+  },
+  {
+   "where": "scripts/trial-scene.mjs:124-125, 1199-1213, 1498-1499, 1585-1586, 1666-1673",
+   "comment_says": "The scenes and the cast are 'Room Setup's last tab' (room-setup.mjs ROOM_SETUP_TABS); 'Room Setup opens on it when its scene holds no room'; a change of the hall in a running trial is refused 'as a clash is (vault.mjs, after scenesClash)' and 'Room Setup refuses it first'; applyScenesTab runs 'after Room Setup's own checks passed'.",
+   "code_does": "Room Setup has no Scenes tab since E101 item 5 (room-setup.mjs:395-396); the part is drawn, refused and applied by Season setup (season-setup.mjs:1179, 1192, 1224, 1237, 1274), whose button is Save. Only trial-scene.mjs:1471 says so."
+  },
+  {
+   "where": "docs/handbooks/gm-handbook.en.md:1141",
+   "comment_says": "Unseen until the opening roll: the primary GM 'hides the killer's tokens on every scene with Foundry's hidden'; 'What each token's own hidden was is kept in the GMs' store and written back'; 'Foundry sends hidden to every browser'.",
+   "code_does": "Since E112v (in main at 1.2.118) the veil is one flag and writes no hidden (mask-gm.mjs:423-429); visibility.mjs hides the token by that flag; only a row written by 1.2.116-1.2.117 still holds a hidden to give back (mask-gm.mjs:434-437, 488-498)."
+  },
+  {
+   "where": "scripts/gm-stores.mjs:1176-1181",
+   "comment_says": "A veil's row holds 'tokens each token's { sceneId, tokenId, hidden }, its own hidden before the veil, written back at the end'.",
+   "code_does": "veilActor writes rows { sceneId, tokenId } with hides: 'module' and no hidden (mask-gm.mjs:447-448); liftVeil writes a hidden back only for a row from before E112v (mask-gm.mjs:471-476)."
+  },
+  {
+   "where": "audit/harness/known-leaks.json:129 and docs/handbooks/gm-handbook.en.md:1139",
+   "comment_says": "Of the masked killer: 'the token's name, picture and flags, the cast copies and the module's packets name nobody, and nothing in the interface does'; 'A player who reads the browser's console, not the interface, can still tell'.",
+   "code_does": "Since 1.2.116 mask-gm.mjs:252 writes the question mark onto the Actor's img while its name stands, and anonymity.mjs:122-126 shuts that one actor's sheet for other players (finding 1)."
+  },
+  {
+   "where": "scripts/mastermind.mjs:12-15",
+   "comment_says": "The Mastermind's identity 'lives in a client-scoped setting on GM browsers only, synced GM-to-GM over a socket the server addresses to named recipients'.",
+   "code_does": "It is a GM store since E04 and 'The socket that synced it went with it' (mastermind.mjs:59-64, gm-stores.mjs:151-154); the header's sentence describes the design before 1.2.63."
+  },
+  {
+   "where": "scripts/trial-zones-ui.mjs:5-10",
+   "comment_says": "THE PANEL CONTRACT: 'One row per zone mode: the mode's name key, the console's action that starts it ... and panel'; 'The console reads the row of the mode on the floor'.",
+   "code_does": "The console reads the row's panel only (trial-floor-ui.mjs:1196); the rows' name is read by nothing and start by tier 1 R3905 alone (tests-tier1.mjs:10053)."
+  }
+ ],
+ "hygiene": {
+  "functions_over_300": [],
+  "functions_150_to_300": 1,
+  "duplicated_helpers": [
+   "mask-gm.mjs:188 ownersOf is utils.mjs:658 ownerIdsOf (the players who own an actor, by id), written again",
+   "anonymity.mjs:583 myCharacter beside monokuma.mjs:160 chooseOwnStudent / hud.mjs:1450 viewerActor: two rules for the character a player's screen is about (finding 6)",
+   "anonymity.mjs holds three spellings of one escape: the imported esc (line 55, used at 360-362), foundry.utils.escapeHTML written out (292, 293, 302, 838) and a local escape() (1052-1054); verdict.mjs (108, 314, 779, 1359) and vote.mjs (1080) alias foundry.utils.escapeHTML locally instead of utils.mjs esc",
+   "mask-gm.mjs:578 CARRY_MARK = \"carriedFrom\" repeats call-world.mjs:566 CARRIED_FROM (trial-scene.mjs imports the latter)",
+   "the veil's flag is read inline at visibility.mjs:620 and voice.mjs:1190 beside mask-gm.mjs:402 isVeiledToken, and the mask's at voice.mjs:1175 beside mask-gm.mjs:115 isMaskedToken (each says it avoids an import back)",
+   "mask-gm.mjs:308-314 endMasksBeforeTheBoard and 317-322 masksAtNewTimeOfDay are the same loop behind two gates (any GM after the store's hydration; the primary)",
+   "three readings of a floor's seconds left: trial-zones-ui.mjs:35 leftOn, zone-machine.mjs:123 leftOf, trial-floor.mjs secondsLeft",
+   "trial-zones.mjs:39 storedFloor and trial-zones-ui.mjs:536 read the trialQueue setting themselves beside trial-floor.mjs trialFloor (the first says why: an import cycle)",
+   "zone-geometry.mjs:47-80 boxOf and regionHolds repeat movement.mjs's chain for a point in a region (the comment at 64-65 names it); trial-zones-ui.mjs:487-490 shapePoints is a fourth shape-to-polygon reader beside fog-geometry.mjs",
+   "const SOCKET_EVENT = `module.${MODULE_ID}` is declared in vote.mjs:64 and mastermind.mjs:50 (and in 23 other non-test files) though bridge-wire.mjs:22 exports it"
+  ],
+  "dead_code": [
+   "ZONE_PANELS[mode].name and .start, scripts/trial-zones-ui.mjs:82-86: git grep -a -n ZONE_PANELS -- scripts audit/harness finds one reader of a row, trial-floor-ui.mjs:1196 (.panel); .start is read by tests-tier1.mjs:10053 only, .name by nothing",
+   "export isVeiledToken, scripts/mask-gm.mjs:402: git grep -a -l -w isVeiledToken -- scripts audit/harness macros finds mask-gm.mjs alone (its own adoptToken)",
+   "export MASK_FLAG, scripts/mask-gm.mjs:50: git grep -a -l -w MASK_FLAG finds mask-gm.mjs alone",
+   "castWrite()'s option trialCast, scripts/trial-scene.mjs:182-184: carried by five writes (398, 588, 615, 1136, 1165) and read by no code (git grep -a -n 'trialCast\\b' -- scripts finds tests and comments); the comment calls it 'a mark to read in a log' and nothing logs it",
+   "vote.openedAt, scripts/vote.mjs:458: written at every open, read by nothing (the comment at vote.mjs:454-455 says the same; git grep 'vote\\.openedAt' finds no reader)",
+   "applyVerdict's single-id parameters executedId and blackenedId, scripts/verdict.mjs:481, 511, 514: git grep -a -w executedId -- scripts macros finds verdict.mjs alone",
+   "VERDICT_STEP_LABELS.executions, scripts/verdict.mjs:589: no step of that name since 1.2.90, kept for an older record's stopped steps (the comment at 587 says so)",
+   "exports read by the suite alone, each said so where it stands: vote.mjs standInOpenAtLoad (727), ballotInRound (769); trial-scene.mjs trialExitHeld (177)"
+  ],
+  "magic_numbers": [
+   "zone-machine.mjs repeats config.mjs:4392-4395 as fallbacks: || 45 and || 60 and || 45 (158-159), || 5 (196), || 60 (227), || 120 (306), || 10 (356), || 300, || 20, || 40 (101), || 200 (113); trial-zones.mjs:105 repeats || 10",
+   "a Finding's length, three times an answer's, has no config key and is written five times: trial-zones.mjs:412 and 425, zone-machine.mjs:215, trial-zones-ui.mjs:198 and 384",
+   "trial-zones-ui.mjs:197 maxlength=\"80\" for a set's name; :128 and :188 || 5 for the questions of a set",
+   "zone-geometry.mjs:126 COVERAGE = { gridlessStep: 50, budgetMs: 200 } and :143 samples % 256: a time budget outside config.mjs TIMING",
+   "trial-zones-ui.mjs:546 setTimeout(..., 260) with alpha 0.3 (545) and 0.9 (513); line width size / 20 with a floor of 3 (513); font size / 3 with a floor of 18 and stroke 4 (517-518); colours #e8e1d0 (471-473) and 0x1a1620 (518)",
+   "anonymity.mjs:75 setTimeout(() => lowerOwnership(...), 500) after the ownership window closes",
+   "trial-zones.mjs:182 randomID(10) for a Finding and trial-zones-ui.mjs:145 randomID(12) for a set",
+   "mastermind.mjs:525 an inline style width:4em on the amount stepper"
+  ]
+ },
+ "hints_for_other_passes": {
+  "dead_controls": [
+   "Hall zones window (openZonePicker), Start with Logic Dive chosen and no set in the store, scripts/trial-zones-ui.mjs:322: the window closes, nothing starts and nothing is said",
+   "Logic Dive set editor, Save set, scripts/trial-zones-ui.mjs:216 and 221-222: closes the window before the set is judged; a refused set is not saved and its text is gone (finding 3)",
+   "Hall zones window, Start for a Straw Poll or a Scrum Debate with an answer missing, scripts/trial-zones-ui.mjs:323-324 and trial-zones.mjs:268-272: closes the window, warns, and the typed question is gone",
+   "Side-pick window on a player's browser, scripts/trial-zones-ui.mjs:437-454: offered once per zone mode; closed without an answer it does not come back, and after a pick there is no control to change sides (finding 2)",
+   "Logic Dive sets list, New, scripts/trial-zones-ui.mjs:357-361: closes the list to open the editor and the list does not come back after Save",
+   "Findings window, Add, scripts/trial-zones-ui.mjs:415-421: closes the window to ask the words and does not reopen it",
+   "Final Trial verdict window, 'They named the Mastermind', scripts/verdict.mjs:1239-1240: drawn disabled when the Mastermind is already dead; the reason is the info box above it, not on the button"
+  ],
+  "stale_windows": [
+   "Hall zones window: the set select and each set's replay warning are drawn once (scripts/trial-zones-ui.mjs:241-271, 290); a set made or changed through its own 'Logic Dive sets...' button (305) or by another GM (diveSetStore) is not shown until the window is opened again",
+   "Logic Dive sets list: redrawn only after its own Edit or Delete click (scripts/trial-zones-ui.mjs:347-354); another GM's save or delete and a set's usedAt/endedAt written by a running dive (trial-zones.mjs:206-216, 320) are not followed",
+   "Findings window: redrawn only after its own click (scripts/trial-zones-ui.mjs:401-413); a Finding a zone step or another GM adds to the trial's record is not followed",
+   "Ballot window on a player's browser: nothing closes it when the vote is closed and counted; only a newer ballot does (scripts/vote.mjs:815-818). Cast then says the vote has moved on; closing it says 'no vote counts for you ... ask the GM to send it again' after the count",
+   "Side-pick window on a player's browser: stays open when the zone mode ends (scripts/trial-zones-ui.mjs:443-457); a press then is refused by the bridge",
+   "'Stay hidden?' window on the killer's browser: stays open when the mask ends at the time of day (scripts/mask-gm.mjs:635-648); Reveal then is refused ('that character is not hidden')",
+   "Verdict window: the dead, the deaths only the GMs hold, the accused and the known Blackened are read once at the open (scripts/verdict.mjs:100-146); a vote counted, a death published or another GM's verdict while it stands open is not drawn (the lock refuses a second verdict at the press)",
+   "Mastermind window: the who and lair selects are drawn once (scripts/mastermind.mjs:609-638); only the Hope box is live (700-706), so another GM's pick or lair (mastermindStore) is not shown, and Give credits the actor captured at the open (532-551)",
+   "The cast picker in Season setup's scenes part and in the Start window: ticks and the 'your token' notes are drawn once (scripts/trial-scene.mjs:1301-1324); the scenes part's warnings follow its own selects only (1513-1522), not a token placed or deleted in the hall, a region changed, or another GM's ticks (trialCastStore)",
+   "Take from the Body window: its rows are greyed again on a token's move, the clock, an announcement and the body's tile (scripts/anonymity.mjs:85-106, 483-489), but the list of items is the body's at the open (353-358): an item somebody else took stays listed until the window is opened again",
+   "The on-screen anonymity audit: redrawn only by its own 'Set them to Observer' (scripts/anonymity.mjs:1028-1029)"
+  ]
+ },
+ "not_established": [
+  "Finding 1's last step is Foundry's own Actors list: that v14 shows an Observer the thumbnail beside the name and redraws it when img changes was not read in Foundry's source (not in this repository). The live recipe in the finding settles it; LIVE-E112-04 (2) already asks a table to look at that list.",
+  "Whether every road in eclipse.mjs between veilAtTheLights (eclipse.mjs:427) and the finally that calls lightsJudged (eclipse.mjs:531-537) reaches that finally was not read (the function was not read whole). An early return between them would leave mask-gm.mjs's lightsJudging true for the page's life, and settleVeilsNow keeps every row of 'lights' while it is (mask-gm.mjs:535-538).",
+  "returnTheLiving waits on trialCastStore.whenHydrated() with no bound (trial-scene.mjs:786), where stageHall waits through answerKeysOpen (trial-scene.mjs:574). Whether a store whose open threw leaves End the trial's gather and its whisper waiting for good depends on gm-store.mjs whenHydrated, which was not read.",
+  "A GM who is not the primary can end the masks (endMasksBeforeTheBoard is gated on isGM, mask-gm.mjs:308-314), and settleBlock answers null off the primary (331-335). Whether the killer's microphone is then given back at once depends on the store's exchange reaching the primary before its own settle 250 ms after the clock's write (voice.mjs:1840-1857); not established.",
+  "diveStartEvent marks the set played (usedAt) before zoneStartInStep judges the start (trial-floor.mjs:425-429, trial-zones.mjs:317-322). Whether a start the primary refuses after the asking GM's checks passed happens at a table (the floor moving in between) was not established; if it does, the set reads 'started and never finished'.",
+  "The cost in frame time of finding 7 was not measured: no canvas here, and the hook has no counter.",
+  "What RegionDocument#tokens holds on v14 for a token on the line or at another elevation (zone-geometry.mjs:106-115) is LIVE-E73-01 and was not read."
+ ]
+}

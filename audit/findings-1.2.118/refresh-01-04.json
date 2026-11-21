@@ -1,0 +1,1855 @@
+{
+ "reader": "refresh-01-04",
+ "checkout": "claude/audit-119 (code as main b5a29e73, 1.2.118)",
+ "read": [
+  {
+   "file": "scripts/live.mjs",
+   "lines": "1-920 (whole)",
+   "how": "keepLive, listenFor, isEditing, capture/restore, keepFresh: what wakes a region and the focus rule"
+  },
+  {
+   "file": "scripts/trial-floor-ui.mjs",
+   "lines": "150-640, 700-860, 900-1300, 1344-1380, 1540-1830, 1925-2045",
+   "how": "the console's readTrial, its builders, keepLive and tick; the start, round, debate, end, closing-pick, reveal and vote windows"
+  },
+  {
+   "file": "scripts/case-trial.mjs",
+   "lines": "1-157 (whole)",
+   "how": "the schema slot's keepLive and trialSchemaState"
+  },
+  {
+   "file": "scripts/case-schema.mjs",
+   "lines": "369-405",
+   "how": "caseGraph's reads (ledger, Key plan store, case store)"
+  },
+  {
+   "file": "scripts/case-hints.mjs",
+   "lines": "51-66",
+   "how": "casePresentations (chat messages, answer keys)"
+  },
+  {
+   "file": "scripts/trial.mjs",
+   "lines": "145-240, 962-971, 1370-1500, 1520-1711",
+   "how": "Present, the Objection's target and Truth Bullet picker, Re-point, the evidence log and its keepLive"
+  },
+  {
+   "file": "scripts/trial-prompt.mjs",
+   "lines": "60-279",
+   "how": "the prompts' openers, their 500 ms watches and the floor hooks"
+  },
+  {
+   "file": "scripts/hud.mjs",
+   "lines": "165-260, 1490-1560",
+   "how": "the HUD's redraw hooks and objectionControl"
+  },
+  {
+   "file": "scripts/trial-zones-ui.mjs",
+   "lines": "138-470",
+   "how": "set editor, picker, sets list, Findings, side pick: what each draws and whether anything redraws it"
+  },
+  {
+   "file": "scripts/trial-zones.mjs",
+   "lines": "185-205, 385-450",
+   "how": "where a Finding is written (trial record)"
+  },
+  {
+   "file": "scripts/zone-machine.mjs",
+   "lines": "1-30, 133-260",
+   "how": "a Logic Dive's next question, zone.openedAt kept across questions"
+  },
+  {
+   "file": "scripts/vote.mjs",
+   "lines": "100-260, 560-730, 770-960",
+   "how": "ballot window, trialParticipants, pendingVoters, voteBar, ballotCopyStatus"
+  },
+  {
+   "file": "scripts/verdict.mjs",
+   "lines": "60-200, 455-505",
+   "how": "the verdict window read once, verdictRefusal re-asked at apply"
+  },
+  {
+   "file": "scripts/mastermind.mjs",
+   "lines": "40-110, 236-260, 510-720, 830-848",
+   "how": "the Mastermind window, its keepLive, applyMastermindChoice; inFinalTrial"
+  },
+  {
+   "file": "scripts/trial-scene.mjs",
+   "lines": "1470-1540, 1600-1718",
+   "how": "Season setup's scenes part, scenesTabWrites, applyScenesTab"
+  },
+  {
+   "file": "scripts/season-setup.mjs",
+   "lines": "grep for keepLive/keepFresh/Hooks.on (none)",
+   "how": "whether Season setup redraws anything"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "lines": "300-360, 1030-1240, 2206-2460",
+   "how": "the dashboard's builders, keepLive watch, keepFresh, findersByAnyRemnant"
+  },
+  {
+   "file": "scripts/truth-bullets.mjs",
+   "lines": "182-196, 700-800",
+   "how": "secretOf reads bulletStore; createTruthBullet writes the item before the key"
+  },
+  {
+   "file": "scripts/remnants.mjs",
+   "lines": "1870-1885, 1930-1945, 3230-3251",
+   "how": "remnantData and remnantsOn read the ledger and the tokens; deleteToken tombstones the row"
+  },
+  {
+   "file": "scripts/key-remnants.mjs",
+   "lines": "60-90, 420-436, 545-577, 715-800, 1110-1135, 1255-1300",
+   "how": "missingKeyRows, keyRevealRecord, the held fee card, Key windows"
+  },
+  {
+   "file": "scripts/case-realize.mjs",
+   "lines": "60-281",
+   "how": "preview, undo, ask at body"
+  },
+  {
+   "file": "scripts/case-summary.mjs",
+   "lines": "50-126",
+   "how": "the summary preview and Send"
+  },
+  {
+   "file": "scripts/messenger-app.mjs",
+   "lines": "270-400, 486-680, 720-800",
+   "how": "Note tab refreshNote, bubble replace on drpgMessengerEdited, wireCallActions"
+  },
+  {
+   "file": "scripts/messenger.mjs",
+   "lines": "320-395",
+   "how": "updateChatMessage -> drpgMessengerEdited"
+  },
+  {
+   "file": "scripts/observe.mjs",
+   "lines": "595-640, 1170-1230",
+   "how": "the GM's picker and the find's description"
+  },
+  {
+   "file": "scripts/frisk.mjs",
+   "lines": "1060-1200",
+   "how": "the target's window, withdraw and clock, force question"
+  },
+  {
+   "file": "scripts/remnant-ring.mjs",
+   "lines": "190-320, 380-455",
+   "how": "Remnant cards and their keepLive"
+  },
+  {
+   "file": "scripts/sheet.mjs",
+   "lines": "70-90",
+   "how": "Present's repaint hook"
+  },
+  {
+   "file": "scripts/sheet-inventory.mjs",
+   "lines": "930-975",
+   "how": "Present button paint"
+  },
+  {
+   "file": "scripts/sheet-mode.mjs",
+   "lines": "60-100",
+   "how": "presentShown by phase"
+  },
+  {
+   "file": "scripts/sync.mjs",
+   "lines": "grep 'sheets', 400-515",
+   "how": "refreshSheets on the clock's kinds"
+  },
+  {
+   "file": "scripts/gm-items.mjs",
+   "lines": "120-175, 1469-1500, 1619-1705",
+   "how": "Give a Truth Bullet, Issue Autopsy"
+  },
+  {
+   "file": "scripts/settings.mjs",
+   "lines": "3831-3866",
+   "how": "mutedDeadIds, deathRecordFor"
+  },
+  {
+   "file": "scripts/sheet-audit.mjs",
+   "lines": "840-847",
+   "how": "flagsHeldNow"
+  },
+  {
+   "file": "scripts/gm-stores.mjs",
+   "lines": "grep defineGmStore",
+   "how": "the stores' names"
+  },
+  {
+   "file": "audit/findings-1.2.118/controls-01..04*.json",
+   "lines": "whole",
+   "how": "the 77 surfaces and their stale_state findings"
+  }
+ ],
+ "surfaces": [
+  {
+   "surface": "the Class Trial console - 'Class Trial'",
+   "file": "scripts/trial-floor-ui.mjs",
+   "from": "controls-01",
+   "refresh": {
+    "reads": [
+     "world settings trialQueue (trialFloor), clock (phase, chapter, finalTrial: mastermind.mjs:836-838), trialProgress (vote, verdict, findings, closing, topic, mutedDead) - trial-floor-ui.mjs:727-779",
+     "GM store mastermindStore via mastermindActor - trial-floor-ui.mjs:738, mastermind.mjs:244-248",
+     "GM store ballotStore via pendingVoters/voteBar - vote.mjs:637-675, 735-738",
+     "actors: trialParticipants (ownership, Monocub and not-in-class flags, sheetMarkStore via flagsHeldNow) - vote.mjs:567-592",
+     "GM stores blackenedStore, deathStore; actor death flag - trial-floor-ui.mjs:750-757, settings.mjs:3859-3865",
+     "GM store closingClaimStore (the Closing's row) - trial-floor-ui.mjs:926-930",
+     "GM store keyPlanStore, the trace ledger (remnantStore), trace tokens and Truth Bullets with their keys (missingKeyRows, keyRevealRecord) - trial-floor-ui.mjs:1015-1030, key-remnants.mjs:69-75, 545-577",
+     "setting sceneRoles and the active scene (tableDoor) - trial-floor-ui.mjs:764-767, rooms.mjs:172-178",
+     "users (verdict runner, connected) - trial-floor-ui.mjs:745"
+    ],
+    "listens": [
+     "live.mjs:304-352 listenFor: updateSetting of every module key (no `settings` filter), drpgTimeOfDayChanged, drpgEclipseChanged, drpgPhaseChanged",
+     "hooks drpgBallotsChanged, userConnected, updateScene; stores blackenedStore, deathStore (clientSettingChanged) - trial-floor-ui.mjs:1674",
+     "a forced rebuild every second while a floor is open, unless a pointer is down on the bar - trial-floor-ui.mjs:1785-1797",
+     "the footer through liveFooter in `after`; a change of trialSignature closes and reopens the window - trial-floor-ui.mjs:1675-1705"
+    ],
+    "verdict": "partial",
+    "gaps": [
+     "mastermindStore not heard: a Mastermind picked in Season setup or the Mastermind window leaves Start the Final Trial greyed (already filed: controls-01-trial-console-5)",
+     "keyPlanStore, the ledger, trace tokens and Truth Bullet items/keys not heard: with no floor open the Reveal list and 'Left to reveal' follow none of them - another GM's Key plan write, a Key placed or found, a Reveal (extends controls-01-trial-console-6; refresh-01-04-3)",
+     "actors not heard: a student's owner or Monocub / not-in-the-class flag changed by another GM leaves the vote's 'still out' line as it was until the next ballot or setting (refresh-01-04-12)",
+     "closingClaimStore not heard, covered by the one-second tick while the Closing holds the floor (the row is drawn only then)"
+    ],
+    "focus_rule": "The region holds no field (only buttons), so rule 1 never defers it; the one-second tick calls live.refresh(), which forces the rebuild (live.mjs:293) and waits only while a pointer is pressed on the bar (trial-floor-ui.mjs:1786-1797)."
+   }
+  },
+  {
+   "surface": "the case schema in the console's slot - 'Case schema'",
+   "file": "scripts/case-trial.mjs",
+   "from": "controls-01",
+   "refresh": {
+    "reads": [
+     "GM stores caseSchemaStore, caseTickStore, keyPlanStore (caseGraph, caseTicks) - case-trial.mjs:56-66, case-schema.mjs:369-391",
+     "the trace ledger (remnantStore) and the trace tokens of every scene (remnantsOn -> readRemnantLedger) - case-schema.mjs:372-378, remnants.mjs:3248-3251",
+     "chat messages flagged present, and the answer keys (bulletStore) of their items - case-hints.mjs:51-66",
+     "settings trialQueue (floorOpen), clock (phase), murderState and blackenedStore (caseCulprit) - case-trial.mjs:60-66"
+    ],
+    "listens": [
+     "keepLive on .drpg-case-trial-live: items; settings trialQueue, clock, murderState, trialProgress; stores caseTickStore, caseSchemaStore, keyPlanStore, blackenedStore; hooks createChatMessage, updateChatMessage, deleteChatMessage - case-trial.mjs:121-127",
+     "the world hooks every keepLive adds - live.mjs:69, 305-313"
+    ],
+    "verdict": "partial",
+    "gaps": [
+     "remnantStore not heard and tokens not watched: a trace placed during the trial, or an unfound trace whose name or words a GM changes on its Remnant card (no Truth Bullet copy, so no item write), leaves the evidence node's label as drawn until another source fires (refresh-01-04-13)",
+     "the chapter is fixed at mount (case-trial.mjs:139), which is right: the console closes at the chapter's end (trial-floor-ui.mjs:1810-1827)"
+    ],
+    "focus_rule": "The schema region holds buttons only (ticks, starts, the camera's), so rule 1 does not hold it; a press on a tile holds it until release (live.mjs:254-262)."
+   }
+  },
+  {
+   "surface": "the Start question - 'Start the Class Trial'",
+   "file": "scripts/trial-floor-ui.mjs",
+   "from": "controls-01",
+   "refresh": {
+    "reads": [
+     "what the question says, read at its opening"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot question (startClassTrial:153), asked and closed; its answer goes to a road that reads the world again"
+    ],
+    "focus_rule": "n/a: no redraw"
+   }
+  },
+  {
+   "surface": "the second trial's question - 'Open a new trial'",
+   "file": "scripts/trial-floor-ui.mjs",
+   "from": "controls-01",
+   "refresh": {
+    "reads": [
+     "what the question says, read at its opening"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot question (confirmNewTrial:234), asked and closed; its answer goes to a road that reads the world again"
+    ],
+    "focus_rule": "n/a: no redraw"
+   }
+  },
+  {
+   "surface": "the open incident's question - 'An incident is still open'",
+   "file": "scripts/trial-floor-ui.mjs",
+   "from": "controls-01",
+   "refresh": {
+    "reads": [
+     "what the question says, read at its opening"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot question (incidentClosedFirst:269), asked and closed; its answer goes to a road that reads the world again"
+    ],
+    "focus_rule": "n/a: no redraw"
+   }
+  },
+  {
+   "surface": "the debate's start window - 'Open the debate'",
+   "file": "scripts/trial-floor-ui.mjs",
+   "from": "controls-01",
+   "refresh": {
+    "reads": [
+     "the remembered budget (trialProgress.seconds) - trial-floor-ui.mjs:330-345"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot form (seconds and question typed by the GM), asked and closed; startFloor judges the floor at the answer (trial-floor-ui.mjs:368)"
+    ],
+    "focus_rule": "n/a: no redraw; the typed fields are the GM's own"
+   }
+  },
+  {
+   "surface": "the round's start window - 'Testimony' / 'Panic Round'",
+   "file": "scripts/trial-floor-ui.mjs",
+   "from": "controls-01",
+   "refresh": {
+    "reads": [
+     "trialParticipants at the opening (actors, users connected) - trial-floor-ui.mjs:384-399"
+    ],
+    "listens": [
+     "none (its own input listener repaints the round's length only - :415-419)"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot form, asked and closed; the order drawn is the GM's input. Note: a participant who connects, leaves or dies while it stands is not added to or taken off the list; the primary freezes the participants itself at the start (trial-floor-ui.mjs:384-387 comment)"
+    ],
+    "focus_rule": "n/a: no redraw"
+   }
+  },
+  {
+   "surface": "End the trial's question - 'End the trial'",
+   "file": "scripts/trial-floor-ui.mjs",
+   "from": "controls-01",
+   "refresh": {
+    "reads": [
+     "the room list of place scenes (placeRoomOptions) - trial-floor-ui.mjs:597-620"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot question (askTrialEnd:584, askTrialExit:602)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "the Closing's pick window - 'Closing Argument'",
+   "file": "scripts/trial-floor-ui.mjs",
+   "from": "controls-01",
+   "refresh": {
+    "reads": [
+     "closingClaimStore volunteers, trialProgress.closing.speakers, trialParticipants - trial-floor-ui.mjs:982-994"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot pick, opened in the Closing's choice phase after the volunteers' window has closed (trial-floor-ui.mjs:947-962), so the marks it prints no longer move"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "the Reveal's confirmation - 'Monokuma's Reveal'",
+   "file": "scripts/trial-floor-ui.mjs",
+   "from": "controls-01",
+   "refresh": {
+    "reads": [
+     "the row as missingKeys gave it, revealLeft - trial-floor-ui.mjs:1041-1056"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot question; revealMissingKey is judged again on the primary (trial-modes.mjs:394-400 revealRefusal)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "the vote window - 'The vote'",
+   "file": "scripts/trial-floor-ui.mjs",
+   "from": "controls-01",
+   "refresh": {
+    "reads": [
+     "setting trialProgress (vote round, open, voteLead via trialStepView) - trial-floor-ui.mjs:1945-1968",
+     "GM store ballotStore (pendingVoters, voteBar, ballotCopyStatus, votesIn) - vote.mjs:617-717",
+     "actors and users: trialParticipants / ballotRecipients (ownership, connected, Monocub flag, sheetMarkStore) - vote.mjs:567-592, 653-656"
+    ],
+    "listens": [
+     "live.mjs:304-352 listenFor: updateSetting of every module key (no `settings` filter), drpgTimeOfDayChanged, drpgEclipseChanged, drpgPhaseChanged",
+     "keepLive on .drpg-vote-status: hooks drpgBallotsChanged, userConnected - trial-floor-ui.mjs:1984-1993",
+     "drpgBallotsChanged fired by the primary's record and by the store's onChange on a merge - vote.mjs:208, 253, settings.mjs:2219-2227",
+     "the footer by liveFooter in `after` - trial-floor-ui.mjs:1988-1992"
+    ],
+    "verdict": "partial",
+    "gaps": [
+     "actors and sheetMarkStore not heard: a student whose owner or Monocub / not-in-the-class flag changes while the window stands keeps their place in 'Send the ballots would hand one to' and 'still out' until a ballot or a setting moves (refresh-01-04-12)"
+    ],
+    "focus_rule": "The region holds no field; rule 1 does not apply to it."
+   }
+  },
+  {
+   "surface": "the Re-point window - 'Re-point'",
+   "file": "scripts/trial.mjs",
+   "from": "controls-01",
+   "refresh": {
+    "reads": [
+     "floor's holder and target, trialParticipants, livingStudentsForGm - trial.mjs:1520-1545"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot pick; requestRepoint is judged on the primary against the floor then (trial.mjs:1553-1555)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "the Objections window - 'Trial evidence log'",
+   "file": "scripts/trial.mjs",
+   "from": "controls-01",
+   "refresh": {
+    "reads": [
+     "chat messages flagged present - trial.mjs:1574-1610",
+     "setting trialProgress (objectionRecord receipts, Overrule) - trial.mjs:962-971",
+     "setting trialQueue (overruleTarget) - trial.mjs:1638-1641"
+    ],
+    "listens": [
+     "live.mjs:304-352 listenFor: updateSetting of every module key (no `settings` filter), drpgTimeOfDayChanged, drpgEclipseChanged, drpgPhaseChanged",
+     "keepLive on .drpg-objection-live: hooks createChatMessage, deleteChatMessage, updateChatMessage - trial.mjs:1703-1707"
+    ],
+    "verdict": "live",
+    "gaps": [],
+    "focus_rule": "The region holds a table and Overrule buttons, no field; rule 1 does not apply."
+   }
+  },
+  {
+   "surface": "the Present window - 'Present {name}'",
+   "file": "scripts/trial.mjs",
+   "from": "controls-01",
+   "refresh": {
+    "reads": [
+     "the floor's presentRefusal and the actor's bullets at the opening - trial.mjs:180-195"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a player's one-shot question; the primary judges the Present at the answer"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "the Objection's target question - 'OBJECTION!'",
+   "file": "scripts/trial.mjs",
+   "from": "controls-01",
+   "refresh": {
+    "reads": [
+     "trialParticipants, livingStudents, the floor's pair - trial.mjs:1380-1386"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot pick, judged on the primary (trial-floor.mjs targetRefusal)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "the Objection's Truth Bullet picker - 'OBJECTION! Choose your Truth Bullet'",
+   "file": "scripts/trial.mjs",
+   "from": "controls-01",
+   "refresh": {
+    "reads": [
+     "the floor (pendingFor, msLeft) every 500 ms - trial.mjs:1422-1427, 1462-1471",
+     "the actor's Truth Bullets at the opening - trial.mjs:1423"
+    ],
+    "listens": [
+     "its own 500 ms interval: the count line rewritten and the window closed once the floor stops waiting for this card - trial.mjs:1462-1471"
+    ],
+    "verdict": "live",
+    "gaps": [
+     "the bullet list is read once (trial.mjs:1423); a bullet arriving in the 15 s window is not listed - not a value shown wrong, a choice not offered; not a finding"
+    ],
+    "focus_rule": "The interval writes only the count's <p> (textContent) and never touches the select or the comment; nothing waits for focus."
+   }
+  },
+  {
+   "surface": "the speaker's prompt - 'Your turn ({seconds} s)'",
+   "file": "scripts/trial-prompt.mjs",
+   "from": "controls-01",
+   "refresh": {
+    "reads": [
+     "the floor at the opening: turnKey, seconds (floor.seconds, or secondsLeft in the Closing), passLine - trial-prompt.mjs:173-200",
+     "the floor every 500 ms (turnKey only) - :201-206"
+    ],
+    "listens": [
+     "updateSetting of trialQueue -> renderTrialPrompt -> a one-second tick that opens the prompt - trial-prompt.mjs:244-279",
+     "the window's own 500 ms watch, which closes it when the turn changes - :201-206"
+    ],
+    "verdict": "partial",
+    "gaps": [
+     "the seconds in the title are drawn once and never counted; a GM's +30 s / -30 s (floor-machine adjust, trial-floor.mjs:1309-1345, which moves startedAt) does not reach them (refresh-01-04-10)",
+     "createSetting of trialQueue not heard: the floor's first write in a world opens no prompt (already filed, suspected: controls-01-trial-console-4)"
+    ],
+    "focus_rule": "No field; the watch reads the floor only to close the window."
+   }
+  },
+  {
+   "surface": "the Scrum speaker's line - 'Your thesis'",
+   "file": "scripts/trial-prompt.mjs",
+   "from": "controls-01",
+   "refresh": {
+    "reads": [
+     "nothing of the world"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot field, asked and closed (trial-prompt.mjs:108-127); the primary judges the line"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "the volunteers' question - 'Closing Argument' (I'll sum up?)",
+   "file": "scripts/trial-prompt.mjs",
+   "from": "controls-01",
+   "refresh": {
+    "reads": [
+     "the floor at the opening: secondsLeft for the body - trial-prompt.mjs:152",
+     "the floor every 500 ms (the volunteers' key) - :154-160"
+    ],
+    "listens": [
+     "the prompt tick (trial-prompt.mjs:217-231) and the window's 500 ms watch, which closes it once the volunteers' window is over - :154-160"
+    ],
+    "verdict": "partial",
+    "gaps": [
+     "the body's '{seconds}' is the count at the opening and is never counted down (refresh-01-04-10)",
+     "createSetting gap as above (controls-01-trial-console-4)"
+    ],
+    "focus_rule": "No field."
+   }
+  },
+  {
+   "surface": "OBJECTION! on the trial bar and the voice tile",
+   "file": "scripts/hud.mjs",
+   "from": "controls-01",
+   "refresh": {
+    "reads": [
+     "setting trialQueue (held), clock phase, trialProgress.mutedDead, the viewer's sheet mode - hud.mjs:1511-1530",
+     "objectionButtonState on pointerenter (the Room's preview) - hud.mjs:1548-1556"
+    ],
+    "listens": [
+     "renderHud on updateSetting of every module key not on the sync bus, and the sync bus's own HUD redraw for the ones that are - hud.mjs:231-236, sync.mjs:409",
+     "canvasReady - hud.mjs:189"
+    ],
+    "verdict": "live",
+    "gaps": [
+     "the preview (whom it would be aimed at) is read on hover, by design (hud.mjs:1549-1556); not a gap of what is drawn"
+    ],
+    "focus_rule": "No field; the button keeps its node while its key is unchanged (hud.mjs:1532-1535)."
+   }
+  },
+  {
+   "surface": "Hall zones window (the zone picker): 'Hall zones'",
+   "file": "scripts/trial-zones-ui.mjs",
+   "from": "controls-02",
+   "refresh": {
+    "reads": [
+     "GM store diveSetStore (the set list, each set's replay warning) - trial-zones-ui.mjs:241-262, 287-290",
+     "zoneStartRefusal (floor, hall's zones) at the opening only - :282-286"
+    ],
+    "listens": [
+     "none: the render hook wires change and the sets button only - trial-zones-ui.mjs:291-306"
+    ],
+    "verdict": "stale",
+    "gaps": [
+     "diveSetStore not heard: a set made, changed or deleted through the picker's own 'Logic Dive sets...' or by another GM is not in the picker (already filed: controls-02-trial-zones-verdict-5)",
+     "the floor: another GM starting a mode while the picker stands leaves Start pressable; startStrawPoll and the rest are refused on the primary"
+    ],
+    "focus_rule": "No redraw at all, so nothing waits for focus."
+   }
+  },
+  {
+   "surface": "Logic Dive sets (the list): 'Logic Dive sets'",
+   "file": "scripts/trial-zones-ui.mjs",
+   "from": "controls-02",
+   "refresh": {
+    "reads": [
+     "GM store diveSetStore (names, question counts, replayWarning from usedAt/endedAt/outcome) - trial-zones-ui.mjs:331-339"
+    ],
+    "listens": [
+     "none from the world; the list is redrawn after its own Edit or Delete only - trial-zones-ui.mjs:343-354"
+    ],
+    "verdict": "stale",
+    "gaps": [
+     "diveSetStore not heard: another GM's set, or the replay line a Logic Dive's end writes into the store (trial-zones.mjs:188), is not shown until the window is opened again (refresh-01-04-5)"
+    ],
+    "focus_rule": "No field in the list; nothing waits for focus."
+   }
+  },
+  {
+   "surface": "Logic Dive set editor: 'New Logic Dive set' / 'Edit a Logic Dive set'",
+   "file": "scripts/trial-zones-ui.mjs",
+   "from": "controls-02",
+   "refresh": {
+    "reads": [
+     "diveSetStore row at the opening - trial-zones-ui.mjs:184-188"
+    ],
+    "listens": [
+     "its own input listener for the names warning - :204-212"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - an edit form asked and closed; Save patches the row whole from the form (trial-zones-ui.mjs:146-150), so another GM's edit meanwhile is replaced, which is a write question for another lane, not a redraw"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "Delete a Logic Dive set (question)",
+   "file": "scripts/trial-zones-ui.mjs",
+   "from": "controls-02",
+   "refresh": {
+    "reads": [
+     "the set's name"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot question (trial-zones-ui.mjs:226-235)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "Findings window: 'Findings'",
+   "file": "scripts/trial-zones-ui.mjs",
+   "from": "controls-02",
+   "refresh": {
+    "reads": [
+     "setting trialProgress.findings (findingsNow) - trial-zones-ui.mjs:394, trial-zones.mjs:388-391"
+    ],
+    "listens": [
+     "none from the world; redrawn after its own Edit, Delete or Confirm only - trial-zones-ui.mjs:399-413"
+    ],
+    "verdict": "stale",
+    "gaps": [
+     "trialProgress not heard: a Finding written by a zone mode's end (trial-zones.mjs:200-201) or by another GM is missing from the open window while the console's 'Findings (n)' beside it counts it (refresh-01-04-4)"
+    ],
+    "focus_rule": "No field in the list."
+   }
+  },
+  {
+   "surface": "A Finding's words (one-field window): 'Add a Finding' / 'Edit'",
+   "file": "scripts/trial-zones-ui.mjs",
+   "from": "controls-02",
+   "refresh": {
+    "reads": [
+     "the Finding's words"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-field question (trial-zones-ui.mjs:381-389)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "Side-pick window of a participant with no token in the hall",
+   "file": "scripts/trial-zones-ui.mjs",
+   "from": "controls-02",
+   "refresh": {
+    "reads": [
+     "the floor at the opening: zone.question and zone.answers on the body and the two buttons - trial-zones-ui.mjs:434-452"
+    ],
+    "listens": [
+     "none: no watch and no close on the floor moving"
+    ],
+    "verdict": "stale",
+    "gaps": [
+     "trialQueue not heard by the window: in a Logic Dive the next question replaces zone.question with openedAt kept (zone-machine.mjs:133-136, 220-232), so the window stands on the first question's words and answers; and it stays after the mode ends (refresh-01-04-6)"
+    ],
+    "focus_rule": "No field."
+   }
+  },
+  {
+   "surface": "The trial console's controls whose handlers are these files'",
+   "file": "scripts/trial-zones.mjs, scripts/trial-scene.mjs, scripts/verdict.mjs, scripts/mastermind.mjs",
+   "from": "controls-02",
+   "refresh": {
+    "reads": [
+     "drawn by the console"
+    ],
+    "listens": [
+     "the console's (see the Class Trial console row)"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - not a window of its own: the buttons are drawn and redrawn by the trial console (trial-floor-ui.mjs:1639-1705); its row above carries the refresh reading"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "The ballot a player gets: 'Who did it?'",
+   "file": "scripts/vote.mjs",
+   "from": "controls-02",
+   "refresh": {
+    "reads": [
+     "the candidates and picks handed by the GM's packet - vote.mjs:781-813"
+    ],
+    "listens": [
+     "a newer ballot (remind, resend, restart) closes the old window - vote.mjs:815-818"
+    ],
+    "verdict": "partial",
+    "gaps": [
+     "the vote's close (closeVote, vote.mjs:318) reaches no ballot window: one left open stays with Cast after the count, and Cast is then answered 'The vote has moved on' (refresh-01-04-7)"
+    ],
+    "focus_rule": "No redraw; the radio choices are the player's."
+   }
+  },
+  {
+   "surface": "The verdict window (ordinary): 'The verdict'",
+   "file": "scripts/verdict.mjs",
+   "from": "controls-02",
+   "refresh": {
+    "reads": [
+     "the register, the record, the dead as the GMs hold them, read once - verdict.mjs:95-123"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot form read once by design (verdict.mjs:111-123: 'a student who dies or comes back while the window is open is applyVerdict's to judge'); applyVerdict asks verdictRefusal again (verdict.mjs:499-503)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "The Blackened's rule (a wrong verdict's step)",
+   "file": "scripts/verdict.mjs",
+   "from": "controls-02",
+   "refresh": {
+    "reads": [
+     "nothing that moves"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot field (askBlackenedRule:386)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "The Final Trial's verdict window: 'Final Trial verdict'",
+   "file": "scripts/verdict.mjs",
+   "from": "controls-02",
+   "refresh": {
+    "reads": [
+     "the candidates and the Mastermind, read once"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot form on the ordinary verdict's lock (verdictRefusal at apply)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "The mask window on the hidden killer's browser: 'Stay hidden?'",
+   "file": "scripts/mask-gm.mjs",
+   "from": "controls-02",
+   "refresh": {
+    "reads": [
+     "the mask's state at the opening"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot question (askReveal:631)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "The Mastermind window: 'The Mastermind'",
+   "file": "scripts/mastermind.mjs",
+   "from": "controls-02",
+   "refresh": {
+    "reads": [
+     "GM store mastermindStore: the pick (select 'who'), the lair (select 'lair'), and whether the Give Hope box is drawn and to whom it gives - mastermind.mjs:607-633, 678-683, 697",
+     "actors: the Mastermind's Hope, the donors (Monokuma pools) - mastermind.mjs:520-527",
+     "despairOwedStore (drpgDespairOwedChanged) - :704",
+     "place scenes' room names - :634-638"
+    ],
+    "listens": [
+     "live.mjs:304-352 listenFor: updateSetting of every module key (no `settings` filter), drpgTimeOfDayChanged, drpgEclipseChanged, drpgPhaseChanged",
+     "keepLive on .drpg-mm-live (the Hope box only): actors; hook drpgDespairOwedChanged - mastermind.mjs:700-706"
+    ],
+    "verdict": "partial",
+    "gaps": [
+     "mastermindStore not heard: another GM's pick or lair is not shown while the window stands; Apply with the lair untouched writes the drawn lair over theirs, and Give Hope goes to the Mastermind drawn at the opening (refresh-01-04-8)"
+    ],
+    "focus_rule": "The Hope box holds the donor select and the amount stepper: rule 1 holds its rebuild while either has focus (live.mjs:158) and runs it at focusout (231-241); the pick and lair selects are outside every live region. See refresh-01-04-1."
+   }
+  },
+  {
+   "surface": "Start or end the Final Trial (question)",
+   "file": "scripts/mastermind.mjs",
+   "from": "controls-02",
+   "refresh": {
+    "reads": [
+     "the clock's finalTrial"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot question (toggleFinalTrialFlag:440)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "Season setup's scenes part",
+   "file": "scripts/trial-scene.mjs",
+   "from": "controls-02",
+   "refresh": {
+    "reads": [
+     "setting sceneRoles (school, hall, zones) - trial-scene.mjs:1489-1492",
+     "scenes and their regions (zone candidates), the hall's room facts, the trial cast - :1470-1484, 1530-1540"
+    ],
+    "listens": [
+     "none: season-setup.mjs has no keepLive, keepFresh or hook for the window (grep); wireScenesTab redraws the report and the cast box on the GM's own select changes only - trial-scene.mjs:1501-1540"
+    ],
+    "verdict": "stale",
+    "gaps": [
+     "sceneRoles, scenes, regions and the trial cast not heard: another GM's links or zones are not shown until Season setup is opened again; Apply writes only the fields changed from what was drawn (trial-scene.mjs:1613-1625), so nothing is written back over them (refresh-01-04-9)"
+    ],
+    "focus_rule": "No redraw, so nothing waits for focus."
+   }
+  },
+  {
+   "surface": "Investigation - the window's frame: header, view switch, footer",
+   "file": "scripts/investigation.mjs",
+   "from": "controls-03",
+   "refresh": {
+    "reads": [
+     "clock's Eclipse for the body button - investigation.mjs:2369-2386",
+     "the User's own flags (view, all open) - investigation.mjs:1100-1106"
+    ],
+    "listens": [
+     "keepFresh(paintBodyButton) on the default watches (every module setting and the world hooks) - investigation.mjs:2386-2387"
+    ],
+    "verdict": "live",
+    "gaps": [],
+    "focus_rule": "keepFresh writes in place with no focus rule (live.mjs:826-829); the footer is outside the region."
+   }
+  },
+  {
+   "surface": "Investigation - the Table view (Remnants, Key Remnants, Final Truth Remnants, Who has what)",
+   "file": "scripts/investigation.mjs",
+   "from": "controls-03",
+   "refresh": {
+    "reads": [
+     "GM stores remnantStore (allTraces, remnantData), keyPlanStore (keyPlan, keyPlanStatus), caseSchemaStore (caseRows), blackenedStore, castStore, deathStore",
+     "GM store bulletStore through secretOf: 'found by' (findersByAnyRemnant), Who has what (evidenceByStudent), the reach's holders, autopsyIssued - investigation.mjs:317-349, 1175-1177, 1207-1222; truth-bullets.mjs:182-185",
+     "actors and their items (Truth Bullets), sheetMarkStore through itemsHeldNow - investigation.mjs:35, 1175",
+     "scenes' trace tokens (remnantsOn reads scene.tokens) - remnants.mjs:3240-3251",
+     "settings clock, murderState - investigation.mjs:1136-1137, 1196-1200"
+    ],
+    "listens": [
+     "live.mjs:304-352 listenFor: updateSetting of every module key (no `settings` filter), drpgTimeOfDayChanged, drpgEclipseChanged, drpgPhaseChanged",
+     "keepLive on .drpg-case-live: actors, items, stores remnantStore, keyPlanStore, caseSchemaStore, blackenedStore, castStore, deathStore - investigation.mjs:2409-2418",
+     "live.refresh() forced by the GM's own filter, fold and view switch - investigation.mjs:2307, 2350-2351, 2415-2416"
+    ],
+    "verdict": "partial",
+    "gaps": [
+     "bulletStore not heard: an answer key that lands after its Truth Bullet item - on a second GM the item comes from the server and the key from the GMs' exchange; on the writer createTruthBullet writes the item (truth-bullets.mjs:708) before the key (:761) - leaves 'found by' and Who has what as drawn without it (refresh-01-04-2)",
+     "tokens not watched: a trace token changed without a ledger write is not heard; deletion is covered by the primary's tombstone (remnants.mjs:1876-1884), which writes the ledger"
+    ],
+    "focus_rule": "keepLive rule 1: a rebuild waits while focus is in a text input, textarea, select or contenteditable inside the region (live.mjs:158, 375-382) and runs at the focusout that leaves the region (231-241); a press inside the region holds it until release (150-155); dirty fields, scroll, open details and the tab are carried (462-575). A redraw wanted while the GM types waits for focus to leave (refresh-01-04-1)."
+   }
+  },
+  {
+   "surface": "Investigation - the Map view (the case map, the planner)",
+   "file": "scripts/investigation.mjs, scripts/case-map.mjs, scripts/case-view.mjs",
+   "from": "controls-03",
+   "refresh": {
+    "reads": [
+     "GM stores remnantStore (allTraces, remnantData), keyPlanStore (keyPlan, keyPlanStatus), caseSchemaStore (caseRows), blackenedStore, castStore, deathStore",
+     "GM store bulletStore through secretOf: 'found by' (findersByAnyRemnant), Who has what (evidenceByStudent), the reach's holders, autopsyIssued - investigation.mjs:317-349, 1175-1177, 1207-1222; truth-bullets.mjs:182-185",
+     "actors and their items (Truth Bullets), sheetMarkStore through itemsHeldNow - investigation.mjs:35, 1175",
+     "scenes' trace tokens (remnantsOn reads scene.tokens) - remnants.mjs:3240-3251",
+     "settings clock, murderState - investigation.mjs:1136-1137, 1196-1200",
+     "GM store diveSetStore (a node's Logic Dive set select) - investigation.mjs:1507"
+    ],
+    "listens": [
+     "live.mjs:304-352 listenFor: updateSetting of every module key (no `settings` filter), drpgTimeOfDayChanged, drpgEclipseChanged, drpgPhaseChanged",
+     "keepLive on .drpg-case-live: actors, items, stores remnantStore, keyPlanStore, caseSchemaStore, blackenedStore, castStore, deathStore - investigation.mjs:2409-2418",
+     "live.refresh() forced by the GM's own filter, fold and view switch - investigation.mjs:2307, 2350-2351, 2415-2416"
+    ],
+    "verdict": "partial",
+    "gaps": [
+     "bulletStore not heard, as on the Table: the reach ('who can reach it'), 'found by' and the summary's student list (refresh-01-04-2)",
+     "diveSetStore not heard: a set made beside a node is not in its select (already filed: controls-03-investigation-planner-6)",
+     "every node open by default (caseMapAllOpen, investigation.mjs:1100-1102) puts a field under the GM's caret for most of a planning session, so rule 1 holds the whole Map for as long as they type (refresh-01-04-1)"
+    ],
+    "focus_rule": "keepLive rule 1: a rebuild waits while focus is in a text input, textarea, select or contenteditable inside the region (live.mjs:158, 375-382) and runs at the focusout that leaves the region (231-241); a press inside the region holds it until release (150-155); dirty fields, scroll, open details and the tab are carried (462-575); the owner's Planner example. A redraw wanted while the GM types in a node waits for focus to leave the region (refresh-01-04-1)."
+   }
+  },
+  {
+   "surface": "New Remnant",
+   "file": "scripts/investigation.mjs",
+   "from": "controls-03",
+   "refresh": {
+    "reads": [
+     "read at the opening"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot form; the Create's road reads the world again (openNewTrace:104)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "Delete the Remnant (question)",
+   "file": "scripts/investigation.mjs",
+   "from": "controls-03",
+   "refresh": {
+    "reads": [
+     "read at the opening"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot question (deleteTraceRow:1970)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "Remove from the case (question)",
+   "file": "scripts/investigation.mjs",
+   "from": "controls-03",
+   "refresh": {
+    "reads": [
+     "read at the opening"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot question (dropMapNode:1944)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "Clear the plan (two windows: the chapter, then the question)",
+   "file": "scripts/investigation.mjs",
+   "from": "controls-03",
+   "refresh": {
+    "reads": [
+     "read at the opening"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - two one-shot questions (openClearPlan:2051)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "Final Truth Remnant's room",
+   "file": "scripts/investigation.mjs",
+   "from": "controls-03",
+   "refresh": {
+    "reads": [
+     "read at the opening"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot room question (placePlannedFinal:2115)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "Place the Final Truth Remnant (asked when the dashboard closes)",
+   "file": "scripts/investigation.mjs",
+   "from": "controls-03",
+   "refresh": {
+    "reads": [
+     "read at the opening"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot question at the close (offerFinalOnClose:2149)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "The realization's preview",
+   "file": "scripts/case-realize.mjs",
+   "from": "controls-03",
+   "refresh": {
+    "reads": [
+     "read at the opening"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a question with Run, Undo and Close, read once; Run reads the plan again for each slot and skips one already placed (case-realize.mjs:139-144) (case-realize.mjs openRealization:92)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "Undo realization (question)",
+   "file": "scripts/case-realize.mjs",
+   "from": "controls-03",
+   "refresh": {
+    "reads": [
+     "read at the opening"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot question; undo reads the marks, finders and reveals again (case-realize.mjs:154-172) (case-realize.mjs confirmUndoRealization:181)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "The case's realization (the question at a body)",
+   "file": "scripts/case-realize.mjs",
+   "from": "controls-03",
+   "refresh": {
+    "reads": [
+     "read at the opening"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot question (case-realize.mjs askAtBody:227)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "The case's summary (the preview before it is sent)",
+   "file": "scripts/case-summary.mjs",
+   "from": "controls-03",
+   "refresh": {
+    "reads": [
+     "read at the opening"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a preview of exactly what Send posts (the same `html`, case-summary.mjs:80-99); Send asks summaryShown again (:91) (case-summary.mjs showCaseSummary:65)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "Create a Key Remnant here (from an Observe ruling card)",
+   "file": "scripts/key-remnants.mjs",
+   "from": "controls-03",
+   "refresh": {
+    "reads": [
+     "read at the opening"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot form (key-remnants.mjs openKeyRemnantHere:1116)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "Place this Key Remnant (a Key row's Place)",
+   "file": "scripts/key-remnants.mjs",
+   "from": "controls-03",
+   "refresh": {
+    "reads": [
+     "read at the opening"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot room and band question (key-remnants.mjs placeKeyRow:1260)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "Sweep Truth Bullets (question) - no button opens it since E64-inv",
+   "file": "scripts/investigation.mjs",
+   "from": "controls-03",
+   "refresh": {
+    "reads": [
+     "read at the opening"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot question with no control that opens it (confirmSweepBullets:371)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "The held Key fee's card (a whisper to the GMs)",
+   "file": "scripts/key-remnants.mjs",
+   "from": "controls-03",
+   "refresh": {
+    "reads": [
+     "the card's content written at the hold - key-remnants.mjs:719-726",
+     "trialProgress.keysCharged, read only after a press - :797-799"
+    ],
+    "listens": [
+     "none: the button is removed on the browser that pressed it (key-remnants.mjs:796); nothing redraws the card when the fee is charged"
+    ],
+    "verdict": "stale",
+    "gaps": [
+     "trialProgress.keysCharged not heard: once the fee is charged, by another GM's press or by the trial's own charge, every other GM's card still offers 'Charge the Key fee'; a reload draws it again by decision (key-remnants.mjs:785-787, E109) (refresh-01-04-11)"
+    ],
+    "focus_rule": "n/a: a chat card, no field."
+   }
+  },
+  {
+   "surface": "The pre-session note (the messenger window's Note tab)",
+   "file": "scripts/pre-session-note.mjs, scripts/messenger-app.mjs",
+   "from": "controls-03",
+   "refresh": {
+    "reads": [
+     "the note's GM store row and its status (noteFor, noteStatus) - messenger-app.mjs:293-310, 367-377"
+    ],
+    "listens": [
+     "hook drpgNotesChanged -> refreshNote on every open messenger - messenger-app.mjs:60-62, 367-377"
+    ],
+    "verdict": "live",
+    "gaps": [],
+    "focus_rule": "refreshNote writes the status line at once and replaces the textarea's words only while they are still the words drawn (messenger-app.mjs:373-376): what is being typed is never drawn over, and the redraw does not wait for focus."
+   }
+  },
+  {
+   "surface": "Observe's declaration window",
+   "file": "scripts/action-observe.mjs",
+   "from": "controls-04",
+   "refresh": {
+    "reads": [
+     "read at the opening"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot question (askDeclaration:297); the pick is judged on the primary"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "The GM's Remnant picker for a focused gaze ('Observe - which Remnant?')",
+   "file": "scripts/observe.mjs",
+   "from": "controls-04",
+   "refresh": {
+    "reads": [
+     "read at the opening"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot question (askWhichRemnant:607); the pick is judged on the primary"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "The Observe card in a player's thread ('Observe - focus your gaze')",
+   "file": "scripts/call-gm.mjs",
+   "from": "controls-04",
+   "refresh": {
+    "reads": [
+     "the message (its words, settled flag) - messenger-app.mjs:726-736"
+    ],
+    "listens": [
+     "updateChatMessage -> drpgMessengerEdited -> replaceMessage redraws the one bubble - messenger.mjs:381-392, messenger-app.mjs:497-503, 606-608",
+     "the veiled words landing -> drpgMessengerEdited - secret.mjs:831, 924",
+     "deleteChatMessage -> removeMessage - messenger-app.mjs:596-599",
+     "the chat log's own render of an updated message (Foundry's)"
+    ],
+    "verdict": "live",
+    "gaps": [
+     "a claim another GM holds on the card (the primary's) is not drawn; the press is refused and says who has it (messenger-app.mjs:765-777), and the settle redraws the card - not a value left wrong until reopened"
+    ],
+    "focus_rule": "n/a: a card in a thread; the bubble is replaced alone, so the box being typed in under the log is untouched (messenger-app.mjs:493-503)."
+   }
+  },
+  {
+   "surface": "The Observe ruling card",
+   "file": "scripts/action-observe.mjs",
+   "from": "controls-04",
+   "refresh": {
+    "reads": [
+     "the message"
+    ],
+    "listens": [
+     "updateChatMessage -> drpgMessengerEdited -> replaceMessage redraws the one bubble - messenger.mjs:381-392, messenger-app.mjs:497-503, 606-608",
+     "the veiled words landing -> drpgMessengerEdited - secret.mjs:831, 924",
+     "deleteChatMessage -> removeMessage - messenger-app.mjs:596-599",
+     "the chat log's own render of an updated message (Foundry's)"
+    ],
+    "verdict": "live",
+    "gaps": [
+     "as the Observe card (claim not drawn)"
+    ],
+    "focus_rule": "n/a: a card in a thread; the bubble is replaced alone, so the box being typed in under the log is untouched (messenger-app.mjs:493-503)."
+   }
+  },
+  {
+   "surface": "The find's description window ('Observe: what the student sees')",
+   "file": "scripts/observe.mjs",
+   "from": "controls-04",
+   "refresh": {
+    "reads": [
+     "the trace's data at the opening"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot form (describeFind:1179)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "The target's Frisk window ('Frisk request')",
+   "file": "scripts/frisk.mjs",
+   "from": "controls-04",
+   "refresh": {
+    "reads": [
+     "the packet: who, name, ms - frisk.mjs:1121-1126"
+    ],
+    "listens": [
+     "frisk.cancel from the primary closes it (withdrawAsk, frisk.mjs:1104-1111); its own clock closes it (:1145-1150)"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot question that closes itself when the ask ends; its seconds line is the clock at the opening, not counted (frisk.mjs:1126) - noted, not filed: the window closes at that clock"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "The searcher's force question ('Make them turn out their pockets')",
+   "file": "scripts/frisk.mjs",
+   "from": "controls-04",
+   "refresh": {
+    "reads": [
+     "the force threshold and seconds"
+    ],
+    "listens": [
+     "its own clock closes it - frisk.mjs:1182-1184"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot question"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "Analyze's picker",
+   "file": "scripts/action-analyze.mjs",
+   "from": "controls-04",
+   "refresh": {
+    "reads": [
+     "the actor's bullets at the opening"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot question (askWhatToAnalyze:447)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "The hint's ruling card ('Ask for a hint')",
+   "file": "scripts/action-analyze.mjs",
+   "from": "controls-04",
+   "refresh": {
+    "reads": [
+     "the message"
+    ],
+    "listens": [
+     "updateChatMessage -> drpgMessengerEdited -> replaceMessage redraws the one bubble - messenger.mjs:381-392, messenger-app.mjs:497-503, 606-608",
+     "the veiled words landing -> drpgMessengerEdited - secret.mjs:831, 924",
+     "deleteChatMessage -> removeMessage - messenger-app.mjs:596-599",
+     "the chat log's own render of an updated message (Foundry's)"
+    ],
+    "verdict": "live",
+    "gaps": [],
+    "focus_rule": "n/a: a card in a thread; the bubble is replaced alone, so the box being typed in under the log is untouched (messenger-app.mjs:493-503)."
+   }
+  },
+  {
+   "surface": "The critical Analyze's hint card ('Critical Analyze')",
+   "file": "scripts/analyze.mjs",
+   "from": "controls-04",
+   "refresh": {
+    "reads": [
+     "the message"
+    ],
+    "listens": [
+     "updateChatMessage -> drpgMessengerEdited -> replaceMessage redraws the one bubble - messenger.mjs:381-392, messenger-app.mjs:497-503, 606-608",
+     "the veiled words landing -> drpgMessengerEdited - secret.mjs:831, 924",
+     "deleteChatMessage -> removeMessage - messenger-app.mjs:596-599",
+     "the chat log's own render of an updated message (Foundry's)"
+    ],
+    "verdict": "live",
+    "gaps": [],
+    "focus_rule": "n/a: a card in a thread; the bubble is replaced alone, so the box being typed in under the log is untouched (messenger-app.mjs:493-503)."
+   }
+  },
+  {
+   "surface": "A GM's card of a Remnant (the trace's sheet)",
+   "file": "scripts/remnant-ring.mjs",
+   "from": "controls-04",
+   "refresh": {
+    "reads": [
+     "the trace ledger (remnantData) and the token's flags - remnant-ring.mjs:380-383",
+     "studentActors for the author select - :409-410"
+    ],
+    "listens": [
+     "keepLive on .drpg-remnant-card: items, tokens, store remnantStore - remnant-ring.mjs:252-257",
+     "live.mjs:304-352 listenFor: updateSetting of every module key (no `settings` filter), drpgTimeOfDayChanged, drpgEclipseChanged, drpgPhaseChanged"
+    ],
+    "verdict": "live",
+    "gaps": [],
+    "focus_rule": "keepLive rule 1: a rebuild waits while focus is in a text input, textarea, select or contenteditable inside the region (live.mjs:158, 375-382) and runs at the focusout that leaves the region (231-241); a press inside the region holds it until release (150-155); dirty fields, scroll, open details and the tab are carried (462-575). The name, the two texts and the two selects sit inside the region, so a reshape or another GM's edit waits for the GM to leave the field (refresh-01-04-1)."
+   }
+  },
+  {
+   "surface": "A player's card of a Remnant",
+   "file": "scripts/remnant-ring.mjs",
+   "from": "controls-04",
+   "refresh": {
+    "reads": [
+     "the player's own Truth Bullet item of the trace (myTruthBulletFor, its flags) - remnant-ring.mjs:454-520"
+    ],
+    "listens": [
+     "the same keepLive: items, tokens, remnantStore - remnant-ring.mjs:252-257"
+    ],
+    "verdict": "live",
+    "gaps": [],
+    "focus_rule": "No field on a player's card."
+   }
+  },
+  {
+   "surface": "The 'Clear Faint Remnants' question",
+   "file": "scripts/remnants.mjs",
+   "from": "controls-04",
+   "refresh": {
+    "reads": [
+     "-"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot question with no caller (controls-04-traces-observe-3)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "Tamper's menu",
+   "file": "scripts/action-tamper.mjs",
+   "from": "controls-04",
+   "refresh": {
+    "reads": [
+     "read at the opening"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot question (chooseTamper:39); the road it starts is judged on the primary"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "The clean-up picker ('Cleaning up')",
+   "file": "scripts/cleanup.mjs",
+   "from": "controls-04",
+   "refresh": {
+    "reads": [
+     "read at the opening"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot question (openCleanupDialog:2632); the road it starts is judged on the primary"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "The body's destination ('Move the Body')",
+   "file": "scripts/cleanup.mjs",
+   "from": "controls-04",
+   "refresh": {
+    "reads": [
+     "read at the opening"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot question (openMoveBodyDialog:2758); the road it starts is judged on the primary"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "The critical erase's question ('A clean job')",
+   "file": "scripts/cleanup-reshape.mjs",
+   "from": "controls-04",
+   "refresh": {
+    "reads": [
+     "read at the opening"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot question (askTransform:178); the road it starts is judged on the primary"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "The reshape's declaration ('Reshape a Trace')",
+   "file": "scripts/cleanup-reshape.mjs",
+   "from": "controls-04",
+   "refresh": {
+    "reads": [
+     "read at the opening"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot question (askTransformChange:767); the road it starts is judged on the primary"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "The reshape card in the roller's thread",
+   "file": "scripts/cleanup-reshape.mjs",
+   "from": "controls-04",
+   "refresh": {
+    "reads": [
+     "the message",
+     "the Remnant's token, read at the press (findRemnantToken)"
+    ],
+    "listens": [
+     "updateChatMessage -> drpgMessengerEdited -> replaceMessage redraws the one bubble - messenger.mjs:381-392, messenger-app.mjs:497-503, 606-608",
+     "the veiled words landing -> drpgMessengerEdited - secret.mjs:831, 924",
+     "deleteChatMessage -> removeMessage - messenger-app.mjs:596-599",
+     "the chat log's own render of an updated message (Foundry's)"
+    ],
+    "verdict": "partial",
+    "gaps": [
+     "the Remnant's token deleted while the card stands is not heard: the card keeps Approve, and a press does not settle it (already filed: controls-04-traces-observe-2)"
+    ],
+    "focus_rule": "n/a: a card in a thread; the bubble is replaced alone, so the box being typed in under the log is untouched (messenger-app.mjs:493-503)."
+   }
+  },
+  {
+   "surface": "A Truth Bullet's row on the character sheet (the Present button)",
+   "file": "scripts/sheet-inventory.mjs",
+   "from": "controls-04",
+   "refresh": {
+    "reads": [
+     "the item (Foundry re-renders the sheet on its items)",
+     "the clock's phase (presentShown) - sheet-mode.mjs:68, 89-91",
+     "setting trialQueue (presentRefusal) - sheet-inventory.mjs:959-967"
+    ],
+    "listens": [
+     "updateSetting of trialQueue -> repaintPresentButtons in place - sheet.mjs:79-81",
+     "the clock's kinds re-render open sheets (refreshSheets) - sync.mjs:410, 474"
+    ],
+    "verdict": "live",
+    "gaps": [
+     "createSetting of trialQueue is not heard here either (sheet.mjs:79-81), the root of controls-01-trial-console-4, which is suspected; not filed again"
+    ],
+    "focus_rule": "No field; the button is painted in place."
+   }
+  },
+  {
+   "surface": "The Present window ('Present {name}')",
+   "file": "scripts/trial.mjs",
+   "from": "controls-04",
+   "refresh": {
+    "reads": [
+     "read at the opening"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot question; the primary judges the Present"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "Give a Truth Bullet",
+   "file": "scripts/gm-items.mjs",
+   "from": "controls-04",
+   "refresh": {
+    "reads": [
+     "students, the traces at the opening - gm-items.mjs:1471-1483"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot form (giveTruthBulletDialog:1469)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "Issue Autopsy Truth Bullet",
+   "file": "scripts/gm-items.mjs",
+   "from": "controls-04",
+   "refresh": {
+    "reads": [
+     "the case store's next planned Autopsy not sent, at the opening - gm-items.mjs:1645-1655"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "n/a - a one-shot form. Noted: a planned Autopsy that goes out on its own at a body (case-realize.mjs:255-281) while this window stands prefilled with it is sent again by Issue, which re-checks no sent mark (gm-items.mjs:1700-1702); 'Nothing here refuses a GM another Autopsy' (:1644) - a write question, under not_established"
+    ],
+    "focus_rule": "n/a"
+   }
+  }
+ ],
+ "counts": {
+  "surfaces": 77,
+  "live": 12,
+  "partial": 10,
+  "stale": 6,
+  "na": 49,
+  "count_note": "77 surfaces as listed in controls-01 (20), controls-02 (16), controls-03 (18), controls-04 (23); every one has a row. 13 findings: 1 major, 4 minor, 8 nit. Already filed stale_state findings were confirmed in the gaps and not filed again: controls-01-trial-console-4 (suspected), -5, -6 (extended by refresh-01-04-3), controls-02-trial-zones-verdict-5, controls-03-investigation-planner-6, controls-04-traces-observe-2."
+ },
+ "findings": [
+  {
+   "id": "refresh-01-04-1",
+   "severity": "major",
+   "verdict": "stale_state",
+   "title": "Every live region that holds a field redraws only after focus leaves it: the Planner, the Table, a GM's Remnant card and the Mastermind's Hope box",
+   "surface": "Investigation - the Map view (the planner) and the Table view; A GM's card of a Remnant; The Mastermind window",
+   "where": "scripts/live.mjs:157-163, 231-241, 375-382; scripts/investigation.mjs:1100-1102, 2409-2418; scripts/remnant-ring.mjs:252-257; scripts/mastermind.mjs:700-706",
+   "what_happens": "keepLive's rule 1 defers every rebuild while focus sits in a text input, textarea or select inside the region and answers it at the focusout that leaves the region. The Investigation dashboard's region is the whole Table and the whole Map, and on the Map every node is open by default (caseMapAllOpen), so a GM planning a case has a field under the caret almost all the time: a player's find, an Analyze, another GM's Save or a reshape ruling reach the window only when the GM clicks out of the field. The same holds on a GM's Remnant card (name, texts and two selects inside the region) and on the Mastermind window's Hope box (donor select, amount). The owner's standing rule of 20.11.2026 ('Zawsze odswiezamy okna od razu przy zmianie') names the Planner as its example.",
+   "evidence": "live.mjs:157         // RULE 1. The GM is typing in here; come back when they are not.\nlive.mjs:158         if (!force && isEditing(element)) {\nlive.mjs:159             pending = true;\nlive.mjs:379     if (tag === \"INPUT\") return !PRESSED_INPUTS.has(String(active.type ?? \"\").toLowerCase());\nlive.mjs:380     if (tag === \"TEXTAREA\" || tag === \"SELECT\") return true;\ninvestigation.mjs:1101     return user?.getFlag?.(MODULE_ID, \"caseMapFaces\") !== true;",
+   "failure_scenario": "A GM types a deduction's text in an open node of the Planner while a player's Observe gives them a Key Remnant's Truth Bullet; the node's 'found by', the reach and the summary keep the old reading until the GM clicks somewhere outside the field.",
+   "expected": "The read-out parts redraw at once whatever has focus, with the field being typed in kept as it is (rule 2 already carries dirty fields and marks a field the world moved under, live.mjs:530-549).",
+   "confidence": "read",
+   "refutation_tried": "Looked for a path that forces the region while focus is in it: live.refresh() is forced (live.mjs:293) but only the GM's own filter, fold and view switch call it (investigation.mjs:2307, 2350-2351, 2415-2416); the trial console's tick forces its own region, which holds no field. keepFresh has no focus rule but the dashboard uses it only for the footer's body button (investigation.mjs:2386-2387). Rule 1 is a recorded design (live.mjs:32-37, 'Not preserve the caret - wait') written before the owner's rule of 20.11.2026, so this is the design meeting the new rule, not a slip; the conflict is for the owner. No base run or probe-43 file was there to read.",
+   "probe": "Open the Investigation dashboard on the Map with all nodes open, focus a node's text field, then on a player's page run an Observe that creates a Truth Bullet of a placed Remnant; read the node's holders line before and two seconds after, then blur the field and read it again."
+  },
+  {
+   "id": "refresh-01-04-2",
+   "severity": "minor",
+   "verdict": "stale_state",
+   "title": "The Investigation dashboard does not hear the Truth Bullets' answer keys: 'found by', Who has what and the Map's reach stay as drawn without a key that lands after its item",
+   "surface": "Investigation - the Table view; Investigation - the Map view",
+   "where": "scripts/investigation.mjs:317-328, 2412; scripts/truth-bullets.mjs:182-185, 708, 761",
+   "what_happens": "Every 'found by', the Who has what tab, the Map's holders and autopsyIssued read a Truth Bullet's answer key through secretOf, which is the GM store bulletStore. The dashboard watches actors, items and six other stores, not bulletStore. createTruthBullet creates the item first and writes the key after more awaits; on a second GM the item arrives from the server and the key through the GMs' exchange. A redraw that runs on createItem before the key is in reads the bullet as a find of nothing, and the key's own arrival (a clientSettingChanged of bulletStore) wakes nothing. Later amendments of a key (analyzedText after an Analyze, the faint mark) are not heard either.",
+   "evidence": "investigation.mjs:321             const secret = secretOf(item.uuid);\ninvestigation.mjs:2412                 watch: { actors: true, items: true, stores: [remnantStore, keyPlanStore, caseSchemaStore, blackenedStore, castStore, deathStore] },\ntruth-bullets.mjs:184     return bulletStore.get(uuid) ?? {};\ntruth-bullets.mjs:708     const item = await grantItem(actor, {\ntruth-bullets.mjs:761     await setSecret(item.uuid, {",
+   "failure_scenario": "With two GMs, a player's Observe makes a Truth Bullet of a Key Remnant on the primary; the second GM's open dashboard redraws on the item and then shows that Remnant as found by nobody until some other write redraws it.",
+   "expected": "bulletStore among the dashboard's watched stores, as remnantStore and keyPlanStore are.",
+   "confidence": "read",
+   "refutation_tried": "Read every source of 'found by' (findersByAnyRemnant, evidenceByStudent, caseReach, autopsyIssued): all go through secretOf. Checked listenFor (live.mjs:346-351): only the stores named are heard. On the writing GM the key usually lands inside the 120 ms debounce (config.mjs:439), so the single-GM case may draw right; the second GM's order (item before key) is read from the write order, not measured - the gap in the watch is read, the visible timing is not.",
+   "probe": "Two GM pages with the dashboard open on the second; on the primary `game.drpg` road that issues a Truth Bullet of a placed trace; on the second read the trace row's found-by cell at 1 s and 5 s."
+  },
+  {
+   "id": "refresh-01-04-3",
+   "severity": "nit",
+   "verdict": "stale_state",
+   "title": "With no floor open the trial console's Reveal list hears none of its sources: a Key placed, found or revealed, or another GM's Key plan write",
+   "surface": "the Class Trial console",
+   "where": "scripts/trial-floor-ui.mjs:1015-1030, 1674, 1785-1797; scripts/key-remnants.mjs:545-577",
+   "what_happens": "The Missing Key Remnants list and 'Left to reveal' are built from missingKeyRows (keyPlanStore, the ledger, trace tokens and the finders read off Truth Bullet items and their keys) and keyRevealRecord (keyPlanStore). The console's region watches the module's settings, three hooks and blackenedStore and deathStore; the one-second tick runs only while a floor is open. In discussion, during the vote or before the verdict nothing in that list redraws it. controls-01-trial-console-6 records the case of a Reveal; the same holds for any other write of those sources.",
+   "evidence": "trial-floor-ui.mjs:1021     rows ??= missingKeys();\ntrial-floor-ui.mjs:1674                 watch: { hooks: [\"drpgBallotsChanged\", \"userConnected\", \"updateScene\"], stores: [blackenedStore, deathStore] },\ntrial-floor-ui.mjs:1795                 if (!trialFloor() || pressing) return;",
+   "failure_scenario": "In the trial's discussion a second GM fills the name of a Key slot in the planner; the first GM's console still lists that slot under its old empty name until a ballot or a setting moves.",
+   "expected": "The console's region hears keyPlanStore, remnantStore and items, as the schema beside it hears keyPlanStore (case-trial.mjs:126).",
+   "confidence": "read",
+   "refutation_tried": "A press of a stale row re-reads missingKeys and refuses ('That Key Remnant is not missing'), so nothing is revealed wrong (trial-floor-ui.mjs:1060-1065); that keeps it a nit. Same root as controls-01-trial-console-6, filed for the sources that finding does not name.",
+   "probe": "In a running trial with no floor, open the console; on a second GM write a Key slot's name through the planner; read `.drpg-reveal-list` on the first GM two seconds later."
+  },
+  {
+   "id": "refresh-01-04-4",
+   "severity": "minor",
+   "verdict": "stale_state",
+   "title": "The Findings window is drawn once: a Finding a zone mode writes at its end, or another GM's, is not in the open window while the console beside it counts it",
+   "surface": "Findings window: 'Findings'",
+   "where": "scripts/trial-zones-ui.mjs:392-417; scripts/trial-zones.mjs:188-201, 388-391; scripts/trial-floor-ui.mjs:1116-1122",
+   "what_happens": "The window draws findingsNow() (trialProgress.findings) at its opening and again only after one of its own Edit, Delete or Confirm presses. A Straw Poll or Logic Dive that ends writes its Finding into the trial record in the record's own step; the console's 'Findings (n)' button, in its live region, counts it at once, and the Findings window the GM opened from that button keeps the old list with no row for it.",
+   "evidence": "trial-zones-ui.mjs:394     const draw = async () => findingsListHtml(await findingsNow());\ntrial-zones-ui.mjs:412                 box.innerHTML = await draw();\ntrial-zones.mjs:201                 patch.findings = [...list, { id: findingId(), ...rec.finding, at: Date.now(), confirmed: false, edited: false }];",
+   "failure_scenario": "A GM keeps the Findings window open over the console during a Straw Poll; the poll ends with a clear side, the console's button reads 'Findings (2)', the window still lists one and has no 'Monokuma confirms' for the new one.",
+   "expected": "The list redraws on the trial record, as the console's count does.",
+   "confidence": "read",
+   "refutation_tried": "Read the render hook: one click listener and no keepLive, keepFresh or hook (trial-zones-ui.mjs:399-413). git grep openFindings: no other code redraws the window. The Add footer closes it, so the GM's own add is not the case.",
+   "probe": "`game.drpg.openFindings()` during a Straw Poll, let the poll's 60 s run out with one side ahead; count `.drpg-findings-list li` against the console's Findings button text."
+  },
+  {
+   "id": "refresh-01-04-5",
+   "severity": "nit",
+   "verdict": "stale_state",
+   "title": "The Logic Dive sets window redraws only after its own Edit or Delete: another GM's set, or the replay line a Logic Dive's end writes, is not shown",
+   "surface": "Logic Dive sets (the list)",
+   "where": "scripts/trial-zones-ui.mjs:328-359; scripts/trial-zones.mjs:188",
+   "what_happens": "The list is built from diveSetStore at the opening and rebuilt in the click handler after Edit or Delete. A set another GM saves, deletes or plays (its usedAt, endedAt and outcome, which the list prints as the replay warning) is not heard.",
+   "evidence": "trial-zones-ui.mjs:343             list.addEventListener(\"click\", async e => {\ntrial-zones-ui.mjs:353                 list.innerHTML = rows();",
+   "failure_scenario": "Two GMs: one deletes a set while the other has the sets window open; the second still lists it, and Edit opens an empty New-style editor for a set that is gone.",
+   "expected": "The list follows diveSetStore.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a keepLive or hook in openDiveSets: none. The picker's set list (controls-02-trial-zones-verdict-5) and the Map's set select (controls-03-investigation-planner-6) are the same store and already filed.",
+   "probe": "Two GM pages, the sets window open on one; `game.drpg` delete of a set on the other (or diveSetStore.drop); read `[data-drpg-dive-set]` on the first."
+  },
+  {
+   "id": "refresh-01-04-6",
+   "severity": "minor",
+   "verdict": "stale_state",
+   "title": "The side-pick window keeps the first question's words and answers on its buttons while a Logic Dive moves on, and stays after the mode ends",
+   "surface": "Side-pick window of a participant with no token in the hall",
+   "where": "scripts/trial-zones-ui.mjs:434-458; scripts/zone-machine.mjs:133-136, 220-232; scripts/bridge-asks.mjs:366-367",
+   "what_happens": "offerSidePick draws zone.question and the two answers into the body and the buttons' labels once, keyed by mode and openedAt. A Logic Dive's next question replaces zone.question and zone.answers and keeps openedAt, so the window (with no watch and no close) stands on question 1 while question 2 is on the floor; its press sends only actorId and side, which the primary applies to the zone now. In a Straw Poll it stays after the vote phase ends and a press is refused.",
+   "evidence": "trial-zones-ui.mjs:446         body: `<p>${esc(L(\"DRPG.Zones.pick.body\"))}</p>${zone.question ? `<p><strong>${esc(zone.question)}</strong></p>` : \"\"}`,\nzone-machine.mjs:135     return { ...floor, ...top, seconds, startedAt: now, gmNote: null, zone: { ...zone, ...patch, phase: name, step: (Number(zone.step) || 0) + 1 } };\nbridge-asks.mjs:367     return ask(ACTION_TRIAL_SIDE, { actorId, side }, {",
+   "failure_scenario": "A player with no token in the hall leaves the side-pick window open through Logic Dive question 1 and presses 'Zone A: Yes' during question 2, whose Zone A answer is a different one: the side counts for question 2.",
+   "expected": "The window follows the floor: its question and labels redraw with the question, and it closes when the mode or the vote phase ends, as the turn prompts close (trial-prompt.mjs:201-206).",
+   "confidence": "read",
+   "refutation_tried": "Read offerSidePick whole: no render hook, no interval. Checked phase() keeps openedAt (zone-machine.mjs:135), so no second window opens for question 2 (which is also controls-02-trial-zones-verdict-1's root). Whether the primary takes a late side for the next question was read from the request's two fields, not from sideOnPrimary's body.",
+   "probe": "A player's page with no hall token, a Logic Dive of two questions; leave the window open past question 1's 60 s; read `.drpg-side-pick` text and its buttons' labels against the floor's zone.question."
+  },
+  {
+   "id": "refresh-01-04-7",
+   "severity": "nit",
+   "verdict": "stale_state",
+   "title": "A ballot window left open stays after the vote is closed and counted; Cast is then answered 'The vote has moved on'",
+   "surface": "The ballot a player gets: 'Who did it?'",
+   "where": "scripts/vote.mjs:318-322, 781-860",
+   "what_happens": "castBallot closes an older ballot window when a newer ballot arrives (remind, resend, restart). Nothing closes it when the vote is closed and counted: closeVote asks the primary and sends no packet to the ballot's browser, and the window has no watch of the trial record.",
+   "evidence": "vote.mjs:817         if (app.rendered && app.options?.classes?.includes(\"drpg-ballot\")) app.close();\nvote.mjs:318 export async function closeVote() {\nvote.mjs:319     const reply = await askVote(\"close\");",
+   "failure_scenario": "A player who walked away from the table comes back to the ballot still on screen after the GM counted the vote, picks a name, presses Cast and reads that the vote has moved on.",
+   "expected": "The ballot closes when its round is no longer open, as the turn prompts close with their turn.",
+   "confidence": "read",
+   "refutation_tried": "git grep 'drpg-ballot' and closeOpen: the only close is vote.mjs:817. The refusal is said (vote.mjs:914), so no vote is lost; the window is only wrong about whether it still counts.",
+   "probe": "With a player's ballot window open, `game.drpg` close and count on the GM; read whether `.drpg-ballot` is still rendered on the player's page five seconds later."
+  },
+  {
+   "id": "refresh-01-04-8",
+   "severity": "minor",
+   "verdict": "stale_state",
+   "title": "The Mastermind window reads the pick, the lair and the Hope box's recipient once: another GM's change is not shown, and Apply writes the drawn lair back over theirs",
+   "surface": "The Mastermind window: 'The Mastermind'",
+   "where": "scripts/mastermind.mjs:559-583, 607-633, 678-706",
+   "what_happens": "The 'who' and 'lair' selects, whether the Give Hope fieldset is drawn and the Mastermind it gives to are read from mastermindStore at the opening; only the Hope box is a live region (actors and drpgDespairOwedChanged). applyMastermindChoice compares the submitted pick with the Mastermind drawn at the opening, but the lair with the store as it is now, so a window whose pick still names the drawn one writes its drawn lair over a lair another GM set meanwhile.",
+   "evidence": "mastermind.mjs:610     const current = mastermindActor();\nmastermind.mjs:632     const lair = readStore().room ?? \"\";\nmastermind.mjs:578     } else if ((result.lair || null) !== (readStore().room ?? null)) {\nmastermind.mjs:697             const wireGive = () => wireMastermindGive(dialog, current);\nmastermind.mjs:704                 watch: { actors: true, hooks: [\"drpgDespairOwedChanged\"] },",
+   "failure_scenario": "Two GMs: one moves the Mastermind's lair to the Library while the other has the Mastermind window open on the Gym; the second presses Apply without touching anything and the lair is the Gym again.",
+   "expected": "The selects follow mastermindStore, and Apply writes only what was changed from what was drawn, as Season setup's scenes part does (trial-scene.mjs:1617).",
+   "confidence": "read",
+   "refutation_tried": "Traced Apply: who === current.id skips the pick, then the lair branch writes setMastermindLair(result.lair) whenever it differs from readStore().room (mastermind.mjs:559-580). The window is GM-only and alreadyOpen keeps one per browser, so the case needs two GMs; mastermindStore.whenHydrated (:607) settles only the opening.",
+   "probe": "Two GM pages; open the Mastermind window on one; on the other `game.drpg.setMastermindLair('<room>')`; press Apply on the first unchanged; read mastermindStore's room."
+  },
+  {
+   "id": "refresh-01-04-9",
+   "severity": "nit",
+   "verdict": "stale_state",
+   "title": "Season setup's scenes part is drawn once: another GM's hall, school, zones or cast are not shown until Season setup is opened again",
+   "surface": "Season setup's scenes part",
+   "where": "scripts/trial-scene.mjs:1489-1540, 1613-1633; scripts/season-setup.mjs (no keepLive, keepFresh or hook for the window)",
+   "what_happens": "scenesTabHtml reads sceneRoles, the scenes, their regions and the trial cast at the opening, and wireScenesTab redraws the report and the cast box only on the GM's own select changes. Nothing hears the sceneRoles setting, a scene's regions or the cast. Apply writes only the fields changed from what was drawn, so nothing is written back.",
+   "evidence": "trial-scene.mjs:1617     for (const role of [\"school\", \"trial\"]) if (read[role] !== read.drawn?.[role]) patch[role] = read[role] || null;",
+   "failure_scenario": "Two GMs: one links the trial hall while the other has Season setup open on the Scenes part; the second reads 'no hall linked' and its report's warnings until they reopen the window.",
+   "expected": "The part follows sceneRoles and the hall's regions, keeping the GM's own changed selects.",
+   "confidence": "read",
+   "refutation_tried": "grep keepLive/keepFresh/Hooks.on in season-setup.mjs: none for the window. hallLockReason is asked only on a select change (trial-scene.mjs:1521-1524), so a trial starting while it stands is not drawn either.",
+   "probe": "Two GM pages, Season setup's Scenes part open on one; set the hall on the other; read the first's `[name=\"scenes:trial\"]` and `[data-drpg-scenes-report]`."
+  },
+  {
+   "id": "refresh-01-04-10",
+   "severity": "nit",
+   "verdict": "stale_state",
+   "title": "The turn prompts' seconds are drawn once: 'Your turn (60 s)' and the volunteers' count never move, and a GM's +30 s or -30 s does not reach them",
+   "surface": "the speaker's prompt - 'Your turn ({seconds} s)'; the volunteers' question - 'Closing Argument' (I'll sum up?)",
+   "where": "scripts/trial-prompt.mjs:150-160, 182-206; scripts/trial-floor.mjs:1309-1345",
+   "what_happens": "promptTurn writes the turn's seconds (the Closing's seconds left) into the title, and promptClaim the seconds left into the body, once. Their 500 ms watches read the floor only to close the window. The bar's +30 s / -30 s moves the floor's startedAt, so the turn runs longer or shorter than the number on the window says.",
+   "evidence": "trial-prompt.mjs:184     const seconds = closing ? Math.max(secondsLeft(floor), 0) : Math.round(Number(floor.seconds) || 0);\ntrial-prompt.mjs:190         title: game.i18n.format(\"DRPG.Trial.turn.title\", { seconds }),\ntrial-prompt.mjs:203                 if (turnKey(trialFloor()) === key) return;",
+   "failure_scenario": "In a Testimony the GM gives the speaker +30 s; the speaker's window still says 'Your turn (60 s)' while the HUD's clock counts the longer turn.",
+   "expected": "The seconds on the prompts follow the floor, as the console's do.",
+   "confidence": "read",
+   "refutation_tried": "Read both windows' render hooks: the intervals close and do nothing else. The HUD's own readout does count (hud-elapsed.mjs), so the player has a right number elsewhere; that keeps it a nit.",
+   "probe": "A player's page in a Testimony with the prompt open; GM presses +30 s; read the prompt's title and the HUD's seconds."
+  },
+  {
+   "id": "refresh-01-04-11",
+   "severity": "nit",
+   "verdict": "stale_state",
+   "title": "The held Key fee's card keeps 'Charge the Key fee' on every GM after the fee has been charged",
+   "surface": "The held Key fee's card (a whisper to the GMs)",
+   "where": "scripts/key-remnants.mjs:719-726, 785-800",
+   "what_happens": "wireChargeHeld removes the button on the browser that pressed it. Nothing redraws the card when trialProgress.keysCharged is written - by another GM's press or by the trial's own charge - so every other GM's card still offers the charge; a reload draws it again. A press then says the fee is done.",
+   "evidence": "key-remnants.mjs:796         button.closest(\".drpg-call-actions\")?.remove();\nkey-remnants.mjs:798         if (trialProgress()?.keysCharged) ui.notifications.info(game.i18n.localize(\"DRPG.Case.chargeDone\"));",
+   "failure_scenario": "Two GMs: one presses 'Charge the Key fee' and the fee is charged; the other's whisper still shows the button.",
+   "expected": "The card loses its button, or says the fee is charged, once keysCharged is written.",
+   "confidence": "read",
+   "refutation_tried": "The comment records the choice (key-remnants.mjs:785-787, E109, 'a reload draws it again, and a second press asks again, which the stamp answers'), made before the owner's rule of 20.11.2026; nothing is charged twice (keysCharged, :734). Filed for the rule, with the decision named.",
+   "probe": "Two GM pages with the held card; press it on one; read `[data-drpg-key-charge]` on the other."
+  },
+  {
+   "id": "refresh-01-04-12",
+   "severity": "nit",
+   "verdict": "stale_state",
+   "title": "The vote window and the console's vote lines do not follow a student's sheet: an owner or a Monocub / not-in-the-class flag changed while they stand",
+   "surface": "the vote window - 'The vote'; the Class Trial console",
+   "where": "scripts/vote.mjs:567-592; scripts/trial-floor-ui.mjs:1674, 1987",
+   "what_happens": "trialParticipants, which both windows print through ballotRecipients and pendingVoters, reads each student's ownership and its Monocub and not-in-the-class flags (as the GMs hold them, flagsHeldNow). Neither window watches actors or sheetMarkStore, so such a change shows only at the next ballot, setting or user connection.",
+   "evidence": "vote.mjs:582         if (held.getFlag(MODULE_ID, FLAGS.monocub)) continue;\nvote.mjs:586         const user = game.users.find(u => !u.isGM && (u.active || !connected) && actor.testUserPermission(u, \"OWNER\"));\ntrial-floor-ui.mjs:1987             region: \".drpg-vote-status\", build: statusHtml, watch: { hooks: [\"drpgBallotsChanged\", \"userConnected\"] },",
+   "failure_scenario": "Before sending the ballots a GM gives a student to another player in Foundry's ownership window; the vote window still names the old player among those who would get a ballot.",
+   "expected": "The vote window hears actors, as the GM panel's Students window does.",
+   "confidence": "read",
+   "refutation_tried": "The primary reads the participants again at Send (vote.mjs:645-652 comment; ballotFor), so the ballots go right; only the list on screen is old.",
+   "probe": "Open the vote window; change a student's owner; read `.drpg-vote-status` three seconds later."
+  },
+  {
+   "id": "refresh-01-04-13",
+   "severity": "nit",
+   "verdict": "stale_state",
+   "title": "The console's case schema does not hear the trace ledger or the tokens: a trace placed during the trial, or an unfound one renamed on its card, keeps its node as drawn",
+   "surface": "the case schema in the console's slot - 'Case schema'",
+   "where": "scripts/case-trial.mjs:121-127; scripts/case-schema.mjs:369-378; scripts/remnants.mjs:3248-3251",
+   "what_happens": "caseGraph builds the evidence nodes from remnantsOn (the ledger, remnantStore, over each scene's tokens). The schema's region watches items, four settings, four other stores and the chat hooks. A write that touches only the ledger or a token - a GM renaming an unfound trace on its Remnant card (no Truth Bullet copy, so no item write), a trace placed - redraws nothing.",
+   "evidence": "case-trial.mjs:126         watch: { items: true, settings: [SETTINGS.trialQueue, SETTINGS.clock, SETTINGS.murderState, SETTINGS.trialProgress], stores: [caseTickStore, caseSchemaStore, keyPlanStore, blackenedStore], hooks: [\"createChatMessage\", \"updateChatMessage\", \"deleteChatMessage\"] },\ncase-schema.mjs:373         for (const token of remnantsOn(scene)) {",
+   "failure_scenario": "During the trial a GM corrects the name of a trace nobody found on its Remnant card; the schema in the console keeps the old name on its node.",
+   "expected": "remnantStore among the schema's stores, as the dashboard's region has it.",
+   "confidence": "read",
+   "refutation_tried": "A reshape ruling posts and updates chat cards, which the schema hears, so that road redraws it; a Remnant card edit of a found trace writes its copies (items), which it hears too. Left: ledger-only writes.",
+   "probe": "Console open in a trial; set an unfound trace's public name through `game.drpg` or its card; read the node's label in `.drpg-case-trial-live`."
+  }
+ ],
+ "not_established": [
+  "No base-run.json and no probe-43.json existed when this file was written (20.11.2026): every reading here is static (evidence class S), no test or scenario result was read.",
+  "Whether, on a second GM, a Truth Bullet's item reaches the dashboard before its answer key (refresh-01-04-2): the order is read from createTruthBullet's writes, not measured. New live check: two GMs, the dashboard open on the second, a Truth Bullet issued on the primary; read the found-by cell at 1 s and 5 s.",
+  "Foundry's createSetting on a world setting's first write (controls-01-trial-console-4) also reaches the sheet's Present repaint (sheet.mjs:79-81) and the HUD through the sync bus; not read on v14. LIVE check as written there.",
+  "Issue Autopsy prefilled with a planned Autopsy that goes out on its own at a body while the window stands sends a second one (gm-items.mjs:1644, 1700-1702; case-realize.mjs:255-281): a write question, not a redraw; not filed here.",
+  "The Logic Dive set editor's Save patches the whole row from the form (trial-zones-ui.mjs:146-150), so another GM's edit meanwhile is replaced: a write question for another lane.",
+  "Whether sideOnPrimary takes a late side for the question now on the floor (refresh-01-04-6) was read from the request's fields, not from sideOnPrimary's body.",
+  "The sync bus (sync.mjs) route by which the HUD redraws for a floor change was read only in its table rows (sync.mjs:400-515), not traced end to end."
+ ]
+}

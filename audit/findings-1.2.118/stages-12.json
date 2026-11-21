@@ -1,0 +1,766 @@
+{
+ "reader": "stages-12",
+ "checkout": "branch claude/audit-119 at 014f9a83; the code read is main b5a29e73 (1.2.118, module.json) - the branch adds files under audit/ only. Shallow clone: E50's own commits and E51 C1-C4 are not in it (0c8ace17, E51 C5, has no parent); E90's and E65's are. Nothing run but read-only git, grep and short python over source and the base run's result files.",
+ "count_expected": 4,
+ "count_note": "4 of 4 stages, in tools/stages.json order E90, E50, E51, E65. Read: release notes v1.2.93 (116), v1.2.94 (400) and v1.2.95 (211) whole; the four stages.json rows; 59 registry rows by title (2 E90, 12 E50, 42 E51, 3 E65) and their outcome in the base run's shard 1/8 results by script (59 of 59 pass); 37 tier-2 titles by grep (3 E90, 3 E50, 28 E51, plus E51-T15's removal note) and 5 of them ok in shard 2/8, one body whole (E90-T3); AUDIT 9.2 items 41 and 348-361 (15 items) by id and their verdicts in live-items-01.json, -327.json and -361.json; live-readings-other.json by grep; the base run's npm test log lines 1-336 and 411 for the text part; code at the file:line given in each promise, about 1100 lines in 28 files, none whole; docs/text-style.md 1-60 and its status lines by grep, glossary.json by script. No docs/dev/e90, e50, e51 or e65 folder exists; E65's papers are its own products (guide, glossary, budgets, pilot, review).",
+ "stages": [
+  {
+   "id": "E90",
+   "version": "1.2.93",
+   "shipped": "2026-10-31",
+   "what": "A hotfix after the owner's table on 31.10.2026 (Foundry 14.365 on The Forge): game.time.serverTime read the server's uptime (2811317 beside Date.now() 1793415993407), so after a restart every GM store write fell under the old watermarks and was dropped. The clock now takes serverTime only when it reads as a date (1e12 ms or more), else the browser's own Date.now(); stamps from the old clock read as unknown in the HUD's minutes, the debate floor and the trial clock; a trace's ring follows its ledger row and its sight. 2 registry rows stamped E90 (R1564, R1565), 3 tier-2 tests (E90-T1..T3), scenario 61 A8.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.93.md (1-116, whole)",
+    "commit 71b726a6 (the stage, 16 files +537 -31; its message cites S/stages/E90/STATUS.md, a scratch path that is not in the repository), 0986764a (the release), 06556296 and 3053d9f7 (the crlf hang after the release: E90-T3 waiting on frames)",
+    "no papers folder: docs/dev/ holds no e90/",
+    "tools/stages.json row E90 (planned and shipped 1.2.93, 2026-10-31, touches sockets and scenes, drills none)",
+    "docs/dev/R-REGISTRY.md:924-925 (R1564, R1565)",
+    "audit/AUDIT-1.2.42.md 9.2 item 41 (LIVE-E04-01, line 869, answered 'no' at the owner's table) and item 348 (LIVE-E90-01, line 1222)",
+    "audit/findings-1.2.118/live-items-01.json item 41, live-items-327.json item 348; live-readings-other.json (LIVE-E04-01)",
+    "git show c0ac849b:audit/gate/local-gate.json - the local gate's record for 1.2.93: every part not run, 'no-server' (ECONNREFUSED 127.0.0.1:30099)"
+   ],
+   "commits": 2,
+   "promises": [
+    {
+     "promise": "The module's clock and the records' clock take game.time.serverTime only when it reads as a date (1e12 ms or more), else Date.now(); every new stamp is above every stamp and watermark the uptime clock wrote, so the records take writes again with nothing migrated",
+     "source": "v1.2.93.md 7-8, 27-29",
+     "code": "scripts/config.mjs:494 EPOCH_FLOOR_MS = 1e12, :497-500 isEpochStamp, :503-505 epochClock; scripts/utils.mjs:432-434 serverNow; scripts/gm-store.mjs:1686-1687 (the stores' now: epochClock(game.time?.serverTime, Date.now())). grep of scripts/ for serverTime outside the suite: no other reader",
+     "holds": "yes",
+     "test": "R1564 (ok in shard 1/8); scenario 61 A8 (audit/harness/scenarios/61-gmstore-case.mjs:233-249)",
+     "test_kind": "behaviour",
+     "note": "The restart is modelled by fake records (R1564) and a client started with an uptime serverTime (61 A8); no real restart has been read since the fix (LIVE-E90-01 open)."
+    },
+    {
+     "promise": "Old stamps read as unknown: the HUD's minutes line prints no number for a start on the old clock and the primary writes the time of day as begun now with no pauses at its ready and at an unpause; a debate floor's old start reads as the moment the browser met it and the primary writes it at its next tick; a trial with an old start shows no time line; the boundary take-back is not offered",
+     "source": "v1.2.93.md 30-36",
+     "code": "scripts/config.mjs:513-516 staleStamp; scripts/hud-elapsed.mjs:89 (unpausePatch), :128 (readyPatch), :285 (elapsedOf) - moved out of hud.mjs since 1.2.93; scripts/trial-floor.mjs:283-288 floorStart, :292-295 staleFloorStart, :301-303 rebaseStaleFloor, :1725-1726 (the primary's tick); scripts/trial-floor-ui.mjs:491 (trialTime)",
+     "holds": "yes",
+     "test": "R1565 (ok in shard 1/8); tier 2 E90-T1 (ok in shard 2/8), E90-T2 (not in the shards read)",
+     "test_kind": "both",
+     "note": "R1565 is pure calls on the patch functions; E90-T1 drives the HUD and the primary's ready on the GM page. The functions moved file (hud.mjs to hud-elapsed.mjs) with no change of rule read."
+    },
+    {
+     "promise": "A trace's ring follows its record and its sight: a ledger change repaints every trace token on the next frame, and a sight refresh paints only a visible trace or project token that shows no ring; a trace with no row waits for the next ledger change",
+     "source": "v1.2.93.md 37-41",
+     "code": "scripts/remnant-ring.mjs:170-190 (the two hooks: clientSettingChanged on gmRemnants, sightRefresh), :564-606 ringPassNextFrame, ringShown, ringPassNow; scripts/settings.mjs:375 (remnantSecrets is the client setting gmRemnants); scripts/perf-counters.mjs:21-22 (the counters)",
+     "holds": "yes",
+     "test": "tier 2 E90-T3 (tests-tier2.mjs:90327-90385, result not read); scenario 86 counters",
+     "test_kind": "behaviour",
+     "note": "The ring's frame cost at a table is LIVE-E89-01's fps(), not this stage's."
+    },
+    {
+     "promise": "Recovery roads for lost entries: gmStoreHealth counts traces with no record, migrateRemnants writes a weak record from the token's flags, gmStoreReclaim('remnants') takes the pre-1.2.63 rows at their own stamps above every old-clock cut, the restore's 'Restore anyway' row fills rows at or under the cut with a fresh stamp that now stands",
+     "source": "v1.2.93.md 42-63",
+     "code": "scripts/api.mjs:193, :718 (gmStoreStatus, gmStoreHealth, gmStoreReclaim, as live-items-327.json item 348 read them); lang/pl.json:9124 (beforeCut)",
+     "holds": "partly",
+     "test": "R1564 (the reclaim's clamp, per its title 'after a restart a write under the last session's watermark lands')",
+     "test_kind": "behaviour",
+     "note": "The reclaim and the restore at fresh stamps follow from the clock; the notes themselves say the Faint Prep promotion at the upgrade mark is 'read in the code, not measured'. I did not trace migrateRemnants or the restore's fresh stamp; marked partly for that reason, not for a defect."
+    },
+    {
+     "promise": "No bridge action and no socket packet is added or changed; a server whose serverTime is a date is unchanged",
+     "source": "v1.2.93.md 64-71, 100-101",
+     "code": "epochClock keeps serverTime when it is at or above the floor (config.mjs:504)",
+     "holds": "yes",
+     "test": "scenario 61 A4 (the harness's epoch serverTime read as the server's)",
+     "test_kind": "behaviour",
+     "note": "What a v14 server other than The Forge gives for serverTime is not read (the notes' own Not modelled)."
+    }
+   ],
+   "registry_rows": 2,
+   "tests_read": [
+    {
+     "test": "R1564 (tests-tier1.mjs:37958; registry row read, body not read)",
+     "measures": "yes",
+     "why": "By its row: a store write on a client whose serverTime is an uptime is kept, an epoch serverTime is still the server's, and a write under the last session's watermark lands after a restart. ok in shard 1/8."
+    },
+    {
+     "test": "R1565 (tests-tier1.mjs:38071; registry row read)",
+     "measures": "weak",
+     "why": "Pure readings of the patch functions on stand-in clocks; pins the rule, drives no HUD. ok in shard 1/8."
+    },
+    {
+     "test": "tier 2 E90-T3 (tests-tier2.mjs:90327-90385, body read)",
+     "measures": "yes",
+     "why": "Places a real trace on the GM's scene, patches its row's type, drops the row, writes it back, paints it hidden and shows it with a sightRefresh, and reads the ring's key and visibility after each, two frames apart; it would fail at 248e798e (its header records the red). It reads the GM page only. Result not read in this audit's run."
+    },
+    {
+     "test": "tier 2 E90-T1 (tests-tier2.mjs:90265, title read)",
+     "measures": "yes",
+     "why": "A time of day started on the uptime clock prints no 56 years and the primary's ready writes it as begun now. ok in shard 2/8."
+    },
+    {
+     "test": "scenario 61 A8 (61-gmstore-case.mjs:233-249, read)",
+     "measures": "yes",
+     "why": "A second GM page started with serverTime 2811317: serverNow and gmStoreNow are the epoch clock and a row under 5869492 is kept. Result not read in this audit's run."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: E90-T2 - a debate started on the uptime clock has its whole time to run",
+    "tier 2: E90-T3 - a trace's ring follows its row and its sight",
+    "scenario 61 (A8)",
+    "scenario 86"
+   ],
+   "scenarios": [
+    "61-gmstore-case gains A8 (no register row names E90; the phase names it, 61-gmstore-case.mjs:15-16, :233)",
+    "86-frame-work's counters remnantRing.ledgerPass, .sightPass, .passPainted (from the notes, not read)"
+   ],
+   "live": {
+    "items": 2,
+    "read": 1,
+    "ids_read": [
+     "LIVE-E04-01"
+    ],
+    "note": "Item 41 LIVE-E04-01: read at the owner's table on 31.10.2026 (Foundry 14.365 on The Forge), a defect - the reading this stage fixes (live-readings-other.json; live-items-01.json). Item 348 LIVE-E90-01, the check after the fix: open, no reading in any digest; docs/dev/e58/LOCAL-REPORT.md:330 counts it among the rows not checkable on the sandbox. The local gate for 1.2.93 ran nothing (no server)."
+   },
+   "findings": [],
+   "superseded_by": [
+    "none of the promises; the stale-stamp readers moved from hud.mjs to hud-elapsed.mjs in a later refactor with the rule unchanged (hud-elapsed.mjs:70, :89, :128, :285)"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "Every promise is in today's code, with no reader of serverTime left outside epochClock (grep of scripts/). R1564 and R1565 are ok in the base run's shard 1/8 and E90-T1 in shard 2/8. Against a 9: one part - the recovery roads (migrateRemnants, the restore's fresh stamp, the promotion at the upgrade mark) - stands on reading, the notes' own words, and I did not trace it. The stage's main promise, that records take writes after a real restart on The Forge, rests on LIVE-E90-01, unread, and the local gate for 1.2.93 recorded every part not run: capped at 9 by that alone. E90-T2, E90-T3 and scenario 61 A8 were not in the shards read.",
+   "missing_to_10": "LIVE-E90-01 read on The Forge across a real restart (the l1 block); E90-T2, E90-T3 and scenario 61 joined from the base run; a test that runs migrateRemnants and the restore's 'Restore anyway' on a world whose cut is an uptime mark and reads the rows standing."
+  },
+  {
+   "id": "E50",
+   "version": "1.2.94",
+   "shipped": "2026-10-31",
+   "what": "The messenger and the Sound window: a thread counts as read only while its window is in front, on its Chat tab, with the page visible; a GM's own asks count as unread until settled; one pass counts the threads; the roster closes by one road; a deleted message leaves open windows; a failed send keeps the words. The Sound window saves each change as it is made (no Apply, one Close), the primary's music follows any GM's mapping after a settle, the cue playlist is not mappable (a stored mapping onto it dropped at ready), the times of day are localized, the Music slider is on Foundry's curve. Shipped with E51 in 1.2.94. 12 registry rows stamped E50 (R1061-R1072), tier-2 E50-T1, -T2, -T4, scenario 87.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.94.md (1-400, whole: E50's parts 40-44, 64-102, 205-215, 246-259, 307-311, 329-344, 376-381)",
+    "no papers folder: docs/dev/ holds no e50/; the 'owner's answers file' and the status record the notes cite are not in the repository",
+    "tools/stages.json row E50 (planned and shipped 1.2.94, 2026-10-31, touches sockets, drills none)",
+    "docs/dev/R-REGISTRY.md:594-605 (R1061-R1072)",
+    "git: the checkout is shallow; of E50's own commits (C0-C4, FG1 422142bc, FG1b 0f2058bf, FG2 cd4ffabe, the end review's 8d509dc7) none is in it (git cat-file: not a valid object); 2d8a11e4 (E50/E51 version wording) and 48cb6685 (the release) are",
+    "audit/AUDIT-1.2.42.md 9.2 items 349-354 (lines 1223-1228); live-items-327.json items 349-354"
+   ],
+   "commits": 2,
+   "promises": [
+    {
+     "promise": "A thread is read only when its window is drawn, on its Chat tab, frontmost (ui.activeWindow) and the page visible; a message that comes otherwise raises its card and stays unread; the page shown again reads what came",
+     "source": "v1.2.94.md 66-69, 207-209; Q-E50-2's default (40-41)",
+     "code": "scripts/messenger-app.mjs:457-460 seesThread, :462-464 markIfSeen, :466-470 bringToFront, :473-476 maximize, :437 (render), :54-58 (visibilitychange), :529-535 (the card raised when not seen)",
+     "holds": "yes",
+     "test": "R1061 (ok in shard 1/8); scenario 87 A0-A5",
+     "test_kind": "both",
+     "note": "What sets ui.activeWindow on v14 is LIVE-E50-01 and the hidden page LIVE-E50-02, both open; the harness sets ui.activeWindow on first render and in bringToFront (messenger-app.mjs:454-455)."
+    },
+    {
+     "promise": "A GM's own asks count as unread until read or ruled on, the badge redrawn when an ask settles; the threads counted in one pass (one walk, one read of the read map)",
+     "source": "v1.2.94.md 70-73",
+     "code": "scripts/messenger.mjs:135 threadStatsOf, :166 threadStats; scripts/messenger-app.mjs:45-49 (drpgMessengerEdited redraws the launcher)",
+     "holds": "yes",
+     "test": "R1064, R1065 (ok in shard 1/8)",
+     "test_kind": "both",
+     "note": "R1065 counts messenger.threadStats and messenger.readMap moving by one each."
+    },
+    {
+     "promise": "The roster closes by one road (an outside click or a row), a second open leaves one roster; a deleted message leaves every open thread window",
+     "source": "v1.2.94.md 74-76",
+     "code": "scripts/messenger-app.mjs:1570 closeRoster, :51 drpgMessengerDeleted; scripts/messenger.mjs:395-404",
+     "holds": "yes",
+     "test": "R1063, R1066 (ok in shard 1/8)",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "A failed send keeps the words in the box and says what is known once (not sent; may not have been sent; a refusal that already said why adds nothing)",
+     "source": "v1.2.94.md 207-212",
+     "code": "scripts/messenger-app.mjs:420-426 (the send's outcome and sendFailed); DRPG.Messenger.sendUnsure",
+     "holds": "yes",
+     "test": "R1062, R1072 (ok in shard 1/8)",
+     "test_kind": "behaviour",
+     "note": "The notes' Known gap that 'card made, words not kept' was read by no test is covered by R1072's title today."
+    },
+    {
+     "promise": "The Sound window saves each change as it is made, with Saving..., Saved or Not saved, no Apply and one Close on every tab; two GMs saving different rows in the same moment both keep theirs",
+     "source": "v1.2.94.md 80-82",
+     "code": "scripts/sound-panel.mjs:118 (no Apply), :231 (the three save states), :321-345, :68, :411 (one Close); scripts/music-states.mjs:325-366 saveMusicKey, writeMusicKeys (a queue of keys written over the map as read at write time)",
+     "holds": "yes",
+     "test": "tier 2 E50-T1 (ok in shard 2/8); scenario 87 C1-C2",
+     "test_kind": "behaviour",
+     "note": "The two-GM case was measured with a stand-in for the second read (the notes, 82); two real GMs on a real server is LIVE-E50-04."
+    },
+    {
+     "promise": "The primary's music follows any GM's mapping about two seconds after the last change (1500 ms plus its own 400 ms settle), once for several changes; a next primary applies a change the last one left; a playlist the map moves away from stops",
+     "source": "v1.2.94.md 83-91",
+     "code": "scripts/music-play.mjs:90 SETTLE_MS 400, :117 MAP_SETTLE_MS 1500, :126-161 noteMapLeft and scheduleMapRefresh (armed on every GM, applied by the primary)",
+     "holds": "yes",
+     "test": "tier 2 E50-T2, E50-T4 (results not read); scenario 87 C1, C2, C4",
+     "test_kind": "behaviour",
+     "note": "The harness marks a primary absent, not disconnected (live-items-327.json item 353)."
+    },
+    {
+     "promise": "A GM who takes a row out, or puts its old playlist back, within 4000 ms of another GM's change sees that GM's choice come back once; a write the module did not send ends the watch",
+     "source": "v1.2.94.md 86-89, 308",
+     "code": "scripts/music-states.mjs:300-312 (MAP_ECHO_MS = 4000 and the rule written beside it), :346, :356",
+     "holds": "yes",
+     "test": "scenario 87 (per the notes); no registry row names MAP_ECHO_MS",
+     "test_kind": "behaviour",
+     "note": "A behaviour the notes and the GM handbook state as a known effect; 4000 ms is chosen, not measured (Known gaps 308)."
+    },
+    {
+     "promise": "The cue playlist is not offered in the Music selects and a stored mapping onto it is dropped by the primary at ready, once, with a debug line",
+     "source": "v1.2.94.md 19-21, 43-44, 92",
+     "code": "scripts/music-states.mjs:406-421 dropCueMappings, :278 playlistFor; scripts/music-play.mjs:273-274 (the primary's ready)",
+     "holds": "yes",
+     "test": "R1067 (ok in shard 1/8)",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "The times of day in the Sound window read in the table's language; the Music slider is on Foundry's curve (50 writes 0.3536), the Sound slider linear; setSfxVolume still takes a volume; the failure texts and diagnoseMusic lines are localized",
+     "source": "v1.2.94.md 93-99, 215",
+     "code": "scripts/sfx-play.mjs:375 (the fallback curve), DRPG.Sound.why.*, DRPG.Music.diag.*",
+     "holds": "yes",
+     "test": "R1068, R1069, R1070, R1071 (ok in shard 1/8)",
+     "test_kind": "both",
+     "note": "R1069 runs on stand-in AudioHelpers (the curve read in fvtt-types 14.366, not v14's code); the number in Foundry's own sidebar is LIVE-E50-03, open."
+    },
+    {
+     "promise": "With the Sound window open on two GMs, the other window's selects stay stale until it is opened again (a Known gap, not a promise)",
+     "source": "v1.2.94.md 307-308",
+     "code": "scripts/sound-panel.mjs:439-449 (keepLive on SETTINGS.musicMap, E44 C2b)",
+     "holds": "superseded",
+     "test": "",
+     "test_kind": "",
+     "note": "Closed later by E44 C2b (04.11.2026): the Music rows redraw on another GM's mapping. Recorded because the owner's rule of 20.11.2026 (windows redraw at once) would make the gap a finding."
+    }
+   ],
+   "registry_rows": 12,
+   "tests_read": [
+    {
+     "test": "R1061 (tests-tier1.mjs:29950; registry row read)",
+     "measures": "yes",
+     "why": "By its row: a window marks its thread read only when drawn, on Chat, frontmost, unfolded and the page visible; neither a render nor a bubble marks it without asking. ok in shard 1/8. It reads the module's rule against the harness's ui.activeWindow, not v14's."
+    },
+    {
+     "test": "R1062-R1072 (registry rows read)",
+     "measures": "yes",
+     "why": "All ok in shard 1/8 (script over results-suite-1/01-runtests.json: 12 of 12 E50 rows pass). R1070 is a source scan (no literal of two words outside a key); the others drive the functions."
+    },
+    {
+     "test": "tier 2 E50-T1 (tests-tier2.mjs:87986, title read)",
+     "measures": "yes",
+     "why": "No Apply on any tab and one Close on each, a mapping select's change writes its one key at once. ok in shard 2/8."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: E50-T2 - the primary follows a mapping change from any GM",
+    "tier 2: E50-T4 - a state's playlist moved from A to B in the map",
+    "scenario 87-messenger-sound",
+    "scenario 13",
+    "scenario 40"
+   ],
+   "scenarios": [
+    "87-messenger-sound (the register row naming E50, audit/harness/README.md:221, layer ci): the messenger and the Sound window on two GMs' and the players' browsers; 35 checks at FG2 per the notes"
+   ],
+   "live": {
+    "items": 6,
+    "read": 0,
+    "ids_read": [],
+    "note": "Items 349-354 (LIVE-E50-01, -02, -06, -03, -04, -05) all open: no reading in live-readings-e58.json, -other.json or -e58-delta.json; LOCAL-REPORT.md:331 counts them among the K rows left (live-items-327.json)."
+   },
+   "findings": [],
+   "superseded_by": [
+    "E44 C2b (04.11.2026): the Sound window's Music rows keepLive on SETTINGS.musicMap (sound-panel.mjs:439-449) - closes the notes' 'other window's selects stay stale'",
+    "E44 C4b (04.11.2026): a messenger window folded to its title bar is not seen, and maximize reads what came (messenger-app.mjs:450-455, :473-476)",
+    "E46 (1.2.103): the Sound window's layout redone, 'the save model is unchanged' (v1.2.103.md:69)"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "Every promise is in today's code and the 12 registry rows are ok in shard 1/8, E50-T1 in shard 2/8. Against a 9: the two-GM save and the echo watch are measured on a stand-in for the second read, and the echo's overrule (a GM's take-out within 4 s comes back once) is a stated wrong-in-a-moment effect with a chosen, unmeasured 4000 ms. The stage's main promise, a thread read only when seen, rests on how v14 sets ui.activeWindow and hides a page (LIVE-E50-01, -02), and all six live items are unread: capped at 9. E50-T2, -T4 and scenario 87 were not in the shards read; E50's own commits are not in the shallow checkout.",
+   "missing_to_10": "LIVE-E50-01 and -02 read at a v14 table (the l1 block), -03 the slider's number in Foundry's sidebar, -04 two real GMs on a real server, -05 a killing with sound, -06 the roster beside the voice tile; E50-T2, -T4 and scenario 87 joined; the echo window measured on a real server or the overrule taken away."
+  },
+  {
+   "id": "E51",
+   "version": "1.2.94",
+   "shipped": "2026-10-31",
+   "what": "Small play and GM flows, eight parts and a fix round: thresholds said before the roll and on the card, Observe and Analyze fixes, one builder for Call windows (gold Hope, blood-red Despair, live while open, open once), the map (silent fog off, a placed token arrives, no glow towards a vetoed room, the GM's outline follows the GM's own Monokuma, the doorway light stops at the first wall, the token ruler's colour, region captions over shown tokens), the HUD (one viewer for several characters), the trace (a neutral word, a spiral spot, the digest a GM store), the trial (30 s debate floor, evidence log, Objection only at participants, no discard in a Class Trial and a one-use discard ticket), the panel (Announce changes, whole-number fields), handbooks (one language, last book, First session). Shipped with E50 in 1.2.94. 42 registry rows stamped E51 (R1100-R1144 less R1116, R1136, R1137), 28 tier-2 tests today, scenario 88.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.94.md (1-400, whole: E51's parts 45-58, 104-197, 213-239, 260-285, 286-323, 345-363, 382-398)",
+    "no papers folder: docs/dev/ holds no e51/; the status record and the owner's answers file the notes cite are not in the repository",
+    "tools/stages.json row E51 (planned and shipped 1.2.94, with E50, touches sockets, rolls and scenes, drills none)",
+    "docs/dev/R-REGISTRY.md:606-647 (42 rows)",
+    "git: 16 E51 commits in the checkout (0c8ace17 C5, 9adbb165 C6, 455959de C7, 5d09f478 C8, 47b63d64, 9c64948a FG1/FG5, 1adff655 FG4/6-9, 863dc2f4 FG2/FG3, three fix merges, 6bf49288 the trust-model sentence, e640fcda, 2d8a11e4, 99226e59 and 7fa7302c merges); C1-C4 are before the shallow graft (0c8ace17 has no parent)",
+    "audit/AUDIT-1.2.42.md 9.2 items 355-360 (lines 1229-1234); live-items-327.json items 355-360; live-readings-other.json (LIVE-E51-02, -03, -04)"
+   ],
+   "commits": 16,
+   "promises": [
+    {
+     "promise": "Thresholds are said before the roll and on the card: crisis roll (current Finishing Blow), opening, item from the sheet; Palm windows titled by part and number; the GM's tracker shows total and threshold; a free crisis take is not printed as '0 >= N'; a Dynamic miss gets a card",
+     "source": "v1.2.94.md 106-110, 120-121",
+     "code": "registry R1101 (rollTrait passes dc), R1104 palm.mjs palmTitle (scripts/palm.mjs:67), R1108 utils.mjs cardHead, R1109 murder-rules.mjs turnEntry and murder-ui.mjs recentTurnsHtml",
+     "holds": "yes",
+     "test": "R1101, R1104, R1108, R1109 (ok in shard 1/8); tier 2 E51-T5, -T6, -T7, -T8, -T31",
+     "test_kind": "both",
+     "note": "Palm's Hand number is 12 since E64's S02-75 (R1104's row says so). The titles at a real table in both languages are LIVE-E51-01, open."
+    },
+    {
+     "promise": "Call windows come from one builder: Hope gold, Despair blood-red, the GM road red, no 'Do it'; a standing window stays live and a second press raises it; Confusion names its thresholds; the assembly's call-off is a Call window",
+     "source": "v1.2.94.md 122-127",
+     "code": "scripts/call-pickers.mjs:95 callWindow, :189 callWindowClass, :199 callWindowOpen",
+     "holds": "yes",
+     "test": "R1110, R1111, R1112 (ok in shard 1/8); tier 2 E51-T29",
+     "test_kind": "both",
+     "note": "The colours are read in the cascade (R1111), not looked at drawn (Also open, 360-363); the GM road is the kit's gmRoute slot since E21 C5a (R1110's row)."
+    },
+    {
+     "promise": "The Projects window shows one select, the one for the picked row; Tamper's Reshape shows its trace select",
+     "source": "v1.2.94.md 114-115, 220-222",
+     "code": "styles/danganronpa.css:5362-5385 (the data-drpg-when show list)",
+     "holds": "yes",
+     "test": "R1142 (ok in shard 1/8); tier 2 E51-T28",
+     "test_kind": "both",
+     "note": "Read in jsdom's cascade for both themes; nobody has looked at it drawn (no LIVE item; notes 360-363)."
+    },
+    {
+     "promise": "The map: fog off is silent; a token placed in a room reveals it; a doorway towards a room the veto keeps shut does not glow; the standing outline redraws on a door, wall, room flag, seal or chain change with no sound",
+     "source": "v1.2.94.md 133-137",
+     "code": "scripts/movement.mjs:2297 passageOpenFor; fog.mjs registerFog's wall and setting listeners (R1114, R1141)",
+     "holds": "yes",
+     "test": "R1113, R1114, R1141 (ok in shard 1/8); tier 2 E51-T9, -T10, -T26, -T27",
+     "test_kind": "both",
+     "note": ""
+    },
+    {
+     "promise": "The GM's room outline follows the GM's own Monokuma token's room whichever token triggered the call; a GM with no Monokuma of their own follows every Monokuma",
+     "source": "v1.2.94.md 138-143",
+     "code": "scripts/fog.mjs:4354 ownArrival, :4452-4458 leadsHere (poolUserFor), :4489 standWhereWeStand",
+     "holds": "yes",
+     "test": "R1140 (ok in shard 1/8); tier 2 E51-T25; scenario 66 GO1-GO5 (66-*.mjs:2047, :2064, :2083)",
+     "test_kind": "both",
+     "note": "Headless only; the notes say no LIVE item exists for the outline fix (362)."
+    },
+    {
+     "promise": "The room frame's light stops at the first wall that stops a move and at the end of the room it falls into (a shape cast from each end of each segment)",
+     "source": "v1.2.94.md 144-150",
+     "code": "scripts/fog-doorways.mjs:1316 doorwayLight, :1429 eraseBeyondLight, :1550 doorwayGlowPlan",
+     "holds": "yes",
+     "test": "R1138, R1139 (ok in shard 1/8)",
+     "test_kind": "both",
+     "note": "Measured with no renderer at a canvas rect of {0, 0}; one-way and threshold walls are read as plain walls (Known gaps 303-304). The drawing is LIVE-E51-03: the owner's shots are from before the fix, after the fix open."
+    },
+    {
+     "promise": "The token ruler takes the hour's colour through a token-ruler contract row",
+     "source": "v1.2.94.md 151-152",
+     "code": "scripts/fog-doorways.mjs:1887 hourRulerFor; scripts/patches.mjs:631 (row 'token-ruler')",
+     "holds": "yes",
+     "test": "R1115 (ok in shard 1/8)",
+     "test_kind": "structure",
+     "note": "Read at a real table on 01.11.2026 on 1.2.96 (Foundry 14.365): the colour reaches the drawn line; the diagnostics' false alarm found then is fixed (live-items-327.json item 356). The ruler class changed again with owner-116 item 2, after that reading."
+    },
+    {
+     "promise": "A region's Display Scrolling Text shows its own text, only over a token this browser shows; every other caption over a token stays suppressed",
+     "source": "v1.2.94.md 153-156, 229",
+     "code": "scripts/no-scrolling-text.mjs:76-79 drpgNoScrollingText, :98-104 shownHere, :108 REGION_CALLER, :114-116 fromRegionBehavior",
+     "holds": "yes",
+     "test": "R1131 (ok in shard 1/8)",
+     "test_kind": "behaviour",
+     "note": "The caller is told by the class name DisplayScrollingTextRegionBehaviorType on the Error stack, recalled from v12-v13, not read on v14; R1131 runs on a class of that name the harness wrote. LIVE-E51-05 open."
+    },
+    {
+     "promise": "One viewer for a player with several characters in the clock, the room tile and the explain window; the GM never gets the player view in the status strip",
+     "source": "v1.2.94.md 160-162",
+     "code": "scripts/monokuma.mjs:160 chooseOwnStudent; hud.mjs viewerActor; player-status.mjs statusActor (R1117, R1118)",
+     "holds": "yes",
+     "test": "R1117, R1118 (ok in shard 1/8)",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "The trace: a neutral word for an undescribed trace; a found incident trace reaches its finder; a spiral spot in the same room; the digest a GM store any GM writes, said by the primary, surviving an F5 and a handover; Clear Faint and Sweep show their result",
+     "source": "v1.2.94.md 167-175",
+     "code": "scripts/remnants.mjs:309 spiralSpot, :27 and :705 (traceDigestStore); scripts/gm-stores.mjs:926 traceDigestStore",
+     "holds": "partly",
+     "test": "R1120, R1121, R1122 (ok in shard 1/8); tier 2 E51-T12, -T13, -T14; scenario 61 TD1-TD3 (61-gmstore-case.mjs:2638-2725)",
+     "test_kind": "both",
+     "note": "Clear Faint and Sweep's result in the dashboard is gone with the two buttons (E64-inv, 12.11.2026, the owner's pick; End the chapter runs both, R3967) and E51-T15 with it (tests-tier2.mjs:89452-89453). The rest holds; a primary back from an F5 may say a row twice (read, not measured, the notes 174-175)."
+    },
+    {
+     "promise": "The trial: a debate of at least 30 s on every road; the console opens the evidence log; the season form clamps the chapter and opens a sheet by id; an Objection only at the trial's participants; a refused Objection says what was refunded",
+     "source": "v1.2.94.md 176-181, 128-129",
+     "code": "scripts/config.mjs:4310 debateMinSeconds 30; scripts/trial-floor.mjs:828-831 debateSeconds, :967 targetRefusal, :982, :1260",
+     "holds": "yes",
+     "test": "R1123-R1126 (ok in shard 1/8); tier 2 E51-T16, -T17, -T18",
+     "test_kind": "both",
+     "note": ""
+    },
+    {
+     "promise": "No discarding in the Class Trial (button greyed, player and bridge refuse); outside it a discard-stamped delete stands only on a one-use ticket the primary writes after placing the discard's trace (60 s, by character and item name cut to 80); a stamp with no ticket is flagged with Undo",
+     "source": "v1.2.94.md 182-188, 223-224, 296-298",
+     "code": "scripts/bridge-runs-records.mjs:136 (the trial's refusal), :150-151 noteDiscardTrace; scripts/sheet-audit.mjs:2132 DISCARD_TICKET_MS, :2138-2144, :2147-2156 takeDiscardTrace, :2184",
+     "holds": "yes",
+     "test": "R1134, R1135 (ok in shard 1/8); tier 2 E51-T19 (ok in shard 2/8), E51-T22; scenario 30 D1-D4 (30-*.mjs:3498, :3504)",
+     "test_kind": "both",
+     "note": "By the notes' and the trust-model rule's own words a player's console can still earn a ticket with a discard trace of its own choosing, and the ticket is keyed by name, so a second item of that name can go on the first's ticket (read, not measured). Recorded, not a finding: it is the trust model's stated limit (sheet-audit.mjs:2128-2131, .claude/rules/trust-model.md per 6bf49288)."
+    },
+    {
+     "promise": "The rules manager says what it did and Announce changes (ticked by default) posts one card of rules introduced and revoked; every GM number field reads a whole number; the Players window counts characters",
+     "source": "v1.2.94.md 189-194",
+     "code": "scripts/rules.mjs:590 (the Announce card); scripts/utils.mjs:939 wholeNumber; lang/en.json:6044",
+     "holds": "yes",
+     "test": "R1127, R1128 (ok in shard 1/8); tier 2 E51-T20, -T21",
+     "test_kind": "both",
+     "note": ""
+    },
+    {
+     "promise": "The handbook window keeps one language after a declined reload and opens on the book last read; the checklist has a First session screen whose rows hold no Next",
+     "source": "v1.2.94.md 195-197",
+     "code": "scripts/handbooks.mjs:39-54 (handbookBook client setting); season-setup.mjs steps() group firstSession (R1132)",
+     "holds": "yes",
+     "test": "R1129, R1130, R1132, R1143 (ok in shard 1/8)",
+     "test_kind": "both",
+     "note": "R1132's row records E101 changing two First session rows since (the hall's tokens; Foundry's settings while given back)."
+    },
+    {
+     "promise": "The incident's turn card reaches the participants and the GM, not a bystander",
+     "source": "v1.2.94.md 165-166, 290-293",
+     "code": "not traced; the notes name castCopyFor (Mutants, 393-395)",
+     "holds": "partly",
+     "test": "scenario 10 (per the notes)",
+     "test_kind": "behaviour",
+     "note": "The notes themselves hold the Testimony card to a weaker promise (E51-29, raised to the owner, no answer in the sources), and C4's mutant m1 survived scenario 10 because castCopyFor still sends a bystander an empty copy. I did not trace the road."
+    },
+    {
+     "promise": "The main flows' clicks and windows are held to a baseline (scenario 88, flow-length.json)",
+     "source": "v1.2.94.md 272, 280, 294-295, 396-398",
+     "code": "scripts/tests-flows.mjs FLOW_LENGTHS (R1133); audit/harness/flow-length.json",
+     "holds": "yes",
+     "test": "R1133 (ok in shard 1/8); scenario 88 (result not read)",
+     "test_kind": "both",
+     "note": "Scenario 88 is in the ci layer alone, not in the local gate (E51-49; the notes asked the owner, no answer). LIVE-E51-06 open."
+    }
+   ],
+   "registry_rows": 42,
+   "tests_read": [
+    {
+     "test": "R1100-R1144 (42 registry rows read by title)",
+     "measures": "yes",
+     "why": "All 42 ok in shard 1/8 (script over results-suite-1/01-runtests.json). Of them R1100, R1102, R1103, R1105, R1106, R1110, R1113-R1115, R1120, R1121, R1127, R1133, R1135, R1138-R1141, R1143 are tier 0 (source and structure reads, some with pure calls); the tier-1 rows drive the functions on stand-ins."
+    },
+    {
+     "test": "R1115 (registry row)",
+     "measures": "weak",
+     "why": "The ruler class on a test class the harness made; the harness has no ruler class (the notes 151-152)."
+    },
+    {
+     "test": "R1131 (registry row)",
+     "measures": "weak",
+     "why": "Drives the patch with a stack from a class of the right name written by the harness; whether v14's stack names it is LIVE-E51-05."
+    },
+    {
+     "test": "R1142 (registry row)",
+     "measures": "yes",
+     "why": "Reads each data-drpg-when value shown with its row and hidden under another, under both themes, in jsdom's cascade (env.cascade); the drawing is not looked at."
+    },
+    {
+     "test": "tier 2 E51-T4, -T11, -T19 (titles read)",
+     "measures": "yes",
+     "why": "ok in shard 2/8: a Role reversal the opening took struck with its reason and a forged take refused; the Events card says the vote is in; no discard in the Class Trial on the sheet, the bridge and the player."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: E51-T1 to -T3, -T5 to -T10, -T12 to -T14, -T16 to -T18, -T20 to -T22, -T25 to -T31 (25 tests not in the shards read)",
+    "scenario 88-flow-length",
+    "scenario 61 (TD1-TD3)",
+    "scenario 66 (GO1-GO5)",
+    "scenario 30 (D1-D4)",
+    "scenarios 10, 13, 33, 62, 63, 67, 76, 86 (phases the notes name)"
+   ],
+   "scenarios": [
+    "88-flow-length (the register row naming E51, audit/harness/README.md:222, layer ci)",
+    "phases added in 10, 13, 30 (D1-D4), 33, 61 (TD1-TD3), 62 (S), 63 (B7), 66 (GO1-GO5), 67, 76 (DV) and 86 - from the notes; 30, 61 and 66's phases found in the files by name"
+   ],
+   "live": {
+    "items": 6,
+    "read": 0,
+    "ids_read": [],
+    "note": "355 LIVE-E51-01 open. 356 LIVE-E51-02 partly, the colour reaches the line (01.11.2026, 1.2.96 on 14.365); the diagnostics' false alarm then found is fixed; the ruler changed since (owner-116). 357 LIVE-E51-03 partly: the owner's shots are of the fault before the fix, the item's check after it open. 358 LIVE-E51-04 partly: the doubled token seen at the table on 27.10, not reproduced, cause not found, not fixed. 359 LIVE-E51-05 and 360 LIVE-E51-06 open (live-items-327.json)."
+   },
+   "findings": [],
+   "superseded_by": [
+    "E64-inv (12.11.2026): Clear Faint and Sweep left the Investigation dashboard, and E51-T15 with them (tests-tier2.mjs:89452-89453; R3967)",
+    "owner-116 item 2 (1.2.116): the hour's token ruler class changed after LIVE-E51-02's reading (live-items-327.json item 356)",
+    "E101: two First session rows of R1132 (the hall's tokens, Foundry's settings while given back)",
+    "E21 C5a: the Call window's GM road is the kit's gmRoute slot (R1110's row)",
+    "E64 S02-75: Palm - Hand beats 12, not 10 (R1104's row)"
+   ],
+   "grade": 7,
+   "provisional": "after L1",
+   "grade_reasons": "Every promise I read is in today's code, all 42 registry rows are ok in shard 1/8 and the three tier-2 tests in shard 2/8 are ok. It works in the ordinary case. Against an 8: (1) two promises are delivered in part - the turn card's bystander promise is held weaker for the Testimony card by the notes themselves (E51-29, no answer from the owner), and the dashboard's Clear Faint and Sweep result was removed later by the owner's choice (superseded, not broken); (2) several parts hold only by jsdom's cascade or a stand-in class - the one select, the Call windows' colours, the ruler, the region caption's stack test - and nobody has looked at them drawn; (3) the doubled character token the stage took in (E51-35) went to a table check and has no cause or fix; (4) two mutants survived (m14, the press-time check in runCall no test reaches; C4's m1 in scenario 10). The discard ticket's console road is the trust model's stated limit, not counted. Six live items: none read whole, three read in part (one agreeing on the colour, two of the fault before the fix): capped at 9. 25 of its 28 tier-2 tests and every scenario were not in the shards read.",
+   "missing_to_10": "The l1 block's drawn checks (the doorway light after the fix, the one select, the Call colours) and LIVE-E51-01, -04 (the doubled token's createdBy), -05 (the caption in Chromium and Firefox on v14), -06; a test that reaches runCall's press-time check; the Testimony card question answered by the owner; scenario 88 given a local-gate form; the 25 tier-2 tests and scenarios 30, 61, 66 and 88 joined from the base run."
+  },
+  {
+   "id": "E65",
+   "version": "1.2.95",
+   "shipped": "2026-11-01",
+   "what": "One style guide (docs/text-style.md), one glossary (docs/glossary.json), text budgets (docs/text-budgets.json) and a text lint (node tools/check.mjs text, 26 detectors in scripts/tests-text.mjs) for every text the module shows, with the text tools beside it (text-map, text-render, text-audience, handbook-facts), a review of older texts and a pilot of 40 rewritten texts and 60 Polish naturalness pairs the owner approved on 01.11.2026; no runtime change. 3 registry rows stamped E65 (R1058-R1060, tier 0).",
+   "claim_sources": [
+    ".github/release-notes/v1.2.95.md (1-211, whole)",
+    "the stage's own papers: docs/text-style.md (940 lines; 1-60 and the status lines read, the rest by grep), docs/glossary.json (1782 lines, by script), docs/text-budgets.json (520, by the base run's line), docs/dev/text-pilot.json (1532, by the base run's line), docs/dev/text-review-E65.md (407, not read whole); docs/dev/README.md 'The text guide's papers (E65)'",
+    "tools/stages.json row E65 (planned and shipped 1.2.95, 2026-11-01, touches [], drills none) and its $comment on the rows E65 added",
+    "docs/dev/R-REGISTRY.md:591-593 (R1058-R1060)",
+    "git: ed6e8a0b..52d91f38, 17 commits in the checkout (C8 ec475782 to G2 52d91f38, with merges 11fb3c97, 4a51c934), 46971296 (the release), 501d13eb (a local-gate record for 1.2.95); git diff ed6e8a0b c014681b over scripts, lang, styles and module.json: only tests-kit.mjs, tests-text.mjs, tests-tier0.mjs and the two version stamps",
+    "audit/AUDIT-1.2.42.md 9.2 item 361 (line 1235); live-items-361.json item 361",
+    "the base run's npm test log (central scratch npmtest.log, lines 24-336 'text: ...', 411 'check: 25 part(s), all green')"
+   ],
+   "commits": 17,
+   "promises": [
+    {
+     "promise": "It changes no module behaviour: no language key, handbook, style sheet, macro, setting, GM store, migration, socket or bridge action changes; under scripts/ only the suite's tests-text.mjs, tests-kit.mjs and tests-tier0.mjs",
+     "source": "v1.2.95.md 5-6, 16-27",
+     "code": "git diff --stat ed6e8a0b c014681b -- scripts lang styles module.json: tests-kit.mjs, tests-text.mjs, tests-tier0.mjs, and the version in module.json and danganronpa.css's --drpg-css-version",
+     "holds": "yes",
+     "test": "",
+     "test_kind": "",
+     "note": "Read from git, class K with S."
+    },
+    {
+     "promise": "The style guide: one source in 13 sections, every rule ending in one status (survives, rebuilt from a source, rebuilt from the number alone); the pilot's confirmed rules marked; a rule the pilot did not confirm reads 'to confirm in E71'",
+     "source": "v1.2.95.md 54-63, 156-158",
+     "code": "docs/text-style.md:9-21 (the statuses), 25-41 (the pilot), 89 lines 'confirmed in the pilot', 35 lines 'to confirm in E71 (row 1.2.113)'",
+     "holds": "partly",
+     "test": "node tools/check.mjs text (the guide's pairs table held to its shape)",
+     "test_kind": "structure",
+     "note": "Holds as written for E65; E71 shipped on 14.11.2026 (1.2.113) and no status line was changed after it, so the guide still asks E71 to confirm rules E71's own STATUS says held (finding E65-1)."
+    },
+    {
+     "promise": "The glossary: each entry with its English and Polish form, gender, inflection, forbidden variants, the stage it holds from and its source; a missing or unknown stage, field or a doubled id turns the lint red; an entry holds only once its stage has shipped; Hope and Despair masculine and indeclinable (D191)",
+     "source": "v1.2.95.md 64-73",
+     "code": "docs/glossary.json (147 entries, 15 retired today, by script); scripts/tests-text.mjs:2932 glossaryHits (T8, FAIL since E25), :2933 retiredHits (T28, FAIL since E66)",
+     "holds": "yes",
+     "test": "R1058 (ok in shard 1/8); the base run's 'T8 fail glossaryHits read 70 found 0 (entries 147, due 147, pending 0)'",
+     "test_kind": "both",
+     "note": "109 entries at E65; 147 today, 25 of them open (later stages added names and windows)."
+    },
+    {
+     "promise": "The text budgets: 13 surfaces, a target and a limit of about 1.5 times it; rules give a key its surface by name or by sender; an allowed exception names its key, rule, reason and stage",
+     "source": "v1.2.95.md 75-78",
+     "code": "docs/text-budgets.json; scripts/tests-text.mjs:2936 lengthOver (T4, FAIL since E71)",
+     "holds": "yes",
+     "test": "the base run's 'text: budgets: 13 surface(s), 12 with a limit; 13 rule(s) ... 58 allow row(s); 0 schema fault(s)'",
+     "test_kind": "structure",
+     "note": "T4 classifies 4086 of 14378 strings it reads (28.4%) in the base run; the notes said about a quarter and that nothing holds the share up - still true."
+    },
+    {
+     "promise": "The text lint is a part of node tools/check.mjs (and so of npm run quick and npm test): every detector first on its own fixture; FAIL now T1, T2, T3 (baseline 1 row, emptied by E66), T6 (baseline 11 rows, emptied by E25), T14; the others report, each naming the stage that turns it to FAIL; red on a detector that reads nothing and on a fault of a file E65 writes",
+     "source": "v1.2.95.md 79-94",
+     "code": "scripts/tests-text.mjs:2923-2966 MODES (27 detectors today, T9 added by E57), :2867-2879 BASELINES (familyFormats empty, dashesIn 2 rows with empties 'E25'), :4212 (a row's shape only); tools/check.mjs:109-188 (the part)",
+     "holds": "partly",
+     "test": "R1058, R1059 (ok in shard 1/8); the base run's 'text: 27 detector(s), 27 hold their fixture ... FAIL found 0 beyond the baselines, report found 726; 0 problem(s)'",
+     "test_kind": "both",
+     "note": "Every report detector the notes named has turned FAIL in its stage (T4, T5, T7, T8, T11-T13, T15, T16, T20, T21, T24, T25, T28 read 'fail' in MODES) and T3's baseline is empty (E66 C2). T6's is not: two rows naming E25 as the stage that empties them stand after E25 shipped, and nothing reads a row's stage against the ledger (finding E65-2)."
+    },
+    {
+     "promise": "The text tools: text-map (the screen map), text-render (every string filled as a table fills it), text-audience (who reads each key), handbook-facts (a handbook cut into units, with check, count, prompt and self)",
+     "source": "v1.2.95.md 95-107",
+     "code": "tools/text-map.mjs (570), tools/text-render.mjs (943), tools/text-audience.mjs (385), tools/handbook-facts.mjs (421)",
+     "holds": "yes",
+     "test": "the base run's text lines 26-29 (screens 161, audience 1129 sends) and 264-272 (each handbook split twice, 0 split problems)",
+     "test_kind": "behaviour",
+     "note": "The handbook-facts trial compared counts of facts, not facts (the notes' own gap); E57 has since written the facts files the check reads (base run 271-272)."
+    },
+    {
+     "promise": "Three tier-0 tests that write nothing: R1058 (every detector on its fixture), R1059 (the FAIL detectors over the served files with their baselines), R1060 (the item tables' words, the Polish put over config.mjs and put back)",
+     "source": "v1.2.95.md 108-109",
+     "code": "scripts/tests-tier0.mjs:19223 R1058, R1059, :19417 R1060",
+     "holds": "yes",
+     "test": "R1058, R1059, R1060 (ok in shard 1/8)",
+     "test_kind": "both",
+     "note": "R1060 on a GM whose module language is Polish is LIVE-E65-01, open."
+    },
+    {
+     "promise": "The review of older texts and the pilot: docs/dev/text-review-E65.md (216 rows) and docs/dev/text-pilot.json (40 texts, 175 facts, the owner's 40 verdicts); the approved texts applied later by E66 and E71",
+     "source": "v1.2.95.md 110-120, 153-155",
+     "code": "docs/dev/text-pilot.json; docs/dev/text-review-E65.md",
+     "holds": "yes",
+     "test": "the base run's 'pilot: ... 40 string(s), 9 question(s) ... owner's verdicts 40 (ok 40) ... 0 problem(s)' and 'T27 report naturalnessBefore read 60 found 0 (... present 0, gone 60 ...)'",
+     "test_kind": "structure",
+     "note": "T27 finds none of the 60 befores in lang/pl.json today: E66 and E71 applied them. The review's rows are one reviewer's reading, which nothing re-checks (the notes)."
+    },
+    {
+     "promise": "The release commit adds to the repository's agent rules: read docs/text-style.md and docs/glossary.json before writing user-facing text; the Definition of Done rule (from E65 on); text among the One check parts",
+     "source": "v1.2.95.md 122-131",
+     "code": "CLAUDE.md 'The house style' ('Before writing any user-facing text, read docs/text-style.md and docs/glossary.json.' and the E65-on rule) and the 'One check' row (text among the parts)",
+     "holds": "yes",
+     "test": "",
+     "test_kind": "",
+     "note": ""
+    },
+    {
+     "promise": "The guide, glossary, budgets, docs/dev and tools stay out of module.zip",
+     "source": "v1.2.95.md 28-30",
+     "code": ".gitattributes (docs/dev/, docs/glossary.json, docs/text-style.md, docs/text-budgets.json, tools/ export-ignore)",
+     "holds": "yes",
+     "test": "",
+     "test_kind": "",
+     "note": "The archive listing (209 entries) was not re-run."
+    }
+   ],
+   "registry_rows": 3,
+   "tests_read": [
+    {
+     "test": "R1058 (tests-tier0.mjs:19223; registry row read)",
+     "measures": "yes",
+     "why": "Every detector flags exactly its own fixture and reads something; the self-check sees a stubbed detector and a schema answering nothing. ok in shard 1/8. It pins the detectors, not the guide's prose."
+    },
+    {
+     "test": "R1059 (registry row read)",
+     "measures": "yes",
+     "why": "The FAIL detectors over the served files with their baselines; it fills every row it can read and fails on a new finding or a stale row. ok in shard 1/8. It does not ask whether a row's 'empties' stage has shipped."
+    },
+    {
+     "test": "R1060 (tests-tier0.mjs:19417, header read)",
+     "measures": "yes",
+     "why": "The table words carried at E65's base are held, and with lang/pl.json put over config.mjs each name is still built; headless the harness's GM plays in English, so it sets the Polish itself (tests-tier0.mjs:19432-19434). ok in shard 1/8."
+    },
+    {
+     "test": "node tools/check.mjs text in the base run's npm test (npmtest.log 24-336)",
+     "measures": "yes",
+     "why": "27 detectors, 27 hold their fixture, 0 problems; check 25 parts all green (line 411)."
+    }
+   ],
+   "tests_to_join": [],
+   "scenarios": [
+    "none names E65 (the README's text tools section, audit/harness/README.md:78-112, describes the tools, not a scenario)"
+   ],
+   "live": {
+    "items": 1,
+    "read": 0,
+    "ids_read": [],
+    "note": "361 LIVE-E65-01 open: no reading in any digest; LOCAL-REPORT.md counts it among the rows left (live-items-361.json). The sandbox branch records tiers 0-1 run there for the first time, not under a Polish GM."
+   },
+   "findings": [
+    {
+     "id": "E65-1",
+     "severity": "nit",
+     "category": "text",
+     "title": "The style guide still asks E71 to confirm 35 rules after E71 shipped",
+     "where": "docs/text-style.md:14-16 (the status forms), :276 (X8), :61, :68, :87, :106, :114 and 28 more lines ending 'to confirm in E71 (row 1.2.113)'; tools/stages.json:92 (E71 shipped 1.2.113, 2026-11-14); docs/dev/e71/STATUS.md:50-63",
+     "what_happens": "E65 gave every rule the pilot did not confirm the status 'to confirm in E71'. E71 shipped on 14.11.2026 and its STATUS lists rules it exercised with outcomes ('X8 ... Holds', 'X16 ... Holds inside sentences', 'X7 ... Holds', 'M5 / O5 ... Stays to confirm'), but no status line in the guide changed: grep gives 35 lines with 'to confirm in E71' and 0 with 'confirmed in E71'.",
+     "evidence": "docs/text-style.md:276: '- **X8** \"please\" or \"sorry\" in system text. [rebuilt 30.10 from the number alone, to confirm in E71 (row 1.2.113)]'; docs/dev/e71/STATUS.md:58: '| X8 (no \"please\"/\"sorry\") | `DRPG.Reroll.rulingVoid` \"Please rule again.\" -> \"Rule again.\" (T5's only X8 find) | Holds. ...'",
+     "failure_scenario": "A writer reads the guide on 1.2.118 before a new text, as CLAUDE.md tells them to, and cannot tell whether X8 or X16 binds: the guide says a shipped stage will confirm them.",
+     "expected": "Each rule E71 exercised says its outcome, and the ones it did not reach name the stage that now owns them.",
+     "confidence": "read",
+     "refutation_tried": "Looked for another place where E71 recorded its confirmations as binding (v1.2.113.md has no 'confirm'; text-style.md has no 'confirmed in E71'); looked for a check that would turn a past-due 'to confirm in E71' red (none: the text part checks the pairs table's shape). E71's STATUS is the only record of the outcomes, and it is a working paper outside the guide."
+    },
+    {
+     "id": "E65-2",
+     "severity": "nit",
+     "category": "hygiene",
+     "title": "T6's baseline keeps two minus-sign rows E65 said E25 would empty, after E25 shipped, and nothing reads a row's stage",
+     "where": "scripts/tests-text.mjs:2875-2876 (dashesIn rows, empties: \"E25\"), :4212 (the row's shape only); scripts/action-report.mjs:90, :117; tools/stages.json (E25 shipped 1.2.113, 2026-11-14)",
+     "what_happens": "The notes promised T6 'a baseline of 11 rows, emptied by E25'. Nine are gone; two U+2212 sites in action-report.mjs remain with 'empties: \"E25\"', and the base run reads 'T6 fail dashesIn read 127438 found 2; baseline 2 row(s), 2 site(s): 2 matched' - green. The lint checks only that a row names a stage (/^E\\d\\d$/), not that the stage is still to ship, while a glossary entry is held from its stage on.",
+     "evidence": "scripts/tests-text.mjs:2875: 'Object.freeze({ in: \"script\", file: \"scripts/action-report.mjs\", quote: \"\\u2212\", issue: \"S02-66\", empties: \"E25\", why: \"`signed`, a roll's bonus ...\" })'; scripts/action-report.mjs:90: 'const signed = n => `${n < 0 ? \"\\u2212\" : \"+\"}${Math.abs(n)}`;' (the character itself in the file)",
+     "failure_scenario": "A player rolls with a negative trait and the duality card prints the statistic with a Unicode minus sign (U+2212) where every other text writes '-', and the lint that was to clear it stays green.",
+     "expected": "The two sites written with '-' and the rows gone, or the rows' stage moved to one not yet shipped; a baseline row whose stage has shipped turns the part red.",
+     "confidence": "read",
+     "refutation_tried": "Looked for a decision keeping the minus sign on the card (docs/text-style.md and glossary.json: none; v1.2.113.md names neither T6 nor S02-66); looked for a reader of 'empties' beyond the shape check (tests-text.mjs, tools/check.mjs, tests-tier0.mjs: none). Did not draw the card; that the sign is visible follows from the markup at :112-119."
+    }
+   ],
+   "superseded_by": [
+    "E66 (1.2.96): T3's baseline emptied (tests-text.mjs:2869-2871), T20 and T28 to FAIL; 1 of the pilot's 40 applied",
+    "E25 (1.2.113): T7's part and T8 to FAIL; T6's baseline only partly emptied (E65-2)",
+    "E71 (1.2.113): T4, T5, T11-T13, T15, T16, T21, T24, T25 to FAIL; 39 of the 40 and the 60 pairs applied (T27: present 0, gone 60); the rules' statuses not updated (E65-1)",
+    "E57 (1.2.113): T9 added (the 27th detector) and the handbook facts files written"
+   ],
+   "grade": 9,
+   "grade_reasons": "A stage of tools and papers that changes no runtime script (git diff), and its every part is held by something run: R1058-R1060 ok in shard 1/8, and the base run's npm test reads the text part green with 27 detectors each holding its fixture, the budgets, maps, render, audience map, handbook splits and pilot with 0 problems. Every hand-over the notes named to E66, E25 and E71 for the detectors' modes happened. Two nits only: the guide's statuses were not closed after E71 (E65-1), and two baseline rows outlived the stage named to empty them with nothing to notice (E65-2). LIVE-E65-01 (R1060 under a Polish GM) is unread, which a 9 allows; the stage's main promise does not stand on it. Not 10: the guide is mostly rebuilt rules, T4 places 28% of what it reads with nothing holding that share, and the review's rows are one reviewer's reading.",
+   "missing_to_10": "E65-1 and E65-2 closed (statuses after E71; the two signs written '-' and a row's shipped stage turned red); LIVE-E65-01 read; T4's share given a floor or its reading said in the guide."
+  }
+ ],
+ "not_established": [
+  {
+   "what": "base-run.json was not on the branch when this was written (20.11.2026 ~20:25Z). The base run's shard 1/8 and 2/8 result files (central scratch) were read: all 59 registry rows ok, and E50-T1, E51-T4, E51-T11, E51-T19 and E90-T1 ok. The other 32 tier-2 tests and every scenario named (30, 61, 66, 86, 87, 88 and those the notes list) were not read and are in tests_to_join.",
+   "l1": null
+  },
+  {
+   "what": "Whether E90's fix holds across a real server restart on The Forge on 1.2.118 (LIVE-E90-01, open; the local gate for 1.2.93 ran nothing).",
+   "l1": {
+    "what": "The records, the rings and the clocks on The Forge after a real server restart, on 1.2.118",
+    "recipe": [
+     "On the owner's Forge world, as the primary GM, read in the console game.time.serverTime, Date.now() and game.drpg.gmStoreStatus().perStore; write the three down",
+     "Place a new trace (Search or New trace): remnants live grows by one, a double click opens the Remnant card, the token wears its type's ring without the map being moved",
+     "Stop the world on The Forge and start it again; reload; read the three values again and place one more trace: its row stays and its ring shows",
+     "Read the HUD's minutes line (no millions of minutes) and open a debate on the trial floor: its whole time runs",
+     "With a player connected, read Date.now() on both machines and note the difference"
+    ],
+    "clients": "the primary GM and one player",
+    "theme": "default",
+    "settles_if": "agrees: serverTime reads as an uptime under 1e12 and every new row stands after the restart, rings drawn, HUD and floor sane; defect: a row dropped after the restart, a trace opening Daggerheart's sheet, or a minutes line in the millions",
+    "priority": "E90's grade cap (major if a row is dropped)"
+   }
+  },
+  {
+   "what": "How v14 sets ui.activeWindow for the messenger window and what a hidden page does to it (LIVE-E50-01, -02): E50's read marks rest on the harness's model.",
+   "l1": {
+    "what": "Whether v14 sets ui.activeWindow to the messenger window on open and on a click in it, clears it for another window or the canvas, and whether a hidden tab's message is read on return",
+    "recipe": [
+     "A GM and one player; the GM opens the player's thread (messenger window)",
+     "In the console: ui.activeWindow === Object.values(foundry.applications.instances).find(a => a.id?.startsWith('drpg-messenger')) after open, after a click inside it, after a click on the canvas, after a click on another window",
+     "With the GM's window behind another window, the player sends a message: the GM's card shows and the badge stays unread until the window is clicked",
+     "The GM switches to another browser tab; the player sends; the GM comes back with the window in front: the message reads as read"
+    ],
+    "clients": "one GM, one player",
+    "theme": "both",
+    "settles_if": "agrees: ui.activeWindow follows the clicks as the harness models it and the read marks follow; defect: the thread is marked read while covered, or never marked read while in front",
+    "priority": "E50's grade cap"
+   }
+  },
+  {
+   "what": "The drawn forms of E51's map and window changes (the doorway light after FG3, the Projects window's one select, the Call windows' colours) and the doubled character token's road (LIVE-E51-03, -04): read in jsdom's cascade and on stand-ins only.",
+   "l1": {
+    "what": "The doorway light after E51's fix, the Projects window's one select and the Call windows' colours drawn, and the doubled character token's origin",
+    "recipe": [
+     "On a scene with a straight and a staircase room border, open and closed doors, both themes, two times of day: walk a character to a doorway and screenshot the light; it stops at the first wall and does not show through the next room's walls",
+     "Open the Projects window as a player, pick Work then Sabotage: one select shows for the picked row, in both themes; screenshot",
+     "Open a Hope Call and a Despair Call window: gold and blood-red headers; screenshot",
+     "On the owner's world start an investigation and, if a character's token doubles, read both tokens' _stats.createdBy and the order of createToken hooks in the console"
+    ],
+    "clients": "one GM, two players",
+    "theme": "both",
+    "settles_if": "agrees: each drawn as the cascade says and the light stops at walls; defect: light through a wall, both selects drawn, or a header in the wrong colour; for the token, the createdBy names the code road that made the second",
+    "priority": "E51's grade cap (minor each)"
+   }
+  },
+  {
+   "what": "Whether v14's Error stack names DisplayScrollingTextRegionBehaviorType when a region's Display Scrolling Text draws (no-scrolling-text.mjs:108-116), in Chromium and in Firefox: LIVE-E51-05. If not, every region caption stays suppressed.",
+   "l1": {
+    "what": "A region with Display Scrolling Text over a shown token, a hidden one, and a damage caption",
+    "recipe": [
+     "Make a region with Display Scrolling Text on token enter, text 'TEST'",
+     "As a player in Chromium, walk your token into it: the caption shows",
+     "Have another player's token, hidden from you by the room fog, enter it: no caption on your screen",
+     "Apply damage to your token: no Daggerheart caption floats",
+     "Repeat steps 2-4 in Firefox"
+    ],
+    "clients": "one GM, two players",
+    "theme": "default",
+    "settles_if": "agrees: shown over a shown token in both browsers, held otherwise; defect: no region caption at all (the stack test fails) or one over a hidden token",
+    "priority": "minor"
+   }
+  },
+  {
+   "what": "The turn card's bystander promise (E51 C4) was not traced in the source; the notes record that castCopyFor still sends a bystander an empty copy (mutant m1 survived scenario 10). Whether an empty copy tells a bystander anything was not established.",
+   "l1": null
+  },
+  {
+   "what": "E90's recovery roads (migrateRemnants, gmStoreReclaim at their own stamps, the restore's 'Restore anyway' at a fresh stamp, the Faint Prep promotion at the upgrade mark) were taken from the notes and the api's names; their code was not traced.",
+   "l1": null
+  },
+  {
+   "what": "The mutant counts and the end and verify reviews' numbers the 1.2.94 and 1.2.95 notes give cannot be reproduced from the repository: the status records and the reviews are not in it, and E50's commits are outside the shallow clone.",
+   "l1": null
+  },
+  {
+   "what": "docs/dev/text-review-E65.md (407 lines) and docs/dev/text-pilot.json were not read whole; their state is the base run's lines. The archive listing of 209 entries (v1.2.95.md 29-30) was not re-run.",
+   "l1": null
+  },
+  {
+   "what": "Whether CI ran green on the release commits of 1.2.93-1.2.95: 06556296 and 3053d9f7 record a crlf hang on E90-T3 after 1.2.93 fixed in the harness; no CI record was read.",
+   "l1": null
+  }
+ ]
+}

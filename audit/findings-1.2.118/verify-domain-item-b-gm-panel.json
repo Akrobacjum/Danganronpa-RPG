@@ -1,0 +1,91 @@
+{
+ "refuter": "verify-domain-item-b-gm-panel",
+ "of": "domain-item-b-gm-panel",
+ "checked": [
+  {
+   "ref": "domain-item-b-gm-panel-1",
+   "claim": "Keep Watch's start card (namesIn) and a critical tail's card (standingIn) name a Spectator's token - a kept death's watcher among them, under the dead student's name - where movement.mjs countsAsPresent leaves Spectators out.",
+   "verdict": "stands",
+   "why": "Read the whole road. ensureDeadSpectator makes the watcher as type character with FLAGS.spectator and an unhidden token where the body lies, and killCharacter calls it with kept: true for a death the GMs keep (death.mjs:203), so the watcher exists while the death is secret. isDeadForGm is deadIn(actor, pendingDeath): the watcher's own id has no death row and no deceased flag, so it is not dead. hiddenByGm reads doc.hidden, false for the watcher's token; the Spectator's hiding is visibility.mjs's display only. roomOfToken is plain geometry with no Spectator rule. namesIn skips only non-characters, token.hidden, skip, a Monokuma and isDeadForGm; standingIn adds a Monocub; neither reads FLAGS.spectator (grep of 'spectator' over watch-gm.mjs and tail-gm.mjs: none). countsAsPresent refuses the flag. The watcher's token even stands in the body's room without walking, so a watch posted there names it at once. The only test of startWatches, E74-T4 (tests-tier2.mjs:101682-101735), stands a watcher and one ordinary student in the room, no Spectator; no test reaches standingIn with one. Minor holds: a particular situation (a Spectator in the post or the tail's room), a false name on a whispered card.",
+   "evidence": "scripts/watch-gm.mjs:89 `if (!student || student.type !== \"character\" || token.hidden || skip.has(student.id)) continue;` / :90 `if (student.getFlag(MODULE_ID, FLAGS.monokuma) || isDeadForGm(student) || roomOfToken(token) !== room) continue;`; scripts/tail-gm.mjs:104 `if (actor.getFlag(MODULE_ID, FLAGS.monocub) || actor.getFlag(MODULE_ID, FLAGS.monokuma) || isDeadForGm(actor)) continue;`; scripts/movement.mjs:3768 `if (actor.getFlag(MODULE_ID, FLAGS.spectator)) return false;`; scripts/spectator-dead.mjs:190-191 `name: student.name, type: \"character\", ... flags: { [MODULE_ID]: { [FLAGS.spectator]: true, ...` / :202 `hidden: false`; scripts/death.mjs:203 `await ensureDeadSpectator(actor, { silent, kept: true });`; scripts/settings.mjs:3848-3849 `export function deadIn(actor, held) { return isDeceased(actor) || Boolean(actor?.id && held(actor.id));`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-item-b-gm-panel-2",
+   "claim": "The Students window's note and applyAliveStates' comment say the State list is a quiet repair that keeps the inventory, while Dead or Monocub on a 'Dead, not found' row runs publishDeath, which destroys the Truth Bullets.",
+   "verdict": "stands",
+   "why": "makeKnown is publishDeath for a kept death; publishDeath destroys the bullets unless row.keepBullets. Apply asks nothing before it (grep of confirm in gm-students.mjs: none), and the unfound row's cell offers only Silence now. The note in lang/en.json says the State column saves 'with no announcement' and puts the bullets' loss on the row's buttons. The publish is the owner's Q3 (509-510, 623-625), so only the two texts are wrong. Nit kept: text; a GM who trusts it loses the bullets, which could argue minor, but the behaviour itself is decided and the reader's grade is defensible.",
+   "evidence": "scripts/gm-students.mjs:626 `const makeKnown = a => (pendingDeath(a) ? publishDeath(a) : markDeceased(a));` / :636 `// Dying through the DROPDOWN keeps the inventory AND stays quiet (F16).` / :653-654 `} else if (want.state === \"dead\") { await setMonocub(actor, false); if (!isDeceased(actor)) died = await makeKnown(actor);`; scripts/death.mjs:525 `const removed = row.keepBullets ? 0 : await destroyBullets(actor);`; lang/en.json:5259 `\"whoIsAliveNote\": \"The State column fixes a mis-click. The change is saved when you press Apply, with no announcement. ... a death destroys Truth Bullets.`",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "domain-item-b-gm-panel-3",
+   "claim": "echoCounts does not refuse a character marked notInClass, so a player-owned 'Not in the class' character counts as a living student of another player.",
+   "verdict": "stands",
+   "why": "echoCounts refuses a non-character, hidden, dead, Monokuma, Monocub, Spectator and no player owner, nothing else; studentActors' rule also refuses isNotInClass. The header says 'a living student of another player'. No guard elsewhere: the facts handed in are hidden, dead and owners only. How often a player owns such a character is unknown (notInClass is described as 'an NPC the GMs play'), so nit holds.",
+   "evidence": "scripts/echoes-gm.mjs:59 `if (flag(\"monokuma\") || flag(\"monocub\") || flag(\"spectator\")) return false;` / :60 `if (!owners.length) return false;`; scripts/monokuma.mjs:82 `return !isMonokuma(flags) && !isNotInClass(flags) && !isSpectator(flags);`",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "domain-item-b-gm-panel-4",
+   "claim": "The GM panel's standing block is rebuilt on every actor, item and token write, and in Daily Life each build walks the season checklist (firstOutstandingStep's default steps()).",
+   "verdict": "stands",
+   "why": "keepLive with watch actors, items, tokens hooks every create/update/delete of the three (live.mjs:70-72, 307-309) with no filter on which document; nextStep calls firstOutstandingStep(setupList) unconditionally in the Daily Life branch, and its default builds steps({ roomScene: homeScene() }). fog-diagnostics.mjs:855-858 itself notes the area sum is read on every redraw of the panel. The cost is not measured, which the finding says; nit is the right grade for an unmeasured cost.",
+   "evidence": "scripts/gm-panel.mjs:657 `watch: { actors: true, items: true, tokens: true, stores: [keyPlanStore, caseSchemaStore] }`; scripts/gm-panel.mjs:977 `outstanding = firstOutstandingStep(setupList);`; scripts/season-setup.mjs:745 `export function firstOutstandingStep(list = steps({ roomScene: homeScene() })) {`; scripts/live.mjs:71 `const TOKEN_HOOKS = [\"createToken\", \"deleteToken\", \"updateToken\"];`",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "domain-item-b-gm-panel-5",
+   "claim": "Every tile closes the panel and opens a new one, and buildSections opens a section only by phase, so a section the GM unfolded (Between sessions, Diagnostics) folds again after each tile.",
+   "verdict": "stands",
+   "why": "The click handler awaits dialog.close(), runs the tile and calls openGmPanel() anew; buildSections computes open from the phase and section.collapsed alone; the sections are not keepLive's region (only .drpg-gmp-standing), and keepLive's fold carry works inside one window. 'between' and 'fixes' carry collapsed: true and no phases, so they never open by default. No kept fold found in openGmPanel. The tooltip limits its promise to 'while it stays open'. Nit holds.",
+   "evidence": "scripts/gm-panel.mjs:480 `const open = inSeason && !section.collapsed;`; :605 `await dialog.close();`; :617 `openGmPanel().catch(err =>`; :271-272 `key: \"between\", collapsed: true,`; lang/en.json:2236 `\"panelSectionTooltip\": \"Folds or unfolds this section's tiles; the panel keeps your choice while it stays open\"`",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "domain-item-b-gm-panel-6",
+   "claim": "Despair Flow's Split evenly writes a new assignment map at once with no question, and Cancel afterwards undoes nothing.",
+   "verdict": "stands",
+   "why": "The 'auto' answer goes straight to autoAssign(), which builds a fresh map (keeping only NO_MONOKUMA rows) and calls setAssignments, then the window reopens; the draft deliberately does not carry assignments (gm-team-dialog.mjs:45-48). Revoke has its own question (92-98: 'Every other destruction in this module asks first'); Split evenly has none and its label and toast say nothing of replacing a hand-made split. Nit holds: recoverable by hand, no data beyond the split lost.",
+   "evidence": "scripts/gm-team-dialog.mjs:349-352 `if (result === \"auto\" || result?.op === \"auto\") { await autoAssign(); ui.notifications.info(...); return openGmTeamDialog({ draft: carried });`; scripts/assignments.mjs:149 `map[actor.id] = gms[index % gms.length].id;` / :154 `await setAssignments(map);`",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "hints_for_other_passes.stale_windows[0] / the GMs' 'Who you hear' list on a GM who is not the primary",
+   "claim": "The list's eavesdroppers repaint on drpgEavesdropChanged, which fires on the primary alone, so another GM's list stays stale.",
+   "verdict": "weakened",
+   "why": "The hook is local and called only by changed() on the browser that runs start/end (eavesdrop-gm.mjs:216-219), and the header comment at :47 does overstate it. But the list is repainted by other roads the hint did not trace: paintControls repaints an open list (voice-tile.mjs:1056) and runs on voiceStep for LiveKit participantConnected/Disconnected (voice-tile.mjs:526-527), and updateUser of another user repaints it (1820-1821). Whether one of those fires on the other GM when an eavesdrop starts (the listener joins the room's channel, by decision) depends on which LiveKit room that GM is in; not settled from source. The reader wrote it as a hint, not a finding, which is right; no severity is given.",
+   "evidence": "scripts/eavesdrop-gm.mjs:218 `Hooks.callAll(EAVESDROP_CHANGED, { actorId: actor?.id ?? null });`; scripts/voice-tile.mjs:1828 `Hooks.on(\"drpgEavesdropChanged\", () => { if (live?.list && !live.list.hidden) paintList(live); });`; scripts/voice-tile.mjs:1056 `if (watch.list && !watch.list.hidden) paintList(watch);`; scripts/voice-tile.mjs:526 `[\"participantConnected\", () => voiceStep(watch)],`; scripts/voice-tile.mjs:1821 `else if (live?.list && !live.list.hidden) paintList(live);`",
+   "severity_after": "not a finding (hint)"
+  }
+ ],
+ "counts": {
+  "checked": 7,
+  "stands": 6,
+  "weakened": 1,
+  "refuted": 0
+ },
+ "scope_note": "The reader's file has one finding of severity minor (1) and five nits (2-6); all six were checked, and one stale-window hint because D-A1 would make a confirmed one major. The file has no control verdicts (a domain file); its dead_controls hint names only known controls-06 items, which are that file's refuter's.",
+ "not_established": [
+  {
+   "what": "Finding 1 on a real table: whether the watcher's token is named on a Keep Watch start card or a critical tail's card. Read in source only; no harness run (none allowed here) and base-run.json not read.",
+   "l1": {
+    "what": "A Keep Watch start card with a kept death's watcher in the post",
+    "recipe": [
+     "1. Kill player A's student in an incident and keep the death.",
+     "2. Leave or walk A's watcher token in room R.",
+     "3. Player B declares Keep Watch in R and passes.",
+     "4. Start the Eclipse.",
+     "5. Read B's whispered card."
+    ],
+    "clients": "1 GM, 2 players",
+    "theme": "default",
+    "settles_if": "The card names the dead student: finding 1 stands, measured. It names nobody: it falls.",
+    "priority": "minor"
+   }
+  },
+  {
+   "what": "Whether another GM's 'Who you hear' list repaints when an eavesdrop starts or ends, through a LiveKit participant event or updateUser, or stays stale until reopened (D-A1 would make it major). New live check: two GMs, one player eavesdropping; the second GM keeps the voice list open while the player starts and stops listening; read the list each time."
+  }
+ ]
+}

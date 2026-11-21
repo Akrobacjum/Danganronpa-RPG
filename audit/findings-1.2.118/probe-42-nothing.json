@@ -1,0 +1,1472 @@
+{
+ "about": "Every press probe 42 (audit/harness/probes/42-press-controls.mjs as of e2d8c578) wrote as 'nothing' on 1.2.118 (b5a29e73): each control of each window of probe 08's list pressed once on a fresh draw, and no window closed or opened, no text, field or control changed, no notice, file, focus move, server write or packet followed within 2.1 s. A candidate for a dead control, not a verdict. Two runs, both alone: 21.11.2026 00:05-00:33Z (the 47 windows the first run of 20.11 did not open) and 00:37-01:15Z (the first run's other windows). The `group` and `group_why` fields are the auditor's reading of the label and data attributes, not a reading of each handler in source: A = a blind spot the probe's header names, B = looks already selected, C = to read in source.",
+ "counts": {
+  "total": 97,
+  "A": 29,
+  "B": 27,
+  "C": 41
+ },
+ "nothing": [
+  {
+   "window": "investigation--map-zone",
+   "title": "Investigation",
+   "label": "Map",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgMode=map",
+    "drpgNamed=own"
+   ],
+   "group": "B",
+   "group_why": "looks like the mode, section or chip already selected",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "investigation--map-final",
+   "title": "Investigation",
+   "label": "Map",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgMode=map",
+    "drpgNamed=own"
+   ],
+   "group": "B",
+   "group_why": "looks like the mode, section or chip already selected",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "investigation--map-final",
+   "title": "Investigation",
+   "label": "Picture",
+   "action": null,
+   "where": "body",
+   "tag": "img",
+   "data": [
+    "drpgPortrait=final-probe08",
+    "drpgPortraitField=case:1:final-probe08:img",
+    "drpgWired=1",
+    "drpgNamed=own"
+   ],
+   "group": "A",
+   "group_why": "a file or picture picker: Foundry's FilePicker is not in the harness",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "investigation--map-final",
+   "title": "Investigation",
+   "label": "Fit to view",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgCaseCamera=fit",
+    "drpgNamed=own"
+   ],
+   "group": "A",
+   "group_why": "a camera fit: layout only, jsdom has none",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "investigation--map-bullet",
+   "title": "Investigation",
+   "label": "Map",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgMode=map",
+    "drpgNamed=own"
+   ],
+   "group": "B",
+   "group_why": "looks like the mode, section or chip already selected",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "investigation--map-bullet",
+   "title": "Investigation",
+   "label": "Picture",
+   "action": null,
+   "where": "body",
+   "tag": "img",
+   "data": [
+    "drpgPortrait=bullet-probe08",
+    "drpgPortraitField=case:1:bullet-probe08:img",
+    "drpgWired=1",
+    "drpgNamed=own"
+   ],
+   "group": "A",
+   "group_why": "a file or picture picker: Foundry's FilePicker is not in the harness",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial",
+   "title": "Class Trial",
+   "label": "Not tied to the murder: 1",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgCaseFold=",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "the \"Not tied to the murder: N\" button, CTRL-02",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial",
+   "title": "Class Trial",
+   "label": "Fit to view",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgCaseCamera=fit",
+    "drpgNamed=own"
+   ],
+   "group": "A",
+   "group_why": "a camera fit: layout only, jsdom has none",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--case",
+   "title": "Class Trial",
+   "label": "Not tied to the murder: 1",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgCaseFold=",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "the \"Not tied to the murder: N\" button, CTRL-02",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--case",
+   "title": "Class Trial",
+   "label": "Prep Remnant, (no name), On the map",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=SCENEANNEX000000.TOKTRACE00000000",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--case",
+   "title": "Class Trial",
+   "label": "Incident Remnant, The broken display case, Planned",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=incident-probe08a",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--case",
+   "title": "Class Trial",
+   "label": "Deduction, The killing was before 23:40, while the library was still lit and the desk lamp",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=probe08-d1",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--case",
+   "title": "Class Trial",
+   "label": "Deduction, The culprit came in with a key",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=probe08-d2",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--case",
+   "title": "Class Trial",
+   "label": "Counter, The clock could have stopped by itself",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=probe08-c1",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--case",
+   "title": "Class Trial",
+   "label": "Fit to view",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgCaseCamera=fit",
+    "drpgNamed=own"
+   ],
+   "group": "A",
+   "group_why": "a camera fit: layout only, jsdom has none",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--counted",
+   "title": "Class Trial",
+   "label": "Not tied to the murder: 1",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgCaseFold=",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "the \"Not tied to the murder: N\" button, CTRL-02",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--counted",
+   "title": "Class Trial",
+   "label": "Prep Remnant, (no name), On the map",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=SCENEANNEX000000.TOKTRACE00000000",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--counted",
+   "title": "Class Trial",
+   "label": "Incident Remnant, The broken display case, Planned",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=incident-probe08a",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--counted",
+   "title": "Class Trial",
+   "label": "Deduction, The culprit came in with a key",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=probe08-d2",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--counted",
+   "title": "Class Trial",
+   "label": "Counter, The clock could have stopped by itself",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=probe08-c1",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--counted",
+   "title": "Class Trial",
+   "label": "Solution, It was done in the library",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=probe08-s1",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--counted",
+   "title": "Class Trial",
+   "label": "Fit to view",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgCaseCamera=fit",
+    "drpgNamed=own"
+   ],
+   "group": "A",
+   "group_why": "a camera fit: layout only, jsdom has none",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--verdict-given",
+   "title": "Class Trial",
+   "label": "Not tied to the murder: 1",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgCaseFold=",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "the \"Not tied to the murder: N\" button, CTRL-02",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--verdict-given",
+   "title": "Class Trial",
+   "label": "Prep Remnant, (no name), On the map",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=SCENEANNEX000000.TOKTRACE00000000",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--verdict-given",
+   "title": "Class Trial",
+   "label": "Incident Remnant, The broken display case, Planned",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=incident-probe08a",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--verdict-given",
+   "title": "Class Trial",
+   "label": "Deduction, The killing was before 23:40, while the library was still lit and the desk lamp",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=probe08-d1",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--verdict-given",
+   "title": "Class Trial",
+   "label": "Deduction, The culprit came in with a key",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=probe08-d2",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--verdict-given",
+   "title": "Class Trial",
+   "label": "Counter, The clock could have stopped by itself",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=probe08-c1",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--verdict-given",
+   "title": "Class Trial",
+   "label": "Solution, It was done in the library",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=probe08-s1",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--verdict-given",
+   "title": "Class Trial",
+   "label": "Fit to view",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgCaseCamera=fit",
+    "drpgNamed=own"
+   ],
+   "group": "A",
+   "group_why": "a camera fit: layout only, jsdom has none",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--summary-sent",
+   "title": "Class Trial",
+   "label": "Not tied to the murder: 1",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgCaseFold=",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "the \"Not tied to the murder: N\" button, CTRL-02",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--summary-sent",
+   "title": "Class Trial",
+   "label": "Prep Remnant, (no name), On the map",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=SCENEANNEX000000.TOKTRACE00000000",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--summary-sent",
+   "title": "Class Trial",
+   "label": "Incident Remnant, The broken display case, Planned",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=incident-probe08a",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--summary-sent",
+   "title": "Class Trial",
+   "label": "Deduction, The killing was before 23:40, while the library was still lit and the desk lamp",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=probe08-d1",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--summary-sent",
+   "title": "Class Trial",
+   "label": "Deduction, The culprit came in with a key",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=probe08-d2",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--summary-sent",
+   "title": "Class Trial",
+   "label": "Counter, The clock could have stopped by itself",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=probe08-c1",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--summary-sent",
+   "title": "Class Trial",
+   "label": "Solution, It was done in the library",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgNode=probe08-s1",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "a case-map node button in a Class Trial tab",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "class-trial--summary-sent",
+   "title": "Class Trial",
+   "label": "Fit to view",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgCaseCamera=fit",
+    "drpgNamed=own"
+   ],
+   "group": "A",
+   "group_why": "a camera fit: layout only, jsdom has none",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "findings",
+   "title": "Findings",
+   "label": "No Findings yet in this trial.",
+   "action": null,
+   "where": "body",
+   "tag": "div",
+   "data": [
+    "drpgFindings="
+   ],
+   "group": "C",
+   "group_why": "a block with a click listener and no visible effect (may be a container, a tooltip or a fold)",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "season-setup--zones",
+   "title": "Season setup",
+   "label": "One fewer",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgStep=-1",
+    "drpgNamed=own"
+   ],
+   "group": "A",
+   "group_why": "a stepper (+/-) likely at the end of its range; the probe header names this blind spot",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "season-setup--zones",
+   "title": "Season setup",
+   "label": "One fewer",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgStep=-1",
+    "drpgNamed=own"
+   ],
+   "group": "A",
+   "group_why": "a stepper (+/-) likely at the end of its range; the probe header names this blind spot",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "season-setup--zones",
+   "title": "Season setup",
+   "label": "One fewer",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgStep=-1",
+    "drpgNamed=own"
+   ],
+   "group": "A",
+   "group_why": "a stepper (+/-) likely at the end of its range; the probe header names this blind spot",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "season-setup--zones",
+   "title": "Season setup",
+   "label": "Choose a picture",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgHallPicture=",
+    "drpgNamed=own"
+   ],
+   "group": "A",
+   "group_why": "a file or picture picker: Foundry's FilePicker is not in the harness",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "edit-campaign",
+   "title": "Edit campaign",
+   "label": "One fewer",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgStep=-1",
+    "drpgNamed=own"
+   ],
+   "group": "A",
+   "group_why": "a stepper (+/-) likely at the end of its range; the probe header names this blind spot",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "edit-campaign",
+   "title": "Edit campaign",
+   "label": "One fewer",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgStep=-1",
+    "drpgNamed=own"
+   ],
+   "group": "A",
+   "group_why": "a stepper (+/-) likely at the end of its range; the probe header names this blind spot",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "edit-campaign",
+   "title": "Edit campaign",
+   "label": "One fewer",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgStep=-1",
+    "drpgNamed=own"
+   ],
+   "group": "A",
+   "group_why": "a stepper (+/-) likely at the end of its range; the probe header names this blind spot",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "item-manager",
+   "title": "Give / take items",
+   "label": "Item",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgMode=item",
+    "drpgNamed=own"
+   ],
+   "group": "B",
+   "group_why": "looks like the mode, section or chip already selected",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "item-manager",
+   "title": "Give / take items",
+   "label": "From the tables",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgMode=existing",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "an item sub-mode in Give / take items (compare CTRL-61)",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "item-manager--item-new",
+   "title": "Give / take items",
+   "label": "Item",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgMode=item",
+    "drpgNamed=own"
+   ],
+   "group": "B",
+   "group_why": "looks like the mode, section or chip already selected",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "item-manager--item-new",
+   "title": "Give / take items",
+   "label": "Create new",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgMode=create",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "an item sub-mode in Give / take items (compare CTRL-61)",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "item-manager--bullet",
+   "title": "Give / take items",
+   "label": "Truth Bullet",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgMode=bullet",
+    "drpgNamed=own"
+   ],
+   "group": "B",
+   "group_why": "looks like the mode, section or chip already selected",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "item-manager--bullet",
+   "title": "Give / take items",
+   "label": "From a Remnant",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgMode=existing",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "an item sub-mode in Give / take items (compare CTRL-61)",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "item-manager--bullet-new",
+   "title": "Give / take items",
+   "label": "Truth Bullet",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgMode=bullet",
+    "drpgNamed=own"
+   ],
+   "group": "B",
+   "group_why": "looks like the mode, section or chip already selected",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "item-manager--bullet-new",
+   "title": "Give / take items",
+   "label": "Write a new one",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgMode=create",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "an item sub-mode in Give / take items (compare CTRL-61)",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "item-manager--key",
+   "title": "Give / take items",
+   "label": "Room key",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgMode=key",
+    "drpgNamed=own"
+   ],
+   "group": "B",
+   "group_why": "looks like the mode, section or chip already selected",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "item-tables--newItem",
+   "title": "Item tables",
+   "label": "Picture",
+   "action": null,
+   "where": "body",
+   "tag": "div",
+   "data": [
+    "drpgItemPictures=",
+    "drpgWired=1"
+   ],
+   "group": "A",
+   "group_why": "a file or picture picker: Foundry's FilePicker is not in the harness",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "look-gm",
+   "title": "Danganronpa RPG settings",
+   "label": "Look5",
+   "action": null,
+   "where": "nav",
+   "tag": "button",
+   "data": [
+    "drpgSection=look",
+    "drpgNamed=own"
+   ],
+   "group": "B",
+   "group_why": "looks like the mode, section or chip already selected",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "drpg-settings",
+   "title": "Danganronpa RPG settings",
+   "label": "Look5",
+   "action": null,
+   "where": "nav",
+   "tag": "button",
+   "data": [
+    "drpgSection=look",
+    "drpgNamed=own"
+   ],
+   "group": "B",
+   "group_why": "looks like the mode, section or chip already selected",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "game-settings",
+   "title": "Game settings",
+   "label": "Voice2",
+   "action": null,
+   "where": "nav",
+   "tag": "button",
+   "data": [
+    "drpgSection=audio",
+    "drpgNamed=own"
+   ],
+   "group": "B",
+   "group_why": "looks like the mode, section or chip already selected",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "notices-gm",
+   "title": "Notice history",
+   "label": "All73",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgChip=all",
+    "drpgNamed=own"
+   ],
+   "group": "B",
+   "group_why": "looks like the mode, section or chip already selected",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "students",
+   "title": "Students",
+   "label": "Open Aiko Hoshino's sheet",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgSheet=ACTORAIKO0000000",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "to read in source",
+   "source": "probe-42-rerun.json"
+  },
+  {
+   "window": "rooms-passages",
+   "title": "Room setup - Academy - Floor 1",
+   "label": "No secret passages on this map.The Mastermind knows every open passage. Close makes it a w",
+   "action": null,
+   "where": "body",
+   "tag": "div",
+   "data": [
+    "drpgPassages="
+   ],
+   "group": "C",
+   "group_why": "a block with a click listener and no visible effect (may be a container, a tooltip or a fold)",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "rooms-search",
+   "title": "Room setup - Academy - Floor 1",
+   "label": "Give one back",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgStep=1",
+    "drpgNamed=own"
+   ],
+   "group": "A",
+   "group_why": "a stepper (+/-) likely at the end of its range; the probe header names this blind spot",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "rooms-description",
+   "title": "Room setup - Academy - Floor 1",
+   "label": "Choose a picture: Cafeteria",
+   "action": null,
+   "where": "body",
+   "tag": "img",
+   "data": [
+    "drpgPortrait=Cafeteria",
+    "drpgWired=1",
+    "drpgNamed=own"
+   ],
+   "group": "A",
+   "group_why": "a file or picture picker: Foundry's FilePicker is not in the harness",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "rooms-description",
+   "title": "Room setup - Academy - Floor 1",
+   "label": "Remove the picture: Cafeteria",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgPictureClear=",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "to read in source",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "rooms-passages--rows",
+   "title": "Room setup - Academy - Floor 1",
+   "label": "Show",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgPassageAct=show",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "to read in source",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "sound--effects",
+   "title": "Sound",
+   "label": "Choose",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgSfxPick=",
+    "drpgNamed=own"
+   ],
+   "group": "A",
+   "group_why": "a file or picture picker: Foundry's FilePicker is not in the harness",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "season-setup",
+   "title": "Season setup",
+   "label": "One fewer",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgStep=-1",
+    "drpgNamed=own"
+   ],
+   "group": "A",
+   "group_why": "a stepper (+/-) likely at the end of its range; the probe header names this blind spot",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "season-setup",
+   "title": "Season setup",
+   "label": "One fewer",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgStep=-1",
+    "drpgNamed=own"
+   ],
+   "group": "A",
+   "group_why": "a stepper (+/-) likely at the end of its range; the probe header names this blind spot",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "season-setup",
+   "title": "Season setup",
+   "label": "One fewer",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgStep=-1",
+    "drpgNamed=own"
+   ],
+   "group": "A",
+   "group_why": "a stepper (+/-) likely at the end of its range; the probe header names this blind spot",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "season-checklist",
+   "title": "Season checklist",
+   "label": "",
+   "action": null,
+   "where": "body",
+   "tag": "div",
+   "data": [
+    "drpgCheckOut="
+   ],
+   "group": "C",
+   "group_why": "a block with a click listener and no visible effect (may be a container, a tooltip or a fold)",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "season-checklist",
+   "title": "Season checklist",
+   "label": "Owned by no player. Who has access to each:Daichi Sato - GM: owns the sheet (GM), PlayerOn",
+   "action": null,
+   "where": "body",
+   "tag": "div",
+   "data": [
+    "drpgAnon="
+   ],
+   "group": "C",
+   "group_why": "a block with a click listener and no visible effect (may be a container, a tooltip or a fold)",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "pre-season-checks",
+   "title": "Season checklist",
+   "label": "",
+   "action": null,
+   "where": "body",
+   "tag": "div",
+   "data": [
+    "drpgCheckOut="
+   ],
+   "group": "C",
+   "group_why": "a block with a click listener and no visible effect (may be a container, a tooltip or a fold)",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "pre-season-checks",
+   "title": "Season checklist",
+   "label": "Owned by no player. Who has access to each:Daichi Sato - GM: owns the sheet (GM), PlayerOn",
+   "action": null,
+   "where": "body",
+   "tag": "div",
+   "data": [
+    "drpgAnon="
+   ],
+   "group": "C",
+   "group_why": "a block with a click listener and no visible effect (may be a container, a tooltip or a fold)",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "investigation",
+   "title": "Investigation",
+   "label": "Table",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgMode=table",
+    "drpgNamed=own"
+   ],
+   "group": "B",
+   "group_why": "looks like the mode, section or chip already selected",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "investigation",
+   "title": "Investigation",
+   "label": "Change the picture",
+   "action": null,
+   "where": "body",
+   "tag": "img",
+   "data": [
+    "drpgPortrait=SCENEANNEX000000__TOKTRACE00000000",
+    "drpgWired=1",
+    "drpgNamed=own"
+   ],
+   "group": "A",
+   "group_why": "a file or picture picker: Foundry's FilePicker is not in the harness",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "investigation--key",
+   "title": "Investigation",
+   "label": "Table",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgMode=table",
+    "drpgNamed=own"
+   ],
+   "group": "B",
+   "group_why": "looks like the mode, section or chip already selected",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "investigation--key",
+   "title": "Investigation",
+   "label": "Picture",
+   "action": null,
+   "where": "body",
+   "tag": "img",
+   "data": [
+    "drpgPortrait=key-0",
+    "drpgPortraitField=keypicture:0",
+    "drpgWired=1",
+    "drpgNamed=own"
+   ],
+   "group": "A",
+   "group_why": "a file or picture picker: Foundry's FilePicker is not in the harness",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "investigation--final",
+   "title": "Investigation",
+   "label": "Table",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgMode=table",
+    "drpgNamed=own"
+   ],
+   "group": "B",
+   "group_why": "looks like the mode, section or chip already selected",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "investigation--who",
+   "title": "Investigation",
+   "label": "Table",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgMode=table",
+    "drpgNamed=own"
+   ],
+   "group": "B",
+   "group_why": "looks like the mode, section or chip already selected",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "investigation--map",
+   "title": "Investigation",
+   "label": "Map",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgMode=map",
+    "drpgNamed=own"
+   ],
+   "group": "B",
+   "group_why": "looks like the mode, section or chip already selected",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "investigation--map-node",
+   "title": "Investigation",
+   "label": "Map",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgMode=map",
+    "drpgNamed=own"
+   ],
+   "group": "B",
+   "group_why": "looks like the mode, section or chip already selected",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "investigation--map-node",
+   "title": "Investigation",
+   "label": "Fit to view",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgCaseCamera=fit",
+    "drpgNamed=own"
+   ],
+   "group": "A",
+   "group_why": "a camera fit: layout only, jsdom has none",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "investigation--map-trace",
+   "title": "Investigation",
+   "label": "Map",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgMode=map",
+    "drpgNamed=own"
+   ],
+   "group": "B",
+   "group_why": "looks like the mode, section or chip already selected",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "investigation--map-trace",
+   "title": "Investigation",
+   "label": "Change the picture",
+   "action": null,
+   "where": "body",
+   "tag": "img",
+   "data": [
+    "drpgPortrait=SCENEANNEX000000__TOKTRACE00000000",
+    "drpgWired=1",
+    "drpgNamed=own"
+   ],
+   "group": "A",
+   "group_why": "a file or picture picker: Foundry's FilePicker is not in the harness",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "investigation--map-slot",
+   "title": "Investigation",
+   "label": "Map",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgMode=map",
+    "drpgNamed=own"
+   ],
+   "group": "B",
+   "group_why": "looks like the mode, section or chip already selected",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "investigation--map-slot",
+   "title": "Investigation",
+   "label": "Picture",
+   "action": null,
+   "where": "body",
+   "tag": "img",
+   "data": [
+    "drpgPortrait=key-0",
+    "drpgPortraitField=keypicture:0",
+    "drpgWired=1",
+    "drpgNamed=own"
+   ],
+   "group": "A",
+   "group_why": "a file or picture picker: Foundry's FilePicker is not in the harness",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "investigation--map-slot",
+   "title": "Investigation",
+   "label": "Fit to view",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgCaseCamera=fit",
+    "drpgNamed=own"
+   ],
+   "group": "A",
+   "group_why": "a camera fit: layout only, jsdom has none",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "investigation--map-planned",
+   "title": "Investigation",
+   "label": "Map",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgMode=map",
+    "drpgNamed=own"
+   ],
+   "group": "B",
+   "group_why": "looks like the mode, section or chip already selected",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "investigation--map-autopsy",
+   "title": "Investigation",
+   "label": "Map",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgMode=map",
+    "drpgNamed=own"
+   ],
+   "group": "B",
+   "group_why": "looks like the mode, section or chip already selected",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "investigation--map-autopsy",
+   "title": "Investigation",
+   "label": "Fit to view",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgCaseCamera=fit",
+    "drpgNamed=own"
+   ],
+   "group": "A",
+   "group_why": "a camera fit: layout only, jsdom has none",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "look-player",
+   "title": "Danganronpa RPG settings",
+   "label": "Look5",
+   "action": null,
+   "where": "nav",
+   "tag": "button",
+   "data": [
+    "drpgSection=look",
+    "drpgNamed=own"
+   ],
+   "group": "B",
+   "group_why": "looks like the mode, section or chip already selected",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "drpg-settings-player",
+   "title": "Danganronpa RPG settings",
+   "label": "Look5",
+   "action": null,
+   "where": "nav",
+   "tag": "button",
+   "data": [
+    "drpgSection=look",
+    "drpgNamed=own"
+   ],
+   "group": "B",
+   "group_why": "looks like the mode, section or chip already selected",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "drpg-settings-player-voice",
+   "title": "Danganronpa RPG settings",
+   "label": "Sound and voice4",
+   "action": null,
+   "where": "nav",
+   "tag": "button",
+   "data": [
+    "drpgSection=sound",
+    "drpgNamed=own"
+   ],
+   "group": "B",
+   "group_why": "looks like the mode, section or chip already selected",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "notices-player",
+   "title": "Notice history",
+   "label": "All0",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgChip=all",
+    "drpgNamed=own"
+   ],
+   "group": "B",
+   "group_why": "looks like the mode, section or chip already selected",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "notices-player",
+   "title": "Notice history",
+   "label": "Close",
+   "action": "close",
+   "where": "footer",
+   "tag": "button",
+   "data": [
+    "action=close",
+    "drpgRole=close",
+    "drpgNamed=own"
+   ],
+   "group": "C",
+   "group_why": "to read in source",
+   "source": "probe-42-rerun-2.json"
+  },
+  {
+   "window": "notices-player-250",
+   "title": "Notice history",
+   "label": "All250",
+   "action": null,
+   "where": "body",
+   "tag": "button",
+   "data": [
+    "drpgChip=all",
+    "drpgNamed=own"
+   ],
+   "group": "B",
+   "group_why": "looks like the mode, section or chip already selected",
+   "source": "probe-42-rerun-2.json"
+  }
+ ]
+}

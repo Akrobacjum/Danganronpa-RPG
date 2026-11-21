@@ -536,6 +536,8 @@ function castStamps() {
  * its readers are the primary GM's (`maybeThirdParty`, `thirdPartyEnters`), and until fix
  * r2-G2 (the round-2 review's S2-m1) a third seated after another left was sent who had
  * walked in and out before they came - the one holder for whom it was news.
+ * The watch's die kept at the lights (`watchDie`, 1.2.121, STG-01), null in every copy: the invitation carries the die
+ * and nothing of its cause.
  * The opening's statistic (`openingTrait`, E32+E07 C11c), null in every copy: a GM's pick
  * for a roll a direct murder's victim is not shown (D6) and a trap's builder is not shown
  * either, and the one player who rolls it is sent it with the invitation
@@ -579,7 +581,7 @@ function castCopyFor(userId, cast, state = null) {
     const afterFight = !incidentAudienceIds(seen, { stage: "incident" }).includes(userId);
     const killer = killerIds(theirs).some(owns);
     const withheld = [...(afterFight ? [...INCIDENT_FIGHT, ...(copy.thirdId ? [] : ["thirdId", "thirdSide"])] : ["keyRemnants"]),
-        "lastCrisis", "departed", "openingTrait", ...(killer ? [] : ["freeCleanup"]), "recent"];
+        "lastCrisis", "departed", "openingTrait", "watchDie", ...(killer ? [] : ["freeCleanup"]), "recent"];
     for (const f of withheld) if (Object.hasOwn(copy, f)) copy[f] = null;
     /* THE KILLER BEHIND A "?" (E69 C8, 13.11.2026; mask-gm.mjs): while the GMs hold a mask for this incident's killer, every
        copy but the killers' holds no killer, as a trap's victim's does. The cast is sent again when the mask ends. */

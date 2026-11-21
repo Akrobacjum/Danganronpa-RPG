@@ -1,0 +1,343 @@
+{
+ "refuter": "verify-stages-25",
+ "of": "stages-25",
+ "checked": [
+  {
+   "ref": "E112 promise 1 (holds yes)",
+   "claim": "From the open of a direct murder until its opening roll lands the killer's tokens are unseen by the victim, bystanders and Spectators",
+   "verdict": "weakened",
+   "why": "The mechanism is in the code and its tests are green (veilWanted, veilActor, the veil branch of tokenShownTo; the E112 tier-2 veil test, R7405, R7702 ok). But the reader's own finding E112-2 names a road on which the promise does not hold from the open: when a GM who is not the primary opens the murder from the tile, openMurder's awaited settleVeils answers null on that browser (mask-gm.mjs:516) and the opening's first card and invitation go out before the primary's updateSetting hook veils the tokens. The reader marked promise 3 'partly' for the Eclipse half of that road and left promise 1 'yes' for the open half; by the same finding it is 'partly'. The canvas half rests on LIVE-E112V-01, unread.",
+   "evidence": "scripts/murder-rules.mjs:548-554 `await (await import(\"./mask-gm.mjs\")).settleVeils();`; scripts/mask-gm.mjs:515-516 `async function settleVeilsNow() { if (!game.user?.isGM || !isPrimaryGm()) return null;`; :684 the primary settles on `updateSetting` of murderState; v1.2.116.md:227-228 'When a GM other than the primary ends an Eclipse, the killer is veiled at the open, a moment later (read off the code, not driven)'. base run of this audit, read from the session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 19:23-21:19Z 20.11.2026; base-run.json is not on the branch): 'E112 - the opening veils a direct murder's killer ...' pass, R7405 pass, R7702 pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E112 promise 2 (holds yes)",
+   "claim": "The killer's microphone is held off with no silent room, their voice tile says why, and they are told in one line",
+   "verdict": "stands",
+   "why": "settleTrialVoices blocks a veiled user's microphone outside the trial (veilMutedIds), the tile's reason is 'veiled', and tellVeiled whispers DRPG.Veil.card. The tier-2 veil test and R7405 are green in the base run. What a voice server delivers is LIVE-E112-01 (c), unread.",
+   "evidence": "scripts/voice.mjs:1802 `const veiled = !release && !inTrial && mask.veilMutedIds().has(user.id);`; :1360 and :1411 `return { reason: \"veiled\", held: true }`; scripts/mask-gm.mjs:461-463 tellVeiled. base run of this audit, read from the session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 19:23-21:19Z 20.11.2026; base-run.json is not on the branch): R7405 pass; the tier-2 veil test pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E112 promise 4 (holds yes)",
+   "claim": "The veil ends exactly when the opening ends (scored, failed, closed, swept at a primary's load or leave); a mask's '?' goes on first; a closed roll window keeps the veil",
+   "verdict": "stands",
+   "why": "liftVeil runs from settleVeilsNow whenever veilWanted no longer names the actor (stage left openingRoll, incident closed); the primary settles on every murderState write, at ready and when a GM leaves; murder-rules.mjs:771-789 masks before the settle. The tier-2 veil test (roads A, B, E) is green.",
+   "evidence": "scripts/mask-gm.mjs:411-414 veilWanted (`state.stage !== \"openingRoll\"` answers []); :542 liftVeil in the settle; :683-686 `Hooks.on(\"updateSetting\", ...)`, `Hooks.once(\"ready\", settle)`, `Hooks.on(\"userConnected\", ...)`; murder-rules.mjs:772-774 `if (masks) await maskKiller(state);`. base run of this audit, read from the session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 19:23-21:19Z 20.11.2026; base-run.json is not on the branch): the tier-2 veil test pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E112 promise 6 (holds yes)",
+   "claim": "A killer behind a '?' wears the module's question mark on the token, its ring and the portrait, given back exactly; a new token joins; a standing row no longer stops the next mask; a failed write is said",
+   "verdict": "stands",
+   "why": "maskPatch writes name, texture, ring subject and the flag; the actor's img becomes MASK_IMG after the tokens and portraitBack restores img and the prototype; maskKiller's standing-row branch adopts unlisted tokens; maskFailed notifies once. R7406 and both tier-2 tests are green. The surfaces E112-1 names (boards, voice tile) are outside this promise's words as the reader wrote them.",
+   "evidence": "scripts/mask-gm.mjs:78-81 maskPatch; :90-98 portraitOf, portraitBack; :226-242 the standing row; :266-272 maskFailed. base run of this audit, read from the session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 19:23-21:19Z 20.11.2026; base-run.json is not on the branch): R7406 pass; 'E112 - a mask puts its question mark on the killer's portrait ...' pass; 'E112 - a token made while a mask or a veil stands joins it ...' pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E112 promise 7 (holds yes)",
+   "claim": "The masks end before the Class Trial is entered and before the start-of-day board (Morning Eclipse's start, a roll-over)",
+   "verdict": "stands",
+   "why": "Three calls of endMasksBeforeTheBoard, each before the clock write that plays the board or enters the trial; the two tier-2 tests are green. The reader's own note that the end-of-day board is not covered is correct and belongs to E118-1.",
+   "evidence": "scripts/clock.mjs:150-155 (phase classTrial); :427 `if (rolledOver) await (await import(\"./mask-gm.mjs\")).endMasksBeforeTheBoard();`; scripts/eclipse.mjs:277 `if (morning.patch?.dayBoard != null) ...endMasksBeforeTheBoard();`. base run of this audit, read from the session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 19:23-21:19Z 20.11.2026; base-run.json is not on the branch): 'E112 - the start-of-day board shows a victim ...' pass; 'E112 - the masks end before the Class Trial is entered ...' pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E112 promise 8 (holds yes)",
+   "claim": "The opening takes the killer's armed Calls as an action roll does and spends each; Palm's unseen roll spends none and applies none a packet names",
+   "verdict": "stands",
+   "why": "TAKES_CALLS names murderOpening, action-pipeline gives it no shield, and the three tier-2 tests of the opening's Calls are green. The Palm half is held by reading alone, as the reader says: roll-draw.mjs:1674 applies none for SPENDS_NO_CALL, and no tier file or scenario was found sending a palm packet that names a Call (the palm draws at tests-tier2.mjs:12024-12123 test payments, not Calls). 'yes' by S for that half; LIVE-E112-03 unread.",
+   "evidence": "scripts/call-effects.mjs:94 `export const TAKES_CALLS = Object.freeze(new Set([\"murderOpening\"]));`; scripts/roll-draw.mjs:1674 `const applied = SPENDS_NO_CALL.has(key) ? [] : appliedCalls(actor, calls, held);`, :1857 `const SPENDS_NO_CALL = new Set([\"palm\"]);`. base run of this audit, read from the session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 19:23-21:19Z 20.11.2026; base-run.json is not on the branch): 'E112 - an armed Loaded Die loads the murder's opening roll ...' pass; 'E112 - the GM's draw of an opening takes the killer's armed Calls ...' pass; 'E112 - a Resolve armed on the killer buys the opening's picker ...' pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E112 promise 9 (holds yes)",
+   "claim": "A hidden token's movement ruler is hidden from the players; a GM and the owner still see it; a token the module hides hides its ruler too",
+   "verdict": "stands",
+   "why": "rulerShownTo answers true for a GM and the owner, false for a hidden token, else the token's own verdict; rulerHere adds the module's other hidings. R7523 and R7703 are green. What v14's ruler class is and what a player draws are LIVE-E116-01..03, unread except -03 in part.",
+   "evidence": "scripts/visibility.mjs:940-947 `if (viewer?.gm) return true; ... if (viewer?.owns?.(doc)) return true; if (doc.hidden) return false; return tokenShownTo(doc, viewer) !== \"hide\";`; :1006-1011 rulerHere. base run of this audit, read from the session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 19:23-21:19Z 20.11.2026; base-run.json is not on the branch): R7523 pass; R7703 pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E112 promise 10 (holds yes)",
+   "claim": "Train items: planner nodes open by default with an All open switch; Spectators in their room with the microphone open; a project action's use limit; the balance log off by default; one rule for whether a road is open",
+   "verdict": "stands",
+   "why": "Each decisive function is where the reader says, and every row and tier-2 test he names is green in the base run. Read at the decisive function only, as he says.",
+   "evidence": "scripts/investigation.mjs:1100 caseMapAllOpen; scripts/facilities.mjs:144 usedUp; scripts/settings.mjs:3177 'The balance log's switch (E53 C3): off by default'. base run of this audit, read from the session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 19:23-21:19Z 20.11.2026; base-run.json is not on the branch): R7520-R7527 pass; R7522 pass; R7542 pass; R7543 pass; R7560 pass; R42 pass; 'owner-116: the planner draws every node open by default ...' pass; E53-T1 pass; E40-T3, E40-T4, E40-T5 pass; 'a Spectator's microphone is open in the Spectators' room by default ...' pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E112-2 (minor)",
+   "claim": "When a GM who is not the primary ends the Eclipse, or opens the murder, the veil goes up late: the killer's token is drawn for the victim until the incident has opened and the primary has heard it",
+   "verdict": "stands",
+   "why": "Tried to find a road that hands the end to the primary: toggleEclipse (boundary.mjs:97) asks only isGM and calls endEclipse on the pressing GM's browser; askReadiness goes to the primary for the round alone, then returns. endEclipse's own comment states the limit ('On the primary GM; another GM's end veils at each open instead'). veilAtTheLights answers 0 off the primary; judgePendingMurders and askAtTheLights run on the ending GM's browser, so the window there is awaited before openMurder. The notes call it a stated default ('a moment later'); the reading that the moment includes the lights' window holds. Not driven by any test (grep of tier files and scenarios for veilAtTheLights and lightsJudged: only the veil test's direct calls at tests-tier2.mjs:17984-17992). Minor is right: a two-GM table, a particular road.",
+   "evidence": "scripts/eclipse.mjs:425-430 `/* ... On the primary GM; another GM's end veils at each open instead. */ ... veilAtTheLights(Object.keys(pendingMurders(ending)));`; scripts/mask-gm.mjs:551-552 `export async function veilAtTheLights(killerIds = []) { if (!game.user?.isGM || !isPrimaryGm()) return 0;`; scripts/eclipse.mjs:972 `await askAtTheLights(killer, victim, room, parked)`, :988 `await openMurder(...)`; scripts/boundary.mjs:97-98 `export async function toggleEclipse() { if (!game.user.isGM) return null;`.",
+   "severity_after": "minor",
+   "grade_after": null
+  },
+  {
+   "ref": "E112 grade (7)",
+   "claim": "Grade 7: one promise in part, one minor (E112-2), two parts held by reading, the first promise standing on E118's unseen replacement, one nit",
+   "verdict": "stands",
+   "why": "By 11.4 a 7 is 'works in the ordinary case, several minors or one promise delivered in part'. With promise 1 also 'partly' by the same finding, the stage has two promises in part from one minor - still a 7, not lower: the ordinary one-GM or primary road is held by green tests. The base run, which the reader did not join, holds every tier-2 test he named for E112 green (8 E112 titles, owner-116's, E53-T1, E40-T3 to -T5) and all 17 stamped rows ok, so nothing there pulls it down. Not marked provisional: the main promise's canvas half is LIVE-E112V-01, unread, and by BRIEF.md 'The real-table line L1' the grade is provisional 'after L1'; the file carries no l1 block either.",
+   "evidence": "docs/dev/R-REGISTRY.md: 17 rows with Since E112 (grep '| E112 |'). base run of this audit, read from the session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 19:23-21:19Z 20.11.2026; base-run.json is not on the branch): all named E112 tier-2 tests pass; the one failure of the run (shard 3/8, grid XI07) passed alone (base/xi07-alone.log: 7 passed, 0 failed) and is no test of the stage.",
+   "severity_after": null,
+   "grade_after": "7 (provisional: after L1)"
+  },
+  {
+   "ref": "E117 promise 1 (holds yes)",
+   "claim": "With two or more accused and at least two alive, the verdict window shows one tick per living accused, each ticked unless named a Blackened; else the list stays",
+   "verdict": "stands",
+   "why": "accusedChoices filters to living accused and answers [] under two; checked is !known. R7601 and E40-T8 are green in the base run.",
+   "evidence": "scripts/verdict.mjs:294-298 `const rows = [...new Set((accusedIds ?? []).filter(Boolean))].map(...).filter(a => a && !isDead.has(a.id)); return rows.length < 2 ? [] : rows.map(a => ({ id: a.id, name: a.name, checked: !isKnown.has(a.id) }));`. base run of this audit, read from the session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 19:23-21:19Z 20.11.2026; base-run.json is not on the branch): R7601 pass; 'E40-T8 - two accused, each on their own ...' pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E117 promise 2 (holds yes)",
+   "claim": "A wrong verdict executes exactly the ticked ones; with none ticked They got it wrong is greyed out and not given; a right verdict ignores the ticks",
+   "verdict": "stands",
+   "why": "executedChoice keeps only ticked offered ids; holdWrongWithoutTick disables the button; verdictAnswer passes only an object. The call site (verdict.mjs:248-249) is read, not driven, as the reader and the notes say.",
+   "evidence": "scripts/verdict.mjs:306-310 executedChoice; :320-327 holdWrongWithoutTick `button.disabled = !ticks.some(input => input.checked);`; :248-249 `const verdict = verdictAnswer(result); return verdict ? applyVerdict(verdict) : null;`. base run of this audit, read from the session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 19:23-21:19Z 20.11.2026; base-run.json is not on the branch): R7602 pass; R7603 pass; E40-T8 pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E117 promise 3 (holds yes)",
+   "claim": "A proposed project stands on the scene its proposer's token stood on when that scene has the room, and finds it again on a room change",
+   "verdict": "stands",
+   "why": "proposerSceneFor and roomSceneOnRoomChange are where cited; the rule answers the pick, then the token's scene, then by name. R7643 and the tier-2 test are green.",
+   "evidence": "scripts/projects.mjs:214-219 roomSceneOnRoomChange `detectedId: by ? await proposerSceneFor(by, room) : null`; :148-155 projectSceneRule. base run of this audit, read from the session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 19:23-21:19Z 20.11.2026; base-run.json is not on the branch): R7643 pass; 'a project a player proposes stands on the scene of the proposer's token ...' pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E117 promise 4 (holds yes)",
+   "claim": "Where more than one scene has the room the editor shows Scene of the room; a GM's change stays through later room changes, and so does a GM's drag into such a room",
+   "verdict": "stands",
+   "why": "roomSceneChoices drives the picker; a drag into a room two scenes hold writes roomSceneByGm true (projects-map.mjs:670-671), and roomSceneAfterRoomChange writes nothing when byGm. The drag is read, not driven, as the reader says. A neighbouring minor of another lane (controls-12-projects-5: the edit window's Save writes the room as drawn over a drag made while it stood open) puts the room back but leaves the pick as written, so it does not break this promise's words; it is the window's staleness.",
+   "evidence": "scripts/projects-map.mjs:669-671 `const scenePart = roomSceneChoices(landedIn).scenes.length > 1 && tokenDoc.parent?.id ? { roomScene: tokenDoc.parent.id, roomSceneByGm: true } : await roomSceneOnRoomChange(id, landedIn);`; scripts/projects.mjs:208-211 `if (byGm) return {};`. base run of this audit, read from the session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 19:23-21:19Z 20.11.2026; base-run.json is not on the branch): R7641 pass; R7642 pass; 'a project picked onto a second scene ...' pass; 'a project in a room that one place scene holds ...' pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E117 promise 5 (holds yes)",
+   "claim": "A deleted or stale picked scene falls back and the editor says so; the other GMs get one card naming each project and where it stands, the deleting GM none",
+   "verdict": "stands",
+   "why": "onPickedSceneDeleted runs on the primary on deleteScene, whispers every GM but the deleter (otherGmIds) one warning card listing each project and its scene now; projectSceneRule falls through when the pick is gone. Scenario 97's result was not available.",
+   "evidence": "scripts/projects-map.mjs:731-744 `if (!isPrimaryGm() || !scene?.id) return; ... const to = otherGmIds(userId); ... await whisperToGms({ tone: \"warning\", ... }, { whisper: to });`, :996 `Hooks.on(\"deleteScene\", ...)`; scripts/projects.mjs:222-224 otherGmIds. base run of this audit, read from the session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 19:23-21:19Z 20.11.2026; base-run.json is not on the branch): R7642 pass; R3510 pass; the tier-2 test 'a project a player proposes stands ...' pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E117 promise 6 (holds yes)",
+   "claim": "A secret project's picked scene stays with the GMs and those in on it",
+   "verdict": "stands",
+   "why": "roomScene and roomSceneByGm are in PROJECT_SECRET_WHILE_SECRET and in world-secrets' whileSecret list; roomSceneOf reads the GMs' row on a GM and the sight copy elsewhere. Scenario 99 does hold the check (99-actions.mjs:475-492: a bystander's rows, settings and copies, an insider's copy), but its base-run result was not available, so this stands on S with the check named, not its result.",
+   "evidence": "scripts/projects-secrecy.mjs:224 `export const PROJECT_SECRET_WHILE_SECRET = Object.freeze([\"description\", \"facility\", \"indirectMurder\", \"room\", \"roomScene\", \"roomSceneByGm\"]);`; scripts/world-secrets.mjs:75; scripts/projects.mjs:132-138 roomSceneOf; audit/harness/scenarios/99-actions.mjs:482-492.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E117 promise 7 (holds yes)",
+   "claim": "A GM is told why a completed project's action does not stand; setting the clock back before a completion counts as completing it now, uses still count",
+   "verdict": "stands",
+   "why": "facilityState, completionAfterClockBack, restampSetBack and facilityWhyLine are where cited; the primary restamps at ready and on clock changes. R7644 and the tier-2 test are green.",
+   "evidence": "scripts/facilities.mjs:193 facilityState, :211 completionAfterClockBack, :223 restampSetBack; scripts/facilities-gm.mjs:61-66. base run of this audit, read from the session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 19:23-21:19Z 20.11.2026; base-run.json is not on the branch): R7644 pass; 'a completed project's action whose completion is later than a clock set back ...' pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E117 promise 8 (holds yes)",
+   "claim": "A player's first asks at load wait until ready, so they no longer fail on 14.370; runTests({ tier: 2 }) no longer stops before its first test there",
+   "verdict": "stands",
+   "why": "All four asks are inside Hooks.once(\"ready\") on this checkout. The runTests half is the calibration of game.collections in commit 80dfaf06 (tests-kit worldDump and tier 2's restore destructured it), held by 00-boot's calibration checks; the 1.2.118 notes record a whole tier 2 run on the sandbox at d5907e1b after it (1326 passed of 1566), so tier 2 did start there. 00-boot's base-run result was not available.",
+   "evidence": "scripts/facility-uses.mjs:125-127, scripts/timed-effects.mjs:408-410, scripts/eavesdrop-gm.mjs:329-331, scripts/lockpick-gm.mjs:219-221 `Hooks.once(\"ready\", () => { if (!game.user?.isGM) ask...(); });`; commit 80dfaf06 message 'game.collections a Collection iterating its values ... (\"collection is not iterable\" on 14.370, before tier 2's first test)'; v1.2.117.md:59-62.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E117 promise 9 (holds yes)",
+   "claim": "The Debug log says how many older rows it dropped and its Copy text carries the count; the sheet header's glass reaches the Sanity box under Stained Glass",
+   "verdict": "stands",
+   "why": "failuresDroppedLine is in diagnostics.mjs; R7640 and R7780 are green. The stylesheet and the Chromium strip measurement were not re-read here either.",
+   "evidence": "scripts/diagnostics.mjs:2188 `export function failuresDroppedLine(dropped, kept) {`. base run of this audit, read from the session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 19:23-21:19Z 20.11.2026; base-run.json is not on the branch): R7640 pass; R7780 pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E117 promise 10 (holds yes)",
+   "claim": "Daggerheart verified goes to 2.12.9",
+   "verdict": "stands",
+   "why": "A fact of the manifest, read; the departure from release rule 6 is the owner's recorded decision, as the reader says.",
+   "evidence": "module.json:22 `\"verified\": \"2.12.9\"` (relationships.systems daggerheart); commit aa697521.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E117 grade (8)",
+   "claim": "Grade 8: every ask in the code, three main ones driven by tests, two parts held by reading alone, no defect found",
+   "verdict": "stands",
+   "why": "By 11.4 an 8 is 'promises delivered, but one holds only by reading or has a minor'; two parts by reading (the drag pick, the verdict's call site) keep it from a 9. The base run joins what the reader could not: E40-T6, E40-T7, E40-T8, the three scene tests and the clock-back test are green and all 9 stamped rows ok. A neighbouring minor of another lane (controls-12-projects-5) touches the edit window on this surface and would still leave an 8. Not marked provisional although LIVE-E40-02 and -03 are unread and four changed surfaces have no live item: provisional 'after L1' by BRIEF.md.",
+   "evidence": "docs/dev/R-REGISTRY.md: 9 rows with Since E117. base run of this audit, read from the session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 19:23-21:19Z 20.11.2026; base-run.json is not on the branch): R7601-R7603, R7640-R7644, R7780 pass; the six named tier-2 tests pass.",
+   "severity_after": null,
+   "grade_after": "8 (provisional: after L1)"
+  },
+  {
+   "ref": "E118 promise 1 (holds yes)",
+   "claim": "The veil is the module's mark alone: the killer's tokens keep their hidden, each browser hides them itself, nameplate and ruler with them",
+   "verdict": "stands",
+   "why": "veilPatch writes the flag alone; veilActor's row carries hides 'module'; the veil branch of tokenShownTo shows the token to its owner and the killers' side by the room rule and hides it from everyone else, above the Spectator's line. R7700, R7702, R7703, R7704 and the rewritten veil test are green. What a canvas draws is LIVE-E112V-01 (b), unread.",
+   "evidence": "scripts/mask-gm.mjs:424-429 `export function veilPatch() { return { [`flags.${MODULE_ID}.${VEIL_FLAG}`]: true }; }`; :447 `hides: HIDES`; scripts/visibility.mjs:555-561. base run of this audit, read from the session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 19:23-21:19Z 20.11.2026; base-run.json is not on the branch): R7700, R7702, R7703, R7704 pass; the tier-2 veil test pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E118 promise 2 (holds yes)",
+   "claim": "The killer's own token stays their vision source while veiled, and a token the module hides gives no sight on that browser",
+   "verdict": "stands",
+   "why": "givesNoSight answers tokenShownTo's 'hide', never on a GM; installSightRule wraps _isVisionSource on the first prototype that owns it. A doubt I tried: whether 14.370's token class has a method of that name at all - line L1's reading of LIVE-E112-01 read `_isVisionSource()` false on a hidden token there (docs/dev/e58/LOCAL-REPORT.md:366-378; e112v/DESIGN.md:6), so the wrap has its target. Whether Foundry asks it again when the verdict turns with no move is LIVE-E112V-01 (d), unread, as the reader says; 'yes' is the notes' words held on a stand-in class (R7707).",
+   "evidence": "scripts/visibility.mjs:968-971 givesNoSight; :986-1003 installSightRule `while (proto && proto !== Object.prototype && !Object.hasOwn(proto, \"_isVisionSource\")) proto = Object.getPrototypeOf(proto);`. base run of this audit, read from the session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 19:23-21:19Z 20.11.2026; base-run.json is not on the branch): R7701, R7706, R7707 pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E118 promise 3 (holds yes)",
+   "claim": "A hidden a GM puts on a veiled token is kept; a veil of 1.2.116 or 1.2.117 is converted at the primary's next load",
+   "verdict": "stands",
+   "why": "hiddenByGm is hidden alone; liftVeil of a new row writes the flag off only; convertVeil writes each kept hidden back and marks the row. R7705 and the E112v tier-2 test are green.",
+   "evidence": "scripts/mask-gm.mjs:435-437 writtenWithHidden; :475 `const patch = legacy ? { hidden: Boolean(hidden), ...unveilPatch(forcedDeletion()) } : unveilPatch(forcedDeletion());`; :488-498 convertVeil. base run of this audit, read from the session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 19:23-21:19Z 20.11.2026; base-run.json is not on the branch): R7705 pass; 'E112v - a veil written by 1.2.116 or 1.2.117 loses its hidden at the primary's settle ...' pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E118 promise 5 (holds yes)",
+   "claim": "A thread's ruling card in the GM's chat log is answered from the log as from the messenger, and a card already answered is not ruled again",
+   "verdict": "stands",
+   "why": "gm-bridge wires any drawn copy holding a data-drpg-call button; wireCallActions returns on a settled card. Both tier-2 tests are green. A real click on v14 is LIVE-F118-01, unread.",
+   "evidence": "scripts/gm-bridge.mjs:157 `if (!cardFlag(message, \"callCard\") && !body?.querySelector?.(\"[data-drpg-call]\")) return;`; scripts/messenger-app.mjs:777 `if (message && cardFlag(message, MESSENGER_FLAGS.settled)) return;`. base run of this audit, read from the session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 19:23-21:19Z 20.11.2026; base-run.json is not on the branch): 'the chat log's copy of a thread's ruling card rules it on a GM ...' pass; 'a thread's ruling card answered in the messenger first is not ruled again from the log ...' pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E118 promise 6 (holds yes)",
+   "claim": "A character some user has as their own is framed on every screen, a second GM's included; Monokuma and a character nobody has stay bare; an assignment or role change redraws",
+   "verdict": "stands",
+   "why": "frameFor answers 'student' for an assigned character of any user and null for Monokuma by assignment; updateUser on character or role, createUser and deleteUser repaint. The role redraw is held by no test, as the reader says.",
+   "evidence": "scripts/own-ring.mjs:186-190 `Hooks.on(\"updateUser\", (user, changes) => { if (\"character\" in (changes ?? {}) || \"role\" in (changes ?? {})) repaintAll(); });`; :235-242 frameFor. base run of this audit, read from the session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 19:23-21:19Z 20.11.2026; base-run.json is not on the branch): R7790 pass; 'a character another user has as theirs is framed on this GM's screen ...' pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E118 promise 7 (holds yes)",
+   "claim": "The Facilities window's words: the tile names its three kinds, Not here, a refusal naming only known rooms, Free, the grey line's contrast",
+   "verdict": "stands",
+   "why": "restRoomsSentence and priceLine are where cited; R7791, R7792 and R60 are green. The contrast figures are the notes' Chromium reading, not re-measured.",
+   "evidence": "scripts/rest.mjs:83 restRoomsSentence; scripts/action-facilities.mjs:46 priceLine. base run of this audit, read from the session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 19:23-21:19Z 20.11.2026; base-run.json is not on the branch): R7791 pass; R7792 pass; R60 pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E118 promise 8 (holds yes)",
+   "claim": "A move of one update through several rooms is counted room by room; a lawful route to a room not next to the start is no longer refused, an unlawful leg refuses it whole",
+   "verdict": "stands",
+   "why": "roomsAlong and routeLegs are where cited and R7740 is green. Scenario 70's base-run result was not available and chargeRoute was not read line by line (by the reader nor here); the request's shape on 14.370 is LIVE-E39-10, -11, unread.",
+   "evidence": "scripts/movement.mjs:3236 `export function roomsAlong(points, roomOf) {`; :3263 routeLegs; :2763 chargeRoute. base run of this audit, read from the session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 19:23-21:19Z 20.11.2026; base-run.json is not on the branch): R7740 pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E118 promise 9 (holds yes)",
+   "claim": "Smaller fixes: the put-back writes every coordinate; a GM's own write a player's pending write left is not undone; a passage or tunnel with no floor takes the scene's one floor",
+   "verdict": "stands",
+   "why": "putBackWrite, noteOwnDropped, noteOwnWrite and floorNamed are where cited; every row and tier-2 test named is green.",
+   "evidence": "scripts/movement.mjs:3493 putBackWrite; scripts/sheet-audit.mjs:3333 noteOwnDropped; scripts/resource-guard.mjs:345 noteOwnWrite; scripts/passages-gm.mjs:1343 floorNamed. base run of this audit, read from the session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 19:23-21:19Z 20.11.2026; base-run.json is not on the branch): R7741-R7744 pass; 'a put-back writes every coordinate it names ...' pass; the two GMs' mark tests ('a GM's own write of a student's GM-only flag ...', 'a player's Find Stash through the bridge ...') pass.",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E118-1 (major)",
+   "claim": "The end-of-day board, which since F118 draws every student's portrait, plays while a mask still stands: the masked killer's place shows a letter under their real name on every player's screen",
+   "verdict": "stands",
+   "why": "Traced again end to end. maskKiller writes the actor's img to MASK_IMG and leaves the actor's name (mask-gm.mjs:248). Masks end only on drpgTimeOfDayChanged on the primary (mask-gm.mjs:679) or before three writes (clock.mjs:153 trial, :427 roll-over, eclipse.mjs:277 Morning Eclipse); grep of every endMask caller adds only the reveal, a lost stage and the season reset. On every browser transitions.mjs registers onClockHeard on the same hook; boardsOf answers 'end' for Evening to Night (also from an Eclipse's end); whenTrialExitEnds resolves at once with no exit; playDayEnd builds dayEndBoardFor -> dayBoardOf -> portraitOf(actor), which passes the img through safeRoomImage, whose types are jpg, jpeg, png, webp, avif - the SVG is refused and the cell draws `(c.name ?? \"?\").slice(0, 1)` over `<b>${esc(c.name)}</b>`, the real name. The primary's endMask awaits a store drop and each token's update before the portrait's, so the players' boards are built rounds earlier. v1.2.117's end board drew no cast (dayEndBoard took rows, publicCards, mood), and 55719596 changed neither clock.mjs nor mask-gm.mjs. On severity: E112's own paper called the same picture on the morning board one that 'named the killer by elimination', which is closer to 'gives the answer away' (blocker) than the reader's sizing; the reader's conditions (raster portraits on the others, sequences on, a mask standing at Night) are real limits, so major is kept as a floor, not raised without a reading.",
+   "evidence": "scripts/sequence.mjs:733-736 `function portraitOf(actor) { const path = safeImage(actor?.img); ...`; :1270 `safeImage = m.safeRoomImage`; :970 `${c.img ? `<img ...>` : `<span>${esc((c.name ?? \"?\").slice(0, 1))}</span>`}`; :1155-1158 playDayEnd builds the board at once; scripts/vault-store.mjs:601 `const ROOM_IMAGE_TYPES = new Set([\"jpg\", \"jpeg\", \"png\", \"webp\", \"avif\"]);`; scripts/transitions.mjs:151-153 nightFalls -> 'end', :222 `Hooks.on(\"drpgTimeOfDayChanged\", clock => read(clock));`; scripts/mask-gm.mjs:274-285 endMask (store, tokens, then portrait); git show v1.2.117:scripts/sequence.mjs:1100 `export function dayEndBoard({ clock = {}, rows = [], publicCards = [], mood = null, watcher = false } = {})`.",
+   "severity_after": "major",
+   "grade_after": null
+  },
+  {
+   "ref": "E118 grade (6)",
+   "claim": "Grade 6: one major (E118-1) sets it; apart from it the stage is delivered with named tests, nothing ran on a real Foundry, the local gate has every part not run",
+   "verdict": "stands",
+   "why": "By 11.4 a single major is a 6, and two promises in part (the board, the suite at a table) do not take it to 5: the stage's main goal, the veil without Foundry's hidden, holds on 1.2.118 headless. The base run joins the tier-2 tests the reader listed: every one is green (the veil test, E112v, the two ruling-card tests, the frame test, the put-back, the two GMs' mark tests, F118-T1, the three suite-at-a-table tests) and all 24 stamped rows ok. audit/gate/local-gate.json is bound to ec1478d5 with all 8 parts not-run and verdict incomplete, as said. Not marked provisional although the main promise rests on LIVE-E112V-01, unread: provisional 'after L1' by BRIEF.md.",
+   "evidence": "docs/dev/R-REGISTRY.md: 24 rows with Since E118; audit/gate/local-gate.json parts live-stained-glass .. sandbox-84-viewports all 'not-run', verdict 'incomplete'. base run of this audit, read from the session's scratchpad (base/shards/results-suite-1..8/01-runtests.json, 19:23-21:19Z 20.11.2026; base-run.json is not on the branch): all named E118 tier-2 tests pass.",
+   "severity_after": null,
+   "grade_after": "6 (provisional: after L1)"
+  }
+ ],
+ "counts": {
+  "checked": 31,
+  "stands": 30,
+  "weakened": 1,
+  "refuted": 0
+ },
+ "not_established": [
+  {
+   "what": "The scenarios' base-run results (00, 18, 21, 69, 70, 76, 93, 97, 99 and the rest the reader lists): the session's after-run had started the scenarios (base/after.status: 'after start 21:19:38Z') but no result was written when this was read, so every claim resting on a scenario stands on the scenario's text, not its result.",
+   "l1": null
+  },
+  {
+   "what": "The suite's results used here are the eight shard files in this session's scratchpad (base/shards/results-suite-1..8), not audit/findings-1.2.118/base-run.json, which is not on the branch yet; the merge of the shards exited 1 on grid XI07 alone, which passed when run alone.",
+   "l1": null
+  },
+  {
+   "what": "E118-1 was traced again in source and not run; a probe is E112's start-board tier-2 test with its read moved to the clock write that carries nightBoard. On a real table it is LIVE-F118-04 with a mask standing.",
+   "l1": {
+    "what": "the end-of-day board's cast while a mask stands, and whether the masked student's cell differs from the others",
+    "recipe": [
+     "Give every student a raster portrait (png or webp)",
+     "Turn the table's sequences on",
+     "In Evening, open a direct murder and let the opening land on Hope so a mask stands",
+     "With the mask standing, move Evening to Night (or end the Night Eclipse)",
+     "On each player's screen read the End of day board's cells and the notice history's card"
+    ],
+    "clients": "a GM and three players",
+    "theme": "both",
+    "settles_if": "the masked student's cell shows a letter under the real name while the others show pictures: E118-1 measured; it shows the portrait or the same as the others: E118-1 falls",
+    "priority": "major (E118-1)"
+   }
+  },
+  {
+   "what": "Whether Foundry 14.370 asks the wrapped _isVisionSource again when the module's verdict on a token turns with no move (LIVE-E112V-01 (d)); the method's existence on 14.370 is read from line L1's record, its re-asking is not.",
+   "l1": {
+    "what": "the veiled killer's own sight and the victim's lack of it on a canvas, and whether the sight rule is asked again with no move",
+    "recipe": [
+     "Turn token vision on a scene",
+     "Open a direct murder; leave the opening waiting",
+     "On the killer's browser read their token's vision source and the map they see",
+     "On the victim's browser read that no light or sight comes from the killer's token",
+     "Change the viewer's room or start an Eclipse with no move of the killer's token and read the vision sources again"
+    ],
+    "clients": "a GM and two players (killer, victim)",
+    "theme": "default",
+    "settles_if": "the killer sees from their own token and the victim gets no sight from it, before and after the verdict turns: promise 2 of E118 measured; otherwise a defect",
+    "priority": "grade cap of E112 and E118 (provisional after L1)"
+   }
+  },
+  {
+   "what": "Whether E118-1 is a blocker rather than a major: it depends on how many of a campaign's students carry raster portraits and how often a mask stands at Night; not measured.",
+   "l1": null
+  },
+  {
+   "what": "The reader's file carries no 'provisional: after L1' mark on its three grades and no l1 block on its not_established entries, as BRIEF.md 'The real-table line L1' asks; the grade_after values above add the mark.",
+   "l1": null
+  }
+ ]
+}

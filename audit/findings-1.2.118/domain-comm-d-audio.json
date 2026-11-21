@@ -1,0 +1,425 @@
+{
+ "reader": "domain-comm-d-audio",
+ "checkout": "claude/audit-119 (code identical to main b5a29e73, 1.2.118); base-run.json absent when read, so no test result is cited as a pass",
+ "files_read": [
+  {
+   "file": "scripts/sfx.mjs",
+   "lines": 786,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/sfx-play.mjs",
+   "lines": 809,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/music.mjs",
+   "lines": 208,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/music-play.mjs",
+   "lines": 1257,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/music-states.mjs",
+   "lines": 418,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/sound-panel.mjs",
+   "lines": 469,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/float-text.mjs",
+   "lines": 394,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/transitions.mjs",
+   "lines": 227,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/camera-view.mjs",
+   "lines": 292,
+   "read": "whole"
+  }
+ ],
+ "count_expected": "9 files, 4860 lines",
+ "count_note": "9 of 9 files read whole, 4860 of 4860 lines (wc -l on b5a29e73's tree). Neighbours were read only as far as each flow needed (list below), not whole.",
+ "neighbours_followed": [
+  "scripts/config.mjs 4915-5030 (GAME_WINDOWS, SFX_CATEGORIES, SFX_VARIATION, SFX_SLIDERS), 5040-5190 and 5305-5500 (SFX_EVENTS: yieldsTo, fallsBackTo, ignoresVolume, vary - 13 rows carry vary: true by grep)",
+  "scripts/utils.mjs 114-118 (markLanguage), 458-462 (isPrimaryGm), 653-661 (playerOwns, ownerIdsOf)",
+  "scripts/live.mjs 1-72 (keepLive's two rules, WORLD_HOOKS)",
+  "scripts/murder-music.mjs 1-60, 85-108, 290-344 (the overlay; no musicEnabled test anywhere in the file, by grep)",
+  "scripts/monocub.mjs 120-180 (setMonocub, its `quiet`), scripts/season-wipe.mjs 448-460, scripts/gm-students.mjs 645-655",
+  "scripts/messenger.mjs 59-60, 282, 365, 379 (messengerSoundOn on the messenger's direct plays)",
+  "scripts/settings.mjs 1873-1880 (messengerSound, client), 2004-2018 (musicEnabled, onChange refreshMusic)",
+  "scripts/trial-floor.mjs 1020-1135 (openObjection and its refreshMusic({ now: true }))",
+  "scripts/sync.mjs 400-451 (the clock's three hooks and their arguments)",
+  "scripts/body.mjs 1030-1048, scripts/death.mjs 285-302, scripts/truth-bullets.mjs 770-785, scripts/level-up.mjs 1030-1041 (every caller of playSfxFor / playSfxForUsers)",
+  "scripts/window-scale.mjs 120-200 (scaleWindow: setPosition, no transform)",
+  "scripts/mask-gm.mjs 1-40, 82-95 (the mask and voiceIdentity)",
+  "scripts/api.mjs 143-144, 1543-1549 (soundDialog, playTrack, resetMusic on game.drpg); scripts/gm-panel.mjs 207 (the Sound tile)",
+  "lang/en.json and lang/pl.json: DRPG.Music.*, DRPG.Sound.*, DRPG.Settings.messengerSound.*, DRPG.Settings.musicEnabled, DRPG.Tips.Setup.playTooltip / resetMusicTooltip, DRPG.Look.launcherTooltip (read by script)",
+  "docs/handbooks/gm-handbook.en.md 1695-1730 (section 17, the Sound window)",
+  "audit/findings-1.2.42/comms.md (COMM-10, COMM-13, COMM-18), audit/AUDIT-1.2.13.md section D (D5), audit/findings-1.2.118/old-1.2.42-comms.json and controls-09-hud-overlays.json (for duplicates)"
+ ],
+ "strengths": [
+  "Sound is local by rule and the two carriers are narrow: the socket road plays only for a GM sender and only on the addressed user (sfx.mjs:100-105), the card road is held to the card's own readers, a veiled card is silent where its words never arrive (sfx.mjs:127-133), and a player's card cannot reach the GMs or play the volume-ignoring siren unless the document itself carries the safeword marker (sfx-play.mjs:719-737).",
+  "A death the GMs keep is sounded by address, never as a flag every console would receive (sfx-play.mjs:530-549, death.mjs:298-301); a Truth Bullet's and a Level Up's sound go to every owner by address (sfx-play.mjs:516-528, E59 B-S4).",
+  "The autoplay lock is handled as measured: a locked browser drops and counts the sound instead of queueing it (sfx-play.mjs:580-583), and Test refuses before a load that would never settle (sfx-play.mjs:785-790).",
+  "World-state sounds fire on edges, read against a baseline taken at ready, so a reload mid-trial or mid-turn announces nothing (sfx.mjs:217-230, floorSounds 280-306, pure and tested by R7106 by its own note).",
+  "The music engine marks its own writes with a depth counter rather than a boolean (music-play.mjs:52-76), chains every apply (371-379), checks an interruption against the documents before trusting its record (409-413, 898-912), and gives a mapping change by any GM to whichever GM is primary when the settle ends (109-161).",
+  "The map saves one key at a time through one chain, keeps another GM's choice of a third playlist and repairs only the race it is for (music-states.mjs:289-395).",
+  "The murder music never touches a world document: one track by AudioHelper on the participants' and GMs' browsers, the room's music held locally (murder-music.mjs:27-60), so a bystander's playlists and HUD do not change.",
+  "float-text.mjs runs no frame loop: it follows the placeholder on mutations, resizes and scrolls only, one frame at most per burst, counted (float-text.mjs:239-293); every read before the first write (154-161).",
+  "transitions.mjs writes nothing, plays nothing under reduced motion or with the table's switch off, and cuts rather than queues a second flash table (transitions.mjs:187, 204-216); its onsets hold to three a second (flashRate).",
+  "camera-view.mjs names a player's tile only by a character that player owns (camera-view.mjs:229-240, R542) and escapes the tooltip it writes (291)."
+ ],
+ "findings": [
+  {
+   "id": "domain-comm-d-audio-1",
+   "domain": "COMM",
+   "severity": "minor",
+   "category": "flow",
+   "title": "Play and Stop the track are open to every GM while the music's record lives on the primary: an assistant GM's Play leaves the primary's record empty, and an assistant GM's Stop the track during the body's silence brings the music back into it",
+   "where": "scripts/music-play.mjs:1098-1102 and 1179-1183 (any GM), 175 and 178 (interrupted, silenced: one browser's memory), 381-388 (enabled: primary only), 932-993 (the primary's watcher), 1206-1222 (Reset's give-back); scripts/sound-panel.mjs:362 (the window's only gate is isGM)",
+   "what_happens": "playTrack and resetMusic test game.user.isGM only. On an assistant GM, playTrack pauses every playing playlist with the HELD flag and records `interrupted` there; on the primary the same writes arrive with ourDoing() false, the pauses are ignored (onManualEnd: not its sound), and the cue's start makes onManualStart record held [] because nothing is still playing. When the state then moves, the primary lets go of nothing the assistant flagged (448-454), and when the GM stops the cue the primary resumes nothing. Separately: while the body's silence holds (silenced on the primary, set at 471-472), an assistant GM's Stop the track runs resetMusic with no record: nothing is playing, so it resumes every HELD playlist (1211-1217), and its schedule() does nothing because it is not the primary; the primary's playingState is still bodyFound, so nothing re-silences, and the afternoon plays through the silence the owner's D8 chose. The primary pressing the same button re-silences at once (1187-1190, 1222).",
+   "evidence": "music-play.mjs:1098  export async function playTrack(track, soundId) {\nmusic-play.mjs:1099      if (!game.user.isGM) {\nmusic-play.mjs:1179  export async function resetMusic() {\nmusic-play.mjs:1180      if (!game.user.isGM) {\nmusic-play.mjs:381   function enabled() {\nmusic-play.mjs:382       if (!isPrimaryGm()) return false;\nmusic-play.mjs:1211      if (!held.length && !anythingPlaying()) {\nmusic-play.mjs:1212          held = playlistsHolding().map(p => p.id);\nmusic-play.mjs:1222      schedule();",
+   "failure_scenario": "Two GMs; a body is announced and the room goes silent; the assistant GM opens the Sound window and presses Stop the track to clear a cue: the afternoon playlist fades back in for the whole table over the discovery and stays.",
+   "expected": "One client decides (music.mjs:40-45 says so): Play and Stop the track carried out on the primary, or refused on another GM with the primary's name, as the 1.2.42 fix proposed.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a forward to the primary: sound-panel.mjs:276-288 calls playTrack/resetMusic directly and neither asks the bridge; no socket in music-play.mjs (the header says none). Looked for the primary re-checking after another GM's playlist writes: watchManualPlayback ignores sounds of mapped playlists (943), so the resumed afternoon (a mapped playlist) wakes nothing, and no updatePlaylist handler calls schedule. The silence's own record cannot be read by the assistant (a module variable). The Sound window is the GM panel's tile for every GM (gm-panel.mjs:207).",
+   "old_id": "COMM-10",
+   "tests_near": "none found that calls playTrack or resetMusic from a second GM (old-1.2.42-comms.json COMM-10 says the same); scenario 87 parts C1-C4 drive a second GM's map write, not Play or Reset",
+   "live_check": "new live check: two GMs, Music follows on, a body announced with nothing mapped to it; the assistant presses Stop the track; listen on a player for 30 s."
+  },
+  {
+   "id": "domain-comm-d-audio-2",
+   "domain": "COMM",
+   "severity": "minor",
+   "category": "flow",
+   "title": "A GM who becomes the primary takes over no running cue and no silence: the next state change plays its playlist over a cue still on repeat, and the old holds stay flagged",
+   "where": "scripts/music-play.mjs:264-283 (adoptRunningInterruption at ready only), 305-335, 397-503 (apply), 520-564 (crossfade stops only the map's playlists)",
+   "what_happens": "interrupted, silenced and playingState are module variables of the primary's tab. A second GM's ready ran adoptRunningInterruption while it was not the primary, where `enabled()` is false and it returns (306). Nothing in the music family listens for the primary changing (no userConnected or drpgPrimaryReady hook in music-play.mjs, by grep). So after the primary leaves, the new primary holds no record: on the next state change apply sees no interruption, and crossfade stops only `ours()` (the mapped playlists) and starts the new one, while the GM's cue in Situational plays on with repeat set (1140). The playlists the cue or the silence held keep HELD true (cleared only for `next`), and a later Stop the track into silence resumes them.",
+   "evidence": "music-play.mjs:264  Hooks.once(\"ready\", () => {\nmusic-play.mjs:268      adoptRunningInterruption();\nmusic-play.mjs:306      if (!enabled() || interrupted) return;\nmusic-play.mjs:523      const stopping = new Map(ours().map(playlist => [playlist.id, playlist]));",
+   "failure_scenario": "The primary GM puts a cue on and then drops from the session; the assistant GM advances to Evening: the Evening playlist starts under the cue and both play for the table until someone presses Stop the track.",
+   "expected": "The GM who becomes the primary reads the running interruption and the holds from the world (adoptRunningInterruption already does this from documents) before its first apply.",
+   "confidence": "read",
+   "refutation_tried": "Checked whether schedule or apply adopts on the fly: apply only clears an interruption that has stopped (409-413), it never builds one. Checked whether the map-settle fix (E50 FG1, 109-116) covers it: it covers a mapping change within the settle, not a cue or a silence. isPrimaryGm is recomputed per call (utils.mjs:458-462), so the new GM does drive the next apply. LIVE-E50-04 names a real GM leaving within the map settle only.",
+   "old_id": "",
+   "live_check": "new live check: two GMs; GM A (primary) plays a cue from the Sound window over a mapped Afternoon; A closes the tab; GM B advances the hour; listen on a player."
+  },
+  {
+   "id": "domain-comm-d-audio-3",
+   "domain": "COMM",
+   "severity": "minor",
+   "category": "ux",
+   "title": "With Music follows the game state off (the default), a cue stopped from Foundry's Playlists sidebar leaves the music it paused paused and flagged",
+   "where": "scripts/music-play.mjs:1006-1021 (watchManualEnd returns on !enabled()), 932-956, 1082-1087 (the note that Play works with the switch off), 1132 (holdEverything); scripts/settings.mjs:2004-2018 (default false)",
+   "what_happens": "playTrack does its own bookkeeping so that Play and Stop the track work with the switch off (1082-1087): it pauses every playing playlist with the HELD flag. The road back for a cue stopped any other way is watchManualEnd, which returns at once when enabled() is false. A GM who stops the cue where Foundry puts the stop button, in the Playlists sidebar, gets silence: the playlist they had on stays paused with HELD true and `interrupted` stays set until Stop the track is pressed. The Play tab's line says 'Stop it, and the music that was playing before comes back.'",
+   "evidence": "music-play.mjs:1006  function watchManualEnd() {\nmusic-play.mjs:1007      Hooks.on(\"updatePlaylist\", (playlist, changes) => {\nmusic-play.mjs:1008          if (!enabled()) return;\nen.json DRPG.Music.playNowNote: \"Plays a track from \\u201c{name}\\u201d on repeat. Stop it, and the music that was playing before comes back.\"",
+   "failure_scenario": "A GM who never turned the switch on plays a cue over their own ambient playlist from the Sound window, later stops the cue in the Playlists sidebar, and the room stays silent; the ambient has to be restarted by hand.",
+   "expected": "The cue's end gives back what Play held whether or not the state machine is on, or the line says that only Stop the track gives it back.",
+   "confidence": "read",
+   "refutation_tried": "The label of the Reset button is 'Stop the track' (en.json DRPG.Music.reset), so 'Stop it' may mean that button; the sentence still promises the music back on a stop, and the sidebar's stop is the natural one. Checked that no other hook resumes: resumeAmbient has three callers (1019, 1029 and the record), all behind enabled().",
+   "old_id": "",
+   "live_check": "one GM, switch off: play a sidebar playlist, Play a cue from the Sound window, stop the cue from the sidebar."
+  },
+  {
+   "id": "domain-comm-d-audio-4",
+   "domain": "CASE",
+   "severity": "nit",
+   "category": "bug",
+   "title": "The season reset rings the Monocub sound on every GM and on each cub's player, once per Monocub it clears",
+   "where": "scripts/sfx.mjs:335-339 (onActorFlagged); scripts/season-wipe.mjs:455-457; scripts/monocub.mjs:140, 169-170",
+   "what_happens": "onActorFlagged plays 'monocub' on every updateActor whose changes carry the monocub flag, for every GM and the actor's owners. The season reset clears each cub with setMonocub(actor, false, { quiet: true }); `quiet` silences the toast only, and the flag write reaches the hook like any other, so a reset of a season with three Monocubs plays the sound up to three times on each GM (the 80 ms cooldown merges only writes closer than that).",
+   "evidence": "sfx.mjs:336      const changed = foundry.utils.getProperty(changes, `flags.${MODULE_ID}.${FLAGS.monocub}`);\nsfx.mjs:338      if (game.user.isGM || playerOwns(actor)) playSfx(\"monocub\");\nseason-wipe.mjs:457  if (actor.getFlag(MODULE_ID, \"monocub\")) await setMonocub(actor, false, { quiet: true });",
+   "failure_scenario": "The GM runs the season reset at the end of a campaign arc and hears the Monocub chime two or three times in the middle of the reset's own report.",
+   "expected": "A quiet change of the mark (the reset, a revive's quiet road at gm-students.mjs:649) sounds nothing, as it toasts nothing.",
+   "confidence": "read",
+   "refutation_tried": "The catalogue's hint says the sound plays when a student 'stops being one', which covers a GM's revive; it says nothing of the reset. Looked for a guard on the reset (a hold of the sound engine during runSteps): none in sfx.mjs or season-wipe.mjs 448-460.",
+   "old_id": ""
+  },
+  {
+   "id": "domain-comm-d-audio-5",
+   "domain": "UI",
+   "severity": "minor",
+   "category": "ux",
+   "title": "A text field that floats over the case map at a zoom other than 1 is drawn at the unzoomed font in a zoomed box",
+   "where": "scripts/float-text.mjs:57-66 (FACE copies font-size, padding and borders), 150-188 (lift: the box is the screen's, the face the computed style's)",
+   "what_happens": "lift() places the field in the top layer at its box on the screen (getBoundingClientRect, which includes the case map camera's CSS transform) and copies its face from getComputedStyle, whose font-size, padding and border widths are the untransformed values. The comment at 165-170 says the top layer is reached by no transform. At zoom 0.5 the floating field is half as wide as the field's layout but its text is drawn at full size, so it wraps twice as often and grows taller; at zoom 2 the text is half the size it showed a moment before. The owner-116 fix (holdSize) set the placeholder right; the face was not scaled.",
+   "evidence": "float-text.mjs:160      const face = FACE.map(k => [k, cs.getPropertyValue(k)]);\nfloat-text.mjs:180      for (const [k, v] of face) put(el, k, v);\nfloat-text.mjs:187          ... left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px` };",
+   "failure_scenario": "A GM zoomed out on the case map clicks a node's note: the note jumps to twice its type size inside a field half as wide, and shrinks back when they click away.",
+   "expected": "The floating field keeps the size the text had on the screen (the face scaled by the box's ratio to the layout size, which holdSize already computes).",
+   "confidence": "read",
+   "refutation_tried": "Checked that window scaling is not a transform (window-scale.mjs scaleWindow goes through setPosition), so only transformed ancestors such as the case map's canvas are touched. audit/float-sweep.mjs I7 (lines 360-400) measures the floating box and the placeholder at zoom 0.5 and 2, not the font. Not run here.",
+   "old_id": "",
+   "live_check": "Chromium (class C): audit/float-sweep.mjs's I7 capture with the floating field's computed font-size compared to the field's own font-size times the zoom."
+  },
+  {
+   "id": "domain-comm-d-audio-6",
+   "domain": "UI",
+   "severity": "nit",
+   "category": "perf",
+   "title": "Every button sound still waits 120 ms to see whether a window sound beats it; the number the comment says E17 tunes by ear is unchanged",
+   "where": "scripts/sfx-play.mjs:57-70 (YIELD_MS), 470-486 (the hold); scripts/config.mjs:5130-5141 (windowButton, sheetButton yieldsTo)",
+   "what_happens": "windowButton and sheetButton yield to windowOpen and windowClose, so with a file mapped each press's sound is held 120 ms on a timer and then played unless a window sound cancels it. The sound of every press lands 120 ms after the press. The comment still reads 'E17 is where that happens', a stage long shipped; config.mjs:5012 says 'Tuned by ear in E17, alongside YIELD_MS'. No reading of that tuning was found.",
+   "evidence": "sfx-play.mjs:70   const YIELD_MS = 120;\nsfx-play.mjs:481      holding.set(key, setTimeout(() => {\nsfx-play.mjs:483          fire(key, false);\nsfx-play.mjs:484      }, YIELD_MS));",
+   "failure_scenario": "A player clicking through the sheet's pips hears each click a beat after the press, which reads as the interface lagging.",
+   "expected": "A recorded reading of the delay at a table, or a shorter hold for presses that open no window.",
+   "confidence": "read",
+   "refutation_tried": "The hold is deliberate and documented (60-69); the press itself is not delayed, only its sound. Whether 120 ms is heard as lag is a table's question, so the severity rests on the old report's word, not a reading.",
+   "old_id": "AUDIT-1.2.13 D5"
+  },
+  {
+   "id": "domain-comm-d-audio-7",
+   "domain": "TEXT",
+   "severity": "nit",
+   "category": "text",
+   "title": "Stop the track always says a track stopped and the music it interrupted is back, also when nothing was playing or nothing came back",
+   "where": "scripts/sound-panel.mjs:285-288; scripts/music-play.mjs:1179-1226 (resetMusic returns true whatever it found); lang/en.json DRPG.Music.wasReset",
+   "what_happens": "The handler awaits resetMusic() and then shows DRPG.Music.wasReset unconditionally. resetMusic returns true for every GM, with 0 playlists given back when there was no cue (it logs the count at 1224 but the toast does not read it).",
+   "evidence": "sound-panel.mjs:286      await resetMusic();\nsound-panel.mjs:287      ui.notifications.info(game.i18n.localize(\"DRPG.Music.wasReset\"));\nen.json: \"The track stopped, and the music it interrupted picks up where it left off.\"",
+   "failure_scenario": "A GM presses Stop the track with no cue on and is told a track stopped and the music picks up, while nothing changes.",
+   "expected": "A line for 'nothing was playing' (or the toast only when a cue was stopped or a playlist given back).",
+   "confidence": "read",
+   "refutation_tried": "resetMusic has no return value but true and null (non-GM); no other caller shows its own text.",
+   "old_id": ""
+  },
+  {
+   "id": "domain-comm-d-audio-8",
+   "domain": "DOC",
+   "severity": "nit",
+   "category": "text",
+   "title": "The GM handbook says to reopen the Sound window to see another GM's changes; the Music tab's rows follow them since E44 C2b, the Effects tab and the two switches do not",
+   "where": "docs/handbooks/gm-handbook.en.md:1715 (section 17); scripts/sound-panel.mjs:438-451 (the map's live region)",
+   "what_happens": "The paragraph about saving says 'With the window open on two GMs' screens, open it again to see the other GM's changes.' The Music rows redraw on the musicMap setting (keepLive at 446-451, with the comment 439-445 naming the case), so for the mapping the sentence is stale; for the Effects rows, Music follows and Vary the sounds it is still true (controls-09-hud-overlays-4).",
+   "evidence": "sound-panel.mjs:446      keepLive(dialog, {\nsound-panel.mjs:447          region: \".drpg-music-map\",\nsound-panel.mjs:449          watch: { settings: [SETTINGS.musicMap] },",
+   "failure_scenario": "A GM following the handbook closes and reopens the Sound window after the other GM's mapping, which was already drawn.",
+   "expected": "The sentence names what is live (the Music rows) and what needs a reopen (the Effects rows and the two switches), or goes once those are live too.",
+   "confidence": "read",
+   "refutation_tried": "Read the Polish handbook's line only by grep for the same paragraph; not compared word by word.",
+   "old_id": ""
+  }
+ ],
+ "by_decision": [
+  {
+   "what": "The murder music plays whatever Music follows the game state says.",
+   "source": "docs/handbooks/gm-handbook.en.md:1713 ('The murder row stands outside that order, whatever the switch says'); murder-music.mjs reads no musicEnabled"
+  },
+  {
+   "what": "A player's own card may carry any sound that respects the slider to everybody it reaches; only the GMs' opt-in and the volume-ignoring siren are refused.",
+   "source": "scripts/sfx-play.mjs:691-705 (E02, 24.09.2026; audit S11-27)"
+  },
+  {
+   "what": "The safeword's sound is still under Foundry's Interface volume and the page's first click; the card is what everybody is sure to get.",
+   "source": "scripts/sfx-play.mjs:585-591 (owner's Q1, E19, 19.10.2026; S11-43); config.mjs SFX_EVENTS.safeword.hint"
+  },
+  {
+   "what": "Under Stained Glass the GM's Sound window has no sliders; they live in the gear's settings window for GM and player alike.",
+   "source": "scripts/sfx.mjs:563-569 and sound-panel.mjs:402 (E49 A1d, the owner's 'Gm pod przyciskiem zebatki nie powinien miec innych ustawien niz gracz')"
+  },
+  {
+   "what": "A state with nothing mapped stops nothing, except the body's silence, and a GM's cue gives way only to a mapped or silent state.",
+   "source": "scripts/music-play.mjs:390-396, 566-582 (the owner's D8; S11-58)"
+  },
+  {
+   "what": "An Objection takes the music off a GM's cue mid-trial.",
+   "source": "scripts/music-play.mjs:429-437 (written down as a change in behaviour, E6)"
+  },
+  {
+   "what": "Stop the track during the body's silence lets the held music in for a moment before the primary re-silences.",
+   "source": "scripts/music-play.mjs:1187-1190"
+  },
+  {
+   "what": "A floating text field stands over everything, Foundry's notifications too, while it is edited.",
+   "source": "scripts/float-text.mjs:18-20 (the owner's 13.11 'wierzchnia warstwa')"
+  },
+  {
+   "what": "The Investigation's six flashes run 2.8 s, over the 1.5 s limit.",
+   "source": "scripts/transitions.mjs:38-42 (MK-R3, the owner's 05.11 amend)"
+  },
+  {
+   "what": "No sound for a phase change; the music changes instead, and the flashes have one row (Pane flash).",
+   "source": "scripts/transitions.mjs:27-28 (the owner's sound rule A of 11.10)"
+  },
+  {
+   "what": "Unmapped sound events are silent and not logged; only a mapped file that fails is reported, once per path.",
+   "source": "scripts/sfx.mjs:29-41"
+  }
+ ],
+ "comments_against_code": [
+  {
+   "where": "scripts/sfx-play.mjs:743-746",
+   "comment_says": "testSfx plays 'ignoring the cooldown, the yield and the autoplay lock'.",
+   "code_does": "It refuses on a locked browser before it asks (785-790; the comment at 780-784 says so) - only the cooldown and the yield are ignored."
+  },
+  {
+   "where": "scripts/sfx-play.mjs:612-618",
+   "comment_says": "On a locked browser the varied path is skipped and 'falls through to the ordinary path, which drops the sound and counts it'.",
+   "code_does": "A locked browser already returned at 580-583 unless `force`; with `force` the ordinary path hands the file to AudioHelper.play (632-636), which the header's rule 4 says queues it, and counts nothing."
+  },
+  {
+   "where": "scripts/sfx-play.mjs:245-246 and 288-291",
+   "comment_says": "The varied path is 'a second path for eleven events'; 'the eleven events that carry vary: true'.",
+   "code_does": "13 SFX_EVENTS rows carry vary: true (grep; config.mjs:4971 itself says thirteen since E110)."
+  },
+  {
+   "where": "scripts/sfx-play.mjs:64-69",
+   "comment_says": "YIELD_MS 'has to be tuned by ear, and E17 is where that happens'.",
+   "code_does": "E17 shipped long ago and the value is the one written then (120); no record of the tuning was found (finding 6)."
+  },
+  {
+   "where": "scripts/config.mjs:5090-5093 (SFX_EVENTS header, vary)",
+   "comment_says": "The safeword is excluded from bending 'in CODE ... - see `fire`'.",
+   "code_does": "The exclusion is in `varies` (sfx-play.mjs:204-205), which rateFor and gainFor call; fire has none of its own."
+  },
+  {
+   "where": "scripts/music-play.mjs:760-766",
+   "comment_says": "Deleting the held flag 'means `-=held`, and in this Foundry that quietly does nothing unless the update is a forced replacement'.",
+   "code_does": "The recorded reading is the opposite: on 14.370 `-=key` does delete, with v14's deprecation warning (CLAUDE.md, LIVE-E30-01, docs/dev/e39/CALIBRATION.md). Writing false is still the right road (R152); the reason given is stale."
+  },
+  {
+   "where": "scripts/music-play.mjs:461-462",
+   "comment_says": "`left` is taken in apply 'so that an apply that returns below does not hand it to a later one'.",
+   "code_does": "The returns above it (398, 446) leave leftForApply for a later apply; only the returns after 463 consume it."
+  },
+  {
+   "where": "scripts/music-states.mjs:166-181",
+   "comment_says": "'REBUTTAL HAS NO STATE OF ITS OWN ... Still no fourth playlist. A mode does not need music of its own'.",
+   "code_does": "Nine states of their own since E110 (TRIAL_MODE_OWN_MUSIC, SCRUM_PHASE_MUSIC, ownStateRows at 104-113); the E110 note at 163-164 corrects the rebuttal only."
+  },
+  {
+   "where": "scripts/music-states.mjs:115-127",
+   "comment_says": "The order is paused, eclipse, trial, search, time of day.",
+   "code_does": "MUSIC_STATES also holds murder (first, never applying), the nine own-mode rows, the vote, and bodyFound between the trial and search (128-246); the handbook's table (gm-handbook.en.md:1701-1711) is the full order."
+  },
+  {
+   "where": "scripts/sfx.mjs:470-479 and 513, 552",
+   "comment_says": "The launcher is 'the player's only door to the two sliders' and opens 'the Sound panel'; soundSlidersHtml is 'the whole of the window for a player - see openSoundDialog'.",
+   "code_does": "The launcher opens the settings window (openLookDialog, 506-511; its own note at 495-498 says so); a player reaches openPlayerSoundDialog by no control, only game.drpg.soundDialog (api.mjs:1543)."
+  },
+  {
+   "where": "scripts/sound-panel.mjs:41-53",
+   "comment_says": "'the same window opens for everybody and simply has less in it. Not a second, player-shaped window: two windows about the same two sliders is how the two drift apart.'",
+   "code_does": "openPlayerSoundDialog is a window of its own (54-72), and the sliders are drawn in a second window too, the settings window (settings-window.mjs reads volumeSliders and wireVolumeSliders, sfx.mjs:541-550, 689-708)."
+  },
+  {
+   "where": "scripts/sound-panel.mjs:40",
+   "comment_says": "/** Map each state to one of the world's playlists. */",
+   "code_does": "An orphan JSDoc: it stands above the block comment and openPlayerSoundDialog, which maps nothing."
+  },
+  {
+   "where": "scripts/music.mjs:40-45",
+   "comment_says": "The music 'only needs exactly one client to be the one deciding, which is the primary GM'.",
+   "code_does": "Play and Stop the track decide on whichever GM presses them (finding 1)."
+  }
+ ],
+ "hygiene": {
+  "functions_over_300": [],
+  "functions_150_to_300": [],
+  "functions_80_to_150": [
+   "sfx-play.mjs fire 567-665 (99)",
+   "music-play.mjs registerMusic 180-284 (105)",
+   "music-play.mjs apply 397-503 (107)",
+   "sound-panel.mjs openSoundDialog 351-458 (108); measured by a script that pairs a top-level function line with the next line opening with '}'"
+  ],
+  "duplicated_helpers": [
+   "A core setting read under try/catch three times: sfx.mjs:417-420 (core), sfx-play.mjs:362-368 (foundryMusicVolume), sfx-play.mjs:772-775 (testSfx's interfaceVolume).",
+   "transitions.mjs:36 HOURS retypes config.mjs:333 TIMES_OF_DAY.",
+   "The cue playlist matched by name twice: music-states.mjs:285-287 isCuePlaylist and music-play.mjs:713-719 situationalPlaylist (said to be one rule; two bodies).",
+   "sound-panel.mjs:94 `const esc = foundry.utils.escapeHTML` shadows the `esc` imported from utils.mjs at 29.",
+   "diagnoseSfx returns the same Set twice, as `unplayable` (431) and `unplayableThisSession` (459)."
+  ],
+  "dead_code": [
+   "openPlayerSoundDialog (sound-panel.mjs:54-72): reached only through openSoundDialog on a player, which no control calls (gm-panel.mjs:207 is a GM tile; the corner launcher opens look.mjs); game.drpg.soundDialog alone.",
+   "playTrack's second parameter `soundId` (music-play.mjs:1094-1096, 1111): 'the old (playlistId, soundId) signature'; no caller in scripts/ passes it (sound-panel.mjs:278 passes one argument).",
+   "musicMapRows (sound-panel.mjs:82-84), re-exported by music.mjs:80: no reader in scripts/ outside the family (tests not counted).",
+   "floatingNow (float-text.mjs:313-316) 'for the tests'; floatTextCounts (137-141) for audit/float-sweep.mjs alone."
+  ],
+  "magic_numbers": [
+   "sound-panel.mjs:65 the player's window width 460.",
+   "camera-view.mjs:134 `window.innerWidth - 40` (the corner's fallback x), 137 `window.innerHeight - 4`, 142 half the screen as the lift's cap.",
+   "transitions.mjs: dur 1400 (75, 80), 2800 (83), 1150 (92), Escape's hold `(t.dur ?? 1200) + 200` (191); the onsets and FLICKER_MS are named.",
+   "music.mjs:169 and 195 the diagnosis columns padEnd(18) and padEnd(13).",
+   "float-text.mjs:115 the fallback ink #1d1a21 and bone #e4ded8 beside the theme's tokens."
+  ],
+  "facade_rule": "transitions.mjs:115 imports sfx-play.mjs past its facade sfx.mjs (so do body.mjs, sequence.mjs, spectator-dead.mjs and trial-zones-ui.mjs, by grep); .claude/rules/code.md says importers outside a family keep importing the facade. No cycle reason is written beside transitions.mjs's import.",
+  "code_md_rows_stale": "The rules file's family rows count fewer names than the files export today: sfx.mjs '7 names of its own' (12 now: floorSounds, MESSENGER_SOUNDS, messengerMuted, volumeSliders, wireVolumeSliders added), music-states.mjs '11 names exported' (15), sound-panel.mjs 'both names it exports' (5 exported, 2 re-exported). music-play.mjs's 9 and sfx-play.mjs's 22 match."
+ },
+ "hints_for_other_passes": {
+  "dead_controls": [
+   "The player's Sound window (sound-panel.mjs:54-72): no control opens it; a player's sliders are in the settings window.",
+   "Test on an effect row (sfx.mjs:778-782): the 'refused' answer (sfx-play.mjs:792-793) is reachable only if fire() returns false after every check before it passed - pickSound null with soundsFor non-empty cannot happen - so DRPG.Sound.why.refused is a text no press can show."
+  ],
+  "stale_windows": [
+   "Sound window: the Music tab's selects, Music follows, Vary the sounds and the Effects rows - already controls-09-hud-overlays-4. One part it does not name: this GM's own Choose or typed path redraws only the count lines (sfx.mjs:735-750), so the row's 'N files' chip (637) and the safeword's 'No file yet' warning (643-644) keep their old state until the window is reopened.",
+   "The sliders (sfx.mjs:553-585, both windows): the Music slider shows Foundry's playlist volume read at open; a change in Foundry's own Playlists sidebar is not drawn, and the corner launcher's muted mark (sfx.mjs:534-539) is refreshed only by this module's slider and rtcSettingsChanged.",
+   "Camera dock names (camera-view.mjs:158-177): relabelled only on renderCameraViews; a character renamed, or a Monokuma's pool moved to another GM, keeps the old plate until the dock draws again (whether Foundry redraws the dock on an actor update was not read)."
+  ]
+ },
+ "not_established": [
+  {
+   "what": "Finding 1 and 2 were read, not run: what a table hears when a second GM presses Play or Stop the track, or becomes the primary mid-cue.",
+   "live_check": "new live check (finding 1 and 2's recipes)",
+   "l1": {
+    "what": "Whether the body's silence and a cue survive a second GM's Stop the track and a primary hand-over",
+    "recipe": [
+     "Two GMs (A primary, B assistant) and one player; Music follows on; map Afternoon and Evening; nothing mapped to the body",
+     "Announce a body: confirm silence on the player",
+     "B opens the Sound window and presses Stop the track; listen on the player 30 s",
+     "Unannounce by advancing; A plays a cue from the Sound window; A closes the tab",
+     "B advances the hour; listen on the player: one track or two"
+    ],
+    "clients": "2 GMs, 1 player",
+    "theme": "default",
+    "settles_if": "Silence holds after B's press and only the Evening plays after the hand-over: findings 1 and 2 fall; the afternoon returns, or the cue plays with Evening: they stand",
+    "priority": "minor"
+   }
+  },
+  {
+   "what": "Whether 120 ms between a press and its sound is heard as lag (finding 6; AUDIT-1.2.13 D5).",
+   "live_check": "new live check",
+   "l1": {
+    "what": "The button sound's delay as heard",
+    "recipe": [
+     "Map a short click to Button in a window and Button on a character sheet",
+     "Press ten sheet pips and ten window buttons",
+     "Note whether the click is heard with the press or after it"
+    ],
+    "clients": "1 GM or player",
+    "theme": "both",
+    "settles_if": "heard with the press: the finding is withdrawn; heard after: it stands",
+    "priority": "nit"
+   }
+  },
+  {
+   "what": "Whether Foundry's server delivers a module socket packet with `recipients` only to those users, which the death's kept sound relies on (sfx-play.mjs:544).",
+   "live_check": "existing assumption, not measured in this lane; the harness's socket is a shim (audit/harness/README.md)",
+   "l1": {
+    "what": "A kept death's sound reaches only its hearers",
+    "recipe": [
+     "GM, three players; run an incident to a death kept secret",
+     "Watch each player's console for the module socket packet (game.socket.on log)"
+    ],
+    "clients": "1 GM, 3 players",
+    "theme": "default",
+    "settles_if": "only the incident's players receive the packet: holds; a bystander receives it: a leak of the death's timing",
+    "priority": "major"
+   }
+  },
+  {
+   "what": "Finding 5's font size under the case map's zoom was read from the code; audit/float-sweep.mjs was not run (Chromium).",
+   "live_check": "Chromium: float-sweep I7 with a font-size reading"
+  },
+  {
+   "what": "Whether the Polish handbook carries the same stale sentence as finding 8: located by grep only, not compared line by line.",
+   "live_check": "read docs/handbooks/gm-handbook.pl.md section 17"
+  }
+ ]
+}

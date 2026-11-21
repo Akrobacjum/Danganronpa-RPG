@@ -1,0 +1,287 @@
+{
+ "refuter": "verify-stages-22",
+ "of": "stages-22",
+ "checkout": "claude/audit-119 at f4f1a0c8 (code identical to main b5a29e73, 1.2.118); a shallow clone (git rev-parse --is-shallow-repository: true), so several commits the reader cites do not resolve here (82517370, e4b6ee1f, 0a107604, 0d91a2a3, 42091766, 637c92c2, 2b65f06f, cc519fd0, 457786eb, 7c9b2ce0, ea81b712, e3c60252, f5d9cf48, dab9ebb8, 4201630c, c1bea88a); nothing run but git, grep, sed and two read-only parsing scripts under /tmp/verify-stages-22/ (exp.py, stale.py); tools/e54 read read-only through the GitHub contents API at refs/heads/claude/e54-prep",
+ "scope": "every finding of minor or above (one: E38-1), the three stage grades, and every promise marked holds yes or no (E108: 8 of 9 promises, P3 being 'unknown'; E54: 7 of 9, plus P1 'partly' because the grade turns on it; E38: 5 of 7, plus P4 'partly' as E38-1's promise); one nit (E54-1) checked because its claim feeds E54's grade_reasons",
+ "checked": [
+  {
+   "ref": "E108 grade",
+   "claim": "E108 graded 9: every promise has a named test green in the base run's tiers 0-1, the code shows no road where the copy is not laid, and only LIVE-E108-01 (unread) caps it at 9.",
+   "verdict": "weakened",
+   "why": "The scale (11.4) gives 8 where one promise holds only by code reading, and the reader's own promise 4 (the basic dice keep the source GM's look under the Daggerheart value) has test 'none': no test of the tiers sets diceLookKind to daggerheart and runs the forced look's sweep or put-back. The grade's sentence 'Every promise the notes make has a named test' is contradicted by promises 3 and 4 of the same stage. The cap is also not marked: a grade resting on an unread live check is provisional 'after L1' (BRIEF.md, 'The real-table line L1'), and the stage carries no 'provisional' key or l1 block. On the other side, the five tier-2 tests the reader left unjoined are now joined: base-run.json's suite_merge reads 3387 passed, 1 failed (grid XI07 alone, shard 3), 27 skipped, and none of the five E108 titles is in skip-baseline.json, so they ran green. That lifts promises 0, 2, 5 and 6 to a measured result but does not give promise 4 a test.",
+   "evidence": "grep -an diceLookKind over tests-tier0/1/2.mjs: only R5460, R5464, the settings-window test (94522), the Assistant put-back (94569) and the layOnThrow test (94613), which calls layOnThrow directly and reads colorsets, not the sweep; dice-sync.mjs:274-277 enforcing() reads forceDiceLook alone; base-run.json suite_merge and suite_shards; audit/harness/skip-baseline.json (33 lines, canvas and layout tests only)",
+   "severity_after": null,
+   "grade_after": "8 (provisional: after L1)"
+  },
+  {
+   "ref": "E108 P0",
+   "claim": "The game's settings show one choice of three where the switch stood, in English and Polish (holds yes).",
+   "verdict": "stands",
+   "why": "settings-window.mjs reads diceLookChoice for the row and saves through diceLookWrites; DICE_LOOK_CHOICES is own/dsn/daggerheart; R5463 (tier 1) and R5466 (tier 0) exist and shard 1 of the base run is 1781 passed, 0 failed; the tier-2 settings-window test is green in the merged run.",
+   "evidence": "scripts/settings-window.mjs:63, :169-173, :193-194, :418; scripts/settings.mjs:1453-1465; scripts/tests-tier1.mjs:40664; scripts/tests-tier0.mjs:16193; base-run.json suite_shards[0]",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E108 P1",
+   "claim": "An older world reads its switch as before, no write and no migration; held in forceDiceLook plus diceLookKind default dsn (holds yes).",
+   "verdict": "stands",
+   "why": "diceLookChoice answers 'own' when forceDiceLook is not true, else 'daggerheart' only for that kind and 'dsn' otherwise, catching unregistered reads; diceLookKind is registered world String default 'dsn'; migrate.mjs names diceLookKind nowhere (grep count 0); R5460 drives the pure function.",
+   "evidence": "scripts/settings.mjs:1456-1465 (diceLookChoice), :1472-1482 (diceLookWrites), :1509-1514; grep -c diceLookKind scripts/migrate.mjs = 0; scripts/tests-tier1.mjs:40565-40590",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E108 P2",
+   "claim": "With Daggerheart chosen on 2.10+, every throw a browser draws is handed a copy whose four duality dice carry Daggerheart's colorsets, whoever throws; the roll is never changed (holds yes).",
+   "verdict": "stands",
+   "why": "layOnThrow reads no user, writes context.dsnRoll from a deep clone (layDualityLook deep-clones the JSON) and never assigns context.roll; tableDualityLookFor answers DAGGERHEART_DICE only for choice daggerheart on a version newer than 2.9.99; PRESET_KEYS includes 'colorset' so the colorset survives the filter. The tier-2 test (94613) is green in the merged base run; it calls layOnThrow directly with a stand-in system, as the reader says.",
+   "evidence": "scripts/dice-look.mjs:50, :80-96, :116-138, :145-146, :154-159, :183-205; scripts/tests-tier2.mjs:94613-94667; base-run.json suite_merge",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E108 P4",
+   "claim": "Under the Daggerheart value the basic dice keep the source GM's Dice So Nice look, as under Dice So Nice's (holds yes, by reading, no test).",
+   "verdict": "stands",
+   "why": "enforcing() reads forceDiceLook alone and diceLookKind appears in dice-sync.mjs only in SWITCHES, so the sweep and put-back run identically under both Everyone values. The claim holds by reading; the absence of a test is real and is why the stage grade drops (above).",
+   "evidence": "scripts/dice-sync.mjs:180 (SWITCHES), :274-277 (enforcing); grep diceLookKind scripts/dice-sync.mjs: the SWITCHES line and its comment only",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E108 P5",
+   "claim": "diceLookKind is held to a full Gamemaster's value: an Assistant's write is put back (holds yes).",
+   "verdict": "stands",
+   "why": "SWITCHES carries diceLookKind; onSwitchWritten copies a full GM's or the primary's own write and has the primary run holdSwitches for anyone else's; holdSwitches writes back each switch differing from the copy; registerDiceSync returns early without Dice So Nice. The tier-2 test (94569) drives both the heard and the no-hook road and is green in the merged run.",
+   "evidence": "scripts/dice-sync.mjs:180, :208-211, :321-335, :344-376; scripts/tests-tier2.mjs:94569-94611",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E108 P6",
+   "claim": "The forced look carries the source GM's role looks: written on every user below full GM, a player's or Assistant's own put back, the GMs' store row gaining 'roles' (holds yes).",
+   "verdict": "stands",
+   "why": "sourceLookOf and lookOf read roleAppearance; lookFrom carries it; writeLooks writes appearance, sfxList, roleAppearance and the saved marker for each user (both the batch and the unset/set fallback); the store rows take 'roles' through patch and a weak fillOnly patchMany, and gm-store.mjs skips a held field under fillOnly. The two Q-E108-2 tier-2 tests are green in the merged run. What Dice So Nice draws from it is LIVE-E108-01, unread.",
+   "evidence": "scripts/dice-sync.mjs:590-593, :671-679, :698-701, :942-990, :1140-1166; scripts/gm-store.mjs:378-379; scripts/tests-tier2.mjs:94669, :94697",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E108 P7",
+   "claim": "The dice look's diagnostic no longer says Daggerheart's roles are unforced where this browser lays Daggerheart's dice (holds yes).",
+   "verdict": "stands",
+   "why": "The rolesUnforced line is raised only when the system has roles and browser.tableLook is null; tableLookHere returns a look only where tableDualityLook answers one, which on 2.10+ is the Daggerheart value alone. The same condition is why finding E108-1 (nit) stands for the Dice So Nice value.",
+   "evidence": "scripts/dice-look.mjs:169-174, :422-423; lang/en.json:4747",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E108 P8",
+   "claim": "The handbooks name the setting and each choice; without Dice So Nice there are no 3D dice whatever the choice (holds yes).",
+   "verdict": "stands",
+   "why": "R5466 reads both language files and the GM handbook line; the listener hangs on diceSoNiceRollStart and registerDiceSync returns without Dice So Nice, so nothing of the module draws dice without it. Held by source reading, as the reader says.",
+   "evidence": "scripts/tests-tier0.mjs:16193; scripts/dice-look.mjs:80-82; scripts/dice-sync.mjs:208-211",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E54 grade",
+   "claim": "E54 graded 8: the main promise (pure moves behind facades) holds by reading, without a standing test; plan items undone and live checks unwritten stand only in a later paper; no table defect found.",
+   "verdict": "weakened",
+   "why": "By the scale's letter the stage meets the anchor for 7, not 8: promise 1 is held 'partly' at HEAD (gm-bridge.mjs:139 reads key-remnants.mjs past its facade for wireChargeHeld, a name investigation.mjs does not re-export), and 11.4 counts a promise broken by a later stage against the stage; promise 8 (C6, C9, C10) is 'no'; and promise 6's byte-for-byte equality rests on commit messages alone (below). The reader's reasons for discounting each (a later stage's doing; scope possibly dropped by the owner; no table effect) are reasonable but are judgement, not the scale, and the grade_reasons do not name promise 1's 'partly'. The core reading does hold: the six split commits in this clone keep each facade's export set (re-derived below) and every new file's import list avoids its facade.",
+   "evidence": "/tmp/verify-stages-22/exp.py over d2907da5, 1670d290, 070b7c5a, 6e353c70, 35f87645, f66b7243 (utils 63/63, settings 76/76, investigation 44/44, cleanup 38/38, chapter 49/49, glass 40/40 by this parser, none lost or gained; at HEAD only glass.mjs's curtainHeld gone, 7c7d007b); scripts/gm-bridge.mjs:136-141; scripts/key-remnants.mjs:790; AUDIT 11.4 row 6 ('zepsuta przez pozniejszy etap') and row 7",
+   "severity_after": null,
+   "grade_after": "7"
+  },
+  {
+   "ref": "E54 P0",
+   "claim": "Seven families cut by pure moves; each old file a facade keeping its name and every export (holds yes).",
+   "verdict": "stands",
+   "why": "Re-derived for six of the seven split commits: the facade's export set is the same before and after the split and at HEAD (glass.mjs's curtainHeld removed later on purpose, as the reader says). The sheet's split commit the reader cites (82517370) does not resolve in this checkout, which is shallow (git rev-parse --is-shallow-repository: true; v1.2.112..v1.2.113 holds 373 commits here against the reader's 644), so the seventh was not re-derived; at HEAD sheet.mjs re-exports 29 names from its eight files, matching code.md's row. My parser counts 40 glass exports where the reader counts 44; both see none lost.",
+   "evidence": "/tmp/verify-stages-22/exp.py; scripts/sheet.mjs:57-64 (242 lines); git rev-parse --is-shallow-repository",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E54 P1",
+   "claim": "No new file imports its facade (holds at split and HEAD); importers outside a family keep the facade, with one exception at HEAD (holds partly).",
+   "verdict": "stands",
+   "why": "Import lists of the 16 new files at HEAD, static and import(): none names its own facade. Outside the families, a grep of scripts/ (tests aside) for imports of the new files finds only gm-bridge.mjs:139's import('./key-remnants.mjs'), added by E109 (95bf8d12 touches gm-bridge.mjs and key-remnants.mjs). sheet-audit.mjs matches the sheet- pattern but is no E54 file.",
+   "evidence": "grep over scripts/*.mjs for imports of key-remnants, cleanup-reshape, death, body, window-scale, windows, glass-geometry, glass-blocks, sheet-*; scripts/gm-bridge.mjs:139; git show --stat 95bf8d12",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E54 P2",
+   "claim": "16 new files; 253 module files where 1.2.112 had 230; code.md carries a row per new file (holds yes).",
+   "verdict": "stands",
+   "why": "git ls-tree counts .mjs in scripts/: v1.2.112 242 of which 12 tests (230), v1.2.113 266 of which 13 tests (253), HEAD 271. The drifted numbers the reader names are right at HEAD: sheet-header.mjs 22 export lines, key-remnants.mjs 30, sheet-actions.mjs 1558 lines (code.md rows: 18, 28, 1545).",
+   "evidence": "git ls-tree --name-only <rev> scripts/; grep -c ^export scripts/sheet-header.mjs scripts/key-remnants.mjs; wc -l scripts/sheet-actions.mjs; .github/release-notes/v1.2.113.md:158-161",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E54 P3",
+   "claim": "The suite's readers are pointed at the new files and the comments swept (holds yes).",
+   "verdict": "stands",
+   "why": "tests-kit.mjs holds GLASS_FAMILY and its siblings with glassText/glassBy refusing by must on a missing or empty file. A scan of the three tier files for fnSource/topLevelFunction/bodyOf on a facade's name with a function that now lives only in a new file finds one hit, and it reads through chapterText (the family reader), so no stale cut. The two leftover comments the reader names are where it says: trial-progress.mjs:347 names investigation.mjs `chargeForUnfoundKeys` (now key-remnants.mjs), tests-tier1.mjs:38902 names sheet.mjs `abilityButton`.",
+   "evidence": "scripts/tests-kit.mjs:1766-1810; /tmp/verify-stages-22/stale.py (1 hit, tests-tier1.mjs:61316, chapterText); scripts/trial-progress.mjs:347; scripts/tests-tier1.mjs:38902",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E54 P4",
+   "claim": "W2: the windows' size is registered at init by registerWindows(readers), once (holds yes).",
+   "verdict": "stands",
+   "why": "module.mjs:198 calls registerWindows under safely with the slider, height and registered readers; window-scale.mjs:218 declares it; R4800 (tier 0) and R4801 (tier 1) exist and shard 1 is 0 failed with neither in the skip baseline.",
+   "evidence": "scripts/module.mjs:16, :198; scripts/window-scale.mjs:218; scripts/tests-tier0.mjs:25683; scripts/tests-tier1.mjs:61752; base-run.json suite_shards[0]",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E54 P5",
+   "claim": "W6 and Q-E54-7: one place decides a module window's size; the sheet's two heights unchanged (holds yes).",
+   "verdict": "stands",
+   "why": "R4803 and R4804 exist in tier 0 and are green with shard 1; R4803 itself lists ui-kit.mjs settleKitWidth as a second place, an open owner's question, which the reader records.",
+   "evidence": "scripts/tests-tier0.mjs:25745, :25784; docs/dev/e59/GAPS.md:48",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E54 P6",
+   "claim": "G2-G4: the glass cut reads only its arguments, and moved whole to glass-geometry.mjs and glass-blocks.mjs with the same answers byte for byte (holds yes).",
+   "verdict": "weakened",
+   "why": "The structural half stands: glass-geometry.mjs imports glass-blocks.mjs alone, glass-blocks.mjs nothing, and R4805 (tier 0, source-read) is green. The 'same answers byte for byte' half is a reading in commit messages (637c92c2, 2b65f06f, cc519fd0, 62cdf048, e460d969) that are not even present in this shallow checkout, and audit/glass-golden.mjs was not run by the reader or here. 'Holds yes' should read 'partly: structure read, equality recorded only in commit messages (K)'.",
+   "evidence": "import lists of scripts/glass-geometry.mjs and scripts/glass-blocks.mjs; scripts/tests-tier0.mjs:25809; git log -1 637c92c2 -> unknown revision (shallow clone)",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E54 P7",
+   "claim": "W4: a theme switch sizes every open window again, so the memo needs no theme (holds yes).",
+   "verdict": "stands",
+   "why": "applyTheme (settings.mjs:4551) deletes drpgScaled on each open window and calls scaleWindow at :4639-4643; R4802 exists. GAPS.md:43-44 reads the plan's verify line the other way (verdict 'fix window'), which the reader carries as finding E54-3 and a not_established entry; the promise as the commit states it holds.",
+   "evidence": "scripts/settings.mjs:4551, :4639-4643; scripts/tests-tier0.mjs:25708; docs/dev/e59/GAPS.md:43-44",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E54 P8",
+   "claim": "The plan's C6, C9 and C10 were not done (holds no).",
+   "verdict": "stands",
+   "why": "migrateRemnants, migrateRemnantsOnce and migrateRemnantToken still stand in remnants.mjs (2668, 2773, 2931); glass.mjs:1929 still reads 'const W = fullW'; passages-gm.mjs is 3304 lines. origin's claude/e54-prep holds tools/e54/remnants-migrate.json, so C6 was prepared on that branch and not landed, which agrees with 'no'.",
+   "evidence": "scripts/remnants.mjs:2668, :2773, :2931; scripts/glass.mjs:1929; wc -l scripts/passages-gm.mjs; GitHub contents of tools/e54 at refs/heads/claude/e54-prep (25 entries, remnants-migrate.json among them)",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E54-1 (nit, checked because it carries the grade's 'tools not in the repository')",
+   "claim": "The split's tools and manifests are in no ref of the repository; git log --all finds no commit that touched tools/e54.",
+   "verdict": "refuted",
+   "why": "The remote holds them: git ls-remote origin lists claude/e54-prep (defd60c0), claude/e54-land, claude/e54-land-113 (123f8242) and claude/e54-behaviour, and tools/e54 at claude/e54-prep holds split.mjs, repoint.mjs, rows.mjs, sweep.mjs, budget.mjs and the seven family manifests the notes and tests-kit.mjs cite. GAPS.md:50 itself says 'built on claude/e54-prep, not in base'. What stands is narrower: the files are not on main, so a reader of main cannot follow the citations. The reader's refutation looked only at the refs fetched locally. Still a nit.",
+   "evidence": "git ls-remote --heads origin (claude/e54-prep, claude/e54-land, claude/e54-land-112, claude/e54-land-113, claude/e54-behaviour, claude/e38); GitHub contents tools/e54 at refs/heads/claude/e54-prep; docs/dev/e59/GAPS.md:50",
+   "severity_after": "nit",
+   "grade_after": null
+  },
+  {
+   "ref": "E38 grade",
+   "claim": "E38 graded 7: delivered in part, one minor (E38-1), a named share of the plan not built, all four live checks unread.",
+   "verdict": "stands",
+   "why": "The scale's 7 is 'several minors or one promise delivered in part'; promise 4 is partly (the same defect as E38-1, confirmed below) and promise 6 is 'no' for plan scope the notes did not carry. The tier-0 tests R5000 and R5001 are green in shard 1 (0 failed, not in the skip baseline); 97-two-gms and 98-chaos have no verdict in either base run (base-run.json 'pending': the ci scenarios one at a time; the first session's green list stops at 21), so the behaviour rests on reading, which keeps the grade below 8 in any case. LIVE-E38-01..04 (items 519-522) have no reading in LOCAL-REPORT.md on origin/claude/e58-local or in the live-readings digests. 7 is not too high; 6 would need a promise counted as broken, which the plan's unbuilt scope is not shown to be.",
+   "evidence": "audit/AUDIT-1.2.42.md:1502-1508; base-run.json pending and first_session; git show origin/claude/e58-local:docs/dev/e58/LOCAL-REPORT.md (no E38 lines); scripts/tests-tier0.mjs:21604, :21632",
+   "severity_after": null,
+   "grade_after": "7 (unchanged; a grade below the cap, still resting on unread live checks and unjoined scenarios)"
+  },
+  {
+   "ref": "E38 P0",
+   "claim": "The harness reloads any client and changes the primary GM (holds yes).",
+   "verdict": "stands",
+   "why": "cluster.mjs declares reload (:810), primaryOn (:839) and makePrimary (:858) and hands them to every scenario at :1178; 97-two-gms A0-A4b drive them. The scenario's result is not in the base run, so this holds by reading.",
+   "evidence": "audit/harness/cluster.mjs:810, :839, :858, :1178; audit/harness/scenarios/97-two-gms.mjs:53-89",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E38 P1",
+   "claim": "97-two-gms covers the GMs' store both ways, a claimed card across the primary's reload, one 'rolls' record across a change of primary, an open Frisk handed back (holds yes).",
+   "verdict": "stands",
+   "why": "Checks B1-B3, C1-C3, D1-D2, F1-F2 exist with those subjects. Coverage holds; the run's result is unread, as the reader says ('to be joined').",
+   "evidence": "audit/harness/scenarios/97-two-gms.mjs:102-108, :146-149, :169-177, :233-235",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E38 P2",
+   "claim": "98-chaos covers the only GM's reload with a card open, mid-incident and mid-vote (holds yes).",
+   "verdict": "stands",
+   "why": "Checks A1-A2, C1-C2, D1-D2 exist with those subjects; result unread in the base run.",
+   "evidence": "audit/harness/scenarios/98-chaos.mjs:61-64, :113-114, :160-163",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E38 P3",
+   "claim": "A Truth Bullet given on a second GM and the primary's find of the same trace make one copy (holds yes).",
+   "verdict": "stands",
+   "why": "bullet.give is gmOnly with answer reply; requestGiveBullet asks with onPrimary and runs giveBullet locally on the primary; handleGiveBullet calls giveBullet, which serialises on observeFindKey(who.id) and returns GIVEN_ALREADY when the receiver holds a copy; giveBulletNow asks through requestGiveBullet. mintFindCopy (observe.mjs), handover.mjs and trial-modes.mjs use the same observeFindKey queue. The queue is one browser's memory, so the one-copy claim also needs those three makers to run on the primary; that was not re-traced here and is the reader's note, not the promise. R5000 green in shard 1; 97 G1 unread.",
+   "evidence": "scripts/bridge-table.mjs:1591-1601; scripts/bridge-asks.mjs:184-192; scripts/bridge-runs-records.mjs:923-933; scripts/gm-items.mjs:1444-1448, :1570-1587; scripts/observe.mjs:1102-1104; scripts/handover.mjs:303-305; scripts/trial-modes.mjs:450-452",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E38 P4",
+   "claim": "A private card a GM whispered to an offline player reaches them on return (holds partly: not for readers given later through updateSecret).",
+   "verdict": "stands",
+   "why": "post keeps the words with authorHold and recipients when the GM is not a recipient; updateSecret calls remember only when the poster is among the new readers, so the held entry keeps the first readers; answerWordsRequest serves only a sender in entry.readers. See E38-1.",
+   "evidence": "scripts/secret.mjs:1235-1243, :1343-1367, :958-977",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E38 P5",
+   "claim": "The flow 'truth-bullets' is covered and 64-migration-drill moves to E58 (holds yes).",
+   "verdict": "stands",
+   "why": "tests-flows.mjs's truth-bullets row names bridge bullet.give, scenario 97-two-gms, status covered, stage 1.2.113; the register's row 64 is local-gate, planned, E58; the notes say both. R160 (the FLOWS test) was not read by the reader or here.",
+   "evidence": "scripts/tests-flows.mjs:431-432; audit/harness/README.md:205; .github/release-notes/v1.2.113.md:152-154",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E38 P6",
+   "claim": "The rest of the plan's scope (85's list, 82's trial modes under a reload, a Frisk answered across GMs, a second GM in audit/live, the transfers' chain across two GMs) is not built (holds no).",
+   "verdict": "stands",
+   "why": "98-chaos's header lists those as 'Not here'; audit/live/sandbox-cluster.mjs has no gm2, reload or makePrimary (grep count 0); inventory.mjs still says two GMs on two browsers are not chained (E36, E38).",
+   "evidence": "audit/harness/scenarios/98-chaos.mjs:22-23; grep -c 'gm2|makePrimary|reload' audit/live/sandbox-cluster.mjs = 0; scripts/inventory.mjs:1023-1025",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E38-1 (minor)",
+   "claim": "The author's kept copy does not follow a card given to a second audience through updateSecret: a living victim's player away at an incident's close never gets its card.",
+   "verdict": "stands",
+   "why": "Traced: tellIncidentClosed posts one veiled card through announce with whisper = others (murder-rules.mjs:110 sets veiled when there is a whisper list; utils.mjs announce -> privately), so post keeps authorHold with readers = others on the author GM; it then calls updateSecret(message, victim words, freed). In updateSecret, readers = freed; the GM is not among them, so remember is skipped and the held entry keeps others and the others' words; sendWords goes to freed now, reaching only a connected browser. On return, answerWordsRequest finds the sender not in entry.readers and sends nothing. No guard elsewhere was found. Not driven by any scenario, so 'read', not 'measured'; minor is right: a particular situation (the victim lives and that player is away at the close).",
+   "evidence": "scripts/murder-rules.mjs:110-111, :3691-3708; scripts/utils.mjs:701-713; scripts/secret.mjs:1235-1243, :1343-1367 (if (readers.includes(game.user.id) || !readers.length)), :968-972 (if (!readers.includes(sender.id)) continue;)",
+   "severity_after": "minor",
+   "grade_after": null
+  }
+ ],
+ "counts": {
+  "checked": 29,
+  "stands": 25,
+  "weakened": 3,
+  "refuted": 1
+ },
+ "grade_changes": [
+  "E108 9 -> 8 (provisional: after L1): promise 4 holds by code reading alone, and the 9 was not marked provisional though it rests on LIVE-E108-01",
+  "E54 8 -> 7: promise 1 is partly at HEAD (a later stage's import past the facade, which 11.4 counts), promise 8 is no, and promise 6's byte equality stands only in commit messages",
+  "E38 7 unchanged"
+ ],
+ "not_established": [
+  "The reader's tier01.log line citations (e.g. :1248-1254, :282, :365-366, :461, :465, :1770) could not be read: no tier01.log exists in the repository or under /tmp. The results were confirmed in aggregate instead: base-run.json shard 1/8 (tiers 0-1 with parts A and B) is 1781 passed, 0 failed, 16 skipped, and none of the stage's numbered tests is in audit/harness/skip-baseline.json.",
+  "Since the reader wrote, base-run.json carries the merged tier 2 (3387 passed, 1 failed - grid XI07, which passes alone - 27 skipped). The reader's 'tier 2 not ready' entry is outdated: E108's five tier-2 tests are green there. The ci scenarios (97-two-gms, 98-chaos, 73-notice-history, 30-security, 33-bridge-paths, 83-roll-integrity) are still 'pending' in base-run.json; only 17-assistant has a green verdict, from the first session.",
+  "The sheet's split commit (82517370 in the reader's file) and the commits of W2-W6 and G2-G5 are not in this shallow clone, so E54's seventh export-set comparison and the commit-message readings were not repeated.",
+  "Whether E38's other copy makers (observe.mjs mintFindCopy, handover.mjs, the Reveal in trial-modes.mjs) all run on the primary GM, which the one-queue claim needs beyond the Give itself: not re-traced here.",
+  "The plans docs/dev/plans/E54.md and E38.md: not at docs/dev/plans on claude/e54-prep or claude/e38 (GitHub contents API: path not found); where they live was not found."
+ ]
+}

@@ -1,0 +1,1227 @@
+{
+ "reader": "old-1.2.13-C-H",
+ "source": "audit/AUDIT-1.2.13.md (the 1.2.13 audit, 01-03.09.2026): lines 1-404 - the status table, the three decisions of 03.09, the out-of-plan rebuild, the verification of 03.09 and its later rounds, the verdict with its grades and 'Liczby' - and lines 777-1368, sections C (C1-C6), D (D1-D7), E (E1-E12), F (F1-F5), G (seven strengths) and H (steps 1, 1b, 2-10 and the closing note)",
+ "read": [
+  {
+   "file": "audit/AUDIT-1.2.13.md",
+   "lines": 995,
+   "of": 1368,
+   "how": "lines 1-404 (status part, decisions, rebuild, verification, verdict, Liczby) and 777-1368 (C-H), whole; headings of 405-776 by grep"
+  },
+  {
+   "file": "audit/findings-1.2.118/BRIEF.md",
+   "lines": 113,
+   "of": 113,
+   "how": "whole"
+  },
+  {
+   "file": "audit/AUDIT-1.2.42.md",
+   "lines": 112,
+   "of": 1666,
+   "how": "16-127 (section 11)"
+  },
+  {
+   "file": "audit/findings-1.2.118/old-1.2.42-core.json",
+   "lines": null,
+   "of": null,
+   "how": "keys and two items, the shape"
+  },
+  {
+   "file": "audit/findings-1.2.118/first-session/old-1.1.88-1.2.13-A.json",
+   "lines": null,
+   "of": null,
+   "how": "the item list and four items' evidence (LIVE-001, A4, A5, A9), cited for the A-items H names"
+  },
+  {
+   "file": "scripts/*.mjs (271 files)",
+   "lines": 434614,
+   "of": 434614,
+   "how": "by script: counts, the static import graph, definitions by grep; read by hand in parts (below)"
+  },
+  {
+   "file": "scripts/remnants.mjs",
+   "lines": 230,
+   "of": null,
+   "how": "700-930, 1895-1900"
+  },
+  {
+   "file": "scripts/truth-bullets.mjs",
+   "lines": 60,
+   "of": null,
+   "how": "155-215, 1760-1770"
+  },
+  {
+   "file": "scripts/tables-pools.mjs",
+   "lines": 130,
+   "of": null,
+   "how": "515-535, 1085-1192"
+  },
+  {
+   "file": "scripts/gm-panel.mjs",
+   "lines": 460,
+   "of": null,
+   "how": "170-330, 585-625"
+  },
+  {
+   "file": "scripts/gm-items.mjs",
+   "lines": 260,
+   "of": null,
+   "how": "72-100, 213-250, 425-435, 641-725, 1748-1760"
+  },
+  {
+   "file": "scripts/gm-students.mjs",
+   "lines": 100,
+   "of": null,
+   "how": "319-430"
+  },
+  {
+   "file": "scripts/traps.mjs",
+   "lines": 210,
+   "of": null,
+   "how": "503-530, 640-700"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "lines": 60,
+   "of": null,
+   "how": "405-433, 2405-2435"
+  },
+  {
+   "file": "scripts/action-rolls.mjs",
+   "lines": 75,
+   "of": 328,
+   "how": "66-140"
+  },
+  {
+   "file": "scripts/sheet-actions.mjs",
+   "lines": 75,
+   "of": null,
+   "how": "715-730, 1378-1428"
+  },
+  {
+   "file": "scripts/config.mjs",
+   "lines": 50,
+   "of": 5646,
+   "how": "2888-2935; its prose walked by node through i18n-config.mjs walkConfigProse"
+  },
+  {
+   "file": "scripts/tests-css.mjs",
+   "lines": 70,
+   "of": null,
+   "how": "230-300 (R2's detector)"
+  },
+  {
+   "file": "scripts/tests-tier0.mjs",
+   "lines": 110,
+   "of": 26270,
+   "how": "329 (R1b head), 551-640 (R2, R1311, R7150, R7151), 1880-1925 (R19)"
+  },
+  {
+   "file": "lang/en.json",
+   "lines": 7534,
+   "of": 7534,
+   "how": "by script: every leaf"
+  },
+  {
+   "file": "styles/*.css (7 sheets)",
+   "lines": 31831,
+   "of": 31831,
+   "how": "by script: counts"
+  },
+  {
+   "file": "docs/glossary.json, docs/text-budgets.json, tools/css-budget.json, tools/comment-budget.json",
+   "lines": null,
+   "of": null,
+   "how": "the entries and rows cited"
+  },
+  {
+   "file": "other scripts (states, messenger, sfx-play, day-summary, action-murder, case-summary, anonymity, monocub, call-pickers, murder-rules, cleanup, api, patches, incident-store, migrate, ui-kit, tables-editor)",
+   "lines": null,
+   "of": null,
+   "how": "the ranges cited in evidence, each a few to forty lines"
+  }
+ ],
+ "count_expected": 62,
+ "count_note": "Sections C-H give 48: C 6, D 7, E 12, F 5, G 7 (its bullets), H 11 (steps 1, 1b, 2-10). I add H's closing note (H-note) and 13 items from the status part (lines 1-404) that make a checkable claim about code and are not A-items: the three decisions of 03.09 (DEC-1b, DEC-E7, DEC-A23), four of the out-of-plan rebuild (REB-panel, REB-hub, REB-take-key, REB-give-existing), five of the verification and its third round (VER-Q5, VER-deadkeys, VER-A18, R3-A15, R3-C3-clock) and the sandbox fix (SBX-cast-ready). 48 + 1 + 13 = 62 items. The status part's other mentions (A3, A4, A16, A17, A19 - settled in the first-session file - and D2, D4-D6, E2, E4, E5, E11, E12, the C3 tabs) are settled under their own ids, not twice; the status table's steps 1-10 are the H steps. Beside the items: the 10 Liczby rows re-measured in `numbers` and the 6 graded areas plus the total in `grades` (not regraded: K9's). G items use status fixed with strength_holds yes/no.",
+ "items": [
+  {
+   "id": "DEC-1b",
+   "title": "Decision 1b of 03.09 (LIVE-001): the incident's identities leave world data whole; murderState in the world keeps only mechanics, each participant gets an addressed copy of the cast, a bystander gets nothing; incidentParticipants() in settings.mjs answers movement and private rolls",
+   "old_severity": "P1 (A5, LIVE-001)",
+   "old_state": "done 03.09 and read on two accounts in the 03.09 sandbox (world setting with 14 mechanics keys and zero names)",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "Settled in audit/findings-1.2.118/first-session/old-1.1.88-1.2.13-A.json (items LIVE-001 'partly' and A5 'fixed'): murderState may hold only active and stage (incident-store.mjs:148-151 PUBLIC_INCIDENT), the cast is the GM store castStore with a stamped participant copy (gm-stores.mjs:429-431, 554-557), incidentParticipants() still lives in settings.mjs:3608. Since 03.09 the mechanism moved from client settings synced GM to GM to the GM store of E04 (1.2.63); the request for a copy waits for ready (incident-store.mjs:1186 Hooks.once(\"ready\")), the 03.09 sandbox fix.",
+   "pinned_by": "R9 (tier 0, nothing the investigation depends on is in a world setting); tier 1 'incidentParticipants' read (tests-tier1.mjs:965); the first-session file's pins",
+   "still_wrong": "The first-session reader's still-open half of LIVE-001: a bystander can name the killer of a direct murder from the veiled token's actor while the opening waits and while a mask stands (see audit/findings-1.2.118/first-session/old-1.1.88-1.2.13-A.json LIVE-001).",
+   "severity_now": "major",
+   "confidence": "read",
+   "refutation_tried": "Did not redo: the first-session reader traced the road; I checked only that its line numbers still name the same code (incident-store.mjs:148, 1186; settings.mjs:3608)."
+  },
+  {
+   "id": "DEC-E7",
+   "title": "Decision E7 of 03.09: traces told to the GMs in one digest at the turn of the time of day or the end of an Eclipse, except a trace a player copies that no GM has edited, which goes at once; markRemnantEdited called only from the three windows where a human edits",
+   "old_severity": "P2 (D3, E7)",
+   "old_state": "done 03.09",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "remnants.mjs:756-765 announceRemnant writes a row of traceDigestStore (a GM store since E51 C5) instead of a whisper; remnants.mjs:791-797 flushTraceDigest, said by the primary alone (sendTraceDigest, isPrimaryGm); remnants.mjs:1899-1900 flush on drpgTimeOfDayChanged and on drpgEclipseChanged(false). The exception: revealRemnantToFinder (remnants.mjs:1577), called from observe.mjs:1158, truth-bullets.mjs:594, handover.mjs:902. markRemnantEdited (remnants.mjs:942-950, with markRemnantEditedById) is called from investigation.mjs:2504 (the dashboard's Save), remnant-ring.mjs:365 (the trace's own card), gm-items.mjs:1337 (a Truth Bullet made from a Remnant in the item manager) and, since E51 C5, observe.mjs:1047 (a GM's answer naming an undescribed trace, its reason at observe.mjs:1010-1020) - four windows where a person writes what the trace says; still none from retuneRemnant or setRemnantPublic.",
+   "pinned_by": "not found by name in the registry; the digest's ownership is scenario 61 TD (per the comment at remnants.mjs:700-712)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for another whisper per trace: grep of whisperToGms in remnants.mjs finds the digest's and the exception's only; the hand-off to a store makes a primary's reload lose nothing (comment at remnants.mjs:700-712, scenario 61 TD; its result not read)."
+  },
+  {
+   "id": "DEC-A23",
+   "title": "Decision A23 of 03.09: a planted item springs only for a searcher of a usable; the dead category select gone, plantItem stores no category or tier, and the window says why",
+   "old_severity": "P2",
+   "old_state": "done 03.09 (rule kept by the owner)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "traps.mjs:503-515 plantItem stores { projectId, drpgItemId, name, sceneId } in trapPlantStore (a GM store) - no category, no tier; traps.mjs:648-655 the window has a name, a room and the note DRPG.Trap.plantUsableNote (en: 'It can set off the trap only if they searched for a usable item...'); the reason block at traps.mjs:675-697 ('NO CATEGORY, AND NO TIER (A23; Dawid, 03.09)').",
+   "pinned_by": "first-session file A23 'decision'",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Checked that no other road writes a category on a plant: plantItem is the one writer of trapPlantStore's plant rows (grep plantItem: traps.mjs:503, 698; reroll.mjs:1398 a comment)."
+  },
+  {
+   "id": "REB-panel",
+   "title": "Out-of-plan rebuild of 03.09: the GM panel's 'Right now' as four tiles Players, Projects, Sound, Killing Game Rules; Edit campaign at the top of Between sessions",
+   "old_severity": "n/a (owner's ask)",
+   "old_state": "done 03.09, read in the sandbox",
+   "status": "obsolete",
+   "evidence_class": "S",
+   "evidence": "Replaced by later owner decisions. gm-panel.mjs:179-212 'now' holds Students (DRPG.Panel.whoIsAlive = 'Students'), Projects and Sound; Killing game rules left for Season setup (comment at gm-panel.mjs:209-216, E49 A2, the owner 10.11.2026); gm-panel.mjs:274-281: Edit campaign, Despair Flow, Killing Game Rules and the Mastermind are no tiles since E49 A1e (the owner, 11.11.2026), Season setup carries them; nextStep has no 'jump' any more (old-1.2.42-core CORE-01).",
+   "pinned_by": "",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the three sections of the panel's table (gm-panel.mjs:170-330); no fourth 'now' tile."
+  },
+  {
+   "id": "REB-hub",
+   "title": "Out-of-plan rebuild of 03.09: Give / take as one hub window (student select, holdings and stash, Give and Take tabs), one Items button in the Players footer, 'Look inside the stashes' removed",
+   "old_severity": "n/a",
+   "old_state": "done 03.09",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "Holds: one window, openItemManager (gm-items.mjs:331), with the holdings first (holdingsHtml, gm-items.mjs:78-100: stashed items shown on the row, so no separate stash reader) and Give / Take on the kit's tabs; Give since E46/E47 is two mode bars, what (item, Truth Bullet, key) and from (existing, create) (gm-items.mjs:221-249). Changed by the owner: the one footer Items button became an Items button on every row of the Students window (gm-students.mjs:174-175, 404-410, E47-C8, the owner's ask of 09.11: 'each row its own Items button'), so the 03.09 reason ('sixteen doors asking twice') no longer stands, by decision.",
+   "pinned_by": "",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for a remaining footer Items button: gm-students.mjs uses DRPG.Items.hubButton only on rows (:174-175)."
+  },
+  {
+   "id": "REB-take-key",
+   "title": "Take a room key away: the same filter as Truth Bullets (only: 'bedroomKey'), and the key to one's own bedroom never offered",
+   "old_severity": "n/a",
+   "old_state": "done 03.09, read in the sandbox",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "gm-items.mjs:431-432 takeBullet/takeKey call takeItemDialog(chosen, { only: \"truthBullet\" | \"bedroomKey\" }); gm-items.mjs:1753-1760 ownedFor filters on `only` and drops the owner's own bedroom key with the reason (mayEnterBedroom; reconcileBedroomKeys hands it back).",
+   "pinned_by": "",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read ownedFor to its filter; no other take road lists keys."
+  },
+  {
+   "id": "REB-give-existing",
+   "title": "'Give existing': two selects - the table first, then its items built in JS on change, category and tier following the table",
+   "old_severity": "n/a (found by the owner)",
+   "old_state": "fixed 03.09",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "gm-items.mjs:660-697 giveExistingPane: a table select whose options carry data-category / data-tier / data-goal, and an item select filled by giveItemOptionsFor(table) (gm-items.mjs:641-644) - no hidden options; the reason block at gm-items.mjs:646-659 ('THE TABLE FIRST, THEN WHAT IS IN IT (Dawid, 03.09)').",
+   "pinned_by": "",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the pane and its builder; the rebuild on change is wireGiveForm (gm-items.mjs:750), not traced line by line."
+  },
+  {
+   "id": "VER-Q5",
+   "title": "Q5's second sentence: the comment beside New Rule still called the Motive a nine-point Call after E24 made it six",
+   "old_severity": "P3 (comment)",
+   "old_state": "fixed 03.09",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "config.mjs:2898-2903 the Motive 'SIX, and it began at nine (E24, 31.08)' with cost: 6 (config.mjs:2910); config.mjs:2914-2919 New Rule 'the Motive - at nine beside it then, six since E24', cost: 9 (config.mjs:2920).",
+   "pinned_by": "",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Grep of 'nine-point' over scripts/: no hit."
+  },
+  {
+   "id": "VER-deadkeys",
+   "title": "Three dead i18n keys removed at the 03.09 check (Items.manageNote, Items.title, Roster) and Items.rowButton renamed hubButton",
+   "old_severity": "P3",
+   "old_state": "fixed 03.09",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "lang/en.json read by script: DRPG.Items.manageNote, DRPG.Items.title, DRPG.Roster and DRPG.Items.rowButton are absent; DRPG.Items.hubButton = 'Items', used at gm-students.mjs:174-175 - on a row again since E47-C8 (see REB-hub), so the rename's reason is gone but the key is live.",
+   "pinned_by": "node tools/check.mjs parity / keys (not run)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Checked both leaf and branch absence for each key."
+  },
+  {
+   "id": "VER-A18",
+   "title": "patches.mjs: a register of the module's global overrides with a probe each, loaded on demand and outside the startup graph",
+   "old_severity": "P3",
+   "old_state": "added 03.09; read in the sandbox (seven targets)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "api.mjs:1257 diagnosePatches: () => import(\"./patches.mjs\")...; patches.mjs is outside the static graph from module.mjs (my walk, /tmp/old-1.2.13-C-H/graph.py: 240 of 271 files reached, patches.mjs not among them); its rows carry a probe each (patches.mjs:79-95 the contract; 48 'probe:' entries). The two marks: motion.mjs:484 'proto.close = function drpgClose', iso-shield.mjs:54 refreshStateParked.",
+   "pinned_by": "first-session A18 'fixed'",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Did not count the rows against today's overrides; the first-session reader settled A18."
+  },
+  {
+   "id": "R3-A15",
+   "title": "Third round of 03.09: aliases removed (manageRestRooms with openRestRoomsDialog, openMusicDialog, the trialQueue function alias) and the macros 05-region-discord.js and 06-voice-spike.js deleted",
+   "old_severity": "P3",
+   "old_state": "done 03.09",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "git grep over scripts/ (tests out): no manageRestRooms, openRestRoomsDialog or openMusicDialog; 'trialQueue' survives only as the world setting's name (settings.mjs:949, 2962), not a function alias; git ls-files finds no region-discord or voice-spike file and no macros/ directory.",
+   "pinned_by": "",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Grepped code without comments for each name."
+  },
+  {
+   "id": "R3-C3-clock",
+   "title": "Third round: the clock's three readers (getClock, isEclipse, incomingTimeOfDay) live in settings.mjs, the copies in overflow, fog, visibility, hud and movement gone, zero static cycles",
+   "old_severity": "P3 (C3)",
+   "old_state": "done 03.09",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "settings.mjs:3883 getClock, :3888 isEclipse, :3974 incomingTimeOfDay - the only definitions in scripts/ (git grep 'function isEclipse|getClock|incomingTimeOfDay', tests out). Static import graph from module.mjs walked by script: 0 cycles (/tmp/old-1.2.13-C-H/graph.py); R161 holds the leaf rule.",
+   "pinned_by": "R161 (tier 0, who asks and whether a GM is there is answered in one leaf, with no import cycle)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "My graph walk reads `import ... from` and `export ... from` with comments stripped; a cycle through `import()` is not a static cycle and is not counted, as in 1.2.13."
+  },
+  {
+   "id": "SBX-cast-ready",
+   "title": "Sandbox fix of 03.09: registerIncidentCastSync asked for copies and migrated at registration, under init with game.user null; moved into Hooks.once('ready')",
+   "old_severity": "P1 (found live)",
+   "old_state": "fixed 03.09",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "incident-store.mjs:1114 registerIncidentCastSync; its requests at incident-store.mjs:1186 inside Hooks.once(\"ready\", ...); the migration out of world data is liftIncidentSecrets, primary GM only (first-session A5: incident-store.mjs:1480-1539).",
+   "pinned_by": "",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the registration's body to the ready hook; no use of game.user before it in that function was found by reading lines 1114-1186."
+  },
+  {
+   "id": "C1",
+   "title": "Comments: from chronicle to documentation - keep what a function does, its invariants and Foundry's traps; move the chronicle to docs/decisions.md; merge doubled JSDoc blocks (list of 11); aim at 15-20% comment lines",
+   "old_severity": "proposal",
+   "old_state": "measured 03.09; the part not needing a world done",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "Doubled JSDoc: gone and held - tools/comment-budget.json allows no doubled block (E56 part 2, 14.11.2026) and R7150 fails one; of the eleven names, paintResourceBars and checkRepairCompletion no longer exist and the rest carry one block each (read: action-pipeline.mjs:90-139 rollTrait, trial.mjs:136-152 presentDialog, the other nine by script). Chronicle: not moved, by decision - CLAUDE.md 'The house style' keeps comments that say what was tried and what it measured, and there is no docs/decisions.md. Comment-only lines today (my count, a line holding only comment): 99 401 of 226 282 non-test lines, 43.9% (146 586 of 434 614, 33.7%, with the tests), against 31 619 (41%) then.",
+   "pinned_by": "R7150, R7151 (tier 0, the comment budget)",
+   "still_wrong": "The 15-20% target is not met and no longer sought (house style).",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "Checked whether the comment ratio fell: it rose by my count; the method of the 41% is not written in the old report, so the two numbers are not strictly comparable."
+  },
+  {
+   "id": "C2",
+   "title": "Diagnostics and tests off the startup path: the suite lazy behind runTests; diagnostics.mjs stays (module.mjs uses it); the fog split rejected at 1.2.13",
+   "old_severity": "proposal",
+   "old_state": "one half done (tests lazy: 80 578 -> 75 187 lines parsed at start), diagnostics kept, fog split rejected",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "api.mjs:1285 runTests: (...args) => import(\"./tests.mjs\").then(...); my static walk from module.mjs reaches 240 files, 217 345 lines, and none of the 13 tests*.mjs files. diagnostics.mjs (2358 lines) is in the graph as decided. The fog split was later done as a pure move (E34): fog-diagnostics.mjs (917 lines) holds checkRegions, whatIsHere and sceneUncoveredPercent with no state, while whyBlack, diagnoseFog, fogPeek and doorwayReport stay in fog.mjs beside the state they read - the 1.2.13 objection, honoured (.claude/rules/code.md, fog.mjs and fog-diagnostics.mjs rows); fog-diagnostics.mjs is reached statically through the fog.mjs facade, so it is parsed at start.",
+   "pinned_by": "not found by name (the lazy runTests is read in api.mjs)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Walked imports with comments stripped, both `import from` and `export from`; dynamic imports not followed (they are not parsed at start)."
+  },
+  {
+   "id": "C3",
+   "title": "Duplicates to one definition: report, isEclipse, getClock, incomingTimeOfDay, remaining, spendStress/restoreStress/refOf, locate/locateActor, regionBounds/boundsOf, regionsByName, esc, three tab systems, four category lists, two room-ratio formulas, three copies of onCreateChatMessage/onPreUpdateActor/onSocket",
+   "old_severity": "proposal",
+   "old_state": "all rows merged or shown not to be duplicates by 03.09 except the three tab systems",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "One definition each (git grep, tests out): report(title, lines) diagnostics.mjs:1536 only; clock readers settings.mjs:3883/3888/3974; remaining character.mjs:271; locateActor movement.mjs:3647 (no locate); boundsOf movement.mjs:3960 (no regionBounds); regionsByName vault-store.mjs:733; refOf murder-rules.mjs:1995, imported by cleanup.mjs:71 (truth-bullets.mjs:1764 has a private refOf of another shape, row -> 'sceneId.tokenId', not a copy); spendStress stays two on purpose (murder-rules.mjs:2980 has the blood branch, cleanup.mjs:2487 not). Tabs: one system now - ui-kit.mjs:332 kitTabs, used by gm-items, gm-team-dialog (Despair Flow), investigation, room-setup, sound-panel, tables-editor; R6752 holds it. Category lists: inventory.mjs:607 pickableCategories, read by gm-items.mjs:621/700, room-setup.mjs:1269, tables-editor.mjs:928; traps.mjs offers none. Room ratio: vault-store.mjs:1303-1366 sharedRooms, roomCensusOf, roomRatioLine, roomsWantedFor, read by room-setup.mjs:633-642 and season-setup.mjs:46/217/483. Sockets: one onSocket (bridge-table.mjs:1632) over the declarative tables judged by bridge-guards.mjs:1780 judge - the shape C5 proposed. Still three each: onCreateChatMessage (messenger.mjs:330, popup.mjs:1205, sfx.mjs:121) and onPreUpdateActor (anonymity.mjs:791, overflow.mjs:1328, resource-guard.mjs:178), local names with different work. esc: one null-safe export (utils.mjs:34) imported by 90 files, and 26 bare aliases `const esc = foundry.utils.escapeHTML` in 15 files (cleanup-reshape, handover, inventory, level-up, monocub x7, passages-gm, projects-ui x4, reroll-receipts, sound-panel, trial-progress, trial, truth-bullets, verdict x4, vote), against 12 kept at 1.2.13.",
+   "pinned_by": "R6752 (one tab system), R161 (leaf rule)",
+   "still_wrong": "The bare escapeHTML aliases grew from 12 to 26 (see new_observations).",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "For each row looked for a second definition with comments stripped; refOf and spendStress second copies read to their bodies and found to differ in shape or branch."
+  },
+  {
+   "id": "C4",
+   "title": "Dynamic imports: 546 `await import`; the proposal to turn them static rejected at 1.2.13 (a static cycle yields undefined, it does not throw)",
+   "old_severity": "proposal",
+   "old_state": "premise rejected 03.09; 'an architecture project, not a step'",
+   "status": "open",
+   "evidence_class": "S",
+   "evidence": "Count today, comments stripped: 1 650 `await import(` in 149 non-test files (1 969 `import(` in all forms, 159 files); 9 789 with the tests. Static cycles from module.mjs: 0 (my walk), and R161 fails one. The 1.2.13 position stands as the module's rule (.claude/rules/code.md: projects-seen.mjs reads visibility.mjs 'by import() only', R161).",
+   "pinned_by": "R161",
+   "still_wrong": "The count roughly tripled with the code (226 282 non-test lines against 76 349); no direction-of-dependency project was done.",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "No refutation needed: the old item is a proposal kept open by decision; I report the count."
+  },
+  {
+   "id": "C5",
+   "title": "Giant files: onSocket (767 lines, 28 branches) left as is with R1b pinning the guard; action-rolls, sheet, config, gm-bridge splits left 'with the measurement'",
+   "old_severity": "proposal",
+   "old_state": "onSocket measured, R1b written; splits not done",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "Done since: onSocket is now 'judge(BRIDGE_ACTIONS, payload, senderId)' over declarative rows { label, guards, sanitize, run, answer } (bridge-table.mjs:1632, bridge-guards.mjs:1780; .claude/rules/trust-model.md 'How to add a bridge action') - the handler map C5 first proposed; R1b reads the tables. Splits by pure moves: action-rolls.mjs 328 lines (E41), sheet.mjs 242 (E54), gm-bridge.mjs 263 (E41), murder.mjs 37 (E34). Not done: config.mjs, 5 646 lines, still holds rules and prose together (553 prose strings by i18n-config.mjs walkConfigProse; lang/en.json holds none of them, i18n-config.mjs:54-56). Non-test files over 3 500 lines today: config 5646, fog 4833, murder-rules 4746, settings 4662, movement 4058, glass 3870 (six, against five in 1.2.13's verdict).",
+   "pinned_by": "R1b (tier 0), R162-R166 (the bridge rows)",
+   "still_wrong": "config.mjs not split; six files over 3 500 lines.",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "Checked the facades against the code.md table by `wc -l`; did not run tools/moved-only.mjs."
+  },
+  {
+   "id": "C6",
+   "title": "CSS: !important consolidation measured at 10.5% possible (566 of 629 fight Foundry's layer), dead CSS held by R2; a rebuild only with a browser, component by component",
+   "old_severity": "proposal",
+   "old_state": "measured 03.09; 'do not do in this form'",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "Today: 7 sheets, 31 831 lines (14 778 then); '!important' 1 004 raw, 827 outside comments (danganronpa 612, stained-glass 199, narrow 12, base 4, components 0, motion 0, pixel-icons 0). Held since E44 by tools/css-budget.json (lowers only) and R1311; the kit's sheet components.css holds 0 by budget ('A kit rule wins without !important', .claude/rules/code.md). The second theme (stained-glass.css) and the kit are the component consolidation the item asked for, done with browsers (glass sweeps). Dead CSS: deadClasses / deadAttributes budgets 0 (R2, E55 C2).",
+   "pinned_by": "R2, R1311 (tier 0)",
+   "still_wrong": "The count of !important rose with the second theme; one dead class R2 cannot see (new_observations).",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "My count strips /* */ before counting; the 1.2.13 number (629 or 682) is of one sheet of 14 778 lines, not comparable to seven sheets."
+  },
+  {
+   "id": "D1",
+   "title": "Investigation Dashboard: full HTML rebuild on every updateItem/updateActor with secretOf parsing a setting per Bullet",
+   "old_severity": "perf (quadratic)",
+   "old_state": "closed through A10 (ledger cache)",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "The parse is gone: truth-bullets.mjs:182-185 secretOf answers bulletStore.get(uuid) - the GM store holds parsed rows in memory (comment truth-bullets.mjs:165-172). The rebuild stays: investigation.mjs:2409-2418 keepLive(region '.drpg-case-live', build: buildCase, watch: { actors, items, stores: [six] }) rebuilds the region on any watched change, coalesced by live.mjs (delay TIMING.coalesceMs, live.mjs:106).",
+   "pinned_by": "R19 (the dashboard on MUST_BE_LIVE); scenario 86-frame-work counts work per event (not read)",
+   "still_wrong": "A whole-region rebuild per coalesced burst; its cost at a table not measured.",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "Looked for a per-row redraw: none; the region is rebuilt by buildCase. Whether it costs a frame is a table reading."
+  },
+  {
+   "id": "D2",
+   "title": "usableKindFor and classifyEntryName walked every table per row",
+   "old_severity": "perf (quadratic)",
+   "old_state": "fixed 03.09 (index, 0.7 ms to build live)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "tables-pools.mjs:1151-1190 tableIndex: built on first use, dropped on six hooks (createRollTable ... deleteTableResult, :1155-1158); usableKindFor (:519-535) and classifyEntryName (:1093-1099) read it.",
+   "pinned_by": "",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Checked both readers go through tableIndex; the built-in pools are walked only when no world table names the item (:1100-1111)."
+  },
+  {
+   "id": "D3",
+   "title": "announceRemnant whispered the GMs at every trace",
+   "old_severity": "perf/spam",
+   "old_state": "closed by E7",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "See DEC-E7: remnants.mjs:756-765 writes a store row; one digest at the hour (remnants.mjs:791, 1899-1900).",
+   "pinned_by": "",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "As DEC-E7."
+  },
+  {
+   "id": "D4",
+   "title": "syncStates scanned effects (clearSystemConditions) on every HP/Sanity write",
+   "old_severity": "perf (small)",
+   "old_state": "measured 03.09, no change (an in-memory filter, no write when nothing found)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "states.mjs:272-284 clearSystemConditions filters actor.effects and returns 0 with no write when nothing matches.",
+   "pinned_by": "",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the function; unchanged in kind since 1.2.13."
+  },
+  {
+   "id": "D5",
+   "title": "sfx onDocumentClick, a global capture listener, plus a 120 ms delay on a button's sound",
+   "old_severity": "perf (felt as click lag)",
+   "old_state": "measured 03.09, no change (YIELD_MS only for keys with yieldsTo, tuned by ear)",
+   "status": "open",
+   "evidence_class": "S",
+   "evidence": "sfx-play.mjs:70 YIELD_MS = 120 with the comment (:60-69) that only keys declaring yieldsTo wait and that the number is tuned by ear; sfx.mjs:172 onDocumentClick stands.",
+   "pinned_by": "",
+   "still_wrong": "Kept by decision; whether 120 ms is felt as lag is a table reading.",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "No measurement exists in the repository that I found (grep YIELD_MS in docs/: none read).",
+   "note": "Needs a table: l1 block in not_established."
+  },
+  {
+   "id": "D6",
+   "title": "markThreadRead wrote a client setting and fired a hook on every message and render",
+   "old_severity": "perf (small)",
+   "old_state": "fixed 03.09 (writes only when something is unread)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "messenger.mjs:196-210: returns when lastReadAt >= the thread's newest stamp; writes and calls drpgMessengerRead only otherwise; the stamp is the message's, not this browser's clock (COMM-15).",
+   "pinned_by": "",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the function whole."
+  },
+  {
+   "id": "D7",
+   "title": "546 `await import` everywhere (see C4)",
+   "old_severity": "perf (small)",
+   "old_state": "= C4",
+   "status": "open",
+   "evidence_class": "S",
+   "evidence": "See C4: 1 650 non-test `await import(` today.",
+   "pinned_by": "R161",
+   "still_wrong": "as C4",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "As C4."
+  },
+  {
+   "id": "E1",
+   "title": "Player: one event on three surfaces; the rule 'the popup answers, the chat records, a toast refuses'; 20 refusals given as info turned into warn (242 warn, 66 info, 32 error after)",
+   "old_severity": "ux",
+   "old_state": "done 03.09",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "Counts today, comments stripped, tests out: ui.notifications 594 calls - 433 warn, 113 info, 48 error (107, 56 and 31 files). Of the 113 info, a script found 44 that end their road (followed by a return or in a one-line branch); read by hand, most are a GM's or a player's receipt with no card on its road (Project.saved, Vault.appliedOn, Case.backedUp, Tables.placeDone), the category 1.2.13 kept. Refusals still given as info: action-murder.mjs:89 DRPG.Murder.offTurn then return null; case-summary.mjs:78 DRPG.CaseSummary.already beside a warn for noVerdict on the next line; anonymity.mjs:394 DRPG.Loot.pickNone then return null.",
+   "pinned_by": "no test holds the rule (registry searched for 'toast' and notifications.info: none for this rule)",
+   "still_wrong": "At least three refusals as info; no lint keeps the rule.",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "Read each of the three in context: each returns at once after the toast, which is the 1.2.13 test of a refusal. The off-turn one has a comment (action-murder.mjs:70-84) explaining the sentence, not its level.",
+   "note": "Whether one event reaches a player on fewer surfaces than in September is a table reading (E1's first half), not settled here."
+  },
+  {
+   "id": "E2",
+   "title": "Player: a variant window not always needed (one-variant actions straight to the roll)",
+   "old_severity": "ux",
+   "old_state": "not done on purpose (the variant window is the only confirmation; a locked roll dialog submits itself)",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "action-rolls.mjs:77-82: since E100 item 1 (12.11.2026, the owner) no action has a briefing window of its own; Move opens nothing, every other action carries its briefing inside the window it opens anyway. One-variant actions still open their window - the 1.2.13 reason stands.",
+   "pinned_by": "",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Did not trace every action's window; the claim is the file's own note, checked against THROWS_NO_DICE (:75) and performAction's start (:95-140)."
+  },
+  {
+   "id": "E3",
+   "title": "Player: tile tooltips - 11 keys over 80 characters shortened, none left over 80; the cost removed from the action and Call tooltips",
+   "old_severity": "ux",
+   "old_state": "done 03.09",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "The tile part holds: sheet-actions.mjs:1378-1401 the tooltip is the hint plus only what cannot be read off the tile (the comment 'THE TOOLTIP DOES NOT REPEAT THE COST (E3)'); sheet-actions.mjs:715-719 the Call button likewise. The 80-character limit does not: 465 keys end in 'Tooltip' today (E102 gave most controls one) and 165 are over 80 characters, DRPG.Hud.eclipseRunningTooltip among them at 115 (77 at 1.2.13); DRPG.Hud.elapsedTooltip is gone. The limit was replaced by E65's word budgets (docs/text-budgets.json 'tooltip' target 15, limit 23 words; docs/text-style.md:217): 0 of the 465 are over 23 words, 146 over the target 15.",
+   "pinned_by": "node tools/check.mjs text (T4 budgets; not run)",
+   "still_wrong": "By the old measure 165 tooltips are over 80 characters; by today's, none over the limit.",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "Counted words as the budget's unit ('unit': 'words'), placeholders as one word."
+  },
+  {
+   "id": "E4",
+   "title": "Player: three floating circles, and a DialogV2.prompt modal at the start of every Eclipse (the day summary)",
+   "old_severity": "ux",
+   "old_state": "modal replaced by a sticky popup card 03.09; the dead class .drpg-summary-dialog left for the C6 pass",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "day-summary.mjs:119 and :287 showPopup(..., { sticky: true, source: 'summary' }), with the reason at :275-286 ('A CARD, NOT A MODAL (audit E4)'). The launchers are one corner cluster now (glass.mjs:50 LAUNCHERS: messenger, sound, book, [data-drpg-cluster]). The class .drpg-summary-dialog is still styled - 29 mentions in danganronpa.css and 5 in stained-glass.css - and no script puts it on an element (only a selector string, utils.mjs:1262).",
+   "pinned_by": "",
+   "still_wrong": "The dead class stands (new_observations).",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "Searched scripts/ for 'summary-dialog' and for built class names ('drpg-${...}-dialog', '\"drpg-\" +'): one hit, the selector in utils.mjs."
+  },
+  {
+   "id": "E5",
+   "title": "Player: 'Trace' or 'Remnant' - proposal: Trace wherever a player looks, Remnant only in type names and GM tools",
+   "old_severity": "ux/text",
+   "old_state": "'already consistent' 03.09",
+   "status": "obsolete",
+   "evidence_class": "S",
+   "evidence": "The owner decided the other way: docs/glossary.json entry 'Remnant' - 'Remnant in every sentence too, in both languages; \"Trace\" only inside the five closed names (DB33, DB37)', the five being Secure a Trace, Erase a Trace, Reshape a Trace, Hide the Traces, Follow My Traces. lang/en.json by script: 313 values say Remnant; every 'trace' is one of the five names or a {trace}/{traces} placeholder, except DRPG.DiceLook.settingBackUnheard ('no trace of who changed them', ordinary English).",
+   "pinned_by": "T8 and T28 of node tools/check.mjs text (not run)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Ran the regex over every en value; one ordinary-English hit."
+  },
+  {
+   "id": "E6",
+   "title": "GM: tiles and row buttons close and reopen windows (panel flicker, lost scroll); Who is alive, Monocub and Mastermind reopened after every Give Hope",
+   "old_severity": "ux",
+   "old_state": "done 03.09 for the named three; five round trips kept with reasons",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "Fixed for the named: the Monocubs window is retired (monocub.mjs:1972-1978, E72 C6: its rows are the Students window's); mastermind.mjs:700 keepLive; gm-students.mjs:338-360 wireAliveRow with keepOpen for the buttons that open no window (:412-427). R19's MUST_BE_LIVE lists openGmPanel, openWhoIsAliveDialog, openInvestigationDashboard, manageClassTrial, openMastermindDialog (tests-tier0.mjs:1907-1917). Kept, each with its reason: every panel tile still closes the panel and reopens it after its own window (gm-panel.mjs:599-618; not over a window it raised, RAISED, E44 C2c); the Students window's Kill, Items and Level Up round trips (gm-students.mjs:403-413, D-F5-2); the dashboard's footer buttons reopen it (investigation.mjs:2420-2432).",
+   "pinned_by": "R19 (tier 0)",
+   "still_wrong": "The panel's close-and-reopen pattern stands by design.",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "Looked for keepLive on the Students window: gm-students.mjs:571."
+  },
+  {
+   "id": "E7",
+   "title": "GM: six surfaces for one question; first half already done (callGm chooses), second half (announceRemnant per trace) waiting for a decision",
+   "old_severity": "ux",
+   "old_state": "first half found done; second half decided 03.09 (DEC-E7)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "Second half: see DEC-E7. First half: callGm lives in call-gm.mjs (code.md row) and its card carries the sound and the popup; not re-traced call site by call site here.",
+   "pinned_by": "",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Did not re-read the ten callGm call sites; the 1.2.13 reading and E51's digest are what this rests on.",
+   "note": "The first half is read only at the store level; a full trace of callGm's callers is a domain reader's (domain-comm-*)."
+  },
+  {
+   "id": "E8",
+   "title": "GM: windows with tabs and one Apply; three tab systems (panelTabs, Room Setup's data-drpg-tab, Investigation's dashboard tabs)",
+   "old_severity": "ux",
+   "old_state": "rule found already in force where it applies; the tab systems left to C",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "One tab system: ui-kit.mjs:332 kitTabs / :378 wireKitTabs; Room Setup (room-setup.mjs:527), Despair Flow (gm-team-dialog.mjs:545), Item tables (tables-editor.mjs:1667), Sound (sound-panel.mjs:403), the dashboard (investigation.mjs:1067), the item manager (gm-items.mjs:390, 1062, 1491). R6752 fails tab markup outside the kit. Sound's Effects tab still saves on change and the Music tab's rows are saved as they change (sound-panel.mjs, D45 in code.md).",
+   "pinned_by": "R6752, R1324 (tier 0)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "grep of data-drpg-gmt, drpg-dashboard-tab, data-drpg-tab=, panelTabs(, wirePanelTabs, wireDashboardTabs outside comments: none."
+  },
+  {
+   "id": "E9",
+   "title": "GM: Investigation Dashboard - default chapter filter = current chapter; per-row save on blur",
+   "old_severity": "ux",
+   "old_state": "filter done 03.09; per-row save left 'to consider'",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "investigation.mjs:422-426: on first read the chapter filter takes the current chapter if it has traces, else every chapter. Per-row blur save not built; instead every close writes the drawn form (investigation.mjs:2420-2432, the owner 12-13.11.2026 'Nie, ma zapisywac'), so no field is lost by closing.",
+   "pinned_by": "",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read readAs's resolve and the close handler."
+  },
+  {
+   "id": "E10",
+   "title": "GM: Item Tables - the Install tab folded into Tier pools; one shared 'new item' component for Item Tables and Give",
+   "old_severity": "ux",
+   "old_state": "tab folded 03.09; the shared component taken as pickableCategories",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "tables-editor.mjs:1666-1673 three tabs (editTiers, editRooms, newItem), Install in the footer; DRPG.Tables.tabInstall absent from en.json. Still two new-item forms: tables-editor.mjs:892 newItemPaneHtml and gm-items.mjs:699 giveCreatePane, sharing pickableCategories (inventory.mjs:607) but not markup.",
+   "pinned_by": "",
+   "still_wrong": "Two forms for one item, one category source.",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "Compared the two builders' signatures; did not diff their fields."
+  },
+  {
+   "id": "E11",
+   "title": "GM: ruling cards - the card does not say 'Create an item' leaves it open; DRPG.Bridge.nothingThere 'There is nothing' with no full stop",
+   "old_severity": "ux/text",
+   "old_state": "done 03.09",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "DRPG.Bridge.createItemStays ('\"Create an item\" keeps this card open, so you can still pick another answer.') drawn at action-search.mjs:162 and action-dynamic.mjs:219; DRPG.Bridge.nothingThere = 'Nothing was there.' (action-pipeline.mjs:1075, 1094).",
+   "pinned_by": "",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read both call sites."
+  },
+  {
+   "id": "E12",
+   "title": "GM: 'GM only' toasts on API paths a player should never reach (openItemTables) should be a silent return",
+   "old_severity": "ux",
+   "old_state": "not done, by E1's rule (a toast is the only answer to a call from a macro)",
+   "status": "open",
+   "evidence_class": "S",
+   "evidence": "tables-editor.mjs:1625-1628: a player's call warns DRPG.Panel.gmOnly and returns null - as decided.",
+   "pinned_by": "",
+   "still_wrong": "Kept by decision.",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "No change needed to settle; the decision is written in the 1.2.13 status part."
+  },
+  {
+   "id": "F1",
+   "title": "Wrong in substance: four setting hints, Chapter.deathNote, Chapter.revived, Anonymity.forcedOnCreate unused",
+   "old_severity": "text (P2, A13/A14)",
+   "old_state": "done 03.09",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "lang/en.json today: Settings.lockPlayerResources.hint says a player's own edit is put back or flagged, only listed with the setting off, items and effects checked either way - as the trust model's layer two; Settings.enforceAnonymity.hint lists name, portrait, Ultimate, Health, what they hold, how many Experiences - as anonymity.mjs:22-28 (Sanity hidden since E24 C1a); Settings.despairFromRolls.hint names Despair Flow; Settings.musicEnabled.hint names the Sound window; Chapter.deathNote says Truth Bullets destroyed, the rest stays on the body (Q3); Chapter.revived matches; DRPG.Anonymity.forcedOnCreate absent.",
+   "pinned_by": "first-session A13, A14 'fixed'",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Compared each hint with the code it names (anonymity.mjs header, trust-model.md)."
+  },
+  {
+   "id": "F2",
+   "title": "Too long (over 220 characters): of 26, 7 left on purpose; config.mjs none",
+   "old_severity": "text",
+   "old_state": "done 03.09",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "Of the 21 keys the old list names: 17 are at or under 220 now (Season.roomGuide 1047 -> 85, Music.trialNote 457 -> 194 ...; Chapter.endNote gone; Trial.objectionWarning split .one/.other at 108/109); four are over: Vote.verdictNote 305 (237 then), Murder.openSelfNote 252, Overflow.explainBody 238, Murder.openedSelfNote 222. Over the whole file: 71 en values over 220 characters (23 then, 7 after F2), the longest DRPG.Vault.neighboursNote 660, Panel.whoIsAliveNote 343. The 220-character goal was replaced by E65's word budgets (docs/text-budgets.json, 'to confirm in E71'); of the 790 keys its key rules classify with a limit, my script finds none over its limit (the window surfaces classified by sender are not counted).",
+   "pinned_by": "node tools/check.mjs text (T4; not run)",
+   "still_wrong": "Vote.verdictNote grew past where it started.",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "Counted characters of the en value (placeholders as written); my surface mapping reads only the rules with a `keys` pattern."
+  },
+  {
+   "id": "F3",
+   "title": "Unclear or awkward: nine keys (Observe.requestPrompt, Items.stowShape, Bridge.nothingThere, Floor.mode.discussion, Eclipse.announce.*, Panel.whoIsAliveNote, Season.introOutstanding, Cleanup.transformActionHint, Monocub.silencedNote)",
+   "old_severity": "text",
+   "old_state": "nine of nine, 03.09",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "Hold: Observe.requestPrompt 'What are you looking for?'; Bridge.nothingThere 'Nothing was there.'; Floor.mode.debate 'Nonstop Debate' and Floor.mode.objection 'OBJECTION' (no 'discussion' key: Q14 done); Eclipse.announce.one/.other carry no rule about actions, which sits in Hud.eclipseRunningTooltip; Season.introOutstanding '{n} still to do. The season can start without them.'; Monocub.silencedNote explains Confusion. Rewritten since in other words: Items.stowShape, Cleanup.transformActionHint (Tamper Remnant, a GM's approval). Not holding: Panel.whoIsAliveNote is 343 characters (210 then; the proposal was one short sentence) - it now explains State, Apply, roles, the row buttons and the Monocub invitation.",
+   "pinned_by": "",
+   "still_wrong": "Panel.whoIsAliveNote grew back to a paragraph.",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "Read each value in en.json."
+  },
+  {
+   "id": "F4",
+   "title": "Copy in config.mjs: hint one sentence, description two - kept two-part sound hints on purpose; trimmed sabotageFailed, projectDone, analyzeMiss, meddle; no field over the length limit",
+   "old_severity": "text",
+   "old_state": "partly, on purpose",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "config.mjs's prose walked with i18n-config.mjs walkConfigProse under node (/tmp/old-1.2.13-C-H/prose.mjs): 553 strings; the four trimmed hints are 148, 91, 111 and 119 characters; 20 strings are over 220 characters today (ACTIONS.*.description x7, ACTIONS.analyze/project hints, CRISIS_ACTIONS.*.hint x7, ITEM_CATEGORIES.crimeTool.hint, HOPE_CALLS.relief, DESPAIR_CALLS.bounty), the longest 267 (CRISIS_ACTIONS.roleReversal.hint). By today's budget (tile-hint and config-description limit 45 words) none is over: the longest is 45 words.",
+   "pinned_by": "node tools/check.mjs prose (503/503 on 02.11, CLAUDE.md) and text (not run)",
+   "still_wrong": "20 config strings over the old 220-character line, all within the word limit.",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "Loaded config.mjs with a stub foundry.utils; the walker is the module's own."
+  },
+  {
+   "id": "F5",
+   "title": "Consistency of terms: Level Up vs Advancement, 'Which Monocub' on a target picker, Confusion vs meddle, GM / Monokuma",
+   "old_severity": "text",
+   "old_state": "checked 03.09",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "lang/en.json: no value says 'Advancement' and none says 'Meddle'; DRPG.Monocub.who ('Which Monocub') is read only by call-pickers.mjs:292, which picks a Monocub, and the target field uses DRPG.Monocub.target ('Target', monocub.mjs:1359).",
+   "pinned_by": "glossary checks T8/T28 (not run)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Grepped every caller of Monocub.who."
+  },
+  {
+   "id": "G1",
+   "title": "Answer keys outside the world (Truth Bullet and Remnant ledgers, Mastermind, the trap plan); every socket checks senderId on both sides",
+   "old_severity": "strength",
+   "old_state": "'works well - do not touch' (1.2.13 G)",
+   "status": "fixed",
+   "strength_holds": "yes",
+   "evidence_class": "S",
+   "evidence": "Holds, and stronger: the keys are GM stores since E04 (truth-bullets.mjs:165-185 bulletStore; traps.mjs:509-511 trapPlantStore, trapLedgerStore; the cast castStore), world settings and flags are checked by world-secrets.mjs (R9, R190, scenario 72), and every request is a declared row judged by bridge-guards.mjs:1780 judge on senderOf (trust-model.md).",
+   "pinned_by": "R9, R171, R1b, R161",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for the named mechanism by name in today's files; read its definition, not its every caller.",
+   "note": "Status 'fixed' here means the strength still holds (strength_holds)."
+  },
+  {
+   "id": "G2",
+   "title": "migrate.mjs: idempotent clauses, gated on since, read back after removing a key",
+   "old_severity": "strength",
+   "old_state": "'works well - do not touch' (1.2.13 G)",
+   "status": "fixed",
+   "strength_holds": "yes",
+   "evidence_class": "S",
+   "evidence": "Holds: migrate.mjs:70-100 (since gates, not annotates; idempotent clauses may take a later since), :142 'written back and read back'; GM-store lifts read back before they remove (R178, code.md).",
+   "pinned_by": "R178",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for the named mechanism by name in today's files; read its definition, not its every caller.",
+   "note": "Status 'fixed' here means the strength still holds (strength_holds)."
+  },
+  {
+   "id": "G3",
+   "title": "live.mjs keepLive / alreadyOpen as the model for GM windows",
+   "old_severity": "strength",
+   "old_state": "'works well - do not touch' (1.2.13 G)",
+   "status": "fixed",
+   "strength_holds": "yes",
+   "evidence_class": "S",
+   "evidence": "Holds and is the rule now: live.mjs:106 keepLive, :696 alreadyOpen, :837 keepFresh; R19's MUST_BE_LIVE. Whether every window redraws on every source it reads is the refresh lane's (refresh-01-04.json, controls-*).",
+   "pinned_by": "R19",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for the named mechanism by name in today's files; read its definition, not its every caller.",
+   "note": "Status 'fixed' here means the strength still holds (strength_holds)."
+  },
+  {
+   "id": "G4",
+   "title": "Three races solved well: sync.mjs coalescing, music.mjs asOurs counter, voice-client.mjs apply queue",
+   "old_severity": "strength",
+   "old_state": "'works well - do not touch' (1.2.13 G)",
+   "status": "fixed",
+   "strength_holds": "yes",
+   "evidence_class": "S",
+   "evidence": "Holds: sync.mjs:225-229 a trailing wait per kind; asOurs now in music-play.mjs (header :6, :41-45) after E41 C9a; voice-client.mjs:128, 169 enqueue(() => applyAndReport(...)).",
+   "pinned_by": "",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for the named mechanism by name in today's files; read its definition, not its every caller.",
+   "note": "Status 'fixed' here means the strength still holds (strength_holds)."
+  },
+  {
+   "id": "G5",
+   "title": "Ruling cards with buttons and settleCall",
+   "old_severity": "strength",
+   "old_state": "'works well - do not touch' (1.2.13 G)",
+   "status": "fixed",
+   "strength_holds": "yes",
+   "evidence_class": "S",
+   "evidence": "Holds: call-gm.mjs:1150 settleCall; the card machinery is call-gm.mjs's (code.md row).",
+   "pinned_by": "",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for the named mechanism by name in today's files; read its definition, not its every caller.",
+   "note": "Status 'fixed' here means the strength still holds (strength_holds)."
+  },
+  {
+   "id": "G6",
+   "title": "Tier 0 tests that read the source - the mechanism that should get A1's rule",
+   "old_severity": "strength",
+   "old_state": "'works well - do not touch' (1.2.13 G)",
+   "status": "fixed",
+   "strength_holds": "yes",
+   "evidence_class": "S",
+   "evidence": "Holds and grew: tests-tier0.mjs is 26 270 lines; R1b, R2, R19, R161, R6752, R7150 among those read here; whether they pass in the base run was not read.",
+   "pinned_by": "R1b, R2, R19",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for the named mechanism by name in today's files; read its definition, not its every caller.",
+   "note": "Status 'fixed' here means the strength still holds (strength_holds)."
+  },
+  {
+   "id": "G7",
+   "title": "api.mjs: 'actor or id' normalisation",
+   "old_severity": "strength",
+   "old_state": "'works well - do not touch' (1.2.13 G)",
+   "status": "fixed",
+   "strength_holds": "yes",
+   "evidence_class": "S",
+   "evidence": "Holds: api.mjs:1654 asActor(value, key, actors).",
+   "pinned_by": "",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for the named mechanism by name in today's files; read its definition, not its every caller.",
+   "note": "Status 'fixed' here means the strength still holds (strength_holds)."
+  },
+  {
+   "id": "H1",
+   "title": "Step 1: fixes A1, A2, A26, A6, A7, A10, A12, the three &mdash;, the empty block in clock.mjs, the rename block in retuneRemnant (Q13), PROJECT_ITEMS (Q12)",
+   "old_severity": "plan step",
+   "old_state": "'zrobione' in the status table (steps 8-10: done in part, 10 'not in this form')",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "Settled in audit/findings-1.2.118/first-session/old-1.1.88-1.2.13-A.json: A1, A2, A26, A6, A7, A10, A12, A15 (the empty block), A8 (the rename), A20 (&mdash;) all 'fixed'. Checked here: no '&mdash;' in scripts/ outside tests-text.mjs (a fixture), lang/ or styles/; no U+2014 in en.json or pl.json; PROJECT_ITEMS is gone (tables-pools.mjs:663 records its removal, Q12).",
+   "pinned_by": "see the items it names",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Settled through the items the step names; for A-items the first-session reader's file is the source, not redone."
+  },
+  {
+   "id": "H1b",
+   "title": "Step 1b: LIVE-001 through a ledger (A5, Q16)",
+   "old_severity": "plan step",
+   "old_state": "'zrobione' in the status table (steps 8-10: done in part, 10 'not in this form')",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "See DEC-1b: the world half closed (A5 'fixed' in the first-session file), the veiled-token road of LIVE-001 still open there ('partly', major).",
+   "pinned_by": "see the items it names",
+   "still_wrong": "The first-session file's still-open half of LIVE-001.",
+   "severity_now": "major",
+   "confidence": "read",
+   "refutation_tried": "Settled through the items the step names; for A-items the first-session reader's file is the source, not redone."
+  },
+  {
+   "id": "H2",
+   "title": "Step 2: forms behind the rules (A22-A25): one pickableCategories, the usable split in Item Tables and the trap, bedroomKey out of lists and out of 'carries something', goal in the ruling card's preset",
+   "old_severity": "plan step",
+   "old_state": "'zrobione' in the status table (steps 8-10: done in part, 10 'not in this form')",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "First-session file: A22, A24, A25 'fixed', A23 'decision'. Here: pickableCategories is the one list (C3); the plant window offers no category (DEC-A23).",
+   "pinned_by": "see the items it names",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Settled through the items the step names; for A-items the first-session reader's file is the source, not redone."
+  },
+  {
+   "id": "H3",
+   "title": "Step 3: room proportion (A21): 'Counts as a room', one sharedRooms(), one formula in the checklist and Room Setup",
+   "old_severity": "plan step",
+   "old_state": "'zrobione' in the status table (steps 8-10: done in part, 10 'not in this form')",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "vault-store.mjs:1303 sharedRooms, :1319 roomCensusOf, :1345 roomRatioLine, :1366 roomsWantedFor; read by room-setup.mjs:633-642 and season-setup.mjs:217, 483; first-session A21 'fixed'.",
+   "pinned_by": "see the items it names",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Settled through the items the step names; for A-items the first-session reader's file is the source, not redone."
+  },
+  {
+   "id": "H4",
+   "title": "Step 4: copy and comments after the decisions (A13, A14, F1, B2): setting hints, death texts, chapter.mjs and hud.mjs headers, Motive/Relief/TRIAL comments, mipmaps (Q1), enforceAnonymity (Q11), the floor mode renamed debate with OBJECTION its own mode (Q14)",
+   "old_severity": "plan step",
+   "old_state": "'zrobione' in the status table (steps 8-10: done in part, 10 'not in this form')",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "Fixed here: F1 (above), VER-Q5, Floor.mode.debate and Floor.mode.objection exist and no 'discussion' mode key remains. A13, A14: first-session 'fixed'. B2 and the other Q items are the old-1.2.13-B-livefindings reader's; not settled here.",
+   "pinned_by": "see the items it names",
+   "still_wrong": "B2 not settled in this file.",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Settled through the items the step names; for A-items the first-session reader's file is the source, not redone.",
+   "note": "Marked partly only because part of the step is another reader's, not because something is wrong."
+  },
+  {
+   "id": "H5",
+   "title": "Step 5: the notification diet (E1, E3, E7)",
+   "old_severity": "plan step",
+   "old_state": "'zrobione' in the status table (steps 8-10: done in part, 10 'not in this form')",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "E1 partly (three refusals as info), E3 partly (the 80-character rule replaced), E7 fixed.",
+   "pinned_by": "see the items it names",
+   "still_wrong": "As E1 and E3.",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "Settled through the items the step names; for A-items the first-session reader's file is the source, not redone."
+  },
+  {
+   "id": "H6",
+   "title": "Step 6: texts (F2, F3) in en.json and config.mjs",
+   "old_severity": "plan step",
+   "old_state": "'zrobione' in the status table (steps 8-10: done in part, 10 'not in this form')",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "F2 partly (71 values over 220 characters, four of the named), F3 partly (Panel.whoIsAliveNote), F4 partly (20 config strings over 220 characters, none over the word limit).",
+   "pinned_by": "see the items it names",
+   "still_wrong": "As F2-F4.",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "Settled through the items the step names; for A-items the first-session reader's file is the source, not redone."
+  },
+  {
+   "id": "H7",
+   "title": "Step 7: GM windows (E6, E8, E9, E10): keepLive instead of close/reopen, one Apply rule, the default chapter filter, one new-item form",
+   "old_severity": "plan step",
+   "old_state": "'zrobione' in the status table (steps 8-10: done in part, 10 'not in this form')",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "E6 partly (round trips kept by design), E8 fixed, E9 fixed, E10 partly (two new-item forms).",
+   "pinned_by": "see the items it names",
+   "still_wrong": "As E6 and E10.",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "Settled through the items the step names; for A-items the first-session reader's file is the source, not redone."
+  },
+  {
+   "id": "H8",
+   "title": "Step 8: shortening (C2, C3, A15): diagnostics and tests lazy, duplicates, dead code, patches.mjs - 'minus ~8 thousand lines without a change of behaviour'",
+   "old_severity": "plan step",
+   "old_state": "'zrobione' in the status table (steps 8-10: done in part, 10 'not in this form')",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "C2 fixed, C3 partly (the escapeHTML aliases), A15 and A18 fixed. The 8 000-line goal is not measurable against today: the non-test code grew from 76 349 to 226 282 lines.",
+   "pinned_by": "see the items it names",
+   "still_wrong": "As C3.",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "Settled through the items the step names; for A-items the first-session reader's file is the source, not redone."
+  },
+  {
+   "id": "H9",
+   "title": "Step 9: comments and files (C1, C4, C5): the chronicle to docs/decisions.md, the giants split, static imports - 'a big job, best after the release'",
+   "old_severity": "plan step",
+   "old_state": "'zrobione' in the status table (steps 8-10: done in part, 10 'not in this form')",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "C1 partly (doubled JSDoc held at zero; chronicle kept by the house style), C4 open by decision, C5 partly (splits E34/E41/E54 done, config.mjs not).",
+   "pinned_by": "see the items it names",
+   "still_wrong": "As C1, C4, C5.",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "Settled through the items the step names; for A-items the first-session reader's file is the source, not redone."
+  },
+  {
+   "id": "H10",
+   "title": "Step 10: CSS (C6), last, with the visual identity plan",
+   "old_severity": "plan step",
+   "old_state": "'zrobione' in the status table (steps 8-10: done in part, 10 'not in this form')",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "C6 partly: the kit sheet and the stained-glass theme were built with browsers, the budget lowers only; !important 827 outside comments.",
+   "pinned_by": "see the items it names",
+   "still_wrong": "As C6.",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "Settled through the items the step names; for A-items the first-session reader's file is the source, not redone."
+  },
+  {
+   "id": "H-note",
+   "title": "'After steps 1-4 (with 1b) the module can be released'; A3 fixed 03.09, A4 waiting for a live dice test",
+   "old_severity": "plan note",
+   "old_state": "A4 open at 1.2.13",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "First-session file: A3 'fixed', A4 'partly' (nit): forced-roll.mjs:176-226 swaps the generator only inside one evaluate and restores it in finally; a second roll evaluated meanwhile on the same client is the open part. Releases since: 105 stages to 1.2.118 (tools/stages.json); the release gate is audit/gate's two layers.",
+   "pinned_by": "first-session A4",
+   "still_wrong": "A4's concurrent-evaluate question",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "Not redone; cited."
+  }
+ ],
+ "numbers": [
+  {
+   "row": "Scripts / lines",
+   "then": "90 / 81 745 (without tests 76 349)",
+   "now": "271 / 434 614 (without the 13 tests*.mjs files: 258 / 226 282)",
+   "how": "python over scripts/*.mjs, newline count (/tmp/old-1.2.13-C-H/liczby.py)"
+  },
+  {
+   "row": "Comment lines",
+   "then": "31 619 (41%)",
+   "now": "146 586 (33.7%) with the tests; 99 401 of 226 282 (43.9%) without",
+   "how": "a line holding only comment (// or inside /* */, strings skipped), my state machine; the 1.2.13 method is not written, so the ratio is comparable only roughly"
+  },
+  {
+   "row": "Largest files",
+   "then": "fog 5316, tests 5396, action-rolls 4390, config 3955, sheet 3919, murder 3533",
+   "now": "tests-tier2 104 280, tests-tier1 63 672, tests-tier0 26 270; module code: config 5646, fog 4833, murder-rules 4746, settings 4662, movement 4058, glass 3870 (action-rolls 328, sheet 242, murder 37 since the splits)",
+   "how": "wc -l"
+  },
+  {
+   "row": "await import()",
+   "then": "546 (632 with .then)",
+   "now": "1 650 `await import(` in 149 non-test files; 1 969 `import(` in all forms in 159 files; with the tests 9 789 / 10 197",
+   "how": "regex over code with comments stripped"
+  },
+  {
+   "row": "ui.notifications.*",
+   "then": "339 calls",
+   "now": "594 non-test calls in 117 files: 433 warn, 113 info, 48 error (613 with the tests)",
+   "how": "regex over code with comments stripped"
+  },
+  {
+   "row": "DialogV2.wait/confirm/prompt + tableDialog",
+   "then": "99 + 14",
+   "now": "1 + 0 outside the tests (the one is inside ui-kit.mjs:1344); windows go through the kit: drpgWindow 133, drpgConfirm 31, drpgPrompt 2 calls (docs/dev/e59/WINDOWS.md: 162 windows in 165 sites, which counts DrpgApp classes and raw windows too)",
+   "how": "regex over code with comments stripped"
+  },
+  {
+   "row": "Whispers / announcements",
+   "then": "83 whisperToOwner, 46 whisperToGms, 38 announce",
+   "now": "151 whisperToOwner (and 17 whisperToOwnerOnly), 131 whisperToGms, 63 announce( - non-test calls, definitions included",
+   "how": "regex `\\bname\\(` over code with comments stripped; announce( not preceded by a word character or a dot"
+  },
+  {
+   "row": "Local const esc = ...",
+   "then": "46 copies in 25 files (34 merged 03.09, 12 kept)",
+   "now": "1 export (utils.mjs:34) imported by 90 non-test files; 27 local `const esc =` in 16 files, of which 26 are bare aliases of foundry.utils.escapeHTML in 15 files (messenger.mjs:248 is a different variable of the same name)",
+   "how": "git grep, tests out"
+  },
+  {
+   "row": "CSS",
+   "then": "14 778 lines, 682 !important, 141 sections, 200 tokens",
+   "now": "7 sheets, 31 831 lines; 1 004 !important raw, 827 outside comments; 182 banner comments '/* ====' (my stand-in for 'sections'); 577 distinct --drpg-* custom properties declared (my stand-in for 'tokens')",
+   "how": "grep and python over styles/*.css; the two stand-ins are mine, the 1.2.13 method for sections and tokens is not written"
+  },
+  {
+   "row": "en.json",
+   "then": "2745 lines, 2216 keys, 23 texts > 220 characters, 3 keys used and undefined, ~11 unused",
+   "now": "7534 lines, 6369 leaf keys (pl.json 9376 lines, 7456 leaves: the Polish plural forms), 71 values > 220 characters; used and undefined: 0 in code (4848 literal DRPG keys in non-test code; 7 literal keys not in en.json, all seven inside comments); unused: 0 DRPG leaves whose full key and every parent prefix 'X.' are absent from scripts/ (a lenient measure: a template prefix vouches for its family), 15 DAGGERHEART.* overrides not named in scripts by design (Daggerheart reads them)",
+   "how": "python json flatten; literal regex over non-test scripts"
+  }
+ ],
+ "grades": [
+  {
+   "area": "Rule correctness",
+   "then": "8/10",
+   "what_it_rested_on": "A1-A4",
+   "now": "A1-A3 fixed, A4 partly (first-session file); not regraded here (K9's)"
+  },
+  {
+   "area": "Data safety",
+   "then": "8/10",
+   "what_it_rested_on": "A5 (LIVE-001)",
+   "now": "A5 fixed, LIVE-001 partly, major (first-session file); the trust model of E03/E28/E29 added since"
+  },
+  {
+   "area": "Code readability",
+   "then": "5/10",
+   "what_it_rested_on": "chronicle comments, duplicates, giant files",
+   "now": "duplicates and giants mostly fixed (C3, C5); chronicle kept by decision; code three times larger"
+  },
+  {
+   "area": "Performance",
+   "then": "7/10",
+   "what_it_rested_on": "D1, D2",
+   "now": "D2 fixed, D1 partly (parse gone, region rebuild stays); frame cost only at a table (fps(), LIVE-E88-01)"
+  },
+  {
+   "area": "Player flow",
+   "then": "7/10",
+   "what_it_rested_on": "triple communication, long texts",
+   "now": "E1, E3, F2 partly by the old measures; within today's word budgets"
+  },
+  {
+   "area": "GM flow",
+   "then": "6/10",
+   "what_it_rested_on": "many doors, window flicker, forms behind the rules",
+   "now": "forms fixed (A21-A25), one tab system, panel reorganised by the owner (E49); the panel's close-and-reopen kept by design"
+  },
+  {
+   "area": "Total",
+   "then": "7/10",
+   "what_it_rested_on": "'release after A1-A4; maintain after C and E'",
+   "now": "not regraded (K9's)"
+  }
+ ],
+ "new_observations": [
+  {
+   "title": "A dead class R2 cannot see: .drpg-summary-dialog is styled 34 times and worn by nothing",
+   "where": "styles/danganronpa.css:574, 4670, 4700, 14310, 14507, 14519, 14530, 14559-14561 (29 mentions); styles/stained-glass.css (5); scripts/utils.mjs:1262",
+   "what": "Since E4 (03.09) the day summary is a popup card, not a DialogV2 with that class; no script puts drpg-summary-dialog on an element. utils.mjs:1262 names it inside the select-picker skin's selector string, and R2's detector (tests-css.mjs:267-299 deadClasses) counts any 'drpg-...' string in code as an emitter, so the rules are counted live. The 1.2.13 note said to drop the token in the CSS pass; it was not.",
+   "severity": "nit",
+   "failure_scenario": "A GM who restyles the summary edits a rule that styles nothing and sees no change; no player is affected.",
+   "confidence": "read",
+   "refutation_tried": "Searched scripts/ for 'summary-dialog' and for built class names ('drpg-${...}-dialog', '\"drpg-\" +'): only the selector at utils.mjs:1262."
+  },
+  {
+   "title": "Bare escapeHTML aliases grew from 12 to 26",
+   "where": "cleanup-reshape.mjs:431, handover.mjs:686, inventory.mjs:1170, level-up.mjs:1247, monocub.mjs:1081/1479/1529/1584/1648/1668/1792, passages-gm.mjs:819, projects-ui.mjs:354/378/820/1055, reroll-receipts.mjs:92, sound-panel.mjs:94, trial-progress.mjs:230, trial.mjs:1012, truth-bullets.mjs:396, verdict.mjs:108/314/779/1359, vote.mjs:1080",
+   "what": "1.2.13 kept 12 local `const esc = foundry.utils.escapeHTML` because they differ from utils.mjs's null-safe esc (utils.mjs:34, String(value ?? \"\")), and warned that one name meaning two things in a file is a trap. There are 26 today in 15 files, each beside files that import the null-safe one. Whether any of them is handed a null or undefined value was not traced.",
+   "severity": "nit",
+   "failure_scenario": "A developer moving a line between two functions of one file changes its escaping without seeing it; whether a reader then sees a wrong word on a card is not established.",
+   "confidence": "read",
+   "refutation_tried": "Counted with comments stripped; did not trace the values each alias receives (see not_established)."
+  },
+  {
+   "title": "performAction's doc says every action starts with the briefing; the same file says Move opens nothing",
+   "where": "scripts/action-rolls.mjs:90 against :77-82",
+   "what": "The JSDoc of performAction reads 'Run an action from the panel. Always starts with the briefing.' The note above it (E100 item 1, 12.11.2026) says no action has a briefing window of its own and performAction(actor, 'move') opens nothing.",
+   "severity": "nit",
+   "failure_scenario": "A reader of the doc expects a briefing for Move and looks for a window that was removed.",
+   "confidence": "read",
+   "refutation_tried": "Read both comments; 'briefing' could mean the block inside each action's own window, which Move has none of."
+  }
+ ],
+ "not_established": [
+  {
+   "what": "The pass or fail of every test and scenario named under pinned_by (R1b, R2, R9, R19, R161, R1311, R6752, R7150, R7151, scenario 61 TD, 86): base-run.json did not exist when I looked; each pin is named from its source."
+  },
+  {
+   "what": "D1: what a burst of actor or item updates costs a GM with the Investigation Dashboard open (the whole .drpg-case-live region is rebuilt per coalesced burst).",
+   "l1": {
+    "what": "frame cost of the dashboard's rebuild during play",
+    "recipe": [
+     "Open the Investigation Dashboard on the GM with a chapter of 30+ Remnants and 10+ Truth Bullets.",
+     "Run `await game.drpg.fps({ toChat: false })` while a player moves a token and another uses an item.",
+     "Repeat with the dashboard closed; compare the slowest twentieth and the module's counters."
+    ],
+    "clients": "GM plus two players",
+    "theme": "both",
+    "settles_if": "no difference over the frame budget: D1 closed; a drop with the dashboard open: D1 open as minor",
+    "priority": "nit"
+   }
+  },
+  {
+   "what": "D5: whether the 120 ms YIELD_MS wait is felt as click lag on a button that opens a window.",
+   "l1": {
+    "what": "perceived lag of a button sound with yieldsTo",
+    "recipe": [
+     "On a player, press a sheet tile that opens a window, ten times.",
+     "Note whether the click sound comes with the window or after it; repeat on a slow machine."
+    ],
+    "clients": "one player",
+    "theme": "default",
+    "settles_if": "the sound lands with the window: no lag, D5 closed; a felt gap: D5 open as nit",
+    "priority": "nit"
+   }
+  },
+  {
+   "what": "E1's first half: how many surfaces (card, popup, toast, sound) one ordinary action reaches a player through today. Static counts do not say what one event does at a table.",
+   "l1": {
+    "what": "surfaces per event for a player",
+    "recipe": [
+     "As a player, take a Search, an Observe and a Rest.",
+     "For each, list what appeared: chat card, popup, toast, sound.",
+     "As the GM, list what reached the GM for each."
+    ],
+    "clients": "GM plus one player",
+    "theme": "both",
+    "settles_if": "one popup and one chat record per event and no done-toast: E1 holds; a toast beside a card: E1 open as nit",
+    "priority": "nit"
+   }
+  },
+  {
+   "what": "Whether any of the 26 bare escapeHTML aliases is handed null or undefined (the 1.2.13 warning: the word 'null' on a card). Not traced value by value."
+  },
+  {
+   "what": "The comparability of the 'Liczby' rows: 1.2.13 does not write its methods for comment lines, CSS sections and tokens, or unused keys; my numbers carry their own method in `numbers[].how`. The commit 2a74643 is not in this shallow clone (history starts 14.10.2026), so the old numbers could not be re-measured with my script."
+  },
+  {
+   "what": "E7's first half (callGm chooses one surface) was not re-traced through its callers here; a domain-comm reader's."
+  }
+ ]
+}

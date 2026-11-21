@@ -1,6 +1,6 @@
 # Danganronpa RPG - Podręcznik gracza
 
-*Dla uczniów killing game. Moduł w wersji 1.2.120, zbudowany na Daggerheart dla Foundry VTT v14.*
+*Dla uczniów killing game. Moduł w wersji 1.2.121, zbudowany na Daggerheart dla Foundry VTT v14.*
 
 To cała gra widziana z miejsca gracza: co znaczą liczby na arkuszu, ile kosztuje akcja, co kupuje Hope, co się dzieje, gdy ktoś ginie, i co nacisnąć. Każda liczba tutaj jest liczbą modułu; tam, gdzie decyzja należy do człowieka, napisano "GM decyduje". Jak moduł działa od środka, opisuje rozdział 17.
 
@@ -799,7 +799,7 @@ Twoje akcje w tym samym incydencie są za kafelkiem **Akcje kryzysowe**.
 
 Finishing Blow to też akcja rozstrzygnięcia: kosztuje 1 Sanity, a gdy Sanity się skończy, 1 Health.
 
-Akcja wymierzona w drugą stronę wymaga o 1 więcej, gdy ta strona jest silna: Strike, Attack with a Weapon i Pin Them Down, gdy Body ofiary to +1 lub więcej; Keep Your Distance, gdy Leg ofiary to +1 lub więcej; Self-Defense i Role Reversal, gdy Body zabójcy to +1 lub więcej; Survive i Escape Together, gdy Leg zabójcy to +1 lub więcej. Kafelek to mówi, na przykład "Przebij 16 (+1 za Body ofiary)". Rzuty otwarcia nigdy się tak nie zmieniają.
+Akcja wymierzona w drugą stronę wymaga o 1 więcej, gdy ta strona jest silna: Strike, Attack with a Weapon i Pin Them Down, gdy Body ofiary to +1 lub więcej; Keep Your Distance, gdy Leg ofiary to +1 lub więcej; Self-Defense i Role Reversal, gdy Body zabójcy to +1 lub więcej; Survive i Escape Together, gdy Leg zabójcy to +1 lub więcej. Kafelek to mówi, na przykład "Przebij 16 (+1 za Body ofiary)". Gdy nie możesz wiedzieć, kto jest zabójcą (zabójca za "?" albo pułapka), kafelek i okno rzutu mówią "Przebij 18 + ukryta obrona": GM ocenia rzut ze statystyką zabójcy, a twoja karta wyniku podaje tylko twój wynik wobec tej liczby i czy to trafienie. Rzuty otwarcia nigdy się tak nie zmieniają.
 
 Po incydencie przychodzi sprzątanie. Twój kafelek Tamper wymienia teraz każdy Remnant w pokoju, w którym stoisz, twój i każdego innego. Na własnej scenie próba nie kosztuje akcji, tylko **1 Sanity**. Usuwanie, przerabianie i Misleading Trail rzucają Shadow i nikogo nie pytasz.
 

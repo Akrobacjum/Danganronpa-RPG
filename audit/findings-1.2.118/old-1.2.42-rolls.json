@@ -1,0 +1,644 @@
+{
+ "reader": "old-1.2.42-rolls",
+ "source": "audit/findings-1.2.42/rolls.md (the 17 findings ROLL-01 to ROLL-17 and the 6 numbered checks of 'Live checks recommended'), with AUDIT-1.2.42.md sections 2.2, 4, 5, 7 and 9 for what the old report said became of each",
+ "read": [
+  {
+   "file": "audit/findings-1.2.42/rolls.md",
+   "lines": 409,
+   "lines_read": 409
+  },
+  {
+   "file": "audit/AUDIT-1.2.42.md",
+   "lines": 1666,
+   "lines_read": 417,
+   "part": "1-130, 405-524, 558-707; every line naming a ROLL id by grep (17 lines)"
+  },
+  {
+   "file": "scripts/reroll.mjs",
+   "lines": 2101,
+   "lines_read": 1247,
+   "part": "340-565, 1080-2100"
+  },
+  {
+   "file": "scripts/action-pipeline.mjs",
+   "lines": 1125,
+   "lines_read": 836,
+   "part": "150-795, 935-1124"
+  },
+  {
+   "file": "scripts/action-search.mjs",
+   "lines": 714,
+   "lines_read": 655,
+   "part": "60-714"
+  },
+  {
+   "file": "scripts/action-project.mjs",
+   "lines": 1378,
+   "lines_read": 928,
+   "part": "60-219, 440-729, 900-1377"
+  },
+  {
+   "file": "scripts/action-observe.mjs",
+   "lines": 345,
+   "lines_read": 317,
+   "part": "28-344"
+  },
+  {
+   "file": "scripts/action-analyze.mjs",
+   "lines": 520,
+   "lines_read": 200,
+   "part": "84-283"
+  },
+  {
+   "file": "scripts/action-dynamic.mjs",
+   "lines": 358,
+   "lines_read": 200,
+   "part": "40-239"
+  },
+  {
+   "file": "scripts/action-murder.mjs",
+   "lines": 398,
+   "lines_read": 98,
+   "part": "300-397"
+  },
+  {
+   "file": "scripts/action-listen.mjs",
+   "lines": 360,
+   "lines_read": 165,
+   "part": "1-60, 196-300"
+  },
+  {
+   "file": "scripts/action-rolls.mjs",
+   "lines": 328,
+   "lines_read": 49,
+   "part": "1-30, 72-90"
+  },
+  {
+   "file": "scripts/palm.mjs",
+   "lines": 932,
+   "lines_read": 330,
+   "part": "200-529"
+  },
+  {
+   "file": "scripts/trait-ruling.mjs",
+   "lines": 395,
+   "lines_read": 395
+  },
+  {
+   "file": "scripts/roll-marks.mjs",
+   "lines": 87,
+   "lines_read": 87
+  },
+  {
+   "file": "scripts/roll-dialog.mjs",
+   "lines": 1350,
+   "lines_read": 181,
+   "part": "40-90, 575-654, 900-949"
+  },
+  {
+   "file": "scripts/roll-draw.mjs",
+   "lines": 3066,
+   "lines_read": 275,
+   "part": "1500-1639, 2150-2224, 2490-2549"
+  },
+  {
+   "file": "scripts/private-rolls.mjs",
+   "lines": 1951,
+   "lines_read": 330,
+   "part": "300-499, 895-1024"
+  },
+  {
+   "file": "scripts/actions.mjs",
+   "lines": 597,
+   "lines_read": 300,
+   "part": "150-449"
+  },
+  {
+   "file": "scripts/messenger-app.mjs",
+   "lines": 1673,
+   "lines_read": 191,
+   "part": "884-906, 1225-1392"
+  },
+  {
+   "file": "scripts/observe.mjs",
+   "lines": 1316,
+   "lines_read": 210,
+   "part": "56-155, 640-749"
+  },
+  {
+   "file": "scripts/stash-reach.mjs",
+   "lines": 848,
+   "lines_read": 130,
+   "part": "470-599"
+  },
+  {
+   "file": "scripts/bridge-asks.mjs",
+   "lines": 1344,
+   "lines_read": 120,
+   "part": "780-899"
+  },
+  {
+   "file": "scripts/bridge-table.mjs",
+   "lines": 1660,
+   "lines_read": 92,
+   "part": "551-557, 648-682, 1070-1119"
+  },
+  {
+   "file": "scripts/bridge-guards.mjs",
+   "lines": 2163,
+   "lines_read": 70,
+   "part": "1140-1209"
+  },
+  {
+   "file": "scripts/call-effects.mjs",
+   "lines": 1422,
+   "lines_read": 96,
+   "part": "465-560"
+  },
+  {
+   "file": "scripts/search-tokens.mjs",
+   "lines": 961,
+   "lines_read": 90,
+   "part": "150-239"
+  },
+  {
+   "file": "scripts/despair-award.mjs",
+   "lines": 333,
+   "lines_read": 80,
+   "part": "1-80"
+  },
+  {
+   "file": "scripts/price.mjs",
+   "lines": 397,
+   "lines_read": 56,
+   "part": "237-292"
+  },
+  {
+   "file": "scripts/gm-store.mjs",
+   "lines": 1760,
+   "lines_read": 56,
+   "part": "905-960"
+  },
+  {
+   "file": "scripts/gm-bridge.mjs",
+   "lines": 263,
+   "lines_read": 47,
+   "part": "120-166"
+  },
+  {
+   "file": "scripts/eclipse.mjs",
+   "lines": 1502,
+   "lines_read": 41,
+   "part": "575-615"
+  },
+  {
+   "file": "scripts/monocub.mjs",
+   "lines": 1979,
+   "lines_read": 21,
+   "part": "1950-1970"
+  },
+  {
+   "file": "scripts/look.mjs",
+   "lines": 60,
+   "lines_read": 2,
+   "part": "its import lines by grep"
+  },
+  {
+   "file": "scripts/tests-tier2.mjs",
+   "lines": 104280,
+   "lines_read": 130,
+   "part": "5540-5598, 17263-17290, 40440-40470; test names by grep"
+  },
+  {
+   "file": "scripts/tests-tier0.mjs",
+   "lines": 26270,
+   "lines_read": 41,
+   "part": "2671-2711 (R40); names by grep"
+  },
+  {
+   "file": "docs/dev/e58/LOCAL-REPORT.md",
+   "lines": 660,
+   "lines_read": 13,
+   "part": "420-432"
+  },
+  {
+   "file": "docs/dev/R-REGISTRY.md",
+   "lines": 1826,
+   "lines_read": 12,
+   "part": "rows by grep (R40, R213, R302, R985, R1142, R1230, R1232, R3151, R6355 and others)"
+  },
+  {
+   "file": "lang/en.json",
+   "lines": 7534,
+   "lines_read": 21,
+   "part": "1027-1039 and eight keys read by script; lang/pl.json for the same eight"
+  },
+  {
+   "file": "audit/harness/lib/dh-dice/applications/dialogs/d20RollDialog.mjs",
+   "lines": 323,
+   "lines_read": 3,
+   "part": "lines 185, 232-235 by grep"
+  },
+  {
+   "file": "audit/findings-1.2.118/README.md",
+   "lines": 20,
+   "lines_read": 20
+  }
+ ],
+ "count_expected": 23,
+ "count_note": "grep -c of '^### ' in rolls.md gives 17, all of the form '### ROLL-nn [severity: ...]'. 'Live checks recommended' holds 6 numbered checks, added as ROLL-LC1 to ROLL-LC6: 17 + 6 = 23. The file has no section 'Comments contradicting code'. Its 'Hygiene metrics' section is not itemised; one line of it was met on the way and still holds: Listen's outcome ladder exists twice (action-listen.mjs:216-256 and reroll.mjs:1902-1926, the second since E08 fix r1-G4 on purpose: the roller's browser builds a Reroll's lines). 'lines' is a file's length and 'lines_read' what this reader read of it; the script build.py in the reader's scratch folder wrote this file and counted only its own items and forbidden characters.",
+ "items": [
+  {
+   "id": "ROLL-01",
+   "title": "A Reroll after a Palm fell to the default branch and said the roll 'left no lasting effect': the bookmark said 'palm', replayAction knew only 'steal', and settleSteal was unreachable",
+   "old_severity": "major",
+   "old_state": "fixed in 1.2.43 (AUDIT-1.2.42.md 2.2: 'case \"palm\" wpada w settleSteal'); commit 90c17021 of 12.09.2026, first tag v1.2.44",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/reroll.mjs:1126-1129: `case \"palm\":` falls through to `case \"steal\": return await settleSteal(...)`, which pushes DRPG.Reroll.stealStands (:1736-1743). The GMs' row keeps the first key a roll was told with (action-pipeline.mjs:677-690): the hand is thrown as 'steal' (palm.mjs:336-337) and its context names 'palm' (palm.mjs:216-219, :396-399); both keys reach the one branch.",
+   "pinned_by": "none found (no test names settleSteal or DRPG.Reroll.stealStands: grep of scripts/tests-tier*.mjs and audit/harness/scenarios)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for a key a Palm's roll can carry that the switch lacks: the Shadow roll is `remember: false` and keeps no row (palm.mjs:330-333); a Frisk's two keys have cases of their own (reroll.mjs:1133-1134).",
+   "note": ""
+  },
+  {
+   "id": "ROLL-02",
+   "title": "A Search whose token was refused (room picked clean, or no GM answered) could be rerolled into a granted item; a stash find would draw a second item from the room's table",
+   "old_severity": "major",
+   "old_state": "left open in AUDIT-1.2.42.md section 4; task 4 of section 5, commit 3734f91 of 12.09.2026 (section 9), first tag v1.2.44",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "Closed on the module's own road: every end of a Search that took no token notes `claimed: false` (action-search.mjs:133-135, :207, :556) and the replay stops on it with DRPG.Reroll.searchNeverRan (reroll.mjs:1240-1245). The stash half has no object: a Search reaches into no stash since 1.2.112 (action-search.mjs:55-61, :578; reroll.mjs:1247-1249; commit feba55c3). Still open: `claimed` is one of the roller's claims (action-pipeline.mjs:532) and the replay reads only that; the GMs' own mark that a token was spent, `tokenSpentAt` (search-tokens.mjs:180-185), holds the first throw's find (sheet-audit.mjs:2326) and no line of reroll.mjs reads it.",
+   "pinned_by": "tier 2 'a Reroll is paid and made on the GM: the player's browser writes neither Hope nor the message' bookmarks a Search with claimed: false and holds its Reroll to two lines (tests-tier2.mjs:5557-5598); nothing holds the replay to tokenSpentAt",
+   "still_wrong": "A player whose Search was refused its token sends roll.bookmark once more for the same roll inside its minute, with claimed true or without the field, then asks for a Reroll: the primary GM draws from the room's table and puts the item on that player's sheet for 3 Hope, the room's tokens untouched and, on the unanswered or sealed branch, the action already handed back.",
+   "severity_now": "minor",
+   "confidence": "read",
+   "refutation_tried": "Read the roll.bookmark row's guards (bridge-table.mjs:1088-1101: knownSender, notSpectator, owns, guardRollAuthor - the sender's own claimed roll under a minute old, bridge-guards.mjs:1169-1185), keepGmBookmark's patch of the same roll's claims (action-pipeline.mjs:677-690), replayBookmark (reroll.mjs:353-361), rerollRefusal and replayRefusal (reroll.mjs:408-437, :484-534: neither asks anything of a Search), and grepped tokenSpentAt: gm-stores.mjs, search-tokens.mjs and sheet-audit.mjs only.",
+   "note": "The console road was read, not driven: a harness probe that sends the second roll.bookmark from a player's page and then reroll.ask would settle it. The trust model's text (rules/trust-model.md in the agent folder) says a claim touches only the roller's own sheet and lists 'which item a Search draws' among what stays open; a replayed find with no token spent is not on its list."
+  },
+  {
+   "id": "ROLL-03",
+   "title": "The Search replay used the retired trace rule (every category but 'usable', tiedToCrime true), drew without the room and gave the trace no item identity",
+   "old_severity": "major",
+   "old_state": "left open in AUDIT-1.2.42.md section 4; task 4 of section 5, commit 3734f91 of 12.09.2026 (section 9), first tag v1.2.44",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "reroll.mjs:1368 asks the one shared rule, `leavesTraceFor(find.category, drawn?.roles)` (inventory.mjs:122-125; the first throw asks it at action-search.mjs:414). The trace is dropped or retuned with `tiedToCrime: null` and the granted item's identity (reroll.mjs:1375-1379), and the draw names the room and the searcher's scene (reroll.mjs:1340). What the find is comes from `findOf`, the Search's own reading (reroll.mjs:1310-1320, :1343).",
+   "pinned_by": "R1232 (tier 1: leavesTraceFor over every category and role), R1231 (tier 0: settleSearch reads the trace's type and Faint mark off ACTIONS.search.leavesRemnant), tier 2 E14-T14 'a Search's find is what was drawn ... on a Search and on its Reroll' (tests-tier2.mjs:80215); no test found that a rerolled hunt for a plain tool leaves no trace, or that the replay's trace is left untied",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "grep of 'usable' and 'tiedToCrime' in reroll.mjs for a second copy of the rule: one comment naming the retired rule (:1361) and the one `tiedToCrime: null` (:1378).",
+   "note": "A plant found by the first throw is replayed as itself (reroll.mjs:1272-1336), a road that did not exist in 1.2.42."
+  },
+  {
+   "id": "ROLL-04",
+   "title": "Work on Project and Sabotage replays scored a Reroll against the raw bands and a bare 18: the readied tool's relief was not on the bookmark",
+   "old_severity": "major",
+   "old_state": "left open in AUDIT-1.2.42.md section 4; task 4 of section 5, commit 3734f91 of 12.09.2026 (section 9), first tag v1.2.44",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "The relief rides the roll's claims (a Work: action-project.mjs:585-590; a Sabotage: :1053, :1126-1132; ROLL_CLAIMS at action-pipeline.mjs:534-535) and both replays score through the first throw's own functions: `projectProgress(after, held)` (reroll.mjs:1188-1189; action-project.mjs:643-646) and `sabotageHit` with `sabotageRepairScale(after, score, relief)` (reroll.mjs:1423-1426, :1447; action-project.mjs:1286-1306). The complex band is read off ACTIONS.sabotage.thresholds and lowered by the same relief (action-project.mjs:1299-1303).",
+   "pinned_by": "tier 2 'a Reroll of a Work or a Sabotage is scored on what its first throw could claim, not on its row's word' (tests-tier2.mjs:16901) and 'a later Reroll holds a Work's relief to the tools its first throw could use' (:17263); R985 and R1232 (tier 1)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "grep of '>= 18' and '18 -' in reroll.mjs and action-project.mjs: two comment lines only; read `reliefHeld` (action-project.mjs:684-691) for a case where a Reroll loses the relief.",
+   "note": "The claimed relief is held to the tools the GMs see at the Reroll (fix r2-H3 of 05.10.2026): after a roll with Hope that is the tool readied then, so a player who puts the tool away or hands it over between the roll and its Reroll is scored without it. The old report's own pitfall, a tool the roll itself broke, is covered by the Fear branch (every tool carried, broken or not)."
+  },
+  {
+   "id": "ROLL-05",
+   "title": "Closing a later roll's window after a supporting roll had landed gave the action back (Palm, a watched Sabotage, a watched indirect-murder project): the supporting roll's Hope for no action, as often as wanted",
+   "old_severity": "major",
+   "old_state": "left open in AUDIT-1.2.42.md section 4; task 4 of section 5, commit 3734f91 of 12.09.2026 (section 9), first tag v1.2.44",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "A window closed after one of the action's own rolls has landed goes to `spentAfterRoll`, which warns and hands nothing back (action-pipeline.mjs:980-990): Palm's hand (palm.mjs:341-343), a Work after its concealment (action-project.mjs:564), a Sabotage after its concealment (action-project.mjs:1058-1062), and the later two-roll actions - a Frisk (frisk.mjs:405), Pick the Lock (action-doors.mjs:147), Tail (action-tail.mjs:86). `abort` is left for the first window (palm.mjs:334; action-project.mjs:717, :1195).",
+   "pinned_by": "R40 (tier 0, a text guard: no carry-on question after a concealment roll and no abort in concealSabotage's watched branch); no test found that closes a second window and reads the actions (grep of spentAfterRoll and rolledAlready in the tier files and the scenarios: none)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Listed every `abort(`, `spentAfterRoll(` and `palmBack(` in scripts/ outside the tests (37 lines, two of them the definitions) and read each that follows a landed roll for one the roller causes by closing a window: none; the rest follow a GM's absence or a GM's refusal.",
+   "note": "By decision: a Palm whose transfer the one gate refuses before the rolls are read gets its action back after both rolls have paid out (palm.mjs:378-391, the owner's Q3 of 18.10.2026: 'a refusal before the rolls are read refunds'; the comment there says the dice 'paid out their Hope and Despair all the same: that is what the owner's answer accepts'). An Observe or a specific Search whose last GM left during the roll is refunded the same way (E18 C0)."
+  },
+  {
+   "id": "ROLL-06",
+   "title": "throwDice recorded the trait it was asked for, not the one the roll window rolled: a Search switched to Hand was labelled Eye on the card, the chip and the Reroll bookmark",
+   "old_severity": "major",
+   "old_state": "left open in AUDIT-1.2.42.md section 4; task 4 of section 5, commit 3734f91 of 12.09.2026 (section 9), first tag v1.2.44; also live check 2 of section 7",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "The outcome's trait is read off the roll that was thrown, `traitRolled(result, drpgTrait)` (action-pipeline.mjs:304-312, :330-338), and the card, the chip and the bookmark take it from there (action-report.mjs:82-88, :214, :232; action-pipeline.mjs:408). A Search no longer opens the select: its statistic is Eye, or a proposal a GM rules on before the roll (action-search.mjs:707-714), and the window's select is locked on every roll but one with Resolve armed (roll-dialog.mjs:618-628). On a drawn roll the GM writes the statistic it threw into the roll's options (roll-draw.mjs:1585-1591, :1608-1610), the first place traitRolled looks.",
+   "pinned_by": "tier 2 'Search rolls Eye and its window offers no choice' (tests-tier2.mjs:26086) and 'with Resolve armed nobody is asked and the window's picker is open; a GM's pick stays locked' (:25450); R3151, R213; no test found that changes the select under Resolve and reads the card's label",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Held traitRolled's field names to Daggerheart's window as the harness copies it: the select writes `config.roll.trait` (audit/harness/lib/dh-dice/applications/dialogs/d20RollDialog.mjs:232), traitRolled's fifth candidate and the field roll-draw.mjs:578 reads as the claim. Today's Search road was read on Foundry 14.370 (E58 S7-2, 16.11.2026, docs/dev/e58/LOCAL-REPORT.md:428): Hand approved by the GM, the window locked on it, the card naming Hand +1.",
+   "note": "The one open select left is Resolve's (trait-ruling.mjs:202-207); its label after a change in the window has no table reading (see ROLL-LC1)."
+  },
+  {
+   "id": "ROLL-07",
+   "title": "Direct Murder spent the action and said 'Declared.' with no GM connected, though nothing had been parked",
+   "old_severity": "major",
+   "old_state": "fixed in 1.2.43 (AUDIT-1.2.42.md 2.2: gmOnline() before the action is spent; the action comes back when the parking fails)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "action-murder.mjs:363-367 refuses before the price when no GM is connected (`sayNotDone(\"murder.park\", \"noGm\", { nothingSpent: true })`); the action is spent only after it (:369-370), and a park that was not carried out hands back what paid, a Burst as a Burst (:384-390). `murder.park` answers 'reply' (bridge-table.mjs:551-557), so parkDirectMurder reads `res.ok` and answers null for a refusal or no answer (eclipse.mjs:575-582).",
+   "pinned_by": "none found for the refund branch; the park road itself is tier 2's (tests-tier2.mjs:29181-29253), and tier 0's census of sayNotDone sites names action-murder.mjs#performDirectMurder (tests-tier0.mjs:10593)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the road past the check for a GM who leaves after it: the note window cannot refund by itself, and the refund keys on parkDirectMurder's answer, null for every bridge result that is not ok.",
+   "note": "performAction lets a Direct Murder through with no GM connected (action-rolls.mjs:75, THROWS_NO_DICE), so the refusal at :363-367 is the one that speaks. Not established: whether an answer lost after the GM wrote the entry can refund a declaration that stands."
+  },
+  {
+   "id": "ROLL-08",
+   "title": "A GM's Refuse of a Dynamic difficulty reached the player as nothing, the GM's card stayed 'Awaiting a ruling' for good, and the handler did not check whose character the request named",
+   "old_severity": "minor",
+   "old_state": "left open in AUDIT-1.2.42.md section 4; task 2 of section 5, commit d079a1e of 12.09.2026 (section 9), first tag v1.2.44",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "The GM's Refuse answers false through the primary (messenger-app.mjs:884-887; the card's two buttons at call-gm.mjs:279-280) and the player's side tells false from null: `if (picked === false)` whispers DRPG.Action.dynamicRefused and stops before anything is paid (action-dynamic.mjs:110-115; the price at :119-122). One card carries the description and both answers since E16 part 2 C1 (action-dynamic.mjs:58-66), and `dynamic.difficulty` is held to the sender's own character (bridge-table.mjs:660-667).",
+   "pinned_by": "tier 2 'E16-T25 - a Dynamic action asks the GMs with one card, and no card is left Awaiting a ruling' (tests-tier2.mjs:83928) and the Refuse press at :40495-40499; no test found that reads the player's dynamicRefused whisper (grep: none)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the player's branch for a refusal that returns silently: null (not carried out) has been told by the bridge with 'nothing spent' (bridge-asks.mjs:789-793), false is whispered, and the waiting notice comes down in a finally (action-dynamic.mjs:106-108).",
+   "note": ""
+  },
+  {
+   "id": "ROLL-09",
+   "title": "askForHint refunded def.cost on the GM's 'There is nothing' even for a free Analyze that had charged nothing",
+   "old_severity": "minor",
+   "old_state": "fixed in 1.2.43 (AUDIT-1.2.42.md 2.2: askForHint is handed the real cost)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "askForHint is handed the charge that was paid, null for a free Analyze (action-analyze.mjs:144, :165-167, :248), and builds its buttons from it (:270). `declineAction` writes `paid: \"none\"` for a null receipt (action-pipeline.mjs:1042-1058) and the GM's side gives nothing back for it (messenger-app.mjs:1271-1272, :1293-1325); what does come back is priced from PRICE_CHAINS, not from the card (:1273-1282).",
+   "pinned_by": "tier 2 'an Observe's Nothing was there marks the Sanity and gives nothing back, and a free action's refusal gives back nothing' (tests-tier2.mjs:41168)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for another card of the action family built from a cost instead of a receipt: gmRulingActions has one caller (action-analyze.mjs:270) and declineAction's other caller passes `paid` (action-search.mjs:187).",
+   "note": "A free Analyze is a GM's only since T-1 (action-analyze.mjs:86)."
+  },
+  {
+   "id": "ROLL-10",
+   "title": "A Search that landed on a stash named the item on its own card before the GM's side had ruled, and stealFromVault could then answer null without a word",
+   "old_severity": "minor",
+   "old_state": "task 13 (AUDIT-1.2.42.md section 9: 'ROLL-10/14/15/16'), commit b888c066 of 13.09.2026, first tag v1.2.44",
+   "status": "obsolete",
+   "evidence_class": "S",
+   "evidence": "A Search reaches into no stash since 1.2.112 (commit feba55c3 of 13.11.2026, the owner's decision of that day quoted at action-search.mjs:55-61; :578: the dice go to the room's table whatever stash is there), so the card that named a stash's item is gone with `searchStash`, and lang/en.json holds no DRPG.Vault.foundInStash. A stash is gone through by the free rifle, and a reach that moved nothing now tells the thief DRPG.Vault.handsFull (stash-reach.mjs:556-560).",
+   "pinned_by": "tier 2 'a Reroll of a Search takes no stash step, whatever an older bookmark says, and a 1.2.65 bookmark's -1 still lands' (tests-tier2.mjs:57500) for the Search's side",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "grep of foundInStash, viaSearch, searchStash and fromVault in scripts/ and lang/en.json: comments saying 'until 1.2.112', and the Reroll's searchStashStands line, which a Find Stash alone reaches (reroll.mjs:1817-1820).",
+   "note": "AUDIT section 9 names 7e40243 for task 13; in this history that sha is 'D8: the first text pass' and the task's change is b888c066 (new_observations). The comment at stash-reach.mjs:557-558 still gives the reason the Search's card was."
+  },
+  {
+   "id": "ROLL-11",
+   "title": "Observe (General, Non-obvious, Follow my traces) with nothing to find opened a second 'what are you trying to do?' window and dropped the first request",
+   "old_severity": "minor",
+   "old_state": "left open in AUDIT-1.2.42.md section 4; task 10 of section 5, commit b708865 of 12.09.2026 (section 9), first tag v1.2.44",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "action-observe.mjs:91-94: with `!target.ok` the roll just thrown goes straight to `ruleObserve(actor, def, roll, \"\", null, paid, declaration)`, the road observeSpecific takes (:141-144), and the GMs' card names the declared way of looking (:236-238). `performGmAction` and `askTraitAndRequest` are in no module file (grep of scripts/).",
+   "pinned_by": "R6355 (tier 1: a refused pick hands the roll already thrown to the GMs as a card); no test found that counts the windows of the ranked road",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read performObserve's three branches for a window opened after the dice: none; the request box stands in the declaration window and shows with the two rows that read it (action-observe.mjs:319-323).",
+   "note": ""
+  },
+  {
+   "id": "ROLL-12",
+   "title": "Choosing Sabotage in the Projects window opened a second picker that asked for the project and the trait again",
+   "old_severity": "minor",
+   "old_state": "left open in AUDIT-1.2.42.md section 4; task 10 of section 5, commit b708865 of 12.09.2026 (section 9), first tag v1.2.44",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "The Projects window carries the Sabotage's own select under its row (`<select name=\"sabotage\">` in a label with data-drpg-when=\"sabotage\", action-project.mjs:150-160), reads it after the window closes and calls `performSabotage(actor, ACTIONS.sabotage, options, { project: target })` (:167-171), which skips its picker while the preset is still a target (:1002-1005). No statistic is asked: a Sabotage rolls the project's own (:84-86, :1007-1010).",
+   "pinned_by": "R1142 (tier 1: each data-drpg-when field shows with its row alone) and tier 2 E51-T28 (tests-tier2.mjs:89967)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Checked what the old report asked to keep: the API's own door still opens chooseProject (action-project.mjs:1005), and a form with no value falls to `breakable[0]` (:168-169).",
+   "note": ""
+  },
+  {
+   "id": "ROLL-13",
+   "title": "refundAction read a client-local 'last spend' map, so a GM-side refund could hand back a Burst for an action the player had paid on their own client (suspected then)",
+   "old_severity": "minor",
+   "old_state": "left open in AUDIT-1.2.42.md section 4; task 4 of section 5, commit 3734f91 of 12.09.2026 (section 9), first tag v1.2.44 ('paid' on the ruling card)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "The map is gone: `spendAction` answers a receipt `{ grant, amount }` that travels with the action (actions.mjs:156-161, :163-231) and `refundAction` reads only the receipt it is handed (actions.mjs:243-254); grep of lastSpend in scripts/ finds nothing. A ruling card says what paid (`paid`, `grant`: action-pipeline.mjs:1042-1058) and the GM's refund is built from the card's step and PRICE_CHAINS (messenger-app.mjs:1271-1283); a Reroll's give-back reads the row's `burst` (reroll.mjs:2081-2099). Commits 3734f912 (12.09.2026) and 95d133f9 (17.09.2026, first tag v1.2.48).",
+   "pinned_by": "tier 2 at tests-tier2.mjs:41168 (a card with no receipt, and a free card); no test found by name for a Burst coming back as a Burst from a GM's Refuse",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Listed the eleven calls of refundAction in scripts/ outside the tests: nine pass a receipt; two do not - a critical Help's (monocub.mjs:1968) and a GM's refusal of a parked Direct Murder (messenger-app.mjs:1381).",
+   "note": "messenger-app.mjs:1373-1381 gives one action back for a declined Direct Murder whatever paid for it (new_observations). The card's `grant` is the player's word (action-pipeline.mjs:1107-1113 says the card is authored on the player's client); how a console would rewrite its own card was not traced."
+  },
+  {
+   "id": "ROLL-14",
+   "title": "A player's 'Self Roll' chat mode whispered the roll to themselves, the privacy hook respected the whisper, and that player's Despair results stopped feeding the Monokuma (suspected then)",
+   "old_severity": "minor",
+   "old_state": "AUDIT-1.2.42.md section 4 ('do potwierdzenia') and live check 3 of section 7; task 13 (section 9), commit b888c066 of 13.09.2026, first tag v1.2.44",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "private-rolls.mjs:955-959: a roll the module threw is whispered to the GMs whatever whisper it arrived with; :961-969: any other roll's whisper stands only when a GM aimed it, and a player's is widened with the GMs. Since E28 a player's action roll is drawn and written by the primary GM (roll-draw.mjs), so the GM holds the message the Despair award reads (despair-award.mjs:23-33).",
+   "pinned_by": "R302 (tier 0: both roads of whisperRoll write the list, then the mode); tier 2's roll-privacy tests of E33 C11 (tests-tier2.mjs:24259-24420); no test found that starts from a player's self-whispered roll. Read on Foundry 14.370: ROLL-LC2",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the early return at private-rolls.mjs:912: with the world setting forcePrivateRolls off nothing is rewritten, so the fix stands on the setting's default (on, roll-dialog.mjs:912) or on the GM's draw.",
+   "note": "Not established: with forcePrivateRolls off and a roll the GM does not draw (a Daggerheart build the draw was not written for), a self whisper keeps its list - whether the Despair award then misses it needs a table reading with the setting off. AUDIT section 9 names 7e40243 for task 13; the change is b888c066."
+  },
+  {
+   "id": "ROLL-15",
+   "title": "Two menu rows were named unlike everything that describes them: Observe.general 'Glance for a bullet' and Analyze.askHint 'Fixate on a specific matter'",
+   "old_severity": "minor",
+   "old_state": "task 13 (AUDIT-1.2.42.md section 9), commit b888c066 of 13.09.2026, first tag v1.2.44",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "lang/en.json:3607 `\"general\": \"Sweep the room\"` and :1077 `\"askHint\": \"Ask for a hint\"`, the two wordings the old report proposed; lang/pl.json has 'Rozejrzyj się za czymkolwiek' and 'Poproś o wskazówkę'. `git log -S` of each old string in lang/en.json ends at b888c066.",
+   "pinned_by": "none found for the wording itself (the two files' parity is the suite's and the parity check's)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the texts beside them (Observe.generalHint, Analyze.askHintHint, the Analyze tile's hint at config.mjs:1598): each says what its label says.",
+   "note": ""
+  },
+  {
+   "id": "ROLL-16",
+   "title": "Dead code and stale prose: performGeneric, chooseTrait, two branches of buildGmBody, performGmAction's doc, the file header's list, two unread placeholder keys, 'costs 2 Sanity' comments, look.mjs's `void MODULE_ID`",
+   "old_severity": "nit",
+   "old_state": "section 6 lists the dead code; task 11 (hygiene, commit b3604be) and task 13 (commit b888c066), first tag v1.2.44",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "Gone: no module file declares performGeneric or chooseTrait and performAction's switch has no default (action-rolls.mjs:306-307; R1230); buildGmBody, performGmAction and askTraitAndRequest are in no file; DRPG.Action.placeholder holds analyze and directMurder alone (lang/en.json:1027-1030); observe.mjs:921 says a miss costs OBSERVE_FAIL_STRESS (1); look.mjs (60 lines) imports settings.mjs alone. Left: the facade's header still lists Listen among the actions that send a ruling card to the GM (action-rolls.mjs:7-11) though Listen's lines are built on the roller's browser and no GM rules (action-listen.mjs:204-258), and one '2 Sanity' still stands in a comment (bridge-asks.mjs:876; config.mjs:1239 says 1).",
+   "pinned_by": "R1230 (tier 0) for the dead action code; nothing found that reads the two comments",
+   "still_wrong": "A reader of action-rolls.mjs's header is told Listen ends on a GM's ruling card, and a reader of requestObserveResolve's comment that a missed Observe costs 2 Sanity; neither changes what the module does.",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "grep of each name in scripts/ outside the tests, and of '2 Sanity' in scripts/ (the other hits are item texts and their history).",
+   "note": "The same header says every action opens with a briefing; Move opens nothing since E100 (action-rolls.mjs:78-82)."
+  },
+  {
+   "id": "ROLL-17",
+   "title": "paintChatCard asked getComputedStyle per outcome card and read the theme setting per plain card on every render of the chat log",
+   "old_severity": "nit",
+   "old_state": "left open in AUDIT-1.2.42.md section 4; task 9 of section 5, commit 6e59551 of 12.09.2026 (section 9), first tag v1.2.44",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "private-rolls.mjs:382-410: `styleNow()` reads the three outcome colours and the theme once and serves them for a second (STYLE_MEMO_MS 1000); markOutcome and drawReplaced read `outcomeColour(token)` (:317, :374) and markFrame reads `styleNow().square` (:352). The file's one getComputedStyle (:398) and its one read of SETTINGS.theme (:402) are the memo's.",
+   "pinned_by": "none found (grep of styleNow and STYLE_MEMO_MS in the tier files and the scenarios)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "grep of getComputedStyle and SETTINGS.theme in private-rolls.mjs for a read outside the memo: none.",
+   "note": "A one-second memo, not the old report's 'once at ready and on the setting's change': a theme switch is followed on the next pass, at the cost of one read a second while cards render."
+  },
+  {
+   "id": "ROLL-LC1",
+   "title": "Live check 1 (ROLL-06): open a Search, switch the trait to Hand in the roll window, read the card header and the statistic chip; confirm which field of the returned config carries the trait used",
+   "old_severity": null,
+   "old_state": "AUDIT-1.2.42.md section 7 item 2; S7-2 in docs/dev/e58/TRIAGE-9.2.md:25; read on the owner's Foundry 14.370 on 16.11.2026 (docs/dev/e58/LOCAL-REPORT.md:428)",
+   "status": "obsolete",
+   "evidence_class": "F",
+   "evidence": "As worded it cannot be done: a Search's roll window holds its statistic locked (roll-dialog.mjs:618-628) and another statistic is proposed before the roll and ruled on a GM's card (action-search.mjs:707-714). Today's road was read on Foundry 14.370 (E58 S7-2): Hand proposed and approved, the window locked on Daggerheart's finesse, the result card naming Hand +1. The field is `config.roll.trait`, which Daggerheart's window writes (audit/harness/lib/dh-dice/applications/dialogs/d20RollDialog.mjs:232) and traitRolled reads (action-pipeline.mjs:330-338).",
+   "pinned_by": "tier 2 'Search rolls Eye and its window offers no choice' (tests-tier2.mjs:26086) and 'Search on Eye asks nobody and waits for nothing, on Head waits for the GM's answer and spends nothing before it (E68 C6)' (:39456)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for a window that still lets the roller change the statistic: only one with Resolve armed (roll-dialog.mjs:621-622).",
+   "note": "That reading found a defect of its own - the GM's chat log copy of a thread's ruling card drew buttons that did nothing - closed by commit 577ae715 of 16.11.2026 (in v1.2.118; gm-bridge.mjs:143-161) and carried as LIVE-F118-01 (AUDIT 9.2 item 660). The Resolve picker's label after a change in the window has no table reading."
+  },
+  {
+   "id": "ROLL-LC2",
+   "title": "Live check 2 (ROLL-14): as a player set the chat bar's roll mode to Self Roll, roll an action with a Despair result, and see whether the Monokuma's pool moved",
+   "old_severity": null,
+   "old_state": "AUDIT-1.2.42.md section 7 item 3; S7-3 in docs/dev/e58/TRIAGE-9.2.md:26; read on the owner's Foundry 14.370 on 16.11.2026 (docs/dev/e58/LOCAL-REPORT.md:429)",
+   "status": "fixed",
+   "evidence_class": "F",
+   "evidence": "Read on Foundry 14.370 (E58 S7-3): with v14's chat-bar mode (core.messageMode) set to 'self' on the player's page, the roll window took 'self' and locked it; a Search with Fear (Hope 5, Fear 8), drawn by the GM and whispered to the GM, moved the GM's Despair pool from {} to {GM: 1} and Daggerheart's Fear with it. The code that does it: the GM's draw, and private-rolls.mjs:955-969.",
+   "pinned_by": "R302 (tier 0: no module file reads core.rollMode or DICE_ROLL_MODES); no test found that starts from a self mode",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Checked what the reading covers: one roll with Fear (the report says three earlier rolls had none), on a roll the GM drew; it does not say whether forcePrivateRolls was on, which is its default.",
+   "note": "A roll the GM does not draw, with forcePrivateRolls off, was not read (ROLL-14's note)."
+  },
+  {
+   "id": "ROLL-LC3",
+   "title": "Live check 3 (ROLL-05): Palm somebody, finish the Shadow roll, close the Hand roll's window; confirm whether the action pip returns while the first roll's Hope stays",
+   "old_severity": null,
+   "old_state": "in findings-1.2.42/rolls.md only: not one of the 14 checks of AUDIT-1.2.42.md section 7, and no reading of it in docs/dev/e58/LOCAL-REPORT.md (grep of 'palm' and 'shadow')",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "The code answers it: after the Shadow roll has landed, a closed Hand window goes to spentAfterRoll, which warns DRPG.Action.spentAfterRoll and refunds nothing (palm.mjs:341-343; action-pipeline.mjs:980-990), so the pip does not return.",
+   "pinned_by": "none found (no test closes a second window)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for a later refund on that road: performPalm returns at palm.mjs:343; palmBack is reached only after both rolls, on the transfer gate's refusal or with no GM (palm.mjs:390-391).",
+   "note": "No table reading is recorded. What it would add is only that a closed Daggerheart window answers the roll as null, which every action's first window already relies on."
+  },
+  {
+   "id": "ROLL-LC4",
+   "title": "Live check 4: the window's close and throwDice both spend the armed Call; confirm the flag is not unset twice (an unset of an empty flag may log a v14 warning)",
+   "old_severity": null,
+   "old_state": "in findings-1.2.42/rolls.md only: not carried into AUDIT-1.2.42.md section 7",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "Calls are spent by name since E08+E28 C7: `spendCallsByNonce` writes only when the flag still holds an entry it names (call-effects.mjs:520-524), and that write is a trustedWrite of the list that remains or `forcedDeletion() ?? null`, never unsetFlag. The window's close spends the Calls it opened with (roll-dialog.mjs:63-83), throwDice's own spend then finds none (action-pipeline.mjs:290-291), and a roll the GM draws is spent by the GM alone (roll-dialog.mjs:79-80).",
+   "pinned_by": "not looked for by name",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read both spenders for a write made when nothing is armed: `if (spent.length)` stands before the only write; `consumeCall`, the function the check names, is in no file.",
+   "note": "On Foundry 14.370 a '-=' key deletes and writes a deprecation warning (LIVE-E30-01, docs/dev/e39/CALIBRATION.md); this road writes none."
+  },
+  {
+   "id": "ROLL-LC5",
+   "title": "Live check 5: Observe 'specific' with the GM refusing the picker - confirm the ruling card reaches the GM with the keyRemnantHere button and the action is charged exactly once",
+   "old_severity": null,
+   "old_state": "in findings-1.2.42/rolls.md only: not carried into AUDIT-1.2.42.md section 7; no reading found in docs/dev/e58/LOCAL-REPORT.md",
+   "status": "open",
+   "evidence_class": "S",
+   "evidence": "By the code: one payment before the dice (action-observe.mjs:127-129) and none in ruleObserve; a refused pick (`!target.ok`) posts the GMs' card with keyRemnantHere, reply and observeMiss (action-observe.mjs:141-144, :247-262); the card's copy in a GM's chat log is wired since 577ae715 (gm-bridge.mjs:143-161). No reading on a real Foundry is recorded for it.",
+   "pinned_by": "R6355 (tier 1); tier 2 'an Observe card's pick after its player stopped waiting or after another GM's or a Refuse is refused and told the GM' (tests-tier2.mjs:23803)",
+   "still_wrong": "Not read at a table: a GM refuses the Observe pick card, and the GMs should then hold the ruling card with a working 'Key Remnant here' button, the player one action lighter.",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for a second charge on the road: spendAction is called once in observeSpecific (:128) and ruleObserve only refunds (`abort`, :267) when its card was not posted.",
+   "note": "The same class of card was the one whose chat log copy did nothing on 14.370 until 577ae715, so this is worth one reading with LIVE-F118-01."
+  },
+  {
+   "id": "ROLL-LC6",
+   "title": "Live check 6: with two GMs, only the primary opens the Dynamic-difficulty and Observe pickers, and a non-primary GM who owns the character leaves no pending Observe on a client another GM then resolves",
+   "old_severity": null,
+   "old_state": "in findings-1.2.42/rolls.md only: not carried into AUDIT-1.2.42.md section 7; docs/dev/e58/LOCAL-REPORT.md:451 lists two GMs' data as not checkable there",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "First half answered by the code: neither ask opens a window on a GM by socket any more; both are cards any GM may press, and one press rules through the primary (action-dynamic.mjs:58-66; bridge-asks.mjs:830-838; bridge-table.mjs:668-682). A GM's own Observe runs both halves on its own client (`local`, bridge-asks.mjs:836, :882). Second half stands as a stated limit: the pending store is one GM's (gm-stores.mjs:696-698, `sync: false`; observe.mjs:78-86), so a player's declaration minted on one primary and resolved on another finds no row; both screens are told and nothing is refunded (observe.mjs:703-738).",
+   "pinned_by": "tier 2 at tests-tier2.mjs:23803 (another GM's press on an Observe card); scenario 62-investigation runs an Observe with a second GM connected (not run by this reader)",
+   "still_wrong": "Two GMs: the primary reloads or leaves between a player's Observe declaration and its roll; the new primary holds no pending row, the player and the GMs are told the result was lost, and the action stays spent.",
+   "severity_now": "minor",
+   "confidence": "read",
+   "refutation_tried": "Read observe.mjs's header for a sync of the store added since: it says none was made ('a change nobody has made yet'), and resolveObserve's comment says the missing refund is deliberate (no receipt on the GM's side, observe.mjs:720-723).",
+   "note": "A limit the code states and chose; the comment names no decision of the owner's by number. No two-GM table reading is recorded."
+  }
+ ],
+ "new_observations": [
+  {
+   "title": "A Search's Reroll is held to the roller's claim that a token was taken, not to the GMs' own mark of it",
+   "where": "scripts/reroll.mjs:1240-1245, :1337-1351; scripts/action-pipeline.mjs:532, :677-690; scripts/search-tokens.mjs:180-185",
+   "what": "The first throw's find stands only on a Search the primary marked `tokenSpentAt` (sheet-audit.mjs:2326). The replay asks `bookmark.claimed === false` alone, and `claimed` is a claim a second roll.bookmark for the same roll may rewrite inside a minute (guardRollAuthor, bridge-guards.mjs:1169-1185). A packet a player's console could send therefore turns a refused Search into a draw from the room's table for 3 Hope, no token spent. Read in the source; not driven.",
+   "severity": "minor",
+   "confidence": "read"
+  },
+  {
+   "title": "A declined Direct Murder gives back one action whatever paid for it",
+   "where": "scripts/messenger-app.mjs:1373-1381",
+   "what": "`ruleDeclineMurder` calls `refundAction(actor, 1)` with no receipt, and the GMs' card carries none; `spendAction` takes a banked Burst before an action (actions.mjs:178-187), so a declaration paid with a Burst comes back as an ordinary action. Every other refusal card names what paid (action-pipeline.mjs:1042-1058). Not established: whether the hour's reset after the Eclipse makes the difference moot.",
+   "severity": "nit",
+   "confidence": "suspected"
+  },
+  {
+   "title": "A comment in stealFromVault gives a reason that left with 1.2.112",
+   "where": "scripts/stash-reach.mjs:557-558",
+   "what": "'... or the Search card that follows says \"what comes out settles in a moment\" and nothing ever does (ROLL-10)': no Search reaches into a stash since 1.2.112 (action-search.mjs:55-61), so no Search card follows a reach. The whisper it explains is still right; its reason is not.",
+   "severity": "nit",
+   "confidence": "read"
+  },
+  {
+   "title": "The agent rules file still names NEEDS_OWN_BRIEFING as living in action-rolls.mjs",
+   "where": "rules/code.md in the agent folder, line 51 (the row for scripts/action-rolls.mjs); scripts/action-rolls.mjs:78-82",
+   "what": "The row says the facade keeps 'its dispatch (THROWS_NO_DICE, NEEDS_OWN_BRIEFING)'; action-rolls.mjs:82 says 'NEEDS_OWN_BRIEFING went with the window' and no module file declares it (grep). Already written down for the coordinator in docs/dev/e100/STATUS.md:95 and still open on this commit.",
+   "severity": "nit",
+   "confidence": "read"
+  },
+  {
+   "title": "AUDIT-1.2.42.md section 9 names the wrong commit for task 13",
+   "where": "audit/AUDIT-1.2.42.md:632",
+   "what": "The row '13 - rozliczenie' gives 7e40243. In this history 7e402433 is 'D8: the first text pass, and the decisions recorded' (language files, handbooks, config.mjs); the change the row describes - ROLL-10/14/15/16 and the rest - is b888c066 'Task 13: the findings that had no task, and the tally corrected' (`git log -S'(ROLL-14)' -- scripts/private-rolls.mjs`, `git show --stat` of both).",
+   "severity": "nit",
+   "confidence": "read"
+  }
+ ],
+ "not_established": [
+  "ROLL-02 and the first new observation: the console road (a second roll.bookmark with claimed true, then reroll.ask) was traced in the source and not driven. A harness probe from a player's page - shaped like 30-security's packets - that reads the sheet and the room's tokens before and after would settle it.",
+  "ROLL-06 / ROLL-LC1: what the card names when a roller with Resolve armed changes the statistic in the open select. The field is read from Daggerheart's window as the harness copies it (d20RollDialog.mjs:232); no test and no table reading changes the select and reads the label.",
+  "ROLL-14 / ROLL-LC2: with the world setting forcePrivateRolls off and a roll the GM does not draw, whether a self-whispered roll's Despair still reaches the Monokuma. Needs a table reading with the setting off on a Daggerheart build the draw does not cover, or with the draw's seam off.",
+  "ROLL-07: whether a murder.park whose answer is lost after the GM wrote the entry leaves a refunded player with a declaration that stands. A driven test that drops the answer after the run would settle it.",
+  "ROLL-13: whether a Direct Murder paid with a Burst and declined is worse off in practice (the hour's reset may clear both), and how a console could rewrite the `grant` of its own ruling card before a GM presses Refuse. Neither was traced to an effect.",
+  "ROLL-LC3, ROLL-LC5, ROLL-LC6: no reading on a real Foundry is recorded for any of the three (docs/dev/e58/LOCAL-REPORT.md was searched for each). LC3 and LC5 are answered by the code as read; LC6's second half is a limit the code states.",
+  "Coverage: the task was to settle the old findings by symbol, not to re-read the domain. forced-roll.mjs, critical.mjs, analyze.mjs, resources.mjs, resource-guard.mjs, patches.mjs and reroll-receipts.mjs were not opened, and roll-draw.mjs, roll-dialog.mjs and private-rolls.mjs only in the parts listed under 'read'.",
+  "No harness run and no check was made by this reader; every 'pinned_by' is a test found by name in the source, not a result of the base run."
+ ]
+}

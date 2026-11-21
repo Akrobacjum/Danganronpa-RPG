@@ -1,0 +1,147 @@
+{
+ "refuter": "verify-first-session/controls-05-murder-body-death",
+ "of": "first-session/controls-05-murder-body-death",
+ "checked": [
+  {
+   "ref": "controls-05-murder-body-death-1",
+   "claim": "After a trap's victim rolls and notices, the stage stays openingRoll, so the tracker still says it waits for the roll and still offers Ask for the opening roll again, which re-sends a roll already scored.",
+   "verdict": "stands",
+   "why": "resolveVictimOpening's success branch writes no state and returns after the GMs' whisper (murder-rules.mjs:868-890); only the failure branch writes stage incident (853-854). The tracker's line is chosen on now.stage === 'openingRoll' alone (murder-ui.mjs:462, 466-470) and the footer's reask on stage and selfInflicted alone (627-629); its reopen signature is stage|selfInflicted (584-586), which does not move. reaskOpening re-checks only stage === openingRoll (669-671) and rollOpening has no look at a scored opening (4426-4450); openingStillWanted asks only active, stage and the id (4564-4568), so a player's re-offer loop runs. The primary's draw refuses a player's second murderOpening roll of the same openedAt (roll-draw.mjs:1150-1155), and resolveOpening holds only the stage and the side (4730-4746), so a GM's own throw (drawRefusal is skipped for a GM sender, roll-draw.mjs:1306) is scored again. No field marks a noticed trap (grep of scripts for a noticed or scored opening finds none). The tests that drive a noticed trap (tests-grid.mjs:487) read the model, not the tracker. Not traced: the player's client's handling of each refused draw up to the third offer; the core claim does not rest on it.",
+   "evidence": "scripts/murder-rules.mjs:889-890 \"await whisperToGms({ tone: \\\"warning\\\", body: `<p>${game.i18n.localize(\\\"DRPG.Murder.victimNoticedNext\\\")}</p>` }); return { success: true, band };\"; scripts/murder-ui.mjs:627-628 \"...(state.stage === \\\"openingRoll\\\" && !state.selfInflicted ? [ { action: \\\"reask\\\", ... }\"; scripts/roll-draw.mjs:1306 \"const why = actor && !sender?.isGM ? await drawRefusal(actor, key, contextSent(packet.context)) : null;\"",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-05-murder-body-death-2",
+   "claim": "A self-inflicted incident's tracker draws no Ask for the opening roll again, though openingDeclined tells the GMs to press it.",
+   "verdict": "stands",
+   "why": "The reask entry is behind !state.selfInflicted (murder-ui.mjs:627). A self-inflicted incident opens on the killer side's roll through rollOpening (murder-rules.mjs:606, side 'killer' since indirect is refused with selfInflicted at 518) and throwOpeningRoll's no-roll end whispers DRPG.Murder.openingDeclined whenever openingStillWanted holds (4691-4702), with no selfInflicted exception. lang/en.json:2928 names the button. rollOpening and reaskOpening are reached from nothing else a GM can press (grep of scripts: openMurder 606 and murder-ui.mjs 671; api.mjs exposes openIncidentTracker and openMurderDialog, not rollOpening). The comment above the condition (murder-ui.mjs:614-616) gives a reason that belonged to Pass as the default button; the default is Close now (650). The commit cited (5c66ffab) could not be read: the checkout is shallow (git rev-parse --is-shallow-repository: true), so that part of the claim is unread, not refuted.",
+   "evidence": "scripts/murder-ui.mjs:627 \"...(state.stage === \\\"openingRoll\\\" && !state.selfInflicted ? [\"; lang/en.json:2928 \"\\\"openingDeclined\\\": \\\"{name} did not make the opening roll, and nobody can skip it. Press Ask for the opening roll again on the Incident tracker, or end the incident.\\\"\"",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-05-murder-body-death-3",
+   "claim": "With enforceAnonymity off nothing opens Take from the Body: its only opener is buildBodyLoot, reached only past the switch's return.",
+   "verdict": "stands",
+   "why": "onRenderSheet returns at !enforcing() (anonymity.mjs:127) before buildBodyLoot (144), the only caller of it; the button it draws (299-308) is the only caller of openBodyLoot (grep of scripts outside tests: anonymity.mjs only). requestBodyLoot is called only from anonymity.mjs (510, 520, 553); the GM's lootBody is reached only through the bridge row and requestBodyLoot's local road (bridge-runs-records.mjs:474, bridge-asks.mjs:212). The switch is a GM-visible world setting (settings.mjs:1540-1546, default true; settings-window.mjs:91 lists it), and its hint (lang/en.json:288) speaks only of what another sheet shows. No body-tile, HUD or cleanup road offers a Take (grep of drpg-loot and DRPG.Loot. outside anonymity.mjs finds only a quoted item line in cleanup.mjs:3000). Minor fits: the default is on.",
+   "evidence": "scripts/anonymity.mjs:127 \"if (!enforcing()) return;\"; scripts/anonymity.mjs:144 \"buildBodyLoot(root, actor)?.catch?.(err => error(\\\"Could not read whether the body's Take is open\\\", err));\"; scripts/anonymity.mjs:307 \"openBodyLoot(actor).catch(err => error(\\\"Could not open Take from the Body\\\", err));\"",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-05-murder-body-death-4",
+   "claim": "The re-ask's toast says the roll was offered again before rollOpening has done anything, and when it sends nothing.",
+   "verdict": "stands",
+   "why": "reaskOpening starts rollOpening unawaited and toasts openingReaskSent in the same step (murder-ui.mjs:671-673). rollOpening returns null with nothing sent when openingTraitFor answers null: the GM's pick window already open (murder-rules.mjs:4486) or closed (4495), and throws on this GM's browser when the owner is away (4449). The same claim stood under the other reader (verify-controls-13-case-death-chapter.json, controls-13-case-death-chapter-7).",
+   "evidence": "scripts/murder-ui.mjs:671-673 \"rollOpening(current.indirect ? \\\"victim\\\" : \\\"killer\\\", current) .catch(...); ui.notifications.info(game.i18n.localize(\\\"DRPG.Murder.openingReaskSent\\\"));\"; scripts/murder-rules.mjs:4486 \"if (openingPickOpen) return null;\"",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "controls-05-murder-body-death-5",
+   "claim": "A second room's discovery written while the first prompt is open is in no loop and is never prompted until a reload or a GM leaving.",
+   "verdict": "stands",
+   "why": "maybeBodyFound writes the row and calls askPendingBodies unawaited (body.mjs:852-855). askPendingBodies returns the running promise while one is open (908-912). promptPendingBodies reads its rows once (917) and loops over that array (922); nothing reads the store again when the loop ends. A later walk into the second room returns at the standing row (849-851). Every other caller is the stores' hydration and a GM's disconnect (956-962); pendingBodyStore has no change hook that asks (gm-stores.mjs:1037-1040; grep of askPendingBodies in scripts: body.mjs only). The GM panel's Next line still names a waiting room (gm-panel.mjs:947), so the GM is not left with nothing, which keeps this at minor.",
+   "evidence": "scripts/body.mjs:908 \"askingPending ??= promptPendingBodies().catch(err => {\"; scripts/body.mjs:917 \"const rows = pendingBodyDiscoveries({ held: flagsHeldNow });\"; scripts/body.mjs:849-851 \"if (standing && bodies.has(standing.victimId) && ... ) return null;\"",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-05-murder-body-death-6",
+   "claim": "After the incident's Body found is drawn on any GM, and on a GM who is not the primary its press is refused with bodyPrimaryOnly.",
+   "verdict": "stands",
+   "why": "endMurder asks isGM alone (murder-rules.mjs:3406) and the checklist follows on the closing browser (3664-3670); the footer's primary is the body action with no primary-GM look (3797-3799), and the press calls openBodyDiscoveryDialog (3828-3831), which refuses on another GM through discoveryHere (body.mjs:176-181, 1107). The refusal names who can, so nit fits.",
+   "evidence": "scripts/murder-rules.mjs:3830 \"return openBodyDiscoveryDialog();\"; scripts/body.mjs:177-180 \"if (isPrimaryGm()) return true; ... ui.notifications.warn(game.i18n.format(\\\"DRPG.Chapter.bodyPrimaryOnly\\\", { name })); return false;\"",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "controls-05-murder-body-death-7",
+   "claim": "Silence now on the tracker is read once at open; the footer follows neither the victim's death under an unchanged stage nor its publication or silencing.",
+   "verdict": "stands",
+   "why": "silence is computed once before the window (murder-ui.mjs:703) and passed to the footer (748). keepLive rebuilds only the region .drpg-incident-live (751-759); after reopens only when stage|selfInflicted changes (584-586, 762-763). The watch is actors, tokens, the murderState setting and drpgCastChanged (759); an updateActor redraws the region, not the footer. The only other closers or openers of the tracker are closeOpen at the incident's close (murder-rules.mjs:3637), the GM panel's tile and murder-ui.mjs:59 (grep of openIncidentTracker and drpg-window-incident). silenceDeadNow answers false for an already silenced or known death (incident-store.mjs:982), and the tracker's handler reopens after it (murder-ui.mjs:783-786). Nit kept: the Students window offers the same move live, and the tracker's body has no field, so D-A1's focus rule does not apply to it.",
+   "evidence": "scripts/murder-ui.mjs:703 \"const silence = Boolean(victim) && isDeadForGm(victim) && !isDeceased(victim) && !isDeadSilenced(victim);\"; scripts/murder-ui.mjs:762-763 \"const now = signature(); if (now === openedWith) return;\"",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "controls-05-murder-body-death-8",
+   "claim": "The tracker's self-reopen at a stage change settles openMurderDialog's await, so the GM panel reopens beside the new tracker.",
+   "verdict": "stands",
+   "why": "The Murder tile's run is openMurderDialog (gm-panel.mjs:256), which awaits openIncidentTracker and returns true (murder-ui.mjs:348-349), or at line 59 returns the tracker for a running incident. The first tracker's drpgWindow resolves when after() closes it (769), openIncidentTracker falls through to return null (802), and the reopen is chained on dialog.close() in a then() nobody awaits (769-770). The panel reopens on any answer but RAISED (gm-panel.mjs:615-618).",
+   "evidence": "scripts/murder-ui.mjs:769-770 \"dialog.close() .then(() => (again ? openIncidentTracker() : null))\"; scripts/gm-panel.mjs:617 \"openGmPanel().catch(err =>\"",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "controls-05-murder-body-death-9",
+   "claim": "End the murder's question says only that tracking stops, while for a self-inflicted death at Stage 6 the yes records the death.",
+   "verdict": "stands",
+   "why": "The question's body is DRPG.Murder.endConfirm for every incident (murder-ui.mjs:791-799; lang/en.json:2827); closeIncident kills the student when selfInflicted and stage resolution (murder-rules.mjs:3473-3477). The GM was told at Stage 6 (resolutionNoteSelf, lang/en.json:2794), so nit fits.",
+   "evidence": "scripts/murder-rules.mjs:3473-3477 \"if (state?.selfInflicted && state.stage === \\\"resolution\\\") { ... if (actor && !isDeadForGm(actor)) await killCharacter(actor);\"; lang/en.json:2827 \"Stop tracking this murder? Lost Health and Sanity, items, and Remnants stay as they are.\"",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "controls-05-murder-body-death-10",
+   "claim": "The Direct Murder confirmation in an Eclipse draws the briefing's Details toggle, which nothing wires in a drpgConfirm window.",
+   "verdict": "stands",
+   "why": "briefingBlock ends in detailsHtml (action-briefing.mjs:100; action-menus.mjs:349-355). The only listener is wireDetails (action-menus.mjs:371-374), called only from actionWindow's render (309). performDirectMurder opens drpgConfirm with no render (action-murder.mjs:323-331), and drpgConfirm passes straight to drpgWindow with no details wiring (ui-kit.mjs:1530-1543; grep of ui-kit.mjs for aria-expanded or details: none). The document-level click listeners (explain.mjs:485, sfx.mjs:357) do not toggle it. The box is hidden by CSS while aria-expanded is false (danganronpa.css:17865). One refinement: the box opens drawn when this browser last left Details open (detailsOpen, action-menus.mjs:344-351), so in that case it reads but cannot be shut; the press does nothing either way.",
+   "evidence": "scripts/action-menus.mjs:309 \"render: (event, dialog) => { wireDetails(dialog); return render?.(event, dialog); },\"; scripts/action-murder.mjs:323 \"const confirmed = await drpgConfirm({\"; styles/danganronpa.css:17865 \".drpg-action-details-toggle[aria-expanded=\\\"false\\\"] + .drpg-action-details-box { visibility: hidden; }\"",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "The incident tracker / Ask for the opening roll again",
+   "claim": "Control verdict mislabeled: offered after a noticed trap, missing for a self-inflicted death, its toast early.",
+   "verdict": "stands",
+   "why": "Rests on findings 1, 2 and 4, each confirmed above.",
+   "evidence": "scripts/murder-ui.mjs:627-629; scripts/murder-ui.mjs:671-673",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "The incident tracker / Silence now",
+   "claim": "Control verdict stale-state: the footer button is decided at open.",
+   "verdict": "stands",
+   "why": "Rests on finding 7, confirmed above.",
+   "evidence": "scripts/murder-ui.mjs:703, 748, 762-763",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "The question 'End the murder' asked from the tracker / End the murder",
+   "claim": "Control verdict mislabeled: the yes may record a death the question does not name.",
+   "verdict": "stands",
+   "why": "Rests on finding 9, confirmed above.",
+   "evidence": "scripts/murder-ui.mjs:798; scripts/murder-rules.mjs:3473-3477",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "The checklist after an incident that left a body / Body found",
+   "claim": "Control verdict wrong-audience on a GM who is not the primary.",
+   "verdict": "stands",
+   "why": "Rests on finding 6, confirmed above.",
+   "evidence": "scripts/murder-rules.mjs:3799, 3828-3831; scripts/body.mjs:176-181",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "The Direct Murder declaration in an Eclipse / Details",
+   "claim": "Control verdict dead.",
+   "verdict": "stands",
+   "why": "Rests on finding 10, confirmed above.",
+   "evidence": "scripts/action-menus.mjs:309, 371-374; scripts/action-murder.mjs:323-331",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "A dead student's sheet as another player reads it / Take from the Body",
+   "claim": "Control verdict dead: with the switch off nothing opens the window.",
+   "verdict": "weakened",
+   "why": "The finding (3) stands, but the verdict is on the wrong thing: where the button is drawn, its press opens the window (anonymity.mjs:303-308), which the reader's own detail says. With the switch off the control is not drawn at all; what is missing is a road to the window, not a button that does nothing. The defect is finding 3's; the control's own verdict should read ok with the gap filed against the surface.",
+   "evidence": "scripts/anonymity.mjs:303-308 \"open.addEventListener(\\\"click\\\", event => { ... openBodyLoot(actor).catch(...); });\"; scripts/anonymity.mjs:127 \"if (!enforcing()) return;\"",
+   "severity_after": "minor"
+  }
+ ],
+ "counts": {
+  "checked": 16,
+  "stands": 15,
+  "weakened": 1,
+  "refuted": 0
+ },
+ "not_established": [
+  "The reader's file has refresh: null on all 24 surfaces; the brief's refresh block (reads, listens, verdict, gaps, focus_rule) was not written (first-session/README.md says the live-refresh pass was not started). This refuter checked the stale-state claims made (findings 7, 8) and read that the tracker's live region has no input, select or textarea (murder-ui.mjs 380-580), so D-A1's focus rule does not reach it; the other 23 surfaces' refresh was not read here.",
+  "Finding 1's leg on the player's own client: how a refused draw (roll-draw.mjs:1306-1307) comes back to rollTrait, and whether each of the three re-offers is a window the player sees, was not traced. New live check: open a trap, let the victim's player roll 20 or more, press Ask for the opening roll again, and count the roll windows and the GMs' whispers.",
+  "Finding 2's commit 5c66ffab could not be read: the checkout is shallow (1824 commits), so its note was not compared.",
+  "Finding 7's ordinary road (the stage written before the death at a Finishing Blow, the reopen racing the death's row) needs a real server, as the reader says: after a Finishing Blow, read the tracker's footer for Silence now.",
+  "base-run.json was not read for any test named here; no result of a test or scenario is claimed."
+ ]
+}

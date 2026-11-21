@@ -1,0 +1,1985 @@
+{
+ "reader": "domain-text-b-lang",
+ "checkout": "claude/audit-119 at 442acf67 (scripts/, lang/, docs/ as on b5a29e73, 1.2.118)",
+ "source": "Job 1: audit/AUDIT-1.2.42.md section 3 (lines 271-347), tables 3.1 (18 rows), 3.2 (14 rows), 3.3 (9 rows), 3.4 (6 rows). Job 2: tables 3.1 and 3.4 redone on today's lang/en.json, lang/pl.json and the scripts that send their keys.",
+ "read": [
+  {
+   "file": "audit/findings-1.2.118/BRIEF.md",
+   "lines": 118,
+   "how": "in full"
+  },
+  {
+   "file": "audit/AUDIT-1.2.42.md",
+   "lines": 1666,
+   "how": "16-127 (section 11) and 271-347 (section 3)"
+  },
+  {
+   "file": "audit/findings-1.2.118/old-1.2.42-text.json",
+   "how": "shape and all 24 items' status; TEXT-01..09, 11, 14, LC3-LC5 evidence"
+  },
+  {
+   "file": "audit/findings-1.2.118/domain-case-b-traces.json",
+   "how": "shape and finding 1"
+  },
+  {
+   "file": "audit/findings-1.2.118/old-1.2.42-despair.json, old-1.2.42-comms.json, old-1.2.42-rolls.json",
+   "how": "DESP-03, DESP-15, COMM-06 by script"
+  },
+  {
+   "file": "docs/text-style.md",
+   "lines": 940,
+   "how": "1-200 (sections 1-3), 430-520 (M1-M10, P1-P3)"
+  },
+  {
+   "file": "docs/glossary.json",
+   "lines": 1782,
+   "how": "every entry's id, en and forbidden en variants (147 entries) by script"
+  },
+  {
+   "file": "docs/text-budgets.json",
+   "how": "surfaces, rules and the allow rows by script"
+  },
+  {
+   "file": "docs/dev/e71/NEEDSCODE.md",
+   "lines": 303,
+   "how": "1-37 (questions) and the DEF/OPEN rows by grep; rows 31 and 51 re-read on today's code (both fixed)"
+  },
+  {
+   "file": "lang/en.json",
+   "lines": 7534,
+   "how": "flattened by script (6369 strings); every value scanned for typed digits, number words, 'press', the terms of 3.2 and the sensitive nouns of 3.4; 196 sampled rows read (below)"
+  },
+  {
+   "file": "lang/pl.json",
+   "lines": 9375,
+   "how": "flattened (7456 strings); every EN/PL pair compared for typed digits and placeholder names by script (6369 pairs: 7 digit differences, 2 placeholder differences, all read)"
+  },
+  {
+   "file": "tools/text-audience.mjs",
+   "lines": 385,
+   "how": "in full; its buildAudienceMap run from a scratch script into /tmp (1129 sends, 1664 keys with a reader)"
+  },
+  {
+   "file": "scripts/config.mjs",
+   "lines": 5646,
+   "how": "English prose scanned by node import; 300-340, 533-545, 1147-1152, 1360-1410, 1655-1670, 2005-2030, 2186-2215, 2533-2545, 2620-2700, 2723-2727, 2866-2890, 3005-3020, 3430-3640, 3765-3850, 4105-4185, 4380-4395, 5320-5330, 5490-5500, 5191-5195"
+  },
+  {
+   "file": "scripts/death.mjs",
+   "how": "160-300"
+  },
+  {
+   "file": "scripts/call-world.mjs",
+   "how": "370-520"
+  },
+  {
+   "file": "scripts/overflow.mjs",
+   "how": "40-60, 500-555, 855-1000, 1100-1185"
+  },
+  {
+   "file": "scripts/monocub.mjs",
+   "how": "1225-1245, 1405-1420, 1505-1520, 1785-1880, 1890-1905"
+  },
+  {
+   "file": "scripts/tail-gm.mjs",
+   "how": "1-140"
+  },
+  {
+   "file": "scripts/watch-gm.mjs",
+   "how": "55-150"
+  },
+  {
+   "file": "scripts/secret.mjs",
+   "how": "320-380, 440-520"
+  },
+  {
+   "file": "scripts/mask-gm.mjs",
+   "how": "1-60, 110-175"
+  },
+  {
+   "file": "scripts/action-murder.mjs",
+   "how": "95-135, 195-215, 300-335"
+  },
+  {
+   "file": "scripts/chapter.mjs",
+   "how": "355-470"
+  },
+  {
+   "file": "scripts/clock.mjs",
+   "how": "290-310, 499-512"
+  },
+  {
+   "file": "scripts/actions.mjs",
+   "how": "410-480"
+  },
+  {
+   "file": "scripts/verdict.mjs",
+   "how": "985-1012"
+  },
+  {
+   "file": "scripts/utils.mjs",
+   "how": "440-446, 740-830"
+  },
+  {
+   "file": "other scripts",
+   "how": "single lines and short ranges by grep, each cited where used: allowed-now.mjs 1-125, action-briefing.mjs 285-300, investigation.mjs 915-948, key-remnants.mjs 750-762, 1175-1182, hud.mjs 1190-1200, 1305-1320, eclipse.mjs 295-370, explain.mjs 100-130, 300-306, cleanup.mjs 2805-2830, 2860-2870, murder-rules.mjs 3355-3400, inventory.mjs 410-416, 705-715, level-up.mjs 700-722, reroll.mjs 1030-1050, handover.mjs 270-285, trial.mjs 395-410, sheet-actions.mjs 700-730, settings.mjs 1545-1560, 1878-1900, 3795-3815, 4425-4475, day-summary.mjs 185-215, sfx-play.mjs 130-162, stash-reach.mjs by grep, passages-gm.mjs 445-455, pre-session-note.mjs 50-70"
+  },
+  {
+   "file": "docs/handbooks/gm-handbook.en.md",
+   "how": "lines 315, 500-507, 583, 1262-1264, 1807 by grep"
+  },
+  {
+   "file": "docs/design/typography.md",
+   "how": "15-30"
+  }
+ ],
+ "count_expected": 47,
+ "count_note": "Section 3 of the 1.2.42 report holds four tables: 3.1 with 18 rows, 3.2 with 14, 3.3 with 9 (its button row names seven keys and its last row two), 3.4 with 6 - 47 rows, each one item here (3.1-01..3.4-06). Six rows of 3.1 and two of 3.4 are the same subjects as old-1.2.42-text TEXT-01..09 and old DESP-03 / COMM-06; they are re-read here on today's lines, not re-traced from scratch where those files traced them, and say so. 3.2 and 3.3 are settled as rows only; their redo is domain-text-c-terms'.",
+ "items": [
+  {
+   "id": "3.1-01",
+   "title": "DRPG.Tamper.frameHint said 'Needs 18 or more' while the frame-up was scored against 15",
+   "old_severity": "major (TEXT-01)",
+   "old_state": "AUDIT-1.2.42.md 3.1: fixed ({n} from config)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "lang/en.json:5550 'Plant a false Remnant pointing at another student with {n}+; ...'; its one caller scripts/action-tamper.mjs:78 fills n from CLEANUP.actions.misleadingTrail.threshold. The same row as old-1.2.42-text TEXT-01, re-read here.",
+   "pinned_by": "R84 (tests-tier0.mjs, per old-1.2.42-text TEXT-01); not run by this reader",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Grepped scripts/ for other readers of the key: action-tamper.mjs:78 alone.",
+   "note": ""
+  },
+  {
+   "id": "3.1-02",
+   "title": "DRPG.Calls.newRuleNote said 'Twelve Despair' while the New Rule costs 9",
+   "old_severity": "major (TEXT-02)",
+   "old_state": "AUDIT-1.2.42.md 3.1: fixed ({cost})",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "lang/en.json:4192 '{cost} Despair buys a permanent change to the game. Make it count.'; scripts/call-pickers.mjs:310 passes cost: DESPAIR_CALLS.newRule.cost.",
+   "pinned_by": "none found that holds the number to the Call's cost (as TEXT-02)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "One caller (call-pickers.mjs:310) by grep.",
+   "note": ""
+  },
+  {
+   "id": "3.1-03",
+   "title": "DRPG.Explain.phase.eclipse said everyone 'moves once, anywhere'",
+   "old_severity": "major (TEXT-04)",
+   "old_state": "AUDIT-1.2.42.md 3.1: fixed",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "lang/en.json:6497 '... Everyone places their token, {reach} or anywhere at night ...'; scripts/explain.mjs:126 fills {reach} from DRPG.Explain.phase.eclipseReach with the crossings (overflowCrossings(ECLIPSE_MOVES)), config.mjs:590 ECLIPSE_FREE_PLACEMENT ['night']. The same sentence says Calls wait for the lights, which allowed-now.mjs:92-96 shuts in an Eclipse.",
+   "pinned_by": "R1160 (per TEXT-04); not run",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read allowed-now.mjs 50-112: Move alone passes an Eclipse, Hope and Despair Calls are shut there.",
+   "note": ""
+  },
+  {
+   "id": "3.1-04",
+   "title": "DRPG.Investigation.createNote said 'Apply ... at the centre of the region'",
+   "old_severity": "minor (TEXT-05)",
+   "old_state": "AUDIT-1.2.42.md 3.1: fixed",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "lang/en.json:3076 'Place puts a row's Key Remnant on the map at once, in the room you pick: ... somewhere inside the room ...'; drawn at scripts/investigation.mjs:939; the placing road takes a random point (key-remnants.mjs, per TEXT-05).",
+   "pinned_by": "none found for the sentence (as TEXT-05)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "One reader (investigation.mjs:939).",
+   "note": ""
+  },
+  {
+   "id": "3.1-05",
+   "title": "SFX_EVENTS.cleanupFailed.hint said a failure 'adds an Obvious trace'",
+   "old_severity": "minor (TEXT-06)",
+   "old_state": "AUDIT-1.2.42.md 3.1: fixed",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/config.mjs:5324-5328 'A Tamper, Erase a Trace, Reshape a Trace, Misleading Trail or Move the Body roll misses. Heard by the player who rolled it.' - it no longer states what a miss leaves.",
+   "pinned_by": "none for the words (as TEXT-06)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the row whole.",
+   "note": ""
+  },
+  {
+   "id": "3.1-06",
+   "title": "DRPG.Murder.killerChooses offered three options where the dialog has two",
+   "old_severity": "minor (TEXT-07)",
+   "old_state": "AUDIT-1.2.42.md 3.1: fixed",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "lang/en.json:2867 'Critical - the killer chooses where both points come off: Health or Sanity.'; drawn at scripts/murder-rules.mjs:2552.",
+   "pinned_by": "none found (as TEXT-07)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "One reader by grep.",
+   "note": ""
+  },
+  {
+   "id": "3.1-07",
+   "title": "DRPG.Vote.tied and DRPG.Vote.tiedVerdictNote contradicted each other",
+   "old_severity": "minor (TEXT-08)",
+   "old_state": "AUDIT-1.2.42.md 3.1: fixed ('unless the table settles it' in both)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "lang/en.json:2444 'A tie. Unless the table settles it, that counts as a wrong vote.' (scripts/vote.mjs:1086, public card); lang/en.json:2499 '... Unless the table settled it some other way, this counts as getting it wrong.' (scripts/verdict.mjs:208, the GM's window); DRPG.Vote.noMajority carries the same clause.",
+   "pinned_by": "none found",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Both readers by grep; Polish of both reads the same clause.",
+   "note": ""
+  },
+  {
+   "id": "3.1-08",
+   "title": "DRPG.Chapter.endNote said 'Nothing else here deletes anything' under three deleting checkboxes",
+   "old_severity": "minor",
+   "old_state": "AUDIT-1.2.42.md 3.1: fixed",
+   "status": "obsolete",
+   "evidence_class": "S",
+   "evidence": "No key DRPG.Chapter.endNote in lang/en.json or lang/pl.json today (script over the flattened files), and no Chapter.* text with 'Nothing else' or 'delete'. The End of chapter form (scripts/chapter.mjs:360-376) ends in endIntro, the evidence and clock columns, and the backup line; the counts of what each clean-up would take are worked out before the window (chapter.mjs:436-462).",
+   "pinned_by": "none needed: the key is gone",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Searched every DRPG.Chapter.* value for 'delet', 'remov' and 'nothing else': none.",
+   "note": ""
+  },
+  {
+   "id": "3.1-09",
+   "title": "Hud.bodyFoundTooltip, Panel.nextBodyFound, Chapter.bodyNote said moving the time of day on closes the body found",
+   "old_severity": "minor",
+   "old_state": "AUDIT-1.2.42.md 3.1: fixed",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "DRPG.Hud.bodyFoundTooltip is gone; lang/en.json:5161 Panel.nextBodyFound 'A body has been found. Start the Investigation when the room is ready.' (gm-panel.mjs:909); lang/en.json:2687 Chapter.bodyNote '... The phase stays as it is until you start the Investigation.' (body.mjs:1178). The code: scripts/clock.mjs:295-308 clears the discovery only on a phase change ('A time-of-day change deliberately does NOT').",
+   "pinned_by": "not found by name; not run",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Grepped en.json for 'body' beside 'time of day': no sentence says the hour ends a discovery.",
+   "note": ""
+  },
+  {
+   "id": "3.1-10",
+   "title": "Cleanup.gmAttemptsLeft said 'closing destroys the tools'",
+   "old_severity": "minor",
+   "old_state": "AUDIT-1.2.42.md 3.1: fixed (13.09)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "lang/en.json Cleanup.gmAttemptsLeft.one/.other '... Ending it breaks the Murder Weapon the killer used, which stays in the inventory as Broken; the Cleaning Tool they used breaks when the body is found.' (murder-ui.mjs:872). Code: cleanup.mjs:2810-2826 endResolution breaks CLEANUP.destroysTools at the incident's end; destroyCleaningTools (cleanup.mjs:2862) is called at the discovery (body.mjs:304-306).",
+   "pinned_by": "not found by name; not run",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "The Polish (pl.json) adds 'when Sanity runs out, Stage 6 goes on but further attempts are refused' and says Cleaning Tools in the plural; neither contradicts the code read.",
+   "note": ""
+  },
+  {
+   "id": "3.1-11",
+   "title": "Investigation.unfoundKeys, plannerIntro, whichSlot, noSlot had 'four', 'five' typed",
+   "old_severity": "minor",
+   "old_state": "AUDIT-1.2.42.md 3.1: fixed ({bar}/{n}, 13.09)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "key-remnants.mjs:756-759 unfoundKeys gets bar: fee.bar; investigation.mjs:920-923 plannerIntro gets n: KEY_REMNANTS.prepared (config.mjs:1360, 5) and the suspect range; key-remnants.mjs:1181 noSlot gets n: KEY_REMNANTS.prepared; whichSlot ('Which planned clue is this?') holds no number.",
+   "pinned_by": "not found by name; not run",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "All four keys printed today; no digit or number word for the bar or the plan's size.",
+   "note": ""
+  },
+  {
+   "id": "3.1-12",
+   "title": "Hud.startEclipseNamed and Eclipse.noMovesLeft said '(2 crossings)' and 'Both'",
+   "old_severity": "minor",
+   "old_state": "AUDIT-1.2.42.md 3.1: fixed ({n} from overflowCrossings)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "hud.mjs:1310-1316 plural('DRPG.Hud.startEclipseNamed', { n: overflowCrossings(ECLIPSE_MOVES) ?? ECLIPSE_MOVES }); lang/en.json:4374 Eclipse.noMovesLeft 'Your Eclipse crossings are used up, so your token stays where it was.' - no count (read at eclipse.mjs:1106, movement.mjs:1202, 1792).",
+   "pinned_by": "not found by name; not run",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the three readers of noMovesLeft.",
+   "note": ""
+  },
+  {
+   "id": "3.1-13",
+   "title": "Overflow.explainBody said 'holds twelve', 'eight in the hat'",
+   "old_severity": "minor",
+   "old_state": "AUDIT-1.2.42.md 3.1: fixed ({max}, {effects})",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "lang/en.json:4350 'Despair past a full pool of {max} goes into the shared Overflow. At its threshold it spends that many points, keeps the rest, and draws one effect from the GM's hat. ... a Class Trial verdict empties it.' explain.mjs:305 passes max: STARTING.despairMax (config.mjs:310, 12); the count of effects is no longer said. verdict.mjs:986 calls resetOverflow().",
+   "pinned_by": "not found by name; not run",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Checked that the verdict empties it (verdict.mjs:986) and that {effects} is gone from both files.",
+   "note": ""
+  },
+  {
+   "id": "3.1-14",
+   "title": "Action.murderConfirm said 'opens a direct murder' while an Eclipse only parks it",
+   "old_severity": "minor",
+   "old_state": "AUDIT-1.2.42.md 3.1: fixed (murderConfirmEclipse)",
+   "status": "obsolete",
+   "evidence_class": "S",
+   "evidence": "The key is deleted: scripts/action-murder.mjs:318-320 'performAction refuses a Direct Murder outside one ... so the other key, DRPG.Action.murderConfirm, was never shown and is deleted' (E41 C1a). What stands: action-murder.mjs:322-330 draws DRPG.Action.murderSpendsAnyway and DRPG.Action.murderConfirmEclipse (lang/en.json:923, 'It goes to the GMs at once: a GM allows it on a statistic or refuses it ...').",
+   "pinned_by": "not found by name; not run",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "No key Action.murderConfirm in either file.",
+   "note": ""
+  },
+  {
+   "id": "3.1-15",
+   "title": "Settings.uiScale.hint and typography.md said the 11px floor is never scaled",
+   "old_severity": "minor",
+   "old_state": "AUDIT-1.2.42.md 3.1: fixed (task 13)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "lang/en.json:418 uiScale.hint 'Sets the size of the module's windows and text, and with them Foundry's windows and the sheet, from 25% to 140%. The map keeps its size.' - settings.mjs:1888 range from UI_SCALE (settings.mjs:4431 min 0.25, max 1.4). docs/design/typography.md:19-24: the floor is 21px scaled by the slider (styles/stained-glass.css:104 calc(21px * var(--drpg-sg-scale, 1))).",
+   "pinned_by": "not found by name; not run",
+   "still_wrong": "The 25% and 140% are typed digits equal to UI_SCALE today (the Q-NC-1 family, by_decision).",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "typography.md:22 still says '80% does not take a label under the floor' while the slider now reaches 25%: the floor scales with the slider, so the sentence is true but speaks of an old bottom; not a finding.",
+   "note": ""
+  },
+  {
+   "id": "3.1-16",
+   "title": "Vault.rifleNote said 'they will notice it is gone'",
+   "old_severity": "minor",
+   "old_state": "AUDIT-1.2.42.md 3.1: fixed (task 5)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "lang/en.json:3222 'It costs no action and no roll. A hidden stash you have not found has to be found first, with Analyze's Find Stash.' (stash-reach.mjs:330). The owner's whisper is stash-reach.mjs:606-641 DRPG.Vault.noticed, which names nobody.",
+   "pinned_by": "not found by name; not run",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the reader and the owner's notice road.",
+   "note": ""
+  },
+  {
+   "id": "3.1-17",
+   "title": "Calls.grants.critical said 'an automatic critical'",
+   "old_severity": "minor",
+   "old_state": "AUDIT-1.2.42.md 3.1: fixed (task 6)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "lang/en.json:4162 'a Loaded Die (a die set to 12)', the same in grantsGen/grantsNom (4170 and on); config.mjs:2533-2541 'NOT A CRITICAL, A LOADED DIE'.",
+   "pinned_by": "not found by name; not run",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "The Call's effect sentence (config.mjs:2539-2541) says a critical needs the other die to come up 12 too.",
+   "note": ""
+  },
+  {
+   "id": "3.1-18",
+   "title": "Overflow.what.rot said 'ruining whatever was on its last point'",
+   "old_severity": "minor",
+   "old_state": "AUDIT-1.2.42.md 3.1: fixed (task 6)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "lang/en.json:4339 '... each item loses up to {n} durability but never its last point, so nothing breaks.'; overflow.mjs:899-930 rotEverything skips an item with durabilityLeft <= 1.",
+   "pinned_by": "tier 2 at tests-tier2.mjs:43928 drives the Rot (E29 fix r2-H19); not run",
+   "still_wrong": "The sentence's 'Everything the living carry' is narrower than the code, which also wears stashed items: finding domain-text-b-lang-3.",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read rotEverything whole.",
+   "note": ""
+  },
+  {
+   "id": "3.2-01",
+   "title": "Remnant / trace / clue (56 / 78 / 7 keys)",
+   "old_severity": "text",
+   "old_state": "AUDIT-1.2.42.md 3.2 proposal: 'trace' for the player, 'Remnant' for the rule, 'clue' only in the Key Remnant planner",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "Counted on today's lang/en.json values (6369 strings; a script, word-bounded): 'Remnant' 313 keys, 'trace' 12, 'clue' 10. The 12 'trace' are the action names Erase a Trace / Reshape a Trace / Follow My Traces / Hide the Traces (glossary entries erase-a-trace, reshape-a-trace, follow-my-traces, hide-the-traces), a placeholder {traces}/{trace}, and one ordinary 'no trace of who changed them' (DiceLook.settingBackUnheard). The 10 'clue' are all the Key Remnant planner's (Investigation.*, Tips.Case.*). docs/glossary.json entry 'remnant' (E71) forbids 'trace(s)' outside those names.",
+   "pinned_by": "the text lint's glossary check (scripts/tests-text.mjs, node tools/check.mjs text); not run",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "The unification went the other way from the proposal: Remnant everywhere for the player too, by the glossary (E71).",
+   "note": "Recount by domain-text-c-terms; this row only settles the old proposal."
+  },
+  {
+   "id": "3.2-02",
+   "title": "stash / hiding place / drawer / Vault",
+   "old_severity": "text",
+   "old_state": "AUDIT-1.2.42.md 3.2 proposal: 'stash'",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "'stash' 66 keys, 'hiding place' 0, 'drawer' 0, 'Vault' 0 in display text (the namespace DRPG.Vault.* stays as an id).",
+   "pinned_by": "glossary check; not run",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Word-bounded count over en.json.",
+   "note": ""
+  },
+  {
+   "id": "3.2-03",
+   "title": "GM / Monokuma / Gamemaster / GM team",
+   "old_severity": "text",
+   "old_state": "AUDIT-1.2.42.md 3.2 proposal: GM for the person, Monokuma for the actor and pool, Gamemaster only for Foundry's role",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "'Gamemaster' 8 keys, every one about Foundry's role ('a full Gamemaster', 'the Gamemaster role': Settings.forceDiceLook.hint, Assign.noMonokumas, DiceLook.settingBack(Unheard), DiceLook.diag.forced.notForced, GiveBack.what.diceLook, GiveBack.fullGmOnly, Season.missingPool); 'GM team' 0; glossary entries gm-a and monokuma (E25, E65).",
+   "pinned_by": "glossary check; not run",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read all 8 Gamemaster strings.",
+   "note": ""
+  },
+  {
+   "id": "3.2-04",
+   "title": "time of day / phase: Settings.hudTicker.hint and Summary.lede used 'phase' for the time of day",
+   "old_severity": "text",
+   "old_state": "AUDIT-1.2.42.md 3.2 proposal: correct both",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "lang/en.json:402 hudTicker.hint 'The time of day, faint, behind the clock.'; Summary.lede 'What you did during the {phase}.' is filled with timeOfDayLabel (day-summary.mjs:269), so the reader sees 'Morning', not 'phase'; the placeholder's name stays (style guide N2). The 13 keys with 'phase' today speak of the clock's phase (Daily Life, Investigation, Class Trial).",
+   "pinned_by": "R1156 reads summaryLede (day-summary.mjs:196-201 note); not run",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read all 13 'phase' strings.",
+   "note": ""
+  },
+  {
+   "id": "3.2-05",
+   "title": "killer / Blackened (35 / 21)",
+   "old_severity": "text",
+   "old_state": "AUDIT-1.2.42.md 3.2 proposal: killer in the incident and Stage 6, Blackened from the discovery; Vote.verdictNoteKnown 'every Blackened walks away'",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "Vote.verdictNoteKnown now reads 'If the table got it right, every Blackened above is executed ...' (lang/en.json:2497), a trial's sentence, as the proposal has it. Counts today: 'killer' 66 keys, 'Blackened' 45. docs/glossary.json has no entry for either (147 entries listed by script), so no check holds the split.",
+   "pinned_by": "none: no glossary entry",
+   "still_wrong": "No rule says which word a text uses where; not judged key by key here.",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "Searched the glossary's 147 ids for killer/blackened: none.",
+   "note": "domain-text-c-terms redoes the table."
+  },
+  {
+   "id": "3.2-06",
+   "title": "student / character / player",
+   "old_severity": "text",
+   "old_state": "AUDIT-1.2.42.md 3.2 proposal: student = living cast, character = actor/sheet, player = the person; Panel.whoIsAlive, Calls.whichPlayer",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "lang/en.json:5258 Panel.whoIsAlive 'Students'; :4123 Calls.whichPlayer 'Which student?'; glossary entries student and player (E65), PL-s in text-style.md.",
+   "pinned_by": "glossary check; not run",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read both named keys.",
+   "note": ""
+  },
+  {
+   "id": "3.2-07",
+   "title": "Final Truth Remnant / Final Key Remnant",
+   "old_severity": "text",
+   "old_state": "AUDIT-1.2.42.md 3.2 proposal: Final Truth Remnant",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "'Final Truth Remnant' 17 keys, 'Final Key Remnant' 0 (Mastermind.finalPlacedIn 'Final Truth Remnant placed in {room}.').",
+   "pinned_by": "none found",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Count over en.json.",
+   "note": ""
+  },
+  {
+   "id": "3.2-08",
+   "title": "Free Move / free Move",
+   "old_severity": "text",
+   "old_state": "AUDIT-1.2.42.md 3.2 proposal: Free Move",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "'Free Move' 23 keys, 'free Move' 0; glossary free-move (E65).",
+   "pinned_by": "glossary check; not run",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Count.",
+   "note": ""
+  },
+  {
+   "id": "3.2-09",
+   "title": "OBJECTION / Objection",
+   "old_severity": "text",
+   "old_state": "AUDIT-1.2.42.md 3.2 proposal: capitals only on the banner and the button",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "'OBJECTION' 13 keys, 'Objection' 55. The prose ones name the button 'OBJECTION!' (Trial.presentNote, Trial.objectionFailed, Floor.objectionNote, Floor.holdingDebate ...), kept by allow rows X15 the owner approved on 12.11.2026 (docs/text-budgets.json 'allow'). DRPG.Floor.mode.objection 'OBJECTION' is a mode label on the public trial card (trial-modes.mjs:109), beside 'Rebuttal', 'Testimony' in title case; glossary objection 'Objection'.",
+   "pinned_by": "text lint X15 with its allow rows; not run",
+   "still_wrong": "Floor.mode.objection is the one label in capitals among the modes.",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "Checked the allow list for the prose keys; Floor.mode.objection is not on it (not checked whether X15 reads labels).",
+   "note": "domain-text-c-terms owns the recount."
+  },
+  {
+   "id": "3.2-10",
+   "title": "Analyze / Analyse (config.mjs:700, 763, 773)",
+   "old_severity": "text",
+   "old_state": "AUDIT-1.2.42.md 3.2 proposal: Analyze",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "No 'Analys' in config.mjs prose or in en.json but the noun 'Analysis:' (TruthBullet.analysisHeading); glossary analyze (E71) forbids the stem analys- with the verb's endings.",
+   "pinned_by": "glossary check; not run",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "git grep over config.mjs and the en.json scan.",
+   "note": ""
+  },
+  {
+   "id": "3.2-11",
+   "title": "Role reversal / Role Reversal (config.mjs:2509)",
+   "old_severity": "text",
+   "old_state": "AUDIT-1.2.42.md 3.2 proposal: Role reversal",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "One spelling: 'Role Reversal' (Murder.freeResolution; config.mjs:685, 3691, 3748, 3940, 3944); 'Role reversal' 0. The glossary chose the other spelling: entry role-reversal 'Role Reversal' (E25).",
+   "pinned_by": "glossary check; not run",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Count over en.json and config.mjs.",
+   "note": "Unified on the glossary's spelling, not the proposal's."
+  },
+  {
+   "id": "3.2-12",
+   "title": "Level Up / Level up (SFX_EVENTS.levelUp)",
+   "old_severity": "text",
+   "old_state": "AUDIT-1.2.42.md 3.2 proposal: Level Up",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "'Level Up' 73 keys, 'Level up' 0; config.mjs:5495-5497 SFX_EVENTS.levelUp label 'Level Up'; glossary level-up.",
+   "pinned_by": "glossary check; not run",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Count.",
+   "note": ""
+  },
+  {
+   "id": "3.2-13",
+   "title": "Public Announcement / Assembly",
+   "old_severity": "text",
+   "old_state": "AUDIT-1.2.42.md 3.2 proposal: Assembly for the event, Public Announcement as the Call's name",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "Call: config.mjs:2884 label 'Public Announcement', Calls.gatherTitle 'Public Announcement' (lang/en.json:4210); event: Events.ticker.assembly and Calls.gatherShort 'Assembly' (4214); SFX_EVENTS.publicAnnouncement (config.mjs:5191-5193) 'An assembly is called'.",
+   "pinned_by": "none found",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read each place the two names stand.",
+   "note": ""
+  },
+  {
+   "id": "3.2-14",
+   "title": "Breakdown / Broken Down (diagnostics.mjs:1150)",
+   "old_severity": "text",
+   "old_state": "AUDIT-1.2.42.md 3.2 proposal: Breakdown",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "'Broken Down' 0 in en.json, config.mjs and diagnostics.mjs (git grep); 'Breakdown' 15 keys (as TEXT-11).",
+   "pinned_by": "none found",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "git grep -i.",
+   "note": ""
+  },
+  {
+   "id": "3.3-01",
+   "title": "CRISIS_ACTIONS.finishingBlow.hint, 212 characters on a tile's tooltip",
+   "old_severity": "text",
+   "old_state": "AUDIT-1.2.42.md 3.3: too long; a shorter wording proposed",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "The surface changed: the crisis menu's row shows `short` ('End the incident now; the number to beat grows with the victim's remaining Health.', 84 characters) after the threshold (action-murder.mjs:105-124), and the whole hint (230 characters today, 42 words) stands in the picked row's details (action-murder.mjs:200-210 crisisDetails). Measured with node over config.mjs.",
+   "pinned_by": "not found by name; not run",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read both readers of the hint (action-murder.mjs:124, 209).",
+   "note": ""
+  },
+  {
+   "id": "3.3-02",
+   "title": "CRISIS_ACTIONS.useItem.hint, 156 characters",
+   "old_severity": "text",
+   "old_state": "AUDIT-1.2.42.md 3.3: too long",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "As 3.3-01: config.mjs:3829-3836 short 'Use an item with its Use button on your sheet; every hit leaves a Remnant.' (77) on the row; the hint (171 characters) in the details.",
+   "pinned_by": "not found; not run",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "As 3.3-01.",
+   "note": ""
+  },
+  {
+   "id": "3.3-03",
+   "title": "HOPE_CALLS.freeCrit.effect, 150 characters on a Call tile's tooltip",
+   "old_severity": "text",
+   "old_state": "AUDIT-1.2.42.md 3.3: too long",
+   "status": "open",
+   "evidence_class": "S",
+   "evidence": "Still the Call tile's tooltip (sheet-actions.mjs:713-721 button.dataset.tooltip = proseOf(call, 'effect')), and longer: 205 characters, 41 words today (config.mjs:2539-2541), under the config-description limit of 45 words (docs/text-budgets.json) and over its target of 30.",
+   "pinned_by": "the text lint's T4 counts words, not characters; not run",
+   "still_wrong": "205 characters in a hover.",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "Checked that no `short` field stands beside it (config.mjs:2533-2541).",
+   "note": "NEEDSCODE Q-NC-16 keeps the approved words until the owner rewords them."
+  },
+  {
+   "id": "3.3-04",
+   "title": "Music.noSituational, 176 characters in a notification",
+   "old_severity": "text",
+   "old_state": "AUDIT-1.2.42.md 3.3: too long",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "lang/en.json:2576 'No playlist called “{name}” yet.' (32).",
+   "pinned_by": "not found; not run",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Printed today's value.",
+   "note": ""
+  },
+  {
+   "id": "3.3-05",
+   "title": "Eclipse.actionsLocked, 153 characters",
+   "old_severity": "text",
+   "old_state": "AUDIT-1.2.42.md 3.3: too long",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "lang/en.json:2922 'During an Eclipse, only Move and a Direct Murder are allowed; everything else waits until the Eclipse ends. Actions are already refilled.' (137); matches allowed-now.mjs:50-60 (Move passes, Direct Murder only in an Eclipse).",
+   "pinned_by": "not found; not run",
+   "still_wrong": "137 characters, shorter but still two sentences in a toast.",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the gate the sentence describes.",
+   "note": ""
+  },
+  {
+   "id": "3.3-06",
+   "title": "Anonymity.blocked, 150 characters",
+   "old_severity": "text",
+   "old_state": "AUDIT-1.2.42.md 3.3: too long",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "lang/en.json:5476 'Ownership not raised: every player would own “{actor}” and read the whole sheet. Give Owner only to the player whose character it is.' (133).",
+   "pinned_by": "not found; not run",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Printed.",
+   "note": ""
+  },
+  {
+   "id": "3.3-07",
+   "title": "Seven button labels of 27-34 characters (Assign.title, Observe.pickConfirm, Eclipse.endAndAdvance, Chapter.endTitle, Trap.rearm, Analyze.askHint, Voice.stopEavesdrop)",
+   "old_severity": "text",
+   "old_state": "AUDIT-1.2.42.md 3.3: shorter labels proposed",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "Assign.title is gone; Observe.pickConfirm 'Pick this Remnant' (17); Eclipse.endAndAdvance 'End and move the clock' (22, the proposal); Chapter.endTitle 'End the chapter' (15, the proposal); Trap.rearm 'Rearm the trap' (14); Analyze.askHint 'Ask for a hint' (14, the proposal); Voice.stopEavesdrop is gone, its place DRPG.Listen.eavesdrop.stop 'Stop listening at {room}' (24 before the room's name).",
+   "pinned_by": "not found; not run",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Printed each.",
+   "note": ""
+  },
+  {
+   "id": "3.3-08",
+   "title": "Hud.roomTokens, 47 characters in the HUD",
+   "old_severity": "text",
+   "old_state": "AUDIT-1.2.42.md 3.3: '{left}/{max} searches'",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "lang/en.json:701 '{left}/{max} searches' (as old-1.2.42-text TEXT-LC4; room-tile.mjs:498, 515, sentence in the tooltip family room-tile.mjs:501).",
+   "pinned_by": "R999 (per TEXT-LC4); not run",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Printed.",
+   "note": ""
+  },
+  {
+   "id": "3.3-09",
+   "title": "behindClosedDoors.label, publicAnnouncement.label (19) shrink the whole tile grid",
+   "old_severity": "text",
+   "old_state": "AUDIT-1.2.42.md 3.3: shorter labels proposed",
+   "status": "open",
+   "evidence_class": "S",
+   "evidence": "Both labels unchanged: config.mjs:2724 'Behind Closed Doors', :2884 'Public Announcement' (19 each, measured). The fit measures the longest word (sheet-fit.mjs, per TEXT-LC3), 'Announcement' with 12 letters.",
+   "pinned_by": "R1162, R5471 (per TEXT-LC3); not run",
+   "still_wrong": "Whether the 0.68 floor is reached in the pixel font is a layout fact (TEXT-LC3, LIVE-E66-01).",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "Same as old-1.2.42-text TEXT-LC3; not judged further.",
+   "note": ""
+  },
+  {
+   "id": "3.4-01",
+   "title": "Events.openingTitle/openingMeta on a direct murder's victim's HUD in Stage 4",
+   "old_severity": "major (TEXT-03)",
+   "old_state": "AUDIT-1.2.42.md 3.4: fixed (TEXT-03)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "As old-1.2.42-text TEXT-03: events.mjs openingCard admits a non-GM only on a seat of incidentSeats(...stage: 'openingRoll'), which seats the killer's side alone; the victim's browser is not sent the cast at the opening (incident-store.mjs castOwners). Keys at lang/en.json:1826 on.",
+   "pinned_by": "scenario 13-murder-signals, checks on the victim (per TEXT-03); not run",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Not re-traced beyond TEXT-03's lines; the keys' one reader is events.mjs.",
+   "note": ""
+  },
+  {
+   "id": "3.4-02",
+   "title": "The exact pool and overflow count on public Despair Call, Feed the Overflow and overflow cards",
+   "old_severity": "major (DESP-03)",
+   "old_state": "AUDIT-1.2.42.md 3.4: fixed (DESP-03)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "lang/en.json:636 Despair.spent '{name} spent {cost} Despair' - no remainder (public: calls.mjs:531, despair.mjs:959); :4279 Overflow.cardLeft 'The Overflow keeps its unspent Despair.' - no count. Decision D3 keeps pool counts drawn for everyone and the overflow count masked (old-1.2.42-despair DESP-03).",
+   "pinned_by": "not run",
+   "still_wrong": "The overflow card's {n} is the threshold spent, which DRPG.Overflow.rulesChanged ('it now fires at {n}', public) gives the table anyway.",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Listed every public key of overflow.mjs:1001 and calls.mjs:531 from the audience map.",
+   "note": ""
+  },
+  {
+   "id": "3.4-03",
+   "title": "callGm prose (Bridge.criticalHint, Action.observeGm, the threshold table) in a player's thread",
+   "old_severity": "major (COMM-06)",
+   "old_state": "AUDIT-1.2.42.md 3.4: fixed (task 2: gmBody in .drpg-gm-only)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/call-gm.mjs:782 and :799 wrap the critical's line and every gmBody in .drpg-gm-only; scripts/secret.mjs:335 GM_PROSE '.drpg-gm-only, .drpg-call-actions' is cut from every player's copy (secret.mjs:373, 1023).",
+   "pinned_by": "per old-1.2.42-comms COMM-06; not run",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the two wraps and the cut.",
+   "note": ""
+  },
+  {
+   "id": "3.4-04",
+   "title": "Handover.alreadyHasIt - '{who} already found that trace themselves', a fact about another student's evidence",
+   "old_severity": "minor (TEXT-09)",
+   "old_state": "AUDIT-1.2.42.md 3.4: fixed (task 13)",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "lang/en.json:3591 'They already hold a Truth Bullet of this Remnant, so they get no second one.', whispered to the giver at handover.mjs:355-359 (as old-1.2.42-text TEXT-09).",
+   "pinned_by": "none found",
+   "still_wrong": "The giver still learns that the receiver holds that Remnant's bullet (TEXT-09, TEXT-LC2, no owner decision found).",
+   "severity_now": "minor",
+   "confidence": "read",
+   "refutation_tried": "Same reading as TEXT-09; not a new finding here.",
+   "note": ""
+  },
+  {
+   "id": "3.4-05",
+   "title": "DCs visible to a player in three places (Tamper.frameHint, Analyze.findStashHint, Murder.thresholdShort)",
+   "old_severity": "decision",
+   "old_state": "AUDIT-1.2.42.md 3.4: settled: D1 A, thresholds everywhere (13.09)",
+   "status": "obsolete",
+   "evidence_class": "S",
+   "evidence": "Decision D1 (Dawid, 13.09) made thresholds public: action-briefing.mjs:225-229 pushes thresholdFacts on every briefing (as TEXT-14), DRPG.Action.dcStash '{n}+' (action-briefing.mjs:289). The premise - a DC as GM-only information - no longer holds.",
+   "pinned_by": "R1232, R1160 hold single numbers (per TEXT-14); not run",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read action-briefing.mjs 285-300.",
+   "note": ""
+  },
+  {
+   "id": "3.4-06",
+   "title": "Hud.trialTooltip, Hud.bodyFoundTooltip - instructions for the GM on a player's HUD",
+   "old_severity": "nit",
+   "old_state": "AUDIT-1.2.42.md 3.4: harmless; rewrite neutrally",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "Hud.bodyFoundTooltip is gone. lang/en.json:715 Hud.trialTooltip 'The Class Trial. The GM runs the debate from the trial console.' is still set on every browser's trial label (hud.mjs:1194-1197).",
+   "pinned_by": "none",
+   "still_wrong": "A player's HUD names the GM's trial console.",
+   "severity_now": "nit",
+   "confidence": "read",
+   "refutation_tried": "Read the one reader.",
+   "note": ""
+  }
+ ],
+ "sample_rule": {
+  "rule": "Every lang/en.json key whose text (placeholders removed) holds a digit (set A, 77 keys); every English prose string of config.mjs with a digit, found by importing config.mjs in node and walking its exported tables (set B, 13 strings); every lang/en.json key whose text holds a number word two..twelve, twice, thrice, double or half, not already in A (set C, 60 keys); every lang/en.json key whose text says 'press' or 'Press', not in A or C (set D, 46 keys). 196 rows. Each row was read against the code or config that holds its number or its button.",
+  "count": 196,
+  "by_verdict": {
+   "not traced or not a named control": 18,
+   "agrees, number typed": 59,
+   "not a rule number": 56,
+   "agrees": 22,
+   "differs": 1,
+   "button or window exists": 40
+  },
+  "count_note": "196 rows sampled; 122 traced to the code or config that holds the number or the button (59 'agrees, number typed', 22 'agrees', 40 'button or window exists', 1 'differs'); 56 read and set aside as no rule number (a count of clicks, walls, rooms or ends; a plural's .one form; a name like Stage 6 or tier 2 of the suite); 18 not traced (versions, the system's own rule, tier tables' amounts, two controls that name themselves). The 'press' scan's label matcher was a regex: its seven misses were read by hand and all resolved (Back to the debate, Convert to passages, Ask for the opening roll again, Close and count).",
+  "rows": [
+   {
+    "key": "DAGGERHEART.APPLICATIONS.DamageReduction.armorWithStress",
+    "set": "A",
+    "verdict": "not traced: the Daggerheart system's own rule, relabelled"
+   },
+   {
+    "key": "DRPG.Settings.searchTokensPerRoom.hint",
+    "set": "A",
+    "verdict": "agrees, typed: settings.mjs:1557 range { min: 0, max: 10 }"
+   },
+   {
+    "key": "DRPG.Settings.uiScale.hint",
+    "set": "A",
+    "verdict": "agrees, typed: settings.mjs:4431 UI_SCALE { min: 0.25, max: 1.4 }"
+   },
+   {
+    "key": "DRPG.SettingsWindow.scaleSmall",
+    "set": "A",
+    "verdict": "agrees, typed: settings-window.mjs:220 slider < UI_SCALE.readable (0.8)"
+   },
+   {
+    "key": "DRPG.Passage.pick.step",
+    "set": "A",
+    "verdict": "not a rule number (two clicks of a picker)"
+   },
+   {
+    "key": "DRPG.Action.dcProject",
+    "set": "A",
+    "verdict": "agrees, typed: +1/+2 are config.mjs:1664-1666 progress 1 and 2; thresholds are placeholders (action-briefing.mjs:297)"
+   },
+   {
+    "key": "DRPG.Items.useTier0Tooltip",
+    "set": "A",
+    "verdict": "agrees: Tier 0 is the single-use tier (config.mjs:618-633 ITEM_DURABILITY 0: 1)"
+   },
+   {
+    "key": "DRPG.Items.creativePrompt",
+    "set": "A",
+    "verdict": "agrees: Tier 0 as config.mjs:618-633"
+   },
+   {
+    "key": "DRPG.Items.singleUseSpent",
+    "set": "A",
+    "verdict": "agrees, typed: one roll = ITEM_DURABILITY[0] 1 (config.mjs:633)"
+   },
+   {
+    "key": "DRPG.Items.singleUseTooltip",
+    "set": "A",
+    "verdict": "agrees, typed: config.mjs:633"
+   },
+   {
+    "key": "DRPG.Monocub.grantBonus",
+    "set": "A",
+    "verdict": "agrees, typed: monocub.mjs:1416 amount help ? 1 : -1"
+   },
+   {
+    "key": "DRPG.Monocub.helpBonus",
+    "set": "A",
+    "verdict": "agrees, typed: monocub.mjs:1416"
+   },
+   {
+    "key": "DRPG.Monocub.hinderBonus",
+    "set": "A",
+    "verdict": "agrees, typed: monocub.mjs:1416"
+   },
+   {
+    "key": "DRPG.Monocub.betIntro",
+    "set": "A",
+    "verdict": "agrees, typed: monocub.mjs:1894-1904 betWindowNow 4/3/2/1"
+   },
+   {
+    "key": "DRPG.Monocub.redeemDone",
+    "set": "A",
+    "verdict": "agrees, typed: monocub.mjs:1513 hope + 1"
+   },
+   {
+    "key": "DRPG.Zones.dive.editor.count",
+    "set": "A",
+    "verdict": "agrees: 1 is the floor, {max} a placeholder (config.mjs:4393 maxQuestions 5)"
+   },
+   {
+    "key": "DRPG.Zones.picker.hint.straw",
+    "set": "A",
+    "verdict": "agrees, typed: config.mjs:4392 straw.seconds 45; two thirds zone-machine.mjs:66"
+   },
+   {
+    "key": "DRPG.Zones.picker.hint.dive",
+    "set": "A",
+    "verdict": "agrees, typed: config.mjs:4393 dive.seconds 60"
+   },
+   {
+    "key": "DRPG.Zones.picker.hint.scrum",
+    "set": "A",
+    "verdict": "agrees, typed: config.mjs:4394 setupSeconds 45, conferSeconds 120"
+   },
+   {
+    "key": "DRPG.Events.redeemMeta",
+    "set": "A",
+    "verdict": "agrees, typed: monocub.mjs:1513 (+1), config.mjs:3561-3567 cost 0, oncePerDay"
+   },
+   {
+    "key": "DRPG.Events.redeemLine",
+    "set": "A",
+    "verdict": "agrees, typed: as redeemMeta"
+   },
+   {
+    "key": "DRPG.Tips.Gm.tierTooltip",
+    "set": "A",
+    "verdict": "agrees: config.mjs:633 Tier 0 durability 1"
+   },
+   {
+    "key": "DRPG.Vote.silent.one",
+    "set": "A",
+    "verdict": "not a rule number (the .one form of a count)"
+   },
+   {
+    "key": "DRPG.Murder.indirectBegins",
+    "set": "A",
+    "verdict": "agrees, typed: config.mjs:3773 drain { indirect: 2 }; the advantage clause not traced"
+   },
+   {
+    "key": "DRPG.Murder.tierZeroTitle",
+    "set": "A",
+    "verdict": "not a rule number (the tier's name)"
+   },
+   {
+    "key": "DRPG.Murder.tierZeroIntro",
+    "set": "A",
+    "verdict": "agrees: config.mjs:4123 tierZeroNegotiable { min: 0, max: 2 }; the Polish names Tier 0 as a choice too, the English does not"
+   },
+   {
+    "key": "DRPG.Murder.tierZeroNote",
+    "set": "A",
+    "verdict": "agrees, typed: config.mjs:4111 weaponDamage normal 1 + ceil(tier/2) (1, 2, 2), critical 1 + tier (3 at Tier 2)"
+   },
+   {
+    "key": "DRPG.Vault.stashesNote",
+    "set": "A",
+    "verdict": "agrees, typed: config.mjs:1619 stashThreshold 16 (old-1.2.42-text's observation; NEEDSCODE S5, Q-NC-1)"
+   },
+   {
+    "key": "DRPG.Chapter.stageSixWhat",
+    "set": "A",
+    "verdict": "not a rule number (Stage 6 is a name)"
+   },
+   {
+    "key": "DRPG.Chapter.stageSixYes",
+    "set": "A",
+    "verdict": "not a rule number (Stage 6 is a name)"
+   },
+   {
+    "key": "DRPG.Chapter.typeless.one",
+    "set": "A",
+    "verdict": "not a rule number (the .one form)"
+   },
+   {
+    "key": "DRPG.Remnant.digestTitle.one",
+    "set": "A",
+    "verdict": "not a rule number (the .one form)"
+   },
+   {
+    "key": "DRPG.Calls.freeCritUsed",
+    "set": "A",
+    "verdict": "agrees: the Loaded Die sets one die to 12 (config.mjs:2533-2541, forced-roll.mjs named there; forced-roll.mjs not read)"
+   },
+   {
+    "key": "DRPG.Calls.grants.critical",
+    "set": "A",
+    "verdict": "agrees: as freeCritUsed"
+   },
+   {
+    "key": "DRPG.Calls.grantsGen.critical",
+    "set": "A",
+    "verdict": "agrees: as freeCritUsed"
+   },
+   {
+    "key": "DRPG.Calls.grantsNom.critical",
+    "set": "A",
+    "verdict": "agrees: as freeCritUsed"
+   },
+   {
+    "key": "DRPG.Monokuma.markAsk",
+    "set": "A",
+    "verdict": "agrees: monokuma.mjs:191-198 writes actions and Hope 0; unmarking writes nothing back"
+   },
+   {
+    "key": "DRPG.SheetNotes.failedSteps",
+    "set": "A",
+    "verdict": "not a rule number (the F12 key)"
+   },
+   {
+    "key": "DRPG.SheetNotes.noExperiences",
+    "set": "A",
+    "verdict": "agrees, typed: config.mjs:315-316 experiences 2, experienceValue 2"
+   },
+   {
+    "key": "DRPG.Overflow.clearAsk",
+    "set": "A",
+    "verdict": "agrees: 0 is the reset (overflow.mjs:505, 552 countOnly)"
+   },
+   {
+    "key": "DRPG.Overflow.cleared",
+    "set": "A",
+    "verdict": "agrees: as clearAsk"
+   },
+   {
+    "key": "DRPG.Project.passageNote",
+    "set": "A",
+    "verdict": "agrees, typed: passages-gm.mjs:447 hand, complex, secret always; config.mjs:3055 complex progress 6"
+   },
+   {
+    "key": "DRPG.Project.breachNote",
+    "set": "A",
+    "verdict": "agrees, typed: passages-gm.mjs:448 body, complex; config.mjs:3055"
+   },
+   {
+    "key": "DRPG.Project.sealNote",
+    "set": "A",
+    "verdict": "agrees, typed: passages-gm.mjs:449 hand, complex"
+   },
+   {
+    "key": "DRPG.Project.unbreachNote",
+    "set": "A",
+    "verdict": "agrees, typed: passages-gm.mjs:450 body, complex"
+   },
+   {
+    "key": "DRPG.Project.repairNote",
+    "set": "A",
+    "verdict": "agrees, typed: passages-gm.mjs:451 byTier trivial, trivial, complex, complex; config.mjs:3051 trivial 3"
+   },
+   {
+    "key": "DRPG.Project.repairLockNote",
+    "set": "A",
+    "verdict": "agrees, typed: passages-gm.mjs:454 hand, trivial"
+   },
+   {
+    "key": "DRPG.Project.aloneBonus",
+    "set": "A",
+    "verdict": "agrees, typed: config.mjs:2010 aloneBonus 1 (action-project.mjs:746)"
+   },
+   {
+    "key": "DRPG.Project.alreadyEmpty",
+    "set": "A",
+    "verdict": "not a rule number (0 progress)"
+   },
+   {
+    "key": "DRPG.DiceLook.diag.presetNone",
+    "set": "A",
+    "verdict": "not traced: a Daggerheart version (2.10)"
+   },
+   {
+    "key": "DRPG.RollDialog.freeCritArmed",
+    "set": "A",
+    "verdict": "agrees: as freeCritUsed"
+   },
+   {
+    "key": "DRPG.Tables.placeRolesNote",
+    "set": "A",
+    "verdict": "agrees, typed: tables-pools.mjs:655 MULTI_ROLE_TIER 2 (its sibling DRPG.Tables.rolesTierOnly takes it as {tier}, tables-editor.mjs:324)"
+   },
+   {
+    "key": "DRPG.Character.startingItemMissing",
+    "set": "A",
+    "verdict": "agrees, typed: config.mjs:323 startingItemTier 2"
+   },
+   {
+    "key": "DRPG.Advance.raisesHealth",
+    "set": "A",
+    "verdict": "agrees, typed: config.mjs:3436-3440 LEVEL_UP_TRAIT_RESOURCES 1"
+   },
+   {
+    "key": "DRPG.Advance.raisesSanity",
+    "set": "A",
+    "verdict": "agrees, typed: config.mjs:3436-3440"
+   },
+   {
+    "key": "DRPG.Advance.da39.intro",
+    "set": "A",
+    "verdict": "agrees: config.mjs:3437-3439 knowledge (Head) stress, strength (Body) and agility (Leg) hitPoints"
+   },
+   {
+    "key": "DRPG.Advance.da39.takeHealth",
+    "set": "A",
+    "verdict": "agrees, typed: config.mjs:3436-3440"
+   },
+   {
+    "key": "DRPG.Advance.da39.takeSanity",
+    "set": "A",
+    "verdict": "agrees, typed: config.mjs:3436-3440"
+   },
+   {
+    "key": "DRPG.Advance.da39.riseHealth",
+    "set": "A",
+    "verdict": "agrees, typed: config.mjs:3436-3440"
+   },
+   {
+    "key": "DRPG.Advance.da39.riseSanity",
+    "set": "A",
+    "verdict": "agrees, typed: config.mjs:3436-3440"
+   },
+   {
+    "key": "DRPG.Advance.da39.toPlayer.one",
+    "set": "A",
+    "verdict": "agrees, typed: config.mjs:3436-3440"
+   },
+   {
+    "key": "DRPG.Advance.da39.toPlayer.other",
+    "set": "A",
+    "verdict": "agrees, typed: config.mjs:3436-3440"
+   },
+   {
+    "key": "DRPG.Requirements.reason.dice-so-nice",
+    "set": "A",
+    "verdict": "not a rule number (3D dice)"
+   },
+   {
+    "key": "DRPG.Reroll.despairGained",
+    "set": "A",
+    "verdict": "agrees, typed: reroll.mjs:1037 delta 1"
+   },
+   {
+    "key": "DRPG.Reroll.despairReturned",
+    "set": "A",
+    "verdict": "agrees, typed: reroll.mjs:1037 delta -1"
+   },
+   {
+    "key": "DRPG.Rolls.awayDespair",
+    "set": "A",
+    "verdict": "agrees, typed: roll-draw.mjs:2861 on a roll with Fear (the award itself not traced)"
+   },
+   {
+    "key": "DRPG.Motive.left.one",
+    "set": "A",
+    "verdict": "not a rule number (the .one form)"
+   },
+   {
+    "key": "DRPG.Diagnostics.cast.experiencesFix",
+    "set": "A",
+    "verdict": "agrees, typed: config.mjs:316 experienceValue 2 (diagnostics.mjs:1522 counts STARTING.experiences)"
+   },
+   {
+    "key": "DRPG.Tests.tier2Title",
+    "set": "A",
+    "verdict": "not a rule number (tier 2 of the suite)"
+   },
+   {
+    "key": "DRPG.Tests.tier2Run",
+    "set": "A",
+    "verdict": "not a rule number"
+   },
+   {
+    "key": "DRPG.Tests.tier2Cancelled",
+    "set": "A",
+    "verdict": "not a rule number"
+   },
+   {
+    "key": "DRPG.Season.hint.experiences",
+    "set": "A",
+    "verdict": "agrees, typed: config.mjs:315-316"
+   },
+   {
+    "key": "DRPG.Season.hint.overflow",
+    "set": "A",
+    "verdict": "agrees, typed: overflow.mjs:1163-1168 12 + n/2 (rounded and held to the field's range, which the hint does not say)"
+   },
+   {
+    "key": "DRPG.Season.group.clock",
+    "set": "A",
+    "verdict": "not traced: the season reset's clock values were not read"
+   },
+   {
+    "key": "DRPG.Contract.instead.roll-draw",
+    "set": "A",
+    "verdict": "not traced: a version (1.2.66)"
+   },
+   {
+    "key": "DRPG.Contract.target.roll-outcome-evaluated",
+    "set": "A",
+    "verdict": "not traced: Daggerheart versions"
+   },
+   {
+    "key": "DRPG.Case.row.mastermindCleared",
+    "set": "A",
+    "verdict": "not traced: a version (1.2.63)"
+   },
+   {
+    "key": "DRPG.Bridge.why.capDay",
+    "set": "C",
+    "verdict": "agrees, typed: config.mjs:3514 caps perDay 2 (monocub.mjs:1238-1239); bridge-guards.mjs:279 holds the sentence"
+   },
+   {
+    "key": "DRPG.Bridge.why.sameTwice",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.Calls.choiceAsk",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.Case.store.takeBack",
+    "set": "C",
+    "verdict": "agrees, typed: clock.mjs:507 TAKE_BACK_MS 5 * 60_000"
+   },
+   {
+    "key": "DRPG.Cleanup.moveFar",
+    "set": "C",
+    "verdict": "agrees: cleanup.mjs:2741 a reach of 2 on a critical, the near room otherwise"
+   },
+   {
+    "key": "DRPG.Cleanup.moveFarNote",
+    "set": "C",
+    "verdict": "agrees: as moveFar"
+   },
+   {
+    "key": "DRPG.Contract.target.foundry-rails",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.Floor.lead.scrum",
+    "set": "C",
+    "verdict": "not a rule number (two camps)"
+   },
+   {
+    "key": "DRPG.Floor.topicHint",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.Fog.check.isolated.why",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.Fog.check.lattice.why",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.Fog.check.overlap.why",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.Fog.secretDoor.detail",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.Investigation.keyDcNote",
+    "set": "C",
+    "verdict": "DIFFERS: 'three to six points harder' is two for an Obvious Remnant of daily life (config.mjs:1148 key 6, dailyLife 8) - finding domain-text-b-lang-2"
+   },
+   {
+    "key": "DRPG.Investigation.keyPublicNote",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.Motive.deadlineNote",
+    "set": "C",
+    "verdict": "agrees, typed: config.mjs:333 TIMES_OF_DAY has five"
+   },
+   {
+    "key": "DRPG.Murder.betrayalRule",
+    "set": "C",
+    "verdict": "not a rule number (two bodies, two killings)"
+   },
+   {
+    "key": "DRPG.Murder.betrayalWhy.dead",
+    "set": "C",
+    "verdict": "not a rule number"
+   },
+   {
+    "key": "DRPG.Murder.crowded",
+    "set": "C",
+    "verdict": "agrees, typed: murder-rules.mjs:3360-3381 crowdedOut (killer, victim, third and one more)"
+   },
+   {
+    "key": "DRPG.Murder.escapeKiller",
+    "set": "C",
+    "verdict": "not a rule number"
+   },
+   {
+    "key": "DRPG.Murder.indirect",
+    "set": "C",
+    "verdict": "agrees: config.mjs:3773 drain { direct: 1, indirect: 2 } - double"
+   },
+   {
+    "key": "DRPG.Note.intro",
+    "set": "C",
+    "verdict": "agrees with the GM handbook (gm-handbook.en.md:1807, 'The first four are boundaries') and pre-session-note.mjs:66-67's order"
+   },
+   {
+    "key": "DRPG.Overflow.what.darkness.one",
+    "set": "C",
+    "verdict": "agrees, typed: overflow.mjs:1107-1118 floor 1, freeBecomes ECLIPSE_MOVES 2 (neither is edited by the window, overflow.mjs:43-50)"
+   },
+   {
+    "key": "DRPG.Overflow.what.darkness.other",
+    "set": "C",
+    "verdict": "agrees, typed: as .one"
+   },
+   {
+    "key": "DRPG.Panel.nextBodyWaiting",
+    "set": "C",
+    "verdict": "agrees, typed: body.mjs:836 witnesses.length < 2"
+   },
+   {
+    "key": "DRPG.Panel.nextBodyWaitingNoRoom",
+    "set": "C",
+    "verdict": "agrees, typed: body.mjs:836"
+   },
+   {
+    "key": "DRPG.Passage.pick.first",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.Passage.pick.newHint",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.Passage.pick.tunnelHint",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.Passage.pick.why.noWall",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.Passage.pick.why.notBetween",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.Passage.pick.why.notThese",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.Passage.pick.why.otherRooms",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.Passage.pick.why.short",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.Passage.why.notBetween",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.Passage.why.otherRooms",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.Passage.why.sameEnds",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.Passage.why.twoRooms",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.Relay.busyFear.one",
+    "set": "C",
+    "verdict": "agrees, typed: relay-guard window RECENT_MS 10_000 (relay*.mjs:160; the busy count's use of it not traced)"
+   },
+   {
+    "key": "DRPG.Relay.busyFear.other",
+    "set": "C",
+    "verdict": "agrees, typed: as .one"
+   },
+   {
+    "key": "DRPG.Season.fixedSecretDoors.one",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.Season.fixedSecretDoors.other",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.Season.hint.roomCount",
+    "set": "C",
+    "verdict": "agrees, typed: config.mjs:539 ROOMS_PER_PLAYER 1.5"
+   },
+   {
+    "key": "DRPG.Season.secretDoorsPlain.one",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.Season.secretDoorsPlain.other",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.Settings.foundryToolWindows.hint",
+    "set": "C",
+    "verdict": "agrees: the two windows Foundry tools and Map tools (glossary foundry-tools, map-tools)"
+   },
+   {
+    "key": "DRPG.Sound.severalHint",
+    "set": "C",
+    "verdict": "agrees: sfx-play.mjs:151-160 pickSound leaves out the previous pick"
+   },
+   {
+    "key": "DRPG.Trial.objectionDuringObjection",
+    "set": "C",
+    "verdict": "not a rule number (the Rebuttal's two speakers)"
+   },
+   {
+    "key": "DRPG.Trial.objectionRebuttalOutsider",
+    "set": "C",
+    "verdict": "not a rule number"
+   },
+   {
+    "key": "DRPG.Trial.objectionRebuttalTargets",
+    "set": "C",
+    "verdict": "not a rule number"
+   },
+   {
+    "key": "DRPG.TrialScene.carryUnfinished.one",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.TrialScene.carryUnfinished.other",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.TrialScene.sameScene",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.TrialScene.zones.zonesNone",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.TrialScene.zones.zonesSame",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.Vault.neighboursNote",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.Vault.twoRooms",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.Voice.plan.decisionHow",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.Voice.warn.dupesHint",
+    "set": "C",
+    "verdict": "not a rule number (a count of rooms, walls, clicks, ends or windows in a geometric or picker sentence)"
+   },
+   {
+    "key": "DRPG.Zones.dive.editor.secret",
+    "set": "C",
+    "verdict": "not a rule number (a question's two answers)"
+   },
+   {
+    "key": "DRPG.Advance.experienceNeedsNameKept",
+    "set": "D",
+    "verdict": "'its button' - the Level Up button; not traced further"
+   },
+   {
+    "key": "DRPG.Advance.offerTooltip",
+    "set": "D",
+    "verdict": "the control itself; not a named button"
+   },
+   {
+    "key": "DRPG.Advance.offered.one",
+    "set": "D",
+    "verdict": "button exists: the sheet's Level Up (DRPG.Advance.caption)"
+   },
+   {
+    "key": "DRPG.Advance.offered.other",
+    "set": "D",
+    "verdict": "button exists: as .one"
+   },
+   {
+    "key": "DRPG.Case.chargeHeld.one",
+    "set": "D",
+    "verdict": "button exists: DRPG.Case.chargeAgain 'Charge the Key fee'"
+   },
+   {
+    "key": "DRPG.Case.chargeHeld.other",
+    "set": "D",
+    "verdict": "button exists: DRPG.Case.chargeAgain"
+   },
+   {
+    "key": "DRPG.CaseRealize.intro",
+    "set": "D",
+    "verdict": "button exists: DRPG.CaseRealize.run"
+   },
+   {
+    "key": "DRPG.Chapter.lastChapter",
+    "set": "D",
+    "verdict": "button exists: DRPG.Season.resetTitle on Season setup (season-setup.mjs:1302); the panel's section DRPG.Panel.section.between 'Between sessions'"
+   },
+   {
+    "key": "DRPG.Class.inTooltip",
+    "set": "D",
+    "verdict": "the control itself; not a named button"
+   },
+   {
+    "key": "DRPG.Diagnostics.cast.fix",
+    "set": "D",
+    "verdict": "button exists: the sheet header's wand (sheet-header.mjs:619, fa-wand-sparkles)"
+   },
+   {
+    "key": "DRPG.Enforced.filesFirstHold",
+    "set": "D",
+    "verdict": "button exists: DRPG.GiveBack.menuLabel"
+   },
+   {
+    "key": "DRPG.Floor.bar.inRound",
+    "set": "D",
+    "verdict": "button exists: DRPG.Floor.bar.endMode"
+   },
+   {
+    "key": "DRPG.Floor.bar.noTurn",
+    "set": "D",
+    "verdict": "button exists: DRPG.Floor.bar.endMode 'End this mode'"
+   },
+   {
+    "key": "DRPG.Floor.closing.inExchange",
+    "set": "D",
+    "verdict": "button exists: DRPG.Floor.backToDebate 'Back to the debate'"
+   },
+   {
+    "key": "DRPG.Floor.lead.finishVerdict",
+    "set": "D",
+    "verdict": "button exists: DRPG.Vote.finishVerdict"
+   },
+   {
+    "key": "DRPG.Floor.lead.start",
+    "set": "D",
+    "verdict": "button exists: DRPG.Floor.startTrial 'Start the Class Trial'"
+   },
+   {
+    "key": "DRPG.Floor.lead.vote",
+    "set": "D",
+    "verdict": "button exists: DRPG.Vote.tally 'Close and count' in the window DRPG.Vote.openTitle 'The vote'"
+   },
+   {
+    "key": "DRPG.Floor.nowMovedOn",
+    "set": "D",
+    "verdict": "refers to the Skip it names in the same sentence; not traced further"
+   },
+   {
+    "key": "DRPG.GiveBack.automationOff",
+    "set": "D",
+    "verdict": "button exists: DRPG.GiveBack.menuLabel"
+   },
+   {
+    "key": "DRPG.GiveBack.beforeOff",
+    "set": "D",
+    "verdict": "button exists: DRPG.GiveBack.giveBack"
+   },
+   {
+    "key": "DRPG.GiveBack.menuHint",
+    "set": "D",
+    "verdict": "the window's own button; not a named label"
+   },
+   {
+    "key": "DRPG.GiveBack.partly",
+    "set": "D",
+    "verdict": "button exists: DRPG.GiveBack.giveBack"
+   },
+   {
+    "key": "DRPG.GiveBack.preSeason",
+    "set": "D",
+    "verdict": "window named: Give back Foundry's settings (DRPG.GiveBack.menuLabel)"
+   },
+   {
+    "key": "DRPG.Murder.castMissingHere",
+    "set": "D",
+    "verdict": "button exists: DRPG.Case.enterCast"
+   },
+   {
+    "key": "DRPG.Murder.openingDeclined",
+    "set": "D",
+    "verdict": "button exists: DRPG.Murder.openingReask 'Ask for the opening roll again', on the Incident tracker (murder-ui.mjs:628)"
+   },
+   {
+    "key": "DRPG.Murder.passTooSoon",
+    "set": "D",
+    "verdict": "button exists: DRPG.Murder.passTurn"
+   },
+   {
+    "key": "DRPG.Murder.trackerCastGone",
+    "set": "D",
+    "verdict": "button exists: DRPG.Murder.endMurder"
+   },
+   {
+    "key": "DRPG.Murder.victimSomeoneMoves",
+    "set": "D",
+    "verdict": "button exists: DRPG.Murder.tileFightBack"
+   },
+   {
+    "key": "DRPG.Murder.victimTrapSprung",
+    "set": "D",
+    "verdict": "button exists: DRPG.Murder.tileFightBack"
+   },
+   {
+    "key": "DRPG.Murder.victimUnder*By (the victim's first card when the killer is named; the key's full name holds a word this file does not use)",
+    "set": "D",
+    "verdict": "button exists: DRPG.Murder.tileFightBack 'Fight Back'"
+   },
+   {
+    "key": "DRPG.Note.changedElsewhere",
+    "set": "D",
+    "verdict": "button exists: DRPG.Note.save"
+   },
+   {
+    "key": "DRPG.Note.saveFailed",
+    "set": "D",
+    "verdict": "button exists: DRPG.Note.save"
+   },
+   {
+    "key": "DRPG.Note.tooLong",
+    "set": "D",
+    "verdict": "button exists: DRPG.Note.save"
+   },
+   {
+    "key": "DRPG.Panel.whoIsAliveNote",
+    "set": "D",
+    "verdict": "button exists: DRPG.Panel.apply"
+   },
+   {
+    "key": "DRPG.Ready.waiting",
+    "set": "D",
+    "verdict": "button exists: DRPG.Ready.done"
+   },
+   {
+    "key": "DRPG.Tables.noTierPools",
+    "set": "D",
+    "verdict": "button exists: DRPG.Tables.installAction"
+   },
+   {
+    "key": "DRPG.Tips.Case.showPreviewTooltip",
+    "set": "D",
+    "verdict": "button exists: DRPG.CaseRealize.run"
+   },
+   {
+    "key": "DRPG.Tips.Sweep.Gm.giveWhatBulletTooltip",
+    "set": "D",
+    "verdict": "button exists: DRPG.Items.giveButton"
+   },
+   {
+    "key": "DRPG.Tips.Sweep.Gm.giveWhatItemTooltip",
+    "set": "D",
+    "verdict": "button exists: DRPG.Items.giveButton"
+   },
+   {
+    "key": "DRPG.Tips.Sweep.Gm.giveWhatKeyTooltip",
+    "set": "D",
+    "verdict": "button exists: DRPG.Items.giveButton"
+   },
+   {
+    "key": "DRPG.Tips.Sweep.More.muteEverybodyTooltip",
+    "set": "D",
+    "verdict": "the control itself (press again); not a named button"
+   },
+   {
+    "key": "DRPG.Tips.Sweep.Trial.prepareHallTooltip",
+    "set": "D",
+    "verdict": "button exists: Save"
+   },
+   {
+    "key": "DRPG.Trial.objectionFailed",
+    "set": "D",
+    "verdict": "button exists: DRPG.Trial.objection"
+   },
+   {
+    "key": "DRPG.Trial.presentNote",
+    "set": "D",
+    "verdict": "button exists: DRPG.Trial.objection 'OBJECTION!'"
+   },
+   {
+    "key": "DRPG.Trial.turn.body",
+    "set": "D",
+    "verdict": "button exists: DRPG.Trial.turn.done 'Done'"
+   },
+   {
+    "key": "DRPG.TrialScene.hallDarkLine",
+    "set": "D",
+    "verdict": "button exists: Save"
+   },
+   {
+    "key": "config.mjs CRISIS_ACTIONS.finishingBlow.hint",
+    "set": "B",
+    "verdict": "agrees: {mult} from PROSE_NUMBERS (config.mjs:3015); 0 at no Health is the product; remnant despair evident (config.mjs:4160)"
+   },
+   {
+    "key": "config.mjs DRPG.TIER_EFFECTS.usable.1",
+    "set": "B",
+    "verdict": "not traced: the tier's restore amounts by name (config.mjs TIER_EFFECTS)"
+   },
+   {
+    "key": "config.mjs DRPG.TIER_EFFECTS.usable.2",
+    "set": "B",
+    "verdict": "not traced: as .1"
+   },
+   {
+    "key": "config.mjs DRPG.TIER_EFFECTS.usable.3",
+    "set": "B",
+    "verdict": "not traced: as .1"
+   },
+   {
+    "key": "config.mjs DRPG.INDIRECT_MURDER.concealIntent.successWithDespair",
+    "set": "B",
+    "verdict": "agrees, typed: action-project.mjs:648-652 CONCEALED_WITH_DESPAIR (value not printed here)"
+   },
+   {
+    "key": "config.mjs DRPG.HOPE_CALLS.freeCrit.effect",
+    "set": "B",
+    "verdict": "agrees on the dice; 'your next roll' against an action roll only is NEEDSCODE Q-NC-16, kept by the owner (by_decision)"
+   },
+   {
+    "key": "config.mjs DRPG.LEVEL_UP_OPTIONS.trait.label",
+    "set": "B",
+    "verdict": "agrees, typed: +1 a statistic (not traced past the label)"
+   },
+   {
+    "key": "config.mjs DRPG.LEVEL_UP_OPTIONS.experienceUp.label",
+    "set": "B",
+    "verdict": "agrees, typed: +1 an experience (not traced past the label)"
+   },
+   {
+    "key": "config.mjs DRPG.MONOCUB.abilities.meddle.thresholds.0.help",
+    "set": "B",
+    "verdict": "agrees, typed: monocub.mjs:1416"
+   },
+   {
+    "key": "config.mjs DRPG.MONOCUB.abilities.meddle.thresholds.0.helpTarget",
+    "set": "B",
+    "verdict": "agrees, typed: monocub.mjs:1416"
+   },
+   {
+    "key": "config.mjs DRPG.TABLE_COPY_WORDS.tierEffect.usable.1",
+    "set": "B",
+    "verdict": "not traced: as TIER_EFFECTS"
+   },
+   {
+    "key": "config.mjs DRPG.TABLE_COPY_WORDS.tierEffect.usable.2",
+    "set": "B",
+    "verdict": "not traced"
+   },
+   {
+    "key": "config.mjs DRPG.TABLE_COPY_WORDS.tierEffect.usable.3",
+    "set": "B",
+    "verdict": "not traced"
+   }
+  ]
+ },
+ "gm_only_scan": {
+  "rule": "The audience map (tools/text-audience.mjs's buildAudienceMap, run from /tmp) gives 1422 keys a reader other than the GMs; of those, the 658 whose readers include a card to a player (owner, everyone, incident, room, one, list) were scanned for 33 sensitive nouns and placeholders (killer, Blackened, Mastermind, victim, body, stash, hidden, Monocub, Key Remnant, answer key, unfound, Overflow, pool, witness, trap, passage, secret, planned, Faint, Reinforced, threshold, 'only GMs', {band}, {owner}, {who}, {pool}, {count} ...) and for GM windows named to a player (GM panel, Students window, Season setup, Despair Flow, trial console, Incident tracker, Diagnostics): 83 + 62 + 7 hits, every one read with its sender; and all 138 keys sent to everyone or a room were read.",
+  "read": "152 keys read with their sending code; 4 findings (1 and 4 here; 2 and 3 are table 3.1's); 3 refuted (the Bounty's debt lines, a masked name in a tail's or a watch's card, the Eclipse refill count); 1 recorded as a decision (the assembly).",
+  "count_note": "Notifications (796 'browser' keys) were not judged key by key: see not_established."
+ },
+ "findings": [
+  {
+   "id": "domain-text-b-lang-1",
+   "domain": "TEXT",
+   "severity": "nit",
+   "category": "leak",
+   "title": "A death kept by the GMs during an incident sends the GMs' note 'Only the GMs know of this death ... in the Students window' to the incident's players",
+   "where": "scripts/death.mjs:257-293 (deathAudience, the card); lang/en.json:3290 DRPG.Chapter.keptUntilFound, :3276 DRPG.Chapter.vaultPending; lang/pl.json:3500",
+   "what_happens": "recordDeath posts its card with whisperToGms, but hands it the whisper list deathAudience: the GMs and incidentAudienceIds(state) while an incident runs (death.mjs:257-262). With `secretly` true - the victim of the running incident (death.mjs:176) - the card carries DRPG.Chapter.keptUntilFound, a GM's note: 'Only the GMs know of this death until the body is found or a GM makes it known in the Students window. The table sees nothing yet: no marker, and the student's Truth Bullets are still on the sheet.' The players of the incident's seats (the killer, the victim, a third) read it. To them the first clause is not true (they were there), and the rest is the GM's procedure and a fact about the victim's sheet.",
+   "evidence": "death.mjs:262  return Array.from(new Set([...gmIds(), ...incidentAudienceIds(state)]));\ndeath.mjs:283  await whisperToGms(`\ndeath.mjs:289      ${secretly\ndeath.mjs:290          ? `<p>${game.i18n.localize(\"DRPG.Chapter.keptUntilFound\")}</p>`\ndeath.mjs:292      <p><small>${game.i18n.localize(\"DRPG.Chapter.vaultPending\")}</small></p>`, {\ndeath.mjs:293      whisper: deathAudience ?? gmIds(),",
+   "failure_scenario": "A killer's player finishes a direct murder; their chat shows 'A character dies ... Only the GMs know of this death until the body is found or a GM makes it known in the Students window', a note written for the GM, about a death they caused.",
+   "expected": "The style guide's surface matrix (docs/text-style.md section 3): a GM card holds no line to a player and a player card no GM procedure (O19, T29); the incident's players get the death's facts, the GMs the note.",
+   "confidence": "read",
+   "refutation_tried": "Checked whisperToGms (utils.mjs:762-767): extra.whisper replaces gmIds(), so the incident's owners are readers. Checked that `secretly` and an incident coincide: secretly defaults to isIncidentVictim (death.mjs:176) and deathAudience is non-null only with murderState() (death.mjs:259-261). The card is veiled (its words to the readers alone), which does not take the note out of a reader's copy: the GM prose cut (secret.mjs:335) takes .drpg-gm-only, and the note is a plain <p>. No test or scenario names DRPG.Chapter.keptUntilFound or vaultPending (git grep over scripts/tests*.mjs and audit/harness). The audience tool reads this send as 'gms/list' and does not name the incident."
+  },
+  {
+   "id": "domain-text-b-lang-2",
+   "domain": "TEXT",
+   "severity": "nit",
+   "category": "text",
+   "title": "The planner's Key Remnant note says ordinary evidence is 'three to six points harder'; for an Obvious Remnant of daily life it is two",
+   "where": "lang/en.json:3077 and lang/pl.json:3314 (DRPG.Investigation.keyDcNote); drawn at scripts/investigation.mjs:940-947; scripts/config.mjs:1147-1152 (OBSERVE_DC)",
+   "what_happens": "The note's list of Key Remnant thresholds is read off OBSERVE_DC (investigation.mjs:941-946, 'so the sentence cannot drift from the rule it describes'), but its next sentence is typed: 'Ordinary evidence in the same band is three to six points harder to notice.' OBSERVE_DC.obvious is { dailyLife: 8, key: 6, ... }: two points. The other bands and columns give 3 to 6 (evident 12 vs 9, subtle 18 vs 12, hidden 21 vs 15; prep and incident 3 above key in each band; faint 6 above).",
+   "evidence": "config.mjs:1148  obvious: { dailyLife: 8, key: 6, faint: 12, prep: 9, incident: 9, resolution: 9 },\nconfig.mjs:1149  evident: { dailyLife: 12, key: 9, ... },\ninvestigation.mjs:941  // Read off OBSERVE_DC so the sentence cannot drift from the rule it\nen.json:3077  \"... Ordinary evidence in the same band is three to six points harder to notice. ...\"\npl.json:3314  \"... Zwykły dowód o tej samej widoczności ma próg wyższy o trzy do sześciu. ...\"",
+   "failure_scenario": "A GM planning a chapter reads that ordinary Obvious evidence is at least three points harder than an Obvious Key Remnant, and judges an Obvious clue's ease against 9 when the room's ordinary Obvious traces are seen at 8.",
+   "expected": "The difference read off OBSERVE_DC as the list above it is, or a range that holds for every band and column (two to six).",
+   "confidence": "read",
+   "refutation_tried": "Considered whether 'ordinary evidence' means only the prep and incident columns (3 in every band): the daily-life column is the ordinary Remnant of a Search or an Observe outside an incident (Observe's daily-life ladder, per old-1.2.42-text TEXT-14 tests-tier0.mjs:13702-13730), and faint is 6, so the reading 'every non-key column' gives 2 to 6. No test names keyDcNote (git grep over scripts/tests*.mjs)."
+  },
+  {
+   "id": "domain-text-b-lang-3",
+   "domain": "TEXT",
+   "severity": "nit",
+   "category": "text",
+   "title": "The Rot says 'everything the living carry' wears down; it also wears what is in their stash",
+   "where": "lang/en.json:4339 and lang/pl.json:4649 (DRPG.Overflow.what.rot); scripts/overflow.mjs:899-930 (rotEverything); scripts/inventory.mjs:711-714 (carriedFor)",
+   "what_happens": "rotEverything walks `actor.items` of every living character and wears each item that has a spare point; it asks isBroken, never isStashed. In the module's own words 'carried' leaves the stash out (inventory.mjs:711 'Everything on them that can do this job, stash excluded.'), and the Polish says 'każdy przedmiot, który nosi ktoś żywy'. The GM handbook's Overflow table (gm-handbook.en.md:583) says 'every item', which is what the code does.",
+   "evidence": "overflow.mjs:905  for (const actor of game.actors) {\noverflow.mjs:909      for (const item of actor.items) {\noverflow.mjs:911              const held = await itemAsHeld(actor, item.id);\noverflow.mjs:912              if (!held || isBroken(held)) break;\ninventory.mjs:711  /** Everything on them that can do this job, stash excluded. */\nen.json:4339  \"rot\": \"Everything the living carry wears down at once: each item loses up to {n} durability ...\"",
+   "failure_scenario": "A player who stashed a tool to keep it safe reads the Rot's card ('everything the living carry'), and later finds the stashed tool one point more worn.",
+   "expected": "One fact in both places (O3): the card says what the code wears - every item a living student has, stash included - or the Rot leaves the stash alone.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a stash filter on the Rot's road: itemAsHeld returns the GMs' item (sheet-audit.mjs) and the loop's only skip is broken/last point; config.mjs:2686-2694 describes the Rot as 'Every durable thing in the school' and 'everything with a durability track', so the code is meant to wear the stash too; the sentence is the narrower one."
+  },
+  {
+   "id": "domain-text-b-lang-4",
+   "domain": "TEXT",
+   "severity": "nit",
+   "category": "text",
+   "title": "A player is told the GM's answer key is missing and how a GM restores it from a backup",
+   "where": "lang/en.json:3602 (DRPG.Handover.answerKeyMissing), lang/pl.json:3867; sent at scripts/handover.mjs:279-281 and scripts/trial.mjs:404 (whisperToOwner)",
+   "what_happens": "When a Truth Bullet's real type is not on the GM that runs a share or a presentation, the player whose action it was gets 'Nobody can get a copy of “{name}” now: the GM's record of what it really is has gone missing. The GM can restore it from a backup (GM panel, Diagnostics, The case: Restore from a file).' - a store, a GM window and its path, in a player's card.",
+   "evidence": "handover.mjs:278  if (!secret.realType) {\nhandover.mjs:279      if (!quiet) await whisperToOwner(from, `<p>${game.i18n.format(\"DRPG.Handover.answerKeyMissing\", {\ntrial.mjs:403  if (!secretOf(item.uuid).realType) {\ntrial.mjs:404      await whisperToOwner(actor, `<p>${esc(game.i18n.format(\"DRPG.Handover.answerKeyMissing\", { name: data.name }))}</p>`);",
+   "failure_scenario": "A player presents a Truth Bullet in the trial after a GM's browser lost the case store, and reads that 'the GM's record of what it really is' is gone and the GM's menu path to restore it.",
+   "expected": "O19 and T29 (docs/text-style.md section 2): a player's text says what happened and what they keep; the GM's procedure goes to the GMs' copy (whisperToOwner sends one, utils.mjs) or a GM card.",
+   "confidence": "read",
+   "refutation_tried": "Checked the audience: whisperToOwner (text-audience 'owner', with the GMs' copy), both senders; no .drpg-gm-only wrap. Not a secret (the existence of a hidden real type is the rule of Analyze), so category text, not leak. The same old row (3.4-06, Hud.trialTooltip) was judged harmless and left for a rewrite."
+  }
+ ],
+ "by_decision": [
+  {
+   "what": "Numbers the code knows are typed into prose in about sixty keys of the sample (59 of 196 rows 'agrees, typed': Zones' 45 s / 60 s / 120 s, Ghost Bet's 4/3/2/1, Complex (6), +1 progress, Tier 2, 25% to 140%, 16+ ...), each equal to its source today.",
+   "source": "docs/dev/e71/NEEDSCODE.md:21 Q-NC-1: 'Kept as they are: the numbers match config today (each read); the family is one stage's work once O5 is confirmed'; docs/text-style.md O5/M5 'to confirm in E71'."
+  },
+  {
+   "what": "The Loaded Die's effect says 'your next roll' while it is armed on an action roll only.",
+   "source": "docs/dev/e71/NEEDSCODE.md:32 Q-NC-16: 'Keep the approved words until the owner rewords them'."
+  },
+  {
+   "what": "A Public Announcement's gather leaves a body nobody has found where it lies (call-world.mjs:497-502 isDeadForGm), and its public card counts the tokens moved ('{n} characters were moved to {room}', call-world.mjs:433-437, lang/en.json:4140): the table sees one student fewer at the assembly before the discovery. The refill at an Eclipse counts by the table's knowledge for that very reason (actions.mjs:434-439, 'one that skipped a body nobody has found would name it').",
+   "source": "docs/handbooks/gm-handbook.en.md:1262 'An assembly leaves the body where it lies.' (in the section on an undiscovered body); old DESP-15 (audit/findings-1.2.42/despair.md:215-224, 'Body tokens are evidence: moving one also moves the crime scene'). Its count on the card is not discussed there: a question for the owner, under not_established."
+  },
+  {
+   "what": "Thresholds (DCs) on a player's screen in the briefings, Find Stash, the frame-up and the crisis tiles.",
+   "source": "D1 (Dawid, 13.09); action-briefing.mjs:225-229 (old row 3.4-05)."
+  },
+  {
+   "what": "'OBJECTION!' in capitals inside prose that names the button.",
+   "source": "docs/text-budgets.json 'allow' rows X15, approved by the owner 12.11.2026 (old row 3.2-09)."
+  }
+ ],
+ "strengths": [
+  "Numbers come from config through placeholders in the sentences 1.2.42 found wrong: every one of the 18 rows of table 3.1 now reads its number off the rule, or the key is gone (3.1-01..3.1-18).",
+  "One cut for every private card: the GM prose class (secret.mjs:335) and a masked killer's name (secret.mjs:448-500 wordsFor, maskNames) are taken out per reader, so a tail's or a watch's card naming who stands in a room (tail-gm.mjs:131-134, watch-gm.mjs:107-109) gives '?' for a mask without a rule of its own.",
+  "The Eclipse's public refill count is the table's knowledge, not the GMs' (actions.mjs:434-439), so it does not count a body nobody has found.",
+  "A Monocub Bounty's debt line goes to the GMs alone (monocub.mjs:1791-1797 tellBounty: the cubs get the public line, the GMs it and the gmOnly line).",
+  "Of 46 sentences that say 'press <button>', 40 name a label that exists in en.json with that text, on the window they name where checked (sample set D)."
+ ],
+ "comments_against_code": [
+  {
+   "where": "scripts/investigation.mjs:941-943",
+   "comment_says": "'Read off OBSERVE_DC so the sentence cannot drift from the rule it describes (S-5)'",
+   "code_does": "Only the list {list} is read off OBSERVE_DC; the sentence's 'three to six points harder' is typed in both language files and is two for Obvious daily life (finding 2)."
+  }
+ ],
+ "hints_for_other_passes": {
+  "audience_map": [
+   "tools/text-audience.mjs reads monocub.mjs's tellBounty(key, data, gmOnly) as a wrapper whose readers are 'owner', so DRPG.Despair.owedGiven, DRPG.Monocub.bountyDespairBack and bountyOwedCancelled come out with a player reader; the third argument is posted only by whisperToGms (monocub.mjs:1794-1796). A T16 or M9 check that trusts the map reads these keys as a player's.",
+   "death.mjs:283's whisperToGms with an `extra.whisper` of deathAudience is read as 'gms/list': the incident's readers are not named (finding 1)."
+  ],
+  "for_text_c_terms": [
+   "Floor.mode.objection 'OBJECTION' among title-case mode labels (3.2-09)",
+   "no glossary entry for killer/Blackened (3.2-05)"
+  ],
+  "dead_controls": [],
+  "stale_windows": []
+ },
+ "not_established": [
+  {
+   "what": "Whether the owner wants a Public Announcement's public card to count the tokens moved while a body nobody has found stays behind (by_decision row 3).",
+   "l1": {
+    "what": "Read the assembly's card and the map with a body kept by the GMs.",
+    "recipe": [
+     "One GM, three players; run a direct murder to a death and close the incident without a discovery.",
+     "The GM buys Public Announcement for a room; advance to the next time of day.",
+     "Read the public card's count and the tokens in the room on a player's screen."
+    ],
+    "clients": "GM and 3 players",
+    "theme": "default",
+    "settles_if": "The card says one character fewer than the class and the body's token stands alone: as read here; any other count: this reading is wrong.",
+    "priority": "minor"
+   },
+   "live_check": "new live check: a Public Announcement with a kept death"
+  },
+  {
+   "what": "Whether Floor.mode.objection's capitals are read by the text lint's X15 at all (labels vs prose); not traced through scripts/tests-text.mjs.",
+   "live_check": "none: a static read of tests-text.mjs settles it"
+  },
+  {
+   "what": "Eighteen of the sample's 196 rows were not traced to their source (Daggerheart and Foundry versions, the tier tables' restore amounts, the season reset's clock, two 'press' sentences whose button is the control itself); they are counted as such, not as agreeing.",
+   "live_check": "none: static reading"
+  },
+  {
+   "what": "GM-only information in notifications ('browser' readers, 796 keys in the audience map) was not judged key by key: a toast's reader is whoever's browser raised it, which the map does not tell apart from a GM's.",
+   "live_check": "none: needs a per-key read of each ui.notifications call's road"
+  },
+  {
+   "what": "No test, check or scenario was run by this reader; base-run.json did not exist when looked for. Every 'pinned_by' is a test named from source, its result not read.",
+   "live_check": "n/a"
+  }
+ ]
+}

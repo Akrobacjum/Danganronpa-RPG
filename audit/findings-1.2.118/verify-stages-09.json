@@ -1,0 +1,458 @@
+{
+ "refuter": "verify-stages-09",
+ "of": "stages-09",
+ "scope_note": "The reader's file holds no findings (all four stages have findings: []), so every row here is a stage's grade or a promise; 4 grades and 35 promises (7 + 11 + 7 + 10), all checked. The reader wrote at 20:26Z, before base-run.json (21:19Z); its 'no result read' is out of date, not wrong: tiers 0-2 now read green but for XI07, and no test of these stages is among the skips.",
+ "checked": [
+  {
+   "ref": "E35 promise 1",
+   "claim": "Every owner change goes through transferItem on a GM: one gate first, both sheets chained, the five roads hand their move to it",
+   "verdict": "stands",
+   "why": "Each road's call was found: handover.mjs:558 (loot) and :1001 (give), stash-reach.mjs:550 (rifle), palm.mjs:698 (steal) and :877 (plant); transferItem opens with the GM gate, the mode check and transferRefusal before any read, then the sorted serialWrite pair. The tier-2 tests cited sit at the lines given and are green in the base run, which the reader could not read (it was written at 21:19Z, the reader's file at 20:26Z).",
+   "evidence": [
+    "scripts/inventory.mjs:1137-1156: 'if (!game.user.isGM) return null; ... const why = await transferRefusal(from, to, { mode, asker }); ... const [first, second] = [from.id, to.id].sort(); return serialWrite(`transfer/${first}`, () => serialWrite(`transfer/${second}`, ...'",
+    "scripts/handover.mjs:1001: 'const moved = await transferItem(from, to, held, { mode: \"give\" });'",
+    "audit/findings-1.2.118/base-run.json suite_merge: '3387 passed, 1 failed, 27 skipped' (the one failure grid XI07, which passes alone: xi07_alone)"
+   ]
+  },
+  {
+   "ref": "E35 promise 2",
+   "claim": "One piece per action, the giver's count read again after the copy; a piece that reaches the same item joins its stack",
+   "verdict": "stands",
+   "why": "takeOne reads itemAsHeld again and writes count - 1 or deletes at one; a changed or gone piece rolls the copy back; the twin search joins a stack of the same identity. E35-T3 (tests-tier2.mjs:77290) green in the base run.",
+   "evidence": [
+    "scripts/inventory.mjs:1191-1197: 'const now = await itemAsHeld(from, id); ... if (count > 1) { await trustedWrite(live, { \"system.quantity\": count - 1 } ...'",
+    "scripts/inventory.mjs:1240-1241: 'const twin = identity ? counted.items.find(i => i.name === name && !isStashed(i) && i.id !== id && i.getFlag(MODULE_ID, ITEM_FLAGS.identity) === identity ...'"
+   ]
+  },
+  {
+   "ref": "E35 promise 3",
+   "claim": "A Plant into full pockets is refused seen or unseen; the planter is told; the victim nothing",
+   "verdict": "stands",
+   "why": "TRANSFER_POLICY.plant is 'refuse'; transferItem returns handsFull before grantItem; palm.mjs whispers the planter cardTheirHandsFull and cardUnfelt and tells the victim only when seen && !handsFull. One nuance the reader did not say: a Plant whose copy was not written (failed) is told to the planter as full pockets too (palm.mjs:883), which keeps the victim silent as well.",
+   "evidence": [
+    "scripts/inventory.mjs:1037: 'export const TRANSFER_POLICY = Object.freeze({ give: \"refuse\", loot: \"overflow\", rifle: \"overflow\", steal: \"overflow\", plant: \"refuse\" });'",
+    "scripts/palm.mjs:912: 'if (seen && !handsFull) {'",
+    "scripts/palm.mjs:883: 'const handsFull = Boolean(moved?.handsFull || moved?.failed);'"
+   ]
+  },
+  {
+   "ref": "E35 promise 4",
+   "claim": "A key to a room the taker already holds is not copied, the taker told unless unseen; a key handed over stays a copy",
+   "verdict": "stands",
+   "why": "The key rule reads keysHeldBy(to, { stashed: true }), takes the piece off and whispers only when !hushTo. E35-T4 (tests-tier2.mjs:77457) green in the base run.",
+   "evidence": [
+    "scripts/inventory.mjs:1217-1224: 'if (keysHeldBy(to, { stashed: true }).has(keyRoom)) { const taken = await takeOne({ copied: false }); ... if (!hushTo) { await whisperToOwner(to, ...DRPG.Handover.keyAlreadyHeld...'"
+   ]
+  },
+  {
+   "ref": "E35 promise 5",
+   "claim": "A stuck piece is told to the GMs in the road's words; a refusal reaches the player; a Palm refused before its dice gives its action back",
+   "verdict": "stands",
+   "why": "TRANSFER_STUCK per mode is whispered when takeOne answers stuck; palm.mjs:213-214 calls palmBack on a refusal code of TRANSFER_REFUSED or noGm. E35-T5, E35-T10 and E14-T1 (tests-tier2.mjs:77752, :78236, :78681) are green in the base run.",
+   "evidence": [
+    "scripts/inventory.mjs:1040-1043 TRANSFER_STUCK",
+    "scripts/palm.mjs:213: 'if (nobodyTook(res.ok, res.reason) || TRANSFER_REFUSED.includes(...)) await palmBack(actor, paid);'"
+   ]
+  },
+  {
+   "ref": "E35 promise 6",
+   "claim": "With no GM connected each road settles at once with one line, and a Palm started then is refused before its window and its price",
+   "verdict": "weakened",
+   "why": "The promise reads true in source, but the code the reader cites is the wrong half: palm.mjs:239-241 nobodyTook is the case of a GM who left between the dice and the ask. A Palm started with no GM is stopped by performAction's first line, before any price or window (action-rolls.mjs:115-118). The only test named is scenario 33 part C, and the base run has not run the scenarios yet (base-run.json pending: 'the ci scenarios one at a time'), so this promise rests on reading alone.",
+   "evidence": [
+    "scripts/action-rolls.mjs:115-118: 'if (!game.user.isGM && !activeGmIds().length && !THROWS_NO_DICE.has(actionKey)) { ui.notifications.warn(game.i18n.localize(\"DRPG.Rolls.waitsForGm\")); return null; }'",
+    "audit/harness/scenarios/33-bridge-paths.mjs:2290: 'C: with no GM connected, p1's Palm settles at once, sends nothing, and says so once'",
+    "audit/findings-1.2.118/base-run.json pending: 'the ci scenarios one at a time (node run-all.mjs scenarios)'"
+   ]
+  },
+  {
+   "ref": "E35 promise 7",
+   "claim": "A stash rifled unseen does not redraw its owner's sheet",
+   "verdict": "stands",
+   "why": "stealFromVault passes quiet: true; transferItem's hushFrom puts render: false on the giver's write. E35-T8 (tests-tier2.mjs:78183) green in the base run.",
+   "evidence": [
+    "scripts/stash-reach.mjs:550: 'const moved = await transferItem(owner, thief, held, { mode: \"rifle\", quiet: true });'",
+    "scripts/inventory.mjs:1189: 'const render = hushFrom ? { render: false } : {};'"
+   ]
+  },
+  {
+   "ref": "E35 grade",
+   "claim": "8, provisional after L1",
+   "verdict": "stands",
+   "why": "No finding in the code; every promise has a tier-2 test now green in the base run (none of them in skip-baseline.json). Against a 9: promise 6 stands only on scenario 33, not yet run in the base run, and both live checks (LIVE-E35-01, -02) are unread. Section 11.4's 8 ('one promise held only by reading') fits; the 9 cap applies anyway.",
+   "evidence": [
+    "audit/findings-1.2.118/base-run.json suite_merge: '3387 passed, 1 failed, 27 skipped' (the one failure grid XI07, which passes alone: xi07_alone)",
+    "audit/harness/skip-baseline.json: none of the 27 listed skips is a test of E35, E14, E36 or E15"
+   ],
+   "grade_after": 8
+  },
+  {
+   "ref": "E14 promise 1",
+   "claim": "One gate on every move: Eclipse, Class Trial, across rooms (two scenes, same name), the dead, the person gate",
+   "verdict": "stands",
+   "why": "transferRefusal routes give, steal, plant and loot through frisk.mjs personActionRefusal and the rest through allowedNow's 'transfer' road and isDeadForGm. E14-T1 tests at tests-tier2.mjs:78371 and :78506 green in the base run.",
+   "evidence": [
+    "scripts/inventory.mjs:1081-1110 transferRefusal",
+    "scripts/frisk.mjs:146: 'export function personActionRefusal(asker, target, { body = false, user = null } = {}) {'"
+   ]
+  },
+  {
+   "ref": "E14 promise 2",
+   "claim": "A body is looted only by a living student in its room who knows of the death; a refused Take is greyed",
+   "verdict": "stands",
+   "why": "mode loot asks personActionRefusal with { body: true, user }; anonymity.mjs buildBodyLoot, greyRefused and regreyOpenLoot at the lines cited; tests at tests-tier2.mjs:78781, :98735, :98816 green in the base run.",
+   "evidence": [
+    "scripts/inventory.mjs:1084: 'if (mode === \"loot\") return personActionRefusal(actor, other, { body: true, user });'",
+    "scripts/anonymity.mjs:265, :478, :483"
+   ]
+  },
+  {
+   "ref": "E14 promise 3",
+   "claim": "Only a key in hand opens another's bedroom; a bedroom's change of owner takes the old owner's keys",
+   "verdict": "stands",
+   "why": "Functions found at the lines cited (keyRooms, bedroomShutTo, bedroomShut, keysHeldBy, mayEnterBedroom, grantBedroomKey, takeOldOwnersKeys, keyCopiesAfterOwnerLeft at vault-store.mjs:530). R950 and the two tier-2 tests green in the base run.",
+   "evidence": [
+    "scripts/vault-store.mjs:491: 'export async function takeOldOwnersKeys(left) {'",
+    "scripts/vault-store.mjs:514: 'await keyCopiesAfterOwnerLeft(room, old, game.actors.get(to ?? \"\") ?? null);'"
+   ]
+  },
+  {
+   "ref": "E14 promise 4",
+   "claim": "A dead owner's bedroom opens in an Investigation once the death is published",
+   "verdict": "stands",
+   "why": "bedroomShutTo takes ownerDead and phase; the test at tests-tier2.mjs:78941 names the Investigation's dead owner in its title and is green in the base run.",
+   "evidence": [
+    "scripts/bedroom-keys.mjs:46: 'export function bedroomShutTo({ actorId, room, ownerId, keys, phase, ownerDead }) {'"
+   ]
+  },
+  {
+   "ref": "E14 promise 5",
+   "claim": "A stash is rifled once a time of day per thief, stash and owner; a reach that moved nothing is taken off the count",
+   "verdict": "stands",
+   "why": "rifleKey and rifleMark stamp the reach; the refusal says alreadyDone; unreach drops or restores the stamp when transferItem did not answer ok. E14-T5 tests green in the base run.",
+   "evidence": [
+    "scripts/stash-reach.mjs:518-528: 'const reach = rifleKey(thief.id, owner.id, where.scene?.id, where.room); ... if (earlier === mark) { refuse(\"that stash has been gone through already this time of day\");'",
+    "scripts/stash-reach.mjs:551: 'if (!moved?.ok) await unreach();'"
+   ]
+  },
+  {
+   "ref": "E14 promise 6",
+   "claim": "The dead keep their hands still: stow, retrieve, use, ready and discard refused; the sheet offers none",
+   "verdict": "stands",
+   "why": "Holds, with a citation the reader left out: use-items.mjs deadHands covers ready, use and discard (called at :323, :484, :886); stow and retrieve are refused by stash-reach.mjs refuseTheDead (:75, :155). The test at tests-tier2.mjs:79154 green in the base run.",
+   "evidence": [
+    "scripts/use-items.mjs:292-296: 'function deadHands(actor) { if (!isDeadForGm(actor)) return false; ...'",
+    "scripts/stash-reach.mjs:75: 'if (refuseTheDead(actor)) return false;'"
+   ]
+  },
+  {
+   "ref": "E14 promise 7",
+   "claim": "A tier 3 usable restores 3 of its kind with no choice and no Hope; an old tier 3's sentence is rewritten",
+   "verdict": "stands",
+   "why": "USABLE_EFFECTS[3] is { amount: 3, byKind: true }; refreshTierThreeWording at inventory.mjs:744. R971 green in tiers 0-1, the tier-2 tests green in the base run.",
+   "evidence": [
+    "scripts/config.mjs:882: '3: { amount: 3, byKind: true }'"
+   ]
+  },
+  {
+   "ref": "E14 promise 8",
+   "claim": "holds 'partly': a discard's trace is filed by the GM, Tamper in an Investigation or a Class Trial",
+   "verdict": "weakened",
+   "why": "The code still files a Class Trial discard as Tamper (discardRemnantType's first line), and since E51 C6 no discard happens in a Class Trial at all (noDiscardNow), on the owner's word of 31.10.2026. That is a half replaced by a later decision, which the reader says itself ('replaced, not broken'); section 11.4 reads 'partly' as a promise delivered in part, so it should be 'yes' with the replacement noted, and it should not weigh on the grade.",
+   "evidence": [
+    "scripts/use-items.mjs:840: 'if ([\"investigation\", \"classTrial\"].includes(getClock()?.phase)) return BROKEN_ITEMS.remnantTypeAfter;'",
+    "scripts/use-items.mjs:861-862: 'export function noDiscardNow(clock = getClock()) { return clock?.phase === \"classTrial\" ? ...'"
+   ]
+  },
+  {
+   "ref": "E14 promise 9",
+   "claim": "One creative ruling at a time on an item; an improvised weapon into the killer's hand once",
+   "verdict": "stands",
+   "why": "creativeUseGone, ruleCreativeUse, grantImprovisedWeapon, readyForShape and keepGearShape at the lines cited; tests at tests-tier2.mjs:79859 and :79967 green in the base run.",
+   "evidence": [
+    "scripts/use-items.mjs:1029: 'export async function ruleCreativeUse(actor, itemId, ask, apply) {'"
+   ]
+  },
+  {
+   "ref": "E14 promise 10",
+   "claim": "Item tables found by their flags in any language; a room's tables first; the find takes category, tier and goal",
+   "verdict": "stands",
+   "why": "Every function named is at the line cited in tables-pools.mjs, search-tokens.mjs and traps.mjs; R972 and E14-T12 to T14 green.",
+   "evidence": [
+    "scripts/tables-pools.mjs:180: 'export function flaggedTables(category, tier, goal = null, tables = game.tables ?? []) {'",
+    "scripts/tables-pools.mjs:992 drawItem"
+   ]
+  },
+  {
+   "ref": "E14 promise 11",
+   "claim": "holds 'partly': the Item tables window's rules held, its layout (one height, 11 px, fits 768 px) not established",
+   "verdict": "weakened",
+   "why": "The reader's ground for 'partly' is thinner than written. The grid and the one-row layout are held by R974, a tier-1 test that reads the cascade and is green in the base run; the 11 px floor was measured in the stand-in by fix e1-G8 (04dc8823), which the reader lists among E14's commits but did not weigh; and the 768 px overflow is a 1.2.84 stand-in reading of markup since redrawn on the kit's dataTables (E46-C3b, named in R974's own body). What is left is that the fit at 1366x768 is not measured on today's windows - not established, not shown broken.",
+   "evidence": [
+    "scripts/tests-tier1.mjs:31005: 'R974 - the item tables window, Create an item and the Give and take forms are laid out by their rules: an entry one grid row ...'",
+    "scripts/tests-tier1.mjs:31067 (R974 body): '/* On the kit's dataTables since E46-C3b (09.11.2026): ...'",
+    "git show 04dc8823: 'E14 fix e1-G8: the item tables, Create an item and the Give forms hold an 11 px floor ... After: nothing under 11 px at either root'",
+    ".github/release-notes/v1.2.84.md:225: 'In the stand-in the Stained Glass Item tables window's Room pools tab runs past 768 px'"
+   ]
+  },
+  {
+   "ref": "E14 grade",
+   "claim": "7, provisional after L1",
+   "verdict": "weakened",
+   "why": "The 7 rests on two 'partly' promises. Promise 8's part is a later owner's decision, not a defect; promise 11's part is a fit not measured on today's kit windows, with its rules held by R974 and its 11 px floor by 04dc8823. With every tier-2 test of the stage green in the base run and no defect in the code, section 11.4 gives 8 ('one promise held only by reading'), still capped at 9 by LIVE-E14-01 and -02, unread.",
+   "evidence": [
+    "audit/findings-1.2.118/base-run.json suite_merge: '3387 passed, 1 failed, 27 skipped' (the one failure grid XI07, which passes alone: xi07_alone)",
+    "scripts/tests-tier1.mjs:31005 R974"
+   ],
+   "grade_after": 8
+  },
+  {
+   "ref": "E36 promise 1",
+   "claim": "One queue for a project on the primary GM: serialWrite under the Countdowns key, a change off the primary asked of it",
+   "verdict": "stands",
+   "why": "applyProjectChange refuses a player, forwards off the primary, queues changeStep under COUNTDOWNS_KEY and runs syncProjectToken after; R977 (tier 0) and E36-T2/T4/T5/T11 green in the base run.",
+   "evidence": [
+    "scripts/projects.mjs:1578: 'const step = await serialWrite(COUNTDOWNS_KEY, () => changeStep(countdownId, clean, who));'",
+    "scripts/projects.mjs:1658 changeStep"
+   ]
+  },
+  {
+   "ref": "E36 promise 2",
+   "claim": "Another GM's change goes to the primary by a GM-only bridge row with its own clock; the wait ends when the primary leaves",
+   "verdict": "stands",
+   "why": "The row is gmOnly with answer 'reply' and TIMING.projectChangeMs (30000); requestProjectChange sets untilPrimaryLeaves; primaryGone fails such a wait with noAnswer. R978 green in tiers 0-1. Not the reader's claim, but beside it: the comment at bridge-guards.mjs:2059 still speaks of '180 s by default', which is not this row's clock (a nit for the domain pass).",
+   "evidence": [
+    "scripts/bridge-table.mjs:878-882: 'guards: [gmOnly(\"only a GM changes a project\")], ... answer: \"reply\", timeoutMs: TIMING.projectChangeMs,'",
+    "scripts/config.mjs:375: 'projectChangeMs: 30000,'",
+    "scripts/bridge-guards.mjs:2063-2066: 'function primaryGone() { for (const entry of [...pending.values()]) { if (!entry.untilPrimaryLeaves || entry.settled) continue; close(entry); fail(entry, \"noAnswer\");'"
+   ]
+  },
+  {
+   "ref": "E36 promise 3",
+   "claim": "D40: a trap's bar taken back disarms it and keeps firedAt; filled again it arms unless it has fired",
+   "verdict": "stands",
+   "why": "armTrap returns false on firedAt; disarmTrap clears armed only; the crossing rule is in changeStep's docblock. E36-T3 and E15-T1 green in the base run.",
+   "evidence": [
+    "scripts/traps.mjs:397-398: 'if (!trigger.kind) return null; if (trigger.firedAt) return false;'",
+    "scripts/traps.mjs:413-414: 'if (!trigger.armed) return false; await patchTrigger(projectId, { armed: false });'"
+   ]
+  },
+  {
+   "ref": "E36 promise 4",
+   "claim": "holds 'partly': the token follows its project; a share or revoke on a player's canvas read in code only",
+   "verdict": "weakened",
+   "why": "The code road is as cited, and the reader's 'partly' is if anything generous: it missed a real-table reading. On the owner's v14 sandbox (19.11.2026, Daggerheart 2.12.9) tier 2's 'a project's token follows its project (E36-T6)' failed on its readings, with the cause not read (a test using standInUser, so it may be the test's). Headless it is green. The promise is not shown broken, but it is no longer only a canvas question.",
+   "evidence": [
+    "the L1 branch e58-local (7875554f), docs/dev/e58/LOCAL-REPORT.md:316-319: 'The stand-in users (24 tests using standInUser): 19 pass, 5 fail - ... \"a project's token follows its project (E36-T6)\" on their readings ... - new; in the loop.'",
+    "audit/findings-1.2.118/live-readings-e58-delta.json readings[15]: 'the four Frisk/project failures on readings are not read'"
+   ]
+  },
+  {
+   "ref": "E36 promise 5",
+   "claim": "holds 'partly': the tray's -, +, Delete and the hidden Reveal/Hide, read against Daggerheart 2.10.5's markup",
+   "verdict": "stands",
+   "why": "The guard and the menu wrap name 2.10.5's shape; E36-T4 plants 2.10.5's markup; module.json verifies 2.12.9; the patch row's probe reads whether the wrap took. One place in the same file was read against 2.12.8 (the header, projects-ui.mjs:62), not the rows or the menu, so the reader's point holds.",
+   "evidence": [
+    "scripts/projects-ui.mjs:153: 'Daggerheart 2.10.5's tray writes the'",
+    "scripts/projects-ui.mjs:221: 'The tray's row menu, entries in 2.10.5's shape'",
+    "module.json:22: '\"verified\": \"2.12.9\"'",
+    "scripts/patches.mjs:592-595 probe"
+   ]
+  },
+  {
+   "ref": "E36 promise 6",
+   "claim": "The season's projects are reset by the primary GM alone; another GM is told who can",
+   "verdict": "stands",
+   "why": "clearAllProjects refuses off the primary with resetPrimaryOnly; E36-T8 green in the base run.",
+   "evidence": [
+    "scripts/projects.mjs:2695-2697: 'if (!isPrimaryGm()) { const name = ...; ui.notifications?.warn(game.i18n.format(\"DRPG.GmStore.resetPrimaryOnly\", { name }));'"
+   ]
+  },
+  {
+   "ref": "E36 promise 7",
+   "claim": "A Call paid for whose effect failed is said in words its callers can fill",
+   "verdict": "stands",
+   "why": "The key exists in both files with { call } only; R984 green in tiers 0-1.",
+   "evidence": [
+    "lang/en.json:4145: '\"effectFailed\": \"You paid for {call}, but its effect could not be applied.\"'",
+    "lang/pl.json:4419"
+   ]
+  },
+  {
+   "ref": "E36 grade",
+   "claim": "8, provisional after L1",
+   "verdict": "weakened",
+   "why": "The reader marks two promises 'partly' (4 and 5) and still grades 8; section 11.4 gives 8 to a stage where one promise holds only by reading, and 7 where one is delivered in part, so two such promises are not an 8. On top, promise 4's tier-2 test failed at a v14 table on 19.11.2026 (cause not read), which the reader did not weigh. Nothing in the code is shown wrong, so not lower than 7.",
+   "evidence": [
+    "audit/AUDIT-1.2.42.md:96-97 (11.4): '8 | ... jedna trzyma się tylko odczytem kodu albo ma minor' / '7 | ... jedna obietnica dowieziona w części'",
+    "the L1 branch e58-local (7875554f) docs/dev/e58/LOCAL-REPORT.md:318 (E36-T6 failed on its readings)"
+   ],
+   "grade_after": 7
+  },
+  {
+   "ref": "E15 promise 1",
+   "claim": "An indirect murder pays its concealment bonus on any outcome",
+   "verdict": "stands",
+   "why": "projectProgress takes relief and bonus; the trap's budget text computes its numbers; R979 green in tiers 0-1 and E15-T3 tests green in the base run; scenario 13 green in the first session's run on b5a29e73.",
+   "evidence": [
+    "scripts/action-project.mjs:643: 'export function projectProgress(roll, { relief = 0, bonus = 0 } = {}, def = ACTIONS.project) {'",
+    "lang/en.json:2781 indirectCost",
+    "audit/findings-1.2.118/first-session/README.md: 'twelve scenarios green: 00, 10, 11, 12, 13, ...'"
+   ]
+  },
+  {
+   "ref": "E15 promise 2",
+   "claim": "A Loaded Die sets one of the two dice to 12 at random and the roll names which",
+   "verdict": "weakened",
+   "why": "The code is as cited (a coin from Math.random before the throw, options[LOADED_AT] written) and E15-T7 is green headless. But the reader did not weigh a real-table reading: on the owner's v14 sandbox the tier-2 test 'E112 - an armed Loaded Die loads the murder's opening roll' failed with 'the Loaded Die not loaded' (18.11.2026, after the press fix e6ffd08a), cause not read. It is E112's test, not E15's, and may be the roll window's glue; it still means the random die is measured headless only.",
+   "evidence": [
+    "scripts/forced-roll.mjs:202-203: 'const at = Math.random() < 0.5 ? \"hope\" : \"fear\"; if (this.options && typeof this.options === \"object\") this.options[LOADED_AT] = at;'",
+    "the L1 branch e58-local (7875554f) docs/dev/e58/LOCAL-REPORT.md:191-193: '... 113, 128, 131 and 229 failed as they had with the probe's press - ... the Loaded Die not loaded'"
+   ]
+  },
+  {
+   "ref": "E15 promise 3",
+   "claim": "A Monocub starts clean: 0 Hope, no marks, neither condition",
+   "verdict": "stands",
+   "why": "setMonocub writes hope, hitPoints and stress to 0 in one trustedWrite; R980 and E15-T6 green; scenario 10 green in the first session's run.",
+   "evidence": [
+    "scripts/monocub.mjs:161-164: 'await trustedWrite(actor, { \"system.resources.hope.value\": 0, \"system.resources.hitPoints.value\": 0, \"system.resources.stress.value\": 0'"
+   ]
+  },
+  {
+   "ref": "E15 promise 4",
+   "claim": "A Call is refused before its confirm: Silence, a second Loaded Die, New Rule's empty confirm",
+   "verdict": "stands",
+   "why": "callBarred, runCall and pickText at the lines cited; E15-T6 at tests-tier2.mjs:83320 green in the base run.",
+   "evidence": [
+    "scripts/calls.mjs:64: 'export async function callBarred(actor, { despair = false } = {}) {'"
+   ]
+  },
+  {
+   "ref": "E15 promise 5",
+   "claim": "The overflow's rules are trimmed once and the world keeps only what the GM changed",
+   "verdict": "stands",
+   "why": "trimOverflowRules with OVERFLOW_1_2_84 and its migration clause at migrate.mjs:1001; E15-T4 green in the base run.",
+   "evidence": [
+    "scripts/migrate.mjs:1001: 'key: \"trimOverflowRules\",'",
+    "scripts/overflow.mjs:198, :213"
+   ]
+  },
+  {
+   "ref": "E15 promise 6",
+   "claim": "holds 'partly': Despair Flow's pools and the Monocubs window",
+   "verdict": "weakened",
+   "why": "As with E14 promise 8: the Monokuma box was removed by E101 and the Monocubs window retired by E72 C6 on the owner's decision (DC17); the pools half holds as worded (E15-T8 green). A part replaced by a later decision is not a promise delivered in part under 11.4; 'yes, superseded' is the reading, and it should not count against the grade.",
+   "evidence": [
+    "scripts/monocub.mjs:1973: 'THE OLD MONOCUBS WINDOW, RETIRED (E72 C6, 12.11.2026; audit S18-61, DC17)'",
+    "scripts/api.mjs:1015: 'monocubDialog: () => import(\"./gm-panel.mjs\").then(m => m.openWhoIsAliveDialog()),'"
+   ]
+  },
+  {
+   "ref": "E15 promise 7",
+   "claim": "Five kinds of project at the proposal and the approval, with their judges",
+   "verdict": "stands",
+   "why": "PASSAGE_PRESETS and the refusals at the lines cited; R981 green in tiers 0-1, E15-T12/T15/T17 green in the base run. A real-table reading the reader missed supports it: on the owner's v14 sandbox every Secret Passage test passed (19.11.2026 run). The pickers' gap stands as the notes say.",
+   "evidence": [
+    "scripts/passages-gm.mjs:446: 'export const PASSAGE_PRESETS = Object.freeze({'",
+    "the L1 branch e58-local (7875554f) docs/dev/e58/LOCAL-REPORT.md:368: 'Every tunnel, stairs and Secret Passage test passes on C1's floorNamed.'"
+   ]
+  },
+  {
+   "ref": "E15 promise 8",
+   "claim": "A finished Secret Passage gives a passage to its builder and sharers; a breach cuts the wall in three",
+   "verdict": "stands",
+   "why": "The completion rows opensPassage and breachesWall and cutBreach are at the lines cited; E15-T13/T14/T16 green in the base run; commits 9edb4f66 and b70b3b23 exist as the note says.",
+   "evidence": [
+    "scripts/projects.mjs:1208: 'key: \"opensPassage\",'",
+    "scripts/projects.mjs:1257: 'key: \"breachesWall\",'",
+    "scripts/passages-gm.mjs:700 cutBreach"
+   ]
+  },
+  {
+   "ref": "E15 promise 9",
+   "claim": "Closing a breach by any road writes the coordinates back and deletes the pieces",
+   "verdict": "stands",
+   "why": "restoreBreach, closeEveryBreach, reopenBreach, undoOpensPassage, repairItem and unrepairItem at the lines cited; R982 green, tier-2 tests green. The reader's own caveat (no thrown Reroll) stands.",
+   "evidence": [
+    "scripts/passages-gm.mjs:875: 'export async function restoreBreach(sceneId, breachId, { stores = PASSAGE_STORES, reseal = true, unpublish = false } = {}) {'"
+   ]
+  },
+  {
+   "ref": "E15 promise 10",
+   "claim": "Every refusal has a code of one closed list with words in both files; 32 codes today",
+   "verdict": "stands",
+   "why": "Counted by a script over the frozen array: 32 entries, 'unknown' among them. R983 green in tiers 0-1.",
+   "evidence": [
+    "scripts/passages-gm.mjs:1251: 'export const WHY_CODES = Object.freeze([\"noScene\", \"twoRooms\", \"gmOnly\", ...'",
+    "node -e over passages-gm.mjs: 32 codes, includes \"unknown\""
+   ]
+  },
+  {
+   "ref": "E15 grade",
+   "claim": "7, provisional after L1",
+   "verdict": "weakened",
+   "why": "One of the reader's three grounds falls (promise 6's part is a later decision, not a defect) and tier 2 plus scenarios 10 and 13 now read green on b5a29e73. Two remain: promises 7 and 9 each stand in part on reading only (the pickers, a thrown Reroll's undo), and the Loaded Die's table reading failed with its cause unread. Two promises with parts held only by reading sit at 11.4's 7-8 boundary; with the unread table failure, 7 is kept.",
+   "evidence": [
+    "audit/findings-1.2.118/base-run.json suite_merge: '3387 passed, 1 failed, 27 skipped' (the one failure grid XI07, which passes alone: xi07_alone)",
+    "audit/findings-1.2.118/first-session/README.md: scenarios 10 and 13 green"
+   ],
+   "grade_after": 7
+  }
+ ],
+ "counts": {
+  "checked": 39,
+  "stands": 30,
+  "weakened": 9,
+  "refuted": 0
+ },
+ "not_established": [
+  {
+   "what": "Scenarios 30, 33, 61, 76 and 83 on b5a29e73: the base run's scenarios are pending and the first session's run stopped in 30-security; E35 promise 6, E36 promise 2's cross-socket half and E15 promises 7-8 on the players' clients rest on them.",
+   "live_check": "none: the base run's scenarios, once run"
+  },
+  {
+   "what": "Why E36-T6 failed on its readings at the v14 sandbox on 19.11.2026 (the test's stand-in users or the module).",
+   "live_check": "new live check: E36-T6 alone at the sandbox, its readings logged",
+   "l1": {
+    "what": "E36-T6 on Foundry 14.370 with Daggerheart 2.12.9",
+    "recipe": [
+     "On the sandbox as GM, run game.drpg.runTests({ tier: 2, only: ['E36-T6'], confirmed: true })",
+     "Read which assertion fails and the token's record, room and tint it reports",
+     "Repeat once in each theme"
+    ],
+    "clients": "one GM (the test's stand-ins)",
+    "theme": "both",
+    "settles_if": {
+     "agrees": "the test passes, or fails on a stand-in user's shape only",
+     "defect": "the token is not moved, tinted or shown as the project's change says"
+    },
+    "priority": "minor (E36's grade 7)"
+   }
+  },
+  {
+   "what": "Whether the Loaded Die is loaded on a real roll window (test 229's 'the Loaded Die not loaded', 18.11.2026), and whether E15-T7 passes at the table.",
+   "live_check": "new live check: E15-T7 and test 229 alone at the sandbox",
+   "l1": {
+    "what": "A Loaded Die on a drawn roll at a v14 table",
+    "recipe": [
+     "Arm a Loaded Die on a student of a player",
+     "Throw an action roll from that player's sheet",
+     "Read the card: one die at 12 and named Hope or Fear",
+     "Repeat ten times and count Hope and Fear"
+    ],
+    "clients": "one GM, one player",
+    "theme": "default",
+    "settles_if": {
+     "agrees": "one die at 12 each time, both kinds seen",
+     "defect": "no die set, or always the same die"
+    },
+    "priority": "minor (E15's grade 7)"
+   }
+  },
+  {
+   "what": "Whether the Item tables window, rebuilt on the kit's dataTables since E46-C3b, fits 768 px under Stained Glass.",
+   "live_check": "LIVE-E14-01 (4)"
+  }
+ ]
+}

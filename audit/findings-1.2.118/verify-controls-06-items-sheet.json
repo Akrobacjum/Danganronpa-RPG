@@ -1,0 +1,163 @@
+{
+ "refuter": "verify-controls-06-items-sheet",
+ "of": "controls-06-items-sheet",
+ "checked": [
+  {
+   "ref": "controls-06-items-sheet-1",
+   "claim": "The Give / take hub keeps only its holdings line live; the Give tab's counts, key list and Remnant list, and the standalone give, take and Autopsy windows, are drawn once.",
+   "verdict": "stands",
+   "why": "Read the whole road. gm-items.mjs has one keepLive (149), on the field-free .drpg-holdings-live alone, watching items and actors; keepLive's rule 1 never defers it, as no field stands in it. bulletTraces runs at 372 (the hub) and 1482 (Give a Truth Bullet) only; keyChoices at 373 and from the who select's change (313) only; giveCategoryOptions from itemGiveParts and the recipient change (806) only. gm-items.mjs has no Hooks.on, no keepFresh and passes no `live` to drpgWindow (ui-kit.mjs:1340 starts keepLive only for one); grep of scripts/ for drpg-window-items finds only 337 and 385, so no other file redraws or closes the hub. takeItemDialog rebuilds its item list only on its recipient select's change; issueAutopsyDialog draws its dead marks and planned fill once. The hub is redrawn whole after each give or take (openItemManager reopens itself, 426, 440), which is the GM's own action, not another client's change. No test drives a change under an open hub (grep of scripts/tests*.mjs). Severity: the gives are judged again at the press for a trace gone and a bullet held, so the screen is wrong in a particular situation - minor holds.",
+   "evidence": "gm-items.mjs:149-153 `keepLive(dialog, { region: \".drpg-holdings-live\", build: holdings, ... watch: { items: true, actors: true }`; gm-items.mjs:372-373 `const bullets = await bulletTraces(); const keyList = keyChoices(target, allBedroomsAnywhere, keysHeldBy);`; gm-items.mjs:313 `if (who && ctx.keys.any) showKeyChoices(form, keyChoices(who, ...))` (inside the who select's change listener); ui-kit.mjs:1340 `if (live) keepLive(dialog, live);`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-06-items-sheet-2",
+   "claim": "Give of a room key the student already holds (carried or stashed) answers false with no notification.",
+   "verdict": "stands",
+   "why": "Read the whole road: the hub's give branch calls giveKeyNow (425); giveKeyNow notifies only !room and a made key (572-583); grantBedroomKey -> serialWrite -> grantKeyNow returns null at vault-store.mjs:316 for a key held with stashed: true, and nothing on that road notifies. The hub then reopens on the same choice (426), with the key no longer offered, so the GM sees the select change and no word. The case needs the stale list of finding 1 (or a second GM's grant), since keyChoices leaves out held keys at the open. Severity lowered: the student ends holding the very key the GM meant to give, nothing wrong is written and the reopened hub draws the true list; what is missing is one line of text, which is 11.3's nit, not a minor wrong state.",
+   "evidence": "gm-items.mjs:577-581 `const made = await grantBedroomKey(who, room); if (made) { ui.notifications.info(... \"DRPG.Vault.keyGivenGm\" ...) } return Boolean(made);`; vault-store.mjs:316 `if (keysHeldBy(actor, { stashed: true }).has(room)) return null;`; gm-items.mjs:425-426 `else if (choice.what === \"key\") await giveKeyNow(chosen, r.room, grantBedroomKey); return openItemManager(chosen, { give: ... });`",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "controls-06-items-sheet-3",
+   "claim": "Look inside the stashes is drawn once, and asking again raises the stale copy.",
+   "verdict": "stands",
+   "why": "openVaultInspector's first line raises an open copy (alreadyOpen unfolds and calls bringToFront, live.mjs:696-718, and the caller returns RAISED before any read). stash-reach.mjs imports alreadyOpen and RAISED from live.mjs and no keepLive or keepFresh; the drpgWindow call passes no `live`; grep of scripts/ for drpg-window-stashes finds only 791 and 842, so nothing closes or redraws it on a stow, retrieve, rifle or steal. The only test that opens it (tests-tier2.mjs:69413) answers the form at once and reads nothing after a change. The window is reached from the console (api.mjs:670 inspectVaults) alone, which narrows who meets it; minor holds.",
+   "evidence": "stash-reach.mjs:35 `import { alreadyOpen, RAISED } from \"./live.mjs\";`; stash-reach.mjs:791 `if (alreadyOpen(\"drpg-window-stashes\")) return RAISED;`; stash-reach.mjs:841-845 `return drpgWindow({ title: ... \"DRPG.Vault.inspectTitle\" ..., footer: { close: \"close\" },`; api.mjs:670 `inspectVaults: openVaultInspector,`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-06-items-sheet-4",
+   "claim": "Give / take on a student's sheet (and the Students window's Items) raises an already open hub left on another student.",
+   "verdict": "stands",
+   "why": "The header button calls openItemManager(app.document) (sheet-header.mjs:811-814); openItemManager's first statement answers an open hub with alreadyOpen -> RAISED (337), before `actor` is read, and alreadyOpen only unfolds and raises (live.mjs:696-718). The Students window's road is roads.openItemManager(actor) (gm-students.mjs:410, 480), the same function. The tooltip is 'Give or take an item' and the caption 'Give / take' (lang/en.json:1125-1126) on that student's sheet. Nothing sets the open hub's who select. The select names the student truly, so a GM who reads it is not misled; minor holds.",
+   "evidence": "sheet-header.mjs:811-814 `button.addEventListener(\"click\", async () => { const { openItemManager } = await import(\"./gm-items.mjs\"); await openItemManager(app.document); });`; gm-items.mjs:331,337 `export async function openItemManager(actor = null, ...) { ... if (alreadyOpen(\"drpg-window-items\")) return RAISED;`; gm-students.mjs:480 `openItemManager: actor => import(\"./gm-items.mjs\").then(m => m.openItemManager(actor)),`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "Character sheet - the module's header / Give / take (verdict mislabeled)",
+   "claim": "The button labelled for this student raises a hub about somebody else.",
+   "verdict": "stands",
+   "why": "Finding 4's road.",
+   "evidence": "gm-items.mjs:337 `if (alreadyOpen(\"drpg-window-items\")) return RAISED;`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-06-items-sheet-5",
+   "claim": "Take's title names the hub's student after the window's own select moves; an item gone meanwhile is told as 'carries nothing the module tracks'.",
+   "verdict": "stands",
+   "why": "The hub's take step passes chosen (430), so `actor` is set and the unfiltered title is takeFrom with actor.name (1790-1794); the recipient select's change rebuilds only the item options (render, 1810-1816), never the title. On an item not found the warning is DRPG.Items.nothingToTake (1847-1850), 'X carries nothing the module tracks.' (lang/en.json:1157), said also of a student who carries other things. The filtered doors (takeBullet, takeKey) take FILTERED titles that name no student, so the mislabel is the plain Take's alone. Nit holds.",
+   "evidence": "gm-items.mjs:1790-1794 `title: filtered ? game.i18n.localize(filtered.title) : actor ? game.i18n.format(\"DRPG.Items.takeFrom\", { actor: actor.name })`; gm-items.mjs:1847-1849 `const item = who.items.get(result.id); if (!item) { ui.notifications.warn(game.i18n.format(\"DRPG.Items.nothingToTake\", { actor: who.name }));`; gm-items.mjs:430 `take: () => takeItemDialog(chosen),`",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "Take an item away / Take (verdict mislabeled)",
+   "claim": "The window's title and its 'item gone' line say other than what happened.",
+   "verdict": "stands",
+   "why": "Finding 5's road.",
+   "evidence": "gm-items.mjs:1793 `? game.i18n.format(\"DRPG.Items.takeFrom\", { actor: actor.name })`",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "controls-06-items-sheet-6",
+   "claim": "On Give an item's empty From the tables pane (no item tables), Give is live and reads the Create new pane; Give a Truth Bullet's empty From a Remnant pane the same.",
+   "verdict": "stands",
+   "why": "With an empty catalogue giveExistingPane draws only the existingEmpty note (684), so exTable, exCategory and exTier are absent. Give an item's own paint (752) is holdGive(gateGive(form, existing)); gateGive's selects list is empty, `on` is false, `missing` false, and it answers true, so Give stays on. readGiveFields (925) takes the existing branch only when exTable exists, so it falls to the Create new read (category, name). The hub alone holds its Give off on catalogue.length (297). Give a Truth Bullet opens on Write new when there is no trace (the reader's 1497), so the GM must switch tabs to meet it there; the reader says so. Nit holds.",
+   "evidence": "gm-items.mjs:866-868 `function gateGive(form, existing) { const selects = [form?.elements?.exCategory, form?.elements?.exTier].filter(Boolean); const on = existing && selects.length > 0;`; gm-items.mjs:925 `if (active === \"existing\" && f.elements.exTable) {`; gm-items.mjs:684 `: `<p class=\"notes\">${game.i18n.localize(\"DRPG.Items.existingEmpty\")}</p>`;`",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "Give an item / Give (verdict mislabeled)",
+   "claim": "Give on the empty From the tables pane gives (or refuses) what the Create new pane holds.",
+   "verdict": "stands",
+   "why": "Finding 6's road.",
+   "evidence": "gm-items.mjs:752 `const paint = () => holdGive(dialog.element, gateGive(dialog.element.querySelector(\"form\"), (shownTab(dialog.element) ?? \"existing\") === \"existing\"));`",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "Give a Truth Bullet / Give a Truth Bullet (verdict mislabeled)",
+   "claim": "Give on the empty From a Remnant pane reads the Write new pane.",
+   "verdict": "stands",
+   "why": "Read the road. With no trace bulletExistingPane draws only the remnantEmpty note (1198), so no `remnant` select stands; the window's own wiring (wireBulletForm with no scope, 1237-1239) takes dialogScope's default gate, which holds nothing, and its Give is never disabled; readBulletFields takes the existing branch only when f.elements.remnant exists (1280) and otherwise reads Write new. The window opens on Write new when no trace stands (1497), so the GM meets it only after switching tabs. Nit holds.",
+   "evidence": "gm-items.mjs:1280 `if (active === \"existing\" && f.elements.remnant) {`; gm-items.mjs:1237-1239 `if (!scope) { wireKitTabs(dialog.element, { win: dialog.element, app: dialog }); scope = dialogScope(dialog); }`; gm-items.mjs:1497 `{ active: fill || !traces.length ? \"create\" : \"existing\" }`",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "controls-06-items-sheet-7",
+   "claim": "Plant the item with an empty name answers null silently and the GM's card stays open.",
+   "verdict": "stands",
+   "why": "The answer check is at traps.mjs:677, not 668 as cited; it returns null for an empty name or room with no notification, and rulePlantTrapItem keeps the card open on a falsy answer (messenger-app.mjs:984-987). The primary button has no gate in the window. Nit holds.",
+   "evidence": "traps.mjs:677 `if (!answer || answer === \"cancel\" || !answer.name || !answer.room) return null;`; messenger-app.mjs:986 `return planted ? settled(\"DRPG.Trap.plantSettled\") : null;`",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "controls-06-items-sheet-8",
+   "claim": "Level Up's Take back rows are drawn once; an offer spent or taken back meanwhile makes the press return false silently.",
+   "verdict": "stands",
+   "why": "standing is read once before chooseVariant (59-62); action-menus.mjs has no keepLive. The press goes to takeBackOffer (105), whose not-found return (421) says nothing, while its two other refusals warn (423-430). On the primary, withdrawOffer -> dropOffer also returns false quietly when the offer is gone (dropOffer, level-up.mjs:262). The case is ordinary at a table (a player spends an offer the GM meant to take back), and the GM is left not knowing the player has the Level Up; minor holds.",
+   "evidence": "level-up.mjs:59-61 `const standing = standingOffers(actor).map(offer => { ... return { value: `take:${offer.id}`, ...`; level-up.mjs:105 `if (picked.value.startsWith(\"take:\")) return takeBackOffer(actor, picked.value.slice(\"take:\".length));`; level-up.mjs:420-421 `const offer = standingOffers(actor).find(standing => standing.id === offerId); if (!offer) return false;`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-06-items-sheet-9",
+   "claim": "The Level Up button's is-offered mark and 'N on offer' tooltip on a GM's sheet do not follow the GMs' offers store.",
+   "verdict": "stands",
+   "why": "The GM's mark reads standingOffers (sheet-header.mjs:674, 699). The store's key advanceOffers is a client setting registered with no onChange (settings.mjs:2192-2197), unlike the Despair stores beside it (2255-2273, onStoreChange). gm-store.mjs's merge only marks keys touched (867-871) and fires no hook; its clientSettingChanged listener (1749, 1538-1545) only drops caches. The offerStore row (gm-stores.mjs:723-740) has no change callback. recordOffer (229-249) renders nothing; the bridge's run (bridge-runs-acts.mjs:477-500) neither. The renders that exist are the acting GM's own (dropOffer 271 on the primary, takeBackOffer, offerAdvancement). Scenario 71 H drives one GM only (71-sheet.mjs:533-560). The press reads the store afresh, so only the mark is wrong; minor holds.",
+   "evidence": "settings.mjs:2192-2197 `game.settings.register(MODULE_ID, SETTINGS.advanceOffers, { scope: \"client\", config: false, type: Object, default: {} });`; level-up.mjs:245 `await offerStore.patch(actorId, listFields(row, [...offerList(row), added]));` (no render follows in recordOffer); level-up.mjs:271 `game.actors.get(actorId)?.sheet?.render(false);` (dropOffer, primary's own browser); sheet-header.mjs:699 `standing.classList.toggle(\"is-offered\", Boolean(offer));`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "Character sheet - the module's header / Level Up (verdict stale_state)",
+   "claim": "The GM's lit mark does not follow another GM's offer or a spend seen by a second GM.",
+   "verdict": "stands",
+   "why": "Finding 9's road.",
+   "evidence": "settings.mjs:2192 `game.settings.register(MODULE_ID, SETTINGS.advanceOffers, {` (no onChange)",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-06-items-sheet-10",
+   "claim": "The Ultimate field is replaced by the stored text on any render while it is being typed in.",
+   "verdict": "stands",
+   "why": "injectUltimate replaces the details row from the stored flag on every render (850) and commits on blur (858); grep of sheet*.mjs finds no hold for it (the backstory's app._drpgBiography, sheet-sidebar.mjs:1086-1129, and the reserve field's activeElement check, 345, are the only holds). Renders are ordinary: the clock's sync kind runs 'sheets' (sync.mjs:474), refreshSheets calls app.render(false) (clock.mjs:950), and renderPlan sends that to a full render, not a repaint (sheet-repaint.mjs:141-144: a bare `false` is no options object). Whether the typed text is lost or saved half-typed depends on the browser's blur on removal (the reader's not_established). The text is one short line typed rarely; minor holds.",
+   "evidence": "sheet-header.mjs:850 `details.replaceChildren(buildUltimateRow(ultimate, editable));`; sheet-header.mjs:858 `field.addEventListener(\"blur\", () => commitUltimate(actor, field));`; clock.mjs:950 `app.render(false);`; sync.mjs:474 `[SYNC.clock]: Object.freeze([\"assembly\", \"bar\", \"hud\", \"sheets\", ...`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "Character sheet - the module's header / Ultimate (verdict stale_state)",
+   "claim": "No hold of typed text across a render.",
+   "verdict": "stands",
+   "why": "Finding 10's road.",
+   "evidence": "sheet-header.mjs:850 `details.replaceChildren(buildUltimateRow(ultimate, editable));`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-06-items-sheet-11",
+   "claim": "The reserve's Health and Sanity fields on an open player's sheet do not follow a change of Lock player resources.",
+   "verdict": "stands",
+   "why": "reserveField reads the setting at the render (sheet-mode.mjs:111). The setting's onChange only toggles the body class (settings.mjs:3158); the stylesheet's drpg-resources-locked rules (danganronpa.css:1504-1517, 5886-5888) name Hope, the Party sheet's toggles and the trait inputs, and .drpg-reserve-field has only its look (9081-9098). lockPlayerResources is in TABLE_SETTINGS (settings.mjs:1192), not in sync.mjs SETTING_KINDS (applyFor returns on no kind, 176-179). sheet.mjs's updateSetting listener (79-81) hears trialQueue only. No test drives the change under an open sheet (grep of tests*.mjs). The GMs judge the write either way (resource-guard.mjs:146, 186 read the setting at the write; sheet-audit.mjs), so only the screen is wrong; minor holds.",
+   "evidence": "settings.mjs:3158 `onChange: value => document.body.classList.toggle(\"drpg-resources-locked\", Boolean(value))`; sheet-mode.mjs:111 `return !game.settings.get(MODULE_ID, SETTINGS.lockPlayerResources);`; sync.mjs:177-178 `const kind = SETTING_KINDS[settingKey]; if (!kind) return;`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-06-items-sheet-12",
+   "claim": "The sheet's room-bound parts (action tiles' room reasons, Rifle, stash sections, the lair's Lock line) follow no token move, region flag or stash change elsewhere.",
+   "verdict": "stands",
+   "why": "sheet.mjs's hooks (66-127): renderCharacterSheet, renderPartySheet, drpgPassagesChanged, updateSetting for trialQueue (repaints Present only), preUpdateToken/updateToken for onTunnelStep (draws nothing), closeCharacterSheet, clientSettingChanged for remnantSecrets (forgetTamper, which clears a cache and draws nothing), renderItemSheetV2. refreshSheets' callers in scripts/ (settings.mjs:2349, 2356, 2436, 3479, 3484; sync.mjs:410, 418; migrate.mjs:1607) carry no token or region source; visibility.mjs's updateToken and updateRegion listeners (65, 87) run the token pass and room recount, not 'sheets'; movement.mjs's updateRegion (398) judges a flag change; room-tile.mjs's updateRegion (761) redraws the HUD tile. The module's own notes say the tiles' reasons are advice and the presses are judged again (sheet-actions.mjs:955-960), and that a token's move draws nothing on the sheet (sheet-sidebar.mjs:668-672). Under the owner's rule of 20.11.2026 the shown state is still a finding; minor holds.",
+   "evidence": "sheet.mjs:84-86 `Hooks.on(\"updateToken\", (tokenDoc, changes, options, userId) => { onTunnelStep(...)` (the sheet's one token listener); sheet-actions.mjs:958-960 `the real guards downstream stay exactly where they are, since a room's state can change between a sheet render and a click.`; sync.mjs:410 `sheets: () => import(\"./clock.mjs\").then(m => m.refreshSheets()),`",
+   "severity_after": "minor"
+  }
+ ],
+ "counts": {
+  "checked": 18,
+  "stands": 18,
+  "weakened": 0,
+  "refuted": 0
+ },
+ "not_established": [
+  "Checked: every finding of severity minor or above (1, 2, 3, 4, 8, 9, 10, 11, 12), the nits behind the four mislabeled controls (5, 6) and nit 7; the stale_state controls' rows folded into their findings where they cite one. Nit 13 (a player's one-question pickers) was not re-read. The file has no control verdict dead, throws or wrong_audience.",
+  "No surface in this file stands on keepLive's rule 1 with a field inside it: the one keepLive (gm-items.mjs:149) watches the field-free .drpg-holdings-live, so D-A1's major for a wait-for-focus surface does not reach these windows; their gap is that they are not live at all, which the reader writes as minor stale_state. Whether the owner's rule raises a window that is not live at all to major, as D-A1 does for one that waits, is not settled by DECISIONS.md and is left to the coordinator.",
+  "Finding 10's consequence (the typed Ultimate lost, or saved half-typed, on a render) rests on whether the browser fires blur on a removed focused contenteditable; not measured. New live check: type into the Ultimate on a player's sheet at a table while the GM moves the clock, read the field and the stored flag.",
+  "Finding 9 across two GMs is read in source only; scenario 71 H drives one GM. New live check: two GMs, GM2 offers a Level Up while the primary has the student's sheet open; read [data-drpg-advance].classList on the primary.",
+  "audit/findings-1.2.118/base-run.json, probe-42.json and probe-43.json were not present when this check was made; no harness result is cited."
+ ]
+}

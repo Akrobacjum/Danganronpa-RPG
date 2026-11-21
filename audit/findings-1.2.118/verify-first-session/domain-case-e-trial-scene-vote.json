@@ -1,0 +1,99 @@
+{
+ "refuter": "verify-first-session/domain-case-e-trial-scene-vote",
+ "of": "first-session/domain-case-e-trial-scene-vote",
+ "checked": [
+  {
+   "ref": "domain-case-e-trial-scene-vote-1",
+   "claim": "While a mask stands the killer's Actor wears the '?' picture beside its unchanged name, so every player's Actors list names the killer.",
+   "verdict": "stands",
+   "why": "maskKiller writes img MASK_IMG on the Actor on both roads (a new mask and a standing row) and nothing in it touches the Actor's name or ownership; maskPatch renames only the tokens. New characters open at Observer while enforceAnonymity is on (onPreCreateActor), so every player is shown every student in the Actors tab. A grep of scripts/ for ActorDirectory, renderActorDirectory and ui.actors finds nothing (outside tests); styles/danganronpa.css:18568-18586 only colours #sidebar .directory-item, it hides no entry or thumbnail. The module's own paper lists the Actors directory as a surface that reads actor.img for every player who can see the actor (docs/dev/e112/STATUS.md:107), which confirms the leg the reader marked as Foundry's behaviour. The sheet-close tell (anonymity.mjs:122-126) is read as the reader says. No paper accepts the named entry; the handbook says nobody but the killers is told and only a console tells. Blocker kept: the scale's 'gives the answer away' is exactly a player reading the killer off the list before the body is found.",
+   "evidence": "scripts/mask-gm.mjs:252 \"await killer.update({ img: MASK_IMG }).catch(err => error(`Could not mask ${killer.name}'s portrait`, err));\"; scripts/mask-gm.mjs:78-80 maskPatch \"{ name: MASK_NAME, \\\"texture.src\\\": MASK_IMG, ... }\" (token only); scripts/anonymity.mjs:774-776 \"if ((data.ownership?.default ?? NONE) === OBSERVER) return; actor.updateSource({ \\\"ownership.default\\\": OBSERVER });\"; docs/dev/e112/STATUS.md:107 \"| the Actors directory | `actor.img` | yes, (b), for players who can see the actor at all |\"",
+   "severity_after": "blocker"
+  },
+  {
+   "ref": "domain-case-e-trial-scene-vote-2",
+   "claim": "A tokenless participant's side pick is offered once per zone mode and never cleared, so a Logic Dive's later questions count the first pick and no control changes it.",
+   "verdict": "stands",
+   "why": "offerSidePick is the only caller of requestTrialSide (grep: trial-zones-ui.mjs:456; bridge-asks.mjs:366 defines it); its key is mode|openedAt, and it returns when zone.picks already holds the student. phase() spreads the old zone and diveQuestion's patch names question, answers, counts and set only, so openedAt and picks carry to the next question. The machine's pick row refuses only the same side (zone-machine.mjs:392), so a change would be accepted, but no window sends one: a reload resets pickOpenFor and still returns on the stored pick. sidesNow reads picks[actor.id] for a participant with no hall token. The handbook (gm-handbook.en.md:1596) promises the window and says a token holder who does not move keeps their zone, which matches a held pick but not the missing way to move. Minor fits: it needs a participant with no hall token.",
+   "evidence": "scripts/trial-zones-ui.mjs:437-441 \"const key = `${floor.mode}|${zone.openedAt}`; if (pickOpenFor === key) return; ... if (!mine || hallTokenOf(mine.actor) || zone.picks?.[mine.actor.id]) return; pickOpenFor = key;\"; scripts/zone-machine.mjs:135 \"zone: { ...zone, ...patch, phase: name, step: (Number(zone.step) || 0) + 1 }\"; scripts/zone-machine.mjs:232 \"phase(floor, \\\"vote\\\", seconds, now, { question, answers, counts: null, set: { ...zone.set, index } })\"",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-case-e-trial-scene-vote-3",
+   "claim": "The Logic Dive set editor and the Hall zones window judge their form after the window has closed, so a refusal loses what was typed, and Start with no set says nothing.",
+   "verdict": "stands",
+   "why": "drpgWindow is DialogV2.wait (ui-kit.mjs:1301-1343) and dialogButtons passes a button's callback through with no keep-open road (ui-kit.mjs dialogButtons); the editor's Save callback answers readSetForm and saveDiveSet's setRefusal runs after the window is gone, warning and returning null. openZonePicker's Start answers the fields and startZone's zoneArgsRefusal warns after the close (trial-zones.mjs:268-272). With Logic Dive and no set the press answers null with no toast; the window does say DRPG.Zones.picker.noSets in its Logic Dive part (trial-zones-ui.mjs:267), so the GM was told before the press, which softens that third leg only. Minor kept for the loss of a typed set.",
+   "evidence": "scripts/trial-zones-ui.mjs:221-222 \"if (!asked || asked === \\\"cancel\\\") return null; return saveDiveSet(id, asked);\"; scripts/trial-zones-ui.mjs:139-143 \"const refused = setRefusal(set); if (refused) { ui.notifications.warn(refused); return null; }\"; scripts/trial-zones-ui.mjs:322 \"if (asked.mode === ZONE_MODES.dive) return asked.setId ? startLogicDive(asked.setId) : null;\"",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-case-e-trial-scene-vote-4",
+   "claim": "A GM's Findings edit writes the whole list read earlier as an object patch, so a Finding a zone step adds in between is written over.",
+   "verdict": "stands",
+   "why": "addFinding, editFinding, deleteFinding and confirmFinding each read findingsNow() and hand writeFindings a whole list; writeFindings passes an object to setTrialProgress, which off the primary goes to recordOnPrimary('patch') and is spread over the record as the primary finds it (findings is in RECORD_FIELDS: RECORD_KEPT names chapter, mutedDead, objections and closing only), and on the primary queues on the same key. afterZoneStep adds a Finding by a function patch. The record's own comment says such a caller must pass the function. The window is narrow (one queue turn on the primary, one round trip off it), which keeps it minor.",
+   "evidence": "scripts/trial-zones.mjs:394-397 \"async function writeFindings(list) { const { setTrialProgress } = await import(\\\"./vote.mjs\\\"); await setTrialProgress({ findings: list }); }\"; scripts/trial-progress.mjs:488-489 \"A caller that builds its patch from a record it read earlier - a list it adds to, a vote it closes - passes the function, or a write that landed between its read and its step is written over.\"; scripts/trial-progress.mjs:514 \"const RECORD_KEPT = new Set([\\\"chapter\\\", \\\"mutedDead\\\", \\\"objections\\\", \\\"closing\\\"]);\"",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-case-e-trial-scene-vote-5",
+   "claim": "The wrong verdict's GM line inserts the told Monocubs' actor names into the summary card's HTML unescaped.",
+   "verdict": "stands",
+   "why": "listOf's own header says 'Not escaped'; the line is pushed into context.lines and verdictSummaryContent writes each line raw into <li>. whisperToGms goes through privately to secret.mjs postSecret (utils.mjs:762-767, 833-835), whose store holds a GM's words as written and puts them into innerHTML (secret.mjs:152-160). A Monocub is a dead student's own character (monocub.mjs:122-123 monocubActors filters characters flagged Monocub), owned by that player; no preUpdateActor hook in scripts/ holds an actor's name (anonymity.mjs, resources.mjs, resource-guard.mjs, overflow.mjs; resource-guard.mjs:118 ITEM_GUARDED is for items). Kept at minor as the reader wrote it; the refuter notes that what runs is markup on every GM's browser, so the owner may read it higher.",
+   "evidence": "scripts/verdict.mjs:1007 \"context?.lines?.push(game.i18n.format(\\\"DRPG.Monocub.wrongVerdictTold\\\", { names: listOf(touched.map(actor => actor.name)) }));\"; scripts/verdict.mjs:823 \"${lines ? `<ul>${lines.map(line => `<li>${line}</li>`).join(\\\"\\\")}</ul>` : \\\"\\\"}\"; scripts/utils.mjs:64 \"where the browser has none. Not escaped.\"; scripts/secret.mjs:158-159 \"words written by a GM are stored as the GM wrote them\"",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-case-e-trial-scene-vote-6",
+   "claim": "Take from the Body picks the taker as the first owned character when two are owned and none assigned, not chooseOwnStudent's viewer.",
+   "verdict": "stands",
+   "why": "myCharacter filters every owned character (a Spectator and a dead student included) and answers owned[0] when there are two and game.user.character is null; it is the taker of openBodyLoot (anonymity.mjs:344) and takeFromBody (503). hud.mjs viewerActor answers monokuma.mjs chooseOwnStudent over ownedStudents (no Monokuma, no Spectator), falling to the controlled token's actor. The comment above myCharacter still names hud.mjs's older order. The GMs' gate judges again, so nothing is taken wrongly; the effect is a Take refused or made for the other student. Minor kept.",
+   "evidence": "scripts/anonymity.mjs:583-588 \"const owned = game.actors.filter(a => a.type === \\\"character\\\" && a.testUserPermission(game.user, \\\"OWNER\\\")); if (owned.length === 1) return owned[0]; return game.user.character ?? owned[0] ?? null;\"; scripts/hud.mjs:1456-1459 \"return chooseOwnStudent(ownedStudents(), { assigned: game.user.character ?? null, controlled: (canvas?.tokens?.controlled ?? []).map(token => token.actor).filter(Boolean) });\"",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-case-e-trial-scene-vote-7",
+   "claim": "Each refreshToken on a player's browser walks every token of every scene through myMask, with no counter.",
+   "verdict": "stands",
+   "why": "The hook calls noticeOwnMask on every non-GM refresh, and noticeOwnMask calls myMask before its early return; myMask loops game.scenes and their tokens. No perf-counters call in the hook. Cost in time not measured, as the reader says. Nit kept.",
+   "evidence": "scripts/mask-gm.mjs:692-694 \"Hooks.on(\\\"refreshToken\\\", token => { drawMaskName(token); if (!game.user?.isGM) noticeOwnMask(); });\"; scripts/mask-gm.mjs:167-170 \"for (const scene of game.scenes ?? []) for (const token of scene.tokens ?? []) { if (isMaskedToken(token) && token.actor?.testUserPermission?.(user, \\\"OWNER\\\")) return token.actor;\"",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "Hall zones window / Start (Logic Dive chosen, no set in the store)",
+   "claim": "hints_for_other_passes.dead_controls: the window closes, nothing starts and nothing is said.",
+   "verdict": "weakened",
+   "why": "The press answers null with no toast (trial-zones-ui.mjs:322), but the window's Logic Dive part draws DRPG.Zones.picker.noSets in place of the set select when the store has none (trial-zones-ui.mjs:267), so the GM is told before pressing. 'silent' at the press, not 'dead' with nothing said.",
+   "evidence": "scripts/trial-zones-ui.mjs:266-267 \"${sets.length ? formGrid([...]) : `<p>${esc(L(\\\"DRPG.Zones.picker.noSets\\\"))}</p>`}\"",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "Logic Dive sets list / New, and Findings window / Add",
+   "claim": "hints_for_other_passes.dead_controls: each closes its list and the list does not come back.",
+   "verdict": "weakened",
+   "why": "Both controls do what their labels say: New answers 'new' and opens editDiveSet(null) (trial-zones-ui.mjs:361), Add asks the words and calls addFinding (418-420). That the list does not come back is a flow or refresh gap, not a dead control; the in-window Edit, Delete and Confirm redraw the list (353, 412).",
+   "evidence": "scripts/trial-zones-ui.mjs:361 \"}).then(out => (out === \\\"new\\\" ? editDiveSet(null) : null));\"; scripts/trial-zones-ui.mjs:418-420 \"if (out !== \\\"add\\\") return null; const text = await askFindingText(...); return text ? addFinding(text) : null;\"",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "Final Trial verdict window / They named the Mastermind",
+   "claim": "hints_for_other_passes.dead_controls: drawn disabled when the Mastermind is already dead, the reason in an info box rather than on the button.",
+   "verdict": "refuted",
+   "why": "The button is disabled on purpose when isDeadForGm(mastermind) (verdict.mjs:1194, 1240) and the same condition draws DRPG.Mastermind.alreadyDeadNote in an info box in the window's body (1214-1215). A control disabled with its reason shown is not dead; the hint itself says the reason is there.",
+   "evidence": "scripts/verdict.mjs:1214-1215 \"${alreadyDead ? box(\\\"info\\\", `${game.i18n.localize(\\\"DRPG.Mastermind.alreadyDeadNote\\\")}`)\"; scripts/verdict.mjs:1240 \"disabled: alreadyDead,\"",
+   "severity_after": "none"
+  }
+ ],
+ "counts": {
+  "checked": 10,
+  "stands": 7,
+  "weakened": 2,
+  "refuted": 1
+ },
+ "not_established": [
+  "Finding 1's last leg is Foundry v14's Actors directory drawing an Observer's actor.img beside its name and redrawing on an img change; it rests on docs/dev/e112/STATUS.md:107 and the handbook, not on v14's source or a table reading. LIVE-E112-04 (2) or a new live check: with a mask standing, open the Actors tab on a player's browser and read the masked student's row.",
+  "Finding 5: whether Foundry v14 accepts markup in an actor's name from its owner unchanged was not read in v14's source (no preUpdateActor hook in scripts/ holds it). New live check: rename a Monocub to a name with an <img> tag, give a wrong verdict, and read the GMs' summary card.",
+  "Finding 4's race window was not measured; it needs two writes inside one queue turn on the primary or one round trip off it.",
+  "The other dead_controls and stale_windows hints of the reader's file (the side-pick window, the ballot window, Stay hidden?, the verdict, Mastermind and cast windows, the Take list, the anonymity audit) were not re-checked here, beyond those covered by findings 2 and 3; their verdicts are the reader's alone. D-A1 applies to none of the windows checked (none is on keepLive's wait-for-focus).",
+  "base-run.json is not in audit/findings-1.2.118/; no result of a test or scenario is claimed."
+ ]
+}

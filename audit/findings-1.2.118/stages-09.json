@@ -1,0 +1,687 @@
+{
+ "reader": "stages-09",
+ "checkout": "claude/audit-119 (scripts/, lang/, styles/, tools/ and docs/ as on b5a29e73, 1.2.118). The repository is a shallow clone: of the four stages' own commits only E14's fixes e1-G6 to e1-G8 and E15's C6 and fixes e1-G1 to e1-G5 are in it, besides the ledger and release commits.",
+ "count_expected": 4,
+ "count_note": "4 of 4 stages, in tools/stages.json order E35, E14, E36, E15 (tools/stages.json:37-40). Read: the two release notes whole (264 + 322 lines); the four stages.json rows; 19 registry rows by title (4 E35, 7 E14, 3 E36, 5 E15), the bodies of R950, R951 and the opening of R978 and E36-T2 (tests-tier2.mjs:80983-81060), about 70 tier-2 titles and the set-up of E14-T3; AUDIT 9.2 items 295-303 by id (9 items) and live-items-293.json rows 295-303; the three live-readings files by grep; the scenario register (audit/harness/README.md) and the E-marked blocks of scenarios 13, 33, 76 and 83; code at the file:line given in each promise, about 1400 lines in 30 files, none read whole. No harness, test, scenario or probe was run; base-run.json was absent.",
+ "stages": [
+  {
+   "id": "E35",
+   "version": "1.2.84",
+   "shipped": "2026-10-25",
+   "what": "One road for an item that changes owner: a hand-over, a body's loot, a stash rifled, a Palm's steal and a Plant each go through inventory.mjs `transferItem` on a GM, which moves one piece of a stack, reads the item and the taker's hands as the GMs hold them, and applies the owner's D42 for full hands (a give and a Plant refused, a loot, a rifle and a steal to the taker's stash); a Plant into full pockets tells the victim nothing. Shipped in one train with E14 (the owner's Q2); 4 registry rows stamped E35 (R950-R953).",
+   "claim_sources": [
+    ".github/release-notes/v1.2.84.md (1-264, whole; E35's lines 3-12, 55-63, 112-121, 144-147, 151-156, 170-174, 184-233, 247-264)",
+    "no papers folder: docs/dev/ holds no e35/ (ls docs/dev; git log --all -- 'docs/dev/e35*': none); the notes cite a ledger of 26 rows (E35-01..E35-26) that is not in the repository",
+    "tools/stages.json:37 (planned and shipped 1.2.84, 2026-10-25, touches sockets, drills none)",
+    "docs/dev/R-REGISTRY.md: R950, R951, R953 (tier 1) and R952 (tier 0), stamped E35",
+    "git log --grep E35: 12 commits in the checkout, none of the stage's own C0-C5 or fix commits (the clone is shallow: the notes' 7f00213, f278a66, d319242 are not in it); 450f1a63 (AUDIT 9.2 items 295-298), 09ec943b and c82c4e2c (the ledger and the release), c027ac6e (E39 C3: E35-T10 widened), feba55c3 (1.2.112: the stashes' change)",
+    "audit/AUDIT-1.2.42.md 9.2 items 295-296 (lines 1169-1170), found by id; audit/findings-1.2.118/live-items-293.json rows 295-296",
+    "audit/harness/README.md:188 (33) and :217 (83), the two register rows naming E35"
+   ],
+   "commits": 12,
+   "promises": [
+    {
+     "promise": "Every move of an item between two characters (give, loot, rifle, steal, Plant) goes through one GM function that moves one piece, refuses a mode it does not know, chains both sheets and writes only by the trusted roads",
+     "source": "v1.2.84.md 5-7, 151-156",
+     "code": "scripts/inventory.mjs:1037 TRANSFER_POLICY, :1040 TRANSFER_STUCK, :1051 TRANSFER_REFUSED, :1136-1165 transferItem (GM gate, the one gate first, both sheets' serialWrite chains sorted, judgedFor then itemAsHeld/actorAsHeld); scripts/handover.mjs:938 giveItem, :395 lootBody; scripts/stash-reach.mjs:550 (the rifle hands its move to transferItem, mode rifle); scripts/palm.mjs:587 stealFromPerson, :877 (the Plant, mode plant)",
+     "holds": "yes",
+     "test": "R951 (tier 1), R952 (tier 0); tier 2 E35-T2 (tests-tier2.mjs:77158, :77212), E35-T3 (:77290), E35-T9's road through R952; scenario 83 L12-L16 (83-roll-integrity.mjs:589-604 and on)",
+     "test_kind": "both",
+     "note": "R951 drives the gate and the refusals and reads the rest off the source (regexes over transferItem's text); R952 is a source census. The behaviour is the tier-2 tests' and scenario 83's, from a player's page. The rifle and the steal moved out of vault.mjs since (stash-reach.mjs, palm.mjs; vault.mjs:40 re-exports them)."
+    },
+    {
+     "promise": "One piece of a stack per action, the giver's count read again after the copy is made; a piece used, broken or gone on the way changes no hands; a piece that reaches hands holding the same item joins it and takes no slot",
+     "source": "v1.2.84.md 55-58, 116-118",
+     "code": "scripts/inventory.mjs:1165-1175 (the count read again as the GMs hold it, 'ONE PIECE OFF THE GIVER'), the body of transferItem after it",
+     "holds": "yes",
+     "test": "tier 2 E35-T3 \"a hand-over of a stack moves one piece ...\" (tests-tier2.mjs:77290); R951's regex on `const now = await itemAsHeld(from, id)` and `count - 1`; scenario 83 L12",
+     "test_kind": "both",
+     "note": "Measured headless only; LIVE-E35-01 (item 295) is open. The notes' own gap stands: a piece keeps the stack's identity, read in the code (inventory.mjs comment above transferItem)."
+    },
+    {
+     "promise": "A Plant into full pockets is refused, seen or unseen, with a stash or without (D42): the item stays with the planter, who reads that it does and that they felt nothing; the victim is told nothing - no card, no packet, no redraw",
+     "source": "v1.2.84.md 112-115; R953",
+     "code": "scripts/inventory.mjs:1037 (plant: \"refuse\"); scripts/palm.mjs:862-868 (the comment), :877 transferItem mode plant quiet when unseen, :883-893 the planter's card (cardTheirHandsFull, cardUnfelt), :912 (`if (seen && !handsFull)`: no whisper to the victim and none to the room)",
+     "holds": "yes",
+     "test": "tier 2 E35-T6 (tests-tier2.mjs:77951) and E35-T7 (:78050); R953 (the handbook's words, both languages)",
+     "test_kind": "both",
+     "note": "Not seen at a table: LIVE-E35-02 (item 296) open. The default 'a Gear planted unseen arrives stowed, so the victim may carry two stowed' is still the owner's to rule (E35-T7's title)."
+    },
+    {
+     "promise": "A key to a room the taker already holds is not copied (the taker told, not when unseen); a key handed over stays a copy",
+     "source": "v1.2.84.md 119",
+     "code": "scripts/inventory.mjs transferItem's key rule (keyHeld in its answer, the docblock at :1104-1135)",
+     "holds": "yes",
+     "test": "tier 2 E35-T4 (tests-tier2.mjs:77457), E35-T8's steal half (:77830)",
+     "test_kind": "behaviour",
+     "note": "The notes' gap stands as written: a loot of a key the taker already holds still marks the body (not driven)."
+    },
+    {
+     "promise": "When a piece could not be taken off the giver the GMs read one line in that road's words; a refused move reaches the player as 'was not carried out' with the reason; a Palm refused before its dice gives the action back, one refused after them stays spent",
+     "source": "v1.2.84.md 59-60, 120-122",
+     "code": "scripts/inventory.mjs:1040-1043 TRANSFER_STUCK; :1051 TRANSFER_REFUSED; scripts/palm.mjs:211-213 (palmBack on a refusal of the closed list or no GM), :243-246 palmBack",
+     "holds": "yes",
+     "test": "tier 2 E35-T5 (tests-tier2.mjs:77752), E35-T10 (:78236), E14-T1 'a Palm the gate refuses before its rolls ...' (:78681); scenario 33 C (33-bridge-paths.mjs:2294)",
+     "test_kind": "behaviour",
+     "note": "The refusals' English words were reworded by E71 B12 (6cc82c5a, 14.11.2026): 'Your character is not in the right place for that.' and 'You cannot do that right now.' where the notes quote the 1.2.84 sentences (live-items-293.json row 297's stale_detail). The meaning is kept."
+    },
+    {
+     "promise": "With no GM connected each of the five roads settles at once with one line, and a Palm started then is refused before its window and its price",
+     "source": "v1.2.84.md 144-147",
+     "code": "scripts/palm.mjs:239-241 nobodyTook (noGm gives the action back; E16 part 2 C5 moved this after the dice, before the rolls are read); scripts/anonymity.mjs takeFromBody (no GM, no dice, E68 fix)",
+     "holds": "yes",
+     "test": "scenario 33 C (33-bridge-paths.mjs:2294, 'the five roads with no GM'); audit/harness/README.md:188",
+     "test_kind": "behaviour",
+     "note": "Since E16 part 2 C5 (S02-15) a Palm whose last GM left between the dice and the ask also gives its action back; the notes' 'before its window and its price' is the case with no GM from the start."
+    },
+    {
+     "promise": "A stash rifled unseen does not redraw its owner's sheet",
+     "source": "v1.2.84.md 151-156 (quiet), E35-T8",
+     "code": "scripts/stash-reach.mjs:550 (`quiet: true`); scripts/inventory.mjs transferItem `hushFrom`",
+     "holds": "yes",
+     "test": "tier 2 E35-T8 (tests-tier2.mjs:78183)",
+     "test_kind": "behaviour",
+     "note": "The test's title carries '1.2.112': the stash's road was changed by feba55c3 (a hidden stash opens to Find Stash alone, the owner hears of a rifle on walking in), which keeps this promise."
+    }
+   ],
+   "registry_rows": 4,
+   "tests_read": [
+    {
+     "test": "R950 (tests-tier1.mjs:30558-30603)",
+     "measures": "yes",
+     "why": "Builds a scene of plain objects with three movers (key carried, key stashed, no key) and asks the door (movement.mjs crossingVerdict) and game.drpg's mayEnterBedroom; must() refuses a reading where the stashed key does not read as stashed. Pure functions, no world write; it measures the key rule (E14's promise, written as E35's skeleton). base-run.json was not on the branch when this was read (20.11.2026) and the base run's tier log is not in the checkout: the result of this test was not read"
+    },
+    {
+     "test": "R951 (tests-tier1.mjs:30604-30660)",
+     "measures": "weak",
+     "why": "Runs the GM gate on a player's browser and three malformed transfers, holds TRANSFER_POLICY and TRANSFER_STUCK, and reads the rest off transferItem's source by regex (the sorted chains, the second read of the count, the three write roads with 'gmRuling'). It pins the shape, not a move. base-run.json was not on the branch when this was read (20.11.2026) and the base run's tier log is not in the checkout: the result of this test was not read"
+    },
+    {
+     "test": "R952 (tests-tier0.mjs:16801-16918)",
+     "measures": "weak",
+     "why": "A census over module sources: no function creates and deletes an Item outside transferItem but a listed few, and the five roads name their modes. It logs its counts (`R952: N files ...`), so an empty read is visible. Static. base-run.json was not on the branch when this was read (20.11.2026) and the base run's tier log is not in the checkout: the result of this test was not read"
+    },
+    {
+     "test": "tier 2 E35-T3 'a hand-over of a stack moves one piece ...' (tests-tier2.mjs:77290), by title and set-up",
+     "measures": "yes",
+     "why": "By its title it hands over three pieces and reads two, one, then the last moving whole, a count raised where the GMs do not see it, two asks for one piece moving it once. Body not read line by line. base-run.json was not on the branch when this was read (20.11.2026) and the base run's tier log is not in the checkout: the result of this test was not read"
+    },
+    {
+     "test": "scenario 83 L12-L16 (83-roll-integrity.mjs:589-800, set-up and helpers read)",
+     "measures": "yes",
+     "why": "Each owner change asked from a player's page (requestGiveItem and the other four), the held counts read on the GM (heldOf), then a put-back check. Four jsdom clients, no real server. Its result was not read (no base-run.json)."
+    }
+   ],
+   "tests_to_join": [
+    "tier 0: R952",
+    "tier 1: R950, R951, R953",
+    "tier 2: E35-T2 (give, loot), E35-T3, E35-T4, E35-T5, E35-T6, E35-T7, E35-T8 (steal, rifle, Plant; and the unseen rifle), E35-T10",
+    "scenario 83 (L12-L16)",
+    "scenario 33 (C)"
+   ],
+   "scenarios": [
+    "83-roll-integrity (ci, local-gate; audit/harness/README.md:217): the five roads asked from a player's page, L12-L16, then a put-back check",
+    "33-bridge-paths (ci; README.md:188): with no GM connected each road settles before it is sent, a Palm's steal and Plant before their window and price (E35 C5)",
+    "61-gmstore-case and 72-canary changed in the train (the takers stand beside the body), by the notes 172-174; not read here"
+   ],
+   "live": {
+    "items": 2,
+    "read": 0,
+    "ids_read": [],
+    "note": "LIVE-E35-01 (item 295) and LIVE-E35-02 (item 296): no reading in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json (grep for the ids: 0 hits in each); live-items-293.json rows 295-296 say open, triage K."
+   },
+   "findings": [],
+   "superseded_by": [
+    "E64 D001 (12.11.2026): a give now asks the person gate (inventory.mjs:1101-1105), so the 1.2.84 gap 'a give to a hidden token, a Monocub or a Monokuma goes through' is closed",
+    "1.2.112 (feba55c3): a Search reaches into no stash (stash-reach.mjs:453-476), so 'A Search's find is not counted' in the rifle's count no longer has a road",
+    "E16 part 2 C5: a Palm with no GM at the ask gives its action back after the dice too (palm.mjs:239-241, :211-213)"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "The one road is in today's code as the notes word it: transferItem with the one gate first, both sheets chained, the count read again, D42's table frozen, and every road (handover.mjs, stash-reach.mjs, palm.mjs) handing its move to it. The behaviour is held by about nine tier-2 tests and scenario 83's five roads from a player's page, with R950-R953 pinning the rule, the shape and the handbook. Reading found no defect. Against a 9: the tier-1 and tier-0 rows that carry the stage's own number are shape tests (R951's regexes, R952's census), the moves themselves are held by tier-2 tests and scenarios whose base-run results could not be read; two of the notes' own gaps are read in the code only (two reaches at once on one GM, a write landing between the giver's second read and the count's write). Both live checks are unread, which caps the grade at 9 and makes it provisional.",
+   "missing_to_10": "The base run's tier 2 and scenarios 33 and 83 joined green; LIVE-E35-01 and LIVE-E35-02 read at a v14 table; a test that serves two reaches of one stash at once on one GM; the owner's ruling on the unseen Gear that arrives stowed."
+  },
+  {
+   "id": "E14",
+   "version": "1.2.84",
+   "shipped": "2026-10-25",
+   "what": "In two parts on E35's road: part 1 the gate on that road (no move across rooms, in an Eclipse or a Class Trial, none by or to the dead; a body looted only by a living student in its room who knows of the death), keys that open only in hand and a dead owner's bedroom open in an Investigation, the dead's still hands, a stash rifled once a time of day, item use (tier 3 restores 3), the discard's trace filed by the GM; part 2 the item tables found by their flags in any language, a room's own tables first in a Search, what a Search hands over, and the GM's item windows. 7 registry rows stamped E14 (R970-R976).",
+   "claim_sources": [
+    ".github/release-notes/v1.2.84.md (1-264, whole; E14's lines 3-12, 17-34, 45-108, 110-147, 157-168, 184-233, 250-257)",
+    "no papers folder: docs/dev/ holds no e14/ (ls docs/dev; git log --all -- 'docs/dev/e14*': none); the notes cite ledgers of 24 rows (part 1) and 20 rows (part 2), not in the repository",
+    "tools/stages.json:38 (planned and shipped 1.2.84 with E35, touches sockets and rolls, drills none)",
+    "docs/dev/R-REGISTRY.md: R970-R976 (tier 1), stamped E14",
+    "git log --grep E14: 13 commits in the checkout, of the stage's own only 04dc8823 (fix e1-G8), a4921087 (fix e1-G7), b66b9a9b (fix e1-G6); later 81f59e48 (E16 fix ci-1, E14-T10 read again), d5ab2dfb (E14-T4's tool order), feba55c3 (1.2.112); the clone is shallow",
+    "audit/AUDIT-1.2.42.md 9.2 items 297-298 (lines 1171-1172), found by id; live-items-293.json rows 297-298"
+   ],
+   "commits": 13,
+   "promises": [
+    {
+     "promise": "One gate on every move: refused in an Eclipse, in a Class Trial and across rooms (two rooms of one name on different scenes included); a dead student gives, takes and plants nothing; a steal and a Plant refused at a Monocub, a Monokuma off the GMs' mark, a hidden token and oneself",
+     "source": "v1.2.84.md 45-51",
+     "code": "scripts/inventory.mjs:1078-1110 transferRefusal; scripts/frisk.mjs:146-174 personActionRefusal (Monokuma, Monocub, the asker dead, the room by scene, floor and name, hidden, then allowedNow's Eclipse, trial and incident); scripts/allowed-now.mjs (road 'transfer' for the rifle)",
+     "holds": "yes",
+     "test": "tier 2 E14-T1 'one gate in transferItem ...' (tests-tier2.mjs:78371), 'a give is refused across two scenes whose rooms share a name ...' (:78506); scenario 83",
+     "test_kind": "behaviour",
+     "note": "Since E64 D001 a give asks the same person gate (inventory.mjs:1101-1105), widening the promise: the giver as a side of the running incident and a receiver on a hidden token or a Monocub are refused too. The 1.2.84 gap that said they went through is closed."
+    },
+    {
+     "promise": "A body is looted only by a living student in its room who knows of the death, outside an Eclipse and a Class Trial, its token not hidden; a Monocub's body is looted as any body; a refused Take is greyed with its reason and read again as the taker or the body moves and as the clock changes",
+     "source": "v1.2.84.md 52-54",
+     "code": "scripts/frisk.mjs:146-174 with `{ body: true }` (knownDeath first, the body where it lies by body-tile.mjs bodyPlaceOf since E95 C1); scripts/anonymity.mjs:265 buildBodyLoot, :478 greyRefused, :483 regreyOpenLoot",
+     "holds": "yes",
+     "test": "tier 2 'a body is looted only by a living student in its room ...' (tests-tier2.mjs:78781); A113-C5-7-T2 and -T3 (:98735, :98816, the greying read again as the table moves)",
+     "test_kind": "behaviour",
+     "note": "Where the body lies changed with E95 C1 (its tile, not the Monocub's token), and E68 C10 made each Take roll Hand: the gate's promise holds through both."
+    },
+    {
+     "promise": "Only a key in hand opens another's bedroom, a stashed key opens nothing; when a bedroom changes owner the old owner's keys, carried or stashed, are taken and both are told; the keys handed out at load count a stashed key as held",
+     "source": "v1.2.84.md 25-30, 123-125",
+     "code": "scripts/bedroom-keys.mjs:26 keyRooms, :46 bedroomShutTo; scripts/movement.mjs:2158 bedroomShut; scripts/vault-store.mjs:246 keysHeldBy, :257 mayEnterBedroom, :275 grantBedroomKey (serialWrite per student since H84), :491 takeOldOwnersKeys",
+     "holds": "yes",
+     "test": "R950; tier 2 'one key rule: only a key in hand opens ...' (tests-tier2.mjs:78941), 'a bedroom given away from the console takes the old owner's keys ...' (:79077)",
+     "test_kind": "behaviour",
+     "note": "The notes' 'Copies of an old owner's key stay with their holders' is superseded by E64 D008 (12.11.2026): every copy goes with the room, its holder named to the GM and whispered (vault-store.mjs:517-528 keyCopiesAfterOwnerLeft)."
+    },
+    {
+     "promise": "A dead owner's bedroom opens in an Investigation once the death is published, shuts again after it; a tunnel passes another's bedroom with no key",
+     "source": "v1.2.84.md 64-65, 125",
+     "code": "scripts/bedroom-keys.mjs:46-50 (ownerDead && phase === 'investigation'); scripts/movement.mjs:2158-2163 (isDeceased, the published flag)",
+     "holds": "yes",
+     "test": "tier 2 'one key rule ...' (tests-tier2.mjs:78941), whose title names the Investigation's dead owner",
+     "test_kind": "behaviour",
+     "note": "Since E15 part 2 a breach's forced room opens to everyone too (movement.mjs:2160, vault-store.mjs:260)."
+    },
+    {
+     "promise": "A stash is rifled once a time of day per thief, stash and owner, the Mastermind included; a reach that moved nothing is taken off the count; a second reach is told alreadyDone; the rifle's own refusals are told",
+     "source": "v1.2.84.md 66-69, 126-129",
+     "code": "scripts/stash-reach.mjs:364 rifleKey, :368 rifleMark (season epoch, chapter, session, day, time of day), :380-560 stealFromVault (refusals as reasons of the closed list at :411-497, the count at :507-528, unreach at :523-528 and :551); scripts/gm-stores.mjs:963 rifleStore",
+     "holds": "yes",
+     "test": "R970 (the window's and the sheet's words); tier 2 E14-T5 'a stash is rifled once a time of day ...' (tests-tier2.mjs:79327), 'the rifle's own refusals are told ...' (:79525)",
+     "test_kind": "both",
+     "note": "Part superseded by 1.2.112 (feba55c3, the owner's 13.11.2026): a hidden stash opens to Find Stash alone and a Search reaches into no stash (stash-reach.mjs:453-476), so the notes' 'A Search's find is not counted' has no road left. The notes' gap stands: the rifle window greys no stash already gone through this time of day."
+    },
+    {
+     "promise": "The dead keep their hands still: a dead student's stow, retrieve, use, ready and discard refused, their sheet offers none of these buttons; a Monocub's sheet offers no Use, Discard or open stash",
+     "source": "v1.2.84.md 70-73, 130-131",
+     "code": "scripts/use-items.mjs:292 deadHands; scripts/sheet-mode.mjs:41-57 sheetMode (the notes' sheet.mjs `deadToViewer` is gone; the mode 'dead' and its header carry the rule)",
+     "holds": "yes",
+     "test": "tier 2 'the dead keep their hands still ...' (tests-tier2.mjs:79154)",
+     "test_kind": "behaviour",
+     "note": "LIVE-E14-02 (5) names sheet.mjs `deadToViewer`, which no longer exists (live-items-293.json row 297's stale_detail)."
+    },
+    {
+     "promise": "A tier 3 usable restores 3 of its kind with no choice and no Hope; an old tier 3's module sentence is rewritten for its kind, a GM's text kept",
+     "source": "v1.2.84.md 20-21, 74-77, 132-133",
+     "code": "scripts/config.mjs:878-883 USABLE_EFFECTS (3: amount 3, byKind); scripts/inventory.mjs:744 refreshTierThreeWording",
+     "holds": "yes",
+     "test": "R971; tier 2 (tests-tier2.mjs:79702, :79822); scenario 83 L7",
+     "test_kind": "both",
+     "note": "The notes' gap stands: a tier 3 usable with no kind still asks Health or Sanity."
+    },
+    {
+     "promise": "A discard is filed by the GM's browser: Tamper in an Investigation or a Class Trial, for a side of the running incident, or once a body is found; Preparation otherwise, whatever the player's browser sent",
+     "source": "v1.2.84.md 74-76",
+     "code": "scripts/use-items.mjs:838-851 discardRemnantType; :861-863 noDiscardNow (E51 C6)",
+     "holds": "partly",
+     "test": "tier 2 E14-T7 'a discard's trace is filed by the GM ...' (tests-tier2.mjs:79623), whose title now reads 'and none in a Class Trial (E51-41)'",
+     "test_kind": "behaviour",
+     "note": "Superseded in part by E51 C6 (31.10.2026, the owner): nothing is thrown away in the Class Trial, so the Class Trial half of the promise is replaced, not broken. The rest holds as worded."
+    },
+    {
+     "promise": "One creative ruling at a time on an item; an improvised weapon goes into the killer's hand once",
+     "source": "v1.2.84.md 78-82",
+     "code": "scripts/use-items.mjs:1016 creativeUseGone, :1029 ruleCreativeUse; scripts/murder-rules.mjs:1525 grantImprovisedWeapon; scripts/inventory.mjs:931 readyForShape, :963 keepGearShape",
+     "holds": "yes",
+     "test": "tier 2 (tests-tier2.mjs:79859, :79967)",
+     "test_kind": "behaviour",
+     "note": "The notes' gap stands: two GMs ruling one item at once on two browsers are not held against each other."
+    },
+    {
+     "promise": "The GM's item tables are found by the flags the installer writes whatever language each client is in; a room's tables answer a Search first in the stated order; the find takes the category, tier and goal of what was drawn, never above the tier the roll earned; a Search's plant that could not be handed over goes back to its room",
+     "source": "v1.2.84.md 17-24, 83-90, 134-135, 142-143",
+     "code": "scripts/tables-pools.mjs:180 flaggedTables, :196 tierTablesFor, :346 tierPoolOf, :353 isTierPoolTable, :360 roomStockTables, :768 isRoomTableOf, :803 foundAs, :992 drawItem, :253 refreshTableCopy (the notes' tables.mjs is split; tables-pools.mjs holds these); scripts/search-tokens.mjs:777 returnPlant, :831 putPlantBack, :849 plantHeld; scripts/traps.mjs:579 tellPlantTaken",
+     "holds": "yes",
+     "test": "R972; tier 2 E14-T12 (tests-tier2.mjs:80020), E14-T13 (:80133), E14-T14 (:80215), fix e1-G4 (:80367), the renamed pool (:80423), the trace (:80511), E14-T9 (:80579)",
+     "test_kind": "both",
+     "note": "Not seen at a table in two languages: LIVE-E14-01 (item 298) open."
+    },
+    {
+     "promise": "The Item tables window: the Tier pools tab and a rename take only a name the module reads as a tier pool, a refusal stands at the field with the name kept; the list rows one height, entries in grid columns, captions above their boxes, text at 11 px or more; Create an item from a Search opens on its tab; Give a room key and Give a Truth Bullet say why when there is nothing to give",
+     "source": "v1.2.84.md 91-107",
+     "code": "scripts/tables-pools.mjs:402 poolNameRefusal; scripts/tables-editor.mjs:749-754 (the room table's name shape); scripts/gm-items.mjs:451 giveKeyDialog, :891 wireKindNotes, :1469 giveTruthBulletDialog; styles/danganronpa.css (not read)",
+     "holds": "partly",
+     "test": "R973, R974, R975, R976; tier 2 E14-T16 (tests-tier2.mjs:80777, :80832)",
+     "test_kind": "both",
+     "note": "The rules are held by tests; the layout was measured in a Chromium stand-in only, and the notes' own gap says the Stained Glass Room pools tab ran past 768 px there (v1.2.84.md 225-226). The stylesheet was not read and the stand-in not re-run, so the 'fits at 1366x768' half is not established (LIVE-E14-01 (4)). The tabs read 'Tier tables' and 'Room tables' today (lang/en.json:5038-5039), not the notes' 'Tier pools' and 'Room pools'."
+    }
+   ],
+   "registry_rows": 7,
+   "tests_read": [
+    {
+     "test": "R970-R976 (tests-tier1.mjs:30703-31213), by title and opening lines",
+     "measures": "weak",
+     "why": "Text, layout-rule and pure-function tests: the words in both languages (R970, R971, R975), the name builders and finders over planted tables (R972, R973), the windows' markup against their rules (R974), a rename asked again (R976). None moves an item or draws a Search on the world. base-run.json was not on the branch when this was read (20.11.2026) and the base run's tier log is not in the checkout: the result of this test was not read"
+    },
+    {
+     "test": "R950 (tests-tier1.mjs:30558-30603)",
+     "measures": "yes",
+     "why": "Stamped E35, but it is E14 part 1 C2's key rule: the door and game.drpg's answer on one scene, with two controls. base-run.json was not on the branch when this was read (20.11.2026) and the base run's tier log is not in the checkout: the result of this test was not read"
+    },
+    {
+     "test": "tier 2 E14-T1 'one gate in transferItem ...' (tests-tier2.mjs:78371), by title and set-up",
+     "measures": "yes",
+     "why": "By its title it drives a give, a steal and a Plant across rooms, by and to the dead, in an Eclipse and a Class Trial, and at a Monocub, a Monokuma and a hidden token, each with its told reason. base-run.json was not on the branch when this was read (20.11.2026) and the base run's tier log is not in the checkout: the result of this test was not read"
+    },
+    {
+     "test": "tier 2 E14-T3 'one key rule ...' (tests-tier2.mjs:78941-79076), set-up read",
+     "measures": "yes",
+     "why": "Makes keys carried and stashed on a plain scene and a real Room Setup scene (Scene.create at :79021) and reads the door, keysHeldBy and the Investigation's dead owner. base-run.json was not on the branch when this was read (20.11.2026) and the base run's tier log is not in the checkout: the result of this test was not read"
+    }
+   ],
+   "tests_to_join": [
+    "tier 1: R970, R971, R972, R973, R974, R975, R976 (and R950, stamped E35)",
+    "tier 2: E14-T1 (:78371, :78506, :78681), the body's loot (:78781), E14-T3 (:78941), fix e1-G2 (:79077), the dead's hands (:79154), E14-T5 (:79327, :79525), E14-T7 (:79623, :79702, :79822, :79859, :79967), E14-T9 (:80579), E14-T10 (:80717), E14-T12 to E14-T16 (:80020-:80832), A113-C5-7-T2/T3 (:98735, :98816)",
+    "scenario 83 (L7, L12-L16)",
+    "scenario 33 (B12, C)"
+   ],
+   "scenarios": [
+    "No register row names E14 (audit/harness/README.md: grep '\\bE14\\b': 0 rows); by the notes (172-174) 83 (L7 tier 3, L12-L16) and 33 (B12 a living body's loot refused once, C the five roads with no GM) drive its part 1 roads, and 61 and 72 had their takers moved beside the body. 33-bridge-paths.mjs:1063 names E14 part 1 C1."
+   ],
+   "live": {
+    "items": 2,
+    "read": 0,
+    "ids_read": [],
+    "note": "LIVE-E14-02 (item 297, triage K) and LIVE-E14-01 (item 298, triage S): no reading in any of the three digests. Both items quote texts that are no longer today's (E71 B12's refusals; 'Room pools'; sheet.mjs deadToViewer), live-items-293.json rows 297-298."
+   },
+   "findings": [],
+   "superseded_by": [
+    "E64 D001: the give's gate (the person gate, inventory.mjs:1101-1105)",
+    "E64 D008: the copies of an old owner's key go with the room (vault-store.mjs:517-528), where the notes kept them with their holders",
+    "E51 C6: nothing is thrown away in the Class Trial (use-items.mjs:861-863), the trial half of the discard's filing",
+    "1.2.112 (feba55c3): a hidden stash opens to Find Stash alone; a Search reaches into no stash",
+    "E95 C1 and E68 C10: a body lies where its tile is, and each Take rolls Hand - the loot's gate kept"
+   ],
+   "grade": 7,
+   "provisional": "after L1",
+   "grade_reasons": "Every rule of both parts is in today's code at the places named, several of them since moved into new files (vault-store.mjs, stash-reach.mjs, palm.mjs, tables-pools.mjs, sheet-mode.mjs), and each has a tier-2 test that drives it on the GM; the five roads and the tier 3 item are also driven from a player's page by scenario 83. Later stages replaced four parts on the owner's word (E64 D001 and D008, E51 C6, 1.2.112), none broken. Against an 8: (1) the windows' layout promise (one height, 11 px, fits) was measured only in a Chromium stand-in, whose own reading had the Stained Glass Room pools tab past 768 px, and is not established on 1366x768 (holds 'partly'); (2) the registry rows stamped E14 are all text, rule or markup tests, the moves being held by tier-2 tests whose base-run results were not read; (3) several roads the notes list are read in the code only (two reaches at once, two GMs ruling one item, a Palm refused at the gate's second asking). Both live checks are unread, and their texts are stale.",
+   "missing_to_10": "The base run's tier 2 and scenarios 33 and 83 joined green; LIVE-E14-01 read at 1366x768 in both themes and two languages (its text brought to 'Room tables'), LIVE-E14-02 read at a table (its quoted refusals brought to today's); the rifle window greying a stash already gone through; a test that serves two reaches of one stash at once; the Stained Glass Room tables tab measured inside 768 px."
+  },
+  {
+   "id": "E36",
+   "version": "1.2.85",
+   "shipped": "2026-10-26",
+   "what": "Every change of a project goes through one function, projects.mjs `applyProjectChange`, as a step of one queue (serialWrite under the Countdowns key) on the primary GM; another GM's change goes there by the new GM-only bridge action `project.change` and is answered, and told at once when the primary leaves; a table of what a completion does (COMPLETION_EFFECTS) with D40's trap rule; the project's token put right by one function after each change; Daggerheart's tray rows guarded. 3 registry rows stamped E36 (R977, R978, R984).",
+   "claim_sources": [
+    ".github/release-notes/v1.2.85.md (1-322, whole; E36's lines 3-8, 17-30, 56-71, 175-176, 181-188, 208-215, 229-234, 250-253, 294-310)",
+    "no papers folder: docs/dev/ holds no e36/; the notes cite a ledger of 17 rows (E36-01..E36-17) and an end review of 22 findings, not in the repository",
+    "tools/stages.json:39 (planned and shipped 1.2.85, 2026-10-26, touches sockets, rolls, scenes, drills none)",
+    "docs/dev/R-REGISTRY.md: R977 (tier 0), R978 and R984 (tier 1), stamped E36",
+    "git log --grep E36: 17 commits in the checkout, none of the stage's own C1-C4 or fix commits (shallow clone: 28a0988b, d90687d not in it); later fbb29935 (E39 C4: E39-T1 on the one entry), 0a49e5c1, 3e207d79, 967703c1 (E44), 0e32fbe9 and 41cf2e9f (E88)",
+    "audit/AUDIT-1.2.42.md 9.2 items 299-300 (lines 1173-1174), found by id; live-items-293.json rows 299-300"
+   ],
+   "commits": 17,
+   "promises": [
+    {
+     "promise": "One queue for a project on the primary GM: ten +1 asked at once by several roads end at 10, each once, in their order; each road writes once; a Save over several rows writes once and a row left as it was writes nothing; two Sabotages at once make one repair",
+     "source": "v1.2.85.md 17-22, 58-61",
+     "code": "scripts/projects.mjs:1565-1650 applyProjectChange (GM only, primary or forwarded, serialWrite(COUNTDOWNS_KEY, changeStep)), :1658 changeStep (asks the primary again in the step); scripts/projects-secrecy.mjs:70 COUNTDOWNS_KEY, :612 writeAllCountdowns; scripts/relay-guard.mjs:1008 applyOps; scripts/projects-ui.mjs:613 applyProjectManager",
+     "holds": "yes",
+     "test": "R977 (tier 0: the setting written whole only by writeAllCountdowns and applyOps, each in a step); tier 2 E36-T2 (tests-tier2.mjs:80983), E36-T4 (:81265), E36-T5 (:81462), E36-T11 (:82162)",
+     "test_kind": "both",
+     "note": "E36-T2 was read in part (80983-81060): it starts ten +1 by four roads with Promise.all and reads the bars they report and the end, plants a throwing completion row, holds the key open and reads another key run, and judges a planted second GM's packet. The off-primary forward since fix e1-G4 (projects.mjs:1586-1597)."
+    },
+    {
+     "promise": "Another GM's change is sent to the primary and answered (a GM-only bridge action, a console's packet refused); when the primary leaves while another GM waits, that GM is told at once; the wait's own clock is 30 s, chosen, not measured",
+     "source": "v1.2.85.md 17-20, 208",
+     "code": "scripts/bridge-table.mjs:874-887 ACTION_PROJECT_CHANGE (gmOnly, answer 'reply', timeoutMs TIMING.projectChangeMs); scripts/config.mjs:375 projectChangeMs 30000; scripts/bridge-asks.mjs:577-584 requestProjectChange (untilPrimaryLeaves: true); scripts/bridge-guards.mjs:1938-1941, :2060-2066 (primaryGone tells a marked wait noAnswer)",
+     "holds": "yes",
+     "test": "R978 (the waiter on stand-ins); tier 2 E36-T9 (tests-tier2.mjs:81998); scenario 33 A7 (33-bridge-paths.mjs:335, an Assistant GM's change made once on the primary); scenario 30 7b0 (a console's project.change refused), by the notes",
+     "test_kind": "both",
+     "note": "How long another GM's change takes on a real server, and a primary's F5 while GM2 waits, are LIVE-E36-01 (item 299), open."
+    },
+    {
+     "promise": "D40: a watched trap's bar taken back under its target disarms the trap and keeps the mark that it fired; filled again it arms unless it has fired, one receipt per arming; a target lowered to or under the progress finishes the project",
+     "source": "v1.2.85.md 62-65",
+     "code": "scripts/traps.mjs:394-403 armTrap (firedAt refuses), :409-417 disarmTrap; scripts/projects.mjs:1113 COMPLETION_EFFECTS (rows repairs, trigger, opensPassage, breachesWall, sealsPassage, closesBreach, repairsItem, and later repairsLock, facility at :1123-:1428), the crossing rule in changeStep's docblock (:1640-1656)",
+     "holds": "yes",
+     "test": "tier 2 E36-T3 (tests-tier2.mjs:81169); E15-T1 (:82633)",
+     "test_kind": "behaviour",
+     "note": "The table grew as the docblock foresaw (E15 part 2's rows, E74 repairsLock, the facility row), with no code added to the entry."
+    },
+    {
+     "promise": "The token follows its project: after each change one function puts it right - moved once into a new room, tinted when finished, shown or hidden on each browser as a share or a revoke lands, kept off the map when a GM took it off; a second GM's project gets one token",
+     "source": "v1.2.85.md 69-71, 175-176",
+     "code": "scripts/projects.mjs:1621-1628 (syncProjectToken once, last, on a change that changed something); scripts/projects-map.mjs:592 syncProjectToken, :547 moveProjectToken, :68 writeTokenRecord, :214 roomUnder",
+     "holds": "partly",
+     "test": "R977 (the token made, moved and deleted only from syncProjectToken and sweepProjectTokens); tier 2 E36-T6 (tests-tier2.mjs:82308), E36-T10 (:82092)",
+     "test_kind": "both",
+     "note": "The notes say themselves that a player's canvas hiding a token after a share was read in the code, not measured (v1.2.85.md 175-176, 280). Since E44 C8b the token's alpha is 1 and since E88 C1 its halo is drawn once; neither changes the promise."
+    },
+    {
+     "promise": "On a project's row in Daggerheart's Countdowns tray, - and + change the bar by one through the queue, Delete removes the project and its token, Reveal and Hide are not offered; a player's + changes nothing",
+     "source": "v1.2.85.md 20-22",
+     "code": "scripts/projects-ui.mjs:150-170 (the comment), :201 guardTrayRows, :225 projectRowMenu; scripts/patches.mjs:583-597 (the patch row countdown-row-menu, 'at init when the system has set its class, else at ready')",
+     "holds": "partly",
+     "test": "tier 2 E36-T4 (tests-tier2.mjs:81265), on a row planted in Daggerheart 2.10.5's markup",
+     "test_kind": "behaviour",
+     "note": "Read against 2.10.5's source and a planted row only. module.json verifies Daggerheart 2.12.9 today (module.json:22), and no reading of the tray on 2.12.9 exists (LIVE-E36-02, item 300, open and pinned to 2.10.5). The patch row's probe (patches.mjs:592-595) says whether the wrap took, which gives a table one line to read."
+    },
+    {
+     "promise": "The season's projects are reset by the primary GM alone; another GM is told who can",
+     "source": "v1.2.85.md 28-30",
+     "code": "scripts/projects.mjs:2689-2697 clearAllProjects (DRPG.GmStore.resetPrimaryOnly); scripts/season-wipe.mjs:225, :352",
+     "holds": "yes",
+     "test": "tier 2 E36-T8 (tests-tier2.mjs:81907)",
+     "test_kind": "behaviour",
+     "note": "The sentence is shorter today ('Only the primary GM, {name}, can reset the season. Ask {name}, or reset when you are the only GM connected.', lang/en.json:7042); the meaning is kept."
+    },
+    {
+     "promise": "A Hope or Despair Call paid for whose effect failed is said in words its callers can fill (the train's fix 799721b)",
+     "source": "v1.2.85.md 301-305",
+     "code": "lang/en.json DRPG.Calls.effectFailed; scripts/calls.mjs, scripts/call-effects.mjs (its two callers give { call })",
+     "holds": "yes",
+     "test": "R984",
+     "test_kind": "behaviour",
+     "note": "A fix of a defect E36 itself brought in (daf5600c gave the key the projects' sentence); stamped E36 in the registry."
+    }
+   ],
+   "registry_rows": 3,
+   "tests_read": [
+    {
+     "test": "R977 (tests-tier0.mjs:16919-17202)",
+     "measures": "weak",
+     "why": "A source census: who writes the Countdowns setting whole and inside which step, who gives setProjectMeta its keys, who makes or moves a project token. It logs its counts (`R977: N files, N Countdowns ...`), so an empty read shows. Static: it holds the one entry's shape, not a change. base-run.json was not on the branch when this was read (20.11.2026) and the base run's tier log is not in the checkout: the result of this test was not read"
+    },
+    {
+     "test": "R978 (tests-tier1.mjs:27499 and on), set-up read",
+     "measures": "yes",
+     "why": "Drives the bridge's waiter on stand-ins (emit, gmIds): a wait marked untilPrimaryLeaves is told noAnswer at once and once when the primary goes, its late answer still reaching `late`, an unmarked one keeping its clock. base-run.json was not on the branch when this was read (20.11.2026) and the base run's tier log is not in the checkout: the result of this test was not read"
+    },
+    {
+     "test": "tier 2 E36-T2 (tests-tier2.mjs:80983-81060 read)",
+     "measures": "yes",
+     "why": "Ten +1 by four roads at once on the primary, a throwing row, a held key, a slow after-step and a second GM's packet judged; it would fail if the writes raced (its own comment: at 7d123c97 (1) ends under 10). On one GM page; the socket between two GMs is scenario 33 A7's. base-run.json was not on the branch when this was read (20.11.2026) and the base run's tier log is not in the checkout: the result of this test was not read"
+    },
+    {
+     "test": "scenario 33 A7 (33-bridge-paths.mjs:335 and on), comment read",
+     "measures": "yes",
+     "why": "An Assistant GM's change made once on the primary across the harness's socket. Result not read."
+    }
+   ],
+   "tests_to_join": [
+    "tier 0: R977",
+    "tier 1: R978, R984",
+    "tier 2: E36-T2 (:80983), E36-T3 (:81169), E36-T4 (:81265), E36-T5 (:81462), E36-T6 (:82308), E36-T7 (:81843), E36-T8 (:81907), E36-T9 (:81998), E36-T10 (:82092), E36-T11 (:82162)",
+    "scenario 33 (A7)",
+    "scenario 30 (7b0)",
+    "scenario 61"
+   ],
+   "scenarios": [
+    "No register row names E36 (audit/harness/README.md: 0 rows). By the notes (212-215): 33 A7 (an Assistant GM's change made once on the primary; 33-bridge-paths.mjs:335 names E36 C1) and 30 7b0 (a console's project.change refused); LIVE-E36-01 names 61 too."
+   ],
+   "live": {
+    "items": 2,
+    "read": 0,
+    "ids_read": [],
+    "note": "LIVE-E36-01 (item 299) and LIVE-E36-02 (item 300): no reading in any of the three digests. Item 300 names Daggerheart 2.10.5 while module.json verifies 2.12.9 and the sandbox runs 2.12.9 (live-items-293.json row 300)."
+   },
+   "findings": [],
+   "superseded_by": [],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "The one entry is in today's code exactly as the notes describe and every later stage that changes a project (E15 part 2's rows, E39, E44, E68, E72, E74) goes through it, which is the stage's aim; the bridge row is GM-only with its 30 s clock and its wait ends when the primary leaves; D40 is in armTrap and disarmTrap. Ten tier-2 tests drive the queue's concurrency, the completion table, the GMs' and players' roads and the token, with scenario 33 A7 across a socket. Reading found no defect. Against a 9: two promises hold in part - the tray's controls are read against Daggerheart 2.10.5's markup while the module verifies 2.12.9 and nobody has seen the tray at a table, and a token hidden or shown on a player's canvas after a share is read in the code only; and the base-run results of the tier-2 tests and scenarios were not read. Both live checks are open.",
+   "missing_to_10": "The base run's tier 2 and scenarios 30, 33 and 61 joined green; LIVE-E36-01 read with two GMs on a real server; LIVE-E36-02 read on Daggerheart 2.12.9 (its text brought from 2.10.5) in both themes; a player's canvas read for a project token after a share and a revoke."
+  },
+  {
+   "id": "E15",
+   "version": "1.2.85",
+   "shipped": "2026-10-26",
+   "what": "In two parts on E36's entry: part 1 projects, traps, the overflow and Monocubs by the rules (an indirect murder's concealment bonus on any outcome, a Contribution's cover, a Loaded Die setting one die to 12 at random, a Monocub that starts clean, Despair Flow's overrides only, a darkening in a trial that waits, the explainers); part 2 Secret Passage, Breach the Wall and the owner's three of 15.10 - Seal the passage, Close the breach, Repair an item - with their judges, their completion rows, their Reroll undo and the season's passages store. 5 registry rows stamped E15 (R979-R983).",
+   "claim_sources": [
+    ".github/release-notes/v1.2.85.md (1-322, whole; E15's lines 3-13, 23-52, 72-174, 189-207, 209-228, 235-285, 311-315)",
+    "no papers folder: docs/dev/ holds no e15/; the notes cite ledgers of 35 rows (part 1) and 22 rows (part 2) and two end reviews, not in the repository",
+    "tools/stages.json:40 (planned and shipped 1.2.85 with E36, touches sockets, rolls, scenes, drills none)",
+    "docs/dev/R-REGISTRY.md: R979, R980, R982 (tier 1), R981, R983 (tier 0), stamped E15 since 799721b",
+    "git log --grep E15: 34 commits in the checkout; the stage's own in it: 3d2d61b6 (C6, scenario 76 SP and BR, LIVE-E15-01..03), bbfa8a21, 03166960, fadf5243, 0e8a7723, 1cf6fd4d (fix e1-G1 to e1-G5), 799721bb (the train's fix), 7030e204 (the release); part 1's commits are not in the shallow clone",
+    "audit/AUDIT-1.2.42.md 9.2 items 301-303 (lines 1175-1177), found by id; live-items-293.json rows 301-303"
+   ],
+   "commits": 34,
+   "promises": [
+    {
+     "promise": "An indirect murder pays its concealment bonus on any outcome: a lone Work that misses adds +1, its Reroll to 18 ends the bar at 3, the miss counts as a success for a trap watching 'somebody works on a named project'; a Contribution to an indirect murder rolls its cover and leaves a trace, a Patronage none",
+     "source": "v1.2.85.md 122-127",
+     "code": "scripts/action-project.mjs:643 projectProgress (relief, bonus), :466 workOnProject, :759 hideProjectTraces; scripts/murder-ui.mjs:896-905 indirectCostText",
+     "holds": "yes",
+     "test": "R979; tier 2 E15-T3 (tests-tier2.mjs:82447, :82511, :82580); scenario 13 part 6 (13-murder-signals.mjs:1702 and on)",
+     "test_kind": "both",
+     "note": "The trap's budget text now computes both ranges from config (lang/en.json:2781 'Plan about {low}-{high} progress in total, roughly {fewest} to {actions}.'; E66 C4), which closes the notes' gap 'roughly four to six actions stands beside 7-10, unmeasured'."
+    },
+    {
+     "promise": "A Loaded Die sets one of the two dice to 12 at random, Hope or Fear, and the roll names which; a player's manual 2d12 feeds no pool, a duality roll does",
+     "source": "v1.2.85.md 96-97, 128-129",
+     "code": "scripts/forced-roll.mjs:72 LOADED_AT, :176-215 loadDie (a coin from Math.random before the throw, options[LOADED_AT]); scripts/despair-award.mjs:284 isDualityRoll, :292 findDualityDice",
+     "holds": "yes",
+     "test": "tier 2 E15-T7 (tests-tier2.mjs:83414, :83450)",
+     "test_kind": "behaviour",
+     "note": "The player's sentence was reworded later (lang/en.json:4770 freeCritArmed, 'a random die is set to 12, and you roll the other ...'); its meaning is kept. E64's D052 (a Loaded Die that did not hold is armed again) changes what happens after, not the random die. Which die Daggerheart throws first is read in its 2.10.5 source as copied in the harness (the notes' gap)."
+    },
+    {
+     "promise": "A Monocub starts clean: 0 Hope, no Health or Sanity marked, neither Wounded nor Breakdown, two actions whatever its Health; a Confusion critical that moves nothing says so and gives no free action",
+     "source": "v1.2.85.md 93-95, 130-132",
+     "code": "scripts/monocub.mjs:140-170 setMonocub (one trustedWrite of hope, hitPoints and stress to 0 on the way in, false to true only), :1380 scoreMeddle; scripts/states.mjs:125 touchesTracks, :134 namesFlag, :314 heldNone",
+     "holds": "yes",
+     "test": "R980; tier 2 E15-T6 (tests-tier2.mjs:83110, :83233), fix e1-G3 (:83189); scenario 10 (a Monocub refilled to two actions), by the notes",
+     "test_kind": "both",
+     "note": ""
+    },
+    {
+     "promise": "A Call is refused before its confirm: Silence bars at once, a second Loaded Die is refused with no window, New Rule's confirm stays off until something is written",
+     "source": "v1.2.85.md 133-134",
+     "code": "scripts/calls.mjs:64 callBarred; scripts/sheet-actions.mjs:785 runCall (the notes' sheet.mjs); scripts/call-pickers.mjs:303 pickText",
+     "holds": "yes",
+     "test": "tier 2 E15-T6 (tests-tier2.mjs:83320)",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "The overflow's rules are trimmed once on the primary's first load of 1.2.85 and the world keeps only what the GM changed; Save writes only what differs from the defaults; a darkening drawn in a Class Trial waits for the next time of day after it",
+     "source": "v1.2.85.md 31-36, 81-86",
+     "code": "scripts/overflow.mjs:53 overflowRules, :110 setOverflowRules, :198 trimOverflowRules, :213 OVERFLOW_1_2_84, :1266 readOverflowForm, :505 resetOverflow, :747 checkOverflow, :347 addOverflow; scripts/migrate.mjs:1001-1015 (the clause trimOverflowRules)",
+     "holds": "yes",
+     "test": "tier 2 E15-T4 (tests-tier2.mjs:82887)",
+     "test_kind": "behaviour",
+     "note": "The notes' gap stands as read in the code: a GM who saved a value equal to 1.2.84's default cannot be told from the old Apply."
+    },
+    {
+     "promise": "Despair Flow's pools: Save writes only the rows the GM changed; a never-assigned student is drawn as '{name} (fallback)'; the Monocubs window's short headers and its Silenced box",
+     "source": "v1.2.85.md 87-92",
+     "code": "scripts/gm-team-dialog.mjs:201 TAB_BUTTONS, :578 FALLBACK_PICK, :580 buildAssignRows, :734 readAssignmentForm; lang/en.json:618-629 (outside, fallbackOption, footnote)",
+     "holds": "partly",
+     "test": "tier 2 E15-T8 (tests-tier2.mjs:83528)",
+     "test_kind": "behaviour",
+     "note": "Superseded in part: 'gives a student just ticked a Monokuma no row' has no box to tick since E101 (the test's title: 'no Monokuma box since E101'), and the Monocubs window itself (its short headers, the Silenced box's 'Tick Monocub first') was retired by E72 C6 (12.11.2026, DC17; monocub.mjs:1972-1979): game.drpg.monocubDialog opens the Students window (api.mjs:1015), and the key is in neither language file today. The pools half holds as worded."
+    },
+    {
+     "promise": "Five kinds of project at the proposal and the approval: Secret Passage (Hand, Complex, always secret), Breach the Wall (Body, Complex), Seal the passage (Hand), Close the breach (Body), Repair an item (Hand, Trivial at tier 0-1, Complex at 2-3); each judged where it is offered and again when finished",
+     "source": "v1.2.85.md 98-109, 142-151",
+     "code": "scripts/passages-gm.mjs:446-456 PASSAGE_PRESETS (with E74's repairLock since), :458 presetScale, :475 wallNeighbours, :506 secretPassageOffer, :1169 passageProjectOffer, :1025 sealRefusal, :1043 presetSideRefusal, :1123 closeBreachRefusal; scripts/inventory.mjs:307 repairable, :319 repairRefusal",
+     "holds": "yes",
+     "test": "R981 (tier 0, the one table); tier 2 E15-T12 (tests-tier2.mjs:73681), E15-T15 (:74432), E15-T17 (:74957); scenario 76 SP and BR (76-passages.mjs:2652, :2734)",
+     "test_kind": "both",
+     "note": "The notes' gap stands: Propose a project's pickers for Seal the passage, Close the breach and Repair an item are not driven by a test, and the GM's change of a kind's size at the approval is not recorded."
+    },
+    {
+     "promise": "A finished Secret Passage gives its builder and the players it was shared with a passage (a finder by Observe learns none); a finished Breach the Wall cuts the real wall in three - the wall before, a hole that stops nothing, a copy after - and forces the room beyond (lock, key and seal lifted, a chain still holds), told to the rooms by who stands where",
+     "source": "v1.2.85.md 37-44, 152-165, 172-174",
+     "code": "scripts/projects.mjs:1208 (opensPassage), :1257 (breachesWall); scripts/passages-gm.mjs:519 builtPassageRow, :539 opensPassageDone, :700 cutBreach, :767 forceRoom, :813 tellBreach; scripts/movement.mjs:143 roomBroken, :154 setRoomBroken, :2140 isLocked, :2160 bedroomShut's breach; scripts/vault-store.mjs:258-260 mayEnterBedroom's breach; scripts/call-world.mjs:78 liftSeal, :89 sealPeriod; scripts/gm-stores.mjs:207 passageSeasonStore; scripts/config.mjs:5232 wallBreached",
+     "holds": "yes",
+     "test": "tier 2 E15-T10 (tests-tier2.mjs:73583), E15-T12 (:73681), E15-T13 (:74009), E15-T14 (:74223), E15-T16 (:74791); scenario 76 SP and BR on the clients that do each part",
+     "test_kind": "behaviour",
+     "note": "A real v14 WallDocument's fields on the hole and the copy, the cards by who stands where at a table and a secret breach's build are LIVE-E15-02 (item 302), open; the pick on a real canvas is LIVE-E15-03 (item 303), open. Since 9edb4f66 a breach's cards go to the room's people as movement.mjs counts them, and b70b3b23 tells a bedroom's owner of a breach on walking back in."
+    },
+    {
+     "promise": "Closing a breach - from the Passages tab, a Close the breach project, a Reroll's undo or the season reset - writes the coordinates back and deletes the pieces; a deleted original wall gives the room back and drops the breach; Seal the passage closes a passage for everyone who knows it; Repair an item takes the broken mark and the wear off one item; a Reroll takes each of the five back",
+     "source": "v1.2.85.md 37-44, 114-118, 166-168",
+     "code": "scripts/passages-gm.mjs:875 restoreBreach, :785 unforceRoom, :925 settleMadePublic, :949 closeEveryBreach, :1074 sealPassageDone, :1109 unsealPassagesOf, :1135 closeBreachDone, :1156 reopenBreach, :567 undoOpensPassage; scripts/inventory.mjs:335 repairItem, :389 unrepairItem; scripts/projects.mjs:1287, :1316, :1357 (the three rows), :1942 releaseKeptProjects",
+     "holds": "yes",
+     "test": "tier 2 E15-T13 (:74009), E15-T15 (:74432), E15-T17 (:74957); R982 (the reset window's counts)",
+     "test_kind": "behaviour",
+     "note": "A real Reroll is not thrown in the harness: the undo is the primary's change a Reroll writes (live-items-293.json row 303; LIVE-E15-03 (4))."
+    },
+    {
+     "promise": "A refusal of the projects' passages and repairs is said in the table's language: every reason has a code of one closed list with words in both files, any other read as 'unknown'",
+     "source": "v1.2.85.md 107-109, 277-279",
+     "code": "scripts/passages-gm.mjs:1251 WHY_CODES, :1254 whyCode, :1260 whyText",
+     "holds": "yes",
+     "test": "R983 (tier 0)",
+     "test_kind": "both",
+     "note": "The list holds 32 codes today (31 reasons and 'unknown'; a script over WHY_CODES), where the notes counted 31 (30 and 'unknown'): one code was added later, held by the same test."
+    }
+   ],
+   "registry_rows": 5,
+   "tests_read": [
+    {
+     "test": "R979-R983 (tests-tier1.mjs:29446, :29477, :5849; tests-tier0.mjs:15668, :15720), by title",
+     "measures": "weak",
+     "why": "R979 and R980 call the bonus and the conditions' predicates on stand-ins; R981 and R983 read the one table and the closed list off the source and the language files; R982 reads the reset window's tally. They pin rules and texts; the completions themselves are tier 2's. base-run.json was not on the branch when this was read (20.11.2026) and the base run's tier log is not in the checkout: the result of this test was not read"
+    },
+    {
+     "test": "tier 2 E15-T12 to E15-T17 (tests-tier2.mjs:73681-75100), by title",
+     "measures": "yes",
+     "why": "By their titles they drive each kind from the proposal to the completion on the primary and back by the Reroll's undo, read the wall's three pieces, the forced room, the seal, the finder's share and the judges at the approval. On the GM's page; the pick stands in for a canvas (the board's view, :73902). base-run.json was not on the branch when this was read (20.11.2026) and the base run's tier log is not in the checkout: the result of this test was not read"
+    },
+    {
+     "test": "scenario 76 SP and BR (76-passages.mjs:2489-2800, the helpers and both phases' openings read)",
+     "measures": "yes",
+     "why": "The proposal on p1's page (proposeE15), the approval with clicks on the GM (approveE15), the completion by a player's Work (finishE15), then every browser read for the passage or the one hole (cutOn). jsdom, the board's listeners and not a canvas. Result not read."
+    },
+    {
+     "test": "scenario 13 part 6 (13-murder-signals.mjs:1702 and on), comment read",
+     "measures": "yes",
+     "why": "An indirect murder from a player's proposal to its trigger on the clients that do each step; the crossing is a hook sent on the GM and the murder window answered by the queue (live-items-293.json row 301). Result not read."
+    }
+   ],
+   "tests_to_join": [
+    "tier 0: R981, R983",
+    "tier 1: R979, R980, R982",
+    "tier 2: E15-T1 (:82633), E15-T3 (:82447, :82511, :82580), E15-T4 (:82887), E15-T5 (:83056), E15-T6 (:83110, :83233, :83320), fix e1-G3 (:83189), E15-T7 (:83414, :83450), E15-T8 (:83528), E15-T10 (:73583), E15-T12 (:73681), E15-T13 (:74009), E15-T14 (:74223), E15-T15 (:74432), E15-T16 (:74791), E15-T17 (:74957)",
+    "scenario 76 (SP, BR)",
+    "scenario 13 (part 6)",
+    "scenario 10",
+    "scenario 30 (the projects' passages, by E44 fix FG1's export)"
+   ],
+   "scenarios": [
+    "No register row names E15 (audit/harness/README.md: 0 rows; row 212 for 76 names E79's phases only). By the notes (212-215) and the files: 76 SP and BR (76-passages.mjs:119, :127, :2489-2800, its time limit 300 s), 13 part 6 (13-murder-signals.mjs:34, :1702), 10 (a Monocub refilled to two actions)."
+   ],
+   "live": {
+    "items": 3,
+    "read": 0,
+    "ids_read": [],
+    "note": "LIVE-E15-01 (item 301), LIVE-E15-02 (item 302), LIVE-E15-03 (item 303): no reading in any of the three digests. 301 and 303 send the reading to 'a rehearsal E82' that is no stage (docs/dev/e64/STATUS.md:43); 301 quotes 'Spring it' where the card reads 'Spring the trap'; 302 names the Polish tab 'Przejscia' where it reads 'Tajne przejscia' (live-items-293.json rows 301-303)."
+   },
+   "findings": [],
+   "superseded_by": [
+    "E101: Despair Flow has no Monokuma box, so 'a student just ticked a Monokuma no row' has no road",
+    "E72 C6 (12.11.2026): the Monocubs window is retired; its rows live in the Students window (monocub.mjs:1972-1979)",
+    "E66 C4: the trap's budget sentence computes its numbers from config (closes the notes' gap)",
+    "E74 C5: a sixth preset, Repair the Lock, joins PASSAGE_PRESETS and a repairsLock row joins COMPLETION_EFFECTS, as the table's docblock allows"
+   ],
+   "grade": 7,
+   "provisional": "after L1",
+   "grade_reasons": "Every mechanism of both parts is in today's code with the named functions (passages-gm.mjs holds the presets, the judges, the cut, the force, the give-back and the closed list of reasons; projects.mjs the five rows; overflow.mjs the trim and its migration; monocub.mjs the clean start; forced-roll.mjs the random die) and each has a tier-2 test that drives it on the primary, with scenarios 76 and 13 driving Secret Passage, Breach the Wall and the indirect murder on the clients that do each part. Reading found no defect. Against an 8: (1) the notes list many roads as not driven, several of them promises and still read in the code only - Propose a project's pickers for Seal the passage, Close the breach and Repair an item, a secret breach's build, a token dropped on a shared wall, who stands where read once at the completion; (2) a part of Despair Flow's promise and the whole Monocubs window were replaced later (E101, E72 C6), on purpose (holds 'partly'); (3) a breach's real v14 wall fields and the pick on a real canvas are open live checks, and the Reroll's undo is driven as the primary's change, never by a thrown Reroll. The tier-0 and tier-1 rows stamped E15 pin tables and texts; base-run results were not read for any test.",
+   "missing_to_10": "The base run's tier 2 and scenarios 10, 13 and 76 joined green; tests that drive the proposal's pickers for the three kinds of 15.10 and a secret breach's build; LIVE-E15-01, -02 and -03 read at a v14 table (their texts brought to today's labels, the E82 rehearsal removed); a real Reroll of a completing roll read to undo a passage and a breach."
+  }
+ ],
+ "not_established": [
+  {
+   "what": "Every test and scenario named above is taken from its source: base-run.json was not on the branch when read and the base run's tier log is not in the checkout, so no result (tier 0-1 or tier 2, scenario) was read. The grades rest on the notes' CI runs (09ec943b and 450f1a63 green for 1.2.84; 799721bb green for 1.2.85 after 1cf6fd4's red backup test), which are of 1.2.84 and 1.2.85, not of 1.2.118.",
+   "live_check": "none: the audit's base run, once written, settles it"
+  },
+  {
+   "what": "The four stages' ledgers (E35's 26 rows, E14's 24 + 20, E36's 17, E15's 35 + 22) and their end reviews are cited by the notes and are not in the repository; no promise was read from them.",
+   "live_check": "none"
+  },
+  {
+   "what": "The item windows' layout of E14 part 2 (one row height, text at 11 px or more, the Stained Glass Room tables tab inside 768 px) was not measured: the stylesheet was not read and the Chromium stand-in not re-run.",
+   "live_check": "LIVE-E14-01 (item 298), part (4)",
+   "l1": {
+    "what": "The Item tables window, Create an item and the Give windows at 1366x768 in both themes, with a refused tier table name",
+    "recipe": [
+     "Set the browser window to 1366x768 at Foundry's own root size",
+     "As GM open the Item tables window, then each of its tabs (Tier tables, Room tables)",
+     "Type a name that is not a tier table on the Tier tables tab and press Enter; screenshot the refusal under the field",
+     "Open Create an item and Give / take items on a student",
+     "Switch to Stained Glass and repeat",
+     "Measure the Room tables tab's height against the viewport and the smallest font size in each window (DevTools computed style)"
+    ],
+    "clients": "one GM",
+    "theme": "both",
+    "settles_if": {
+     "agrees": "every window inside 768 px, no text under 11 px, the refusal under its field with the name kept",
+     "defect": "a tab or window past 768 px or text under 11 px in either theme"
+    },
+    "priority": "minor (E14's grade cap)"
+   }
+  },
+  {
+   "what": "Whether Daggerheart 2.12.9's Countdowns tray still has the markup and `_getCountdownContextOptions` the module's guard and wrap were written against (2.10.5); no 2.12.9 source is in the checkout.",
+   "live_check": "LIVE-E36-02 (item 300), on 2.12.9",
+   "l1": {
+    "what": "The Countdowns tray's controls on a project row on Daggerheart 2.12.9",
+    "recipe": [
+     "On the GM, in the console: game.drpg.patches?.() or read the patch row 'countdown-row-menu' probe (patches.mjs:592-595): present and ours both true",
+     "Make a project; open the Countdowns tray",
+     "Press + then - on the project's row once each: the bar moves by one each time and the token keeps its colour",
+     "Open the row's menu: Delete present, Reveal and Hide absent; on a countdown that is no project all three present",
+     "Delete the project from the menu: the project and its token are gone",
+     "As a player with the tray open press + on the project: nothing changes",
+     "Reload the GM with the tray open and repeat the menu check"
+    ],
+    "clients": "one GM, one player",
+    "theme": "both",
+    "settles_if": {
+     "agrees": "each step as written",
+     "defect": "a project row showing Reveal or Hide, a + that moves the bar twice or not at all, or a Delete that leaves the project"
+    },
+    "priority": "minor (E36's grade cap)"
+   }
+  },
+  {
+   "what": "Two reaches of one stash served at once on one GM, and two GMs serving one thief at once: stash-reach.mjs:517-522 asks the store and stamps with no await between, read in the code only (its own comment).",
+   "live_check": "new live check: two players' Rifle pressed together on one stash, one GM; then with two GMs connected",
+   "l1": {
+    "what": "Two reaches of one stash at the same moment",
+    "recipe": [
+     "Two students A and B of two players stand in a room where C's stash is open to both",
+     "Both players open the rifle window and press Take within the same second",
+     "Read both players' cards and C's stash; repeat with a second GM connected"
+    ],
+    "clients": "one or two GMs, two players",
+    "theme": "default",
+    "settles_if": {
+     "agrees": "each thief takes one thing once this time of day, the second reach of the same thief refused",
+     "defect": "one thief takes twice in one time of day, or a reach that moved nothing is still counted"
+    },
+    "priority": "nit"
+   }
+  },
+  {
+   "what": "Every promise of E35, E14 and E15 that names a card, a redraw or a canvas is measured headless only (LIVE-E35-01, -02; LIVE-E14-02; LIVE-E15-01, -02, -03); their item texts quote labels that changed since (live-items-293.json rows 297, 298, 301-303).",
+   "live_check": "LIVE-E35-01, LIVE-E35-02, LIVE-E14-01, LIVE-E14-02, LIVE-E36-01, LIVE-E15-01, LIVE-E15-02, LIVE-E15-03 (items 295-303); their l1 recipes are in live-items-293.json",
+   "l1": {
+    "what": "The nine live items of the four stages",
+    "recipe": [
+     "Run items 295-303 of AUDIT 9.2 by the recipes in live-items-293.json rows 295-303, with today's labels (live-items-293's stale_detail for each)"
+    ],
+    "clients": "GM, a second GM for 299, two or three players",
+    "theme": "both",
+    "settles_if": {
+     "agrees": "each item's reading as its text asks",
+     "defect": "any card, refusal, redraw or canvas reading that differs"
+    },
+    "priority": "minor (each stage's grade is provisional on these)"
+   }
+  }
+ ]
+}

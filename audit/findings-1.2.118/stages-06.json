@@ -1,0 +1,922 @@
+{
+ "reader": "stages-06",
+ "checkout": "branch claude/audit-119 at ad97fcf8; the code read is main b5a29e73 (1.2.118, module.json); history shallow, earliest commit 2026-10-14 (32fd204f), after all four stages shipped (10-12 and 10-13), no tags",
+ "read": [
+  {
+   "file": "audit/findings-1.2.118/BRIEF.md",
+   "lines": "whole",
+   "how": "whole"
+  },
+  {
+   "file": "audit/AUDIT-1.2.42.md",
+   "lines": "16-127 (section 11) whole; the blocks at 1020, 1032, 1046, 1062, 1077 by their head; items 219-222 (1093-1096)",
+   "how": "part"
+  },
+  {
+   "file": "audit/findings-1.2.118/stages-25.json, stages-04.json",
+   "lines": "keys and one stage each",
+   "how": "by script"
+  },
+  {
+   "file": ".github/release-notes/v1.2.74.md",
+   "lines": "1-227",
+   "of": 227,
+   "how": "whole"
+  },
+  {
+   "file": ".github/release-notes/v1.2.75.md",
+   "lines": "1-181",
+   "of": 181,
+   "how": "whole"
+  },
+  {
+   "file": ".github/release-notes/v1.2.76.md",
+   "lines": "1-182",
+   "of": 182,
+   "how": "whole"
+  },
+  {
+   "file": "tools/stages.json",
+   "lines": "rows E12, E13, E81, E77 and the $comment's head",
+   "how": "by script"
+  },
+  {
+   "file": "docs/dev/R-REGISTRY.md",
+   "lines": "the 72 rows stamped E12, E13, E81, E77",
+   "how": "by grep"
+  },
+  {
+   "file": "audit/findings-1.2.118/live-items-05.json, live-items-06.json",
+   "lines": "rows 163-218",
+   "how": "by script"
+  },
+  {
+   "file": "audit/findings-1.2.118/live-readings-e58.json, live-readings-other.json, live-readings-e58-delta.json",
+   "lines": "every reading naming LIVE-E12/E13/E81/E77",
+   "how": "by script (3 readings, items 164, 165, 169)"
+  },
+  {
+   "file": "audit/harness/README.md",
+   "lines": "191, 201, 209, 210 (the register rows naming the stages)",
+   "how": "by grep"
+  },
+  {
+   "file": "scripts/rooms.mjs",
+   "lines": "35-135, 594-640",
+   "of": 669,
+   "how": "part"
+  },
+  {
+   "file": "scripts/movement.mjs",
+   "lines": "455-545; greps of 849-1519, 2854-2913, 3369",
+   "how": "part"
+  },
+  {
+   "file": "scripts/migrate.mjs",
+   "lines": "960-1010, 1215-1265, 1640-1680",
+   "of": 1802,
+   "how": "part"
+  },
+  {
+   "file": "scripts/trial-scene.mjs",
+   "lines": "182-230, 411-486, 572-860, 1340-1375; the function index",
+   "of": 1718,
+   "how": "part"
+  },
+  {
+   "file": "scripts/requirements.mjs",
+   "lines": "30-92",
+   "how": "part"
+  },
+  {
+   "file": "scripts/use-items.mjs",
+   "lines": "174-178, 226-262",
+   "how": "part"
+  },
+  {
+   "file": "scripts/clock.mjs",
+   "lines": "245-275",
+   "how": "part"
+  },
+  {
+   "file": "scripts/eclipse.mjs",
+   "lines": "192-202",
+   "how": "part"
+  },
+  {
+   "file": "scripts/music-states.mjs",
+   "lines": "112-170",
+   "how": "part"
+  },
+  {
+   "file": "scripts/notice-history.mjs",
+   "lines": "greps of 93-159, 465-695",
+   "of": 1320,
+   "how": "part"
+  },
+  {
+   "file": "scripts/notice-history-app.mjs",
+   "lines": "greps of 23-409",
+   "of": 617,
+   "how": "part"
+  },
+  {
+   "file": "scripts/vault-store.mjs",
+   "lines": "570-673",
+   "how": "part"
+  },
+  {
+   "file": "scripts/foundry-windows.mjs",
+   "lines": "150-215; the function index",
+   "of": 510,
+   "how": "part"
+  },
+  {
+   "file": "scripts/room-setup.mjs",
+   "lines": "370-412, 1226-1236",
+   "of": 1399,
+   "how": "part"
+  },
+  {
+   "file": "scripts/room-tile.mjs",
+   "lines": "48-58; greps",
+   "of": 771,
+   "how": "part"
+  },
+  {
+   "file": "scripts/season-setup.mjs",
+   "lines": "536-560",
+   "how": "part"
+  },
+  {
+   "file": "scripts/tests.mjs",
+   "lines": "495-505, 636-652",
+   "how": "part"
+  },
+  {
+   "file": "scripts/tests-tier0.mjs",
+   "lines": "12472-12540 (R113, R436's head)",
+   "how": "part"
+  },
+  {
+   "file": "scripts/tests-tier1.mjs",
+   "lines": "11582-11618 (R380), 12467-12482 (R292), 15935-15950 (R504), 4116-4130 (R510)",
+   "how": "part"
+  },
+  {
+   "file": "scripts/tests-tier2.mjs",
+   "lines": "1525 test titles by script, heads of those naming the four stages; 4895-4912",
+   "how": "by script"
+  },
+  {
+   "file": "docs/handbooks/gm-handbook.en.md",
+   "lines": "1575-1591 (15.1)",
+   "how": "part"
+  },
+  {
+   "file": "module.json, lang/en.json, lang/pl.json, styles/danganronpa.css",
+   "lines": "relationships; DRPG.Music.orderNote, DRPG.Move.entered; --drpg-launch* tokens",
+   "how": "by grep"
+  }
+ ],
+ "count_expected": 4,
+ "count_note": "Four stages given (E12, E13, E81, E77 in tools/stages.json order) and four written. Promises: 10, 10, 11, 11. None of the four has a docs/dev folder, so the papers are the release notes, the stages.json row, the registry and the 9.2 items; none is 'not graded' for want of papers, since each has release notes and stamped registry rows (15, 19, 19, 19).",
+ "stages": [
+  {
+   "id": "E12",
+   "version": "1.2.74",
+   "shipped": "2026-10-12",
+   "what": "A room is what a GM marked (the room flag, no Teleport or level-change behaviour, not drawn by a player), several regions of one name are one room, a room is read on the token's own floor (v14 Levels: stairs cost a crossing, the fog one floor at a time, the Floors buttons), a student placed past the rules is no witness, a GM's rename carries what named the old room, Room Setup writes to the scene it was opened on, and no GM-side rule reads the scene on the GM's screen (CAMERA_READERS). Shipped with E13 in one train.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.74.md (1-227, whole: Before installing 8-38, Rooms 42-83, Tier 0 and the GM's screen 151-162, Changed 164-178, Known gaps 180-204, Checked 206-227)",
+    "tools/stages.json row E12 (planned and shipped 1.2.74, 2026-10-12; touches null, drills none)",
+    "no folder docs/dev/e12 (ls docs/dev: none for e12, e13, e81 or e77); the plan the comments cite (plan-E12) is not in the repository",
+    "docs/dev/R-REGISTRY.md: 15 rows stamped E12 (R118, R119, R379-R387, R410, R411, R430, R431)",
+    "audit/AUDIT-1.2.42.md 9.2 block 'Po E12 (1.2.74)' (line 1020), items 163-171 (LIVE-E12-01 to -09); audit/findings-1.2.118/live-items-05.json rows 163-171; live-readings-other.json readings of items 164, 165, 169 (and LIVE-E12-04 named beside item 166)",
+    "git log --all --grep: 6 later commits name E12 (112abc27, 9c0eaf1e, 2074a829, f7bb7671, d0491ae7, a48e822e); the stage's own commits are not in this checkout (history starts 2026-10-14)"
+   ],
+   "commits": 0,
+   "commits_note": "The checkout's history begins 2026-10-14 (32fd204f); the stage shipped 2026-10-12, so none of its commits, nor the notes' b35424f, 1e4d5f1 or 8b4974a, is in it (git cat-file: not a valid object). The notes count 15 fix commits of E12.",
+   "promises": [
+    {
+     "promise": "A region is a room only when a GM marked it; a Teleport or level-change region, or one a player drew, is never a room",
+     "source": "v1.2.74.md 44-45",
+     "code": "scripts/rooms.mjs:66 NOT_ROOM_BEHAVIOURS, :93-106 canBeRoom, isRoomWith, isRoom; scripts/movement.mjs:475-488 noteRegionCreated (a player's region recorded in playerRegions)",
+     "holds": "yes",
+     "test": "R380 (tier 1, body read); tier 2 \"a region a player created is never a room and a player's change to the room mark is told and leaves the GM's mark\" (tests-tier2.mjs:66728)",
+     "test_kind": "behaviour",
+     "note": "The two behaviour type names are 'Foundry's as recalled, not read off a v14 table' (rooms.mjs:61-63); docs/dev/e39/CALIBRATION.md lists a region's teleport and change-level behaviours as not read (LIVE-E12-02, -04)."
+    },
+    {
+     "promise": "A player's change to the mark is put back and the GMs told; with no record of the mark from before, nothing is put back and the GMs are told to check",
+     "source": "v1.2.74.md 45-47",
+     "code": "scripts/movement.mjs:510-523 judgeRoomFlagChange, :529-545 keepRoomFlag (unsetFlag or setFlag back, whisperToGms flagKept or flagUnjudged)",
+     "holds": "yes",
+     "test": "tier 2 tests-tier2.mjs:66728 (above)",
+     "test_kind": "behaviour",
+     "note": "Whether v14 lets a player write a Region at all outside Daggerheart's relay was not read (the tier-2 test's own note, tests-tier2.mjs:66730-66731; LIVE-E12-04 open)."
+    },
+    {
+     "promise": "The first load marks the rooms the world already had, once, and whispers the primary GM one report 'Rooms marked'; Season setup names the regions still undecided",
+     "source": "v1.2.74.md 20-26",
+     "code": "scripts/migrate.mjs:976-998 the clause markRooms (since 1.2.74), :1229-1251 markRoomsOn (per scene stamp roomsMarkedAt), :1254-1265 roomsReportHtml; scripts/season-setup.mjs:247-248 undecidedRegionNames, :532-533",
+     "holds": "yes",
+     "test": "tier 2 \"the room-marking pass marks each named region of a scene once and tells why it left the others\" (66684); \"Season setup names a region nobody decided on a scene that is not on screen\" (69237)",
+     "test_kind": "behaviour",
+     "note": "On a real world's copy: LIVE-E12-08, open (class F; E38's drill on three copies did not run, live-items-05 row 170)."
+    },
+    {
+     "promise": "Several regions with one name are one room: a lock, seal or Neighbours list on any piece holds for all, Room Setup shows one row and writes every piece, the fog outlines it whole",
+     "source": "v1.2.74.md 48-52",
+     "code": "scripts/rooms.mjs:222-274 roomPieces, roomRegions, roomFlag, flagOver, listOver, piecesByName; :320-337 writablePieces, setRoomFlag",
+     "holds": "yes",
+     "test": "R380 (a flag as OR over pieces); tier 2 \"two pieces are one room ...\" (66804), \"the fog draws a two-piece room from both pieces ...\" (66853), \"Room Setup shows a room of several pieces as one ...\" (68988), \"a room drawn in touching and overlapping pieces is outlined round its outside only ...\" (69944)",
+     "test_kind": "behaviour",
+     "note": "What a player's canvas draws of the outline is LIVE-E12-09, open."
+    },
+    {
+     "promise": "Floors (v14 Levels): a room is read on the token's own floor; a floor change is a move, judged, charged and sent back like a step; stairs cost one crossing, a change inside one room is free, a change between rooms stairs do not link is refused; the fog works one floor at a time; Floors buttons offer the own floor and discovered floors",
+     "source": "v1.2.74.md 53-60",
+     "code": "scripts/rooms.mjs:416-433 MOVE_FIELDS (level among them), isMoveChange, levelOf; :455 onLevel; :533-547 floorsOf, floorElevation; scripts/fog.mjs:3425 floorSwitcher",
+     "holds": "yes",
+     "test": "R384, R385, R411 (tier 1); tier 2 \"a move up the stairs costs a crossing like a door ...\" (68400), \"a level-only move into a locked room on another floor is refused ...\" (68435), \"a crossing refused for its price puts the token back on the floor it left\" (68489), \"the switcher offers your floor and floors you have discovered ...\" (68588), \"a change of floor between rooms only a player's stairs link is refused ...\" (70235); scenario 66",
+     "test_kind": "behaviour",
+     "note": "Measured on the harness's model of Levels. Since E39 D5 (16.11.2026) the shim's floors are Level documents read on 14.370 (live-items-05 row 164, stale_detail); the floors, fog and switcher on a real canvas (LIVE-E12-02, -03, -05) are partly read at most: includedInLevel's forms and MOVEMENT_FIELDS (level listed) were read on the sandbox, the drawing was not."
+    },
+    {
+     "promise": "With token vision off a player sees only the door controls of rooms the fog leaves clear or veiled",
+     "source": "v1.2.74.md 58-59",
+     "code": "scripts/fog.mjs:2966 refreshDoorControls, :2992 doorControlFor, :3003 registerDoorControls",
+     "holds": "unread",
+     "test": "R386 (tier 1, title only)",
+     "test_kind": "behaviour",
+     "note": "The functions exist; their bodies were not read for this file. On a real canvas: LIVE-E12-02 (the veiled room's buttons, triage class S)."
+    },
+    {
+     "promise": "A student placed past the rules is no witness and no third party until they stand somewhere lawful, and the GMs are whispered; the record is the primary GM's",
+     "source": "v1.2.74.md 61-65",
+     "code": "scripts/movement.mjs:849-878 (the unlawful standing), :1447-1457 the GMs' notice (DRPG.Movement.unlawfulArrival), :1489 the witness's room (none while unlawful), :1519",
+     "holds": "yes",
+     "test": "tier 2 \"a student a player's console put in a room the rules refuse is no witness until they stand somewhere lawful\" (68629), \"a student a send-back put in a room past the rules ...\" (70581); scenario 66 P2",
+     "test_kind": "behaviour",
+     "note": "The notes' own gap stands: a GM who becomes primary afterwards may read them as lawful until they move."
+    },
+    {
+     "promise": "A GM's rename carries what named the old room once its last piece has the new name; a rename onto an existing room joins it and carries nothing; a player's rename carries nothing",
+     "source": "v1.2.74.md 66-73",
+     "code": "scripts/fog.mjs:822 carryRename; scripts/rooms.mjs:306-318 RENAMED_FROM, joinsAnotherRoom",
+     "holds": "yes",
+     "test": "tier 2 \"a GM's rename of a room carries its stash, its keys ...\" (68327), \"... two renames in a row carry a room's project and plant ...\" (70767), \"... onto another bedroom's name carries nothing ...\" (70699), \"... carries its Despair Call seal and the bodies found in it but not another scene's\" (72064), \"... piece by piece carries its seal at the last piece ...\" (72253); R431 (the handbooks)",
+     "test_kind": "behaviour",
+     "note": "carryRename's body was not read here; the five tier-2 titles name each kind the notes list."
+    },
+    {
+     "promise": "Room Setup writes to the scene it was opened on, whatever scene is on screen at Apply, and says how many rooms it changed",
+     "source": "v1.2.74.md 74-75",
+     "code": "scripts/room-setup.mjs:1200 openRoomSetupDialog, :1226-1229 (workingScene, never the trial hall)",
+     "holds": "yes",
+     "test": "R119 (tier 0, a source reading); tier 2 \"Room Setup writes to the scene it was opened on, whatever scene is on screen when Apply is pressed\" (67091); scenario 66 B",
+     "test_kind": "both",
+     "note": "Its look at a table: LIVE-E12-06, open (the window was reshaped since: E46-C2a stepper, E101 tabs; live-items-05 row 168)."
+    },
+    {
+     "promise": "Rules are not decided from the GM's screen: who stands in a room, the lights' verdict, a theft, a trap, Listen, Rest and Move the body read the token's own scene; a project is reached only in its room on its own scene; the camera is read only by the functions CAMERA_READERS lists",
+     "source": "v1.2.74.md 157-162",
+     "code": "scripts/rooms.mjs:594-602 viewedScene, viewedLevel, :604 CAMERA_READERS",
+     "holds": "yes",
+     "test": "R382 (tier 0, the registered readers), R118, R410, R430; tier 2 66908, 66996, 67646, 68080, 68145, 69462, 69740, 69791, 69883, 70037, 70140 (each 'whatever scene is on screen' or 'on its own scene')",
+     "test_kind": "both",
+     "note": "Later stages added rows to the list (E73 C2 trial-zones-ui, E79 C5-C7 passages, E89 C1 visibility), each with its reason beside it (rooms.mjs:604-640)."
+    }
+   ],
+   "registry_rows": 15,
+   "registry_note": "15 rows stamped E12: 10 in tier 0 (R118, R119, R379, R381, R382, R383, R387, R410, R430, R431), 5 in tier 1 (R380, R384, R385, R386, R411). With E13's 7 and 12 they are the notes' 34 for the train (17 in tier 0, 17 in tier 1). base-run.json was not in audit/findings-1.2.118 when this was written: no tier-0/1/2 result or scenario result of the base run was read; each test is named from its source and its result was not read.",
+   "tests_read": [
+    {
+     "test": "R380 (tests-tier1.mjs:11582-11618, whole)",
+     "measures": "yes",
+     "why": "Asks isRoomWith and canBeRoom of eight plain regions (marked, never decided, unticked, a Teleport, a level change, another behaviour, no name, a player's) and a room as a name on a two-scene fixture (pieces, OR over flags, unmarked regions, isPlaceScene). It would fail if a Teleport or a player's region were a room. It reads the predicate, not a world or a v14 Region."
+    },
+    {
+     "test": "tier 2 tests-tier2.mjs:66684, 66728, 67091, 68629 (heads read, about 25 lines each)",
+     "measures": "yes",
+     "why": "Each builds its own scene and regions on the GM and drives the module's own road (the marking pass, a player's write of the mark, Apply with another scene viewed, a console's placement); results not read (no base run)."
+    }
+   ],
+   "tests_to_join": [
+    "R118, R119, R379-R387, R410, R411, R430, R431 (tiers 0-1)",
+    "tier 2: the room-marking pass marks each named region of a scene once and tells why it left the others",
+    "tier 2: a region a player created is never a room and a player's change to the room mark is told and leaves the GM's mark",
+    "tier 2: two pieces are one room: Room Setup writes both and the lock and the seal and the neighbours read either piece",
+    "tier 2: Room Setup writes to the scene it was opened on, whatever scene is on screen when Apply is pressed",
+    "tier 2: a move up the stairs costs a crossing like a door, a floor change inside one room is free, and the room is read on the token's floor",
+    "tier 2: a student a player's console put in a room the rules refuse is no witness until they stand somewhere lawful",
+    "tier 2: a GM's rename of a room carries its stash, its keys, the notes of its stash found and its discovery",
+    "tier 2: where a student stands and the lights' verdict on a murder are the same viewing either scene",
+    "scenario 66-rooms"
+   ],
+   "scenarios": [
+    "66-rooms (README.md:201, stage E12, layer ci): the shim's floors and Scene#view, a project's manager saved with the camera elsewhere, Room Setup applied after the camera moved, a Teleport region, a room of two pieces, the gather with the camera elsewhere, an actor on two scenes, P2 (a placement past the rules); body not read",
+    "The script in tests-tier2.mjs counts 58 tier-2 tests whose first 25 lines name an E12 commit (C1-C16, fix r1/r2, k1/k2), against the notes' 70 for E12 and E13 together"
+   ],
+   "live": {
+    "items": 9,
+    "read": 0,
+    "partly": 3,
+    "ids_partly": [
+     "LIVE-E12-02",
+     "LIVE-E12-03",
+     "LIVE-E12-07"
+    ],
+    "note": "Items 163-171. Partly, with no defect (live-items-05; readings 164, 165, 169 of live-readings-other.json, the sandbox at 14.370 on 16.11.2026): Level documents and includedInLevel's forms, MOVEMENT_FIELDS with level, a waypoint route arriving as one update. Open: -01 (the Levels look), -04 (a player's Region write, named not tried in CALIBRATION.md:134-135), -05, -06 (Room Setup's look), -08 (the migration on a real world's copy, class F), -09 (the outline on a player's canvas). Stale text on -02, -07 and -08 (live-items-05). No local gate ran for 1.2.74 (notes 225-227)."
+   },
+   "findings": [],
+   "superseded_by": [
+    "E101 item 5 (12.11.2026): Room Setup's Scenes tab (the school and hall links, the hall's cast) left Room Setup for Season setup (room-setup.mjs:395-396) - an E13 part, named here because the notes' Room Setup list holds it",
+    "E39 D5 (16.11.2026): the harness's floors are Level documents as read on 14.370, not the stand-in LevelList E12 measured on"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "Every promise read has its code where the notes put it and a named test: a predicate test (R380) and about 58 tier-2 tests on the module's own roads, with scenario 66. Nothing in the reading contradicts a promise. It is not 9: the floor rules, the fog per floor and the door controls were measured on a model of v14's Levels, the two behaviour names a room is refused for are 'as recalled', and the door-control rule and the rename carry were read here by name and test title only. Capped at 9 by its live checks: of nine, three are partly read and six open, and the main promise on v14 (floors, fog, door controls on a real canvas) is among the open. No base-run result was read.",
+   "missing_to_10": "LIVE-E12-01, -02, -04, -05, -09 read on a v14 canvas with two Levels (a floor change through stairs, the fog per floor, the door controls with token vision off, a player's Region write refused); LIVE-E12-08's migration on a copy of a real world; the base run's tiers 0-2 and scenario 66 green on b5a29e73; the behaviour names teleportToken and changeLevel read off v14.",
+   "l1": {
+    "what": "rooms and floors on a real canvas: a room read on its floor, a floor change charged and refused as a step, the fog of one floor, the Floors buttons, the door controls with token vision off, and a player's write of a Region",
+    "recipe": [
+     "1. Foundry 14.370, the module at 1.2.118; a scene with two Levels, a room on each, stairs (a level-change region) between them, a room of two pieces on the ground floor.",
+     "2. As GM, mark the rooms in Room Setup's Rooms tab and set token vision off on the scene.",
+     "3. As a player, walk a token up the stairs into the upper room in Daily Life; read the move card's price and the Floors buttons.",
+     "4. Try to change floor into a room the stairs do not link; read the refusal and where the token lands.",
+     "5. Read on the player's screen which door controls are drawn, and whether the two-piece room is outlined whole.",
+     "6. From the player's console try region.setFlag('drpg', 'room', false) on a marked room; read the GM's whisper and the flag after."
+    ],
+    "clients": "GM and two players",
+    "theme": "both",
+    "settles_if": "settled yes when the stairs cost one crossing, the refused change puts the token back on its floor, the fog and buttons follow the floor, only clear or veiled rooms show door controls and a player's mark write is put back or refused; settled no on any room read on another floor or a door control of a dark room",
+    "priority": "grade cap 9 (E12's floor promise)"
+   }
+  },
+  {
+   "id": "E13",
+   "version": "1.2.74",
+   "shipped": "2026-10-12",
+   "what": "The Class Trial gets a hall of its own: every road into the trial activates the linked hall and every road out takes the table back and hides the cast; End the trial asks for a room and gathers the living there, carrying a student from another scene as a copy; one voice room in the trial; the GMs choose the cast; a dark hall is named; no Eclipse in a trial (DZ1); Tier 0 items break on any roll; Isometric Perspective and LiveKit become required.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.74.md (1-227, whole: Before installing 10-19, 34-38; The Class Trial 85-149; Tier 0 items 151-156; the GM chrome 79-83)",
+    "tools/stages.json row E13 (planned 1.2.74 'with' E12, shipped 2026-10-12; touches null, drills none)",
+    "no folder docs/dev/e13; plan-E13 is cited by the comments and not in the repository",
+    "docs/dev/R-REGISTRY.md: 19 rows stamped E13",
+    "audit/AUDIT-1.2.42.md 9.2 block 'Po E13 (1.2.74)' (line 1032), items 172-182; live-items-05 rows 172-182",
+    "docs/handbooks/gm-handbook.en.md 15.1 (1575-1591) read; scripts/requirements.mjs 30-92; module.json relationships",
+    "git log --all --grep: 2 later commits name E13 (f7bb7671, d0491ae7); the stage's own commits are not in this checkout"
+   ],
+   "commits": 0,
+   "commits_note": "History starts 2026-10-14; the notes count 11 fix commits of E13, none in this checkout.",
+   "promises": [
+    {
+     "promise": "Isometric Perspective and LiveKit are required as Dice So Nice is; without one the module stops at load, a GM gets a window naming each as not installed or switched off, a player a notice that stays",
+     "source": "v1.2.74.md 10-15",
+     "code": "module.json relationships.requires (dice-so-nice, isometric-perspective, avclient-livekit); scripts/requirements.mjs:39-44 required, :61-73 missingRequirements, :75-84 requirementsMet, :94 announceMissingRequirements",
+     "holds": "yes",
+     "test": "R441 (tier 0), R442, R470 (tier 1)",
+     "test_kind": "both",
+     "note": "Read on 14.370 with every requirement met (live-items-05 row 182); with one missing on v14 and on The Forge: LIVE-E13-11, open. Since E20 C5 a module that stops takes its own stylesheets off the page (requirements.mjs:157 removeModuleStyles)."
+    },
+    {
+     "promise": "Every road into the trial takes the table to the hall (the hall is activated); every road out hides the cast and takes the table back - to the room chosen, else the school, else the scene active when the trial opened, else the table stays and the GMs are told; with no hall linked the trial opens where the table is",
+     "source": "v1.2.74.md 87-95",
+     "code": "scripts/trial-scene.mjs:650-657 followPhase (the one caller of the two, from clock.mjs reconcilePhase), :705-713 enterTrialScene, :720-724 exitDestination, :744-760 leaveTrialScene (noSchool whisper with nowhere to go)",
+     "holds": "yes",
+     "test": "R113 (tier 0, a source census: one door, followPhase under the trial's guard, no other activator; body read); scenario 41 (every browser follows); tier 2 \"E101-T10 - one Season setup Save that links a new trial hall ...\" (88337)",
+     "test_kind": "both",
+     "note": "A late browser and a GM leaving mid-step: LIVE-E13-01, -02, open."
+    },
+    {
+     "promise": "With a hall linked, End the trial asks for a room (every room of every scene with rooms) or Cancel; the verdict does not end the trial; the living go to random points in the room, Monocubs too, the dead and Monokuma stay; the chapter-end screen's End the trial moves nobody",
+     "source": "v1.2.74.md 103-107",
+     "code": "scripts/trial-scene.mjs:780-808 returnTheLiving (gatherEveryone with held and box, only the cast since E81), :835-855 leftBehind (no Monokuma, no dead but a Monocub)",
+     "holds": "yes",
+     "test": "R436 (tier 0, the gather's one door); tier 2 \"End the trial moves the living to the GM's room ...\" (71233), \"the verdict does not end the trial ...\" (71794)",
+     "test_kind": "both",
+     "note": ""
+    },
+    {
+     "promise": "A living student on another place scene comes too as a copy under a new id; the copy stays only when the old token is gone, else the move is undone or the student is named on both scenes; a carry cut short is named at the next GM's load",
+     "source": "v1.2.74.md 108-122",
+     "code": "scripts/trial-scene.mjs:810-833 carryTheLiving, :857 standingTwice, :887 nameUnfinishedCarries; scripts/call-world.mjs:612 carryAcross",
+     "holds": "yes",
+     "test": "tier 2 \"End the trial carries a living student from another scene ...\" (71404), \"... carries a student's token across scenes whole ...\" (71529), \"End the trial never leaves a living student without a token ...\" (71634)",
+     "test_kind": "behaviour",
+     "note": "What v14 keeps of the copy: LIVE-E13-10, open."
+    },
+    {
+     "promise": "The trial is one voice room for the living, the dead, Monocubs, the GMs and an account with no character; the module mutes nobody",
+     "source": "v1.2.74.md 123-126",
+     "code": "not traced for this file (voice.mjs); R117's title states the rule",
+     "holds": "unread",
+     "test": "R117 (tier 1); tier 2 \"the Class Trial takes every connected voice to the main room ...\" (43392)",
+     "test_kind": "behaviour",
+     "note": "LiveKit itself: LIVE-E13-05, open (class T: the sandbox ran the LiveKit module with A/V off)."
+    },
+    {
+     "promise": "The GMs choose the cast and only that cast is shown: until a tick changes Monokuma and each student a player owns; only `hidden` is written; the choice is kept in the GMs' browsers for the season; a player's change to a hall token's hidden is put back and told",
+     "source": "v1.2.74.md 127-138",
+     "code": "scripts/trial-scene.mjs:316 defaultReveal, :230 readTrialCast (GM store with its epoch), :1087-1121 heldHidden, castPutBack, :1123 watchCast",
+     "holds": "superseded",
+     "test": "R116, R433, R434 (tier 1); tier 2 \"a player's change to whether a hall cast token is hidden is put back by the primary GM ...\" (71155)",
+     "test_kind": "behaviour",
+     "note": "Superseded in part by E81 (DZ6, 12.10.2026): the choice is kept per character, not per hall token, and the module makes and deletes the hall's tokens it needs (stageHall, trial-scene.mjs:572-636), so 'only hidden is written' no longer holds. The put-back of a player's hidden write holds as written. R116's title still says 'only `hidden` changes' (it reads applyTrialCast's show and hide)."
+    },
+    {
+     "promise": "A dark hall is named: with token vision on, global light off or exploration fog on in the linked hall the tab says so and entering the trial whispers the GMs to prepare it",
+     "source": "v1.2.74.md 139-145",
+     "code": "scripts/trial-scene.mjs:1262 hallIsDark, :710 (the whisper on entry), :1645-1675 hallPreparePatch, prepareTrialScene",
+     "holds": "yes",
+     "test": "R120 (tier 1); scenario 41 (a hall nobody prepared)",
+     "test_kind": "behaviour",
+     "note": "The 'Prepare the hall' tick is in Season setup's Scenes part since E101 item 5."
+    },
+    {
+     "promise": "An Eclipse cannot start during a Class Trial (DZ1): the API, the GM panel, the HUD and the clock refuse; the HUD draws no chevron in a trial",
+     "source": "v1.2.74.md 146-149",
+     "code": "scripts/eclipse.mjs:199 (trialFirst in the one writer of eclipse: true); scripts/clock.mjs:248-262 (setClock refuses a trial opened in an Eclipse and an Eclipse begun in a trial)",
+     "holds": "yes",
+     "test": "tier 2 \"an Eclipse waits for the Class Trial's end ...\" (43427), \"the clock refuses an Eclipse in the Class Trial ...\" (43473)",
+     "test_kind": "behaviour",
+     "note": "The Sound panel's note still describes the order 'an Eclipse during a trial uses the Eclipse's' (finding E13-2)."
+    },
+    {
+     "promise": "A Tier 0 tool or weapon breaks on any roll it is used in; Tiers 1-3 lose a point only on a Despair; an item with no tier counts as Tier 0",
+     "source": "v1.2.74.md 153-156",
+     "code": "scripts/use-items.mjs:174-178 rollSpends (tier 0: any roll; else withFear and not critical), :226-262 breakOnDespair",
+     "holds": "yes",
+     "test": "R439 (tier 1); tier 2 \"a tier-0 tool is spent by any roll it was used in ...\" (4906), \"a tier-0 knife swung on a hit with Hope is spent and a Reroll gives it back ...\" (4957)",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "A GM keeps Foundry's Scenes tab, scene navigation and macro hotbar in both themes; a player has none",
+     "source": "v1.2.74.md 79-83",
+     "code": "scripts/gm-panel.mjs:95-120 (GM_CHROME); styles/danganronpa.css:7646 and :7671 (body.drpg-player #sidebar, #scene-controls)",
+     "holds": "superseded",
+     "test": "R438 (tier 0, retitled by E81), R470",
+     "test_kind": "text",
+     "note": "Superseded twice: E81's DZ5 hid the navigation and the hotbar for a GM too (R438's title today), and E77 moved a GM's sidebar, the Scenes tab with it, into the module's Foundry tools window (LIVE-E13-09's text is stale for that reason, live-items-05 row 180)."
+    }
+   ],
+   "registry_rows": 19,
+   "registry_note": "19 rows stamped E13: 7 in tier 0 (R113, R432, R436, R438, R440, R441, R471), 12 in tier 1 (R114-R117, R120, R433-R435, R437, R439, R442, R470). R120's title keeps 'the Scenes tab' though the tab is Season setup's since E101. base-run.json was not in audit/findings-1.2.118 when this was written: no tier-0/1/2 result or scenario result of the base run was read; each test is named from its source and its result was not read.",
+   "tests_read": [
+    {
+     "test": "R113 (tests-tier0.mjs:12472-12535, whole)",
+     "measures": "weak",
+     "why": "A census of the source with comments blanked, first run on a planted fixture: reconcilePhase calls followPhase once under the trial's guard after its other steps, no other file activates a scene or names the two doors, only setClock writes the clock. It holds the shape of the one door and would fail on a second activator; it cannot fail for what a browser does when the hall is activated (scenario 41 reads that). Its own note: a scene made active by update({ active: true }) is a road it does not read."
+    },
+    {
+     "test": "tier 2 tests-tier2.mjs:4906 (head read)",
+     "measures": "yes",
+     "why": "Drives use-items.mjs breakOnDespair with each roll result on a tier-0 and a tier-1 tool and reads the wear and the break."
+    }
+   ],
+   "tests_to_join": [
+    "R113-R117, R120, R432-R442, R470, R471 (tiers 0-1)",
+    "tier 2: the Class Trial takes every connected voice to the main room and gives the rooms back when it ends",
+    "tier 2: an Eclipse waits for the Class Trial's end: the API is refused with the reason and the trial keeps its one voice room",
+    "tier 2: the clock refuses an Eclipse in the Class Trial with the reason and the trial keeps its one voice room; a trial is not opened in an Eclipse",
+    "tier 2: a tier-0 tool is spent by any roll it was used in and a tier-1 tool only by a Despair",
+    "tier 2: End the trial carries a student's token across scenes whole",
+    "tier 2: End the trial never leaves a living student without a token, names every living student it leaves on two scenes, and a GM's load names a carry stopped half-way",
+    "tier 2: a player's change to whether a hall cast token is hidden is put back by the primary GM and told to the GMs; a GM's stands",
+    "tier 2: the verdict does not end the trial: the clock is not written and no card says the trial is over",
+    "scenario 41-trial-scene"
+   ],
+   "scenarios": [
+    "41-trial-scene (README.md:191, stage E13, layer ci): an activation followed by every browser, one still loading, a token's hidden heard everywhere, setClock into the trial, a move in the hall, the voice rooms, closeTrial, Edit campaign in and out, a player loading while the hall is activated, a hall drawn before it was linked; body not read",
+    "The script counts 18 tier-2 tests whose first 25 lines name an E13 commit (one more, 68265, is E13 fix n1-N1 on an E12 test)"
+   ],
+   "live": {
+    "items": 11,
+    "read": 0,
+    "partly": 0,
+    "note": "Items 172-182, all open (live-items-05). -05 needs a LiveKit server (class T). Stale text: -01 names the Scenes tab of Room Setup (gone since E101 item 5), -09 a GM's sidebar on screen (in a window since E77), -11 the stylesheet tree before E20 C5. -11 was read on 14.370 only with every requirement met (Foundry links a module's sheets as @import in layer 'modules'). No local gate ran for 1.2.74."
+   },
+   "findings": [
+    {
+     "id": "E13-1",
+     "severity": "nit",
+     "category": "text",
+     "title": "The suite's own failure line, and five comments, still send the GM to Room Setup's Scenes tab, which E101 item 5 removed; the links are in Season setup",
+     "where": "scripts/tests.mjs:647 (the failure record), :501; scripts/room-setup.mjs:378-379, :1229-1234; scripts/room-tile.mjs:53; scripts/season-setup.mjs:543",
+     "what_happens": "Since E101 item 5 Room Setup's tab list ends with Fog and says 'No Scenes tab' (room-setup.mjs:395-396); the school, the hall and the cast are in Season setup's Scenes part (gm-handbook.en.md:1577 says so). When tier 2 cannot put the world's scene links back at its end, the row it records tells the GM to 'link them again in Room Setup's Scenes tab'. Four comments describe the removed tab as live: room-setup.mjs:1229-1234 says Room Setup 'opens on the Scenes tab whenever its scene holds no room', while roomSetupTab (:403-406) falls back to Rooms; season-setup.mjs:543 says the checklist button 'opens Room Setup on the Scenes tab' over `open: async () => openSeasonSetup()` (:557); room-tile.mjs:53 and room-setup.mjs:378 name the tab as where the hall's facts and the scenes are set.",
+     "evidence": "tests.mjs:646-647: record({ tier: 2, name: \"tier 2 put the world's scene links back\", outcome: \"fail\", assertions: null, message: `${err?.message ?? String(err)}\\nlink them again in Room Setup's Scenes tab: ${JSON.stringify(heldRoles)}` }); room-setup.mjs:395-396: // No Scenes tab since E101 item 5 ... stand in Season setup (season-setup.mjs `openSeasonSetup`).",
+     "failure_scenario": "A GM runs game.drpg.runTests({ tier: 2 }) at a table, the closing write of sceneRoles fails, and the result row tells them to re-link the hall in a Room Setup tab that does not exist.",
+     "expected": "The line and the comments name Season setup's Scenes part, as the handbook does.",
+     "confidence": "read",
+     "refutation_tried": "Read ROOM_SETUP_TABS (room-setup.mjs:382-397) and roomSetupTab (:398-406): no Scenes tab, fallback Rooms. Read the handbook 15.1 (right). Looked for another Room Setup tab named Scenes in lang/en.json DRPG.Vault.tab*: none. The diagnostic text is English by the house rule, so only its place is wrong. It reaches a GM only when that put-back write throws."
+    },
+    {
+     "id": "E13-2",
+     "severity": "nit",
+     "category": "text",
+     "title": "The Sound panel still tells the GM how music is chosen for 'an Eclipse during a trial', a state E13's DZ1 refuses on every road",
+     "where": "lang/en.json:2539 and lang/pl.json:2667 (DRPG.Music.orderNote), drawn at scripts/sound-panel.mjs:200; scripts/music-states.mjs:117-118",
+     "what_happens": "The order of MUSIC_STATES puts eclipse above the trial (music-states.mjs:152-154), and the panel's note explains that order with 'an Eclipse during a trial uses the Eclipse's'. Since E13 no Eclipse begins in a trial (eclipse.mjs:199, clock.mjs:255-262) and no trial opens in an Eclipse (clock.mjs:248-251); the one way left is a clock that already held both before 1.2.74.",
+     "evidence": "\"orderNote\": \"The first state that applies wins, in the order listed. A Class Trial at night uses the trial's playlists; an Eclipse during a trial uses the Eclipse's.\"",
+     "failure_scenario": "A GM setting the playlists reads that an Eclipse during a trial plays the Eclipse's list and plans for a moment the module will not let happen.",
+     "expected": "The note gives an example the table can reach, or says that an Eclipse and a trial never overlap.",
+     "confidence": "read",
+     "refutation_tried": "Read both refusals in clock.mjs setClock and eclipse.mjs's startEclipse check; the only state with both is a clock written before 1.2.74 and kept (clock.mjs:252-256 lets such a write through). The order itself is still true of the code, so this is a text that describes a dead case, not a wrong rule."
+    }
+   ],
+   "superseded_by": [
+    "E81 DZ6 (12.10.2026): the cast per character and temporary hall tokens made and deleted by stageHall (only `hidden` no longer)",
+    "E81 DZ5: the scene navigation and the hotbar hidden for a GM too",
+    "E77 (1.2.76): a GM's sidebar, the Scenes tab with it, in the Foundry tools window",
+    "E101 item 5 (12.11.2026): Room Setup's Scenes tab moved to Season setup's Scenes part",
+    "E79 C11 (1.2.79): the hall gets a name, picture and words for the room tile (HALL_ROOM_FLAG, trial-scene.mjs:1351), not a room"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "The trial's doors, the gather, the carry, the refusal of an Eclipse, the Tier 0 rule and the requirements check stand where the notes put them, each with a named test, and the parts later stages changed were changed on purpose and are written as superseded. Two nit findings (E13-1, E13-2): stale words, no rule broken. It is not 9: the voice room was not traced here, the browser side of the trial's voice plan and the dark hall's put-back of old vision are 'read in the code, not run' by the notes' own account, and R113 holds the one door by a source census. Capped at 9 by eleven open live checks, the hall on a real table among them. No base-run result was read.",
+   "missing_to_10": "E13-1 and E13-2 reworded; LIVE-E13-01, -02, -05, -08, -10, -11 read at a table (a late browser following the hall, a GM leaving mid-step, LiveKit's one room, a player's hidden write on v14, what v14 keeps of a carried copy, a missing requirement on v14 and The Forge); the base run's tiers 0-2 and scenario 41 green.",
+   "l1": {
+    "what": "the hall on a real table: every browser following the hall in and out, a late browser, the one voice room, a player's hidden write on a hall token, End the trial's carry across scenes",
+    "recipe": [
+     "1. Foundry 14.370 with LiveKit on a real server; link a school and a hall in Season setup's Scenes part; one student's token on a second scene with rooms.",
+     "2. As GM, Start the Class Trial; read on each player's browser that the hall is shown and the ticked cast stands; reload one player during the activation.",
+     "3. Read who hears whom in the trial (the living, a dead student, the GM).",
+     "4. From a player's console set hidden on a hall cast token; read the put-back and the GMs' whisper.",
+     "5. End the trial, choose a room on the school; read where every living student lands and that the student from the second scene now has a token in the room and none left behind.",
+     "6. Disable Isometric Perspective and reload; read the GM's window and a player's notice."
+    ],
+    "clients": "GM and three players",
+    "theme": "both",
+    "settles_if": "settled yes when every browser follows both moves, the trial is one room in LiveKit, a player's hidden write is put back, the carry leaves one token per student, and a missing requirement stops the module with the window; settled no on a browser left behind, a split voice room or a student on two scenes unnamed",
+    "priority": "grade cap 9 (E13's hall promise)"
+   }
+  },
+  {
+   "id": "E81",
+   "version": "1.2.75",
+   "shipped": "2026-10-13",
+   "what": "A notice history kept per browser and per account (a client setting, budgets 250/150 and 40 a sender, cleared by a season reset that clears the clock, the incident, the module's cards or the chat) with a read-only window; the three corner buttons on one grid (DZ4); the scene navigation and hotbar hidden for everybody (DZ5); the Class Trial's cast chosen per character with temporary hall tokens (DZ6).",
+   "claim_sources": [
+    ".github/release-notes/v1.2.75.md (1-181, whole: Before installing 7-36, the notice history 40-71, the corner 73-94, the trial's cast 96-109, Changed 111-126, Known gaps 128-161, Checked 163-181)",
+    "tools/stages.json row E81 (planned and shipped 1.2.75, 2026-10-13; touches null, drills none)",
+    "no folder docs/dev/e81; the A7 design and the DZ6 design the comments cite are not in the repository",
+    "docs/dev/R-REGISTRY.md: 19 rows stamped E81",
+    "audit/AUDIT-1.2.42.md 9.2 blocks 'Po E81 (1.2.75)' (line 1046) and 'Po E81 DZ6' (line 1062), items 183-204; live-items-05 rows 183-184 and live-items-06 rows 185-204",
+    "git log --all --grep: 3 later commits name E81 (e65fbb33, fd976779, 6732a09d); the stage's own commits are not in this checkout"
+   ],
+   "commits": 0,
+   "commits_note": "History starts 2026-10-14; the notes name 16 planned commits (C0-C15) and 14 fix commits, none in this checkout (2c9fe4b, 424cc8a, 57d179c, 84273d8: not valid objects).",
+   "promises": [
+    {
+     "promise": "The history keeps every card the browser draws for its user, within its budgets: the newest 250 for a player, 150 for a GM, 40 from any one sender; a long entry keeps its text without markup; at most four full day summaries",
+     "source": "v1.2.75.md 42-48",
+     "code": "scripts/notice-history.mjs:133-139 BUDGET (player 250 entries and 200 000 characters, gm 150 and 100 000, total 500 000, perAuthor 40, fullSummaries 4), :480-481 (html dropped, clipped), :610, :625-635",
+     "holds": "yes",
+     "test": "R292, R293 (tier 1)",
+     "test_kind": "behaviour",
+     "note": "R292's head read: the budgets in characters of JSON on a value in memory; what a browser's quota counts is not measured (its own words)."
+    },
+    {
+     "promise": "A card the module takes back leaves the history; any other deletion leaves the entry marked deleted; a Reroll or ruling marks an entry without changing what it shows",
+     "source": "v1.2.75.md 50-52",
+     "code": "scripts/notice-history.mjs:1239-1247 noticeCardDeleted (the option honoured only from a GM)",
+     "holds": "yes",
+     "test": "R295 (tier 1)",
+     "test_kind": "behaviour",
+     "note": "Withdraw and delete in Foundry 14: LIVE-E81-11; a player deleting their own message: LIVE-E81-22; both open."
+    },
+    {
+     "promise": "The window is read-only: it plays no sound, draws no card again and sends nothing; one chip per source (seven), a search that ignores accents and capitals, groups by time of day, 'Open the conversation'",
+     "source": "v1.2.75.md 53-57",
+     "code": "scripts/notice-history-app.mjs:86 fold (NFD, marks removed, lower case, l for the Polish barred l), :204-209 the chips and the menu, :321-330",
+     "holds": "partly",
+     "test": "R296 (tier 1); scenario 73",
+     "test_kind": "behaviour",
+     "note": "Holds for read-only and the search. The seven chips are superseded by E100 item 4: the chips ON_TOP and the other filters in one menu (notice-history-app.mjs:61-62, :209). Superseded, not broken."
+    },
+    {
+     "promise": "The safeword's public entry names nobody and shows no time; a GM's own note is kept in that GM's browser only; an author who is no user of this world is dropped",
+     "source": "v1.2.75.md 58-61",
+     "code": "not traced for this file (notice-history.mjs's recorder)",
+     "holds": "unread",
+     "test": "R296, R297 (tier 1); scenario 73",
+     "test_kind": "behaviour",
+     "note": "Taken from the tests' titles and the scenario's register row; the recorder's safeword branch was not read."
+    },
+    {
+     "promise": "A season reset that clears the clock, the incident, the module's cards or the rest of the chat log clears every account's history of this world, at once in an open browser and at the next load in any other; a reset with none of the four clears none",
+     "source": "v1.2.75.md 62-64",
+     "code": "scripts/notice-history.mjs:93 EPOCH_GROUPS = clock, incident, cards, chatRest; :153-159 the epoch's fingerprint over seasonStartedAt and the four cuts",
+     "holds": "yes",
+     "test": "R297 (tier 1)",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "Accounts sharing one browser keep their sections in one value; when storage is full the history gives way (other worlds first, then the older half), and a newcomer's history is kept in memory with a line that says so",
+     "source": "v1.2.75.md 65-71",
+     "code": "scripts/notice-history.mjs:677-695 (the whole value's budget, halved after a give-way), :1196-1214 keepRoom and the quota error by name or code",
+     "holds": "yes",
+     "test": "R292 (the 500 000 and other worlds first), R298 (the give-way)",
+     "test_kind": "behaviour",
+     "note": "A shared browser (LIVE-E81-06) and a real full storage's error (LIVE-E81-21, class T) are open; the notes said the newcomer's memory-only road was read in the code, not run."
+    },
+    {
+     "promise": "The history button stands in the notice tile's corner, from load under Stained Glass; the three corner buttons stand on one grid - the chat 66 px, settings and the book 44 px, every two neighbours 6 px apart; the GM's roster 8 px over the chat button",
+     "source": "v1.2.75.md 75-82",
+     "code": "styles/danganronpa.css:301-306 (--drpg-launcher 66px, --drpg-launcher-small 44px, --drpg-launcher-book 44px, --drpg-launch-gap 6px), :445-471",
+     "holds": "partly",
+     "test": "R298, R474, R475 (tiers 0-1); R299 and R111 (skipped headless, never run on a Foundry: live-items-05 row 184); audit/glass-sweep.mjs (Chromium, the writer's runs at 57d179c and 84273d8)",
+     "test_kind": "both",
+     "note": "The sizes and the gap hold in the tokens today. Superseded in part: E77 added an upper row (the GM's button and Foundry tools, --drpg-launch-u-bottom), and E44 C8c moved the notice tile under the windows for Stained Glass and every card over them for Legacy (fd976779), which changes where the history button stands under Legacy."
+    },
+    {
+     "promise": "On a narrow screen the notice stack stands 8 px above the corner buttons, beside them under 620 px of height, never under 96 px, what does not fit parked behind +N",
+     "source": "v1.2.75.md 83-87",
+     "code": "styles/narrow.css:515-539 (live-items-06 row 187: drpg-short, the roster over the stack, no button without a card)",
+     "holds": "yes",
+     "test": "R476, R477 (tiers 0-1); glass-sweep's drpgNoticeCheck",
+     "test_kind": "both",
+     "note": "The rules were read by the live-items reader, not again here."
+    },
+    {
+     "promise": "DZ5: the scene navigation and the macro hotbar are hidden for everybody, a GM included, in every theme; the Scenes tab stays on a GM's screen",
+     "source": "v1.2.75.md 7-10",
+     "code": "scripts/gm-panel.mjs:95-120 (GM_CHROME and its note)",
+     "holds": "partly",
+     "test": "R438 (tier 0, retitled)",
+     "test_kind": "text",
+     "note": "The navigation and hotbar half holds. 'The Scenes tab stays on a GM's screen' is superseded by E77: the sidebar is in the Foundry tools window."
+    },
+    {
+     "promise": "DZ6: the cast is one tick per character; on the primary the 1.2.74 rows move once to their characters; when the trial opens each ticked character without a GM's token gets a module token (never Monokuma), at its remembered seat or on a ring; when it ends the module's tokens are deleted and the GM's hidden; only tokens the hall's record names are ever deleted; a token left by a closed browser is deleted at the primary's next load",
+     "source": "v1.2.75.md 11-19, 98-107",
+     "code": "scripts/trial-scene.mjs:274-309 castRowsByActor, tidyTrialHall; :411-441 TRIAL_SEATS_FLAG, readSeats, writeSeats; :456-484 stagePlan ('A token is the module's when its id is in the record and only then'); :486 seatFor; :572-636 stageHall; :638-644 tidyHallTokens",
+     "holds": "yes",
+     "test": "R500, R501, R502 (tier 1); tier 2 \"entering the trial makes the cast's missing tokens in the linked hall in one create and leaving deletes only those ...\" (70948), \"a 1.2.74 cast row kept by a hall token moves to its actor once on the primary GM ...\" (72009)",
+     "test_kind": "behaviour",
+     "note": "Changed since by E79 C11 (bef2ab5b): a made token copies the look of the student's school token, else the prototype (hallTokenData, trial-scene.mjs:509-547; live-items-06 row 196). Whether v14's setFlag merges a partial record is LIVE-E81-16; tidyTrialHall off the primary is LIVE-E81-19 (the notes: not killed headless)."
+    },
+    {
+     "promise": "End the trial moves, carries and names only the cast",
+     "source": "v1.2.75.md 108-109",
+     "code": "scripts/trial-scene.mjs:780-808 returnTheLiving (castActorIds after trialCastStore.whenHydrated, E81 fix r2-H1), :835 leftBehind with only",
+     "holds": "yes",
+     "test": "R436; tier 2 71233; scenario 41",
+     "test_kind": "both",
+     "note": ""
+    }
+   ],
+   "registry_rows": 19,
+   "registry_note": "19 rows stamped E81: 5 in tier 0 (R472, R475, R477, R478, R479), 14 in tier 1 (R292-R299, R473, R474, R476, R500-R502), as the notes count. R299 is in the skip baseline (a browser's layout). base-run.json was not in audit/findings-1.2.118 when this was written: no tier-0/1/2 result or scenario result of the base run was read; each test is named from its source and its result was not read.",
+   "tests_read": [
+    {
+     "test": "R292 (tests-tier1.mjs:12467-12482, head read)",
+     "measures": "yes",
+     "why": "Runs the history's engine over a value in memory with the test's own clock: each budget's edge (the 251st player entry, the 151st GM entry, 40 a sender, the 500 000), the epoch on read and write, two tabs' merge with tombstones. It does not measure a browser's real quota."
+    },
+    {
+     "test": "R299 (title)",
+     "measures": "unread",
+     "why": "The only reading of the window and the corner inside Foundry; skipped headless and never run on a real Foundry (no record in the sandbox runs, live-items-05 row 184)."
+    }
+   ],
+   "tests_to_join": [
+    "R292-R299, R472-R479, R500-R502 (tiers 0-1; R299 skips headless)",
+    "tier 2: entering the trial makes the cast's missing tokens in the linked hall in one create and leaving deletes only those, at their seats next time",
+    "tier 2: a 1.2.74 cast row kept by a hall token moves to its actor once on the primary GM, and a row already written by actor stays as it is",
+    "tier 2: entering the trial whispers the GMs once by name the cast the hall has no token for",
+    "scenario 73-notice-history",
+    "scenario 41-trial-scene"
+   ],
+   "scenarios": [
+    "73-notice-history (README.md:209, stage E81, layer ci): a player's history after F5, the GM's own diet; body not read",
+    "41-trial-scene changed by E81 (the cast moved and named); 00, 13, 30, 61, 72 changed (notes 124-125)"
+   ],
+   "live": {
+    "items": 22,
+    "read": 0,
+    "partly": 0,
+    "note": "Items 183-204 (LIVE-E81-01 to -22), all open (live-items-05 rows 183-184, live-items-06 rows 185-204). Classes: T for -08, -21; F for -19; the rest K or S. Stale text on -02, -08, -09, -13, -14, -19 (the sweep's sizes, E18 shipped, the Clear label, E79's hallTokenData, a second GM in today's harness). No local gate ran for 1.2.75."
+   },
+   "findings": [],
+   "superseded_by": [
+    "E77 (1.2.76): the corner's upper row; a GM's sidebar in a window; the history's foot and wording",
+    "E44 C5 (e65fbb33, 04.11.2026): the window on the kit, Clear on the left and Close on the right",
+    "E44 C8c (fd976779, 04.11.2026): the notice tile's place by theme",
+    "E100 item 4: the chips ON_TOP with the other filters in one menu",
+    "E79 C11 (bef2ab5b, 1.2.79): a made hall token copies the school token's look"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "The history's budgets, its reset and its give-way are in the code as the notes word them and held by engine tests that drive them on a value in memory; the trial's temporary tokens follow the plan the notes give (only recorded tokens are deleted, Monokuma never made), with three tier-1 rows and two tier-2 tests. The corner's sizes hold in the tokens. No finding. It is not 9: the window and the corner inside Foundry rest on R299 and R111, which never ran on a real Foundry; the keybinding is held only by a source clause; the shared browser, the newcomer kept in memory and the safeword branch were read by name here, not traced. Capped at 9 by 22 open live checks. Several parts were reshaped by E44, E77 and E100 on purpose. No base-run result was read.",
+   "missing_to_10": "R299 and R111 run in a browser on a real Foundry in both themes (LIVE-E81-02, -13); LIVE-E81-01 (Foundry's own HTML cleaner against a kept card), -03 (F5 right after a card), -06 (a shared browser), -11 and -22 (withdraw and delete on v14), -14 to -20 (the hall's tokens on v14, two GMs, the partial record write) read; the base run's tiers 0-1 and scenario 73 green.",
+   "l1": {
+    "what": "the notice history and the trial's temporary tokens on a real table",
+    "recipe": [
+     "1. Foundry 14.370, two players and a GM; show a private card, a public card and a messenger preview to a player; press F5 within a second of the last card.",
+     "2. Open the history (the corner button and game.drpg.openNotices()); read the entries, the unread banner and that nothing plays or is sent.",
+     "3. Delete one of the module's cards from the chat log as GM; read the player's entry marked deleted.",
+     "4. Log a second account into the same browser; read that each sees its own section.",
+     "5. Link a hall with no tokens, tick two students and Monokuma, Start the Class Trial; read the made tokens, the whisper naming Monokuma, the hall's trialSeats flag.",
+     "6. End the trial; read that only the made tokens are deleted and their places kept on the flag."
+    ],
+    "clients": "GM and two players",
+    "theme": "both",
+    "settles_if": "settled yes when the kept entries survive F5, the window draws nothing again, a deletion marks the entry, two accounts keep two sections, the made tokens are created and deleted and the record merges; settled no on a lost entry, a card replayed, a GM token deleted or a record overwritten",
+    "priority": "grade cap 9 (E81's history and DZ6 promises)"
+   }
+  },
+  {
+   "id": "E77",
+   "version": "1.2.76",
+   "shipped": "2026-10-13",
+   "what": "The owner's request A8: a room tile under the clock showing the viewer's own room (name, search tokens, project line, the GM's picture and description); the clock loses its room lines; Foundry's sidebar and scene controls leave the screen, a GM's into two module windows (Foundry tools, Map tools) opened from a new upper row in the corner, behind a world switch; a player keeps the Tokens layer; the notice history tidied.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.76.md (1-182, whole: Before installing 11-36, the room tile 40-68, the windows and the corner 70-88, the history 90-100, Changed 102-126, Known gaps 128-157, Checked 159-182)",
+    "tools/stages.json row E77 (planned and shipped 1.2.76, 2026-10-13; touches null, drills none)",
+    "no folder docs/dev/e77; the A8 design and plan-E77 are cited and not in the repository",
+    "docs/dev/R-REGISTRY.md: 19 rows stamped E77",
+    "audit/AUDIT-1.2.42.md 9.2 block 'Po E77 (1.2.76)' (line 1077), items 205-222; live-items-06 rows 205-218; items 219-222 (lines 1093-1096) read in the audit, no live-items row covers them",
+    "git log --all --grep: 5 later commits name E77 (f0a209ff, 85e8b0e2, 2010bb6c, 2faa7415, f22a7e87); the stage's own commits are not in this checkout"
+   ],
+   "commits": 0,
+   "commits_note": "History starts 2026-10-14; the notes name 15 fix commits and the runs at d2ba27b and cf14302, none in this checkout.",
+   "promises": [
+    {
+     "promise": "The tile shows only the room the viewer's own character stands in, never another; a GM's tile shows the room of the GM's own Monokuma whatever token is selected, a GM without one an empty pane",
+     "source": "v1.2.76.md 48-54",
+     "code": "scripts/hud.mjs:1450 viewerActor (a GM: the actor whose pool user is this GM); scripts/room-tile.mjs:156 (the trial's view)",
+     "holds": "yes",
+     "test": "R504 (tier 1, head read), R509 (tier 0: one viewer); scenario 74 A, H",
+     "test_kind": "both",
+     "note": ""
+    },
+    {
+     "promise": "During a Class Trial the tile shows no room",
+     "source": "v1.2.76.md 54",
+     "code": "scripts/room-tile.mjs:51-56, :156, :174 (hallView); scripts/trial-scene.mjs:1351-1367 HALL_ROOM_FLAG, hallRoom",
+     "holds": "superseded",
+     "test": "R582 (E79)",
+     "test_kind": "behaviour",
+     "note": "Superseded by E79 C11 (the owner's N6 of 14.10.2026): in a trial the tile shows the hall's name, picture and words, or the trial's label."
+    },
+    {
+     "promise": "A room's picture is only ever a path of this server: jpg, png, webp, avif; refused svg, gif, another host, a query, a fragment or ..; the GM is told; the tile draws the GM's words as text",
+     "source": "v1.2.76.md 22-28",
+     "code": "scripts/vault-store.mjs:584-592 ROOM_IMAGE_TYPES, :631-673 safeRoomImage (control characters, quotes, brackets, %2f and %5c refused; the answer read again)",
+     "holds": "partly",
+     "test": "R505 (tier 1), R507 (tier 0); tier 2 \"Room Setup writes a room's picture ...\" (tests-tier2.mjs:67519)",
+     "test_kind": "both",
+     "note": "Holds off The Forge. Superseded on The Forge by E78 fix h76-HF1 (14.10.2026; the owner's report that every picture was refused there): the Assets Library's origin passes too (forgeAsset), and since E78 C3 the same check judges a player's voice portraits. The server's answer to a path: LIVE-E77-03, open (its text stale for the Forge, live-items-06 row 207)."
+    },
+    {
+     "promise": "The tile changes once a move is settled: a crossing being judged, or refused and not yet put back, is not drawn; on a co-owner's screen it follows about 1.5 s late",
+     "source": "v1.2.76.md 55-58",
+     "code": "scripts/movement.mjs:2854-2913 (drpgRouteSettled fired once a route settles, client-local)",
+     "holds": "yes",
+     "test": "R506 (tier 0, source reading); scenario 74 B (a refused crossing showed nothing of the refused room at 400 and 1200 ms)",
+     "test_kind": "both",
+     "note": "A co-owner's 1.5 s on a real server: LIVE-E77-15, open."
+    },
+    {
+     "promise": "The clock has no room lines; the move card reads 'You enter {room}.' and says the price, without the room's description",
+     "source": "v1.2.76.md 59-62",
+     "code": "scripts/movement.mjs:3369 (DRPG.Move.entered); lang/en.json:4417",
+     "holds": "partly",
+     "test": "R2, R509 (hud.mjs keeps no room rows)",
+     "test_kind": "text",
+     "note": "No description on the card and no room rows hold. The words are 'You are now in {room}.' today, a later rewording; superseded, not broken."
+    },
+    {
+     "promise": "Room Setup's Description tab has a Picture column; Apply compares before writing; setVaultRoom alone writes the picture and only through safeRoomImage; a renamed piece carries it",
+     "source": "v1.2.76.md 22-25",
+     "code": "scripts/room-setup.mjs:360-373 (the picture cell, the clear button); scripts/vault-store.mjs:631",
+     "holds": "yes",
+     "test": "R507 (tier 0); tier 2 67519",
+     "test_kind": "both",
+     "note": ""
+    },
+    {
+     "promise": "A GM's sidebar and scene controls stand in two module windows (Foundry tools, Map tools) opened together from a new upper-row button; dragged by the title, places remembered per browser and kept on screen; a world switch, on by default, puts Foundry's own back after a reload",
+     "source": "v1.2.76.md 11-21, 72-79",
+     "code": "scripts/foundry-windows.mjs:131 FOUNDRY_WINDOWS, :154-182 registerFoundryWindows (a GM only, gated by foundryWindowsOn), :185-187 foundryWindowsOn, :265-325 readPlaces, clampPlace, :504 toggleFoundryTools; scripts/settings.mjs:2595, :2624 (foundryWindows, foundryToolWindows)",
+     "holds": "yes",
+     "test": "R511, R512, R516, R531, R532 (tier 1); R514 (skips headless); glass-sweep",
+     "test_kind": "both",
+     "note": "Foundry's real windows (LIVE-E77-02), saved places at 1366x768 (-12) and the world switch at a table (-17) are open."
+    },
+    {
+     "promise": "Escape stays Foundry's: it closes both windows only when nothing of Foundry's is left; Shift+C or a sidebar tab opens Foundry tools first",
+     "source": "v1.2.76.md 80-83",
+     "code": "scripts/foundry-windows.mjs:365-388 escapeFallsToWindows, onEscape (a capture listener, :171)",
+     "holds": "yes",
+     "test": "R517 (tier 1)",
+     "test_kind": "behaviour",
+     "note": "canvas.currentMouseManager is named from memory and not read on v14 (foundry-windows.mjs:376-378; LIVE-E77-10, open)."
+    },
+    {
+     "promise": "A player has no scene controls and no sidebar; on every new canvas and every render of the controls the module puts the player back on the Tokens layer, except from Templates and Notes",
+     "source": "v1.2.76.md 15-17, 86-88",
+     "code": "scripts/foundry-windows.mjs:154-158 (canvasReady and renderSceneControls for a player), :194-215 keepTokensLayer, askTokensLayer (once a second at most, never a GM); styles/danganronpa.css:7671",
+     "holds": "yes",
+     "test": "R510 (tier 1, head read)",
+     "test_kind": "both",
+     "note": "The activate call is not measured on v14 (foundry-windows.mjs:210; LIVE-E77-11, open); T, R, F and the ping on a real canvas: LIVE-E77-11, -16."
+    },
+    {
+     "promise": "The corner's upper row: the red GM button above settings and Foundry tools above the book, 44 px, 6 px apart; if Foundry's logo does not load the button shows a toolbox icon",
+     "source": "v1.2.76.md 72-74",
+     "code": "styles/danganronpa.css:456 --drpg-launch-u-bottom; scripts/foundry-windows.mjs:390 buildLauncher",
+     "holds": "partly",
+     "test": "R512, R515 (skips headless)",
+     "test_kind": "both",
+     "note": "The row holds. The Foundry logo is superseded by E78: R512's title now names 'the module's anvil' and R509 says no source names a Foundry logo; LIVE-E77-09 is obsolete (live-items-06 row 213)."
+    },
+    {
+     "promise": "The notice history: Clear alone on the right; each entry shows its words once; an Eclipse's group is named for the time of day it opens into",
+     "source": "v1.2.76.md 90-100",
+     "code": "scripts/notice-history-app.mjs:245-255 (the foot)",
+     "holds": "partly",
+     "test": "scenario 73 H5",
+     "test_kind": "behaviour",
+     "note": "Clear alone on the right is superseded by E44 C5 (Clear on the left as a destructive button, Close on the right). The rest was not traced here."
+    }
+   ],
+   "registry_rows": 19,
+   "registry_note": "19 rows stamped E77: 5 in tier 0 (R503, R506, R507, R509, R518), 14 in tier 1 (R504, R505, R508, R510-R517, R530-R532), as the notes count. R508, R513, R514 and R515 are in the skip baseline (a browser's layout or cascade). base-run.json was not in audit/findings-1.2.118 when this was written: no tier-0/1/2 result or scenario result of the base run was read; each test is named from its source and its result was not read.",
+   "tests_read": [
+    {
+     "test": "R504 (tests-tier1.mjs:15935-15950, head read)",
+     "measures": "yes",
+     "why": "roomFacts on plain objects (a room of two pieces, a namesake region that is no room, a javascript: picture, a second scene with the same name) and viewerRoom against viewerActor, locateActor and the settled spot; it would fail on a reader of the camera's scene or of every region of the name. The states it cannot make (an Eclipse, a death, a trial, another floor) are scenario 74 H by its own note."
+    },
+    {
+     "test": "R510 (tests-tier1.mjs:4116-4130, head read)",
+     "measures": "weak",
+     "why": "The stylesheet rule read on a fixture and in the sheets; askTokensLayer on stand-ins of ui.controls, once a second. Whether v14's activate takes that shape it cannot answer (LIVE-E77-11)."
+    }
+   ],
+   "tests_to_join": [
+    "R503-R518, R530-R532 (tiers 0-1; R508, R513, R514, R515 skip headless)",
+    "tier 2: Room Setup writes a room's picture: a picture changed alone is saved on every piece of the room on the scene the window opened on",
+    "scenario 74-room-tile",
+    "scenario 73-notice-history",
+    "audit/glass-sweep.mjs (Chromium; not part of the base run)"
+   ],
+   "scenarios": [
+    "74-room-tile (README.md:210, stage E77, layer ci): every browser shows its own character's room once the move has settled, the GM's text as text, every state a player's tile can take, a crossing and a refused one, the curtain's cut with Foundry's windows open; body not read",
+    "73 and 66 changed by E77 (notes 118)"
+   ],
+   "live": {
+    "items": 18,
+    "read": 0,
+    "partly": 0,
+    "obsolete": 1,
+    "ids_obsolete": [
+     "LIVE-E77-09"
+    ],
+    "note": "Items 205-222. 205-218 by live-items-06: all open but -09, obsolete (superseded by LIVE-E78-13; the owner read the logo on The Forge at 1.2.76). 219-222 (LIVE-E77-15 to -18) read in AUDIT 9.2 lines 1093-1096; neither readings file names them, so open. Classes T for -08 and -13. Stale text on -01, -03, -08. No local gate ran for 1.2.76."
+   },
+   "findings": [],
+   "superseded_by": [
+    "E78 (1.2.77): fix h76-HF1 (The Forge's Assets Library in safeRoomImage), the anvil in place of Foundry's logo, the tile made smaller under Legacy and beside the notices (roomCapH, glass.mjs:380-381)",
+    "E79 C11 (1.2.79): the trial hall on the room tile (R582)",
+    "E44 C5 and C6 (04.11.2026): the history's foot on the kit; the A8 surfaces built by ui-kit.mjs, 'the look unchanged' (2010bb6c)",
+    "a later rewording: the move card's 'You are now in {room}.'"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "The tile's one viewer, the picture's check, the windows, the world switch, Escape's order and a player's Tokens layer are in the code as the notes word them, each with a numbered test and scenario 74 for the drawn states; later stages changed the trial view, the Forge rule, the logo and the history's foot on purpose. No finding. It is not 9: four of its tier-1 rows (R508, R513, R514, R515) skip headless and the layout claims stand on Chromium sweeps of a stand-in sidebar; three Foundry calls the windows rely on (canvas.currentMouseManager, the Templates and Notes layer names, the controls' activate) are named from memory of an older Foundry. Capped at 9 by 17 open live checks, the windows on v14 among them. No base-run result was read.",
+   "missing_to_10": "LIVE-E77-02, -10, -11, -16, -17 read on 14.370 (the two windows holding Foundry's real sidebar and controls, Escape beside other modules, a player's keys and layer, the world switch); LIVE-E77-01 and -13 (the P11 matrix and Legacy at a table); the four skipped rows run in a browser on Foundry; the base run's tiers 0-1 and scenario 74 green.",
+   "l1": {
+    "what": "the room tile and a GM's Foundry windows on a real v14 table",
+    "recipe": [
+     "1. Foundry 14.370, the module at 1.2.118, Stained Glass; a GM and two players; one room with a picture and words in Room Setup's Description tab.",
+     "2. A player walks into the room; read the tile (own room only, picture, words, the chevron); another player's tile stays on their own room.",
+     "3. As GM press the Foundry tools button; read that both windows hold Foundry's sidebar and controls, drag one, reload, read its place.",
+     "4. With a token selected and a context menu open press Escape; read that Foundry's closes first and the windows close only after.",
+     "5. As a player press T, R, F and ping; read the active layer after each.",
+     "6. Turn the world switch off, reload; read Foundry's own sidebar and controls back, no Foundry tools button. Repeat 2-4 under Monokuma Legacy."
+    ],
+    "clients": "GM and two players",
+    "theme": "both",
+    "settles_if": "settled yes when each tile shows its viewer's room alone, the windows hold Foundry's real nodes and keep their places, Escape is Foundry's first, a player stays on Tokens and the switch restores Foundry's layout; settled no on another's room shown, a lost node, Escape closing the windows over Foundry's own, or a player stuck on another layer",
+    "priority": "grade cap 9 (E77's tile and windows)"
+   }
+  }
+ ],
+ "not_established": [
+  "base-run.json was not in audit/findings-1.2.118 when this file was written: no result of tiers 0-2 or of scenarios 41, 66, 73 and 74 was read, and every test named is listed in tests_to_join.",
+  "The stages' own commits are not in this checkout (history from 2026-10-14): the notes' fix-commit counts (15 for E12, 11 for E13, 14 for E81, 15 for E77) and their mutant counts (E77: 211, 210 killed) cannot be checked from the repository.",
+  "The plans and designs the comments cite (plan-E12, plan-E13, the A7 and A8 designs, the DZ6 design) are not in the repository.",
+  "Not traced for this file, taken from test titles and register rows: the trial's voice room (voice.mjs, R117), the door-control rule (fog.mjs:2966-3003, R386), carryRename's body (fog.mjs:822), the safeword branch of the notice recorder, the narrow layout rules (narrow.css:515-539), the history's Eclipse group heading.",
+  "Whether Foundry 14.370's region behaviour types are named teleportToken and changeLevel, as rooms.mjs:66 recalls them: docs/dev/e39/CALIBRATION.md lists those behaviours as not read. New live check: on 14.370 read region.behaviors[*].type of a Teleport Token and a Change Level behaviour.",
+  "Whether a player's client on v14 can write a Region's flags at all (LIVE-E12-04): the put-back of the room mark is measured only on the harness's permission model.",
+  "The tier-2 counts per stage (58 for E12, 18 for E13, 3 for E81, 1 for E77) are a script's reading of each test's first 25 lines for a commit mark of the stage; a test whose stage is named lower down, or not at all, is not counted.",
+  "The Chromium measurements the notes quote (glass-sweep at 57d179c, 84273d8, cf14302, d2ba27b) were not re-run and are not in the base run."
+ ]
+}

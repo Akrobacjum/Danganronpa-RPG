@@ -1,6 +1,6 @@
 # Danganronpa RPG - Player Handbook
 
-*For students of the killing game. Module version 1.2.120, built on Daggerheart for Foundry VTT v14.*
+*For students of the killing game. Module version 1.2.121, built on Daggerheart for Foundry VTT v14.*
 
 This is the whole game from your chair: what the numbers on your sheet mean, what an action costs, what Hope buys, what happens when somebody dies, and what to press. Every number in here is the module's own; where a decision belongs to a human, it says "the GM decides". How the module does what it does, for the curious, is in section 17.
 
@@ -799,7 +799,7 @@ Your side of the same table is behind the **Crisis actions** tile:
 
 Finishing Blow is a resolution action too: 1 Sanity, or 1 Health once your Sanity is gone.
 
-An action aimed at the other side needs 1 more when that side is strong: Strike, Attack with a Weapon, and Pin Them Down when the victim's Body is +1 or better, Keep Your Distance when the victim's Leg is; Self-Defense and Role Reversal when the killer's Body is, Survive and Escape Together when the killer's Leg is. The tile says so ("Beat 16 (+1 for the victim's Body)"). The opening rolls never change this way.
+An action aimed at the other side needs 1 more when that side is strong: Strike, Attack with a Weapon, and Pin Them Down when the victim's Body is +1 or better, Keep Your Distance when the victim's Leg is; Self-Defense and Role Reversal when the killer's Body is, Survive and Escape Together when the killer's Leg is. The tile says so ("Beat 16 (+1 for the victim's Body)"). When you cannot know who the killer is (behind a "?", or in a trap), the tile and the roll window say "Beat 18 + a hidden defense": the GM judges with the killer's statistic in it, and your result card says only your total against that number and whether it was a hit. The opening rolls never change this way.
 
 Then comes the **clean-up**. Your **Tamper** tile now lists every Remnant in the room you are standing in, yours and everybody else's. At your own scene an attempt costs no action, only **1 Sanity**. Erasing, reshaping, and the Misleading Trail roll Shadow, and nobody is asked.
 

@@ -1,0 +1,284 @@
+{
+ "refuter": "verify-first-session/old-1.1.88-1.2.13-A",
+ "of": "first-session/old-1.1.88-1.2.13-A",
+ "checked": [
+  {
+   "ref": "REL-001",
+   "claim": "fixed: latest release and main both stand at the newest code",
+   "verdict": "stands",
+   "why": "origin/main, the tag v1.2.118 and b5a29e73 are one commit (git rev-parse; there is no local branch main in this clone, only origin/main, so the reader's 'local main' is loose wording). The GitHub API, read read-only in this session on 20.11.2026, gives releases/latest = v1.2.118, target_commitish b5a29e7362932754d0f8aa7c11b986fe7a8dcafc, prerelease false, assets module.json and module.zip. module.json points manifest and download at releases/latest/download. release.yml refuses any ref but main and publishes with --latest unless a prerelease is asked. 115 v1.2.* tags, 1.2.6, 1.2.28, 1.2.29 and 1.2.43 missing, as the reader said.",
+   "evidence": "module.json:68 \"manifest\": \"https://github.com/Akrobacjum/Danganronpa-RPG/releases/latest/download/module.json\"; .github/workflows/release.yml:106 if [ \"${GITHUB_REF}\" != \"refs/heads/main\" ]; release.yml:247 if [ \"$PRERELEASE\" = \"true\" ]; then which=--prerelease; else which=--latest; fi",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "LIVE-003",
+   "claim": "fixed: a critical pays +2 Hope, one payer",
+   "verdict": "stands",
+   "why": "critical.mjs's wrap sets Hope to the value before the call plus CRITICAL.hope, only when the original paid; despair-award.mjs's chat hook pays Despair only. The other users of the funnel: reroll.mjs settleCritHope (the system's own step pays 1 there, so +1, behind hopeFear.players) and roll-draw.mjs grantRolls, which calls the wrapped funnel once per roll into one map per actor - traced: a second critical's 'before' is the first's 2, so 2 + 2, not a double top-up. roll-draw.mjs:2859 only words a card. No other writer of CRITICAL.hope found.",
+   "evidence": "scripts/critical.mjs:98-104 const base = Number(before.hope?.value ?? 0); map.set(\"hope\", { ...(before.hope ?? { key: \"hope\", enabled: true }), value: base + CRITICAL.hope }); scripts/despair-award.mjs:104 if (outcome.withFear) await awardRollDespair(actor, 1, { message }); scripts/reroll.mjs:1078-1080 const delta = after.isCritical ? 1 : -1; await adjustCritHopeTopUp(actor, delta);",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "LIVE-001",
+   "claim": "partly: the world setting holds no names; the veil's token flag still gives the killer to a console",
+   "verdict": "stands",
+   "why": "Both halves read. The closed half: PUBLIC_INCIDENT holds active and stage, splitIncident routes any other field to the cast or nowhere, world-secrets murderState only [active, stage], and every game.settings.set of murderState (incident-store.mjs:380, :827, :964, :1501, :1627) writes a split or emptied value. The open half: veilActor writes veilPatch() (the one flag) on every token of veilWanted's killer and killers'-side third, token documents reach every browser with actorId, and the known-leak row foundry-veiled-token-actor records it. The status is right.",
+   "evidence": "scripts/incident-store.mjs:148-151 export const PUBLIC_INCIDENT = Object.freeze({ active: ..., stage: ... }); scripts/mask-gm.mjs:411-414 if (!state?.active || state.stage !== \"openingRoll\" || state.indirect || state.selfInflicted) return []; return [...new Set([state.killerId, state.thirdSide === \"killer\" ? state.thirdId : null].filter(Boolean))]; scripts/mask-gm.mjs:428-430 export function veilPatch() { return { [`flags.${MODULE_ID}.${VEIL_FLAG}`]: true }; }",
+   "status_after": "partly"
+  },
+  {
+   "ref": "LIVE-002",
+   "claim": "withdrawn then (sampled the other way): both Season keys exist",
+   "verdict": "stands",
+   "why": "Flattened lang/en.json and lang/pl.json by script: DRPG.Season.step.resources = 'Starting Health, Sanity, and Hope', DRPG.Season.hint.resources = 'Without them a character is Wounded and in Breakdown at once.', both present in pl. The withdrawal holds; nothing to reopen.",
+   "evidence": "lang/en.json (flattened) DRPG.Season.step.resources \"Starting Health, Sanity, and Hope\"",
+   "status_after": "withdrawn-then"
+  },
+  {
+   "ref": "A1",
+   "claim": "fixed: the safeword card carries its sfx flag",
+   "verdict": "stands",
+   "why": "safewordCard has one flags key with sfx, the safeword marker and popupKind; all three callers pass safewordCard() whole to announce, whose stamped() merges the module's message flag with mergeObject (inplace false) and so keeps sfx. soundFromMessage reads the flag and, for a player's card, keeps it only with the safeword marker, which the card carries. The reader's 'no test pins the card's own sfx' is not contradicted by anything found.",
+   "evidence": "scripts/safeword.mjs:146-150 flags: { [MODULE_ID]: { sfx: { key: \"safeword\", gm: true }, [SAFEWORD_FLAG]: true, ...; scripts/utils.mjs:678-681 const payload = foundry.utils.mergeObject(data, { flags: { [MODULE_ID]: { [MESSAGE_FLAG]: true } } }, { inplace: false });",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "A2",
+   "claim": "fixed: the walker's gate and the whisper read the darkened Eclipse allowance",
+   "verdict": "stands",
+   "why": "Every non-test reader of ECLIPSE_MOVES (movement.mjs:663, :1196, :1774; hud.mjs:1316; explain.mjs:125; eclipse.mjs:74) passes it through overflowCrossings; overflowCrossings under darkness returns max(floor, n - by), and free placement becomes freeBecomes. The gate refuses at eclipseMovesUsed >= allowance; the GM's judge refuses seen + crossings > allowance. 1.2.118's route legs go through the same judge.",
+   "evidence": "scripts/movement.mjs:1774 const base = overflowCrossings(freePlacement ? null : ECLIPSE_MOVES); scripts/movement.mjs:1792 if (pay && eclipseMovesUsed(actor.id, clock) >= allowance) return refusal(...); scripts/overflow.mjs:1117 return Math.max(rule.floor ?? 1, allowance - rule.by);",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "A3",
+   "claim": "fixed: stow counts an unstamped item as the primary stash's",
+   "verdict": "weakened",
+   "why": "The old road is closed: stow counts stashItemsIn, which reads an item with no stashRoom as the primary's. But the reader's refutation ('None adds an item to a stash without the count') is not so: grantItem's overflow, when a character's pockets are full and no override is passed (a Search's find), sets location vault and stashRoom to the primary stash and creates the item with no count of that stash - VAULT_LIMIT is read in config.mjs, stash-reach.mjs and sheet-audit.mjs only, never in inventory.mjs. So a stash can still be filled past three by that road. That is a different cause from A3's (a missing count, not a miscount of old items), so the status of A3 itself stays fixed; the second road is a new observation (below, A3-road-2).",
+   "evidence": "scripts/inventory.mjs:829-833 overflowRoom = primaryStashRoom(actor, locateActor(actor)?.scene ?? homeScene()); if (overflowRoom) { location = LOCATIONS.vault; scripts/inventory.mjs:883 ...(overflowRoom ? { [ITEM_FLAGS.stashRoom]: overflowRoom } : {}),; scripts/stash-reach.mjs:109-110 const here = stashItemsIn(actor, room, sceneOfActor(actor)); if (here.length >= VAULT_LIMIT) {",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "A4",
+   "claim": "partly: the generator swap is held to one evaluate, but is still the client's global one",
+   "verdict": "stands",
+   "why": "forced-roll.mjs swaps CONFIG.Dice.randomUniform only inside the instance's evaluate and restores it in finally; roll-draw.mjs rollerCopyOf swaps it around cls.buildEvaluate. I checked the reader's claim that buildEvaluate waits for roll.evaluate alone: DualityRoll.buildEvaluate adds a rally effect deletion after super, but does not await it, so the window is still the evaluate. Whether Foundry 14's evaluate can wait for a person (a manual dice method) is not in the repository; the nit and 'suspected' are fair.",
+   "evidence": "scripts/forced-roll.mjs:217-221 try { return await evaluate.apply(this, args); } finally { CONFIG.Dice.randomUniform = real; scripts/roll-draw.mjs:644-648 dice.randomUniform = () => (script.length ? script.shift() : real()); try { await cls.buildEvaluate(roll, config, message); } finally { dice.randomUniform = real; }; audit/harness/lib/dh-dice/dice/dualityRoll.mjs:215-217 await super.buildEvaluate(roll, config, message); if (roll._rallyIndex && roll.data?.parent) roll.data.parent.deleteEmbeddedDocuments('ActiveEffect', [roll._rallyIndex]);",
+   "status_after": "partly"
+  },
+  {
+   "ref": "A5",
+   "claim": "fixed: murderState holds no killer",
+   "verdict": "stands",
+   "why": "As LIVE-001's closed half, read the same way: the five writes of the setting each write a split or emptied object, and the lift (incident-store.mjs:1495-1505) reads back before it counts. world-secrets.mjs murderState only [active, stage].",
+   "evidence": "scripts/world-secrets.mjs:140-141 murderState: Object.freeze({ only: Object.freeze([\"active\", \"stage\"]),; scripts/incident-store.mjs:827 await game.settings.set(MODULE_ID, SETTINGS.murderState, publicNext);",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "A6",
+   "claim": "fixed: a Key Remnant from an Observe card lands on the player's scene",
+   "verdict": "stands",
+   "why": "The card's button carries scene from locateActor(actor); ruleKeyRemnantHere hands it on as sceneId; openKeyRemnantHere resolves that scene first and ends in placeInSlot(plan, scene, result), which calls createKeyRemnant(..., scene). The 1.2.118 chat-log copy of a ruling card uses the same handler table (messenger-app.mjs:1421).",
+   "evidence": "scripts/action-observe.mjs:230 const sceneId = where?.scene?.id ?? null; scripts/messenger-app.mjs:1367-1368 const placed = await openKeyRemnantHere({ room: data.room || null, note: data.want || \"\", sceneId: data.scene || null }); scripts/key-remnants.mjs:1129 const scene = (sceneId ? game.scenes.get(sceneId) : null) ?? workingScene();",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "A7",
+   "claim": "fixed: the outcome colour is read off the dice",
+   "verdict": "stands",
+   "why": "rollOutcomeOf returns null without rolls and otherwise reads readDuality; its one outside caller is messenger-app.mjs:698. A grep of non-test scripts for includes(\"hope\"/\"fear\"/\"critical\"/\"despair\") or a match() on those words found nothing.",
+   "evidence": "scripts/private-rolls.mjs:431-442 export function rollOutcomeOf(message) { if (!message?.rolls?.length) return null; const duality = readDuality(message); ... if (duality.isCritical) return \"critical\";",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "A8",
+   "claim": "fixed: retuneRemnant renames nothing",
+   "verdict": "stands",
+   "why": "The function body (remnants.mjs:2505-2595) deletes the token or writes the ledger through writeKind/setRemnantSecret; no token.update of a name in it, and writeKind's body has no name write either.",
+   "evidence": "scripts/remnants.mjs:2590 await writeKind(token, secret, null, () => setRemnantSecret(token, secret, { ifLive: true }));",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "A9",
+   "claim": "partly: the ruler's property name is settled; another player's screen during a drag is not read",
+   "verdict": "stands",
+   "why": "hideMovementTrail writes token.ruler.visible = false only; rulerHere / rulerShownTo answer for another viewer. No reading of a drag on another player's screen exists in docs/dev/e58/LOCAL-REPORT.md or docs/dev/e39/CALIBRATION.md on b5a29e73 (grep for ruler/E116 found none). Partly, as the reader says.",
+   "evidence": "scripts/visibility.mjs:1013-1016 function hideMovementTrail(token) { const trail = token.ruler; if (trail && typeof trail === \"object\" && \"visible\" in trail) trail.visible = false; }",
+   "status_after": "partly"
+  },
+  {
+   "ref": "A10",
+   "claim": "fixed: secretOf reads a store held in memory",
+   "verdict": "stands",
+   "why": "secretOf is bulletStore.get(uuid); the store's get reads current(st).section.e, and worldOf parses storage once per world and keeps it. truth-bullets.mjs has no game.settings.get.",
+   "evidence": "scripts/truth-bullets.mjs:182-185 export function secretOf(uuid) { if (!game.user.isGM || !uuid) return {}; return bulletStore.get(uuid) ?? {}; }; scripts/gm-store.mjs:758-760 let w = st.worlds.get(wid); if (w) return w; const raw = env.storage.read(st.spec.key);",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "A11",
+   "claim": "withdrawn then (sampled the other way): handlers take authority from senderId",
+   "verdict": "stands",
+   "why": "Re-read the pairs: each socket handler that tests payload.userId as an address also tests the sender's isGM by Foundry's senderId; replyForMe is the same two lines.",
+   "evidence": "scripts/gm-bridge.mjs:199-201 if (payload.userId !== game.user.id) return; if (!game.users.get(senderId)?.isGM) return; scripts/bridge-guards.mjs:1876-1878 if (payload?.userId !== game.user?.id) return false; return Boolean(game.users.get(senderId)?.isGM);",
+   "status_after": "withdrawn-then"
+  },
+  {
+   "ref": "A12",
+   "claim": "fixed: the table wording and the reseal run on the primary GM only",
+   "verdict": "stands",
+   "why": "refreshTableCopyOnLoad returns unless isPrimaryGm(); sealProjects' reseal asks isPrimaryGm() inside the closure, at load and on createUser.",
+   "evidence": "scripts/module.mjs:568 if (!isPrimaryGm()) return; scripts/module.mjs:661 if (!isPrimaryGm()) return undefined;",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "A13",
+   "claim": "fixed: the four hints describe today's behaviour; forcedOnCreate gone",
+   "verdict": "stands",
+   "why": "Read the four hints in flattened en.json, each with a Polish twin; DRPG.Anonymity.forcedOnCreate is in neither file. lockPlayerResources' hint matches sheet-audit.mjs's header (put back or flagged with it on, listed with it off; items checked either way).",
+   "evidence": "lang/en.json DRPG.Settings.lockPlayerResources.hint \"A player's own edit of their Actions, Hope, Health, Sanity, or statistics is put back or flagged to the GMs; with this off, it is only listed. Items and effects are checked either way.\"; scripts/sheet-audit.mjs:686 try { return getSetting(SETTINGS.lockPlayerResources) !== false; } catch { return true; }",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "A14",
+   "claim": "fixed: the death texts say only Truth Bullets go",
+   "verdict": "stands",
+   "why": "deathNote, revived and keepBullets read as the reader quotes; keepItems and itemsGone are gone from both files; bulletsGone has .one/.other in en and .one/.few/.many/.other in pl. killCharacter deletes only destroyBullets' list (bulletsHeldBy), unless keepBullets.",
+   "evidence": "scripts/death.mjs:210 if (!keepBullets) removed = await destroyBullets(actor); scripts/death.mjs:436-442 const bullets = await bulletsHeldBy(actor); ... await actor.deleteEmbeddedDocuments(\"Item\", doomed);",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "A15",
+   "claim": "fixed: the seven pieces of dead code are gone",
+   "verdict": "stands",
+   "why": "git grep finds no 'next.session > before.session' in clock.mjs, no 'Math.min(current, target)' anywhere in scripts/, PROJECT_ITEMS only in a comment, none of openRestRoomsDialog / manageRestRooms / openMusicDialog / function trialQueue outside the tests, no macros/ directory; the eleven keys are in neither language file; loadedFiles crawls from module.mjs.",
+   "evidence": "scripts/tables-pools.mjs:663 * `PROJECT_ITEMS` STOOD HERE and is gone; scripts/diagnostics.mjs:1095-1097 export async function loadedFiles() { const scripts = new Set(); const queue = [\"module.mjs\"];",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "A16",
+   "claim": "fixed: gmOnline asks without a side effect; hasGm gone",
+   "verdict": "stands",
+   "why": "gmOnline is one line over activeGmIds; git grep for 'hasGm(' outside the tests: none.",
+   "evidence": "scripts/bridge-guards.mjs:82-84 export function gmOnline() { return activeGmIds().length > 0; }",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "A17",
+   "claim": "fixed: the literals and the hand-made replace go through i18n",
+   "verdict": "stands",
+   "why": "No ' · Hope' / ' · Despair' literal outside a comment (action-murder.mjs:345); no .replace(\"{ in non-test scripts. One placeholder filler by regular expression exists, utils.mjs worldLocalize's fill, but it fills an i18n key's template in the document language with the same {name} rule as game.i18n.format, which is not the old defect (a text built outside i18n).",
+   "evidence": "scripts/utils.mjs:168 const fill = template => template.replace(/{[^}]+}/g, k => (Object.hasOwn(data ?? {}, k.slice(1, -1)) ? String(data[k.slice(1, -1)]) : k));",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "A18",
+   "claim": "fixed: one register of overrides and diagnosePatches",
+   "verdict": "stands",
+   "why": "patches.mjs is 1656 lines, 25 'kind: \"override\"' rows by grep, diagnosePatches exported at :1635 and reached from api.mjs:1257; both dice generator swaps are a row (patches.mjs:362 target CONFIG.Dice.randomUniform) and the critical wrap is one (patches.mjs:296).",
+   "evidence": "scripts/patches.mjs:362 target: \"CONFIG.Dice.randomUniform\",; scripts/api.mjs:1257 diagnosePatches: () => import(\"./patches.mjs\").then(m => m.diagnosePatches()),",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "A19",
+   "claim": "fixed: two names, one public alias",
+   "verdict": "stands",
+   "why": "gm-items.mjs exports gmGiveItemDialog(actor), handover.mjs exports handOverDialog(actor, item, ...), api.mjs keeps giveItemDialog: handOverDialog; no fourth line names giveItemDialog outside the tests.",
+   "evidence": "scripts/api.mjs:777 giveItemDialog: handOverDialog,; scripts/gm-items.mjs:1041 export async function gmGiveItemDialog(actor) {",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "A20",
+   "claim": "fixed: no &mdash; entity in code or user text",
+   "verdict": "stands",
+   "why": "No &mdash;, &ndash;, &#8212; or &#x2014; in scripts/ (tests aside), lang/, styles/, module.json or README.md. The reader's 'both characters' grep claim is too wide: U+2013 stands in comments (utils.mjs:1246, mastermind.mjs:4, config.mjs:3766, :3794, :4283, :4723, fog-geometry.mjs:323, danganronpa.css:11840, :14924), which `check dashes` leaves out of code by its recorded rule (en dash not ruled in code); none is in a user-facing string. The item's subject is fixed.",
+   "evidence": "tools/check.mjs:35-36 * workflows. U+2013 is not ruled * in code: the rule names the em dash; scripts/config.mjs:3766 holds a page range written with U+2013 in a comment",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "A21",
+   "claim": "fixed: one census and one rounding of rooms per student",
+   "verdict": "stands",
+   "why": "ROOMS_PER_PLAYER is defined in config.mjs and read through vault-store.mjs alone; room-setup, season-setup and fog.mjs read roomCensus / roomCensusOf / roomRatioLine / roomsWantedFor. No other 1.5 or rounding of a room ratio in room-setup, season-setup, diagnostics or fog.",
+   "evidence": "scripts/season-setup.mjs:483 done: !waiting && census.count > 0 && census.count >= roomsWantedFor(living),; scripts/room-setup.mjs:633 const census = roomCensusOf(rooms.map(room => ({",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "A22",
+   "claim": "fixed: Create an item offers usables by kind, no key",
+   "verdict": "stands",
+   "why": "pickableCategories filters out truthBullet and bedroomKey by default and splits usables; tables-editor.mjs:928 builds the form from it, a bare preset category matching its first kind. The other loops over ITEM_CATEGORIES (tables-editor.mjs:788 pictures, tables-pools.mjs:964 a spare draw, palm, season-wipe) offer no category to create.",
+   "evidence": "scripts/inventory.mjs:610-612 return Object.entries(ITEM_CATEGORIES).filter(([key]) => (includeBullets || key !== \"truthBullet\") && (includeKeys || key !== \"bedroomKey\")); scripts/tables-editor.mjs:928 const categoryList = pickableCategories();",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "A23",
+   "claim": "decision (sampled the other way): the plant window asks a name and a room only",
+   "verdict": "stands",
+   "why": "openPlantDialog's form has the name, the room select and DRPG.Trap.plantUsableNote; it calls plantItem with name and sceneId only; plantItem stores projectId, the identity and what it was given. The code is the decision.",
+   "evidence": "scripts/traps.mjs:698 await plantItem(projectId, answer.room, { sceneId: answer.sceneId || null, name: answer.name }); scripts/traps.mjs:511 await Promise.all([gone, trapPlantStore.patch(key, { projectId, drpgItemId, ...item }),",
+   "status_after": "decision"
+  },
+  {
+   "ref": "A24",
+   "claim": "fixed: Room setup's Searching columns leave keys out",
+   "verdict": "stands",
+   "why": "room-setup.mjs:1269 reads pickableCategories({ splitUsables: false }); no caller in scripts/ passes includeKeys (git grep of the call sites: gm-items.mjs:621, :700, room-setup.mjs:1269, tables-editor.mjs:928, inventory.mjs:637).",
+   "evidence": "scripts/room-setup.mjs:1269 const categories = pickableCategories({ splitUsables: false })",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "A26",
+   "claim": "fixed: usables 3, gear 2",
+   "verdict": "stands",
+   "why": "ITEM_CATEGORIES.usable.limit 3, LIMIT_GROUPS.gear.limit 2; canCarry reads only those two numbers; vault-store.mjs's header says three usables and two pieces of gear.",
+   "evidence": "scripts/config.mjs:672 limit: 3,; scripts/config.mjs:964 limit: 2,; scripts/inventory.mjs:676 const limit = ITEM_CATEGORIES[category]?.limit ?? null;",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "A25",
+   "claim": "fixed: 'Everybody carries something' leaves keys and Truth Bullets out",
+   "verdict": "stands",
+   "why": "carriableCategories is the pickable list without keys and Truth Bullets; its two readers are season-setup.mjs:179 and diagnostics.mjs:1478; no third opening-item check found.",
+   "evidence": "scripts/inventory.mjs:636-638 export function carriableCategories() { return pickableCategories({ splitUsables: false }).map(c => c.key); }",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "new_observations[0]",
+   "claim": "A Direct Murder declared in an Eclipse marks its declarer's tokens for every browser even when the lights then cancel it",
+   "verdict": "stands",
+   "why": "Traced: endEclipse calls veilAtTheLights over every pending declaration before judgePendingMurders; veilActor writes veilPatch() on each token of the declarer; a declaration cancelled at the lights (nobody present, a witness, a second declaration, a GM's refusal) keeps its row of 'lights' until lightsJudged in the finally after the whole judgement, which may wait on askAtTheLights for a later declaration. A console with an updateToken listener reads the flag whatever the interval. Further than the reader wrote: the clock's advance runs between the veil and the judgement, so the Eclipse's darkness is gone while the flag stands, and visibility.mjs tokenShownTo hides a veiled token from every viewer but its owner and the killers' side - so during the judgement the cancelled declarer's token is also missing from the other players' canvases, a tell without a console, whose length was not measured. Major kept: the declarations left world data for this reason, and the known-leak row names only an opening that waits.",
+   "evidence": "scripts/eclipse.mjs:427 await (await import(\"./mask-gm.mjs\")).veilAtTheLights(Object.keys(pendingMurders(ending))); scripts/eclipse.mjs:529-535 await judgePendingMurders(ending, taken); ... } finally { ... await (await import(\"./mask-gm.mjs\")).lightsJudged(); scripts/visibility.mjs:555-557 if (veiledToken(tokenDoc)) { if (viewer.owns(tokenDoc)) return \"show\"; if (viewer.eclipse || !viewer.killersSide?.has(tokenDoc.actorId)) return \"hide\";",
+   "severity_after": "major"
+  },
+  {
+   "ref": "new_observations[1]",
+   "claim": "The two known-leak rows that give a direct murder's killer are filed as metadata / info",
+   "verdict": "stands",
+   "why": "Both rows are class metadata, severity info, with foundryLimit. Further than the reader wrote: lib/canary.mjs has a class made for this, 'killer-identity', among LEAK_CLASSES, and validateKnownLeaks checks the class against D27 only for a deferred row (DEFERRABLE), so a foundryLimit row is never held to its class. The rows describe a console resolving a token to the killer's name, which is the killer-identity class by name.",
+   "evidence": "audit/harness/lib/canary.mjs:340 export const LEAK_CLASSES = Object.freeze([\"killer-identity\", \"answer-key\", \"plan\", \"gm-notes\", \"metadata\"]); audit/harness/lib/canary.mjs:344 const DEFERRABLE = e => e.class === \"metadata\" && [\"medium\", \"low\", \"info\"].includes(e.severity); audit/harness/known-leaks.json foundry-veiled-token-actor \"class\": \"metadata\", \"severity\": \"info\"",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "A3-road-2 (new, the refuter's)",
+   "claim": "A Search's find with full pockets goes into the primary stash with no count of that stash, so a stash can hold more than VAULT_LIMIT",
+   "verdict": "stands",
+   "why": "grantItem, when canCarry refuses and no override is passed, sets overflowRoom to the primary stash, location vault, and creates the item with stashRoom stamped; nothing in inventory.mjs reads VAULT_LIMIT, stashItemsIn or vaultContents. stow refuses a fourth thing; this road does not. Failure scenario: a student holding three usables, whose bedroom stash already holds three things, Searches and finds a fourth usable; it is whispered as gone into the stash, which now lists four. Whether the guide or the owner means the stash cap to bind a find is not recorded anywhere I found (the overflow's comment speaks only of whether a stash exists). Confidence read; not driven.",
+   "evidence": "scripts/inventory.mjs:812 if (!room.ok && location !== LOCATIONS.vault) {; scripts/inventory.mjs:829-833 overflowRoom = primaryStashRoom(actor, locateActor(actor)?.scene ?? homeScene()); if (overflowRoom) { location = LOCATIONS.vault;; config.mjs:904 export const VAULT_LIMIT = 3; (read in stash-reach.mjs:110 and sheet-audit.mjs:2290 only)",
+   "severity_after": "minor"
+  }
+ ],
+ "counts": {
+  "checked": 33,
+  "stands": 32,
+  "weakened": 1,
+  "refuted": 0
+ },
+ "count_note": "27 items with status fixed (24) or partly (3), all checked. The file has no item with status open; the sample of five 'open' items the other way could not be drawn, so the three items of other statuses were checked instead (LIVE-002 and A11 withdrawn-then, A23 decision). new_observations: the two of severity minor or above checked; the nit (no-dupe-keys) not checked. One candidate of the refuter's own added (A3-road-2).",
+ "not_established": [
+  "new_observations[0]: how long the cancelled declarer's token stays hidden on the other players' canvases between the clock's advance and lightsJudged; new live check: an Eclipse with one declaration that the lights cancel (a witness) and a second that asks the GM, watched from a bystander's canvas.",
+  "A3-road-2: whether the stash cap is meant to bind an overflow from a Search (no recorded decision found); and the base run's result for any test that drives an overflow into a full stash was not read.",
+  "A4: whether Foundry 14's Roll#evaluate can stay pending on a person with a non-default dice method (Foundry's source is not in the repository); LIVE-E16-06.",
+  "REL-001: the download field inside the published module.json asset was not fetched.",
+  "Results of scenarios 11, 20, 21, 30 and 72 in base-run.json were not read by this refuter; no harness, test or scenario was run."
+ ]
+}

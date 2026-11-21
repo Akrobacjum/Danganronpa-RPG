@@ -1,0 +1,429 @@
+{
+ "refuter": "verify-first-session/stages-20",
+ "of": "first-session/stages-20",
+ "read": {
+  "reader_file": "audit/findings-1.2.118/first-session/stages-20.json (whole)",
+  "brief": [
+   "audit/findings-1.2.118/BRIEF.md",
+   "audit/AUDIT-1.2.42.md 11.2-11.4",
+   "audit/findings-1.2.118/DECISIONS.md",
+   "audit/findings-1.2.118/base-run.json",
+   "audit/findings-1.2.118/first-session/README.md"
+  ],
+  "source": [
+   "scripts/sequence.mjs 24-40, 120-318, 596-800, 880-1277",
+   "scripts/transitions.mjs 30-227 (whole but the header)",
+   "scripts/spectator-ui.mjs (whole)",
+   "scripts/spectator.mjs 60-123",
+   "scripts/safeword.mjs 160-345",
+   "scripts/utils.mjs 690-740, 815-836",
+   "scripts/verdict.mjs 775-797, 1396-1410",
+   "scripts/sheet-mode.mjs 55-90",
+   "scripts/monokuma.mjs 50-130, 233-262",
+   "scripts/visibility.mjs 480-580, 800-815",
+   "scripts/bridge-guards.mjs 1455-1492",
+   "scripts/clock.mjs 184-212, 405-475, 878-892",
+   "scripts/hud-elapsed.mjs 176-215",
+   "scripts/boundary.mjs 312-325",
+   "scripts/sync.mjs 440-480",
+   "scripts/day-summary.mjs 80-125",
+   "scripts/hud.mjs 1030-1050",
+   "scripts/popup.mjs 985-1000, 1290-1298",
+   "styles/danganronpa.css 6055-6072, 18050-18100, 18289, 18305-18315, 18332, 18348-18349",
+   "greps over movement.mjs, movement-audit.mjs, fog.mjs, glass.mjs, settings.mjs, settings-window.mjs, config.mjs, module.mjs, sheet-audit.mjs, R-REGISTRY.md, tests-tier0/1.mjs"
+  ],
+  "not_read": [
+   "scripts/glass-close.mjs",
+   "scripts/death-fade.mjs",
+   "scripts/voice.mjs",
+   "scripts/gm-students.mjs",
+   "the bodies of most cited tests beyond R3704, R3715 (part), R3703 (part), R3857, R3867 (part), R3731 (part)"
+  ]
+ },
+ "checked": [
+  {
+   "ref": "E61 promise 1",
+   "claim": "The trial's entry plays on every screen from the clock's one event, once per event",
+   "verdict": "stands",
+   "why": "The clock's row fires drpgPhaseChanged on every browser (sync.mjs:450, KIND_REFRESH clock row onlyWhen phaseHook); onPhaseChanged starts playTrialEntry; playSequence refuses a key already started (started.has(id)). R3704 drives onPhaseChanged twice and reads again null.",
+   "evidence": "scripts/sequence.mjs:186-189 'const id = `${kind}\\u0000${key}`; if (started.has(id)) return null; started.add(id);'; :1199-1204; :1271 Hooks.on(\"drpgPhaseChanged\", onPhaseChanged); scripts/tests-tier1.mjs:56263 R3704 expects again: null",
+   "severity_after": "none",
+   "grade_after": null
+  },
+  {
+   "ref": "E61 promise 3",
+   "claim": "Under Stained Glass the hole closes with new panes, no two overlapping at any frame, above 1366x768 at 1366x768's share",
+   "verdict": "weakened",
+   "why": "Neither the reader nor this check read scripts/glass-close.mjs (483 lines); the claim rests on R3703, R3716 (bodies read) and R3718, R3719 (titles only), run on three recorded GM cuts and on 1920x1080 over eight seeds. R3703 itself allows one new pane out of the standing range on the 1600x900 cut, so 'each at its own size within 1366x768's share' is not true there, as the notes' Known gaps say. 'yes' is more than was read: yes on the cuts tested, one chip allowed, other sizes and a player's cut not held by CI, the real canvas LIVE-E61-01 unread.",
+   "evidence": "scripts/tests-tier1.mjs:56218-56222 'on the 1600x900 cut one chip, 630 px2 ... is left smaller than the smallest standing pane ... const allowed = { \"gm-1600x900\": 1 };'",
+   "severity_after": "none",
+   "grade_after": null
+  },
+  {
+   "ref": "E61 promise 4",
+   "claim": "Under Monokuma Legacy two lids close and open; no glass code runs",
+   "verdict": "stands",
+   "why": "playTrialEntry asks entryPieces only when the body has drpg-theme-stained-glass; with glass null drawTrialEntry builds two .drpg-seq-lid elements.",
+   "evidence": "scripts/sequence.mjs:628 'if (pieces === undefined && sequencesOn() && document.body.classList.contains(\"drpg-theme-stained-glass\"))'; :598-603 the lids",
+   "severity_after": "none",
+   "grade_after": null
+  },
+  {
+   "ref": "E61 promise 5",
+   "claim": "The verdict card plays a cut-in from the card and the public record only; a player's message plays nothing; the Final Trial's verdict has none",
+   "verdict": "stands",
+   "why": "playVerdictCut returns null unless message.author.isGM and verdictAt is set; verdictBoard reads only the verdictCut flag (sentenced ids, right) and trialProgress; postVerdictCard writes only those two; finalVerdictCard writes verdictAt with no verdictCut, so verdictBoard answers null.",
+   "evidence": "scripts/sequence.mjs:791 'if (!message?.author?.isGM) return null;'; :712-713 'const flag = message?.getFlag?.(MODULE_ID, \"verdictCut\") ?? null; if (!flag ...) return null;'; scripts/verdict.mjs:793-794 'verdictCut: { sentenced: executed.map(actor => actor.id), right: record?.correct === true }'; :1405 'flags: { [MODULE_ID]: { verdictAt: context.record.at ?? null } }'",
+   "severity_after": "none",
+   "grade_after": null
+  },
+  {
+   "ref": "E61 promise 6",
+   "claim": "One sequence at a time; Esc ends it on that screen and is taken from the windows; no setting or document written; Foundry tools hidden by a body attribute; the notice stack over it",
+   "verdict": "stands",
+   "why": "playSequence calls endSequence('cut') before drawing; onEscape is a capture listener that preventDefault and stopImmediatePropagation; it is registered before foundry-windows.mjs; the stylesheet hides the module's Foundry windows and raises #drpg-popups under body[data-drpg-sequence].",
+   "evidence": "scripts/sequence.mjs:190 endSequence(\"cut\"); :1188-1190 'event.preventDefault(); event.stopImmediatePropagation(); if (running) { endSequence(\"skipped\"); return; }'; scripts/module.mjs:484-487; styles/danganronpa.css:18069-18070",
+   "severity_after": "none",
+   "grade_after": null
+  },
+  {
+   "ref": "E61 promise 7",
+   "claim": "Under reduced motion a still frame stands and nothing animates; tiles covered for the span",
+   "verdict": "stands",
+   "why": "ctx.anim returns null when still; the still branch ends at times.still; coverBlocks lists the room and voice tiles in COVERED and its undo puts them back via endSequence's undo list.",
+   "evidence": "scripts/sequence.mjs:240-242 'anim: (el, frames, opts) => { if (still || !el?.animate) return null;'; :256-262; :478 COVERED",
+   "severity_after": "none",
+   "grade_after": null
+  },
+  {
+   "ref": "E61 promise 8",
+   "claim": "A world setting Full-screen sequences, on by default, in the game section; off nothing is drawn and the sounds play",
+   "verdict": "stands",
+   "why": "Registered world Boolean default true; settings-window lists it in the game section; playSequence with on false plays sound and returns 'off' before building a host.",
+   "evidence": "scripts/settings.mjs:1817-1824 'scope: \"world\" ... default: true'; scripts/settings-window.mjs:95 section(\"game\", \"gm\", ..., [\"regionFog\", \"sequences\", \"documentLanguage\"]); scripts/sequence.mjs:194-199",
+   "severity_after": "none",
+   "grade_after": null
+  },
+  {
+   "ref": "E61 promise 9",
+   "claim": "Two Sound rows trialStart and verdictCut, each played once at its frame",
+   "verdict": "stands",
+   "why": "Both rows exist in config.mjs; the entry and the cut-in hand playSound('trialStart') and playSound('verdictCut') as sound, which playSequence plays once at times.sound in motion, at once when still or off.",
+   "evidence": "scripts/config.mjs:5393 trialStart, :5474 verdictCut; scripts/sequence.mjs:634, :796; :268 'if (sound) ctx.at(times.sound, sound);'",
+   "severity_after": "none",
+   "grade_after": null
+  },
+  {
+   "ref": "E61-2 (nit)",
+   "claim": "verdictBoard's comment names R3708 where R3706 plants the Blackened",
+   "verdict": "stands",
+   "why": "R3708 is E62's pane-order test; R3706's registry row says a Blackened planted beside them is nowhere in the cut-in.",
+   "evidence": "scripts/sequence.mjs:709 '(05.10; R3708 plants a Blackened to show it)'; docs/dev/R-REGISTRY.md:1208 (R3706), :1210 (R3708)",
+   "severity_after": "nit",
+   "grade_after": null
+  },
+  {
+   "ref": "E61-1 (nit)",
+   "claim": "The switch's hint no longer says what the switch governs",
+   "verdict": "stands",
+   "why": "The hint says only the trial's and the verdict's sounds play when off; playCaseSummary hands its own sound to playSequence, which plays it with the switch off.",
+   "evidence": "lang/en.json:396; scripts/sequence.mjs:885 '{ sound: () => playSound(\"caseSummary\") }'; :194-198",
+   "severity_after": "nit",
+   "grade_after": null
+  },
+  {
+   "ref": "E61 grade",
+   "claim": "8",
+   "verdict": "stands",
+   "why": "Every promise read holds in today's code and has a tier-1 test; none of the 12 E61 rows is in skip-baseline.json and base-run.json's shard 1/8 (tiers 0-1 with parts A and B) reads 0 failed, 16 skipped. The reader's tier01.log line numbers could not be checked (the log is not on the branch). Held at 8 by the untested C6 cases, the source-regex R3707 and the unread live checks: within 11.4. The file does not mark the grade provisional though LIVE-E61-01/-06/-08 are unread (BRIEF.md L1): it must read provisional 'after L1', and the three live items carry no l1 block.",
+   "evidence": "audit/findings-1.2.118/base-run.json suite_shards[0].line '1781 passed, 0 failed, 16 skipped'; audit/harness/skip-baseline.json (no R37xx); docs/dev/R-REGISTRY.md (12 rows stamped E61)",
+   "severity_after": "none",
+   "grade_after": "8 (provisional: after L1)"
+  },
+  {
+   "ref": "E62 promise 1",
+   "claim": "Each clock change turns the curtain in its own direction from one pure planner",
+   "verdict": "stands",
+   "why": "transitionFor answers top for an hour forward, bottom for a new day or a rewind, centre for the Eclipse in and inward for its end at 1400 ms; onClockHeard hands it to glass.mjs hintTurn, held 1.5 s (TURN_HINT_MS). The drawn turn is not read headless, as the reader says.",
+   "evidence": "scripts/transitions.mjs:75-94; :189 'g.hintTurn?.({ how: t.how, seed, ... })'; scripts/glass.mjs:2519-2522",
+   "severity_after": "none",
+   "grade_after": null
+  },
+  {
+   "ref": "E62 promise 2",
+   "claim": "Six flash groups at 0, 360, 900, 1320, 1930, 2400 ms with Pane flash each; never more than three in a second",
+   "verdict": "stands",
+   "why": "INVESTIGATION_ONSETS is those six; each onset's timer runs flicker() and playFlashSound() together; the most onsets in any 1000 ms window is 3 (0/360/900 and 360/900/1320). The sound once per onset is by reading alone, as the reader says.",
+   "evidence": "scripts/transitions.mjs:42; :190 'flashTimers.push(setTimeout(() => { flicker(); playFlashSound(); }, at))'",
+   "severity_after": "none",
+   "grade_after": null
+  },
+  {
+   "ref": "E62 promise 3",
+   "claim": "A body announced flickers four times on every browser; Legacy lights other frames; a rehearsal plays nothing",
+   "verdict": "stands",
+   "why": "onBodyAnnounced returns null for payload.rehearsal and otherwise lights drpg-flicker at DISCOVERY_ONSETS; the stylesheet lights #drpg-hud, #drpg-status, #drpg-despair and #drpg-notices-corner when the body is not under the glass class.",
+   "evidence": "scripts/transitions.mjs:204-215; styles/danganronpa.css:18289; styles/stained-glass.css:5294",
+   "severity_after": "none",
+   "grade_after": null
+  },
+  {
+   "ref": "E62 promise 4",
+   "claim": "Esc ends a transition; two changes close together end on the second",
+   "verdict": "stands",
+   "why": "Each heard change calls clearFlashes and holdEscape replaces the held skip; onEscape runs the held skip once when no sequence runs.",
+   "evidence": "scripts/transitions.mjs:184, :191-195; scripts/sequence.mjs:1180-1194",
+   "severity_after": "none",
+   "grade_after": null
+  },
+  {
+   "ref": "E62 promise 5",
+   "claim": "Switch off or reduced motion: the curtain turns as before, no flash or flash sound; no writes",
+   "verdict": "stands",
+   "why": "onClockHeard returns before hintTurn and the flash timers when !on || still.",
+   "evidence": "scripts/transitions.mjs:187 'if (!on || still) return t;'",
+   "severity_after": "none",
+   "grade_after": null
+  },
+  {
+   "ref": "E62 promise 6",
+   "claim": "The HUD's phase label slides in from the right; nothing on load, same phase, reduced motion",
+   "verdict": "stands",
+   "why": "slidePhase returns null with no old label, the same label or ms 0, else animates translateX(24px) to 0; renderHud reads the old label before the rebuild and calls it.",
+   "evidence": "scripts/hud.mjs:489, :615, :1038-1049",
+   "severity_after": "none",
+   "grade_after": null
+  },
+  {
+   "ref": "E62 promise 7",
+   "claim": "The day summary and the body's card stand centred over the windows until touched; centre honoured from a GM's card only",
+   "verdict": "stands",
+   "why": "showDaySummary passes centre: true; body.mjs writes popupCentre; popup.mjs honours the flag only when the card's writer is a GM and raises the card until the first pointerdown.",
+   "evidence": "scripts/day-summary.mjs:287; scripts/body.mjs:328; scripts/popup.mjs:991-998, :1296",
+   "severity_after": "none",
+   "grade_after": null
+  },
+  {
+   "ref": "E62 promise 8",
+   "claim": "The day summary waits for the turn; rows 160 ms apart from 150 ms; none under reduced motion",
+   "verdict": "stands",
+   "why": "sumUp sets the summary on a timer of summaryDelay, the turn's length; the stylesheet's delay is calc(150ms + var(--drpg-row) * 160ms) and none under drpg-reduced-motion.",
+   "evidence": "scripts/day-summary.mjs:98, :106-110; styles/danganronpa.css:6063-6069",
+   "severity_after": "none",
+   "grade_after": null
+  },
+  {
+   "ref": "E62 grade",
+   "claim": "7",
+   "verdict": "stands",
+   "why": "No E62 defect found here either. The grade rests on a plan delivered in part (C7 measured only, C6 in part, rest of C8 not done) and on the drawn turn and the flash area never measured: the 11.4 row 'one promise delivered in part' fits. One caution: the 'partly' row is the plan's own 'Not in this release' list, while E61's unbuilt C7 is not counted as a promise row there, so the two stages weigh an unbuilt plan part differently; read as 8 if the notes' exclusions are not promises. LIVE-E62-01 is unread and the grade is not marked provisional 'after L1' (BRIEF.md L1).",
+   "evidence": "docs/dev/e62/STATUS.md:67-99 (C7, C6); .github/release-notes/v1.2.109.md:426-432; docs/dev/R-REGISTRY.md (9 rows stamped E62)",
+   "severity_after": "none",
+   "grade_after": "7 (provisional: after L1)"
+  },
+  {
+   "ref": "E92 promise 1",
+   "claim": "A GM sets the Role; a player's own write of the flag is put back",
+   "verdict": "stands",
+   "why": "setSpectator is GM only; the flag is in sheet-audit.mjs GM_FLAGS, which the primary GM puts back on a player's write.",
+   "evidence": "scripts/monokuma.mjs:233-234 'if (!game.user.isGM || !actor) return null;'; scripts/sheet-audit.mjs:164-165 GM_FLAGS includes \"spectator\"",
+   "severity_after": "none",
+   "grade_after": null
+  },
+  {
+   "ref": "E92 promise 2",
+   "claim": "A Spectator is no student and nobody in the room",
+   "verdict": "stands",
+   "why": "studentActors leaves out isSpectator, so actingStudents and studentCensus do too; countsAsPresent answers false for the flag.",
+   "evidence": "scripts/monokuma.mjs:77-84 'return !isMonokuma(flags) && !isNotInClass(flags) && !isSpectator(flags);'; scripts/movement.mjs:3767-3768",
+   "severity_after": "none",
+   "grade_after": null
+  },
+  {
+   "ref": "E92 promise 3",
+   "claim": "Every action a player's browser asks is refused for a Spectator",
+   "verdict": "stands",
+   "why": "notSpectator and senderNotSpectator read the flags as the GMs hold them (flagsHeldNow); the refusal text maps to the REASONS row 'A Spectator takes no actions.'; R3865 (tier 0) holds every player row to the guard.",
+   "evidence": "scripts/bridge-guards.mjs:1466-1478; lang/en.json:4955; scripts/tests-tier0.mjs:260",
+   "severity_after": "none",
+   "grade_after": null
+  },
+  {
+   "ref": "E92 promise 6",
+   "claim": "Other players do not see its token; the GM sees it faint at 0.3",
+   "verdict": "stands",
+   "why": "tokenShownTo answers hide for a Spectator's token on any browser but its owner's (a GM is answered first); applyToToken calls dressSpectator on a GM, which sets only the mesh's alpha to 0.3 of the document's. 'No tint and no outline' is read as 'the module adds none': dressSpectator touches nothing else.",
+   "evidence": "scripts/visibility.mjs:543 'if (flaggedSpectator(tokenDoc.actor)) return viewer.owns(tokenDoc) ? \"show\" : \"hide\";'; :487; :800-813",
+   "severity_after": "none",
+   "grade_after": null
+  },
+  {
+   "ref": "E92 promise 7",
+   "claim": "It moves by dragging its own token, at no price, finding nothing, through the locks",
+   "verdict": "stands",
+   "why": "crossingVerdict returns true for the flag; the charge returns early for isSpectator; movement-audit exempts it; fog's discovery answers false. Foundry's own wall stop (LIVE-E92-02) unread, as the reader says.",
+   "evidence": "scripts/movement.mjs:1712, :3030-3032; scripts/movement-audit.mjs:339-340; scripts/fog.mjs:1617-1619",
+   "severity_after": "none",
+   "grade_after": null
+  },
+  {
+   "ref": "E92 promise 9",
+   "claim": "Same sequences as a player; the end board the heading and the mood alone",
+   "verdict": "stands",
+   "why": "dayEndBoardFor hands watcher true on a Spectator's browser; dayBoardOf then keeps day, end and mood only and dayBoardElement draws title and mood; the other sequences ask no viewer.",
+   "evidence": "scripts/sequence.mjs:1137-1138; :928; :961-964",
+   "severity_after": "none",
+   "grade_after": null
+  },
+  {
+   "ref": "E92 promise 10",
+   "claim": "Its sheet is a watcher's",
+   "verdict": "stands",
+   "why": "sheetMode answers actions null, calls false, rows false, levelUp false and safeword false for a Spectator; R3857 pins all of it.",
+   "evidence": "scripts/sheet-mode.mjs:60-62, :78, :81; scripts/tests-tier1.mjs:58486-58499",
+   "severity_after": "none",
+   "grade_after": null
+  },
+  {
+   "ref": "E92-1 (minor)",
+   "claim": "A Spectator has no Stop on its sheet, and with no GM its safeword press is refused by its own chat block while the press reports success",
+   "verdict": "stands",
+   "why": "Traced: sheetMode answers safeword false for a Spectator (pinned 'no Stop' by R3857), sheet-sidebar returns before drawing the button. With no GM, safewordPoster answers 'caller', callSafeword calls announce -> privately -> ChatMessage.create on the Spectator's own browser; refuseOwnMessage (preCreateChatMessage) answers false for this user's own message when spectatorViewer() holds, with no exception for the safeword card; callSafeword then logs and returns true. In the awaitCard road the selfPosted note is added after announce whatever it returned. The GM handbook says anyone may press it, a Spectator included, and that every sheet carries the button. Not refuted: no guard elsewhere and no test pins the opposite. Foundry's quiet cancel on a preCreate false is its documented behaviour, not read at a table.",
+   "evidence": "scripts/sheet-mode.mjs:81 'safeword: !monokuma && !spectator,'; scripts/spectator-ui.mjs:74-78 'if (userId !== game.user?.id || !spectatorViewer()) return true; ... return false;'; scripts/safeword.mjs:168-170, :286 'if (poster === \"caller\") await announce(safewordCard());', :324-325 'log(...); return true;'; :252-261 awaitCard; docs/handbooks/gm-handbook.en.md:1794",
+   "severity_after": "minor",
+   "grade_after": null
+  },
+  {
+   "ref": "E92-2 (minor)",
+   "claim": "Once a student is made a Spectator, every card that account posted before is left undrawn on every browser",
+   "verdict": "stands",
+   "why": "hideSpectatorMessage removes the element whenever spectatorAuthor(message) holds, and spectatorAuthor asks only whether the author's account is in spectatorUserIds now (a non-GM whose every owned non-Monokuma character is a Spectator); no time, flag or kind of message is read; the hook runs on every browser, the GMs' included. No sentence in STATUS, the notes or the handbook (630, 628) says a former student's history is hidden. A dead student's own Spectator is unaffected, as the reader says (the account still owns the student, student=true).",
+   "evidence": "scripts/spectator-ui.mjs:69-72 spectatorAuthor; :80-82 'if (spectatorAuthor(message)) element?.remove?.();'; :100 Hooks.on(\"renderChatMessageHTML\", hideSpectatorMessage); scripts/spectator.mjs:108-122",
+   "severity_after": "minor",
+   "grade_after": null
+  },
+  {
+   "ref": "E92-3 (nit)",
+   "claim": "Three tests' titles state rules their bodies no longer assert; the known-leaks row is not written",
+   "verdict": "stands",
+   "why": "R3867's title says every other player NONE, its body expects S.OBSERVER for other since S17-31; audit/harness/known-leaks.json holds no 'pectator'.",
+   "evidence": "scripts/tests-tier1.mjs:58691, :58709-58711 'other: S.OBSERVER'; grep -c -i pectator audit/harness/known-leaks.json = 0",
+   "severity_after": "nit",
+   "grade_after": null
+  },
+  {
+   "ref": "E92 grade",
+   "claim": "8",
+   "verdict": "stands",
+   "why": "Two minor findings, both confirmed; promises otherwise hold; 19 registry rows stamped E92 (R3859 among them), none of the cited in skip-baseline.json, shard 1/8 0 failed. 11.4 row 8 ('one-two minor') fits. Small slip in the reader's file: R7168 is a tier-0 test (registry), cited as tier 1. All four live items unread and two promises meet a player through them (voice, the drag at a wall): the grade must be marked provisional 'after L1', and the file carries no l1 blocks.",
+   "evidence": "docs/dev/R-REGISTRY.md rows R3850-R3868 stamped E92; R7168 row tier 0; scripts/tests-tier0.mjs:26028",
+   "severity_after": "none",
+   "grade_after": "8 (provisional: after L1)"
+  },
+  {
+   "ref": "E94 promise 1",
+   "claim": "The start-of-day board on every browser: day, chapter, hour, cast in order, the dead by the published flag, greyed with 'we remember', the ratio, the morning line",
+   "verdict": "stands",
+   "why": "dayBoardOf marks dead by isDeceased only; dayBoardElement adds is-dead and the weRemember line; the stylesheet greys (grayscale, opacity) and strikes nothing; the sub line formats alive/total; the announcement only when there is one.",
+   "evidence": "scripts/sequence.mjs:929 'dead: isDeceased(a)'; :966-972; styles/danganronpa.css:18348-18349",
+   "severity_after": "none",
+   "grade_after": null
+  },
+  {
+   "ref": "E94 promise 4",
+   "claim": "The mood is one word from one share against 0.6 and 0.4, worked out on the GM; only the word is written",
+   "verdict": "stands",
+   "why": "moodBand computes light/(light+dark) against MOOD_SHARES {calm 0.6, uneasy 0.4}; moodInputs returns null on a player; dayStartPatch writes the word only; WORLD_SECRET_RULES forbid overflowCount and overflowThreshold on the clock.",
+   "evidence": "scripts/sequence.mjs:1101-1107, :1116-1117; scripts/config.mjs:2127; scripts/world-secrets.mjs:105-112",
+   "severity_after": "none",
+   "grade_after": null
+  },
+  {
+   "ref": "E94 promise 5",
+   "claim": "The GM's morning line, kept in that GM's browser, folded into the clock's one write, cleared by the next move",
+   "verdict": "stands",
+   "why": "morningLineDraft is a client setting read in morningInputs and written into dayStartPatch; the draft is emptied after the write; any other move writes morningLine null when one stands.",
+   "evidence": "scripts/clock.mjs:423-432, :444-450; scripts/sequence.mjs:1062-1092",
+   "severity_after": "none",
+   "grade_after": null
+  },
+  {
+   "ref": "E94 promise 9",
+   "claim": "The clock carries dayStartedAt; no conflict marker; the end board's chapter line stands apart",
+   "verdict": "stands",
+   "why": "setClock stamps dayStartedAt when the day moves; the shared .drpg-seq-day-sub rule carries margin-bottom calc(22 * unit). The comment at clock.mjs:188-189 still says 'the end-of-day board reads its own rows from it', which F118 removed: a comment against code beside the reader's E94-2.",
+   "evidence": "scripts/clock.mjs:188-192; styles/danganronpa.css:18332",
+   "severity_after": "none",
+   "grade_after": null
+  },
+  {
+   "ref": "E94 promise 7",
+   "claim": "With the switch off no board and no chime; still under reduced motion; the board lets the table's clicks through; Esc ends it",
+   "verdict": "weakened",
+   "why": "Off, still and Esc hold (playSequence's off branch, the still branch, onEscape). The click-through holds for the start-of-day board alone: the sequence host is pointer-events auto, and only #drpg-sequence.drpg-sequence-dayStart and -caseSummary set none. The end-of-day board (kind dayEnd), which since 13.11.2026 plays alone when Night begins for about 6 s, takes every click on every screen until it ends or Esc. The 1.2.109 notes (234-235) promised the click-through for the start board, so this is not a broken promise of the notes, but the row's 'the board' covers both and R3715 reads only a dayStart host. New observation below.",
+   "evidence": "styles/danganronpa.css:18062-18067 '#drpg-sequence {... inset: 0; z-index: 99980; ... pointer-events: auto;'; :18311 '#drpg-sequence.drpg-sequence-dayStart { pointer-events: none; }'; :18368 caseSummary; scripts/sequence.mjs:79 dayEnd hold 6000; scripts/tests-tier1.mjs:58305 read.through on the started dayStart",
+   "severity_after": "nit",
+   "grade_after": null
+  },
+  {
+   "ref": "E94-1 (minor)",
+   "claim": "While an incident hides the clock, a bystander's browser still plays the day's board when the GM moves the clock into Night or a new day",
+   "verdict": "stands",
+   "why": "Traced: the clock is a world setting; its sync row fires drpgTimeOfDayChanged on every browser (sync.mjs:449, KIND_REFRESH clock row); transitions.mjs onClockHeard and boardsOf read only the clock's stamps, and sequence.mjs playDayEnd / playDayStart ask nothing of the incident (no clockHiddenHere, murderState or incident in either file). advanceTimeOfDay stamps nightBoard (nightFalls) and dayBoard whatever runs, and the readiness round is not opened before Stage 6, so Next time of day moves at once. The module hides the clock from a bystander elsewhere: day-summary.mjs sumUp returns on clockHiddenHere, hud-elapsed.mjs clockForDisplay freezes, clock.mjs veils the card. Not run.",
+   "evidence": "scripts/transitions.mjs:160-186 (no incident read); scripts/sequence.mjs:1030-1037, :1155-1166; scripts/day-summary.mjs:91 'if (clockHiddenHere(murderState())) return;'; scripts/hud-elapsed.mjs:207; scripts/clock.mjs:421-424 nightFalls, dayPatch; scripts/boundary.mjs:316-321 roundAllowed",
+   "severity_after": "minor",
+   "grade_after": null
+  },
+  {
+   "ref": "E94-2 (nit)",
+   "claim": "Two tests' titles describe the board before F118",
+   "verdict": "stands",
+   "why": "R3731's title says the end board adds 22 units and the start board keeps its spacing; its body expects no end-board rule and the shared rule's 22 units.",
+   "evidence": "scripts/tests-tier1.mjs:58190, :58197-58200 'end: ... start: ...' expecting { end: false, start: true }",
+   "severity_after": "nit",
+   "grade_after": null
+  },
+  {
+   "ref": "E94 grade",
+   "claim": "8",
+   "verdict": "stands",
+   "why": "E94-1 confirmed (minor); the promises that stand today hold; 11 registry rows stamped E94 (R3721 removed in E118), none of the cited in skip-baseline.json, shard 1/8 0 failed. The end-of-day board's clicks (new observation, nit) do not move it below 8 under 11.4. All three live items unread (LIVE-E94-03 is exactly E94-1's question): the grade must be marked provisional 'after L1', with l1 blocks the file does not carry.",
+   "evidence": "docs/dev/R-REGISTRY.md rows stamped E94; audit/AUDIT-1.2.42.md items 496-506 by the reader's count",
+   "severity_after": "none",
+   "grade_after": "8 (provisional: after L1)"
+  }
+ ],
+ "new_observations": [
+  {
+   "title": "The end-of-day board takes every click on every screen for its 6 s",
+   "where": "styles/danganronpa.css:18062-18067, :18311; scripts/sequence.mjs:79, :1155-1166",
+   "what": "The sequence host is pointer-events auto; only the start-of-day board and the case summary are set to none. Since 13.11.2026 the end board plays alone when Night begins, so for about 6 s (Esc earlier) no screen at the table takes a click on the map or a window.",
+   "severity": "nit",
+   "failure_scenario": "The GM presses Next time of day from Evening; for six seconds the GM's and every player's clicks on the canvas and on open windows land on the board, until it fades or Esc.",
+   "confidence": "read",
+   "refutation_tried": "Searched all stylesheets for another pointer-events rule on #drpg-sequence or .drpg-sequence-dayEnd (none); R3715 reads the computed pointer-events of a dayStart host only; the 1.2.109 notes promise the click-through for the start board alone, so the owner may mean the end board to hold the screen."
+  },
+  {
+   "title": "A late browser's catch-up can pick the Final Trial's verdict card and play nothing",
+   "where": "scripts/sequence.mjs:1227-1232, :1249-1259, :790-796; scripts/verdict.mjs:1405",
+   "what": "lateSequence counts every GM message with verdictAt as a verdictCut event; the Final Trial's card carries verdictAt and no verdictCut, so when it is the newest fresh event catchUpSequences calls playVerdictCut, verdictBoard answers null, and an older event still inside the 10 minutes is not played.",
+   "severity": "nit",
+   "failure_scenario": "A player reloads within 10 minutes of the Final Trial's verdict and its case summary board; the late pick is the verdict card, which draws nothing, and the summary board they missed is not played.",
+   "confidence": "read",
+   "refutation_tried": "Read lateSequence for a verdictCut flag check (it reads verdictAt only); read finalVerdictCard's flags. Whether a Final Trial's case summary falls inside the same 10 minutes is the table's."
+  }
+ ],
+ "counts": {
+  "checked": 39,
+  "stands": 37,
+  "weakened": 2,
+  "refuted": 0
+ },
+ "not_established": [
+  "The reader's tier01.log line numbers for each 'ok in the base run' could not be checked: tier01.log is not on the branch. Checked instead: base-run.json's shard 1/8 (tiers 0-1 with parts A and B) reads '1781 passed, 0 failed, 16 skipped', the only failure of the merged run is tier 2's XI07, and no test the reader cites is in audit/harness/skip-baseline.json. A row is therefore taken to have passed, not read line by line.",
+  "None of the four grades is marked provisional 'after L1', and none of the eleven live items (LIVE-E61-01, -06, -08, LIVE-E62-01, LIVE-E92-01..04, LIVE-E94-01..03) carries the l1 block BRIEF.md asks for. Every grade here stands at its number with that mark added; the L1-HANDOFF rows for these stages are still to be written from the reader's missing_to_10 texts.",
+  "E61 promise 3's geometry: scripts/glass-close.mjs was read by neither reader; R3718 and R3719 were taken by title. A real canvas under Foundry's CSS is LIVE-E61-01. l1: {what: the entry's panes at the closing and the opening, recipe: 1. Stained Glass, 2. Start the Class Trial from Daily Life, 3. record the screen at 1366x768, 1600x900 and 1920x1080 on a GM and a player, 4. step frame by frame for overlaps and holes, clients: GM and one player, theme: stained glass, settles_if: no overlap or hole at any frame and new panes at the standing panes' size (holds) / an overlap, a gap or a sliver pane (defect), priority: grade cap 9}.",
+  "E94-1 and E92-1 rest on Foundry calling the clock setting's update on every browser and cancelling a create quietly on a preCreateChatMessage false; both are Foundry's documented behaviour and modelled by the harness, not read at a table. E94-1's l1: {what: a bystander's screen when the GM moves the clock into Night during an incident's opening, recipe: 1. start a direct murder's opening at Evening with p1 and p2, 2. p3 not in it, 3. GM presses Next time of day, 4. read p3's screen and notice history, clients: GM and three players, theme: both, settles_if: p3 sees no board and hears no chime (refuted) / p3 sees 'End of day N' (holds), priority: minor}.",
+  "The end-of-day board's click capture (new observation 1) is not measured: jsdom draws no hit testing. l1: {what: whether a click on the canvas lands while the end board stands, recipe: 1. GM presses Next time of day from Evening, 2. within 6 s click a token and a window button on the GM and a player, clients: GM and one player, theme: both, settles_if: the clicks land (no defect) / they do not (nit stands), priority: nit}."
+ ]
+}

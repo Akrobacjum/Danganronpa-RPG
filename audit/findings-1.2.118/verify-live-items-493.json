@@ -1,0 +1,114 @@
+{
+ "refuter": "verify-live-items-493",
+ "of": "live-items-493",
+ "scope_note": "All five non-open items (497, 509, 512, 523, 524; none read, none obsolete), five open items checked for a missed reading (503, 510, 511, 519, 521), the one observation of severity minor or above (the suspected defect from 506) and one nit. The other nits (the voice.mjs comment, the text-drift list, the overlaps) were not checked. Since the reader wrote, audit/findings-1.2.118/base-run.json exists; its shard 1/8 (tiers 0-1) reads 0 failed, 16 skipped, which supports the headless halves the reader left unread, by inference and not by a per-test row.",
+ "checked": [
+  {
+   "ref": "497 (LIVE-E92-02)",
+   "claim": "partly, n/a: L1's walls probe of 19.11.2026 touches the item's Foundry half (a GM's plain update stopped at a wall); a Spectator's drag, a door, the fee and the discovery not read.",
+   "verdict": "weakened",
+   "why": "The reading exists and says what the reader quotes: on the e58-local copy of CALIBRATION.md the third probe made a wall, and run r2, a plain update from the GM's page to the square past it, ended at (349, 300), while r3/r4/r6 with ignoreWalls went through. But it is the GM's write through `update`/`move` from a page script, not a player-Spectator's drag; no door was made; and the fee and the discovery were not read. The reader's own evidence opens with 'No reading of the item's ask'. Section 11.3 gives 'partly' to an item of which a part was read; no part of this item's ask (a player's own drag as a Spectator) was read - the probe answers item 239's ignoreWalls question, which the digest maps it to (live-readings-e58-delta.json item 239, 'settles': 'item 239 ... its side question'). The reading is a strong neighbour and belongs in the note, not in the status. The module side the reader cites holds: a Spectator passes `crossingVerdict` and `judgeMove` at once, and ignoreWalls is set only on the module's put-backs.",
+   "evidence": "origin/claude/e58-local docs/dev/e39/CALIBRATION.md (third probe): '| r2 wall | DhTokenDocument | [349, 300] | [349, 300] |' and 'r2 plainly to the square past the wall: written, and **stopped at the wall** (349, 300).'; 'The test world holds no wall (the seed makes its scenes with `walls: []`)'; audit/findings-1.2.118/live-readings-e58-delta.json item 239 'settles': 'item 239 (LIVE-E79-02), its side question ...'; scripts/movement.mjs:1712 'if (actor.getFlag(MODULE_ID, FLAGS.monokuma) || actor.getFlag(MODULE_ID, FLAGS.spectator)) return true;'; scripts/movement.mjs:3031 'if (isMonokuma(actor) || isSpectator(actor)) {'; scripts/movement.mjs:1429 'constrainOptions: { ignoreWalls: true }'",
+   "status_after": "open"
+  },
+  {
+   "ref": "509 (LIVE-E106-01)",
+   "claim": "partly, defect: the owner's sighting at a table on 1.2.110 (13.11.2026) - the Monocub's token smaller, no sheet from the GM, two things on the map - recorded; E106's three readings on today's build not.",
+   "verdict": "stands",
+   "why": "The digest entry exists and matches the item's head and docs/dev/e106/STATUS.md:66-81, which gives the owner's report, the build (1.2.110), the hypothesis (the tile double-clicked) and 'Which one the GM double-clicked is still LIVE-E106-01's'. The sighting precedes the fix, so it settles only the premise - 'partly', as sibling refuters read a pre-fix report (verify-live-items-361 item 376, verify-live-items-429 item 429). No later reading: neither LOCAL-REPORT.md nor CALIBRATION.md, on b5a29e73 or on e58-local, names LIVE-E106-01. The code names hold (`eventMode` 'none' in body-tile.mjs, `bodyTileSpec`, the `bodyOf` flag, R5402 at tests-tier1.mjs:61113). The STATUS.md:73 misnumbering ('item 508') is confirmed. Since the reader wrote, base-run.json exists: shard 1/8 (tiers 0-1) reads 1781 passed, 0 failed, 16 skipped, and R5402 is not in skip-baseline.json - so the headless half passed there, by inference from the shard's line, not from a per-test row.",
+   "evidence": "docs/dev/e106/STATUS.md:72-73 'the new LIVE-E106-01 (AUDIT 9.2 item 508)'; :81 'Which one the GM double-clicked is still LIVE-E106-01's.'; audit/AUDIT-1.2.42.md:1484 'zgłoszenie właściciela z 13.11.2026: „Token monocuba jest mniejszy niz oryginalny token oraz nie pozwala odpalic karty postaci'; scripts/body-tile.mjs:420 'group.eventMode = \"none\";'; scripts/tests-tier1.mjs:61113 'R5402 - the body's caption takes no click'; audit/findings-1.2.118/base-run.json suite_shards[0] 'suite 1781 passed, 0 failed, 16 skipped, 0 red'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "512 (LIVE-E39-01)",
+   "claim": "partly, defect (the harness model's): one API move with a waypoint across three rooms on 14.370, 16.11.2026; the mouse drag and the Change Level region not read; D4 and D5 built, D7 not.",
+   "verdict": "stands",
+   "why": "CALIBRATION.md section 3 (b5a29e73) holds the reading: TokenDocument#move from PlayerOne's page, one update per route, `options._movement`, Levels as an embedded collection, Regions with ownership; section 5 names the mouse drag and the region's change-level behaviour as not read. LOCAL-REPORT.md:513 (b5a29e73) and :665 (e58-local) carry the row. e39/STATUS.md lists 9a8e4f0c (D4) and c803e68a, 909dc019 (D5) and no D7 commit; CALIBRATION.md:134 describes D7 (region owners) as a difference. The module was 1.2.116 there, and the question is v14's shape, not the module's. 'Partly' matches item 22's treatment, upheld by verify-live-items-01. 'defect' is the shim's, as the note says; the digest's outcome is 'mixed'/'partial' - the reader's word is defensible given its note.",
+   "evidence": "docs/dev/e39/CALIBRATION.md:86 'PlayerOne's page moved Aiko (Dorm A, 300,300) through v14's own `TokenDocument#move'; :150 'A mouse drag on the canvas, a region's teleport and change-level behaviours, walls and doors on a route ... - left to step 4's groups.'; :134 '**D7, a region's owner**: v14 Regions carry `ownership`'; docs/dev/e39/STATUS.md 'c803e68a, 909dc019 | D5, Levels as an embedded collection'; docs/dev/e58/LOCAL-REPORT.md:513 '| LIVE-E39-01 | one update per route ...'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "523 (LIVE-113R-01)",
+   "claim": "partly, defect: the owner's report at a table on 1.2.112 (13.11.2026), the closed curtain must last until the next scene has switched; fixed in 1.2.113, the fix not read at a table.",
+   "verdict": "stands",
+   "why": "The digest entry exists and matches the item's head at AUDIT:1510. The report precedes the fix (pre-fix premise, 'partly' by the siblings' reading). No later reading: no paper on b5a29e73 or e58-local names LIVE-113R-01 or the curtain's scene wait. The code names hold at the lines cited (SCENE_WAIT_MS 15000 at sequence.mjs:319, `sceneTargetOf` :329, `whenSceneDrawn` :349, the warning and `sequence.sceneTimeout` :359-360); R6090 and R6091 at tests-tier1.mjs:56802 and :56895; glass-sweep.mjs has `--trial-layout`. base-run.json now exists: shard 1/8 green, 0 failed; neither R number is in skip-baseline.json.",
+   "evidence": "audit/AUDIT-1.2.42.md:1510 'zgłoszenie właściciela przy stole na 1.2.112, 13.11.2026: \"zamknięta kurtyna ma trwać, aż następna scena się przełączy\"'; scripts/sequence.mjs:319 'export const SCENE_WAIT_MS = 15000;'; :359 'the curtain waited ${ms} ms for this browser to draw the next scene and opens without it'; :360 'count(\"sequence.sceneTimeout\");'; audit/glass-sweep.mjs:584 'if (args.includes(\"--trial-layout\")) {'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "524 (LIVE-113R-02)",
+   "claim": "partly, defect: the owner's report at a table on 1.2.112 (13.11.2026), the curtain's layout changes between covering and uncovering; fixed in 1.2.113 (one cut, R6092), Chromium before/after numbers from the item's text; not read at a table since.",
+   "verdict": "stands",
+   "why": "The digest entry exists and matches AUDIT:1512, which carries the owner's words and the Chromium numbers (34 of 39 panes, up to 111.7 px, 11.3 % of pixels at ceb9e9c8; 0 after). Those numbers are class C by the item's own text, not a table reading, and the reader labels them so. Pre-fix premise, 'partly' by the siblings' reading; no later table reading in either paper. `entryPieces` at glass.mjs:3267, `drawTrialEntry` at sequence.mjs:522, R6092 at tests-tier1.mjs:56975 hold.",
+   "evidence": "audit/AUDIT-1.2.42.md:1512 'zgłoszenie właściciela przy stole na 1.2.112, 13.11.2026: \"między zakryciem a odkryciem ekranu układ kurtyny się zmienia\"' and 'przed poprawką, na ceb9e9c8, 34 z 39 kafli przesuniętych, do 111,7 px, i 11,3 % pikseli kadru zmienionych'; scripts/glass.mjs:3267 'export function entryPieces() {'; scripts/sequence.mjs:522 'function drawTrialEntry(ctx, glass, clock = getClock(), kind = \"trialEntry\") {'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "503 (LIVE-E62-01), open",
+   "claim": "open: no reading of the clock's turns at a table.",
+   "verdict": "stands",
+   "why": "Looked for a missed reading: L1 did run `fps()` (LOCAL-REPORT.md:344-345 on b5a29e73, :496-497 on e58-local), but at rest - five seconds of frames and each effect held off - not during an hour's turn, a new day, an Eclipse, the Investigation's flashes or Escape mid-turn, which the item asks. No paper names LIVE-E62-01.",
+   "evidence": "origin/claude/e58-local docs/dev/e58/LOCAL-REPORT.md:497 '| fps(), run 2 | the GM alone in one focused window, both themes | 300 frames in 5 s, 60 fps, median 16.7 ms'",
+   "status_after": "open"
+  },
+  {
+   "ref": "510 (LIVE-E106-02), open",
+   "claim": "open: no reading of a double-click on the Monocub's token or of its look against the body token.",
+   "verdict": "stands",
+   "why": "Looked for a missed reading: the one table record near it is the tier-2 'E62 C3b the Monocub's token' run alone twice in L1's fourth run ('1461 passed then failed'). Its assertion reads the re-link only (the Spectator's token in place, the student's actor, the watcher gone, one write on the way back), not the sheet a double-click opens, nor size, scale, fit or ring - so it reads no part of the item.",
+   "evidence": "origin/claude/e58-local docs/dev/e58/LOCAL-REPORT.md:373-374 '1461 \"E62 C3b the Monocub's token ...\". Each run alone twice: ... 1461 passed then failed'; scripts/tests-tier2.mjs:96767-96768 'cub: { same: true, actor: true, watcherGone: true, tokens: tokensBefore + 1 }, back: { watcher: true, onToken: true, tokens: tokensBefore, writes: 1, marked: false }'",
+   "status_after": "open"
+  },
+  {
+   "ref": "511 (LIVE-E105-01), open",
+   "claim": "open: no reading of the windows' z-index during the trial sequence.",
+   "verdict": "stands",
+   "why": "Searched both copies of LOCAL-REPORT.md and CALIBRATION.md for LIVE-E105-01, R5380, 'z-index' and 'zIndex': no hit. L1's tier 0-1 runs at a table name their failures only by number in the lines read, so whether R5380 ran green there is not recorded - as the reader's not_established says. docs/dev/e105/STATUS.md:58 does call it 'item 508'.",
+   "evidence": "docs/dev/e105/STATUS.md:57-58 'LIVE-E105-01 (audit/AUDIT-1.2.42.md 9.2, item 508) asks the table for all of it, and R5380 run at the table'; grep of 'R5380' and 'z-index' over both report copies: no match",
+   "status_after": "open"
+  },
+  {
+   "ref": "519 (LIVE-E38-01), open",
+   "claim": "open: no reading of a drawn roll across the primary GM's reload with a second GM.",
+   "verdict": "stands",
+   "why": "Searched the e58-local report for the reload road and a second GM: the only reload is the gate's theme reload (:301), item 44's socket drop (:605) and a scratch Assistant (:609, :659) - none a player's drawn roll with the primary reloaded before its return. The second GM account is what the sandbox lacks, as the reader says.",
+   "evidence": "origin/claude/e58-local docs/dev/e58/LOCAL-REPORT.md:605 '| 44 (LIVE-E04-04) | measured, one road | Playwright's offline mode did not close the GM page's WebSocket'; :609 '| 31 (LIVE-E30-06) | measured (pass 2) | scenario 17's B1, C2 and C3 replayed with a scratch Assistant account'",
+   "status_after": "open"
+  },
+  {
+   "ref": "521 (LIVE-E38-03), open",
+   "claim": "open: no reading on copies of old worlds; DRPG_FIXTURES unset on purpose.",
+   "verdict": "stands",
+   "why": "The e58-local report says so twice: DRPG_FIXTURES unset (the environment row) and the fixture items 'not checkable here'; the perf probe could not run for the same reason.",
+   "evidence": "origin/claude/e58-local docs/dev/e58/LOCAL-REPORT.md:601 'each needs a fixture world (an old world copy, a saved browser store, a v1.1.0 world); DRPG_FIXTURES unset on purpose'; :794 'Unset: DRPG_GATE_KEY (the owner's choice), DRPG_API_KEY, DRPG_FIXTURES'",
+   "status_after": "open"
+  },
+  {
+   "ref": "observation: suspected defect from item 506 (a bystander's curtain and day boards under a hidden clock)",
+   "claim": "Suspected, minor to major: transitions.mjs `onClockHeard` starts the curtain's turn hint, the flashes and the day's boards from the clock hooks on every client with no `clockHiddenHere` test, so a bystander may see the clock move during an incident.",
+   "verdict": "weakened",
+   "why": "The road the reader read holds: `registerTransitions` hangs `onClockHeard` on drpgTimeOfDayChanged/drpgPhaseChanged/drpgEclipseChanged; sync.mjs calls those hooks on every client with the world's clock; neither transitions.mjs nor sequence.mjs mentions clockHiddenHere, murderState or the incident (grep), while hud-elapsed.mjs:207 and day-summary.mjs:91 do; clock.mjs:880-889 says the clock moves in private during a murder; eclipse.mjs:185 refuses an Eclipse before Stage 6. But the visible failure is not established. `glass.hintTurn` only sets a hint, which `glassTurn` uses when a recut happens; whether an hour change recuts or recolours a bystander's glass was not traced (the reader says so). Whether a new day or nightfall with a board can be reached during an incident was not traced either. And the question is not new: item 506's own text already says the code reads the clock as it arrives in the browser, so this is the item's question restated with lines, not a new defect. A suspicion with a live check (506's l1), not a finding, and its severity range is not supported.",
+   "evidence": "scripts/transitions.mjs:221-222 'const read = clock => onClockHeard(clock ?? getClock()); Hooks.on(\"drpgTimeOfDayChanged\", clock => read(clock));'; scripts/sync.mjs:449 'timeOfDayHook: (data, news) => import(\"./clock.mjs\").then(() => Hooks.callAll(\"drpgTimeOfDayChanged\", news.clock, data.summary ?? {})),'; scripts/day-summary.mjs:91 'if (clockHiddenHere(murderState())) return;'; scripts/glass.mjs:2522 'export function hintTurn(hint) { turnHint = hint ? { ...hint, at: performance.now() } : null; }'; :2880 'const hint = turnHint && performance.now() - turnHint.at < TURN_HINT_MS ? turnHint : null;'; audit/AUDIT-1.2.42.md:1480 'kod odczytuje zegar tak, jak przychodzi do przeglądarki'",
+   "severity_after": "suspected (not a finding); minor at most until item 506 is read at a table"
+  },
+  {
+   "ref": "observation: two papers point at the wrong item number (nit)",
+   "claim": "docs/dev/e106/STATUS.md:73 calls LIVE-E106-01 'item 508' and docs/dev/e105/STATUS.md:57-58 calls LIVE-E105-01 'item 508'; they are 509 and 511.",
+   "verdict": "stands",
+   "why": "Both lines read as quoted; AUDIT:1484 numbers LIVE-E106-01 509, 508 is LIVE-E102-01, whose own text explains the renumbering.",
+   "evidence": "docs/dev/e106/STATUS.md:73 'the new LIVE-E106-01 (AUDIT 9.2 item 508)'; docs/dev/e105/STATUS.md:58 '(audit/AUDIT-1.2.42.md 9.2, item 508)'; audit/AUDIT-1.2.42.md 508's text 'Numer 508, bo 507 to LIVE-E64-01 z claude/e64'",
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 12,
+  "stands": 10,
+  "weakened": 2,
+  "refuted": 0
+ },
+ "not_established": [
+  "Whether an hour's change during an incident recuts or recolours a bystander's Stained Glass (glass.mjs glassTurn is reached only on a recut), and whether a new day or nightfall with a board can be reached while an incident hides the clock: item 506's table reading settles both.",
+  "Whether v14 constrains a player-Spectator's own drag at a wall and at a closed door as it constrained the GM's plain update (item 497's l1).",
+  "Whether R5380 and R5402 ran green in L1's runs of tiers 0-1 at a table: the report names those runs' failures by number only in the lines read."
+ ]
+}

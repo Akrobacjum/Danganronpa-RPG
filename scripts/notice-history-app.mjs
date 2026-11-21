@@ -190,7 +190,7 @@ class NoticeHistoryApp extends DrpgApp() {
         this.rows = new Map();
         this.live = null;
         this.unlisten = null;
-        this.stale = false;
+        this.anchor = null;
         this.wired = false;
     }
 
@@ -266,7 +266,9 @@ class NoticeHistoryApp extends DrpgApp() {
     _onRender(context, options) {
         super._onRender(context, options);
         this.live?.();
-        this.live = keepLive(this, { region: ".drpg-notices-list", build: () => this.buildList(), after: list => this.dressList(list) });
+        /* `whileEditing`: the list has no field to type in, and its entries' lines and buttons hold nothing (live.mjs), so a
+           change is drawn at once wherever the reader's focus is in it (REFR-01, the line claude/refresh-120). */
+        this.live = keepLive(this, { region: ".drpg-notices-list", build: () => this.buildList(), after: list => this.dressList(list), whileEditing: true });
         this.unlisten ??= onNoticeHistoryChange(() => this.changed());
         if (this.wired) return;
         this.wired = true;
@@ -295,16 +297,18 @@ class NoticeHistoryApp extends DrpgApp() {
             this.query = "";
             this.redraw();
         });
+        // The pill says "new above": gone once the reader is at the top. `scroll` does not bubble either.
+        root.addEventListener("scroll", event => {
+            if (!event.target?.matches?.(".drpg-notices-list") || event.target.scrollTop > 0) return;
+            const pill = root.querySelector(".drpg-notices-new");
+            if (pill) pill.hidden = true;
+        }, true);
         // `toggle` does not bubble; caught on the way down, for every entry the list will ever hold.
         root.addEventListener("toggle", event => {
             if (!event.target?.matches?.("details.drpg-notice-entry")) return;
             if (event.target.open) this.expand(event.target);
             this.sayOnce(event.target);
         }, true);
-        root.addEventListener("focusout", event => {
-            const list = root.querySelector(".drpg-notices-list");
-            if (this.stale && !(event.relatedTarget && list?.contains(event.relatedTarget))) this.redraw();
-        });
     }
 
     async _onClose(options) {
@@ -333,9 +337,10 @@ class NoticeHistoryApp extends DrpgApp() {
         const what = event.target.closest?.("[data-drpg-do]")?.dataset.drpgDo;
         if (what === "markRead") markNoticesRead();
         else if (what === "showNew") {
-            this.redraw();
+            // The new entries are drawn already (`changed`): the pill takes the reader up to them.
             const list = this.element?.querySelector(".drpg-notices-list");
             if (list) list.scrollTop = 0;
+            event.target.closest("[data-drpg-do]").hidden = true;
         } else if (what === "conversation") {
             const id = event.target.closest("details.drpg-notice-entry")?.dataset.drpgKey;
             const userId = this.byId.get(id)?.link?.messenger;
@@ -349,32 +354,28 @@ class NoticeHistoryApp extends DrpgApp() {
      * filter no chip showed pressed (E81 fix r2-H1, review P2).
      */
     redraw() {
-        this.stale = false;
         if (this.element) this.syncChrome(this.element);
         this.live?.refresh?.();
     }
 
     /*
-     * THE HISTORY MOVED (this tab or another). The counts follow at once; the list is drawn again
-     * unless the reader is in it: scrolled down or with focus inside, a list that jumped would take
-     * their place away, so new entries wait behind the pill and a change to the drawn ones waits
-     * until focus leaves the list.
+     * THE HISTORY MOVED (this tab or another): the counts and the list are drawn again at once, wherever the reader is
+     * (the line claude/refresh-120, 21.11.2026; REFR-01; the owner's rule "Zawsze odswiezamy okna od razu przy zmianie").
+     * Until this line the list waited for its reader - new entries behind the pill while it was scrolled or held the
+     * focus, a change to the drawn ones until the focus left it. Now the reader's place is kept instead: the entry at the
+     * top of their view stays where it stood (`buildList` reads it, `dressList` puts it back), the focus comes back to
+     * the line or button it was on (live.mjs), and new entries drawn above a list scrolled down show the pill, which
+     * takes the reader up to them. R7973. Where the entry stands is read off a laid-out screen, so headless only the
+     * scroll's number is measured; on a table it is a check of its own.
      */
     changed() {
         const root = this.element;
         if (!root?.isConnected) return;
         const list = root.querySelector(".drpg-notices-list");
-        const focused = Boolean(list?.contains(document.activeElement));
         const fresh = noticeEntries().some(entry => !this.drawn.has(entry.id));
-        /* A filter the chrome moved is the one thing that does not wait for the reader: the list under it is drawn
-           again at once, or it would go on listing what a chip no longer pressed chose (E81 fix r2-H1, review P2). */
-        if (fresh && list && (focused || list.scrollTop > 0)) {
-            root.querySelector(".drpg-notices-new").hidden = false;
-            if (this.syncChrome(root)) this.redraw();
-        } else if (focused) {
-            this.stale = true;
-            if (this.syncChrome(root)) this.redraw();
-        } else this.redraw();
+        const below = Boolean(list && list.scrollTop > 0);
+        this.redraw();
+        if (fresh && below) root.querySelector(".drpg-notices-new").hidden = false;
     }
 
     /** The chips' counts, the unread banner and the foot, from the history as it is now. Answers whether it moved the filter. */
@@ -416,11 +417,10 @@ class NoticeHistoryApp extends DrpgApp() {
 
     /** The list region (`keepLive` swaps it): newest first, in groups by the time of day, older chapters folded. */
     buildList() {
+        this.anchor = this.readAnchor();
         const all = noticeEntries();
         this.byId = new Map(all.map(entry => [entry.id, entry]));
         this.drawn = new Set(this.byId.keys());
-        const pill = this.element?.querySelector(".drpg-notices-new");
-        if (pill) pill.hidden = true;
         // The region the kit scrolls, with its scroll signal's line for a screen reader (ui-kit.mjs `watchScroll`).
         const list = element("div", "drpg-notices-list drpg-kit-body");
         list.append(kitNode(scrollNote()));
@@ -474,6 +474,31 @@ class NoticeHistoryApp extends DrpgApp() {
             this.expand(details);
             this.sayOnce(details);
         }
+        this.keepAnchor(list);
+    }
+
+    /**
+     * The entry at the top of the reader's view in the list drawn now, and how far below the list's top it stands - read
+     * before a redraw (`buildList`), so `keepAnchor` can stand it where it stood when entries were drawn above it. Null
+     * when the list is at its top (nothing to keep: the newest entries are what the reader sees) or not laid out.
+     */
+    readAnchor() {
+        const list = this.element?.querySelector(".drpg-notices-list");
+        if (!list || list.scrollTop <= 0) return null;
+        const top = list.getBoundingClientRect().top;
+        const entry = [...list.querySelectorAll("details.drpg-notice-entry")].find(node => node.getBoundingClientRect().bottom > top);
+        return entry ? { key: entry.dataset.drpgKey, offset: entry.getBoundingClientRect().top - top } : null;
+    }
+
+    /** The anchor `readAnchor` read, stood where it stood: the list scrolled by what it moved (0 with no layout). */
+    keepAnchor(list) {
+        const anchor = this.anchor;
+        this.anchor = null;
+        if (!anchor) return;
+        const entry = [...list.querySelectorAll("details.drpg-notice-entry")].find(node => node.dataset.drpgKey === anchor.key);
+        if (!entry) return;
+        const moved = entry.getBoundingClientRect().top - list.getBoundingClientRect().top - anchor.offset;
+        if (moved) list.scrollTop += moved;
     }
 
     /**

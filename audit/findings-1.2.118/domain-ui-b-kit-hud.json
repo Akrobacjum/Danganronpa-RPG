@@ -1,0 +1,484 @@
+{
+ "reader": "domain-ui-b-kit-hud",
+ "checkout": "branch claude/audit-119 at b6aa2717; scripts/ as on main b5a29e73 (1.2.118)",
+ "files_read": [
+  {
+   "file": "scripts/ui-kit.mjs",
+   "lines": 1600,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/ui-columns.mjs",
+   "lines": 67,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/ui-hold.mjs",
+   "lines": 56,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/live.mjs",
+   "lines": 920,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/windows.mjs",
+   "lines": 97,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/window-scale.mjs",
+   "lines": 225,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/foundry-windows.mjs",
+   "lines": 510,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/overflow.mjs",
+   "lines": 1354,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/no-scrolling-text.mjs",
+   "lines": 116,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/stat-glyphs.mjs",
+   "lines": 64,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/hud.mjs",
+   "lines": 1717,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/hud-elapsed.mjs",
+   "lines": 324,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/player-status.mjs",
+   "lines": 675,
+   "read": "whole"
+  }
+ ],
+ "count_expected": {
+  "files": 13,
+  "lines": 7725
+ },
+ "count_note": "13 files, 7725 lines, as the scope lists them; each read start to end. 93 literal DRPG keys used in these files and 26 template keys (DRPG.Overflow.name.* and .what.* for the 13 effects, DRPG.Kit.check.* for the 5 states) checked by script against lang/en.json and lang/pl.json: all present in both. audit/findings-1.2.118/base-run.json did not exist when I looked, so no test result is cited as read.",
+ "neighbours_followed": [
+  "scripts/settings.mjs (renderSettingsConfig 1131-1146; the resize and focusout watchers 4485-4510; onCubsChange 3483-3486; incomingTimeOfDay 3974-3977; overflowRules registered 2954-2959)",
+  "scripts/sync.mjs (the overflow kinds 66, 138-142; the kind runs 409, 420; SYNC.overflow runs bar, hud, sheets 529)",
+  "scripts/clock.mjs (refreshSheets 940-955, which no longer renders the HUD; frozenClockOf 670-680)",
+  "scripts/murder-rules.mjs:557-561 (clockAtOpen written at the incident's opening)",
+  "scripts/monocub.mjs (cubRowOf 246-250, tellCubOwners 285-291, patchCubRow 518-522, purseOf 762-769, addToPurse 810-821)",
+  "scripts/gm-team-dialog.mjs (gmTeamButtons 151-196, saveGmTeam 200-232, the keepFresh of the Overflow line 318-333; TAB_BUTTONS 199)",
+  "scripts/sound-panel.mjs (wireMusicMap 247-253; the two keepLive regions 428-451)",
+  "scripts/eclipse.mjs:73-88 (eclipseAllowance, eclipseAllowanceFor)",
+  "scripts/room-tile.mjs:746-760 (registerRoomTile: controlToken is no trigger, a recorded reason)",
+  "scripts/trial-floor-ui.mjs:1684 and 1989 (the only two liveFooter callers)",
+  "scripts/investigation.mjs:2307-2416 and scripts/notice-history-app.mjs:345-355 (the callers of keepLive's refresh)",
+  "scripts/call-effects.mjs:874-906, despair.mjs:863-864, monocub.mjs:818-819 and 841, facilities-gm.mjs:153-154, price.mjs:286-291 (every caller of overflowBlocksHope, for the old DESP-04)",
+  "scripts/config.mjs OVERFLOW (13 effects: 11 states, 2 events; threshold 20, range 6-60), TIMES_OF_DAY, ECLIPSE_FREE_PLACEMENT ['night'], ECLIPSE_MOVES 2 - read by `node -e` import of the module",
+  "lang/en.json and lang/pl.json (the keys above; DRPG.Hud.stillToActTooltip en 686 / pl 683; DRPG.Kit.scrollMore en 1889 / pl 1977)",
+  "audit/findings-1.2.42/ui.md (UI-01..16), core.md (CORE-06, CORE-12), despair.md (DESP-03, DESP-04): the old items on these files",
+  "audit/AUDIT-1.2.42.md 9.2 item 387 (LIVE-E21-01), for the tab-press repositioning"
+ ],
+ "strengths": [
+  "One redraw machine with two written rules and their reasons: never under the cursor (focus, and since E44 C2b a press held until its release, live.mjs:128-130, 245-262), and everything not printed carried across - scroll, open details, dirty fields keyed so a radio group or two same-named fields stay apart (live.mjs:402-449), the shown tab, a save's marker (483-491).",
+  "A field another GM changed while this one was typing is caught, not overwritten: the field keeps the default it was drawn from and says what it was changed to (live.mjs:534-549), so a Save that writes only drawn-equals-world fields refuses it.",
+  "The footer contract is enforced by throws, not by review: a destructive default, a closing word with action 'close' and a callback, a right-side close beside a primary, a default that names no button (ui-kit.mjs:136, 140, 147-148), and a disabled hidden submit for another tab's button so Enter cannot press it (ui-kit.mjs:359-403).",
+  "liveFooter keeps DialogV2's own `options.buttons` in step with a redrawn footer, in both shapes, so a button drawn later still answers (ui-kit.mjs:201-264), and draws nothing when the spec did not change, so the GM's focus stays (235, 240-243).",
+  "Every write of the Overflow's count and stamp is one step of one queue, on the primary GM, with the primary asked again inside the step (overflow.mjs:366-373, 447-453, 766-819); a payment and its arming in one step, the count first, so a failure leaves the counter paid rather than a darkening armed twice (811-818).",
+  "Rot reads each item and the student's death as the GMs hold them, afresh before each point, and never takes the last point (overflow.mjs:899-934); the Earthquake leaves finished and frozen projects alone (947-958).",
+  "The public Overflow card names no count (DRPG.Overflow.cardLeft has no {n} in either language) and is veiled to the GMs and the incident's audience while an incident runs (overflow.mjs:973-1002): the old DESP-03's overflow half is fixed.",
+  "Old CORE-06 is fixed: the stopwatch reads the display clock (hud-elapsed.mjs:297-301), and a reload during an incident falls back to the clock written at its opening (shownClock 166-170; murder-rules.mjs:561).",
+  "Old CORE-12 is fixed: refreshSheets renders sheets only (clock.mjs:940-943), and the HUD's own updateSetting listener skips every key the sync bus redraws (hud.mjs:231-236).",
+  "Old UI-09 and UI-13 are fixed: the sheet box is asked of the document's type, not a class name (window-scale.mjs:163-168), and the sheet's size lives once in config.mjs SHEET_SIZE (window-scale.mjs:9, 113, 173-174).",
+  "The Despair darkening's Hope block is checked by every road that grants Hope before the price is taken (call-effects.mjs:906, despair.mjs:864, monocub.mjs:819, facilities-gm.mjs:154, price.mjs:291), which is what the old DESP-04 asked.",
+  "The HUD touches the DOM only when something changed: body data attributes written only on a change, because three MutationObservers watch them (hud.mjs:519-542); the stopwatch's text written only on a change (hud-elapsed.mjs:256-272); the track band kept as one node from ready (hud.mjs:96-108); the player strip skips a build whose markup is the same (player-status.mjs:220-256).",
+  "A double press of the Eclipse chevron cannot open and close an Eclipse: the latch is a module variable, not the button, released on the row on screen, with a settle window and a ceiling (hud.mjs:1586-1715).",
+  "The Foundry tools wrappers run Foundry's call first in effect and return its answer, each of the module's steps in its own try (foundry-windows.mjs:425-454); the clamp is pure and handles the cluster by cutting the window down where neither move clears (303-321).",
+  "A region's 'Display Scrolling Text' passes only over a token this browser shows (no-scrolling-text.mjs:88-104), so a region set to Anyone tells no player of a crossing their screen keeps dark."
+ ],
+ "findings": [
+  {
+   "id": "domain-ui-b-kit-hud-1",
+   "domain": "UI",
+   "severity": "minor",
+   "category": "flow",
+   "title": "A select that keeps focus after its pick holds its whole live region: another GM's change does not show until the GM clicks elsewhere",
+   "where": "scripts/live.mjs:375-382 (isEditing: every focused SELECT counts as typing), 157-163 (the deferral), 231-241 (the redraw waits for focusout); scripts/sound-panel.mjs:446-451 and 247-253 (the Music tab's rows, selects saved on change, a keepLive region)",
+   "what_happens": "keepLive defers a region's rebuild while focus is inside it on a text field, a textarea, a select or something contenteditable, and redraws at the focusout that leaves the region. E44 C2a took checkboxes and the other pressed inputs off that list because they keep focus after a press (live.mjs:364-373); a select keeps focus after its pick in the same way, and stays on the list. In the Sound window's Music tab each row is a select that saves on change (wireMusicMap), inside the keepLive region `.drpg-music-map` woken by the map's key. A GM who has just picked a playlist leaves focus on that select; every later write of the map - another GM's mapping of another row, the GM's own save echo - is deferred until focus leaves the region. The same holds for every live region that holds a select or a text field, which the owner's standing rule of 20.11.2026 names as a stale window ('redraws only after focus leaves a field').",
+   "evidence": "live.mjs:373  const PRESSED_INPUTS = new Set([\"checkbox\", \"radio\", \"button\", \"submit\", \"reset\", \"color\", \"file\", \"range\", \"image\"]);\nlive.mjs:379      if (tag === \"INPUT\") return !PRESSED_INPUTS.has(String(active.type ?? \"\").toLowerCase());\nlive.mjs:380      if (tag === \"TEXTAREA\" || tag === \"SELECT\") return true;\nlive.mjs:158          if (!force && isEditing(element)) {\nlive.mjs:159              pending = true;\nsound-panel.mjs:446  keepLive(dialog, {\nsound-panel.mjs:447      region: \".drpg-music-map\",\nsound-panel.mjs:250      select.addEventListener(\"change\", () => {\nsound-panel.mjs:251          saveMusicKey(key, select.value, { onState: state => showSaveState(frame, key, state) });",
+   "failure_scenario": "Two GMs have the Sound window's Music tab open; GM A picks a playlist for Daily Life and leaves the mouse there, GM B maps the Class Trial row, and GM A's window goes on showing the old trial playlist until A clicks somewhere outside the rows.",
+   "expected": "A select whose pick is done holds nothing (as a checkbox since E44 C2a), and a region with a text field redraws its other rows at once, keeping the field under the caret - the owner's rule of 20.11.2026 that windows redraw at once.",
+   "confidence": "read",
+   "refutation_tried": "Looked for anything that blurs a select after its change: wireMusicMap (sound-panel.mjs:247-253) does not, and the module's blur helpers (utils.mjs:1075-1093) blur text fields (TEXT_FIELD) and [data-drpg-field] on Enter only. The focusout listener answers only when focus leaves the region (live.mjs:235). keepLive's comment on the music map says 'A select being chosen from holds the redraw (rule 1)' (sound-panel.mjs:443): an open select is being chosen from, a closed one with focus is not, and isEditing cannot tell them apart. The deferral of a focused text field is the file's written rule 1 (live.mjs:34-37), so that half is also listed under by_decision for the owner to weigh against the 20.11 rule. Not run: the harness focuses nothing a person would.",
+   "live_check": "new live check: two GM browsers on the Sound window's Music tab; on GM A pick a playlist in one row and leave focus on it; on GM B change another row; read GM A's row before and after a click outside the table."
+  },
+  {
+   "id": "domain-ui-b-kit-hud-2",
+   "domain": "DESP",
+   "severity": "minor",
+   "category": "flow",
+   "title": "Despair Flow's Save writes the whole Overflow rules form as it was drawn, undoing another GM's rules change and announcing it to the table",
+   "where": "scripts/gm-team-dialog.mjs:155-161 (Save reads readOverflowForm whatever tab was edited), 225 (setOverflowRules), 326-333 (the window's only live part is the Right now line); scripts/overflow.mjs:110-138 (every effect's on and by taken from the form), 150-165 (a difference from the world announced publicly); scripts/sync.mjs:142 and 529 (an overflowRules write redraws the bar, the HUD and the sheets, not this window)",
+   "what_happens": "setOverflowRules takes the threshold and every effect's `on` and `by` from what readOverflowForm read, compares the result with config.mjs and writes the overrides whenever they differ from the stored ones; it does not compare with what the form was drawn from. Despair Flow's Save always hands it the Overflow tab's form (the comment at overflow.mjs:107-108 knows: 'Despair Flow's Save calls this whatever tab was edited'). The form is not live: keepFresh rewrites `.drpg-overflow-now` alone, on the count and the stamp, and an overflowRules write runs SYNC.overflow's bar, hud and sheets only. So with two GMs, a Despair Flow window opened before the other GM changed a rule keeps the old toggles and numbers, and its Save - for a pool name or a student's assignment - writes them back over the other GM's change and posts 'The Overflow's rules have changed: it now fires at {n}.' to the whole table.",
+   "evidence": "gm-team-dialog.mjs:160      overflow: readOverflowForm(dialog.element)\ngm-team-dialog.mjs:225  if (result.overflow) await setOverflowRules(result.overflow);\ngm-team-dialog.mjs:331  watch: { settings: [SETTINGS.overflow], hooks: [\"drpgOverflowChanged\"] }\noverflow.mjs:126            on: edit.on === undefined ? current.effects[key].on : Boolean(edit.on),\noverflow.mjs:136  if (JSON.stringify(sortedKeys(overrides)) !== JSON.stringify(sortedKeys(stored))) {\noverflow.mjs:137      await game.settings.set(MODULE_ID, SETTINGS.overflowRules, overrides);\nsync.mjs:529  [SYNC.overflow]: Object.freeze([\"bar\", \"hud\", \"sheets\"]),",
+   "failure_scenario": "The Assistant GM turns Earthquake off in Despair Flow and saves; the GM, whose Despair Flow has been open since the session began, renames a pool and presses Save: Earthquake is on again, and every player reads a chat card that the Overflow's rules changed.",
+   "expected": "A Save writes only the rules fields this GM changed against what they were drawn from (live.mjs `isDirty` / `drawnOf`, as investigation.mjs's dashboard Save does), or the rules form follows overflowRules while it is open; the window's own note 'none of it changes underneath the GM' (gm-team-dialog.mjs:318-320) does not hold with two GMs.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a redraw of the window on overflowRules: alreadyOpen raises a standing window (gm-team-dialog.mjs:246), keepFresh watches the count's setting and hook only (326-333), and the sync kind for overflowRules redraws no window (sync.mjs:142, 529). Looked for a drawn-value comparison in setOverflowRules: none; `current` is the world now, and the form's every `on` is a Boolean, so no effect is left as 'undefined = unchanged'. readOverflowForm answers null only when a toggle is missing (overflow.mjs:1274), which a drawn tab never is. The threshold alone would pass through when the stepper is emptied (wholeNumber fallback undefined), the toggles never. Not run: no scenario opens Despair Flow on two GMs.",
+   "live_check": "new live check (or a harness probe with gm2): open Despair Flow on GM A; on GM B untick Earthquake and Save; on GM A change a pool name and Save; read game.settings.get('danganronpa-rpg', 'overflowRules') and the chat."
+  },
+  {
+   "id": "domain-ui-b-kit-hud-3",
+   "domain": "CORE",
+   "severity": "minor",
+   "category": "flow",
+   "title": "A Monocub player's status strip does not redraw when its purse changes: the Hope pips stay old",
+   "where": "scripts/player-status.mjs:40-75 (the strip's triggers), 543-551 (the Hope row adds purseOf); scripts/monocub.mjs:246-250 (a player's purse is the copy), 285-291 and 518-522 (a purse write is a store patch and a copy sent), 810-821 (addToPurse writes the row alone); scripts/settings.mjs:3483-3486 (the copy's arrival fires drpgCubsChanged and refreshSheets)",
+   "what_happens": "The strip's Hope row for a Monocub is hopeHeld(actor) + purseOf(actor), and on a player's browser purseOf reads the owner's copy of the Monocubs' record. A purse write (addToPurse, a spend taken from the purse first, a Bet settled) patches the GMs' store and sends the owner a new copy; its arrival fires `drpgCubsChanged` and re-renders the sheets. The strip listens to updateActor, a list of world settings, updateUser, canvasReady and drpgEclipseChanged - not drpgCubsChanged - and refreshSheets does not draw it. So a purse change with no write on the actor leaves the strip's Hope as it was, and a change whose actor write lands before the copy draws the old purse beside the new sheet Hope.",
+   "evidence": "player-status.mjs:545            const held = hopeHeld(actor) + (isMonocub(actor) ? purseOf(actor) : 0);\nplayer-status.mjs:50      Hooks.on(\"updateActor\", actor => {\nplayer-status.mjs:74      Hooks.on(\"drpgEclipseChanged\", () => renderPlayerStatus());\nmonocub.mjs:249      return (cubCopy.read() ?? {})[actor.id] ?? null;\nmonocub.mjs:820      if (take > 0 || also) await patchCubRow(actor.id, { ...(also ?? {}), ...(take > 0 ? { purse: purseOf(actor) + take } : {}) });\nsettings.mjs:3484      import(\"./clock.mjs\").then(m => m.refreshSheets()).catch(() => {});\nsettings.mjs:3485      Hooks.callAll(\"drpgCubsChanged\");",
+   "failure_scenario": "A Monokuma tops up a Monocub's purse with 2 Hope; the Monocub's sheet shows 3 Hope, the strip above the Projects tray still shows 1, and the player, glancing at the strip as the module asks, thinks a Confusion is out of reach.",
+   "expected": "The strip redraws on drpgCubsChanged, as the HUD's Event panel already does for the same record (hud.mjs:244-248).",
+   "confidence": "read",
+   "refutation_tried": "Looked for another road to the strip: renderPlayerStatus is called only from its own registration and the MutationObserver that puts back a missing node (player-status.mjs:42-75, 175); `git grep renderPlayerStatus -- scripts` outside tests finds no other caller; refreshSheets renders character sheets only (clock.mjs:940-955). addToPurse writes no actor field (monocub.mjs:816-821). Not run: the harness's player page would show it with a purse write and a read of #drpg-player-status.",
+   "live_check": "new live check: a player owning a Monocub; the GM puts Hope in its purse (the Students window or a Fuel); read the strip's Hope pips on the player's screen before and after an unrelated actor write."
+  },
+  {
+   "id": "domain-ui-b-kit-hud-4",
+   "domain": "CORE",
+   "severity": "minor",
+   "category": "bug",
+   "title": "A bystander's stopwatch counts through a pause during an incident, then drops back when the incident ends",
+   "where": "scripts/hud-elapsed.mjs:199-218 (clockForDisplay freezes a whole copy, lastPublicClock), 281-288 (elapsedOf freezes only on the copy's pausedAt), 46-56 (the pause is written on the live clock), 295-317 (paintElapsed)",
+   "what_happens": "While an incident hides the clock from a bystander, clockForDisplay hands the HUD this page's copy from before the incident. A pause in the incident is written to the live clock (`pausedAt`, then `pausedTotalMs` at the unpause), never to the copy, so elapsedOf on the copy sees `game.paused` with no `pausedAt` and counts on, and the line is not drawn as paused. When the incident ends the HUD reads the live clock, whose `pausedTotalMs` holds the break, and the minutes fall back by its length. The reload road is right for the pause itself (clockAtOpen carries no pausedAt, so the live one shows through, clock.mjs:675-679). Old CORE-06's main half is fixed; this is what is left of it.",
+   "evidence": "hud-elapsed.mjs:210              lastPublicClock = foundry.utils.duplicate(clock);\nhud-elapsed.mjs:213          return shownClock(clock, { hide: true, last: lastPublicClock });\nhud-elapsed.mjs:286      const end = paused && clock.pausedAt ? Math.max(Number(clock.pausedAt), start) : now;\nhud-elapsed.mjs:317      el.classList.toggle(\"paused\", Boolean(game.paused && clock.pausedAt));\nhud-elapsed.mjs:54              await setClock({ pausedAt: serverNow() });",
+   "failure_scenario": "A player sitting out a murder sees 'On hold' stamped on the clock while the GM pauses for ten minutes, yet the minutes line goes on from 12 to 22 min; after the incident it reads 13.",
+   "expected": "A paused game stops every screen's stopwatch: the frozen copy freezes on game.paused (or takes the live pausedAt and pausedTotalMs, which say nothing of the incident).",
+   "confidence": "read",
+   "refutation_tried": "Checked that the copy is never refreshed while hidden: lastPublicClock is written only when `hide` is false (hud-elapsed.mjs:209-211). Checked that the pause reaches the bystander's browser: pauseGame renders every HUD (hud.mjs:204-208), and game.paused is Foundry's on every client; the HUD's 'On hold' stamp reads game.paused (hud.mjs:382-388). The tests near it hand shownClock a clock (tier 2 E17-T10) and elapsedOf a clock (R996); neither pauses inside an incident on a bystander. Not run.",
+   "live_check": "new live check: a bystander player and the GM; open an incident, pause for two minutes, unpause, close the incident; read the bystander's minutes line at each step."
+  },
+  {
+   "id": "domain-ui-b-kit-hud-5",
+   "domain": "CORE",
+   "severity": "minor",
+   "category": "text",
+   "title": "The Eclipse chevron's tooltip counts the crossings by this time of day's darkening, not by the one the Eclipse will open under",
+   "where": "scripts/hud.mjs:1313-1316 (overflowCrossings(ECLIPSE_MOVES) with the clock not yet in the Eclipse); scripts/overflow.mjs:698-706 (stampReading: before an Eclipse the stamp read is the running time of day's), 621-625 (the Eclipse that closes a time of day is not darkened by it), 1107-1118 (overflowCrossings); scripts/eclipse.mjs:73-79",
+   "what_happens": "Before the GM presses the chevron the clock has `eclipse` false, so overflowIs('darkness') reads the stamp of the time of day now running. The Eclipse about to open reads the stamp of the time of day it opens (stampReading's `upcoming`) and is never shortened by the time of day it closes. So the tooltip says 1 crossing under a Darkness that ends with this time of day while the Eclipse gives 2, and says 2 when a spill has armed Darkness for the next time of day, while the Eclipse gives 1. On the Evening chevron (the Night Eclipse, free placement) it says 'places their token in any room' under an armed Darkness, which turns that Eclipse into freeBecomes' 2 crossings (overflow.mjs:1116).",
+   "evidence": "hud.mjs:1313              : free && index !== TIMES_OF_DAY.length - 1\nhud.mjs:1314                  ? game.i18n.format(\"DRPG.Hud.startEclipseFree\", { time: timeOfDayLabel(incoming) })\nhud.mjs:1316                      { time: timeOfDayLabel(incoming), n: overflowCrossings(ECLIPSE_MOVES) ?? ECLIPSE_MOVES });\noverflow.mjs:702      const now = clock?.eclipse ? upcoming(clock) : stampOf(clock ?? {});\noverflow.mjs:1108      if (!overflowIs(\"darkness\")) return allowance;",
+   "failure_scenario": "The spill reaches X in the Afternoon and arms Darkness for the Evening; the GM hovers the chevron and reads 'Start the Evening Eclipse: 2 crossings', announces two crossings, and the Eclipse hands out one.",
+   "expected": "The tooltip reads the stamp the Eclipse will read (the incoming time of day's, `upcoming`), and the free-placement line says what the darkening makes of it.",
+   "confidence": "read",
+   "refutation_tried": "Checked whether startEclipse arms the upcoming stamp before the tooltip could matter: it does at the press (overflow.mjs:626-631 'startEclipse asks'), after the tooltip was read; addOverflow arms the upcoming time of day ahead whenever the counter reaches X (424, armAhead), so the armed case is ordinary. Checked that the HUD redraws on the stamp: SYNC.overflow runs `hud` (sync.mjs:529), so the tooltip is current - it is the question it asks that is the wrong one. Not run.",
+   "live_check": "new live check: arm Darkness for the next time of day (game.drpg.addOverflow to X in a time of day), hover the HUD's right chevron, then start the Eclipse and read the crossings on a player's strip."
+  },
+  {
+   "id": "domain-ui-b-kit-hud-6",
+   "domain": "UI",
+   "severity": "minor",
+   "category": "ux",
+   "title": "A tab bar fitted by widening its window loses the width at the first tab press, the bar's fitted sizes then laid out in the narrower window",
+   "where": "scripts/ui-kit.mjs:548-559 (the growth written as the element's inline width), 409-413 (every press asks app.setPosition({ height: \"auto\" })), 1509 (drpgWindow hands the fit both the window and the app)",
+   "what_happens": "When the one-line fit cannot make the tabs fit by size, spacing and padding, `grow` widens the window by up to a quarter by writing `win.style.width`, not through the application, and keeps the custom properties it fitted for that width. Every tab press then calls `app.setPosition({ height: \"auto\" })`. An ApplicationV2 applies its own recorded position on setPosition (window-scale.mjs:190-194 says so of every render: 'an inline width set from the render hook was overwritten a moment later'), so the press would put the window back to its recorded width while the bar keeps the one-line fit measured for the wider one: the tabs' equal columns no longer fit and are cut or overflow. settleKitWidth refits only after its own width write on the first render (1453-1455).",
+   "evidence": "ui-kit.mjs:557                  win.style.width = `${Math.ceil(now + by)}px`;\nui-kit.mjs:412          try { app.setPosition({ height: \"auto\" }); } catch (err) {\nui-kit.mjs:1509      if (tabs) wireKitTabs(root, { buttons: tabs.buttons ?? null, always: tabs.always ?? [], onSwitch: tabs.onSwitch ?? null, win: root, app });\nwindow-scale.mjs:191     `position` onto the element after every render, so an inline width set from the render",
+   "failure_scenario": "A GM opens a tabbed kit window whose tabs only fit one line once the window grew; the first press on a tab snaps the window back and the last tab's label is cut at the frame.",
+   "expected": "The growth goes through app.setPosition({ width }) where there is an app (as fitKitWidth and settleKitWidth do), or a press refits the bar after it repositions.",
+   "confidence": "suspected",
+   "refutation_tried": "Looked for a later write that keeps the grown width: fitKitWidth and settleKitWidth use setPosition but run on the first render only (1338-1339, 1444-1460); the press's reposition does not refit; `data-drpg-tab-w0` caps later growth, it does not restore it. What v14's setPosition writes for a width it was not given is not read (no Foundry source here); jsdom lays nothing out, so the fit sets nothing headless; the style sweeps place windows by keepInScreen, which writes only `top` (ui-kit.mjs:434-442). So the road is read to Foundry's door and not through it.",
+   "live_check": "new live check (an extension of LIVE-E21-01): at 1024x768 under both themes, open a kit window whose bar reads data-drpg-tab-fit='one' with data-drpg-tab-w0 set on its root; press another tab; read the window's width and whether every tab label shows whole."
+  },
+  {
+   "id": "domain-ui-b-kit-hud-7",
+   "domain": "CORE",
+   "severity": "nit",
+   "category": "text",
+   "title": "The GM's 'Still to act' tooltip points at a roster on the left that the module no longer draws",
+   "where": "lang/en.json:686 and lang/pl.json:683 (DRPG.Hud.stillToActTooltip), drawn by scripts/player-status.mjs:627-628; scripts/hud.mjs:291-299 ('THE ROSTER IS GONE')",
+   "what_happens": "The GM's strip says how many students still have actions, and its tooltip sends the GM to 'the roster on the left' for which ones. The HUD's note records that roster's removal; nothing in the left column lists students (`git grep ui-left -- scripts` finds the clock, the room tile, popups and the narrow layout), and the GM panel's line, which replaced it, names no one either. The comment over buildTableView (player-status.mjs:586-589) still relies on the same roster.",
+   "evidence": "en.json:686  \"stillToActTooltip\": \"Students with actions left. The roster on the left says which ones.\",\npl.json:683  \"stillToActTooltip\": \"Uczniowie, którym zostały akcje. Lista po lewej pokazuje, którzy.\",\nhud.mjs:292   * THE ROSTER IS GONE.",
+   "failure_scenario": "A GM waiting on the last student hovers 'Still to act 1 / 6', looks left for the roster and finds the clock and the room tile.",
+   "expected": "The tooltip names where the answer is now (the Students window), or says only what the count is.",
+   "confidence": "read",
+   "refutation_tried": "Searched scripts for a student list in #ui-left-column-1 or #ui-left: the HUD, the room tile (room-tile.mjs:221), popup homes (popup.mjs:295) and narrow.mjs only; the Despair panel lists pools, not students; Foundry's own player list names users, not students' actions."
+  },
+  {
+   "id": "domain-ui-b-kit-hud-8",
+   "domain": "UI",
+   "severity": "nit",
+   "category": "text",
+   "title": "The scroll signal tells a screen reader 'There is more below' when the more is to the right",
+   "where": "scripts/ui-kit.mjs:586-599 (watchScroll signals vertical and horizontal overflow alike), 605 (one line for both); lang/en.json:1889, lang/pl.json:1977 (DRPG.Kit.scrollMore)",
+   "what_happens": "watchScroll sets data-drpg-scroll='more' and unhides the screen reader's line when a box has more below or more to the right; every kit table box is watched (wireKit, 1039), and a wide table scrolls sideways. The line says 'There is more below. Scroll to see it.' ('Niżej jest więcej.') in both cases.",
+   "evidence": "ui-kit.mjs:590          const more = box.scrollHeight - box.clientHeight - box.scrollTop > SCROLL_SLACK || box.scrollWidth - box.clientWidth - box.scrollLeft > SCROLL_SLACK;\nui-kit.mjs:592          if (note) note.hidden = !more;\nen.json:1889  \"scrollMore\": \"There is more below. Scroll to see it.\",",
+   "failure_scenario": "A GM using a screen reader on a wide Room setup table hears 'There is more below', scrolls down, and finds nothing new: the hidden columns are to the right.",
+   "expected": "Words that cover both directions, or a line per direction.",
+   "confidence": "read",
+   "refutation_tried": "Checked whether a horizontal-only box ever gets the note: dataTable puts scrollNote() in every table box (ui-kit.mjs:712), and the note is unhidden on either test."
+  }
+ ],
+ "by_decision": [
+  {
+   "what": "A live region is not redrawn while focus is in a text field, textarea, select or contenteditable inside it; it redraws when focus leaves the region (rule 1). The owner's standing rule of 20.11.2026 ('windows redraw at once') names a redraw that waits for focus as a stale window, so the two recorded rules disagree; finding 1 is the select half, where rule 1's own reason ('a caret restored to character 14') does not apply.",
+   "source": "scripts/live.mjs:32-37, 157-163; audit/findings-1.2.118/BRIEF.md (the owner's rule, 20.11.2026)"
+  },
+  {
+   "what": "keepFresh writes in place with no focus rule, and is for nodes nobody edits.",
+   "source": "scripts/live.mjs:826-829"
+  },
+  {
+   "what": "During an incident the Overflow's card is whispered to the GMs and the incident's audience only, veiled, though the darkening it draws reaches everybody at the next time of day.",
+   "source": "scripts/overflow.mjs:973-1002 (E59 on the 1.2.115 line, CHAINS.md B-H2; R7180; the owner's Q-115-1 default)"
+  },
+  {
+   "what": "The Overflow's count reads 0 on a player's browser; the stamp of the darkening is world data every browser reads.",
+   "source": "scripts/overflow.mjs:247-264 (E05 C12, S01-60)"
+  },
+  {
+   "what": "A spill that reaches X while a darkening runs arms nothing; the next boundary's check fires it.",
+   "source": "scripts/overflow.mjs:401-423 (CALL-06; E15 fix e1-G5)"
+  },
+  {
+   "what": "An Overflow with nothing ticked never draws and never pays.",
+   "source": "scripts/overflow.mjs:789-801"
+  },
+  {
+   "what": "The HUD's Eclipse chevron is dimmed and aria-disabled, not disabled, when the start would be refused; the press says why.",
+   "source": "scripts/hud.mjs:1298-1307 (E11 C3, E17 C7, A113-C2-7)"
+  },
+  {
+   "what": "Which student a player with several and none assigned is shown follows the selected token at the next paint; a selection is no trigger of its own (the room tile's note; the strip and the clock share viewerActor).",
+   "source": "scripts/room-tile.mjs:748-752; scripts/hud.mjs:1444-1448"
+  },
+  {
+   "what": "The slider scales Foundry's own windows and the sheet as well as the module's.",
+   "source": "lang/en.json DRPG.Settings.uiScale.hint ('and with them Foundry's windows and the sheet'); scripts/window-scale.mjs:44-55, 222-223"
+  },
+  {
+   "what": "A player has no scene controls; the Tokens layer is put back on every canvas and controls render, at most once a second, leaving templates and notes alone.",
+   "source": "scripts/foundry-windows.mjs:9-14, 189-215 (the owner's Q4 of 11.10)"
+  },
+  {
+   "what": "Every scrolling caption is suppressed except a region's 'Display Scrolling Text', told by its class name on the call stack - so in a browser that writes the method alone the region's caption stays suppressed.",
+   "source": "scripts/no-scrolling-text.mjs:29-37, 106-116 (D44e = 1; LIVE-E51-05)"
+  },
+  {
+   "what": "A Night Eclipse keeps its free placement.",
+   "source": "scripts/player-status.mjs:372-373 (D197, 01.11.2026)"
+  },
+  {
+   "what": "A disabled footer button carries a title, not Foundry's data-tooltip.",
+   "source": "scripts/ui-kit.mjs:110-116 (E46-C1f; LIVE-E102-01)"
+  }
+ ],
+ "comments_against_code": [
+  {
+   "where": "scripts/window-scale.mjs:25-43",
+   "comment_says": "'THE OTHER THEME'S SWITCHES ARE NOT SHOWN ... HIDDEN, not greyed ... Off the SELECT, not the stored setting' - the rows of the other theme's switches are hidden in Foundry's settings window as the theme select changes.",
+   "code_does": "Nothing in window-scale.mjs touches a setting row; the hiding went with E49 A1, when every setting became config: false (settings.mjs:1138-1141 says so). The block is a stray from the E54 W3 move."
+  },
+  {
+   "where": "scripts/hud.mjs:1354-1369",
+   "comment_says": "'WHOSE TURN IT IS ... the two facts ... go on the HUD ... Read straight from the setting rather than through murder.mjs ... importing the murder engine here would close that loop.'",
+   "code_does": "No incident row is built in hud.mjs (it is the Event panel's since 1.2.47, hud.mjs:392-404), and hud.mjs imports murderState from murder.mjs statically (48-49: 'Static, and safe')."
+  },
+  {
+   "where": "scripts/hud.mjs:1334-1352",
+   "comment_says": "'HOW LONG THIS TIME OF DAY HAS RUN ... Runs off one shared interval for the whole HUD'",
+   "code_does": "No code follows the heading; the stopwatch is hud-elapsed.mjs's since E41 C7b (hud-elapsed.mjs:221-254)."
+  },
+  {
+   "where": "scripts/hud.mjs:1592-1593",
+   "comment_says": "'`renderHud` calls `hud.replaceChildren()`'",
+   "code_does": "renderHud removes every child but the track band (hud.mjs:497-499), so the band is not replaced (E23 C2a)."
+  },
+  {
+   "where": "scripts/hud-elapsed.mjs:262-265",
+   "comment_says": "The elapsed line is written 'a ten-second interval at rest and a one-second one for the whole length of a Class Trial'.",
+   "code_does": "The interval is 10 s always (236), and a Class Trial has no elapsed line at all (showsStopwatch, 290-293; hud.mjs:602-603)."
+  },
+  {
+   "where": "scripts/overflow.mjs:675, 792, 803-805",
+   "comment_says": "'One of eight happens', 'A GM who has unticked all eight', 'eight equal chances'.",
+   "code_does": "OVERFLOW.effects holds 13 (11 darkenings and 2 one-offs, since E93 C6's five room actions); the comments at 127 and 391 already say thirteen."
+  },
+  {
+   "where": "scripts/overflow.mjs:14-19",
+   "comment_says": "'WHAT THIS FILE OWNS is the counter ... It owns no effect of its own'",
+   "code_does": "It carries out Rot and the Earthquake itself (rotEverything 899-934, shakeProjects 947-958) and the Despair darkening's Hope block is its own preUpdateActor hook (1328-1354)."
+  },
+  {
+   "where": "scripts/player-status.mjs:586-589",
+   "comment_says": "'the roster panel top left already spells out who is who, one row per student'",
+   "code_does": "No such roster is drawn (hud.mjs:291-299, 'THE ROSTER IS GONE'); see finding 7."
+  },
+  {
+   "where": "scripts/ui-columns.mjs:23",
+   "comment_says": "'No game logic here and no localised text'",
+   "code_does": "choiceRowHtml localises DRPG.Action.waitsForGm itself (60)."
+  },
+  {
+   "where": "scripts/window-scale.mjs:1-2",
+   "comment_says": "'The slider scaling of a module window box'",
+   "code_does": "scaleWindow stands on renderApplicationV2 and renderApplication (222-223) and scales every numeric-width window, Foundry's and other modules' too, as the uiScale hint says."
+  },
+  {
+   "where": "scripts/gm-team-dialog.mjs:318-320 (neighbour)",
+   "comment_says": "The rules of the window '- the overflow rules - ... none of it changes underneath the GM'.",
+   "code_does": "Another GM's Save changes them underneath; the window does not follow and its Save writes them back (finding 2)."
+  }
+ ],
+ "hygiene": {
+  "functions_over_300": [],
+  "functions_150_to_300": 3,
+  "functions_150_to_300_list": [
+   "renderHud, hud.mjs:406-627 (222 lines, most of them comments)",
+   "keepLive, live.mjs:106-295 (190)",
+   "buildTimeRow, hud.mjs:1180-1332 (153)"
+  ],
+  "functions_100_to_150": [
+   "buildPlayerView, player-status.mjs:432-556 (125)"
+  ],
+  "count_method": "a brace counter over top-level function declarations, strings and line comments stripped (/tmp/domain-ui-b-kit-hud/fnlen.py); methods of a class and nested functions not counted separately",
+  "duplicated_helpers": [
+   "Two 'is the person typing' predicates: live.mjs `isEditing` (375-382: a focused input counts unless it is one of the pressed types) and foundry-windows.mjs `escapeFallsToWindows` (367-368: any input, textarea, select or contenteditable, a checkbox included).",
+   "Two rules for an attribute name a builder takes: ui-kit.mjs ATTR_NAME (730, no `on...`) for rowAttrs, toggle, chip, iconButton, roleButton, formGrid; and stepper's own `/^[a-z][a-z0-9-]*$/` (826), which lets an `on...` name through.",
+   "player-status.mjs `marks` (329-340) and `field` (565-580) build the same labelled box; only the value node differs.",
+   "`element instanceof HTMLElement ? element : element?.[0]` twice in window-scale.mjs (20, 131), and again in settings.mjs:1136 (the old UI hygiene count's nine sites).",
+   "windows.mjs says the same thing twice about the left edge no longer being part of the width (137-147 and 179-185).",
+   "Three askPrimaryTo* helpers in overflow.mjs (293-299, 311-316, 330-336) and clearOverflowAsGm's own copy (545-553) repeat one shape: GM, not primary, primary elsewhere, import gm-bridge, ask, read .ok."
+  ],
+  "dead_code": [
+   "Exports with no importer in scripts/, the tests, audit/harness or tools: ui-kit.mjs FOOTER_ROWS_CLASS (158) and HELP_CLASS (1231); hud.mjs conferHudLine (1174, used in the file); player-status.mjs syncEffectsWidget (96, used in the file). Counted with `git grep -w` over each export name.",
+   "hud.mjs:1334-1352 and 1354-1369: two section headings with no code under them (see comments_against_code).",
+   "keepFresh watchers are not entered in `living` (live.mjs:837-868), so diagnoseLive and liveRegions (R1317) do not see them."
+  ],
+  "magic_numbers": [
+   "8 px from the screen's edges, written four ways: ui-kit.mjs keepInScreen (439), kitWidth's `vw - 16` (1423), foundry-windows.mjs WINDOW_MARGIN (136), and 48 px off the screen in window-scale.mjs scaledBox (70-71) with 40 in callsHeight (91).",
+   "windows.mjs windowWidthFor: 94 % of the screen (192), a 1400 px fallback cap (191) against WINDOW_WIDTHS.matrix's 1800 (ui-kit.mjs:1374), 2 px slack (167), a 1200 px fallback viewport (168).",
+   "live.mjs HOLD_MAX_MS 5000 (82), the trial console's own 5 s typed again in trial-floor-ui.mjs by the comment's word.",
+   "hud.mjs: the track band's 3000 ms interval (184-186), 17 characters for a long phase stamp (343), 22 and 32 for a long campaign name (360-361), CONTROL_SETTLE_MS 400 and CONTROL_CEILING_MS 10000 (1625-1626), 80 px fallback slide (988), 24 px phase slide (1046), 6 px under the clock (721).",
+   "hud-elapsed.mjs: the 10 s period inline (236); CLOCK_BEAT_MS 60000 is named.",
+   "foundry-windows.mjs: the homes {right: 420, y: 72} and {x: 379, y: 187} (132-133, read at 1920x1080 by the design, not measured here) and 1000 ms between Tokens layer asks (207).",
+   "player-status.mjs: 12 pips before the number (305).",
+   "ui-kit.mjs: SCROLL_SLACK 8, TAB_FLOOR 11, GROWTH 0.25 - each with its reading in the comment beside it."
+  ],
+  "listeners_not_released": [
+   "drpgWindow's dressFrame drops wireKit's stop function (ui-kit.mjs:1510), and dressFrame runs again on every 'render' event of the DialogV2 (1330-1333): each run adds another scroll listener and ResizeObserver to the body and table boxes (watchScroll is not idempotent, 586-599), and none is disconnected at close. DrpgApp does release them (1587-1588, 1594). Whether the 'render' event also fires for the first render after this listener is added (a double wiring from the start) depends on Foundry's dispatch order, not read here."
+  ],
+  "latent_traps": [
+   "liveFooter redraws a footer's buttons without the per-tab hiding and disabling wireKitTabs applies (ui-kit.mjs:229-238 against 384-403); no window has both today (liveFooter's callers, trial-floor-ui.mjs:1684 and 1989, have no tab `buttons`), but a tabbed window that redraws its footer would bring back the hidden-submit Enter trap the kit's header warns of."
+  ]
+ },
+ "hints_for_other_passes": {
+  "dead_controls": [
+   "HUD left chevron during an Eclipse (hud.mjs:1235-1241): drawn enabled and not held, its tooltip 'An Eclipse is running. End it first.'; the press calls rewindTimeOfDay - check it refuses with words and does not rewind.",
+   "Despair Flow's Overflow tab: the 13 'on' toggles and 9 'by' steppers are saved only by the window's Save, with the rest of the window (gm-team-dialog.mjs:225); no control of the tab saves on its own."
+  ],
+  "stale_windows": [
+   "Despair Flow (drpg-window-gmteam): the rules form does not follow overflowRules (finding 2); the pool names and the assignments tabs ride the same Save - worth the same two-GM check.",
+   "Sound window, Music tab: a select keeps the region held after its pick (finding 1).",
+   "The player status strip: no redraw on drpgCubsChanged (finding 3) or on a token selection (by decision).",
+   "keepLive stops for good when a build throws once (live.mjs:198-203) or when its region is missing at a rebuild (147): the window then stays as drawn until reopened, with one error in the log.",
+   "The HUD redraws in full - every row, renderEvents and drpgHudRendered - on every module world setting the sync bus does not name, on every client (hud.mjs:231-236), unlike the strip's list since E88 C4 (player-status.mjs:656-675): for the perf pass, scenario 86's counters."
+  ]
+ },
+ "not_established": [
+  {
+   "item": "Finding 6 (suspected): whether a v14 ApplicationV2 puts a window back to its recorded width on setPosition({ height: 'auto' }) after the kit widened it by inline style.",
+   "why": "No Foundry source on this machine; jsdom lays nothing out; the style sweeps place windows by keepInScreen.",
+   "live_check": "new live check (beside LIVE-E21-01)",
+   "l1": {
+    "what": "A tab bar the one-line fit widened: does the window keep its width after a tab press, and do the labels stay whole?",
+    "recipe": [
+     "Set the browser to 1024x768.",
+     "Open a kit window with tabs whose root carries data-drpg-tab-w0 after opening (Room setup or Item tables at a narrow width).",
+     "Read app.element.getBoundingClientRect().width and nav.drpg-tabs dataset.drpgTabFit.",
+     "Press another tab; read the width again and look at every tab label."
+    ],
+    "clients": "GM x1",
+    "theme": "both",
+    "settles_if": "Settled as a defect if the width falls back and a label is cut; settled as no defect if the width holds after the press.",
+    "priority": "minor"
+   }
+  },
+  {
+   "item": "Findings 1-5 were read, not run.",
+   "why": "The base run was not written when I looked, and no scenario drives these roads: two GMs in the Sound window or Despair Flow, a purse write with a Monocub player watching the strip, a pause inside an incident on a bystander, a Darkness armed before the chevron is read.",
+   "live_check": "each finding's own live_check; findings 2 and 3 can also be harness probes (gm2, a player page)",
+   "l1": {
+    "what": "The four headless-shaped findings at a table: a held select, a stale rules form, a stale strip, a bystander's stopwatch through a pause.",
+    "recipe": [
+     "Two GMs: Sound window Music tab on both; GM A picks a playlist and leaves focus; GM B maps another row; read A's rows.",
+     "Two GMs: Despair Flow on GM A open; GM B unticks Earthquake and saves; GM A renames a pool and saves; read overflowRules and the chat.",
+     "A Monocub's player watching the strip; the GM tops up the purse; read the strip's Hope.",
+     "A bystander player; the GM opens an incident, pauses two minutes, unpauses, closes it; read the bystander's minutes line at each step."
+    ],
+    "clients": "GM x2, players x2 (one owning a Monocub, one outside the incident)",
+    "theme": "default",
+    "settles_if": "Each settles as a defect if the screen shows what the finding says, and as no defect if the window, strip or line follows at once.",
+    "priority": "minor"
+   }
+  },
+  {
+   "item": "Whether a DialogV2 kit window's 'render' event listener (ui-kit.mjs:1330-1333) also runs on the first render, doubling the scroll watchers from the start.",
+   "why": "Foundry's order of the options.render callback and the 'render' event is not read here.",
+   "live_check": "new live check",
+   "l1": {
+    "what": "Is a kit DialogV2 dressed twice on its first render?",
+    "recipe": [
+     "Open any kit window (the GM panel's Despair Flow).",
+     "In the console, count listeners on .drpg-kit-body with getEventListeners($0) in Chromium devtools (scroll)."
+    ],
+    "clients": "GM x1",
+    "theme": "default",
+    "settles_if": "Two scroll listeners on a fresh window settle it as a double wiring; one settles it as once.",
+    "priority": "nit"
+   }
+  },
+  {
+   "item": "Whether a region's 'Display Scrolling Text' shows at all on v14 (the class name on the stack), and only over a shown token.",
+   "why": "no-scrolling-text.mjs reads the call stack for the class name, from memory of v12-v13; v14 is unread.",
+   "live_check": "LIVE-E51-05",
+   "l1": {
+    "what": "A region's scrolling text on v14, over a shown and a hidden token.",
+    "recipe": [
+     "Give a region the Display Scrolling Text behaviour, visible to Anyone.",
+     "Move a player's own token through it; read the player's screen.",
+     "Move a token the player's screen keeps dark through it; read the player's screen."
+    ],
+    "clients": "GM x1, player x1",
+    "theme": "default",
+    "settles_if": "Shown for the own token and not for the dark one settles it; no caption for either settles the stack test as failing on v14.",
+    "priority": "nit"
+   }
+  },
+  {
+   "item": "What the HUD's full redraw on every unsynced module world setting costs a table.",
+   "why": "Counts are the harness's (scenario 86, perf-counters), frames are the table's.",
+   "live_check": "LIVE-E88-01 (fps)",
+   "l1": {
+    "what": "The HUD's redraw cost per world setting write.",
+    "recipe": [
+     "At the table run await game.drpg.fps({ toChat: false }) at rest.",
+     "Run it again while a GM writes a module world setting the sync bus does not name, a few times."
+    ],
+    "clients": "GM x1, players x4",
+    "theme": "both",
+    "settles_if": "A frame time that moves with the writes names the HUD; none settles it as harmless.",
+    "priority": "nit"
+   }
+  }
+ ]
+}

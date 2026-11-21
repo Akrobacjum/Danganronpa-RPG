@@ -1,0 +1,595 @@
+{
+ "reader": "old-1.2.42-text",
+ "source": "audit/findings-1.2.42/text.md: the 19 findings TEXT-01..TEXT-19 and the 5 numbered items of 'Live checks recommended' (ids TEXT-LC1..TEXT-LC5); what the old report said of each from audit/AUDIT-1.2.42.md sections 2, 3, 4, 5, 7 and 9",
+ "read": [
+  {
+   "file": "audit/findings-1.2.42/text.md",
+   "lines": 377,
+   "how": "in full"
+  },
+  {
+   "file": "audit/AUDIT-1.2.42.md",
+   "lines": 1666,
+   "how": "sections 11.3, 3 (271-347), 5 tasks 11-14 (509-545), 7 (577-596), 9 to 9.1a (611-708), item 362; every line naming TEXT- by grep"
+  },
+  {
+   "file": "lang/en.json",
+   "lines": 7534,
+   "how": "by key, through scripts and grep; not in full"
+  },
+  {
+   "file": "lang/pl.json",
+   "lines": 9375,
+   "how": "five keys by grep"
+  },
+  {
+   "file": "scripts/config.mjs",
+   "lines": 5646,
+   "how": "1850-1866, 4745-4775, the cleanupFailed row, and greps for the rule fields"
+  },
+  {
+   "file": "scripts/events.mjs",
+   "lines": 1133,
+   "how": "120-240"
+  },
+  {
+   "file": "scripts/settings.mjs",
+   "lines": 4662,
+   "how": "3659-3730 (incidentSeats, incidentWitness)"
+  },
+  {
+   "file": "scripts/incident-store.mjs",
+   "lines": 1942,
+   "how": "454-495"
+  },
+  {
+   "file": "scripts/explain.mjs",
+   "lines": 520,
+   "how": "100-128"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "lines": 2547,
+   "how": "1-20, 150-163, 798-808, 876-897, 925-945, and every reader of five keys by grep"
+  },
+  {
+   "file": "scripts/key-remnants.mjs",
+   "lines": 1319,
+   "how": "950-975, 1015-1050"
+  },
+  {
+   "file": "scripts/handover.mjs",
+   "lines": 1036,
+   "how": "40-160, 196-362"
+  },
+  {
+   "file": "scripts/bridge-asks.mjs",
+   "lines": 1344,
+   "how": "920-934"
+  },
+  {
+   "file": "scripts/bridge-runs-acts.mjs",
+   "lines": 1065,
+   "how": "528-552"
+  },
+  {
+   "file": "scripts/murder-rules.mjs",
+   "lines": 4746,
+   "how": "895-935, 2540-2560"
+  },
+  {
+   "file": "scripts/vote.mjs",
+   "lines": 1108,
+   "how": "1070-1095"
+  },
+  {
+   "file": "scripts/verdict.mjs",
+   "lines": 1469,
+   "how": "195-212"
+  },
+  {
+   "file": "scripts/gm-students.mjs",
+   "lines": 686,
+   "how": "112-130"
+  },
+  {
+   "file": "scripts/gm-panel.mjs",
+   "lines": 1152,
+   "how": "296-345"
+  },
+  {
+   "file": "scripts/diagnostics.mjs",
+   "lines": 2358,
+   "how": "1410-1445, 1505-1530"
+  },
+  {
+   "file": "scripts/migrate.mjs",
+   "lines": 1802,
+   "how": "390-420, 1580-1602"
+  },
+  {
+   "file": "scripts/action-tamper.mjs",
+   "lines": 260,
+   "how": "60-85"
+  },
+  {
+   "file": "scripts/action-briefing.mjs",
+   "lines": 355,
+   "how": "225-247 and the threshold lines by grep"
+  },
+  {
+   "file": "scripts/action-project.mjs",
+   "lines": 1378,
+   "how": "1335-1375"
+  },
+  {
+   "file": "scripts/action-pipeline.mjs",
+   "lines": 1125,
+   "how": "995-1020"
+  },
+  {
+   "file": "scripts/cleanup.mjs",
+   "lines": 3005,
+   "how": "1425-1462"
+  },
+  {
+   "file": "scripts/sheet-fit.mjs",
+   "lines": 462,
+   "how": "280-345"
+  },
+  {
+   "file": "scripts/call-pickers.mjs",
+   "lines": 579,
+   "how": "line 310 by grep"
+  },
+  {
+   "file": "scripts/room-tile.mjs",
+   "lines": 771,
+   "how": "three lines by grep"
+  },
+  {
+   "file": "scripts/season-setup.mjs",
+   "lines": 1640,
+   "how": "by grep only"
+  },
+  {
+   "file": "scripts/tests-tier0.mjs",
+   "lines": 26270,
+   "how": "R84 (4864-4909), R1157 (19812-19880), R1448 (22407-22425), and test names by grep"
+  },
+  {
+   "file": "scripts/tests-tier1.mjs",
+   "lines": 63672,
+   "how": "R6904 (38868-38885), and test names by grep (R203, R307, R1160, R2067, R2080, R3969, R5471)"
+  },
+  {
+   "file": "scripts/tests-tier2.mjs",
+   "lines": 104280,
+   "how": "56560-56580, 88800-88822, and test names by grep"
+  },
+  {
+   "file": "audit/harness/scenarios/13-murder-signals.mjs",
+   "lines": 1884,
+   "how": "95-150, 225-237, and its check titles"
+  },
+  {
+   "file": "audit/harness/README.md",
+   "lines": 745,
+   "how": "three scenario rows by grep"
+  },
+  {
+   "file": "tools/check.mjs",
+   "lines": 1963,
+   "how": "28-46, 196-212, 433-475"
+  },
+  {
+   "file": "docs/dev/text-batch-B08.json",
+   "lines": 10695,
+   "how": "the entry of DRPG.Handover.alreadyHasIt"
+  },
+  {
+   "file": "docs/dev/e71/NEEDSCODE.md",
+   "lines": 303,
+   "how": "rows 39 and S5"
+  },
+  {
+   "file": "docs/dev/e71/STATUS-B.md",
+   "lines": 197,
+   "how": "lines naming B08 and the owner, by grep"
+  }
+ ],
+ "count_expected": 24,
+ "count_note": "grep -c '^### ' audit/findings-1.2.42/text.md gives 19 (TEXT-01..TEXT-19), each one item. The file has a section 'Live checks recommended' with 5 numbered items, added as TEXT-LC1..TEXT-LC5: 19 + 5 = 24. It has no section 'Comments contradicting code'; its 'Hygiene metrics' ends with four stale comments, un-numbered, of which two are TEXT-01's and TEXT-18's own (both corrected, see those items) and two were not settled here (config.mjs REST header, the SFX count paragraph).",
+ "items": [
+  {
+   "id": "TEXT-01",
+   "title": "The Tamper menu's frame-up row said 'Needs 18 or more' while the roll was scored against 15 (DRPG.Tamper.frameHint)",
+   "old_severity": "major",
+   "old_state": "fixed in 1.2.43 (AUDIT-1.2.42.md 2.2, row TEXT-01/02/04/05/06/07/08/10/15; commit 90c17021, first tagged as v1.2.44): '{n}' from config",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "lang/en.json:5550 reads 'Plant a false Remnant pointing at another student with {n}+; a miss with Despair plants nothing.' and its one caller, scripts/action-tamper.mjs:78, fills n from CLEANUP.actions.misleadingTrail.threshold (scripts/config.mjs:4767, threshold: 15). The stale 'flat 18' comment on ACTIONS.tamper is now a note of its own history (config.mjs:1857-1862). The briefing's second copy, DRPG.Action.dcFrame, reads the same field (action-briefing.mjs:350).",
+   "pinned_by": "R84 (tier 0, tests-tier0.mjs:4864; lines 4903-4909 fail on a number of the tile's own, on '18', on 'either way' and on a hint without {n}); R307 (tier 1, tests-tier1.mjs:11375, line 11418)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Scanned every DRPG value of lang/en.json for 15 or 18 beside trail/frame/tamper/misleading (script rows.py and an inline scan): none typed; grepped action-tamper.mjs and cleanup*.mjs for a literal 18: none.",
+   "note": "The same class of text - a rule number typed into a sentence - still stands once in a GM note: DRPG.Vault.stashesNote says '(16+)' (lang/en.json:3144; config.mjs:1619 stashThreshold: 16, equal today), recorded as an open question in docs/dev/e71/NEEDSCODE.md row S5 (Q-NC-1)."
+  },
+  {
+   "id": "TEXT-02",
+   "title": "The New Rule dialog said 'Twelve Despair buys a permanent change' while the Call costs 9 (DRPG.Calls.newRuleNote)",
+   "old_severity": "major",
+   "old_state": "fixed in 1.2.43 (AUDIT-1.2.42.md 2.2 and 3.1: '{cost}'; commit 90c17021); also in section 9's list of 34 ids closed under other names",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "lang/en.json:4192 reads '{cost} Despair buys a permanent change to the game. Make it count.' and its one caller, scripts/call-pickers.mjs:310, passes cost: DESPAIR_CALLS.newRule.cost (scripts/config.mjs:2921, cost: 9).",
+   "pinned_by": "none found that holds the number to the Call's cost (R1157, tests-tier0.mjs:19812, only lists the key among sentences that put a count before a noun)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Scanned lang/en.json for 'twelve' or 'nine' beside Despair or rule: none; grepped scripts/ for other readers of the key: call-pickers.mjs:310 alone.",
+   "note": ""
+  },
+  {
+   "id": "TEXT-03",
+   "title": "During the opening of a direct murder the victim's own Event panel showed the card 'A murder is under way', against the rule that the victim is told nothing",
+   "old_severity": "major",
+   "old_state": "fixed in 1.2.43 (AUDIT-1.2.42.md 2.1 row TEXT-03 and 3.4): the cast from incidentCast, the direct murder's victim does not see the card",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/events.mjs:171-172 (openingCard) lets a non-GM through only when they own a seat of incidentSeats(cast, state, { stage: 'openingRoll' }); scripts/settings.mjs:3666 seats, at the opening of a direct murder, the killer and a third on the killer's side only - the victim is seated from 'incident' (line 3667). Since E06 C2 the victim's browser is not sent the cast at the opening either (scripts/incident-store.mjs:454-457 castOwners, one audience table), so it holds no names to draw. The HUD's row, the red edges and the murder music ask the same predicate (settings.mjs:3707 incidentWitness; hud.mjs:572, murder-music.mjs:340, events.mjs:213).",
+   "pinned_by": "R203 (tier 1, tests-tier1.mjs:8386, every cell of incidentSeats); scenario 13-murder-signals (layer ci), checks 'opening: a direct murder's victim holds no cast, no seat, no red edges, no murder music and no opening card (D6)' and 'opening: the victim is indistinguishable from a bystander' (13-murder-signals.mjs:229-237)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for the sibling surface the old pitfall named (the HUD's incident row) and for a second sender of the cast: all of them read incidentSeats / incidentWitness; an indirect murder's victim still sees the card, which is the rule (they roll).",
+   "note": "Closed twice: 90c17021 (1.2.44) gated the card, E06 C2 (27.09.2026, 1.2.65) stopped sending the victim the cast. The card's sub line for a participant still names the victim and the room (events.mjs:183), which the killer knows."
+  },
+  {
+   "id": "TEXT-04",
+   "title": "The player's 'Where things stand' window said an Eclipse lets everyone move once, anywhere on the map; only the Night Eclipse is free placement (DRPG.Explain.phase.eclipse)",
+   "old_severity": "major",
+   "old_state": "fixed in 1.2.43 (AUDIT-1.2.42.md 2.2 and 3.1); in section 9's list of 34 ids closed under other names",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "lang/en.json:6497 reads 'Everyone places their token, {reach} or anywhere at night, and nobody sees who went where...'; scripts/explain.mjs:125-127 (eclipseExplanation) fills {reach} from the plural family eclipseReach ('up to {n} connected rooms') with overflowCrossings(ECLIPSE_MOVES) ?? ECLIPSE_MOVES, so the Overflow's darkness lowers the number as movement counts it (config.mjs:573 ECLIPSE_MOVES = 2, :590 ECLIPSE_FREE_PLACEMENT = ['night']).",
+   "pinned_by": "R1160 (tier 0, tests-tier0.mjs:20293; line 20349 holds eclipseExplanation to overflowCrossings(ECLIPSE_MOVES))",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Checked the sentence's only builder (explain.mjs:126) and that the number is not typed; the old pitfall (darkness lowers the allowance) is covered by the same read.",
+   "note": ""
+  },
+  {
+   "id": "TEXT-05",
+   "title": "DRPG.Investigation.createNote said 'Apply places that Key Remnant ... at the centre of the region'; the button is Save and the point is random",
+   "old_severity": "minor",
+   "old_state": "fixed in 1.2.43 (AUDIT-1.2.42.md 2.2 and 3.1: 'Save ... somewhere inside the room'); in section 9's list of 34 ids closed under other names",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "lang/en.json:3076 now reads 'Place puts a row's Key Remnant on the map at once, in the room you pick: reinforced, tied to the crime, somewhere inside the room ... A row already on the map has no Place button.' The planner draws that button per row, only for a row not on the map (scripts/investigation.mjs:893-895, label DRPG.Investigation.place = 'Place'), prints the note at investigation.mjs:939, and the placing road takes randomPointIn(region, scene) (scripts/key-remnants.mjs:955, 1037).",
+   "pinned_by": "none found for the sentence; the Place button itself is pressed by a tier 2 test (tests-tier2.mjs:31071) and drawn in R2067's planner (tests-tier1.mjs:52911)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the row builder to see whether a placed row still shows a button the note denies (it does not: the 'here' branch draws none) and randomPointIn's fallback (the centre only after a bounded number of misses or with no bounds).",
+   "note": "The sentence changed twice: 'Save' in 90c17021, then 'Place' when the planner got a button per row."
+  },
+  {
+   "id": "TEXT-06",
+   "title": "The Sound panel's row for a failed clean-up said a Despair failure 'adds an Obvious trace'; both failures leave a Faint Tamper Remnant (Subtle or Evident)",
+   "old_severity": "minor",
+   "old_state": "fixed in 1.2.43 (AUDIT-1.2.42.md 2.2 and 3.1); in section 9's list of 34 ids closed under other names",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/config.mjs:5324-5328 (SFX_EVENTS.cleanupFailed): 'A Tamper, Erase a Trace, Reshape a Trace, Misleading Trail or Move the Body roll misses. Heard by the player who rolled it.' The hint no longer states what a failure leaves at all; the rule is at config.mjs:4596-4597 (subtle / evident, faint).",
+   "pinned_by": "none found for the hint's words; R7165 (tier 0, tests-tier0.mjs:26014) holds which cards carry the cleanupFailed sound",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the two places that attach the sound (cleanup.mjs:1849, 2592: on the result card of the roller) against 'heard by the player who rolled it'; v1.2.44's config.mjs:3902 held the intermediate wording.",
+   "note": ""
+  },
+  {
+   "id": "TEXT-07",
+   "title": "DRPG.Murder.killerChooses offered '2 Health, 2 Sanity, or 1 of each'; the dialog and the code know two options only",
+   "old_severity": "minor",
+   "old_state": "fixed in 1.2.43 (AUDIT-1.2.42.md 2.2 and 3.1: two options); in section 9's list of 34 ids closed under other names",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "lang/en.json:2867 reads 'Critical - the killer chooses where both points come off: Health or Sanity.' The dialog offers two answers (scripts/murder-rules.mjs:909-926: 'Both off Health', 'Both off Sanity'; a closed window is Health) and the hit is { [choice]: def.damage?.criticalAmount ?? 2 } (murder-rules.mjs:2555; config.mjs:4069 criticalAmount: 2).",
+   "pinned_by": "none found for the two-options statement (R1448, tests-tier0.mjs:22407, reads the key for another property: no 'mark' beside Health or Sanity)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for a third branch in askCriticalTarget and in the applying code: none; the summary line is pushed only when no choice arrived (murder-rules.mjs:2550-2553).",
+   "note": ""
+  },
+  {
+   "id": "TEXT-08",
+   "title": "The public result card said 'A tie. That is a loss for the students.' while the GM's verdict note said a tie may be settled at the table",
+   "old_severity": "minor",
+   "old_state": "fixed in 1.2.43 (AUDIT-1.2.42.md 2.2 and 3.1: both say 'unless the table settles it'); in section 9's list of 34 ids closed under other names",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "lang/en.json:2444 (Vote.tied): 'A tie. Unless the table settles it, that counts as a wrong vote.'; lang/en.json:2499 (Vote.tiedVerdictNote): 'The vote ended in a tie or without a majority. Unless the table settled it some other way, this counts as getting it wrong.' Drawn at scripts/vote.mjs:1083-1086 (public card) and scripts/verdict.mjs:207-208 (GM's window). The no-majority sentence (Vote.noMajority) carries the same clause.",
+   "pinned_by": "none found",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Printed every DRPG.Vote value that names a tie or a majority (5 keys): all carry the 'unless the table settles it' clause; none states a tie as a loss outright.",
+   "note": ""
+  },
+  {
+   "id": "TEXT-09",
+   "title": "Sharing a Truth Bullet with somebody who already holds a copy whispered the giver '{who} already found that trace themselves' - a fact about another player's evidence; the same key was reused, with wrong words, for a duplicate room key",
+   "old_severity": "minor",
+   "old_state": "closed in task 13 (AUDIT-1.2.42.md section 9, row '13 - rozliczenie', and 3.4: 'naprawione (zadanie 13)'): a neutral 'Nothing changed hands.' and a key of its own for a duplicate room key (the code change is commit b888c066)",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "Fixed part: a duplicate room key has its own sentence, DRPG.Handover.alreadyHasKey '{who} already has a key to that room.' (lang/en.json:3563; scripts/handover.mjs:151-156). Still there: the giver of a duplicate Truth Bullet is whispered DRPG.Handover.alreadyHasIt, which since E71 B08 (commit 34c76fe2, 14.11.2026) reads 'They already hold a Truth Bullet of this Remnant, so they get no second one.' (lang/en.json:3591; pl.json:3854 the same in Polish), sent at scripts/handover.mjs:354-359 after mintCopy finds copiedRemnants(to) holds the trace (handover.mjs:305). The road: sheet -> shareBulletDialog (handover.mjs:110) -> requestShareBullet (bridge-asks.mjs:926-934) -> handleShareBulletOrGiveItem (bridge-runs-acts.mjs:534-543) -> shareBullet -> mintCopy.",
+   "pinned_by": "none found (no test or scenario names alreadyHasIt or alreadyHasKey)",
+   "still_wrong": "A player shares a Truth Bullet with a student in their room who already found the same Remnant: the giver's whisper says that the receiver already holds a Truth Bullet of that Remnant - the disclosure the 1.2.44 wording ('Nothing changed hands.') had taken out.",
+   "severity_now": "minor",
+   "confidence": "read",
+   "refutation_tried": "Looked for an owner's decision that the giver may be told: docs/dev/text-batch-B08.json holds the E71 rewrite with 'owner': null and its reason ('the reason the copy was refused added'), docs/dev/e71/NEEDSCODE.md row 39 rules only on the unused {who}/{name}; nothing in AUDIT 9.1/9.3 or the release notes. Looked for another way the giver would know anyway: the share picker lists who is in the room (handover.mjs:66-69) and nothing about what they hold.",
+   "note": "The old finding was SUSPECTED and said it 'may be tolerated'; the sentence no longer names the receiver ({who} and {name} are passed and unused), but the giver picked the receiver a moment before. Whether this is wanted is the owner's to say; no record of that was found. A Present's copies are minted quiet (handover.mjs:254-255), so the trial does not send this whisper."
+  },
+  {
+   "id": "TEXT-10",
+   "title": "Two inline English tooltips in the GM panel's roster ('free Move available' / 'free Move used') did not go through i18n",
+   "old_severity": "minor",
+   "old_state": "fixed in 1.2.43 (AUDIT-1.2.42.md 2.2: the Free Move tooltips through i18n); in section 9's list of 34 ids closed under other names",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "The roster's Free Move cell moved to the Students window: scripts/gm-students.mjs:123-127 takes its aria-label and tooltip from DRPG.Actions.freeMoveAvailable / freeMoveSpent. A grep of scripts/ for 'free Move available' and 'free Move used' finds only comments and test names.",
+   "pinned_by": "R2080 (tier 1, tests-tier1.mjs:53154, the Students table) and the tier 2 test 'Students shows each acting student's actions and Free Move' (tests-tier2.mjs:99386); the lint of English literals in UI files is tools/check.mjs text (not run here)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Grepped the other readers of the two keys (explain.mjs:355, player-status.mjs:523, sheet-header.mjs:395): all localized.",
+   "note": ""
+  },
+  {
+   "id": "TEXT-11",
+   "title": "The season report said 'Fix it in GM Team.' (the tile is Despair Flow) and 'Broken Down' (the state is Breakdown)",
+   "old_severity": "minor",
+   "old_state": "closed in task 13 (AUDIT-1.2.42.md section 9; commit b888c066); also in the list of 34 ids closed under other names",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "The report's lines are language keys since E20: scripts/diagnostics.mjs:1524 prints DRPG.Diagnostics.cast.poolFix = 'In the GM panel under Despair Flow, assign each of them a Monokuma by hand...' (lang/en.json:6204), and 'Wounded and in Breakdown' stands at lang/en.json:5285 and 6282. A grep of scripts/ (tests aside) and lang/en.json for 'GM Team' and 'Broken Down' finds no text a GM is shown.",
+   "pinned_by": "none found for the two words",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Grepped case-insensitively for both old wordings in scripts/ and lang/en.json: the hits are comments and one console line (gm-team-dialog.mjs:230, 'Could not save the GM team panel').",
+   "note": ""
+  },
+  {
+   "id": "TEXT-12",
+   "title": "One label, 'Difficulty', headed both the clue scale and the visibility select in the Investigation windows",
+   "old_severity": "minor",
+   "old_state": "closed in task 13 (AUDIT-1.2.42.md section 9: 'Room' and 'Visibility' labels; commit b888c066); also in the list of 34 ids closed under other names",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "Every visibility select is labelled DRPG.Investigation.visibility = 'Visibility' (scripts/investigation.mjs:69, 160, 622, 693, 1009, 1286, 1414, 1449; key-remnants.mjs:1158, 1291; remnant-ring.mjs:401-402); DRPG.Investigation.difficulty heads the Key plan's scale alone (investigation.mjs:804, 1300).",
+   "pinned_by": "R3969 (tier 1, tests-tier1.mjs:9285: every select of a Remnant's visibility in investigation.mjs is labelled DRPG.Investigation.visibility, never .difficulty); R2067 holds the two tables' column heads (tests-tier1.mjs:52964-52968)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Listed every reader of both keys in scripts/ (tests aside): no select of a band under 'Difficulty'.",
+   "note": "The tooltip on those selects is still keyed DRPG.Tips.Case.difficultyTooltip; its words ('How hard it is to spot with Observe, to analyze and to clean up with Tamper') fit a visibility, so the name is an identifier only."
+  },
+  {
+   "id": "TEXT-13",
+   "title": "The placeholder string '- create in -' (DRPG.Investigation.pickRoom) was used as a form label in the Create-here dialog and the Final tab",
+   "old_severity": "nit",
+   "old_state": "closed in task 13 (AUDIT-1.2.42.md section 9: 'Room' label; commit b888c066); also in the list of 34 ids closed under other names",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "The room selects are labelled DRPG.Investigation.room = 'Room' (scripts/investigation.mjs:154, 1004, 1412, 1445, 2122; key-remnants.mjs:1156, 1289). DRPG.Investigation.pickRoom is gone from lang/en.json and no script names it.",
+   "pinned_by": "none found",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Grepped scripts/ for Investigation.pickRoom and read the key from lang/en.json by script: absent in both.",
+   "note": "At v1.2.44 the key was still in en.json (line 1343) though the labels had moved; it left later."
+  },
+  {
+   "id": "TEXT-14",
+   "title": "Design question: a DC reached a player's screen in a few places only (crisis tiles, Find Stash, the frame-up) and nowhere else - show thresholds or hide them",
+   "old_severity": "minor",
+   "old_state": "decision: AUDIT-1.2.42.md task 12 put the question; 9.1 D1 (13.09.2026) chose thresholds shown, computed for the character, with 'beat N' in the roll window (commit 5858b2a); 3.4: 'rozstrzygnięte: D1 A, progi wszędzie'",
+   "status": "decision",
+   "evidence_class": "S",
+   "evidence": "The code does what D1 says: scripts/action-briefing.mjs:225-229 pushes thresholdFacts on every briefing ('D1, Dawid 13.09' in the comment), and lines 248-350 print Search's tier rows, Observe's and Analyze's ladders, the hint, the stash and the passage, Project and Sabotage with the tool's relief, the cover roll, Listen, Palm, Tamper's ladder and the frame-up from the rule tables; the roll window's 'beat {n}' is scripts/action-pipeline.mjs:148. DRPG.Murder.thresholdShort ('Beat {n}') stays on the crisis tiles.",
+   "pinned_by": "R1232 and R1160 hold single numbers to config; no test found that holds 'every briefing prints its thresholds' as a whole (tests-tier0.mjs:13702-13730 reads thresholdFacts for Observe's daily-life ladder)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Checked that the four actions the old finding named as silent (Search, Observe, Analyze, Listen) each have a threshold line today: action-briefing.mjs:263-264, 272-275, 280-290, 312.",
+   "note": "By decision: D1 in AUDIT-1.2.42.md 9.1. The report's own wording differs between task 12 (variant A = nowhere) and 9.1 (D1 'A, dynamicznie' = printed everywhere); the commit's message and the code agree with 9.1."
+  },
+  {
+   "id": "TEXT-15",
+   "title": "Changelog prose in dialogs: DRPG.Chapter.tidyNote explained why checkboxes moved; Vote.blackenedRuleIntro cited 'the guide'; Season.note was a double negative",
+   "old_severity": "nit",
+   "old_state": "fixed in 1.2.43 for tidyNote (AUDIT-1.2.42.md 2.2: 'tidyNote' removed), the rest in task 13 (section 9); also in the list of 34 ids closed under other names",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "DRPG.Chapter.tidyNote and DRPG.Season.note are absent from lang/en.json (read by script) and no script names them; DRPG.Vote.blackenedRuleIntro reads 'The Blackened walked out of this trial, and they get one new rule of their choosing with Monokuma's consent. Type what they asked for.' with no reference to the guide.",
+   "pinned_by": "R6904 (tier 1, tests-tier1.mjs:38868) holds Season.note gone from both language files and from every script; none found for tidyNote or the intro",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Grepped lang/en.json and scripts/ (tests aside) for tidyNote; read the three keys by script.",
+   "note": ""
+  },
+  {
+   "id": "TEXT-16",
+   "title": "The GM panel's section 'Repairs' held one tile, the Debug log, and repaired nothing",
+   "old_severity": "nit",
+   "old_state": "closed in task 13 (AUDIT-1.2.42.md section 9: 'Diagnostics'; commit b888c066); also in the list of 34 ids closed under other names",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "DRPG.Panel.section.fixes = 'Diagnostics' (lang/en.json:5189), drawn at scripts/gm-panel.mjs:481 for the section keyed 'fixes' (gm-panel.mjs:319), which now holds the failure log, the voice re-send and the case's back-up and restore (gm-panel.mjs:322-345).",
+   "pinned_by": "none found for the section's name",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the section's tiles to see that the new name fits what it holds.",
+   "note": "The section's key is still 'fixes'; an identifier only."
+  },
+  {
+   "id": "TEXT-17",
+   "title": "The window 'Pre-season checks' opened with the heading 'Season setup', the name of the window the GM came from - three near-identical names for two windows",
+   "old_severity": "nit",
+   "old_state": "closed in task 13 (AUDIT-1.2.42.md section 9: the heading became 'Cast'; commit b888c066; v1.2.44 lang/en.json:2377); also in the list of 34 ids closed under other names",
+   "status": "obsolete",
+   "evidence_class": "S",
+   "evidence": "The separate Pre-season checks window is gone: E101 item 2 (commit 206c85bc, 12.11.2026) made it a slot under the Season checklist's rows (scripts/season-setup.mjs:1363-1377 fillMoreChecks -> preSessionReport, line 1480). The heading key DRPG.Panel.checksSetup left with the dead keys (commit 2883945f; R6904 holds it gone). DRPG.Panel.seasonChecks is still in both language files but no script draws it.",
+   "pinned_by": "R6904 (tier 1, tests-tier1.mjs:38868) for the removed heading",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Grepped scripts/ for seasonChecks and for the template that could build it (season-setup.mjs:1493 builds DRPG.Panel.${key} for the three A/V checks only): no reader. The console report diagnoseCharacters is still titled 'Season setup' (diagnostics.mjs:1441, 1526; DRPG.Diagnostics.title.season), which is the window's name today - one name, not three.",
+   "note": "See new_observations 2 for the key no script reads."
+  },
+  {
+   "id": "TEXT-18",
+   "title": "investigation.mjs's header comment quoted the old suspect range ('3-8 graczy') while config and the UI say 2-4",
+   "old_severity": "nit",
+   "old_state": "closed in task 13 (AUDIT-1.2.42.md section 9); also in the list of 34 ids closed under other names",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/investigation.mjs:4-9 keeps the guide's sentence as a quotation and adds '(The suspect range has since been ruled 2-4: KEY_REMNANTS.suspectRange, which is what the planner prints. The quotation stays as the source.)'; scripts/config.mjs:1387 suspectRange: [2, 4]; the planner's sentence takes {min}-{max} (DRPG.Investigation.plannerIntro).",
+   "pinned_by": "none found (a comment)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the header and the config field; the comment no longer states 3-8 as the rule.",
+   "note": ""
+  },
+  {
+   "id": "TEXT-19",
+   "title": "DRPG.Safeword.word ('MISIUBOMBO') was live only as a migration's source but sat among display strings, where a translator would translate it",
+   "old_severity": "nit",
+   "old_state": "closed in task 13 (AUDIT-1.2.42.md section 9: 'the legacy safeword word under DRPG.Legacy'; commit b888c066); task 13's pitfalls say pl.json keeps it identical",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "The word is DRPG.Legacy.safeword (lang/en.json:6084-6085), read only by the migration clause keepOldSafeword (scripts/migrate.mjs:1592; the clause's comment at 394-417 names TEXT-19), and lang/pl.json:6534 holds the same value. DRPG.Safeword.word is gone.",
+   "pinned_by": "the tier 2 test 'an unstamped world in play keeps its safeword' (tests-tier2.mjs:56560) drives the clause with the language file's word; no test found that holds the Polish value equal to the English one",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the clause: it writes the word into the setting when the world was in play and nobody chose a word, so a translated value would become that world's safeword rather than fail a comparison - the namespace and the identical Polish value are what prevent it, not a check.",
+   "note": "tools/pl-reviewed.json:3494 records the pair with one hash for both languages; whether a tool refuses a later translation of this key was not established."
+  },
+  {
+   "id": "TEXT-LC1",
+   "title": "Live check 1 (TEXT-03): open a direct murder with the victim's player logged in and see whether 'A murder is under way' appears on their screen before the opening roll lands; check the HUD's incident row for the same gate",
+   "old_severity": null,
+   "old_state": "not carried into AUDIT-1.2.42.md section 7 or 9.2 under this wording; its finding, TEXT-03, was reported fixed in 1.2.43",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "Code answers it: at the opening of a direct murder the victim owns no seat (scripts/settings.mjs:3666), openingCard returns null for them (scripts/events.mjs:171-172), their browser is sent no cast (scripts/incident-store.mjs:454-457), and the HUD row, the edges and the music ask incidentWitness, which reads the same seats (settings.mjs:3707-3718; hud.mjs:572).",
+   "pinned_by": "scenario 13-murder-signals, check 'opening: a direct murder's victim holds no cast, no seat, no red edges, no murder music and no opening card (D6)' (13-murder-signals.mjs:229-233); R203",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "As TEXT-03; looked for a reading of this on a real Foundry in this audit's live-readings files written so far and found none - the status rests on the source and on a headless scenario I did not run.",
+   "note": "The scenario is headless (jsdom); a reading at a real table would be class F and none is recorded under this item."
+  },
+  {
+   "id": "TEXT-LC2",
+   "title": "Live check 2 (TEXT-09): share a Truth Bullet with somebody who already copied the same trace and read what the giver's whisper says",
+   "old_severity": null,
+   "old_state": "not carried into AUDIT-1.2.42.md section 7 or 9.2; its finding, TEXT-09, was reported closed in task 13 with 'Nothing changed hands.'",
+   "status": "open",
+   "evidence_class": "S",
+   "evidence": "Code answers what the whisper says today: 'They already hold a Truth Bullet of this Remnant, so they get no second one.' (lang/en.json:3591), whispered to the giver's owners at scripts/handover.mjs:354-359. The neutral wording of 1.2.44 was replaced in E71 B08 (commit 34c76fe2).",
+   "pinned_by": "none found",
+   "still_wrong": "A player shares a bullet with a student who already holds one of the same Remnant and is told so in a whisper.",
+   "severity_now": "minor",
+   "confidence": "read",
+   "refutation_tried": "As TEXT-09: no owner's decision on telling the giver was found; a Present at the trial mints quiet and sends no such whisper.",
+   "note": "Same subject as TEXT-09's open half; counted once in the summary's top list."
+  },
+  {
+   "id": "TEXT-LC3",
+   "title": "Live check 3: with the pixel font on, do 'Behind Closed Doors' / 'Public Announcement' drive --drpg-tile-text to the 0.68 floor on a Monokuma sheet (the longest word scales every grid)",
+   "old_severity": null,
+   "old_state": "left open: AUDIT-1.2.42.md 9.1 (D8) leaves the two labels as glossary names for the owner's 1.3.0 pass; the fit of tile names in a real browser is live item 362, LIVE-E66-01, whose row says no sandbox screenshots were taken",
+   "status": "open",
+   "evidence_class": "S",
+   "evidence": "The mechanism stands: scripts/sheet-fit.mjs:306-338 (fitTileText) measures the longest single word of every tile label in the real face and scales all grids by max(TILE_TEXT_FLOOR, room / needed) with TILE_TEXT_FLOOR = 0.68 (sheet-fit.mjs:273). The two labels are unchanged (scripts/config.mjs:2724, 2884). The word measured is the longest word, not the label: R1162 holds it to 'Contribution', 12 letters, the length of 'Announcement'. Whether a 12-letter word reaches the floor in the pixel font is a layout fact no source read gives.",
+   "pinned_by": "R1162 (tier 0, tests-tier0.mjs:20505) holds the longest word's length; R5471 (tier 1, tests-tier1.mjs:61207) that the word is read at each fit, Polish labels included; neither reads a browser's layout",
+   "still_wrong": "On a Monokuma sheet with the pixel font, the Call tiles' type may sit at the 0.68 floor for every grid because of one 12-letter word; not read on a real browser.",
+   "severity_now": "nit",
+   "confidence": "suspected",
+   "refutation_tried": "Looked for a recorded reading: AUDIT-1.2.42.md item 362 (LIVE-E66-01) asks for 12 screenshot sets and records none; the harness has no layout (the repository's instructions file, 'What the harness cannot do'; audit/harness/README.md).",
+   "note": "The reading that settles it: the sheet of a Monokuma in both themes with the pixel font on, getComputedStyle of a grid's --drpg-tile-text, in English and Polish."
+  },
+  {
+   "id": "TEXT-LC4",
+   "title": "Live check 4: DRPG.Hud.roomTokens (47 characters) in the room strip at 80% interface scale - does it wrap or clip",
+   "old_severity": null,
+   "old_state": "the string was shortened in D8's first text pass (AUDIT-1.2.42.md 9.1, 'Z 3.3'; commit 7e402433)",
+   "status": "obsolete",
+   "evidence_class": "S",
+   "evidence": "The 47-character sentence ('{left} of {max} search tokens left in this room', v1.2.42 lang/en.json:457) is gone: DRPG.Hud.roomTokens is '{left}/{max} searches' (lang/en.json:701; pl.json:708 '{left}/{max} przeszukań'), drawn by the room tile (scripts/room-tile.mjs:498, 515) with the sentence kept in the tooltip family roomTokensTooltip (room-tile.mjs:501).",
+   "pinned_by": "R999 (tier 1, tests-tier1.mjs:31908; lines 31941-31942 read the label's text on the room tile); no test reads its width",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Checked that no other HUD label took the long sentence's place on the strip: the long form is the tooltip only.",
+   "note": "Whether the short label wraps at 80% scale is still a layout fact, but the subject of the check - a 47-character label - no longer exists."
+  },
+  {
+   "id": "TEXT-LC5",
+   "title": "Live check 5: is DRPG.Action.sabotageSeen meant to be public to the whole table while DRPG.Cleanup.seenCleaning is room-only",
+   "old_severity": null,
+   "old_state": "decision: AUDIT-1.2.42.md 9.1 D6 (13.09.2026): a failed sabotage is told to the room and the GMs only (variant B; commit 1210949)",
+   "status": "decision",
+   "evidence_class": "S",
+   "evidence": "The code does what D6 says: scripts/action-project.mjs:1361-1371 announces sabotageSeen with whisper: roomAudience(actor) ('The room, not the table (D6)'), and roomAudience is the GMs, the actor's own players and the players of everyone in the room (scripts/action-pipeline.mjs:1008-1014). A watched sabotage tells the room by one card (action-project.mjs:1355-1360). seenCleaning goes to the witnesses' owners and the GMs (scripts/cleanup.mjs:1445-1458). The two audiences now agree.",
+   "pinned_by": "tier 2 E51-T3 (tests-tier2.mjs:88743) reads the watched branch's one card and sound; no test found that reads the whisper list of the unwatched branch",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for a road that still announces a seen sabotage to the table: the two branches of soundSabotage are the only senders of the key in scripts/.",
+   "note": "By decision: D6 in AUDIT-1.2.42.md 9.1 (not the E06 'D6' of the incident's seats, which is another list's number)."
+  }
+ ],
+ "new_observations": [
+  {
+   "title": "A rule number typed into a GM note: Find Stash's 16+",
+   "where": "lang/en.json:3144 (DRPG.Vault.stashesNote), drawn at scripts/room-setup.mjs:498",
+   "what": "The sentence says '(16+)' as text; the rule is config.mjs:1619 stashThreshold: 16 and the player's row takes it as {n} (Analyze.findStashHint). Equal today; the two would part on a change of the rule, as TEXT-01's did. Known to the papers: docs/dev/e71/NEEDSCODE.md row S5, question Q-NC-1.",
+   "severity": "nit",
+   "confidence": "read"
+  },
+  {
+   "title": "A language key no script reads, kept for a paper about a window that was merged away",
+   "where": "lang/en.json:5256 and lang/pl.json:5641 (DRPG.Panel.seasonChecks); docs/glossary.json:1428-1436; docs/design/windows.md row M4",
+   "what": "Since E101 item 2 (206c85bc) there is no Pre-season checks window; the key is read by no script (grep; the only template, season-setup.mjs:1493, builds the three A/V keys). R6904's comment (tests-tier1.mjs:38875) keeps it because windows.md's M4 row names it and R1334 holds that row, so the glossary and the design paper still describe a window the GM handbook (gm-handbook.en.md:2043) says no longer stands alone.",
+   "severity": "nit",
+   "confidence": "read"
+  },
+  {
+   "title": "The report cites the wrong commit for task 13",
+   "where": "audit/AUDIT-1.2.42.md:632 (row '13 - rozliczenie', commit 7e40243)",
+   "what": "In this repository 7e402433 is 'D8: the first text pass, and the decisions recorded'; the changes the row lists for TEXT-09/11/12/13/15-19 are in b888c066 ('Task 13: the findings that had no task, and the tally corrected'), which is where git log -S finds 'alreadyHasIt' changing on 13.09.2026.",
+   "severity": "nit",
+   "confidence": "read"
+  }
+ ],
+ "not_established": [
+  "TEXT-09 / TEXT-LC2: whether the owner wants the giver told that the receiver already holds a bullet of that Remnant. No decision found (docs/dev/text-batch-B08.json entry 'owner': null; AUDIT 9.1, 9.3 and the release notes silent). The owner's answer settles it; the code and both language files are read.",
+  "TEXT-LC3: whether the tiles' type reaches the 0.68 floor with the pixel font on a Monokuma sheet. A layout fact: needs a real browser (AUDIT-1.2.42.md item 362, LIVE-E66-01, records no screenshots).",
+  "TEXT-19: whether any tool or test refuses a Polish value of DRPG.Legacy.safeword that differs from the English one. None was found by grep in scripts/tests-*.mjs, tools/*.mjs, docs/glossary.json and docs/text-style.md; tools/pl-reviewed.json:3494 was not traced through tools/stale-pl.mjs.",
+  "Every 'pinned_by' is from reading the test's or scenario's source; no test, check or scenario was run by this reader, so 'would fail if it came back' is a reading, not a run.",
+  "The un-numbered rows of the source's sections 1-7 (long strings, wording, terminology drift, GM-only keys, typos, the glossary, dead keys) carry no '### ID' and were not itemised. A script (rows.py in this reader's scratchpad) printed today's value of 34 keys those tables name and looked for the 10 dead keys of section 7: none of the 10 is in lang/en.json today; Action.murderConfirm, Hud.bodyFoundTooltip, Assign.title and Season.hint.resources are gone; the rest were read as changed text and not judged row by row."
+ ]
+}

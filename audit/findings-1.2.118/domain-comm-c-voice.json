@@ -1,0 +1,422 @@
+{
+ "reader": "domain-comm-c-voice",
+ "checkout": "branch claude/audit-119 (scripts/ as main b5a29e73, 1.2.118); base-run.json absent when read, so no test result below is read - each test is named from its source",
+ "files_read": [
+  {
+   "file": "scripts/voice.mjs",
+   "lines": 2627,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/voice-client.mjs",
+   "lines": 824,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/voice-tile.mjs",
+   "lines": 1838,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/voice-panel.mjs",
+   "lines": 167,
+   "read": "whole"
+  }
+ ],
+ "count_note": "4 files, 5456 lines, the list given: 2627 + 824 + 1838 + 167 = 5456 (wc -l). 81 + 40 + 84 + 7 = 212 function declarations counted by a script over the source (/tmp/domain-comm-c-voice/fnlen.mjs); the tile's 8 surfaces read (the tile, its mic, speaker, OBJECTION!, Spectator talk, Stop listening, Reveal, the list 'Who you hear' with its rows) and the gear's Voice fieldset (3 controls and the key button).",
+ "neighbours_followed": [
+  "scripts/mask-gm.mjs (header 1-36: the mask's silent room and its reason 'a name in the victim's voice list would defeat the mask'; the veil 355-399; myMask 167-173; maskMutedIds 176-179; veilMutedIds; settle hooks 333-340, drpgMaskChanged 705-713)",
+  "scripts/eavesdrop-gm.mjs (header 1-31, the owner's (a) and what LiveKit shows; eavesdropEnd 66-79; myEavesdrop 276-282; settle and reconcile 208-219)",
+  "scripts/camera-view.mjs (voiceIdentity 205-209, voiceActorFor 229-240, nameFor 243-245)",
+  "scripts/hud.mjs (the trial row's voice line 1203-1215: format with voice.data)",
+  "scripts/settings.mjs (voiceEnabled onChange 1905-1925, voicePeerMutes 1945-1950 scope client)",
+  "scripts/monokuma.mjs (isMonokuma 32-34, isSpectator 53-55, poolUserFor 323-335)",
+  "scripts/config.mjs (FLAGS: the module's actor flags, written often - freeMoveUsed, lastAction, restsTaken, pendingCall)",
+  "scripts/patches.mjs (the ui.notifications row 428-440, the A/V rows 200-206)",
+  "lang/en.json DRPG.Voice.* (every key the four files read, listed by a script; held.* covers every micHold reason)",
+  "audit/harness/known-leaks.json (TR30, foundry-masked-token-actor, foundry-veiled-token-actor at 136)",
+  "docs/dev/e112/STATUS.md 90-125 (the mask's surfaces table), docs/dev/e112v/DESIGN.md 20-60 (the veil's surfaces table, the Voice row at 36)",
+  "audit/AUDIT-1.2.42.md 9.2 LIVE-E112-01 (line 1570), LIVE-E69-03, LIVE-E78-*, LIVE-E19-* rows by grep",
+  "audit/findings-1.2.42/comms.md (COMM-13, COMM-18, hygiene lines 254-256) and audit/findings-1.2.118/old-1.2.42-comms.json (their statuses today)",
+  "audit/AUDIT-1.2.13.md A17, A18 (lines 577-600)",
+  "scripts/tests-tier1.mjs R7103 (61935-61960), R5201 (61370), micState callers (16686-16721, 25963, 59042); scripts/tests-tier2.mjs E110-T2 (104000-104045), by grep only",
+  "audit/harness/scenarios/86-frame-work.mjs (grep: no voice or speaker event is counted there)"
+ ],
+ "strengths": [
+  "Deciding and applying are split and the apply is confirmed: the primary keeps `settled` only from a client's own answer (voice.mjs:556-743), an answer closes only the conversation it belongs to (711-718), a failed answer is asked again (729-739), and every answer is keyed by Foundry's sender, never the payload (voice.mjs:767-774).",
+  "Room names never cross to another player: `voice.assign` goes to its one recipient (voice.mjs:655-660), `voice.whoAmI` and `voice.applied` to the GMs alone (voice-client.mjs:303-307), and the client takes an assignment only from the primary GM (voice-client.mjs:356).",
+  "One decision for three callers: the reconcile, the who-am-I answer to a reload and `voicePlan` all read `voiceTargets` (voice.mjs:794, 2132, 2494); the reload answer keeps the witness order and the cast's absence (`answerWhoAmI`, 824-836).",
+  "The trial's block records what it found and puts back only what it wrote and still finds standing, removing an absent key with `forcedDeletion()` (voice.mjs:1683-1730); the dead it mutes are read through the GMs' flags (`flagsHeldNow`, 1651-1661, 1757-1761), so a console write on the student does not give the microphone back before the audit's put-back.",
+  "A GM's block cannot tell the table a secret death or lift a module hold: `moduleHoldsMic` answers on the GM from the GMs' records (voice.mjs:1405-1424), the list disables the button with a reason (voice-tile.mjs:1608-1618) and `toggleBlock` judges again at the click (1448-1464).",
+  "The tile reads only its own Room: `participantUser` maps only a remote participant the watch's Room holds (voice-tile.mjs:486-495), Foundry's table-wide `settings.activity` is never read, and a listener who never speaks is counted on the speaker button (`channelCount`, 812-817).",
+  "Nothing on the tile or the list parses markup: names as textContent, portraits only through `safeRoomImage` and `cssString` (voice-tile.mjs:725-731, 786-789, 1574-1580); device labels are textContent (voice-panel.mjs:72-94).",
+  "The gear's Voice section writes only three keys and two modes (`writeVoiceSetting`, voice-panel.mjs:49-54).",
+  "A drop is a card kept in the history and a reconnect of the browser's own, with a server's or another window's close not fought (voice-client.mjs:688-798).",
+  "The old voice items of 1.2.42 and 1.2.13 hold as fixed: the duplicated `avclientActive` is one export (voice-client.mjs:373, imported by voice.mjs:54); the socket-at-init comments agree now (voice-client.mjs:146-149); the GM's plan and warnings are language keys (voice.mjs:90-92, 2254-2259); the ui.notifications patch of A18 (1.2.13) is in patches.mjs's register (428-440) and matches avclient-livekit's own localized keys, not English text (voice.mjs:502-521)."
+ ],
+ "findings": [
+  {
+   "id": "domain-comm-c-voice-1",
+   "domain": "COMM",
+   "severity": "major",
+   "category": "leak",
+   "title": "The opening's veil hides the killer's token, but the victim's voice tile counts the killer and its list 'Who you hear' names them: the veil sends no silent room, and nothing on the tile filters a veiled participant",
+   "where": "scripts/voice.mjs:1074-1083 (placeVoices: an eavesdrop's and a mask's rule over the account's row, no veil's) and 1359-1360 (micHold: 'the room is still heard'); scripts/voice-tile.mjs:812-817 (channelCount), 1551-1559 (paintList), 486-495 (participantUser); scripts/camera-view.mjs:205-209 (voiceIdentity); scripts/mask-gm.mjs:14-17 and 370-375",
+   "what_happens": "While a direct murder's opening waits, the primary veils the killer (mask-gm.mjs E112): the token is hidden on the victim's and every bystander's browser, and the microphone is blocked through settleTrialVoices (voice.mjs:1801-1806), but - unlike the mask - the account is placed by its token as any living student (placeVoices has no veil rule; voiceClaim's room branch, 1971-1988), so the killer stays a participant of the crime room's LiveKit channel. On the victim's browser the speaker button shows the number of remote participants without a click (channelCount counts every one), and the list 'Who you hear' draws a row for every mapped remote participant with voiceIdentity's character name and portrait (paintList 1555-1559, 1572-1580). With the tile off, Foundry's dock draws the same participant, relabelled by camera-view.mjs. The mask's own design names this channel: 'a name in the victim's voice list would defeat the mask' (mask-gm.mjs:14-16), and docs/dev/e112/STATUS.md:108 clears the voice tile for the mask only ('the masked killer is alone in a silent room, so no tile lists them'); the veil's table reads voice as hearing alone (docs/dev/e112v/DESIGN.md:36: 'who hears the killer is the microphone, not the token'). The known leak foundry-veiled-token-actor (audit/harness/known-leaks.json:136) says 'The interface shows nothing'. Strongest for a murder declared in an Eclipse: the victim never saw the killer's token (every token hidden in the dark, the veil put on before the lights), and then a Hope opening masks a killer the victim's list has already named.",
+   "evidence": "voice.mjs:1074  // LISTEN'S EAVESDROP (E69 C6; eavesdrop-gm.mjs): one more rule over the account's row, after the Spectators' room.\nvoice.mjs:1079  // THE KILLER BEHIND A \"?\" (E69 C8; mask-gm.mjs): one more rule, after the eavesdrop's (`maskedRow`).\nvoice.mjs:1359  // Veiled for a murder's opening (E112, mask-gm.mjs): HELD until the opening is thrown; the room is still heard.\nvoice-tile.mjs:815  return [...(room.remoteParticipants?.values?.() ?? [])]\nvoice-tile.mjs:816      .filter(p => p && p !== gone && !p.isLocal && p !== room.localParticipant).length;\nvoice-tile.mjs:1556  ? [...new Set([...(room.remoteParticipants?.values?.() ?? [])].map(p => participantUser(watch.client, p, room)?.id).filter(Boolean))] : [];\nvoice-tile.mjs:1558      .map(p => ({ ...p, who: voiceIdentity(p.user) ?? { name: p.user.name ?? \"\", img: null } }))\nmask-gm.mjs:14  *   - THE VOICE. The killer is sent to a silent room of their own (voice.mjs `maskedRow`; the coordinator's answer of\nmask-gm.mjs:15  *     13.11: a name in the victim's voice list would defeat the mask), so they neither speak to the room nor hear it and\nmask-gm.mjs:375 *     unlike the mask's, no silent room: the killer hears the room.",
+   "failure_scenario": "Aiko declares a murder of Botan in an Eclipse; at the lights Aiko's token stays hidden on Botan's map, but Botan's voice tile reads 1 in the channel and 'Who you hear' lists Aiko with her portrait, so Botan knows who is about to strike before the opening - and still knows when the Hope opening turns Aiko into a '?'.",
+   "expected": "While the veil stands nothing a victim's or bystander's interface draws names or counts the killer: either the veil's account goes where the mask's does, or the list and the count leave out a veiled participant on the browsers the veil hides the token from - the owner's call, since the veil's request (mask-gm.mjs:358-362) keeps the killer hearing the room.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a veil rule in the voice decision (grep 'veil' in voice.mjs: only micHold, moduleHoldsMic, settleTrialVoices and the two readers); for a filter in participantUser, channelCount, paintList and voiceIdentity (none reads a token flag, the veil store or visibility); for a decision that accepts it (mask-gm.mjs's veil header 357-396, e112v/DESIGN.md's surfaces table, known-leaks.json: none speaks of the voice list or count; the one voice row says hearing is the microphone); for a live item that asks it (LIVE-E112-01 (c) asks only the killer's microphone and hearing). Not read: whether avclient-livekit 0.6.8 maps a participant whose BROADCAST_AUDIO is false to its user (`getParticipantFVTTUser`, external) - the count holds without that mapping, the name needs it.",
+   "old_id": null
+  },
+  {
+   "id": "domain-comm-c-voice-2",
+   "domain": "COMM",
+   "severity": "minor",
+   "category": "text",
+   "title": "In a trial mode, the tile's microphone says 'The floor is {name}'s' without the name: micState drops the hold's data for a held microphone, and the click's notice is localized without data",
+   "where": "scripts/voice-tile.mjs:918 (micState's held branch), 981 (paintMic), 943 (toggleOwnMic); scripts/voice.mjs:1593-1601 (floorHold's data), 1380-1381 (micHold)",
+   "what_happens": "micHold answers a player whom the floor leaves out with { reason: 'floorHeld' | 'floorHeldPair', held: true, data: { name, target } } (voice.mjs:1598-1600). micState returns { state: 'held', reason, info: null } for any held answer and carries `data` only on the open branches (voice-tile.mjs:918 against 923-925). paintMic then formats DRPG.Voice.held.floorHeld with `mic.data ?? {}`, i.e. no name, into the button's tooltip and the note (981, 989-991, 1005-1007); a click or the key calls toggleOwnMic, which shows game.i18n.localize of the same key, its {name} and {target} never filled (943). The HUD's trial row formats the same keys with the data (hud.mjs:1213), so the bug is the tile's alone; R7103 reads floorHold's data and the words, not the tile.",
+   "evidence": "voice-tile.mjs:918  if (answer?.held) return { state: \"held\", reason: answer.reason, info: null };\nvoice-tile.mjs:923  const data = answer?.data ? { data: answer.data } : {};\nvoice-tile.mjs:981  const reasonLine = mic.reason ? game.i18n.format(`DRPG.Voice.held.${mic.reason}`, mic.data ?? {}) : \"\";\nvoice-tile.mjs:943  notify(game.i18n.localize(`DRPG.Voice.held.${mic?.reason ?? \"offline\"}`));\nlang/en.json:5913  \"floorHeld\": \"The floor is {name}'s: your microphone stays off until you get the floor or the mode ends.\",\nhud.mjs:1213  line.textContent = game.i18n.format(`DRPG.Voice.held.${voice.reason}`, voice.data ?? {});",
+   "failure_scenario": "In an Objection, Botan hovers or presses his struck microphone on the voice tile and reads 'The floor is {name}'s: ...' (or Foundry's rendering of a missing value) instead of the objector's name, while a player without a tile reads the name on the HUD.",
+   "expected": "The tile's line, tooltip and notice name who holds the floor, as the HUD does.",
+   "confidence": "read",
+   "refutation_tried": "Looked for another road that carries the data: micState is the only producer of `mic` for paintMic (paintControls 1048) and toggleOwnMic (940); no other branch for 'held'. Grepped the suite for micState and floorHeld: R7103 and E110-T2 read floorHold and the blocks, the micState callers (tests-tier1.mjs 16686-16721, 25963, 59042) hand no floor hold. What Foundry 14's i18n.format prints for a missing key (the braces or 'undefined') was not read; either way the name is missing.",
+   "old_id": null
+  },
+  {
+   "id": "domain-comm-c-voice-3",
+   "domain": "COMM",
+   "severity": "minor",
+   "category": "ux",
+   "title": "A killer behind a '?' reads 'Disconnected' / 'You are not connected to voice.' on the tile, and a line that says only the microphone is off until a reveal, while the module has taken them out of voice and the mask also ends with the time of day",
+   "where": "scripts/voice-tile.mjs:835-842 (voiceWord), 167-176 (WORDS); scripts/voice.mjs:1151-1155 (maskedRow: silentRoomFor), 1358 (micHold 'masked'); scripts/voice-client.mjs:621-627 (a silent room is a disconnect); lang/en.json:5909, 5916",
+   "what_happens": "maskedRow sends the killer's account the silent room (voice.mjs:1153), which the browser applies by leaving voice (voice-client.mjs:621, 626). The state word reads the hold for the external and Eclipse cases only and otherwise the Room's state, so the masked killer's tile shows 'Disconnected' with the sentence DRPG.Voice.held.offline, 'You are not connected to voice.' - the reading the owner called an error in N10 (voice-tile.mjs:98-104), and the one an Eclipse was given its own word to avoid (N12). The mic's note says DRPG.Voice.held.masked: 'Hidden behind a \"?\": your microphone stays off until you reveal yourself.' - but the killer also hears nobody (the silent room), and the mask ends at the next time of day too (mask-gm.mjs:29-30), which the line does not say.",
+   "evidence": "voice-tile.mjs:837  if (reason === \"external\" || reason === \"eclipse\" || reason === \"eclipseHeard\") return WORDS[reason];\nvoice-tile.mjs:839  if (state !== \"connected\") return WORDS.disconnected;\nvoice.mjs:1153  return { ...row, room: null, target: silentRoomFor(row.user.id), claim: CLAIM.inRoom, masked: true, kept: false, keep: false,\nvoice-client.mjs:621  const leave = silentFor(target) && !externalAV();\nlang/en.json:5916  \"masked\": \"Hidden behind a \\\"?\\\": your microphone stays off until you reveal yourself.\",",
+   "failure_scenario": "Aiko's opening succeeds with Hope; her tile says 'Disconnected - You are not connected to voice.' and 'your microphone stays off', so she reloads the page thinking voice broke, and does not learn that she hears nobody until she reveals herself or the time of day turns.",
+   "expected": "The masked killer's tile says plainly that they are out of voice on purpose (a word of its own, or the Eclipse's), and the line says they hear nobody until they reveal themselves or the time of day ends.",
+   "confidence": "read",
+   "refutation_tried": "Checked that the mask's drop is not shown as a card (onRoomDisconnected ignores a silent room, voice-client.mjs:735; selfCheck leaves it alone, 276) - so only the word and the line speak; checked WORDS for a masked entry (none) and micHold's order (masked is answered before the Eclipse's reading, 1358). Whether the owner wants the silent room kept is LIVE-E69-05 (mask-gm.mjs:17); this finding is about the words, whichever room stands.",
+   "old_id": null
+  },
+  {
+   "id": "domain-comm-c-voice-4",
+   "domain": "COMM",
+   "severity": "minor",
+   "category": "bug",
+   "title": "A page that landed alone and has not yet been told a room 'reconnects' after a drop by leaving voice, and the drop card is taken down as if it were back",
+   "where": "scripts/voice-client.mjs:198-204 (landAloneFirst), 780-784 (reconnect), 579-610 (applyBreakout), 529-536 (landedCorrectly), 271-289 (selfCheck)",
+   "what_happens": "With regional voice on, landAloneFirst points avclient-livekit's first connect at the account's own silent-room name (`breakoutRoom = silentRoomFor(userId)`, 201), so the page sits alone in a LiveKit room of one until the primary answers. If its connection drops in that window, voiceDropped shows the card and reconnect runs with `desired` still undefined, so it applies `liveKitClient().breakoutRoom` - the silent-room name - with remember false (783). For that name applyBreakout's landedCorrectly asks only whether the Room is disconnected (536), which after a drop it is, so it answers 'unchanged' at once and calls voiceBack(), which dismisses the card (607-609, 787-798). No connect is made. The self-check 45 s later finds the Room not live again, shows the card and repeats, until the primary's assignment or heartbeat sets `desired`.",
+   "evidence": "voice-client.mjs:201  client.breakoutRoom = silentRoomFor(userId);\nvoice-client.mjs:783  return applyBreakout(liveKitClient()?.breakoutRoom ?? null, { remember: false });\nvoice-client.mjs:536  if (silentFor(target) && !externalAV()) return roomState() === \"disconnected\";\nvoice-client.mjs:607  if (landedCorrectly(target)) {\nvoice-client.mjs:608      voiceBack();\nvoice-client.mjs:609      return \"unchanged\";",
+   "failure_scenario": "Botan reloads while the primary GM's cast has not arrived (his room is held, voice.mjs:1095-1098); the LiveKit server blips; the 'Voice disconnected' card appears and vanishes a second later as if he were back, and he hears nobody until the primary's next pass.",
+   "expected": "A reconnect of a page nobody has told a room rejoins the room it had (its room of one), or waits for the primary, and the card stays until the Room is live.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a guard that keeps the silent-room name out of reconnect: landedAlone is reset only by applyBreakout (623) and catchUpVoice's no-GM road (173); onRoomDisconnected skips only when `desired` is a silent room (735), and here `desired` is undefined. The window is narrow: the primary's who-am-I answer normally follows within seconds, and the heartbeat (60 s, voice.mjs:83) sends every unsettled account; the 'held' state (voice.mjs:1088-1098) is the one that keeps it open on purpose.",
+   "old_id": null
+  },
+  {
+   "id": "domain-comm-c-voice-5",
+   "domain": "COMM",
+   "severity": "nit",
+   "category": "text",
+   "title": "The GM's voice plan files a masked killer and a Scrum camp under '(main room)', and a listener under the room it listens from",
+   "where": "scripts/voice.mjs:2271-2274 (placeName), 2510-2512 (targetName), 2254-2259 (contestedWarning)",
+   "what_happens": "placeName names a row by `row.room` unless it is the dead's; maskedRow sets room null with a silent-room target (1153), the Scrum camps keep the trial's null room with a camp's target (1056), and listeningRow keeps the listener's own room with the listened room as target (1132). So voicePlan's groups - documented as 'grouped by where each account is sent' - put a masked killer and both camps under '(main room)' and a listener under its own room, and contestedWarning says 'goes to \"the main room\"' for such a chosen row. Each row's 'why' says the truth (plan.why.masked, scrumCamp, listening), so a GM who reads the line is not misled; the header is.",
+   "evidence": "voice.mjs:2272  if (isDeadRoom(row?.target) || row?.claim === CLAIM.dead) return dead;\nvoice.mjs:2273  return row?.room ?? main;\nvoice.mjs:1153  return { ...row, room: null, target: silentRoomFor(row.user.id), ...\nvoice.mjs:1056  byUser.set(userId, { ...row, target: SCRUM_ROOMS[side], camp: side,",
+   "failure_scenario": "During a Scrum Debate's Confer the GM runs game.drpg.voicePlan() and reads every player under '(main room)  (6)', each line saying 'confers in its own room'.",
+   "expected": "The groups follow the target: a silent room, each camp's room and the room listened into each named as such (R5201 reads only the Spectators' group).",
+   "confidence": "read",
+   "refutation_tried": "R5201 (tests-tier1.mjs:61370) holds the Spectators' group, the nowhere group and the no-character section; no test reads a masked, camp or listening row in the plan (grep). The why text of each row is correct.",
+   "old_id": null
+  },
+  {
+   "id": "domain-comm-c-voice-6",
+   "domain": "COMM",
+   "severity": "nit",
+   "category": "text",
+   "title": "The voice plan prints Foundry's A/V mode as its number",
+   "where": "scripts/voice.mjs:2488; lang/en.json:5974",
+   "what_happens": "For any mode but disabled the plan writes `game.webrtc?.mode` raw into 'A/V mode: {mode}', so the GM reads 'A/V mode: 3' (Foundry's AV_MODES numbers, as voice-tile.mjs:219 lists them: AUDIO 1, VIDEO 2, AUDIO_VIDEO 3).",
+   "evidence": "voice.mjs:2488  lines.push(P(\"avMode\", { mode: game.webrtc?.mode === foundry.av.AVSettings.AV_MODES.DISABLED ? P(\"avDisabled\") : game.webrtc?.mode }));",
+   "failure_scenario": "A GM checking why nobody hears anybody reads 'A/V mode: 2' and cannot tell that it is video alone, the one mode voiceAvailable refuses (voice-tile.mjs:235-238).",
+   "expected": "The mode in words, video-only said as the reason the tile cannot stand.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a label lookup of the mode elsewhere in the plan: none; the plan is in the GM's language since E71 C20, this slot alone is a number.",
+   "old_id": null
+  },
+  {
+   "id": "domain-comm-c-voice-7",
+   "domain": "COMM",
+   "severity": "nit",
+   "category": "text",
+   "title": "After a trial, the 'microphone still blocked' whisper sends the GM to 'Who you hear', which lists only the GM's own channel",
+   "where": "scripts/voice.mjs:1714-1718; lang/en.json:5859; scripts/voice-tile.mjs:1555-1556",
+   "what_happens": "When a Foundry has no deletion marker, restoreTrialBlock leaves the block and whispers DRPG.Voice.trialMuteLeft: 'Unblock it in \"Who you hear\" on the voice tile.' The list draws rows only for remote participants of the GM's own LiveKit Room, so a player who is offline, in another room, or on a world with the tile off has no row there to unblock.",
+   "evidence": "voice.mjs:1717  whisperToGms(`<p>${esc(game.i18n.format(\"DRPG.Voice.trialMuteLeft\", { name: user.name }))}</p>`);\nvoice-tile.mjs:1555  const ids = room?.state === \"connected\"\nvoice-tile.mjs:1556      ? [...new Set([...(room.remoteParticipants?.values?.() ?? [])].map(p => participantUser(watch.client, p, room)?.id).filter(Boolean))] : [];",
+   "failure_scenario": "On a Foundry without ForcedDeletion or Daggerheart's _del, the GM is told to unblock Botan in 'Who you hear', opens it, and Botan is not in the list because he is in his Dorm's channel.",
+   "expected": "The text says where the block can always be lifted (Foundry's user configuration) or that Botan must share the GM's channel.",
+   "confidence": "read",
+   "refutation_tried": "The road is narrow (forcedDeletion() null only on a Foundry with neither v14's ForcedDeletion nor Daggerheart's _del, CLAUDE.md); read for the text only.",
+   "old_id": null
+  },
+  {
+   "id": "domain-comm-c-voice-8",
+   "domain": "COMM",
+   "severity": "nit",
+   "category": "hygiene",
+   "title": "A GM's unblock writes an explicit BROADCAST_AUDIO true, not what the user had before the block",
+   "where": "scripts/voice-tile.mjs:1461-1463 (toggleBlock); compare scripts/voice.mjs:1704-1724 (restoreTrialBlock)",
+   "what_happens": "toggleBlock flips Foundry's answer: a block writes false, the next press writes true. A user who had no own grant (the role's default) before the GM's block is left with an explicit true after the unblock, a grant the trial's own restore is careful never to invent (it removes an absent key with forcedDeletion, R1035). Where a world's roles do not give Players the microphone, a block and an unblock gives one player a microphone the role withholds.",
+   "evidence": "voice-tile.mjs:1461  const allowed = settings?.getUser?.(user.id)?.canBroadcastAudio ?? true;\nvoice-tile.mjs:1462  await user.update({ \"permissions.BROADCAST_AUDIO\": !allowed });\nvoice.mjs:1720  change = { \"permissions.BROADCAST_AUDIO\": gone };",
+   "failure_scenario": "A GM whose world lets only Trusted players speak blocks and then unblocks a Player's microphone in the list; that Player can now speak, the role's rule no longer applying to them.",
+   "expected": "An unblock removes the user's own key when it was absent before the block (as the trial's restore does), or the unblock is said to grant.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a record of the GM's block's prior state (none: the GM's block is recorded nowhere on purpose, voice.mjs:1517-1518). Foundry's default role for BROADCAST_AUDIO was not read here; the finding stands for any world whose roles withhold it.",
+   "old_id": null
+  },
+  {
+   "id": "domain-comm-c-voice-9",
+   "domain": "COMM",
+   "severity": "nit",
+   "category": "perf",
+   "title": "Every event of the Room the tile follows runs micHold three times, each scanning every token of every scene twice, plus a third scan for the Reveal button",
+   "where": "scripts/voice-tile.mjs:645-669 (voiceStep), 743-764 (paintSpeaker -> paintWord), 856-866 (paintWord -> watch.hold), 1045-1060 (paintControls: micState, paintWord, paintReveal); scripts/voice.mjs:1347-1349, 1172-1193",
+   "what_happens": "voiceStep runs on activeSpeakersChanged, participant events and the sticky timer. Each run paints the speaker (paintWord asks watch.hold = micHold), then calls paintControls, which asks micState (micHold), paintWord again (micHold), paintReveal (mask-gm.mjs myMask: every token of every scene) and the other buttons. Each micHold call builds ownMasked and ownVeiled as default arguments (two loops over every token of every scene with a permission test), ownListenRoom, trialFacts and spectatorAccount (every actor). Nothing is written when nothing differs, so the DOM cost is nil; the reads are the cost, on every speaker change of every player.",
+   "evidence": "voice-tile.mjs:459  hold = () => micHold({ connected: true }), applying = () => voiceApplying() } = {}) {\nvoice-tile.mjs:1048  paintMic(watch.tile, micState());\nvoice-tile.mjs:1049  paintWord(watch, painted.get(watch.tile)?.face === true);\nvoice.mjs:1349  masked = ownMasked(user), veiled = ownVeiled(user) } = {}) {\nvoice.mjs:1174  for (const scene of game.scenes ?? []) for (const token of scene.tokens ?? []) {",
+   "failure_scenario": "On a world of 30 scenes with tokens, a lively scene of four speakers makes each player's browser walk every token several times per speaker change; whether that shows in a frame is not measured.",
+   "expected": "One hold per step, read once and handed to the word and the mic.",
+   "confidence": "read",
+   "refutation_tried": "Scenario 86 (frame work) counts moves, writes and the clock, not a Room's speaker events (grep: no voice or speaker in it), so no count covers this road; the cost in ms is unread (not_established).",
+   "old_id": null
+  },
+  {
+   "id": "domain-comm-c-voice-10",
+   "domain": "COMM",
+   "severity": "nit",
+   "category": "perf",
+   "title": "With a Spectator in the world, every write of any module flag on any actor runs the whole trial-voice settle on the primary, in every phase",
+   "where": "scripts/voice.mjs:1832-1858 (trialVoicesPending, scheduleTrialVoices, registerTrialVoices' updateActor), 1739-1813 (settleTrialVoices)",
+   "what_happens": "registerTrialVoices schedules a settle on any updateActor whose changes carry the module's flags (1850-1853), and trialVoicesPending is true whenever a world holds an E92 Spectator or a block row (1837-1838) - a Spectator's block is a row in every phase. FLAGS holds per-action fields (freeMoveUsed, lastAction, restsTaken, pendingCall: config.mjs FLAGS), so in such a world every action a student takes, in Daily Life too, runs 250 ms later on the primary: five store waits, two dynamic imports, judgedFor over every character, a turn on the trial record's serial key and, per user, spectatorAccount twice over every actor and three id sets. It writes nothing when nothing changed.",
+   "evidence": "voice.mjs:1850  Hooks.on(\"updateActor\", (_actor, changes) => {\nvoice.mjs:1852      if (changes?.flags?.[MODULE_ID] || \"ownership\" in (changes ?? {})) scheduleTrialVoices();\nvoice.mjs:1838      || Boolean(game.actors?.some?.(actor => isSpectator(actor) && !watchesForTheDead(actor)));\nvoice.mjs:1757  if (game.user?.isGM) await judgedFor(...characterIds());",
+   "failure_scenario": "In a campaign where one player watches as a Spectator, each Move or Search of any student queues a full settle on the primary GM's browser and a turn on the trial record's key, which a trial's own writes then wait behind.",
+   "expected": "The settle is asked by the flags that change a microphone (deceased, monocub, spectator, monokuma, notInClass) and ownership, as reconcileTrigger asks only those (393-404).",
+   "confidence": "read",
+   "refutation_tried": "Looked for a narrower test in the hook: none (the comment at 1851 says 'Any of the module's flags'); the debounce (250 ms) coalesces a burst into one settle. The wait on the serial key and the time of one settle are not measured (not_established).",
+   "old_id": null
+  }
+ ],
+ "by_decision": [
+  {
+   "what": "A player listening at a door (Listen's eavesdrop) is one more participant of the room's channel: the occupants' speaker button counts them and their list 'Who you hear' names them by character, with the portrait.",
+   "source": "scripts/eavesdrop-gm.mjs:9-13 ('Nobody in that room is told (the answer (a)) ... What LiveKit itself shows there ... is not hidden here: hiding it would tell those browsers who listens. LIVE-E69-03 measures it'); the list draws the name because paintList names every mapped remote participant (voice-tile.mjs:1555-1559). Noted for the owner: the decision text speaks of the count; that the list also names the listener is the same mechanism, not separately stated."
+  },
+  {
+   "what": "The dead outside the trial talk in the Spectators' room, so a Spectator or another dead player hears (and the list names) a dead student whose death nobody has found.",
+   "source": "scripts/voice.mjs:1961-1966 ('The owner's accepted trade-off: another dead student or a Spectator may hear of a death nobody has found'; E62 C3b, Q-C3b-5)."
+  },
+  {
+   "what": "In an Eclipse no player is in any voice channel; the GMs share one room.",
+   "source": "scripts/voice.mjs:1907-1926 (the owner, 25.09; E19 C4)."
+  },
+  {
+   "what": "The Class Trial is one room for everybody but a Scrum's conferring camps and talking Spectators; the trial's list of the dead (a death nobody found among them) is world data while the trial runs, and their microphones are blocked.",
+   "source": "scripts/voice.mjs:1510-1527 (E70 C5); known leak TR30 in audit/harness/known-leaks.json ('Public on purpose while the trial runs (the owner's TR30 = 2)')."
+  },
+  {
+   "what": "A page that loads while no GM is connected joins the main room, a dead student's or a victim's too.",
+   "source": "scripts/voice-client.mjs:168-175 and 180-193 (E19 fix r1-G1: 'with no GM connected at ready it joins the main room')."
+  },
+  {
+   "what": "A token in a doorway's gap keeps its room only on the primary's own memory; a reload or a new primary starts empty and places it in the main room; a Monokuma never keeps one.",
+   "source": "scripts/voice.mjs:109-136 and 154-161 (E88 C6, fix G1, Q3's default)."
+  },
+  {
+   "what": "The masked killer is sent to a silent room of their own (hears nobody, speaks to nobody).",
+   "source": "scripts/mask-gm.mjs:14-17 (the coordinator's answer of 13.11; 'The owner may revise the silent room (LIVE-E69-05)'); scripts/voice.mjs:1136-1155."
+  },
+  {
+   "what": "avclient-livekit's disconnect warning is muted with regional voice on or off; the module's own drop card replaces it.",
+   "source": "scripts/voice.mjs:463-466 and 502-505 (E19 C2, A7); registered in scripts/patches.mjs:428-440."
+  },
+  {
+   "what": "The module never moves a microphone on its own: only the owner's click or key writes `users.<self>.muted`, and no pass calls toggleAudio.",
+   "source": "scripts/voice.mjs:2180-2188 (E78 C2, S16-10); scripts/voice-tile.mjs:928-949 (R544 named in the header)."
+  }
+ ],
+ "comments_against_code": [
+  {
+   "where": "scripts/voice-tile.mjs:95-96",
+   "comment_says": "'The tile and the list send no socket and no packet, write no world setting and no document but the GM's block'",
+   "code_does": "Since E69 and E92 the tile's own buttons send bridge requests and write a document: Stop listening asks `listen.stop` (requestEavesdropStop, 1224-1229), Reveal yourself asks `mask.reveal` (requestReveal, 1189-1208), OBJECTION! asks the primary (paintObjection through hud.mjs objectionControl, 1080-1093; its own doc says 'a press that the primary GM judges'), and the Spectator switch writes the player's own User flag (toggleSpectatorTalk, 1112-1139)."
+  },
+  {
+   "where": "scripts/voice.mjs:1937-1940 (voiceClaim, the trial branch) and the CLAIM row at 880",
+   "comment_says": "'everybody gets the main room ... The dead keep their seat but not their voice: \"the dead listen but do not speak\" is the table's rule, not this file's'",
+   "code_does": "This file blocks the dead's microphones in the trial since E70 C5 (settleTrialVoices, 1739-1813, deadForTrial 1651-1661), and the trial's 'one room' gives way to a Scrum's camp rooms (1050-1059) and the Spectators' room (1068-1072)."
+  },
+  {
+   "where": "scripts/voice.mjs:1885-1887 (voiceClaim's doc)",
+   "comment_says": "`voiceTargets` asks it 'once per character and, during an Eclipse or the Class Trial, once per connected account that has no character'",
+   "code_does": "Since E19 C4 every connected account with no character gets a row in every phase (placeVoices 1029-1039: 'Outside both its room is the main room')."
+  },
+  {
+   "where": "scripts/voice.mjs:2471-2473 and 2504-2509 (voicePlan)",
+   "comment_says": "'A row is grouped and named by where it sends its account (`placeName`): the dead channel is its own group, never \"(main room)\"' and 'Each group is a target'",
+   "code_does": "placeName (2271-2274) names a row by `row.room`, so a masked killer (room null, target a silent room: maskedRow 1153) and a Scrum camp (room null, target SCRUM_ROOMS: 1056) are grouped under '(main room)', and a listener (room = the room listened from, target the room listened into: listeningRow 1132) under the room it stands in. The dead share the Spectators' group with talking Spectators since E62 C3b (2511), and DRPG.Voice.plan.deadGroup is reached by no row (see hygiene). Finding 5."
+  },
+  {
+   "where": "scripts/voice.mjs:2463-2466 (voicePlan's header)",
+   "comment_says": "'this runs the same decision the reconcile loop runs, on the same inputs, and prints it'",
+   "code_does": "On a GM that is not the primary the kept rooms are a fresh Map (voiceTargets 903-904), so a student standing in a doorway's gap is printed in the main room while the primary keeps them in their room; on the primary the plan's own call of voiceTargets writes and prunes `roomsKept` (gaps.done, 918) like a pass. The comment at 900-903 says the first half; the plan's header does not, and the plan's 'This client runs the assignment loop: no' line is the only sign."
+  },
+  {
+   "where": "scripts/voice-client.mjs:812-814 (desiredRoom)",
+   "comment_says": "'`desired` is still written only by `onVoiceSocket`, behind its primary-GM check, and by `applyBreakout`'",
+   "code_does": "`forgetDesiredRoom` (820-824) writes it too (undefined), called by voice.mjs resetAllVoice with regional voice off (voice.mjs:2619)."
+  },
+  {
+   "where": "scripts/voice-client.mjs:469-473 (isDeadRoom)",
+   "comment_says": "'What stays is the reader below ... as a row written before C3b may still name one'",
+   "code_does": "No row that names a room outlives a page: `desired` and the ledger's `settled` are memory only (voice-client.mjs:63-67; voice.mjs:548-550 'deliberately not persisted'), and nothing has built a `drpg-dead-` name since E62 C3b, so the reader answers false for every row a running world can hold."
+  }
+ ],
+ "hygiene": {
+  "functions_over_300": [],
+  "functions_150_to_300": 1,
+  "functions_150_to_300_list": [
+   "createVoiceLedger (voice.mjs:581-743, 163 lines: a factory of seven inner functions, not one body)"
+  ],
+  "functions_100_to_149": [
+   "placeVoices 131 (voice.mjs:988)",
+   "registerVoice 118 (voice.mjs:238)",
+   "voicePlan 106 (voice.mjs:2475)"
+  ],
+  "largest_elsewhere": "voice-client.mjs applyBreakout 82; voice-tile.mjs paintList 71; voice-panel.mjs voiceFieldset 55",
+  "duplicated_helpers": [
+   "`liveKitClient()` twice, the same body: voice-client.mjs:377-379 and voice-tile.mjs:1757-1759; and voice.mjs `roomConnected` (1869-1871) reads the same Room's state that voice-client.mjs `live`/`roomState` (421-434) reads.",
+   "`AV_MODULE = \"avclient-livekit\"` in voice.mjs:63 and voice-client.mjs:51; `SOCKET_EVENT` built again in voice.mjs:64 and voice-client.mjs:50 (bridge-wire.mjs exports one).",
+   "`ownMasked` and `ownVeiled` (voice.mjs:1172-1193) repeat mask-gm.mjs `myMask` (167-173) and its veil read, inline on purpose (the comment at 1170: an import cycle), so three loops over every token of every scene run for one answer on one paint (finding 9).",
+   "Two near-identical keys for one group: DRPG.Voice.plan.spectatorGroup and plan.deadGroup are both \"(Spectators' room)\" (lang/en.json 5986-5987)."
+  ],
+  "dead_code": [
+   "voice-client.mjs `isDeadRoom` (474-476): answers false for every room a running world can hold (comments_against_code); its one caller is voice.mjs placeName (2272).",
+   "DRPG.Voice.plan.deadGroup (voice.mjs:2512): reached only through placeName's dead branch for a row whose target is not SPECTATOR_ROOM, and every dead row's target is SPECTATOR_ROOM (voiceClaim 1969), which targetName catches first (2511)."
+  ],
+  "magic_numbers": [
+   "voice.mjs:1846 the trial settle's 250 ms debounce, unnamed (every other wait in the file is a named constant with its reason).",
+   "voice-tile.mjs:1667 the list's 8 px gap from the tile and the screen's edge, inline.",
+   "Named and explained: RECONCILE_DEBOUNCE_MS 1500, RETRY_MS [2000, 6000, 12000], HEARTBEAT_MS 60000, WITNESS_WAIT_MS 1500 ('A design number, not measured at a table'), SELF_CHECK_MS 45000, RECONNECT_MS [1000, 4000, 10000], STICK_MS 250, HOLD_MS 1500, VOLUME_SAVE_MS 200, VOLUME_STEP 0.05."
+  ],
+  "global_patch": "ui.notifications.info/warn wrapped (voice.mjs:477-492), idempotent, registered in patches.mjs:428-440 (AUDIT-1.2.13 A18's row, still standing as a patch; its locale risk is gone)."
+ },
+ "hints_for_other_passes": {
+  "dead_controls": [
+   "DRPG.Voice.trialMuteLeft (voice.mjs:1717; lang/en.json:5859) sends the GM to 'Who you hear' to unblock a player; that list holds only the participants of the GM's own LiveKit Room (voice-tile.mjs:1555-1556), so for a player offline or in another room there is no control where the text points (finding 7)."
+  ],
+  "stale_windows": [
+   "The gear's Voice fieldset (voice-panel.mjs:113-167): the push-to-talk key's row is read once when the fieldset is built (`pushToTalkKey()`, 113 and 143) and nothing listens for a keybinding change, so after 'Change the key' opens Configure Controls and the key is changed, the row names the old key until the window is opened again. The device lists are read once too (116); the mic note asks the player to reopen by design (DRPG.Voice.panel.micNote).",
+   "The tile's microphone tooltip for push-to-talk reads `pushToTalkKey()` at each paint (voice-tile.mjs:978) and no hook paints on a keybinding change; any Room event repaints, so it is near-live in a channel with other people and stale in a room of one.",
+   "The tile does not listen to updateActor (voice-tile.mjs:1813-1838): a student made a Spectator, or a Monocub flag, repaints the microphone only through the permission write that usually follows on the user (updateUser of self, 1819-1820) or a Room event - read, not run."
+  ],
+  "controls": [
+   "The tile's OBJECTION!, Stop listening, Reveal yourself and Spectator switch are drawn by paintControls on every Room event (voice-tile.mjs:1045-1060), each kept while unchanged; their handlers are bridge-asks.mjs / mask-gm.mjs / spectator-ui.mjs - for the controls pass.",
+   "The voice panel's mode radios show 'Always on' for any stored `voice.mode` but 'ptt' (voice-panel.mjs:130), Foundry's 'activity' among them; whether avclient-livekit 0.6.8 treats 'activity' as always-on is the design's external reading (voice-panel.mjs:15-16), not read here."
+  ],
+  "refresh": [
+   "voice.mjs reconcileTrigger (393-422) does not answer a change of the Monokuma flag (FLAGS.monokuma) on an actor, which changes whose voice it is (voiceUserOf 2306-2308): such a change waits for a token move or the heartbeat (60 s). Rare (setup), noted for the refresh pass."
+  ]
+ },
+ "not_established": [
+  {
+   "what": "Finding 1, at a table: whether avclient-livekit 0.6.8 keeps a participant whose BROADCAST_AUDIO is false in the Room and maps it to its user, so that the victim's list names the veiled killer (the count needs only the participant).",
+   "live_check": "new live check: the veil's voice list and count on the victim's and a bystander's browser (an addition to LIVE-E112-01, whose (c) asks only the killer's microphone)",
+   "l1": {
+    "what": "Whether the victim's and a bystander's voice tile count the veiled killer and whether 'Who you hear' names them, during the opening's veil, for a murder opened mid-day and one declared in an Eclipse.",
+    "recipe": [
+     "Regional voice on, voice tile on, avclient-livekit connected; killer A, victim B and bystander C in one room, each in their own browser.",
+     "GM opens a direct murder A -> B from the GM's tile (no opening thrown yet).",
+     "On B and C: read the number on the voice tile's speaker button, open 'Who you hear' and note every row's name and portrait.",
+     "Repeat with the murder declared in an Eclipse, read at the lights before A throws the opening.",
+     "Then let A's opening succeed with Hope and read B's list again."
+    ],
+    "clients": "primary GM and three players (A, B, C)",
+    "theme": "both",
+    "settles_if": "Defect if B's or C's list names A, or the count includes A, while A's token is hidden on that browser; no defect if neither does.",
+    "priority": "major"
+   }
+  },
+  {
+   "what": "Finding 2: what Foundry 14.370's i18n.format writes for a missing {name} ('{name}' kept or 'undefined').",
+   "live_check": "new live check: the voice tile's microphone note in an Objection",
+   "l1": {
+    "what": "The tile's microphone tooltip and note, and the notice on a click, for a player the floor leaves out.",
+    "recipe": [
+     "Class Trial entered by its road, regional voice on, tile on.",
+     "GM opens an Objection for O against B.",
+     "On a third player X's browser hover the struck microphone and press it.",
+     "Read the tooltip, the note and the notice."
+    ],
+    "clients": "GM and three players",
+    "theme": "default",
+    "settles_if": "Defect if the text lacks O's name; no defect if it names O.",
+    "priority": "minor"
+   }
+  },
+  {
+   "what": "Finding 9: the time per Room event of the tile's paint on a world with many scenes and tokens.",
+   "live_check": "new live check: game.drpg.fps() while four people talk, with the tile on and off",
+   "l1": {
+    "what": "Whether a speaker-heavy scene costs frames on a player's browser through the tile's paint.",
+    "recipe": [
+     "A world with 20 or more scenes holding tokens; four players talking in one room.",
+     "On one player: await game.drpg.fps({ toChat: false }) with the voice tile on.",
+     "Switch the tile off (the GM's voiceTile setting) and run it again.",
+     "Compare the slowest twentieth and frames over 33 ms."
+    ],
+    "clients": "GM and four players",
+    "theme": "both",
+    "settles_if": "A difference above noise in the slow frames says the paint costs frames; none says it does not.",
+    "priority": "nit"
+   }
+  },
+  {
+   "what": "Finding 10: the time of one settleTrialVoices on the primary and whether a trial's own record writes wait behind the settles that actions queue.",
+   "live_check": "new live check: the primary's Debug log while a Spectator is in the world and students act",
+   "l1": {
+    "what": "How long a settle takes and how often it runs while students act in Daily Life with a Spectator in the world.",
+    "recipe": [
+     "A world with one E92 Spectator; the primary GM with the module's Debug logs on.",
+     "Three students take an action each within ten seconds.",
+     "Time the settles with a performance mark around settleTrialVoices from the console (or count them by a temporary hook).",
+     "In a Class Trial, open a mode and read whether the floor's block lands later than without the actions."
+    ],
+    "clients": "primary GM and three players, one of them a Spectator",
+    "theme": "default",
+    "settles_if": "Settles of more than a few ms each, or a block landing late, confirm the cost; a sub-millisecond settle and no delay make it a nit with no effect.",
+    "priority": "nit"
+   }
+  },
+  {
+   "what": "Whether avclient-livekit 0.6.8 treats Foundry's voice mode 'activity' as always-on (voice-panel.mjs:15-16, 130 shows 'Always on' for it), and whether a stored 'activity' is Foundry 14's default for a new client.",
+   "live_check": "new live check: the gear's Voice section on a fresh browser profile",
+   "l1": {
+    "what": "The stored voice mode on a fresh profile and what the panel shows for it.",
+    "recipe": [
+     "A fresh browser profile joins as a player.",
+     "In the console read game.webrtc.settings.client.voice.mode.",
+     "Open the gear's Voice section and read which radio is checked.",
+     "Speak without a key and ask another player whether they hear you."
+    ],
+    "clients": "GM and two players",
+    "theme": "default",
+    "settles_if": "If the stored mode is 'activity' and the player is heard without a key, the panel's 'Always on' is true to the effect; if not heard, it is a wrong label.",
+    "priority": "nit"
+   }
+  },
+  {
+   "what": "Every test named here (R7103, R5201, R1035, R544, E110-T2) is named from its source; base-run.json did not exist when this file was written, so no result of them is read.",
+   "live_check": "read audit/findings-1.2.118/base-run.json when it is written"
+  }
+ ]
+}

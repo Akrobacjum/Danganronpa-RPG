@@ -1,0 +1,117 @@
+{
+ "refuter": "verify-controls-09-hud-overlays",
+ "of": "controls-09-hud-overlays",
+ "checked": [
+  {
+   "ref": "controls-09-hud-overlays-1",
+   "claim": "The status strip is not redrawn when the GMs' Eclipse-crossing store or the owner's copy, the Monocubs' record or a death the GMs keep changes; it shows the old feet, Hope or Still placing / Still to act.",
+   "verdict": "stands",
+   "why": "The strip's listeners are canvasReady, updateActor (relevant actors), create/deleteActiveEffect (effects widget only), updateSetting filtered to six world keys, updateUser (own user) and drpgEclipseChanged (eclipse start/end, fired from sync.mjs eclipseHook). None hears clientSettingChanged, drpgCubsChanged or drpgDeathsChanged. The crossings' store and copy are client-scope settings whose onChange runs the sync kind visibility (visibility, sheets, hud); the hud pass is renderHud, which does not build #drpg-player-status (grep: no caller of renderPlayerStatus outside player-status.mjs; hud.mjs only measures the Despair height for it). The module itself records that a client setting fires clientSettingChanged and not updateSetting (enforced.mjs:23, and the strip's own note at player-status.mjs:666-667), so the gap does not rest only on the reader's assumption. An Eclipse crossing returns from movement.mjs before any actor charge, so no updateActor covers it. countCrossingInStep fires no hook of its own (no Hooks.call in eclipse.mjs). The copy's own header names the status panel among its readers. keepMounted's observer redraws only when the node is gone. Severity minor is fitting: wrong in a particular situation (an Eclipse, a Monocub purse grant, a secret death), self-healing on the next relevant actor write.",
+   "evidence": [
+    "scripts/player-status.mjs:62-64 \"Hooks.on(\\\"updateSetting\\\", setting => { if (stripReadsSetting(setting)) renderPlayerStatus();\"",
+    "scripts/player-status.mjs:74 \"Hooks.on(\\\"drpgEclipseChanged\\\", () => renderPlayerStatus());\"",
+    "scripts/settings.mjs:3233-3240 \"game.settings.register(MODULE_ID, SETTINGS.gmEclipseMoves, { scope: \\\"client\\\", ... onChange: () => onStoreChange(\\\"visibility\\\")\"",
+    "scripts/sync.mjs:485 \"[SYNC.visibility]: Object.freeze([\\\"visibility\\\", \\\"sheets\\\", \\\"hud\\\"]),\"",
+    "scripts/sync.mjs:409 \"hud: () => import(\\\"./hud.mjs\\\").then(m => m.renderHud()),\"",
+    "scripts/settings.mjs:3483-3486 \"function onCubsChange() { import(\\\"./clock.mjs\\\").then(m => m.refreshSheets())...; Hooks.callAll(\\\"drpgCubsChanged\\\");\"",
+    "scripts/gm-stores.mjs:1347 \"Read by the sheet, the status panel and the veto (`eclipseMovesUsed`).\"",
+    "scripts/enforced.mjs:23-24 \"`clientSettingChanged` listener, the one hook Foundry really fires for a client setting\"",
+    "scripts/movement.mjs:2781-2802 \"if (isEclipse()) { ... for (const [from, to, floors, spot] of crossings) { const allowed = await judgeEclipseCrossing(...) ... } ... return true; }\""
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-09-hud-overlays-2",
+   "claim": "The four explainers (Where things stand, Despair, the strip's, Projects) are drawn once and do not follow the clock, the pools or the actions they print.",
+   "verdict": "stands",
+   "why": "explainer() calls drpgWindow without `live`, and drpgWindow starts keepLive only when `live` is passed. explain.mjs (520 lines) has no keepLive, keepFresh or Hooks.on (grep for live/keepLive/keepFresh/Hooks found only a comment). The state explainer prints the clock, the phase paragraph with the subject's actions and the time of day; the Despair one prints each pool's held / max and the overflow's hat and the GM's count. Nothing redraws them; the only other road is a new click, which closes the old one and opens a fresh one (explainOnce). Minor fits: an information window left beside a live panel.",
+   "evidence": [
+    "scripts/explain.mjs:49-57 \"function explainer(title, body) { return drpgWindow({ title, classes: [\\\"drpg-panel\\\", \\\"drpg-explain\\\"], body: ..., footer: { close: \\\"close\\\" }, rejectClose: false });\"",
+    "scripts/ui-kit.mjs:1340 \"if (live) keepLive(dialog, live);\"",
+    "scripts/explain.mjs:232-243 \"const clock = clockForDisplay(getClock()); ... phaseExplanation(clock, { actor: subjectActor() }) ... timeOfDayBlock(clock)\"",
+    "scripts/explain.mjs:288 \"return esc(`${poolLabel(user)}: ${getDespair(user.id)} / ${despairMax()}...`)\""
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-09-hud-overlays-3",
+   "claim": "The Despair bar's overflow caption takes no pointer on a desk layout, so its title (the GM's real count and why a full counter has not fired) never shows and a click on it falls through.",
+   "verdict": "stands",
+   "why": "The caption is appended straight to the #drpg-despair wrapper (despair.mjs:1047-1048), not inside a .drpg-despair-row, so it does not inherit the row's opt-in. #drpg-despair sets pointer-events none on itself and opts back in only the row, pip, button, name and count. A scan of every rule in styles/*.css with pointer-events whose selector names despair, overflow, #ui-top, #drpg-column or a universal selector found only those two rules for the panel; stained-glass.css's caption rules set no pointer-events. On the narrow stack #drpg-column > * gives the panel pointer-events auto, and the caption inherits it there, as the reader says. Foundry's core stylesheet was not readable here, but the panel's own declaration on the element would still beat any inherited value; only an explicit descendant rule could undo it, and the module's own opt-in list exists because none does (its note). One narrowing: the real count is not in the tooltip only - the Despair explainer, opened by a click on a row, prints the GM's count through DRPG.Overflow.gmHint (explain.mjs:311), but not the queued / darkened-full reasons, which only the tooltip carries. Minor still fits.",
+   "evidence": [
+    "scripts/despair.mjs:1047-1048 \"const caption = buildOverflowCaption(); if (caption) wrapper.append(caption);\"",
+    "scripts/despair.mjs:1142-1147 \"line.title = isGM ? game.i18n.format(active ? (count >= threshold ? \\\"DRPG.Overflow.gmHintActiveFull\\\" ...\"",
+    "styles/danganronpa.css:1148-1153 \"#drpg-despair { order: 10; ... pointer-events: none;\"",
+    "styles/danganronpa.css:1176-1182 \"#drpg-despair .drpg-despair-row, #drpg-despair .drpg-despair-pip, #drpg-despair .drpg-despair-button, #drpg-despair .drpg-despair-name, #drpg-despair .drpg-despair-count { pointer-events: auto;\"",
+    "styles/narrow.css:80 \"#drpg-column > * { pointer-events: auto; }\"",
+    "scripts/explain.mjs:311 \"if (gm) overflowLines.push(esc(game.i18n.format(\\\"DRPG.Overflow.gmHint\\\", { count, max: threshold })));\""
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "The Despair bar / The overflow caption's tooltip",
+   "claim": "Control verdict dead: the caption's tooltip cannot be reached on a desk layout.",
+   "verdict": "stands",
+   "why": "The same road as controls-09-hud-overlays-3: the caption sits outside the opt-in list on an element with pointer-events none, on a desk layout in both themes; on the narrow stack it works. The verdict dead holds for the desk layout only, which the reader says.",
+   "evidence": [
+    "styles/danganronpa.css:1176 \"/* Opt the interactive parts back in (see the note on #drpg-despair above). */\"",
+    "scripts/despair.mjs:1128 \"line.className = `drpg-overflow-caption${active ? \\\" is-active\\\" : \\\"\\\"}`;\""
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-09-hud-overlays-4",
+   "claim": "The Sound window's Music tab does not follow the world's playlists, and Music on, Vary the sounds and the Effects tab's rows do not follow another GM.",
+   "verdict": "stands",
+   "why": "The map's region (.drpg-music-map) is kept live with watch.settings [musicMap] and no hooks, so a playlist created, renamed or deleted fires nothing it hears (keepLive's world hooks are the three clock hooks; updateSetting is filtered to musicMap). The six playlist hooks wake only the cue pane's region (.drpg-music-now). The no-playlists box and the musicEnabled switch are drawn by soundPlaylistsPane outside the map's tbody region; sfxVary and the Effects rows are drawn once by soundEffectsPane / soundEffectsHtml with no region. One narrowing: the Effects row's save is per key - setSoundFor reads the current sfxMap and sets one key - so a stale field overwrites another GM's change to that same row only, not the others. Minor fits.",
+   "evidence": [
+    "scripts/sound-panel.mjs:446-451 \"keepLive(dialog, { region: \\\".drpg-music-map\\\", build: musicMapBody, watch: { settings: [SETTINGS.musicMap] }, after: ...\"",
+    "scripts/sound-panel.mjs:427-435 \"keepLive(dialog, { region: \\\".drpg-music-now\\\", build: soundPlayPane, watch: { settings: [], hooks: [\\\"createPlaylistSound\\\", ... \\\"createPlaylist\\\", \\\"deletePlaylist\\\", \\\"updatePlaylist\\\"]\"",
+    "scripts/live.mjs:69 \"const WORLD_HOOKS = [\\\"drpgTimeOfDayChanged\\\", \\\"drpgEclipseChanged\\\", \\\"drpgPhaseChanged\\\"];\"",
+    "scripts/live.mjs:331 \"if (watch.settings && !watch.settings.includes(key.split(\\\".\\\").pop())) return;\"",
+    "scripts/sound-panel.mjs:195-197 \"${soundSettingSwitch(\\\"musicEnabled\\\")} ${offered.length ? \\\"\\\" : box(\\\"info\\\", ...\"",
+    "scripts/sfx-play.mjs:341-346 \"const map = { ...(getSetting(SETTINGS.sfxMap) ?? {}) }; ... if (value) map[key] = value; ... await setSetting(SETTINGS.sfxMap, map);\""
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-09-hud-overlays-5",
+   "claim": "Despair Flow's Overflow tab keeps the rules it opened with; another GM's change is not drawn and Save writes the old rules back.",
+   "verdict": "stands",
+   "why": "The dialog's only live part is keepFresh on the Right now line (settings [overflow], hook drpgOverflowChanged). gm-team-dialog.mjs has no other keepLive/keepFresh/Hooks.on, and nothing reopens it on overflowRules (reopen is called only by Add and Revoke). Save's callback returns readOverflowForm(dialog.element), which gives every rule's checked state and every stepper's number, and the result is passed to setOverflowRules, which takes any field with a value over the current rules. So a second GM's threshold or rule saved meanwhile is replaced on this GM's Save. The comment at 316-319 states the one-GM premise. Minor fits (two GMs, both editing Despair Flow).",
+   "evidence": [
+    "scripts/gm-team-dialog.mjs:316-319 \"Everything else here is a setting being edited - pool names, who is a Monokuma, which pool feeds whom, the overflow rules - and none of it changes underneath the GM.\"",
+    "scripts/gm-team-dialog.mjs:326-332 \"keepFresh(dialog, { run: root => { const line = root.querySelector(\\\".drpg-overflow-now\\\"); ... watch: { settings: [SETTINGS.overflow], hooks: [\\\"drpgOverflowChanged\\\"] }\"",
+    "scripts/gm-team-dialog.mjs:160 \"overflow: readOverflowForm(dialog.element)\"",
+    "scripts/gm-team-dialog.mjs:225 \"if (result.overflow) await setOverflowRules(result.overflow);\"",
+    "scripts/overflow.mjs:1278-1281 \"effects[key] = { on: on.checked, ...(size === undefined ? {} : { by: size }) }; ... return { threshold: wholeNumber(root.querySelector('[name=\\\"ovf-threshold\\\"]')?.value, ...), effects };\"",
+    "scripts/overflow.mjs:119-126 \"if (Number.isFinite(wanted)) next.threshold = ...; ... on: edit.on === undefined ? current.effects[key].on : Boolean(edit.on),\""
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-09-hud-overlays-6",
+   "claim": "The Voice section's push-to-talk key line keeps the key it was built with after Change the key.",
+   "verdict": "stands",
+   "why": "The key is read once (voiceFieldset's default key = pushToTalkKey()) and written into a span; the Change button opens Foundry's ControlsConfig and nothing hears it close or the binding change (no Hooks, keepLive or keepFresh in voice-panel.mjs or settings-window.mjs; grep for ControlsConfig/KeybindingsConfig close or render hooks across scripts/ found none). placeVoice appends the fieldset once. Nit fits.",
+   "evidence": [
+    "scripts/voice-panel.mjs:113 \"export async function voiceFieldset({ client = game.webrtc?.client, settings = game.webrtc?.settings, key = pushToTalkKey() } = {}) {\"",
+    "scripts/voice-panel.mjs:141-142 \"keyRow.append(node(\\\"span\\\", \\\"\\\", key ? game.i18n.format(\\\"DRPG.Voice.panel.pttKey\\\", { key }) : ...\"",
+    "scripts/settings-window.mjs:359-364 \"export function placeVoice(root, fieldset) { ... slot.append(fieldset); return true; }\""
+   ],
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 7,
+  "stands": 7,
+  "weakened": 0,
+  "refuted": 0
+ },
+ "not_established": [
+  "Nothing was run: every verdict above is a static reading of b5a29e73 (class S). No base-run.json, probe-42.json or probe-43.json was read.",
+  "Finding 3's last step rests on the module's stylesheets only; Foundry 14's core stylesheet was not read. The reader's live check (hover the caption as a GM on a desk layout, both themes, or document.elementFromPoint at its centre) settles it.",
+  "Finding 1 rests on Foundry 14 firing clientSettingChanged and not updateSetting for a client-scope setting; the module states this itself (enforced.mjs:23, R14) but no recorded reading was found here. The reader's live check settles it.",
+  "Not in the reader's findings, noted for the coordinator under D-A1: the Sound window's Music map region is a keepLive region on rule 1 (the reader's own focus_rule for that surface: a select being chosen from holds the map's redraw, sound-panel.mjs:443-444 \"A select being chosen from holds the redraw (rule 1)\"), and float-text.mjs is described as holding a region's redraw while a field is lifted. By D-A1 a surface still on keepLive's wait-for-focus is a major finding; the reader recorded the rule but wrote no finding. Not verified here beyond the comment and the reader's row: whether focus stays on the select after a choice until it leaves (a real browser keeps it) is the step that makes it bite."
+ ]
+}

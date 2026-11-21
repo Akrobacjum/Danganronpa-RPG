@@ -1,0 +1,49 @@
+{
+ "refuter": "verify-domain-item-a",
+ "of": "domain-item-a",
+ "checked": [
+  {
+   "ref": "domain-item-a-1",
+   "claim": "A room action's Hope (and Health, Sanity) effect reads the sheet as it stands, not the GMs' held means, so a console Hope raise not yet put back is built on and then kept by a GM's write.",
+   "verdict": "stands",
+   "why": "Read the whole road. The facility.use row in bridge-table.mjs has no prepare that waits on judgedFor (unlike call.arm and reroll.ask), and handleFacilityUse goes gmPlaceOf, offerAt, overflowNow, whenHydrated, serialWrite, the limit, spendAction for a project, the store patch and then applyEffects with no judgedFor, meansWrite or gmMeansWrite between; grep of meansWrite/judgedFor/meansHeld over facilities*.mjs and bridge-runs-acts.mjs finds none. applyEffects reads target.system.resources and writes with trustedWrite, which only stamps and notes the write. The superseding is real in the source: noteWrite records a GM's (non-put-back) write as `set` with its value, and hopeLeft answers `set.value + now.moved - set.moved` when a set is newer than the judged write, so the put-back of the console's 5 writes the GM's 6 back, not 3. use-items.mjs `restore`, the item road the finding compares with, does use meansWrite. The Hope effect exists (config.mjs FACILITIES.effects.hope amount 3). No test pins the opposite: the only tier-2 tests that call applyEffects are E93-T5's timed traits. What is not measured is how often the race lands (the put-back's judgement is async and may finish before the run's several awaits reach applyEffects); the finding says so by naming no run. Minor holds: it needs a console write timed against the use, and moves Hope by the forged amount.",
+   "evidence": "scripts/facilities-gm.mjs:146 `const r = target.system?.resources ?? {};` / :155 `const now = Number(r.hope?.value) || 0, max = Number(r.hope?.max) || STARTING.hopeMax;` / :157 `if (next !== now) await trustedWrite(target, { \"system.resources.hope.value\": next }, { reason: \"facility\" });`; scripts/bridge-runs-acts.mjs:142 `const lines = success ? await applyEffects(actor, effects, place, sender) : [];`; scripts/bridge-table.mjs:150-163 (facility.use row: guards, sanitize, run, rolled - no prepare); scripts/sheet-audit.mjs:1566 `held[key] = { value, own, before: ..., n, moved, set: gm && !own ? { n, value, moved } : last?.set ?? null };` / :1681 `return Math.max(0, set ? set.value + now.moved - set.moved : value + now.moved - then.moved);`; scripts/use-items.mjs:725-726 `const { meansWrite } = await import(\"./sheet-audit.mjs\"); return meansWrite(actor, async (held, maxOf) => {`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-item-a-2",
+   "claim": "onPassCrossing matches the pass's room by name alone, ignoring the scene the settled crossing names, so a crossing into or out of a same-named room on another scene marks the pass entered or ends it.",
+   "verdict": "stands",
+   "why": "Read the whole road. The one listener (lockpick-gm.mjs:206-208) hands every CROSSING_SETTLED event to onPassCrossing on the primary, with no scene filter. The event carries sceneId (crossing-settle.mjs:55, set from the token's parent at :42). onPassCrossing compares event.to / event.from with row.room only, though the row holds sceneId (grantPass :57) and holdsPass, the reader that opens the door, compares both. crossing-settle.mjs's header says the event names the scene so that listeners can tell scenes apart. The tier-2 tests (tests-tier2.mjs:102348-102371) call onPassCrossing with no sceneId, so nothing pins the scene either way. infiltrate-reroll.mjs:105-107 also compares the room alone, but only for the roller's own pick, as the finding says. The case needs one character with lawful crossings on two scenes with rooms of one name; the module treats same-named rooms on two scenes as real (traps.mjs:147-156, stash-reach.mjs:226-232). Rare, so minor.",
+   "evidence": "scripts/lockpick-gm.mjs:75 `if (event.to === row.room && !row.entered) {` / :79 `if (row.entered && event.from === row.room && event.to !== row.room) return endPass(event.actorId);` / :57 `await lockpickStore.patch(actor.id, { actorId: actor.id, sceneId: scene.id, room, ...` ; scripts/crossing-settle.mjs:55 `const event = { actorId, from: entry.from, to: entry.to, via: entry.via ?? null, eclipse: entry.eclipse ?? null, sceneId: entry.sceneId ?? null };`; scripts/movement.mjs:1212 `return Boolean(row) && row.sceneId === scene.id && row.room === room;`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "Plant the item (traps.mjs openPlantDialog) / Plant",
+   "claim": "Listed under dead_controls: with no name typed, Plant closes the window and nothing is said.",
+   "verdict": "weakened",
+   "why": "The behaviour is as described - the name input has no `required`, the kit has no checkValidity or required handling (grep of ui-kit.mjs finds none), and the empty name returns null at :677 before plantItem - but the control is silent rather than dead: its only caller, messenger-app.mjs rulePlantTrapItem, answers null for a null, which leaves the GM's card open, so the GM can press it again and plant. controls-06-items-sheet-7 already holds it as a nit, verdict silent.",
+   "evidence": "scripts/traps.mjs:653 `<input type=\"text\" name=\"name\" value=\"\" /></label>` / :677 `if (!answer || answer === \"cancel\" || !answer.name || !answer.room) return null;`; scripts/messenger-app.mjs:986-987 `const planted = await openPlantDialog(data.project); return planted ? settled(\"DRPG.Trap.plantSettled\") : null;`; scripts/messenger-app.mjs:979-980 `// null is nothing happening at all, and only that leaves the card open.`",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "Give a room key (gm-items.mjs giveKeyNow) / Give",
+   "claim": "Listed under dead_controls: giving a key the student already holds makes none and says nothing.",
+   "verdict": "weakened",
+   "why": "giveKeyNow does say nothing when grantBedroomKey answers null (grantKeyNow returns null when the key is held, :316). But a held key is not offered: keyChoices drops every room in keysHeldBy(who, { stashed: true }) and the window rebuilds the list and the button's state when the recipient changes (gm-items.mjs:487-511); the hub reopens after each give with fresh lists (:202, :425-426). So the silent answer is reached only when the list went stale between drawing and the click (a key given meanwhile from another window, another GM, the ready sweep or a handover) or when grantItem refuses - a race, not the ordinary press. Silent in a particular race; not dead.",
+   "evidence": "scripts/gm-items.mjs:543-545 `const held = keysHeldBy(who, { stashed: true }); const others = ...; const rooms = others.filter(v => !held.has(v.room));` / :577-581 `const made = await grantBedroomKey(who, room); if (made) { ui.notifications.info(...) } return Boolean(made);`; scripts/vault-store.mjs:316 `if (keysHeldBy(actor, { stashed: true }).has(room)) return null;`",
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 4,
+  "stands": 2,
+  "weakened": 2,
+  "refuted": 0
+ },
+ "not_established": [
+  "Finding 1: how often the console's Hope write is still unjudged when the facility run reaches applyEffects on a real primary; the reader's suggested probe (a player's Hope +3 and a facility.use with a +1 Hope project action in one tick) was not run here, by the rules of this pass.",
+  "The six nits (domain-item-a-3 to -8) were not re-checked: the task asked for findings of minor and above and controls with a dead, throws, mislabeled or wrong_audience verdict.",
+  "The stale_windows hints (Give / take items, the room and project action editors, Look inside the stashes, the Rifle and steal pickers) are drawn-once windows, not keepLive's wait-for-focus (D-A1); they belong to controls-06's verifier and were not re-checked here."
+ ]
+}

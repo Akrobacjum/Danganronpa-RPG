@@ -8035,6 +8035,53 @@ const SCENARIOS = [
                 stableJson(words.map(w => ({ to: w.to, text: w.html.replace(/<[^>]+>/g, " ").trim().slice(0, 80) })))}`);
     }],
 
+    ["1.2.121 CASE-16 - a crisis card tells no seat the value of a defence its copy could not see: in a trap the victim's Self-Defense card says the total, the number the victim was shown with \"+ a hidden defense\" and the hit, with no threshold, while the GMs' copy keeps the full line (scripts/murder-rules.mjs `announceCrisis`, `crisisDefenseHidden`; incident-store.mjs `castFor`; the audit's CASE-16, the owner's answer of 21.11.2026, option 1, through the coordinator)", async () => {
+        /*
+         * 21.11.2026, 1.2.121 line K. The audit's CASE-16: the card printed "total < threshold" with the GM's full number
+         * to every seat, so a victim whose copy holds no killer read the hidden builder's Body off the difference from the
+         * "18 + a hidden defense" the menu and the roll window showed (R7950). A trap is opened on two students with
+         * players, its opening missed so the trap closes (as "the time of day in an incident is veiled" opens one), and the
+         * victim's Self-Defense resolved on 30 as the bridge resolves it; the packets this GM sends are read (`wordsSent`).
+         * Read: whether the victim's player was sent any "<" or ">=" line with a number, whether they were sent the hidden
+         * line, and whether a card on the log for the GMs holds the full one. Put back: the incident, the clock. Red at e515907d: the victim was
+         * sent "30 >= <the GM's threshold>".
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a trap's builder and its victim, each with a player to be sent the card");
+        const M = await import("./murder.mjs");
+        const { CRISIS_ACTIONS } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [builder, victim] = livingStudents().filter(player);
+        const clock = getClock();
+        const read = {};
+        try {
+            await M.openMurder({ killerId: builder.id, victimId: victim.id, indirect: true, openingTrait: "eye" });
+            if (M.murderState()?.stage === "openingRoll") await M.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
+            await settle();
+            const state = M.murderState();
+            must(state?.stage === "incident" && state.indirect && state.turnSide === "victim", `the trap is not at its victim's turn: ${stableJson(state)}`);
+            const threshold = (await import("./murder-rules.mjs")).crisisThreshold("selfDefence", state);
+            const shown = CRISIS_ACTIONS.selfDefence.threshold;
+            const { contentOf } = await import("./secret.mjs");
+            const seenIds = new Set(game.messages.map(m => m.id));
+            const words = await wordsSent(async () => {
+                await game.drpg.resolveCrisisAction({ actorId: victim.id, key: "selfDefence", total: 30, isCritical: false, withHope: true });
+                await settle();
+            });
+            const text = w => w.html.replace(/<[^>]+>/g, " ").replace(/&gt;/g, ">").replace(/&lt;/g, "<");
+            const toVictim = words.filter(w => w.to.includes(player(victim).id)).map(text);
+            // This GM's own card is not a packet it sends: read off the log, as written for the GMs.
+            const toGm = game.messages.filter(m => !seenIds.has(m.id) && m.whisper?.some(id => game.users.get(id)?.isGM))
+                .map(m => text({ html: contentOf(m) ?? "" }));
+            read.victim = [toVictim.some(t => /(≥|<|>=)\s*\d+/.test(t)), toVictim.some(t => t.includes(game.i18n.format("DRPG.Murder.scoreHidden.hit", { total: 30, n: shown })))];
+            read.gm = toGm.some(t => t.includes(`30 ≥ ${threshold}`));
+        } finally {
+            await c3Incident(clock);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ victim: [false, true], gm: true }),
+            "{victim: [a line with a threshold sent to the victim's player, the hidden line sent]; gm: the full line sent to a GM} - the card keeps the hidden defence's value from the seat that could not see it");
+    }],
     ["the time of day in an incident is veiled and names nobody", async () => {
         /*
          * E06 C4, 27.09.2026; audit S10-04 (L12). While an incident runs the time of day is told
@@ -17892,6 +17939,157 @@ const SCENARIOS = [
         }
     }],
 
+    ["E120 - the lights veil only a killer they can still open, and lift one they cancel before they judge the next: never a killer the room alone cancels", async () => {
+        /*
+         * 1.2.121 line M2; the audit's DOC-01 (audit/findings-1.2.118, first-session old-1.1.88-1.2.13-A obs1, re-checked
+         * open on 1.2.119). `endEclipse` veiled every declaration's killer before the lights judged (mask-gm.mjs
+         * `veilAtTheLights`), and a killer the lights then cancelled stayed veiled until `lightsJudged`, after the whole
+         * judgement and any window it asks a GM: drawn on no player's map, and flagged `veiled` in every browser's world data
+         * - the mark of a declaration that came to nothing. Two declarations of one Eclipse: the first's killer stands with
+         * one other and is refused by the GM at the lights (its window answered "no"); the second's stands alone. The Eclipse
+         * ends; read on this GM, in order, each write of the veil's flag to either killer's tokens and each card sent to
+         * either killer's player (`secret.card`). The veil's own work - a killer the lights open is veiled and the opening
+         * takes the row over - is E112's test above.
+         */
+        needs(env.primaryGm(), "the veil is the primary GM's");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "two killers whose players are sent the lights' answers");
+        needs(world.atLeast("livingStudents", 3), "two killers and one other");
+        needs(world.atLeast("studentTokensOnScreen", 3), "the three are stood in rooms by their tokens");
+        needs(world.atLeast("namedRooms", 3), "a room is left to the pair and one to the lone killer");
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [first, second] = livingStudents().filter(player);
+        const [other] = livingStudents().filter(a => a !== first && a !== second && !player(a));
+        must(other, "no student without a player to stand with the first killer - this would measure something else");
+        equal(M.murderState(), null, "an incident was already running when this scenario started");
+        const tag = new Map([[first.id, "first"], [second.id, "second"]]);
+        const ownerTag = new Map([[player(first).id, "first"], [player(second).id, "second"]]);
+        const events = [];
+        const watch = Hooks.on("updateToken", (doc, changes) => {
+            const f = changes?.flags?.[MODULE_ID] ?? {};
+            if (!tag.has(doc.actorId) || !("veiled" in f || "-=veiled" in f)) return;
+            events.push(`${tag.get(doc.actorId)}:${doc._source.flags?.[MODULE_ID]?.veiled ? "veiled" : "lifted"}`);
+        });
+        const socket = game.socket;
+        const ownEmit = Object.getOwnPropertyDescriptor(socket, "emit");
+        const send = socket.emit;
+        const D = foundry.applications.api.DialogV2;
+        const ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+        const wait = D.wait;
+        const title = game.i18n.localize("DRPG.Action.murderOpensTitle");
+        let asked = 0;
+        const stood = [await aloneTogether(first, other, { asked: true })];
+        try {
+            stood.push(await aloneTogether(second, null, { asked: true }));
+            await E.startEclipse();
+            await settle();
+            const id = E.eclipseId();
+            ok(E.isEclipse() && id, `the Eclipse did not open, or has no name (${id})`);
+            for (const [at, killer, room] of [[1, first, stood[0].room], [2, second, stood[1].room]]) {
+                await S.pendingMurderStore.patch(killer.id, { room, note: "SUITE E120 declared in the dark", at, approved: null, eclipse: id });
+            }
+            socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "secret.card") for (const to of options?.recipients ?? []) if (ownerTag.has(to)) events.push(`${ownerTag.get(to)}:told`);
+                return send.call(this, event, packet, options, ...rest);
+            };
+            D.wait = async function (config, ...rest) {
+                if (config?.window?.title !== title) return wait.call(this, config, ...rest);
+                asked++;
+                return "no";
+            };
+            await E.endEclipse({ advance: false });
+            await settle();
+        } finally {
+            Hooks.off("updateToken", watch);
+            if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await S.pendingMurderStore.dropMany([first.id, second.id].filter(k => S.pendingMurderStore.has(k)));
+            for (const k of [first.id, second.id]) if (S.veilStore.has(k)) await S.veilStore.drop(k);
+            for (const s of [...stood].reverse()) await s.back();
+        }
+        const tokensOf = a => game.scenes.contents.flatMap(scene => scene.tokens.filter(t => t.actorId === a.id));
+        const n = tokensOf(first).length;
+        must(n > 0, `${first.name} has no token - this would measure nothing`);
+        equal(stableJson([asked, events, [first, second].map(a => tokensOf(a).some(t => t._source.flags?.[MODULE_ID]?.veiled))]),
+            stableJson([1, [...Array(n).fill("first:veiled"), ...Array(n).fill("first:lifted"), "first:told", "second:told"], [false, false]]),
+            "the lights veiled a killer the room alone cancels, or lifted one they cancelled only after judging the next (the GM's windows asked; "
+            + "in order, each write of the veil to either killer's tokens and each card to either killer's player; a veil left on either)");
+    }],
+
+    ["E120 - the masks end before every write of a day's board stamp, so the chapter end's next morning outside a trial draws no masked killer on either board", async () => {
+        /*
+         * 1.2.121 line M2; the audit's STG-03 residue and N119-5 (two readers): End chapter with "next morning" moves the
+         * clock through clock.mjs `setTimeOfDay` with the start board's stamp and the end board's (chapter.mjs, the
+         * "morning" step; transitions.mjs `boardsOf` "both"), straight to `setClock`, which ended masks only on entering the
+         * Class Trial - so with a mask standing outside a trial both boards drew the killer's place on the same write. Since
+         * 1.2.121 `setClock` ends the masks before any write that stamps a board (`writesBoardStamp`), whatever road writes
+         * it. A direct murder on Hope (the killer masked), the incident closed, the clock at Evening of Daily Life; the
+         * chapter's end asked for the next morning alone (`applyChapterEnd`). At the clock's write that lands on the morning,
+         * read on this browser: the time of day, the start and the end stamps for the board, the picture the day's board
+         * composes for the killer then (sequence.mjs `dayEndBoard`, as E119's test) and whether a mask still stands.
+         */
+        needs(env.primaryGm(), "the chapter's end runs on the primary GM alone (`applyChapterEnd`)");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const C = await import("./chapter.mjs"), Q = await import("./sequence.mjs");
+        const M = await import("./murder.mjs"), K = await import("./mask-gm.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        const { trialFloor } = await import("./trial-floor.mjs");
+        must(!M.murderState() && !bodyDiscovery() && !isEclipse() && !trialFloor(), "an incident, a body's hold, an Eclipse or a trial is open - this would measure something else");
+        must(!C.chapterEndStopped(), "a chapter's end stands unfinished - the end would be refused, and this would measure nothing");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = C.livingStudents().filter(owner);
+        const was = foundry.utils.deepClone(getClock());
+        const characters = game.actors.filter(a => a.type === "character");
+        const actionsWas = characters.map(a => [a, a.system?.resources?.actions?.value ?? null, a.system?.resources?.actions?.max ?? null]);
+        const settingsWas = Object.fromEntries(["sealedRooms", "restrictions", "motive", "searchTokens", "bodyFound", "readyRound", "sequences", "chapterEnd", "morningLineDraft"]
+            .filter(key => SETTINGS[key]).map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS[key]) ?? null)]));
+        const faceWas = [killer._source.img ?? null, killer._source.prototypeToken?.texture?.src ?? null];
+        const real = "worlds/suite/e120-board-killer.webp";
+        const reads = [];
+        const watch = Hooks.on("updateSetting", setting => {
+            if (setting?.key !== `${MODULE_ID}.${SETTINGS.clock}` || getClock().timeOfDay !== "morning" || reads.length) return;
+            const c = getClock();
+            const b = Q.dayEndBoard({ clock: c, students: studentActors() });
+            reads.push([c.timeOfDay, c.dayBoard === c.day, c.nightBoard === c.day - 1, b.cast.find(x => x.id === killer.id)?.img ?? null, K.maskStands(killer.id)]);
+        });
+        let ended = null;
+        try {
+            await killer.update({ img: real });
+            await setClock({ phase: "dailyLife", timeOfDay: "evening", refilledFor: null });
+            await settle();
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
+            await M.endMurder({ reason: "test", followUp: false });
+            await settle();
+            must(K.maskStands(killer.id), "the opening on Hope put up no mask - this would measure nothing");
+            const c = getClock();
+            ended = await C.applyChapterEnd({ nextMorning: true, opened: { chapter: c.chapter, session: c.session, day: c.day ?? 1, phase: c.phase } });
+            await settle();
+            Q.endSequence("cut");
+        } finally {
+            Hooks.off("updateSetting", watch);
+            Q.endSequence("cut");
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
+            await setClock(was);
+            for (const [actor, value, max] of actionsWas) {
+                await actor.update({ "system.resources.actions.value": value, ...(max === null ? {} : { "system.resources.actions.max": max }) });
+            }
+            for (const [k, value] of Object.entries(settingsWas)) await game.settings.set(MODULE_ID, SETTINGS[k], value ?? (k === "morningLineDraft" ? "" : {}));
+            await killer.update(faceWas[1] ? { img: faceWas[0], "prototypeToken.texture.src": faceWas[1] } : { img: faceWas[0] });
+            await settle();
+        }
+        equal(stableJson([Boolean(ended), reads]), stableJson([true, [["morning", true, true, real, false]]]),
+            "the chapter's end did not land on the next morning with both boards stamped, or a mask still stood as it landed and the board drew the killer behind it "
+            + "(the end ran; at the landing: the time of day, the start stamp, the end stamp, the killer's picture on the board, a mask standing)");
+    }],
+
     ["E119 - a card's words kept while a mask stood stay cut for a reader outside it after the mask ends, served or rewritten, unless the killer revealed themselves", async () => {
         /*
          * 1.2.119 (20.11.2026), the audit's adversarial pass through the coordinator: "a card that hid a masked killer as
@@ -17964,6 +18162,189 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson({ masked: [true, false], ended: [true, false], ownerEnded: [true, true], rewritten: [true, false], revealed: [true, true] }),
             "a reader outside the mask was sent the killer's name, or not sent the words ([sent, the name in it]: asked while the mask stood; after it ended with the time of day; the killer's own player after; the card rewritten after; a card under a mask the killer revealed)");
+    }],
+
+    ["E120 - a Monocub's Ghost Bet and a GM's Bounty on a masked student name them \"?\" to the Monocub's player while the mask stands and after it ends, until the killer reveals themselves", async () => {
+        /*
+         * 1.2.121 line M1 (21.11.2026), the audit's N119-2 and N119-3 (recheck-119.json; COMM-19's and COMM-24's residue).
+         * A Monocub's Ghost Bet picker names a masked student "?" (monocub.mjs CUB_TARGETS.student, `nameAsSeen`), and a
+         * GM may put a Bounty on one (`postBounty`); the cards that tell the Monocub's player are cut while the mask stands
+         * (secret.mjs `wordsFor`), but the copy its owner is sent (`cubsFor`: the bet's and every open Bounty's
+         * `targetName`, which the sheet's panel writes, sheet-actions.mjs `cubPanelLines`) carried the name in clear, and
+         * the lapse's card, posted after the time of day ended the mask, named the student behind the "?". Driven on this
+         * GM: the killer masked (mask-gm.mjs `maskKiller`); a Bounty on them and on a student not masked (the control: it
+         * names them), and the Monocub's bet on the killer; the copy read while the mask stands, after the time of day
+         * ended it, and the lapse's words to the Monocub's player; then a second mask, a Bounty and the bet again, the
+         * killer's reveal, and the copy read after. Every `secret.card` this browser sends kept here and dropped.
+         * Red at e515907d.
+         */
+        needs(env.primaryGm(), "the masks are the primary GM's");
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and a Monocub, each with a player");
+        const M = await import("./monocub.mjs"), K = await import("./mask-gm.mjs"), I = await import("./murder.mjs");
+        const D = await import("./despair.mjs"), S = await import("./gm-stores.mjs"), SC = await import("./secret.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        must(!I.murderState(), "an incident is open - this would measure something else");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, cub] = livingStudents().filter(owner);
+        const cubUser = owner(cub);
+        must(!killer.testUserPermission(cubUser, "OWNER") && !K.maskStands(killer.id), "the Monocub's player owns the killer, or a mask stands - this would measure something else");
+        const pool = D.getDespair(game.user.id);
+        const owedRows = foundry.utils.deepClone(S.despairOwedStore?.entries?.() ?? {});
+        const rowWas = foundry.utils.deepClone(S.cubStore.get(cub.id) ?? null);
+        const bountiesWas = foundry.utils.deepClone(S.bountyStore.entries() ?? {});
+        const cardsWas = foundry.utils.deepClone(getSetting(SETTINGS.secretCards) ?? {});
+        const stored = clientStored();
+        const messagesWas = new Set(game.messages.contents.map(m => m.id));
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const out = [];
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "secret.card") {
+                if ((options?.recipients ?? []).includes(cubUser.id)) out.push(String(packet.html ?? ""));
+                return true;
+            }
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const copy = () => {
+            const row = M.copyRowOf(M.cubsFor(cubUser.id).cubs[cub.id]);
+            return { bounties: (row?.bounties ?? []).map(b => b.targetName === killer.name ? "killer" : b.targetName === victim.name ? "victim" : b.targetName).sort(),
+                bet: row?.bet ? (row.bet.targetName === killer.name ? "killer" : row.bet.targetName) : null };
+        };
+        const named = () => out.some(html => html.includes(killer.name));
+        const read = {};
+        try {
+            for (const id of Object.keys(bountiesWas)) await S.bountyStore.drop(id);
+            await D.setDespair(game.user.id, 6);
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            await settle();
+            must(await M.postBounty(game.user.id, victim), "the control's Bounty was not posted - this would measure nothing");
+            must(await K.maskKiller({ killerId: killer.id, victimId: victim.id }), "the mask did not go up - this would measure nothing");
+            await settle();
+            out.length = 0;
+            must(await M.postBounty(game.user.id, killer), "the Bounty was not posted - this would measure nothing");
+            await M.CUB_RESOLVERS.bet(cub, killer);
+            await settle();
+            read.standing = { ...copy(), cards: [out.length > 0, named()] };
+            await K.endMask(killer.id, "timeOfDay");
+            await settle();
+            read.ended = copy();
+            out.length = 0;
+            await M.lapseBounties();
+            await settle();
+            read.lapsed = [out.length > 0, named()];
+            must(await K.maskKiller({ killerId: killer.id, victimId: victim.id }), "the second mask did not go up - this would measure nothing");
+            await settle();
+            must(await M.postBounty(game.user.id, killer), "the second Bounty was not posted - this would measure nothing");
+            await K.revealMask(killer.id);
+            await settle();
+            read.revealed = copy();
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
+            for (const id of Object.keys(S.bountyStore.entries() ?? {})) await S.bountyStore.drop(id);
+            for (const [id, row] of Object.entries(bountiesWas)) await S.bountyStore.patch(id, row);
+            const nowRows = Object.keys(S.despairOwedStore?.entries?.() ?? {}).filter(k => !Object.hasOwn(owedRows, k));
+            if (nowRows.length) await S.despairOwedStore.dropMany(nowRows);
+            await D.setDespair(game.user.id, pool);
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            if (rowWas) await S.cubStore.patch(cub.id, rowWas);
+            for (const m of game.messages.contents.filter(m => !messagesWas.has(m.id))) await m.delete().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.secretCards, cardsWas);
+            SC.forgetSecrets();
+            putBackStored(stored);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            standing: { bounties: ["?", "victim"], bet: "?", cards: [true, false] },
+            ended: { bounties: ["?", "victim"], bet: "?" },
+            lapsed: [true, false],
+            revealed: { bounties: ["killer"], bet: "killer" }
+        }), "the Monocub's player was given the masked student's name, or not given the control's (the copy's Bounties and bet: while the mask stands, after the time of day ended it, after the killer revealed themselves; the cards to that player: [sent, the name in them] while it stands and at the lapse after it ended)");
+    }],
+
+    ["E120 - a room action used beside a killer veiled for the opening leaves the killer out of what its user is told, card and answer, and names them once the veil is lifted", async () => {
+        /*
+         * 1.2.121 line M1 (21.11.2026), the audit's N119-1 (recheck-119.json; MAP-16's residue). While a direct murder waits
+         * on its opening the killer is veiled (mask-gm.mjs `veilWanted`): the victim's browser does not draw them, and the
+         * room's pickers leave them out (`seenHere`). The victim is not seated yet (settings.mjs `incidentSeats`), so
+         * nothing stops their room action (bridge-runs-acts.mjs `handleFacilityUse` asks no incident), and an effect on
+         * those present or the others falls on the veiled killer too - the rules' reading, kept (`countsAsPresent`). But
+         * its lines named everyone it fell on (facilities-gm.mjs `applyEffects`), in the asker's answer and on the card
+         * `tellUse` whispers, and the card's cut covers masked names, not veiled ones (secret.mjs `wordsFor`). Driven on
+         * this GM: the two alone in a room, a direct murder opened with its invitation held, the veil settled; a room
+         * action's Health on "others" used by the victim, then by the killer (the control: the killer's side sees them),
+         * then by the victim after the incident closed (the veil gone). Read: whether the killer's name is in the lines
+         * and on the card's words sent to the victim's player; whether the victim's name is in the killer's lines.
+         * Red at e515907d.
+         */
+        needs(env.primaryGm(), "the veil is the primary GM's");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs"), K = await import("./mask-gm.mjs"), S = await import("./gm-stores.mjs");
+        const F = await import("./facilities.mjs"), FG = await import("./facilities-gm.mjs"), SC = await import("./secret.mjs");
+        const { gmPlaceOf } = await import("./movement.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        must(!M.murderState(), "an incident is open - this would measure something else");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const kp = owner(killer), vp = owner(victim);
+        must(kp && vp && kp.id !== vp.id, "the killer and the victim share a player - this would measure something else");
+        const tokens = () => game.scenes.contents.flatMap(scene => scene.tokens.filter(t => t.actorId === killer.id));
+        const before = tokens().map(t => [t.id, Boolean(t._source.hidden)]);
+        const flagOf = t => t._source.flags?.[MODULE_ID] ?? {};
+        const effect = F.cleanEffect({ kind: "health", n: 1, scope: "others" });
+        must(effect?.scope === "others", "no room action's effect on the others - this would measure nothing");
+        const cardsWas = foundry.utils.deepClone(getSetting(SETTINGS.secretCards) ?? {});
+        const stored = clientStored();
+        const messagesWas = new Set(game.messages.contents.map(m => m.id));
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const out = [];
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "murder.openingAsk") return true;
+            if (packet?.action === "secret.card") {
+                if ((options?.recipients ?? []).includes(vp.id)) out.push(String(packet.html ?? ""));
+                return true;
+            }
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const use = async (actor, user, other) => {
+            out.length = 0;
+            const lines = await FG.applyEffects(actor, [effect], gmPlaceOf(actor), user);
+            await FG.tellUse(actor, { label: "E120 room action" }, true, lines);
+            await settle();
+            return [lines.length > 0, lines.some(line => line.includes(other.name)), actor === victim ? out.some(html => html.includes(other.name)) : null];
+        };
+        let back = null;
+        const read = {};
+        try {
+            ({ back } = await aloneTogether(killer, victim));
+            await S.veilStore.whenHydrated();
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            await K.settleVeils();
+            must(S.veilStore.has(killer.id), "the opening did not veil the killer - this would measure nothing");
+            read.veiled = await use(victim, vp, killer);
+            read.killerSide = await use(killer, kp, victim);
+            await M.endMurder({ reason: "test", followUp: false });
+            await K.settleVeils();
+            read.lifted = await use(victim, vp, killer);
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
+            if (S.veilStore.has(killer.id)) await S.veilStore.drop(killer.id);
+            for (const [id, hidden] of before) {
+                const t = tokens().find(x => x.id === id);
+                if (t && (Boolean(t._source.hidden) !== hidden || flagOf(t).veiled !== undefined)) await t.update({ hidden, ...K.unveilPatch((await import("./utils.mjs")).forcedDeletion()) });
+            }
+            if (back) await back();
+            for (const m of game.messages.contents.filter(m => !messagesWas.has(m.id))) await m.delete().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.secretCards, cardsWas);
+            SC.forgetSecrets();
+            putBackStored(stored);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ veiled: [false, false, false], killerSide: [true, true, null], lifted: [true, true, true] }),
+            "a room action named a killer veiled for the opening to the victim, or left the killer's side or a lifted veil unnamed ([lines, the other named in them, the other named on the card's words to the victim's player]: the victim's use while the veil stands; the killer's; the victim's after the incident closed)");
     }],
 
     ["E119 - a Call's lines for its card name a masked student \"?\" (a Despair Call on the public card)", async () => {
@@ -31336,8 +31717,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * ruling, and the GM's next Save wrote that back over it. Three halves, on one fixture
          * in a chapter of its own that nobody has planned:
          *   - the ruling lands while the window stands open, and the row shows it;
-         *   - a Save that changed nothing, pressed while a redraw is held off (a select focused
-         *     in the window, live.mjs RULE 1) over a write the window has not drawn, writes nothing:
+         *   - a Save that changed nothing, pressed while a redraw is held off (a press of the pointer
+         *     inside the region not let go yet, live.mjs RULE 1 for a hand) over a write the window
+         *     has not drawn, writes nothing:
          *     no ledger write, nothing refused, and no Key plan row for the chapter - which
          *     every Save used to fill in by scale, making the chapter a planned one;
          *   - a name the GM typed before a second ruling is marked, refused at Save and told
@@ -31391,16 +31773,23 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             equal(win.field(`text.${key}`)?.value, "SUITE reshaped words", "the open dashboard still shows the words the ruling replaced");
 
             /* ---- a Save that changed nothing writes nothing, even over a write it has not drawn ---- */
-            /* The redraw held off by a focused select (live.mjs RULE 1): since the line claude/plan-119 (20.11.2026) a focused
-               text field no longer holds the dashboard's redraw (`whileEditing`), and a select still does. */
-            win.field(`vis.${key}`).focus();
+            /* The redraw held off by a press inside the region that is not let go yet (live.mjs RULE 1 for a hand): since the
+               line claude/plan-119 (20.11.2026) a focused text field no longer holds the dashboard's redraw (`whileEditing`),
+               and since the line claude/refresh-120 (21.11.2026; UI-17) neither does a focused select, which held it here
+               until then (a13d89fa). A press is what still holds a region - for the click it ends in - and the one way left
+               for a window to stand on a write it has not drawn. The press is let go after the Save, which reads the form
+               at its click. */
+            const Pointer = globalThis.PointerEvent ?? MouseEvent;
+            const pressed = win.field(`vis.${key}`);
+            pressed.dispatchEvent(new Pointer("pointerdown", { bubbles: true, cancelable: true }));
             await remnants.setRemnantPublic(token, { name: "SUITE another GM's name" });
             await gmStoresIdle();
             await wait(300);
             must(win.field(`name.${key}`)?.value === "SUITE reshaped",
-                "the window redrew with focus inside it, so this half has no stale window to measure");
+                "the window redrew under a press not let go, so this half has no stale window to measure");
             ledgerWrites = 0;
             await win.save();
+            window.dispatchEvent(new Pointer("pointerup", { bubbles: true }));
             await gmStoresIdle();
             equal(ledgerWrites, 0, "a Save that changed nothing wrote to the ledger");
             equal(remnants.remnantData(token).public?.name, "SUITE another GM's name",
@@ -77882,10 +78271,14 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await until(() => answer);
             read.describing = [await offered(trace.id), stableJson((await pick())?.held ?? null)];
             const again = await resolve(keys[0]);
-            const rest = await Promise.all(keys.slice(1).map(resolve));
+            /* The other pick's find waits for the first one's describe window since 1.2.121 (observe.mjs `createFind`,
+               `describingTraces`; the audit's CASE-18): awaited before the answer, as it was until then, it never ends. */
+            const later = Promise.all(keys.slice(1).map(resolve));
+            await settle();
             answer(null);
             await first;
             first = null;
+            const rest = await later;
             await settle();
             read.again = again?.refused ?? null;
             read.rest = rest.map(r => Boolean(r?.success));
@@ -77918,6 +78311,112 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + `resolve's refusal; the bullets; the picker's options as the candidates, and the options the held trace took) - their successes ${stableJson(read.rest)}`);
     }],
 
+    ["1.2.121 CASE-18 - two students' finds of one undescribed trace ask the GM once: the second waits for the first window's answer and takes its words, so neither the trace nor the first copy loses them and both copies carry one name (scripts/observe.mjs `createFind`, `describeFind`; remnants.mjs `setRemnantPublicById`; the audit's CASE-18, 1.2.121 line K): with the first describe window held open, the second student's Observe of the same trace opens no second window; the first answered, both Truth Bullets and the trace's record read its name and words; the same with the first window closed unanswered asks the second", async () => {
+        /*
+         * 21.11.2026, 1.2.121 line K. The audit's CASE-18 (domain-case-c-investigation-1, re-read on v1.2.119): `createFind`
+         * read the trace's public record once, before the GM's describe window, so a second student's find resolved while
+         * the window stood read the same empty record and opened a second window prefilled with the fallback; confirmed
+         * untouched it wrote the fallback name and two empty boxes over the first answer, and closed it minted the second
+         * copy from the stale read. Driven as H84-02 drives one character's two finds: a trace placed where a connected
+         * player's character stands, a second player's character stood beside it, each one's pick of the trace
+         * (`pickObserveTarget`) resolved on a success (`resolveObserve`), every window of the GM's caught (`DialogV2.wait`);
+         * the first held open until the second's resolve has had its turn, then answered with a name and words; a second
+         * window, if one opened, confirmed as drawn. Read: the windows asked while the first stood, the trace's record and
+         * both bullets' names and words. Then a second trace, the first window closed unanswered: the second find asks.
+         * Put back: the bullets, the traces, the token. Red at e515907d: two windows; the record and both bullets read the
+         * fallback name with no words.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the trace lies where the player's character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the Observe is a connected player's");
+        const observe = await import("./observe.mjs");
+        const remnants = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { positionIn } = await import("./movement.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const second = game.actors.find(a => a.type === "character" && a.id !== actor.id && !a.testUserPermission(player, "OWNER")
+            && !a.getFlag(MODULE_ID, FLAGS.monokuma) && !a.getFlag(MODULE_ID, FLAGS.monocub)
+            && game.users.some(u => !u.isGM && a.testUserPermission(u, "OWNER")) && where.scene.tokens.some(t => t.actorId === a.id));
+        must(second, "no second player's character with a token on the scene - this would measure nothing");
+        const secondUser = game.users.find(u => !u.isGM && second.testUserPermission(u, "OWNER"));
+        const token = where.scene.tokens.find(t => t.actorId === second.id);
+        const was = { x: token.x, y: token.y };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const had = new Map([actor, second].map(a => [a.id, new Set(a.items.map(i => i.id))]));
+        const sanity = [actor, second].map(a => a.system.resources.stress.value);
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const windows = [];
+        D.wait = cfg => new Promise(resolve => { windows.push({ html: cfg?.content?.outerHTML ?? String(cfg?.content ?? ""), resolve }); });
+        const prefill = html => ({ name: (html.match(/name="name"[^>]*value="([^"]*)"/) ?? [])[1] ?? "", playerText: "", analyzedText: "", critHint: "" });
+        const WORDS = { name: "SUITE 1.2.121 CASE-18 a bloody knife", playerText: "SUITE 1.2.121 CASE-18 its blade is wet", analyzedText: "", critHint: "" };
+        const copyOf = (a, traceId) => a.items.filter(i => !had.get(a.id).has(i.id) && bullets.secretOf(i.uuid)?.remnantId === traceId)
+            .map(i => [i.name, String(i.getFlag(MODULE_ID, "playerText") ?? "")]);
+        const traces = [];
+        const read = {};
+        let pending = [];
+        try {
+            await token.update(positionIn(where.room, token), { ...PLACE });
+            await settle();
+            const twoFinds = async (answerFirst) => {
+                const trace = await remnants.placeRemnant({ type: "prep", visibility: "evident", scene: where.scene,
+                    x: where.tokenDoc.x, y: where.tokenDoc.y, note: "test fixture - the trace two students find" });
+                must(trace, "the trace was not placed");
+                traces.push(trace);
+                const pick = (a, u) => observe.pickObserveTarget({ actorId: a.id, room: where.room, tokenId: trace.id, userId: u.id });
+                const [p1, p2] = [await pick(actor, player), await pick(second, secondUser)];
+                must(p1?.ok && p2?.ok, `the two picks of the trace were not both written - this would measure nothing: ${stableJson([p1, p2])}`);
+                const at = windows.length;
+                const resolve = (a, key) => observe.resolveObserve({ key, total: 30, isCritical: false, actorId: a.id, senderIsGm: true });
+                const first = resolve(actor, p1.key);
+                pending = [first];
+                await until(() => windows.length > at);
+                const later = resolve(second, p2.key);
+                pending.push(later);
+                await settle();
+                const whileOpen = windows.length - at;
+                windows[at].resolve(answerFirst);
+                await first;
+                await until(() => windows.length > at + 1, 1500).catch(() => null);
+                const asked = windows.length - at;
+                for (const w of windows.slice(at + 1)) w.resolve(prefill(w.html));
+                await later;
+                pending = [];
+                await settle();
+                const pub = remnants.remnantPublicById(where.scene.id, trace.id);
+                return { whileOpen, asked, record: [pub?.name ?? null, pub?.playerText ?? null], bullets: [copyOf(actor, trace.id), copyOf(second, trace.id)] };
+            };
+            read.answered = await twoFinds(WORDS);
+            read.closed = await twoFinds(null);
+        } finally {
+            for (const w of windows) w.resolve(null);
+            for (const p of pending) await p.catch?.(() => null);
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+            for (const [i, a] of [actor, second].entries()) {
+                for (const item of [...a.items]) {
+                    if (had.get(a.id).has(item.id)) continue;
+                    const uuid = item.uuid;
+                    await item.delete();
+                    await bullets.dropSecret?.(uuid);
+                }
+                if (a.system.resources.stress.value !== sanity[i]) {
+                    const { trustedWrite } = await import("./resource-guard.mjs");
+                    await trustedWrite(a, { "system.resources.stress.value": sanity[i] }, { reason: "gmRuling" });
+                }
+            }
+            for (const trace of traces) {
+                await remnants.dropRemnantSecret(trace);
+                if (where.scene.tokens.has(trace.id)) await where.scene.deleteEmbeddedDocuments("Token", [trace.id]);
+            }
+            if (where.scene.tokens.has(token.id)) await token.update(was, { ...PLACE });
+            await settle();
+        }
+        const fallback = read.closed.record[0];
+        equal(stableJson(read), stableJson({
+            answered: { whileOpen: 1, asked: 1, record: [WORDS.name, WORDS.playerText], bullets: [[[WORDS.name, WORDS.playerText]], [[WORDS.name, WORDS.playerText]]] },
+            closed: { whileOpen: 1, asked: 2, record: [fallback, ""], bullets: [[[fallback, ""]], [[fallback, ""]]] }
+        }), "{answered / closed: whileOpen - the windows asked while the first stood; asked - in all; record - the trace's [name, words]; bullets - each finder's [name, words]} - one trace is described once, and a second finder takes the first finder's words");
+    }],
     ["a transfer whose giver's piece cannot be taken off tells the GMs once, in its mode's words: a hand-over's, a body's that says nothing of a hand-over, a steal's of a stack whose count stays (E35-T5)", async () => {
         /*
          * E35 C1, 24.10.2026; audit S08-38's second half, E35-10. The harm: the taker has the copy and the giver
@@ -95235,7 +95734,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "[the same while caseMark is written]");
     }],
 
-    ["E44-T2 - the Sound window's Music rows follow another GM's mapping (E44 C2b; E44-08, the 27.10 amend): a `musicMap` write redraws the rows with the new playlist selected, an `sfxMap` write redraws nothing, a focused select holds the redraw until focus leaves, and a row whose save landed keeps its marker through a redraw", async () => {
+    ["E44-T2 - the Sound window's Music rows follow another GM's mapping (E44 C2b; E44-08, the 27.10 amend; the select's clause since the line claude/refresh-120): a `musicMap` write redraws the rows with the new playlist selected, an `sfxMap` write redraws nothing, a mapping write with a select focused and a pick in it not yet saved redraws the rows at once with the focus and the pick kept, and a row whose save landed keeps its marker through a redraw", async () => {
         /*
          * E44 C2b, 04.11.2026; the 27.10 amend ("keepLive for settings is E44's", E50's STAGE, edge cases): the Music tab's
          * rows were drawn once, so with the window open on two GMs one's mapping left the other's select on the old
@@ -95245,6 +95744,15 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * changes it, its save let land, and another state written. The map, the effects' map and the playlist are put
          * back. Red before C2b: the select stayed on the old playlist (no region). The mutant c2b-m3 (the region without
          * `after`: the new selects save nothing) reads red here.
+         * THE FOCUSED SELECT'S CLAUSE, REWRITTEN (the line claude/refresh-120, 21.11.2026; UI-17 of the audit of 1.2.118;
+         * the owner's rule "Zawsze odswiezamy okna od razu przy zmianie"). From E44 C2b until this line the third reading
+         * held the old rule of live.mjs: a focused select held the redraw until the focus left, read as the select still
+         * drawn 400 ms after a mapping write and redrawn only after its `focusout`. UI-17 and R7970 changed the rule on
+         * purpose: a select holds nothing. So the clause now reads the new rule on the same staging - a select focused and
+         * another playlist picked in it with no `change` (a pick not saved), another row mapped by the setting's write:
+         * the rows drawn again at once, the other row on its playlist, the select picked in drawn anew with the focus and
+         * the pick kept. Failed on d3153c04 and the 1.2.121 assembly as written before (line P's report, the coordinator's
+         * reproduction); the rewrite reads red on e515907d (the select held the rows).
          */
         needs(env.dialogs(), "the Sound window is drawn and its selects read and changed");
         must(game.user.isGM, "the Music tab is a GM's");
@@ -95279,12 +95787,13 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const focused = select(k2);
             focused.focus();
             const isFocused = document.activeElement === focused;
-            await setSetting(SETTINGS.musicMap, { ...map(), [k2]: playlist.id });
-            await wait(400);
-            read.focus = [isFocused, focused.isConnected];
-            focused.blur();
-            focused.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
-            read.focus.push(Boolean(await until(() => !focused.isConnected && select(k2)?.value === playlist.id, 3000)));
+            focused.value = playlist.id;
+            await setSetting(SETTINGS.musicMap, { ...map(), [k4]: playlist.id });
+            const atOnce = Boolean(await until(() => !focused.isConnected && select(k4)?.value === playlist.id, 1500));
+            read.focus = [isFocused, atOnce, select(k2)?.value === playlist.id, document.activeElement === select(k2) && Boolean(select(k2))];
+            document.activeElement?.blur?.();
+            await setSetting(SETTINGS.musicMap, { ...map(), [k4]: "" });
+            await until(() => select(k4)?.value === "", 3000);
             const s3 = select(k3);
             s3.value = playlist.id;
             s3.dispatchEvent(new Event("change", { bubbles: true }));
@@ -95307,9 +95816,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             if (playlist) await playlist.delete();
             await settle();
         }
-        equal(stableJson(read), stableJson({ other: [true, true], sfx: true, focus: [true, true, true], marker: [true, true, "saved"], closed: true }),
+        equal(stableJson(read), stableJson({ other: [true, true], sfx: true, focus: [true, true, true, true], marker: [true, true, "saved"], closed: true }),
             "[another GM's mapping: the row's select on the new playlist, the old select replaced]; [the select drawn before an sfxMap write still drawn after it]; "
-            + "[a select focused, still drawn while focused after a mapping write, redrawn with the write once focus left]; "
+            + "[a select focused with a pick not saved: focused; the rows redrawn at once with another row's mapping; the pick kept; the focus on the select drawn anew]; "
             + "[a row's change saved with its marker saying so, the rows redrawn by another write, that row's marker after it]; [Close closes]");
     }],
     ["E44-T3 - a GM panel tile whose window stands behind the panel raises it and the panel does not come back (E44 C2c; E44-09, S10-59): the Investigation dashboard open, the panel opened over it and its tile pressed - one dashboard, raised, and no panel", async () => {
@@ -102984,6 +103493,80 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "{gm: the GM's die at a watch of 18, 17, a critical, one not at its post, none; victimSide; packets: [the invitation's keys at 18, its hindrance, its keys at 17, the watch's words found in either]; cards: [a card with its words went, the same at 18 and 17]; window: [the claim's dice armed, the window's hindrance source, its sentence, the claim after]} - the watch's die on the killer's opening");
         ok(game.i18n.localize("DRPG.RollDialog.forcedByHindrance") !== "DRPG.RollDialog.forcedByHindrance", "the window's sentence for a hindrance die has no text");
     }],
+    ["1.2.121 STG-01 - a watch of 18 or more keeps its hindrance die for a Direct Murder declared on the watcher in the dark and opened at the lights, after the watch is over (scripts/watch-gm.mjs `openingHindrance`, `holdForTheLights`, `heldAtTheLights`, `endWatches`; eclipse.mjs `endEclipse`; murder-rules.mjs `openMurder`; roll-draw.mjs `situationReading`; the audit's STG-01, 1.2.121 line K): the Eclipse runs, the victim's watch stands at its post, a declaration allowed in the dark is judged as the Eclipse ends; the incident opens with the watch dropped, and the opening's invitation and the GM's draw of the killer's roll each read one hindrance die, which no copy of the cast holds", async () => {
+        /*
+         * 21.11.2026, 1.2.121 line K. The audit's STG-01 (first-session/stages-21.json E74-3, re-read on v1.2.119): a watch
+         * has a post from the Eclipse's start and is dropped at its end (`endWatches`, on the hook the clock's write
+         * fires), while a murder declared in that Eclipse is opened only after (eclipse.mjs `endEclipse`, "LAST, and
+         * after the clock has moved"), and the killer's roll is drawn later still, at the press - so the die the notes
+         * promise was read off a watch already gone. Driven: two fixture students stood alone in one room
+         * (`aloneTogether`), the clock at noon, the Eclipse opened (`startEclipse`), the victim's watch written as
+         * `startWatches` leaves one (19, its post the room), the declaration parked as the dark's allowed card leaves it
+         * (`approved`, the statistic), the Eclipse ended without advancing (a take-back, as the other tests here end
+         * theirs), and the watch's end let run (`endWatches`, which the hook runs too). The invitations are caught at the
+         * socket and not sent, as E74-T10 catches them. Read: the watch gone, the incident, the invitation's die, the
+         * GM's draw of the killer's roll (`expectedFor`), and the victim's copy of the cast. Put back: the Eclipse, the
+         * incident, the rows, the clock, the tokens, the cards. Red at e515907d: the GM's draw read 0, no die.
+         */
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const M = await import("./murder.mjs");
+        const W = await import("./watch-gm.mjs");
+        const { castFor } = await import("./incident-store.mjs");
+        const { incidentCast } = await import("./settings.mjs");
+        const { expectedFor } = await import("./roll-draw.mjs");
+        const [killer, victim] = cast(2);
+        must(!M.murderState(), "an incident was already running when this test started");
+        const owner = a => game.users.find(u => !u.isGM && a.testUserPermission?.(u, "OWNER")) ?? null;
+        const clock = getClock() ?? {};
+        const seenIds = new Set(game.messages.map(m => m.id));
+        const sent = [];
+        const socket = game.socket;
+        const own = Object.getOwnPropertyDescriptor(socket, "emit");
+        const send = socket.emit;
+        socket.emit = function (event, packet, ...rest) {
+            if (packet?.action === "murder.openingAsk") { sent.push(foundry.utils.deepClone(packet)); return true; }
+            return send.call(this, event, packet, ...rest);
+        };
+        const read = {};
+        let stood = null;
+        try {
+            stood = await aloneTogether(killer, victim);
+            await setClock({ timeOfDay: "noon" });
+            await E.startEclipse();
+            await settle();
+            const id = E.eclipseId();
+            must(E.isEclipse() && id, "the Eclipse did not open");
+            await S.watchStore.patch(victim.id, { actorId: victim.id, total: 19, critical: false, post: stood.room, sceneId: canvas?.scene?.id ?? null,
+                entered: 0, left: 0, at: Date.now(), userId: owner(victim)?.id ?? null });
+            read.inTheDark = W.openingHindrance("killer", { victimId: victim.id });
+            await S.pendingMurderStore.patch(killer.id, { room: stood.room, note: "SUITE 1.2.121 STG-01 declared in the dark", at: Date.now(),
+                approved: true, trait: "body", eclipse: id, betrayal: null });
+            await E.endEclipse({ advance: false });
+            await settle();
+            if (S.watchStore.get(victim.id)) await W.endWatches();
+            await settle();
+            const state = M.murderState();
+            read.opened = [state?.killerId === killer.id, state?.victimId === victim.id, state?.stage ?? null];
+            read.watch = S.watchStore.get(victim.id) ?? null;
+            read.invited = sent.map(p => p.hindrance ?? 0);
+            read.drawn = state ? (await expectedFor(killer, { actionKey: "murderOpening", context: { side: "killer" } })).read?.situation ?? null : null;
+            const victimUser = owner(victim);
+            const copy = victimUser ? castFor(victimUser.id, incidentCast(), state) : {};
+            read.copy = Object.keys(copy).filter(k => /hindrance/i.test(k) && copy[k] !== null);
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            if (S.pendingMurderStore.has(killer.id)) await S.pendingMurderStore.drop(killer.id);
+            for (const a of [killer, victim]) if (S.watchStore.get(a.id)) await S.watchStore.drop(a.id);
+            await c3Incident(clock);
+            if (stood) await stood.back();
+            for (const m of game.messages.filter(m => !seenIds.has(m.id))) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ inTheDark: 1, opened: [true, true, "openingRoll"], watch: null, invited: read.invited.length ? read.invited.map(() => 1) : [], drawn: -1, copy: [] }),
+            "{inTheDark: the die while the watch stands; opened: [killer, victim, stage]; watch: the row after the Eclipse; invited: each invitation's die; drawn: the GM's draw of the killer's opening; copy: the victim's copy's fields of it} - the watch's die stays with the murder declared on the watcher in the dark");
+    }],
     ["E74-T11 - Pick the Lock's open is a pass for the picker alone, kept until the picker leaves the room it opens (scripts/lockpick-gm.mjs, movement.mjs `holdsPass`, doors-gm.mjs `pickLock`, infiltrate-reroll.mjs; E74 C4; DA9 as the plan has it, the owner 12.11.2026 \"Wole zgodnie z planem\"): an open at 15 moves nobody and gives the picker a pass to that room, in the copy of the picker's player alone; the picker's walk in through the locked door is let through and another student's is refused doorLocked; the picker's settled crossing in keeps it, the one out ends it and the door is locked to them again; a new time of day takes a pass not yet used and leaves one in use; a seal's pass lets the picker past it; a Reroll below 15 takes back a pass not yet used, and leaves one used", async () => {
         /*
          * E74, 12.11.2026 (the owner's answer to DA9, through the coordinator). Called on this GM as the run of `door.pick`
@@ -104384,7 +104967,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * `deathsFor` with `knowsOfDeath`). A player who may not know of the body saw the higher number while the GM scored the
          * lower, so a roll between the two came back a hit and told them a body lies unfound. Here, on the GM: a row of the
          * deaths store for one fixture student, this chapter, naming a second student's player as knowing it; a third student's
-         * player names no row. Read through the scoring's own road, `cleanupDc(visibility, actor)`, for the knower and the
+         * player names no row. Read through the scoring's reading, `cleanupDc(visibility, actor)` with the document (the scoring
+         * itself hands in sheet-audit.mjs `actorAsHeld`'s stand-in: "1.2.121 CASE-17" below drives it), for the knower and the
          * other, and what the other's copy would hold (`deathsFor`). No incident runs and no body is found (read). The row is
          * dropped after. Red at 12a7e309: both thresholds took the -3.
          */
@@ -104422,6 +105006,71 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         must(C.cleaningTier(knower) === C.cleaningTier(other), "the two fixture students hold cleaning tools of different tiers - their thresholds would differ anyway");
         equal(stableJson(read), stableJson({ thresholds: [C.atLeastFloor(full - bonus), full], bonus: [bonus, 0, bonus], otherCopy: false, otherOwnReading: 0 }),
             "{thresholds: [the knower's, the other's]; bonus: [the knower's, the other's, with no roller]; otherCopy: the body in the other's copy; otherOwnReading: the other's copy's reading} - the GM's fresh scene follows what the roller may know");
+    }],
+    ["1.2.121 CASE-17 - the GM scores a Tamper's fresh scene with the bodies its roller's player may know, on the scoring's own road (scripts/cleanup.mjs `resolveCleanup`, `cleanupVerdict`, `unfoundBodyIn`; sheet-audit.mjs `actorAsHeld`; the audit's CASE-17, 1.2.121 line K): with a body of this chapter in the GMs' deaths that the roller's player may not know, an investigator's bare-handed Tamper of an Evident trace on a total one under the number their own browser shows is a miss - the trace stands - and the threshold read off the stand-in the scoring hands `cleanupDc` is the one read off the document", async () => {
+        /*
+         * 21.11.2026, 1.2.121 line K. The audit's CASE-17 (domain-case-b-traces-1, re-read on v1.2.119): `resolveCleanup`
+         * scores with `cleanupVerdict(held, ...)`, `held` the stand-in of sheet-audit.mjs `actorHeldNow` (id, name, type and
+         * items, no `testUserPermission`), so cleanup.mjs `unfoundBodyIn` found no player of it and counted the GMs' whole
+         * deaths store - the 1.2.110 V3 filter skipped on the one road that scores. The V3 test above reads `cleanupDc`
+         * with the document; this one drives `resolveCleanup` itself, as 7109's investigator test does (a Truth Bullet of
+         * the trace held, `viaAction`, the step "action"), on a total of the full number less one: the window says 15,
+         * the miss is the promise. Then the two readings of `cleanupDc` side by side. No incident runs and no body is
+         * found (read). Put back: the death's row, the trace, the bullet, the cards. Red at e515907d: the trace was erased
+         * on 14, and the stand-in's threshold read 12.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the scrubbed trace is placed on the scene on screen");
+        const CL = await import("./cleanup.mjs");
+        const { CLEANUP } = await import("./config.mjs");
+        const { deathStore, usedToolStore } = await import("./gm-stores.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { bodyDiscovery } = await import("./settings.mjs");
+        const { actorAsHeld } = await import("./sheet-audit.mjs");
+        const { placeRemnant } = await import("./remnants.mjs");
+        const { createTruthBullet } = await import("./truth-bullets.mjs");
+        const [dead, knower, who] = cast(3);
+        const ownerOf = actor => game.users.find(u => !u.isGM && actor.testUserPermission?.(u, "OWNER")) ?? null;
+        const [knowerUser, whoUser] = [ownerOf(knower), ownerOf(who)];
+        must(knowerUser && whoUser && knowerUser.id !== whoUser.id && !dead.testUserPermission?.(whoUser, "OWNER"),
+            "two fixture students with players of their own, neither owning the dead - this would measure nothing");
+        must(!murderState()?.active && !bodyDiscovery(), "an incident runs or a body is found - the fresh scene would not stand on the body alone");
+        must(!(CLEANUP.freshScene?.until ?? []).includes(getClock().phase), "the clock stands in a phase with no fresh scene - this would measure nothing");
+        const bonus = Number(CLEANUP.freshScene?.bonus) || 0;
+        must(bonus > 0 && CL.cleaningTier(who) === 0, "no fresh-scene bonus, or the roller holds a Cleaning Tool - the number below would not be 15");
+        must(!deathStore.has(dead.id), "the fixture student is already dead in the GMs' store");
+        const full = CL.atLeastFloor(CLEANUP.dc.evident);
+        must(CL.atLeastFloor(full - bonus) < full, "the floor eats the fresh scene's bonus - a miss and a hit would read alike");
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const seenIds = new Set(game.messages.map(m => m.id));
+        const read = {};
+        let trace = null, bullet = null;
+        try {
+            await deathStore.patch(dead.id, { chapter: getClock().chapter, day: 1, timeOfDay: "night", at: Date.now(), keepBullets: true, known: [knowerUser.id] });
+            await settle();
+            const held = await actorAsHeld(who);
+            read.dc = { document: CL.cleanupDc("evident", who), held: CL.cleanupDc("evident", held), knower: CL.cleanupDc("evident", await actorAsHeld(knower)) };
+            trace = await placeRemnant({ type: "prep", visibility: "evident", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                note: "SUITE 1.2.121 CASE-17 a trace an investigator Tampers" });
+            must(trace, "the fixture's trace was not placed");
+            bullet = await createTruthBullet(who, { name: "SUITE 1.2.121 CASE-17 the trace found", realType: "neutral", visibility: "obvious",
+                remnantId: trace.id, sceneId: scene.id });
+            must(bullet, "the fixture's trace was not copied onto a Truth Bullet");
+            await settle();
+            await CL.resolveCleanup({ actorId: who.id, tokenId: trace.id, total: full - 1, isCritical: false, withHope: true, viaAction: true, price: "action" });
+            await settle();
+            read.standing = Boolean(scene.tokens.get(trace.id));
+        } finally {
+            if (deathStore.has(dead.id)) await deathStore.drop(dead.id);
+            if (usedToolStore?.has(who.id)) await usedToolStore.drop(who.id);
+            for (const doc of [bullet, trace]) {
+                try { await doc?.delete(); } catch { /* already gone */ }
+            }
+            for (const m of game.messages.filter(m => !seenIds.has(m.id))) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ dc: { document: full, held: full, knower: CL.atLeastFloor(full - bonus) }, standing: true }),
+            "{dc: the GM's number for the roller off the document, off the stand-in the scoring hands in, and for the knower; standing: the trace after a total one under the roller's number} - the scoring road counts only the bodies the roller's player may know");
     }],
     ["E64 DA39 migration - past +1 Health and +1 Sanity picks are read off a stamped sheet's maxima and each change is the GM's to confirm: a pick taken back hands out a statistic point on an offer limited to statistics, a past Head, Body or Leg point gets its rise, a change left unticked stays; the world is asked once; a pick of another option on that offer is refused", async () => {
         /*
@@ -105328,6 +105977,54 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "Move down and Move up on a deduction past the first column did not move it one place as drawn ({kind: x and y top to bottom as drawn by kind, before: as drawn after the relayout's tops, down: after y's Move down, sort: the kept sort, up: after its Move up})");
     }],
 
+    ["the planner's Move under another order keeps every other column as it was drawn (investigation.mjs `moveCaseNode`; the audit's r120-P-2; line P of 1.2.121)", async () => {
+        /*
+         * Four deductions of this chapter: a and b resting on nothing (one column), x resting on b and y on a (the next
+         * column), under "uncrossed", which draws the second column y above x (by its inputs; x before y by name). The
+         * dashboard drawn on the Map; a's Move down pressed. Read: the second column's order as drawn before and after, and
+         * the kept sort. Red at 03ee8de9: Move wrote places for the moved column alone and set "manual", so the second
+         * column fell back to its nodes' kind order, x above y. The meta row is put back as found.
+         */
+        const S = await import("./case-schema.mjs");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const ch = getClock().chapter;
+        const id = k => `suite-p121-${k}`;
+        const metaWas = S.caseRows(ch).meta;
+        let win = null;
+        const seen = {};
+        const pair = (root, p, q) => {
+            const x = parseFloat(root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id(p)}"]`)?.style.left ?? "NaN");
+            return [...(root?.querySelectorAll(".drpg-case-canvas > .drpg-case-edit[data-drpg-edit]") ?? [])]
+                .filter(el => parseFloat(el.style.left) === x).sort((a, b) => parseFloat(a.style.top) - parseFloat(b.style.top))
+                .map(el => el.dataset.drpgEdit).filter(e => e === id(p) || e === id(q)).map(e => e.slice(-1)).join("");
+        };
+        try {
+            await S.setCaseNode(ch, id("a"), { kind: "deduction", label: "SUITE P121 a", inputs: [] });
+            await S.setCaseNode(ch, id("b"), { kind: "deduction", label: "SUITE P121 b", inputs: [] });
+            await S.setCaseNode(ch, id("x"), { kind: "deduction", label: "SUITE P121 x", inputs: [id("b")] });
+            await S.setCaseNode(ch, id("y"), { kind: "deduction", label: "SUITE P121 y", inputs: [id("a")] });
+            await S.setCaseMeta(ch, { sort: "uncrossed" });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            await until(() => pair(root, "x", "y").length === 2 && pair(root, "a", "b").length === 2, 3000).catch(() => {});
+            seen.before = { first: pair(root, "a", "b"), second: pair(root, "x", "y") };
+            root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id("a")}"] [data-drpg-case-move="1"]`)?.click();
+            await until(() => pair(root, "a", "b") === "ba", 3000).catch(() => {});
+            await settle();
+            seen.after = { first: pair(root, "a", "b"), second: pair(root, "x", "y") };
+            seen.sort = S.caseMetaOf(S.caseRows(ch).meta).sort;
+        } finally {
+            if (win) await win.close().catch(() => {});
+            for (const k of ["a", "b", "x", "y"]) await S.dropCaseNode(ch, id(k)).catch(() => {});
+            const was = S.caseMetaOf(metaWas);
+            await S.setCaseMeta(ch, { sort: was.sort, manual: was.manual }).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({ before: { first: "ab", second: "yx" }, after: { first: "ba", second: "yx" }, sort: "manual" }),
+            "Move in one column moved another ({before and after: each column's order as drawn, top to bottom; sort: the kept sort})");
+    }],
+
     ["the planner's sort picked on the open Map redraws its column in the new order at once, with no Save (investigation.mjs `onSort`; the owner, 21.11.2026: \"dziala dopiero po save, czyli okno investigation nie odswieza sie dalej poprawnie\"; line P of 1.2.120)", async () => {
         /*
          * Three deductions resting on nothing (one column), labelled so that "By kind" (by name) and the kept order "By
@@ -105641,6 +106338,194 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "the deleted Remnant's links stayed (gone: the road's answer, token: still on the map, inputs: the deduction's after, missing: the check's)");
     }],
 
+    ["UI-17 - the Sound window's Music rows draw another GM's mapping at once while a row's select keeps the focus after its pick (the line claude/refresh-120, 21.11.2026; the owner's rule \"Zawsze odswiezamy okna od razu przy zmianie\"): the other row shows the playlist mapped, and the select picked in keeps its playlist and the focus", async () => {
+        /*
+         * The line claude/refresh-120, 21.11.2026; the audit of 1.2.118, UI-17 (re-checked on 1.2.119). A row's select
+         * saves on `change` and keeps the focus after it; live.mjs counted a focused select as typing, so the rows held
+         * their redraw - its own save's echo and another GM's mapping alike - until the GM clicked elsewhere. As the GM,
+         * E50-T1's fixture: a playlist, the Sound window opened, one free state picked (its `change`, saved) with the select
+         * left focused, then a second free state written straight into the setting (the second GM's stand-in). The map and
+         * the playlist are put back as E50-T1 puts them back. Red on e515907d: the second row still "Not set".
+         */
+        needs(env.dialogs(), "the Sound window is drawn and its selects changed");
+        must(game.user.isGM, "the Music tab is a GM's");
+        const M = await import("./music.mjs");
+        const { setSetting } = await import("./settings.mjs");
+        must(!document.querySelector(".drpg-window-sound"), "a Sound window is open - close it: this test opens its own");
+        const mapBefore = foundry.utils.deepClone(getSetting(SETTINGS.musicMap) ?? {});
+        const state = M.currentState();
+        const keys = M.MUSIC_STATES.map(s => s.key).filter(key => key !== state && key !== "murder" && !mapBefore[key]);
+        must(keys.length >= 2, `only ${keys.length} music states are free to map here`);
+        const [k1, k2] = keys;
+        const map = () => getSetting(SETTINGS.musicMap) ?? {};
+        let playlist = null, answer = null, read = null;
+        try {
+            playlist = await Playlist.create({ name: "Suite UI-17 fixture" });
+            must(playlist, "the fixture playlist was not made");
+            answer = Promise.resolve().then(() => M.openSoundDialog()).catch(err => `threw: ${err.message}`);
+            const root = () => document.querySelector(".drpg-window-sound");
+            must(await until(() => root()?.querySelector(`select[name="state:${k2}"]`), 6000), "the Sound window did not open with its Music rows");
+            const select = key => root().querySelector(`select[name="state:${key}"]`);
+            select(k1).focus();
+            select(k1).value = playlist.id;
+            select(k1).dispatchEvent(new Event("change", { bubbles: true }));
+            must(await until(() => map()[k1] === playlist.id, 3000), "the first row's pick was not saved");
+            await setSetting(SETTINGS.musicMap, { ...map(), [k2]: playlist.id });
+            await until(() => select(k2)?.value === playlist.id, 2000);
+            read = { other: select(k2)?.value === playlist.id, picked: select(k1)?.value === playlist.id, focus: document.activeElement === select(k1) };
+        } finally {
+            for (const app of [...foundry.applications.instances.values()].filter(a => a.element?.classList?.contains("drpg-window-sound"))) await app.close();
+            if (answer) await Promise.race([answer, wait(3000)]);
+            await setSetting(SETTINGS.musicMap, mapBefore);
+            await wait(800);
+            if (stableJson(map()) !== stableJson(mapBefore)) await setSetting(SETTINGS.musicMap, mapBefore);
+            if (playlist) await playlist.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ other: true, picked: true, focus: true }),
+            "[the row another GM mapped shows its playlist; the row picked in keeps its playlist; the focus on the select picked in]");
+    }],
+    ["every second and on a pool's change, a window with the focus in it is drawn again with the focus kept (the line claude/refresh-120, 21.11.2026; REFR-05; the owner's rules \"Zawsze odswiezamy okna od razu przy zmianie\" and \"R1 niech leci od razu wszystkie okna\"): the Mastermind's Hope box shows the Mastermind's new Hope while its amount is typed in, the amount and the focus kept; the trial console's tick, every second while a floor is open, keeps the focus on the bar's button the GM is on", async () => {
+        /*
+         * The line claude/refresh-120, 21.11.2026; the audit of 1.2.118's REFR-05 residue: the Hope box (mastermind.mjs
+         * `openMastermindDialog`, the region `.drpg-mm-live`) waited for the focus to leave it. Here a Mastermind is named
+         * (the GM store's own write, put back), the window opened, the amount typed, and the Mastermind's Hope written
+         * (an actor's write, which the region watches): the box reads the new Hope with the typed amount and the focus
+         * still in it. Then the trial console (trial-floor-ui.mjs `manageClassTrial`), whose region is drawn again by a
+         * forced refresh every second while a floor is open: the focus on one of the bar's buttons, read after three
+         * seconds of ticks. The console holds no field (read 21.11.2026), so the button is what a GM holds there. Red on
+         * e515907d: the Hope box still read the old Hope, and the tick dropped the focus. Red at 8473eed9 too, on the
+         * Hope box alone: its build returned the box's inside, so its first redraw left the Hope line where the box stood
+         * and the region was gone (mastermind.mjs, fixed in the same commit as this test). A select's list open under a
+         * tick is not measured: jsdom draws no list (a table's).
+         */
+        const MM = await import("./mastermind.mjs");
+        const F = await import("./trial-floor.mjs");
+        const UI = await import("./trial-floor-ui.mjs");
+        const { closeOpen } = await import("./live.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        needs(env.dialogs(), "the two windows are drawn and their fields focused");
+        must(isPrimaryGm(), "this browser is not the primary GM - the floor it reads is the primary's to write");
+        const [who] = cast(1);
+        const wasActor = MM.mastermindActor()?.id ?? null, wasLair = MM.mastermindLair();
+        const hopeWas = who.system?.resources?.hope?.value ?? 0;
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const appOf = cls => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes(cls));
+        const read = {};
+        let opening = null;
+        try {
+            await MM.setMastermind(who);
+            await settle();
+            opening = Promise.resolve().then(() => MM.openMastermindDialog()).catch(() => null);
+            must(await until(() => appOf("drpg-window-mastermind")?.element?.querySelector(".drpg-mm-live [name=amount]"), 6000), "the Mastermind's window did not open on its Hope box");
+            const box = () => appOf("drpg-window-mastermind").element.querySelector(".drpg-mm-live");
+            const amount = box().querySelector("[name=amount]");
+            amount.focus();
+            amount.value = "3";
+            const next = Math.max(0, Math.min(6, hopeWas === 2 ? 4 : 2));
+            await who.update({ "system.resources.hope.value": next });
+            await until(() => box()?.querySelector("p.notes")?.textContent.includes(String(next)), 2000);
+            const field = box()?.querySelector("[name=amount]");
+            read.hope = { shows: game.i18n.format("DRPG.Mastermind.hopeReadout", { held: next }) === box()?.querySelector("p.notes")?.textContent.trim(),
+                value: field?.value === "3", focus: Boolean(field) && document.activeElement === field, redrawn: field !== amount };
+            appOf("drpg-window-mastermind")?.close();
+            await Promise.race([opening, wait(3000)]);
+
+            closeOpen("drpg-window-trial");
+            await until(() => !document.querySelector(".drpg-window-trial"), 5000);
+            await setClock({ ...clock, phase: "classTrial" });
+            await F.startFloor({ seconds: 300 });
+            await settle();
+            UI.manageClassTrial().catch(() => {});
+            must(await until(() => appOf("drpg-window-trial")?.element?.querySelector(".drpg-trial-console [data-drpg-bar]"), 6000), "the trial console did not open on a floor with its bar");
+            const app = appOf("drpg-window-trial");
+            const button = app.element.querySelector(".drpg-trial-console [data-drpg-bar]:not([disabled])");
+            must(button, "the console's bar has no button to stand on");
+            const bar = button.dataset.drpgBar;
+            button.focus();
+            // The ticks counted as the region's element replaced, read every 100 ms.
+            let ticks = 0, last = app.element.querySelector(".drpg-trial-console");
+            for (let t = 0; t < 32; t++) {
+                await wait(100);
+                const now = app.element.querySelector(".drpg-trial-console");
+                if (now && now !== last) { ticks++; last = now; }
+            }
+            const now = document.activeElement;
+            read.tick = { ticks: ticks >= 2, focus: Boolean(now?.matches?.(`.drpg-trial-console [data-drpg-bar="${bar}"]`)), redrawn: now !== button };
+        } finally {
+            appOf("drpg-window-mastermind")?.close();
+            if (opening) await Promise.race([opening, wait(3000)]);
+            closeOpen("drpg-window-trial");
+            await until(() => !document.querySelector(".drpg-window-trial"), 5000);
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await setClock(clock);
+            await who.update({ "system.resources.hope.value": hopeWas });
+            if (wasActor) await MM.setMastermind(game.actors.get(wasActor), { room: wasLair });
+            else await MM.clearMastermind();
+            const fresh = game.messages.filter(m => !seen.has(m.id)).map(m => m.id);
+            if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ hope: { focus: true, redrawn: true, shows: true, value: true }, tick: { focus: true, redrawn: true, ticks: true } }),
+            "[the Hope box: the focus on the amount; drawn again; the new Hope read; the amount typed kept] [the console's tick: the focus on the bar's button; drawn again; two ticks or more in 3.2 s]");
+    }],
+    ["the case dashboard draws at once, with a trace's name being typed in its Table, a trace's words changed elsewhere and an item given to a student - the Remnants tab's row and the Who has what tab - the typed name, the focus and the caret kept (the line claude/refresh-120, 21.11.2026; the owner's rule \"Zawsze odswiezamy okna od razu przy zmianie\" and his reading of 21.11: the dashboard did not follow until Save)", async () => {
+        /*
+         * The line claude/refresh-120, 21.11.2026. The dashboard is one live region (`.drpg-case-live`, every tab of the
+         * Table and the Map), redrawn under a focused field since 1.2.119; the owner read on 21.11 that the dashboard did
+         * not follow until Save (its column sort is line P's). Here, without Save: the Table opened, a fixture trace's
+         * name being typed (the caret at 4), then its words written as another GM's ruling writes them
+         * (`setRemnantPublic`, a GM store write) and a tool given to a student (an item write): both shown at once - the
+         * row's words, the student's row on Who has what - with the typed name, its focus and caret still there. The
+         * trace and the tool are taken away after.
+         */
+        const remnants = await import("./remnants.mjs");
+        const INV = await import("./inventory.mjs");
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace stands on the scene on screen");
+        needs(env.dialogs(), "the dashboard is read off its drawn window");
+        const scene = canvas.scene;
+        const [who] = cast(1);
+        let token = null, win = null, tool = null;
+        const read = {};
+        try {
+            token = await remnants.placeRemnant({ type: "prep", visibility: "evident", x: 0, y: 0, scene, chapter: getClock().chapter,
+                note: "test fixture - refresh-120 the dashboard follows" });
+            must(token, "could not place the fixture trace");
+            await remnants.setRemnantPublic(token, { name: "SUITE R120 as drawn", playerText: "SUITE R120 words as drawn" });
+            await gmStoresIdle();
+            const key = `${scene.id}__${token.id}`;
+            win = await drawnCaseWindow();
+            must(win.field(`name.${key}`)?.value === "SUITE R120 as drawn", "the dashboard does not list the fixture trace as drawn");
+            const name = win.field(`name.${key}`);
+            name.focus();
+            name.value = "SUITE R120 typed";
+            name.setSelectionRange(4, 4);
+            await remnants.setRemnantPublic(token, { playerText: "SUITE R120 words changed elsewhere" });
+            await gmStoresIdle();
+            read.words = Boolean(await until(() => win.field(`text.${key}`)?.value === "SUITE R120 words changed elsewhere", 3000));
+            tool = await INV.grantItem(who, { name: "SUITE R120 tool", category: "tool", tier: 1, override: true, quiet: true });
+            must(tool, "the fixture tool was not given");
+            const who_ = () => win.app?.element?.querySelector('[data-drpg-part="who"]')?.textContent ?? "";
+            read.who = Boolean(await until(() => who_().includes("SUITE R120 tool"), 3000));
+            const now = win.field(`name.${key}`);
+            read.typed = { value: now?.value === "SUITE R120 typed", focus: Boolean(now) && document.activeElement === now, caret: now?.selectionStart === 4, redrawn: now !== name };
+        } finally {
+            if (win) await win.close().catch(() => {});
+            if (tool) await tool.delete().catch(() => {});
+            if (token) {
+                await remnants.dropRemnantSecret(token).catch(() => {});
+                await token.delete().catch(() => {});
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ typed: { caret: true, focus: true, redrawn: true, value: true }, who: true, words: true }),
+            "[the name being typed: its caret, its focus, the row drawn again, the typed name] [Who has what lists the tool given] [the row shows the words changed elsewhere]");
+    }],
     ["the Mastermind's Give Hope box stays whole when it is drawn again (1.2.120, 21.11.2026; found by the line claude/refresh-120): with the window open, a write to the Mastermind's sheet redraws the box with the new Hope, and the pool's select, the amount and Give are still in it - and the next write redraws it again", async () => {
         /*
          * 21.11.2026. mastermind.mjs `openMastermindDialog` keeps the box live (`.drpg-mm-live`, watching actors), and
@@ -105687,6 +106572,135 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const whole = { amount: true, box: true, donor: true, give: true, hope: true };
         equal(stableJson(read), stableJson({ first: whole, second: whole }),
             "[after each write to the Mastermind's Hope: the box there, its pool select, its amount, its Give, the Hope written]");
+    }],
+    ["the Sound window's Music row picked with the pointer writes its key at once, and another GM's mapping shows on the open window while the row's select keeps the focus", async () => {
+        /*
+         * Line P (claude/move-120, 21.11.2026), measured against the owner's rule "Zawsze odswiezamy okna od razu przy
+         * zmianie": a row's select pressed with the pointer, focused and picked (its `change`, saved), with no release
+         * dispatched - as a browser's own select list may never hand the page its `pointerup` - then a second row
+         * written straight into the setting (another GM's stand-in). Added to the line claude/refresh-120 at the
+         * coordinator's ask; the map and the playlist are put back as E50-T1 puts them back. Red on e515907d, on
+         * claude/refresh-120 at aa3c5de9 (the press held the region: no release within 3 s of HOLD_MAX_MS's 5) and on
+         * 1.2.120 (03ee8de9: the pick ended the press, live.mjs `onChange`, and the focused select then held it); green
+         * once both stand - the pick ends the press, and a focused select holds nothing (`isEditing`).
+         */
+        needs(env.dialogs(), "the Sound window is drawn and its selects changed");
+        must(game.user.isGM, "the Music tab is a GM's");
+        const M = await import("./music.mjs");
+        const { setSetting } = await import("./settings.mjs");
+        must(!document.querySelector(".drpg-window-sound"), "a Sound window is open - close it: this test opens its own");
+        const mapBefore = foundry.utils.deepClone(getSetting(SETTINGS.musicMap) ?? {});
+        const state = M.currentState();
+        const keys = M.MUSIC_STATES.map(s => s.key).filter(key => key !== state && key !== "murder" && !mapBefore[key]);
+        must(keys.length >= 2, `only ${keys.length} music states are free to map here`);
+        const [k1, k2] = keys;
+        let playlist = null, answer = null;
+        const read = {};
+        const map = () => getSetting(SETTINGS.musicMap) ?? {};
+        try {
+            playlist = await Playlist.create({ name: "Suite P120 sound fixture" });
+            answer = Promise.resolve().then(() => M.openSoundDialog()).catch(err => `threw: ${err.message}`);
+            const root = () => document.querySelector(".drpg-window-sound");
+            must(await until(() => root()?.querySelector("select[name^='state:']"), 6000), "the Sound window did not open with its Music tab");
+            root().querySelector('nav.drpg-tabs [data-drpg-tab-key="music"]')?.click();
+            const select = key => root().querySelector(`select[name="state:${key}"]`);
+            const first = select(k1);
+            first.dispatchEvent(new (globalThis.PointerEvent ?? MouseEvent)("pointerdown", { bubbles: true }));
+            first.focus(); first.value = playlist.id;
+            first.dispatchEvent(new Event("change", { bubbles: true }));
+            read.written = Boolean(await until(() => map()[k1] === playlist.id, 3000));
+            await setSetting(SETTINGS.musicMap, { ...map(), [k2]: playlist.id });
+            read.other = Boolean(await until(() => select(k2)?.value === playlist.id, 3000));
+            read.focus = document.activeElement?.getAttribute?.("name") === `state:${k1}`;
+        } finally {
+            for (const app of [...foundry.applications.instances.values()].filter(a => a.element?.classList?.contains("drpg-window-sound"))) await app.close();
+            if (answer) await Promise.race([answer, wait(3000)]);
+            await setSetting(SETTINGS.musicMap, mapBefore); await wait(800);
+            if (stableJson(map()) !== stableJson(mapBefore)) await setSetting(SETTINGS.musicMap, mapBefore);
+            if (playlist) await playlist.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ written: true, other: true, focus: true }),
+            "[the row picked with the pointer written to the map; the other GM's row drawn on the open window within 3 s; the focus still on the row picked]");
+    }],
+    ["the Mastermind's window follows another GM's change of the Mastermind, and Give pays the Mastermind of the moment it is pressed: changed - the box reads the new one's Hope and Give converts to them; cleared - Give refuses, saying no Mastermind is set, and converts nothing (the audit of 1.2.120, F-6; the line claude/refresh-120, 21.11.2026)", async () => {
+        /*
+         * The audit's check of 1.2.120, F-6 (AUDIT 18.6 on claude/audit-119), read at d3153c04: mastermind.mjs
+         * `openMastermindDialog` read the Mastermind once, at the open (`current`), and handed it to the Give wiring, and
+         * the box's live region heard actors and the debt's hook but not the Mastermind's store - so another GM's change
+         * or clearing of the Mastermind redrew nothing, and Give converted Despair to whoever was the Mastermind when the
+         * window opened. Here, as E05 C12's conversion test stages its pool (five Despair, nothing owed): student A named,
+         * the window opened, then B named (the store's own write, as another GM's arrives), Give 1 pressed; then the
+         * Mastermind cleared and Give pressed again. The pools, the Hope, the Mastermind and the cards are put back.
+         * Red at d3153c04: the box still read A's Hope, and the Give went to A.
+         */
+        const MM = await import("./mastermind.mjs");
+        const D = await import("./despair.mjs");
+        const { despairOwedStore } = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { resourceValue } = await import("./character.mjs");
+        needs(env.dialogs(), "the Mastermind's window is drawn and its Give pressed");
+        const donor = D.monokumas().find(u => u.id === game.user.id) ?? D.monokumas()[0];
+        must(donor, "no Monokuma's pool to convert from - this measures nothing");
+        const [a, b] = cast(2);
+        const wasActor = MM.mastermindActor()?.id ?? null, wasLair = MM.mastermindLair();
+        const hopeWas = [resourceValue(a, "hope"), resourceValue(b, "hope")];
+        const despairWas = D.getDespair(donor.id);
+        const owedWas = foundry.utils.deepClone(despairOwedStore.get?.(donor.id) ?? null);
+        const seen = new Set(game.messages.map(m => m.id));
+        const warned = [], warn = ui.notifications.warn;
+        const appOf = () => [...foundry.applications.instances.values()].find(x => x?.rendered && x.element?.isConnected && x.options?.classes?.includes("drpg-window-mastermind"));
+        const box = () => appOf()?.element?.querySelector(".drpg-mm-live") ?? null;
+        const readout = held => game.i18n.format("DRPG.Mastermind.hopeReadout", { held });
+        const give = async () => {
+            box().querySelector("[name=donor]").value = donor.id;
+            box().querySelector("[name=amount]").value = "1";
+            box().querySelector("[data-drpg-give]").click();
+            await wait(400);
+            await settle();
+        };
+        const read = {};
+        let opening = null;
+        try {
+            ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            await despairOwedStore.drop(donor.id);
+            await D.setDespair(donor.id, 5);
+            await trustedWrite(a, { "system.resources.hope.value": 0 }, { reason: "gmRuling" });
+            await trustedWrite(b, { "system.resources.hope.value": 2 }, { reason: "gmRuling" });
+            await MM.setMastermind(a);
+            await settle();
+            opening = Promise.resolve().then(() => MM.openMastermindDialog()).catch(() => null);
+            must(await until(() => box()?.querySelector("[data-drpg-give]"), 6000), "the Mastermind's window did not open on its Give Hope box");
+            must(box().querySelector("p.notes")?.textContent.trim() === readout(0), "the box does not read A's Hope as opened - nothing to compare with");
+
+            await MM.setMastermind(b);
+            read.redrawn = Boolean(await until(() => box()?.querySelector("p.notes")?.textContent.trim() === readout(2), 2000));
+            await give();
+            read.changed = { a: resourceValue(a, "hope"), b: resourceValue(b, "hope") };
+
+            await MM.clearMastermind();
+            await settle();
+            const before = [resourceValue(a, "hope"), resourceValue(b, "hope"), D.getDespair(donor.id), D.owedOf(donor.id)];
+            await give();
+            read.cleared = { same: stableJson([resourceValue(a, "hope"), resourceValue(b, "hope"), D.getDespair(donor.id), D.owedOf(donor.id)]) === stableJson(before),
+                told: warned.includes(game.i18n.localize("DRPG.Mastermind.noneSet")) };
+        } finally {
+            ui.notifications.warn = warn;
+            appOf()?.close();
+            if (opening) await Promise.race([opening, wait(3000)]);
+            await trustedWrite(a, { "system.resources.hope.value": hopeWas[0] }, { reason: "gmRuling" });
+            await trustedWrite(b, { "system.resources.hope.value": hopeWas[1] }, { reason: "gmRuling" });
+            await despairOwedStore.drop(donor.id);
+            if (owedWas) await despairOwedStore.patch(donor.id, owedWas);
+            await D.setDespair(donor.id, despairWas);
+            if (wasActor) await MM.setMastermind(game.actors.get(wasActor), { room: wasLair });
+            else await MM.clearMastermind();
+            const fresh = game.messages.filter(m => !seen.has(m.id)).map(m => m.id);
+            if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ cleared: { same: true, told: true }, changed: { a: 0, b: 3 }, redrawn: true }),
+            "[cleared: Give changed nothing; it said no Mastermind is set] [changed: A's Hope, B's Hope after Give 1] [the box read the new Mastermind's Hope]");
     }],
     ["the open planner draws a node written to the case while it stands open - with no field focused, with a field focused that holds nothing typed, and with text typed in it: the focus, the caret and the text kept, and a field another write changed under the typing keeps the text and is marked (investigation.mjs `openInvestigationDashboard`, live.mjs `keepLive` `whileEditing`; the owner, 20.11.2026: \"by okna zawsze odswiezaly sie przed zaladowaniem okna od nowa (np. Planer)\", \"Zawsze odswiezamy okna od razu przy zmianie\"; the line claude/plan-119)", async () => {
         /*
@@ -106001,6 +107015,376 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(stableJson({ changed: read.emptied !== read.before, back: read.back === read.before }), stableJson({ changed: true, back: true }),
             `the Season checklist's name row did not follow the world (before, emptied, back: ${stableJson(read)})`);
+    }],
+    ["Room setup's Apply writes only what the GM changed: a lock forced and a description written elsewhere while it stood open are kept, the description typed in another room is written (room-setup.mjs `readRoomSetupForm`, `untouchedRoomRow`, `applyRoomRows`; the audit of 1.2.118, REFR-03; the line claude/setup-120)", async () => {
+        /*
+         * Room setup drawn as a GM opens it, on the scene on screen. While it stands open the first room's lock is forced
+         * (movement.mjs `setRoomBroken`, as a player's Force the Door writes it) and its description is written by another
+         * GM (vault-store.mjs `updateRoom`); then the GM types a description in the second room and presses Apply. Read:
+         * the first room broken, its description, the second room's description. Both rooms' flags are put back as found.
+         * Red at e515907d: the first room's row was written as drawn - the lock mended, the description put back.
+         * The window's redraw (REFR-04) would draw the first room's cells again before Apply and hide the fault, so the GM
+         * starts composing in the second room's description first (`compositionstart`, as an IME does): live.mjs holds
+         * the redraw while a composition runs, and Apply reads cells drawn before the world moved. Without the hold a
+         * mutant that writes every column as drawn survived (21.11.2026, M1 and M5 of the line's mutants).
+         */
+        needs(env.dialogs(), "Room setup is drawn and its Apply pressed");
+        needs(world.atLeast("namedRooms", 2), "Room setup lists two rooms of the scene on screen");
+        const V = await import("./vault.mjs");
+        const VS = await import("./vault-store.mjs");
+        const M = await import("./movement.mjs");
+        const { roomRegions, flagOver } = await import("./rooms.mjs");
+        const scene = canvas.scene;
+        const [roomA, roomB] = M.allRooms(scene);
+        must(roomA && roomB, "the scene on screen holds no two rooms - this would measure nothing");
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-rooms").length, "Room setup stands open already");
+        const form = () => of("drpg-window-rooms")[0]?.element?.querySelector("form");
+        const field = name => form()?.querySelector(`[name="${CSS.escape(name)}"]`);
+        const was = [roomA, roomB].flatMap(room => roomRegions(scene, room).map(piece => [piece, foundry.utils.deepClone(piece.flags?.[MODULE_ID] ?? {})]));
+        const read = {};
+        let answer = null;
+        try {
+            answer = Promise.resolve().then(() => V.openRoomSetupDialog()).catch(err => `threw: ${err.message}`);
+            await until(() => field(`desc:${roomB}`), 6000).catch(() => {});
+            must(field(`desc:${roomB}`) && field(`broken:${roomA}`), "Room setup drew no description or Broken box - this would measure nothing");
+            field(`desc:${roomB}`).focus();
+            field(`desc:${roomB}`).dispatchEvent(new Event("compositionstart", { bubbles: true }));
+            await M.setRoomBroken(scene, roomA, true);
+            await VS.updateRoom(scene, roomA, { [`flags.${MODULE_ID}.${VS.VAULT_FLAGS.description}`]: "SUITE written elsewhere" });
+            await settle();
+            await wait(400);
+            read.held = field(`broken:${roomA}`)?.checked === false;
+            field(`desc:${roomB}`).value = "SUITE typed here";
+            field(`desc:${roomB}`).dispatchEvent(new Event("input", { bubbles: true }));
+            of("drpg-window-rooms")[0]?.element?.querySelector('footer button[data-action="ok"]')?.click();
+            await Promise.race([answer, wait(8000)]);
+            await settle();
+            Object.assign(read, { broken: M.roomBroken(scene, roomA), a: flagOver(roomRegions(scene, roomA), VS.VAULT_FLAGS.description),
+                b: flagOver(roomRegions(scene, roomB), VS.VAULT_FLAGS.description) });
+        } finally {
+            for (const app of of("drpg-window-rooms")) await app.close().catch(() => {});
+            await Promise.race([answer, wait(6000)]);
+            for (const [piece, flags] of was) {
+                for (const key of Object.keys(piece.flags?.[MODULE_ID] ?? {})) if (!Object.hasOwn(flags, key)) await piece.unsetFlag(MODULE_ID, key);
+                for (const [key, value] of Object.entries(flags)) await piece.setFlag(MODULE_ID, key, value);
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ held: true, broken: true, a: "SUITE written elsewhere", b: "SUITE typed here" }),
+            "Room setup's Apply wrote back what it had drawn over a change made while it stood open (held: the cells as drawn before the change, under the composition; broken: the forced lock kept, a: the description written elsewhere, b: the description typed)");
+    }],
+
+    ["Room setup follows the map while it stands open: a lock forced, a stash written and a room found show at once, and the description the GM is typing keeps its text and its focus, marked where another GM wrote the same field (room-setup.mjs `openRoomSetupDialog`'s `keepLive`; the audit of 1.2.118, REFR-04; the owner's rule \"Zawsze odswiezamy okna od razu przy zmianie\"; the line claude/setup-120)", async () => {
+        /*
+         * Room setup drawn as a GM opens it, on the scene on screen. The GM types in the second room's description and
+         * keeps the focus there. Meanwhile the first room's lock is forced, a stash is written for a student in it, the
+         * third room is found by that student (or hidden, where it was found) and another GM writes the second room's
+         * description. Read within 3 s: the Broken box, the stash cell, the Fog box, each shown and drawn as the world's;
+         * the typed text, its mark and its focus. Then Cancel. Flags, the stash and the ledger's row are put back as found.
+         * Red at e515907d: nothing in the window moved until it was closed and opened again.
+         */
+        needs(env.dialogs(), "Room setup is drawn and read");
+        needs(world.atLeast("namedRooms", 3), "Room setup lists three rooms of the scene on screen");
+        const V = await import("./vault.mjs");
+        const VS = await import("./vault-store.mjs");
+        const M = await import("./movement.mjs");
+        const F = await import("./fog.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { roomRegions } = await import("./rooms.mjs");
+        const { mastermindActor } = await import("./mastermind.mjs");
+        const scene = canvas.scene;
+        const [roomA, roomB, roomC] = M.allRooms(scene);
+        const student = cast(2).find(a => a.id !== mastermindActor()?.id);
+        must(roomC && student, "no three rooms, or no student but the Mastermind - this would measure nothing");
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-rooms").length, "Room setup stands open already");
+        const form = () => of("drpg-window-rooms")[0]?.element?.querySelector("form");
+        const field = name => form()?.querySelector(`[name="${CSS.escape(name)}"]`);
+        const was = [roomA, roomB].flatMap(room => roomRegions(scene, room).map(piece => [piece, foundry.utils.deepClone(piece.flags?.[MODULE_ID] ?? {})]));
+        const key = `${scene.id}/${student.id}`;
+        const ledgerWas = foundry.utils.deepClone(S.discoveryStore.get(key) ?? null);
+        const found = F.discoveredFor(scene.id, student.id).includes(roomC);
+        const read = {};
+        let answer = null;
+        try {
+            answer = Promise.resolve().then(() => V.openRoomSetupDialog()).catch(err => `threw: ${err.message}`);
+            await until(() => field(`desc:${roomB}`), 6000).catch(() => {});
+            must(field(`desc:${roomB}`) && field(`fog:${roomC}:${student.id}`) && field(`stash:${roomA}:${student.id}`),
+                "Room setup drew no description, Fog box or stash cell - this would measure nothing");
+            const desc = field(`desc:${roomB}`);
+            desc.focus();
+            desc.value = "SUITE typed here";
+            desc.dispatchEvent(new Event("input", { bubbles: true }));
+            // The region writes first, read alone: the ledger's write below redraws the window as well (M3 of the line's mutants).
+            await M.setRoomBroken(scene, roomA, true);
+            await VS.setStash(roomA, student.id, { present: true, concealed: false, scene });
+            await VS.updateRoom(scene, roomB, { [`flags.${MODULE_ID}.${VS.VAULT_FLAGS.description}`]: "SUITE another GM" });
+            await until(() => field(`broken:${roomA}`)?.checked && field(`stash:${roomA}:${student.id}`)?.value === "open", 3000).catch(() => {});
+            await wait(300);
+            const box = name => ({ shown: field(name)?.checked ?? null, drawn: field(name)?.defaultChecked ?? null });
+            read.broken = box(`broken:${roomA}`);
+            read.stash = { shown: field(`stash:${roomA}:${student.id}`)?.value ?? null, drawn: field(`stash:${roomA}:${student.id}`)?.dataset.drpgDrawn ?? null };
+            await F.applyDiscoveryChanges(scene, [{ actorId: student.id, room: roomC, value: !found }]);
+            await until(() => field(`fog:${roomC}:${student.id}`)?.checked === !found, 3000).catch(() => {});
+            await wait(300);
+            read.fog = box(`fog:${roomC}:${student.id}`);
+            read.typed = { text: field(`desc:${roomB}`)?.value ?? null, marked: Boolean(field(`desc:${roomB}`)?.classList.contains("drpg-moved-under")),
+                focus: document.activeElement?.getAttribute?.("name") === `desc:${roomB}` };
+            of("drpg-window-rooms")[0]?.element?.querySelector('footer button[data-action="cancel"]')?.click();
+            await Promise.race([answer, wait(6000)]);
+        } finally {
+            for (const app of of("drpg-window-rooms")) await app.close().catch(() => {});
+            await Promise.race([answer, wait(6000)]);
+            for (const [piece, flags] of was) {
+                for (const k of Object.keys(piece.flags?.[MODULE_ID] ?? {})) if (!Object.hasOwn(flags, k)) await piece.unsetFlag(MODULE_ID, k);
+                for (const [k, value] of Object.entries(flags)) await piece.setFlag(MODULE_ID, k, value);
+            }
+            if (ledgerWas) await S.discoveryStore.patch(key, ledgerWas);
+            else if (S.discoveryStore.has(key)) await S.discoveryStore.drop(key);
+            await gmStoresIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ broken: { shown: true, drawn: true }, stash: { shown: "open", drawn: "open" }, fog: { shown: !found, drawn: !found },
+            typed: { text: "SUITE typed here", marked: true, focus: true } }),
+            "Room setup did not follow the map while open, or lost what the GM was typing (broken, stash, fog: shown and drawn as the world's now; typed: the GM's text, marked, focused)");
+    }],
+
+    ["Room setup's Remove the picture empties a room's picture on Apply, the picture column read as the GM changed it (room-setup.mjs `roomCells`' picture cell, `readRoomSetupForm`; probe 42 of the audit of 1.2.118, group C: \"Remove the picture: Cafeteria\" did nothing on a room that had no picture; the line claude/setup-120)", async () => {
+        /*
+         * Probe 42 pressed Remove the picture on the Cafeteria, which the harness world gives no picture: nothing to take
+         * away, so nothing moved. Here the first room has a picture; the GM presses its Remove the picture and Apply. Read:
+         * the picture flag after, and the thumbnail before Apply. The flag is put back as found. A guard, not red first:
+         * since this line a column is written only where the GM changed it, read off the hidden field's drawn value
+         * (`data-drpg-drawn`), and this holds that a cleared picture still counts as changed.
+         */
+        needs(env.dialogs(), "Room setup is drawn and its Apply pressed");
+        needs(world.atLeast("namedRooms", 1), "Room setup lists a room of the scene on screen");
+        const V = await import("./vault.mjs");
+        const VS = await import("./vault-store.mjs");
+        const M = await import("./movement.mjs");
+        const { roomRegions, flagOver } = await import("./rooms.mjs");
+        const scene = canvas.scene;
+        const [room] = M.allRooms(scene);
+        const PATH = "modules/danganronpa-rpg/r2-120-no-such-picture.webp";
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-rooms").length, "Room setup stands open already");
+        const el = () => of("drpg-window-rooms")[0]?.element;
+        const pieces = roomRegions(scene, room);
+        // The room's module flags whole, piece by piece: an Apply of a changed row writes the row's lists and lock as well.
+        const was = pieces.map(piece => [piece, foundry.utils.deepClone(piece.flags?.[MODULE_ID] ?? {})]);
+        const read = {};
+        let answer = null;
+        try {
+            for (const piece of pieces) await piece.setFlag(MODULE_ID, VS.VAULT_FLAGS.image, PATH);
+            await settle();
+            answer = Promise.resolve().then(() => V.openRoomSetupDialog()).catch(err => `threw: ${err.message}`);
+            await until(() => el()?.querySelector(`[name="${CSS.escape(`img:${room}`)}"]`), 6000).catch(() => {});
+            const cell = el()?.querySelector(`[name="${CSS.escape(`img:${room}`)}"]`)?.closest("td");
+            must(cell?.querySelector("[data-drpg-picture-clear]"), "Room setup drew no Remove the picture - this would measure nothing");
+            cell.querySelector("[data-drpg-picture-clear]").click();
+            read.thumbnail = cell.querySelector("[data-drpg-portrait]")?.hasAttribute("src") ?? null;
+            el()?.querySelector('footer button[data-action="ok"]')?.click();
+            await Promise.race([answer, wait(8000)]);
+            await settle();
+            read.after = flagOver(roomRegions(scene, room), VS.VAULT_FLAGS.image) ?? null;
+        } finally {
+            for (const app of of("drpg-window-rooms")) await app.close().catch(() => {});
+            await Promise.race([answer, wait(6000)]);
+            for (const [piece, flags] of was) {
+                for (const key of Object.keys(piece.flags?.[MODULE_ID] ?? {})) if (!Object.hasOwn(flags, key)) await piece.unsetFlag(MODULE_ID, key);
+                for (const [key, value] of Object.entries(flags)) await piece.setFlag(MODULE_ID, key, value);
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ thumbnail: false, after: null }),
+            "Remove the picture did not empty the room's picture (thumbnail: its src gone at the press; after: the flag after Apply)");
+    }],
+
+    ["Season setup's fields follow the first write of a setting never stored, which Foundry fires as createSetting (gm-campaign.mjs `followCampaignFields`; the audit of 1.2.118, REFR-02's residue, N119-7; the line claude/setup-120)", async () => {
+        /*
+         * Season setup drawn as a GM opens it. While it stands open the safeword is written as a world that never stored
+         * one writes it: Foundry makes the Setting document and fires `createSetting`, not `updateSetting`. The harness
+         * fires `updateSetting` for every write, so this test holds that hook back for this one write (`Hooks.callAll`
+         * stood in for) and fires `createSetting` with the setting as Foundry would. Read within 2 s: the safeword field,
+         * shown and as drawn. The safeword is put back as found. Red at e515907d: `followWorld` heard `updateSetting` alone.
+         */
+        needs(env.dialogs(), "Season setup is drawn and read");
+        const SS = await import("./season-setup.mjs");
+        const G = await import("./gm-campaign.mjs");
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-season").length, "Season setup stands open already");
+        const wordBefore = getSetting(SETTINGS.safeword);
+        const KEY = `${MODULE_ID}.${SETTINGS.safeword}`;
+        const own = Object.getOwnPropertyDescriptor(Hooks, "callAll");
+        const callAll = Hooks.callAll;
+        const read = {};
+        let answer = null;
+        try {
+            answer = Promise.resolve().then(() => SS.openSeasonSetup()).catch(err => `threw: ${err.message}`);
+            await until(() => of("drpg-window-season")[0]?.element?.querySelector('form [name="safeword"]'), 6000).catch(() => {});
+            const f = () => of("drpg-window-season")[0]?.element?.querySelector('form [name="safeword"]');
+            must(f(), "Season setup drew no safeword - this would measure nothing");
+            Hooks.callAll = function (name, ...args) {
+                if (name === "updateSetting" && args[0]?.key === KEY) return true;
+                return callAll.call(this, name, ...args);
+            };
+            try {
+                await game.settings.set(MODULE_ID, SETTINGS.safeword, "SUITE created");
+                await settle();
+            } finally {
+                if (own) Object.defineProperty(Hooks, "callAll", own); else delete Hooks.callAll;
+            }
+            Hooks.callAll("createSetting", { key: KEY, value: "SUITE created" }, {}, game.user.id);
+            await until(() => f()?.value === "SUITE created", 2000).catch(() => {});
+            read.word = { shown: f()?.value ?? null, untouched: f() ? !G.changedField(f()) : null };
+        } finally {
+            if (own) Object.defineProperty(Hooks, "callAll", own); else if (Object.hasOwn(Hooks, "callAll")) delete Hooks.callAll;
+            for (const app of of("drpg-window-season")) await app.close().catch(() => {});
+            await Promise.race([answer, wait(6000)]);
+            if (getSetting(SETTINGS.safeword) !== wordBefore) await game.settings.set(MODULE_ID, SETTINGS.safeword, wordBefore);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ word: { shown: "SUITE created", untouched: true } }),
+            "Season setup's safeword did not follow a setting's first write (createSetting): shown, and still untouched for Save");
+    }],
+
+    ["Edit campaign's fields follow the clock while it stands open, and a field the GM typed in keeps the text (gm-campaign.mjs `openClockDialog`, `followCampaignFields`; N119-7: Edit campaign did not redraw at all; the owner's rule \"Zawsze odswiezamy okna od razu przy zmianie\"; the line claude/setup-120)", async () => {
+        /*
+         * Edit campaign drawn as a GM opens it, from a clock in Daily Life with no Eclipse. While it stands open the time of
+         * day moves one on (a step on the HUD); then the GM types a campaign name and the clock's name is written
+         * elsewhere too. Read: the time-of-day select (shown and drawn as the world's now, so Apply reads it untouched) and
+         * the name (the GM's text). Then Cancel. The clock is put back as found. Red at e515907d: nothing in it moved.
+         */
+        needs(env.dialogs(), "Edit campaign is drawn and read");
+        const G = await import("./gm-campaign.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-clock").length, "Edit campaign stands open already");
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const read = {};
+        let answer = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clockBefore, phase: "dailyLife", eclipse: false });
+            await settle();
+            answer = Promise.resolve().then(() => G.openClockDialog()).catch(err => `threw: ${err.message}`);
+            await until(() => of("drpg-window-clock")[0]?.element?.querySelector('form [name="timeOfDay"]'), 6000).catch(() => {});
+            const f = name => of("drpg-window-clock")[0]?.element?.querySelector(`form [name="${name}"]`);
+            must(f("timeOfDay") && f("campaignName"), "Edit campaign drew no time of day or name - this would measure nothing");
+            const moved = TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(getClock().timeOfDay) + 1) % TIMES_OF_DAY.length];
+            await setClock({ timeOfDay: moved });
+            await until(() => f("timeOfDay")?.value === moved, 2000).catch(() => {});
+            read.time = { shown: f("timeOfDay")?.value === moved, untouched: !G.changedField(f("timeOfDay")) };
+            f("campaignName").value = "SUITE typed here";
+            await setClock({ campaignName: "SUITE written elsewhere" });
+            await settle();
+            await wait(200);
+            read.name = f("campaignName")?.value;
+            of("drpg-window-clock")[0]?.element?.querySelector('footer button[data-action="cancel"]')?.click();
+            await Promise.race([answer, wait(6000)]);
+        } finally {
+            for (const app of of("drpg-window-clock")) await app.close().catch(() => {});
+            await Promise.race([answer, wait(6000)]);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ time: { shown: true, untouched: true }, name: "SUITE typed here" }),
+            "Edit campaign did not follow the clock while open, or lost what the GM typed (time: shown as the world's and still untouched, name: the GM's text)");
+    }],
+
+    ["the Season checklist's count follows the world while it stands open: the campaign's name taken off elsewhere says one more still to do, and put back one fewer (season-setup.mjs `followChecklist`, `introLine`; N119-7; the line claude/setup-120)", async () => {
+        /*
+         * The Season checklist drawn as a GM opens it, from a clock with a campaign name. While it stands open the name is
+         * written empty (another GM's Edit campaign), then put back. Read: the intro line each time, against the line drawn
+         * at the open. The clock is put back as found. Red at e515907d: the rows redrew, the intro's count stood as drawn.
+         */
+        needs(env.dialogs(), "the Season checklist is drawn and read");
+        const SS = await import("./season-setup.mjs");
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const read = {};
+        let answer = null;
+        const win = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-season-checklist"));
+        const intro = () => win()?.element?.querySelector(".drpg-kit-body > p, .window-content p")?.textContent?.trim() ?? null;
+        const state = () => win()?.element?.querySelector('li.drpg-check-row[data-drpg-key="name"]')?.dataset.drpgState ?? null;
+        try {
+            await setClock({ campaignName: "SUITE checklist" });
+            await settle();
+            answer = Promise.resolve().then(() => SS.openSeasonChecklist()).catch(err => `threw: ${err.message}`);
+            await until(() => state(), 6000).catch(() => {});
+            read.before = intro();
+            must(read.before && state(), "the Season checklist drew no intro or name row - this would measure nothing");
+            await setClock({ campaignName: "" });
+            await until(() => state() !== "done" && intro() !== read.before, 2000).catch(() => {});
+            read.emptied = intro();
+            await setClock({ campaignName: "SUITE checklist" });
+            await until(() => intro() === read.before, 2000).catch(() => {});
+            read.back = intro();
+        } finally {
+            for (const app of [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-season-checklist"))) await app.close().catch(() => {});
+            await Promise.race([answer, wait(6000)]);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            await settle();
+        }
+        const n = text => Number(String(text ?? "").match(/\d+/)?.[0] ?? 0);
+        equal(stableJson({ more: n(read.emptied) - n(read.before), back: read.back === read.before }), stableJson({ more: 1, back: true }),
+            `the Season checklist's intro did not follow the world (before, emptied, back: ${stableJson(read)})`);
+    }],
+    ["Room setup keeps the digits typed in a search-token count while the window redraws, and writes nothing until they are sent (room-setup.mjs `recountTokenCells`, `afterRedraw`; the line claude/setup-120, after claude/refresh-120 let a field with no name stop holding a redraw)", async () => {
+        /*
+         * Room setup drawn as a GM opens it. The GM types digits into the first room's token count (no `change` yet) and
+         * keeps the focus there; then another GM writes the second room's description, which redraws the window. Read
+         * within 2 s: the count's text, and the room's tokens in the world (untouched: typed digits are sent on `change`).
+         * On e515907d a field with no name holds the redraw, so the digits stay because nothing is drawn again; with
+         * claude/refresh-120 merged the window redraws, and the recount wrote the world's count over the digits (red on a
+         * scratch copy of that merge without the guard, 21.11.2026). The room's flags and tokens are put back as found.
+         */
+        needs(env.dialogs(), "Room setup is drawn and read");
+        needs(world.atLeast("namedRooms", 2), "Room setup lists two rooms of the scene on screen");
+        const V = await import("./vault.mjs");
+        const VS = await import("./vault-store.mjs");
+        const M = await import("./movement.mjs");
+        const { SearchTokens } = await import("./search-tokens.mjs");
+        const { roomRegions } = await import("./rooms.mjs");
+        const scene = canvas.scene;
+        const [roomA, roomB] = M.allRooms(scene);
+        must(roomA && roomB, "the scene on screen holds no two rooms - this would measure nothing");
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-rooms").length, "Room setup stands open already");
+        const form = () => of("drpg-window-rooms")[0]?.element;
+        const count = () => form()?.querySelector(`input[data-drpg-token="${CSS.escape(roomA)}"]`);
+        const desc = () => form()?.querySelector(`[name="${CSS.escape(`desc:${roomB}`)}"]`);
+        const was = roomRegions(scene, roomB).map(piece => [piece, foundry.utils.deepClone(piece.flags?.[MODULE_ID] ?? {})]);
+        const tokensWere = SearchTokens.left(roomA, scene);
+        const typed = String(tokensWere === 1 ? 2 : 1);
+        const read = {};
+        let answer = null;
+        try {
+            answer = Promise.resolve().then(() => V.openRoomSetupDialog()).catch(err => `threw: ${err.message}`);
+            await until(() => count() && desc(), 6000).catch(() => {});
+            must(count() && desc(), "Room setup drew no token count or description - this would measure nothing");
+            count().focus();
+            count().value = typed;
+            count().dispatchEvent(new Event("input", { bubbles: true }));
+            await VS.updateRoom(scene, roomB, { [`flags.${MODULE_ID}.${VS.VAULT_FLAGS.description}`]: "SUITE redraw" });
+            await until(() => desc()?.defaultValue === "SUITE redraw", 2000).catch(() => {});
+            await settle();
+            await wait(300);
+            read.text = count()?.value ?? null;
+            read.world = SearchTokens.left(roomA, scene) === tokensWere;
+            of("drpg-window-rooms")[0]?.element?.querySelector('footer button[data-action="cancel"]')?.click();
+            await Promise.race([answer, wait(6000)]);
+        } finally {
+            for (const app of of("drpg-window-rooms")) await app.close().catch(() => {});
+            await Promise.race([answer, wait(6000)]);
+            for (const [piece, flags] of was) {
+                for (const k of Object.keys(piece.flags?.[MODULE_ID] ?? {})) if (!Object.hasOwn(flags, k)) await piece.unsetFlag(MODULE_ID, k);
+                for (const [k, value] of Object.entries(flags)) await piece.setFlag(MODULE_ID, k, value);
+            }
+            if (SearchTokens.left(roomA, scene) !== tokensWere) await SearchTokens.setFor(roomA, tokensWere, scene);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ text: typed, world: true }),
+            "Room setup wrote over the digits typed in a token count, or sent them unasked (text: the count's text after the redraw; world: the room's tokens untouched)");
     }],
 ];
 

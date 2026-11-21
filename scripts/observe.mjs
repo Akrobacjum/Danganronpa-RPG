@@ -1023,30 +1023,53 @@ async function createFind(actor, entry, isCritical) {
     // A copy already held is no find (H84; `alreadyHeld` below): asked before the GM is asked to describe it.
     if (copiedRemnants(actor).has(entry.tokenId)) return alreadyHeld(actor, entry);
 
+    /*
+     * ONE DESCRIPTION, ASKED ONCE, WHOEVER ELSE FINDS IT MEANWHILE (1.2.121 line K, 21.11.2026; the audit's CASE-18). The
+     * record was read once, before the window, and Observe's bridge row has no queue, so a second student's find of the
+     * same undescribed trace resolved while the window stood read the same empty record and opened a second window;
+     * confirmed as drawn it wrote the fallback name and two empty boxes over the first answer (on the trace and on the
+     * first finder's copy, truth-bullets.mjs), and closed it minted the second copy from the stale read. Red at e515907d
+     * (tier 2 "1.2.121 CASE-18"): two windows, and both bullets and the record read "Remnant - Dorm A" with no words.
+     * A find of a trace whose description is being asked on this GM waits for that answer (`describingTraces`) and
+     * then reads the record: the first finder's words, asked of nobody again - or, if the first window closed with
+     * nothing, its own window. A wait for a person, so not `serialWrite` (its steps await nothing that may never
+     * answer); the wait and the read that follows it share no await, so two waiters cannot both find the trace free.
+     */
+    const traceKey = `${entry.sceneId}.${entry.tokenId}`;
+    for (let asking = describingTraces.get(traceKey); asking; asking = describingTraces.get(traceKey)) await asking;
+
     const stored = remnantPublicById(entry.sceneId, entry.tokenId);
     // Has anybody described this yet? A trace nobody has has no name (E51 C5).
     const described = stored?.name ? stored : null;
 
-    const written = (described && !isCritical)
-        ? described
-        : await describeFind(actor, entry, isCritical, described?.name || fallbackName, described);
-
-    // Written back on the GM's client, where the ledger lives. Only when there
-    // is something to write: a dismissed dialog must not overwrite a good
-    // description with an empty one.
-    let pub = stored;
-    if (written?.name && written.name !== described?.name
-        || written?.playerText && written.playerText !== described?.playerText
-        || written?.analyzedText && written.analyzedText !== described?.analyzedText) {
+    let written = described, pub = stored;
+    if (!described || isCritical) {
+        const asked = (async () => {
+            written = await describeFind(actor, entry, isCritical, described?.name || fallbackName, described);
+            // Written back on the GM's client, where the ledger lives. Only when there
+            // is something to write: a dismissed dialog must not overwrite a good
+            // description with an empty one.
+            if (written?.name && written.name !== described?.name
+                || written?.playerText && written.playerText !== described?.playerText
+                || written?.analyzedText && written.analyzedText !== described?.analyzedText) {
+                try {
+                    pub = await setRemnantPublicById(entry.sceneId, entry.tokenId, {
+                        name: written.name || described?.name || fallbackName,
+                        playerText: written.playerText || described?.playerText || "",
+                        analyzedText: written.analyzedText || described?.analyzedText || ""
+                    });
+                    await markRemnantEditedById(entry.sceneId, entry.tokenId);
+                } catch (err) {
+                    error("Could not record the description on the Remnant", err);
+                }
+            }
+        })();
+        const held = asked.catch(() => null);
+        describingTraces.set(traceKey, held);
         try {
-            pub = await setRemnantPublicById(entry.sceneId, entry.tokenId, {
-                name: written.name || described?.name || fallbackName,
-                playerText: written.playerText || described?.playerText || "",
-                analyzedText: written.analyzedText || described?.analyzedText || ""
-            });
-            await markRemnantEditedById(entry.sceneId, entry.tokenId);
-        } catch (err) {
-            error("Could not record the description on the Remnant", err);
+            await asked;
+        } finally {
+            if (describingTraces.get(traceKey) === held) describingTraces.delete(traceKey);
         }
     }
 
@@ -1167,6 +1190,9 @@ const HELD = Symbol("held");
 
 /** The queue key of a character's finds (`createFind`). */
 export const observeFindKey = actorId => `observeFind/${actorId}`;
+
+/** The traces whose describe window `createFind` has open on this GM, by `sceneId.tokenId`: the answer's promise, never rejected. */
+const describingTraces = new Map();
 
 /** A find of a trace the character holds a copy of: no bullet, the character told, and null for `createFind`. */
 async function alreadyHeld(actor, entry) {

@@ -131,6 +131,19 @@ export function trialCutOf(before = {}, patch = {}) {
  */
 export const CLOCK_KEY = "clock";
 
+/**
+ * Whether `patch` writes a day's board stamp that `before` does not carry (1.2.121, STG-03): a `dayBoard` or `nightBoard`
+ * set to another day, or a `bodyBoard` of another announcement - the stamps the boards play from (transitions.mjs
+ * `boardsOf`, `bodyBoardsOf`). Taking one away (null) plays nothing. Pure. R7930.
+ */
+export function writesBoardStamp(before = {}, patch = {}) {
+    for (const key of ["dayBoard", "nightBoard"]) {
+        if (patch[key] != null && Number(patch[key]) !== Number(before?.[key] ?? NaN)) return true;
+    }
+    const body = patch.bodyBoard;
+    return body != null && typeof body === "object" && body.upTo !== before?.bodyBoard?.upTo;
+}
+
 /** Write clock fields. GM only. */
 export async function setClock(patch = {}) {
     if (!game.user.isGM) {
@@ -147,9 +160,18 @@ export async function setClock(patch = {}) {
        copy the school token's look and not its flags (trial-scene.mjs `hallTokenData`): the killer's hall token was "?",
        naming them in a trial about who it is. Ended before the write, so the hall is staged from the real look - not for a
        write the edge's Eclipse rule below refuses. mask-gm.mjs `endMasksBeforeTheBoard`, as before the start-of-day board. */
+    /* AND BEFORE EVERY WRITE THAT STAMPS A DAY'S BOARD (1.2.121 line M2; the audit's STG-03 residue and N119-5, two
+       readers, through the coordinator of 21.11.2026). Every browser draws the day's boards on the write that carries a new
+       stamp (transitions.mjs `boardsOf`, `bodyBoardsOf`), the cast's portraits on them since F118. The roll-over, the other
+       advances and the Morning Eclipse's start ended the masks first, each on its own road; End chapter's "next morning"
+       (chapter.mjs, through `setTimeOfDay`) stamps both boards and ended none, so outside a trial both drew the masked
+       killer's place without a picture beside the real name (tier 2 "E120 - the masks end before every write of a day's
+       board stamp", red at e515907d: no picture, the mask standing as the clock landed). Read here, on the clock's one
+       writer, so a road that stamps a board later is held too (`writesBoardStamp`). */
     {
         const now = getClock();
-        if (patch.phase === "classTrial" && now.phase !== "classTrial" && ({ ...now, ...patch }).eclipse !== true) {
+        if ((patch.phase === "classTrial" && now.phase !== "classTrial" && ({ ...now, ...patch }).eclipse !== true)
+            || writesBoardStamp(now, patch)) {
             await (await import("./mask-gm.mjs")).endMasksBeforeTheBoard();
         }
     }

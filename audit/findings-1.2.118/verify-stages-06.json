@@ -1,0 +1,254 @@
+{
+ "refuter": "verify-stages-06",
+ "of": "stages-06",
+ "checkout": "branch claude/audit-119 at f4f1a0c8; code identical to b5a29e73 (git diff b5a29e73 HEAD over scripts, lang, styles, tools, docs, module.json empty)",
+ "scope_note": "stages-06 has no finding of severity minor or above (E13-1 and E13-2 are nits, not re-checked beyond confirming ROOM_SETUP_TABS has no Scenes tab, room-setup.mjs:382-397). Checked: the 29 promises marked holds 'yes' (none is marked 'no'), the four grades. Every cited tier-2 title was found at its cited line in scripts/tests-tier2.mjs (46 lines read).",
+ "checked": [
+  {
+   "ref": "E12 promise 1",
+   "claim": "A region is a room only when a GM marked it; a Teleport or level-change region, or one a player drew, is never a room",
+   "verdict": "stands",
+   "why": "canBeRoom refuses a passage behaviour and a region in playerRegions, isRoomWith adds the flag; noteRegionCreated records a non-GM's create on the primary. The tier-2 title is at the cited line. The behaviour names are the code's own 'as recalled', as the reader says.",
+   "evidence": "scripts/rooms.mjs:66 'const NOT_ROOM_BEHAVIOURS = new Set([\"teleportToken\", \"changeLevel\"]);'; :94 'return Boolean(region?.name) && !passageBehaviour(region) && !players.has(region.id);'; :99 '&& region.getFlag?.(MODULE_ID, ROOM_FLAG) === true'; scripts/movement.mjs:483 'drawnByPlayer.add(region.id);'; scripts/tests-tier2.mjs:66728"
+  },
+  {
+   "ref": "E12 promise 2",
+   "claim": "A player's change to the mark is put back and the GMs told; with no record, nothing is put back and the GMs are told to check",
+   "verdict": "stands",
+   "why": "judgeRoomFlagChange sends a non-GM's flag change to keepRoomFlag; with no memory (was undefined) nothing is written and flagUnjudged is whispered, else unsetFlag/setFlag back and flagKept. A change on a region a player drew is ignored, which is consistent with promise 1 (never a room).",
+   "evidence": "scripts/movement.mjs:519 'if (!roomFlagSeen.has(region.id)) return keepRoomFlag(region, undefined, false, author);'; :533-535 'if (moved && !unknown) { if (was === null) await region.unsetFlag(MODULE_ID, ROOM_FLAG); else await region.setFlag(MODULE_ID, ROOM_FLAG, was);'; :539 'unknown ? \"DRPG.Rooms.flagUnjudged\" : \"DRPG.Rooms.flagKept\"'"
+  },
+  {
+   "ref": "E12 promise 3",
+   "claim": "The first load marks the rooms the world already had once, with one report to the primary; Season setup names the regions still undecided",
+   "verdict": "stands",
+   "why": "The migration clause runs on the primary only, markRoomsOn skips a stamped scene, marks named regions with no behaviour, no player author and no decision, stamps, and one gmReport is sent; Season setup's roomsMarked row reads undecidedRegionNames over every scene.",
+   "evidence": "scripts/migrate.mjs:993 'if (!isPrimaryGm()) return { notPrimary: true };'; :1234 'if (scene.getFlag(MODULE_ID, ROOMS_MARKED_FLAG)) continue;'; :1241 'else if (!roomDecided(region)) marking.push(region);'; scripts/season-setup.mjs:532 'done: anyNamed && undecidedRegionNames(scenes).length === 0'"
+  },
+  {
+   "ref": "E12 promise 4",
+   "claim": "Several regions with one name are one room: flags as OR, lists as union, Room Setup writes every piece, the fog outlines it whole",
+   "verdict": "stands",
+   "why": "flagOver answers the first piece that carries a value, listOver unions, setRoomFlag writes every writable piece of the name in one update; the four tier-2 titles exist at the cited lines.",
+   "evidence": "scripts/rooms.mjs:258-260 'for (const piece of pieces) { const value = piece.getFlag(MODULE_ID, key); if (value !== undefined && value !== null && value !== false && value !== \"\") return value;'; :332-334 'const pieces = writablePieces(scene, name)...; await scene.updateEmbeddedDocuments(\"Region\", ...'; scripts/tests-tier2.mjs:66804, :66853, :68988, :69944"
+  },
+  {
+   "ref": "E12 promise 5",
+   "claim": "Floors: room read on the token's floor, a floor change is a judged move, stairs cost a crossing, fog per floor, Floors buttons",
+   "verdict": "stands",
+   "why": "MOVE_FIELDS always adds level, so a level-only update is a move; onLevel asks by the floor's id; floorsOf sorts by bottom. The five tier-2 titles exist at the cited lines and the suite they sit in is green in the base run. On v14 itself it rests on the harness's model, as the reader says (partly read live items).",
+   "evidence": "scripts/rooms.mjs:417-418 '...(globalThis.foundry?.documents?.BaseToken?.MOVEMENT_FIELDS ?? [...]), \"x\", \"y\", \"elevation\", \"level\"'; :457 'const id = level?.id ?? level;'; scripts/tests-tier2.mjs:68400 'a move up the stairs costs a crossing like a door, a floor change inside one room is free, and the room is read on the token's floor'; audit/findings-1.2.118/base-run.json (written 21:19Z, after stages-06.json at 19:59Z): suite_merge '3387 passed, 1 failed, 27 skipped, 0 red', the one failure 'grid XI07 ...' in shard 3, which passes alone (xi07_alone)"
+  },
+  {
+   "ref": "E12 promise 7",
+   "claim": "A student placed past the rules is no witness and no third party until lawful, the GMs whispered; the record is the primary's",
+   "verdict": "stands",
+   "why": "lawfulRoomOf answers null while the standing is unlawful; tellUnlawful whispers the GMs; the head note says only the primary keeps standings and a new primary forgets them, the gap the reader names.",
+   "evidence": "scripts/movement.mjs:1490-1491 'export function lawfulRoomOf(tokenDoc) { return standingOf(tokenDoc)?.lawful === false ? null : roomOfToken(tokenDoc);'; :1455 'whisperToGms({ tone: \"warning\", body: `<p data-drpg-unlawful=...DRPG.Movement.unlawfulArrival'; :875 'Every GM keeps `gmSeen`; only the primary judges and keeps `standings`.'"
+  },
+  {
+   "ref": "E12 promise 8",
+   "claim": "A GM's rename carries what named the old room once its last piece has the new name; onto an existing room it joins and carries nothing; a player's rename carries nothing",
+   "verdict": "stands",
+   "why": "The reader did not read carryRename's body; read here: noteRegionName returns for a non-GM author, carries only when no piece of the old name is left and joinsAnotherRoom is false, and only on the primary.",
+   "evidence": "scripts/fog.mjs:809 'if (!game.user?.isGM || !game.users?.get(userId)?.isGM) return null;'; :815 'const carries = pieces.length > 0 && !roomRegions(scene, was).length && !joinsAnotherRoom(scene, region, was, now);'; :816 'if (!carries || !isPrimaryGm()) return null;'"
+  },
+  {
+   "ref": "E12 promise 9",
+   "claim": "Room Setup writes to the scene it was opened on, whatever scene is on screen at Apply",
+   "verdict": "stands",
+   "why": "The scene is read once at open (workingScene, the trial hall replaced by the school) and the note says it is handed to every read and write; R119 (tier 0) and the tier-2 title at 67091 pin it, green in the base run's tiers.",
+   "evidence": "scripts/room-setup.mjs:1214-1216 'THE SCENE THIS WINDOW WAS OPENED ON, AND NO OTHER (E12 C4, R119...) Read once, here, and handed to every read and every write below, Apply's included.'; :1228-1229 'let scene = workingScene(); if (isTrialScene(scene)) scene = homeScene();'; scripts/tests-tier2.mjs:67091"
+  },
+  {
+   "ref": "E12 promise 10",
+   "claim": "Rules are not decided from the GM's screen; the camera is read only by the functions CAMERA_READERS lists",
+   "verdict": "stands",
+   "why": "viewedScene/viewedLevel are the two readers and CAMERA_READERS lists each later reader with its kind and reason; R382 (tier 0) reads the source for unlisted readers. Later rows (E73, E79, E89, PV) are draws or windows, as the reader says.",
+   "evidence": "scripts/rooms.mjs:594-596 'export function viewedScene() { return canvas?.scene ?? null; }'; :604 'export const CAMERA_READERS = Object.freeze({'; docs/dev/R-REGISTRY.md R382 'the camera is read only where it is registered'"
+  },
+  {
+   "ref": "E13 promise 1",
+   "claim": "Isometric Perspective and LiveKit are required; without one the module stops, a GM gets a window, a player a notice that stays",
+   "verdict": "stands",
+   "why": "module.json requires dice-so-nice, isometric-perspective, avclient-livekit; missingRequirements tells absent from disabled; the announce note gives the GM a window and others a lasting notice.",
+   "evidence": "module.json relationships.requires ids 'dice-so-nice', 'isometric-perspective', 'avclient-livekit'; scripts/requirements.mjs:61-66 'export function missingRequirements(modules = game.modules) { ... state: installed ? \"disabled\" : \"absent\"'; :89-92 'The GM gets a window ... Everyone else gets a notification that does not time out'"
+  },
+  {
+   "ref": "E13 promise 2",
+   "claim": "Every road into the trial goes to the hall; every road out hides the cast and takes the table back (room chosen, else school, else the scene of the opening, else the table stays and the GMs are told)",
+   "verdict": "weakened",
+   "why": "The door is one (followPhase, R113), and the destinations are as written. But the last branch does not hide the cast: with nowhere to go leaveTrialScene whispers and returns before stageHall, leaving the cast shown, by the owner's decision Q-E13-1 b. The release notes' 'every road out hides the cast' (v1.2.74.md:90) is therefore not true of that one road; the reader's 'yes' copies it. A recorded decision, so no finding and no grade change.",
+   "evidence": "scripts/trial-scene.mjs:741-742 'With nowhere to go the GMs are told and nothing changes - the table stays in the hall with its cast shown, as the trial left it (Q-E13-1 b).'; :750-753 'if (!destination) { await whisperToGms(...noSchool...); return null; }' before :756 'const cast = await stageHall(hall, { into: false });'"
+  },
+  {
+   "ref": "E13 promise 3",
+   "claim": "With a hall linked End the trial asks for a room; the verdict does not end the trial; the living go to random points, Monocubs too, the dead and Monokuma stay",
+   "verdict": "stands",
+   "why": "returnTheLiving gathers with gatherEveryone (held, box, only the cast); leftBehind and standingTwice exclude Monokuma and the dead unless a Monocub; leaveTrialScene gathers only when a room was chosen. Tier-2 titles at 71233 and 71794 exist.",
+   "evidence": "scripts/trial-scene.mjs:789 'const moved = await gatherEveryone(room, scene, { held: flagsHeldNow, box: true, only });'; :845 'return !isMonokuma(held) && !(isDeadForGm(held) && !isMonocub(held));'; scripts/tests-tier2.mjs:71794 'the verdict does not end the trial: the clock is not written and no card says the trial is over'"
+  },
+  {
+   "ref": "E13 promise 4",
+   "claim": "A living student on another place scene comes as a copy; a carry cut short is named at the next GM's load",
+   "verdict": "stands",
+   "why": "carryTheLiving carries each left-behind student whose place is another scene (not the destination, not the hall) through carryAcross and splits twice/carried; nameUnfinishedCarries runs on every GM's ready over CARRIED_FROM marks.",
+   "evidence": "scripts/trial-scene.mjs:816-820 'const place = locateActor(actor); if (!place || place.scene.id === scene.id || place.scene.id === hall?.id) continue; const done = await carryAcross(place.tokenDoc, scene, region);'; :887 'export async function nameUnfinishedCarries() {'"
+  },
+  {
+   "ref": "E13 promise 7",
+   "claim": "A dark hall is named: the tab (today Season setup) says so and entering the trial whispers the GMs",
+   "verdict": "stands",
+   "why": "hallIsDark is non-empty hallPreparePatch; enterTrialScene whispers hallDarkLine; the report row hallDark reaches Season setup's hall row through scenesReportOf; R120 drives hallPreparePatch on a bare and a prepared hall. The line's text names Season setup.",
+   "evidence": "scripts/trial-scene.mjs:1262-1263 'export function hallIsDark(hall) { return Boolean(hall) && Object.keys(hallPreparePatch(hall)).length > 0;'; :710 'if (hallIsDark(hall)) await whisperToGms(...hallDarkLine...)'; :1248 'if (dark) row(\"hallDark\", ...)'; scripts/season-setup.mjs:695 'rows = scenesReportOf(schoolScene(), hall);'"
+  },
+  {
+   "ref": "E13 promise 8",
+   "claim": "No Eclipse in a Class Trial: API, panel, HUD and clock refuse",
+   "verdict": "stands",
+   "why": "startEclipse's check refuses in a trial (the one writer the API, panel and HUD call); setClock refuses an Eclipse beginning in a trial and a trial opening in an Eclipse; a clock already holding both passes, which is what E13-2 rests on.",
+   "evidence": "scripts/eclipse.mjs:199 'if (clock.phase === \"classTrial\") return \"DRPG.Eclipse.trialFirst\";'; scripts/clock.mjs:248 'if (trialEdge && next.phase === \"classTrial\" && next.eclipse === true) {'; :259 'if (!trialEdge && next.phase === \"classTrial\" && next.eclipse === true && before.eclipse !== true) {'"
+  },
+  {
+   "ref": "E13 promise 9",
+   "claim": "A Tier 0 item breaks on any roll; Tiers 1-3 only on a Despair; no tier counts as Tier 0",
+   "verdict": "stands",
+   "why": "rollSpends answers true for tier 0 and withFear-and-not-critical otherwise; tierOf reads a missing flag as 0.",
+   "evidence": "scripts/use-items.mjs:175-177 'if (!roll) return false; if (tierOf(held) === 0) return true; return Boolean(roll.withFear) && !roll.isCritical;'; :92 'return Number(item?.getFlag(MODULE_ID, ITEM_FLAGS.tier) ?? 0);'"
+  },
+  {
+   "ref": "E81 promise 1",
+   "claim": "The history keeps every card within budgets 250/150, 40 a sender; a long entry keeps its text without markup; four full summaries",
+   "verdict": "stands",
+   "why": "BUDGET holds the numbers; fit drops html and marks clipped while title and text stay (text itself clipped at 600).",
+   "evidence": "scripts/notice-history.mjs:136-139 'player: Object.freeze({ entries: 250, chars: 200000 }), gm: Object.freeze({ entries: 150, chars: 100000 }), total: 500000, perAuthor: 40, authorShare: 0.25, fullSummaries: 4'; :477-481 'An entry over its budget keeps its title and text and loses its html (`clipped`).'"
+  },
+  {
+   "ref": "E81 promise 2",
+   "claim": "A card the module takes back leaves the history; any other deletion marks it deleted",
+   "verdict": "stands",
+   "why": "noticeCardDeleted honours the withdraw option only from a GM, by the hook's userId; R295 names the rule.",
+   "evidence": "scripts/notice-history.mjs:1239-1240 'export function noticeCardDeleted(message, options, userId) { return engine.deleted(message?.id, { withdraw: options?.[MODULE_ID]?.withdraw === true && fromGm(userId) });'"
+  },
+  {
+   "ref": "E81 promise 5",
+   "claim": "A season reset that clears clock, incident, cards or chat clears every account's history, at once in an open browser, at the next load in another",
+   "verdict": "stands",
+   "why": "The epoch is a fingerprint of seasonStartedAt and the four cuts; an update of the clock setting runs checkEpoch, and ready opens the engine against the epoch.",
+   "evidence": "scripts/notice-history.mjs:93 'export const EPOCH_GROUPS = Object.freeze([\"clock\", \"incident\", \"cards\", \"chatRest\"]);'; :1306-1307 'Hooks.on(\"updateSetting\", setting => { if (setting?.key === `${MODULE_ID}.${SETTINGS.clock}`) engine.checkEpoch();'"
+  },
+  {
+   "ref": "E81 promise 6",
+   "claim": "Accounts sharing a browser keep their sections; when storage is full the history gives way; a newcomer is kept in memory",
+   "verdict": "stands",
+   "why": "trimValue cuts other worlds' sections first, then this login's oldest entries, never another account's section of this world, and answers false for memory-only; keepRoom recognises the quota error by name or code. The reader's 'then the older half' is loose: it is this login's oldest entries against a halved total.",
+   "evidence": "scripts/notice-history.mjs:677-681 'The whole value over 500 000 (250 000 once the history gave way): other worlds' sections go first ... then this login's oldest entries, its newest always kept. Answers false ...'; :1201-1202 'const storageFull = err => err?.name === \"QuotaExceededError\" || ... || err?.code === 22 || err?.code === 1014;'"
+  },
+  {
+   "ref": "E81 promise 8",
+   "claim": "On a narrow screen the notice stack stands 8 px above the buttons, beside them under 620 px, never under 96 px",
+   "verdict": "stands",
+   "why": "narrow.css's drpg-short rule puts the stack on the bottom line beside the buttons with a max(96px, ...) ceiling; BREAKPOINTS.short is 620.",
+   "evidence": "styles/narrow.css:515-516 'body.drpg-stacked.drpg-short { --drpg-stack-max: max(96px, calc(100dvh - 8px - ...'; scripts/settings.mjs:4344 'export const BREAKPOINTS = { narrow: 1224, short: 620, low: 800 };'"
+  },
+  {
+   "ref": "E81 promise 10",
+   "claim": "DZ6: one tick per character; the module's hall tokens made at seats or a ring, deleted at the end; only recorded tokens deleted; Monokuma never made",
+   "verdict": "stands",
+   "why": "stagePlan treats a token as the module's only when the seats record names it, hides the GM's, never creates for a monokuma row; seatFor gives the seat or the ring.",
+   "evidence": "scripts/trial-scene.mjs:457-458 'const recorded = new Set(Object.values(seats ?? {}).map(seat => seat?.token)...); const made = tokens.filter(token => recorded.has(token.id));'; :472 'for (const row of taking.values()) if (!row.monokuma && !standing.has(row.actorId)) plan.create.push(row.actorId);'"
+  },
+  {
+   "ref": "E81 promise 11",
+   "claim": "End the trial moves, carries and names only the cast",
+   "verdict": "stands",
+   "why": "returnTheLiving reads castActorIds after the store is hydrated and hands only to carryTheLiving, gatherEveryone, leftBehind and standingTwice.",
+   "evidence": "scripts/trial-scene.mjs:786-788 'await trialCastStore.whenHydrated(); const only = castActorIds(hall); const { carried, twice } = await carryTheLiving(scene, room, hall, only);'"
+  },
+  {
+   "ref": "E77 promise 1",
+   "claim": "The tile shows only the viewer's own room; a GM's the room of the GM's own Monokuma, a GM without one an empty pane",
+   "verdict": "stands",
+   "why": "viewerActor on a GM finds the Monokuma whose pool user is this GM, else null; a player's is chooseOwnStudent over owned students (E51 C4 widened the choice, still the player's own). tileView reads viewerRoom alone.",
+   "evidence": "scripts/hud.mjs:1450-1453 'export function viewerActor() { if (game.user.isGM) { return game.actors.find(a => a.type === \"character\" && isMonokuma(a) && poolUserFor(a)?.id === game.user.id) ?? null;'; scripts/room-tile.mjs:153 'const where = viewerRoom();'"
+  },
+  {
+   "ref": "E77 promise 4",
+   "claim": "The tile changes once a move is settled; on a co-owner's screen about 1.5 s late",
+   "verdict": "stands",
+   "why": "drpgRouteSettled is fired after judgeMove and not while a put-back is out; ROUTE_QUIET_MS is 1500. The 1.5 s on a real server is LIVE-E77-15, open, as the reader says.",
+   "evidence": "scripts/movement.mjs:2907 'if (putBack.has(tokenDoc.id) || (putBacksSent.get(tokenDoc.id) ?? 0) !== sent) return;'; :2913 'Hooks.callAll(\"drpgRouteSettled\", { tokenDoc, accepted, room, again, provisional: route.stands ?? false });'; :219 'const ROUTE_QUIET_MS = 1500;'"
+  },
+  {
+   "ref": "E77 promise 6",
+   "claim": "Room Setup's Description tab has a Picture column; setVaultRoom alone writes the picture, only through safeRoomImage",
+   "verdict": "stands",
+   "why": "The description tab still stands in ROOM_SETUP_TABS; the cell is the picture field and clear button; setVaultRoom writes the image flag only when safeRoomImage answers, and warns otherwise.",
+   "evidence": "scripts/room-setup.mjs:393 '[\"description\", \"DRPG.Vault.tabDescription\"],'; :370 '<input type=\"hidden\" name=\"img:${escRoom}\"'; scripts/vault-store.mjs:1424-1426 'const path = image ? safeRoomImage(image) : null; if (image && !path) ui.notifications.warn(...imageRefused...); else update[...image] = path;'"
+  },
+  {
+   "ref": "E77 promise 7",
+   "claim": "A GM's sidebar and scene controls stand in two module windows behind a world switch, on by default",
+   "verdict": "stands",
+   "why": "registerFoundryWindows builds both frames for a GM only when foundryWindowsOn, which reads the world setting and defaults on.",
+   "evidence": "scripts/foundry-windows.mjs:131-134 FOUNDRY_WINDOWS '{ key: \"ftools\", ... node: \"sidebar\" ... }, { key: \"maptools\", ... node: \"scene-controls\" ...}'; :160 'if (!foundryWindowsOn()) return;'; :186 'try { return game.settings.get(MODULE_ID, SETTINGS.foundryToolWindows) !== false; } catch { return true; }'"
+  },
+  {
+   "ref": "E77 promise 8",
+   "claim": "Escape stays Foundry's: it closes both windows only when nothing of Foundry's is left",
+   "verdict": "stands",
+   "why": "escapeFallsToWindows answers false for a focused field, a menu, a tour, any rendered framed app, a mouse manager and a controlled token; onEscape acts only on true. currentMouseManager is named from memory (LIVE-E77-10), as the reader says.",
+   "evidence": "scripts/foundry-windows.mjs:374 'for (const app of apps?.values?.() ?? []) if (app?.hasFrame && app.rendered) return false;'; :378 'if (globalThis.canvas?.currentMouseManager) return false;'; :383 'if (event.key !== \"Escape\" || event.defaultPrevented || !escapeFallsToWindows()) return;'"
+  },
+  {
+   "ref": "E77 promise 9",
+   "claim": "A player has no scene controls; the module puts the player back on Tokens, except from Templates and Notes, at most once a second",
+   "verdict": "stands",
+   "why": "A player's registration hooks canvasReady and renderSceneControls to keepTokensLayer; askTokensLayer skips a GM, templates and notes, and a second call within 1000 ms.",
+   "evidence": "scripts/foundry-windows.mjs:155-158 'if (!game.user?.isGM) { Hooks.on(\"canvasReady\", keepTokensLayer); Hooks.on(\"renderSceneControls\", keepTokensLayer); return; }'; :206 'if ([\"templates\", \"notes\"].includes(controls.control?.name)) return false;'; :207 'if (now - tokensAsked < 1000) return false;'"
+  },
+  {
+   "ref": "E12 grade",
+   "claim": "8, provisional after L1",
+   "verdict": "stands",
+   "why": "Section 11.4: 8 is 'promises delivered, but one holds only by a code reading or has a minor'; 9 needs every promise delivered with at most nits or unread live checks; a stage resting on unread live checks is capped at 9. E12 has one promise unread (P6, the door controls) and several held on the harness's model of v14 Levels; 8 is within the scale. The reader's 'No base-run result was read' is now out of date: the base run, written after the file, has tiers 0-2 green but XI07 (unrelated), so the named R and tier-2 tests ran green; scenario 66 is still pending in the base run. That closes one item of missing_to_10 and leaves the grade's reasons standing.",
+   "evidence": "audit/findings-1.2.118/stages-06.json E12 promises[5].holds 'unread'; audit/findings-1.2.118/base-run.json (written 21:19Z, after stages-06.json at 19:59Z): suite_merge '3387 passed, 1 failed, 27 skipped, 0 red', the one failure 'grid XI07 ...' in shard 3, which passes alone (xi07_alone); base-run.json pending 'the ci scenarios one at a time (node run-all.mjs scenarios)'",
+   "grade_after": 8
+  },
+  {
+   "ref": "E13 grade",
+   "claim": "8, provisional after L1",
+   "verdict": "stands",
+   "why": "Section 11.4: 8 is 'promises delivered, but one holds only by a code reading or has a minor'; 9 needs every promise delivered with at most nits or unread live checks; a stage resting on unread live checks is capped at 9. Two nits, one unread promise (P5, the voice room, not traced) and P2's last branch weaker than the notes word it (above, a recorded decision): 8 is within the scale. Tier-2 tests named green in the base run; scenario 41 not yet run there.",
+   "evidence": "scripts/trial-scene.mjs:741-756 (the stay branch leaves the cast shown); audit/findings-1.2.118/base-run.json (written 21:19Z, after stages-06.json at 19:59Z): suite_merge '3387 passed, 1 failed, 27 skipped, 0 red', the one failure 'grid XI07 ...' in shard 3, which passes alone (xi07_alone)",
+   "grade_after": 8
+  },
+  {
+   "ref": "E81 grade",
+   "claim": "8, provisional after L1",
+   "verdict": "stands",
+   "why": "Section 11.4: 8 is 'promises delivered, but one holds only by a code reading or has a minor'; 9 needs every promise delivered with at most nits or unread live checks; a stage resting on unread live checks is capped at 9. One unread promise (P4, the safeword branch), two superseded in part, R299 and R111 skipped headless (skip-baseline.json) and never run on Foundry. 8 is within the scale.",
+   "evidence": "audit/harness/skip-baseline.json skips 'R299 - the notice history window fits the screen ...' and 'R111 - the book in the corner opens the handbooks', probe env.layout; audit/findings-1.2.118/base-run.json (written 21:19Z, after stages-06.json at 19:59Z): suite_merge '3387 passed, 1 failed, 27 skipped, 0 red', the one failure 'grid XI07 ...' in shard 3, which passes alone (xi07_alone)",
+   "grade_after": 8
+  },
+  {
+   "ref": "E77 grade",
+   "claim": "8, provisional after L1",
+   "verdict": "stands",
+   "why": "Section 11.4: 8 is 'promises delivered, but one holds only by a code reading or has a minor'; 9 needs every promise delivered with at most nits or unread live checks; a stage resting on unread live checks is capped at 9. No finding and no unread promise, but the corner's upper row (P10) and the windows' cut rest on R512 with R514, R515, R508, R513 skipped headless, so a promise holds by a code reading and Chromium sweeps of a stand-in sidebar; that is the 8 anchor, not 9. A 9 could be argued if those are read as live checks only; not changed.",
+   "evidence": "audit/harness/skip-baseline.json skips R508, R513, R514, R515 (probe env.layout); audit/findings-1.2.118/base-run.json (written 21:19Z, after stages-06.json at 19:59Z): suite_merge '3387 passed, 1 failed, 27 skipped, 0 red', the one failure 'grid XI07 ...' in shard 3, which passes alone (xi07_alone)",
+   "grade_after": 8
+  }
+ ],
+ "counts": {
+  "checked": 33,
+  "stands": 32,
+  "weakened": 1,
+  "refuted": 0
+ },
+ "not_established": [
+  "Scenarios 41, 66, 73 and 74, cited for E12, E13, E81 and E77, are not yet in the base run (base-run.json pending); their results were not read.",
+  "Promises the reader left 'unread' (E12 P6, E13 P5, E81 P4) or 'partly'/'superseded' were not re-checked; they do not change a grade by this file's reading.",
+  "Whether v14's behaviour types are named teleportToken and changeLevel (rooms.mjs:61-66), canvas.currentMouseManager (foundry-windows.mjs:376-377) and SceneControls#activate's signature (foundry-windows.mjs:207-208): live checks LIVE-E12-02/-04, LIVE-E77-10, LIVE-E77-11, open."
+ ]
+}

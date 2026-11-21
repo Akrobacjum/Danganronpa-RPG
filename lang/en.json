@@ -2917,6 +2917,12 @@
       "actionDenied": "That action is not open to you now.",
       "failedNothing": "Nothing comes of it.",
       "thresholdShort": "Beat {n}",
+      "thresholdHidden": "Beat {n} + a hidden defense",
+      "dcHidden": "{n} + a hidden defense",
+      "scoreHidden": {
+        "hit": "{total} against {n} + a hidden defense: a hit",
+        "miss": "{total} against {n} + a hidden defense: a miss"
+      },
       "thresholdDefended": {
         "victim": "Beat {n} (+{d} for the victim's {trait})",
         "killer": "Beat {n} (+{d} for the killer's {trait})"

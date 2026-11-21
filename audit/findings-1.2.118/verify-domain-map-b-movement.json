@@ -1,0 +1,74 @@
+{
+ "refuter": "verify-domain-map-b-movement",
+ "of": "domain-map-b-movement",
+ "checked": [
+  {
+   "ref": "domain-map-b-movement-1",
+   "claim": "On the primary GM a Spectator's player-moved crossing is judged lawful, counted as an Eclipse sighting, recorded in crossingStore and settled, so a Keep Watch card names the Spectator (for a kept death, the dead student's name) coming into the post.",
+   "verdict": "stands",
+   "why": "Traced the whole road. noteGmPosition calls judgeArrival on the primary for every move before auditMove. judgeArrival exempts only non-characters and GM movers; the watcher actor is type character and its mover is its player, so player is true. arrivalVerdict -> isCorpse reads isDeadForGm of the watcher actor, which has no death row of its own; crossingVerdict then returns true on the Spectator flag (as the GMs hold it, flagsHeldNow). counted is true; eclipseSighting gates the Monokuma flag and crossesFree (isMonocubActor) only; noteCrossing gates the Monokuma flag only; recordCrossingInStep schedules the settle; crossing-settle fires CROSSING_SETTLED; watch-gm onWatchCrossing names game.actors.get(event.actorId).name with no Spectator, hidden or dead check on the mover (namesIn at the start has one; this road does not). The watcher token is created hidden: false and is named after the student (spectator-dead.mjs header and 202). The Spectator early return in judgeMove (3030-3036) and auditMove's exempt (movement-audit.mjs:340) are other roads and run on the owner's browser or after the judge. No tier test drives a Spectator's move on the primary (grep of Spectator with crossing, eclipse, watch, settle, judgeArrival in tests-tier*.mjs found none). Other settled listeners (arrival-notices, tail, eavesdrop, doors, lockpick) key on rows the mover holds, as the reader says. Major holds: a player in an ordinary Eclipse with Keep Watch is told a student the table thinks alive walked into the post; it does not give the killer away, so not blocker.",
+   "evidence": "movement.mjs:1059  if (!actor || actor.type !== \"character\") now = standingHere(tokenDoc);\nmovement.mjs:1712  if (actor.getFlag(MODULE_ID, FLAGS.monokuma) || actor.getFlag(MODULE_ID, FLAGS.spectator)) return true;\nmovement.mjs:1190  if (clock?.eclipse !== true || !isPlaceScene(tokenDoc.parent) || student.getFlag(MODULE_ID, FLAGS.monokuma) || crossesFree(student)) return null;\nmovement.mjs:1352  if (!isPrimaryGm() || from === to || !back || !isPlaceScene(tokenDoc.parent) || student.getFlag(MODULE_ID, FLAGS.monokuma)) return;\nmovement.mjs:1976-1977  function crossesFree(actor) { return isMonocubActor(actor); }\nwatch-gm.mjs:121  const mover = game.actors.get(event.actorId);\nwatch-gm.mjs:131  await whisperToOwnerOnly(watcher, `<p>${esc(game.i18n.format(`DRPG.Infiltrate.watch.${key}`, { name: mover.name, room: row.post }))}</p>`);\nspectator-dead.mjs:202  ... watcher.getTokenDocument({ ...look, x: at.x, y: at.y, elevation: at.elevation ?? 0, hidden: false })",
+   "severity_after": "major"
+  },
+  {
+   "ref": "domain-map-b-movement-2",
+   "claim": "The veto's bedroom-key and seal refusals name the room under the drop, asked before the connected-rooms rule, so a drag onto a fogged far bedroom names it.",
+   "verdict": "stands",
+   "why": "onPreUpdateToken computes `to` with roomAt (no fog check) and calls crossingVerdict; crossingVerdict asks lockedInIncident, then restrictedFrom, then the barricade, then the courtroom and the Eclipse, and only then crossingRefused (1814) whose words go through notConnectedText's fog filter. restrictedFrom's bedroom refusal formats DRPG.Vault.keyMissing with {room: to}; the veto shows the string with ui.notifications.warn. markOf / sentBackLine send and say the same name on the primary's put-back. The tier 2 'a refused crossing names no unknown room' reads only notConnectedText and crossingRefused. Seals are a world setting and announced, so the seal half is weak; the bedroom half carries the finding. Minor holds.",
+   "evidence": "movement.mjs:1614  allowed = crossingVerdict(actor, a.room, b.room, tokenDoc.parent, ...);\nmovement.mjs:1620  ui.notifications.warn(allowed);\nmovement.mjs:1727  const blocked = restrictedFrom(actor, to, scene, mover, { via: passage && via === \"passage\" ? \"passage\" : null, keyed });\nmovement.mjs:2099  return refusal(keyed, \"cannotNow\", game.i18n.format(\"DRPG.Vault.keyMissing\", { room: to }), \"bedroomShut\");\nmovement.mjs:1814  const notConnected = passage ? false : crossingRefused(scene, from, to, floors);\nen.json:3233  \"keyMissing\": \"The door to {room} is locked. You do not have that key.\"\nmovement-audit.mjs:438  if (payload?.rule === \"bedroomShut\" && ...) return game.i18n.format(\"DRPG.Vault.keyMissing\", { room: payload.room });",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-map-b-movement-3",
+   "claim": "barricadedFrom is handed via \"passage\" whenever the character knows any passage joining the two rooms, so a knower's walk through the barricaded door passes and no knock is sent.",
+   "verdict": "stands",
+   "why": "passesThrough answers whether a known passage joins from and to (reachableFrom(...).includes(to)), not whether the step went through it; the step's own reading is crossingVia, which the veto hands as `via`. restrictedFrom gets `passage && via === \"passage\"`, barricadedFrom gets `passage ? \"passage\" : via`, and barricadedFrom returns false for via passage. The knock (1621-1623) runs only on a refusal, so it is not sent. The primary's arrivalVerdict asks the same crossingVerdict. E74-T1 holds the passage case with joined: true and via: \"passage\" only. The comment at 2109-2113 says a walk through a door is refused. Minor holds.",
+   "evidence": "movement.mjs:1726  const passage = joined || passesThrough(actor, from, to, scene, floors, { mover, known, elevation });\nmovement.mjs:1731  const barred = barricadedFrom(actor, to, scene, mover, { via: passage ? \"passage\" : via, keyed });\nmovement.mjs:2117  if (!to || [\"passage\", \"breach\", \"tunnel\"].includes(via)) return false;\nmovement.mjs:2273  return reachableFrom(actor, from, scene, { level: floors?.from ?? null, mover, known, elevation }).includes(to);\ntests-tier2.mjs:101438  const passage = M.crossingVerdict(other, next, few, scene, null, { ..., joined: true, via: \"passage\" });",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-map-b-movement-4",
+   "claim": "A room renamed between a passage project's approval and completion leaves meta.passage.rooms on the old name; passageRowFor refuses with a template literal whyTable does not hold, and the GMs read 'the module could not say why'.",
+   "verdict": "stands",
+   "why": "carryRename -> carryRoomInWorld carries a project's meta.room only (applyProjectChange { meta: { room: to } }) and carryPassageRooms carries the passages store's rows and cells; nothing in scripts/ rewrites a project's meta.passage.rooms or meta.target.room (grep of the from->to map pattern finds only passages-gm.mjs:1978 and fog.mjs:913). At completion opensPassageDone / cutBreach -> builtPassageRow / breachStretchRow hand passage.rooms to passageRowFor, whose comparison with map.rooms fails and returns a template string; whyCode looks it up in whyTable, misses, and whyText says DRPG.Passage.why.unknown; offerRepick puts that in the GMs' card. R983's regexes read double-quoted literals after refused:, return, or '? null :' only. The repick lets the GM recover, which the reader says; minor holds.",
+   "evidence": "passages-gm.mjs:1383-1384  if (named.length && named.slice().sort(...).join(\"\\n\") !== map.rooms.join(\"\\n\")) { return { refused: `the stretch stands between ${map.rooms.join(\" and \")}, not the rooms named.` };\npassages-gm.mjs:1262-1264  const code = whyCode(reason); ... return game.i18n.localize(`DRPG.Passage.why.${code ?? \"unknown\"}`);\nfog.mjs:875  if (rawCountdown(id)) await applyProjectChange(id, { meta: { room: to } }, { by: { kind: \"system\" } });\nprojects.mjs:1222  made = await (await import(\"./passages-gm.mjs\")).opensPassageDone(id, { passage: meta.passage, ... });\nprojects.mjs:1463  const text = `<p>${esc(game.i18n.format(key, { name, why: await whyOf(refused) }))}</p>`;\ntests-tier0.mjs:15737  return [...body.matchAll(/refused:\\s*\"([^\"]+)\"/g), ...]",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-map-b-movement-5",
+   "claim": "refusedOnPrimary does not ask crossesFree, so the primary reads a Monocub's multi-crossing route with too few actions as refused: route.stands false, passages kept until leaving not revoked, voice pass skipped until the backstop.",
+   "verdict": "stands",
+   "why": "judgeMove's early return covers a Monokuma and a Spectator, not a Monocub; on the primary a route the owner's browser charges reaches refusedOnPrimary, which counts the budget against crossings with no Monocub or crossesFree test, while chargeRoute returns before any spend for crossesFree. A refused reading sets route.stands to Promise.resolve(false), which drpgRouteSettled hands as provisional; passages-gm onRouteSettled returns without revokeLeavers on a false provisional; voice passForSettledMove returns on moveRefused true. The consequence needs a Monocub with a kept-until-leaving passage or a voice room change and too few actions, so minor holds.",
+   "evidence": "movement.mjs:3032  if (isMonokuma(actor) || isSpectator(actor)) {\nmovement.mjs:3119-3121  if (isEclipse() || !game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) return false; const budget = (hasFreeMove(actor) ? 1 : 0) + freeMovesLeft(actor) + freeActionsLeft(actor) + actionsLeft(actor); return budget < crossings.length;\nmovement.mjs:2767  if (crossesFree(actor)) {\nmovement.mjs:3093  route.stands = refused ? Promise.resolve(false) : untilQuiet(tokenDoc).then(quiet => quiet === true);\npassages-gm.mjs:3249-3250  if (provisional && !(await provisional)) return; await revokeLeavers(...)",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-map-b-movement-6",
+   "claim": "Refund last crossing writes the token to the crossing's start spot with no check of where the token stands now or how old the crossing is.",
+   "verdict": "stands",
+   "why": "refundLastCrossing reads the row, marks it refunded, holds only the price to its Eclipse or time of day, then putBackWrite to row.back with ignoreWalls whenever the token exists. crossingStore rows are written by recordCrossingInStep and patched by noteCrossingPrice and the refund; nothing drops a row at a time of day or on a GM's move (grep of crossingStore in scripts/ outside tests); its only reset is the season reset's actions group (gm-stores.mjs:1230-1233). The tooltip names the two rooms only. A GM's own trap, wrong in a particular situation: minor holds.",
+   "evidence": "movement.mjs:1423  const token = game.scenes?.get(row.sceneId)?.tokens?.get(row.tokenId) ?? null;\nmovement.mjs:1429  await putBackWrite(token, to, { animate: false, [REVERT]: true, constrainOptions: { ignoreWalls: true } });\ngm-stores.mjs:1232  kind: \"ledger\", resetGroup: \"actions\", backup: false, sync: true,\ngm-students.mjs:297  const note = game.i18n.format(\"DRPG.Panel.refundCrossingNote\", { leaving: roomPhrase(\"out\", row.to ?? null), returning: roomPhrase(\"into\", row.from ?? null) });",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "Room Setup / Passages tab (hints_for_other_passes.stale_windows)",
+   "claim": "The Passages tab's students list is a snapshot at open; its keepFresh watches the passage stores, userConnected and drpgPassagesTold, so a student created, deleted or renamed is not offered by '+' or is named as before until reopened.",
+   "verdict": "stands",
+   "why": "room-setup.mjs builds `students = studentActors()` once (1247) and hands it to passagesTabHtml and wirePassagesTab; draw() redraws from the same array; adder() prints a.name from it. keepFresh watches only the four stores and two hooks; Room Setup's own keepFresh watches SETTINGS.searchTokens only, and room-setup.mjs registers no actor hook. The chips read nameOf(actorId, game.actors) at draw time, so a rename shows once some store change redraws; the '+' menu stays the snapshot. Under the owner's rule this is a stale_state window; the reader gave no severity: a GM's window, a roster change mid-window, so minor.",
+   "evidence": "room-setup.mjs:1247  const students = studentActors();\nroom-setup.mjs:1321  passagesTab.wirePassagesTab(root, scene, { dialog, students });\npassages-tab.mjs:129  const offer = list => students.filter(a => !list.includes(a.id) && !mm(a.id));\npassages-tab.mjs:402  if (dialog) keepFresh(dialog, { run: draw, watch: { stores: [stores.map, ...(stores.season ? [stores.season] : []), stores.access, stores.mastermind], hooks: [\"userConnected\", \"drpgPassagesTold\"] } });\nroom-setup.mjs:1358-1361  keepFresh(dialog, { run: recount, watch: { settings: [SETTINGS.searchTokens] } });",
+   "severity_after": "minor"
+  }
+ ],
+ "counts": {
+  "checked": 7,
+  "stands": 7,
+  "weakened": 0,
+  "refuted": 0
+ },
+ "not_established": [
+  "Finding 1 at a real table: that a kept death's Spectator moved by its player during an Eclipse settles a crossing on the primary and the watcher's card names it. Not run here (no harness by the rules of this pass). New live check: a GM and two players, default theme; keep a death during a Night Eclipse, have a living student Keep Watch on a room, walk the victim's Spectator into it; settles if the watcher gets 'X comes into <room>.' (stands) or nothing (refuted). Priority major.",
+  "Finding 7 (nit, MAP-LC3's half) was not checked: below the minor line this pass covers.",
+  "Finding 5's voice delay length (RECONCILE_DEBOUNCE_MS backstop) and whether a Monocub at a real table ever holds a passage kept until leaving were not measured.",
+  "base-run.json was not read for these items; no test result is claimed."
+ ]
+}

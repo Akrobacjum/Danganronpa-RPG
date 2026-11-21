@@ -445,11 +445,19 @@ export function freshSceneBonus({ clock, found, incident, deaths, actor = null }
  * and a roll between the two came back a hit that told the player a body lies unfound. With `actor` - the roller, which
  * `cleanupDc` hands in - a GM counts only the rows one of that character's players may know, by the same rule the copy is
  * built by, so both browsers read one number. A character no player owns (a GM's own) reads the whole store, as before.
+ *
+ * THE OWNERS ARE THE DOCUMENT'S, WHATEVER STANDS IN FOR IT (1.2.121 line K, 21.11.2026; the audit's CASE-17). The one
+ * road that scores, `resolveCleanup` -> `cleanupVerdict` -> `cleanupDc`, hands in sheet-audit.mjs `actorAsHeld`'s
+ * stand-in (id, name, type and the items as the GMs hold them), which has no `testUserPermission`: no player was found
+ * and the whole store counted, so V3 held on `cleanupDc(visibility, document)` alone. Red at e515907d (tier 2 "1.2.121
+ * CASE-17"): the stand-in's Evident read 12 where the document's read 15, and a bare-handed Tamper on 14 erased the
+ * trace. The owners are asked of the actor the id names, so a stand-in reads what its document reads.
  */
 function unfoundBodyIn(chapter, deaths, actor = null) {
     let rows = deaths ?? (game.user?.isGM ? deathStore.entries() : readMine("deaths")) ?? {};
     if (deaths === undefined && game.user?.isGM && actor) {
-        const players = (game.users ?? []).filter(user => !user.isGM && actor.testUserPermission?.(user, "OWNER"));
+        const owned = typeof actor.testUserPermission === "function" ? actor : game.actors?.get?.(actor.id ?? "") ?? null;
+        const players = (game.users ?? []).filter(user => !user.isGM && owned?.testUserPermission?.(user, "OWNER"));
         if (players.length) rows = Object.fromEntries(Object.entries(rows).filter(([id, row]) => players.some(user => knowsOfDeath(user, id, row))));
     }
     return Object.values(rows).some(row => row && typeof row === "object" && (row.chapter ?? 1) === (chapter ?? 1));

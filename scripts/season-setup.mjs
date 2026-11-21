@@ -62,7 +62,7 @@ import { scenesReportOf } from "./trial-scene.mjs";
 import { log, error, plural, workingScene, esc, localeFormat, listOf } from "./utils.mjs";
 import { stepperId, drpgWindow, checkList, formGrid, box, roleButton, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
 // Edit campaign's fields, reader, writes and End the chapter part (E49 A1e): gm-campaign.mjs never reaches back here.
-import { campaignRows, readClockForm, applyCampaignForm, endChapterPart, endTheChapter, morningLineRow, untouchedKept, changedField } from "./gm-campaign.mjs";
+import { campaignRows, readClockForm, applyCampaignForm, endChapterPart, endTheChapter, morningLineRow, untouchedKept, followCampaignFields } from "./gm-campaign.mjs";
 import { alreadyOpen, handOff, RAISED } from "./live.mjs";
 // Foundry's secret doors and the players' rulers (E80 C5): the doors as the map holds them, their
 // conversion, and the permissions in force where `core.permissions` names none.
@@ -1020,12 +1020,21 @@ export function repaintStep(li, step) {
  * window stands open, a write of what the rows read (`steps`: the module's settings and the clock, actors and their items,
  * scenes, their regions and walls, users) draws every row again in place (`repaintStep`), at most once per
  * `TIMING.coalesceMs`; the list's one listener keeps running the buttons. Let go when the window's element is gone.
+ *
+ * AND THE COUNT, THE ROWS THAT COME AND GO, AND A SETTING CREATED (the line claude/setup-120, 21.11.2026; N119-7). Until
+ * this line only the rows drawn at the open were drawn again: the intro's "N still to do" stood as drawn, a row that
+ * `steps` lists only while it holds (the Mastermind out of every pool, Foundry's settings given back, a self-hosted
+ * LiveKit's secret) neither came nor went, nor did the First session block; and a setting's first write, which Foundry
+ * fires as `createSetting`, was not heard. Now the intro is written again from the same count (`introLine`), each list
+ * is made the steps it shows now (`relistRows`: a row standing is kept, the node and what is under it - the rooms
+ * row's Check rooms and its findings - and drawn again in place), the First session block is drawn or taken away, and
+ * `rewire` wires the list a redraw brought (`wireSetupSteps`, which wires a list once).
  */
-function followChecklist(dialog) {
+function followChecklist(dialog, { rewire = null } = {}) {
     const root = dialog?.element;
     if (!root || root.dataset.drpgFollowsWorld) return;
     root.dataset.drpgFollowsWorld = "1";
-    const names = ["updateSetting", "createActor", "updateActor", "deleteActor", "createItem", "updateItem", "deleteItem",
+    const names = ["updateSetting", "createSetting", "createActor", "updateActor", "deleteActor", "createItem", "updateItem", "deleteItem",
         "createScene", "updateScene", "deleteScene", "createRegion", "updateRegion", "deleteRegion", "createWall", "updateWall", "deleteWall",
         "createUser", "updateUser", "deleteUser"];
     const ids = [];
@@ -1033,12 +1042,45 @@ function followChecklist(dialog) {
     const repaint = foundry.utils.debounce(() => {
         if (!root.isConnected) return stop();
         const now = steps();
-        for (const li of root.querySelectorAll("li.drpg-check-row[data-drpg-key]")) {
-            const step = now.find(s => s.key === li.dataset.drpgKey);
-            if (step) repaintStep(li, step);
-        }
+        const intro = root.querySelector("[data-drpg-season-intro]");
+        if (intro) intro.textContent = introLine(now);
+        const first = root.querySelector(`section[data-drpg-group="${FIRST_SESSION}"]`);
+        const main = [...root.querySelectorAll("ul.drpg-checklist")].find(ul => !first?.contains(ul)) ?? null;
+        relistRows(main, now.filter(step => step.group !== FIRST_SESSION));
+        const firstRows = now.filter(step => step.group === FIRST_SESSION);
+        if (first && !firstRows.length) first.remove();
+        else if (first) relistRows(first.querySelector("ul.drpg-checklist"), firstRows);
+        else if (firstRows.length && main) main.insertAdjacentHTML("afterend", firstSessionHtml(now));
+        rewire?.();
     }, TIMING.coalesceMs);
     for (const name of names) ids.push([name, Hooks.on(name, () => { if (!root.isConnected) return stop(); repaint(); })]);
+}
+
+/** The checklist's intro: how many required rows are still to do, or that the season is ready. */
+function introLine(list) {
+    const outstanding = list.filter(s => !s.done && !s.optional).length;
+    return game.i18n.format(outstanding ? "DRPG.Season.introOutstanding" : "DRPG.Season.introReady", { n: outstanding });
+}
+
+/**
+ * One checklist made the rows `list` holds now, in its order (N119-7): a row of a step no longer listed is taken out, a
+ * row of a step newly listed is drawn (`setupRows`), and a row standing is kept - the same node, moved into its place -
+ * and drawn again in place (`repaintStep`), so what stands under it stays. The list itself stays, with its listener.
+ * Answers the keys it holds after. Exported for R7991.
+ */
+export function relistRows(ul, list) {
+    if (!ul) return [];
+    const standing = new Map([...ul.querySelectorAll(":scope > li.drpg-check-row[data-drpg-key]")].map(li => [li.dataset.drpgKey, li]));
+    const box = document.createElement("template");
+    box.innerHTML = setupRows(list);
+    const fresh = new Map([...box.content.querySelectorAll("li.drpg-check-row[data-drpg-key]")].map(li => [li.dataset.drpgKey, li]));
+    const keys = list.map(step => step.key);
+    for (const [key, li] of standing) if (!keys.includes(key)) li.remove();
+    for (const step of list) {
+        const li = standing.get(step.key);
+        if (li) { ul.append(li); repaintStep(li, step); } else if (fresh.get(step.key)) ul.append(fresh.get(step.key));
+    }
+    return [...ul.querySelectorAll(":scope > li.drpg-check-row[data-drpg-key]")].map(li => li.dataset.drpgKey);
 }
 
 /** The Check rooms button under the rooms step: run the region check and print its findings in place. */
@@ -1078,54 +1120,60 @@ function wireSetupSteps(dialog, onHandOff, reopen) {
        (`repaintStep`), and a button the redraw brings was wired by nobody. */
     // Each list: the checklist's and the First session screen's (E51 C8).
     // The kit's checklists (E46-C5b): the row's button is `data-drpg-action` "do" or "undo", its step the row's key.
-    for (const list of dialog.element.querySelectorAll("ul.drpg-checklist")) list.addEventListener("click", async ev => {
-        const button = ev.target?.closest?.("li.drpg-check-row > button[data-drpg-action]");
-        if (!button || !list.contains(button)) return;
-        ev.preventDefault();
-        const key = button.closest("li.drpg-check-row")?.dataset.drpgKey;
-        const step = steps().find(s => s.key === key);
-        if (!step) return;
-        // The windows on the page before the row acts, so the checklist that comes back can raise what it opened (S06-30).
-        const before = windowStack();
-        try {
-            if (button.dataset.drpgAction === "undo" && step.undo) {
-                const n = await step.undo();
-                ui.notifications.info(plural(step.undoneKey, { n }));
-            } else if (step.fix) {
-                const n = await step.fix();
-                ui.notifications.info(plural(step.fixedKey ?? "DRPG.Season.fixed", { n }));
-            } else {
-                await step.open(step.missing());
+    /* A list once (N119-7): the checklist's follow draws the First session block when its rows come, and wires it here;
+       a list wired before is not wired twice. */
+    for (const list of dialog.element.querySelectorAll("ul.drpg-checklist")) {
+        if (list.dataset.drpgStepsWired) continue;
+        list.dataset.drpgStepsWired = "1";
+        list.addEventListener("click", async ev => {
+            const button = ev.target?.closest?.("li.drpg-check-row > button[data-drpg-action]");
+            if (!button || !list.contains(button)) return;
+            ev.preventDefault();
+            const key = button.closest("li.drpg-check-row")?.dataset.drpgKey;
+            const step = steps().find(s => s.key === key);
+            if (!step) return;
+            // The windows on the page before the row acts, so the checklist that comes back can raise what it opened (S06-30).
+            const before = windowStack();
+            try {
+                if (button.dataset.drpgAction === "undo" && step.undo) {
+                    const n = await step.undo();
+                    ui.notifications.info(plural(step.undoneKey, { n }));
+                } else if (step.fix) {
+                    const n = await step.fix();
+                    ui.notifications.info(plural(step.fixedKey ?? "DRPG.Season.fixed", { n }));
+                } else {
+                    await step.open(step.missing());
+                }
+            } catch (err) {
+                error(`Could not act on the "${step.key}" setup step`, err);
             }
-        } catch (err) {
-            error(`Could not act on the "${step.key}" setup step`, err);
-        }
 
-        /*
-         * THE REOPEN IS PART OF THE SAME ERRAND (SEASON-02, 20.09).
-         *
-         * The window still closes and comes back, because every one of these
-         * rows can change what ANOTHER row reports and the checklist is built
-         * from the world. What changed is the two things that made one press
-         * look like two:
-         *
-         * `await dialog.close(); openSeasonSetup();` (the checklist's window since E49 A1e) resolved the
-         * `DialogV2.wait` this window is sitting in - so `openSeasonSetup`
-         * returned, and the GM panel tile awaiting it opened the PANEL over
-         * the window as it came back. `handOff` keeps the whole round trip in
-         * one promise, handed to `onHandOff` in the same turn as the close and
-         * returned by `openSeasonSetup`, so the tile waits for the real end of
-         * it. See the note on `handOff` in live.mjs for why it cannot be
-         * written with an `await` in front of it.
-         *
-         * And the new copy is built from the world, so the campaign name, the
-         * chapter and the safeword the GM had typed but not applied went with
-         * the reopen. They are read here, BEFORE the close, and painted back.
-         */
-        // And the row acted on, with the scroll, so the copy that comes back opens there (C-2).
-        const draft = readDraft(dialog.element, { step: step.key });
-        onHandOff(handOff(dialog, () => reopen({ draft, opened: before })));
-    });
+            /*
+             * THE REOPEN IS PART OF THE SAME ERRAND (SEASON-02, 20.09).
+             *
+             * The window still closes and comes back, because every one of these
+             * rows can change what ANOTHER row reports and the checklist is built
+             * from the world. What changed is the two things that made one press
+             * look like two:
+             *
+             * `await dialog.close(); openSeasonSetup();` (the checklist's window since E49 A1e) resolved the
+             * `DialogV2.wait` this window is sitting in - so `openSeasonSetup`
+             * returned, and the GM panel tile awaiting it opened the PANEL over
+             * the window as it came back. `handOff` keeps the whole round trip in
+             * one promise, handed to `onHandOff` in the same turn as the close and
+             * returned by `openSeasonSetup`, so the tile waits for the real end of
+             * it. See the note on `handOff` in live.mjs for why it cannot be
+             * written with an `await` in front of it.
+             *
+             * And the new copy is built from the world, so the campaign name, the
+             * chapter and the safeword the GM had typed but not applied went with
+             * the reopen. They are read here, BEFORE the close, and painted back.
+             */
+            // And the row acted on, with the scroll, so the copy that comes back opens there (C-2).
+            const draft = readDraft(dialog.element, { step: step.key });
+            onHandOff(handOff(dialog, () => reopen({ draft, opened: before })));
+        });
+    }
 }
 
 /**
@@ -1299,33 +1347,12 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
 }
 
 /**
- * THE CAMPAIGN'S FIELDS FOLLOW THE WORLD (the line claude/season-119, 20.11.2026; the owner's rule, relayed for the audit
- * of 1.2.118: "Zawsze odswiezamy okna od razu przy zmianie"). While Season setup stands open, a write of the clock or of
- * the safeword - a time step on the HUD, a trial started, another GM's Save - sets each campaign field the GM has not
- * changed (gm-campaign.mjs `changedField`) to what the world holds now, shown and as drawn, so the window reads true and
- * its Save still counts the field untouched (`untouchedKept`). A field the GM changed keeps their text. Heard through
- * `updateSetting` for the two world settings; let go when the window's element is gone. Wired once per element.
+ * THE CAMPAIGN'S FIELDS FOLLOW THE WORLD (the line claude/season-119, 20.11.2026): gm-campaign.mjs `followCampaignFields`
+ * since the line claude/setup-120, which Edit campaign runs too, with the safeword here; it hears a setting created as
+ * well as one updated (REFR-02's residue, N119-7).
  */
 function followWorld(dialog) {
-    const root = dialog?.element;
-    if (!root || root.dataset.drpgFollowsWorld) return;
-    root.dataset.drpgFollowsWorld = "1";
-    const keys = [`${MODULE_ID}.${SETTINGS.clock}`, `${MODULE_ID}.${SETTINGS.safeword}`];
-    const set = (el, value) => {
-        if (!el || value === undefined || value === null || changedField(el)) return;
-        const text = String(value);
-        if (el.tagName === "SELECT") for (const o of el.options) o.defaultSelected = o.value === text;
-        else el.defaultValue = text;
-        el.value = text;
-    };
-    const hook = Hooks.on("updateSetting", setting => {
-        if (!root.isConnected) { Hooks.off("updateSetting", hook); return; }
-        if (!keys.includes(setting?.key)) return;
-        const form = root.querySelector("form");
-        const clock = getClock();
-        for (const name of ["campaignName", "chapter", "day", "phase", "session", "timeOfDay"]) set(form?.querySelector(`[name="${name}"]`), clock?.[name]);
-        set(form?.querySelector('[name="safeword"]'), safeword());
-    });
+    followCampaignFields(dialog, { safeword });
 }
 
 /**
@@ -1390,7 +1417,6 @@ export async function openSeasonChecklist({ draft = null, opened = null } = {}) 
     const list = steps();
     // The First session screen's rows under their own heading, the rest as they were (E51 C8).
     const rows = setupRows(list.filter(step => step.group !== FIRST_SESSION), { label: game.i18n.localize("DRPG.Season.checklistTitle") });
-    const outstanding = list.filter(s => !s.done && !s.optional).length;
     // A row button's round trip, if one is running (SEASON-02), as in Season setup until E49 A1e.
     let roundTrip = null;
 
@@ -1399,9 +1425,7 @@ export async function openSeasonChecklist({ draft = null, opened = null } = {}) 
         // Season setup's width, which the rows had there (E49 A1d).
         width: "tables",
         title: game.i18n.localize("DRPG.Season.checklistTitle"),
-        body: `<p>${esc(game.i18n.format(outstanding
-                ? "DRPG.Season.introOutstanding"
-                : "DRPG.Season.introReady", { n: outstanding }))}</p>
+        body: `<p data-drpg-season-intro>${esc(introLine(list))}</p>
 
             ${rows}
             ${firstSessionHtml(list)}
@@ -1423,9 +1447,10 @@ export async function openSeasonChecklist({ draft = null, opened = null } = {}) 
              * coordinates in a form that can be pasted.
              */
             wireRoomCheck(dialog);
-            wireSetupSteps(dialog, trip => { roundTrip = trip; }, openSeasonChecklist);
-            // Its rows follow the world while it stands open (`followChecklist`).
-            followChecklist(dialog);
+            const wireSteps = () => wireSetupSteps(dialog, trip => { roundTrip = trip; }, openSeasonChecklist);
+            wireSteps();
+            // Its rows follow the world while it stands open (`followChecklist`), and a list it draws is wired.
+            followChecklist(dialog, { rewire: wireSteps });
             // At its top, or where the copy that closed was (C-2); then what a row's Open opened, in front of it (S06-30).
             seasonOpening(dialog.element, draft?.place ?? null);
             if (opened) raiseOpened(opened);

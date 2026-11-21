@@ -10017,6 +10017,7 @@ const REGRESSIONS = [
             ["HOOK movement.mjs#registerMovement#updateToken:onUpdateToken", "the charge on one client (`settleRoute`: the owning player's, else the primary's) - a player's own budget; since E12 C9 it gates on `isMoveChange` and prices a step by `crossingCost`: the stairs a door, a stairwell's floors free (Q1 a) [1b.1 a token's floor]"],
             ["HOOK sheet.mjs#registerSheetTweaks#preUpdateToken:noteStepStart", "out of scope as a judge: notes where this browser's own move of a token starts, for the step onto a tunnel's end (H81-13); vetoes nothing and writes nothing"],
             ["HOOK body-tile.mjs#registerBodyFollow#updateToken:inline", "judged: a GM's own write followed (E63 C1, `followBody`): on the GM browser that wrote the token's move alone, for a corpse, the body's tile on the token's own scene takes the token's corner, height, floor and hidden; a player's move of a corpse is vetoed before it writes (movement.mjs `isCorpse`)"],
+            ["HOOK camera-view.mjs#registerCameraView#updateToken:inline", "out of scope as a judge: a display - the camera dock's name plates read again on this browser when a token's veil or mask flag moves (camera-view.mjs `onTokenChange`, 1.2.121 COMM-20); writes nothing, and no move is read"],
             ["HOOK anonymity.mjs#registerAnonymity#updateToken:inline", "out of scope as a judge: a display - an open body's loot window reads the one gate again on this browser when its taker's or its body's token is written (`regreyOpenLoot`, E14 fix e1-G6); writes nothing, and the GMs judge the loot again"],
             ["HOOK sheet.mjs#registerSheetTweaks#updateToken:inline", "a claim, judged again: the mover's browser reads its own move at rest (movement.mjs `tunnelStepTarget`) and asks the primary as 'Go through' does (`passage.cross`, passages-gm.mjs `crossTunnel`, H81-13); writes nothing"],
             ["HOOK movement.mjs#registerMovement#updateToken:noteGmPosition", "judged: the record of positions `sendBackRefusal` compares against, `level` in it (`positionOf`), kept on every GM and primed by each at ready since E12 fix r2-H3 (before, the primary's alone); since E12 C12 the primary judges the arrival first (`judgeArrival`, the hook's `userId`), the last lawful room kept beside the record (`standings`, 3.4)"],
@@ -10282,6 +10283,7 @@ const REGRESSIONS = [
             ["HOOK fog.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK sheet.mjs#preUpdateToken#noteStepStart", "out of scope: notes where this browser's own move starts (H81-13); the courtroom holds no tunnel, and the crossing is the primary's (`crossTunnel`)"],
             ["HOOK body-tile.mjs#updateToken#arrow1", "judged: the body follows its corpse's token (E63 C1, `followBody`) on the GM browser that wrote the move alone; a token on another scene than its tile moves nothing, so a hall token in the trial moves no school body, and the trial's end takes every body tile (E63 C2)"],
+            ["HOOK camera-view.mjs#updateToken#arrow1", "out of scope: a display - the camera dock's name plates read again on a token write that moves a veil or a mask flag (`onTokenChange`, 1.2.121 COMM-20); writes nothing; no trial rule reads it"],
             ["HOOK anonymity.mjs#updateToken#arrow1", "out of scope: a display - an open body's loot window reads the one gate again on a token write of its taker or its body (E14 fix e1-G6); writes nothing; in the hall the Class Trial refuses every loot (`cannotNow`)"],
             ["HOOK sheet.mjs#updateToken#arrow1", "out of scope: a move onto a tunnel's end asks the primary as 'Go through' does (H81-13); the courtroom holds no tunnel, and the Class Trial refuses one there (`trialLocked`)"],
             ["HOOK fog.mjs#updateToken#onUpdateToken", "judged on the primary: a move records discovery through rooms; the hall holds none after C1, so a hall move records nothing (41 b: 0 fog writes). E12 C2b/C10 change the readers"],
@@ -11559,6 +11561,7 @@ const REGRESSIONS = [
             ["HOOK fog.mjs#registerFog#drpgPassagesChanged/inline -> screen", "this browser's outline redrawn from its own copy when the copy changes, with no sound (`redrawOutline`, R557)"],
             ["HOOK sheet.mjs#registerSheetTweaks#drpgPassagesChanged/redrawPassageSheets -> screen", "the 'Known passages' page drawn again from this browser's own copy (R562)"],
             ["HOOK sheet.mjs#registerSheetTweaks#preUpdateToken/noteStepStart -> veto", "advisory, and no veto: notes where this browser's own move starts (H81-13), returns nothing, writes nothing"],
+            ["HOOK camera-view.mjs#registerCameraView#updateToken/inline -> judge", "a display: the camera dock's name plates read again when a veil or a mask flag moves (`onTokenChange`, 1.2.121 COMM-20); writes nothing, no road through a passage"],
             ["HOOK anonymity.mjs#registerAnonymity#updateToken/inline -> judge", "a display: an open body's loot window greys or opens its Take by the one gate read on this browser (`regreyOpenLoot`, E14 fix e1-G6); writes nothing, no road through a passage"],
             ["HOOK sheet.mjs#registerSheetTweaks#updateToken/inline -> judge", "a claim: the mover's browser reads its own move at rest (`tunnelStepTarget`) and asks `passage.cross` as 'Go through' does; the primary judges it (`crossTunnel`, every guard of the bridge's row) and writes the landing (H81-13)"]
         ];
@@ -23437,7 +23440,9 @@ const REGRESSIONS = [
                Trial's bets line (verdict.mjs), and the unlock card moved from room-setup.mjs to vault-store.mjs `writeRoomLock`
                (E91 C4, D038), every one in a form this census names. */
             "monocub.mjs": {"built": 3, "line": 18, "message": 1}, "movement.mjs": {"action": 3, "card": 4},
-            "murder-rules.mjs": {"action": 1, "card": 5, "heading": 3, "line": 9, "message": 6},
+            // murder-rules.mjs message 6 -> 8 (1.2.121 line K, CASE-16): `announceCrisis` posts the GMs' card and, for the seats a
+            // defence is hidden from, a second copy, by the same `announce({ content, whisper })` form as before.
+            "murder-rules.mjs": {"action": 1, "card": 5, "heading": 3, "line": 9, "message": 8},
             "music.mjs": {"card": 1}, "observe.mjs": {"card": 2, "heading": 1, "line": 3},
             "overflow.mjs": {"built": 1, "message": 2}, "palm.mjs": {"built": 2, "line": 2}, "passages-gm.mjs": {"line": 4},
             "price.mjs": {"line": 2}, "private-rolls.mjs": {"message": 1}, "projects-map.mjs": {"card": 1, "line": 1},
@@ -26866,6 +26871,34 @@ const REGRESSIONS = [
         ok(/\beclipse\b/.test(rule), `the Spectators' room rule does not ask the Eclipse: ${rule}`);
     }],
 
+    ["R7972 - every window's live region is redrawn with a field focused (the line claude/refresh-120; REFR-05, UI-17; the owner's rules \"Zawsze odswiezamy okna od razu przy zmianie\" and, 21.11.2026, \"R1 niech leci od razu wszystkie okna\"): live.mjs `keepLive` defaults `whileEditing` to true, and no `keepLive(` call in scripts/ passes `whileEditing: false` but the ones named here with their reason - none today; at least 20 calls read", async () => {
+        /*
+         * The line claude/refresh-120, 21.11.2026; the audit of 1.2.118's REFR-05 residue, re-checked on 1.2.119: the
+         * case dashboard's region was the only `whileEditing` caller, and the Remnant card and the Hope box waited for the
+         * focus to leave them. The owner then asked for every window at once, so it is keepLive's default. What it does is
+         * R7970's, on a region of its own, and R7974's on every region of the windows it opens; this reads the default off
+         * live.mjs and every call's own options, cut from `keepLive(` to the call's first 1200 characters. Red on
+         * e515907d: the default false.
+         */
+        const live = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/live.mjs`).then(lfText));
+        const signature = bodyOf(live, "export function keepLive(", { until: ") {" });
+        ok(/whileEditing = true\b/.test(signature), `keepLive does not default whileEditing to true: ${signature.slice(0, 200)}`);
+        /* A region that cannot follow the rule, by its file and selector, with the reading that says why. None today. */
+        const ALLOWED = {};
+        const calls = [], off = [];
+        for (const [file, text] of await otherSources()) {
+            if (file === "live.mjs") continue;
+            const code = stripComments(text);
+            for (const m of code.matchAll(/\bkeepLive\(/g)) {
+                const call = code.slice(m.index, m.index + 1200);
+                const region = /region:\s*("[^"]*"|`[^`]*`|[\w.]+)/.exec(call)?.[1] ?? "?";
+                calls.push(`${file} ${region}`);
+                if (/\bwhileEditing:\s*false\b/.test(call) && !ALLOWED[`${file} ${region}`]) off.push(`${file} ${region}`);
+            }
+        }
+        must(calls.length >= 20, `only ${calls.length} keepLive calls were read - this would measure too little`);
+        equal(JSON.stringify(off), "[]", `of ${calls.length} keepLive calls, these keep a focused field's hold without a reason named here`);
+    }],
     ["R7741 - every put-back of a token's spot writes through movement.mjs `putBackWrite`, which sends it with diff: false (the line claude/shim-118, 17.11.2026; the coordinator's answer on scenario 76 D)", async () => {
         /* TEXT GUARD: a put-back written while a newer move is in flight lost a coordinate to the writer's diff (76 D on the
            D4 shim); `putBackWrite` sends every coordinate it names, and since 19.11.2026 waits for the move in flight where the

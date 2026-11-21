@@ -1,0 +1,418 @@
+{
+ "refuter": "verify-stages-24",
+ "of": "stages-24",
+ "method": "U1 against b5a29e73 (branch claude/audit-119; scripts/, lang/, docs/ as on main): every promise held 'yes' or 'no' (38), the one finding of minor or above (E109-1) and the five grades, read at the cited lines with plain reading tools, git grep and short python over source text. The nit findings E110-1..4, E56-1, E109-2, E109-3, E59-1, E111-1, E111-2 were re-read in passing and all stand; they are not rows here. Test results are taken from the central base run's shard logs, which the reader did not have: tiers 0-1 in shard 1 (1781 passed, 0 failed, 16 skipped) and tier 2 in shards 2-8; nothing was run by me.",
+ "checked": [
+  {
+   "ref": "E110 promise 1",
+   "claim": "Re-point works in the Objection's minute and its Rebuttal; target judged as a fresh Objection's and must be present (holds yes)",
+   "verdict": "stands",
+   "why": "repointRefusal refuses any mode but objection and rebuttal, the objector, a non-participant and an absent target; the dialog offers only connected participants. R7100, R7101 green in tiers 0-1 of the base run, and E110-T1 (the reader's 'to join') is green in the base run's shard 3.",
+   "evidence": "scripts/trial-floor.mjs:1257 \"if (floor?.mode !== FLOOR_MODES.objection && floor?.mode !== FLOOR_MODES.rebuttal) return \\\"DRPG.Floor.bar.noExchange\\\";\", :1261 \"if ((absent ?? absentOf([targetId])).includes(targetId)) return \\\"DRPG.Floor.repointAbsent\\\";\"; scripts/trial.mjs:1530 \"trialParticipants({ connected: true })\"; the central base run's shard logs (scratchpad base/shards/results-suite-N/01-runtests.log; merge.log 21:19Z: 3387 passed, 1 failed - XI07, not these stages - 27 skipped), not yet in base-run.json: shard 1 'ok R7100', 'ok R7101'; shard 3 'ok E110-T1 - the GM redirects a running Objection ...'",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E110 promise 3",
+   "claim": "One step writes the floor, the card (by the stack's newest entry), its flags and the receipt; clock not restarted; a public card (holds yes)",
+   "verdict": "stands",
+   "why": "repointObjectionInStep commits the machine's repoint row and then repointCopies in the same step; repointCopies finds the card by floor.before.at(-1).messageId, updates content and flags, then the receipt. E110-T1 green.",
+   "evidence": "scripts/trial-floor.mjs:1272-1287; scripts/trial.mjs:1303 \"const cardId = stack.at(-1)?.messageId ?? floor?.messageId ?? null;\", :1317 \"objections[cardId] = { ...objections[cardId], targetId: target.id }\"; scripts/floor-machine.mjs:584 \"cards: [{ key: \\\"DRPG.Floor.repointed\\\" ...\"; base shard 3 'ok E110-T1'",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E110 promise 4",
+   "claim": "Both GM roads end in the same step; a second press at the same target writes nothing (holds yes)",
+   "verdict": "stands",
+   "why": "FLOOR_STEPS.repoint and floor.repoint (repointOnPrimary -> repointObjection -> floorStep('repoint')) meet at repointObjectionInStep; the same target answers repointSame and the step returns null before any write. Scenario 33 A23 and 30 not in any result yet (scenarios not run in the base run when read).",
+   "evidence": "scripts/trial-floor.mjs:392 \"repoint: ({ targetId }) => repointObjectionInStep(targetId),\", :1246 \"return floorStep(\\\"repoint\\\", { targetId });\", :1258 \"if (targetId && targetId === floor.targetId) return \\\"DRPG.Floor.repointSame\\\";\", :1274 \"if (repointRefusal(floor, targetId)) return null;\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E110 promise 5",
+   "claim": "While a mode gives the floor to someone every other player is muted by the module; never a GM or a Spectator by their switch; nothing stays muted after the floor, turn, trial, reset, primary change or reload (holds yes)",
+   "verdict": "stands",
+   "why": "settleTrialVoices blocks floorHeld users (not GMs, not a Spectator's account), and registerTrialVoices settles on every clock and trialQueue write, on drpgPrimaryReady and at ready; E110-T2 is green in the base run's shard 4. As the reader says, what is held is the BROADCAST_AUDIO write; that a microphone really stops is LIVE-E110-01, unread (no reading in live-readings-e58.json, -other.json or -e58-delta.json). E110-3 (the optional fourth player's expectation) re-read and stands: with M a Monocub the settle blocks M as it blocks H in the 'monocub' step.",
+   "evidence": "scripts/voice.mjs:1803-1804 \"const floorHeld = Boolean(speakers && voice && !listed.has(voice.id) && !holdsTheFloor(voice, speakers) && !spectatorAccount(user, { held: flagsHeldNow }));\", :1856 \"if (setting?.key === `${MODULE_ID}.${SETTINGS.clock}` || setting?.key === `${MODULE_ID}.${SETTINGS.trialQueue}`) scheduleTrialVoices();\", :1858 \"Hooks.on(\\\"drpgPrimaryReady\\\", ...\"; scripts/tests-tier2.mjs:104028 \"const m = M ? [\\\"open\\\"] : [];\"; base shard 4 'ok E110-T2 - the modes mute who may not speak ...'",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E110 promise 6",
+   "claim": "The voice line and the HUD say why: 'The floor is X's', or both names in a Rebuttal (holds yes)",
+   "verdict": "stands",
+   "why": "floorHold answers floorHeld or floorHeldPair with the names; R7103 green. The HUD's drawing was not opened by me beyond the reader's cited lines.",
+   "evidence": "scripts/voice.mjs:1593-1601 \"return speakers.length > 1 ? { reason: \\\"floorHeldPair\\\", ... } : { reason: \\\"floorHeld\\\", ... }\"; base shard 1 'ok R7103'",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E110 promise 7",
+   "claim": "A murder's mask does not apply in the trial; in a Night Eclipse it stands (holds yes)",
+   "verdict": "stands",
+   "why": "The settle's mask term is gated by !inTrial (and the E112 veil the same way); R7109 green.",
+   "evidence": "scripts/voice.mjs:1800 \"const masked = !release && !inTrial && mask.maskMutedIds().has(user.id);\"; base shard 1 'ok R7109'",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E110 promise 8",
+   "claim": "Gaps closed: the vote's opening ends any floor; a mode's start takes back a Straw Poll split; Next skips an absent player; Scrum Done/Pass/Post thesis; a gone speaker passed (holds yes)",
+   "verdict": "stands",
+   "why": "openRound calls endFloorForVote after the record's write; roundNextId skips an id with no active owning player; R7104 green and E110-T3 green in shard 5. The gone-speaker road and the thesis window stay read only, as the notes declare.",
+   "evidence": "scripts/vote.mjs:462-466 \"// THE VOTE ENDS THE FLOOR (E70 C8; E70-56; since E110 C3 any floor) ... await endFloorForVote();\"; scripts/events.mjs:1126-1133 roundNextId; base shard 5 'ok E110-T3 - the review's gaps on the primary ...'",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E110 promise 9",
+   "claim": "Music: own rows for six modes, three for Scrum, one for the vote; a row with no playlist plays what played until now (holds yes)",
+   "verdict": "weakened",
+   "why": "The rows exist and E110-T4 is green (shard 6), R7105 and R7107 green. But the reader's own finding E110-4 shows one sentence of this promise ('Nonstop Debate and the Objection keep the states they had', notes line 54) failing once the vote's playlist is mapped: voteMusicPlays stays true from the vote's first opening to the verdict, the vote's row stands before trial.objection and trial.debate, and nothing refuses a debate after the vote (startFloorInStep has no vote check; floor-machine.mjs:290 refuses only the Closing's Resume). Re-read and confirmed. A promise with a part that does not hold is 'partly', not 'yes'; the sentence can also be read as 'no new row for them', which is why the finding stays a nit.",
+   "evidence": "scripts/music-states.mjs:98-101 \"const opened = Boolean(record.vote?.open || record.voteClosed || record.voteOpenedAt != null); return opened && mapped(\\\"trial.vote\\\");\", :189-210 (own rows, then trial.vote, then trial.objection, trial.debate); scripts/trial-progress.mjs:366 voteOpenedAt 'atEntry: fresh(null)'; scripts/trial-floor.mjs:893-899 startFloorInStep (no vote read); .github/release-notes/v1.2.114.md:54 \"Nonstop Debate and the Objection keep the states they had.\"; base shard 6 'ok E110-T4'",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E110 promise 10",
+   "claim": "Sounds: three new events; a sound yields to a more specific one within 120 ms; the debate's opening sound; the Messenger switch silences three sounds (holds yes)",
+   "verdict": "stands",
+   "why": "The three SFX_EVENTS rows, YIELD_MS 120 and messengerMuted are where cited; R7106-R7108 green. The harness asks which key is played, never audio; LIVE-E110-05 unread, as the reader says.",
+   "evidence": "scripts/sfx-play.mjs:70 \"const YIELD_MS = 120;\"; scripts/config.mjs:5216 \"stashFound: {\", :5222 \"bedroomEntered: {\", :5424 \"present: {\"; scripts/sfx.mjs:141 \"if (messengerMuted(key, getSetting(SETTINGS.messengerSound) !== false)) return;\"; base shard 1 'ok R7106', 'ok R7107', 'ok R7108'",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E110 grade",
+   "claim": "8",
+   "verdict": "weakened",
+   "why": "The number is defensible: tier 2 E110-T1..T4, which the reader left 'to join', are all green in the base run's shards 3-6, which strengthens the driven part. But (1) the main promise's last link - a microphone that really stops and comes back - rests on LIVE-E110-01 with no reading in any live-readings file (delta included), so by BRIEF's L1 rule the grade is provisional and must be marked so, and the file carries no 'provisional' or 'l1' block anywhere; (2) two promises now stand at 'partly' (the refusal lines, E110-1, and the music sentence, E110-4), and 11.4's row 7 reads 'one promise delivered in part'; both parts are nits, so I keep 8 rather than 7, but the reader did not say why the 'partly' does not pull to 7.",
+   "evidence": "audit/AUDIT-1.2.42.md:96-97 (rows 8 and 7 of the scale); audit/findings-1.2.118/BRIEF.md 'The real-table line L1' (\"A grade that rests on unread live checks is provisional, at most 9, and marked provisional: \\\"after L1\\\"\"); grep -c 'provisional' stages-24.json = 0; base shards 3-6 'ok E110-T1'..'ok E110-T4'",
+   "severity_after": null,
+   "grade_after": "8, provisional after L1"
+  },
+  {
+   "ref": "E56 promise 1",
+   "claim": "Every comment name no code holds is rewritten or marked gone, to 0 (holds yes)",
+   "verdict": "stands",
+   "why": "The base run's comments part reads 0 cited names no code holds and 119 known; R7151 green.",
+   "evidence": "the base run's npm test log line 390 \"comments: 271 module file(s), 433 source(s) and 360 text(s) read for names; self-check held; cited names no code holds 0, doubled JSDoc 0, known 119; 0 problem(s)\"; base shard 1 'ok R7151'",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E56 promise 2",
+   "claim": "11 stacked docblocks fixed; the comments check refuses a docblock after a docblock (holds yes)",
+   "verdict": "stands",
+   "why": "Same line: doubled JSDoc 0, self-check held; R7150 green. The 16 adjacent pairs the reader counted at files' heads are outside what the lint counts, as the reader says.",
+   "evidence": "the base run's npm test log line 390 \"doubled JSDoc 0\"; base shard 1 'ok R7150'",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E56 promise 3",
+   "claim": "12 dead exports removed (holds yes)",
+   "verdict": "stands",
+   "why": "None of the 12 names is declared in scripts/ outside the suite; importLedger stands (put back), as the reader says. No check keeps it so, as the reader says.",
+   "evidence": "git grep -E '(function|const|let|class)\\s+<name>\\b' -- scripts (tests excluded): 0 for effectsLine, INFILTRATE_REROLLS, TIMED_KINDS, lastMessage, fillObjection, curtainHeld, bulletsWithoutAnswer, ownSpectator, markedChecks, exportLedger, deadRoomFor, scrumCampOfRoom; 1 for importLedger",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E56 promise 4",
+   "claim": "48 doubled imports merged; no-duplicate-imports is an error (holds yes)",
+   "verdict": "stands",
+   "why": "The rule is in RULES at error level and the base run's lint reports a planted doubled import in 6/6 folders. One citation drifts: the reader writes 'lint part 416 files', the base run's line says 418.",
+   "evidence": "eslint.config.mjs:49-50 \"\\\"no-unused-vars\\\": [\\\"error\\\", ...], \\\"no-duplicate-imports\\\": \\\"error\\\" };\"; the base run's npm test log line 7 \"lint: 418 files, 0 problem(s); ... a doubled import in 6/6\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E56 promise 5",
+   "claim": "13 local copies of esc replaced by utils' (holds yes)",
+   "verdict": "weakened",
+   "why": "The promise counts copies named esc, and none with esc's body is left under that name. But the reader's evidence 'scripts/utils.mjs:34 (the only declaration with that body left in scripts/)' is wrong: anonymity.mjs keeps a private function escape(text) with exactly esc's body. Neither the notes, C10-LIST.md nor a check names it, and nothing keeps the count from growing (test 'none').",
+   "evidence": "scripts/anonymity.mjs:1052-1054 \"function escape(text) {\\n    return foundry.utils.escapeHTML(String(text ?? \\\"\\\"));\\n}\"; scripts/utils.mjs:34 \"export const esc = value => foundry.utils.escapeHTML(String(value ?? \\\"\\\"));\"; docs/dev/e56/C10-LIST.md (lists esc-named copies only)",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E56 promise 6",
+   "claim": "Part 1: no-unused-vars is an error and an unread lang key fails the keys guard (holds yes)",
+   "verdict": "stands",
+   "why": "Both are in the base run's quick part with their planted faults seen.",
+   "evidence": "eslint.config.mjs:49 \"\\\"no-unused-vars\\\": [\\\"error\\\", { args: \\\"none\\\", varsIgnorePattern: \\\"^_\\\", ignoreRestSiblings: true }]\"; the base run's npm test log line 7 \"an unread one in 6/6\", line 393 \"keys: 6369 key(s) ... dead 0; self-check held, the planted unread key seen; 0 problem(s)\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E56 grade",
+   "claim": "9",
+   "verdict": "stands",
+   "why": "No live item belongs to the stage, so no L1 cap; the countable promises re-count as the reader says and E56-1 re-reads (the music-states row says 11 exported, the file has 15 export declarations). The weakened esc evidence is one more uncounted helper, a nit, and fits the reader's own 'not a 10' reasons.",
+   "evidence": "scripts/music-states.mjs: 15 lines starting 'export '; .claude/rules/code.md:86 \"11 names exported, 8 of them re-exported\"",
+   "severity_after": null,
+   "grade_after": 9
+  },
+  {
+   "ref": "E109 promise 2",
+   "claim": "The critical's hint line is drawn only on Observe's and Analyze's cards (holds yes)",
+   "verdict": "stands",
+   "why": "callCardHtml draws the hint only with criticalHint and a critical roll; only Observe, Analyze and the Reroll of those two pass it. R7121 green.",
+   "evidence": "scripts/call-gm.mjs:781 \"if (roll.isCritical && criticalHint) {\"; scripts/action-observe.mjs:240 and scripts/action-analyze.mjs:263 \"criticalHint: true,\"; scripts/reroll.mjs:1948 \"criticalHint: [\\\"observe\\\", \\\"analyze\\\"].includes(bookmark.actionKey),\"; base shard 1 'ok R7121'",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E109 promise 3",
+   "claim": "Analyze's roll card comes before its result (holds yes)",
+   "verdict": "stands",
+   "why": "The awaited whisperToOwner (the roll card) is before requestAnalyzeResolve in analyseBullet; R7122 green but only a text-position pin, as the reader says.",
+   "evidence": "scripts/action-analyze.mjs:211 \"await whisperToOwner(actor, `${rollHead(def, roll)}<p><small>${\", :216 \"const res = await requestAnalyzeResolve({\"; base shard 1 'ok R7122'",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E109 promise 4",
+   "claim": "Move the Body's number to beat has the clean-up's floor (holds yes)",
+   "verdict": "stands",
+   "why": "The threshold goes through atLeastFloor; R7123 green (a text pin plus a pure call).",
+   "evidence": "scripts/cleanup.mjs:1794 \"const threshold = atLeastFloor((def.threshold ?? 0) - relief);\"; base shard 1 'ok R7123'",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E109 promise 5",
+   "claim": "The session log keeps the newest 60 rows and counts the dropped (holds yes)",
+   "verdict": "stands",
+   "why": "keepNewest drops from the front while the log is at the cap; the cap is 60 and the drops are summed; R7124 green.",
+   "evidence": "scripts/utils.mjs:279 \"const SESSION_LOG_CAP = 60;\", :287-292 keepNewest \"while (log.length >= cap && log.length) { log.shift(); dropped++; }\", :312; base shard 1 'ok R7124'",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E109 promise 6",
+   "claim": "Replay the summary plays the case summary's board on that GM's screen alone (holds yes)",
+   "verdict": "stands",
+   "why": "The console offers the button only once the summary is out; replayCaseSummary is GM only, finds the newest card of this trial's summaryShown and plays it through sequence.mjs on this browser. R7125 green. Not drawn or heard headless, as the reader says.",
+   "evidence": "scripts/trial-floor-ui.mjs:1456-1458 \"...(progress.summaryShown && !finalNow ? [{ action: \\\"caseSummaryReplay\\\", ...\"; scripts/case-summary.mjs:117-126 \"if (!game.user?.isGM) return null; ... return replay(card);\"; base shard 1 'ok R7125'",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E109 promise 8",
+   "claim": "Texts taken from the disagreements: settings window name, the Fear tracker, Tier/Room tables, the GM's floor tooltip, three counts (holds yes)",
+   "verdict": "stands",
+   "why": "The two named strings are in lang/en.json; I traced two of the four code changes the reader did not (keyRowsUsed counts a slot with a token or any of four words; renderFloorSwitcher uses floorsHintGm for a viewer offered every floor). R975, R1517, R518, R1016, R2036, R3587, R7126-R7129 all 'ok' in shard 1.",
+   "evidence": "lang/en.json:335 \"\\\"name\\\": \\\"Hide the Daggerheart Fear tracker\\\",\", :442 \"\\\"title\\\": \\\"Danganronpa RPG settings\\\"\"; scripts/key-remnants.mjs:158-161 keyRowsUsed; scripts/fog.mjs:3479 \"game.i18n.localize(everyFloor ? \\\"DRPG.Fog.floorsHintGm\\\" : \\\"DRPG.Fog.floorsHint\\\")\"; base shard 1",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E109 promise 11",
+   "claim": "Leftovers closed: the live check part reads any LIVE id; KEYS.json matches lang/; NEEDSCODE.md:21 corrected (holds yes)",
+   "verdict": "stands",
+   "why": "The live part is green in the base run. KEYS.json, which the reader did not read again, matches: 195 rows, every key present in both language files with the same English and Polish text (script over the two files). NEEDSCODE.md:21 not read by me either. One citation drifts: the reader writes 453 files, the base run says 455.",
+   "evidence": "the base run's npm test log line 23 \"live: 563 item(s) in AUDIT 9.2, 1067 citation(s) in 455 file(s); 0 problem(s)\"; python over docs/dev/e102/KEYS.json and lang/en.json, lang/pl.json: rows 195, missing 0, differ 0",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E109-1 (minor)",
+   "claim": "The held Key fee card's button charges whatever chapter the clock is in when it is pressed",
+   "verdict": "stands",
+   "why": "Re-traced: wireChargeHeld wires any GM-written card with keyChargeHeld on every render (gm-bridge.mjs hook), with no chapter on the flag and no phase read; chargeForUnfoundKeys reads trialProgress() of the clock's chapter, which is blank (keysCharged false) for a new chapter, and its only date guard is 'too late' (a closed earlier case and no case in the clock's chapter). In chapter 2 with its case running the press charges chapter 2 on the Keys found so far and stamps keysCharged, so the trial entry's own charge returns at once. The refusal paths the reader tried (handleKeysCharge, the bridge row) hold no phase check either. minor fits: wrong in a particular situation (an old card pressed between a new chapter's incident and its trial).",
+   "evidence": "scripts/key-remnants.mjs:687 \"if (trialProgress().keysCharged) return null;\", :708-711 (the too-late guard), :720-725 (the card with flags { keyChargeHeld: true } only), :790-801 wireChargeHeld \"if (!game.user?.isGM || !cardFlag(message, \\\"keyChargeHeld\\\") || !cardWriter(message)?.isGM) return;\"; scripts/gm-bridge.mjs:137-141 \"Hooks.on(\\\"renderChatMessageHTML\\\", (message, element) => { if (!cardFlag(message, \\\"keyChargeHeld\\\")) return; ...\"; scripts/trial-progress.mjs:347 keysCharged 'lives: \\\"chapter\\\"', :435 \"export function trialProgress(chapter = getClock().chapter)\"; scripts/bridge-runs-records.mjs:736-739",
+   "severity_after": "minor",
+   "grade_after": null
+  },
+  {
+   "ref": "E109 grade",
+   "claim": "8",
+   "verdict": "weakened",
+   "why": "By 11.4 row 8 a stage may carry one minor; row 7 is 'several minor or one promise delivered in part'. E109 has the minor E109-1 inside one promise held 'partly' (the Key fee button), and two more promises held 'partly' (the Tamper name, E109-2; the reset label, E109-3, re-read: 19 GM stores and 5 player copies in the group, the label names none of facilityUses, bedroomNotes, cubTargets, veils). Three promises in part, one with a minor, is row 7, not 8; the reader's reasons name all three and do not say why the grade stays at row 8. No live item, so no L1 cap.",
+   "evidence": "audit/AUDIT-1.2.42.md:96-97; lang/en.json DRPG.Murder.openSelfNote \"... the incident goes straight to the clean-up.\"; DRPG.Season.group.actions \"... rests, barricades, Bounties, Confusions, room effects, masks, tails, watches, eavesdrops, lock picks, crossings and the rolls' records\"; scripts/gm-stores.mjs: 24 lines with resetGroup: \"actions\" (19 defineGmStore rows, 5 player copies)",
+   "severity_after": null,
+   "grade_after": 7
+  },
+  {
+   "ref": "E59 promise 1",
+   "claim": "35 mechanics mapped, 49 breaks: 39 fixed, one in part, 5 documented, 2 as written, 2 handed to E109 (holds yes)",
+   "verdict": "stands",
+   "why": "A script over CHAINS.md part 3 finds 49 B- rows: 40 that say fixed (B-T8 in part among them), 5 documented, 2 as written, 2 E109. R7160-R7182 all 'ok' in shard 1. As the reader says, most are text pins.",
+   "evidence": "docs/dev/e59/CHAINS.md:100-201 (49 rows by script); base shard 1 'ok R7160' .. 'ok R7182'",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E59 promise 2",
+   "claim": "The Final Trial's Level Ups read the living as the table knows them (holds yes)",
+   "verdict": "stands",
+   "why": "aliveAsTableKnows filters the roster by isDeceased of the GMs' flags; both occurrences of livingStudentsForGm left in verdict.mjs are in comments.",
+   "evidence": "scripts/verdict.mjs:724-727 \"function aliveAsTableKnows(excluded = []) { ... return studentActors().filter(actor => !out.has(actor.id) && !isDeceased(flagsHeldNow(actor))); }\"; grep livingStudentsForGm scripts/verdict.mjs: lines 700, 721, both comments",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E59 promise 3",
+   "claim": "The vote's music follows the trial (holds yes)",
+   "verdict": "stands",
+   "why": "The updateSetting watch now names trialProgress beside the queue, the clock and bodyFound; R7161 green.",
+   "evidence": "scripts/music-play.mjs:243-252 \"/* THE VOTE'S RECORD TOO (E59 ... B-S1; R7161) ... && key !== `${MODULE_ID}.${SETTINGS.trialProgress}`) return;\"; base shard 1 'ok R7161'",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E59 promise 4",
+   "claim": "A forced door's banging names the room as each listener knows it; door and breach cards go to a room's people as movement counts them (holds yes)",
+   "verdict": "stands",
+   "why": "tellRooms filters by countsAsPresent and builds the text per student; the banging goes through roomNamerFor per student. R7163, R7164 green.",
+   "evidence": "scripts/doors-gm.mjs:136 \"const textFor = async student => (typeof text === \\\"function\\\" ? await text(student) : text);\", :141 \"if (!countsAsPresent(token) || ...\", :189 \"const banging = async student => game.i18n.format(\\\"DRPG.Infiltrate.force.banging\\\", { room: (await roomNamerFor(student, place.scene.id))(room, 1) });\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E59 promise 5",
+   "claim": "Shut the Door refused before it costs anything for an Eclipse, a bedroom or too many doors; a body or another's barricade after the roll (holds yes)",
+   "verdict": "stands",
+   "why": "shutShutWhy on the player's side names the three; shutRefusal on the GM's side names all five. R7173 green.",
+   "evidence": "scripts/action-listen.mjs:102-112 shutShutWhy (eclipse, ROOM_OWNER_FLAG, maxExits); scripts/doors-gm.mjs:82-96 shutRefusal (adds knownUnfoundBodyIn and barricadeStore)",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E59 promise 6",
+   "claim": "The trial's end closes an open vote, uncounted (holds yes)",
+   "verdict": "stands",
+   "why": "reconcilePhase calls shutVoteAtExit on the way out; it writes open: false and counts nothing. It returns early when the record's chapter is not the clock's; a ballot then reads the blank record of the new chapter, so no vote stays open to a player.",
+   "evidence": "scripts/clock.mjs:1012-1019; scripts/trial-progress.mjs:581-587 \"if (!game.user?.isGM || trialProgressChapter() !== getClock().chapter) return null; ... { vote: { ...record.vote, open: false } }\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E59 promise 7",
+   "claim": "The floor's mute knows a player by every student they own (holds yes)",
+   "verdict": "stands",
+   "why": "holdsTheFloor answers true when any speaker is owned by a player who owns the actor; R7175 green (pure calls).",
+   "evidence": "scripts/voice.mjs:1574-1584 \"return speakers.some(id => { const speaker = byId(id); return Boolean(speaker) && players.some(u => speaker.testUserPermission?.(u, \\\"OWNER\\\")); });\"; base shard 1 'ok R7175'",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E59 promise 8",
+   "claim": "A Bounty of last season gives nothing back into this one (holds yes)",
+   "verdict": "stands",
+   "why": "lapseBounties pays back only a Bounty whose season is this season's (or which holds none).",
+   "evidence": "scripts/monocub.mjs:1869-1870 \"const thisSeason = (bounty?.season ?? seasonEpoch()) === seasonEpoch(); const back = bounty?.owedKey && thisSeason ? await D.returnOwed(...)\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E59 grade",
+   "claim": "8",
+   "verdict": "weakened",
+   "why": "The count, the eight fixes re-read and the supersession stand, and the tier 2 tests the reader left to join (E92+E93, E74-T2, E50-T2, PV-DOORS-T1, E15-T14) are green in the base run's shards 2, 4 and 6. But the stage's one LIVE item (LIVE-E59-01, the C3 screenshot rating) has no reading in any live-readings file, its nine table checks have no LIVE id, and the 1.2.113 promise stands 'partly' on it; by BRIEF's L1 rule the grade is provisional, and the file does not mark it. 8 itself fits 11.4 (fixes held by reading plus text pins), so the number stays.",
+   "evidence": "audit/AUDIT-1.2.42.md 9.2 item 532 (LIVE-E59-01); grep 'LIVE-E59' audit/findings-1.2.118/live-readings-*.json: 0; base shards 2, 4, 6 'ok E92+E93', 'ok E74-T2', 'ok E50-T2', 'ok PV-DOORS-T1', 'ok E15-T14'; docs/dev/R-REGISTRY.md: R6750-R6756 'E54' (7), R7160-R7182 'E56' (23), '| E59 |' 0 rows (E59-1 stands)",
+   "severity_after": null,
+   "grade_after": "8, provisional after L1"
+  },
+  {
+   "ref": "E111 promise 1",
+   "claim": "A GM alone on another computer finds the case: the primary writes the copy about 15 s after a change, at most a minute after the first; every GM reads it at load and merges it as Restore does (holds yes)",
+   "verdict": "stands",
+   "why": "scheduleCopy waits min(15 s, first + 60 s - now) and only the primary writes; copyAtLoad reads every copy through restoreCase quiet. A reading on a real Foundry the reader did not cite now stands in live-readings-e58-delta.json reading 21: a fresh GM browser on the same machine filled from the copy, and the copy was rewritten about 15 s after a change - and also that a change closed within the 15 s is not on the copy and a fresh browser brings the older state back (the comment at case-copy.mjs:46-49 accepts that). The 'other computer' part is still not read (LIVE-E111-03 in part). The read is skipped while the files are open (E111-2, re-read, stands).",
+   "evidence": "scripts/case-copy.mjs:215 \"const wait = Math.max(0, Math.min(SEAL_QUIET_MS, state.first + SEAL_MOST_MS - now));\", :218 \"if (isPrimaryGm()) void writeServerCopy();\", :151 \"const result = await restoreCase(file, { quiet: true, recheck: false });\", :263-268 (returns before the read when filesPrivate() answers); audit/findings-1.2.118/live-readings-e58-delta.json readings[21] (LIVE-E111-01 / LIVE-E111-03 in part; 'A first clear that closed the page after 10.5 s came back on the next load')",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E111 promise 2",
+   "claim": "An empty browser never replaces a full copy: every write lists and merges first, no write before hydration; racing first writes leave two files, both read (holds yes)",
+   "verdict": "stands",
+   "why": "writeServerCopy refuses unhydrated, reads and merges every copy, checks hydration again, then uploads over the newest name; R7346 green.",
+   "evidence": "scripts/case-copy.mjs:96 \"if (!hydrated) return \\\"notHydrated\\\";\", :177 \"const seen = await readServerCopies();\", :180 \"if (!SEAL_DEPS.hydrated()) return (state.last = \\\"notHydrated\\\");\", :184 (the newest name or a new one)",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E111 promise 3",
+   "claim": "Protected by file permissions and an unguessable name; no copy while the switch is off or a player role or account may browse or upload; GMs told, health check names it (holds yes)",
+   "verdict": "stands",
+   "why": "filesRefusal answers switchOff, roles or account; writeServerCopy refuses and tellRefused warns once; the health row is a conflict with the refusal's key. Whether the server really serves the file to anyone and refuses a player's listing is LIVE-E111-02, unread in every live-readings file.",
+   "evidence": "scripts/case-copy.mjs:70-76 filesRefusal, :170-174, :203-207 tellRefused; scripts/gm-stores.mjs:2679 \"if (copy.refused && copy.refused !== \\\"notGm\\\") add(\\\"caseCopy\\\", \\\"conflict\\\", `DRPG.Case.copy.refused.${copy.refused}`);\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E111 promise 4",
+   "claim": "The file's name is 128 random bits that nothing a player's browser receives contains (holds yes)",
+   "verdict": "stands",
+   "why": "newCopyName takes 16 bytes of getRandomValues; the names stay in this GM's memory (state.copies) and copyStatus returns no name; R7347 green. The two error lines that may carry a server message go to the GM's own console and log, as the reader says.",
+   "evidence": "scripts/case-copy.mjs:60 \"const bytes = globalThis.crypto.getRandomValues(new Uint8Array(16));\", :235-240 copyStatus (no path)",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E111 promise 5",
+   "claim": "The Case window shows the copy and Write the copy now (holds yes)",
+   "verdict": "stands",
+   "why": "The window has the server line and the writeCopy button, which calls writeServerCopy({ explicit: true }) and says the result.",
+   "evidence": "scripts/gm-stores.mjs:2875 \"<p class=\\\"drpg-briefing-facts\\\" data-drpg-case-server>${esc(copyLine)}</p>`,\", :2879 \"{ action: \\\"writeCopy\\\", ...\", :2887 \"const result = await copies.writeServerCopy({ explicit: true });\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E111 promise 6",
+   "claim": "Clear the plan: chapter picked first, a question counts what goes and says which are already placed (holds yes)",
+   "verdict": "weakened",
+   "why": "The button, the chapter pick and the count are there. The release notes say the question 'names the Key Remnants already placed', and so does the GM handbook; the code gives a count ('{n} of them are already placed'), no name. The reader saw this and wrote it in the note while still marking 'yes'; a promise one of whose words the code does not keep is 'partly' (a nit).",
+   "evidence": "scripts/investigation.mjs:2080 \"${what.placed ? `<p>${esc(plural(\\\"DRPG.Investigation.clearPlan.placed\\\", { n: what.placed }))}</p>` : \\\"\\\"}\"; lang/en.json DRPG.Investigation.clearPlan.placed.other \"{n} of them are already placed: ...\"; .github/release-notes/v1.2.115.md:42 \"a question counts what goes and names the Key Remnants already placed\"; docs/handbooks/gm-handbook.en.md:1339 \"and names those already placed\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E111 promise 7",
+   "claim": "Remnants, Truth Bullets, ticks and other chapters stay; the clear reaches every GM and the copy; any GM, never a player; cannot be undone (holds yes)",
+   "verdict": "stands",
+   "why": "planToClear takes only the chapter's numbered slots, valid nodes and meta row; clearChapterPlan removes them by dropMany (stamped); both functions are GM only. An Assistant's press is read, not driven.",
+   "evidence": "scripts/case-schema.mjs:464-472 planToClear, :490-496 \"if (!game.user?.isGM || ...) return null; ... await keyPlanStore.dropMany(what.slots); ... await caseSchemaStore.dropMany([...what.nodes, ...what.meta]);\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E111 promise 8",
+   "claim": "Declared not done: the rule file and the README's privacy paragraph do not name the server copy (holds no)",
+   "verdict": "stands",
+   "why": "README.md still says the Key Remnant plan stays on the GMs' browsers, and grep finds no mention of the copy in README.md or .claude/rules/. E111-1 stands; I would note that the README sentence is not only incomplete but now says the opposite of what the code does, which a host reads to decide what a public server exposes.",
+   "evidence": "README.md:283 \"Key Remnant plan and a murder declared in the dark stay on the GMs' browsers.\"; grep -i 'server copy|drpg-case|case-copy' README.md .claude/rules/*.md: no hit",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E111 grade",
+   "claim": "9",
+   "verdict": "weakened",
+   "why": "The driven part stands (R7345-R7350 green in shard 1; scenario 34 not yet in any result), and one more real-server reading supports it (delta reading 21). But the protection the whole design rests on is LIVE-E111-02, unread in every live-readings file, so by BRIEF's L1 rule the 9 is provisional and must be marked so (the file marks no grade provisional); the reader's 'none of the three LIVE-E111 items has a reading under its id' is true by the letter, but the delta digest maps reading 21 onto LIVE-E111-01 and -03 in part. With promise 6 now 'partly' (a nit) the number could read lower by 11.4's row 7; I keep 9 because every gap is a nit, but only as provisional.",
+   "evidence": "audit/findings-1.2.118/BRIEF.md 'The real-table line L1'; audit/findings-1.2.118/live-readings-e58-delta.json readings[21].live_id \"LIVE-E111-01 / LIVE-E111-03 (and LIVE-E04-08)\", not_run[13] \"LIVE-E111-01's server restart, The Forge and other hosts ... LIVE-E111-03's second computer: not read\"; base shard 1 'ok R7345' .. 'ok R7350'",
+   "severity_after": null,
+   "grade_after": "9, provisional after L1"
+  }
+ ],
+ "counts": {
+  "checked": 44,
+  "stands": 37,
+  "weakened": 7,
+  "refuted": 0
+ },
+ "not_established": [
+  "Scenario results: the base run's scenarios had not run when I read (after.status shows shard 3 being rerun), so scenarios 67 phase V, 33 A23, 30, 34, 62, 63 and the others the reader lists to join still have no result here.",
+  "E110: LIVE-E110-01..05 have no recorded reading in live-readings-e58.json, -other.json or -e58-delta.json; the gone Scrum speaker and the thesis window remain read only. l1 for the grade cap: {what: whether a microphone stops and returns without a reload when the module flips BROADCAST_AUDIO for a floor, recipe: 1. a Class Trial entered by Start Class Trial with LiveKit on, 2. a player objects, 3. each other player speaks and the GM listens, 4. the GM ends the floor and each speaks again, 5. reload one player mid-Objection, clients: GM and three players on LiveKit, theme: default, settles_if: muted during the Objection and heard after it without a reload = the promise holds; heard while muted or still muted after = a defect of E110's main promise, priority: the grade cap of E110 (8, provisional)}.",
+  "E59: LIVE-E59-01 (the second screenshot rating and every window drawn on v14) unread; the nine table checks named in STATUS-115.md have no LIVE id. l1: {what: LIVE-E59-01's rating of the drawn windows on v14, recipe: as the item in AUDIT 9.2 item 532, clients: GM and one player, theme: both, settles_if: every window passes the seven rules as drawn = cap lifted; a window that fails = a finding against the 1.2.113 part, priority: the grade cap of E59 (8, provisional)}.",
+  "E111: LIVE-E111-02 (a logged-out fetch of the copy's path, a player's listing of the folder, a folder index) unread; LIVE-E111-01 and -03 read in part only (delta reading 21: same machine, no restart, no other host). l1: {what: who can fetch or list worlds/<world>/drpg-case/, recipe: 1. write the copy with Write the copy now, 2. from a logged-out browser fetch the file's path, 3. as a Player open the File Picker on that folder, 4. fetch the folder's address with a trailing slash, 5. open the world alone on a second computer and read the planner, clients: GM, one player, one logged-out browser, a second computer, theme: default, settles_if: the logged-out fetch answers the file and the listing and index are refused = the design's assumption holds; a listing or index offered to a player = the case's names leak, a blocker for the design; the second computer's planner empty = LIVE-E111-03 fails, priority: the grade cap of E111 (9, provisional)}.",
+  "E111: the delta's reading that a GM change closed within the 15 s quiet window is lost from the copy (and a fresh browser brings the older state back) is a recorded behaviour of a chosen debounce, not a defect of a promise; whether a flush on the page's close is wanted is for the owner. I did not find a pagehide or beforeunload handler in scripts/case-copy.mjs.",
+  "E56: 'nothing changes at the table' (held 'unknown' by the reader) stays unmeasurable from the repository; the anonymity.mjs escape copy shows the esc count is a count of a name, not of a body.",
+  "E109: NEEDSCODE.md:21 not read by me either; the five table checks without a LIVE id are still unrecorded."
+ ]
+}

@@ -1,0 +1,139 @@
+{
+ "refuter": "verify-live-items-429",
+ "of": "live-items-429",
+ "scope_note": "The file has 34 items (429-462): 2 partly (429, 455), 4 obsolete (448-451), 28 open, none read. All 6 non-open items were checked; 5 open (430, 441, 453, 456, 458) were checked for a missed reading by grep over the three digests, b5a29e73's LOCAL-REPORT.md and CALIBRATION.md and the origin/claude/e58-local copies (7875554f): no LIVE id of 429-462 appears in any paper. The file has no new_observations or findings array; its 'observations' are strings without a severity, none rated minor or above; four of them that make claims were checked anyway.",
+ "checked": [
+  {
+   "ref": "429 (LIVE-E24-12)",
+   "claim": "partly, defect: the owner's report on 1.2.100 (Legacy, a 217x20 empty strip in the lower-left corner) is recorded; fixed in 1.2.101 (E23 fix L, 1fde943b); the fixed state, Stained Glass, 1366x768, a player's screen and core's own sheet not read at a table.",
+   "verdict": "stands",
+   "why": "The digest entry exists (live-readings-other.json, item 429, outcome defect, the owner at a real table on 1.2.100) and matches the item's own text, the release notes and the commit. The reading precedes the fix and the item asks of the fixed state, so it settles only the premise - partly, as the sibling refuters read such a pre-fix report (verify-live-items-361, item 376). No later reading: LIVE-E24-12 appears in neither b5a29e73's LOCAL-REPORT.md and CALIBRATION.md nor the e58-local copies (7875554f). Today's code is the fix: danganronpa.css's 'AND NO FRAME ROUND NOTHING' block and the hidden lists; R1466 exists and builds `#players` on a body of its own per theme, so the item's headless line ('on a planted list in audit/glass-harness.html') is stale as the reader says; glass.mjs `gaugeFoot` reads `#players`.",
+   "evidence": "audit/AUDIT-1.2.42.md:1346 'właściciel widział 217x20 na 1.2.100, harness po fix L mierzy przezroczyste pole 22x28'; live-readings-other.json readings item 429 'environment': 'the owner at a real table, on 1.2.100, under Monokuma Legacy', 'outcome': 'defect'; .github/release-notes/v1.2.101.md:197 'fix L 1fde943b (Foundry's players list out of the module's panel look under Legacy'; styles/danganronpa.css:14039 'AND NO FRAME ROUND NOTHING (E23 fix L, 09.11.2026'; styles/danganronpa.css:14052 'What Foundry's own sheet draws on `#players` itself is not read in this repository'; scripts/tests-tier1.mjs:48594 'players.id = \"players\";'; scripts/glass.mjs:204 'const gauge = document.querySelector(\"#players\");'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "455 (LIVE-E95-01)",
+   "claim": "partly, defect: the owner's report of 13.11.2026 on 1.2.112 ('Killing a character makes 3 tokens appear') shows v14 drew the body tile and its mark (part (1)'s picture); fixed in 1.2.113 (tile at alpha 0, caption on the corpse's token); the new state not read.",
+   "verdict": "weakened",
+   "why": "The dated record exists (body-tile.mjs header, the release notes of 1.2.113) and the code moved as the reader says (`drawBodyMark` only takes marks off and answers null; `drawCorpseCaption` draws on the token from `drawToken`/`refreshToken`; R3144, R5870, R5871, R5872, R5402 at the lines given). The digest indeed does not list this reading under 455. But the owner's words name only 'a third, inactive token'; that the third thing was the tile, with its dead sign and caption, is scenario 78's headless listing on 1.2.112 (no canvas), not the owner's reading. So what the table recorded is that v14 drew a third token-like thing beside the corpse - consistent with the tile's picture, which is part of (1) - and not that v14 drew the mark or the caption, as the evidence's 'v14 drew the tile and its mark' says. 'partly' can stay on the picture alone, with the identification marked as inferred. The reading is on 1.2.112, before the road the item asks about was replaced; today's (1.2.113+) road is unread at a table.",
+   "evidence": "scripts/body-tile.mjs:33-34 'the owner's report of 13.11.2026 at a table on 1.2.112: \"Killing a character makes 3 tokens appear: the body, the Spectator and... a third, inactive token\"; scenario 78 measured it on every road'; audit/harness/scenarios/78-death-map.mjs:4-8 'Measured at 1.2.112 (ceb9e9c8) with this scenario's own listing: ... one body tile (flagged `bodyOf`, the token's picture, drawn at Foundry's default alpha) ... the third the tile'; .github/release-notes/v1.2.113.md:24-25 'the body tile (the third thing the owner saw at the table, drawn with the token's picture) is now laid unseen'; scripts/body-tile.mjs:369-372 'export function drawBodyMark(tile) { ... takeOffMarks(tile); return null;'; scripts/body-tile.mjs:447-448 'Hooks.on(\"drawToken\", token => { drawCorpseCaption(token); });'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "448 (no LIVE id; E47 FA-FD record)",
+   "claim": "obsolete: a fix-round record closed by its own text ('Właściciel przyjął całe porównanie 3'), its table half LIVE-E47-11 (452); its R numbers exist today; two figures stale (784 px, the Look fieldset gone).",
+   "verdict": "stands",
+   "why": "The item's own text closes it and names 452 as its table half; b5a29e73's LOCAL-REPORT.md:330 (branch :482) counts 448 'closed by its own text'; TRIAGE-9.2.md:471 classes it C. All sixteen R numbers were found at the lines given (tier0 :23635, :23670, :23700; tier1 :53901-54354). Stale details confirmed: the four other Searching columns are 220+152+232+180 = 784 px and R3138 wants 784; R3140's title says the Look window's fieldset is gone. 'obsolete' with subject_exists true is the reader's way for a record with no question of its own; live-items-18 uses the same (gap-3, gap-7), so it is consistent across the lane though 11.3 defines obsolete by a removed subject.",
+   "evidence": "audit/AUDIT-1.2.42.md:1384 'Właściciel przyjął całe porównanie 3 (E46-CMP3, 10.11.2026) ... przy stole: LIVE-E47-11 (wiersz 452).'; docs/dev/e58/LOCAL-REPORT.md:330 '| closed by its own text | 8 | S7-14, 21, 41, 213, 448, 449, 450, 451 |'; styles/components.css:2687 '(220px + 152px + 232px + 180px) * var(--drpg-legacy-scale, 1)'; scripts/tests-tier1.mjs:54327 'want[dress] = { sum: 784, /* E101 item 4 (changed on purpose): the check column 152 px */'; scripts/tests-tier1.mjs:54354 '- the Look window's fieldset, which held the promise until A1d, is gone'",
+   "status_after": "obsolete"
+  },
+  {
+   "ref": "449 (no LIVE id; E47-FB deferral to E98)",
+   "claim": "obsolete, subject gone: the deferred question (Legacy's one-word Remnants heads breaking inside a word in 1204 px) was built with E97 C2 (1120 px window, Legacy Traces table at 130 % and sideways scroll, heads break between words); an older comment at components.css:4010-4014 still says the opposite.",
+   "verdict": "stands",
+   "why": "Closed by its own text ('Przeniesione do E98') and counted so in LOCAL-REPORT.md:330. E97 and E98 both shipped in 1.2.107 (tools/stages.json). The CSS block that answers it names AUDIT 449 itself, and the Legacy rule `width: 130cqw` on the Traces pane exists; the 1.2.107 notes say the same. The stale comment at :4010-4014 ('ten columns do not hold them all in 1204 px ... a head still breaks inside a word') is confirmed; `overflow-wrap: anywhere` remains at :3323. Measured in Chromium, not at a table - the reader says so; item 446 keeps the table half.",
+   "evidence": "audit/AUDIT-1.2.42.md:1386 '449. **Przeniesione do E98: jednowyrazowe nagłówki Legacy w tabeli Remnants'; styles/components.css:3377 'LEGACY'S ONE-WORD HEADS (AUDIT 449, left to E98 by E47-FB and built with the frame, E97 C2)'; styles/components.css:3385 'A head breaks between its words only.'; styles/components.css:3396 '[data-drpg-pane=\"traces\"] { width: 130cqw; }'; styles/components.css:4013 'ten columns do not hold them all in 1204 px: there, and below 1366 px, a head still'; tools/stages.json E98 version 1.2.107, shipped 2026-11-12",
+   "status_after": "obsolete"
+  },
+  {
+   "ref": "450 (no LIVE id; E47-FC/FD approval record)",
+   "claim": "obsolete: three Observe captions re-approved with comparison 3's q-batch default; text-render.mjs `BATCH_LATER` records the later word and its comment says re-approved (E47-FD); R3136 holds their lengths.",
+   "verdict": "stands",
+   "why": "Closed by its own text and counted so in LOCAL-REPORT.md:330. `BATCH_LATER` lists the three keys with by E47-FC, card bc047, and the comment above says they were re-approved as they read (E47-FD). R3136 exists at tier1 :54169. The E68 C13 entries beside them are as the reader says. The keys sit at :587-588 rather than :586-588, a one-line drift with no effect.",
+   "evidence": "audit/AUDIT-1.2.42.md:1388 'Przyjmując porównanie 3 z odpowiedzią domyślną na q-batch, właściciel zatwierdził nowe teksty'; tools/text-render.mjs:575-576 'The three Observe captions below were re-approved as they now read: the owner accepted comparison 3 (page E46-CMP3, 10.11.2026)'; tools/text-render.mjs:587-588 '[\"DRPG.Observe.generalHint\", \"DRPG.Observe.nonObviousHint\", \"DRPG.Observe.specificHint\"].map(key => [key, Object.freeze({ by: \"E47-FC\", date: \"09.11.2026\", page: \"E46-CMP2\", card: \"bc047\"'",
+   "status_after": "obsolete"
+  },
+  {
+   "ref": "451 (no LIVE id; E97-E99 decision)",
+   "claim": "obsolete: the case-map decision is carried out (E97/E98 1.2.107, E99 1.2.108, E61 1.2.109, Map default since E97 C9 confirmed 12.11.2026); stages.mjs takes E and two or three digits and 'stages.json holds E101-E118'; tests-text.mjs uses 'E00'.",
+   "verdict": "stands",
+   "why": "Closed by its own text and counted so in LOCAL-REPORT.md:330. Versions confirmed in tools/stages.json; the 1.2.107 notes record the owner's 'E97 tak' of 12.11.2026 and R3652 on the Map; stages.mjs:183 takes `^E\\d{2,3}$`; tests-text.mjs:4035 names 'E00' ('\"E99\" until E47-FD'). One detail is wrong: stages.json has no E101 row - its three-digit rows are E102, E108-E112, E117 and E118 (8 rows), so 'holds E101-E118' overstates; the point (three-digit stages exist and pass) holds. The open question D2 was not traced, as the reader says.",
+   "evidence": "tools/stages.mjs:183 'if (!/^E\\d{2,3}$/.test(r?.id ?? \"\")) errs.push(`${at}: the id is not E and two or three digits`);'; scripts/tests-text.mjs:4035 'one whose stage is no ledger row (\"E00\"; \"E99\" until E47-FD'; .github/release-notes/v1.2.107.md:159 'The owner confirmed the default on 12.11.2026 (\"E97 tak\")'; tools/stages.json three-digit ids: E102, E108, E109, E110, E111, E112, E117, E118",
+   "status_after": "obsolete"
+  },
+  {
+   "ref": "430 (LIVE-E24-13)",
+   "claim": "open: no reading of a mid-session change of Daggerheart's death icon nor of v14's `updateSetting` with `Setting#key`.",
+   "verdict": "stands",
+   "why": "Grep of 'LIVE-E24-13', 'updateSetting', 'Automation', 'death icon' over both LOCAL-REPORT.md and CALIBRATION.md copies (b5a29e73 and 7875554f) and the three digests finds only the seed's `daggerheart.Automation` written at seeding (LOCAL-REPORT.md:495, :524) and D9's 'a setting's, not read'. No missed reading. The listener and comment are as cited.",
+   "evidence": "docs/dev/e39/CALIBRATION.md:141-146 'D9, `noHook`. On 14.370 it skips the `pre` hook alone; the `update` hooks fire on every browser ... Create and delete with `noHook`, and a setting's, not read.'; scripts/states.mjs:80 'Hooks.on(\"updateSetting\", setting => automationChanged(setting));'; scripts/states.mjs:636 'not read on v14's source (LIVE-E24-13)'",
+   "status_after": "open"
+  },
+  {
+   "ref": "441 (LIVE-E47-04)",
+   "claim": "open: the Case window's backup and Restore with two GMs not driven at a table; only the tier-2 half touched (2 saveDataToFile failures; on the L1 branch skipped by env.replaceable).",
+   "verdict": "stands",
+   "why": "LOCAL-REPORT.md:108 counts two read-only saveDataToFile failures unnamed; the branch's :276 names 'Back up the case, then Restore' and E47-T4 among the tests env.replaceable now skips; neither drives the window. On b5a29e73 both tests assign over foundry.utils.saveDataToFile and no `env.replaceable` exists in scripts/. No missed reading.",
+   "evidence": "origin/claude/e58-local:docs/dev/e58/LOCAL-REPORT.md:276 'R814, R3436, \"Back up the case, then Restore\", E47-T4, E60-T19 (the backup's `saveDataToFile`, the icons' `loadTexture`).'; docs/dev/e58/LOCAL-REPORT.md:108 '2 \"Cannot assign to read only property 'saveDataToFile'\"'; scripts/tests-tier2.mjs:97809 'foundry.utils.saveDataToFile = data => { saved = data; };'",
+   "status_after": "open"
+  },
+  {
+   "ref": "453 (LIVE-E95-02)",
+   "claim": "open: a tile's fields on v14 (width/height in pixels, the floor field) and a body tile on an upper Level not read.",
+   "verdict": "stands",
+   "why": "CALIBRATION.md reads a token's `level` and Scene's embedded collections (Tile among them by name) but no tile's x/y/width/height/level; the branch's only tile at the sandbox is LIVE-E112-05's scratch occluding tile, whose fields are not logged. No missed reading.",
+   "evidence": "docs/dev/e39/CALIBRATION.md:109 '`Scene#levels` | an EmbeddedCollection of the `Level` document (Scene's embedded: AmbientLight, AmbientSound, Drawing, Note, Region, Level, Tile, Token, Wall)'; origin/claude/e58-local LOCAL-REPORT.md:520 'a scratch tile flagged `OccludingTile` over the Gym ... nothing was built for the module to hide'",
+   "status_after": "open"
+  },
+  {
+   "ref": "456 (LIVE-E95-03)",
+   "claim": "open: `drpgBodyAnnounced` on the writer and on the other browsers through `bodiesFound`'s `updateSetting` not read on a real server.",
+   "verdict": "stands",
+   "why": "No grep hit for drpgBodyAnnounced, bodiesFound or announceBody in either paper copy or the digests; the setting-hook model is the one CALIBRATION D9 leaves unread. body.mjs:509-511 says the same model. No missed reading.",
+   "evidence": "scripts/body.mjs:507-508 'The hook and `Setting#key` as Foundry v13 has them, the setting's arrival on the other browsers as the harness models it (LIVE-E95-03).'",
+   "status_after": "open"
+  },
+  {
+   "ref": "458 (LIVE-E68-01)",
+   "claim": "open: a Direct Murder's proposed statistic and the GMs' Allow / Change to / Refuse card, a betrayal's proposal and a trap's opening not read at a table.",
+   "verdict": "stands",
+   "why": "No reading of this item. Two adjacent readings on the e58-local branch the reader does not cite: step 7's GM-opened murder whose opening window 'Opening the murder · beat 8' was rolled on real dice (no proposal, no Eclipse), and S7-2's trait ruling for a Search ('Approve: Hand (+1)', 'Change to', 'Refuse'), where the copy of a thread's ruling card in the GM's chat log had buttons that did nothing - a different card, but the same ruling shape as part (2), worth naming beside 458 when L1 drives it. Neither reads this item's roads, so open stands.",
+   "evidence": "origin/claude/e58-local LOCAL-REPORT.md:512-513 'PlayerThree's browser got Daggerheart's roll window \"Opening the murder · beat 8: Chie Mori\"'; origin/claude/e58-local LOCAL-REPORT.md:580 'the ruling card of a player's thread reaches the GM's chat log (\"Foundry tools\") with enabled \"Approve: Hand (+1)\", \"Change to: ...\", \"Refuse\" buttons that do nothing'",
+   "status_after": "open"
+  },
+  {
+   "ref": "observation 'Item 441's tier-2 half'",
+   "claim": "On b5a29e73 'Back up the case, then Restore' (tier2 :56587) and E47-T4 (:97777) assign over saveDataToFile, which 14.370 holds read-only; a local gate's tier 2 on 1.2.118 is expected to fail them; on the L1 tree they skip.",
+   "verdict": "stands",
+   "why": "Both tests write foundry.utils.saveDataToFile (first at :57076-57080, line 490-494 of its body; E47-T4 at :97803-97809); `env.replaceable` is absent from scripts/ on this tree; the branch names both as skipped by it. 'expected to fail' is worded as an expectation, which it is: LOCAL-REPORT.md:108 does not name the two failures.",
+   "evidence": "scripts/tests-tier2.mjs:97809 'foundry.utils.saveDataToFile = data => { saved = data; };'; docs/dev/e58/LOCAL-REPORT.md:108 '2 \"Cannot assign to read only property 'saveDataToFile'\"'",
+   "severity_after": "none (a note on a test half)"
+  },
+  {
+   "ref": "observation 'One reading informs two items' (430 and 456)",
+   "claim": "430 and 456 both rest on v14's `updateSetting` with `Setting#key`; CALIBRATION D9 left 'a setting's' unread.",
+   "verdict": "stands",
+   "why": "Both comments say 'as Foundry v13 has them' and name their LIVE id; D9's last sentence is as quoted (on b5a29e73 at :141-146 too, not only on the branch).",
+   "evidence": "scripts/states.mjs:636 'The hook and `Setting#key` as Foundry v13 has them, not read on v14's source (LIVE-E24-13)'; scripts/body.mjs:507 'The hook and `Setting#key` as Foundry v13 has them'; docs/dev/e39/CALIBRATION.md:146 'setting's, not read.'",
+   "severity_after": "none"
+  },
+  {
+   "ref": "observation 'Comment against code (nit)' components.css:4010-4014",
+   "claim": "The older comment still says ten Legacy columns do not hold their heads in 1204 px and a head breaks inside a word; E97 C2's comment at :3377-3386 says the opposite.",
+   "verdict": "stands",
+   "why": "Both comments read as quoted; the later rule (130cqw under Legacy) exists. nit as written.",
+   "evidence": "styles/components.css:4013 'ten columns do not hold them all in 1204 px'; styles/components.css:3385 'A head breaks between its words only.'",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "observation 'Suspected' (Room setup's Searching table at 1024x768 since E101 item 4)",
+   "claim": "Since the check column became 152 px the four fixed columns sum 784 px, the place column hits its 9rem floor, a table of about 928 px against the 929 px body E47-FD read; margin about 1 px.",
+   "verdict": "weakened",
+   "why": "The arithmetic of the columns is right (220+152+232+180 = 784; 94vw at 1024 = 962.6 px, less 80 px less 784 = 98.6 px, under the 144 px floor; 784+144 = 928). But the 929 px body is the reading before FD; R3138's comment records FD's own reading after the fix as 'the table 883 px in an 885 px body' (155 px place column) at the same 1024x768. If the body is still about 885 px, a 928 px table stands about 43 px over it, not 1 px under - a cut, which is what FD fixed. Which body figure holds today (the window's ceiling or a window fitted to its table) is not established from source; the observation is a suspicion either way and 452 (2) at a table, or the fit sweep, settles it. Not a finding of minor or above as written; it may become one.",
+   "evidence": "scripts/tests-tier1.mjs:54301 'the table stood 1088 px in a 929 px body, the place column cut'; scripts/tests-tier1.mjs:54302-54303 'After: the column 155 px there, the table 883 px in an 885 px body'; styles/components.css:2687 'width: clamp(9rem, calc(min(var(--drpg-window-max), 94vw) - 5rem - (220px + 152px + 232px + 180px) * var(--drpg-legacy-scale, 1)), calc(360px * var(--drpg-legacy-scale, 1)));'",
+   "severity_after": "suspected (not rated)"
+  }
+ ],
+ "counts": {
+  "checked": 15,
+  "stands": 13,
+  "weakened": 2,
+  "refuted": 0
+ },
+ "not_established": [
+  "Whether the third thing the owner saw on 1.2.112 was the body tile is scenario 78's headless inference; no table reading names the tile, its mark or its caption (LIVE-E95-01).",
+  "The width of Room setup's body at 1024x768 today (885 or 929 px) and so whether the Searching table is cut since E101 item 4: LIVE-E47-11 (452) part (2), or the fit sweep in Chromium.",
+  "The headless or table results of every R number and tier-2 title the items cite: base-run.json was not read here and nothing was run.",
+  "The 23 open items not sampled were checked only by the id grep; a reading filed under another name would not be seen."
+ ]
+}

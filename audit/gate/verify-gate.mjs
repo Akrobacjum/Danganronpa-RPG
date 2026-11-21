@@ -334,6 +334,59 @@ function reEvidence(repo, doc, id, edit, change = {}) {
 }
 const ENV_OK = async () => ({ ok: true });
 
+/*
+ * REUSE-CI'S CASES (INFRA, 1.2.121). release.yml's reuse-ci job asks audit/gate/reuse-ci.mjs whether a completed,
+ * green ci.yml run of the release commit's tree ran every part; these cases drive its pure decision over API answers
+ * shaped as run 44845513063 answered on 21.11.2026 (7a1f8740, the 1.2.119 PR's head: 21 jobs, the two crlf ones
+ * skipped, the matrix one under its unexpanded name). Imported here, not at the top: buildRepo copies this file into
+ * a throwaway repository without reuse-ci.mjs, and the writer run there must not need it.
+ */
+async function reuseCases(expect) {
+    let R;
+    try { R = await import(url.pathToFileURL(path.join(HERE, "reuse-ci.mjs")).href); }
+    catch (err) { await expect("reuse-ci: audit/gate/reuse-ci.mjs loads", async () => { throw err; }, { ok: true }); return; }
+    const TREE = "a".repeat(40), OTHER = "b".repeat(40), REPO = "Akrobacjum/Danganronpa-RPG";
+    const expected = { shards: 8, buckets: 8 };
+    const run = (id, extra = {}) => ({ id, status: "completed", conclusion: "success", event: "push", path: ".github/workflows/ci.yml",
+        head_sha: String(id).padStart(40, "0"), head_commit: { tree_id: TREE }, head_repository: { full_name: REPO },
+        html_url: `https://github.com/${REPO}/actions/runs/${id}`, run_attempt: 1, ...extra });
+    const job = (name, conclusion = "success") => ({ name, status: "completed", conclusion });
+    const jobs = () => [job("plan"), job("lint, check, gate"), job("crlf lint, check, gate", "skipped"),
+        ...[1, 2, 3, 4, 5, 6, 7, 8].map(i => job(`suite ${i}/8`)), ...[1, 2, 3, 4, 5, 6, 7, 8].map(i => job(`scenarios b${i}`)),
+        job("crlf suite ${{ matrix.shard }}/${{ strategy.job-total }}", "skipped"), job("verdict")];
+    const ask = (runs, jobsByRun) => R.decide({ tree: TREE, repo: REPO, expected, runs, jobsByRun });
+    const reused = (want, says) => d => ({ ok: d.reuse === want && (!want || d.run?.id === 1) && (!says || d.reasons.join(" | ").includes(says)), refusals: d.reasons });
+    const c = async (name, runs, jobsByRun, want, says) => expect(`reuse-ci: ${name}`, async () => reused(want, says)(ask(runs, jobsByRun)), { ok: true });
+
+    await c("the same tree, green, every part ran: reused", [run(1)], { 1: jobs() }, true);
+    await c("a dispatch with crlf that ran its crlf jobs green: reused", [run(1, { event: "workflow_dispatch" })],
+        { 1: [...jobs().filter(j => !j.name.startsWith("crlf")), job("crlf lint, check, gate"), ...[1, 2, 3, 4, 5, 6, 7, 8].map(i => job(`crlf suite ${i}/8`))] }, true);
+    await c("a different tree: not reused", [run(1, { head_commit: { tree_id: OTHER } })], { 1: jobs() }, false, "no completed green ci.yml run");
+    await c("a run with no tree in its answer: not reused", [run(1, { head_commit: {} })], { 1: jobs() }, false, "no completed green ci.yml run");
+    await c("a red run of the same tree: not reused", [run(1, { conclusion: "failure" })], { 1: jobs() }, false, "no completed green ci.yml run");
+    await c("a cancelled run of the same tree: not reused", [run(1, { conclusion: "cancelled" })], { 1: jobs() }, false, "no completed green ci.yml run");
+    await c("a run still in progress: not reused", [run(1, { status: "in_progress", conclusion: null })], { 1: jobs() }, false, "no completed green ci.yml run");
+    await c("a run of another workflow file: not reused", [run(1, { path: ".github/workflows/crlf-whole.yml" })], { 1: jobs() }, false, "no completed green ci.yml run");
+    await c("a run of another repository's commit: not reused", [run(1, { head_repository: { full_name: "someone/fork" } })], { 1: jobs() }, false, "no completed green ci.yml run");
+    await c("a skipped suite shard: not reused", [run(1)], { 1: jobs().map(j => j.name === "suite 5/8" ? job(j.name, "skipped") : j) }, false, "suite 5/8 is skipped");
+    await c("a missing suite shard: not reused", [run(1)], { 1: jobs().filter(j => j.name !== "suite 8/8") }, false, "suite 8/8 is not in the run");
+    await c("a skipped scenarios bucket: not reused", [run(1)], { 1: jobs().map(j => j.name === "scenarios b3" ? job(j.name, "skipped") : j) }, false, "scenarios b3 is skipped");
+    await c("a skipped verdict: not reused", [run(1)], { 1: jobs().map(j => j.name === "verdict" ? job(j.name, "skipped") : j) }, false, "verdict is skipped");
+    await c("a skipped lint, check, gate: not reused", [run(1)], { 1: jobs().map(j => j.name === "lint, check, gate" ? job(j.name, "skipped") : j) }, false, "lint, check, gate is skipped");
+    await c("a crlf job that failed: not reused", [run(1)], { 1: jobs().map(j => j.name === "crlf lint, check, gate" ? job(j.name, "failure") : j) }, false, "crlf lint, check, gate is failure");
+    await c("a job the script does not know: not reused", [run(1)], { 1: [...jobs(), job("deploy")] }, false, "deploy is not a job");
+    await c("a bucket beyond the expected count: not reused", [run(1)], { 1: [...jobs(), job("scenarios b9")] }, false, "scenarios b9 is not a job");
+    await c("a job listed twice: not reused", [run(1)], { 1: [...jobs(), job("suite 1/8")] }, false, "suite 1/8 is listed 2 times");
+    await c("no jobs read for the run: not reused", [run(1)], {}, false, "its jobs were not read");
+    await c("a red run of the tree then a green one: the green one is reused", [run(2, { conclusion: "failure" }), run(1)], { 1: jobs(), 2: jobs() }, true);
+    await c("a run with a skipped shard then a whole one: the whole one is reused", [run(2), run(1)],
+        { 2: jobs().map(j => j.name === "suite 2/8" ? job(j.name, "skipped") : j), 1: jobs() }, true);
+    await expect("reuse-ci: the expected parts are read off this checkout's ci.yml (8 shards, 8 buckets on 21.11.2026)", async () => {
+        const e = R.expectedParts(path.resolve(HERE, "../.."));
+        return { ok: Number.isInteger(e.shards) && e.shards >= 1 && Number.isInteger(e.buckets) && e.buckets >= 1, refusals: [JSON.stringify(e)] };
+    }, { ok: true });
+}
+
 async function selfTest() {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "drpg-gate-"));
     const cases = [];
@@ -477,6 +530,9 @@ async function selfTest() {
         void calmDoc;
 
         await expect("1.2.100 is compared with 1.2.99 as numbers", async () => ({ ok: G.compareVersions("1.2.100", "1.2.99") > 0 && G.compareVersions("1.3.0", "1.2.100") > 0 && G.compareVersions("1.2.61", "1.2.61") === 0 }), { ok: true });
+
+        /* A release reuses a green CI run of the same tree (INFRA, 1.2.121). */
+        await reuseCases(expect);
     } finally {
         fs.rmSync(root, { recursive: true, force: true });
     }

@@ -1,0 +1,987 @@
+{
+ "reader": "live-items-527",
+ "lines": "1518-1584",
+ "count_expected": 34,
+ "count_note": "34 numbered items, 527-560, at lines 1518-1584 of audit/AUDIT-1.2.42.md (the scope's range). Counted by a script over the file: every number once, in order, one item every other line.",
+ "items": [
+  {
+   "n": "527",
+   "live_id": "LIVE-E69-05",
+   "stage": "E69 C8 (the owner's decision of 10.11 (c))",
+   "asks": "With a primary GM and three players (killer A, victim B and witness C in one room, D a Spectator), a direct murder opened on Hope or a critical: (1) on B's and C's screens A's token is named \"?\", wears the mystery-man picture, no ring, bars or name, while the GM and the Spectator see the real name over the \"?\"; (2) B's whisper says someone is moving on them and B's Event card names no killer; (3) A is put in a silent voice room of their own (hears nobody, unheard, microphone greyed with the reason \"Hidden behind a ?\", absent from B's and C's Who you hear; back in the room's channel when the mask ends); (4) B's double-click on the \"?\" token opens no sheet; (5) A's Stay hidden? window, Reveal yourself on the voice tile, and on a reveal the look, microphone and Event card given back; (6) the same end through a new time of day; (7) B's console still reads A's name through the token's actorId (Foundry's limit).",
+   "status": "partly",
+   "result": "agrees",
+   "evidence": "F, no row of its own in any digest; its point (1) is touched by readings taken for items 547 and 556. The owner at a real table on 1.2.114 (14.11.2026; live-readings-other.json item 547, docs/dev/owner-115/STATUS.md:8-9) saw the killer's real token on the victim's screen - a defect, fixed in 1.2.115; on 1.2.115 the owner saw the real face again (15.11.2026, docs/dev/e112/STATUS.md:69-83), rebuilt in 1.2.116. Line L1 on Foundry 14.370 (16.11.2026, docs/dev/e58/LOCAL-REPORT.md:367, headless pages, no person; module 1.2.116 with L1's commits): after a Hope opening the victim's browser reads Chie's token name `?`, `texture.src` and `ring.subject.texture` modules/danganronpa-rpg/icons/mask-unknown.svg, the drawn mesh that file, nameplate `?`, the portrait the same file; the bystander's and the killer's browsers hold the same. Not read: the name the GM and the Spectator see over the \"?\" (mask-gm.mjs `drawMaskName`, :661), points (2)-(7), and the voice room (no LiveKit server on the sandbox). `maskPatch` (scripts/mask-gm.mjs:78-82) is outside the diff ff3e12e5..b5a29e73 (101 lines, E112v's veil), so the part read carries to 1.2.118.",
+   "triage_class": "T",
+   "subject_exists": true,
+   "text_stale": true,
+   "stale_detail": "Point (1)'s 'mystery-man picture': since 1.2.116 (E112 item 2a) the mask wears the module's own \"?\", MASK_IMG = modules/danganronpa-rpg/icons/mask-unknown.svg (scripts/mask-gm.mjs:40-48), also on the ring's subject (:78-82) and the portrait (`portraitOf`, :90). The rest stands: the silent room (scripts/voice.mjs:907-911, `maskedRow` :1081), the reason 'Hidden behind a \"?\"' (lang/en.json:5916, pl.json:6352), Stay hidden? / Reveal yourself / Stay hidden (en.json:518-521, pl.json:523-526), the victim's whisper `victimSomeoneMoves` (en.json:2957, pl.json:3120 'Ktoś rusza na ciebie'), the closed sheet (scripts/anonymity.mjs:161 `maskedSheetClosed`).",
+   "duplicate_of": "547 (point 1, the \"?\" on the victim's and a bystander's screen) and 556 (point 1); its other points are its own",
+   "headless_half": "R6027-R6031 and R6032 (scripts/tests-tier1.mjs:59135, :59232, :59254, :59508, :59526, :59544, all exist); tier 2 'E69-T7 - a killer behind a \"?\" on the GMs' record ...' (scripts/tests-tier2.mjs:103255, exists); scenario 30-security phase 'the killer behind a \"?\", read from a console' (audit/harness/scenarios/30-security.mjs:6974, exists; its note :6970-6973 reads MASK_IMG from the module since 1.2.116); scenario 21-masked-killer phases 'masked' and 'reveal' (:258, :324). base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "R6028's title and registry row (docs/dev/R-REGISTRY.md:1560) still say 'Foundry's mystery man' while its body expects mask-unknown.svg (tests-tier1.mjs:59245-59248); mask-gm.mjs's header (:9-10) and `maskPatch`'s comment (:76) say the same - see observations. docs/dev/e43/STATUS.md:144-145 sends the Mask's two cards (E43-F10) to this row; not read either.",
+   "l1": {
+    "what": "The mask on four screens after a Hope opening: the token's look, the names the GM and Spectator see, the whisper and Event card, the silent voice room, the closed sheet, Stay hidden / Reveal yourself and the give-back.",
+    "recipe": [
+     "Seat a primary GM, PlayerOne (victim B), PlayerTwo (witness C) in the same room, PlayerThree (killer A) and a fourth player as a Spectator; LiveKit on.",
+     "GM opens a direct murder by A on B; A's opening succeeds on Hope.",
+     "On B and C read A's token: `canvas.tokens.placeables.filter(t => t.document.actorId === A).map(t => [t.document.name, t.document.texture.src, t.document.ring.enabled, t.nameplate?.visible, t.bars?.visible])`; screenshot; on the GM and the Spectator screenshot the name over the \"?\".",
+     "On B read the latest whisper and the Event card's text for A's name.",
+     "Voice: on A read the microphone tile's state and tooltip, whether A hears B; on B and C the Who you hear list; on the GM A's channel.",
+     "B double-clicks the \"?\" token: record whether a sheet opens and stays.",
+     "A presses Stay hidden, then Reveal yourself on the voice tile: read the token's look against the one before the incident, the microphone, B's Event card.",
+     "Repeat to the end by a new time of day instead of a reveal.",
+     "On B run `game.actors.get(canvas.tokens.placeables.find(t => t.document.name === \"?\").document.actorId).name` and record it."
+    ],
+    "clients": "primary GM and four players (one a Spectator), LiveKit server",
+    "theme": "one theme (either); both languages for the texts",
+    "settles_if": "Agrees if B and C never see A's name or face, the GM and the Spectator do, the voice room and give-back are as written and only the console line names A; a defect if any screen but the GM's, the Spectator's and A's shows A's name or face, or A can hear or be heard while masked.",
+    "priority": "blocker"
+   }
+  },
+  {
+   "n": "528",
+   "live_id": "LIVE-E113-01",
+   "stage": "1.2.113 (the owner's decisions A and B of 13.11.2026)",
+   "asks": "On a real server with a primary GM, a second full GM and three players, the 'A body is found' sound mapped and every Sound slider above zero, both languages: the first student to walk in hears the sound once and is told privately, others nothing; no second sound on a walk out and back; the second witness hears it and is told they are not alone, nobody is summoned, and only the primary GM gets 'Students found a body' with Announce and Not yet (Enter = Not yet); Not yet survives a reload and the Investigation's Body found lists the waiting body; Announce summons and plays to all, without a second entry sound; with only an Assistant GM connected no window, which opens when a full GM joins; whether the entry sound lags the token on a real server and whether a player who never clicked the page (autoplay lock) hears it.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json, nor in the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (b5a29e73; :475-483 on origin/claude/e58-local) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": true,
+   "stale_detail": "The item places `checkBodySound`, `checkBodyFound` and `askPendingBodies` in chapter.mjs; since E54's split of chapter.mjs (35f87645, 14.11.2026) they are scripts/body.mjs:1021, :737 and :906. The window's words stand: `pendingTitle` 'Students found a body', `pendingAnnounce`, `pendingNotYet` (lang/en.json:3294-3298; pl.json:3504 'Uczniowie znaleźli ciało'), the second witness's line `youFoundBodyWith` (pl.json:3503, 'Nie jesteś tu sam').",
+   "duplicate_of": null,
+   "headless_half": "scenario 10-murder F1-F3 and Announce (audit/harness/scenarios/10-murder.mjs:384-408, exists; counts `sfx.played` and each player's packets); R5740 (scripts/tests-tier1.mjs:61641) and R5741 (:61656), both exist. base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "The item's own words: 'nobody has heard the sound, and v14 was not read'. Nothing in the L1 papers drives a body's discovery.",
+   "l1": {
+    "what": "The discovery sound on the walker's browser alone, the primary GM's prompt and its Not yet / Announce, on a real server.",
+    "recipe": [
+     "Map a file to 'A body is found'; every page's Sound slider above zero; on each page wrap `foundry.audio.AudioHelper.play` to log (src, performance.now()).",
+     "A body the GMs hold in a room; walk PlayerOne's student in alone; read the log on all pages and PlayerOne's notice; walk out and back.",
+     "Walk PlayerTwo's student in: read PlayerTwo's log and notice, whether anyone is summoned, the window on the primary GM and none on the second GM; press Enter.",
+     "Reload the primary GM: the window returns; open Investigation > Body found.",
+     "Press Announce: summons, card and sound on every page, no second entry sound for the walkers.",
+     "With only an Assistant GM connected repeat the second walk-in; then log a full GM in.",
+     "Time the entry sound against the token's `updateToken` on the walker; on a fresh page with no click, read whether the sound played (autoplay).",
+     "Repeat the texts in Polish."
+    ],
+    "clients": "primary GM, second full GM, an Assistant GM, three players",
+    "theme": "one theme (either); both languages",
+    "settles_if": "Agrees if only the walker hears the entry sound, once, the primary full GM alone is asked and Not yet survives a reload; a defect if another player hears it, the table is summoned before the GM's word, or the prompt reaches the wrong GM or none.",
+    "priority": "major"
+   }
+  },
+  {
+   "n": "529",
+   "live_id": "LIVE-E57-01",
+   "stage": "E57 C4 (D35)",
+   "asks": "As a GM, English and Polish, both themes, 1366x768 and 820x1180: a \"?\" before the close in the headers of the GM panel, Season setup, Room setup, The case, Investigation (each of its three tabs), the Class Trial console and Edit campaign, with the tooltip 'Open the GM Handbook at section N'; its click opens the GM handbook at sections 3, 2, 9.1, 14, 14, 15, 4, the heading 8 px under the top, and does not change the book the corner opens later; the click neither moves nor folds the window; 'section N' / 'sekcja N' in the handbook text are underlined jumps by click and Enter, none opening a browser tab.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json, nor in the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (b5a29e73; :475-483 on origin/claude/e58-local) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "R6601 (scripts/tests-tier1.mjs:2017; dresses a stood-in header, the harness draws no Foundry frame), R6602 (:2107), R111 (:1690), all exist. base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "Identifiers read today: WINDOW_HELP (scripts/ui-kit.mjs:1217-1229) holds gmPanel 3, seasonSetup 2, roomSetup 9.1, theCase 14, trialConsole 15, investigation 14, editCampaign 4 - the item's seven sections; the dashboard's tabs share one \"?\" (:1212-1214, Q-E57-17); `dressHelp` (:1242) stops the header's pointerdown and dblclick (:1258-1259); `linkSections` (scripts/handbooks.mjs:267); the tooltip DRPG.Help.gm (pl.json:1970).",
+   "l1": {
+    "what": "Each GM window's \"?\": present, its section, the scroll offset, no drag or fold; the handbook's section links.",
+    "recipe": [
+     "As GM at 1366x768, open each of the seven windows (Investigation on each tab).",
+     "Read `document.querySelector('.application.drpg-ui .drpg-help-button')` and its tooltip; note the window's getBoundingClientRect.",
+     "Click it: read the handbook's open section and the section heading's offset from the text's top; the window's rect again (unchanged, not minimized).",
+     "Close the handbook and open the corner's book: it opens where the corner last stood, not the \"?\"'s section.",
+     "In the handbook, click and press Enter on a 'section N' link; count `window.open` calls (wrap it) - none.",
+     "Repeat at 820x1180, in Polish and under the other theme."
+    ],
+    "clients": "GM",
+    "theme": "both",
+    "settles_if": "Agrees if all seven \"?\" open the named section with the heading in view and the window does not move; a defect if one is missing, opens another section, folds or drags the window, or a link opens a tab.",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "530",
+   "live_id": "LIVE-E57-02",
+   "stage": "E57 C3 (D34)",
+   "asks": "In a world whose document language (`documentLanguage`) differs from the GM client's language: an item the GM grants (inventory.mjs `grantItem`) and the rewritten tier-3 description are written in the world's language, while windows, cards and the sheet stay in each browser's language. Waits on E54; without E57 C3 there is nothing to check.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json, nor in the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (b5a29e73; :475-483 on origin/claude/e58-local) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": true,
+   "stale_detail": "'Waits on E54; without E57 C3 nothing to check' is past: E54 and E57 shipped in 1.2.113 (tools/stages.json), C3 is done at 153e8642 and dbdea36b (docs/dev/e57/STATUS.md:14). Today `grantItem` (scripts/inventory.mjs:783) writes its fallback description through `worldLocalize` (:719-727; scripts/utils.mjs:167, defaulting to `documentLanguage()`, scripts/settings.mjs:4206), and the setting is registered at settings.mjs:1733.",
+   "duplicate_of": null,
+   "headless_half": "R6603 (scripts/tests-tier1.mjs:2153, exists) and scenario 51-lang-mixed, which sets `documentLanguage` (audit/harness/scenarios/51-lang-mixed.mjs:177-192); docs/dev/e57/STATUS.md:14 records it 38/38 twice. base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "",
+   "l1": {
+    "what": "The language of a granted item's description and of the tier-3 rewrite, against a GM page in the other language.",
+    "recipe": [
+     "Set the world's document language to Polish (module settings) and the GM's client language to English.",
+     "Grant a usable item with no description to a student (the GM's grant road); read `item.system.description`.",
+     "Rule a tier-3 rewrite of a usable; read the description again.",
+     "Read the grant's whisper card and the sheet on the GM (English) and on a Polish player (Polish).",
+     "Swap: world English, GM Polish; repeat."
+    ],
+    "clients": "GM and one player",
+    "theme": "either",
+    "settles_if": "Agrees if both descriptions are in the world's language and every window and card in the page's; a defect if a description follows the GM's page.",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "531",
+   "live_id": "LIVE-E57-03",
+   "stage": "E57 (plan section 5)",
+   "asks": "In a tablet browser at 820x1180: the handbooks window fits the screen, its contents and text scroll, and a jump from a \"?\" or a 'section N' link ends with the heading under the top of the text, not under the keyboard or the browser's bar.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json, nor in the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (b5a29e73) counts it among the T rows 'not checkable at this sandbox'",
+   "triage_class": "T",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": "529 (the jump at 820x1180, in a desktop browser)",
+   "headless_half": "none for the tablet; R6602 (scripts/tests-tier1.mjs:2107) reads the section links. base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "The window: scripts/handbooks.mjs `openHandbooks` (:523). A desktop browser at 820x1180 is 529's; only a real tablet's keyboard and toolbar are this item's.",
+   "l1": {
+    "what": "The handbooks window on a real tablet.",
+    "recipe": [
+     "On a tablet (iPad or Android, 820x1180 portrait), log in as GM.",
+     "Open the handbooks from the corner; scroll the contents and the text.",
+     "Open the GM panel's \"?\"; then follow a 'section N' link; screenshot each landing.",
+     "Open the on-screen keyboard (the handbook's search, if any) and repeat one jump."
+    ],
+    "clients": "GM on a tablet",
+    "theme": "either",
+    "settles_if": "Agrees if the window fits and every jump leaves the heading visible under the top; a defect if a part is off-screen or a heading lands under the bar or keyboard.",
+    "priority": "nit"
+   }
+  },
+  {
+   "n": "532",
+   "live_id": "LIVE-E59-01",
+   "stage": "E59 C3 (plan point (2) and section 4; Q-E59-4)",
+   "asks": "After E83's local gate, both themes and languages, 1366x768, 1024x768 and 820x1180, as GM and player: (1) about 341 shots of batches V01-V15 and the new surfaces scored by D27 against 6.05, 5.61, 6.14 and 5.79 (mean under 7.6 or a batch under 7.2 blocks), styleSnapshot against audit/style-baseline.json, and a private review page for the owner; (2) every window of docs/dev/e59/WINDOWS.md opened once: nothing cut, footers do not wrap, Enter presses the main button and never the red destructive one, no text under 11 px at slider 80 % under Legacy, red only on the GM's road and destructive answers, gold only for Hope; (3) the room picture in Foundry's ImagePopout (room-tile.mjs `openRoomImage`, the one window without .drpg-ui) and the Key Remnant ring on the map in Evidence's colour, not gold (remnant-ring.mjs `TYPE_TOKEN`).",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json, nor in the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (b5a29e73) counts it among the T rows 'not checkable at this sandbox'",
+   "triage_class": "T",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": "538 (the look on v14, a subset of the surfaces)",
+   "headless_half": "R6750-R6756 (scripts/tests-tier0.mjs:25863-25933, all exist) read the source and sheets, not a drawn window. base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "Its precondition has not happened: E83 has no version in tools/stages.json, and .github/release-notes/v1.2.118.md:13-14 says no local gate has passed. Identifiers read today: docs/dev/e59/WINDOWS.md exists; `openRoomImage` scripts/room-tile.mjs:545; `TYPE_TOKEN` scripts/remnant-ring.mjs:80; audit/style-baseline.json exists. The shot count (341) was not checked. Triage marks it T for the auditor's and owner's scoring, which no script gives.",
+   "l1": {
+    "what": "The D27 scoring of the v14 shots and one pass over every window of the inventory.",
+    "recipe": [
+     "After a local gate on 1.2.118, run the shot batches V01-V15 and the new surfaces on v14 at the three sizes, both themes and languages, GM and player.",
+     "Score them by D27; compare styleSnapshot with audit/style-baseline.json; publish the private review page.",
+     "Open each window of docs/dev/e59/WINDOWS.md once: read clipping, footer wrap, Enter's target, the smallest computed font-size at slider 80 % under Legacy, red and gold rules.",
+     "Open a room picture (room tile) and read that it is Foundry's ImagePopout; read a Key Remnant ring's colour on the map."
+    ],
+    "clients": "GM and one player; the auditor and the owner to score",
+    "theme": "both",
+    "settles_if": "Agrees if the means are 7.6 or more, no batch under 7.2 and every window passes the rules; a defect for each window that clips, wraps, defaults to a red button or breaks the 11 px, red or gold rules.",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "533",
+   "live_id": "LIVE-R4420-01",
+   "stage": "r4420-113 (1.2.113)",
+   "asks": "Under Stained Glass, in a browser whose main thread stalls (a slow machine, or a v14 client with the CPU throttled 6x in devtools): start a Class Trial, then end it, and watch the last half second of both animations - the copies fade while the live curtain fades in, with no frame where the screen darkens or the glass jumps. A person must watch.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json, nor in the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (b5a29e73; :475-483 on origin/claude/e58-local) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "S",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "R4420 (scripts/tests-tier1.mjs:56329) and R6850 (:56412), both exist; docs/dev/r4420/STATUS.md section 7 (:96-106) restates the item and says no Chromium probe with CPU throttling exists for the entry. base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "`playSequence` (scripts/sequence.mjs:183) and `drawTrialEntry` (:522) stand. sequence.mjs changed after ff3e12e5 (F118: 55719596, 66a0c9b4), in the day boards' times and code only (diff hunks at :70, :907-1194), not the trial's entry or hand-back. Items 523 and 524 (LIVE-113R-01, -02) watch the same curtain for other faults.",
+   "l1": {
+    "what": "The trial curtain's hand-back on a stalling main thread.",
+    "recipe": [
+     "Stained Glass; one player's browser with devtools Performance > CPU 6x slowdown.",
+     "GM starts a Class Trial; record the player's screen at 60 fps (screen capture) through the entry's last second.",
+     "GM ends the trial; record the exit the same way.",
+     "Step through the last 500 ms frame by frame: any frame darker than both neighbours, or the glass's position jumping."
+    ],
+    "clients": "GM and one throttled player",
+    "theme": "Stained Glass",
+    "settles_if": "Agrees if no frame in either hand-back darkens or jumps; a defect if one does.",
+    "priority": "nit"
+   }
+  },
+  {
+   "n": "534",
+   "live_id": "LIVE-E43-01",
+   "stage": "E43 C4 (plan section 4)",
+   "asks": "On the v14 sandbox with a GM and three players: scenario 30's fuzz series (each of the 90 table requests in six junk shapes and 42 other module packet names in three) sent from one player's console; as headless, every awaited request refused with a code of the closed list (`REASONS`), no exception on any of the four browsers, no prototype key in Object.prototype, no write beyond the player's own pre-session note; and whether v14's server itself drops a shape before the GM.",
+   "status": "read",
+   "result": "agrees",
+   "evidence": "F, docs/dev/e58/LOCAL-REPORT.md:400 (16.11.2026; Foundry 14.370, the owner's sandbox, headless pages, no person; live-readings-e58.json and live-readings-other.json item 534): audit/harness/lib/fuzz.mjs unchanged, driven by a runner outside the repository: scenario 30's four checks pass in 59 s; 108 table actions in their shapes (756 packets) and 54 other names in three (162); 673 refused, each with a code of the closed list; every awaited request answered, 'so v14's server dropped none before the GM's module'; no exception on four browsers; nothing polluted; the only writes the GM's six of PlayerOne's own note, put back. Limit stated there: the write log is the GM page's hooks, not the server's. A later finding (LOCAL-REPORT.md:474) is a race in lib/fuzz.mjs's put-back, the harness's, not the module's.",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": true,
+   "stale_detail": "The counts are of 13.11.2026: the fuzz reads the tables and the listener names off the source at run time (audit/harness/lib/fuzz.mjs:4-11, `otherActions` :57; each action in the five SHAPES plus two prototype variants, :144-148), and the sandbox's tree gave 108 and 54. `REASONS` is scripts/bridge-guards.mjs:154.",
+   "duplicate_of": null,
+   "headless_half": "scenario 30-security's last part, 'the fuzz: junk from a player's console to every request and listener' (audit/harness/scenarios/30-security.mjs:7161-7167, exists; lib/fuzz.mjs unchanged since 736e55eb, 13.11.2026). base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "Read on the sandbox's tree (1.2.116 with L1's commits), not on b5a29e73: bridge-guards.mjs changed by 5 lines since ff3e12e5 (`guardTraitRuling` reads allowed-now.mjs), and E40/F118's actions may have grown the tables; a 1.2.118 run would send other counts. The fuzz does not cover a request with valid ids and a wrong owner (scenario 33's matrix), which never ran on v14 (.github/release-notes/v1.2.117.md:228-231)."
+  },
+  {
+   "n": "535",
+   "live_id": "LIVE-E43-02",
+   "stage": "E43 (S17-31 fixed in E93/E101)",
+   "asks": "On v14 with Daggerheart, a GM, a player in a secret project and a player not in it: on the bystander Daggerheart's Countdowns window, its tab and tooltips show a neutral name, no name and no list of who sees it, and `game.settings.get(\"daggerheart\", \"Countdowns\")` holds no name; on the member the tray and the project's token carry the real name.",
+   "status": "read",
+   "result": "agrees",
+   "evidence": "F, docs/dev/e58/LOCAL-REPORT.md:401 (16.11.2026; Foundry 14.370, Daggerheart 2.12.9, headless pages, no person; live-readings-e58.json item 535; secondary record .github/release-notes/v1.2.117.md:231-232, shots docs/dev/e58/shots/README.md:12-13): Daggerheart's world setting `Countdowns` names the project `???` on every browser, the GM's too; no world setting holds the name or description; the bystander's Countdowns window reads 'No projects yet.' and its DOM holds neither; the member's names it, progress '? / 4'. Seen there: Daggerheart's tooltip on the GM's and the member's window, 'This countdown is hidden to players except PlayerOne, PlayerThree, PlayerTwo' - every player.",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "scenario 72-canary's Countdowns check (audit/harness/scenarios/72-canary.mjs:278-293, exists: the row holds neither the name nor an ownership map that tells one player apart). base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "`HIDDEN_NAME` '???' (scripts/projects-secrecy.mjs:128) and `ownershipMap` (:370-381: every player at OBSERVER, 'who is in on a secret project is the GMs' store's') stand; projects-secrecy.mjs changed by 7 lines since ff3e12e5 (a project's `roomScene` added to the secret fields), nothing in the map. The project token on the member's map was not named in the reading. The tooltip is an observation below."
+  },
+  {
+   "n": "536",
+   "live_id": "LIVE-E43-03",
+   "stage": "E43 C7 (E43-F8, Open 96; R5204)",
+   "asks": "A player opens the card of a project token in a room they have not found (the card names nothing) and, without closing it, walks their token into the room: the card redraws as the project's card without reopening, both themes and languages.",
+   "status": "read",
+   "result": "agrees",
+   "evidence": "F, docs/dev/e58/LOCAL-REPORT.md:402 (16.11.2026; Foundry 14.370, headless pages, no person; live-readings-e58.json item 536; shots docs/dev/e58/shots/README.md:14-15): a public project in the Gym, which Aiko had not found; PlayerOne opens its token's card ('A project / You do not know what this is.') and walks Aiko in with it open; it redraws as the project's (name, description, Progress 0 / 4, Room Gym) without reopening, in Stained Glass and Monokuma Legacy, English and Polish.",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "R5204 (scripts/tests-tier1.mjs:61405, exists; reads only the listener's hook-up, the harness opens no sheet on a player). base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "Read on 1.2.116 with L1's commits. projects-ui.mjs (75 lines), projects.mjs (142) and projects-map.mjs (45) changed between ff3e12e5 and b5a29e73 (0858af76, 5b3d80b5, the scene of a project's room; 3b6b423b, a completed project's action); whether the card's redraw road moved was not traced here."
+  },
+  {
+   "n": "537",
+   "live_id": "LIVE-E40-01",
+   "stage": "E40 C2, C3 (plan section 4)",
+   "asks": "On a copy of a v14 world played through at least a chapter, the primary GM's start: only warnings on the console, each in English and each true (checked against the world's data), none false; `checkState()` null on a player and writing nothing; the count of warnings and the time from `ready` to the last.",
+   "status": "partly",
+   "result": "agrees",
+   "evidence": "F, docs/dev/e58/LOCAL-REPORT.md:403 (16.11.2026; Foundry 14.370, headless pages, no person; live-readings-e58.json item 537): the primary GM's start printed nothing; `game.drpg.checkState()` returned `{ ok: true, problems: [] }` on a world that had seen several murders opened and ended and projects made and removed, but no chapter played; `null` on a player's browser. The paper's result: measured on this world, the item open - no fixture world (DRPG_FIXTURES unset), the item's world not there.",
+   "triage_class": "F",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "cluster.mjs runs `checkState({ quiet: true })` after every scenario (audit/harness/cluster.mjs:1249-1262, exists) on the seeded world. base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "`checkState` is scripts/state-check.mjs:113, unchanged between ff3e12e5 and b5a29e73. The time from `ready` to the last warning was not recorded (there was none).",
+   "l1": {
+    "what": "checkState's warnings on a world played through a chapter.",
+    "recipe": [
+     "Duplicate a world the table has played through at least one chapter (Setup > Duplicate World).",
+     "Launch it; log in as the primary GM with the console open; note performance.now() at `ready` and at each warning.",
+     "Check every warning against the world's data (the named actor, flag or store).",
+     "Run `game.drpg.checkState()` on a player's browser: expect null and no write (watch the update hooks)."
+    ],
+    "clients": "primary GM and one player",
+    "theme": "either",
+    "settles_if": "Agrees if every warning is English and true, and the player's call returns null; a defect for a false warning, a missed one the data shows, or a write from the player.",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "538",
+   "live_id": "LIVE-E55-01",
+   "stage": "E55 (plan section 4)",
+   "asks": "On v14 with Daggerheart 2.12.8, both themes, 1366x768 and 1920x1080: the character sheet, the GM panel, the trial HUD and the corner's launchers look as in the shots before E55 (audit/style-freeze/, audit/look-freeze-baseline.json and audit/style-baseline.json read them in Chromium on harness pages, not on v14's `modules` layer); the sound button's icon is a gear in both themes.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json, nor in the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (b5a29e73; :475-483 on origin/claude/e58-local) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "S",
+   "subject_exists": true,
+   "text_stale": true,
+   "stale_detail": "Daggerheart 2.12.8: module.json now verifies 2.12.9 (relationships.systems daggerheart, minimum 2.6.5) and L1's sandbox runs 2.12.9. The baselines it names exist (audit/style-freeze/, audit/look-freeze-baseline.json, audit/style-baseline.json); the sound launcher is `#drpg-sound-launcher` (styles/danganronpa.css:13474-13515; its gear written once there since E55 D4, docs/dev/e55/STATUS.md:17).",
+   "duplicate_of": "532 (the look on v14, the wider pass)",
+   "headless_half": "audit/look-freeze.mjs and audit/style-freeze.mjs against those baselines in Chromium on harness pages (exist; not run here). base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "",
+   "l1": {
+    "what": "Four surfaces on v14 against the pre-E55 shots, and the sound launcher's gear.",
+    "recipe": [
+     "On v14 with Daggerheart 2.12.9 (the verified version), at 1366x768 and 1920x1080, each theme:",
+     "Screenshot a student's sheet, the GM panel, the trial HUD (a trial running) and the corner's launchers.",
+     "Compare with audit/style-freeze/ shots of the same surface; list each difference.",
+     "Read the sound launcher's glyph: `getComputedStyle(document.querySelector('#drpg-sound-launcher i'), '::before').content`."
+    ],
+    "clients": "GM and one player",
+    "theme": "both",
+    "settles_if": "Agrees if the surfaces match the freeze shots and the launcher wears the gear in both themes; a defect for each difference that E55 did not mean.",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "539",
+   "live_id": "LIVE-E55-02",
+   "stage": "E55 (R6101)",
+   "asks": "As GM on v14: Token, Scene and Tile Config carry the classes `token-config`, `scene-config`, `tile-config` (one querySelector each with the window open) and their content ends at 88vh with scrolling; a journal and another module's item sheet keep Foundry's height and also scroll.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json, nor in the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (b5a29e73; :475-483 on origin/claude/e58-local) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "R6101 (scripts/tests-tier1.mjs:41117, exists) reads the rule against stood-in markup. base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "The rule: styles/danganronpa.css:15056 ('FOUNDRY'S OWN CONFIG WINDOWS STAY USABLE'), the 88vh ceiling at :15081-15083 on `.application.sheet:is(.token-config, .scene-config, .tile-config)`, its comment 'v13's class names as the module knows them, not read off v14 (LIVE-E55-02)'; CONTRIBUTING.md:143-157 indexes it.",
+   "l1": {
+    "what": "The three config windows' class names on v14 and the 88vh ceiling.",
+    "recipe": [
+     "As GM open a token's, the scene's and a tile's config.",
+     "For each: `document.querySelector('.application.token-config')` (and scene-config, tile-config); read `getComputedStyle(win.querySelector('.window-content')).maxHeight` and whether it scrolls at 1366x768.",
+     "Open a journal entry and an item sheet of another module (or Daggerheart's): read their content's max-height (none) and overflow."
+    ],
+    "clients": "GM",
+    "theme": "either",
+    "settles_if": "Agrees if the three classes exist and the ceiling applies only to them; a defect if a class name differs on v14 (the rule then applies to nothing) or a journal is cut.",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "540",
+   "live_id": "LIVE-E55-03",
+   "stage": "E55 (R6104)",
+   "asks": "On v14 with the pixel font on, both themes: Foundry's icons on the rails and in windows draw as icons, not letters; `getComputedStyle` of an `i.fa-solid` gives `--fa-style-family` or 'Font Awesome 7 Pro', and the browser loaded it (`document.fonts.check`).",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json, nor in the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (b5a29e73; :475-483 on origin/claude/e58-local) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "R6104 (scripts/tests-tier1.mjs:41174, exists; reads the sheets' names, the harness loads no Font Awesome). base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "The rule: styles/danganronpa.css:8424-8440, `font-family: var(--fa-style-family, \"Font Awesome 7 Pro\") !important` under `body.drpg-pixel-font`; its comment names LIVE-E55-03.",
+   "l1": {
+    "what": "The Font Awesome face v14 resolves under the module's pixel font.",
+    "recipe": [
+     "Turn the pixel font on; reload.",
+     "On a rail icon: `getComputedStyle(document.querySelector('#ui-left i.fa-solid')).fontFamily` and `::before` content.",
+     "`document.fonts.check('900 16px \"Font Awesome 7 Pro\"')` and the same for the family read.",
+     "Screenshot the rails and a window header in each theme."
+    ],
+    "clients": "GM and one player",
+    "theme": "both",
+    "settles_if": "Agrees if the family is Font Awesome's and the icons draw; a defect if any rail or header icon draws as a letter.",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "541",
+   "live_id": "LIVE-E55-04",
+   "stage": "E55 X1",
+   "asks": "On v14 with Daggerheart 2.12.8, as GM and player, one querySelector each for #chat-log, #context-menu, #performance-stats, #players-active, #players-inactive, #resource-fear, #combat-popout, #effects-display, #effects-panel, #scene-navigation, #chat-popout, #loading-bar (chat popped out and performance stats on): record which exist; a rule naming an id v14 does not draw may then go.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json, nor in the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (b5a29e73; :475-483 on origin/claude/e58-local) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": true,
+   "stale_detail": "Daggerheart 2.12.8: today's verified version is 2.12.9 (module.json). The twelve ids are unchanged in CONTRIBUTING.md:162-165.",
+   "duplicate_of": null,
+   "headless_half": "none: the harness draws none of Foundry's chrome. base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "CONTRIBUTING.md:143-165 'What the sheets hold against Foundry and Daggerheart (E55 X1)' names the ids and 'until it is read, a rule naming one is kept'.",
+   "l1": {
+    "what": "Which of twelve Foundry ids v14 draws.",
+    "recipe": [
+     "As GM: pop the chat out, turn performance stats on, open a context menu and a combat popout if available.",
+     "Run `['#chat-log','#context-menu','#performance-stats','#players-active','#players-inactive','#resource-fear','#combat-popout','#effects-display','#effects-panel','#scene-navigation','#chat-popout','#loading-bar'].map(s => [s, !!document.querySelector(s)])`.",
+     "Repeat as a player; also during a scene load for #loading-bar."
+    ],
+    "clients": "GM and one player",
+    "theme": "either",
+    "settles_if": "Settled either way by the list: an id absent on both is a rule that can go; nothing here is a defect.",
+    "priority": "nit"
+   }
+  },
+  {
+   "n": "542",
+   "live_id": "LIVE-E110-01",
+   "stage": "E110 C2 (E110-T2; related to LIVE-E70-04)",
+   "asks": "With avclient-livekit 0.6.8 and a LiveKit server, a GM and three players: a player raises Objection; whether the other two stop being heard without a reload when BROADCAST_AUDIO goes false, and are heard again when a Rebuttal gives the target the floor and when the mode ends; the seconds from the write to silence.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json, nor in the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (b5a29e73) counts it among the T rows 'not checkable at this sandbox'",
+   "triage_class": "T",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": "332 (LIVE-E70-04, the same BROADCAST_AUDIO road for a dead player's microphone)",
+   "headless_half": "tier 2 'E110-T2 - the modes mute who may not speak and give back exactly what they took ...' (scripts/tests-tier2.mjs:103914, exists); scenario 67-trial-modes part V (audit/harness/scenarios/67-trial-modes.mjs:44, :480, exists). Shim only: the permission written, no sound. base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "`settleTrialVoices` (scripts/voice.mjs:1739) and `floorSpeakers` (scripts/floor-machine.mjs:151) stand. L1's sandbox has no LiveKit server (live-readings-e58.json not_run).",
+   "l1": {
+    "what": "Whether a BROADCAST_AUDIO write silences a LiveKit participant without a reload, and how fast.",
+    "recipe": [
+     "Real LiveKit server; GM and three players with microphones, each speaking a steady tone or counting.",
+     "Player 1 raises Objection; on the GM note the time of the users' update (`updateUser` hook) and on each player when the others' audio stops (the AV tile's level, or by ear).",
+     "Rebuttal: the target is heard again; end the mode: all heard.",
+     "Record the seconds from write to silence for each."
+    ],
+    "clients": "GM and three players with audio",
+    "theme": "either",
+    "settles_if": "Agrees if the two fall silent within a few seconds and come back at the Rebuttal and the end, no reload; a defect if a player stays heard (or stays muted) until F5.",
+    "priority": "major"
+   }
+  },
+  {
+   "n": "543",
+   "live_id": "LIVE-E110-02",
+   "stage": "E110 C2",
+   "asks": "A table of six or more players, 15 s turns in a Panic Round: whether switching microphones on and off each turn loses a speaker's first words, whether anyone stays muted after the round, and how the table takes it. Measured only without voice: 2 user writes per turn change with three players (E110-T2).",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json, nor in the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (b5a29e73) counts it among the T rows 'not checkable at this sandbox'",
+   "triage_class": "T",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "tier 2 'E110-T2 ...' (scripts/tests-tier2.mjs:103914, exists): counts the writes, no sound. base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "A table's judgement is part of the ask; no script settles that half.",
+   "l1": {
+    "what": "The Panic Round's per-turn muting with real voices.",
+    "recipe": [
+     "Six or more players with microphones, a LiveKit server; start a Panic Round with 15 s turns.",
+     "Each speaker starts talking the moment their turn shows; record the audio and compare the first word's time with the turn's start.",
+     "After the round, read every user's BROADCAST_AUDIO and whether each is heard.",
+     "Ask the table how it felt."
+    ],
+    "clients": "GM and six or more players with audio",
+    "theme": "either",
+    "settles_if": "Agrees if first words are heard and nobody is muted after; a defect if words are cut or someone stays muted.",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "544",
+   "live_id": "LIVE-E110-03",
+   "stage": "E110 C1 (E110-T1)",
+   "asks": "On v14, GM and a player: the GM redirects a running Objection and its Rebuttal; the player sees the table's card, the changed row of the Objection card and the new target on the HUD and the event panel, and the clock runs on without a jump.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json, nor in the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (b5a29e73; :475-483 on origin/claude/e58-local) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "tier 2 'E110-T1 - the GM redirects a running Objection on the GM's card road ...' (scripts/tests-tier2.mjs:103829, exists); scenario 33-bridge-paths A23 (audit/harness/scenarios/33-bridge-paths.mjs:1699-1740, exists); scenario 67-trial-modes V (:480). base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "`repointObjectionInStep` (scripts/trial-floor.mjs:1272) and `repointCopies` (scripts/trial.mjs:1296) stand.",
+   "l1": {
+    "what": "A GM's redirect of a running Objection as a player's browser draws it.",
+    "recipe": [
+     "Start a Class Trial; a player raises Objection at a target.",
+     "GM redirects it to another target (the trial console's redirect); on the player read the new public card, the Objection card's row, the HUD's target and the event panel's line.",
+     "Log the trial clock's remaining seconds each 250 ms across the redirect.",
+     "Repeat in the Rebuttal."
+    ],
+    "clients": "GM and one player",
+    "theme": "either",
+    "settles_if": "Agrees if every surface names the new target and the clock does not jump; a defect for a surface left on the old target or a jump.",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "545",
+   "live_id": "LIVE-E110-04",
+   "stage": "E110 (D-E110-B, D-E110-C; R7105, E110-T4)",
+   "asks": "On v14 with two GMs and a player, playlists mapped to Testimony, Rebuttal and Scrum Debate's three phases: whether each mode's start and phase change plays its playlist with a crossfade and no double start, whether the second GM does not start it again, whether the mode's end gives the music back to Discussion, and whether a mode with no playlist plays as before 1.2.114.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json, nor in the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (b5a29e73; :475-483 on origin/claude/e58-local) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "R7105 (scripts/tests-tier1.mjs:61991, exists) and tier 2 'E110-T4 - each mode's own playlist follows the floor on this primary ...' (scripts/tests-tier2.mjs:104106, exists); the harness reads the music state (`currentState`), no sound. base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "`trialMusicState` (scripts/music-states.mjs:86) and `ownModeState` (:76) stand.",
+   "l1": {
+    "what": "Each trial mode's own playlist, really played, on a primary and a second GM.",
+    "recipe": [
+     "Map three playlists to Testimony, Rebuttal and the Scrum phases; leave another mode unmapped.",
+     "Start each mode and change Scrum's phases; on both GMs log `game.playlists.playing.map(p => [p.name, p.sounds.filter(s => s.playing).map(s => s.name)])` every 500 ms.",
+     "Listen for a crossfade and for a double start.",
+     "End the mode: the Discussion's playlist returns. Run the unmapped mode."
+    ],
+    "clients": "two GMs and one player",
+    "theme": "either",
+    "settles_if": "Agrees if one start per change, crossfaded, on the primary only, and Discussion after; a defect for a double start, the second GM starting it, or silence after the end.",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "546",
+   "live_id": "LIVE-E110-05",
+   "stage": "E110 part 3 (config.mjs SFX_EVENTS)",
+   "asks": "On v14 with files mapped to eclipseStart, eclipseEnd, dayStart and dayEnd: the Eclipse's start, and its end with a change of the time of day; whether a player hears two sounds at once (the Eclipse card and the day board). If so the board's sound stays (the coordinator's decision of 14.11.2026) and the Eclipse card yields to it by `yieldsTo`.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json, nor in the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (b5a29e73; :475-483 on origin/claude/e58-local) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "none: docs/dev/e110/STATUS.md:89-91 says no run mapped files to both and drove an Eclipse's start and end; a git grep of the tests and scenarios finds no check pairing eclipseStart with dayStart. base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "The four keys stand at scripts/config.mjs:5291-5299 and :5372-5381, none with `yieldsTo` (the conditional change was not made, as the item says). The day boards' timing changed in F118 (scripts/sequence.mjs:70-80; `sound: 0` kept, the chime at once), so a reading on 1.2.118 is the one that counts.",
+   "l1": {
+    "what": "Whether the Eclipse's sounds and the day boards' chimes sound together.",
+    "recipe": [
+     "Map four distinct files to eclipseStart, eclipseEnd, dayStart and dayEnd.",
+     "On a player wrap `foundry.audio.AudioHelper.play` to log (src, performance.now()).",
+     "GM starts an Eclipse; then ends it with a time-of-day change that raises the day boards.",
+     "Read the log: two plays within about 300 ms of each other."
+    ],
+    "clients": "GM and one player",
+    "theme": "either",
+    "settles_if": "Agrees if no two of the four play together; a defect (to be fixed by `yieldsTo` on the Eclipse keys) if they do.",
+    "priority": "nit"
+   }
+  },
+  {
+   "n": "547",
+   "live_id": "LIVE-OWN115-01",
+   "stage": "owner-115 point 1 (14.11.2026)",
+   "asks": "On v14 with Daggerheart, a GM and three players, a direct murder whose opening succeeds on Hope: on the victim's and a bystander's screens the killer's token is at once a \"?\" with the mystery-man icon, also with the dynamic ring on; combat cards say \"?\"; the killer's dice (Dice So Nice) fall in the GM's colours; a trait roll from the killer's sheet has Daggerheart's mystery man in its header and no name; Listen through a door says \"?\". The killer and the GM see the name; after the reveal the victim sees it again.",
+   "status": "partly",
+   "result": "agrees",
+   "evidence": "F. The report that made the item: the owner at a real table on 1.2.114 (14.11.2026; live-readings-other.json item 547, docs/dev/owner-115/STATUS.md:8-9): the killer's token on the victim's screen was not a \"?\" - a defect, fixed in 1.2.115 (`maskedName`, `maskSplit`, `listenName`, the ring's subject, the pickers). The fixed state at a table: on 1.2.115 the owner again saw the real name and picture on the victim's screen after a Hope opening (15.11.2026, docs/dev/e112/STATUS.md:69-83; cause not established), rebuilt in 1.2.116 (E112 item 2). The latest reading, line L1 on Foundry 14.370 (16.11.2026, docs/dev/e58/LOCAL-REPORT.md:367, headless pages, no person, module 1.2.116): the victim's browser reads the token named `?` with the module's mask-unknown.svg as texture, ring subject, drawn mesh and portrait, nameplate `?`; the same on the bystander's and the killer's. Not read: the combat cards, Dice So Nice's colours, the roll header, Listen, the dynamic ring drawn, the reveal.",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": true,
+   "stale_detail": "The \"?\" is no longer Foundry's mystery man: since 1.2.116 `maskPatch` writes MASK_IMG, modules/danganronpa-rpg/icons/mask-unknown.svg, as texture and ring subject (scripts/mask-gm.mjs:48, :78-82), and the portrait too (`portraitOf`/`portraitBack`, :90-99), so a roll's header shows the masked actor's \"?\" picture (scripts/private-rolls.mjs:1662 draws `subject.img`; the mystery man only where the browser can tell no subject, :1648, :1653) - which is what item 556 point (2) now expects. The functions it names stand: `maskInsiders` (mask-gm.mjs:198), `maskedName` (scripts/murder-rules.mjs:4353), `maskSplit` (scripts/private-rolls.mjs:1815), `listenName` (scripts/action-listen.mjs:120).",
+   "duplicate_of": "527 (point 1) and 556 (points 1-2): the token and portrait halves are asked three times",
+   "headless_half": "scenario 21-masked-killer (audit/harness/scenarios/21-masked-killer.mjs, phases 'road' :171, 'masked' :258, 'reveal' :324, 'outside the fight' :353; 14/14 at owner-115's end by docs/dev/owner-115/STATUS.md); R7402 (scripts/tests-tier1.mjs:59174, the ring's subject). The harness has no canvas and no real Daggerheart header. base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "docs/dev/owner-115/STATUS.md:330-333 leaves the mask after the fight (a Steal, a Frisk, the pickers, a token with the dynamic ring) to this row.",
+   "l1": {
+    "what": "Every surface that could name the masked killer on the victim's and a bystander's screens.",
+    "recipe": [
+     "GM and three players (killer, victim, bystander in the room); Dice So Nice on; the killer's token with the dynamic ring enabled.",
+     "Direct murder, opening on Hope. On victim and bystander screenshot the token at once (first frames) and read its document name and texture.",
+     "Read the combat cards' text and the event panel for the killer's name.",
+     "The killer rolls a trait from the sheet: read the chat card's header portrait src and name on the victim; read the Dice So Nice colours (`game.dice3d` appearance in the roll packet) against the killer's player's.",
+     "The victim uses Listen through a door at the killer: read the text.",
+     "The killer reveals: the victim reads the name again."
+    ],
+    "clients": "GM and three players",
+    "theme": "either",
+    "settles_if": "Agrees if no surface on the victim's or bystander's screen shows the killer's name, face or player colours while masked; a defect for any one that does.",
+    "priority": "blocker"
+   }
+  },
+  {
+   "n": "548",
+   "live_id": "LIVE-OWN115-02",
+   "stage": "owner-115 point 2 (14.11.2026; R7400)",
+   "asks": "With Isometric Perspective, on an isometric and a plain scene, both themes: a character (student, Monokuma, Monocub) standing exactly on a Remnant and on a project token is drawn above them from every direction of approach, after a reload, a select and deselect and a camera move; a trace in front of an Isometric wall tile does not vanish under it; and `game.drpg.counters()` does not count `remnantRing.layer` on every refresh (which would mean Foundry puts the layer back).",
+   "status": "partly",
+   "result": "defect",
+   "evidence": "F, the report that made the item: the owner at a real table on 1.2.114 (14.11.2026; live-readings-other.json item 548, docs/dev/owner-115/STATUS.md:117-118): a character on the same spot as a Remnant must always be on top; the paper reads the cause as Isometric Perspective 14.0.6 depth-sorting every token over the module's sort -10 (read in the release zip, not run). Fixed in 1.2.115: `keepUnderCharacters` puts a trace's mesh on sort layer 699 (R7400). The fixed state is not read at a table: the harness has no character meshes, and the paper leaves the order to this row (STATUS.md:152-159).",
+   "triage_class": "S",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "R7400 (scripts/tests-tier1.mjs:59149, exists): reads the rule and the token's mesh layer, no canvas. base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "`keepUnderCharacters` (scripts/remnant-ring.mjs:117), `traceLayer` (:112) and the counter `remnantRing.layer` (:124) stand.",
+   "l1": {
+    "what": "A character drawn above a Remnant and a project token under Isometric Perspective, and whether the layer holds.",
+    "recipe": [
+     "Isometric Perspective on; an isometric scene and a plain one; a Remnant and a project token placed.",
+     "Move a student, Monokuma and a Monocub onto each from the four directions; screenshot each stop.",
+     "Reload, select and deselect, pan the camera; screenshot again.",
+     "Place a trace in front of an Isometric wall tile; screenshot.",
+     "Read `game.drpg.counters()['remnantRing.layer']` before and after 30 s of panning."
+    ],
+    "clients": "GM and one player",
+    "theme": "both",
+    "settles_if": "Agrees if the character is above in every shot and the counter does not climb with refreshes; a defect if a trace draws over a character or vanishes under a tile.",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "549",
+   "live_id": "LIVE-E111-01",
+   "stage": "E111 (case-copy.mjs; scenario 34-case-seal)",
+   "asks": "On v14 with a real server, as GM: The case > Write the copy now; whether drpg-case/case-<32 hex>.json appears in the world's folder, whether `FilePicker.browse(\"data\", \"worlds/<id>/drpg-case\")` throws a 'does not exist' error before the first write, whether a second write overwrites the same file, how long a write and a read take for a planner of several chapters, and whether the copy survives a server restart; on The Forge and other hosts (Assets Library, S3), what `browse` and `upload` answer in the 'data' source, and that the case window and the health check say what the server answered on a failure.",
+   "status": "partly",
+   "result": "agrees",
+   "evidence": "F, docs/dev/e58/LOCAL-REPORT.md:252-264 on origin/claude/e58-local (opened 16.11.2026 20:36 UTC, read and cleared 19.11.2026; Foundry 14.370, headless pages, no person; live-readings-e58-delta.json item 549/551, the mapping that reader's): an incident's cast left in the GM stores outlived every fresh browser through E111's copy under worlds/drpg-qa-gate/drpg-case/ - a GM's browser opens with empty storage and merges the copy in; cleared with the page kept open 30 s, past SEAL_QUIET_MS (15 s), the copy was written again (04:58:55 UTC) and a fresh GM read no cast; a clear closed after 10.5 s came back on the next load. 'Not a module defect: the copy does what E111 says.' Also docs/dev/e58/LOCAL-REPORT.md:461 (b5a29e73, 16.11.2026, item 48): a fresh GM browser's `gmStoreHealth()` showed a row `caseCopy` and the copy filled its 67 stores. Not read: the file's name, the 'does not exist' before the first write, the overwrite, times, a server restart, The Forge and other hosts.",
+   "triage_class": "T",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": "48 (LIVE-E04-08, the same copy filling a fresh browser) and 551 (the copy read on another browser)",
+   "headless_half": "scenario 34-case-seal phases A-F (audit/harness/scenarios/34-case-seal.mjs:77-224, exists), on the harness's stand-in server (one 'data' source, no size limit; audit/harness/README.md 'What the harness cannot do'). base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "`writeServerCopy` (scripts/case-copy.mjs:166), `readServerCopies` (:138), the 'does not exist' read (:113-119) and the button 'Write the copy now' (lang/en.json:7203; pl.json:9019 'Zapisz kopię teraz') stand; case-copy.mjs is byte-identical at ff3e12e5 and b5a29e73. The 15-s window measured there (a change closed within it is not on the server) is the cost case-copy.mjs:46-51 calls 'chosen, not measured at a table (LIVE-E111-01)' - see observations.",
+   "l1": {
+    "what": "The server copy's file, its first-write error, overwrite, times, survival across a restart, and other hosts.",
+    "recipe": [
+     "As GM: The case > Write the copy now; in Setup > Files (or the server's disk) find worlds/<id>/drpg-case/case-<32 hex>.json.",
+     "In a fresh world before any write: `await FilePicker.browse('data', 'worlds/' + game.world.id + '/drpg-case').catch(e => e.message)` - record the message.",
+     "Write again: the same file name, a newer mtime; time `writeServerCopy` and `readServerCopies` with a planner of several chapters.",
+     "Restart the server; load as GM; read the copy back.",
+     "On The Forge: repeat steps 1-3, and with a failure read the case window's and the health check's text."
+    ],
+    "clients": "GM",
+    "theme": "either",
+    "settles_if": "Agrees if one file is written and overwritten, survives a restart, and a host that refuses is reported as it answered; a defect if a second file appears per write, the copy is lost on restart, or a refusal is silent.",
+    "priority": "major"
+   }
+  },
+  {
+   "n": "550",
+   "live_id": "LIVE-E111-02",
+   "stage": "E111 (case-copy.mjs header)",
+   "asks": "On v14, with the copy's file name read as GM: whether a logged-out browser (private window) downloads http(s)://<server>/worlds/<id>/drpg-case/<name> (assumed yes); whether a logged-in player without FILES_BROWSE is refused at `FilePicker.browse` of the folder; whether typing the folder's address in a browser lists its files (assumed no). The copy's protection is the unguessable name and the listing permission, not encryption: if the folder lists without FILES_BROWSE, the copy is to be withdrawn.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json, nor in the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (b5a29e73; :475-483 on origin/claude/e58-local) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "scenario 34-case-seal phases A and B ('what a player can reach', 'the copy refused while players may reach the files'; audit/harness/scenarios/34-case-seal.mjs:77, :125) on the stand-in server, whose static route and listing are modelled, not Foundry's. base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "The header that states the assumption: scripts/case-copy.mjs:11-17 ('The server serves a file of the data folder to anybody who asks its path, logged in or not (Foundry's static route; LIVE-E111-02) - so a name that leaks is the whole case'). Nothing in L1's papers fetches the file or the folder.",
+   "l1": {
+    "what": "Who can fetch the case copy and whether its folder lists.",
+    "recipe": [
+     "As GM read the copy's name: `(await FilePicker.browse('data', 'worlds/' + game.world.id + '/drpg-case')).files`.",
+     "In a private window with no login, fetch https://<server>/worlds/<id>/drpg-case/<name>: record the status code.",
+     "Fetch https://<server>/worlds/<id>/drpg-case/ and /worlds/<id>/drpg-case: record status and body.",
+     "As a Player without FILES_BROWSE: `await FilePicker.browse('data', 'worlds/<id>/drpg-case').catch(e => e.message)`."
+    ],
+    "clients": "GM, one player, one logged-out browser",
+    "theme": "n/a",
+    "settles_if": "Agrees if the folder does not list and the player is refused; a defect (the copy to be withdrawn, by the item's own rule) if the folder lists or the player's browse returns the file names.",
+    "priority": "blocker"
+   }
+  },
+  {
+   "n": "551",
+   "live_id": "LIVE-E111-03",
+   "stage": "E111 (case-copy.mjs `copyAtLoad`)",
+   "asks": "The owner builds the Key Remnant plan and the case diagram on one computer and closes the browser; on a second computer, alone in the world, opens it as GM: the planner and diagram are as on the first with no click; a change made on the second is on the first when it returns; with 'No file browser for players' off the GM sees a notice and the health check a refusal row.",
+   "status": "partly",
+   "result": "agrees",
+   "evidence": "F, docs/dev/e58/LOCAL-REPORT.md:461 (b5a29e73; 16.11.2026; Foundry 14.370, headless pages, no person; item 48): a GM's browser closed in an open incident and a fresh one logged in with none of the seed's storage got no 'The case on this browser' window, `gmStoreHealth()` missing 0 and a `caseCopy` row - the server copy filled the 67 module stores by itself; the new browser's cast differed in one field (`deniedToVictim`), consistent with the copy being older than the last writes. And origin/claude/e58-local LOCAL-REPORT.md:252-264 (19.11.2026; live-readings-e58-delta.json item 549/551): a fresh GM browser merges the server copy in; a change closed within 15 s came back on the next load. Both are a fresh browser on the same machine, not a second computer; the change made on the second and seen on the first, and the switch-off notice and health row, are not read.",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": "48 (LIVE-E04-08) and 549",
+   "headless_half": "scenario 34-case-seal phase C 'the second computer, alone' and D-F (audit/harness/scenarios/34-case-seal.mjs:149-224, exists), two jsdom clients with their own localStorage. base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "`copyAtLoad` (scripts/case-copy.mjs:261) stands. The switch's Polish name 'Bez przeglądarki plików dla graczy' (lang/pl.json:347) and the notice when off (pl.json:9026 `switchOff`) exist. The measured 15-s window means a change made less than 15 s before the first computer's browser closes is not on the second computer.",
+   "l1": {
+    "what": "The case on a second computer, both ways, and the notice with the file switch off.",
+    "recipe": [
+     "On computer 1 as GM: add a Key Remnant to the plan and a link in the diagram; wait 20 s; close the browser.",
+     "On computer 2 (its own browser profile) as GM alone: open Investigation; compare the plan and diagram; make a change; wait 20 s; close.",
+     "Back on computer 1: the change is there with no click.",
+     "Turn 'No file browser for players' off; make a change; read the GM's notice and the copy's row of `game.drpg.gmStoreHealth()`.",
+     "Repeat step 1 closing after 5 s, to record what the 15-s window loses."
+    ],
+    "clients": "GM on two computers",
+    "theme": "either",
+    "settles_if": "Agrees if each computer shows the other's change without a click and the switch-off is told; a defect if a change older than the debounce is lost or the refusal is silent.",
+    "priority": "major"
+   }
+  },
+  {
+   "n": "552",
+   "live_id": "LIVE-OWN115-03",
+   "stage": "owner-115 point 3 (14.11.2026; R7401)",
+   "asks": "Both themes, at the owner's screen size, in a murder with several cards at once (fight, body, Overflow, motive, Monocub card): no scrollbar on the event panel; the panel grows down at most to the room tile, notices, voice tile, corner buttons and Foundry's hotbar and covers neither them nor Foundry's player list; cards that do not fit fold to their title, click or Enter opens one; '+N' counts the titles not shown; an open window (Foundry's or the module's) over the lengthened panel - which is on top and whether the text is readable.",
+   "status": "partly",
+   "result": "defect",
+   "evidence": "F, the report that made the item: the owner at a real table on 1.2.114 (14.11.2026; live-readings-other.json item 552, docs/dev/owner-115/STATUS.md:169-170): a scrollbar appeared on the Event panel during a murder; in Chromium (audit/events-murder-fit.mjs, 60 panels) 60 of 60 scrolled at e0ee06ef. Fixed in 1.2.115 (no cap, cards fold past the room; 60 of 60 fit at fb6f664b and 779026ce, Chromium). The fixed state is not read on a real Foundry: no window was opened over a lengthened panel (the paper leaves that to this row).",
+   "triage_class": "S",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "R7401 (scripts/tests-tier1.mjs:45299, exists); audit/events-murder-fit.mjs in Chromium (60 panels: 5 cases, both themes, two languages, three sizes; exists, not run here). base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "`fitEvents` (scripts/events.mjs:1020), `eventsRoom` (:985, the list of what the panel must not cover at :982), `wireEventsPanel` (:1044) stand. The item's 'z-index read from the module's sheets and their v14 notes, not from v14's source' is the open part.",
+   "l1": {
+    "what": "The event panel in a crowded murder on v14, and a window over it.",
+    "recipe": [
+     "At the owner's screen size, a murder with a fight, a body, an Overflow, a motive and a Monocub card at once.",
+     "Read `getComputedStyle(document.querySelector('#drpg-events')).overflowY` and scrollHeight against clientHeight; screenshot.",
+     "Read each folded card's title and press Enter on one; read '+N' against the titles out of view.",
+     "Open a Foundry window (a journal) and a module window over the panel: screenshot which is on top."
+    ],
+    "clients": "GM and one player",
+    "theme": "both",
+    "settles_if": "Agrees if nothing scrolls, nothing in the list is covered and a window opened over the panel is on top and readable; a defect for a scrollbar, a covered launcher or the panel over a window.",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "553",
+   "live_id": "LIVE-E112-01",
+   "stage": "E112 point 1 (the owner, 15.11.2026; R7405)",
+   "asks": "On v14 with a primary GM, a second GM and three players (killer A, victim B, witness C in one room), avclient-livekit: a direct murder opened (1) by the GM's tile mid-time-of-day and (2) declared in an Eclipse and opened at its end. Record: (a) A's token vanishes on B and C at the opening, and in case (2) never shows for a frame after the lights; (b) A sees and can select their token and keeps their vision (since E112v the veil writes the module's flag, not Foundry's `hidden`; as item 600); (c) A's microphone off with the reason 'Before your opening roll ...', A still hears the room, and one line about the veil; (d) on a Hope opening B sees the \"?\" first, not the real picture, not even for a frame; (e) a failed opening gives A's token back as it was, and a token the GM hid before the murder stays hidden; (f) the primary GM reloads mid-opening and a GM closes the incident: on return A's token and microphone are given back; (g) a Spectator does not see A under the veil.",
+   "status": "partly",
+   "result": "defect",
+   "evidence": "F, docs/dev/e58/LOCAL-REPORT.md:366 (16.11.2026; Foundry 14.370, headless pages, no person, no LiveKit server, the module at 1.2.116 with L1's commits; live-readings-e58.json item 553; secondary .github/release-notes/v1.2.117.md:170-173): while a drawn opening waited (Chie on Aiko in Dorm A, real dice), Chie's token was `hidden` and `veiled` and not drawn on the victim's canvas; the killer's own browser drew it; PlayerThree's BROADCAST_AUDIO false. With token vision on for the run, the veiled token was no vision source for its owner (`_isVisionSource()` false) and PlayerThree's canvas saw from Aiko's token - 'a defect found; open'. That covers (a) on the victim for case (1), (b) as a defect, (c)'s microphone write. Fixed since in source by E112v (dd9a56ed, 9e9a224c, 16.11.2026 evening, 1.2.118): the veil is the module's flag alone (`veilPatch`) and a token the module hides gives no sight (scripts/visibility.mjs:950-1003, `givesNoSight`, `installSightRule`); the fix is read on stand-ins only (R7700-R7707) and not on a real canvas (LIVE-E112V-01, item 600, open; .github/release-notes/v1.2.118.md:13-14). Not read: case (2), the frame-by-frame look, hearing, the veil's line, (d)-(g).",
+   "triage_class": "T",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": "600 (LIVE-E112V-01) for (a) and (b) on 1.2.118's veil; 554 is the same on The Forge",
+   "headless_half": "R7405 (scripts/tests-tier1.mjs:59280), R7700-R7705 (:59322-:59387), R7706-R7707 (:59394, :59415), all exist; tier 2 'E112 - the opening veils a direct murder's killer and lifts it on every road out, exactly ...' (scripts/tests-tier2.mjs:17885) and 'E112v - a veil written by 1.2.116 or 1.2.117 loses its hidden ...' (:18019), both exist; scenario 21-masked-killer 'road' (:171). base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "The item's text was updated for E112v ('od E112v zasłona nie zapisuje już hidden'), so it is not stale; but the reading was taken on the veil it replaced, so the defect it records is a 1.2.116-1.2.117 one. `settleVeils` (scripts/mask-gm.mjs:508), `veilAtTheLights` (:551), `tokenShownTo` (scripts/visibility.mjs:533) and `settleTrialVoices` (scripts/voice.mjs:1739) stand; the reason 'Before your opening roll' is lang/en.json:5917 (pl.json:6353). LOCAL-REPORT.md:384 adds that how long the opening's invitation takes after a GM's login is not measured.",
+   "l1": {
+    "what": "The opening's veil on 1.2.118 on four screens, both opening roads, with voice.",
+    "recipe": [
+     "GM, second GM, three players (A, B, C in one room), a Spectator page; LiveKit server; scene token vision on with sight on A's and B's tokens for the run (put back after).",
+     "Case 1: open a direct murder from the GM's tile mid-time-of-day. On B and C record frames (requestAnimationFrame log of A's `token.visible`, nameplate, bars, border) from the opening on; on A read `token.document.hidden` (false), `token.visible` (true), `token._isVisionSource()` (true) and screenshot A's map.",
+     "On A read the microphone tile's reason and whether A hears B; count the veil's whisper lines.",
+     "Throw the opening on Hope: on B log the token's texture per frame for the first second.",
+     "Case 2: declare in an Eclipse; at the lights log A's visibility on B per frame.",
+     "Fail an opening: A's look against before; a token the GM hid before stays `hidden`.",
+     "Reload the primary GM mid-opening; a GM closes the incident; on return read A's token and BROADCAST_AUDIO.",
+     "On the Spectator read A's `token.visible`."
+    ],
+    "clients": "primary GM, second GM, three players, a Spectator; LiveKit",
+    "theme": "either",
+    "settles_if": "Agrees if B, C and the Spectator never draw A, A keeps their own vision and hears the room, and every road gives the token and microphone back; a defect for any frame of A on B or C, A seeing from B's eyes, or a token or microphone left changed.",
+    "priority": "blocker"
+   }
+  },
+  {
+   "n": "554",
+   "live_id": "LIVE-E112-02",
+   "stage": "E112 (the owner's table runs on The Forge)",
+   "asks": "Item 553's (a)-(f) on a world on The Forge, with the voice server the owner's table uses; and whether the veil's flag on the token (since E112v not Foundry's `hidden`) reaches the players as fast as on v14 (seconds from the opening to the token's disappearing on B).",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json, nor in the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (b5a29e73) counts it among the T rows 'not checkable at this sandbox'; live-readings-e58.json not_run: step 7's table has no row for it, and .github/release-notes/v1.2.118.md:13-14, 189-197 lists LIVE-E112-02 as open",
+   "triage_class": "T",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": "553 (the same asks, on The Forge)",
+   "headless_half": "as item 553's. base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "The owner's own table is on The Forge (the item's head), and the owner's two reports of the real face on the victim's screen were there (docs/dev/e112/STATUS.md:69-83, 1.2.115); no reading on The Forge exists in any digest.",
+   "l1": {
+    "what": "Item 553 on The Forge with the owner's voice server, and the veil's latency.",
+    "recipe": [
+     "On the owner's Forge world (a copy), with the table's voice server, seat the cast of item 553.",
+     "Run item 553's steps for case 1 and case 2.",
+     "On B log performance.now() at the GM's opening (a socket mark from the GM) and at A's `token.visible` going false; repeat five times."
+    ],
+    "clients": "GM and three players on The Forge",
+    "theme": "either",
+    "settles_if": "Agrees as item 553, with the delay under about a second; a defect for any frame of A on B or C, or a delay that lets A be seen.",
+    "priority": "blocker"
+   }
+  },
+  {
+   "n": "555",
+   "live_id": "LIVE-E112-03",
+   "stage": "E112 point 3",
+   "asks": "On v14 and The Forge, a player-killer with an armed Loaded Die and a Support throws the opening: whether the roll window shows the Loaded Die (the red window, 'one die set to 12') and not the Support; whether one die shows 12; whether the Loaded Die leaves the sheet after the roll and the Support stays; and with a dice setting that skips the draw (Configure Dice), whether the Loaded Die comes back with a whisper.",
+   "status": "partly",
+   "result": "defect",
+   "evidence": "F, the report that made the item: the owner, through the coordinator, 15.11.2026 (live-readings-other.json item 555, docs/dev/e112/STATUS.md:8-28; the paper does not say where or on which version): a Loaded Die is not used up on the murder's opening. Fixed in 1.2.116 (8282b192 the Loaded Die alone, then 406f96a4 every Call). The real Daggerheart window is not read: step 7's table has no row for it (live-readings-e58.json not_run). Related, not this item: on the sandbox (17.11.2026, docs/dev/e58/LOCAL-REPORT.md:89, :190-194; live-readings-e58.json) tier 2 'E112 - an armed Loaded Die loads the murder's opening roll ...' failed with 'the Loaded Die not loaded', and :111-114 lists it among tests that script their dice through the harness's `__forceRoll`; the cause is not read.",
+   "triage_class": "T",
+   "subject_exists": true,
+   "text_stale": true,
+   "stale_detail": "Since 406f96a4 (15.11.2026, the owner's 'Inne tez') the opening takes every armed Call, not the Loaded Die alone: call-effects.mjs `SHIELD_PASSES` is gone (0 hits in scripts/), replaced by `TAKES_CALLS` (scripts/call-effects.mjs:94; scripts/action-pipeline.mjs:157-158), and roll-draw.mjs spends no Call only for Palm (`SPENDS_NO_CALL`, scripts/roll-draw.mjs:1857). So 'the Support not shown' and 'the Support stays' expect the old rule: today the Support is applied and spent too. `appliedCalls` (roll-draw.mjs:1846) stands.",
+   "duplicate_of": null,
+   "headless_half": "tier 2 'E112 - an armed Loaded Die loads the murder's opening roll and is spent on it, drawn for a player and thrown by the GM for one not connected' (scripts/tests-tier2.mjs:18085, exists; failed on the v14 sandbox on 17.11.2026, cause not read); scenario 21 'road' (406f96a4: 'scenario 21 reads the owner's road'). base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "The handbooks were updated with the rule in 406f96a4 (player 535 and 1147, GM 1124); this item was not.",
+   "l1": {
+    "what": "The opening's roll window, dice and spending with a Loaded Die and a Support armed, under today's rule.",
+    "recipe": [
+     "A player-killer arms a Loaded Die and a Support; the GM opens a direct murder.",
+     "Screenshot Daggerheart's roll window on the killer: which Calls it lists.",
+     "Roll: read the dice faces in the chat card (one 12 expected) and the Support's effect.",
+     "Read the killer's sheet: both Calls spent (today's rule).",
+     "Set Configure Dice to a mode that skips the draw; repeat; read whether the Loaded Die returns with a whisper.",
+     "Repeat on The Forge."
+    ],
+    "clients": "GM and the killer's player",
+    "theme": "either",
+    "settles_if": "Agrees if the window lists the armed Calls, one die is 12, both are spent, and a skipped draw gives the Loaded Die back with a whisper; a defect if a Call is shown and not applied, applied and not spent, or lost on a skipped draw.",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "556",
+   "live_id": "LIVE-E112-04",
+   "stage": "E112 point 2 (R7406)",
+   "asks": "On v14 and The Forge, killer A, victim B and witness C in one room, a Hope opening: (1) on B and C A's token shows the module's question-mark picture (not Foundry's silhouette), readable on light and dark maps, with and without the ring; (2) A's portrait on the sheet, the actors list, the roll card's header and the voice tile wears the same picture, also on A's own screen; (3) after a reveal or a new time of day the token, the portrait and the prototype token's picture come back exactly; (4) with Isometric Perspective 14.0.6 and 'Token Silhouette' on: whether A's silhouette behind an occluding tile shows the \"?\" after the change or for a frame the old face, and whether the silhouette of a token the module hides is still drawn (occlusion.js:212 suggests it is).",
+   "status": "partly",
+   "result": "agrees",
+   "evidence": "F, docs/dev/e58/LOCAL-REPORT.md:367 (16.11.2026; Foundry 14.370, headless pages, no person, module 1.2.116 with L1's commits; live-readings-e58.json item 556; shots docs/dev/e58/shots/README.md:18-20): after the Hope opening, on the victim's browser Chie's token reads name `?`, `texture.src` and `ring.subject.texture` modules/danganronpa-rpg/icons/mask-unknown.svg, the drawn mesh's texture that file, nameplate `?`, drawn; the portrait the same file; the bystander's browser holds the same (not drawn: another room), and the killer's. 'The Forge half: not checkable here.' Before it, the owner at a real table on 1.2.115 on The Forge saw the real name and picture (15.11.2026, docs/dev/e112/STATUS.md:69-83: a defect, cause not established, rebuilt in 1.2.116). Not read: light and dark maps, the ring drawn, the actors list, the roll header and voice tile, the give-back (3), part (4), The Forge on 1.2.116 or later.",
+   "triage_class": "T",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": "527 (point 1), 547 (the token and the header); part (4)'s second half is item 557",
+   "headless_half": "R7406 (scripts/tests-tier1.mjs:59435, exists); tier 2 'E112 - a mask puts its question mark on the killer's portrait as well as the tokens, and gives both back exactly' (scripts/tests-tier2.mjs:17574, exists). base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "`MASK_IMG` (scripts/mask-gm.mjs:48), `portraitOf` (:90), `portraitBack` (:94) and icons/mask-unknown.svg stand. Point (3) has a hint against it, not a reading: L1's fifth run under Monokuma Legacy (19.11.2026, origin/claude/e58-local LOCAL-REPORT.md:320-324) lists among tests that left the world changed 'two masks left on Botan's and Aiko's portraits' - a test's leftover, which test not named; and an earlier run left Botan's mask, put back by the restore (:193-194). Part (4)'s 'occlusion.js:212 ... it is' was the reason for `hideSilhouettes` (item 557), built in the same stage.",
+   "l1": {
+    "what": "The \"?\" on map and portrait on every surface, its give-back, on v14 and The Forge.",
+    "recipe": [
+     "Killer A, victim B, witness C in one room; Hope opening.",
+     "On B and C screenshot A's token on a light map and a dark map, ring on and off.",
+     "Read A's portrait on the sheet, the actors list, a roll card's header and the voice tile on B, C and A.",
+     "Before the murder record A's `img`, `prototypeToken.texture.src` and each token's texture; after a reveal (and in a second run after a new time of day) compare exactly.",
+     "With Isometric Perspective 14.0.6, Token Silhouette on and an occluding tile flagged in Isometric's tile settings over A: record frames of the silhouette after the mask.",
+     "Repeat steps 2-4 on The Forge."
+    ],
+    "clients": "GM and three players",
+    "theme": "either",
+    "settles_if": "Agrees if every surface wears the \"?\" on B and C and everything comes back byte for byte; a defect for any surface showing A's face, or a picture not given back.",
+    "priority": "blocker"
+   }
+  },
+  {
+   "n": "557",
+   "live_id": "LIVE-E112-05",
+   "stage": "E112 (the owner's decision of 15.11.2026 to Q4; R7407)",
+   "asks": "On v14 with Isometric Perspective 14.0.6, the client setting 'Token Silhouette' on (any mode), an occluding tile in the room: player B in another room than A, then in an Eclipse, then the victim under the opening's veil. Record whether B sees no silhouette of A behind the tile, not for a frame (the module hides it a frame after a hook whose order among modules is not its own), whether a visible token's silhouette stays, and whether moving A makes the silhouette flash.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "An attempt, not a reading of the ask: docs/dev/e58/LOCAL-REPORT.md:368 (16.11.2026; Foundry 14.370, headless pages; live-readings-e58.json item 557): with `enableOcclusionTokenSilhouette` 'gpu' and a scratch tile flagged `OccludingTile` over the Gym (Daichi, hidden from PlayerOne), the silhouette layer (`OcclusionTokens`) existed and held no sprite, and the control (the tile over Aiko, whom PlayerOne sees) none either - nothing was built for the module to hide; 'left, not settled'. The paper's next step: an isometric scene with the tile flagged through Isometric's own tile settings.",
+   "triage_class": "S",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": "601 (LIVE-E112V-02, its third case under 1.2.118's veil) and 556 part (4)",
+   "headless_half": "R7407 (scripts/tests-tier1.mjs:59460, exists; a stood-in scene, no canvas). base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "`hideSilhouettes` (scripts/visibility.mjs:851) and `silhouetteLayer` (:845) stand; visibility.mjs's `hide()` (:893) changed in E112v. docs/dev/e112/STATUS.md:116-125: Isometric Perspective was read, not run.",
+   "l1": {
+    "what": "Isometric Perspective's silhouette of a token the module hides, on a scene where Isometric builds silhouettes.",
+    "recipe": [
+     "An isometric scene (Isometric's scene flag on); an occluding tile flagged in Isometric's tile settings; Token Silhouette on in the client settings; confirm a visible token behind the tile has a sprite in the `OcclusionTokens` layer.",
+     "Put A behind the tile in another room than B; on B log each frame whether a sprite for A exists and is visible.",
+     "Start an Eclipse; repeat. Open a murder with B as victim; repeat under the veil.",
+     "Move A behind the tile; log frames for a flash.",
+     "Control: a visible token's silhouette stays on B."
+    ],
+    "clients": "GM and two players",
+    "theme": "either",
+    "settles_if": "Agrees if B never has a visible sprite for A while the module hides A and the control's stays; a defect for any frame with A's silhouette on B.",
+    "priority": "major"
+   }
+  },
+  {
+   "n": "558",
+   "live_id": "LIVE-E116-01",
+   "stage": "owner-116 point 2 (15.11.2026; R7523)",
+   "asks": "On v14 (14.370), in the GM's console: `Object.getOwnPropertyDescriptor` of `visible` on each prototype of `CONFIG.Token.rulerClass` (an accessor or an instance field), and whether the ruler has separate objects for the path, the waypoints and the distance label and whether all vanish when `token.ruler.visible = false`.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json, nor in the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (b5a29e73; :475-483 on origin/claude/e58-local) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "R7523 (scripts/tests-tier0.mjs:25091, exists): reads both shapes on the test's own classes, not on v14's. R1115 (:18943) reads `hourRulerFor`. base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "`hourRulerFor` (scripts/fog-doorways.mjs:1887) handles both shapes (`visibleAccessorOf` :1877-1883), `setRulerShown` (:1863); its comment (:1855-1857) names this item. At init `registerTokenRuler` replaces `CONFIG.Token.rulerClass` with the module's HourTokenRuler (:1924-1929), so the console's walk must start at `Object.getPrototypeOf(CONFIG.Token.rulerClass)` to read Foundry's class. docs/dev/e39/CALIBRATION.md:98 read `TokenDocument#movement` on 14.370 (22 keys, `showRuler` among them), not the ruler class.",
+   "l1": {
+    "what": "The shape of v14's token ruler's `visible` and its parts.",
+    "recipe": [
+     "As GM in the console: `let p = Object.getPrototypeOf(CONFIG.Token.rulerClass).prototype; const out = []; while (p && p !== Object.prototype) { out.push([p.constructor.name, Object.getOwnPropertyDescriptor(p, 'visible')]); p = Object.getPrototypeOf(p); } out`.",
+     "Drag a token with waypoints; read `token.ruler` own keys and its children (path, waypoints, label objects).",
+     "Set `token.ruler.visible = false` mid-drag; screenshot: path, waypoints and label gone."
+    ],
+    "clients": "GM",
+    "theme": "either",
+    "settles_if": "Settled either way by the shape read; a defect if a part (the label, the waypoints) stays drawn with `visible = false`.",
+    "priority": "minor"
+   }
+  },
+  {
+   "n": "559",
+   "live_id": "LIVE-E116-02",
+   "stage": "owner-116 point 2 (15.11.2026)",
+   "asks": "With a GM and a player: the GM hides a token (Toggle Visibility) and drags it across several squares with waypoints - on the player no path, waypoints or distance label, during or after the move (history), on the GM yes; the GM plans a visible token's move, hides it mid-way - its ruler vanishes on the player at once; unhides - it returns at the next refresh; the same for planned movement the GM sends to others: whether it reaches the player's browser for a hidden token and whether it would be drawn without this change.",
+   "status": "open",
+   "result": "n/a",
+   "evidence": "no reading found in live-readings-e58.json, live-readings-other.json or live-readings-e58-delta.json, nor in the item's text; docs/dev/e58/LOCAL-REPORT.md:323-331 (b5a29e73; :475-483 on origin/claude/e58-local) counts the row among the 397 left, not yet driven or shot",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "none for the drawn ruler: 'the harness has no canvas and no movement broadcast' (the item); R7523 (scripts/tests-tier0.mjs:25091) and R7703 (scripts/tests-tier1.mjs:59361) read the predicate. base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "`rulerHere` (scripts/visibility.mjs:1006) and `passForTokenUpdate` (:432) stand; `rulerShownTo` (:940-947) hides a hidden token's ruler from everyone but a GM and the owner. docs/dev/e39/CALIBRATION.md:85-98 (16.11.2026, 14.370) read a visible token's move: `updateToken` and `moveToken` once on every client - which suggests a hidden token's move also reaches every browser, not read.",
+   "l1": {
+    "what": "A hidden token's ruler and planned movement on a player's browser.",
+    "recipe": [
+     "GM hides a token (right-click, Toggle Visibility) and drags it with two waypoints; on the player log `canvas.tokens.get(id)?.ruler?.visible` and screenshot during and after.",
+     "On the player, listen: `Hooks.on('moveToken', (d, m) => console.log(d.id, d.hidden, m))` and the socket for planned movement; record what arrives for the hidden token.",
+     "GM plans a visible token's move and hides it mid-way: the player's ruler vanishes at once; unhide: back at the next refresh.",
+     "Compare with the module's ruler predicate disabled (`setRulerShown(null)` from fog-doorways.mjs) to see what Foundry alone draws."
+    ],
+    "clients": "GM and one player",
+    "theme": "either",
+    "settles_if": "Agrees if the player never sees the hidden token's path, waypoints or label; a defect for any of them drawn, or for planned movement drawn for a hidden token.",
+    "priority": "major"
+   }
+  },
+  {
+   "n": "560",
+   "live_id": "LIVE-E116-03",
+   "stage": "owner-116 point 2 (15.11.2026; R7523)",
+   "asks": "A player owns a token the GM hid: the player sees their hidden token (the owner's answer of 15.11.2026: so it is at his table) and, when they drag it or the GM moves it, its path, waypoints and distance; another player sees neither the token nor the ruler.",
+   "status": "partly",
+   "result": "agrees",
+   "evidence": "F. The owner's answer about their table (15.11.2026; live-readings-other.json item 560, docs/dev/owner-116/STATUS.md:192-198): a player does see their own hidden token; on it the ruler was shown to the owner too (the commit after 3a4dfafa, cc87ea3b). Line L1 on Foundry 14.370 (16.11.2026; docs/dev/e112v/DESIGN.md:3-5, STATUS.md:21; the mapping is live-readings-other.json's): a hidden token is drawn for its owner (and is no vision source for them). Not read: the owner's ruler on a hidden token, and another player seeing neither.",
+   "triage_class": "K",
+   "subject_exists": true,
+   "text_stale": false,
+   "stale_detail": "",
+   "duplicate_of": null,
+   "headless_half": "R7523 (scripts/tests-tier0.mjs:25091, exists) reads the rule only; R7703 (scripts/tests-tier1.mjs:59361) the veiled case. base-run.json does not exist, so no headless result on b5a29e73 is read.",
+   "note": "`rulerShownTo` (scripts/visibility.mjs:940-947): the owner always (:944), a hidden token never for anyone else (:945). Its comment (:930-934) names this item.",
+   "l1": {
+    "what": "The owner's view of their hidden token's ruler, and another player's view of neither.",
+    "recipe": [
+     "GM hides PlayerOne's token; PlayerOne drags it with a waypoint: on PlayerOne screenshot the token and its path, waypoints and label.",
+     "GM moves the same token: PlayerOne sees the ruler.",
+     "On PlayerTwo log `canvas.tokens.get(id)?.visible` and `?.ruler?.visible` and screenshot during both moves."
+    ],
+    "clients": "GM and two players",
+    "theme": "either",
+    "settles_if": "Agrees if the owner sees token and ruler and the other player neither; a defect if the other player sees either, or the owner loses the ruler.",
+    "priority": "minor"
+   }
+  }
+ ],
+ "observations": [
+  "Count: audit/AUDIT-1.2.42.md lines 1518-1584 hold 34 numbered items, 527 to 560, one every other line, each number once and in order (a script over the lines), under no block header of their own (the list runs on from 526 before and to 561 after). Their ids are not in stage order (E69, E113, E57, E59, R4420, E43, E40, E55, E110, OWN115, E111, E112, E116). No LIVE id of this chunk heads another item; two are named in later items' text: LIVE-E112-01 in 554 (:1572) and LIVE-E112-05 in 601 (:1593).",
+  "Readings: read 3 (534, 535, 536, all line L1's sandbox of 16.11.2026); partly 11 (527, 537, 547, 548, 549, 551, 552, 553, 555, 556, 560); open 20; obsolete 0. Result, by the latest recorded reading of the item's subject: agrees 10 (527, 534, 535, 536, 537, 547, 549, 551, 556, 560), defect 4 (548, 552 and 555 - the owner's reports that made the items, fixed since in source and not read after; 553 - L1's veil reading, fixed since by E112v and not read on a canvas), n/a 20. 557 has an attempt that settled nothing and stays open. The L1 delta after b5a29e73 adds to this chunk only the server copy's reading (549, 551). Every F reading here is a script's on headless pages of the owner's sandbox or the owner's report at their table; none is a person's reading of 1.2.118.",
+  "Triage classes kept from docs/dev/e58/TRIAGE-9.2.md:554-587: K 18, S 5 (533, 538, 548, 552, 557), T 10 (527, 531, 532, 542, 543, 549, 553, 554, 555, 556), F 1 (537), C 0, M 0.",
+  "Text stale in 8 items: 527 and 547 still describe the \"?\" as Foundry's mystery man (since 1.2.116 the module's icons/mask-unknown.svg, also on the portrait, so 547's 'mystery man in the roll header' now contradicts 556's point 2); 528 places three functions in chapter.mjs that E54 moved to body.mjs; 530 still 'waits on E54 and E57 C3', both shipped in 1.2.113; 534's counts are those of 13.11 (the fuzz reads its lists off the source); 538 and 541 name Daggerheart 2.12.8 (verified now 2.12.9); 555 names `SHIELD_PASSES`, gone since 406f96a4, and expects the Support neither shown nor spent, against today's rule that the opening takes every armed Call.",
+  "Comment against code (nit, read): scripts/mask-gm.mjs:9-10 ('the texture Foundry's mystery man') and :76 ('It wears the mystery man as well'), and R6028's title (scripts/tests-tier1.mjs:59232) with its registry row (docs/dev/R-REGISTRY.md:1560), still say the mask wears Foundry's mystery man; `maskPatch` (:78-82) writes MASK_IMG, icons/mask-unknown.svg, and R6028's own body expects it ('changed on purpose', :59245-59248). Failure scenario: a maintainer reading the header or the registry row believes the mask uses core's icon and edits the wrong picture.",
+  "Recorded on the sandbox and not raised as a defect there (L1, docs/dev/e58/LOCAL-REPORT.md:401): Daggerheart's tooltip on a secret project's countdown, on the GM's and the member's window, reads 'This countdown is hidden to players except PlayerOne, PlayerThree, PlayerTwo' - every player - because `ownershipMap` sets every player to OBSERVER by design (scripts/projects-secrecy.mjs:370-381, S17-31: who is in on it is the GMs' store's). It names no secret; it tells the member that the bystanders can see the project, which is not so. Severity nit, by decision; confidence measured (the tooltip) and read (the cause). Failure scenario: a player in on a secret project hovers its countdown in Daggerheart's window, reads that every player sees it, and believes the secret is out.",
+  "The server copy's 15-s quiet window (scripts/case-copy.mjs:46-51 SEAL_QUIET_MS, 'chosen, not measured at a table (LIVE-E111-01)') now has a measured consequence: on the sandbox a GM change closed 10.5 s after it was not on the server copy and came back wrong on the next load (origin/claude/e58-local LOCAL-REPORT.md:252-264, 19.11.2026), and a fresh browser's cast differed from the old one's in one field (b5a29e73 LOCAL-REPORT.md:461). By design (the comment says a minute bounds what a browser closed mid-session can leave out); items 549 and 551 should record it at the owner's table.",
+  "Overlaps to merge when the list is next written: the \"?\" on the victim's screen is asked three times (527 point 1, 547, 556 points 1-2); the opening's veil and the killer's vision twice (553 (a)-(b) and 600, the latter on 1.2.118's veil); Isometric silhouettes three times (556 part 4, 557, 601); the server copy on a fresh browser twice (549, 551, and item 48 outside the chunk).",
+  "Headless halves: every test, scenario and probe the 34 items name exists today (R numbers by the registry and the tests' heads; tier-2 titles E69-T7, E110-T1, E110-T2, E110-T4 and the three 'E112 - ...' tests by git grep). base-run.json does not exist, so none of their results on b5a29e73 is read here. One of them has a v14 result: tier 2 'E112 - an armed Loaded Die ...' failed on the sandbox on 17.11.2026 (LOCAL-REPORT.md:89, :190-194), its cause not read (possibly the harness's dice scripting, :111-114)."
+ ]
+}

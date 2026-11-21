@@ -497,6 +497,25 @@ function heldMaskNames(userId, hid) {
     return names;
 }
 
+/*
+ * THE SECOND GM (1.2.121 line M1, 21.11.2026; the audit's CORE-20 residue and N119-4, recheck-119.json). A GM away while
+ * the mask stood kept no `hid`: it was given the words uncut after the end (a GM is, `askForWords` at its ready), and
+ * served them to a reader outside the mask who was away too - in a race while both GMs were on, for certain once the
+ * first had left (scenario 97 K1, red at e515907d: p2 was served "E120K again Chie Mori was seen" by gm2; gm2's own
+ * rewrite named her as well, K2). So a GM's words to another GM carry its `hid` - `answerWordsRequest`, `sendWords` for
+ * a post and a rewrite - and the GM given them keeps those rows with its own (`remember`'s `hidGiven`, `keepHeldMask`
+ * when the words were here already). Only from a GM (`onSecretPacket`'s GM branch), never to a player. A reveal is
+ * still heard by the GM that ran it alone (`forgetHeldMask`): a second GM keeps the name cut, the side that hides.
+ */
+async function keepHeldMask(id, rows) {
+    const entry = read()[id];
+    if (!game.user?.isGM || !entry) return false;
+    const hid = heldMaskOf(entry.hid, rows);
+    if (hid.length === (Array.isArray(entry.hid) ? entry.hid.length : 0)) return false;
+    await write({ ...read(), [id]: { ...entry, hid } });
+    return true;
+}
+
 /** The killer revealed themselves: their name is no longer kept cut on any card this browser holds (`heldMaskNames`). */
 export async function forgetHeldMask(actorId) {
     if (!actorId) return 0;
@@ -573,10 +592,12 @@ function sendWords(readers, packet, { clean = false, hid = null } = {}) {
     const html = String(packet.html ?? "");
     // A GM's copy also carries the uncut words, for the readers who were away (`lines`, above); a player's never does.
     const lines = game.user?.isGM && hasLines(html) ? (clean ? cleanCardHtml(html) : html) : null;
+    // And who stood behind a mask when this GM kept the words (`hid`, "THE SECOND GM", above `heldMaskNames`); a player's never.
+    const held = game.user?.isGM ? heldMaskOf(hid) : [];
     const byWords = new Map();
     for (const id of readers) {
         const words = clean ? cleanCardHtml(wordsFor(id, html, hid)) : wordsFor(id, html, hid);
-        const gm = Boolean(lines) && Boolean(game.users.get(id ?? "")?.isGM);
+        const gm = (Boolean(lines) || held.length > 0) && Boolean(game.users.get(id ?? "")?.isGM);
         const key = `${gm ? "gm" : "player"}\u0000${words}`;
         const group = byWords.get(key) ?? { words, gm, recipients: [] };
         group.recipients.push(id);
@@ -585,7 +606,9 @@ function sendWords(readers, packet, { clean = false, hid = null } = {}) {
     for (const { words, gm, recipients } of byWords.values()) {
         const sent = words === html ? { ...packet } : { ...packet, html: words };
         delete sent.lines;
-        if (gm) sent.lines = lines;
+        delete sent.hid;
+        if (gm && lines) sent.lines = lines;
+        if (gm && held.length) sent.hid = held;
         game.socket.emit(SOCKET_EVENT, sent, { recipients });
     }
 }
@@ -823,16 +846,22 @@ export function contentOf(message) {
  * @param {boolean} [trusted]  Written by a GM, as the GM wrote it. Anything else
  *   is cleaned before it is shown - see the note above `MAX_PLAYER_BYTES`.
  */
-/* The masked kept with a card's words: those held before and those masked now, one row a character. */
-function heldMaskOf(before, now) {
+/* The masked kept with a card's words: those held before, those another GM held (a packet's `hid`) and those masked
+   now, one row a character. A packet's rows are a GM's (`onSecretPacket` reads them only from a GM), bounded all the
+   same: an actor's id, a name of at most `HID_NAME_MAX` characters, `HID_ROWS_MAX` rows. */
+const HID_ROWS_MAX = 32, HID_NAME_MAX = 200;
+function heldMaskOf(...lists) {
     const rows = new Map();
-    for (const row of [...(Array.isArray(before) ? before : []), ...(Array.isArray(now) ? now : [])]) {
-        if (typeof row?.id === "string" && row.id) rows.set(row.id, { id: row.id, name: String(row.name ?? "") });
+    for (const row of lists.flatMap(list => (Array.isArray(list) ? list : []))) {
+        if (rows.size >= HID_ROWS_MAX) break;
+        if (typeof row?.id === "string" && /^[A-Za-z0-9]{1,64}$/.test(row.id)) {
+            rows.set(row.id, { id: row.id, name: String(row.name ?? "").slice(0, HID_NAME_MAX) });
+        }
     }
     return [...rows.values()];
 }
 
-async function remember(id, html, at, pin = false, trusted = false, summary = undefined, meta = undefined, readers = undefined, lines = undefined, { authorHold = false } = {}) {
+async function remember(id, html, at, pin = false, trusted = false, summary = undefined, meta = undefined, readers = undefined, lines = undefined, { authorHold = false, hidGiven = null } = {}) {
     const words = trusted ? html : cleanCardHtml(html);
     // A GM's uncut words, from a GM (above): kept with these words, and gone with words that carry none.
     const uncut = trusted && game.user?.isGM && typeof lines === "string" && hasLines(lines) ? lines : null;
@@ -845,8 +874,9 @@ async function remember(id, html, at, pin = false, trusted = false, summary = un
     const facts = summary === undefined ? (read()[id]?.summary ?? null) : plainSummary(summary);
     // And its meta, with whatever the new packet adds to it - `settleCall`'s `settled`.
     const kept = plainMeta({ ...(read()[id]?.meta ?? {}), ...(plainMeta(meta) ?? {}) });
-    // Who stood behind a mask when these words came, with whoever did before (`heldMaskNames`): a GM's alone.
-    const hid = game.user?.isGM ? heldMaskOf(read()[id]?.hid, maskedNow()) : null;
+    // Who stood behind a mask when these words came, with whoever did before and whoever the GM who sent them kept
+    // (`hidGiven`, 1.2.121: `heldMaskNames`, "THE SECOND GM", below): a GM's alone.
+    const hid = game.user?.isGM ? heldMaskOf(read()[id]?.hid, hidGiven, maskedNow()) : null;
     const store = { ...read(), [id]: {
         html: words, at: at ?? Date.now(), user: game.user?.id ?? null,
         ...(facts ? { summary: facts } : {}),
@@ -1040,7 +1070,9 @@ export function answerWordsRequest(payload, senderId) {
         game.socket.emit(SOCKET_EVENT, {
             action: ACTION_SECRET, id, html: wordsFor(sender.id, words, entry.hid), at: entry.at ?? message.timestamp ?? Date.now(),
             pin: Boolean(entry.pin), requested: true,
-            ...(entry.summary ? { summary: entry.summary } : {}), ...(entry.meta ? { meta: entry.meta } : {})
+            ...(entry.summary ? { summary: entry.summary } : {}), ...(entry.meta ? { meta: entry.meta } : {}),
+            // To another GM, who stood behind a mask when this GM kept the words ("THE SECOND GM", above `heldMaskNames`).
+            ...(sender.isGM && Array.isArray(entry.hid) && entry.hid.length ? { hid: heldMaskOf(entry.hid) } : {})
         }, { recipients: [sender.id] });
         sent.push(id);
     }
@@ -1275,7 +1307,7 @@ async function post(data, { clean = false, outcome = null } = {}) {
         try {
             sendWords(others,
                 { action: ACTION_SECRET, id: message.id, html, at, pin, ...(summary ? { summary } : {}), ...(meta ? { meta } : {}) },
-                { clean });
+                { clean, hid: game.user.isGM ? heldMaskOf(read()[message.id]?.hid, maskedNow()) : null });
         } catch (err) {
             // The card exists and says nothing. Better than the reverse.
             error("Could not deliver a private card's words", err);
@@ -1555,12 +1587,17 @@ export async function onSecretPacket(payload, senderId) {
         }
         // A GM keeps a GM-written card's readers as its document names them (`readersOf`); another's stay as held.
         const arrived = game.messages.get(payload.id);
-        // A second GM's answer to the same ask: the words are here already (E18 C4).
-        if (payload.requested === true && secretHtml(arrived) !== null) return;
+        // Who stood behind a mask when the sending GM kept these words: a GM keeps them too ("THE SECOND GM").
+        const hidGiven = game.user.isGM ? heldMaskOf(payload.hid) : [];
+        // A second GM's answer to the same ask: the words are here already (E18 C4); what it kept masked is kept too.
+        if (payload.requested === true && secretHtml(arrived) !== null) {
+            if (hidGiven.length) await keepHeldMask(payload.id, hidGiven);
+            return;
+        }
         const readers = game.user.isGM && writtenByGm(arrived) ? readersOf(arrived, { quiet: true }) : undefined;
         await remember(payload.id, payload.html, payload.at, Boolean(payload.pin), true,
             payload.summary === undefined ? undefined : plainSummary(payload.summary), payload.meta, readers,
-            typeof payload.lines === "string" ? payload.lines : undefined);
+            typeof payload.lines === "string" ? payload.lines : undefined, { hidGiven });
         // Words asked for after a return are mostly an old card's, which the log may not draw (`redrawIfDrawn`).
         if (payload.requested === true) redrawIfDrawn(game.messages.get(payload.id));
         else refresh(game.messages.get(payload.id));

@@ -1,0 +1,590 @@
+{
+ "reader": "stages-22",
+ "checkout": "main b5a29e73 (1.2.118), read on the audit branch; nothing run but read-only git and three parsing scripts kept in the scratchpad (exports.mjs, importers.py, purity.py, stale.py)",
+ "read_counts": {
+  "release_notes_lines": 524,
+  "stage_papers_lines": "docs/dev/e108/STATUS.md whole, docs/dev/e38/STATUS.md 113, docs/dev/e59/GAPS.md 1-80",
+  "module_source_read": "dice-look.mjs 36-449, dice-sync.mjs 170-376 and 536-750 and 905-1173, settings.mjs 1440-1524 and 4484-4660, settings-window.mjs 150-215 and 395-440, window-scale.mjs whole (225), secret.mjs 40-75 and 650-695 and 772-830 and 850-1010 and 1160-1384, gm-items.mjs 1425-1630, bridge-asks.mjs 170-200, bridge-runs-records.mjs 905-940, bridge-table.mjs 1570-1612, murder-rules.mjs 3670-3712, trial-modes.mjs 395-470, gm-store.mjs 330-400, inventory.mjs 1005-1160",
+  "tests_read": "tier 0: R5466, R5000, R5001, R4800, R4802-R4805; tier 1: R5460-R5465, R5467, R4801; tier 2: the five E108 tests (tests-tier2.mjs:94522-94737); scenarios 97-two-gms (332 lines) and 98-chaos (166 lines) whole",
+  "git_objects": "export sets of 7 facades at 4 commits each; import lists of 16 new files; importers of them over 265 and 271 files; the diffs of 7 split commits; 417 files scanned for stale references",
+  "base_run": "tier01.log: 16 of this group's numbered tests found, all ok"
+ },
+ "stages": [
+  {
+   "id": "E108",
+   "version": "1.2.112",
+   "shipped": "2026-11-13",
+   "what": "The table's dice look as one choice of three in the game's settings (each player's own, everyone Dice So Nice's, everyone Daggerheart's), laid on each throw as a display-only copy; with it, the forced look carries the source Gamemaster's Dice So Nice role looks (Q-E108-2). Built on the DH212b line, which is not a ledger stage.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.112.md (1-33 the train and E108's part, 162-183 Before installing, 236-288 Repository, Known gaps, Checked)",
+    "docs/dev/e108/STATUS.md (whole: the survey, what is built, Measured, Not tried, Q-E108-2 built)",
+    "audit/AUDIT-1.2.42.md:1492 (item 513, LIVE-E108-01; 9.2 has no block beginning 'Po E108', the item stands alone)",
+    "tools/stages.json row E108 (touches sockets and rolls, no drills)",
+    "git log --oneline v1.2.111..v1.2.112 (213 commits; 10 name E108: d2dcfb9c, 71331273, beaa83d8, c3ba78fd, 5ef2a88b, 3a841287, abe0972f, the merges cba4c190 and 9a735dd6, the release af9792c5)"
+   ],
+   "commits": 213,
+   "commits_naming_stage": 10,
+   "promises": [
+    {
+     "promise": "The game's settings (Rolls and privacy) show one choice of three where the switch stood, worded in English and Polish: Each player's own, Everyone: Dice So Nice, Everyone: Daggerheart.",
+     "source": "v1.2.112.md:24-26; STATUS.md 'Step 2' and 'The choices' words'",
+     "code": "scripts/settings-window.mjs:166 controlHtml, :188 settingRowHtml (reads diceLookChoice at :194), :417 saveSettings' dice look branch; scripts/settings.mjs:1453 DICE_LOOK_CHOICES; lang/en.json:273-281, lang/pl.json:273-281",
+     "holds": "yes",
+     "test": "R5463 (tier 1), R5466 (tier 0), tier 2 'the game's settings window saves the table's dice look as one choice of three (E108)'",
+     "test_kind": "both",
+     "note": "R5463 draws the row and reads its select; R5466 reads both language files and the GM handbook's line as served. Both ok in the base run (tier01.log:1251, :282)."
+    },
+    {
+     "promise": "A world from before reads its switch as it did (on is Dice So Nice's look, off each player's own), with no write and no migration; the choice is held in forceDiceLook plus the new world setting diceLookKind (default dsn).",
+     "source": "v1.2.112.md:164-167; STATUS.md 'How an existing world reads it'",
+     "code": "scripts/settings.mjs:1456 diceLookChoice, :1472 diceLookWrites, :1509-1514 the registration; migrate.mjs gained no clause (v1.2.112.md:180)",
+     "holds": "yes",
+     "test": "R5460 (tier 1)",
+     "test_kind": "behaviour",
+     "note": "Pure functions on stub readers: eight readings of the choice (unset, unregistered and junk kinds among them) and ten of the writes, kind before switch. ok in the base run (tier01.log:1248)."
+    },
+    {
+     "promise": "With Daggerheart chosen, on Daggerheart 2.10 and later every throw a browser draws is handed to Dice So Nice as a copy whose Hope, Fear, advantage and disadvantage dice carry Daggerheart's four colorsets, whoever throws, a GM too; the roll itself is never changed.",
+     "source": "v1.2.112.md:26-29; STATUS.md 'How the Daggerheart value is applied'",
+     "code": "scripts/dice-look.mjs:80-96 registerDiceLook and onRollStart (the diceSoNiceRollStart listener), :116-138 layOnThrow (writes context.dsnRoll, never context.roll), :145 DAGGERHEART_DICE, :154-159 tableDualityLookFor, :183-205 layDualityLook",
+     "holds": "yes",
+     "test": "R5461, R5462 (tier 1); tier 2 'with Daggerheart's look chosen, every throw this browser draws on Daggerheart 2.10 and later carries Daggerheart's four colorsets on its duality dice, whoever throws, and with Dice So Nice's or each player's own it carries none (E108)'",
+     "test_kind": "behaviour",
+     "note": "layOnThrow never reads who throws (context.user is not read), so 'whoever throws' holds by reading. The tier-2 test calls layOnThrow with a stand-in system 2.12.8, not through the hook; the hook's road with a 2.9 preset is E60-T16's (tests-tier2.mjs:94380-94432 fires diceSoNiceRollStart). Only top-level terms of the roll are read (dice-look.mjs:187), as R1298 and R5462 hand them."
+    },
+    {
+     "promise": "What the table sees: yellow Hope, blue Fear, green advantage and red disadvantage dice on every screen, above a player's own role look and the world's role scopes.",
+     "source": "v1.2.112.md:26-28; docs/handbooks/gm-handbook.en.md:69; STATUS.md 'Not tried, and open'",
+     "code": "Dice So Nice's own DiceFactory (STATUS cites engine/DiceFactory.js:2179-2234 of 6.4.5, 'priority 1'); not a file of this repository",
+     "holds": "unknown",
+     "test": "none (LIVE-E108-01, item 513, not read)",
+     "test_kind": "none",
+     "note": "The harness reads the copy Dice So Nice is handed, not what it draws (AUDIT item 513's last sentence; STATUS: 'Nothing here was tried at a table'). No reading in live-readings-e58.json or live-readings-other.json."
+    },
+    {
+     "promise": "Under the Daggerheart value the basic dice keep the source GM's Dice So Nice look, as under the Dice So Nice value.",
+     "source": "v1.2.112.md:28; STATUS.md table of the three values",
+     "code": "scripts/dice-sync.mjs:274-277 enforcing() reads forceDiceLook alone; diceLookKind is named in dice-sync.mjs only at :178-180 (SWITCHES), so the forced look's sweep and put-back run the same under both Everyone values",
+     "holds": "yes",
+     "test": "none for the Daggerheart value itself (R940, R3603 and the tier-2 dice look tests hold the forced look with the switch on)",
+     "test_kind": "none",
+     "note": "Held by reading. An owner's question stays open (Q-E108-1, STATUS.md last lines; v1.2.112.md:257-258)."
+    },
+    {
+     "promise": "diceLookKind is held to a full Gamemaster's value: an Assistant GM's write is put back.",
+     "source": "v1.2.112.md:166-167; STATUS.md 'Both keys are held'",
+     "code": "scripts/dice-sync.mjs:180 SWITCHES, :321-335 onSwitchWritten, :344-376 holdSwitches",
+     "holds": "yes",
+     "test": "R5464 (tier 1); tier 2 'an Assistant GM's write of the table's dice look kind is put back, heard or written with no hook (E108)'",
+     "test_kind": "both",
+     "note": "Only on the primary GM's browser and only with Dice So Nice active (registerDiceSync returns at dice-sync.mjs:208-211 without it), as for the other switches. R5464 reads the registration live and SWITCHES off the source text."
+    },
+    {
+     "promise": "The forced look carries the source Gamemaster's Dice So Nice role looks: written on every user below full Gamemaster, a player's or an Assistant's own (on the user or on a character) put back, an actor's row in the GMs' store gaining 'roles'.",
+     "source": "v1.2.112.md:29-30, 168-169; STATUS.md 'Q-E108-2 built'",
+     "code": "scripts/dice-sync.mjs:590-593 sourceLookOf, :671-679 lookFrom, :698-701 lookOf, :728-730 holdsTableLook, :942-950 rolesOf and heldRoles, :983-989 takeUnseenOverlays (fills 'roles' weakly, per field: gm-store.mjs:378-379), :1061-1088 putBackOverlay, :1140-1166 writeLooks",
+     "holds": "yes",
+     "test": "R5467 (tier 1); tier 2 'a player's own look for a Dice So Nice role goes back to the GM's, and the GM's role looks reach every player (E108, Q-E108-2)' and 'a player's or an Assistant's role look on a character goes back to the GMs' and a full Gamemaster's own stands (E108, Q-E108-2)'",
+     "test_kind": "behaviour",
+     "note": "Shipped in 1.2.112 (abe0972f is an ancestor of v1.2.112); STATUS.md and AUDIT item 513 say 1.2.113 (finding E108-2). What Dice So Nice 6.4.5 draws from the flag is part of LIVE-E108-01."
+    },
+    {
+     "promise": "The dice look's diagnostic no longer says Daggerheart's roles are unforced where this browser lays Daggerheart's dice.",
+     "source": "docs/dev/R-REGISTRY.md:1481 (R5465); STATUS.md point 3",
+     "code": "scripts/dice-look.mjs:169-174 tableLookHere, :423 the rolesUnforced line",
+     "holds": "yes",
+     "test": "R5465 (tier 1)",
+     "test_kind": "behaviour",
+     "note": "True for the Daggerheart value. For the Dice So Nice value the same sentence is still raised and is no longer true since Q-E108-2 (finding E108-1)."
+    },
+    {
+     "promise": "The handbooks name the setting and each choice; without Dice So Nice there are no 3D dice whatever the choice.",
+     "source": "v1.2.112.md:30-31, 182-183",
+     "code": "docs/handbooks/gm-handbook.en.md:69, :91; docs/handbooks/player-handbook.en.md:92; scripts/dice-look.mjs:81 (the listener hangs on Dice So Nice's own hook)",
+     "holds": "yes",
+     "test": "R5466 (tier 0), R803, R806",
+     "test_kind": "source-read",
+     "note": "R5466 reads the served handbook and language files; the 'no 3D dice' half is a fact of Daggerheart's (STATUS point 1), held by reading."
+    }
+   ],
+   "registry_rows": 0,
+   "registry_note": "No row is stamped E108: its eight numbered tests R5460-R5467 carry the stamp E54 (docs/dev/R-REGISTRY.md:1476-1483), the first stage not shipped when the tool wrote them (tools/registry.mjs:149-165; v1.2.112.md:242-243 says so). R1256's count (39 table settings) is the ninth test the stage touched.",
+   "tests_read": [
+    {
+     "test": "R5460",
+     "measures": "yes",
+     "why": "Calls diceLookChoice and diceLookWrites on stub readers and compares every answer; a wrong mapping of an old world's switch fails it."
+    },
+    {
+     "test": "R5461",
+     "measures": "yes",
+     "why": "Calls tableDualityLookFor over choices, systems and versions (2.6.5 to 3.0.1) and compares by identity with the preset and DAGGERHEART_DICE."
+    },
+    {
+     "test": "R5462",
+     "measures": "yes",
+     "why": "Hands layDualityLook a fixed roll JSON; reads each die's own colorset, appearance, model file and effect on the copy, and that the roll handed in is byte-equal after."
+    },
+    {
+     "test": "R5463",
+     "measures": "yes",
+     "why": "Builds the row with settingRowHtml and reads the select, its three options and the selected one against diceLookChoice()."
+    },
+    {
+     "test": "R5464",
+     "measures": "weak",
+     "why": "The registration is read live, but that the kind is held is read off the text of SWITCHES; the put-back itself is the tier-2 test's."
+    },
+    {
+     "test": "R5465",
+     "measures": "yes",
+     "why": "Calls lookFindings on two built views. It also pins that rolesUnforced is raised whenever no table look is laid, which is the sentence finding E108-1 calls stale for the Dice So Nice value."
+    },
+    {
+     "test": "R5466",
+     "measures": "yes",
+     "why": "Fetches both language files and both GM handbooks; three distinct worded choices, the setting and each choice in the handbook's line, no key still naming the old switch."
+    },
+    {
+     "test": "R5467",
+     "measures": "yes",
+     "why": "Calls lookFrom and holdsTableLook on stub users: the source's role looks carried, a library die owned by the source, a user's own Hope look read as not the table's."
+    },
+    {
+     "test": "tier 2 'with Daggerheart's look chosen, every throw this browser draws ...'",
+     "measures": "weak",
+     "why": "Drives layOnThrow under the three settings and reads the copy's colorsets, but with a stand-in system and not through the hook, and it reads the copy, not a drawn die."
+    },
+    {
+     "test": "tier 2 'an Assistant GM's write of the table's dice look kind is put back ...'",
+     "measures": "yes",
+     "why": "Writes the kind as an Assistant (heard through the hook, and with no hook then a player's message) and waits for the full Gamemaster's value to come back."
+    }
+   ],
+   "tests_to_join": [
+    "the game's settings window saves the table's dice look as one choice of three (E108)",
+    "an Assistant GM's write of the table's dice look kind is put back, heard or written with no hook (E108)",
+    "with Daggerheart's look chosen, every throw this browser draws on Daggerheart 2.10 and later carries Daggerheart's four colorsets on its duality dice, whoever throws, and with Dice So Nice's or each player's own it carries none (E108)",
+    "a player's own look for a Dice So Nice role goes back to the GM's, and the GM's role looks reach every player (E108, Q-E108-2)",
+    "a player's or an Assistant's role look on a character goes back to the GMs' and a full Gamemaster's own stands (E108, Q-E108-2)",
+    "E60-T16",
+    "17-assistant",
+    "83-roll-integrity"
+   ],
+   "scenarios": [
+    "none registered: no row of audit/harness/README.md's register names E108 (STATUS.md line 3: 'No new scenario'); STATUS quotes 83-roll-integrity 110/110 and 17-assistant 46/46 as the scenarios that read the files it changed"
+   ],
+   "live": {
+    "items": 1,
+    "read": 0,
+    "ids_read": []
+   },
+   "findings": [
+    {
+     "id": "E108-1",
+     "severity": "nit",
+     "title": "The dice look's diagnostic still says the forced look does not set the Hope and Despair role dice, which stopped being true in the same release",
+     "where": "scripts/dice-look.mjs:423; lang/en.json:4747; lang/pl.json:5087; scripts/dice-sync.mjs:671-679, :1140-1146; scripts/tests-tier1.mjs:40708-40733 (R5465)",
+     "what_happens": "On Daggerheart 2.10 and later lookFindings raises rolesUnforced whenever this browser lays no table look, so with Everyone: Dice So Nice (the default; tableDualityLookFor answers null there, dice-look.mjs:154-158) the report says 'Daggerheart {version} colors its Hope and Despair dice by Dice So Nice roles, which the table's forced look does not set.' Since abe0972f the forced look is the source Gamemaster's roleAppearance too, written on every user below full Gamemaster and put back (writeLooks, putBackOverlay), and the GM handbook says so (gm-handbook.en.md:69). R5465 expects the code to be raised in exactly that view (none: ['rolesUnforced']).",
+     "failure_scenario": "A GM on Daggerheart 2.12.9 with the default choice presses Open the dice look (game.drpg.diagnoseDiceLook()) because a player's Hope die looked different: the report tells them the table's look does not reach the role dice, though the module has just written the GM's role looks on that player and would put the player's own back.",
+     "confidence": "read",
+     "refutation_tried": "Looked for a later change of the sentence or the condition: git log -S of the sentence over lang/en.json names only E60 C5b (306c17ab); dice-look.mjs changed after v1.2.112 only for the verified version and an export sweep. Looked for a reading under which the sentence is still true: the world's Dice So Nice role scopes are not written by the module, but the thrower's and the actor's role looks, the layer above them, are."
+    },
+    {
+     "id": "E108-2",
+     "severity": "nit",
+     "title": "The stage's paper and its live check say the role looks came in 1.2.113; they shipped in 1.2.112",
+     "where": "docs/dev/e108/STATUS.md:74, :97, :147; audit/AUDIT-1.2.42.md:1492 ('od 1.2.113, Q-E108-2'); .github/release-notes/v1.2.112.md:29-30",
+     "what_happens": "abe0972f (the role looks) is an ancestor of the tag v1.2.112 and v1.2.112's dice-sync.mjs names roleAppearance 18 times; the notes of 1.2.112 say it 'came with the line's tip'. STATUS.md and item 513 still date it 1.2.113.",
+     "failure_scenario": "Whoever runs LIVE-E108-01 on a 1.2.112 world expects a player's own Hope role look to stand under Everyone: Dice So Nice, as the item's 'since 1.2.113' implies, and records the put-back as a defect.",
+     "confidence": "read",
+     "refutation_tried": "git merge-base --is-ancestor abe0972f v1.2.112 answers yes; git show v1.2.112:scripts/dice-sync.mjs holds the role looks."
+    },
+    {
+     "id": "E108-3",
+     "severity": "nit",
+     "title": "The setting's Polish hint names two of the four dice the English one names",
+     "where": "lang/en.json:275; lang/pl.json:275",
+     "what_happens": "English: 'Everyone: Daggerheart gives Hope, Despair, advantage, and disadvantage dice Daggerheart's colors.' Polish: the option adds the Hope and Despair colours of that system. At 1.2.112 both named Hope and Despair alone; the text line's rewrite (366dbfcc, E71) widened the English sentence only.",
+     "failure_scenario": "A Polish GM reading the hint's tooltip does not learn that the advantage and disadvantage dice change colour too.",
+     "confidence": "read",
+     "refutation_tried": "Read both files at v1.2.112 and today; the code lays all four kinds (dice-look.mjs:145-146), so the English sentence is the true one. This is E71's drift on E108's key, not E108's own text."
+    }
+   ],
+   "superseded_by": [],
+   "grade": 9,
+   "grade_reasons": "Every promise the notes make has a named test that drives it and is ok in the base run's tiers 0-1 (R5460-R5467, tier01.log:1248-1254 and :282), and five tier-2 tests wait to be joined. The code read whole (dice-look.mjs 36-449, the role looks and switches of dice-sync.mjs, settings.mjs 1444-1514, the settings window's row and Save) shows no road on which the copy is not laid or the roll is changed. The main promise as a player meets it - Daggerheart's colours on every screen - rests on what Dice So Nice does with a term's own colorset, which was read in Dice So Nice's source by the stage and never seen: LIVE-E108-01 is not read, so 9 is the ceiling. Left besides: three nits (a stale diagnostic sentence, a version in the papers, a narrower Polish hint) and two owner's questions the notes list as defaults (Q-E108-1, the three words).",
+   "missing_to_10": "LIVE-E108-01 read on a v14 table with Dice So Nice 6.4.5 (each screen, both Everyone values, a player with a Hope role look of their own); the five tier-2 tests green in the joined run; rolesUnforced not raised (or reworded) where the forced look holds the role looks; STATUS.md and item 513 dated 1.2.112."
+  },
+  {
+   "id": "E54",
+   "version": "1.2.113",
+   "shipped": "2026-11-14",
+   "what": "Wave 3 of the file split (D23): seven families cut by pure moves into 16 new files behind facades (the sheet, a window's width, the window scaling, the Key Remnants, the clean-up's reshape, the chapter's death and body, the glass cut). Before the cuts, on the same line: the windows' size registered at init (W2), one place deciding a window's size (W6, Q-E54-7) and the glass cut made to read only its arguments (G2-G4).",
+   "claim_sources": [
+    ".github/release-notes/v1.2.113.md (1-15 the train, 156-161 'E54, the file split', 185-199 Known gaps, 201-236 Checked)",
+    "the path-scoped rules file code.md, 'Where the code lives' (the rows from scripts/sheet.mjs down and the paragraph 'Wave 3'); cited below as code.md",
+    "the stage's 39 commits 1463f22b..123f8242, messages read whole: e4b6ee1f (W2), 0a107604 (W4), 5cd8320c (W5), 0d91a2a3 (W6), 42091766 (Q-E54-7), 637c92c2 and 2b65f06f (G2-G4), c1bea88a, 82517370 (the sheet's split), 0c7f875d (code.md), 123f8242",
+    "docs/dev/e59/GAPS.md:40-52 (a later stage's reading of E54 against its plan, 14.11.2026)",
+    "no docs/dev/e54 folder; the plan (docs/dev/plans/E54.md) is on a branch this checkout does not hold; audit/AUDIT-1.2.42.md 9.2 has no block 'Po E54' and no item LIVE-E54-n",
+    "git log --oneline v1.2.112..v1.2.113 (644 commits; 61 name E54)"
+   ],
+   "commits": 644,
+   "commits_naming_stage": 61,
+   "commits_own_line": 39,
+   "promises": [
+    {
+     "promise": "Seven families are cut into smaller files by pure moves; each old file stays a facade that keeps its name and every name it exported.",
+     "source": "v1.2.113.md:158-161; code.md 'Where the code lives' and 'Wave 3'; each split commit's message ('moved-only HEAD~1, 8 parts all green')",
+     "code": "scripts/sheet.mjs (242 lines, 2 names of its own, 29 re-exported), scripts/settings.mjs:17, scripts/chapter.mjs, scripts/glass.mjs, scripts/cleanup.mjs, scripts/investigation.mjs, scripts/utils.mjs and the 16 files of code.md's rows; split commits 82517370, d2907da5, 1670d290, 070b7c5a, 6e353c70, 35f87645, f66b7243",
+     "holds": "yes",
+     "test": "none standing in the suite; tools/moved-only.mjs was run on each split commit and its result quoted in the commit message; node tools/check.mjs moves holds the tool's own planted pairs (quick.log:17: 43 of 43)",
+     "test_kind": "none",
+     "note": "Re-derived read-only for this audit (scratchpad exports.mjs, purity.py): at each of the seven split commits the facade's export set is the same before and after (31, 63, 76, 44, 38, 49, 44 names; none lost, none gained), and the commit's removed and added code lines match as a multiset except import and export-from lines and the new files' header comments (left-over other lines: 0 added; the few removed ones are name lists of multi-line imports). At HEAD each facade still exports every one of those names but glass.mjs's curtainHeld, removed on purpose as a dead export by E56 part 2 (7c7d007b)."
+    },
+    {
+     "promise": "No new file imports its own facade, and importers outside a family keep importing the facade.",
+     "source": "code.md, the four rules under 'Where the code lives' and 'No new file imports its own facade' (Wave 3)",
+     "code": "the import lists of the 16 new files at HEAD (scratchpad exports.mjs): none names its facade, statically or in a literal import(); scripts/gm-bridge.mjs:139",
+     "holds": "partly",
+     "test": "R161 (no static import cycle; a new file importing its facade statically would close one)",
+     "test_kind": "source-read",
+     "note": "First half holds at the split and at HEAD. Second half held at 123f8242 (no module file outside a family imported a new file; scratchpad importers.py, 265 files read) and has one exception at HEAD: gm-bridge.mjs:139 reads key-remnants.mjs by import() for wireChargeHeld, a name E109 added (95bf8d12) and the facade does not re-export. code.md's sentence that fog.mjs and fog-diagnostics.mjs are 'the one pair of importers outside a family that does' is no longer the whole list. A later stage's doing, not the split's."
+    },
+    {
+     "promise": "16 new files; 253 module files in scripts/ where 1.2.112 had 230; code.md carries a row for each new file.",
+     "source": "v1.2.113.md:160-161; code.md 'Wave 3' (265 where 1463f22b had 249, the test files counted in)",
+     "code": "git ls-tree counts: v1.2.112 242 files of which 12 tests; 1463f22b 249; 123f8242 265; v1.2.113 266 of which 13 tests (253 module files); code.md rows from scripts/sheet.mjs to scripts/glass-blocks.mjs",
+     "holds": "yes",
+     "test": "none (counted for this audit)",
+     "test_kind": "none",
+     "note": "Both counts are right by their own definition. Three numbers in code.md's rows have drifted since through later stages: sheet-header.mjs exports 22 names (row: 18), key-remnants.mjs 30 (row: 28), sheet-actions.mjs is 1558 lines (row: 1545). The leaf claims hold at HEAD: windows.mjs and glass-blocks.mjs import nothing, window-scale.mjs imports config.mjs alone, sheet-mode.mjs reads no file of its family."
+    },
+    {
+     "promise": "The suite's readers are pointed at the new files and the comments swept to say where the code stands.",
+     "source": "v1.2.113.md:159-160; the commits '... the suite's readers pointed at the family' and '... the comment sweep' of each family",
+     "code": "scripts/tests-kit.mjs:1766-2060 (GLASS_FAMILY, CHAPTER_FAMILY, CLEANUP_FAMILY, INVESTIGATION_FAMILY, SETTINGS_FAMILY, UTILS_FAMILY, SHEET_FAMILY with glassText, glassFetch, glassBy and their six siblings, each refusing by must when a family file is missing or empty); :1271-1275 fnSource refuses when the function is not declared in the text handed",
+     "holds": "yes",
+     "test": "the kit's must guards on every run; tiers 0-1 of the base run 1776 passed, 0 failed, 16 skipped",
+     "test_kind": "behaviour",
+     "note": "Counted in tiers 0 and 1: 53 and 42 lines call one of the seven family readers. A few tests still read a facade's own text; the twelve read here (cleanup.mjs report, resolveStageSix, resolveCleanup, resolveTransformRoad, destroyTools; investigation.mjs caseTracesPanel, applyDashboardSave, caseKeyCells, schemaEditor; utils.mjs whisperToOwner, record; glass.mjs rebuildAll, followTurn; settings.mjs applyTheme, lowScreen) each cut a function that still stands in the facade at HEAD. Comments: a scan of 417 files for '<facade>.mjs `name`' over the 363 top-level names that moved finds 2 leftovers (a data string at scripts/trial-progress.mjs:347 and a test comment at scripts/tests-tier1.mjs:38902). One comment block moved into a file where it has no code (finding E54-2)."
+    },
+    {
+     "promise": "W2: the windows' size is registered at init by registerWindows(readers), once; scaleWindow and scaleMemo read the slider, the layout height and the registration through the readers handed over.",
+     "source": "commit e4b6ee1f; docs/dev/R-REGISTRY.md:1433-1434",
+     "code": "scripts/window-scale.mjs:129-146 scaleWindow, :207-225 registerWindows; scripts/module.mjs:198",
+     "holds": "yes",
+     "test": "R4800 (tier 0), R4801 (tier 1)",
+     "test_kind": "both",
+     "note": "Both ok in the base run (tier01.log:461, :1770)."
+    },
+    {
+     "promise": "W6 and Q-E54-7: one place decides a module window's size; the sheet's two heights are the numbers they were.",
+     "source": "commits 0d91a2a3, 42091766; docs/dev/R-REGISTRY.md:1436-1437",
+     "code": "scripts/window-scale.mjs:62-73 scaledBox, :81-83 actionsTabHeight, :90-92 callsHeight; scripts/windows.mjs windowWidthFor; scripts/sheet-fit.mjs holdActionsTab, growForCalls",
+     "holds": "yes",
+     "test": "R4803 (tier 0), R4804 (tier 0)",
+     "test_kind": "both",
+     "note": "R4803 lists ui-kit.mjs settleKitWidth as a second place that states a size, an owner's question the commit and GAPS.md:48 both leave open."
+    },
+    {
+     "promise": "G2-G4: the glass cut's partitions read and write only their arguments, the callers measure the page and write what the cut returns; the cut then moves whole to glass-geometry.mjs and glass-blocks.mjs with the same answers byte for byte.",
+     "source": "commits 637c92c2, cc519fd0, 2b65f06f, 62cdf048, e460d969, f66b7243; docs/dev/R-REGISTRY.md:1438",
+     "code": "scripts/glass-geometry.mjs (1307 lines, imports glass-blocks.mjs alone), scripts/glass-blocks.mjs (88 lines, imports nothing); scripts/glass.mjs deskPage, curtainPage, stackPage, writeCut; audit/glass-golden.mjs",
+     "holds": "yes",
+     "test": "R4805 (tier 0); audit/glass-golden.mjs's byte comparison (2b65f06f: 276 cuts over 23 sizes the same) and glass-sweep, both recorded in commit messages, neither part of the base run",
+     "test_kind": "source-read",
+     "note": "R4805 ok in the base run (tier01.log:465). The byte comparison is a reading of 13.11.2026 in a commit message; it was not repeated here (no sweeps)."
+    },
+    {
+     "promise": "W4: a theme switch sizes every open window again, so the memo needs no theme (a record, no change).",
+     "source": "commit 0a107604; docs/dev/R-REGISTRY.md:1435",
+     "code": "scripts/settings.mjs:4640-4643 (applyTheme forgets each open window's drpgScaled and calls scaleWindow); scripts/window-scale.mjs:103-105 scaleMemo",
+     "holds": "yes",
+     "test": "R4802 (tier 0)",
+     "test_kind": "source-read",
+     "note": "GAPS.md:43-44 reads the stage's plan as promising the opposite for the user (a theme change and crossing 1224 px do not reset the size of open windows) and names the question for a real Foundry as LIVE-E54-01 and -02; the plan is not in this checkout and neither id is an item of 9.2 (finding E54-3)."
+    },
+    {
+     "promise": "The plan's C6 (the Remnants' migrations into migrate.mjs), C9 (glass.mjs's dead code, S12-77) and C10 (passages-gm.mjs).",
+     "source": "docs/dev/e59/GAPS.md:46 (the plan itself is not in this checkout)",
+     "code": "scripts/remnants.mjs:2668 migrateRemnants, :2773 migrateRemnantsOnce, :2931 migrateRemnantToken; scripts/glass.mjs:1929 'const W = fullW'; scripts/passages-gm.mjs 3304 lines",
+     "holds": "no",
+     "test": "none",
+     "test_kind": "none",
+     "note": "Not done, as GAPS.md says, and still so at HEAD. The release notes' Known gaps do not carry it (finding E54-3). Whether these were promises of the shipped stage or scope the owner dropped is not established: no paper in the repository says."
+    }
+   ],
+   "registry_rows": 257,
+   "registry_note": "257 rows carry the stamp E54 (R3990 to R7050 in 60 runs of numbers) and none of them is E54's own test: the stamp names the first stage not shipped when the tool wrote the row (tools/registry.mjs:149-165). By their titles they are needsCode's, E101's, E102's, the privacy line's, E62's, E100's, E108's, E59's and others'. E54's six tests R4800-R4805 carry the stamp E93 (docs/dev/R-REGISTRY.md:1433-1438).",
+   "tests_read": [
+    {
+     "test": "R4800",
+     "measures": "yes",
+     "why": "Reads the family's text with comments stripped: the two render hooks inside registerWindows and nowhere else, module.mjs calling it once under safely before registerSettings, no settings reader called in scaleWindow or scaleMemo. The promise is about where code stands, so a source read is the fitting measure; guarded by must on the texts' lengths."
+    },
+    {
+     "test": "R4801",
+     "measures": "yes",
+     "why": "Counts scaleWindow on the two hooks as the harness holds them, calls registerWindows again with readers that throw, then sizes a stand-in sheet: a second registration that kept its readers fails it (it did once, the comment says)."
+    },
+    {
+     "test": "R4802",
+     "measures": "weak",
+     "why": "Pins the text of the line's own decision (applyTheme the one writer of the theme classes, its loop forgetting the memo); green at the base by design, it cannot say whether a window a user resized should snap back."
+    },
+    {
+     "test": "R4803",
+     "measures": "yes",
+     "why": "Reads every setPosition call of scripts/ and the function it stands in; a function giving a number of its own for a width or height is listed and fails; must of at least 5 sites."
+    },
+    {
+     "test": "R4804",
+     "measures": "yes",
+     "why": "Calls actionsTabHeight and callsHeight over 341 inputs against the old inline arithmetic copied into the test."
+    },
+    {
+     "test": "R4805",
+     "measures": "yes",
+     "why": "Reads glass-geometry.mjs and glass-blocks.mjs whole (at least 40 declarations) for any name of the page or the module's state, and every settleVoice call for its wall."
+    },
+    {
+     "test": "node tools/check.mjs moves (the base run's quick.log:17)",
+     "measures": "no",
+     "why": "It measures the moved-only tool on its planted fixture, not E54's seven commits; the proof of each move is the tool's one run quoted in that commit's message."
+    }
+   ],
+   "tests_to_join": [
+    "00-boot",
+    "01-runtests"
+   ],
+   "scenarios": [
+    "none registered: no row of audit/harness/README.md's register names E54. GAPS.md:51 records that the plan's 71-sheet, 84-viewports and styleSnapshot 'no difference' readings and C2's screenshots are recorded nowhere read."
+   ],
+   "live": {
+    "items": 0,
+    "read": 0,
+    "ids_read": []
+   },
+   "live_note": "GAPS.md:45 names LIVE-E54-01, -02 and -03 as the plan's; none was written into audit/AUDIT-1.2.42.md 9.2 (grep LIVE-E54 over the repository finds only GAPS.md).",
+   "findings": [
+    {
+     "id": "E54-1",
+     "severity": "nit",
+     "title": "The split's tools and manifests, which the notes and the test kit cite, are in no ref of the repository",
+     "where": ".github/release-notes/v1.2.113.md:158; scripts/tests-kit.mjs:1767-1768, :1813-1814, :1859-1860, :1905-1906, :1951-1952, :1997-1998, :2043-2044; the subjects of the 24 commits 'E54 <family>: ...', each naming a file under tools/e54",
+     "what_happens": "The notes say the families were cut 'by tools/e54/split.mjs', seven comment blocks of tests-kit.mjs say their family list was 'Written by tools/e54/repoint.mjs from that manifest (tools/e54/<family>.json)', and code.md's commit cites tools/e54/rows.mjs. tools/ at v1.2.113 and at HEAD holds no e54 folder, and git log --all finds no commit that ever touched tools/e54 or docs/dev/e54. The stage has no STATUS, SPEC or ledger paper in the repository.",
+     "failure_scenario": "A maintainer who adds a file to a split family reads in tests-kit.mjs that the family list is written by tools/e54/repoint.mjs from a manifest, looks for either, and finds neither: the list has to be kept by hand, and whether a manifest still matches the code cannot be asked.",
+     "confidence": "read",
+     "refutation_tried": "git ls-tree v1.2.113 tools/ and HEAD; git log --all --oneline -- 'tools/e54/*' and 'docs/dev/e54/*' (both empty on the refs fetched: main and the audit branch); a search of the tree for 'tools/e54'. docs/dev/e59/GAPS.md:50 records the same ('built on the e54-prep branch, not in base') with the verdict 'release notes', and the notes do not say it. tools/moved-only.mjs, which is in the repository, can still judge each split commit."
+    },
+    {
+     "id": "E54-2",
+     "severity": "nit",
+     "title": "A comment about hiding the other theme's switches moved into window-scale.mjs, where no code does that, and it says the opposite of what the settings window does today",
+     "where": "scripts/window-scale.mjs:25-43; scripts/settings-window.mjs:188-193, :166-180, :414",
+     "what_happens": "The block 'THE OTHER THEME'S SWITCHES ARE NOT SHOWN ... HIDDEN, not greyed ... The row is hidden, never disabled' stood in settings.mjs between rescaleSheets and the window scaling (line 4603 of 1670d290's parent) and went with the cut. Nothing in window-scale.mjs touches a settings row. The code it described left with E49 A1 (the hook's own comment, moved by c1bea88a, says the theme's show and hide 'went with them'), and the module's settings window now draws the other theme's setting disabled with the class is-off and skips a disabled field on Save.",
+     "failure_scenario": "Somebody changing the settings window reads in window-scale.mjs that a row of the other theme must be hidden and never disabled because a disabled field is dropped from the form, and takes it for a rule in force; the window does the opposite on purpose.",
+     "confidence": "read",
+     "refutation_tried": "Searched scripts/ for the code the comment describes (none; the sentence stands in window-scale.mjs alone); read the base's settings.mjs around the block and commit c1bea88a; git log -S of the heading finds only the split and the commit that first wrote it. The stage's comment sweep rewrote file names in comments, which this block has none of."
+    },
+    {
+     "id": "E54-3",
+     "severity": "nit",
+     "title": "What E54 left undone is written only in a later stage's paper: the notes, the ledger and 9.2 do not say it",
+     "where": "docs/dev/e59/GAPS.md:43-52; .github/release-notes/v1.2.113.md:185-199 (Known gaps: no line of E54's); tools/stages.json row E54; audit/AUDIT-1.2.42.md 9.2 (no LIVE-E54 item)",
+     "what_happens": "GAPS.md lists eight gaps of E54 against its plan, six of them with the verdict 'release notes': C6, C9 and C10 not done, the C2 memo keyed on scale and theme not built (R4802 holds the line's opposite decision), three deviations from the plan, the facades still at 3728, 3368, 3004 and 2449 lines, the proofs not in the base, the plan's 'no difference' readings recorded nowhere, and LIVE-E54-01 to -03 absent from 9.2. The 1.2.113 notes ship E54 as 'the file split' and name none of them; today glass.mjs is 3870 lines, remnants.mjs 3366, cleanup.mjs 3005, investigation.mjs 2547, passages-gm.mjs 3304.",
+     "failure_scenario": "A reader of the ledger and the notes takes E54 as the whole of its plan shipped, and nobody carries its three live checks (whether a window moved or resized by hand keeps its size across a theme switch or the 1224 px breakpoint) to a table, because they are items of no list.",
+     "confidence": "read",
+     "refutation_tried": "Read the notes' E54 paragraph, Known gaps and Checked whole; grepped 9.2 and the repository for LIVE-E54; checked the three code facts at HEAD (remnants.mjs:2668, :2773, :2931; glass.mjs:1929; wc -l). The plan itself could not be read (not in this checkout), so which of these the owner dropped on purpose is not established."
+    },
+    {
+     "id": "E54-4",
+     "severity": "nit",
+     "title": "The registry cannot say which tests are a stage's: 257 rows are stamped E54 and none is E54's, while E54's own six read E93",
+     "where": "docs/dev/R-REGISTRY.md:1433-1438 (R4800-R4805, stamp E93), :1444-1445 (R5000, R5001: E38's, stamp E54), :1476-1483 (R5460-R5467: E108's, stamp E54); tools/registry.mjs:149-165",
+     "what_happens": "A new number's Since is the first stage of tools/stages.json not shipped when --write runs, unless --stage names another; --stage refuses a stage the ledger does not know yet (STATUS of E108: 'registry.mjs --write --stage E108 refuses'). E54 stayed that first stage through 12-14.11.2026, so every line's new tests took its stamp.",
+     "failure_scenario": "This audit's own count of 'registry rows stamped with the stage' reads 257 for E54 and 0 for E108 and E38; a reviewer who grades a stage by its stamped rows credits E54 with other lines' tests and finds E108 and E38 untested.",
+     "confidence": "read",
+     "refutation_tried": "The notes of 1.2.112 say it openly (v1.2.112.md:242-243) and GAPS.md:52 lists R4800-R4805's stamp as open, so it is known; no later commit corrected the rows (the registry at HEAD still reads so)."
+    }
+   ],
+   "superseded_by": [],
+   "grade": 8,
+   "grade_reasons": "The stage's main promise holds on 1.2.118: the seven cuts are pure moves by every reading made here (each facade's export set unchanged across its split commit, the lines matching as a multiset, no new file importing its facade, the leaf claims of code.md true at HEAD), the readers of the suite were repointed behind guards that refuse an empty read, the comment sweep left 2 stale references among 363 moved names, and the six tests of the behaviour changes made before the cuts (R4800-R4805) are ok in the base run. It is an 8 and not a 9 because the main promise has no standing named test: it is held by one run of moved-only per commit, quoted in commit messages, and by this audit's reading; the tools and manifests the notes cite are not in the repository; and the stage shipped with part of its plan undone and three live checks never written down, facts that stand only in a later stage's paper. No defect a table would meet was found.",
+   "missing_to_10": "A standing check of the split (each facade's export list held in a file, or moved-only's verdict on the seven commits recorded by a tool in the repository); tools/e54 and the stage's papers in the tree, or the notes and tests-kit.mjs no longer citing them; C6, C9 and C10 done or written as dropped by the owner; LIVE-E54-01 to -03 as items of 9.2 and read; the orphan comment of window-scale.mjs removed; the registry's stamps of R4800-R4805 corrected."
+  },
+  {
+   "id": "E38",
+   "version": "1.2.113",
+   "shipped": "2026-11-14",
+   "what": "The multi-client harness: any client reloads and the primary GM changes (cluster.mjs reload, makePrimary, primaryOn), scenarios 97-two-gms and 98-chaos, and the two defects they found, fixed: Give a Truth Bullet carried to the primary so two GMs make one copy (bullet.give), and a private card a GM whispered to players alone kept by its author for a reader who was away (authorHold).",
+   "claim_sources": [
+    ".github/release-notes/v1.2.113.md (94-96 'Two GMs, and a player who was away', 152-154 the two registry rows E38's ship made due, 201-236 Checked)",
+    "docs/dev/e38/STATUS.md (1-113, whole)",
+    "docs/dev/e59/GAPS.md:54-65 (E38 against its plan)",
+    "audit/AUDIT-1.2.42.md:1502-1508 (items 519-522, LIVE-E38-01 to -04; 9.2 has no block 'Po E38')",
+    "audit/harness/README.md:205, :216, :219, :231-232 (the register's rows 64, 82, 85, 97, 98)",
+    "the plan docs/dev/plans/E38.md is on a branch this checkout does not hold",
+    "git log --oneline v1.2.112..v1.2.113 (644 commits; 15 name E38: C1 457786eb, C2 7c9b2ce0, C3 ea81b712, C4 e3c60252, C5 f5d9cf48, C5a dab9ebb8, seven STATUS and CI commits, 4201630c, and 1463f22b of the ledger)"
+   ],
+   "commits": 644,
+   "commits_naming_stage": 15,
+   "promises": [
+    {
+     "promise": "The harness reloads any client (a new process with the localStorage it closed with) and changes the primary GM.",
+     "source": "STATUS.md:13 (C1); audit/harness/README.md:612, :742",
+     "code": "audit/harness/cluster.mjs:810 reload, :839 primaryOn, :858 makePrimary, :1178 (handed to every scenario)",
+     "holds": "yes",
+     "test": "scenario 97 A (A0-A4b)",
+     "test_kind": "behaviour",
+     "note": "STATUS quotes a mutant killed here ('reload keeps no localStorage': A2, A3 red). What a real F5 does on v14 is LIVE-E38-01, LIVE-E30-05 and LIVE-E04-12."
+    },
+    {
+     "promise": "97-two-gms: the GMs' store both ways, a card claimed across the primary's reload settled once, one record of the store 'rolls' per roll across a change of primary, an open Frisk whose primary leaves handed back with no dice.",
+     "source": "STATUS.md:13-14 (C1, C2); README.md:231",
+     "code": "audit/harness/scenarios/97-two-gms.mjs:93-109 (B), :111-152 (C), :154-185 (D), :187-250 (F)",
+     "holds": "yes",
+     "test": "scenario 97 B1-B3, C1-C3, D1-D2, F1-F2",
+     "test_kind": "behaviour",
+     "note": "Each check is guarded by a reading the run made first (the header says so and the conditions do). Result to be joined."
+    },
+    {
+     "promise": "98-chaos: the only GM's reload with a card open, in the middle of an incident and in the middle of a vote.",
+     "source": "STATUS.md:15 (C3); README.md:232",
+     "code": "audit/harness/scenarios/98-chaos.mjs:46-65 (A), :97-119 (C), :121-163 (D)",
+     "holds": "yes",
+     "test": "scenario 98 A1-A2, C1-C2, D1-D2",
+     "test_kind": "behaviour",
+     "note": "Result to be joined."
+    },
+    {
+     "promise": "A Truth Bullet given on a second GM and the primary's find of the same trace make one copy, not two.",
+     "source": "v1.2.113.md:94-95; STATUS.md:16, :22-27 (fix 1, D153)",
+     "code": "scripts/bridge-wire.mjs:205 ACTION_BULLET_GIVE; scripts/bridge-table.mjs:1591-1601 (gmOnly, reply); scripts/bridge-asks.mjs:184-192 requestGiveBullet (onPrimary, local); scripts/bridge-runs-records.mjs:923-933 handleGiveBullet; scripts/gm-items.mjs:1444-1448 giveBullet (the receiver's finds' queue), :1570-1607 giveBulletNow, :1521-1540 giveToEveryone",
+     "holds": "yes",
+     "test": "R5000 (tier 0); scenario 97 G1",
+     "test_kind": "both",
+     "note": "Every maker of a copy from a trace now runs on the primary in the one queue (observe.mjs:1104, handover.mjs:305, trial-modes.mjs:452 the Reveal's floor step, gm-items.mjs:1446 through the bridge), so the two-GM race is closed for all four. The Give to Everyone of the same release goes the same road, once a student."
+    },
+    {
+     "promise": "A private card a GM whispered to a player who was offline reaches them when they come back.",
+     "source": "v1.2.113.md:95-96; STATUS.md:17-18, :28-40 (fix 2, the owner's answer of 13.11.2026: keep it)",
+     "code": "scripts/secret.mjs:1235-1243 (post keeps the words with authorHold and the readers), :660 secretHtml and :688 cardMeta (hidden from the author's own reads), :958-990 answerWordsRequest (served to a held reader alone), :1677 (left out of the author's day summary)",
+     "holds": "partly",
+     "test": "R5001 (tier 0); scenario 98 B2; scenario 73 R2",
+     "test_kind": "both",
+     "note": "Holds for a card posted once to its readers. It does not hold for readers a card was given later through updateSecret with recipients of its own, where the author's entry is neither updated nor widened (finding E38-1). The stated limit stands as written: no server copy, so a player whose card's GMs are all away waits (secret.mjs:55-64)."
+    },
+    {
+     "promise": "The flow 'truth-bullets' is covered, and scenario 64-migration-drill, never built, moves to E58.",
+     "source": "v1.2.113.md:152-154",
+     "code": "scripts/tests-flows.mjs:431-432 (status covered, stage 1.2.113, scenario 97-two-gms, bridge bullet.give); audit/harness/README.md:205",
+     "holds": "yes",
+     "test": "the FLOWS test (R160, not read here)",
+     "test_kind": "source-read",
+     "note": "The move of 64 is said in the notes; LIVE-E38-03 is its live half."
+    },
+    {
+     "promise": "The rest of the plan's scope: 85-chaos's list (parallel Eclipses, the pool and Search under a reload, a player with two characters), 82's scope of 11.10 (Testimony, Closing, an Objection in it, Logic Dive and the mutedDead write under a reload and a change of primary), a Frisk across two GMs answered by the GMs, a third account and a second GM in audit/live.",
+     "source": "STATUS.md:57-65 ('Not done'); GAPS.md:58-63",
+     "code": "audit/harness/scenarios/98-chaos.mjs:22-23 ('Not here'); 97-two-gms.mjs:188-192 (F drives the primary leaving, no friskAnswer by a GM); audit/live/sandbox-cluster.mjs (no gm2, reload or makePrimary: grep empty); scripts/inventory.mjs:1023-1025 ('Two GMs on two browsers are not chained (E36, E38)')",
+     "holds": "no",
+     "test": "none",
+     "test_kind": "none",
+     "note": "Not built, as the stage's own STATUS says; the 1.2.113 notes name only the migration drill of these. The item transfers' chain across two GMs' browsers, which the code comment hands to E38, was not taken up either."
+    }
+   ],
+   "registry_rows": 0,
+   "registry_note": "No row is stamped E38: its two numbered tests R5000 and R5001 carry the stamp E54 (docs/dev/R-REGISTRY.md:1444-1445). The stage wrote no tier-2 test (STATUS.md:45).",
+   "tests_read": [
+    {
+     "test": "R5000",
+     "measures": "weak",
+     "why": "Reads the text of the Give window's three functions (requestGiveBullet named, no giveBullet call) and of requestGiveBullet, and the live table row (first guard gmOnly, answer reply, the run calling giveBullet). It would fail if the window made the bullet on its own browser again; it drives no second browser."
+    },
+    {
+     "test": "scenario 97 G1",
+     "measures": "yes",
+     "why": "At one clock moment gm runs the find (mintFindCopy) and gm2 asks the Give through requestGiveBullet for the same receiver and trace; it counts the receiver's copies on both GMs (1 and 1, from 0) and reads the Give's answer."
+    },
+    {
+     "test": "R5001",
+     "measures": "weak",
+     "why": "Four patterns over secret.mjs's text (post remembers with authorHold when a GM is not among the recipients; secretHtml and cardMeta return for it). It pins the text, not that a returning reader is served."
+    },
+    {
+     "test": "scenario 98 B2",
+     "measures": "yes",
+     "why": "Closes p2's browser, has the GM post one card to p2 and itself and one to p2 alone, reconnects p2 with its storage and reads the words on p2 and the dash on the author GM."
+    },
+    {
+     "test": "scenario 97 A",
+     "measures": "yes",
+     "why": "Reads the primary on every client before and after a join, two reloads and a change of primary, with a localStorage key planted before each reload and the userConnected pairs the GM heard."
+    },
+    {
+     "test": "scenario 73 R2",
+     "measures": "weak",
+     "why": "Only its check line was read here (73-notice-history.mjs:656): p4 reads the words of a card whispered to it alone while away, not the 'sent elsewhere' line."
+    }
+   ],
+   "tests_to_join": [
+    "97-two-gms",
+    "98-chaos",
+    "73-notice-history",
+    "30-security",
+    "33-bridge-paths",
+    "E60-T9"
+   ],
+   "scenarios": [
+    "97-two-gms (ci, exists, E38): parts A-G as above; part H (a picked scene deleted, the other GM told) is a later line's. The register's words for G are stale: 'recorded as a note (G; Q-E38-2)', while G1 is a check since C4 (97-two-gms.mjs:284-286).",
+    "98-chaos (ci, exists, E38): parts A-D. The register's words for B are stale: 'wordless when none was', while B2 reads the words since C5 (98-chaos.mjs:93-95).",
+    "82 and 85 (retired, E38): built as 97 and 98.",
+    "64-migration-drill (local-gate, planned, now E58): never built; needs a v14 sandbox and copies of three worlds (LIVE-E38-03)."
+   ],
+   "live": {
+    "items": 4,
+    "read": 0,
+    "ids_read": []
+   },
+   "live_note": "LIVE-E38-01 to -04 are items 519-522. None is in live-readings-e58.json or live-readings-other.json; docs/dev/e58/TRIAGE-9.2.md:546-549 sorts them (three for a scripted session, the migration drill for fixtures) without a reading. STATUS.md contradicts itself on their numbers (line 81: 508-511; lines 84-90: 519-522).",
+   "findings": [
+    {
+     "id": "E38-1",
+     "severity": "minor",
+     "title": "The author's kept copy does not follow a card whose words were given to a second audience afterwards: a surviving victim's player who was away at an incident's close never gets its card",
+     "where": "scripts/murder-rules.mjs:3691-3708 tellIncidentClosed; scripts/secret.mjs:1343-1367 updateSecret (:1350), :1235-1243, :958-977 answerWordsRequest (:977)",
+     "what_happens": "tellIncidentClosed posts one veiled card to the seats' players other than a living victim's ('others'), then sends the victim's own words as the same card with updateSecret(message, ..., freed). post keeps the first words on the author GM with readers = others (authorHold). updateSecret writes the author's store only when the author is among the new readers (:1350), which a GM whispering to players alone never is, so the kept entry keeps the first words and the first readers. When the victim's player comes back and asks for the card (its whisper list is the whole table, the card being veiled), answerWordsRequest finds them not among the held readers and sends nothing. A veiled card with no words is not drawn, so that player never reads 'it is over, you can act again'.",
+     "failure_scenario": "A direct murder closes with the victim alive while the victim's player is reloading the browser: the killer's player (connected, or back later) reads the close card; the victim's player, back ten seconds later, is given no card at all, though the stage's promise is that a private card a GM whispered to a player who was offline reaches them on return.",
+     "confidence": "read",
+     "refutation_tried": "Read every caller of updateSecret (call-gm.mjs:547, :1195; migrate.mjs:1505; murder-rules.mjs:3705; reroll.mjs:770; sheet-audit.mjs:2880-2881): all but this one name readers that include the GMs or the card's own. Checked that the single-audience case is served (others empty: the card is posted to the victim's player and kept with them as its reader). Checked that this is no regression: before E38 neither group was served. Not run: 98 B posts through postSecret once and no scenario read drives an updateSecret to players alone across a return."
+    },
+    {
+     "id": "E38-2",
+     "severity": "nit",
+     "title": "The register and the stage's paper describe the scenarios as they were before the two fixes",
+     "where": "audit/harness/README.md:231 ('D153 ... recorded as a note (G; Q-E38-2)'), :232 ('wordless when none was (B)'); docs/dev/e38/STATUS.md:81 against :84-90; .github/release-notes/v1.2.113.md:185-199",
+     "what_happens": "97 G1 has been a check that fails on two copies since C4 and 98 B2 reads the words since C5, but the register's rows still say a note and a wordless card. STATUS names the live items 508-511 in one line and 519-522 in the next. The plan's unbuilt parts (promise 7) stand in STATUS and GAPS.md with the verdict 'release notes'; the notes name only the migration drill.",
+     "failure_scenario": "A reader of the register concludes that D153 across two GMs is only observed, not held, and that a card to an absent player alone is expected to come back wordless - the behaviour the owner reversed on 13.11.2026.",
+     "confidence": "read",
+     "refutation_tried": "Read 97-two-gms.mjs:252-289 and 98-chaos.mjs:67-95 against the two rows; GAPS.md:63 already lists row 98 and the item numbers as stale words, open."
+    }
+   ],
+   "superseded_by": [],
+   "grade": 7,
+   "grade_reasons": "What the notes promise of E38 works: the Give is one copy across two GMs by a bridge row whose road was read end to end and which a two-browser scenario drives at the same moment; a card whispered to an absent player alone is kept by its author and served to its readers; the harness's reload and change of primary are measured on their own before anything rests on them. Tier 0's R5000 and R5001 are ok in the base run (tier01.log:365-366) but read text; the behaviour is the scenarios', to be joined. It is a 7 because the stage is delivered in part and has one minor: the author-hold does not reach a second audience added through updateSecret (E38-1); a named share of the plan is not built (85's list, 82's trial modes under a reload, a Frisk answered across GMs, the transfers' chain across two GMs, the live cluster's second GM); and all four live checks, which are the stage's only word on a real server, are unread.",
+   "missing_to_10": "97-two-gms, 98-chaos and 73-notice-history green in the joined run; the author's kept entry following updateSecret's readers and words, with a scenario that returns a reader after an update; the plan's unbuilt parts built or written into the notes as dropped; LIVE-E38-01 to -04 read on a v14 server (the migration drill on the three world copies among them); the register's rows 97 and 98 and STATUS's item numbers corrected."
+  }
+ ],
+ "not_established": [
+  "What Dice So Nice 6.4.5 draws for a die whose term carries its own options.colorset, and that it stands above the role layers: the stage read it in Dice So Nice's source (STATUS.md cites engine/DiceFactory.js and DiceRoleRegistry.js), which is not in this repository, and no reading on a real Foundry is recorded (LIVE-E108-01).",
+  "The plans of E54 and E38 (docs/dev/plans/E54.md, E38.md) are on a branch this checkout does not hold. What each plan promised beyond the release notes is taken from docs/dev/e38/STATUS.md and docs/dev/e59/GAPS.md, not from the plans.",
+  "Whether tools/moved-only.mjs is green today on the seven split commits: not run (no check may be run in this pass). Each commit's message quotes it green on 8 parts; the two scripts written here re-derive only the facade's export set and the line multiset.",
+  "The glass cut's byte-for-byte equality across G2-G5 (audit/glass-golden.mjs) and the --frame pass of the style sweep: readings of 13.11.2026 in commit messages, not repeated.",
+  "Whether a window a user moved or resized keeps its size across a theme switch or a breakpoint crossing on a real Foundry (GAPS.md's LIVE-E54-01 and -02): applyTheme sizes every open window again from its default size (settings.mjs:4640-4643), which R4802 holds as intended; what the owner wants there is not written in the repository.",
+  "Tier 2 and the scenarios of the base run were not ready: every tier-2 name and scenario listed under tests_to_join is unjoined, so 'holds: yes' on a promise whose behaviour test is one of them rests on reading the code and the test's body.",
+  "Finding E38-1 was traced in the source and not driven; a scenario that reloads the victim's player across an incident's close would settle it.",
+  "Scenario 73's R2 was read at its check line only, and the FLOWS test (R160) that holds the truth-bullets row was not read."
+ ]
+}

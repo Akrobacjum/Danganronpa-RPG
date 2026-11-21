@@ -1,0 +1,116 @@
+{
+ "refuter": "verify-live-items-06",
+ "of": "live-items-06",
+ "scope_note": "Items with status read, partly or obsolete: one (213, obsolete). Open items checked for a missed reading: five (193, 196, 198, 202, 207). The file has no new_observations or findings with a severity; its seven observations carry none and were checked as claims. Sources read: the three digests (e58, other, e58-delta), docs/dev/e58/LOCAL-REPORT.md on b5a29e73 and on origin/claude/e58-local (7875554f), docs/dev/e39/CALIBRATION.md on both, docs/dev/e58/TRIAGE-9.2.md, audit/AUDIT-1.2.42.md:1044-1112, audit/gate/local-gate.json.",
+ "checked": [
+  {
+   "ref": "213 LIVE-E77-09",
+   "claim": "obsolete: the item closes itself (replaced by LIVE-E78-13) and the Foundry logo face is gone from the tree",
+   "verdict": "stands",
+   "why": "The item's own text ends 'zastapiony przez LIVE-E78-13 ... a tu nie ma juz czego sprawdzac'; b5a29e73's LOCAL-REPORT counts 213 among the rows closed by their own text; the triage classes it C. The subject is gone: foundry-windows.mjs says the face is the module's anvil and nothing is loaded for it; git grep for fvtt.png and fa-toolbox over scripts, styles and audit/glass-harness.html hits only tests that recall or plant the old logo (tier0 12351-12466, tier1 4020). No digest (e58, other, e58-delta) names LIVE-E77-09.",
+   "evidence": "audit/AUDIT-1.2.42.md:1087 '...o jego twarz przy stole pyta LIVE-E78-13 (E78 fix r2-H3, 14.10.2026), a tu nie ma juz czego sprawdzac'; docs/dev/e58/LOCAL-REPORT.md:330 (b5a29e73) '| closed by its own text | 8 | S7-14, 21, 41, 213, 448, 449, 450, 451 |' (branch copy :482 the same); docs/dev/e58/TRIAGE-9.2.md:236 '| 213 | LIVE-E77-09 | C |'; scripts/foundry-windows.mjs:90-91 'Nothing is loaded for it any more, so there is no failed load to stand in for.'",
+   "status_after": "obsolete"
+  },
+  {
+   "ref": "198 LIVE-E81-16",
+   "claim": "open: no reading; the note says the E58 tier-2 runs do not name the test the item gives as its headless half, so whether it passed on 14.370 was not established",
+   "verdict": "weakened",
+   "why": "Status open holds, but the note's ground is wrong for the branch copy of LOCAL-REPORT (class F by the brief): it names that very test, 1103 'entering the trial makes the cast's missing tokens ...' (scripts/tests-tier2.mjs:70948), as passing in the third run on Foundry 14.370 (17.11.2026, d5907e1b, module 1.2.116), failing in the fourth (18.11.2026), and alone failing once and passing once, 'which reads as timing. Not read further.' scripts/trial-scene.mjs is byte-equal between d5907e1b and b5a29e73 (git diff --stat empty). The test reads the trialSeats record after each way out, through writeSeats' setFlag (trial-scene.mjs:432-441), so this is a mixed, unexplained F reading of the item's own headless half; whether the test's checks tell a merge from a replace was not established, so it does not settle the item. The note should cite it; the e58-delta digest holds it (LOCAL-REPORT.md:372-375 branch) with 'settles: no 9.2 item named'.",
+   "evidence": "git show origin/claude/e58-local:docs/dev/e58/LOCAL-REPORT.md:372-375 '- **Three tests that passed in the third run failed here** - 524 ..., 1103 \"entering the trial makes the cast's missing tokens ...\", 1461 ... Each run alone twice: ... 1103 failed then passed. Not a steady regression of the merge; they go either way at a table on the same code, which reads as timing.'; same file :424 'The third run (15:27-19:23 UTC, at d5907e1b ...)'; scripts/trial-scene.mjs:434-435 'That Foundry v14's `setFlag` merges a partial object is not measured here (LIVE-E81-16); the harness's update does, and the tier-2 stage test reads the record after.'",
+   "status_after": "open"
+  },
+  {
+   "ref": "196 LIVE-E81-14",
+   "claim": "open: no reading of v14's async getTokenDocument, toObject and keepId create",
+   "verdict": "weakened",
+   "why": "Open holds, but a recorded run touches it and is not cited: the same tier-2 test 1103 drives stageHall, which awaits actor.getTokenDocument, calls doc.toObject() and creates with keepId: true (scripts/trial-scene.mjs:601-615), and it passed once and failed once in whole runs and once each alone on Foundry 14.370 at runtime code equal to b5a29e73's trial-scene.mjs. That reads that the road does not always break on v14; it does not read the prototype's ring, size and vision, nor keepId on a scene no GM views, so it does not settle the item.",
+   "evidence": "scripts/trial-scene.mjs:601 'const doc = await actor.getTokenDocument({ x: spot.x, y: spot.y, hidden: false, actorLink: true });' and :615 'made = await hall.createEmbeddedDocuments(\"Token\", data, { keepId: true, ...castWrite() }) ?? [];'; origin/claude/e58-local LOCAL-REPORT.md:372-375 (as for 198)",
+   "status_after": "open"
+  },
+  {
+   "ref": "193 LIVE-E81-11",
+   "claim": "open: no result for R295 on a real Foundry; the local gate's live parts have not run",
+   "verdict": "stands",
+   "why": "No digest and neither copy of LOCAL-REPORT or CALIBRATION names R295 (grep R29x over the branch copies: none). The branch copy records that tiers 0-1 were run at a table for the first time on 19.11.2026 inside runTests({ tier: 2 }) (so R295 ran), but gives totals only and says 'Not read yet', so no result for R295 exists. audit/gate/local-gate.json: all eight parts not-run, no-server, commit ec1478d5. The note could add the 19.11 tiers 0-1 run; it does not change the status.",
+   "evidence": "origin/claude/e58-local LOCAL-REPORT.md:306-307 '- **Tiers 0-1 at a table, read for the first time** ...: Stained Glass 36 failed, 5 skipped; Monokuma Legacy 31 failed, 15 skipped. Headless the same tiers read 0 failed. Not read yet; in the loop below.'; scripts/tests-tier1.mjs:13828 '[\"R295 - a card the module takes back leaves the notice history, ...'",
+   "status_after": "open"
+  },
+  {
+   "ref": "202 LIVE-E81-20",
+   "claim": "open: no reading of End Class Trial with an unticked living student",
+   "verdict": "stands",
+   "why": "Neither digest, nor either copy of LOCAL-REPORT, names LIVE-E81-20 or the tier-2 test 'End the trial moves the living to the GM's room ...' (tests-tier2.mjs:71233). The branch copy names 1108 'End the trial's copies on the chosen place' and, headless, 'End the trial never leaves a living student w...' (tests-tier2.mjs:71634) - other tests, neither about an unticked student or the whisper.",
+   "evidence": "origin/claude/e58-local LOCAL-REPORT.md:367-368 '... and 1108 (End the trial's copies on the chosen place)'; :174 'could not restore the world after \"End the trial never leaves a living student w...\"' (a headless scenario run, 41-trial-scene m2)",
+   "status_after": "open"
+  },
+  {
+   "ref": "207 LIVE-E77-03",
+   "claim": "open: no network-panel reading of the room picture's origin; the owner's Forge report of 1.2.76 is a table reading in neither digest but not the asked one",
+   "verdict": "stands",
+   "why": "No digest names LIVE-E77-03 or a network reading. The Forge exception is in today's code (vault-store.mjs safeRoomImage: here || forgeAsset(url)) and its comment and scenario 74 phase K cite the owner's 1.2.76 report; that report is a refusal, not the origin reading the item asks for.",
+   "evidence": "scripts/vault-store.mjs:623-624 'THE FORGE (E78 fix h76-HF1, 14.10.2026; the owner's report on 1.2.76: every picture refused there, whatever its format).'; :647 'if (!/^https?:$/.test(url.protocol) || !(here || forgeAsset(url)) || url.search || url.hash) return null;'",
+   "status_after": "open"
+  },
+  {
+   "ref": "observation 1",
+   "claim": "Lines 1050-1092 hold 34 items 185-218; no id written twice; the only other mention is the DZ6 header's 'LIVE-E81-14..20'",
+   "verdict": "stands",
+   "why": "grep -c -w over the paper: each of LIVE-E81-03..22 and LIVE-E77-01..14 once, LIVE-E81-14 twice (header and item); line 1050 is item 185, line 1092 item 218.",
+   "evidence": "audit/AUDIT-1.2.42.md:1062 '... Numery LIVE-E81-14..20 dostaly przy poprawce r2-H4 (13.10.2026)'"
+  },
+  {
+   "ref": "observation 2",
+   "claim": "No digest holds a reading for any of the 34; triage K 21, S 7, T 4 (190, 203, 212, 217), F 1 (201), C 1 (213)",
+   "verdict": "stands",
+   "why": "No id of the chunk in live-readings-e58.json, -other.json or -e58-delta.json; an awk count over TRIAGE-9.2.md rows 185-218 gives K 21, S 7, T 4, F 1, C 1 with exactly those numbers. The measured row of LOCAL-REPORT.md:328 holds none of 185-218. (The delta's mixed reading of test 1103 is not tagged to an item; see 196 and 198.)",
+   "evidence": "docs/dev/e58/TRIAGE-9.2.md:224 '| 201 | LIVE-E81-19 | F |', :236 '| 213 | LIVE-E77-09 | C |'"
+  },
+  {
+   "ref": "observation 3",
+   "claim": "The owner's 1.2.76 reports at The Forge (room pictures refused, the logo read as The Forge's icon) are table readings in neither digest",
+   "verdict": "stands",
+   "why": "grep for Forge and 1.2.76 in the three digests finds only the sandbox's 'no The Forge' and unrelated rows; the code comments carry both reports.",
+   "evidence": "scripts/foundry-windows.mjs:88-90 (as quoted by the reader) 'The owner, at The Forge on 1.2.76, read it as the Forge's icon ... and asked for a white pixel glyph'; .github/release-notes/v1.2.77.md:6 '... and the owner's three reports on 1.2.76 are'"
+  },
+  {
+   "ref": "observation 4",
+   "claim": "The sweep's size count is written as 22 (items 195, 205), 23 (sweep header, root table) and 25 (the default list)",
+   "verdict": "stands",
+   "why": "The SIZES default splits into 25 entries (counted); the header line says 23.",
+   "evidence": "audit/glass-sweep.mjs:2 ' * The glass harness at the 23 sizes, in Chromium'; audit/glass-sweep.mjs:283-284 'const SIZES = (opt(\"--sizes\") ?? \"1920x1080,1366x768,...,844x390,640x360\")' (25)"
+  },
+  {
+   "ref": "observation 5",
+   "claim": "Scenario 30 has no local-gate layer; local-gate.json has all eight parts not-run",
+   "verdict": "stands",
+   "why": "Read both.",
+   "evidence": "audit/harness/scenarios/30-security.mjs:1 'export const layers = [\"ci\"];'; audit/gate/local-gate.json: commit ec1478d5, parts live-stained-glass ... sandbox-84-viewports each 'not-run', 'no-server'"
+  },
+  {
+   "ref": "observation 6",
+   "claim": "Fifteen ids of the chunk are cited by nothing outside the audit paper and the triage",
+   "verdict": "weakened",
+   "why": "By exact id, git grep -w finds none of the fifteen outside those papers. But three release notes cite the whole block as a range, as open checks, so 'nothing cites' holds only for the id spelt out. The clause about code comments naming no id was not checked line by line.",
+   "evidence": ".github/release-notes/v1.2.75.md:181 '... and LIVE-E81-01 to 22)'; v1.2.76.md:182 'LIVE-E81-01 to 22 and LIVE-E77-01 to 18)'; v1.2.77.md:196 '... LIVE-E81-01 to 22, LIVE-E77-01 to 18 ...'"
+  },
+  {
+   "ref": "observation 7",
+   "claim": "Item 213 is the only one the list closes itself; it points to item 235 (LIVE-E78-13)",
+   "verdict": "stands",
+   "why": "Of 185-218 only 213 is in LOCAL-REPORT's closed-by-own-text row; item 235 is LIVE-E78-13.",
+   "evidence": "audit/AUDIT-1.2.42.md:1109 '235. **LIVE-E78-13 - twarz przycisku Narzedzi Foundry:**'"
+  }
+ ],
+ "counts": {
+  "checked": 13,
+  "stands": 10,
+  "weakened": 3,
+  "refuted": 0
+ },
+ "not_established": [
+  "Whether tier-2 test 1103 (tests-tier2.mjs:70948) tells a merging setFlag from a replacing one: its record checks were not traced against a replacing write, so its passes on 14.370 are not read as settling LIVE-E81-16.",
+  "Why test 1103 failed on 14.370 in the fourth run and once alone: the branch report reads it as timing and did not read the message.",
+  "R295's result inside the 19.11.2026 tiers 0-1 run at a table: the report gives totals only (36 and 31 failed) and no names.",
+  "Observation 6's clause that the code comments handing these questions to a table name no id: not read comment by comment."
+ ]
+}

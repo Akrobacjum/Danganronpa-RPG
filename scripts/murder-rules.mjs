@@ -90,7 +90,7 @@ import { drpgWindow, drpgConfirm, tipText } from "./ui-kit.mjs";
 import {
     readCast, murderState, writeCast, incidentWrite, stillHolds, restoreState, incidentAudienceIds, writeState,
     sweepBetrayalWindows, sideOf, killerIds, participantIds, castHeldHere, registerIncidentCastSync,
-    registerDeathCopy, recordBlackened, leftABody, betrayalCandidate, keepOpeningNotice, retireOpeningNotices
+    registerDeathCopy, recordBlackened, leftABody, betrayalCandidate, keepOpeningNotice, retireOpeningNotices, castFor
 } from "./incident-store.mjs";
 
 
@@ -248,7 +248,9 @@ export function crisisThreshold(key, state = murderState(), { traitOf } = {}) {
  * WHAT THE OTHER SIDE'S DEFENCE ADDS (E64, 12.11.2026; DA6/DA23, config.mjs `DEFENSE`): for a row with `defense`, the
  * defender's statistic (`TRAITS[trait].dh`) held to 0..`DEFENSE.cap`, read off the defender as this browser holds them -
  * on the GM, where the action is judged, the GMs'; 0 for any other row, or with no incident or defender. The menu, the
- * roll window and the GM's judgement all read it through `crisisThreshold`, so the three cannot differ. `traitOf(id, dh)`
+ * roll window and the GM's judgement all read it through `crisisThreshold`, so on one state the three cannot differ. A
+ * victim's or a third's copy that names no killer (a mask, a trap) reads 0 where the GM adds the killer's statistic:
+ * the two readings shown there say a hidden defence is added (`crisisDefenseHidden`, CASE-16). `traitOf(id, dh)`
  * stands in for the actors in a test. The opening never reads it (MURDER_OPENING has no `defense`; R3961).
  */
 export function crisisDefense(key, state = murderState(), { traitOf } = {}) {
@@ -261,6 +263,36 @@ export function crisisDefense(key, state = murderState(), { traitOf } = {}) {
     const read = traitOf ?? ((actorId, stat) => game.actors?.get(actorId)?.system?.traits?.[stat]?.value);
     const value = Number(read(id, dh));
     return Number.isFinite(value) ? Math.max(0, Math.min(cap, value)) : 0;
+}
+
+/**
+ * A DEFENCE THIS BROWSER CANNOT SEE (1.2.121 line K, 21.11.2026; the audit's CASE-16; the owner's answer of 21.11.2026,
+ * option 1, through the coordinator: the GM judges with the full number, the victim and the third are shown the number
+ * they can know and told plainly that a hidden defence is added, no value and no name). A victim's or a third's copy of the cast holds no killer while a mask stands
+ * and in every trap (incident-store.mjs `castCopyFor`), so on their browser `crisisDefense` reads 0 for a row the
+ * killer's statistic defends, while the GM's judgement - on the GMs' state, which always names the killer of a running
+ * incident (`openMurder` refuses one without) - adds it. Red at e515907d (R7950): the copy's menu row and roll window
+ * said 18 for Self-Defense, the GM judged 19. True for such a row on such a copy, during the fight, and for no other:
+ * the readings that show the roller a number (`availableCrisisActions`' row, `crisisDc` for the roll window) say then
+ * that a hidden defence is added, with no value and no name, so the number shown is never presented as the whole; the
+ * result card does the same for those seats (`announceCrisis`). No "full number" mode is built: the copy names no
+ * defender, so showing the GM's number would need the GM to send the defence with the copy or the turn.
+ */
+export function crisisDefenseHidden(key, state = murderState()) {
+    const rule = CRISIS_ACTIONS[key]?.defense;
+    if (!rule || !state?.active || state.stage !== "incident" || !(Number(DEFENSE.cap) > 0)) return false;
+    return !(rule.side === "victim" ? state.victimId : rule.side === "killer" ? state.killerId : "none");
+}
+
+/**
+ * What the roll window is handed as its number to beat (`rollTrait`'s `dc`, "beat N" in its title, kept on the roll
+ * for its card): `crisisThreshold`, and where the defence is hidden here (`crisisDefenseHidden`) that number with the
+ * words that say one is added. Never judged: the GM scores against its own `crisisThreshold`.
+ */
+export function crisisDc(key, state = murderState()) {
+    const n = crisisThreshold(key, state);
+    if (n === null) return null;
+    return crisisDefenseHidden(key, state) ? game.i18n.format("DRPG.Murder.dcHidden", { n }) : n;
 }
 
 /** Crisis actions this actor may take right now, with their hindered flags. */
@@ -316,6 +348,8 @@ export function availableCrisisActions(actor, state = murderState()) {
                 threshold: crisisThreshold(key, state),
                 // What of that number is the other side's defence (E64; `crisisDefense`), so the tile can say why.
                 defense: crisisDefense(key, state),
+                // A defence added that this browser cannot see (`crisisDefenseHidden`, CASE-16): the tile says so.
+                defenseHidden: crisisDefenseHidden(key, state),
                 hindered: (hindered[key] ?? 0) > 0,
                 // Self-defence gates the victim's two ways out, and closes
                 // itself once it lands. `blocked` already means "you may not
@@ -372,7 +406,7 @@ export function atNight() {
  * fix r1-G3: the close keeps the case's Key count under it, `closeIncident`).
  */
 export function freshIncidentState({ killerId, victimId, indirect = false, selfInflicted = false, openingTrait = null,
-    openedAt = Date.now(), chapter = getClock()?.chapter ?? null } = {}) {
+    watchDie = null, openedAt = Date.now(), chapter = getClock()?.chapter ?? null } = {}) {
     // `const fresh`, read by R191's census of the fields an incident's writes name.
     const fresh = {
         active: true,
@@ -387,6 +421,9 @@ export function freshIncidentState({ killerId, victimId, indirect = false, selfI
         // The statistic a GM picked for the opening (E32+E07 C11c): the opener's, or none
         // yet, and `rollOpening` asks.
         openingTrait,
+        // The victim's watch's die, kept at the lights (1.2.121, STG-01; watch-gm.mjs `heldAtTheLights`): null at any
+        // other open, and the opening reads the running watch.
+        watchDie,
         turn: 0,
         turnSide: "victim",
         // Whose turn it is on the killers' side. One name until somebody joins
@@ -539,7 +576,12 @@ export async function openMurder({ killerId, victimId, indirect = false, opening
        TP01 and TP07 read the betrayal's incident holding the last one's `thirdActed`, I3).
        Against no incident running (`expect`), in the incident's queue: an incident opened
        since the check above is not written over. */
-    const opened = await restoreState(freshIncidentState({ killerId, victimId, indirect, selfInflicted, openingTrait }),
+    /* THE WATCH'S DIE, KEPT AT THE LIGHTS (1.2.121 line K; the audit's STG-01): opened by the lights, the victim's watch
+       is already dropped, so the die `endEclipse` read while it stood goes with the incident (`watchDie`; watch-gm.mjs
+       `heldAtTheLights`, null at any other open). */
+    const { heldAtTheLights } = await import("./watch-gm.mjs");
+    const watchDie = indirect ? null : heldAtTheLights(victimId);
+    const opened = await restoreState(freshIncidentState({ killerId, victimId, indirect, selfInflicted, openingTrait, watchDie }),
         { keep: ["betrayal"], expect: { active: null } });
     if (!opened) {
         refuseSecondIncident(murderState());
@@ -1179,8 +1221,9 @@ export async function takeCrisisAction(actor, key, { itemId = null, proposed = n
             title: def?.label ?? game.i18n.localize("DRPG.Roll.crisis"),
             // "Beat N" on the window, the menu's own reading (`crisisThreshold`) taken now, at the roll: a Finishing
             // Blow's number falls while the GM picks the statistic (E51 C1). The sheet's "use" on an item comes this
-            // way too (15). The GM scores the total against its own reading of it.
-            dc: crisisThreshold(key, murderState() ?? state),
+            // way too (15). The GM scores the total against its own reading of it. With the words for a defence this
+            // browser cannot see (`crisisDc`, CASE-16).
+            dc: crisisDc(key, murderState() ?? state),
             byGm: ruled.byGm
         });
     } finally {
@@ -1914,9 +1957,11 @@ async function applyCrisisAction({
     const ranOut = await checkVictimSpent(done, receipt.killed);
 
     const announcement = await announceCrisis(actor, def, {
-        success, band, total, threshold, done, stage, promised, rolled
+        key, success, band, total, threshold, done, stage, promised, rolled
     });
-    receipt.messageId = announcement?.id ?? null;
+    receipt.messageId = announcement?.card?.id ?? null;
+    // The card's second copy, for the seats that could not see the defence (`announceCrisis`, CASE-16), withdrawn with it.
+    receipt.hiddenMessageId = announcement?.hiddenCopy?.id ?? null;
     // The tracker's line for this turn (`recent`), read before the pass: the drain at the
     // victim's turn is the next turn's, not this action's. No band for a take with no roll.
     const entry = turnEntry({ turn: state.turn ?? 0, side, key, band, success, total, threshold, rolled,
@@ -2029,7 +2074,8 @@ function openReceipt(actorId, key, state) {
         // Whom this action's own resolution killed (`finishIncident`, `checkVictimSpent`):
         // a Reroll does not take it back (`undoLastCrisis`, E32+E07 C8b).
         killed: [],
-        messageId: null
+        messageId: null,
+        hiddenMessageId: null
     };
 }
 
@@ -2260,9 +2306,10 @@ async function undoLastCrisis({ actorId, key, before = null }) {
     // two contradictory accounts of one action is exactly what Reroll exists to
     // avoid - see the note at the top of reroll.mjs about the dice. Withdrawn, so it
     // leaves every browser's notice history too (E81 C5, notice-history.mjs `noticeCardDeleted`).
-    if (receipt.messageId) {
+    for (const id of [receipt.messageId, receipt.hiddenMessageId]) {
+        if (!id) continue;
         try {
-            await game.messages.get(receipt.messageId)?.delete({ [MODULE_ID]: { withdraw: true } });
+            await game.messages.get(id)?.delete({ [MODULE_ID]: { withdraw: true } });
         } catch {
             // A message somebody already cleared is not a problem.
         }
@@ -4287,9 +4334,10 @@ async function tellGms(text, extra = {}) {
  * reported while the stage was `incident`, left them out. The owner's rule is the roll's
  * stage; the tier-2 test "a trap's last crisis card does not reach its builder" reads it.
  *
- * @returns the ChatMessage, so a Reroll can replace it rather than contradict it.
+ * @returns `{ card, hiddenCopy }`: the ChatMessage, and the copy for the seats a defence is hidden from (null when
+ * there are none), so a Reroll can replace both rather than contradict them.
  */
-async function announceCrisis(actor, def, { success, band, total, threshold, done, stage, promised = true, rolled = !def?.noRoll }) {
+async function announceCrisis(actor, def, { key = null, success, band, total, threshold, done, stage, promised = true, rolled = !def?.noRoll }) {
     // On a success, the sentence for the band that came up. On a failure,
     // NOTHING from the table - what happened is in `done`.
     //
@@ -4338,7 +4386,34 @@ async function announceCrisis(actor, def, { success, band, total, threshold, don
 
     const recipients = new Set([...gmIds(), ...(state ? incidentAudienceIds(state, { stage, also: [actor] }) : [])]);
 
-    return announce({ content, whisper: Array.from(recipients) });
+    /*
+     * NO VALUE OF A DEFENCE THE SEAT COULD NOT SEE (1.2.121 line K, 21.11.2026; the audit's CASE-16, the owner's answer
+     * of 21.11.2026, option 1: "no value, no name", through the coordinator). The card printed "18 < 19" to every seat,
+     * so a victim whose copy holds no killer (a mask, a trap) read the hidden killer's Body or Leg off the difference
+     * from the "18 + a hidden defense" they were shown. A seat whose own copy of the cast hides this row's defence
+     * (`crisisDefenseHidden` on what `castFor` sends them, read at the fight's stage) gets a copy of the card that says
+     * the total, the number it was shown with "+ a hidden defense", and hit or miss - no threshold; the GMs and every
+     * other seat keep the full line. One card when no seat is hidden from. What stays readable, by the rules and not by
+     * the card: a total at or just over the number shown that misses (an 18 against "18 + a hidden defense") still says
+     * the defence is 1 - the outcome has to be told. Red at e515907d (tier 2 "1.2.121 CASE-16"): the victim's card held 19.
+     */
+    const hiddenTo = rolled && key && state ? Array.from(recipients).filter(id => defenseHiddenFor(id, key, state)) : [];
+    if (!hiddenTo.length) return { card: await announce({ content, whisper: Array.from(recipients) }), hiddenCopy: null };
+    const shown = threshold - crisisDefense(key, state);
+    const hiddenScore = `<p>${game.i18n.format(`DRPG.Murder.scoreHidden.${success ? "hit" : "miss"}`, { total, n: shown })} · ${
+        game.i18n.localize(`DRPG.Murder.band.${band}`)}</p>`;
+    const card = await announce({ content, whisper: Array.from(recipients).filter(id => !hiddenTo.includes(id)) });
+    const hiddenCopy = await announce({ content: content.replace(score, () => hiddenScore), whisper: hiddenTo });
+    return { card, hiddenCopy };
+}
+
+/** Whether `userId`'s own copy of the cast hides the defence of crisis row `key` (`crisisDefenseHidden`): never a GM's. */
+function defenseHiddenFor(userId, key, state) {
+    const user = game.users.get(userId);
+    if (!user || user.isGM) return false;
+    const world = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
+    const copy = castFor(userId, readCast(), world);
+    return crisisDefenseHidden(key, { ...state, ...world, ...copy, active: true, stage: "incident" });
 }
 
 /**

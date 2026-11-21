@@ -1,0 +1,372 @@
+{
+ "refuter": "verify-stages-23",
+ "of": "stages-23",
+ "checked": [
+  {
+   "ref": "E71-1",
+   "claim": "minor: DRPG.Class.deadStill tells every dead student they still speak at the table, while voice per room sends a silenced dead student to the Spectators' room",
+   "verdict": "stands",
+   "why": "The sentence is drawn unconditionally for mode.actions === \"dead\" (no voice-setting branch), and voiceClaim's silenced() branch sets row.target = SPECTATOR_ROOM for a public death as for a secret one. The player handbook (951, 1185) says the living do not hear the dead, so the sheet contradicts the handbook and the code. The handbooks line logged it on 14.11 (STATUS-HANDBOOKS.md:92, NEEDSCODE.md:260 row H3, 'UI text: 1.2.114') and lang/en.json still holds the words. Not confirmed: the reader's 'git log -G deadStill: 7c874d66 alone' - the clone is shallow and 7c874d66 is not reachable here; the oldest reachable commits show the key as a whole-file addition, which does not change the finding.",
+   "evidence": "scripts/sheet-actions.mjs:233-246 (`if (mode.actions === \"dead\") { ... still.textContent = game.i18n.localize(\"DRPG.Class.deadStill\");`); scripts/voice.mjs:1946-1967 (`} else if (silenced()) { ... row.claim = CLAIM.dead; row.target = SPECTATOR_ROOM;`); lang/en.json:4266 \"Outside the Class Trial you still speak at the table. In it your microphone is off and you hold no ballot.\"; docs/handbooks/player-handbook.en.md:951 \"the living do not hear you\"",
+   "severity_after": "minor",
+   "grade_after": null
+  },
+  {
+   "ref": "E57-1",
+   "claim": "minor: the handbooks quote 25 UI labels (33 rows of LABELS.md) that no lang value of that language holds any more; no guard (T10)",
+   "verdict": "stands",
+   "why": "Reproduced with a script over docs/dev/e57/LABELS.md's 3053 rows: a row whose span is still **bold**/*italic* in its handbook and is no leaf value of that language's lang file - 33 rows, 25 distinct by handbook and label (21 by language and label). Checked at the tag: v1.2.113's lang/en.json already had addPool \"Grant pool\" and afterTitle \"After the incident\" while its GM handbook line 562 said **Add pool**; castWho and preview still matched at the tag. MODES has no T10. Caveat the reader also names: some rows are capitalisation only (\"Clear the overflow\" against \"Clear the Overflow\", \"Fight back\" against \"Fight Back\") and two may be plain emphasis (failed / nieudane), so the count of real misdirections is below 25; minor holds on the rest (Add pool / Grant pool, I'll pass / Pass, Takes part / In the hall).",
+   "evidence": "lang/en.json:660 \"addPool\": \"Grant pool\", :665 \"removePool\": \"Revoke pool\", :3462 \"castWho\": \"In the hall\", :7455 \"preview\": \"Preview realization\"; docs/handbooks/gm-handbook.en.md:562 \"**Add pool** grants one to an Assistant GM, **Remove pool** takes it back\"; script /tmp/verify-stages-23/labels.py: 33 rows; git show v1.2.113:lang/en.json:658 \"Grant pool\"",
+   "severity_after": "minor",
+   "grade_after": null
+  },
+  {
+   "ref": "E57-2",
+   "claim": "minor: the Document language hint promises every document the module writes; only inventory.mjs's tier line goes through worldLocalize",
+   "verdict": "stands",
+   "why": "grep of scripts/ for worldLocalize: callers only at inventory.mjs:726-727. grantBedroomKey formats DRPG.Vault.keyName/keyDescription and mintLootBullet DRPG.Loot.bulletName/bulletText with game.i18n.format, the language of the browser that runs them; payOwedLoot runs mintLootBullet on a GM (`if (!game.user.isGM ...) return 0`). The hint (lang/en.json:368) says \"The language of the documents the module writes into this world, one for everyone\" and the row is shown in the settings window since E57 C3 (settings-window.mjs:94-96).",
+   "evidence": "scripts/vault-store.mjs:321-327 (`name: game.i18n.format(\"DRPG.Vault.keyName\", { room })`); scripts/handover.mjs:904-909 (`name: game.i18n.format(\"DRPG.Loot.bulletName\", ...)`), :632-638; scripts/inventory.mjs:726-727 (`await worldLocalize(...)`); scripts/settings.mjs:1724-1731 (the comment: 'since E57 C3 an item's tier line is')",
+   "severity_after": "minor",
+   "grade_after": null
+  },
+  {
+   "ref": "E55/P1",
+   "claim": "yes: dead rules out and held out; overridden and deadAttributes counted per sheet against a falling budget",
+   "verdict": "stands",
+   "why": "tools/css-budget.json holds overridden 0 and deadAttributes 0 for all seven sheets and important 4 + 612 + 199 + 12 = 827 (the reader's number); data-drpg-crisis appears once in the sheets (danganronpa.css). The base run's check (25 parts green) and the tier 0-1 shard (1781 passed, 0 failed; R1311, R6100 not in skip-baseline.json) cover R1311 and `check css`. The 121 removed is the stage paper's figure (K), not re-counted here.",
+   "evidence": "tools/css-budget.json sheets rows; grep -c data-drpg-crisis styles/*.css: danganronpa.css 1, others 0; audit/findings-1.2.118/base-run.json quick.check \"25 part(s), all green\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E55/P3",
+   "claim": "yes: the glass's ink at seven alphas as tokens",
+   "verdict": "stands",
+   "why": "The seven tokens stand on :root with the literal values; the reader's out-of-sheet literals were not re-counted here.",
+   "evidence": "styles/stained-glass.css:57-65 (--drpg-sg-ink-40 ... -72: rgba(7, 7, 10, a))",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E55/P5",
+   "claim": "yes: four named fixes, R6101-R6104",
+   "verdict": "stands",
+   "why": "The 88vh rule names only token, scene and tile config; the icon fonts rule's comment says FA6/FA5/FontAwesome names went; the four tests exist in tier 1 and the tier-1 shard has 0 failed with none of them in skip-baseline. That v14 uses these class names is LIVE-E55-02, unread, as the reader says.",
+   "evidence": "styles/danganronpa.css:15077-15082 (`.application.sheet:is(.token-config, .scene-config, .tile-config)... { max-height: 88vh; }`); scripts/tests-tier1.mjs:41117, :41139, :41157, :41174",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E55/P6",
+   "claim": "yes: Legacy's checkbox places read one token (K1)",
+   "verdict": "stands",
+   "why": "--drpg-kit-check-accent is defined once and read at the five places named; no test, as the reader says, so it holds by reading only.",
+   "evidence": "styles/components.css:193, :1025, :2956; styles/danganronpa.css:15206, :18508",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E55/P8",
+   "claim": "yes: the rules aimed at Foundry and Daggerheart markup described (X1)",
+   "verdict": "stands",
+   "why": "The paper exists where cited; it is a description and LIVE-E55-04 is unread.",
+   "evidence": "CONTRIBUTING.md:143 \"### What the sheets hold against Foundry and Daggerheart (E55 X1)\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E25/P2",
+   "claim": "yes: D33c's Polish forms in the three Polish handbooks",
+   "verdict": "stands",
+   "why": "Whole-word GMa 0 and MG 0 in all three Polish handbooks (GM-a 376, 2, 78); glossary entry gm-a exists for T8.",
+   "evidence": "grep -ow on docs/handbooks/*.pl.md; docs/glossary.json:35 \"id\": \"gm-a\"",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E25/P3",
+   "claim": "yes: T7 and T8 red from E25 on",
+   "verdict": "stands",
+   "why": "At v1.2.112 MODES had T7 and T8 at mode report; today both read mode fail, fail E25. check text green in the base run's quick stage.",
+   "evidence": "scripts/tests-text.mjs:2932 glossaryHits {test: \"T8\", mode: \"fail\", fail: \"E25\"}, :2946 ruleNumberWords {test: \"T7\", mode: \"fail\", fail: \"E25\"}; git show v1.2.112:scripts/tests-text.mjs (T7, T8 mode report)",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E25/P7",
+   "claim": "no: db3-english and mechanic-capitals settled",
+   "verdict": "stands",
+   "why": "Both entries still open: true, stage E65, empty forbidden variants; text-style.md:844 gives them to E25.",
+   "evidence": "docs/glossary.json:78-87 (\"id\": \"db3-english\" ... \"open\": true), :434-443 (\"mechanic-capitals\" ... \"open\": true); docs/text-style.md:844",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E71/P2",
+   "claim": "yes: the ten style lints named for E71 block at 0",
+   "verdict": "stands",
+   "why": "All ten read mode fail; each read report at v1.2.112; R1058/R1059 in tier 0-1 (shard 1 0 failed), check text green.",
+   "evidence": "scripts/tests-text.mjs:2924-2966; git show v1.2.112:scripts/tests-text.mjs MODES",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E71/P3",
+   "claim": "yes: no English literal a screen shows left in UI-rendering code (DB12)",
+   "verdict": "weakened",
+   "why": "Holds only inside T13's reach: UI_FILE reads a script that names DialogV2, ApplicationV2, notifications, ChatMessage.create or innerHTML/textContent. The reader's own count leaves 20 scripts that open a window or post a card through a helper unread by the lint, and its not_established says no screen literal there was ruled out. 'yes' is more than was measured; 'partly' or 'yes within T13's reach' fits.",
+   "evidence": "audit/findings-1.2.118/stages-23.json E71 promise 3 note and not_established entry 4; scripts/tests-text.mjs uiLiterals {test: \"T13\", mode: \"fail\", reads: [\"scripts\"]}",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E71/P4",
+   "claim": "yes: 77 needsCode places fixed",
+   "verdict": "stands",
+   "why": "NEEDSCODE.md Counts: 158 rows, defects fixed 77, questions 35, not defects 19, text line 13, handbooks 13, open 1 - as the reader gives. R6400-R6405 and R6900-R6919 (26 tests) exist in tier 1; their kind is a source read, as the reader marks.",
+   "evidence": "docs/dev/e71/NEEDSCODE.md:238-242; scripts/tests-tier1.mjs [\"R6400 - ... [\"R6919 -",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E71/P5",
+   "claim": "yes: lists joined by listOf",
+   "verdict": "stands",
+   "why": "R6403, R6900-R6902 exist and passed in the tier-1 shard; they read source for a listOf call and no join, so the promise holds by reading.",
+   "evidence": "scripts/tests-tier1.mjs R6403, R6900-R6902",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E71/P6",
+   "claim": "yes: line A's code faults fixed",
+   "verdict": "stands",
+   "why": "Spot-checked the cancelled Direct Murder: the GMs' whisper uses murderNobodyGm / murderWitnessGm, the killer keeps murderNobody / murderWitness. The other three not re-read.",
+   "evidence": "scripts/eclipse.mjs:945-952 (`game.i18n.localize(\"DRPG.Action.murderNobodyGm\")` ... `game.i18n.format(\"DRPG.Action.murderCancelled\"`)",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E71/P7",
+   "claim": "yes: dead keys gone",
+   "verdict": "stands",
+   "why": "R6404, R6904 in tier 1 (0 failed) and `check keys` among the 25 green parts; not re-counted here.",
+   "evidence": "base-run.json quick.check; scripts/tests-tier1.mjs R6404, R6904",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E71/P8",
+   "claim": "no: each window batch looked at drawn",
+   "verdict": "stands",
+   "why": "All four status files say the screenshots were not taken; LIVE-E71 appears only in docs/dev/e71 and GAPS.md:164, not in AUDIT 9.2 (five lines by git grep, the reader says six hits - immaterial).",
+   "evidence": "docs/dev/e71/STATUS-A.md:222-228 (\"the harness draws no layout, so none was taken\"); git grep LIVE-E71",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E57/P1",
+   "claim": "yes: stale-pl in the gate (T9)",
+   "verdict": "stands",
+   "why": "Reproduced with the tool's own statusOf on this checkout: 7456 Polish keys - ok 352, baseline 4748, rewritten 1724, unstamped 632, stale 0 - exactly the reader's numbers; staleTranslations is mode fail, fail E57, and was absent from v1.2.112's MODES.",
+   "evidence": "node /tmp/verify-stages-23/sp.mjs -> 7456 { baseline: 4748, rewritten: 1724, ok: 352, unstamped: 632 }; scripts/tests-text.mjs:2928",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E57/P4",
+   "claim": "yes: a \"?\" in seven GM windows opens the handbook at its section",
+   "verdict": "stands",
+   "why": "WINDOW_HELP has seven rows; each is passed by its opener; the GM handbook's headings at the cited lines are those sections. The real header is LIVE-E57-01, unread; R111 is in skip-baseline (env.layout).",
+   "evidence": "scripts/ui-kit.mjs:1217-1228; `help: WINDOW_HELP.<row>` at gm-panel.mjs:572, season-setup.mjs:1146, room-setup.mjs:1285, gm-stores.mjs:2870, investigation.mjs:2289, trial-floor-ui.mjs:1626, gm-campaign.mjs:220; gm-handbook.en.md:236 \"## 3. The GM panel\", :168, :701, :1270, :1421, :286",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E57/P5",
+   "claim": "yes: a mixed-language table, scenario 51-lang-mixed",
+   "verdict": "weakened",
+   "why": "The scenario exists and is registered ci, but base-run.json has not run the ci scenarios (its `pending` lists them); the only reading is the release notes' 38/38 on 7819afbf (class K). The reader itself writes 'to be joined'; 'yes' on an unread scenario result is not measured today.",
+   "evidence": "audit/findings-1.2.118/base-run.json pending: \"the ci scenarios one at a time (node run-all.mjs scenarios)\"; .github/release-notes/v1.2.113.md:220 \"51-lang-mixed 38/38\"; audit/harness/README.md:195",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E57/P7",
+   "claim": "yes: twelve text checks that only reported at 1.2.112 block",
+   "verdict": "stands",
+   "why": "At v1.2.112 T4, T5, T7, T8, T11, T12, T13, T15, T16, T21, T24, T25 all read mode report; today all read mode fail.",
+   "evidence": "git show v1.2.112:scripts/tests-text.mjs | grep mode; scripts/tests-text.mjs:2924-2966",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E57/P8",
+   "claim": "no: T10, T26 and T7 over the handbooks",
+   "verdict": "stands",
+   "why": "No T10 or T26 in tests-text.mjs (grep count 0); ruleNumberWords reads [\"lang\"] also [\"prose\"], not docs.",
+   "evidence": "scripts/tests-text.mjs:2946 `ruleNumberWords: ... reads: Object.freeze([\"lang\"]), also: Object.freeze([\"prose\"])`",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E102/P1",
+   "claim": "yes: one place in the kit for a tooltip",
+   "verdict": "stands",
+   "why": "tipText returns \"\" when the words equal the key; tipAttr writes data-tooltip or title; setTip writes dataset only with words. R4750, R4764 in tier 1, 0 failed.",
+   "evidence": "scripts/ui-kit.mjs:760-780 (`return typeof words === \"string\" && words && words !== key ? words : \"\";`)",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E102/P2",
+   "claim": "yes: 197 DRPG.Tips keys at 1.2.113 (135 at 1.2.112), each at most 23 words",
+   "verdict": "stands",
+   "why": "Reproduced from the tags: en 135 / pl 137 at v1.2.112, en 197 / pl 199 at v1.2.113, en 416 / pl 418 today, Sweep 208, longest English tooltip 23 words.",
+   "evidence": "python3 /tmp/verify-stages-23/tips.py",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E102/P3",
+   "claim": "yes: each family's control draws its tooltip where it stands",
+   "verdict": "weakened",
+   "why": "Today this rests on the family tests' tipPlacement, a read of the drawing function's source (the reader's own R4751 row); the drawn reading, scenario 95-tooltips-drawn, was not run in the base run (pending), and its register row says it drew 53 of 134 keys on 13.11. Holds by reading, not measured drawn on b5a29e73.",
+   "evidence": "audit/findings-1.2.118/base-run.json pending; audit/harness/README.md:229; stages-23.json E102 tests_read R4751",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E102/P4",
+   "claim": "yes: a census gate",
+   "verdict": "stands",
+   "why": "tools/tooltip-census.json has 69 rows; check tooltips green in the base run's quick stage. Small miscount in the note: the reasons tally hint 37 (not 38), help in code 15, label is enough 9, conditional 4, not met 4 = 69 rows, whose counts sum to 70 sites.",
+   "evidence": "tools/tooltip-census.json rows (python Counter of why's prefix)",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E102/P5",
+   "claim": "yes: the tooltips say what the code does",
+   "verdict": "weakened",
+   "why": "R4760, R4762, R4763 pin the specific review items they name (T1-T4, T8, T10, T14, T15; G1, G2, G4, S1, S2; S7), not every tooltip; the reader read about 200 texts as text and not against their functions (its not_established, and its own E102-1 shows a tooltip no longer true). The promise is the stage's reviews' claim, held by test only for the reviewed rows.",
+   "evidence": "scripts/tests-tier1.mjs:28078 R4760 title (\"the review of c5cf2aff: ... T1-T4, T8, T10, T14, T15\"), :28129 R4762, :28151 R4763",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E102/P6",
+   "claim": "yes: a closing word given its own word draws that word",
+   "verdict": "stands",
+   "why": "R6350 exists in tier 1 and passed; footerButtons not re-read.",
+   "evidence": "scripts/tests-tier1.mjs:43313 R6350",
+   "severity_after": null,
+   "grade_after": null
+  },
+  {
+   "ref": "E55/grade",
+   "claim": "7",
+   "verdict": "stands",
+   "why": "Two promises partly (step 3's restatements, the brush), one superseded by the owner, one unknown (the look freeze, an old reading), one nit: row 7 of 11.4 fits. But 'The look did not change' rests on LIVE-E55-01..04, none read, so under the brief's L1 line the grade is provisional and should be marked so; the reader marks no grade provisional.",
+   "evidence": "audit/findings-1.2.118/BRIEF.md 'The real-table line L1'; stages-23.json E55 live {items: 4, read: 0}",
+   "severity_after": null,
+   "grade_after": "7 (provisional: after L1)"
+  },
+  {
+   "ref": "E25/grade",
+   "claim": "7",
+   "verdict": "weakened",
+   "why": "The reader's own table marks one promise 'no' (the two glossary questions given to E25) beside three 'partly'. Section 11.4's row 6 for a stage is 'one promise not delivered'; the grade reasons call the glossary entries 'delivered in part', which does not match the promise row. With the minor E57-1 lying on its handbook promise too, 6 is what the scale gives.",
+   "evidence": "stages-23.json E25 promise 7 holds \"no\"; audit/AUDIT-1.2.42.md 11.4 (6: 'jedna obietnica niedowieziona')",
+   "severity_after": null,
+   "grade_after": "6"
+  },
+  {
+   "ref": "E71/grade",
+   "claim": "8",
+   "verdict": "weakened",
+   "why": "Row 8 needs the promises delivered with at most one held only by reading or one minor. E71 has a minor (E71-1), its main promise is 'partly' (keys after E65 linted, not re-read), DB12 holds only inside T13's reach (P3 above), and the drawn look of the batches is 'no' (an unread table check). That is row 7 at best; the drawn check also makes it provisional after L1.",
+   "evidence": "stages-23.json E71 promises 1 (partly), 8 (no); finding E71-1 minor",
+   "severity_after": null,
+   "grade_after": "7 (provisional: after L1)"
+  },
+  {
+   "ref": "E57/grade",
+   "claim": "7",
+   "verdict": "weakened",
+   "why": "Two minors (E57-1, E57-2), three promises partly, and one 'no' (T10, T26 never built - T10 being the guard for exactly the drift E57-1 measures). Row 6 of 11.4 is one promise not delivered; two minors alone already sit at row 7's lower edge. The scenario-51 promise is also not measured today. 6, provisional after L1 (LIVE-E57-01..03 unread).",
+   "evidence": "stages-23.json E57 promise 8 holds \"no\"; findings E57-1, E57-2; base-run.json pending scenarios",
+   "severity_after": null,
+   "grade_after": "6 (provisional: after L1)"
+  },
+  {
+   "ref": "E102/grade",
+   "claim": "9",
+   "verdict": "weakened",
+   "why": "Row 9 needs everything delivered with only nits or unread live checks left. Two promises hold today only by source reading (placement by tipPlacement, the tooltips' truth by tests that pin the reviewed rows), and scenario 95 is not in the base run. Row 8 ('one holds only by reading of code') fits. The grade also rests on LIVE-E102-01, unread, so it is provisional; the reader did not mark it.",
+   "evidence": "stages-23.json E102 tests_read R4751 ('A source read of placement, not a drawn window'); base-run.json pending; BRIEF.md L1",
+   "severity_after": null,
+   "grade_after": "8 (provisional: after L1)"
+  }
+ ],
+ "counts": {
+  "checked": 34,
+  "stands": 26,
+  "weakened": 8,
+  "refuted": 0
+ },
+ "not_established": [
+  "base-run.json gives shard totals, not a row per test: a test is read here as ok only because its shard has 0 failed (shard 3's one failure is XI07) and it is not in audit/harness/skip-baseline.json; R111 is in that list (env.layout).",
+  "The ci scenarios (51-lang-mixed, 95-tooltips-drawn, 50-lang, 62-investigation, 74-room-tile and the rest) have not run in the base run (its `pending`); every claim resting on them is the release notes' reading of 14.11.2026 (class K).",
+  "The reader's 'git log -G deadStill: 7c874d66 alone' could not be checked: the clone is shallow and 7c874d66 is not reachable.",
+  "The reader's CSS counts beyond the budget file (91 restated selector lists, 11595 declarations, the raw ink literals outside stained-glass.css) were not re-counted; only the budget rows and the tokens were read.",
+  {
+   "what": "The \"?\" in a real Foundry v14 window header lands the GM handbook at that window's section (LIVE-E57-01); caps E57's grade as provisional",
+   "l1": {
+    "what": "Press the \"?\" in each of the seven GM windows' headers and read where the handbook opens",
+    "recipe": [
+     "Open a v14 world as the primary GM, English and then Polish",
+     "Open GM panel, Season setup, Room setup, the case window, the Trial console, Investigation, Edit campaign",
+     "Press the \"?\" in each header",
+     "Read the heading the handbook window scrolls to"
+    ],
+    "clients": "one GM",
+    "theme": "both",
+    "settles_if": "each window lands on sections 3, 2, 9.1, 14, 15, 14, 4 in both languages -> holds; any header without \"?\" or a wrong landing -> defect",
+    "priority": "E57 grade cap 9"
+   }
+  },
+  {
+   "what": "How Foundry v14 shows the module's tooltips, and that none shows over a disabled button (LIVE-E102-01); caps E102's grade as provisional",
+   "l1": {
+    "what": "Hover tipped controls, a footer button and a disabled button",
+    "recipe": [
+     "Open the GM panel and a roll window on v14",
+     "Hover three tipped controls and a footer button",
+     "Hover a disabled footer button",
+     "Note delay, placement and whether a tooltip appears"
+    ],
+    "clients": "one GM, one player",
+    "theme": "both",
+    "settles_if": "tooltips show with their words, footer buttons show their title, a disabled button shows the title only -> holds; a raw key, nothing, or a data-tooltip on a disabled button -> defect",
+    "priority": "E102 grade cap 9"
+   }
+  },
+  {
+   "what": "The consolidated sheets look as they did before E55 on a real v14 (LIVE-E55-01..04)",
+   "l1": {
+    "what": "Compare the module's windows on v14 against the 14.11 look; read the config windows' class names, the Font Awesome face, the twelve ids",
+    "recipe": [
+     "Open a token, scene and tile config and read their root classes",
+     "Read getComputedStyle of a pixel-font fa- icon",
+     "querySelector each of CONTRIBUTING.md's twelve Foundry ids",
+     "Screenshot the panel, sheet and messenger under both themes"
+    ],
+    "clients": "one GM",
+    "theme": "both",
+    "settles_if": "classes token-config/scene-config/tile-config present, the FA face resolves, look unchanged -> holds; otherwise defect",
+    "priority": "E55 grade (7, provisional)"
+   }
+  }
+ ]
+}

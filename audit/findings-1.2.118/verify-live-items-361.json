@@ -1,0 +1,89 @@
+{
+ "refuter": "verify-live-items-361",
+ "of": "live-items-361",
+ "checked": [
+  {
+   "ref": "376 (LIVE-E60-09)",
+   "claim": "partly, agrees: the owner's reading of 03.11.2026 (GM saw no player's dice with Dice So Nice's 'Show only mine' on) is recorded; the item's own 1.2.98 steps are not.",
+   "verdict": "stands",
+   "why": "The digest entry exists and matches the paper line, which itself records the reading as the owner's measurement; release notes v1.2.98 carry the owner's words. The reading is about a Dice So Nice setting and predates 1.2.98, which the reader says itself, so it settles only the first step's premise - partly is the honest status. Stale-text details confirmed: no key holds 'Ustaw sezon' (DRPG.Season.title is 'Ustawienia sezonu' / 'Season setup'), roll-draw.mjs:717 and diagnostics.mjs diagnoseDice exist; R1299, E60-T17, E60-T18 at the lines given.",
+   "evidence": "audit/AUDIT-1.2.42.md:1250 'z \"tylko moje\" GM nie widział kości graczy (zmierzone przez właściciela 03.11.2026)'; .github/release-notes/v1.2.98.md:164 '\"1. Jest show only mine - czy mam zmienic?\": the cause of the GM seeing no player's dice; LIVE-E60-09 starts by switching it off.'; live-readings-other.json readings item 376 outcome 'partial'; scripts/roll-draw.mjs:717 'error(\"Could not show the dice of a roll the GM drew\", err);'; scripts/diagnostics.mjs:122 'export function diagnoseDice('; scripts/tests-tier1.mjs:41048 'R1299 - the GMs who see a player's dice (E60 C5e ...'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "383 (LIVE-E44-07)",
+   "claim": "partly, defect: the owner saw white project tokens on the GM and coloured on players (04.11.2026); cause not established; the console line and toggle not run; since PV the player's sprite is tinted by the module.",
+   "verdict": "stands",
+   "why": "Digest entry and paper line agree: a symptom read at the table, the item's diagnostic steps not run. The stale note is confirmed in today's source: applyToProjectToken still returns at once on a GM, and on a player calls paintProjectTint, which sets mesh.tint from tintAsSeen or the document - so the GM's sprite is Foundry's drawing and the player's is the module's. remnant-ring.mjs frameFor at :688 and the white SVG note at projects-map.mjs:255 confirmed. The reading was on 1.2.98; the GM's road it describes is unchanged today, so partly is not overstated.",
+   "evidence": "audit/AUDIT-1.2.42.md:1257 'właściciel 04.11.2026: u GM-a tokeny projektów są białe, u graczy mają kolor'; .github/release-notes/v1.2.99.md:145-146 'The GM's white project icon, read in the code, is not drawn by any module road (LIVE-E44-07).'; scripts/visibility.mjs:671 'if (game.user.isGM) return;'; scripts/visibility.mjs:676 'paintProjectTint(token, projectId);'; scripts/visibility.mjs:692 'const tint = tintAsSeen(projectId) ?? token.document?.texture?.tint ?? null;'; scripts/projects-seen.mjs:225 'export function tintAsSeen(projectId, user = game.user) {'; scripts/remnant-ring.mjs:688 'const { colour, reinforced } = frameFor(token.document, isRemnant);'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "385 (LIVE-E44-08)",
+   "claim": "partly, defect: the owner read the character sheet not folding (06.11.2026, 205 x 838 px strip); CSS cause fixed in 1.2.100 bb0feb94 (R1566); points (2)-(4) and other windows unread; tableDialog in the item's text is gone.",
+   "verdict": "stands",
+   "why": "Digest, paper line and release notes v1.2.100 agree. bb0feb94 is in v1.2.100 and later tags; the rule at styles/danganronpa.css:2282 leaves out .minimized and .minimizing; R1566 exists at tests-tier0.mjs:21742. No function tableDialog is declared anywhere in scripts/ outside tests; it survives only in comments saying 'until E21 C2a'. Despair Flow (gm-team-dialog.mjs:277) and Item tables (tables-editor.mjs:1652) both open through drpgWindow. messenger-app.mjs:129 and :458 and live.mjs:696 as cited.",
+   "evidence": "audit/AUDIT-1.2.42.md:1259 'Odczyt przy stole 06.11.2026 (właściciel, arkusz postaci Divakumy): arkusz postaci się nie zwijał'; .github/release-notes/v1.2.100.md:174 'bb0feb94 (the character sheet folds; the owner found it at the table on 06.11.2026; R1566)'; styles/danganronpa.css:2282 '.application.sheet.daggerheart.actor.character:not(.minimized):not(.minimizing) {'; scripts/gm-team-dialog.mjs:285 'utils.mjs `tableDialog` until E21 C2a'; scripts/messenger-app.mjs:458 'return Boolean(this.rendered) && !this.minimized && this.tab === \"chat\"'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "361 (LIVE-E65-01)",
+   "claim": "open: no reading of R1060 and R972 on a GM whose module language is Polish.",
+   "verdict": "stands",
+   "why": "The id appears in none of the digests, b5a29e73's LOCAL-REPORT.md and CALIBRATION.md, or the e58-local branch copies (7875554f). The branch did run tiers 0-1 at the sandbox (LOCAL-REPORT.md:306 on the branch) but records no R1060 or R972 log line and no Polish module language for the GM; grep for R1060 over both branch papers finds nothing.",
+   "evidence": "origin/claude/e58-local:docs/dev/e58/LOCAL-REPORT.md:306 '**Tiers 0-1 at a table, read for the first time** ... Stained Glass 36 failed, 5 skipped; ... Not read yet; in the loop below.'; docs/dev/e58/TRIAGE-9.2.md:384 '| 361 | LIVE-E65-01 | K | Set module Language Polish, reload GM; game.drpg.runTests(); read R1060 and R972 log lines |'",
+   "status_after": "open"
+  },
+  {
+   "ref": "365 (LIVE-E37-01)",
+   "claim": "open: 81-render-budget on a real Foundry with real sheets never read; the local gate never ran.",
+   "verdict": "stands",
+   "why": "The only mention in the readings is live-readings-other.json's not_run line on the 1.2.118 local-gate record (all 8 parts not-run, ECONNREFUSED). On the e58-local branch the sole hit for 81-render-budget is a dry run of gate:local that lists sandbox-81-render-budget as a part, 0.27 s, not a run of the scenario.",
+   "evidence": "audit/findings-1.2.118/live-readings-other.json:928 'all 8 parts not-run, reason no-server (connect ECONNREFUSED 127.0.0.1:30099) ... Bears on ... LIVE-E37-01 (item 365)'; origin/claude/e58-local:docs/dev/e58/LOCAL-REPORT.md:725 '| The dry run | `DRPG_SANDBOX_WORLD=drpg-qa-gate npm run gate:local -- --dry-run` ... | 0.27 s. ... `sandbox-81-render-budget`'",
+   "status_after": "open"
+  },
+  {
+   "ref": "371 (LIVE-E42-02)",
+   "claim": "open: a verdict and an End of chapter interrupted by closing the GM's tab, never read at a table.",
+   "verdict": "stands",
+   "why": "No digest or paper (both branches) names LIVE-E42-02; the branch LOCAL-REPORT.md has no 'Finish the verdict' / Level Up resume reading; release notes v1.2.97 only list it as a live row.",
+   "evidence": ".github/release-notes/v1.2.97.md:240 '- **371, LIVE-E42-02:** a verdict's Level Up window and an End of chapter with the GM's tab closed mid-procedure'; docs/dev/e58/TRIAGE-9.2.md:394 '| 371 | LIVE-E42-02 | K | Close GM page at Level Up/chapter end, reopen ...'",
+   "status_after": "open"
+  },
+  {
+   "ref": "374 (LIVE-E60-08)",
+   "claim": "open: the player's roll window whole for an action and a statistic, not read; the owner's 1.2.97 sighting is the item's cause, not its reading.",
+   "verdict": "stands",
+   "why": "No reading paper names LIVE-E60-08; release notes v1.2.98:216 hand the Reaction chip sighting over to the item, which confirms the reader's note that the sighting predates the item and is not a reading of its steps on 1.2.98 or later. The branch LOCAL-REPORT.md's roll-window lines are about the GM's Daggerheart roll window left open in tier 2, not the player's window at 1366x768.",
+   "evidence": ".github/release-notes/v1.2.98.md:216 '- The Reaction chip seen ticked on an action roll at the owner's table is left to LIVE-E60-08'; origin/claude/e58-local:docs/dev/e58/LOCAL-REPORT.md:30 '(a) fits so far - the GM's own roll window waits on a press'",
+   "status_after": "open"
+  },
+  {
+   "ref": "382 (LIVE-E44-06)",
+   "claim": "open: the owner's judgement of the notice history at the glass's text floor on 1.2.99 not recorded.",
+   "verdict": "stands",
+   "why": "The paper line quotes only the owner's promise to verify; live-readings-other.json records no reading follows; release notes v1.2.100 to v1.2.118 that mention Open 44 do so for a default, not a reading of the history window.",
+   "evidence": "audit/AUDIT-1.2.42.md:1256 '(04.11.2026: \"W 1.2.99 zweryfikuje i dam znac jesli uznam, ze trzeba poprawic.\")'; audit/findings-1.2.118/live-readings-other.json:959 'the owner said on 04.11.2026 he would verify on 1.2.99 and report; no reading follows in the item.'",
+   "status_after": "open"
+  },
+  {
+   "ref": "observation 7 (Polish verdictIntro names an option the window does not draw)",
+   "claim": "nit: lang/pl.json DRPG.Mastermind.verdictIntro names 'Nikt niewskazany' while the option drawn is DRPG.Vote.nobodyNamed 'Nikogo nie wskazano'; the English intro says nothing of the list.",
+   "verdict": "stands",
+   "why": "Read in lang files and verdict.mjs: the intro is drawn above a select whose first option is DRPG.Vote.nobodyNamed. Severity nit (text), below the minor threshold of the task; checked because it is the file's one entry with a severity.",
+   "evidence": "lang/pl.json DRPG.Mastermind.verdictIntro '... lista zaczyna się od „Nikt niewskazany”, a zaznaczony jest już pierwszy oskarżony ...'; lang/pl.json DRPG.Vote.nobodyNamed 'Nikogo nie wskazano'; scripts/verdict.mjs:1206 '<option value=\"\">${game.i18n.localize(\"DRPG.Vote.nobodyNamed\")}</option>'; scripts/verdict.mjs:1213 '<p>${game.i18n.localize(\"DRPG.Mastermind.verdictIntro\")}</p>'",
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 9,
+  "stands": 9,
+  "weakened": 0,
+  "refuted": 0
+ },
+ "scope_note": "The file has 34 items (361-394, matching the 34 numbered items of audit/AUDIT-1.2.42.md:1235-1277, counted by script): 3 partly, 31 open, none read or obsolete. All 3 partly were checked; 5 open (361, 365, 371, 374, 382) were checked for a missed reading. A grep of all 34 LIVE ids over live-readings-*.json, b5a29e73's LOCAL-REPORT.md and CALIBRATION.md and the e58-local branch copies (7875554f) found mentions only for E37-01 (a not_run line), E44-06 (a not_run line), E60-09, E44-07 and E44-08. The file's observations carry no entry of severity minor or above; the one with a severity (nit) was checked anyway.",
+ "not_established": [
+  "Whether the tier-2 halves the items name (E60-T17, E60-T18, E44-T9, R1339 and others) pass on b5a29e73: base-run.json was not read by this refuter and none was run.",
+  "The 26 open items not sampled were checked only by the id grep above, not by reading their lines against the branch papers' unlabelled tier-2 results; a reading filed under another name would not be seen by that grep."
+ ]
+}

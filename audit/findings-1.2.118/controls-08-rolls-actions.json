@@ -1,0 +1,1730 @@
+{
+ "reader": "controls-08-rolls-actions",
+ "read": [
+  {
+   "file": "scripts/roll-dialog.mjs",
+   "lines_read": 1350
+  },
+  {
+   "file": "scripts/roll-draw.mjs (1-60, 193-270, 1790-1840, 2290-2300, 2410-2470, 2720-3066: header, the roll states and card buttons, the GM's expectation, the flags, no GM connected and its card)",
+   "lines_read": 600
+  },
+  {
+   "file": "scripts/private-rolls.mjs (60-120, 1840-1890, and a grep for every listener and button)",
+   "lines_read": 110
+  },
+  {
+   "file": "scripts/reroll.mjs (1-140, 740-800, 1925-1993, and the function list)",
+   "lines_read": 270
+  },
+  {
+   "file": "scripts/reroll-receipts.mjs",
+   "lines_read": 175
+  },
+  {
+   "file": "scripts/infiltrate-reroll.mjs (1-30)",
+   "lines_read": 30
+  },
+  {
+   "file": "scripts/dice-look.mjs (470-553)",
+   "lines_read": 84
+  },
+  {
+   "file": "scripts/forced-roll.mjs (1-30; grep: no control)",
+   "lines_read": 30
+  },
+  {
+   "file": "scripts/dice-sync.mjs (1-60, 760-785; grep for notices)",
+   "lines_read": 86
+  },
+  {
+   "file": "scripts/action-menus.mjs",
+   "lines_read": 538
+  },
+  {
+   "file": "scripts/action-pipeline.mjs (1000-1125: the ruling cards' buttons)",
+   "lines_read": 126
+  },
+  {
+   "file": "scripts/actions.mjs (580-597)",
+   "lines_read": 18
+  },
+  {
+   "file": "scripts/action-rolls.mjs (74-328)",
+   "lines_read": 255
+  },
+  {
+   "file": "scripts/action-dynamic.mjs (60-358)",
+   "lines_read": 299
+  },
+  {
+   "file": "scripts/action-murder.mjs (20-398)",
+   "lines_read": 379
+  },
+  {
+   "file": "scripts/action-search.mjs (463-540, 560-714)",
+   "lines_read": 233
+  },
+  {
+   "file": "scripts/action-listen.mjs (1-360)",
+   "lines_read": 360
+  },
+  {
+   "file": "scripts/action-briefing.mjs (320-334)",
+   "lines_read": 15
+  },
+  {
+   "file": "scripts/action-report.mjs (grep only: no button)",
+   "lines_read": 0
+  },
+  {
+   "file": "scripts/action-doors.mjs",
+   "lines_read": 159
+  },
+  {
+   "file": "scripts/action-facilities.mjs (grep only: its rows feed Rest's window in action-rest.mjs, outside this lane)",
+   "lines_read": 0
+  },
+  {
+   "file": "scripts/action-watch.mjs",
+   "lines_read": 51
+  },
+  {
+   "file": "scripts/action-tail.mjs",
+   "lines_read": 100
+  },
+  {
+   "file": "scripts/allowed-now.mjs (not read: no window or control; its gates read through action-rolls.mjs)",
+   "lines_read": 0
+  },
+  {
+   "file": "scripts/rules.mjs (1-60, 336-603)",
+   "lines_read": 328
+  },
+  {
+   "file": "scripts/despair-award.mjs (grep only: one createChatMessage hook, no control)",
+   "lines_read": 0
+  },
+  {
+   "file": "neighbours: messenger-app.mjs (750-800, 860-905, 1392-1442), call-gm.mjs (255-300), murder-rules.mjs (1040-1065), tail-gm.mjs (30-70), frisk.mjs (146-171), bridge-runs-acts.mjs (276-301), bridge-table.mjs (230-250), diagnostics.mjs (2285-2345), gm-panel.mjs (760-780), live.mjs (1-80), character.mjs (276-283), call-effects.mjs (159-202), states.mjs (grep), tests-windows.mjs:45, tests-tier2.mjs (97870-97900), audit/harness/scenarios/15-held.mjs (630-680), styles/*.css (scan by script)",
+   "lines_read": 700
+  }
+ ],
+ "count_note": "docs/dev/e59/WINDOWS.md lists 4 windows for this lane's 26 files: action-dynamic.mjs askDynamicDifficulty (328), action-murder.mjs performDirectMurder (321), dice-look.mjs diagnoseDiceLook (537), rules.mjs openRulesManager (490). This file has 21 surfaces: 13 module windows (those 4, plus chooseVariant's three in this lane - the crisis menu, Search, Infiltrate - promptForNote, and the actionWindow calls of the betrayal, Listen's room, Force, Pick and Tail), 1 Daggerheart window the module locks (the roll window), 6 chat-card surfaces (the GMs' away card, the unwitnessed line, Daggerheart's chat menu, the Dynamic GMs' card, the ruling buttons action-pipeline.mjs builds, the Reroll's re-asked card) and the shared frame. The difference is the tool's reading, not missing windows: its OPENERS regex (scripts/tests-windows.mjs:45) matches `drpgWindow(` and not `(columns ? actionWindow : drpgWindow)(` (action-menus.mjs:230, 522) or an `actionWindow(` call, so every action window is counted once, as ui-columns.mjs wideWindow (WINDOWS.md:221) and, where they wrap it, not at all. WINDOWS.md's line numbers also differ from today's source for three of the four (askDynamicDifficulty 327, performDirectMurder 323, diagnoseDiceLook 538; the file is dated 14.11, dice-look.mjs changed 16.11); `node tools/e59/windows.mjs --check` was not run and is not called by tools/check.mjs or a workflow (grep). Not in this file though named by the lane: Rest's window (action-rest.mjs, its rows from action-facilities.mjs), Dynamic's first window (call-gm.mjs promptForRequest), Observe, Analyze, Frisk and Tamper (controls-04). The unwitnessed line is counted as a control (a status line), the only one that is not pressed. No base-run.json, probe-42.json or probe-43.json existed when this file was written: no test result is cited as read.",
+ "surfaces": [
+  {
+   "surface": "Daggerheart's roll window, as the module locks it (class roll-selection)",
+   "file": "scripts/roll-dialog.mjs",
+   "opener": "Daggerheart itself (d20RollDialog), on every roll the module throws (action-pipeline.mjs rollTrait) and on a statistic clicked on the sheet; decorated by the render hook onRenderApplication:305 and the wrapped _prepareContext (wrapPrepareContext:215)",
+   "audience": "the roller: a player for their student, a GM for any student (isStudentRoll:509 is about the actor, not the user); Monokuma rolls are left unlocked",
+   "controls": [
+    {
+     "label": "Roll (the submit button, its die glyph swapped to fa-dice-d12)",
+     "key": "Daggerheart's",
+     "kind": "button",
+     "selector": "button.submit-btn",
+     "handler": "Daggerheart's own submit; roll-dialog.mjs:320-321 swaps the glyph only",
+     "effect": "throws the roll (drawn on the primary GM for an action's roll and a sheet statistic, roll-draw.mjs)",
+     "gate": "anyone who opened the window; offered by Daggerheart from config.costs, which forceConfig strips of an experience's Hope cost before the context runs (stripExperienceCosts:569)",
+     "how_read": "code; tier 2 'a player at 0 Hope who bought an Experience Call ...' named in roll-dialog.mjs:182 (result not read)",
+     "themes": "no hiding rule found (scan of styles/*.css, 7 files: 252 rules naming drpg-away, drpg-action-details, drpg-choice, drpg-variant, drpg-action-window, drpg-specific-note, data-drpg-when, drpg-unpicked, drpg-trait-, drpg-action-trait, drpg-window-rules, drpg-motive, drpg-dice-look, roll-selection, drpg-locked, drpg-call-unlocked, drpg-calls-waiting, drpg-forced-critical, drpg-free-crit, drpg-held-stack, drpg-roll-state, drpg-gm-route, drpg-briefing; the 14 that hide are the pick-following layers and fields (danganronpa.css:5144 .drpg-action-trait:empty, :5292 .drpg-choice-details, :5376 .drpg-specific-note[data-drpg-when] shown again by :5380 and :17887, :17865 the shut Details box, :17871 .drpg-action-window .drpg-unpicked), roll-selection's dice-icon img, and decorative ::before (stained-glass.css :is(.drpg-choice, ...)::before opacity 0); none under a theme class or in narrow.css hides a button)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Hope / Fear die and advantage die selects",
+     "key": "Daggerheart's",
+     "kind": "select",
+     "selector": "select[name^=\"roll.dice.\"], .modifier-container .nest-inputs select",
+     "handler": "lockDice:589 -> disable:1185",
+     "effect": "disabled, tooltip DRPG.RollDialog.diceFixed",
+     "gate": "student roll with the lock on (lockRollDialog)",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Statistic select",
+     "key": "Daggerheart's",
+     "kind": "select",
+     "selector": "select[name=\"trait\"]",
+     "handler": "lockTrait:618",
+     "effect": "disabled with traitFixed / traitByGm / traitApproved / traitChanged; enabled with Determination (Resolve) armed",
+     "gate": "student roll, lock on",
+     "how_read": "code; tier 2 'a GM's pick stays locked in the roll window' named at :615 (result not read)",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Advantage chip",
+     "key": "Daggerheart's",
+     "kind": "chip",
+     "selector": ".advantage-chip",
+     "handler": "lockAdvantage:642 (lock on), onRenderApplication:383-395 (lock off) -> lockChip:1199",
+     "effect": "selected and locked when the sum of sources is positive, with the count badge (markChipCount) and a tooltip naming the sources (explainAdvantage); locked otherwise",
+     "gate": "student roll",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Disadvantage chip",
+     "key": "Daggerheart's",
+     "kind": "chip",
+     "selector": ".disadvantage-chip",
+     "handler": "lockAdvantage:642 -> lockChip:1199",
+     "effect": "selected and locked when the sum is negative (Calls, situation, hindrance, Breakdown: advantageSources:1091)",
+     "gate": "student roll",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "stale_state",
+     "detail": "Drawn from the sources as the window last rendered; a Breakdown that arrives while the window stands open (the last Sanity mark) redraws nothing, so the chip stays unselected while the GM's draw throws the disadvantage (finding 1)."
+    },
+    {
+     "label": "Reaction chip",
+     "key": "Daggerheart's",
+     "kind": "chip",
+     "selector": "[data-action=\"toggleReaction\"]",
+     "handler": "forceReaction:469 (config) and paintReaction:481 (chip, click stopped with a warning)",
+     "effect": "held at Reaction for a sheet statistic, held at Action for a crisis or opening throw (HELD_AS_ACTION:462), left alone for any other action's roll",
+     "gate": "student roll, lock on or off",
+     "how_read": "code; tier 2 'an opening or crisis throw holds its Reaction chip ...' named at :459 (result not read)",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Experience chips",
+     "key": "Daggerheart's",
+     "kind": "chip",
+     "selector": "[data-action=\"selectExperience\"]",
+     "handler": "lockExperiences:698; capExperiences:1287 keeps the last one picked",
+     "effect": "locked, or unlocked with an Experience Call armed (one kept)",
+     "gate": "student roll, lock on",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Bonus field",
+     "key": "Daggerheart's",
+     "kind": "input",
+     "selector": "input[name=\"extraFormula\"]",
+     "handler": "lockBonus:813 (lock on), lockBonus / freeBonus:765 (lock off)",
+     "effect": "disabled and emptied, or read-only with a Call's number written and a change event dispatched",
+     "gate": "student roll",
+     "how_read": "code; tier 2 'a Meddle's +1 the window writes ...' named at :829 (result not read)",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Roll mode select",
+     "key": "Daggerheart's",
+     "kind": "select",
+     "selector": "select[name=\"selectedMessageMode\"]",
+     "handler": "lockControls:891-895",
+     "effect": "disabled; tooltip names who sees the roll (audienceOf:916)",
+     "gate": "student roll, lock on",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "An experience's Hope-cost row",
+     "key": "Daggerheart's",
+     "kind": "checkbox row",
+     "selector": "input[name^=\"costs.\"]",
+     "handler": "hideCostSection:1314",
+     "effect": "the row of an experience's cost removed, every other cost row kept",
+     "gate": "any roll window",
+     "how_read": "code; tier 2 'the roll window hides only the experiences' cost rows ...' named at :1310 (result not read)",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the Calls armed on the character (call-effects.mjs pendingCalls: the actor's flag and the Confusions store), pinned to the nonces of the first render (windowCalls:117)",
+     "the situation's dice (call-effects.mjs situationalAdvantage, module memory set by the action)",
+     "the hindrance die (ownHindrance)",
+     "Breakdown: the actor's Sanity (character.mjs isBrokenDown:276, remaining stress)",
+     "the Monocub flag",
+     "setting lockRollDialog",
+     "setting forcePrivateRolls",
+     "the curtain's last cut (glass.mjs LAST) at the first render"
+    ],
+    "listens": [
+     "updateActor with a change under flags.drpg (redrawRollWindows:130-140, registered :38): app.render()",
+     "Daggerheart's own re-render on each change of its form (submitOnChange)"
+    ],
+    "verdict": "partial",
+    "gaps": [
+     "Sanity (system.resources.stress) is read on every render (stateGrant:1031) and not listened to: redrawRollWindows returns at :131 unless the change carries flags.drpg; a Breakdown's status effect is toggled with toggleStatusEffect (states.mjs:400), no module flag (finding 1)",
+     "a Confusion armed while the window is open: the store, no flag - said so in the code's own note (:106-111), and by design it waits for the next roll",
+     "settings lockRollDialog / forcePrivateRolls changed by a GM while a window stands open: read at render, not listened to (not a finding: a GM's setting, rare)"
+    ],
+    "focus_rule": "a redraw is Daggerheart's app.render(); the window has no free-text field a player types in while locked, and the bonus field it may hold with the lock off is drawn from the config Daggerheart's own form handler wrote"
+   }
+  },
+  {
+   "surface": "Rolls with no GM connected - the GMs' card (title 'Rolls with no GM connected')",
+   "file": "scripts/roll-draw.mjs",
+   "opener": "askAboutUnwitnessed:2915 at the primary GM's ready and for a stamped message created while it is there (registerUnwitnessedRolls:3059-3065); wired by onRenderUnwitnessed:3034",
+   "audience": "gm (whispered to the GMs; wired only where game.user.isGM and the card's writer is a GM, :3042)",
+   "controls": [
+    {
+     "label": "Grant all",
+     "key": "DRPG.Rolls.grantAll",
+     "kind": "button (gmRoute)",
+     "selector": ".drpg-away-actions > [data-drpg-away=\"grant\"]",
+     "handler": "onRenderUnwitnessed:3045-3053 -> askToDecide:2955 (roll.grant on the primary) -> decideUnwitnessed / decideNow:2961 -> grantRolls:2995",
+     "effect": "each listed roll still undecided is marked granted, handed to the GM as author, and gets its Hope, Stress, Fear and Despair on the GM; the buttons are taken off the pressing GM's copy at once",
+     "gate": "a GM; a second press or a second card finds the rolls decided (awayRowOf:2836-2838 returns null on 'granted')",
+     "how_read": "scenario 15-held A3 (presses Grant all on gm0; result not read); R2073 pins the markup (result not read)",
+     "themes": "no hiding rule found (scan of styles/*.css, 7 files: 252 rules naming drpg-away, drpg-action-details, drpg-choice, drpg-variant, drpg-action-window, drpg-specific-note, data-drpg-when, drpg-unpicked, drpg-trait-, drpg-action-trait, drpg-window-rules, drpg-motive, drpg-dice-look, roll-selection, drpg-locked, drpg-call-unlocked, drpg-calls-waiting, drpg-forced-critical, drpg-free-crit, drpg-held-stack, drpg-roll-state, drpg-gm-route, drpg-briefing; the 14 that hide are the pick-following layers and fields (danganronpa.css:5144 .drpg-action-trait:empty, :5292 .drpg-choice-details, :5376 .drpg-specific-note[data-drpg-when] shown again by :5380 and :17887, :17865 the shut Details box, :17871 .drpg-action-window .drpg-unpicked), roll-selection's dice-icon img, and decorative ::before (stained-glass.css :is(.drpg-choice, ...)::before opacity 0); none under a theme class or in narrow.css hides a button)",
+     "verdict": "stale_state",
+     "detail": "On another GM's chat log the card keeps both buttons after one GM decided: decideNow updates the roll messages, not the card, so the card is not redrawn; a press there decides nothing and says nothing (finding 2)."
+    },
+    {
+     "label": "Grant none",
+     "key": "DRPG.Rolls.grantNone",
+     "kind": "button (secondary)",
+     "selector": ".drpg-away-actions > [data-drpg-away=\"none\"]",
+     "handler": "the same listener, grant false",
+     "effect": "each listed roll marked granted:false and handed to the GM; nothing moved",
+     "gate": "a GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "stale_state",
+     "detail": "as Grant all: stays live on another GM's copy and answers nothing there."
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the stamped roll messages the card lists (flags.drpg.awayRolls, each message's flags.drpg.unwitnessed.granted), read when the card is drawn (:3044)"
+    ],
+    "listens": [
+     "renderChatMessageHTML of the card itself (a reload, a chat redraw)"
+    ],
+    "verdict": "stale",
+    "gaps": [
+     "the listed rolls' messages are updated by decideNow:2968 (granted, author) and the card that lists them is not rerendered: roll-draw.mjs:3044-3045 takes the buttons off only when the card is drawn again"
+    ],
+    "focus_rule": "n/a (no field)"
+   }
+  },
+  {
+   "surface": "A roll thrown with no GM connected - its own roll card's line",
+   "file": "scripts/roll-draw.mjs",
+   "opener": "onRenderUnwitnessed:3034-3040, on every browser that draws a message carrying flags.drpg.unwitnessed",
+   "audience": "every reader of the roll card (the roller, the GMs, whoever the roll is shown to)",
+   "controls": [
+    {
+     "label": "'Rolled with no GM connected, so it moves no Hope, Sanity, or Despair for now. A GM decides later ...'",
+     "key": "DRPG.Rolls.unwitnessed",
+     "kind": "status line",
+     "selector": "[data-drpg-roll-state=\"unwitnessed\"]",
+     "handler": "onRenderUnwitnessed:3038-3039 (rollStatus:243)",
+     "effect": "drawn on the card whenever the stamp is there",
+     "gate": "every reader",
+     "how_read": "code; no test reads the line after a decision (grep of tests-tier*.mjs and scenarios for roll-state=\"unwitnessed\": none)",
+     "themes": "no hiding rule found (scan of styles/*.css, 7 files: 252 rules naming drpg-away, drpg-action-details, drpg-choice, drpg-variant, drpg-action-window, drpg-specific-note, data-drpg-when, drpg-unpicked, drpg-trait-, drpg-action-trait, drpg-window-rules, drpg-motive, drpg-dice-look, roll-selection, drpg-locked, drpg-call-unlocked, drpg-calls-waiting, drpg-forced-critical, drpg-free-crit, drpg-held-stack, drpg-roll-state, drpg-gm-route, drpg-briefing; the 14 that hide are the pick-following layers and fields (danganronpa.css:5144 .drpg-action-trait:empty, :5292 .drpg-choice-details, :5376 .drpg-specific-note[data-drpg-when] shown again by :5380 and :17887, :17865 the shut Details box, :17871 .drpg-action-window .drpg-unpicked), roll-selection's dice-icon img, and decorative ::before (stained-glass.css :is(.drpg-choice, ...)::before opacity 0); none under a theme class or in narrow.css hides a button)",
+     "verdict": "stale_state",
+     "detail": "The test is `message.getFlag(MODULE_ID, UNWITNESSED_FLAG)` alone; after Grant all or Grant none the flag holds `granted` and the message rerenders, and the line still says a GM decides later (finding 3)."
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "flags.drpg.unwitnessed of the message (its `granted` is not read)"
+    ],
+    "listens": [
+     "renderChatMessageHTML (the message rerenders on decideNow's update)"
+    ],
+    "verdict": "stale",
+    "gaps": [
+     "the line reads the stamp but not its `granted` (roll-draw.mjs:3038): redrawn on time, with the old words"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "Daggerheart's chat menu on a roll card: its two rerolls",
+   "file": "scripts/reroll-receipts.mjs",
+   "opener": "Foundry's chat context menu (hook getChatMessageContextOptions, registerRollKeeper:174)",
+   "audience": "Daggerheart offers them on a roll message; the module takes them off a user who is not a GM",
+   "controls": [
+    {
+     "label": "Reroll Action Roll / Reroll Damage (player's menu)",
+     "key": "DAGGERHEART.UI.ChatLog.rerollActionRoll, .rerollDamage",
+     "kind": "context menu entry",
+     "selector": "chat message context menu",
+     "handler": "dropDaggerheartRerolls:153",
+     "effect": "removed from a player's menu; a rewrite of the rolls by a player anyway (a console write) is put back by the primary (judgeRewrite:107)",
+     "gate": "not shown to a player",
+     "how_read": "code; the hook name is not measured (LIVE-E08-05, the file's header)",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Reroll Action Roll (a GM's menu)",
+     "key": "DAGGERHEART.UI.ChatLog.rerollActionRoll",
+     "kind": "context menu entry",
+     "selector": "chat message context menu",
+     "handler": "Daggerheart's own; judgeRewrite:109-112 keeps a GM's rewrite as the roll's dice",
+     "effect": "the message's dice change; whether the action's result, the GMs' roll record (store rolls) and the Hope settle follow is not traced (roll-draw.mjs has no updateChatMessage hook; reroll.mjs's replay runs only through its own Reroll)",
+     "gate": "a GM",
+     "how_read": "code, part of the road",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "unknown",
+     "detail": "See not_established: what a GM's press of Daggerheart's own reroll leaves standing."
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the user's role at the menu's build"
+    ],
+    "listens": [
+     "getChatMessageContextOptions (built at each open)"
+    ],
+    "verdict": "live",
+    "gaps": [],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "An action's window - the shared frame (actionWindow / chooseVariant): briefing left, question right",
+   "file": "scripts/action-menus.mjs",
+   "opener": "chooseVariant:167 and actionWindow:303 (on ui-columns.mjs wideWindow), called by every action window below; promptForNote:513",
+   "audience": "the actor's owner (a player, or a GM running the student)",
+   "controls": [
+    {
+     "label": "Details (toggle)",
+     "key": "DRPG.Kit.details",
+     "kind": "button (toggle)",
+     "selector": ".drpg-action-details-toggle",
+     "handler": "wireDetails:371-400 (click, and Enter taken at :392-397)",
+     "effect": "opens or shuts the facts box in place (visibility and inert), writes the client setting actionDetailsOpen",
+     "gate": "anyone the window is shown to",
+     "how_read": "code; R3382 (one Details per window; result not read)",
+     "themes": "no hiding rule found (scan of styles/*.css, 7 files: 252 rules naming drpg-away, drpg-action-details, drpg-choice, drpg-variant, drpg-action-window, drpg-specific-note, data-drpg-when, drpg-unpicked, drpg-trait-, drpg-action-trait, drpg-window-rules, drpg-motive, drpg-dice-look, roll-selection, drpg-locked, drpg-call-unlocked, drpg-calls-waiting, drpg-forced-critical, drpg-free-crit, drpg-held-stack, drpg-roll-state, drpg-gm-route, drpg-briefing; the 14 that hide are the pick-following layers and fields (danganronpa.css:5144 .drpg-action-trait:empty, :5292 .drpg-choice-details, :5376 .drpg-specific-note[data-drpg-when] shown again by :5380 and :17887, :17865 the shut Details box, :17871 .drpg-action-window .drpg-unpicked), roll-selection's dice-icon img, and decorative ::before (stained-glass.css :is(.drpg-choice, ...)::before opacity 0); none under a theme class or in narrow.css hides a button)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "A row of the list",
+     "key": "(the row's label)",
+     "kind": "radio",
+     "selector": ".drpg-choice-list input[name=\"variant\"]",
+     "handler": "syncDetails:407 and followConfirmLabel:479 (change)",
+     "effect": "lights the row's details, layers and fields, and renames the confirm button (a row's `confirm`)",
+     "gate": "shut rows are drawn struck with their reason and cannot be picked (choiceRowHtml)",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "The confirm button",
+     "key": "the picked row's confirm, else DRPG.Action.proceed",
+     "kind": "button (primary)",
+     "selector": "footer button[data-action=\"ok\"]",
+     "handler": "chooseVariant:252-262",
+     "effect": "answers { value, trait, form } to the action",
+     "gate": "shown only while a row is usable; a window whose every row is shut has Close alone (:251)",
+     "how_read": "code; R4105 (one word per kind; result not read)",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel / Close",
+     "key": "the kit's closing word",
+     "kind": "button (close)",
+     "selector": "footer close",
+     "handler": "chooseVariant:264, 269",
+     "effect": "answers null: nothing paid",
+     "gate": "always",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "The statistic proposal and How do you do it?",
+     "key": "DRPG.TraitRuling.proposeLabel, DRPG.TraitRuling.howLabel",
+     "kind": "select + input",
+     "selector": ".drpg-trait-proposal [name=proposed], [name=note]",
+     "handler": "traitFieldHtml:50, readProposal:78",
+     "effect": "the statistic the player proposes to a GM and the words the GM's card quotes",
+     "gate": "rows that ask a GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the actor's actions left and price (actions.mjs actionsLeft, briefing's 'will cost, left')",
+     "the room the character stands in (movement.mjs roomOfActor / locateActor)",
+     "client setting actionDetailsOpen (the Details box open or shut)",
+     "each caller's own facts (below)"
+    ],
+    "listens": [],
+    "verdict": "stale",
+    "gaps": [
+     "no window built here redraws: action-menus.mjs and ui-columns.mjs call no keepLive (grep of scripts/ for keepLive in action-*, roll-*, rules.mjs, dice-*, private-rolls, ui-columns: none); each caller's gaps are listed on its surface (finding 7)"
+    ],
+    "focus_rule": "n/a: nothing redraws, so nothing typed is lost"
+   }
+  },
+  {
+   "surface": "Crisis actions / Fight back - the fight's menu (title 'Your turn')",
+   "file": "scripts/action-murder.mjs",
+   "opener": "openCrisisMenu:59, from performAction (action-rolls.mjs:137) when allowedNow answers the crisis road",
+   "audience": "a participant of the incident on their turn (off turn the tile says so in a toast, :87-90)",
+   "controls": [
+    {
+     "label": "A crisis row",
+     "key": "the action's label",
+     "kind": "radio",
+     "selector": ".drpg-choice-list input[name=variant]",
+     "handler": "chooseVariant",
+     "effect": "picks the action; shut rows say why (denied, locked, spent, blocked)",
+     "gate": "the participant on their turn",
+     "how_read": "code; R3382",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Roll it / Do it",
+     "key": "DRPG.Murder.briefRoll, DRPG.Murder.briefTake",
+     "kind": "button (primary)",
+     "selector": "footer [data-action=ok]",
+     "handler": "openCrisisMenu:151-157 -> murder-rules.mjs takeCrisisAction:1045",
+     "effect": "takes the action; a pass after a GM's 'Change to' opens the menu again",
+     "gate": "re-judged at the press: crisisRefusal (murder-rules.mjs:945) warns and does nothing",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": "A row that shut while the menu stood open is refused with a warning, not taken."
+    },
+    {
+     "label": "Cancel",
+     "key": "kit",
+     "kind": "button (close)",
+     "selector": "footer close",
+     "handler": "chooseVariant",
+     "effect": "nothing taken",
+     "gate": "always",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Statistic proposal and how (rows that ask a GM)",
+     "key": "DRPG.TraitRuling.proposeLabel",
+     "kind": "select + input",
+     "selector": "[data-drpg-field] .drpg-trait-proposal",
+     "handler": "readProposal on the picked row's field (:152)",
+     "effect": "the proposal goes with takeCrisisAction",
+     "gate": "rows whose roll lists several statistics and no Resolve armed (asks:96)",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the incident's state (availableCrisisActions, isTheirTurn)",
+     "Breakdown (isBrokenDown) for the details' line",
+     "Resolve armed (resolveArmed)"
+    ],
+    "listens": [],
+    "verdict": "stale",
+    "gaps": [
+     "a row the other side or the GM shuts, or a turn that passes, while the menu stands open is not redrawn (murder-rules.mjs state, not listened to); the press is refused with a toast"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "Search - what are you looking for?",
+   "file": "scripts/action-search.mjs",
+   "opener": "chooseSearchCategory:630 from performSearch:487",
+   "audience": "the searcher's owner",
+   "controls": [
+    {
+     "label": "Goal rows (Healing, Sanity, Crime tool, Cleaning tool, Tool, Something specific)",
+     "key": "DRPG.Action.goal*",
+     "kind": "radio",
+     "selector": "input[name=variant]",
+     "handler": "chooseVariant",
+     "effect": "picks the category; Something specific wears the GM's road",
+     "gate": "always",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "What specifically? (request box)",
+     "key": "DRPG.Action.goalSpecificPrompt",
+     "kind": "textarea",
+     "selector": ".drpg-specific-note[data-drpg-when=specific] textarea[name=request]",
+     "handler": "read at :687",
+     "effect": "the words the GM's card asks about",
+     "gate": "shown with Something specific (held stack, action-menus.mjs holdFields:443)",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Statistic proposal and how (Eye checked)",
+     "key": "DRPG.TraitRuling.proposeLabel, DRPG.TraitRuling.howSearch",
+     "kind": "select + input",
+     "selector": ".drpg-trait-proposal",
+     "handler": "readProposal :695; searchTrait:707",
+     "effect": "Eye asks nobody; another statistic goes to a GM's card before anything is spent",
+     "gate": "always",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Roll",
+     "key": "DRPG.Action.roll",
+     "kind": "button (primary)",
+     "selector": "footer [data-action=ok]",
+     "handler": "chooseVariant -> performSearch:487-",
+     "effect": "pays, rolls, claims the room's token",
+     "gate": "re-judged after the window: searches left (:493), no GM for Something specific (:516)",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": "Something specific with an empty box closes the window with a warning (:689-692): what was picked is lost and the window must be opened again."
+    },
+    {
+     "label": "Cancel",
+     "key": "kit",
+     "kind": "button (close)",
+     "selector": "footer close",
+     "handler": "chooseVariant",
+     "effect": "nothing paid",
+     "gate": "always",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the actor's actions left and price (actions.mjs actionsLeft, briefing's 'will cost, left')",
+     "the room the character stands in (movement.mjs roomOfActor / locateActor)",
+     "client setting actionDetailsOpen (the Details box open or shut)",
+     "the room's searches left (SearchTokens, in the briefing)"
+    ],
+    "listens": [],
+    "verdict": "stale",
+    "gaps": [
+     "searches left in the briefing are the window's first read; another searcher's claim is not shown until reopened (re-checked at :493 before anything is paid)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "Infiltrate - the tile's menu (Listen, Echoes, Tail Someone, Dash, Shut the Door, Force the Door, Pick the Lock, Keep Watch)",
+   "file": "scripts/action-listen.mjs",
+   "opener": "performListen:137-140 (chooseVariant with infiltrateRows:52, showShut)",
+   "audience": "the student's owner",
+   "controls": [
+    {
+     "label": "The eight rows",
+     "key": "DRPG.Infiltrate.row.*.label",
+     "kind": "radio",
+     "selector": "input[name=variant]",
+     "handler": "performListen:141-148 dispatch",
+     "effect": "each row's own performer (performDash, performEchoes, action-tail.mjs, action-doors.mjs, action-watch.mjs, Listen's room)",
+     "gate": "rows shut with a reason: no neighbours, an Eclipse (Echoes, Keep Watch), the Night next (Keep Watch), Shut's three reasons",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Roll / Next",
+     "key": "DRPG.Action.roll, DRPG.Action.next",
+     "kind": "button (primary)",
+     "selector": "footer [data-action=ok]",
+     "handler": "infiltrateRows:77, ROLLS_FROM_THE_ROW:85",
+     "effect": "Next for a row whose own window follows, Roll for one that acts on this press",
+     "gate": "a usable row",
+     "how_read": "code; R4105 (result not read)",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "mislabeled",
+     "detail": "Echoes says Roll; its hint says 'Without a roll' and it throws nothing (performEchoes:306); recorded as chosen at :83-84 (finding 5)."
+    },
+    {
+     "label": "Cancel / Close",
+     "key": "kit",
+     "kind": "button (close)",
+     "selector": "footer close",
+     "handler": "chooseVariant",
+     "effect": "nothing paid",
+     "gate": "always",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the actor's actions left and price (actions.mjs actionsLeft, briefing's 'will cost, left')",
+     "the room the character stands in (movement.mjs roomOfActor / locateActor)",
+     "client setting actionDetailsOpen (the Details box open or shut)",
+     "the clock (isEclipse, incomingTimeOfDay) for Echoes and Keep Watch",
+     "the neighbouring rooms and their locks, the room's bedroom owner (shutShutWhy:102)"
+    ],
+    "listens": [],
+    "verdict": "stale",
+    "gaps": [
+     "an Eclipse that begins while the menu is open leaves Echoes and Keep Watch live; each re-checks at its press (performEchoes:307, performWatch, action-watch.mjs:31) and warns"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "Listen - which room",
+   "file": "scripts/action-listen.mjs",
+   "opener": "performListen:174",
+   "audience": "the student's owner",
+   "controls": [
+    {
+     "label": "Which room / door",
+     "key": "DRPG.Listen.which",
+     "kind": "select",
+     "selector": "select[name=room]",
+     "handler": "performListen:183-186",
+     "effect": "the room the roll is about",
+     "gate": "a neighbour of the room the character stands in",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Roll",
+     "key": "DRPG.Action.roll",
+     "kind": "button (primary)",
+     "selector": "footer [data-action=ok]",
+     "handler": "performListen:190-",
+     "effect": "a free repeat of this time of day's eavesdrop (eavesdropAgain:283) or a paid Shadow roll; the lines whispered to the roller",
+     "gate": "re-judged on the primary GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel",
+     "key": "kit",
+     "kind": "button (close)",
+     "selector": "footer close",
+     "handler": "actionWindow",
+     "effect": "nothing paid",
+     "gate": "always",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the actor's actions left and price (actions.mjs actionsLeft, briefing's 'will cost, left')",
+     "the room the character stands in (movement.mjs roomOfActor / locateActor)",
+     "client setting actionDetailsOpen (the Details box open or shut)",
+     "the neighbouring rooms and which this player has found (neighbouringRooms, roomsKnownToMe)"
+    ],
+    "listens": [],
+    "verdict": "stale",
+    "gaps": [
+     "the room list is the window's first read; the character's own token moved while it is open is not redrawn (the GM's run judges the room again)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "Force the Door - which door",
+   "file": "scripts/action-doors.mjs",
+   "opener": "performForce:67",
+   "audience": "the student's owner",
+   "controls": [
+    {
+     "label": "Which room / door",
+     "key": "DRPG.Infiltrate.force.which",
+     "kind": "select",
+     "selector": "select[name=room]",
+     "handler": "performForce:76-77",
+     "effect": "the room the roll is about",
+     "gate": "a neighbour of the room the character stands in",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Roll",
+     "key": "DRPG.Action.roll",
+     "kind": "button (primary)",
+     "selector": "footer [data-action=ok]",
+     "handler": "performForce:80-",
+     "effect": "pays one action, a Body roll drawn on the GM, then door.force (doors-gm.mjs forceDoor)",
+     "gate": "re-judged on the primary GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel",
+     "key": "kit",
+     "kind": "button (close)",
+     "selector": "footer close",
+     "handler": "actionWindow",
+     "effect": "nothing paid",
+     "gate": "always",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the actor's actions left and price (actions.mjs actionsLeft, briefing's 'will cost, left')",
+     "the room the character stands in (movement.mjs roomOfActor / locateActor)",
+     "client setting actionDetailsOpen (the Details box open or shut)",
+     "the neighbouring rooms and which this player has found (neighbouringRooms, roomsKnownToMe)"
+    ],
+    "listens": [],
+    "verdict": "stale",
+    "gaps": [
+     "the room list is the window's first read; the character's own token moved while it is open is not redrawn (the GM's run judges the room again)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "Pick the Lock - which door",
+   "file": "scripts/action-doors.mjs",
+   "opener": "performPick:123",
+   "audience": "the student's owner",
+   "controls": [
+    {
+     "label": "Which room / door",
+     "key": "DRPG.Infiltrate.force.which",
+     "kind": "select",
+     "selector": "select[name=room]",
+     "handler": "performPick:132-133",
+     "effect": "the room the roll is about",
+     "gate": "a neighbour of the room the character stands in",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Roll",
+     "key": "DRPG.Action.roll",
+     "kind": "button (primary)",
+     "selector": "footer [data-action=ok]",
+     "handler": "performPick:136-",
+     "effect": "pays one action, the Shadow cover and the Hand roll, then door.pick",
+     "gate": "re-judged on the primary GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel",
+     "key": "kit",
+     "kind": "button (close)",
+     "selector": "footer close",
+     "handler": "actionWindow",
+     "effect": "nothing paid",
+     "gate": "always",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the actor's actions left and price (actions.mjs actionsLeft, briefing's 'will cost, left')",
+     "the room the character stands in (movement.mjs roomOfActor / locateActor)",
+     "client setting actionDetailsOpen (the Details box open or shut)",
+     "the neighbouring rooms and which this player has found (neighbouringRooms, roomsKnownToMe)"
+    ],
+    "listens": [],
+    "verdict": "stale",
+    "gaps": [
+     "the room list is the window's first read; the character's own token moved while it is open is not redrawn (the GM's run judges the room again)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "Tail Someone - whom to tail",
+   "file": "scripts/action-tail.mjs",
+   "opener": "performTail:48 (actionWindow)",
+   "audience": "the student's owner",
+   "controls": [
+    {
+     "label": "Whom",
+     "key": "DRPG.Infiltrate.tail.who",
+     "kind": "select",
+     "selector": "select[name=who]",
+     "handler": "performTail:64-66, 70",
+     "effect": "the target, from tailTargets(actor) as the window opened (othersInRoom)",
+     "gate": "students on tokens this browser sees in the room",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "stale_state",
+     "detail": "The list is read once; a target who leaves the room while the window stands open, or while the GM's statistic card is answered (traitFor :76), is still found in the old list (:70), and the GM refuses only after the action is paid and both rolls thrown, with nothing given back (finding 6)."
+    },
+    {
+     "label": "Statistic proposal and how",
+     "key": "DRPG.TraitRuling.proposeLabel",
+     "kind": "select + input",
+     "selector": ".drpg-trait-proposal",
+     "handler": "readProposal",
+     "effect": "Leg or Shadow proposed to a GM",
+     "gate": "always",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Roll",
+     "key": "DRPG.Action.roll",
+     "kind": "button (primary)",
+     "selector": "footer [data-action=ok]",
+     "handler": "performTail:62-66 -> 74-100",
+     "effect": "the GM's pick, one action, two rolls, tail.start",
+     "gate": "re-judged on the primary (tail-gm.mjs tailRefusal:48)",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel",
+     "key": "kit",
+     "kind": "button (close)",
+     "selector": "footer close",
+     "handler": "actionWindow",
+     "effect": "nothing paid",
+     "gate": "always",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the actor's actions left and price (actions.mjs actionsLeft, briefing's 'will cost, left')",
+     "the room the character stands in (movement.mjs roomOfActor / locateActor)",
+     "client setting actionDetailsOpen (the Details box open or shut)",
+     "who stands in the room (movement.mjs othersInRoom via tailTargets:28)",
+     "a masked character's name (mask-gm.mjs nameAsSeen)"
+    ],
+    "listens": [],
+    "verdict": "stale",
+    "gaps": [
+     "tokens in the room (updateToken, a crossing) are read at open and not listened to (action-tail.mjs:44, 70)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "Turn on your partner - the betrayal's confirmation",
+   "file": "scripts/action-murder.mjs",
+   "opener": "performBetrayal:253 (actionWindow), from performAction when allowedNow answers the betrayal road",
+   "audience": "the third party with a partner still standing",
+   "controls": [
+    {
+     "label": "Statistic proposal (Body / Hand) and how (outside an Eclipse)",
+     "key": "DRPG.TraitRuling.proposeLabel",
+     "kind": "select + input",
+     "selector": ".drpg-action-trait .drpg-trait-proposal",
+     "handler": "readProposal:266",
+     "effect": "the opening's statistic proposed to the GM",
+     "gate": "always",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Yes",
+     "key": "DRPG.Dialog.yes",
+     "kind": "button (primary)",
+     "selector": "footer [data-action=yes]",
+     "handler": "performBetrayal:264-288",
+     "effect": "outside an Eclipse requestBetrayal at once; in one, pays the action, asks the sentence (promptForNote) and parks it",
+     "gate": "no GM in an Eclipse: nothing spent, said (:280-283)",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel",
+     "key": "kit",
+     "kind": "button (close)",
+     "selector": "footer close",
+     "handler": "performBetrayal:270",
+     "effect": "nothing done",
+     "gate": "always",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the clock (isEclipse) for the price and the words",
+     "the partner (betrayalTarget)"
+    ],
+    "listens": [],
+    "verdict": "stale",
+    "gaps": [
+     "an Eclipse beginning or ending while the confirmation is open changes what Yes does (dark is read at :240, before the window) without redrawing its words; not raised as a finding: the price is re-read at no point after, so a betrayal confirmed as 'now' in an Eclipse that began meanwhile goes as 'now' - see not_established"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "Direct Murder - the declaration in an Eclipse (question)",
+   "file": "scripts/action-murder.mjs",
+   "opener": "performDirectMurder:323 (drpgConfirm)",
+   "audience": "a student in an Eclipse",
+   "controls": [
+    {
+     "label": "Yes",
+     "key": "DRPG.Dialog.yes",
+     "kind": "button (gmRoute)",
+     "selector": "footer yes",
+     "handler": "performDirectMurder:332-",
+     "effect": "checks a GM is there, pays, asks the sentence and the statistic (promptForNote), parks the declaration (eclipse.mjs parkDirectMurder); gives the action back when the GM's client did not park it",
+     "gate": "no GM: nothing spent, said (:365-368)",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "No / Cancel",
+     "key": "kit",
+     "kind": "button (close)",
+     "selector": "footer",
+     "handler": "drpgConfirm",
+     "effect": "nothing done",
+     "gate": "always",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the briefing's facts (actions left, the room)"
+    ],
+    "listens": [],
+    "verdict": "stale",
+    "gaps": [
+     "the briefing's facts, as every action window"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "A parked declaration's sentence (promptForNote): the betrayal in an Eclipse, the Direct Murder",
+   "file": "scripts/action-menus.mjs",
+   "opener": "promptForNote:513, from action-murder.mjs:288 (one column) and :376 (two columns, with the opening's statistic)",
+   "audience": "the declarer, after the action is paid",
+   "controls": [
+    {
+     "label": "The sentence",
+     "key": "DRPG.Action.murderPromptParked",
+     "kind": "textarea",
+     "selector": "textarea[name=note]",
+     "handler": "promptForNote:531",
+     "effect": "the words the GM's card quotes",
+     "gate": "always",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Statistic proposal (Direct Murder)",
+     "key": "DRPG.TraitRuling.proposeLabel",
+     "kind": "select",
+     "selector": "[name=proposed]",
+     "handler": "readProposal",
+     "effect": "Body or Hand proposed for the opening",
+     "gate": "two listed statistics",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Make the attempt",
+     "key": "DRPG.Action.murderParkedConfirm",
+     "kind": "button (primary)",
+     "selector": "footer [data-action=ok]",
+     "handler": "promptForNote:528-533",
+     "effect": "answers the sentence (and the proposal); the declaration is sent",
+     "gate": "always; the window has no Cancel by design (:497-501: a closed window is not a way to get the action back, it sends an empty sentence)",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "nothing that changes: the caller's briefing"
+    ],
+    "listens": [],
+    "verdict": "n/a",
+    "gaps": [],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "Dynamic Action - the GM's difficulty window",
+   "file": "scripts/action-dynamic.mjs",
+   "opener": "askDynamicDifficulty:319; from performDynamic:100 for a GM's own student, and from the GMs' card's Set the difficulty (messenger-app.mjs ruleSetDifficulty:873)",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Difficulty",
+     "key": "DRPG.Action.difficulty",
+     "kind": "select",
+     "selector": "select[name=tier]",
+     "handler": "callback :346-349",
+     "effect": "the band, shown as 'beat N' (dynamicBar)",
+     "gate": "gm",
+     "how_read": "code; tier 2 E16-T21 (result not read)",
+     "themes": "no hiding rule found (scan of styles/*.css, 7 files: 252 rules naming drpg-away, drpg-action-details, drpg-choice, drpg-variant, drpg-action-window, drpg-specific-note, data-drpg-when, drpg-unpicked, drpg-trait-, drpg-action-trait, drpg-window-rules, drpg-motive, drpg-dice-look, roll-selection, drpg-locked, drpg-call-unlocked, drpg-calls-waiting, drpg-forced-critical, drpg-free-crit, drpg-held-stack, drpg-roll-state, drpg-gm-route, drpg-briefing; the 14 that hide are the pick-following layers and fields (danganronpa.css:5144 .drpg-action-trait:empty, :5292 .drpg-choice-details, :5376 .drpg-specific-note[data-drpg-when] shown again by :5380 and :17887, :17865 the shut Details box, :17871 .drpg-action-window .drpg-unpicked), roll-selection's dice-icon img, and decorative ::before (stained-glass.css :is(.drpg-choice, ...)::before opacity 0); none under a theme class or in narrow.css hides a button)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Statistic",
+     "key": "DRPG.Advance.whichTrait",
+     "kind": "select",
+     "selector": "select[name=trait]",
+     "handler": "callback :346-349",
+     "effect": "the statistic, the player's proposal preselected",
+     "gate": "gm",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Set the difficulty",
+     "key": "DRPG.Action.dynamicSet",
+     "kind": "button (primary)",
+     "selector": "footer [data-action=ok]",
+     "handler": "askDynamicDifficulty:344-349",
+     "effect": "answers { tier, trait }; from the card answerDynamic sends it on through the primary",
+     "gate": "gm",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Refuse",
+     "key": "DRPG.Action.dynamicRefuse (tooltip DRPG.Tips.Actions.refuseTooltip: 'Turns the action down. The student keeps their action.')",
+     "kind": "button (secondary)",
+     "selector": "footer [data-action=refuse]",
+     "handler": "askDynamicDifficulty:356 returns null for 'refuse' as for a closed window",
+     "effect": "from the card: ruleSetDifficulty:879 reads null as 'the editor was closed; the card stays open' - nothing is refused and the player is not told; for a GM's own student performDynamic:115 returns null silently",
+     "gate": "gm",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "mislabeled",
+     "detail": "finding 4"
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the request as handed in (the card's data or the GM's own packet)",
+     "the character's name off the GMs' actor (named:322)"
+    ],
+    "listens": [],
+    "verdict": "n/a",
+    "gaps": [],
+    "focus_rule": "n/a: a GM's ruling on fixed words; the card's claim on the primary (claimCard) keeps a second GM out while it is open"
+   }
+  },
+  {
+   "surface": "Dynamic Action - the GMs' card after the roll (offerDynamicFind)",
+   "file": "scripts/action-dynamic.mjs",
+   "opener": "offerDynamicFind:201 (callGm), from performDynamic:169 and reroll.mjs settleDynamic",
+   "audience": "gm (the card is the thread's; its buttons are a GM's, messenger-app.mjs wireCallActions)",
+   "controls": [
+    {
+     "label": "Create an item",
+     "key": "DRPG.Bridge.createItem",
+     "kind": "card button",
+     "selector": "[data-drpg-call=createItem]",
+     "handler": "messenger-app.mjs CARD_ACTIONS.createItem (ruleCreateItem)",
+     "effect": "opens the tables prefilled with the band's tier, the room and the words",
+     "gate": "gm; a Reroll that misses ends the card (withdrawDynamicFind:260)",
+     "how_read": "code; tier 2 E16-T26 (result not read)",
+     "themes": "no hiding rule found (scan of styles/*.css, 7 files: 252 rules naming drpg-away, drpg-action-details, drpg-choice, drpg-variant, drpg-action-window, drpg-specific-note, data-drpg-when, drpg-unpicked, drpg-trait-, drpg-action-trait, drpg-window-rules, drpg-motive, drpg-dice-look, roll-selection, drpg-locked, drpg-call-unlocked, drpg-calls-waiting, drpg-forced-critical, drpg-free-crit, drpg-held-stack, drpg-roll-state, drpg-gm-route, drpg-briefing; the 14 that hide are the pick-following layers and fields (danganronpa.css:5144 .drpg-action-trait:empty, :5292 .drpg-choice-details, :5376 .drpg-specific-note[data-drpg-when] shown again by :5380 and :17887, :17865 the shut Details box, :17871 .drpg-action-window .drpg-unpicked), roll-selection's dice-icon img, and decorative ::before (stained-glass.css :is(.drpg-choice, ...)::before opacity 0); none under a theme class or in narrow.css hides a button)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Give an item",
+     "key": "DRPG.Bridge.giveItem",
+     "kind": "card button",
+     "selector": "[data-drpg-call=giveItem]",
+     "handler": "CARD_ACTIONS.giveItem (ruleGiveItem)",
+     "effect": "opens the GM's give window",
+     "gate": "gm",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Reply",
+     "key": "DRPG.Bridge.reply",
+     "kind": "card button",
+     "selector": "[data-drpg-call=reply]",
+     "handler": "CARD_ACTIONS.reply (ruleReply)",
+     "effect": "the GM's sentence into the thread",
+     "gate": "gm",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the card's own words and meta"
+    ],
+    "listens": [
+     "the card's update (settleCall writes the line; a Reroll's miss settles it, withdrawDynamicFind:286)"
+    ],
+    "verdict": "live",
+    "gaps": [],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "The buttons a GM ruling card ends with (built in action-pipeline.mjs, run by messenger-app.mjs)",
+   "file": "scripts/action-pipeline.mjs",
+   "opener": "declineAction:1042, ruledMissAction:1072, missAction:1091, gmRulingActions:1115 - handed to callGm by Search's 'something specific', the hint, Observe's ruling and the actions that ask a GM",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Reply",
+     "key": "DRPG.Bridge.reply",
+     "kind": "card button",
+     "selector": "[data-drpg-call=reply]",
+     "handler": "CARD_ACTIONS.reply (messenger-app.mjs:1415)",
+     "effect": "the GM's sentence into the thread",
+     "gate": "gm",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "No help / Nothing was there (searchMiss)",
+     "key": "DRPG.Bridge.noHelp, DRPG.Bridge.nothingThere",
+     "kind": "card button",
+     "selector": "[data-drpg-call=searchMiss]",
+     "handler": "CARD_ACTIONS.searchMiss (ruleSearchMiss)",
+     "effect": "the ruling in its own words; the price stays paid",
+     "gate": "gm",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Nothing was there (Observe)",
+     "key": "DRPG.Bridge.nothingThere",
+     "kind": "card button",
+     "selector": "[data-drpg-call=observeMiss]",
+     "handler": "CARD_ACTIONS.observeMiss (ruleObserveMiss)",
+     "effect": "Observe's miss, its Sanity price charged",
+     "gate": "gm",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Refuse the attempt",
+     "key": "DRPG.Bridge.refuseAttempt",
+     "kind": "card button",
+     "selector": "[data-drpg-call=decline]",
+     "handler": "CARD_ACTIONS.decline (ruleDecline)",
+     "effect": "the price handed back by the chain step the card names (PRICE_CHAINS on the far side, not the card's number)",
+     "gate": "gm",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the card's own data"
+    ],
+    "listens": [
+     "the card's update (settleCall)"
+    ],
+    "verdict": "live",
+    "gaps": [],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "Reroll of an action a GM rules on - the re-asked card",
+   "file": "scripts/reroll.mjs",
+   "opener": "settleGmRuling:1933 (callGm on the GM that makes the Reroll), for Observe, Analyze, Direct Murder and a described Search",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Reply",
+     "key": "DRPG.Bridge.reply",
+     "kind": "card button",
+     "selector": "[data-drpg-call=reply]",
+     "handler": "CARD_ACTIONS.reply",
+     "effect": "the GM's sentence; the card says the previous answer no longer stands (DRPG.Reroll.rulingVoid)",
+     "gate": "gm",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "The first card's buttons, after the Reroll",
+     "key": "(the first card's)",
+     "kind": "card buttons",
+     "selector": "the first ruling card",
+     "handler": "unchanged: settleGmRuling posts a second card and does not settle the first",
+     "effect": "not traced: what each first card's buttons apply after the Reroll",
+     "gate": "gm",
+     "how_read": "code, part of the road",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "unknown",
+     "detail": "finding 10 (suspected)"
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the bookmark's request, room and the new roll"
+    ],
+    "listens": [],
+    "verdict": "partial",
+    "gaps": [
+     "the first card of the same roll is not ended or greyed (reroll.mjs:1933-1964), where a Dynamic success is (action-dynamic.mjs withdrawDynamicFind:260)"
+    ],
+    "focus_rule": "n/a"
+   }
+  },
+  {
+   "surface": "Killing game rules - the GM's manager (title DRPG.Rules.manageTitle)",
+   "file": "scripts/rules.mjs",
+   "opener": "openRulesManager:460 (one at a time: alreadyOpen raises an open one)",
+   "audience": "gm (a player is refused with DRPG.Panel.gmOnly, :469-472)",
+   "controls": [
+    {
+     "label": "Withdraw (the motive)",
+     "key": "DRPG.Motive.withdraw",
+     "kind": "button",
+     "selector": "[data-drpg-motive-withdraw]",
+     "handler": "wireMotiveWithdraw:431 -> setMotive(null)",
+     "effect": "withdraws the motive in force, announces it, redraws the section as 'no motive'; off after one press",
+     "gate": "gm; drawn only when the window opened on a motive",
+     "how_read": "R1520 (result not read)",
+     "themes": "no hiding rule found (scan of styles/*.css, 7 files: 252 rules naming drpg-away, drpg-action-details, drpg-choice, drpg-variant, drpg-action-window, drpg-specific-note, data-drpg-when, drpg-unpicked, drpg-trait-, drpg-action-trait, drpg-window-rules, drpg-motive, drpg-dice-look, roll-selection, drpg-locked, drpg-call-unlocked, drpg-calls-waiting, drpg-forced-critical, drpg-free-crit, drpg-held-stack, drpg-roll-state, drpg-gm-route, drpg-briefing; the 14 that hide are the pick-following layers and fields (danganronpa.css:5144 .drpg-action-trait:empty, :5292 .drpg-choice-details, :5376 .drpg-specific-note[data-drpg-when] shown again by :5380 and :17887, :17865 the shut Details box, :17871 .drpg-action-window .drpg-unpicked), roll-selection's dice-icon img, and decorative ::before (stained-glass.css :is(.drpg-choice, ...)::before opacity 0); none under a theme class or in narrow.css hides a button)",
+     "verdict": "stale_state",
+     "detail": "It withdraws whatever motive is in force at the press; the section is the one drawn at open, so a motive another GM set or replaced meanwhile is withdrawn unseen, and one set after an open on 'no motive' has no button (finding 8)."
+    },
+    {
+     "label": "A rule's wording",
+     "key": "DRPG.Rules.rule",
+     "kind": "textarea",
+     "selector": "textarea[name=\"text:<id>\"]",
+     "handler": "Save's callback :509-513",
+     "effect": "the rule's new words",
+     "gate": "gm",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Revoke (a rule)",
+     "key": "DRPG.Project.delete (header), tooltip DRPG.Tips.Sweep.Gm.revokeRuleTooltip",
+     "kind": "checkbox",
+     "selector": "input[name=\"delete:<id>\"]",
+     "handler": "Save's callback :514-515",
+     "effect": "the rule removed on Save",
+     "gate": "gm",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Introduce a new rule",
+     "key": "DRPG.Rules.addNew",
+     "kind": "textarea",
+     "selector": "textarea[name=new]",
+     "handler": "Save's callback :517",
+     "effect": "a rule built by makeRule on Save",
+     "gate": "gm",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Announce changes",
+     "key": "DRPG.Rules.announce",
+     "kind": "checkbox (checked)",
+     "selector": "input[name=announce]",
+     "handler": "saveRulesEdit:584",
+     "effect": "one public card listing the rules introduced and revoked",
+     "gate": "gm",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Save",
+     "key": "DRPG.Assign.save",
+     "kind": "button (primary)",
+     "selector": "footer [data-action=save]",
+     "handler": "saveRulesEdit:560",
+     "effect": "one write of the whole list from today's rules(), each drawn row's text taken from its field; refusals and the count said in toasts",
+     "gate": "gm",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "stale_state",
+     "detail": "Every drawn rule's text is written back from its field, changed or not (:509-513, :569-574): a rewording another GM saved while this window stood open is put back to the words drawn at open, and nothing says so (finding 8)."
+    },
+    {
+     "label": "Cancel",
+     "key": "kit",
+     "kind": "button (close)",
+     "selector": "footer [data-action=cancel]",
+     "handler": ":530",
+     "effect": "nothing written",
+     "gate": "always",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "setting killingGameRules (rules():40)",
+     "the motive's setting (motive():70), its time left"
+    ],
+    "listens": [],
+    "verdict": "stale",
+    "gaps": [
+     "killingGameRules: another GM's save, or a New Rule Despair Call carried out by a GM (addRule:361), while the manager is open is not drawn (rules.mjs:460-532 call no keepLive; alreadyOpen only raises)",
+     "the motive's setting: setMotive / tickMotive while open (the section drawn once, :490-495)"
+    ],
+    "focus_rule": "n/a: nothing redraws; a keepLive here would have to keep the typed wording (live.mjs rule 2)"
+   }
+  },
+  {
+   "surface": "Dice look - the read-out window (game.drpg.diagnoseDiceLook, and the Season Setup button)",
+   "file": "scripts/dice-look.mjs",
+   "opener": "diagnoseDiceLook:525 (season-setup.mjs:1393 opens it with test false)",
+   "audience": "gm and player (each reads their own browser; introGm / introPlayer)",
+   "controls": [
+    {
+     "label": "Copy report",
+     "key": "DRPG.Diagnose.copy",
+     "kind": "button (secondary)",
+     "selector": "footer [data-action=copy]",
+     "handler": "dice-look.mjs:544-545: `void game.clipboard?.copyPlainText?.(text); return \"copy\"`",
+     "effect": "copies the lines and closes the window; nothing is said, and a refused copy is not caught",
+     "gate": "anyone who opened it",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css, 7 files: 252 rules naming drpg-away, drpg-action-details, drpg-choice, drpg-variant, drpg-action-window, drpg-specific-note, data-drpg-when, drpg-unpicked, drpg-trait-, drpg-action-trait, drpg-window-rules, drpg-motive, drpg-dice-look, roll-selection, drpg-locked, drpg-call-unlocked, drpg-calls-waiting, drpg-forced-critical, drpg-free-crit, drpg-held-stack, drpg-roll-state, drpg-gm-route, drpg-briefing; the 14 that hide are the pick-following layers and fields (danganronpa.css:5144 .drpg-action-trait:empty, :5292 .drpg-choice-details, :5376 .drpg-specific-note[data-drpg-when] shown again by :5380 and :17887, :17865 the shut Details box, :17871 .drpg-action-window .drpg-unpicked), roll-selection's dice-icon img, and decorative ::before (stained-glass.css :is(.drpg-choice, ...)::before opacity 0); none under a theme class or in narrow.css hides a button)",
+     "verdict": "silent",
+     "detail": "finding 9: the other two Copy buttons say 'Copied' and keep their window (diagnostics.mjs openReport:2324-2331, gm-panel.mjs:770-777)."
+    },
+    {
+     "label": "Close",
+     "key": "kit",
+     "kind": "button (close)",
+     "selector": "footer close",
+     "handler": ":546",
+     "effect": "closes",
+     "gate": "always",
+     "how_read": "code",
+     "themes": "no hiding rule found (same scan of styles/*.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "each User's Dice So Nice flags and display settings, the last roll window and throws (memory), the world switches forceDiceLook / diceLookSource"
+    ],
+    "listens": [],
+    "verdict": "n/a",
+    "gaps": [
+     "a read-out of the moment it was asked for, whose Copy text is that same moment; not raised: a redraw would make the copied text differ from what was read"
+    ],
+    "focus_rule": "n/a"
+   }
+  }
+ ],
+ "counts": {
+  "surfaces": 21,
+  "controls": 75,
+  "ok": 63,
+  "dead": 0,
+  "throws": 0,
+  "mislabeled": 2,
+  "wrong_audience": 0,
+  "silent": 1,
+  "stale_state": 7,
+  "unknown": 2
+ },
+ "findings": [
+  {
+   "id": "controls-08-rolls-actions-1",
+   "severity": "minor",
+   "verdict": "stale_state",
+   "title": "The roll window does not redraw when the roller's last Sanity is marked while it stands open: no disadvantage on the window, the GM's draw throws it and flags the honest roll",
+   "surface": "Daggerheart's roll window, as the module locks it",
+   "control": "Disadvantage chip",
+   "where": "scripts/roll-dialog.mjs:130-140 (redrawRollWindows), against :1031-1040 (stateGrant) and scripts/roll-draw.mjs:2295, 2423-2425",
+   "what_happens": "The window's disadvantage comes from advantageSources (:1091), which adds Breakdown (stateGrant, isBrokenDown: remaining Sanity <= 0) on each render. The only redraw the module asks for is on updateActor whose change carries flags.drpg (:131); a Sanity mark is a change of system.resources, and the Breakdown state that follows is a status effect toggled by the primary (states.mjs:400 toggleStatusEffect), not a flag. So the window keeps showing no disadvantage. The primary GM's draw reads Breakdown when it throws (roll-draw.mjs:2295, the `breakdown` reader) and throws the disadvantage die; the claim the window configured has none, so checkRoll pushes an `advantage` flag (:2423-2425), whispered to the GMs (tellUnexpected:2456) and named to the roller.",
+   "evidence": "function redrawRollWindows(actor, changes) {\n    if (!changes?.flags?.[MODULE_ID]) return;\n    for (const app of openWindows) {\n[...]\n        return isBrokenDown(actor) ? -1 : 0;   // stateGrant, roll-dialog.mjs:1035\n[...]\n    breakdown: (actor, draw, row) => (isBrokenDown(actor) && !actor?.getFlag?.(MODULE_ID, FLAGS.monocub) ? row.bound : 0),   // roll-draw.mjs:2295\n[...]\n    if (claim.advantage !== scored.advantage) {\n        flags.push({ kind: \"advantage\", ...",
+   "failure_scenario": "A player opens a Search's roll window at 1 Sanity left; the GM marks that last Sanity for a scene beat before the player presses Roll; the window still shows a normal roll, the dice come back at disadvantage and the GMs get a whisper that the roll's advantage differed from what the GM counted.",
+   "expected": "the window redraws on a change of the roller's Sanity (or of any value advantageSources reads), so the window shows what the GM throws",
+   "confidence": "read",
+   "refutation_tried": "Looked for another redraw: Daggerheart's window is an ApplicationV2 not bound to the actor (the harness's glue is the only copy here; Daggerheart's source not read), and nothing else in roll-dialog.mjs calls app.render. Looked for a module flag on Breakdown: states.mjs reconciles with toggleStatusEffect, an effect, not flags.drpg. stateGrant is not pinned to the first render the way windowCalls is, so a redraw would show it: the gap is the listen alone. A Breakdown that lands between the press and the draw is the same flag and is not this window's fault; the window's open time is what widens it. Not measured: the harness has no real roll window.",
+   "probe": "Open a student's action roll window at Sanity 1 (a player client), mark the last Sanity from the GM's sheet, read .disadvantage-chip.selected (expected true, read false), press Roll and read game.drpg.rollFlags() on the GM"
+  },
+  {
+   "id": "controls-08-rolls-actions-2",
+   "severity": "minor",
+   "verdict": "stale_state",
+   "title": "'Rolls with no GM connected': on a second GM's chat log Grant all and Grant none stay after the first GM decided, and a press there does nothing and says nothing",
+   "surface": "Rolls with no GM connected - the GMs' card",
+   "control": "Grant all / Grant none",
+   "where": "scripts/roll-draw.mjs:3034-3053 (onRenderUnwitnessed), 2961-2977 (decideNow)",
+   "what_happens": "The card is whispered to every GM. A press takes the buttons off the pressing GM's copy at once (:3050) and asks the primary to decide; decideNow updates each listed roll message (granted, author) but never the card, so no other GM's copy is rerendered and its buttons stay. A press there removes them, asks the primary, and awayRowOf returns null for every row now decided: askToDecide answers [], which no caller reads, and nothing is said.",
+   "evidence": "const open = Array.isArray(ids) && ids.some(id => awayRowOf(game.messages.get(id)));\nif (!open) return void element.querySelector(\".drpg-away-actions\")?.remove();\nelement.addEventListener(\"click\", async event => {\n    ...\n    element.querySelector(\".drpg-away-actions\")?.remove();\n    await askToDecide(ids, button.dataset.drpgAway === \"grant\");\n});",
+   "failure_scenario": "Two GMs are connected when a player's rolls from the empty table are listed; GM A presses Grant all; GM B, reading the same card a minute later, presses Grant none, sees the buttons vanish and believes the Hope was withheld, while it was already granted.",
+   "expected": "the card redrawn on every GM once its rolls are decided (no buttons, and which way it went), or a press on a decided card that says so",
+   "confidence": "read",
+   "refutation_tried": "Checked whether a roll message's update rerenders the card: Foundry rerenders only the updated message, and the card is another message. Checked the second press: decideNow skips rows whose stamp holds `granted` (awayRowOf:2838), so no double grant - the defect is the stale buttons and the silence. Scenario 15-held A3 presses on one GM only (15-held.mjs:646-656).",
+   "probe": "Two GM clients with a stamped roll: press Grant all on gm0; read gm2's rendered card for .drpg-away-actions (expected gone, read present); press Grant none there and look for any notice"
+  },
+  {
+   "id": "controls-08-rolls-actions-3",
+   "severity": "nit",
+   "verdict": "stale_state",
+   "title": "A roll thrown with no GM keeps saying 'a GM decides later' after a GM granted it or did not",
+   "surface": "A roll thrown with no GM connected - its own roll card's line",
+   "control": "the unwitnessed line",
+   "where": "scripts/roll-draw.mjs:3037-3040",
+   "what_happens": "The line is drawn whenever the message carries the stamp; a decision writes `granted` into the same flag (decideNow:2968), which rerenders the card on every client, and the test reads the flag's presence, not its `granted`. So the roller and the GMs read 'it moves no Hope, Sanity, or Despair for now. A GM decides later ...' on a roll whose Hope was granted.",
+   "evidence": "if (message.getFlag?.(MODULE_ID, UNWITNESSED_FLAG) && !body.querySelector('[data-drpg-roll-state=\"unwitnessed\"]')) {\n    body.insertAdjacentHTML(\"beforeend\", rollStatus(\"unwitnessed\", game.i18n.localize(\"DRPG.Rolls.unwitnessed\")));\n}",
+   "failure_scenario": "A player rolls a statistic with no GM connected, the GM returns and presses Grant all, the player's Hope goes up, and their roll card still says it moves nothing and waits for a GM.",
+   "expected": "the line follows `granted`: granted, not granted, or waiting",
+   "confidence": "read",
+   "refutation_tried": "Looked for another line or key for a decided roll: DRPG.Rolls has unwitnessed and the away* keys only (en.json read for the five keys used here); no ROLL_STATES row for a granted stamp is used in onRenderUnwitnessed. No test reads the card after a decision (grep of tests-tier*.mjs and scenarios for roll-state=\"unwitnessed\").",
+   "probe": "After 15-held's A3 Grant all, render message a2 on p1 and read [data-drpg-roll-state=\"unwitnessed\"]'s text"
+  },
+  {
+   "id": "controls-08-rolls-actions-4",
+   "severity": "minor",
+   "verdict": "mislabeled",
+   "title": "The Dynamic Action's difficulty window: Refuse ('Turns the action down') refuses nothing when the window was opened from the GMs' card",
+   "surface": "Dynamic Action - the GM's difficulty window",
+   "control": "Refuse",
+   "where": "scripts/action-dynamic.mjs:356 (askDynamicDifficulty), scripts/messenger-app.mjs:873-881 (ruleSetDifficulty), scripts/action-dynamic.mjs:111-115",
+   "what_happens": "askDynamicDifficulty answers null both for Refuse and for a closed window. The card's Set the difficulty reads null as 'The editor was closed; the card stays open': nothing goes to the player, the card's buttons come back, and the player waits until the ruling expires. Only the card's own Refuse (ruleRefuseDynamic, answerDynamic false) refuses. For a GM running their own student, performDynamic:111 whispers DRPG.Action.dynamicRefused only on `false`, so the window's Refuse ends the action with nothing said.",
+   "evidence": "if (!picked || picked === \"refuse\") return null;   // action-dynamic.mjs:356\n[...]\nconst ruling = await askDynamicDifficulty({ ... });\nif (!ruling) return null;   // The editor was closed; the card stays open.   // messenger-app.mjs:879\n[...]\n// `false` is the GM's no (ROLL-08); `null` is a request not carried out, already said.\nif (picked === false) {   // action-dynamic.mjs:110-111",
+   "failure_scenario": "A GM presses Set the difficulty on a player's Dynamic card, reads the description, presses the window's Refuse and moves on; the player is never told, the card is open again, and the action stays waiting until the ruling's time runs out.",
+   "expected": "the window's Refuse answers the GM's no (false), as the card's Refuse does, or the button is not offered where it cannot refuse",
+   "confidence": "read",
+   "refutation_tried": "Looked for another reader of the window's answer: performDynamic:100 and ruleSetDifficulty:876 are the only callers (grep). Checked the tooltip text: DRPG.Tips.Actions.refuseTooltip 'Turns the action down. The student keeps their action.' Checked the card road: wireCallActions re-enables the buttons when the outcome is neither held nor settled (messenger-app.mjs:770-783). No test presses the window's Refuse (tier 1 rows at tests-tier1.mjs:27616-27618 only map tooltips).",
+   "probe": "On a GM client, ruleSetDifficulty for a Dynamic card: press [data-action=refuse] in the window; read the card's settled flag (expected set, read none) and the player's thread"
+  },
+  {
+   "id": "controls-08-rolls-actions-5",
+   "severity": "nit",
+   "verdict": "mislabeled",
+   "title": "Infiltrate's Echoes row: the button says Roll on a row whose hint says 'Without a roll'",
+   "surface": "Infiltrate - the tile's menu",
+   "control": "Roll / Next",
+   "where": "scripts/action-listen.mjs:77, 83-85",
+   "what_happens": "ROLLS_FROM_THE_ROW gives Echoes the label Roll because no window follows its press; Echoes throws no dice (performEchoes:306-328) and its own hint says so.",
+   "evidence": "/** ... Echoes rolls\n *  nothing, but its press is the action and no window of its own follows, so it says Roll with them (E69 C7). */\nconst ROLLS_FROM_THE_ROW = new Set([\"dash\", \"shut\", \"keepWatch\", \"echoes\"]);",
+   "failure_scenario": "A player picks Echoes, reads 'Without a roll, learn the nearest room ...' and a button that says Roll.",
+   "expected": "the crisis menu's word for a row that throws nothing (DRPG.Murder.briefTake, 'Do it'), or the decision recorded with the owner",
+   "confidence": "read",
+   "refutation_tried": "The choice is written at :83-84 (E69 C7); R4105's rule is one word per kind of button, and the kit has a word for 'acts without a roll' (action-murder.mjs:143). Kept as nit: a recorded choice, the label contradicts its own row.",
+   "probe": ""
+  },
+  {
+   "id": "controls-08-rolls-actions-6",
+   "severity": "minor",
+   "verdict": "stale_state",
+   "title": "Tail Someone: the target list is read once, and a target who left the room is refused by the GM only after the action is paid and both rolls thrown, with nothing given back",
+   "surface": "Tail Someone - whom to tail",
+   "control": "Whom",
+   "where": "scripts/action-tail.mjs:44-100; scripts/tail-gm.mjs:48-56; scripts/frisk.mjs:164-165",
+   "what_happens": "tailTargets(actor) is read before the window (:44), the select is built from it, and the pick is found in the same list (:70) after the window and after the GM's statistic card (traitFor, :76), which can wait on a person. Then one action is paid, the Shadow and the effect rolls are thrown, and tail.start is asked; the primary's personActionRefusal answers 'the character is not in that room' for a target who has crossed meanwhile, and performTail returns null at :94 with no abort or refund.",
+   "evidence": "const targets = tailTargets(actor);\n[...]\nconst target = targets.find(a => a.id === picked.targetId) ?? null;\n[...]\nconst paid = cost > 0 ? await spendAction(actor, cost) : null;\n[...]\nconst res = await requestTailStart({ ... });\nif (!res.ok || res.value?.refused) return null;",
+   "failure_scenario": "A player opens Tail Someone on a student in the canteen, waits on the GM's Leg/Shadow card, and meanwhile the target walks to the corridor; the GM approves, the player pays an action, two rolls are thrown, and the tail is refused with the action gone.",
+   "expected": "the window's list follows the room (tokens), and the target is held to the room again before the action is paid",
+   "confidence": "read",
+   "refutation_tried": "Looked for a re-check before payment: none between :70 and :79. Looked for a refund on refusal: abort is called only when a roll is not made (:85); the bridge's refusal changes nothing on the GM (trust model), so the player's own spend stands. Whether a refusal after payment is meant to cost the action is not written beside performTail; Shut, Force, Pick and Keep Watch end the same way (action-doors.mjs:41, 91, 152; action-watch.mjs:46).",
+   "probe": "Player client: open Tail on p2's student, move p2's token out of the room from p2, press Roll, answer the GM card; read the tailer's actions left before and after and the bridge reason"
+  },
+  {
+   "id": "controls-08-rolls-actions-7",
+   "severity": "minor",
+   "verdict": "stale_state",
+   "title": "No action window redraws while it is open: the briefing's numbers, the rows' shut reasons and the crisis turn are the first read",
+   "surface": "An action's window - the shared frame",
+   "control": "(every action window)",
+   "where": "scripts/action-menus.mjs:167-271, 303-313; scripts/ui-columns.mjs wideWindow (no keepLive); callers in action-murder.mjs, action-search.mjs, action-listen.mjs, action-doors.mjs, action-tail.mjs",
+   "what_happens": "Every action window is a declaration drawn once: the briefing's price and actions left, the room, the searches left, Infiltrate's shut rows (an Eclipse, the Night next), the crisis menu's rows and turn. Nothing listens to the actor, the clock, the room's tokens or the incident while it stands open. Every press but Tail's (finding 6) is judged again before payment and refused with a toast, so the stale window costs a press, not a price.",
+   "evidence": "const picked = await (columns ? actionWindow : drpgWindow)({\n    title,\n    classes: [\"drpg-panel\"],\n    prompt: true,\n    ...(columns ? { brief, ask: form } : { body: `${intro}${form}` }),\n    render: (event, dialog) => { ... atTop(dialog); },",
+   "failure_scenario": "A player leaves the Infiltrate menu open on Keep Watch while the GM starts the Eclipse from the HUD; the row still reads usable, the player presses Roll and is told Keep Watch cannot be kept in an Eclipse.",
+   "expected": "the owner's rule of 20.11.2026: an open action window redraws its briefing and its rows when the actor, the clock, the room or the incident change (live.mjs keepLive, keeping the typed words)",
+   "confidence": "read",
+   "refutation_tried": "Searched scripts/ for keepLive, alreadyOpen or a hook in action-*.mjs, action-menus.mjs and ui-columns.mjs: none. Each guard at the press was read: crisisRefusal (murder-rules.mjs:1050-1062), SearchTokens.left (action-search.mjs:493), watchShutWhy (action-watch.mjs:31), echoesShutWhy (action-listen.mjs:307). These are prompts the game waits on (R1404), which may be why they were left as snapshots; no recorded decision found exempting them from the rule.",
+   "probe": "43-stale-windows style: open performListen's menu on p1, flip the Eclipse on the GM, read the Keep Watch row's .unavailable (expected set, read unset)"
+  },
+  {
+   "id": "controls-08-rolls-actions-8",
+   "severity": "minor",
+   "verdict": "stale_state",
+   "title": "The rules manager never redraws: its Save puts another GM's rewording back, and its Withdraw withdraws a motive it does not show",
+   "surface": "Killing game rules - the GM's manager",
+   "control": "Save; Withdraw",
+   "where": "scripts/rules.mjs:460-532 (openRulesManager), 560-589 (saveRulesEdit), 431-449 (wireMotiveWithdraw)",
+   "what_happens": "The window draws rules() and motive() once. Save sends every drawn row's field text, changed or not, and saveRulesEdit maps today's list onto it, so a rule another GM reworded meanwhile gets the words drawn at open back; a rule added meanwhile (another GM, or a New Rule Despair Call carried out by addRule) is kept but never shown. Withdraw calls setMotive(null) on whatever is in force.",
+   "evidence": "edited: current.map(rule => ({\n    id: rule.id,\n    text: f.querySelector(`[name=\"text:${CSS.escape(rule.id)}\"]`)?.value ?? rule.text,\n[...]\nlet next = before\n    .filter(r => !result.edited.find(e => e.id === r.id)?.remove)\n    .map(r => {\n        const edit = result.edited.find(e => e.id === r.id);\n        const text = String(edit?.text ?? r.text).trim();",
+   "failure_scenario": "GM A has the manager open while GM B rewords rule 2 and saves; GM A ticks Revoke on rule 4 and saves; rule 2 is back to its old words and 'Saved - 3 rules in force' is all either GM is told.",
+   "expected": "the window redraws on killingGameRules and the motive's setting (keeping typed words), or Save writes only the rows the GM changed",
+   "confidence": "read",
+   "refutation_tried": "alreadyOpen (:465) keeps one copy per browser, not per table. No updateSetting hook or keepLive in rules.mjs (grep). The second GM's case needs two GMs; the New Rule Call's case (a rule not shown) needs one GM and a Monokuma player. R1520 tests Withdraw with a stand-in, not a change under an open window.",
+   "probe": "Two GMs: open the manager on gm0; on gm2 updateRule(id, 'B'); on gm0 press Save; read rules() (expected 'B', read the old text)"
+  },
+  {
+   "id": "controls-08-rolls-actions-9",
+   "severity": "nit",
+   "verdict": "silent",
+   "title": "Dice look's Copy report closes the window and says nothing, a failed copy included",
+   "surface": "Dice look - the read-out window",
+   "control": "Copy report",
+   "where": "scripts/dice-look.mjs:544-545",
+   "what_happens": "The button's callback starts the copy without awaiting it (void), answers 'copy', and DialogV2 closes the window. The other two Copy report buttons await the copy, say 'Copied' and bring their window back (diagnostics.mjs openReport:2324-2331; gm-panel.mjs:770-777).",
+   "evidence": "secondary: [{ action: \"copy\", label: game.i18n.localize(\"DRPG.Diagnose.copy\"),\n    callback: () => { void game.clipboard?.copyPlainText?.(text); return \"copy\"; } }],",
+   "failure_scenario": "A player asked by the GM to send their dice look presses Copy report, the window vanishes with no word, and on a browser that refuses the clipboard nothing was copied and nothing says so.",
+   "expected": "as the Diagnose window: awaited, said, and the window kept",
+   "confidence": "read",
+   "refutation_tried": "Checked whether Foundry's copyPlainText says anything itself: not read in Foundry's source (not in this checkout); both other callers add their own notice, which suggests it does not.",
+   "probe": "game.drpg.diagnoseDiceLook(); press [data-action=copy]; look for a notice and whether the window stays"
+  },
+  {
+   "id": "controls-08-rolls-actions-10",
+   "severity": "minor",
+   "verdict": "unknown",
+   "title": "A Reroll of an action a GM rules on posts a second card and leaves the first card's buttons live (suspected)",
+   "surface": "Reroll of an action a GM rules on - the re-asked card",
+   "control": "the first card's buttons",
+   "where": "scripts/reroll.mjs:1933-1964 (settleGmRuling), against scripts/action-dynamic.mjs:260-294 (withdrawDynamicFind)",
+   "what_happens": "For Observe, Analyze, Direct Murder and a described Search the Reroll posts a new card with Reply alone and the line that the previous answer no longer stands; the first card is not settled. Where it was not yet answered, its buttons (Nothing was there, Refuse the attempt, an Observe's picks, Create an item) stay on it, about the roll that was replaced, while the new card offers only Reply. A Dynamic success's card is ended by the Reroll (withdrawDynamicFind); these are not.",
+   "evidence": "await callGm(actor, {\n    title: bookmark.label ?? game.i18n.localize(\"DRPG.Reroll.title\"),\n    ...\n    body: `<p class=\"drpg-warning\">${game.i18n.format(\"DRPG.Reroll.rulingVoid\", {\n        old: bookmark.total ?? \"?\", new: after.total\n    })}</p>`,\n    actions: [{ action: \"reply\", ... }]\n});",
+   "failure_scenario": "A player rerolls a described Search before the GM answered; the GM sees two cards, presses Refuse the attempt on the first, and the action is handed back for a roll the player has already replaced and paid three Hope to redo.",
+   "expected": "the first card ended or greyed as a Dynamic's is, its mechanical answers moved to the re-asked card, or the GM told on the first card that it no longer stands",
+   "confidence": "suspected",
+   "refutation_tried": "Read settleGmRuling whole: no settleCall, no lookup of the first card. Not traced: which buttons each first card carries (Observe's and Analyze's cards are built in other lanes' files) and what each reads at the press after a Reroll; a ruling already given is said to stand by the code's own comment (:1955-1957).",
+   "probe": "Search 'something specific' on p1, Reroll before the GM answers, read both cards' [data-drpg-call] buttons on gm0, press decline on the first and read the actor's actions"
+  },
+  {
+   "id": "controls-08-rolls-actions-11",
+   "severity": "nit",
+   "verdict": "mislabeled",
+   "title": "Comments name an action window that is gone: 'Move's briefing' is still listed as an actionWindow caller",
+   "surface": "An action's window - the shared frame",
+   "control": "(comment)",
+   "where": "scripts/action-menus.mjs:278 and :304-305; .claude/rules/code.md's action-briefing.mjs row ('Move's own briefing window (`briefing`)')",
+   "what_happens": "The Move window was removed by E100 item 1 (action-briefing.mjs:327-329, action-rolls.mjs:77-83); performAction(actor, 'move') returns null (:303). The frame's header and its half-width branch still name it as the window that asks nothing.",
+   "evidence": "// A window that asks nothing (Move's briefing) is its left column alone, at half the width: an empty right column\n// would be 540 px of nothing.\nreturn wideWindow({\n    ...(ask ? {} : { width: WIDE.width / 2 }),",
+   "failure_scenario": "A developer looking for the window the half-width branch serves finds none: no caller in scripts/ passes an empty `ask` today (the actionWindow calls in action-murder, action-listen, action-doors and action-tail all pass one).",
+   "expected": "the comments say the branch has no caller, or the branch goes",
+   "confidence": "read",
+   "refutation_tried": "grep of scripts/ for actionWindow( callers: action-menus.mjs (chooseVariant, promptForNote: both pass ask), action-murder.mjs:253, action-listen.mjs:174, action-doors.mjs:67, 123, action-tail.mjs:48 - each with ask. Callers outside this lane (action-project.mjs, action-rest.mjs, palm.mjs ...) not read for an empty ask.",
+   "probe": ""
+  }
+ ],
+ "not_established": [
+  "No control was pressed in this pass (no harness run). Each row is label -> element -> listener -> handler -> effect as read in source; tests and scenarios are named from their text, their results not read (no base-run.json).",
+  "What a GM's press of Daggerheart's own 'Reroll Action Roll' on a player's drawn roll leaves standing: reroll-receipts.mjs judgeRewrite keeps a GM's rewrite as the roll's dice (:109-112) and private-rolls.mjs onRollsRewritten relays them; roll-draw.mjs has no updateChatMessage hook, so the GMs' record (store rolls) and the action's result look to stay on the first dice. New live check: a GM rerolls a player's Search roll from the chat menu; read the card, game.drpg.rollFlags(), the store rolls' record and the item granted.",
+  "Finding 10's road: which buttons the first ruling card of Observe, Analyze and a described Search carries after a Reroll, and what each applies when pressed then (cards built in action-observe.mjs, action-analyze.mjs, action-search.mjs, read by other lanes).",
+  "The betrayal's confirmation reads the Eclipse before it opens (action-murder.mjs:240) and uses that reading after Yes (:271-288): an Eclipse that begins or ends while it stands open sends the betrayal the other way (now, or parked). Whether requestBetrayal's run on the GM refuses the mismatch was not read (bridge-runs-acts.mjs betrayal run).",
+  "Finding 1 at a table: whether Daggerheart 2.12's roll window redraws itself on its actor's update (its source is not in this checkout); if it does, the module's forceConfig would draw the Breakdown and the finding falls. LIVE-E16-01 covers the wrapper, not this.",
+  "Finding 9: whether Foundry v14's game.clipboard.copyPlainText notifies by itself (not in this checkout).",
+  "Themes: the scan reads rules by selector text; a rule that hides a control through a broader selector (a whole .application or chat-message rule) is not caught by it. No window was drawn (LIVE-E59-01 is the drawn one)."
+ ]
+}

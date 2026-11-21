@@ -1,0 +1,123 @@
+{
+ "refuter": "verify-domain-desp-a",
+ "of": "domain-desp-a",
+ "checked": [
+  {
+   "ref": "domain-desp-a-1",
+   "claim": "A GM that is not the primary counts a Despair Call as paid on the pool it expects, before the primary writes it, and the primary takes the price with no check (clamped at 0).",
+   "verdict": "stands",
+   "why": "Read the whole road. spendDespairCall checks the spendable pool on this browser's copy, then awaits adjustDespair; on a GM that is not the primary with the primary connected, routeToPrimary sends despair.adjust with `void` and answers this browser's pool plus delta, clamped, at once; spendDespairCall treats any non-null answer as paid and spendDespairCallFor applies the Call on `ok`. The declaration's guards are gmOnly, guardDespairDelta (only non-zero and |delta| <= despairMax) and guardDespairPool (the target holds a pool); handleDespair then runs adjustDespair(target, delta) on the primary, whose writePool clamps the result at 0 - no price check, so a pool lowered meanwhile pays less, and a refused or failed ask leaves the Call applied. Looked for another road: no await of the ask, no other caller of sendDespairToPrimary; tier 0 at tests-tier0.mjs:5566-5571 pins only the call's shape (that sendDespairToPrimary is called with the clamp), not that the answer is awaited. The ask's failure while primaryElsewhere() reads the primary as active needs a primary that is active but not answering (a reload before the module is ready), which is a narrow case; the clamped underpayment needs two GM writes in one round trip. Minor holds.",
+   "evidence": [
+    "scripts/despair.mjs:430-432 \"const { sendDespairToPrimary } = await import(\\\"./gm-bridge.mjs\\\"); void sendDespairToPrimary(userId, delta, { clamp }); return Math.min(Math.max(getDespair(userId) + delta, 0), despairMax());\"",
+    "scripts/despair.mjs:917-928 \"const held = spendableDespair(userId); if (held < call.cost) { ... } const paid = await adjustDespair(userId, -call.cost); if (paid === null || paid === undefined) return false;\"",
+    "scripts/bridge-table.mjs:975 \"guards: [gmOnly(\\\"an undo is the GM's own Reroll's\\\"), guardDespairDelta, guardDespairPool],\"",
+    "scripts/bridge-guards.mjs:1140-1143 \"const delta = Math.trunc(Number(payload.delta)); return !Number.isFinite(delta) || delta === 0 || Math.abs(delta) > STARTING.despairMax ? `delta ${payload.delta} is out of range` : null;\"",
+    "scripts/bridge-runs-records.mjs:672 \"await adjustDespair(target.id, delta, { clamp: payload.clamp === true });\"",
+    "scripts/despair.mjs:315 \"const next = Math.min(Math.max(Math.round(value), 0), despairMax());\"",
+    "scripts/calls.mjs:473-474 \"const ok = await spendDespairCall(user.id, key, { announce: false }); if (!ok) return null;\""
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-desp-a-2",
+   "claim": "A Bounty lapsed on a GM that is not the primary can be told 'cancelled' while the primary's settlement has already paid its Despair.",
+   "verdict": "weakened",
+   "why": "The parts of the road the reader names are as cited: lapseBounties asks only isGM and runs on the mover of the clock (clock.mjs:822, the comment at 823-829 says applyTimeOfDayChange runs on one client); returnOwed decides on this browser's copy of despairOwedStore inside this browser's DESPAIR_KEY queue, which orders it against a settlement only on the primary (settleOnce returns 0 elsewhere). The bad case needs the primary's settlement to have written the pools and the mover's copy not yet to have heard the row's removal when the mover reaches returnOwed. On the mover the lapse runs after checkOverflow (which may ask the primary), resetAllActions, SearchTokens.reset, clearSeals and settleBribes, all awaited; the primary settles after sync.mjs's 120 ms trailing wait (TIMING.coalesceMs) and writes the pools before dropping the rows. Either order is possible and neither was timed; the comment in monocub.mjs itself says the lapse 'usually runs before the settlement'. When the mover's drop reaches the primary first the result is right. Not refuted, not confirmed: the reader's own confidence is suspected, so this is a question for the table, not a finding.",
+   "evidence": [
+    "scripts/despair.mjs:654-659 \"const owed = await serialWrite(DESPAIR_KEY, async () => { if (!despairOwedStore.has(key)) return false; await despairOwedStore.dropMany([key]); return true; }); if (owed) return \\\"cancelled\\\";\"",
+    "scripts/despair.mjs:761-768 \"async function settleOnce() { if (!isPrimaryGm()) return 0; ... if (plan.write) await game.settings.set(MODULE_ID, SETTINGS.despairPools, plan.pools); if (plan.drop.length) await despairOwedStore.dropMany(plan.drop);\"",
+    "scripts/monocub.mjs:1857-1858 \"export async function lapseBounties() { if (!game.user?.isGM) return 0;\"",
+    "scripts/monocub.mjs:1852-1853 \"at a table the lapse (clock.mjs `applyTimeOfDayChange`) usually runs before the settlement the same change asks for\"",
+    "scripts/clock.mjs:822 \"await import(\\\"./monocub.mjs\\\").then(m => m.lapseBounties()).catch(err => warn(\\\"Could not lapse the open Bounties\\\", err));\"",
+    "scripts/config.mjs:439 \"coalesceMs: 120,\""
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-desp-a-3",
+   "claim": "A Bounty claimed by a Monocub at its Hope limit, or in the darkening, pays 0 Hope while the posting pool still owes its Despair.",
+   "verdict": "weakened",
+   "why": "The code path is as cited: claimBounty drops the Bounty, then addToPurse takes min(reward, room) and 0 under overflowBlocksHope, and nothing gives the owed row back. But the failure scenario as written does not happen at the ordinary price: performCubAbility pays the row's Hope before the resolver runs (monocub.mjs:1316 then 1318), and Confusion costs 1 Hope (config.mjs hopeCost: 1), so a Monocub at 6/6 is at 5/6 when scoreMeddle claims and the Bounty's reward of 1 (config.mjs:2932) fits. A zero claim needs a move done to order (executionCost hopeCost 0, so a Monocub at full Hope pays none), the darkening (overflowBlocksHope, the 'despair' overflow), or a purse filled between the price and the claim (a Bribe accepted in that round trip). The defect stands in those cases; the scenario is narrower than written. Severity minor kept: a particular situation, and the debt is owed for nothing.",
+   "evidence": [
+    "scripts/monocub.mjs:1838-1839 \"await bountyStore.drop(target.id); const paid = await addToPurse(cub, Math.max(0, Math.trunc(Number(bounty?.reward) || 0)));\"",
+    "scripts/monocub.mjs:819 \"const take = overflowBlocksHope() || !(n > 0) ? 0 : Math.min(Math.trunc(n), Math.max(0, resourceMax(actor, \\\"hope\\\") - cubHopeTotal(actor)));\"",
+    "scripts/monocub.mjs:1316-1318 \"const paid = price.hopeCost > 0 ? await spendCubHope(actor, price.hopeCost) : null; ... await CUB_RESOLVERS[row.resolve](actor, target, choice, total, isCritical, row, paid);\"",
+    "scripts/config.mjs:3502 \"hopeCost: 1,\" and 3516 \"executionCost: { cost: 1, hopeCost: 0 },\"",
+    "scripts/config.mjs:2932 \"label: \\\"Bounty\\\", icon: \\\"fa-sack-dollar\\\", cost: 1, reward: 1, target: \\\"player\\\", bounty: true,\"",
+    "scripts/monocub.mjs:1216 \"if (exec && orderOpen(actor)) return { cost: Number(exec.cost) || 0, hopeCost: Number(exec.hopeCost) || 0, toOrder: true };\""
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-desp-a-4",
+   "claim": "On the GM's own Level Up picker a blank new experience is skipped and the other picks written; in a verdict's batch that counts as applied and drops the waiting Reinforced.",
+   "verdict": "stands",
+   "why": "Read the road. openAdvancement refuses a missing experience to raise for everyone (627-630) but a blank new experience only inside `if (asPlayer)` (642-651); a GM's press goes to applyAdvancement, whose up-front refusal (840-846, 'A PICK THIS SHEET CANNOT TAKE STOPS THE WHOLE LEVEL UP') checks unknown options, a bad statistic and an unnamed experienceUp, not a blank experienceNew; the switch then warns and `break`s, and the other picks are written. readForm (779-793) and buildDetail's input (769-771, no `required`) check nothing. runAdvancementBatch counts any truthy answer of openAdvancement as applied and drops the deferred row. The warning's own text says 'That choice was skipped', so the skip is the code's known behaviour, but the E10 C8 comment's rule is broken by it. Minor holds.",
+   "evidence": [
+    "scripts/level-up.mjs:642-651 \"if (asPlayer) { ... if (result.some(p => p?.option === \\\"experienceNew\\\" && !String(p.name ?? \\\"\\\").trim())) { ui.notifications.warn(...\\\"DRPG.Advance.experienceNeedsNameKept\\\"); return null; }\"",
+    "scripts/level-up.mjs:841-843 \"if (picks.some(pick => !Object.hasOwn(LEVEL_UP_OPTIONS, pick?.option ?? \\\"\\\") || (pick?.option === \\\"trait\\\" && !statistics.has(pick.trait)) || (pick?.option === \\\"experienceUp\\\" && typeof pick.experience !== \\\"string\\\"))) {\"",
+    "scripts/level-up.mjs:876-880 \"case \\\"experienceNew\\\": { const name = String(pick.name ?? \\\"\\\").trim(); if (!name) { ui.notifications.warn(game.i18n.localize(\\\"DRPG.Advance.experienceNeedsName\\\")); break; }\"",
+    "scripts/level-up.mjs:1188-1190 \"if (choice === \\\"gm\\\" && await openAdvancement(actor, entry.kind, { extraPicks: entry.extraPicks, reasons: entry.reasons })) { done.applied++; if (entry.deferred) await deferredOfferStore.drop(actor.id);\"",
+    "lang/en.json:5360 \"\\\"experienceNeedsName\\\": \\\"A new experience needs a name. That choice was skipped.\\\",\""
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-desp-a-5",
+   "claim": "The Despair bar's + stepper is not clamped at the maximum: pressed on a bar drawn before another change landed, its +1 spills into the overflow.",
+   "verdict": "stands",
+   "why": "Read the road. The + stepper calls adjustDespair(user.id, +1) with no options; its disabled state is the drawn `held >= max`. On a GM that is not the primary, routeToPrimary sends it without clamp and handleDespair runs adjustDespair(delta, { clamp: false }) on the primary, which spills when wanted > max. The pip beside it passes clamp: true, and the comment at 353-357 states the rule 'A GM'S SETTING NEVER SPILLS'; the stepper is a GM's setting by the same reading. No test drives the stepper (grep of tests for the stepper finds none; E17-T8 drives the pip). The window is one round trip, or a redraw not yet run on the primary's own browser; minor kept.",
+   "evidence": [
+    "scripts/despair.mjs:1303 \"stepper(\\\"fa-plus\\\", () => adjustDespair(user.id, +1), held >= max, ghost,\"",
+    "scripts/despair.mjs:1260 \"return adjustDespair(user.id, delta, { clamp: true });\"",
+    "scripts/despair.mjs:358-360 \"if (!clamp && delta > 0 && wanted > max) { try { await spillFrom(userId, before, delta, \\\"pool spill\\\");\"",
+    "scripts/despair.mjs:353 \"/* A GM'S SETTING NEVER SPILLS (E17 fix e1-G4; the review's E17R-04, E17P1-R4).\"",
+    "lang/en.json:1990 \"\\\"plusTooltip\\\": \\\"Adds {n} Despair to this pool\\\",\""
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-desp-a-6",
+   "claim": "The Monocub's Hope and a Bribe payer's Hope are read off the document on the GM and written back less the price, not through sheet-audit.mjs meansWrite, so a console's raised Hope not yet put back can pay and become the GMs' value.",
+   "verdict": "weakened",
+   "why": "The reads are as cited: spendCubHopeNow, refundCubHopeNow and answerBribeOnGm compute from resourceValue(actor, 'hope') and write through trustedWrite on the GM; meansWrite's header (sheet-audit.mjs:1006-1038) lists every road it was put on and none of them is in monocub.mjs. The same header records the failure this road matches, measured in E29 (85fdf9d): 'seven roads wrote Hope from the console's 5 for the GMs' 2', because a GM's write over the same path supersedes the put-back pending on it. And hopeLeft (1677-1682) lays a later GM's set over the GMs' value when it judges a player's write, so a GM's 5 written behind a console's 6 would stand as the base. Monocubs are characters and not Monokumas, so heldMark holds a mark for them. What I could not settle: whether the console's write is judged before the bridge's run reads the document (the judgement is queued per student; the Monocub road does not wait in that queue, which is what meansWrite's gmMeansWrite would add), and how noteOwnDropped treats a leaf that changes. Supported more than the reader said, but not traced end to end and not run: weakened, severity minor kept.",
+   "evidence": [
+    "scripts/monocub.mjs:788 \"if (fromSheet) await trustedWrite(actor, { \\\"system.resources.hope.value\\\": resourceValue(actor, \\\"hope\\\") - fromSheet }, { reason: \\\"price\\\" });\"",
+    "scripts/monocub.mjs:1689 \"await trustedWrite(payer, { \\\"system.resources.hope.value\\\": resourceValue(payer, \\\"hope\\\") - offer.cost }, { reason: \\\"call\\\" });\"",
+    "scripts/sheet-audit.mjs:1014-1019 \"where a GM's write over the same path supersedes the put-back pending on it (READ WHEN WRITTEN). Measured at 85fdf9d ... seven roads wrote Hope from the console's 5 for the GMs' 2\"",
+    "scripts/sheet-audit.mjs:1680-1681 \"const set = now.set?.n > then.n ? now.set : null; return Math.max(0, set ? set.value + now.moved - set.moved : value + now.moved - then.moved);\"",
+    "scripts/sheet-audit.mjs:931-932 \"const mark = actor?.type === \\\"character\\\" && isPrimaryGm() && gmStoresHydrated() ? sheetMarkStore.get(actor.id) : null; return mark && !mark.flags?.[FLAGS.monokuma] ? mark : null;\"",
+    "scripts/price.mjs:218-226 \"const { meansWrite } = await import(\\\"./sheet-audit.mjs\\\"); ... const paid = await meansWrite(actor, async (held, maxOf) => {\""
+   ],
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-desp-a-7",
+   "claim": "A roll granted after no GM was connected gives its Despair through a protection from Despair, because grantRolls does not hand the message to awardRollDespair.",
+   "verdict": "stands",
+   "why": "Read the road. grantRolls destructures `message` from each row in its first loop but its last loop calls awardRollDespair(actor, 1) with no options; awardRollDespair asks takeDespairShield only when `message` is set, so the shield is neither used nor consulted and the pool gets the point. The fresh road hands the message (despair-award.mjs:104). The comment at 123-124 speaks of 'a fresh roll's point' as against a Reroll's; a granted roll's point is its first, not a Reroll's, and config's rule text excludes no granted roll. The shield lasts until the time of day ends (tier 2 E93-T8 gives it with until 'timeOfDay'), so the case needs the grant within the same time of day. takeDespairShield also needs the primary, so a grant pressed by a GM that is not the primary would skip the shield either way. E93-T8 drives only a fresh roll. Minor holds.",
+   "evidence": [
+    "scripts/roll-draw.mjs:2998 \"for (const { message, actor, outcome, reaction } of rows) {\"",
+    "scripts/roll-draw.mjs:3028-3030 \"for (const { actor, outcome, reaction } of rows) { if (!reaction && outcome.withFear) await awardRollDespair(actor, 1); }\"",
+    "scripts/despair-award.mjs:104 \"if (outcome.withFear) await awardRollDespair(actor, 1, { message });\"",
+    "scripts/despair-award.mjs:125-127 \"if (delta > 0 && message && !isMonokuma(actor) && game.settings.get(MODULE_ID, SETTINGS.despairFromRolls)) { const { takeDespairShield } = await import(\\\"./timed-effects.mjs\\\"); if (await takeDespairShield(actor, message)) return { shielded: true };\"",
+    "scripts/timed-effects.mjs:124 \"if (!actor?.id || !isPrimaryGm()) return false;\"",
+    "scripts/tests-tier2.mjs:100770 \"const effect = F.cleanEffect({ kind: \\\"despairShield\\\", until: \\\"timeOfDay\\\" });\""
+   ],
+   "severity_after": "minor"
+  }
+ ],
+ "counts": {
+  "checked": 7,
+  "stands": 4,
+  "weakened": 3,
+  "refuted": 0
+ },
+ "not_established": [
+  "Finding 2: the order, on one change of the time of day moved by a GM that is not the primary, of the primary's settlement against that GM's lapse of a Bounty and the exchange of the owed row's removal. The reader's l1 recipe (domain-desp-a.json not_established[0]) settles it; not measured here.",
+  "Finding 6: whether a console's raised Hope on a Monocub is judged on the primary before the Monocub road reads the document, and so whether the GM's write less the price becomes the GMs' value. Needs a harness probe (a console write and a Confusion asked in one tick, two clients) or the reader's l1 recipe; not run (the task forbids the harness).",
+  "Finding 3: how often a Monocub at full Hope makes a move to order with a Bounty open, or claims in the darkening; the zero claim is read, its frequency at a table is not.",
+  "Nits 8-11 were not re-checked: the task asks for minor and above. The reader's file carries no control verdicts (dead_controls is empty; its stale_windows are hints for the refresh pass, not findings) and no stale_state finding, so none was checked.",
+  "audit/findings-1.2.118/base-run.json was not present when this file was written; no test result was read, only test sources."
+ ]
+}

@@ -529,12 +529,21 @@ function mastermindHopeBox({ monokumas, donorLabel }) {
 
 // Rewired after every redraw: `keepLive` replaces the region's
 // nodes, and the listener would go with the button it was on.
-function wireMastermindGive(dialog, current) {
+function wireMastermindGive(dialog) {
         dialog.element.querySelector("[data-drpg-give]")
             ?.addEventListener("click", async () => {
                 const donorId = dialog.element.querySelector("[name=donor]")?.value;
                 const amount = wholeNumber(dialog.element.querySelector("[name=amount]")?.value, { min: 0, fallback: 0 });
-                if (!donorId || !current) return;
+                /* THE MASTERMIND OF THE MOMENT OF THE PRESS (the audit of 1.2.120, F-6; the line claude/refresh-120,
+                   21.11.2026). The window read the Mastermind once, at its open, and Give converted to that one: another
+                   GM's change or clearing of the Mastermind meanwhile was neither drawn nor heeded. Read here, at the press,
+                   from the store; none named now is said, and nothing is converted. */
+                const current = mastermindActor();
+                if (!current) {
+                    ui.notifications.warn(game.i18n.localize("DRPG.Mastermind.noneSet"));
+                    return;
+                }
+                if (!donorId) return;
                 // SAYS WHY (MM-02, 20.09). This bailed silently on 0 or a
                 // blank, and the "At least 1" hint beside the stepper is
                 // painted by chrome.mjs, which dresses this window under
@@ -694,9 +703,12 @@ export async function openMastermindDialog() {
             close: "cancel"
         },
         render: (event, dialog) => {
-            const wireGive = () => wireMastermindGive(dialog, current);
+            const wireGive = () => wireMastermindGive(dialog);
             wireGive();
 
+            /* The Hope box is redrawn at once with a field focused in it (the line claude/refresh-120, 21.11.2026; REFR-05;
+               the owner's rule "Zawsze odswiezamy okna od razu przy zmianie"): the amount typed is carried and has the focus
+               back (live.mjs `whileEditing`). Until then it waited for the focus to leave the box. R7972. */
             keepLive(dialog, {
                 region: ".drpg-mm-live",
                 /* The region's own element, wrapper and all (live.mjs replaces the region with the build's first element):
@@ -704,8 +716,10 @@ export async function openMastermindDialog() {
                    redraw put that line where the box stood - the pool's select, the amount and Give gone, and the region
                    lost to every later change (tier 2's "the Mastermind's Give Hope box stays whole ..."). */
                 build: () => `<div class="drpg-mm-live">${hopeBox()}</div>`,
-                // A pool's debt changes with no actor's write (E05 C12): its store's hook.
-                watch: { actors: true, hooks: ["drpgDespairOwedChanged"] },
+                // A pool's debt changes with no actor's write (E05 C12): its store's hook. The Mastermind's store too: the
+                // Hope line reads the Mastermind named now, which another GM may change or clear (F-6, 21.11.2026).
+                watch: { actors: true, hooks: ["drpgDespairOwedChanged"], stores: [mastermindStore] },
+                whileEditing: true,
                 after: wireGive
             });
         },

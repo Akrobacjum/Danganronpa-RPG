@@ -1,0 +1,583 @@
+{
+ "reader": "stages-25",
+ "stages": [
+  {
+   "id": "E112",
+   "version": "1.2.116",
+   "shipped": "2026-11-16",
+   "what": "The owner's asks of 15.11.2026, shipped early as one stage: the opening's veil (the killer unseen and their microphone held until the opening roll), the mask's own \"?\" on the map and the portrait, the killer's Calls on the murder's opening; in the same train owner-116 (a hidden token's ruler, the planner's every node open, the Spectators' room), a project action's use limit, perf() costs and the balance log, and work toward E39/E40 (allowed-now.mjs) - 17 registry rows all stamped E112.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.116.md (1-273, whole: the stage's part 15-83, the train's other lines 85-166, Before installing, Repository, Known gaps 221-243, Checked 245-273)",
+    "docs/dev/e112/STATUS.md (1-213, whole)",
+    "docs/dev/e112v/DESIGN.md (1-137) and docs/dev/e112v/STATUS.md (1-52): what E118 replaced of the veil",
+    "audit/AUDIT-1.2.42.md 9.2 items 553-557 (lines 1570-1578); no block beginning \"Po E112\" exists (grep: 0 hits), the items are found by id",
+    "tools/stages.json row E112 (planned and shipped 1.2.116, touches sockets, rolls, scenes; drills none)",
+    "git log --oneline v1.2.115..v1.2.116: 54 commits, 14 naming E112",
+    "audit/findings-1.2.118/live-readings-e58.json (readings 39-41) and live-readings-other.json (readings 31-33, 48-50)"
+   ],
+   "commits": 54,
+   "promises": [
+    {
+     "promise": "From the open of a direct murder until its opening roll lands the killer's tokens are unseen by the victim, bystanders and Spectators; the killer sees them, a third on the killers' side by the room rule; a trap and a self-inflicted death veil nobody",
+     "source": "v1.2.116.md 15-22, 34; e112/STATUS.md 30-54",
+     "code": "scripts/mask-gm.mjs:411 veilWanted, :443 veilActor, :515 settleVeilsNow; scripts/murder-rules.mjs:548-554 (the open awaits the settle); scripts/visibility.mjs:555-561 tokenShownTo's veil branch",
+     "holds": "yes",
+     "test": "tier 2 \"E112 - the opening veils a direct murder's killer and lifts it on every road out ...\" (tests-tier2.mjs:17885); R7405; R7702; scenario 21 phase 'road'",
+     "test_kind": "behaviour",
+     "note": "The mechanism of 1.2.116 (Foundry's hidden beside the flag) was replaced by E118: on Foundry 14.370 it took the killer's own vision (LIVE-E112-01, a recorded defect). On 1.2.118 the promise holds by the module's per-browser hiding, read on the harness's model of Foundry's refresh on three player pages; not seen on a real canvas since the change (LIVE-E112V-01)."
+    },
+    {
+     "promise": "The killer's microphone is held off with no silent room, their voice tile says why, and they are told in one line",
+     "source": "v1.2.116.md 23-24",
+     "code": "scripts/voice.mjs:1802 (veiled in settleTrialVoices), :1187 ownVeiled, :1360 and :1411 (reason \"veiled\"); scripts/mask-gm.mjs:417 veilMutedIds, :461 tellVeiled",
+     "holds": "yes",
+     "test": "the same tier-2 test (veilMutedIds and the mute row written, then given back on each road); R7405 (micHold); scenario 21 'road' (the permission read on the GM)",
+     "test_kind": "behaviour",
+     "note": "What is heard over a voice server is not measurable headless and was not checkable on the sandbox (LIVE-E112-01 (c), no LiveKit there)."
+    },
+    {
+     "promise": "A murder declared in an Eclipse is veiled as the Eclipse ends, before its lights show anyone, and the lights' rows are taken over by the opening or lifted",
+     "source": "v1.2.116.md 25-26; e112/STATUS.md 37-44",
+     "code": "scripts/eclipse.mjs:425-430 (veilAtTheLights before the clock's write), :533-538 (lightsJudged in a finally); scripts/mask-gm.mjs:551-563",
+     "holds": "partly",
+     "test": "the tier-2 veil test, road F - it calls veilAtTheLights and lightsJudged itself (tests-tier2.mjs:17984-17992)",
+     "test_kind": "behaviour",
+     "note": "The two functions are driven; their call sites in endEclipse are driven by no test I found (no tier file or scenario names them besides that test). Only the primary GM veils at the lights (mask-gm.mjs:552): when another GM ends the Eclipse the killer's tokens are drawn again as its flag goes and stay drawn until the incident opens and the primary's hook settles - finding E112-2. The notes list this road under defaults to confirm, as \"a moment later\", read off the code, not driven."
+    },
+    {
+     "promise": "The veil ends exactly when the opening ends (scored, failed, the incident closed, swept at the primary's load or when a primary leaves); a success that opens a mask puts the \"?\" on first; a closed roll window keeps the veil",
+     "source": "v1.2.116.md 27-31",
+     "code": "scripts/mask-gm.mjs:466 liftVeil, :515-543, :683-686 (ready, userConnected, updateSetting); scripts/murder-rules.mjs:771-789 (maskKiller, the stage, then the settle), :3572-3577",
+     "holds": "yes",
+     "test": "the tier-2 veil test, roads A, B, E (the first write that shows a token again finds it masked); R7405 reads the order in resolveKillerOpening's source",
+     "test_kind": "both",
+     "note": "The part \"each token's own hidden is kept in the store and written back; a GM's hide or show by hand during the opening is undone\" is superseded by E118: the veil writes no hidden, and a hidden a GM puts on a veiled token is kept."
+    },
+    {
+     "promise": "A veiled killer still counts as in the room - a witness, a Frisk's target, a finder - and keeps their own fog",
+     "source": "v1.2.116.md 32-33; e112/STATUS.md 59-61",
+     "code": "scripts/utils.mjs:443 hiddenByGm and its readers, 11 call sites in 8 files (body.mjs:690, :1024; echoes-gm.mjs:119; fog.mjs:4191; frisk.mjs:163, :550; gm-panel.mjs:956; movement.mjs:3678, :3771; murder-rules.mjs:3286; tail-gm.mjs:103)",
+     "holds": "superseded",
+     "test": "R7705 (the rule as E118 left it)",
+     "test_kind": "behaviour",
+     "note": "Superseded by E118: hiddenByGm is hidden alone, and a veiled token carries no hidden of the veil's, so the killer is in the room by the plain rule."
+    },
+    {
+     "promise": "A killer behind a \"?\" wears the module's own question mark on the token, its ring and the portrait, given back exactly; a token made while a mask or the veil stands joins it; a row left standing no longer stops the next mask; a failed write is said on the GM's screen",
+     "source": "v1.2.116.md 40-53; e112/STATUS.md 67-114",
+     "code": "scripts/mask-gm.mjs:48 MASK_IMG, :78 maskPatch, :90-98 portraitOf and portraitBack, :216-259 maskKiller (the standing row at 226-242), :266 maskFailed, :586 adoptToken; icons/mask-unknown.svg",
+     "holds": "yes",
+     "test": "R7406; tier 2 \"E112 - a mask puts its question mark on the killer's portrait as well as the tokens, and gives both back exactly\" and \"E112 - a token made while a mask or a veil stands joins it ...\"; scenario 21 'road' and 'masked'",
+     "test_kind": "both",
+     "note": "LIVE-E112-04's v14 half was read on the owner's sandbox (16.11.2026): token, ring, nameplate and portrait wear the file. The notes also name the voice tile and the sequence boards among the surfaces that show the \"?\": both refuse an SVG portrait (finding E112-1)."
+    },
+    {
+     "promise": "The masks end before the Class Trial is entered and before the start-of-day board (the Morning Eclipse's start, a roll-over)",
+     "source": "v1.2.116.md 54-59; e112/STATUS.md 164-193",
+     "code": "scripts/clock.mjs:150-155 (setClock, a write that enters the trial), :427 (advanceTimeOfDay, rolledOver only); scripts/eclipse.mjs:277 (the Morning Eclipse alone); scripts/mask-gm.mjs:308 endMasksBeforeTheBoard",
+     "holds": "yes",
+     "test": "tier 2 \"E112 - the start-of-day board shows a victim nobody has found as alive and the masked killer as they are ...\" (17713) and \"E112 - the masks end before the Class Trial is entered ...\" (17811)",
+     "test_kind": "behaviour",
+     "note": "Holds as written. Since E118 the end-of-day board draws the cast's portraits as well, and no mask is ended before the write that plays it (Evening to Night): the risk this promise closed is open again on that board - finding E118-1, placed with the stage that opened it."
+    },
+    {
+     "promise": "The opening takes the killer's armed Calls as an action roll does (a Loaded Die loads it, Support and Talent add dice, a Resolve buys the picker, a hindering Call counts) and each is spent; Palm's unseen roll spends none and applies none a packet names",
+     "source": "v1.2.116.md 63-72; e112/STATUS.md 6-28",
+     "code": "scripts/call-effects.mjs:94 TAKES_CALLS; scripts/action-pipeline.mjs:158 (no shield for the opening); scripts/roll-draw.mjs:1674 (SPENDS_NO_CALL applies none), :1857, :1865-1870 hostileCalls",
+     "holds": "yes",
+     "test": "tier 2 \"E112 - an armed Loaded Die loads the murder's opening roll and is spent on it ...\" (18085), \"E112 - the GM's draw of an opening takes the killer's armed Calls ...\" (18172), \"E112 - a Resolve armed on the killer buys the opening's picker ...\" (25849)",
+     "test_kind": "behaviour",
+     "note": "The Palm half (a packet of a Palm naming an armed Call is applied none) has no test I could find: no tier file or scenario sends actionKey \"palm\" with a named Call (grep of calls: [ and SPENDS_NO_CALL). Held by reading roll-draw.mjs:1674. Daggerheart's real roll window is LIVE-E112-03, unread."
+    },
+    {
+     "promise": "A hidden token's movement ruler is hidden from the players, during the move and after; a GM and the token's owner still see it; a token the module hides from a player hides its ruler too (owner-116)",
+     "source": "v1.2.116.md 85-93",
+     "code": "scripts/fog-doorways.mjs:1887-1911 hourRulerFor (visible asked on every write), :1919 reRuler; scripts/visibility.mjs:940-947 rulerShownTo, :1006-1011 rulerHere, :434 (asked again on a hide or the veil's flag)",
+     "holds": "yes",
+     "test": "R7523 (both shapes of visible, on classes of its own); R7703; scenario 21 'road' (rulerShownTo on three pages)",
+     "test_kind": "behaviour",
+     "note": "The harness has no ruler and no canvas; which shape v14's ruler class has and what a player's browser draws of a hidden token's move are LIVE-E116-01 to -03, of which only the owner's answer that a player sees their own hidden token is recorded (-03, partial)."
+    },
+    {
+     "promise": "Train items carrying the stage's stamp: every planner node open by default with an All open switch kept on the GM's account; Spectators talk in the Spectators' room by default with the microphone open; a project action's use limit per character (none, once each time of day, once each day); the balance log off by default; one rule for whether a road is open in the phase",
+     "source": "v1.2.116.md 95-157",
+     "code": "scripts/investigation.mjs:1100 caseMapAllOpen, :1862-1870 onView; scripts/case-map.mjs:164, :284-296; scripts/spectator.mjs:37-42; scripts/facilities.mjs:144-149 usedUp, scripts/config.mjs:2298-2299; scripts/settings.mjs:3177-3184 (balanceLog, world, default false); scripts/allowed-now.mjs",
+     "holds": "yes",
+     "test": "R7520-R7527; tier 2 \"owner-116: the planner draws every node open by default ...\" (31420); R7522, scenario 93; R7543, scenario 99; R7542, tier 2 E53-T1 (103325); R42, R7560, tier 2 E40-T3, E40-T4, E40-T5",
+     "test_kind": "both",
+     "note": "Read at the decisive function each, not line by line; the planner's first draw with every node open and the ruler's cost during a drag are measured nowhere at a table (the notes' known gaps)."
+    }
+   ],
+   "registry_rows": 17,
+   "tests_read": [
+    {
+     "test": "tier 2 \"E112 - the opening veils a direct murder's killer and lifts it on every road out, exactly ...\" (tests-tier2.mjs:17885-18017)",
+     "measures": "yes",
+     "why": "Opens real incidents on the GM's page, resolves the opening on Hope and as a failure, opens a trap and a self-inflicted death, plants a stale row, runs the lights' two functions; reads the tokens' flag and hidden, the GMs' row, the blocked users and the mute row, and the order of the writes. It would fail if the veil did not go up or come off. It reads documents on one GM page, not what any browser draws (scenario 21 does that)."
+    },
+    {
+     "test": "R7405 (tests-tier1.mjs:59280)",
+     "measures": "weak",
+     "why": "Pure calls of veilWanted, the patches, micHold and tokenShownTo on stand-ins, plus source reads of settleTrialVoices, resolveKillerOpening's order and registerMasks' sweeps: pins the rule and the text, drives no incident."
+    },
+    {
+     "test": "tier 2 \"E112 - the GM's draw of an opening takes the killer's armed Calls as an action roll does ...\" (18172-18220)",
+     "measures": "yes",
+     "why": "Arms a Support and an old Obstacle on the killer and a Support on the victim, draws the opening as the killer's player with a packet naming three nonces, reads which the record used, the dice read off them and which stay armed. Fails if the opening took no Call or took one not the killer's."
+    },
+    {
+     "test": "tier 2 \"E112 - the start-of-day board shows a victim nobody has found as alive and the masked killer as they are ...\" (17713-17809)",
+     "measures": "yes",
+     "why": "Puts a mask up at Night, starts the Morning Eclipse and rolls the day over, and at each clock write carrying the start board's stamp reads what dayStartBoard composes. It reads only writes that Q.startBoardStamped passes (17751-17753): the write that plays the end-of-day board is not read."
+    },
+    {
+     "test": "R7407 (registry row; body not read)",
+     "measures": "weak",
+     "why": "By its row a stand-in stage holding Isometric Perspective's layer names; Isometric itself is read, not run, and the sandbox built no silhouette to hide (LIVE-E112-05)."
+    },
+    {
+     "test": "scenario 21-masked-killer, phase 'road' (audit/harness/scenarios/21-masked-killer.mjs:161-256)",
+     "measures": "yes",
+     "why": "The killer's own page throws the opening; the victim's, a bystander's and the killer's pages are read for the flag, hidden, the drawn visible, the ruler, a GM's hidden kept, what a console lists and the GMs' store. On the harness's model of Foundry's refresh."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: E112 - a mask puts its question mark on the killer's portrait as well as the tokens, and gives both back exactly",
+    "tier 2: E112 - a token made while a mask or a veil stands joins it",
+    "tier 2: E112 - the start-of-day board shows a victim nobody has found as alive and the masked killer as they are",
+    "tier 2: E112 - the masks end before the Class Trial is entered",
+    "tier 2: E112 - the opening veils a direct murder's killer and lifts it on every road out, exactly",
+    "tier 2: E112 - an armed Loaded Die loads the murder's opening roll and is spent on it",
+    "tier 2: E112 - the GM's draw of an opening takes the killer's armed Calls as an action roll does",
+    "tier 2: E112 - a Resolve armed on the killer buys the opening's picker",
+    "tier 2: owner-116: the planner draws every node open by default",
+    "tier 2: E53-T1 - the balance log records only while its world switch is on, and on a GM",
+    "tier 2: an ask whose card is gone ends nothing when its time runs out (E40-T5)",
+    "tier 2: the rifle, a passage's show and a passage's search ask the phase of the one rule, on the live world (E40-T4)",
+    "scenario 21",
+    "scenario 18",
+    "scenario 72",
+    "scenario 93",
+    "scenario 99",
+    "scenario 30",
+    "scenario 95",
+    "scenario 86"
+   ],
+   "scenarios": [
+    "21-masked-killer (the one register row naming E112, audit/harness/README.md:184): while the opening waits a console reads the veiled tokens' actor (known leak foundry-veiled-token-actor) and no player holds the GMs' veil store; the owner's road on Hope read on the victim's, a bystander's and the killer's pages",
+    "18-trial (extended in this train, 26 to 91 checks): a second trial, the Final Trial, a late player, a GM's reload in the vote, a season reset during a suicide incident, each with the player scans",
+    "72-canary (a sealed repair's end card), 93-spectator (the Spectators' room by default), 99-actions (the use limits), 30-security and 95 (follow the mask's own picture and the open-all Map)"
+   ],
+   "live": {
+    "items": 5,
+    "read": 2,
+    "ids_read": [
+     "LIVE-E112-01",
+     "LIVE-E112-04"
+    ],
+    "note": "LIVE-E112-01: read on Foundry 14.370 on the owner's sandbox, 16.11.2026, outcome a defect (the veiled killer had no vision of their own and saw from the victim's token; docs/dev/e58/LOCAL-REPORT.md:366); fixed by E118 and not read again (LIVE-E112V-01 open). LIVE-E112-04: partial, the v14 half read (the \"?\" on token, ring, nameplate and portrait), The Forge half and the give-back not. LIVE-E112-05: attempted, nothing settled (no silhouette was built). LIVE-E112-02 and -03: no reading. The train's LIVE-E116-01 to -03 and LIVE-E53-01 carry other ids: -03 partial, the rest unread."
+   },
+   "findings": [
+    {
+     "id": "E112-1",
+     "severity": "nit",
+     "title": "The \"?\" is not drawn on two of the surfaces the notes list: the sequence boards and the voice tile refuse an SVG portrait",
+     "where": "scripts/vault-store.mjs:601 (ROOM_IMAGE_TYPES: jpg, jpeg, png, webp, avif), :648-649; scripts/sequence.mjs:733-736 portraitOf, :970; scripts/voice-tile.mjs:725-727 voicePortrait; scripts/mask-gm.mjs:48 MASK_IMG (icons/mask-unknown.svg)",
+     "what_happens": "While a mask stands the actor's img is the module's SVG. Both surfaces read a portrait through safeRoomImage, which answers null for a path whose type is not a raster one. A board then draws the first letter of the student's real name in the face's place with the name under it; the voice tile falls to the next face of its list.",
+     "failure_scenario": "A mask stands and a board that draws the cast plays: the masked student's place shows a letter where every other student shows a picture, not the \"?\" the notes (v1.2.116.md 43-44) and e112/STATUS.md's table (line 110: \"the sequence boards ... yes, (b)\") say that surface wears.",
+     "confidence": "read",
+     "refutation_tried": "Looked for svg among the filter's types (none) and for another reader of the portrait on the boards (portraitOf is the one, sequence.mjs:929). E112's own item 6 agrees with this reading (\"the killer's place with no picture (the masked one refused)\", e112/STATUS.md 172-173) and answered it by ending the masks before the start-of-day board; the voice tile is not reached because a masked killer sits alone in a silent room (STATUS.md 108). The face stays hidden either way, so this is a wrong sentence, and the root of E118-1."
+    },
+    {
+     "id": "E112-2",
+     "severity": "minor",
+     "title": "When a GM who is not the primary ends the Eclipse, or opens the murder, the veil goes up late: the killer's token is drawn for the victim until the incident has opened and the primary has heard it",
+     "where": "scripts/mask-gm.mjs:552 (veilAtTheLights answers 0 off the primary), :516 (settleVeilsNow answers null off the primary), :684 (the primary settles on the incident's setting update); scripts/eclipse.mjs:399 (endEclipse asks only for a GM), :425-430, :972 (askAtTheLights awaited before openMurder at :988); scripts/murder-rules.mjs:441, :548-554",
+     "what_happens": "The lights' veil and the open's awaited settle both run only on the primary GM's browser. On another GM's browser endEclipse veils nobody, the Eclipse's flag goes and every token is drawn again, the lights judge there - waiting on that GM's window where the murder was not approved beforehand - and only when openMurder has written the incident does the primary's hook put the veil up. Opened from a second GM's tile in the middle of a time of day, the opening's first card and invitation likewise go out before the veil.",
+     "failure_scenario": "A table with two Gamemasters. A student declares a direct murder in an Eclipse. The second GM, not the primary, presses End Eclipse. On the victim's screen the killer's token is back in the room with the lights, stays there while the second GM answers the lights' window, and vanishes when the incident opens. The notes promise the killer veiled as the Eclipse ends, before its lights show anyone (v1.2.116.md 25-26), and the owner's answer (4) was from the start of the time of day the murder is declared in.",
+     "confidence": "read",
+     "refutation_tried": "Looked for a road by which the ending GM hands the Eclipse's end or the lights to the primary: endEclipse (eclipse.mjs:399) and openMurder (murder-rules.mjs:441) ask only whether the user is a GM, and judgePendingMurders runs where endEclipse runs. Looked for a later stage that moved the veil's write: E118 changed what the veil writes, not who writes it. The notes do name the road (Known gaps, \"Defaults taken, each to confirm\": veiled at the open, a moment later, read off the code, not driven), so this is a stated limit rather than a hidden one; what the reading adds is that the moment includes the wait on the lights' window. Not driven by any test or scenario found."
+    }
+   ],
+   "superseded_by": [
+    "E118 (line E112v, 1.2.118): the veil's mechanism - Foundry's hidden replaced by the module's mark alone; the kept-and-written-back hidden; hiddenByGm's exception for a veiled token; a GM's hide by hand during the veil is now kept"
+   ],
+   "grade": 7,
+   "grade_reasons": "On 1.2.118 every promise of the stage is in the code and its core is held by behaviour tests: the veil's every road out, the Calls on the opening, the mask's picture and its give-back, the masks before the trial and the start board; the 17 registry rows are all ok in the base run's tiers 0-1 (R7405-R7408, R7520-R7527, R7540-R7543, R7560). It works in the ordinary case - one GM, or the primary ending the Eclipse. Against an 8: (1) one promise is delivered in part: with another GM ending the Eclipse or opening the murder the veil goes up late (E112-2, minor, the notes' own stated default); (2) two parts are held by reading alone - Palm applying no Call a packet names (roll-draw.mjs:1674, no test found) and the lights' call sites in endEclipse (the test calls the two functions itself); (3) the stage's first promise, as shipped in 1.2.116, had a defect a real Foundry showed at once (the veiled killer saw from the victim's token) and stands today on E118's replacement, which no canvas has seen; (4) of 5 live items one is a recorded defect, one partial, one attempted and two unread, and the ruler's three are unread. One nit (E112-1). Tier 2 and the scenarios of the base run were not joined when this was written; the tier-2 claims rest on the notes' runs.",
+   "missing_to_10": "The lights' veil and the open's settle reaching a table whose Eclipse a second GM ends (E112-2), with a test that ends an Eclipse holding a declared murder and reads the mark on the killer's tokens before the Eclipse's flag goes, on the primary and off it; a test that sends a Palm's packet naming an armed Call and reads none applied; a reading of LIVE-E112V-01 on a canvas (it replaces LIVE-E112-01), of LIVE-E112-02 (The Forge), -03 (the Loaded Die in Daggerheart's real window), -05 (silhouettes built for the module to hide) and LIVE-E116-01 to -03; the notes' sentence on the boards and the voice tile corrected (E112-1); E118-1 closed."
+  },
+  {
+   "id": "E117",
+   "version": "1.2.117",
+   "shipped": "2026-11-16",
+   "what": "The owner's asks of 16.11.2026 built in one release: the verdict with two accused, a project's scene found from its proposer's token (with a GM's pick), a completed project's action after the clock is set back, the Debug log's dropped count, the fix of a player's first asks at load on Foundry 14.370 (line L1), Daggerheart 2.12.9 as verified and the character sheet's header glass.",
+   "claim_sources": [
+    ".github/release-notes/v1.2.117.md (1-248, whole: the stage's parts 16-81, the lines' work 83-104, Before installing, Repository, Known gaps 158-193, Checked 195-248)",
+    "no papers folder of its own (groups-stages.json: papers null); docs/dev/e43/SCENES.md and docs/dev/e40/STATUS.md are named by the notes and were not read whole - the notes are the claim",
+    "audit/AUDIT-1.2.42.md 9.2: no item with an id LIVE-E117-n and no block beginning \"Po E117\" (grep: 0 hits); the release wrote items 562-563 (LIVE-E40-02, LIVE-E40-03)",
+    "tools/stages.json row E117 (touches null, drills none)",
+    "git log --oneline v1.2.116..v1.2.117: 36 commits, 2 naming E117; the code's commits ce79f234 (verdict), 0858af76 and 5b3d80b5 (a project's scene), 3b6b423b (the clock set back), 170ef249 (the Debug log), 80dfaf06 (the first asks), aa697521 (Daggerheart 2.12.9), f4781817 (the sheet)"
+   ],
+   "commits": 36,
+   "promises": [
+    {
+     "promise": "When the count accuses two or more students and at least two are alive, the verdict window shows one tick per living accused in place of the executed list, each ticked unless the register names them a Blackened; with one accused or one alive the list stays",
+     "source": "v1.2.117.md 16-25",
+     "code": "scripts/verdict.mjs:294-299 accusedChoices, :168-173 (the fieldset), :200-202 (the select kept)",
+     "holds": "yes",
+     "test": "R7601; tier 2 E40-T8 (tests-tier2.mjs:27460); scenario 18 \"preselection\" (18-trial.mjs:320)",
+     "test_kind": "behaviour",
+     "note": "An accused whose death the GMs keep unfound is still a choice, as in the select (verdict.mjs:128-129)."
+    },
+    {
+     "promise": "A wrong verdict executes exactly the ticked ones; with none ticked They got it wrong is greyed out and a verdict sent that way is not given, the GM told to tick one; a right verdict ignores the ticks",
+     "source": "v1.2.117.md 21-23",
+     "code": "scripts/verdict.mjs:306-310 executedChoice, :320-327 holdWrongWithoutTick, :349-362 read, :261-263 verdictAnswer, :248-249 (the call site)",
+     "holds": "yes",
+     "test": "R7602, R7603; tier 2 E40-T8",
+     "test_kind": "behaviour",
+     "note": "E40-T8 draws the window and presses it four ways, with the answer held back from applyVerdict (the helper verdictWindow answers null to the window's caller, tests-tier2.mjs:3089-3093), so lines 248-249 are read, not driven - the notes say so (\"the window's call site read, not driven\"). Two sentenced carried out in one sentence is held by an older test (E42-T3's fixture, tests-tier2.mjs:92917)."
+    },
+    {
+     "promise": "A proposed project stands on the scene its proposer's token stood on when that scene has the project's room, and finds it again from that token when its room changes",
+     "source": "v1.2.117.md 27-30",
+     "code": "scripts/projects.mjs:190-201 detectedSceneFor and proposerSceneFor, :208-219 roomSceneAfterRoomChange and roomSceneOnRoomChange, :2103-2118 (createProject), :148-155 projectSceneRule",
+     "holds": "yes",
+     "test": "R7643; tier 2 \"a project a player proposes stands on the scene of the proposer's token ...\" (69670); scenario 99",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "Where more than one scene has a room of that name the editor shows Scene of the room; a GM's change there stays through later room changes, and so does a GM dragging the project's token into such a room; a world with no shared room name reads as before",
+     "source": "v1.2.117.md 31-33",
+     "code": "scripts/projects.mjs:232-236 roomSceneChoices, :183-187 roomSceneByGmOf; scripts/projects-ui.mjs:306-326, :1236-1239; scripts/projects-map.mjs:670-671 (the drag)",
+     "holds": "yes",
+     "test": "R7641, R7642; tier 2 \"a project picked onto a second scene ...\" (69572) and \"a project in a room that one place scene holds offers no choice of scene ...\" (69520)",
+     "test_kind": "behaviour",
+     "note": "The drag as a pick (projects-map.mjs:670-671) is driven by no test I found: every test sets roomSceneByGm through projectEditChange. Held by reading; the notes list it under defaults to confirm."
+    },
+    {
+     "promise": "If the picked scene is deleted or no longer has the room the editor says so and the project stands where it would with no pick; the other GMs get one card naming each project and where it stands, the GM who deleted it none",
+     "source": "v1.2.117.md 34-37",
+     "code": "scripts/projects.mjs:148-155 (a failed pick falls back), :232-236 (stale); scripts/projects-map.mjs:730-744 onPickedSceneDeleted, :996; scripts/projects.mjs:222-224 otherGmIds",
+     "holds": "yes",
+     "test": "R7642 (stale), R3510 (the card's tone); the tier-2 test at 69670 (whispers counted against the other GMs); scenario 97",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "A secret project's picked scene stays with the GMs and those in on it",
+     "source": "v1.2.117.md 38-39",
+     "code": "scripts/projects-secrecy.mjs:224 PROJECT_SECRET_WHILE_SECRET (roomScene, roomSceneByGm); scripts/world-secrets.mjs:75; scripts/projects.mjs:132-138 roomSceneOf",
+     "holds": "yes",
+     "test": "scenario 99 (a bystander's rows, settings and copies; an insider's copy); R190's fixture",
+     "test_kind": "behaviour",
+     "note": "Scenario 99's body was not read; taken from the notes and the register row."
+    },
+    {
+     "promise": "A GM is told why a completed project's action does not stand (its time ended, its chapter or season ended, the clock is earlier than its completion); setting the clock back before a completion counts as completing it now, uses already made still count",
+     "source": "v1.2.117.md 41-51",
+     "code": "scripts/facilities.mjs:193-202 facilityState, :211-216 completionAfterClockBack, :223-234 restampSetBack, :241-249 facilityWhyLine; scripts/facilities-gm.mjs:61-66 (the primary, at ready and at every clock change)",
+     "holds": "yes",
+     "test": "R7644; tier 2 \"a completed project's action whose completion is later than a clock set back stands from now ...\" (100288)",
+     "test_kind": "behaviour",
+     "note": "The tier-2 test writes the clock back and reads the restamp the hook made, the player's offer, the reason line and that a forward move restamps nothing. Same season and chapter only, as the notes say."
+    },
+    {
+     "promise": "A player's first asks at load (the lock-pick passes, the room actions' uses, the eavesdrops, the timed effects) wait until the world is ready, so they no longer fail on Foundry 14.370; runTests({ tier: 2 }) no longer stops before its first test there",
+     "source": "v1.2.117.md 53-62",
+     "code": "scripts/facility-uses.mjs:125-127; scripts/timed-effects.mjs:408-410; scripts/eavesdrop-gm.mjs:329-331; scripts/lockpick-gm.mjs:219-221 (each inside Hooks.once(\"ready\")); commit 80dfaf06",
+     "holds": "yes",
+     "test": "scenario 00-boot \"startup: no registration of the module failed ... with game.user null at init as on v14 14.370\" (00-boot.mjs:121)",
+     "test_kind": "behaviour",
+     "note": "The one promise of the stage with a reading on a real Foundry after the fix: the notes (59-60) record no such failure on the sandbox and all four asks heard by the GM."
+    },
+    {
+     "promise": "The GM panel's Debug log says how many older rows it dropped to keep the newest 60, and its Copy text carries the count; the sheet header's glass reaches the Sanity box under Stained Glass",
+     "source": "v1.2.117.md 73-79",
+     "code": "scripts/diagnostics.mjs:2188 failuresDroppedLine, :2198; scripts/gm-panel.mjs:760-764; styles/stained-glass.css (f4781817)",
+     "holds": "yes",
+     "test": "R7640; R7780",
+     "test_kind": "both",
+     "note": "The stylesheet was not read; R7780 is ok in the base run. The 15 px strip is a measurement on a model of the sheet in Chromium (audit/sheet-band.mjs), not re-run here and not seen in Foundry."
+    },
+    {
+     "promise": "Daggerheart verified goes to 2.12.9",
+     "source": "v1.2.117.md 120-127",
+     "code": "module.json relationships.systems daggerheart compatibility.verified \"2.12.9\" (read on this checkout)",
+     "holds": "yes",
+     "test": "none",
+     "test_kind": "none",
+     "note": "The notes say this departs from release rule 6 (verified names only a version the suite passed on at a real table): the owner's decision of 16.11.2026, given after being told no full gate ran on 2.12.9. A fact about the manifest, not backed by a table run."
+    }
+   ],
+   "registry_rows": 9,
+   "tests_read": [
+    {
+     "test": "tier 2 E40-T8 (tests-tier2.mjs:27460-27507)",
+     "measures": "yes",
+     "why": "Draws the verdict window over a record accusing two living students, reads the ticks, the absent select, the legend and the wrong button's state with none and one ticked, then presses wrong with both, either and none ticked and reads the answer read() built. It would fail if a select came back or the wrong verdict named anyone not ticked. It stops at the window's answer: applyVerdict is not reached."
+    },
+    {
+     "test": "R7601, R7602, R7603 (registry rows; pure calls of accusedChoices, executedChoice, verdictAnswer)",
+     "measures": "yes",
+     "why": "Each holds one pure rule; ok in the base run. They cannot see the window."
+    },
+    {
+     "test": "tier 2 \"a project a player proposes stands on the scene of the proposer's token ...\" (69670-69738)",
+     "measures": "yes",
+     "why": "Builds a second scene with a room of the same name, stands the proposer there, makes the project as an approval does and reads the stored scene, where the project stands and where its action is offered; then a room change, a GM's pick kept through one, and the scene's deletion with the whispers counted."
+    },
+    {
+     "test": "tier 2 \"a completed project's action whose completion is later than a clock set back stands from now ...\" (100288-100332)",
+     "measures": "yes",
+     "why": "Completes a project at day 3, writes the clock to day 1 and reads the completion the primary's hook restamped, the offer and its times left, then the reason line past the lifetime."
+    },
+    {
+     "test": "scenario 00-boot, the startup check (00-boot.mjs:121)",
+     "measures": "yes",
+     "why": "The harness holds game.user null through init as 14.370 does, so a registration that reads the user at init throws and the check reads it; red 36/37 before the fix by the commit's message."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: E40-T8 - two accused, each on their own",
+    "tier 2: the Calls, the Monocub's abilities, the handover and a statistic proposal ask the phase of the one rule (E40-T6)",
+    "tier 2: every mode of the trial floor is a dimension of the phase matrix (E40-T7)",
+    "tier 2: a project in a room that one place scene holds offers no choice of scene in its editor",
+    "tier 2: a project picked onto a second scene that holds a room of the same name stands there alone",
+    "tier 2: a project a player proposes stands on the scene of the proposer's token",
+    "tier 2: a completed project's action whose completion is later than a clock set back stands from now",
+    "scenario 00",
+    "scenario 18",
+    "scenario 63",
+    "scenario 97",
+    "scenario 99",
+    "scenario 83",
+    "scenario 72"
+   ],
+   "scenarios": [
+    "no register row of audit/harness/README.md names E117; by the notes the stage extended 18-trial (91 to 94 checks: D4 once a verdict, a death before and after discovery, a ballot naming one student twice, the verdict window's preselection), 97-two-gms (a picked scene deleted: the other GM's card; a deletion by the second GM), 99-actions (two scenes, the proposer's scene, a secret project's pick on a bystander and an insider, the clock set back) and 00-boot (the calibration's checks and the startup check)"
+   ],
+   "live": {
+    "items": 0,
+    "read": 0,
+    "ids_read": [],
+    "note": "No AUDIT 9.2 item carries an id LIVE-E117-n. The release wrote LIVE-E40-02 and LIVE-E40-03 (the two-accused window on v14): neither has a recorded reading. By the notes' own last line the scene picker, the deletion card, the restamp at a primary's load and the Debug log's count have no AUDIT 9.2 item at all. The startup fix was read on the sandbox after it was made (the notes, 59-60)."
+   },
+   "findings": [],
+   "superseded_by": [],
+   "grade": 8,
+   "grade_reasons": "Each of the stage's asks is in the code as the notes word it, and its three main ones are held by tests that drive them: the two-accused window (E40-T8), the proposer's scene (the tier-2 test at 69670 and scenario 99) and the clock set back (the tier-2 test at 100288); the 9 registry rows (R7601-R7603, R7640-R7644, R7780) are ok in the base run. Reading found no defect. Against a 9: two parts are held by reading alone - a GM's drag of the project's token as a pick (projects-map.mjs:670-671, no test found) and the verdict window's call site (verdict.mjs:248-249, the notes say so). Against a 10 besides: nothing of the stage's own changes but the startup fix ran on a real Foundry, the two-accused window's live item is unread and four changed surfaces have no live item, and verified 2.12.9 stands on the owner's decision, not on a table run. Tier 2 and the scenarios of the base run were not joined when this was written.",
+   "missing_to_10": "A test that drags a project's token into a room two scenes hold and reads the pick and that it stays; a test that presses a wrong verdict through openVerdictDialog to applyVerdict with two ticked and with none; a reading of LIVE-E40-03; AUDIT 9.2 items, then readings, for the scene picker, the deletion card, the restamp at a primary's load and the Debug log's count; a tier-2 run at a table on Daggerheart 2.12.9 behind verified."
+  },
+  {
+   "id": "E118",
+   "version": "1.2.118",
+   "shipped": "2026-11-19",
+   "what": "Three lines in one stage: E112v (the opening's veil as the module's own mark, no longer Foundry's hidden, with a rule that a token the module hides gives no sight - the fix of LIVE-E112-01), F118 (the owner's table reports of 16-18.11.2026: one day's board at both ends of the day, a thread's ruling card in the chat log, a second GM's frame, the Facilities window's words) and C1 (the harness's stand-in brought to what was read of Foundry 14.370, and the module fixes that found: a route charged room by room, the put-back, the GMs' mark, a passage's floor; the suite's dice and windows at a table).",
+   "claim_sources": [
+    ".github/release-notes/v1.2.118.md (1-261, whole: In plain words 13-134, Before installing, Repository 157-184, Known gaps 186-222, Checked 224-261)",
+    "docs/dev/e112v/DESIGN.md (1-137) and STATUS.md (1-52); docs/dev/f118 holds screenshots only (no STATUS); no folder under the stage's own id (groups-stages.json: papers null)",
+    "audit/AUDIT-1.2.42.md 9.2 items 600-601 (lines 1591-1593), 660-663 (1614-1620) read; items 640-657 (LIVE-E39-02 to -19) by their ids and the readings file's note only; no block beginning \"Po E118\" (grep: 0 hits)",
+    "tools/stages.json row E118 (touches sockets, rolls, scenes; drills none); audit/gate/local-gate.json on this checkout",
+    "git log --oneline v1.2.117..v1.2.118: 76 commits, 2 naming E118 (the lines' commits name E112v, F118 or the shim); commits read: 577ae715 (the log's ruling card), 55719596 (one board; its file list)",
+    "git show v1.2.117:scripts/sequence.mjs (the end-of-day board before F118)"
+   ],
+   "commits": 76,
+   "promises": [
+    {
+     "promise": "The veil is the module's mark alone: the killer's tokens keep whatever hidden they had, each browser hides them itself (not the victim's, a bystander's or a Spectator's; the killer's and the GMs' do, a third on the killers' side by the room rule), nameplate and ruler with them",
+     "source": "v1.2.118.md 36-44; e112v/STATUS.md V1, V3, V4, V5",
+     "code": "scripts/mask-gm.mjs:424-429 veilPatch and unveilPatch, :443-455 veilActor (hides: \"module\"); scripts/visibility.mjs:555-561 (above the Spectator's line at 563), :301-325 movePass and veilFlagChanged, :871-880 hide, :940-947 rulerShownTo",
+     "holds": "yes",
+     "test": "R7700, R7702, R7703, R7704; tier 2 \"E112 - the opening veils ...\" rewritten; scenario 21 'road' (flagged and not hidden on every page, drawn on the killer's page alone, the ruler likewise)",
+     "test_kind": "behaviour",
+     "note": "Read on documents and on the harness's model of Foundry's refresh; what a canvas draws, and for how many frames, is LIVE-E112V-01 (b), unread."
+    },
+    {
+     "promise": "The killer's own token stays their vision source while veiled, and a token the module hides gives no sight on that browser (the veiled killer's to the victim and bystanders; with token vision on, characters in other rooms and, in an Eclipse, every character but one's own)",
+     "source": "v1.2.118.md 43-51; e112v/DESIGN.md section 5; STATUS.md V2, V9",
+     "code": "scripts/visibility.mjs:968-971 givesNoSight, :974-979 noSightHere, :986-1003 installSightRule (wraps _isVisionSource where the class chain first owns it), :50 (at ready); scripts/patches.mjs:658 (the token-sight row)",
+     "holds": "yes",
+     "test": "R7701, R7706, R7707",
+     "test_kind": "behaviour",
+     "note": "Yes as the notes word it: on the predicate and on a stand-in class. The defect this fixes was seen on a real canvas and the fix was not: whether 14.370's class is asked where the wrap sits, and asked again when the verdict turns with no move, is not established (LIVE-E112V-01 (a), (d)). R7707's stand-in class cannot fail for anything Foundry's own class does."
+    },
+    {
+     "promise": "A hidden a GM puts on a veiled token is the GM's and is kept; a veil standing at the update (written by 1.2.116 or 1.2.117) is converted at the primary's next load",
+     "source": "v1.2.118.md 54-56, 141-145",
+     "code": "scripts/utils.mjs:443-446 hiddenByGm; scripts/visibility.mjs:895-901 show; scripts/mask-gm.mjs:435-437 writtenWithHidden, :488-498 convertVeil, :523-539 (the settle), :466-481 liftVeil",
+     "holds": "yes",
+     "test": "R7705; scenario 21 'road' (a GM's hidden kept on the owner's canvas); tier 2 \"E112v - a veil written by 1.2.116 or 1.2.117 loses its hidden at the primary's settle ...\" (18019)",
+     "test_kind": "behaviour",
+     "note": "Not tried on a world updated mid-opening (the notes say so)."
+    },
+    {
+     "promise": "One day's board at both ends of the day: titled End of day N when Night begins and Day N when the day begins, both showing the chapter, the time of day, how many are alive, the cast with the dead greyed and the school's mood; a Spectator's end board the title and the mood alone; the Evening's summary as a card of its own; a fresh mood on the chapter end's next morning",
+     "source": "v1.2.118.md 16-34",
+     "code": "scripts/sequence.mjs:926-934 dayBoardOf, :957-975 dayBoardElement, :982-993 drawDayBoard, :1030-1037 playDayStart, :1137-1166 dayEndBoardFor and playDayEnd; scripts/transitions.mjs:140-154 boardsOf, :160-196 onClockHeard; scripts/day-summary.mjs:73 sumUp; scripts/chapter.mjs:761-772 (the morning step's mood)",
+     "holds": "partly",
+     "test": "R7793, R3722, R3724, R3725, R3731, R3868; tier 2 F118-T1 (91514); scenarios 69-day-boards, 93-spectator, 96-late-sequence",
+     "test_kind": "both",
+     "note": "The board is one board at both ends, as promised. What the change did not carry over is E112's care for a mask: the end-of-day board now draws every student's portrait, and it plays on a write before which no mask is ended (finding E118-1). No test or scenario reads the end board while a mask stands. The look at a table is LIVE-F118-04, unread."
+    },
+    {
+     "promise": "A thread's ruling card in the GM's chat log is answered from the log as from the messenger, and a card already answered is not ruled again from the log, its buttons left disabled",
+     "source": "v1.2.118.md 62-69",
+     "code": "scripts/gm-bridge.mjs:157 (any drawn copy holding a data-drpg-call button is wired); scripts/messenger-app.mjs:724 wireCallActions, :777 (a settled card keeps its buttons held); commit 577ae715",
+     "holds": "yes",
+     "test": "tier 2 \"the chat log's copy of a thread's ruling card rules it on a GM: Approve in the log is the messenger's Approve\" (25634) and \"a thread's ruling card answered in the messenger first is not ruled again from the log ...\" (25687)",
+     "test_kind": "behaviour",
+     "note": "The defect was measured with a real click on 14.370; the fix is clicked in the harness's jsdom on a statistic-ruling card (the Leg button), the same wiring as the proposal card's three buttons the notes name. A real click on v14 is LIVE-F118-01, unread."
+    },
+    {
+     "promise": "A character some user has as their own is framed on every screen, a second GM's or an Assistant's included; Monokuma and a character nobody has stay bare; a change of an assignment or a role redraws the frames",
+     "source": "v1.2.118.md 71-81",
+     "code": "scripts/own-ring.mjs:210-215 mineFor, :235-242 frameFor, :186-190 (updateUser, createUser, deleteUser)",
+     "holds": "yes",
+     "test": "R7790; tier 2 \"a character another user has as theirs is framed on this GM's screen as soon as it is assigned, and Monokuma assigned stays bare (F118)\" (25746)",
+     "test_kind": "behaviour",
+     "note": "The redraw on a change of role is held by no test (a mutant without it survived; the notes say so). Two GMs on a canvas is LIVE-F118-02; its only record is the owner's report of the defect."
+    },
+    {
+     "promise": "The Facilities window's words: the tile names its three kinds, a rest the room does not allow reads Not here, the refusal names only rooms the character knows and can enter, a free room action reads Free, and the grey line under a row has more contrast",
+     "source": "v1.2.118.md 83-97",
+     "code": "scripts/config.mjs ACTIONS.rest (the tile's hint and description); scripts/rest.mjs:83 restRoomsSentence; scripts/action-facilities.mjs:46 priceLine; styles/components.css (.drpg-choice)",
+     "holds": "yes",
+     "test": "R7791, R7792; R60 (the 11 px floor)",
+     "test_kind": "both",
+     "note": "The contrast figures (2.08:1 to 6.79:1, 3.02:1 to 4.68:1) are the notes' reading in Chromium on the harness's drawing; not re-measured here, and not seen at a table (LIVE-F118-03: its only record is the owner's report)."
+    },
+    {
+     "promise": "A move of one update through several rooms is counted room by room: in an Eclipse it stops at its last allowed crossing, in Daily Life each room is paid for; a lawful route to a room not next to the start is no longer refused and a route with an unlawful leg is refused whole",
+     "source": "v1.2.118.md 99-109",
+     "code": "scripts/movement.mjs:3236 roomsAlong, :3263 routeLegs, :1595-1616 (each leg judged in the veto), :2763 chargeRoute",
+     "holds": "yes",
+     "test": "R7740; scenario 70-movement (8/10 before the fix, 11/11 after, by the notes)",
+     "test_kind": "behaviour",
+     "note": "On the harness's model of how 14.370 sends a route. The request's shape on 14.370 and a mouse drag through rooms were not read (LIVE-E39-10, -11); line L1's reading was a move through Foundry's API. chargeRoute was not read line by line."
+    },
+    {
+     "promise": "Smaller fixes: a GM's put-back writes every coordinate it names; a GM's own write of a value a player's pending write already left is no longer undone by the sheet guard; a passage or tunnel made from the console with no floor named takes the scene's one floor",
+     "source": "v1.2.118.md 111-123",
+     "code": "scripts/movement.mjs:3493 putBackWrite (diff: false); scripts/sheet-audit.mjs:3333 noteOwnDropped; scripts/resource-guard.mjs:345 noteOwnWrite; scripts/passages-gm.mjs:1343 floorNamed",
+     "holds": "yes",
+     "test": "R7741, R7744 (source census); tier 2 \"a put-back writes every coordinate it names ...\" (27432), the two GMs' mark tests (84454, 84608); R7742, R7743; scenario 76",
+     "test_kind": "both",
+     "note": "Each found on the harness once it behaved as 14.370 was read to; none read at a table (LIVE-E39-12, -14, -16). The notes leave one case unbuilt: a GM's removal of a key a player's pending write already removed (LIVE-E39-17)."
+    },
+    {
+     "promise": "Running the suite on a real Foundry: for the length of one tier-2 test the suite sets the dice it names and answers the windows it queues, takes both off afterwards and checks they are real again; a test past 15 minutes fails as timed out and stops the run",
+     "source": "v1.2.118.md 125-134",
+     "code": "scripts/tests.mjs:286 runSuite; scripts/tests-kit.mjs:439 runOne (and the kit's dice script and dialog answers, not read line by line)",
+     "holds": "partly",
+     "test": "R7561-R7567; tier 2 \"a test's named dice are the roll's on this browser, at a table too\" (104215), \"a test's queued dialog answer is the window's answer on this browser, at a table too\" (104237), \"tier 2's restore puts Daggerheart's Fear back as it found it\" (104186)",
+     "test_kind": "both",
+     "note": "The mechanisms are in and held (R7561, R7562, R7564, R7566 run fixtures; R7563, R7565, R7567 read runSuite's source). What they are for is not there yet and the notes say so: the last whole tier 2 on the sandbox read 1326 passed, 214 failed, 26 skipped of 1566 at d5907e1b, before most of these fixes, and none has run since on any Foundry."
+    }
+   ],
+   "registry_rows": 24,
+   "tests_read": [
+    {
+     "test": "tier 2 \"E112 - the opening veils a direct murder's killer and lifts it on every road out, exactly ...\" as rewritten (tests-tier2.mjs:17885-18017)",
+     "measures": "yes",
+     "why": "Reads each token's own hidden untouched through the veil, the row's tokens with no hidden and hides \"module\", a GM's hidden token still hidden after a failed opening, and the lights' writes as the flag alone. It would fail if the veil wrote hidden again."
+    },
+    {
+     "test": "R7707 (tests-tier1.mjs, body read)",
+     "measures": "weak",
+     "why": "Installs the wrap on a class of its own with a rule of its own and reads three tokens' answers: it holds the wrapper's logic and that it installs once. It cannot fail for where Foundry's class owns the test or whether Foundry asks it."
+    },
+    {
+     "test": "tier 2 \"the chat log's copy of a thread's ruling card rules it on a GM ...\" (25634-25685)",
+     "measures": "yes",
+     "why": "A player's ruling ask is judged, the card's log copy drawn by renderHTML and its button clicked; reads the answer sent to the asker alone, the card settled and its record. Red before the fix by its own note (no answer, unsettled)."
+    },
+    {
+     "test": "R7790 (2440), R7791 (20736), R7793 (58230) heads read; R7792 (20798) whole",
+     "measures": "yes",
+     "why": "Each calls the rule on stand-ins of its own (frameFor on built actors and users; restRoomsSentence on a built scene; the board's mood for each band and its node against the end board's); R7792 and R7793 add a source read (the rows ask priceLine; the chapter's morning writes a mood). None draws a window or a canvas."
+    },
+    {
+     "test": "tier 2 F118-T1 (91514-91580)",
+     "measures": "yes",
+     "why": "Moves the clock from Evening to Night with the sequences on and reads the Evening's summary popup and the board's stamp. It does not read the board's cast, and no mask stands in it."
+    },
+    {
+     "test": "R7561-R7567, R7741, R7744 (tier 0; classified by what each calls)",
+     "measures": "weak",
+     "why": "R7561, R7562, R7564 and R7566 run fixtures through runOne, the dice script and the dialog answers; R7563, R7565, R7567, R7741 and R7744 read source (runSuite's shape, every put-back through putBackWrite, every bare write of a guarded flag): they pin the text."
+    }
+   ],
+   "tests_to_join": [
+    "tier 2: E112 - the opening veils a direct murder's killer and lifts it on every road out, exactly",
+    "tier 2: E112v - a veil written by 1.2.116 or 1.2.117 loses its hidden at the primary's settle",
+    "tier 2: the chat log's copy of a thread's ruling card rules it on a GM: Approve in the log is the messenger's Approve",
+    "tier 2: a thread's ruling card answered in the messenger first is not ruled again from the log, and the log's buttons end disabled",
+    "tier 2: a character another user has as theirs is framed on this GM's screen as soon as it is assigned, and Monokuma assigned stays bare (F118)",
+    "tier 2: a put-back writes every coordinate it names, whatever the writer's copy of the token holds",
+    "tier 2: a GM's own write of a student's GM-only flag that a player's pending write already left on the sheet moves the GMs' mark",
+    "tier 2: a player's Find Stash through the bridge, whose GM write equals the note that player's own pending write left, moves the GMs' mark",
+    "tier 2: F118-T1 - the Evening's own summary reaches the screen when Night begins",
+    "tier 2: tier 2's restore puts Daggerheart's Fear back as it found it",
+    "tier 2: a test's named dice are the roll's on this browser, at a table too",
+    "tier 2: a test's queued dialog answer is the window's answer on this browser, at a table too",
+    "tier 2: E112 - the start-of-day board shows a victim nobody has found as alive and the masked killer as they are (the neighbour of E118-1: it reads the start board only)",
+    "scenario 00",
+    "scenario 21",
+    "scenario 30",
+    "scenario 66",
+    "scenario 69",
+    "scenario 70",
+    "scenario 74",
+    "scenario 76",
+    "scenario 86",
+    "scenario 87",
+    "scenario 89",
+    "scenario 93",
+    "scenario 96"
+   ],
+   "scenarios": [
+    "no register row of audit/harness/README.md names E118, E112v or F118; 21-masked-killer's row (README.md:184) still reads as E112 wrote it",
+    "21-masked-killer 'road' (changed here): the mark and no hidden on every page, drawn and its ruler shown on the killer's page alone, a GM's hidden on a veiled token kept, a console's list of hidden character tokens empty and its list of marked tokens the known leak",
+    "69-day-boards: which board plays on which clock write on the GM's and three players' pages (the Night Eclipse's end and Evening to Night one end-of-day board each) - it counts boards and holds no mask",
+    "70-movement (a route in Daily Life and in an Eclipse), 76-passages (the put-back and a passage's floor), 66-rooms and 74-room-tile (floors), 00-boot (the stand-in's 52 checks), 93-spectator (the end board a Spectator gets), 96-late-sequence"
+   ],
+   "live": {
+    "items": 0,
+    "read": 0,
+    "ids_read": [],
+    "note": "No AUDIT 9.2 item carries an id LIVE-E118-n. The release wrote 24 items under its lines' ids: LIVE-E112V-01 and -02, LIVE-F118-01 to -04, LIVE-E39-02 to -19. None has a reading of this release's code: the rows the readings files hold for LIVE-F118-02 and -03 are the owner's reports of the defects, and S7-2 is line L1's reading of the dead buttons, all from before the fixes; LIVE-E112V-01 appears only as the open follow-up of LIVE-E112-01. The local gate is required (the stage touches sockets, rolls and scenes) and audit/gate/local-gate.json, bound to ec1478d5, has all 8 parts not-run for want of a server, verdict incomplete."
+   },
+   "findings": [
+    {
+     "id": "E118-1",
+     "severity": "major",
+     "title": "The end-of-day board, which since F118 draws every student's portrait, plays while a mask still stands: the masked killer's place shows a letter under their real name on every player's screen",
+     "where": "scripts/sequence.mjs:926-934 (dayBoardOf reads portraitOf for the end board too), :733-736, :957-975, :1155-1166; scripts/clock.mjs:422-427 (the masks are ended before the write only when rolledOver); scripts/transitions.mjs:151-153, :171, :222; scripts/mask-gm.mjs:678-680; scripts/vault-store.mjs:601, :648-649",
+     "what_happens": "A mask writes the module's SVG to the killer's actor img and ends on the drpgTimeOfDayChanged hook, which the sync bus fires after the clock's write has landed (sync.mjs:449). On that same hook every browser builds the day's board at once (transitions.mjs:222, :168-171; sequence.mjs:1157) and reads each student's img through safeRoomImage, which refuses an SVG - so the masked student's cell is drawn as the first letter of their name with the real name under it (sequence.mjs:970-971), while the mask's end is still several awaited writes away on the primary (mask-gm.mjs:278-285: the store, each token, then the portrait). E112 closed this for the start-of-day board by ending every mask before the clock's write (clock.mjs:427 for a roll-over, eclipse.mjs:277 for the Morning Eclipse). The write that plays the end-of-day board (Evening to Night, nightFalls, clock.mjs:422) has no such call, and until 1.2.117 needed none: that board drew no cast (git show v1.2.117:scripts/sequence.mjs, dayEndBoard and dayEndElement: rows, a tally, public events, the mood). F118 made it the cast's board (55719596, which changed neither clock.mjs nor mask-gm.mjs). The board's card is then kept in each browser's notice history (sequence.mjs:1161-1164).",
+     "failure_scenario": "Evening. A direct murder opens (declared in the Eclipse before Evening and judged at its lights, or from the GM's tile) and the killer's opening lands on Hope or a critical, so she is behind a \"?\". The fight ends, nobody finds a body or enters the trial, she does not reveal herself. The GM ends the Night Eclipse (or skips it from Evening). With the table's sequences on, every player's browser plays End of day N: each student with a portrait shows it, and one living student shows a bare letter where her portrait was the evening before - the one behind the \"?\". The promise the notes make for this board is the cast as the table knows it; E112's own words for the same picture on the morning board were that it named the killer by elimination.",
+     "confidence": "read",
+     "refutation_tried": "Looked for another end of the masks before Night's write: endMask's callers are the reveal, a lost stage, the season reset, masksAtNewTimeOfDay and endMasksBeforeTheBoard, the last called from clock.mjs:153 (entering the trial), clock.mjs:427 (rolledOver only) and eclipse.mjs:277 (only when the Eclipse's patch carries dayBoard, the Morning Eclipse). Looked for a board built late enough to read the portrait given back: onClockHeard waits only for a trial's exit (transitions.mjs:169), and playDayEnd awaits one already-loaded import before it reads the cast. Looked for SVG among the image filter's types: none. Looked for a test or scenario that would have caught it: the E112 tier-2 test reads only writes carrying the start board's stamp (tests-tier2.mjs:17751-17753), F118-T1 moves Evening to Night with no mask, scenario 69 has no mask (grep: 0 hits). Looked for the case in the papers: e112/STATUS.md item 6, e112v, the 1.2.118 notes and AUDIT item 663 do not name a mask on the end board. Not run: the harness was not mine to run; a probe is E112's own test with the read moved to the write that carries nightBoard. Sized major, not blocker: no text names her the killer and the cue needs the other students to have raster portraits; sized above minor because it shows on every player's screen, in a situation any evening murder with a Hope opening reaches, and stays in the notice history."
+    }
+   ],
+   "superseded_by": [],
+   "grade": 6,
+   "grade_reasons": "One major defect, read in the source and not yet run (E118-1): F118's one board put the cast's portraits on the end-of-day board without the mask's end that E112 had put before the start board. That alone sets the grade by 11.4. Apart from it the stage is delivered as its notes word it: the veil without Foundry's hidden is held by eight tier-1 rows, two tier-2 tests and scenario 21; the log's ruling card, the second GM's frame, the Facilities words, the route charged room by room and the three smaller fixes each have a named test, and all 24 registry rows (R7561-R7567, R7700-R7707, R7740-R7744, R7790-R7793) are ok in the base run's tiers 0-1. The notes are plain about what is not there: nothing of the release ran on a real Foundry, the local gate it requires has every part not run, the sight rule is read on a stand-in class, the frames' redraw on a role change has no test, and the suite at a table is not green. Without E118-1 the grade would be 8: the main promise (the killer's own vision under the veil, the defect a real canvas showed) rests on a live check nobody has read, and several promises are held on stand-ins. Tier 2 and the scenarios of the base run were not joined when this was written.",
+   "missing_to_10": "E118-1 closed and held by a test that reads the end-of-day board at Night's write while a mask stands (and one for any later board that draws the cast); LIVE-E112V-01 read on a canvas with token vision on (the killer's own sight, nothing drawn for the victim, no sight from a hidden token, and whether the rule is asked again when the verdict turns with no move); LIVE-E112V-02, LIVE-F118-01 to -04 and the LIVE-E39 items the fixes lean on (-10, -11, -12, -14, -16) read; a test of the frames' redraw on a role change; a whole tier 2 green on a real Foundry on this tree and the local gate's parts run."
+  }
+ ],
+ "not_established": [
+  "Tier 2's and the scenarios' results of the audit's base run were not available when this was written: every tier-2 test and scenario named above is taken as green from the release notes' own runs and is listed in tests_to_join. Tiers 0-1 were read in the base log: all 50 registry rows of the three stages are ok (17 + 9 + 24).",
+  "E118-1 was traced in the source from the mask's write to the board's markup and was not run on the harness or on a Foundry.",
+  "Whether Foundry 14.370 asks the wrapped vision-source test again when the module's verdict on a token turns with no move of that token (the veil's flag-only write, the viewer's own change of room, an Eclipse's start): visibility.mjs, mask-gm.mjs, fog.mjs and eclipse.mjs hold no call that asks Foundry to initialise vision sources again (grep for initializeVisionSource, initializeSources, perception.update and perception.initialize: 0 hits), and no Foundry source is in the checkout. It is part of LIVE-E112V-01 (d).",
+  "Whether any test drives eclipse.mjs endEclipse with a declared murder and reads the veil's mark on the killer's tokens before the Eclipse's flag goes: the one test of the lights calls veilAtTheLights and lightsJudged itself; the scenarios were searched by those names only.",
+  "The primary's settle after another GM's open hears updateSetting alone (mask-gm.mjs:684). Whether a world's first ever write of the incident's setting reaches that hook as an update or as a create on 14.370, and so whether a non-primary GM's first open of a world is veiled, was not established.",
+  "The mutant counts the notes and docs/dev/e112v/STATUS.md give cannot be reproduced from the repository: the mutants' definitions are kept outside it (e112v/STATUS.md says so).",
+  "The Chromium measurements the notes quote (the grey line's contrast for E118, the sheet band's 15 px strip for E117, the question mark on four grounds for E112) were not re-run; the stylesheets behind them were not read.",
+  "Both the 1.2.117 and the 1.2.118 notes say tier 2 whole and the ci layer's scenarios had not run when they were written and that the release is merged only on a green CI run; the merge commits exist (e867ba26, b5a29e73) and no CI record was read.",
+  "Scenario bodies read: 21 (the 'road' phase) and the check lists of 69 and 00's startup check; scenarios 18, 70, 76, 93, 97 and 99 were taken from their register rows and the notes.",
+  "docs/dev/e43/SCENES.md, docs/dev/e40/STATUS.md, docs/dev/e39/CALIBRATION.md and docs/dev/e58/LOCAL-REPORT.md were not read whole; what is said of line L1's readings comes from the notes and from the two live-readings files.",
+  "AUDIT 9.2 has no block that begins \"Po E112\", \"Po E117\" or \"Po E118\"; the stages' live items were found by id, and items 640-657 (LIVE-E39-02 to -19) were not read one by one."
+ ]
+}

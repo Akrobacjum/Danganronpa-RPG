@@ -1,0 +1,314 @@
+{
+ "refuter": "verify-stages-04",
+ "of": "stages-04",
+ "scope_note": "Checked: every promise of the four stages marked holds 'yes' (E28 7, E29 11, E33 10, E34 5 = 33; there is no 'no'), the four grades, and the two findings (both nit, checked though below the minor floor). Not checked: the promises marked superseded, partly or unread, except where a grade rests on them. The base run (audit/findings-1.2.118/base-run.json) exists now and was read: tiers 0-2 green but XI07, skips exactly the baseline; the ci scenarios beyond the first session's twelve were still pending.",
+ "checked": [
+  {
+   "ref": "E28 promise 1",
+   "claim": "The primary GM throws a player's action roll and a sheet statistic; the roller configures, asks and plays back",
+   "verdict": "stands",
+   "why": "drawsHere, sheetRollOf, drawOrThrow and drawAndPlay are at the lines cited and do what the promise says; the three tier-2 titles are at 8513, 8963 and 9016 and, by the base run that now exists, passed (none is in the skip list).",
+   "evidence": "scripts/roll-draw.mjs:287-291 'function drawsHere(config) { if (game.user?.isGM || !primaryGmId()) return false; ... return Boolean(sheetRollOf(config));'; :365 'bridgeRequest(\"roll.draw\", drawPacketOf(roll, config, claim), { settle: \"reply\", timeoutMs: DRAW_ANSWER_MS, resend: true })'; audit/findings-1.2.118/base-run.json (suite_merge: '3387 passed, 1 failed, 27 skipped, 0 red'; the one failure is 'grid XI07', which passes alone; skips exactly skip-baseline.json's 27, none of them a test cited here)"
+  },
+  {
+   "ref": "E28 promise 2",
+   "claim": "A draw not answered in 30 s is not made and the player is told",
+   "verdict": "stands",
+   "why": "DRAW_ANSWER_MS is 30_000 and an unanswered request returns before playBack; R303 (tier 1) passed in the base run's shard 1; 15-held was green in the first session's run.",
+   "evidence": "scripts/roll-draw.mjs:85 'const DRAW_ANSWER_MS = 30_000;'; :374 'if (!answer?.ok || typeof answer.value?.messageId !== \"string\") return;' at :374 (the reader's :373 is the line before; drift of one); audit/findings-1.2.118/base-run.json first_session 'twelve scenarios green (00, 10-15, 17-21)'"
+  },
+  {
+   "ref": "E28 promise 3",
+   "claim": "With no GM an action is refused before its price; any other roll is stamped and moves nothing",
+   "verdict": "stands",
+   "why": "performAction refuses before any price or window when no GM is active (no await before it); drawOrThrow refuses again; throwUnwitnessed skips resources and sets the stamp. The :117 refusal is exact; two other citations drift (:2803 for the reaction line is :2798, stampUnwitnessed :2812 is :2811) but say what is claimed. The 'source reads only' caveat on R303 parts 1-2 is the test's own header.",
+   "evidence": "scripts/action-rolls.mjs:117-119 'if (!game.user.isGM && !activeGmIds().length && !THROWS_NO_DICE.has(actionKey)) { ui.notifications.warn(game.i18n.localize(\"DRPG.Rolls.waitsForGm\")); return null; }'; scripts/roll-draw.mjs:2798-2800 'if (sheet && !isMonokuma(sheet)) config.actionType = \"reaction\"; ... config.skips = { ...(config.skips ?? {}), resources: true };'"
+  },
+  {
+   "ref": "E28 promise 4",
+   "claim": "Grant all gives each roll what it would have moved once; Grant none nothing; an assistant GM's click is decided on the primary",
+   "verdict": "stands",
+   "why": "decideNow writes the granted mark and the author before grantRolls; askToDecide asks with onPrimary: true; reactions are skipped. Both tier-2 tests (21031, 21174) and R219 passed in the base run. The known gap (no countdown or trigger on a grant) is true: grantRolls calls only addDualityResourceUpdates and updateResources.",
+   "evidence": "scripts/roll-draw.mjs:2956 'const res = await bridgeRequest(\"roll.grant\", { messageIds, grant: grant === true }, { settle: \"reply\", onPrimary: true, ...'; :2968 'await row.message.update({ author: game.user.id, [`flags.${MODULE_ID}.${UNWITNESSED_FLAG}.granted`]: grant === true });'; :3012 'if (typeof cls?.addDualityResourceUpdates === \"function\") await cls.addDualityResourceUpdates(config);'"
+  },
+  {
+   "ref": "E28 promise 5",
+   "claim": "On a build the draw was not written for, rolls stay on the player's browser and the GMs are told once per version",
+   "verdict": "stands",
+   "why": "reviewBuild checks the three build steps in order, the template hook, the Duality hooks and the four functions; announceRollDraw whispers once per version through rollDrawWarned. R217 and the tier-2 test at 11322 passed in the base run.",
+   "evidence": "scripts/roll-draw.mjs:112-113 'const at = [\"buildConfigure\", \"buildEvaluate\", \"buildPost\"].map(...); if (at.some(i => i < 0) || !(at[0] < at[1] && at[1] < at[2]))'; :272 'if (warned === version) return;'"
+  },
+  {
+   "ref": "E28 promise 6",
+   "claim": "Every resolution reads the GM's record of its roll, retried once",
+   "verdict": "stands",
+   "why": "bridge-guards reads the record from rollStore and, for a player's packet naming a roll not yet held, pauses rollRecordRetryMs and looks again; R218 (tier 0) passed. Scenario 83's F5b/F5c are in the file (83-roll-integrity.mjs:1330-1340) but 83's result was not in the base run (pending).",
+   "evidence": "scripts/bridge-guards.mjs:1666-1668 'if (!record && typeof id === \"string\" && id) { await pause(TIMING.rollRecordRetryMs); record = named(); }'"
+  },
+  {
+   "ref": "E28 promise 9",
+   "claim": "A player's party transfer is refused on the GM, told once a session",
+   "verdict": "stands",
+   "why": "The promise holds as written. The reader's test field 'none found by this reader' is wrong: R7050 (tier 1) drives judgeRelay with a DhTransferItem packet, and scenario 30 has a check of its own for it. Both strengthen the promise; the reader's grade did not count them.",
+   "evidence": "scripts/relay-guard.mjs:498-499 'if (payload?.action === TRANSFER) { return { ...refuseAs(TRANSFER, \"refused\", \"an item transfer, which waits for the GM in this game\"), once: true };'; scripts/tests-tier1.mjs:5190 'transfer: judgeRelay({ action: \"DhTransferItem\", data: {} }, player, world),' (inside R7050, :5151); audit/harness/scenarios/30-security.mjs:5819 'check(\"RELAY: a player's DhTransferItem is refused on the GM - nothing moves, every packet is logged, each player is told and the GM once a session\"'"
+  },
+  {
+   "ref": "E28 grade",
+   "claim": "8, provisional after L1",
+   "verdict": "stands",
+   "why": "Within 11.4: no finding, one promise unread (8) and one partly (11, its reload half untraced rather than failing), the main promise capped at 9 by sixteen live items with none read. The base run, absent when the reader wrote, now shows every cited tier 0-2 test green (R215-R219, R303, the tier-2 draw and Grant tests), and promise 9 has two tests the reader missed; that removes one of the reader's reasons against a 9 but not the unread promise 8 (cardWriter at secret.mjs:702 exists and reads ASKED_BY for a GM-written card, which supports it, but its posting road was not traced here either). 8 is the grade the scale gives; 9 would need promises 8 and 11 traced.",
+   "evidence": "scripts/secret.mjs:702-706 'export function cardWriter(message) { const author = message?.author ?? message?.user ?? null; if (!author?.isGM) return author; const asked = cardFlag(message, ASKED_BY); ...'; audit/findings-1.2.118/base-run.json (suite_merge: '3387 passed, 1 failed, 27 skipped, 0 red'; the one failure is 'grid XI07', which passes alone; skips exactly skip-baseline.json's 27, none of them a test cited here)",
+   "grade_after": 8
+  },
+  {
+   "ref": "E29 promise 1",
+   "claim": "Every player write on its own student is judged on the primary: put back, flagged with Undo and Keep, or listed",
+   "verdict": "stands",
+   "why": "judgeWrite, judgeNow, actorFindings, putBackNow, meansFindings and onItemWrite are at the lines cited; HELD_PATH covers traits, experiences, rules, bonuses, resources, levelData, scars, maxima and the module's flags. The four tier-2 tests (58044, 58146, 58266, 58528) passed in the base run.",
+   "evidence": "scripts/sheet-audit.mjs:240 'const HELD_PATH = new RegExp(`^system\\\\.(?:traits|experiences|rules|bonuses|resources|levelData|scars)(?:\\\\.|$)|\\\\.max$|^flags\\\\.${MODULE_ID}\\\\.`);'; :1275 'export function judgeWrite(kind, doc, changes, userId, options = {}, priors = null) {'"
+  },
+  {
+   "ref": "E29 promise 2",
+   "claim": "With lockPlayerResources on, the Party sheet's pips and the token HUD's bars are display-only for players",
+   "verdict": "stands",
+   "why": "The setting toggles the body class at once and at ready; the stylesheet turns pointer events off for the Party sheet's three toggles under that class; stillTokenBars disables bar1/bar2 for a player on a character. CSS lines drift (the Party rule is at 1515-1518). A courtesy only, as the trust model says; not seen on a canvas (LIVE-E29-02).",
+   "evidence": "scripts/settings.mjs:3158 'onChange: value => document.body.classList.toggle(\"drpg-resources-locked\", Boolean(value))'; styles/danganronpa.css:1515 'body.drpg-player.drpg-resources-locked .party .actor-resources [data-action=\"toggleHope\"],'; scripts/hud.mjs:280-284 'if (game.user?.isGM || getSetting(SETTINGS.lockPlayerResources) === false) return; ... input.disabled = true;'"
+  },
+  {
+   "ref": "E29 promise 3",
+   "claim": "A drawn roll counts only the GMs' list (LEGAL_ROLL_MODIFIERS); the rest is not counted and the roller told",
+   "verdict": "stands",
+   "why": "The list has 13 rows, no stash step (its comment says it left in 1.2.112); legalRollOf, rollerLine and tellRoller are at the cited lines; the tier-2 tests at 9974, 9989 and 8641 and R291 passed in the base run.",
+   "evidence": "scripts/config.mjs:4871 'export const LEGAL_ROLL_MODIFIERS = Object.freeze([' (13 rows, hopeDie ... kind); :4856-4857 'a hidden stash's step taken after the dice, `stashStep`, was a row until 1.2.112'"
+  },
+  {
+   "ref": "E29 promise 4",
+   "claim": "The GM builds a drawn roll from its own options; other options are written over or refused",
+   "verdict": "stands",
+   "why": "DRAWN_OPTIONS and drawPacketOf are at the cited lines; tier-2 tests at 9061 and 9120 passed in the base run.",
+   "evidence": "scripts/roll-draw.mjs:534 'export const DRAWN_OPTIONS = Object.freeze([ROLL_NONCE, \"actionType\", \"roll\", \"experiences\", \"guaranteedCritical\", \"extraFormula\", \"data\"]);'"
+  },
+  {
+   "ref": "E29 promise 5",
+   "claim": "What the GM throws waits for every write on the character to be judged, up to 16 s, or is refused",
+   "verdict": "stands",
+   "why": "gmStoreOpenMs is 16000 and the draw's wait comment names marksOpen under it; tier-2 tests at 9692 and 9618 passed in the base run.",
+   "evidence": "scripts/config.mjs:458 'gmStoreOpenMs: 16000,'; scripts/roll-draw.mjs:81-82 'before this GM's stores open its marks' (`marksOpen`, at most `TIMING.gmStoreOpenMs`; E29 fix r2-H3)'"
+  },
+  {
+   "ref": "E29 promise 6",
+   "claim": "A Call that changes a roll is bought on the primary; an Experience or Ultimate needs a GM's yes kept a minute",
+   "verdict": "stands",
+   "why": "CALL_YES_MS is 60 s and guardArmGmYes refuses past it; it is read only in bridge-guards.mjs, so the reader's 'no test measures the 60 s' holds by grep. The tier-2 test at 10643 passed; scenario 33's A13 was not in the base run.",
+   "evidence": "scripts/bridge-guards.mjs:1087 'const CALL_YES_MS = 60 * 1000;'; :1127 'if (given === undefined || Date.now() - given > CALL_YES_MS) return \"no GM's yes stands for that Call\";'"
+  },
+  {
+   "ref": "E29 promise 7",
+   "claim": "A drawn roll of an action listing one statistic is held to it; with no pick the lowest is thrown",
+   "verdict": "stands",
+   "why": "traitKeyOf, pickSpecOf, pickKeyOf, gmPickOf and traitReading are at the cited lines; the tier-2 tests at 15988 and 16091 passed in the base run. 'The lowest listed' was not re-read here beyond the reader's citation.",
+   "evidence": "scripts/roll-draw.mjs:2068 'function gmPickOf(actor, spec, listed) {'; scripts/tests-tier2.mjs:15988 'every definition and part that lists one statistic is expected at it, and a roll of it on another is flagged while one on it is clean'"
+  },
+  {
+   "ref": "E29 promise 8",
+   "claim": "A module write names its reason from one closed list",
+   "verdict": "stands",
+   "why": "WRITE_REASONS is a frozen list and the road throws on any reason outside it; R220 passed in the base run.",
+   "evidence": "scripts/resource-guard.mjs:265 'export const WRITE_REASONS = Object.freeze(['; :320 'if (!WRITE_REASONS.includes(reason)) throw new Error(`a module write named \"${reason}\", which is not a reason of WRITE_REASONS`);'"
+  },
+  {
+   "ref": "E29 promise 9",
+   "claim": "Setting a student up and restoring a starting sheet are a GM's",
+   "verdict": "stands",
+   "why": "Read here directly (the reader took it from R221): both functions return on a non-GM before any write. R221 passed in the base run.",
+   "evidence": "scripts/character.mjs:61-64 'if (!game.user.isGM) { ui.notifications.warn(game.i18n.localize(\"DRPG.Panel.gmOnly\")); return null; }' (initCharacter); :207 the same in restoreStartingSheet"
+  },
+  {
+   "ref": "E29 promise 10",
+   "claim": "A Search's find stands only on a spent token; a gain stands as far as play covers it",
+   "verdict": "stands",
+   "why": "markSpent writes tokenSpentAt on the GMs' record of the newest Search; the cover functions are at the cited lines; the tier-2 test at 58345 passed.",
+   "evidence": "scripts/search-tokens.mjs:180-182 'static async markSpent(sender, actorId) { const { rollStore, rollId, row } = await newestSearch(sender, actorId); if (row && !row.tokenSpentAt) await rollStore.patch(rollId, { tokenSpentAt: Date.now() });'"
+  },
+  {
+   "ref": "E29 promise 11",
+   "claim": "Sheet changes made with no GM watching are shown on one away card",
+   "verdict": "stands",
+   "why": "AWAY_CARD, firstMark and refillMarks are at the cited lines; R2073 exists (tier 1, the E28 and E29 cards on the kit) and passed; 15-held was green in the first session's run.",
+   "evidence": "scripts/sheet-audit.mjs:301 'const AWAY_CARD = \"sheetAway\";'; scripts/tests-tier1.mjs:53602 'R2073 - the E28 and E29 cards on the kit (... scripts/sheet-audit.mjs `flaggedCard`, `awayCard`; ...'"
+  },
+  {
+   "ref": "E29 grade",
+   "claim": "8, provisional after L1",
+   "verdict": "stands",
+   "why": "All eleven promises hold in source; no finding. Against 9 the reader names a part held by reading alone (CALL_YES_MS has no test, confirmed by grep) and censuses for two promises; that is the 8 anchor ('one holds only by code reading'). The cap at 9 for LIVE-E29-01/-03 unread is right. The base run now shows every cited tier 0-2 test green, which does not lift the grade past the reading-only part.",
+   "evidence": "scripts/bridge-guards.mjs:1087 'const CALL_YES_MS = 60 * 1000;' (its only other use :1127); audit/findings-1.2.118/base-run.json (suite_merge: '3387 passed, 1 failed, 27 skipped, 0 red'; the one failure is 'grid XI07', which passes alone; skips exactly skip-baseline.json's 27, none of them a test cited here)",
+   "grade_after": 8
+  },
+  {
+   "ref": "E33 promise 1",
+   "claim": "Scenario 83 (ci, local-gate) plays every legal road clean, then console changes each put back and named",
+   "verdict": "weakened",
+   "why": "The scenario is built as claimed (L1-L18 phases, a list of fifteen console changes at the end) and is in the ci and local-gate layers. But the promise is about what a run reads ('reads nothing raised', 'each named'), and no run of it on b5a29e73 is recorded: the base run lists the ci scenarios as pending and the local gate wrote the part not-run. Held by its code, not by a result.",
+   "evidence": "audit/findings-1.2.118/base-run.json pending: 'the ci scenarios one at a time (node run-all.mjs scenarios)'; audit/gate/local-gate.json part sandbox-83-roll-integrity: 'status\": \"not-run\", \"reason\": \"no-server\"'; audit/harness/scenarios/83-roll-integrity.mjs:839 'const roads = [\"L1\", ... \"L16\", \"L4, unlocked\", \"L7, unlocked\"];'"
+  },
+  {
+   "ref": "E33 promise 2",
+   "claim": "sheetWrites() names refused, forged and rewrite rows; refused and forged fold in 30 s, up to 12 paths; a covered row names its roll",
+   "verdict": "stands",
+   "why": "TRACE_WORDS and TRACE_KEYS (rewrite null: never folded), recordTrace on the primary only, traceFolds under WARN_EVERY_MS, TRACE_PATHS 12, the rewrite row only when warnGms warned, and keepGainRow's ref the roll's id. Line numbers drift by 1-3 (TRACE_KEYS is :2637, recordTrace's guard :2645). The four tier-2 tests passed in the base run.",
+   "evidence": "scripts/sheet-audit.mjs:2637 'const TRACE_KEYS = Object.freeze({ refused: [\"userId\", \"actorId\", \"sub\", \"kind\"], forged: [\"userId\", \"actorId\"], rewrite: null });'; :2645 'if (!TRACE_WORDS[verdict] || !isPrimaryGm()) return Promise.resolve(null);'; scripts/relay-guard.mjs:164 'export const WARN_EVERY_MS = 30_000;', :554 'export const TRACE_PATHS = 12;'; scripts/sheet-audit.mjs:1984-1985 'ref: roll.id, change, covered: null, verdict: \"covered\", kind: \"rollGain\"'"
+  },
+  {
+   "ref": "E33 promise 3",
+   "claim": "A player's message with a GM's flags counts for nothing",
+   "verdict": "stands",
+   "why": "isDrawnRoll and isPublicRoll require a GM author; awayRowOf drops a message with GM-only flags first; rollCovering skips it. Tier-2 tests at 62339 and 62414 (the reader's 62413 is the blank line before) passed. All of it rests on message.author being the creator (LIVE-E33-10), as the reader says.",
+   "evidence": "scripts/private-rolls.mjs:1288-1289 'export function isDrawnRoll(message) { return Boolean(message?.getFlag?.(MODULE_ID, DRAWN_FLAG)) && message.author?.isGM === true;'; scripts/roll-draw.mjs:2839 'if (forgedFlagsOf(message).length) return null;'"
+  },
+  {
+   "ref": "E33 promise 5",
+   "claim": "A Monocub's abilities are one table; the GM throws the 2d12; the silences have their own names",
+   "verdict": "stands",
+   "why": "abilities.meddle (label Confusion) and tinker rows in config; one bridge action; cubAbilityOnGm returns for a non-GM; api.mjs keeps isSilenced as an alias of isCrimeSilenced. R300 and R301 passed in the base run.",
+   "evidence": "scripts/api.mjs:999 'isSilenced: isCrimeSilenced,'; scripts/monocub.mjs:1270-1271 'export async function cubAbilityOnGm({ actorId, key, targetId, choice } = {}) { if (!game.user.isGM) return null;'; scripts/config.mjs:3600 'tinker: {'"
+  },
+  {
+   "ref": "E33 promise 6",
+   "claim": "A private roll's readers are written before and apart from its mode; no read of v13's constant or core.rollMode",
+   "verdict": "stands",
+   "why": "Both roads call writeWhisper first and writeMode only when it succeeded (and, on the second road, only where the readers are the GMs and the roller); the grep of non-test scripts finds only two comments. R302 passed.",
+   "evidence": "scripts/private-rolls.mjs:956 'if (writeWhisper(message, recipients)) writeMode(message, options);'; :1026 'if (writeWhisper(message, list) && modeNamesThem) writeMode(message, options);'; grep of scripts/ (tests excluded) for DICE_ROLL_MODES|core.rollMode: private-rolls.mjs:833 and migrate.mjs:1464, both comments"
+  },
+  {
+   "ref": "E33 promise 7",
+   "claim": "A sheet statistic Shift-clicked with no GM is a reaction and, granted, moves neither Hope nor Despair",
+   "verdict": "stands",
+   "why": "throwUnwitnessed writes actionType reaction for a non-Monokuma sheet roll; grantRolls skips a reaction for resources and for Despair. R303's own header says the Despair half is driven nowhere, which the reader reports.",
+   "evidence": "scripts/roll-draw.mjs:2798 'if (sheet && !isMonokuma(sheet)) config.actionType = \"reaction\";'; :2999 'if (reaction) continue;'; :3029 'if (!reaction && outcome.withFear) await awardRollDespair(actor, 1);'"
+  },
+  {
+   "ref": "E33 promise 8",
+   "claim": "A silent GM's draw ends after 30 s; a GM leaving during a Search's picker refuses the draw the same way",
+   "verdict": "stands",
+   "why": "The 30 s half is the timeout the reader cites. The picker half is not at the lines the reader names but at drawOrThrow: when no GM is connected as the roll is built, an action roll is refused with waitsForGm, which is the notes' 'told it waits for a GM'. R303 part 3 passed; 15-held green in the first session.",
+   "evidence": "scripts/roll-draw.mjs:331-332 'if (awayFromGms(config)) { if (config[DRPG_ACTION_ROLL] === true) return void sayRollStatus(\"waitsForGm\", game.i18n.localize(\"DRPG.Rolls.waitsForGm\"));'"
+  },
+  {
+   "ref": "E33 promise 9",
+   "claim": "An incident write that fails is put back, cast first; a failed put-back logs its own error and the first is rethrown",
+   "verdict": "stands",
+   "why": "restoreState writes the cast, then the world half in a try whose catch calls castPutBack and rethrows; castPutBack logs and swallows its own error (castPutBack is at :281, not :259, which opens its comment). The grid's XI08 and XI09 are live tests (GRID_RED is empty) and passed in the base run; only XI07 failed there, in shard 3, and passes alone.",
+   "evidence": "scripts/incident-store.mjs:379-383 'try { await game.settings.set(MODULE_ID, SETTINGS.murderState, rest); } catch (err) { await castPutBack(previous, readCast(), publicBefore, rest); throw err; }'; :285-286 'catch (err) { error(\"Could not put the incident's cast back after its world write failed; ...'; scripts/tests-grid.mjs:359 'const GRID_RED = {' (empty)"
+  },
+  {
+   "ref": "E33 promise 10",
+   "claim": "A Call's bonus reaches the roll; a Hope or Fear die at other faces is named 'dice'",
+   "verdict": "stands",
+   "why": "The callBonus and faces rows are in the list and FLAG_KINDS has dice; the tier-2 tests at 9961, 9992 and 9999 passed. Measured on the harness's stand-in window only, as the reader says.",
+   "evidence": "scripts/config.mjs:4877 '{ key: \"callBonus\", kind: \"flat\", reader: \"pendingCall\", ...'; scripts/roll-draw.mjs:2436 'dice: \"DRPG.Rolls.flagKind.dice\",'"
+  },
+  {
+   "ref": "E33 promise 11",
+   "claim": "perf() reports a drawn roll's round trip of the last fifty; nothing sent or stored",
+   "verdict": "stands",
+   "why": "TRIPS_KEPT 50, keepTrip and drawTimings in memory; perfReport reads drawTimings. The tier-2 test the reader could not locate is at tests-tier2.mjs:24559-24584 (it asserts drawTimings exists and counts trips), passed in the base run. The round trip on a table is unmeasured (LIVE-E33-05 partly).",
+   "evidence": "scripts/roll-draw.mjs:965 'const TRIPS_KEPT = 50;'; scripts/diagnostics.mjs:1887-1888 'const { drawTimings } = await import(\"./roll-draw.mjs\"); const { drew, drawn } = drawTimings();'; scripts/tests-tier2.mjs:24577 'ok(typeof D.drawTimings === \"function\", ...'"
+  },
+  {
+   "ref": "E33-1",
+   "claim": "Scenario 83's register row and header count fewer console changes than the list holds (nit)",
+   "verdict": "stands",
+   "why": "The register row says twelve, the notes thirteen, the header names F1-F7, the list holds fifteen. No reading found that gives twelve. A nit (a count in a doc), as the reader graded it.",
+   "evidence": "audit/harness/README.md:217 '... twelve [console changes] from a player's console, each undone or never applied and traced to that player (C5b)'; audit/harness/scenarios/83-roll-integrity.mjs:1499 '[\"F1\", \"F1b\", \"F2\", \"F3\", \"F5a\", \"F7\", \"F4\", \"F4b\", \"F4c\", \"F6a\", \"F6b\", \"F5c\", \"F5b\", \"F8\", \"F9\"]'; .github/release-notes/v1.2.69.md:243 'thirteen changes'",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "E33 grade",
+   "claim": "8, provisional after L1",
+   "verdict": "stands",
+   "why": "One promise partly (4: the panel tile removed on the owner's word by E60, the API road standing), one nit, two promises held in tiers 0-1 by source reads; the 8 anchor fits. The cap at 9 for LIVE-E33-01/-10 unread is right. Promise 1 is weakened here (no run of 83 on b5a29e73 recorded), which the reader's own 'Result in the base run not read' already carried into the grade; it does not move it below 8 because the code is in place and the tier-2 tests behind promises 2, 3 and 9-11 are green.",
+   "evidence": "audit/gate/local-gate.json sandbox-83-roll-integrity 'not-run', 'no-server'; scripts/gm-panel.mjs:211-213 'Public roll - removed (the owner, 03.11.2026 ...; E60 C5a). ... the roll itself stays a GM's macro, `game.drpg.publicRoll`'",
+   "grade_after": 8
+  },
+  {
+   "ref": "E34 promise 1",
+   "claim": "murder.mjs holds no code; the store, rules and window files; only incident-store listens on the socket",
+   "verdict": "stands",
+   "why": "murder.mjs is a header and three export-from statements; incident-store.mjs has 3 socket listeners, murder-rules.mjs and murder-ui.mjs none; none of the three imports murder.mjs. Line counts 1942, 4746, 907 match.",
+   "evidence": "scripts/murder.mjs:23 'export {' ... :37 'export { openMurderDialog, incidentTrackerHtml, openIncidentTracker } from \"./murder-ui.mjs\";'; grep -c 'socket.on': incident-store.mjs 3, murder-rules.mjs 0, murder-ui.mjs 0"
+  },
+  {
+   "ref": "E34 promise 2",
+   "claim": "The fog split into fog.mjs and four files; fog-geometry.mjs has no state and no import",
+   "verdict": "stands",
+   "why": "fog-geometry.mjs has no import line; none of the four imports fog.mjs; fog-diagnostics.mjs imports vault-store.mjs past its facade, recorded in code.md as measured. Line counts match.",
+   "evidence": "grep '^import' scripts/fog-geometry.mjs: none; scripts/fog-diagnostics.mjs:53 'import { VAULT_FLAGS } from \"./vault-store.mjs\";'; wc -l fog.mjs 4833, fog-geometry.mjs 492, fog-doorways.mjs 1943, fog-reveal.mjs 1628, fog-diagnostics.mjs 917"
+  },
+  {
+   "ref": "E34 promise 3",
+   "claim": "Projects and Calls split into their four files, re-exported by their facades",
+   "verdict": "stands",
+   "why": "The facades import from and re-export the new files as cited; no new file imports its own facade (grep).",
+   "evidence": "scripts/projects-ui.mjs:43 'export { refreshProjects, hideUndiscovered } from \"./projects-tray.mjs\";'; scripts/call-effects.mjs:47 'export { pickTarget } from \"./call-pickers.mjs\";'"
+  },
+  {
+   "ref": "E34 promise 5",
+   "claim": "tools/moved-only.mjs exists; its planted pairs run as check moves, in CI",
+   "verdict": "stands",
+   "why": "PLANTED and selfCheck are at the cited lines (43 entries in PLANTED by count); check.mjs's moves part imports the tool's selfCheck; the base run's check was 25 parts green. The dated readings say forty of forty on 08.10.2026 and forty-three since E41.",
+   "evidence": "tools/check.mjs:688-690 'async function moves() { try { const tool = await import(url.pathToFileURL(path.join(REPO, \"tools\", \"moved-only.mjs\")).href); return tool.selfCheck(...'; tools/moved-only.mjs:124 'Measured on 08.10.2026 (E34 fix r2-G1 ...): the planted pairs, forty of forty'; audit/findings-1.2.118/base-run.json quick.check '25 part(s), all green'"
+  },
+  {
+   "ref": "E34 promise 6",
+   "claim": "The lint refuses an assignment to an imported name",
+   "verdict": "stands",
+   "why": "The rule is in the lint config as an error; the base run's lint read 418 files with 0 problems.",
+   "evidence": "eslint.config.mjs:48 'const RULES = { \"no-undef\": [\"error\", { typeof: true }], \"no-import-assign\": \"error\",'; audit/findings-1.2.118/base-run.json quick.lint '418 files, 0 problem(s)'"
+  },
+  {
+   "ref": "E34-1",
+   "claim": "murder.mjs's header and code.md give 67 names; it exports 69, one added after the split (nit)",
+   "verdict": "stands",
+   "why": "Counted by script: 34 + 32 + 3 = 69. git show 0f9a9a53 (E68 C9) adds openingProposalFor to the rules' list; eclipse.mjs imports it through the facade. code.md says a facade 'exports nothing new'. A text and rule mismatch with no effect at the table: nit.",
+   "evidence": "scripts/murder.mjs:13-15 'thirty-three of incident-store.mjs's, thirty-one of murder-rules.mjs's and three of murder-ui.mjs's'; :35 '... resolveOpening, openingProposalFor'; scripts/eclipse.mjs:720 'const { openingProposalFor: read } = await import(\"./murder.mjs\");'; .claude/rules/code.md 'exports nothing new'",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "E34 grade",
+   "claim": "8, provisional after L1",
+   "verdict": "weakened",
+   "why": "The stage's main promise - pure moves, every name exported at 1.2.69 kept, the suite and scenarios reading the same - is marked 'unread' twice by the reader itself (promises 4 and 7), K only, with no commit of the stage in the checkout. The 8 anchor of 11.4 is 'promises delivered, but one holds only by code reading'; here the main one is not held even by code reading, and a second is unread too. That is nearer the 7 anchor ('one promise delivered in part'), or, read strictly, the second cap ('not graded' when it cannot be graded from the repository), which the reader set aside because the tool and today's tree can be read. What today's tree shows (no code in murder.mjs, the eleven files, the checker and the lint rule, the suite green) supports the parts that can be read, and the module boots in the harness, so every name an importer takes from the five facades exists today; that is not the 1.2.69 comparison the promise makes. Grade after: 7.",
+   "evidence": "audit/findings-1.2.118/stages-04.json E34 promise 4 'holds': 'unread' ('Cannot be re-derived: no 1.2.69 tree is in the checkout'), promise 7 'holds': 'unread' ('K only: 2c7ad5a is not in the checkout'); audit/AUDIT-1.2.42.md 11.4 row 8 'obietnice dowiezione, ale jedna trzyma sie tylko odczytem kodu albo ma minor'",
+   "grade_after": 7
+  }
+ ],
+ "counts": {
+  "checked": 39,
+  "stands": 37,
+  "weakened": 2,
+  "refuted": 0
+ },
+ "not_established": [
+  {
+   "what": "Scenario 83's result on b5a29e73 (E33 promise 1, E28 promise 6's F5b/F5c, E29 promises 2 and 7's F1b, F9): not in the base run, which lists the ci scenarios as pending; scenarios 30, 33, 40 and 61 likewise.",
+   "live": "none (the central run's pending scenarios)",
+   "l1": null
+  },
+  {
+   "what": "E28 promise 8 (an incident's private card posted by the primary GM, no player as author): cardWriter exists (secret.mjs:702) but the posting road was not traced here either.",
+   "live": "LIVE-E28-15",
+   "l1": null
+  },
+  {
+   "what": "E28 promise 11's reload half (a sheet statistic's card stays readable to its roller after a reload): not traced by the reader or here.",
+   "live": "none (a second static reading)",
+   "l1": null
+  },
+  {
+   "what": "E34's move proof against 1.2.69: the stage's commits and the v1.2.69 tree are outside the shallow checkout, so neither the export sets nor moved-only over the stage can be re-run.",
+   "live": "none (fetch the history or the tags v1.2.69-v1.2.70)",
+   "l1": null
+  }
+ ]
+}

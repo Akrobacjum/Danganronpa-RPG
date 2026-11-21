@@ -1,0 +1,212 @@
+{
+ "refuter": "verify-stages-03",
+ "of": "stages-03",
+ "method": "Read stages-03.json whole, BRIEF.md and AUDIT-1.2.42.md 11.2-11.4; for each promise marked yes or no and each stage's grade, read the cited code and the road around it on today's source (identical to b5a29e73 under scripts/, lang/, tools/), the release notes 1.2.65-1.2.67 and the e58 line's paper. No finding of severity minor or above is in the file (E32-1 and E08-1 are nits, not checked). Nothing run, nothing edited but this file.",
+ "checked": [
+  {
+   "ref": "E06 promise 1",
+   "claim": "A roll the module throws names nobody on its document and is whispered to the GMs alone (holds yes)",
+   "verdict": "stands",
+   "why": "neutralRollSource empties speaker (actor, token, scene null), system.title, system.source.actor and the flavour; neutralRollOf empties title, headerTitle, data, the effects, experiences, the Loaded Die's mark, roll.trait and modifier labels; a claimed roll's whisper is rewritten to the GMs. The 14.370 reading (LIVE-E06-02, in part) saw no actor id, name or uuid on a bystander's console. R204 tests the Reroll's rebuild, not the creation path; the creation path rests on 11-killer-secrecy (green in the first session) and the F reading.",
+   "evidence": "scripts/private-rolls.mjs:720 \"const changes = { speaker: { alias, actor: null, token: null, scene: null }, flavor: \\\"\\\" };\"; :787 \"if (Object.hasOwn(opts, \\\"data\\\")) opts.data = {};\"; :791 \"delete opts[LOADED_DIE];\"; :955-956 \"if (claimed) { if (writeWhisper(message, recipients)) writeMode(message, options);\"; docs/dev/e58/LOCAL-REPORT.md:477 \"no id, name or uuid of the killer's actor anywhere in its JSON; speaker { actor: null, alias: \\\"Monokuma\\\" }\""
+  },
+  {
+   "ref": "E06 promise 3",
+   "claim": "One table decides who is in an incident; a direct murder's victim told only once it starts; a trap's builder reaches only the killers (holds yes)",
+   "verdict": "stands",
+   "why": "incidentSeats is the one table (settings.mjs), asked by incidentAudienceIds, events.mjs's opening card, hud-elapsed.mjs and incident-store.mjs's player gate; a direct opening seats the killers alone, a trap's running stages leave its builder out, and announceCrisis adds the builder only for the builder's own card. The builder clause of the notes is ambiguous in wording; every reading of it that keeps the builder out of the running fight holds in the code. The 14.370 run that once showed the killer's name on the victim is carried by the reader under not_established, as it should be. Citation drift only: the function is at settings.mjs:3659-3669.",
+   "evidence": "scripts/settings.mjs:3666-3667 \"if (stage === \\\"openingRoll\\\") seats = indirect ? [victim] : [killer, thirdKills ? third : null]; else if (stage === \\\"incident\\\") seats = indirect ? [victim, thirdKills ? null : third] : [killer, victim, third];\"; scripts/murder-rules.mjs:4278-4279 \"The acting actor is on it whoever the table seats; the builder of a running trap is not, unless the card is theirs.\"; scripts/incident-store.mjs:399-401 \"export function incidentAudienceIds(...) { const ids = [ ...incidentSeats(state, state, { stage }),\""
+  },
+  {
+   "ref": "E06 promise 4",
+   "claim": "While an incident runs every private card that names somebody is veiled, whoever posts it; facts travel with words; a player's ruling card carries no GM-only line or button (holds yes)",
+   "verdict": "stands",
+   "why": "incidentVeils asks the world half's active flag (and the standing mask), never the cast, and veils any card speaking as an actor or token or whispered to a non-GM; C7a and C7b are where cited, with a client-side belt that strips GM prose on a player's draw. The Chat tab half is LIVE-E06-08, open, as the reader says.",
+   "evidence": "scripts/secret.mjs:1103-1106 \"function incidentVeils({ speaker = null, whisper = [] } = {}) { if (!incidentRuns() && !standingMask()) return false; if (speaker?.actor || speaker?.token) return true; return (whisper ?? []).some(id => !game.users?.get(id)?.isGM);\"; :1023 \"if (!game.user.isGM) body.querySelectorAll(GM_PROSE).forEach(el => el.remove());\""
+  },
+  {
+   "ref": "E06 promise 5",
+   "claim": "The safeword card is posted by a GM's browser; with no answer in 3 s the player's browser posts it and says so (holds yes)",
+   "verdict": "stands",
+   "why": "awaitCard waits TIMING.safewordAnswerMs (3000) for a card; a GM's card ends it, none makes this browser post its own and `said` says so. Measured in part on 14.370 (LIVE-E06-05: GM's card in 53-61 ms; no GM, the caller's own card in 54-59 ms). The GM-F5 half is unread, as the reader says.",
+   "evidence": "scripts/safeword.mjs:252-258 \"async function awaitCard(said) { const card = await nextCard(TIMING.safewordAnswerMs); if (card?.author?.isGM) { gmAnsweredAt = Date.now(); return; } if (!card) { try { await announce(safewordCard());\"; scripts/config.mjs:407 \"safewordAnswerMs: 3000,\""
+  },
+  {
+   "ref": "E06 promise 6",
+   "claim": "A hidden stash's -1 lands on the total after the roll (holds no; superseded, no subject)",
+   "verdict": "stands",
+   "why": "Superseded as the reader says: 1.2.66 made it a die again and feba55c3 (1.2.112) took the stash out of the Search; R5468 records that R214 went with it. One remnant the reader names correctly: a 1.2.65 bookmark's flat -1 is still scored on a Reroll. 'no' is the right word for a promise that no longer holds by decision, and the reader does not count it against the grade.",
+   "evidence": "scripts/reroll.mjs:1249-1252 \"A 1.2.65 bookmark (E06 C11) carries a flat -1 and is scored with it ... const change = Number(bookmark.penalty) || 0;\"; scripts/tests-tier0.mjs:7992-7993 \"a hidden one at one more step of disadvantage (`stashStep`, which R214 held to the old count's die; R214 went with it)\"; git log feba55c3 \"Stashes: a roll to discover, no roll to take ... (1.2.112)\""
+  },
+  {
+   "ref": "E06 promise 7",
+   "claim": "A Confusion's armed Call is the GMs' and its target's player's; an armed Call names no buyer; a secret project's repair is sealed and named 'Repair' (holds yes)",
+   "verdict": "stands",
+   "why": "Each cited line carries the E06 marker and says what the notes say; the plant reply hands the item alone. Held by code reading: 61-gmstore-case and 30-security have no verdict in this audit.",
+   "evidence": "scripts/call-effects.mjs:38 \"// A Confusion's armed Calls are the GMs' store and the owner's copy (E06 fix r2-G4)\"; :343 \"THE ARMED LIST NAMES NO BUYER (E06 C10, 28.09.2026; audit S09-10).\"; scripts/projects.mjs:2252 \"A SECRET PROJECT'S REPAIR IS SECRET, AND NAMES NOTHING (E06 C10, 28.09.2026; audit S09-01).\"; scripts/search-tokens.mjs:764 \"What the finder's browser is handed of a plant: the item, and nothing of the trap\""
+  },
+  {
+   "ref": "E06 promise 8",
+   "claim": "Rooms not found stay unnamed; the GMs' four reports go to the GM who asked (holds yes)",
+   "verdict": "stands",
+   "why": "gmReport whispers to game.user.id alone through `privately`, and music.mjs, diagnostics.mjs, voice.mjs and anonymity.mjs call it; movement, eclipse and rest carry the found-rooms rule. Code reading only, as the reader says (no stamped test read).",
+   "evidence": "scripts/utils.mjs:785-788 \"export async function gmReport(title, html) { ... return privately(stamped({ content: chatCard({ glyph: \\\"list-check\\\", title, body: html }), whisper: [game.user.id] }));\"; scripts/rest.mjs:59 \"\\\"Allowed in: ...\\\" with only the rooms this viewer has found (E06 C11, audit S07-19).\""
+  },
+  {
+   "ref": "E06 promise 10",
+   "claim": "Every socket emit names its recipients, but four that carry nothing (holds yes)",
+   "verdict": "stands",
+   "why": "R201 lists exactly fog.mjs, gm-bridge.mjs, relay-guard.mjs and sync.mjs with the fields each may carry; passed by the tiers 0-1 totals (0 failed) and not in the skip baseline. Its own comment admits sync.mjs's `data` is whatever its caller broadcasts, so 'carry nothing' is the registry's wording, not literal.",
+   "evidence": "scripts/tests-tier0.mjs:7685-7688 \"\\\"fog.mjs\\\": { fields: [\\\"action\\\"] ... \\\"sync.mjs\\\": { fields: [\\\"action\\\", \\\"data\\\", \\\"kind\\\"], why: \\\"a public change every browser redraws ...\\\" }\""
+  },
+  {
+   "ref": "E06 grade",
+   "claim": "8 (provisional after L1)",
+   "verdict": "weakened",
+   "why": "11.4's 8 row allows one promise held only by code reading. In the reader's own table two promises are 'unread' (2, the dice; 9, the migration) and two more rest on code reading with no verdict for their scenarios (7 and 8); promise 5's scenario 40-flow has no verdict either. That is several promises short of a named green test, the 7 row rather than the 8, as verify-stages-02 judged E05 on the same shape. No defect found, so not lower; provisional after L1.",
+   "evidence": "audit/AUDIT-1.2.42.md:96-97 the 8 row \"obietnice dowiezione, ale jedna trzyma sie tylko odczytem kodu albo ma `minor`\" and the 7 row; stages-03.json E06 promise 2 \"holds\": \"unread\", promise 9 \"holds\": \"unread\", promise 8 test \"none stamped E06 for these\", promise 7 test \"(no verdict here); tier 2 (not read)\"",
+   "grade_after": 7
+  },
+  {
+   "ref": "E32 promise 2",
+   "claim": "The world's data says only whether an incident runs and its stage; the fight goes to the cast; the first load lifts a running fight, reading the store back first (holds yes)",
+   "verdict": "stands",
+   "why": "WORLD_SECRET_RULES holds murderState to ['active', 'stage'] (R9 reads the suite's world against it); liftIncidentFight is the migrate.mjs clause and runs liftIntoCast, which reads the cast from storage before a field leaves the world half and throws on a field still there.",
+   "evidence": "scripts/world-secrets.mjs:140-142 \"murderState: Object.freeze({ only: Object.freeze([\\\"active\\\", \\\"stage\\\"]), since: \\\"E05 C8; the stage alone since E32 C2\\\"\"; scripts/migrate.mjs:935 \"key: \\\"liftIncidentFight\\\",\"; scripts/incident-store.mjs:1569-1570 \"export async function liftIncidentFight() { return liftIntoCast(INCIDENT_FIGHT, \\\"the incident's fight\\\");\""
+  },
+  {
+   "ref": "E32 promise 3",
+   "claim": "Every write of an incident runs in one queue, nothing in it queues again; a transition says what it read and stops on a mismatch (holds yes)",
+   "verdict": "stands",
+   "why": "The queue's header says exactly this, per browser, and R205 reads the family's source for it with planted cases first. The two-GM ordering is a stated gap (LIVE-E07-10), which the reader names.",
+   "evidence": "scripts/incident-store.mjs:308-311 \"A write that moves the incident on also says what it read (`expect` ...) ... a mismatch writes nothing and answers null\"; :316-318 \"PER BROWSER. A second GM's button runs its own queue on its own browser ... Not measured - the harness has one GM (LIVE-E07-10).\""
+  },
+  {
+   "ref": "E32 promise 4",
+   "claim": "One incident at a time, Stage 6 included; a betrayal closes the first incident's Stage 6 before its own opens (holds yes)",
+   "verdict": "stands",
+   "why": "openMurder refuses whenever murderState() is active, at any stage, and says the betrayal closes the first incident itself; freshIncidentState is the one list R206 holds.",
+   "evidence": "scripts/murder-rules.mjs:477-481 \"const running = murderState(); if (running?.active) { refuseSecondIncident(running); return null; }\"; :473-475 \"The betrayal closes the first incident itself now (`openBetrayal`), so nothing reaches here with an incident running, and anything that does is refused.\""
+  },
+  {
+   "ref": "E32 promise 5",
+   "claim": "A betrayal declared in an Eclipse costs an action and opens when it ends; none in a Class Trial; only a body makes a Blackened or a betrayal (holds yes)",
+   "verdict": "stands",
+   "why": "The declaration is in action-murder.mjs and the bridge run; the Class Trial gate is in betrayalCandidate's caller; leftABody replaces the stage proxy. Not run here: R207 and R210 by totals only.",
+   "evidence": "scripts/action-murder.mjs:230-232 \"IN AN ECLIPSE IT IS A DECLARATION (E32 C5b ...): it costs an action and opens when the Eclipse ends\"; scripts/murder-rules.mjs:3771 \"const traitor = getClock()?.phase === \\\"classTrial\\\" ? null : betrayalCandidate(state, killer);\"; scripts/incident-store.mjs:1762 \"\\\"ONLY WHEN IT LEFT A BODY\\\" IS `leftABody` (E32 C6 ...)\""
+  },
+  {
+   "ref": "E32 promise 6",
+   "claim": "A roll that lists several statistics asks a GM; nothing takes a list's first statistic but a list of one (holds yes)",
+   "verdict": "stands",
+   "why": "throwOpeningRoll refuses a statistic its side does not list and the opening's pick goes through traitFor; R212 and R213 (tiers 0-1, by totals) are the measures. The reader's note that both now measure E68's reshape under E32's stamp is right.",
+   "evidence": "scripts/murder-rules.mjs:4632-4635 \"if (!listedTraits({ kind: \\\"opening\\\", key: side }).includes(trait)) { warn(`An opening roll was asked without a statistic its side lists ...`); return null; }\"; docs/dev/R-REGISTRY.md:223 \"| R213 | 0 | E32 | no several-trait roll escapes the GM: nothing takes a list's first trait but a list of one ...\""
+  },
+  {
+   "ref": "E32 grade",
+   "claim": "8 (provisional after L1)",
+   "verdict": "stands",
+   "why": "Promises 2-6 hold in code, each with a tiers 0-1 row (R9, R205-R213, passed by totals) or the grid; promise 1's 'partly' rests on runTests() defaulting to tier 1, but the 1.2.66 notes' own Checked line places the grid in tier 2 and CI runs tier 2 in its eight shards, so it is nearer 'yes', and the grid's lack of a verdict here is what holds it at 8. One nit. 8 fits the 8 row.",
+   "evidence": ".github/release-notes/v1.2.66.md:111-112 \"New in the suite: R205 to R214, and the incident's grid in tier 2\"; CLAUDE.md gate paragraph \"the suite in eight shards\"; audit/AUDIT-1.2.42.md:96 the 8 row",
+   "grade_after": 8
+  },
+  {
+   "ref": "E07 promise 1",
+   "claim": "A crisis action that killed cannot be rerolled; the Reroll is refused before anything is paid (holds yes)",
+   "verdict": "stands",
+   "why": "Holds, on a road the reader did not cite: rerollRefusal (reroll.mjs) refuses a crisis Reroll whose last receipt killed, and makeReroll calls rerollRefusal before the journal's `paying` and the Hope write. murder-rules.mjs:1019 is crisisUndoRefusal, the undo's check, which the replay asks as well; the cited line is right in substance, not the Reroll's own guard.",
+   "evidence": "scripts/reroll.mjs:513-516 \"if (row.actionKey === \\\"crisis\\\") { ... if (last?.actorId === actor.id && crisisKilled(last)) return { why: \\\"that crisis action killed somebody; the death stands\\\", say: \\\"DRPG.Reroll.deathStands\\\" };\"; :580-581 \"const checked = await rerollRefusal(actor, sender, cost); if (checked.why) return { refused: checked.why ...\""
+  },
+  {
+   "ref": "E07 promise 2",
+   "claim": "The opening roll carries its Night die: at Night the direct killer rolls with advantage and a trap's victim with disadvantage (holds yes)",
+   "verdict": "refuted",
+   "why": "Half of it no longer holds. The code still hands the Night die by name, and the killer's side has nightAdvantage: true, but the trap victim's nightDisadvantage was set to false by E64 (the owner's DRPG-D1 of 12.11.2026, shipped 1.2.110): a trap's victim rolls at Night as by day. By the reader's own practice (E06 promise 6 'no', E07 promise 5 'partly' for a later decision) this is 'partly', superseded by E64, which the stage's superseded_by list does not name. Not a defect.",
+   "evidence": "scripts/config.mjs:3739-3744 \"NO NIGHT DISADVANTAGE ANY MORE (E64; S02-75, the owner's DRPG-D1 of 12.11.2026 ...) ... nightDisadvantage: false,\"; scripts/config.mjs:3688 \"nightAdvantage: true,\"; scripts/murder-rules.mjs:4641 \"const situational = atNight() ? (def.nightAdvantage ? 1 : def.nightDisadvantage ? -1 : 0) : 0;\"; tools/stages.json E64 shipped 2026-11-13, 1.2.110"
+  },
+  {
+   "ref": "E07 promise 3",
+   "claim": "A hit takes Sanity first and what Sanity cannot take from Health; its line says what landed, second person to the victim (holds yes)",
+   "verdict": "stands",
+   "why": "markLoss takes Sanity first and puts the overflow on Health through reserveChange; the reserve block and the two sentences are where cited; R208 (by totals).",
+   "evidence": "scripts/murder-rules.mjs:2568 \"Mark a loss on an actor's reserves - Sanity first, and what Sanity cannot take on\"; :2581 \"const health = reserveChange(actor, \\\"hitPoints\\\", -(hitPoints + sanity.overflow), at(\\\"hitPoints\\\"));\"; lang/en.json:2865-2866 \"\\\"youLose\\\": \\\"You lose {what}.\\\", \\\"theyLose\\\": \\\"{name} loses {what}.\\\"\""
+  },
+  {
+   "ref": "E07 promise 4",
+   "claim": "A GM picks the statistic of the incident's rolls; Resolve armed picks its own; the roll waits for the pick (holds yes)",
+   "verdict": "stands",
+   "why": "As reshaped by E68 C1 and E112, which the reader names: the opening and the crisis action go through traitFor (the GM approves or changes the player's proposal), throwOpeningRoll's byGm is false under Resolve. Side note, not the reader's claim: traitFor's own header still says an armed Resolve buys no picker at the opening, which openingTraitFor's comment and throwOpeningRoll contradict since E112 - a stale comment.",
+   "evidence": "scripts/murder-rules.mjs:4631 \"const byGm = !resolveArmed(actor);\"; :4492 \"ruled = await traitFor(actor, spec, proposing);\"; :4473-4475 \"Since E112 the opening takes the killer's Calls ... and a Resolve armed when the GM has not picked yet buys its picker\"; scripts/trait-ruling.mjs:197-200 \"the opening (murder-rules.mjs `rollOpening`), whose roll is a supporting one that every Call is shielded from, so an armed Resolve buys no picker there and the GM picks.\""
+  },
+  {
+   "ref": "E07 promise 6",
+   "claim": "Weapons and tools: the weapon worn after the blow; the close breaks swung weapons only once Stage 6 ran; the discovery breaks the clean-up's tools even put away (holds yes)",
+   "verdict": "stands",
+   "why": "wearSwing is called after the damage in applyCrisisAction and its header says so; endResolution runs only for an incident that reached Stage 6; destroyCleaningTools is called from body.mjs's discovery and reads the used-tool store, not the stash.",
+   "evidence": "scripts/murder-rules.mjs:1458 \"The Despair's wear on the weapon a roll swung, on the GM after the damage it dealt\"; :1843 \"receipt.wore = await wearSwing(actor, weapon, { withHope, isCritical, rolled: !def.noRoll && !free });\"; scripts/cleanup.mjs:2820-2822 \"Called by `endMurder` for every killer of an incident that reached Stage 6 ... and only then (E32+E07 C12 ...)\"; scripts/body.mjs:306 \".then(m => m.destroyCleaningTools(found))\""
+  },
+  {
+   "ref": "E07 grade",
+   "claim": "not graded",
+   "verdict": "weakened",
+   "why": "11.4's second rule is for a stage that cannot be graded from the repository (no papers, no tests with its stamp). E07 has papers - the 1.2.66 notes, which it shares with E32 and which the reader read whole and graded E32 from, and its tools/stages.json row ('with': 'E32') - and tier 2 carries its stamp in the tests' own headers ('E32+E07 C14', 'C11b', 'C15'), alongside the E32 rows R208-R213 that measure its changes. The reader itself read eight promises from the repository. A grade is possible: with promise 2 superseded in half (E64), 5 in part (E68 C6), 7 and 8 unread, all twelve live checks open and the grid without a verdict, 7 at most, provisional after L1.",
+   "evidence": "audit/AUDIT-1.2.42.md:101 \"etap, ktorego nie dalo sie ocenic z repozytorium (brak papierow, brak testow z jego stemplem), dostaje 'nie oceniono'\" (Polish letters dropped); tools/stages.json:15 \"{\\\"id\\\": \\\"E07\\\", \\\"planned\\\": \\\"1.2.66\\\", \\\"with\\\": \\\"E32\\\", ...}\"; scripts/tests-tier2.mjs:1160 \"THE GM'S MURDER WINDOW, DRAWN (E32+E07 C14, 03.10.2026).\"; :2415 \"THE GM'S WINDOW THAT PICKS A STATISTIC, ANSWERED (E32+E07 C11b, 02.10.2026).\"",
+   "grade_after": 7
+  },
+  {
+   "ref": "E08 promise 1",
+   "claim": "The Reroll is made by the primary GM's browser; another GM asks the primary; with no GM connected it is not made and nothing is spent (holds yes)",
+   "verdict": "stands",
+   "why": "requestReroll asks with onPrimary: true; the table row guards knownSender, notSpectator and owns; rerollOnGm runs only on a GM and holds one Reroll per character (`making`). With no GM the bridge refuses before sending (`noGm`), and the payment is only ever on the GM, so nothing is spent. The race itself is not measured, as the reader and the code both say.",
+   "evidence": "scripts/bridge-asks.mjs:1008-1010 \"export function requestReroll(actorId, ...) { return ask(ACTION_REROLL, { actorId }, { quiet: true, late, lateRefused, lateMs: TIMING.rerollWindowMinutes * 60_000, onPrimary: true,\"; scripts/bridge-table.mjs:1111 \"guards: [knownSender, notSpectator(\\\"actorId\\\"), owns(\\\"actorId\\\", \\\"sender does not own that character\\\")],\"; scripts/reroll.mjs:567-568 \"if (!game.user?.isGM || !actor?.id) return { refused: \\\"no such character\\\" ...\"; scripts/bridge-guards.mjs:1962 \"if (!to.length) return fail(entry, \\\"noGm\\\");\""
+  },
+  {
+   "ref": "E08 promise 2",
+   "claim": "The GM's browser pays the Hope, throws again, takes the first result back and replays as one step; the journal says paying before the payment and paid after (holds yes)",
+   "verdict": "stands",
+   "why": "makeReroll writes `paying`, then pays through gmMeansWrite from the Hope the GMs hold (refusing with nothing paid if it is short), then `paid`, `rolled`, `replaying`; a throw or a refused replay gives the Hope and the first roll back. Its run on a real Daggerheart roll is unmeasured (the 14.370 Reroll tests failed on the tests' stand-in roll), which the reader weighs in the grade.",
+   "evidence": "scripts/reroll.mjs:617-627 \"await journal({ phase: \\\"paying\\\", hope: cost, ... }); const paid = await gmMeansWrite(actor, async ({ hope }) => { if (hope < cost) return { held: hope, left: null }; await trustedWrite(actor, { \\\"system.resources.hope.value\\\": hope - cost }, { reason: \\\"reroll\\\" });\"; :628 \"await journal({ phase: \\\"paid\\\" });\""
+  },
+  {
+   "ref": "E08 promise 3",
+   "claim": "A reload half way is put right when the primary GM's world loads, by phase (holds yes)",
+   "verdict": "stands",
+   "why": "The phases and what each leaves are written as the notes say; recoverRerollJournal runs on the primary only, one pass at a time, and reads a leaving GM as gone. Measured nowhere at a table (LIVE-E08-02 open); the tier-2 recovery tests not read by either of us.",
+   "evidence": "scripts/reroll.mjs:832-841 \"paying, givingBack ... the player that the first roll stands and the GM checks the Hope ... paid, rolled nothing of the action was touched yet: the first rolls go back on the card, the Hope paid comes back as +3\"; :892-893 \"const run = async () => { if (!isPrimaryGm({ leaving: gone })) return [];\""
+  },
+  {
+   "ref": "E08 promise 4",
+   "claim": "Taking a result back is the GM's: a player's request to undo is refused (holds yes)",
+   "verdict": "stands",
+   "why": "guardUndoIsTheGms refuses any non-GM packet carrying `undo` or a negative amount and is in the guards of every bridge row that could carry one (fifteen rows read); R215 reads that no player packet carries an undo.",
+   "evidence": "scripts/bridge-guards.mjs:624-626 \"export function guardUndoIsTheGms(sender, payload, ctx) { if (sender.isGM) return null; return payload?.undo || Math.trunc(Number(payload?.amount)) < 0 ? \\\"an undo is the GM's own Reroll's\\\" : null;\"; scripts/bridge-table.mjs:529 \"guards: [knownSender, notSpectator(\\\"actorId\\\"), guardUndoIsTheGms, owns(...), guardCrisisAction, guardCrisisRoll],\""
+  },
+  {
+   "ref": "E08 promise 6",
+   "claim": "A Reroll that cannot be made is refused before anything is paid (holds yes)",
+   "verdict": "stands",
+   "why": "rerollRefusal runs every check (kept roll, age, message, Hope Call bar, killing crisis, Hope held, replayRefusal, a roll that cannot be thrown again, dice that differ from the kept ones) before makeReroll writes anything, and `making` refuses a second Reroll of a character.",
+   "evidence": "scripts/reroll.mjs:522-530 \"const refusal = await replayRefusal(actor, row); ... // Last, and still before the payment ... const stand = await standingRolls(message, row); if (stand && JSON.stringify(message.toObject().rolls ?? []) !== JSON.stringify(stand)) { return { why: \\\"the dice of that roll are not the ones the GMs kept\\\"\"; :568 \"if (making.has(actor.id)) return { refused: \\\"a Reroll of that character is already being made\\\"\""
+  },
+  {
+   "ref": "E08 grade",
+   "claim": "7 (provisional after L1)",
+   "verdict": "stands",
+   "why": "11.4's 7 row: one promise delivered in part (5, the menu half on a hook name never read from Foundry) and one unread (7), with the stage's centre - a player's Reroll of a real Daggerheart roll - run nowhere: the 14.370 Reroll tests failed on the tests' own stand-in roll (read so on the e58 line, class F). The reader's reasons are each in the source or the paper. One nit.",
+   "evidence": "git show origin/claude/e58-local:docs/dev/e58/LOCAL-REPORT.md:329 \"The five Reroll tests (35, 40-43) - the tests', not the module's.\"; scripts/reroll-receipts.mjs:25-30 \"The hook's name, `getChatMessageContextOptions` ... no Foundry source is in this checkout and no browser ran it, so it is not measured (LIVE-E08-05).\"; audit/AUDIT-1.2.42.md:97 the 7 row",
+   "grade_after": 7
+  }
+ ],
+ "counts": {
+  "checked": 27,
+  "stands": 24,
+  "weakened": 2,
+  "refuted": 1
+ },
+ "not_established": [
+  "Per-test results of R201-R219: base-run.json does not exist; 'passed' rests on the first session's tiers 0-1 totals (1776 passed, 0 failed, 16 skipped), for the reader and for this file alike.",
+  "E06 promise 3's last clause ('a trap's builder reaches only the killers', v1.2.65.md 67-68): its meaning is not settled by the notes' wording; the code keeps the builder out of a running trap's cards and seats, which is the only reading checked.",
+  "E07 promise 4: trait-ruling.mjs:197-200 (traitFor's header) says an armed Resolve buys no picker at the opening, while murder-rules.mjs:4473-4475 and :4631 say it does since E112. A comment against the code, to be checked by the domain pass on trait-ruling.mjs; not weighed here.",
+  "E07 promise 2's trap half: the E64 decision is read in config.mjs's comment and tools/stages.json; the E64 papers themselves were not read by this refuter."
+ ]
+}

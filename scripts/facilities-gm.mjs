@@ -99,9 +99,26 @@ export async function targetsOf(actor, scope, place) {
  * Carry out an action's effects on this GM, each in its own write; answers the lines its card says, in the table's
  * language. A write a GM makes is judged by nothing (resource-guard.mjs: a GM's write names no reason a judge reads);
  * the reason `facility` says on the GMs' own side which road it was.
+ *
+ * A VEILED CHARACTER'S LINE IS LEFT OUT (1.2.121 line M1, 21.11.2026; the audit's N119-1, MAP-16's residue). While a
+ * direct murder waits on its opening the killer is veiled, and the victim - not seated yet (settings.mjs `incidentSeats`),
+ * so nothing stops their room action - stands beside them. An effect on those present falls on the killer too (the rules'
+ * reading, `countsAsPresent`), and its line named them, in the answer the asker's window writes and on the card
+ * `tellUse` whispers, whose cut covers masked names, not veiled ones (tier 2 "E120 - a room action used beside a killer
+ * veiled ...", red at e515907d: the victim's lines and card held the killer's name). So a target's line is kept only when
+ * every player who reads it - the sender and the user's owners, `whisperToOwner`'s readers - sees through the veil
+ * (mask-gm.mjs `veilInsiders`), as a picker leaves the veiled out (`seenHere`); the effect is written all the same, and
+ * the GMs' log names it.
  */
 export async function applyEffects(actor, effects, place, sender = null) {
     const { trustedWrite } = await import("./resource-guard.mjs");
+    const { veilInsiders } = await import("./mask-gm.mjs");
+    const readers = [...new Set([sender, ...(game.users ?? []).filter(u => !u.isGM && actor?.testUserPermission?.(u, "OWNER"))]
+        .filter(u => u && !u.isGM).map(u => u.id))];
+    const veiledFrom = target => {
+        const insiders = veilInsiders(target?.id);
+        return Boolean(insiders) && readers.some(id => !insiders.includes(id));
+    };
     const lines = [];
     // Health, Sanity and Hope count what moved, so they are plural families on {n} (R1157); the rest are sentences.
     const t = (key, data) => (game.i18n.has(`DRPG.Facility.applied.${key}.other`)
@@ -144,6 +161,8 @@ export async function applyEffects(actor, effects, place, sender = null) {
         for (const target of await targetsOf(actor, effect.scope, place)) {
             const name = target.name;
             const r = target.system?.resources ?? {};
+            // What this target's writes say, left out for a reader the veil hides them from (above); the writes stand.
+            const shown = lines.length;
             if (effect.kind === "health" || effect.kind === "sanity") {
                 const path = effect.kind === "health" ? "hitPoints" : "stress";
                 const marks = Number(r[path]?.value) || 0, cleared = Math.min(marks, effect.n);
@@ -151,11 +170,14 @@ export async function applyEffects(actor, effects, place, sender = null) {
                 lines.push(t(effect.kind, { name, n: cleared }));
             } else if (effect.kind === "hope") {
                 const { overflowBlocksHope } = await import("./overflow.mjs");
-                if (overflowBlocksHope()) { lines.push(t("hopeBlocked", { name })); continue; }
-                const now = Number(r.hope?.value) || 0, max = Number(r.hope?.max) || STARTING.hopeMax;
-                const next = Math.min(max, now + effect.n);
-                if (next !== now) await trustedWrite(target, { "system.resources.hope.value": next }, { reason: "facility" });
-                lines.push(t("hope", { name, n: next - now }));
+                // No `continue` past the veil's cut below: a blocked Hope's line names its target as the others do.
+                if (overflowBlocksHope()) lines.push(t("hopeBlocked", { name }));
+                else {
+                    const now = Number(r.hope?.value) || 0, max = Number(r.hope?.max) || STARTING.hopeMax;
+                    const next = Math.min(max, now + effect.n);
+                    if (next !== now) await trustedWrite(target, { "system.resources.hope.value": next }, { reason: "facility" });
+                    lines.push(t("hope", { name, n: next - now }));
+                }
             } else if (effect.kind === "freeMove") {
                 const { grantFreeMoves } = await import("./actions.mjs");
                 await grantFreeMoves(target, effect.n, { reason: "facility" });
@@ -193,6 +215,10 @@ export async function applyEffects(actor, effects, place, sender = null) {
             if (rule.untils) {
                 const { giveTimed, timedLine } = await import("./timed-effects.mjs");
                 if (await giveTimed(target, effect)) lines.push(game.i18n.format("DRPG.Facility.applied.timed", { name, what: timedLine(effect) }));
+            }
+            if (lines.length > shown && veiledFrom(target)) {
+                log(`A room action's ${lines.length - shown} line(s) about ${name}, veiled for the opening, left off what ${actor?.name ?? "its user"} is told.`);
+                lines.splice(shown);
             }
         }
     }

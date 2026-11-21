@@ -1,0 +1,1850 @@
+{
+ "reader": "controls-12-projects",
+ "read": [
+  {
+   "file": "scripts/projects-ui.mjs",
+   "lines_read": 1759
+  },
+  {
+   "file": "scripts/projects-tray.mjs",
+   "lines_read": 542
+  },
+  {
+   "file": "scripts/projects-map.mjs",
+   "lines_read": 1008
+  },
+  {
+   "file": "scripts/projects-secrecy.mjs",
+   "lines_read": 724
+  },
+  {
+   "file": "scripts/action-project.mjs",
+   "lines_read": 1378
+  },
+  {
+   "file": "scripts/projects-seen.mjs (the index of its 22 functions and 378-406, the registration and its hooks; no controls)",
+   "lines_read": 60
+  },
+  {
+   "file": "scripts/projects.mjs (790-1070 the lists and addProgress, 1436-1995 the repick, the one entry, changeStep, registerProjectChanges, 399-480 tellDescription and tellSight, 2404-2700 the trap cards, the edit and delete, 2920-2976 the secrecy calls)",
+   "lines_read": 1290
+  },
+  {
+   "file": "scripts/live.mjs (40-110, 300-375, 820-885: keepLive, listenFor, keepFresh)",
+   "lines_read": 210
+  },
+  {
+   "file": "scripts/sync.mjs (395-540: REFRESHES and KIND_REFRESH; 103)",
+   "lines_read": 146
+  },
+  {
+   "file": "scripts/settings.mjs (2300-2320, 2660-2690, 3473-3495)",
+   "lines_read": 74
+  },
+  {
+   "file": "scripts/messenger-app.mjs (1000-1090, 1395-1420: the project card rulings)",
+   "lines_read": 116
+  },
+  {
+   "file": "scripts/action-menus.mjs (50-82: traitFieldHtml, readProposal; grep for keepLive)",
+   "lines_read": 33
+  },
+  {
+   "file": "scripts/gm-stores.mjs (640-680: projectSecretStore, projectSightCopy)",
+   "lines_read": 41
+  },
+  {
+   "file": "scripts/traps.mjs (200-212, 355-368)",
+   "lines_read": 27
+  },
+  {
+   "file": "scripts/tests-tier2.mjs (92075-92175: E37-T7)",
+   "lines_read": 101
+  },
+  {
+   "file": "styles/*.css (script scan: 264 rules naming the surfaces' classes, 27 matching a hide or disable pattern, each read)",
+   "lines_read": 0
+  },
+  {
+   "file": "docs/dev/e59/WINDOWS.md (the count, the rows for these files)",
+   "lines_read": 80
+  }
+ ],
+ "count_expected": {
+  "windows_in_WINDOWS_md_for_these_files": 7,
+  "surfaces_read": 15
+ },
+ "count_note": "docs/dev/e59/WINDOWS.md has 7 rows for these files and the source has 7 kit window sites, the same functions: action-project.mjs startProject (table 265, source 264) and proposeProjectTrait (896, 896); projects-ui.mjs confirmProjectDelete (table 429, source 472), openProjectManager (650, 700), openProjectDialog (1092, 1162), openTargetRepick (1341, 1419), openShareDialog (1655, 1731) - the projects-ui.mjs lines in the table are older than the source (generated 14.11.2026; whether tools/e59/windows.mjs --check reports it stale was not run). The 15 surfaces here add 8 the table does not hold: the tray (Daggerheart's application), the project token card (an actor sheet), the token on the map, the four chat cards (proposal, repick, the two trap cards), and the two action windows performProject and chooseProject open through action-menus.mjs builders (chooseVariant, actionWindow), which have no rows in the table under any file.",
+ "surfaces": [
+  {
+   "surface": "Projects tray (Daggerheart's DhCountdowns, decorated on every render)",
+   "file": "scripts/projects-ui.mjs (onRenderCountdowns 88-148), scripts/projects-tray.mjs",
+   "opener": "Daggerheart's own UI (ui.countdowns); redrawn by projects-tray.mjs refreshProjects:50-63",
+   "audience": "everyone; the gear, the -/+ guard and the row menu changes only on a GM",
+   "controls": [
+    {
+     "label": "gear (\"Open the Projects window\")",
+     "key": "DRPG.Project.manageTooltip",
+     "kind": "button",
+     "selector": ".countdowns-header .drpg-projects-gear",
+     "handler": "projects-ui.mjs:137-142 click -> openProjectManager",
+     "effect": "opens the Project manager (raised if open, live.mjs alreadyOpen)",
+     "gate": "GM only: added after `if (!game.user.isGM) return` (120)",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "fold caret (\"Fold the projects away\" / \"Show the projects\")",
+     "key": "DRPG.Project.collapseTray, DRPG.Project.expandTray",
+     "kind": "button",
+     "selector": ".drpg-projects-fold",
+     "handler": "projects-tray.mjs:530-536 -> settings.set(projectsCollapsed) then applyCollapsed",
+     "effect": "hides the rows and the empty line (danganronpa.css:12216 #countdowns.drpg-projects-collapsed), caret and aria-expanded follow; per client",
+     "gate": "everyone",
+     "how_read": "code; the only hiding rule is the fold's own",
+     "themes": "danganronpa.css:12216 hides .countdowns-container and .drpg-projects-empty under .drpg-projects-collapsed - the fold's own effect; no theme or narrow rule hides the caret",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "- / + on a project row (GM)",
+     "key": "DRPG.Project.trayLessTooltip, DRPG.Project.trayMoreTooltip",
+     "kind": "button",
+     "selector": "[data-action=decreaseCountdown|increaseCountdown] in .countdown-container[data-countdown]",
+     "handler": "projects-ui.mjs:201-215 guardTrayRows (capture phase, once per root) -> addProgress(id, +-1)",
+     "effect": "one change of 1 or -1 through applyProjectChange on the primary; addProgress warns when nothing moved (projects.mjs:1036-1037: full, empty, frozen)",
+     "gate": "GM only (202); a row that is no project keeps the system's handler",
+     "how_read": "code; tier 2 E37-T7 names guardTrayRows (its result not read here)",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "- / + on a project row (player)",
+     "key": "DRPG.Project.trayLessTooltip, DRPG.Project.trayMoreTooltip",
+     "kind": "button",
+     "selector": "[data-action=...Countdown]",
+     "handler": "Daggerheart's own handler -> the GM's relay (relay-guard.mjs judgeCountdowns, not read)",
+     "effect": "refused on the GM for a project row (projects-ui.mjs:161-163 says so); whether the system draws the buttons for a player at OBSERVER at all was not read",
+     "gate": "labelled for whoever the system draws them for (projects-tray.mjs:386-398)",
+     "how_read": "comment only; Daggerheart's template not in the repository",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "unknown",
+     "detail": "If Daggerheart 2.12.8 draws -/+ for an OBSERVER, a player sees two labelled buttons that always end in a relay refusal: wrong_audience. Not established here (see not_established)."
+    },
+    {
+     "label": "row menu Reveal / Hide on a project row",
+     "key": "DAGGERHEART.APPLICATIONS.Countdowns.reveal/hide",
+     "kind": "menu",
+     "selector": "row context menu",
+     "handler": "projects-ui.mjs:238-241 projectRowMenu",
+     "effect": "hidden on a project row (`visible` false); who sees a project is the manager's Secret and Share",
+     "gate": "GM (the system's menu)",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "row menu Delete on a project row",
+     "key": "CONTROLS.CommonDelete",
+     "kind": "menu",
+     "selector": "row context menu",
+     "handler": "projects-ui.mjs:242-248 projectRowMenu -> deleteProject(id)",
+     "effect": "deletes the project and its repair pair at once: no question, no notification",
+     "gate": "GM (deleteProject refuses a player, projects.mjs:2669-2670)",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "silent",
+     "detail": "Finding 8: the manager's and the window's Delete ask confirmProjectDelete and say \"1 deleted\"; this one asks nothing and says nothing (deleteNote says Delete asks first)."
+    },
+    {
+     "label": "row menu Reveal / Hide / Delete on a row that is no project",
+     "key": "system keys",
+     "kind": "menu",
+     "selector": "row context menu",
+     "handler": "projects-ui.mjs:241, 247 queuedCountdownWrite",
+     "effect": "the system's own write, as a step of COUNTDOWNS_KEY on a GM",
+     "gate": "GM",
+     "how_read": "code; tier 2 E37-T7 presses the planted Delete and Reveal (result not read)",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Short / Long type toggles (removed)",
+     "key": "-",
+     "kind": "toggle",
+     "selector": ".header-type-toggles",
+     "handler": "projects-ui.mjs:95 remove; projects-tray.mjs:120-131 keepNarrativeShown",
+     "effect": "removed for everyone; a user flag that hid \"narrative\" is given it back",
+     "gate": "everyone",
+     "how_read": "code; R6001 named in the comment",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Toggle Icon Only (removed)",
+     "key": "DAGGERHEART.UI.Countdowns.toggleIconMode",
+     "kind": "toggle",
+     "selector": "[data-action=toggleViewMode]",
+     "handler": "projects-ui.mjs:96 remove; projects-tray.mjs:88-99 leaveIconOnly",
+     "effect": "removed; a user left in icon-only view is taken out and the tray redrawn",
+     "gate": "everyone",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Edit Countdowns wrench (removed)",
+     "key": "-",
+     "kind": "button",
+     "selector": "[data-action=editCountdowns]",
+     "handler": "projects-ui.mjs:122",
+     "effect": "removed on a GM's tray (the system's bulk editor knows nothing of the module's metadata)",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "daggerheart.Countdowns (the rows, names, progress)",
+     "drpg.projectMeta (room, secrecy, glyph, frozen)",
+     "the GM store projectSecrets on a GM (a secret row's name, nameSecretRows projects-tray.mjs:226-239)",
+     "the player's copy mineProjectSight (a secret row's name and sight)",
+     "the client setting seenProjects and the discovery copy (hideUndiscovered, paintProgress via projects-seen.mjs asSeen)",
+     "the user flags countdown-mode and countdown-type-modes",
+     "the client setting projectsCollapsed"
+    ],
+    "listens": [
+     "Daggerheart's own render on its Countdowns setting change",
+     "sync.mjs SETTING_KINDS projectMeta -> SYNC.projects -> refreshProjects (sync.mjs:103, 425, 491)",
+     "SYNC.fog (discovery) -> refreshProjects (sync.mjs:526)",
+     "drpgProjectSightChanged (mineProjectSight onChange, settings.mjs:2676-2682; and fired locally on the primary by tellSight, projects.mjs:464) -> applyKind(SYNC.projects) (projects.mjs:1971-1973)",
+     "drpgSeenChanged -> ui.countdowns.render (projects-seen.mjs:405)",
+     "drpgSecretStored for a PROJECT_KNOWN card (projects.mjs:1981-1985)",
+     "the fold re-applies after its own write (projects-tray.mjs:534)"
+    ],
+    "verdict": "partial",
+    "gaps": [
+     "the GM store projectSecrets has no onChange (settings.mjs:2669-2674) and no tray listener: on a GM who is not the primary, a change held only there - a secret project's new name - reaches the tray at its next render from another cause (finding 12, suspected: whether the editor's same-value projectMeta write fires updateSetting on Foundry 14 was not read)"
+    ],
+    "focus_rule": "no fields; the system rebuilds the whole tray on render"
+   }
+  },
+  {
+   "surface": "Project manager (title \"Projects\", class drpg-window-projects)",
+   "file": "scripts/projects-ui.mjs (openProjectManager 676-741, projectManagerRows 377-421, wireProjectManager 542-607)",
+   "opener": "openProjectManager:676 (tray gear projects-ui.mjs:140; GM panel tile gm-panel.mjs:198; project card button projects-map.mjs:894; game.drpg.manageProjects api.mjs:522)",
+   "audience": "gm (a player is refused with DRPG.Panel.gmOnly, 684-687)",
+   "controls": [
+    {
+     "label": "Room select, per row",
+     "key": "DRPG.Project.room",
+     "kind": "select",
+     "selector": "select[name=room.<id>]",
+     "handler": "readManager 1628-1646 -> applyProjectManager 613-668",
+     "effect": "the room written only when the row changed it against the list the window opened with (628-629), its scene found again (roomSceneOnRoomChange)",
+     "gate": "GM",
+     "how_read": "code; scenario 66 A1 named in the comment",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Indirect murder checkbox, per row",
+     "key": "DRPG.Project.indirect",
+     "kind": "checkbox",
+     "selector": "input[name=murder.<id>]",
+     "handler": "applyProjectManager 634-648",
+     "effect": "a new murder is refused with needsKillerNamed when the project has no killer (639-645); the flag written only when changed",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Secret checkbox, per row",
+     "key": "DRPG.Project.secret",
+     "kind": "checkbox",
+     "selector": "input[name=secret.<id>]",
+     "handler": "applyProjectManager 657-666 secrecyChange",
+     "effect": "seal or reveal as one change; an always-secret preset drawn disabled and never revealed",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Who knows about it ticks, per row and player",
+     "key": "DRPG.Project.visibleTo",
+     "kind": "checkbox",
+     "selector": "input[name=viewers.<id>]",
+     "handler": "readManager viewers/was -> secrecyChange seal {viewers, was}",
+     "effect": "what the GM changed applied to who sees it now (projects-secrecy.mjs:488-501)",
+     "gate": "GM; drawn disabled on a public project (viewerTicks 1669-1675)",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "stale_state",
+     "detail": "Finding 2: on a public row, ticking that row's Secret box leaves the ticks disabled with the tooltip \"This project is public...\"; the window editor unlocks them (wireViewerLock 1345-1358), the manager has no such wiring."
+    },
+    {
+     "label": "Edit (pen), per row",
+     "key": "DRPG.Project.editTitle",
+     "kind": "button",
+     "selector": "[data-drpg-edit]",
+     "handler": "wireProjectManager 580-592",
+     "effect": "takes the rows (R7301), closes, applies them, opens the project window on the row's project from the list read at open, reopens the manager",
+     "gate": "GM",
+     "how_read": "code; R7301 named in the comment",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": "On a row whose project was deleted elsewhere while the manager stood open the editor still opens on it, and its Save says \"Projects updated.\" (finding 6)."
+    },
+    {
+     "label": "Show on the map, per hidden row",
+     "key": "DRPG.Project.showOnMap",
+     "kind": "button",
+     "selector": "[data-drpg-show-on-map]",
+     "handler": "wireProjectManager 598-605 -> projects-map.mjs:747-753 showProjectOnMap",
+     "effect": "clears mapHidden and syncs the token; the button is removed whatever came of it",
+     "gate": "GM; drawn only for metaFor(id).mapHidden (395)",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "silent",
+     "detail": "Finding 3: with no room or no place scene holding the room nothing is placed, the button goes, nothing is said."
+    },
+    {
+     "label": "Edit room action (mug), per row",
+     "key": "DRPG.Facility.editor.projectButton",
+     "kind": "button",
+     "selector": "[data-drpg-project-facility]",
+     "handler": "wireProjectManager 570-578 -> facility-editor.mjs editProjectFacility",
+     "effect": "opens the room action editor (its own controls are another reader's)",
+     "gate": "GM",
+     "how_read": "opener only",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Delete (trash), per row",
+     "key": "DRPG.Project.delete",
+     "kind": "button",
+     "selector": ".drpg-role-destructive[data-drpg-delete]",
+     "handler": "wireManagerDeletes 490-510",
+     "effect": "asks confirmProjectDelete, deletes, says savedWithDeletions, removes the gone rows (a sabotage pair too) and empty group rows in place",
+     "gate": "GM",
+     "how_read": "test R2076 presses one (named in the comment; result not read)",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "The rows themselves (names, rooms, flags, ticks, group rows)",
+     "key": "-",
+     "kind": "readout",
+     "selector": "tr[data-project]",
+     "handler": "keepFresh 557-568 (progress cells only)",
+     "effect": "only the progress figure under each name is kept live",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "stale_state",
+     "detail": "Finding 1: a project made, deleted, moved, renamed, sealed or shared elsewhere is not drawn until the window is reopened."
+    },
+    {
+     "label": "Save",
+     "key": "DRPG.Assign.save",
+     "kind": "button",
+     "selector": "footer primary [data-action=save]",
+     "handler": "callback readManager -> applyProjectManager 738 -> DRPG.Project.saved",
+     "effect": "writes each changed row as one change; skips rows gone meanwhile (617-619)",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Create",
+     "key": "DRPG.Project.createButton",
+     "kind": "button",
+     "selector": "footer [data-action=new]",
+     "handler": "leaveWith(\"new\") 698 -> applyProjectManager, openCreateDialog, reopen",
+     "effect": "the rows saved, the project window opened empty, the manager reopened",
+     "gate": "GM",
+     "how_read": "code; R7301",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Share",
+     "key": "DRPG.Project.shareButton",
+     "kind": "button",
+     "selector": "footer [data-action=share]",
+     "handler": "leaveWith(\"share\") -> applyProjectManager, openShareDialog, reopen",
+     "effect": "the rows saved, the Share window, the manager reopened",
+     "gate": "GM",
+     "how_read": "code; R7301",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel",
+     "key": "-",
+     "kind": "button",
+     "selector": "footer close (role cancel)",
+     "handler": "drpgWindow close",
+     "effect": "nothing written",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "daggerheart.Countdowns (allProjects at open; progress)",
+     "drpg.projectMeta (room of public projects, mapHidden, sealedViewers)",
+     "the GM store projectSecrets (secret rooms, killer, viewers, always-secret presets)",
+     "game.users (the player columns)",
+     "the place scenes' rooms (placeRoomNames)"
+    ],
+    "listens": [
+     "keepFresh 557-568: updateSetting on daggerheart.Countdowns and any drpg.* setting, the three world hooks (live.mjs:304-336); its run rewrites the progress cells only"
+    ],
+    "verdict": "partial",
+    "gaps": [
+     "projects created or deleted elsewhere: rows not added or removed (the comment 554-556 says it needs the window reopening)",
+     "a room changed by a token drag (projects-map.mjs:656-679) or another GM: the row's select keeps the old room (Save is safe: 628-629)",
+     "secrecy, viewers, killer in projectSecrets (a share from Observe, observe.mjs:485-489, or a player's project.share): no listener on the store",
+     "a mapHidden flag set or cleared elsewhere: Show on the map not drawn or not taken away",
+     "a player joining: no column"
+    ],
+    "focus_rule": "keepFresh writes only spans nobody edits; every field the GM touched stays until Save"
+   }
+  },
+  {
+   "surface": "Project window: create, edit, or approve a proposal (classes drpg-project-form)",
+   "file": "scripts/projects-ui.mjs (openProjectDialog 957-1333)",
+   "opener": "openProjectDialog:957 (manager Edit 589; manager Create and the empty state via openCreateDialog 1624; the proposal card's Approve, messenger-app.mjs:1024-1052)",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Name",
+     "key": "DRPG.Project.name",
+     "kind": "text",
+     "selector": "input[name=name]",
+     "handler": "save callback 1119-1156",
+     "effect": "checked non-empty after close (needsName 1196-1199)",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Description",
+     "key": "DRPG.Project.description",
+     "kind": "textarea",
+     "selector": "textarea[name=description]",
+     "handler": "guardDescription 850-904",
+     "effect": "Save refused at the field while empty or too long, with the reason in the field's cell",
+     "gate": "GM",
+     "how_read": "test R1350 (named in the comment)",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Glyph grid",
+     "key": "DRPG.Project.glyphLabel",
+     "kind": "radio",
+     "selector": "details.drpg-glyph-picker input[name=glyph]",
+     "handler": "save callback glyph",
+     "effect": "the tray's and the token's picture",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Scale",
+     "key": "DRPG.Project.scale",
+     "kind": "select",
+     "selector": "select[name=target]",
+     "handler": "save callback target",
+     "effect": "the target; an off-scale target offered as its own option (995-998)",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Room",
+     "key": "DRPG.Project.room",
+     "kind": "select",
+     "selector": "select[name=room]",
+     "handler": "save callback room; wireRoomScenePicker 320-335",
+     "effect": "a room on another scene kept (roomElsewhere); the scene picker redrawn on change",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Scene of the room",
+     "key": "DRPG.Project.roomScene",
+     "kind": "select",
+     "selector": "select[name=roomScene]",
+     "handler": "roomSceneAnswer 339-344",
+     "effect": "a pick changed by hand is the GM's (roomSceneByGm)",
+     "gate": "GM; shown only where more than one place scene holds the room",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Statistic",
+     "key": "DRPG.Project.trait",
+     "kind": "select",
+     "selector": "select[name=trait]",
+     "handler": "save callback trait",
+     "effect": "required (traitRequired 1200-1203)",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Indirect murder",
+     "key": "DRPG.Project.indirect",
+     "kind": "checkbox",
+     "selector": "input[name=murder]",
+     "handler": "save callback; CSS danganronpa.css:13094-13098 shows the trap fields",
+     "effect": "a murder without a killer refused (needsKiller 1224-1227, 1271-1274)",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "danganronpa.css:13097 hides [data-drpg-when-murder] while unticked - its intended effect; no theme rule",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Watch for (trigger)",
+     "key": "DRPG.Trap.watchFor",
+     "kind": "select",
+     "selector": "select[name=trigger]",
+     "handler": "save callback trigger",
+     "effect": "the trap's watch; built from TRAP_TRIGGERS",
+     "gate": "GM; inside the trap block",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Which project",
+     "key": "DRPG.Trap.whichProject",
+     "kind": "select",
+     "selector": "select[name=triggerTarget]",
+     "handler": "save callback trigger.targetId",
+     "effect": "the project a project/sabotage trigger watches",
+     "gate": "GM; shown for those two triggers (danganronpa.css:13073-13079)",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Only after dark",
+     "key": "DRPG.Trap.afterDark",
+     "kind": "checkbox",
+     "selector": "input[name=afterDark]",
+     "handler": "save callback",
+     "effect": "trigger part",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Not the one who built it",
+     "key": "DRPG.Trap.notBuilder",
+     "kind": "checkbox",
+     "selector": "input[name=notBuilder]",
+     "handler": "save callback",
+     "effect": "trigger part",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Condition",
+     "key": "DRPG.Project.condition",
+     "kind": "text",
+     "selector": "input[name=condition]",
+     "handler": "save callback",
+     "effect": "the GMs' half",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Room beyond (Secret Passage or breach approval)",
+     "key": "DRPG.Project.passageTo",
+     "kind": "select",
+     "selector": "select[name=passageTo]",
+     "handler": "wirePassagePick 1542-1560 (change forgets the stretch)",
+     "effect": "the neighbour the stretch must join",
+     "gate": "GM; approval of those presets only",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Pick the stretch on the wall",
+     "key": "DRPG.Project.passagePick",
+     "kind": "button",
+     "selector": "[data-drpg-passage-pick]",
+     "handler": "wirePassagePick 1551-1559 -> passages-gm.mjs startPassagePick",
+     "effect": "two clicks on the wall; the stretch kept in a hidden field until Create, judged by judgedPassagePick 1381-1396",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": "With the offer's scene gone the button returns at 1553 and says nothing (edge, not counted)."
+    },
+    {
+     "label": "Secret",
+     "key": "DRPG.Project.secret",
+     "kind": "checkbox",
+     "selector": "input[name=secret]",
+     "handler": "save callback; wireViewerLock",
+     "effect": "seal or reveal; an always-secret preset drawn ticked and disabled",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Visible to ticks",
+     "key": "DRPG.Project.visibleTo",
+     "kind": "checkbox",
+     "selector": "[name=viewers]",
+     "handler": "save callback viewers/was",
+     "effect": "who knows; unlocked by Secret or Indirect on a public project (1345-1358)",
+     "gate": "GM; fieldset hidden while both are unticked (danganronpa.css:13098)",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Save / Create",
+     "key": "DRPG.Assign.save, DRPG.Project.createButton",
+     "kind": "button",
+     "selector": "footer primary [data-action=save]",
+     "handler": "1116-1157, then 1212-1257 (edit) or 1306-1332 (create)",
+     "effect": "edit: one change of the entry with every field as the window drew it; create: createProject",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "stale_state",
+     "detail": "Findings 4 and 5: the edit writes the trap's armed and firedAt as read at open and every field as drawn over a change made while it stood open; finding 6: \"Projects updated.\" whatever the step answered."
+    },
+    {
+     "label": "Delete (edit only)",
+     "key": "DRPG.Project.delete",
+     "kind": "button",
+     "selector": "footer destructive [data-action=delete]",
+     "handler": "1187-1194 confirmProjectDelete -> deleteProject",
+     "effect": "deletes on the yes and says \"Projects updated. 1 deleted.\"",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "mislabeled",
+     "detail": "Finding 6: the toast does not read deleteProject's answer (the manager's Delete does, 498)."
+    },
+    {
+     "label": "Cancel",
+     "key": "-",
+     "kind": "button",
+     "selector": "footer close (role cancel)",
+     "handler": "callback \"cancel\"",
+     "effect": "nothing written",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "daggerheart.Countdowns (name, target, progress for editProgressNote)",
+     "drpg.projectMeta (room, trait, glyph, mapHidden)",
+     "projectSecrets (trigger with armed and firedAt, killer, by, viewers, target preset, roomScene)",
+     "game.users",
+     "the place scenes (room and scene pickers)",
+     "passages and breaches (approval fieldsets)"
+    ],
+    "listens": [
+     "none: drawn once"
+    ],
+    "verdict": "stale",
+    "gaps": [
+     "the trap's trigger (startTrigger 1034) is written back at Save (1249-1253): a fire stamped meanwhile (traps.mjs:362) is cleared (finding 4)",
+     "room, name, target, trait, glyph, description from projectEditChange (projects.mjs:2613-2639): a change made while open is written over (finding 5)",
+     "the progress line editProgressNote and the room action line facilityWhyLine stay as read at open"
+    ],
+    "focus_rule": "no redraw, so nothing typed is lost; the cost is the overwrite at Save"
+   }
+  },
+  {
+   "surface": "Delete question (confirmProjectDelete)",
+   "file": "scripts/projects-ui.mjs:471-481",
+   "opener": "the manager's Delete (497) and the project window's Delete (1189)",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Delete",
+     "key": "DRPG.Project.delete",
+     "kind": "button",
+     "selector": "[data-action=delete] (role destructive)",
+     "handler": "drpgConfirm yes",
+     "effect": "answers true",
+     "gate": "GM",
+     "how_read": "code; E22-T5 named in the comment (Enter deletes nothing)",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel",
+     "key": "-",
+     "kind": "button",
+     "selector": "default, first submit",
+     "handler": "drpgConfirm",
+     "effect": "answers false, nothing deleted",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the project's name, read when asked"
+    ],
+    "listens": [],
+    "verdict": "n/a",
+    "gaps": [],
+    "focus_rule": "no fields"
+   }
+  },
+  {
+   "surface": "Share window (title \"Share a project\")",
+   "file": "scripts/projects-ui.mjs:1703-1759 openShareDialog",
+   "opener": "the manager's Share (733); game.drpg.shareProjectDialog (api.mjs:523)",
+   "audience": "gm (the function itself does not ask isGM; only the API reaches it on a player's browser, where shareWith goes to the bridge)",
+   "controls": [
+    {
+     "label": "Project select",
+     "key": "DRPG.Project.title",
+     "kind": "select",
+     "selector": "select[name=project]",
+     "handler": "read 1726-1730",
+     "effect": "the secret projects at open",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Player select",
+     "key": "DRPG.Project.player",
+     "kind": "select",
+     "selector": "select[name=player]",
+     "handler": "read",
+     "effect": "every non-GM user",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Share",
+     "key": "DRPG.Project.shareButton",
+     "kind": "button",
+     "selector": "footer primary [data-action=share]",
+     "handler": "shareWith (projects.mjs:2938-2950)",
+     "effect": "one more player in on it; \"Project shared.\" when done",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "silent",
+     "detail": "Finding 7: a refusal in the step (the project made public meanwhile; the list not here) returns null at 2948 and the window says nothing."
+    },
+    {
+     "label": "Revoke access",
+     "key": "DRPG.Project.revokeButton",
+     "kind": "button",
+     "selector": "footer destructive [data-action=revoke]",
+     "handler": "unshareWith (projects.mjs:2952-2967)",
+     "effect": "takes a player off; the builder is refused with builderStays",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "silent",
+     "detail": "Finding 7: a project no longer secret returns null at 2954 without a word."
+    },
+    {
+     "label": "Cancel",
+     "key": "-",
+     "kind": "button",
+     "selector": "footer close",
+     "handler": "\"cancel\"",
+     "effect": "nothing",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "allProjects filtered by isSecret at open",
+     "game.users"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "stale",
+    "gaps": [
+     "a project sealed or revealed while open is not added or taken off the select (the refusal is then silent, finding 7)"
+    ],
+    "focus_rule": "no redraw"
+   }
+  },
+  {
+   "surface": "Choose the target again (drpg-project-repick)",
+   "file": "scripts/projects-ui.mjs:1407-1456 openTargetRepick",
+   "opener": "the GMs' card button repickProjectTarget (messenger-app.mjs:1016-1022; card from projects.mjs:1462-1473)",
+   "audience": "gm",
+   "controls": [
+    {
+     "label": "Room beyond",
+     "key": "DRPG.Project.passageTo",
+     "kind": "select",
+     "selector": "select[name=passageTo]",
+     "handler": "wirePassagePick",
+     "effect": "forgets a picked stretch on change",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Pick the stretch on the wall",
+     "key": "DRPG.Project.passagePick",
+     "kind": "button",
+     "selector": "[data-drpg-passage-pick]",
+     "handler": "wirePassagePick -> startPassagePick",
+     "effect": "the stretch in a hidden field",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Choose again",
+     "key": "DRPG.Passage.card.repick",
+     "kind": "button",
+     "selector": "footer primary [data-action=repick]",
+     "handler": "judgedPassagePick -> applyProjectChange {repick}",
+     "effect": "the completion crossed again on the primary; repickGone said when nothing changed (1440)",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel",
+     "key": "-",
+     "kind": "button",
+     "selector": "footer close",
+     "handler": "\"cancel\"",
+     "effect": "the card stays open",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "projectSecrets (repick, target, passage)",
+     "the scene's walls"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "drawn once; a second GM's repick meanwhile is caught by the step (repickRefusal, projects.mjs:1475-1482) and said (repickGone)"
+    ],
+    "focus_rule": "no redraw"
+   }
+  },
+  {
+   "surface": "Projects action window (Work on / Propose / Sabotage, chooseVariant)",
+   "file": "scripts/action-project.mjs:61-178 performProject (the window builder is action-menus.mjs chooseVariant)",
+   "opener": "the Work on Project action tile (actions dispatch through action-rolls.mjs performAction)",
+   "audience": "player (and a GM on a student's sheet)",
+   "controls": [
+    {
+     "label": "Work on a project (row)",
+     "key": "DRPG.Project.workOn",
+     "kind": "radio row",
+     "selector": "chooseVariant option work",
+     "handler": "performProject 175-177 -> workOnProject 466-627",
+     "effect": "a roll on the project picked below; struck through with noneHere when nothing is here",
+     "gate": "the character's place (projectsAvailableIn)",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "stale_state",
+     "detail": "Finding 9: disabled or enabled from the room as it stood when the window opened; nothing redraws it."
+    },
+    {
+     "label": "Propose a project (row)",
+     "key": "DRPG.Project.startNew",
+     "kind": "radio row (gmRoute)",
+     "selector": "chooseVariant option start",
+     "handler": "startProject",
+     "effect": "opens the proposal window",
+     "gate": "anyone",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Sabotage (row)",
+     "key": "DRPG.Action.sabotage label (config ACTIONS.sabotage)",
+     "kind": "radio row",
+     "selector": "chooseVariant option sabotage",
+     "handler": "performSabotage 974-1145",
+     "effect": "the sabotage roll on the project picked below",
+     "gate": "the character's place; a Monokuma anywhere",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Which project (Work)",
+     "key": "DRPG.Project.whichWork",
+     "kind": "select",
+     "selector": "label[data-drpg-when=work] select[name=project]",
+     "handler": "read after close (175)",
+     "effect": "the project worked on; re-checked against the room (499-502)",
+     "gate": "shown under its row (danganronpa.css:5376 hides [data-drpg-when] until picked)",
+     "how_read": "code; R1142, tier 2 E51-T28 (named)",
+     "themes": "danganronpa.css:5376 .drpg-specific-note[data-drpg-when] display none until its row is picked - intended; no theme rule",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Sabotage which project",
+     "key": "DRPG.Project.whichSabotage",
+     "kind": "select",
+     "selector": "label[data-drpg-when=sabotage] select[name=sabotage]",
+     "handler": "read after close (168)",
+     "effect": "the target; re-checked against the targets (1004-1005)",
+     "gate": "as above",
+     "how_read": "code",
+     "themes": "as the Work select",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Roll / Next",
+     "key": "DRPG.Action.roll, DRPG.Action.next",
+     "kind": "button",
+     "selector": "chooseVariant confirm",
+     "handler": "chooseVariant",
+     "effect": "the picked row runs",
+     "gate": "anyone",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel",
+     "key": "-",
+     "kind": "button",
+     "selector": "close",
+     "handler": "chooseVariant",
+     "effect": "nothing spent",
+     "gate": "anyone",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the character's place (locateActor)",
+     "visible projects in it (projectsAvailableIn, sabotageTargetsIn: Countdowns, projectMeta, sight copy, discovery)"
+    ],
+    "listens": [
+     "none: action-menus.mjs has no keepLive or keepFresh (grep)"
+    ],
+    "verdict": "stale",
+    "gaps": [
+     "a project made, finished, frozen or let into in this room while the window stands open: the rows' state and the two selects stay as at open (finding 9); the actions re-check before anything is paid"
+    ],
+    "focus_rule": "no redraw"
+   }
+  },
+  {
+   "surface": "Project picker (chooseProject, an action window)",
+   "file": "scripts/action-project.mjs:926-968",
+   "opener": "workOnProject 502 when the project picked is gone; performSabotage 1005 from the API's door",
+   "audience": "player",
+   "controls": [
+    {
+     "label": "Project select",
+     "key": "DRPG.Project.whichWork / whichSabotage",
+     "kind": "select",
+     "selector": "select[name=project]",
+     "handler": "callback id",
+     "effect": "a finished project shown struck through and refused if reached (961-966)",
+     "gate": "anyone",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Roll",
+     "key": "DRPG.Action.roll",
+     "kind": "button",
+     "selector": "footer primary ok",
+     "handler": "callback",
+     "effect": "the roll goes on",
+     "gate": "anyone",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel",
+     "key": "-",
+     "kind": "button",
+     "selector": "close",
+     "handler": "null",
+     "effect": "nothing spent",
+     "gate": "anyone",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the list handed in"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "drawn from a list read just before; the roll re-checks"
+    ],
+    "focus_rule": "no redraw"
+   }
+  },
+  {
+   "surface": "Propose a project (startProject)",
+   "file": "scripts/action-project.mjs:188-464",
+   "opener": "the Projects action window's Propose row (164)",
+   "audience": "player",
+   "controls": [
+    {
+     "label": "Kind",
+     "key": "DRPG.Project.kind",
+     "kind": "select",
+     "selector": "select[name=preset]",
+     "handler": "wirePresetDescription 927-938; read 338-352",
+     "effect": "a preset's statistic, size, room and no murder replace the form's",
+     "gate": "shown when the room offers a preset",
+     "how_read": "code; R1338 (named)",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Room beyond (passage, breach)",
+     "key": "DRPG.Project.passageTo",
+     "kind": "select",
+     "selector": "select[name=to]",
+     "handler": "read 342-344",
+     "effect": "the neighbour's index on the card",
+     "gate": "shown when this room shares a wall",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": "Shown under every Kind, its own presets' or not (no data-drpg-when on these rows): part of finding 10."
+    },
+    {
+     "label": "Which passage to seal",
+     "key": "DRPG.Project.sealWhich",
+     "kind": "select",
+     "selector": "select[name=seal]",
+     "handler": "read",
+     "effect": "the passage's id on the card",
+     "gate": "shown when one is known here",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Which breach to close",
+     "key": "DRPG.Project.unbreachWhich",
+     "kind": "select",
+     "selector": "select[name=unbreach]",
+     "handler": "read",
+     "effect": "the breach's id on the card",
+     "gate": "shown when one stands here",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Which item to repair",
+     "key": "DRPG.Project.repairWhich",
+     "kind": "select",
+     "selector": "select[name=mend]",
+     "handler": "read",
+     "effect": "the item's id on the card",
+     "gate": "shown when an item is broken or worn",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Which lock to repair",
+     "key": "DRPG.Project.repairLockWhich",
+     "kind": "select",
+     "selector": "select[name=lockfix]",
+     "handler": "read",
+     "effect": "the room of the lock",
+     "gate": "shown when a lock here is forced",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Name",
+     "key": "DRPG.Project.name",
+     "kind": "text",
+     "selector": "input[name=name]",
+     "handler": "read",
+     "effect": "needsName",
+     "gate": "anyone",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Description",
+     "key": "DRPG.Project.description",
+     "kind": "textarea",
+     "selector": "textarea[name=description]",
+     "handler": "guardDescription (optional for a preset)",
+     "effect": "refused at the field",
+     "gate": "anyone",
+     "how_read": "code; R1350",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Scale",
+     "key": "DRPG.Project.scale",
+     "kind": "select",
+     "selector": "select[name=target]",
+     "handler": "read 299",
+     "effect": "the proposed size",
+     "gate": "anyone",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": "For a preset it is replaced by the preset's (350) - part of finding 10."
+    },
+    {
+     "label": "Room",
+     "key": "DRPG.Project.room",
+     "kind": "select",
+     "selector": "select[name=room]",
+     "handler": "read",
+     "effect": "the proposed room",
+     "gate": "anyone",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Statistic",
+     "key": "DRPG.Project.trait",
+     "kind": "select",
+     "selector": "select[name=trait]",
+     "handler": "read",
+     "effect": "required (357-360)",
+     "gate": "anyone",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": "For a preset replaced by its own (351)."
+    },
+    {
+     "label": "This is my indirect murder",
+     "key": "DRPG.Project.indirectMine",
+     "kind": "checkbox",
+     "selector": "input[name=murder]",
+     "handler": "read 302",
+     "effect": "the card's murder flag",
+     "gate": "anyone",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "silent",
+     "detail": "Finding 10: with a preset Kind it is set false at 351 and the card carries no warning; the player is not told."
+    },
+    {
+     "label": "Condition",
+     "key": "DRPG.Project.condition",
+     "kind": "text",
+     "selector": "input[name=condition]",
+     "handler": "read",
+     "effect": "on the card",
+     "gate": "anyone",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "What you are actually doing (request)",
+     "key": "DRPG.Project.proposalPrompt",
+     "kind": "textarea",
+     "selector": "requestFieldHtml",
+     "handler": "readRequestField",
+     "effect": "the card's quote",
+     "gate": "anyone",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Propose",
+     "key": "DRPG.Project.proposeButton",
+     "kind": "button",
+     "selector": "footer gmRoute [data-action=create]",
+     "handler": "callGm 416-454",
+     "effect": "the GMs' card with Approve and Decline; noGm said by callGm; proposalSent whispered",
+     "gate": "anyone",
+     "how_read": "code; R1370, E22-T4 (named)",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel",
+     "key": "-",
+     "kind": "button",
+     "selector": "close",
+     "handler": "proposalNotSent said (330-333)",
+     "effect": "nothing sent",
+     "gate": "anyone",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the character's room and scene, the walls, known passages, breaches, the sheet's items"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [
+     "a form; what it offers is judged again on the GM's approval (presetApproval)"
+    ],
+    "focus_rule": "no redraw"
+   }
+  },
+  {
+   "surface": "Propose a statistic for a project (drpg-trait-propose)",
+   "file": "scripts/action-project.mjs:895-910",
+   "opener": "projectTrait 873-889 for a project stored without a statistic, on a player's browser",
+   "audience": "player",
+   "controls": [
+    {
+     "label": "Statistic",
+     "key": "DRPG.TraitRuling.proposeLabel",
+     "kind": "select",
+     "selector": "select[name=proposed]",
+     "handler": "readProposal (action-menus.mjs:78-82)",
+     "effect": "the proposal",
+     "gate": "anyone",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "How (note)",
+     "key": "DRPG.TraitRuling.howLabel",
+     "kind": "text",
+     "selector": "input[name=note]",
+     "handler": "readProposal",
+     "effect": "the note on the ruling card",
+     "gate": "anyone",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Propose",
+     "key": "DRPG.TraitRuling.propose",
+     "kind": "button",
+     "selector": "footer gmRoute propose",
+     "handler": "traitFor (trait-ruling.mjs, not read)",
+     "effect": "the GM's ruling",
+     "gate": "anyone",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Cancel",
+     "key": "-",
+     "kind": "button",
+     "selector": "close",
+     "handler": "null",
+     "effect": "nothing asked, nothing spent",
+     "gate": "anyone",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the actor's traits"
+    ],
+    "listens": [
+     "none"
+    ],
+    "verdict": "n/a",
+    "gaps": [],
+    "focus_rule": "no redraw"
+   }
+  },
+  {
+   "surface": "Project proposal card (the GMs' card in the player's thread)",
+   "file": "scripts/action-project.mjs:416-454 (built); messenger-app.mjs:1024-1065 (ruled)",
+   "opener": "Propose in startProject",
+   "audience": "gm (the player sees the card in their thread without the buttons' effect - callGm's rule, not read here)",
+   "controls": [
+    {
+     "label": "Approve",
+     "key": "DRPG.Project.approveButton",
+     "kind": "card button",
+     "selector": "action approveProject",
+     "handler": "messenger-app.mjs:1024-1052 ruleApproveProject -> openProjectDialog({ preset })",
+     "effect": "the project window prefilled; the card settles only when a project was made",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Decline",
+     "key": "DRPG.Project.declineButton",
+     "kind": "card button",
+     "selector": "action declineProject",
+     "handler": "messenger-app.mjs:1054-1065 ruleDeclineProject",
+     "effect": "a line in the player's thread and declinedGm to the GM; settled",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the card's data"
+    ],
+    "listens": [
+     "the card's own settle (call-gm.mjs, not read)"
+    ],
+    "verdict": "n/a",
+    "gaps": [],
+    "focus_rule": "no fields"
+   }
+  },
+  {
+   "surface": "Refused completion card (\"Choose the target again\")",
+   "file": "scripts/projects.mjs:1462-1473 offerRepick",
+   "opener": "a Secret Passage's or breach's completion refused on the primary (heldForRepick)",
+   "audience": "gm (gmOnly card)",
+   "controls": [
+    {
+     "label": "Choose the target again",
+     "key": "DRPG.Passage.card.repick",
+     "kind": "card button",
+     "selector": "action repickProjectTarget",
+     "handler": "messenger-app.mjs:1016-1022 -> openTargetRepick",
+     "effect": "the repick window; settled on a target taken",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the card's data"
+    ],
+    "listens": [],
+    "verdict": "n/a",
+    "gaps": [],
+    "focus_rule": "no fields"
+   }
+  },
+  {
+   "surface": "Trap ready cards (manual Fire; plant receipt)",
+   "file": "scripts/projects.mjs:2463-2567 announceTrapReady",
+   "opener": "an indirect murder's bar crossing its target",
+   "audience": "gm (veiled, the killer's thread)",
+   "controls": [
+    {
+     "label": "Fire the trap",
+     "key": "DRPG.Project.trapFire",
+     "kind": "card button",
+     "selector": "action fireTrap",
+     "handler": "messenger-app.mjs:1005-1014 ruleFireTrap -> openMurderDialog({ killerId, indirect: true })",
+     "effect": "the murder window with the builder as killer; settled when it opened",
+     "gate": "GM",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Plant the item",
+     "key": "DRPG.Trap.plantAction",
+     "kind": "card button",
+     "selector": "action plantTrapItem",
+     "handler": "messenger-app.mjs rulePlantTrapItem (not read)",
+     "effect": "not read",
+     "gate": "GM",
+     "how_read": "opener only",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "unknown",
+     "detail": "Its handler is the traps' (another reader's lane)."
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "the card's data"
+    ],
+    "listens": [],
+    "verdict": "n/a",
+    "gaps": [],
+    "focus_rule": "no fields"
+   }
+  },
+  {
+   "surface": "Project token card (the shared actor's sheet replaced, drpg-project-card)",
+   "file": "scripts/projects-map.mjs:853-974 showProjectCard, projectCard, unknownProjectCard",
+   "opener": "double-click on a project token (renderActorSheetV2, 999-1006)",
+   "audience": "everyone; the facts block and the button only on a GM (922-942); a player who does not know the project gets a card that names none",
+   "controls": [
+    {
+     "label": "Open the Projects window",
+     "key": "DRPG.Project.cardOpenManager",
+     "kind": "button",
+     "selector": "[data-drpg-project-manager]",
+     "handler": "wireProjectCard 890-897 (rewired after each redraw, `after`)",
+     "effect": "openProjectManager",
+     "gate": "GM only (891, 922)",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "The card's facts (GM: status, secrecy, Knows it is there, room, condition)",
+     "key": "DRPG.Project.cardKnownBy and others",
+     "kind": "readout",
+     "selector": ".drpg-project-card",
+     "handler": "keepLive 869-879",
+     "effect": "redrawn on its watch list",
+     "gate": "GM rows only on a GM",
+     "how_read": "code; R5204, R7110 named",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "stale_state",
+     "detail": "Finding 11: no listener on the GMs' store, so a share, a revoke, a secret project's new name, room or condition is not drawn on any GM's card."
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "daggerheart.Countdowns",
+     "drpg.projectMeta",
+     "projectSecrets on a GM (name, room, condition, viewers through canSee)",
+     "mineProjectSight and the private words cards on a player",
+     "the discovery store or copy and seenProjects (knowsProject, asSeen)",
+     "game.users (Knows it is there)"
+    ],
+    "listens": [
+     "keepLive watch (877): updateSetting projectMeta, daggerheart.Countdowns, the three world hooks, drpgSecretStored, drpgRouteSettled, drpgSeenChanged, clientSettingChanged for discoveryStore, fogCopy, projectSightCopy"
+    ],
+    "verdict": "partial",
+    "gaps": [
+     "projectSecretStore is not in `stores` and drpgProjectSightChanged is not in `hooks` (877): on a GM, a share or revoke (store `viewers` only; the ownership map is the same for every player since S17-31, so no Countdowns write: projects.mjs:1736-1745, projects-secrecy.mjs:442-455) leaves \"Knows it is there\" as drawn; a secret project's room, name and condition live in the store too (projects-secrecy.mjs:299-308)"
+    ],
+    "focus_rule": "keepLive's (live.mjs): no fields on the card"
+   }
+  },
+  {
+   "surface": "Project token on the map (map marker)",
+   "file": "scripts/projects-map.mjs:295-353 placeProjectToken, 656-679 onProjectTokenMoved, 709-722 onProjectTokenDeleted",
+   "opener": "placed by syncProjectToken on the primary",
+   "audience": "gm controls; a player at OBSERVER sees it when knowsProject (visibility.mjs, not read)",
+   "controls": [
+    {
+     "label": "Drag the token into another room",
+     "key": "DRPG.Project.tokenMoved",
+     "kind": "drag",
+     "selector": "Token",
+     "handler": "onProjectTokenMoved 656-679 (primary only; the project's own token only, projectOwning 687-692)",
+     "effect": "the project's room moves with it, the GMs whispered",
+     "gate": "GM; a module move (MODULE_MOVE) is not a drag",
+     "how_read": "code; scenario 65 G3 named",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Delete the token",
+     "key": "-",
+     "kind": "key / HUD",
+     "selector": "Token delete",
+     "handler": "onProjectTokenDeleted 709-722",
+     "effect": "the project kept off the map (mapHidden) until the manager's Show on the map; a second copy takes over",
+     "gate": "GM; the module's own removals pass MODULE_REMOVAL",
+     "how_read": "code; scenario 65 G1 named",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    },
+    {
+     "label": "Double-click",
+     "key": "-",
+     "kind": "dblclick",
+     "selector": "Token",
+     "handler": "Foundry opens the actor sheet -> showProjectCard",
+     "effect": "the project card",
+     "gate": "everyone",
+     "how_read": "code",
+     "themes": "no hiding rule found (scan of styles/*.css: 264 rules naming drpg-projects, countdown, drpg-project, drpg-window-projects, drpg-glyph, drpg-viewer-list, data-drpg-when*, drpg-passage, drpg-trait-propose, drpg-specific-note, drpg-mini-button, drpg-data-group; of the 27 that match display:none, visibility, opacity 0 or pointer-events, none hides this control under body.drpg-theme-stained-glass, the default theme or narrow.css)",
+     "verdict": "ok",
+     "detail": ""
+    }
+   ],
+   "refresh": {
+    "reads": [
+     "projectMeta tokenId/tokenScene/mapHidden, glyph",
+     "the bar (tint)"
+    ],
+    "listens": [
+     "syncProjectToken after every change (projects.mjs applyProjectChange) and on canvasReady"
+    ],
+    "verdict": "live",
+    "gaps": [],
+    "focus_rule": "n/a"
+   }
+  }
+ ],
+ "counts": {
+  "surfaces": 15,
+  "controls": 94,
+  "ok": 81,
+  "dead": 0,
+  "throws": 0,
+  "mislabeled": 1,
+  "wrong_audience": 0,
+  "silent": 5,
+  "stale_state": 5,
+  "unknown": 2
+ },
+ "findings": [
+  {
+   "id": "controls-12-projects-1",
+   "severity": "minor",
+   "verdict": "stale_state",
+   "title": "The Project manager keeps only the progress figures live: a project made, deleted, moved, renamed, sealed or shared elsewhere is not drawn until the window is reopened",
+   "surface": "Project manager",
+   "control": "the rows themselves",
+   "where": "scripts/projects-ui.mjs:544-568 (wireProjectManager keepFresh), 689-697 (rows from allProjects at open)",
+   "what_happens": "keepFresh's run walks allProjects() and rewrites the text of each [data-drpg-progress] cell it finds; nothing else of the table is redrawn. A project approved from a player's card, made by a preset, or deleted by another GM (or by the tray's row menu) keeps its rows absent or present; a room changed by a token drag (projects-map.mjs:656-679) or a share made by Observe (observe.mjs:485-489) leaves the row's select and ticks as drawn. The comment says so: \"A project being CREATED or deleted elsewhere still needs the window reopening\". The owner's standing rule of 20.11.2026 asks for the redraw. Save is safe against it (the room compared with the list at open, 628-629; viewers through was, projects-secrecy.mjs:492-496; rows gone skipped, 617-619), and Edit on a row deleted elsewhere opens the editor on the deleted project (finding 6).",
+   "evidence": "keepFresh(dialog, {\n    run: root => {\n        for (const project of allProjects()) {\n            const cell = root.querySelector(`[data-drpg-progress=\"${CSS.escape(project.id)}\"]`);\n            if (!cell) continue;\n            ...\n            if (cell.textContent !== text) cell.textContent = text;\n        }\n    },\n    watch: { settingKeys: [\"daggerheart.Countdowns\"] }\n});",
+   "failure_scenario": "A GM keeps the manager open through Daily Life, approves a player's proposal from the chat card and drags the Library barricade into the Gym: the manager shows neither the new project nor the Gym until it is closed and opened again.",
+   "expected": "the table redrawn in place on a project made, removed, moved or changed in who sees it, keeping the fields the GM has changed (keepLive's capture and restore)",
+   "confidence": "read",
+   "refutation_tried": "Looked for any other listener on the manager's element (none in projects-ui.mjs; alreadyOpen raises it, never redraws); the keepFresh watch hears every drpg.* setting and Countdowns, but its run writes progress cells only; a store change (projectSecrets) is a client setting it does not hear at all. Save's guards were read and hold, so the harm is the display and the Edit road, not a lost write.",
+   "probe": "open game.drpg.manageProjects(); on a second GM create a project and drag another's token into a new room; read the manager's tr[data-project] count and the row's select value"
+  },
+  {
+   "id": "controls-12-projects-2",
+   "severity": "nit",
+   "verdict": "stale_state",
+   "title": "In the manager, ticking Secret on a public project's row leaves that row's player ticks disabled under the \"This project is public\" tooltip",
+   "surface": "Project manager",
+   "control": "Who knows about it ticks",
+   "where": "scripts/projects-ui.mjs:407 (locked: !secret), 1669-1675 viewerTicks; compare wireViewerLock 1345-1358, wired only in the project window (1178)",
+   "what_happens": "A public project's ticks are drawn disabled, each with the tooltip DRPG.Project.everyone. The project window unlocks its boxes when Secret or Indirect murder is ticked (E15 part 1 fix e1-G1); the manager has no such wiring, so a GM sealing a project from the manager cannot choose who sees it there: Save seals it with who knew before (sealedViewers) and the builder, and the boxes open only after a reopen.",
+   "evidence": "if (players.length) Object.assign(row, viewerTicks(players, knownBy(p.id), p, { locked: !secret }));\n[...]\nconst lock = locked ? ` disabled data-tooltip=\"${...localize(\"DRPG.Project.everyone\")}\"` : \"\";",
+   "failure_scenario": "A GM ticks Secret on the public \"Barricade\" row to hide it from all but Player 2 and tries to tick Player 2: the boxes stay grey; Save seals it to whoever knew before, and the GM has to reopen the window to tick Player 2.",
+   "expected": "the row's ticks unlock when its Secret or Indirect box is ticked, as the project window's do",
+   "confidence": "read",
+   "refutation_tried": "Checked readManager (1638-1640): a disabled checked box is still read, so the seal keeps the old knowers - nothing is lost, the choice is only deferred. No CSS rule unlocks or hides them (scan). No test presses the row's Secret and then a tick (none found by name).",
+   "probe": "game.drpg.manageProjects(); tick input[name=secret.<public id>], then read input[name=viewers.<id>].disabled"
+  },
+  {
+   "id": "controls-12-projects-3",
+   "severity": "nit",
+   "verdict": "silent",
+   "title": "Show on the map takes its button away and says nothing when no token could be placed",
+   "surface": "Project manager",
+   "control": "Show on the map",
+   "where": "scripts/projects-ui.mjs:598-605; projects-map.mjs:747-753, 607, 618-627, 295-311",
+   "what_happens": "showProjectOnMap clears mapHidden and runs syncProjectToken, which places a token only when the project has a room and a place scene holds it (placeProjectToken returns null otherwise). The button is removed whatever showProjectOnMap answered and no notification follows, so a project whose room is gone, or on no scene, reads as shown and is not.",
+   "evidence": "const { showProjectOnMap } = await import(\"./projects-map.mjs\");\nawait showProjectOnMap(btn.dataset.drpgShowOnMap);\nbtn.remove();",
+   "failure_scenario": "A GM presses Show on the map for a project whose room was renamed since its token was deleted: the button disappears, the map shows nothing, and nothing says why.",
+   "expected": "the button kept, or a line saying the project has no room on any scene, when showProjectOnMap answers null",
+   "confidence": "read",
+   "refutation_tried": "showProjectOnMap answers projectTokenOf(...) (null when nothing stands); the caller ignores the answer. The mapHidden mark can only be set on a project whose token stood, but its room can be cleared or renamed afterwards (manager row, editor, room rename).",
+   "probe": "a project with mapHidden true and room set to a name no place scene holds; press [data-drpg-show-on-map]; read notifications and projectTokenOf"
+  },
+  {
+   "id": "controls-12-projects-4",
+   "severity": "minor",
+   "verdict": "stale_state",
+   "title": "The project window's Save writes the trap's armed and firedAt as they were when the window opened: a trap that fired while it stood open is armed and silent no more",
+   "surface": "Project window (edit)",
+   "control": "Save",
+   "where": "scripts/projects-ui.mjs:1034 (startTrigger read at open), 1249-1253 (written at Save); traps.mjs:207, 362; projects-secrecy.mjs:308",
+   "what_happens": "The edit reads the trigger once from the GMs' store and, on Save of an indirect murder, writes { ...result.trigger, armed: startTrigger.armed, firedAt: startTrigger.firedAt }. setProjectMeta patches the trigger into projectSecrets (whole, a fresh stamp per part). If the trap fired meanwhile - traps.mjs stampFired writes firedAt alone - the Save writes firedAt: null back, and the watcher's \"one alert, then quiet\" (traps.mjs:207, trap 153) no longer holds: the next qualifying event alerts again. The comment at 1245-1248 states the rule the Save then breaks (\"must not re-arm one that has already spoken\").",
+   "evidence": "const startTrigger = (editing ? secretsOf(project.id).trigger : start?.trigger) ?? null;\n[...]\ntrigger: result.murder\n    ? { ...result.trigger, armed: Boolean(startTrigger?.armed),\n        firedAt: startTrigger?.firedAt ?? null,\n        condition: result.condition }\n    : null",
+   "failure_scenario": "A GM opens an armed trap's edit window to fix a typo; a player walks into the room and the trap alerts the GMs; the GM presses Save; the next time a player walks in, the GMs get the trap's alert a second time.",
+   "expected": "the trigger's armed and firedAt read when Save runs (or left out of the change), as the manager leaves the trigger alone",
+   "confidence": "read",
+   "refutation_tried": "traps.mjs:362 stamps firedAt through patchTrigger in the projects' queue; the edit's change runs later in the same queue and carries firedAt read before. The store splits trigger per part (gm-stores.mjs:652), but the edit writes every part, so the later stamps win. No other write between them puts firedAt back. Whether a tier-2 test opens the window across a fire was not found by name.",
+   "probe": "open openProjectDialog({ project }) on an armed watched trap; call traps.mjs stampFired(id) (or walk the trigger); press Save; read secretsOf(id).trigger.firedAt"
+  },
+  {
+   "id": "controls-12-projects-5",
+   "severity": "minor",
+   "verdict": "stale_state",
+   "title": "The project window's Save writes the room, name, size, statistic, glyph and description as drawn, over a change made while it stood open",
+   "surface": "Project window (edit)",
+   "control": "Save",
+   "where": "scripts/projects-ui.mjs:1229-1254; projects.mjs:2613-2639 projectEditChange (2620: meta.room always when given)",
+   "what_happens": "Every field of the form is handed to projectEditChange, which names each one in the change, so the step writes each as the window drew it. The manager guards its room against this (628-629: only a room the row changed), the edit does not: a room the project gained meanwhile from a token drag (projects-map.mjs:656-679, on the primary) or another GM's manager Save is put back, and the token is taken back to the old room by the sync that ends the change. The same holds for a name or size another GM changed. The progress line (editProgressNote, 1112) also stays as read.",
+   "evidence": "const change = combineChanges(projectEditChange({\n    ...(killerId ? { killerId } : {}),\n    name: result.name,\n    target: result.target,\n    img: result.img,\n    glyph: result.glyph,\n    room: result.room,\n    ...",
+   "failure_scenario": "GM A opens the Barricade's edit window; GM B drags its token from the Library into the Gym; A changes the description and presses Save: the project is back in the Library and its token walks back there.",
+   "expected": "only the fields the GM changed in the window written (as the manager's rows and the secrecy's was do), or the window redrawn on a change",
+   "confidence": "read",
+   "refutation_tried": "roomSceneOnRoomChange (1240) compares with roomOf now, but only for the scene; meta.room itself is always written (2620). The window has no live region (no keepLive or keepFresh in openProjectDialog).",
+   "probe": "open the edit window, change the project's room through a token drag on the primary, press Save, read roomOf(id)"
+  },
+  {
+   "id": "controls-12-projects-6",
+   "severity": "nit",
+   "verdict": "mislabeled",
+   "title": "The project window says \"Projects updated.\" and \"1 deleted.\" whatever the step answered",
+   "surface": "Project window (edit)",
+   "control": "Delete (and Save)",
+   "where": "scripts/projects-ui.mjs:1187-1194, 1255-1256; compare the manager's Delete, 497-499",
+   "what_happens": "Delete awaits deleteProject and says savedWithDeletions without reading its answer (null when nothing was removed); Save awaits applyProjectChange and says DRPG.Project.saved whatever came back. When the project was deleted elsewhere while the window stood open - most easily from a manager whose rows were not redrawn (finding 1) - the step finds no countdown (projects.mjs:1665) and the window still says it saved or deleted.",
+   "evidence": "await deleteProject(project.id);\nui.notifications.info(game.i18n.format(\"DRPG.Project.savedWithDeletions\", { n: 1 }));\n[...]\nif (change) await applyProjectChange(project.id, change, { by: { kind: \"gm\" } });\nui.notifications.info(game.i18n.localize(\"DRPG.Project.saved\"));",
+   "failure_scenario": "GM B deletes a project from the tray while GM A's manager still lists it; A presses Edit on it, fixes a name and presses Save: \"Projects updated.\" - and nothing exists.",
+   "expected": "the toast only on a result that changed or removed something, else a line that the project is gone",
+   "confidence": "read",
+   "refutation_tried": "deleteProject answers true only on result.removed (projects.mjs:2669-2673); applyProjectChange answers null for a missing project. The manager's own Delete reads the answer (498), so the window is the odd one out.",
+   "probe": "delete a project on another client, then press Save or Delete in its open edit window; read the notifications and allProjects()"
+  },
+  {
+   "id": "controls-12-projects-7",
+   "severity": "nit",
+   "verdict": "silent",
+   "title": "Share and Revoke access say nothing on a GM's browser when the step refuses",
+   "surface": "Share window",
+   "control": "Share, Revoke access",
+   "where": "scripts/projects-ui.mjs:1752-1756; projects.mjs:2938-2967; projects-secrecy.mjs:434-455, 486-487; projects.mjs:1726-1730 (refused logged)",
+   "what_happens": "On a GM, shareWith returns null on done.refused (\"it is not secret\", or LIST_NOT_HERE) and the step only logs it; unshareWith returns null at once for a project that is no longer secret. The window then returns with no notification - the comment's \"a refusal has been said\" is true of a player's bridge road (bridgeRequest), not of the GM's own. The Share window's list is read once, so a project revealed while it stood open is still offered.",
+   "evidence": "if (result.revoke) {\n    if (!await unshareWith(result.project, result.player)) return;\n}\n// \"Project shared.\" only when it was (E31): a refusal has been said, and a public project is not shared.\nelse if (!await shareWith(result.project, result.player)) return;",
+   "failure_scenario": "A GM opens Share while another GM reveals the chosen project, presses Share: the window closes, nothing says it was not shared.",
+   "expected": "a warning naming why (the reason codes the bridge already says to a player)",
+   "confidence": "read",
+   "refutation_tried": "The builder's Revoke is told (builderStays, projects.mjs:2958-2962), so one refusal is said and two are not. No toast elsewhere on the road (applyProjectChange returns the result; log() is the console).",
+   "probe": "open the Share window, reveal the project on another client, press Share; read notifications"
+  },
+  {
+   "id": "controls-12-projects-8",
+   "severity": "minor",
+   "verdict": "silent",
+   "title": "The tray's row menu Delete deletes a project at once: no question and no word, unlike the two other Deletes",
+   "surface": "Projects tray",
+   "control": "row menu Delete on a project row",
+   "where": "scripts/projects-ui.mjs:242-248 projectRowMenu; compare 490-499 and 1187-1193; lang DRPG.Project.deleteNote",
+   "what_happens": "On a project row the menu entry's click is replaced by deleteProject(id): the project, its metadata, its repair pair and its tokens go in one change, with no confirmProjectDelete and no notification. The manager's Delete and the project window's Delete both ask (destructive, Cancel the default, E22) and say \"1 deleted.\"; the manager's own note says \"Delete in a project's row asks first, then removes the project for good\". Whether Daggerheart's own entry asked a question before it was wrapped is not known here: the wrapper replaces the whole click either way.",
+   "evidence": "} else if (label === \"CONTROLS.CommonDelete\") {\n    entry[clickKey] = function (event, target) {\n        const element = target ?? (event instanceof HTMLElement ? event : null);\n        const id = projectOf(element);\n        if (id) return deleteProject(id);",
+   "failure_scenario": "A GM right-clicks a project row to Edit and picks Delete one line below: the indirect murder and its progress are gone at once, with nothing asked and nothing said.",
+   "expected": "the same question and the same line as the other two Deletes",
+   "confidence": "read",
+   "refutation_tried": "Read projectRowMenu whole: the original click is called only for rows that are no project (247). deleteProject has no question of its own (projects.mjs:2669-2673). Tier 2 E37-T7 presses this Delete only on a row that is no project.",
+   "probe": "right-click a project row on a GM's tray, Delete; read whether a drpgConfirm opened and allProjects()"
+  },
+  {
+   "id": "controls-12-projects-9",
+   "severity": "minor",
+   "verdict": "stale_state",
+   "title": "The Projects action window is drawn once: a project made, finished, frozen or let into in the character's room stays struck through or listed as it was",
+   "surface": "Projects action window",
+   "control": "Work on a project (row), the two selects",
+   "where": "scripts/action-project.mjs:64-66, 108, 110-161; action-menus.mjs (no keepLive or keepFresh)",
+   "what_happens": "The rows' disabled state and the two selects are built from projectsAvailableIn and sabotageTargetsIn read when the window opens, and nothing redraws them. A GM approving the player's own proposal, or letting the player in on a secret project in that room, leaves \"Work on\" struck through with noneHere until the window is closed and opened again; a project finished or frozen meanwhile stays in the select (the roll re-checks before anything is paid, 499-502 and 1004-1005, so nothing wrong is spent).",
+   "evidence": "const here = room ? projectsAvailableIn(place) : [];\n[...]\ndisabled: !here.length,\n[...]\nextra: `${here.length ? `<label class=\"drpg-specific-note\" data-drpg-when=\"work\"> ... ${projectOptionsHtml(here)} ...",
+   "failure_scenario": "A player opens Work on Project in the Library while the GM approves their barricade there: the window still says there is nothing here to work on until they close it and open it again.",
+   "expected": "the rows and the selects redrawn on a change of the projects, the sight copy or the discovery while the window stands open",
+   "confidence": "read",
+   "refutation_tried": "grep of action-menus.mjs for keepLive and keepFresh: none. chooseVariant's rows are its options as given. The re-checks in workOnProject and performSabotage were read and hold.",
+   "probe": "open the Projects action on a player's sheet in an empty room; create a public project in that room on the GM; read the work row's disabled state"
+  },
+  {
+   "id": "controls-12-projects-10",
+   "severity": "nit",
+   "verdict": "silent",
+   "title": "In the proposal window a preset Kind replaces the Scale, Statistic and Room and drops \"This is my indirect murder\" without a word, and every preset's own selects stand under every Kind",
+   "surface": "Propose a project",
+   "control": "This is my indirect murder (and Scale, Statistic, the preset selects)",
+   "where": "scripts/action-project.mjs:240-261 (rows with no data-drpg-when), 338-352",
+   "what_happens": "With a preset chosen, Object.assign at 349-351 sets target, trait, room (but for Repair an item) and murder: false over the form's answers; the card then carries no murder warning and the player is not told the tick was dropped. The preset rows (Room beyond, Which passage, Which breach, Which item, Which lock) carry no attribute that shows them only under their Kind, so with two offers in a room both stand under \"A project of your own\" too.",
+   "evidence": "Object.assign(result, { name: result.name || (...), target: PROJECT_SCALE[scale].progress,\n    trait: preset.trait, room: walled ? offer.from : presetKey === \"repairItem\" ? result.room : here.room, murder: false, condition: \"\" });",
+   "failure_scenario": "A player picks Secret Passage, ticks \"this is my indirect murder\" and picks Desperate: the card the GM gets is a Complex passage with no murder mark, and the player was never told.",
+   "expected": "the fields a preset fixes hidden or disabled under it, and each preset's select shown under its own Kind",
+   "confidence": "read",
+   "refutation_tried": "The CSS scan found no rule for these rows (no data-drpg-when on them); the description field is the only one wired to the Kind (wirePresetDescription). The condition is also emptied (351).",
+   "probe": "open startProject in a room that shares a wall; pick Kind secretPassage, tick murder; read the card's data-murder and the visible rows"
+  },
+  {
+   "id": "controls-12-projects-11",
+   "severity": "minor",
+   "verdict": "stale_state",
+   "title": "The project token card on a GM does not hear the GMs' store: a share, a revoke, or a secret project's new name, room or condition is not drawn",
+   "surface": "Project token card",
+   "control": "The card's facts (GM)",
+   "where": "scripts/projects-map.mjs:877 (watch), 931-934 (Knows it is there); projects-secrecy.mjs:442-455, 299-308; projects.mjs:1736-1745, 1824-1826; settings.mjs:2669-2674",
+   "what_happens": "The card's live region listens to projectMeta, the Countdowns, three hooks and the discovery store, the fog copy and the player's sight copy - not to projectSecretStore, and not to drpgProjectSightChanged. Since S17-31 a share or a revoke changes only the GMs' list `viewers`: the ownership map is the same for every player, the countdown's name stays HIDDEN_NAME, so no countdown is written, and setProjectMeta writes nothing to projectMeta for `viewers` alone. \"Knows it is there\" therefore stays as drawn on every GM, the primary included. A secret project's room, name and condition live in the store as well, so their change reaches a GM's card only when something else redraws it.",
+   "evidence": "watch: { settings: [\"projectMeta\"], settingKeys: [COUNTDOWNS_KEY], hooks: [\"drpgSecretStored\", \"drpgRouteSettled\", \"drpgSeenChanged\"], stores: [discoveryStore, fogCopy, projectSightCopy] },",
+   "failure_scenario": "A GM has the indirect murder's token card open and shares the project with the accomplice from the Share window: the card still lists only the killer under \"Knows it is there\" until it is closed and opened again.",
+   "expected": "projectSecretStore in the card's `stores` (as the dashboard's watch names its stores), or drpgProjectSightChanged in its hooks",
+   "confidence": "read",
+   "refutation_tried": "Followed the share road to the end: changeStep's `moved` compares next with the countdown and both carry HIDDEN_NAME and ownershipMap() (projects.mjs:1736-1745, 1782); setProjectMeta's `open` stays empty for `viewers` (projects-secrecy.mjs:274, 310). tellSight fires drpgProjectSightChanged on the primary (projects.mjs:464), which reaches the tray, the sheets, the HUD and the visibility pass, not the card. The player's own card is live (projectSightCopy).",
+   "probe": "on a GM open a secret project's token card; shareWith(id, userId); read .drpg-project-card dd under DRPG.Project.cardKnownBy"
+  },
+  {
+   "id": "controls-12-projects-12",
+   "severity": "nit",
+   "verdict": "stale_state",
+   "title": "Suspected: on a GM who is not the primary, the tray keeps a secret project's old name after a rename, until it renders for another reason",
+   "surface": "Projects tray",
+   "control": "the rows (a secret row's name, nameSecretRows)",
+   "where": "scripts/projects-tray.mjs:226-239; projects.mjs:1767-1777, 1824-1826, 464; projects-secrecy.mjs:308-314; settings.mjs:2669-2674",
+   "what_happens": "A rename of a secret project writes only secretName to the GMs' store: the countdown keeps HIDDEN_NAME. projectSecrets has no onChange and no tray listener; the primary redraws its own tray through tellSight's local hook, the other GMs hear only the store's clientSettingChanged. The edit's change also names trait and glyph, which go to projectMeta: if Foundry 14 fires updateSetting for a write of an equal value, every tray redraws and this does not happen; that was not read.",
+   "evidence": "if (sealedAfter) {\n    next.name = HIDDEN_NAME;\n    next.ownership = ownershipMap();\n    if (realName !== HIDDEN_NAME && secretsOf(countdownId).secretName !== realName) change = { ...change, meta: { ...change.meta, secretName: realName } };",
+   "failure_scenario": "GM B, not the primary, renames the secret \"Poison\" project to \"Tea set\" in its edit window: B's own tray still reads \"Poison\" until something else redraws it.",
+   "expected": "the tray redrawn on a change of projectSecrets on a GM",
+   "confidence": "suspected",
+   "refutation_tried": "Found the primary's local redraw (tellSight -> drpgProjectSightChanged, projects.mjs:464, 1971-1973) and that it runs on the primary alone (isPrimaryGm, 442). Not settled: whether the same-value projectMeta write (setProjectMeta 313) fires updateSetting on Foundry 14.370.",
+   "probe": "two GMs; on the non-primary rename a secret project through openProjectDialog; read its tray row header"
+  }
+ ],
+ "not_established": [
+  "No control was pressed in this pass (no harness run, no base-run.json or probe-42/43.json on the branch when read). Every row is label -> element -> listener -> handler -> effect as read in source; tests and scenarios are named from their text, their results not read.",
+  "Whether Daggerheart 2.12.8 draws the tray's -/+ (and the row menu) for a player whose level on every project is OBSERVER (projects-secrecy.mjs ownershipMap). If it does, they are wrong_audience: each click ends in the relay's refusal. New live check: a player's tray on a v14 table with one public project they know; are [data-action=increaseCountdown] drawn, and what does a click say.",
+  "Whether Daggerheart's own row menu Delete asked a question before projectRowMenu replaced its click (finding 8 holds either way for the module's road). Daggerheart's countdowns.mjs _getCountdownContextOptions, read at 2.12.8.",
+  "Finding 12: whether Foundry 14.370's ClientSettings#set fires updateSetting for a world setting written with an equal value (setProjectMeta's projectMeta write in an edit that names trait and glyph). Reading the write on the owner's sandbox settles it.",
+  "The trap's Plant card (rulePlantTrapItem), the room action editor (facility-editor.mjs editProjectFacility), the trait ruling (trait-ruling.mjs traitFor) and the passage pick on the canvas (passages-gm.mjs startPassagePick) were read only as far as the opener; their controls are other readers'.",
+  "Layout: that the manager's matrix at sixteen players keeps Edit and Delete in sight (the comment's 1366x768 reading), and that the tray's gear and caret clear the header under both themes, were not measured here.",
+  "An Assistant GM on these windows (the manager's writes, the tray guard) was not read; the code asks game.user.isGM throughout."
+ ]
+}

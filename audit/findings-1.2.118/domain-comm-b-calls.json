@@ -1,0 +1,363 @@
+{
+ "reader": "domain-comm-b-calls",
+ "checkout": "claude/audit-119 (scripts/ as on main b5a29e73, 1.2.118); audit/findings-1.2.118/base-run.json did not exist when read, so no test result is cited as read",
+ "files_read": [
+  {
+   "file": "scripts/calls.mjs",
+   "lines": 931,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/call-gm.mjs",
+   "lines": 1308,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/call-pickers.mjs",
+   "lines": 579,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/call-world.mjs",
+   "lines": 731,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/call-effects.mjs",
+   "lines": 1422,
+   "read": "whole"
+  }
+ ],
+ "count_expected": 4971,
+ "count_note": "4971 lines in five files, as the scope lists them (931 + 1308 + 579 + 731 + 1422, wc -l on the checkout); each read start to end.",
+ "neighbours_followed": [
+  "scripts/sheet-actions.mjs runCall 787-939 (the Call's road from the tile: callBarred, the held check at 865, pickTarget at 908-909, refusalBeforePaying for Despair, confirmCall at 929, the spenders) and monokumaPool 737-744",
+  "scripts/mask-gm.mjs header 1-35, isMaskedToken/isMaskedActor 115-124, namesHiddenFrom 126-146, nameAsSeen 148-158, setNameMask hand-off 691",
+  "scripts/secret.mjs setNameMask 448-469, maskNames 471-476, wordsFor 496-499, postSecret/post 1155-1200 (the null returns), standingMask 1109-1116",
+  "scripts/utils.mjs announce 701-716, whisperToOwnerOnly 735-743, whisperToOwner 751-759, whisperToGms 762-768, privately 815-836, ownerOf 642-647, playerOwns 653-655, error/warn 333-341",
+  "scripts/messenger.mjs postToThread 270-273, createThreadMessage 275-310",
+  "scripts/live.mjs keepLive 106-186 and listenFor 304-345 (what a Call window's live header hears)",
+  "scripts/bridge-table.mjs rows call.approve 628-639, call.yes 648-650, call.arm 932-970; scripts/bridge-runs-acts.mjs handleHopeCall, handleCallYes, handleDynamicAnswer, handleRulingExpired, handleRulingReceived 1032-1057",
+  "scripts/bridge-asks.mjs requestArmCall 466-477, requestHopeCallApproval 769-773, requestReroll 1008-1013; scripts/bridge-guards.mjs sayNotDone 581-596",
+  "scripts/despair.mjs adjustDespair 330-360, spendableDespair 609-611, spendDespairCall 902-928",
+  "scripts/allowed-now.mjs roads callHope 92 and callDespair 95",
+  "scripts/projects.mjs addProgress 1004-1041, projectLabel 2823-2839; scripts/projects-secrecy.mjs HIDDEN_NAME 128, shownName/nameAs 155-185, labelFor 187-191",
+  "scripts/movement.mjs othersInRoom 3781-3785",
+  "scripts/traps.mjs 300-345 (the gmOnly caller of callGm); scripts/use-items.mjs 590-610 (promptAndCallGm's caller); scripts/action-search.mjs 143-170, scripts/action-observe.mjs 222-250 (callGm from the roller's browser)",
+  "scripts/config.mjs HOPE_CALLS/DESPAIR_CALLS rows with target player (2322, 2716-2763) and Contraband 2863-2864",
+  "lang/en.json DRPG.Calls.* keys met in the five files (aimedAt 4099, armed 4132, damaged 4134, destroyed 4144, refunded 4146, silenced 4147, chained 4149, progressSecret 4199, notArmedNotCharged 4220)",
+  "scripts/tests-tier1.mjs R7404 (59209-59230); scripts/tests-tier2.mjs 'a co-owner's question lands in the co-owner's thread ...' (39773-39836)",
+  "docs/dev/owner-115/STATUS.md item 1 (the owner's mask rule, 14.11.2026)",
+  "audit/findings-1.2.42/comms.md and despair.md, audit/findings-1.2.118/old-1.2.42-comms.json, old-1.2.42-despair.json, controls-07-messages-calls.json (to keep to what is not reported already)"
+ ],
+ "strengths": [
+  "Every question that waits on a human is a card with a mark, a time on it and one end: a resend finds its card by the mark and is held again only as the mark says (call-gm.mjs askAgain 150-163, sameAsk 119-123), the primary ends each card at its time and sweeps the rest at its ready (endAtExpiry 175-180, sweepAskCards 207-218), an expiry under a GM's open review waits for it (endExpired 605-617, expiryAfterClaim 632-637), and a card that is gone ends nothing (cardGone 603).",
+  "One ruling per card, held on the primary in memory and as a pending row of the GMs' store, read after the last await so of two takes exactly one wins (call-gm.mjs claimOnPrimary 1077-1104); a leaving GM's claims are released (releaseClaimsOf 1047-1056).",
+  "A Despair Call is refused with its reason before the pool is touched (calls.mjs 450-461 with call-effects.mjs refusalBeforePaying 884-911, gatherRefusal 921-930, projectRefusal 942-956), and an effect that finds nothing to do refunds without being called a fault (NothingToDo 965, applyCall 1405-1406).",
+  "The price on a Call's card comes from the GM's own table, not the packet (call-gm.mjs 229-243), and a Hope Call that waited for a ruling is re-checked and charged on the value read after the wait (calls.mjs 248-260; DESP-01 stays fixed).",
+  "A secret project's name and numbers stay off the public Despair card and go on a veiled card to its insiders (call-effects.mjs progressEffect 1120-1136, calls.mjs 535-546).",
+  "A Confusion's spent report is taken only for a nonce a drawn roll's record names, for that record's character (call-effects.mjs namedByRecords 760-766, answerConfusions 772-782).",
+  "The assembly is read on the caller's scene from documents, never the camera, both in the picker and on the GM (call-world.mjs gatherSceneOf 258-261, scheduleGather 297, runPendingGather 425-432)."
+ ],
+ "findings": [
+  {
+   "id": "domain-comm-b-calls-1",
+   "domain": "COMM",
+   "severity": "blocker",
+   "category": "leak",
+   "title": "Support's confirmation names the masked killer the picker drew as \"?\": a bystander or the victim learns who the killer is for the price of opening a window",
+   "where": "scripts/calls.mjs:721 (`const aimed = describeChoice(choice)`), 769-770 (the \"Aimed at\" line), 878-880 (`describeChoice` answers `choice.target.name`); scripts/call-pickers.mjs:430-433 (the picker draws `nameAsSeen(a)` and hands back the actor itself); scripts/sheet-actions.mjs:908-909, 929 (the picker's choice handed to confirmCall); scripts/mask-gm.mjs:148-158 (`nameAsSeen`)",
+   "what_happens": "pickPlayer lists the people in the buyer's room by nameAsSeen, so a masked killer reads \"?\" to another player (owner-115 item 1b). The row's value is the actor id, and pickPlayer answers `{ target: <the actor> }`. runCall then opens confirmCall with that choice, and confirmCall prints `Aimed at: ${describeChoice(choice)}`, which is `choice.target.name` - the actor's real name, drawn in a window on the buyer's own browser. No card is involved, so secret.mjs's mask cut (`wordsFor`, which writes names hidden from a reader as \"?\" on private cards) never reaches it. Cancel costs nothing; the sheet asks only that the buyer holds Support's 1 Hope before the picker (sheet-actions.mjs:865-871).",
+   "evidence": "call-pickers.mjs:430  const id = await choose(ask, \"DRPG.Calls.whichPlayer\",\ncall-pickers.mjs:431      pool.map(a => ({ value: a.id, label: nameAsSeen(a) })));\ncall-pickers.mjs:433  return { target: pool.find(a => a.id === id) };\ncalls.mjs:721   const aimed = describeChoice(choice);\ncalls.mjs:770       aimed ? `<p><strong>${game.i18n.localize(\"DRPG.Calls.aimedAt\")}:</strong> ${foundry.utils.escapeHTML(aimed)}</p>` : \"\"}`,\ncalls.mjs:880   if (choice.target?.name) return choice.target.name;\nmask-gm.mjs:156  if (!user?.isGM && (masked ?? isMaskedActor(actor)) && !actor.testUserPermission?.(user, \"OWNER\")) return MASK_NAME;",
+   "failure_scenario": "A direct murder opens on Hope and the killer stands behind a \"?\"; the victim (or a third student in the room) presses Support, picks the \"?\" row, reads \"Aimed at: Chie Mori\" in the confirmation and presses Cancel, having paid nothing.",
+   "expected": "The confirmation names the target as the picker did (nameAsSeen), so a masked character reads \"?\" there too; docs/dev/owner-115/STATUS.md item 1: while the mask stands the killer's identity is secret from everyone not in on it.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a mask guard on the road: callBarred and hopeCallRefusal ask only the Eclipse, the Silence weather, death and the Silence Call (calls.mjs:64-130; allowed-now.mjs:92 shuts callHope only in an Eclipse), so a Support may be bought during and after the fight; pickPlayer reads othersInRoom (movement.mjs:3781-3785, token documents) and studentActors, both of which hold the masked killer; nothing in runCall rewrites `choice` between the picker and confirmCall (sheet-actions.mjs:908-929). The receipt and the beneficiary's notice are private cards and are cut by wordsFor, so they are not part of this finding. R7404 (tests-tier1.mjs:59209) reads call-pickers.mjs's picker source for nameAsSeen and does not read calls.mjs's confirmation; no test reads `describeChoice` (grep of scripts/tests*.mjs and audit/harness/scenarios for aimedAt and describeChoice: none). The base run was not available, so R7404's result was not read.",
+   "tests_near": "R7404 (scripts/tests-tier1.mjs:59209), the six pickers' source; scenario 21's masked fight reads cards and the scan, not a Call window.",
+   "live_check": "new live check: with a mask standing after a direct murder opened on Hope, on the victim's browser press Support, pick \"?\" and read the confirmation's \"Aimed at\" line; it should say \"?\".",
+   "old_id": null
+  },
+  {
+   "id": "domain-comm-b-calls-2",
+   "domain": "COMM",
+   "severity": "major",
+   "category": "leak",
+   "title": "A Despair Call aimed at a masked killer names them on the public card to every player",
+   "where": "scripts/calls.mjs:525-534 (the public card, `announce` with no whisper list); scripts/call-effects.mjs:1000-1003 (Obstacle and Approval: `name: beneficiary.name`), 1044-1046 (Despair as Hope), 1099-1102 (Pain, Paranoia), 1288 (Silence), 1303 (Chained); scripts/utils.mjs:701-716 and 815-831 (a card with no whisper list is `ChatMessage.create` with the content as written); scripts/secret.mjs:496-499 (the mask cut lives in `wordsFor`, which only private cards pass)",
+   "what_happens": "spendDespairCallFor posts the Call's public card with the effect's receipt lines, and every Call aimed at a student writes that student's real name into a line (\"{name}'s next roll gets {what}.\", \"{name} loses {what}.\", \"{name} cannot spend Hope Calls ...\", \"{name} is chained ...\"). A public card goes to `ChatMessage.create` with its words in the document (utils.mjs privately, no recipients), so the mask's cut, which secret.mjs applies to each reader's copy of a private card's words, is never asked. The GM's picker lists real names, so nothing on the GM's side marks the masked character either.",
+   "evidence": "calls.mjs:531  await announce({\ncalls.mjs:532      content: `<h3>${game.i18n.localize(\"DRPG.Despair.callTitle\")} - ${esc(call.label)}</h3>${body}`,\ncall-effects.mjs:1000  done.push(game.i18n.format(\"DRPG.Calls.armed\", {\ncall-effects.mjs:1001      name: beneficiary.name,\nutils.mjs:821   if (!list?.length) {\nutils.mjs:831       return ChatMessage.create(payload);\nsecret.mjs:496  export function wordsFor(userId, html) {\nsecret.mjs:497      const hidden = nameMask(userId);",
+   "failure_scenario": "While the killer stands behind a \"?\", the Monokuma's GM buys Pain on the student it knows to be the killer; every player's chat shows \"Pain - Chie Mori loses 2 Health\", and the table knows who the \"?\" is.",
+   "expected": "While a mask stands, a public card names a masked character as \"?\" to non-insiders, as the crisis card does (murder-rules.mjs `maskedName`, owner-115 item 1), or the Despair Call's lines go through the same cut.",
+   "confidence": "read",
+   "refutation_tried": "Looked for another cut of public cards: grep for maskNames and namesHiddenFrom outside mask-gm.mjs finds secret.mjs (private cards) and frisk.mjs (its own packet) only; no renderChatMessage hook rewrites a public card's names. spendDespairCallFor has no mask question (calls.mjs:408-554). The design says Despair Calls are public (calls.mjs:13-14, 507-518) and the chain's room was taken off the card for privacy (call-effects.mjs:1301-1303), so the name on the card is the rule; what is not covered is the mask's period, which the owner's rule of 14.11 makes secret from everyone not in on it. It needs a GM to aim a Call at the masked character, so it is major rather than a blocker.",
+   "tests_near": "none found that posts a Despair Call while a mask stands (grep of tests-tier1/2 for spendDespairCallFor near mask).",
+   "live_check": "new live check: a mask standing, the GM buys Obstacle on the masked killer; read the public card on another player's browser.",
+   "old_id": null
+  },
+  {
+   "id": "domain-comm-b-calls-3",
+   "domain": "COMM",
+   "severity": "minor",
+   "category": "flow",
+   "title": "A co-owner's own call on the GM (Search for something specific, Observe, Analyze, a project proposal, a Tier 0 item's use) goes to the other owner's thread",
+   "where": "scripts/call-gm.mjs:951 (`threadOf(actor, thread)`), 1018-1022 (`threadOf` falls back to `ownerOf` with no `thread`); scripts/utils.mjs:642-647 (`ownerOf`: the first active non-GM owner); callers on the roller's browser with no `thread`: scripts/action-search.mjs:148, scripts/action-observe.mjs:232, scripts/action-analyze.mjs:259, scripts/action-project.mjs:416, scripts/call-gm.mjs:1306 (promptAndCallGm, used by use-items.mjs:596)",
+   "what_happens": "E18 fix e1-G7 sends a card to its asker's thread only for the asks the primary holds (Call, Dynamic, statistic, Observe's gaze), which pass `thread: ctx.asker`. Every card a player's own browser posts through callGm passes no `thread`, so threadOf answers ownerOf(actor): the first connected player owner. When a second player owns the character too, that player's request lands in the first owner's thread, whispered to that player and the GMs only (messenger.mjs:276), and since E91 C6 the GM's ruling follows the card into that thread. The asker reads nothing in their own thread.",
+   "evidence": "call-gm.mjs:951   const owner = gmOnly ? null : threadOf(actor, thread);\ncall-gm.mjs:1018  function threadOf(actor, userId) {\ncall-gm.mjs:1019      const user = userId ? game.users.get(userId) : null;\ncall-gm.mjs:1021      return ownerOf(actor);\ncall-gm.mjs:1306      const sent = await callGm(actor, { title, roll, request: text, room, body, actions, what, nothingSpent: true });\nutils.mjs:644      return users.find(u => !u.isGM && u.active && actor.testUserPermission(u, \"OWNER\"))",
+   "failure_scenario": "Two players share Aiko; the second rolls Search for something specific and writes what they look for: the card, its 'Open until' and the GM's answer go to the first player's GM Chat, and the second waits on a thread that never shows it.",
+   "expected": "A card a player's own browser posts goes to that player's thread when they own the character (`thread: game.user.id`), as the comment at call-gm.mjs:1009-1016 states for the primary's asks.",
+   "confidence": "read",
+   "refutation_tried": "Checked whether callGm defaults `thread` to the poster: it defaults to null (call-gm.mjs:923). Checked the tier 2 test 'a co-owner's question lands in the co-owner's thread' (tests-tier2.mjs:39773-39836): it drives `dynamic.difficulty` through the bridge's runner, the primary-held road, and reads nothing of the local roads. Co-owned characters are a supported case (utils.mjs:649-651 playerOwns, E91 C6, D078), so the situation exists; it is rare, hence minor.",
+   "tests_near": "tier 2 'a co-owner's question lands in the co-owner's thread ...' (scripts/tests-tier2.mjs:39773), 'a GM's ruling on a card goes to the thread the card is in ...' (39837); results not read (no base-run.json).",
+   "live_check": "new live check: give a student a second player owner, have that player Search for something specific, and read which thread the card lands in.",
+   "old_id": null
+  },
+  {
+   "id": "domain-comm-b-calls-4",
+   "domain": "COMM",
+   "severity": "minor",
+   "category": "ux",
+   "title": "Contraband destroys a student's item and tells nobody whose it was",
+   "where": "scripts/call-effects.mjs:1354-1362 (destroyItemEffect: delete and a receipt line, no notice to the owner); compare silenceEffect 1289 and chainEffect 1304, which `tell` their target; scripts/calls.mjs:525-534 (the public card); lang/en.json:4144 (\"“{item}” is destroyed.\")",
+   "what_happens": "The item is deleted on the GM and the public card says only the item's name. Every other Despair Call aimed at a student tells the student (armCall's notice, `tell` for Silence and Chain); Contraband's owner is not addressed, and no listener of `drpgDespairCall` does it (grep: one caller, no listener).",
+   "evidence": "call-effects.mjs:1359  const name = choice.item.name;\ncall-effects.mjs:1360  await choice.item.delete();\ncall-effects.mjs:1361  done.push(game.i18n.format(\"DRPG.Calls.destroyed\", { item: name }));\ncall-effects.mjs:1289  await tell(choice.target, \"DRPG.Calls.silencedNotice\");",
+   "failure_scenario": "The Monokuma destroys a student's Crowbar; the player sees a public line about a Crowbar, finds an empty slot later and asks the GM whether the sheet lost an item.",
+   "expected": "The owner of the item (or of the body) is told, privately, what was destroyed, as Silence and Chain tell theirs.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a notice on the delete: the sheet's own delete hooks are the GMs' audit (a GM's write) and draw nothing to the player; Hooks.callAll('drpgDespairCall') at calls.mjs:548 has no listener in scripts/ (grep). Whether the owner should be told is not written anywhere I found; if it is a decision, this moves to by_decision.",
+   "old_id": null
+  },
+  {
+   "id": "domain-comm-b-calls-5",
+   "domain": "COMM",
+   "severity": "nit",
+   "category": "ux",
+   "title": "A refused or unanswered arm of a Hope Call says so twice, and logs an error for an ordinary refusal",
+   "where": "scripts/calls.mjs:303-308 (`notArmedNotCharged` after `failed && gmPays`); scripts/call-effects.mjs:283-288 (armCall answers null on the bridge's refusal), 990-997 (grantEffect throws an Error), 1405-1415 (applyCall logs it with `error(...)`); scripts/bridge-asks.mjs:466-477 (requestArmCall, through `ask`, which says the refusal); .claude/rules/trust-model.md 'How to add a bridge action' step 4",
+   "what_happens": "Since E29 C8 every Hope Call that grants a roll is armed on the primary. When the GM side refuses it, or no GM answers, the bridge's `ask` says \"... was not carried out: <why>\" (sayNotDone), armCall answers null, grantEffect throws a plain Error, applyCall writes 'Could not fully apply' at error level, and spendHopeCall then warns \"{call} was not armed. You keep your Hope.\" - two notices for one refusal, the second from the caller, which the rule says never shows its own refused message.",
+   "evidence": "call-effects.mjs:287  const res = await requestArmCall(actor.id, payload);\ncall-effects.mjs:288  if (!res.ok || !res.value) return null;\ncall-effects.mjs:997  if (!armed) throw new Error(`could not arm ${key} on ${beneficiary.name}`);\ncall-effects.mjs:1410 error(`Could not fully apply ${key}`, err);\ncalls.mjs:305   if (failed && gmPays) {\ncalls.mjs:306       ui.notifications.warn(game.i18n.format(\"DRPG.Calls.notArmedNotCharged\", { call: call.label }));",
+   "failure_scenario": "A player buys a Loaded Die while the GM's browser holds one already armed: a toast says the arm was not carried out because it is already held, a second says the Loaded Die was not armed and the Hope is kept, and the GM's diagnostics count an error.",
+   "expected": "One notice (the bridge's, which can say nothing was spent), and a refusal that is not a fault kept out of the error log, as DESP-19 settled for the refund road.",
+   "confidence": "read",
+   "refutation_tried": "Checked whether the bridge stays quiet on call.arm: the row has no `quiet` and no `tell` (bridge-table.mjs:932-970) and requestArmCall passes no `quiet` (bridge-asks.mjs:466-477), so its refusal is said. The sheet's own pre-check (sheet-actions.mjs:899-905) catches a second copy for a Call with no target before the price, so the double needs a GM-side refusal the sheet did not foresee or a GM that does not answer. Related to DESP-19 (fixed for the refund road), not the same road.",
+   "old_id": null
+  },
+  {
+   "id": "domain-comm-b-calls-6",
+   "domain": "COMM",
+   "severity": "minor",
+   "category": "bug",
+   "title": "Two GMs writing a seal or a restriction at once keep only one: the sealed rooms and the restrictions are read and written whole from each GM's copy",
+   "where": "scripts/call-world.mjs:65-69 (sealRoom), 134-139 (restrict), 202-207 (writeWorld); compare scripts/despair.mjs:330-349 (the pools' one writer and serialWrite, DESP-12)",
+   "what_happens": "sealRoom and restrict read the world setting on this GM's browser, add one entry and set the whole value. Two Monokumas on two GM browsers buying Silence on two students (or two Seals) within one round trip each read the old value, and the second write drops the first's entry - both paid, both public cards say it landed. restrict also answers true whatever writeWorld answered, where sealRoomEffect checks the write (call-effects.mjs:1275-1277), so a Silence or a Chain is announced even when nothing was written.",
+   "evidence": "call-world.mjs:134  export async function restrict(actor, patch) {\ncall-world.mjs:135      const all = { ...restrictions() };\ncall-world.mjs:136      all[actor.id] = { ...(all[actor.id] ?? {}), ...patch };\ncall-world.mjs:137      await writeWorld(SETTINGS.restrictions, all);\ncall-world.mjs:138      return true;\ncall-world.mjs:66   const current = new Set(sealedRooms());",
+   "failure_scenario": "Two GMs, each with a Monokuma, Silence Aiko and Botan in the same second: both cards say silenced, both pools pay 4, and only Botan is silenced.",
+   "expected": "One writer for these two settings, as DESP-12 gave the pools (the primary, or a serial step), and restrict's answer the write's.",
+   "confidence": "read",
+   "refutation_tried": "Looked for a serial step or a primary hand-off around writeWorld: none (call-world.mjs:202-207); Despair Calls are bought on any GM's browser (calls.mjs:416-419 refuses only players). The interleaving itself was not measured; it needs two GMs within network latency, so minor.",
+   "old_id": null
+  },
+  {
+   "id": "domain-comm-b-calls-7",
+   "domain": "COMM",
+   "severity": "nit",
+   "category": "text",
+   "title": "A Call aimed at a secret project says \"Aimed at: ???\" in its confirmation",
+   "where": "scripts/calls.mjs:883-889 (describeChoice reads the raw countdown's name); scripts/projects-secrecy.mjs:128 (HIDDEN_NAME \"???\"), 160-191 (a secret project's countdown carries the neutral name; the real one is the GMs' secretName); scripts/call-pickers.mjs:502-504 (the picker names it with projectLabel)",
+   "what_happens": "The picker names each project by projectLabel, which reads the name the reader may know (the secret name to an insider and to a GM). The confirmation names the picked project from `game.settings.get(\"daggerheart\", \"Countdowns\")...name`, which for a secret project is HIDDEN_NAME, so Contribution, Game Integrity and Patronage on a secret project say \"Aimed at: ???\" one window after the buyer picked it by name.",
+   "evidence": "calls.mjs:885  const data = game.settings.get(\"daggerheart\", \"Countdowns\");\ncalls.mjs:886  return data?.countdowns?.[choice.project]?.name ?? null;\nprojects-secrecy.mjs:128  export const HIDDEN_NAME = \"???\";\ncall-pickers.mjs:504  pool.map(p => ({ value: p.id, label: projectLabel(p) })), \"fa-list-check\");",
+   "failure_scenario": "The killer picks their trap by name for a Contribution and the confirmation reads \"Aimed at: ???\", which looks like a different project.",
+   "expected": "The confirmation names the project as the picker did (projects.mjs projectLabel or shownName).",
+   "confidence": "read",
+   "refutation_tried": "Checked whether a secret project's countdown keeps its real name: projects-secrecy.mjs:116-128 and 419 say only a lift writes HIDDEN_NAME there and the name lives in the GMs' store; nameAs (168-185) is the reader that tells them apart, and describeChoice does not call it.",
+   "old_id": null
+  },
+  {
+   "id": "domain-comm-b-calls-8",
+   "domain": "COMM",
+   "severity": "nit",
+   "category": "bug",
+   "title": "A note or a new rule that reads \"cancel\" is taken for the Cancel button",
+   "where": "scripts/calls.mjs:788-791 and 804 (confirmCall: the callback answers the note bare, `result === \"cancel\"` returns null); scripts/call-pickers.mjs:326 and 330 (pickText: the rule's words bare, `text === \"cancel\"`); compare scripts/call-gm.mjs:1208-1211 and 1239 (askForRequest answers `{ text }` since E18 C0, S10-52)",
+   "what_happens": "The two windows answer the typed words themselves, and the kit's Cancel answers its action \"cancel\", so the words \"cancel\" (or \"Cancel\" after no case change - only the exact lower-case word) are read as Cancel: an Experience's note \"cancel\" closes with nothing sent and nothing said, and a New Rule \"cancel\" is dropped. askForRequest fixed the same shape in E18 C0.",
+   "evidence": "calls.mjs:789  const words = asksGm ? (dialog.element.querySelector(\"[name=callNote]\")?.value.trim() ?? \"\") : \"\";\ncalls.mjs:790  return rows ? { key: pickedRow(dialog.element, \"call\"), note: words } : words;\ncalls.mjs:804  if (result === \"cancel\" || result === null || result === undefined) return null;\ncall-pickers.mjs:330  if (!text || text === \"cancel\") return null;",
+   "failure_scenario": "A Monokuma writes the rule \"cancel\" (or a player asks Experience with the note \"cancel\") and the window closes as if cancelled.",
+   "expected": "The words wrapped (`{ text }`), as askForRequest's are.",
+   "confidence": "read",
+   "refutation_tried": "Talent's rows answer an object, so only the bare-note Calls and pickText are touched; choose() answers ids and room names, where a room named \"cancel\" is the same shape but unlikely.",
+   "old_id": null
+  },
+  {
+   "id": "domain-comm-b-calls-9",
+   "domain": "COMM",
+   "severity": "nit",
+   "category": "text",
+   "title": "The GMs' card for a Call's approval prints the effect sentence the packet sent",
+   "where": "scripts/call-gm.mjs:242 (`esc(payload.effect)`), 240 (the title from the table, the packet's label only as a fallback), 229-243 (the comment: the GM holds the same HOPE_CALLS); scripts/bridge-table.mjs:634 (`effect: as.text` whitelisted)",
+   "what_happens": "The card's title and price are read from this GM's HOPE_CALLS, but the line under the title is the packet's `effect`, a claim. A player's console can put any sentence there, escaped, on the card the GMs rule on.",
+   "evidence": "call-gm.mjs:240  title: game.i18n.format(\"DRPG.Calls.approveTitle\", { call: call?.label ?? payload.callLabel ?? \"\" }),\ncall-gm.mjs:242  body: `<p>${esc(payload.effect ?? \"\")}</p><p class=\"notes\">${\nbridge-table.mjs:634  sanitize: pick({ actorId: as.id, key: as.text, callLabel: as.text, effect: as.text, note: as.text, nonce: as.text }),",
+   "failure_scenario": "A console sends an Experience's ask whose effect reads \"+5 to every roll today\"; the GM reads that under \"Approve Experience?\" and may rule on it.",
+   "expected": "The effect from `proseOf(HOPE_CALLS[key], \"effect\")`, as the price is.",
+   "confidence": "read",
+   "refutation_tried": "What a yes allows is held by the primary to the key and purchase (bridge-guards.mjs guardArmGmYes, read by name only), so the misleading sentence changes no grant; it is text on a GM's card, hence nit.",
+   "old_id": null
+  }
+ ],
+ "by_decision": [
+  {
+   "what": "A second approval window on the GM's own side answers null and says nothing; nothing is spent.",
+   "source": "scripts/calls.mjs:847-851 (E44 C2c, 04.11.2026; D176)"
+  },
+  {
+   "what": "Hope Calls stay open in a Class Trial while Despair Calls are shut.",
+   "source": "scripts/calls.mjs:430-441 (T-1, Dawid 17.09)"
+  },
+  {
+   "what": "A Despair Call's card is public and names its target; the chain's room was taken off it.",
+   "source": "scripts/calls.mjs:13-14, 507-518 (Dawid 28.08); scripts/call-effects.mjs:1301-1303 (privacy line 2, #5, the owner's rule of 13.11.2026). Finding 2 is only the mask's period."
+  },
+  {
+   "what": "Calling off an assembly gives no refund.",
+   "source": "scripts/call-world.mjs:340-343; sheet-actions.mjs gatherNoRefund"
+  },
+  {
+   "what": "A seal is a room name and shuts every room of that name on every scene.",
+   "source": "scripts/call-world.mjs:96-101 (E12 fix k3-K2)"
+  },
+  {
+   "what": "The assembly's order is cleared before the teleport; a teleport that throws falls back to a direct placement and leaves no order to retry.",
+   "source": "scripts/call-world.mjs:374-391, 407-423 (trap 106, CALL-18)"
+  },
+  {
+   "what": "A Hope Call that arms no roll (Contribution, the crossings, the actions, the rest) is paid on the buyer's browser.",
+   "source": ".claude/rules/trust-model.md, 'What stays open'; scripts/calls.mjs:281-299"
+  },
+  {
+   "what": "The Reroll's window names the roll this browser holds; the GMs take back their own row.",
+   "source": "scripts/calls.mjs:560-620 (E16 part 2 C0; E68 C11, D047)"
+  }
+ ],
+ "comments_against_code": [
+  {
+   "where": "scripts/call-gm.mjs:18-24",
+   "comment_says": "gm-bridge.mjs re-exports ten names, 'fifteen more are exported now', and C5a added four senders, three exported (28 names; .claude/rules/code.md's row says '28 names exported, 10 of them re-exported').",
+   "code_does": "22 top-level exports (grep '^export (async )?(function|const)' scripts/call-gm.mjs); gm-bridge.mjs:44-47 re-exports 10."
+  },
+  {
+   "where": "scripts/call-world.mjs:23-25 and 530-531",
+   "comment_says": "Below it are config.mjs, settings.mjs and utils.mjs statically, and rooms.mjs; later 'this file imports only config.mjs, settings.mjs and utils.mjs statically (the header)'.",
+   "code_does": "Static imports also of rooms.mjs (35) and season-reset.mjs (37)."
+  },
+  {
+   "where": "scripts/call-pickers.mjs:18-20",
+   "comment_says": "call-effects.mjs re-exports `pickTarget` - 'the one name here another file reads (sheet.mjs, through that facade)'.",
+   "code_does": "calls.mjs, monocub.mjs and sheet-actions.mjs import callWindow, callHeader and the rest directly (grep), as the same header says further down (29-31)."
+  },
+  {
+   "where": "scripts/calls.mjs:834-844",
+   "comment_says": "'The GM's ruling on a Call that needs one' ... '@returns {Promise<boolean>} true to allow.'",
+   "code_does": "Since COMM-04 a player's Call is ruled by card (call-gm.mjs askHopeCallByCard); this window serves only a purchase on the GM's own side (calls.mjs:227-228), and it answers null when one is already open (851)."
+  },
+  {
+   "where": "scripts/call-effects.mjs:1275-1277 against 1287 and 1300",
+   "comment_says": "'Announced only when written (E03; audit S09-11): writeWorld answers null on a client that cannot write, and the card said \"sealed\" anyway.'",
+   "code_does": "The seal checks its write; Silence and Chain call restrict, which answers true whatever writeWorld answered (call-world.mjs:134-139), and push their receipt line unchecked."
+  }
+ ],
+ "hygiene": {
+  "functions_over_300": [],
+  "functions_150_to_300": 2,
+  "functions_150_to_300_list": [
+   "calls.mjs spendHopeCall 156-333 (178 lines, about half comments)",
+   "call-gm.mjs callGm 846-1007 (162 lines, about 90 of them the parameters' doc)"
+  ],
+  "functions_100_to_150": [
+   "calls.mjs spendDespairCallFor 408-554 (147)",
+   "calls.mjs confirmCall 714-818 (105)"
+  ],
+  "duplicated_helpers": [
+   "callBarred's Hope half (calls.mjs:75-88) asks the same four things in the same order as hopeCallRefusal (100-130): overflowBlocksCalls, isDeadForGm, isCallSilenced, with the Eclipse read two ways (`why === WHY.eclipse` against `!ok`, the same today since allowed-now.mjs:92 shuts callHope only for the Eclipse).",
+   "`kind === \"hope\" ? HOPE_CALLS : DESPAIR_CALLS` written four times (calls.mjs:692, 715; call-pickers.mjs:166, 190).",
+   "`SOCKET_EVENT` defined again in call-effects.mjs:613 where bridge-wire.mjs:22 exports it (and seven other files define their own).",
+   "A card's words parsed into a template three times in call-gm.mjs (askCardExpiry 139-141, keepRuling 543-545, settleCall 1156-1157)."
+  ],
+  "dead_code": [
+   "`askedByCard` (call-gm.mjs:58) is added to by every ask and never deleted from, unlike the capped maps beside it (CALL_ASKS_KEPT, 66 and 80): it grows for the session.",
+   "callGm's log branch answers true whatever whisperToGms answered (call-gm.mjs:976-988), where the thread branch answers Boolean(posted) (1000-1002); postSecret can answer null (secret.mjs:1167-1170, 1178-1183)."
+  ],
+  "magic_numbers": [
+   "CALL_ASKS_KEPT = 100 (call-gm.mjs:66), no reading named.",
+   "GM_SPENT_MS = 60_000 (call-effects.mjs:552-553), 'Chosen, not measured' - said so.",
+   "fallbackGather's ring: `index / 8` of a turn and 1.2 grid squares (call-world.mjs:714-716): a ninth token lands on the first one's square, and scenario 86's cast is 16."
+  ]
+ },
+ "hints_for_other_passes": {
+  "dead_controls": [
+   "The GM's approval window on the GM's own side, second press: answers null, raises the first, says nothing (calls.mjs:851; D176 by decision)."
+  ],
+  "stale_windows": [
+   "A Call's confirmation: the 'Aimed at' line and the 'about' line (calls.mjs:769-770, 722) are drawn once; only the header is live (761-766, watch actors and every module setting via live.mjs:333-339). The pickers' lists are drawn once (controls-07-messages-calls-6 has it)."
+  ],
+  "text_pass": [
+   "The confirmation's 'Aimed at' line reads names and project names past the readers' name rules (findings 1 and 7): a text pass over every window line that prints `actor.name` or a countdown's raw name would find the rest of this class."
+  ],
+  "mask_pass": [
+   "Public cards are not cut by the mask (utils.mjs:821-831, secret.mjs:496-499); any public card naming a student while a mask stands is finding 2's shape (Despair Calls here; other public posters not read in this lane)."
+  ]
+ },
+ "not_established": [
+  {
+   "what": "Whether a Despair Call's refund can spill into the Overflow: calls.mjs:497-498 refunds with adjustDespair(user.id, call.cost) and no `clamp`, and despair.mjs:357-360 spills a positive delta past the maximum when a point was added between the spend and the refund. Whether any effect awaits long enough for a roll's point to land was not measured.",
+   "l1": null,
+   "settle": "a harness probe: spend a Call that fails, add a pool point inside applyCall's await, read the overflow after the refund"
+  },
+  {
+   "what": "Whether a primary that reloaded reads the words of its open ask cards before sweepAskCards runs: askCardExpiry parses contentOf(message) (call-gm.mjs:138-143), and a card whose words are not in this browser's store yet answers null and is skipped (214), so it would stay open with no timer.",
+   "l1": {
+    "what": "an ask card left open across a primary GM's reload ends at its time",
+    "recipe": [
+     "1. One GM, one player.",
+     "2. The player asks a Dynamic action; the card goes up with 'Open until'.",
+     "3. The GM reloads before answering and does not touch the card.",
+     "4. Wait past the card's time plus a few seconds.",
+     "5. Read the card on both browsers."
+    ],
+    "clients": "1 GM, 1 player",
+    "theme": "default",
+    "settles_if": "the card reads 'Nobody answered in time' (holds) / it still reads 'Awaiting a ruling' with its buttons (the sweep skipped it)",
+    "priority": "minor"
+   }
+  },
+  {
+   "what": "Finding 6's interleaving (two GMs' writes of `restrictions` or `sealedRooms` within one round trip) is read in the code, not measured.",
+   "l1": {
+    "what": "two GMs silencing two students at once keep both silences",
+    "recipe": [
+     "1. Two GMs, each with a Monokuma pool, two students.",
+     "2. Both GMs open Silence's confirmation on different students.",
+     "3. Press Spend on both within a second.",
+     "4. Read game.settings.get('danganronpa-rpg', 'restrictions') on a player's browser."
+    ],
+    "clients": "2 GMs, 2 players",
+    "theme": "default",
+    "settles_if": "both actor ids are silenced (holds) / one is missing (finding 6 stands)",
+    "priority": "minor"
+   }
+  },
+  {
+   "what": "Finding 1 and finding 2 are read in source; neither has been seen in a window. The l1 block is the masked-fight recipe both share.",
+   "l1": {
+    "what": "a masked killer's name in a Call's confirmation and on a Despair Call's public card",
+    "recipe": [
+     "1. One GM, three players: killer, victim, bystander in one room.",
+     "2. A direct murder whose opening succeeds on Hope, so the killer's token reads '?'.",
+     "3. On the victim's browser: Support, pick '?', read 'Aimed at', Cancel.",
+     "4. On the GM: a Despair Call (Obstacle) on the killer; read the public card on the bystander's browser."
+    ],
+    "clients": "1 GM, 3 players",
+    "theme": "both",
+    "settles_if": "'?' in both places (fixed) / the killer's name in either (the finding stands)",
+    "priority": "blocker"
+   }
+  }
+ ]
+}

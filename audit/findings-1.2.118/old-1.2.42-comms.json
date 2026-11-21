@@ -1,0 +1,755 @@
+{
+ "reader": "old-1.2.42-comms",
+ "source": "audit/findings-1.2.42/comms.md (18 findings COMM-01..COMM-18 and the 7 numbered items of 'Live checks recommended'); cross-read with audit/AUDIT-1.2.42.md sections 2, 4, 5, 7, 9, 9.1 and 9.2",
+ "read": [
+  {
+   "file": "audit/findings-1.2.42/comms.md",
+   "lines": 258,
+   "of": 258,
+   "part": "all"
+  },
+  {
+   "file": "audit/AUDIT-1.2.42.md",
+   "lines": 666,
+   "of": 1666,
+   "part": "lines 1-130, 205-254, 346-515, 575-874, and every line naming COMM-, recipients, timestamp, S7-2"
+  },
+  {
+   "file": "scripts/gm-bridge.mjs",
+   "lines": 263,
+   "of": 263,
+   "part": "all"
+  },
+  {
+   "file": "scripts/bridge-wire.mjs",
+   "lines": 205,
+   "of": 205,
+   "part": "all"
+  },
+  {
+   "file": "scripts/messenger.mjs",
+   "lines": 405,
+   "of": 405,
+   "part": "all"
+  },
+  {
+   "file": "scripts/bridge-guards.mjs",
+   "lines": 776,
+   "of": 2163,
+   "part": "lines 1-120, 440-621, 1690-2163"
+  },
+  {
+   "file": "scripts/bridge-table.mjs",
+   "lines": 188,
+   "of": 1660,
+   "part": "lines 628-682, 721-745, 824-880, 1610-1660"
+  },
+  {
+   "file": "scripts/bridge-asks.mjs",
+   "lines": 147,
+   "of": 1344,
+   "part": "lines 540-580, 740-845"
+  },
+  {
+   "file": "scripts/call-gm.mjs",
+   "lines": 744,
+   "of": 1308,
+   "part": "lines 30-110, 228-345, 366-436, 770-1080, 1110-1225, 1262-1308"
+  },
+  {
+   "file": "scripts/messenger-app.mjs",
+   "lines": 167,
+   "of": 1673,
+   "part": "lines 455-600, 1110-1130"
+  },
+  {
+   "file": "scripts/popup.mjs",
+   "lines": 75,
+   "of": 1299,
+   "part": "lines 1225-1299"
+  },
+  {
+   "file": "scripts/safeword.mjs",
+   "lines": 382,
+   "of": 477,
+   "part": "lines 96-477"
+  },
+  {
+   "file": "scripts/secret.mjs",
+   "lines": 574,
+   "of": 1729,
+   "part": "lines 1-160, 196-420, 500-600, 1163-1250"
+  },
+  {
+   "file": "scripts/sfx.mjs",
+   "lines": 101,
+   "of": 786,
+   "part": "lines 100-200"
+  },
+  {
+   "file": "scripts/sfx-play.mjs",
+   "lines": 62,
+   "of": 809,
+   "part": "lines 719-780"
+  },
+  {
+   "file": "scripts/music-play.mjs",
+   "lines": 978,
+   "of": 1257,
+   "part": "lines 60-140, 286-335, 372-600, 640-1257"
+  },
+  {
+   "file": "scripts/sound-panel.mjs",
+   "lines": 64,
+   "of": 469,
+   "part": "lines 118-150, 262-292"
+  },
+  {
+   "file": "scripts/trait-ruling.mjs",
+   "lines": 1,
+   "of": 395,
+   "part": "line 295 only"
+  },
+  {
+   "file": "docs/dev/e58/TRIAGE-9.2.md",
+   "lines": 20,
+   "of": 588,
+   "part": "the rows for items 134 and 353, found by search"
+  },
+  {
+   "file": "scripts/dice-sync.mjs",
+   "lines": 160,
+   "of": 1172,
+   "part": "lines 1-140 and every line naming socket, userConnected or Hooks.on"
+  },
+  {
+   "file": "scripts/voice.mjs",
+   "lines": 173,
+   "of": 2627,
+   "part": "lines 20-60, 1116-1150, 2228-2262, 2333-2350, 2383-2400, 2475-2500"
+  },
+  {
+   "file": "scripts/voice-tile.mjs",
+   "lines": 15,
+   "of": 1838,
+   "part": "lines 54-68"
+  },
+  {
+   "file": "scripts/camera-view.mjs",
+   "lines": 60,
+   "of": 292,
+   "part": "lines 1-60"
+  },
+  {
+   "file": "scripts/calls.mjs",
+   "lines": 73,
+   "of": 931,
+   "part": "lines 190-262"
+  },
+  {
+   "file": "scripts/action-observe.mjs",
+   "lines": 120,
+   "of": 345,
+   "part": "lines 60-150, 222-250"
+  },
+  {
+   "file": "scripts/action-analyze.mjs",
+   "lines": 73,
+   "of": 520,
+   "part": "lines 228-300"
+  },
+  {
+   "file": "scripts/action-search.mjs",
+   "lines": 23,
+   "of": 714,
+   "part": "lines 148-170"
+  },
+  {
+   "file": "scripts/action-dynamic.mjs",
+   "lines": 24,
+   "of": 358,
+   "part": "lines 205-228"
+  },
+  {
+   "file": "scripts/action-project.mjs",
+   "lines": 31,
+   "of": 1378,
+   "part": "lines 410-440"
+  },
+  {
+   "file": "scripts/analyze.mjs",
+   "lines": 49,
+   "of": 368,
+   "part": "lines 318-366"
+  },
+  {
+   "file": "scripts/use-items.mjs",
+   "lines": 38,
+   "of": 1079,
+   "part": "lines 575-612"
+  },
+  {
+   "file": "scripts/reroll.mjs",
+   "lines": 46,
+   "of": 2101,
+   "part": "lines 1920-1965"
+  },
+  {
+   "file": "scripts/projects.mjs",
+   "lines": 112,
+   "of": 2976,
+   "part": "lines 1440-1475, 2495-2570"
+  },
+  {
+   "file": "scripts/eclipse.mjs",
+   "lines": 41,
+   "of": 1502,
+   "part": "lines 660-700"
+  },
+  {
+   "file": "scripts/traps.mjs",
+   "lines": 56,
+   "of": 1178,
+   "part": "lines 290-345"
+  },
+  {
+   "file": "scripts/monocub.mjs",
+   "lines": 29,
+   "of": 1979,
+   "part": "lines 1520-1548"
+  },
+  {
+   "file": "scripts/cleanup-reshape.mjs",
+   "lines": 31,
+   "of": 803,
+   "part": "lines 485-515"
+  },
+  {
+   "file": "scripts/utils.mjs",
+   "lines": 149,
+   "of": 1452,
+   "part": "lines 365-382, 440-520, 612-661"
+  },
+  {
+   "file": "scripts/sheet-mode.mjs",
+   "lines": 36,
+   "of": 153,
+   "part": "lines 55-90"
+  },
+  {
+   "file": "scripts/sheet-sidebar.mjs",
+   "lines": 58,
+   "of": 1254,
+   "part": "lines 893-950"
+  },
+  {
+   "file": "scripts/api.mjs",
+   "lines": 18,
+   "of": 1712,
+   "part": "lines 828-845"
+  },
+  {
+   "file": "scripts/sync.mjs",
+   "lines": 36,
+   "of": 640,
+   "part": "lines 170-205"
+  },
+  {
+   "file": "scripts/fog.mjs",
+   "lines": 16,
+   "of": 4833,
+   "part": "lines 1350-1365"
+  },
+  {
+   "file": "scripts/tests-tier0.mjs",
+   "lines": 106,
+   "of": 26270,
+   "part": "lines 7640-7745 (R201)"
+  },
+  {
+   "file": "scripts/tests-tier2.mjs",
+   "lines": 189,
+   "of": 104280,
+   "part": "lines 6195-6235, 25630-25650, 42745-42812, 61640-61660, 97845-97862 and the names of the tests cited"
+  },
+  {
+   "file": "audit/harness/scenarios/30-security.mjs",
+   "lines": 103,
+   "of": 7184,
+   "part": "lines 25-45, 885-930, 2325-2360"
+  },
+  {
+   "file": "audit/harness/scenarios/40-flow.mjs",
+   "lines": 44,
+   "of": 2060,
+   "part": "lines 350-362, 445-475"
+  },
+  {
+   "file": "audit/harness/scenarios/87-messenger-sound.mjs",
+   "lines": 101,
+   "of": 989,
+   "part": "lines 1-60, 300-340"
+  },
+  {
+   "file": "docs/dev/e58/LOCAL-REPORT.md",
+   "lines": 90,
+   "of": 660,
+   "part": "lines 1-30, 300-336, 413-435"
+  },
+  {
+   "file": "docs/dev/R-REGISTRY.md",
+   "lines": 20,
+   "of": 1826,
+   "part": "the rows cited, found by search"
+  }
+ ],
+ "read_note": "'lines' is the number of lines read in that file (the ranges in 'part' summed; 'all' is the whole file; a search-only entry counts the lines it returned, estimated), 'of' the file's length by wc -l on b5a29e73.",
+ "count_expected": 25,
+ "count_note": "grep -c '^### ' on the source gives 18 finding headings; the section 'Live checks recommended' holds 7 numbered items, added as COMM-LC1..COMM-LC7 (18 + 7 = 25). The source has no section headed 'Comments contradicting code'; its 'Hygiene metrics' holds one bullet of three stale comments, all three settled inside COMM-02, COMM-03 and COMM-07 and not counted as items.",
+ "items": [
+  {
+   "id": "COMM-01",
+   "title": "Every player -> GM bridge request was emitted with no recipients, so every player's socket received it (parked murder with its note, steals, plants, sabotage, crisis actions).",
+   "old_severity": "major",
+   "old_state": "fixed in 1.2.43 (AUDIT section 2.1: emitToGms() with recipients: activeGmIds())",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "Since E31 every request goes through one waiter: scripts/bridge-table.mjs:1653 ask() -> scripts/bridge-guards.mjs:2144 bridgeRequest(); the waiter sends only to the GMs connected (bridge-guards.mjs:2120 emit with { recipients }, :2121 gmIds = activeGmIds()), and with none connected it says noGm and sends nothing (:1960-1962). A read-only text count over scripts/*.mjs without the suite's files (emits.py) found 63 places spelling socket.emit(, 5 of them with no recipients in the call: one is inside a comment (voice.mjs:575) and four are real (fog.mjs:1361, gm-bridge.mjs:111, relay-guard.mjs:1040, sync.mjs:199); none of the four is a player's request.",
+   "pinned_by": "R201 (tier 0, scripts/tests-tier0.mjs:7669: every socket emit names its recipients but four listed ones, each held to its fields); R6",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for a second road: read the four emits that name nobody; sync.mjs:199 carries a kind and public data (clock, Eclipse flag, a called assembly's token ids), no request.",
+   "note": "The four un-addressed emits are the same four R201 lists. A real-table reading of a bridge request on another player's socket was not found; docs/dev/e58/LOCAL-REPORT.md:418 (Foundry 14.370, 16.11.2026) records that an addressed secret.card packet was not heard on a third browser's socket, which is the same mechanism."
+  },
+  {
+   "id": "COMM-02",
+   "title": "A trap alert (gmOnly) and any callGm for an actor with no player owner landed as a silent chat line: no popup, no sound, buttons nothing wired, 'Awaiting a ruling.' for good.",
+   "old_severity": "major",
+   "old_state": "left open after 1.2.43 (section 4); task 2 (d079a1ec, released in 1.2.44); live check 7.6",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/call-gm.mjs:975-986: the no-thread road whispers the card with callCard, gmPopup, a popup title and sfx { key: gmAsk, gm: true } (a receipt gets only callCard). scripts/popup.mjs:1267-1269 raises a whisper for a GM when gmPopup is set; scripts/sfx.mjs:135-138 with sfx-play.mjs:719-736 plays a GM-marked sound for a GM. scripts/gm-bridge.mjs:147-162: a GM-side renderChatMessageHTML hook wires every card whose drawn copy holds a [data-drpg-call] button through messenger-app.mjs wireCallActions. scripts/call-gm.mjs:1188-1195: a private card is settled through updateSecret, never by writing its words into the document.",
+   "pinned_by": "scenario 30-security phase 7l2 (audit/harness/scenarios/30-security.mjs:2341-2355: the GM finds the trap's alert by callCard and gmPopup; a player's copy holds neither); tier 2 'the chat log's copy of a thread's ruling card rules it on a GM: Approve in the log is the messenger's Approve' (scripts/tests-tier2.mjs:25634); scenario 13-murder-signals presses fireTrap (its own wiring, not the hook)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Checked whether a player's browser can reach the no-thread road, where secret.mjs:247 GM_META would take gmPopup and callCard off a player's meta and sfx-play.mjs:731-735 would drop the GM mark: the three gmOnly callers run on a GM (traps.mjs:323-328, eclipse.mjs:685-686, projects.mjs:1465-1466), and a player's own character always has a player owner (utils.mjs:642-647 ownerOf), so the card goes to a thread.",
+   "note": "The real screen (popup seen, sound heard, a mouse click in v14's log on a no-thread card) is not read: docs/dev/e58/LOCAL-REPORT.md:432 lists S7-6 as left; LIVE-F118-01 (AUDIT 9.2 item 660) asks the click for a thread's card. Until F118 (16.11.2026) the hook wired only cards carrying callCard, so a thread card's copy in the GM's log had dead buttons (LOCAL-REPORT.md:428, measured on 14.370)."
+  },
+  {
+   "id": "COMM-03",
+   "title": "The messenger wrote its words into the ChatMessage document, so any player's console could read every other player's thread (parked murder note, proposals, GM rulings, DMs).",
+   "old_severity": "major",
+   "old_state": "left open after 1.2.43 (section 4, leaks); task 3 (f6e5a5cc, released in 1.2.44); live check 7.5",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/messenger.mjs:275-313: createThreadMessage posts through secret.mjs postSecret (:298). scripts/secret.mjs:1190-1196 creates the document with the stub as content; :1215-1224 sends the words by addressed socket to the readers alone (sendWords, :526-545, { recipients }). Settling goes through updateSecret (scripts/call-gm.mjs:1188-1195). Thread cards are kept under their own bound (secret.mjs:554 KEEP_PINNED 2000), not the 500 of ordinary cards.",
+   "pinned_by": "scenario 40-flow 'p1: holds no words of p3's thread with the GM' (audit/harness/scenarios/40-flow.mjs:451-460); scenario 30-security messenger phase (:31-36); scenario 72-canary",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for a poster that still writes words into a thread document: messenger.mjs has one create road (createThreadMessage); settleCall's plain message.update (call-gm.mjs:1197) is reached only for a card with no secret flag, and every thread card carries it.",
+   "note": "Read on a real Foundry: docs/dev/e58/LOCAL-REPORT.md:418 (14.370, 16.11.2026, module 1.2.116; messenger.mjs and secret.mjs unchanged from v1.2.116 to v1.2.118 by git log): the document holds the stub, the words reached the addressee alone. What an ordinary thread card's document still tells every browser is stated in messenger.mjs:22-42 (whose thread, its kind, that it asks the GM, when); cards whose place is the secret are posted veiled or to the GMs' log."
+  },
+  {
+   "id": "COMM-04",
+   "title": "A Hope Call that needs the GM and a Dynamic action opened a DialogV2 on the primary GM only: no card, popup or sound, a second GM never knew, the player waited with nothing on screen, and a timeout said two toasts.",
+   "old_severity": "major",
+   "old_state": "left open after 1.2.43 (section 4); task 2 (d079a1ec, released in 1.2.44)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/call-gm.mjs:44-58 and :228-290: both asks are callGm cards in the asker's thread with their answers as buttons (approveCall/refuseCall, setDifficulty/refuseDynamic); any GM may press, and the answer travels back as the request's bridge.done. Every GM is rung and shown the card (scripts/messenger.mjs:364-367, scripts/messenger-app.mjs:545-565). The player gets a sticky waiting card for both (scripts/calls.mjs:224 and :825-828; scripts/action-dynamic.mjs:96). A failure is said once by the bridge; the caller says only a GM's no (calls.mjs:232-244). A resent ask finds its card instead of posting a second (call-gm.mjs:150 askAgain; its note at :89-110).",
+   "pinned_by": "scenario 40-flow (audit/harness/scenarios/40-flow.mjs:356-362: the Ultimate's ask is a card in p2's thread, the GM presses approveCall); R840; R839; tier 2 'a resent ask finds the card a GM posted for it ...' (scripts/tests-tier2.mjs:40223)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the third ruling the old text named (Observe): a focused gaze is a card in the asker's thread too (call-gm.mjs:396-423), and the general and non-obvious gazes are answered by the GM's client with no person in the loop (action-observe.mjs:77-79).",
+   "note": "One unevenness left, not a defect I traced to a failure: a focused Observe raises no showWaiting card on the player's side as a Call, a Dynamic action and a statistic's ruling do (calls.mjs:224, action-dynamic.mjs:96, trait-ruling.mjs:295); the player's sign is the thread card with 'Awaiting a ruling. Open until ...'."
+  },
+  {
+   "id": "COMM-05",
+   "title": "Pending rulings were re-sent on bridge.gmReady from any GM, so a second GM joining made the primary open a second dialog for the same question.",
+   "old_severity": "minor",
+   "old_state": "listed open (minor) after 1.2.43; task 13 - the AUDIT's table names 7e40243 for it, the commit that did it is b888c066 (in v1.2.44)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/gm-bridge.mjs:81-90: onGmReady re-sends only when the sender is the primary GM (primaryGmId with the arriving GM counted). The dialogs the old text named are cards now, and a resend that reaches a primary finds the card posted for the ask by its mark and posts none (scripts/call-gm.mjs:150 askAgain; its note at :89-110). A resend is bounded at three (scripts/bridge-guards.mjs:2043-2046, :2102).",
+   "pinned_by": "R841 (the waiter's resends); tier 2 'a resent ask finds the card a GM posted for it ...' (scripts/tests-tier2.mjs:40223); scenario 61-gmstore-case phase Y. For the sender test in onGmReady itself: none found.",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for a second trigger of a resend: bridge-guards.mjs:2153-2157 resends when the primary leaves for another GM who is here (primaryLeft); that case has a new primary by construction, and the card's mark covers it.",
+   "note": ""
+  },
+  {
+   "id": "COMM-06",
+   "title": "GM-facing prose on a callGm card (critical hint, 'score it against the Observe table', 'decide what was there', the threshold reference list) was posted whole into the player's own thread.",
+   "old_severity": "minor",
+   "old_state": "task 2 (d079a1ec, released in 1.2.44); named in the score table of section 0",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/call-gm.mjs:781-785 and :799 wrap the critical's line and every gmBody in .drpg-gm-only. Since E06 C7b a player is never sent that half: scripts/secret.mjs:335 GM_PROSE and :368-375 playerWords cut .drpg-gm-only and .drpg-call-actions out of every copy cut for a non-GM (:500-505 cutWords), on send, on the poster's own copy and on a rewrite. The strings the old text listed are in gmBody today: action-observe.mjs:237 (observeGm), action-search.mjs:159-162 (specificFound, specificNothing, createItemStays), action-dynamic.mjs:216-220, analyze.mjs:330 (critPrompt).",
+   "pinned_by": "scenario 30-security 'SECURITY: p1's copy of a ruling card, posted and settled, holds no GM-only prose or ruling button, in the store or the Chat tab' (audit/harness/scenarios/30-security.mjs:885-908) and the check after it for words kept from before",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the body of every callGm caller (17 call sites found by search) for GM prose left in body: one is left, the Analyze hint's ladder (scripts/action-analyze.mjs:249-253, sent as body at :265).",
+   "note": "By decision: the hint ladder in body is also whispered to the roller as their own card (action-analyze.mjs:287), which follows D1 (AUDIT 9.1: thresholds visible, commit 5858b2a2 'every briefing prints the thresholds it will be scored against'). Its class name is still drpg-gm-reference."
+  },
+  {
+   "id": "COMM-07",
+   "title": "Two callGm cards carried no buttons (critical Analyze hint, creative use of an item): 'Awaiting a ruling.' with nothing to press and never settled.",
+   "old_severity": "minor",
+   "old_state": "left open after 1.2.43 (section 4, with ITEM-07); task 2 (d079a1ec, released in 1.2.44)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/analyze.mjs:338-351: the critical's card carries Reply and 'Nothing more to add' (decline with paid none). scripts/use-items.mjs:596-606: the creative use carries itemWorks, itemNoEffect and itemRefuse. The other cards with no button are receipts, which print no 'awaiting' line (scripts/call-gm.mjs:802-805, receipt).",
+   "pinned_by": "tier 2 'the Analyze critical's hint card answers with nothing more to add, not a refusal and an action back' (scripts/tests-tier2.mjs:30706); tier 2 'one creative ruling at a time on an item ... (E14-T7, S08-35)' (:79859)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read every callGm call site for a card with neither a button nor receipt: none found (the armed trap's card is a receipt unless its trigger needs a Plant, and then it has the Plant button, projects.mjs:2532-2541).",
+   "note": "The comment the old report called false now reads 'Every ruling card carries at least one of these two, or one of the named actions above' (scripts/messenger-app.mjs:1120-1121)."
+  },
+  {
+   "id": "COMM-08",
+   "title": "The gmAsk sound never played on the primary GM for cards the bridge posts from that GM's own session, because the self-author return came first.",
+   "old_severity": "minor",
+   "old_state": "fixed in 1.2.43 (AUDIT section 2.2)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/messenger.mjs:364-367: the gmAsk branch plays its sound and returns before the writer check at :370-371. A no-thread card's sound rides on the card (scripts/call-gm.mjs:982) and scripts/sfx.mjs:122-142 has no self-author test.",
+   "pinned_by": "none found for the sound's order; scenario 87-messenger-sound B1 (audit/harness/scenarios/87-messenger-sound.mjs:316-323) and R1064 hold the unread count of the primary's own ask, the same road's other half",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Checked that a typed DM cannot ring its own writer through the moved branch: sendMessage passes gmAsk false (messenger.mjs:249), so only callGm cards carry the flag.",
+   "note": "The harness has no audio; whether the sound is heard is a table's reading."
+  },
+  {
+   "id": "COMM-09",
+   "title": "The dice-skin push for a joining player was sent on userConnected, before the player's listener existed, so a player joining mid-session kept their own skin.",
+   "old_severity": "minor",
+   "old_state": "listed open (minor) after 1.2.43; task 13 (b888c066, in v1.2.44: the joiner asks the primary for the skin) - the AUDIT's table names 7e40243",
+   "status": "obsolete",
+   "evidence_class": "S",
+   "evidence": "The socket push is gone: since E16 C3 (9e693d88, 19.10.2026, first in v1.2.80) the table's look is written by the primary GM into each User document's Dice So Nice flags (scripts/dice-sync.mjs:4-16); the file has no socket listener or emit (search: the word appears only in the header's history). A document write needs no listener on the joiner's side, so the timing gap has no subject. The userConnected hook at :238 now writes the joiner's User flags.",
+   "pinned_by": "R803-R806, R940 (the forced look); none for the old packet, which no longer exists",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Searched dice-sync.mjs for socket, emit and every Hooks.on: the roads are updateUser, actor writes, chat messages, settings and userConnected, all document reads and writes on the primary.",
+   "note": "Whether Dice So Nice on v14 draws a joiner's first throw from the flags written at connect is the stage's own live check family (LIVE-E16-03, -04; LIVE-H82-01), not this item's."
+  },
+  {
+   "id": "COMM-10",
+   "title": "Play a track and Reset are open to any GM, but the music's state machine and its record of what a cue interrupted live on the primary only: an assistant GM's Play leaves two records that disagree, and stale held playlists come back later.",
+   "old_severity": "minor",
+   "old_state": "listed open (minor) in section 4 after 1.2.43; named in no task (2, 3, 10 or 13) and not in b888c066's message, while section 9.1a says all 152 ids are closed - not accounted for by name",
+   "status": "open",
+   "evidence_class": "S",
+   "evidence": "scripts/music-play.mjs:1098-1099 playTrack and :1179-1180 resetMusic still gate on game.user.isGM; the record `interrupted` is one browser's memory (:175). Every road that clears or reconciles it except resetMusic itself (:1186) is behind enabled(), which is primary-only (:381-382; apply :398-413 and :445-455, the watchers :934 and :1008, resumeAmbient :1035). On the primary, a cue another GM started is recorded with held [] (:958-993: the other GM paused everything first), so when the state moves, the primary lets go of nothing the other GM flagged (:448-454). A second GM's later Reset resumes its own record's held list with no test that the room is silent (:1210-1217; the silence test at :1211 guards only the no-record case), and its later Play reuses the stale list and pauses nothing (:1123-1130).",
+   "pinned_by": "none found (no test or scenario calls playTrack or resetMusic; scenario 87 part C drives a second GM's map writes only)",
+   "still_wrong": "A second GM presses Play on a cue in the Sound window, the time of day moves to a state with another playlist (the primary cuts the cue and starts that playlist), then the second GM presses Reset: its browser resumes the playlist it paused before, and the table hears two playlists until the next state change.",
+   "severity_now": "minor",
+   "confidence": "suspected",
+   "refutation_tried": "Looked for a gate or a forward to the primary on the Sound window's Play tab (scripts/sound-panel.mjs:277-287: none), for a decision in docs/dev and the release notes (none found), and for what already covers the simple case: the held flag on the playlist document (music-play.mjs:60-67, :790-795) lets the primary's own Reset give back what another GM paused when nothing else plays, and crossfade clears the flag on a playlist it starts (:558).",
+   "note": "The code road is read; the audible result with two GMs was not run here or anywhere I found, so the confidence is 'suspected'. The simple order (second GM plays, the same GM resets, no state change between) comes out right by the same reading."
+  },
+  {
+   "id": "COMM-11",
+   "title": "The safeword promised a door for anyone (player, GM, dead, Monocub, spectator) but its only button was on the character sheet; no HUD, launcher or API entry.",
+   "old_severity": "minor",
+   "old_state": "left open after 1.2.43 (section 4, UX); task 10 (b708865c, released in 1.2.44: game.drpg.safeword() and a keybinding); live check 9.2 item 17",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "Fixed part: scripts/safeword.mjs:428-436 registers a keybinding for every user (restricted false) and scripts/api.mjs:839 gives game.drpg.safeword(); both need no sheet and no character. Still there: the key ships with no default (safeword.mjs:432 editable []), and the one on-screen control is still the sheet's button, which a Spectator's sheet and a Monokuma's do not draw (scripts/sheet-mode.mjs:80-81; scripts/sheet-sidebar.mjs:914-915).",
+   "pinned_by": "R1369 (the window and its room on the key's and the API's roads); R3857 pins that a Spectator's sheet has no Stop",
+   "still_wrong": "A Spectator, or a player with no sheet open, who has not bound a key in Foundry's Controls beforehand has no control on screen to stop the scene; only the console call is left.",
+   "severity_now": "minor",
+   "confidence": "read",
+   "refutation_tried": "Searched scripts/ for every caller of safewordDialog and callSafeword (three: the key, the API, the sheet's button) and for another visible control in the HUD, the messenger, the voice tile and the spectator's line: none.",
+   "note": "Read on a real Foundry: docs/dev/e58/LOCAL-REPORT.md:420 (14.370, 16.11.2026): 'no default key'; bound to F9 and pressed with no sheet open, the window opened. The old report's own fix text offered this road as one of two, so the old 'closed' was fair to its letter. Since E92 C5 (e08aaecc, 12.11.2026, first in v1.2.109) a Spectator's sheet draws no Stop, pinned by R3857 under 'the owner's E92 goal (5)'; whether the owner asked for that part in those words is not established. safeword.mjs:272 still says 'Anyone may: ... spectator'."
+  },
+  {
+   "id": "COMM-12",
+   "title": "The GMs' safeword detail card printed payload.who and payload.room from the packet, so a player could put another player's name on the GMs' screens.",
+   "old_severity": "nit",
+   "old_state": "fixed in 1.2.43 (AUDIT section 2.1: the name from senderId)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/safeword.mjs:342-347: hearSafeword takes the sender from Foundry's senderId (senderOf), drops a packet from nobody connected, and hands showGmDetail that user; the packet today carries only the room (:304-307), shown as escaped text cut to a bound (:107-110).",
+   "pinned_by": "tier 2 'the safeword's card names nobody' (scripts/tests-tier2.mjs:42752: a packet with who 'Somebody Else' and a real sender id; the detail names the sender)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Read the one listener (safeword.mjs:443-445) and the public card's road (:348-361): the public card is posted by the primary once per sender per repeat window, and names nobody.",
+   "note": ""
+  },
+  {
+   "id": "COMM-13",
+   "title": "The GM's 'listening at the door' joined the room's LiveKit channel as a normal participant and the camera dock showed the GM's tile; the dialog said nothing of it.",
+   "old_severity": "minor",
+   "old_state": "task 10 (b708865c: the dialog says the tile is visible), then decision D7 of 13.09 (12109493): the LiveKit eavesdrop removed whole",
+   "status": "obsolete",
+   "evidence_class": "S",
+   "evidence": "The feature is gone: scripts/voice.mjs:35-41 ('There is no \"listen in by hand\" any more - Dawid, 13.09'), and a search of scripts/ and lang/en.json finds no eavesdropRoom, setManual or Voice.eavesdropPrompt. What replaced the signal: the voice tile's speaker button counts every participant of the viewer's own room, silent ones included (scripts/voice-tile.mjs:59-65).",
+   "pinned_by": "R550 (the count that shows a listener); none for the removal itself",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Checked whether the same thing came back under another name: Listen's eavesdrop (E69 C6, scripts/voice.mjs:1121-1133) sends a player's account into the room it listens at; it is a rule of the game the owner chose (the comment names the owner's 10.11 (a)), and the listener is in the room's count.",
+   "note": "By decision D7 (AUDIT 9.1)."
+  },
+  {
+   "id": "COMM-14",
+   "title": "The {what} of 'No GM answered the ... request' was filled with untranslated English literals and, for call.arm, the raw Call key.",
+   "old_severity": "minor",
+   "old_state": "task 10 (b708865c) with task 2's Bridge.what.* keys (d079a1ec); released in 1.2.44",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/bridge-guards.mjs:555-561 requestLabel reads DRPG.Bridge.what.<action> from the language file and says an unnamed request for a name it does not hold; :581-587 sayNotDone is the one message, built from that label and DRPG.Bridge.why.<code>. Each table row declares its label key (for example scripts/bridge-table.mjs:629, :661, :722, :825).",
+   "pinned_by": "R1b (scripts/tests-tier0.mjs:366-390: a row whose label is missing in a language file is named); R164; scenario 50-lang and 51-lang-mixed",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for a literal label beside an ask: every requestX in bridge-asks.mjs calls ask(ACTION_..., payload, opts) with no label argument; callGm's refusal names a key too (call-gm.mjs:900-905, what).",
+   "note": ""
+  },
+  {
+   "id": "COMM-15",
+   "title": "Unread compared a message's timestamp (the sender's clock) with Date.now() on the reader: with skewed clocks a bubble kept its badge while read, or arrived already read.",
+   "old_severity": "minor",
+   "old_state": "listed open (minor) after 1.2.43; task 3 (f6e5a5cc, released in 1.2.44: unread by the message's stamp)",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "Fixed part: scripts/messenger.mjs:196-208 markThreadRead stores the newest message's own timestamp, so the reader's clock is out of it and a bubble on screen cannot keep its badge. Still there: the rule is still 'timestamp greater than the read stamp' (:147) and the thread is sorted by timestamp (:113-117), and the stamps of one thread come from several senders; postSecret creates the document with no timestamp of its own (scripts/secret.mjs:1190-1196), so each is whatever Foundry stamps.",
+   "pinned_by": "R1064 (the count's rule on stand-in rows); none found for two senders' clocks",
+   "still_wrong": "If v14 keeps the creating browser's clock in timestamp: a GM whose clock runs two minutes ahead writes into a thread, reads it and closes the window; the player's reply a minute later carries a lower stamp, so the GM's launcher badge - the only sign a plain message gives a GM - does not count it, and on the next draw the bubble sorts above the GM's own line.",
+   "severity_now": "minor",
+   "confidence": "suspected",
+   "refutation_tried": "Looked for a server-side stamp the module could be using instead (serverNow is used for an ask's 'Open until' in call-gm.mjs:403, not for thread order) and for a recorded reading of who stamps timestamp: AUDIT 9.2 item 134 (LIVE-E33-10) asks it and docs/dev/e58/TRIAGE-9.2.md:157 lists it; no reading found.",
+   "note": "The create hook still rings and raises the card whatever the count says (messenger.mjs:330-383), so what is lost in the still_wrong case is the badge and the order, not the notice."
+  },
+  {
+   "id": "COMM-16",
+   "title": "The ack left before any guard ran, so a request the GM side then refused was acknowledged and silently dropped; refuse() wrote only to the GM's log.",
+   "old_severity": "minor",
+   "old_state": "left open after 1.2.43 (section 4); task 2 (d079a1ec, released in 1.2.44: bridge.refused to the asker)",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/bridge-guards.mjs:1780-1826 judge: guards first (:1808-1809), the acknowledgement only once they and the roll's record pass (:1816), and a refusal from a guard, the record or the run goes through refuse (:510-516), which tells the asker a code of a closed list (:527-534, addressed at :537-540). The asker's side says it once in its own language (:2000-2030, :581-588). A queued request is acknowledged on arrival and answers 'reply', so its asker settles on the answer or the refusal (:1724-1729, :1786-1790).",
+   "pinned_by": "R162 (the runner judges before it answers, answers once, a throw is told as failed); R164 (every refusal maps to one reason); scenarios 30-security and 33-bridge-paths",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for refusals that stay silent: a declaration marked quiet is refused in the log alone (bridge-guards.mjs:515); the repository's trust-model rule file names the four (a trap report, the Level Up catch-up, a Search's look for a planted item, a plant handed back), each a report nobody waits on.",
+   "note": "By design for the four quiet reports."
+  },
+  {
+   "id": "COMM-17",
+   "title": "Sabotage waited for its result on the 8 s ack window: on a slow GM client the player was told 'nothing was applied' and the freeze landed anyway.",
+   "old_severity": "minor",
+   "old_state": "listed open (minor) after 1.2.43; task 13 (b888c066, in v1.2.44) - the AUDIT's table names 7e40243",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/bridge-asks.mjs:540-559: requestSabotage waits TIMING.rulingMs for the answer (scripts/config.mjs:368, 180 s) while the 'got it' keeps its own 8 s clock (config.mjs:366; scripts/bridge-guards.mjs:1969-1988, two timers). The row answers 'reply' in the project queue and is asked again of a new primary (scripts/bridge-table.mjs:849-851), and a queued request is acknowledged as it arrives (bridge-guards.mjs:1786-1790).",
+   "pinned_by": "R165 (one wait: settles once, one message); R1b (a queued declaration answers reply)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Looked for the same class on the longer clock: an answer later than 180 s is still told as not answered while the write stands; AUDIT 9.2 item 36 (LIVE-E31-02) records that limit for a 'reply' request and asks for the real server's times.",
+   "note": "The real-server timing is LIVE-E31-02 and -03, unread as far as I found."
+  },
+  {
+   "id": "COMM-18",
+   "title": "GM-facing voice and music diagnostics were inline English; reportContested reached the GM panel's failure log through warn().",
+   "old_severity": "nit",
+   "old_state": "task 13 (b888c066, in v1.2.44: the contested-voice warning is a language key) - the AUDIT's table names 7e40243",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "scripts/voice.mjs:2235-2259: the warning's words are DRPG.Voice.contested with the room words from the language file. Since E71 C20 the plan and the scene and module warnings are keys too (voice.mjs:2333-2350, :2383-2400, :2485-2488 through voiceText), and the music diagnosis formats through game.i18n (scripts/music.mjs:157).",
+   "pinned_by": "tier 1 test around scripts/tests-tier1.mjs:26117-26150 reads contestedWarning's words; the parity check of lang/en.json and lang/pl.json",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "The repository's project instructions state that diagnostics.mjs's console stays English by rule; nothing of that is counted against this item.",
+   "note": ""
+  },
+  {
+   "id": "COMM-LC1",
+   "title": "Live check 1 (COMM-01): on a player's console listen on the module's socket while another player parks a murder, steals or sabotages; confirm the payload prints.",
+   "old_severity": null,
+   "old_state": "not carried into AUDIT section 7 by number; COMM-01 itself was closed in 1.2.43",
+   "status": "fixed",
+   "evidence_class": "S",
+   "evidence": "By today's code the packet is addressed to the connected GMs only (scripts/bridge-guards.mjs:2120-2121, :1960-1989), so the check has nothing to print. No recorded run of this exact check on a real Foundry was found.",
+   "pinned_by": "R201",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Searched docs/dev/e58/LOCAL-REPORT.md and docs/dev/e39/CALIBRATION.md for a reading of an addressed packet on a third browser: only the secret.card one (LOCAL-REPORT.md:418).",
+   "note": "As a live check it is unread; the code answers it."
+  },
+  {
+   "id": "COMM-LC2",
+   "title": "Live check 2 (COMM-03): on a player's console read the content of other players' thread messages.",
+   "old_severity": null,
+   "old_state": "AUDIT section 7 item 5",
+   "status": "fixed",
+   "evidence_class": "F",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:418 (Foundry 14.370, 16.11.2026, module 1.2.116): a real thread message's document holds the stub; the words reached the addressee alone and the other player held them nowhere (document, drawn card, socket). Today's code is the same road (scripts/messenger.mjs:298, scripts/secret.mjs:1190-1224).",
+   "pinned_by": "scenario 40-flow 'p1: holds no words of p3's thread with the GM'",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "git log v1.2.116..v1.2.118 shows no change to messenger.mjs or secret.mjs, so the reading stands for b5a29e73.",
+   "note": ""
+  },
+  {
+   "id": "COMM-LC3",
+   "title": "Live check 3 (COMM-02): fire a trap (E21) and look at the GM's screen: popup, sound, buttons in the chat log.",
+   "old_severity": null,
+   "old_state": "AUDIT section 7 item 6",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "The code's half is answered: the alert carries the popup and sound marks and its buttons are wired in a GM's log (scripts/call-gm.mjs:975-986, scripts/gm-bridge.mjs:147-162). The screen's half is not read: docs/dev/e58/LOCAL-REPORT.md:432 lists S7-6 as left, 'not yet driven: a trap that fires'.",
+   "pinned_by": "scenario 30-security phase 7l2 (the alert's marks on the GM, none on a player)",
+   "still_wrong": "Not established at a table: whether the GM hears the sound and a real click on the alert's Fire the trap in v14's log rules it.",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Searched the local report for a later pass that drove S7-6: none.",
+   "note": ""
+  },
+  {
+   "id": "COMM-LC4",
+   "title": "Live check 4 (COMM-04): a Hope Call 'Experience' while the primary GM has a sheet over the dialog; time how long before anyone notices.",
+   "old_severity": null,
+   "old_state": "not carried into AUDIT section 7 by number",
+   "status": "obsolete",
+   "evidence_class": "S",
+   "evidence": "There is no dialog to cover: the ask is a card in the asker's thread, every GM is rung and shown it, and the player holds a sticky waiting card (scripts/call-gm.mjs:44-58, :239-252; scripts/messenger-app.mjs:545-565; scripts/calls.mjs:224).",
+   "pinned_by": "scenario 40-flow (the Ultimate's card)",
+   "still_wrong": "",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Checked that a GM asking on their own sheet still gets a local window (calls.mjs:227-228): that GM is the asker and is looking at it.",
+   "note": ""
+  },
+  {
+   "id": "COMM-LC5",
+   "title": "Live check 5: COMM-05/09/10/15/17 as described (second GM joining mid-ruling; player joining mid-session with Dice So Nice; assistant GM pressing Play; two browsers with skewed clocks; a GM client under load during sabotage).",
+   "old_severity": null,
+   "old_state": "not carried into AUDIT section 7 by number; section 4 listed the five as open (minor)",
+   "status": "partly",
+   "evidence_class": "S",
+   "evidence": "Five parts, each by its item: second GM joining - answered by code (COMM-05, scripts/gm-bridge.mjs:89); the dice skin - no subject any more (COMM-09, scripts/dice-sync.mjs:1-10); an assistant GM pressing Play - open, never driven (COMM-10, scripts/music-play.mjs:1098-1099, :381-382); skewed clocks - half answered, half waiting on who stamps timestamp (COMM-15, scripts/messenger.mjs:147, :206); sabotage under load - answered by code (COMM-17, scripts/bridge-asks.mjs:556-559), real-server times LIVE-E31-02.",
+   "pinned_by": "R841, R165; none for the music and the clocks",
+   "still_wrong": "Two of the five are unread and their items are open or partly: a second GM's Play and Reset (COMM-10) and two senders' clocks in one thread (COMM-15).",
+   "severity_now": "minor",
+   "confidence": "suspected",
+   "refutation_tried": "Searched scenarios and tests for playTrack, resetMusic and a two-clock thread: none.",
+   "note": ""
+  },
+  {
+   "id": "COMM-LC6",
+   "title": "Live check 6: a messenger DM to a GM whose window is closed - the only signal is the launcher badge (deliberate); check the badge is not hidden behind the camera dock.",
+   "old_severity": null,
+   "old_state": "not carried into AUDIT section 7 by number",
+   "status": "open",
+   "evidence_class": "S",
+   "evidence": "The rule is unchanged and stated: on a GM, a thread message that is not an ask raises no card (scripts/messenger-app.mjs:538-549) and plays chatReceive only if the world mapped it (scripts/messenger.mjs:369-383). The launcher is lifted by the dock's measured height (scripts/camera-view.mjs:42-60), and since E78 the voice tile takes the dock off the screen (scripts/voice.mjs:36-37). Whether the badge is in sight on a real screen with A/V on is not read.",
+   "pinned_by": "scenario 87-messenger-sound part A (the counts), none for the badge's place",
+   "still_wrong": "Not established: the badge's place beside a drawn camera dock or voice tile on a real screen.",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "docs/dev/e58/LOCAL-REPORT.md's readings were headless with A/V off (its item 11 at :322-323), so nothing there answers it.",
+   "note": "By design that a plain DM is a badge on a GM (the comment at messenger-app.mjs:538-547 names the owner's word of 26.08)."
+  },
+  {
+   "id": "COMM-LC7",
+   "title": "Live check 7: whether ChatMessage.timestamp is stamped client-side on Foundry 14 (decides COMM-15).",
+   "old_severity": null,
+   "old_state": "not carried into AUDIT section 7 by number; asked again as part of LIVE-E33-10 (AUDIT 9.2 item 134)",
+   "status": "open",
+   "evidence_class": "K",
+   "evidence": "No reading found: AUDIT 9.2 item 134 asks whether the server keeps the timestamp the player's browser wrote, docs/dev/e58/TRIAGE-9.2.md:157 lists it, and it is not among the rows docs/dev/e58/LOCAL-REPORT.md:327 counts as measured. The harness keeps the client's timestamp (item 134's own text).",
+   "pinned_by": "none",
+   "still_wrong": "Not established; it decides the remaining half of COMM-15.",
+   "severity_now": "none",
+   "confidence": "read",
+   "refutation_tried": "Searched docs/dev/e39/CALIBRATION.md and the local report for timestamp and createdTime: nothing.",
+   "note": ""
+  }
+ ],
+ "new_observations": [
+  {
+   "title": "The AUDIT's table of section 9 names the wrong commit for task 13",
+   "where": "audit/AUDIT-1.2.42.md:632",
+   "what": "The row '13 - rozliczenie' cites 7e40243; that commit is 'D8: the first text pass, and the decisions recorded' and touches no bridge, dice or voice file (git show --stat). The work the row describes (COMM-05/09/17/18 and the rest) is b888c066 'Task 13: the findings that had no task, and the tally corrected'.",
+   "severity": "nit",
+   "confidence": "read"
+  },
+  {
+   "title": "COMM-10 was never closed by name, yet the tally says every id is closed",
+   "where": "audit/AUDIT-1.2.42.md:371, :632, :701",
+   "what": "Section 4 lists COMM-10 among the open minors; no task's list (tasks 2, 3, 10, 13) and no commit message names it; section 9.1a says all 152 ids are closed or decided. Today's code still has the shape it described (see the item).",
+   "severity": "nit",
+   "confidence": "read"
+  },
+  {
+   "title": "A comment on the sheet's Stop says it is there for everyone; the code leaves two sheets without it",
+   "where": "scripts/sheet-sidebar.mjs:903-906 against :915 and scripts/sheet-mode.mjs:80-81",
+   "what": "'Present for everyone - a Monokuma's player is at the same table' stands above code that draws no Stop on a Monokuma's sheet (E49 B2) or a Spectator's (E92 C5). scripts/safeword.mjs:272 likewise still lists the spectator among those who may call it, while a Spectator has no control on screen for it.",
+   "severity": "nit",
+   "confidence": "read"
+  },
+  {
+   "title": "Two presses of the safeword key open two confirmation windows",
+   "where": "scripts/safeword.mjs:433 (onDown) and :387-401 (safewordDialog)",
+   "what": "Each key-down opens a new modal window; nothing holds it to one. Recorded on Foundry 14.370 in docs/dev/e58/LOCAL-REPORT.md:420 ('a fast double press opens two'). A second Stop inside the repeat window posts no second card, so the effect is a spare window.",
+   "severity": "nit",
+   "confidence": "read"
+  }
+ ],
+ "not_established": [
+  "I ran no test, scenario or check (rule 2): every 'pinned_by' is a test or scenario read in source or in docs/dev/R-REGISTRY.md; whether it is green on b5a29e73 is the base run's to say.",
+  "COMM-10: the audible result with two GMs was not run and no test drives playTrack or resetMusic. Reading that would settle it: with two GMs and the music following the state, the second GM presses Play in the Sound window, the time of day moves to a state with another playlist mapped, the second GM presses Reset; then game.drpg.musicStatus() on both browsers and game.playlists.filter(p => p.playing).",
+  "COMM-15 and COMM-LC7: whether Foundry v14 keeps the creating browser's clock in ChatMessage.timestamp. Reading that would settle it: two browsers with system clocks minutes apart each send into one thread; compare message.timestamp with _stats.createdTime on a third (AUDIT 9.2 item 134, LIVE-E33-10).",
+  "COMM-02 and COMM-LC3 on a real screen: the trap alert's popup, its sound and a real click on its buttons in v14's chat log are not read (docs/dev/e58/LOCAL-REPORT.md:432 leaves S7-6).",
+  "COMM-LC1: no real-table reading of a bridge request on another player's socket; the code and R201 answer it, and only the secret.card packet was read on 14.370.",
+  "COMM-LC6: the launcher badge's place beside a camera dock or the voice tile needs a real screen with A/V on.",
+  "COMM-11: whether the owner asked that a Spectator's sheet draw no Stop. R3857's row says 'the owner's E92 goal (5)'; I did not find that goal's wording in docs/dev/e92/STATUS.md or CENSUS.md.",
+  "COMM-08: no test was found that would fail if the gmAsk sound moved back behind the self-author return (the harness has no audio).",
+  "Most files in 'read' were read in the parts listed there, not whole; whole: the source file, gm-bridge.mjs, bridge-wire.mjs and messenger.mjs. A claim about a file rests on the lines its evidence cites."
+ ],
+ "summary": {
+  "items": 25,
+  "by_status": {
+   "fixed": 15,
+   "obsolete": 3,
+   "open": 3,
+   "partly": 4
+  },
+  "findings_by_status": {
+   "fixed": 13,
+   "obsolete": 2,
+   "open": 1,
+   "partly": 2
+  },
+  "live_checks_by_status": {
+   "fixed": 2,
+   "partly": 2,
+   "obsolete": 1,
+   "open": 2
+  },
+  "top": [
+   "COMM-10 open (minor, suspected): scripts/music-play.mjs:1098-1099, :1179-1217 - a second GM's Play and Reset keep their own record of what a cue interrupted; only the primary reconciles (:381-382)",
+   "COMM-11 partly (minor, read): scripts/safeword.mjs:432 and scripts/sheet-mode.mjs:81 - the key ships unbound and a Spectator's sheet has no Stop, so no on-screen door without a sheet",
+   "COMM-15 partly (minor, suspected): scripts/messenger.mjs:147, :206 - unread and order still compare stamps written by different senders' clocks, if v14 keeps the client's timestamp",
+   "COMM-LC3 partly: docs/dev/e58/LOCAL-REPORT.md:432 - the trap alert on a real GM screen (sound, click) was left undriven",
+   "COMM-LC7 open: AUDIT 9.2 item 134 - who stamps ChatMessage.timestamp on v14 is unread"
+  ]
+ }
+}

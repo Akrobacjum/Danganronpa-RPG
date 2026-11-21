@@ -1,0 +1,153 @@
+{
+  "refuter": "verify-domain-case-c-investigation",
+  "of": "domain-case-c-investigation",
+  "checked": [
+    {
+      "ref": "domain-case-c-investigation-1",
+      "claim": "Two finds of one undescribed trace inside one describe window open two windows; the second, confirmed, wipes the first description, or, closed, mints a copy under the fallback name with no words.",
+      "verdict": "stands",
+      "why": "Read the whole road. createFind reads the record once before describeFind (observe.mjs:1026-1028) and never again; the second window opens with no stored record, so its name box holds the fallback and both text boxes are empty (observe.mjs:1237-1247); its confirm returns {name: fallback, playerText: '', analyzedText: ''} (1259-1264); with described still null the change test at 1039-1041 is true and setRemnantPublicById writes all three fields (1042-1046); setRemnantPublic sends each field that differs from before to the copies (remnants.mjs:1450-1455), so the first finder's bullet loses its words. Closed instead, written is null, nothing is written and the copy is minted from the stale pub (1037, 1059-1063). No guard across characters: `describing` is key -> character and pendingTracesOf filters by owner (observe.mjs:329-333); observe.resolve has no queue (bridge-table.mjs:123-138) and judge runs unqueued work at once (bridge-guards.mjs:1826); the serialWrite key is per character (observeFindKey). The ranking is deterministic (observe.mjs:281-282), so two General sweeps aim at the same trace. The GM handbook promises the opposite: 'The first time anyone copies a Remnant, you are asked to describe it ... everyone who copies it later gets the same words' (gm-handbook.en.md:1376). No test of two characters finding one trace inside one window found (grep of tests-tier2.mjs for describeFind/two finders). Major kept: the first sweep of the body's room by two students is the ordinary opening of an Investigation, and the GM's typed description is lost or split.",
+      "evidence": [
+        "scripts/observe.mjs:1026-1028 `const stored = remnantPublicById(entry.sceneId, entry.tokenId); ... const described = stored?.name ? stored : null;`",
+        "scripts/observe.mjs:1042-1046 `pub = await setRemnantPublicById(entry.sceneId, entry.tokenId, { name: written.name || described?.name || fallbackName, playerText: written.playerText || described?.playerText || \"\", ...`",
+        "scripts/remnants.mjs:1452-1454 `for (const field of Object.keys(patch)) { if ((merged?.[field] ?? \"\") !== (before[field] ?? \"\")) changed[field] = merged?.[field] ?? \"\"; }`",
+        "scripts/observe.mjs:329-332 `return [...describing].filter(([key, owner]) => owner === actorId)...`",
+        "scripts/bridge-guards.mjs:1826 `return decl.queue ? inQueue(decl.queue, work) : work();`",
+        "docs/handbooks/gm-handbook.en.md:1376 `The first time anyone copies a Remnant, you are asked to describe it ... everyone who copies it later gets the same words`"
+      ],
+      "severity_after": "major"
+    },
+    {
+      "ref": "domain-case-c-investigation-2",
+      "claim": "observe.target answers, before anything is paid, whether the room holds an uncopied trace, and for Non-obvious a secret project the asker is not in on.",
+      "verdict": "weakened",
+      "why": "The road is as written: observeRanked asks the target first and spends only after (action-observe.mjs:79-86), a closed roll window refunds (89), and the reply differs between 'none' and a key (observe.mjs:204). But the refutation missed what the GM handbook lists as world data every browser holds: 'where every token stands ..., hidden tokens ... included' (gm-handbook.en.md:144), and a Remnant token is recognisable by its texture (remnants.mjs:503 `texture: { src: ICON, ...}`); a secret project's token tells its room too (gm-handbook.en.md:150-151). So the failure scenario's main yield - 'which rooms somebody left a trace in' - is already readable by a console without asking. What the free probe adds is narrower: which traces this character has not copied, whether a trace is observable at all (rankForObserve drops a null DC, remnants.mjs:2625-2626), and the room of a secret project with no token (the GMs' fact by the handbook). That residue is still against observe.mjs's own header, so the finding stands in part; minor kept because the tokenless-project fact is one the handbook says is the GMs'.",
+      "evidence": [
+        "scripts/action-observe.mjs:79 `const target = await requestObserveTarget({ actorId: actor.id, declaration, request: \"\" });`",
+        "scripts/action-observe.mjs:86 `const paid = cost > 0 ? await spendAction(actor, cost) : null;`",
+        "scripts/observe.mjs:204 `if (!secret) return { ok: false, reason: \"none\" };`",
+        "docs/handbooks/gm-handbook.en.md:144 `where every token stands and when it moved, hidden tokens and the Eclipse included;`",
+        "docs/handbooks/gm-handbook.en.md:151 `where a secret project's token stands, which tells its room, but not the room of one with no token on the map`"
+      ],
+      "severity_after": "minor"
+    },
+    {
+      "ref": "domain-case-c-investigation-3",
+      "claim": "An unseen Frisk refused by the one gate before its rolls are read keeps the action spent, while a Steal, a Plant and an open Frisk refused the same way hand it back.",
+      "verdict": "stands",
+      "why": "performFrisk pays (frisk.mjs:394), throws both rolls, asks requestFriskUnseen and goes straight on to noteRollContext, report and drpgActionResolved (417-427) with no read of res.refused, res.reason or noGm. friskPerson's first step is personActionRefusal (305-306), before either total is read. performPalm reads the same gate's codes and noGm and calls palmBack (palm.mjs:213, 390); the open Frisk hands back on FRISK_HANDED_BACK (frisk.mjs:1255-1256). The player handbook's Palm section, whose table has the Frisk (unseen) column, says 'A Palm refused before its dice are read ... gives you its action back' (player-handbook.en.md:463). Tier-2 tests of the unseen Frisk (tests-tier2.mjs:12520, 13438) judge the GM's side, not the refund. No decision found that it stays paid.",
+      "evidence": [
+        "scripts/frisk.mjs:305-306 `const why = personActionRefusal(searcher, target); if (why) return refuse(why);`",
+        "scripts/frisk.mjs:417 `await A.noteRollContext(actor, { direction: \"frisk\", mode, room, victimId: victim.id, seen, success });`",
+        "scripts/palm.mjs:390 `if (nobodyTook(res.ok, res.reason) || TRANSFER_REFUSED.includes(...)) await palmBack(actor, paid);`",
+        "docs/handbooks/player-handbook.en.md:463 `A Palm refused before its dice are read (the target walked out, a Class Trial began) gives you its action back`"
+      ],
+      "severity_after": "minor"
+    },
+    {
+      "ref": "domain-case-c-investigation-4",
+      "claim": "A GM's retype of a Key or Final trace writes the new kind onto every unanalysed copy showing Key, which then shows the answer, cannot be analysed and reads as having its reading.",
+      "verdict": "stands",
+      "why": "A Key copy is born shownType 'key', analyzed false (truth-bullets.mjs:691, 729), so isIdentified answers true (309-313). The Traces tab's type select lists every kind (investigation.mjs:686-688) and a changed kind goes into setRemnantFlags (2515, 2521), which calls propagateVerdicts with the type (remnants.mjs:2243-2246); that writes shownType = type on every identified copy (truth-bullets.mjs:1010-1013, 1020, 1025-1028). With shownType e.g. 'prep' and analyzed false, isAnalysable answers false (478) and hasReading true (369-373, READ_ON_ANALYZE = ['key','final'] at 562). The function's own comment says an unanalysed copy 'must go on showing' Neutral (968-970); the Key copy is the case it misses. Tier-2 retype tests (tests-tier2.mjs:30325-30523) read the planner's line, the box and Incident hiding, not a Key copy's shownType.",
+      "evidence": [
+        "scripts/truth-bullets.mjs:1010-1013 `if (type) { secret.realType = type; shown[`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.shownType}`] = type; }`",
+        "scripts/truth-bullets.mjs:1020 `if (isIdentified(held)) identified.push(item);`",
+        "scripts/truth-bullets.mjs:478 `if (shown !== \"neutral\" && !READ_ON_ANALYZE.includes(shown)) return false;`",
+        "scripts/investigation.mjs:2515 `if (take.type) flagPatch.type = take.type;`"
+      ],
+      "severity_after": "minor"
+    },
+    {
+      "ref": "domain-case-c-investigation-5",
+      "claim": "'Not now' on the Final Truth close question promises the words are kept and Save places it later; the Final form's words are in no store and come back blank.",
+      "verdict": "stands",
+      "why": "The tooltip key is used only at investigation.mjs:2159. offerFinalOnClose returns false on any answer but 'place' (2162); the close path then returns or reopens the dashboard with openInvestigationDashboard({ said }) (2430-2437), and caseFinalPanel draws finalName, finalText and finalAnalysis with value=\"\" (1014-1021). The only readers of those fields are readDashboardForm (1636-1638) and placeFinalFromDashboard (2171); no other file names finalName. The stage paper says the code's behaviour (docs/dev/e99/STATUS.md:670-671 'Its text fields without a room are not kept'); the tooltip says the opposite.",
+      "evidence": [
+        "lang/en.json:2123 `\"keepForLaterTooltip\": \"Your words are kept and nothing goes on the map; Save places it later\"`",
+        "scripts/investigation.mjs:2162 `if (answer !== \"place\") return false;`",
+        "scripts/investigation.mjs:1014 `<input type=\"text\" name=\"finalName\" value=\"\"...`"
+      ],
+      "severity_after": "minor"
+    },
+    {
+      "ref": "domain-case-c-investigation-6",
+      "claim": "A successful find of an undescribed trace waits on a window on the primary GM alone, with no clock, card or second GM; a reload of that GM loses the find without a word.",
+      "verdict": "weakened",
+      "why": "The reload half is confirmed: describeFind is a drpgWindow with no time (observe.mjs:1182-1276; ui-kit.mjs has no timeout option), the run lives in the page, observe.resolve answers 'ack' and has no resend (bridge-table.mjs:123-138), and resolveObserve's 'no record' whispers (observe.mjs:703-737) fire only for a resolve that arrives; nothing at ready re-runs a pending row with no result (sweepPending only drops rows past the TTL, 148-159). Two parts are weaker than written: the window on the resolving GM's browser alone is the documented behaviour ('the describe window opens on that GM's browser', gm-handbook.en.md:2281), so 'another GM is not shown it' is a recorded design, not a defect by itself; and the player does get a card - settleObserveRoll whispers the roll's head once the ack returns (action-observe.mjs:183) - though no verdict and, for a General sweep, no 'the GM is judging' line. Minor kept for the reload loss.",
+      "evidence": [
+        "scripts/observe.mjs:823 `const item = success ? await createFind(actor, entry, isCritical) : null;`",
+        "scripts/bridge-table.mjs:132 `answer: \"ack\",`",
+        "docs/handbooks/gm-handbook.en.md:2281 `Observe and Analyze are scored on a GM's client ...: the describe window opens on that GM's browser.`",
+        "scripts/action-observe.mjs:183 `await whisperToOwner(actor, `${rollHead(def, roll)}${...`"
+      ],
+      "severity_after": "minor"
+    },
+    {
+      "ref": "New Remnant (openNewTrace, askRoom) / Create",
+      "claim": "Create with '- pick a room -' left chosen closes the window and places nothing, with no notice.",
+      "verdict": "stands",
+      "why": "The real caller is the planner's Place for a row with no room (investigation.mjs:1917 `askRoom: !row.room`). The Create callback returns room '' (186-200), and line 208 returns null with no notification, while every other refusal below it warns (209-224). Nothing disables Create while the room is empty (no render hook in the window). The comment at 119 says Create 'refuses', which it does, silently. Verdict for the controls pass: silent rather than dead.",
+      "evidence": [
+        "scripts/investigation.mjs:208 `if (!result || result === \"cancel\" || !result.room) return null;`",
+        "scripts/investigation.mjs:1917 `img: row.img || PLANNED_GLYPH, askRoom: !row.room });`"
+      ],
+      "severity_after": "nit"
+    },
+    {
+      "ref": "Key Remnants tab, placed row / name, description, analysis emptied",
+      "claim": "Emptying a placed Key row's words is ignored without a word, while the Traces tab clears the same field.",
+      "verdict": "stands",
+      "why": "saveKeyPlan builds words from take (key-remnants.mjs:851-855); an emptied field is '' and is not pushed (857-859), and keyRowShows draws a placed row from the trace's public words (892-898), so the cleared field comes back on the next draw. No warning on that road.",
+      "evidence": [
+        "scripts/key-remnants.mjs:858 `if (words.name) patch.name = words.name;`",
+        "scripts/key-remnants.mjs:895 `name: (pub ? pub.name : entry.name) ?? \"\",`"
+      ],
+      "severity_after": "nit"
+    },
+    {
+      "ref": "Investigation dashboard / refresh on bulletStore",
+      "claim": "The dashboard reads the bullets' answer keys (secretOf) but does not watch bulletStore, so a key merged after the item's createItem leaves 'Found by' and 'Really' stale on a second GM.",
+      "verdict": "weakened",
+      "why": "Confirmed that the stores list has no bulletStore (investigation.mjs:2412) and that findersByAnyRemnant and evidenceByStudent read secretOf, i.e. bulletStore (321, 337; truth-bullets.mjs:182-185). createTruthBullet writes the secret after the item exists (truth-bullets.mjs:761), so on the creating GM the 120 ms debounce of the createItem redraw likely covers it. On a second GM the order of Foundry's createItem and the GM-to-GM store delta is a timing question not settled from source; written as suspected.",
+      "evidence": [
+        "scripts/investigation.mjs:2412 `watch: { actors: true, items: true, stores: [remnantStore, keyPlanStore, caseSchemaStore, blackenedStore, castStore, deathStore] },`",
+        "scripts/investigation.mjs:321 `const secret = secretOf(item.uuid);`"
+      ],
+      "severity_after": "minor"
+    },
+    {
+      "ref": "Investigation dashboard, Map / Logic Dive set select",
+      "claim": "The node's set select is built from diveSetStore, which the window does not watch; a set made through 'Edit sets' is missing until another redraw.",
+      "verdict": "stands",
+      "why": "zoneRows reads diveSetStore (investigation.mjs:1498-1500); the stores list omits it (2412); 'Edit sets' opens trial-zones-ui.mjs openDiveSets and does not refresh the dashboard (1844-1846). A stale_state by the owner's rule of 20.11.2026.",
+      "evidence": [
+        "scripts/investigation.mjs:1498 `const sets = Object.entries(diveSetStore.entries() ?? {})...`",
+        "scripts/investigation.mjs:1846 `import(\"./trial-zones-ui.mjs\").then(Z => Z.openDiveSets())...`"
+      ],
+      "severity_after": "minor"
+    },
+    {
+      "ref": "Investigation dashboard / refresh on tokens",
+      "claim": "`tokens` is not watched; a Remnant deleted or moved on the canvas reaches the window only if the ledger's row changes with it.",
+      "verdict": "weakened",
+      "why": "The delete half is covered: the primary's deleteToken hook tombstones the trace's row in remnantStore (remnants.mjs:1876-1883), which the dashboard watches (investigation.mjs:2412), so a delete redraws it. A move by hand changes no store row and the window has no token hook, so a room shown from the token's place can stand old; that is the Planner case D-A1 names, being fixed in 1.2.119 by line C1 ('the Planner also watching Remnant tokens').",
+      "evidence": [
+        "scripts/remnants.mjs:1876-1878 `Hooks.on(\"deleteToken\", (doc, options) => { ... if (!isPrimaryGm() || !doc?.getFlag?.(MODULE_ID, REMNANT_FLAGS.isRemnant)) return;`",
+        "audit/findings-1.2.118/DECISIONS.md D-A1 `the Planner also watching Remnant tokens`"
+      ],
+      "severity_after": "minor"
+    }
+  ],
+  "counts": {
+    "checked": 11,
+    "stands": 7,
+    "weakened": 4,
+    "refuted": 0
+  },
+  "not_established": [
+    "Finding 1's frequency at a table: two finds of one unnamed trace inside one describe window. New live check: two players sweep one room holding one unnamed trace while the GM leaves the first describe window open; read both bullets and the trace's public record after each answer.",
+    "The bulletStore timing on a second GM (dashboard 'Found by'): whether Foundry's createItem reaches that GM before or after the store delta. New live check at a two-GM table: a player's find with the dashboard open on the non-primary GM; read 'Found by' without touching the window.",
+    "Not checked here: the two nit findings (7, 8) and the remaining hints (Observe's card picker with no Refuse, Frisk's windows, Body found's disabled title, the picker and Clear the plan's one-time reads), below the severity this pass covers.",
+    "Not part of the reader's file, noted for the coordinator: the dashboard's keepLive (investigation.mjs:2409-2418) passes no whileEditing option on b5a29e73, so it is on keepLive's wait-for-focus rule that D-A1 makes a major finding; the 1.2.119 line C1 is said to change it."
+  ]
+}

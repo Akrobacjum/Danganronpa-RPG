@@ -1,0 +1,75 @@
+{
+ "refuter": "verify-controls-12-projects",
+ "of": "controls-12-projects",
+ "checked": [
+  {
+   "ref": "controls-12-projects-1",
+   "claim": "The Project manager keeps only the progress cells live; a project made, deleted, moved, sealed or shared elsewhere is not drawn until reopened.",
+   "verdict": "stands",
+   "why": "Read the whole road. openProjectManager reads allProjects() once and draws the rows from it; wireProjectManager's only live part is keepFresh, whose run writes [data-drpg-progress] cells and nothing else. keepFresh (live.mjs:837-868) calls run(root) on every heard event and has no other redraw; listenFor with no watch.settings hears every drpg.* world setting and daggerheart.Countdowns, so the window is woken by a create or a room change and the run ignores it. A share writes neither setting (tier 2 E36-T4 pins a share and a revoke at cd 0, meta 0), and listenFor hears GM stores only through watch.stores, which this call does not pass. git grep of drpg-window-projects outside the tests finds only its alreadyOpen and classes lines (projects-ui.mjs:682, 702): nothing closes, reopens or rerenders it. The comment at 554-556 says the same. Save's guards (room compared with the open list, rows gone skipped) were read and hold, so the harm is the display and the Edit road (findings 5, 6). Kept at minor, as the other refuters of this audit kept windows drawn once that lose no write.",
+   "evidence": "scripts/projects-ui.mjs:554-556 \"A project being CREATED or deleted elsewhere still needs the window reopening; that is a rarer event and a louder one.\"; 557-567 `keepFresh(dialog, { run: root => { for (const project of allProjects()) { const cell = root.querySelector(`[data-drpg-progress=...`); ... if (cell.textContent !== text) cell.textContent = text; } }, watch: { settingKeys: [\"daggerheart.Countdowns\"] } });`; 689 `const projects = allProjects();`; live.mjs:327-328 `if (!key.startsWith(`${MODULE_ID}.`)) return; if (watch.settings && ...) return; schedule();`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-12-projects-4",
+   "claim": "The edit window's Save writes the trap's armed and firedAt as read when the window opened, so a fire stamped meanwhile is cleared.",
+   "verdict": "stands",
+   "why": "Read the whole road. startTrigger is read from secretsOf at open (1034); Save builds trigger { ...result.trigger, armed: startTrigger.armed, firedAt: startTrigger.firedAt ?? null } (1249-1253); projectEditChange copies it into meta.trigger whole (projects.mjs:2631); changeStep hands change.meta to setProjectMeta (projects.mjs:1814), which sends trigger, a PROJECT_SECRET_FIELD, to projectSecretStore.patch(..., { whole: true }) with fresh stamps, so it lands over stampFired's later-in-time but earlier-in-queue patchTrigger({ firedAt }) (traps.mjs:359-362). The watcher then passes `if (trigger.firedAt) continue;` (traps.mjs:207) again. Read further than the reader: armed is written back the same way, so a trap armed by its project's completion while the window stood open (armTrap -> patchTrigger({ armed: true }), traps.mjs:394-401) is disarmed by the Save, and a GM's Rearm meanwhile (rearmTrap, 376-382) is undone. No tier-1 or tier-2 test names startTrigger or opens the window across a fire (grep of tests*.mjs).",
+   "evidence": "scripts/projects-ui.mjs:1034 `const startTrigger = (editing ? secretsOf(project.id).trigger : start?.trigger) ?? null;`; 1249-1253 `trigger: result.murder ? { ...result.trigger, armed: Boolean(startTrigger?.armed), firedAt: startTrigger?.firedAt ?? null, condition: result.condition } : null`; projects-secrecy.mjs:307 `if (Object.keys(secret).length) await projectSecretStore.patch(countdownId, secret, { whole: true });`; traps.mjs:362 `const trigger = await serialWrite(COUNTDOWNS_KEY, () => patchTrigger(projectId, { firedAt: Date.now() }));`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-12-projects-5",
+   "claim": "The edit window's Save writes room, name, size, statistic, glyph and description as drawn, over a change made while it stood open.",
+   "verdict": "stands",
+   "why": "Read the whole road. Save passes every field to projectEditChange, which names room whenever it is given (projects.mjs:2620), name and target whenever not null; changeStep applies name and target to the countdown and setProjectMeta writes room with no comparison. roomSceneOnRoomChange compares with roomOf now, but only to pick the scene. The manager's guard for the same case (projects-ui.mjs:622-629, E12 C5) is absent here, and openProjectDialog has no keepLive or keepFresh. Read further than the reader: from the manager's Edit (580-590) the window is opened with the `project` object of the list the manager read when IT opened (`projects.find(...)`), and the window draws currentRoom, currentTarget and the name from that object (start = project, 959, 975), so a token drag made while the manager stood open (projects-map.mjs:656-679, an ordinary Daily Life case per finding 1) is put back by an Edit and Save even when the edit window itself was open for a second.",
+   "evidence": "scripts/projects.mjs:2620 `if (patch.room !== undefined) meta.room = patch.room || null;`; projects-ui.mjs:1229-1236 `const change = combineChanges(projectEditChange({ ... name: result.name, target: result.target, img: result.img, glyph: result.glyph, room: result.room,`; 583 `const project = projects.find(p => p.id === btn.dataset.drpgEdit);`; 975 `const currentRoom = start?.room ?? \"\";`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-12-projects-8",
+   "claim": "The tray's row menu Delete deletes a project at once, with no question and no notification, unlike the manager's and the window's Delete.",
+   "verdict": "stands",
+   "why": "Read projectRowMenu whole: on a project row the click is replaced by `return deleteProject(id)`; deleteProject (projects.mjs:2669-2673) asks nothing and says nothing; the manager's Delete (wireManagerDeletes, 485-500) and the window's (1187-1193) both await confirmProjectDelete and notify. One correction to the reader's refutation: tier 2 E36-T4 (tests-tier2.mjs:81265, 81417-81425, 81454) does press this Delete on a project row and pins that the project is gone at once (`menu: { ... held: true, after: false }`, title \"its Delete deleteProject\") - a test of the one-entry queue, not a recorded decision to ask nothing, so it pins the shape the finding describes rather than refuting it. lang/en.json:4591 DRPG.Project.deleteNote says \"Delete in a project's row asks first\", the manager's row. Daggerheart's own entry's question is not in the tree (no copy under audit/harness/lib), as the reader says.",
+   "evidence": "scripts/projects-ui.mjs:242-246 `} else if (label === \"CONTROLS.CommonDelete\") { entry[clickKey] = function (event, target) { ... const id = projectOf(element); if (id) return deleteProject(id);`; 494-495 `if (!(await confirmProjectDelete(project))) return; if (!(await deleteProject(project.id))) return;`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-12-projects-9",
+   "claim": "The Projects action window is drawn once: rows and selects stay as at open when a project appears, finishes or is frozen in the room.",
+   "verdict": "stands",
+   "why": "performProject reads here and breakable before chooseVariant; chooseVariant calls actionWindow or drpgWindow with prompt, brief, ask, render and footer and no live (action-menus.mjs:230-260), and grep of action-menus.mjs for keepLive, keepFresh and Hooks.on finds none. The render callback wires the confirm label, fields and row heights only. The re-checks before payment were read and hold (workOnProject's stillThere, 499-502; performSabotage's targets.some, 1004-1005), so the cost is the display: a project that appears cannot be picked until reopened. Same family as controls-08-rolls-actions-7 (action windows with no live), confirmed there.",
+   "evidence": "scripts/action-project.mjs:66 `const here = room ? projectsAvailableIn(place) : [];`; 122 `disabled: !here.length,`; action-menus.mjs:230-236 `const picked = await (columns ? actionWindow : drpgWindow)({ title, classes: [\"drpg-panel\"], ... prompt: true,`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "controls-12-projects-11",
+   "claim": "The project token card on a GM does not hear the GMs' store, so a share or a revoke leaves \"Knows it is there\" as drawn.",
+   "verdict": "stands",
+   "why": "The card's keepLive watch (projects-map.mjs:877) names projectMeta, Countdowns, three hooks and three stores, none of them projectSecretStore; listenFor hears a GM store only through watch.stores (live.mjs:345-350) and WORLD_HOOKS are time, Eclipse and phase only (live.mjs:69). A share is shareChange -> { ownership: ownershipMap(), meta: { viewers } } (projects-secrecy.mjs:442-447): viewers is a PROJECT_SECRET_FIELD (111-112), so setProjectMeta writes the store only, and the ownership map is the same, so changeStep's `moved` is false and no Countdowns write follows. Tier 2 E36-T4 pins exactly this (tests-tier2.mjs:81447-81449: \"A revoke and a share write no countdown since S17-31\", share and revoke at cd 0, meta 0). The other redraw roads were looked for: drpgProjectSightChanged runs sync's projects kind (projects.mjs:1971-1973), whose 'sheets' is clock.mjs refreshSheets, which renders only documents of type character (clock.mjs:946), and the project actor is an npc (projects-map.mjs:159-160); the card does not watch tokens or actors. The second half (a secret project's name, room or condition) holds for a token drag and a condition change, which write the store alone; for a rename through the edit window it rests on whether the same-value projectMeta write of trait and glyph fires updateSetting on v14, which is the reader's own open question in finding 12.",
+   "evidence": "scripts/projects-map.mjs:877 `watch: { settings: [\"projectMeta\"], settingKeys: [COUNTDOWNS_KEY], hooks: [\"drpgSecretStored\", \"drpgRouteSettled\", \"drpgSeenChanged\"], stores: [discoveryStore, fogCopy, projectSightCopy] },`; projects-secrecy.mjs:446 `return { ownership: ownershipMap(), meta: { viewers: [...new Set([...ids, userId])] } };`; clock.mjs:946 `if (app?.document?.type !== \"character\") return;`",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "Project window: create, edit, or approve a proposal / Delete (edit only)",
+   "claim": "Mislabeled (finding 6, nit): the window's Delete and Save say \"1 deleted.\" and \"Projects updated.\" whatever the step answered.",
+   "verdict": "stands",
+   "why": "The Delete branch awaits deleteProject and notifies without reading it; deleteProject answers null unless result.removed (projects.mjs:2669-2673), and changeStep answers { result: null } for a countdown that is not there (projects.mjs:1665). Save notifies DRPG.Project.saved after applyProjectChange whatever it returned. The manager's Delete reads the answer (498). The road to it needs a project deleted elsewhere while an edit window or a stale manager row (finding 1) stood open, which is real. The control does what its label says (it deletes when there is something to delete); what is wrong is the toast, so the verdict reads closer to silent-or-false-success than to mislabeled; the severity nit stands either way.",
+   "evidence": "scripts/projects-ui.mjs:1190-1192 `await deleteProject(project.id); ui.notifications.info(game.i18n.format(\"DRPG.Project.savedWithDeletions\", { n: 1 })); return { deleted: true };`; 1255-1256 `if (change) await applyProjectChange(project.id, change, { by: { kind: \"gm\" } }); ui.notifications.info(game.i18n.localize(\"DRPG.Project.saved\"));`; projects.mjs:2671-2672 `const result = await applyProjectChange(countdownId, { remove: true }, ...); return result?.removed ? true : null;`",
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 7,
+  "stands": 7,
+  "weakened": 0,
+  "refuted": 0
+ },
+ "scope_note": "Checked: every finding of severity minor or above (1, 4, 5, 8, 9, 11) and the one control whose verdict is dead, throws, mislabeled or wrong_audience (the edit window's Delete, mislabeled, finding 6). The nits 2, 3, 7, 10 and 12 and the two unknown controls were not re-checked. No harness, test, scenario or probe was run; base-run.json, probe-42.json and probe-43.json were not read.",
+ "not_established": [
+  "Finding 11's name half and finding 12: whether Foundry 14.370 fires updateSetting for a world setting written with an equal value (setProjectMeta's projectMeta write of an unchanged trait and glyph in an edit). New live check: two GMs, a secret project's token card open on the second; rename the project in the edit window on the first; read whether the card's header and the second GM's tray redraw.",
+  "Finding 8: whether Daggerheart 2.12.8's own row menu Delete asked a question before projectRowMenu replaced its click; no copy of the system's countdowns.mjs is in the tree.",
+  "Finding 4's added road (a trap armed by its completion while its edit window stands open, then disarmed by Save) was read in source, not run. Probe: open openProjectDialog({ project }) on an unfinished watched trap, fill its bar from a player, press Save, read secretsOf(id).trigger.armed.",
+  "D-A1: no surface of this file was found on keepLive's wait-for-focus rule; the token card is the one keepLive here and it holds no field. The manager's keepFresh has no focus rule at all (live.mjs:841-851)."
+ ]
+}

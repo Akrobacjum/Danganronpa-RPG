@@ -2023,13 +2023,13 @@ async function moveCaseNode(reading, id, step, drawn = null) {
     if (!id || !game.user?.isGM) return false;
     const { chapter, graph } = caseMapGraph(reading);
     const layout = layoutCase(graph, { sort: graph.meta?.sort, manual: graph.meta?.manual });
-    const found = layout.columns.find(c => c.includes(id));
-    let column = found;
-    if (found && found !== layout.columns[0]) {
-        const placed = mapPlace(layout, MAP_GEOMETRY, null, { edges: graph.edges ?? [] }).at;
-        const topOf = nodeId => (drawn instanceof Map && drawn.has(nodeId) ? drawn.get(nodeId) : placed[nodeId]?.y ?? Infinity);
-        column = found.map((nodeId, i) => [nodeId, topOf(nodeId), i]).sort((a, b) => a[1] - b[1] || a[2] - b[2]).map(([nodeId]) => nodeId);
-    }
+    const placed = mapPlace(layout, MAP_GEOMETRY, null, { edges: graph.edges ?? [] }).at;
+    const topOf = nodeId => (drawn instanceof Map && drawn.has(nodeId) ? drawn.get(nodeId) : placed[nodeId]?.y ?? Infinity);
+    // each column as drawn: the first in the layout's order (no aims, the gap), the rest by their tops
+    const asDrawn = layout.columns.map((col, c) => (c === 0 ? col
+        : col.map((nodeId, i) => [nodeId, topOf(nodeId), i]).sort((a, b) => a[1] - b[1] || a[2] - b[2]).map(([nodeId]) => nodeId)));
+    const index = layout.columns.findIndex(c => c.includes(id));
+    const column = index >= 0 ? asDrawn[index] : null;
     const name = graph.nodes.find(n => n.id === id)?.label || game.i18n.localize("DRPG.CaseMap.noName");
     const stays = () => {
         ui.notifications.info(game.i18n.format(step < 0 ? "DRPG.CaseMap.moveEnd.up" : "DRPG.CaseMap.moveEnd.down", { name }));
@@ -2037,11 +2037,16 @@ async function moveCaseNode(reading, id, step, drawn = null) {
     };
     if (!column) return stays();
     const at = column.indexOf(id), to = at + step;
-    if (to < 0 || to >= column.length || (layout.gapAt !== null && layout.columns[0] === column && (at < layout.gapAt) !== (to < layout.gapAt))) return stays();
+    if (to < 0 || to >= column.length || (layout.gapAt !== null && index === 0 && (at < layout.gapAt) !== (to < layout.gapAt))) return stays();
     const order = [...column];
     [order[at], order[to]] = [order[to], order[at]];
+    /* EVERY COLUMN KEPT AS DRAWN (line P of 1.2.121; the audit's r120-P-2): until then the moved column alone was given its
+       places, and under By room, By state or Fewer crossings every other column fell back to its nodes' kind order (or an
+       older By hand) the moment the sort became "manual" - since 1.2.120 every column follows the sort, so all of them
+       jumped. Now each column's drawn order is written with the move, so only the pressed node moves. Tier 2 "the
+       planner's Move under another order keeps every other column as it was drawn". */
     const manual = { ...(graph.meta?.manual ?? {}) };
-    order.forEach((nodeId, i) => { manual[nodeId] = i; });
+    asDrawn.forEach((col, c) => (c === index ? order : col).forEach((nodeId, i) => { manual[nodeId] = i; }));
     await setCaseMeta(chapter, { sort: "manual", manual });
     return true;
 }
@@ -2478,9 +2483,11 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
              *
              * NOT IN `wireCase`, AND THAT IS THE POINT. The footer sits outside
              * `.drpg-case-live`, so a rebuild never replaces these nodes - and
-             * `keepLive` DEFERS a rebuild while focus is inside the region, so
-             * hanging the paint on `after` would leave the button lit for as long
-             * as somebody was mid-sentence when the Eclipse started. `keepFresh` is
+             * `keepLive` DEFERRED a rebuild while focus was inside the region, so
+             * hanging the paint on `after` would have left the button lit for as long
+             * as somebody was mid-sentence when the Eclipse started. (Since 1.2.119
+             * the region asks `whileEditing`, and a press inside it still defers a
+             * rebuild until it is let go; a node outside it needs neither.) `keepFresh` is
              * the subscription for exactly this shape: a node nobody edits, written
              * in place, with no focus rule.
              *

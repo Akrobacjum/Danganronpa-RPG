@@ -1,0 +1,868 @@
+{
+ "reader": "stages-05",
+ "checkout": "main b5a29e73 = 1.2.118, read on the audit's branch claude/audit-119 at 46b2e218 (which adds files under audit/ only); nothing run, nothing changed but this file",
+ "read_counts": {
+  "stages": 4,
+  "release_notes_lines_read": "v1.2.71.md 1-190, v1.2.72.md 1-91, v1.2.73.md 1-196, each whole (477 lines)",
+  "papers_read_whole": {},
+  "papers_not_found": [
+   "docs/dev/e09",
+   "docs/dev/e10",
+   "docs/dev/e75",
+   "docs/dev/e11 (ls docs/dev: no folder for any of the four)"
+  ],
+  "other_papers_read": [
+   "audit/findings-1.2.118/BRIEF.md (whole), DECISIONS.md (whole), first-session/README.md (whole), stages-25.json and stages-03.json (shape and one stage each)",
+   "audit/AUDIT-1.2.42.md 16-127 (section 11) and the 9.2 rows 137-162 (lines 984-1018) by grep of the four ids; line 1209 (item 335) and 1442 (item 475)",
+   "audit/findings-1.2.118/live-items-04.json items 137-150 and live-items-05.json items 151-162 (status, result, evidence, note); live-readings-e58.json, live-readings-other.json and live-readings-e58-delta.json searched for the four ids",
+   "docs/dev/e58/LOCAL-REPORT.md:421-422 and origin/claude/e58-local's copy :573-574 (relayGuard state)",
+   "docs/dev/e76/STATUS.md (grep: lines 12, 21, 96-121)",
+   "audit/harness/README.md rows naming the four stages (146, 173, 188, 198, 199, 200, 205, 529, 610-625); audit/harness/lib/dh-relay.mjs 1-175; audit/harness/skip-baseline.json (no row of these stages)",
+   "tools/stages.json rows E09, E10, E75, E11 and its $comment (first 3000 characters); tools/registry.mjs 1-60, 120-170 (read only)"
+  ],
+  "source_read_in_part": [
+   "scripts/relay-guard.mjs 80-140, 405-560 (and grep of E75, REVIEWED_NAMES, default, fingerprint, backstop over the whole file)",
+   "scripts/key-remnants.mjs 576-800",
+   "scripts/remnants.mjs 1900-1935, 2310-2352",
+   "scripts/gm-stores.mjs 2085-2160, 2180-2230, 2370-2470, 2995-3025; scripts/gm-store.mjs 300-330, 515-560, 960-1000",
+   "scripts/chapter.mjs 650-665, 905-1000; scripts/season-wipe.mjs 196-240, 325-345, 385-470",
+   "scripts/clock.mjs 40-100 and setClock's trial and Eclipse lines (143-170); scripts/vote.mjs 965-1012; scripts/settings.mjs 340-360",
+   "grep hits only: the E09, E10, E11 markers over scripts/ (counts per file, and the comment lines in investigation.mjs, key-remnants.mjs, remnants.mjs, death.mjs, cleanup-reshape.mjs, observe.mjs, chapter.mjs, analyze.mjs, body.mjs, vote.mjs, verdict.mjs, projects-map.mjs, migrate.mjs), at the lines cited in the promises"
+  ],
+  "registry_rows": {
+   "E09": 7,
+   "E10": 12,
+   "E75": 3,
+   "E11": 17
+  },
+  "test_bodies_read": "R312, R313, R315 (first part), R343, R344, R345 whole or nearly; R304, R310, R347, R349 header comments; the other 29 rows by title only. Tier 2: titles of every test whose header names a stage's change first (a script over tests-tier2.mjs's 1525 test heads: E09 about 91, E10 about 60, E11 48, E75 0), and the header of 'Enter in the verdict window executes nobody'.",
+  "base_run_lookups": "base-run.json does not exist when this was written; the first session's tiers 0-1 totals (1776 passed, 0 failed, 16 skipped, both parts) are the only results read; none of the 39 rows is in skip-baseline.json, so each is taken as run and passed from the totals, not from its own line. Scenarios 62, 63, 65 and 30 have no verdict in either session's runs; 10, 17 and 18 were green in the first session's.",
+  "live_items": 26,
+  "live_readings_found": "2 partly read (LIVE-E75-03, LIVE-E75-05) through live-items-05's digests of LOCAL-REPORT.md; 24 open"
+ },
+ "count_note": "Four stages, as the scope names (E09, E10, E75, E11, in tools/stages.json order). None has a folder in docs/dev, and the checkout is shallow (oldest commit 32fd204f of 14.10.2026), so none of their own commits (08-11.10.2026) can be read; what was promised rests on the release notes, the registry rows and the code's change-number markers. E09 and E10 shipped together as 1.2.71 and are graded apart, each on its own half of the notes and its own rows. E75 has no register row in audit/harness/README.md; its scenario checks are in 30-security part 8. The tier-2 counts are a header scan (the first stage named in a test's first ten lines), not a census.",
+ "stages": [
+  {
+   "id": "E09",
+   "version": "1.2.71",
+   "shipped": "2026-10-10",
+   "what": "The investigation, shipped with E10 as 1.2.71: the dashboard's Save writes only what the GM changed (a field moved under the window is marked and named), a kind changed on the Traces tab pulls what depends on it, a Key Remnant is placed by its row's Place button, the Key fee is one rule charged once on the primary GM, a trace's tie has three states (undecided, Tied, Not tied) and a victim's death ties only the undecided, a reshape leaves the copies already held and is ruled once on the primary, a refused clean-up gives back what the GMs saw paid, a focused Observe is a card every GM sees and the primary checks the pick, the chapter's end counts what its sweep and reveal take; Tamper, Observe and Analyze texts made true. 7 registry rows (R304-R310).",
+   "claim_sources": [
+    ".github/release-notes/v1.2.71.md (1-190, whole: Before installing 15-43, the investigation 47-97, Changed 157-166, Known gaps 168-190 with E10's, Checked 192-219)",
+    "tools/stages.json row E09 (planned and shipped 1.2.71, 2026-10-10; touches null; drills [])",
+    "docs/dev/e09/: does not exist (ls docs/dev: no e09, e10, e75 or e11 folder); no STATUS, ledger or plan of the stage is in the tree",
+    "docs/dev/R-REGISTRY.md rows R304-R310 (7, Since E09)",
+    "audit/AUDIT-1.2.42.md 9.2 items 137-141 (lines 984-988), LIVE-E09-01 to -05",
+    "audit/harness/README.md:146, :173 (10-murder's E09 C4 phase), :188 (33-bridge-paths, A14 / E09 C5), :198 (62-investigation, layer ci, stage E09)",
+    "audit/findings-1.2.118/live-items-04.json items 137-141 (all open, no reading)",
+    "git log --all -E --grep '(^|[^0-9A-Za-z])E09([^0-9]|$)': 5 commits, all later stages naming E09 (E24, E21, E60, E65, E51); the stage's own commits (08-10.10.2026) are older than the shallow checkout (oldest commit 32fd204f of 14.10.2026)"
+   ],
+   "commits": 0,
+   "commits_note": "0 of the stage's own commits are in this shallow checkout; the code's markers are the record of its change numbers: git grep counts 'E09' in 25+ runtime files (key-remnants.mjs 35, remnants.mjs 32, investigation.mjs 23, cleanup.mjs 22, truth-bullets.mjs 19, cleanup-reshape.mjs 15, ...), naming C0-C17 and fix rounds r1-G1..G5, r2-G1..G7.",
+   "promises": [
+    {
+     "promise": "The dashboard's Save writes only what the GM changed; a field changed elsewhere while the window was open (another GM's Save, a reshape ruled meanwhile) is marked, not saved and named; the rest is saved",
+     "source": "v1.2.71.md 49-53",
+     "code": "scripts/investigation.mjs:1661 (only what the GM changed, and what it was drawn from), :2444 (the drawn values ride in the form), :2473 and :2513 (a field moved under the window), :2541-2544 (DRPG.Investigation.savedOver, a permanent warning naming each field); scripts/key-remnants.mjs:913 (the part of a row's changes a Save may write)",
+     "holds": "yes",
+     "test": "tier 2 'a field changed under the window is marked and refused while the rest is saved' (tests-tier2.mjs:33135), 'two GMs: B's untouched field takes A's value' (:33274), 'a reshape approved under an open dashboard survives Save' (:31163); scenario 62 phase D",
+     "test_kind": "behaviour",
+     "note": "Two GMs saving inside one sync is LIVE-E09-02 (open); the harness's 62 D saves on one GM."
+    },
+    {
+     "promise": "A kind changed on the Traces tab pulls what depends on it: a trace made Faint is Faint on its copies; a planned Key Remnant given another kind is said to be no longer one; a Faint box unticked is ticked again and the GM told",
+     "source": "v1.2.71.md 54-57",
+     "code": "scripts/remnants.mjs:2218-2241 (a Faint Remnant is Faint, the kind and the box one write; propagateVerdicts carries the kind), :1730 (a kind keeps its two rules by every road, fix r2-G6), :2589; scripts/key-remnants.mjs:482 (a row's trace stands, retyped, C13)",
+     "holds": "yes",
+     "test": "tier 2 'a trace made Faint Remnant on the dashboard is Faint on the trace and on its copies' answer keys' (30317), 'a planned Key Remnant retyped on the dashboard is said to be no longer a Key Remnant and not gone' (30406), 'a trace retuned to Faint Remnant is Faint and a GM unticking a Faint Remnant's box is told it stays' (30527)",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "A Key Remnant is placed by its row's Place button, no longer by Save, in the room and at the visibility chosen",
+     "source": "v1.2.71.md 58-59",
+     "code": "scripts/investigation.mjs:785 (one status and a button that places), :1048, :1756 (the Place button bound on the nodes); scripts/key-remnants.mjs:813 (nothing is placed by Save), :1249 (the Place button's window)",
+     "holds": "yes",
+     "test": "tier 2 'a Key row's Place button puts its clue where its window says, with the words typed on the row' (31034), 'a Key row says once that it is not placed, under one Status heading' (30997); R309 (stylesheet reads)",
+     "test_kind": "behaviour",
+     "note": "How the row and its window look at 1400 px and narrow is LIVE-E09-04 (open); R309 reads only the stylesheets."
+    },
+    {
+     "promise": "The Key fee is one rule, charged once as the trial opens, on the primary GM, with or without a Save of the planner; its bar is four, or the case's own count where lower; only what a living student holds counts",
+     "source": "v1.2.71.md 60-62",
+     "code": "scripts/key-remnants.mjs:580-650 keyFeeOf (bar = min(unfoundBar, caseKeyCount), found = distinct Key copies held by livingStudentsForGm, held = copies with no answer key), :677-764 chargeForUnfoundKeys (keysCharged stamped even at zero; too late when the newest closed case is an earlier chapter), :766-781 askToChargeForUnfoundKeys (bridgeRequest 'keys.charge', onPrimary)",
+     "holds": "yes",
+     "test": "tier 2 'the Key fee is the same with Save and without' (29876), 'a case opened on a critical whose three Key Remnants were all found owes no Despair' (29911), 'a dead student's find does not count toward the Key fee' (29950), 'a Key copy whose trace is gone counts in the chapter its answer key names ...' (30023); scenario 62 phases K and P",
+     "test_kind": "behaviour",
+     "note": "Since E11 fix r2-H2 a trace's row of another season finds nothing (sameSeason, key-remnants.mjs:645); since E109 the held card carries a 'Charge the Key fee' button (wireChargeHeld, :790). The function's own comment keeps a gap: after a reset that wipes the Remnants and keeps the Truth Bullets, a copy is read by its chapter alone (:603-606)."
+    },
+    {
+     "promise": "A trace's tie has three states; the victim's death, by another's hand or their own, ties every undecided trace of the chapter and leaves a Not tied; identified copies learn it when the death is made known; a GM's verdict on a trace reaches every copy's answer key",
+     "source": "v1.2.71.md 63-67",
+     "code": "scripts/remnants.mjs:1912 tieState, :2315-2350 tieChapterTraces (skips tiedToCrime !== null, this season's chapter since E11 C12), :2353-2425 publishTiesFor (the wait for a death the GMs keep), :2175-2206 (a GM's verdict, undecided included); scripts/death.mjs:332, :518-546, :637",
+     "holds": "yes",
+     "test": "R305 (tier 0, the five readers that used Boolean()); tier 2 'a death reaches the copies' tie only at the body's discovery' (55013), 'a copy made between the death and the discovery holds the death's tie back ...' (55140), 'a tie verdict or a kind reaches the copy's answer key and its flag if identified' (35422); scenario 10 (E09 C4 phase), 62 phase V",
+     "test_kind": "both",
+     "note": "Before installing (v1.2.71.md 22-25) promises that each old 'Not tied' is read once as undecided; gm-stores.mjs:2208-2227 settleTieStates does it, and since fix r2-G4 every later load reads the rows against the first load's cut again - finding E09-1 is about that re-read and a restored case."
+    },
+    {
+     "promise": "A reshape: copies already held keep their words, a finder afterwards reads the reshape; one ruling per reshape, made on the primary GM's browser, a second refused and told who ruled; a GM's later edit changes on the copies only what it changed",
+     "source": "v1.2.71.md 68-73",
+     "code": "scripts/cleanup-reshape.mjs:326 (the trace, not the copies already held, C9), :482 (the proposal kept on the attempt's row before the card), :549-565 claimRuling (claimed before anything waits), :725 (the ruling on the primary); scripts/remnants.mjs:1425-1485 (the copies take what a write changed, fix r2-G1)",
+     "holds": "yes",
+     "test": "R306 (tier 0: claimRuling marks `ruled` with no await); tier 2 'a reshape leaves the copies already held' (22248), 'a copy made after it reads the reshaped words' (22285), 'two rulings of one reshape at once run once, and the second is told it was ruled' (22882), and 13 more around 22316-22785; scenario 62 phase T",
+     "test_kind": "both",
+     "note": ""
+    },
+    {
+     "promise": "A refused clean-up gives back what it cost, as far as the GMs saw it paid, and the player is told why; a clean-up's Reroll takes back only its own Sanity",
+     "source": "v1.2.71.md 74-76",
+     "code": "scripts/cleanup.mjs (22 E09 markers; the give-back against the GMs' record of the payment); scripts/cleanup-reshape.mjs:118, :376",
+     "holds": "partly",
+     "test": "tier 2 'a clean-up the GM refuses gives back the price its player paid, and says so' (23085), 'a clean-up the GM refuses gives back no price the GMs did not see paid' (23191), 'a give-back the GMs cannot check against a payment is not made on a player's word ...' (23437)",
+     "test_kind": "behaviour",
+     "note": "The notes' own Known gaps (v1.2.71.md 171-174) leave two parts: what a critical on the free clean-up gives back is an undecided rules question, and a GM's own clean-up resolved on a GM who is not the primary still gives back the step it names (read in the code, not measured). Neither was re-read here against today's cleanup.mjs."
+    },
+    {
+     "promise": "A focused Observe is a card every GM sees; any GM picks the trace and the primary checks the pick; a pick after the player stopped waiting, after another GM's or after a refusal is refused and told to that GM",
+     "source": "v1.2.71.md 77-80",
+     "code": "scripts/observe.mjs:230 (a player's focused gaze picked on every GM's card, C12), :289 (where an observer stands), :365-392 pickObserveTarget and pickFromCard (checked and written on the primary)",
+     "holds": "yes",
+     "test": "tier 2 'a GM's pick on an Observe card answers the player's focused gaze from the traces the primary reads again' (23698), 'an Observe card's pick after its player stopped waiting or after another GM's or a Refuse is refused and told the GM' (23803), 'the player's copy of an Observe card names no trace before a GM's pick or after it' (23770); scenario 62 phase O",
+     "test_kind": "behaviour",
+     "note": "The card's popup and sound on a second GM whose primary's window is hidden is LIVE-E09-03 (open)."
+    },
+    {
+     "promise": "The chapter's end: the sweep's confirm and the End of chapter panel give the number the sweep takes; the reveal gives each Truth Bullet its reading as an Analyze would, a Faint stays unread and a Final shows its kind without its reading, both analysable next chapter",
+     "source": "v1.2.71.md 81-86",
+     "code": "scripts/chapter.mjs:83-139 revealPlan and revealAllBulletTypes (C8, fix r1-G5), :167-182 sweepPlan (C1), :421, :443; scripts/analyze.mjs:251 (the reading's lookup the reveal shares)",
+     "holds": "yes",
+     "test": "tier 2 'the confirm count is the sweep's count' (26564), 'a Faint the sweep keeps stays analysable' (30145), 'the chapter's reveal shows a Final's type without its reading and leaves it analysable' (30175), 'the chapter's reveal decides on the copy the GMs hold' (30238); scenario 62 phase E",
+     "test_kind": "behaviour",
+     "note": "The steps around them were reshaped by E11 C5 and E42 C2 (chapter.mjs:653 CHAPTER_END_STEPS on steps.mjs runSteps); the reveal and sweep are still its first two steps."
+    },
+    {
+     "promise": "For the players: a missed Observe names Sanity only when it marks one; a missed Analyze of a Key or Final no longer calls it Neutral; a reshape needs both fields, and Enter in its window moves to the next field and never erases; a body that would not move leaves no trail",
+     "source": "v1.2.71.md 87-91",
+     "code": "scripts/observe.mjs:952 (the Sanity line only when Sanity was marked, C14); scripts/analyze.mjs:230 ('Still Neutral' only of a bullet that shows Neutral); scripts/cleanup-reshape.mjs:154, :193, :250, :759 (Enter never erases, C11)",
+     "holds": "yes",
+     "test": "R307 (tier 1, the words in English and Polish); tier 2 'a missed Observe names a Sanity mark only when it makes one' (30626), 'a missed Analyze of a bullet that shows its kind does not call it Neutral' (30660), 'Enter in a reshape's window moves to the next field and never erases ...' (23600), 'the GM refuses a reshape that carries only one of its two fields' (23664), 'a body that would not move leaves no trail of being dragged' (23528)",
+     "test_kind": "both",
+     "note": "Enter is pressed headless as a form's first submit button, not a key in Foundry's window."
+    },
+    {
+     "promise": "R304 fails when an investigation road lacks a census row; R310 fails when the handbooks' Key fee, ladders, reshape or Tamper stop matching the code",
+     "source": "v1.2.71.md 164-166",
+     "code": "scripts/tests-tier0.mjs:9020 (R304), :13686 (R310)",
+     "holds": "yes",
+     "test": "R304, R310",
+     "test_kind": "structure",
+     "note": "R304 reads names and text, not data flow, and says so in its header (a reader reached through an unnamed helper is not seen)."
+    }
+   ],
+   "registry_rows": 7,
+   "tests_read": [
+    {
+     "test": "R304 (tests-tier0.mjs:9020)",
+     "measures": "weak",
+     "why": "A census of the investigation's roads by name (PACKET, ITEM, CARD, STORE): closes the list against a new unlisted road, but by its own header it reads names and text, not data flow."
+    },
+    {
+     "test": "R305 (tests-tier0.mjs:13550)",
+     "measures": "weak",
+     "why": "Source reads of the five places that ran the tie through Boolean(); the behaviour of the third state is tier 2's ('a victim's death ties the chapter's undecided traces and never one a GM marked not tied')."
+    },
+    {
+     "test": "R306 (tests-tier0.mjs:13597)",
+     "measures": "weak",
+     "why": "Reads claimRuling's source for a `ruled` mark before any await; the race itself is tier 2's 'two rulings of one reshape at once run once' (22882)."
+    },
+    {
+     "test": "R310 (tests-tier0.mjs:13686)",
+     "measures": "yes",
+     "why": "Each handbook line is first asserted to exist, then its numbers compared with KEY_REMNANTS, OBSERVE_DC, ANALYZE_DC, CLEANUP.transformAction and chooseTamper's offered options, in both languages: fails on a rewritten handbook rather than passing on nothing."
+    },
+    {
+     "test": "tier 2 'the Key fee is the same with Save and without' (tests-tier2.mjs:29876) and its four neighbours to 30081",
+     "measures": "yes",
+     "why": "Drive keyFeeOf and the charge on the GM with and without a planner Save, a critical's case of three, a dead finder, a gone trace and a forged copy; read the Despair moved. Title and header read, bodies not traced line by line."
+    }
+   ],
+   "tests_to_join": [
+    "R304",
+    "R305",
+    "R306",
+    "R307",
+    "R308",
+    "R309",
+    "R310",
+    "tier 2: the about 91 tests whose header first names E09 (tests-tier2.mjs 17046-55140, listed in promises above by line)",
+    "scenario 62-investigation",
+    "scenario 10-murder (E09 C4 phase)",
+    "scenario 33-bridge-paths (A14, E09 C5)"
+   ],
+   "scenarios": [
+    "62-investigation (audit/harness/README.md:198, layer ci, stage E09): traces, focused Observe on a card any GM picks, Analyze, a reshape ruled once on the primary, verdicts to copies, the dashboard's Save under a reshape, the Key fee with and without a Save and on the primary, the chapter end's sweep and reveal, the words - no verdict in either session's runs (the first session's base run stopped inside 30-security)",
+    "10-murder (README.md:173: the death's and the weapon's tie reaching an identified copy at the body's discovery, E09 C4) - green in the first session's run",
+    "33-bridge-paths (README.md:188: a Sabotage of one's own trap leaves a tied trace, E09 C5) - no verdict"
+   ],
+   "live": {
+    "items": 5,
+    "read": 0,
+    "partly": 0,
+    "open": 5,
+    "ids_open": [
+     "LIVE-E09-01",
+     "LIVE-E09-02",
+     "LIVE-E09-03",
+     "LIVE-E09-04",
+     "LIVE-E09-05"
+    ],
+    "note": "live-items-04.json items 137-141: no reading in live-readings-e58.json, live-readings-other.json or the delta. LIVE-E09-01 (the whole investigation with two players and two GMs, the Key fee charged once on the primary when a second GM opens the trial) carries the stage's main promise.",
+    "l1": {
+     "what": "LIVE-E09-01 (the investigation end to end with two GMs, the fee once on the primary), -02 (the dashboard open on both GMs, savedOver), -03 (the Observe card on a second GM with the primary's window hidden), -04 (the dashboard at 1400 px and narrow, both themes), -05 (the End of chapter numbers and the wait on judgedFor)",
+     "recipe": [
+      "1. Two full GMs (one the primary) and two players on 1.2.118. A player Observes in a room with two traces and asks for a focused gaze: the card shows on both GMs; the second GM picks a trace; the player is told; a second pick from the primary is refused and told.",
+      "2. A player Analyzes a Key copy; a player Tampers a trace with a reshape; the primary approves; the second GM tries to rule the same card and is told who ruled.",
+      "3. Both GMs open the Investigation dashboard; the second GM changes a trace's Player description and saves; the primary, without reopening, changes a different field and the same one, and saves: the shared field is marked and named in the savedOver warning, the other saved.",
+      "4. With two Key Remnants found of a case of three, the second GM opens the Class Trial: the Despair whisper appears once, on the primary's charge (3 per Monokuma pool), and pressing Start again charges nothing.",
+      "5. Open End of chapter: the sweep count equals what the sweep removes; after it, a Faint copy is still unread and analysable next chapter.",
+      "6. Screenshot the dashboard at 1400 px and below the narrow threshold in both themes."
+     ],
+     "clients": "two GMs and two players",
+     "theme": "both (step 6), default for the rest",
+     "settles_if": "each step as written - the main promise holds at a table and the grade loses 'provisional'; a second Despair charge, a charge on the non-primary, or a lost field without a savedOver line is a finding against E09 (major)",
+     "priority": "grade cap 9 (rule 1); E09 graded 8"
+    }
+   },
+   "findings": [
+    {
+     "id": "E09-1",
+     "severity": "minor",
+     "title": "Every load re-reads the traces' 'Not tied' against the world's first-load cut, so a case restored from another world loses its red herrings at the next load",
+     "where": "scripts/gm-stores.mjs:2208-2227 settleTieStates (run at every GM's load by registerCaseHealth, :3004-3008); scripts/gm-store.mjs:530-548 fileSection (a file's stamps kept unless ahead of now); scripts/gm-stores.mjs:2431-2460 restoreCase (otherWorld: 'a moved server, a duplicated world')",
+     "what_happens": "The first load of a world as primary writes caseMark.tiesSettledBefore = that load's store stamp. Every later load moves to undecided each remnant row whose tiedToCrime is false and whose field stamp is under that cut. A restore keeps a file's field stamps (only a stamp ahead of now is clamped), and caseMark is a world setting the case file does not carry. A case file of another world restored into a world that has loaded once since 1.2.71 therefore brings 'Not tied' rows stamped before the cut, and the next load of any GM makes each of them undecided, with no word to anyone (the moved count is returned to a .then that discards it).",
+     "evidence": "gm-stores.mjs:2210-2219: `const cut = mark.tiesSettledAt ? mark.tiesSettledBefore : isPrimaryGm() ? before : null; ... if (row?.tiedToCrime === false && remnantStore.stampOf(key, \"tiedToCrime\") < cut) undecided[key] = { tiedToCrime: null };` and :2226 `if (!mark.tiesSettledAt) await markCase({ tiesSettledAt: gmStoreStamp(), tiesSettledBefore: cut });`; gm-store.mjs:534-538 `const bound = now + skew ... if (!(s > bound)) return s;` (an older stamp is kept); :3007 `markUpgrade().then(() => markCaseSince()).then(() => settleTieStates());`",
+     "failure_scenario": "A GM moves a campaign to a new world (scenes imported with their ids), opens it once, restores the old world's case file with 'Restore it here anyway', and reloads: every trace the GM had marked Not tied reads undecided on the dashboard, and the next victim's death ties those red herrings to the crime (remnants.mjs:2338 tieChapterTraces) and tells the identified copies.",
+     "expected": "A 'Not tied' restored from a file keeps its state: the one-time reading of pre-1.2.71 ties applies to rows written before 1.2.71, not to rows merged in after the world's first settle.",
+     "confidence": "read",
+     "refutation_tried": "Looked for a re-stamp on restore (mergeIn, gm-store.mjs:968-976, and mergeInto, :306-327, keep the file's stamps; fileSection changes only stamps ahead of now + skew); for the case mark inside the backup (caseMark is SETTINGS.caseMark, a world setting, settings.mjs:340-352, not a GM store, so caseSections does not carry it); for a guard on rows merged after the settle (none: the walk reads every row of remnantStore, only the suite's `keys` narrows it). A same-world restore is safe: decisions made since the cut carry later stamps. A copied world folder carries its caseMark and is safe too. Not tried: whether a table really moves a case this way (adventure import keeping scene and token ids) - the restore's own window offers it (lang/en.json:7287 'This file is the case of another world ... Restore it here anyway.')."
+    }
+   ],
+   "superseded_by": [
+    "E11 (1.2.73): this season's chapter only for the victim's tie (remnants.mjs:2338, E11 C12) and for the Key fee's finds (key-remnants.mjs:645, E11 fix r2-H2)",
+    "E42 C2 (1.2.97): the chapter's end on steps.mjs runSteps with a record and a Finish (chapter.mjs:915-1000); the sweep's and reveal's counts unchanged",
+    "E109 (1.2.115): the held Key fee's card carries a button to charge again (key-remnants.mjs:782-800)",
+    "E60 C1b: a trace may be a ledger ref rather than a token (remnants.mjs remnantData)"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "Every promise of the stage is in today's code where its markers say (key-remnants.mjs keyFeeOf/chargeForUnfoundKeys, remnants.mjs tieState/tieChapterTraces/publishTiesFor, cleanup-reshape.mjs claimRuling, observe.mjs pickFromCard, chapter.mjs revealPlan/sweepPlan, investigation.mjs's refused fields), and the core is held by behaviour tests in tier 2 (about 91 tests, each named by its own E09 change) and by scenario 62 with a second GM. The 7 registry rows were in the first session's tiers 0-1 run (1776 passed, 0 failed, 16 skipped; none of R304-R310 in skip-baseline.json), read from the totals, not per line. Against a 9: one minor finding (E09-1, the tie settle re-read against a restored case); one promise in part by the notes' own gaps (the free clean-up's critical undecided, a GM's own clean-up off the primary); tier 2 and scenario 62 have no verdict in this audit's runs; the three tier-0 rows that stand for behaviour (R304-R306) read source. All five live checks are open, the main one (LIVE-E09-01) among them, so the grade is provisional.",
+   "missing_to_10": "A verdict for scenario 62 and the E09 tier-2 tests in the base run; E09-1 closed (a restored 'Not tied' kept) with a tier-2 test that restores another world's file and loads again; the two clean-up gaps decided and tested; readings of LIVE-E09-01 to -05."
+  },
+  {
+   "id": "E10",
+   "version": "1.2.71",
+   "shipped": "2026-10-10",
+   "what": "The Class Trial, shipped with E09 as 1.2.71: one console naming the next step; the doors into a trial (none in an Eclipse, a murder incident asks, a second trial in a chapter with a verdict asks); the vote's state in the world and its ballots in a GM store, each ballot judged on the primary and a late player handed one; the count needs a majority of issued ballots for every name; the verdict window opens on the accused with Cancel first and default; one verdict card; the class's Level Ups in one window; the floor on the server's clock; a Final Trial's verdict closes its record. 12 registry rows (R311-R321, R340).",
+   "claim_sources": [
+    ".github/release-notes/v1.2.71.md (1-190, whole: Before installing 15-43, the Class Trial 93-155, Changed 157-166, Known gaps 168-190, Checked 192-219)",
+    "tools/stages.json row E10 (planned 1.2.71, with E09; shipped 2026-10-10; touches null; drills [])",
+    "docs/dev/e10/: does not exist",
+    "docs/dev/R-REGISTRY.md rows R311-R321 and R340 (12, Since E10; tools/registry.mjs:149-154 records that --write first stamped them E09 and they were set to E10 by hand)",
+    "audit/AUDIT-1.2.42.md 9.2 items 142-148 (lines 992-998), LIVE-E10-01 to -07; item 335 (LIVE-E70-03) names LIVE-E10-05 as its ground",
+    "audit/harness/README.md:199 (63-class-trial, layer ci, stage E10)",
+    "audit/findings-1.2.118/live-items-04.json items 142-148 (all open)",
+    "git log --all --grep E10: no commit of the stage itself in the shallow checkout (the hits are later stages matching E10x ids)"
+   ],
+   "commits": 0,
+   "commits_note": "0 of the stage's own commits are in this shallow checkout (oldest 14.10.2026); its markers: trial-floor-ui.mjs 42, verdict.mjs 36, vote.mjs 34, level-up.mjs 28, trial-floor.mjs 13, ... naming C1-C14 and fix rounds r1-G1..G4, r2-G2..G6.",
+   "promises": [
+    {
+     "promise": "One console names the next step - start, open the debate, send the ballots, deliver the verdict, finish it, end the chapter - and counts the Blackened on the chapter's register, warning when it is empty after a death",
+     "source": "v1.2.71.md 95-98",
+     "code": "scripts/trial-floor-ui.mjs (42 E10 markers; the console's state lines); scripts/vote.mjs:648 (who Send the ballots would hand one to, C14)",
+     "holds": "yes",
+     "test": "tier 2 'the trial console names the next step in every state of the trial' (tests-tier2.mjs:47237), 'the trial console counts the Blackened register and warns when it is empty after a death' (42566); R320 (the words)",
+     "test_kind": "behaviour",
+     "note": "The console's layout at 1920x1080 and narrow is LIVE-E10-03 (open)."
+    },
+    {
+     "promise": "The doors into a trial: none in an Eclipse; with a murder incident open, Start asks first; in a chapter whose verdict is in, Start and Edit campaign ask before a second trial, Cancel the default; setPhase('classTrial') refuses a second trial unless confirmNewTrial and refuses any move into the trial during an Eclipse",
+     "source": "v1.2.71.md 30-34, 99-102",
+     "code": "scripts/clock.mjs:51-77 setPhase (confirmNewTrial; refuses with DRPG.Floor.newTrialRefused), :152 (setClock refuses the trial in an Eclipse); scripts/trial-floor-ui.mjs:179, :230 confirmNewTrial, :321-322; scripts/gm-campaign.mjs:331-332; scripts/trial-floor.mjs:841-874 startFloor",
+     "holds": "yes",
+     "test": "tier 2 're-entering the trial after a verdict asks and Cancel keeps the lock' (42112), 'Edit campaign moving back to a chapter with a verdict asks first' (42227), 'the trial does not open in an Eclipse and an open incident asks first' (42308), 'no road opens the trial in an Eclipse' (42405)",
+     "test_kind": "behaviour",
+     "note": "Still as the notes' Known gap says: game.drpg.setClock({ phase }) opens a second trial unasked - clock.mjs:59-61 keeps that road on purpose ('setClock itself stays the bare writer every door uses, and is not asked')."
+    },
+    {
+     "promise": "The vote survives a GM's reload: its state in the world (trialProgress), its ballots in the GMs' browsers alone (ballotStore), the primary checks each; a player who connects during the vote is handed a ballot as their browser loads; 'Your vote is in.' means a GM recorded it",
+     "source": "v1.2.71.md 16-20, 103-109",
+     "code": "scripts/gm-stores.mjs:771 ballotStore, :801 verdictStore; scripts/vote.mjs:120 (the ballot only through the bridge), :128-138 askForBallot at load and on drpgPrimaryReady, :162-216 recordBallot and its refusals, :350-382 runVoteOp on the primary, :734 sendBallot",
+     "holds": "yes",
+     "test": "R312, R313 (tier 0, declarations and source order); tier 2 'the vote's state is in the world and the ballots in the GMs' store' (27003), 'a ballot naming one student twice or too many or of a round gone is refused and told' (27146), 'the vote window says it holds none of the ballots only on a GM that is not the primary ...' (28776); scenario 63 phases B, C, D",
+     "test_kind": "both",
+     "note": "The harness models a GM's reload by a second GM browser holding the GM's storage (the notes' own gap); a real F5 in the vote is LIVE-E10-01. Since E92 a Spectator casts no ballot (R313's second guard)."
+    },
+    {
+     "promise": "The count needs a majority of the ballots issued for every name it accuses, and says its result in one sentence",
+     "source": "v1.2.71.md 110-111",
+     "code": "scripts/vote.mjs:967-1012 countBallots (each of the first `wanted` names needs majorityOf(issued); fewer names than wanted is no majority), :688 majorityOf, :1071 (a row per name and one sentence)",
+     "holds": "yes",
+     "test": "R314 (tier 1, the pure count); tier 2 'a second name short of the majority is accused of nothing and the count's card says there is no majority' (27302); scenario 63 phase E",
+     "test_kind": "both",
+     "note": ""
+    },
+    {
+     "promise": "The verdict window opens on the accused, or on 'Nobody is executed' after a tie, no majority, nobody accused or a dead accused; only a living student can be picked; Cancel is first and the default, so Enter executes nobody; a death nobody has found is named to the GM alone",
+     "source": "v1.2.71.md 112-118",
+     "code": "scripts/verdict.mjs:110-139 (who is dead as the table knows it; the accused selected, nobody by default), :211-221 (Cancel first and the only default), :267, :338-342, :381",
+     "holds": "yes",
+     "test": "R315 (tier 0 text guard on the footer and the first option); tier 2 'the verdict window opens on the accused' (27368), 'Enter in the verdict window executes nobody' (27400), 'a dead accused opens the verdict on nobody and only a living student can be executed' (27540), 'the verdict window offers an accused whose body nobody has found ...' (28890)",
+     "test_kind": "both",
+     "note": "Enter in Foundry's own DialogV2 is LIVE-E10-02 (open); a nearby reading, LIVE-E30-10 on 14.370 (CALIBRATION.md:35), saw Enter cancel a Cancel-first DialogV2 of the suite's, not this window."
+    },
+    {
+     "promise": "The verdict is told on one card that never names a Blackened the class missed; if a step fails or the GM leaves, Finish the verdict does the rest without a second Level Up or card",
+     "source": "v1.2.71.md 119-123",
+     "code": "scripts/verdict.mjs:469-485 (one record, written first and once), :542-623 (the steps and their writes), :767 (the verdict told to the table), :828-851 (the card once, one Level Up each), :1045-1099 (a stopped verdict, Finish on one GM)",
+     "holds": "yes",
+     "test": "R316; tier 2 'a wrong verdict's card names the executed and never the Blackened' (27921), 'a verdict that stops halfway is finished by Finish the verdict' (27983), 'Finish the verdict runs on the primary GM alone and once for two presses' (28159), 'a Finish posts no second verdict card ...' (28354)",
+     "test_kind": "both",
+     "note": "The notes' own gaps stand as written: two short gaps when a GM leaves mid-verdict (a row's Level Up may be given again, a new runner's Finish before the first's last write lands), read in the code, not measured (v1.2.71.md 178-180); LIVE-E10-04."
+    },
+    {
+     "promise": "The class's Level Ups come in one window, a row per student, 'The player picks' or 'I pick', Hand them out the default; a player's Level Up button lights on their sheet; offers stand side by side and the GM's menu can take one back; a pick the sheet as the GMs hold it cannot take is refused and told",
+     "source": "v1.2.71.md 124-129",
+     "code": "scripts/level-up.mjs (28 E10 markers), :1162 runAdvancementBatch, :1269 (the window's primary button DRPG.Advance.queueGive)",
+     "holds": "yes",
+     "test": "R317, R318; tier 2 'a correct verdict opens one Level Up window ...' (27731), 'Enter in the class's Level Up window gives what its rows say' (28721), 'two offers stand side by side ...' (56175), 'a Level Up pick the sheet cannot take is refused and told, and the offer stands' (60625)",
+     "test_kind": "both",
+     "note": "Closing the class's window gives a student nobody plays nothing (the notes' gap, read in the code). The window over the sheet is LIVE-E10-07, Enter in it LIVE-E10-06 (both open)."
+    },
+    {
+     "promise": "The floor: the debate's clock counts the server's time; Present turns into Objection while a debate is open; the dead neither present nor object; an Objection's card stays above every window until clicked; End this mode runs on the primary",
+     "source": "v1.2.71.md 130-134",
+     "code": "scripts/trial-floor.mjs (13 E10 markers); scripts/trial-floor-ui.mjs:105 (no Analyze or Objection in an Eclipse, C12); scripts/trial.mjs:604-642 (the sticky OBJECTION! card, per live-items-04 item 144)",
+     "holds": "partly",
+     "test": "R319 (server time, tier 0); tier 2 'a Truth Bullet's row is a Present outside a debate, in one and after it' (45154), 'a dead student is offered no Present and their Objection is refused on the primary and told' (45208), 'an Objection card is raised over the windows until it is touched' (45318), 'the primary GM's tab coming back moves an expired objection on at once' (49937)",
+     "test_kind": "both",
+     "note": "Read in part: the floor was rebuilt after the stage (E70's trial modes, endMode and the rebuttal, trial-floor-ui.mjs:12 imports FLOOR_MODES, endMode, overruleObjection), and 'Present turns into Objection' now reads as the tier-2 test titled 'a Present outside a debate, in one and after it'; whether E70 kept each half of this promise was not traced. A player's clock a minute off and a background GM tab are LIVE-E10-05 and LIVE-E70-03 (open)."
+    },
+    {
+     "promise": "A Final Trial's verdict closes the trial's record and takes the Final Trial flag down; a season reset counts the season",
+     "source": "v1.2.71.md 135-136",
+     "code": "scripts/verdict.mjs:74 (a Final Trial's verdict is the Mastermind's window on every road, fix r2-G5), :485, :1413 (the flag comes down with the verdict, C10)",
+     "holds": "yes",
+     "test": "R340; tier 2 'a Final Trial's verdict closes the trial's progress and the flag' (63324), 'the verdict's API in a Final Trial opens the Final Trial's window' (63386), 'a reset counts the season and keeps the fog epoch' (63471)",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "R311 fails when a trial road lacks a census row; R321 when the handbooks' Class Trial stops matching the code",
+     "source": "v1.2.71.md 164-166",
+     "code": "scripts/tests-tier0.mjs:9231 (R311), :13789 (R321)",
+     "holds": "yes",
+     "test": "R311, R321",
+     "test_kind": "structure",
+     "note": ""
+    }
+   ],
+   "registry_rows": 12,
+   "tests_read": [
+    {
+     "test": "R312 (tests-tier0.mjs:13036)",
+     "measures": "weak",
+     "why": "Reads ballotStore's spec (a synced client-setting ledger, unbacked, cut by the trial's reset), vote.run's guard and packet, and that askVote goes onPrimary and runVoteOp checks isPrimaryGm before voteStep: pins the shape; no ballot is cast."
+    },
+    {
+     "test": "R313 (tests-tier0.mjs:13080)",
+     "measures": "weak",
+     "why": "Reads vote.cast and vote.ask's guards and packets and the source order of sendBallot (the confirmation after the primary's answer); 'what the primary refuses is tier 2's to drive', by its own header."
+    },
+    {
+     "test": "R314 (tests-tier1.mjs:11460)",
+     "measures": "yes",
+     "why": "Drives countBallots, a pure function and the count's one rule, on made-up rows; the rule the notes promise is the function."
+    },
+    {
+     "test": "R315 (tests-tier0.mjs:13122)",
+     "measures": "weak",
+     "why": "A text guard: the footer's slots in order, the default, the first option, and the order of returns in `read`; the press is tier 2's 'Enter in the verdict window executes nobody' (27400)."
+    },
+    {
+     "test": "tier 2 'Enter in the verdict window executes nobody' (tests-tier2.mjs:27400)",
+     "measures": "yes",
+     "why": "Draws the window on the GM and submits the form as a browser's implicit submission does (first submit button), then reads who died. Not a key press in Foundry's window (LIVE-E10-02)."
+    }
+   ],
+   "tests_to_join": [
+    "R311",
+    "R312",
+    "R313",
+    "R314",
+    "R315",
+    "R316",
+    "R317",
+    "R318",
+    "R319",
+    "R320",
+    "R321",
+    "R340",
+    "tier 2: the about 60 tests whose header first names E10 (tests-tier2.mjs 27003-63471)",
+    "scenario 63-class-trial"
+   ],
+   "scenarios": [
+    "63-class-trial (audit/harness/README.md:199, layer ci, stage E10): Start on every player, the ballots, a late player, the GM's reload in the vote, the count, the verdict's window, a wrong verdict while a death waits for the audit, a second trial, a correct verdict's Level Ups and a pick through the bridge; later extended by E10-E13 phases J, U, V - no verdict in either session's runs",
+    "18-trial - green in the first session's run (it is not E10's own, but drives the trial's floor)"
+   ],
+   "live": {
+    "items": 7,
+    "read": 0,
+    "partly": 0,
+    "open": 7,
+    "ids_open": [
+     "LIVE-E10-01",
+     "LIVE-E10-02",
+     "LIVE-E10-03",
+     "LIVE-E10-04",
+     "LIVE-E10-05",
+     "LIVE-E10-06",
+     "LIVE-E10-07"
+    ],
+    "note": "live-items-04.json items 142-148: no reading anywhere. LIVE-E10-01 (the whole trial on three accounts with a GM's F5 in the vote) carries the main promise. Item 335 (LIVE-E70-03) and item 348 re-ask parts of LIVE-E10-05.",
+    "l1": {
+     "what": "LIVE-E10-01 (a whole Class Trial on three accounts: late player, F5 in the vote, verdict, one card each, the Level Up window), -02 and -06 (Enter in the real verdict and Level Up DialogV2), -03 (layout, the Objection card over windows), -04 (two GMs: the primary closes mid-vote), -05 (a player's clock a minute off, a background tab, the execution sound), -07 (the player's Level Up over the sheet)",
+     "recipe": [
+      "1. A GM and two players; the second player stays disconnected. Start the Class Trial, open the debate, Send the ballots. Connect the second player: note the seconds until their ballot window opens.",
+      "2. Both vote; the GM presses F5 during the vote: the console shows the same count of ballots returned on reload.",
+      "3. Close and count: the verdict window opens on the accused; focus the select, press Enter: nobody dies; focus the window, press Enter: nobody dies.",
+      "4. Deliver a correct verdict: each player sees one THE VERDICT card; the class Level Up window shows a row per student; set one row to 'I pick', press Enter: each row gets what it says.",
+      "5. A player opens their Level Up from the sheet and clicks the sheet: the window stays above it.",
+      "6. With two full GMs, the primary closes its browser during the vote; a ballot sent meanwhile is recorded when the second becomes primary.",
+      "7. Set one player's system clock a minute off: the debate's seconds differ by at most one from the GM's; the primary's tab in the background during an Objection moves it on once on return; the execution sound plays on every client."
+     ],
+     "clients": "two GMs (step 6) and two players",
+     "theme": "both for steps 3-5, default for the rest",
+     "settles_if": "each step as written - E10's promises hold at a table and the grade loses 'provisional'; an execution on Enter, a lost ballot after F5 or a second verdict card is a finding against E10 (major at least)",
+     "priority": "grade cap 9 (rule 1); E10 graded 8"
+    }
+   },
+   "findings": [],
+   "superseded_by": [
+    "E41 C10a (1.2.97): vote.mjs's record and sentence moved to trial-progress.mjs, its verdict to verdict.mjs (R312's and R313's own comments); the promises hold in the new files",
+    "E70 (trial modes): the floor's modes, the rebuttal and endMode rebuilt (trial-floor-ui.mjs:12); not traced against E10's floor promise",
+    "E92 (1.2.109): a Spectator's account casts no ballot (vote.cast's second guard, R313)",
+    "E109 / E40 item 4 (13.11.2026): the verdict window's footer built by the kit's slots (R315's text guard header)"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "Each promise is in today's code (clock.mjs setPhase, vote.mjs countBallots/recordBallot/askForBallot, gm-stores.mjs ballotStore and verdictStore, verdict.mjs's window and steps, level-up.mjs's batch) and held by behaviour tests in tier 2 (about 60 tests whose header names E10's change) and scenario 63; the 12 registry rows were in the first session's tiers 0-1 run (0 failed; totals only, none in skip-baseline.json). Nothing found by reading. Against a 9: the floor's promise is read only in part since E70 rebuilt it; four of the notes' known gaps still stand as read code, not tests (setClock opening a second trial unasked - kept on purpose, clock.mjs:59-61; the two short gaps when a GM leaves mid-verdict; the closed Level Up window for a student nobody plays; close and count on any GM); seven of twelve registry rows read source rather than drive the code; tier 2 and scenario 63 have no verdict in this audit's runs. All seven live checks are open.",
+   "missing_to_10": "A verdict for scenario 63 and the E10 tier-2 tests; a test for each of the four standing known gaps or a recorded decision for each; E70's floor read against 'Present turns into Objection' and 'the dead neither present nor object'; readings of LIVE-E10-01 to -07."
+  },
+  {
+   "id": "E75",
+   "version": "1.2.72",
+   "shipped": "2026-10-10",
+   "what": "The guard on Daggerheart's relay reads 2.10.10's new route: a player's browser hands on only the eight reviewed request names, a countdown a player's action starts is refused by name with words for the GM and the player (bucket countdownsFromAction), the fingerprint reads the listener's default branch whole, the backstop clears a refused request's contents as well as its name, a number or name the guard cannot read is judged, not thrown on; the harness runs 2.10.11's relay. 3 registry rows (R343-R345).",
+   "claim_sources": [
+    ".github/release-notes/v1.2.72.md (1-91, whole)",
+    "tools/stages.json row E75 (planned and shipped 1.2.72, 2026-10-10; touches null; drills [])",
+    "docs/dev/e75/: does not exist; docs/dev/e76/STATUS.md (1-178, grep for relay, countdown, E75: lines 12, 21, 96-121) for what E76 changed after it",
+    "docs/dev/R-REGISTRY.md rows R343-R345 (3, Since E75)",
+    "audit/AUDIT-1.2.42.md 9.2 items 149-153 (lines 1002-1006), LIVE-E75-01 to -05; item 475 (LIVE-E76-01, line 1442) re-asks -05 for newer versions",
+    "audit/findings-1.2.118/live-items-04.json items 149-150, live-items-05.json items 151-153; live-readings-e58.json and the delta (items 75/153/475)",
+    "docs/dev/e58/LOCAL-REPORT.md:421-422 (relayGuard().state 'ok' on 14.370 with Daggerheart 2.12.9, 16.11.2026)",
+    "audit/harness/README.md: no register row names E75; 30-security part 8 (scenarios/30-security.mjs:5900-6170) carries its checks; README.md:619-620 (the relay copy is 2.12.8's since E76 C1b, 2.10.11's from E75 C1)",
+    "git log --all --grep E75: 0 commits in the shallow checkout"
+   ],
+   "commits": 0,
+   "commits_note": "0 commits of the stage in this shallow checkout; relay-guard.mjs carries 13 E75 markers (C2, C3, C4, C5, fix r1-G1, r1-G2, r2-G1, r2-G2).",
+   "promises": [
+    {
+     "promise": "A player's action that starts a countdown creates none on Daggerheart 2.10.10 and later; the primary GM reads 'Refused a Daggerheart change from <player>: new countdowns (<name>). Nothing was changed.', the player is told 'This game leaves that change to the GM.', and relayGuard().refused counts it under countdownsFromAction; the same request from a full Gamemaster goes on",
+     "source": "v1.2.72.md 16-25",
+     "code": "scripts/relay-guard.mjs:120-134 COUNTDOWN_ADD, :480-485 isCountdownAdd, :494 judgeRelay's first branch, :436-452 onRelay on the GM (primary only, sender judged, forwardsUnjudged for a full GM)",
+     "holds": "yes",
+     "test": "R345 (tier 1, judgeRelay on made-up packets); scenario 30 part 8 'RELAY: a player's countdown from an action adds nothing on the GM, is logged by name, the player is told and the GM reads which countdown' (30-security.mjs:5918) and 'a full Gamemaster's countdowns from an action go on to Daggerheart ...' (:5943)",
+     "test_kind": "both",
+     "note": "The shape still matches Daggerheart 2.12.8's relay as the harness copies it: EVENT_HANDLERS is keyed socketEvent.AddCountdown while socketEvent declares only AddCountdowns (audit/harness/lib/dh-relay.mjs:78, :162), so the inner action is undefined and drops out of JSON, which is what isCountdownAdd recognises. The packet a player's client sends comes from Daggerheart's countdown field, which the harness does not copy (the test builds it); at a table it is LIVE-E75-01 (open)."
+    },
+    {
+     "promise": "relayGuard() lists the relay's default branch in its fingerprint; the branch is read whole, so a default not the one reviewed, or one adding a statement, reads 'changed' and is named under unreviewed",
+     "source": "v1.2.72.md 26-32",
+     "code": "scripts/relay-guard.mjs:104-108 REVIEWED_CASES (eight cases and 'default:EVENT_HANDLERS[data.action]?.(data.data);'), :148-156 DEFAULT_LINE (to the switch's }), :244-248 (state 'changed' when the fingerprint is empty or anything is unreviewed), :277-292 fingerprintOf and unreviewedOf",
+     "holds": "yes",
+     "test": "R344 (tier 1: four stand-in listeners as source text - 2.10.8, 2.10.11 laid out as rollup with $1 and a line break, another default, a second statement - and ensureWrapped's own lines read); LIVE-E75-03 partly read",
+     "test_kind": "both",
+     "note": "On the owner's sandbox (14.370, Daggerheart 2.12.9, 16.11.2026) relayGuard().state read 'ok' (LOCAL-REPORT.md:421-422), which by relay-guard.mjs:247-248 means a non-empty fingerprint with nothing unreviewed in the bundle a table loads; the fingerprint's entries themselves were not recorded (live-items-05 item 151)."
+    },
+    {
+     "promise": "A player's browser hands Daggerheart's relay only the eight request names the guard has reviewed; any other name, and a request that is not an object, is not run there",
+     "source": "v1.2.72.md 36-40",
+     "code": "scripts/relay-guard.mjs:80-92 UI_ONLY and REVIEWED_NAMES, :423-434 onRelay on a player's client",
+     "holds": "yes",
+     "test": "scenario 30 part 8 'RELAY: a packet with a name the guard has not reviewed runs nothing on a player's client' (30-security.mjs:5958)",
+     "test_kind": "behaviour",
+     "note": "Under the backstop a request that is not an object goes on (relay-guard.mjs:353-357), as the notes' Known gaps say."
+    },
+    {
+     "promise": "The last-resort backstop clears a refused request's contents as well as its name",
+     "source": "v1.2.72.md 41-43",
+     "code": "scripts/relay-guard.mjs:309-327 installBackstop, :331-365 (disarm: action and data both replaced; neutralise's five refusals end in disarm)",
+     "holds": "yes",
+     "test": "R343 (tier 1: every shape disarmed names nothing the 2.10.11 listener dispatches on; neutralise's five refusal branches end in disarm, by source); scenario 30 part 8 'a packet the backstop disarmed reaches no handler of the copied relay' (:6149), 'the backstop on the GM refuses a player's countdown from an action as the guard does, and disarms it' (:6169)",
+     "test_kind": "both",
+     "note": "R343's list of dispatched names is 2.10.11's; 2.12.8's copy has the same names (dh-relay.mjs:73-93)."
+    },
+    {
+     "promise": "A number or a name the guard cannot read no longer stops the guard: Fear, a resource, an item's charges or count refused with words; a countdown's progress or a save's total left out",
+     "source": "v1.2.72.md 44-47",
+     "code": "scripts/relay-guard.mjs:1060-1090 (text and numbers read off a packet, never a throw; fix r1-G2, r2-G2)",
+     "holds": "yes",
+     "test": "R345's second half (every leaf of eight packets replaced by an object String()/Number() cannot read, and by an array of one, must come back a verdict; the leaves counted)",
+     "test_kind": "behaviour",
+     "note": "The words to the sender are read in the code, as the notes say."
+    },
+    {
+     "promise": "A scene's environments count as reordered only when every entry is a plain identifier; anything else is refused",
+     "source": "v1.2.72.md 48-49",
+     "code": "scripts/relay-guard.mjs:639-660 (both lists read as plain identifiers; 'the environments of <scene>, which is not a reordering')",
+     "holds": "yes",
+     "test": "R133 (an E03 row, extended by this stage)",
+     "test_kind": "behaviour",
+     "note": "R133's body was not read here."
+    },
+    {
+     "promise": "The headless harness runs Daggerheart 2.10.11's relay, copied from the tag; the manifest is unchanged (Daggerheart minimum and verified 2.6.5, Foundry verified 14.365)",
+     "source": "v1.2.72.md 50-56",
+     "code": "audit/harness/lib/dh-relay.mjs:1-15 (now 2.12.8's socket.mjs, re-copied in E76 C1b); module.json:7-8, :21-22 (Foundry minimum 14.364, verified 14.365; Daggerheart minimum 2.6.5, verified 2.12.9)",
+     "holds": "superseded",
+     "test": "none (a fact of the tree)",
+     "test_kind": "structure",
+     "note": "Superseded by E76 (12.11.2026: the relay copy from 2.12.8, docs/dev/e76/STATUS.md:102) and by the owner's manifest change of 16.11.2026 (commit aa697521: Daggerheart verified 2.12.9)."
+    }
+   ],
+   "registry_rows": 3,
+   "tests_read": [
+    {
+     "test": "R343 (tests-tier1.mjs:5542-5600)",
+     "measures": "yes",
+     "why": "Hands five packet shapes to disarm and reads that none still carries a name of the listener's dispatch table, that disarm never throws on four odd inputs, and that neutralise's five refusals each end in disarm and rename nothing by hand (by source, which it says is a reading)."
+    },
+    {
+     "test": "R344 (tests-tier1.mjs:5602-5659)",
+     "measures": "yes",
+     "why": "Four stand-in listeners as source text, including 2.10.11's rollup layout and a default with a second statement; reads the state, the fingerprint and the unreviewed list off the guard's own functions, and the line in ensureWrapped that makes the state. It cannot read Daggerheart's built bundle (LIVE-E75-03)."
+    },
+    {
+     "test": "R345 (tests-tier1.mjs:5661-5770)",
+     "measures": "yes",
+     "why": "judgeRelay on the 2.10.10 countdown shape and on look-alikes, an unreadable name, and a sweep of every leaf of eight packets with values Number() and String() cannot read; the leaves are counted so an empty list cannot pass. Pure: it judges, it sends nothing (30-security part 8 sends)."
+    }
+   ],
+   "tests_to_join": [
+    "R343",
+    "R344",
+    "R345",
+    "R133",
+    "scenario 30-security part 8 (the RELAY checks at 30-security.mjs:5900-6170)"
+   ],
+   "scenarios": [
+    "30-security part 8 (no register row names E75; the RELAY checks against the copied relay, 2.12.8's since E76) - no verdict: the first session's base run was stopped inside 30-security"
+   ],
+   "live": {
+    "items": 5,
+    "read": 0,
+    "partly": 2,
+    "open": 3,
+    "ids_partly": [
+     "LIVE-E75-03",
+     "LIVE-E75-05"
+    ],
+    "ids_open": [
+     "LIVE-E75-01",
+     "LIVE-E75-02",
+     "LIVE-E75-04"
+    ],
+    "note": "LIVE-E75-03: relayGuard().state 'ok' on 14.370 with Daggerheart 2.12.9 (LOCAL-REPORT.md:421-422, 16.11.2026), the fingerprint's default entry and unreviewed not recorded (live-items-05 item 151, result as expected). LIVE-E75-05: read on 14.370 with 2.12.9, not on the pair it names (14.369, 2.10.11); tier 2 there had failures under investigation (live-items-05 item 153, mixed). Open: the countdown refusal at a table (-01, the stage's main promise), a second player's console (-02), a Daggerheart older than 2.10.10 (-04, module.json still allows 2.6.5).",
+    "l1": {
+     "what": "LIVE-E75-01 (a player's countdown from an action refused at a table, the words on both sides, the bucket count), -02 (a second player's console), -03's missing half (the fingerprint's default entry and an empty unreviewed), -04 (a Daggerheart before 2.10.10, if the owner keeps it allowed)",
+     "recipe": [
+      "1. On the sandbox (14.370, Daggerheart 2.12.9), a GM and two players. In the GM's console: `game.drpg.relayGuard()` - record state, fingerprint (expect the eight cases and 'default:EVENT_HANDLERS[data.action]?.(data.data);') and unreviewed (expect []).",
+      "2. Give player one an item or ability whose action starts a countdown; use it. On the GM: the toast 'Refused a Daggerheart change from <player>: new countdowns (<name>). Nothing was changed.'; no new countdown in Daggerheart's list; `game.drpg.relayGuard().refused.countdownsFromAction` grew by 1. On player one: 'This game leaves that change to the GM.'",
+      "3. On player two's console: no Daggerheart error and no new countdown.",
+      "4. The GM uses the same action: the countdown is created.",
+      "5. If the owner wants Daggerheart below 2.10.10 kept allowed: repeat 1 and a Hope roll on that version (state 'ok' with no default entry)."
+     ],
+     "clients": "GM and two players",
+     "theme": "default",
+     "settles_if": "each step as written - E75's promises hold at a table; a countdown created by a player, a missing toast or a non-empty unreviewed list is a finding against E75 (major for a created countdown)",
+     "priority": "grade cap 9 (rule 1); E75 graded 8"
+    }
+   },
+   "findings": [],
+   "superseded_by": [
+    "E76 (1.2.103 line, 12.11.2026): the harness's relay copy from Daggerheart 2.12.8 (lib/dh-relay.mjs), the save packet in both shapes (judgeSave, R3600), the target versions; LIVE-E76-01 re-asks LIVE-E75-05 for 14.370 / 2.12.8",
+    "The owner, 16.11.2026 (commit aa697521): Daggerheart verified 2.12.9 in module.json"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "Each promise is in relay-guard.mjs where its markers say, and three tier-1 rows drive the guard's functions with counted inputs (R343-R345, in the first session's tiers 0-1 run with 0 failed; totals only); scenario 30 part 8 sends the packets through the copied relay on real clients of the harness. A real Foundry read the guard's state 'ok' on Daggerheart 2.12.9's bundle, a sign the default branch it reviews is the one a table loads. Nothing found by reading. Against a 9: scenario 30 has no verdict in this audit's runs; the countdown packet the harness sends is built by the test, not by Daggerheart's countdown field; the older Daggerheart the manifest still allows (2.6.5 and up) is no longer run anywhere (LIVE-E75-04); the main promise, a refusal at a table, has no reading (LIVE-E75-01).",
+   "missing_to_10": "A verdict for 30-security part 8 in the base run; readings of LIVE-E75-01, -02 and the fingerprint half of -03; LIVE-E75-04 read, or the manifest's minimum raised to what is run (the owner's decision); a harness copy of the countdown field's sender, or a recorded reason not to."
+  },
+  {
+   "id": "E11",
+   "version": "1.2.73",
+   "shipped": "2026-10-11",
+   "what": "The discovery of a body, the end of a chapter and the season reset: a body found once, by the primary, stamped per chapter and season (bodiesFound, one writer announceBody); the hold's words and its Eclipse chevron; the chapter's end one ordered list of nine steps on the primary, kept to the state it was opened on; Edit campaign asking before a chapter change or a trial; the reset in one fixed order (RESET_STEPS, the incident first), every project token removed, the cast's tokens to stay, to their bedrooms or to one room, RESET typed exactly, stopped by a lower-id GM; last season's records carrying their season; project tokens kept in step by the primary and a first-load sweep of old orphans. 17 registry rows (R346-R358, R375-R378).",
+   "claim_sources": [
+    ".github/release-notes/v1.2.73.md (1-196, whole)",
+    "tools/stages.json row E11 (planned and shipped 1.2.73, 2026-10-11; touches null; drills [])",
+    "docs/dev/e11/: does not exist",
+    "docs/dev/R-REGISTRY.md rows R346-R358 and R375-R378 (17, Since E11; R359-R374 never used, as the notes say)",
+    "audit/AUDIT-1.2.42.md 9.2 items 154-162 (lines 1010-1018), LIVE-E11-01 to -09",
+    "audit/harness/README.md:200 (65-season, layer ci, stage E11), :529 (the fog's texture never built, E11 fix r2-J1)",
+    "audit/findings-1.2.118/live-items-05.json items 154-162 (all open)",
+    "git log --all --grep E11: 3 commits, none the stage's own (audit-119 and E118/E112v hits matching E11x); the stage's commits (10-11.10.2026) are older than the shallow checkout"
+   ],
+   "commits": 0,
+   "commits_note": "0 of the stage's own commits are in this checkout; markers: body.mjs 36, season-wipe.mjs 26, chapter.mjs 14, vault-store.mjs 13, projects-map.mjs 12, settings.mjs 11, ... naming C1-C13 and fix rounds r1-G1..G5, r2-H1..H5, r2-J1.",
+   "promises": [
+    {
+     "promise": "A body is found once, by the primary GM's browser (another GM is told whom to ask); the module records which bodies were found per chapter and season; a verdict, the end of a trial or a later walk-past does not announce it again; an execution is never a body to find; a dead student's token does not count among the two who find a body, a Monocub still does",
+     "source": "v1.2.73.md 34-41",
+     "code": "scripts/body.mjs:165-176 discoveryHere (the primary's), :183-188 and :242 (a body this chapter announced is not announced again), :286-293 (stamped once under chapter and season), :476 announceBody (the one writer), :654 bodiesToDiscover, :684 witnessesOf, :751, :774, :804; scripts/settings.mjs:4094 recordBodyFound",
+     "holds": "partly",
+     "test": "R347, R348, R349 (tier 0: bodiesToDiscover on fakes, witnessesOf, the stamp's one writer by source); tier 2 'a body found is stamped once per chapter and season' (63854), 'a body the verdict executed is not found again after the trial ...' (63954), 'a GM who is not the primary announces no body and is told whose it is' (64970), 'a living convict the verdict executes after End the trial is no body to find' (64795); scenario 65 phase B",
+     "test_kind": "both",
+     "note": "One clause is superseded: since E72 C3 a Monocub is not a witness either (body.mjs:804; R348's title 'since E72 a Monocub neither (DC7: never)'). The rest holds."
+    },
+    {
+     "promise": "The order: publish every kept death of a body in that room, gather everyone (each player's camera to their own token), post the card with its sound, pause the music by default, hold; only then the Prep question 'Body found in {room}'",
+     "source": "v1.2.73.md 15-19, 42-45",
+     "code": "scripts/body.mjs:209 runDiscovery, :362 (announce first, ask after, C4), :394-443 (which death each body is, read before any is published; only what was published is stamped), :65 (the Prep question headed by its room)",
+     "holds": "yes",
+     "test": "tier 2 'the discovery card comes before the Prep question' (64327), 'the gather tells each client where its token went' (64278), 'the discovery is announced while the Prep question is still open' (65651); scenario 65 B1b (reads the animatePan call)",
+     "test_kind": "behaviour",
+     "note": "The music's pause is read in the code only, as the notes say; the camera's pan is a call read headless (LIVE-E11-03)."
+    },
+    {
+     "promise": "The GM's window marks a body already announced this chapter and refuses to announce it by name again; a death that could not be made known is not named and the GMs are whispered to make it known",
+     "source": "v1.2.73.md 46-49",
+     "code": "scripts/body.mjs:1106, :1165-1186 (the window's note and marks), :272-276 (only a published death is named, fix r2-H1)",
+     "holds": "yes",
+     "test": "tier 2 'a body already announced is marked in the GM's list and not announced twice in the chapter' (65073), 'a body whose publication failed is named neither on the chat card nor in the hold and the GMs are told whose it is' (66033)",
+     "test_kind": "behaviour",
+     "note": ""
+    },
+    {
+     "promise": "The hold's words say the Investigation has not started; actions stay open, only the Eclipse waits, its chevron marked disabled with the reason; loud only in its own hour; a body announced once the Investigation started holds no Eclipse; the Next line names a body nobody found, then the Key Remnants not placed, then the autopsy",
+     "source": "v1.2.73.md 53-66",
+     "code": "scripts/eclipse.mjs:165 (DRPG.Eclipse.bodyFirst unless the phase is the Investigation); lang/en.json:1810 bodyHoldMeta, :4359 Eclipse.bodyFirst (per live-items-05 item 157); scripts/gm-panel.mjs (7 E11 markers, the Next line)",
+     "holds": "yes",
+     "test": "R350, R375 (tier 0); tier 2 'during the hold the Eclipse is refused and a Search is not' (64216), 'a body announced in the Investigation holds no Eclipse' (65306), 'the GM's next line names a body nobody has found yet' (64147), 'after a body is announced the GM's next line names the Key Remnants to place and then the autopsy' (65493); scenario 65 B2 (aria-disabled and the caption)",
+     "test_kind": "both",
+     "note": "How the dimmed chevron looks is LIVE-E11-04 (open)."
+    },
+    {
+     "promise": "The chapter's end: the primary ends it, another GM is told whom to ask; the window keeps the chapter, session, day and phase it was opened on and does nothing if any moved; one ordered list of nine steps; a failed step is named and the rest still run, except the next morning when closing the trial failed; the phase read before each step; leaving the Investigation puts the clock back in Daily Life",
+     "source": "v1.2.73.md 70-82",
+     "code": "scripts/chapter.mjs:407-415 (the clock the window was opened on, C5), :613-653 CHAPTER_END_STEPS (reveal, sweep, faint, keys, tools, clock, trial, morning, hold - nine), :681, :744 (no morning over a trial that did not close), :801-818 (once, on the primary), :871 endChapterNow, :915-1000 runChapterEnd (the phase read before every step, `stop`)",
+     "holds": "partly",
+     "test": "tier 2 'the chapter's end leaves the Investigation and counts once' (64462), 'a chapter end step that fails is named and no morning opens over a trial that did not close' (64497), 'an End of chapter window drawn before a trial opened ends nothing' (66385); scenario 65 phases C, H1, H2, J1",
+     "test_kind": "behaviour",
+     "note": "Superseded in part by E42 C2 (1.2.97): the same nine steps run on steps.mjs runSteps with a world record (SETTINGS.chapterEnd) written by the primary alone; a step that failed now leaves the record 'applying' and the GM is offered Finish the chapter's end or Drop the rest (chapter.mjs:915-1019), and the end stops before its next step when this browser stops being the primary (E42 fix FG2). 'The rest still run' holds within one run."
+    },
+    {
+     "promise": "The window offers what it can do: the reveal box unticked and greyed when there is nothing to reveal; a warning names who holds Truth Bullets with no real type",
+     "source": "v1.2.73.md 83-85",
+     "code": "scripts/chapter.mjs:103 (typelessHolders, C13), :303-363 (the form from its counts); styles/danganronpa.css:2704-2706 (.drpg-panel .drpg-checkbox:has(> input:disabled), opacity 0.5, per live-items-05 item 161)",
+     "holds": "yes",
+     "test": "R357 (tier 1); scenario 65 W1",
+     "test_kind": "both",
+     "note": "The greying is not seen (LIVE-E11-08, open)."
+    },
+    {
+     "promise": "Edit campaign: a chapter change asks first ('This corrects the chapter number only ...'), Cancel keeps the chapter and applies the rest; moving into the Class Trial asks too; a correction of the hour calls off a called assembly in a card the table sees",
+     "source": "v1.2.73.md 87-94",
+     "code": "scripts/gm-campaign.mjs (6 E11 markers; :331-332 the trial's question), scripts/call-world.mjs (4 E11 markers, the assembly called off)",
+     "holds": "yes",
+     "test": "tier 2 'Edit campaign asks before it changes the chapter or opens the trial and Cancel applies the rest' (64633), 'Edit campaign moving the time back calls nobody' (64559), 'an assembly whose calling off was not written is not announced as called off' (65796); scenario 65 C; scenario 41 d1",
+     "test_kind": "behaviour",
+     "note": "The assembly's card at a table is LIVE-E11-05 (open)."
+    },
+    {
+     "promise": "The season reset: the window's list follows the ticks; the groups run in one order, the incident first; a running incident is abandoned, not closed; each group takes what its label says; the cast's tokens stay, go to their own bedrooms or to one room, a student who cannot be placed is named; a failed step is told; RESET must be typed in capitals; a lower-id GM connecting stops it before its next step",
+     "source": "v1.2.73.md 98-130",
+     "code": "scripts/season-wipe.mjs:205-226 resetSeason (the primary's), :335-345 (the word compared exactly, fix r2-H4; still the primary when the window closes), :389-414 RESET_STEPS (incident first, placeCast before the chat, clock last), :417 RESET_CHOICES, :444 wipeStudent, :538 placeCast; lang/en.json:6458 and lang/pl.json:6856 resetWord 'RESET'",
+     "holds": "yes",
+     "test": "R353, R354, R355, R377, R378 and R50 (the steps and groups as one list); tier 2 'a reset abandons an incident: nobody killed, no register, no broken tool, no case keys, nothing posted' (6521), 'each cast group of the reset takes what its label says off one student and nothing else' (63525), 'the cast goes where the GM chose ...' (63630), 'a reset takes a Level Up's experience and keeps the GM's' (63725); scenario 65 phases R, F, G",
+     "test_kind": "both",
+     "note": "RESET_STEPS holds 31 keys today (30 groups and placeCast), not the notes' 29: later stages added groups (for example doors, stashesFound, preNotes) and E42 C3 moved each group to its entry in season-reset.mjs. The cast's move uses Foundry's region.teleportTokens, which the harness lacks; only the fallback ran (LIVE-E11-07)."
+    },
+    {
+     "promise": "Last season's records (Remnants, motive, Final Truth, the autopsy, a Monocub's silence) carry their season, so after a reset last season's Chapter 1 is not read as this one",
+     "source": "v1.2.73.md 131-134, 149-150",
+     "code": "scripts/settings.mjs:3582 sameSeason; its readers in remnants.mjs:2338, key-remnants.mjs:645, chapter.mjs:279 and :463",
+     "holds": "partly",
+     "test": "R356, R376 (tier 0); tier 2 'last season's chapter is not this one' (64718), 'this season's chapter reads none of last season's Key Remnants nor its autopsy nor its silence' (66254)",
+     "test_kind": "both",
+     "note": "The notes' own gap stands: the trial's progress and vote, a betrayal on offer, a Truth Bullet locked by a failed Analyze, the Traces tab's chapter filter and a Key copy's answer key after a reset that keeps the Truth Bullets are read by chapter alone (v1.2.73.md 177-183; key-remnants.mjs:603-606 repeats it for the answer key)."
+    },
+    {
+     "promise": "Project tokens: the primary keeps them in step; a token deleted by hand stays deleted until Show on the map puts it back; a token of no live project goes whenever the primary's map is drawn; a second GM's draw places nothing; the first load sweeps old orphans once and tells the GM the count",
+     "source": "v1.2.73.md 20-25, 136-141",
+     "code": "scripts/projects-map.mjs:87-88 (the option the module's own deletions pass), :402-438 sweepProjectTokens, :647-709 onProjectTokenDeleted, :766-809 syncProjectTokens (on the primary alone; after the load's migration, fix r2-H5; every scene), :995 the deleteToken hook; scripts/migrate.mjs:954-970 clause sweepOldProjectTokens",
+     "holds": "yes",
+     "test": "R351, R352 (tier 0); tier 2 'a project token a GM deleted by hand stays off the map through the next scene draw until Show on the map puts it back ...' (34900), 'a project token sweep removes the orphans it is given and only tells the GM of a live project's spare token' (34854), 'a project token the module takes off the map is never written down as deleted by hand ...' (66441); scenario 65 phases A and V2",
+     "test_kind": "both",
+     "note": "Whether Foundry fires deleteToken for a deleted scene's tokens is not measured (the notes' gap); the first load on the owner's world is LIVE-E11-06, two people at two screens LIVE-E11-09 (both open)."
+    }
+   ],
+   "registry_rows": 17,
+   "tests_read": [
+    {
+     "test": "R347 (tests-tier0.mjs:12618)",
+     "measures": "yes",
+     "why": "Drives bodiesToDiscover on twelve fake students covering a kept death, a public one, an execution, one announced, last season's, last chapter's, a Monocub, records with no phase or no season, and a death on the document the GMs do not hold; the rule is the function."
+    },
+    {
+     "test": "R349 (tests-tier0.mjs:12701)",
+     "measures": "weak",
+     "why": "Reads every module source for callers of recordBodyFound, announceBody and settings.set naming the stamp, and allows two named others (carryBodyRooms, clearSeasonBodies). Holds the one-writer rule against a new writer by name; a write through another name is not seen."
+    },
+    {
+     "test": "R353 (tests-tier1.mjs:5803)",
+     "measures": "unread",
+     "why": "Title read (the reset window lists only the ticked groups); body not read."
+    },
+    {
+     "test": "tier 2 'a body found is stamped once per chapter and season' (tests-tier2.mjs:63854) and the 47 other tests whose header names E11",
+     "measures": "yes",
+     "why": "The notes count 48 new tier-2 tests for the stage and a header scan finds 48; those whose bodies were opened drive the discovery, the reset groups and the project tokens on the GM and read documents and settings. Bodies of most were not traced line by line."
+    }
+   ],
+   "tests_to_join": [
+    "R346",
+    "R347",
+    "R348",
+    "R349",
+    "R350",
+    "R351",
+    "R352",
+    "R353",
+    "R354",
+    "R355",
+    "R356",
+    "R357",
+    "R358",
+    "R375",
+    "R376",
+    "R377",
+    "R378",
+    "tier 2: the 48 tests whose header first names E11 (tests-tier2.mjs 6521-66587)",
+    "scenario 65-season",
+    "scenario 17-assistant F1 (two announcements at once)",
+    "scenario 41 d1"
+   ],
+   "scenarios": [
+    "65-season (audit/harness/README.md:200, layer ci, stage E11): two scenes with projects, a duplicate and an orphan token (A), a body found by two, the hold, an Eclipse during it, the trial and a wrong verdict (B), the chapter ended twice and time moved back past a called assembly (C), a kept death announced next chapter (Q), a season played (D), the reset (R), a reset whose chat deletion throws (F), the canvas drawn again (G) - no verdict in either session's runs",
+    "17-assistant (F1, two announcements at once with an Assistant GM) - green in the first session's run"
+   ],
+   "live": {
+    "items": 9,
+    "read": 0,
+    "partly": 0,
+    "open": 9,
+    "ids_open": [
+     "LIVE-E11-01",
+     "LIVE-E11-02",
+     "LIVE-E11-03",
+     "LIVE-E11-04",
+     "LIVE-E11-05",
+     "LIVE-E11-06",
+     "LIVE-E11-07",
+     "LIVE-E11-08",
+     "LIVE-E11-09"
+    ],
+    "note": "live-items-05.json items 154-162: no reading. LIVE-E11-06 needs the owner's own world (triage F); LIVE-E11-09 is the main road's two-GM half (a non-primary's End the chapter and Body discovered refused and told).",
+    "l1": {
+     "what": "LIVE-E11-01 (a reset with four project tokens, a player's canvas), -02 (a player dropping a project actor), -03 (two players walking onto a body: one card, each camera to its token), -04 (the dimmed Eclipse chevron), -05 (Edit campaign with a called assembly), -06 (the owner's pre-1.2.73 world's first load), -07 (the cast to bedrooms on several scenes, teleportTokens), -08 (the End of chapter window's disabled box in both themes), -09 (two full GMs: chapter end and discovery from the non-primary)",
+     "recipe": [
+      "1. Two full GMs and two players. On the non-primary GM press End the chapter and Body discovered: neither opens a window; each names the primary.",
+      "2. Kill a student in a room (kept death); both players walk their tokens into it at once: one card, one bodiesFound entry (`game.settings.get('danganronpa-rpg','bodiesFound')`), each player's camera pans to their own token; the Eclipse chevron on the HUD is dimmed with its reason; action tiles stay open.",
+      "3. Give the verdict and end the trial: no second body card.",
+      "4. Open End of chapter with no bullet to reveal: the reveal box is unticked and greyed in both themes; the warning names the holders of typeless bullets.",
+      "5. Call an assembly; in Edit campaign move the hour back: nobody is called and the table sees the calling-off card; move into the Class Trial from the window: it asks.",
+      "6. Place four project tokens (two live, a duplicate, an orphan) on two scenes; a player on the scene cannot see the orphan; run the reset with 'each to their own bedroom' where bedrooms span two scenes: no project token remains anywhere, each student stands in their bedroom; no console error on the player.",
+      "7. A player with TOKEN_CREATE drags a project actor onto the map: the primary's next sync removes or reports it.",
+      "8. On a copy of the owner's world from before 1.2.73: first load as primary reports the swept orphans' count; delete a live project's token by hand and reload the scene: it stays gone."
+     ],
+     "clients": "two GMs and two players; the owner's world for step 8",
+     "theme": "both for step 4, default for the rest",
+     "settles_if": "each step as written - E11's promises hold at a table and the grade loses 'provisional'; a second body card, a window on the non-primary, a project token left after the reset or a student not moved is a finding against E11 (major)",
+     "priority": "grade cap 9 (rule 1); E11 graded 8"
+    }
+   },
+   "findings": [],
+   "superseded_by": [
+    "E42 C2-C4 (1.2.97): the chapter's end on runSteps with its world record, Finish and Drop the rest; the reset's groups each an entry of season-reset.mjs, a reset that did not finish opens the next window on what it left (season-wipe.mjs:235-240)",
+    "E72 C3 (1.2.110): a Monocub is no witness of a walk-in either (body.mjs:804, R348)",
+    "Later stages: RESET_STEPS grew from 29 to 31 keys (season-wipe.mjs:406-414)"
+   ],
+   "grade": 8,
+   "provisional": "after L1",
+   "grade_reasons": "Every promise is in today's code (body.mjs discoveryHere/announceBody/bodiesToDiscover/witnessesOf, settings.mjs recordBodyFound and sameSeason, chapter.mjs CHAPTER_END_STEPS, season-wipe.mjs RESET_STEPS/resetSeason/placeCast, projects-map.mjs's sweep and deleteToken hook, migrate.mjs sweepOldProjectTokens), held by the 48 tier-2 tests the notes promised (a header scan finds 48) and by scenario 65; the 17 registry rows were in the first session's tiers 0-1 run (0 failed; totals only, none in skip-baseline.json). Nothing found by reading. Against a 9: two promises are delivered in part - the season stamp leaves the readers the notes list by chapter alone, and the chapter end's 'the rest still run' is now E42's record and Finish; the Monocub clause was reversed by E72 (a decision, not a defect); the reset's cast move ran only on the harness's fallback (no teleportTokens); scenario 65 and tier 2 have no verdict in this audit's runs. All nine live checks are open, the two-GM road among them.",
+   "missing_to_10": "A verdict for scenario 65 and the E11 tier-2 tests; the chapter-alone readers (the trial's progress and vote, a betrayal on offer, a locked bullet, the Traces filter, a Key copy's answer key) given their season or recorded as decided; a reading of LIVE-E11-01 to -09, -07 above all (teleportTokens on real regions)."
+  }
+ ],
+ "not_established": [
+  {
+   "what": "Tier 2's and the scenarios' results for these four stages: base-run.json does not exist, the first session's 01-runtests timed out, and 30-security, 62-investigation, 63-class-trial and 65-season have no verdict in either session's runs. Every tier-2 test and scenario named here is listed in tests_to_join, not claimed green.",
+   "live_check": "none - a base run settles it"
+  },
+  {
+   "what": "Per-test results of the 39 tier 0-1 rows R304-R321, R340, R343-R358, R375-R378: only the first session's totals were read (0 failed).",
+   "live_check": "none - a base run's per-test file settles it"
+  },
+  {
+   "what": "The stages' own commits (08-11.10.2026): the checkout is shallow from 14.10.2026, so no promise is checked against the diff that made it; git fetch was not run.",
+   "live_check": "none"
+  },
+  {
+   "what": "Whether E70's rebuilt trial floor keeps E10's 'Present turns into Objection while a debate is open' and 'the dead neither present nor object' on every road: the tier-2 titles say so, the floor's code was not traced.",
+   "live_check": "LIVE-E10-03 (the floor's states at a table)"
+  },
+  {
+   "what": "Whether a table ever restores another world's case file into a world with the same scene and token ids (the precondition of E09-1): the restore offers it; how campaigns are moved between worlds at the owner's table is not recorded.",
+   "live_check": "new live check: on a copy, export the case of world A, import A's scenes into a fresh world B (ids kept), load B once as primary, restore A's file with 'Restore it here anyway', reload, and read a Not tied trace on the dashboard",
+   "l1": {
+    "what": "E09-1's precondition and its effect",
+    "recipe": [
+     "1. World A (1.2.118) with one trace marked Not tied on the dashboard; Back up the case.",
+     "2. Export A's scene to an adventure or compendium and import it into a fresh world B keeping ids.",
+     "3. Open B as the primary GM once; restore A's case file ticking 'Restore it here anyway'; the dashboard shows the trace Not tied.",
+     "4. Reload B: read the trace's tie on the dashboard (Not tied or '-')."
+    ],
+    "clients": "one GM",
+    "theme": "default",
+    "settles_if": "'-' after the reload confirms E09-1 (minor); 'Not tied' refutes it",
+    "priority": "minor"
+   }
+  },
+  {
+   "what": "The countdown packet a player's client sends on Daggerheart 2.12.9: the harness builds it in the test (30-security part 8) from 2.10.11's countdownField; 2.12.x's sender is not copied.",
+   "live_check": "LIVE-E75-01"
+  },
+  {
+   "what": "The music's pause at a discovery and the camera pans of the gather (E11): read in the code and as calls in the harness.",
+   "live_check": "LIVE-E11-03"
+  },
+  {
+   "what": "The notes' known gaps of E09 (the free clean-up's critical, a GM's own clean-up off the primary) and E10 (two short gaps when a GM leaves mid-verdict, close and count on any GM, the Level Up window closed for a student nobody plays) were not re-read against today's code beyond the lines cited.",
+   "live_check": "LIVE-E10-04 for the GM-leaves gaps; none for the rest"
+  }
+ ]
+}

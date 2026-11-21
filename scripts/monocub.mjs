@@ -59,7 +59,7 @@ import { blackenedIds as blackenedIdsNow } from "./incident-store.mjs";
 import { drpgWindow, tipText } from "./ui-kit.mjs";
 // Confusion's window is a Call window (E51 C2): call-pickers.mjs reaches this file only through a lazy import().
 import { callWindow, callHeader, callRowsHtml, pickedRow } from "./call-pickers.mjs";
-import { nameAsSeen, seenHere } from "./mask-gm.mjs";
+import { nameAsSeen, seenHere, isMaskedActor, MASK_NAME } from "./mask-gm.mjs";
 
 /* ==========================================================================
  * STATUS
@@ -264,10 +264,11 @@ export function cubsFor(userId) {
             purse: Math.max(0, Math.trunc(Number(row.purse) || 0)),
             // The Bribes offered to this Monocub (E72 C15): the payer's name and the price, for its player's answer.
             bribes: row.bribes ? Object.fromEntries(Object.entries(row.bribes).map(([id, b]) => [id, { fromName: b?.fromName ?? "", cost: b?.cost ?? 0 }])) : null,
-            // The open Bounties (E72 C16), to every Monocub's owner and nobody else's.
-            bounties: isMonocub(actor) ? openBounties() : null,
-            // The Monocub's own Ghost Bet (E72 C19): the name it chose and the value, for its panel.
-            bet: row.bet ? { targetName: game.actors.get(row.bet.targetId)?.name ?? "", value: Math.max(0, Math.trunc(Number(row.bet.value) || 0)) } : null };
+            // The open Bounties (E72 C16), to every Monocub's owner and nobody else's; a masked student's "?" (`maskedNameFor`).
+            bounties: isMonocub(actor) ? openBounties(user) : null,
+            // The Monocub's own Ghost Bet (E72 C19): the name it chose and the value, for its panel; "?" as it was chosen.
+            bet: row.bet ? { targetName: maskedNameFor(user, row.bet.targetId, game.actors.get(row.bet.targetId)?.name ?? "", row.bet.masked),
+                value: Math.max(0, Math.trunc(Number(row.bet.value) || 0)) } : null };
     }
     return { cubs, stamps };
 }
@@ -1774,9 +1775,44 @@ export async function settleBribes() {
  * Hinder, the lapse at the next time of day.
  */
 
-/** The open Bounties as a Monocub's owner is sent them: the student's name and the reward. GM-side. */
-function openBounties() {
-    return Object.values(bountyStore.entries() ?? {}).map(b => ({ targetName: String(b?.targetName ?? ""), reward: Math.max(0, Math.trunc(Number(b?.reward) || 0)) }));
+/** The open Bounties as a Monocub's owner `user` is sent them: the student's name ("?", `maskedNameFor`) and the reward. GM-side. */
+function openBounties(user = null) {
+    return Object.entries(bountyStore.entries() ?? {}).map(([id, b]) => ({ targetName: maskedNameFor(user, id, String(b?.targetName ?? ""), b?.masked),
+        reward: Math.max(0, Math.trunc(Number(b?.reward) || 0)) }));
+}
+
+/*
+ * A MASKED STUDENT'S BET AND BOUNTY SAY "?" (1.2.121 line M1, 21.11.2026; the audit's N119-2 and N119-3, recheck-119.json,
+ * COMM-19's and COMM-24's residue). The Ghost Bet's picker names a student behind a mask "?" (`CUB_TARGETS.student`,
+ * mask-gm.mjs `nameAsSeen`), and a GM may put a Bounty on one; the cards that tell a Monocub's player were cut while the
+ * mask stood (secret.mjs `wordsFor`), but the copy its owner is sent (`cubsFor`), which the sheet's panel writes
+ * ("Your Ghost Bet: ...", "Bounty: ..."), named them in clear, and the lapse's card after the time of day ended the mask
+ * named the student behind the "?" (tier 2 "E120 - a Monocub's Ghost Bet and a GM's Bounty on a masked student ...", red
+ * at e515907d: the copy named the killer while the mask stood and after; the lapse's words to the Monocub's player too).
+ * So a bet or a Bounty made while its student stood behind a mask is marked (`masked`), and its name is "?" to every
+ * player who does not play that student, in the copy and on the cards a lapse, a claim and a payment post to the
+ * Monocubs' players, until the killer reveals themselves (`forgetMaskedTarget`, from mask-gm.mjs `endMask`); the GMs
+ * read it as it is. One made before the mask keeps the name the player knew: "?" there would say who stands behind it.
+ */
+function maskedNameFor(user, targetId, name, masked) {
+    if (!masked || !user || user.isGM) return name;
+    const actor = game.actors?.get?.(targetId ?? "");
+    return actor?.testUserPermission?.(user, "OWNER") ? name : MASK_NAME;
+}
+
+/** GM: the killer revealed themselves - their bets and Bounty name them again (`maskedNameFor`). Answers how many rows changed. */
+export async function forgetMaskedTarget(actorId) {
+    if (!game.user?.isGM || !actorId) return 0;
+    let n = 0;
+    const bounty = bountyStore.get(actorId);
+    if (bounty?.masked) { await bountyStore.patch(actorId, { ...bounty, masked: false }); n++; }
+    for (const [cubId, row] of Object.entries(cubStore.entries() ?? {})) {
+        if (row?.bet?.targetId !== actorId || !row.bet.masked) continue;
+        await cubStore.patch(cubId, { bet: { ...row.bet, masked: false } });
+        n++;
+    }
+    if (n) tellEveryCub();
+    return n;
 }
 
 /** GM: every Monocub's owners sent their copy again (a Bounty posted, claimed or lapsed). */
@@ -1789,10 +1825,12 @@ function tellEveryCub() {
  * Bounty's Despair owed (the audit's A113-C6-2, 13.11.2026: the card named the reward alone and no bar moved, so a GM
  * read the Bounty as free; despair.mjs `despairRowOf` draws the debt on a GM's bar).
  */
-async function tellBounty(key, data, gmOnly = "") {
+async function tellBounty(key, data, gmOnly = "", { masked = false } = {}) {
     const esc = foundry.utils.escapeHTML;
     const text = `<p>${esc(game.i18n.format(`DRPG.Monocub.${key}`, data))}</p>`;
-    for (const actor of monocubActors()) await whisperToOwner(actor, text, { veiled: true });
+    // A Bounty put on a student behind a mask names them "?" to the Monocubs' players ("A MASKED STUDENT'S BET", above).
+    const theirs = masked ? `<p>${esc(game.i18n.format(`DRPG.Monocub.${key}`, { ...data, name: MASK_NAME }))}</p>` : text;
+    for (const actor of monocubActors()) await whisperToOwner(actor, theirs, { veiled: true });
     const { whisperToGms } = await import("./utils.mjs");
     await whisperToGms(gmOnly ? `${text}<p>${esc(gmOnly)}</p>` : text);
 }
@@ -1823,7 +1861,9 @@ async function postBountyNow(userId, target) {
     if (!owedKey) return null;
     // The owed row's key and the price, so a lapse gives back what this Bounty took (A113-C6-3, `lapseBounties`).
     // And its season (E59 on the 1.2.115 line, CHAINS.md B-H1; R7176): a lapse gives back only within it.
-    const bounty = { by: userId, reward, cost, owedKey, at: serverNow(), targetName: target.name, season: seasonEpoch() };
+    // And whether its student stood behind a mask ("A MASKED STUDENT'S BET", above `maskedNameFor`).
+    const bounty = { by: userId, reward, cost, owedKey, at: serverNow(), targetName: target.name, season: seasonEpoch(),
+        ...(isMaskedActor(target) ? { masked: true } : {}) };
     await bountyStore.patch(target.id, bounty);
     tellEveryCub();
     await tellBounty("bountyPosted", { name: target.name, reward },
@@ -1839,8 +1879,11 @@ export async function claimBounty(cub, target) {
     await bountyStore.drop(target.id);
     const paid = await addToPurse(cub, Math.max(0, Math.trunc(Number(bounty?.reward) || 0)));
     tellEveryCub();
-    await tellBounty("bountyClaimed", { name: target.name });
-    await whisperToOwner(cub, `<p>${foundry.utils.escapeHTML(game.i18n.format("DRPG.Monocub.bountyPaid", { name: target.name, n: paid }))}</p>`, { veiled: true });
+    await tellBounty("bountyClaimed", { name: target.name }, "", { masked: Boolean(bounty?.masked) });
+    // The card goes to every owner of the Monocub (`whisperToOwner`): "?" when one of them does not play the student.
+    const outside = (game.users ?? []).find(u => !u.isGM && cub.testUserPermission?.(u, "OWNER") && !target.testUserPermission?.(u, "OWNER"));
+    const ownerName = outside ? maskedNameFor(outside, target.id, target.name, bounty?.masked) : target.name;
+    await whisperToOwner(cub, `<p>${foundry.utils.escapeHTML(game.i18n.format("DRPG.Monocub.bountyPaid", { name: ownerName, n: paid }))}</p>`, { veiled: true });
     log(`${cub.name} (a Monocub) claimed the Bounty on ${target.name}: ${paid} Hope into its purse.`);
     return paid;
 }
@@ -1875,7 +1918,7 @@ export async function lapseBounties() {
         const pool = D.poolLabel(game.users.get(bounty?.by) ?? null);
         const gmOnly = back === "cancelled" ? plural("DRPG.Monocub.bountyOwedCancelled", { n: cost, pool })
             : back === "back" ? plural("DRPG.Monocub.bountyDespairBack", { n: cost, pool }) : "";
-        await tellBounty("bountyLapsed", { name: bounty?.targetName ?? game.actors.get(id)?.name ?? "?" }, gmOnly);
+        await tellBounty("bountyLapsed", { name: bounty?.targetName ?? game.actors.get(id)?.name ?? "?" }, gmOnly, { masked: Boolean(bounty?.masked) });
     }
     log(`${open.length} Bounty(-ies) lapsed unclaimed at the turn of the time of day; their Despair given back.`);
     return open.length;
@@ -1908,7 +1951,8 @@ export function betWindowNow({ clock = getClock(), progress = getSetting(SETTING
 /** GM: a Ghost Bet placed on `target`, at the window's value (the row's resolver). */
 async function placeBet(actor, target) {
     const value = betWindowNow();
-    await patchCubRow(actor.id, { bet: { targetId: target.id, value, at: serverNow() } });
+    // Whether the student stood behind a mask as it was chosen ("A MASKED STUDENT'S BET", above `maskedNameFor`).
+    await patchCubRow(actor.id, { bet: { targetId: target.id, value, at: serverNow(), ...(isMaskedActor(target) ? { masked: true } : {}) } });
     await whisperToOwner(actor, `<p>${foundry.utils.escapeHTML(game.i18n.format("DRPG.Monocub.betStands", { name: target.name, n: value }))}</p>`, { veiled: true });
     log(`${actor.name} (a Monocub) placed a Ghost Bet for ${value} Hope.`);
     return { success: true };

@@ -1,0 +1,219 @@
+{
+ "refuter": "verify-old-1.2.42-comms",
+ "of": "old-1.2.42-comms",
+ "checked": [
+  {
+   "ref": "COMM-01",
+   "claim": "fixed: every player -> GM bridge request now goes to the connected GMs only",
+   "verdict": "stands",
+   "why": "Read the one waiter: the first send, the 'none' send and the resend all pass `to = gmIds()` (activeGmIds) into an emit that names recipients; with no GM it fails noGm before sending. Listed every socket.emit in scripts/ outside the suite: the only ones with no recipients are fog.mjs:1361 (askForShares, the primary's own question, action only), gm-bridge.mjs:111 (a GM's ready), relay-guard.mjs:1040 and sync.mjs:199, the same four R201 holds by name and fields; every multi-line emit (bridge-asks.mjs:694/715, bridge-runs-acts.mjs:525, call-gm.mjs:563, gm-bridge.mjs:214/239, safeword.mjs:304, secret.mjs:982, vote.mjs:528, mastermind.mjs:205) carries recipients. None of the four is a player's request.",
+   "evidence": "scripts/bridge-guards.mjs:1961-1962 'const to = gmIds(); if (!to.length) return fail(entry, \"noGm\");'; :2049 'if (to.length) emit(entry.packet, to);'; :2120 'emit: (packet, recipients) => game.socket.emit(SOCKET_EVENT, packet, { recipients })'; scripts/tests-tier0.mjs:7669 'R201 - every socket emit names its recipients but the four that carry nothing'",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "COMM-02",
+   "claim": "fixed: a no-thread callGm card (trap alert, no player owner) carries popup, GM sound and wired buttons",
+   "verdict": "stands",
+   "why": "The no-thread road whispers with callCard, gmPopup, popupTitle and sfx {gmAsk, gm:true} unless a receipt; popup.mjs raises a GM whisper when gmPopup is on the card; sfx.mjs plays it for a GM when forGm; gm-bridge.mjs's renderChatMessageHTML hook wires a card with callCard or any [data-drpg-call] button. Tried the player road: GM_META strips gmPopup and callCard from a player's meta and soundFromMessage drops the GM mark for a player-written card, but the gmOnly callers run on a GM and ownerOf/threadOf give any player-owned actor a thread, so a no-thread card is a GM's.",
+   "evidence": "scripts/call-gm.mjs:977-984 'callCard: true, ...(receipt ? {} : { gmPopup: true, popupTitle: ..., sfx: { key: \"gmAsk\", gm: true } })'; scripts/popup.mjs:1267-1269 'const forGm = cardFlag(message, \"gmPopup\") || ...; if (game.user.isGM && whisper.length && !forGm) return;'; scripts/gm-bridge.mjs:158 'if (!cardFlag(message, \"callCard\") && !body?.querySelector?.(\"[data-drpg-call]\")) return;'",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "COMM-03",
+   "claim": "fixed: thread messages carry a stub in the document and their words go by addressed socket",
+   "verdict": "stands",
+   "why": "messenger.mjs has one create road (createThreadMessage -> postSecret), postSecret creates the document with STUB and sends the words to the other recipients through sendWords; the only plain `message.update({ content })` in scripts/ is settleCall's branch for a card without the secret flag. Recorded on 14.370 (LOCAL-REPORT S7-5). messenger.mjs and secret.mjs were last changed 15.11.2026 (08f742ef), before the 1.2.116 release commit dbf5c0dc of 16.11 that the reading ran on.",
+   "evidence": "scripts/messenger.mjs:298 'return await postSecret({'; scripts/secret.mjs:1190-1195 'const message = await ChatMessage.create({ ... content: STUB, whisper: veiled ? everyone() : recipients, flags });'; docs/dev/e58/LOCAL-REPORT.md:418 'its document holds `<p class=\"notes\" data-drpg-secret>-</p>`; the words reached PlayerTwo alone'",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "COMM-04",
+   "claim": "fixed: a Hope Call needing the GM and a Dynamic action are callGm cards in the asker's thread, any GM may answer",
+   "verdict": "stands",
+   "why": "askHopeCallByCard and askDynamicByCard post callGm cards with approveCall/refuseCall and setDifficulty/refuseDynamic into the asker's thread (thread: ctx.asker); the player raises a waiting card before the bridge call; a GM asker gets a local window, which is the asker's own screen.",
+   "evidence": "scripts/call-gm.mjs:250-253 'actions: [ { action: \"approveCall\", ... }, { action: \"refuseCall\", ... } ]'; :285-288 'setDifficulty' / 'refuseDynamic'; scripts/calls.mjs:224 'const waiting = game.user.isGM ? () => {} : await showWaitingCard(call);'",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "COMM-05",
+   "claim": "fixed: a resend happens only on the primary GM's ready, and a resend finds the card already posted",
+   "verdict": "stands",
+   "why": "onGmReady returns unless the sender is the primary with the arrival counted; the other trigger (primaryLeft) has a new primary by construction; askAgain finds the card by its mark and returns later/refused instead of posting a second; resends bounded at RESENDS = 3. As the reader says, no test drives the sender check itself.",
+   "evidence": "scripts/gm-bridge.mjs:89 'if (senderId !== primaryGmId({ arriving: senderId })) return;'; scripts/bridge-guards.mjs:2045 'if (!entry.resend || entry.resent >= RESENDS || entry.settled) continue;'; scripts/call-gm.mjs:150-158 'async function askAgain(...) { ... const card = cardOfAsk(ctx.requestId, ctx.asker); ...'",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "COMM-06",
+   "claim": "fixed: GM-only prose of a ruling card is wrapped and cut from every player's copy",
+   "verdict": "stands",
+   "why": "callCardHtml wraps the critical hint and gmBody in .drpg-gm-only; cutWords/playerWords remove .drpg-gm-only and .drpg-call-actions for any non-GM reader, including the poster's own copy (remember uses wordsFor(game.user.id)). The Analyze hint ladder left in body is also whispered to the roller as their own card, a recorded decision (D1).",
+   "evidence": "scripts/call-gm.mjs:799 'if (gmBody) parts.push(`<div class=\"drpg-gm-only\">${gmBody}</div>`);'; scripts/secret.mjs:335 'const GM_PROSE = \".drpg-gm-only, .drpg-call-actions\";'; :503 'const words = gm ? text : playerWords(text);'; scripts/action-analyze.mjs:287 'await whisperToOwner(actor, `${rollHead(def, roll)}${body}`, ...)'",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "COMM-07",
+   "claim": "fixed: no callGm card is left with neither a button nor a receipt",
+   "verdict": "stands",
+   "why": "Read every callGm site (18 in scripts/ plus promptAndCallGm's one caller): each passes actions; the two conditional cases are receipts (projects.mjs:2532-2541 'receipt: def.needs !== \"plant\"', action-dynamic.mjs 'receipt: !success, actions: !success ? [] : [...]'). The Analyze critical carries reply and decline; the creative use carries three answers.",
+   "evidence": "scripts/analyze.mjs:338-351 'actions: [ { action: \"reply\", ... }, { action: \"decline\", ... paid: \"none\", words: \"more\" } ]'; scripts/use-items.mjs:605-609 'itemWorks', 'itemNoEffect', 'itemRefuse'",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "COMM-08",
+   "claim": "fixed: the gmAsk sound plays on the GM who posted the card, before the self-author return",
+   "verdict": "stands",
+   "why": "The gmAsk branch is before the writer check in onCreateChatMessage. Tried the veiled case, where gmAsk rides in the meta and the poster keeps its own words only after create answers: the hook awaits wordsOf for a veiled card with no words yet before reading the thread and gmAsk, so the flag is read once the words land. A typed DM passes gmAsk false. No test pins the order (the reader says so).",
+   "evidence": "scripts/messenger.mjs:364-371 'if (game.user.isGM && cardFlag(message, MESSENGER_FLAGS.gmAsk)) { if (messengerSoundOn()) playSfx(\"gmAsk\"); return; } ... if (authorId === game.user.id) return;'; :337-340 'if (!thread && isVeiled(message) && !secretHtml(message)) { await wordsOf(message); ...'",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "COMM-09",
+   "claim": "obsolete: the dice-skin socket push is gone; the look is written into the User document",
+   "verdict": "stands",
+   "why": "dice-sync.mjs has no socket listener or emit; its header says the socket road is gone; the hooks are document hooks and a userConnected that writes the joiner's flags on the primary. No other file sends a dice-skin packet (grep for dice-sync and DICE_SKIN outside the suite).",
+   "evidence": "scripts/dice-sync.mjs:9-10 'Until C3 this file pushed DSN's client setting `settings` over the module's socket ... and the socket road is gone with it.'; :238 'Hooks.on(\"userConnected\", (user, connected) => {'",
+   "status_after": "obsolete"
+  },
+  {
+   "ref": "COMM-10",
+   "claim": "open (sampled the other way): a second GM's Play and Reset use a record only that browser holds",
+   "verdict": "stands",
+   "why": "Not fixed: playTrack and resetMusic gate on isGM only; `interrupted` is a module variable; resetMusic resumes record.held with no silence test when a record exists, and resumeHeld resumes any id whose playlist is not playing without reading the held flag, so a stale list on the second GM's browser brings back a playlist the primary has moved on from. The audible result is not measured, so 'suspected' is right.",
+   "evidence": "scripts/music-play.mjs:175 'export let interrupted = null;'; :1179-1182 'export async function resetMusic() { if (!game.user.isGM) {'; :1210-1213 'let held = record?.held ?? []; if (!held.length && !anythingPlaying()) {'; :751-756 'async function resumeHeld(ids = []) { ... if (!playlist.playing) await resumePlaylist(playlist);'",
+   "status_after": "open"
+  },
+  {
+   "ref": "COMM-11",
+   "claim": "partly: a keybinding and game.drpg.safeword() exist for every user; the key has no default and the only on-screen control is the sheet's Stop, which Monokuma and Spectator sheets do not draw",
+   "verdict": "stands",
+   "why": "Both halves confirmed: the keybinding is registered with editable [] and restricted false; api.mjs:839 gives safeword(); the only callers of safewordDialog are the key, the API and the sheet's button; sheet-mode gives safeword false to monokuma and spectator sheets. Real-table reading (LOCAL-REPORT 17) agrees: no default key.",
+   "evidence": "scripts/safeword.mjs:432-435 'editable: [], onDown: () => { callerStudent().then(actor => safewordDialog(actor)); return true; }, restricted: false,'; scripts/sheet-mode.mjs:81 'safeword: !monokuma && !spectator,'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "COMM-12",
+   "claim": "fixed: the GMs' safeword detail names Foundry's sender, never a packet field",
+   "verdict": "stands",
+   "why": "The packet carries only the room; hearSafeword takes senderOf(senderId), drops a sender not connected, and passes that user to showGmDetail, which escapes the name and cuts the room to ROOM_MAX. Side note: the real-table pass (LOCAL-REPORT S7-8) did not read the GMs' detail ('Not read: how the GMs are told who'), so the fix rests on code and the tier-2 test, not on a reading.",
+   "evidence": "scripts/safeword.mjs:304-307 'game.socket.emit(`module.${MODULE_ID}`, { action: SAFEWORD_ACTION, room: room ?? null }, { recipients: gmIds() });'; :344-347 'const sender = senderOf(senderId); if (!sender) return; showGmDetail(sender, ...)'",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "COMM-13",
+   "claim": "obsolete: the GM's LiveKit 'listen at the door' was removed by decision D7",
+   "verdict": "stands",
+   "why": "No eavesdropRoom, setManual or Voice.eavesdropPrompt in scripts/ or lang/en.json; voice.mjs's header records the removal. The new Listen eavesdrop (E69 C6) is a player's game action with its own rule: its file says nobody in the room is told and the listener is counted on the speaker button (R550). Note, not counted against this item: the listener's notice says 'nobody there hears you' and does not say the room's count shows one more; LIVE-E69-03 measures what the room sees.",
+   "evidence": "scripts/voice.mjs:35-36 '(There is no \"listen in by hand\" any more - Dawid, 13.09: LiveKit shows the listener's tile to the room'; scripts/eavesdrop-gm.mjs:9-12 'Nobody in that room is told ... the voice tile's speaker button counts every participant'; lang/en.json:538 'you hear the room, and nobody there hears you.'",
+   "status_after": "obsolete"
+  },
+  {
+   "ref": "COMM-14",
+   "claim": "fixed: the 'not carried out' message names the request from DRPG.Bridge.what.<action> in the reader's language",
+   "verdict": "stands",
+   "why": "requestLabel reads the key or says 'unnamed'; sayNotDone builds the one message from it. Listed every literal action passed to sayNotDone in scripts/ (20 names, e.g. door.shut, listen.echoes, dash.settle, tail.start, watch.declare, facility.use): each has a DRPG.Bridge.what entry in both lang/en.json and lang/pl.json (read by script).",
+   "evidence": "scripts/bridge-guards.mjs:555-561 'const key = field ? `DRPG.Audit.field.${field}` : `DRPG.Bridge.what.${action}`; return game.i18n.localize(game.i18n.has(key) ? key : \"DRPG.Bridge.unnamed\");'",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "COMM-15",
+   "claim": "partly: the read stamp is the newest message's own timestamp; order and unread still compare timestamps written by several senders",
+   "verdict": "stands",
+   "why": "markThreadRead stores the newest message's timestamp; threadStatsOf counts 'at > readMap[thread]' and threadMessages sorts by timestamp; postSecret sets no timestamp itself. Whether the remaining half happens depends on who stamps timestamp on v14 (COMM-LC7, LIVE-E33-10), unread; the reader marks it suspected.",
+   "evidence": "scripts/messenger.mjs:201-206 'const newest = threadStats().get(playerUserId)?.last?.timestamp ?? 0; ... const map = { ...readMap(), [playerUserId]: newest };'; :147 'if (!(at > (readMap?.[thread] ?? 0))) continue;'; :116 '.sort((a, b) => a.timestamp - b.timestamp);'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "COMM-16",
+   "claim": "fixed: the acknowledgement leaves only after the guards and the roll record pass, and every refusal is told to the asker",
+   "verdict": "stands",
+   "why": "judge acknowledges early only for a queued declaration (answer reply, so the asker settles on the answer or the refusal); otherwise after firstRefusal and rollsFor; a run's refusal and a throw go through refuse, which tells the asker unless the declaration is quiet. An acknowledged 'ack' request still gets the refusal through the waiter's onReply ('the refusal is its one message').",
+   "evidence": "scripts/bridge-guards.mjs:1808-1816 'const why = await firstRefusal(...); if (why) return refuse(...); ... if (!early && decl.answer !== \"none\" && ctx.requestId) acknowledge();'; :515 'if (!ctx?.quiet) tellRefused(ctx?.asker, action, ctx?.requestId ?? null, code, send);'",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "COMM-17",
+   "claim": "fixed: Sabotage waits rulingMs (180 s) for its answer, the 8 s clock is only the 'got it'",
+   "verdict": "stands",
+   "why": "requestSabotage passes timeoutMs = TIMING.rulingMs; the waiter runs two timers (ackMs for the acknowledgement unless patient, timeoutMs for the answer); the row is queued 'project' with answer reply, resend and again, so a queued request is acknowledged on arrival. The longer clock has its own limit, which the reader names (LIVE-E31-02).",
+   "evidence": "scripts/bridge-asks.mjs:556-558 'timeoutMs = TIMING.rulingMs } = {}) { return ask(ACTION_SABOTAGE, ..., { timeoutMs, quiet });'; scripts/config.mjs:366-368 'ackMs: 8000, ... rulingMs: 180000,'; scripts/bridge-table.mjs:851 'answer: \"reply\", resend: true, queue: \"project\",'",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "COMM-18",
+   "claim": "fixed: GM-facing voice and music diagnostics are language keys; reportContested's warn() sentence is a key",
+   "verdict": "weakened",
+   "why": "The letter of the old fix holds: contestedWarning formats DRPG.Voice.contested, and the scene and plan warnings use voiceText keys. But the class the item named - a GM-facing voice or music sentence in inline English that reaches the GM panel's failure log through warn() - is still there in lines added later: music-play.mjs:619 (a mapped playlist with no tracks), voice.mjs:1686 (no BROADCAST_AUDIO permission, the trial's block) and voice.mjs:1749 (the trial's dead from this GM's deaths). warn() records into sessionLog, which gm-panel.mjs openFailureLog draws for the GM. Whether the failure log is meant to stay English (as diagnostics.mjs's console does) is not stated in docs/text-style.md or CLAUDE.md; if it is, this is by decision and the item is fixed.",
+   "evidence": "scripts/music-play.mjs:619-620 'warn(`Music: \"${playlist.name}\" is mapped but has no tracks, so there is ` + \"nothing to play for this state.\");'; scripts/voice.mjs:1686 'warn(\"The trial's microphone block: Foundry names no BROADCAST_AUDIO permission in this version, so no microphone is blocked.\")'; scripts/utils.mjs:333-335 'export function warn(...args) { console.warn(...); record(\"warn\", args); }'; scripts/gm-panel.mjs:707 'const rows = sessionFailures();'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "COMM-LC1",
+   "claim": "fixed: live check 1 has nothing to print, since every bridge request is addressed to the GMs",
+   "verdict": "stands",
+   "why": "Same road as COMM-01, read above; the reader states the check itself was never run at a table, which is correct (no reading in LOCAL-REPORT beyond the secret.card one at :418).",
+   "evidence": "scripts/bridge-guards.mjs:2120-2121 'emit: (packet, recipients) => game.socket.emit(SOCKET_EVENT, packet, { recipients }), gmIds: () => activeGmIds(),'",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "COMM-LC2",
+   "claim": "fixed (F): a real thread message's document holds the stub on 14.370",
+   "verdict": "stands",
+   "why": "The reading at LOCAL-REPORT.md:418 says exactly this; the files it rests on are unchanged since 15.11.2026, before the 1.2.116 release the reading ran on.",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:418 'S7-5 (COMM-03) | measured | a real thread message ... PlayerOne holds them nowhere (document, drawn card, socket)'",
+   "status_after": "fixed"
+  },
+  {
+   "ref": "COMM-LC3",
+   "claim": "partly: the code half of live check 3 is answered, the screen half (popup seen, sound heard, a real click) is not read",
+   "verdict": "stands",
+   "why": "LOCAL-REPORT lists S7-6 as left, 'not yet driven: a trap that fires'; the origin/claude/e58-local copy holds no later pass for it (grep at :584 of that copy).",
+   "evidence": "docs/dev/e58/LOCAL-REPORT.md:432 'S7-6, S7-10, S7-11, 16 | left | not yet driven: a trap that fires'",
+   "status_after": "partly"
+  },
+  {
+   "ref": "COMM-LC4",
+   "claim": "obsolete: there is no GM dialog to cover; the ask is a card every GM is shown",
+   "verdict": "stands",
+   "why": "Read with COMM-04: the player's ask is a thread card; the only local window left is a GM asking on their own sheet (calls.mjs:227-228), whose asker is the one looking at it.",
+   "evidence": "scripts/calls.mjs:227-228 'if (game.user.isGM) { approved = await askHopeCallApproval(ask);'",
+   "status_after": "obsolete"
+  },
+  {
+   "ref": "COMM-LC5",
+   "claim": "partly: of the five parts, three are answered by code and two (a second GM's Play/Reset, two senders' clocks) are unread",
+   "verdict": "stands",
+   "why": "Each part checked through its item above: COMM-05 and COMM-17 fixed, COMM-09 obsolete, COMM-10 open, COMM-15 partly. No scenario or test calls playTrack or resetMusic, and none drives two clocks in one thread (grep).",
+   "evidence": "scripts/music-play.mjs:1098-1099 'export async function playTrack(track, soundId) { if (!game.user.isGM) {'; scripts/messenger.mjs:147",
+   "status_after": "partly"
+  },
+  {
+   "ref": "COMM-LC6",
+   "claim": "open (sampled the other way): a plain DM to a GM is a badge only; its place beside the dock or tile on a real screen is not read",
+   "verdict": "stands",
+   "why": "Not fixed in the sense of read: the GM branch returns for a card without gmAsk; the launcher lift is measured from the dock; no reading with A/V on exists (the local pages were headless).",
+   "evidence": "scripts/messenger-app.mjs:547-549 'if (game.user.isGM) { ... if (!cardFlag(message, MESSENGER_FLAGS.gmAsk)) return;'",
+   "status_after": "open"
+  },
+  {
+   "ref": "COMM-LC7",
+   "claim": "open (sampled the other way): who stamps ChatMessage.timestamp on v14 is not read",
+   "verdict": "stands",
+   "why": "No 'timestamp' reading in docs/dev/e58/LOCAL-REPORT.md or docs/dev/e39/CALIBRATION.md at b5a29e73 or on origin/claude/e58-local (grep -i timestamp: no hit in either copy).",
+   "evidence": "docs/dev/e58/TRIAGE-9.2.md:157 (item 134, LIVE-E33-10) as cited by the reader; no reading found",
+   "status_after": "open"
+  }
+ ],
+ "counts": {
+  "checked": 25,
+  "stands": 24,
+  "weakened": 1,
+  "refuted": 0
+ },
+ "count_note": "All 25 items were checked: the 22 fixed, partly or obsolete ones by the method, and all 3 open ones (COMM-10, COMM-LC6, COMM-LC7) the other way - the file holds only 3 open items, fewer than the 5 the sample asked for. The 4 new_observations are all nit; none is minor or above, so none is in `checked`.",
+ "not_established": [
+  "The commits the items cite for history (b888c066, 7e40243, d079a1ec, f6e5a5cc, b708865c, 12109493, 5858b2a2, 9e693d88, e08aaecc) are not in this checkout (a shallow clone: git rev-parse --is-shallow-repository answers true), so the old_state lines and new_observations 1 (the wrong commit for task 13) were not checked against git. No status rests on them: every status above rests on today's source.",
+  "No base-run.json exists in audit/findings-1.2.118/ at the time of reading, so no pinned_by test or scenario named by the reader has a result read here; each was only found by name in the source (R201, R841, R162, R164, R165, R1064, R550, R839, R840, R1369, R3857 and the five tier-2 titles at scripts/tests-tier2.mjs:25634, 40223, 30706, 79859, 42752).",
+  "COMM-18: whether the GM panel's failure log is meant to stay English (as diagnostics.mjs's console is) is not written in docs/text-style.md or CLAUDE.md; the owner's answer would settle the item as fixed (by decision) or partly.",
+  "COMM-10 and COMM-15's remaining halves need a table: a second GM's Play, a state change and that GM's Reset, heard (new live check); and LIVE-E33-10 for who stamps timestamp."
+ ]
+}

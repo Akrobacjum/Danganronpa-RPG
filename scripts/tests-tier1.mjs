@@ -1382,7 +1382,9 @@ const INVARIANTS = [
         document.body.appendChild(host);
 
         const app = { element: host, options: { window: { title: "test" } } };
-        const stop = keepLive(app, { region: ".drpg-t-focus", build, delay: 0, watch: { hooks: [LIVE_PROBE] } });
+        /* `whileEditing: false`: the rule as every region kept it until the line claude/refresh-120 made the redraw under a
+           focused field the default (21.11.2026; R7970, R7974); a region that cannot follow the owner's rule still says so. */
+        const stop = keepLive(app, { region: ".drpg-t-focus", build, delay: 0, whileEditing: false, watch: { hooks: [LIVE_PROBE] } });
 
         try {
             const field = host.querySelector("input[name=f]");
@@ -17160,6 +17162,86 @@ const INVARIANTS = [
         }
     }],
 
+    ["R7930 - a clock write stamps a day's board only with a stamp the clock does not carry: a start or end board's day moved, or a discovery's announcement newer; a stamp taken away, kept, or no stamp at all is none", async () => {
+        /*
+         * 1.2.121 line M2; the audit's STG-03 residue and N119-5. `setClock` ends the masks before a write that stamps a
+         * day's board (clock.mjs `writesBoardStamp`), so the chapter end's next morning - `setTimeOfDay` with both stamps,
+         * which ended none - draws no masked killer (tier 2 "E120 - the masks end before every write of a day's board
+         * stamp"). The predicate on the roads' own patches: the chapter end's morning, the roll-over's start stamp, Evening
+         * to Night's end stamp, a discovery's stamp (new and heard again), the Eclipse's take-back of its opening (a stamp
+         * taken away), Edit campaign's day alone, and a clock put back with the stamps it had. Red at e515907d: no such
+         * function.
+         */
+        const C = await import("./clock.mjs");
+        ok(typeof C.writesBoardStamp === "function", "clock.mjs has no writesBoardStamp - setClock cannot tell a write that stamps a board");
+        if (typeof C.writesBoardStamp !== "function") return;
+        const before = { day: 3, dayBoard: 3, nightBoard: 2, bodyBoard: { upTo: 50, key: "1:2:50", day: 3, timeOfDay: "noon" } };
+        const read = [
+            C.writesBoardStamp(before, { day: 4, dayBoard: 4, nightBoard: 3, timeOfDay: "morning" }),
+            C.writesBoardStamp(before, { dayBoard: 4 }),
+            C.writesBoardStamp(before, { nightBoard: 3 }),
+            C.writesBoardStamp(before, { bodyBoard: { upTo: 60, key: "1:2:60", day: 3, timeOfDay: "afternoon" } }),
+            C.writesBoardStamp(before, { bodyBoard: { ...before.bodyBoard } }),
+            C.writesBoardStamp(before, { dayBoard: null, eclipse: false }),
+            C.writesBoardStamp(before, { day: 5 }),
+            C.writesBoardStamp(before, { ...before }),
+            C.writesBoardStamp({}, { dayBoard: 1 }),
+            C.writesBoardStamp({}, {})
+        ];
+        equal(JSON.stringify(read), JSON.stringify([true, true, true, true, false, false, false, false, true, false]),
+            "[the chapter end's morning, a start stamp, an end stamp, a new discovery, the same discovery, a stamp taken away, a day alone, the clock put back, a first stamp, nothing]");
+    }],
+
+    ["R7931 - the camera dock names nobody the veil or a mask hides from this reader: every name on their plate reads \"?\" in each mode that draws one, put back when it goes; a GM's dock names everyone", async () => {
+        /*
+         * 1.2.121 line M2; the audit's COMM-20 residue (recheck-119.json, the verifier's residue: camera-view.mjs
+         * `relabel` writes `displayNameFor`'s character name on every `.camera-view[data-user]`, no veil or mask asked).
+         * With the voice tile off, Foundry's dock draws a box for each participant avclient-livekit lists - the veiled
+         * killer stays in the room's channel (E112) - and the module wrote their full character name on it. Now
+         * `relabelCameraDock` asks `hiddenFromHere` (the map's veil rule, `voiceVeiledHere`, and the pickers' mask rule,
+         * `nameAsSeen`). A stand-in dock of two boxes as Foundry's template draws them (the account name, then the
+         * character's first word, each a `<strong>`), D hidden: both modes that draw a plate, then the veil gone through the
+         * token hook's handler (`onTokenChange`), a token write that moves neither flag, and the GM's own rule (this browser
+         * is a GM's: nobody hidden). Whether avclient-livekit draws such a box, and its video and avatar, is LIVE-F119-03.
+         * Red at e515907d: the dock's render hook wrote D's character name.
+         */
+        needs(world.atLeast("playerAccounts", 2), "two accounts besides the GM's, each with a box on the dock");
+        const C = await import("./camera-view.mjs");
+        const K = await import("./mask-gm.mjs");
+        const [b, d] = game.users.filter(user => user.id !== game.user.id && !user.isGM).slice(0, 2);
+        const first = user => String(user.character?.name ?? "").split(" ").shift();
+        const root = document.createElement("div");
+        root.innerHTML = [b, d].map(u => `<div class="camera-view" data-user="${u.id}"><div class="player-name ellipsis"><strong>${foundry.utils.escapeHTML(u.name)}</strong><strong>${foundry.utils.escapeHTML(first(u))}</strong></div></div>`).join("");
+        const plateOf = u => [...root.querySelectorAll(`.camera-view[data-user="${u.id}"] .player-name strong`)].map(s => s.textContent);
+        const tipOf = u => root.querySelector(`.camera-view[data-user="${u.id}"] .player-name`)?.dataset.tooltip ?? null;
+        const MODES = { OFF: 0, PLAYER_ONLY: 1, BOTH: 2 };
+        const both = { MODES, mode: MODES.BOTH }, playerOnly = { MODES, mode: MODES.PLAYER_ONLY };
+        const hidden = user => user?.id === d.id;
+        const paint = typeof C.relabelCameraDock === "function"
+            ? plate => C.relabelCameraDock(root, { hidden, plate })
+            : () => Hooks.callAll("renderCameraViews", null, root);
+        const full = u => C.voiceIdentity(u)?.name ?? null;
+        const read = {};
+        paint(both);
+        read.both = [plateOf(b), plateOf(d), tipOf(d)];
+        paint(playerOnly);
+        read.playerOnly = plateOf(d);
+        if (typeof C.onTokenChange === "function") {
+            read.quiet = C.onTokenChange({}, { name: "x" }, { root, hidden: () => false });
+            read.stillHidden = plateOf(d);
+            read.lifted = C.onTokenChange({}, { flags: { [MODULE_ID]: { [`${"-="}veiled`]: null } } }, { root, hidden: () => false });
+            read.back = [plateOf(d), tipOf(d) === foundry.utils.escapeHTML(full(d))];
+        }
+        read.gm = typeof C.hiddenFromHere === "function" ? C.hiddenFromHere(d, { veiled: () => true, masked: () => true }) : null;
+        read.sameMark = C.HIDDEN_PLATE === K.MASK_NAME;
+        equal(stableJson(read), stableJson({
+            both: [[b.name, full(b)], ["?", "?"], "?"], playerOnly: ["?", "?"],
+            quiet: 0, stillHidden: ["?", "?"], lifted: 2, back: [[d.name, full(d)], true],
+            gm: false, sameMark: true
+        }), "the dock named a hidden participant, or did not name them again when the veil went, or hid one on a GM's dock "
+            + "(both modes: B's plate, D's, D's tooltip; player names only: D's; a write that moves no flag: boxes read, D's plate; the veil gone: boxes read, D's plate, its tooltip; the GM's rule; the dock's mark is the mask's)");
+    }],
+
     ["R539 - the GM's block in the list is Foundry's block and never undoes the module's: the button is built only in a GM's list; its click writes the user's `permissions.BROADCAST_AUDIO` flipped from what Foundry answers now and nothing else; where `moduleHoldsMic` holds the microphone or a death is kept secret the button is disabled with its line and `toggleBlock` writes nothing; it refuses a player's client, the GM's own account and a user who is not of this world", async () => {
         /*
          * E78 C5, 14.10.2026; the A9 design's R392 (A9-5; the E78 plan's D2 gave it this number), the owner's Q4 (the
@@ -20815,7 +20897,9 @@ const INVARIANTS = [
         const heads = key => [...(pane(key)?.querySelectorAll("thead th") ?? [])].map(th => th.textContent.trim());
         const text = key => pane(key)?.textContent.replace(/\s+/g, " ") ?? "";
         const form = root.querySelector("form");
-        const over = [...(form?.children ?? [])].filter(el => !el.matches?.("nav, section")).map(el => el.textContent.replace(/\s+/g, " ").trim()).filter(Boolean);
+        // Inside the body block since the line claude/setup-120 (REFR-04: the block the window's redraw replaces), the form's children before it.
+        const top = form?.querySelector(":scope > [data-drpg-room-body]") ?? form;
+        const over = [...(top?.children ?? [])].filter(el => !el.matches?.("nav, section")).map(el => el.textContent.replace(/\s+/g, " ").trim()).filter(Boolean);
         const tabs = [...root.querySelectorAll('nav.drpg-tabs > button[role="tab"]')].map(b => [b.dataset.drpgTabKey, b.textContent.trim()]);
         const read = {
             over: over.includes(L("DRPG.Vault.applyLine")),
@@ -32483,6 +32567,104 @@ const INVARIANTS = [
             "[whether the dissolve could be stood down, what its end did after the scene was left, whether a dissolve is busy, queued, the frames drawn before]");
     }],
 
+    ["R8032 - a dissolve let go at its bound leaves the fog drawn, and its late end takes nothing away (1.2.121 line F; the audit of 1.2.120, r120-F-1 and r120-F-2): fog.mjs `swapInFog` on a fake ticker - the bound reached, a repaint that changes nothing, then the dissolve's own end - shows the new fog sprite; an end whose first clean-up throws still releases", async () => {
+        /*
+         * 1.2.121 line F; AUDIT 18.6 (audit/findings-1.2.118/recheck-120.json, r120-F-1). 1.2.120's bound
+         * (`queueBehindDissolve`, R8030 C) let a dissolve go by retiring its generation (`endDissolves`). While the
+         * dissolve runs only its mix is drawn - the incoming sprite and the one it replaces are kept off
+         * (`renderable = false`) - and a retired dissolve's end takes away its mix and nothing else, as a scene left
+         * wants. So: the bound reached (a background tab's timers land there), a repaint that finds the picture
+         * unchanged and draws nothing, then the dissolve's late end - and no fog sprite was drawn on the layer: the map
+         * stood uncovered until the next change. Now the bound runs the dissolve's own end, which shows the incoming
+         * sprite and drops the rest, and the late end, run again, does nothing. r120-F-2: the end's first line
+         * (`scratch.destroy`) throwing skipped the release in `finally`, which keyed on a flag set after it.
+         * C: a newer fog drawn after the bound is not taken away by the old dissolve's late end (its end runs once).
+         * Red on 03ee8de9 (1.2.120), measured: A [[], false]. Each part of the fix taken out alone, measured: the bound
+         * retiring the generation again, A [[], false]; no once, C []; `current` decided after the scratch, as 1.2.120's
+         * end did, B [true, 0, ["mix0"]]; the scratch's throw not caught, B [false, 1, ["mix0"]] (the mix left drawn).
+         */
+        const F = await import("./fog.mjs");
+        must(typeof F.swapInFog === "function" && typeof F.queueBehindDissolve === "function", "fog.mjs hands out no swapInFog or queueBehindDissolve to run");
+        let throwScratch = false;
+        class Node {
+            constructor(texture = null) { this.children = []; this.destroyed = false; this.visible = true; this.renderable = true; this.alpha = 1; this.texture = texture;
+                this.position = { set: () => {} }; }
+            addChild(...nodes) { for (const n of nodes) { n.parent = this; this.children.push(n); } return nodes[0]; }
+            removeChild(n) { this.children = this.children.filter(c => c !== n); n.parent = null; return n; }
+            destroy() { this.destroyed = true; this.parent?.removeChild(this); for (const c of [...this.children]) c.destroy(); this.children = []; }
+        }
+        // The dissolve's scratch is the one Container it makes; a Sprite is a Node.
+        class Scratch extends Node { destroy(...a) { if (throwScratch) throw new Error("a scratch that would not be destroyed"); return super.destroy(...a); } }
+        class Graphics extends Node { clear() { return this; } beginFill() { return this; } drawRect() { return this; } endFill() { return this; } }
+        const texture = label => ({ label, destroyed: false, destroy() { this.destroyed = true; } });
+        let clock = 1000;
+        const run = () => {
+            const state = { generation: 0, busy: false, queued: false, previous: null, since: null };
+            const anims = [];
+            let repaints = 0, mixes = 0;
+            const container = new Node();
+            const io = {
+                state,
+                PIXI: { Container: Scratch, Sprite: Node, Graphics, BLEND_MODES: { ERASE: 9, ADD: 1 }, RenderTexture: { create: () => texture(`mix${mixes++}`) } },
+                animate: (attributes, options) => {
+                    let resolve;
+                    const anim = new Promise(r => { resolve = r; });
+                    anim.finish = () => { attributes[0].parent.t = 1; options.ontick(); resolve(true); anim.done?.(); };
+                    anims.push(anim);
+                    return anim;
+                },
+                // The real watchdog's shape (fog-reveal.mjs `watchdog`): its clean-up once, a throw caught and logged.
+                watchdog: (anim, ms, cleanUp) => { let once = false; anim.done = () => { if (once) return; once = true; try { cleanUp(); } catch { /* logged */ } }; },
+                renderer: () => ({ render: () => {} }),
+                layer: () => container,
+                ensureRaster: () => {},
+                dropSprite: sprite => { if (sprite && !sprite.destroyed) sprite.destroy(); },
+                showing: () => {},
+                motionOff: () => false,
+                fadeMs: () => 180,
+                now: () => clock,
+                repaint: () => { repaints += 1; }
+            };
+            const rect = { x: 0, y: 0, width: 400, height: 300 };
+            const swap = name => F.swapInFog(container, texture(name), texture(`${name}-mask`), rect, io);
+            // What the layer draws: a fog sprite (it carries `drpgTexture`) that is neither destroyed nor kept off.
+            const drawn = () => container.children.filter(c => c.drpgTexture && !c.destroyed && c.renderable !== false).map(c => c.drpgTexture.label);
+            return { state, anims, io, swap, drawn, repaints: () => repaints };
+        };
+
+        // A: A drawn, then a dissolve A -> B; the bound passes; a repaint finds nothing to change (draws nothing); B's late end.
+        const a = run();
+        a.swap("A");
+        a.swap("B");
+        clock += 10000;
+        const queued = F.queueBehindDissolve(a.io);
+        a.anims[0]?.finish();
+        equal(JSON.stringify([a.drawn(), queued]), JSON.stringify([["B"], false]),
+            "[the fog sprites the layer draws after the bound and the dissolve's late end, whether the repaint at the bound was queued]");
+
+        // C: the bound passes on a dissolve E -> F, a newer fog G is swapped in outright (no motion), then E -> F's late end.
+        const c = run();
+        c.swap("E");
+        c.swap("F");
+        clock += 10000;
+        F.queueBehindDissolve(c.io);
+        c.io.motionOff = () => true;
+        c.swap("G");
+        c.anims[0]?.finish();
+        equal(JSON.stringify(c.drawn()), JSON.stringify(["G"]),
+            "[the fog sprites the layer draws after a newer fog came and the old dissolve's late end ran]");
+
+        // B: a dissolve C -> D whose end throws at its first line (the scratch), a repaint queued behind it.
+        const b = run();
+        b.swap("C");
+        b.swap("D");
+        F.queueBehindDissolve(b.io);
+        throwScratch = true;
+        try { b.anims[0]?.finish(); } finally { throwScratch = false; }
+        equal(JSON.stringify([b.state.busy, b.repaints(), b.drawn()]), JSON.stringify([false, 1, ["D"]]),
+            "[whether a dissolve is busy after its end threw at its first line, the queued repaints run, the fog sprites the layer draws]");
+    }],
+
     ["R8030 - a dissolve whose end throws still lets the fog redraw (1.2.120 line F; the owner's report of 21.11.2026, \"Mgla u GMa nie odswieza sie wcale\"): fog.mjs `swapInFog` on a fake ticker, its clean-up throwing, leaves no dissolve busy and runs the repaint queued behind it; one whose end never comes is let go after its bound", async () => {
         /*
          * 1.2.120 line F, 21.11.2026. Every repaint that arrives while a dissolve runs is queued behind it
@@ -41705,7 +41887,8 @@ const INVARIANTS = [
         host.innerHTML = build();
         document.body.appendChild(host);
         const app = { element: host, options: { window: { title: "test" } } };
-        const stop = keepLive(app, { region: ".drpg-t-r1315", build, delay: 0, watch: { hooks: [LIVE_PROBE] } });
+        // `whileEditing: false` (the default since the line claude/refresh-120 is true): the text field's hold is the opt-out's.
+        const stop = keepLive(app, { region: ".drpg-t-r1315", build, delay: 0, whileEditing: false, watch: { hooks: [LIVE_PROBE] } });
         const region = () => host.querySelector(".drpg-t-r1315");
         /* Focus one field, ask a redraw of this region alone (LIVE_PROBE), read whether it ran; then let focus go, so a
            held redraw is answered before the next field is tried. */
@@ -41828,6 +42011,227 @@ const INVARIANTS = [
         }
     }],
 
+    ["R7970 - live.mjs on an artificial region (the line claude/refresh-120; UI-17, REFR-05; the owner's rule \"Zawsze odswiezamy okna od razu przy zmianie\"): a focused select holds no rebuild, with `whileEditing` or without - its pick is kept and it has the focus again after it; with `whileEditing` a focused text field with no name, typed in, is rebuilt at once with its text, focus and caret kept; without `whileEditing` a focused text field still holds the rebuild until focus leaves", async () => {
+        /*
+         * The line claude/refresh-120, 21.11.2026; the audit of 1.2.118, UI-17 (live.mjs `isEditing` counted every focused
+         * SELECT as typing, so a select left focused after its pick held the Sound window's Music rows until the GM
+         * clicked elsewhere) and REFR-05's residue (the focus was given back only to a named field that was not a select,
+         * so with `whileEditing` either one still held the region). Driven on a region of its own, woken by LIVE_PROBE,
+         * once with `whileEditing` and once without. The last clause is the old rule kept for a region that does not
+         * ask (a region's API is unchanged): it is the control that the probe redraws nothing it should not.
+         */
+        const { keepLive } = await import("./live.mjs");
+        const run = async whileEditing => {
+            let built = 0;
+            const build = () => {
+                built++;
+                return `<div class="drpg-t-r7970"><p>build ${built}</p>
+                    <select name="pick"><option value="a" selected>a</option><option value="b">b</option></select>
+                    <div><select><option value="x" selected>x</option><option value="y">y</option></select></div>
+                    <div><input type="text" value="drawn"></div>
+                </div>`;
+            };
+            const host = document.createElement("div");
+            host.style.cssText = "position:fixed;left:-3000px;top:0;width:200px";
+            host.innerHTML = build();
+            document.body.appendChild(host);
+            const app = { element: host, options: { window: { title: "test" } } };
+            const stop = keepLive(app, { region: ".drpg-t-r7970", build, delay: 0, whileEditing, watch: { hooks: [LIVE_PROBE] } });
+            const region = () => host.querySelector(".drpg-t-r7970");
+            const leave = async () => {
+                document.activeElement?.blur?.();
+                host.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+                await wait(140);
+            };
+            /* One field focused and changed as a person would, a redraw asked, and what followed read. */
+            const press = async (selector, value, caret = null) => {
+                const field = region().querySelector(selector);
+                field.focus();
+                field.value = value;
+                if (caret !== null) field.setSelectionRange(caret, caret);
+                const focused = document.activeElement === field;
+                const before = built;
+                Hooks.callAll(LIVE_PROBE);
+                await wait(140);
+                const now = region().querySelector(selector);
+                const read = {
+                    focused, rebuilt: built > before, value: now?.value ?? null, focus: document.activeElement === now && now !== field,
+                    caret: caret === null ? null : now?.selectionStart ?? null
+                };
+                await leave();
+                return read;
+            };
+            try {
+                return {
+                    namedSelect: await press('select[name="pick"]', "b"),
+                    namelessSelect: await press(".drpg-t-r7970 > div > select", "y"),
+                    namelessText: await press('input[type="text"]', "half typed", 4)
+                };
+            } finally {
+                stop();
+                host.remove();
+            }
+        };
+        const read = { whileEditing: await run(true), without: await run(false) };
+        must(Object.values(read).every(r => Object.values(r).every(f => f.focused)), `focus could not be put in every field: ${JSON.stringify(read)}`);
+        const strip = r => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, { rebuilt: v.rebuilt, value: v.value, focus: v.focus, caret: v.caret }]));
+        equal(JSON.stringify({ whileEditing: strip(read.whileEditing), without: strip(read.without) }), JSON.stringify({
+            whileEditing: {
+                namedSelect: { rebuilt: true, value: "b", focus: true, caret: null },
+                namelessSelect: { rebuilt: true, value: "y", focus: true, caret: null },
+                namelessText: { rebuilt: true, value: "half typed", focus: true, caret: 4 }
+            },
+            without: {
+                namedSelect: { rebuilt: true, value: "b", focus: true, caret: null },
+                namelessSelect: { rebuilt: true, value: "y", focus: true, caret: null },
+                namelessText: { rebuilt: false, value: "half typed", focus: false, caret: 4 }
+            }
+        }), "[per region, with whileEditing and without, per field focused and changed: rebuilt at once, its value after, focus on the new node, its caret]");
+    }],
+
+    ["R7973 - the notice history draws a change at once, wherever the reader is (the line claude/refresh-120; REFR-01; the owner's rule \"Zawsze odswiezamy okna od razu przy zmianie\"): with the list scrolled and an entry's line focused, a new notice is listed at once - the pill shown to take the reader up to it - the scroll and the focus stay on the entry the reader was on; a change to the drawn entries (read) is drawn at once with the focus in the list; the footer's Close closes the window", async () => {
+        /*
+         * The line claude/refresh-120, 21.11.2026; the audit of 1.2.118, REFR-01 (re-checked on 1.2.119): `changed`
+         * held a new entry behind "Show new notices" while the list was scrolled or held the focus, and a change to the
+         * drawn entries until the focus left the list. Under the history's hold (R294's, nothing written), as the GM: two
+         * notices, the window opened, the list scrolled by 40 px and the older entry's line focused, then a third notice
+         * recorded and the unread ones read. The pill now means "new above where you are". Where the reader's place is
+         * kept on a laid-out screen (the entry they were on held where it stood, `dressList`) needs a layout: here the
+         * scroll is read as the number carried, a table's otherwise. Close: probe 42's dead control on the audit of
+         * 1.2.118 (group C, "notices-player"), the footer's `data-action="close"`, ApplicationV2's own action.
+         */
+        const NH = await import("./notice-history.mjs");
+        must(!document.querySelector(".drpg-window-notices"), "the notice history window is open - close it: the suite measures a window it opened itself");
+        const { openNotices } = await import("./notice-history-app.mjs");
+        let win = null, read = null;
+        await NH.holdNoticeHistory(true);
+        try {
+            const older = NH.recordNotice({ source: "mine", kind: "info", title: "R7973 older", text: "R7973 older words", html: "", state: "unread" });
+            NH.recordNotice({ source: "mine", kind: "info", title: "R7973 newer", text: "R7973 newer words", html: "", state: "unread" });
+            win = await openNotices();
+            const root = win?.element ?? null;
+            must(root !== null, "the window did not open");
+            const list = () => root.querySelector(".drpg-notices-list");
+            const entry = id => list()?.querySelector(`details.drpg-notice-entry[data-drpg-key="${CSS.escape(id ?? "")}"]`) ?? null;
+            must(entry(older), "the window does not list the suite's older notice - there is nothing to stand on");
+            list().scrollTop = 40;
+            const scrolled = list().scrollTop;
+            entry(older).querySelector("summary").focus();
+            must(document.activeElement === entry(older).querySelector("summary"), "the focus could not be put on the older entry's line");
+            const fresh = NH.recordNotice({ source: "mine", kind: "info", title: "R7973 fresh", text: "R7973 fresh words", html: "", state: "unread" });
+            await wait(300);
+            const pill = root.querySelector(".drpg-notices-new");
+            read = {
+                fresh: Boolean(entry(fresh)), pill: pill ? !pill.hidden : null,
+                scroll: list().scrollTop === scrolled, focus: document.activeElement === entry(older)?.querySelector("summary")
+            };
+            const unread = () => list().querySelectorAll("details.drpg-notice-entry.is-unread").length;
+            read.unreadBefore = unread() > 0;
+            NH.markNoticesRead();
+            await wait(300);
+            read.unreadAfter = unread();
+            read.focusAfter = document.activeElement === entry(older)?.querySelector("summary");
+            root.querySelector('footer.drpg-kit-footer [data-action="close"]')?.click();
+            await wait(300);
+            read.closed = !win.rendered && !root.isConnected;
+        } finally {
+            if (win?.rendered) await win.close();
+            await NH.holdNoticeHistory(false);
+        }
+        equal(JSON.stringify(read), JSON.stringify({ fresh: true, pill: true, scroll: true, focus: true, unreadBefore: true, unreadAfter: 0, focusAfter: true, closed: true }),
+            "[a new notice listed at once; the pill shown; the scroll kept; the focus on the older entry's line; unread entries before; unread entries after reading; the focus kept; Close closed the window]");
+    }],
+    ["R7974 - every live region of the windows a GM opens with nothing staged is redrawn at once with the focus in it (the line claude/refresh-120; the owner's rules \"Zawsze odswiezamy okna od razu przy zmianie\" and, 21.11.2026, \"R1 niech leci od razu wszystkie okna\"): the GM panel, Sound, Students, the item manager, the incident tracker, the trial console with its case schema, the vote, Investigation and the notice history - per region, its first field focused (a text field before a select, a select before a box, else a button), a value put in it that is not saved, the region woken as a watched event wakes it: drawn again, the focus on the same field, its value and caret kept", async () => {
+        /*
+         * The line claude/refresh-120, 21.11.2026: keepLive's `whileEditing` is the default, so no region waits for the
+         * focus to leave it. Each window opened by its own opener as the GM, each of its regions (live.mjs `liveRegions`)
+         * driven through `wake` - the debounce a watched event goes through, the focus rule and all - with nothing
+         * written: a typed value, a select's pick and a box ticked with no `change` save nothing. That the build reads
+         * the world anew is each region's own (the windows' tests, UI-17's tier 2 among them); this holds that a field
+         * focused never stands between a change and the window. Read on 21.11.2026: none of these regions holds a text
+         * field, the Students table holds selects and a box, the Sound window's rows selects. NOT OPENED HERE, each
+         * needing a world write tier 1 may not make or a sheet the harness does not render: the readiness round's window
+         * (an open round), the objection log (an Objection presented), a project token's card and a Remnant's card (a
+         * token's sheet), a Call's window (a Call bought); the Mastermind's Hope box, drawn only while a Mastermind is
+         * named, and the trial console's tick, which runs only while a floor is open - both tier 2's "every second and on a
+         * pool's debt ...". A region on a tab that is not showing is shown first, by its tab.
+         */
+        needs(env.dialogs(), "the windows are drawn and their regions driven");
+        must(game.user.isGM, "these windows are a GM's");
+        const L = await import("./live.mjs");
+        const [student] = studentActors();
+        must(student, "the harness world holds a student - the item manager opens on one");
+        const OPENERS = [
+            ["gm-panel", "drpg-window-panel", () => import("./gm-panel.mjs").then(m => m.openGmPanel())],
+            ["sound", "drpg-window-sound", () => import("./sound-panel.mjs").then(m => m.openSoundDialog())],
+            ["students", "drpg-window-alive", () => import("./gm-students.mjs").then(m => m.openWhoIsAliveDialog())],
+            ["items", "drpg-window-items", () => import("./gm-items.mjs").then(m => m.openItemManager(student))],
+            ["incident", "drpg-window-incident", () => import("./murder-ui.mjs").then(m => m.openIncidentTracker())],
+            ["trial", "drpg-window-trial", () => import("./trial-floor-ui.mjs").then(m => m.manageClassTrial()),
+                app => app.element?.querySelector("[data-drpg-trial-schema] > .drpg-case-trial-live")],
+            ["vote", "drpg-window-vote", () => import("./trial-floor-ui.mjs").then(m => m.openVoteDialog())],
+            ["case", "drpg-window-case", () => import("./investigation.mjs").then(m => m.openInvestigationDashboard())],
+            ["notices", "drpg-window-notices", () => import("./notice-history-app.mjs").then(m => m.openNotices())]
+        ];
+        const appOf = cls => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes(cls));
+        const TEXT = 'input[type="text"], input[type="number"], input[type="search"], input:not([type]), textarea';
+        const probe = async (app, r) => {
+            const region = () => app.element?.querySelector(r.region) ?? null;
+            const pane = region()?.closest("[data-drpg-pane]");
+            if (pane?.hidden) app.element.querySelector(`nav.drpg-tabs [data-drpg-tab-key="${CSS.escape(pane.dataset.drpgPane)}"]`)?.click();
+            const el = region();
+            if (!el) return { field: "no region" };
+            const usable = [...el.querySelectorAll('input:not([type="hidden"]), textarea, select, button, summary')]
+                .filter(n => !n.disabled && !n.closest("[hidden]"));
+            const target = usable.find(n => n.matches(TEXT)) ?? usable.find(n => n.matches("select"))
+                ?? usable.find(n => n.matches("input")) ?? usable[0] ?? null;
+            const kind = !target ? "none" : target.matches(TEXT) ? "text" : target.localName === "select" ? "select" : target.localName === "input" ? target.type : target.localName;
+            let want = null, caret = null;
+            if (target) {
+                target.focus();
+                if (document.activeElement !== target) return { field: kind, focused: false };
+                if (kind === "text") { target.value = `${target.value}R7974`; caret = 2; target.setSelectionRange(caret, caret); want = target.value; }
+                else if (kind === "select") { const other = [...target.options].find(o => o.value !== target.value && !o.disabled); if (other) target.value = other.value; want = target.value; }
+                else if (kind === "checkbox") { target.checked = !target.checked; want = target.checked; }
+            }
+            const before = r.refreshes();
+            r.wake();
+            await wait(450);
+            const now = region(), active = document.activeElement;
+            // `now` found at all: a build that returns something else than the region's own element loses the region (the Hope box did).
+            const read = { field: kind, rebuilt: Boolean(now) && r.refreshes() > before && now !== el };
+            if (target) {
+                read.focus = Boolean(now?.contains(active)) && active.localName === target.localName && (active.getAttribute("name") ?? "") === (target.getAttribute("name") ?? "");
+                if (want !== null) read.value = (kind === "checkbox" ? active.checked : active.value) === want;
+                if (caret !== null) read.caret = active.selectionStart === caret;
+            }
+            active?.blur?.();
+            return read;
+        };
+        const read = {};
+        for (const [label, cls, open, settled = () => true] of OPENERS) {
+            const was = appOf(cls);
+            must(!was, `the ${label} window is open - close it: this test opens its own`);
+            const opening = Promise.resolve().then(open).catch(err => `threw: ${err.message}`);
+            try {
+                const opened = await until(() => appOf(cls) && settled(appOf(cls)), 6000);
+                if (!opened) { read[label] = `did not open: ${await Promise.race([opening, wait(50).then(() => "pending")])}`; continue; }
+                await wait(300);
+                const app = appOf(cls);
+                const regions = L.liveRegions(app);
+                if (!regions.length) { read[label] = "no live region"; continue; }
+                for (const r of regions) read[`${label} ${r.region}`] = await probe(app, r);
+            } finally {
+                await appOf(cls)?.close?.();
+                await Promise.race([opening, wait(3000)]);
+            }
+        }
+        const good = r => typeof r === "object" && r.rebuilt === true && r.focus !== false && r.value !== false && r.caret !== false && r.focused !== false;
+        must(Object.keys(read).length >= 12, `only ${Object.keys(read).length} regions were read: ${stableJson(read)}`);
+        equal(stableJson(Object.fromEntries(Object.entries(read).filter(([, r]) => !good(r)))), "{}",
+            `[the regions not drawn again at once with their field's focus, value and caret kept, of ${Object.keys(read).length} read: ${stableJson(read)}]`);
+    }],
+
     ["R8012 - live.mjs on an artificial region: a select picked with the pointer redraws at once through its own `refresh()`, and a forced `refresh()` asked during a press stays forced when the press is let go (line P of 1.2.120; the owner, 21.11.2026: \"dziala dopiero po save, czyli okno investigation nie odswieza sie dalej poprawnie\"): a `change` inside the region ends the press; a forced redraw wanted under a press runs at its release though a select of the region holds the focus", async () => {
         /*
          * Line P, 21.11.2026. Red at e515907d: the pick's `refresh()` was put off by the press (`held`), and its release
@@ -41838,7 +42242,7 @@ const INVARIANTS = [
         const { keepLive } = await import("./live.mjs");
         let built = 0;
         const build = () => { built++; return `<div class="drpg-t-r8012"><select data-drpg-t="pick"><option value="a">a</option><option value="b">b</option></select>`
-            + `<button type="button" data-drpg-t="press">press</button></div>`; };
+            + `<input type="text" data-drpg-t="field"><button type="button" data-drpg-t="press">press</button></div>`; };
         const host = document.createElement("div");
         host.style.cssText = "position:fixed;left:-3000px;top:0;width:200px";
         host.innerHTML = build();
@@ -41846,7 +42250,9 @@ const INVARIANTS = [
         const app = { element: host, options: { window: { title: "test" } } };
         let stop = null;
         const wire = () => host.querySelector('[data-drpg-t="pick"]')?.addEventListener("change", () => stop?.refresh?.());
-        stop = keepLive(app, { region: ".drpg-t-r8012", build, delay: 0, whileEditing: true, watch: { hooks: [LIVE_PROBE] }, after: wire });
+        // `whileEditing: false` (line P of 1.2.121): since the line claude/refresh-120 a region that follows the GM's focus
+        // draws an unforced rebuild under a focused field too, so only a region that does not tells forced from unforced
+        stop = keepLive(app, { region: ".drpg-t-r8012", build, delay: 0, whileEditing: false, watch: { hooks: [LIVE_PROBE] }, after: wire });
         wire();
         const Pointer = globalThis.PointerEvent ?? MouseEvent;
         const fire = (node, type) => node.dispatchEvent(new Pointer(type, { bubbles: true, cancelable: true }));
@@ -41869,12 +42275,14 @@ const INVARIANTS = [
             stop.refresh();
             await wait(60);
             const during = built - before;
-            pick().focus();
+            /* a text field focused: in a region that does not follow the focus it holds an unforced rebuild, so only a forced
+               one draws (line P of 1.2.121: since the line claude/refresh-120 a focused select holds nothing) */
+            host.querySelector('[data-drpg-t="field"]').focus();
             fire(host.querySelector('[data-drpg-t="press"]'), "pointerup");
             await wait(140);
             read.forced = [during, built - before];
             equal(stableJson(read), stableJson({ pick: 1, forced: [0, 1] }),
-                "{pick: rebuilds within 140 ms of a select's change under a press never let go; forced: [rebuilds while the press was held, rebuilds by 140 ms after its release with the select focused]}");
+                "{pick: rebuilds within 140 ms of a select's change under a press never let go; forced: [rebuilds while the press was held, rebuilds by 140 ms after its release with a text field focused]}");
         } finally {
             stop();
             host.remove();
@@ -61384,6 +61792,55 @@ const INVARIANTS = [
             openings: [[true, false], [true, false], [true, false]]
         }), "{cap; rows [key, side, trait]; Strike at the victim's Body 2, 1, 0, -1; Keep Your Distance at Leg 3; Self-Defense at the killer's Body 1; Survive at the killer's Leg 2; Leave a Clue, no defence; openings [read their own threshold, read a defence]}");
     }],
+    ["R7950 - a defended crisis row whose defender this browser's copy does not name says a hidden defence is added, and the number it shows is never presented as the whole (1.2.121 line K; the audit's CASE-16; the owner's call open, the coordinator's default of 21.11.2026: the GM judges with the full number, the victim and the third are shown the number they can know and told plainly that a hidden defence is added, no value and no name): murder-rules.mjs `availableCrisisActions` marks the killer-defended rows `defenseHidden` on a copy that holds no killer (a mask, a trap) and on no other, `crisisDc` hands the roll window a number with the same words, action-murder.mjs `crisisThresholdLine` draws the menu's row, and the GM's `crisisThreshold` still adds the defence", async () => {
+        /*
+         * 21.11.2026, 1.2.121 line K. The audit's CASE-16 (domain-case-a-incident-1, re-read on v1.2.119 in recheck-119.json):
+         * a victim's (or a third's) copy of the cast holds `killerId: null` while a mask stands and in every trap
+         * (incident-store.mjs `castCopyFor`), so `crisisDefense` read 0 there while the GM's judgement added the killer's
+         * Body or Leg: the menu and the roll window said "Beat 18" and the card said "18 < 19". Asked of the pure readings
+         * on two states built here - the GMs' (the killer named) and a copy of it with the killer nulled, as `castCopyFor`
+         * nulls it - for a fixture student as the victim and another as the third, the killer a stand-in id with a Body
+         * and a Leg of 1 for the GM's reading (`traitOf`). Nothing is written. Red at e515907d: no `defenseHidden` on the
+         * rows, no `crisisDc`, no `crisisThresholdLine`.
+         */
+        const C = await import("./config.mjs");
+        const R = await import("./murder-rules.mjs");
+        const A = await import("./action-murder.mjs");
+        const { cast } = await import("./tests-kit.mjs");
+        const [victim, third] = cast(2);
+        must(victim && third && victim.id !== third.id, "two fixture students, the victim and the third - this would measure nothing");
+        const gm = { active: true, stage: "incident", indirect: false, killerId: "zK7950", killerTurnId: "zK7950", victimId: victim.id,
+            thirdId: third.id, thirdSide: null, turnSide: "victim", unlocked: ["survive", "roleReversal"] };
+        const copy = { ...gm, killerId: null, killerTurnId: null };
+        const killerSide = key => C.CRISIS_ACTIONS[key]?.defense?.side === "killer";
+        const keys = Object.keys(C.CRISIS_ACTIONS).filter(killerSide).sort();
+        must(keys.length >= 3, `fewer than three rows the killer's statistic defends (${keys.join(", ")}) - this would measure nothing`);
+        const rows = (actor, state) => Object.fromEntries(R.availableCrisisActions(actor, state).filter(r => killerSide(r.key))
+            .map(r => [r.key, [r.threshold, r.defense, r.defenseHidden ?? null]]));
+        const line = r => (typeof A.crisisThresholdLine === "function" ? A.crisisThresholdLine(r) : null);
+        const dc = (key, state) => (typeof R.crisisDc === "function" ? R.crisisDc(key, state) : null);
+        const base = key => C.CRISIS_ACTIONS[key].threshold;
+        const read = {
+            copy: { ...rows(victim, copy), ...rows(third, copy) },
+            gm: { ...rows(victim, gm), ...rows(third, gm) },
+            judged: Object.fromEntries(keys.map(key => [key, R.crisisThreshold(key, gm, { traitOf: () => 1 })])),
+            dc: Object.fromEntries(keys.map(key => [key, [dc(key, copy), dc(key, gm)]])),
+            line: Object.fromEntries(keys.map(key => [key, line({ def: C.CRISIS_ACTIONS[key], threshold: base(key), defense: 0, defenseHidden: true })]))
+        };
+        const hidden = n => game.i18n.format("DRPG.Murder.thresholdHidden", { n });
+        const beatHidden = n => game.i18n.format("DRPG.Murder.dcHidden", { n });
+        equal(stableJson(read), stableJson({
+            copy: Object.fromEntries(keys.map(key => [key, [base(key), 0, true]])),
+            gm: Object.fromEntries(keys.map(key => [key, [base(key), 0, false]])),
+            judged: Object.fromEntries(keys.map(key => [key, base(key) + 1])),
+            dc: Object.fromEntries(keys.map(key => [key, [beatHidden(base(key)), base(key)]])),
+            line: Object.fromEntries(keys.map(key => [key, hidden(base(key))]))
+        }), "{copy / gm: per killer-defended row [threshold, defence, defenseHidden] on the victim's and the third's menu; judged: the GM's number with a Body and a Leg of 1; dc: the roll window's [on the copy, on the GMs' state]; line: the menu's row for a hidden defence} - the number a copy with no killer shows says a hidden defence is added, and the GM still judges with it");
+        ok(hidden(1) !== "DRPG.Murder.thresholdHidden" && beatHidden(1) !== "DRPG.Murder.dcHidden", "the hidden defence's words have no text");
+        const named = keys.flatMap(key => [C.TRAITS[C.CRISIS_ACTIONS[key].defense.trait]?.label]).filter(Boolean);
+        ok(!Object.values(read.line).some(text => named.some(label => String(text ?? "").includes(label))),
+            `the menu's line for a hidden defence names the statistic: ${stableJson(read.line)}`);
+    }],
     ["R3962 - a Loaded Die that did not hold gives its Call back on both roads (E64, D052; the owner's default, confirmed 12.11.2026): call-effects.mjs `giveBackLoadedDie` arms the entry again on a GM under a new nonce, keeping its `by`, and whispers \"loadedDieBack\"; action-pipeline.mjs `throwDice` calls it for a roll this browser threw whose die did not hold, and roll-draw.mjs `throwDrawn` for a drawn roll whose die did not hold, after its spend, and records and answers `loaded` as held", async () => {
         /*
          * E64, 12.11.2026. The GM's own road is measured in tier 2 ("E64 D052 - ..."): red before this commit. The drawn road
@@ -63831,6 +64288,41 @@ const INVARIANTS = [
         ok(hudRules.length > 0, "no rule of the module's sheets names the token HUD");
         equal(stableJson({ outside, glyphed, undeclared, notDrawn }), stableJson({ outside: [], glyphed: ICONS, undeclared: [], notDrawn: true }),
             "{selectors naming the HUD outside #token-hud.drpg-token-hud, the icons with a glyph, glyphs read but not declared on :root, a player's emptied HUD not drawn}");
+    }],
+    ["R7990 - Room setup's Apply writes only the columns the GM changed (the audit of 1.2.118, REFR-03; the line claude/setup-120): room-setup.mjs `untouchedRoomRow` gives every column of a row the GM left as drawn (`touched`) the room's value at the press - a lock forced, its Broken box, a description another GM wrote - keeps every column the GM changed, takes a place switch's category one box at a time, and hands back a row with no `touched` whole", async () => {
+        /* Red at e515907d: no `untouchedRoomRow` - Apply wrote every column of a row as drawn once one differed. Pure. */
+        const R = await import("./room-setup.mjs");
+        must(typeof R.untouchedRoomRow === "function", "room-setup.mjs has no untouchedRoomRow - every column of a row is written as drawn");
+        const now = { owner: "", table: "", favours: ["food"], hinders: ["tool"], description: "written elsewhere", image: "",
+            shortRest: false, longRest: true, locked: false, lockedAtStart: false, broken: true, noSearch: false, notShared: false };
+        const drawn = { room: "Kitchen", owner: "A1", table: "", favours: ["weapon"], hinders: [], description: "drawn", image: "",
+            shortRest: false, longRest: false, locked: true, lockedAtStart: false, broken: false, noSearch: false, notShared: false,
+            isRoom: null, neighbours: null };
+        const out = R.untouchedRoomRow({ ...drawn, touched: ["owner", "fav:weapon"] }, now);
+        const whole = R.untouchedRoomRow(drawn, now);
+        const pick = row => ({ owner: row.owner, description: row.description, longRest: row.longRest, locked: row.locked, broken: row.broken,
+            favours: [...row.favours].sort(), hinders: [...row.hinders].sort() });
+        equal(stableJson({ out: pick(out), whole: whole === drawn }),
+            stableJson({ out: { owner: "A1", description: "written elsewhere", longRest: true, locked: false, broken: true, favours: ["food", "weapon"], hinders: ["tool"] }, whole: true }),
+            "{out: the owner and the weapon switch the GM's, every other column the room's now; whole: a row with no touched handed back as it is}");
+    }],
+    ["R7991 - the Season checklist's lists follow the rows that come and go (N119-7; the line claude/setup-120): season-setup.mjs `relistRows` makes a list hold the steps it is given, in their order - a row of a step gone taken out, a row of a new step drawn, a row standing kept as the same node with what stands under it, its state drawn again - and the list itself stays", async () => {
+        /* Red at e515907d: no `relistRows` - a row `steps` lists only while it holds neither came nor went. Pure over a
+           detached list: `setupRows` draws it. */
+        const S = await import("./season-setup.mjs");
+        must(typeof S.relistRows === "function", "season-setup.mjs has no relistRows - the checklist's rows that come and go stay as drawn");
+        const step = (key, done) => ({ key, done, hintKey: "DRPG.Season.checkClean", missing: () => [] });
+        const box = document.createElement("div");
+        box.innerHTML = S.setupRows([step("name", false), step("cast", true)]);
+        const ul = box.querySelector("ul.drpg-checklist");
+        const kept = ul.querySelector('li[data-drpg-key="name"]');
+        kept.insertAdjacentHTML("beforeend", "<div data-suite-under></div>");
+        const keys = S.relistRows(ul, [step("mastermind", false), step("name", true)]);
+        const name = ul.querySelector('li[data-drpg-key="name"]');
+        equal(stableJson({ keys, same: name === kept, under: Boolean(name?.querySelector("[data-suite-under]")), state: name?.dataset.drpgState,
+            list: box.querySelector("ul.drpg-checklist") === ul }),
+            stableJson({ keys: ["mastermind", "name"], same: true, under: true, state: "done", list: true }),
+            "{keys: the rows after, in the steps' order; same, under: the standing row the same node, with what stood under it; state: drawn again; list: the same list}");
     }],
 ];
 

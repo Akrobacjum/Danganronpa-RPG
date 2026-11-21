@@ -1,0 +1,420 @@
+{
+ "reader": "domain-core-e-utils-clock",
+ "checkout": "claude/audit-119 at eb508e57; scripts/ as on main b5a29e73 (1.2.118)",
+ "files_read": [
+  {
+   "file": "scripts/utils.mjs",
+   "lines": 1452,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/clock.mjs",
+   "lines": 1158,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/events.mjs",
+   "lines": 1133,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/states.mjs",
+   "lines": 670,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/steps.mjs",
+   "lines": 150,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/timed-effects.mjs",
+   "lines": 412,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/i18n.mjs",
+   "lines": 150,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/i18n-config.mjs",
+   "lines": 98,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/tables.mjs",
+   "lines": 26,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/tables-pools.mjs",
+   "lines": 1185,
+   "read": "whole"
+  },
+  {
+   "file": "scripts/tables-editor.mjs",
+   "lines": 1795,
+   "read": "whole"
+  }
+ ],
+ "count_expected": "11 files, 8229 lines (the scope's list)",
+ "count_note": "11 files read start to end, 8229 lines by wc -l, the same as the scope's list. Every literal DRPG.* key in the nine files that use the i18n was checked by script against lang/en.json and lang/pl.json (flattened; plural keys by .one/.other and, in Polish, .few/.many): none missing; the template-built families (DRPG.Events.ticker.<kind> 10 keys for the 10 card kinds, DRPG.Facility.until.<until> 4, DRPG.Murder.stage/side 3 each, DRPG.States.<id> 4) are present in both. Function lengths were measured with espree over the source text (/tmp/domain-core-e-utils-clock/fnlen.mjs). audit/findings-1.2.118/base-run.json did not exist when this file was written, so no test or scenario result is cited: each test named below is named from its source, its result not read.",
+ "neighbours_followed": [
+  "scripts/boundary.mjs (toggleEclipse 97-127, nextTimeOfDay 134-145 - `advanceTimeOfDay({ resetActions: true })` on every press, the no-round case of askReadiness 455-462, endRoundOnPrimary 386-400, roundAllowed 315-322)",
+  "scripts/actions.mjs (resetAllActions 468-479, resetActionsFor 416-462: no incident guard, a refill of every living character)",
+  "scripts/sequence.mjs (dayStartPatch 1062-1092, moodBand 1100-1102)",
+  "scripts/eclipse.mjs (eclipseLabel and isFreePlacement 58-67, the openingDayPatch call 271-280)",
+  "scripts/settings.mjs (incomingTimeOfDay 3974-3977)",
+  "scripts/facilities.mjs (facilityMark 130-132, facilityDayMark 135-137)",
+  "scripts/gm-stores.mjs (timedEffectStore 1091-1096, timedCrossingsOf 1104-1107, timedEffectCopy 1114-1116)",
+  "scripts/call-effects.mjs (armCall 270-296, appendArmedCall 423-446: boostUltimate runs on whichever GM arms)",
+  "scripts/bridge-asks.mjs (requestArmCall 466-477, the local road on a GM)",
+  "scripts/hud.mjs (the updateSetting and updateActor hooks 230-256, renderHud's end 590-625: renderEvents on every HUD render)",
+  "scripts/hud-elapsed.mjs (shownClock 160-170, clockForDisplay 176-215)",
+  "scripts/incident-store.mjs (murderState 186-191, clockHiddenHere 194-202)",
+  "scripts/safeword.mjs (safewordCard 128-158, safewordPoster 161-168, the createChatMessage hook 447-468)",
+  "scripts/action-search.mjs (the Search outcome 585-600: `substitute` read from the draw alone), scripts/action-report.mjs 282-283",
+  "scripts/gm-items.mjs (entryAs's one caller 770-790)",
+  "scripts/gm-campaign.mjs (Edit campaign's refill box 369-383, its clock write 360)",
+  "scripts/enforced.mjs (foundryGivenBack 691-697, the re-hold 808: primary only)",
+  "scripts/fog.mjs (its own cssColour 3611-3618), scripts/own-ring.mjs 150-165 and scripts/remnant-ring.mjs 155-160 (forgetCssColours)",
+  "scripts/ui-kit.mjs (drpgWindow 1286-1344; DrpgApp windows: grep of handbooks.mjs, messenger-app.mjs, notice-history-app.mjs, room-tile.mjs)",
+  "module.json `languages` (en only), lang/en.json and lang/pl.json (key check by script)",
+  "docs/dev/e39/CALIBRATION.md:20 (LIVE-E30-01) and :27-28 (LIVE-E30-03); audit/findings-1.2.118/live-readings-other.json (LIVE-E04-01, LIVE-E30-03)",
+  "audit/findings-1.2.42/core.md, despair.md (DESP-02), text.md (TEXT-03), case.md (CASE-03) and their 1.2.118 re-reads in old-1.2.42-*.json, for old ids; audit/findings-1.2.118/controls-10-setup-config.json (the Item tables surface), to avoid repeating its findings 8 and 9"
+ ],
+ "strengths": [
+  "One clock writer: every road (Edit campaign, setPhase, the advance, the rewind, the Eclipse, the season reset, a console) ends in setClock, whose read-modify-write is one step of serialWrite(CLOCK_KEY), and every rule of the edge - no trial opened in an Eclipse, no Eclipse begun in a trial, the stopwatch's stamps, the day boards' marks - is decided once there (scripts/clock.mjs:135-290).",
+  "The boundary is given once and can be taken back for five minutes: refilledFor names the boundary, lastAdvance keeps the budgets, search tokens and seals in a GM store rather than the world clock (after 72-canary found actor ids there), and the memory chains four deep (scripts/clock.mjs:381-430, 507-668).",
+  "The phase owns its state: every road out of the trial closes the floor, the vote, the voices, the sentence and the bodies, and every road in opens the budget, the reset, the mute and the Key fee, in an order each step explains (scripts/clock.mjs:999-1140).",
+  "A private card with no reader is dropped, never published, and a veiled card with none is dropped too (scripts/utils.mjs:815-836).",
+  "A failure log that keeps the newest 60, counts repeats on their own row and counts what it dropped, testable on a log of its own (scripts/utils.mjs:279-331).",
+  "primaryGmId prefers a full Gamemaster, counts an arriving GM and a leaving one, and takes the user list from a test (scripts/utils.mjs:485-496).",
+  "plural, listOf and localeFormat read the page's language, not the live setting or the browser's locale, with Polish's negated list written by hand where Intl has none (scripts/utils.mjs:55-105, 565-584).",
+  "The Event panel draws text with textContent only, so no card can carry markup; a spectator gets no incident card at all; and the motive card a bystander sees is the countdown the incident's first private move found (scripts/events.mjs:98-123, 192-243, 827-894).",
+  "steps.mjs: one runner whose record is saved after every step, a save that fails fails its step and stops the rest, and a Finish runs only what is not done (scripts/steps.mjs:59-121).",
+  "Breakdown and Wounded are applied only on the primary, one pass at a time per actor, chained so the newer values win; the state sounds are decided on each browser from the same write (scripts/states.mjs:89-98, 337-390).",
+  "Daggerheart's automation values are kept before the module switches them off and can be given back (scripts/states.mjs:163-237).",
+  "Timed effects are a GM store with an owner's copy sent addressed and only to that owner, received only for characters this user owns (scripts/timed-effects.mjs:258-336).",
+  "The item draw is one list of named steps over a context the suite can hand in (rng, tables, trail), and each step says what it drew (category, tier, goal) rather than what was asked (scripts/tables-pools.mjs:840-1003).",
+  "Table names are kept with their whole history, English and Polish, so a world installed in any language under any older wording is still found, and refreshTableCopy renames only names this module gave in English (scripts/tables-pools.mjs:75-117, 253-313).",
+  "The Item tables window writes only fields that changed, refuses an emptied name at the field with the reason beside it, and writes what is on screen before a table switch takes it away (scripts/tables-editor.mjs:519-540, 1407-1500)."
+ ],
+ "findings": [
+  {
+   "id": "domain-core-e-utils-clock-1",
+   "domain": "CORE",
+   "severity": "minor",
+   "category": "leak",
+   "title": "A Next time of day pressed while an incident runs before Stage 6 refills every bystander's actions and restocks the search tokens on their screens, while their clock stays frozen",
+   "where": "scripts/clock.mjs:784-857 (applyTimeOfDayChange: resetAllActions and SearchTokens.reset on every move, whoever is told), 881-917 (only the card is narrowed); scripts/boundary.mjs:134-145 (nextTimeOfDay: resetActions true) and 455-462 (no round, so nothing stops the move); scripts/actions.mjs:468-479, 416-462",
+   "what_happens": "The clock moves in private during an incident before Stage 6 (Dawid, 26.08): the time-of-day card is whispered to the GMs and the incident's audience, the HUD of a bystander keeps the clock from before the incident (hud-elapsed.mjs clockForDisplay) and, since E17 fix p2-G3, even the motive card keeps its old countdown, because 'the card turned Due on every bystander's screen at the move inside the incident'. But the move itself is made by the same applyTimeOfDayChange as any other: the GM panel's Next time of day (the one ordinary road with no Eclipse, which an incident does not refuse: askReadiness opens no round in an incident and answers go) passes resetActions: true, so resetAllActions writes every living character's actions back to its budget, the bystanders' included, and SearchTokens.reset refills every room. Both are world writes every browser draws at once (the sheet's action row, the room's pips). The comment at 889-890 says so ('Everything else the change did - refills, restocks - happened either way; only who is TOLD changes') but the refill is a tell of the same kind as the motive card E17 fixed.",
+   "evidence": "clock.mjs:814  if (resetActions) summary.actions = await resetAllActions();\nclock.mjs:815  if (resetSearchTokens) summary.searchTokensReset = await SearchTokens.reset({ notify: false });\nclock.mjs:909  const state = murderState();\nclock.mjs:910  if (state) {\nclock.mjs:912      await whisperToGms(content, {\nclock.mjs:913          whisper: Array.from(new Set([...gmIds(), ...incidentAudienceIds(state)])), veiled: true, ...flags\nboundary.mjs:140  const ready = await askReadiness(\"next\");\nboundary.mjs:143  return advanceTimeOfDay({ resetActions: true });\nboundary.mjs:461  if (!round) return { go: true, choice: null, close: async () => true };\nactions.mjs:473  for (const actor of game.actors) {\nactions.mjs:474      if (actor.type !== \"character\") continue;\nactions.mjs:475      const result = await resetActionsFor(actor, { keepGrants });",
+   "failure_scenario": "A killer and victim fight in the boiler room in the afternoon; the GM presses Next time of day to put the fight into the evening; a student who spent both actions before the incident sees their sheet go back to 2 / 2 and their room's search pips refill while their HUD still reads Afternoon, and knows the GM has moved the hour for somebody.",
+   "expected": "What a bystander's screen shows of an hour moved inside the incident is what the HUD shows: nothing (scripts/clock.mjs:881-890, hud-elapsed.mjs:176-187), as the motive card was held to (events.mjs:91-97).",
+   "confidence": "read",
+   "refutation_tried": "Looked for a guard on the road: nextTimeOfDay refuses only during an Eclipse (boundary.mjs:136-139); roundAllowed bars a round's go, but with an incident already running askReadiness opens no round and answers go at once (boundary.mjs:315-322, 461); startRefusal refuses the Eclipse road in an incident, not this one. resetActionsFor skips only a Monokuma and the published dead (actions.mjs:421-437), not a bystander; resetAllActions has no incident test. The refill and the restock are world writes (an actor's system.resources and flags; the searchTokens setting), drawn by every browser. The sheet's action row and the HUD's pips do not read clockForDisplay (grep: clockForDisplay is read by boundary, clock, day-summary, eclipse, explain, hud-elapsed, hud, incident-store and murder-rules only). Not refuted. Whether a GM moves the hour mid-incident often enough to matter is the table's; the module offers it.",
+   "tests_near": "Tier 2 E17-T10 (named in events.mjs:95-97 and hud-elapsed.mjs:164) holds the motive card and the HUD for a bystander; no test names a bystander's action budget or search pips across a private move (grep of tests-tier2.mjs for 'bystander' with refill or restock: none). Result not read.",
+   "live_check": "new live check: a GM and two players, an incident between P1's and P2's characters before Stage 6, P3's character with 0 actions left; the GM presses Next time of day; read P3's sheet action row and the room's pips before and after, beside P3's HUD.",
+   "l1": {
+    "what": "Whether a bystander's own screen changes when the GM moves the hour inside an incident before Stage 6",
+    "recipe": [
+     "1. GM and three players; P3's character spends both actions in Daily Life.",
+     "2. Open a direct murder between P1's and P2's characters and let the opening succeed (stage incident).",
+     "3. GM: panel, Next time of day.",
+     "4. On P3's page read the sheet's action row, the HUD's time of day and the room tile's search pips before and after."
+    ],
+    "clients": "GM + 3 players",
+    "theme": "default",
+    "settles_if": "P3's actions go back to 2 / 2 or the pips refill while the HUD keeps the old hour: the finding stands. Nothing on P3's page changes until the incident ends: refuted.",
+    "priority": "minor"
+   }
+  },
+  {
+   "id": "domain-core-e-utils-clock-2",
+   "domain": "CORE",
+   "severity": "minor",
+   "category": "bug",
+   "title": "A timed effect whose take-back throws is dropped all the same, its bonus left on the sheet for good, and the throw stops every other row's end at that boundary",
+   "where": "scripts/timed-effects.mjs:201-212 (endTimedEffect: take in try, the row dropped in finally, no catch), 222-228 (endTimedEffects), 354-367 (endAtEclipseStart: keepEndedAtStart only after the loop), 396-404 (the hooks catch and log)",
+   "what_happens": "endTimedEffect runs the kind's take (a trustedWrite of the trait back down, or of the Experience's deletion) inside try, and writes the list without the row in finally. A take that throws therefore still drops the row: the +n on the trait, or the Experience, stays on the sheet and no row is left to end it, on any later boundary. The throw is not caught there, so it leaves endTimedEffects or endAtEclipseStart mid-loop: every row after it, of every character, is not ended at this boundary (it waits for the next time of day), and at an Eclipse's start keepEndedAtStart is never reached, so the rows already ended are not kept for the Eclipse's take-back either. The hooks at 398-404 log the throw to the GM's console alone.",
+   "evidence": "timed-effects.mjs:205  try {\ntimed-effects.mjs:206      if (actor) await KINDS[found.row.kind]?.take?.(actor, found.row);\ntimed-effects.mjs:207  } finally {\ntimed-effects.mjs:208      await writeList(found.actorId, timedEffectsOf(found.actorId).filter(r => r.id !== id));\ntimed-effects.mjs:209      tellOwners(actor ?? { id: found.actorId });\ntimed-effects.mjs:225  for (const row of timedEffectsOf(actorId)) if (pastItsEnd(row, clock) && (await endTimedEffect(row.id))) n++;\ntimed-effects.mjs:362  if (await endTimedEffect(row.id)) ended.push({ actorId, row: kept });\ntimed-effects.mjs:365  await keepEndedAtStart(\"eclipseTimed\", boundaryStamp(clock), ended);",
+   "failure_scenario": "Two students hold a +2 Body from the gym until the time of day ends; at the Eclipse the first one's write fails (a sheet write refused or the connection drops), so that student keeps +2 Body for the rest of the season with nothing listed on the sheet, and the second keeps theirs through the dark as well.",
+   "expected": "A row is dropped only once what it did is taken back, or is kept and said to the GMs; one row's failure does not hold the others (the module's own runner keeps each step in its own try, steps.mjs:81-94).",
+   "confidence": "read",
+   "refutation_tried": "Looked for a catch around the call: endTimedEffects and endAtEclipseStart call it bare in their loops; registerTimedEffects catches only the whole promise (398-404). take can throw: trustedWrite is an actor update through resource-guard.mjs, awaited with no catch in KINDS (54-61, 79-84). putBackAtTakeBack catches per row (388-390), the end does not. The headless measurement at 20-22 is of a GM's own edit, not of a failed write. How often a primary GM's actor update throws at a table is not measured.",
+   "tests_near": "Tier 2 rows naming endTimedEffect (11 mentions in tests-tier2.mjs) drive successful ends; none plants a take that throws. Result not read."
+  },
+  {
+   "id": "domain-core-e-utils-clock-3",
+   "domain": "ITEM",
+   "severity": "minor",
+   "category": "flow",
+   "title": "Renaming a room's table in Item tables repoints the rooms but leaves its split tables ('<old> - Tier N', '<old> - Murder Weapons') on the old name, where no draw reads them",
+   "where": "scripts/tables-editor.mjs:1203-1213 (repointRooms: the rooms' flag only), 1225-1248 (Rename); scripts/tables-pools.mjs:752-754 (roomTableNames), 768-775 (isRoomTableOf), 893-933 (the room's draws read `${base} - ...`)",
+   "what_happens": "A room stores the name of its table (drpgItemTable), and the draw reads the room's tables as that base and its suffixes: '<base> - Tier N', '<base> - <plural>', '<base>' (drawRoomNamed), and every table '<base> - <suffix>' for drawRoomAny. Since 1.2.115 a Rename of the flat table repoints every room that named it to the new name, so the room's base changes - but the split tables keep the old base in their names, and nothing renames them or says they were left. From then on drawRoomNamed asks for '<new> - Tier N' and '<new> - Murder Weapons', which do not exist, and isRoomTableOf no longer counts the old split tables as the room's: the room draws from its flat table alone, or from the world's pools when that is empty. The split tables still show on the Room pools tab (their roomPool flag), so the window looks as before.",
+   "evidence": "tables-editor.mjs:1208  const rooms = new Set(Array.from(scene.regions ?? []).filter(r => r.getFlag?.(MODULE_ID, VAULT_FLAGS.table) === from).map(r => r.name));\ntables-editor.mjs:1209  for (const room of rooms) if (await setVaultRoom(room, { table: to, scene })) done.push(room);\ntables-pools.mjs:753  return [`${base} - Tier ${tier}`, ...roomPluralsOf(category).map(plural => `${base} - ${plural}`), base];\ntables-pools.mjs:770  if (!String(name ?? \"\").startsWith(`${base} - `)) return false;",
+   "failure_scenario": "A GM who stocked 'Kitchen', 'Kitchen - Tier 2' and 'Kitchen - Murder Weapons' renames 'Kitchen' to 'Cafeteria' in Item tables; every Search for a weapon in the kitchen now draws from the flat table's snacks, while the window still lists both split tables full of knives.",
+   "expected": "The split tables follow their base (or the Rename names the tables it left), as the rooms were made to follow it in 1.2.115 (tables-editor.mjs:1194-1202).",
+   "confidence": "read",
+   "refutation_tried": "Looked for a second step after repointRooms: wirePaneHeading's Rename calls current().update({ name }) and repointRooms only (1237-1238); poolNameRefusal checks the new name, not its family (402-422). Checked that the split tables are a room's by name alone: drawRoomNamed uses ctx.tables.getName on the built names (895-896), drawRoomAny filters by isRoomTableOf(ctx.roomBase, ...) (924); neither reads a flag linking a split table to its room. A room that names a split table directly (not its base) is untouched, as expected. Not refuted.",
+   "tests_near": "Tier 2 'a room table renamed in the Item tables window keeps the rooms that draw from it' (scripts/tests-tier2.mjs:67927) renames a flat table with no split tables. Result not read."
+  },
+  {
+   "id": "domain-core-e-utils-clock-4",
+   "domain": "CORE",
+   "severity": "minor",
+   "category": "flow",
+   "title": "A stronger next Ultimate used up on a GM that is not the primary leaves the owner's badge on the sheet: only the primary tells owners",
+   "where": "scripts/timed-effects.mjs:147-157 (boostUltimate: any GM), 281-288 (tellOwners: primary only); scripts/call-effects.mjs:288-293 (armCall on a GM's browser), 423-446 (appendArmedCall calls boostUltimate); scripts/bridge-asks.mjs:466-477 (requestArmCall's local road)",
+   "what_happens": "boostUltimate runs on whichever GM's browser arms the Ultimate (appendArmedCall is 'GM-side' on any GM: a GM pressing the Ultimate on a student's sheet arms it through armCall's GM branch, or the bridge's local road). It writes the shortened list into the GMs' store there and calls tellOwners, which returns at once unless this browser is the primary. The owner's copy (timedEffectCopy) is sent only by tellOwners, an owner's ask at load or at drpgPrimaryReady, and retellTimedEffects after a restore; no watch sends it when the primary merges another GM's change. So the player's sheet keeps the 'stronger Ultimate' badge until some other row of that character is given or ended, or the page is reloaded.",
+   "evidence": "timed-effects.mjs:148  if (!actor?.id || !game.user?.isGM) return false;\ntimed-effects.mjs:151  await writeList(actor.id, timedEffectsOf(actor.id).filter(r => r.id !== row.id));\ntimed-effects.mjs:152  tellOwners(actor);\ntimed-effects.mjs:284  if (!doc || !isPrimaryGm()) return;\ncall-effects.mjs:293  await appendArmedCall(actor, payload);\ncall-effects.mjs:438  if (entry.key === \"ultimate\") {\ncall-effects.mjs:440      await (await import(\"./timed-effects.mjs\")).boostUltimate(actor);",
+   "failure_scenario": "With two GMs at the table, the second GM arms a student's Ultimate from the sheet; the second die is added and the row used up, but the student's sheet still shows the 'stronger Ultimate' badge, and the player expects it again on the next Ultimate.",
+   "expected": "The owner's copy follows the store on every road that changes it (the owner's standing rule of 20.11.2026: windows redraw at once when what they show changes).",
+   "confidence": "read",
+   "refutation_tried": "Looked for a road that resends after a merge: gm-store.mjs has no per-store watch hook (grep for watch/listen/Hooks.call: only its own listener at 1732-1740); timedEffectStore's row has afterRestore only (gm-stores.mjs:1091-1096); timed-effects.mjs sends on tellOwners, the owner's asks and retell only (272-296, 313-321, 408-411). takeDespairShield and giveTimed are primary-only, so they tell; boostUltimate is the one any GM runs. Whether a second GM arming an Ultimate from the sheet is a road tables use is not measured; the sheet's Ultimate on a GM's browser goes through armCall's GM branch.",
+   "tests_near": "Tier 2 E93-T13 (scripts/tests-tier2.mjs:100970) arms the boosted Ultimate on one GM (the primary) and reads the rows, not a player's copy. Result not read."
+  },
+  {
+   "id": "domain-core-e-utils-clock-5",
+   "domain": "ITEM",
+   "severity": "nit",
+   "category": "ux",
+   "title": "A room's tier table or flat table that answers a Search with another category is not marked a substitute, so the card does not say the room gave something else",
+   "where": "scripts/tables-pools.mjs:893-903 (drawRoomNamed: no `substitute`), 812-821 (roomEntryAs: the find takes its own category); scripts/action-search.mjs:597 (substitute read from the draw alone); scripts/action-report.mjs:282-283",
+   "what_happens": "Since E14 part 2 C3 a find is granted as what it is, not as what was asked. drawRoomNamed asks the room's '<base> - Tier N' first and its flat table last, and either may hold any category: a Healing Search there can come back a knife, filed and granted as a weapon. Only drawRoomAny and drawSpare set `substitute: true`, and the card says 'the room had nothing of what you asked for' only when that flag is set. So a player who asked for something to patch them up gets a weapon with no line saying why, the case the comment at action-search.mjs:593-596 says the line exists for. tables-pools.mjs:888-890 still says a flat table 'would hand back an apple and then label it a weapon', which C3 ended.",
+   "evidence": "tables-pools.mjs:899  const found = table && !tierPoolOf(table) ? await drawFrom(table) : null;\ntables-pools.mjs:900  if (found) return resultFrom(found, ctx, { from: \"room\", table });\ntables-pools.mjs:929  const found = await drawFrom(table, { substitute: true });\naction-search.mjs:597  substitute: Boolean(drawn?.substitute),",
+   "failure_scenario": "A student Searches the kitchen for Healing; the GM stocked one flat 'Kitchen' table; a kitchen knife lands on their sheet as a Murder Weapon and the card says nothing about the room not having what was asked.",
+   "expected": "The substitute line whenever the find's category or goal is not the one asked (action-search.mjs:593-596).",
+   "confidence": "read",
+   "refutation_tried": "Looked for a comparison of asked and found further on: action-search.mjs's outcome reads drawn.substitute alone (597); grantDrawn and traceTheFind take the drawn category without setting it. That a flat table answers every category is the owner's design (D15, tables-pools.mjs:889-891) and is not questioned; only the line is.",
+   "tests_near": "R1234 reads the draw's steps and order (tables-pools.mjs:972, 986-989), not the card's line. Result not read."
+  },
+  {
+   "id": "domain-core-e-utils-clock-6",
+   "domain": "ITEM",
+   "severity": "nit",
+   "category": "hygiene",
+   "title": "The tables.mjs facade exports a name it did not have (wireRoomFilter, E54), against the facade rule, and both headers still say four",
+   "where": "scripts/tables.mjs:12-13, 26; scripts/tables-editor.mjs:18-20, 276; commit 6c7c6bc5",
+   "what_happens": "The facade rule (.claude/rules/code.md, 'Where the code lives') says a facade keeps every name it exported and exports nothing new. tables.mjs re-exports five names of tables-editor.mjs - installTables, promptForTableName, poolPaneHtml, openItemTables and wireRoomFilter - the last added in E54 (6c7c6bc5, 'the suite's readers pointed at the family'); no file of scripts/ but tables-editor.mjs names wireRoomFilter (grep), so the export is for the suite. Its header and tables-editor.mjs's header both say four.",
+   "evidence": "tables.mjs:13   * every name it exported - twenty-eight of tables-pools.mjs's and four of tables-editor.mjs's, re-exported below - so\ntables.mjs:26   export { installTables, promptForTableName, poolPaneHtml, openItemTables, wireRoomFilter } from \"./tables-editor.mjs\";",
+   "failure_scenario": "A developer counting the facade against its header, or tools/moved-only.mjs's facade check against a later move, finds five where the papers promise four, and cannot tell which is the contract.",
+   "expected": "Four names, or the header and the rule's table saying five and why.",
+   "confidence": "read",
+   "refutation_tried": "git log -S wireRoomFilter -- scripts/tables.mjs names 6c7c6bc5 alone; the code.md row for tables.mjs speaks of 32 names (28 + 4).",
+   "tests_near": "none read"
+  }
+ ],
+ "by_decision": [
+  {
+   "what": "The time of day moves in private during an incident: the card goes to the GMs and the incident's audience, veiled, and the HUD freezes for bystanders; the world setting still reaches every client.",
+   "source": "scripts/clock.mjs:881-902 (Dawid, 26.08; E06 C4); scripts/hud-elapsed.mjs:176-187"
+  },
+  {
+   "what": "A timed effect's end takes the bonus from whatever the sheet holds, so a trait edited back by hand reads -n after the end.",
+   "source": "scripts/timed-effects.mjs:20-22 (A113-C6-5, measured headless 13.11.2026)"
+  },
+  {
+   "what": "A boundary's take-back lasts five minutes and four boundaries deep: design numbers, not measured at a table.",
+   "source": "scripts/clock.mjs:502-507, 530-535 (S10-42, E17 fix p2-G2)"
+  },
+  {
+   "what": "The day boards play only on a real roll-over and Night's real start; Edit campaign, the rewind, the reset and a console's setClock take the stamps away.",
+   "source": "scripts/clock.mjs:193-210 (the owner's rules of 12.11 and 13.11.2026)"
+  },
+  {
+   "what": "A private card whose reader list comes out empty is dropped and said in the console, not posted for everybody.",
+   "source": "scripts/utils.mjs:804-814 (E02, audit S01-28)"
+  },
+  {
+   "what": "whisperToOwnerOnly with no player owner goes to the acting user, so a whisper list is never empty.",
+   "source": "scripts/utils.mjs:727-729"
+  },
+  {
+   "what": "An NPC of type character not in the class gets Breakdown and its bars read as a reserve.",
+   "source": "scripts/states.mjs:487-495 (E24 fix G2A, review m4)"
+  },
+  {
+   "what": "Breakdown's and Wounded's icons are drawn on no token for anybody; the sheet says both.",
+   "source": "scripts/states.mjs:472-484 (E95 C5, the owner's report 10.11.2026)"
+  },
+  {
+   "what": "A flat room table answers every category a Search asks for; the room's tables answer before the world's pools.",
+   "source": "scripts/tables-pools.mjs:874-891, 905-921 (D15; F5.5, Dawid 25.08)"
+  },
+  {
+   "what": "The Tier pools tab makes no pool and renames none; Delete stays.",
+   "source": "scripts/tables-editor.mjs:1038-1041 (E101, the owner's yes of 12.11.2026)"
+  },
+  {
+   "what": "Unticking a pool in Place drops every entry of that name from it.",
+   "source": "scripts/tables-editor.mjs:569-573 (Dawid, 01.09)"
+  },
+  {
+   "what": "The Event panel stands in both themes; eventsWindowActive answers true everywhere and is kept as a named predicate.",
+   "source": "scripts/events.mjs:45-72 (1.2.47)"
+  },
+  {
+   "what": "A safeword card may be posted by a player when no GM is connected, so a player's chat message with the safeword flag is a legal one.",
+   "source": "scripts/safeword.mjs:161-168 (E06 C9)"
+  }
+ ],
+ "comments_against_code": [
+  {
+   "where": "scripts/utils.mjs:997-1001 (forcedDeletion)",
+   "comment_says": "'`-=key` removes nothing in this Foundry (the measured notes in actions.mjs, music.mjs, fog.mjs and migrate.mjs)'.",
+   "code_does": "The code is right either way; the reading is not: on Foundry 14.370 a `-=key` deletes on an actor's and a token's flags, with v14's deprecation warning (docs/dev/e39/CALIBRATION.md:20, LIVE-E30-01, 16.11.2026), as CLAUDE.md now says. The same old reading stands at actions.mjs:453-455 (outside this lane)."
+  },
+  {
+   "where": "scripts/states.mjs:118-121 (touchesTracks)",
+   "comment_says": "Which spelling v14's unsetFlag hands the updateActor hook 'is LIVE-E30-03's, not measured'.",
+   "code_does": "Measured on 16.11.2026: after unsetFlag and a `_del` write both hooks got the ForcedDeletion instance under the flag's own key, never a `-=` key (docs/dev/e39/CALIBRATION.md:27). The code's reading by name covers it."
+  },
+  {
+   "where": "scripts/clock.mjs:10-14 and 347-351 (advanceTimeOfDay's resetActions)",
+   "comment_says": "The clock does not refill the action economy; 'nothing in the ordinary flow turns it on any more. The GM panel's \"also refill\" checkbox passes it explicitly when a correction needs it, which is the one remaining caller'.",
+   "code_does": "The panel's Next time of day passes resetActions: true on every press (boundary.mjs:143, E37 C3), once a boundary by refilledFor; Edit campaign's refill box calls resetAllActions itself and never advanceTimeOfDay (gm-campaign.mjs:376-383). The comment at clock.mjs:381-382 says the right thing."
+  },
+  {
+   "where": "scripts/clock.mjs:296-298",
+   "comment_says": "'`setPhase` and \"Edit campaign\" both come through here, and they are the only two answers that end the record'.",
+   "code_does": "Every setClock that changes the phase clears the discovery (306-308): Start the Class Trial, End the trial, the season reset, followPhase's callers and a console's setClock as well."
+  },
+  {
+   "where": "scripts/events.mjs:2 and 18-19 (header); 89",
+   "comment_says": "'the Event panel (theme \"Stained Glass\")'; 'Under \"Monokuma Legacy\" this panel is not rendered and the clock keeps its rows'; 'the three cards'.",
+   "code_does": "Both themes since 1.2.47 (45-72, eventsWindowActive answers true at 70-72); nine card builders feed renderEvents (1083-1084)."
+  },
+  {
+   "where": "scripts/timed-effects.mjs:14 and 345-346",
+   "comment_says": "A `day` row ends 'with an Eclipse, as Night's starts'; 'at Night's Eclipse the day's too, since that advance begins a new day'.",
+   "code_does": "An Eclipse is named by the time of day it leads into (eclipse.mjs:58-61, settings.mjs:3974-3977), and the day moves only on the advance into Morning (clock.mjs:482-486); endAtEclipseStart ends day rows at the Morning Eclipse's start (356-360), not at the Night Eclipse's (Evening into Night)."
+  },
+  {
+   "where": "scripts/timed-effects.mjs:18-19",
+   "comment_says": "'Those two are the only callers of `endTimedEffect` outside the tests'.",
+   "code_does": "Three: endTimedEffects (225), endAtEclipseStart (362) and endEclipseEffects (113)."
+  },
+  {
+   "where": "scripts/utils.mjs:1298-1299 and 1380-1382 (wirePortraitPickers)",
+   "comment_says": "The markup 'projects-ui.mjs and investigation.mjs both build'; 'Four call sites build this markup (investigation.mjs, projects-ui.mjs twice, tables.mjs) ... (Three since 1.2.86 ...)'.",
+   "code_does": "investigation.mjs is the one caller today (grep: wirePortraitPickers at investigation.mjs:37, 1751 only; projects-ui.mjs and tables-editor.mjs build no data-drpg-portrait)."
+  },
+  {
+   "where": "scripts/utils.mjs:1221-1226 (registerTextGuard)",
+   "comment_says": "'Put the guard on every window this module opens.'",
+   "code_does": "It hooks renderDialogV2 alone (1228); the kit's DrpgApp windows (messenger-app.mjs, handbooks.mjs, notice-history-app.mjs, room-tile.mjs) are ApplicationV2 and are not guarded. None of them carries data-drpg-field or data-drpg-enter today (grep), so only the pointerdown blur is missing there."
+  },
+  {
+   "where": "scripts/tables.mjs:12-13; scripts/tables-editor.mjs:18-20",
+   "comment_says": "'four of tables-editor.mjs's' names re-exported.",
+   "code_does": "Five (tables.mjs:26, wireRoomFilter since 6c7c6bc5): finding 6."
+  },
+  {
+   "where": "scripts/tables-editor.mjs:1636-1640 (openItemTables)",
+   "comment_says": "'the tier family is a dropdown with a single choice (\"-\" for an item that only ever appears in rooms)'.",
+   "code_does": "There is no such choice: readNewItemForm derives the tier pool from the category and the tier (1091-1096, tierTableIdFor), and wireNewItemForm says so (1121-1126, 'Derived rather than picked now'); an item added here goes into its tier pool whenever one exists, so a room-only entry cannot be made from this form."
+  },
+  {
+   "where": "scripts/tables-pools.mjs:888-890 (drawRoomNamed)",
+   "comment_says": "'a single \"Kitchen\" table asked for a crime tool would hand back an apple and then label it a weapon'.",
+   "code_does": "Since E14 part 2 C3 the find is filed as what it is (roomEntryAs, foundAs: 803-821), so the apple is an apple; what is missing is the substitute line (finding 5)."
+  }
+ ],
+ "hygiene": {
+  "functions_over_300": [],
+  "functions_150_to_300": [
+   "setClock 203 lines (scripts/clock.mjs:135)",
+   "openItemTables 169 lines (scripts/tables-editor.mjs:1617)"
+  ],
+  "functions_100_to_150": [
+   "reconcilePhase 142 (clock.mjs:999)",
+   "setClock's serialWrite step 135 (clock.mjs:156)",
+   "wirePaneRows 147 (tables-editor.mjs:1313)",
+   "installTables 127 (tables-editor.mjs:80)",
+   "wirePortraitPickers 112 (utils.mjs:1307)"
+  ],
+  "duplicated_helpers": [
+   "The trial edge is computed twice in clock.mjs: trialCutOf (123-124) and setClock's trialEdge (176-177), the same three-clause predicate.",
+   "Two day marks: timed-effects.mjs dayMark (44-46: season, chapter, day) and facilities.mjs facilityDayMark (135-137: season, chapter, session, day). A session moved alone in Edit campaign ends a facility's day limit and not a timed effect's day row.",
+   "The store-or-copy read of a character's timed rows twice: timed-effects.mjs rowsHere (231-236) and gm-stores.mjs timedCrossingsOf (1104-1107).",
+   "fog.mjs keeps a local cssColour (3611-3618) that reads document.documentElement only, the order utils.mjs:1160-1170 records as wrong for a body-overridden token; no effect today, --drpg-fog-raster is declared on :root alone (styles/danganronpa.css:185).",
+   "shortPoolName (tables-editor.mjs:990-992) and the same /^DRPG\\s+/ replace inline in placeResultDialog (603).",
+   "The killers' side list built twice in events.mjs: incidentTurnText (266) and killerActingId (280).",
+   "utils.mjs imported again by import() in files that import it statically: clock.mjs:911 and 921 (whisperToGms, gmIds; static import at 25), timed-effects.mjs:82 and 134 (forcedDeletion, whisperToGms; static import at 33)."
+  ],
+  "dead_code": [
+   "events.mjs eventsWindowActive (70-72) answers true everywhere; kept on purpose as a named predicate (66-68).",
+   "states.mjs effectIconShown takes actor and user and reads neither (549-551); kept in the signature for R1485, as its comment says.",
+   "Exports read only by the suite (no other file of scripts/, tools/ or audit/ names them): utils forgetFired, localizeFirst (used inside utils by trialModeLabel); clock takeBackMemory, liveMemory; events incidentLines, killerActingId, gmNoteText, bodyCard, redeemCard, bribeWaitCard, betCard, wireEventsPanel, roundNextId; states touchesTracks, automationOriginal, automationGivenBack, clearAllSystemConditions, stateSoundsFor, takeOverConditions; timed-effects endEclipseEffects, timedEffectsOf, endTimedEffect, endTimedEffects, timedEffectsFor; i18n fetchLanguageFile; i18n-config CONFIG_TABLES, PROSE_KEYS (read by tools/config-prose.mjs per the header, not found by this grep). Each is also used inside its own file or named for a test in its comment."
+  ],
+  "magic_numbers": [
+   "events.mjs:429 notesSeen cleared past 20 entries, and the redraw timer's +50 ms (435): no comment on either.",
+   "timed-effects.mjs:307 a received label cut at 60 characters: no comment.",
+   "tables-editor.mjs:1395 and 1456 the 1200 ms 'saved' mark, twice.",
+   "utils.mjs:1185 cssColour's fallback 0x8a8296: no comment.",
+   "Commented and kept: SESSION_LOG_CAP 60 (utils.mjs:279), SAFEWORD_SLACK_MS 15000 (events.mjs:315), ROOM_GAP 8 and ROOM_SLIVER 24 (events.mjs:969-973), TAKE_BACK_MS 5 min and TAKE_BACK_DEPTH 4 (clock.mjs:507, 535), the ticker's six repeats (utils.mjs:1431-1435)."
+  ],
+  "keys_checked": "Every literal DRPG.* key of the nine i18n-using files present in en.json and pl.json; config prose keys (DRPG.Config.*) not checked here (tools/check.mjs prose)."
+ },
+ "hints_for_other_passes": {
+  "dead_controls": [
+   "Item tables, Add an item: no way to add an entry to room pools only while its tier pool exists (tables-editor.mjs:1091-1096; the comment at 1636-1640 promises a '-' choice)."
+  ],
+  "stale_windows": [
+   "Item tables (tables-editor.mjs:1617): no keepLive and no RollTable or TableResult hook - already controls-10-setup-config-8; add that a Rename made here does not touch the split tables of the renamed base (finding 3).",
+   "The owner's timed effect badges on the sheet (timed-effects.mjs effectBadges, sheet-header.mjs pendingStack): stale after a stronger Ultimate is used on a GM that is not the primary (finding 4)."
+  ],
+  "refresh": [
+   "The Event panel is redrawn at the end of every renderHud (hud.mjs:618) and on drpgCubsChanged and a player's own Monocub write (hud.mjs:248-255); it has no source of its own, so a store that changes without a HUD render (keyPlanStatus's marks on the GM's body card) waits for the next one."
+  ],
+  "other_lanes": [
+   "actions.mjs:453-455 repeats the old reading that `-=key` does nothing in this Foundry (LIVE-E30-01 says it deletes).",
+   "CASE-03's speaker on whisperToOwner (utils.mjs:751-759) still sets speaker to the actor; old-1.2.42-case.json grades CASE-03 fixed through secret.mjs, not re-read here."
+  ]
+ },
+ "not_established": [
+  {
+   "what": "Whether fitEvents, run on every HUD render even when the cards are unchanged (events.mjs:1090), takes focus from a folded card: it removes the card's tabindex (fold(card, false), 1007-1009) and puts it back in the same task after a layout read. Whether Chromium blurs an element that is unfocusable for that moment is not settled from source.",
+   "l1": {
+    "what": "Keyboard focus on a folded Event card across a HUD render",
+    "recipe": [
+     "1. A GM in an incident with five or more cards so some fold (1280x720).",
+     "2. Tab onto a folded card.",
+     "3. From another GM, change any module setting that renders the HUD (e.g. move a token in the incident).",
+     "4. Read document.activeElement on the first GM's page."
+    ],
+    "clients": "2 GMs + 2 players",
+    "theme": "both",
+    "settles_if": "activeElement is still the card: no issue. It is body: a finding (minor, ux).",
+    "priority": "minor"
+   }
+  },
+  {
+   "what": "Whether a bystander's music or fog colour also changes at a private move of the hour (music-states.mjs and fog-reveal.mjs read the time of day; not traced here): it would widen finding 1.",
+   "l1": {
+    "what": "A bystander's music and fog at a private hour move",
+    "recipe": [
+     "1. As in finding 1's recipe, with a time-of-day music map set for afternoon and evening.",
+     "2. GM presses Next time of day inside the incident.",
+     "3. On the bystander's page read game.drpg.nowPlayingHere() and the body's data-drpg-time before and after."
+    ],
+    "clients": "GM + 3 players",
+    "theme": "both",
+    "settles_if": "Either changes: finding 1 widens. Neither: finding 1 stands as written.",
+    "priority": "minor"
+   }
+  },
+  {
+   "what": "Two calls of advanceTimeOfDay that start within a round trip (a double press with no readiness round: in an incident, or with no connected player of the cast) both read `before` outside the clock's step (clock.mjs:379-380), write the same target, and each runs applyTimeOfDayChange: tickMotive twice, two cards. Whether the panel's button or the bridge lets a second press through that fast was not traced."
+  },
+  {
+   "what": "A rewind across a day (Morning back to Night) restamps dayStartedAt to now (clock.mjs:190-192), so the end-of-day rows read from that stamp lose the day's earlier rows; day-summary.mjs's reading was not traced."
+  },
+  {
+   "what": "No test or scenario result is cited: audit/findings-1.2.118/base-run.json did not exist when this file was written."
+  }
+ ]
+}

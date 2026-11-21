@@ -1,0 +1,591 @@
+{
+  "reader": "old-1.2.42-case",
+  "source": "audit/findings-1.2.42/case.md: its 15 findings (CASE-01..CASE-15) and the 6 numbered items of 'Live checks recommended'; what the old report says of each from audit/AUDIT-1.2.42.md sections 2, 4, 5, 7 and 9",
+  "read": [
+    {
+      "file": "audit/findings-1.2.42/case.md",
+      "lines": 222,
+      "of": 222,
+      "how": "whole file"
+    },
+    {
+      "file": "audit/AUDIT-1.2.42.md",
+      "lines": 514,
+      "of": 1666,
+      "how": "lines 1-130, 205-254, 345-494, 575-724, 827-860, and every line naming CASE- by grep"
+    },
+    {
+      "file": "scripts/remnants.mjs",
+      "lines": 596,
+      "of": 3366,
+      "how": "331-540, 820-969, 1262-1300, 1780-1909, 3300-3366"
+    },
+    {
+      "file": "scripts/gm-store.mjs",
+      "lines": 110,
+      "of": 1760,
+      "how": "640-689, 1175-1234"
+    },
+    {
+      "file": "scripts/gm-stores.mjs",
+      "lines": 38,
+      "of": 3047,
+      "how": "680-700, 1490-1506, and the CAST_FIELDS lines by grep"
+    },
+    {
+      "file": "scripts/incident-store.mjs",
+      "lines": 764,
+      "of": 1942,
+      "how": "90-229, 440-599, 655-700, 730-905, 1118-1200, 1440-1599"
+    },
+    {
+      "file": "scripts/world-secrets.mjs",
+      "lines": 191,
+      "of": 445,
+      "how": "100-290"
+    },
+    {
+      "file": "scripts/utils.mjs",
+      "lines": 267,
+      "of": 1452,
+      "how": "458-462, 485-496, 600-849"
+    },
+    {
+      "file": "scripts/secret.mjs",
+      "lines": 680,
+      "of": 1729,
+      "how": "1-330, 1000-1049, 1060-1249, 1425-1534"
+    },
+    {
+      "file": "scripts/death.mjs",
+      "lines": 56,
+      "of": 803,
+      "how": "255-310"
+    },
+    {
+      "file": "scripts/murder-rules.mjs",
+      "lines": 530,
+      "of": 4746,
+      "how": "95-115, 592-612, 800-909, 3165-3195, 4400-4746"
+    },
+    {
+      "file": "scripts/murder-ui.mjs",
+      "lines": 317,
+      "of": 907,
+      "how": "590-906"
+    },
+    {
+      "file": "scripts/cleanup.mjs",
+      "lines": 411,
+      "of": 3005,
+      "how": "80-96, 600-734, 925-960, 1528-1552, 1650-1705, 1925-2000, 2085-2150"
+    },
+    {
+      "file": "scripts/cleanup-reshape.mjs",
+      "lines": 142,
+      "of": 803,
+      "how": "12-153"
+    },
+    {
+      "file": "scripts/investigation.mjs",
+      "lines": 130,
+      "of": 2547,
+      "how": "1600-1729"
+    },
+    {
+      "file": "scripts/vote.mjs",
+      "lines": 771,
+      "of": 1108,
+      "how": "96-825, 1020-1060"
+    },
+    {
+      "file": "scripts/trial-floor-ui.mjs",
+      "lines": 94,
+      "of": 2045,
+      "how": "1205-1262, 1940-1975, and the watch lines by grep"
+    },
+    {
+      "file": "scripts/trial-floor.mjs",
+      "lines": 145,
+      "of": 1835,
+      "how": "1690-1834"
+    },
+    {
+      "file": "scripts/gm-bridge.mjs",
+      "lines": 204,
+      "of": 263,
+      "how": "60-263"
+    },
+    {
+      "file": "scripts/bridge-table.mjs",
+      "lines": 133,
+      "of": 1660,
+      "how": "740-849, 1632-1654"
+    },
+    {
+      "file": "scripts/bridge-guards.mjs",
+      "lines": 37,
+      "of": 2163,
+      "how": "1335-1362, 1875-1883"
+    },
+    {
+      "file": "scripts/bridge-runs-records.mjs",
+      "lines": 59,
+      "of": 943,
+      "how": "109-167"
+    },
+    {
+      "file": "scripts/observe.mjs",
+      "lines": 121,
+      "of": 1316,
+      "how": "60-135, 696-740"
+    },
+    {
+      "file": "scripts/body.mjs",
+      "lines": 221,
+      "of": 1223,
+      "how": "630-850"
+    },
+    {
+      "file": "scripts/body-tile.mjs",
+      "lines": 29,
+      "of": 449,
+      "how": "130-158"
+    },
+    {
+      "file": "scripts/movement.mjs",
+      "lines": 49,
+      "of": 4058,
+      "how": "3625-3673"
+    },
+    {
+      "file": "scripts/config.mjs",
+      "lines": 31,
+      "of": 5646,
+      "how": "78-108, and the TIMING lines by grep"
+    },
+    {
+      "file": "scripts/settings.mjs",
+      "lines": 14,
+      "of": 4662,
+      "how": "2215-2228"
+    },
+    {
+      "file": "scripts/module.mjs",
+      "lines": 0,
+      "of": null,
+      "how": "registration lines by grep only (160, 350, 357, 392, 450, 454, 506, 515, 523)"
+    },
+    {
+      "file": "scripts/tests-tier0.mjs",
+      "lines": 83,
+      "of": 26270,
+      "how": "3618-3700; test names and symbols by grep"
+    },
+    {
+      "file": "scripts/tests-tier1.mjs",
+      "lines": 52,
+      "of": 63672,
+      "how": "870-890, 29610-29640; test names and symbols by grep"
+    },
+    {
+      "file": "scripts/tests-tier2.mjs",
+      "lines": 93,
+      "of": 104280,
+      "how": "22168-22260 (its assertion lines); test names and symbols by grep"
+    },
+    {
+      "file": "audit/harness/scenarios/30-security.mjs",
+      "lines": 36,
+      "of": 7184,
+      "how": "740-775; check names by grep"
+    },
+    {
+      "file": "audit/harness/scenarios/11-killer-secrecy.mjs",
+      "lines": 12,
+      "of": 162,
+      "how": "its 12 check lines by grep"
+    },
+    {
+      "file": "audit/harness/scenarios/61-gmstore-case.mjs",
+      "lines": 3,
+      "of": 2739,
+      "how": "lines 27, 394, 401 by grep"
+    },
+    {
+      "file": "audit/harness/scenarios/63-class-trial.mjs",
+      "lines": 4,
+      "of": 1558,
+      "how": "check lines by grep"
+    },
+    {
+      "file": "docs/dev/e58/LOCAL-REPORT.md",
+      "lines": 27,
+      "of": 660,
+      "how": "410-420, 462-476, 481"
+    },
+    {
+      "file": "docs/dev/R-REGISTRY.md",
+      "lines": 0,
+      "of": 1826,
+      "how": "rows by grep only (R9, R32, R37, R58, R140, R170, R190, R191, R206, R210, R312, R313, R1363 and searches by word)"
+    },
+    {
+      "file": "audit/harness/README.md",
+      "lines": 0,
+      "of": 743,
+      "how": "scenario rows 11, 18, 62, 63, 72 by grep only"
+    }
+  ],
+  "count_expected": 21,
+  "count_note": "grep -c of '### <ID> [severity' in case.md gives 15; 'Live checks recommended' holds 6 numbered items, one item each as CASE-LC1..CASE-LC6. The file has no section named 'Comments contradicting code': its 'Hygiene metrics' has one unnumbered paragraph, 'Comments that no longer match code', naming four comments, settled in the notes of CASE-10 (gone), CASE-06 (still standing as wording), CASE-04 (rewritten) and CASE-09 (rewritten). 15 + 6 = 21 items.",
+  "items": [
+    {
+      "id": "CASE-01",
+      "title": "The Remnant ledger's socket handed the whole answer key to any sender who asked (rm.ledgerRequest) and took rm.secret / rm.full from players",
+      "old_severity": "blocker",
+      "old_state": "fixed in 1.2.43 (AUDIT-1.2.42.md 2.1; commit 90c17021): the handler takes senderId, refuses a non-GM and answers senderId only",
+      "status": "fixed",
+      "evidence_class": "S",
+      "evidence": "The ledger has no socket of its own since E04 (remnants.mjs:1846-1852; commit 76cec7b6, 1.2.63): its rows travel as a GM store. gm-store.mjs:658-663 (gmsRefusal) refuses every gms.* packet when this client is no GM or when the user Foundry names as the sender is no GM (gm-store.mjs:1181-1195), before any answer; answers go to senderId alone (gm-store.mjs:1200-1201, 1218-1219). A grep of scripts/ for rm.ledger, rm.secret and rm.full finds nothing.",
+      "pinned_by": "R170 (tier 1, 'GM replicas converge by the protocol, and nothing from a player or another world is taken'; tests-tier1.mjs:6603); scenario 61-gmstore-case check B5 (a player's gms.delta changes nothing on the GM; 61-gmstore-case.mjs:394-401)",
+      "still_wrong": "",
+      "severity_now": "none",
+      "confidence": "read",
+      "refutation_tried": "Looked for a second road that sends ledger rows to a non-GM: hello, state, delta and done all pass gmsRefusal first, the engine's listener is put up on GM clients only (gm-store.mjs:1741-1742), and the lists a player is sent are built on the GM (cleanup.mjs:215 cleanableTracesForPlayer).",
+      "note": "Closed first in 1.2.43 by a senderId check; the handler itself went in E04. R170's player case is a delta; a player's gms.hello meets the same first lines of gmsRefusal (read; no test of its own found)."
+    },
+    {
+      "id": "CASE-02",
+      "title": "The crisis Reroll receipt (lastCrisis, with a snapshot of the merged cast) was written into the world setting murderState",
+      "old_severity": "blocker",
+      "old_state": "fixed in 1.2.43 (AUDIT-1.2.42.md 2.1; commit 90c17021): lastCrisis added to CAST_FIELDS",
+      "status": "fixed",
+      "evidence_class": "S",
+      "evidence": "gm-stores.mjs:393-394 lists lastCrisis in CAST_FIELDS; incident-store.mjs:148-166 (splitIncident) lets only `active` and `stage` into the world half and sends a field in neither list nowhere; writeState writes the world half from that split alone (incident-store.mjs:777-827), and closeReceipt writes through it (murder-rules.mjs:2103). A participant's copy holds lastCrisis null (incident-store.mjs:578). world-secrets.mjs:140-144 holds murderState to [active, stage].",
+      "pinned_by": "R191 (tier 0, 'the world half of an incident holds only the listed public fields'), R9, R190; scenario 11-killer-secrecy ('every world half p1's browser received holds that an incident runs and its stage, nothing more', 11-killer-secrecy.mjs:93); 72-canary's world scan after every phase",
+      "still_wrong": "",
+      "severity_now": "none",
+      "confidence": "read",
+      "refutation_tried": "Checked the other writers of murderState (liftIncidentSecrets and liftIntoCast only take fields out, incident-store.mjs:1480-1571) and what a player's copy of the cast is sent (castCopyFor nulls the receipt).",
+      "note": "The old pitfall - a receipt already in world data when a world updates mid-chapter - is covered: lastCrisis is one of the stray cast fields liftIncidentSecrets moves into the cast and removes (incident-store.mjs:1492-1504)."
+    },
+    {
+      "id": "CASE-03",
+      "title": "Every incident, Stage 6, opening and death whisper still carried the killer's actor as its speaker and the participants as its whisper list",
+      "old_severity": "major",
+      "old_state": "left open after 1.2.43 (section 4); task 1 of section 5; done in commit 90c6988 (section 9), released as 1.2.44; live check S7-4",
+      "status": "fixed",
+      "evidence_class": "S",
+      "evidence": "secret.mjs:1163-1196: a veiled card's document has the speaker { alias: DRPG.Secret.speaker }, every user as its whisper list and only the flags secret, veiled and drpgMessage; the words go by addressed socket (1215-1220), and a client that holds none hides the card (1026-1032). murder-rules.mjs:108-111, cleanup.mjs:92-93 and cleanup-reshape.mjs:20-21 veil every whisper those files post; death.mjs:283-296 veils the death card; secret.mjs:1103-1107 veils any private card naming a character or a player while an incident runs, whoever posts it, and a player's browser then asks the primary GM to post it (1189), so its author is a GM. On Foundry 14.370 (docs/dev/e58/LOCAL-REPORT.md:417, S7-4) a player's console read alias null and the placeholder as content.",
+      "pinned_by": "scenario 11-killer-secrecy (11-killer-secrecy.mjs:107, 110, 123); tier 2 'after a crisis action no message names a participant' and 'the cards an incident's roll brings name no participant'; scenario 72-canary (the chat each phase's bystanders hold); the 'veiled' message rule of world-secrets.mjs:260-264 (R190)",
+      "still_wrong": "",
+      "severity_now": "none",
+      "confidence": "read",
+      "refutation_tried": "Looked for an incident card posted outside the three wrapped files or before the incident is active: the parked declaration's thread cards are veiled (messenger.mjs:29-36, call-gm.mjs:343), and a use, a hand-over or a Call's receipt in a fight is veiled where every private card is posted (secret.mjs:1166). A private card outside an incident still shows its speaker and recipients, which secret.mjs:32-53 states as accepted.",
+      "note": "What a veiled card still tells a console is that a private card was posted at that moment by a GM (secret.mjs:44-53). LOCAL-REPORT.md:481 (LIVE-E06-01, 'measured, with a question') says the victim's chat showed three veiled cards with the placeholder after a failed opening, which does not agree with the hide at secret.mjs:1030-1032; see not_established."
+    },
+    {
+      "id": "CASE-04",
+      "title": "The actor flags betrayalWindow (killer and accomplice) and swungWeapon named the incident's participants in world data through Stage 6",
+      "old_severity": "major",
+      "old_state": "left open after 1.2.43 (section 4); task 1 of section 5; done in commit 90c6988 (section 9)",
+      "status": "fixed",
+      "evidence_class": "S",
+      "evidence": "The offer is the cast's `betrayal`, written by armBetrayalWindow through writeCast (incident-store.mjs:877-898), and the swing memo the cast's `swung` (gm-stores.mjs:394; read by swungWeaponOf, incident-store.mjs:993). castCopyFor sends the offer only to the owners of its third and never the swing memo (incident-store.mjs:570-578). No file sets either flag: FLAGS.betrayalWindow and FLAGS.swungWeapon are named only by the lift that unsets them (incident-store.mjs:1513-1533), the season reset's unset (season-wipe.mjs:489) and the audit's list of GM-only flags (sheet-audit.mjs:165).",
+      "pinned_by": "tier 1 'the betrayal outlives the incident it came out of' (tests-tier1.mjs:865-883: betrayalTarget reads the cast's offer and no actor flag); scenario 11-killer-secrecy ('no killer/blackened flag readable on actors', 11-killer-secrecy.mjs:159); R206, R210",
+      "still_wrong": "",
+      "severity_now": "none",
+      "confidence": "read",
+      "refutation_tried": "Grep of scripts/ for both flag names (no setFlag left; murder-rules.mjs, murder-ui.mjs and incident-store.mjs hold no setFlag(MODULE_ID at all), and the copy a participant who is not the offer's third is sent (betrayal null).",
+      "note": "The comment the old file called stale is rewritten (config.mjs:88-101, 'LEGACY (CASE-04)'). world-secrets.mjs:194 does not name the two old flags in its Actor rule, so a future write of either would be found by the id scans of 11 and 72, not by R9's rule."
+    },
+    {
+      "id": "CASE-05",
+      "title": "The dashboard's Save walked every trace and wrote blanks and false for rows the chapter filter did not draw (earlier chapters' traces un-reinforced, untied, renamed)",
+      "old_severity": "major",
+      "old_state": "fixed in 1.2.43 (AUDIT-1.2.42.md 2.2; commit 90c17021)",
+      "status": "fixed",
+      "evidence_class": "S",
+      "evidence": "investigation.mjs:1687-1692 reads only the traces whose `name.<row>` field is in the form, and since E09 C3 only the fields the GM changed, each with the value it was drawn from (1668-1679); applyDashboardSave (investigation.mjs:2482) writes a field only where the ledger still holds that drawn value.",
+      "pinned_by": "R32 (tier 0, 'the case dashboard saves the rows on screen, and a plan row only when it was edited'); scenario 62-investigation part D (the dashboard's Save under a reshape)",
+      "still_wrong": "",
+      "severity_now": "none",
+      "confidence": "read",
+      "refutation_tried": "Checked the second caller of readCaseFields (saveOpenNode, investigation.mjs:1786-1810, reads the open node's editor only) and the Key rows (their fields are empty where nothing changed, 1697-1704).",
+      "note": ""
+    },
+    {
+      "id": "CASE-06",
+      "title": "A Reroll of an erased trace re-created it from token flags that no longer exist (it came back as an Evident Prep Remnant with no source, room or stamp)",
+      "old_severity": "major",
+      "old_state": "left open after 1.2.43 (section 4); task 4 of section 5; done in commit 3734f91 (section 9)",
+      "status": "fixed",
+      "evidence_class": "S",
+      "evidence": "cleanup-reshape.mjs:101-138 (recreationDataFor) builds from remnantData(token), the ledger's row: type, band, the tie in its three states, source, itemIdentity, room, the stamps, placedAt, the public words and the token's own id. It is taken before removeRemnant (cleanup.mjs:949) and kept in the GMs' store cleanupAttempts (cleanup-reshape.mjs:64-68); undoLastCleanup puts the trace back under its id and re-applies the public words (cleanup.mjs:2112-2128).",
+      "pinned_by": "tier 2 'a Reroll of a successful erase removes the trace again' and 'an erase's Reroll puts a reshaped trace back and leaves the copies'; tests-tier0.mjs:13027 (the season's epoch carried by recreationDataFor)",
+      "still_wrong": "",
+      "severity_now": "none",
+      "confidence": "read",
+      "refutation_tried": "Checked the second caller (cleanup-reshape.mjs:710, a declined reshape's erase) uses the same function, and that a trace put back under its id skips the incident's automatic tie (remnants.mjs:373).",
+      "note": "The function's header still says recreating is 'handing the flags back' (cleanup-reshape.mjs:90-91) while its body reads the ledger: one of the old file's 'comments that no longer match code', still standing as wording."
+    },
+    {
+      "id": "CASE-07",
+      "title": "Ballots landed in a plain Map with no hook, so the console's 'N still to vote' line and the vote window never changed as ballots came in",
+      "old_severity": "major",
+      "old_state": "fixed in 1.2.43 (AUDIT-1.2.42.md 2.2; commit 90c17021)",
+      "status": "fixed",
+      "evidence_class": "S",
+      "evidence": "vote.mjs:208 calls Hooks.callAll('drpgBallotsChanged') once the ballot's row is in the GMs' store, and the open, an ask, a remind and the close call it too (253, 478, 515, 1030); the console's region and the vote window's status region watch it (trial-floor-ui.mjs:1674, 1987). Since E10 (commit 5a206f64) the ballots are a synced GM store (gm-stores.mjs:771) whose setting fires the same hook on another GM when a row merges in (settings.mjs:2222-2227).",
+      "pinned_by": "R58 (tier 0, 'the trial console counts the seconds, a ballot is an event, and +30 s means thirty'; its assertion on the watch is tests-tier0.mjs:3649); R312; scenario 63-class-trial parts B to E; two real GMs are LIVE-E10-04",
+      "still_wrong": "",
+      "severity_now": "none",
+      "confidence": "read",
+      "refutation_tried": "Checked the old pitfall (a second GM's console reading 'not running'): pendingVoters reads the world's record and this browser's copy of the store (vote.mjs:637-645), and ballotCopyStatus says when that copy is not ready (713-720).",
+      "note": ""
+    },
+    {
+      "id": "CASE-08",
+      "title": "vote.mjs's handler and every gm-bridge listener read game.user bare; a packet arriving while game.user is null throws the TypeError the 1.2.42 notes called fixed",
+      "old_severity": "minor",
+      "old_state": "fixed in 1.2.43 (AUDIT-1.2.42.md 2.2; commit 90c17021): guards in the handlers, isPrimaryGm() false with no user",
+      "status": "partly",
+      "evidence_class": "S",
+      "evidence": "Guarded today: vote.mjs:154 (`!game.user ||`), utils.mjs:458-462 isPrimaryGm (`game.user?.isGM`), bridge-table.mjs:1632-1634 onSocket, bridge-guards.mjs:1875-1878 replyForMe. Not guarded: gm-bridge.mjs:200 (onOpeningAsk) and gm-bridge.mjs:229 (onOpeningCancel) still compare `payload.userId !== game.user.id`, as they did at v1.2.44.",
+      "pinned_by": "none found",
+      "still_wrong": "A client whose game.user is null when an opening-roll invitation or its withdrawal arrives logs an unhandled TypeError from gm-bridge.mjs:200 or :229 (both listeners are async); nothing else is lost, since that client could not roll.",
+      "severity_now": "nit",
+      "confidence": "suspected",
+      "refutation_tried": "Checked when the listeners are put up: registerGmBridge runs in the ready hook (module.mjs:392, 515), where game.user is set, so the start of a client's life cannot reach them; whether Foundry v14 nulls game.user while a page closes cannot be read from this repository.",
+      "note": "Same class, not on the old list: secret.mjs:1443 reads game.user.isGM bare in onSecretPacket, and the cast's listener, registered at init (module.mjs:350, incident-store.mjs:1149-1151), calls game.users.get with no guard. All are async listeners, so the cost is a console error."
+    },
+    {
+      "id": "CASE-09",
+      "title": "remnant.edit's ownership guard read a sourceActor token flag that no longer exists, so every player's edit was refused (hidden only by a second dead end in the Reroll)",
+      "old_severity": "minor",
+      "old_state": "not named in any section of AUDIT-1.2.42.md; counted closed by the tally of section 9 without being named",
+      "status": "fixed",
+      "evidence_class": "S",
+      "evidence": "bridge-table.mjs:817 asks ownsActorAt(remnantSourceOf, ...), and bridge-guards.mjs:1350-1355 (remnantSourceOf) reads the source from the ledger's row. Since E08 the row's first guard is gmOnly (bridge-table.mjs:813): a Reroll's re-rating is made on the GM's own client, so a player's request is refused by design and told why.",
+      "pinned_by": "scenario 30-security ('a player's re-rating is refused as the GM's own undo ...', 30-security.mjs:2236; 'control: the GM's own re-rating of the player's fresh trace lands', :2244)",
+      "still_wrong": "",
+      "severity_now": "none",
+      "confidence": "read",
+      "refutation_tried": "Checked the road the old finding feared (a player's Reroll that learns its trace's id): the id is written on the GMs' bookmark of the roll (bridge-runs-records.mjs:160-165) and the Reroll runs on the GM, so no player road depends on this guard.",
+      "note": "The comment the old file called stale now describes today's check (bridge-table.mjs:810-816)."
+    },
+    {
+      "id": "CASE-10",
+      "title": "Stage 4's loose ends: (a) a comment promising a tracker button that does not exist, (b) no 'ask again' after three declined invitations, (c) a trap its victim notices leaves the incident open at the opening with no prompt",
+      "old_severity": "minor",
+      "old_state": "left open after 1.2.43 (section 4); task 7 of section 5; done in commit 5c66ffa (section 9)",
+      "status": "fixed",
+      "evidence_class": "S",
+      "evidence": "(a) murder-rules.mjs:601-605 says what the code does. (b) murder-ui.mjs:627-629 offers 'Ask for the opening roll again' while the stage is the opening; reaskOpening (663-676) sends it through rollOpening behind a 10 s cooldown (config.mjs:437), and the declined whisper names the button (lang/en.json:2928, lang/pl.json:3084). (c) murder-rules.mjs:884-889 whispers the GMs DRPG.Murder.victimNoticedNext (lang/en.json:2775, lang/pl.json:2921).",
+      "pinned_by": "R1363 (tier 1, the tracker's footer with the ask-again); tier 2 'a re-ask of the opening rolls the pick the cast keeps, and asks nobody again'; none found for the whisper of (c)",
+      "still_wrong": "",
+      "severity_now": "none",
+      "confidence": "read",
+      "refutation_tried": "Checked that the re-ask goes through rollOpening, so an owner who is not connected still gets the GM's throw (murder-ui.mjs:671, murder-rules.mjs:4426-4449), and that both language files hold the three keys.",
+      "note": "The re-ask is offered through the whole opening, not only after a decline as the old fix proposed; what holds it is the cooldown on that GM's browser. A re-ask sent while the player's roll window is still open reaches throwOpeningRoll again, which refuses nothing that is in flight (murder-rules.mjs:4661-4689): a second window on the player's screen is suspected, not driven."
+    },
+    {
+      "id": "CASE-11",
+      "title": "While any incident ran, all of Stage 6 included, every trace placed anywhere in the building was stamped as tied to the crime",
+      "old_severity": "minor",
+      "old_state": "left open after 1.2.43 (section 4); tasks 7 and 12; decision D5 option B of 13.09.2026 (section 9.1), commit 1210949",
+      "status": "decision",
+      "evidence_class": "S",
+      "evidence": "remnants.mjs:373-397: with no tie given, a trace placed while an incident runs is tied only when its source is the killer, the victim or the third, or when its room is the room the victim's token stands in on that scene; any other stays null, the dashboard's '?' for the GM. That is D5 as section 9.1 records it (participants or the incident's room, the rest the GM's).",
+      "pinned_by": "none found for the half 'a bystander's trace elsewhere stays undecided' (searched test names, D5 and CASE-11 in tests-tier0/1/2 and the scenarios); the death's tie of undecided traces is pinned by tier 2 'a victim's death ties the chapter's undecided traces and never one a GM marked not tied' and scenario 10-murder",
+      "still_wrong": "",
+      "severity_now": "none",
+      "confidence": "read",
+      "refutation_tried": "Compared the code with the fix the finding proposed: it asks neither the stage nor the trace's type, so a participant's or a same-room trace is still tied at Stage 6 - what D5 chose, not what the finding proposed.",
+      "note": "The owner's decision: AUDIT-1.2.42.md section 9.1, row D5; the comment at remnants.mjs:379-386 names it. 'The incident's room' is read as where the victim's token stands now (see new_observations)."
+    },
+    {
+      "id": "CASE-12",
+      "title": "Four token deletions (a retune's remove, the Faint sweep, both Reroll undos) skipped the ledger's tombstone, so the ledger kept rows for traces that no longer exist",
+      "old_severity": "minor",
+      "old_state": "left open after 1.2.43 (section 4); task 7 of section 5; done in commit 5c66ffa (section 9)",
+      "status": "fixed",
+      "evidence_class": "S",
+      "evidence": "remnants.mjs:1876-1884: one deleteToken hook on the primary GM tombstones the row of every deleted trace token (dropRemnantSecret, remnants.mjs:1283-1288, written whether or not that GM holds the row), leaving out only the season reset's own deletions; the sweep's deleteEmbeddedDocuments (remnants.mjs:3357) and a GM's own Delete reach it.",
+      "pinned_by": "none found by name (searched 'tombstone' and 'deleteToken' in tests-tier0/1/2); tests-tier0.mjs:10316 names the hook in the hook census only",
+      "still_wrong": "",
+      "severity_now": "none",
+      "confidence": "read",
+      "refutation_tried": "Checked that the hook is put up on every client at ready (module.mjs:450) and acts on whoever is the primary at that moment, and that a trace put back under its id waits for the tombstone first (remnants.mjs:429-430).",
+      "note": "With no test found that deletes a trace's token and reads its row gone, this rests on the reading of the code."
+    },
+    {
+      "id": "CASE-13",
+      "title": "(a) secret.card was taken from any sender (spoofed narration on a real GM card); (b) remnant.place took type, reinforced and tiedToCrime as sent (a console could plant a reinforced Key trace)",
+      "old_severity": "minor",
+      "old_state": "left open after 1.2.43 (section 4); task 7 of section 5; done in commit 5c66ffa (section 9)",
+      "status": "fixed",
+      "evidence_class": "S",
+      "evidence": "(a) secret.mjs:1462-1469: words for a card are kept only from a GM or from the card's own author, waiting for the document when it has not landed yet; a player's words are bounded, cleaned and lose the GM-only meta (1473-1493). (b) remnants.mjs:882-913 (narrowPlayerRemnant) rebuilds a player's trace: its type within prep and resolution, reinforced false, the tie null, source, room and place from the sender's own character; bridge-runs-records.mjs:122-142 applies it to every sender who is not a GM, and the band is the GMs' record of the roll (bridge-table.mjs:795).",
+      "pinned_by": "(b) R140 (tier 1, 'a player's trace is written from what the GM knows') and scenario 30-security (30-security.mjs:2154, 2160, 2190). (a) none found for the refusal of words for another user's card: 30-security's 'private cards' phase (30-security.mjs:748-775) sends a player's words for that player's own card only",
+      "still_wrong": "",
+      "severity_now": "none",
+      "confidence": "read",
+      "refutation_tried": "(a) Looked for another listener that stores words: a rewrite's packets take the same listener, and a returning reader is answered only as a reader of the card (secret.mjs:958-983). (b) Checked the tie a player can still ask for (remnant.tieForItem, bridge-table.mjs:799-806; 30-security.mjs:2299).",
+      "note": ""
+    },
+    {
+      "id": "CASE-14",
+      "title": "A player who dropped after the ballots went out was neither returned nor pending (the card read '3 of 3'); a Remind to an open ballot stacked a second window",
+      "old_severity": "minor",
+      "old_state": "left open after 1.2.43 (section 4); task 7 of section 5; done in commit 5c66ffa (section 9)",
+      "status": "partly",
+      "evidence_class": "S",
+      "evidence": "Fixed: the issued list is written in the world's record at the open (vote.mjs:456-458) and grown by a remind or an ask (250-252, 508-511); the count's base is the union of issued, entitled now and answered (682-685, 1039-1040); a new ballot window closes the one before (815-818). Still: pendingVoters (vote.mjs:637-645) names only connected participants (trialParticipants, vote.mjs:586), and the console and the vote window print DRPG.Vote.allIn, 'Every ballot is in.', when that list is empty (trial-floor-ui.mjs:1222-1228, 1951-1956).",
+      "pinned_by": "scenarios 63-class-trial (parts B, C, E) and 18-trial for the count and the late joiner; none found for the names of those still out (no test names pendingVoters or Vote.allIn)",
+      "still_wrong": "A player is handed a ballot and disconnects, the others vote: the GM's console reads 'Every ballot is in.' beside '3 of 4 ballots are back. A conviction needs 3.'",
+      "severity_now": "nit",
+      "confidence": "read",
+      "refutation_tried": "Checked that the line is redrawn when a user leaves (userConnected is watched, trial-floor-ui.mjs:1674, 1987), so the sentence does change to the wrong one, and that no test pins the connected-only list on purpose.",
+      "note": "The verdict is not touched: the bar and the count use the record's base. The names would be right read from the record's issued list less the ballots back."
+    },
+    {
+      "id": "CASE-15",
+      "title": "On the Tamper road the action was spent before the concealment roll and before the main roll; closing either window lost it with nothing done",
+      "old_severity": "nit",
+      "old_state": "left open after 1.2.43 (section 4); task 7 of section 5; done in commit 5c66ffa (section 9)",
+      "status": "fixed",
+      "evidence_class": "S",
+      "evidence": "cleanup.mjs:625-628 and 1654-1658 take the price after the concealment, so a closed concealment window costs nothing; a closed main window hands the price back (cleanup.mjs:691-693 and 1697, releaseTamper 1538-1551) unless a concealment roll has already landed, when the price is kept and said - the rule task 4 set for a second roll (ROLL-05).",
+      "pinned_by": "R37 (tier 0, 'a closed Tamper window after a landed concealment roll refunds nothing'); tier 2 'a Tamper window closed after a landed concealment roll keeps its price, and one closed with nobody watching gives it back'",
+      "still_wrong": "",
+      "severity_now": "none",
+      "confidence": "read",
+      "refutation_tried": "Read both doors (attemptCleanup and attemptStageSix) and the free attempt (releaseTamper returns before any refund when nothing was paid).",
+      "note": ""
+    },
+    {
+      "id": "CASE-LC1",
+      "title": "Live check 1: on Foundry v14, read from a player's console whether whispered module cards carry speaker.alias and the whisper list (CASE-03 rests on it)",
+      "old_severity": null,
+      "old_state": "carried as item 4 of section 7 (CASE-03) and so of 9.2; read on 16-17.11.2026 outside the audit file",
+      "status": "fixed",
+      "evidence_class": "F",
+      "evidence": "Read on Foundry 14.370 (docs/dev/e58/LOCAL-REPORT.md:417, S7-4): every message reaches every browser; of the module's private cards a player reads alias null, the whisper list and the placeholder as content. So the premise holds, and the incident's cards answer it by being veiled (secret.mjs:1190-1196): the same report read them placed for everybody on the victim's browser (LOCAL-REPORT.md:481).",
+      "pinned_by": "scenario 11-killer-secrecy (11-killer-secrecy.mjs:107-123), headless",
+      "still_wrong": "",
+      "severity_now": "none",
+      "confidence": "read",
+      "refutation_tried": "Checked that an ordinary private card's recipients are still readable (they are, and secret.mjs:32-40 says so) and that only a veiled card hides them.",
+      "note": "The row LOCAL-REPORT.md:481 also says the victim's chat showed the three veiled cards with the placeholder; see not_established."
+    },
+    {
+      "id": "CASE-LC2",
+      "title": "Live check 2: if murder.openingAsk reaches the player's client before the cast (incident.myCast), openingStillWanted reads no seat and the invitation ends with no GM whisper",
+      "old_severity": null,
+      "old_state": "not carried into section 7 or 9.2; named once as a pitfall of task 1 (AUDIT-1.2.42.md:426)",
+      "status": "open",
+      "evidence_class": "S",
+      "evidence": "The silent end is still in the code: throwOpeningRoll leaves its loop when openingStillWanted is false (murder-rules.mjs:4667) and whispers the GMs only when it is true (4695); openingStillWanted reads the seat from this browser's cast copy (4564-4568). At the opening itself the order is kept by construction: writeState sends the cast and then awaits the world write before rollOpening sends the ask (incident-store.mjs:825-827, murder-rules.mjs:606). The tracker's re-ask (murder-ui.mjs:627-629) is the way back.",
+      "pinned_by": "none found for the reversed order; 11-killer-secrecy and 13-murder-signals drive the ordinary one",
+      "still_wrong": "A player whose browser gets the invitation before its cast copy, or before its listeners exist after a reload (askOpeningRoll asks only that the user is active, gm-bridge.mjs:213), opens no roll window and nobody is told; the GM's tracker waits until the GM presses Ask again.",
+      "severity_now": "minor",
+      "confidence": "suspected",
+      "refutation_tried": "Looked for a retry on the player's side (none: onOpeningAsk runs once, gm-bridge.mjs:198-206) and for a real reading: LOCAL-REPORT.md:481 has the killer's opening thrown in several runs on Foundry 14.370, which shows the ordinary order works, not that the other cannot happen.",
+      "note": "LOCAL-REPORT.md (item 52) measured userConnected about 5.7 s before a page's module is ready; a re-ask inside that gap after a player's reload is the likeliest way to lose one."
+    },
+    {
+      "id": "CASE-LC3",
+      "title": "Live check 3: two GMs and the primary changes mid-incident - lastAttempt (clean-up Rerolls) and Observe's pending rows are per browser and lost; do the 'reroll lost' whispers reach the new primary",
+      "old_severity": null,
+      "old_state": "not carried into section 7 or 9.2",
+      "status": "partly",
+      "evidence_class": "S",
+      "evidence": "The clean-up's receipt is a synced GM store since 1.2.67 (gm-stores.mjs:1502-1506, cleanup-reshape.mjs:52-68), so another GM holds it. Observe's pending rows survive a reload but stay on one GM's browser (gm-stores.mjs:696-698, sync false; observe.mjs:78-86 says so); the road that finds no row tells the GMs and the player (observe.mjs:703-737).",
+      "pinned_by": "the tier 2 clean-up Reroll tests for the store; none found for a declaration asked of another GM",
+      "still_wrong": "A GM declares an Observe's target and the primary role moves to another GM before the player's roll comes back: the new primary holds no row, the player's action and roll are spent, and both screens are told it was lost, with no refund (observe.mjs:718-722).",
+      "severity_now": "minor",
+      "confidence": "read",
+      "refutation_tried": "Checked that the Observe store is not exchanged between GMs (sync false, E04 C7's recorded choice) and that the whisper goes to every GM (utils.mjs:762-768).",
+      "note": "The local store is a choice written in the code (observe.mjs:78-86, 'a change nobody has made yet'); no owner's decision on it was found in docs/dev. Not read at a table."
+    },
+    {
+      "id": "CASE-LC4",
+      "title": "Live check 4: the primary GM disconnects mid-objection and no client advances the floor - does the HUD overrun gracefully and the mode advance on reconnect",
+      "old_severity": null,
+      "old_state": "not carried into section 7 or 9.2; LIVE-E10-05 (9.2) reads the neighbouring case of a background tab",
+      "status": "open",
+      "evidence_class": "S",
+      "evidence": "advanceIfDue is still the primary's alone (trial-floor.mjs:1721-1724), asked by a one-second tick on every client with an open floor (1821-1831) and on a tab's return (1778-1780). By the code another connected GM becomes the primary (utils.mjs:485-496) and its next tick writes the transition; with no GM connected nothing advances until a GM's ready starts the tick again (1766).",
+      "pinned_by": "tier 2 'two ticks during one write open one rebuttal' and 'the primary GM's tab coming back moves an expired objection on at once' (named at trial-floor.mjs:1713, 1775); none found for a primary that left",
+      "still_wrong": "Not read at a table: what the players' HUD shows while an objection is past zero with no GM connected.",
+      "severity_now": "minor",
+      "confidence": "suspected",
+      "refutation_tried": "Looked for a writer of the transition that is not the primary (none; a round speaker's leaving is the primary's as well, trial-floor.mjs:1782-1784).",
+      "note": ""
+    },
+    {
+      "id": "CASE-LC5",
+      "title": "Live check 5: Move the body teleports the victim's token and the body's own move runs the discovery check; a room with two innocents fires the discovery at once - decide whether that is intended",
+      "old_severity": null,
+      "old_state": "not carried into section 7 or 9.2; no decision on it found",
+      "status": "partly",
+      "evidence_class": "S",
+      "evidence": "The trigger stands: every token move on the primary runs maybeBodyFound (murder-rules.mjs:3175-3190), the body's teleport included (cleanup.mjs:1987), and the check reads the moved token's room (body.mjs:781) and counts a death the GMs still keep as a body (body.mjs:654-668). The result changed: since 1.2.113 a count of two tells each witness privately, writes the room's discovery as waiting and asks the primary GM before anything is announced (body.mjs:813-850, the owner's decisions A and B of 13.11.2026 named there).",
+      "pinned_by": "none found for a body carried into an occupied room",
+      "still_wrong": "A killer's Move the body lands the body in a room where two students stand, one of them uninvolved: both are told privately at once and the GM is asked to announce, while the killer's Stage 6 still runs. Whether the body's own move should count as walking in is recorded nowhere.",
+      "severity_now": "nit",
+      "confidence": "read",
+      "refutation_tried": "Checked whether the discovery is held while Stage 6 runs (it is not: the running incident's killers only count as involved, body.mjs:794-802) and where a kept death's body is read (its token, since it has no tile: body-tile.mjs:144-158).",
+      "note": ""
+    },
+    {
+      "id": "CASE-LC6",
+      "title": "Live check 6: the incident tracker's reopen on a stage change (after, close, reopen) with two GMs each holding a tracker",
+      "old_severity": null,
+      "old_state": "not carried into section 7 or 9.2",
+      "status": "open",
+      "evidence_class": "S",
+      "evidence": "Each GM's tracker decides for itself: it closes and reopens once when its signature (stage and selfInflicted, murder-ui.mjs:584-586) differs from the one it opened with, behind a latch (736, 760-772), and closes without reopening when the incident is gone; it reads nothing of another GM's window. Bounded per window by the code; not read with two real GMs.",
+      "pinned_by": "tier 2 E21-T1 (the tracker rebuilds on its declared keys) and E47-T2 (one width through a fight) drive one GM's tracker; none found with two GMs",
+      "still_wrong": "Not read at a table: two GMs each holding a tracker through a stage change.",
+      "severity_now": "nit",
+      "confidence": "suspected",
+      "refutation_tried": "Looked for a loop: the reopened window takes the new signature as its own, so the same change cannot close it again, and a button's press closes the window before its action runs (murder-ui.mjs:777-801).",
+      "note": ""
+    }
+  ],
+  "new_observations": [
+    {
+      "title": "The incident's room for the automatic tie follows the victim's token after Move the body",
+      "where": "scripts/remnants.mjs:391",
+      "what": "placeRemnant compares a new trace's room with locateActor(victim), the token's place (movement.mjs:3647-3659). Stage 6's Move the body teleports that token (cleanup.mjs:1987), so afterwards a bystander's trace in the room of the crime stays undecided and one in the room the body was taken to is tied. D5 says 'the incident's room'.",
+      "severity": "nit",
+      "confidence": "read"
+    },
+    {
+      "title": "The audit file names the wrong commit for task 13",
+      "where": "audit/AUDIT-1.2.42.md:632",
+      "what": "The table gives 7e40243 for '13 - rozliczenie'; that commit is 'D8: the first text pass, and the decisions recorded'. The tally's commit is b888c066 ('Task 13: the findings that had no task, and the tally corrected'), read with git log v1.2.42..v1.2.44.",
+      "severity": "nit",
+      "confidence": "read"
+    },
+    {
+      "title": "recreationDataFor's header still describes token flags",
+      "where": "scripts/cleanup-reshape.mjs:90",
+      "what": "'recreating is handing the flags back' stands above a body that reads the ledger's row (101-108); the old file listed this comment as not matching the code, and the sentence is still there.",
+      "severity": "nit",
+      "confidence": "read"
+    }
+  ],
+  "not_established": [
+    "Whether a veiled card whose words never reached a browser is hidden in a real v14 chat log. secret.mjs:1026-1032 sets display none on it; docs/dev/e58/LOCAL-REPORT.md:481 (LIVE-E06-01, 'measured, with a question') says the victim's chat showed three veiled cards with the placeholder after a failed opening. If they are drawn, a direct murder's victim sees that private cards were posted at that moment. Settled by: on a bystander's page during an opening, the computed display of the log's elements for those message ids.",
+    "CASE-08's remaining part: whether game.user can be null on Foundry v14 when a module socket listener registered at ready fires (a page closing). Settled by: v14's Game#user getter and its teardown, or the console of a tab closed while an opening invitation is sent to it.",
+    "CASE-LC2: whether the cast packet and the opening's invitation can arrive reversed, or the invitation before the listeners, on a real server. Settled by: a re-ask from the tracker in the seconds after the roller's reload, reading whether a roll window opens.",
+    "No test or scenario was found that would fail if these came back: the deleteToken tombstone (CASE-12), the refusal of words for another user's card (CASE-13 a), a bystander's trace elsewhere staying undecided (CASE-11, D5), the GM whisper after a noticed trap (CASE-10 c), the names of those still to vote (CASE-14). 'Not found' means a grep of test names and of the symbols in tests-tier0/1/2 and the scenarios, not a reading of their 194 222 lines.",
+    "The harness was not run by this reader: every 'pinned_by' is a test or check named in the source, and its result is the base run's to give.",
+    "Live checks 2 to 6 of case.md were never copied into section 7 or 9.2 of AUDIT-1.2.42.md, so no reading of them at a table exists; their statuses here come from the code alone.",
+    "CASE-10's note: whether a re-ask sent while the player's opening window is open draws a second window was read in the code (no refusal in throwOpeningRoll) and not driven."
+  ]
+}

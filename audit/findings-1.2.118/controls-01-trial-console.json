@@ -1,0 +1,1762 @@
+{
+  "reader": "controls-01-trial-console",
+  "read": [
+    {
+      "file": "scripts/trial-floor-ui.mjs",
+      "lines_read": 2045
+    },
+    {
+      "file": "scripts/trial.mjs",
+      "lines_read": 1432
+    },
+    {
+      "file": "scripts/trial-prompt.mjs",
+      "lines_read": 279
+    },
+    {
+      "file": "scripts/trial-speakers.mjs",
+      "lines_read": 60
+    },
+    {
+      "file": "scripts/case-trial.mjs",
+      "lines_read": 157
+    },
+    {
+      "file": "scripts/trial-floor.mjs",
+      "lines_read": 1776
+    },
+    {
+      "file": "scripts/trial-modes.mjs",
+      "lines_read": 472
+    },
+    {
+      "file": "scripts/ui-kit.mjs",
+      "lines_read": 760
+    },
+    {
+      "file": "scripts/live.mjs",
+      "lines_read": 320
+    },
+    {
+      "file": "scripts/vote.mjs",
+      "lines_read": 610
+    },
+    {
+      "file": "scripts/verdict.mjs",
+      "lines_read": 120
+    },
+    {
+      "file": "scripts/case-map.mjs",
+      "lines_read": 170
+    },
+    {
+      "file": "scripts/mastermind.mjs",
+      "lines_read": 220
+    },
+    {
+      "file": "scripts/trial-scene.mjs",
+      "lines_read": 160
+    },
+    {
+      "file": "scripts/bridge-table.mjs",
+      "lines_read": 120
+    },
+    {
+      "file": "scripts/bridge-asks.mjs",
+      "lines_read": 130
+    },
+    {
+      "file": "scripts/key-remnants.mjs",
+      "lines_read": 80
+    },
+    {
+      "file": "scripts/hud.mjs",
+      "lines_read": 123
+    }
+  ],
+  "surfaces": [
+    {
+      "surface": "the Class Trial console - 'Class Trial'",
+      "file": "scripts/trial-floor-ui.mjs",
+      "opener": "manageClassTrial:1586 (GM panel, gm-panel.mjs:267 and :452; game.drpg.manageClassTrial)",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Start the Class Trial",
+          "key": "DRPG.Floor.startTrial",
+          "kind": "button",
+          "selector": "footer data-action=start (primary while it is the next step)",
+          "handler": "scripts/trial-floor-ui.mjs:1531 TRIAL_ACTIONS.start -> startClassTrial:97",
+          "effect": "asks the Start window, then the open incident and the second-trial questions; setClock phase classTrial; the 'trial begins' card; the console opens again",
+          "gate": "GM; drawn only with no trial running; refused and told in an Eclipse (:110) and with nobody alive (:127)",
+          "how_read": "code; test R1364, R437; scenario 41",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "End the trial",
+          "key": "DRPG.Floor.endTrial",
+          "kind": "button",
+          "selector": "footer data-action=end (destructive, never the default)",
+          "handler": "scripts/trial-floor-ui.mjs:1532 TRIAL_ACTIONS.end -> endClassTrial:536 -> closeTrial:644",
+          "effect": "asks (askTrialEnd, or askTrialExit with a room when a hall is linked); the sentence is carried out, setClock phase dailyLife, the 'trial is over' card",
+          "gate": "GM; drawn while a trial runs; a write that throws is logged only and the console comes back with the trial running (:675-688)",
+          "how_read": "code; test R1364; tier 2 'the trial console names the next step in every state of the trial'",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Open the debate",
+          "key": "DRPG.Floor.openDebate",
+          "kind": "button",
+          "selector": "footer data-action=openDebate",
+          "handler": "scripts/trial-floor-ui.mjs:1533 -> openDebate:313",
+          "effect": "asks the length and the question, startFloor, remembers both, the 'debate opened' card",
+          "gate": "GM; a running trial with no floor and no debate to open again",
+          "how_read": "code; test R1364; scenario 88",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Open the debate again ({seconds} s left)",
+          "key": "DRPG.Floor.againAfterOverrule",
+          "kind": "button",
+          "selector": "footer data-action=openAgain",
+          "handler": "scripts/trial-floor-ui.mjs:1535 TRIAL_ACTIONS.openAgain -> openDebate",
+          "effect": "the debate with the seconds it had when the overruled Objection cut in, no window; with none left the length is asked",
+          "gate": "GM; after an Overrule made once its exchange was over",
+          "how_read": "code; test R1030; tier 2 E70-T5",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Open the debate again",
+          "key": "DRPG.Floor.againSame",
+          "kind": "button",
+          "selector": "footer data-action=reopen",
+          "handler": "scripts/trial-floor-ui.mjs:1541 -> reopenDebate:467",
+          "effect": "the same question and budget as the record holds, no window",
+          "gate": "GM; after an exchange closed the debate",
+          "how_read": "code; test R1030",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Close Debate",
+          "key": "DRPG.Floor.closeDebate",
+          "kind": "button",
+          "selector": "footer data-action=closeDebate",
+          "handler": "scripts/trial-floor-ui.mjs:1553 -> closeDebate:498 -> endFloor (scripts/trial-floor.mjs:1356)",
+          "effect": "the floor is emptied on the primary (op 'end'), the 'debate closed' card",
+          "gate": "GM; a floor of the debate's family; Enter is held while an Objection or its Rebuttal runs",
+          "how_read": "code; test R1364; tier 2 E70-T2",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "End the round",
+          "key": "DRPG.Floor.endRound",
+          "kind": "button",
+          "selector": "footer data-action=endRound",
+          "handler": "scripts/trial-floor-ui.mjs:1544 -> endMode (scripts/trial-floor.mjs:1557)",
+          "effect": "ends Testimony or the Panic Round (the bar's End this mode)",
+          "gate": "GM; a round on the floor; a refusal is told by barMay",
+          "how_read": "code; test R1364",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "End the Closing Argument",
+          "key": "DRPG.Floor.endClosing",
+          "kind": "button",
+          "selector": "footer data-action=endClosing",
+          "handler": "scripts/trial-floor-ui.mjs:1546 -> endMode (scripts/trial-floor.mjs:1557)",
+          "effect": "ends the Closing, in its exchange with no decision",
+          "gate": "GM; the Closing or its exchange on the floor",
+          "how_read": "code; test R1364, R1048",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "End this mode (footer)",
+          "key": "DRPG.Zones.end",
+          "kind": "button",
+          "selector": "footer data-action=endZone",
+          "handler": "scripts/trial-floor-ui.mjs:1552 -> endMode (scripts/trial-floor.mjs:1557)",
+          "effect": "ends the zone mode",
+          "gate": "GM; Straw Poll, Logic Dive or Scrum Debate on the floor",
+          "how_read": "code; scenario 68 ends a zone mode by endMode",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Scrum Debate (footer)",
+          "key": "DRPG.Floor.mode.scrum",
+          "kind": "button",
+          "selector": "footer data-action=zones (primary after a split Straw Poll)",
+          "handler": "scripts/trial-floor-ui.mjs:1548 TRIAL_ACTIONS.zones -> openZonePicker (scripts/trial-zones-ui.mjs:279)",
+          "effect": "opens the Hall zones window on Scrum Debate",
+          "gate": "GM; no floor and the record's Straw Poll split",
+          "how_read": "code; no test or scenario presses it",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "The vote",
+          "key": "DRPG.Vote.openTitle",
+          "kind": "button",
+          "selector": "footer data-action=vote",
+          "handler": "scripts/trial-floor-ui.mjs:1554 -> openVoteDialog:1898",
+          "effect": "opens the vote window; the console opens again after it",
+          "gate": "GM; drawn once a trial runs or its record stands; disabled with no trial running, the lead line says the trial has ended",
+          "how_read": "code; tier 2 'the vote window opens once and its count waits for ballots'; scenario 63",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "The verdict / Final Trial verdict",
+          "key": "DRPG.Vote.verdictTitle / DRPG.Mastermind.verdictTitle",
+          "kind": "button",
+          "selector": "footer data-action=verdict (primary)",
+          "handler": "scripts/trial-floor-ui.mjs:1562 TRIAL_ACTIONS.verdict -> openVerdictDialog (scripts/verdict.mjs:68) or openFinalVerdictDialog (scripts/verdict.mjs:1179)",
+          "effect": "opens the verdict's window; the Final Trial's flag is read at the press",
+          "gate": "GM; drawn only while it is the next step: vote counted, no floor, no verdict (the owner, 12.11.2026, in the source's note :1432)",
+          "how_read": "code; test R1364, R2050; scenario 63",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Finish the verdict",
+          "key": "DRPG.Vote.finishVerdict",
+          "kind": "button",
+          "selector": "footer data-action=finishVerdict",
+          "handler": "scripts/trial-floor-ui.mjs:1568 -> finishVerdict (scripts/verdict.mjs:1106)",
+          "effect": "on the verdict's runner: runs the steps left; on any other GM: a warning that names the runner",
+          "gate": "GM; drawn on every GM while a verdict stands stopped (:1447), enabled; the lead names the runner on a GM who is not it",
+          "how_read": "code; test R1364",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "wrong-audience",
+          "detail": "scripts/trial-floor-ui.mjs:1447-1450 draws it whenever `stopped`, whoever the runner is; scripts/verdict.mjs:1110-1113 refuses every GM but the runner. Finding controls-01-trial-console-8."
+        },
+        {
+          "label": "Show summary / Summary sent",
+          "key": "DRPG.CaseSummary.show / DRPG.CaseSummary.shown",
+          "kind": "button",
+          "selector": "footer data-action=caseSummary",
+          "handler": "scripts/trial-floor-ui.mjs:1555 -> showCaseSummary (scripts/case-summary.mjs:65)",
+          "effect": "opens the case summary to send to the players",
+          "gate": "GM; drawn whenever the trial's record stands; disabled before the verdict, in a Final Trial and once sent; no title and no line says why in the first two",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "silent",
+          "detail": "scripts/trial-floor-ui.mjs:1453-1454: `disabled: !progress.verdictApplied || Boolean(finalNow) || Boolean(progress.summaryShown)` with no tooltip. Finding controls-01-trial-console-12."
+        },
+        {
+          "label": "Replay the summary",
+          "key": "DRPG.CaseSummary.replay",
+          "kind": "button",
+          "selector": "footer data-action=caseSummaryReplay",
+          "handler": "scripts/trial-floor-ui.mjs:1556 -> replayCaseSummary (scripts/case-summary.mjs:117)",
+          "effect": "plays the board again on this GM's browser",
+          "gate": "GM; drawn once the summary is out, not in a Final Trial",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "End the chapter",
+          "key": "DRPG.Chapter.endTitle",
+          "kind": "button",
+          "selector": "footer data-action=chapterEnd (destructive)",
+          "handler": "scripts/trial-floor-ui.mjs:1807-1824 -> openChapterEndDialog (scripts/chapter.mjs)",
+          "effect": "opens the End of chapter window; the console comes back only when the chapter did not move",
+          "gate": "GM; drawn only while it is the next step (after the verdict and, in an ordinary trial, the summary)",
+          "how_read": "code; test R1364, R2050",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Show the hall / Back to school",
+          "key": "DRPG.TrialScene.showHall / DRPG.TrialScene.backToSchool",
+          "kind": "button",
+          "selector": "footer data-action=showHall | backToSchool",
+          "handler": "scripts/trial-floor-ui.mjs:1576, 1580 -> showCourtroom / showSchool (scripts/trial-scene.mjs:964, 974)",
+          "effect": "activates the hall or the scene the table left, the phase unchanged",
+          "gate": "GM; a running trial with a hall linked; refusals told (trial-scene.mjs:955-960, 976-979)",
+          "how_read": "code; test R437; scenario 41 k2",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Start the Final Trial / End the Final Trial",
+          "key": "DRPG.Mastermind.startFinalTrial / DRPG.Mastermind.endFinalTrial",
+          "kind": "button",
+          "selector": "footer data-action=toggleFinal",
+          "handler": "scripts/trial-floor-ui.mjs:1572 -> toggleFinalTrialFlag (scripts/mastermind.mjs:440)",
+          "effect": "asks, then setFinalTrial and its announcement",
+          "gate": "GM; Start is drawn with no trial running and End during a Final Trial; Start is disabled with the title 'No Mastermind set. Pick one in Season setup first.' while none is set",
+          "how_read": "code; test R1364, R2008",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "stale-state",
+          "detail": "the disabled look is read at a redraw of the console, and the console does not watch the store the pick is written to (scripts/trial-floor-ui.mjs:1674; scripts/mastermind.mjs:76-84). Finding controls-01-trial-console-5."
+        },
+        {
+          "label": "Close",
+          "key": "DRPG.Kit.close",
+          "kind": "button",
+          "selector": "footer data-action=close",
+          "handler": "Foundry's own close; scripts/trial-floor-ui.mjs:1805 answers null",
+          "effect": "closes the console",
+          "gate": "GM",
+          "how_read": "code; test R1364",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Nonstop Debate (mode picker)",
+          "key": "DRPG.Floor.mode.debate",
+          "kind": "button",
+          "selector": "[data-drpg-console=mode][data-drpg-mode-action=openDebate]",
+          "handler": "scripts/trial-floor-ui.mjs:1750-1756 -> TRIAL_ACTIONS.openDebate",
+          "effect": "opens the debate's window; greyed (aria-disabled) with any floor open, and a press says the title",
+          "gate": "GM; a running trial; greyed with a reason in its title",
+          "how_read": "code; tier 1 reads data-drpg-mode-action; scenario 88",
+          "themes": "no hiding rule found (grep drpg-trial with display:none|visibility:hidden|pointer-events:none in styles/*.css)",
+          "verdict": "mislabeled",
+          "detail": "scripts/trial-floor-ui.mjs:1135 gives 'The debate is already running.' for every floor, a round, the Closing and the zone modes among them. Finding controls-01-trial-console-11."
+        },
+        {
+          "label": "Testimony, Panic Round (mode picker, 2 buttons)",
+          "key": "DRPG.Floor.mode.testimony / DRPG.Floor.mode.panic",
+          "kind": "button",
+          "selector": "[data-drpg-console=mode][data-drpg-mode-action=startTestimony|startPanic]",
+          "handler": "scripts/trial-floor-ui.mjs:1750-1756 -> openRoundWindow:393",
+          "effect": "opens the round's start window",
+          "gate": "GM; greyed with 'Another mode holds the floor...' while a mode other than the debate runs; a press says it",
+          "how_read": "code; scenario 88",
+          "themes": "no hiding rule found (grep drpg-trial with display:none|visibility:hidden|pointer-events:none in styles/*.css)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Closing Argument (mode picker)",
+          "key": "DRPG.Floor.mode.closing",
+          "kind": "button",
+          "selector": "[data-drpg-console=mode][data-drpg-mode-action=startClosing]",
+          "handler": "scripts/trial-floor-ui.mjs:1750-1756 -> startClosing (scripts/trial-modes.mjs:281)",
+          "effect": "opens the volunteers' 30 s on the floor",
+          "gate": "GM; greyed once this trial had its Closing or while another mode runs, with the reason",
+          "how_read": "code; test R1048",
+          "themes": "no hiding rule found (grep drpg-trial with display:none|visibility:hidden|pointer-events:none in styles/*.css)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Straw Poll, Logic Dive, Scrum Debate (mode picker, 3 buttons)",
+          "key": "DRPG.Floor.mode.straw / .dive / .scrum",
+          "kind": "button",
+          "selector": "[data-drpg-console=mode][data-drpg-mode-action=zones][data-drpg-mode]",
+          "handler": "scripts/trial-floor-ui.mjs:1750-1756 -> TRIAL_ACTIONS.zones:1548 -> openZonePicker",
+          "effect": "opens the Hall zones window on the mode pressed",
+          "gate": "GM; greyed with no zones in the hall or another mode running, with the reason",
+          "how_read": "code; scenario 88 reads the picker",
+          "themes": "no hiding rule found (grep drpg-trial with display:none|visibility:hidden|pointer-events:none in styles/*.css)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Trial evidence log",
+          "key": "DRPG.Trial.logTitle",
+          "kind": "button",
+          "selector": "[data-drpg-console=log]",
+          "handler": "scripts/trial-floor-ui.mjs:1745-1748 -> openObjectionLog (scripts/trial.mjs:1607)",
+          "effect": "opens the log over the console; with nothing presented this chapter a warning says so",
+          "gate": "GM; a running trial",
+          "how_read": "code; test R1124",
+          "themes": "no hiding rule found (grep drpg-trial with display:none|visibility:hidden|pointer-events:none in styles/*.css)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Findings ({n})",
+          "key": "DRPG.Zones.findings.button",
+          "kind": "button",
+          "selector": "[data-drpg-console=findings]",
+          "handler": "scripts/trial-floor-ui.mjs:1758-1761 -> openFindings (scripts/trial-zones-ui.mjs:392)",
+          "effect": "opens the Findings window over the console",
+          "gate": "GM; a running trial",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep drpg-trial with display:none|visibility:hidden|pointer-events:none in styles/*.css)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Skip (in a Scrum Debate: Sides set / End the confer)",
+          "key": "DRPG.Floor.bar.skip",
+          "kind": "button",
+          "selector": "[data-drpg-bar=skip]",
+          "handler": "scripts/trial-floor-ui.mjs:1081 runBarOp -> skipStep (scripts/trial-floor.mjs:1452) -> advanceFloorNow:1578 (request floor.now)",
+          "effect": "the running turn is over now, on the primary; a floor that moved on is told",
+          "gate": "GM; drawn while a trial runs; greyed (aria-disabled, title) by barRefusal, and a press says the reason",
+          "how_read": "code; tier 2 E70-T2 presses [data-drpg-bar]; E70-T4",
+          "themes": "no hiding rule found (grep drpg-trial with display:none|visibility:hidden|pointer-events:none in styles/*.css)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "-30 s, +30 s (2 buttons; 5 s in a Panic Round)",
+          "key": "DRPG.Floor.bar.minus / DRPG.Floor.bar.plus",
+          "kind": "button",
+          "selector": "[data-drpg-bar=minus|plus]",
+          "handler": "scripts/trial-floor-ui.mjs:1081 runBarOp -> adjustTime (scripts/trial-floor.mjs:1458)",
+          "effect": "moves the running mode's clock on the primary (op 'adjust')",
+          "gate": "GM; greyed with its reason where the mode has no clock to move",
+          "how_read": "code; tier 2 E70-T2, '+30 seconds on an overrun debate leaves thirty seconds on the clock'",
+          "themes": "no hiding rule found (grep drpg-trial with display:none|visibility:hidden|pointer-events:none in styles/*.css)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Overrule",
+          "key": "DRPG.Floor.bar.overrule",
+          "kind": "button",
+          "selector": "[data-drpg-bar=overrule][data-drpg-target]",
+          "handler": "scripts/trial-floor-ui.mjs:1775 runBarOp -> overruleObjection (scripts/trial-floor.mjs:1492)",
+          "effect": "the Objection the button named is overruled on the primary; its card and receipt are marked",
+          "gate": "GM; greyed with its reason when there is none to overrule",
+          "how_read": "code; tier 2 E70-T5 and 'the console holds Enter while an Objection runs, its Overrule names the Objection it drew...'",
+          "themes": "no hiding rule found (grep drpg-trial with display:none|visibility:hidden|pointer-events:none in styles/*.css)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "End this mode (bar)",
+          "key": "DRPG.Floor.bar.endMode",
+          "kind": "button",
+          "selector": "[data-drpg-bar=endMode]",
+          "handler": "scripts/trial-floor-ui.mjs:1081 runBarOp -> endMode (scripts/trial-floor.mjs:1557)",
+          "effect": "ends the mode on the floor",
+          "gate": "GM; greyed with no floor",
+          "how_read": "code; tier 2 E70-T2, E70-T4",
+          "themes": "no hiding rule found (grep drpg-trial with display:none|visibility:hidden|pointer-events:none in styles/*.css)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Back to the debate",
+          "key": "DRPG.Floor.backToDebate",
+          "kind": "button",
+          "selector": "[data-drpg-bar=back]",
+          "handler": "scripts/trial-floor-ui.mjs:1081 runBarOp -> returnToDebate (scripts/trial-floor.mjs:1295)",
+          "effect": "the debate again with the time it had when the Objection cut in",
+          "gate": "GM; greyed with its reason in a debate, a round and the Closing",
+          "how_read": "code; tier 2 E70-T3",
+          "themes": "no hiding rule found (grep drpg-trial with display:none|visibility:hidden|pointer-events:none in styles/*.css)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Re-point (bar)",
+          "key": "DRPG.Floor.repoint",
+          "kind": "button",
+          "selector": "[data-drpg-bar=repoint]",
+          "handler": "scripts/trial-floor-ui.mjs:896 BAR_ACTIONS.repoint -> repointDialog (scripts/trial.mjs:1522)",
+          "effect": "opens the Re-point window",
+          "gate": "GM; greyed outside an Objection and its Rebuttal",
+          "how_read": "code; tier 2 'a GM's Re-point moves a running Objection's target...'",
+          "themes": "no hiding rule found (grep drpg-trial with display:none|visibility:hidden|pointer-events:none in styles/*.css)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Count now, Skip question (2 buttons)",
+          "key": "DRPG.Floor.bar.count / DRPG.Floor.bar.skipQuestion",
+          "kind": "button",
+          "selector": "[data-drpg-bar=count|skipQuestion]",
+          "handler": "scripts/trial-floor-ui.mjs:1081 runBarOp -> countNow / skipQuestion (scripts/trial-zones.mjs:299, 306)",
+          "effect": "a Straw Poll or a Logic Dive question counted now; the next question",
+          "gate": "GM; drawn only in a zone mode (Skip question in Logic Dive)",
+          "how_read": "code; scenario 68 runs the count; nothing presses Skip question",
+          "themes": "no hiding rule found (grep drpg-trial with display:none|visibility:hidden|pointer-events:none in styles/*.css)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Confirm the speaker",
+          "key": "DRPG.Floor.closing.confirm",
+          "kind": "button",
+          "selector": "[data-drpg-bar=closing][data-drpg-closing=confirm]",
+          "handler": "scripts/trial-floor-ui.mjs:1073 runClosingOp -> confirmClosingSpeaker (scripts/trial-modes.mjs:294) -> closingCall:265",
+          "effect": "the drawn volunteer speaks (op closingConfirm on the primary)",
+          "gate": "GM; drawn while the Closing waits with a drawn speaker",
+          "how_read": "code; test R1048 (the markup)",
+          "themes": "no hiding rule found (grep drpg-trial with display:none|visibility:hidden|pointer-events:none in styles/*.css)",
+          "verdict": "silent",
+          "detail": "a refusal is told as 'The Closing Argument did not change.' and never its reason. Finding controls-01-trial-console-3."
+        },
+        {
+          "label": "Pick a speaker / Pick someone else",
+          "key": "DRPG.Floor.closing.pick / DRPG.Floor.closing.pickOther",
+          "kind": "button",
+          "selector": "[data-drpg-bar=closing][data-drpg-closing=pick]",
+          "handler": "scripts/trial-floor-ui.mjs:1073 runClosingOp -> pickClosingDialog:982",
+          "effect": "opens the pick window",
+          "gate": "GM; drawn while the Closing waits for a speaker",
+          "how_read": "code; test R1048 (the markup)",
+          "themes": "no hiding rule found (grep drpg-trial with display:none|visibility:hidden|pointer-events:none in styles/*.css)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "{name} ({m:ss}) - who continues",
+          "key": "literal (the actor's name and time)",
+          "kind": "button",
+          "selector": "[data-drpg-bar=closing][data-drpg-closing=continue][data-drpg-actor]",
+          "handler": "scripts/trial-floor-ui.mjs:1073 runClosingOp -> continueClosing (scripts/trial-modes.mjs:307)",
+          "effect": "that speaker continues (op closingContinue)",
+          "gate": "GM; drawn at the decision after an exchange",
+          "how_read": "code; test R1048 (the markup)",
+          "themes": "no hiding rule found (grep drpg-trial with display:none|visibility:hidden|pointer-events:none in styles/*.css)",
+          "verdict": "silent",
+          "detail": "as Confirm the speaker. Finding controls-01-trial-console-3."
+        },
+        {
+          "label": "Resume the Closing Argument: {name} ({time})",
+          "key": "DRPG.Floor.closing.resume",
+          "kind": "button",
+          "selector": "[data-drpg-bar=closing][data-drpg-closing=resume]",
+          "handler": "scripts/trial-floor-ui.mjs:1073 runClosingOp -> resumeClosing (scripts/trial-modes.mjs:312)",
+          "effect": "the last speaker again with the seconds left (op closingResume)",
+          "gate": "GM; drawn with no floor, the Closing done, seconds left and no vote opened",
+          "how_read": "code; test R1048 (the markup)",
+          "themes": "no hiding rule found (grep drpg-trial with display:none|visibility:hidden|pointer-events:none in styles/*.css)",
+          "verdict": "silent",
+          "detail": "as Confirm the speaker. Finding controls-01-trial-console-3."
+        },
+        {
+          "label": "Reveal (a row of Missing Key Remnants)",
+          "key": "DRPG.Reveal.button",
+          "kind": "row-button",
+          "selector": "[data-drpg-bar=reveal][data-drpg-reveal]",
+          "handler": "scripts/trial-floor-ui.mjs:1769-1772 -> revealFromConsole:1060 -> confirmReveal:1039 -> revealMissingKey (scripts/trial-modes.mjs:409)",
+          "effect": "asks, then a copy to every participant, the trace shown and the row kept as revealed, on the primary",
+          "gate": "GM; a running trial with a row to reveal; refusals told (trial-modes.mjs:394-401, 412-419)",
+          "how_read": "code; test R1044, R1048",
+          "themes": "no hiding rule found (grep drpg-trial with display:none|visibility:hidden|pointer-events:none in styles/*.css)",
+          "verdict": "stale-state",
+          "detail": "with no floor open nothing redraws the list after a Reveal; the row and its count stay. Finding controls-01-trial-console-6 (suspected)."
+        },
+        {
+          "label": "? (header)",
+          "key": "DRPG.Help.gm",
+          "kind": "button",
+          "selector": ".window-header > .drpg-help-button",
+          "handler": "scripts/ui-kit.mjs:1261 -> openHandbooks('gm-handbook', section 15)",
+          "effect": "opens the GM handbook at section 15, The Class Trial",
+          "gate": "GM",
+          "how_read": "code; test R6601",
+          "themes": "no hiding rule found (grep drpg-help-button with display:none|visibility:hidden|pointer-events:none)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Enter (key)",
+          "key": "literal",
+          "kind": "key",
+          "selector": "keydown on the window, capture phase",
+          "handler": "scripts/trial-floor-ui.mjs:1780-1784, exchangeRuns:881",
+          "effect": "while a trial runs with any mode but the debate on the floor, Enter is stopped for the whole window",
+          "gate": "GM",
+          "how_read": "code; tier 2 'the console holds Enter while an Objection runs...' (dispatched on a button)",
+          "themes": "not a matter of themes",
+          "verdict": "dead",
+          "detail": "the hold is meant for the footer's default; it also stops Enter on a focused bar or footer button. Finding controls-01-trial-console-13 (suspected)."
+        }
+      ]
+    },
+    {
+      "surface": "the case schema in the console's slot - 'Case schema'",
+      "file": "scripts/case-trial.mjs",
+      "opener": "mountTrialSchema:135, called at the console's render (scripts/trial-floor-ui.mjs:1637)",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Ticked: {name} (a check mark on a node)",
+          "key": "DRPG.CaseTrial.tickLabel",
+          "kind": "toggle",
+          "selector": "button.drpg-case-node-tick[data-drpg-case-tick]",
+          "handler": "scripts/case-trial.mjs:107-111 -> tickFromSchema:72 -> setCaseTick (scripts/case-schema.mjs:627)",
+          "effect": "writes the GMs' tick for the node; the region is redrawn from the tick store",
+          "gate": "any GM; only while a Class Trial runs; on deductions, counters and the solution",
+          "how_read": "code; tier 2 'E99 C5: the case schema stands in the middle of the trial console... and its tick box writes the GMs' ticks'",
+          "themes": "no hiding rule found (grep drpg-case-node-tick, drpg-case-node-start, drpg-case-fold, drpg-case-camera, drpg-case-trial with display:none|visibility:hidden|pointer-events:none; the one hit hides a node being edited on the Map, components.css:2797)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Start {mode} from {name} (a triangle on a node)",
+          "key": "DRPG.CaseTrial.startLabel",
+          "kind": "button",
+          "selector": "button.drpg-case-node-start[data-drpg-case-start][data-drpg-case-start-node]",
+          "handler": "scripts/case-trial.mjs:113-117 -> startFromNode:151 -> startTrialMode (scripts/trial-floor-ui.mjs:1836)",
+          "effect": "the console's own start of the node's mode, the node's planned minigame handed to the zones' window",
+          "gate": "any GM; a running trial; disabled with the title 'Another mode is running. End it first.' while any floor is open",
+          "how_read": "code; tier 2 E99 C5 tests read the start's markup",
+          "themes": "no hiding rule found (grep drpg-case-node-tick, drpg-case-node-start, drpg-case-fold, drpg-case-camera, drpg-case-trial with display:none|visibility:hidden|pointer-events:none; the one hit hides a node being edited on the Map, components.css:2797)",
+          "verdict": "mislabeled",
+          "detail": "scripts/case-trial.mjs:52-53, 66 grey it for every open floor, a Nonstop Debate too, from which the mode picker starts the same mode. Finding controls-01-trial-console-9."
+        },
+        {
+          "label": "Not tied to the murder: {n}",
+          "key": "DRPG.CaseMap.unrelated",
+          "kind": "button",
+          "selector": "button.drpg-case-fold[data-drpg-case-fold] (aria-expanded=false)",
+          "handler": "scripts/case-map.mjs:495 -> onFold, whose default is `() => {}` (:445); case-trial.mjs:98 hands wireCaseMap the camera alone",
+          "effect": "none: nothing unfolds and nothing is said",
+          "gate": "any GM; drawn whenever the chapter's case has evidence not tied to the murder",
+          "how_read": "code; tier 0 reads its aria-expanded only; no test presses it in the console",
+          "themes": "no hiding rule found (grep drpg-case-node-tick, drpg-case-node-start, drpg-case-fold, drpg-case-camera, drpg-case-trial with display:none|visibility:hidden|pointer-events:none; the one hit hides a node being edited on the Map, components.css:2797)",
+          "verdict": "dead",
+          "detail": "Finding controls-01-trial-console-1."
+        },
+        {
+          "label": "Zoom out, Zoom in, Fit to view (3 buttons)",
+          "key": "DRPG.CaseMap.zoomOut / DRPG.CaseMap.zoomIn / DRPG.CaseMap.zoomFit",
+          "kind": "button",
+          "selector": ".drpg-case-camera [data-drpg-case-camera=out|in|fit]",
+          "handler": "scripts/case-map.mjs:481-486",
+          "effect": "moves this browser's camera over the schema; nothing is written",
+          "gate": "any GM",
+          "how_read": "code; audit/case-map-sweep.mjs (not run)",
+          "themes": "no hiding rule found (grep drpg-case-node-tick, drpg-case-node-start, drpg-case-fold, drpg-case-camera, drpg-case-trial with display:none|visibility:hidden|pointer-events:none; the one hit hides a node being edited on the Map, components.css:2797)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "a node's tile",
+          "key": "literal (the node's name)",
+          "kind": "tile",
+          "selector": "button.drpg-case-node[data-drpg-node]",
+          "handler": "scripts/case-map.mjs:508-509 -> onPick, default `() => {}`",
+          "effect": "a press opens nothing, by design: the console's schema is read only (case-trial.mjs:88-90); focus and the arrows walk the tiles",
+          "gate": "any GM",
+          "how_read": "code; tier 2 'E99 C5 round 4: before a Class Trial runs, the console's schema is the schema alone...'",
+          "themes": "no hiding rule found (grep drpg-case-node-tick, drpg-case-node-start, drpg-case-fold, drpg-case-camera, drpg-case-trial with display:none|visibility:hidden|pointer-events:none; the one hit hides a node being edited on the Map, components.css:2797)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "the Start question - 'Start the Class Trial'",
+      "file": "scripts/trial-floor-ui.mjs",
+      "opener": "startClassTrial:153",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "In the hall (a switch per cast actor)",
+          "key": "DRPG.TrialScene.castWho",
+          "kind": "toggle",
+          "selector": "[data-drpg-cast] input[type=checkbox][name^='cast:']",
+          "handler": "read at Start by readCastPicker (scripts/trial-scene.mjs:1327), saved at scripts/trial-floor-ui.mjs:181",
+          "effect": "the ticks the GM changed are stored before the phase moves",
+          "gate": "GM; only with a trial hall linked",
+          "how_read": "code; scenario 41 k1; test R437",
+          "themes": "no hiding rule found (grep the window's class and drpg-kit-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Start the Class Trial",
+          "key": "DRPG.Floor.startTrial",
+          "kind": "button",
+          "selector": "footer primary data-action=ok",
+          "handler": "scripts/trial-floor-ui.mjs:170 callback; :177-196",
+          "effect": "goes on to the two questions and the phase write",
+          "gate": "GM",
+          "how_read": "code; scenario 41",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer data-action=cancel",
+          "handler": "scripts/trial-floor-ui.mjs:177",
+          "effect": "nothing is stored and nothing starts",
+          "gate": "GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "the second trial's question - 'Open a new trial'",
+      "file": "scripts/trial-floor-ui.mjs",
+      "opener": "confirmNewTrial:234",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Open a new trial",
+          "key": "DRPG.Floor.newTrialTitle",
+          "kind": "button",
+          "selector": "footer destructive data-action=ok",
+          "handler": "scripts/trial-floor-ui.mjs:239, :245",
+          "effect": "answers yes: the trial opens and the verdict's lock is blanked",
+          "gate": "GM; asked only in a chapter with a verdict; never the default",
+          "how_read": "code; tier 2 're-entering the trial after a verdict asks and Cancel keeps the lock'; scenario 63 H",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer data-action=cancel (default)",
+          "handler": "scripts/trial-floor-ui.mjs:245",
+          "effect": "keeps the verdict; no trial opens",
+          "gate": "GM",
+          "how_read": "code; same test",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "the open incident's question - 'An incident is still open'",
+      "file": "scripts/trial-floor-ui.mjs",
+      "opener": "incidentClosedFirst:269 (Start the Class Trial, Send the ballots, End of chapter)",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Go on with it open",
+          "key": "DRPG.Floor.incidentKeep",
+          "kind": "button",
+          "selector": "footer secondary data-action=keep",
+          "handler": "scripts/trial-floor-ui.mjs:281",
+          "effect": "answers true: the caller goes on",
+          "gate": "GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "End the murder",
+          "key": "DRPG.Murder.endMurder",
+          "kind": "button",
+          "selector": "footer destructive data-action=endMurder",
+          "handler": "scripts/trial-floor-ui.mjs:282-284 -> endMurder (scripts/murder-rules.mjs:3405)",
+          "effect": "closes the incident, then goes on only when it is gone",
+          "gate": "GM; never the default; its action is not 'close' (the note at :265)",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer data-action=cancel (default)",
+          "handler": "scripts/trial-floor-ui.mjs:282",
+          "effect": "answers false: nothing opens",
+          "gate": "GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "the debate's start window - 'Open the debate'",
+      "file": "scripts/trial-floor-ui.mjs",
+      "opener": "openDebate:336",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Debate length (seconds): the field and its -10 / +10",
+          "key": "DRPG.Floor.seconds",
+          "kind": "stepper",
+          "selector": ".drpg-kit-stepper button[data-drpg-step], input[name=seconds]",
+          "handler": "scripts/ui-kit.mjs:856 wireStepper; read at the press :352",
+          "effect": "the length the debate opens with, at least 30 s (debateSeconds)",
+          "gate": "GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep the window's class and drpg-kit-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Open the debate",
+          "key": "DRPG.Floor.openDebate",
+          "kind": "button",
+          "selector": "footer primary data-action=ok",
+          "handler": "scripts/trial-floor-ui.mjs:349-355, :360-383",
+          "effect": "startFloor with the length and the question; card",
+          "gate": "GM",
+          "how_read": "code; scenario 88",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer data-action=cancel",
+          "handler": "scripts/trial-floor-ui.mjs:360",
+          "effect": "no debate opens",
+          "gate": "GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "the round's start window - 'Testimony' / 'Panic Round'",
+      "file": "scripts/trial-floor-ui.mjs",
+      "opener": "openRoundWindow:409",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Seconds per turn: the field and its - / +",
+          "key": "DRPG.Floor.roundWindow.seconds",
+          "kind": "stepper",
+          "selector": ".drpg-kit-stepper button[data-drpg-step], input[name=seconds]",
+          "handler": "scripts/ui-kit.mjs:856 wireStepper (sends input); scripts/trial-floor-ui.mjs:431 repaints the round's whole length",
+          "effect": "the turn's seconds, held to the mode's range at the press (:448)",
+          "gate": "GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep the window's class and drpg-kit-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Move up (a button on each row)",
+          "key": "DRPG.Floor.roundWindow.up",
+          "kind": "row-button",
+          "selector": ".drpg-round-order li button[data-drpg-round-up]",
+          "handler": "scripts/trial-floor-ui.mjs:432-435",
+          "effect": "the row changes places with the one above it",
+          "gate": "GM; drawn on every row, the first too",
+          "how_read": "code; no test presses it",
+          "themes": "no hiding rule found (grep drpg-round with display:none|visibility:hidden|pointer-events:none)",
+          "verdict": "stale-state",
+          "detail": "the first row's button looks as the others and can move nothing (scripts/trial-floor-ui.mjs:434). Finding controls-01-trial-console-14."
+        },
+        {
+          "label": "Draw a new order",
+          "key": "DRPG.Floor.roundWindow.draw",
+          "kind": "button",
+          "selector": "button[data-drpg-round-draw]",
+          "handler": "scripts/trial-floor-ui.mjs:436-441",
+          "effect": "the rows are put in a new random order",
+          "gate": "GM",
+          "how_read": "code; no test presses it",
+          "themes": "no hiding rule found (grep drpg-round with display:none|visibility:hidden|pointer-events:none)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Start the round",
+          "key": "DRPG.Floor.roundWindow.start",
+          "kind": "button",
+          "selector": "footer primary data-action=ok",
+          "handler": "scripts/trial-floor-ui.mjs:445-451, :457 -> startTestimony / startPanicRound (scripts/trial-modes.mjs:124, 129)",
+          "effect": "the round starts on the primary with the seconds and the order; a refused start is told (trial-modes.mjs:94-103)",
+          "gate": "GM",
+          "how_read": "code; scenario 88",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer data-action=cancel",
+          "handler": "scripts/trial-floor-ui.mjs:456",
+          "effect": "no round starts",
+          "gate": "GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "End the trial's question - 'End the trial'",
+      "file": "scripts/trial-floor-ui.mjs",
+      "opener": "askTrialEnd:584 (no hall linked), askTrialExit:602 (a hall linked)",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Room (select; only with a hall linked)",
+          "key": "DRPG.Floor.endTrialRoom",
+          "kind": "select",
+          "selector": "select[name=room]",
+          "handler": "read at the press, scripts/trial-floor-ui.mjs:615-618",
+          "effect": "the room the living are moved to as the trial ends",
+          "gate": "GM",
+          "how_read": "code; test R1364",
+          "themes": "no hiding rule found (grep the window's class and drpg-kit-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "End the trial",
+          "key": "DRPG.Floor.endTrial",
+          "kind": "button",
+          "selector": "footer destructive (data-action=yes in askTrialEnd, ok in askTrialExit)",
+          "handler": "scripts/trial-floor-ui.mjs:589, :613-619; endClassTrial:567-574",
+          "effect": "closeTrial runs",
+          "gate": "GM; never the default",
+          "how_read": "code; test R1364",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer data-action=cancel (default)",
+          "handler": "scripts/trial-floor-ui.mjs:569, :572",
+          "effect": "the trial goes on",
+          "gate": "GM",
+          "how_read": "code; test R1364",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "the Closing's pick window - 'Closing Argument'",
+      "file": "scripts/trial-floor-ui.mjs",
+      "opener": "pickClosingDialog:996",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Who gives the Closing Argument (select)",
+          "key": "DRPG.Floor.closing.pickLabel",
+          "kind": "select",
+          "selector": "select[name=actor]",
+          "handler": "read at the press, scripts/trial-floor-ui.mjs:1003",
+          "effect": "the participant picked",
+          "gate": "GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep the window's class and drpg-kit-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Pick a speaker",
+          "key": "DRPG.Floor.closing.pick",
+          "kind": "button",
+          "selector": "footer primary data-action=ok",
+          "handler": "scripts/trial-floor-ui.mjs:1002-1003, :1009 -> pickClosingSpeaker (scripts/trial-modes.mjs:299) -> closingCall:265",
+          "effect": "that participant speaks (op closingPick on the primary)",
+          "gate": "GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "silent",
+          "detail": "a refusal is told as 'The Closing Argument did not change.' with no reason. Finding controls-01-trial-console-3."
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer data-action=cancel",
+          "handler": "scripts/trial-floor-ui.mjs:1008",
+          "effect": "nobody is picked",
+          "gate": "GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "the Reveal's confirmation - 'Monokuma's Reveal'",
+      "file": "scripts/trial-floor-ui.mjs",
+      "opener": "confirmReveal:1046",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "What the players read (a box, only where the row has no words)",
+          "key": "DRPG.Reveal.textLabel",
+          "kind": "field-with-effect",
+          "selector": "textarea[name=text]",
+          "handler": "read at the press, scripts/trial-floor-ui.mjs:1053",
+          "effect": "the words on every copy; left empty, the Reveal is refused and told ('Write what the players read on this Key Remnant first.')",
+          "gate": "GM",
+          "how_read": "code; test R1044",
+          "themes": "no hiding rule found (grep the window's class and drpg-kit-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Reveal",
+          "key": "DRPG.Reveal.button",
+          "kind": "button",
+          "selector": "footer destructive data-action=reveal",
+          "handler": "scripts/trial-floor-ui.mjs:1052-1053, :1067-1069 -> revealMissingKey (scripts/trial-modes.mjs:409)",
+          "effect": "the Reveal on the primary",
+          "gate": "GM; never the default",
+          "how_read": "code; test R1044, R1365",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer data-action=cancel (default)",
+          "handler": "scripts/trial-floor-ui.mjs:1056, :1068",
+          "effect": "nothing is revealed",
+          "gate": "GM",
+          "how_read": "code; test R1044",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "the vote window - 'The vote'",
+      "file": "scripts/trial-floor-ui.mjs",
+      "opener": "openVoteDialog:1975 (the console's The vote)",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Send the ballots / Start the vote over",
+          "key": "DRPG.Vote.send / DRPG.Vote.sendAgain",
+          "kind": "button",
+          "selector": "footer data-action=open (primary before a vote, secondary during one)",
+          "handler": "scripts/trial-floor-ui.mjs:1997-2037 -> incidentClosedFirst:262, the restart's question, openVote (scripts/vote.mjs:308)",
+          "effect": "a round opens on the primary and the ballots go out; statuses told (vote.mjs:79-82, 345)",
+          "gate": "GM; disabled while nobody would be handed a ballot: before a vote the body says so, during one no line does",
+          "how_read": "code; tier 2 'the vote window opens once and its count waits for ballots'; scenario 63, 88",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Send another ballot ({n})",
+          "key": "DRPG.Vote.remind",
+          "kind": "button",
+          "selector": "footer data-action=remind",
+          "handler": "scripts/trial-floor-ui.mjs:2039-2042 -> remindVoters (scripts/vote.mjs:329)",
+          "effect": "a fresh ballot to those who have not answered; a toast with the count; the window opens again",
+          "gate": "GM; drawn while somebody is still out",
+          "how_read": "code; no scenario presses it",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Close and count",
+          "key": "DRPG.Vote.tally",
+          "kind": "button",
+          "selector": "footer destructive data-action=tally",
+          "handler": "scripts/trial-floor-ui.mjs:2043 -> closeVote (scripts/vote.mjs:318)",
+          "effect": "the vote is closed and counted on the primary; the count's card",
+          "gate": "GM; disabled with no vote open, and the body says to send the ballots first; never the default",
+          "how_read": "code; scenario 63, 88",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer data-action=cancel",
+          "handler": "scripts/trial-floor-ui.mjs:2044",
+          "effect": "closes the window; the console opens again",
+          "gate": "GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Start the vote over (the question before a restart) and its Cancel",
+          "key": "DRPG.Vote.sendAgain",
+          "kind": "button",
+          "selector": "drpgConfirm: destructive data-action=yes; cancel the default",
+          "handler": "scripts/trial-floor-ui.mjs:2027-2035",
+          "effect": "yes: the restart goes on; Cancel: the vote window opens again",
+          "gate": "GM; asked when a ballot is back or this browser cannot count them",
+          "how_read": "code; tier 2 'Start the vote over asks first on a GM whose copy of the ballots is not ready'",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "the Re-point window - 'Re-point'",
+      "file": "scripts/trial.mjs",
+      "opener": "repointDialog:1538 (the bar's Re-point)",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Aim the Objection at (select)",
+          "key": "DRPG.Floor.repointTo",
+          "kind": "select",
+          "selector": "select[name=target]",
+          "handler": "read at the press, scripts/trial.mjs:1548",
+          "effect": "the new target; it opens on the current one",
+          "gate": "GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep the window's class and drpg-kit-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Re-point",
+          "key": "DRPG.Floor.repoint",
+          "kind": "button",
+          "selector": "footer primary data-action=repoint",
+          "handler": "scripts/trial.mjs:1547-1548, :1554-1556 -> requestRepoint (scripts/bridge-asks.mjs:325) -> repointOnPrimary:1281",
+          "effect": "the floor's target, the card's line and the receipt follow, on the primary",
+          "gate": "GM",
+          "how_read": "code; tier 2 'a GM's Re-point moves a running Objection's target...'; test R7101",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "mislabeled",
+          "detail": "pressed on the target the window opens on, it is refused as 'You cannot do that right now.'; the written reason is never shown. Finding controls-01-trial-console-7."
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer data-action=cancel",
+          "handler": "scripts/trial.mjs:1553",
+          "effect": "nothing changes",
+          "gate": "GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "the Objections window - 'Trial evidence log'",
+      "file": "scripts/trial.mjs",
+      "opener": "openObjectionLog:1687 (the console's log button, the Investigation dashboard, game.drpg.objectionLog)",
+      "audience": "gm",
+      "controls": [
+        {
+          "label": "Overrule (on the row of the Objection an Overrule would take now)",
+          "key": "DRPG.Floor.bar.overrule",
+          "kind": "row-button",
+          "selector": "table.drpg-objection-log button[data-drpg-overrule]",
+          "handler": "scripts/trial.mjs:1697-1702 -> overruleObjection (scripts/trial-floor.mjs:1492)",
+          "effect": "as the bar's Overrule, for that card; a refusal is told",
+          "gate": "GM; drawn on one row at most",
+          "how_read": "code; no test or scenario presses it",
+          "themes": "no hiding rule found (grep drpg-objection with display:none|visibility:hidden|pointer-events:none)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Close",
+          "key": "DRPG.Kit.close",
+          "kind": "button",
+          "selector": "footer data-action=close",
+          "handler": "Foundry's own close",
+          "effect": "closes the log",
+          "gate": "GM",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "the Present window - 'Present {name}'",
+      "file": "scripts/trial.mjs",
+      "opener": "presentDialog:192 (the sheet's Present on a Truth Bullet)",
+      "audience": "player",
+      "controls": [
+        {
+          "label": "Show it with my Analyze result (a box, only where there is one to hide)",
+          "key": "DRPG.Trial.presentWithAnalysis",
+          "kind": "toggle",
+          "selector": "input[name=analysis]",
+          "handler": "read at the press, scripts/trial.mjs:246-249",
+          "effect": "the card with or without the Analyze result",
+          "gate": "the holder",
+          "how_read": "code; test R1045",
+          "themes": "no hiding rule found (grep the window's class and drpg-kit-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Present",
+          "key": "DRPG.Trial.present",
+          "kind": "button",
+          "selector": "footer primary data-action=present",
+          "handler": "scripts/trial.mjs:209-216, :225-232 -> requestPresent (scripts/bridge-asks.mjs:391) -> presentOnPrimary:377",
+          "effect": "the primary posts the card and hands out the copies; a toast says it went out; a refusal is the bridge's to say",
+          "gate": "the holder; refused before the window outside a trial, for the dead and out of turn, each told (:154-186)",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer data-action=cancel",
+          "handler": "scripts/trial.mjs:222",
+          "effect": "nothing is presented",
+          "gate": "the holder",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "the Objection's target question - 'OBJECTION!'",
+      "file": "scripts/trial.mjs",
+      "opener": "nameObjectionTarget:1390 (only when the primary GM has no voice Room)",
+      "audience": "player",
+      "controls": [
+        {
+          "label": "Who are you contradicting? (select)",
+          "key": "DRPG.Trial.objectionTarget",
+          "kind": "select",
+          "selector": "select[name=target]",
+          "handler": "read at the press, scripts/trial.mjs:1405",
+          "effect": "the student named",
+          "gate": "the objector",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep the window's class and drpg-kit-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "OBJECTION!",
+          "key": "DRPG.Trial.objection",
+          "kind": "button",
+          "selector": "footer primary data-action=object",
+          "handler": "scripts/trial.mjs:1404-1405; raiseObjection:1353-1356",
+          "effect": "the Objection is asked again with the name",
+          "gate": "the objector",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer data-action=cancel",
+          "handler": "scripts/trial.mjs:1410, :1354",
+          "effect": "nothing is raised and nothing was paid",
+          "gate": "the objector",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "the Objection's Truth Bullet picker - 'OBJECTION! Choose your Truth Bullet'",
+      "file": "scripts/trial.mjs",
+      "opener": "pickObjectionEvidence:1440 (after a raised Objection)",
+      "audience": "player",
+      "controls": [
+        {
+          "label": "Truth Bullet (select)",
+          "key": "DRPG.Trial.objectionPickLabel",
+          "kind": "select",
+          "selector": "select[name=item]",
+          "handler": "read at the press, scripts/trial.mjs:1458",
+          "effect": "the bullet put on the card",
+          "gate": "the objector",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep the window's class and drpg-kit-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Show it with my Analyze result (a box, only where there is one to hide)",
+          "key": "DRPG.Trial.presentWithAnalysis",
+          "kind": "toggle",
+          "selector": "input[name=analysis]",
+          "handler": "read at the press, scripts/trial.mjs:1460",
+          "effect": "the card with or without the Analyze result",
+          "gate": "the objector",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep the window's class and drpg-kit-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "OBJECTION!",
+          "key": "DRPG.Trial.objection",
+          "kind": "button",
+          "selector": "footer primary data-action=evidence",
+          "handler": "scripts/trial.mjs:1485-1489, :1457-1461; raiseObjection:1367 -> requestEvidence (scripts/bridge-asks.mjs:303) -> evidenceOnPrimary:1193",
+          "effect": "the card is filled and the minute starts, on the primary; a refusal is the bridge's to say",
+          "gate": "the objector",
+          "how_read": "code; test R1365; tier 2 'a pending Objection's seconds are the floor's...'",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel, the X, and the seconds running out",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer data-action=cancel; the window closes itself at zero (:1464-1471)",
+          "handler": "scripts/trial.mjs:1475; raiseObjection:1360-1365 -> requestWithdraw",
+          "effect": "the Objection is withdrawn, its price kept, as the window warns",
+          "gate": "the objector",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "the speaker's prompt - 'Your turn ({seconds} s)'",
+      "file": "scripts/trial-prompt.mjs",
+      "opener": "promptTurn:189 (the participant's clock, tick:244)",
+      "audience": "player",
+      "controls": [
+        {
+          "label": "Keep speaking",
+          "key": "DRPG.Trial.turn.keep",
+          "kind": "button",
+          "selector": "footer primary data-action=keep",
+          "handler": "scripts/trial-prompt.mjs:217 (returns; nothing is asked)",
+          "effect": "closes the window; the turn runs on its clock",
+          "gate": "the speaker's player; a kit prompt kept above the sheet",
+          "how_read": "code; test R1365",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "mislabeled",
+          "detail": "it, the X and Escape close the window for the rest of the turn, and Done and Pass with it (scripts/trial-prompt.mjs:175-176). Finding controls-01-trial-console-2."
+        },
+        {
+          "label": "Done",
+          "key": "DRPG.Trial.turn.done",
+          "kind": "button",
+          "selector": "footer secondary data-action=done",
+          "handler": "scripts/trial-prompt.mjs:217-220 -> requestTurn (scripts/bridge-asks.mjs:405) -> turnOnPrimary (scripts/trial-modes.mjs:147)",
+          "effect": "the turn is over, on the primary; a refusal is the bridge's to say",
+          "gate": "the speaker's player",
+          "how_read": "code; test R1365; tier 2 E70-T9; scenario 63",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Pass",
+          "key": "DRPG.Trial.turn.pass",
+          "kind": "button",
+          "selector": "footer secondary data-action=pass",
+          "handler": "scripts/trial-prompt.mjs:217-220 -> requestTurn",
+          "effect": "the next speaker's turn (in the Closing as its note says)",
+          "gate": "the speaker's player",
+          "how_read": "code; test R1365",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Post thesis (a Scrum Debate's turn only)",
+          "key": "DRPG.Trial.turn.thesis",
+          "kind": "button",
+          "selector": "footer secondary data-action=thesis",
+          "handler": "scripts/trial-prompt.mjs:210-215 -> promptThesis:106",
+          "effect": "opens Your thesis; the turn's window comes back after it",
+          "gate": "the speaker's player",
+          "how_read": "code; scenario 68 names the thesis",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "the Scrum speaker's line - 'Your thesis'",
+      "file": "scripts/trial-prompt.mjs",
+      "opener": "promptThesis:108 (not a row of docs/dev/e59/WINDOWS.md)",
+      "audience": "player",
+      "controls": [
+        {
+          "label": "Post thesis",
+          "key": "DRPG.Trial.turn.thesisPost",
+          "kind": "button",
+          "selector": "footer primary data-action=post; input[name=thesis]",
+          "handler": "scripts/trial-prompt.mjs:114-115, :120-122 -> requestTrialKeyword (scripts/bridge-asks.mjs:377)",
+          "effect": "the primary posts the line as the mode's card; a refusal is the bridge's to say",
+          "gate": "the speaker's player; an empty line posts nothing; a line that is the one word 'cancel' is read as Cancel (:120)",
+          "how_read": "code; no test presses it",
+          "themes": "no hiding rule found (grep drpg-scrum-thesis with display:none|visibility:hidden|pointer-events:none)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "Cancel",
+          "key": "DRPG.Kit.cancel",
+          "kind": "button",
+          "selector": "footer data-action=cancel",
+          "handler": "scripts/trial-prompt.mjs:120",
+          "effect": "posts nothing",
+          "gate": "the speaker's player",
+          "how_read": "code",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "the volunteers' question - 'Closing Argument' (I'll sum up?)",
+      "file": "scripts/trial-prompt.mjs",
+      "opener": "promptClaim:147 (the participant's clock, tick:230)",
+      "audience": "player",
+      "controls": [
+        {
+          "label": "Someone else",
+          "key": "DRPG.Trial.claim.no",
+          "kind": "button",
+          "selector": "footer primary data-action=no",
+          "handler": "scripts/trial-prompt.mjs:164 (returns)",
+          "effect": "closes the window; nobody volunteers",
+          "gate": "a participant's player, once a Closing",
+          "how_read": "code; test R1365",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        },
+        {
+          "label": "I'll sum up",
+          "key": "DRPG.Trial.claim.yes",
+          "kind": "button",
+          "selector": "footer secondary data-action=claim",
+          "handler": "scripts/trial-prompt.mjs:164-167 -> requestClaim (scripts/bridge-asks.mjs:355) -> volunteerOnPrimary (scripts/trial-modes.mjs:322)",
+          "effect": "the volunteer is counted on the primary; a toast says so; a refusal is the bridge's to say",
+          "gate": "a participant's player",
+          "how_read": "code; test R1365",
+          "themes": "no hiding rule found (grep drpg-kit-footer, drpg-role-, form-footer with display:none|visibility:hidden|pointer-events:none in styles/*.css; only footer.form-footer button[hidden], danganronpa.css:11890)",
+          "verdict": "ok",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "surface": "OBJECTION! on the trial bar and the voice tile (the button is scripts/hud.mjs's; its held words are this reader's files')",
+      "file": "scripts/trial-floor.mjs",
+      "opener": "scripts/hud.mjs objectionControl:1511; its words trial.mjs objectionButtonState:1497 -> floorRefusal (trial-floor.mjs:925)",
+      "audience": "player",
+      "controls": [
+        {
+          "label": "OBJECTION!",
+          "key": "DRPG.Trial.objection",
+          "kind": "button",
+          "selector": ".drpg-hud-objection / .drpg-voice-objection",
+          "handler": "scripts/hud.mjs:1562-1580 -> objectionButtonState (scripts/trial.mjs:1497), raiseObjection (scripts/trial.mjs:1347)",
+          "effect": "raises the Objection through the primary; held, a press says why",
+          "gate": "a living student's player; held with a reason outside a debate",
+          "how_read": "code; test R592 (named in hud.mjs)",
+          "themes": "not searched for this row beyond drpg-objection (display:none|visibility:hidden|pointer-events:none: none)",
+          "verdict": "mislabeled",
+          "detail": "in Straw Poll, Logic Dive and Scrum Debate the reason is the one written for a running Objection (scripts/trial-floor.mjs:933-939). Finding controls-01-trial-console-10."
+        }
+      ]
+    }
+  ],
+  "counts": {
+    "surfaces": 20,
+    "controls": 98,
+    "ok": 82,
+    "dead": 2,
+    "throws": 0,
+    "mislabeled": 5,
+    "wrong_audience": 1,
+    "silent": 5,
+    "stale_state": 3,
+    "unknown": 0
+  },
+  "findings": [
+    {
+      "id": "controls-01-trial-console-1",
+      "severity": "minor",
+      "verdict": "dead",
+      "title": "The schema's 'Not tied to the murder: N' button in the trial console does nothing",
+      "surface": "the case schema in the console's slot",
+      "control": "Not tied to the murder: {n}",
+      "where": "scripts/case-trial.mjs:98; scripts/case-map.mjs:224, 445, 495",
+      "what_happens": "The console's schema is drawn folded (case-trial.mjs:56, fold: true), and with evidence not tied to the murder the Map's builder draws a button data-drpg-case-fold, aria-expanded=false, under the graph (case-map.mjs:223-224). The console wires the graph with wireCaseMap(region, { camera }) alone, so the click runs onFold's default, an empty function. Nothing unfolds and nothing is said; the folded Remnants, and a 'presented' mark on one of them, cannot be seen in the console.",
+      "evidence": "case-trial.mjs:98        wireCaseMap(region, { camera: { get: () => camera, set: cam => { camera = cam; } } });\ncase-map.mjs:445 export function wireCaseMap(root, { onPick = () => {}, onClose = () => {}, onFold = () => {}, onAdd = () => {}, onSort = () => {}, onMove = () => {}, onDrop = () => {},\ncase-map.mjs:495             if (t?.closest?.(\"[data-drpg-case-fold]\")) { onFold(); return; }\ncase-map.mjs:222     // the fold's tooltip only on the Map: the trial console's graph is always folded, and its press folds nothing there",
+      "failure_scenario": "A GM running a trial presses 'Not tied to the murder: 3' under the schema and nothing happens.",
+      "expected": "The press unfolds the rest of the evidence, as on the Investigation's Map (investigation.mjs:1860), or the console draws the line as text, not as a button.",
+      "confidence": "read",
+      "refutation_tried": "git grep data-drpg-case-fold and onFold in scripts/: one listener (case-map.mjs:495) and one caller that hands an onFold (investigation.mjs:1860); case-trial.mjs hands none. The source's own note (case-map.mjs:222, commit 9c1a4104) says the press folds nothing there and names no decision of the owner. styles/*.css: no rule hides .drpg-case-fold or .drpg-case-gap in .drpg-window-trial. Tier 0 reads the button's aria-expanded; no test or scenario presses it in the console.",
+      "probe": "game.drpg.manageClassTrial() in a chapter whose case holds a Remnant not tied to the murder; press `.drpg-window-trial [data-drpg-trial-schema] [data-drpg-case-fold]`; compare aria-expanded and the count of `button[data-drpg-node]` before and after."
+    },
+    {
+      "id": "controls-01-trial-console-2",
+      "severity": "minor",
+      "verdict": "mislabeled",
+      "title": "Your turn: Keep speaking, the X and Escape take Done and Pass away for the rest of the turn",
+      "surface": "the speaker's prompt - 'Your turn ({seconds} s)'",
+      "control": "Keep speaking",
+      "where": "scripts/trial-prompt.mjs:175-176, 217; lang/en.json DRPG.Trial.turn.body",
+      "what_happens": "promptTurn marks the turn as asked before its window opens and draws the window once for a turn. Keep speaking is the primary, so Enter and Space press it; it, the header's X and Escape close the window and the function returns before any request. The clock asks promptTurn again every second and it returns at line 175 for the same turn, so Done and Pass are not drawn again until the next turn; only the thesis road puts the mark back (lines 210-215). The window's own words are 'Press Done when you finish, or Pass to give up your turn', and no other control of the module asks trial.turn for Done or Pass.",
+      "evidence": "trial-prompt.mjs:175     if (promptedFor === key || alreadyOpen(WINDOW_CLASS)) return;\ntrial-prompt.mjs:176     promptedFor = key;\ntrial-prompt.mjs:217     if (choice !== \"done\" && choice !== \"pass\") return;\ntrial-prompt.mjs:93          primary: { action: \"keep\", label: game.i18n.localize(\"DRPG.Trial.turn.keep\") },",
+      "failure_scenario": "The Closing Argument's speaker presses Enter on the prompt at the start of 300 s, finishes after two minutes and has no Done to press; the stretch runs until its clock or the GM's Skip.",
+      "expected": "Done and Pass stay within reach for as long as the turn is the speaker's, or the window says that closing it ends the choice. The handbooks name Done and Pass alone and not Keep speaking (player-handbook.en.md:894, gm-handbook.en.md:1553).",
+      "confidence": "read",
+      "refutation_tried": "The note at trial-prompt.mjs:194-197 (E70 fix p2-G3) makes Keep speaking the default on purpose, so Enter ends no turn, and says the GM's bar still skips the turn; it does not say Done should be out of reach after it. git grep promptedFor: put back to null only at :214. git grep requestTurn and DRPG.Trial.turn: trial-prompt.mjs alone; hud.mjs draws no Done or Pass. Test R1365 reads the footer's order only.",
+      "probe": "As a player whose student speaks in a Testimony, press `.drpg-your-turn button[data-action=\"keep\"]`; three seconds later `.drpg-your-turn` is absent while `game.settings.get('danganronpa-rpg','trialQueue').round.step` is unchanged."
+    },
+    {
+      "id": "controls-01-trial-console-3",
+      "severity": "minor",
+      "verdict": "silent",
+      "title": "The Closing Argument's buttons refuse with 'The Closing Argument did not change.' and never the reason written for it",
+      "surface": "the Class Trial console; the Closing's pick window",
+      "control": "Confirm the speaker; {name} ({m:ss}); Resume the Closing Argument; Pick a speaker (the pick window)",
+      "where": "scripts/trial-floor-ui.mjs:1073-1078; scripts/trial-modes.mjs:265-275; scripts/trial-floor.mjs:587-592; scripts/floor-machine.mjs:267-294",
+      "what_happens": "The row's buttons run through runClosingOp, which asks nothing before the press (the bar's runBarOp asks barRefusal and says its key). closingCall runs the floor's op, and on the primary closingStepInStep is called without `why`, so a refusal of the machine comes back as null and the GM reads DRPG.Floor.closing.notDone. The machine's reasons - closing.absent 'That player is not connected: pick someone else.', noDrawn, noChoice, notParticipant, noDecision, notInExchange, voteOpen, nothingToResume - stand in both language files and no road of the module shows them.",
+      "evidence": "trial-modes.mjs:272     const written = await floorStep(op, args);\ntrial-modes.mjs:273     if (written === null) ui.notifications.warn(game.i18n.localize(\"DRPG.Floor.closing.notDone\"));\ntrial-floor.mjs:592     if (result.refused) return why ? { refused: result.refused } : null;\nfloor-machine.mjs:272             if (absent.has(ctx.drawn) || !among(ctx.drawn)) return { refused: \"DRPG.Floor.closing.absent\" };",
+      "failure_scenario": "The drawn volunteer's player drops out; the console still offers Confirm the speaker, and each press says only 'The Closing Argument did not change.'",
+      "expected": "The reason the machine gives, as a greyed bar button says its own; here, that the player is not connected and somebody else is to be picked.",
+      "confidence": "read",
+      "refutation_tried": "git grep of each key (closing.absent, noDrawn, noChoice, notParticipant, noDecision, notInExchange, voteOpen, nothingToResume) in scripts/: floor-machine.mjs returns them and nothing localizes them. `why: true` has one caller, a volunteer's claim (trial-modes.mjs:336), mapped to the bridge's words. On a GM who is not the primary the request trial.gm answers a floor or null the same way (bridge-asks.mjs:339-348, trial-floor.mjs:736-742). R1048 reads the row's markup, not a refusal.",
+      "probe": "In a Closing whose floor says closing.choice 'confirm', with the drawn student's player disconnected, press `.drpg-window-trial [data-drpg-bar=\"closing\"][data-drpg-closing=\"confirm\"]` and read the toast."
+    },
+    {
+      "id": "controls-01-trial-console-4",
+      "severity": "minor",
+      "verdict": "stale-state",
+      "title": "'Your turn' and 'I'll sum up' do not open on the floor's first write in a world: createSetting is not heard",
+      "surface": "the speaker's prompt; the volunteers' question",
+      "control": "the prompts' opening (renderTrialPrompt)",
+      "where": "scripts/trial-prompt.mjs:274-279",
+      "what_happens": "A participant's clock, which opens both prompts and calls a turn over, is started by renderTrialPrompt, and that runs at ready and on the hook updateSetting for the floor's key. The module's own notes say a world setting's first write makes its document and is createSetting in Foundry (gm-store.mjs:1750-1753, trial-scene.mjs:1714-1715, where both hooks are heard). In a world whose floor was never written, a round, the Closing or a Scrum Debate started as the first mode is that write: no clock starts on the players' browsers, the first speaker gets no window with Done and Pass, and the Closing's volunteers are not asked, until the floor is written again.",
+      "evidence": "trial-prompt.mjs:274 export function registerTrialPrompt() {\ntrial-prompt.mjs:275     Hooks.once(\"ready\", () => { renderTrialPrompt(); });\ntrial-prompt.mjs:276     Hooks.on(\"updateSetting\", setting => {\ntrial-prompt.mjs:277         if (setting?.key === `${MODULE_ID}.${SETTINGS.trialQueue}`) renderTrialPrompt();\ntrial-scene.mjs:1715     for (const hook of [\"updateSetting\", \"createSetting\"]) {",
+      "failure_scenario": "A new world's first Class Trial: the GM starts the Closing Argument from discussion and no player is asked 'I'll sum up' in its 30 s.",
+      "expected": "Both hooks, as gm-store.mjs, trial-scene.mjs, fog.mjs and voice.mjs listen.",
+      "confidence": "suspected",
+      "refutation_tried": "git grep renderTrialPrompt: its two callers are the ready hook and updateSetting; the setting's onChange (settings.mjs:2962-2967) goes to sync.mjs and does not call it. What is not established: Foundry's create on a first write is read from the module's notes, not from Foundry; the harness fires updateSetting for both (gm-store.mjs:1752), so no headless run shows it; and a world may hold the floor's document already (a season reset writes it empty, trial.mjs:766-768).",
+      "probe": "On Foundry v14, in a world where `game.settings.storage.get('world').getSetting('danganronpa-rpg.trialQueue')` is undefined, start a Testimony from discussion with a player connected: on the player's page `.drpg-your-turn` is absent through the first turn and present from the second."
+    },
+    {
+      "id": "controls-01-trial-console-5",
+      "severity": "nit",
+      "verdict": "stale-state",
+      "title": "Start the Final Trial stays greyed after a Mastermind is picked while the console stands open",
+      "surface": "the Class Trial console",
+      "control": "Start the Final Trial",
+      "where": "scripts/trial-floor-ui.mjs:738, 1487, 1674; scripts/mastermind.mjs:76-84",
+      "what_happens": "The button is disabled, with the title 'No Mastermind set. Pick one in Season setup first.', from view.mastermind, read off the GMs' store by mastermindActor at each redraw of the console. The pick writes that store alone (a client setting), and the console's live region watches the module's world settings, three hooks and two other stores; with no floor open no tick redraws it either. So the footer keeps the greyed button until some world setting of the module is written or the console is opened again.",
+      "evidence": "trial-floor-ui.mjs:738             mastermind: Boolean(mastermindActor()),\ntrial-floor-ui.mjs:1674                 watch: { hooks: [\"drpgBallotsChanged\", \"userConnected\", \"updateScene\"], stores: [blackenedStore, deathStore] },\nmastermind.mjs:81     await ownWrite(() => mastermindStore.patch(RECORD, fields));",
+      "failure_scenario": "With the console open and no trial running, a GM follows the button's hint, picks the Mastermind in Season setup and comes back to a button still greyed with the same hint.",
+      "expected": "The footer follows the pick, as it follows the register and the deaths (the two stores it does watch).",
+      "confidence": "read",
+      "refutation_tried": "live.mjs listenFor (:304-352): updateSetting for the module's world keys, the named hooks and clientSettingChanged for the stores named only. git grep mastermindStore: no watch names it. The primary's clock beat is a GM store's too (hud-elapsed.mjs:153), so nothing periodic redraws a console with no floor. A redraw does put it right: liveFooter redraws the buttons in place.",
+      "probe": "With no Mastermind set, open the console; from the browser's console `await game.drpg.setMastermind(game.actors.contents.find(a => a.type === 'character'))`; read `.drpg-window-trial button[data-action=\"toggleFinal\"]`.disabled a few seconds later."
+    },
+    {
+      "id": "controls-01-trial-console-6",
+      "severity": "nit",
+      "verdict": "stale-state",
+      "title": "After a Reveal made in discussion, its row and 'Left to reveal' stay on the console",
+      "surface": "the Class Trial console",
+      "control": "Reveal (a row of Missing Key Remnants)",
+      "where": "scripts/trial-floor-ui.mjs:1018-1030, 1060-1070, 1674, 1795; scripts/key-remnants.mjs:78-85",
+      "what_happens": "The list is drawn from missingKeys() and the reveal record, both read off the Key plan's store. A Reveal writes items, a token, GM stores and whispers (trial-modes.mjs:429-471, key-remnants.mjs:83); none of them is in the console's watch, and the one-second tick runs only while a floor is open. So in discussion the revealed row keeps its Reveal button and the count does not fall until something else redraws the region. A second press is answered ('That Key Remnant is not missing...'), so nothing is revealed twice.",
+      "evidence": "trial-floor-ui.mjs:1795                 if (!trialFloor() || pressing) return;\ntrial-floor-ui.mjs:1674                 watch: { hooks: [\"drpgBallotsChanged\", \"userConnected\", \"updateScene\"], stores: [blackenedStore, deathStore] },\nkey-remnants.mjs:83     await keyPlanStore.patch(revealKey(Number(chapter)), { revealed: next });",
+      "failure_scenario": "With the debate closed, a GM reveals a Key Remnant; the row still stands with its button and 'Left to reveal: 2' still reads 2.",
+      "expected": "The list and the count follow the Reveal at once, as they do while a floor is open.",
+      "confidence": "suspected",
+      "refutation_tried": "Read revealInStep and what it calls for a write the console hears (createTruthBullet, markKeyFound -> revealRemnantToFinder, recordKeyRevealed, whisperToOwner): items, a token update, GM stores and chat, none a world setting of the module as far as read; a write deeper in those calls was not excluded, which is why this is suspected. case-trial.mjs:126 does watch keyPlanStore, for the schema's region, not the console's.",
+      "probe": "In a running trial with no floor and a missing Key Remnant, press `.drpg-window-trial [data-drpg-reveal]`, confirm; read `.drpg-reveal-list li` and the 'Left to reveal' line two seconds later, with no other write in between."
+    },
+    {
+      "id": "controls-01-trial-console-7",
+      "severity": "nit",
+      "verdict": "mislabeled",
+      "title": "Re-point opens on the current target, and Re-point pressed on it is refused as 'You cannot do that right now.'",
+      "surface": "the Re-point window",
+      "control": "Re-point",
+      "where": "scripts/trial.mjs:1531-1544, 1285; scripts/trial-floor.mjs:1258, 1274",
+      "what_happens": "The window lists every participant but the objector and marks the Objection's present target as chosen, so the primary button and Enter ask for the target it already has. The primary's step turns that down with the key DRPG.Floor.repointSame and answers null; repointOnPrimary words every null as 'the student named may not be objected to now', which the bridge says as cannotNow. The texts 'The Objection is already aimed at that student.' and 'That student's player is not here to answer.' are in both language files and are shown on no road.",
+      "evidence": "trial.mjs:1544                     student.id === floor.targetId ? \" selected\" : \"\"}>${foundry.utils.escapeHTML(student.name)}</option>`).join(\"\")}</select></label>\ntrial-floor.mjs:1258     if (targetId && targetId === floor.targetId) return \"DRPG.Floor.repointSame\";\ntrial-floor.mjs:1274     if (repointRefusal(floor, targetId)) return null;\ntrial.mjs:1285     if (!(await repointObjection(targetId))) return { refused: \"the student named may not be objected to now\" };",
+      "failure_scenario": "A GM presses Re-point on the bar and then Enter in the window: the toast reads that Re-point the Objection was not carried out and that they cannot do that right now.",
+      "expected": "The refusal's own words (already aimed at that student; that player is not here), or a window that leaves the current target out of its list.",
+      "confidence": "read",
+      "refutation_tried": "bridge-guards.mjs:452 maps the text to cannotNow; sayNotDone (:581) says it on the primary's own road too (bridge-asks.mjs:325-333). git grep repointSame and repointAbsent: returned by trial-floor.mjs and floor-machine.mjs, localized nowhere outside the tests' key census. The tier 2 Re-point test names another target.",
+      "probe": "With an Objection running, `await game.drpg.manageClassTrial()`, press `[data-drpg-bar=\"repoint\"]`, then the window's `button[data-action=\"repoint\"]` without touching the select; read the toast and the floor's targetId."
+    },
+    {
+      "id": "controls-01-trial-console-8",
+      "severity": "nit",
+      "verdict": "wrong-audience",
+      "title": "Finish the verdict is drawn, enabled, on a GM who is not the verdict's runner",
+      "surface": "the Class Trial console",
+      "control": "Finish the verdict",
+      "where": "scripts/trial-floor-ui.mjs:1447-1450; scripts/verdict.mjs:1106-1113",
+      "what_happens": "While a verdict stands stopped the footer draws Finish the verdict on every GM's console. Only the verdict's runner may run it: on any other GM the press is always refused, with 'Only {name} can finish the verdict. Ask {name}.' The lead line of that console names the runner too, and the button is not the default there, so the refusal is told twice; the button itself still looks pressable.",
+      "evidence": "trial-floor-ui.mjs:1447                 ...(stopped\ntrial-floor-ui.mjs:1448                     ? [{ action: \"finishVerdict\", label: game.i18n.localize(\"DRPG.Vote.finishVerdict\"),\nverdict.mjs:1110     if (runner && runner !== game.user.id) {\nverdict.mjs:1111         ui.notifications.warn(game.i18n.format(\"DRPG.Vote.finishOtherGm\", { name: game.users.get(runner)?.name ?? \"?\" }));",
+      "failure_scenario": "A second GM sees Finish the verdict after a step failed, presses it and is told to ask the other GM.",
+      "expected": "On a GM who is not the runner the button is left out or greyed with the runner's name as its title, as Start the Final Trial carries its reason.",
+      "confidence": "read",
+      "refutation_tried": "E10 fix r2-G2's notes (trial-floor-ui.mjs:800-805, verdict.mjs:1099-1104) decide who runs Finish and that the next step is no button on the other GMs; they do not say the button should stay drawn there. The press is told, so this is not silent.",
+      "probe": "Scenario 92's state (a verdict whose step failed) with two GMs: on the GM who did not give it, `.drpg-window-trial button[data-action=\"finishVerdict\"]` is present and not disabled; press it and read the toast."
+    },
+    {
+      "id": "controls-01-trial-console-9",
+      "severity": "nit",
+      "verdict": "mislabeled",
+      "title": "A schema tile's start is greyed in a Nonstop Debate with 'Another mode is running. End it first.' while the mode picker starts the same mode",
+      "surface": "the case schema in the console's slot",
+      "control": "Start {mode} from {name}",
+      "where": "scripts/case-trial.mjs:49-54, 66; scripts/trial-floor-ui.mjs:1133-1139",
+      "what_happens": "The tile's start is disabled, with that title, whenever any floor is open (floorOpen is Boolean(trialFloor())). The console's own picker greys Testimony, Panic Round, the Closing and the zone modes only while a mode other than the debate holds the floor, and the primary's machine starts each of them over an open debate. So during a debate the tile says the debate must end first, and one region above it the same start works. The file's header still says 'the console offers no start then either' (case-trial.mjs:14-15), which was so before the picker.",
+      "evidence": "case-trial.mjs:52             start: start?.action ? { action: start.action, mode: n.mode, label: modeLabel(n.mode), disabled: floorOpen,\ncase-trial.mjs:53                 reason: floorOpen ? L(\"DRPG.CaseTrial.floorOpen\") : \"\" } : null };\ncase-trial.mjs:66     return { graph, layout: layoutCase(graph, { sort: graph.meta?.sort, manual: graph.meta?.manual }), ticks, presented, hints, unknown, floorOpen: Boolean(trialFloor()),\ntrial-floor-ui.mjs:1133     const busy = floor && floor.mode !== FLOOR_MODES.debate ? game.i18n.localize(\"DRPG.Floor.round.busy\") : null;",
+      "failure_scenario": "In an open debate a GM points at a node's Testimony start, reads 'Another mode is running. End it first.', closes the debate for nothing, or finds the picker's Testimony pressable.",
+      "expected": "The tile's start greyed by the picker's rule and with its reason.",
+      "confidence": "read",
+      "refutation_tried": "floor-machine.mjs:522 (a round), :259 (the Closing) and trial-zones.mjs:237 (the zone modes) refuse a start only when the floor's mode is not the debate. LIVE-E99-01 asks that the tile's start 'greys while another mode runs', which a debate is not held to elsewhere.",
+      "probe": "Open a debate, then in the console read `[data-drpg-case-start=\"startTestimony\"]`.disabled and its title against `[data-drpg-mode-action=\"startTestimony\"]`'s aria-disabled."
+    },
+    {
+      "id": "controls-01-trial-console-10",
+      "severity": "nit",
+      "verdict": "mislabeled",
+      "title": "In Straw Poll, Logic Dive and Scrum Debate OBJECTION! is held with the words of a running Objection",
+      "surface": "OBJECTION! on the trial bar and the voice tile",
+      "control": "OBJECTION!",
+      "where": "scripts/trial-floor.mjs:933-939, 107-109",
+      "what_happens": "floorRefusal words a mode that allows no Objection in three ways: a round by its name ('Nobody can raise an Objection in {mode}.'), the Closing with nobody speaking, and everything else as an Objection already running. The three zone modes allow none (MODE_RULES object: false) and are neither, so the button's tooltip and its press say 'You cannot raise an Objection right now. While an Objection runs, you can raise one in the Rebuttal that follows it, at one of the two speaking in it.' No Objection runs, and no Rebuttal will follow.",
+      "evidence": "trial-floor.mjs:935         if (isRoundMode(floor.mode)) return game.i18n.format(\"DRPG.Trial.objectionNoneInMode\", { mode: game.i18n.localize(`DRPG.Floor.mode.${floor.mode}`) });\ntrial-floor.mjs:937         if (floor.mode === MODES.closing) return game.i18n.localize(\"DRPG.Trial.objectionClosingNobody\");\ntrial-floor.mjs:938         return game.i18n.localize(\"DRPG.Trial.objectionDuringObjection\");\ntrial-floor.mjs:107     [MODES.straw]: Object.freeze({ family: \"zones\", speak: \"all\", present: \"all\", object: false, target: \"any\", adjust: true }),",
+      "failure_scenario": "A player in a Straw Poll hovers or presses OBJECTION! and is told to wait for a Rebuttal that is not coming.",
+      "expected": "The mode's own line, as a Panic Round has: nobody can raise an Objection in a Straw Poll.",
+      "confidence": "read",
+      "refutation_tried": "floor-machine.mjs:51 isRoundMode covers Testimony and the Panic Round only; zone-machine.mjs:44 isZoneMode is a list of its own. hud.mjs:1551-1558 and :1572 show floorRefusal's text unchanged as the tooltip and the warning.",
+      "probe": "On a player's page during a Straw Poll: `(await import('/modules/danganronpa-rpg/scripts/trial.mjs')).objectionButtonState(game.user.character)` and read `.text`."
+    },
+    {
+      "id": "controls-01-trial-console-11",
+      "severity": "nit",
+      "verdict": "mislabeled",
+      "title": "The mode picker's greyed Nonstop Debate says 'The debate is already running.' in a round, the Closing and the zone modes",
+      "surface": "the Class Trial console",
+      "control": "Nonstop Debate (mode picker)",
+      "where": "scripts/trial-floor-ui.mjs:1134-1136",
+      "what_happens": "The picker's reason for the debate's start is asked before the busy line and is the same for every open floor. In Testimony, a Panic Round, the Closing Argument or a zone mode no debate is running, and the reason the machine holds for it is DRPG.Floor.startBusy ('A debate cannot open while a round, the Closing Argument, or a zone mode holds the floor. End that mode first.'). The button's title, and the warning a press on it gives, say the debate is already running.",
+      "evidence": "trial-floor-ui.mjs:1134     const why = (mode, action) => {\ntrial-floor-ui.mjs:1135         if (action === \"openDebate\") return floor ? game.i18n.localize(\"DRPG.Floor.bar.inDebate\") : null;\ntrial-floor-ui.mjs:1136         if (busy) return busy;",
+      "failure_scenario": "In a Testimony started from discussion a GM presses the greyed Nonstop Debate and reads that the debate is already running.",
+      "expected": "The busy line for a floor that is not the debate's, the machine's startBusy.",
+      "confidence": "read",
+      "refutation_tried": "floor-machine.mjs:505 gives startBusy for a start over a round, the Closing or a zone mode; trial-floor.mjs:884-888 says it on startFloor's road. In an Objection or its Rebuttal the debate's family does hold the floor, and the line is fair there.",
+      "probe": "Start a Testimony from discussion, then read the title of `.drpg-window-trial [data-drpg-mode-action=\"openDebate\"]` and press it."
+    },
+    {
+      "id": "controls-01-trial-console-12",
+      "severity": "nit",
+      "verdict": "silent",
+      "title": "Show summary is greyed with no reason before the verdict and through a Final Trial",
+      "surface": "the Class Trial console",
+      "control": "Show summary",
+      "where": "scripts/trial-floor-ui.mjs:1453-1454",
+      "what_happens": "The button stands in the footer from the trial's start, disabled until the verdict is given, and disabled for the whole of a Final Trial, which has no summary (Q-E99-5 in the source's note). It carries no title, and no line of the console says why; the other disabled button with a cause of its own, Start the Final Trial, carries its reason as a title (:1487), and The vote's disabled state is told by the lead line.",
+      "evidence": "trial-floor-ui.mjs:1453                 { action: \"caseSummary\", label: game.i18n.localize(progress.summaryShown ? \"DRPG.CaseSummary.shown\" : \"DRPG.CaseSummary.show\"),\ntrial-floor-ui.mjs:1454                   disabled: !progress.verdictApplied || Boolean(finalNow) || Boolean(progress.summaryShown), default: isDefault(\"caseSummary\") },",
+      "failure_scenario": "A GM in a Final Trial after its verdict looks for the summary, finds Show summary greyed and nothing that says a Final Trial has none.",
+      "expected": "A title on the disabled button (after the verdict; not in a Final Trial), or the button left out of a Final Trial's footer.",
+      "confidence": "read",
+      "refutation_tried": "footerButtons and dressFooter write a title only from a button's `tooltip` (ui-kit.mjs:187, 296); this spec names none. Once sent, the label itself says 'Summary sent', which is a reason. The lead line after an ordinary verdict names the summary as the next step; before the verdict and in a Final Trial it does not speak of it.",
+      "probe": "Open the console in a running trial before its vote and read `button[data-action=\"caseSummary\"]`: disabled, title empty."
+    },
+    {
+      "id": "controls-01-trial-console-13",
+      "severity": "nit",
+      "verdict": "dead",
+      "title": "Enter on a focused button of the console does nothing while any mode but the debate runs",
+      "surface": "the Class Trial console",
+      "control": "Enter (key)",
+      "where": "scripts/trial-floor-ui.mjs:1780-1784, 881-883",
+      "what_happens": "To keep Enter from pressing the footer's default in an exchange, the console stops every Enter keydown in the capture phase on the window's root while exchangeRuns() holds, and that is any floor whose mode is not the debate: an Objection, a Rebuttal, a round, the Closing, a zone mode. The stop is not held to the footer's default, so a GM who reaches the bar's Skip, Overrule or +30 s by Tab and presses Enter moves nothing and is told nothing; Space still presses.",
+      "evidence": "trial-floor-ui.mjs:1780             dialog.element?.addEventListener(\"keydown\", event => {\ntrial-floor-ui.mjs:1781                 if (event.key !== \"Enter\" || !exchangeRuns()) return;\ntrial-floor-ui.mjs:1782                 event.preventDefault();\ntrial-floor-ui.mjs:1783                 event.stopPropagation();\ntrial-floor-ui.mjs:1784             }, true);",
+      "failure_scenario": "A GM working the console from the keyboard tabs to Skip during an Objection and presses Enter: the Objection runs on.",
+      "expected": "Enter held for the window's default alone, and a focused button pressed by it as by Space.",
+      "confidence": "suspected",
+      "refutation_tried": "Tier 2's 'the console holds Enter while an Objection runs...' sends the key to a button and reads defaultPrevented as right, so the hold on every element is what the test pins; the note at :1777-1779 speaks of the footer's default only. Not established here: that a browser gives a button no press once its Enter keydown is prevented (not run; jsdom presses nothing on a key either way).",
+      "probe": "In a browser, with an Objection running and the console open, focus `[data-drpg-bar=\"plus\"]` and press Enter, then Space; read the floor's startedAt after each."
+    },
+    {
+      "id": "controls-01-trial-console-14",
+      "severity": "nit",
+      "verdict": "stale-state",
+      "title": "Move up on the first row of a round's order looks pressable and moves nothing",
+      "surface": "the round's start window",
+      "control": "Move up",
+      "where": "scripts/trial-floor-ui.mjs:404-405, 432-435",
+      "what_happens": "Every row of the order carries the same Move up button. The listener moves a row above the one before it, and for the first row there is none, so the press does nothing and nothing says so; the button is neither left out nor greyed there, and a row moved to the top keeps its button as it was.",
+      "evidence": "trial-floor-ui.mjs:432             list.addEventListener(\"click\", e => {\ntrial-floor-ui.mjs:433                 const item = e.target?.closest?.(\"[data-drpg-round-up]\")?.closest(\"li\");\ntrial-floor-ui.mjs:434                 if (item?.previousElementSibling) list.insertBefore(item, item.previousElementSibling);\ntrial-floor-ui.mjs:435             });",
+      "failure_scenario": "A GM presses Move up on the first speaker of a Testimony's order and nothing changes.",
+      "expected": "The first row's button greyed or not drawn.",
+      "confidence": "read",
+      "refutation_tried": "The window's render hook is the only wiring of [data-drpg-round-up] (git grep); no test or scenario presses it or Draw a new order.",
+      "probe": "`game.drpg.manageClassTrial()`, press the picker's Testimony, then `.drpg-round-order li:first-child [data-drpg-round-up]`; read the order of `li[data-drpg-round-id]` before and after."
+    }
+  ],
+  "not_established": [
+    "Foundry v14's DialogV2 under a footer redrawn in place (ui-kit.mjs liveFooter: a button drawn later answers through options.buttons): the kit's own note leaves it to a table, LIVE-E47-01. The console and the vote window lean on it for every button drawn after the first render (The verdict, Finish the verdict, End the chapter, Send another ballot). A press of each at a table after a redraw settles it.",
+    "Whether layout clips a control at a short or narrow screen in either theme (the bar pinned under the read-out, the footer's rows, a tile's tick and start in the schema's gutter): only rules that hide were searched (display: none, visibility: hidden, pointer-events: none); the sweeps and LIVE-E70-01, LIVE-E73-05, LIVE-E99-01 are the readings, and none was run in this pass.",
+    "Close Debate posts its card without reading whether the floor closed: closeDebate (trial-floor-ui.mjs:498-509) awaits endFloor, which answers null whatever came of it (trial-floor.mjs:1356-1361). On the primary the step cannot refuse; on another GM a trial.gm that timed out or was refused would leave the debate open under a card saying it closed. Not shown here: it needs a second GM's request held or dropped (scenario 61's or 63's hold on the bridge).",
+    "A footer action that throws leaves the console closed: manageClassTrial awaits TRIAL_ACTIONS[action]() with no catch (trial-floor-ui.mjs:1826-1829), and the footer's press has already closed the window. No throwing road was found in the handlers read; the windows they open in other files (the verdict, the case summary, End of chapter, the Hall zones, the Findings) were not read to their ends in this pass.",
+    "The handlers behind the console's buttons that live in other files were traced to their first refusal and no further: verdict.mjs openVerdictDialog and openFinalVerdictDialog, case-summary.mjs showCaseSummary and replayCaseSummary, chapter.mjs openChapterEndDialog, trial-zones-ui.mjs openZonePicker and openFindings, mastermind.mjs toggleFinalTrialFlag. Their own controls are other readers' rows.",
+    "docs/dev/e59/WINDOWS.md has no row for trial-prompt.mjs promptThesis (the Scrum speaker's 'Your thesis', drpgWindow at :108), so the list of 162 windows is at least one short for these files.",
+    "The Objection's road with a voice Room on the primary GM (trial-speakers.mjs objectionTarget) was read, not pressed: no LiveKit runs headless (LIVE-E79-22). trial-speakers.mjs holds no control of its own.",
+    "Finding 6's missing redraw rests on a negative: no write of a Reveal that the console's watch hears was found in revealInStep and the functions it calls; a write deeper in those calls was not excluded. The probe in the finding settles it.",
+    "Finding 4 rests on Foundry making a Setting document on a setting's first write (createSetting, then updateSetting), stated by the module's own notes and not read from Foundry's source in this pass; and on a world reaching its first trial without that document, which depends on the world."
+  ]
+}

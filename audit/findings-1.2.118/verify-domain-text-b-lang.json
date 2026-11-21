@@ -1,0 +1,67 @@
+{
+ "refuter": "verify-domain-text-b-lang",
+ "of": "domain-text-b-lang",
+ "scope_note": "The reader's file has 4 findings, all nit, and one item of severity minor or above (3.4-04, severity_now minor); it has no controls with verdicts (a domain/old-row file, not a controls file). 3.4-04 was the item the task required; the four nits were checked as well. The 'fixed' rows of old majors (3.1-01, 3.1-02, 3.1-03) were spot-read only: their cited lines match today's source (lang/en.json:5550, 4192, 6497; action-tamper.mjs:78, call-pickers.mjs:310, explain.mjs:126), but the scoring side of 3.1-01 (that misleadingTrail.threshold is the number the frame-up is scored against) was not traced, so they are not counted as checked.",
+ "checked": [
+  {
+   "ref": "3.4-04",
+   "claim": "Handover.alreadyHasIt still tells the giver that the receiver already holds a Truth Bullet of that Remnant (TEXT-09 partly, minor).",
+   "verdict": "stands",
+   "why": "Read the whole road: a Share from the sheet (sheet-inventory.mjs:1012 shareBulletDialog -> requestShareBullet -> bridge run handleShareBulletOrGiveItem -> shareBullet -> mintCopy). The held case is decided inside the receiver's queue step and whispered to the giver's owners and the GMs (whisperToOwner, utils.mjs:751-759). The text no longer names the receiver, but the giver picked the receiver in the window, so 'They' names them anyway. The recipient picker (askWhoIsHere) lists everyone in the room and does not filter on held copies, so the whisper is the one place the giver learns it. Present mints with quiet and sends no such whisper (handover.mjs:355 'if (!quiet)'). No owner decision found: docs/dev/e71/NEEDSCODE.md row 39 rules only that the placeholders stay out of the key (N2 is the no-placeholder-change rule of the text pass, docs/dev/e71/STATUS.md:66), not that the disclosure is accepted; text-batch-B08.json has 'owner': null. No test names alreadyHasIt or the held branch (grep -a over scripts/tests*.mjs and audit/harness/scenarios). Severity minor fits: one fact about another student's evidence, in a particular situation (both found the same Remnant).",
+   "evidence": "lang/en.json:3591 \"alreadyHasIt\": \"They already hold a Truth Bullet of this Remnant, so they get no second one.\"; scripts/handover.mjs:304 const copy = await serialWrite(observeFindKey(to.id), () => secret.remnantId && copiedRemnants(to).has(secret.remnantId) ? HELD_COPY : createTruthBullet(to, {; scripts/handover.mjs:354-359 if (copy === HELD_COPY) { if (!quiet) await whisperToOwner(from, `<p>${game.i18n.format(\"DRPG.Handover.alreadyHasIt\", {; docs/dev/e71/NEEDSCODE.md:76 '**ND** Not a defect: N2 keeps {who} and {name} out of this key; the code passes them unused.'",
+   "severity_after": "minor"
+  },
+  {
+   "ref": "domain-text-b-lang-1",
+   "claim": "A death kept by the GMs mid-incident sends the GMs' note keptUntilFound to the incident's players.",
+   "verdict": "stands",
+   "why": "death.mjs:257-262 widens the whisper to incidentAudienceIds while an incident runs; secretly defaults to isIncidentVictim (death.mjs:176); the note is a plain <p>, not .drpg-gm-only, so the GM prose cut does not take it; whisperToGms lets extra.whisper replace gmIds() (utils.mjs:762-767, '...extra' after 'whisper: gmIds()'). The readers were in the room, so nothing they did not know is told beyond the GM procedure and the sheet's state: nit holds.",
+   "evidence": "scripts/death.mjs:262 return Array.from(new Set([...gmIds(), ...incidentAudienceIds(state)])); scripts/death.mjs:289-293 ${secretly ? `<p>${game.i18n.localize(\"DRPG.Chapter.keptUntilFound\")}</p>` ... whisper: deathAudience ?? gmIds(),; lang/en.json:3290 \"keptUntilFound\": \"Only the GMs know of this death until the body is found ...\"",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "domain-text-b-lang-2",
+   "claim": "keyDcNote's typed 'three to six points harder' is two for Obvious daily-life evidence.",
+   "verdict": "stands",
+   "why": "OBSERVE_DC.obvious is dailyLife 8, key 6: a difference of 2; investigation.mjs reads only the key column into {list} and the range sentence is typed in en and pl.",
+   "evidence": "scripts/config.mjs:1148 obvious: { dailyLife: 8, key: 6, faint: 12, prep: 9, incident: 9, resolution: 9 },; scripts/investigation.mjs:944-946 .map(band => `${REMNANT_VISIBILITY_LABELS[band] ?? band} ${ OBSERVE_DC[band]?.key ?? \"?\"}`); lang/en.json:3077 '... Ordinary evidence in the same band is three to six points harder to notice. ...'",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "domain-text-b-lang-3",
+   "claim": "The Rot's card says 'everything the living carry' while rotEverything also wears stashed items.",
+   "verdict": "stands",
+   "why": "rotEverything walks every item of every living character with only the broken and last-point guards; no isStashed (inventory.mjs:414, location vault) test on the road.",
+   "evidence": "scripts/overflow.mjs:909 for (const item of actor.items) {; scripts/overflow.mjs:912 if (!held || isBroken(held)) break;; scripts/inventory.mjs:414-415 export function isStashed(item) { return locationOf(item) === LOCATIONS.vault;; lang/en.json:4339 \"rot\": \"Everything the living carry wears down at once: ...\"",
+   "severity_after": "nit"
+  },
+  {
+   "ref": "domain-text-b-lang-4",
+   "claim": "Handover.answerKeyMissing gives a player the GM's restore path.",
+   "verdict": "stands",
+   "why": "Both senders use whisperToOwner, whose audience is the GMs and the actor's owners (utils.mjs:751-759), with no .drpg-gm-only wrap; the text names the GM panel's Diagnostics path. Not a secret, so text, nit.",
+   "evidence": "scripts/handover.mjs:279 if (!quiet) await whisperToOwner(from, `<p>${game.i18n.format(\"DRPG.Handover.answerKeyMissing\", {; scripts/trial.mjs:404 await whisperToOwner(actor, `<p>${esc(game.i18n.format(\"DRPG.Handover.answerKeyMissing\", { name: data.name }))}</p>`);; lang/en.json:3602 '... The GM can restore it from a backup (GM panel, Diagnostics, The case: Restore from a file).'",
+   "severity_after": "nit"
+  }
+ ],
+ "counts": {
+  "checked": 5,
+  "stands": 5,
+  "weakened": 0,
+  "refuted": 0
+ },
+ "not_established": [
+  {
+   "what": "Whether a player can learn otherwise that another student holds a bullet of a given Remnant (e.g. by seeing another character's sheet at Observer or Limited permission) - if so, 3.4-04 would be weaker. The module's default ownership of student sheets was not read.",
+   "live_check": "none: a static read of the actors' default ownership in the world setup settles it"
+  },
+  {
+   "what": "The full scoring road of 3.1-01 (the frame-up's roll against CLEANUP.actions.misleadingTrail.threshold) was not traced by this refuter; the reader's 'fixed' rests on old-1.2.42-text TEXT-01.",
+   "live_check": "none: static reading of cleanup.mjs"
+  },
+  {
+   "what": "No test, scenario or probe was run by this refuter (as the task forbids); every result named is from source.",
+   "live_check": "n/a"
+  }
+ ]
+}
