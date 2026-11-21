@@ -1855,6 +1855,8 @@ const inTheHour = style => (style && typeof style === "object" ? { ...style, col
  * (super's setter carries the value) and a plain field (an own property the constructor made, moved into a slot here
  * so the accessor below is not shadowed). Which v14's BaseTokenRuler has, and whether its label and planned movement
  * follow `visible`, is LIVE-E116-01 and LIVE-E116-02: the harness has no ruler, R7523 reads both shapes on classes of its own.
+ * That is the audit's MAP-LC2 as it stands (the old live check: a remote drag's ruler, Foundry's refresh, an un-hidden
+ * token): (b) and (c) answered by this one predicate, R7523 and R7703; (a) and the real class's shape only at a table.
  */
 let rulerShown = () => true;
 

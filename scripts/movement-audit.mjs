@@ -27,7 +27,7 @@
 import { MODULE_ID } from "./config.mjs";
 // The card as markup (E49 B5a fix): `ctx.whisper`, the caller's own poster where one is handed in, takes markup.
 import { chatCard } from "./chat-card.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { SETTINGS, discoveryLedger } from "./settings.mjs";
 import { warn, error, esc, whisperToGms, primaryGmId } from "./utils.mjs";
 import { isMoveChange, levelOf, onLevel, isPlaceScene, roomPhrase } from "./rooms.mjs";
 import { openSegmentsFor, cutSegment, stepCrosses, arrivingPrimary } from "./passages.mjs";
@@ -320,7 +320,7 @@ export function auditMove(tokenDoc, changes, options, userId, was, ctx = {}) {
                     row.sent = (row.sent ?? 0) + (wrote ? 1 : 0);
                     row.verdict = row.sent >= row.times ? "sent back" : "not sent back";
                     if (wrote) socket.emit(SOCKET_EVENT, { action: "move.sentBack", userId: mover, sceneId: scene.id, tokenId: tokenDoc.id, code: refused.code,
-                        ...markOf(refused) }, { recipients: [mover] });
+                        ...markOf(refused, actsAsMastermind(actor, game.users?.get(mover)) ? null : roomsFoundBy(mover, scene.id)) }, { recipients: [mover] });
                 }
             });
             const told = `${tokenDoc.id} ${mover} rules`, last = ledger.told.get(told);
@@ -424,11 +424,30 @@ export function auditMove(tokenDoc, changes, options, userId, was, ctx = {}) {
  * bedroom and a body are both `cannotNow`, whose words - "That cannot be done now." - name neither, though the judge holds the
  * rule's own (movement.mjs `ruleOf`). The bedroom names its room, which the player's own veto names in the same refusal
  * (`DRPG.Vault.keyMissing`) where that player has found it (`sentBackLine` asks; MAP-21); a body names nothing more.
+ *
+ * AND THE PACKET CARRIES THE ROOM ONLY WHERE ITS PLAYER HAS FOUND IT (1.2.123 line MAP; the audit's r122-E-4). MAP-21 cut
+ * the name from the words the player is shown, and the packet still held it for every bedroom refusal. Every browser
+ * holds the scene's regions and their names, so this tells nothing the drag itself could not (the audit's refutation);
+ * it is the words' rule held on the wire too. `known` is the rooms the mover's characters hold found on the scene in the
+ * GMs' ledger (`roomsFoundBy`), null for a mover who knows the map. Exported for the suite (R8352).
  */
-function markOf(refused) {
-    if (refused?.mark === "bedroomShut" && typeof refused.room === "string" && refused.room) return { rule: "bedroomShut", room: refused.room };
+export function markOf(refused, known = null) {
+    if (refused?.mark === "bedroomShut" && typeof refused.room === "string" && refused.room) {
+        return known && !known.has(refused.room) ? { rule: "bedroomShut" } : { rule: "bedroomShut", room: refused.room };
+    }
     if (refused?.mark === "corpse") return { rule: "corpse" };
     return {};
+}
+
+/** The rooms `userId`'s characters hold found on `sceneId` in the GMs' ledger (settings.mjs `discoveryLedger`), as a Set. */
+function roomsFoundBy(userId, sceneId) {
+    const user = game.users?.get(userId ?? "");
+    const known = new Set();
+    for (const [actorId, rooms] of Object.entries(discoveryLedger()?.[sceneId] ?? {})) {
+        if (!user || !game.actors?.get(actorId)?.testUserPermission?.(user, "OWNER")) continue;
+        for (const room of rooms ?? []) known.add(room);
+    }
+    return known;
 }
 
 /**

@@ -326,6 +326,8 @@ export function registerFog() {
         step("discoveryMirror", () => rememberMine());
         step("repaint", () => repaintFog());
         step("placedArrival", () => ownArrival(tokenDoc));
+        // The token's own scene, drawn or not (E12 C2b; the audit's MAP-LC6, answered by tier 2 "the fog draws a two-piece
+        // room from both pieces and seeds it on a scene off screen").
         step("seedDiscovery", () => seedDiscovery(tokenDoc?.parent ?? null));
     });
     /* A DOOR OPENED OR SHUT, A WALL MOVED (E51 C3; E51-22): the outline standing beside it drawn again, its gaps and glow
@@ -3273,8 +3275,11 @@ export function repaintFog() {
         /* A ROOM THE CLASS FOUND IS NOT THE GM'S ROOM (E49 B4, 11.11.2026; audit S07-31). On a GM's browser `opened` is a
            room the class found, and its reveal drew the outline that stands - over the GM's own Monokuma's, which then
            stood nowhere until the Monokuma moved. A room none of this viewer's tokens stands in is a flash that takes
-           itself down (`flashOutline`'s `standing`); the viewer's own room stands as before. R3431. */
-        if (opened.length) playDiscoveryAnimation(opened[0], null, { standing: mine.has(opened[0]) });
+           itself down (`flashOutline`'s `standing`); the viewer's own room stands as before. R3431. Stands by the lead's
+           rooms, as the take-down above reads them (1.2.123 line MAP; the audit's r122-E-7): by `mine`, every Monokuma's on a
+           GM, a room found where another GM's Monokuma stood took this GM's own outline down and stood itself, until the
+           next repaint took it down too. */
+        if (opened.length) playDiscoveryAnimation(opened[0], null, { standing: leadRooms.has(opened[0]) });
 
         lastPaintSignature = signature;
         lastFogReason = lastFogOwn = fogText("DRPG.Fog.reason.painted", { fogged: built.fogged, veiled: built.veiled, clear: clearHere.length });
@@ -4452,13 +4457,29 @@ async function onUpdateToken(tokenDoc, changes) {
     await reactToMove(tokenDoc);
 }
 
-/** The room each token was last read entering on the primary (`reactToMove`), by token id; null for none. */
+/** The room each character's token was last read entering on this GM's browser (`reactToMove`), by token id; null for none. */
 const enteredRoom = new Map();
+
+/** Keep the room `tokenDoc` stands in as its last entry, answering the one kept before (undefined for none). A character's
+    living token only, as `reactToMove`'s write side reads it; anything else keeps nothing. */
+function noteEntry(tokenDoc) {
+    const actor = tokenDoc?.actor;
+    if (!actor || actor.type !== "character" || isCorpseToken(tokenDoc)) return undefined;
+    const before = enteredRoom.get(tokenDoc.id);
+    enteredRoom.set(tokenDoc.id, roomOfToken(tokenDoc) ?? null);
+    return before;
+}
 
 /** What a move of the token changes here: this viewer's fog and arrival, and the primary GM's ledger. */
 async function reactToMove(tokenDoc) {
     count("fog.reactToMove");
     ownArrival(tokenDoc);
+
+    /* The entry this read is, kept on every GM's browser, the primary or not (1.2.123 line MAP; the audit's r122-E-6): the
+       primary is the lowest-id active Gamemaster, so a GM loses the role and regains it without a reload, and an entry
+       kept only while primary went stale meanwhile - the token's next entry into the room it was last read in walked no
+       held card. Before anything is awaited (MAP-30). */
+    const entered = game.user?.isGM ? noteEntry(tokenDoc) : undefined;
 
     // The write side: primary GM only, straight off the hook every client
     // gets - see the header note on `recordDiscovery`.
@@ -4476,9 +4497,7 @@ async function reactToMove(tokenDoc) {
         /* ONE ENTRY, ONE READ OF IT (1.2.122 line MAP; the audit's MAP-30). A drop is read twice here, at the update and at
            rest (`onUpdateToken`), and the held cards' walk posts before it drops the row: a post slower than the at-rest
            grace was posted twice (tier 2 "1.2.122 MAP-30", red at 21bf5d18: two cards). The room this token was last read
-           entering is kept, before anything is awaited, and the second read of the same entry walks no card. */
-        const entered = enteredRoom.get(tokenDoc.id);
-        enteredRoom.set(tokenDoc.id, room ?? null);
+           entering is kept (`noteEntry`, above), and the second read of the same entry walks no card. */
         if (!room) return;
         await recordDiscovery(scene, actor, room);
         /* A Secret Passage's "finished" card held for this character's player since it was finished elsewhere (PV,

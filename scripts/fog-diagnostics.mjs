@@ -38,7 +38,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { boundsOf } from "./movement.mjs";
-import { regionShapes, inPolygons, polygonArea, piecesAsOne, regionAreaIn } from "./fog-geometry.mjs";
+import { regionShapes, inPolygons, polygonArea, piecesAsOne, regionAreaIn, distanceToSegment } from "./fog-geometry.mjs";
 import { roomPieces, playerRegionIds, isRoomWith, passageBehaviour, onLevel, floorsOf } from "./rooms.mjs";
 import {
     DOORWAY_PROBE_OUT, DOORWAY_OVERLAP_INSET, DOORWAY_WALL_NEAR, ADRIFT_WARN_RUN, wallAlongEdge, neighbourBeyond,
@@ -87,12 +87,9 @@ export function nearestOutline(group, at, report, standing = roomOutline) {
             for (let i = 2; i < points.length; i += 2) {
                 const ax = points[i - 2] + group.x, ay = points[i - 1] + group.y;
                 const bx = points[i] + group.x, by = points[i + 1] + group.y;
-                const dx = bx - ax, dy = by - ay;
-                run += Math.hypot(dx, dy);
-                const l2 = dx * dx + dy * dy || 1;
-                let t = ((at.x - ax) * dx + (at.y - ay) * dy) / l2;
-                t = t < 0 ? 0 : t > 1 ? 1 : t;
-                best = Math.min(best, Math.hypot(at.x - (ax + dx * t), at.y - (ay + dy * t)));
+                // fog-geometry.mjs's one point-to-segment distance (MAP-15: this file carried three copies of its loop).
+                run += Math.hypot(bx - ax, by - ay);
+                best = Math.min(best, distanceToSegment(at.x, at.y, ax, ay, bx, by));
             }
             if (!nearest || best < nearest.distance) {
                 nearest = { distance: best, width, chainLength: run, points: points.length / 2 };
@@ -145,11 +142,7 @@ function nearestBorderTo(scene, at, grid, report) {
         for (const flat of regionShapes(region, { x: 0, y: 0 })) {
             for (let i = 0; i < flat.length; i += 2) {
                 const j = (i + 2) % flat.length;
-                const ax = flat[i], ay = flat[i + 1], bx = flat[j], by = flat[j + 1];
-                const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy || 1;
-                let t = ((at.x - ax) * dx + (at.y - ay) * dy) / l2;
-                t = t < 0 ? 0 : t > 1 ? 1 : t;
-                const d = Math.hypot(at.x - (ax + dx * t), at.y - (ay + dy * t));
+                const d = distanceToSegment(at.x, at.y, flat[i], flat[i + 1], flat[j], flat[j + 1]);
                 if (!nearestBorder || d < nearestBorder.distance) {
                     nearestBorder = { room: region.name, distance: d };
                 }
@@ -169,12 +162,9 @@ function nearestWallTo(scene, at, report) {
     for (const wall of scene.walls ?? []) {
         const c = wall.c;
         if (!c || c.length < 4) continue;
-        const dx = c[2] - c[0], dy = c[3] - c[1], l2 = dx * dx + dy * dy || 1;
-        let t = ((at.x - c[0]) * dx + (at.y - c[1]) * dy) / l2;
-        t = t < 0 ? 0 : t > 1 ? 1 : t;
-        const d = Math.hypot(at.x - (c[0] + dx * t), at.y - (c[1] + dy * t));
+        const d = distanceToSegment(at.x, at.y, c[0], c[1], c[2], c[3]);
         if (!nearestWall || d < nearestWall.distance) {
-            nearestWall = { distance: d, angle: Math.round(Math.atan2(dy, dx) * 180 / Math.PI) };
+            nearestWall = { distance: d, angle: Math.round(Math.atan2(c[3] - c[1], c[2] - c[0]) * 180 / Math.PI) };
         }
     }
     if (nearestWall) {
