@@ -105706,6 +105706,310 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson({ changed: read.emptied !== read.before, back: read.back === read.before }), stableJson({ changed: true, back: true }),
             `the Season checklist's name row did not follow the world (before, emptied, back: ${stableJson(read)})`);
     }],
+    ["Room setup's Apply writes only what the GM changed: a lock forced and a description written elsewhere while it stood open are kept, the description typed in another room is written (room-setup.mjs `readRoomSetupForm`, `untouchedRoomRow`, `applyRoomRows`; the audit of 1.2.118, REFR-03; the line claude/setup-120)", async () => {
+        /*
+         * Room setup drawn as a GM opens it, on the scene on screen. While it stands open the first room's lock is forced
+         * (movement.mjs `setRoomBroken`, as a player's Force the Door writes it) and its description is written by another
+         * GM (vault-store.mjs `updateRoom`); then the GM types a description in the second room and presses Apply. Read:
+         * the first room broken, its description, the second room's description. Both rooms' flags are put back as found.
+         * Red at e515907d: the first room's row was written as drawn - the lock mended, the description put back.
+         */
+        needs(env.dialogs(), "Room setup is drawn and its Apply pressed");
+        needs(world.atLeast("namedRooms", 2), "Room setup lists two rooms of the scene on screen");
+        const V = await import("./vault.mjs");
+        const VS = await import("./vault-store.mjs");
+        const M = await import("./movement.mjs");
+        const { roomRegions, flagOver } = await import("./rooms.mjs");
+        const scene = canvas.scene;
+        const [roomA, roomB] = M.allRooms(scene);
+        must(roomA && roomB, "the scene on screen holds no two rooms - this would measure nothing");
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-rooms").length, "Room setup stands open already");
+        const form = () => of("drpg-window-rooms")[0]?.element?.querySelector("form");
+        const field = name => form()?.querySelector(`[name="${CSS.escape(name)}"]`);
+        const was = [roomA, roomB].flatMap(room => roomRegions(scene, room).map(piece => [piece, foundry.utils.deepClone(piece.flags?.[MODULE_ID] ?? {})]));
+        const read = {};
+        let answer = null;
+        try {
+            answer = Promise.resolve().then(() => V.openRoomSetupDialog()).catch(err => `threw: ${err.message}`);
+            await until(() => field(`desc:${roomB}`), 6000).catch(() => {});
+            must(field(`desc:${roomB}`) && field(`broken:${roomA}`), "Room setup drew no description or Broken box - this would measure nothing");
+            await M.setRoomBroken(scene, roomA, true);
+            await VS.updateRoom(scene, roomA, { [`flags.${MODULE_ID}.${VS.VAULT_FLAGS.description}`]: "SUITE written elsewhere" });
+            await settle();
+            await wait(400);
+            field(`desc:${roomB}`).value = "SUITE typed here";
+            field(`desc:${roomB}`).dispatchEvent(new Event("input", { bubbles: true }));
+            of("drpg-window-rooms")[0]?.element?.querySelector('footer button[data-action="ok"]')?.click();
+            await Promise.race([answer, wait(8000)]);
+            await settle();
+            Object.assign(read, { broken: M.roomBroken(scene, roomA), a: flagOver(roomRegions(scene, roomA), VS.VAULT_FLAGS.description),
+                b: flagOver(roomRegions(scene, roomB), VS.VAULT_FLAGS.description) });
+        } finally {
+            for (const app of of("drpg-window-rooms")) await app.close().catch(() => {});
+            await Promise.race([answer, wait(6000)]);
+            for (const [piece, flags] of was) {
+                for (const key of Object.keys(piece.flags?.[MODULE_ID] ?? {})) if (!Object.hasOwn(flags, key)) await piece.unsetFlag(MODULE_ID, key);
+                for (const [key, value] of Object.entries(flags)) await piece.setFlag(MODULE_ID, key, value);
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ broken: true, a: "SUITE written elsewhere", b: "SUITE typed here" }),
+            "Room setup's Apply wrote back what it had drawn over a change made while it stood open (broken: the forced lock kept, a: the description written elsewhere, b: the description typed)");
+    }],
+
+    ["Room setup follows the map while it stands open: a lock forced, a stash written and a room found show at once, and the description the GM is typing keeps its text and its focus, marked where another GM wrote the same field (room-setup.mjs `openRoomSetupDialog`'s `keepLive`; the audit of 1.2.118, REFR-04; the owner's rule \"Zawsze odswiezamy okna od razu przy zmianie\"; the line claude/setup-120)", async () => {
+        /*
+         * Room setup drawn as a GM opens it, on the scene on screen. The GM types in the second room's description and
+         * keeps the focus there. Meanwhile the first room's lock is forced, a stash is written for a student in it, the
+         * third room is found by that student (or hidden, where it was found) and another GM writes the second room's
+         * description. Read within 3 s: the Broken box, the stash cell, the Fog box, each shown and drawn as the world's;
+         * the typed text, its mark and its focus. Then Cancel. Flags, the stash and the ledger's row are put back as found.
+         * Red at e515907d: nothing in the window moved until it was closed and opened again.
+         */
+        needs(env.dialogs(), "Room setup is drawn and read");
+        needs(world.atLeast("namedRooms", 3), "Room setup lists three rooms of the scene on screen");
+        const V = await import("./vault.mjs");
+        const VS = await import("./vault-store.mjs");
+        const M = await import("./movement.mjs");
+        const F = await import("./fog.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { roomRegions } = await import("./rooms.mjs");
+        const { mastermindActor } = await import("./mastermind.mjs");
+        const scene = canvas.scene;
+        const [roomA, roomB, roomC] = M.allRooms(scene);
+        const student = cast(2).find(a => a.id !== mastermindActor()?.id);
+        must(roomC && student, "no three rooms, or no student but the Mastermind - this would measure nothing");
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-rooms").length, "Room setup stands open already");
+        const form = () => of("drpg-window-rooms")[0]?.element?.querySelector("form");
+        const field = name => form()?.querySelector(`[name="${CSS.escape(name)}"]`);
+        const was = [roomA, roomB].flatMap(room => roomRegions(scene, room).map(piece => [piece, foundry.utils.deepClone(piece.flags?.[MODULE_ID] ?? {})]));
+        const key = `${scene.id}/${student.id}`;
+        const ledgerWas = foundry.utils.deepClone(S.discoveryStore.get(key) ?? null);
+        const found = F.discoveredFor(scene.id, student.id).includes(roomC);
+        const read = {};
+        let answer = null;
+        try {
+            answer = Promise.resolve().then(() => V.openRoomSetupDialog()).catch(err => `threw: ${err.message}`);
+            await until(() => field(`desc:${roomB}`), 6000).catch(() => {});
+            must(field(`desc:${roomB}`) && field(`fog:${roomC}:${student.id}`) && field(`stash:${roomA}:${student.id}`),
+                "Room setup drew no description, Fog box or stash cell - this would measure nothing");
+            const desc = field(`desc:${roomB}`);
+            desc.focus();
+            desc.value = "SUITE typed here";
+            desc.dispatchEvent(new Event("input", { bubbles: true }));
+            await M.setRoomBroken(scene, roomA, true);
+            await VS.setStash(roomA, student.id, { present: true, concealed: false, scene });
+            await F.applyDiscoveryChanges(scene, [{ actorId: student.id, room: roomC, value: !found }]);
+            await VS.updateRoom(scene, roomB, { [`flags.${MODULE_ID}.${VS.VAULT_FLAGS.description}`]: "SUITE another GM" });
+            await until(() => field(`broken:${roomA}`)?.checked && field(`stash:${roomA}:${student.id}`)?.value === "open"
+                && field(`fog:${roomC}:${student.id}`)?.checked === !found, 3000).catch(() => {});
+            await wait(300);
+            const box = name => ({ shown: field(name)?.checked ?? null, drawn: field(name)?.defaultChecked ?? null });
+            read.broken = box(`broken:${roomA}`);
+            read.stash = { shown: field(`stash:${roomA}:${student.id}`)?.value ?? null, drawn: field(`stash:${roomA}:${student.id}`)?.dataset.drpgDrawn ?? null };
+            read.fog = box(`fog:${roomC}:${student.id}`);
+            read.typed = { text: field(`desc:${roomB}`)?.value ?? null, marked: Boolean(field(`desc:${roomB}`)?.classList.contains("drpg-moved-under")),
+                focus: document.activeElement?.getAttribute?.("name") === `desc:${roomB}` };
+            of("drpg-window-rooms")[0]?.element?.querySelector('footer button[data-action="cancel"]')?.click();
+            await Promise.race([answer, wait(6000)]);
+        } finally {
+            for (const app of of("drpg-window-rooms")) await app.close().catch(() => {});
+            await Promise.race([answer, wait(6000)]);
+            for (const [piece, flags] of was) {
+                for (const k of Object.keys(piece.flags?.[MODULE_ID] ?? {})) if (!Object.hasOwn(flags, k)) await piece.unsetFlag(MODULE_ID, k);
+                for (const [k, value] of Object.entries(flags)) await piece.setFlag(MODULE_ID, k, value);
+            }
+            if (ledgerWas) await S.discoveryStore.patch(key, ledgerWas);
+            else if (S.discoveryStore.has(key)) await S.discoveryStore.drop(key);
+            await gmStoresIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ broken: { shown: true, drawn: true }, stash: { shown: "open", drawn: "open" }, fog: { shown: !found, drawn: !found },
+            typed: { text: "SUITE typed here", marked: true, focus: true } }),
+            "Room setup did not follow the map while open, or lost what the GM was typing (broken, stash, fog: shown and drawn as the world's now; typed: the GM's text, marked, focused)");
+    }],
+
+    ["Room setup's Remove the picture empties a room's picture on Apply, the picture column read as the GM changed it (room-setup.mjs `roomCells`' picture cell, `readRoomSetupForm`; probe 42 of the audit of 1.2.118, group C: \"Remove the picture: Cafeteria\" did nothing on a room that had no picture; the line claude/setup-120)", async () => {
+        /*
+         * Probe 42 pressed Remove the picture on the Cafeteria, which the harness world gives no picture: nothing to take
+         * away, so nothing moved. Here the first room has a picture; the GM presses its Remove the picture and Apply. Read:
+         * the picture flag after, and the thumbnail before Apply. The flag is put back as found. A guard, not red first:
+         * since this line a column is written only where the GM changed it, read off the hidden field's drawn value
+         * (`data-drpg-drawn`), and this holds that a cleared picture still counts as changed.
+         */
+        needs(env.dialogs(), "Room setup is drawn and its Apply pressed");
+        needs(world.atLeast("namedRooms", 1), "Room setup lists a room of the scene on screen");
+        const V = await import("./vault.mjs");
+        const VS = await import("./vault-store.mjs");
+        const M = await import("./movement.mjs");
+        const { roomRegions, flagOver } = await import("./rooms.mjs");
+        const scene = canvas.scene;
+        const [room] = M.allRooms(scene);
+        const PATH = "modules/danganronpa-rpg/r2-120-no-such-picture.webp";
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-rooms").length, "Room setup stands open already");
+        const el = () => of("drpg-window-rooms")[0]?.element;
+        const pieces = roomRegions(scene, room);
+        // The room's module flags whole, piece by piece: an Apply of a changed row writes the row's lists and lock as well.
+        const was = pieces.map(piece => [piece, foundry.utils.deepClone(piece.flags?.[MODULE_ID] ?? {})]);
+        const read = {};
+        let answer = null;
+        try {
+            for (const piece of pieces) await piece.setFlag(MODULE_ID, VS.VAULT_FLAGS.image, PATH);
+            await settle();
+            answer = Promise.resolve().then(() => V.openRoomSetupDialog()).catch(err => `threw: ${err.message}`);
+            await until(() => el()?.querySelector(`[name="${CSS.escape(`img:${room}`)}"]`), 6000).catch(() => {});
+            const cell = el()?.querySelector(`[name="${CSS.escape(`img:${room}`)}"]`)?.closest("td");
+            must(cell?.querySelector("[data-drpg-picture-clear]"), "Room setup drew no Remove the picture - this would measure nothing");
+            cell.querySelector("[data-drpg-picture-clear]").click();
+            read.thumbnail = cell.querySelector("[data-drpg-portrait]")?.hasAttribute("src") ?? null;
+            el()?.querySelector('footer button[data-action="ok"]')?.click();
+            await Promise.race([answer, wait(8000)]);
+            await settle();
+            read.after = flagOver(roomRegions(scene, room), VS.VAULT_FLAGS.image) ?? null;
+        } finally {
+            for (const app of of("drpg-window-rooms")) await app.close().catch(() => {});
+            await Promise.race([answer, wait(6000)]);
+            for (const [piece, flags] of was) {
+                for (const key of Object.keys(piece.flags?.[MODULE_ID] ?? {})) if (!Object.hasOwn(flags, key)) await piece.unsetFlag(MODULE_ID, key);
+                for (const [key, value] of Object.entries(flags)) await piece.setFlag(MODULE_ID, key, value);
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ thumbnail: false, after: null }),
+            "Remove the picture did not empty the room's picture (thumbnail: its src gone at the press; after: the flag after Apply)");
+    }],
+
+    ["Season setup's fields follow the first write of a setting never stored, which Foundry fires as createSetting (gm-campaign.mjs `followCampaignFields`; the audit of 1.2.118, REFR-02's residue, N119-7; the line claude/setup-120)", async () => {
+        /*
+         * Season setup drawn as a GM opens it. While it stands open the safeword is written as a world that never stored
+         * one writes it: Foundry makes the Setting document and fires `createSetting`, not `updateSetting`. The harness
+         * fires `updateSetting` for every write, so this test holds that hook back for this one write (`Hooks.callAll`
+         * stood in for) and fires `createSetting` with the setting as Foundry would. Read within 2 s: the safeword field,
+         * shown and as drawn. The safeword is put back as found. Red at e515907d: `followWorld` heard `updateSetting` alone.
+         */
+        needs(env.dialogs(), "Season setup is drawn and read");
+        const SS = await import("./season-setup.mjs");
+        const G = await import("./gm-campaign.mjs");
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-season").length, "Season setup stands open already");
+        const wordBefore = getSetting(SETTINGS.safeword);
+        const KEY = `${MODULE_ID}.${SETTINGS.safeword}`;
+        const own = Object.getOwnPropertyDescriptor(Hooks, "callAll");
+        const callAll = Hooks.callAll;
+        const read = {};
+        let answer = null;
+        try {
+            answer = Promise.resolve().then(() => SS.openSeasonSetup()).catch(err => `threw: ${err.message}`);
+            await until(() => of("drpg-window-season")[0]?.element?.querySelector('form [name="safeword"]'), 6000).catch(() => {});
+            const f = () => of("drpg-window-season")[0]?.element?.querySelector('form [name="safeword"]');
+            must(f(), "Season setup drew no safeword - this would measure nothing");
+            Hooks.callAll = function (name, ...args) {
+                if (name === "updateSetting" && args[0]?.key === KEY) return true;
+                return callAll.call(this, name, ...args);
+            };
+            try {
+                await game.settings.set(MODULE_ID, SETTINGS.safeword, "SUITE created");
+                await settle();
+            } finally {
+                if (own) Object.defineProperty(Hooks, "callAll", own); else delete Hooks.callAll;
+            }
+            Hooks.callAll("createSetting", { key: KEY, value: "SUITE created" }, {}, game.user.id);
+            await until(() => f()?.value === "SUITE created", 2000).catch(() => {});
+            read.word = { shown: f()?.value ?? null, untouched: f() ? !G.changedField(f()) : null };
+        } finally {
+            if (own) Object.defineProperty(Hooks, "callAll", own); else if (Object.hasOwn(Hooks, "callAll")) delete Hooks.callAll;
+            for (const app of of("drpg-window-season")) await app.close().catch(() => {});
+            await Promise.race([answer, wait(6000)]);
+            if (getSetting(SETTINGS.safeword) !== wordBefore) await game.settings.set(MODULE_ID, SETTINGS.safeword, wordBefore);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ word: { shown: "SUITE created", untouched: true } }),
+            "Season setup's safeword did not follow a setting's first write (createSetting): shown, and still untouched for Save");
+    }],
+
+    ["Edit campaign's fields follow the clock while it stands open, and a field the GM typed in keeps the text (gm-campaign.mjs `openClockDialog`, `followCampaignFields`; N119-7: Edit campaign did not redraw at all; the owner's rule \"Zawsze odswiezamy okna od razu przy zmianie\"; the line claude/setup-120)", async () => {
+        /*
+         * Edit campaign drawn as a GM opens it, from a clock in Daily Life with no Eclipse. While it stands open the time of
+         * day moves one on (a step on the HUD); then the GM types a campaign name and the clock's name is written
+         * elsewhere too. Read: the time-of-day select (shown and drawn as the world's now, so Apply reads it untouched) and
+         * the name (the GM's text). Then Cancel. The clock is put back as found. Red at e515907d: nothing in it moved.
+         */
+        needs(env.dialogs(), "Edit campaign is drawn and read");
+        const G = await import("./gm-campaign.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-clock").length, "Edit campaign stands open already");
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const read = {};
+        let answer = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clockBefore, phase: "dailyLife", eclipse: false });
+            await settle();
+            answer = Promise.resolve().then(() => G.openClockDialog()).catch(err => `threw: ${err.message}`);
+            await until(() => of("drpg-window-clock")[0]?.element?.querySelector('form [name="timeOfDay"]'), 6000).catch(() => {});
+            const f = name => of("drpg-window-clock")[0]?.element?.querySelector(`form [name="${name}"]`);
+            must(f("timeOfDay") && f("campaignName"), "Edit campaign drew no time of day or name - this would measure nothing");
+            const moved = TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(getClock().timeOfDay) + 1) % TIMES_OF_DAY.length];
+            await setClock({ timeOfDay: moved });
+            await until(() => f("timeOfDay")?.value === moved, 2000).catch(() => {});
+            read.time = { shown: f("timeOfDay")?.value === moved, untouched: !G.changedField(f("timeOfDay")) };
+            f("campaignName").value = "SUITE typed here";
+            await setClock({ campaignName: "SUITE written elsewhere" });
+            await settle();
+            await wait(200);
+            read.name = f("campaignName")?.value;
+            of("drpg-window-clock")[0]?.element?.querySelector('footer button[data-action="cancel"]')?.click();
+            await Promise.race([answer, wait(6000)]);
+        } finally {
+            for (const app of of("drpg-window-clock")) await app.close().catch(() => {});
+            await Promise.race([answer, wait(6000)]);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ time: { shown: true, untouched: true }, name: "SUITE typed here" }),
+            "Edit campaign did not follow the clock while open, or lost what the GM typed (time: shown as the world's and still untouched, name: the GM's text)");
+    }],
+
+    ["the Season checklist's count follows the world while it stands open: the campaign's name taken off elsewhere says one more still to do, and put back one fewer (season-setup.mjs `followChecklist`, `introLine`; N119-7; the line claude/setup-120)", async () => {
+        /*
+         * The Season checklist drawn as a GM opens it, from a clock with a campaign name. While it stands open the name is
+         * written empty (another GM's Edit campaign), then put back. Read: the intro line each time, against the line drawn
+         * at the open. The clock is put back as found. Red at e515907d: the rows redrew, the intro's count stood as drawn.
+         */
+        needs(env.dialogs(), "the Season checklist is drawn and read");
+        const SS = await import("./season-setup.mjs");
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const read = {};
+        let answer = null;
+        const win = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-season-checklist"));
+        const intro = () => win()?.element?.querySelector(".drpg-kit-body > p, .window-content p")?.textContent?.trim() ?? null;
+        const state = () => win()?.element?.querySelector('li.drpg-check-row[data-drpg-key="name"]')?.dataset.drpgState ?? null;
+        try {
+            await setClock({ campaignName: "SUITE checklist" });
+            await settle();
+            answer = Promise.resolve().then(() => SS.openSeasonChecklist()).catch(err => `threw: ${err.message}`);
+            await until(() => state(), 6000).catch(() => {});
+            read.before = intro();
+            must(read.before && state(), "the Season checklist drew no intro or name row - this would measure nothing");
+            await setClock({ campaignName: "" });
+            await until(() => state() !== "done" && intro() !== read.before, 2000).catch(() => {});
+            read.emptied = intro();
+            await setClock({ campaignName: "SUITE checklist" });
+            await until(() => intro() === read.before, 2000).catch(() => {});
+            read.back = intro();
+        } finally {
+            for (const app of [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-season-checklist"))) await app.close().catch(() => {});
+            await Promise.race([answer, wait(6000)]);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            await settle();
+        }
+        const n = text => Number(String(text ?? "").match(/\d+/)?.[0] ?? 0);
+        equal(stableJson({ more: n(read.emptied) - n(read.before), back: read.back === read.before }), stableJson({ more: 1, back: true }),
+            `the Season checklist's intro did not follow the world (before, emptied, back: ${stableJson(read)})`);
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

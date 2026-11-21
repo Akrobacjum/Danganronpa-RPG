@@ -39,7 +39,7 @@ import {
 } from "./utils.mjs";
 import { kitTabs, wireKitTabs, emptyOption, drpgWindow, box, dataTable, stepper, toggle, iconButton, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
 // E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
-import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
+import { alreadyOpen, keepFresh, keepLive, isDirty, RAISED } from "./live.mjs";
 import { roomActions } from "./facilities.mjs";
 import {
     ROOM_FLAG, canBeRoom, namedRegions, playerRegionIds, roomDecided, setRoomFlag, roomNames, roomRegions, flagOver,
@@ -367,7 +367,7 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
             image: `<img class="drpg-room-picture" data-drpg-portrait="${escRoom}" alt=""${
                 picture ? ` src="${foundry.utils.escapeHTML(picture)}"` : ""}
                 title="${pickLabel}" aria-label="${pickLabel}: ${escRoom}" />
-                <input type="hidden" name="img:${escRoom}" value="${foundry.utils.escapeHTML(picture ?? "")}" />
+                <input type="hidden" name="img:${escRoom}" value="${foundry.utils.escapeHTML(picture ?? "")}" data-drpg-drawn="${foundry.utils.escapeHTML(picture ?? "")}" />
                 <button type="button" class="drpg-mini-button" data-drpg-picture-clear
                     title="${clearLabel}" aria-label="${clearLabel}: ${escRoom}">✕</button>
                 <div class="drpg-room-picture-say" data-drpg-picture-say aria-live="polite"></div>`
@@ -518,24 +518,49 @@ function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncove
         `
     };
 
-    return dialogContent(`<form>
+    /* The body in one block (REFR-04): the region the window's redraw replaces (`openRoomSetupDialog`'s `keepLive`). Not
+       the `<form>`: DialogV2 draws the window's own form around the content, and a form in a form is dropped as parsed. */
+    return dialogContent(`<form><div class="drpg-room-setup-body" data-drpg-room-body>
             ${/* WHAT APPLY SAVES, SAID ONCE (E101 item 3): every tab at once, and the three that write at once - until
                then the rule stood over the tabs and again in five of them */ ""}
             <p class="notes" data-drpg-apply-line>${game.i18n.localize("DRPG.Vault.applyLine")}</p>
             ${/* information, not a warning (E46-C2a; E21's carried site ~499): a new map has no room yet */ ""}
             ${cells.length ? "" : box("info", `<p>${game.i18n.localize("DRPG.Vault.noRooms")}</p>`)}
             ${kitTabs(ROOM_SETUP_TABS.map(([key, label]) => ({ key, label: game.i18n.localize(label), html: panes[key] })), { active: initial })}
-        </form>`);
+        </div></form>`);
 }
+
+/*
+ * WHAT THE GM CHANGED, ROW BY ROW (the line claude/setup-120, 21.11.2026; the audit of 1.2.118, REFR-03). Each row says
+ * which of its columns the GM left other than the window drew them (`touched`: live.mjs `isDirty`, the same reading the
+ * redraw carries a field by), and `applyRoomRows` takes the room as it stands at the press for every other column
+ * (`untouchedRoomRow`). Until this line every column of a row was written as drawn as soon as any one differed from the
+ * room: a lock forced, repaired or breached while the window stood open was undone by an Apply of another room, and
+ * a Repair the Lock under way was dropped with it (`dropLockRepairs`). "This is a room" and Neighbours say it here:
+ * `isRoom` and `neighbours` are null - nothing to write - where the GM left them, but for a room not yet decided, whose
+ * drawn suggestion an Apply decides (`roomCells`, E12 C1). The column names are the cells' (`ROOM_SETUP_COLUMN`).
+ */
+const ROW_FIELDS = Object.freeze({
+    owner: "owner", short: "shortRest", long: "longRest", locked: "locked", startlocked: "lockedAtStart", broken: "broken",
+    nosearch: "noSearch", notshared: "notShared", desc: "description", img: "image", table: "table"
+});
 
 /** What Apply hands back: every row, the Fog boxes the GM changed and the stash matrix, read off the form by input name. */
 function readRoomSetupForm(d, { rooms, students, categories }) {
     const f = d.element.querySelector("form");
     const pick = name => f.querySelector(`[name="${CSS.escape(name)}"]`);
-    // `null` when the box is drawn off: no piece of the name may be a room (`roomCells`).
-    const roomBox = box => box && !box.disabled ? box.checked : null;
+    // `null` when the box is drawn off: no piece of the name may be a room (`roomCells`); null too where the GM left a
+    // decided room's box as drawn (REFR-03, above).
+    const roomBox = box => box && !box.disabled && (isDirty(box) || box.hasAttribute("data-drpg-undecided")) ? box.checked : null;
+    const changedCell = el => el && isDirty(el) ? el : null;
+    const touchedOf = room => [
+        ...Object.entries(ROW_FIELDS).filter(([prefix]) => changedCell(pick(`${prefix}:${room}`))).map(([, field]) => field),
+        ...categories.flatMap(([key]) => ["fav", "hin"].filter(side => changedCell(pick(`${side}:${room}:${key}`)))
+            .map(side => `${side}:${key}`))
+    ];
     const roomRows = rooms.map(room => ({
         room,
+        touched: touchedOf(room),
         owner: pick(`owner:${room}`)?.value ?? "",
         shortRest: Boolean(pick(`short:${room}`)?.checked),
         longRest: Boolean(pick(`long:${room}`)?.checked),
@@ -545,7 +570,8 @@ function readRoomSetupForm(d, { rooms, students, categories }) {
         noSearch: Boolean(pick(`nosearch:${room}`)?.checked),
         notShared: Boolean(pick(`notshared:${room}`)?.checked),
         isRoom: roomBox(pick(`isroom:${room}`)),
-        ...neighboursTyped(pick(`neighbours:${room}`), room, rooms),
+        // Typed only where the GM changed the cell (REFR-03): a list another GM wrote meanwhile is not put back.
+        ...neighboursTyped(changedCell(pick(`neighbours:${room}`)), room, rooms),
         description: (pick(`desc:${room}`)?.value ?? "").trim(),
         // The picture's hidden field (E77 C1), checked by `applyRoomRows` before anything is written.
         image: (pick(`img:${room}`)?.value ?? "").trim(),
@@ -608,10 +634,15 @@ function readRoomSetupForm(d, { rooms, students, categories }) {
  * wing still shows here. Exported for R1500, which reads it on a form of
  * its own.
  */
+/* `living` is a number, or a function that answers it now (the window's redraw, REFR-04: a death while it stands open).
+   The line is found again at each paint, since a redraw replaces it, and the paint is answered so the redraw can run it;
+   null where the window draws no line. */
 export function wireRoomRatio(dialog, rooms, living) {
-    const ratio = dialog.element.querySelector("[data-drpg-ratio]");
-    if (ratio) {
+    const livingNow = typeof living === "function" ? living : () => living;
+    if (dialog.element.querySelector("[data-drpg-ratio]")) {
         const paintRatio = () => {
+            const ratio = dialog.element.querySelector("[data-drpg-ratio]");
+            if (!ratio) return;
             const form = dialog.element.querySelector("form");
             /*
              * READ OFF THE FORM, NOT OFF THE FLAGS (audit A21).
@@ -638,8 +669,8 @@ export function wireRoomRatio(dialog, rooms, living) {
                 locked: ticked("locked", room)
             })));
             const pending = rooms.filter(suggested).length;
-            ratio.textContent = pending ? `${roomRatioLine(census, living)} ${plural("DRPG.Vault.roomCensusUndecided", { n: pending })}`
-                : roomRatioLine(census, living);
+            ratio.textContent = pending ? `${roomRatioLine(census, livingNow())} ${plural("DRPG.Vault.roomCensusUndecided", { n: pending })}`
+                : roomRatioLine(census, livingNow());
         };
         const changed = new Set();
         dialog.element.addEventListener("change", ev => {
@@ -649,7 +680,9 @@ export function wireRoomRatio(dialog, rooms, living) {
                 || name.startsWith("owner:") || name.startsWith("isroom:")) paintRatio();
         });
         paintRatio();
+        return paintRatio;
     }
+    return null;
 }
 
 /*
@@ -832,8 +865,9 @@ function wireFogButtons(root) {
  * below is the backstop for a form that got past this.
  */
 function wireTwoRoomsCheck(root, rooms) {
-    const twoRoomsNote = root.querySelector("[data-drpg-two-rooms]");
+    // Found at each check, since the window's redraw replaces the note (REFR-04); the check is answered for the redraw.
     const checkBedrooms = () => {
+        const twoRoomsNote = root.querySelector("[data-drpg-two-rooms]");
         const seen = new Map();
         let clash = null;
         for (const room of rooms) {
@@ -857,6 +891,7 @@ function wireTwoRoomsCheck(root, rooms) {
         if (String(ev.target?.name ?? "").startsWith("owner:")) checkBedrooms();
     });
     checkBedrooms();
+    return checkBedrooms;
 }
 
 /*
@@ -939,6 +974,25 @@ function neighboursTyped(cell, room, rooms) {
 }
 
 /**
+ * A row as `applyRoomRows` writes it: every column the GM left as drawn (`row.touched`, `readRoomSetupForm`) taken from
+ * `now`, the room as it stands at the press, in a row's own fields; a place switch's category one box at a time
+ * (`fav:<key>`, `hin:<key>`), so a category another GM moved stays where they put it, and one the GM moved is theirs, a
+ * category in both lists kept as good, as the reader keeps it. A row with no `touched` is the GM's whole, as every row
+ * was until REFR-03. Pure; exported for R7990.
+ */
+export function untouchedRoomRow(row, now) {
+    if (!Array.isArray(row?.touched)) return row;
+    const touched = new Set(row.touched);
+    const out = { ...row };
+    for (const field of Object.values(ROW_FIELDS)) if (!touched.has(field) && now?.[field] !== undefined) out[field] = now[field];
+    const keys = [...new Set([...(now?.favours ?? []), ...(now?.hinders ?? []), ...(row.favours ?? []), ...(row.hinders ?? [])])];
+    const on = (side, list, key) => touched.has(`${side}:${key}`) ? (row[list] ?? []).includes(key) : (now?.[list] ?? []).includes(key);
+    out.favours = keys.filter(key => on("fav", "favours", key));
+    out.hinders = keys.filter(key => on("hin", "hinders", key) && !out.favours.includes(key));
+    return out;
+}
+
+/**
  * The named regions of a scene by name - Room Setup's own map (E12 C2a): every name, with the
  * pieces of it that can be rooms, marked or not (none for a name only a Teleport or a player's
  * region carries). Not `piecesByName`, which holds rooms only: this window is where a region
@@ -956,7 +1010,8 @@ function namedByName(scene) {
 }
 
 /**
- * Write every row that differs from its region. Answers the rooms it changed and whose bedroom moved.
+ * Write every row that differs from its region, in the columns the GM changed (REFR-03, `untouchedRoomRow`; every other
+ * column is the room's as it stands at the press). Answers the rooms it changed and whose bedroom moved.
  * Every write lands on every region of the row's name (E12 C2a, `updateRoom`): one write to the
  * piece `regionsByName` held left a Kitchen of two pieces locked on one of them (66 D1).
  */
@@ -978,10 +1033,10 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
         if (row.isRoom === true) roomsAfter.add(row.room);
         else if (row.isRoom === false) roomsAfter.delete(row.room);
     }
-    for (const row of rowResults) {
+    for (const drawnRow of rowResults) {
         // The pieces that can be rooms, read as one as the cells were (E12 fix r1-G1): a name
         // with none - a Teleport's alone - has nothing a row may write.
-        const pieces = named.get(row.room) ?? [];
+        const pieces = named.get(drawnRow.room) ?? [];
         if (!pieces.length) continue;
 
         const before = {
@@ -994,21 +1049,30 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
             // that leaves it so differs and its Apply writes null over it.
             image: flagOver(pieces, VAULT_FLAGS.image) ?? ""
         };
-        /* THE PICTURE IS JUDGED BEFORE THE ROW IS COMPARED (E77 C1). A path `safeRoomImage` refuses is not
-           written and the GM is told which room; the row's other columns are written as usual. `refused`
-           also keeps the picture out of `same`, so a refused path alone writes nothing at all. */
-        const picture = row.image ? safeRoomImage(row.image) : "";
-        const refused = picture === null;
-        if (refused) ui.notifications.warn(game.i18n.format("DRPG.Vault.imageRefused", { room: row.room }));
         const beforeRest = {
             short: Boolean(flagOver(pieces, REST_FLAGS.short)),
             long: Boolean(flagOver(pieces, REST_FLAGS.long))
         };
         const wasLocked = Boolean(flagOver(pieces, ROOM_FLAGS.locked));
         const wasLockedAtStart = pieces.some(startLocked);
-        const wasBroken = roomBroken(scene, row.room);
+        const wasBroken = roomBroken(scene, drawnRow.room);
         const wasSealed = Boolean(flagOver(pieces, SEARCH_FLAGS.sealed));
         const wasNotShared = Boolean(flagOver(pieces, VAULT_FLAGS.notShared));
+        /* THE ROOM AS IT STANDS FOR EVERY COLUMN THE GM LEFT AS DRAWN (REFR-03, `untouchedRoomRow`), read here at the press,
+           so `same` below compares only what the GM changed. A stored picture `safeRoomImage` refuses stands as the cell
+           drew it, no picture, so the row's Apply still writes null over it (E77 C1). */
+        const row = untouchedRoomRow(drawnRow, {
+            owner: before.owner ?? "", table: before.table ?? "", favours: before.favours, hinders: before.hinders,
+            description: before.description, image: before.image && safeRoomImage(before.image) === null ? "" : before.image,
+            shortRest: beforeRest.short, longRest: beforeRest.long, locked: wasLocked, lockedAtStart: wasLockedAtStart,
+            broken: wasBroken, noSearch: wasSealed, notShared: wasNotShared
+        });
+        /* THE PICTURE IS JUDGED BEFORE THE ROW IS COMPARED (E77 C1). A path `safeRoomImage` refuses is not
+           written and the GM is told which room; the row's other columns are written as usual. `refused`
+           also keeps the picture out of `same`, so a refused path alone writes nothing at all. */
+        const picture = row.image ? safeRoomImage(row.image) : "";
+        const refused = picture === null;
+        if (refused) ui.notifications.warn(game.i18n.format("DRPG.Vault.imageRefused", { room: row.room }));
         // Settled when every piece that can be a room already says what the row says (E12 C1);
         // the scene is the pieces' own, so the flag goes where the row was read.
         const roomSettled = row.isRoom === null
@@ -1246,7 +1310,7 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
         await import("./fog.mjs");
     const students = studentActors();
     // The living as the checklist counts them (E20 C1, `studentCensus`): `isDeceased` here missed a death the GMs keep.
-    const living = studentCensus(students).count;
+    let living = studentCensus(students).count;
     // Room pools only. The tier pools (`tableName()`'s family) answer dice
     // rolls and are never a room's stock - see `roomStockTables` in tables-pools.mjs:
     // by their flags since E14 fix e1-G2, so one the GM renamed in the sidebar
@@ -1268,18 +1332,30 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
      */
     const categories = pickableCategories({ splitUsables: false })
         .map(c => [c.key, ITEM_CATEGORIES[c.key]]);
-    const regions = namedByName(scene);
-
-    const uncovered = sceneUncoveredPercent(scene);
-    const maxTokens = SearchTokens.max;
-
-    const known = new Map(students.map(a => [a.id, new Set(discoveredFor(scene?.id, a.id))]));
     const { mastermindActor } = await import("./mastermind.mjs");
-    const fogRows = fogMatrixRows(rooms, students, known, mastermindActor()?.id ?? null);
-    const stashRows = stashMatrixRows(rooms, students, scene);
-    const cells = roomCells(rooms, { students, tables, categories, regions, scene, maxTokens, REST_FLAGS });
-
+    const { deathStore, mastermindStore, discoveryStore } = await import("./gm-stores.mjs");
     const initial = roomSetupTab(tab);
+
+    /*
+     * THE WINDOW FOLLOWS THE MAP IT SHOWS (the line claude/setup-120, 21.11.2026; the audit of 1.2.118, REFR-04; the
+     * owner's rule "Zawsze odswiezamy okna od razu przy zmianie"). `drawBody` reads the world each time it is called:
+     * the rooms of the scene, the students, the discovery ledger, the region flags, the stashes. The first call draws
+     * the window; `keepLive` below calls it again while the window stands open. `rooms` and `students` are kept as the
+     * same arrays, filled again in place, because Apply's reader, the ratio line and the two-rooms check read them.
+     */
+    const drawBody = () => {
+        rooms.splice(0, rooms.length, ...Array.from(namedByName(scene).keys()).sort((a, b) => a.localeCompare(b)));
+        students.splice(0, students.length, ...studentActors());
+        living = studentCensus(students).count;
+        const regions = namedByName(scene);
+        const maxTokens = SearchTokens.max;
+        const known = new Map(students.map(a => [a.id, new Set(discoveredFor(scene?.id, a.id))]));
+        const fogRows = fogMatrixRows(rooms, students, known, mastermindActor()?.id ?? null);
+        const stashRows = stashMatrixRows(rooms, students, scene);
+        const cells = roomCells(rooms, { students, tables, categories, regions, scene, maxTokens, REST_FLAGS });
+        return roomSetupContent({ initial, cells, students, stashRows, fogRows, uncovered: sceneUncoveredPercent(scene), maxTokens,
+            passagesPanel: passagesTab.passagesTabHtml(scene, { students }) });
+    };
 
     const result = await drpgWindow({
         help: WINDOW_HELP.roomSetup,
@@ -1294,8 +1370,7 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
         // kit's `fitKitWidth`. Without it the window is fitted to whichever tab
         // is showing and jumps between 708px and 1504px as the GM switches.
         fit: true,
-        body: roomSetupContent({ initial, cells, students, stashRows, fogRows, uncovered, maxTokens,
-            passagesPanel: passagesTab.passagesTabHtml(scene, { students }) }).innerHTML,
+        body: drawBody().innerHTML,
         footer: {
             primary: {
                 action: "ok", label: game.i18n.localize("DRPG.Panel.apply"),
@@ -1304,7 +1379,7 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
             close: { role: "cancel", action: "cancel" }
         },
         render: (event, dialog) => {
-            wireRoomRatio(dialog, rooms, living);
+            const paintRatio = wireRoomRatio(dialog, rooms, () => living);
             const root = dialog.element;
 
             // Deliberately no REFIT of the width on a switch. The window was measured
@@ -1315,30 +1390,95 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
             // outside the kit's body that scrolls, so nothing pins it across a
             // sideways scroll any more (C-F5-8's `pinFooterAcrossScroll`, retired by
             // E21 C2a). The footer's buttons are Apply and Cancel on every tab (E12 C15).
-            wireFogButtons(root);
             wireKitTabs(root, { win: root, app: dialog });
-            wireTwoRoomsCheck(root, rooms);
+            const checkBedrooms = wireTwoRoomsCheck(root, rooms);
             passagesTab.wirePassagesTab(root, scene, { dialog, students });
 
             const recount = where => recountTokenCells(where, scene);
+            // What each redraw wires again: every listener below sits on a node of the form, which the redraw replaces.
+            const wireForm = form => {
+                wireFogButtons(form);
+                wireStashCells(form);
+                wirePlaceSwitches(form);
+                wireTokenButtons(form, scene, recount);
+                wireFacilityButtons(form, scene);
 
-            wireStashCells(root);
-            wirePlaceSwitches(root);
-            wireTokenButtons(root, scene, recount);
-            wireFacilityButtons(root, scene);
+                // The picture column (E77 C1): the file picker on each thumbnail, its field named `img:<room>`
+                // as the description's is `desc:<room>`, and the button that empties the cell it stands in.
+                wirePortraitPickers(form, { prefix: "img:" });
+                wirePictureWarnings(form);
+                for (const button of form.querySelectorAll("[data-drpg-picture-clear]")) {
+                    button.addEventListener("click", () => {
+                        const cell = button.closest("td");
+                        const field = cell?.querySelector('input[type="hidden"]');
+                        if (field) field.value = "";
+                        cell?.querySelector("[data-drpg-portrait]")?.removeAttribute("src");
+                    });
+                }
+            };
+            wireForm(root.querySelector("[data-drpg-room-body]") ?? root);
 
-            // The picture column (E77 C1): the file picker on each thumbnail, its field named `img:<room>`
-            // as the description's is `desc:<room>`, and the button that empties the cell it stands in.
-            wirePortraitPickers(root, { prefix: "img:" });
-            wirePictureWarnings(root);
-            for (const button of root.querySelectorAll("[data-drpg-picture-clear]")) {
-                button.addEventListener("click", () => {
-                    const cell = button.closest("td");
-                    const field = cell?.querySelector('input[type="hidden"]');
-                    if (field) field.value = "";
-                    cell?.querySelector("[data-drpg-portrait]")?.removeAttribute("src");
-                });
-            }
+            /*
+             * AND THE WHOLE FORM FOLLOWS THE MAP (REFR-04, above `drawBody`). A write to a region of this scene (a lock
+             * forced, a stash written, a room drawn, marked or deleted, another GM's Apply), the discovery ledger (a
+             * room a student walked into), the students (one made, renamed or deleted, a death the GMs keep) or the
+             * Mastermind draws the form again from the world, as `keepLive` redraws: what the GM changed and has not
+             * applied is carried by name (live.mjs RULE 2) - a field another GM changed meanwhile keeps the GM's
+             * value and is marked - with the tab, the scroll and the focus in a named field (`whileEditing`); a
+             * select held open, or the token count's field (no name), holds the redraw until the focus leaves.
+             * Apply then writes only what the GM changed (`untouchedRoomRow`, REFR-03). The Passages tab is not
+             * drawn again: its box follows its own stores (passages-tab.mjs `wirePassagesTab`), so the box standing
+             * is moved into the new form whole, with its listeners. What a cell draws from its hidden field - a stash
+             * glyph, a place switch, a thumbnail - is drawn again from the field the redraw carried (`afterRedraw`).
+             * No setting of the module draws it again: the token counts are written in place (`keepFresh` below).
+             * Measured headless only (the tier-2 "Room setup follows the map while it stands open ..."); at a real
+             * table with a GM typing it is not.
+             */
+            const onScene = doc => (doc?.parent?.id ?? null) === scene.id;
+            const afterRedraw = form => {
+                wireKitTabs(root, { win: root, app: dialog });
+                wireForm(form);
+                for (const button of form.querySelectorAll("[data-drpg-stash]")) {
+                    const input = button.parentElement?.querySelector("input[type=hidden]");
+                    if (input) button.innerHTML = stashGlyph(input.value);
+                }
+                for (const button of form.querySelectorAll("[data-drpg-place]")) {
+                    const [fav, hin] = button.parentElement?.querySelectorAll("input.drpg-place-box") ?? [];
+                    const state = fav?.checked ? "good" : hin?.checked ? "bad" : "";
+                    const { glyph, key } = PLACE_STATES[state];
+                    button.dataset.drpgPlace = state;
+                    button.querySelector("i")?.setAttribute("class", glyph);
+                    button.setAttribute("aria-label", `${button.dataset.drpgLabel}: ${game.i18n.localize(key)}`);
+                }
+                for (const field of form.querySelectorAll('input[type="hidden"][name^="img:"]')) {
+                    if (!field.value) field.closest("td")?.querySelector("[data-drpg-portrait]")?.removeAttribute("src");
+                }
+                recount(form);
+                paintRatio?.();
+                checkBedrooms();
+            };
+            keepLive(dialog, {
+                region: "[data-drpg-room-body]",
+                whileEditing: true,
+                build: () => {
+                    const next = drawBody().querySelector("[data-drpg-room-body]");
+                    const standing = root.querySelector('[data-drpg-pane="passages"]');
+                    const fresh = next?.querySelector('[data-drpg-pane="passages"]');
+                    if (standing && fresh) fresh.replaceWith(standing);
+                    return next;
+                },
+                after: afterRedraw,
+                watch: {
+                    settings: [],
+                    stores: [discoveryStore, deathStore, mastermindStore],
+                    where: [
+                        ...["createRegion", "updateRegion", "deleteRegion"].map(hook => [hook, onScene]),
+                        ["createActor", () => true], ["deleteActor", () => true],
+                        ["updateActor", (actor, change) => Object.hasOwn(change ?? {}, "name") || Object.hasOwn(change ?? {}, "type")
+                            || change?.flags?.[MODULE_ID] !== undefined]
+                    ]
+                }
+            });
 
             /* AND THE COUNTS FOLLOW THE TABLE THAT IS SPENDING THEM.
 
