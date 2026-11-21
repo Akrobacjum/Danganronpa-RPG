@@ -7530,9 +7530,9 @@
       "TIER_EFFECTS": {
         "usable": {
           "0": "Losowy, z pozoru bezużyteczny przedmiot. Otwarty na kreatywne użycie.",
-          "1": "Przywraca 1 Health (leczący) albo 1 Sanity (uspokajający), zależnie od rodzaju.",
-          "2": "Przywraca 2 Health (leczący) albo 2 Sanity (uspokajający), zależnie od rodzaju.",
-          "3": "Przywraca 3 Health (leczący) albo 3 Sanity (uspokajający), zależnie od rodzaju."
+          "1": "Przywraca {restores} Health (leczący) albo {restores} Sanity (uspokajający), zależnie od rodzaju.",
+          "2": "Przywraca {restores} Health (leczący) albo {restores} Sanity (uspokajający), zależnie od rodzaju.",
+          "3": "Przywraca {restores} Health (leczący) albo {restores} Sanity (uspokajający), zależnie od rodzaju."
         },
         "crimeTool": {
           "0": "Losowy, z pozoru bezużyteczny przedmiot.",
@@ -7559,14 +7559,14 @@
       },
       "USABLE_KIND_EFFECTS": {
         "healing": {
-          "1": "Przywraca 1 Health.",
-          "2": "Przywraca 2 Health.",
-          "3": "Przywraca 3 Health."
+          "1": "Przywraca {restores} Health.",
+          "2": "Przywraca {restores} Health.",
+          "3": "Przywraca {restores} Health."
         },
         "stress": {
-          "1": "Przywraca 1 Sanity.",
-          "2": "Przywraca 2 Sanity.",
-          "3": "Przywraca 3 Sanity."
+          "1": "Przywraca {restores} Sanity.",
+          "2": "Przywraca {restores} Sanity.",
+          "3": "Przywraca {restores} Sanity."
         }
       },
       "REMNANT_VISIBILITY_LABELS": {
@@ -7740,7 +7740,7 @@
         "concealIntent": {
           "label": "Conceal Your Intent",
           "success": "Pozostali nie widzą, że cokolwiek robisz. Możesz swobodnie kłamać.",
-          "successWithDespair": "Pozostali nic nie widzą, a projekt zyskuje dodatkowo +1 postępu.",
+          "successWithDespair": "Pozostali nic nie widzą, a projekt zyskuje dodatkowo +{despairBonus} postępu.",
           "failure": "Pozostali w pokoju widzą, że przy czymś się krzątasz, ale nie wiedzą, przy jakim projekcie. Praca idzie dalej."
         },
         "hideTraces": {
@@ -7795,8 +7795,8 @@
           },
           "breath": {
             "label": "Breath",
-            "long": "Daje 2 Hope",
-            "short": "Daje 1 Hope"
+            "long": "Daje {breathHope} Hope",
+            "short": "Daje {breathHope} Hope"
           }
         }
       },
@@ -8076,10 +8076,10 @@
             "label": "Confusion",
             "thresholds": {
               "0": {
-                "help": "Ta postać dostaje +1 do następnego rzutu.",
-                "hinder": "Ta postać dostaje -1 do następnego rzutu.",
-                "helpTarget": "Coś uspokaja twoją rękę: +1 do następnego rzutu.",
-                "hinderTarget": "Coś cię rozprasza: -1 do następnego rzutu."
+                "help": "Ta postać dostaje +{amount} do następnego rzutu.",
+                "hinder": "Ta postać dostaje -{amount} do następnego rzutu.",
+                "helpTarget": "Coś uspokaja twoją rękę: +{amount} do następnego rzutu.",
+                "hinderTarget": "Coś cię rozprasza: -{amount} do następnego rzutu."
               },
               "1": {
                 "help": "Ta postać dostaje przewagę na następny rzut.",

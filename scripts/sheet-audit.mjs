@@ -1817,7 +1817,7 @@ async function restCovers(actor, mark, credit, gains, moves, ref, seen) {
     if (!rules) return null;
     const full = kind === "long";
     const marks = key => moves[key]?.base ?? 0;
-    const allowed = { hope: relief ? 0 : full ? 2 : 1, hitPoints: full ? marks("hitPoints") : Math.ceil(marks("hitPoints") / 2),
+    const allowed = { hope: relief ? 0 : (REST.options.breath.grants?.[full ? "long" : "short"] ?? 0), hitPoints: full ? marks("hitPoints") : Math.ceil(marks("hitPoints") / 2),
         stress: full ? marks("stress") : Math.ceil(marks("stress") / 2) };
     const picked = Object.keys(gains);
     if (picked.length > rules.picks || picked.some(key => !(gains[key] <= (allowed[key] ?? 0)))) return null;

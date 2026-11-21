@@ -27259,6 +27259,66 @@ const REGRESSIONS = [
         const due = text.split("\n").map((l, i) => [i + 1, l.match(/to confirm in (E\d\d)/)?.[1]]).filter(([, id]) => id && ledger.get(id)?.done);
         equal(JSON.stringify(due.map(([n, id]) => `${n}:${id}`)), "[]", "[the lines whose status waits on a stage that has shipped]");
     }],
+
+    ["R8069 - a number a config sentence tells is a row of its table, filled where the sentence is read (1.2.122 line TEXT; the audit of 1.2.118: TEXT-26; config.mjs's first rule, text-style O5): Conceal Your Intent's Despair bonus, Breath's Hope, the lower Confusion's +1/-1 and each usable's restore are fields of their rows, their sentences hold a placeholder and no digit in English and in Polish, the code that applies each reads the field, and the four readers of the sentences fill them with the rule's numbers", async () => {
+        /*
+         * 1.2.122 line TEXT, 21.11.2026; the owner: everything the auditor named goes into 1.2.122. Until here the
+         * numbers lived twice: action-project.mjs `CONCEALED_WITH_DESPAIR = 1` beside "gains +1 progress", rest.mjs and
+         * sheet-audit.mjs `full ? 2 : 1` beside "Grants 2 Hope" / "Grants 1 Hope", monocub.mjs `help ? 1 : -1` beside four
+         * "+1"/"-1" sentences, and USABLE_EFFECTS' amounts beside nine "Restores N" lines. Each is now a field
+         * (`despairBonus`, `grants`, `amount`, USABLE_EFFECTS' `amount`) and a PROSE_NUMBERS row (`despairBonus`,
+         * `breathHope`, `amount`, `restores`). Red at 0d429d2c: no field, the digits typed, the code's own constants.
+         */
+        const C = await import("./config.mjs");
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => (r.ok ? r.json() : null));
+        must(pl?.DRPG?.Config, "lang/pl.json's DRPG.Config was not served - this would read nothing");
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`, { cache: "no-cache" }).then(lfText));
+        const [project, rest, audit, cub] = await Promise.all(["action-project.mjs", "rest.mjs", "sheet-audit.mjs", "monocub.mjs"].map(src));
+        must(project.length > 1000 && rest.length > 1000 && audit.length > 1000 && cub.length > 1000, "a script did not load - this reads nothing");
+        const plOf = key => foundry.utils.getProperty(pl, key) ?? "";
+        const conceal = C.INDIRECT_MURDER.concealIntent, breath = C.REST.options.breath;
+        const meddle = C.MONOCUB.abilities.meddle, lower = meddle.thresholds.find(t => t.grants === "bonus");
+        must(conceal && breath && lower, "a row this test reads is gone from config.mjs - it reads nothing");
+        const wrong = [];
+        const sentence = (id, entry, field, key, placeholder, want) => {
+            const en = entry?.[field] ?? "", polish = plOf(key);
+            if (!en.includes(`{${placeholder}}`) || /\d/.test(en)) wrong.push(`${id} en ${key}`);
+            if (!polish.includes(`{${placeholder}}`) || /\d/.test(polish)) wrong.push(`${id} pl ${key}`);
+            if (!C.fillProse(entry, field).includes(want)) wrong.push(`${id} ${key} fills to "${C.fillProse(entry, field)}", not "...${want}..."`);
+        };
+        // Conceal Your Intent
+        if (!Number.isFinite(conceal.despairBonus)) wrong.push("concealIntent has no despairBonus");
+        sentence("conceal", conceal, "successWithDespair", "DRPG.Config.INDIRECT_MURDER.concealIntent.successWithDespair", "despairBonus", `+${conceal.despairBonus}`);
+        if (!/CONCEALED_WITH_DESPAIR\s*=\s*INDIRECT_MURDER\.concealIntent\.despairBonus/.test(project)) wrong.push("action-project.mjs's bonus is not the row's despairBonus");
+        if (!/proseOf\(\s*INDIRECT_MURDER\.concealIntent\s*,\s*"successWithDespair"\s*\)/.test(project)) wrong.push("action-project.mjs does not fill the concealment's sentence");
+        // Breath
+        if (!Number.isFinite(breath.grants?.long) || !Number.isFinite(breath.grants?.short)) wrong.push("Breath has no grants");
+        for (const kind of ["long", "short"]) sentence("breath", breath, kind, `DRPG.Config.REST.options.breath.${kind}`, "breathHope", `${breath.grants?.[kind]}`);
+        if (/full\s*\?\s*2\s*:\s*1/.test(rest) || !/grants\?*\.\[\s*full/.test(rest)) wrong.push("rest.mjs gives Breath's Hope by its own numbers");
+        if (/hope:\s*relief\s*\?\s*0\s*:\s*full\s*\?\s*2\s*:\s*1/.test(audit) || !/breath\.grants/.test(audit)) wrong.push("sheet-audit.mjs allows Breath's Hope by its own numbers");
+        if (!/proseOf\(\s*opt\s*,\s*kind\s*\)/.test(rest)) wrong.push("rest.mjs does not fill a rest option's sentence");
+        // Confusion's lower tier
+        if (!Number.isFinite(lower.amount)) wrong.push("the lower Confusion has no amount");
+        const tier = meddle.thresholds.indexOf(lower);
+        for (const [field, sign] of [["help", "+"], ["hinder", "-"], ["helpTarget", "+"], ["hinderTarget", "-"]]) {
+            sentence("confusion", lower, field, `DRPG.Config.MONOCUB.abilities.meddle.thresholds.${tier}.${field}`, "amount", `${sign}${lower.amount}`);
+        }
+        if (/amount:\s*help\s*\?\s*1\s*:\s*-1/.test(cub) || !/hit\.amount/.test(cub)) wrong.push("monocub.mjs arms the lower Confusion with its own numbers");
+        if (!/proseOf\(\s*hit\s*,/.test(cub)) wrong.push("monocub.mjs does not fill the Confusion's sentences");
+        // the usables: the sentence's number is USABLE_EFFECTS' amount, in each table and through each reader
+        for (const [path, row] of [["TIER_EFFECTS.usable", C.TIER_EFFECTS.usable], ["USABLE_KIND_EFFECTS.healing", C.USABLE_KIND_EFFECTS.healing], ["USABLE_KIND_EFFECTS.stress", C.USABLE_KIND_EFFECTS.stress]]) {
+            for (const n of [1, 2, 3]) sentence("usable", row, n, `DRPG.Config.${path}.${n}`, "restores", `${C.USABLE_EFFECTS[n].amount}`);
+        }
+        const { tierDescription } = await import("./inventory.mjs");
+        const { tableDescription } = await import("./tables-pools.mjs");
+        const given = await tierDescription({ category: "usable", kind: "healing", tier: 2 });
+        if (!given.includes(`${C.USABLE_EFFECTS[2].amount}`) || given.includes("{restores}")) wrong.push(`inventory.mjs tierDescription: ${given}`);
+        const table = tableDescription("usable", 3, "stress");
+        if (!table.includes(`${C.USABLE_EFFECTS[3].amount}`) || table.includes("{restores}")) wrong.push(`tables-pools.mjs tableDescription: ${table}`);
+        const items = await src("gm-items.mjs");
+        if (!/proseOf\(\s*USABLE_KIND_EFFECTS\[kind\]\s*,\s*give\.tier\s*\)/.test(items)) wrong.push("gm-items.mjs's receipt does not fill the usable's sentence");
+        equal(JSON.stringify(wrong), "[]", "[a number told twice, or a sentence its reader does not fill]");
+    }],
 ];
 
 

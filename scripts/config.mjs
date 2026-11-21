@@ -766,9 +766,9 @@ export const TIER_EFFECTS = {
     // USABLE_KIND_EFFECTS below instead.
     usable: {
         0: "A random, seemingly useless item. Open to creative use.",
-        1: "Restores 1 Health (Healing) or 1 Sanity (Sanity Relief), by its kind.",
-        2: "Restores 2 Health (Healing) or 2 Sanity (Sanity Relief), by its kind.",
-        3: "Restores 3 Health (Healing) or 3 Sanity (Sanity Relief), by its kind."
+        1: "Restores {restores} Health (Healing) or {restores} Sanity (Sanity Relief), by its kind.",
+        2: "Restores {restores} Health (Healing) or {restores} Sanity (Sanity Relief), by its kind.",
+        3: "Restores {restores} Health (Healing) or {restores} Sanity (Sanity Relief), by its kind."
     },
     crimeTool: {
         0: "A random, seemingly useless item.",
@@ -838,14 +838,14 @@ export const TABLE_NAME_WORDS = Object.freeze({
  */
 export const USABLE_KIND_EFFECTS = {
     healing: {
-        1: "Restores 1 Health.",
-        2: "Restores 2 Health.",
-        3: "Restores 3 Health."
+        1: "Restores {restores} Health.",
+        2: "Restores {restores} Health.",
+        3: "Restores {restores} Health."
     },
     stress: {
-        1: "Restores 1 Sanity.",
-        2: "Restores 2 Sanity.",
-        3: "Restores 3 Sanity."
+        1: "Restores {restores} Sanity.",
+        2: "Restores {restores} Sanity.",
+        3: "Restores {restores} Sanity."
     }
 };
 
@@ -2010,10 +2010,13 @@ export const INDIRECT_MURDER = {
         trait: "shadow",
         threshold: 16,
         success: "The others cannot see that you are doing anything. You may lie freely.",
-        successWithDespair: "The others see nothing, and the project gains +1 progress.",
+        successWithDespair: "The others see nothing, and the project gains +{despairBonus} progress.",
         failure: "The others in the room see roughly what you are doing, though not what it is for, and your Work goes on.",
         /** With nobody else in the room, the project simply gains this instead. */
-        aloneBonus: 1
+        aloneBonus: 1,
+        /** A concealment that holds with Despair adds this to the Work (action-project.mjs `CONCEALED_WITH_DESPAIR`;
+         *  1.2.122 line TEXT, the audit of 1.2.118 TEXT-26: the number lived there, its sentence typed it). */
+        despairBonus: 1
     },
     /** Every project action also rolls to hide the traces it leaves. */
     hideTraces: {
@@ -2169,7 +2172,9 @@ export const REST = {
     options: {
         sleep: { label: "Sleep", long: "Restores all Health", short: "Restores half your lost Health, rounded up" },
         meal: { label: "Meal", long: "Restores all Sanity", short: "Restores half your lost Sanity, rounded up" },
-        breath: { label: "Breath", long: "Grants 2 Hope", short: "Grants 1 Hope" }
+        // The Hope a long and a short rest's Breath give (rest.mjs, sheet-audit.mjs `restCovers`), its sentences filled
+        // from it (`breathHope`; 1.2.122 line TEXT, the audit of 1.2.118 TEXT-26: both files held `full ? 2 : 1`).
+        breath: { label: "Breath", long: "Grants {breathHope} Hope", short: "Grants {breathHope} Hope", grants: { long: 2, short: 1 } }
     }
 };
 
@@ -3022,7 +3027,13 @@ export const PROSE_NUMBERS = Object.freeze({
     actions: { of: () => STARTING.actions, unit: "action" },
     worth: { of: () => STARTING.experienceValue },
     // E57 T7: the Bounty's Hope, which its sentence once wrote as a word ("one Hope").
-    reward: { of: entry => entry?.reward }
+    reward: { of: entry => entry?.reward },
+    // 1.2.122 line TEXT (the audit of 1.2.118, TEXT-26): four numbers the code held beside a sentence that typed them.
+    despairBonus: { of: entry => entry?.despairBonus },
+    breathHope: { of: (entry, field) => entry?.grants?.[field] },
+    amount: { of: entry => entry?.amount },
+    // a usable's restore, by its tier: USABLE_EFFECTS' amount (the row's key is the tier)
+    restores: { of: (entry, field) => USABLE_EFFECTS[field]?.amount }
 });
 
 /** What a sentence's `{hp}` and `{stress}` read: a Call's `damage`, a crisis action's on a Hope roll, or on a failure its Despair's. */
@@ -3538,11 +3549,13 @@ export const MONOCUB = {
             // 12. With a double as a critical, a hit of either kind comes up 104 of the 144 throws of 2d12 (72.2%),
             // where it was 94 (65.3%).
                 thresholds: [
-                { min: 11, grants: "bonus",
-                  help: "They get +1 on their next roll.",
-                  hinder: "They get -1 on their next roll.",
-                  helpTarget: "Something steadies your hand: +1 on your next roll.",
-                  hinderTarget: "Something rattles you: -1 on your next roll." },
+                // `amount`: the bonus a help adds and a hinder takes off (monocub.mjs `scoreMeddle`; 1.2.122 line TEXT,
+                // the audit of 1.2.118 TEXT-26: it lived there as `help ? 1 : -1`, the four sentences typed it)
+                { min: 11, grants: "bonus", amount: 1,
+                  help: "They get +{amount} on their next roll.",
+                  hinder: "They get -{amount} on their next roll.",
+                  helpTarget: "Something steadies your hand: +{amount} on your next roll.",
+                  hinderTarget: "Something rattles you: -{amount} on your next roll." },
                 { min: 16, grants: "advantage",
                   help: "They get advantage on their next roll.",
                   hinder: "They get disadvantage on their next roll.",
