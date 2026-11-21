@@ -2323,8 +2323,10 @@ function startDissolve(container, { sprite, previous, previousTexture, texture, 
                     io.showing(texture);
                     io.ensureRaster(container, maskTexture);
                 }
+                /* Each drop on its own (1.2.122 line MAP; the auditor's r121-F-4): a drop of an old sprite that threw skipped
+                   the mix's, and the frozen mix stayed drawn over the new fog, the next dissolve fading from it. */
                 for (const old of (container.children ?? []).filter(c => c.name === FOG_SPRITE && c !== sprite)) {
-                    io.dropSprite(old);
+                    try { io.dropSprite(old); } catch (err) { debug("Fog: a fog sprite a dissolve replaced could not be dropped", err); }
                 }
                 io.dropSprite(mix);
             } finally {
