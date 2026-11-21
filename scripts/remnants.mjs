@@ -2847,9 +2847,9 @@ export function answerKeyOnToken(token) {
 /**
  * One trace's part of `migrateRemnants` (E30, 24.09.2026; audit S17-01, S05-43).
  *
- * THE STRIP IS READ BACK. It was written with `-=` keys, which remove nothing in
- * this Foundry (the measured notes in migrate.mjs, actions.mjs, music.mjs and
- * fog.mjs), so the answer key stayed on a token every client receives while the
+ * THE STRIP IS READ BACK. It was written with `-=` keys, which the module's older
+ * notes measured removing nothing (migrate.mjs, actions.mjs, music.mjs and fog.mjs;
+ * 14.370 deletes them with a deprecation warning, LIVE-E30-01), so the answer key stayed on a token every client receives while the
  * summary counted the token as stripped. It is one write now, the flags deleted
  * with `forcedDeletion()` (one `unsetFlag` each in a Foundry without it), and what
  * is still on the token afterwards comes back in `left` - migrate.mjs's rule for
