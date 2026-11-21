@@ -105336,6 +105336,54 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "Move down and Move up on a deduction past the first column did not move it one place as drawn ({kind: x and y top to bottom as drawn by kind, before: as drawn after the relayout's tops, down: after y's Move down, sort: the kept sort, up: after its Move up})");
     }],
 
+    ["the planner's Move under another order keeps every other column as it was drawn (investigation.mjs `moveCaseNode`; the audit's r120-P-2; line P of 1.2.121)", async () => {
+        /*
+         * Four deductions of this chapter: a and b resting on nothing (one column), x resting on b and y on a (the next
+         * column), under "uncrossed", which draws the second column y above x (by its inputs; x before y by name). The
+         * dashboard drawn on the Map; a's Move down pressed. Read: the second column's order as drawn before and after, and
+         * the kept sort. Red at 03ee8de9: Move wrote places for the moved column alone and set "manual", so the second
+         * column fell back to its nodes' kind order, x above y. The meta row is put back as found.
+         */
+        const S = await import("./case-schema.mjs");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const ch = getClock().chapter;
+        const id = k => `suite-p121-${k}`;
+        const metaWas = S.caseRows(ch).meta;
+        let win = null;
+        const seen = {};
+        const pair = (root, p, q) => {
+            const x = parseFloat(root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id(p)}"]`)?.style.left ?? "NaN");
+            return [...(root?.querySelectorAll(".drpg-case-canvas > .drpg-case-edit[data-drpg-edit]") ?? [])]
+                .filter(el => parseFloat(el.style.left) === x).sort((a, b) => parseFloat(a.style.top) - parseFloat(b.style.top))
+                .map(el => el.dataset.drpgEdit).filter(e => e === id(p) || e === id(q)).map(e => e.slice(-1)).join("");
+        };
+        try {
+            await S.setCaseNode(ch, id("a"), { kind: "deduction", label: "SUITE P121 a", inputs: [] });
+            await S.setCaseNode(ch, id("b"), { kind: "deduction", label: "SUITE P121 b", inputs: [] });
+            await S.setCaseNode(ch, id("x"), { kind: "deduction", label: "SUITE P121 x", inputs: [id("b")] });
+            await S.setCaseNode(ch, id("y"), { kind: "deduction", label: "SUITE P121 y", inputs: [id("a")] });
+            await S.setCaseMeta(ch, { sort: "uncrossed" });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            await until(() => pair(root, "x", "y").length === 2 && pair(root, "a", "b").length === 2, 3000).catch(() => {});
+            seen.before = { first: pair(root, "a", "b"), second: pair(root, "x", "y") };
+            root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id("a")}"] [data-drpg-case-move="1"]`)?.click();
+            await until(() => pair(root, "a", "b") === "ba", 3000).catch(() => {});
+            await settle();
+            seen.after = { first: pair(root, "a", "b"), second: pair(root, "x", "y") };
+            seen.sort = S.caseMetaOf(S.caseRows(ch).meta).sort;
+        } finally {
+            if (win) await win.close().catch(() => {});
+            for (const k of ["a", "b", "x", "y"]) await S.dropCaseNode(ch, id(k)).catch(() => {});
+            const was = S.caseMetaOf(metaWas);
+            await S.setCaseMeta(ch, { sort: was.sort, manual: was.manual }).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({ before: { first: "ab", second: "yx" }, after: { first: "ba", second: "yx" }, sort: "manual" }),
+            "Move in one column moved another ({before and after: each column's order as drawn, top to bottom; sort: the kept sort})");
+    }],
+
     ["the planner's sort picked on the open Map redraws its column in the new order at once, with no Save (investigation.mjs `onSort`; the owner, 21.11.2026: \"dziala dopiero po save, czyli okno investigation nie odswieza sie dalej poprawnie\"; line P of 1.2.120)", async () => {
         /*
          * Three deductions resting on nothing (one column), labelled so that "By kind" (by name) and the kept order "By

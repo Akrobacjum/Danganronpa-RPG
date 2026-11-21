@@ -42062,7 +42062,7 @@ const INVARIANTS = [
         const { keepLive } = await import("./live.mjs");
         let built = 0;
         const build = () => { built++; return `<div class="drpg-t-r8012"><select data-drpg-t="pick"><option value="a">a</option><option value="b">b</option></select>`
-            + `<button type="button" data-drpg-t="press">press</button></div>`; };
+            + `<input type="text" data-drpg-t="field"><button type="button" data-drpg-t="press">press</button></div>`; };
         const host = document.createElement("div");
         host.style.cssText = "position:fixed;left:-3000px;top:0;width:200px";
         host.innerHTML = build();
@@ -42070,7 +42070,9 @@ const INVARIANTS = [
         const app = { element: host, options: { window: { title: "test" } } };
         let stop = null;
         const wire = () => host.querySelector('[data-drpg-t="pick"]')?.addEventListener("change", () => stop?.refresh?.());
-        stop = keepLive(app, { region: ".drpg-t-r8012", build, delay: 0, whileEditing: true, watch: { hooks: [LIVE_PROBE] }, after: wire });
+        // `whileEditing: false` (line P of 1.2.121): since the line claude/refresh-120 a region that follows the GM's focus
+        // draws an unforced rebuild under a focused field too, so only a region that does not tells forced from unforced
+        stop = keepLive(app, { region: ".drpg-t-r8012", build, delay: 0, whileEditing: false, watch: { hooks: [LIVE_PROBE] }, after: wire });
         wire();
         const Pointer = globalThis.PointerEvent ?? MouseEvent;
         const fire = (node, type) => node.dispatchEvent(new Pointer(type, { bubbles: true, cancelable: true }));
@@ -42093,12 +42095,14 @@ const INVARIANTS = [
             stop.refresh();
             await wait(60);
             const during = built - before;
-            pick().focus();
+            /* a text field focused: in a region that does not follow the focus it holds an unforced rebuild, so only a forced
+               one draws (line P of 1.2.121: since the line claude/refresh-120 a focused select holds nothing) */
+            host.querySelector('[data-drpg-t="field"]').focus();
             fire(host.querySelector('[data-drpg-t="press"]'), "pointerup");
             await wait(140);
             read.forced = [during, built - before];
             equal(stableJson(read), stableJson({ pick: 1, forced: [0, 1] }),
-                "{pick: rebuilds within 140 ms of a select's change under a press never let go; forced: [rebuilds while the press was held, rebuilds by 140 ms after its release with the select focused]}");
+                "{pick: rebuilds within 140 ms of a select's change under a press never let go; forced: [rebuilds while the press was held, rebuilds by 140 ms after its release with a text field focused]}");
         } finally {
             stop();
             host.remove();

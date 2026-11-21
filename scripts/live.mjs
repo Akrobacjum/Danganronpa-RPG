@@ -153,6 +153,8 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
        the release answered with an unforced rebuild, which the focused select then held until the focus left the region
        (Save's click). Tier 2 "the planner's sort picked on the open Map redraws its column in the new order at once". */
     let heldForced = false;
+    /* The control the press began on (line P of 1.2.121, r120-P-1): only its own `change` ends the press (`onChange`). */
+    let pressed = null;
     /* An IME's composition in a field of the region (`whileEditing`): a rebuild under it would cut the word being
        composed, so it waits for `compositionend`, which answers a rebuild wanted meanwhile. Not measured: jsdom composes
        nothing, and no table has typed Polish through an IME into the Map yet. */
@@ -315,6 +317,7 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
     const release = () => {
         if (!held) return;
         held = false;
+        pressed = null;
         clearTimeout(holdTimer);
         for (const name of RELEASES) view().removeEventListener(name, release, true);
         if (!heldWanted) return;
@@ -328,15 +331,25 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
         const element = target();
         if (!element?.isConnected || !event.target?.nodeType || !element.contains(event.target)) return;
         held = true;
+        pressed = event.target;
         holdTimer = setTimeout(release, HOLD_MAX_MS);
         for (const name of RELEASES) view().addEventListener(name, release, true);
     };
     root()?.addEventListener("pointerdown", onPointerDown, true);
     /* A PICK ENDS THE PRESS (line P of 1.2.120). A select is picked in the browser's own list, whose release the page may
-       never be sent (not measured at a table: LIVE-E44-02's kind), so the press held the region until HOLD_MAX_MS. A
-       `change` inside the region is a press that is over, and no click follows it to lose its node: it lets go at once -
-       heard in the capture phase, before the control's own handler asks its `refresh()`. */
-    const onChange = event => { if (held && target()?.contains?.(event.target)) release(); };
+       never be sent (not measured at a table: LIVE-E44-02's kind), so the press held the region until HOLD_MAX_MS. The
+       `change` of the control the press began on is a press that is over, and no click follows it to lose its node: it
+       lets go at once - heard in the capture phase, before the control's own handler asks its `refresh()`.
+       THE PRESSED CONTROL'S OWN CHANGE ONLY (line P of 1.2.121; the audit's r120-P-1, measured in Chromium 153 with a real
+       mouse). Until then any `change` in the region let go: a press on Move, a "Rests on" box or Add takes the focus from a
+       text field the GM was in, the field's `change` fires between the press's pointerdown and its click, and that change
+       ended the press - the planner's write on change then redrew the region and the click found no button (the press was
+       lost; a second click worked). A change from another control now leaves the press held, and the redraw it asks waits
+       for the release, as before 1.2.120. audit/live-press.mjs reads both with a real mouse. */
+    const onChange = event => {
+        if (!held || !target()?.contains?.(event.target)) return;
+        if (pressed === event.target) release();
+    };
     root()?.addEventListener("change", onChange, true);
 
     const closeId = Hooks.on("closeApplicationV2", closed => {
@@ -358,6 +371,7 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
         clearTimeout(holdTimer);
         held = false;
         heldForced = false;
+        pressed = null;
         living.delete(record);
     }
 
