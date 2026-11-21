@@ -1014,7 +1014,6 @@ export async function markOverruled(messageId, { objectorId = null, state = null
         }
     }
     const { trialEventCard } = await import("./trial-floor-ui.mjs");
-
     const lines = state
         ? [game.i18n.format("DRPG.Floor.overrule.card", { name: esc(name), state: esc(state) })]
         : [game.i18n.format("DRPG.Floor.overrule.cardOver", { name: esc(name) }), game.i18n.localize("DRPG.Floor.overrule.over")];
