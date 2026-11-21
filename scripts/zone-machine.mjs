@@ -22,7 +22,8 @@
  *          closed it, R7840) - then `pause` 5 s with the count on the floor, then the judgement against the truth the step hands in (`ctx.truth`, never on the
  *          floor): right -> the next question (`ctx.next`) or, after the last, the set's Finding; wrong, or a tie (0:0
  *          too), ends the set (TR3, TR27): a tie shows no truth; a wrong answer's card names the count, and with the
- *          question's two answers that tells the class the other was right (1.2.122, STG-74; the owner's default asked).
+ *          question's two answers that tells the class the other was right (1.2.122, STG-74; the owner's answer through
+ *          the coordinator, 21.11.2026: the card stays as it is, docs/dev/e73/STATUS.md).
  *          Skip question goes on with no answer kept.
  *   scrum  Scrum Debate, three phases in the owner's order (13.11.2026, after a table on 1.2.112: "a moment to pick
  *          sides, a moment for each side to confer in separate LiveKit rooms, and then a moment for both sides to
