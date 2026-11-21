@@ -79,6 +79,9 @@ import {
 import { REST_FLAGS } from "./rest.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
+// The hidden stashes (1.2.122, CORE-25): out of the region, into the GMs' store and each owner's copy. Its static imports
+// are leaves this file reaches already (config, utils, gm-store), so no cycle (R161).
+import { hiddenStashesAt, setHiddenStash, renameHiddenStashes, hiddenStashRows } from "./hidden-stashes.mjs";
 
 /**
  * Region flags. Prefixed like the other room flags a GM might read by hand.
@@ -867,7 +870,11 @@ function stashesOver(pieces) {
  */
 function stashesOn(region) {
     if (!region) return [];
+    return withHidden(region, openStashesOn(region));
+}
 
+/** The region's own list: its open stashes since 1.2.122, and a hidden one a world not lifted yet still writes there. */
+function openStashesOn(region) {
     const stored = region.getFlag(MODULE_ID, VAULT_FLAGS.stashes);
     if (Array.isArray(stored)) {
         return stored
@@ -881,6 +888,20 @@ function stashesOn(region) {
         actorId: owner,
         concealed: Boolean(region.getFlag(MODULE_ID, VAULT_FLAGS.concealed))
     }];
+}
+
+/*
+ * AND THE HIDDEN ONES, WHERE THIS BROWSER MAY KNOW THEM (1.2.122 line ITEMS; the audit's CORE-25; hidden-stashes.mjs's
+ * header). A hidden stash is no entry of the region since 1.2.122: the GMs' store holds it, and a player's copy the ones
+ * of their own characters (every one for the Mastermind's player). Each is answered `concealed`, over an entry of the
+ * same person the region still lists (a world not lifted yet).
+ */
+function withHidden(region, list) {
+    const hidden = hiddenStashesAt(region.parent?.id ?? null, region.name ?? null);
+    if (!hidden.length) return list;
+    const out = list.map(entry => (hidden.includes(entry.actorId) ? { ...entry, concealed: true } : entry));
+    for (const actorId of hidden) if (!out.some(entry => entry.actorId === actorId)) out.push({ actorId, concealed: true });
+    return out;
 }
 
 /** One person's stash in one room, or `null`. */
@@ -986,7 +1007,13 @@ export async function setStash(room, actorId, { present = undefined, concealed =
         list[at] = { actorId, concealed: Boolean(concealed) };
     }
 
-    await updateRoom(scene, room, { [`flags.${MODULE_ID}.${VAULT_FLAGS.stashes}`]: list });
+    /* THE HIDDEN ONES TO THE GMS' STORE, THE OPEN ONES ON THE REGION (1.2.122, CORE-25). Every hidden entry of the list -
+       the store's, and one a world not lifted yet still writes on the region - is a row of the store first; the region
+       keeps the open stashes alone, as `{ actorId }`, so no browser reads a hiding place off it. The person edited here
+       loses their row when their stash is open now or gone. */
+    for (const entry of list) if (entry.concealed) await setHiddenStash(scene.id, room, entry.actorId, true);
+    if (!list.some(entry => entry.actorId === actorId && entry.concealed)) await setHiddenStash(scene.id, room, actorId, false);
+    await updateRoom(scene, room, { [`flags.${MODULE_ID}.${VAULT_FLAGS.stashes}`]: list.filter(entry => !entry.concealed).map(entry => ({ actorId: entry.actorId })) });
 
     // A hiding place taken away is one nobody has "found" any more (ITEM-09):
     // the finders' notes pointed at it by room and owner, and left standing
@@ -1110,6 +1137,13 @@ export async function unconcealStashes(actorId) {
             await region.update(update);
             rooms++;
         }
+    }
+    /* And the GMs' rows (1.2.122, CORE-25): a hidden stash is the store's since then, made an open one on its room. */
+    for (const row of hiddenStashRows().filter(r => r.actorId === actorId)) {
+        const scene = game.scenes?.get(row.sceneId);
+        if (scene && roomRegions(scene, row.room).length) await setStash(row.room, actorId, { concealed: false, scene });
+        else await setHiddenStash(row.sceneId, row.room, actorId, false);
+        rooms++;
     }
     return rooms;
 }
@@ -1270,6 +1304,8 @@ export function bedroomOwnerAnywhere(room) {
  */
 export async function carryRoomOnSheets(scene, from, to, pieces = roomRegions(scene, to)) {
     if (!isPrimaryGm() || !scene || !from || !to || from === to) return { keys: 0, items: 0, found: 0 };
+    // The hidden stashes first (1.2.122, CORE-25): the GMs' rows name the room, and the stashes below are read by the new name.
+    await renameHiddenStashes(scene.id, from, to);
     const elsewhere = [...(game.scenes ?? [])].filter(s => s.id !== scene.id);
     // The room's pieces as the rename's hook found them (E12 fix r2-H4, EARLY-C8-2): a second rename
     // landing while this one waits must not empty the room it carries to.

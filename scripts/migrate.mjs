@@ -1149,6 +1149,25 @@ const CLAUSES = [
         }
     },
     {
+        key: "liftHiddenStashes",
+        since: "1.2.122",
+        /*
+         * A HIDDEN STASH OUT OF THE ROOMS' REGION DATA (1.2.122 line ITEMS; the audit's CORE-25). Until 1.2.122 a stash's
+         * hiding place was an entry of its room's region, `drpgStashes` `{ actorId, concealed }` (or the legacy
+         * `drpgVaultConcealed` beside the owner flag), which every browser holds: a player's console read which rooms hold
+         * a hidden stash and whose. Once, on the primary, after the GM store's copies arrived, with the rules written on
+         * hidden-stashes.mjs `liftHiddenStashes`: each hidden one into the store `hiddenStashes` (weak, fill-only), read
+         * back, and only then off its region; the region keeps its open stashes as `{ actorId }`. Every player is sent
+         * their copy after. A row not read back leaves its region as it was and throws, so the next load tries again.
+         */
+        run: async () => {
+            const { liftHiddenStashes } = await import("./hidden-stashes.mjs");
+            const { VAULT_FLAGS } = await import("./vault.mjs");
+            const report = await liftHiddenStashes({ flags: VAULT_FLAGS });
+            return report?.notPrimary || report?.lifted ? report : null;
+        }
+    },
+    {
         key: "bodyTilesUnseen",
         since: "1.2.113",
         /*

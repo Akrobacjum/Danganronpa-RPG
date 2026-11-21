@@ -107108,6 +107108,70 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ actionReads: true, gmsHold: true, lifted: true, publicHolds: false }),
             "[the room action reads its completion] [the GMs' row holds completedAt] [an old world's stamp lifted out of projectMeta] [projectMeta's row holds completedAt]");
     }],
+    ["1.2.122 CORE-25 - a hidden stash is no entry of any region: hidden, its room's region lists nobody of it and the GMs' store holds it, a GM still reads it hidden; made open it is the region's again; and a world from before is lifted off its region into the store", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line ITEMS; the audit's CORE-25 (vault-store.mjs `setStash`, `stashesOn`; hidden-stashes.mjs).
+         * A stash's hiding place was an entry `{ actorId, concealed: true }` of its room's region, which every browser holds.
+         * Here, on a room of the scene on screen with no stash of the student's (put back as found): the stash made hidden
+         * (`setStash`), every piece of the room read for an entry naming the student, the GMs' store read for its row, and
+         * `stashIn` read as a GM reads it; then made open, then removed. Last, a world from before 1.2.122: the region's
+         * list written with a hidden entry raw, and hidden-stashes.mjs `liftHiddenStashes` run (migrate.mjs's clause): the
+         * entry off the region, the row in the store. Red on 21bf5d18: the region listed the hidden stash.
+         */
+        needs(world.atLeast("namedRooms", 1), "a room to put a stash in");
+        const V = await import("./vault.mjs");
+        const { roomRegions, roomNames } = await import("./rooms.mjs");
+        const { gmStoreByName } = await import("./gm-store.mjs");
+        const scene = canvas?.scene;
+        must(scene, "no scene on screen - this would measure nothing");
+        const [who, old] = cast(2);
+        const room = roomNames(scene).find(r => !V.stashIn(r, who.id, scene) && !V.stashIn(r, old.id, scene));
+        must(room, "every room holds a stash of the student's - this would measure nothing");
+        const pieces = () => roomRegions(scene, room);
+        const before = pieces().map(r => [r, foundry.utils.deepClone(r.getFlag(MODULE_ID, V.VAULT_FLAGS.stashes) ?? null)]);
+        const lists = actor => pieces().some(r => (r.getFlag(MODULE_ID, V.VAULT_FLAGS.stashes) ?? []).some?.(e => e?.actorId === actor.id));
+        const listsHim = () => lists(who);
+        const carriesConcealed = () => pieces().some(r => (r.getFlag(MODULE_ID, V.VAULT_FLAGS.stashes) ?? []).some?.(e => e && Object.hasOwn(e, "concealed")));
+        const store = () => gmStoreByName("hiddenStashes");
+        const rowOf = (actor = who) => Object.keys(store()?.entries() ?? {}).some(k => k === `${scene.id}|${actor.id}|${room}`);
+        const read = {};
+        try {
+            await V.setStash(room, who.id, { concealed: true, scene });
+            await settle();
+            read.hidden = { region: listsHim(), field: carriesConcealed(), store: rowOf(), gm: V.stashIn(room, who.id, scene)?.concealed === true };
+            await V.setStash(room, who.id, { concealed: false, scene });
+            await settle();
+            read.open = { region: listsHim(), store: rowOf(), gm: V.stashIn(room, who.id, scene)?.concealed === false };
+            await V.setStash(room, who.id, { present: false, scene });
+            await settle();
+            read.gone = !V.stashIn(room, who.id, scene) && !rowOf();
+
+            /* The lift reads the store back from storage before it takes anything off a region, and tier 2 swallows the
+               stores' saves (CLAUDE.md: "tier 2 runs the lifts that remove world data with their store's save swallowed, and
+               the world data stays"): here it must refuse - throw, the region's entry kept, the row in the store's memory.
+               Where the save lands (a real table, a load after), the entry goes; either is read, and nothing else passes. */
+            const lift = await import("./hidden-stashes.mjs").then(m => m.liftHiddenStashes).catch(() => null);
+            // A second student's, whose row has no tombstone (the first's drop above leaves one, which a weak write does not pass).
+            for (const region of pieces()) await region.setFlag(MODULE_ID, V.VAULT_FLAGS.stashes, [{ actorId: old.id, concealed: true }]);
+            await settle();
+            let threw = false;
+            try { if (lift) await lift({ flags: V.VAULT_FLAGS }); } catch { threw = true; }
+            await settle();
+            const region = lists(old), stored = rowOf(old);
+            read.lifted = Boolean(lift) && (threw ? region && stored : !region && stored) && V.stashIn(room, old.id, scene)?.concealed === true;
+        } finally {
+            for (const actor of [who, old]) if (rowOf(actor)) await store()?.drop(`${scene.id}|${actor.id}|${room}`);
+            for (const [region, flag] of before) {
+                if (flag === null) await region.unsetFlag(MODULE_ID, V.VAULT_FLAGS.stashes);
+                else await region.setFlag(MODULE_ID, V.VAULT_FLAGS.stashes, flag);
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ gone: true, hidden: { field: false, gm: true, region: false, store: true },
+            lifted: true, open: { gm: true, region: true, store: false } }),
+            "[removed: no stash, no row] [hidden: a field `concealed` on the region, a GM reads it hidden, the region lists the student, the store's row] "
+                + "[lifted: refused with the entry kept, or taken off with the row in the store - hidden to a GM either way] [open: a GM reads it open, the region lists the student, the store's row]");
+    }],
     ["the Sound window's Music row picked with the pointer writes its key at once, and another GM's mapping shows on the open window while the row's select keeps the focus", async () => {
         /*
          * Line P (claude/move-120, 21.11.2026), measured against the owner's rule "Zawsze odswiezamy okna od razu przy

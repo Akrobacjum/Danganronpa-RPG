@@ -1148,6 +1148,36 @@ export const lockpickCopy = defineGmCopy({
 });
 
 /**
+ * THE HIDDEN STASHES (1.2.122 line ITEMS; the audit's CORE-25; hidden-stashes.mjs's header). A row per stash its owner
+ * built a hiding place for, keyed `<sceneId>|<actorId>|<room>`, `{ sceneId, actorId, room }`: no longer an entry of the
+ * room's region, which every browser holds. Read by vault-store.mjs `stashesOn` on a GM, written by `setStash` (through
+ * hidden-stashes.mjs `setHiddenStash`), moved by a room's rename and lifted from a world before 1.2.122 by migrate.mjs
+ * `liftHiddenStashes`. Synced; backed up, and every connected player sent their copy again after a restore (R182). NO
+ * RESET CUTS IT: the season reset makes a hidden stash an open one (vault-store.mjs `unconcealStashes`, its
+ * "stashesFound" part), which reads these rows - and the reset writes its cut before its first step, so a cut would take
+ * the rows first and leave the stashes nowhere (tier 0's UNCUT list, with this reason).
+ */
+export const hiddenStashStore = defineGmStore({
+    name: "hiddenStashes", key: SETTINGS.gmHiddenStashes,
+    kind: "ledger", backup: true, sync: true,
+    afterRestore: () => import("./hidden-stashes.mjs").then(m => m.retellHiddenStashes()),
+    exists: key => {
+        const [sceneId, actorId] = String(key).split("|");
+        return Boolean(game.scenes?.has(sceneId) && game.actors?.has(actorId));
+    }
+});
+
+/**
+ * A PLAYER'S HIDDEN STASHES (1.2.122, CORE-25): `{ actorId: [{ sceneId, room }] }` for the characters this user owns -
+ * every character for the Mastermind's player - as a GM sent them, a stamp per character, taken by the offers' rule
+ * (`offersCombine`: the answer is the user's whole set). Read by vault-store.mjs `stashesOn` on a player's browser.
+ */
+export const hiddenStashCopy = defineGmCopy({
+    name: "hiddenStashes", key: SETTINGS.mineHiddenStashes, from: "hiddenStashes", fallback: {},
+    combine: offersCombine
+});
+
+/**
  * THE EAVESDROPS (E69 C6, 13.11.2026; the owner's 10.11 (a), the plan's C6). A row per listener, keyed by the listener's
  * actor id - one channel at a time: `{ actorId, userId, sceneId, from, into, mark, active, endedAt, at }`, `from` the room
  * the listener stands in, `into` the neighbouring room whose voice channel they hear, `mark` the time of day it began in

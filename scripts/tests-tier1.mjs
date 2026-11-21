@@ -7622,8 +7622,9 @@ const INVARIANTS = [
             // E44 fix FG6: a secret project's description (the clean snapshot's project is secret).
             // E93 C1: a secret project's room action (its label and effects) as well.
             // The leak-pm line (1.2.113): whether it is an indirect murder, and its room. Option (c) (16.11.2026): the scene picked for it.
-            ...["description", "facility", "indirectMurder", "room", "roomScene", "roomSceneByGm"].map(f => [`projectMeta while secret: ${f}`,
-                s => { s.settings.projectMeta.R190PROJECT00001[f] = f === "indirectMurder" || f === "roomSceneByGm" ? true : f === "room" ? "Gym" : f === "roomScene" ? "R190SCENE0000002" : "R190 the plan, in the killer's words"; },
+            // completedAt since 1.2.122 (the audit's ITEM-38): a secret project's completion time, as the facility row stamps it.
+            ...["completedAt", "description", "facility", "indirectMurder", "room", "roomScene", "roomSceneByGm"].map(f => [`projectMeta while secret: ${f}`,
+                s => { s.settings.projectMeta.R190PROJECT00001[f] = f === "indirectMurder" || f === "roomSceneByGm" ? true : f === "room" ? "Gym" : f === "roomScene" ? "R190SCENE0000002" : f === "completedAt" ? { season: 1, chapter: 1, at: 3 } : "R190 the plan, in the killer's words"; },
                 h => h.kind === "field" && h.doc === "setting" && h.id === "projectMeta" && h.path === `R190PROJECT00001.${f}`]),
             // E05 C5 added the last four: the Key Remnant plan held all of them.
             // E97 C1: and `leftBy`, the author a Truth Bullet's answer key names (truth-bullets.mjs `leftByOf`).
