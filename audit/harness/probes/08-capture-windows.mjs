@@ -267,6 +267,19 @@ const SEED_SFX = `const X = await import(\`\${repoUrl}/scripts/sfx.mjs\`);
 const DROP_SFX = `const X = await import(\`\${repoUrl}/scripts/sfx.mjs\`);
     await X.setSoundFor("monocub", globalThis.__probe08sfx ?? null);
     delete globalThis.__probe08sfx;`;
+/* The Mastermind's window with a Mastermind named (the line claude/refresh-120, 21.11.2026; the coordinator's ask after
+   the audit's probe 44): its Give Hope box (`.drpg-mm-live`) is drawn only then, so without a seed probes 42-44 never
+   reached it - and its build returned the box's inside on v1.2.119 (claude/hopebox-120). The first student named, and
+   who was named before (none, in the harness world) put back after: the GM store's own write. */
+const SEED_MASTERMIND = `const MM = await import(\`\${repoUrl}/scripts/mastermind.mjs\`);
+    const { studentActors } = await import(\`\${repoUrl}/scripts/monokuma.mjs\`);
+    globalThis.__probe08mm = { actor: MM.mastermindActor()?.id ?? null, lair: MM.mastermindLair() };
+    await MM.setMastermind(studentActors()[0]);`;
+const DROP_MASTERMIND = `const MM = await import(\`\${repoUrl}/scripts/mastermind.mjs\`);
+    const was = globalThis.__probe08mm ?? { actor: null, lair: null };
+    if (was.actor) await MM.setMastermind(game.actors.get(was.actor), { room: was.lair });
+    else await MM.clearMastermind();
+    delete globalThis.__probe08mm;`;
 /* E99 C5: the trial's Case schema window over the same case, a deduction ticked and two nodes given a startable mode;
    the ticks and the modes taken back after. */
 const SEED_TRIAL = SEED_CASE + `
@@ -398,6 +411,8 @@ export const WINDOWS = [
     { id: "case-body-ask", module: "case-realize.mjs", before: SEED_CASE, after: DROP_CASE, call: "m.askAtBody(globalThis.__probe08case.ch)" },
     // E64-inv (12.11.2026): End the chapter, as this world has it - for the fit pass, which holds it to 1366x768 unscrolled (style-sweep.mjs STILL).
     { id: "chapter-end", module: "chapter.mjs", call: "m.openChapterEndDialog()" },
+    // The Mastermind's window with its Give Hope box (a Mastermind named; the line claude/refresh-120).
+    { id: "mastermind", module: "mastermind.mjs", before: SEED_MASTERMIND, after: DROP_MASTERMIND, call: "m.openMastermindDialog()" },
     { id: "gm-panel--case-asks", module: "gm-panel.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, call: "m.openGmPanel()" },
     { id: "class-trial", module: "trial-floor-ui.mjs", call: "m.manageClassTrial()" },
     // E99 C5 placed: the console with the case schema in its middle (the same seeded case as case-trial's).
