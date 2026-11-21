@@ -87,6 +87,7 @@ export async function openMurderDialog({ killerId = null, victimId = null, indir
     }
 
     const { livingStudentsForGm } = await import("./chapter.mjs");
+    const { deathStore } = await import("./gm-stores.mjs");
     const alive = livingStudentsForGm();
     // One is enough, now that a student can be both sides of it. The old floor
     // of two was the last place the engine still assumed a murder needs two
@@ -97,7 +98,7 @@ export async function openMurderDialog({ killerId = null, victimId = null, indir
         return null;
     }
 
-    const optionsFor = selected => alive
+    const optionsFor = (selected, list = alive) => list
         .map(a => `<option value="${a.id}"${a.id === selected ? " selected" : ""}>${
             foundry.utils.escapeHTML(a.name)}</option>`).join("");
 
@@ -139,8 +140,6 @@ export async function openMurderDialog({ killerId = null, victimId = null, indir
     const defaultKiller = (living(killerId) ? killerId : null)
         ?? (alive.find(a => a.id !== namedVictim) ?? alive[0])?.id ?? null;
     const defaultVictim = namedVictim ?? (alive.find(a => a.id !== defaultKiller) ?? alive[0])?.id ?? null;
-
-    const options = optionsFor(defaultVictim);
 
     // Which killers have a finished trap waiting. The checkbox follows the
     // dropdown from this, so "indirect" stops being a box a GM has to remember
@@ -206,6 +205,31 @@ export async function openMurderDialog({ killerId = null, victimId = null, indir
      * both seats on the info box (E21's carried sites, homed in E47 by window).
      */
     const ids = Object.fromEntries(["killer", "victim", "openingTrait"].map(k => [k, `drpg-murder-${k}-${++murderFields}`]));
+    /* THE SEATS FOLLOW THE LIVING (the auditor's probe 43 on 1.2.122, p43-2, first measured on 1.2.118; the owner's rule
+       "Zawsze odswiezamy okna od razu przy zmianie"). The two lists were built once, so a student who died while the window
+       stood was still offered as killer and victim, and one brought back was not. The grid (`.drpg-murder-seats`) is a
+       live region on the actors and the GMs' deaths (a death kept secret moves the store alone): rebuilt from
+       `livingStudentsForGm`, each list keeping the GM's pick while that student lives, else the first living one, as at
+       the open; the listeners are the form's, so they outlive the rebuild. Tier 2 "1.2.123 p43-2".
+       The trap box's first state: THE KILLER THE DROPDOWN IS SHOWING, NOT THE ONE THE CALLER NAMED (F10). `killerId` is
+       this function's argument and the GM panel passes none, so `armed.has(null)` was false on the one road where the
+       question is worth asking - and the box stayed unticked for a killer whose trap is finished until the GM touched a
+       dropdown they had no reason to touch. The `change` listener below has always asked `armed.has(form.killer.value)`;
+       this is the same question at first render. On the trap road `defaultKiller` IS `killerId` while the builder
+       lives, and the box is ticked by `indirect` either way. */
+    const seatsHtml = ({ list = alive, killer = defaultKiller, victim = defaultVictim, checked = indirect || armed.has(defaultKiller) } = {}) => `<div class="drpg-murder-seats">${formGrid([
+                { label: game.i18n.localize("DRPG.Murder.killer"), id: ids.killer,
+                  field: `<select name="killer" id="${ids.killer}"${tipAttr("DRPG.Tips.Trial.killerTooltip")}>${optionsFor(killer, list)}</select>` },
+                { label: game.i18n.localize("DRPG.Murder.victim"), id: ids.victim,
+                  field: `<select name="victim" id="${ids.victim}"${tipAttr("DRPG.Tips.Sweep.Trial.murderVictimTooltip")}>${optionsFor(victim, list)}</select>` },
+                { full: `<label class="drpg-checkbox">
+                    <input type="checkbox" name="indirect"${checked ? " checked" : ""}${tipAttr("DRPG.Tips.Sweep.Trial.murderTrapTooltip", null, { title: true })} />
+                    ${game.i18n.localize("DRPG.Murder.indirect")}</label>` },
+                { full: `<p class="drpg-help" data-drpg-trap-note${trapFirst ? "" : " hidden"}>${indirectCostText()}</p>` },
+                { label: game.i18n.localize("DRPG.Murder.openingStatistic"), id: ids.openingTrait,
+                  field: `<select name="openingTrait" id="${ids.openingTrait}">${trapFirst
+                      ? statisticOptions("victim", victim) : statisticOptions("killer", killer)}</select>` }
+            ])}</div>`;
     const result = await drpgWindow({
         title: game.i18n.localize("DRPG.Murder.openTitle"),
         // Named so it can be addressed - the diagnostics count it and the suite
@@ -216,33 +240,7 @@ export async function openMurderDialog({ killerId = null, victimId = null, indir
             <p class="drpg-help">${game.i18n.localize("DRPG.Murder.openIntro")}</p>
             ${gone ? `<div data-drpg-killer-gone>${box("warning",
                 game.i18n.format("DRPG.Murder.killerNotAlive", { name: esc(gone) }))}</div>` : ""}
-            ${formGrid([
-                { label: game.i18n.localize("DRPG.Murder.killer"), id: ids.killer,
-                  field: `<select name="killer" id="${ids.killer}"${tipAttr("DRPG.Tips.Trial.killerTooltip")}>${optionsFor(defaultKiller)}</select>` },
-                { label: game.i18n.localize("DRPG.Murder.victim"), id: ids.victim,
-                  field: `<select name="victim" id="${ids.victim}"${tipAttr("DRPG.Tips.Sweep.Trial.murderVictimTooltip")}>${options}</select>` },
-                { full: `<label class="drpg-checkbox">
-                    <input type="checkbox" name="indirect"${
-                        /*
-                         * THE KILLER THE DROPDOWN IS SHOWING, NOT THE ONE THE CALLER
-                         * NAMED (F10). `killerId` is this function's argument and the
-                         * GM panel passes none, so `armed.has(null)` was false on the
-                         * one road where the question is worth asking - and the box
-                         * stayed unticked for a killer whose trap is finished until the
-                         * GM touched a dropdown they had no reason to touch. The
-                         * `change` listener below has always asked
-                         * `armed.has(form.killer.value)`; this is the same question at
-                         * first render. On the trap road `defaultKiller` IS `killerId`
-                         * while the builder lives, and the box is ticked by `indirect`
-                         * either way.
-                         */
-                    indirect || armed.has(defaultKiller) ? " checked" : ""}${tipAttr("DRPG.Tips.Sweep.Trial.murderTrapTooltip", null, { title: true })} />
-                    ${game.i18n.localize("DRPG.Murder.indirect")}</label>` },
-                { full: `<p class="drpg-help" data-drpg-trap-note${trapFirst ? "" : " hidden"}>${indirectCostText()}</p>` },
-                { label: game.i18n.localize("DRPG.Murder.openingStatistic"), id: ids.openingTrait,
-                  field: `<select name="openingTrait" id="${ids.openingTrait}">${trapFirst
-                      ? statisticOptions("victim", defaultVictim) : statisticOptions("killer", defaultKiller)}</select>` }
-            ])}
+            ${seatsHtml()}
             <div data-drpg-rooms hidden>${box("warning", "")}</div>
             <div data-drpg-self hidden>${box("info", esc(game.i18n.localize("DRPG.Murder.openSelfNote")))}</div>
         </form>`,
@@ -252,7 +250,8 @@ export async function openMurderDialog({ killerId = null, victimId = null, indir
             const note = dialog.element.querySelector("[data-drpg-self]");
             // The trap's budget is about building one (S04-30): read beside a direct murder it
             // was taken for a rule of the murder being opened, so it shows with the box ticked.
-            const trapNote = dialog.element.querySelector("[data-drpg-trap-note]");
+            // Read at each sync: it stands in the seats' grid, which a death rebuilds (p43-2).
+            const trapNoteNow = () => dialog.element.querySelector("[data-drpg-trap-note]");
             const rooms = dialog.element.querySelector("[data-drpg-rooms]");
 
             /*
@@ -274,6 +273,7 @@ export async function openMurderDialog({ killerId = null, victimId = null, indir
                 if (note) note.hidden = !self;
                 form.indirect.disabled = self;
                 if (self) form.indirect.checked = false;
+                const trapNote = trapNoteNow();
                 if (trapNote) trapNote.hidden = !form.indirect.checked;
 
                 // The side that rolls, as `openMurder` reads it once the box is settled.
@@ -293,15 +293,38 @@ export async function openMurderDialog({ killerId = null, victimId = null, indir
                 }
             };
 
-            form.killer.addEventListener("change", () => {
-                if (form.killer.value !== form.victim.value) {
-                    form.indirect.checked = armed.has(form.killer.value);
-                }
-                sync();
+            // On the form, not on the fields: the seats' grid is rebuilt under them when a student dies (p43-2).
+            form.addEventListener("change", e => {
+                const name = e.target?.name;
+                if (name === "killer" && form.killer.value !== form.victim.value) form.indirect.checked = armed.has(form.killer.value);
+                if (name === "killer" || name === "victim" || name === "indirect") sync();
             });
-            form.victim.addEventListener("change", sync);
-            form.indirect.addEventListener("change", sync);
             sync();
+            // The seats follow the living (p43-2, above `seatsHtml`): a pick that died gives way to the first living one.
+            keepLive(dialog, {
+                region: ".drpg-murder-seats",
+                build: () => {
+                    const list = livingStudentsForGm();
+                    const keep = (id, other) => (list.some(a => a.id === id) ? id
+                        : (list.find(a => a.id !== other) ?? list[0])?.id ?? null);
+                    const killer = keep(form.killer.value, null);
+                    return seatsHtml({ list, killer, victim: keep(form.victim.value, killer), checked: form.indirect.checked });
+                },
+                watch: { actors: true, stores: [deathStore] },
+                after: () => {
+                    // A pick carried over a rebuild (live.mjs `restore`) whose student is gone reads empty: the first living one.
+                    for (const name of ["killer", "victim"]) {
+                        const select = form[name];
+                        if (select && !select.value && select.options.length) select.selectedIndex = 0;
+                    }
+                    if (!form.killer?.options.length) {
+                        ui.notifications.warn(game.i18n.localize("DRPG.Murder.needOne"));
+                        dialog.close().catch(() => {});
+                        return;
+                    }
+                    sync();
+                }
+            });
         },
         footer: {
             primary: {
