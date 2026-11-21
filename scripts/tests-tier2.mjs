@@ -105438,7 +105438,17 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             read.open = await until(() => fold()?.getAttribute("aria-expanded") === "true" && drawnNode(), 4000);
             fold()?.click();
             read.again = await until(() => fold()?.getAttribute("aria-expanded") === "false" && !drawnNode(), 4000);
+            // A node's face (probe-42's group C): unfolded again, the first trace's face pressed opens the Map on it.
+            fold()?.click();
+            await until(() => drawnNode(), 4000);
+            const face = [...(slot()?.querySelectorAll("button[data-drpg-node]") ?? [])].find(b => String(b.dataset.drpgNode).includes(id));
+            face?.click();
+            const caseWin = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes("drpg-window-case"));
+            // The Map draws every node's fields at once since owner-116: the pressed node's own fields stand drawn there.
+            const fields = () => face ? caseWin()?.element?.querySelector(`.drpg-case-edit[data-drpg-edit="${CSS.escape(face.dataset.drpgNode)}"]:not([hidden])`) : null;
+            read.face = Boolean(await until(() => fields(), 6000));
         } finally {
+            closeOpen("drpg-window-case");
             closeOpen("drpg-window-trial");
             await Promise.race([opened, wait(3000)]);
             for (const t of tokens) await t?.delete().catch(() => {});
@@ -105447,8 +105457,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await gmStoresIdle();
             await settle();
         }
-        equal(stableJson(read), stableJson({ folded: ["false", false], counted: true, open: true, again: true }),
-            "{folded: [the line's aria-expanded, the trace's node drawn]; counted: a trace placed meanwhile on the line; open: after a press; again: after a second press}");
+        equal(stableJson(read), stableJson({ folded: ["false", false], counted: true, open: true, again: true, face: true }),
+            "{folded: [the line's aria-expanded, the trace's node drawn]; counted: a trace placed meanwhile on the line; open: after a press; again: after a second press; face: a node's face opens the Map on it}");
     }],
     ["1.2.122 REFR-68 - the vote window follows a student's sheet (scripts/trial-floor-ui.mjs `openVoteDialog`, `PARTICIPANT_WRITES`; the audit's REFR-68): before the ballots go out it names who would get one; a student marked not in the class while it stands is no longer named, with no other write; unmarked, named again", async () => {
         /* Drawn on this GM in a Class Trial with no vote open. Red at 21bf5d18: the window heard ballots, users and settings

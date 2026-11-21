@@ -257,8 +257,9 @@ function analysisChosen(element) {
  */
 
 /**
- * Post the card. Built and sent by the presenter's own client - everything on
- * it is already public. An objection card (`objection`) is a GM's alone since
+ * Post the card. A player's call asks the primary GM ("trial.present",
+ * `requestPresent`), which posts it with the copies; only a GM's browser posts
+ * a card from this function - everything on it is already public. An objection card (`objection`) is a GM's alone since
  * 1.2.79 (E79 C16): the API's and the suite's road to `seizeFloor`. A player
  * raises an Objection through the primary GM (`raiseObjection`), and a card of
  * theirs that says it is one is refused there (`registerTrial`).

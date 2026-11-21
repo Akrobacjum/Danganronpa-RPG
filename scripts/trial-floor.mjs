@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG - who may speak, in which of the trial's three modes.
+ * Danganronpa RPG - who may speak, in which of the trial's modes (nine since E73: floor-machine.mjs `MODES`).
  * ---------------------------------------------------------------------------
  * THIS FILE USED TO BE A QUEUE, AND IS NOT ONE ANY MORE.
  *
@@ -15,8 +15,10 @@
  * answer is obvious (everybody is arguing) while having nothing to say about
  * the situation where it matters (somebody has just cut in with evidence).
  *
- * So there are three MODES instead, and the interesting thing about them is
- * that only two are restrictive:
+ * So there were three MODES instead (Q14's decision; the rounds, the Closing
+ * and the zone modes came later, E70 and E73, and are `MODE_RULES`' rows
+ * below), and the interesting thing about the first three is that only two
+ * are restrictive:
  *
  *   debate      everybody, freely. The clock is the GM's budget for the whole
  *               debate, and running past it turns the bar red rather than
@@ -89,7 +91,8 @@ export const FLOOR_MODES = MODES;
  *   family   which of the console's footers the mode belongs to (trial-floor-ui.mjs `trialSignature`): an Objection
  *            and its rebuttal are the debate's own exchange, so the console stays open across them (E70-06);
  *   speak    who may be speaking: "all", the objector alone ("holder"), or the two in the exchange ("pair");
- *   present  who may present a Truth Bullet: everybody in today's three modes (free since E79 C16);
+ *   present  who may present a Truth Bullet: everybody in the debate, its Objection and its rebuttal (free since E79 C16), the speaker
+ *            alone in a round and the Closing ("holder");
  *   object   whether an Objection may be raised: never inside an Objection's own minute;
  *   target   who an Objection may be aimed at: anybody, or during a rebuttal only the two in it (Dawid, 28.08);
  *   adjust   whether the GM's -30 s and +30 s move this mode's clock.
@@ -667,7 +670,9 @@ async function speakerGone() {
  * step it runs in: nothing for a refusal; the empty floor through `endFloorInStep` (the one writer of `{}`, R1020) or
  * the new floor through `writeFloor`; a pending Objection's card marked withdrawn when the floor that replaced it is
  * not that Objection (E79 C16's `withdrawReplaced`, which each twin called before); the machine's cards posted; and
- * `drpgTrialStep` called with the op and the floor written, on this primary, after each step (E70-19 reads it in C5).
+ * `drpgTrialStep` called with the op and the floor written, on this primary, after each step. Nothing listens to it
+ * (git grep on 21.11.2026: this file alone; voice.mjs settles on the floor's setting instead, `settleTrialVoices`): a
+ * hook for a module or a macro, kept as it was.
  */
 async function commitFloor(prev, result, op, { replaced = true } = {}) {
     if (!result || result.refused) return null;
@@ -844,7 +849,8 @@ export function maySpeak(actorId, floor = trialFloor()) {
  * mode's row says (`modeAllows`: the objector alone, the two in a rebuttal), and listen otherwise. A display and the
  * tile's line read it (voice.mjs `micHold`); the module silences the listed, and since E110 C2 whoever the floor's
  * speakers leave out (floor-machine.mjs `floorSpeakers`; the block, `settleTrialVoices`).
- * The facts can be handed in, so tier 1 R1034 asks it a table without a world; `drpgTrialStep` follows each step.
+ * The facts can be handed in, so tier 1 R1034 asks it a table without a world (the floor's setting is what voice.mjs
+ * hears; `drpgTrialStep`, called after each step, has no listener).
  */
 export function trialVoice(actorId, { clock = getClock(), floor, record, epoch, actor = game.actors?.get(actorId ?? "") ?? null } = {}) {
     if (clock?.phase !== "classTrial" || !actor) return "speak";
@@ -1062,10 +1068,12 @@ export function targetRefusal(objectorId, targetId, floor = trialFloor(), { taki
  * the opening half of a two-part exchange, because the target is exactly who
  * gets the two minutes of rebuttal when this minute runs out.
  *
- * REFUSED DURING SOMEBODY ELSE'S OBJECTION OR REBUTTAL. Without that, a second
- * objection would reset the clock onto a new pair and the first rebuttal would
- * never happen - the minute would keep being bought out from under whoever was
- * about to answer. Refusing it is also checked on the caller's side before the
+ * REFUSED DURING SOMEBODY ELSE'S OBJECTION (`MODE_RULES.objection.object` false).
+ * Without that, a second objection would reset the clock onto a new pair and
+ * the first rebuttal would never happen - the minute would keep being bought
+ * out from under whoever was about to answer. A REBUTTAL ALLOWS ONE
+ * (`MODE_RULES.rebuttal.object` true; the cut-in Dawid ruled legal on 28.08):
+ * at one of the two speaking in it, by anybody (`target: "pair"`). Refusing it is also checked on the caller's side before the
  * card is ever posted (see `trial.mjs`), so a player is told why rather than
  * watching their objection silently fail to take the floor.
  *
@@ -1204,7 +1212,8 @@ export async function openRebuttalInStep() {
  *
  * The fill's judgement and write, in a step of `SEIZE_KEY` on the primary (trial.mjs `evidenceOnPrimary`, its one road).
  * Until E56 part 2 (14.11.2026) a `fillObjection` beside it asked the same through the floor's op `fill`; it had no
- * caller and went.
+ * caller and went. The op itself stayed: `FLOOR_OPS.fill`, "fill" in `FLOOR_OP_NAMES` and in the bridge's "trial.gm"
+ * list (bridge-table.mjs), so another GM's console could still ask it; nothing in scripts/ does (git grep, 21.11.2026).
  *
  * @returns {Promise<object|null>} the floor written, or null
  */
@@ -1376,7 +1385,7 @@ export async function extendFloorInStep(extraSeconds = 30) {
      * says it out loud beside `objectionSeconds` - "a GM who needs a longer one
      * has +30 s" - and they did not have it.
      *
-     * Written as how much should be LEFT, so one line covers all three modes:
+     * Written as how much should be LEFT, so one line covers every timed mode:
      * clamped at zero it is thirty seconds from now, above zero it is exactly the
      * old behaviour. It is not only a debate that can be found expired - only the
      * primary GM's one-second heartbeat advances an objection, and a browser

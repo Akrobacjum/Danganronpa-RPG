@@ -286,7 +286,8 @@ export function candidatesFor(voterActorId) {
 }
 
 /**
- * Open the vote. Every player with a living or dead student gets a ballot; the
+ * Open the vote. Every participant's player gets a ballot (`trialParticipants`: a living student, no Monocub, nobody
+ * on the trial's list of the dead, and no dead student while `TRIAL.deadCastBallots` is false, as it ships); the
  * Blackened votes too, and nothing here knows or cares which of them that is.
  *
  * THE ASKER, NOT THE WORK (E10 C1, 1.2.71). The round, the ballots and the card

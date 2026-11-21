@@ -17,9 +17,14 @@
  * are one file because the primary's run of another GM's write
  * (`recordOnPrimary`) carries the sentence out and takes it back
  * (`startExecution`, `clearSentenceHere`). vote.mjs re-exports the fourteen
- * names here it exported before, so every importer still imports vote.mjs, and
- * nothing here imports it (the facade rule, .claude/rules/code.md); the vote
- * (vote.mjs) and the verdict (verdict.mjs) read and write the record here.
+ * names here it exported before, and nothing here imports it (the facade rule,
+ * .claude/rules/code.md); the vote (vote.mjs) and the verdict (verdict.mjs)
+ * read and write the record here. Not every importer goes through vote.mjs:
+ * clock.mjs (`shutVoteAtExit`) and sequence.mjs (`trialProgressChapter`)
+ * import this file past the facade. This file exports 24 names (counted on
+ * 21.11.2026; 21 before 1.2.122's `applyFindingOp`, `findingsStep` and
+ * `summaryClaimStep`), 14 of them re-exported; the row in code.md that says
+ * "15 names exported" is older than that.
  *
  * THE ORDER. The sentence stands above the record and `trialSizeNow` at the
  * end. In vote.mjs `let executing` stood inside the cut of `readSentence`
@@ -113,8 +118,11 @@ function startExecution(chapter) {
  * A SENTENCE THAT COULD NOT BE CARRIED OUT IS TRIED AGAIN (E70 fix p1-G2; the review's BEH-2). A kill that threw left
  * `execution.failed` and no `executedAt`, and nothing asked again once the phase had moved: the convict walked into
  * Daily Life alive unless the GM remembered, and a death marked by hand carried neither the cause nor the trial's
- * phase. The primary asks again when it is ready and at every later change of phase, while the record's sentence
- * waits outside a trial (`pendingSentence`'s reading).
+ * phase. The primary asks again when it is ready and at every later change of phase outside a trial - and only for a
+ * sentence that was tried and failed (`execution.failed` holds an id, as the guard below reads). A sentence never
+ * attempted - the phase written and the page reloaded before the first kill on the Edit campaign road, or a primary
+ * that did not answer `execute` - has no `execution` row and is not asked again here (`pendingSentence` still names it
+ * on End the trial's question).
  */
 export async function retrySentence() {
     if (!game.user?.isGM || !isPrimaryGm() || getClock().phase === "classTrial") return null;
