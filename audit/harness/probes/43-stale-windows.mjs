@@ -38,7 +38,8 @@
  *   twice with nothing changed (`restless`), and a restless window's rows are to be read with that in mind.
  * - A row of probe 08 that builds state before its window and takes it away after can undo the change itself (a seed
  *   that puts the clock back): after every reopen the change is checked to still stand, and a row where it does not
- *   is written `confounded` and not counted.
+ *   is written `confounded` and not counted. Since 21.11.2026 the seed is built once per window (the first open) and
+ *   taken away once (the last close); every reopen between leaves it standing, so FRESH is the window LIVE stood on.
  * - jsdom: no layout and no CSS, so "drawn" is the DOM, not the screen.
  *
  * THE WORLD. Tier 2's `snapshot` before the first window and `restore` after every window (as probe 42); what the dump
@@ -193,17 +194,24 @@ export async function run({ gm, p1, note, settle, repoUrl }) {
       try {
         const client = clients[w.client ?? "gm"];
         const row = { id: w.id, client: w.client ?? "gm", opener: (w.opener ?? `${w.module} ${w.call}`).slice(0, 160), readings: [] };
-        const openOnce = async () => {
-            if (w.gmSeed) await onGm(`${w.gmSeed} return true;`);
-            const during = w.gmDuring ? new Promise(r => setTimeout(r, 400)).then(() => onGm(`${w.gmDuring} return true;`)).catch(err => String(err?.message ?? err)) : null;
+        /* A reopen (`again`) leaves the row's seed alone: probe 08's `before`, `gmSeed` and `gmDuring` run on the first
+           open only, and its `after` and `gmAfter` on the last close. Until 21.11.2026 every reopen dropped the seed and
+           seeded it again, and a seed that reads the world as it stands (SEED_CASE's deductions take their inputs from
+           the evidence then present; its long Remnant is a new token each time) drew another window for FRESH than the
+           one LIVE stood on: the five Map views' "stale" readings on 1.2.121 were that (INVEST, claude/invest-122
+           ddec1aa3, read against a reopen without the seed). */
+        const openOnce = async (again = false) => {
+            const once = again ? { ...w, before: undefined } : w;
+            if (w.gmSeed && !again) await onGm(`${w.gmSeed} return true;`);
+            const during = w.gmDuring && !again ? new Promise(r => setTimeout(r, 400)).then(() => onGm(`${w.gmDuring} return true;`)).catch(err => String(err?.message ?? err)) : null;
             let got;
-            try { got = await client.eval(open(repoUrl, w), { timeout: 60000 }); } catch (err) { got = { opened: false, threw: String(err?.message ?? err).slice(0, 300) }; }
+            try { got = await client.eval(open(repoUrl, once), { timeout: 60000 }); } catch (err) { got = { opened: false, threw: String(err?.message ?? err).slice(0, 300) }; }
             if (during) await during;
             return got;
         };
-        const closeOnce = async () => {
-            try { await client.eval(close(repoUrl, w), { timeout: 60000 }); } catch { /* the next open closes what is left */ }
-            if (w.gmAfter) { try { await onGm(`${w.gmAfter} return true;`); } catch { /* written by probe 08's own run */ } }
+        const closeOnce = async (again = false) => {
+            try { await client.eval(close(repoUrl, again ? { ...w, after: undefined } : w), { timeout: 60000 }); } catch { /* the next open closes what is left */ }
+            if (w.gmAfter && !again) { try { await onGm(`${w.gmAfter} return true;`); } catch { /* written by probe 08's own run */ } }
         };
         totals.windows++;
         const first = await openOnce();
@@ -214,13 +222,13 @@ export async function run({ gm, p1, note, settle, repoUrl }) {
         let was = (await read(client)).state;
         await new Promise(r => setTimeout(r, WAIT));
         const idle = (await read(client)).state;
-        await closeOnce(); await openOnce();
+        await closeOnce(true); await openOnce(true);
         let fresh0 = (await read(client)).state;
         if (idle !== was || fresh0 !== was) { row.restless = diffOf(idle !== was ? idle : was, idle !== was ? was : fresh0); totals.restless++; }
         was = fresh0;
         for (const c of changes) {
             if (c.setup) {
-                try { await onGm(`${c.setup} return true;`); await new Promise(r => setTimeout(r, WAIT)); await closeOnce(); await openOnce(); was = (await read(client)).state; }
+                try { await onGm(`${c.setup} return true;`); await new Promise(r => setTimeout(r, WAIT)); await closeOnce(true); await openOnce(true); was = (await read(client)).state; }
                 catch (err) { row.readings.push({ change: c.id, step: "setup", verdict: "failed", why: String(err?.message ?? err).slice(0, 240) }); totals.failed++; continue; }
             }
             let appliedLive = false;
@@ -237,7 +245,7 @@ export async function run({ gm, p1, note, settle, repoUrl }) {
                         await new Promise(r => setTimeout(r, WAIT));
                         afterBlur = (await read(client)).state;
                     }
-                    await closeOnce(); await openOnce();
+                    await closeOnce(true); await openOnce(true);
                     const fresh = await read(client);
                     const still = await onGm(c.holds);
                     totals.readings++;
@@ -273,14 +281,14 @@ export async function run({ gm, p1, note, settle, repoUrl }) {
                         } else { reading.verdict = "live-under-focus"; totals.liveUnderFocus++; }
                         await onGm(`${c.undo} return true;`);
                         await new Promise(r => setTimeout(r, WAIT));
-                        await closeOnce(); await openOnce();
+                        await closeOnce(true); await openOnce(true);
                         was = (await read(client)).state;
                         row.readings.push(reading);
                     }
                 } catch (err) { reading.verdict = "failed"; reading.why = String(err?.message ?? err).slice(0, 240); totals.failed++; row.readings.push(reading); }
             }
             if (c.teardown) {
-                try { await onGm(`${c.teardown} return true;`); await new Promise(r => setTimeout(r, WAIT)); await closeOnce(); await openOnce(); was = (await read(client)).state; }
+                try { await onGm(`${c.teardown} return true;`); await new Promise(r => setTimeout(r, WAIT)); await closeOnce(true); await openOnce(true); was = (await read(client)).state; }
                 catch (err) { row.readings.push({ change: c.id, step: "teardown", verdict: "failed", why: String(err?.message ?? err).slice(0, 240) }); totals.failed++; }
             }
         }
