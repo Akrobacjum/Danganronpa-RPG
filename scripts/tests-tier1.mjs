@@ -65460,6 +65460,74 @@ const INVARIANTS = [
             stableJson({ steps: ["endClosing", "closingChoice", "endClosing", "closingChoice"], texts: [[true, true], [true, true]], said: true }),
             "{steps: the next step in the Closing's [volunteers, choice, speech, decision]; texts: [EN, PL] the step's text and lead; said: the Next line's text}");
     }],
+    ["R8348 - a dissolve's end that cannot drop an old fog sprite still drops its frozen mix, so the new fog is drawn alone and the next dissolve does not fade from the mix (1.2.122 line MAP; scripts/fog.mjs `swapInFog`'s end; the auditor's r121-F-4)", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026; the auditor's check of 1.2.121, lane F, r121-F-4. The dissolve's end drops the fog
+         * sprites the incoming one replaced, then its mix; a drop that threw in the loop skipped the mix's, and the frozen
+         * mix stayed drawn over the new fog (the next dissolve fading from it). R8032's fake ticker, its `dropSprite`
+         * throwing for the old fog sprite: C drawn, a dissolve C -> D, its end. Read: whether a dissolve is busy, and the
+         * fog sprites the layer draws.
+         */
+        const F = await import("./fog.mjs");
+        must(typeof F.swapInFog === "function" && typeof F.queueBehindDissolve === "function", "fog.mjs hands out no swapInFog or queueBehindDissolve to run");
+        let throwScratch = false, throwDrop = null;
+        class Node {
+            constructor(texture = null) { this.children = []; this.destroyed = false; this.visible = true; this.renderable = true; this.alpha = 1; this.texture = texture;
+                this.position = { set: () => {} }; }
+            addChild(...nodes) { for (const n of nodes) { n.parent = this; this.children.push(n); } return nodes[0]; }
+            removeChild(n) { this.children = this.children.filter(c => c !== n); n.parent = null; return n; }
+            destroy() { this.destroyed = true; this.parent?.removeChild(this); for (const c of [...this.children]) c.destroy(); this.children = []; }
+        }
+        // The dissolve's scratch is the one Container it makes; a Sprite is a Node.
+        class Scratch extends Node { destroy(...a) { if (throwScratch) throw new Error("a scratch that would not be destroyed"); return super.destroy(...a); } }
+        class Graphics extends Node { clear() { return this; } beginFill() { return this; } drawRect() { return this; } endFill() { return this; } }
+        const texture = label => ({ label, destroyed: false, destroy() { this.destroyed = true; } });
+        let clock = 1000;
+        const run = () => {
+            const state = { generation: 0, busy: false, queued: false, previous: null, since: null };
+            const anims = [];
+            let repaints = 0, mixes = 0;
+            const container = new Node();
+            const io = {
+                state,
+                PIXI: { Container: Scratch, Sprite: Node, Graphics, BLEND_MODES: { ERASE: 9, ADD: 1 }, RenderTexture: { create: () => texture(`mix${mixes++}`) } },
+                animate: (attributes, options) => {
+                    let resolve;
+                    const anim = new Promise(r => { resolve = r; });
+                    anim.finish = () => { attributes[0].parent.t = 1; options.ontick(); resolve(true); anim.done?.(); };
+                    anims.push(anim);
+                    return anim;
+                },
+                // The real watchdog's shape (fog-reveal.mjs `watchdog`): its clean-up once, a throw caught and logged.
+                watchdog: (anim, ms, cleanUp) => { let once = false; anim.done = () => { if (once) return; once = true; try { cleanUp(); } catch { /* logged */ } }; },
+                renderer: () => ({ render: () => {} }),
+                layer: () => container,
+                ensureRaster: () => {},
+                dropSprite: sprite => {
+                    if (throwDrop && sprite?.drpgTexture?.label === throwDrop) throw new Error("a sprite that would not be dropped");
+                    if (sprite && !sprite.destroyed) sprite.destroy();
+                },
+                showing: () => {},
+                motionOff: () => false,
+                fadeMs: () => 180,
+                now: () => clock,
+                repaint: () => { repaints += 1; }
+            };
+            const rect = { x: 0, y: 0, width: 400, height: 300 };
+            const swap = name => F.swapInFog(container, texture(name), texture(`${name}-mask`), rect, io);
+            // What the layer draws: a fog sprite (it carries `drpgTexture`) that is neither destroyed nor kept off.
+            const drawn = () => container.children.filter(c => c.drpgTexture && !c.destroyed && c.renderable !== false).map(c => c.drpgTexture.label);
+            return { state, anims, io, swap, drawn, repaints: () => repaints };
+        };
+
+        const b = run();
+        b.swap("C");
+        b.swap("D");
+        throwDrop = "C";
+        try { b.anims[0]?.finish(); } finally { throwDrop = null; }
+        equal(JSON.stringify([b.state.busy, b.drawn().filter(l => l.startsWith("mix"))]), JSON.stringify([false, []]),
+            "[whether a dissolve is busy after an old sprite's drop threw, the mixes the layer still draws]");
+    }],
 ];
 
 /**

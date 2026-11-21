@@ -112,12 +112,20 @@ export async function targetsOf(actor, scope, place) {
  */
 export async function applyEffects(actor, effects, place, sender = null) {
     const { trustedWrite } = await import("./resource-guard.mjs");
-    const { veilInsiders } = await import("./mask-gm.mjs");
+    const { veilInsiders, nameAsSeen, isMaskedActor, MASK_NAME } = await import("./mask-gm.mjs");
     const readers = [...new Set([sender, ...(game.users ?? []).filter(u => !u.isGM && actor?.testUserPermission?.(u, "OWNER"))]
         .filter(u => u && !u.isGM).map(u => u.id))];
     const veiledFrom = target => {
         const insiders = veilInsiders(target?.id);
         return Boolean(insiders) && readers.some(id => !insiders.includes(id));
+    };
+    /* A MASKED TARGET IS "?" TO A READER WHO DOES NOT PLAY IT (1.2.122 line MAP; the auditor's r121-M-2). The lines go back
+       to the asker's window in the bridge's reply as well as on `tellUse`'s card, and only the card's words are cut for a
+       masked name (secret.mjs `wordsFor`): a student whose room action fell on a masked killer beside them read the name.
+       A target is named only when every player who reads the lines would read its name (mask-gm.mjs `nameAsSeen`). */
+    const nameFor = target => {
+        if (!isMaskedActor(target)) return target.name;
+        return readers.every(id => nameAsSeen(target, { user: game.users.get(id), masked: true }) === target.name) ? target.name : MASK_NAME;
     };
     const lines = [];
     // Health, Sanity and Hope count what moved, so they are plural families on {n} (R1157); the rest are sentences.
@@ -159,7 +167,7 @@ export async function applyEffects(actor, effects, place, sender = null) {
             continue;
         }
         for (const target of await targetsOf(actor, effect.scope, place)) {
-            const name = target.name;
+            const name = nameFor(target);
             const r = target.system?.resources ?? {};
             // What this target's writes say, left out for a reader the veil hides them from (above); the writes stand.
             const shown = lines.length;

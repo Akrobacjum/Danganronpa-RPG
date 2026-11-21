@@ -109739,6 +109739,66 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "Room setup wrote over the digits typed in a token count, or sent them unasked (text: the count's text after the redraw; world: the room's tokens untouched)");
     }],
 
+    ["1.2.122 r121-M-2 - a room action's lines name a masked target \"?\" to a reader who does not play it, and by name once the mask is off (scripts/facilities-gm.mjs `applyEffects`; mask-gm.mjs `nameAsSeen`, `MASK_NAME`; the auditor's r121-M-2)", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026; the auditor's check of 1.2.121, lane M, r121-M-2. `applyEffects` named each target by
+         * its own name in the lines the asker's window writes (the bridge's reply) and the card `tellUse` whispers; the card's
+         * cut covers masked names (secret.mjs `wordsFor`), the reply does not, so a student whose room action fell on a
+         * masked killer standing beside them read the killer's name. On the scene on screen: a student with a player, and a
+         * second student's token stood on theirs and masked by its flag; a +1 Sanity effect on those present (`others`),
+         * asked as the first student's player, then again with the mask taken off (a GM's own press reads the same: the
+         * user's players read its lines on the card). Read: whether the lines name the second student, and say "?". Put
+         * back: the token's place and its flag, the marks.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 2), "two students with tokens on the scene on screen");
+        const FG = await import("./facilities-gm.mjs");
+        const F = await import("./facilities.mjs");
+        const { gmPlaceOf, roomOfToken } = await import("./movement.mjs");
+        const { MASK_NAME, MASK_FLAG } = await import("./mask-gm.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const scene = canvas.scene;
+        const tokenOf = a => scene?.tokens?.find(t => t.actorId === a.id) ?? null;
+        const playerOf = a => game.users.find(u => !u.isGM && a.testUserPermission(u, "OWNER")) ?? null;
+        const user = livingStudents().find(a => tokenOf(a) && roomOfToken(tokenOf(a)) && playerOf(a));
+        const target = user && livingStudents().find(a => a !== user && tokenOf(a) && playerOf(user) && !a.testUserPermission(playerOf(user), "OWNER"));
+        must(user && target, "no student with a player beside another student that player does not play - this would measure nothing");
+        const player = playerOf(user), token = tokenOf(target), here = tokenOf(user);
+        const was = { x: token.x, y: token.y }, flagWas = token.getFlag(MODULE_ID, MASK_FLAG);
+        const SANITY = "system.resources.stress.value", marksWas = foundry.utils.getProperty(target._source, SANITY);
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const effect = F.cleanEffect({ kind: "sanity", n: 1, scope: "others" });
+        must(effect?.scope === "others", "no room action's effect on the others - this would measure nothing");
+        let read = null;
+        try {
+            await token.update({ x: here.x, y: here.y }, { ...PLACE });
+            await token.setFlag(MODULE_ID, MASK_FLAG, true);
+            await trustedWrite(target, { [SANITY]: 3 }, { reason: "gmRuling" });
+            await sheetAuditIdle();
+            await settle();
+            must(roomOfToken(token) === roomOfToken(here), "the masked token does not stand in the user's room - this would measure nothing");
+            const said = async sender => (await FG.applyEffects(user, [effect], gmPlaceOf(user), sender)).join(" | ");
+            const masked = await said(player);
+            await token.unsetFlag(MODULE_ID, MASK_FLAG);
+            await trustedWrite(target, { [SANITY]: 3 }, { reason: "gmRuling" });
+            await sheetAuditIdle();
+            await settle();
+            const open = await said(player);
+            read = { masked: [masked.includes(target.name), masked.includes(MASK_NAME)], open: [open.includes(target.name), open.includes(MASK_NAME)] };
+        } finally {
+            if (flagWas === undefined) { if (token.getFlag(MODULE_ID, MASK_FLAG) !== undefined) await token.unsetFlag(MODULE_ID, MASK_FLAG); }
+            else await token.setFlag(MODULE_ID, MASK_FLAG, flagWas);
+            if (token.x !== was.x || token.y !== was.y) await token.update(was, { ...PLACE });
+            await sheetAuditIdle();
+            if (foundry.utils.getProperty(target._source, SANITY) !== marksWas) await trustedWrite(target, { [SANITY]: marksWas }, { reason: "gmRuling" });
+            await sheetAuditIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ masked: [false, true], open: [true, false] }),
+            "{masked, open: [the lines the user's player is answered name the student, say \"?\"] with the mask on, off}");
+    }],
+
     ["1.2.122 MAP-39 - Room Setup draws a name no piece can make a room with every cell off but its name and This is a room, and a room's row as live as before (scripts/room-setup.mjs `roomCells`, `cellsOff`; the audit's MAP-39)", async () => {
         /*
          * 1.2.122 line MAP, 21.11.2026; the audit's MAP-39. Room Setup lists every named region, and a name only a Teleport, a
