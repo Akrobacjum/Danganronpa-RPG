@@ -24,6 +24,13 @@
  *            (pl, glass, 1366x768) had it over "Wniosek / Nonstop Debate", which no check here read;
  *   fold     the unrelated evidence's fold: its words larger than its box, or its box over a node (round 5);
  *   footer   each button of the window's footer in view, named, its words inside its box (round 6);
+ *   hover    (line P of 1.2.120) the first node face in view hovered by the pointer: its name's ink against the ground it
+ *            is drawn on under the pointer (the window, the node's fill and Stained Glass's brush, composited) under WCAG AA
+ *            4.5; its control, on the first page under glass, the brush planted back under the pointer must read;
+ *   toolbar  (line P of 1.2.120) the order's select and the plan's at one computed font size; no control of the
+ *            Map's tools or its view switch over another or past the window's content box (`--width <px>` draws every
+ *            window at that width, to read it narrow); the tools on one row in a window 1000 px wide or wider;
+ *   through  (line P of 1.2.120) a drawn line's stretch inside a node's box other than its own two ends;
  *   size     while a trial runs, under glass, at 800 px of height or less: the smallest node text after Fit to view
  *            at least 11 px (the owner, 12.11, round 6; MIN_TEXT);
  *   the numbers: nodes, the tallest node, the graph's viewport, the canvas; the trial console's slot, and after Fit to
@@ -48,8 +55,11 @@ const REPO = path.resolve(HERE, "..");
 const args = process.argv.slice(2);
 const shotsAt = args.indexOf("--shots");
 const SHOTS = shotsAt >= 0 ? path.resolve(args[shotsAt + 1]) : null;
-const DIRS = args.filter((a, i) => !a.startsWith("--") && !["--shots", "--chromium", "--ids", "--scale"].includes(args[i - 1])).map(d => path.resolve(d));
+const DIRS = args.filter((a, i) => !a.startsWith("--") && !["--shots", "--chromium", "--ids", "--scale", "--width"].includes(args[i - 1])).map(d => path.resolve(d));
 /* `--scale <n>` (E99 round 4): the screenshots' device scale (1 by default; 2 for shots a person reads). */
+/* `--width <px>` (line P of 1.2.120): every window drawn at that width instead of its own, to read the toolbar narrow. */
+const widthAt = args.indexOf("--width");
+const WIDTH = widthAt >= 0 ? Number(args[widthAt + 1]) || null : null;
 const scaleAt = args.indexOf("--scale");
 const SCALE = scaleAt >= 0 ? Number(args[scaleAt + 1]) || 1 : 1;
 /* `--ids <regexp>` (E99 round 4): which captures of the manifests are swept - the Map's by default, the trial console's
@@ -110,8 +120,17 @@ function pageHtml(styles, html, title, width, theme, vh = 0) {
 }
 
 /** Read in the page: relayout through the module's code, then every node's cut and every pair's overlap. */
-async function readMap(page, { plantBox = false, staleLayout = false, plantBar = false, plantNarrow = false } = {}) {
-    return page.evaluate(async ({ plantBox, staleLayout, plantBar, plantNarrow }) => {
+async function readMap(page, { plantBox = false, staleLayout = false, plantBar = false, plantNarrow = false, plantThrough = false, plantSmall = false } = {}) {
+    return page.evaluate(async ({ plantBox, staleLayout, plantBar, plantNarrow, plantThrough, plantSmall }) => {
+        // the toolbar read's control (line P of 1.2.120): the order's select planted at 9 px must read
+        if (plantSmall) document.querySelector("select[data-drpg-case-sort]")?.style.setProperty("font-size", "9px", "important");
+        // and its overlap read's (line P of 1.2.120): the tools' second control planted over their first must read; and its
+        // rows read's: the order select planted 700 px wide must wrap the tools
+        if (plantSmall) document.querySelector("select[data-drpg-case-sort]")?.style.setProperty("width", "700px", "important");
+        if (plantSmall) {
+            const [a, b] = [...document.querySelectorAll(".drpg-case-tools :is(button, select)")];
+            if (a && b) { const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect(); b.style.transform = `translate(${ra.left - rb.left + 4}px, ${ra.top - rb.top}px)`; }
+        }
         const V = await import("/scripts/case-view.mjs");
         await document.fonts.ready;
         if (plantBox) {
@@ -130,6 +149,22 @@ async function readMap(page, { plantBox = false, staleLayout = false, plantBar =
         const canvas = document.querySelector(".drpg-case-canvas");
         if (!canvas) return { error: "no canvas" };
         if (!staleLayout) { V.relayoutCaseMap(canvas); V.placeTileControls?.(canvas); }
+        /* THE THROUGH READ'S CONTROL (line P of 1.2.120): a node that is no end of the first long horizontal stretch drawn
+           moved onto it, face and fields, after the relayout - the read must name it */
+        if (plantThrough) {
+            for (const path of canvas.querySelectorAll(":scope > svg.drpg-case-edges path[data-drpg-ends]")) {
+                const ends = JSON.parse(path.dataset.drpgEnds || "[]");
+                const m = String(path.getAttribute("d")).match(/^M(-?[\d.]+) (-?[\d.]+) H(-?[\d.]+)/);
+                if (!m || Math.abs(Number(m[3]) - Number(m[1])) < 60) continue;
+                const other = [...canvas.querySelectorAll(":scope > button[data-drpg-node]")].find(b => !ends.includes(b.dataset.drpgNode));
+                if (!other) break;
+                const x = Math.min(Number(m[1]), Number(m[3])) + 20, y = Number(m[2]) - 10;
+                for (const el of [other, canvas.querySelector(`:scope > .drpg-case-edit[data-drpg-edit="${CSS.escape(other.dataset.drpgNode)}"]`)]) {
+                    if (el) { el.style.left = `${x}px`; el.style.top = `${y}px`; }
+                }
+                break;
+            }
+        }
         const nodes = [...canvas.querySelectorAll(":scope > button[data-drpg-node]")];
         const open = new Map([...canvas.querySelectorAll(":scope > .drpg-case-edit:not([hidden])")].map(f => [f.dataset.drpgEdit, f]));
         const cut = [];
@@ -182,6 +217,83 @@ async function readMap(page, { plantBox = false, staleLayout = false, plantBar =
                 }
             }
             boxes.push(box);
+        }
+        /* THE TOOLBAR'S TWO SELECTS AT ONE SIZE (line P of 1.2.120; the owner's shots: "By hand" drawn tiny beside "Add a
+           plan"): the order's select and the plan's, by their computed font size, within half a pixel. */
+        {
+            const sortSel = document.querySelector("select[data-drpg-case-sort]"), planSel = document.querySelector("select[data-drpg-case-add-plan]");
+            if (sortSel && planSel) {
+                const [a, b] = [sortSel, planSel].map(el => parseFloat(getComputedStyle(el).fontSize));
+                if (Math.abs(a - b) > 0.5) cut.push(`toolbar: the order's select at ${a} px beside the plan's at ${b} px`);
+            }
+        }
+        /* THE TOOLBAR'S CONTROLS APART AND INSIDE IT (line P of 1.2.120; the owner reported the toolbar overlapping): every
+           button and select of the Map's tools (`.drpg-case-tools`) and the view switch above them, by their boxes - no two
+           overlapping by more than half a pixel, none past the window's content box on either side. */
+        {
+            /* AND ON ONE ROW FROM 1000 PX (the coordinator, 21.11.2026: the order select's empty tail pushed "All open" to a row
+               of its own): the tools' rows, a control joining the row whose vertical span it overlaps (buttons and selects
+               of one row stand a few pixels apart in height); a window 1000 px wide or wider whose tools take two is a cut.
+               1000, not 1100: at 1100 they took one row before the fix too; the wrap was at the harness's 1008 px window
+               (two rows under Stained Glass before `field-sizing: content` on the order select, one after). */
+            const toolRects = [...document.querySelectorAll(".drpg-case-tools :is(button, select)")].filter(el => el.offsetWidth > 0)
+                .map(el => el.getBoundingClientRect()).sort((p, q) => p.top - q.top);
+            const rows = [];
+            for (const r of toolRects) {
+                const row = rows.find(w => r.top < w.bottom - 0.5 && r.bottom > w.top + 0.5);
+                if (row) { row.top = Math.min(row.top, r.top); row.bottom = Math.max(row.bottom, r.bottom); } else rows.push({ top: r.top, bottom: r.bottom });
+            }
+            window.__sweepToolRows = rows.length;
+            const appWidth = document.querySelector(".application")?.offsetWidth ?? 0;
+            if (appWidth >= 1000 && rows.length > 1) cut.push(`toolbar: ${rows.length} rows in a window ${appWidth} px wide`);
+            const content = document.querySelector(".window-content")?.getBoundingClientRect();
+            const controls = [...document.querySelectorAll(".drpg-case-tools :is(button, select), .drpg-case-switch-bar button")]
+                .filter(el => el.offsetWidth > 0).map(el => ({ el, r: el.getBoundingClientRect(), name: el.textContent.trim().slice(0, 20) || el.className }));
+            for (let i = 0; i < controls.length; i++) {
+                const a = controls[i];
+                if (content && (a.r.left < content.left - 0.5 || a.r.right > content.right + 0.5)) cut.push(`toolbar: ${a.name} past the window's edge`);
+                for (let j = i + 1; j < controls.length; j++) {
+                    const b = controls[j];
+                    if (Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left) > 0.5 && Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top) > 0.5)
+                        cut.push(`toolbar: ${a.name} over ${b.name}`);
+                }
+            }
+        }
+        /* NO LINE THROUGH A NODE (line P of 1.2.120; the owner: "Linie w planerze - niech omijaja nodes"): every drawn line's
+           path, read back by its M, H, V and Q, against every node's box in the canvas's own pixels (a face with its open
+           fields, as placed by the relayout above), its own two ends left out; a stretch inside a box by more than half a
+           pixel is a cut. */
+        {
+            const boxOf = id => {
+                const b = canvas.querySelector(`:scope > button[data-drpg-node="${CSS.escape(id)}"]`);
+                const f = open.get(id);
+                if (!b) return null;
+                const faceShown = getComputedStyle(b).display !== "none";
+                const x = parseFloat(b.style.left), y = parseFloat((faceShown ? b : f ?? b).style.top);
+                const w = Math.max(faceShown ? b.offsetWidth : 0, f?.offsetWidth ?? 0);
+                const h = (faceShown ? b.offsetHeight : 0) + (f ? f.offsetHeight : 0);
+                return { x0: x, x1: x + w, y0: y, y1: y + h };
+            };
+            const boxes = new Map([...canvas.querySelectorAll(":scope > button[data-drpg-node]")].map(b => [b.dataset.drpgNode, boxOf(b.dataset.drpgNode)]));
+            for (const path of canvas.querySelectorAll(":scope > svg.drpg-case-edges path[data-drpg-ends]")) {
+                const [from, to] = JSON.parse(path.dataset.drpgEnds || "[]");
+                let x = 0, y = 0;
+                for (const c of String(path.getAttribute("d")).match(/[MHVQ][^MHVQ]*/g) ?? []) {
+                    const v = c.slice(1).trim().split(/[\s,]+/).map(Number);
+                    let seg = null;
+                    if (c[0] === "M") [x, y] = v;
+                    else if (c[0] === "H") { seg = { h: true, y, a: Math.min(x, v[0]), b: Math.max(x, v[0]) }; x = v[0]; }
+                    else if (c[0] === "V") { seg = { h: false, x, a: Math.min(y, v[0]), b: Math.max(y, v[0]) }; y = v[0]; }
+                    else if (c[0] === "Q") [x, y] = [v[2], v[3]];
+                    if (!seg) continue;
+                    for (const [id, q] of boxes) {
+                        if (!q || id === from || id === to) continue;
+                        const hit = seg.h ? seg.y > q.y0 + 0.5 && seg.y < q.y1 - 0.5 && Math.min(seg.b, q.x1) - Math.max(seg.a, q.x0) > 0.5
+                            : seg.x > q.x0 + 0.5 && seg.x < q.x1 - 0.5 && Math.min(seg.b, q.y1) - Math.max(seg.a, q.y0) > 0.5;
+                        if (hit) cut.push(`line ${from}>${to} through ${id}`);
+                    }
+                }
+            }
         }
         /* THE TRIAL'S CONTROLS ON THEIR TILE (E99 round 4): each tick and start inside its tile's box, over none of the tile's
            words (kind, mode, state, name, text, reach, warning). */
@@ -288,10 +400,59 @@ async function readMap(page, { plantBox = false, staleLayout = false, plantBar =
             revealed = f.top >= g.top - 0.5 && f.top < g.bottom && f.left >= g.left - 0.5 && f.right <= g.right + 0.5;
             if (!revealed) cut.push(`${id}: not brought into view (face at ${Math.round(f.left - g.left)},${Math.round(f.top - g.top)} in ${Math.round(g.width)}x${Math.round(g.height)})`);
         }
-        return { nodes: nodes.length, controls: canvas.querySelectorAll(":scope > [data-drpg-case-tick], :scope > [data-drpg-case-start-node]").length, revealed, open: [...open.keys()], tallest: Math.max(...boxes.map(b => Math.round(b.bottom - b.top))),
+        return { toolRows: window.__sweepToolRows ?? null, nodes: nodes.length, controls: canvas.querySelectorAll(":scope > [data-drpg-case-tick], :scope > [data-drpg-case-start-node]").length, revealed, open: [...open.keys()], tallest: Math.max(...boxes.map(b => Math.round(b.bottom - b.top))),
             viewport: graph ? [graph.clientWidth, graph.clientHeight] : null, canvas: [parseFloat(canvas.style.width), parseFloat(canvas.style.height)],
             measured: canvas.dataset.drpgMeasured ?? null, slot, fit, bar: Boolean(bar), cut, overlaps };
-    }, { plantBox, staleLayout, plantBar, plantNarrow });
+    }, { plantBox, staleLayout, plantBar, plantNarrow, plantThrough, plantSmall });
+}
+
+/* A NODE UNDER THE POINTER IS READ (line P of 1.2.120; the owner, 21.11.2026: "Po najechaniu myszka caly node robi sie
+   bialy"). The first node face standing in the viewport is hovered by the pointer, and its name's ink is read by WCAG 2
+   against the ground it is drawn on, composited as Chromium paints it: the first opaque ground of its ancestors, the
+   node's own fill, then Stained Glass's brush (its `::before`, drawn behind the words) at the opacity it has under the
+   pointer. Under AA 4.5 the page fails ("hover: ..."). Until the fix the brush was full cream under cream words (1.06:1).
+   With `plant`, the brush is put back on every node under the pointer (the control: it must read under glass). */
+async function readHover(page, { plant = false } = {}) {
+    if (plant) await page.addStyleTag({ content: ".drpg-case-canvas > button.drpg-case-node[data-drpg-node]:hover { --brush-on: 1 !important; }" });
+    const sel = await page.evaluate(() => {
+        const g = document.querySelector(".drpg-case-graph")?.getBoundingClientRect();
+        const face = [...document.querySelectorAll(".drpg-case-canvas > button.drpg-case-node[data-drpg-node]")].find(b => {
+            if (getComputedStyle(b).display === "none") return false;
+            const r = b.getBoundingClientRect();
+            return g && r.width > 0 && r.top >= g.top && r.bottom <= g.bottom && r.left >= g.left && r.right <= g.right && r.bottom <= innerHeight && r.right <= innerWidth;
+        });
+        return face ? `.drpg-case-canvas > button.drpg-case-node[data-drpg-node="${CSS.escape(face.dataset.drpgNode)}"]` : null;
+    });
+    if (!sel) return null;
+    await page.hover(sel);
+    await page.waitForTimeout(300);
+    const read = await page.evaluate(s => {
+        const b = document.querySelector(s);
+        const rgba = c => { const m = String(c).match(/rgba?\(([^)]+)\)/); if (!m) return null; const [r, g, bl, a = 1] = m[1].split(/[ ,/]+/).filter(Boolean).map(Number); return { r, g, b: bl, a }; };
+        const over = (top, under) => ({ r: top.r * top.a + under.r * (1 - top.a), g: top.g * top.a + under.g * (1 - top.a), b: top.b * top.a + under.b * (1 - top.a), a: 1 });
+        let ground = { r: 0, g: 0, b: 0, a: 1 };
+        const chain = [];
+        for (let el = b.parentElement; el; el = el.parentElement) chain.push(el);
+        const opaque = chain.findIndex(el => (rgba(getComputedStyle(el).backgroundColor)?.a ?? 0) >= 1);
+        for (const el of (opaque >= 0 ? chain.slice(0, opaque + 1) : chain).reverse()) {
+            const c = rgba(getComputedStyle(el).backgroundColor);
+            if (c && c.a > 0) ground = over(c, ground);
+        }
+        const fill = rgba(getComputedStyle(b).backgroundColor);
+        if (fill && fill.a > 0) ground = over(fill, ground);
+        const pre = getComputedStyle(b, "::before");
+        const brush = rgba(pre.backgroundColor);
+        const shown = pre.content !== "none" && pre.display !== "none" ? Number(pre.opacity) : 0;
+        if (brush && brush.a > 0 && shown > 0) ground = over({ ...brush, a: brush.a * shown }, ground);
+        const name = b.querySelector(".drpg-case-node-name") ?? b;
+        const ink = rgba(getComputedStyle(name).color);
+        const lum = c => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b); };
+        const inkOn = ink.a < 1 ? over(ink, ground) : ink;
+        const [hi, lo] = [lum(inkOn), lum(ground)].sort((x, y) => y - x);
+        return { id: b.dataset.drpgNode, ratio: Math.round(((hi + 0.05) / (lo + 0.05)) * 100) / 100, brush: shown };
+    }, sel);
+    await page.mouse.move(0, 0);
+    return read;
 }
 
 const server = await serve();
@@ -314,7 +475,7 @@ try {
                 /* THE WIDTH FOUNDRY GIVES THE WINDOW (E99 round 5): the capture's is the harness's screen's (1008 px, its jsdom
                    screen less 8 px a side). The trial console asks 1280 px (trial-floor-ui.mjs `consoleWidth`), held by the kit
                    to the screen less 8 px a side (ui-kit.mjs `kitWidth`); the Map keeps the capture's width, as before. */
-                const width = /^class-trial/.test(w.id) ? Math.min(1280, vw - 16) : (w.width ?? 1120);
+                const width = WIDTH ?? (/^class-trial/.test(w.id) ? Math.min(1280, vw - 16) : (w.width ?? 1120));
                 const page = await browser.newPage({ viewport: { width: vw, height: vh }, deviceScaleFactor: SHOTS ? SCALE : 1 });
                 const load = async () => {
                     await page.route("**/case-map-sweep-page", r => r.fulfill({ contentType: "text/html", body: pageHtml(styles, html, w.title, width, theme, vh) }));
@@ -334,12 +495,34 @@ try {
                     const footHas = await page.evaluate(() => { const b = document.querySelector("footer.drpg-kit-footer button"); if (b) Object.assign(b.style, { position: "fixed", top: `${innerHeight + 40}px` }); return Boolean(b); });
                     const footRead = footHas ? ((await readMap(page)).cut ?? []).filter(c => c.startsWith("footer:")).length : 0;
                     const ok = box.cut?.length > 0 && stale.overlaps?.length > 0 && (!planted.bar || barRead > 0) && (!footHas || footRead > 0);
+                    // the toolbar read's control (line P of 1.2.120): the order's select planted small must read
+                    const small = await readMap(page, { plantSmall: true });
+                    const smallRead = (small.cut ?? []).filter(c => c.startsWith("toolbar: the order's")).length
+                        && (small.cut ?? []).filter(c => / over /.test(c) && c.startsWith("toolbar:")).length
+                        && (small.cut ?? []).filter(c => / rows in a window /.test(c)).length;
+                    const hasSelects = await page.evaluate(() => Boolean(document.querySelector("select[data-drpg-case-sort]") && document.querySelector("select[data-drpg-case-add-plan]")));
+                    await load();
+                    console.log(`control  ${!hasSelects || smallRead ? "ok  " : "FAIL"} the order's select planted at 9 px and a tool planted over another read ${hasSelects ? (small.cut ?? []).filter(c => c.startsWith("toolbar:")).length : "no toolbar on this page"} toolbar cut(s)`);
+                    if (hasSelects && !smallRead) failed++;
+                    // the through read's control (line P of 1.2.120): a node moved onto a drawn line must read
+                    const onLine = await readMap(page, { plantThrough: true });
+                    const throughRead = (onLine.cut ?? []).filter(c => c.startsWith("line ")).length;
+                    await load();
+                    console.log(`control  ${throughRead ? "ok  " : "FAIL"} a node moved onto a drawn line read ${throughRead} line(s) through a node`);
+                    if (!throughRead) failed++;
+                    // the hover's control (line P of 1.2.120): the brush planted back under the pointer must read, under glass
+                    const plantedHover = theme === "glass" ? await readHover(page, { plant: true }) : null;
+                    await load();
+                    const hoverOk = theme !== "glass" || plantedHover === null || plantedHover.ratio < 4.5;
+                    console.log(`control  ${hoverOk ? "ok  " : "FAIL"} the brush planted under the pointer read ${plantedHover ? `${plantedHover.ratio}:1 on ${plantedHover.id}` : "no face in view on this page"}`);
+                    if (!hoverOk) failed++;
                     console.log(`control  ${ok ? "ok  " : "FAIL"} C5's box read ${box.cut?.length ?? 0} cut(s); the drawn places with 120 px nodes read ${stale.overlaps?.length ?? 0} overlap(s); the bar planted over a node read ${planted.bar ? barRead : "no bar on this page"}; a footer button put off the screen read ${footHas ? footRead : "no footer on this page"}`);
                     if (!ok) failed++;
                     controlled = true;
                     await load();
                 }
-                if (!fieldControlled && /investigation--map-/.test(w.id)) {
+                // on a page with a node open (the lanes page, line P of 1.2.120, opens none and comes first)
+                if (!fieldControlled && /investigation--map-/.test(w.id) && await page.evaluate(() => Boolean(document.querySelector(".drpg-case-canvas > .drpg-case-edit:not([hidden])")))) {
                     // THE FIELDS' CONTROL (owner-116), on the first page with a node open: a text box planted at half the
                     // fields' width must read
                     const narrow = await readMap(page, { plantNarrow: true });
@@ -350,11 +533,14 @@ try {
                     await load();
                 }
                 const r = await readMap(page);
+                const hover = await readHover(page);
+                r.hover = hover;
+                if (hover && hover.ratio < 4.5) (r.cut ??= []).push(`hover: ${hover.id}'s name at ${hover.ratio}:1 under the pointer, under AA 4.5 (the brush at ${hover.brush})`);
                 if (/^class-trial/.test(w.id) && (r.controls ?? 0) > 0 && theme === MIN_TEXT.theme && vh <= MIN_TEXT.maxHeight && r.fit && r.fit.minText < MIN_TEXT.px)
                     (r.cut ??= []).push(`fit text ${r.fit.minText} px under ${MIN_TEXT.px} (a trial runs, ${theme}, ${vh} px high)`);
                 const bad = (r.cut?.length ?? 1) + (r.overlaps?.length ?? 0) + (r.error ? 1 : 0);
                 if (bad) failed++;
-                const line = `${bad ? "FAIL" : "ok  "} ${lang} ${theme.padEnd(6)} ${vw}x${vh} ${w.id.padEnd(25)} nodes ${r.nodes} controls ${r.controls ?? 0} open [${(r.open ?? []).join(",")}] tallest ${r.tallest} px, viewport ${r.viewport?.join("x")}, canvas ${r.canvas?.join("x")}, measured ${r.measured}${r.slot ? `, slot ${r.slot.join("x")}` : ""}${r.fit ? `, fit ${r.fit.z} text ${r.fit.minText} px` : ""}${r.revealed === null ? "" : `, revealed ${r.revealed}`}; cut ${r.cut?.length ?? "-"}, overlaps ${r.overlaps?.length ?? "-"}${r.error ? `; ${r.error}` : ""}`;
+                const line = `${bad ? "FAIL" : "ok  "} ${lang} ${theme.padEnd(6)} ${vw}x${vh} ${w.id.padEnd(25)} toolbar rows ${r.toolRows ?? "-"} hover ${r.hover ? `${r.hover.ratio}:1` : "-"} nodes ${r.nodes} controls ${r.controls ?? 0} open [${(r.open ?? []).join(",")}] tallest ${r.tallest} px, viewport ${r.viewport?.join("x")}, canvas ${r.canvas?.join("x")}, measured ${r.measured}${r.slot ? `, slot ${r.slot.join("x")}` : ""}${r.fit ? `, fit ${r.fit.z} text ${r.fit.minText} px` : ""}${r.revealed === null ? "" : `, revealed ${r.revealed}`}; cut ${r.cut?.length ?? "-"}, overlaps ${r.overlaps?.length ?? "-"}${r.error ? `; ${r.error}` : ""}`;
                 console.log(line);
                 for (const c of [...(r.cut ?? []), ...(r.overlaps ?? []).map(o => `overlap ${o}`)]) console.log(`       ${c}`);
                 rows.push({ lang, theme, size: `${vw}x${vh}`, id: w.id, width, ...r });
@@ -371,6 +557,10 @@ try {
                         await page.screenshot({ path: path.join(SHOTS, `${lang}-${theme}-${vw}x${vh}-${w.id}-fit.png`) });
                         await page.evaluate(() => { const c = document.querySelector(".drpg-case-canvas"); if (c) c.style.transform = window.__sweepBefore; });
                     }
+                    /* the whole canvas, unclipped: the camera put back to its origin first (line P of 1.2.120) - with the camera
+                       moved to reveal an open node and the clip taken off, the canvas was drawn over the toolbar above it, in the
+                       shot alone (the "-view" shot, the window as the GM sees it, clips it) */
+                    await page.evaluate(() => { const c = document.querySelector(".drpg-case-canvas"); if (c) c.style.transform = "none"; });
                     await page.evaluate(() => { const g = document.querySelector(".drpg-case-graph"); if (g) { g.style.overflow = "visible"; g.style.height = `${parseFloat(document.querySelector(".drpg-case-canvas").style.height) + 4}px`; g.style.flex = "none"; } const v = document.querySelector(".drpg-case-view"); if (v) { v.style.height = "auto"; v.style.overflow = "visible"; } });
                     await page.screenshot({ path: path.join(SHOTS, `${lang}-${theme}-${vw}x${vh}-${w.id}.png`), fullPage: true });
                 }

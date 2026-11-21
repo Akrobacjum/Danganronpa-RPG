@@ -17,7 +17,7 @@
  * with no GM is not thrown (A4); A3's Grant all is a click on the card's button; and a stamped
  * message created while the GM is back pays its Despair at the Grant, once, not at its creation (A5).
  * Since E29 C7 (05.10.2026; the plan's 2.9, 2.10) also: a student's token HUD bars are display-only for
- * its player (H1); and with no GM connected p1's console raises Aiko's Agility and heals one of her
+ * its player (H1; since 1.2.120 the HUD draws no bar input for anybody, and nothing at all for a player); and with no GM connected p1's console raises Aiko's Agility and heals one of her
  * Health marks - back, the primary puts Agility back at once and asks about the Health mark on one card,
  * whose own Undo heals it back (S1, S2). The GM who returns comes back with the browser the GM who left
  * held (`storageOf`), as a GM's reload keeps it: the GMs' marks live in their browsers.
@@ -343,21 +343,26 @@ async function matchedByName({ gm, p3, check, phase, IDS, repoUrl }) {
 }
 
 /**
- * THE TOKEN HUD'S BARS (E29 C7; the owner's Q4 (a)): on a player's browser a student's two bar inputs are
- * display-only while `lockPlayerResources` is on, and on the GM's they are not. The harness has no canvas
- * and draws no token HUD, so the check hands the hook (hud.mjs `stillTokenBars`) a HUD's shape: the app's
- * actor and an element with Daggerheart 2.10.5's two inputs. The Party sheet's pips are CSS, which no
- * client here computes - not checked.
+ * THE TOKEN HUD'S BARS (E29 C7; the owner's Q4 (a); since 1.2.120 line H, 21.11.2026, the owner's "liczby na gorze i na
+ * dole"): until 1.2.120 a student's two bar inputs were display-only on a player's browser while `lockPlayerResources`
+ * was on, and editable on the GM's (hud.mjs `stillTokenBars`). Now token-hud.mjs `trimTokenHud` takes both inputs out of
+ * the HUD for everybody, the lock on or not, and the bars still draw on the token; a player's HUD is emptied whole and not
+ * drawn (the owner, 21.11.2026: "Niech gracz nie ma menu tokena"). The harness has no canvas and draws no
+ * token HUD, so the check hands Foundry's hook a HUD's shape: the app's actor and an element with Daggerheart's two
+ * inputs (templates/hud/tokenHUD.hbs, 2.12.8 as 2.10.5). The Party sheet's pips are CSS, which no client here computes -
+ * not checked.
  */
 async function tokenBars({ gm, p1, check, phase, IDS }) {
     phase("a student's token HUD bars", { flow: "sheet-audit" });
     const read = `const el = document.createElement("form");
-        el.innerHTML = '<div class="attribute bar2"><input type="text" name="bar2" value="2"></div><div class="attribute bar1"><input type="text" name="bar1" value="1"></div>';
+        el.innerHTML = '<div class="col middle"><div class="attribute bar2"><input type="text" name="bar2" value="2"></div><div class="attribute bar1"><input type="text" name="bar1" value="1"></div></div>';
         Hooks.callAll("renderTokenHUD", { actor: game.actors.get("${IDS.aiko}") }, el, {}, {});
-        return { locked: game.settings.get("${MOD}", "lockPlayerResources"), disabled: [...el.querySelectorAll("input")].map(i => i.disabled) };`;
+        return { locked: game.settings.get("${MOD}", "lockPlayerResources"), inputs: el.querySelectorAll("input").length, middle: el.querySelectorAll(".col.middle").length,
+            none: el.classList.contains("drpg-token-hud-none") };`;
     const onP1 = await p1.eval(read), onGm = await gm.eval(read);
-    check("H1: a student's token HUD bar inputs are display-only for its player with the lock on, and stay editable for the GM",
-        onP1.locked === true && J(onP1.disabled) === J([true, true]) && J(onGm.disabled) === J([false, false]), J({ onP1, onGm }), { flow: "sheet-audit" });
+    check("H1: a student's token HUD draws no bar input for the GM, its middle column kept, and nothing for its player, whose HUD is not drawn (1.2.120)",
+        onP1.locked === true && onP1.inputs === 0 && onP1.middle === 0 && onP1.none === true && onGm.inputs === 0 && onGm.middle === 1 && onGm.none === false,
+        J({ onP1, onGm }), { flow: "sheet-audit" });
 }
 
 /** A GM away, and back (E08+E28 C18): the header's A1-A3. */

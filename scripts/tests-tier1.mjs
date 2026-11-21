@@ -32483,6 +32483,141 @@ const INVARIANTS = [
             "[whether the dissolve could be stood down, what its end did after the scene was left, whether a dissolve is busy, queued, the frames drawn before]");
     }],
 
+    ["R8030 - a dissolve whose end throws still lets the fog redraw (1.2.120 line F; the owner's report of 21.11.2026, \"Mgla u GMa nie odswieza sie wcale\"): fog.mjs `swapInFog` on a fake ticker, its clean-up throwing, leaves no dissolve busy and runs the repaint queued behind it; one whose end never comes is let go after its bound", async () => {
+        /*
+         * 1.2.120 line F, 21.11.2026. Every repaint that arrives while a dissolve runs is queued behind it
+         * (`queueBehindDissolve`), and only the dissolve's end lets it go (`releaseDissolve`). That release was the last
+         * line of the end (`done`), which runs under the watchdog: a throw on the way - a sprite or a texture that would
+         * not be destroyed - was caught and logged there ("an effect failed to clean itself up"), `busy` stayed true, and
+         * every repaint after it returned at its first line. The fog then changed for nothing - no room found, no tick
+         * on the Fog tab, no reset - until a reload or a change of scene. The same in the catch of `startDissolve`,
+         * where `finish()` came before the release. Headless the fog is never rendered (no canvas), so no dissolve runs
+         * and no scenario reaches this: it is the module's own dissolve on the fake ticker R1003 uses. The real canvas is
+         * LIVE-F120-01. Red on e515907d (1.2.119), measured: A [true, true, 0] (queued, still busy, the queued repaint not
+         * run). B and C are the fix's other two parts, each red with that part taken out: B [true, 0], C [true, true, true].
+         */
+        const F = await import("./fog.mjs");
+        must(typeof F.swapInFog === "function" && typeof F.queueBehindDissolve === "function", "fog.mjs hands out no swapInFog or queueBehindDissolve to run");
+        class Node {
+            constructor(texture = null) { this.children = []; this.destroyed = false; this.visible = true; this.renderable = true; this.alpha = 1; this.texture = texture;
+                this.position = { set: () => {} }; }
+            addChild(...nodes) { for (const n of nodes) { n.parent = this; this.children.push(n); } return nodes[0]; }
+            removeChild(n) { this.children = this.children.filter(c => c !== n); n.parent = null; return n; }
+            destroy() { this.destroyed = true; this.parent?.removeChild(this); for (const c of [...this.children]) c.destroy(); this.children = []; }
+        }
+        class Graphics extends Node { clear() { return this; } beginFill() { return this; } drawRect() { return this; } endFill() { return this; } }
+        const texture = label => ({ label, destroyed: false, destroy() { this.destroyed = true; } });
+        let clock = 1000;
+        const run = ({ throwOnDrop = false, throwOnRender = false } = {}) => {
+            const state = { generation: 0, busy: false, queued: false, previous: null };
+            const anims = [];
+            let repaints = 0, mixes = 0;
+            const container = new Node();
+            const io = {
+                state,
+                PIXI: { Container: Node, Sprite: Node, Graphics, BLEND_MODES: { ERASE: 9, ADD: 1 }, RenderTexture: { create: () => texture(`mix${mixes++}`) } },
+                animate: (attributes, options) => {
+                    let resolve;
+                    const anim = new Promise(r => { resolve = r; });
+                    anim.finish = () => { attributes[0].parent.t = 1; options.ontick(); resolve(true); anim.done?.(); };
+                    anims.push(anim);
+                    return anim;
+                },
+                // The real watchdog's catch (fog-reveal.mjs `watchdog`): a throw in the clean-up is logged, nothing more.
+                watchdog: (anim, ms, cleanUp) => { let once = false; anim.done = () => { if (once) return; once = true; try { cleanUp(); } catch { /* logged */ } }; },
+                renderer: () => ({ render: () => { if (throwOnRender) throw new Error("no renderer"); } }),
+                layer: () => container,
+                ensureRaster: () => {},
+                dropSprite: sprite => {
+                    if (throwOnDrop) throw new Error("a sprite that would not be destroyed");
+                    if (sprite && !sprite.destroyed) sprite.destroy();
+                },
+                showing: () => {},
+                motionOff: () => false,
+                fadeMs: () => 180,
+                now: () => clock,
+                repaint: () => { repaints += 1; }
+            };
+            const rect = { x: 0, y: 0, width: 400, height: 300 };
+            const swap = name => F.swapInFog(container, texture(name), texture(`${name}-mask`), rect, io);
+            return { state, anims, io, swap, repaints: () => repaints };
+        };
+
+        // A: a dissolve A -> B, a repaint queued behind it, and its end throws as it drops the old sprites.
+        const a = run({ throwOnDrop: true });
+        a.swap("A");
+        a.swap("B");
+        const queuedA = F.queueBehindDissolve(a.io);
+        a.anims[0]?.finish();
+        equal(JSON.stringify([queuedA, a.state.busy, a.repaints()]), JSON.stringify([true, false, 1]),
+            "[whether the repaint was queued, whether a dissolve is still busy after its end threw, the queued repaints run]");
+
+        // B: the dissolve cannot start (the renderer throws) and the outright swap's `finish` throws too.
+        const b = run({ throwOnRender: true });
+        b.swap("C");
+        b.io.dropSprite = () => { throw new Error("a sprite that would not be destroyed"); };
+        // The throw goes on to the caller (`repaintFog`'s catch logs it); what is read is the state it leaves.
+        try { b.swap("D"); } catch { /* read below */ }
+        equal(JSON.stringify([b.state.busy, b.anims.length]), JSON.stringify([false, 0]),
+            "[whether a dissolve is busy after one that could not start, the dissolves run]");
+
+        // C: a dissolve whose end never comes (no tick, no watchdog): a repaint asked past its bound is not queued.
+        const c = run();
+        c.io.watchdog = () => {};
+        c.swap("E");
+        c.swap("F");
+        const early = F.queueBehindDissolve(c.io);
+        clock += 10000;
+        const late = F.queueBehindDissolve(c.io);
+        equal(JSON.stringify([early, late, c.state.busy]), JSON.stringify([true, false, false]),
+            "[queued while the dissolve is young, queued 10 s on, whether a dissolve is still busy]");
+    }],
+
+    ["R8031 - a write the browser could not store still tells what draws it (1.2.120 line F; the owner's report of 21.11.2026, \"Mgla u GMa nie odswieza sie wcale\", cured by Reset the season): gm-store.mjs over a storage that refuses every write hands its `changed` the store's key and the value memory holds, for a GM's store and for a player's copy", async () => {
+        /*
+         * 1.2.120 line F, 21.11.2026. A store's readers are redrawn by its client setting's `onChange` (settings.mjs: the
+         * discovery store's and the fog copy's run `onWorldChange` of the fog), and Foundry runs that only once the value
+         * is in localStorage. With the origin full the store took every write in memory and nothing on screen heard of
+         * it: the GM's fog stood as drawn for every room found, ticked or reset, through any F5, until something freed the
+         * room - the season's reset empties the stores. Headless on 25231254, gm's localStorage refusing the discovery
+         * key (scenario 97 L): the record took the tick, the untick and the walk, gm's drawn fog none. Red there, measured:
+         * [[], {"Gym": true}] (memory took the write, nobody heard it). The copy's half, each part of the fix taken out
+         * alone: no `changed` after its failed write [null, [], {"Gym": true}]; no catch ["R8031 full", [], ...]. The real `changed` calls the registered setting's
+         * `onChange` (gm-store.mjs's env); scenario 97 L reads it through the fog.
+         */
+        const G = await import("./gm-store.mjs");
+        const quiet = { warn: () => {}, error: () => {}, debug: () => {} };
+        const heard = [];
+        const engineOf = gm => {
+            const flushes = [];
+            const eng = G.createGmStoreEngine({
+                selfId: () => gm ? "R8031GM" : "R8031P", isGM: () => gm, isPrimary: () => gm, worldId: () => "R8031WORLD",
+                activeGmIds: () => [], primaryGmId: () => "R8031GM", senderIsGM: () => true, userName: u => u, send: () => {},
+                storage: { read: () => null, write: async () => { const e = new Error("R8031 full"); e.name = "QuotaExceededError"; throw e; } },
+                changed: (key, value) => heard.push([gm ? "gm" : "player", key, value]),
+                readLegacy: () => undefined, now: () => 5_000_000,
+                timers: { set: fn => { flushes.push(Promise.resolve().then(fn)); return flushes.length; }, clear: () => {} },
+                clock: () => ({}), log: quiet, notify: () => {}, text: key => key
+            });
+            return { eng, settle: async () => { for (let i = 0; i < 4; i++) await Promise.all(flushes); } };
+        };
+        const gm = engineOf(true);
+        const store = gm.eng.define({ name: "r8031", key: "r8031Key", kind: "ledger", sync: false, backup: false });
+        await store.patch("SCENE/ACTOR", { Gym: true });
+        await gm.settle();
+        const onGm = heard.filter(([who]) => who === "gm").map(([, key, value]) => [key, value?.worlds?.R8031WORLD?.e?.["SCENE/ACTOR"] ?? null]);
+        equal(JSON.stringify([onGm, store.get("SCENE/ACTOR")]), JSON.stringify([[["r8031Key", { Gym: true }]], { Gym: true }]),
+            "[what the store's readers heard of a write that could not be stored (key, the cells), what memory holds]");
+
+        const player = engineOf(false);
+        const copy = player.eng.defineCopy({ name: "r8031copy", key: "r8031Copy", fallback: null });
+        let threw = null;
+        try { await copy.receive({ Gym: true }, 5_000_000 - 10); } catch (err) { threw = err?.message ?? String(err); }
+        const onPlayer = heard.filter(([who]) => who === "player").map(([, key]) => key);
+        equal(JSON.stringify([threw, onPlayer, copy.read()]), JSON.stringify([null, ["r8031Copy"], { Gym: true }]),
+            "[whether taking the copy threw, what its readers heard, what the copy reads]");
+    }],
+
     ["R1023 - one table says what each mode of the floor allows (E70 C1, S18-79): trial-floor.mjs `modeAllows(floor, kind, actorId)` answers, on every floor of today's three modes and with none, what `maySpeak`, `floorRefusal` and `targetRefusal` answered at 1.2.89, and those three answer it still", async () => {
         /*
          * E70 C1, 27.10.2026; E70-03 (amend 4 (e)). `maySpeak`, `floorRefusal` and `targetRefusal` each spelled the
@@ -41687,6 +41822,59 @@ const INVARIANTS = [
             }), "[a press let go by pointerup: rebuilds while held, rebuilds by the end, the click heard on the pressed node]; [the region's deferrals counted]; "
                 + "[the same let go by pointercancel]; [by lostpointercapture]; [by a pointerup on the page's window alone]; "
                 + "[a press never let go: rebuilds 300 ms in, and 5.5 s in]; [rebuilds while a press outside the region is held]");
+        } finally {
+            stop();
+            host.remove();
+        }
+    }],
+
+    ["R8012 - live.mjs on an artificial region: a select picked with the pointer redraws at once through its own `refresh()`, and a forced `refresh()` asked during a press stays forced when the press is let go (line P of 1.2.120; the owner, 21.11.2026: \"dziala dopiero po save, czyli okno investigation nie odswieza sie dalej poprawnie\"): a `change` inside the region ends the press; a forced redraw wanted under a press runs at its release though a select of the region holds the focus", async () => {
+        /*
+         * Line P, 21.11.2026. Red at e515907d: the pick's `refresh()` was put off by the press (`held`), and its release
+         * asked an unforced rebuild, which the focused select held until the focus left the region - the planner's sort and
+         * the Table's filters waited for Save's click. The press dispatched by hand, as R1316's (the harness has no pointer;
+         * a native select's popup at a table is LIVE-E44-02's kind).
+         */
+        const { keepLive } = await import("./live.mjs");
+        let built = 0;
+        const build = () => { built++; return `<div class="drpg-t-r8012"><select data-drpg-t="pick"><option value="a">a</option><option value="b">b</option></select>`
+            + `<button type="button" data-drpg-t="press">press</button></div>`; };
+        const host = document.createElement("div");
+        host.style.cssText = "position:fixed;left:-3000px;top:0;width:200px";
+        host.innerHTML = build();
+        document.body.appendChild(host);
+        const app = { element: host, options: { window: { title: "test" } } };
+        let stop = null;
+        const wire = () => host.querySelector('[data-drpg-t="pick"]')?.addEventListener("change", () => stop?.refresh?.());
+        stop = keepLive(app, { region: ".drpg-t-r8012", build, delay: 0, whileEditing: true, watch: { hooks: [LIVE_PROBE] }, after: wire });
+        wire();
+        const Pointer = globalThis.PointerEvent ?? MouseEvent;
+        const fire = (node, type) => node.dispatchEvent(new Pointer(type, { bubbles: true, cancelable: true }));
+        const pick = () => host.querySelector('.drpg-t-r8012 [data-drpg-t="pick"]');
+        try {
+            const read = {};
+            // a pick with the pointer: pressed, focused, changed, never let go on the page
+            let before = built;
+            fire(pick(), "pointerdown");
+            pick().focus();
+            pick().value = "b";
+            pick().dispatchEvent(new Event("change", { bubbles: true }));
+            await wait(140);
+            read.pick = built - before;
+            fire(host, "pointerup");
+            await wait(60);
+            // a forced refresh asked under a press on the button, the select then focused, the press let go
+            before = built;
+            fire(host.querySelector('[data-drpg-t="press"]'), "pointerdown");
+            stop.refresh();
+            await wait(60);
+            const during = built - before;
+            pick().focus();
+            fire(host.querySelector('[data-drpg-t="press"]'), "pointerup");
+            await wait(140);
+            read.forced = [during, built - before];
+            equal(stableJson(read), stableJson({ pick: 1, forced: [0, 1] }),
+                "{pick: rebuilds within 140 ms of a select's change under a press never let go; forced: [rebuilds while the press was held, rebuilds by 140 ms after its release with the select focused]}");
         } finally {
             stop();
             host.remove();
@@ -63536,6 +63724,114 @@ const INVARIANTS = [
         stableJson({ out: { campaignName: "typed", chapter: 2, day: 5, phase: "investigation", session: 4, timeOfDay: "night", safeword: "set elsewhere" }, season: true, edit: true }),
             "{out: the fields written - the name and the phase changed, the rest as the clock holds them; season, edit: the two callbacks read through it}");
     }],
+    ["R8050 - Foundry's token HUD holds only the controls kept (1.2.120 line H; the owner, 21.11.2026: \"Niepotrzebne jest: combat, target, movement action, assign status, liczby na gorze i na dole i elevation\"): token-hud.mjs `trimHudFor` on Daggerheart 2.12.8's tokenHUD.hbs as drawn for a GM leaves the floor's palette, bring to front, the companion's button, lock, the token's settings and visibility, with no input, status palette, movement palette, target or combat; as drawn for a player it leaves nothing, the HUD marked not to be drawn (the owner, 21.11.2026: \"Niech gracz nie ma menu tokena\")", async () => {
+        /*
+         * 21.11.2026, 1.2.120 line H. The harness draws no token HUD (no canvas), so this hands the transform the markup
+         * Daggerheart's template draws (`dhTokenHud`, below, copied from 2.12.8's templates/hud/tokenHUD.hbs with every
+         * branch a GM's or a player's context opens). Whether a real v14 HUD drawn this way is gone from a player's screen
+         * is the table's: LIVE-H120-01. Red at e515907d: there is no token-hud.mjs.
+         */
+        const T = await import("./token-hud.mjs").catch(() => ({}));
+        must(typeof T.trimHudFor === "function", "token-hud.mjs exports no trimHudFor - the token HUD keeps every control Foundry and Daggerheart draw");
+        const read = isGM => {
+            const el = dhTokenHud({ gm: isGM });
+            T.trimHudFor(el, { isGM });
+            return { root: el.classList.contains("drpg-token-hud"), none: el.classList.contains("drpg-token-hud-none"), controls: tokenHudControls(el),
+                inputs: el.querySelectorAll("input").length, palettes: [...el.querySelectorAll(".palette")].map(p => p.dataset.palette),
+                columns: el.querySelectorAll(".col").length, children: el.children.length };
+        };
+        equal(stableJson({ gm: read(true), player: read(false) }), stableJson({
+            gm: { root: true, none: false, controls: ["togglePalette:levels", "sort", "toggleCompanions", "locked", "config", "visibility"], inputs: 0, palettes: ["levels"], columns: 3, children: 3 },
+            player: { root: true, none: true, controls: [], inputs: 0, palettes: [], columns: 0, children: 0 }
+        }), "{gm, player: the HUD marked as the module's, marked not to be drawn, its controls in order, its inputs, its palettes, its columns, its children}");
+    }],
+    ["R8051 - the token HUD's kept controls say what they do in this user's language, and say it again when their state turns (1.2.120 line H): after `trimHudFor` every control the module labels carries a `DRPG.TokenHud` text as both its aria-label and its tooltip; visibility and lock name the change a click makes, and turn their words when Foundry turns the icon", async () => {
+        /*
+         * 21.11.2026, 1.2.120 line H. Foundry's own labels are HUD.* keys in Foundry's language files; the module's are in
+         * lang/en.json and lang/pl.json. Whether v14 turns the icon in place or draws the HUD again on a click is not read
+         * (no v14 source here); both roads end with these words. Red at e515907d: there is no token-hud.mjs.
+         */
+        const T = await import("./token-hud.mjs").catch(() => ({}));
+        must(typeof T.trimHudFor === "function", "token-hud.mjs exports no trimHudFor");
+        const L = key => game.i18n.localize(`DRPG.TokenHud.${key}`);
+        const el = dhTokenHud({ gm: true });
+        T.trimHudFor(el, { isGM: true });
+        const label = action => {
+            const b = el.querySelector(`[data-action="${action}"]`);
+            return b ? [b.getAttribute("aria-label"), b.dataset.tooltip] : null;
+        };
+        const before = { visibility: label("visibility"), locked: label("locked"), sort: label("sort"), config: label("config"), levels: label("togglePalette") };
+        // Foundry turns the token hidden and locked: the icon each draws for it, and the active class.
+        for (const [action, from, to] of [["visibility", "fa-eye", "fa-eye-slash"], ["locked", "fa-lock-open", "fa-lock"]]) {
+            const b = el.querySelector(`[data-action="${action}"]`);
+            b?.querySelector("i")?.classList.replace(from, to);
+            b?.classList.add("active");
+        }
+        await wait(20);
+        const after = { visibility: label("visibility"), locked: label("locked") };
+        const keysRead = [L("hide"), L("show"), L("lock"), L("unlock"), L("sort"), L("config"), L("level")].every(text => text && !text.startsWith("DRPG."));
+        equal(stableJson({ keysRead, before, after }), stableJson({ keysRead: true,
+            before: { visibility: [L("hide"), L("hide")], locked: [L("lock"), L("lock")], sort: [L("sort"), L("sort")], config: [L("config"), L("config")], levels: [L("level"), L("level")] },
+            after: { visibility: [L("show"), L("show")], locked: [L("unlock"), L("unlock")] }
+        }), "{keysRead: every DRPG.TokenHud text found; before, after the token hidden and locked: [aria-label, tooltip] of each control}");
+    }],
+    ["R8052 - the token HUD is trimmed through Foundry's own hook, and the bars' old lock is gone with the bars (1.2.120 line H): `Hooks.callAll(\"renderTokenHUD\")` with a GM's HUD drawn as Daggerheart draws it leaves the controls R8050 reads, and hud.mjs no longer has `stillTokenBars`, whose two inputs are not drawn", async () => {
+        /*
+         * 21.11.2026, 1.2.120 line H. The hook is the supported road (ApplicationV2 calls `render<Class>` for each class of
+         * the chain after `_onRender`, so the trim runs after Foundry and Daggerheart bound the HUD's controls). The app is
+         * a stand-in with no actor: dice-hold.mjs's listener holds nothing for it. Red at e515907d: the hook only disabled
+         * the bars for a player, and `stillTokenBars` stood in hud.mjs.
+         */
+        // Foundry's own arguments (app, element, context, options): the user is this browser's (the suite runs as a GM).
+        const el = dhTokenHud({ gm: true });
+        Hooks.callAll("renderTokenHUD", { actor: null, document: null }, el, {}, { isFirstRender: true });
+        const sources = await moduleSources();
+        const hud = stripComments(sources.get("hud.mjs") ?? "");
+        equal(stableJson({ controls: tokenHudControls(el), inputs: el.querySelectorAll("input").length, still: /stillTokenBars/.test(hud),
+            hooked: /Hooks\.on\("renderTokenHUD", trimTokenHud\)/.test(fnSource(hud, "registerHud")) }),
+        stableJson({ controls: game.user?.isGM ? ["togglePalette:levels", "sort", "toggleCompanions", "locked", "config", "visibility"] : ["sort", "toggleCompanions", "locked", "config", "visibility"],
+            inputs: 0, still: false, hooked: true }),
+        "{the controls after Foundry's hook, the inputs left, hud.mjs still naming stillTokenBars, registerHud hooking trimTokenHud}");
+    }],
+    ["R8053 - the token HUD's look stays inside the token HUD and draws a module glyph for each icon in both themes (1.2.120 line H; the owner: \"dalej oryginalne ikony foundry\"): every rule of the module's sheets that names `.control-icon`, `#token-hud` or `.drpg-token-hud` is under `#token-hud.drpg-token-hud`; each of the seven icons a kept control can wear has a glyph there; and each `--drpg-pix-` glyph those rules read is declared on :root, or under Stained Glass for a rule of that theme alone, so neither theme draws a solid square; and a player's emptied HUD (`drpg-token-hud-none`) is `display: none`", async () => {
+        /*
+         * 21.11.2026, 1.2.120 line H. Read off the sheets' text: which rule wins on a real HUD is the table's
+         * (LIVE-H120-01); the shots in docs/dev/h120/shots are a static page in Chromium. Red at e515907d: no rule names
+         * the token HUD, so no icon has a glyph.
+         */
+        const css = await moduleStyles();
+        const rules = [];
+        for (const chunk of css.split("}")) {
+            const parts = chunk.split("{");
+            if (parts.length < 2) continue;
+            const selector = parts[parts.length - 2].trim(), body = parts[parts.length - 1];
+            // A selector list split at its top-level commas alone: `:is(a, b)` is one selector.
+            const selectors = [];
+            let depth = 0, from = 0;
+            for (let i = 0; i < selector.length; i++) {
+                if ("([".includes(selector[i])) depth++;
+                else if (")]".includes(selector[i])) depth--;
+                else if (selector[i] === "," && depth === 0) { selectors.push(selector.slice(from, i).trim()); from = i + 1; }
+            }
+            selectors.push(selector.slice(from).trim());
+            if (selector && !selector.startsWith("@")) rules.push({ selectors, body });
+        }
+        const NAMES_HUD = /\.control-icon|#token-hud|\.drpg-token-hud/;
+        const hudRules = rules.filter(r => r.selectors.some(s => NAMES_HUD.test(s)));
+        const outside = hudRules.flatMap(r => r.selectors.filter(s => NAMES_HUD.test(s) && !/^(body[^ ]* )?#token-hud\.drpg-token-hud\b/.test(s)));
+        const ICONS = ["fa-eye", "fa-eye-slash", "fa-bring-forward", "fa-lock", "fa-lock-open", "fa-gear", "fa-stairs"];
+        const glyphed = ICONS.filter(icon => hudRules.some(r => r.selectors.some(s => NAMES_HUD.test(s) && new RegExp(`i\\.${icon}(?![\\w-])`).test(s)) && /--drpg-glyph:\s*var\(--drpg-pix-/.test(r.body)));
+        const declaredIn = selector => new Set(rules.filter(r => r.selectors.includes(selector)).flatMap(r => [...r.body.matchAll(/--drpg-pix-([a-z0-9-]+)\s*:/g)].map(m => m[1])));
+        const onRoot = declaredIn(":root"), onGlass = declaredIn("body.drpg-theme-stained-glass");
+        // A rule under Stained Glass alone may read a glass glyph; any other rule reads Legacy's, on :root for both themes.
+        const undeclared = [...new Set(hudRules.filter(r => r.selectors.every(s => NAMES_HUD.test(s))).flatMap(r => [...r.body.matchAll(/var\(--drpg-pix-([a-z0-9-]+)\)/g)].map(m => m[1])
+            .filter(name => !onRoot.has(name) && !(r.selectors.every(s => s.startsWith("body.drpg-theme-stained-glass ")) && onGlass.has(name)))))].sort();
+        // A player's HUD, emptied by the trim, is not drawn at all (the owner, 21.11.2026: "Niech gracz nie ma menu tokena").
+        const notDrawn = rules.some(r => r.selectors.includes("#token-hud.drpg-token-hud.drpg-token-hud-none") && /(^|;)\s*display:\s*none\s*(;|$)/.test(r.body.trim()));
+        ok(hudRules.length > 0, "no rule of the module's sheets names the token HUD");
+        equal(stableJson({ outside, glyphed, undeclared, notDrawn }), stableJson({ outside: [], glyphed: ICONS, undeclared: [], notDrawn: true }),
+            "{selectors naming the HUD outside #token-hud.drpg-token-hud, the icons with a glyph, glyphs read but not declared on :root, a player's emptied HUD not drawn}");
+    }],
 ];
 
 /**
@@ -64381,4 +64677,44 @@ function curtainRing(W, H, jag = false) {
     const at = (t, r) => { const a = t * Math.PI * 2, u = Math.cos(a), v = Math.sin(a), m = Math.max(Math.abs(u), Math.abs(v)); return [cx + cx * r * u / m, cy + cy * r * v / m]; };
     const inner = i => (jag ? (i % 2 ? 0.45 : 0.62) : 0.55);
     return Array.from({ length: 24 }, (_, i) => ({ poly: [at(i / 24, inner(i)), at((i + 1) / 24, inner(i + 1)), at((i + 1) / 24, 1), at(i / 24, 1)] }));
+}
+
+/* R8050-R8052 (1.2.120 line H): Daggerheart 2.12.8's templates/hud/tokenHUD.hbs as its context draws it for a GM
+   (`isGM`: visibility and lock) or a player, with the branches either may open open - the floor's palette
+   (`canChangeLevel`), a companion (`hasCompanion`), the token's settings (`canConfigure`), both bars, the status palette
+   (`usesEffects`) and combat (`canToggleCombat`) - one status of each kind, two floors and two movement actions. Copied
+   from the template on 21.11.2026 (git tag 2.12.8 of github.com/Foundryborne/daggerheart); Foundry's own strings stand
+   as their keys. The party's button (a party actor's alone) is left out. */
+function dhTokenHud({ gm }) {
+    const el = document.createElement("form");
+    el.id = "token-hud";
+    const button = (action, icon, extra = "") => `<button type="button" class="control-icon" data-action="${action}" ${extra} data-tooltip aria-label="HUD.${action}"><i class="fa-solid ${icon}" inert></i></button>`;
+    el.innerHTML = `<div class="col left">
+        <div class="attribute elevation" data-tooltip="HUD.Elevation"><i class="fas fa-angle-up"></i><input type="text" name="elevation" value="0"></div>
+        ${button("togglePalette", "fa-stairs", 'data-palette="levels"')}
+        <div class="palette palette-list" data-palette="levels"><a class="palette-list-entry active" data-action="level" data-level-id="a"><span>Ground</span></a><a class="palette-list-entry" data-action="level" data-level-id="b"><span>Attic</span></a></div>
+        ${button("sort", "fa-bring-forward")}
+        <button type="button" class="control-icon clown-car" data-action="toggleCompanions" data-tooltip="DAGGERHEART.APPLICATIONS.HUD.tokenHUD.depositCompanionTokens"><img src="systems/daggerheart/assets/icons/arrow-dunk.png"></button>
+        ${gm ? button("locked", "fa-lock-open") : ""}
+        ${button("config", "fa-gear")}
+    </div>
+    <div class="col middle">
+        <div class="attribute bar2"><input type="text" name="bar2" value="999"></div>
+        <div class="attribute bar1"><input type="text" name="bar1" value="999"></div>
+    </div>
+    <div class="col right">
+        ${gm ? button("visibility", "fa-eye") : ""}
+        <button type="button" class="control-icon" data-action="togglePalette" data-palette="effects" data-tooltip="HUD.AssignStatusEffects"><img src="icons/svg/status.svg"></button>
+        <div class="palette status-effects" data-palette="effects"><div class="effect-control effect-control-container" data-action="effect" data-status-id="vulnerable"><img src="a.svg"></div><div class="effect-control effect-control-container" data-action="effect" data-status-id="drpgBreakdown"><img src="b.svg"></div></div>
+        <button type="button" class="control-icon" data-action="togglePalette" data-palette="movementActions" data-tooltip aria-label="HUD.SelectMovementAction"><i class="fa-solid fa-person-walking" inert></i></button>
+        <div class="palette palette-list" data-palette="movementActions"><a class="palette-list-entry" data-action="movementAction" data-movement-action="walk"><span>Walk</span></a><a class="palette-list-entry" data-action="movementAction" data-movement-action="fly"><span>Fly</span></a></div>
+        ${button("target", "fa-bullseye")}
+        ${button("combat", "fa-swords")}
+    </div>`;
+    return el;
+}
+
+/** The controls a token HUD holds, in order: each `data-action`, a palette's toggle with the palette it opens. */
+function tokenHudControls(el) {
+    return [...el.querySelectorAll("button.control-icon")].map(b => (b.dataset.palette ? `${b.dataset.action}:${b.dataset.palette}` : b.dataset.action));
 }

@@ -670,6 +670,15 @@
       "unfoldNote": "With one GM there is nothing to choose there.",
       "widgetTitle": "Despair Pools"
     },
+    "TokenHud": {
+      "show": "Show the token to players",
+      "hide": "Hide the token from players",
+      "lock": "Lock the token in place",
+      "unlock": "Unlock the token",
+      "sort": "Bring to front or send to back",
+      "config": "Token settings",
+      "level": "Change floor"
+    },
     "Hud": {
       "chapter": "Chapter {n}",
       "day": "Day {n}",
@@ -3220,7 +3229,7 @@
       "fogIntro": "Which rooms each student has found on this scene. A found room shows through a light veil instead of fog.",
       "fogUncovered": "{pct}% of this scene's surface belongs to no room region, so it shows as permanent fog instead of a gap in the walls. Usually that means a room still needs drawing.",
       "discoverAll": "Discover all",
-      "fogMastermind": "The Mastermind knows every room.",
+      "fogMastermind": "The Mastermind knows every room. Your map does not show where they go.",
       "hideAll": "Hide all",
       "unlockedAnnounce": "The door to {room} is unlocked.",
       "inspectTitle": "Look inside the stashes",

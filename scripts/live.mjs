@@ -132,6 +132,12 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
      * E44-T1); a real pointer at a table is not measured yet: LIVE-E44-02. */
     let held = false;
     let heldWanted = false;
+    /* A FORCED REBUILD PUT OFF BY A PRESS STAYS FORCED (line P of 1.2.120; the owner, 21.11.2026: "dziala dopiero po save,
+       czyli okno investigation nie odswieza sie dalej poprawnie"). `refresh()` - a filter, the planner's sort - is a rebuild
+       its own control asked for, so the focus rule does not hold it; but a press inside the region held it as wanted, and
+       the release answered with an unforced rebuild, which the focused select then held until the focus left the region
+       (Save's click). Tier 2 "the planner's sort picked on the open Map redraws its column in the new order at once". */
+    let heldForced = false;
     /* An IME's composition in a field of the region (`whileEditing`): a rebuild under it would cut the word being
        composed, so it waits for `compositionend`, which answers a rebuild wanted meanwhile. Not measured: jsdom composes
        nothing, and no table has typed Polish through an IME into the Map yet. */
@@ -158,6 +164,7 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
         // RULE 1, FOR A HAND. A press inside the region is not let go yet; the release answers this.
         if (held) {
             heldWanted = true;
+            if (force) heldForced = true;
             record.deferred++;
             debug(`live: ${region} deferred - a press inside it is not let go`);
             return;
@@ -187,6 +194,7 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
             const next = toElement(build());
             if (!next) return;
             heldWanted = false;
+            heldForced = false;
             element.replaceWith(next);
             restore(next, carried);
             record.refreshes++;
@@ -277,8 +285,10 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
         clearTimeout(holdTimer);
         for (const name of RELEASES) view().removeEventListener(name, release, true);
         if (!heldWanted) return;
+        const forced = heldForced;
+        heldForced = false;
         // After the release's own turn: `click` comes after `pointerup`, and must find the pressed node.
-        setTimeout(() => rebuild(), 0);
+        setTimeout(() => rebuild(forced), 0);
     };
     const onPointerDown = event => {
         if (held || stopped) return;
@@ -289,6 +299,12 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
         for (const name of RELEASES) view().addEventListener(name, release, true);
     };
     root()?.addEventListener("pointerdown", onPointerDown, true);
+    /* A PICK ENDS THE PRESS (line P of 1.2.120). A select is picked in the browser's own list, whose release the page may
+       never be sent (not measured at a table: LIVE-E44-02's kind), so the press held the region until HOLD_MAX_MS. A
+       `change` inside the region is a press that is over, and no click follows it to lose its node: it lets go at once -
+       heard in the capture phase, before the control's own handler asks its `refresh()`. */
+    const onChange = event => { if (held && target()?.contains?.(event.target)) release(); };
+    root()?.addEventListener("change", onChange, true);
 
     const closeId = Hooks.on("closeApplicationV2", closed => {
         if (closed !== app) return;
@@ -304,9 +320,11 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
         root()?.removeEventListener("compositionstart", onCompositionStart);
         root()?.removeEventListener("compositionend", onCompositionEnd);
         root()?.removeEventListener("pointerdown", onPointerDown, true);
+        root()?.removeEventListener("change", onChange, true);
         for (const name of RELEASES) view().removeEventListener(name, release, true);
         clearTimeout(holdTimer);
         held = false;
+        heldForced = false;
         living.delete(record);
     }
 

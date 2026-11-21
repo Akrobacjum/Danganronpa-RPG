@@ -83,8 +83,9 @@ export const GIVE_BACK = "drpgGiveBack";
  * is the GM's now: a gain nothing covers is put back on the primary GM
  * (sheet-audit.mjs, E29 C4), which a console cannot step past; a strip on this
  * browser would add a second judge that only a build writing Hope the old way would
- * trip. The pips - the character sheet's and the Party sheet's - and the token HUD's
- * bars are display-only for players (danganronpa.css, hud.mjs `stillTokenBars`).
+ * trip. The pips - the character sheet's and the Party sheet's - are display-only for
+ * players (danganronpa.css); the token HUD draws no bar input for anybody since 1.2.120
+ * (token-hud.mjs; until then hud.mjs `stillTokenBars` held them for players).
  */
 const GUARDED = [
     `system.resources.${ACTIONS_RESOURCE}.value`,

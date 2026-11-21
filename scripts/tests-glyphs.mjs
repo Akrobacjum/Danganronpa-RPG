@@ -618,7 +618,16 @@ export const FACES = {
  *  The tray's header clock is hidden under the glass (stained-glass.css) and is not mapped. Monokuma Legacy keeps Font
  *  Awesome in the tray (option A). */
 export const HOST_FACES = [
-    ["#countdowns", "Daggerheart's countdown tray: a row's -1, +1 and hidden mark", { minus: "minus", plus: "plus", "eye-slash": "unseen", repeat: "countdown-loop" }]
+    ["#countdowns", "Daggerheart's countdown tray: a row's -1, +1 and hidden mark", { minus: "minus", plus: "plus", "eye-slash": "unseen", repeat: "countdown-loop" }],
+    /* Foundry's token HUD as token-hud.mjs leaves it (1.2.120 line H, 21.11.2026; the owner: "dalej oryginalne ikony
+       foundry"): Daggerheart 2.12.8's tokenHUD.hbs draws each kept control's icon as `<i class="fa-solid fa-...">` in
+       `#token-hud`, which the trim marks `drpg-token-hud`. A hidden token is `unseen` as the tray's hidden countdown is;
+       bring to front or back is `sort`; the token's settings are `settings` (the GM panel's Settings tile), not glass:gear,
+       which is the corner's sound gear with its two waves; the open padlock and the stairs are drawn for it (glass:lock-open, and
+       legacy:stairs, which the glass wears as it has no row of its own). Unlike the tray, Monokuma Legacy draws these
+       too, by hand in danganronpa.css ("THE TOKEN HUD"), since the owner asked for no Foundry icon there in either theme. */
+    ["#token-hud.drpg-token-hud", "Foundry's token HUD: visibility, bring to front, lock, the token's settings, the floor's palette",
+        { eye: "observe", "eye-slash": "unseen", "bring-forward": "sort", lock: "lock", "lock-open": "lock-open", gear: "settings", stairs: "stairs" }]
 ];
 
 /** Stained Glass's themes: the one constant option B changes (A1: B = add "monokuma-legacy"; not built). */

@@ -25286,7 +25286,10 @@ const REGRESSIONS = [
         for (let i = 0; i < 12; i++) for (const j of [i % 5, (i * 3 + 1) % 5, (i * 2 + 3) % 5]) if (!crowd.edges.some(e => e.from === `s${i}` && e.to === `t${j}`)) crowd.edges.push({ from: `s${i}`, to: `t${j}`, kind: "input" });
         crowd.edges.push({ from: "k1", to: "t1", kind: "refutes" }, { from: "k2", to: "t3", kind: "refutes" });
         for (let j = 0; j < 5; j++) crowd.edges.push({ from: `t${j}`, to: "z", kind: "input" });
-        crowd.edges.push({ from: "s5", to: "z", kind: "input" });
+        /* the line across two columns from s4 (line P of 1.2.120; s5 until then): a line that skips a column runs at its
+           source's height through the lane `mapPlace` keeps in the column between (R8014), and s5's height ran through t2 in
+           this placement by hand, which the Map no longer draws; s4's (331) is a gap of column 1 (310-340) */
+        crowd.edges.push({ from: "s4", to: "z", kind: "input" });
         // the shot's case, its first gutter as the photo shows it (probe 08 investigation--map-types-faces, measured sizes)
         const shot = { at: { a: n(12, 300), b: n(12, 366), c: n(12, 432, 60), d: n(12, 504), e: n(12, 570, 160), f: n(12, 742), p: n(c1, 300), q: n(c1, 366, 120), r: n(c1, 498), s: n(c1, 564), k: n(c1, 630), z: n(c2, 450) },
             edges: [["a", "p"], ["b", "p"], ["c", "q"], ["d", "q"], ["e", "q"], ["a", "r"], ["c", "r"], ["d", "s"], ["f", "s"], ["e", "p"], ["p", "z"], ["q", "z"], ["r", "z"], ["s", "z"]].map(([from, to]) => ({ from, to, kind: "input" })).concat([{ from: "k", to: "q", kind: "refutes" }]) };
@@ -25491,6 +25494,152 @@ const REGRESSIONS = [
                 [files[1], "wet step.mp3", F("DRPG.Sound.editFile", { name: "wet step.mp3" }), true, "1", F("DRPG.Sound.playFile", { name: "wet step.mp3" }), "1", F("DRPG.Sound.removeFile", { name: "wet step.mp3" })]] },
             empty: { chip: "", list: "" }, lang: { en: [true, true, true, true, true, true], pl: [true, true, true, true, true, true] }
         }), "{shut, open: the chip [expanded, controls the list, words], the list hidden, each file [its box's value, tooltip and name, a row box's class, Play's and Remove's index and name]; empty: a row with no file; lang: the six keys in each language}");
+    }],
+    ["R8010 - under the sort \"manual\" a column past the first keeps the GM's order and centres only as far as it allows (line P, 1.2.120, N119-6; the owner asked for Move up / Move down to set the order by hand; case-view.mjs `mapPlace`): two deductions whose inputs would stand them the other way round stand in the GM's order, apart by the row gap, as one block at the least total squared shift from their aims; a node with no input between them stands right under the one before it and pulls nothing; one aimed node alone still centres on its inputs; the same layout under \"uncrossed\" stands by the inputs as before", async () => {
+        /*
+         * Line P, 21.11.2026. Pure. Red at e515907d: under "manual" x (row 0, resting on e at row 4) stood below y (row 2,
+         * resting on a at row 0) - the aims ordered the column, the GM's rows only broke ties.
+         */
+        const V = await import("./case-view.mjs");
+        const g = V.MAP_GEOMETRY;
+        const top = g.head + g.pad, gap = g.pitch - g.nodeH, mid = row => top + row * g.pitch + g.nodeH / 2;
+        const positions = { a: { col: 0, row: 0 }, b: { col: 0, row: 1 }, c: { col: 0, row: 2 }, d: { col: 0, row: 3 }, e: { col: 0, row: 4 },
+            x: { col: 1, row: 0 }, free: { col: 1, row: 1 }, y: { col: 1, row: 2 } };
+        const edges = [{ from: "e", to: "x", kind: "input" }, { from: "a", to: "y", kind: "input" }];
+        const manual = V.mapPlace({ positions, gapAt: null, unrelated: [], sort: "manual" }, g, null, { edges });
+        const kind = V.mapPlace({ positions, gapAt: null, unrelated: [], sort: "uncrossed" }, g, null, { edges });
+        const alone = V.mapPlace({ positions: { a: positions.a, e: positions.e, x: { col: 1, row: 0 } }, gapAt: null, unrelated: [], sort: "manual" }, g, null,
+            { edges: [{ from: "a", to: "x", kind: "input" }, { from: "e", to: "x", kind: "input" }] });
+        const m = id => manual.at[id];
+        equal(JSON.stringify({
+            order: [m("x").y < m("free").y, m("free").y < m("y").y],
+            apart: [m("free").y - (m("x").y + m("x").h), m("y").y - (m("free").y + m("free").h)],
+            column: [m("x").x, m("free").x, m("y").x].every(v => v === manual.cols[1].x),
+            block: m("x").y,
+            alone: alone.at.x.y + alone.at.x.h / 2,
+            kind: kind.at.y.y < kind.at.x.y
+        }), JSON.stringify({
+            order: [true, true], apart: [gap, gap], column: true,
+            // the three one block (y wants to stand higher than its place allows): its top the mean of x's and y's wanted
+            // tops less their offsets in it, the free node weighing nothing
+            block: Math.round(((mid(4) - g.nodeH / 2) + (mid(0) - g.nodeH / 2 - 2 * g.pitch)) / 2),
+            alone: (mid(0) + mid(4)) / 2, kind: true
+        }), "{order: x above the free node above y, as the GM's rows say; apart: the row gaps between them; column: all three in column 1; block: x's top, the block's least-squares top with the free node weighing nothing; alone: one aimed node's middle on its inputs' mean; kind: under \"uncrossed\" y (resting on row 0) above x (resting on row 4)}");
+    }],
+    ["R8011 - the Map's drawn canvas carries the sort, and a relayout at the measured sizes keeps the GM's order past the first column (line P, 1.2.120, N119-6; case-map.mjs `caseGraphHtml`'s `data-drpg-place`, case-view.mjs `relayoutCaseMap`): a chapter with two deductions whose inputs would stand them the other way round, under \"manual\", is drawn in the GM's order and stays so when its nodes are measured at 140 px", async () => {
+        /*
+         * Line P, 21.11.2026. Red at e515907d: drawn and relaid in the inputs' order (`mapPlace` ordered by aims), and the
+         * canvas's place data named no sort.
+         */
+        const M = await import("./case-map.mjs");
+        const V = await import("./case-view.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const graph = S.graphOf({ chapter: 6, traces: [1, 2, 3, 4].map(i => ({ key: `S.R8011${i}`, type: "prep", name: `t${i}`, tiedToCrime: true })),
+            rows: { "d-x": { kind: "deduction", label: "R8011 x", inputs: ["S.R80114"] }, "d-y": { kind: "deduction", label: "R8011 y", inputs: ["S.R80111"] } } });
+        const layout = layoutCase(graph, { sort: "manual", manual: { "d-x": 0, "d-y": 1 } });
+        const d = document.createElement("div");
+        d.innerHTML = M.caseMapHtml({ graph, layout, reading: { allOpen: true }, editors: new Map() });
+        const canvas = d.querySelector(".drpg-case-canvas");
+        const topOf = id => parseFloat(canvas.querySelector(`:scope > button[data-drpg-node="${id}"]`)?.style.top ?? "NaN");
+        const drawn = topOf("d-x") < topOf("d-y");
+        const sort = JSON.parse(canvas.dataset.drpgPlace ?? "{}").sort ?? null;
+        for (const b of canvas.querySelectorAll(":scope > button[data-drpg-node], :scope > .drpg-case-edit")) {
+            Object.defineProperty(b, "offsetHeight", { configurable: true, get: () => (b.matches("button") ? 0 : 140) });
+            Object.defineProperty(b, "offsetWidth", { configurable: true, get: () => (b.matches("button") ? 0 : 300) });
+        }
+        const again = V.relayoutCaseMap(canvas);
+        equal(JSON.stringify({ columns: layout.columns[1], drawn, sort, relaid: again?.at?.["d-x"]?.y < again?.at?.["d-y"]?.y, tops: topOf("d-x") < topOf("d-y") }),
+            JSON.stringify({ columns: ["d-x", "d-y"], drawn: true, sort: "manual", relaid: true, tops: true }),
+            "{columns: the layout's column 1; drawn: x above y as drawn; sort: the canvas's place data; relaid: x above y after a relayout at 140 px; tops: the faces' tops after it}");
+    }],
+    ["R8013 - every sort but \"fewer crossings\" draws its order past the first column too (line P of 1.2.120; the owner, 21.11.2026: \"Sortowanie dalej wydaje sie nie dzialac w planerze\"; case-view.mjs `mapPlace`, case-layout.mjs `layoutCase`): two deductions whose inputs would stand them the other way round are drawn in the order of \"manual\", \"kind\", \"room\" and \"state\", each as the layout orders them, a row gap apart; under \"uncrossed\" they stand by their inputs, the order that crosses least", async () => {
+        /*
+         * Line P, 21.11.2026. Pure. Red at e515907d: under every sort the aims ordered the column past the first, so x
+         * (\"A\", resting on the fourth Remnant) stood below y (\"B\", resting on the first) whatever the sort said.
+         */
+        const V = await import("./case-view.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const g = V.MAP_GEOMETRY;
+        const graph = S.graphOf({ chapter: 6, traces: [1, 2, 3, 4].map(i => ({ key: `S.R8013${i}`, type: "prep", name: `t${i}`, tiedToCrime: true })),
+            rows: { "d-x": { kind: "deduction", label: "R8013 A", inputs: ["S.R80134"] }, "d-y": { kind: "deduction", label: "R8013 B", inputs: ["S.R80131"] } } });
+        const read = {};
+        for (const sort of ["manual", "kind", "room", "state", "uncrossed"]) {
+            const layout = layoutCase(graph, { sort, manual: { "d-x": 0, "d-y": 1 } });
+            const at = V.mapPlace(layout, g, null, { edges: graph.edges }).at;
+            const order = layout.columns[1].join(",");
+            const drawn = ["d-x", "d-y"].sort((p, q) => at[p].y - at[q].y).join(",");
+            read[sort] = sort === "uncrossed" ? drawn : [drawn === order ? "as the layout" : drawn, Math.abs(at["d-x"].y - at["d-y"].y) - g.nodeH];
+        }
+        equal(JSON.stringify(read), JSON.stringify({ manual: ["as the layout", g.pitch - g.nodeH], kind: ["as the layout", g.pitch - g.nodeH], room: ["as the layout", g.pitch - g.nodeH],
+            state: ["as the layout", g.pitch - g.nodeH], uncrossed: "d-y,d-x" }),
+            "{each sort: [the drawn order against the layout's column, the gap between the two]; uncrossed: the drawn order}");
+    }],
+    ["R8014 - no line passes through a node (line P of 1.2.120; the owner, 21.11.2026: \"Linie w planerze - niech omijaja nodes. Proponuje by nodes robily miejsce dla tych linii (rozsuwaly sie)\"; case-view.mjs `mapPlace`, `routeEdges`): on a crowded case laid out and placed as the Map does it - ten Remnants, five deductions on them, two deductions on deductions and on Remnants two columns back, a counter, and the solution on deductions and a Remnant three columns back - under each sort, at the least sizes and with every third node 140 px tall, no stretch of any route (read back from its path) runs through a node's box other than its own two ends, nor along one nearer than 5 px; and every node still stands clear of its column's others", async () => {
+        /*
+         * Line P, 21.11.2026. Pure. Red at e515907d: a line that skips a column ran its last stretch at the target's height
+         * across the column between, through the nodes standing there (the owner's screenshot of 21.11).
+         */
+        const V = await import("./case-view.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const g = V.MAP_GEOMETRY;
+        const traces = Array.from({ length: 10 }, (_, i) => ({ key: `S.R8014${i}`, type: "prep", name: `t${i}`, tiedToCrime: true }));
+        const T = i => `S.R8014${i}`;
+        const rows = {
+            d1: { kind: "deduction", label: "d1", inputs: [T(0), T(1)] }, d2: { kind: "deduction", label: "d2", inputs: [T(2), T(7)] },
+            d3: { kind: "deduction", label: "d3", inputs: [T(3), T(9)] }, d4: { kind: "deduction", label: "d4", inputs: [T(4), T(5)] },
+            d5: { kind: "deduction", label: "d5", inputs: [T(6), T(8), T(1)] },
+            e1: { kind: "deduction", label: "e1", inputs: ["d1", T(9)] }, e2: { kind: "deduction", label: "e2", inputs: ["d4", "d5", T(0)] },
+            k1: { kind: "counter", label: "k1", refutes: ["d2"] },
+            s: { kind: "solution", label: "s", inputs: ["e1", "e2", "d3", T(5)] }
+        };
+        const graph = S.graphOf({ chapter: 6, traces, rows });
+        const segsOf = d => {
+            const out = [];
+            let x = 0, y = 0;
+            for (const c of String(d).match(/[MHVQ][^MHVQ]*/g) ?? []) {
+                const v = c.slice(1).trim().split(/[\s,]+/).map(Number);
+                if (c[0] === "M") [x, y] = v;
+                else if (c[0] === "H") { out.push({ h: true, y, a: Math.min(x, v[0]), b: Math.max(x, v[0]) }); x = v[0]; }
+                else if (c[0] === "V") { out.push({ h: false, x, a: Math.min(y, v[0]), b: Math.max(y, v[0]) }); y = v[0]; }
+                else if (c[0] === "Q") [x, y] = [v[2], v[3]];
+            }
+            return out;
+        };
+        const read = (sort, tall) => {
+            const layout = layoutCase(graph, { sort });
+            const ids = Object.keys(layout.positions);
+            const sizes = tall ? new Map(ids.filter((_, i) => i % 3 === 0).map(id => [id, { w: g.nodeW, h: 140 }])) : null;
+            const at = V.mapPlace(layout, g, sizes, { edges: graph.edges }).at;
+            const routes = V.routeEdges(graph.edges, at, g);
+            const through = [], grazing = [];
+            for (const e of graph.edges) {
+                for (const s of segsOf(routes.get(`${e.from}>${e.to}`) ?? "")) {
+                    for (const [id, p] of Object.entries(at)) {
+                        if (id === e.from || id === e.to) continue;
+                        const [x0, x1, y0, y1] = [p.x, p.x + p.w, p.y, p.y + p.h];
+                        const hit = s.h ? s.y > y0 + 0.5 && s.y < y1 - 0.5 && Math.min(s.b, x1) - Math.max(s.a, x0) > 0.5
+                            : s.x > x0 + 0.5 && s.x < x1 - 0.5 && Math.min(s.b, y1) - Math.max(s.a, y0) > 0.5;
+                        if (hit) through.push(`${e.from}>${e.to} ${id}`);
+                        // and clear of it: a stretch along a box nearer than 5 px (the lane keeps 6)
+                        const near = s.h ? Math.min(Math.abs(s.y - y0), Math.abs(s.y - y1)) < 5 && Math.min(s.b, x1) - Math.max(s.a, x0) > 0.5
+                            : Math.min(Math.abs(s.x - x0), Math.abs(s.x - x1)) < 5 && Math.min(s.b, y1) - Math.max(s.a, y0) > 0.5;
+                        if (near && !hit) grazing.push(`${e.from}>${e.to} ${id}`);
+                    }
+                }
+            }
+            const byX = new Map();
+            for (const p of Object.values(at)) (byX.get(p.x) ?? byX.set(p.x, []).get(p.x)).push(p);
+            const clear = [...byX.values()].every(list => list.sort((p, q) => p.y - q.y).every((p, i) => i === 0 || p.y >= list[i - 1].y + list[i - 1].h));
+            return { through: through.length, grazing: grazing.length, clear, ...(through.length || grazing.length ? { first: [...through, ...grazing].slice(0, 3) } : {}) };
+        };
+        const result = {};
+        for (const sort of ["kind", "manual", "uncrossed"]) for (const tall of [false, true]) result[`${sort}${tall ? "+tall" : ""}`] = read(sort, tall);
+        const want = Object.fromEntries(Object.keys(result).map(k => [k, { through: 0, grazing: 0, clear: true }]));
+        equal(JSON.stringify({ result, edges: graph.edges.length }), JSON.stringify({ result: want, edges: 21 }),
+            "{each sort, at the least sizes and with every third node 140 px: through - route stretches through a node not their own end, grazing - along one nearer than 5 px (the first three of either named), clear - every node clear of its column's others; edges: the case's lines}");
     }],
     ["R7835 - one file of an event is replaced in its own box (1.2.119, the owner on the shot: \"niech kazdy wiersz wyglada jak ten pierwszy (tzn wklejalny link a nie sama nazwa)\"; sfx-play.mjs `withSoundFileAt`): a file's box edited replaces that file alone, in its place; emptied, it removes it; a path another file already holds drops this one rather than double it; a pasted list of several puts the first in its place and the rest after it, none twice; the same path or an index outside the list changes nothing", async () => {
         /*

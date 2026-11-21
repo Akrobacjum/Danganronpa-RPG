@@ -845,6 +845,7 @@ export function createGmStoreEngine(env) {
             st.newerWarned = true;
         } else {
             st.flushing = true;
+            let next = null;
             try {
                 const raw = env.storage.read(st.spec.key);
                 const value = parseValue(raw);
@@ -857,8 +858,8 @@ export function createGmStoreEngine(env) {
                     value.worlds[w.wid] = clone(w.section);
                 }
                 st.writing = true;
+                next = { v: FORMAT, worlds: value.worlds };
                 try {
-                    const next = { v: FORMAT, worlds: value.worlds };
                     try {
                         await env.storage.write(st.spec.key, next);
                     } catch (err) {
@@ -882,6 +883,16 @@ export function createGmStoreEngine(env) {
                 if (!quotaWarned) env.notify("error", env.text?.(key, { store: st.spec.name, error: String(err?.message ?? err) })
                     ?? `The GM store could not save "${st.spec.name}": ${err?.message ?? err}`, { permanent: true });
                 quotaWarned = true;
+                /* AND WHAT DRAWS THE STORE IS TOLD ALL THE SAME (1.2.120 line F; the owner's report of 21.11.2026, "Mgla u
+                   GMa nie odswieza sie wcale", cured that night by Reset the season). Every redraw of a store's readers
+                   hangs on its client setting's `onChange` (settings.mjs: the fog's `onWorldChange` among them), and
+                   Foundry runs it only once the value is in localStorage: with the origin full, the store changed in
+                   memory and nothing on screen heard of it - a GM's fog stood as it was drawn for every room found,
+                   ticked or reset, through any number of F5s, until a write that freed room (the reset empties the
+                   stores). Measured headless on 25231254, gm's localStorage refusing the discovery key: the record took
+                   the tick and the walk, gm's drawn fog none (R8031, scenario 97 L). The setting's own `onChange` runs
+                   now with the value memory holds. */
+                if (next) tellChanged(st.spec.key, next);
             } finally {
                 st.flushing = false;
             }
@@ -908,6 +919,12 @@ export function createGmStoreEngine(env) {
         if (local) for (const k of keys) w.dirty.add(k);
         w.needsWrite = true;
         return schedule(st);
+    }
+
+    /* A value memory holds and storage refused, told to its readers as a stored one is (1.2.120 line F; `flush`). */
+    function tellChanged(key, value) {
+        try { env.changed?.(key, value); }
+        catch (err) { env.log.error(`The GM store could not tell the readers of "${key}" of a change`, err); }
     }
 
     function peers() {
@@ -1462,7 +1479,14 @@ export function createGmStoreEngine(env) {
         stored.worlds[wid] = { ...(isPlain(stored.worlds[wid]) ? stored.worlds[wid] : {}), [uid]: next };
         cs.cache.set(`${wid}|${uid}`, next);
         cs.writing = true;
-        try { await env.storage.write(cs.spec.key, { v: FORMAT, worlds: stored.worlds }); }
+        const whole = { v: FORMAT, worlds: stored.worlds };
+        try { await env.storage.write(cs.spec.key, whole); }
+        catch (err) {
+            /* A full origin on a player's browser (1.2.120 line F): the copy stands in memory (`cache`, read by
+               `readMine`) for the session, and its readers are told as a stored copy tells them (`changed`, above). */
+            env.log.error(`The GM store could not save the copy "${cs.spec.name}"; it stays in this window until it is closed`, err);
+            tellChanged(cs.spec.key, whole);
+        }
         finally { cs.writing = false; }
         return true;
     }
@@ -1724,6 +1748,9 @@ const engine = createGmStoreEngine({
         read: key => game.settings?.storage?.get?.("client")?.getItem?.(`${MODULE_ID}.${key}`) ?? null,
         write: (key, value) => game.settings.set(MODULE_ID, key, value)
     },
+    /* A write that could not be stored: its client setting's `onChange`, as Foundry runs it after a stored write (1.2.120
+       line F). `game.settings.settings` is Foundry's map of registered settings, keyed "module.key". */
+    changed: (key, value) => game.settings?.settings?.get?.(`${MODULE_ID}.${key}`)?.onChange?.(value, {}),
     readLegacy: key => {
         try { return structuredClone(game.settings.get(MODULE_ID, key)); } catch { return undefined; }
     },
