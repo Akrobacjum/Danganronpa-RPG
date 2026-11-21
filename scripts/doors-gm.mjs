@@ -13,8 +13,9 @@
  * not another's, never a room with a body the character's player knows of and nobody has found (a neutral refusal), one
  * barricade a room.
  *
- * WHEN IT COMES DOWN. Its author's settled crossing out of the room (crossing-settle.mjs `CROSSING_SETTLED`), the time of
- * day's end and an Eclipse's start (`drpgTimeOfDayChanged`, `drpgEclipseChanged`): the row dropped and the flag taken off.
+ * WHEN IT COMES DOWN. Its author's settled crossing out of the room (crossing-settle.mjs `CROSSING_SETTLED`), or their
+ * token standing outside it after any other move - a gather, the trial's start, a GM's drag (`barricadesLeftBy`, 1.2.122),
+ * the time of day's end and an Eclipse's start (`drpgTimeOfDayChanged`, `drpgEclipseChanged`): the row dropped and the flag taken off.
  *
  * FORCE THE DOOR (E74 C3; DA9, DA29, DA31 = 2, DA43 = 1, DA52). From the room the character stands in, at a door to a
  * neighbouring room: one Body roll against everything that holds that door at once - a barricade by its strength (the
@@ -48,7 +49,7 @@ import { MODULE_ID, INFILTRATE, ROOM_OWNER_FLAG } from "./config.mjs";
 import { isDeceased, isDeadForGm } from "./settings.mjs";
 import { isPrimaryGm, log, error } from "./utils.mjs";
 import { barricadeStore, bedroomNoteStore } from "./gm-stores.mjs";
-import { CROSSING_SETTLED } from "./crossing-settle.mjs";
+import { CROSSING_SETTLED, onTokenStood } from "./crossing-settle.mjs";
 import { roomFlag } from "./rooms.mjs";
 
 /* What a bedroom's owner hears when told it was entered (E110 part 3, 14.11.2026; the coordinator's survey): the card's
@@ -501,9 +502,29 @@ export async function onDoorCrossing(event = {}) {
     return n;
 }
 
+/**
+ * A token of `actorId` stood after a move by any road (crossing-settle.mjs `onTokenStood`; the audit's STG-08, 1.2.122):
+ * a barricade that character put up comes down when their token on the barricade's scene stands outside its room - a
+ * gather, an assembly, the trial's start or a GM's drag, none of which is a settled crossing. A token on another scene
+ * leaves it be (the author may hold one there too), and so does a scene where the author has no token. Answers how many.
+ */
+export async function barricadesLeftBy(actorId) {
+    if (!isPrimaryGm() || !actorId) return 0;
+    const rows = Object.entries(barricadeStore.entries() ?? {}).filter(([, row]) => row?.authorId === actorId);
+    if (!rows.length) return 0;
+    const { roomOfToken } = await import("./movement.mjs");
+    let n = 0;
+    for (const [key, row] of rows) {
+        const token = game.scenes.get(row.sceneId ?? "")?.tokens?.find(t => t.actorId === actorId) ?? null;
+        if (token && roomOfToken(token) !== row.room && (await endBarricade(key))) n++;
+    }
+    return n;
+}
+
 /** The listeners, on every browser, acting on the primary GM alone. */
 export function registerDoors() {
     Hooks.on(CROSSING_SETTLED, event => { onDoorCrossing(event).catch(err => error("A barricade could not be taken down", err)); });
+    onTokenStood(({ actorId }) => barricadesLeftBy(actorId));
     const down = () => { if (isPrimaryGm()) endAllBarricades().catch(err => error("The barricades could not be taken down", err)); };
     Hooks.on("drpgTimeOfDayChanged", down);
     Hooks.on("drpgEclipseChanged", active => { if (active === true) down(); });

@@ -12,7 +12,8 @@
  * stays locked for everyone else. A barricade is no lock: Pick the Lock is refused at one.
  *
  * WHEN IT ENDS (the plan: "valid until leaving that room and lost without an entry this time of day"). The picker's
- * settled crossing out of the room, once they have walked in (crossing-settle.mjs `CROSSING_SETTLED`); the time of day's
+ * settled crossing out of the room, once they have walked in (crossing-settle.mjs `CROSSING_SETTLED`), or their token standing
+ * outside it after any other move - a gather, a GM's drag (`passLeftBy`, 1.2.122); the time of day's
  * end, for a pass not used in it (one in use is kept until its holder leaves) - with an Eclipse, as it starts, the one
  * boundary the grants, seals and barricades end at (A113-C2-6, 13.11.2026; at its end until then), and given back as it
  * stood by an End without advancing within the take-back's five minutes (`endPassesAtEclipseStart`); a new pick, which replaces it; a Reroll
@@ -34,7 +35,7 @@ import { isPrimaryGm, primaryGmId, log, error } from "./utils.mjs";
 import { lockpickStore, lockpickCopy } from "./gm-stores.mjs";
 import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 import { replyForMe } from "./bridge-guards.mjs";
-import { CROSSING_SETTLED } from "./crossing-settle.mjs";
+import { CROSSING_SETTLED, onTokenStood } from "./crossing-settle.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 const ACTION_PASSES = "lockpick.passes";
@@ -72,12 +73,31 @@ export async function onPassCrossing(event = {}) {
     if (!game.user?.isGM || !event.actorId) return false;
     const row = lockpickStore.get(event.actorId);
     if (!row) return false;
+    // On the pass's own scene, as `holdsPass` reads it (the audit's ITEM-20, 1.2.122): a room of the same name on another
+    // scene is another room. An event that names no scene is read by the room alone, as before.
+    if (event.sceneId && row.sceneId && event.sceneId !== row.sceneId) return false;
     if (event.to === row.room && !row.entered) {
         await lockpickStore.patch(event.actorId, { entered: true });
         return true;
     }
     if (row.entered && event.from === row.room && event.to !== row.room) return endPass(event.actorId);
     return false;
+}
+
+/**
+ * A token of `actorId` stood after a move by any road (crossing-settle.mjs `onTokenStood`; the audit's STG-09, 1.2.122):
+ * a pass in use ends when its holder's token on the pass's scene stands outside its room - a gather, an assembly, the
+ * trial's start or a GM's drag, none of which is a settled crossing, kept it "in use" for good. A pass not yet used, a
+ * token on another scene and a scene where the holder has no token are left be. Answers whether a pass ended.
+ */
+export async function passLeftBy(actorId) {
+    if (!isPrimaryGm() || !actorId) return false;
+    const row = lockpickStore.get(actorId);
+    if (!row?.entered) return false;
+    const token = game.scenes.get(row.sceneId ?? "")?.tokens?.find(t => t.actorId === actorId) ?? null;
+    if (!token) return false;
+    const { roomOfToken } = await import("./movement.mjs");
+    return roomOfToken(token) !== row.room ? endPass(actorId) : false;
 }
 
 /** A new time of day: every pass not used in the one before is lost; one in use stays. Answers how many ended. */
@@ -206,6 +226,7 @@ export function registerLockpicks() {
     Hooks.on(CROSSING_SETTLED, event => {
         if (isPrimaryGm()) onPassCrossing(event).catch(err => error("A pass could not follow its holder", err));
     });
+    onTokenStood(({ actorId }) => passLeftBy(actorId));
     Hooks.on("drpgTimeOfDayChanged", () => {
         if (isPrimaryGm()) passesAtNewTimeOfDay().catch(err => error("The unused passes could not be ended", err));
     });

@@ -103657,6 +103657,59 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             reroll: [null, 1], rerollUsed: [[B, true], 1] }),
             "{open: [opened, the picker's room after, the pass, the picker's walk in, another's]; copy: [the room in the owner's copy, its scene, whether another player's copy holds it]; inside, left: [the pass, the picker's walk in] after the crossing in and out; unused, inUse: the pass after a new time of day; seal: [opened, the picker's walk, another's]; reroll, rerollUsed: [the pass, lines] after a Reroll of 10 before and after the entry} - the pick's pass");
     }],
+    ["1.2.122 STG-08 STG-09 ITEM-20 - a barricade and a pass in use end when their character's token stands outside the room after a move that is no settled crossing, and a crossing on another scene is not the pass's (scripts/crossing-settle.mjs `onTokenStood`; doors-gm.mjs `barricadesLeftBy`; lockpick-gm.mjs `passLeftBy`, `onPassCrossing`; the audit's STG-08, STG-09 and ITEM-20, 1.2.122 line WORLD): a settled crossing named on another scene leaves the pass unused; the holder's walk in marks it used; a GM's move of the token out of the room (as a gather writes it) takes the barricade down and ends the pass once the token has stood", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line WORLD. The audit's STG-08 (stages-21 E74-1) and STG-09 (E74-2): the barricade and the pass
+         * in use followed only a player's settled crossing out, so a gather, the trial's start or a GM's drag left them
+         * standing - the barricade shut the empty room to everybody, the pass was kept for good. ITEM-20: `onPassCrossing`
+         * read the room's name alone, so a crossing on another scene into a room of the same name marked the pass used.
+         * Driven: a connected player's character in its room A; a barricade of A written as `shutDoor` writes it, and a pass
+         * to A as `grantPass` does; the crossings handed to the listener as crossing-settle.mjs hands them; the token moved
+         * to B by a GM's write (`teleport`, as a gather's region placing writes x and y) and left to stand `SETTLE_MS` and
+         * a little. Put back: the rows, the flag, the token. Red at 21bf5d18: `inOther` read the pass used, and after the
+         * move both the barricade and the pass stood.
+         */
+        const M = await import("./movement.mjs");
+        const D = await import("./doors-gm.mjs");
+        const L = await import("./lockpick-gm.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { SETTLE_MS } = await import("./crossing-settle.mjs");
+        needs(world.atLeast("namedRooms", 2), "a room and one beyond");
+        const { actor, where } = await playerInRoom();
+        const scene = where.scene;
+        const token = where.tokenDoc;
+        const A = where.room;
+        const B = M.allRooms(scene).find(r => r !== A);
+        must(B, `the scene ${scene.name} has no second room`);
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const was = { x: token.x, y: token.y };
+        const key = D.barricadeKey(scene.id, A);
+        must(!S.barricadeStore.get(key) && !L.passOf(actor.id), "a barricade of the room or a pass of the character already stood");
+        const pass = () => { const row = L.passOf(actor.id); return row ? [row.room, Boolean(row.entered)] : null; };
+        const read = {};
+        try {
+            await S.barricadeStore.patch(key, { sceneId: scene.id, room: A, authorId: actor.id, strength: 14, at: Date.now(), userId: null });
+            await M.setRoomBarricaded(scene, A, true);
+            await S.lockpickStore.patch(actor.id, { actorId: actor.id, sceneId: scene.id, room: A, mark: "0:0:", entered: false, at: Date.now() });
+            await L.onPassCrossing({ actorId: actor.id, from: B, to: A, sceneId: `${scene.id}X` });
+            read.inOther = pass();
+            await L.onPassCrossing({ actorId: actor.id, from: B, to: A, sceneId: scene.id });
+            read.inHere = pass();
+            await token.update(M.positionIn(B, token), { ...PLACE });
+            await wait(SETTLE_MS + 600);
+            await settle();
+            read.after = [M.roomOfToken(scene.tokens.get(token.id)), Boolean(S.barricadeStore.get(key)), M.roomBarricaded(scene, A), pass()];
+        } finally {
+            if (S.barricadeStore.get(key)) await S.barricadeStore.drop(key);
+            if (M.roomBarricaded(scene, A)) await M.setRoomBarricaded(scene, A, false);
+            if (L.passOf(actor.id)) await L.endPass(actor.id);
+            if (scene.tokens.has(token.id)) await token.update(was, { ...PLACE });
+            await wait(SETTLE_MS + 300);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ inOther: [A, false], inHere: [A, true], after: [B, false, false, null] }),
+            "{inOther: the pass after a crossing into a room of its name on another scene; inHere: after one on its own; after: [the token's room, the barricade's row, its flag, the pass] once the token a GM moved out has stood} - the barricade and the pass follow the character out of the room by any road");
+    }],
     ["PV-DOORS-T1 - the people in the character's own room always see who works its doors, and everyone behind a barricade hears a knock (scripts/doors-gm.mjs `shutDoor`, `forceDoor`, `pickLock`, `knockDoor`; the owner's rules #8 and #9, 13.11.2026): Shut the Door, a Force missed with Hope and a Pick whose Shadow cover passed each send the other student in the character's room a card naming the character, and nobody in the room beyond one; a Pick whose cover failed and a Force missed with Despair tell both rooms, as before; a walk refused at a barricade is heard by everyone in the barricaded room - its author and the student beside them - and never by the walker", async () => {
         /*
          * Privacy line 1 (doors), 13.11.2026. Judged as the primary judges the player's packets (`G.judge`), each roll a
