@@ -43,6 +43,8 @@
  *     part F's since E37 C5 (E37-23), on sheets that register where the pass looks; M still records them in its log.
  *   K (1.2.122, Keep speaking): p1 draws its windows; in a Testimony Your turn shows the seconds left, Keep speaking
  *     closes it, and 20 s later it stands again in the same turn with Done, which ends the turn.
+ *   B (1.2.122, a ballot): p1 draws its windows; the GM sends the ballots and closes the vote with p1's unanswered: p1's
+ *     ballot closes itself and p1 is told the vote has moved on.
  *   V (E110 C1, C2, the owner's 14.11.2026): Aiko objects at Chie; on the primary Botan's and Chie's players' BROADCAST_AUDIO
  *     is off, Aiko's on, and p2 and p3 read "The floor is Aiko's" (voice.mjs `trialVoiceLine`). The GM redirects the
  *     Objection at Botan: every player reads the floor aimed at Botan and the public card. The Rebuttal gives Botan's
@@ -554,6 +556,26 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     await p1.eval(`globalThis.__dialogWindows = globalThis.__s67kWas; for (const a of [...foundry.applications.instances.values()]) if (a.options?.classes?.includes("drpg-your-turn")) await a.close(); return true;`);
     await settle(800);
     await canary.scan({ phase: "K" });
+
+    /* ------------------------------ B. a ballot closes with its round (1.2.122) ------------------------------ */
+    /* REFR-72: p1 draws its windows; the GM sends the ballots and p1's ballot stands; the GM closes and counts the vote
+       with p1's ballot unanswered: p1's window closes itself within 2 s, and p1 is told the vote has moved on, not that
+       the ballot was dismissed. Red at 21bf5d18: the ballot stood after the count, its Cast answered "The vote has moved on". */
+    begin("B", "a ballot left open closes when its vote is counted");
+    await p1.eval(`globalThis.__s67bWas = globalThis.__dialogWindows; globalThis.__dialogWindows = true; globalThis.__s67info = [];
+        const own = ui.notifications.info; globalThis.__s67ownInfo = own;
+        ui.notifications.info = (text, ...rest) => { globalThis.__s67info.push(String(text)); return own.call(ui.notifications, text, ...rest); }; return true;`);
+    await gm.eval(`${F} if (F.trialFloor()) await game.drpg.endMode(); await game.drpg.openVote(); return true;`, { timeout: 60000 });
+    const ballotOpen = ms => p1.eval(`${until} return Boolean(await until(() => [...foundry.applications.instances.values()].some(a => a.rendered && a.element?.isConnected && a.options?.classes?.includes("drpg-ballot")), ${ms}));`, { timeout: 30000 });
+    const bDrawn = await ballotOpen(8000);
+    await gm.eval(`const V = await import("${repoUrl}/scripts/vote.mjs"); await V.closeVote(); return true;`, { timeout: 60000 });
+    await settle(2500);
+    const bAfter = await p1.eval(`return { open: [...foundry.applications.instances.values()].some(a => a.rendered && a.element?.isConnected && a.options?.classes?.includes("drpg-ballot")),
+        told: globalThis.__s67info.includes(game.i18n.localize("DRPG.Vote.movedOn")) };`);
+    verdict("p1's ballot stood while the vote was open, and closed itself once it was counted, p1 told the vote has moved on",
+        bDrawn === true && bAfter.open === false && bAfter.told === true, J({ bDrawn, bAfter }));
+    await p1.eval(`globalThis.__dialogWindows = globalThis.__s67bWas; ui.notifications.info = globalThis.__s67ownInfo; return true;`);
+    await canary.scan({ phase: "B" });
 
     await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"); const botan = game.actors.get("${IDS.botan}");
         if (C.isDeadForGm(botan)) await C.reviveCharacter(botan, { quiet: true });

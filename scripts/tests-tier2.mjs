@@ -105437,6 +105437,45 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ folded: ["false", false], counted: true, open: true, again: true }),
             "{folded: [the line's aria-expanded, the trace's node drawn]; counted: a trace placed meanwhile on the line; open: after a press; again: after a second press}");
     }],
+    ["1.2.122 REFR-68 - the vote window follows a student's sheet (scripts/trial-floor-ui.mjs `openVoteDialog`, `PARTICIPANT_WRITES`; the audit's REFR-68): before the ballots go out it names who would get one; a student marked not in the class while it stands is no longer named, with no other write; unmarked, named again", async () => {
+        /* Drawn on this GM in a Class Trial with no vote open. Red at 21bf5d18: the window heard ballots, users and settings
+           alone, so the list stood as drawn. The flag is put back. */
+        needs(env.dialogs(), "the vote window is drawn and read");
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a participant with a player here");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM");
+        const UI = await import("./trial-floor-ui.mjs");
+        const { trialParticipants } = await import("./vote.mjs");
+        const { closeOpen } = await import("./live.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const windows = () => [...foundry.applications.instances.values()].filter(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes("drpg-window-vote"));
+        const read = {};
+        let opened = null, student = null, had;
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await settle();
+            student = trialParticipants({ connected: true })[0]?.actor ?? null;
+            must(student, "no participant to mark - this would measure nothing");
+            had = student.getFlag(MODULE_ID, FLAGS.notInClass);
+            const named = () => (windows()[0]?.element?.querySelector(".drpg-vote-status")?.textContent ?? "").includes(student.name);
+            opened = UI.openVoteDialog();
+            await until(() => windows().length === 1, 6000);
+            read.before = named();
+            await student.setFlag(MODULE_ID, FLAGS.notInClass, true);
+            read.marked = await until(() => !named(), 4000);
+            await student.unsetFlag(MODULE_ID, FLAGS.notInClass);
+            read.back = await until(() => named(), 4000);
+        } finally {
+            closeOpen("drpg-window-vote");
+            await Promise.race([opened, wait(3000)]);
+            if (student && had !== undefined) await student.setFlag(MODULE_ID, FLAGS.notInClass, had).catch(() => {});
+            else if (student?.getFlag(MODULE_ID, FLAGS.notInClass) !== undefined) await student.unsetFlag(MODULE_ID, FLAGS.notInClass).catch(() => {});
+            await setClock(clock).catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ before: true, marked: true, back: true }),
+            "{before: the student named among the recipients; marked: gone once marked not in the class; back: named again once unmarked}");
+    }],
     ["1.2.121 CASE-17 - the GM scores a Tamper's fresh scene with the bodies its roller's player may know, on the scoring's own road (scripts/cleanup.mjs `resolveCleanup`, `cleanupVerdict`, `unfoundBodyIn`; sheet-audit.mjs `actorAsHeld`; the audit's CASE-17, 1.2.121 line K): with a body of this chapter in the GMs' deaths that the roller's player may not know, an investigator's bare-handed Tamper of an Evident trace on a total one under the number their own browser shows is a miss - the trace stands - and the threshold read off the stand-in the scoring hands `cleanupDc` is the one read off the document", async () => {
         /*
          * 21.11.2026, 1.2.121 line K. The audit's CASE-17 (domain-case-b-traces-1, re-read on v1.2.119): `resolveCleanup`
