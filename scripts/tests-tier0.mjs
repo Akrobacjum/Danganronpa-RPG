@@ -19,7 +19,7 @@ import {
     bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, panelText, HUD_FAMILY, hudText, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs,
     apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem,
     TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists, cssDeadClasses, cssLintCounts, cssBudgetProblems, CSS_DETECTORS,
-    cssKitSheetProblems, cssMeaningReads, cssMeaningSelfCheck, cssHourKept, cssForcedBlockProblems, CSS_FORCED_STATES, cssThemeTokens, cssHourDistances, cssDeltaE00Check, SHEET_FAMILY, sheetText, sheetFetch, sheetBy, UTILS_FAMILY, utilsText, utilsFetch, settingsText, settingsBy, investigationText, investigationBy, cleanupText, cleanupBy, chapterText, chapterBy, GLASS_FAMILY, glassText
+    cssKitSheetProblems, cssMeaningReads, cssMeaningSelfCheck, cssHourKept, cssForcedBlockProblems, CSS_FORCED_STATES, cssThemeTokens, cssContrastOf, cssHourDistances, cssDeltaE00Check, SHEET_FAMILY, sheetText, sheetFetch, sheetBy, UTILS_FAMILY, utilsText, utilsFetch, settingsText, settingsBy, investigationText, investigationBy, cleanupText, cleanupBy, chapterText, chapterBy, GLASS_FAMILY, glassText
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -10038,6 +10038,7 @@ const REGRESSIONS = [
             ["HOOK fog.mjs#registerFog#deleteRegionBehavior:inline", "out of scope: as createRegion, for the behaviour's region - a Teleport taken off a marked region makes a room, and a GM's that gives the scene its first room prepares it on the primary (scenario 66 X3) (E12 fix r2-S2)"],
             ["HOOK fog.mjs#registerFog#updateScene:inline", "out of scope: as updateRegion, for each region a scene's own update changed (`regionsReplaced`, `regionPatches`): a GM's rename carries (`noteRegionName`), the primary prepares the scene a GM's change gives its first room, every client repaints (scenario 66 X5; what v14 fires, LIVE-E12-03) (E12 fix r2-S2)"],
             ["HOOK movement.mjs#registerMovement#createToken:inline", "judged: `gmSeen` primes a dropped token's position, `level` in it (`positionOf`); since E12 C12 the primary judges a player's drop (`noteGmCreated` -> `judgeArrival`), a GM's lawful; since E12 fix r2-H3 from the newest standing of that student on that scene, any token of theirs, deleted ones included (`droppedFrom`) - with none, from nowhere (no rule of which rooms connect applies), and the GMs are told (`tellDropped`)"],
+            ["HOOK movement.mjs#nextMoveOf#updateToken:inline", "out of scope as a judge: a put-back's wait on the browser that writes it (`putBackWrite`, the line claude/shim-118, 19.11.2026) - it listens for one move of its own token, then is taken off, or after `TIMING.putBackWaitMs`; it decides nothing, writes nothing and judges no room or scene"],
             ["HOOK murder-rules.mjs#registerMurder#updateToken:inline", "judged on the primary; gates on `isMoveChange` since E12 C9 (a `level`-only move is seen, scenario 66 G2 and G3); since E12 C12 `maybeThirdParty` and the discovery `maybeBodyFound` reaches (`checkBodyFound`) count a token only in its lawful room (`lawfulRoomOf`, Q3 a)"],
             ["HOOK projects-map.mjs#registerProjectsMap#updateToken:inline", "judged on the primary: `onProjectTokenMoved` moves a project only for its own token (`projectOwning`); gates on `isMoveChange` since E12 C9 (a `level`-only move is seen, scenario 66 G2 and G3) [1b.1 a token's floor]"],
             ["HOOK projects-seen.mjs#registerSeen#updateToken:inline", "out of scope as a judge: on a player's browser only, a move of a token this user owns (`isOwner`, else it returns first) asks this browser's own snapshot of the projects where its characters stand (PV, 13.11.2026); it writes a client setting of this browser alone and judges nothing; gates on `isMoveChange`"],
@@ -10229,6 +10230,8 @@ const REGRESSIONS = [
          * The reader is run first on a fixture: a packet of the family and of none, an inline socket arrow, a named and
          * two inline token listeners beside another event's, a held reader of trial-scene.mjs beside one whose flag is
          * only in a comment, a store and a stale row.
+         * 1.2.119 (20.11.2026): use-items.mjs `discardBroken` reads no broken flag any more - any item is thrown away, but
+         * what inventory.mjs `onlyCopied` names (the owner, 20.11.2026) - and its SHEET row is struck (it stood stale here).
          */
         const TRIAL_CENSUS = [
             ["PACKET gm-bridge.mjs#token.sendBack#sceneId", "out of scope: judged on the GM (knownSender + `ownsActorAt` the token, `guardSendbackPlace`; E03/E28) and unchanged by E13; in the hall there are no rooms after C1, so the mover's veto never sends a hall token back (movement.mjs `onPreUpdateToken` returns). E12 C9 lets it carry `level` [1b.1 a token's movement in the hall]"],
@@ -10264,7 +10267,6 @@ const REGRESSIONS = [
             ["SHEET use-items.mjs#creativeUseGone", "judged where it runs, on a GM: a creative ruling's reading of the item as the GMs hold it (`itemAsHeld`) and of the holder's death the GMs keep (`isDeadForGm`), before the GM's window and after it (`ruleCreativeUse`, held in that GM's memory); it moves no token and seats nobody (E14 part 1 C5; S08-35)"],
             ["SHEET use-items.mjs#useItem", "out of scope: the roller's client on its own item; creative use is not a roll and the amend of 25.09 leaves it unchanged - `useItem` and `useCreatively` reach no roll's wear (R439) (E13 C8)"],
             ["SHEET use-items.mjs#rollSpends", "out of scope: a pure reader of the item and the roll it is handed, as `tierOf` is; `breakOnDespair` hands it `held`, so on a GM's road the swing's held weapon decides (R439) (E13 C8)"],
-            ["SHEET use-items.mjs#discardBroken", "out of scope: the roller's own client on its own items (class 1); C8 changes when a tier-0 item breaks, not who reads it [1b.1 broken flag]"],
             ["SHEET trial-scene.mjs#readCastActors", "held: `flagsHeldNow(actor)` once per character of the world, in one synchronous pass, for the cast picker's default ticks (E81 DZ6; `readCast`'s two facts per actor, the Start window reading them after its `judgedFor`); a player owner is `ownerIdsOf`; it decides a tick's default, the GM's Apply or Start decides the row [1b.2]; R437"],
             ["SHEET trial-scene.mjs#readCast", "held: `flagsHeldNow(actor)` once per cast token, the whole cast in one synchronous pass before the diff (H3); under Q-E13-1 (a) only `monokuma` decides; a player owner is `ownerIdsOf` (the actor's ownership: whether a player can write it is Foundry's rule, not measured here) [1b.2]; R116"],
             ["SHEET murder-rules.mjs#wearSwing", "judged: on the GM in the incident; reads the held `weapon` (fix r2-H18) and writes through `breakOnDespair(actor, tool, roll, weapon)`; `actor.items.get` only finds the document to write. C8 changes the tier-0 rule inside `breakOnDespair`, not this road (E13 C8)"],
@@ -10297,6 +10299,7 @@ const REGRESSIONS = [
             ["HOOK movement.mjs#preCreateToken#onPreCreateToken", "out of scope: a token a player drops in the hall (TOKEN_CREATE, world permission; what this check refuses is not re-read here). A dropped token of a student is not the module's (no record names it): it joins the cast as a token the GMs placed would, is never deleted by the stage, and C2's entry report names a second token of one actor"],
             ["HOOK movement.mjs#updateToken#noteGmPosition", "judged: records a GM's placement as lawful (`gmSeen`, primary gate); C2's reveal and hide write no position; the return from the trial's gather (E13 C3b) is a GM write and lands lawful (E12 C12)"],
             ["HOOK movement.mjs#createToken#arrow1", "judged: a created token's first position is lawful (`gmSeen`); since E13 fix r1-F1 the return from the trial creates one - a living student's copy on the scene of the room End the trial chose, carried from another scene with rooms (call-world.mjs `carryAcross`, its old id's records dropped by movement.mjs `forgetToken`, the census of the records kept by token id in its note) - and rides this as a GM's create; since E81 DZ6 the stage (trial-scene.mjs `stageHall`) makes the cast's tokens in the hall, one create on a GM, and they ride it the same way - their records dropped by `forgetToken` when the stage deletes them. Foundry's own `teleportTokens` across scenes is not used nor measured (LIVE-E13-10)"],
+            ["HOOK movement.mjs#updateToken#arrow1", "out of scope: `nextMoveOf`, a put-back's wait for its own token's next move (`putBackWrite`, the line claude/shim-118, 19.11.2026); it writes nothing and reads no trial room - the put-back it releases is judged as every put-back is"],
             ["HOOK murder-rules.mjs#updateToken#arrow1", "judged: the body's discovery runs on the primary through rooms (`maybeBodyFound`); the return to the school (41 g) and the gather into the GM's room (41 i, E13 C3b) announce nothing new - a death recorded in the trial is no body (`bodiesToDiscover`), and both read 0 new body cards and `bodiesFound` unchanged"],
             ["HOOK narrow.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK room-tile.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
@@ -11446,6 +11449,7 @@ const REGRESSIONS = [
             ["HOOK movement.mjs#registerMovement#preUpdateToken/onPreUpdateToken -> veto", "advisory: the mover's own client refuses a move with `crossingVerdict`, and a console steps past it - which is why the primary GM judges the landed move; since E79 C3 the route's passage (`crossingVia`) is handed in as `via`, and a passage the character knows joins its two rooms (`passesThrough`, R558)"],
             ["HOOK movement.mjs#registerMovement#updateToken/onUpdateToken -> judge", "this file's own: the mover's client charges and announces the move it made (`judgeMove`); E79 adds no road through it"],
             ["HOOK movement.mjs#registerMovement#createToken/inline -> judge", "this file's own: `noteGmCreated`, the GM's first sighting of a token; E79 adds no road through it"],
+            ["HOOK movement.mjs#nextMoveOf#updateToken/inline -> judge", "this file's own: a put-back's wait for the move in flight (`putBackWrite`, the line claude/shim-118, 19.11.2026), off after one move of its token or `TIMING.putBackWaitMs`; no passage road through it, and the write it releases is the put-back's own road"],
             ["HOOK fog.mjs#registerFog#updateToken/onUpdateToken -> judge", "this file's own: this browser's discovery and outline; E79 adds no road through it (the gap's redraw hangs on its own event, not on this hook)"],
             ["HOOK fog.mjs#registerFog#createToken/inline -> judge", "this file's own: this browser's discovery mirror; E79 adds no road through it; since E51 C3 also the arrival of a token of this viewer's placed in a room (`ownArrival`), on this browser's screen alone"],
             ["HOOK body-tile.mjs#registerBodyFollow#updateToken/inline -> judge", "this file's own (E63 C1: the body follows its corpse on the mover's GM browser); E79 adds no road through it"],
@@ -18509,7 +18513,8 @@ const REGRESSIONS = [
             + 'return `<pre style="a:b">${t}</pre>` + "Left in English" + "one" + `x ${"An inner literal"}`; }');
         equal(JSON.stringify(planted), JSON.stringify({ prose: ["Left in English", "An inner literal"], keys: ["DRPG.Sound.why.none"] }),
             "the reader does not find the planted literals: it reads nothing it can be trusted on");
-        const wire = fnSource(sfx, "wireSoundPanel");
+        // the rows' wiring left wireSoundPanel for wireSoundRows in 1.2.119 (the Effects table redrawn in place)
+        const wire = fnSource(sfx, "wireSoundRows");
         const bodies = {
             testSfx: fnSource(sfx, "testSfx"),
             testWarning: bodyOf(wire, "[data-drpg-sfx-test]", { until: "[data-drpg-sfx-clear]" }),
@@ -22987,7 +22992,8 @@ const REGRESSIONS = [
             "the reader does not tell a key from a literal on a planted body: it reads nothing it can be trusted on");
         const test = fnSource(sfx, "testSfx") ?? "";
         const found = reasons(test);
-        const wire = bodyOf(fnSource(sfx, "wireSoundPanel") ?? "", "[data-drpg-sfx-test]", { until: "[data-drpg-sfx-clear]" }) ?? "";
+        // the rows' wiring left wireSoundPanel for wireSoundRows in 1.2.119 (the Effects table redrawn in place)
+        const wire = bodyOf(fnSource(sfx, "wireSoundRows") ?? "", "[data-drpg-sfx-test]", { until: "[data-drpg-sfx-clear]" }) ?? "";
         const word = (file, key) => file?.DRPG?.Sound?.why?.[key];
         const read = {
             reasons: [...new Set(found)].sort(),
@@ -24667,7 +24673,8 @@ const REGRESSIONS = [
             gap: place.gapY !== null && place.gapY > Math.max(place.at["S.T1"].y + 140, place.at["S.T2"].y + 90) && place.gapY < place.at["S.T3"].y,
             edge: V.edgePath({ x: 0, y: 0, w: 196, h: 140 }, { x: 244, y: 10, w: 352, h: 400 }),
             drawn, laid: Boolean(laid), placed: ["S.T1", "S.T2", "d-a", "d-b", "s-c"].map(id => [at(id).x === place.at[id].x, at(id).y === place.at[id].y]),
-            path: path === V.edgePath(place.at["S.T1"], place.at["d-a"]), measured: canvas?.dataset.drpgMeasured ?? null, cuts
+            // the edge redrawn as its square route (1.2.119 round 2, `routeEdges`; `edgePath`'s curve until then)
+            path: path === V.routeEdges(graph.edges, place.at).get("S.T1>d-a"), measured: canvas?.dataset.drpgMeasured ?? null, cuts
         }), JSON.stringify({
             overlaps: [], heights: [140, 90, 400], stack: g.pitch - g.nodeH, colX: g.colGap, colW: 352, gap: true,
             edge: "M196 70 C220 70 220 210 244 210",
@@ -24955,6 +24962,553 @@ const REGRESSIONS = [
             // 300 since owner-116 (15.11.2026; the owner: "Poszerzmy je też trochę"; R7525), 240 until then
             css: { fields: "300px", node: "300px", boxes: true }
         }), "{the fields' width with the clicked face 240 px wide, and 300 px (its classes put back after the reading); a face reading 0 writes none; css: the fields' width, the node's, the text boxes filling the fields}");
+    }],
+    ["R7820 - each Remnant type has its own colour on its node in the planner (1.2.119, the owner: \"Kodowanie kolorystyczne typów remnantów\"; case-map.mjs `caseTypeOf`, components.css): every evidence node's face and its fields carry its type's class and `data-drpg-type` - a placed Remnant by its type, a Key slot and a Remnant in one as Key, a planned Incident Remnant with no type as Incident, a planned Truth Bullet by its real type, an Autopsy as Autopsy - and a schema node none; the stylesheets declare a colour and an ink for every type in both themes, paint each type's class from it, and the node's words still name the type (colour is not the only cue)", async () => {
+        /*
+         * Line P of 1.2.119, 20.11.2026. Pure: a graph of `graphOf` with one placed Remnant of each of the eight types,
+         * drawn with every node open (the Map's default since owner-116) and read back; the stylesheets as served. Red at
+         * b5a29e73: no `caseTypeOf`, the fields carry no type, no stylesheet declares a type's colour.
+         */
+        const M = await import("./case-map.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const { REMNANT_TYPES } = await import("./config.mjs");
+        must(typeof M.caseTypeOf === "function", "case-map.mjs exports no caseTypeOf - the planner has no colour for a Remnant's type");
+        const TYPES = ["key", "incident", "prep", "resolution", "autopsy", "neutral", "faint", "final"];
+        const traces = TYPES.map((t, i) => ({ key: `S.R7820${i}`, type: t, name: `R7820 ${t}`, tiedToCrime: true }));
+        const graph = S.graphOf({ chapter: 4, traces, rows: { "d-a": { kind: "deduction", label: "R7820 d", inputs: traces.map(t => t.key) } } });
+        const d = document.createElement("div");
+        d.innerHTML = M.caseMapHtml({ graph, layout: layoutCase(graph), reading: { allOpen: true }, editors: new Map() });
+        const read = sel => [...d.querySelectorAll(sel)].map(el => [el.dataset.drpgNode ?? el.dataset.drpgEdit, el.dataset.drpgType ?? null,
+            TYPES.filter(t => el.classList.contains(`drpg-case-type--${t}`))]);
+        const want = [...traces.map((t, i) => [t.key, TYPES[i], [TYPES[i]]]), ["d-a", null, []]];
+        const sorted = rows => [...rows].sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+        const kinds = [...d.querySelectorAll(".drpg-case-edit[data-drpg-type] .drpg-case-node-kind")].map(k => k.textContent);
+        const hand = [{ evidence: true, kind: "key", planned: true, type: "key" }, { evidence: true, kind: "key", type: "prep" },
+            { evidence: true, kind: "incident", planned: true, type: null }, { evidence: true, kind: "bullet", planned: true, realType: "resolution", type: "resolution" },
+            { evidence: true, kind: "autopsy", planned: true, type: "autopsy" }, { evidence: false, kind: "solution" }, { evidence: true, kind: "trace", type: "nonsense" }].map(M.caseTypeOf);
+        let rules = "";
+        try { rules = await moduleStyles(); } catch { rules = ""; }
+        const tokens = TYPES.filter(t => (rules.match(new RegExp(`--drpg-case-type-${t}:`, "g")) ?? []).length >= 2);
+        const painted = TYPES.filter(t => new RegExp(`\\.drpg-case-type--${t}\\s*\\{[^}]*--drpg-case-type:\\s*var\\(--drpg-case-type-${t}\\)`).test(rules));
+        equal(JSON.stringify({ faces: sorted(read("button[data-drpg-node]")), fields: sorted(read(".drpg-case-edit[data-drpg-edit]")), kinds: kinds.length, named: kinds.filter(k => TYPES.some(t => k === REMNANT_TYPES[t].label)).length,
+            hand, tokens, painted, ink: (rules.match(/--drpg-case-type-ink:/g) ?? []).length >= 2 }), JSON.stringify({
+            faces: sorted(want), fields: sorted(want), kinds: 8, named: 8,
+            hand: ["key", "key", "incident", "resolution", "autopsy", null, null], tokens: TYPES, painted: TYPES, ink: true
+        }), "{faces and fields: each node's id, data-drpg-type and type classes; kinds: the typed fields' kind words, named: those that name a Remnant type; hand: a slot, a Remnant in a slot, a planned Incident with no type, a planned Truth Bullet, an Autopsy, a schema node, an unknown type; tokens: types with a colour declared twice (both themes); painted: type classes that take their colour; ink: the chip's ink in both themes}");
+    }],
+    ["R7821 - the planner names its colours in a legend (1.2.119; case-map.mjs `caseLegendHtml`, `cameraHtml`): the Map's strip under the graph lists each Remnant type the case holds, once, in the fixed order, each item with its type's class and the type's own name, named as a list by `DRPG.CaseMap.legendLabel` in both languages; a case with no evidence draws no type, and the Class Trial console's strip draws none", async () => {
+        /*
+         * Line P of 1.2.119, 20.11.2026. Red at b5a29e73: no legend, no key.
+         */
+        const M = await import("./case-map.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const { REMNANT_TYPES } = await import("./config.mjs");
+        must(typeof M.caseLegendHtml === "function", "case-map.mjs exports no caseLegendHtml - the planner's colours are named nowhere");
+        const traces = [["final", 1], ["prep", 2], ["prep", 3], ["key", 4]].map(([t, i]) => ({ key: `S.R7821${i}`, type: t, name: `R7821 ${i}`, tiedToCrime: true }));
+        const draw = tr => {
+            const graph = S.graphOf({ chapter: 2, traces: tr, rows: { "d-a": { kind: "deduction", label: "R7821 d", inputs: tr.map(t => t.key) } } });
+            const d = document.createElement("div");
+            d.innerHTML = M.caseMapHtml({ graph, layout: layoutCase(graph), reading: { allOpen: true }, editors: new Map() });
+            const legend = d.querySelector(".drpg-case-camera .drpg-case-legend");
+            // the Remnant types' items (round 2 names the schema's kinds after them: R7827)
+            const items = [...(legend?.querySelectorAll("li[data-drpg-type]") ?? [])];
+            return items.length ? { label: legend.getAttribute("aria-label"), items: items.map(li => [li.dataset.drpgType, li.className.includes(`drpg-case-type--${li.dataset.drpgType}`), li.textContent.trim()]) } : null;
+        };
+        const trialStrip = document.createElement("div");
+        trialStrip.innerHTML = M.cameraHtml(1);
+        let lang = {};
+        for (const l of ["en", "pl"]) {
+            try { lang[l] = (await fetch(`/modules/${MODULE_ID}/lang/${l}.json`).then(r => r.json()))?.DRPG?.CaseMap?.legendLabel ?? null; } catch { lang[l] = null; }
+        }
+        equal(JSON.stringify({ some: draw(traces), none: draw([]), trial: trialStrip.querySelectorAll(".drpg-case-legend").length, en: typeof lang.en === "string" && lang.en.length > 0, pl: typeof lang.pl === "string" && lang.pl.length > 0 && lang.pl !== lang.en }), JSON.stringify({
+            some: { label: game.i18n.localize("DRPG.CaseMap.legendLabel"), items: ["key", "prep", "final"].map(t => [t, true, REMNANT_TYPES[t].label]) },
+            none: null, trial: 0, en: true, pl: true
+        }), "{some: the legend's name and each item's type, its class and its words; none: a case with no evidence; trial: legends in the trial console's strip; en, pl: the key in each language}");
+    }],
+    ["R7822 - the planner's arrows end at their target's edge and stand out (1.2.119, the owner: \"Czytelność strzałek\"; case-view.mjs `edgeEnd`, case-map.mjs, components.css): each edge's path ends at `edgeEnd`, on the target's left edge inside its box, across columns and within one; it carries an arrowhead (`marker-end`) of its own canvas whose tip is its reference point, so the head ends at the edge and not under the node; a halo path under each edge, drawn again with it by `relayoutCaseMap`; the line at least 2.4 px with a halo wider than it", async () => {
+        /*
+         * Line P of 1.2.119, 20.11.2026. The geometry is pure; whether the head reads at a table is the Chromium shots'
+         * (audit/case-map-sweep.mjs --shots). Red at b5a29e73: no `edgeEnd`, no marker, no halo, the line 1.6 px.
+         */
+        const M = await import("./case-map.mjs");
+        const V = await import("./case-view.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        must(typeof V.edgeEnd === "function", "case-view.mjs exports no edgeEnd - nothing says where an arrow ends");
+        const graph = S.graphOf({ chapter: 6, traces: [{ key: "S.R78221", type: "prep", name: "a", tiedToCrime: true }, { key: "S.R78222", type: "key", name: "b", tiedToCrime: true }],
+            rows: { "d-a": { kind: "deduction", label: "R7822 d", inputs: ["S.R78221", "S.R78222"] }, "c-b": { kind: "counter", label: "R7822 c", refutes: ["d-a"] } } });
+        const d = document.createElement("div");
+        d.innerHTML = M.caseMapHtml({ graph, layout: layoutCase(graph), reading: { allOpen: true }, editors: new Map() });
+        const canvas = d.querySelector(".drpg-case-canvas");
+        const svg = canvas?.querySelector(":scope > svg.drpg-case-edges");
+        const last = dAttr => (String(dAttr ?? "").match(/(-?[\d.]+)[ ,](-?[\d.]+)\s*$/) ?? []).slice(1).map(Number);
+        const tail = dAttr => { const m = String(dAttr ?? "").match(/H(-?[\d.]+)\s*$/); return m ? Number(m[1]) : null; };
+        const ends = pathsOf => [...(svg?.querySelectorAll("path[data-drpg-edge]") ?? [])].map(p => {
+            const [from, to] = JSON.parse(p.dataset.drpgEnds);
+            const f = { ...pathsOf[from] }, t = { ...pathsOf[to] };
+            const e = V.edgeEnd(f, t);
+            const xy = last(p.getAttribute("d"));
+            const x = tail(p.getAttribute("d")) ?? xy[0];
+            const ref = (p.getAttribute("marker-end") ?? "").match(/^url\(#([^)]+)\)$/)?.[1] ?? null;
+            const marker = ref ? svg.querySelector(`marker[id="${ref}"]`) : null;
+            const vb = (marker?.getAttribute("viewBox") ?? "").split(/\s+/).map(Number);
+            // the halo by its edge's key (round 2: all halos in one layer under every line, R7826)
+            const halo = svg.querySelector(`path[data-drpg-halo="${p.dataset.drpgEdge}"]`);
+            return { edge: p.dataset.drpgEdge, atEnd: x === e.x, onEdge: e.x === t.x && e.y >= t.y && e.y <= t.y + (t.h ?? V.MAP_GEOMETRY.nodeH),
+                head: Boolean(marker) && Number(marker.getAttribute("refX")) === vb[2] && marker.getAttribute("orient") === "auto",
+                halo: Boolean(halo?.matches?.("path[data-drpg-halo]")) && halo.getAttribute("d") === p.getAttribute("d") && !halo.hasAttribute("data-drpg-ends") };
+        });
+        const placed = M.mapPlace(layoutCase(graph), V.MAP_GEOMETRY, null, { edges: graph.edges }).at;
+        const drawn = ends(placed);
+        // a browser's sizes: every node 120 px tall, and the halo follows its edge after the relayout
+        for (const b of canvas?.querySelectorAll(":scope > button[data-drpg-node], :scope > .drpg-case-edit") ?? []) {
+            Object.defineProperty(b, "offsetHeight", { configurable: true, get: () => (b.matches("button") ? 0 : 120) });
+            Object.defineProperty(b, "offsetWidth", { configurable: true, get: () => (b.matches("button") ? 0 : 300) });
+        }
+        const again = V.relayoutCaseMap(canvas);
+        const moved = ends(again?.at ?? {});
+        let rules = "";
+        try { rules = await moduleStyles(); } catch { rules = ""; }
+        const width = re => Number(rules.match(re)?.[1] ?? 0);
+        const line = width(/\.drpg-case-edge \{[^}]*?stroke-width:\s*([\d.]+)/), halo = width(/\.drpg-case-edge-halo \{[^}]*?stroke-width:\s*([\d.]+)/);
+        const all = { atEnd: true, onEdge: true, head: true, halo: true };
+        equal(JSON.stringify({ drawn: drawn.map(({ edge, ...r }) => [edge, r]).sort(), moved: moved.map(({ edge, ...r }) => [edge, r]).sort(), line: line >= 2.4, halo: halo > line,
+            ids: new Set([...(svg?.querySelectorAll("marker") ?? [])].map(m => m.id)).size === (svg?.querySelectorAll("marker").length ?? -1) }), JSON.stringify({
+            drawn: [["S.R78221>d-a", all], ["S.R78222>d-a", all], ["c-b>d-a", all]].sort(),
+            moved: [["S.R78221>d-a", all], ["S.R78222>d-a", all], ["c-b>d-a", all]].sort(), line: true, halo: true, ids: true
+        }), "{drawn and moved (after a relayout at 120 px a node): each edge's end at edgeEnd, edgeEnd on the target's left edge, an arrowhead whose tip is its reference point, a halo under it on the same path; line: the stroke at least 2.4; halo: wider than the line; ids: the markers' ids distinct}");
+    }],
+    ["R7823 - a hovered or focused node lights its arrows and dims the rest (1.2.119; case-view.mjs `lightEdges`, case-map.mjs `wireCaseMap`, components.css): focus on a node's face or into its fields, or the pointer over either, marks every edge with that node at an end lit (`is-lit`, its halo too, its lit arrowhead) and the canvas `has-lit`, and no other edge; leaving clears it; the stylesheet dims an unlit edge only while one is lit, and eases it only where motion is not reduced", async () => {
+        /*
+         * Line P of 1.2.119, 20.11.2026. jsdom dispatches the events the browser would; what it looks like is the
+         * Chromium shots'. Red at b5a29e73: no `lightEdges`, nothing listens.
+         */
+        const M = await import("./case-map.mjs");
+        const V = await import("./case-view.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        must(typeof V.lightEdges === "function", "case-view.mjs exports no lightEdges - no arrow is ever highlighted");
+        const graph = S.graphOf({ chapter: 6, traces: [{ key: "S.R78231", type: "prep", name: "a", tiedToCrime: true }, { key: "S.R78232", type: "key", name: "b", tiedToCrime: true }],
+            rows: { "d-a": { kind: "deduction", label: "R7823 d", inputs: ["S.R78231"] }, "d-b": { kind: "deduction", label: "R7823 e", inputs: ["S.R78232"] } } });
+        const host = document.createElement("div");
+        host.innerHTML = M.caseMapHtml({ graph, layout: layoutCase(graph), reading: { allOpen: false }, editors: new Map([["d-a", M.editRow("R7823", `<input type="text" name="r7823">`)]]) });
+        document.body.appendChild(host);
+        try {
+            M.wireCaseMap(host, {});
+            const canvas = host.querySelector(".drpg-case-canvas");
+            const state = () => ({ lit: [...canvas.querySelectorAll("path[data-drpg-edge].is-lit")].map(p => p.dataset.drpgEdge).sort(),
+                halos: canvas.querySelectorAll("path[data-drpg-halo].is-lit").length, has: canvas.classList.contains("has-lit"),
+                heads: [...canvas.querySelectorAll("path[data-drpg-edge].is-lit")].every(p => /-lit\)$/.test(p.getAttribute("marker-end") ?? "")) });
+            const fire = (el, type, related = null) => { const e = new Event(type, { bubbles: true }); if (related) Object.defineProperty(e, "relatedTarget", { value: related }); el?.dispatchEvent(e); };
+            const face = canvas.querySelector('button[data-drpg-node="S.R78231"]');
+            fire(face, "focusin");
+            const focused = state();
+            fire(face, "focusout", null);
+            const left = state();
+            const field = canvas.querySelector('.drpg-case-edit[data-drpg-edit="d-a"] input');
+            fire(field, "pointerover");
+            const hovered = state();
+            fire(host.querySelector(".drpg-case-graph"), "pointerleave");
+            const gone = state();
+            let rules = "";
+            try { rules = await moduleStyles(); } catch { rules = ""; }
+            equal(JSON.stringify({ focused, left, hovered, gone,
+                dim: /\.has-lit \.drpg-case-edge:not\(\.is-lit\)[^{]*\{[^}]*opacity:\s*0?\.\d+/.test(rules),
+                still: /body:not\(\.drpg-reduced-motion\)[^{]*\.drpg-case-edge[^{]*\{[^}]*transition:/.test(rules) }), JSON.stringify({
+                focused: { lit: ["S.R78231>d-a"], halos: 1, has: true, heads: true }, left: { lit: [], halos: 0, has: false, heads: true },
+                hovered: { lit: ["S.R78231>d-a"], halos: 1, has: true, heads: true }, gone: { lit: [], halos: 0, has: false, heads: true },
+                dim: true, still: true
+            }), "{focused: a face focused - the lit edges, lit halos, the canvas marked, lit heads; left: focus gone; hovered: the pointer over the open fields of d-a; gone: the pointer off the graph; dim: an unlit edge dimmed while one is lit; still: the easing only without reduced motion}");
+        } finally { host.remove(); }
+    }],
+    ["R7824 - each Remnant type's colour carries its ink at WCAG AA in both themes (1.2.119; tools/contrast-pairs.json `case-type-*`, components.css): a pair for every type in each theme, the chip's ink on the type's colour, each resolved and at AA for small text", async () => {
+        /*
+         * Line P of 1.2.119, 20.11.2026. tests-css.mjs `contrastOf`, the arithmetic `node tools/check.mjs contrast`
+         * prints, on the files Foundry serves. Red at b5a29e73: no pair names a type's colour.
+         */
+        needs(env.tools(), "tools/contrast-pairs.json is read from the repository's tools/ (an installed module's zip leaves it out)");
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        const sheets = [];
+        for (const file of manifest.styles ?? []) sheets.push([file, await fetch(`/modules/${MODULE_ID}/${file}`).then(lfText)]);
+        let pairs = [];
+        try { pairs = (await fetch(`/modules/${MODULE_ID}/tools/contrast-pairs.json`, { cache: "no-cache" }).then(r => r.json())).pairs ?? []; } catch { pairs = []; }
+        const TYPES = ["key", "incident", "prep", "resolution", "autopsy", "neutral", "faint", "final"];
+        const mine = pairs.filter(p => String(p.id).startsWith("case-type-"));
+        const read = cssContrastOf(mine, cssThemeTokens(sheets));
+        const got = Object.fromEntries(["stained-glass", "monokuma-legacy"].map(theme => [theme, TYPES.map(t => {
+            const i = mine.findIndex(p => p.theme === theme && p.on === `--drpg-case-type-${t}` && p.text === "--drpg-case-type-ink" && p.size === "small");
+            return i < 0 ? `${t}: none` : `${t}: ${read[i].state}`;
+        })]));
+        equal(JSON.stringify(got), JSON.stringify(Object.fromEntries(["stained-glass", "monokuma-legacy"].map(theme => [theme, TYPES.map(t => `${t}: ok`)]))),
+            "each theme's types: the chip's ink on the type's colour, its state by WCAG 2 AA (ok, low, unmeasured or none)");
+    }],
+    ["R7825 - the planner's arrows are square and grouped by their source (1.2.119; round 2, the owner: \"Same strzalki niech beda bardziej kwadratowe, pogrupowane\"; round 3, his photo: lines into one node merged were unreadable; case-view.mjs `routeEdges`, `routeCrossings`): every route is horizontal, vertical, horizontal, with small rounded corners and no curve, and ends on its target's left edge (`edgeEnd`'s x); every line of one source runs down that source's one track, in the gutter right of its column, the head's room kept, and lines of two sources down two; a counter's line into its own column leaves its left edge for a track in the gutter left of that column; lines of different sources into one node end at different ports; of the gutter's track orders the one with the fewest crossings is drawn", async () => {
+        /*
+         * Line P of 1.2.119, round 2 (20.11.2026), rewritten in round 3 (the same day): round 2 gave each target one lane
+         * and its lines one trunk (pOne, qOne, sameTail here until then), which merged lines of different sources - the
+         * owner's photo, R7829. Pure: places as `mapPlace` answers them, given by hand. Red at 0da0a479: no routeEdges.
+         */
+        const V = await import("./case-view.mjs");
+        must(typeof V.routeEdges === "function", "case-view.mjs exports no routeEdges - the arrows are curves, one each");
+        const g = V.MAP_GEOMETRY;
+        const n = (x, y, h = 54) => ({ x, y, w: 300, h });
+        const c1 = 12 + 300 + g.colGap, c2 = c1 + 300 + g.colGap;
+        const at = { a: n(12, 40), b: n(12, 110), c: n(12, 180), d: n(12, 250), p: n(c1, 60), q: n(c1, 200, 120), k: n(c1, 340), s: n(c2, 120) };
+        const edges = [{ from: "a", to: "p", kind: "input" }, { from: "b", to: "p", kind: "input" }, { from: "c", to: "q", kind: "input" }, { from: "d", to: "q", kind: "input" },
+            { from: "a", to: "q", kind: "input" }, { from: "k", to: "q", kind: "refutes" }, { from: "p", to: "s", kind: "input" }, { from: "q", to: "s", kind: "input" }];
+        const routes = V.routeEdges(edges, at, g);
+        const d = e => routes.get(`${e.from}>${e.to}`) ?? "";
+        const square = edges.every(e => /^M[-\d. ]+(?:\s*[HVQ][-\d. ]+)+$/.test(d(e)) && !/[CLSTAZ]/i.test(d(e).replace(/^M/, "")));
+        const lastH = r => Number((r.match(/H(-?[\d.]+)\s*$/) ?? [])[1]);
+        const endY = r => Number((r.match(/(-?[\d.]+) H-?[\d.]+\s*$/) ?? [])[1]);
+        const track = e => { const q = d(e).match(/Q(-?[\d.]+) /); return q ? Number(q[1]) : null; };
+        const ends = edges.every(e => lastH(d(e)) === V.edgeEnd(at[e.from], at[e.to], g).x);
+        const tracksOf = from => new Set(edges.filter(e => e.from === from).map(track));
+        const into = to => edges.filter(e => e.to === to).map(e => endY(d(e)));
+        const two = { a: n(12, 40), b: n(12, 110), c: n(12, 180), p: n(c1, 40), q: n(c1, 180) };
+        const twoEdges = [["a", "q"], ["b", "q"], ["c", "p"]].map(([from, to]) => ({ from, to, kind: "input" }));
+        const R = V.ROUTE ?? {};
+        equal(JSON.stringify({ square, ends,
+            oneTrack: tracksOf("a").size, twoTracks: track(edges[0]) !== track(edges[1]),
+            inGutter: edges.filter(e => e.from !== "k").every(e => { const x = track(e), lo = at[e.from].x + 300, hi = lo + g.colGap; return x > lo && x < hi - (R.stub ?? 18) + 0.01; }),
+            counter: d(edges[5]).startsWith(`M${c1} `) && track(edges[5]) > 312 && track(edges[5]) < c1,
+            ports: [into("p"), into("q")].every(ys => new Set(ys).size === ys.length),
+            fewer: typeof V.routeCrossings === "function" ? [V.routeCrossings(twoEdges, two, g), V.routeCrossings(twoEdges, two, g, { order: "worst" })] : null }),
+        JSON.stringify({ square: true, ends: true, oneTrack: 1, twoTracks: true, inGutter: true, counter: true, ports: true, fewer: [2, 3] }),
+            "{square: only M, H, V and Q; ends: each on its target's left edge; oneTrack: tracks of a's two lines; twoTracks: a's and b's tracks differ; inGutter: each forward track in the gutter right of its source, the head's room kept; counter: it leaves its left edge for the gutter left of its column; ports: lines into one node end at different heights; fewer: the drawn order's crossings and the worst order's on a case where they differ (read at 87b21526+edits: 2 against 3)}");
+    }],
+    ["R7826 - the drawn map uses the square routes, under one halo layer, and lights a node's whole trunk (1.2.119 round 2; case-map.mjs, case-view.mjs `relayoutCaseMap`, `lightEdges`): each edge's path is `routeEdges`' route for it when drawn and again after a relayout at the measured sizes; every halo stands in a layer under every line, so a branch meets its trunk without a gap; lighting a target lights every line into it and its halo, and lighting a source only its own lines", async () => {
+        /*
+         * Line P of 1.2.119, round 2, 20.11.2026. Red at 0da0a479: no routeEdges, the halos stand one by one between the lines.
+         */
+        const M = await import("./case-map.mjs");
+        const V = await import("./case-view.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        must(typeof V.routeEdges === "function", "case-view.mjs exports no routeEdges");
+        const graph = S.graphOf({ chapter: 6, traces: [1, 2, 3].map(i => ({ key: `S.R7826${i}`, type: "prep", name: `t${i}`, tiedToCrime: true })),
+            rows: { "d-a": { kind: "deduction", label: "R7826 a", inputs: ["S.R78261", "S.R78262"] }, "d-b": { kind: "deduction", label: "R7826 b", inputs: ["S.R78263", "S.R78261"] } } });
+        const layout = layoutCase(graph);
+        const d = document.createElement("div");
+        d.innerHTML = M.caseMapHtml({ graph, layout, reading: { allOpen: true }, editors: new Map() });
+        const canvas = d.querySelector(".drpg-case-canvas");
+        const svg = canvas.querySelector(":scope > svg.drpg-case-edges");
+        const drawnD = () => Object.fromEntries([...svg.querySelectorAll("path[data-drpg-edge]")].map(p => [p.dataset.drpgEdge, p.getAttribute("d")]));
+        const place = M.mapPlace(layout, V.MAP_GEOMETRY, null, { edges: graph.edges });
+        const want = Object.fromEntries(V.routeEdges(graph.edges, place.at, V.MAP_GEOMETRY));
+        const drawn = JSON.stringify(drawnD()) === JSON.stringify(Object.fromEntries(Object.keys(drawnD()).map(k => [k, want[k]])));
+        const layers = [...svg.children].map(c => c.tagName.toLowerCase() === "g" ? c.getAttribute("class") : c.tagName.toLowerCase());
+        const halosUnder = svg.querySelector(":scope > g.drpg-case-halos")?.querySelectorAll("path[data-drpg-halo]").length ?? 0;
+        for (const b of canvas.querySelectorAll(":scope > button[data-drpg-node], :scope > .drpg-case-edit")) {
+            Object.defineProperty(b, "offsetHeight", { configurable: true, get: () => (b.matches("button") ? 0 : 140) });
+            Object.defineProperty(b, "offsetWidth", { configurable: true, get: () => (b.matches("button") ? 0 : 300) });
+        }
+        const again = V.relayoutCaseMap(canvas);
+        const face = id => ({ ...again.at[id] });
+        const wantAgain = Object.fromEntries(V.routeEdges(graph.edges, Object.fromEntries(Object.keys(again.at).map(id => [id, face(id)])), V.MAP_GEOMETRY));
+        const redrawn = Object.entries(drawnD()).every(([k, v]) => v === wantAgain[k]);
+        const halosFollow = [...svg.querySelectorAll("path[data-drpg-halo]")].every(h => h.getAttribute("d") === drawnD()[h.dataset.drpgHalo]);
+        const lit = id => { V.lightEdges(canvas, id); const r = [[...svg.querySelectorAll("path[data-drpg-edge].is-lit")].map(p => p.dataset.drpgEdge).sort(), svg.querySelectorAll("path[data-drpg-halo].is-lit").length]; V.lightEdges(canvas, null); return r; };
+        equal(JSON.stringify({ drawn, layers, halosUnder, redrawn, halosFollow, target: lit("d-a"), source: lit("S.R78261") }), JSON.stringify({
+            drawn: true, layers: ["defs", "drpg-case-halos", "drpg-case-lines"], halosUnder: graph.edges.length, redrawn: true, halosFollow: true,
+            target: [["S.R78261>d-a", "S.R78262>d-a"], 2], source: [["S.R78261>d-a", "S.R78261>d-b"], 2]
+        }), "{drawn: the paths as routeEdges routes them; layers: the svg's children; halosUnder: halos in the halo layer; redrawn: the paths after a relayout at 140 px a node; halosFollow: each halo on its line; target and source: the lit lines and lit halos}");
+    }],
+    ["R7827 - deductions, counters and the solution read like the Remnants (1.2.119 round 2, the owner: \"Niech dedukcje w planerze tez beda czytelniejsze\"; case-map.mjs, components.css): each schema node's face and fields carry its kind's class and `data-drpg-kind`, each kind has a colour and its words a chip on it in both themes, the legend names the kinds the case holds after the types, the reach count is a badge, the trial mode a chip, the problem mark a filled badge, and a node's words are no smaller than the small text", async () => {
+        /*
+         * Line P of 1.2.119, round 2, 20.11.2026. Red at 0da0a479: schema nodes carry no kind attribute and have no colour,
+         * the legend names types only, the words are the extra-small text.
+         */
+        const M = await import("./case-map.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const KINDS = ["deduction", "counter", "solution"];
+        const graph = S.graphOf({ chapter: 6, traces: [{ key: "S.R78271", type: "prep", name: "t", tiedToCrime: true }],
+            rows: { "d-a": { kind: "deduction", label: "R7827 a", inputs: ["S.R78271"] }, "c-b": { kind: "counter", label: "R7827 c", refutes: ["d-a"] }, "s-c": { kind: "solution", label: "R7827 s", inputs: ["d-a"] } } });
+        const d = document.createElement("div");
+        d.innerHTML = M.caseMapHtml({ graph, layout: layoutCase(graph), reading: { allOpen: true }, editors: new Map() });
+        const kinds = sel => Object.fromEntries([...d.querySelectorAll(sel)].filter(el => ["d-a", "c-b", "s-c"].includes(el.dataset.drpgNode ?? el.dataset.drpgEdit))
+            .map(el => [el.dataset.drpgNode ?? el.dataset.drpgEdit, [el.dataset.drpgKind ?? null, KINDS.filter(k => el.classList.contains(`drpg-case-kind--${k}`))]]));
+        const legend = [...d.querySelectorAll(".drpg-case-legend li")].map(li => li.dataset.drpgType ?? `kind:${li.dataset.drpgKind}`);
+        let rules = "";
+        try { rules = await moduleStyles(); } catch { rules = ""; }
+        const tokens = KINDS.filter(k => (rules.match(new RegExp(`--drpg-case-kind-${k}:`, "g")) ?? []).length >= 2);
+        const painted = KINDS.filter(k => new RegExp(`\\.drpg-case-kind--${k}\\s*\\{[^}]*--drpg-case-type:\\s*var\\(--drpg-case-kind-${k}\\)`).test(rules));
+        const has = re => re.test(rules);
+        equal(JSON.stringify({ faces: kinds("button[data-drpg-node]"), fields: kinds(".drpg-case-edit[data-drpg-edit]"), legend, tokens, painted,
+            chip: has(/:is\(\[data-drpg-type\], \[data-drpg-kind\]\) > \.drpg-case-node-head > \.drpg-case-node-kind \{[^}]*background: var\(--drpg-case-type\)/),
+            reach: has(/\.drpg-case-node-reach \{[^}]*border-radius: 999px[^}]*\}/), mode: has(/\.drpg-case-node-mode \{[^}]*background:[^}]*\}/),
+            warn: has(/\.drpg-case-node-warn \{[^}]*background: var\(--drpg-case-warn\)/),
+            text: has(/\.drpg-case-node-text \{[^}]*font-size: var\(--drpg-text-sm\)/) }), JSON.stringify({
+            faces: { "d-a": ["deduction", ["deduction"]], "c-b": ["counter", ["counter"]], "s-c": ["solution", ["solution"]] },
+            fields: { "d-a": ["deduction", ["deduction"]], "c-b": ["counter", ["counter"]], "s-c": ["solution", ["solution"]] },
+            legend: ["prep", "kind:deduction", "kind:counter", "kind:solution"], tokens: KINDS, painted: KINDS, chip: true, reach: true, mode: true, warn: true, text: true
+        }), "{faces, fields: each schema node's data-drpg-kind and kind classes; legend: its items; tokens: kinds with a colour in both themes; painted: kind classes taking their colour; chip, reach, mode, warn, text: the rules for the kind's chip, the reach badge, the mode chip, the problem badge and the node's words}");
+    }],
+    ["R7828 - each schema kind's colour and the problem badge carry their ink at WCAG AA in both themes (1.2.119 round 2; tools/contrast-pairs.json `case-kind-*`, `case-warn-*`)", async () => {
+        /*
+         * Line P of 1.2.119, round 2, 20.11.2026. Red at 0da0a479: no pair names a kind's colour or the badge.
+         */
+        needs(env.tools(), "tools/contrast-pairs.json is read from the repository's tools/ (an installed module's zip leaves it out)");
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        const sheets = [];
+        for (const file of manifest.styles ?? []) sheets.push([file, await fetch(`/modules/${MODULE_ID}/${file}`).then(lfText)]);
+        let pairs = [];
+        try { pairs = (await fetch(`/modules/${MODULE_ID}/tools/contrast-pairs.json`, { cache: "no-cache" }).then(r => r.json())).pairs ?? []; } catch { pairs = []; }
+        const grounds = ["--drpg-case-kind-deduction", "--drpg-case-kind-counter", "--drpg-case-kind-solution", "--drpg-case-warn"];
+        const mine = pairs.filter(p => /^case-(kind|warn)-/.test(String(p.id)));
+        const read = cssContrastOf(mine, cssThemeTokens(sheets));
+        const got = Object.fromEntries(["stained-glass", "monokuma-legacy"].map(theme => [theme, grounds.map(on => {
+            const i = mine.findIndex(p => p.theme === theme && p.on === on && p.text === "--drpg-case-type-ink" && p.size === "small");
+            return i < 0 ? `${on}: none` : `${on}: ${read[i].state}`;
+        })]));
+        equal(JSON.stringify(got), JSON.stringify(Object.fromEntries(["stained-glass", "monokuma-legacy"].map(theme => [theme, grounds.map(on => `${on}: ok`)]))),
+            "each theme's grounds: the ink on the kind's colour and on the problem badge, by WCAG 2 AA (ok, low, unmeasured or none)");
+    }],
+    ["R7829 - no two arrows of different sources share a stretch, and parallel ones stand apart (1.2.119 round 3, the owner: \"zwroc uwage ze nachodza na siebie ... przez co sa nieczytelne\"; case-view.mjs `routeEdges`): on a crowded case (twelve sources into five targets, many to many, two counters, a solution, a line across two columns) and on the shot's case, every route square; no horizontal or vertical stretch of one source's route overlaps one of another source's; two parallel stretches of different sources that run beside each other stand at least `ROUTE.track` apart; every line into one node ends at a port of its own on the node's left edge, inside its box, the ports at least `ROUTE.port` apart; the lines of one source leave it at one point", async () => {
+        /*
+         * Line P of 1.2.119, round 3, 20.11.2026. Pure: places given by hand, routes read back as segments by this test's
+         * own parser (M, H, V, Q), so the check does not take the router's word. Red at 87b21526: the lines into one node
+         * run down one trunk, so stretches of different sources overlap (round 2's design).
+         */
+        const V = await import("./case-view.mjs");
+        const g = V.MAP_GEOMETRY;
+        const R = V.ROUTE ?? {};
+        const TRACK = R.track ?? 8, PORT = R.port ?? 10;
+        const n = (x, y, h = 54) => ({ x, y, w: 300, h });
+        const c1 = 12 + 300 + g.colGap, c2 = c1 + 300 + g.colGap;
+        const crowd = { at: {}, edges: [] };
+        for (let i = 0; i < 12; i++) crowd.at[`s${i}`] = n(12, 40 + i * 66);
+        for (let j = 0; j < 5; j++) crowd.at[`t${j}`] = n(c1, 40 + j * 150, 120);
+        crowd.at.k1 = n(c1, 800); crowd.at.k2 = n(c1, 870); crowd.at.z = n(c2, 300, 120);
+        for (let i = 0; i < 12; i++) for (const j of [i % 5, (i * 3 + 1) % 5, (i * 2 + 3) % 5]) if (!crowd.edges.some(e => e.from === `s${i}` && e.to === `t${j}`)) crowd.edges.push({ from: `s${i}`, to: `t${j}`, kind: "input" });
+        crowd.edges.push({ from: "k1", to: "t1", kind: "refutes" }, { from: "k2", to: "t3", kind: "refutes" });
+        for (let j = 0; j < 5; j++) crowd.edges.push({ from: `t${j}`, to: "z", kind: "input" });
+        crowd.edges.push({ from: "s5", to: "z", kind: "input" });
+        // the shot's case, its first gutter as the photo shows it (probe 08 investigation--map-types-faces, measured sizes)
+        const shot = { at: { a: n(12, 300), b: n(12, 366), c: n(12, 432, 60), d: n(12, 504), e: n(12, 570, 160), f: n(12, 742), p: n(c1, 300), q: n(c1, 366, 120), r: n(c1, 498), s: n(c1, 564), k: n(c1, 630), z: n(c2, 450) },
+            edges: [["a", "p"], ["b", "p"], ["c", "q"], ["d", "q"], ["e", "q"], ["a", "r"], ["c", "r"], ["d", "s"], ["f", "s"], ["e", "p"], ["p", "z"], ["q", "z"], ["r", "z"], ["s", "z"]].map(([from, to]) => ({ from, to, kind: "input" })).concat([{ from: "k", to: "q", kind: "refutes" }]) };
+        const segsOf = d => {
+            const out = [];
+            const t = String(d).match(/[MHVQ][^MHVQ]*/g) ?? [];
+            let x = 0, y = 0;
+            for (const c of t) {
+                const v = c.slice(1).trim().split(/[\s,]+/).map(Number);
+                if (c[0] === "M") { [x, y] = v; } else if (c[0] === "H") { out.push({ h: true, y, a: Math.min(x, v[0]), b: Math.max(x, v[0]) }); x = v[0]; }
+                else if (c[0] === "V") { out.push({ h: false, x, a: Math.min(y, v[0]), b: Math.max(y, v[0]) }); y = v[0]; } else if (c[0] === "Q") { x = v[2]; y = v[3]; }
+            }
+            return out;
+        };
+        const read = ({ at, edges }) => {
+            const routes = V.routeEdges(edges, at, g);
+            const segs = edges.flatMap(e => segsOf(routes.get(`${e.from}>${e.to}`) ?? "").map(s => ({ ...s, owner: e.from, edge: `${e.from}>${e.to}` })));
+            let overlap = 0, close = 0;
+            for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++) {
+                const s = segs[i], t = segs[j];
+                if (s.owner === t.owner || s.h !== t.h) continue;
+                const along = Math.min(s.b, t.b) - Math.max(s.a, t.a);
+                if (along <= 0.5) continue;
+                const apart = Math.abs(s.h ? s.y - t.y : s.x - t.x);
+                if (apart < 0.5) overlap++; else if (apart < TRACK - 0.01) close++;
+            }
+            const ends = edges.map(e => { const d = routes.get(`${e.from}>${e.to}`) ?? ""; const m = d.match(/Q[\d. -]+ (-?[\d.]+) H(-?[\d.]+)\s*$/) ?? d.match(/^M[\d. -]+ (-?[\d.]+) H(-?[\d.]+)\s*$/); return { to: e.to, y: m ? Number(m[1]) : NaN, x: m ? Number(m[2]) : NaN }; });
+            const portsOk = ends.every(p => p.x === at[p.to].x && p.y > at[p.to].y && p.y < at[p.to].y + at[p.to].h);
+            const byTarget = new Map();
+            for (const p of ends) (byTarget.get(p.to) ?? byTarget.set(p.to, []).get(p.to)).push(p.y);
+            const portsApart = [...byTarget.values()].every(ys => ys.sort((u, w) => u - w).every((y, i) => i === 0 || y - ys[i - 1] >= PORT - 0.01));
+            const starts = new Map();
+            for (const e of edges) { const m = (routes.get(`${e.from}>${e.to}`) ?? "").match(/^M(-?[\d.]+) (-?[\d.]+)/); (starts.get(e.from) ?? starts.set(e.from, new Set()).get(e.from)).add(m ? m[0] : "none"); }
+            return { square: edges.every(e => /^M[-\d. ]+(\s*[HVQ][-\d. ]+)+$/.test(routes.get(`${e.from}>${e.to}`) ?? "")), overlap, close, portsOk, portsApart,
+                oneExit: [...starts.values()].every(s => s.size === 1) };
+        };
+        const want = { square: true, overlap: 0, close: 0, portsOk: true, portsApart: true, oneExit: true };
+        equal(JSON.stringify({ crowd: read(crowd), shot: read(shot), edges: crowd.edges.length }), JSON.stringify({ crowd: want, shot: want, edges: 40 }),
+            "{crowd, shot: square routes; overlap: pairs of stretches of different sources on one line; close: pairs of parallel stretches of different sources nearer than ROUTE.track; portsOk: every line ends on its target's left edge inside its box; portsApart: the ports of one target ROUTE.port apart; oneExit: each source's lines leave it at one point; edges: the crowded case's lines}");
+    }],
+    ["R7830 - a line takes its source's colour (1.2.119 round 3, the owner: \"Niech maja kolory pasujace do typu bulleta\"; case-map.mjs, components.css): each drawn edge carries its source node's type or kind class (a Remnant's type, a Deduction's, a Counter's), its arrowhead a marker of that colour, a counter's line still dashed; the stylesheet strokes a line and fills its head with `--drpg-case-type`, the theme's help ink where the source has none", async () => {
+        /*
+         * Line P of 1.2.119, round 3, 20.11.2026. Red at 87b21526: every line in the help ink, the heads by meaning.
+         */
+        const M = await import("./case-map.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const graph = S.graphOf({ chapter: 6, traces: [{ key: "S.R78301", type: "prep", name: "a", tiedToCrime: true }, { key: "S.R78302", type: "key", name: "b", tiedToCrime: true }],
+            rows: { "d-a": { kind: "deduction", label: "R7830 d", inputs: ["S.R78301", "S.R78302"] }, "c-b": { kind: "counter", label: "R7830 c", refutes: ["d-a"] }, "s-c": { kind: "solution", label: "R7830 s", inputs: ["d-a"] } } });
+        const d = document.createElement("div");
+        d.innerHTML = M.caseMapHtml({ graph, layout: layoutCase(graph), reading: { allOpen: true }, editors: new Map() });
+        const svg = d.querySelector("svg.drpg-case-edges");
+        const cls = el => [...el.classList].find(c => /^drpg-case-(type|kind)--/.test(c)) ?? null;
+        const edges = Object.fromEntries([...svg.querySelectorAll("path[data-drpg-edge]")].map(p => {
+            const id = (p.getAttribute("marker-end") ?? "").match(/^url\(#([^)]+)\)$/)?.[1];
+            const marker = id ? svg.querySelector(`marker[id="${id}"]`) : null;
+            const litId = p.dataset.drpgArrowLit;
+            const lit = litId ? svg.querySelector(`marker[id="${litId}"]`) : null;
+            return [p.dataset.drpgEdge, [cls(p), marker ? cls(marker) : "no head", lit ? cls(lit) : "no lit head", p.classList.contains("drpg-case-edge--refutes")]];
+        }));
+        let rules = "";
+        try { rules = await moduleStyles(); } catch { rules = ""; }
+        equal(JSON.stringify({ edges,
+            stroke: /\.drpg-case-edge \{[^}]*stroke: var\(--drpg-case-type, var\(--drpg-kit-help-ink\)\)/.test(rules),
+            head: /\.drpg-case-arrow > path \{[^}]*fill: var\(--drpg-case-type, var\(--drpg-kit-help-ink\)\)/.test(rules),
+            dashed: /\.drpg-case-edge--refutes \{[^}]*stroke-dasharray/.test(rules) }), JSON.stringify({
+            edges: { "S.R78301>d-a": ["drpg-case-type--prep", "drpg-case-type--prep", "drpg-case-type--prep", false], "S.R78302>d-a": ["drpg-case-type--key", "drpg-case-type--key", "drpg-case-type--key", false],
+                "c-b>d-a": ["drpg-case-kind--counter", "drpg-case-kind--counter", "drpg-case-kind--counter", true], "d-a>s-c": ["drpg-case-kind--deduction", "drpg-case-kind--deduction", "drpg-case-kind--deduction", false] },
+            stroke: true, head: true, dashed: true
+        }), "{edges: each line's colour class, its head's, its lit head's, dashed; stroke, head: the stylesheet's colour of a line and of a head; dashed: a counter's line}");
+    }],
+    ["R7831 - a deduction takes the colour of its Class Trial mode, and so do its lines (1.2.119 round 4, the owner: \"dedukcje niech maja tez rozne kolory i kolory strzalek zaleznie od tego, jaki class trial mode maja przypisany\"; case-map.mjs `CASE_MODE_ORDER`, components.css): a deduction with a mode carries `drpg-case-mode--<mode>` first and `data-drpg-trial-mode` on its face and fields, a deduction with none keeps the Deduction's colour, a counter or the solution with a mode keeps its own; a line out of a deduction with a mode carries that mode's class and its heads too; the modes are case-schema.mjs `caseModes()`, each with a colour in both themes that its class takes; the legend names the modes on the Map after the kinds, in their words", async () => {
+        /*
+         * Line P of 1.2.119, round 4, 20.11.2026. Red at d921c9cf: a deduction's colour is the Deduction's whatever its mode.
+         */
+        const M = await import("./case-map.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        must(Array.isArray(M.CASE_MODE_ORDER), "case-map.mjs exports no CASE_MODE_ORDER - no trial mode has a colour");
+        const graph = S.graphOf({ chapter: 6, traces: [{ key: "S.R78311", type: "prep", name: "a", tiedToCrime: true }],
+            rows: { "d-a": { kind: "deduction", label: "R7831 a", inputs: ["S.R78311"], mode: "debate" }, "d-b": { kind: "deduction", label: "R7831 b", inputs: ["S.R78311"], mode: "panic" },
+                "d-c": { kind: "deduction", label: "R7831 c", inputs: ["S.R78311"] }, "c-x": { kind: "counter", label: "R7831 x", refutes: ["d-a"], mode: "testimony" },
+                "s-y": { kind: "solution", label: "R7831 y", inputs: ["d-a", "d-b", "d-c"], mode: "closing" } } });
+        const d = document.createElement("div");
+        d.innerHTML = M.caseMapHtml({ graph, layout: layoutCase(graph), reading: { allOpen: true }, editors: new Map() });
+        const first = el => [...el.classList].find(c => /^drpg-case-(type|kind|mode)--/.test(c)) ?? null;
+        const nodes = sel => Object.fromEntries([...d.querySelectorAll(sel)].filter(el => /^(d-|c-|s-)/.test(el.dataset.drpgNode ?? el.dataset.drpgEdit ?? ""))
+            .map(el => [el.dataset.drpgNode ?? el.dataset.drpgEdit, [first(el), el.dataset.drpgTrialMode ?? null]]));
+        const svg = d.querySelector("svg.drpg-case-edges");
+        const lines = Object.fromEntries([...svg.querySelectorAll("path[data-drpg-edge]")].filter(p => /^d-/.test(p.dataset.drpgEdge)).map(p => {
+            const head = svg.querySelector(`marker[id="${(p.getAttribute("marker-end") ?? "").match(/^url\(#([^)]+)\)$/)?.[1]}"]`);
+            return [p.dataset.drpgEdge, [first(p), head ? first(head) : null]];
+        }));
+        const legend = [...d.querySelectorAll(".drpg-case-legend li")].map(li => li.dataset.drpgType ?? (li.dataset.drpgKind ? `kind:${li.dataset.drpgKind}` : `mode:${li.dataset.drpgTrialMode}:${li.textContent.trim()}`));
+        let rules = "";
+        try { rules = await moduleStyles(); } catch { rules = ""; }
+        const modes = S.caseModes();
+        const tokens = modes.filter(m => (rules.match(new RegExp(`--drpg-case-mode-${m}:`, "g")) ?? []).length >= 2);
+        const painted = modes.filter(m => new RegExp(`\\.drpg-case-mode--${m}\\s*\\{[^}]*--drpg-case-type:\\s*var\\(--drpg-case-mode-${m}\\)`).test(rules));
+        const L = m => M.modeLabel(m);
+        equal(JSON.stringify({ order: M.CASE_MODE_ORDER, faces: nodes("button[data-drpg-node]"), fields: nodes(".drpg-case-edit[data-drpg-edit]"), lines, legend, tokens, painted }), JSON.stringify({
+            order: modes,
+            faces: { "d-a": ["drpg-case-mode--debate", "debate"], "d-b": ["drpg-case-mode--panic", "panic"], "d-c": ["drpg-case-kind--deduction", null], "c-x": ["drpg-case-kind--counter", null], "s-y": ["drpg-case-kind--solution", null] },
+            fields: { "d-a": ["drpg-case-mode--debate", "debate"], "d-b": ["drpg-case-mode--panic", "panic"], "d-c": ["drpg-case-kind--deduction", null], "c-x": ["drpg-case-kind--counter", null], "s-y": ["drpg-case-kind--solution", null] },
+            lines: { "d-a>s-y": ["drpg-case-mode--debate", "drpg-case-mode--debate"], "d-b>s-y": ["drpg-case-mode--panic", "drpg-case-mode--panic"], "d-c>s-y": ["drpg-case-kind--deduction", "drpg-case-kind--deduction"] },
+            legend: ["prep", "kind:deduction", "kind:counter", "kind:solution", `mode:debate:${L("debate")}`, `mode:panic:${L("panic")}`],
+            tokens: modes, painted: modes
+        }), "{order: the modes with a colour; faces, fields: each schema node's first colour class and its trial mode attribute; lines: each deduction's line's colour class and its head's; legend: its items; tokens: modes with a colour in both themes; painted: mode classes taking their colour}");
+    }],
+    ["R7832 - every trial mode's colour stands apart from the others and from every Remnant type and kind colour, and carries its ink at WCAG AA, in both themes (1.2.119 round 4; components.css `--drpg-case-mode-*`, tools/contrast-pairs.json `case-mode-*`)", async () => {
+        /*
+         * Line P of 1.2.119, round 4, 20.11.2026. tests-css.mjs `themeTokens`, `labOf` and `deltaE00` (CIEDE2000, held to
+         * its published pairs by R3411) on the sheets Foundry serves; the colours were picked by a greedy search over that
+         * distance (the commit's), so the threshold is a floor under what was picked, not a target it was tuned to. Red at
+         * d921c9cf: no mode has a colour.
+         */
+        needs(env.tools(), "tools/contrast-pairs.json is read from the repository's tools/ (an installed module's zip leaves it out)");
+        const C = await import("./tests-css.mjs");
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        const sheets = [];
+        for (const file of manifest.styles ?? []) sheets.push([file, await fetch(`/modules/${MODULE_ID}/${file}`).then(lfText)]);
+        const tokens = C.themeTokens(sheets);
+        const S = await import("./case-schema.mjs");
+        const modes = S.caseModes();
+        const others = ["key", "incident", "prep", "resolution", "autopsy", "neutral", "faint", "final"].map(t => `--drpg-case-type-${t}`)
+            .concat(["deduction", "counter", "solution"].map(k => `--drpg-case-kind-${k}`));
+        const colour = (theme, name) => { const c = C.resolveColour(`var(${name})`, tokens[theme]).colour; return c ? c.slice(0, 3) : null; }; // 0-255, as resolveColour answers
+        const MIN = 10;
+        const near = Object.fromEntries(["stained-glass", "monokuma-legacy"].map(theme => [theme, modes.map(m => {
+            const me = colour(theme, `--drpg-case-mode-${m}`);
+            if (!me) return `${m}: none`;
+            const list = [...others, ...modes.filter(x => x !== m).map(x => `--drpg-case-mode-${x}`)];
+            const dists = list.map(n => [n, colour(theme, n)]).filter(([, c]) => c).map(([n, c]) => [n, C.deltaE00(C.labOf(me), C.labOf(c))]);
+            const worst = dists.sort((a, b) => a[1] - b[1])[0];
+            return worst && worst[1] >= MIN ? `${m}: ok` : `${m}: ${worst ? `${worst[1].toFixed(1)} from ${worst[0]}` : "nothing read"}`;
+        })]));
+        let pairs = [];
+        try { pairs = (await fetch(`/modules/${MODULE_ID}/tools/contrast-pairs.json`, { cache: "no-cache" }).then(r => r.json())).pairs ?? []; } catch { pairs = []; }
+        const mine = pairs.filter(p => String(p.id).startsWith("case-mode-"));
+        const read = cssContrastOf(mine, cssThemeTokens(sheets));
+        const aa = Object.fromEntries(["stained-glass", "monokuma-legacy"].map(theme => [theme, modes.map(m => {
+            const i = mine.findIndex(p => p.theme === theme && p.on === `--drpg-case-mode-${m}` && p.text === "--drpg-case-type-ink");
+            return i < 0 ? `${m}: none` : `${m}: ${read[i].state}`;
+        })]));
+        const ok = Object.fromEntries(["stained-glass", "monokuma-legacy"].map(theme => [theme, modes.map(m => `${m}: ok`)]));
+        equal(JSON.stringify({ near, aa }), JSON.stringify({ near: ok, aa: ok }),
+            `{near: each mode's nearest colour among the types, the kinds and the other modes, CIEDE2000 at least ${MIN}; aa: the ink on each mode's colour by WCAG 2 AA}`);
+    }],
+    ["R7833 - an event's files are added and removed one at a time (1.2.119, the owner: \"dodajmy opcje wyboru ktory dzwiek usuwamy/dodajemy ... nie moge usunac pliku ktory mnie juz nie interesuje\"; sfx-play.mjs `withSoundFile`, `withoutSoundFile`, `soundValueOf`, `ownSoundsFor`): a file joins the end of the row's files, a pasted list of several joins part by part, a file already there is not added twice; one file taken out leaves the rest as they stood; the files make the row's stored value, and none makes none", async () => {
+        /*
+         * Line P of 1.2.119 (the sound item), 20.11.2026. Pure. Red at b5a29e73: sfx-play.mjs exports none of the four.
+         */
+        const P = await import("./sfx-play.mjs");
+        must(typeof P.withSoundFile === "function" && typeof P.withoutSoundFile === "function" && typeof P.soundValueOf === "function" && typeof P.ownSoundsFor === "function",
+            "sfx-play.mjs has no way to add or remove one file of an event");
+        const two = ["sounds/a.ogg", "sounds/b.ogg"];
+        equal(JSON.stringify({
+            add: P.withSoundFile(two, "sounds/c.ogg"), again: P.withSoundFile(two, "sounds/b.ogg"), pasted: P.withSoundFile(["a"], " b | c |  | a "),
+            removeSecond: P.withoutSoundFile(two, 1), removeFirst: P.withoutSoundFile(two, 0), outside: P.withoutSoundFile(two, 5), kept: two,
+            value: P.soundValueOf(["sounds/a.ogg", "sounds/c.ogg"]), one: P.soundValueOf(["sounds/a.ogg"]), none: P.soundValueOf([])
+        }), JSON.stringify({
+            add: ["sounds/a.ogg", "sounds/b.ogg", "sounds/c.ogg"], again: two, pasted: ["a", "b", "c"],
+            removeSecond: ["sounds/a.ogg"], removeFirst: ["sounds/b.ogg"], outside: two, kept: ["sounds/a.ogg", "sounds/b.ogg"],
+            value: "sounds/a.ogg | sounds/c.ogg", one: "sounds/a.ogg", none: null
+        }), "{add, again, pasted: the files after adding; removeSecond, removeFirst, outside: after removing at 1, 0 and 5; kept: the input untouched; value, one, none: the stored value}");
+    }],
+    ["R7834 - an Effects row shows its files one by one (1.2.119; sfx.mjs `soundFilesHtml`; the owner: \"niech kazdy wiersz wyglada jak ten pierwszy (tzn wklejalny link a nie sama nazwa)\"): the \"N files\" chip is a button that unfolds or folds the row's list (`aria-expanded`, `aria-controls`), the list hidden while folded; each file a box like the row's own - its whole stored path or link as the value, its name (the path's last part, decoded) as the tooltip and in its accessible name - with Play and Remove named by it and carrying its index; a row with no file draws neither; the words in both languages", async () => {
+        /*
+         * Line P of 1.2.119 (the sound item), 20.11.2026. Pure markup. Red at b5a29e73: sfx.mjs exports no soundFilesHtml
+         * (the chip was a span, and the files stood in one box separated by "|").
+         */
+        const X = await import("./sfx.mjs");
+        must(typeof X.soundFilesHtml === "function", "sfx.mjs exports no soundFilesHtml - an event's files cannot be seen one by one");
+        const key = Object.keys(SFX_EVENTS)[0];
+        const files = ["sounds/monocub/a.ogg", "https://example.invalid/fx/wet%20step.mp3"];
+        const read = open => {
+            const { chip, list } = X.soundFilesHtml(key, files, { open });
+            const d = document.createElement("div");
+            d.innerHTML = chip + list;
+            const c = d.querySelector("button[data-drpg-sfx-files]"), ul = d.querySelector("ul[data-drpg-sfx-list]");
+            return { chip: c ? [c.getAttribute("aria-expanded"), c.getAttribute("aria-controls") === ul?.id, c.textContent.trim()] : null,
+                hidden: ul ? ul.hidden : null,
+                items: [...(ul?.querySelectorAll("li[data-drpg-sfx-file]") ?? [])].map(li => {
+                    const box = li.querySelector('input[type="text"][data-drpg-sfx-file-box]');
+                    return [box?.value ?? null, box?.title ?? null, box?.getAttribute("aria-label") ?? null, li.classList.contains("drpg-sound-file"),
+                        li.querySelector("[data-drpg-sfx-play-file]")?.dataset.drpgSfxPlayFile, li.querySelector("[data-drpg-sfx-play-file]")?.getAttribute("aria-label"),
+                        li.querySelector("[data-drpg-sfx-remove]")?.dataset.drpgSfxRemove, li.querySelector("[data-drpg-sfx-remove]")?.getAttribute("aria-label")];
+                }) };
+        };
+        const F = (k, data) => game.i18n.format(k, data);
+        const lang = {};
+        for (const l of ["en", "pl"]) {
+            try { const S = (await fetch(`/modules/${MODULE_ID}/lang/${l}.json`).then(r => r.json()))?.DRPG?.Sound ?? {}; lang[l] = ["addFile", "showFiles", "filesOf", "playFile", "removeFile", "editFile"].map(k => typeof S[k] === "string" && S[k].length > 0); } catch { lang[l] = null; }
+        }
+        const empty = X.soundFilesHtml(key, []);
+        equal(JSON.stringify({ shut: read(false), open: read(true), empty, lang }), JSON.stringify({
+            shut: { chip: ["false", true, game.i18n.format("DRPG.Sound.fileCount.other", { n: 2 })], hidden: true, items: [
+                [files[0], "a.ogg", F("DRPG.Sound.editFile", { name: "a.ogg" }), true, "0", F("DRPG.Sound.playFile", { name: "a.ogg" }), "0", F("DRPG.Sound.removeFile", { name: "a.ogg" })],
+                [files[1], "wet step.mp3", F("DRPG.Sound.editFile", { name: "wet step.mp3" }), true, "1", F("DRPG.Sound.playFile", { name: "wet step.mp3" }), "1", F("DRPG.Sound.removeFile", { name: "wet step.mp3" })]] },
+            open: { chip: ["true", true, game.i18n.format("DRPG.Sound.fileCount.other", { n: 2 })], hidden: false, items: [
+                [files[0], "a.ogg", F("DRPG.Sound.editFile", { name: "a.ogg" }), true, "0", F("DRPG.Sound.playFile", { name: "a.ogg" }), "0", F("DRPG.Sound.removeFile", { name: "a.ogg" })],
+                [files[1], "wet step.mp3", F("DRPG.Sound.editFile", { name: "wet step.mp3" }), true, "1", F("DRPG.Sound.playFile", { name: "wet step.mp3" }), "1", F("DRPG.Sound.removeFile", { name: "wet step.mp3" })]] },
+            empty: { chip: "", list: "" }, lang: { en: [true, true, true, true, true, true], pl: [true, true, true, true, true, true] }
+        }), "{shut, open: the chip [expanded, controls the list, words], the list hidden, each file [its box's value, tooltip and name, a row box's class, Play's and Remove's index and name]; empty: a row with no file; lang: the six keys in each language}");
+    }],
+    ["R7835 - one file of an event is replaced in its own box (1.2.119, the owner on the shot: \"niech kazdy wiersz wyglada jak ten pierwszy (tzn wklejalny link a nie sama nazwa)\"; sfx-play.mjs `withSoundFileAt`): a file's box edited replaces that file alone, in its place; emptied, it removes it; a path another file already holds drops this one rather than double it; a pasted list of several puts the first in its place and the rest after it, none twice; the same path or an index outside the list changes nothing", async () => {
+        /*
+         * Line P of 1.2.119 (the sound item), 20.11.2026; until the owner's answer this number held "a name on one line,
+         * cut with an ellipsis" (e1c6015e), which his answer replaced the same evening: every file a box like the first.
+         * Pure. Red at e1c6015e: sfx-play.mjs exports no withSoundFileAt.
+         */
+        const P = await import("./sfx-play.mjs");
+        must(typeof P.withSoundFileAt === "function", "sfx-play.mjs has no way to replace one file of an event");
+        const two = ["sounds/a.ogg", "sounds/b.ogg"];
+        equal(JSON.stringify({
+            replace: P.withSoundFileAt(two, 1, "sounds/c.ogg"), emptied: P.withSoundFileAt(two, 1, "  "), double: P.withSoundFileAt(two, 1, "sounds/a.ogg"),
+            pasted: P.withSoundFileAt(two, 0, "sounds/c.ogg | sounds/d.ogg | sounds/b.ogg"), same: P.withSoundFileAt(two, 0, " sounds/a.ogg "),
+            outside: P.withSoundFileAt(two, 7, "sounds/c.ogg"), kept: two
+        }), JSON.stringify({
+            replace: ["sounds/a.ogg", "sounds/c.ogg"], emptied: ["sounds/a.ogg"], double: ["sounds/a.ogg"],
+            pasted: ["sounds/c.ogg", "sounds/d.ogg", "sounds/b.ogg"], same: two, outside: two, kept: ["sounds/a.ogg", "sounds/b.ogg"]
+        }), "{replace, emptied, double, pasted, same, outside: the files after one box's edit; kept: the input untouched}");
     }],
     ["R5822 - a column's brackets stand apart (the owner, 13.11.2026, at a 1.2.112 table: \"The columns are still too close to each other\"; case-view.mjs `edgePath`): a bracket between two nodes of one column stands to their left, further out the longer it is, so one inside a longer one stands inside it and two of different lengths never share a vertical line; the longest stands inside the gap, short of the column before; a curve between columns keeps its shape", async () => {
         /*
@@ -26165,8 +26719,9 @@ const REGRESSIONS = [
 
     ["R7741 - every put-back of a token's spot writes through movement.mjs `putBackWrite`, which sends it with diff: false (the line claude/shim-118, 17.11.2026; the coordinator's answer on scenario 76 D)", async () => {
         /* TEXT GUARD: a put-back written while a newer move is in flight lost a coordinate to the writer's diff (76 D on the
-           D4 shim); `putBackWrite` sends every coordinate it names, and tier 2 "a put-back writes every coordinate it names"
-           drives it. Read here: the helper sends `diff: false` after the caller's options, and no module write that marks
+           D4 shim); `putBackWrite` sends every coordinate it names, and since 19.11.2026 waits for the move in flight where the
+           copy already holds them (r5), which tier 2 "a put-back written while the token's newer move is on its way lands after
+           it" drives. Read here: the helper sends `diff: false` after the caller's options, and no module write that marks
            itself a put-back (`REVERT`) through a token's own `update` is left in movement.mjs or bridge-runs-records.mjs - the
            gather's displacement in call-world.mjs, which moves the cast rather than putting one token back, is not one. */
         const src = new Map(await otherSources());
@@ -26179,6 +26734,17 @@ const REGRESSIONS = [
         equal(JSON.stringify(direct), "[]", "a put-back writes through a token's own update, not putBackWrite");
         const through = [...move.matchAll(/\bputBackWrite\(/g)].length + [...runs.matchAll(/\bprepared\.putBackWrite\(/g)].length;
         equal(through, 4, "the put-backs through putBackWrite are not sendBack's, refundLastCrossing's and the bridge's send-back (with the helper's own name, four)");
+        /* And the mover's own charge marks its put-backs seen here (19.11.2026, the coordinator's decision after 70-movement's
+           measured wait): `chargeRoute`'s Eclipse put-back and `chargeForCrossing`'s out of budget judge a move this browser
+           has just seen land, so `putBackWrite` does not wait for one (tier 2 "a put-back that judges a move this browser saw
+           land does not wait"). `sendBack` hands the mark on; no other road sets it - the GMs' audit and the bridge judge a
+           move another browser made. */
+        const marked = [fnSource(move, "chargeRoute"), fnSource(move, "chargeForCrossing")].map(body =>
+            [...body.matchAll(/\bsendBack\(([^;]*)\)/g)].map(m => /seenHere:\s*true/.test(m[1])));
+        const handed = /putBackWrite\([^;]*\{\s*seenHere\s*\}\s*\)/.test(fnSource(move, "sendBack"));
+        const elsewhere = [...move.matchAll(/seenHere:\s*true/g)].length;
+        equal(JSON.stringify([marked, handed, elsewhere]), JSON.stringify([[[true], [true]], true, 2]),
+            "chargeRoute's and chargeForCrossing's put-backs are not marked seen here, sendBack does not hand the mark to putBackWrite, or another road marks one (each put-back's mark, sendBack's hand-on, the marks in movement.mjs)");
     }],
     ["R7744 - every bare write of a student's guarded flag tells the GMs' audit first (resource-guard.mjs `noteOwnWrite`), or names why it cannot be dropped (the line claude/shim-118, 17.11.2026; the coordinator's choice A on E16-T29)", async () => {
         /*

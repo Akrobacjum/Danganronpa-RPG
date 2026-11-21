@@ -64,6 +64,7 @@ import { maskInsiders } from "./mask-gm.mjs";
 import { readDuality } from "./despair-award.mjs";
 import { cardFlag } from "./secret.mjs";
 import { keepRoom } from "./notice-history.mjs";
+import { noteThrow } from "./dice-hold.mjs";
 import { LOADED_DIE } from "./forced-roll.mjs";
 import { sample, now as timingNow } from "./perf-timings.mjs";
 
@@ -1879,7 +1880,8 @@ export function relayRerolledDice(message, byId = null) {
         error("Could not send a Reroll's dice", err);
     }
     // The GM that made it watches them only where it is of their audience (E60 C5e): a player's roll, its Monokuma elsewhere.
-    if (audience.includes(game.user?.id)) void playRolls(message, by ?? game.user);
+    // Noted as this screen's throw of the message: what the Reroll moves is drawn here once it has landed (dice-hold.mjs, 1.2.119).
+    if (audience.includes(game.user?.id)) noteThrow(message.id, playRolls(message, by ?? game.user));
 }
 
 /** A message's rolls on this screen as `user`'s dice, or the dice sound where Dice So Nice is not. */
@@ -1927,6 +1929,11 @@ export async function showRelayedDice(payload, senderId) {
     const id = typeof payload?.id === "string" ? payload.id : null;
     const rewrite = payload?.rewrite === true;
     if (!id) return;
+    /* This browser's throw of the message, noted before the first await and settled when the dice have landed or
+       nothing was thrown (dice-hold.mjs, 1.2.119): a roll's Despair point written by the primary right after it sent
+       this could otherwise arrive while this waited for the message, find no throw, and be drawn under falling dice. */
+    let landed = null;
+    noteThrow(id, new Promise(resolve => { landed = resolve; }));
     try {
         const { messageArrives } = await import("./secret.mjs");
         const message = game.messages.get(id) ?? await messageArrives(id);
@@ -1947,5 +1954,7 @@ export async function showRelayedDice(payload, senderId) {
         for (const roll of message.rolls ?? []) await game.dice3d.showForRoll(roll, by ?? message.author, false);
     } catch (err) {
         error("Could not show the incident's dice", err);
+    } finally {
+        landed();
     }
 }

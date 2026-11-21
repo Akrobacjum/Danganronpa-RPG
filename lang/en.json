@@ -716,6 +716,7 @@
       "trialClockTooltip": "How long this part of the debate has left.",
       "trialEveryone": "Everyone",
       "trialVersus": "vs {who}",
+      "trialNoSpeaker": "Nobody speaks",
       "trialSpeaks": "{name} speaks"
     },
     "Passage": {
@@ -1203,7 +1204,7 @@
       "discardNote": "It costs no action. You roll Shadow: the higher the total, the harder the Remnant you leave here is to spot. Putting it in your own stash leaves none.",
       "discarded": "You threw away “{item}”.",
       "discardTrace": "You left a Remnant behind.",
-      "discardOnlyBroken": "Only a broken item can be thrown away.",
+      "discardNever": "This cannot be thrown away.",
       "noDiscardInTrial": "Nothing can be thrown away during the Class Trial.",
       "discardStashed": "Take it out of your stash first.",
       "discardNoTrace": "“{item}” is still on you: your character has no token on the map, so there is nowhere to leave it.",
@@ -1487,6 +1488,7 @@
         "begins": "Zone {zone} speaks first. The camps take turns of {seconds} s, {turns} turns in all.",
         "over": "The Scrum Debate is over: {a} in Zone A, {b} in Zone B.",
         "empty": "Zone {zone} is empty. The class thinks: {answer}.",
+        "noSpeaker": "Nobody stands in Zone {zone}, so this turn runs out with no speaker.",
         "thesis": "Zone {zone}'s thesis: {text}"
       },
       "panel": {
@@ -2287,6 +2289,7 @@
           "orderTooltip": "By room puts tied Remnants first, then sorts by room; Newest first goes by chapter, day, and time of day",
           "restsOnBoxTooltip": "Ticked, the Map draws a link from that node into this one, and Check consistency follows it",
           "refutesBoxTooltip": "Ticked, the Map draws a link from this counter to that node, and Check consistency follows it",
+          "goneRefBoxTooltip": "What this names is no longer in the case. Untick it to remove the link",
           "remnantsTabTooltip": "Every Remnant on the map, to filter and change; your changes wait for Save",
           "keyTabTooltip": "The chapter's planned Key Remnants: their words, who found each, and Place for those not on the map",
           "finalTabTooltip": "The Final Truth Remnants on the map, who found each, and the form that places another",
@@ -2372,7 +2375,13 @@
       "file": "File",
       "rowButtons": "Test or clear",
       "notAssigned": "not assigned yet",
-      "severalHint": "One file, or several separated by |. Each play picks one, never the same one twice in a row.",
+      "severalHint": "Each file you add here or with Choose joins this event's files. Each play picks one, never the same one twice in a row.",
+      "addFile": "Add a file: a path or a link",
+      "showFiles": "Show or hide this event's files",
+      "filesOf": "Files of {label}",
+      "playFile": "Play {name}",
+      "removeFile": "Remove {name}",
+      "editFile": "Path or link of {name}",
       "fileCount": { "one": "{n} file", "other": "{n} files" },
       "varies": "varies",
       "safewordNoFile": "No file yet: the safeword plays no sound until you choose one. Its card still reaches everybody.",
@@ -2537,7 +2546,7 @@
       "intro": "Pick a playlist for each state.",
       "howOrder": "How the order works",
       "orderNote": "The first state that applies wins, in the order listed. A Class Trial at night uses the trial's playlists; an Eclipse during a trial uses the Eclipse's.",
-      "trialNote": "The higher row wins. A mode with no playlist of its own plays as before: a Rebuttal the Objection's, a zone mode the Debate's, Testimony, a Panic Round and the Closing Argument the Discussion's.",
+      "trialNote": "The higher row wins. A mode with no playlist of its own plays as before: a Rebuttal the Objection's, a zone mode the Debate's, Testimony, a Panic Round and the Closing Argument the Discussion's. The Closing Argument's own playlist starts once the GM confirms its speaker.",
       "incidentNote": "Only the players taking part in the murder, and the GMs, hear it.",
       "fadeNote": "Set the fade length in each playlist's Fade Duration. When a body is found and nothing is mapped to it, the music goes silent, and a track you put on yourself stops too.",
       "when": "When",
@@ -3953,6 +3962,34 @@
       },
       "gmHint": "{trait}, beat {dc}",
       "projectHint": "From the project {project} · {life}",
+      "gives": {
+        "health": {
+          "one": "+{n} Health",
+          "other": "+{n} Health"
+        },
+        "sanity": {
+          "one": "+{n} Sanity",
+          "other": "+{n} Sanity"
+        },
+        "hope": {
+          "one": "+{n} Hope",
+          "other": "+{n} Hope"
+        },
+        "freeMove": "+{n} Free Move",
+        "searchToken": "the room's Search Tokens +{n}",
+        "overflowDown": "Despair in the Overflow -{n}",
+        "text": "a message from the GM",
+        "advantage": "advantage on the next roll",
+        "durability": "+{n} durability on the most worn thing",
+        "endWounded": "an end to Wounded",
+        "endBreakdown": "an end to Breakdown",
+        "projectProgress": {
+          "one": "+{n} progress to the room's oldest unfinished project",
+          "other": "+{n} progress to the room's oldest unfinished project"
+        }
+      },
+      "givesScoped": "{what} ({who})",
+      "givesNothing": "no effect",
       "forGood": "for good",
       "projectLine": "{action} in Facilities, {life}",
       "notLive": {
@@ -7033,6 +7070,10 @@
       }
     },
     "GmStore": {
+      "cutAhead": {
+        "one": "The GM store \"{store}\" holds a reset {n} minute ahead of this computer's clock. It was made on a GM computer whose clock ran ahead. What this browser writes now is kept above it. Check the date and time on every GM's computer.",
+        "other": "The GM store \"{store}\" holds a reset {n} minutes ahead of this computer's clock. It was made on a GM computer whose clock ran ahead. What this browser writes now is kept above it. Check the date and time on every GM's computer."
+      },
       "saveFailed": "The GM store could not save \"{store}\" in this browser: {error}. What it holds stays in this window until it is closed, and the GMs connected now hold a copy. Back it up now (GM panel, Diagnostics, The case: Back up).",
       "syncTimedOut": "The GM store did not hear from {names}. It carries on with what this browser holds, and their copy is merged when it arrives.",
       "claimFailed": {
@@ -7323,6 +7364,7 @@
     "CaseMap": {
       "noDiveSet": "- no set -",
       "diveSetGone": "(a set since deleted)",
+      "goneRef": "“{ref}” (gone: untick to remove)",
       "autopsySent": "Sent to the students.",
       "autopsyWhen": "Goes to every living student when body {n} is found, if this Autopsy has a name or words and is within the chapter's count.",
       "autopsyNth": "{label} {n}",
@@ -7335,6 +7377,7 @@
       "editLabel": "Fields of {name}",
       "toolsLabel": "Map tools",
       "cameraLabel": "Camera",
+      "legendLabel": "Colors on the Map",
       "zoomOut": "Zoom out",
       "zoomIn": "Zoom in",
       "zoomLevel": "Zoom",
@@ -7378,7 +7421,7 @@
       "noMode": "- no trial mode -",
       "nothingToRefute": "No deduction to refute yet.",
       "removeNode": "Remove from the case",
-      "removeAsk": "Remove {name} from the case? A node that rests on it keeps naming it, and Check consistency reports it.",
+      "removeAsk": "Remove {name} from the case? It also comes off every node that rests on it or refutes it.",
       "addDeduction": "Add deduction",
       "addCounter": "Add counter",
       "addSolution": "Add solution",
@@ -7387,6 +7430,10 @@
       "sortLabel": "Order in a column",
       "moveUp": "Move up",
       "moveDown": "Move down",
+      "moveEnd": {
+        "up": "{name} cannot move further up.",
+        "down": "{name} cannot move further down."
+      },
       "notSaved": "Your changes were not saved. They are still in the fields.",
       "field": {
         "img": "Picture",

@@ -235,9 +235,17 @@ function rowsHere(actor) {
     return Array.isArray(list) ? list : [];
 }
 
+/**
+ * What a timed effect or row does, without what ends it ("+2 Body"), or "" for a kind that is not timed: the words the
+ * sheet's badges and lines use, and the Facilities window's rows (action-facilities.mjs `effectWords`, 1.2.119).
+ */
+export function timedWhat(row) {
+    return KINDS[row?.kind] ? KINDS[row.kind].line(row) : "";
+}
+
 /** One effect or row as a line: what it does and what ends it ("+2 Body - until the time of day ends"). */
 export function timedLine(row) {
-    return KINDS[row?.kind] ? `${KINDS[row.kind].line(row)} - ${game.i18n.localize(`DRPG.Facility.until.${row.until}`)}` : "";
+    return KINDS[row?.kind] ? `${timedWhat(row)} - ${game.i18n.localize(`DRPG.Facility.until.${row.until}`)}` : "";
 }
 
 /**

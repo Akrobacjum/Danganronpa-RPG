@@ -51,7 +51,10 @@
  * `Date.now()` 1793415993407, and every stamp after a restart fell under the
  * watermarks of the session before and was dropped. An uptime is not taken now
  * (config.mjs `epochClock`), and every stamp the epoch clock makes is above every
- * uptime-based one a store holds.
+ * uptime-based one a store holds. And a write is stamped above every stamp the keys it
+ * writes already hold (`stampOver`, 1.2.119): there, on each GM's own clock, a reset
+ * made on a GM computer whose clock ran ahead left a watermark above every stamp the
+ * others made, and everything they wrote after it was cut as it was written (R7860).
  *
  * WEAK. A value derived from absence - a migration's default, an unstamped
  * legacy row - is written at the section's watermark plus a half (`weakOf`): it
@@ -742,6 +745,42 @@ export function createGmStoreEngine(env) {
     }
     const observeSection = (sec, from = null) => observe(newestIn(sec), from);
 
+    /*
+     * A DECISION IS NEWER THAN WHAT IT DECIDES OVER (1.2.119, line F; the owner's item #2 of 20.11.2026: the GM's fog
+     * stopped showing the rooms the players found, and F5 did not bring them back). `observe` holds the clock at ten
+     * minutes ahead of now, so a stamp this browser saw further ahead - a reset's cut written on a GM machine whose clock
+     * runs fast, which on The Forge is any GM's own `Date.now()` (config.mjs `epochClock`, E90) - stayed above every
+     * stamp made here: each write under the watermark or a key's tombstone was cut by `writeFields` the moment it was
+     * made, in memory and in storage, and nothing said so. R7860 read every room written after a cut two hours ahead
+     * gone on b5a29e73. Now a write is stamped above every stamp the keys it writes already hold (`floor`: the
+     * watermark, their tombstones, their fields); a healthy store's stamps are under `last` already, so only such a
+     * stamp lifts it. The clock then runs from there, as it would after observing it, and the GM is told once per
+     * store and browser (`tellAhead`). A peer's field stamped ahead is beaten the same way, which is the order the
+     * write was made in.
+     */
+    function stampOver(floor, st) {
+        const s = stamp();
+        if (s > floor) return s;
+        last = Math.floor(floor) + 1;
+        if (st) tellAhead(st, floor);
+        return last;
+    }
+    const aheadTold = new Set();
+    function tellAhead(st, at) {
+        const minutes = Math.round((at - now()) / 60000);
+        if (!(at > now() + TIMING.gmStoreSkewMs) || aheadTold.has(st.spec.name)) return;
+        aheadTold.add(st.spec.name);
+        env.log.warn(`The GM store "${st.spec.name}" holds a stamp ${minutes} minute(s) ahead of this browser's clock (a reset made on a GM computer whose clock ran ahead); what is written here is stamped above it.`);
+        env.notify("warn", env.text?.("DRPG.GmStore.cutAhead", { store: st.spec.name, n: minutes })
+            ?? `The GM store "${st.spec.name}" holds a reset ${minutes} minute(s) ahead of this computer's clock.`, { permanent: true });
+    }
+    /* The newest stamp `keys` hold in `sec`: the watermark, each one's tombstone and fields. */
+    function floorOf(sec, keys, split) {
+        let floor = sec.cleared ?? 0;
+        for (const k of keys) floor = Math.max(floor, sec.d[k] ?? 0, fieldStamp(sec, k, undefined, split));
+        return floor;
+    }
+
     /* --------------------------- world sections --------------------------- */
 
     function parseValue(raw) {
@@ -920,14 +959,14 @@ export function createGmStoreEngine(env) {
             patch(k, fields, opts = {}) {
                 if (!gmWrite("write")) return Promise.resolve();
                 const w = current(st);
-                const s = opts.stamp ?? (opts.weak ? weakOf(w.section) : stamp());
+                const s = opts.stamp ?? (opts.weak ? weakOf(w.section) : stampOver(floorOf(w.section, [k], split), st));
                 const wrote = writeFields(w.section, k, fields, s, spec, opts);
                 return touched(st, w, wrote ? new Set([k]) : new Set(), { local: true });
             },
             patchMany(map, opts = {}) {
                 if (!gmWrite("write")) return Promise.resolve();
                 const w = current(st);
-                const s = opts.stamp ?? (opts.weak ? weakOf(w.section) : stamp());
+                const s = opts.stamp ?? (opts.weak ? weakOf(w.section) : stampOver(floorOf(w.section, Object.keys(map ?? {}), split), st));
                 const keys = new Set();
                 for (const [k, fields] of Object.entries(map ?? {})) if (writeFields(w.section, k, fields, s, spec, opts)) keys.add(k);
                 return touched(st, w, keys, { local: true });
@@ -935,12 +974,12 @@ export function createGmStoreEngine(env) {
             drop(k) {
                 if (!gmWrite("removal")) return Promise.resolve();
                 const w = current(st);
-                return touched(st, w, dropKey(w.section, k, stamp(), spec) ? new Set([k]) : new Set(), { local: true });
+                return touched(st, w, dropKey(w.section, k, stampOver(floorOf(w.section, [k], split), st), spec) ? new Set([k]) : new Set(), { local: true });
             },
             dropMany(keys) {
                 if (!gmWrite("removal")) return Promise.resolve();
                 const w = current(st);
-                const s = stamp();
+                const s = stampOver(floorOf(w.section, [...(keys ?? [])], split), st);
                 const out = new Set();
                 for (const k of keys ?? []) if (dropKey(w.section, k, s, spec)) out.add(k);
                 return touched(st, w, out, { local: true });
@@ -952,7 +991,8 @@ export function createGmStoreEngine(env) {
                     return Promise.resolve(false);
                 }
                 const w = current(st);
-                raiseCleared(w.section, stamp(), spec);
+                // Above everything the section holds, so the clear clears it whatever stamp it was written at.
+                raiseCleared(w.section, stampOver(newestIn(w.section), st), spec);
                 return touched(st, w, new Set([""]), { local: true }).then(() => true);
             },
             whenHydrated: () => (st.restored ? Promise.resolve("restored") : whenHydrated()),
@@ -1326,6 +1366,8 @@ export function createGmStoreEngine(env) {
                 done.push(schedule(st));
                 if (typeof st.spec.onCut === "function") risen.push(st.spec);
             }
+            // A cut ahead of this browser's clock is said at once, as the store opens or the clock changes (1.2.119, line F).
+            tellAhead(st, w.section.cleared ?? 0);
         }
         for (const spec of risen) {
             try { spec.onCut(); }
@@ -1402,7 +1444,10 @@ export function createGmStoreEngine(env) {
         const cs = copies.get(name);
         const incoming = copyStamps(s);
         if (!cs || !incoming) return false;
-        const cut = copyCut(cs.spec), bound = now() + TIMING.gmStoreSkewMs;
+        /* Capped at ten minutes past the later of this clock and the reset's cut (1.2.119 line F, R7861): the GMs stamp
+           above a cut that runs ahead (`stampOver`), and capped at this clock alone every row they sent read as no newer
+           than the cut and was refused, so the player lost every room found since that reset. */
+        const cut = copyCut(cs.spec), bound = Math.max(now(), cut) + TIMING.gmStoreSkewMs;
         for (const part of Object.keys(incoming)) incoming[part] = Math.min(incoming[part], bound);
         if (newestStamp(incoming) <= cut) return false;
         const rec = copyRecord(cs);

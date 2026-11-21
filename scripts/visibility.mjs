@@ -1002,6 +1002,25 @@ export function installSightRule(TokenClass = globalThis.CONFIG?.Token?.objectCl
     return true;
 }
 
+/**
+ * WHETHER THE OPENING'S VEIL HIDES `user` FROM THIS BROWSER (1.2.119 line F; the auditor's finding domain-comm-c-voice 1):
+ * `user` owns a token the veil marks (`veiledToken`) on any scene, and `tokenShownTo` hides that token from `viewer` - the
+ * same rule the map hides it by, so the voice tile and the map agree. Never on a GM's browser, nor for the viewer's own
+ * account, nor for a GM's. The voice tile asks it of each participant of its Room (voice-tile.mjs `voiceWatch`'s
+ * `veiled`): the killer stays in the room's channel and hears it (E112), and is counted, listed and drawn on no tile the
+ * veil hides them from. `viewer` and `scenes` are the suite's (R7864).
+ */
+export function voiceVeiledHere(user, { viewer = viewerHere(), scenes = game.scenes ?? [] } = {}) {
+    if (!user || user.isGM || viewer?.gm || user.id === game.user?.id) return false;
+    for (const scene of scenes) {
+        for (const tokenDoc of scene?.tokens ?? []) {
+            if (!veiledToken(tokenDoc) || !tokenDoc.actor?.testUserPermission?.(user, "OWNER")) continue;
+            if (tokenShownTo(tokenDoc, viewer) === "hide") return true;
+        }
+    }
+    return false;
+}
+
 /** This browser's answer for a token's ruler (the ruler class's predicate). */
 function rulerHere(token) {
     if (!token) return true;

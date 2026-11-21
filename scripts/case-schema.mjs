@@ -446,11 +446,104 @@ export async function setCaseMeta(chapter, fields = {}, { base = null } = {}) {
     return caseSchemaStore.get(key) ?? null;
 }
 
-/** Remove one node, on a GM: a tombstone every GM gets. What named it keeps the reference (`missing`, C8). */
+/**
+ * WHAT A REMOVAL TAKES WITH IT (the owner, 19.11.2026: "Przyjmujemy ze usuniecie bulleta usuwa tez jego polaczenia"; the
+ * line claude/plan-119). Pure: `rows` a chapter's schema rows by node id, `gone` the ids that name nothing any more.
+ * Answers `{ [rowId]: { inputs?, refutes? } }` - each other row whose list names one of them, that list without them;
+ * a row of `gone` itself is not written. Until this line a removal kept every reference to what it removed (E97 C8's
+ * `missing`), and the editor draws a box only for a node that is there, so no Save could take such a reference off: the
+ * consistency check named it for good.
+ */
+export function refsCut(rows = {}, gone = []) {
+    const out = new Set(gone);
+    const patches = {};
+    for (const [id, raw] of Object.entries(rows ?? {})) {
+        if (out.has(id)) continue;
+        const node = caseNodeOf(raw);
+        if (!node) continue;
+        const patch = {};
+        for (const field of ["inputs", "refutes"]) {
+            const kept = node[field].filter(ref => !out.has(ref));
+            if (kept.length !== node[field].length) patch[field] = kept;
+        }
+        if (Object.keys(patch).length) patches[id] = patch;
+    }
+    return patches;
+}
+
+/**
+ * The ids of a chapter's rows a GM removed that its other rows still name (pure: `rows` as `refsCut` reads them,
+ * `tombstoned(id)` whether the GMs' store holds the row's tombstone). A node id is random (`newCaseNodeId`), so a row
+ * id with a tombstone and no live row is a node removed for good; the store keeps its tombstones, as it has no
+ * `exists` to compact them by (gm-stores.mjs `compactGmStores`). Never a planned Autopsy's id, whose node the Map draws
+ * with no row (`graphOf`), nor a Remnant's or a Key slot's, which are no row's: those a GM unticks in the editor.
+ */
+export function droppedRefs(rows = {}, tombstoned = () => false) {
+    const named = new Set(Object.values(rows ?? {}).flatMap(raw => {
+        const node = caseNodeOf(raw);
+        return node ? [...node.inputs, ...node.refutes] : [];
+    }));
+    return [...named].filter(id => validNodeId(id) && autopsyNumber(id) === null && !Object.hasOwn(rows ?? {}, id) && tombstoned(id)).sort();
+}
+
+/** The cuts of `patches` written, each list as one field (`refsCut`), on a GM. Answers how many rows were written. */
+async function writeCuts(chapter, patches) {
+    let n = 0;
+    for (const [id, patch] of Object.entries(patches)) {
+        await caseSchemaStore.patch(caseKeyOf(chapter, id), patch, { changedOnly: true });
+        n++;
+    }
+    return n;
+}
+
+/**
+ * Remove one node, on a GM: a tombstone every GM gets, and every reference to it in the chapter's other rows goes with
+ * it (`refsCut`; the line claude/plan-119, 20.11.2026, the owner's ruling of 19.11). A planned Autopsy's row keeps its
+ * references: its node is drawn without a row (`graphOf`).
+ */
 export async function dropCaseNode(chapter, nodeId) {
     if (!game.user?.isGM || !Number.isInteger(chapter) || !validNodeId(nodeId)) return false;
     await caseSchemaStore.drop(caseKeyOf(chapter, nodeId));
+    if (autopsyNumber(nodeId) === null) await writeCuts(chapter, refsCut(caseRows(chapter).rows, [nodeId]));
     return true;
+}
+
+/**
+ * THE REFERENCES A REMOVAL LEFT BEFORE THIS LINE (the line claude/plan-119, 20.11.2026): in every chapter of the GMs'
+ * store, each reference to a row a GM removed (`droppedRefs`) is cut (`refsCut`), as the removal now cuts it. Run when a
+ * GM opens the investigation dashboard (investigation.mjs `openInvestigationDashboard`); writes nothing where nothing
+ * names a removed row. Answers `{ [chapter]: rows written }`.
+ */
+export async function pruneDroppedRefs() {
+    if (!game.user?.isGM) return {};
+    const chapters = new Set();
+    for (const key of Object.keys(caseSchemaStore.entries() ?? {})) {
+        const chapter = Number(key.split(":")[0]);
+        if (Number.isInteger(chapter)) chapters.add(chapter);
+    }
+    const out = {};
+    for (const chapter of [...chapters].sort((a, b) => a - b)) {
+        const { rows } = caseRows(chapter);
+        const gone = droppedRefs(rows, id => caseSchemaStore.tombstone(caseKeyOf(chapter, id)) > 0);
+        if (!gone.length) continue;
+        const n = await writeCuts(chapter, refsCut(rows, gone));
+        if (n) out[chapter] = n;
+    }
+    return out;
+}
+
+/**
+ * A Remnant deleted (investigation.mjs `deleteTraceRow`): every reference to its key (remnants.mjs `keyOf`) in every
+ * chapter's rows goes with it, as a removed node's does. A Remnant's token deleted on the map by hand is not seen here;
+ * its reference is drawn in the editor as gone, ticked, for the GM to untick (investigation.mjs `schemaEditor`).
+ * Answers how many rows were written.
+ */
+export async function cutRemnantRefs(key) {
+    if (!game.user?.isGM || typeof key !== "string" || !key) return 0;
+    const chapters = new Set(Object.keys(caseSchemaStore.entries() ?? {}).map(k => Number(k.split(":")[0])).filter(Number.isInteger));
+    let n = 0;
+    for (const chapter of chapters) n += await writeCuts(chapter, refsCut(caseRows(chapter).rows, [key]));
+    return n;
 }
 
 /**

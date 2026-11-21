@@ -75,6 +75,34 @@ async function confirmCorrection(titleKey, textKey, more = "") {
 }
 
 /**
+ * WHAT THE GM LEFT AS DRAWN IS NOT WRITTEN (the line claude/season-119, 20.11.2026; the audit of 1.2.118,
+ * controls-10-setup-config). `result` is `readClockForm`'s (and Season setup's `readSeasonForm`'s); each of the clock's six
+ * fields - and the safeword, where `now.safeword` is given - that holds what the window drew (`changedField`) takes the
+ * value the world holds at the press instead. Until this line the Save and the Apply wrote every field as the window drew
+ * it: a time of day moved on the HUD, a trial started (a phase back to Investigation can end the floor, clock.mjs
+ * `reconcilePhase`) or another GM's safeword written while the window stood open was undone with no question. A field the
+ * GM changed is written as before, with the questions `applyCampaignForm` asks. Pure but for `getClock`.
+ */
+export function untouchedKept(form, result, { clock = getClock(), safeword = undefined } = {}) {
+    const out = { ...result };
+    const field = name => form?.querySelector?.(`[name="${name}"]`) ?? null;
+    for (const name of ["campaignName", "chapter", "day", "phase", "session", "timeOfDay"]) {
+        const el = field(name);
+        if (!el || changedField(el) || clock?.[name] === undefined || clock?.[name] === null) continue;
+        out[name] = clock[name];
+    }
+    if (safeword !== undefined && field("safeword") && !changedField(field("safeword"))) out.safeword = safeword;
+    return out;
+}
+
+/** Whether a form field holds other than what it was drawn with: a select's choice, a box's tick, a field's text. */
+export function changedField(el) {
+    if (el.tagName === "SELECT") return [...el.options].some(o => o.selected !== o.defaultSelected);
+    if (el.type === "checkbox" || el.type === "radio") return el.checked !== el.defaultChecked;
+    return el.value !== el.defaultValue;
+}
+
+/**
  * What Edit campaign's Apply hands back (E47-C2; exported for R2058): the name trimmed, the chapter, day and session
  * whole numbers from 1, the chapter no higher than its stepper's `max` (the season's chapters, or the clock's chapter past
  * them) - read as season-setup.mjs `readSeasonForm` reads its own chapter - and the phase, the time of day and the box.
@@ -233,7 +261,8 @@ export async function openClockDialog({ roads = {} } = {}) {
             primary: {
                 action: "ok",
                 label: game.i18n.localize("DRPG.Panel.apply"),
-                callback: (event, button, dialog) => ({ ...readClockForm(dialog), morningLine: dialog.element.querySelector("[name=morningLine]")?.value ?? "" })
+                // only what the GM changed (`untouchedKept`): a field left as drawn takes the clock as it stands at the press
+                callback: (event, button, dialog) => ({ ...untouchedKept(dialog.element.querySelector("form"), readClockForm(dialog)), morningLine: dialog.element.querySelector("[name=morningLine]")?.value ?? "" })
             },
             close: { role: "cancel", action: "cancel" }
         },

@@ -72,10 +72,20 @@ export const TRIAL_MODE_OWN_MUSIC = Object.freeze({
 /** A Scrum Debate's phases and their states (D-E110-C): Sides, Camps confer, the turns. */
 export const SCRUM_PHASE_MUSIC = Object.freeze({ setup: "trial.scrumSides", confer: "trial.scrumConfer", speak: "trial.scrumSpeak" });
 
+/*
+ * THE CLOSING ARGUMENT'S OWN MUSIC WAITS FOR ITS SPEAKER (the owner, 1.2.119: "Muzyka closing argument niech zaczyna sie
+ * dopiero po zatwierdzeniu speakera."). The Closing's phases (floor-machine.mjs `closing`): `volunteer` and `choice` come
+ * before the GM confirms or picks a speaker, and have no own state, so they play the mode's row of `TRIAL_MODE_MUSIC`
+ * (the trial's discussion); `speak` and `decide` (the GM's choice after an Objection at a confirmed speaker) play
+ * `trial.closing` once mapped. Until 1.2.119 `trial.closing` played from the volunteers' first second. R7842.
+ */
+const CLOSING_OWN_PHASES = Object.freeze(["speak", "decide"]);
+
 /** The state `floor`'s mode has of its own, mapped or not, or null. */
 export function ownModeState(floor) {
     const mode = floor?.mode ?? null;
     if (mode === FLOOR_MODES.scrum) return SCRUM_PHASE_MUSIC[floor?.zone?.phase] ?? null;
+    if (mode === FLOOR_MODES.closing && !CLOSING_OWN_PHASES.includes(floor?.closing?.phase)) return null;
     return mode ? (TRIAL_MODE_OWN_MUSIC[mode] ?? null) : null;
 }
 

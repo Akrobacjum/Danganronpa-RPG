@@ -19,7 +19,7 @@
  */
 
 import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES } from "./config.mjs";
-import { SETTINGS, getClock, clearBodyDiscovery, incomingTimeOfDay } from "./settings.mjs";
+import { SETTINGS, getClock, clearBodyDiscovery, incomingTimeOfDay, bodiesFoundIn } from "./settings.mjs";
 import { resetAllActions, budgetsOf, putBackBudgets, clearGrants } from "./actions.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { announce, log, warn, error, debug, plural, serverNow, serialWrite } from "./utils.mjs";
@@ -423,9 +423,21 @@ export async function advanceTimeOfDay({
     const { draft, mood } = rolledOver || nightFalls ? await morningInputs({ line: rolledOver, mood: !opened }) : { draft: "", mood: null };
     // the new day as the start board's stamp (`dayBoard`, 12.11.2026): this roll-over plays it, a correction does not
     const dayPatch = seq.dayStartPatch({ rolledOver, draft, mood, before, day, opened, nightFalls });
-    // The masks end before a write that plays the start-of-day board (E112 item 6; mask-gm.mjs `endMasksBeforeTheBoard`).
-    if (rolledOver) await (await import("./mask-gm.mjs")).endMasksBeforeTheBoard();
-    const next = await setClock({ ...also, ...dayPatch, timeOfDay, session, day,
+    /* AND THE HOUR OF THE BODY'S ANNOUNCEMENT ENDS ON THE DAY'S BOARD, TWICE (1.2.119; the owner's option B): an advance
+       that leaves the time of day an official announcement of this day and chapter was made in stamps the clock for it
+       (sequence.mjs `bodyBoardPatch`), once per announcement, and every browser plays the board from that stamp
+       (transitions.mjs `bodyBoardsOf`). The day's number does not move for it. R7881. */
+    const bodyPatch = seq.bodyBoardPatch({ before, rows: bodiesFoundIn(before.chapter), after: { day, timeOfDay } });
+    /* THE MASKS END BEFORE EVERY ADVANCE (E112 item 6 for the roll-over; 1.2.119 for the rest, the audit's reading through
+       the coordinator of 20.11.2026). A mask stands until its time of day ends (mask-gm.mjs `masksAtNewTimeOfDay`, on
+       `drpgTimeOfDayChanged`, after this write), and every browser draws the day's boards on this write: the end board at
+       Night, the discovery's two after any hour (`bodyPatch`), the start board at the roll-over. Ended only at the
+       roll-over, the other boards drew the killer's place with no picture - the masked portrait refused - beside the real
+       name (tier 2 "E119 - the masks end before every advance", red at ad0baade: a mask standing at the landing on a mid-day
+       hour, Evening to Night and the Night Eclipse's end). Every advance ends the time of day, so the masks end here
+       first, as the roll-over's did (mask-gm.mjs `endMasksBeforeTheBoard`). */
+    await (await import("./mask-gm.mjs")).endMasksBeforeTheBoard();
+    const next = await setClock({ ...also, ...dayPatch, ...bodyPatch, timeOfDay, session, day,
         refilledFor: resetActions ? stamp : (before.refilledFor ?? null),
         lastAdvance: boundaryMemory(before, stamp, snapshot) });
     if (next && endGrants) await clearGrants();

@@ -674,12 +674,17 @@ async function makeReroll(actor, sender) {
      * a reroll of one has none to move - the test `settleDualityReroll` makes for itself
      * (review of CALL-08, 17.09: the one-die path reaches here for a reaction too).
      */
-    await settleDualityReroll(original, rerolled, actor);
-    if (original.options?.actionType !== "reaction") {
-        // A roll a protection from Despair stopped the point of moves none on its Reroll (Q-E93-3, timed-effects.mjs).
-        if (!message?.getFlag?.(MODULE_ID, "despairShielded")) await settleDespair(actor, before, after, done);
-        await settleCritHope(actor, before, after, done);
-    }
+    /* Every write of the settle names the message (dice-hold.mjs `stampRollWrites`, 1.2.119; the owner's answer of
+       20.11.2026): each browser draws the Hope and the Despair the Reroll moves once its dice of the Reroll have landed. */
+    const { stampRollWrites } = await import("./dice-hold.mjs");
+    await stampRollWrites(message.id, [actor.id, actor.system?.partner?.id], async () => {
+        await settleDualityReroll(original, rerolled, actor);
+        if (original.options?.actionType !== "reaction") {
+            // A roll a protection from Despair stopped the point of moves none on its Reroll (Q-E93-3, timed-effects.mjs).
+            if (!message?.getFlag?.(MODULE_ID, "despairShielded")) await settleDespair(actor, before, after, done, message.id);
+            await settleCritHope(actor, before, after, done);
+        }
+    });
 
     await markReplacedCard(row, before, after);
     /* THE GMS' RECORD OF A DRAWN ROLL TAKES THE REROLL AS ITS NEXT VERSION (E08+E28 C17; the
@@ -1028,14 +1033,14 @@ export function dualityOfRoll(roll) {
  * The GM making the Reroll writes it; an assistant's pool write goes to the
  * primary as every assistant's does (`adjustDespair`).
  */
-async function settleDespair(actor, before, after, done) {
+async function settleDespair(actor, before, after, done, dice = null) {
     if (before.withFear === after.withFear) return;
 
     try {
         const { awardRollDespair } = await import("./despair-award.mjs");
         const { poolLabel } = await import("./despair.mjs");
         const delta = after.withFear ? 1 : -1;
-        const moved = await awardRollDespair(actor, delta);
+        const moved = await awardRollDespair(actor, delta, { dice });
         if (!moved) return;
 
         // The pool's name, as the Despair bar shows it - not the GM's account. Where the

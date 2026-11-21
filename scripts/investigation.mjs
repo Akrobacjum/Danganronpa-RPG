@@ -29,7 +29,7 @@
 import { MODULE_ID, KEY_REMNANTS, TRUTH_BULLET_TYPES, OBSERVE_DC, REMNANT_TYPES, TRIAL, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, TIMES_OF_DAY, observeDc, RECIPIENT_EVERYONE } from "./config.mjs";
 import { isEclipse, sameSeason, bodiesFoundIn } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
-import { remnantsOn, remnantData, setRemnantFlags, setRemnantPublic, markRemnantEdited, shownBand, bandOptions, removeRemnant, traceContextLine, traceLabel, authorOptions } from "./remnants.mjs";
+import { remnantsOn, remnantData, setRemnantFlags, setRemnantPublic, markRemnantEdited, shownBand, bandOptions, removeRemnant, traceContextLine, traceLabel, authorOptions, keyOf, traceTokenHeard } from "./remnants.mjs";
 import { bulletsOf, isTruthBullet, secretOf, truthBulletData } from "./truth-bullets.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { itemsHeldNow } from "./sheet-audit.mjs";
@@ -38,14 +38,14 @@ import { plural, wirePortraitPickers, log, workingScene, esc, placeRoomOptions, 
 import { kitTabs, wireKitTabs, emptyOption, drpgWindow, drpgConfirm, box, dataTable, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
 // E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
 import { WIDE, columnsHtml } from "./ui-columns.mjs";
-import { caseGraph, caseRows, caseNodeOf, caseModes, PLANNED_TYPES, AUTOPSY_MAX, autopsyNumber, autopsyPresetOf, bodiesInOrder, caseMetaOf, setCaseNode, setCaseMeta, dropCaseNode, newCaseNodeId, CASE_SORTS, reachability, checkCase, planToClear, plannedChapters, clearChapterPlan } from "./case-schema.mjs";
+import { caseGraph, caseRows, caseNodeOf, caseModes, PLANNED_TYPES, AUTOPSY_MAX, autopsyNumber, autopsyPresetOf, bodiesInOrder, caseMetaOf, setCaseNode, setCaseMeta, dropCaseNode, newCaseNodeId, CASE_SORTS, reachability, checkCase, planToClear, plannedChapters, clearChapterPlan, pruneDroppedRefs, cutRemnantRefs } from "./case-schema.mjs";
 import { layoutCase } from "./case-layout.mjs";
 import { caseMapHtml, wireCaseMap, glyphHtml, editRow, caseToolsHtml } from "./case-map.mjs";
 import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty, keepDrawn, RAISED } from "./live.mjs";
 import { keyPlanStore, remnantStore, caseSchemaStore, blackenedStore, castStore, deathStore, diveSetStore } from "./gm-stores.mjs";
 import { murderState, blackenedIds, killerIds } from "./incident-store.mjs";
 
-import { roomRegions } from "./rooms.mjs";
+import { roomRegions, ROOM_FLAG } from "./rooms.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { PLANNED_GLYPH, randomPointIn, SCALE_LABELS, keyRowShows, keyPlan, caseKeyCount, placedKeyRemnants, keyPlanStatus, same, placeKeyRow, saveKeyPlan, writable, keyRowsUsed } from "./key-remnants.mjs";
 export { keyRevealRecord, recordKeyRevealed, keyPlan, setKeyPlan, archiveKeyPlan, liftKeyPlan, clearKeyPlan, keepOnlyKeyPlanChapter, clearSeasonKeyPlan, recordCaseKeys, caseKeyCount, keysToPlace, keyPlanStatus, missingKeyRows, keyFeeOf, chargeForUnfoundKeys, askToChargeForUnfoundKeys, randomPointIn, openKeyRemnantHere, placeInSlot, placeKeyRow } from "./key-remnants.mjs";
@@ -1124,18 +1124,43 @@ function mapChapterOf(reading) {
 }
 
 /**
- * THE MAP'S REGION (E97 C5): the same live region as the Table's (`.drpg-case-live`, the view's box), with the map
- * inside its form, so C6's fields ride the Table's one Save. Read off the world here, as `caseHtml` reads the Table.
+ * WHAT THE DASHBOARD SHOWS OF THE MAP ITSELF, HEARD AT ONCE (the owner, 20.11.2026: "Tak. Zawsze odswiezamy okna od razu
+ * przy zmianie"; the line claude/plan-119). Its stores are heard already (`openInvestigationDashboard`'s `watch.stores`);
+ * of the scenes it reads only these, and so hears only these (live.mjs `watch.where`):
+ * - a Remnant's token made or deleted, or its Remnant flag changed: a trace is its token (D38 = 1), and one whose token
+ *   went is no node (remnants.mjs `traceRefsOf`) - heard here even where no ledger write follows (the primary GM's
+ *   tombstone, remnants.mjs's `deleteToken` hook, is written on the primary alone). A Remnant's token moved is not: its
+ *   room is the ledger's (`remnantData`), so a move changes nothing drawn, and a player's token is never heard;
+ * - a room's region made, deleted, renamed or marked: the rooms a planned row is placed by (utils.mjs `placeRoomOptions`);
+ * - a scene made, deleted or renamed: the rooms' groups.
  */
-function caseMapRegion(reading, { finalRemnants, finalTruthPlacedThisChapter }) {
+const CASE_WATCH = Object.freeze([
+    ["createToken", doc => traceTokenHeard(doc)],
+    ["deleteToken", doc => traceTokenHeard(doc)],
+    ["updateToken", (doc, changes) => traceTokenHeard(doc, changes ?? {})],
+    ["createRegion", () => true],
+    ["deleteRegion", () => true],
+    ["updateRegion", (doc, changes) => "name" in (changes ?? {}) || Boolean(changes?.flags?.[MODULE_ID] && Object.keys(changes.flags[MODULE_ID]).some(k => k.replace(/^-=/, "") === ROOM_FLAG))],
+    ["createScene", () => true],
+    ["deleteScene", () => true],
+    ["updateScene", (doc, changes) => "name" in (changes ?? {})]
+]);
+
+/**
+ * THE GRAPH THE MAP DRAWS (`caseMapRegion`), for the drawing and for what acts on its order (`moveCaseNode`), so the two
+ * read the same columns. The Key plan's every slot, written or not, for the chapter now running (`keyPlan`), and as many
+ * planned Autopsies as the chapter plans (`autopsyCount`); a chapter not running draws those its GM wrote, up to its count,
+ * and the ones that went out (case-schema.mjs `graphOf`). Until the line claude/plan-119 (20.11.2026) the move laid out
+ * `caseGraph(chapter)` alone - no slot no GM wrote, no Autopsy - and Move did nothing on such a node, and moved a node
+ * beside them against a column the Map does not draw (tier 2 "the planner's Move moves a node the evidence column draws"; the slots since E97 C6's fd668314, 12.11.2026, the
+ * planned Autopsy since 6964661f, 13.11.2026). Answers `{ chapter, chapters, plan, graph }`.
+ */
+function caseMapGraph(reading) {
     const { chapter, chapters } = mapChapterOf(reading);
     /* EVERY SLOT THE TABLE DRAWS (E97 C6): the Key plan as the planner reads it (`keyPlan`, its slots no GM wrote
        included), so each Table row of the planner has its node here. The plan is the chapter now running's, as the
        planner's is. */
     const plan = keyPlan();
-    const status = keyPlanStatus();
-    const placed = placedKeyRemnants();
-    const limit = caseKeyCount(plan.chapter);
     const slots = plan.entries.map((e, slot) => ({ ...e, slot }));
     // the planned Autopsy's node, empty until written, as the slots are: the chapter now running's (13.11.2026)
     /* 13.11.2026: as many as the chapter plans (`autopsyCount`); a chapter not running draws those its GM wrote, up to
@@ -1145,6 +1170,18 @@ function caseMapRegion(reading, { finalRemnants, finalTruthPlacedThisChapter }) 
         : Math.min(caseMetaOf(caseRows(chapter).meta).autopsies ?? AUTOPSY_MAX, Math.max(0, ...written));
     const graph = caseGraph(chapter, { chapters, slots: chapter === plan.chapter ? slots : null, autopsy: autopsies });
     for (const n of graph.nodes) if (n.kind === "autopsy") n.of = autopsies;
+    return { chapter, chapters, plan, graph };
+}
+
+/**
+ * THE MAP'S REGION (E97 C5): the same live region as the Table's (`.drpg-case-live`, the view's box), with the map
+ * inside its form, so C6's fields ride the Table's one Save. Read off the world here, as `caseHtml` reads the Table.
+ */
+function caseMapRegion(reading, { finalRemnants, finalTruthPlacedThisChapter }) {
+    const { graph, plan } = caseMapGraph(reading);
+    const status = keyPlanStatus();
+    const placed = placedKeyRemnants();
+    const limit = caseKeyCount(plan.chapter);
     const layout = layoutCase(graph, { sort: graph.meta?.sort, manual: graph.meta?.manual });
     const finders = findersByAnyRemnant();
     const authors = new Map();
@@ -1469,16 +1506,26 @@ function schemaEditor(graph, node) {
        under a line naming how many are ticked, and opens in place. Its boxes stay in the form, read by Save as before. */
     const foldedList = (boxes, ticked) => `<details class="drpg-case-fold-list"><summary data-drpg-chosen${tipAttr("DRPG.Tips.Case.foldedListTooltip")}>${esc(F("DRPG.CaseMap.chosenOf", { n: ticked, of: boxes.length }))}</summary>`
         + `<div class="drpg-case-checklist">${boxes.join("")}</div></details>`;
+    /* WHAT IT NAMES THAT IS GONE (the line claude/plan-119, 20.11.2026): each reference the graph could not join
+       (case-schema.mjs `graphOf`'s `missing`, what the consistency check names) drawn ticked, so the GM unticks it and the
+       Save takes it off - the Save keeps every id it did not draw (`applySchemaSave`), and until this line such an id was
+       never drawn, so nothing could remove it. A removal and a Remnant's Delete cut theirs at once (case-schema.mjs
+       `dropCaseNode`, `cutRemnantRefs`); what is left here is a token deleted on the map, a slot gone, and the like. */
+    const gone = (field, list) => (graph.missing ?? []).filter(m => m.node === node.id && list.includes(m.ref)).map(m => m.ref)
+        .filter((ref, i, all) => all.indexOf(ref) === i)
+        .map(ref => `<label class="drpg-case-check"><input type="checkbox" name="${esc(name(`${field}:${ref}`))}"${tipAttr("DRPG.Tips.Sweep.Case.goneRefBoxTooltip")} checked /> ${esc(F("DRPG.CaseMap.goneRef", { ref }))}</label>`);
     if (node.kind === "counter") {
         const targets = others.filter(n => !n.evidence);
         const on = n => node.refutes.includes(n.id);
-        rows.push(editRow(L("DRPG.CaseMap.field.refutes"), targets.length ? foldedList(targets.map(n => box("ref", n, on(n))), targets.filter(on).length)
+        const lost = gone("ref", node.refutes);
+        rows.push(editRow(L("DRPG.CaseMap.field.refutes"), targets.length || lost.length ? foldedList([...targets.map(n => box("ref", n, on(n))), ...lost], targets.filter(on).length + lost.length)
             : `<div class="drpg-case-checklist"><em>${esc(L("DRPG.CaseMap.nothingToRefute"))}</em></div>`));
     } else {
         const inputs = new Set(node.inputs);
         const candidates = others.filter(n => n.kind !== "solution");
         const on = n => inputs.has(n.id) || Boolean(n.trace && inputs.has(n.trace));
-        rows.push(editRow(L("DRPG.CaseMap.field.inputs"), foldedList(candidates.map(n => box("in", n, on(n))), candidates.filter(on).length)));
+        const lost = gone("in", node.inputs);
+        rows.push(editRow(L("DRPG.CaseMap.field.inputs"), foldedList([...candidates.map(n => box("in", n, on(n))), ...lost], candidates.filter(on).length + lost.length)));
     }
     rows.push(`<div class="drpg-case-edit-actions"><button type="button" data-drpg-case-drop="${esc(node.id)}"${tipAttr("DRPG.Tips.Case.removeFromTheCaseTooltip")}>${esc(L("DRPG.CaseMap.removeNode"))}</button></div>`);
     return rows.join("");
@@ -1879,7 +1926,7 @@ function wireMap(dialog, reading, refresh) {
                 .then(() => { reading.node = id; reading.focus = id; refresh(); }, fail("add"));
         },
         onSort: sort => { setCaseMeta(chapterNow(), { sort }).then(() => refresh(), fail("sort")); },
-        onMove: (id, step) => { reading.focus = id; moveCaseNode(chapterNow(), id, step).then(() => refresh(), fail("move")); },
+        onMove: (id, step) => { reading.focus = id; moveCaseNode(reading, id, step).then(() => refresh(), fail("move")); },
         onDrop: id => dropMapNode(chapterNow(), id).then(gone => { if (gone) { reading.node = null; refresh(); } }, fail("remove")),
         // "Check consistency" (Q-C): the overview's list read again now, the overview left open.
         onCheck: () => { reading.overview = true; refresh(); },
@@ -1922,25 +1969,33 @@ export async function placeIncident(chapter, id) {
 /**
  * A node one place up or down its column (E97 C6, the proposal's arrows; its open fields' buttons since the E97 fix): the column as it is drawn now, the
  * two swapped, and every node of that column given its place in the chapter's `manual` order, the sort set to "manual"
- * so the drawn order is the one kept. A node at the column's end stays.
+ * so the drawn order is the one kept. The column is the Map's own (`caseMapGraph`, the line claude/plan-119, 20.11.2026). A node at its column's end - or at the end of its part, the loose evidence below the gap - stays, and the GM is
+ * told so (`DRPG.CaseMap.moveEnd.*`; until then nothing was said). Answers whether it moved.
  */
-async function moveCaseNode(chapter, id, step) {
-    if (!id || !game.user?.isGM) return;
-    const graph = caseGraph(chapter);
+async function moveCaseNode(reading, id, step) {
+    if (!id || !game.user?.isGM) return false;
+    const { chapter, graph } = caseMapGraph(reading);
     const layout = layoutCase(graph, { sort: graph.meta?.sort, manual: graph.meta?.manual });
     const column = layout.columns.find(c => c.includes(id));
-    if (!column) return;
+    const name = graph.nodes.find(n => n.id === id)?.label || game.i18n.localize("DRPG.CaseMap.noName");
+    const stays = () => {
+        ui.notifications.info(game.i18n.format(step < 0 ? "DRPG.CaseMap.moveEnd.up" : "DRPG.CaseMap.moveEnd.down", { name }));
+        return false;
+    };
+    if (!column) return stays();
     const at = column.indexOf(id), to = at + step;
-    if (to < 0 || to >= column.length || (layout.gapAt !== null && layout.columns[0] === column && (at < layout.gapAt) !== (to < layout.gapAt))) return;
+    if (to < 0 || to >= column.length || (layout.gapAt !== null && layout.columns[0] === column && (at < layout.gapAt) !== (to < layout.gapAt))) return stays();
     const order = [...column];
     [order[at], order[to]] = [order[to], order[at]];
     const manual = { ...(graph.meta?.manual ?? {}) };
     order.forEach((nodeId, i) => { manual[nodeId] = i; });
     await setCaseMeta(chapter, { sort: "manual", manual });
+    return true;
 }
 
-/** A schema node removed from the case, asked first (E97 C6): what rested on it keeps naming it, and the consistency
- *  check says so (C8). Answers whether it went. */
+/** A schema node removed from the case, asked first (E97 C6): every reference to it in the chapter's other nodes goes
+ *  with it (case-schema.mjs `dropCaseNode`; the owner's ruling of 19.11.2026, the line claude/plan-119 - until then what
+ *  rested on it kept naming it, and the consistency check named it for good). Answers whether it went. */
 async function dropMapNode(chapter, id) {
     if (!id || !game.user?.isGM) return false;
     const name = caseNodeOf(caseRows(chapter).rows[id])?.label || id;
@@ -1982,7 +2037,11 @@ export async function deleteTraceRow(key) {
         rejectClose: false
     });
     if (!sure) return false;
-    return Boolean(await removeRemnant(trace.token));
+    const named = keyOf(trace.token);
+    const gone = Boolean(await removeRemnant(trace.token));
+    // what the case's nodes rested on goes with it, as a removed node does (case-schema.mjs `cutRemnantRefs`, the line claude/plan-119)
+    if (gone) await cutRemnantRefs(named).catch(err => error("A deleted Remnant's references in the case could not be cut", err));
+    return gone;
 }
 
 /*
@@ -2215,6 +2274,9 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
     }
+    /* A removal before 1.2.119 kept what named the node it removed, and no Save could take it off: those references are
+       cut now, before the window reads the case (case-schema.mjs `pruneDroppedRefs`; the line claude/plan-119). */
+    await pruneDroppedRefs().catch(err => error("The case's references to removed nodes could not be cut", err));
 
     // The Final Key Remnant planner lived on the Mastermind screen, where it
     // shared a window with the one secret the module guards hardest - a GM
@@ -2409,7 +2471,10 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
             live = keepLive(dialog, {
                 region: ".drpg-case-live",
                 build: buildCase,
-                watch: { actors: true, items: true, stores: [remnantStore, keyPlanStore, caseSchemaStore, blackenedStore, castStore, deathStore] },
+                watch: { actors: true, items: true, stores: [remnantStore, keyPlanStore, caseSchemaStore, blackenedStore, castStore, deathStore], where: CASE_WATCH },
+                /* a focused field nobody typed in does not hold the redraw (live.mjs `whileEditing`; the owner, 20.11.2026, the
+                   line claude/plan-119): with every node open on the Map a GM's focus is in a field most of the time */
+                whileEditing: true,
                 after: () => {
                     wireCase(dialog);
                     wireCaseFilters(dialog, reading, () => live?.refresh?.());

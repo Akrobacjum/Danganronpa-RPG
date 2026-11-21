@@ -44,6 +44,17 @@ import {
     isSealed, sealRoom, isCallSilenced, isChained, restrict, scheduleGather, gatherEveryone, gatherSceneOf
 } from "./call-world.mjs";
 import { roomNames } from "./rooms.mjs";
+import { nameAsSeen, isMaskedActor, MASK_NAME } from "./mask-gm.mjs";
+
+/*
+ * A CALL'S LINES NAME A MASKED STUDENT "?" (1.2.119, 20.11.2026; the audit's item C through the coordinator: "a GM's
+ * Despair Call on a masked student names them on the public card"). The lines a Call's effect writes (`applyCall`'s
+ * `done`) go on its card, and a Despair Call's card is public (calls.mjs, `announce`): one document every browser holds,
+ * which no reader's cut reaches (secret.mjs `wordsFor` cuts private cards only). So a line names a student behind a mask
+ * "?" while the mask stands, for everyone - the GMs see through it on the map (tier 2 "E119 - a Call's lines ...", red at
+ * f5c8f041: "Aiko Hoshino cannot spend Hope Calls ..." under her mask).
+ */
+const cardName = actor => (isMaskedActor(actor) ? MASK_NAME : actor?.name ?? "");
 export { pickTarget } from "./call-pickers.mjs";
 export {
     sealedRooms, isSealed, restrictions, isCallSilenced, isChained, clearSeals, pendingGather, scheduleGather,
@@ -884,23 +895,26 @@ export async function liftArmedConfusions() {
 export function refusalBeforePaying(call, choice = {}) {
     const i18n = game.i18n;
     const target = choice.target ?? null;
+    /* Named as the buyer sees them (1.2.119, the audit's blocker of 20.11.2026): shown on the buyer's own screen before
+       the price, so a masked student is "?" there (mask-gm.mjs `nameAsSeen`; scenario 21 "outside the fight"). */
+    const name = target ? nameAsSeen(target) : "";
     if (call?.sealsRoom && choice.room && isSealed(choice.room)) {
         return i18n.format("DRPG.Calls.alreadySealed", { room: choice.room });
     }
     if (call?.silences && target && isCallSilenced(target)) {
-        return i18n.format("DRPG.Calls.alreadySilenced", { name: target.name });
+        return i18n.format("DRPG.Calls.alreadySilenced", { name });
     }
     if (call?.chains && target && isChained(target)) {
-        return i18n.format("DRPG.Calls.alreadyChained", { name: target.name });
+        return i18n.format("DRPG.Calls.alreadyChained", { name });
     }
     if (call?.damage && target && Object.keys(call.damage)
         .every(resource => resourceValue(target, resource) >= resourceMax(target, resource))) {
-        return i18n.format("DRPG.Calls.nothingToMark", { name: target.name });
+        return i18n.format("DRPG.Calls.nothingToMark", { name });
     }
     // A second copy of the same Call adds nothing, and the first is still there
     // to be used (CALL-02). Dice Calls are exempt: those stack by design.
     if (call?.grants && target && alreadyArmed(target, call)) {
-        return i18n.format("DRPG.Calls.alreadyArmed", { name: target.name, call: call.label });
+        return i18n.format("DRPG.Calls.alreadyArmed", { name, call: call.label });
     }
     if (call?.grantsHope && target) {
         if (overflowBlocksHope()) return i18n.localize("DRPG.Overflow.hopeBlocked");
@@ -998,7 +1012,7 @@ async function grantEffect(actor, call, choice, done, { key, kind, nonce = null 
 
     // The genitive: "{name} może teraz użyć {what}" (`grantWords`).
     done.push(game.i18n.format("DRPG.Calls.armed", {
-        name: beneficiary.name,
+        name: cardName(beneficiary),
         what: grantWords(call.grants, "gen")
     }));
 }
@@ -1042,7 +1056,7 @@ async function hopeFromDespairEffect(actor, call, choice, done) {
     if (!(granted > 0)) throw new NothingToDo(`${choice.target.name} is already at maximum Hope`);
 
     done.push(game.i18n.format("DRPG.Calls.hopeGranted", {
-        name: choice.target.name, n: granted
+        name: cardName(choice.target), n: granted
     }));
 }
 
@@ -1097,7 +1111,7 @@ async function damageEffect(actor, call, choice, done) {
         throw new NothingToDo(`${choice.target.name} has nothing left to mark`);
     }
     done.push(game.i18n.format("DRPG.Calls.damaged", {
-        name: choice.target.name,
+        name: cardName(choice.target),
         what: listOf(landed)
     }));
 }
@@ -1285,7 +1299,7 @@ async function silenceEffect(actor, call, choice, done) {
         throw new NothingToDo(`${choice.target.name} is already silenced`);
     }
     await restrict(choice.target, { silenced: true });
-    done.push(game.i18n.format("DRPG.Calls.silenced", { name: choice.target.name }));
+    done.push(game.i18n.format("DRPG.Calls.silenced", { name: cardName(choice.target) }));
     await tell(choice.target, "DRPG.Calls.silencedNotice");
 }
 
@@ -1300,7 +1314,7 @@ async function chainEffect(actor, call, choice, done) {
     await restrict(choice.target, { chained: true, room: here });
     // The room stays off the public card (privacy line 2, #5; the owner's rule of 13.11.2026): the card is the table's, and
     // where the target stands is theirs and the GMs' to know. The target's own notice names it.
-    done.push(game.i18n.format("DRPG.Calls.chained", { name: choice.target.name }));
+    done.push(game.i18n.format("DRPG.Calls.chained", { name: cardName(choice.target) }));
     await (here ? tell(choice.target, "DRPG.Calls.chainedNoticeIn", { room: here }) : tell(choice.target, "DRPG.Calls.chainedNotice"));
 }
 

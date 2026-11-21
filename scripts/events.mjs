@@ -536,7 +536,8 @@ export function trialFloorCard(floor) {
            subtitle the zone's question, as the debate's is its topic; in a Scrum's turn, the speaker. */
         const zone = zoneOf(floor) ?? {};
         const phaseKey = `DRPG.Events.trialZone.${floor.mode}.${zone.phase}`;
-        speaker = floor.mode === FLOOR_MODES.scrum && zone.phase === "speak" ? (floorHolder(floor)?.name ?? unknown) : (zone.question || null);
+        // A Scrum turn of an empty camp has no speaker since 1.2.119 (R7841): no name under the mode, the turn's line alone.
+        speaker = floor.mode === FLOOR_MODES.scrum && zone.phase === "speak" ? (floor.holderId ? (floorHolder(floor)?.name ?? unknown) : null) : (zone.question || null);
         meta = game.i18n.has(phaseKey) ? game.i18n.format(phaseKey, {
             n: (Number(zone.set?.index) || 0) + 1, total: zone.set?.total ?? 1, turn: zone.turn ?? 0, turns: zone.turns ?? 0,
             zone: String(zone.side ?? "").toUpperCase()

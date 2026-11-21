@@ -207,6 +207,222 @@ export function edgePath(from, to, g = MAP_GEOMETRY) {
     return `M${x1} ${y1} C${mid} ${y1} ${mid} ${y2} ${x2} ${y2}`;
 }
 
+/**
+ * WHERE AN ARROW ENDS (1.2.119, the owner: "Czytelność strzałek"): on the target's left edge (`x`), at its middle (`y`) -
+ * `edgePath`'s last point; `routeEdges` ends a line on the same edge at a port of its own (round 3). The arrowhead is drawn with its tip on this point (case-map.mjs `arrowDefs`:
+ * the marker's reference point is its tip), so it stops at the node's border and is never drawn under the node, which
+ * stands over the edge layer. Pure; R7822.
+ */
+export function edgeEnd(from, to, g = MAP_GEOMETRY) {
+    return { x: to.x, y: to.y + (to.h ?? g.nodeH) / 2 };
+}
+
+/**
+ * SQUARE ROUTES, GROUPED BY THEIR SOURCE (1.2.119; round 2, the owner: "bardziej kwadratowe, pogrupowane"; round 3, his
+ * photo of round 2: "nachodza na siebie ... przez co sa nieczytelne. Proponuje opracowac jakas metode zeby te strzalki sie
+ * grupowaly ladnie i czytelnie"). Round 2 ran every line into one node down that node's trunk: lines of different sources
+ * merged and the eye could not follow them (R7829 read 197 shared stretches on its crowded case, 26 on the shot's). Now:
+ *   - A SOURCE'S BUNDLE. Every line of one node leaves it at one point (its right edge's middle; a counter into its own
+ *     column, or a line back to an earlier one, its left edge's) and runs to that node's own TRACK, one vertical in a gutter
+ *     - the gutter right of its column, or for a line back, the gutter left of its target's column - and down or up it. The
+ *     bundle is one colour (its source's, case-map.mjs), so it reads as one line that branches.
+ *   - ITS OWN PORT. Each line leaves the track at its own height and runs straight into its target's left edge at a PORT
+ *     of its own, the target's ports at least `ROUTE.port` apart, centred on the node; its head ends there.
+ *   - NO SHARED STRETCH. Tracks of different sources never share an x: a gutter's tracks are spread at least `ROUTE.track`
+ *     apart (forward tracks first, the lines back at its right, so a line back never runs along a forward exit); a port is
+ *     moved, within its node and its order, off the height of any other source's horizontal stretch it would run beside
+ *     closer than `ROUTE.track`. What is left are crossings, at right angles.
+ *   - ORDER. A gutter's tracks are tried in three orders - by their sources' height, its reverse, and by the mean height
+ *     of their targets - and the one with fewest crossings drawn (`routeCrossings`; ties to the first); a target's ports top
+ *     to bottom, the lines from above it from the rightmost track, then those from below from the leftmost, which crosses
+ *     no line into the same node with another's track.
+ * Every route is horizontal, vertical, horizontal, its corners rounded (`ROUTE.radius`). The gutter is not widened: its
+ * zone holds 20 tracks at `ROUTE.track` (a 200 px gap, `MAP_GEOMETRY.colGap`); past that the tracks stand closer and R7829
+ * would read it. A node shorter than its ports need (more than five lines into a 54 px face) gets them closer than
+ * `ROUTE.port`, inside its box. The Map and the Class Trial console draw it; `relayoutCaseMap` routes again at the measured
+ * places. Answers a Map of `from>to` to the path; pure, and independent of the edges' order. R7825, R7829.
+ */
+export const ROUTE = Object.freeze({ radius: 4, inset: 14, stub: 18, track: 8, port: 10, portInset: 6, maxStep: 24 });
+
+const r1 = n => Math.round(n * 10) / 10;
+const midOf = (p, g) => p.y + (p.h ?? g.nodeH) / 2;
+
+/** The plan: each owner's track x, each edge's port y, with one gutter's order picked per `choose` (gutter -> index). */
+function routePlan(shown, at, g, choose = new Map()) {
+    const right = p => p.x + (p.w ?? g.nodeW);
+    const xs = [...new Set(Object.values(at).map(p => p.x))].sort((a, b) => a - b);
+    const info = new Map();
+    for (const e of shown) {
+        const S = at[e.from], T = at[e.to];
+        const back = T.x <= S.x;
+        const hi = back ? T.x : (xs.find(x => x > S.x) ?? T.x);
+        const before = Object.values(at).filter(p => p.x < hi).map(right);
+        const lo = before.length ? Math.max(...before) : hi - g.colGap;
+        info.set(e, { back, hi, lo, owner: `${back ? "back:" : ""}${e.from}`, ex: back ? S.x : right(S), ys: midOf(S, g) });
+    }
+    // the gutters and their owners
+    const gutters = new Map();
+    for (const e of shown) {
+        const i = info.get(e);
+        const gut = gutters.get(i.hi) ?? gutters.set(i.hi, { lo: i.lo, hi: i.hi, owners: new Map() }).get(i.hi);
+        const o = gut.owners.get(i.owner) ?? gut.owners.set(i.owner, { back: i.back, ys: i.ys, targets: [] }).get(i.owner);
+        o.targets.push(midOf(at[e.to], g));
+    }
+    const orders = gut => {
+        const fwd = [...gut.owners.entries()].filter(([, o]) => !o.back), bck = [...gut.owners.entries()].filter(([, o]) => o.back);
+        const by = f => list => [...list].sort((a, b) => f(a[1]) - f(b[1]) || String(a[0]).localeCompare(String(b[0])));
+        const mean = o => o.targets.reduce((s, y) => s + y, 0) / o.targets.length;
+        const asc = by(o => o.ys), desc = by(o => -o.ys), tgt = by(mean);
+        return [asc, desc, tgt].map(f => [...f(fwd), ...f(bck)].map(([k]) => k));
+    };
+    const trackX = new Map();
+    for (const [hi, gut] of gutters) {
+        const order = orders(gut)[choose.get(hi) ?? 0];
+        const zoneLo = gut.lo + ROUTE.inset, zoneHi = gut.hi - ROUTE.stub;
+        const step = Math.max(ROUTE.track, Math.min(ROUTE.maxStep, (zoneHi - zoneLo) / (order.length + 1)));
+        order.forEach((k, i) => trackX.set(`${hi}|${k}`, zoneLo + step * (i + 1)));
+    }
+    const tx = e => trackX.get(`${info.get(e).hi}|${info.get(e).owner}`);
+    // the horizontal stretches already placed: each owner's exit
+    const placed = [];
+    for (const e of shown) {
+        const i = info.get(e), x = tx(e);
+        placed.push({ y: i.ys, a: Math.min(i.ex, x), b: Math.max(i.ex, x), owner: i.owner });
+    }
+    // the ports, target by target (left to right, top to bottom)
+    const byTarget = new Map();
+    for (const e of shown) (byTarget.get(e.to) ?? byTarget.set(e.to, []).get(e.to)).push(e);
+    const port = new Map();
+    const targets = [...byTarget.keys()].sort((a, b) => at[a].x - at[b].x || at[a].y - at[b].y || String(a).localeCompare(String(b)));
+    for (const t of targets) {
+        const T = at[t], h = T.h ?? g.nodeH, my = midOf(T, g);
+        const list = byTarget.get(t).map(e => ({ e, x: tx(e), above: info.get(e).ys <= my }));
+        list.sort((a, b) => (a.above === b.above ? (a.above ? b.x - a.x : a.x - b.x) : a.above ? -1 : 1) || String(a.e.from).localeCompare(String(b.e.from)));
+        const k = list.length, room = h - 2 * ROUTE.portInset;
+        const step = k > 1 ? Math.min(Math.max(ROUTE.port, Math.min(16, room / (k - 1))), room / (k - 1)) : 0;
+        const top = T.y + ROUTE.portInset, bottom = T.y + h - ROUTE.portInset;
+        /* Three tries, the first that keeps every port inside the node: centred and moved off other sources' stretches;
+           packed from the node's top and moved the same way; spaced evenly over the node with no move (the last
+           resort, where a shared height may be left - R7829 would read it). */
+        const attempt = (start, nudge) => {
+            let prev = -Infinity;
+            const ys = [];
+            for (const [i, { e, x }] of list.entries()) {
+                const owner = info.get(e).owner;
+                const ideal = Math.max(top, Math.min(bottom, start + i * step));
+                // the preferred step where it is free, `ROUTE.port` at the least where a move needs the room
+                const free = y => y >= prev + Math.min(step, ROUTE.port) - 0.01 && y >= top && y <= bottom
+                    && (!nudge || !placed.some(q => q.owner !== owner && Math.abs(q.y - y) < ROUTE.track && Math.min(q.b, T.x) - Math.max(q.a, x) > 0.5));
+                let y = null;
+                for (let d = 0; d <= h && y === null; d++) {
+                    if (free(ideal + d)) y = ideal + d;
+                    else if (free(ideal - d)) y = ideal - d;
+                }
+                if (y === null) return null;
+                prev = y;
+                ys.push(y);
+            }
+            return ys;
+        };
+        const ys = attempt(my - (k - 1) / 2 * step, true) ?? attempt(top, true)
+            ?? list.map((_, i) => (k > 1 ? top + i * (bottom - top) / (k - 1) : my));
+        list.forEach(({ e, x }, i) => {
+            port.set(e, ys[i]);
+            placed.push({ y: ys[i], a: Math.min(x, T.x), b: Math.max(x, T.x), owner: info.get(e).owner });
+        });
+    }
+    return { info, tx, port };
+}
+
+/** One route's path and its three stretches. */
+function routePath(e, at, plan) {
+    const i = plan.info.get(e), x = plan.tx(e), yp = plan.port.get(e), T = at[e.to];
+    const segs = [{ h: true, y: i.ys, a: Math.min(i.ex, x), b: Math.max(i.ex, x) }, { h: false, x, a: Math.min(i.ys, yp), b: Math.max(i.ys, yp) },
+        { h: true, y: yp, a: Math.min(x, T.x), b: Math.max(x, T.x) }];
+    if (Math.abs(yp - i.ys) < 0.5 && !i.back) return { segs, d: `M${r1(i.ex)} ${r1(i.ys)} H${r1(T.x)}` };
+    const dx = Math.sign(x - i.ex) || 1, dy = Math.sign(yp - i.ys) || 1;
+    const r = Math.max(0, Math.min(ROUTE.radius, Math.abs(yp - i.ys) / 2, Math.abs(x - i.ex), Math.abs(T.x - x)));
+    return { segs, d: `M${r1(i.ex)} ${r1(i.ys)} H${r1(x - dx * r)} Q${r1(x)} ${r1(i.ys)} ${r1(x)} ${r1(i.ys + dy * r)} V${r1(yp - dy * r)}`
+        + ` Q${r1(x)} ${r1(yp)} ${r1(x + r)} ${r1(yp)} H${r1(T.x)}` };
+}
+
+/** How many times a horizontal stretch of one source crosses a vertical of another, inside both. */
+function crossingsOf(routes) {
+    let n = 0;
+    for (const a of routes) for (const b of routes) {
+        if (a.owner === b.owner) continue;
+        for (const h of a.segs) {
+            if (!h.h) continue;
+            for (const v of b.segs) if (!v.h && v.x > h.a + 0.5 && v.x < h.b - 0.5 && h.y > v.a + 0.5 && h.y < v.b - 0.5) n++;
+        }
+    }
+    return n;
+}
+
+/** The edges placed, in one order whatever order they came in. */
+const shownOf = (edges, at) => (edges ?? []).filter(e => at?.[e.from] && at?.[e.to])
+    .sort((a, b) => String(a.from).localeCompare(String(b.from)) || String(a.to).localeCompare(String(b.to)));
+
+/** Each gutter's order chosen, gutter by gutter from the left: the fewest crossings, or with `worst` the most. */
+function chosenPlan(shown, at, g, worst = false) {
+    const choose = new Map();
+    const base = routePlan(shown, at, g, choose);
+    const gutters = [...new Set(shown.map(e => base.info.get(e).hi))].sort((a, b) => a - b);
+    const score = c => { const p = routePlan(shown, at, g, c); return crossingsOf(shown.map(e => ({ owner: p.info.get(e).owner, ...routePath(e, at, p) }))); };
+    for (const hi of gutters) {
+        let best = 0, bestN = null;
+        for (let k = 0; k < 3; k++) {
+            const n = score(new Map([...choose, [hi, k]]));
+            if (bestN === null || (worst ? n > bestN : n < bestN)) { best = k; bestN = n; }
+        }
+        choose.set(hi, best);
+    }
+    return routePlan(shown, at, g, choose);
+}
+
+export function routeEdges(edges, at, g = MAP_GEOMETRY) {
+    const shown = shownOf(edges, at);
+    const plan = chosenPlan(shown, at, g);
+    return new Map(shown.map(e => [`${e.from}>${e.to}`, routePath(e, at, plan).d]));
+}
+
+/** How many crossings the routes make: as drawn, or ({ order: "worst" }) in each gutter's order with the most. R7825. */
+export function routeCrossings(edges, at, g = MAP_GEOMETRY, { order = "best" } = {}) {
+    const shown = shownOf(edges, at);
+    const plan = chosenPlan(shown, at, g, order === "worst");
+    return crossingsOf(shown.map(e => ({ owner: plan.info.get(e).owner, ...routePath(e, at, plan) })));
+}
+
+/**
+ * THE ARROWS OF ONE NODE LIT (1.2.119; the owner's "Czytelność strzałek"): every edge with `id` at an end gets `is-lit`,
+ * its halo too, its lit arrowhead (`data-drpg-arrow-lit`), and is moved to the top of the lines' layer, so it is drawn over
+ * the lines it crosses; a target lights its whole trunk, every line into it (round 2); the canvas gets `has-lit`, under which the stylesheet dims every edge not lit (components.css). `id`
+ * null puts every edge back. What it means is unchanged: only the drawing. Answers how many edges are lit. R7823.
+ */
+export function lightEdges(canvas, id = null) {
+    const svg = canvas?.querySelector?.(":scope > svg.drpg-case-edges");
+    if (!svg) return 0;
+    let lit = 0;
+    const halos = new Map([...svg.querySelectorAll("path[data-drpg-halo]")].map(h => [h.dataset.drpgHalo, h]));
+    for (const path of [...svg.querySelectorAll("path[data-drpg-edge]")]) {
+        let ends = [];
+        try { ends = JSON.parse(path.dataset.drpgEnds || "[]"); } catch { ends = []; }
+        const on = id !== null && ends.includes(id);
+        // its halo by its key, in the halo layer under every line (round 2)
+        const halo = halos.get(path.dataset.drpgEdge) ?? null;
+        path.classList.toggle("is-lit", on);
+        halo?.classList.toggle("is-lit", on);
+        const head = on ? path.dataset.drpgArrowLit : path.dataset.drpgArrow;
+        if (head) path.setAttribute("marker-end", `url(#${head})`);
+        if (on) {
+            lit++;
+            path.parentNode?.appendChild(path);
+        }
+    }
+    canvas.classList.toggle("has-lit", lit > 0);
+    return lit;
+}
+
 /* ---- THE CAMERA (the owner's "ruch i oddalanie i przyblizanie 'kamery' na schemacie"). The graph's box is a viewport
    that never scrolls (`overflow: clip`, so focusing a node off screen cannot scroll it under the camera); the canvas
    inside it is moved and scaled by one transform, `translate(x, y) scale(z)` about its top left corner. A drag on empty
@@ -324,7 +540,7 @@ export function relayoutCaseMap(canvas, g = MAP_GEOMETRY) {
     // the edges as drawn (each path names its ends and its kind), so a deduction centres on its inputs at their measured places
     const drawn = [...canvas.querySelectorAll(":scope > svg.drpg-case-edges path[data-drpg-ends]")].map(p => {
         const [from, to] = JSON.parse(p.dataset.drpgEnds || "[]");
-        return { from, to, kind: p.classList.contains("drpg-case-edge--input") ? "input" : "other" };
+        return { from, to, kind: p.classList.contains("drpg-case-edge--input") ? "input" : p.classList.contains("drpg-case-edge--refutes") ? "refutes" : "other" };
     });
     const place = mapPlace({ positions: data.positions ?? {}, gapAt: data.gapAt ?? null, unrelated: data.unrelated ?? [] }, g, sizes,
         { gapH: gap?.offsetHeight || 0, edges: drawn });
@@ -356,9 +572,15 @@ export function relayoutCaseMap(canvas, g = MAP_GEOMETRY) {
         const p = place.at[id], b = buttons.get(id);
         return p && b?.offsetHeight ? { ...p, h: b.offsetHeight } : p;
     };
+    // the square routes again at the measured places (round 2, `routeEdges`), each halo on its line
+    const faces = Object.fromEntries(Object.keys(place.at).map(id => [id, face(id)]));
+    const routes = routeEdges(drawn, faces, g);
+    const halos = new Map([...(svg?.querySelectorAll("path[data-drpg-halo]") ?? [])].map(h => [h.dataset.drpgHalo, h]));
     for (const path of svg?.querySelectorAll("path[data-drpg-edge]") ?? []) {
-        const [from, to] = JSON.parse(path.dataset.drpgEnds ?? "[]");
-        if (place.at[from] && place.at[to]) path.setAttribute("d", edgePath(face(from), face(to), g));
+        const d = routes.get(path.dataset.drpgEdge);
+        if (!d) continue;
+        path.setAttribute("d", d);
+        halos.get(path.dataset.drpgEdge)?.setAttribute("d", d);
     }
     canvas.dataset.drpgMeasured = sizes.size && [...sizes.values()].some(s => s.h > 0) ? "1" : "0";
     return place;

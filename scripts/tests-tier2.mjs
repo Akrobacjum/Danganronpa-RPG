@@ -17808,6 +17808,201 @@ const SCENARIOS = [
         }
     }],
 
+    ["E119 - the masks end before every advance of the clock, so no day's board draws a masked killer: a mid-day hour (where the discovery's boards play), Evening to Night and the Night Eclipse's end", async () => {
+        /*
+         * 1.2.119 (20.11.2026), the audit's reading through the coordinator: "the end-of-day board, the cast's board since
+         * F118, plays at Evening to Night while a mask stands and shows the masked killer's letter and real name". A mask
+         * stands until its time of day ends (mask-gm.mjs `masksAtNewTimeOfDay`, on `drpgTimeOfDayChanged`, after the clock's
+         * write), and the boards are drawn on that write (transitions.mjs `onClockHeard`): only the roll-over and the Morning
+         * Eclipse's start ended the masks first (`endMasksBeforeTheBoard`). A direct murder on Hope (the killer masked), the
+         * incident closed; then the clock moved by the advance (clock.mjs `advanceTimeOfDay`) on three roads. At each clock
+         * write that lands on the new time of day, read on this browser: the time of day, the picture the day's board
+         * composes for the killer then (sequence.mjs `dayEndBoard`) and whether a mask still stands. Red at ad0baade.
+         */
+        needs(env.primaryGm(), "the clock is moved on the primary GM");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const C = await import("./clock.mjs"), E = await import("./eclipse.mjs"), Q = await import("./sequence.mjs");
+        const M = await import("./murder.mjs"), K = await import("./mask-gm.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        must(!M.murderState() && !bodyDiscovery() && !isEclipse(), "an incident, a body's hold or an Eclipse is open - this would measure something else");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const was = foundry.utils.deepClone(getClock());
+        const characters = game.actors.filter(a => a.type === "character");
+        const actionsWas = characters.map(a => [a, a.system?.resources?.actions?.value ?? null, a.system?.resources?.actions?.max ?? null]);
+        const settingsWas = Object.fromEntries(["sealedRooms", "restrictions", "motive", "searchTokens", "bodyFound", "readyRound", "sequences"]
+            .map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS[key]) ?? null)]));
+        const faceWas = [killer._source.img ?? null, killer._source.prototypeToken?.texture?.src ?? null];
+        const real = "worlds/suite/e119-board-killer.webp";
+        const reads = [];
+        let expect = null;
+        const watch = Hooks.on("updateSetting", setting => {
+            if (setting?.key !== `${MODULE_ID}.${SETTINGS.clock}` || !expect || getClock().timeOfDay !== expect || isEclipse()) return;
+            expect = null;
+            const b = Q.dayEndBoard({ clock: getClock(), students: studentActors() });
+            reads.push([getClock().timeOfDay, b.cast.find(c => c.id === killer.id)?.img ?? null, K.maskStands(killer.id)]);
+        });
+        const masked = async timeOfDay => {
+            await setClock({ phase: "dailyLife", timeOfDay, refilledFor: null });
+            await settle();
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            await M.resolveKillerOpening({ total: 20, isCritical: false, withHope: true });
+            await M.endMurder({ reason: "test", followUp: false });
+            await settle();
+            must(K.maskStands(killer.id), `the opening on Hope put up no mask at ${timeOfDay} - this would measure nothing`);
+        };
+        try {
+            await killer.update({ img: real });
+            await settle();
+            await masked("afternoon");
+            expect = "evening";
+            await C.advanceTimeOfDay({ resetSearchTokens: false, announce: false });
+            await settle();
+            Q.endSequence("cut");
+            await masked("evening");
+            expect = "night";
+            await C.advanceTimeOfDay({ resetSearchTokens: false, announce: false });
+            await settle();
+            Q.endSequence("cut");
+            await masked("evening");
+            await E.startEclipse();
+            await settle();
+            const atStart = K.maskStands(killer.id);
+            expect = "night";
+            await E.endEclipse({ advance: true });
+            await settle();
+            Q.endSequence("cut");
+            equal(stableJson([reads, atStart]), stableJson([[["evening", real, false], ["night", real, false], ["night", real, false]], true]),
+                "a mask still stood as the clock landed, or the board drew the killer behind it (each landing: the time of day, the killer's picture on the board, a mask standing; a mask standing through the Night Eclipse's start)");
+        } finally {
+            Hooks.off("updateSetting", watch);
+            Q.endSequence("cut");
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock(was);
+            for (const [actor, value, max] of actionsWas) {
+                await actor.update({ "system.resources.actions.value": value, ...(max === null ? {} : { "system.resources.actions.max": max }) });
+            }
+            for (const [k, value] of Object.entries(settingsWas)) if (value !== null) await game.settings.set(MODULE_ID, SETTINGS[k], value);
+            await killer.update(faceWas[1] ? { img: faceWas[0], "prototypeToken.texture.src": faceWas[1] } : { img: faceWas[0] });
+            await settle();
+        }
+    }],
+
+    ["E119 - a card's words kept while a mask stood stay cut for a reader outside it after the mask ends, served or rewritten, unless the killer revealed themselves", async () => {
+        /*
+         * 1.2.119 (20.11.2026), the audit's adversarial pass through the coordinator: "a card that hid a masked killer as
+         * "?" gives the name in clear when its words are served or rewritten after the mask ends". A GM keeps a private
+         * card's uncut words (secret.mjs `remember`) and cuts them for each reader when they are served again
+         * (`answerWordsRequest`) or rewritten (`updateSecret`), by the masks standing then (`wordsFor`, `nameMask`): after
+         * the time of day ended the mask without a reveal, a reader who was away got the name. Driven on this GM, as
+         * E18 fix e1-G6's test drives the answer: the killer masked (mask-gm.mjs `maskKiller`), a card naming them to a
+         * player who does not play them and to this GM; that player's ask answered while the mask stands, after it ended
+         * with the time of day, and the card rewritten after it; then a second card under a second mask ended by the
+         * reveal, and asked. Every `secret.card` this browser sends kept here and dropped. Read: whether the killer's name
+         * is in what that player is sent, each time. Red at 937a98b0.
+         */
+        needs(env.primaryGm(), "the masks are the primary GM's");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const S = await import("./secret.mjs"), K = await import("./mask-gm.mjs"), M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        must(!M.murderState(), "an incident is open - this would measure something else");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const reader = game.users.find(u => !u.isGM && !killer.testUserPermission(u, "OWNER"));
+        must(reader && !K.maskStands(killer.id), "no reader outside the mask, or a mask stands - this would measure something else");
+        const was = foundry.utils.deepClone(getSetting(SETTINGS.secretCards) ?? {});
+        const stored = clientStored();
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const out = [];
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "secret.card") { out.push(String(packet.html ?? "")); return true; }
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const named = () => out.some(html => html.includes(killer.name));
+        const ask = (card, from = reader) => { out.length = 0; S.answerWordsRequest({ action: "secret.request", ids: [card.id] }, from.id); return [out.length > 0, named()]; };
+        // and the killer's own player, who reads their name throughout (a card is cut only for readers outside the mask)
+        const theirs = owner(killer);
+        const popups = new Set(document.querySelectorAll(".drpg-popup"));
+        const cards = [];
+        const read = {};
+        try {
+            must(await K.maskKiller({ killerId: killer.id, victimId: victim.id }), "the mask did not go up - this would measure nothing");
+            await settle();
+            const card = await S.postSecret({ content: `<p>E119B ${foundry.utils.escapeHTML(killer.name)} was seen</p>`, whisper: [reader.id, theirs.id, game.user.id] });
+            must(card, "the card was not posted - this would measure nothing");
+            cards.push(card);
+            read.masked = ask(card);
+            await K.endMask(killer.id, "timeOfDay");
+            await settle();
+            read.ended = ask(card);
+            read.ownerEnded = ask(card, theirs);
+            out.length = 0;
+            // its readers named, as the callers that rewrite a card do (`settleCall`): the card was veiled while the mask stood
+            await S.updateSecret(card, `<p>E119B again ${foundry.utils.escapeHTML(killer.name)}</p>`, [reader.id, game.user.id]);
+            await settle();
+            read.rewritten = [out.length > 0, named()];
+            must(await K.maskKiller({ killerId: killer.id, victimId: victim.id }), "the second mask did not go up - this would measure nothing");
+            await settle();
+            const second = await S.postSecret({ content: `<p>E119B ${foundry.utils.escapeHTML(killer.name)} again seen</p>`, whisper: [reader.id, game.user.id] });
+            cards.push(second);
+            await K.revealMask(killer.id);
+            await settle();
+            read.revealed = ask(second);
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
+            for (const node of [...document.querySelectorAll(".drpg-popup")].filter(node => !popups.has(node))) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            for (const c of cards) await c?.delete().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.secretCards, was);
+            S.forgetSecrets();
+            putBackStored(stored);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ masked: [true, false], ended: [true, false], ownerEnded: [true, true], rewritten: [true, false], revealed: [true, true] }),
+            "a reader outside the mask was sent the killer's name, or not sent the words ([sent, the name in it]: asked while the mask stood; after it ended with the time of day; the killer's own player after; the card rewritten after; a card under a mask the killer revealed)");
+    }],
+
+    ["E119 - a Call's lines for its card name a masked student \"?\" (a Despair Call on the public card)", async () => {
+        /*
+         * 1.2.119 (20.11.2026), the audit's item C through the coordinator: "a GM's Despair Call on a masked student names
+         * them on the public card". A Call's effect writes the lines its card carries (call-effects.mjs `applyCall`'s
+         * `done`), and a Despair Call's card is public (calls.mjs, `announce`): one document every browser holds, which no
+         * reader's cut reaches, so a line naming the target named the masked killer to the table. Driven on this GM: the
+         * killer masked (mask-gm.mjs `maskKiller`), Silence applied to them as a GM's Despair Call applies it; read the
+         * lines the card would carry. Red at f5c8f041.
+         */
+        needs(env.primaryGm(), "the masks are the primary GM's");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const E = await import("./call-effects.mjs"), K = await import("./mask-gm.mjs"), M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        must(!M.murderState(), "an incident is open - this would measure something else");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        must(!K.maskStands(killer.id) && !E.isCallSilenced(killer), "a mask stands, or the killer is silenced - this would measure something else");
+        const restrictionsWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.restrictions) ?? null);
+        const messagesWas = new Set(game.messages.contents.map(m => m.id));
+        let lines = null;
+        try {
+            must(await K.maskKiller({ killerId: killer.id, victimId: victim.id }), "the mask did not go up - this would measure nothing");
+            await settle();
+            const out = await E.applyCall(null, "silence", "despair", { target: killer });
+            lines = out?.lines ?? null;
+            await settle();
+        } finally {
+            if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
+            if (restrictionsWas !== null) await game.settings.set(MODULE_ID, SETTINGS.restrictions, restrictionsWas);
+            for (const m of game.messages.contents.filter(m => !messagesWas.has(m.id))) await m.delete().catch(() => {});
+            await settle();
+        }
+        must(Array.isArray(lines) && lines.length > 0, "Silence wrote no line - this would measure nothing");
+        equal(stableJson([lines.some(l => l.includes(killer.name)), lines.some(l => l.includes("?"))]), stableJson([false, true]),
+            "the line for the card [names the masked killer, names a \"?\"] - " + JSON.stringify(lines));
+    }],
+
     ["E112 - the masks end before the Class Trial is entered, a token copied from a masked one without its flag is not kept as \"?\", and the hall's own tokens go at the trial's exit", async () => {
         /*
          * E112, 16.11.2026; the owner's confirmation through the coordinator of 15.11: the masks end before the Class Trial is
@@ -27429,34 +27624,6 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "Enter in the verdict window presses a verdict (the first submit button, the buttons marked default, the answer)");
     }],
 
-    ["a put-back writes every coordinate it names, whatever the writer's copy of the token holds (movement.mjs `putBackWrite`; the line claude/shim-118, 17.11.2026; the coordinator's answer on scenario 76 D)", async () => {
-        /*
-         * 76 D, on the D4 shim (two runs in three): the GM's put-back of Botan to 1250,400, written while p2's move to 1200,450
-         * was still on its way, left him at 1250,450 - the GM's copy held y 400 already, so the writer's diff dropped y and the
-         * move's y stood. Here the race is staged on this GM: a scratch token at 300,400, this browser's copy of it told it
-         * stands at y 300 (the target's y, as a copy that has not heard the move would), and a put-back to 300,300. Read: the
-         * changes `updateToken` hands for that write name y - what every other browser applies. Red before `putBackWrite` sent
-         * diff: false: the shim drops what the writer's copy already holds (lib/shim.mjs `TOKEN MOVEMENT`).
-         */
-        const M = await import("./movement.mjs");
-        const scene = game.scenes.get("SCENEACADEMY0000") ?? canvas.scene;
-        must(scene, "no scene to stand a scratch token on");
-        const [token] = await scene.createEmbeddedDocuments("Token", [{ name: "SUITE put-back", x: 300, y: 400, width: 1, height: 1 }]);
-        must(token, "the scratch token was not made");
-        let seen = null;
-        const hook = Hooks.on("updateToken", (doc, changes) => { if (doc.id === token.id) seen = Object.keys(changes).filter(k => k !== "_id").sort(); });
-        try {
-            token._source.y = 300;
-            await M.putBackWrite(token, { x: 300, y: 300 }, { animate: false });
-            await wait(300);
-            equal(JSON.stringify(seen?.includes("y") ?? null), "true",
-                `a put-back to 300,300, written by a copy that held y 300 already, did not send y (the changes updateToken handed: ${JSON.stringify(seen)})`);
-        } finally {
-            Hooks.off("updateToken", hook);
-            await scene.deleteEmbeddedDocuments("Token", [token.id]);
-        }
-    }],
-
     ["E40-T8 - two accused, each on their own: the verdict window ticks both, holds the wrong verdict off with none ticked, and a wrong verdict executes exactly the ticked - both, the first, the other; none gives no verdict (scripts/verdict.mjs `accusedChoices`, `executedChoice`, `read`; E40, 16.11.2026, the line claude/e40-117; the owner's \"gm wybiera czy chce zabic 1, czy 2 i ktora\")", async () => {
         /*
          * Drawn on this GM over a record whose count accused two living students who are not known Blackened (tier 1 R7601,
@@ -31169,8 +31336,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * ruling, and the GM's next Save wrote that back over it. Three halves, on one fixture
          * in a chapter of its own that nobody has planned:
          *   - the ruling lands while the window stands open, and the row shows it;
-         *   - a Save that changed nothing, pressed while a redraw is held off (focus inside the
-         *     window, live.mjs RULE 1) over a write the window has not drawn, writes nothing:
+         *   - a Save that changed nothing, pressed while a redraw is held off (a select focused
+         *     in the window, live.mjs RULE 1) over a write the window has not drawn, writes nothing:
          *     no ledger write, nothing refused, and no Key plan row for the chapter - which
          *     every Save used to fill in by scale, making the chapter a planned one;
          *   - a name the GM typed before a second ruling is marked, refused at Save and told
@@ -31224,7 +31391,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             equal(win.field(`text.${key}`)?.value, "SUITE reshaped words", "the open dashboard still shows the words the ruling replaced");
 
             /* ---- a Save that changed nothing writes nothing, even over a write it has not drawn ---- */
-            win.field(`text.${key}`).focus();
+            /* The redraw held off by a focused select (live.mjs RULE 1): since the line claude/plan-119 (20.11.2026) a focused
+               text field no longer holds the dashboard's redraw (`whileEditing`), and a select still does. */
+            win.field(`vis.${key}`).focus();
             await remnants.setRemnantPublic(token, { name: "SUITE another GM's name" });
             await gmStoresIdle();
             await wait(300);
@@ -96431,6 +96600,462 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ hope: [0, true, true], health: [0, true, true], cut: [true, 0], flag: 1 }),
             "[after a Hope-only write, after a Health write: the original's renders, the Hope pips, the Health row true; a Hope gain under Despair: the write cut, the renders; after a flag write: the renders]");
     }],
+    /* ---- 1.2.119 line S ---------------------------------------------------------------------------------------------- */
+    ["S119-T1 - a roll's Hope and Despair are shown when this browser's dice of that roll have landed (1.2.119; the owner, 20.11.2026: \"Despair powinno sie aktualizowac dopiero po zakonczeniu animacji kosci dice so nice, tak samo z hope\"): with a stand-in Dice So Nice whose animation of the roll's message has not ended, a Hope write that names the message (`drpgDiceOf`) leaves the open sheet's Hope as it was, a second roll's too, and the latest value is drawn when both animations have ended; a hand edit and a write naming no message are drawn at once; a Despair pool written with the message's name keeps the Despair row as it was until then; with no Dice So Nice a roll's write is drawn at once; and a roll's resource step on the writer's browser names its message on every write of its character (dice-hold.mjs `stampRollWrites`)", async () => {
+        /*
+         * 20.11.2026, 1.2.119 line S. On b5a29e73 the sheet repainted Hope and the Despair rows redrew as each write
+         * arrived; action-report.mjs `diceSettled` held only the result card. Here: the sheet is E45-T2's stand-in window
+         * (`e45SheetRoot`), its render called as the notes say Foundry calls it, in the write's turn, since the shim does not; Dice
+         * So Nice is a stand-in `game.dice3d` whose `waitFor3DAnimationByMessageID` answers a gate the test opens, one for
+         * each of the two messages named here, and at once for any other, put back in a finally. The messages are names only: Dice So
+         * Nice's wait is keyed by the id. Read: the sheet's held Hope pips, and the filled pips of the first Monokuma's
+         * Despair row (despair.mjs `despairRowOf`). Put back: Hope, the pool, `game.dice3d`.
+         * The pool's write carries its options to every browser's `onChange` as v13's `Setting#_onUpdate` does
+         * (LIVE-S119-01; the harness's settings carry a write's options since this line, client-entry.mjs).
+         */
+        const [student] = cast(1);
+        const D = await import("./despair.mjs");
+        const [gm] = D.monokumas();
+        must(student && gm, "no student or no Monokuma - this would measure nothing");
+        const HOPE = "system.resources.hope.value";
+        const hopeMax = Number(foundry.utils.getProperty(student, "system.resources.hope.max") ?? 6);
+        const hopeWas = Number(foundry.utils.getProperty(student, HOPE) ?? 0);
+        const poolsWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.despairPools) ?? {});
+        const despairWas = D.getDespair(gm.id);
+        const OPT = "drpgDiceOf", ROLL = "s119t1roll", ROLL2 = "s119t1roll2";
+        // one gate a roll, opened one after the other: a paint that waits on both must wait for the second
+        const opens = {};
+        const gates = Object.fromEntries([ROLL, ROLL2].map(id => [id, new Promise(resolve => { opens[id] = resolve; })]));
+        const dsn = { waitFor3DAnimationByMessageID: id => gates[id] ?? Promise.resolve(true) };
+        const hadDice = Object.getOwnPropertyDescriptor(game, "dice3d");
+        const ownApps = !student.apps;
+        const Stand = {
+            render() {
+                const root = e45SheetRoot();
+                this.element.replaceWith(root);
+                this.element = root;
+                Hooks.callAll("renderCharacterSheet", this, root, {}, { isFirstRender: false });
+                return Promise.resolve(this);
+            }
+        };
+        const app = Object.assign(Object.create(Stand), { id: `s119t1-${Date.now().toString(36)}`, document: student, isEditable: true, rendered: true });
+        // The render Foundry asks for inside the write (sheet-repaint.mjs "THE ORDER": before `updateActor`), asked here
+        // from this listener, in the same turn, since the shim asks none: dice-hold.mjs's own listener came first.
+        let asked = 0;
+        const hook = Hooks.on("updateActor", (doc, changes) => {
+            if (doc.id !== student.id || !app.element) return;
+            asked++;
+            void app.render(false, { renderContext: "updateActor", renderData: changes });
+        });
+        const write = async (changes, options = {}) => {
+            await student.update(changes, options);
+            await settle();
+        };
+        const pips = () => [...app.element.querySelectorAll(".character-header-sheet .hope-section .hope-value")].filter(s => s.querySelector("i.fa-solid")).length;
+        const despairShown = () => document.querySelectorAll(`#drpg-despair .drpg-despair-row[data-user-id="${gm.id}"] .drpg-despair-pip.filled`).length;
+        const setPool = async (value, options) => {
+            await game.settings.set(MODULE_ID, SETTINGS.despairPools, { ...game.settings.get(MODULE_ID, SETTINGS.despairPools), [gm.id]: value }, options);
+            await settle();
+        };
+        const read = {};
+        const base = Math.min(hopeWas, hopeMax - 3);
+        const pool = Math.min(despairWas, 9);
+        try {
+            if (ownApps) Object.defineProperty(student, "apps", { configurable: true, writable: true, value: {} });
+            app.element = e45SheetRoot();
+            document.body.append(app.element);
+            Hooks.callAll("renderCharacterSheet", app, app.element, {}, { isFirstRender: true });
+            student.apps[app.id] = app;
+            Object.defineProperty(game, "dice3d", { configurable: true, writable: true, value: dsn });
+            // away and back, so the sheet has drawn the base (a write that changes nothing draws nothing)
+            await write({ [HOPE]: base + 1 });
+            await write({ [HOPE]: base });
+            await setPool(pool);
+            D.renderDespairBar();
+            read.start = [pips(), despairShown()];
+            // the two rolls' messages arrive here, as `createChatMessage` hands them to dice-hold.mjs (no document is written)
+            const H0 = await import("./dice-hold.mjs").catch(() => null);
+            for (const id of [ROLL, ROLL2]) H0?.noteRollMessage?.({ id, rolls: [{}] });
+            await write({ [HOPE]: base + 1 }, { [OPT]: ROLL });
+            read.rollHeld = pips();
+            await write({ [HOPE]: base + 2 }, { [OPT]: ROLL2 });
+            read.secondHeld = pips();
+            await setPool(pool + 1, { [OPT]: ROLL });
+            read.despairHeld = despairShown();
+            opens[ROLL](true);
+            await settle();
+            read.firstLanded = [pips(), despairShown()];
+            opens[ROLL2](true);
+            await settle();
+            read.landed = [pips(), despairShown()];
+            await write({ [HOPE]: base + 1 });
+            read.handEdit = pips();
+            await write({ [HOPE]: base + 2 }, { [OPT]: "s119t1other" });
+            read.notAnimated = pips();
+            delete game.dice3d;
+            await write({ [HOPE]: base + 3 }, { [OPT]: ROLL });
+            await setPool(pool + 2, { [OPT]: ROLL });
+            read.noDiceSoNice = [pips(), despairShown()];
+            // the writer's side: a roll's resource step names its message on every write of its character
+            const H = await import("./dice-hold.mjs").catch(() => null);
+            must(H && typeof H.stampRollWrites === "function" && H.DICE_OPTION === OPT, "dice-hold.mjs exports no stampRollWrites, or names another option - a roll's writes are not stamped");
+            let seen = null;
+            const stampHook = Hooks.on("updateActor", (doc, changes, options) => { if (doc.id === student.id) seen = options?.[OPT] ?? null; });
+            try {
+                await H.stampRollWrites("s119t1stamp", [student.id], () => student.update({ [HOPE]: base }));
+                await settle();
+                read.stamped = seen;
+                await student.update({ [HOPE]: base + 1 });
+                await settle();
+                read.after = seen;
+            } finally { Hooks.off("updateActor", stampHook); }
+        } finally {
+            for (const go of Object.values(opens)) go(true);
+            if (hadDice) Object.defineProperty(game, "dice3d", hadDice);
+            else delete game.dice3d;
+            Hooks.off("updateActor", hook);
+            if (student.apps) delete student.apps[app.id];
+            if (ownApps) delete student.apps;
+            app.element?.remove();
+            await student.update({ [HOPE]: hopeWas }).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.despairPools, poolsWas).catch(() => {});
+            await settle();
+        }
+        must(asked >= 7, `the sheet was asked to draw ${asked} writes, not 7 - this would measure nothing`);
+        equal(stableJson(read), stableJson({
+            start: [base, pool], rollHeld: base, secondHeld: base, despairHeld: pool, firstLanded: [base, pool + 1], landed: [base + 2, pool + 1],
+            handEdit: base + 1, notAnimated: base + 2, noDiceSoNice: [base + 3, pool + 2], stamped: "s119t1stamp", after: null
+        }), "{the sheet's Hope and the Despair row: at the start; after a roll's write while its dice fall; after a second; the Despair row after the roll's pool write; when the first roll's dice land (the sheet waits on the second's too); when the second's land; after a hand edit; after a write naming a message not animated; with no Dice So Nice; the option a stamped step wrote, and one after it}");
+    }],
+    ["S119-T2 - a roll's write that the sheet renders in full is drawn when this browser's dice of the roll have landed too (1.2.119; the owner's answer of 20.11.2026 to the places #11 left: \"Jesli zdazymy przed niedziela, robimy\"): with a stand-in Dice So Nice whose animation has not ended, a Hope write naming the roll that also carries a flag - which a repaint cannot draw - leaves the sheet unrendered, a Hope-only write of the same roll after it keeps the full render owed, and the sheet renders once when the animation ends, drawing the latest Hope; a write naming no roll renders at once", async () => {
+        /*
+         * 20.11.2026, 1.2.119 line S. S119-T1's stand-in sheet and Dice So Nice; here the sheet's original render is
+         * counted (`drawn`) with the Hope it drew, as E45-T2 counts it; the harness's shim renders the window after each write
+         * (client-entry.mjs `renderApps`), as Foundry renders it inside the write. On 893bfad1 a write with more than the repaintable resources went to the
+         * render at once (sheet-repaint.mjs `installRenderPlan`, its "render" branch), dice falling or not. Put back:
+         * Hope, the flag, `game.dice3d`.
+         */
+        const [student] = cast(1);
+        must(student, "no student - this would measure nothing");
+        const HOPE = "system.resources.hope.value", OPT = "drpgDiceOf", ROLL = "s119t2roll";
+        const hopeMax = Number(foundry.utils.getProperty(student, "system.resources.hope.max") ?? 6);
+        const hopeWas = Number(foundry.utils.getProperty(student, HOPE) ?? 0);
+        const base = Math.min(hopeWas, hopeMax - 3);
+        let open = null;
+        const gate = new Promise(resolve => { open = resolve; });
+        const dsn = { waitFor3DAnimationByMessageID: id => (id === ROLL ? gate : Promise.resolve(true)) };
+        const hadDice = Object.getOwnPropertyDescriptor(game, "dice3d");
+        const ownApps = !student.apps;
+        let drawn = 0, drew = null;
+        const Stand = {
+            render() {
+                drawn++;
+                drew = Number(foundry.utils.getProperty(student, HOPE) ?? 0);
+                const root = e45SheetRoot();
+                this.element.replaceWith(root);
+                this.element = root;
+                Hooks.callAll("renderCharacterSheet", this, root, {}, { isFirstRender: false });
+                return Promise.resolve(this);
+            }
+        };
+        const app = Object.assign(Object.create(Stand), { id: `s119t2-${Date.now().toString(36)}`, document: student, isEditable: true, rendered: true });
+        const write = async (changes, options = {}) => { await student.update(changes, options); await settle(); };
+        const pips = () => [...app.element.querySelectorAll(".character-header-sheet .hope-section .hope-value")].filter(s => s.querySelector("i.fa-solid")).length;
+        const read = {};
+        try {
+            if (ownApps) Object.defineProperty(student, "apps", { configurable: true, writable: true, value: {} });
+            app.element = e45SheetRoot();
+            document.body.append(app.element);
+            Hooks.callAll("renderCharacterSheet", app, app.element, {}, { isFirstRender: true });
+            student.apps[app.id] = app;
+            await write({ [HOPE]: base + 1 });
+            await write({ [HOPE]: base });
+            Object.defineProperty(game, "dice3d", { configurable: true, writable: true, value: dsn });
+            const H = await import("./dice-hold.mjs");
+            H.noteRollMessage({ id: ROLL, rolls: [{}] });
+            drawn = 0;
+            read.start = pips();
+            await write({ [HOPE]: base + 1, "flags.world.suiteS119T2": 1 }, { [OPT]: ROLL });
+            read.mixedHeld = [drawn, pips()];
+            await write({ [HOPE]: base + 2 }, { [OPT]: ROLL });
+            read.thenRepaintHeld = [drawn, pips()];
+            open(true);
+            await settle();
+            read.landed = [drawn, drew];
+            await write({ [HOPE]: base + 1, "flags.world.suiteS119T2": 2 });
+            read.unnamed = [drawn, drew];
+        } finally {
+            open?.(true);
+            if (hadDice) Object.defineProperty(game, "dice3d", hadDice);
+            else delete game.dice3d;
+            if (student.apps) delete student.apps[app.id];
+            if (ownApps) delete student.apps;
+            app.element?.remove();
+            await student.update({ [HOPE]: hopeWas }).catch(() => {});
+            await student.unsetFlag("world", "suiteS119T2").catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ start: base, mixedHeld: [0, base], thenRepaintHeld: [0, base], landed: [1, base + 2], unnamed: [2, base + 1] }),
+            "{the sheet's Hope pips at the start; [the original's renders, the pips] after a roll's write with a flag, and after a Hope-only write of the same roll; [the renders, the Hope the last render drew] when the dice land, and after a write naming no roll}");
+    }],
+    ["S119-T3 - a Reroll's dice on a message whose first dice have landed hold what the Reroll moves until they land too (1.2.119; the owner's answer of 20.11.2026 to the places #11 left): with a stand-in Dice So Nice that has finished the message's first animation, a throw of the message's dice noted again (the Reroll's, private-rolls.mjs `relayRerolledDice` and `showRelayedDice`) makes the message's dice fall again here, and a paint naming the message waits for that throw", async () => {
+        /*
+         * 20.11.2026, 1.2.119 line S. A Reroll rewrites the roll's own message (reroll.mjs `makeReroll`, `message.update`), so
+         * its writes name the same message as the first roll's did; on 893bfad1 the message's settle, once ended, stood
+         * ended (dice-hold.mjs `diceSettledHere` keeps one a message), and the Reroll's Hope and Despair were drawn under its
+         * falling dice. No document is written: the message is a name, as Dice So Nice's wait is keyed by it. Put back:
+         * `game.dice3d`.
+         */
+        const H = await import("./dice-hold.mjs");
+        const ROLL = `s119t3roll${Date.now().toString(36)}`;
+        const hadDice = Object.getOwnPropertyDescriptor(game, "dice3d");
+        let open = null;
+        const again = new Promise(resolve => { open = resolve; });
+        const read = {};
+        let painted = 0;
+        try {
+            Object.defineProperty(game, "dice3d", { configurable: true, writable: true, value: { waitFor3DAnimationByMessageID: () => Promise.resolve(true) } });
+            H.noteRollMessage({ id: ROLL, rolls: [{}] });
+            await settle();
+            read.firstLanded = H.diceMayFall(ROLL);
+            H.noteThrow(ROLL, again);
+            read.rerollFalling = H.diceMayFall(ROLL);
+            read.held = H.holdPaint(ROLL, "s119t3", () => { painted++; });
+            await settle();
+            read.whileFalling = painted;
+            open(true);
+            await settle();
+            read.landed = painted;
+        } finally {
+            open?.(true);
+            if (hadDice) Object.defineProperty(game, "dice3d", hadDice);
+            else delete game.dice3d;
+        }
+        equal(stableJson(read), stableJson({ firstLanded: false, rerollFalling: true, held: true, whileFalling: 0, landed: 1 }),
+            "{the message's first dice landed; its dice falling again once a throw is noted; the paint held; painted while they fall; painted once they land}");
+    }],
+    ["S119-T4 - a roll's point of Despair that spills into the Overflow is drawn on the GM that writes it when that GM's dice of the roll have landed (1.2.119; the owner's answer of 20.11.2026 to the places #11 left): with a stand-in Dice So Nice whose animation has not ended, the Overflow's count added inside the roll's stamp (dice-hold.mjs `stampLocal`) leaves the caption's count as it was, and draws it when the animation ends; one added outside it is drawn at once", async () => {
+        /*
+         * 20.11.2026, 1.2.119 line S. The count is a GMs' store (gm-stores.mjs `overflowStore`), each GM's copy a client
+         * setting whose `onChange` redraws the caption (settings.mjs); a store's write carries nothing to the other GMs, so
+         * the hold is the writer's: the primary GM, which writes every spill. Read: the GM's caption under the Despair
+         * rows, "... · n/threshold". On 893bfad1 the count was drawn as it was written. Put back: the count (`takeOverflow`),
+         * `game.dice3d`.
+         */
+        const H = await import("./dice-hold.mjs");
+        const O = await import("./overflow.mjs");
+        const D = await import("./despair.mjs");
+        must(typeof O.addOverflow === "function" && typeof O.takeOverflow === "function", "overflow.mjs exports no addOverflow or takeOverflow - this would measure nothing");
+        const ROLL = `s119t4roll${Date.now().toString(36)}`;
+        const status = O.overflowStatus();
+        must(status.threshold - status.count >= 3, `the Overflow stands at ${status.count}/${status.threshold}: two more would come too near what darkens the world`);
+        const hadDice = Object.getOwnPropertyDescriptor(game, "dice3d");
+        let open = null;
+        const gate = new Promise(resolve => { open = resolve; });
+        const shown = () => {
+            const text = document.querySelector("#drpg-despair .drpg-overflow-caption")?.textContent ?? "";
+            const m = /(\d+)\/\d+/.exec(text);
+            return m ? Number(m[1]) : null;
+        };
+        const read = {};
+        let added = 0;
+        try {
+            Object.defineProperty(game, "dice3d", { configurable: true, writable: true, value: { waitFor3DAnimationByMessageID: id => (id === ROLL ? gate : Promise.resolve(true)) } });
+            D.renderDespairBar();
+            await settle();
+            read.start = shown() === status.count;
+            H.noteRollMessage({ id: ROLL, rolls: [{}] });
+            must(typeof H.stampLocal === "function", "dice-hold.mjs exports no stampLocal - a spill is not named");
+            await H.stampLocal("overflow", ROLL, () => O.addOverflow(1, { reason: "SUITE S119-T4" }));
+            added++;
+            await settle();
+            read.held = shown() - status.count;
+            open(true);
+            await settle();
+            read.landed = shown() - status.count;
+            await O.addOverflow(1, { reason: "SUITE S119-T4" });
+            added++;
+            await settle();
+            read.unnamed = shown() - status.count;
+        } finally {
+            open?.(true);
+            if (hadDice) Object.defineProperty(game, "dice3d", hadDice);
+            else delete game.dice3d;
+            if (added) await O.takeOverflow(added, { reason: "SUITE S119-T4" }).catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ start: true, held: 0, landed: 1, unnamed: 2 }),
+            "{the caption's count at the start; what it shows over the start after a spill named by the roll while its dice fall; when they land; after a spill naming none}");
+    }],
+    ["S119-T5 - the Party sheet a roll's write renders is drawn when this browser's dice of the roll have landed (1.2.119; the owner's answer of 20.11.2026 to the places #11 left): with a stand-in Dice So Nice whose animation has not ended, a member's Hope write naming the roll leaves a Party sheet opened through the module's hook (`renderPartySheet`) unrendered, and renders it once, with the latest Hope, when the animation ends; a write naming no roll renders it at once", async () => {
+        /*
+         * 20.11.2026, 1.2.119 line S. Daggerheart's Party sheet draws its members' Hope itself; the module holds the sheet's
+         * own render (dice-hold.mjs `holdAppRenders`, installed at its first render) - which roads of Daggerheart 2.12 or
+         * Foundry v14 render it after a member's write are not read here (LIVE-S119-01): the stand-in sits in the member's
+         * `apps`, which the harness's shim renders after a write, as Foundry renders a document's windows. Counted: the
+         * stand-in's own renders, with the member's Hope each drew. Put back: Hope, `game.dice3d`.
+         */
+        const [student] = cast(1);
+        must(student, "no student - this would measure nothing");
+        const HOPE = "system.resources.hope.value", OPT = "drpgDiceOf", ROLL = `s119t5roll${Date.now().toString(36)}`;
+        const hopeMax = Number(foundry.utils.getProperty(student, "system.resources.hope.max") ?? 6);
+        const hopeWas = Number(foundry.utils.getProperty(student, HOPE) ?? 0);
+        const base = Math.min(hopeWas, hopeMax - 3);
+        let open = null;
+        const gate = new Promise(resolve => { open = resolve; });
+        const hadDice = Object.getOwnPropertyDescriptor(game, "dice3d");
+        const ownApps = !student.apps;
+        let drawn = 0, drew = null;
+        const Party = { render() { drawn++; drew = Number(foundry.utils.getProperty(student, HOPE) ?? 0); return Promise.resolve(this); } };
+        const app = Object.assign(Object.create(Party), { id: `s119t5-${Date.now().toString(36)}`, rendered: true, element: document.createElement("div") });
+        const write = async (changes, options = {}) => { await student.update(changes, options); await settle(); };
+        const read = {};
+        try {
+            if (ownApps) Object.defineProperty(student, "apps", { configurable: true, writable: true, value: {} });
+            await write({ [HOPE]: base });
+            Hooks.callAll("renderPartySheet", app, app.element, {}, { isFirstRender: true });
+            student.apps[app.id] = app;
+            Object.defineProperty(game, "dice3d", { configurable: true, writable: true, value: { waitFor3DAnimationByMessageID: id => (id === ROLL ? gate : Promise.resolve(true)) } });
+            const H = await import("./dice-hold.mjs");
+            H.noteRollMessage({ id: ROLL, rolls: [{}] });
+            drawn = 0;
+            await write({ [HOPE]: base + 1 }, { [OPT]: ROLL });
+            await write({ [HOPE]: base + 2 }, { [OPT]: ROLL });
+            read.held = drawn;
+            open(true);
+            await settle();
+            read.landed = [drawn, drew];
+            await write({ [HOPE]: base + 1 });
+            read.unnamed = [drawn, drew];
+        } finally {
+            open?.(true);
+            if (hadDice) Object.defineProperty(game, "dice3d", hadDice);
+            else delete game.dice3d;
+            if (student.apps) delete student.apps[app.id];
+            if (ownApps) delete student.apps;
+            await student.update({ [HOPE]: hopeWas }).catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ held: 0, landed: [1, base + 2], unnamed: [2, base + 1] }),
+            "{the Party sheet's renders after two writes of the roll while its dice fall; [renders, the Hope drawn] when they land; after a write naming no roll}");
+    }],
+    ["S119-T6 - the token HUD a roll's write renders is drawn when this browser's dice of the roll have landed (1.2.119; the owner's answer of 20.11.2026 to the places #11 left): with a stand-in Dice So Nice whose animation has not ended, a Hope write naming the roll leaves the HUD of that student's token, opened through the module's hook (`renderTokenHUD`), unrendered, and renders it once, with the latest Hope, when the animation ends; a write naming no roll renders it at once, and a forced render (the HUD opened on a token) is never held", async () => {
+        /*
+         * 20.11.2026, 1.2.119 line S. Foundry's token HUD draws a bar pointed at Hope itself; the module holds the HUD's own render
+         * (dice-hold.mjs `holdAppRenders`, installed at its first render, for its token's actor alone) - which road of v14
+         * renders it after the actor's write is not read here (LIVE-S119-01): the stand-in sits in the actor's `apps`, which
+         * the harness's shim renders after a write. No canvas: the HUD is a stand-in with the token's actor (`actor`). Counted: the
+         * stand-in's own renders, with the member's Hope each drew. Put back: Hope, `game.dice3d`.
+         */
+        const [student] = cast(1);
+        must(student, "no student - this would measure nothing");
+        const HOPE = "system.resources.hope.value", OPT = "drpgDiceOf", ROLL = `s119t6roll${Date.now().toString(36)}`;
+        const hopeMax = Number(foundry.utils.getProperty(student, "system.resources.hope.max") ?? 6);
+        const hopeWas = Number(foundry.utils.getProperty(student, HOPE) ?? 0);
+        const base = Math.min(hopeWas, hopeMax - 3);
+        let open = null;
+        const gate = new Promise(resolve => { open = resolve; });
+        const hadDice = Object.getOwnPropertyDescriptor(game, "dice3d");
+        const ownApps = !student.apps;
+        let drawn = 0, drew = null, open2 = null;
+        const gate2 = new Promise(resolve => { open2 = resolve; });
+        const Hud = { render() { drawn++; drew = Number(foundry.utils.getProperty(student, HOPE) ?? 0); return Promise.resolve(this); } };
+        const app = Object.assign(Object.create(Hud), { actor: student, id: `s119t6-${Date.now().toString(36)}`, rendered: true, element: document.createElement("div") });
+        const write = async (changes, options = {}) => { await student.update(changes, options); await settle(); };
+        const read = {};
+        try {
+            if (ownApps) Object.defineProperty(student, "apps", { configurable: true, writable: true, value: {} });
+            await write({ [HOPE]: base });
+            Hooks.callAll("renderTokenHUD", app, app.element, {}, { isFirstRender: true });
+            student.apps[app.id] = app;
+            Object.defineProperty(game, "dice3d", { configurable: true, writable: true, value: { waitFor3DAnimationByMessageID: id => (id === ROLL ? gate : Promise.resolve(true)) } });
+            const H = await import("./dice-hold.mjs");
+            H.noteRollMessage({ id: ROLL, rolls: [{}] });
+            drawn = 0;
+            await write({ [HOPE]: base + 1 }, { [OPT]: ROLL });
+            await write({ [HOPE]: base + 2 }, { [OPT]: ROLL });
+            read.held = drawn;
+            open(true);
+            await settle();
+            read.landed = [drawn, drew];
+            await write({ [HOPE]: base + 1 });
+            read.unnamed = [drawn, drew];
+            const H2 = await import("./dice-hold.mjs");
+            const ROLL2 = `${ROLL}b`;
+            H2.noteRollMessage({ id: ROLL2, rolls: [{}] });
+            Object.defineProperty(game, "dice3d", { configurable: true, writable: true, value: { waitFor3DAnimationByMessageID: () => gate2 } });
+            await write({ [HOPE]: base + 2 }, { [OPT]: ROLL2 });
+            const before = drawn;
+            await app.render(true);
+            read.forced = drawn - before;
+        } finally {
+            open?.(true);
+            open2?.(true);
+            if (hadDice) Object.defineProperty(game, "dice3d", hadDice);
+            else delete game.dice3d;
+            if (student.apps) delete student.apps[app.id];
+            if (ownApps) delete student.apps;
+            await student.update({ [HOPE]: hopeWas }).catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ held: 0, landed: [1, base + 2], unnamed: [2, base + 1], forced: 1 }),
+            "{the HUD's renders after two writes of the roll while its dice fall; [renders, the Hope drawn] when they land; after a write naming no roll; a forced render while another roll's dice fall}");
+    }],
+    ["S119-T7 - an item that is not broken can be thrown away the way a broken one is, and what the module only copies cannot (1.2.119; the owner, 20.11.2026: \"Dodajmy mozliwosc wyrzucania przedmiotu tez wtedy gdy nie jest broken\"): on a student's sheet drawn by the module's own hook, a whole Tool's row offers the Discard, lit, with the discard's tooltip, and a bedroom key's row offers none; `discardBroken` of the whole Tool goes to the question (answered no here: nothing rolled or thrown), and of the key is refused before any question, with the reason warned", async () => {
+        /*
+         * 20.11.2026, 1.2.119 line S. On f5319776 the Discard was drawn for a broken item alone (sheet-inventory.mjs
+         * `addDiscardButton`) and `discardBroken` refused any other with DRPG.Items.discardOnlyBroken; the GMs' audit stood a
+         * discard's delete on its ticket only for a broken item (sheet-audit.mjs `itemFindings`), which scenario 40's day
+         * drives from a player's browser. The road itself - the question, the Shadow roll, the trace, the ticket - is the
+         * broken item's, unchanged; what the module copies and never moves (inventory.mjs `onlyCopied`: a Truth Bullet, a
+         * bedroom key) keeps no button and is refused. Windows answered "no" and counted; the items, the windows and the
+         * warnings put back.
+         */
+        needs(world.atLeast("livingStudents", 1), "a student to hold the items");
+        const INV = await import("./inventory.mjs");
+        const U = await import("./use-items.mjs");
+        const { BEDROOM_KEY_FLAG } = await import("./config.mjs");
+        const [actor] = cast(1);
+        const DialogV2 = foundry.applications.api.DialogV2;
+        const own = { confirm: Object.getOwnPropertyDescriptor(DialogV2, "confirm"), wait: Object.getOwnPropertyDescriptor(DialogV2, "wait") };
+        const warnOwn = Object.getOwnPropertyDescriptor(ui.notifications, "warn"), warn = ui.notifications.warn;
+        const asked = { n: 0 }, warned = [];
+        const read = {};
+        let whole = null, key = null, sheet = null;
+        const buttonOf = item => {
+            const b = sheet.element.querySelector(`[data-item-uuid="${item.uuid}"] [data-drpg-row-action="discard"]`);
+            return b ? [b.getAttribute("aria-disabled") === "true", b.dataset.tooltip ?? null] : null;
+        };
+        try {
+            whole = await INV.grantItem(actor, { name: "SUITE S119-T7 a whole lockpick", category: "tool", tier: 1, override: true, quiet: true });
+            key = await INV.grantItem(actor, { name: "SUITE S119-T7 a key", category: "bedroomKey", tier: null, override: true, quiet: true,
+                extraFlags: { [BEDROOM_KEY_FLAG]: "SUITE S119-T7 room" } });
+            must(whole && !INV.isBroken(whole) && key, "the whole tool or the key was not made - this would measure nothing");
+            await settle();
+            sheet = drawnSheet(actor);
+            must(sheet.element.querySelector(`[data-item-uuid="${whole.uuid}"]`) && sheet.element.querySelector(`[data-item-uuid="${key.uuid}"]`),
+                "the sheet drew no row for the tool or the key - this would measure nothing");
+            read.buttons = { whole: buttonOf(whole), key: buttonOf(key) };
+            DialogV2.confirm = async () => { asked.n += 1; return false; };
+            DialogV2.wait = async () => { asked.n += 1; return null; };
+            ui.notifications.warn = (message, ...rest) => { warned.push(String(message)); return warn.call(ui.notifications, message, ...rest); };
+            const count = game.messages.size;
+            const a = await U.discardBroken(actor, whole);
+            read.whole = [a ?? null, asked.n, warned.length, Boolean(actor.items.get(whole.id)), game.messages.size - count];
+            const b = await U.discardBroken(actor, key);
+            read.key = [b ?? null, asked.n, warned.includes(game.i18n.localize("DRPG.Items.discardNever")), Boolean(actor.items.get(key.id))];
+        } finally {
+            for (const [k, was] of Object.entries(own)) { if (was) Object.defineProperty(DialogV2, k, was); else delete DialogV2[k]; }
+            if (warnOwn) Object.defineProperty(ui.notifications, "warn", warnOwn); else delete ui.notifications.warn;
+            sheet?.remove();
+            for (const item of [whole, key]) { try { await actor.items.get(item?.id ?? "")?.delete(); } catch { /* already gone */ } }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            buttons: { whole: [false, game.i18n.localize("DRPG.Items.discardTooltip")], key: null },
+            whole: [null, 1, 0, true, 0], key: [null, 1, true, true]
+        }), "{the Discard on the whole tool's row [greyed, tooltip] and on the key's; the whole tool's discard [answer, windows asked so far, warnings, still held, messages]; the key's [answer, windows asked so far, the reason warned, still held]}");
+    }],
     /* ---- E46-C3 ------------------------------------------------------------------------------------------------------ */
     ["E46-T2 - Give existing at the table (scripts/gm-items.mjs; E46-C3, S08-42): an Axe picked from a room pool and given at Tier 0 is a Murder Weapon with no second role; an entry picked from a tier pool is given as the pool's category and tier", async () => {
         /*
@@ -96551,6 +97176,68 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ rows: [true, true, true], warns: ["the Polish warning"], english: false }),
             "{the Effects rows [one a SFX_EVENTS key in order, each in the kit's table, all in one table]; the warnings the Test gave; whether one holds "
             + "the English reason or a raw key}");
+    }],
+    ["P119-S1 - on the Effects tab a GM removes and adds one file of an event, and the row follows at once (1.2.119, the owner: \"dodajmy opcje wyboru ktory dzwiek usuwamy/dodajemy. Aktualnie mam np. monocub changes - 2 files, ale nie moge usunac pliku ktory mnie juz nie interesuje\"; his standing rule: \"Zawsze odswiezamy okna od razu przy zmianie\"): with the Sound window open on an event of two files, its chip says 2 files and unfolds the list; Remove on the second leaves the stored files the first alone and the row says 1 file; a path typed in the row's box joins it, both stored and the box empty; a change written outside the window (as another GM's) redraws the row in place with its list still open; one file's own box edited replaces that file alone, in its place (the owner: \"niech kazdy wiersz wyglada jak ten pierwszy\"); everything put back", async () => {
+        /*
+         * Line P of 1.2.119 (the sound item), 20.11.2026. The window drawn (env.dialogs), the map written through sfx.mjs
+         * `setSoundFor` and put back. Red at b5a29e73: the row has no list - its chip is a span and appears only past one
+         * file, and its box holds the whole list, so nothing removes one file.
+         */
+        needs(env.dialogs(), "the Sound window is drawn and its Effects rows pressed");
+        must(game.user.isGM, "the Effects tab is a GM's");
+        must(!document.querySelector(".drpg-window-sound"), "a Sound window is open - close it: this test opens its own");
+        const M = await import("./music.mjs"), X = await import("./sfx.mjs");
+        const key = Object.keys(SFX_EVENTS)[0];
+        const was = getSetting(SETTINGS.sfxMap)?.[key] ?? null;
+        const A = "sounds/p119-s1-a.ogg", B = "sounds/p119-s1-b.ogg", C = "sounds/p119-s1-c.ogg", D = "sounds/p119-s1-d.ogg", E = "https://example.invalid/p119-s1-e.mp3";
+        const read = {};
+        let answer = null;
+        const root = () => document.querySelector(".drpg-window-sound");
+        const row = () => root()?.querySelector(`tr[data-drpg-sfx="${key}"]`);
+        const chipText = () => row()?.querySelector("[data-drpg-sfx-files]")?.textContent.trim() ?? null;
+        const stored = () => (getSetting(SETTINGS.sfxMap)?.[key] ?? "").split("|").map(s => s.trim()).filter(Boolean);
+        try {
+            await X.setSoundFor(key, `${A} | ${B}`);
+            await settle();
+            answer = Promise.resolve().then(() => M.openSoundDialog()).catch(err => `threw: ${err.message}`);
+            must(await until(() => row(), 6000), "the Sound window did not open with the event's row");
+            root().querySelector('nav.drpg-tabs [data-drpg-tab-key="effects"]')?.click();
+            read.two = chipText();
+            row().querySelector("[data-drpg-sfx-files]")?.click();
+            read.opened = [row()?.querySelector("[data-drpg-sfx-files]")?.getAttribute("aria-expanded"), row()?.querySelector("[data-drpg-sfx-list]")?.hidden,
+                [...(row()?.querySelectorAll("[data-drpg-sfx-file]") ?? [])].length];
+            row().querySelector('[data-drpg-sfx-remove="1"]')?.click();
+            await until(() => stored().length === 1, 3000);
+            await until(() => chipText() === game.i18n.format("DRPG.Sound.fileCount.one", { n: 1 }), 3000);
+            read.removed = [stored(), chipText()];
+            const box = row()?.querySelector(`input[name="sfx:${key}"]`);
+            if (box) { box.value = C; box.dispatchEvent(new Event("change", { bubbles: true })); }
+            await until(() => stored().length === 2, 3000);
+            await until(() => chipText() === game.i18n.format("DRPG.Sound.fileCount.other", { n: 2 }), 3000);
+            read.added = [stored(), row()?.querySelector(`input[name="sfx:${key}"]`)?.value ?? null, chipText()];
+            await X.setSoundFor(key, `${A} | ${C} | ${D}`);
+            await until(() => chipText() === game.i18n.format("DRPG.Sound.fileCount.other", { n: 3 }), 3000);
+            const boxes = () => [...(row()?.querySelectorAll("input[data-drpg-sfx-file-box]") ?? [])];
+            read.outside = [chipText(), row()?.querySelector("[data-drpg-sfx-files]")?.getAttribute("aria-expanded"), row()?.querySelector("[data-drpg-sfx-list]")?.hidden,
+                boxes().map(b => b.value)];
+            // one file's own box edited (the owner: every file a box like the first): that file alone replaced, in its place
+            const second = boxes()[1];
+            if (second) { second.value = E; second.dispatchEvent(new Event("change", { bubbles: true })); }
+            await until(() => stored()[1] === E, 3000);
+            await until(() => boxes()[1]?.value === E, 3000);
+            read.edited = [stored(), boxes().map(b => b.value), chipText()];
+            root().querySelector('footer.form-footer button[data-action="close"]')?.click();
+            await Promise.race([answer, wait(3000)]);
+        } finally {
+            for (const app of [...foundry.applications.instances.values()].filter(a => a.element?.classList?.contains("drpg-window-sound"))) await app.close();
+            if (answer) await Promise.race([answer, wait(3000)]);
+            await X.setSoundFor(key, was);
+            await settle();
+        }
+        const n = (k, v) => game.i18n.format(`DRPG.Sound.fileCount.${k}`, { n: v });
+        equal(stableJson(read), stableJson({ two: n("other", 2), opened: ["true", false, 2], removed: [[A], n("one", 1)], added: [[A, C], "", n("other", 2)],
+            outside: [n("other", 3), "true", false, [A, C, D]], edited: [[A, E, D], [A, E, D], n("other", 3)] }),
+            "{two: the chip of two files; opened: the chip pressed [expanded, list hidden, files listed]; removed: the second removed [stored, chip]; added: a path typed [stored, box, chip]; outside: the map written outside the window [chip, expanded, hidden, the boxes' values]; edited: the second file's box edited [stored, boxes, chip]}");
     }],
     /* ---- E46-C2a (09.11.2026): Room setup on the kit, its writes held. ---- */
     ["E72 C8 Silence now - a GM's Silence now moves a kept death's voice out of its room: the cast's `silencedDead` written, read through the incident's state by `deathVoiceGone` (false before, true after), kept out of the victim's player's copy, and a second press writes nothing (E72 C8, the plan's A9)", async () => {
@@ -104254,6 +104941,770 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
         }
         equal(stableJson(answer), stableJson(true), "the queued answer did not answer the window");
+    }],
+
+    /* ------------------------------------------------------------------------------------------------------------------
+     * C1's block on the line claude/shim-118 (19.11.2026): the put-back's own tests. L1 owns the rest of this file in its
+     * loop; kept apart so the two branches meet here alone.
+     * ------------------------------------------------------------------------------------------------------------------ */
+    ["a put-back written while the token's newer move is on its way lands after it (movement.mjs `putBackWrite`; the line claude/shim-118, 19.11.2026; E58 L1's third probe, r5)", async () => {
+        /*
+         * On Foundry 14.370 a token update with `diff: false` whose every named coordinate the writer's copy already holds is not
+         * sent (CALIBRATION.md section 6, the third probe's r5; lib/shim.mjs models it since this line). The race's shape: the
+         * copy still holds the spot the put-back aims at - the token's old place - while the player's newer move is on the
+         * server already and reaches this browser a moment later. Here, on this GM: a scratch token at 300,300, its copy in
+         * step; the put-back to 300,300 started; 150 ms later a move of the token to 500,300 lands (written by this GM,
+         * standing in for the move already on its way). Read: what the put-back answered, and where the token stands after.
+         * The newer move starts away from `to` (its record's origin, 400,300), as a move written by a browser that had not seen
+         * the put-back does. Before `putBackWrite` waited for the move in flight it wrote nothing, answered undefined, and the
+         * token stood at 500,300 - a refused crossing left standing. What 14.370's server does with a put-back written after a newer move
+         * is not modelled here beyond the shim's: L1's runs at a table are its measurement. This test replaces "a put-back
+         * writes every coordinate it names, whatever the writer's copy of the token holds" (17.11.2026), retired on this line by
+         * the coordinator's answer of 19.11: it staged a copy wrong with nothing in flight, which r5 leaves no client write to
+         * correct, and under the shim's r5 rule it could only be red.
+         */
+        const M = await import("./movement.mjs");
+        const scene = game.scenes.get("SCENEACADEMY0000") ?? canvas.scene;
+        must(scene, "no scene to stand a scratch token on");
+        const [token] = await scene.createEmbeddedDocuments("Token", [{ name: "SUITE put-back race", x: 300, y: 300, width: 1, height: 1 }]);
+        must(token, "the scratch token was not made");
+        let read = null;
+        try {
+            const back = M.putBackWrite(token, { x: 300, y: 300 }, { animate: false });
+            await wait(150);
+            /* The newer move starts where the mover's copy had the token - away from `to`, 400,300 here - as the race's move
+               does, written by a browser that had not seen the token back at `to` (its record's `origin`; lib/shim.mjs
+               `tokenMove` takes it from the writer's copy). Restaged on 19.11.2026 with the origin rule: until then this
+               move started at `to`, the shape of a fresh move after the put-back, which the put-back must not undo. */
+            token._source.x = 400;
+            await token.update({ x: 500, y: 300 }, { animate: false });
+            const out = await back;
+            await settle();
+            read = [out ?? null, token.x, token.y];
+        } finally {
+            await scene.deleteEmbeddedDocuments("Token", [token.id]);
+        }
+        equal(stableJson(read), stableJson([{ landed: true, sent: true }, 300, 300]),
+            "a put-back whose spot the copy held, with the token's newer move on its way, did not land after that move (the put-back's answer, the token's x and y after)");
+    }],
+
+    ["a put-back to the spot the token stands on, with nothing on its way, writes nothing and says it landed (movement.mjs `putBackWrite`; the line claude/shim-118, 19.11.2026)", async () => {
+        /*
+         * The other end of the same road: the copy holds the spot and no move of the token comes within the wait
+         * (`TIMING.putBackWaitMs`). Nothing is sent - 14.370 would send nothing - and the token stands where it is put back
+         * to, as far as this browser can know: answered `{ sent: false, landed: true }`, after the wait and not before it, with
+         * no update of the token heard. A copy wrong with nothing in flight is not covered (movement.mjs `putBackWrite`).
+         */
+        const M = await import("./movement.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const scene = game.scenes.get("SCENEACADEMY0000") ?? canvas.scene;
+        must(scene, "no scene to stand a scratch token on");
+        const [token] = await scene.createEmbeddedDocuments("Token", [{ name: "SUITE put-back still", x: 300, y: 300, width: 1, height: 1 }]);
+        must(token, "the scratch token was not made");
+        let heard = 0, read = null;
+        const hook = Hooks.on("updateToken", doc => { if (doc.id === token.id) heard++; });
+        try {
+            const t0 = Date.now();
+            const out = await M.putBackWrite(token, { x: 300, y: 300 }, { animate: false });
+            const waited = Date.now() - t0;
+            await settle();
+            /* Read with 25 ms to spare: a timer measured against `Date.now()` can read a millisecond or so short of its delay. Once
+               in nine runs on 19.11.2026 this test failed with no message kept; that is the likely reading, not a measured one. */
+            read = [out ?? null, waited >= TIMING.putBackWaitMs - 25, heard, token.x, token.y];
+        } finally {
+            Hooks.off("updateToken", hook);
+            await scene.deleteEmbeddedDocuments("Token", [token.id]);
+        }
+        equal(stableJson(read), stableJson([{ landed: true, sent: false }, true, 0, 300, 300]),
+            "a put-back to where the token stands, with nothing on its way, wrote, did not wait, or did not say it landed (the answer, waited the full wait, updates heard, x, y)");
+    }],
+
+    ["a put-back that judges a move this browser saw land does not wait when the token already stands where it is put back (movement.mjs `putBackWrite` `seenHere`, `chargeRoute`; the line claude/shim-118, 19.11.2026)", async () => {
+        /*
+         * The mover's own charge (`chargeRoute`, the Eclipse's crossing past its allowance and the economy's out of budget)
+         * judges the move this browser has just seen land: nothing older of the token is on its way, so a copy at `to`
+         * means the token stands there - in 70-movement's "eclipse route" the GMs' count had put Aiko back first, and her
+         * own browser's put-back waited the whole 1500 ms for no move (the coordinator's reading of 19.11.2026, measured that
+         * day on an instrumented copy). Here: a scratch token at 300,300, a put-back to 300,300 marked `seenHere`. Read: the
+         * answer, that it came well inside the wait (under a third of it), no update heard, and where the token stands.
+         * R7741 holds `chargeRoute`'s two put-backs to the mark.
+         */
+        const M = await import("./movement.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const scene = game.scenes.get("SCENEACADEMY0000") ?? canvas.scene;
+        must(scene, "no scene to stand a scratch token on");
+        const [token] = await scene.createEmbeddedDocuments("Token", [{ name: "SUITE put-back seen", x: 300, y: 300, width: 1, height: 1 }]);
+        must(token, "the scratch token was not made");
+        let heard = 0, read = null;
+        const hook = Hooks.on("updateToken", doc => { if (doc.id === token.id) heard++; });
+        try {
+            const t0 = Date.now();
+            const out = await M.putBackWrite(token, { x: 300, y: 300 }, { animate: false }, { seenHere: true });
+            const waited = Date.now() - t0;
+            await settle();
+            read = [out ?? null, waited < TIMING.putBackWaitMs / 3, heard, token.x, token.y];
+        } finally {
+            Hooks.off("updateToken", hook);
+            await scene.deleteEmbeddedDocuments("Token", [token.id]);
+        }
+        equal(stableJson(read), stableJson([{ landed: true, sent: false }, true, 0, 300, 300]),
+            "a put-back marked seen here, to where the token stands, waited, wrote, or did not say it landed (the answer, inside a third of the wait, updates heard, x, y)");
+    }],
+
+    ["a move that starts where the put-back aims, made while it waits, is not undone (movement.mjs `putBackWrite`, `startedAway`; the line claude/shim-118, 19.11.2026)", async () => {
+        /*
+         * A fresh move after the put-back has landed starts at `to`, where the token stands: it is not the move the put-back
+         * waits for, and putting the token back over it would undo a step nobody refused. Until the origin rule (19.11.2026,
+         * the coordinator's decision after 70-movement's measured wait) any move released the put-back, and this move was
+         * undone. Here: a scratch token at 300,300, a put-back to 300,300 started, 150 ms later a move to 500,300 written
+         * from this copy, at 300,300 - its record's origin is `to`. Read: the put-back's answer and where the token stands.
+         */
+        const M = await import("./movement.mjs");
+        const scene = game.scenes.get("SCENEACADEMY0000") ?? canvas.scene;
+        must(scene, "no scene to stand a scratch token on");
+        const [token] = await scene.createEmbeddedDocuments("Token", [{ name: "SUITE put-back fresh move", x: 300, y: 300, width: 1, height: 1 }]);
+        must(token, "the scratch token was not made");
+        let read = null;
+        try {
+            const back = M.putBackWrite(token, { x: 300, y: 300 }, { animate: false });
+            await wait(150);
+            await token.update({ x: 500, y: 300 }, { animate: false });
+            const out = await back;
+            await settle();
+            read = [out ?? null, token.x, token.y];
+        } finally {
+            await scene.deleteEmbeddedDocuments("Token", [token.id]);
+        }
+        equal(stableJson(read), stableJson([{ landed: true, sent: false }, 500, 300]),
+            "a move that started where the put-back aimed, made while it waited, was undone (the put-back's answer, the token's x and y after)");
+    }],
+
+    ["a move whose record carries no origin, heard while a put-back waits, is not undone (movement.mjs `putBackWrite`, `startedAway`; the line claude/shim-118, 19.11.2026)", async () => {
+        /*
+         * A move the put-back cannot show is the race is left standing: losing a put-back where the record cannot be read is
+         * the module's behaviour before this line (1.2.117), and overwriting a legal move would be new harm (the coordinator's
+         * decision, 19.11.2026). Whether 14.370's update carries the origin as the shim models it is LIVE-E39-20. Staged on
+         * this GM, as no write of the shim leaves a move without its record: a scratch token at 300,300, a put-back to 300,300
+         * started, then this copy set to 500,300 and `updateToken` called for it with no `_movement` in its options - a move
+         * heard with no readable origin. Read: the put-back's answer, the updates heard after the staged one (none: nothing
+         * written), and where this copy stands.
+         */
+        const M = await import("./movement.mjs");
+        const scene = game.scenes.get("SCENEACADEMY0000") ?? canvas.scene;
+        must(scene, "no scene to stand a scratch token on");
+        const [token] = await scene.createEmbeddedDocuments("Token", [{ name: "SUITE put-back no origin", x: 300, y: 300, width: 1, height: 1 }]);
+        must(token, "the scratch token was not made");
+        let heard = 0, staged = false, read = null;
+        const hook = Hooks.on("updateToken", doc => { if (doc.id === token.id && staged) heard++; });
+        try {
+            const back = M.putBackWrite(token, { x: 300, y: 300 }, { animate: false });
+            await wait(150);
+            token._source.x = 500;
+            Hooks.callAll("updateToken", token, { _id: token.id, x: 500 }, {}, game.user.id);
+            staged = true;
+            const out = await back;
+            await settle();
+            read = [out ?? null, heard, token._source.x, token._source.y];
+        } finally {
+            Hooks.off("updateToken", hook);
+            await scene.deleteEmbeddedDocuments("Token", [token.id]);
+        }
+        equal(stableJson(read), stableJson([{ landed: true, sent: false }, 0, 500, 300]),
+            "a move heard with no origin in its record was undone by a waiting put-back (the answer, updates heard after it, this copy's x and y)");
+    }],
+    /* ------------------------------------------------------------------------------------------------------------------
+     * C1's block on the line claude/plan-119 (20.11.2026): the planner's logic for 1.2.119 - Move up and down (#1), a
+     * removal's links (#3), the planner redrawn when the case changes (#12); R7800-R7819 for its tier-0 and tier-1 tests.
+     * ------------------------------------------------------------------------------------------------------------------ */
+    ["the planner's Move down moves a node one place down its column, in the drawing and in the chapter's kept order, and Move up moves it back (investigation.mjs `moveCaseNode`; the owner, 19.11.2026: \"Funkcja move up/down przestała działać\"; the line claude/plan-119)", async () => {
+        /*
+         * Three deductions resting on nothing - one column - written in this chapter, the dashboard drawn on the Map as this GM
+         * opens it. Read: the three's drawn order (each node's face, top to bottom), then the first one's Move down pressed
+         * and the order again, the chapter's kept order (`manual`) and sort, then Move up on the same node and the order once
+         * more. The chapter's meta row is put back as found.
+         */
+        const S = await import("./case-schema.mjs");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const ch = getClock().chapter;
+        const ids = ["suite-r7800-a", "suite-r7800-b", "suite-r7800-c"];
+        const metaWas = S.caseRows(ch).meta;
+        let win = null;
+        const seen = {};
+        const order = root => ids.map(id => [id, parseFloat(root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id}"]`)?.style.top ?? root?.querySelector(`[data-drpg-node="${id}"]`)?.style.top ?? "NaN")])
+            .filter(([, y]) => Number.isFinite(y)).sort((a, b) => a[1] - b[1]).map(([id]) => id);
+        try {
+            for (const [i, id] of ids.entries()) await S.setCaseNode(ch, id, { kind: "deduction", label: `SUITE R7800 ${"abc"[i]}`, inputs: [] });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            await until(() => order(root).length === 3, 3000).catch(() => {});
+            const before = order(root);
+            seen.drawn = before.length;
+            const first = before[0];
+            root?.querySelector(`.drpg-case-edit[data-drpg-edit="${first}"] [data-drpg-case-move="1"]`)?.click();
+            await until(() => order(root)[1] === first, 3000).catch(() => {});
+            const down = order(root);
+            seen.down = down.indexOf(first) - before.indexOf(first);
+            const meta = S.caseMetaOf(S.caseRows(ch).meta);
+            seen.kept = { sort: meta.sort, after: Number.isFinite(meta.manual[first]) && Number.isFinite(meta.manual[before[1]]) && meta.manual[first] > meta.manual[before[1]] };
+            root?.querySelector(`.drpg-case-edit[data-drpg-edit="${first}"] [data-drpg-case-move="-1"]`)?.click();
+            await until(() => order(root)[0] === first, 3000).catch(() => {});
+            seen.up = order(root).indexOf(first);
+        } finally {
+            if (win) await win.close().catch(() => {});
+            for (const id of ids) await S.dropCaseNode(ch, id).catch(() => {});
+            const was = S.caseMetaOf(metaWas);
+            await S.setCaseMeta(ch, { sort: was.sort, manual: was.manual }).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({ drawn: 3, down: 1, kept: { sort: "manual", after: true }, up: 0 }),
+            "Move down and Move up did not move a node one place in its column, drawn and kept ({drawn: the three drawn, down: places moved by Move down, kept: the sort and whether the kept order has it after its neighbour, up: its place after Move up})");
+    }],
+
+    ["the planner's Move moves a node the evidence column draws from the Key plan and the chapter's planned Autopsies - the Autopsy's node one place in its column, drawn and kept, and back (investigation.mjs `moveCaseNode`, `caseMapGraph`; the line claude/plan-119, 20.11.2026)", async () => {
+        /*
+         * The evidence column holds nodes no schema row names: the Key plan's slots, written or not (key-remnants.mjs
+         * `keyPlan`), and the chapter's planned Autopsies, at least one (investigation.mjs `autopsyCount`). The Map draws them
+         * (`caseMapRegion`); a move laid out over a graph without them found no column for such a node and did nothing, and
+         * a node beside them was moved against a column the Map does not draw. Here: the dashboard drawn on the Map as this
+         * GM opens it, the chapter's first Autopsy's node found in the drawing's column, its Move up pressed (Move down if it
+         * stands first) and its place read, drawn and kept, then the other way. The chapter's meta row is put back as found.
+         * Red at b5a29e73 (v1.2.118).
+         */
+        const S = await import("./case-schema.mjs");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const ch = getClock().chapter, id = "autopsy";
+        const metaWas = S.caseRows(ch).meta;
+        let win = null;
+        const seen = {};
+        const columnOf = root => {
+            const x = parseFloat(root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id}"]`)?.style.left ?? "NaN");
+            return [...(root?.querySelectorAll(".drpg-case-canvas > .drpg-case-edit[data-drpg-edit]") ?? [])]
+                .filter(el => parseFloat(el.style.left) === x).sort((a, b) => parseFloat(a.style.top) - parseFloat(b.style.top)).map(el => el.dataset.drpgEdit);
+        };
+        try {
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            await until(() => columnOf(root).includes(id), 3000).catch(() => {});
+            const before = columnOf(root);
+            must(before.length > 1, `the Autopsy's column holds ${before.length} node(s) - nothing to move it past`);
+            /* up where it can: below the evidence the column draws a gap, then the loose Remnants (case-layout.mjs `gapAt`),
+               and a move across the gap is refused by design - the Autopsy is the last node above it in this world */
+            const at = before.indexOf(id), step = at > 0 ? -1 : 1;
+            root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id}"] [data-drpg-case-move="${step}"]`)?.click();
+            await until(() => columnOf(root).indexOf(id) === at + step, 3000).catch(() => {});
+            seen.moved = columnOf(root).indexOf(id) - at;
+            const manual = S.caseMetaOf(S.caseRows(ch).meta).manual;
+            seen.kept = Number.isFinite(manual[id]) && Number.isFinite(manual[before[at + step]]) && Math.sign(manual[id] - manual[before[at + step]]) === step;
+            root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id}"] [data-drpg-case-move="${-step}"]`)?.click();
+            await until(() => columnOf(root).indexOf(id) === at, 3000).catch(() => {});
+            seen.back = columnOf(root).indexOf(id) - at;
+            seen.step = step;
+        } finally {
+            if (win) await win.close().catch(() => {});
+            const was = S.caseMetaOf(metaWas);
+            await S.setCaseMeta(ch, { sort: was.sort, manual: was.manual }).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson({ moved: seen.moved, kept: seen.kept, back: seen.back }), stableJson({ moved: seen.step, kept: true, back: 0 }),
+            "the Autopsy's node did not move one place in the evidence column, drawn and kept, and back (moved: places moved, kept: the kept order agrees, back: its place after the other move against where it began)");
+    }],
+
+    ["a node at the top of the planner's column pressed Move up stays, nothing is written, and the GM is told it cannot move further up (investigation.mjs `moveCaseNode`; the coordinator's default for #1, 20.11.2026; the line claude/plan-119)", async () => {
+        /*
+         * Until this line a move that could not happen returned with no word, which reads at a table as the button not
+         * working. Three deductions resting on nothing, the dashboard drawn on the Map; the topmost of the three in the
+         * drawing is moved to the column's top first if it is not there, then its Move up pressed. Read: the notices said (the
+         * GM's info, caught here), whether the chapter's meta row changed, and the node's place. The meta row is put back as
+         * found. Red at b5a29e73: no notice.
+         */
+        const S = await import("./case-schema.mjs");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const ch = getClock().chapter;
+        const ids = ["suite-r7802-a", "suite-r7802-b", "suite-r7802-c"];
+        const metaWas = S.caseRows(ch).meta;
+        const info = ui.notifications.info;
+        const toasts = [];
+        let win = null;
+        const seen = {};
+        const columnOf = (root, id) => {
+            const x = parseFloat(root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id}"]`)?.style.left ?? "NaN");
+            return [...(root?.querySelectorAll(".drpg-case-canvas > .drpg-case-edit[data-drpg-edit]") ?? [])]
+                .filter(el => parseFloat(el.style.left) === x).sort((a, b) => parseFloat(a.style.top) - parseFloat(b.style.top)).map(el => el.dataset.drpgEdit);
+        };
+        try {
+            for (const [i, id] of ids.entries()) await S.setCaseNode(ch, id, { kind: "deduction", label: `SUITE R7802 ${"abc"[i]}`, inputs: [] });
+            /* the column's order kept, the three first: so the one pressed is at the top whatever else the chapter holds */
+            await S.setCaseMeta(ch, { sort: "manual", manual: { ...S.caseMetaOf(metaWas).manual, [ids[0]]: -3, [ids[1]]: -2, [ids[2]]: -1 } });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            await until(() => columnOf(root, ids[0]).length > 0, 3000).catch(() => {});
+            seen.top = columnOf(root, ids[0])[0] === ids[0];
+            const metaBefore = JSON.stringify(S.caseRows(ch).meta ?? null);
+            ui.notifications.info = (message, ...rest) => { toasts.push(String(message)); return null; };
+            root?.querySelector(`.drpg-case-edit[data-drpg-edit="${ids[0]}"] [data-drpg-case-move="-1"]`)?.click();
+            await until(() => toasts.length > 0, 3000).catch(() => {});
+            await settle();
+            seen.told = toasts.includes(game.i18n.format("DRPG.CaseMap.moveEnd.up", { name: "SUITE R7802 a" }));
+            seen.written = JSON.stringify(S.caseRows(ch).meta ?? null) !== metaBefore;
+            seen.still = columnOf(root, ids[0])[0] === ids[0];
+        } finally {
+            ui.notifications.info = info;
+            if (win) await win.close().catch(() => {});
+            for (const id of ids) await S.dropCaseNode(ch, id).catch(() => {});
+            const was = S.caseMetaOf(metaWas);
+            await S.setCaseMeta(ch, { sort: was.sort, manual: was.manual }).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({ top: true, told: true, written: false, still: true }),
+            "Move up on the top of a column did not stay, wrote the kept order, or said nothing (top: it stood at the top, told: the notice, written: the meta row changed, still: at the top after)");
+    }],
+
+    ["a planned Truth Bullet removed from the planner takes its links with it: the deductions that rested on it no longer name it, the counter refuting one of them keeps its target, and the case's check names nothing missing (case-schema.mjs `dropCaseNode`, `refsCut`; the owner, 19.11.2026: \"Przyjmujemy ze usuniecie bulleta usuwa tez jego polaczenia\"; the line claude/plan-119)", async () => {
+        /*
+         * A planned bullet, two deductions resting on it and a counter refuting the first, written in this chapter; the bullet
+         * removed through the planner's road (`dropCaseNode`, what the editor's Remove calls after its question). Read: the
+         * deductions' and the counter's lists, and the check's "missing" for the four. Red at b5a29e73: both deductions kept
+         * naming the bullet and the check named it twice, for good.
+         */
+        const S = await import("./case-schema.mjs");
+        const ch = getClock().chapter;
+        const ids = { bullet: "bullet-suite-cut", a: "deduction-suite-cut-a", b: "deduction-suite-cut-b", c: "counter-suite-cut" };
+        let read = null;
+        try {
+            await S.setCaseNode(ch, ids.bullet, { kind: "bullet", label: "SUITE cut bullet" });
+            await S.setCaseNode(ch, ids.a, { kind: "deduction", label: "SUITE cut a", inputs: [ids.bullet] });
+            await S.setCaseNode(ch, ids.b, { kind: "deduction", label: "SUITE cut b", inputs: [ids.bullet, ids.a] });
+            await S.setCaseNode(ch, ids.c, { kind: "counter", label: "SUITE cut c", refutes: [ids.a] });
+            await gmStoresIdle();
+            await S.dropCaseNode(ch, ids.bullet);
+            await gmStoresIdle();
+            const rows = S.caseRows(ch).rows;
+            const missing = S.checkCase(S.caseGraph(ch)).filter(p => p.code === "missing" && Object.values(ids).includes(p.node)).map(p => [p.node, p.ref]);
+            read = { bullet: Boolean(rows[ids.bullet]), a: rows[ids.a]?.inputs ?? null, b: rows[ids.b]?.inputs ?? null, c: rows[ids.c]?.refutes ?? null, missing };
+        } finally {
+            for (const id of Object.values(ids)) await S.dropCaseNode(ch, id).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(read), stableJson({ bullet: false, a: [], b: [ids.a], c: [ids.a], missing: [] }),
+            "the bullet's removal did not take its links (bullet: its row there, a and b: the deductions' inputs, c: the counter's targets, missing: the check's)");
+    }],
+
+    ["a reference left by a removal before 1.2.119 is cut when a GM opens the investigation dashboard, and one to a node still there is kept (case-schema.mjs `pruneDroppedRefs`; the line claude/plan-119)", async () => {
+        /*
+         * The shape of a world from before this line: a planned bullet and a deduction resting on it and on a second bullet,
+         * then the first bullet's row dropped bare from the GMs' store - as `dropCaseNode` did until now, leaving the
+         * deduction naming it. The dashboard opened as a GM opens it. Read: the deduction's inputs and the check's
+         * "missing" for it, before the open and after. Red at b5a29e73: the reference stayed, and the check named it.
+         */
+        const S = await import("./case-schema.mjs");
+        const { caseSchemaStore } = await import("./gm-stores.mjs");
+        const ch = getClock().chapter;
+        const ids = { gone: "bullet-suite-old-gone", kept: "bullet-suite-old-kept", d: "deduction-suite-old" };
+        let win = null;
+        const read = {};
+        const missingOf = () => S.checkCase(S.caseGraph(ch)).filter(p => p.code === "missing" && p.node === ids.d).map(p => p.ref);
+        try {
+            await S.setCaseNode(ch, ids.gone, { kind: "bullet", label: "SUITE old gone" });
+            await S.setCaseNode(ch, ids.kept, { kind: "bullet", label: "SUITE old kept" });
+            await S.setCaseNode(ch, ids.d, { kind: "deduction", label: "SUITE old", inputs: [ids.gone, ids.kept] });
+            await caseSchemaStore.drop(S.caseKeyOf(ch, ids.gone));
+            await gmStoresIdle();
+            read.before = { inputs: S.caseRows(ch).rows[ids.d]?.inputs ?? null, missing: missingOf() };
+            win = await drawnCaseWindow({ view: "map" });
+            await until(() => (S.caseRows(ch).rows[ids.d]?.inputs ?? []).length === 1, 3000).catch(() => {});
+            read.after = { inputs: S.caseRows(ch).rows[ids.d]?.inputs ?? null, missing: missingOf() };
+        } finally {
+            if (win) await win.close().catch(() => {});
+            for (const id of Object.values(ids)) await S.dropCaseNode(ch, id).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(read), stableJson({ before: { inputs: [ids.gone, ids.kept], missing: [ids.gone] }, after: { inputs: [ids.kept], missing: [] } }),
+            "the old removal's reference was not cut at the dashboard's open, or the live one went (before and after: the deduction's inputs and the check's missing)");
+    }],
+
+    ["a reference to something gone that no removal cut is drawn in the node's list ticked, and unticked it comes off at the window's close (investigation.mjs `schemaEditor`; the line claude/plan-119)", async () => {
+        /*
+         * A token deleted on the map by hand, a Key slot gone and the like leave a reference no road cuts. Here a deduction
+         * resting on a Remnant key no scene holds, the dashboard drawn on the Map: its "Rests on" list read for a box named
+         * for the key, ticked; the box unticked and the window closed (which saves, the owner's 13.11.2026). Read: the box,
+         * then the deduction's inputs and the check's "missing". Red at b5a29e73: no box - the reference could not be taken off.
+         */
+        const S = await import("./case-schema.mjs");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const ch = getClock().chapter, id = "deduction-suite-gone-box", ref = "SCENENONE0000000.TOKNONE000000000";
+        let win = null;
+        const read = {};
+        try {
+            await S.setCaseNode(ch, id, { kind: "deduction", label: "SUITE gone box", inputs: [ref] });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            const box = () => root?.querySelector(`[name="${CSS.escape(`case:${ch}:${id}:in:${ref}`)}"]`) ?? null;
+            await until(() => box(), 3000).catch(() => {});
+            read.box = box() ? { checked: box().checked, said: box().closest("label")?.textContent.trim() === game.i18n.format("DRPG.CaseMap.goneRef", { ref }) } : null;
+            if (box()) { box().checked = false; box().dispatchEvent(new Event("change", { bubbles: true })); }
+            await win.close();
+            win = null;
+            await until(() => (S.caseRows(ch).rows[id]?.inputs ?? [ref]).length === 0, 4000).catch(() => {});
+            read.inputs = S.caseRows(ch).rows[id]?.inputs ?? null;
+            read.missing = S.checkCase(S.caseGraph(ch)).filter(p => p.code === "missing" && p.node === id).length;
+        } finally {
+            if (win) await win.close().catch(() => {});
+            await S.dropCaseNode(ch, id).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(read), stableJson({ box: { checked: true, said: true }, inputs: [], missing: 0 }),
+            "a reference to something gone was not drawn ticked, or unticked did not come off (box: drawn, ticked and named; inputs after the close; missing: the check's)");
+    }],
+
+    ["a Remnant deleted from the dashboard takes the planner's links to it with it (investigation.mjs `deleteTraceRow`, case-schema.mjs `cutRemnantRefs`; the coordinator's point 3, 20.11.2026; the line claude/plan-119)", async () => {
+        /*
+         * A trace placed on the scene on screen and a deduction resting on it and on nothing else gone; the trace deleted
+         * through the dashboard's road (`deleteTraceRow`, its question answered Yes from the queue). Read: the token, the
+         * deduction's inputs and the check's "missing" for it. Red at b5a29e73: the deduction kept naming the deleted trace.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the trace is placed on the scene on screen");
+        const S = await import("./case-schema.mjs");
+        const I = await import("./investigation.mjs");
+        const R = await import("./remnants.mjs");
+        const scene = canvas.scene, ch = getClock().chapter, id = "deduction-suite-remnant-cut";
+        let trace = null, read = null;
+        try {
+            trace = await R.placeRemnant({ type: "prep", visibility: "evident", faint: false, tiedToCrime: false, scene, x: 140, y: 60, note: "SUITE remnant cut" });
+            must(trace?.id, "the trace was not placed - this would measure nothing");
+            await R.setRemnantPublic(trace, { name: "SUITE remnant cut" });
+            const key = R.keyOf(trace);
+            await S.setCaseNode(ch, id, { kind: "deduction", label: "SUITE remnant cut", inputs: [key] });
+            await gmStoresIdle();
+            globalThis.__dialogAnswers?.push(true);
+            const gone = await I.deleteTraceRow(`${scene.id}__${trace.id}`);
+            await gmStoresIdle();
+            read = { gone, token: scene.tokens.has(trace.id), inputs: S.caseRows(ch).rows[id]?.inputs ?? null,
+                missing: S.checkCase(S.caseGraph(ch, { chapters: "all" })).filter(p => p.code === "missing" && p.node === id).length };
+        } finally {
+            if (trace && scene.tokens.has(trace.id)) { await R.dropRemnantSecret(trace).catch(() => {}); await scene.deleteEmbeddedDocuments("Token", [trace.id]).catch(() => {}); }
+            await S.dropCaseNode(ch, id).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(read), stableJson({ gone: true, token: false, inputs: [], missing: 0 }),
+            "the deleted Remnant's links stayed (gone: the road's answer, token: still on the map, inputs: the deduction's after, missing: the check's)");
+    }],
+
+    ["the open planner draws a node written to the case while it stands open - with no field focused, with a field focused that holds nothing typed, and with text typed in it: the focus, the caret and the text kept, and a field another write changed under the typing keeps the text and is marked (investigation.mjs `openInvestigationDashboard`, live.mjs `keepLive` `whileEditing`; the owner, 20.11.2026: \"by okna zawsze odswiezaly sie przed zaladowaniem okna od nowa (np. Planer)\", \"Zawsze odswiezamy okna od razu przy zmianie\"; the line claude/plan-119)", async () => {
+        /*
+         * The dashboard drawn on the Map as this GM opens it, a fixture deduction in it; then three writes of a new deduction
+         * to the GMs' case store while the window stands open - this GM's own write, which reaches the window through the
+         * same store hook as another GM's merged in (live.mjs `listenFor`'s `stores`). First with nothing focused in the
+         * window; then with the fixture's Name field focused and untouched; then with it focused, a word typed in it and
+         * part of it selected; then the same field written in the store meanwhile. Read each time: whether the new node is
+         * drawn within 2 s, where the focus is, the field's text and caret, and the field's mark. Red at b5a29e73: a
+         * focused field held every redraw until the focus left the region, and with every node open on the Map
+         * (owner-116) a GM's focus is in a field most of the time; red at 88ad9a26 for a field typed in, which still held.
+         */
+        const S = await import("./case-schema.mjs");
+        needs(env.dialogs(), "the dashboard is drawn and focused on its window");
+        const ch = getClock().chapter, base = "deduction-suite-live", added = ["deduction-suite-live-1", "deduction-suite-live-2", "deduction-suite-live-3"];
+        let win = null;
+        const seen = {};
+        try {
+            await S.setCaseNode(ch, base, { kind: "deduction", label: "SUITE live base" });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            const drawn = id => Boolean(root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id}"]`));
+            const label = () => win.field(`case:${ch}:${base}:label`);
+            await until(() => drawn(base), 3000).catch(() => {});
+            const write = async (i) => {
+                await S.setCaseNode(ch, added[i], { kind: "deduction", label: `SUITE live ${i + 1}` });
+                await until(() => drawn(added[i]), 2000).catch(() => {});
+                return drawn(added[i]);
+            };
+            document.activeElement?.blur?.();
+            seen.none = await write(0);
+            label()?.focus();
+            const focused = document.activeElement === label();
+            seen.untouched = { focused, drawn: await write(1), focus: document.activeElement === label() };
+            label()?.focus();
+            if (label()) { label().value = "SUITE live typed"; label().dispatchEvent(new Event("input", { bubbles: true })); label().setSelectionRange(5, 9); }
+            const drawnTyped = await write(2);
+            seen.typed = { drawn: drawnTyped, focus: document.activeElement === label(), kept: label()?.value === "SUITE live typed",
+                caret: [label()?.selectionStart, label()?.selectionEnd] };
+            /* the same field written meanwhile (another GM's Save of it): the text typed stays, the field is marked */
+            await S.setCaseNode(ch, base, { label: "SUITE live elsewhere" });
+            await until(() => label()?.classList.contains("drpg-moved-under"), 2000).catch(() => {});
+            seen.under = { kept: label()?.value === "SUITE live typed", marked: Boolean(label()?.classList.contains("drpg-moved-under")), focus: document.activeElement === label() };
+        } finally {
+            if (win) {
+                const typed = win.field(`case:${ch}:${base}:label`);
+                if (typed) typed.value = typed.defaultValue;
+                await win.close().catch(() => {});
+            }
+            for (const id of [base, ...added]) await S.dropCaseNode(ch, id).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({ none: true, untouched: { focused: true, drawn: true, focus: true },
+            typed: { drawn: true, focus: true, kept: true, caret: [5, 9] }, under: { kept: true, marked: true, focus: true } }),
+            "the open planner did not draw a node written meanwhile (none: no focus; untouched: a field focused and untouched - drawn, focus kept; typed: text typed - drawn, focus, text and caret kept; under: the same field written meanwhile - text kept, marked, focus kept)");
+    }],
+
+    ["the open planner draws at once what changes on the map that it shows - a Remnant's token deleted by hand, with no ledger write after it, takes its node off; a room's region made puts the room in a planned Remnant's room list and deleted takes it out - and a token that is no Remnant moved redraws nothing (investigation.mjs `CASE_WATCH`, live.mjs `watch.where`; the owner, 20.11.2026: \"Tak. Zawsze odswiezamy okna od razu przy zmianie\"; the line claude/plan-119)", async () => {
+        /*
+         * The dashboard drawn on the Map. A trace placed on the scene on screen and a deduction resting on it; its token then
+         * deleted by hand with `drpgReset` in the delete's options, so remnants.mjs's own `deleteToken` hook writes no
+         * tombstone - a deletion whose ledger write comes from another GM, or none - and the Map must hear the token itself.
+         * A planned Remnant written with no room, and a region marked a room made on the scene and then deleted. A token
+         * with no Remnant flag moved (the world's first such token, put back after). Read: the trace's node drawn within
+         * 2 s of each, the room in the planned row's list, and whether the region element was replaced by the move.
+         * Red at 88ad9a26: the dashboard heard no token and no region.
+         */
+        const S = await import("./case-schema.mjs");
+        const R = await import("./remnants.mjs");
+        needs(env.dialogs(), "the dashboard is drawn on its window");
+        needs(world.atLeast("sceneOnScreen"), "the trace and the room are made on the scene on screen");
+        const scene = canvas.scene, ch = getClock().chapter, ded = "deduction-suite-map-live", inc = "incident-suite-map-live";
+        let win = null, trace = null, region = null, key = null;
+        const seen = {};
+        const other = scene.tokens.find(t => !t.getFlag(MODULE_ID, R.REMNANT_FLAGS.isRemnant));
+        const otherAt = other ? { x: other.x, y: other.y } : null;
+        try {
+            trace = await R.placeRemnant({ type: "prep", visibility: "evident", faint: false, tiedToCrime: false, scene, x: 180, y: 60, note: "SUITE map live", chapter: ch });
+            must(trace?.id, "the trace was not placed - this would measure nothing");
+            await R.setRemnantPublic(trace, { name: "SUITE map live" });
+            key = R.keyOf(trace);
+            await S.setCaseNode(ch, ded, { kind: "deduction", label: "SUITE map live", inputs: [key] });
+            await S.setCaseNode(ch, inc, { kind: "incident", label: "SUITE map live planned", type: "prep" });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            const nodeOf = id => root?.querySelector(`[data-drpg-node="${CSS.escape(id)}"], .drpg-case-edit[data-drpg-edit="${CSS.escape(id)}"]`) ?? null;
+            const rooms = () => [...(root?.querySelector(`.drpg-case-edit[data-drpg-edit="${inc}"] select[name="${CSS.escape(`case:${ch}:${inc}:room`)}"]`)?.options ?? [])].map(o => o.value);
+            await until(() => nodeOf(key), 3000).catch(() => {});
+            seen.drawn = Boolean(nodeOf(key));
+            const live = () => root?.querySelector(".drpg-case-live");
+            if (other) {
+                const before = live();
+                await other.update({ x: other.x + 100 }, { animate: false });
+                await wait(800);
+                seen.moved = live() === before;
+            } else seen.moved = true;
+            [region] = await scene.createEmbeddedDocuments("Region", [{ name: "SUITE live room", shapes: [{ type: "rectangle", x: 0, y: 0, width: 200, height: 200 }],
+                flags: { [MODULE_ID]: { room: true } } }]);
+            must(region?.id, "the room's region was not made");
+            await until(() => rooms().includes("SUITE live room"), 2000).catch(() => {});
+            seen.roomIn = rooms().includes("SUITE live room");
+            await scene.deleteEmbeddedDocuments("Region", [region.id]);
+            region = null;
+            await until(() => !rooms().includes("SUITE live room"), 2000).catch(() => {});
+            seen.roomOut = !rooms().includes("SUITE live room");
+            await scene.deleteEmbeddedDocuments("Token", [trace.id], { drpgReset: true });
+            await until(() => !nodeOf(key), 2000).catch(() => {});
+            seen.gone = !nodeOf(key);
+        } finally {
+            if (win) await win.close().catch(() => {});
+            if (other && otherAt) await other.update(otherAt, { animate: false }).catch(() => {});
+            if (region) await scene.deleteEmbeddedDocuments("Region", [region.id]).catch(() => {});
+            if (trace) { await R.dropRemnantSecret(trace).catch(() => {}); if (scene.tokens.has(trace.id)) await scene.deleteEmbeddedDocuments("Token", [trace.id]).catch(() => {}); }
+            for (const id of [ded, inc]) await S.dropCaseNode(ch, id).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({ drawn: true, moved: true, roomIn: true, roomOut: true, gone: true }),
+            "the open planner did not show a change on the map at once, or redrew for a token it does not show (drawn: the trace's node at the start, moved: no redraw for a non-Remnant token's move, roomIn and roomOut: the room in the planned row's list, gone: the deleted token's node off)");
+    }],
+
+    ["the planner's Map opens on a case with two counters refuting each other and a counter refuting the deduction that rests on it, and draws all four (case-layout.mjs `layoutCase`; the audit's reading, relayed by the coordinator on 20.11.2026; the line claude/plan-119)", async () => {
+        /*
+         * The two shapes written in this chapter as the Map's editor writes them (a counter's "Refutes", a deduction's "Rests
+         * on"), then the dashboard drawn on the Map as this GM opens it. Read: each node's fields drawn, and whether the
+         * dashboard's open threw. Red at de1d5072: the layout recursed until the stack ran out and the Map did not open
+         * (tier 1 R7802 holds the pure path).
+         */
+        const S = await import("./case-schema.mjs");
+        needs(env.dialogs(), "the dashboard is drawn on its window");
+        const ch = getClock().chapter;
+        const ids = ["counter-suite-loop-a", "counter-suite-loop-b", "counter-suite-loop-c", "deduction-suite-loop"];
+        let win = null, read = null;
+        try {
+            await S.setCaseNode(ch, ids[0], { kind: "counter", label: "SUITE loop a", refutes: [ids[1]] });
+            await S.setCaseNode(ch, ids[1], { kind: "counter", label: "SUITE loop b", refutes: [ids[0]] });
+            await S.setCaseNode(ch, ids[2], { kind: "counter", label: "SUITE loop c", refutes: [ids[3]] });
+            await S.setCaseNode(ch, ids[3], { kind: "deduction", label: "SUITE loop d", inputs: [ids[2]] });
+            await gmStoresIdle();
+            let threw = null;
+            win = await drawnCaseWindow({ view: "map" }).catch(err => { threw = String(err?.message ?? err); return null; });
+            const root = win?.app?.element;
+            await until(() => ids.every(id => root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id}"]`)), 3000).catch(() => {});
+            read = { threw, drawn: ids.filter(id => root?.querySelector(`.drpg-case-edit[data-drpg-edit="${id}"]`)).length };
+        } finally {
+            if (win) await win.close().catch(() => {});
+            for (const id of ids) await S.dropCaseNode(ch, id).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(read), stableJson({ threw: null, drawn: 4 }), "the Map did not open on a refutes loop, or drew fewer than its four nodes (threw: the open's error, drawn: the nodes drawn)");
+    }],
+    /* ------------------------------------------------------------------------------------------------------------------
+     * C1's block on the line claude/season-119 (20.11.2026): Season setup for 1.2.119, from the audit of 1.2.118
+     * (controls-10-setup-config) - the Reset button, Save over a clock moved under the window, the checklist's rows.
+     * ------------------------------------------------------------------------------------------------------------------ */
+    ["Season setup's Reset the season opens the reset's own window (season-setup.mjs `openSeasonSetup`, season-wipe.mjs `resetSeason`; the audit of 1.2.118, controls-10-setup-config: \"Reset the season in Season setup does nothing\"; the line claude/season-119)", async () => {
+        /*
+         * Season setup drawn as a GM opens it, its Reset the season pressed. Read: Season setup closed, and the reset's
+         * window (`drpg-window-season-reset`) drawn within 4 s; that window is then closed unanswered, so nothing is reset.
+         * Since E101 this button is the reset's one door (no GM panel tile, no game.drpg entry). Red at b5a29e73: the
+         * button closed the window with `resetAsked` set, the window's answer was null (`rejectClose: false`), and the
+         * opener returned on the null before it read `resetAsked` - the reset never opened.
+         */
+        needs(env.dialogs(), "Season setup is drawn and its button pressed");
+        const SS = await import("./season-setup.mjs");
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-season").length && !of("drpg-window-season-reset").length, "Season setup or the reset's window stands open already");
+        const read = {};
+        let answer = null;
+        try {
+            answer = Promise.resolve().then(() => SS.openSeasonSetup()).catch(err => `threw: ${err.message}`);
+            await until(() => of("drpg-window-season")[0]?.element?.querySelector("[data-drpg-reset-season]"), 6000).catch(() => {});
+            const button = of("drpg-window-season")[0]?.element?.querySelector("[data-drpg-reset-season]");
+            must(button, "Season setup drew no Reset the season - this would measure nothing");
+            button.click();
+            await until(() => of("drpg-window-season-reset")[0]?.element, 4000).catch(() => {});
+            read.setupClosed = !of("drpg-window-season").length;
+            read.resetOpen = Boolean(of("drpg-window-season-reset")[0]?.element);
+        } finally {
+            for (const app of of("drpg-window-season-reset")) await app.close().catch(() => {});
+            for (const app of of("drpg-window-season")) await app.close().catch(() => {});
+            await Promise.race([answer, wait(6000)]);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ setupClosed: true, resetOpen: true }), "Reset the season did not open the reset's window (setupClosed: Season setup closed, resetOpen: the reset's window drawn)");
+    }],
+
+    ["Season setup's Save writes only the fields the GM changed: a time of day moved and a safeword set elsewhere while it stood open are kept, the name typed is written (season-setup.mjs `openSeasonSetup`, gm-campaign.mjs `untouchedKept`; the audit of 1.2.118, controls-10-setup-config; the line claude/season-119)", async () => {
+        /*
+         * Season setup drawn as a GM opens it, from a clock in Daily Life with no Eclipse. While it stands open, the time of
+         * day moves one on (a step on the HUD, written here through `setClock`) and the safeword is set (another GM's
+         * write); then the GM types a campaign name and presses Save. Read: the clock's time of day, its name and the
+         * safeword after. The clock and the safeword are put back as found. Red at b5a29e73: Save wrote back the time of
+         * day and the safeword the window had drawn, with no question.
+         */
+        needs(env.dialogs(), "Season setup is drawn and its Save pressed");
+        const SS = await import("./season-setup.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-season").length, "Season setup stands open already");
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const wordBefore = getSetting(SETTINGS.safeword);
+        const read = {};
+        let answer = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clockBefore, phase: "dailyLife", eclipse: false });
+            await settle();
+            answer = Promise.resolve().then(() => SS.openSeasonSetup()).catch(err => `threw: ${err.message}`);
+            await until(() => of("drpg-window-season")[0]?.element?.querySelector('form [name="campaignName"]'), 6000).catch(() => {});
+            const el = of("drpg-window-season")[0]?.element;
+            must(el?.querySelector('form [name="campaignName"]'), "Season setup drew no campaign name - this would measure nothing");
+            const moved = TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(getClock().timeOfDay) + 1) % TIMES_OF_DAY.length];
+            await setClock({ timeOfDay: moved });
+            await game.settings.set(MODULE_ID, SETTINGS.safeword, "SUITE elsewhere");
+            await settle();
+            el.querySelector('form [name="campaignName"]').value = "SUITE season typed";
+            el.querySelector('footer button[data-action="save"]')?.click();
+            await Promise.race([answer, wait(8000)]);
+            await settle();
+            const c = getClock();
+            Object.assign(read, { timeOfDay: c.timeOfDay === moved, name: c.campaignName, word: getSetting(SETTINGS.safeword) });
+        } finally {
+            for (const app of of("drpg-window-season")) await app.close().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            if (getSetting(SETTINGS.safeword) !== wordBefore) await game.settings.set(MODULE_ID, SETTINGS.safeword, wordBefore);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ timeOfDay: true, name: "SUITE season typed", word: "SUITE elsewhere" }),
+            "Season setup's Save wrote back what it had drawn over a change made while it stood open (timeOfDay: the moved one kept, name: the name typed, word: the safeword set elsewhere)");
+    }],
+
+    ["Season setup's fields follow the clock and the safeword while it stands open, and a field the GM typed in keeps the text (season-setup.mjs `followWorld`; the owner's rule \"Zawsze odswiezamy okna od razu przy zmianie\", relayed for the audit of 1.2.118; the line claude/season-119)", async () => {
+        /*
+         * Season setup drawn as a GM opens it. While it stands open the time of day moves one on and the safeword is set
+         * elsewhere; then the GM types a campaign name and the clock's name is written elsewhere too. Read: the time-of-day
+         * select and the safeword field (shown and drawn as the world's now, so Save still reads them untouched), and the
+         * name field (the GM's text kept). The clock and the safeword are put back as found. Red at e3c41870: the window
+         * showed the time of day and the safeword it was drawn with.
+         */
+        needs(env.dialogs(), "Season setup is drawn and read");
+        const SS = await import("./season-setup.mjs");
+        const G = await import("./gm-campaign.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-season").length, "Season setup stands open already");
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const wordBefore = getSetting(SETTINGS.safeword);
+        const read = {};
+        let answer = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clockBefore, phase: "dailyLife", eclipse: false });
+            await settle();
+            answer = Promise.resolve().then(() => SS.openSeasonSetup()).catch(err => `threw: ${err.message}`);
+            await until(() => of("drpg-window-season")[0]?.element?.querySelector('form [name="timeOfDay"]'), 6000).catch(() => {});
+            const el = of("drpg-window-season")[0]?.element;
+            const f = name => el?.querySelector(`form [name="${name}"]`);
+            must(f("timeOfDay") && f("safeword"), "Season setup drew no time of day or safeword - this would measure nothing");
+            const moved = TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(getClock().timeOfDay) + 1) % TIMES_OF_DAY.length];
+            await setClock({ timeOfDay: moved });
+            await game.settings.set(MODULE_ID, SETTINGS.safeword, "SUITE followed");
+            await until(() => f("timeOfDay")?.value === moved && f("safeword")?.value === "SUITE followed", 2000).catch(() => {});
+            read.time = { shown: f("timeOfDay")?.value === moved, untouched: !G.changedField(f("timeOfDay")) };
+            read.word = { shown: f("safeword")?.value, untouched: !G.changedField(f("safeword")) };
+            f("campaignName").value = "SUITE typed here";
+            await setClock({ campaignName: "SUITE written elsewhere" });
+            await settle();
+            await wait(200);
+            read.name = f("campaignName")?.value;
+        } finally {
+            for (const app of of("drpg-window-season")) await app.close().catch(() => {});
+            await Promise.race([answer, wait(6000)]);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            if (getSetting(SETTINGS.safeword) !== wordBefore) await game.settings.set(MODULE_ID, SETTINGS.safeword, wordBefore);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ time: { shown: true, untouched: true }, word: { shown: "SUITE followed", untouched: true }, name: "SUITE typed here" }),
+            "Season setup did not follow the world while open, or lost what the GM typed (time and word: shown as the world's and still untouched, name: the GM's text)");
+    }],
+
+    ["the Season checklist's rows follow the world while it stands open: the campaign's name taken off elsewhere turns its row, and put back turns it again (season-setup.mjs `followChecklist`; the audit of 1.2.118, controls-10-setup-config finding -3; the line claude/season-119)", async () => {
+        /*
+         * The Season checklist drawn as a GM opens it, from a clock with a campaign name. While it stands open the name is
+         * written empty (another GM's Edit campaign), then put back. Read: the "name" row's state each time, within 2 s.
+         * The clock is put back as found. Red at e3c41870: the rows redrew only after a press of one of their own buttons.
+         */
+        needs(env.dialogs(), "the Season checklist is drawn and read");
+        const SS = await import("./season-setup.mjs");
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const read = {};
+        let answer = null;
+        const rowState = () => [...foundry.applications.instances.values()].filter(a => a.rendered)
+            .map(a => a.element?.querySelector('li.drpg-check-row[data-drpg-key="name"]')).find(Boolean)?.dataset.drpgState ?? null;
+        try {
+            await setClock({ campaignName: "SUITE checklist" });
+            await settle();
+            answer = Promise.resolve().then(() => SS.openSeasonChecklist()).catch(err => `threw: ${err.message}`);
+            await until(() => rowState(), 6000).catch(() => {});
+            read.before = rowState();
+            must(read.before, "the Season checklist drew no name row - this would measure nothing");
+            await setClock({ campaignName: "" });
+            await until(() => rowState() !== read.before, 2000).catch(() => {});
+            read.emptied = rowState();
+            await setClock({ campaignName: "SUITE checklist" });
+            await until(() => rowState() === read.before, 2000).catch(() => {});
+            read.back = rowState();
+        } finally {
+            for (const app of [...foundry.applications.instances.values()].filter(a => a.rendered && a.element?.querySelector('li.drpg-check-row[data-drpg-key="name"]'))) await app.close().catch(() => {});
+            await Promise.race([answer, wait(6000)]);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            await settle();
+        }
+        equal(stableJson({ changed: read.emptied !== read.before, back: read.back === read.before }), stableJson({ changed: true, back: true }),
+            `the Season checklist's name row did not follow the world (before, emptied, back: ${stableJson(read)})`);
     }],
 ];
 

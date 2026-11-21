@@ -3244,6 +3244,17 @@ export function traceRefsOf(rows, scene, tokens = scene?.tokens ?? []) {
     return out;
 }
 
+/**
+ * Whether a token event is one a window showing traces must hear (investigation.mjs `CASE_WATCH`; the line claude/plan-119,
+ * 20.11.2026): a trace's token made or deleted (`changes` undefined), or any token's trace flag set or taken off in an
+ * update. A trace's token moved is not: its room is the ledger's (`remnantData`). Here, as the one reader of the flag (R1281).
+ */
+export function traceTokenHeard(doc, changes) {
+    if (changes === undefined) return Boolean(flagOf(doc, REMNANT_FLAGS.isRemnant));
+    const ours = changes?.flags?.[MODULE_ID];
+    return Boolean(ours && Object.keys(ours).some(k => k.replace(/^-=/, "") === REMNANT_FLAGS.isRemnant));
+}
+
 /** Every trace on a scene, one ref each (`traceRefsOf`): the store's rows read once a call. */
 export function remnantsOn(scene) {
     if (!scene) return [];

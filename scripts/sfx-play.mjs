@@ -131,6 +131,48 @@ export function soundsFor(key) {
     return own.length || !fallback || fallback === key ? own : soundsFor(fallback);
 }
 
+/**
+ * THE FILES WRITTEN ON AN EVENT'S OWN ROW (1.2.119; the owner: "dodajmy opcje wyboru ktory dzwiek usuwamy/dodajemy"):
+ * `soundsFor` without the fallback - the Effects tab's list of one row is its own files, never its fallback's, so a
+ * Remove there takes only what the row holds. Pure but for the setting.
+ */
+export function ownSoundsFor(key) {
+    return (soundFor(key) ?? "").split(SOUND_SEPARATOR).map(path => path.trim()).filter(Boolean);
+}
+
+/** The files with `path` added at the end - each part of a pasted list, pipe separated, in its order - and none twice
+ *  (a file twice weights the draw). Pure. */
+export function withSoundFile(files, path) {
+    const out = [...(files ?? [])];
+    for (const part of String(path ?? "").split(SOUND_SEPARATOR).map(p => p.trim()).filter(Boolean)) if (!out.includes(part)) out.push(part);
+    return out;
+}
+
+/**
+ * The files with the one at `index` replaced by what its own box now holds (1.2.119; the owner: "niech kazdy wiersz
+ * wyglada jak ten pierwszy (tzn wklejalny link a nie sama nazwa)"): the first part in its place, a pasted list's other
+ * parts after it; a part another file already holds is dropped, so a file is never there twice; an empty box removes
+ * it. An index outside the list changes nothing. Pure.
+ */
+export function withSoundFileAt(files, index, path) {
+    const list = [...(files ?? [])];
+    if (!Number.isInteger(index) || index < 0 || index >= list.length) return list;
+    const others = list.filter((_, i) => i !== index);
+    const parts = String(path ?? "").split(SOUND_SEPARATOR).map(p => p.trim()).filter(Boolean).filter((p, i, all) => all.indexOf(p) === i && !others.includes(p));
+    return [...list.slice(0, index), ...parts, ...list.slice(index + 1)];
+}
+
+/** The files with the one at `index` taken out; the rest as they stood. Pure. */
+export function withoutSoundFile(files, index) {
+    return (files ?? []).filter((_, i) => i !== index);
+}
+
+/** A row's stored value from its files: joined as a GM would type them, or null for none (the event then plays its
+ *  fallback's, or nothing). Pure. */
+export function soundValueOf(files) {
+    return files?.length ? files.join(` ${SOUND_SEPARATOR} `) : null;
+}
+
 /** What each key played last, so the next pick can avoid it. Key -> path. */
 const lastPicked = new Map();
 
@@ -564,7 +606,7 @@ function cancelHoldersOf(winner) {
  *          otherwise the pending sound - which `testSfx` waits on to find out
  *          whether the file actually loaded. `playSfx` only reads its truthiness.
  */
-function fire(key, force) {
+function fire(key, force, only = null) {
     cancelHoldersOf(key);
 
     const now = Date.now();
@@ -572,7 +614,8 @@ function fire(key, force) {
 
     // RULE 1. No file is not a fault. Checked before everything else so that an
     // unconfigured world costs one object read per event and nothing more.
-    const src = pickSound(key);
+    // `only`: one file of the row, played by its own button on the Effects tab's list (1.2.119), not drawn
+    const src = only ?? pickSound(key);
     if (!src) return false;
 
     // RULE 4. Queuing this would fire it at whatever unrelated moment the
@@ -752,7 +795,7 @@ export function soundFromMessage(message) {
  * Asynchronous because the last of those five cannot be answered any other way
  * - whether the file loads is known a moment after it was asked for, not when.
  */
-export async function testSfx(key) {
+export async function testSfx(key, { only = null } = {}) {
     const event = SFX_EVENTS[key];
     if (!event) {
         return {
@@ -763,7 +806,8 @@ export async function testSfx(key) {
 
     // What the event plays, its fallback's file included (E59 on the 1.2.115 line, CHAINS.md B-S12; R7169): an empty
     // "Death fade" plays the death's file live, and its Test said it had none.
-    const src = soundsFor(key).join(SOUND_SEPARATOR) || null;
+    // `only`: one file of the row's list (1.2.119), played as itself
+    const src = (only ?? soundsFor(key).join(SOUND_SEPARATOR)) || null;
     if (!src) return { played: false, key, why: game.i18n.localize("DRPG.Sound.why.noFile") };
 
     const volume = event.ignoresVolume ? 1 : sfxVolume("sound");
@@ -789,7 +833,7 @@ export async function testSfx(key) {
         };
     }
 
-    const sent = fire(key, true);
+    const sent = fire(key, true, only);
     if (!sent) return { played: false, key, src, why: game.i18n.localize("DRPG.Sound.why.refused") };
 
     // The one thing a Test button has to be able to say, and the only one that

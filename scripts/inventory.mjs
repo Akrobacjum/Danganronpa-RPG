@@ -251,6 +251,20 @@ export async function wearItem(item, { reason = "gmRuling", ref = null, held = i
     return { worn, left: total - worn, broke: false };
 }
 
+/**
+ * Whether the module only ever copies this item, and never lets it leave a sheet: a Truth Bullet (the stash refuses it,
+ * stash-reach.mjs `stow`, and a hand-over copies it, handover.mjs `shareBullet`) or a bedroom key (a hand-over copies it,
+ * sheet-inventory.mjs `addHandoverButton`'s `copying`). No other item is held back. Asked where an item is thrown away
+ * (1.2.119; the owner, 20.11.2026: any item, broken or not): the sheet's Discard is not drawn for one
+ * (sheet-inventory.mjs `addDiscardButton`), `discardBroken` refuses it (use-items.mjs), and the GMs' audit stands no
+ * discard of one on its ticket (sheet-audit.mjs `itemFindings`). Read by the category and by the key's flag alike: a
+ * key granted before the category was written carries the flag alone.
+ */
+export function onlyCopied(item) {
+    const category = item?.getFlag?.(MODULE_ID, ITEM_FLAGS.category);
+    return category === "truthBullet" || category === "bedroomKey" || Boolean(item?.getFlag?.(MODULE_ID, BEDROOM_KEY_FLAG));
+}
+
 /** Has this been used up? A broken item still occupies its slot. */
 export function isBroken(item) {
     return Boolean(item?.getFlag(MODULE_ID, ITEM_FLAGS.broken));

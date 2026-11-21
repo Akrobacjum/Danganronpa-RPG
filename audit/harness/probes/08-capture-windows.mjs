@@ -220,6 +220,53 @@ const SEED_PLAN = SEED_CASE + `
     await CS.setCaseNode(ch, "probe08-d3", { kind: "deduction", label: "Someone else was in the library", mode: "straw",
         zoneQuestion: "Who left the library first?", zoneA: "The librarian", zoneB: "The night guard" });
     globalThis.__probe08case.ids.push("incident-probe08b", "autopsy", "probe08-d3", "final-probe08", "bullet-probe08");`;
+/* 1.2.119 line P (20.11.2026; the owner: "Kodowanie kolorystyczne typów remnantów. Czytelność strzałek"): one placed
+   Remnant of each type beside the case's own, and two deductions whose inputs cross the others' lines, so a capture shows
+   every type's colour and arrows that cross; for audit/case-map-sweep.mjs --shots, before and after. Dropped after. */
+const SEED_TYPES = SEED_CASE + `
+    const RT = await import(\`\${repoUrl}/scripts/remnants.mjs\`);
+    const placed = [];
+    for (const [type, name] of [["key", "The library's spare key"], ["neutral", "Dust on the window sill"], ["faint", "A smudge on the door handle"],
+        ["incident", "The shattered display case"], ["resolution", "A table wiped too clean"], ["autopsy", "The wound's angle"], ["final", "The second key's mould"]]) {
+        const t = await RT.placeRemnant({ type, visibility: "evident", x: 0, y: 0, scene: canvas.scene, chapter: ch, note: "probe 08 - " + type });
+        if (t) { await RT.setRemnantPublic(t, { name, playerText: "" }); placed.push(t); }
+    }
+    globalThis.__probe08case.extra = placed;
+    const all = CS.caseGraph(ch).nodes.filter(n => n.evidence && !n.planned).map(n => n.id);
+    await CS.setCaseNode(ch, "probe08-d4", { kind: "deduction", label: "The case was broken from inside", inputs: [all[0], all[all.length - 1], all[3]].filter(Boolean) });
+    await CS.setCaseNode(ch, "probe08-d5", { kind: "deduction", label: "Somebody cleaned up after it", inputs: [all[all.length - 2], all[1], all[4]].filter(Boolean) });
+    await CS.setCaseNode(ch, "probe08-s1", { kind: "solution", label: "It was done in the library", inputs: ["probe08-d1", "probe08-d2", "probe08-d4", "probe08-d5"] });
+    globalThis.__probe08case.ids.push("probe08-d4", "probe08-d5");`;
+const DROP_TYPES = `{
+        const c = globalThis.__probe08case;
+        const RT = await import(\`\${repoUrl}/scripts/remnants.mjs\`);
+        for (const t of c?.extra ?? []) { await RT.dropRemnantSecret(t).catch(() => {}); await t.delete().catch(() => {}); }
+    }
+    ` + DROP_CASE;
+/* 1.2.119 line P round 3 (20.11.2026; the owner's photo: lines on top of each other): the typed case with three more
+   deductions resting on many Remnants each and a second counter, so the first gutter is crowded many to many. */
+const SEED_CROWD = SEED_TYPES + `
+    const many = CS.caseGraph(ch).nodes.filter(n => n.evidence && !n.planned).map(n => n.id);
+    await CS.setCaseNode(ch, "probe08-d6", { kind: "deduction", label: "The key was copied before the night", inputs: many.filter((_, i) => i % 2 === 0) });
+    await CS.setCaseNode(ch, "probe08-d7", { kind: "deduction", label: "Two people were in the library", inputs: many.filter((_, i) => i % 3 !== 1) });
+    await CS.setCaseNode(ch, "probe08-d8", { kind: "deduction", label: "The case was staged", inputs: many.slice(1, 7) });
+    await CS.setCaseNode(ch, "probe08-c2", { kind: "counter", label: "The guard had a key too", refutes: ["probe08-d6"] });
+    await CS.setCaseNode(ch, "probe08-s1", { kind: "solution", label: "It was done in the library", inputs: ["probe08-d1", "probe08-d2", "probe08-d4", "probe08-d5", "probe08-d6", "probe08-d7", "probe08-d8"] });
+    globalThis.__probe08case.ids.push("probe08-d6", "probe08-d7", "probe08-d8", "probe08-c2");`;
+/* 1.2.119 line P round 4 (20.11.2026; the owner: a deduction coloured by its Class Trial mode): the typed case with its
+   deductions given three modes - d1 Nonstop Debate as it was, d4 Testimony, d5 Panic Round - and d2 none. */
+const SEED_MODES = SEED_TYPES + `
+    await CS.setCaseNode(ch, "probe08-d4", { mode: "testimony" });
+    await CS.setCaseNode(ch, "probe08-d5", { mode: "panic" });`;
+/* 1.2.119 (the sound item, 20.11.2026; the owner: "Aktualnie mam np. monocub changes - 2 files, ale nie moge usunac pliku
+   ktory mnie juz nie interesuje"): Monocub changes given three files, its row's list unfolded on the Effects tab; the
+   event's own value put back after. */
+const SEED_SFX = `const X = await import(\`\${repoUrl}/scripts/sfx.mjs\`);
+    globalThis.__probe08sfx = game.settings.get("danganronpa-rpg", "sfxMap")?.monocub ?? null;
+    await X.setSoundFor("monocub", "sounds/monocub/turn-in.ogg | sounds/monocub/turn-out.ogg | https://example.invalid/fx/old%20chime.mp3");`;
+const DROP_SFX = `const X = await import(\`\${repoUrl}/scripts/sfx.mjs\`);
+    await X.setSoundFor("monocub", globalThis.__probe08sfx ?? null);
+    delete globalThis.__probe08sfx;`;
 /* E99 C5: the trial's Case schema window over the same case, a deduction ticked and two nodes given a startable mode;
    the ticks and the modes taken back after. */
 const SEED_TRIAL = SEED_CASE + `
@@ -318,6 +365,8 @@ export const WINDOWS = [
     // E49 A5: Passages with four rows seeded (the header's SEEDED).
     { id: "rooms-passages--rows", module: "room-setup.mjs", before: SEED_PASSAGES, after: DROP_PASSAGES, perTab: false, call: "m.openRoomSetupDialog({ tab: \"passages\" })" },
     { id: "sound", module: "sound-panel.mjs", call: "m.openSoundDialog()" },
+    { id: "sound--files", module: "sound-panel.mjs", before: SEED_SFX, after: DROP_SFX, perTab: false,
+      click: ['nav.drpg-tabs [data-drpg-tab-key="effects"]', 'tr[data-drpg-sfx="monocub"] [data-drpg-sfx-files]'], call: "m.openSoundDialog()" },
     { id: "despair-flow", module: "gm-team-dialog.mjs", call: "m.openGmTeamDialog()" },
     { id: "season-setup", module: "season-setup.mjs", call: "m.openSeasonSetup()" },
     // The Season checklist, Season setup's lower half until E49 A1e, and Pre-season checks from its footer since.
@@ -338,6 +387,10 @@ export const WINDOWS = [
     { id: "investigation--map-zone", module: "investigation.mjs", before: SEED_PLAN, after: DROP_CASE, perTab: false, click: '[data-drpg-node="probe08-d3"]', call: "m.openInvestigationDashboard()" },
     { id: "investigation--map-final", module: "investigation.mjs", before: SEED_PLAN, after: DROP_CASE, perTab: false, click: '[data-drpg-node="final-probe08"]', call: "m.openInvestigationDashboard()" },
     { id: "investigation--map-bullet", module: "investigation.mjs", before: SEED_PLAN, after: DROP_CASE, perTab: false, click: '[data-drpg-node="bullet-probe08"]', call: "m.openInvestigationDashboard()" },
+    { id: "investigation--map-types", module: "investigation.mjs", before: SEED_TYPES, after: DROP_TYPES, perTab: false, call: "m.openInvestigationDashboard()" },
+    { id: "investigation--map-types-faces", module: "investigation.mjs", before: SEED_TYPES, after: DROP_TYPES, perTab: false, call: "m.openInvestigationDashboard({ allOpen: false })" },
+    { id: "investigation--map-crowd", module: "investigation.mjs", before: SEED_CROWD, after: DROP_TYPES, perTab: false, call: "m.openInvestigationDashboard({ allOpen: false })" },
+    { id: "investigation--map-modes", module: "investigation.mjs", before: SEED_MODES, after: DROP_TYPES, perTab: false, call: "m.openInvestigationDashboard({ allOpen: false })" },
     { id: "case-realize", module: "case-realize.mjs", before: SEED_CASE, after: DROP_CASE, call: "m.openRealization()" },
     // E64-inv: the preview with a run's marks (its Undo) and New Remnant, both held to 1366x768 unscrolled (style-sweep.mjs STILL).
     { id: "case-realize--made", module: "case-realize.mjs", before: SEED_MADE, after: DROP_MADE, call: "m.openRealization()" },

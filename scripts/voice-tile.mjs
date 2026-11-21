@@ -140,6 +140,7 @@ import { objectionControl, renderHud } from "./hud.mjs";
 import { trialFloor } from "./trial-floor.mjs";
 import { myEavesdrop, eavesdropsUnderWay } from "./eavesdrop-gm.mjs";
 import { myMask, requestReveal } from "./mask-gm.mjs";
+import { voiceVeiledHere } from "./visibility.mjs";
 
 
 const TILE_ID = "drpg-voice-tile";
@@ -451,14 +452,16 @@ function miniButton(className, name, label) {
  * @param {() => object|null} [options.hold]  `micHold`'s answer for the state word, asked as if connected - the word
  *   reads the connection off the watch's own Room (E79 C15); the suite hands in each hold
  * @param {() => boolean} [options.applying]  whether voice-client.mjs is moving the Room now (`voiceApplying`)
+ * @param {(user: User) => boolean} [options.veiled]  whether the opening's veil hides `user` from this browser: visibility.mjs
+ *   `voiceVeiledHere`, the map's rule; such a participant is nobody on this tile (`personOf`). The suite hands in its own (R7864)
  */
 export function voiceWatch(tile, { clock = realClock, dock = foundryDock,
     muteAll = () => game.webrtc?.settings?.client?.muteAll === true, fade = () => (reducedMotion() ? 0 : TURN()),
     userOf = id => game.users.get(id), controls = null, settings = () => game.webrtc?.settings, mutes = PEER_MUTES,
     proximity = () => game.modules?.get?.("proximity-voice-chat")?.active === true, gm = () => game.user?.isGM === true,
-    hold = () => micHold({ connected: true }), applying = () => voiceApplying() } = {}) {
+    hold = () => micHold({ connected: true }), applying = () => voiceApplying(), veiled = user => voiceVeiledHere(user) } = {}) {
     const watch = {
-        tile, clock, dock, muteAll, fade, userOf, controls, settings, mutes, proximity, gm, hold, applying,
+        tile, clock, dock, muteAll, fade, userOf, controls, settings, mutes, proximity, gm, hold, applying, veiled,
         client: null, room: null, detach: null,
         /** The Room's speakers this browser can map, loudest first, as user ids; and when each began. */
         speakers: [], since: new Map(),
@@ -492,6 +495,21 @@ export function participantUser(client, participant, room = client?.liveKitRoom)
     } catch {
         return null;
     }
+}
+
+/**
+ * THE KILLER THE VEIL HIDES IS NOBODY ON THIS TILE (1.2.119 line F; the auditor's finding domain-comm-c-voice 1, kept by
+ * its refuter). While a direct murder's opening waits, the killer stays in the room's channel and hears it (E112: their
+ * microphone is held, voice.mjs `micHold` "veiled"), and the veil hides their token from the victim and the bystanders.
+ * The tile counted every remote participant and named each in 'Who you hear', so a victim's tile showed one more person
+ * and listed the killer with their portrait (R7864 read the count 2, both rows and the killer drawn on b5a29e73). A
+ * participant whose user the watch's `veiled` answers true for - visibility.mjs `voiceVeiledHere`, the map's rule - is
+ * not mapped here (`personOf`: the portrait, the list, `inRoom`) nor counted (`channelCount`). A GM's tile asks the same
+ * rule, which answers no there. What avclient-livekit's own window shows is not this file's (LIVE-F119-03).
+ */
+function personOf(watch, participant, room = watch.room) {
+    const user = participantUser(watch.client, participant, room);
+    return user && watch.veiled?.(user) ? null : user;
 }
 
 /**
@@ -561,7 +579,7 @@ export function detachRoom(watch = live) {
 function onSpeakers(watch, speakers) {
     const now = watch.clock.now(), ids = [];
     for (const participant of Array.isArray(speakers) ? speakers : []) {
-        const id = participantUser(watch.client, participant, watch.room)?.id;
+        const id = personOf(watch, participant)?.id;
         if (id && !ids.includes(id)) ids.push(id);
     }
     for (const id of [...watch.since.keys()]) if (!ids.includes(id)) watch.since.delete(id);
@@ -629,7 +647,7 @@ function audible(watch, userId) {
 function inRoom(watch, userId, gone = null) {
     const room = watch.room;
     return [...(room?.remoteParticipants?.values?.() ?? [])]
-        .some(p => p !== gone && participantUser(watch.client, p, room)?.id === userId);
+        .some(p => p !== gone && personOf(watch, p, room)?.id === userId);
 }
 
 /**
@@ -801,7 +819,8 @@ function paintSpeaker(watch, more = 0, gone = null) {
 
 /**
  * How many people this browser shares its Room with: every remote participant, whether or not they speak and whether
- * or not avclient-livekit maps them to a user of this world - each of them hears this room (E78 fix r1-G1). `gone`,
+ * or not avclient-livekit maps them to a user of this world - each of them hears this room (E78 fix r1-G1) - but the
+ * killer the opening's veil hides from this browser (`personOf`; 1.2.119 line F), who hears it all the same. `gone`,
  * a participant the Room has just said left, is not counted whether or not the Room still holds it (livekit-client's
  * order is not read here, as in `voiceStep`).
  *
@@ -813,7 +832,13 @@ function channelCount(watch, gone = null) {
     const room = watch.room;
     if (room?.state !== "connected") return 0;
     return [...(room.remoteParticipants?.values?.() ?? [])]
-        .filter(p => p && p !== gone && !p.isLocal && p !== room.localParticipant).length;
+        .filter(p => p && p !== gone && !p.isLocal && p !== room.localParticipant && !veiledParticipant(watch, p, room)).length;
+}
+
+/** Whether `p` is a participant whose user the veil hides from this browser (`personOf`'s rule, for the count). */
+function veiledParticipant(watch, p, room) {
+    const user = participantUser(watch.client, p, room);
+    return Boolean(user && watch.veiled?.(user));
 }
 
 /**
@@ -1553,7 +1578,7 @@ export function paintList(watch = live, { holds = user => moduleHoldsMic(user) }
     if (!body) return 0;
     const settings = watch.settings(), mutes = peerMutes(watch.mutes.read()), gm = watch.gm() === true, room = watch.room;
     const ids = room?.state === "connected"
-        ? [...new Set([...(room.remoteParticipants?.values?.() ?? [])].map(p => participantUser(watch.client, p, room)?.id).filter(Boolean))] : [];
+        ? [...new Set([...(room.remoteParticipants?.values?.() ?? [])].map(p => personOf(watch, p, room)?.id).filter(Boolean))] : [];
     const people = ids.map(id => ({ id, user: watch.userOf(id) })).filter(p => p.user)
         .map(p => ({ ...p, who: voiceIdentity(p.user) ?? { name: p.user.name ?? "", img: null } }))
         .sort((a, b) => String(a.who.name).localeCompare(String(b.who.name)));

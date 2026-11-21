@@ -731,6 +731,7 @@
       "controlFailed": "Zegar się nie przesunął. Zobacz Dziennik debugowania.",
       "nowPlaying": "Gra u ciebie: {track}.",
       "rewindEclipse": "Trwa Eclipse. Najpierw je zakończ.",
+      "trialNoSpeaker": "Nikt nie mówi",
       "trialSpeaks": "Mówi {name}"
     },
     "Passage": {
@@ -1236,7 +1237,7 @@
       "discardNote": "Wyrzucenie nie kosztuje akcji. Rzucasz na Shadow, a od wyniku zależy, jak widoczny będzie Remnant, który zostawisz przy swoim tokenie w tym pokoju. Ciszej pozbędziesz się przedmiotu, chowając go we własnej skrytce: to też zwalnia miejsce i nie zostawia Remnantu.",
       "discarded": "Wyrzucasz przedmiot „{item}”.",
       "discardTrace": "Zostaje po tobie Remnant.",
-      "discardOnlyBroken": "Wyrzucić można tylko zepsuty przedmiot.",
+      "discardNever": "Tego nie można wyrzucić.",
       "noDiscardInTrial": "W czasie Class Trial nie można niczego wyrzucić.",
       "discardStashed": "Najpierw wyjmij to ze skrytki.",
       "discardNoTrace": "Przedmiot „{item}” zostaje przy tobie: twoja postać nie ma tokenu na żadnej scenie, więc Remnant nie ma gdzie trafić.",
@@ -1534,6 +1535,7 @@
         "begins": "Pierwsza mówi Strefa {zone}. Obozy mówią na zmianę po {seconds} s, a tura {turns} jest ostatnia.",
         "over": "Scrum Debate dobiegła końca. W Strefie A policzono {a}, w Strefie B {b}.",
         "empty": "Strefa {zone} jest pusta. Klasa uważa: {answer}.",
+        "noSpeaker": "W Strefie {zone} nikt nie stoi, więc ta tura mija bez mówcy.",
         "thesis": "Teza Strefy {zone}: {text}"
       },
       "panel": {
@@ -2377,6 +2379,7 @@
           "orderTooltip": "Wg pokoju stawia na początku powiązane Remnanty, potem sortuje po pokojach; Od najnowszych idzie po rozdziale, dniu i porze dnia",
           "restsOnBoxTooltip": "Zaznaczone: Mapa rysuje połączenie z tamtego węzła do tego, a Sprawdź spójność je uwzględnia",
           "refutesBoxTooltip": "Zaznaczone: Mapa rysuje połączenie z tej kontry do tamtego węzła, a Sprawdź spójność je uwzględnia",
+          "goneRefBoxTooltip": "Tego, co tu wskazano, nie ma już w sprawie. Odznacz, by usunąć połączenie",
           "remnantsTabTooltip": "Każdy Remnant na mapie, do przefiltrowania i zmiany; zmiany czekają na Zapisz",
           "keyTabTooltip": "Zaplanowane Key Remnanty rozdziału: ich treść, kto który znalazł, i Postaw dla tych, których nie ma na mapie",
           "finalTabTooltip": "Final Truth Remnanty na mapie, kto który znalazł, i formularz, który stawia kolejny",
@@ -2467,7 +2470,13 @@
       "file": "Plik",
       "rowButtons": "Sprawdź lub wyczyść",
       "notAssigned": "jeszcze nie przypisano",
-      "severalHint": "Jeden plik albo kilka rozdzielonych znakiem „|”; każde odtworzenie losuje jeden, nigdy ten sam dwa razy z rzędu.",
+      "severalHint": "Każdy plik dodany tutaj albo przyciskiem Wybierz dołącza do plików tego zdarzenia. Każde odtworzenie losuje jeden, nigdy ten sam dwa razy z rzędu.",
+      "addFile": "Dodaj plik: ścieżka albo link",
+      "showFiles": "Pokaż albo ukryj pliki tego zdarzenia",
+      "filesOf": "Pliki zdarzenia {label}",
+      "playFile": "Odtwórz {name}",
+      "removeFile": "Usuń {name}",
+      "editFile": "Ścieżka albo link pliku {name}",
       "fileCount": {
         "one": "{n} plik",
         "few": "{n} pliki",
@@ -2665,7 +2674,7 @@
       "intro": "Wybierz playlistę dla każdego stanu.",
       "howOrder": "Jak działa kolejność",
       "orderNote": "Wygrywa pierwszy pasujący stan, w podanej kolejności. Class Trial nocą używa playlist Class Trial; Eclipse w jego trakcie używa playlist Eclipse.",
-      "trialNote": "Wyższy wiersz ma pierwszeństwo. Tryb bez własnej playlisty gra jak dotąd: Rebuttal muzykę Objection, tryb stref muzykę Debaty, Testimony, Panic Round i Closing Argument muzykę Dyskusji.",
+      "trialNote": "Wyższy wiersz ma pierwszeństwo. Tryb bez własnej playlisty gra jak dotąd: Rebuttal muzykę Objection, tryb stref muzykę Debaty, Testimony, Panic Round i Closing Argument muzykę Dyskusji. Własna playlista Closing Argument zaczyna grać, gdy GM zatwierdzi mówcę.",
       "incidentNote": "Morderstwo słyszą tylko jego uczestnicy i GM-owie.",
       "fadeNote": "Wyciszenie ustawiasz w Fade Duration playlisty. Po znalezieniu ciała, gdy nic nie jest do niego przypisane, cisza zatrzymuje też twój własny utwór.",
       "when": "Kiedy",
@@ -4226,6 +4235,42 @@
       },
       "gmHint": "{trait}, próg {dc}",
       "projectHint": "Z projektu {project} · {life}",
+      "gives": {
+        "health": {
+          "one": "+{n} Health",
+          "few": "+{n} Health",
+          "many": "+{n} Health",
+          "other": "+{n} Health"
+        },
+        "sanity": {
+          "one": "+{n} Sanity",
+          "few": "+{n} Sanity",
+          "many": "+{n} Sanity",
+          "other": "+{n} Sanity"
+        },
+        "hope": {
+          "one": "+{n} Hope",
+          "few": "+{n} Hope",
+          "many": "+{n} Hope",
+          "other": "+{n} Hope"
+        },
+        "freeMove": "+{n} Free Move",
+        "searchToken": "Search Tokeny pokoju +{n}",
+        "overflowDown": "Despair w Overflow -{n}",
+        "text": "wiadomość od GM-a",
+        "advantage": "przewaga przy następnym rzucie",
+        "durability": "+{n} wytrzymałości dla najbardziej zużytego przedmiotu",
+        "endWounded": "koniec stanu Wounded",
+        "endBreakdown": "koniec stanu Breakdown",
+        "projectProgress": {
+          "one": "+{n} postępu dla najstarszego niedokończonego projektu w pokoju",
+          "few": "+{n} postępu dla najstarszego niedokończonego projektu w pokoju",
+          "many": "+{n} postępu dla najstarszego niedokończonego projektu w pokoju",
+          "other": "+{n} postępu dla najstarszego niedokończonego projektu w pokoju"
+        }
+      },
+      "givesScoped": "{what} ({who})",
+      "givesNothing": "bez efektu",
       "forGood": "na stałe",
       "projectLine": "{action} w Facilities, {life}",
       "notLive": {
@@ -8837,6 +8882,12 @@
       }
     },
     "GmStore": {
+      "cutAhead": {
+        "one": "Magazyn GM-a „{store}” zawiera reset o {n} minutę późniejszy niż zegar tego komputera. Zrobiono go na komputerze GM-a, którego zegar się spieszył. To, co ta przeglądarka zapisuje teraz, zostaje zapisane po nim. Sprawdź datę i godzinę na komputerze każdego GM-a.",
+        "few": "Magazyn GM-a „{store}” zawiera reset o {n} minuty późniejszy niż zegar tego komputera. Zrobiono go na komputerze GM-a, którego zegar się spieszył. To, co ta przeglądarka zapisuje teraz, zostaje zapisane po nim. Sprawdź datę i godzinę na komputerze każdego GM-a.",
+        "many": "Magazyn GM-a „{store}” zawiera reset o {n} minut późniejszy niż zegar tego komputera. Zrobiono go na komputerze GM-a, którego zegar się spieszył. To, co ta przeglądarka zapisuje teraz, zostaje zapisane po nim. Sprawdź datę i godzinę na komputerze każdego GM-a.",
+        "other": "Magazyn GM-a „{store}” zawiera reset o {n} minuty późniejszy niż zegar tego komputera. Zrobiono go na komputerze GM-a, którego zegar się spieszył. To, co ta przeglądarka zapisuje teraz, zostaje zapisane po nim. Sprawdź datę i godzinę na komputerze każdego GM-a."
+      },
       "saveFailed": "Magazyn GM-a nie mógł zapisać „{store}” w tej przeglądarce: {error}. To, co przechowuje, zostaje w tym oknie do jego zamknięcia, a podłączeni teraz GM-owie mają kopię. Zrób teraz kopię zapasową (panel GM-a, Diagnostyka, Sprawa: Zrób kopię).",
       "syncTimedOut": "Magazyn GM-a nie dostał odpowiedzi od tych GM-ów: {names}. Działa dalej na tym, co ma ta przeglądarka, a ich kopię scali, gdy dotrze.",
       "claimFailed": {
@@ -9163,6 +9214,7 @@
     "CaseMap": {
       "noDiveSet": "- bez zestawu -",
       "diveSetGone": "(zestaw już usunięty)",
+      "goneRef": "„{ref}” (już nie ma: odznacz, by usunąć)",
       "autopsySent": "Wysłany uczniom.",
       "autopsyWhen": "Jeśli ma nazwę albo tekst i nie przekracza liczby z pola „Autopsy w tym rozdziale”, trafi do każdego żywego ucznia, gdy zostanie znalezione ciało nr {n}.",
       "autopsyNth": "{label} {n}",
@@ -9175,6 +9227,7 @@
       "editLabel": "Pola: {name}",
       "toolsLabel": "Narzędzia mapy",
       "cameraLabel": "Kamera",
+      "legendLabel": "Kolory na Mapie",
       "zoomOut": "Oddal",
       "zoomIn": "Przybliż",
       "zoomLevel": "Przybliżenie",
@@ -9218,7 +9271,7 @@
       "noMode": "- bez trybu rozprawy -",
       "nothingToRefute": "Nie ma jeszcze wniosku do obalenia.",
       "removeNode": "Usuń ze sprawy",
-      "removeAsk": "Usunąć węzeł „{name}” ze sprawy? Węzły, które się do niego odwołują, nadal będą go wskazywać, a sprawdzenie to pokaże.",
+      "removeAsk": "Usunąć węzeł „{name}” ze sprawy? Zniknie też z węzłów, które z niego wynikają albo go obalają.",
       "addDeduction": "Dodaj wniosek",
       "addCounter": "Dodaj kontrę",
       "addSolution": "Dodaj rozwiązanie",
@@ -9227,6 +9280,10 @@
       "sortLabel": "Kolejność w kolumnie",
       "moveUp": "W górę",
       "moveDown": "W dół",
+      "moveEnd": {
+        "up": "Nie da się przesunąć „{name}” wyżej.",
+        "down": "Nie da się przesunąć „{name}” niżej."
+      },
       "notSaved": "Nie udało się zapisać. Twoje zmiany zostały w polach.",
       "field": {
         "img": "Obraz",

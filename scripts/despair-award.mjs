@@ -118,8 +118,12 @@ async function onChatMessage(message) {
  * off, and a point given back at a full pool came off the pool rather than the overflow it had
  * spilled to. Both now run these lines (`onChatMessage` above, reroll.mjs `settleDespair`).
  */
-export async function awardRollDespair(actor, delta, { message = null } = {}) {
+export async function awardRollDespair(actor, delta, { message = null, dice = null } = {}) {
     if (!game.user?.isGM || !actor || !delta) return null;
+    // The roll's message named on the pool's write, so each browser draws the point when its dice of it have landed
+    // (1.2.119): a fresh roll's `message`, or a Reroll's `dice` (reroll.mjs `settleDespair`, which hands no message: a
+    // message would ask the shield below again).
+    const named = dice ?? message?.id ?? null;
     // A fresh roll's point a room action's protection from Despair stops (the owner's answer to Q-E93-3, 12.11.2026):
     // used up by this point, the roll marked so its Reroll moves none either (timed-effects.mjs `takeDespairShield`).
     if (delta > 0 && message && !isMonokuma(actor) && game.settings.get(MODULE_ID, SETTINGS.despairFromRolls)) {
@@ -155,10 +159,11 @@ export async function awardRollDespair(actor, delta, { message = null } = {}) {
          */
         if (before >= despairMax()) {
             const { takeOverflow } = await import("./overflow.mjs");
-            if (await takeOverflow(1, { reason: `a Reroll gave back ${monokuma.name}'s point` })) return { monokuma, pool: 0, overflow: -1 };
+            const { stampLocal } = await import("./dice-hold.mjs");
+            if (await stampLocal("overflow", named, () => takeOverflow(1, { reason: `a Reroll gave back ${monokuma.name}'s point` }))) return { monokuma, pool: 0, overflow: -1 };
         }
         if (before <= 0) return null;
-        await adjustDespair(monokuma.id, -1);
+        await adjustDespair(monokuma.id, -1, { dice: named });
         return { monokuma, pool: -1, overflow: 0 };
     }
 
@@ -173,12 +178,12 @@ export async function awardRollDespair(actor, delta, { message = null } = {}) {
          * What the pool owes for a conversion is paid first (E05 C12,
          * despair.mjs `spillFrom`): a full pool that owes two stood at ten.
          */
-        const next = await spillFrom(monokuma.id, before, 1, `roll spill from ${monokuma.name}`);
+        const next = await spillFrom(monokuma.id, before, 1, `roll spill from ${monokuma.name}`, { dice: named });
         debug(`${monokuma.name} is at maximum Despair; the roll ${next?.spill ? "fed the overflow" : "paid what the pool owes"}.`);
         return { monokuma, pool: 0, overflow: next?.spill ?? 0 };
     }
 
-    await adjustDespair(monokuma.id, 1);
+    await adjustDespair(monokuma.id, 1, { dice: named });
     debug(`${actor.name} rolled with Despair -> +1 to ${monokuma.name} (${before + 1}/${despairMax()}).`);
     return { monokuma, pool: 1, overflow: 0 };
 }

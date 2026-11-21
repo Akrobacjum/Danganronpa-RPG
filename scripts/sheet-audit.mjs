@@ -144,7 +144,7 @@ import { sheetMarkStore, sheetWriteStore, rollStore } from "./gm-stores.mjs";
 import { trustedWrite, trustedCreate, trustedDelete, HOPE_REFUND, GIVE_BACK, noteOwnWritesWith } from "./resource-guard.mjs";
 import { tellRefused, bridgeRequest } from "./bridge-guards.mjs";
 import { cardFlag, cardWriter, updateSecret } from "./secret.mjs";
-import { ITEM_FLAGS, CAP_OVERRIDE, isBroken, isStashed, canCarry } from "./inventory.mjs";
+import { ITEM_FLAGS, CAP_OVERRIDE, isBroken, isStashed, canCarry, onlyCopied } from "./inventory.mjs";
 import { readDuality } from "./despair-award.mjs";
 import { forgedFlagsOf, gmOnlyFlagsIn } from "./private-rolls.mjs";
 import { spentByGm } from "./call-effects.mjs";
@@ -2180,8 +2180,9 @@ async function itemFindings(kind, item, actor, mark, changes, user, options, see
             out.change = { [whole]: [item.name ?? null, null], ...Object.fromEntries(effects.map(([path, effect]) => [path, [effectSummary(effect), null]])) };
             return out;
         }
-        // A discard stands on the trace the primary placed for it (FG5, above), never on its stamp alone.
-        if (stamp.reason === "discard" && isBroken(itemLike(held)) && takeDiscardTrace(actor.id, held.name)) return out;
+        // A discard stands on the trace the primary placed for it (FG5, above), never on its stamp alone; any item since
+        // 1.2.119 (the owner, 20.11.2026), broken or not, but what the module only copies (inventory.mjs `onlyCopied`).
+        if (stamp.reason === "discard" && !onlyCopied(itemLike(held)) && takeDiscardTrace(actor.id, held.name)) return out;
         out.flagged.push({ path: whole, kind: "itemDeleted" });
         out.change[whole] = [held.name ?? null, null];
         out.data = wholeItem(mark, id);

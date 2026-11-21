@@ -65,6 +65,7 @@ import {
     showsStopwatch
 } from "./hud-elapsed.mjs";
 import { markLoneInitials } from "./chrome.mjs";
+import { holdAppRenders } from "./dice-hold.mjs";
 export {
     unpausePatch, CLOCK_BEAT_MS, readyPatch, settleClockAtReady, beatClock, shownClock, clockForDisplay, elapsedOf,
     showsStopwatch
@@ -256,6 +257,12 @@ export function registerHud() {
 
     // Foundry's token HUD, not this one: a student's bars are display-only for a player (E29 C7).
     Hooks.on("renderTokenHUD", stillTokenBars);
+    /* And a bar pointed at a student's Hope waits for a roll's dice as the sheet's Hope does (dice-hold.mjs
+       `holdAppRenders`, 1.2.119): the HUD's own render, held only for its token's actor's write. */
+    Hooks.on("renderTokenHUD", app => {
+        try { holdAppRenders(app, "tokenHud", actorId => actorId === (app?.actor ?? app?.document?.actor)?.id); }
+        catch (err) { error("Could not hold the token HUD for a roll's dice", err); }
+    });
 }
 
 /**
@@ -1160,8 +1167,11 @@ export function trialSlotFace(floor) {
     } else if (floor?.mode === FLOOR_MODES.testimony || floor?.mode === FLOOR_MODES.panic
         || (floor?.mode === FLOOR_MODES.scrum && zoneOf(floor)?.phase === "speak")) {
         // A round's speaker (E70 C7; E70-45): "{name} speaks" / "Mówi {name}". A Scrum Debate's turn is one too
-        // (zone-machine.mjs `scrumTurn` puts its speaker in `holderId`); every other zone phase is everybody's.
-        speaker = game.i18n.format("DRPG.Hud.trialSpeaks", { name: floorHolder(floor)?.name ?? unknown });
+        // (zone-machine.mjs `scrumTurn` puts its speaker in `holderId`); every other zone phase is everybody's. A Scrum
+        // turn of an empty camp has no holder since 1.2.119 (R7841), and says so rather than "- speaks".
+        const noSpeaker = floor?.mode === FLOOR_MODES.scrum && !floor.holderId;
+        speaker = noSpeaker ? game.i18n.localize("DRPG.Hud.trialNoSpeaker")
+            : game.i18n.format("DRPG.Hud.trialSpeaks", { name: floorHolder(floor)?.name ?? unknown });
     } else if (floor?.mode === FLOOR_MODES.closing) {
         // The Closing Argument (E70 C8): its phase's line - the volunteers' count, the GM's choice, who speaks.
         speaker = closingLine(floor) ?? unknown;

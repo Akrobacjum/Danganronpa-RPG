@@ -157,6 +157,17 @@ export function nameAsSeen(actor, { user = game.user, masked = null } = {}) {
     return actor.name ?? "";
 }
 
+/** Who stands behind a mask now, `[{ id, name }]` read off the masked tokens: secret.mjs keeps it with a GM's words (`hid`). */
+export function maskedNow({ scenes = game.scenes } = {}) {
+    const rows = new Map();
+    for (const scene of scenes ?? []) for (const token of scene.tokens ?? []) {
+        if (!isMaskedToken(token)) continue;
+        const actor = token.actor ?? game.actors?.get?.(token.actorId ?? "");
+        if (actor?.id) rows.set(actor.id, { id: actor.id, name: actor.name ?? "" });
+    }
+    return [...rows.values()];
+}
+
 /** Whether any token on any scene is masked now (secret.mjs veils every card while one is: `setNameMask`'s `stands`). */
 export function anyMaskStands() {
     for (const scene of game.scenes ?? []) for (const token of scene.tokens ?? []) if (isMaskedToken(token)) return true;
@@ -290,6 +301,8 @@ export async function endMask(killerId, why = "end") {
        incident closed, when postSecret no longer veils by itself (secret.mjs `incidentVeils`): this card went out spoken
        by the killer and addressed to the killer's player, and every browser holds every chat document - 72's "chapter
        end" read Chie's actor id, name and p3's user id on p1 and p2, the Blackened of a verdict that missed her. */
+    // A reveal: the name is no longer kept cut on the cards this GM holds (secret.mjs `forgetHeldMask`); any other end keeps it.
+    if (why === "reveal") await import("./secret.mjs").then(m => m.forgetHeldMask(killerId)).catch(err => error("Could not let the cards name a revealed killer", err));
     if (why === "timeOfDay" && killer) await whisperToOwnerOnly(killer, { glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.localize("DRPG.Mask.ended"))}</p>` }, { veiled: true });
     log(`${killer?.name ?? killerId} is no longer behind a "?" (${why}).`);
     return true;
@@ -303,7 +316,9 @@ export async function endMask(killerId, why = "end") {
  * killer's place on every browser's board drew no picture, the masked one being refused, and named the killer by
  * elimination (tier 2 "E112 - the start-of-day board ...", red at 9cc67507 on both roads). On a GM, before the clock's
  * write, so each portrait's write reaches every browser ahead of the board's: the time of day the mask was for ends with
- * that write either way. Answers how many.
+ * that write either way. Since 1.2.119 before every advance (clock.mjs `advanceTimeOfDay`), since every board can play
+ * on one: the end board at Night and the discovery's two after any hour (tier 2 "E119 - the masks end before every
+ * advance"); and before the Class Trial's entry (clock.mjs `setClock`). Answers how many.
  */
 export async function endMasksBeforeTheBoard() {
     if (!game.user?.isGM) return 0;
@@ -670,6 +685,35 @@ function drawMaskName(token) {
     }
 }
 
+/*
+ * THE ROOM'S PEOPLE AS A PLAYER'S PICKER LISTS THEM, UNDER THE OPENING'S VEIL (1.2.119, 20.11.2026; the audit's adversarial
+ * pass through the coordinator, a blocker: "the hand-over picker names the killer hidden by the opening's veil"). The
+ * room's people (movement.mjs `othersInRoom`, `countsAsPresent`) leave out a GM's `hidden` alone, and since E112v the veil
+ * writes only its flag: the veiled killer stays a witness, a target and a finder - the rules' reading, on the GM's side
+ * and on every browser that counts the room (`countsAsPresent`'s own note), which this leaves as it is. But the pickers a
+ * player's browser builds from the room listed them by name, `nameAsSeen` hiding a masked character and not a veiled one
+ * (scenario 21 "road", red at 8098249c: the hand-over's, Palm's, a Hope Call's and Tail's lists on the victim's browser
+ * held "Chie Mori"). So a picker passes its room through `seenHere`: an actor with a veiled token this browser does not
+ * draw - visibility.mjs `tokenShownTo`'s own verdict, "hide", bound here at ready (visibility.mjs is reached from files
+ * this one is) - is left out, as their token is. A GM, the token's owner and the killers' side, to whom the token is
+ * shown, list them as before. Before the binding, nobody is left out.
+ */
+let shownHere = null;
+
+/** Whether this browser does not draw a veiled token of `actor` (`tokenShownTo` "hide"): never on a GM's. */
+export function veiledFromHere(actor, { scenes = game.scenes, shown = shownHere, user = game.user } = {}) {
+    if (!actor || user?.isGM || typeof shown !== "function") return false;
+    for (const scene of scenes ?? []) for (const token of scene.tokens ?? []) {
+        if (token.actorId === actor.id && isVeiledToken(token) && shown(token) === "hide") return true;
+    }
+    return false;
+}
+
+/** `actors` without those whose veiled token this browser does not draw (`veiledFromHere`): a picker's room, as it sees it. */
+export function seenHere(actors, options = {}) {
+    return (actors ?? []).filter(a => !veiledFromHere(a, options));
+}
+
 let spectatorViewerOf = () => false;
 const isSpectatorViewer = () => spectatorViewerOf();
 
@@ -687,8 +731,10 @@ export function registerMasks() {
     // A token made while a mask or a veil stands joins it (E112, `adoptToken`).
     Hooks.on("createToken", tokenDoc => { if (isPrimaryGm()) adoptToken(tokenDoc).catch(err => error("Could not mask or veil a new token", err)); });
     import("./spectator.mjs").then(m => { spectatorViewerOf = () => Boolean(m.spectatorViewer?.()); }).catch(() => {});
+    // The veil's verdict for this browser's pickers (`seenHere`): the token's own rule, by `import()` as the Spectator's above.
+    import("./visibility.mjs").then(m => { shownHere = doc => m.tokenShownTo(doc, m.viewerHere(d => Boolean(d?.isOwner))); }).catch(() => {});
     // By `import()`: secret.mjs is reached from gm-stores.mjs (through notice-history.mjs), which this file imports.
-    import("./secret.mjs").then(m => m.setNameMask(namesHiddenFrom, { stands: anyMaskStands })).catch(err => error("Could not hand the cards the masked names", err));
+    import("./secret.mjs").then(m => m.setNameMask(namesHiddenFrom, { stands: anyMaskStands, masked: maskedNow })).catch(err => error("Could not hand the cards the masked names", err));
     Hooks.on("refreshToken", token => {
         drawMaskName(token);
         if (!game.user?.isGM) noticeOwnMask();

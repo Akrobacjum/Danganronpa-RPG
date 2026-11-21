@@ -187,6 +187,16 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
            write of Chie's token, as Foundry's drag makes it. The harness models no wall stop (LIVE-E92-02). */
         const drag = (x, y) => p3.eval(`try { await canvas.scene.tokens.get("TOKCHIE000000000").update({ x: ${x}, y: ${y} }); return { ok: true }; }
             catch (err) { return { ok: false, error: String(err?.message ?? err) }; }`);
+        /* NO CROSSING OF A SPECTATOR'S (1.2.119 line F; the auditor's finding domain-map-b-movement-1, kept by its refuter in
+           audit/findings-1.2.118/verify-urgent-2.json). On the primary GM, movement.mjs `judgeArrival` judged a Spectator's
+           token as a student's: counted it in an Eclipse (`eclipseSighting`), recorded its crossing (`noteCrossing`, the
+           store `crossingStore`) and settled it (`drpgCrossingSettled`), which Keep Watch whispers as "{name} comes into
+           {room}" (watch-gm.mjs `onWatchCrossing`) - for a kept death's watcher, the victim's name. Heard here on the GM
+           from the first drag to the last, the Eclipse's included (below). */
+        const heardCrossings = `globalThis.__s93cross = []; globalThis.__s93crossFn = e => { if (e?.actorId === "${IDS.chie}") globalThis.__s93cross.push(e); };
+            Hooks.on("drpgCrossingSettled", globalThis.__s93crossFn);
+            const G = ${imp("gm-stores.mjs")}; return JSON.stringify(G.crossingStore.get("${IDS.chie}") ?? null);`;
+        const crossBefore = await gm.eval(heardCrossings);
         const intoDorm = await drag(400, 400);
         await settle(1500);
         const company = await gm.eval(`const M = ${imp("movement.mjs")};
@@ -201,6 +211,36 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
             intoDorm?.ok === true && company?.room === "Dorm A" && !company.others.includes(IDS.chie)
             && intoHall?.ok === true && ghost?.room === "Hall" && ghost.found === false && ghost.actions === before.actions,
             JSON.stringify({ intoDorm, company, intoHall, ghost }));
+        /* And in an Eclipse: the Night Eclipse opened on the GM, p3 drags Chie from the Hall into the Storage, and the
+           Eclipse's count of her crossings (the store `eclipseMoveStore`) stays as it was. The clock, the actions and the
+           rows are put back as the road phase puts them back, in a finally. */
+        const darkWalk = await gm.eval(`const E = ${imp("eclipse.mjs")}, C = ${imp("clock.mjs")}, G = ${imp("gm-stores.mjs")};
+            globalThis.__s93dark = { clock: foundry.utils.deepClone(C.getClock()), row: foundry.utils.deepClone(G.eclipseMoveStore.get("${IDS.chie}") ?? null),
+                actions: game.actors.filter(a => a.type === "character").map(a => [a.id, a.system?.resources?.actions?.value ?? null]) };
+            await C.setClock({ phase: "dailyLife", timeOfDay: "evening" });
+            await E.startEclipse();
+            return { dark: C.getClock().eclipse === true, row: JSON.stringify(G.eclipseMoveStore.get("${IDS.chie}") ?? null) };`, { timeout: 60000 });
+        let inDark = null;
+        try {
+            const intoStorage = await drag(2400, 1400);
+            await settle(3000);
+            inDark = await gm.eval(`const G = ${imp("gm-stores.mjs")}, M = ${imp("movement.mjs")};
+                return { room: M.roomOfToken(canvas.scene.tokens.get("TOKCHIE000000000")), row: JSON.stringify(G.eclipseMoveStore.get("${IDS.chie}") ?? null) };`);
+            inDark.ok = intoStorage?.ok === true;
+        } finally {
+            await gm.eval(`const E = ${imp("eclipse.mjs")}, C = ${imp("clock.mjs")}, G = ${imp("gm-stores.mjs")}; const was = globalThis.__s93dark;
+                if (C.getClock().eclipse === true) await E.endEclipse({ advance: false });
+                await C.setClock(was.clock);
+                for (const [id, value] of was.actions) { const a = game.actors.get(id); if (a && value !== null) await game.drpg.setActions(a, value); }
+                if (was.row) await G.eclipseMoveStore.patch("${IDS.chie}", was.row); else await G.eclipseMoveStore.drop("${IDS.chie}");
+                return true;`, { timeout: 60000 });
+        }
+        const crossAfter = await gm.eval(`const G = ${imp("gm-stores.mjs")}; Hooks.off("drpgCrossingSettled", globalThis.__s93crossFn);
+            return { row: JSON.stringify(G.crossingStore.get("${IDS.chie}") ?? null), settled: globalThis.__s93cross.length };`);
+        check("ghost: no walk of Chie the Spectator - into Aiko's room, the Hall, and the Storage in a Night Eclipse - is recorded as a crossing on the primary, settled for Keep Watch, or counted against the Eclipse (1.2.119 line F; domain-map-b-movement-1)",
+            darkWalk?.dark === true && inDark?.ok === true && inDark.room === "Storage" && inDark.row === darkWalk.row
+            && crossAfter.row === crossBefore && crossAfter.settled === 0,
+            JSON.stringify({ crossBefore, darkWalk, inDark, crossAfter }));
 
         phase("board");
         /* The owner's word of 12.11.2026 on E92 with E94: "Dostaje tylko koniec dnia i nastroj szkoly". Each browser plays
