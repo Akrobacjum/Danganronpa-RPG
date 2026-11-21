@@ -213,8 +213,9 @@ export async function retrieve(actor, item) {
  * Whose stash is in the room this character is standing in, if it is open.
  *
  * "Open" means not concealed. A concealed stash is one its owner has built a
- * hiding place for - a project - and finding that is what the Search action's
- * own stash branch is for, at a penalty, with a roll. An unconcealed stash is
+ * hiding place for - a project - and finding that is Analyze's Find Stash
+ * (`resolveStashSearch`): since 1.2.112 a Search reaches into no stash (the
+ * audit's D147; action-search.mjs). An unconcealed stash is
  * just a drawer in a bedroom: anyone who walks in can go through it, which is
  * exactly the pressure a killing game wants on leaving your things lying about.
  *
@@ -311,10 +312,21 @@ export async function rifleStashDialog(actor) {
      * A single stash keeps its old shape exactly: one group, and a heading the
      * player can ignore.
      */
-    const options = stocked.map(entry =>
+    const options = list => list.map(entry =>
         `<optgroup label="${esc(entry.owner.name)}">${entry.items.map(i =>
             `<option value="${entry.owner.id}:${i.id}">${describe(i)}</option>`
         ).join("")}</optgroup>`).join("");
+    /* THE LIST FOLLOWS THE STASHES (1.2.122 line MAP; the audit's REFR-52, the owner's rule "Zawsze odswiezamy okna od razu
+       przy zmianie"). It was drawn once: a thing another student took a moment before stayed offered, and its press was
+       refused. Redrawn on every item, character and room change from the stashes open here now; the pick is carried by
+       `keepLive` itself, as a changed field's value is (live.mjs); a stash emptied meanwhile leaves the words that it is
+       empty. The press is judged on the primary as before (`stealFromVault`). */
+    const pickHtml = () => {
+        const now = openStashesHere(actor).filter(entry => entry.items.length);
+        if (!now.length) return `<div class="drpg-rifle-pick"><p class="notes">${esc(game.i18n.format("DRPG.Vault.stashEmpty", { who: listOf(stashes.map(entry => entry.owner.name)) }))}</p></div>`;
+        return `<div class="drpg-rifle-pick"><label>${game.i18n.localize("DRPG.Items.whichItem")}
+                <select name="item">${options(now)}</select></label></div>`;
+    };
 
     // On the kit's frame (E21 C5a).
     const picked = await drpgWindow({
@@ -325,17 +337,21 @@ export async function rifleStashDialog(actor) {
                 who: esc(listOf(stocked.map(entry => entry.owner.name))),
                 room: esc(room)
             })}</p>
-            <label>${game.i18n.localize("DRPG.Items.whichItem")}
-                <select name="item">${options}</select></label>
+            ${pickHtml()}
             <p class="notes">${game.i18n.localize("DRPG.Vault.rifleNote")}</p>
         </form>`,
         footer: {
             primary: {
                 action: "take", label: game.i18n.localize("DRPG.Vault.take"),
-                callback: (e, b, d) => d.element.querySelector("[name=item]").value
+                callback: (e, b, d) => d.element.querySelector("[name=item]")?.value ?? null
             },
             close: "cancel"
         },
+        render: (event, dialog) => keepLive(dialog, {
+            region: ".drpg-rifle-pick",
+            build: pickHtml,
+            watch: { actors: true, items: true, hooks: ["createRegion", "updateRegion", "deleteRegion"] }
+        }),
         rejectClose: false
     });
 
@@ -767,8 +783,9 @@ export async function resolveStashSearch({ actorId, total = 0, isCritical = fals
     /*
      * THE OWNER IS NOT TOLD, and that is the rule this action was written with
      * - "bez powiadamiania właściciela". Being found out is something they
-     * discover when something goes missing, which is `stealFromVault`'s job and
-     * has its own Despair test.
+     * discover when something goes missing: `stealFromVault` rolls nothing since
+     * 1.2.112 (a reach is free), and the owner is told of a reach on next walking
+     * into the room (its "THE OWNER HEARS OF IT ON WALKING IN"; the audit's D148).
      *
      * The GMs are told, because a hiding place opening is a fact about the
      * chapter and the one person who has to be able to narrate it is not on
@@ -782,7 +799,7 @@ export async function resolveStashSearch({ actorId, total = 0, isCritical = fals
     return { found: true, owner: target.owner.name, room: where.room, place };
 }
 
-/** GM: look inside anybody's stash, and pull things out of it. */
+/** GM: look inside anybody's stash - read only; its note sends the GM to Give / take items to take a thing out (D149). */
 export async function openVaultInspector() {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the

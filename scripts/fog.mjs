@@ -82,7 +82,7 @@ import {
     LAYER_NAME, VEIL_ALPHA, REVEAL_SLASH_MS, REVEAL_HOLD_MS, DISCOVERY_MS, freeOwned, clearTransient, watchdog,
     findLayer, FX_GROUP, OUTLINE_NAME, roomOutline, buildRevealLayers, revealBandPlan, destroyRevealLayers,
     revealLinePositions, drawRevealFrame, flashOutline, ensurePixelFont, fadeRoomOutline, seamWidth,
-    rezoomRoomOutline, recolourRoomOutline, holdOutlineHops
+    rezoomRoomOutline, recolourRoomOutline, holdOutlineHops, THEME_SETTLE_MS
 } from "./fog-reveal.mjs";
 import { sceneUncoveredShare } from "./fog-diagnostics.mjs";
 // The one census of rooms (E20 C1): vault-store.mjs reaches fog.mjs by no static import, so this makes no cycle
@@ -310,8 +310,8 @@ export function registerFog() {
         // feet of the room it woke up in - read as "the set of rooms I occupy
         // has changed" and announced the room a second time.
         step("rememberStart", () => standWhereWeStand());
-        // After it: this writes a world setting, and the paint must not wait
-        // on a round trip to the database to put something on screen.
+        // After it: this writes the GMs' store (`writeCells`, E04; no world setting since), and the paint must not wait
+        // on that write's round trip to put something on screen (the audit's D187).
         step("seedDiscovery", () => seedDiscovery());
     });
 
@@ -439,7 +439,7 @@ export function registerFog() {
             // The token rulers on screen wear the same colour (E51 C3), drawn again here for the same reason.
             try { refreshTokenRulers(); }
             catch (err) { debug("Fog: could not draw the token rulers again", err); }
-        }, 60);
+        }, THEME_SETTLE_MS);
     }).observe(document.body, {
         attributes: true,
         attributeFilter: ["data-drpg-phase", "data-drpg-time", "class"]
@@ -494,7 +494,7 @@ function step(id, fn) {
     try {
         const result = fn();
         // ASYNC STEPS COUNT TOO. `applySceneVisionMode` writes to the scene and
-        // `seedDiscovery` writes a world setting; both return promises, and a
+        // `seedDiscovery` writes the GMs' store (`writeCells`); both return promises, and a
         // rejected promise walks straight past a try/catch. A world write that
         // fails without saying so is the exact failure shape this file keeps
         // paying for - see the note on `fogOffPatch` for the last one.
@@ -1640,9 +1640,9 @@ async function recordDiscovery(scene, actor, room) {
        Mastermind at least walks somewhere for a reason of their own. A
        Monokuma's token is furniture that follows the scene.
 
-       They lose nothing by the skip. `myDiscoveredRooms` already counts every
-       room as known for a GM, so their map is unchanged; what changes is that
-       it stops being changed BY them. */
+       They lose nothing by the skip: a GM's known rooms are the class's record (`myDiscoveredRooms` answers
+       `ledgerRooms` on a GM, the audit's D184), which a Monokuma's walk would have grown; what changes is that it
+       stops being changed BY them. */
     if (isMonokuma(actor)) return false;
 
     /* NOR A SPECTATOR (E92 C3; the owner's E92 goal (3): "its movement reveals no rooms"). It watches the map the class
@@ -1671,9 +1671,9 @@ let seedWaitingForReady = false;
  * under full fog. On a fresh world every single room was in that state, which
  * is why `discoveredRooms` was an empty object and nothing was ever veiled.
  *
- * Written as ONE settings update for the whole scene rather than one per
- * token: sixteen students on a map would otherwise be sixteen world writes and
- * sixteen rounds of sync, all inside `canvasReady`.
+ * Written as ONE write of the GMs' store for the whole scene rather than one per
+ * token (`writeCells`; a world setting until E04, the audit's D187): sixteen students
+ * on a map would otherwise be sixteen writes and sixteen rounds of sync, all inside `canvasReady`.
  *
  * Reads `scene.tokens` rather than the canvas, so it does not depend on what
  * has finished drawing.
@@ -1686,8 +1686,8 @@ let seedWaitingForReady = false;
  * (`roomOfToken`) and seeds nothing.
  */
 export async function seedDiscovery(scene = null) {
-    // `canvasReady` outruns `ready` at boot, and a world setting may not be
-    // written before the game is ready - so the write threw, `step()` dutifully
+    // `canvasReady` outruns `ready` at boot, and nothing of the world may be written before the game
+    // is ready (the seed wrote a world setting then; the GMs' store since E04) - so the write threw, `step()` dutifully
     // logged it, and on a fresh world the seed simply never happened: a
     // character who never moved stayed under full fog, which is the exact bug
     // this seed exists to fix. Deferred rather than dropped, and once, however
@@ -1724,7 +1724,7 @@ function seedCells(scene, cells) {
     for (const tokenDoc of scene.tokens ?? []) {
         const actor = tokenDoc.actor;
         if (!actor || actor.type !== "character") continue;
-        // Same skips as `recordDiscovery`, for the same reasons: the seed is
+        // The skips of `recordDiscovery` and of its caller `reactToMove`, for the same reasons: the seed is
         // just discovery for somebody who was already standing there, so a
         // token that must not record a walk must not record a stand either.
         // Without the second of these, a Monokuma parked in a room since
@@ -2007,9 +2007,8 @@ let fogTexture = null;
  * A repaint that produces the same picture is not free: it rebuilds two
  * textures and runs an `ENTER()`-long dissolve between two identical states, and that is
  * a window in which nothing can change but anything can flicker. It also
- * happens constantly - a GM clears every room, so moving their Monokuma from
- * one to another changes where they ARE without changing one pixel of what is
- * covered.
+ * happens constantly - a GM's clear set is the class's record (`ledgerRooms`), not where their Monokuma stands, so
+ * moving it from one room to another changes where they ARE without changing one pixel of what is covered.
  */
 let lastPaintSignature = "";
 /** The "can any region be read as a polygon" answer, per scene, floor and region count (MAP-13; the floor since E12 C10). */
@@ -2886,11 +2885,9 @@ export function whyBlack() {
  *
  * `mine` is WHERE I AM - it drives the outline and the room name, and
  * for a GM that is wherever their Monokuma stands. `current` is WHAT IS
- * CLEARED, and a GM clears every room on the map: they are running the
- * scene and need to see all of it, tokens included. The fog is there
- * for them only so that the space belonging to no room reads the same
- * on their screen as on everybody else's, which is the whole of what
- * this was ever meant to give them.
+ * CLEARED: on a GM the rooms the class has found (`ledgerRooms`), the rest left at the GM's veil, lighter than a
+ * player's fog (the audit's D183: this note said every room, as it did before the veil); on a player the rooms
+ * their characters found and stand in.
  */
 function fogSets(scene) {
     const mine = myCurrentRooms();
@@ -3476,6 +3473,8 @@ function buildFogTexture({ regions, shading, rect, ink }) {
  * a floor that does not arrive there is not sent again (`floorSentTo`) and says so.
  * ========================================================================== */
 
+/** The reveal's texture, at most this many pixels on its longer side (`playDiscoveryAnimation`; MAP-15). */
+const REVEAL_TEXTURE_PX = 1024;
 const FLOORS_ID = "drpg-floors";
 
 /** The floor a `canvasReady` last sent this browser to, "sceneId|levelId": one try each, see above. */
@@ -4680,9 +4679,9 @@ function standWhereWeStand({ without = null, redraw = false } = {}) {
  * and the name and nothing else: enough to say "this is the Dinner Hall"
  * without pretending anything is being discovered.
  *
- * "Already know" is read from the LEDGER first, which is a world setting and
- * therefore survives the session - walk into a room today and next week it is
- * still a room you know. `animatedAlready` only covers the gap before the GM's
+ * "Already know" is read from the LEDGER first (`discoveredFor`: the GMs' store on a GM, the player's
+ * copy, `fogCopy`, on a player - no world setting since E04; the audit's D186), which survives the
+ * session - walk into a room today and next week it is still a room you know. `animatedAlready` only covers the gap before the GM's
  * write comes back, so a room entered twice in quick succession does not play
  * its reveal twice while the ledger is still in flight.
  */
@@ -4879,7 +4878,9 @@ function playDiscoveryAnimation(room, tokenDoc, { standing = true } = {}) {
 
     const width = Math.max(1, Math.ceil(bounds.w));
     const height = Math.max(1, Math.ceil(bounds.h));
-    const resolution = Math.min(1, 1024 / Math.max(width, height));
+    // The reveal's texture at most REVEAL_TEXTURE_PX on its longer side (MAP-15: the number named); a larger room is drawn
+    // at a lower resolution, never a texture over it.
+    const resolution = Math.min(1, REVEAL_TEXTURE_PX / Math.max(width, height));
 
     /*
      * A SEAM UNDER STAINED GLASS, THE 26.08 PIXEL LINE UNDER LEGACY.

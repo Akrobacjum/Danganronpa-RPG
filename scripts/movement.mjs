@@ -713,8 +713,11 @@ function removeDrop(tokenDoc, standing) {
 /**
  * Drop every record this client keeps under a token's id (E13 fix r1-F1, 12.10.2026): a token the module carried to
  * another scene (call-world.mjs `carryAcross`) was deleted there and lives on as a copy with an id of its own, which
- * `noteGmCreated` notes. The seven maps keyed by token id (review r1, sec and cor open item 1): `lastRoom`,
- * `lastPosition`, `gmSeen`, `gmHistory`, `standings`, `standingHistory`, `pathRooms`. A student's standing on a scene
+ * `noteGmCreated` notes. Seven maps keyed by token id (review r1, sec and cor open item 1): `lastRoom`,
+ * `lastPosition`, `gmSeen`, `gmHistory`, `standings`, `standingHistory`, `pathRooms`. Not every one: nine more are
+ * keyed by token id and kept - `unsettled`, `putBack`, `putBacksSent`, `awaitingQuiet` (with its timer), `moveTurns`,
+ * `refusals`, `announced`, `landing`, `placing` - each a stale entry under the old id, which nothing reads for the new
+ * one (the audit's D194, read in the code). A student's standing on a scene
  * (`studentStandings`) is keyed by scene and actor and is kept: it is what a later drop there is judged from.
  */
 export function forgetToken(tokenId) {
@@ -3067,7 +3070,9 @@ async function judgeMove(tokenDoc, changes, options, userId, route = {}, { atRes
     // Monokumas walk where they like. The guide has them moving around the
     // map freely between interventions; they have no action economy to
     // spend and no walls to respect.
-    // Nor does a Spectator (E92 C3): no fee, no crossing recorded, no trap told - a ghost.
+    // Nor does a Spectator (E92 C3): no fee, no trap told - a ghost. On this browser; on the primary GM `judgeArrival`
+    // still records its crossing (`noteCrossing` asks the Monokuma's flag alone) and `eclipseSighting` counts it (the
+    // audit's D192, read in the code; nothing is charged for it).
     const { isMonokuma, isSpectator } = await import("./monokuma.mjs");
     if (isMonokuma(actor) || isSpectator(actor)) {
         lastRoom.set(tokenDoc.id, after);

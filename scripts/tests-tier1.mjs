@@ -65744,6 +65744,60 @@ const INVARIANTS = [
         equal(stableJson({ bare, nulls: [esc(null), esc(undefined), esc("<b>")] }), stableJson({ bare: [], nulls: ["", "", "&lt;b&gt;"] }),
             "{bare: the five files binding esc to the bare escapeHTML (file:count); nulls: utils.mjs esc of null, undefined and markup}");
     }],
+    ["R8349 - on a GM the outline is taken down against its own Monokuma's rooms, the rooms it is drawn for, and on a player against its own characters' (1.2.122 line MAP; scripts/fog.mjs `repaintFog`, `leadRoomsHere`, `leadsHere`; the audit's MAP-33, the mutant R8343 let through)", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026. R8343 held the outline's two fades to `leadRooms` and `leadRoomsHere` to its lead,
+         * and a mutant that set `leadRooms` to `mine` on a GM as well (every Monokuma's rooms, MAP-33's bug) passed it. This
+         * reads the choice itself, off `repaintFog`'s source (tier 1 paints no canvas): on a GM `leadRoomsHere()` with its
+         * default lead, `leadsHere` - the GM's own Monokuma, the token `revealStartingRooms` and `standWhereWeStand` draw
+         * the outline for - and on a player `mine`, which `leadsHere` answers the same there; and both fades read it.
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/fog.mjs`).then(lfText));
+        const repaint = fnSource(src, "repaintFog"), lead = fnSource(src, "leadRoomsHere"), leads = fnSource(src, "leadsHere");
+        must(repaint && lead && leads, "fog.mjs has no repaintFog, leadRoomsHere or leadsHere - this would measure nothing");
+        const chose = repaint.match(/const leadRooms = ([^;]+);/)?.[1] ?? null;
+        equal(JSON.stringify([chose, /^export function leadRoomsHere\(tokens = [^,]+, lead = leadsHere\)/.test(lead),
+            /if \(!gm\) return true;/.test(leads), (repaint.match(/!leadRooms\.has\(roomOutline\.room\)\) fadeRoomOutline\(\)/g) ?? []).length]),
+            JSON.stringify(["game.user.isGM ? leadRoomsHere() : mine", true, true, 2]),
+            "[what leadRooms is, leadRoomsHere's default lead leadsHere, leadsHere answering every own token on a player, the fades reading leadRooms]");
+    }],
+    ["R8350 - a token sliding towards a room of the viewer's is held hidden until its sprite is in one of the viewer's rooms, the stretch between two rooms included (1.2.122 line MAP; scripts/visibility.mjs `slideHeld`, `applyToToken`; the audit's MAP-02)", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026; the audit's MAP-02 (partly since task 8, commit 8d24e21). A token walking into the
+         * viewer's room is "in my room" when its update lands while the sprite still slides from the room it came from:
+         * held hidden while the sprite's centre is in a room that is not the viewer's, and shown on the frames it was in no
+         * room - the gap between two rooms that do not touch (the seeded Dorm A x 200-800 and Cafeteria from 1200), so the
+         * viewer saw which side it came out of. The rule read on its own (`slideHeld`, pure) and `applyToToken` held to ask
+         * it for a sliding sprite (its source). A real slide's frames are a table's (MAP-LC1, LOCAL-REPORT.md:419).
+         */
+        const V = await import("./visibility.mjs");
+        must(typeof V.slideHeld === "function", "visibility.mjs has no slideHeld - this would measure nothing");
+        const mine = new Set(["Cafeteria"]);
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/visibility.mjs`).then(lfText));
+        equal(JSON.stringify([V.slideHeld("Dorm A", mine), V.slideHeld(null, mine), V.slideHeld("Cafeteria", mine),
+            /if \(slideHeld\(roomAt\(token\.x, token\.y, token\.document\), myRooms\(\)\)\) hide\(token\);/.test(fnSource(src, "applyToToken"))]),
+            JSON.stringify([true, true, false, true]),
+            "[held with the sprite in another room, between rooms, in the viewer's room; applyToToken asks it]");
+    }],
+
+    ["R8351 - the outline and the two kinds of ring share one zoom threshold and one theme settle, named once, and the reveal's bare numbers are named (1.2.122 line MAP; scripts/fog-reveal.mjs `RESTRIKE_LOG_ZOOM`, `THEME_SETTLE_MS`; fog.mjs, remnant-ring.mjs, own-ring.mjs; the audit's MAP-15)", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026; the audit's MAP-15 (partly since b888c066). The zoom guard 0.18 and the 60 ms settle
+         * of the body's observer were written in three files each - the outline, the Remnant rings, the own-token rings -
+         * and 1024 and 1.4 with 13 stood bare in the reveal. Read off the four sources: neither literal left in a guard or
+         * a settle, each file reading the shared names, and the two exported once with their values.
+         */
+        const FR = await import("./fog-reveal.mjs");
+        const files = ["fog-reveal.mjs", "fog.mjs", "remnant-ring.mjs", "own-ring.mjs"];
+        const srcs = await Promise.all(files.map(f => fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(lfText).then(stripComments)));
+        const left = srcs.map(t => [/\)\) < 0\.18\)/.test(t), /\}, 60\);/.test(t)]);
+        const reads = srcs.map((t, i) => [i === 1 ? null : /< RESTRIKE_LOG_ZOOM\)/.test(t), i === 0 ? null : /\}, THEME_SETTLE_MS\);/.test(t)]);
+        equal(JSON.stringify([FR.RESTRIKE_LOG_ZOOM ?? null, FR.THEME_SETTLE_MS ?? null, left, reads,
+            /Math\.min\(1, REVEAL_TEXTURE_PX \//.test(srcs[1]), /REVEAL_LINES_MIN, Math\.min\(REVEAL_LINES_MAX,/.test(srcs[0])]),
+            JSON.stringify([0.18, 60, [[false, false], [false, false], [false, false], [false, false]],
+                [[true, null], [null, true], [true, true], [true, true]], true, true]),
+            "[the threshold, the settle, [a bare 0.18 guard, a bare 60 ms settle] per file, [reads the threshold, the settle] per file, the reveal's texture size named, its line counts named]");
+    }],
 ];
 
 /**

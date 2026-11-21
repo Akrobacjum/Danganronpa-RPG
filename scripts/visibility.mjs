@@ -503,13 +503,22 @@ function applyToToken(token) {
             const sliding = token.x !== token.document.x || token.y !== token.document.y;
             if (sliding) {
                 count("visibility.sliding");
-                const at = roomAt(token.x, token.y, token.document);
-                if (at && !myRooms().has(at)) hide(token);
+                if (slideHeld(roomAt(token.x, token.y, token.document), myRooms())) hide(token);
             }
         }
     } catch {
         // Never break the canvas over this.
     }
+}
+
+/**
+ * Whether a token sliding towards a room of this viewer's is held hidden on this frame, its sprite's centre `at` (a room's
+ * name, or null between rooms): until the sprite is in one of `mine`. AND BETWEEN ROOMS TOO (1.2.122 line MAP; the audit's
+ * MAP-02): a sprite whose centre is in no room - the stretch between two rooms that do not touch - was shown, so a player
+ * in the Cafeteria saw a student come out of Dorm A's side and cross the gap. Pure; for the suite (R8350).
+ */
+export function slideHeld(at, mine) {
+    return !at || !mine?.has?.(at);
 }
 
 /**
