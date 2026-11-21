@@ -25919,7 +25919,7 @@ const REGRESSIONS = [
         must(Object.keys(found).every(k => fnSource(k === "onSecretPacket" ? secret : bridge, k).length > 40), "a listener was not found in its file - this would measure nothing");
         equal(JSON.stringify(found), JSON.stringify({ onOpeningAsk: [], onOpeningCancel: [], askForOffers: [], onSecretPacket: [] }), "{each listener: the bare reads of game.user in it}");
     }],
-    ["R8183 - an opening-roll invitation that reaches a player before their copy of the incident waits for it, and tells the GMs when none comes (line INVEST of 1.2.122; the audit's CASE-LC2 of 1.2.42): murder-rules.mjs `throwOpeningRoll`, on a browser that is not a GM's and holds no running incident, waits `TIMING.openingCopyWaitMs` for its copy before it reads the seat, and with none whispers the GMs DRPG.Murder.openingNoCopy - before the loop that reads the seat", async () => {
+    ["R8183 - an opening-roll invitation that reaches a player before their copy of the incident waits for it, and tells the GMs when none comes (line INVEST of 1.2.122; the audit's CASE-LC2 of 1.2.42; the seat since 1.2.123, r122-D-3): murder-rules.mjs `throwOpeningRoll`, on a browser that is not a GM's and holds no running incident, or one at the opening with the seat still empty, waits `TIMING.openingCopyWaitMs` for its copy before it reads the seat, and with none whispers the GMs DRPG.Murder.openingNoCopy - before the loop that reads the seat", async () => {
         /*
          * Line INVEST of 1.2.122 (the auditor's unrouted list, B). Source read, comments stripped: the wait and the whisper,
          * and their order against the loop's first `openingStillWanted`. The race itself - the invitation before the copy -
@@ -25930,8 +25930,10 @@ const REGRESSIONS = [
         must(body.length > 500, "throwOpeningRoll was not found - this would measure nothing");
         const wait = body.indexOf("TIMING.openingCopyWaitMs"), told = body.indexOf("DRPG.Murder.openingNoCopy"), loop = body.indexOf("for (let attempt");
         const cfg = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/config.mjs`).then(lfText));
-        equal(JSON.stringify({ waits: wait > 0 && /!game\.user\?\.isGM && !murderState\(\)\?\.active/.test(body), told: told > wait, beforeLoop: loop > told, timing: /openingCopyWaitMs:\s*\d+/.test(cfg) }),
-            JSON.stringify({ waits: true, told: true, beforeLoop: true, timing: true }), "{waits: a player's browser with no incident waits; told: the GMs are told after the wait; beforeLoop: both before the loop; timing: the wait is a TIMING row}");
+        /* 1.2.123 (r122-D-3): the wait also covers a copy at the opening with the seat still empty (`copyOnItsWay`). */
+        const onItsWay = /const copyOnItsWay = \(\) => \{[^}]*!state\?\.active \|\| \(state\.stage === "openingRoll" && !seatOf\(state\)\)/.test(body);
+        equal(JSON.stringify({ waits: wait > 0 && /!game\.user\?\.isGM && copyOnItsWay\(\)/.test(body), seat: onItsWay, told: told > wait, beforeLoop: loop > told, timing: /openingCopyWaitMs:\s*\d+/.test(cfg) }),
+            JSON.stringify({ waits: true, seat: true, told: true, beforeLoop: true, timing: true }), "{waits: a player's browser whose copy is on its way waits; seat: on its way is no incident, or the opening with this seat empty; told: the GMs are told after the wait; beforeLoop: both before the loop; timing: the wait is a TIMING row}");
     }],
     ["R8184 - a body carried into a room by Move the body counts as the room walked in on (the owner's decision of 21.11.2026; line INVEST of 1.2.122, the audit's CASE-LC5 of 1.2.42): murder-rules.mjs `registerMurder`'s token-move hook hands every move on the primary to body.mjs `maybeBodyFound`, with no test of whose token moved or why, and body.mjs records the decision beside it", async () => {
         /*

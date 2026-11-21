@@ -914,7 +914,8 @@ async function scoreObserve(actor, entry, key, { total, isCritical, undo, rollId
        here until its result is written, with what the find is scored on; `recoverDescribing` finishes such a row when a
        primary GM's stores open, as a window closed unanswered. */
     if (success) {
-        entry.describing = { at: Date.now(), total, isCritical: Boolean(isCritical), rollId, by };
+        // `gm`: whose window it is (the line INVEST of 1.2.123): a GM who leaves without a reload is finished for (below)
+        entry.describing = { at: Date.now(), total, isCritical: Boolean(isCritical), rollId, by, gm: game.user?.id ?? null };
         await writePending();
     }
     const item = success ? await createFind(actor, entry, isCritical, { ask: !recovering.has(key) }) : null;
@@ -1488,12 +1489,13 @@ export function pendingShape(key) {
  * Registered at the primary's hydration (`registerObserveRecovery`); exported for the suite.
  */
 const recovering = new Set();
-export async function recoverDescribing() {
-    if (!game.user?.isGM || !isPrimaryGm()) return 0;
+export async function recoverDescribing({ gm = null, leaving = null } = {}) {
+    if (!game.user?.isGM || !isPrimaryGm({ leaving })) return 0;
     readPending();
     let n = 0;
     for (const [key, entry] of [...pending]) {
         if (!entry?.describing || entry.result) continue;
+        if (gm && entry.describing.gm !== gm) continue;
         const { total, isCritical, rollId = null, by = null } = entry.describing;
         const actor = game.actors.get(entry.actorId);
         recovering.add(key);
@@ -1512,8 +1514,18 @@ export async function recoverDescribing() {
 }
 
 /** At the primary's hydration, the finds a reload left waiting (`recoverDescribing`); not while the suite holds the stores. */
+/* AND WHEN THE GM WHOSE WINDOW IT IS LEAVES (the line INVEST of 1.2.123; the auditor's CASE-37 rest, recheck of 1.2.122):
+   a reload is finished at the hydration, but a GM who closed their browser and did not come back left the row marked, and
+   no other GM's hydration came to finish it - the player held a spent action and no card. The primary, at a GM's
+   disconnection, finishes the rows that GM's window held (`describing.gm`); a row of its own window stands. A row marked
+   before 1.2.123 names no GM and waits for a hydration as before (tier 2 "1.2.123 CASE-37 rest"). */
+export function onGmLeft(user, connected) {
+    if (connected || !user?.isGM || user.id === game.user?.id || gmStoresQuiet()) return null;
+    return recoverDescribing({ gm: user.id, leaving: user.id });
+}
 export function registerObserveRecovery() {
     onGmStoresHydrated(() => { if (!gmStoresQuiet()) void recoverDescribing(); });
+    Hooks.on("userConnected", (user, connected) => { void onGmLeft(user, connected); });
 }
 
 /** Forget every pending target. A console tool for a stuck declaration. */

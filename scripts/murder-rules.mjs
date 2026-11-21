@@ -4825,11 +4825,19 @@ export async function throwOpeningRoll(side, actorId, trait = null, { hindrance 
        CASE-LC2 of 1.2.42): `openingStillWanted` reads the seat from this browser's copy, and an invitation that reached a
        player before it - a reload, or a copy still on its way - ended at once and nobody was told; the GM's tracker waited
        until the GM pressed Ask again. A player's browser with no running incident waits for its copy a few seconds, and
-       if none comes the GMs are told the window could not open. Tier 0 R8183; the race itself is a table's. */
-    if (!game.user?.isGM && !murderState()?.active) {
+       if none comes the GMs are told the window could not open. Tier 0 R8183; the race itself is a table's.
+       AND FOR THE CAST, NOT ONLY THE INCIDENT (the line INVEST of 1.2.123; the auditor's r122-D-3, CASE-LC2's rest): a
+       player's copy is the world setting merged with its own copy of the cast (incident-store.mjs `murderState`,
+       `readCast`), which comes in a packet of its own; an incident read as running at the opening with the seat still
+       empty is the same copy on its way, and it ended as silently. A fresh incident is written whole at the opening
+       (`freshIncidentState`), so a copy one stage behind is not reached; a copy past the opening, or with the seat
+       another's, goes on to the loop's own read as before. */
+    const seatOf = state => (side === "killer" ? state?.killerId : state?.victimId) ?? null;
+    const copyOnItsWay = () => { const state = murderState(); return !state?.active || (state.stage === "openingRoll" && !seatOf(state)); };
+    if (!game.user?.isGM && copyOnItsWay()) {
         const until = Date.now() + TIMING.openingCopyWaitMs;
-        while (Date.now() < until && !murderState()?.active) await new Promise(resolve => setTimeout(resolve, 100));
-        if (!murderState()?.active) {
+        while (Date.now() < until && copyOnItsWay()) await new Promise(resolve => setTimeout(resolve, 100));
+        if (copyOnItsWay()) {
             const { whisperToGms } = await import("./utils.mjs");
             await whisperToGms({ tone: "warning", body: `<p>${game.i18n.format("DRPG.Murder.openingNoCopy", {
                 name: foundry.utils.escapeHTML(actor.name) })}</p>` });

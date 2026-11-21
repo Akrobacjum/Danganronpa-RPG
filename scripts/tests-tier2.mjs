@@ -112410,6 +112410,66 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(seen), stableJson({ windowed: true, markedWhileOpen: true, markedAfter: false, finished: 1, opened: false, newBullets: 1, resolved: true }),
             "{windowed: the first find's describe window opened; markedWhileOpen, markedAfter: its row marked while it stood and after; finished: rows the recovery finished; opened: a describe window during it; newBullets: bullets it made; resolved: the second row's result a success}");
     }],
+    ["1.2.123 CASE-37 rest - a find left waiting on the describe window of a GM who leaves without a reload is finished by the primary at that GM's disconnection; a row of the primary's own window is not (observe.mjs `onGmLeft`, `recoverDescribing`; the auditor's recheck of 1.2.122, CASE-37's rest)", async () => {
+        /*
+         * Line INVEST of 1.2.123. The world's player character in a room, two undescribed traces of the suite's own at its
+         * feet; two General Observes aimed and paid. The first row marked as a second GM's window leaves it (`describing`,
+         * its `gm` an account of the suite's own), the second as this GM's own window does. Then that account's
+         * disconnection is told (`onGmLeft`, which the `userConnected` hook calls). Read: how many rows it finished, the
+         * first row's result, and the second row still marked with no result. Items, keys and traces go.
+         * The stores are quiet while tier 2 runs, and the hook's road stands down then: the hook and its call are read
+         * off the source, and the recovery it calls is run.
+         * Red at 371f1d37: nothing finished a row at a GM's disconnection (no `onGmLeft`; a reload's hydration only).
+         */
+        const O = await import("./observe.mjs");
+        const { observeStore } = await import("./gm-stores.mjs");
+        const remnants = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        needs(env.primaryGm(), "the Observe is resolved on the primary GM");
+        must(typeof O.onGmLeft === "function", "observe.mjs exports no onGmLeft");
+        const { player, actor, where } = await playerInRoom();
+        const had = new Set(actor.items.map(i => i.id));
+        const traces = [];
+        const seen = {};
+        const goneGm = { id: "suite123c37gm000", isGM: true, active: false, name: "SUITE GM gone" };
+        let keys = [];
+        try {
+            for (const n of [1, 2]) traces.push(await remnants.placeRemnant({ type: "prep", visibility: "evident", scene: where.scene, x: where.tokenDoc.x, y: where.tokenDoc.y, note: `SUITE 123c trace ${n}` }));
+            must(traces.every(Boolean), "the traces were not placed - this would measure nothing");
+            for (const gm of [goneGm.id, game.user.id]) {
+                const asked = await O.chooseObserveTarget({ actorId: actor.id, declaration: "general", userId: player.id, paid: true });
+                must(asked?.ok && asked.key && O.pendingShape(asked.key), "an Observe found nothing to aim at - this would measure nothing");
+                const row = observeStore.get(asked.key);
+                await observeStore.patch(asked.key, { ...row, describing: { at: Date.now(), total: 30, isCritical: false, rollId: null, by: player.id, gm } });
+                keys.push(asked.key);
+            }
+            await settle();
+            // the stores are held quiet while tier 2 runs, and `onGmLeft` stands down then as the hydration's road does:
+            // its call is read off the source below, and the recovery it makes is run here
+            seen.finished = await Promise.race([O.recoverDescribing({ gm: goneGm.id, leaving: goneGm.id }), wait(6000).then(() => "timeout")]);
+            await settle();
+            seen.goneResolved = Boolean(observeStore.get(keys[0])?.result?.success);
+            seen.ownStillMarked = Boolean(observeStore.get(keys[1])?.describing) && !observeStore.get(keys[1])?.result;
+        } finally {
+            for (const key of keys) await observeStore.drop?.(key).catch?.(() => {});
+            for (const item of [...actor.items]) {
+                if (had.has(item.id)) continue;
+                const uuid = item.uuid;
+                await item.delete().catch(() => {});
+                await bullets.dropSecret?.(uuid);
+            }
+            for (const t of traces.filter(Boolean)) {
+                await remnants.dropRemnantSecret(t).catch(() => {});
+                if (where.scene.tokens.has(t.id)) await where.scene.deleteEmbeddedDocuments("Token", [t.id]);
+            }
+            await gmStoresIdle();
+        }
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/observe.mjs`).then(lfText));
+        seen.hooked = /Hooks\.on\("userConnected", \(user, connected\) => \{ void onGmLeft\(user, connected\); \}\)/.test(fnSource(src, "registerObserveRecovery"));
+        seen.callsWithGm = /recoverDescribing\(\{ gm: user\.id, leaving: user\.id \}\)/.test(fnSource(src, "onGmLeft"));
+        equal(stableJson(seen), stableJson({ callsWithGm: true, finished: 1, goneResolved: true, hooked: true, ownStillMarked: true }),
+            "{hooked, callsWithGm: the disconnection hook and its call; finished: rows finished at the gone GM's disconnection; goneResolved: that GM's row scored; ownStillMarked: this GM's own row left as it stood}");
+    }],
     ["1.2.122 CASE-14 - a ballot handed to a player who then left is still named as out: the vote's pending voters are everybody handed one who has not answered, connected or not (vote.mjs `pendingVoters`; the audit's CASE-14 of 1.2.42, its rest)", async () => {
         /*
          * Line INVEST of 1.2.122 (the auditor's unrouted list, B). An account of the suite's own, not connected, handed a
