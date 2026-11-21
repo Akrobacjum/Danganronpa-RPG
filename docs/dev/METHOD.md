@@ -108,7 +108,9 @@ public clock setting every player's browser holds).
    check and gate) and `crlf-suite`, the suite in the push run's eight shards, merged by `suite-merge.mjs` in `verdict`
    (the whole suite once, the skips exactly the baseline's); measured on the first dispatch, 02.11.2026 (run 41377151746, 2b5527e1): 1509 s from the first job's start to the last job's end, 28 jobs (crlf suite 1/8 1008 s, the other shards 432-509 s, crlf lint, check, gate 119 s); 2699 s from the dispatch to the run's end, queued behind the push run of the same commit. Owed by every train before
    its PR, and a red one blocks the release by the method - the train waits for it green - not by `release.yml`, which
-   calls `ci.yml` without the `crlf` input and reads no dispatch's verdict (nor does `audit/gate/verify-gate.mjs`).
+   calls `ci.yml` without the `crlf` input (nor does `audit/gate/verify-gate.mjs` read it). Since 1.2.121 its `reuse-ci`
+   job reads green `ci.yml` runs of the same tree, dispatches included, and reuses one in place of calling `ci.yml`
+   (1.2.121's release reused run 44886414447, a dispatch); a red CRLF dispatch is only not reused, it blocks nothing there.
    Scenarios are not in it: none of the three finds below was a scenario's. *The whole run* -
    `.github/workflows/crlf-whole.yml`: `npm test` whole, in one job and one process, the only run of tier 2 after
    01-runtests' parts A and B, in one order; the shards never run that way. It runs weekly (Sundays 03:17 UTC, on
