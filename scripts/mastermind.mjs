@@ -729,9 +729,6 @@ export async function openMastermindDialog() {
             const wireGive = () => wireMastermindGive(dialog);
             wireGive();
 
-            /* The Hope box is redrawn at once with a field focused in it (the line claude/refresh-120, 21.11.2026; REFR-05;
-               the owner's rule "Zawsze odswiezamy okna od razu przy zmianie"): the amount typed is carried and has the focus
-               back (live.mjs `whileEditing`). Until then it waited for the focus to leave the box. R7972. */
             keepLive(dialog, {
                 region: ".drpg-mm-form",
                 /* The region's own element, wrapper and all (live.mjs replaces the region with the build's first element):
@@ -744,9 +741,11 @@ export async function openMastermindDialog() {
                 // pick, the lair and the Hope line read the record as it is now, which another GM may change or clear
                 // (F-6, 21.11.2026). The rooms' names: a region's, on any scene.
                 watch: { actors: true, hooks: ["drpgDespairOwedChanged", "createRegion", "updateRegion", "deleteRegion"], stores: [mastermindStore] },
-                /* The Hope box is redrawn at once with a field focused in it (the line claude/refresh-120, 21.11.2026; REFR-05;
-                   the owner's rule "Zawsze odswiezamy okna od razu przy zmianie"): the amount typed is carried and has the focus
-                   back (live.mjs `whileEditing`). Until then it waited for the focus to leave the box. R7972. */
+                /* The form is redrawn at once with a field focused in it (the line claude/refresh-120, 21.11.2026; REFR-05;
+                   the owner's rule "Zawsze odswiezamy okna od razu przy zmianie"): what is typed or picked is carried and has
+                   the focus back (live.mjs `whileEditing`). Until then it waited for the focus to leave the box. R7972. The
+                   region was the Hope box then and is the whole form since 1.2.122 (REFR-45); this stood twice, before
+                   `keepLive` too, until the auditor's r122-F-5 (1.2.123). */
                 whileEditing: true,
                 after: wireGive
             });
