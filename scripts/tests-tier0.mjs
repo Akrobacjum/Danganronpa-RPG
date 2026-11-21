@@ -13827,7 +13827,8 @@ const REGRESSIONS = [
         };
         // E41 C3 (1.2.97): the action family's text (the kit's `actionText`), where action-rolls.mjs's alone was read.
         const rolls = stripComments(actionText(await otherSources()));
-        const menu = bodyOf(fnSource(rolls, "chooseTamper"), "options: [", { until: "...(stageSix" });
+        // CHANGED ON PURPOSE BY 1.2.123 (the auditor's p43-1): the rows are `rowsFor`'s, rebuilt while the menu stands.
+        const menu = bodyOf(fnSource(rolls, "chooseTamper"), "const rowsFor = list => [", { until: "...(stageSix" });
         const things = [...menu.matchAll(/\bvalue:\s*"\w+"/g)].length;
         ok(things > 0, "chooseTamper's menu was read and offers nothing - this test measured nothing");
         const { unfoundBar: bar, unfoundDespair: despair } = KEY_REMNANTS;
@@ -24229,7 +24230,8 @@ const REGRESSIONS = [
         read.analyzeLayers = [...ana.querySelectorAll(".drpg-action-details-box .drpg-details-stack > .drpg-details-layer[data-drpg-when]")].map(l => l.dataset.drpgWhen).sort();
         read.boundLi = ana.querySelectorAll("li[data-drpg-when]").length;
         const code = stripComments(actionText(await moduleSources()));
-        const facts = fnSource(code, "briefingFacts") ?? "", block = fnSource(code, "briefingBlock") ?? "";
+        // CHANGED ON PURPOSE BY 1.2.123 (the auditor's p43-1): the markup is `briefingMarkup`'s, which `briefingBlock` draws and keeps live.
+        const facts = fnSource(code, "briefingFacts") ?? "", block = fnSource(code, "briefingMarkup") ?? "";
         read.watched = [/DRPG\.Tamper\.watched[\s\S]{0,120}\btop\s*:\s*true/.test(facts), /drpg-briefing-watched/.test(block)];
         read.lang = ["DRPG.Kit.details", "DRPG.Kit.thresholds"].map(k => game.i18n.localize(k) !== k).concat(game.i18n.localize("DRPG.Kit.allThresholds") === "DRPG.Kit.allThresholds");
         const yes = { one: true, outside: 0, inside: true, all: 0, aria: true, hidden: 0 };

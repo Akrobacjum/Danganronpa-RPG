@@ -39425,7 +39425,12 @@ const INVARIANTS = [
         const labelOf = (fn, name) => {
             const body = fnSource(code, fn) ?? "";
             const m = body.match(new RegExp(`<label class="drpg-specific-note"(?: data-drpg-when="([\\w-]+)")?>\\s*<span>\\$\\{[^}]*\\}</span>\\s*<select name="${name}"(?:\\$\\{tipAttr\\([^)]*\\)\\})?>`));
-            return m ? m[1] ?? "always" : "no such select";
+            if (m) return m[1] ?? "always";
+            /* CHANGED ON PURPOSE BY 1.2.123 (the auditor's p43-1): Tamper's frame select is drawn by `whoSelect`, which the
+               menu keeps live; the label holds the helper's call, and the helper starts with the select itself. */
+            const viaHelper = body.match(new RegExp(`<label class="drpg-specific-note"(?: data-drpg-when="([\\w-]+)")?>\\s*<span>\\$\\{[^}]*\\}</span>\\s*\\$\\{whoSelect\\(candidates\\)\\}`));
+            const helper = new RegExp(`const whoSelect = list => \`<select name="${name}"`).test(body);
+            return viaHelper && helper ? viaHelper[1] ?? "always" : "no such select";
         };
         equal(JSON.stringify({
             wrong,

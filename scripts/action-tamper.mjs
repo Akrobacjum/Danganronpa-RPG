@@ -50,8 +50,9 @@ const TAMPER_WHO_HOOK = "drpgTamperWhoChanged";
 async function chooseTamper(actor, def, { erasable, mine, candidates, stageSix, tamperFacts, cleanup }) {
     let latest = candidates;
     const idsOf = list => list.map(a => a.id).join(",");
-    const whoSelect = list => `<span class="drpg-tamper-who"><select name="who"${tipAttr("DRPG.Tips.Actions.frameStudentTooltip")}>${list.map(a =>
-        `<option value="${a.id}">${esc(nameAsSeen(a))}</option>`).join("")}</select></span>`;
+    // The select itself is the region: it stands straight in its row's label, as the stylesheet reads it (R1142).
+    const whoSelect = list => `<select name="who" class="drpg-tamper-who"${tipAttr("DRPG.Tips.Actions.frameStudentTooltip")}>${list.map(a =>
+        `<option value="${a.id}">${esc(nameAsSeen(a))}</option>`).join("")}</select>`;
     const rowsFor = list => [
             {
                 value: "cover", icon: "fa-eraser",
@@ -111,7 +112,7 @@ async function chooseTamper(actor, def, { erasable, mine, candidates, stageSix, 
         options: rowsFor(candidates),
         live: { options: () => rowsFor(latest), watch: { hooks: [TAMPER_WHO_HOOK] } },
         onRender: (event, dialog) => {
-            keepLive(dialog, { region: ".drpg-tamper-who", build: () => whoSelect(latest), watch: { hooks: [TAMPER_WHO_HOOK] } });
+            keepLive(dialog, { region: "select.drpg-tamper-who", build: () => whoSelect(latest), watch: { hooks: [TAMPER_WHO_HOOK] } });
             keepFresh(dialog, {
                 run: () => {
                     cleanup.framingCandidates(actor).then(list => {
