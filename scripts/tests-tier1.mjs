@@ -17738,7 +17738,7 @@ const INVARIANTS = [
             "the microphone note did not give way to the microphones once they were named, or gave way before ([[the note drawn, the microphones listed] at the build, after a device change still unnamed, after one named])");
     }],
 
-    ["R8546 - Unblock on a player whose role withholds the microphone and who holds no key of their own writes nothing and tells the GM it is the role's rule; with a key of their own it takes the key off as before (voice-tile.mjs `toggleBlock`; 1.2.123, the audit's r122-G-R1)", async () => {
+    ["R8592 - Unblock on a player whose role withholds the microphone and who holds no key of their own writes nothing and tells the GM it is the role's rule; with a key of their own it takes the key off as before (voice-tile.mjs `toggleBlock`; 1.2.123, the audit's r122-G-R1)", async () => {
         /*
          * The audit of 1.2.122 (r122-G-R1): since COMM-46 an unblock deletes the user's own BROADCAST_AUDIO, and for a user
          * with none whose role withholds the microphone that deletion changed nothing - toggleBlock answered true, the row
@@ -17768,7 +17768,7 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson([[false, 0, [game.i18n.format("DRPG.Voice.list.gmRoleBlocks", { name: user.name })]], [true, 1, 0]]),
             "an Unblock the role withholds wrote, or said nothing, or one with a key of its own did not take it off ([[no key: answered, writes, notices], [own key: answered, writes, notices]])");
     }],
-    ["R8545 - a closed settings window's microphone note follows nothing: a fieldset built after it stops its listeners, and a device change reads the devices only for the notes still on the page (voice-panel.mjs `followTheMic`, `micFollowers`; 1.2.123, the audit's r122-G-5)", async () => {
+    ["R8591 - a closed settings window's microphone note follows nothing: a fieldset built after it stops its listeners, and a device change reads the devices only for the notes still on the page (voice-panel.mjs `followTheMic`, `micFollowers`; 1.2.123, the audit's r122-G-5)", async () => {
         /*
          * The audit of 1.2.122 (r122-G-5): followTheMic's listeners stopped only once the microphones were named, so on a
          * browser that never names them every opening of the settings window added a set that read the devices on every
@@ -17910,7 +17910,7 @@ const INVARIANTS = [
         equal(read_rearm, game.i18n.format("DRPG.Trap.rearmGone", { name: game.user.name }), "Rearm the trap on a project that is gone did not say so (the audit's CTRL-64)");
     }],
 
-    ["R8544 - Give and Not now on a Monocub's Ask for Hope act only on a Monocub the card's writer owns: a player's card naming a classmate's character is closed and gives nothing, and a GM's card is the GM's (messenger-app.mjs `runCallAction`, `CARD_CHARACTER_FIELD`; 1.2.123, the audit's r122-G-3, the rest of COMM-21)", async () => {
+    ["R8590 - Give and Not now on a Monocub's Ask for Hope act only on a Monocub the card's writer owns: a player's card naming a classmate's character is closed and gives nothing, and a GM's card is the GM's (messenger-app.mjs `runCallAction`, `CARD_CHARACTER_FIELD`; 1.2.123, the audit's r122-G-3, the rest of COMM-21)", async () => {
         /*
          * The audit of 1.2.122 (r122-G-3): COMM-21's fix held nine rulings' `data.by` to the card's writer, but Give and Not
          * now read `data.actor`, which nothing compared, so a card a player's console posted naming a friend's Monocub
@@ -17924,7 +17924,7 @@ const INVARIANTS = [
         const writer = game.users.find(u => !u.isGM && game.actors.some(a => a.type === "character" && !a.testUserPermission(u, "OWNER")));
         must(writer, "no player with a classmate's character to name - this would measure nothing");
         const classmate = game.actors.find(a => a.type === "character" && !a.testUserPermission(writer, "OWNER"));
-        const card = author => ({ id: "R8544RulingCard1", author, whisper: [], rolls: [], content: "", flags: { [MODULE_ID]: {} },
+        const card = author => ({ id: "R8590RulingCard1", author, whisper: [], rolls: [], content: "", flags: { [MODULE_ID]: {} },
             getFlag(scope, key) { return this.flags?.[scope]?.[key]; } });
         const warns = [], realWarn = ui.notifications.warn;
         ui.notifications.warn = text => { warns.push(String(text)); };
@@ -17933,7 +17933,7 @@ const INVARIANTS = [
             const line = key => game.i18n.format(key, { name: game.user.name });
             const give = await M.runCallAction("cubGiveHope", { actor: classmate.id, n: 2 }, card(writer));
             const notNow = await M.runCallAction("cubNotNow", { actor: classmate.id }, card(writer));
-            const gm = await M.runCallAction("cubGiveHope", { actor: "R8544Nobody00000", n: 1 }, card(game.user));
+            const gm = await M.runCallAction("cubGiveHope", { actor: "R8590Nobody00000", n: 1 }, card(game.user));
             read = [give?.settled === line("DRPG.Bridge.settledNotTheirs"), notNow?.settled === line("DRPG.Bridge.settledNotTheirs"),
                 warns.length, gm?.settled === line("DRPG.Bridge.settledNoCharacter")];
         } finally {
