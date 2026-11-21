@@ -1,6 +1,6 @@
 # Danganronpa RPG - Player Handbook
 
-*For students of the killing game. Module version 1.2.119, built on Daggerheart for Foundry VTT v14.*
+*For students of the killing game. Module version 1.2.120, built on Daggerheart for Foundry VTT v14.*
 
 This is the whole game from your chair: what the numbers on your sheet mean, what an action costs, what Hope buys, what happens when somebody dies, and what to press. Every number in here is the module's own; where a decision belongs to a human, it says "the GM decides". How the module does what it does, for the curious, is in section 17.
 
@@ -1038,7 +1038,7 @@ There are two themes: **Stained Glass**, which you start with, and **Monokuma Le
 
 During an Eclipse the phase line names it, *Night Eclipse* for instance. During a trial the trial's mode stands in place of the time of day (Discussion, Debate, Objection, Rebuttal, Testimony, Panic Round, Closing Argument, Straw Poll, Logic Dive, or Scrum Debate), and who has the floor is on the Event panel (section 12). While the game is paused, **On hold** stands in place of the campaign name on every screen until the game runs again; Foundry's own caption in the middle of the screen and the dimming stay. Click the phase line for an explanation of where things stand and the description of your room.
 
-**Foundry's own buttons** are not on a player's screen: as there is no sidebar, there is no bar of scene controls on the left, and with the bar go drawing, map notes, and the target button. Your token is selected and dragged as before, and the module changes none of Foundry's keys.
+**Foundry's own buttons** are not on a player's screen: as there is no sidebar, there is no bar of scene controls on the left, and with the bar go drawing, map notes, and the target button. Your token is selected and dragged as before, and the module changes none of Foundry's keys. Right-clicking a token opens no menu (since 1.2.120): what that menu held is the GM's. Your resources and your character's conditions are on your sheet (the Effects tab), a token's height is set by the GM in the token's settings, and you still target a token with the T key or a double right-click.
 
 **A window's title bar**: a double-click folds the window to its title bar and a second one opens it again, as everywhere in Foundry. A folded window keeps what it held, and the button that opened it opens it again. A short window that asks one question, such as a confirmation, does not fold. A window that waits for your answer (a roll, Observe, an action you declare, the vote, a Level Up, or the trial's questions) stays over your character sheet, also when you click the sheet or it redraws; other windows come to the front as Foundry brings them there. A text box you type in grows over its window to fit your text, up to 60% of the screen's height, and goes back when you leave it or press Escape.
 

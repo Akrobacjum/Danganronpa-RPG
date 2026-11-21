@@ -3661,6 +3661,14 @@ body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :
     border-radius: var(--drpg-kit-btn-radius);
     cursor: pointer;
 }
+/* NO BRUSH ON A NODE (line P of 1.2.120; the owner, 21.11.2026: "Po najechaniu myszka caly node robi sie bialy"). Stained
+   Glass lights every panel button's brush under the pointer and when pressed (stained-glass.css, "HOVER IS A WHOLE BRUSH
+   STROKE"): an opaque bone stroke behind the words, the words turned to ink by `--brush-ink` - which a node never reads,
+   its `color` being the rule above's. So a node under the pointer was a bone box with bone words: 1:1 (Chromium,
+   audit/case-map-sweep.mjs's hover read; 9.65:1 with this rule). A node is a tile, not a button of the panel: its hover
+   is the kit's wash below, in both themes. In the states themselves: the same `--brush-on: 0` in the rule above lost to
+   the theme's hover rule (measured: without this rule the hover read 1:1 again). */
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node]:is(:hover, :active) { --brush-on: 0; }
 body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node]:hover { background: var(--drpg-kit-hover-bg); border-color: var(--drpg-kit-hover-edge); }
 body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node]:focus-visible { outline: 2px solid var(--drpg-kit-ring); outline-offset: 2px; }
 body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node].is-selected {
@@ -3791,7 +3799,14 @@ body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :
 .application.drpg-window-case .drpg-case-tools { flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.5rem; min-width: 0; }
 .application.drpg-window-case .drpg-case-tools-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem; }
 body .application.drpg-window-case .drpg-case-tools button { flex: 0 0 auto; min-width: 0; margin: 0; padding: 2px 6px; font-size: var(--drpg-text-xs); }
-.application.drpg-window-case select.drpg-case-sort { flex: 0 1 auto; min-width: 0; font-size: var(--drpg-text-xs); }
+/* the order's select at the theme's select size, as "Add a plan" beside it (line P of 1.2.120; the coordinator, from the
+   owner's shots: "the sort select's 'By hand' is drawn at a tiny font next to the other toolbar controls"): it stood at
+   the extra-small text, 11 px under Stained Glass beside "Add a plan" at 21 (Chromium, audit/case-map-sweep.mjs's
+   toolbar read); now the two read alike in both themes. As wide as the order it shows (`field-sizing: content`, Chromium's;
+   a browser without it keeps the longest option's width): at the theme's size it stood as wide as "Fewer crossings", and
+   that tail put "All open" on a row of its own in a 1008 px window under Stained Glass (one row with it; the sweep's rows
+   read) */
+.application.drpg-window-case select.drpg-case-sort { flex: 0 1 auto; min-width: 0; field-sizing: content; }
 /* THE CAMERA'S BUTTONS in a strip of their own under the graph, at its right (E99 round 5, 12.11.2026): over the graph's
    corner they lay over a node, and after Fit to view the nodes reach every edge of the viewport (case-map.mjs
    `wireCaseMap`; audit/case-map-sweep.mjs reads the bar against every node, at rest and fitted). */

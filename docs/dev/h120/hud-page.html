@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Token HUD shots (1.2.120 line H)</title>
+<!-- The module's seven stylesheets, in module.json's order. -->
+<link rel="stylesheet" href="../../../styles/base.css">
+<link rel="stylesheet" href="../../../styles/motion.css">
+<link rel="stylesheet" href="../../../styles/danganronpa.css">
+<link rel="stylesheet" href="../../../styles/stained-glass.css">
+<link rel="stylesheet" href="../../../styles/pixel-icons.css">
+<link rel="stylesheet" href="../../../styles/components.css">
+<link rel="stylesheet" href="../../../styles/narrow.css">
+<style>
+/* A STAND-IN OF FOUNDRY'S LAYOUT, not Foundry's stylesheet (v14's core CSS is not on this machine): the HUD's three
+   columns around a 100 px token on a dark map, as the owner's shot shows them. Only position and size; every colour,
+   edge and glyph on the buttons is the module's. */
+html, body { margin: 0; }
+body { background: #2b2f28; font-family: sans-serif; width: 1200px; }
+.cell .tip { z-index: 1; }
+.stage { display: flex; gap: 24px; padding: 24px; flex-wrap: wrap; }
+.cell { position: relative; width: 360px; height: 330px; background:
+    repeating-linear-gradient(0deg, #3a3f35 0 49px, #30342c 49px 50px), repeating-linear-gradient(90deg, transparent 0 49px, #30342c 49px 50px); }
+.cell > .label { position: absolute; left: 8px; top: 6px; color: #e4ded8; font-size: 13px; background: #0008; padding: 2px 6px; }
+.token { position: absolute; left: 130px; top: 90px; width: 100px; height: 100px; border-radius: 50%;
+    background: radial-gradient(circle at 40% 35%, #c9a27e, #6b4b3a); box-shadow: 0 0 0 3px #e4ded8; }
+.cell #token-hud { position: absolute; left: 130px; top: 90px; width: 100px; height: 100px; display: flex; justify-content: space-between; margin: 0; }
+.cell #token-hud .col { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.cell #token-hud .col.left { position: absolute; right: calc(100% + 14px); top: -40px; }
+.cell #token-hud .col.right { position: absolute; left: calc(100% + 14px); top: -40px; }
+.cell #token-hud .col.middle { position: absolute; inset: 0; }
+.cell #token-hud .palette { display: none; }
+.cell #token-hud .palette.open { display: block; position: absolute; left: calc(100% + 8px); top: 0; min-width: 120px; }
+.cell #token-hud .palette-list-entry { display: block; padding: 4px 8px; font-size: 14px; }
+.cell .tip { position: absolute; left: 8px; bottom: 8px; color: #e4ded8; font-size: 12px; background: #000a; padding: 3px 6px; max-width: 340px; }
+</style>
+</head>
+<body>
+<div class="stage" id="stage"></div>
+<script type="module">
+// The real token-hud.mjs, its one import (utils.mjs `error`) stood in for, run on Daggerheart 2.12.8's markup.
+const params = new URLSearchParams(location.search);
+document.body.classList.add(`drpg-theme-${params.get("theme") ?? "monokuma-legacy"}`);
+if (params.has("hc")) document.body.classList.add("drpg-high-contrast");
+const lang = params.get("lang") ?? "en";
+const dict = (await fetch(`../../../lang/${lang}.json`).then(r => r.json())).DRPG.TokenHud;
+globalThis.game = { i18n: { localize: key => dict[key.replace("DRPG.TokenHud.", "")] ?? key } };
+const src = (await fetch("../../../scripts/token-hud.mjs").then(r => r.text()))
+    .replace('import { error } from "./utils.mjs";', "const error = (...a) => console.error(...a);");
+const T = await import(URL.createObjectURL(new Blob([src], { type: "text/javascript" })));
+const button = (action, icon, extra = "", cls = "") => `<button type="button" class="control-icon ${cls}" data-action="${action}" ${extra} data-tooltip aria-label="HUD.${action}"><i class="fa-solid ${icon}" inert></i></button>`;
+const hud = ({ gm, hidden, locked }) => `<div class="col left">
+    <div class="attribute elevation"><i class="fas fa-angle-up"></i><input type="text" name="elevation" value="0"></div>
+    ${button("togglePalette", "fa-stairs", 'data-palette="levels"')}
+    <div class="palette palette-list" data-palette="levels"><a class="palette-list-entry active" data-action="level"><span>Ground floor</span></a><a class="palette-list-entry" data-action="level"><span>Attic</span></a></div>
+    ${button("sort", "fa-bring-forward")}
+    ${gm ? button("locked", locked ? "fa-lock" : "fa-lock-open", "", locked ? "active" : "") : ""}
+    ${button("config", "fa-gear")}
+</div>
+<div class="col middle"><div class="attribute bar2"><input type="text" name="bar2" value="999"></div><div class="attribute bar1"><input type="text" name="bar1" value="999"></div></div>
+<div class="col right">
+    ${gm ? button("visibility", hidden ? "fa-eye-slash" : "fa-eye", "", hidden ? "active" : "") : ""}
+    <button type="button" class="control-icon" data-action="togglePalette" data-palette="effects"><img src=""></button>
+    <div class="palette status-effects" data-palette="effects"></div>
+    ${button("togglePalette", "fa-person-walking", 'data-palette="movementActions"')}
+    <div class="palette palette-list" data-palette="movementActions"></div>
+    ${button("target", "fa-bullseye")}
+    ${button("combat", "fa-swords")}
+</div>`;
+// Three HUDs on one page share the id #token-hud the rules key on: a static page, not Foundry's one HUD.
+const cells = [
+    ["GM", { gm: true }, { isGM: true }],
+    ["GM: token hidden and locked", { gm: true, hidden: true, locked: true }, { isGM: true }],
+    ["Player: no token HUD", { gm: false }, { isGM: false }]
+];
+for (const [label, opts, user] of cells) {
+    const cell = document.createElement("div");
+    cell.className = "cell";
+    cell.innerHTML = `<div class="token"></div><form id="token-hud"></form><div class="label">${label}</div>`;
+    const el = cell.querySelector("#token-hud");
+    el.innerHTML = hud(opts);
+    T.trimHudFor(el, user);
+    document.getElementById("stage").append(cell);
+    // Read once the cell is in the page, so the computed display is the sheets'.
+    const tips = [...el.querySelectorAll("button.control-icon")].map(b => b.getAttribute("aria-label")).join(" | ")
+        || `nothing drawn (${el.children.length} elements, display: ${getComputedStyle(el).display})`;
+    cell.insertAdjacentHTML("beforeend", `<div class="tip">${tips}</div>`);
+}
+document.body.dataset.ready = "1";
+</script>
+</body>
+</html>

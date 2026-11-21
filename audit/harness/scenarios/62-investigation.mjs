@@ -82,6 +82,12 @@
  *      and the GM each creation's user; no student gains a token, and a second token the harness gives Aiko is read
  *      (two on the school, no road of the module's, made by the GM). The owner's doubled token of 27.10 had no road of
  *      the module's to show here: LIVE-E51-04 (AUDIT 9.2 item 358).
+ *   M  (line P of 1.2.120, N119-6) both GMs open the Map on four deductions of the chapter, two of them past the first
+ *      column and drawn by their inputs under "fewer crossings" (y above x); the GM types a name into x's field, gm2 presses y's Move down: x
+ *      stands above y on gm2's Map and at once on the GM's open one, the typed name kept, the sort "manual" on both. At
+ *      e515907d the move found y last in the layout's order and wrote nothing (M2 red). Then gm2 ticks a "Rests on" box
+ *      on its open Map, and the GM's open Map draws the line with no Save (M3; red at e515907d: nothing was written until
+ *      gm2 left the Map).
  * Each phase counts its own checks, and a closing check per phase fails one that measured
  * nothing (CLAUDE.md: a test can pass by measuring nothing).
  *
@@ -959,9 +965,88 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
             && J(sTraceRow) === J([["gm", true]]),
         J({ sPlanted, sAiko, sTrace, sTraceRow, sMade, sCreatedBy, note: "_stats.createdBy as each token holds it (null where the harness stamps none)" }));
 
+    /* ------------------------------ M. Move on another GM's Map ------------------------------ */
+
+    begin("M", "gm2 moves a deduction past the first column on its Map, and the GM's open Map draws the move at once, a name typed there kept", "gm-store");
+    /* Line P of 1.2.120 (N119-6; the owner's rule for every window, "Zawsze odswiezamy okna od razu przy zmianie"). Four
+       deductions of the clock's chapter, written on the GM: a and b resting on nothing, x on b and y on a, under the sort
+       "uncrossed" (fewer crossings) - so a Map draws them by their inputs, y above x. Both GMs open the Map; the GM types a name into x's
+       field; gm2 presses y's Move down. Read on the GM's open window: x's and y's order as drawn (each node's fields' top)
+       before and after, the typed name, and the chapter's kept sort on both GMs. Put back: the four nodes and the meta row.
+       Red at e515907d: gm2's Move down on y found it last in the layout's order and wrote nothing (M1, M2). */
+    const mIds = Object.fromEntries(["a", "b", "x", "y"].map(k => [k, `s62-m-${k}`]));
+    const mMap = `${until} const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
+        const pair = root => { const x = parseFloat(root?.querySelector('.drpg-case-edit[data-drpg-edit="${mIds.y}"]')?.style.left ?? "NaN");
+            return [...(root?.querySelectorAll(".drpg-case-canvas > .drpg-case-edit[data-drpg-edit]") ?? [])].filter(el => parseFloat(el.style.left) === x)
+                .sort((a, b) => parseFloat(a.style.top) - parseFloat(b.style.top)).map(el => el.dataset.drpgEdit)
+                .filter(e => e === "${mIds.x}" || e === "${mIds.y}").map(e => e.slice(-1)).join(""); };`;
+    const mOpen = client => client.eval(`${mMap}
+        const I = await import("${repoUrl}/scripts/investigation.mjs");
+        const before = new Set(open());
+        const m = globalThis.__s62m = { windows: globalThis.__dialogWindows };
+        globalThis.__dialogWindows = true;
+        m.answer = Promise.resolve().then(() => I.openInvestigationDashboard({ view: "map" })).catch(e => String(e));
+        m.app = await until(() => open().find(a => !before.has(a) && a.element) ?? null, 10000);
+        await until(() => pair(m.app?.element).length === 2, 10000);
+        return pair(m.app?.element);`, { timeout: 30000 });
+    const mClose = client => client.eval(`const m = globalThis.__s62m; if (m?.app) await m.app.close().catch(() => {}); if (m) { await m.answer; globalThis.__dialogWindows = m.windows; }
+        delete globalThis.__s62m; return true;`, { timeout: 30000 });
+    const mSort = client => client.eval(`const S = await import("${repoUrl}/scripts/case-schema.mjs"); const C = await import("${repoUrl}/scripts/clock.mjs");
+        return S.caseMetaOf(S.caseRows(C.getClock().chapter).meta).sort ?? null;`);
+    const mMetaWas = await gm.eval(`const S = await import("${repoUrl}/scripts/case-schema.mjs"); const C = await import("${repoUrl}/scripts/clock.mjs");
+        return S.caseMetaOf(S.caseRows(C.getClock().chapter).meta);`);
+    let mRead = null;
+    try {
+        await gm.eval(`const S = await import("${repoUrl}/scripts/case-schema.mjs"); const C = await import("${repoUrl}/scripts/clock.mjs");
+            const E = await import("${repoUrl}/scripts/gm-store.mjs");
+            const ch = C.getClock().chapter, ids = ${J(mIds)};
+            await S.setCaseNode(ch, ids.a, { kind: "deduction", label: "S62 M a", inputs: [] });
+            await S.setCaseNode(ch, ids.b, { kind: "deduction", label: "S62 M b", inputs: [] });
+            await S.setCaseNode(ch, ids.x, { kind: "deduction", label: "S62 M x", inputs: [ids.b] });
+            await S.setCaseNode(ch, ids.y, { kind: "deduction", label: "S62 M y", inputs: [ids.a] });
+            await S.setCaseMeta(ch, { sort: "uncrossed" });
+            await E.gmStoresIdle(); return true;`, { timeout: 30000 });
+        await gm2.eval(`${until} const S = await import("${repoUrl}/scripts/case-schema.mjs"); const C = await import("${repoUrl}/scripts/clock.mjs");
+            return Boolean(await until(() => S.caseRows(C.getClock().chapter).rows["${mIds.y}"], 10000));`, { timeout: 30000 });
+        mRead = { gmBefore: await mOpen(gm), gm2Before: await mOpen(gm2) };
+        mRead.typed = await gm.eval(`const C = await import("${repoUrl}/scripts/clock.mjs");
+            const f = globalThis.__s62m?.app?.element?.querySelector('[name="case:' + C.getClock().chapter + ':${mIds.x}:label"]');
+            if (f) { f.value = "S62 M typed"; f.dispatchEvent(new Event("input", { bubbles: true })); }
+            return Boolean(f);`);
+        await gm2.eval(`globalThis.__s62m?.app?.element?.querySelector('.drpg-case-edit[data-drpg-edit="${mIds.y}"] [data-drpg-case-move="1"]')?.click(); return true;`);
+        mRead.gm2After = await gm2.eval(`${mMap} return await until(() => pair(globalThis.__s62m?.app?.element) === "xy" ? "xy" : null, 10000) ?? pair(globalThis.__s62m?.app?.element);`, { timeout: 30000 });
+        mRead.gmAfter = await gm.eval(`${mMap} return await until(() => pair(globalThis.__s62m?.app?.element) === "xy" ? "xy" : null, 10000) ?? pair(globalThis.__s62m?.app?.element);`, { timeout: 30000 });
+        mRead.kept = await gm.eval(`const C = await import("${repoUrl}/scripts/clock.mjs");
+            return globalThis.__s62m?.app?.element?.querySelector('[name="case:' + C.getClock().chapter + ':${mIds.x}:label"]')?.value ?? null;`);
+        mRead.sort = { gm: await mSort(gm), gm2: await mSort(gm2) };
+        /* A node's field changed on gm2's open Map is written at once (line P, investigation.mjs wireMap's `change`): gm2
+           ticks b in a's "Rests on", and the GM's open Map draws the line b>a with nothing else pressed. */
+        mRead.ticked = await gm2.eval(`const box = [...(globalThis.__s62m?.app?.element?.querySelectorAll('.drpg-case-edit[data-drpg-edit="${mIds.a}"] .drpg-case-fold-list input[type="checkbox"]') ?? [])]
+                .find(b => b.name.endsWith(":${mIds.b}"));
+            if (!box) return false;
+            box.checked = true; box.dispatchEvent(new Event("change", { bubbles: true })); return true;`);
+        mRead.lineOnGm = await gm.eval(`${mMap} return Boolean(await until(() => globalThis.__s62m?.app?.element?.querySelector('path[data-drpg-edge="${mIds.b}>${mIds.a}"]'), 10000));`, { timeout: 30000 });
+    } finally {
+        await mClose(gm).catch(() => {});
+        await mClose(gm2).catch(() => {});
+        await gm.eval(`const S = await import("${repoUrl}/scripts/case-schema.mjs"); const C = await import("${repoUrl}/scripts/clock.mjs");
+            const E = await import("${repoUrl}/scripts/gm-store.mjs");
+            const ch = C.getClock().chapter;
+            for (const id of ${J(Object.values(mIds))}) await S.dropCaseNode(ch, id).catch(() => {});
+            await S.setCaseMeta(ch, { sort: ${J(mMetaWas?.sort ?? null)}, manual: ${J(mMetaWas?.manual ?? {})} });
+            await E.gmStoresIdle(); return true;`, { timeout: 30000 });
+        await settle(500);
+    }
+    verdict("both GMs' Maps draw y above x before the move (each centred on its input)",
+        mRead?.gmBefore === "yx" && mRead?.gm2Before === "yx" && mRead?.typed === true, J(mRead));
+    verdict("gm2's Move down on y draws x above y on gm2's Map and at once on the GM's open Map, the name the GM typed kept, the sort \"manual\" on both GMs",
+        mRead?.gm2After === "xy" && mRead?.gmAfter === "xy" && mRead?.kept === "S62 M typed" && J(mRead?.sort) === J({ gm: "manual", gm2: "manual" }), J(mRead));
+    verdict("a \"Rests on\" box gm2 ticks on its open Map is drawn as a line on the GM's open Map at once, with no Save",
+        mRead?.ticked === true && mRead?.lineOnGm === true, J(mRead));
+
     /* ------------------------------ every phase measured ------------------------------ */
 
-    for (const letter of ["A", "O", "N", "T", "V", "D", "K", "P", "E", "L", "S"]) {
+    for (const letter of ["A", "O", "N", "T", "V", "D", "K", "P", "E", "L", "S", "M"]) {
         check(`${letter}0: phase ${letter} measured something`, (counts[letter] ?? 0) > 0, J(counts));
     }
     await disconnect("gm2");

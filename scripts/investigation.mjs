@@ -40,7 +40,7 @@ import { kitTabs, wireKitTabs, emptyOption, drpgWindow, drpgConfirm, box, dataTa
 import { WIDE, columnsHtml } from "./ui-columns.mjs";
 import { caseGraph, caseRows, caseNodeOf, caseModes, PLANNED_TYPES, AUTOPSY_MAX, autopsyNumber, autopsyPresetOf, bodiesInOrder, caseMetaOf, setCaseNode, setCaseMeta, dropCaseNode, newCaseNodeId, CASE_SORTS, reachability, checkCase, planToClear, plannedChapters, clearChapterPlan, pruneDroppedRefs, cutRemnantRefs } from "./case-schema.mjs";
 import { layoutCase } from "./case-layout.mjs";
-import { caseMapHtml, wireCaseMap, glyphHtml, editRow, caseToolsHtml } from "./case-map.mjs";
+import { caseMapHtml, wireCaseMap, glyphHtml, editRow, caseToolsHtml, mapPlace, MAP_GEOMETRY } from "./case-map.mjs";
 import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty, keepDrawn, RAISED } from "./live.mjs";
 import { keyPlanStore, remnantStore, caseSchemaStore, blackenedStore, castStore, deathStore, diveSetStore } from "./gm-stores.mjs";
 import { murderState, blackenedIds, killerIds } from "./incident-store.mjs";
@@ -1871,6 +1871,34 @@ function wireMap(dialog, reading, refresh) {
     const root = dialog.element;
     const chapterNow = () => Number(root?.querySelector(".drpg-case-live")?.dataset.drpgChapter ?? mapChapterOf(reading).chapter);
     const fail = key => err => error(game.i18n.localize(`DRPG.CaseMap.failed.${key}`), err);
+    /* A NODE'S FIELDS ARE WRITTEN ON EACH CHANGE (line P of 1.2.120; the owner's rule of 20.11.2026, "Zawsze odswiezamy okna
+       od razu przy zmianie", and of 12.11.2026, "Moduly przy edycji nie powinny czekac na save"). With every node open (the
+       default since owner-116) no node closes, so until then a tick in "Rests on", a trial mode or a name was written only
+       when the GM left the Map or closed the window: the line was not drawn, the consistency check read the old case and
+       no other GM saw it (audit 1.2.118 controls-03, findings 5, 12 and 14). Now a `change` inside a node's fields - a
+       tick, a pick, a text field left; never a keystroke - writes that node's changed fields (`saveFieldsIn`, the road its
+       close takes) and redraws, the focus given back to the field the GM is in by its name, its caret where it was: the
+       store's own echo would be held while a select keeps the focus (live.mjs). Once per window: a redraw keeps the root.
+       Tier 2 "the planner's node fields on the Map are written on each change". */
+    if (root && !root.dataset.drpgNodeOnChange) {
+        root.dataset.drpgNodeOnChange = "1";
+        root.addEventListener("change", event => {
+            const fields = event.target?.closest?.(".drpg-case-canvas > .drpg-case-edit");
+            if (!fields || !event.target.getAttribute?.("name")) return;
+            saveFieldsIn(fields).then(() => {
+                if (!root.isConnected) return;
+                const active = document.activeElement;
+                const name = active && root.contains(active) ? active.getAttribute?.("name") : null;
+                let start = null, end = null;
+                try { start = active?.selectionStart ?? null; end = active?.selectionEnd ?? null; } catch { /* a type with no caret */ }
+                refresh();
+                const field = name ? root.querySelector(`[name="${CSS.escape(name)}"]`) : null;
+                if (!field || field === active) return;
+                field.focus({ preventScroll: true });
+                try { if (start !== null && end !== null) field.setSelectionRange(start, end); } catch { /* a type with no caret */ }
+            });
+        });
+    }
     /* A node's mode select shows that mode's planned-minigame rows (`zoneRows`), and its button opens the Logic Dive sets
        (13.11.2026). Once per window: a redraw keeps the root. */
     if (root && !root.dataset.drpgZoneRows) {
@@ -1926,7 +1954,7 @@ function wireMap(dialog, reading, refresh) {
                 .then(() => { reading.node = id; reading.focus = id; refresh(); }, fail("add"));
         },
         onSort: sort => { setCaseMeta(chapterNow(), { sort }).then(() => refresh(), fail("sort")); },
-        onMove: (id, step) => { reading.focus = id; moveCaseNode(reading, id, step).then(() => refresh(), fail("move")); },
+        onMove: (id, step) => { reading.focus = id; moveCaseNode(reading, id, step, drawnTops(root)).then(() => refresh(), fail("move")); },
         onDrop: id => dropMapNode(chapterNow(), id).then(gone => { if (gone) { reading.node = null; refresh(); } }, fail("remove")),
         // "Check consistency" (Q-C): the overview's list read again now, the overview left open.
         onCheck: () => { reading.overview = true; refresh(); },
@@ -1966,17 +1994,42 @@ export async function placeIncident(chapter, id) {
     return token;
 }
 
+/** Each node's top on the drawn canvas (its face's `style.top`, which `caseGraphHtml` writes and case-view.mjs
+ *  `relayoutCaseMap` writes again at the measured places), by id; empty where nothing is drawn. */
+function drawnTops(root) {
+    const tops = new Map();
+    for (const b of root?.querySelectorAll?.(".drpg-case-canvas > [data-drpg-node]") ?? []) {
+        const y = parseFloat(b.style?.top);
+        if (Number.isFinite(y)) tops.set(b.dataset.drpgNode, y);
+    }
+    return tops;
+}
+
 /**
  * A node one place up or down its column (E97 C6, the proposal's arrows; its open fields' buttons since the E97 fix): the column as it is drawn now, the
  * two swapped, and every node of that column given its place in the chapter's `manual` order, the sort set to "manual"
  * so the drawn order is the one kept. The column is the Map's own (`caseMapGraph`, the line claude/plan-119, 20.11.2026). A node at its column's end - or at the end of its part, the loose evidence below the gap - stays, and the GM is
  * told so (`DRPG.CaseMap.moveEnd.*`; until then nothing was said). Answers whether it moved.
- */
-async function moveCaseNode(reading, id, step) {
+ *
+ * AS DRAWN, IN EVERY COLUMN (line P, 1.2.120, N119-6). Past the first column the Map centres a node on its inputs
+ * (case-view.mjs `mapPlace`), so under any sort but "manual" a column is drawn in its inputs' order, not in the layout's;
+ * the swap read the layout's, so a first Move on a deduction could reorder its column or say it stood at the end where
+ * it was drawn in the middle. The order is now the drawn one: each node's top on the canvas (`drawn`, `drawnTops`),
+ * else where `mapPlace` puts it at the least sizes (as jsdom draws, and a browser before it measures). The first column
+ * is drawn in the layout's order by construction (no aims, the gap), so it keeps it. Under "manual" every column then
+ * keeps the order written here, and the Map draws it (tier 2 "the planner's Move moves a deduction past the first
+ * column"). */
+async function moveCaseNode(reading, id, step, drawn = null) {
     if (!id || !game.user?.isGM) return false;
     const { chapter, graph } = caseMapGraph(reading);
     const layout = layoutCase(graph, { sort: graph.meta?.sort, manual: graph.meta?.manual });
-    const column = layout.columns.find(c => c.includes(id));
+    const found = layout.columns.find(c => c.includes(id));
+    let column = found;
+    if (found && found !== layout.columns[0]) {
+        const placed = mapPlace(layout, MAP_GEOMETRY, null, { edges: graph.edges ?? [] }).at;
+        const topOf = nodeId => (drawn instanceof Map && drawn.has(nodeId) ? drawn.get(nodeId) : placed[nodeId]?.y ?? Infinity);
+        column = found.map((nodeId, i) => [nodeId, topOf(nodeId), i]).sort((a, b) => a[1] - b[1] || a[2] - b[2]).map(([nodeId]) => nodeId);
+    }
     const name = graph.nodes.find(n => n.id === id)?.label || game.i18n.localize("DRPG.CaseMap.noName");
     const stays = () => {
         ui.notifications.info(game.i18n.format(step < 0 ? "DRPG.CaseMap.moveEnd.up" : "DRPG.CaseMap.moveEnd.down", { name }));
@@ -2470,10 +2523,13 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
                reach `clientSettingChanged` and nothing else, so a ruling or another GM's Save
                left this window drawing the world from before it, and its Save wrote that back
                over. `stores` hears both (live.mjs `listenFor`). */
+            /* The Logic Dive sets are heard too (line P of 1.2.120; audit 1.2.118 controls-03, finding 6): a node planning a
+               Logic Dive lists them in its set picker, which kept the sets it was drawn with until the window was opened
+               again. */
             live = keepLive(dialog, {
                 region: ".drpg-case-live",
                 build: buildCase,
-                watch: { actors: true, items: true, stores: [remnantStore, keyPlanStore, caseSchemaStore, blackenedStore, castStore, deathStore], where: CASE_WATCH },
+                watch: { actors: true, items: true, stores: [remnantStore, keyPlanStore, caseSchemaStore, blackenedStore, castStore, deathStore, diveSetStore], where: CASE_WATCH },
                 /* a focused field nobody typed in does not hold the redraw (live.mjs `whileEditing`; the owner, 20.11.2026, the
                    line claude/plan-119): with every node open on the Map a GM's focus is in a field most of the time */
                 whileEditing: true,

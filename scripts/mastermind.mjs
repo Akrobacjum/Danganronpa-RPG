@@ -703,10 +703,9 @@ export async function openMastermindDialog() {
             keepLive(dialog, {
                 region: ".drpg-mm-live",
                 /* The region's own element, wrapper and all (live.mjs replaces the region with the build's first element):
-                   until the line claude/refresh-120 (21.11.2026) the build was `hopeBox`, whose first element is the Hope
-                   line, so the first redraw put that line where the box stood - the pool's select, the amount and Give
-                   gone, and the region lost to every later change (read on the harness by tier 2's "every second and on
-                   a pool's change ..."). */
+                   until 1.2.120 (21.11.2026) the build was `hopeBox`, whose first element is the Hope line, so the first
+                   redraw put that line where the box stood - the pool's select, the amount and Give gone, and the region
+                   lost to every later change (tier 2's "the Mastermind's Give Hope box stays whole ..."). */
                 build: () => `<div class="drpg-mm-live">${hopeBox()}</div>`,
                 // A pool's debt changes with no actor's write (E05 C12): its store's hook.
                 watch: { actors: true, hooks: ["drpgDespairOwedChanged"] },

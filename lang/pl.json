@@ -665,6 +665,15 @@
       "removePoolAsk": "Odebrać pulę „{name}”? Przepada jej nazwa i cały jej Despair ({n}). Konto zachowuje pozostałe uprawnienia, także rolę Asystenta GM-a.",
       "poolGone": "To konto nie ma już dodatkowej puli, więc nie ma czego odebrać."
     },
+    "TokenHud": {
+      "show": "Pokaż token graczom",
+      "hide": "Ukryj token przed graczami",
+      "lock": "Zablokuj token w miejscu",
+      "unlock": "Odblokuj token",
+      "sort": "Na wierzch lub pod spód",
+      "config": "Ustawienia tokenu",
+      "level": "Zmień piętro"
+    },
     "Hud": {
       "chapter": "Rozdział {n}",
       "day": "Dzień {n}",
@@ -3428,7 +3437,7 @@
       "fogIntro": "Które pokoje każdy uczeń już odkrył na tej scenie (Mastermind zna wszystkie). Odkryty pokój, w którym uczeń akurat nie stoi, widzi przez lekką zasłonę; nieodkryty zakrywa pełna mgła.",
       "fogUncovered": "{pct}% powierzchni tej sceny leży poza regionami pokoi i będzie widoczne jako stała mgła. Zwykle znaczy to, że musisz jeszcze narysować jakiś pokój.",
       "discoverAll": "Odkryj wszystko",
-      "fogMastermind": "Mastermind zna każdy pokój.",
+      "fogMastermind": "Mastermind zna każdy pokój. Twoja mapa nie pokazuje, gdzie chodzi.",
       "hideAll": "Ukryj wszystko",
       "unlockedAnnounce": "Drzwi do pokoju {room} są otwarte.",
       "inspectTitle": "Zajrzyj do skrytek",

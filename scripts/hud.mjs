@@ -37,7 +37,7 @@ import { count } from "./perf-counters.mjs";
 // be a private copy here "for the cycle" (audit C3) - the cycle was real, the
 // copy was the wrong cure. character.mjs was the other such reader, and it went
 // with the incident row when that moved to the Event panel (1.2.47).
-import { incomingTimeOfDay, incidentWitness, SETTINGS, getSetting, bodyDiscovery, isMutedDead } from "./settings.mjs";
+import { incomingTimeOfDay, incidentWitness, bodyDiscovery, isMutedDead } from "./settings.mjs";
 // The room rows' four imports (movement, rooms, projects, search tokens) left with the rows for
 // room-tile.mjs (E77 C3). This file avoids static imports because it sits on the render path the
 // clock itself calls back into, so a cycle here would be a load-order problem rather than a lint
@@ -66,6 +66,7 @@ import {
 } from "./hud-elapsed.mjs";
 import { markLoneInitials } from "./chrome.mjs";
 import { holdAppRenders } from "./dice-hold.mjs";
+import { trimTokenHud } from "./token-hud.mjs";
 export {
     unpausePatch, CLOCK_BEAT_MS, readyPatch, settleClockAtReady, beatClock, shownClock, clockForDisplay, elapsedOf,
     showsStopwatch
@@ -255,46 +256,19 @@ export function registerHud() {
         renderEvents();
     });
 
-    // Foundry's token HUD, not this one: a student's bars are display-only for a player (E29 C7).
-    Hooks.on("renderTokenHUD", stillTokenBars);
-    /* And a bar pointed at a student's Hope waits for a roll's dice as the sheet's Hope does (dice-hold.mjs
-       `holdAppRenders`, 1.2.119): the HUD's own render, held only for its token's actor's write. */
+    /* Foundry's token HUD, not this one: trimmed to the controls this game uses and dressed as the module (token-hud.mjs,
+       1.2.120 line H). Its two bar inputs are among what goes, for everybody, which ends what `stillTokenBars` did here
+       from E29 C7 (a student's bars display-only for a player). */
+    Hooks.on("renderTokenHUD", trimTokenHud);
+    /* And the HUD's own render waits for a roll's dice as the sheet's Hope does (dice-hold.mjs `holdAppRenders`,
+       1.2.119), held only for its token's actor's write. It held a bar pointed at Hope until 1.2.120; the HUD draws no
+       number since, so the hold now changes only when the HUD is drawn again, not what it shows. */
     Hooks.on("renderTokenHUD", app => {
         try { holdAppRenders(app, "tokenHud", actorId => actorId === (app?.actor ?? app?.document?.actor)?.id); }
         catch (err) { error("Could not hold the token HUD for a roll's dice", err); }
     });
 }
 
-/**
- * THE TOKEN HUD'S BARS, DISPLAY-ONLY FOR A PLAYER (E29 C7; audit S02-41; the owner's Q4 (a),
- * 05.10.2026). Foundry's token HUD draws an input for each of the token's two bars, and a
- * player who owns the token may type a new value there - a plain write on their student from
- * their own browser. While `lockPlayerResources` is on, a student's two inputs are disabled
- * for a player, as the sheet's pips are display-only (danganronpa.css); the GMs' audit judges
- * such a write either way (sheet-audit.mjs). The inputs are read in Daggerheart 2.10.5's
- * templates/hud/tokenHUD.hbs (`input[name="bar1"]`, `bar2`). Not measured on a canvas, which the
- * harness has none of: its check (15-held) hands the hook a HUD's shape.
- *
- * SINCE E24 C1b (08.11.2026, N5) a student's Health and Sanity bars (a Monokuma's and an NPC's
- * too since E24 fix G2A, the sheet's one meaning) are off for everybody by
- * their attribute: states.mjs `reserveBar` answers them as the reserve with `editable: false`, and
- * tokenHUD.hbs disables an input whose attribute is not editable - a GM as well, since a number
- * typed there would be written to the marks. This stays for any other bar a student's token is
- * pointed at (Hope, say), which the attribute leaves as Foundry answers it.
- */
-function stillTokenBars(app, element) {
-    try {
-        if (game.user?.isGM || getSetting(SETTINGS.lockPlayerResources) === false) return;
-        const actor = app?.actor ?? app?.document?.actor ?? null;
-        if (actor?.type !== "character") return;
-        for (const input of element?.querySelectorAll?.('input[name="bar1"], input[name="bar2"]') ?? []) {
-            input.disabled = true;
-            input.readOnly = true;
-        }
-    } catch (err) {
-        error("Could not hold a token's bars for a player", err);
-    }
-}
 /*
  * THE ROSTER IS GONE.
  * --------------------------------------------------------------------------

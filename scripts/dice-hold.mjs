@@ -173,7 +173,7 @@ const HELD_RENDER = Symbol.for("drpgDiceHeldRender");
 
 /**
  * A window that draws a student's Hope with no repaint of the module's - Daggerheart's Party sheet (sheet.mjs, at
- * `renderPartySheet`), Foundry's token HUD (hud.mjs, at `renderTokenHUD`) - made to wait for a roll's dice (1.2.119; the
+ * `renderPartySheet`), Foundry's token HUD (hud.mjs, at `renderTokenHUD`; it draws no number since 1.2.120, token-hud.mjs) - made to wait for a roll's dice (1.2.119; the
  * owner's answer of 20.11.2026 to the places #11 left): an own `render` on the instance, installed once. While any roll's
  * dice are falling here (`anyDiceFalling`), a render that is not forced is decided a microtask later: when an actor the
  * window shows (`concerns`, any actor without one) was updated in the same turn under a roll's stamp, the render is held

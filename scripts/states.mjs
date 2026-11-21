@@ -17,9 +17,10 @@
  *                a murderer does to you on purpose.
  *
  * So both of the system's automations are switched off and these two are
- * applied instead. They are real status effects rather than a CSS badge: they
- * show on the token, on the sheet, and in the token HUD, which is where a
- * player already looks for "what is wrong with me".
+ * applied instead. They are real status effects rather than a CSS badge, which
+ * every rule reads off the actor. Since E95 C5 their icons are drawn on no token
+ * (below) and the sheet's badges say them; since 1.2.120 the token HUD has no
+ * status palette (token-hud.mjs).
  *
  * Neither state carries an ActiveEffect *change*, because neither effect is
  * expressible as one. Both are enforced by reading the resource directly, so
@@ -460,10 +461,12 @@ export async function syncAll() {
  * player the Sanity the sheet now keeps from them. The attribute is wrapped (a row
  * of patches.mjs, `token-bars-reserve`): for a character's two reserves (a student's, and
  * since E24 fix G2A a Monokuma's and an NPC's, `reserveCharacter`) it answers what
- * is left of what maximum, and `editable: false`, which takes the token HUD's two
+ * is left of what maximum, and `editable: false`, which took the token HUD's two
  * inputs off for everybody on a character (tokenHUD.hbs disables an input whose
  * attribute is not editable) - a number typed there would be written to the marks as
- * if it were the reserve. A GM edits on the sheet. Sanity answers null to a user
+ * if it were the reserve. Since 1.2.120 the HUD draws neither input for anybody
+ * (token-hud.mjs); `editable: false` stays for any other reader of the attribute. A GM
+ * edits on the sheet. Sanity answers null to a user
  * `reserveView` does not show it to: Foundry draws no bar for null. Read on Foundry's
  * v13 behaviour as recalled (no v14 source on this machine): the HUD and `Token#drawBars`
  * both ask `getBarAttribute`, and `Actor#modifyTokenAttribute` reads the system data
@@ -480,8 +483,8 @@ export async function syncAll() {
  * Sanity and drew Wounded for all. The sheet says both instead, to every reader
  * (sheet-sidebar.mjs `paintStateBadges`). A view on this browser, not a data change: the
  * statuses stay on the actor every client holds, every rule reads them as before, and a
- * console reads them. The token HUD's status palette lists statuses, not the token's
- * drawn icons, and is not changed. A table's check (LIVE-E95-05, AUDIT 9.2).
+ * console reads them. The token HUD's status palette, which listed statuses rather than
+ * the token's drawn icons, is taken off the HUD for everybody since 1.2.120 (token-hud.mjs). A table's check (LIVE-E95-05, AUDIT 9.2).
  * ========================================================================== */
 
 /*

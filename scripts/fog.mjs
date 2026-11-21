@@ -2025,7 +2025,7 @@ let lastLedgerSeen = null;
  * them, and the suite hands them a fake ticker and fake textures of its own (R1003) - its own state with them, so
  * running it touches nothing of the layer on screen.
  */
-const DISSOLVE = { generation: 0, busy: false, queued: false, previous: null };
+const DISSOLVE = { generation: 0, busy: false, queued: false, previous: null, since: null };
 const DISSOLVE_IO = {
     state: DISSOLVE,
     get PIXI() { return globalThis.PIXI; },
@@ -2038,6 +2038,7 @@ const DISSOLVE_IO = {
     showing: texture => { fogTexture = texture; },
     motionOff: () => motionOff(),
     fadeMs: () => fadeMs(),
+    now: () => clockNow(),
     repaint: () => repaintFog()
 };
 
@@ -2055,19 +2056,37 @@ const DISSOLVE_IO = {
  *
  * The queue holds one entry, because a repaint rebuilds from current state:
  * two pending repaints would draw the same picture. The watchdog on the
- * dissolve guarantees this flag cannot stick.
+ * dissolve guarantees its end is run; since 1.2.120 (line F, R8030) the end
+ * releases the flag whatever its clean-up throws, and a repaint asked past
+ * the dissolve's bound lets it go - until then a throw there stuck it, and
+ * the fog stopped changing until a reload.
  */
 /** True when a dissolve is running, and the repaint asked now is queued behind it (`repaintFog`'s first question). */
 export function queueBehindDissolve(io = DISSOLVE_IO) {
-    if (!io.state.busy) return false;
-    io.state.queued = true;
+    const state = io.state;
+    if (!state.busy) return false;
+    /* A DISSOLVE PAST ITS BOUND HOLDS NOTHING (1.2.120 line F; R8030 C). Its end is due at the watchdog's bound
+       (`fadeMs() + 750`); one that has not come a second after that will not come, and a repaint queued behind it
+       would wait for a reload. It is let go - its generation retired, so a late end of it puts nothing back - and
+       this repaint draws. */
+    const at = io.now?.();
+    if (Number.isFinite(at) && Number.isFinite(state.since) && at - state.since > io.fadeMs() + DISSOLVE_STUCK_MS) {
+        warn(`Fog: a dissolve held the fog for ${Math.round(at - state.since)} ms and was let go; the fog is drawn again.`);
+        endDissolves(io);
+        return false;
+    }
+    state.queued = true;
     return true;
 }
+
+/* How long past its fade a dissolve may hold the repaints queued behind it: the watchdog's 750 ms and a second more. */
+const DISSOLVE_STUCK_MS = 1750;
 
 function releaseDissolve(io) {
     const state = io.state;
     state.busy = false;
     state.previous = null;
+    state.since = null;
     if (!state.queued) return;
     state.queued = false;
     io.repaint();
@@ -2185,6 +2204,7 @@ function startDissolve(container, { sprite, previous, previousTexture, texture, 
     const state = io.state, PIXI = io.PIXI;
     const generation = ++state.generation;
     state.busy = true;
+    state.since = io.now?.() ?? null;
     state.previous = previousTexture;
     let mixTexture = null;
     const scratch = new PIXI.Container();
@@ -2239,28 +2259,38 @@ function startDissolve(container, { sprite, previous, previousTexture, texture, 
            does not release at all: a newer dissolve holds `busy`, and a scene left (`endDissolves`) cleared it. And
            a layer hidden, destroyed or no longer the one on the canvas gets no raster and no texture back - the
            scene it was on is gone. */
+        /* AND THE RELEASE COMES WHATEVER THE CLEAN-UP DOES (1.2.120 line F; the owner's report of 21.11.2026, "Mgla u
+           GMa nie odswieza sie wcale"; R8030 A). The release was this function's last line, and the watchdog that runs it
+           catches a throw and logs it: a sprite or a texture that would not be destroyed left `busy` true, and every
+           repaint after it was queued behind a dissolve that had ended - the fog changed for nothing until a reload or
+           another scene. Now it is released in `finally`, still last. Not seen at a table: LIVE-F120-01. */
         const done = () => {
-            scratch.destroy({ children: true });
-            if (generation !== state.generation) {
-                // A newer dissolve owns the layer now. Take away only what this one put there, and never the
-                // texture the running one mixes from - its own end frees that with the rest.
-                if (mix.drpgTexture !== state.previous) io.dropSprite(mix);
-                return;
+            let current = false;
+            try {
+                scratch.destroy({ children: true });
+                if (generation !== state.generation) {
+                    // A newer dissolve owns the layer now. Take away only what this one put there, and never the
+                    // texture the running one mixes from - its own end frees that with the rest.
+                    if (mix.drpgTexture !== state.previous) io.dropSprite(mix);
+                    return;
+                }
+                current = true;
+                if (!sprite.destroyed) {
+                    sprite.renderable = true;
+                    sprite.alpha = 1;
+                }
+                const gone = container.destroyed || !container.visible || container !== io.layer();
+                if (!gone) {
+                    io.showing(texture);
+                    io.ensureRaster(container, maskTexture);
+                }
+                for (const old of (container.children ?? []).filter(c => c.name === FOG_SPRITE && c !== sprite)) {
+                    io.dropSprite(old);
+                }
+                io.dropSprite(mix);
+            } finally {
+                if (current) releaseDissolve(io);
             }
-            if (!sprite.destroyed) {
-                sprite.renderable = true;
-                sprite.alpha = 1;
-            }
-            const gone = container.destroyed || !container.visible || container !== io.layer();
-            if (!gone) {
-                io.showing(texture);
-                io.ensureRaster(container, maskTexture);
-            }
-            for (const old of (container.children ?? []).filter(c => c.name === FOG_SPRITE && c !== sprite)) {
-                io.dropSprite(old);
-            }
-            io.dropSprite(mix);
-            releaseDissolve(io);
         };
 
         const animation = io.animate([{ parent: tween, attribute: "t", to: 1 }], {
@@ -2279,12 +2309,16 @@ function startDissolve(container, { sprite, previous, previousTexture, texture, 
         io.watchdog(animation, io.fadeMs() + 750, done);
     } catch (err) {
         debug("Fog: could not dissolve between two states; swapping outright", err);
-        scratch.destroy({ children: true });
-        if (mixTexture && !mixTexture.destroyed) mixTexture.destroy(true);
-        if (!sprite.destroyed) sprite.renderable = true;
-        finish();
-        // Last, as in `done`: a repaint queued now must find the old sprites already gone.
-        releaseDissolve(io);
+        try {
+            scratch.destroy({ children: true });
+            if (mixTexture && !mixTexture.destroyed) mixTexture.destroy(true);
+            if (!sprite.destroyed) sprite.renderable = true;
+            finish();
+        } finally {
+            // Last, as in `done`, and whatever the swap does (R8030 B): a repaint queued now must find the old sprites
+            // already gone, and a throw here must not leave the fog queued behind a dissolve that never ran.
+            releaseDissolve(io);
+        }
     }
 }
 
@@ -2298,6 +2332,7 @@ export function endDissolves(io = DISSOLVE_IO) {
     state.busy = false;
     state.queued = false;
     state.previous = null;
+    state.since = null;
 }
 
 export function swapInFog(container, texture, maskTexture, rect, io = DISSOLVE_IO) {
@@ -2549,6 +2584,10 @@ export function diagnoseFog({ gm = game.user.isGM } = {}) {
         iAmTheMastermind: iAmTheMastermind(),
         // Holes cut at the last build, against where the tokens stand now.
         clearancesCutAt: lastClearances,
+        // Whether a dissolve holds the repaints queued behind it, and for how long (1.2.120 line F): a fog that stopped
+        // changing reads `busy` here with a `heldMs` past its fade.
+        dissolve: { busy: DISSOLVE.busy, queued: DISSOLVE.queued,
+            heldMs: DISSOLVE.busy && Number.isFinite(DISSOLVE.since) ? Math.round(clockNow() - DISSOLVE.since) : null },
         rasterDrifting: Boolean(driftTick),
         // E88 C3: whether the raster and the backdrop are drawn into pictures here (false: drawn live every frame).
         rasterHeld: Boolean(heldRenderer),
