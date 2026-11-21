@@ -18,8 +18,9 @@
  * `import("./sfx.mjs")`: moved here (E41 C9b, built on a scratch copy and not
  * committed), they made sfx.mjs import this file, and this file reaches
  * sfx.mjs through music-states.mjs, clock.mjs and actions.mjs - a static
- * import cycle in which the module did not boot. E41-16 is carried to E73,
- * which writes its sfx rows here. It reads the states and the map from
+ * import cycle in which the module did not boot. E41-16 was carried to E73,
+ * which shipped in 1.2.108 without moving the sfx rows here; no stage owns the
+ * move now (1.2.122, the audit's STG-62). It reads the states and the map from
  * music-states.mjs and the engine's Play and Reset from music-play.mjs; it
  * imports music.mjs by no road (the facade rule, .claude/rules/code.md).
  */

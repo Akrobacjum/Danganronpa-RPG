@@ -17506,6 +17506,65 @@ const INVARIANTS = [
             "restrict answered true for a write it did not make, or wrote ([its answer, the restrictions unchanged, this browser a GM's again])");
     }],
 
+    ["R8269 - the voice plan says Foundry's A/V mode in words, video alone as the mode nobody is heard in (voice.mjs `avModeWord`, `voicePlan`; 1.2.122, the audit's COMM-44)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-44): for any mode but disabled the plan wrote `game.webrtc.mode` raw - "A/V mode: 2",
+         * which a GM cannot tell is video alone, the one mode voice refuses. Foundry's four modes, as voice-tile.mjs lists
+         * them, each handed to `avModeWord` with the modes handed in; each key's words in both languages; a number Foundry
+         * does not name. And the plan's line read off the source. Red at 21bf5d18: no `avModeWord`.
+         */
+        const V = await import("./voice.mjs");
+        must(typeof V.avModeWord === "function", "voice.mjs has no avModeWord - the plan prints the mode as its number");
+        const modes = { DISABLED: 0, AUDIO: 1, VIDEO: 2, AUDIO_VIDEO: 3 };
+        const keys = [0, 1, 2, 3, 7].map(mode => V.avModeWord(mode, modes));
+        const lang = await Promise.all(["en", "pl"].map(l => fetch(`modules/${MODULE_ID}/lang/${l}.json`).then(r => r.json()).catch(() => null)));
+        const said = keys.filter(Boolean).map(key => lang.every(file => typeof file?.DRPG?.Voice?.plan?.[key] === "string" && file.DRPG.Voice.plan[key].length > 0));
+        const sources = await moduleSources();
+        const plan = stripComments(sources.get("voice.mjs") ?? "");
+        equal(stableJson([keys, said, /P\("avMode", \{ mode: mode \? P\(mode\)/.test(plan)]),
+            stableJson([["avDisabled", "avAudio", "avVideo", "avAudioVideo", null], [true, true, true, true], true]),
+            "the plan does not say the A/V mode in words ([the key for disabled, audio, video, both and an unknown number], [each key in both languages], the plan's line)");
+    }],
+
+    ["R8270 - the voice plan files each account under where it is sent: a masked killer under a silent room of its own, a Scrum camp under its camp's room, a listener under the room it listens into (voice.mjs `placeName`; 1.2.122, the audit's COMM-43)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-43): placeName named a row by `row.room`, so a masked killer and both Scrum camps (the
+         * trial's null room) stood under "(main room)" and a listener under its own room, in voicePlan's groups and in
+         * contestedWarning. Rows shaped as maskedRow, the Scrum camps and listeningRow make them (no world read), with an
+         * ordinary row and a dead one beside them. Red at 21bf5d18: no export, and the room read off `row.room`.
+         */
+        const V = await import("./voice.mjs");
+        must(typeof V.placeName === "function", "voice.mjs exports no placeName - this would measure nothing");
+        const words = { main: "MAIN", dead: "DEAD", silent: "SILENT", camp: side => `CAMP ${side}` };
+        const rows = [
+            { room: null, target: "drpg-silent-x", masked: true },
+            { room: null, target: "drpg-scrum-a", camp: "a" },
+            { room: "Hall", target: "drpg-x-Kitchen", listening: { from: "Hall", into: "Kitchen" } },
+            { room: "Hall", target: "drpg-x-Hall" },
+            { room: "Hall", claim: 1, target: null }
+        ];
+        equal(stableJson(rows.map(row => V.placeName(row, words))), stableJson(["SILENT", "CAMP a", "Kitchen", "Hall", "DEAD"]),
+            "a row was filed by its token's room, not by where it is sent ([masked, a Scrum camp, a listener, an ordinary row, a dead one])");
+    }],
+
+    ["R8271 - an actor's write settles the trial's voices again only when it can move a microphone: a death, a Monocub, a Spectator, a Monokuma or a student out of the class, set or deleted, the module's flags taken off whole, or the ownership - not an action's own fields (voice.mjs `trialVoiceTrigger`; 1.2.122, the audit's COMM-41)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-41): registerTrialVoices scheduled a settle on any updateActor carrying the module's
+         * flags, and in a world with a Spectator that is every Move or Search of every student (freeMoveUsed, lastAction,
+         * pendingCall), in every phase. A table of changes as updateActor hands them. Red at 21bf5d18: no
+         * `trialVoiceTrigger` (the hook read any module flag).
+         */
+        const V = await import("./voice.mjs");
+        must(typeof V.trialVoiceTrigger === "function", "voice.mjs has no trialVoiceTrigger - this would measure nothing");
+        const f = flags => ({ flags: { [MODULE_ID]: flags } });
+        const cases = [f({ deceased: true }), f({ "-=monocub": null }), f({ spectator: true }), f({ monokuma: true }), f({ notInClass: true }),
+            { flags: { [`-=${MODULE_ID}`]: null } }, { ownership: { default: 0 } },
+            f({ freeMoveUsed: true }), f({ lastAction: "search" }), f({ pendingCall: [] }), { name: "x" }, null];
+        equal(stableJson(cases.map(c => V.trialVoiceTrigger(c))),
+            stableJson([true, true, true, true, true, true, true, false, false, false, false, false]),
+            "the trial's voices were settled for a write that moves no microphone, or not for one that does");
+    }],
+
     ["R539 - the GM's block in the list is Foundry's block and never undoes the module's: the button is built only in a GM's list; its click writes the user's `permissions.BROADCAST_AUDIO` flipped from what Foundry answers now and nothing else; where `moduleHoldsMic` holds the microphone or a death is kept secret the button is disabled with its line and `toggleBlock` writes nothing; it refuses a player's client, the GM's own account and a user who is not of this world", async () => {
         /*
          * E78 C5, 14.10.2026; the A9 design's R392 (A9-5; the E78 plan's D2 gave it this number), the owner's Q4 (the

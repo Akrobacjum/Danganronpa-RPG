@@ -9,8 +9,10 @@
  * hooks that play a sound, the unlock and `diagnoseSfx`, and the Sound
  * window's sliders, its Effects tab and the launcher: in sound-panel.mjs they
  * would close a static import cycle (sound-panel.mjs reaches this file through
- * music-states.mjs, clock.mjs and actions.mjs), so they stay here, and E41-16
- * is carried to E73. Every importer still imports this file. New code goes
+ * music-states.mjs, clock.mjs and actions.mjs), so they stay here. E41-16 (the
+ * window in one file) was carried to E73, which shipped in 1.2.108 without it;
+ * no stage owns it now, and the cycle above is what a move would have to close
+ * first (1.2.122, the audit's STG-62). Every importer still imports this file. New code goes
  * into the file of its role, not here.
  *
  * Until this file the module played exactly one sound: a notification chime

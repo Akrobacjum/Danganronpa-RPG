@@ -5017,7 +5017,8 @@ export const SFX_CATEGORIES = {
  * setting says it may be. A variation that can exceed its own ceiling is a
  * volume control with a leak.
  *
- * Tuned by ear in E17, alongside `YIELD_MS`. Both are numbers no amount of
+ * To be tuned by ear, alongside `YIELD_MS`: E17 was to and recorded no reading,
+ * so both are still first guesses (1.2.122, the audit's COMM-49). Both are numbers no amount of
  * reasoning settles - which is the lesson of the paragraph this one replaced.
  */
 export const SFX_VARIATION = { rate: 0.14, floor: 0.5, gain: 0.18 };

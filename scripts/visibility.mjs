@@ -496,9 +496,12 @@ function applyToToken(token) {
              * lands, while the mesh is still sliding there from wherever it
              * came - so it flipped visible at its old position and crossed the
              * border on screen, which is the direction of the crime scene.
-             * While the sprite is not yet in a room of mine it stays hidden;
+             * While the sprite stands in another room it stays hidden;
              * `refreshToken` fires every frame of the slide and shows it the
-             * moment it crosses. One region test per animating token per frame.
+             * moment it crosses. A sprite between rooms (in none) is left to
+             * Foundry here, the guard `at &&` since 8d24e215 (1.2.122, the
+             * audit's MAP-45: this said "not yet in a room of mine").
+             * One region test per animating token per frame.
              */
             const sliding = token.x !== token.document.x || token.y !== token.document.y;
             if (sliding) {

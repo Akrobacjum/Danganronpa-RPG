@@ -61,8 +61,10 @@ export const SFX_ACTION = "playSfxFor";
  * you want to hear is the window. The winner cannot un-play the loser, so the
  * loser waits instead - briefly - and cancels itself if the winner turns up.
  *
- * THIS IS THE ONE NUMBER IN THIS FILE THAT HAS TO BE TUNED BY EAR, and E17 is
- * where that happens. Too short and the button sound escapes before the window
+ * THIS IS THE ONE NUMBER IN THIS FILE THAT HAS TO BE TUNED BY EAR, and it has
+ * not been: E17 was to do it, and no reading of it is recorded, then or since
+ * (1.2.122, the audit's COMM-49). 120 is the first guess, so
+ * every button sound that may yield lands 120 ms after its press. Too short and the button sound escapes before the window
  * has finished rendering; too long and a click feels like it lagged. It costs
  * nothing for every other event, because only the keys that declare `yieldsTo`
  * go through the wait at all.
