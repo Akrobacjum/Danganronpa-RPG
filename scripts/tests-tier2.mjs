@@ -8862,6 +8862,67 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ before: false, after: true, standing: false, told: "fightOver" }),
             "{the breakdown line before, after the Sanity ran out, the menu still drawn after the end, the sentence said}");
     }],
+    ["1.2.123 p43-2 - the GM's Murder window follows a death and a revival while it stands (scripts/murder-ui.mjs `openMurderDialog`; the auditor's probe 43 on 1.2.122, p43-2, first measured on 1.2.118; the owner's rule \"Zawsze odswiezamy okna od razu przy zmianie\"): a student killed under it leaves the Killer and Victim lists, the victim picked and killed gives way to a living one, and a student brought back is listed again", async () => {
+        /*
+         * 1.2.123, the auditor's probe 43 (p43-2). The window built its two lists once from `livingStudentsForGm`, so a
+         * student who died while it stood was still offered as killer and victim, and one brought back was not. The
+         * window is drawn here (`__dialogWindows`); the GM picks the last student as the victim, who is killed as the GMs keep a death
+         * (death.mjs `killCharacter`, secret), then brought back; then a death of theirs is written into the GMs' deaths
+         * store alone, as another GM's kept death merges in with no actor write. Read after each: the two lists' students
+         * and the victim picked. Put back: the window, the death. Red at 0888c4cb: the dead victim
+         * still listed and picked.
+         */
+        needs(env.dialogs(), "the window is drawn here");
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "three living students, so a victim can die and leave two");
+        const MU = await import("./murder-ui.mjs");
+        const { killCharacter, reviveCharacter, isDeadForGm } = await import("./chapter.mjs");
+        const { murderState } = await import("./murder.mjs");
+        must(!murderState(), "an incident is running - the window would open the tracker instead");
+        const title = game.i18n.localize("DRPG.Murder.openTitle");
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title) ?? null;
+        const lists = () => {
+            const form = drawn()?.element?.querySelector("form");
+            const ids = name => [...(form?.querySelector(`select[name="${name}"]`)?.options ?? [])].map(o => o.value);
+            return { killer: ids("killer"), victim: ids("victim"), picked: form?.querySelector('select[name="victim"]')?.value ?? null };
+        };
+        const { deathStore } = await import("./gm-stores.mjs");
+        let victim = null, run = null, storeRow = false;
+        const read = {};
+        try {
+            run = MU.openMurderDialog();
+            must(await until(() => Boolean(drawn()), 6000), "the window was not drawn - this would measure nothing");
+            // The GM picks the victim by hand (a pick the rebuild carries, live.mjs `restore`): the last listed student.
+            const select = drawn().element.querySelector('select[name="victim"]');
+            select.value = lists().victim.at(-1);
+            select.dispatchEvent(new Event("change", { bubbles: true }));
+            const first = lists();
+            victim = game.actors.get(first.picked);
+            must(victim && first.killer.includes(victim.id) && first.picked === first.victim.at(-1),
+                "the GM's pick did not take, or names no living student - this would measure nothing");
+            await killCharacter(victim, { secret: true, keepBullets: true });
+            await until(() => !lists().victim.includes(victim.id), 3000);
+            const dead = lists();
+            read.dead = { killer: dead.killer.includes(victim.id), victim: dead.victim.includes(victim.id), picked: dead.picked === victim.id, pickedLiving: dead.victim.includes(dead.picked) };
+            await reviveCharacter(victim, { quiet: true });
+            await until(() => lists().victim.includes(victim.id), 3000);
+            const back = lists();
+            read.back = { killer: back.killer.includes(victim.id), victim: back.victim.includes(victim.id) };
+            // A death that reaches this GM through the GMs' store alone, as another GM's kept death merges in: no actor write.
+            const clockNow = getClock();
+            await deathStore.patch(victim.id, { chapter: clockNow.chapter, day: clockNow.day, timeOfDay: clockNow.timeOfDay, at: Date.now() });
+            storeRow = true;
+            await until(() => !lists().victim.includes(victim.id), 3000);
+            read.storeOnly = lists().victim.includes(victim.id);
+        } finally {
+            if (storeRow && deathStore.has(victim.id)) await deathStore.drop(victim.id);
+            if (drawn()) await drawn().close();
+            if (run) await Promise.race([run, wait(3000)]);
+            if (victim && isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ dead: { killer: false, victim: false, picked: false, pickedLiving: true }, back: { killer: true, victim: true }, storeOnly: false }),
+            "{after the death: the dead in the Killer list, in the Victim list, still picked, the pick a listed student; after the revival: listed in each; a death in the GMs' store alone: still listed}");
+    }],
     ["1.2.122 REFR-67 STG-30 - a held Key fee's card offers its charge only while it has its own chapter's fee to charge (scripts/key-remnants.mjs `wireChargeHeld`, `heldChargeStale`; the audit's REFR-67 and STG-30, 1.2.122 line MURDER): three held cards drawn - of the clock's chapter, of another chapter, and of none (a card from before) - keep the button on the first alone", async () => {
         /*
          * 21.11.2026, 1.2.122 line MURDER. REFR-67: the button stayed on every other GM after the fee was charged, and a
