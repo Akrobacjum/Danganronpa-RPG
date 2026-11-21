@@ -17682,6 +17682,46 @@ const INVARIANTS = [
             "a reconnect took the wrong road ([told a room, landed alone with a GM, landed alone with none, neither])");
     }],
 
+    ["R8277 - a ruling card's buttons act only on a character the card's writer owns: a player's card naming a classmate is closed and rules nothing, a GM's card is the GM's; and Rearm the trap on a project that is gone says so (messenger-app.mjs `runCallAction`, `writerOwns`, `ruleRearmTrap`; 1.2.122, the audit's COMM-21 and CTRL-64)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-21): a ruling acted on the card's `data.by` with nothing comparing it to the card's
+         * writer, so a card a player's console posted naming a classmate made a GM's "Nothing was there" charge the
+         * classmate Sanity. A card made here (no world write) as R8264 makes one, written by one player, naming a
+         * character that player does not own: Nothing was there and Refuse pressed through `runCallAction`; the
+         * character's Sanity read before and after; the notice caught. Then the same data on a GM's card naming no
+         * character, which reaches the ruling (its own line). Red at 21bf5d18: the classmate charged.
+         */
+        needs(world.atLeast("playerAccounts", 2), "a writer and a classmate's player");
+        const M = await import("./messenger-app.mjs");
+        const writer = game.users.find(u => !u.isGM && game.actors.some(a => a.type === "character" && !a.testUserPermission(u, "OWNER")
+            && game.users.some(o => !o.isGM && o.id !== u.id && a.testUserPermission(o, "OWNER"))));
+        must(writer, "no player with a classmate's character to name - this would measure nothing");
+        const classmate = game.actors.find(a => a.type === "character" && !a.testUserPermission(writer, "OWNER")
+            && game.users.some(o => !o.isGM && o.id !== writer.id && a.testUserPermission(o, "OWNER")));
+        const card = author => ({ id: "R8277RulingCard1", author, whisper: [], rolls: [], content: "", flags: { [MODULE_ID]: {} },
+            getFlag(scope, key) { return this.flags?.[scope]?.[key]; } });
+        const stress = () => classmate.system?.resources?.stress?.value ?? null;
+        const before = stress();
+        const warns = [], realWarn = ui.notifications.warn;
+        ui.notifications.warn = text => { warns.push(String(text)); };
+        let read = null, read_rearm = null;
+        try {
+            const miss = await M.runCallAction("observeMiss", { by: classmate.id }, card(writer));
+            const refuse = await M.runCallAction("itemRefuse", { by: classmate.id, item: "x" }, card(writer));
+            const gm = await M.runCallAction("observeMiss", { by: "R8277Nobody00000" }, card(game.user));
+            // CTRL-64 (1.2.122): Rearm on an alert whose project is gone closes with its line and writes nothing.
+            read_rearm = (await M.runCallAction("rearmTrap", { project: "R8277NoProject00" }, card(game.user)))?.settled ?? null;
+            const line = key => game.i18n.format(key, { name: game.user.name });
+            read = [miss?.settled === line("DRPG.Bridge.settledNotTheirs"), refuse?.settled === line("DRPG.Bridge.settledNotTheirs"),
+                stress() === before, warns.length, gm?.settled === line("DRPG.Bridge.settledNoCharacter")];
+        } finally {
+            ui.notifications.warn = realWarn;
+        }
+        equal(stableJson(read), stableJson([true, true, true, 2, true]),
+            "a player's card ruled on a classmate's character, or a GM's card was held to it ([Nothing was there closed, Refuse closed, the classmate's Sanity unchanged, notices, a GM's card reaches its ruling])");
+        equal(read_rearm, game.i18n.format("DRPG.Trap.rearmGone", { name: game.user.name }), "Rearm the trap on a project that is gone did not say so (the audit's CTRL-64)");
+    }],
+
     ["R539 - the GM's block in the list is Foundry's block and never undoes the module's: the button is built only in a GM's list; its click writes the user's `permissions.BROADCAST_AUDIO` flipped from what Foundry answers now and nothing else; where `moduleHoldsMic` holds the microphone or a death is kept secret the button is disabled with its line and `toggleBlock` writes nothing; it refuses a player's client, the GM's own account and a user who is not of this world", async () => {
         /*
          * E78 C5, 14.10.2026; the A9 design's R392 (A9-5; the E78 plan's D2 gave it this number), the owner's Q4 (the

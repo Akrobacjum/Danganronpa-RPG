@@ -1063,6 +1063,10 @@ async function ruleRearmTrap(action, data) {
      * wrong and the trap should keep watching - which must not be a console
      * call, because the GM is mid-scene when they need it.
      */
+    // A project gone since the alert (1.2.122, the audit's CTRL-64): nothing to rearm, said so, and no store row
+    // written for an id no countdown carries - the card read "The trap is watching again." over a deleted project.
+    const { rawCountdown } = await import("./projects-secrecy.mjs");
+    if (!rawCountdown(data.project ?? "")) return settled("DRPG.Trap.rearmGone");
     const { rearmTrap } = await import("./traps.mjs");
     const ok = await rearmTrap(data.project);
     return ok ? settled("DRPG.Trap.rearmed") : null;
@@ -1405,6 +1409,11 @@ async function ruleCreateItem(action, data) {
     // and the room, so the form opens with all three answered and the GM
     // writes the one thing only they know: what was actually there.
     const { openItemTables } = await import("./tables.mjs");
+    /* The item tables already open are raised as they stand (tables-editor.mjs `openItemTables`), the card's category,
+       tier, room and name not carried into them: said so (1.2.122, the audit's CTRL-25), where nothing did and the GM
+       retyped them. */
+    const { alreadyOpen } = await import("./live.mjs");
+    if (alreadyOpen("drpg-window-tables")) ui.notifications.warn(game.i18n.localize("DRPG.Items.tablesOpenNoPreset"));
     return openItemTables({
         preset: {
             category: data.category || null,
@@ -1484,7 +1493,35 @@ async function ruleCubHope(action, data) {
 export async function runCallAction(action, data, message = null) {
     const rule = CARD_ACTIONS[action];
     if (!rule) return null;
+    if (message && actsOnCardCharacter(action) && !writerOwns(message, data?.by)) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Bridge.notTheirCharacter"));
+        return settled("DRPG.Bridge.settledNotTheirs");
+    }
     return rule(action, data, message);
+}
+
+/*
+ * A RULING ACTS ONLY ON A CHARACTER THE CARD'S WRITER OWNS (1.2.122, the audit's COMM-21). These rulings act on the
+ * card's own `data.by` - charge it Sanity (Nothing was there), use up its item, refund it, give it an item, answer in its
+ * owner's thread - and the card is written on the roller's browser, so its data is that player's to rewrite: a card a
+ * console posted naming a classmate made a GM's press charge the classmate. The asks the primary holds (a Call, a Dynamic
+ * action, a statistic, an Observe's pick) go by their `rid` and are not in this list. A card a GM wrote is the GM's.
+ */
+const CARD_CHARACTER_RULINGS = Object.freeze(new Set(["itemWorks", "itemNoEffect", "itemRefuse", "declineProject", "reply",
+    "searchMiss", "observeMiss", "decline", "giveItem"]));
+
+function actsOnCardCharacter(action) {
+    return CARD_CHARACTER_RULINGS.has(action);
+}
+
+/** Whether the card's writer may name `actorId`: a GM's card, or a player's about a character that player owns. */
+function writerOwns(message, actorId) {
+    const writer = cardWriter(message);
+    if (!writer || writer.isGM) return true;
+    const actor = game.actors.get(actorId ?? "");
+    // No such character: the ruling's own line says so (`settledNoCharacter`, CTRL-23).
+    if (!actor) return true;
+    return actor.testUserPermission?.(writer, "OWNER") === true;
 }
 
 /* ==========================================================================

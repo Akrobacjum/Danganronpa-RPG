@@ -102612,6 +102612,36 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "nothing: Stop the track's answer with nothing playing; assistant: [primary, Play's answer, Stop's answer, the cue playing, notices naming the primary]; "
             + "takeover: [the held ambient playing, still flagged] after this browser became the primary})");
     }],
+    ["1.2.122 CTRL-25 - Create an item on a Search card, with the item tables already open, says the card's details were not carried (messenger-app.mjs `ruleCreateItem`; tables-editor.mjs `openItemTables`; the audit's CTRL-25)", async () => {
+        /*
+         * The audit of 1.2.118 (CTRL-25): openItemTables answers RAISED for a window already open, before the preset is
+         * read, so the GM got the tables as they were and nothing said the card's category, tier, room and name were not
+         * filled in. The item tables opened, then the ruling pressed through `runCallAction` with a Search card's data; the
+         * warnings caught; the windows closed. The window taking the preset itself is tables-editor.mjs's (not this line's
+         * file), so the GM is told instead. Red at 21bf5d18: no warning.
+         */
+        needs(env.dialogs(), "the item tables are drawn");
+        must(game.user.isGM, "the item tables are a GM's");
+        const M = await import("./messenger-app.mjs");
+        const T = await import("./tables.mjs");
+        const warns = [], realWarn = ui.notifications.warn;
+        const isTables = app => app.element?.classList?.contains("drpg-window-tables");
+        let first = null;
+        try {
+            first = Promise.resolve().then(() => T.openItemTables()).catch(() => null);
+            must(await until(() => [...foundry.applications.instances.values()].some(app => isTables(app) && app.rendered), 6000), "the item tables did not open");
+            ui.notifications.warn = text => { warns.push(String(text)); };
+            await M.runCallAction("createItem", { category: "tool", tier: "1", room: "", want: "SUITE CTRL-25 crowbar" });
+            await settle();
+        } finally {
+            ui.notifications.warn = realWarn;
+            for (const app of [...foundry.applications.instances.values()].filter(isTables)) await app.close();
+            if (first) await Promise.race([first, wait(3000)]);
+            await settle();
+        }
+        equal(warns.filter(w => w === game.i18n.localize("DRPG.Items.tablesOpenNoPreset")).length, 1,
+            "Create an item with the item tables open did not say the card's details were not carried");
+    }],
     ["1.2.122 COMM-36 - Contraband tells the owner of the item it destroys, privately, as Silence and Chain tell theirs (call-effects.mjs `destroyItemEffect`, `tell`; the audit's COMM-36)", async () => {
         /*
          * The audit of 1.2.118 (COMM-36): the item was deleted on the GM and the public card named only the item; its
