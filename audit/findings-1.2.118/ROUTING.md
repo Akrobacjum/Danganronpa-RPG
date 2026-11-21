@@ -101,3 +101,21 @@ Not routed to 1.2.120 (they go to 1.2.121 with the rest): every minor and nit, t
 - 7f4a178e merged into asm-121 (0a0a9e5e); 1.2.121 waits for press-121 and fog-121.
 
 - (coordinator, 21.11 08:50Z) asm-121 21bf5d18: CI run 44879555080 on e537947b was red on two items only. (1) Tier 2 E44-T2 asserted the old "a select holds" rule; R1 rewrote it (aa534724), 8/8 on the assembly. (2) Scenario 61-gmstore-case F3: line K's new GM-only cast field `watchDie` is nulled in every copy like `openingTrait`, and F3's withheld list did not name it; the coordinator fixed the scenario (78de5a84), 114/114 locally, no code change. For the 1.2.121 check: read both rewritten checks against what they measured before (a test changed to meet new behaviour must still measure a claim).
+
+## 1.2.122 lines (coordinator, 21.11.2026 08:30Z; started before 1.2.121 ships, the owner's ask)
+Base: 21bf5d18 (the 1.2.121 assembly). They take the minor and nit findings still open in `recheck-119.json` (533 by the coordinator's count; the majors are 1.2.121's), split by the file each names (INDEX.json `where`), plus the items of the 1.2.120 check. Reports due Monday 23.11.2026 12:00 Warsaw.
+| Line | Branch | R block | Also |
+| --- | --- | --- | --- |
+| TEXT | claude/text-122 | R8060-8099 | lang texts, config prose |
+| CORE | claude/core-122 | R8100-8139 | bridge, settings, migrate, secret, clock, gm-campaign and season, gm-store; REFR-02's rest, r120-F-4 |
+| TRIAL | claude/trial-122 | R8140-8179 | |
+| INVEST | claude/invest-122 | R8180-8219 | r120-P-3 re-check, P-4, P-5, the Map's small texts |
+| MURDER | claude/murder-122 | R8220-8259 | the crisis menu's refresh, one veil predicate for mask-gm and visibility |
+| COMM | claude/comm-122 | R8260-8299 | COMM-20's rest |
+| ITEMS | claude/items-122 | R8300-8339 | r120-F-6's rest |
+| MAP | claude/map-122 | R8340-8379 | r120-F-3 |
+| DESP | claude/desp-122 | R8380-8419 | |
+| UI | claude/ui-122 | R8420-8459 | r120-H-1..H-8 |
+| STG | claude/stg-122 | R8460-8499 | records; the four "E120 - " tier-2 names that shipped in 1.2.121 |
+| WORLD | claude/world-122 | R8500-8539 | the small files |
+The audit's check of 1.2.121 will give a file:line per finding so it can be routed to these lines by file. Note for the lines: of the open findings in `recheck-119.json`, 246 are "open-unchanged" - their files did not change by 1.2.119 and they were not re-read then; a line should re-read each on its own base before fixing it.
