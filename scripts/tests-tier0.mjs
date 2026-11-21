@@ -1508,7 +1508,9 @@ const REGRESSIONS = [
             }),
             // An item by its uuid, which says whose sheet it is on.
             items: [...(game.items?.contents ?? []), ...game.actors.contents.flatMap(actor => actor.items?.contents ?? [])]
-                .map(item => ({ id: item.uuid, flags: item.flags ?? {} }))
+                .map(item => ({ id: item.uuid, flags: item.flags ?? {} })),
+            // 1.2.122 (CORE-25): every scene's regions, for the rule's `flagValues` - a hidden stash is no room's flag.
+            regions: game.scenes.contents.flatMap(scene => (scene.regions?.contents ?? []).map(r => ({ id: `${scene.id}.${r.id}`, flags: r.flags ?? {} })))
         });
         ok(!found.length, `these are on every player's machine right now: ${found.map(h => `${h.doc} ${h.id} :: ${h.path} - ${h.rule}`).join("; ")}`);
     }],

@@ -228,7 +228,8 @@ export function scanDump(dump, markers) {
  * Chat messages and token deltas are read since E05's fix round (S1-m3, S1-m4): the
  * rule's ChatMessage and delta halves had no scan on a player's browser until then.
  * Items since E05 C13, with the rule's Item half: the sidebar's at "<id>.flags..."
- * under Item, one on a sheet at "<actorId>.items.<id>.flags..." under Actor.
+ * under Item, one on a sheet at "<actorId>.items.<id>.flags..." under Actor. A scene's regions since 1.2.122
+ * (CORE-25), with the rule's `flagValues`: at "<sceneId>.regions.<id>.flags..." under Scene.
  */
 export function worldScan(dump, { ids = [] } = {}) {
     const prefix = `${WORLD_SECRET_MODULE}.`;
@@ -246,13 +247,15 @@ export function worldScan(dump, { ids = [] } = {}) {
             whisper: d?.whisper, author: d?.author })),
         // E05 C13: the items, in the sidebar and on every sheet - one on a sheet at its place in the actor.
         items: [...docs("Item").map(d => ({ id: d?._id, flags: d?.flags })),
-            ...docs("Actor").flatMap(actor => (actor?.items ?? []).map(i => ({ id: `${actor?._id}.items.${i?._id}`, flags: i?.flags })))]
+            ...docs("Actor").flatMap(actor => (actor?.items ?? []).map(i => ({ id: `${actor?._id}.items.${i?._id}`, flags: i?.flags })))],
+        // 1.2.122 (CORE-25): every scene's regions, read against the rule's `flagValues` - a hidden stash is no room's flag.
+        regions: docs("Scene").flatMap(scene => (scene?.regions ?? []).map(r => ({ id: `${scene?._id}.regions.${r?._id}`, flags: r?.flags })))
     };
     return findWorldSecrets(snapshot, { ids }).map(h => {
         const setting = h.doc === "setting";
         const full = setting ? h.path : `${h.id}${h.path ? `.${h.path}` : ""}`;
         return { seed: h.kind === "id" ? "world.id" : "world.field", surface: setting ? "setting" : "document",
-            where: setting ? `${prefix}${h.id}` : (h.doc === "Token" || /^delta\./.test(h.path) ? "Scene"
+            where: setting ? `${prefix}${h.id}` : (h.doc === "Token" || h.doc === "Region" || /^delta\./.test(h.path) ? "Scene"
                 : (h.doc === "Item" && h.id.includes(".items.") ? "Actor" : h.doc)),
             path: `${norm(full)}${h.key ? "#key" : ""}`, phase: dump?.phase ?? null, via: ["rest"], n: null, sample: h.rule };
     });

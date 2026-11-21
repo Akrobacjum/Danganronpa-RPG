@@ -7607,7 +7607,9 @@ const INVARIANTS = [
                         data: {}, roll: { type: "action", modifiers: [{ label: "", value: 1 }], baseModifiers: [{ label: "", value: 0 }] },
                         actionType: "action" } })] }],
             items: [{ id: "R190BYSTANDER001.items.R190ITEM00000001", flags: { [MOD]: {
-                category: "truthBullet", isTruthBullet: true, shownType: "neutral", room: "Gym" } } }]
+                category: "truthBullet", isTruthBullet: true, shownType: "neutral", room: "Gym" } } }],
+            // 1.2.122 (CORE-25): a room's region with the killer's open stash - public, and named by its owner's id.
+            regions: [{ id: "R190SCENE0000001.R190REGION000001", flags: { [MOD]: { drpgStashes: [{ actorId: KILLER }], drpgVaultOwner: KILLER } } }]
         });
         // One secret each: what it is, how it is planted in a clean snapshot, and the hit it must give.
         const FIXTURES = [
@@ -7724,6 +7726,13 @@ const INVARIANTS = [
                 "room", "chapter", "day", "timeOfDay", "pointsAt"].map(f => [`Token flag ${f}`,
                 s => { s.tokens[0].flags[MOD][f] = f === "faint" ? false : "R190"; },
                 h => h.kind === "flag" && h.doc === "Token" && h.id === "R190SCENE0000001.R190TOKEN0000001" && h.path === `flags.${MOD}.${f}`]),
+            // 1.2.122 (CORE-25): a hidden stash is the GMs' store's, never a room's flag - in the list, and under the legacy flag.
+            ["Region flag drpgStashes.*.concealed is true",
+                s => { s.regions[0].flags[MOD].drpgStashes.push({ actorId: "R190BYSTANDER001", concealed: true }); },
+                h => h.kind === "flagValue" && h.doc === "Region" && h.id === "R190SCENE0000001.R190REGION000001" && h.path === `flags.${MOD}.drpgStashes.1.concealed`],
+            ["Region flag drpgVaultConcealed is true",
+                s => { s.regions[0].flags[MOD].drpgVaultConcealed = true; },
+                h => h.kind === "flagValue" && h.doc === "Region" && h.id === "R190SCENE0000001.R190REGION000001" && h.path === `flags.${MOD}.drpgVaultConcealed`],
             // E05 C13: a bullet names no trace in its flags - a `null` one, which every bullet no trace made carried, is found as well.
             ["Item flag remnantRef",
                 s => { s.items[0].flags[MOD].remnantRef = null; },
@@ -7776,6 +7785,11 @@ const INVARIANTS = [
            projects-map.mjs writes it (E05 C5): it reads clean there, and a tokenId planted in the clock
            beside it is found - an exemption is one setting's, not the field's. */
         const EXEMPT = [
+            /* 1.2.122 (CORE-25), both ways: an open stash's entry `concealed: false` and the legacy flag `false`, as
+               CORE-25's migration clause and vault-store.mjs leave them, read clean; `true` is found (above). */
+            ["a region may hold concealed false",
+                s => { s.regions[0].flags[MOD].drpgStashes[0].concealed = false; s.regions[0].flags[MOD].drpgVaultConcealed = false; },
+                hits => !hits.some(h => h.doc === "Region")],
             /* E70 C5, both ways: the trial's list of the dead stands while the clock's phase is the trial (TR30), and
                the same list with the phase written otherwise is found (the fixture above). */
             ["trialProgress may hold mutedDead in a Class Trial",
@@ -7818,6 +7832,7 @@ const INVARIANTS = [
             ...Object.entries(R.everySetting?.except ?? {}).flatMap(([key, fields]) => fields.map(f => `${key} may hold ${f}`)),
             ...Object.entries(R.flags ?? {}).flatMap(([doc, paths]) => paths.map(p => `${doc} flag ${p}`)),
             ...(R.flags?.Actor ?? []).map(p => `unlinked token's Actor flag ${p}`),
+            ...Object.entries(R.flagValues ?? {}).flatMap(([doc, rows]) => rows.map(row => `${doc} flag ${row.path} is ${row.value}`)),
             // E06 C1: a message rule's fields, and the flags it lets a card of its kind carry.
             ...(R.messages ?? []).flatMap(rule => [...(rule.fields ?? []).map(f => `message ${rule.when}: ${f}`),
                 ...(rule.flagsOnly ? [`message ${rule.when}: only ${rule.flagsOnly.join(", ")}`] : [])])

@@ -220,6 +220,21 @@ export const WORLD_SECRET_RULES = Object.freeze({
         // E97 C1: who left the trace a bullet came from is its answer key's (truth-bullets.mjs `leftByOf`; Q1), never the item's.
         Item: Object.freeze(["remnantRef", "leftBy", "leftByName"])
     }),
+    /* A FLAG THAT MAY STAND, BUT NOT WITH ONE VALUE (1.2.122, line CORE; the audit of 1.2.118, CORE-25, which ITEMS'
+       line built): keyed by document type like `flags`, each row a path under the module's flag scope (a `*` any index of
+       an array) and the `value` it may never hold. A room's region keeps its open stashes for every browser - a stash
+       is public, a hiding place is not - so its list may stand and its legacy flag may stand `false`, as
+       CORE-25's migration clause leaves it (ITEMS' line, claude/items-122); an entry `concealed` true, or the legacy flag true, is a hidden
+       stash written where every console reads it (the GMs' store `hiddenStashes` holds those). A region's flags are
+       read for these rows alone: the actor ids an open stash names are its owners' by design, so `ids` is not read there. */
+    flagValues: Object.freeze({
+        Region: Object.freeze([
+            Object.freeze({ path: "drpgStashes.*.concealed", value: true, since: "1.2.122 (CORE-25)",
+                why: "a hidden stash in a room's list, which every browser is sent; the GMs' store hiddenStashes holds it" }),
+            Object.freeze({ path: "drpgVaultConcealed", value: true, since: "1.2.122 (CORE-25)",
+                why: "a room's hiding place under the flag before the list (E11), which every browser is sent; the GMs' store hiddenStashes holds it" })
+        ])
+    }),
     messages: Object.freeze([
         /* E06 C5b: a roll the module threw (`supersedingRoll` stamps the flag) is emptied as it
            is created (private-rolls.mjs `neutralRollSource`) - its speaker, Daggerheart's title
@@ -347,7 +362,8 @@ function parsedRoll(roll) {
  * rules (E06 C1). A token may carry `delta` too - its own
  * actor data, `{ flags }` - which is read against the `Actor` rule and for `ids`,
  * with the hit's `doc` "Actor" and its `path` under `delta.` (E05's fix round,
- * S1-m4: a bookmark 1.2.63 wrote from an unlinked token's sheet is there).
+ * S1-m4: a bookmark 1.2.63 wrote from an unlinked token's sheet is there). `regions`, `{ id, flags }`
+ * (a region's id may be written "sceneId.regionId"), is read against `flagValues` alone (1.2.122).
  *
  * `ids`: actor ids no world data may name - a string that contains one, value or
  * key, anywhere under a module world setting or under an actor's, user's,
@@ -355,7 +371,7 @@ function parsedRoll(roll) {
  * speaker, `system` and rolls where a `messages` rule with `fields` holds. A document's own id, and the flags outside the module's
  * scope, are not read.
  *
- * Answers `[{ kind: "field" | "empty" | "only" | "flag" | "messageField" | "messageFlag" | "id", doc, id, path, key?, rule }]`
+ * Answers `[{ kind: "field" | "empty" | "only" | "flag" | "flagValue" | "messageField" | "messageFlag" | "id", doc, id, path, key?, rule }]`
  * (`messageField`: a path a `messages` rule wants empty, holding something; `messageFlag`: a
  * module flag outside the rule's `flagsOnly`):
  * `doc` is "setting" or the document type, `id` the setting's key or the
@@ -420,6 +436,18 @@ export function findWorldSecrets(snapshot, { ids = [], rules = WORLD_SECRET_RULE
         for (const entry of Array.isArray(list) ? list : []) {
             flagsIn(doc, String(entry?.id ?? ""), entry?.flags, "flags.");
             if (doc === "Token" && isObject(entry?.delta)) flagsIn("Actor", String(entry.id ?? ""), entry.delta.flags, "delta.flags.");
+        }
+    }
+    // A flag at a value it may never hold (`flagValues`, 1.2.122): the regions alone today, and no id read in them.
+    for (const [doc, list] of [["Region", snapshot?.regions]]) {
+        for (const entry of Array.isArray(list) ? list : []) {
+            const scope = entry?.flags?.[WORLD_SECRET_MODULE];
+            if (!isObject(scope)) continue;
+            for (const rule of rules.flagValues?.[doc] ?? []) {
+                for (const [p, v] of valuesAt(scope, rule.path)) {
+                    if (v === rule.value) out.push({ kind: "flagValue", doc, id: String(entry?.id ?? ""), path: `flags.${WORLD_SECRET_MODULE}.${p}`, rule: `${rule.why} (${rule.since})` });
+                }
+            }
         }
     }
     for (const message of Array.isArray(snapshot?.messages) ? snapshot.messages : []) {
