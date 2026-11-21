@@ -103817,6 +103817,52 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ toThem: true, theirs: [true, false, false], mine: [true, true] }),
             "{toThem: the card whispered to the killer's player; theirs: [the victim's name, the GMs' kept note, the stash's note] in that player's copy; mine: the two notes in this GM's} - an incident's player reads who died, not the GMs' notes");
     }],
+    ["1.2.122 CASE-43 - the death window's 'keep it for the GMs' box follows the student chosen: drawn during an incident, it opens ticked on the victim, unticks when the GM chooses a bystander, ticks again on the victim, and once the GM ticks it by hand it stays as they set it (scripts/death.mjs `openDeathDialog`, `keptFollowsChoice`; the audit's CASE-43, 1.2.122 line WORLD)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line WORLD. The audit's CASE-43 (domain-case-g-death-chapter-2): the box was ticked once for
+         * the victim and nothing listened to the select, so a bystander chosen instead died kept by the GMs. Driven: an
+         * incident opened (its invitations held), the window drawn on this GM as a GM opens it (A character dies), the
+         * select changed as a hand changes it (value, then a `change` event) and the box read each time; then the box
+         * ticked by hand (`click`) on the bystander, and the select moved away and back. Cancelled; the incident ended.
+         * Red at 21bf5d18: the box stayed ticked on the bystander.
+         */
+        needs(env.dialogs(), "the death window is drawn and its select and box used");
+        const M = await import("./murder.mjs");
+        const { openDeathDialog } = await import("./chapter.mjs");
+        const [killer, victim, bystander] = cast(3);
+        must(!M.murderState(), "an incident was already running when this test started");
+        const title = game.i18n.localize("DRPG.Chapter.deathTitle");
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.element && a.options?.window?.title === title) ?? null;
+        const read = {};
+        let pending = null;
+        try {
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            await settle();
+            must(M.murderState()?.victimId === victim.id, "the incident did not open on the victim");
+            pending = openDeathDialog();
+            must(await until(() => Boolean(drawn()), 8000), "the death window did not draw");
+            const root = drawn().element;
+            const select = root.querySelector('select[name="actor"]'), box = root.querySelector('input[name="secret"]');
+            must(select && box, "the window has no select or no box");
+            const choose = id => { select.value = id; select.dispatchEvent(new Event("change", { bubbles: true })); return box.checked; };
+            read.open = [select.value === victim.id, box.checked];
+            read.bystander = choose(bystander.id);
+            read.victim = choose(victim.id);
+            choose(bystander.id);
+            box.click();
+            read.ticked = box.checked;
+            choose(victim.id);
+            read.kept = choose(bystander.id);
+            root.querySelector('footer button[data-action="cancel"]')?.click();
+            await Promise.race([pending, wait(3000)]);
+        } finally {
+            if (drawn()) await drawn().close();
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ open: [true, true], bystander: false, victim: true, ticked: true, kept: true }),
+            "{open: [the victim chosen, the box ticked] as drawn; bystander, victim: the box after choosing each; ticked: after the GM's own tick on the bystander; kept: the box on the bystander again after the victim} - the kept box follows the choice until the GM sets it");
+    }],
     ["PV-DOORS-T1 - the people in the character's own room always see who works its doors, and everyone behind a barricade hears a knock (scripts/doors-gm.mjs `shutDoor`, `forceDoor`, `pickLock`, `knockDoor`; the owner's rules #8 and #9, 13.11.2026): Shut the Door, a Force missed with Hope and a Pick whose Shadow cover passed each send the other student in the character's room a card naming the character, and nobody in the room beyond one; a Pick whose cover failed and a Force missed with Despair tell both rooms, as before; a walk refused at a barricade is heard by everyone in the barricaded room - its author and the student beside them - and never by the walker", async () => {
         /*
          * Privacy line 1 (doors), 13.11.2026. Judged as the primary judges the player's packets (`G.judge`), each roll a
