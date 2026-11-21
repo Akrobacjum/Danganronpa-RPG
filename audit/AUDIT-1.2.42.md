@@ -4636,6 +4636,45 @@ Ponowny odczyt na 1eee4d62 z poprawką (`probe-43-121-fixed.json`, 8 okien):
   - Kod przeczytałem: `observe` na każdym hoście, bez `disconnect`.
   - Czy przeglądarka też to trzyma, nie zmierzono (specyfikacja mówi o słabych odwołaniach). Do tego czasu to pewny wyciek harnessu i możliwy - nie pewny - przy stole. Poprawka w INVEST na 1.2.122 (claude/invest-122-heap).
 
+### 18.8 Sprawdzenie wydania 1.2.122 (D-A10, 21.11.2026)
+
+1.2.122 wydano 21.11.2026 o 18:49Z (`v1.2.122`, tag na `14bb0d92`, PR #72). Sprawdzam drzewo wydane wobec `1eee4d62` (1.2.121). W wydaniu weszło trzynaście linii (TEXT, CORE, TRIAL, INVEST, MAP, DESP, UI, STG, WORLD, ITEMS, COMM, R1, MURDER), gałąź INVEST z poprawką sterty (`ede0cbe7`), gałąź audytu i commity składania, w tym Fit to view poniżej 25% (`f678b5dd`) i poprawki po CI na commicie wydania (`668db427`, `fcbb2753`).
+
+Surowe wyniki: `audit/findings-1.2.118/recheck-122.json`.
+
+**Przebieg na wydanym drzewie**, harness z `14bb0d92`:
+- tiery 0-1: 1 978 testów, 1 963 zaliczonych, 0 niezaliczonych, 16 pominiętych, 0 red;
+- testy tieru 2 z "1.2.122" w nazwie: 294 zaliczonych, 0 niezaliczonych (runner pisze też "288 tests ran"; skąd różnica, nie czytałem);
+- sonda 44: 78 z 78 regionów zwraca sam region; otwarto 96 ze 100 okien (o `action-loot` niżej);
+- sonda 43, wszystkie 74 okna, ze stertą GM-a po gc po każdym oknie: w toku. Po 16 oknach 136 -> 288 MB, wobec 472 -> 4 967 MB w tych samych 16 oknach na 1.2.121 (`probe-43-heap.json`). Poprawka INVEST trzyma się więc od końca do końca, na razie na 16 oknach. Wynik całości dopiszę.
+
+**Jak czytano.** Osiem torów, w każdym pierwszy czytający (każdy commit linii, diff wobec `v1.2.121`), potem drugi, który próbował obalić każde znalezisko, regresję i każde twierdzenie albo prośbę oznaczone jako niespełnione:
+- A: TEXT, STG i commity składania; B: CORE i WORLD; C: TRIAL i MURDER; D: INVEST i sterta; E: MAP i UI; F: DESP i ITEMS; G: COMM; H: R1 i reguła okien w całym wydaniu.
+- Tor F za pierwszym razem przeczytał 10 z 34 commitów; odesłałem go po resztę.
+- Drugi czytający: 67 pozycji, 1 obalona, 6 osłabionych, reszta utrzymana.
+- H-R1 zmierzone w Chromium przez obu czytających; drugi zbudował test z prawdziwego kodu karty z obu wersji. C-1 i dwie inne pozycje zmierzone w jsdom na dosłownych kopiach. Reszta czytana.
+
+**Twierdzenia i prośby.** 340 twierdzeń linii (commity, notatki, rejestr): 285 utrzymanych, 46 w części, 4 nie, 5 nieczytanych. 386 próśb przypisanych liniom (ROUTING.md, `recheck-121.json`, `unrouted-122.json` A-D, sonda 43): 332 zrobione, 30 w części, 23 niezrobione. Po drugim czytaniu niezrobione zostają:
+- STG-82 (STG);
+- CORE-28, CORE-41, CORE-LC1, CORE-LC5, CORE-LC6 (CORE);
+- wiersz 27 grupy C sondy 42, blok okna Findings (INVEST);
+- MAP-LC6 (MAP);
+- bez odpowiedzi linii, ale kod pokazuje, że działają, albo stół ma już pozycję w 9.2: STG-32, MAP-LC2 i wiersze grupy C 33, 34, 36-39;
+- odpowiedziane po zakresie linii: CASE-LC4 i CASE-LC6 (LIVE-I122-05, -06) oraz COMM-LC3, LC5, LC6, LC7 (LIVE-CM122-07..10), w commicie składania `b2bcbe36`;
+- zakładka Files okna Sound z sondy 43 to naciśnięcie samej sondy, nie było czego poprawiać.
+
+Regresje sprawdzenia 1.2.121: R-2, R-3, R-6, R-7, R-11 zrobione; R-1 i R-5 w części (R-1 niżej, przy H-R1).
+
+**Nowe wady wydania.** `recheck-122.json`: 67 pozycji. Po odjęciu obalonej i jednego duplikatu (D-1 to D-R1) stoją: 3 regresje `major`, 5 regresji `minor`, 1 stare znalezisko `major`, 22 znaleziska `minor`, 34 `nit`. Regresje i stare `major` wysłałem koordynatorowi od razu po potwierdzeniu, żeby jedna poprawka mogła zabrać je wszystkie:
+- **r122-ITEMS-R-3, `major`, regresja** (`stash-reach.mjs:241-251`, `hidden-stashes.mjs:138-151`): uczeń, który znalazł ukrytą skrytkę przez Analyze, nie widzi jej i nie może jej przeszukać. Od 1190ab8a (CORE-25) ukryte skrytki nie są w danych regionu. Kopia gracza ma tylko wiersze jego postaci, albo wszystkie dla gracza Mastermind, a nic nie wysyła znalazcy wiersza znalezionej skrytki. Testy CORE-25 i E89-T1 chodzą na GM-ie, więc tego nie łapią. Skierowane do ITEMS (`claude/items-123`).
+- **r122-H-R1, `major`, regresja, zmierzone w Chromium** (`remnant-ring.mjs:456-462`, `live.mjs:720-733`, `float-text.mjs:193`): karta Remnantu u GM-a gubi tekst wpisywany w obu polach przy każdym przerysowaniu i niczego nie zapisuje. Pola nie mają nazwy ani klucza, więc `live.mjs` szuka ich po pozycji, a miejsce, które wstawia `float-text`, tę pozycję przesuwa. Na 1.2.121 zapisywał się przynajmniej urywek. Z `data-drpg-key` na obu polach tekst i fokus zostają.
+- **r122-D-R1, `major`, regresja** (`investigation.mjs:2216`): zmiana filtra w zakładce Table okna Investigation zapisuje formularz przed przerysowaniem. Zapis oznacza pola Final Truth i znacznik "Place more than the opening roll allows" jako zapisane, ale nigdzie ich nie pisze, a przerysowanie je czyści. Na 1.2.121 przerysowanie niosło je dalej.
+- **r122-C-1, `major`, stare, nie regresja** (`secret.mjs:567`, `maskNames`): zamaskowany zabójca, którego imię ma "&" (każda karta) albo ' lub " (karty bez prozy GM-a, np. linia Frisk), jest podany wprost czytelnikom spoza maski. Sprawdzenie wstępne porównuje surowe imię z HTML, w którym imię jest już escapowane. Stoi od 1.2.115.
+- `minor`, regresje: r122-E-R1 (`sheet-inventory.mjs:1057`, nadzór pokoju przerysowuje Configure Ownership i ustawienia postaci Daggerheart przy każdym ruchu tokenu); r122-ITEMS-R-1 (`projects.mjs:558-564`, uczestnik ukończonego tajnego projektu widzi jego akcję pokoju na zawsze); r122-ITEMS-R-2 (`facilities.mjs:328`, Save edytora akcji ukończonego tajnego projektu zaczyna jego czas od nowa); r122-C-R1 (`murder-rules.mjs:4495-4501`, trzeci w jawnym morderstwie dostaje kartę z ukrytą obroną i niższą liczbą); r122-lane-B-1 (`secret.mjs:1082-1088`, osiem powiadomień powracającego gracza idzie do najstarszych kart, nie najnowszych).
+- G-R1 wycofane jako regresja: odebranie przyznania mikrofonu było zamierzone. Zostaje znalezisko `minor` (`voice-tile.mjs:1523`): Unblock dla roli, która nie ma mikrofonu, nic nie robi i nic nie mówi.
+
+**Czego nie ustalono.** `action-loot` (Take from the Body w sondzie 08): na `14bb0d92` okno otworzyło się w 6 z 11 przebiegów próbnych (4 chybienia, 1 bez odczytu; sondy 42 i 44 też chybiły), na `1eee4d62` w 5 z 5. Przy chybieniu p1 po 12 s nie widział śmierci ciała ani jego przedmiotów, a strona GM-a była taka sama jak na 1.2.121. Obok każdego przebiegu chodziła sonda 43, więc obciążenia nie da się oddzielić od wolniejszej drogi śmierci do kopii gracza. Przy stole: gracz obok ciała, które GM zabija jawną śmiercią, otwiera Take from the Body od razu.
+
 ## Część II - raport 1.2.42 z 12.09.2026 (zapis)
 
 > Część II to zapis z 12.09.2026 i dopisków etapów. Stan każdej jej pozycji na 1.2.118 jest w części I (tabela "Gdzie jest każda kategoria" na górze). Nic tu nie jest przenumerowane ani skrócone.
