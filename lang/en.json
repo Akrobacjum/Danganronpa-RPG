@@ -506,6 +506,7 @@
       "otherHint": "Not under any heading yet. Ask the GM to file it.",
       "biographyLabel": "Background",
       "biographyPlaceholder": "Who you were before the killing game.",
+      "biographyChangedClosed": "Someone else changed this Background while you were writing. The sheet was closed, so your text was saved over theirs.",
       "biographyChanged": "Someone else changed this Background while you were writing. Your text is not saved yet: click outside the field again to save it over theirs."
     },
     "Guard": {
@@ -672,6 +673,7 @@
     },
     "TokenHud": {
       "show": "Show the token to players",
+      "configGm": "A token's settings are the GM's.",
       "hide": "Hide the token from players",
       "lock": "Lock the token in place",
       "unlock": "Unlock the token",
@@ -1181,6 +1183,7 @@
       "equipTooltip": "Hold this ready.",
       "unequipTooltip": "Put this away.",
       "readyTooltip": "Held ready.",
+      "noneReadiedGm": "Nothing held ready. Only what is in hand counts in a project, a sabotage, a clean-up, or an incident.",
       "noneReadied": "You are holding nothing ready. Only what is in your hand counts in a project, a sabotage, a clean-up, or an incident.",
       "rowGone": "“{item}” is not there any more.",
       "restoreN": "Restores {n}.",
@@ -1897,6 +1900,7 @@
       "close": "Close",
       "cancel": "Cancel",
       "tableEmpty": "Nothing to show yet.",
+      "scrollMoreRight": "There is more to the right. Scroll sideways to see it.",
       "scrollMore": "There is more below. Scroll to see it.",
       "details": "Details",
       "thresholds": "Thresholds",
@@ -3306,6 +3310,7 @@
       "revived": "{name} is no longer marked dead. The Truth Bullets lost with the death do not come back.",
       "nobodyLeft": "Every student is already dead.",
       "deadShort": "dead",
+      "deadPanelTitleGm": "Dead",
       "deadPanelTitle": "You are dead",
       "deadPanelNote": "The dead take no actions and spend no Hope. Brought back as a Monocub, this panel holds Confusion and the Monocub's other tiles.",
       "deadCannotAct": "{name} is dead and cannot take actions.",
@@ -4295,6 +4300,7 @@
       "failedSteps": "Parts of the character sheet failed to draw: {steps}. A newer Daggerheart may be why; see the console (F12).",
       "fogFreeMove": "Fog: no Free Move this time of day. Every crossing costs an action.",
       "fogBudget": "Fog: no Free Move",
+      "noExperiencesGm": "No experiences yet. A student starts with two at +2, and a Level Up can add one.",
       "noExperiences": "No experiences yet. You start with two at +2, and a Level Up can add one."
     },
     "Spectator": {
@@ -4315,6 +4321,7 @@
       "markedIn": "{name} is a student again.",
       "npcLine": "Not in the class: no actions, ballots, or Level Ups.",
       "deathMark": "Dead",
+      "deadStillGm": "Outside the Class Trial they still speak at the table. In it their microphone is off and they hold no ballot.",
       "deadStill": "Outside the Class Trial you still speak at the table. In it your microphone is off and you hold no ballot."
     },
     "Overflow": {
@@ -4416,8 +4423,8 @@
         "other": "Lights out. Everyone can make up to {n} crossings between connected rooms to place their token. Nobody sees anyone else until the Eclipse ends."
       },
       "yourMoves": {
-        "one": "You are in {room} and have one room crossing. Drag your token into a connected room; locked doors and sealed rooms still stop you.",
-        "other": "You are in {room} and have {n} room crossings. Drag your token into a connected room; locked doors and sealed rooms still stop you."
+        "one": "You are in {room} and have one room crossing. Drag your token into a connected room; locked doors still stop you.",
+        "other": "You are in {room} and have {n} room crossings. Drag your token into a connected room; locked doors still stop you."
       },
       "moved": {
         "one": "You are now in {room}, with {left} crossing left during this Eclipse.",
@@ -4432,6 +4439,7 @@
       "movesColumn": "Crossings",
       "named": "{time} Eclipse",
       "announceFree": "Lights out. Everyone picks any room on the map and puts their token there. Nobody sees anyone else until the Eclipse ends.",
+      "declarationClosed": "Closed when the lights came back: the Eclipse has ended, so this declaration is no longer waiting here.",
       "yourMovesFree": "You can pick any room on the map. You are in {room}. Drag your token to where you want to start.",
       "movedFree": "You are now in {room}.",
       "murderOnlyInEclipse": "A Direct Murder can only be declared during an Eclipse.",

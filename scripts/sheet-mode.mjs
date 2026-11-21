@@ -77,8 +77,10 @@ export function sheetMode(actor, user = game.user, { app = null, editable, facts
         header, actions, rows,
         calls: actions === "grid" || actions === "calls",
         levelUp: !npc && !spectator, offers: owner, init: gm && !monokuma, itemButton: gm && !monokuma, classControls: gm,
-        // The Stop is a player's (E49 B2, S03-31): a Monokuma's sheet, a GM's character, draws none.
-        safeword: !monokuma && !spectator,
+        // The Stop is a player's (E49 B2, S03-31): a Monokuma's sheet, a GM's character, draws none. A Spectator's
+        // draws it (1.2.122 line UI; the audit of 1.2.118, UI-25, STG-04): E92 C5 took it off with the rest of a
+        // student's controls, which left a person at the table with an unbound key as the one door to it.
+        safeword: !monokuma,
         pipEdit: gm, realBullets: gm, otherRemove: gm && canEdit, creators: gm,
         // A Monokuma's sheet is no student's (S03-33): no student groups, no Equipped or Experience, no biography.
         groups: !monokuma, equipped: !monokuma, experience: !monokuma, biography: !monokuma, inventory: !monokuma,

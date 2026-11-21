@@ -50,9 +50,9 @@ import { sheetMode, RENDER_MODES } from "./sheet-mode.mjs";
 import { trimItemSheet } from "./sheet-item.mjs";
 import { installRenderPlan, settle } from "./sheet-repaint.mjs";
 import { leaveLoadoutTab, keepTabScroll, removeSystemCreators, fitActionTiles, watchTileFit, holdActionsTab, growForCalls } from "./sheet-fit.mjs";
-import { frameTraits, markTraitGlyphs, fitTraitRow, flashHope, injectActionBar, injectInitButton, injectAdvanceButton, markSheetState, injectClassControls, injectItemButton, injectUltimate } from "./sheet-header.mjs";
+import { frameTraits, markTraitGlyphs, fitTraitRow, flashHope, injectActionBar, injectInitButton, injectAdvanceButton, markSheetState, injectClassControls, injectItemButton, injectUltimate, commitHeldUltimate } from "./sheet-header.mjs";
 import { paintPartyReserves, noteStepStart, onTunnelStep, redrawPassageSheets, saveBiography, tidySidebar, paintReserves, injectEquippedTools, noteEmptyExperience, injectKnownPassages, injectSafeword, tidyBiography } from "./sheet-sidebar.mjs";
-import { repaintPresentButtons, tidyInventoryTab, groupInventory } from "./sheet-inventory.mjs";
+import { repaintPresentButtons, tidyInventoryTab, groupInventory, noteRoomSignature, redrawRoomSheets } from "./sheet-inventory.mjs";
 import { forgetTamper, replaceEffectsTab, injectActionPanel } from "./sheet-actions.mjs";
 import { holdAppRenders } from "./dice-hold.mjs";
 export { sheetMode, rowGate, headerGate } from "./sheet-mode.mjs";
@@ -63,6 +63,9 @@ export { moveSlots, moveFeetHtml, moveLegend, pendingStack, getUltimate, setUlti
 export { paintReserves, writeReserve, paintPartyReserves, knownPassageRows, knownPassageItem, tidyBiography } from "./sheet-sidebar.mjs";
 export { bulletGroups } from "./sheet-inventory.mjs";
 export { monocubMoveNote, moveDragSaid, budgetLine, roomBlockFor, actionButton, stillMoveTile } from "./sheet-actions.mjs";
+
+/* The room watch's trailing wait, in ms: a token's drag lands as one update, a reshape's delete and create inside it. */
+const ROOM_WATCH_MS = 60;
 
 export function registerSheetTweaks() {
     // ApplicationV2 fires a render hook per class in the inheritance chain,
@@ -89,12 +92,19 @@ export function registerSheetTweaks() {
     });
     // The tile-fit observer dies with its sheet (UI-14): ApplicationV2 builds
     // a new root on every open, so an observer left on the old root watched a
-    // detached element for the rest of the session, one per open/close.
+    // detached element for the rest of the session, one per open/close. The trait
+    // row's observer is the same shape (`fitTraitRow`; the audit of 1.2.118, UI-35,
+    // UI-37) and goes with it.
     Hooks.on("closeCharacterSheet", app => {
-        try { app?._drpgTileFit?.disconnect(); } catch { /* already gone */ }
-        if (app) app._drpgTileFit = null;
+        for (const key of ["_drpgTileFit", "_drpgTraitFit"]) {
+            try { app?.[key]?.disconnect(); } catch { /* already gone */ }
+            if (app) app[key] = null;
+        }
         // The backstory typed and not yet saved goes with the close (E24 C2): from the app, as the element is gone.
-        try { saveBiography(app); } catch (err) { error("Could not save the backstory", err); }
+        // `closing`: no field is left to leave again, so a text somebody else changed meanwhile is saved now (STG-12).
+        try { saveBiography(app, { closing: true }); } catch (err) { error("Could not save the backstory", err); }
+        // The Ultimate typed and not yet saved, likewise (REFR-10; `commitHeldUltimate`).
+        try { commitHeldUltimate(app); } catch (err) { error("Could not save the Ultimate", err); }
     });
 
     // The flicker is decided inside the sheet's own render now (E45 C2): no hook here - see "THE FLICKER".
@@ -126,6 +136,38 @@ export function registerSheetTweaks() {
     Hooks.on("clientSettingChanged", key => {
         if (key === `${MODULE_ID}.${SETTINGS.remnantSecrets}`) forgetTamper();
     });
+
+    /*
+     * AND ON A PLAYER'S BROWSER (the audit of 1.2.118, UI-34; 1.2.122 line UI). `remnantSecrets` is the GMs' store,
+     * written on GMs' browsers alone, so the listener above never fired where the Tamper tile's player sits: a trace of
+     * theirs laid or erased in the same room and time of day left the tile as cached. A trace is a token: a token made
+     * or taken away forgets the cache on every browser, and redraws every open sheet on its scene (the room watch below).
+     *
+     * THE ROOM WATCH (REFR-12; sheet-inventory.mjs `roomSignature`, whose note says what it reads and what it costs).
+     * One trailing pass a burst (`ROOM_WATCH_MS`): a drag's steps, or a reshape's delete and create, are one redraw.
+     */
+    let roomTimer = null, roomScenes = new Set(), roomAny = false;
+    const roomChanged = (scene = null) => {
+        if (scene) roomScenes.add(scene); else roomAny = true;
+        if (roomTimer) return;
+        roomTimer = setTimeout(() => {
+            const scenes = roomScenes, any = roomAny;
+            roomTimer = null; roomScenes = new Set(); roomAny = false;
+            try {
+                for (const sc of scenes) redrawRoomSheets({ scene: sc, all: true });
+                if (any) redrawRoomSheets();
+            } catch (err) { error("Could not redraw the sheets for a change in a room", err); }
+        }, ROOM_WATCH_MS);
+    };
+    Hooks.on("updateToken", (doc, changes) => {
+        if (["x", "y", "elevation", "hidden", "actorId"].some(k => k in (changes ?? {}))) roomChanged();
+    });
+    // A trace's token is no student and moves no signature: a token made or taken away redraws every open sheet on its scene.
+    for (const hook of ["createToken", "deleteToken"]) Hooks.on(hook, doc => { forgetTamper(); roomChanged(doc?.parent ?? null); });
+    for (const hook of ["createItem", "updateItem", "deleteItem"]) {
+        Hooks.on(hook, item => { if (item?.parent?.type === "character") roomChanged(); });
+    }
+    Hooks.on("updateRegion", region => roomChanged(region?.parent ?? null));
 
     // Every item sheet, whatever Daggerheart calls the class. `renderItemSheetV2`
     // is Foundry's own rung of that ladder, so it catches LootSheet, FeatureSheet
@@ -239,6 +281,8 @@ function onRenderCharacterSheet(app, element, context, options) {
             RENDER_MODES.delete(app);
         }
         if (failed.length) announceSheetSteps(failed);
+        // What its room parts were drawn from, for the room watch (`redrawRoomSheets`).
+        try { noteRoomSignature(app); } catch (err) { error("Could not note a sheet's room", err); }
     } catch (err) {
         error("Failed to render the Danganronpa sheet parts", err);
     }

@@ -5928,7 +5928,7 @@ const REGRESSIONS = [
         const sources = new Map(await otherSources());
         ok(/"drpg-resources-locked", Boolean\(getSetting\(SETTINGS\.lockPlayerResources\)\)/.test(stripComments(sources.get("module.mjs") ?? "")),
             "nothing stamps the class when the world loads");
-        ok(/lockPlayerResources, \{[\s\S]{0,500}onChange: value => document\.body\.classList\.toggle\("drpg-resources-locked"/.test(stripComments(settingsText(sources))),
+        ok(/lockPlayerResources, \{[\s\S]{0,500}onChange: value => \{?\s*document\.body\.classList\.toggle\("drpg-resources-locked"/.test(stripComments(settingsText(sources))),
             "switching the setting does not move the class");
     }],
 
@@ -10020,6 +10020,7 @@ const REGRESSIONS = [
             ["HOOK camera-view.mjs#registerCameraView#updateToken:inline", "out of scope as a judge: a display - the camera dock's name plates read again on this browser when a token's veil or mask flag moves (camera-view.mjs `onTokenChange`, 1.2.121 COMM-20); writes nothing, and no move is read"],
             ["HOOK anonymity.mjs#registerAnonymity#updateToken:inline", "out of scope as a judge: a display - an open body's loot window reads the one gate again on this browser when its taker's or its body's token is written (`regreyOpenLoot`, E14 fix e1-G6); writes nothing, and the GMs judge the loot again"],
             ["HOOK sheet.mjs#registerSheetTweaks#updateToken:inline", "a claim, judged again: the mover's browser reads its own move at rest (movement.mjs `tunnelStepTarget`) and asks the primary as 'Go through' does (`passage.cross`, passages-gm.mjs `crossTunnel`, H81-13); writes nothing"],
+            ["HOOK sheet.mjs#registerSheetTweaks#updateRegion:inline", "out of scope as a judge: a room's region written redraws the open character sheets on its scene (the room watch, sheet-inventory.mjs `redrawRoomSheets`; 1.2.122 line UI, the audit of 1.2.118, REFR-12); vetoes nothing and writes nothing"],
             ["HOOK movement.mjs#registerMovement#updateToken:noteGmPosition", "judged: the record of positions `sendBackRefusal` compares against, `level` in it (`positionOf`), kept on every GM and primed by each at ready since E12 fix r2-H3 (before, the primary's alone); since E12 C12 the primary judges the arrival first (`judgeArrival`, the hook's `userId`), the last lawful room kept beside the record (`standings`, 3.4)"],
             ["HOOK movement.mjs#registerMovement#createRegion:inline", "judged on the primary: records a non-GM's region in `playerRegions` (`noteRegionCreated`); every GM remembers a GM's room flag"],
             ["HOOK movement.mjs#registerMovement#updateRegion:inline", "put back on the primary: a non-GM's change to the room flag (`judgeRoomFlagChange`, `keepRoomFlag`), logged and told to the GMs"],
@@ -10286,6 +10287,7 @@ const REGRESSIONS = [
             ["HOOK camera-view.mjs#updateToken#arrow1", "out of scope: a display - the camera dock's name plates read again on a token write that moves a veil or a mask flag (`onTokenChange`, 1.2.121 COMM-20); writes nothing; no trial rule reads it"],
             ["HOOK anonymity.mjs#updateToken#arrow1", "out of scope: a display - an open body's loot window reads the one gate again on a token write of its taker or its body (E14 fix e1-G6); writes nothing; in the hall the Class Trial refuses every loot (`cannotNow`)"],
             ["HOOK sheet.mjs#updateToken#arrow1", "out of scope: a move onto a tunnel's end asks the primary as 'Go through' does (H81-13); the courtroom holds no tunnel, and the Class Trial refuses one there (`trialLocked`)"],
+            ["HOOK sheet.mjs#updateToken#arrow2", "out of scope: a token's move redraws the open character sheets whose room parts it moved (the room watch, sheet-inventory.mjs `redrawRoomSheets`; 1.2.122 line UI, the audit of 1.2.118, REFR-12); vetoes nothing and writes nothing"],
             ["HOOK fog.mjs#updateToken#onUpdateToken", "judged on the primary: a move records discovery through rooms; the hall holds none after C1, so a hall move records nothing (41 b: 0 fog writes). E12 C2b/C10 change the readers"],
             ["HOOK fog.mjs#createToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide, and since E81 DZ6 the stage's one create, trigger it on every client, as any GM's write does [1b.1 a hall token's hidden]"],
             ["HOOK fog.mjs#deleteToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide, and since E81 DZ6 the stage's one delete, trigger it on every client, as any GM's write does [1b.1 a hall token's hidden]"],
@@ -26462,7 +26464,7 @@ const REGRESSIONS = [
          */
         const sources = await otherSources();
         const FAMILY = ["scaledBox", "windowWidthFor", "actionsTabHeight", "callsHeight"];
-        const KIT = { "ui-kit.mjs#settleKitWidth": "the kit's stated width of a window kind (ui-kit.mjs WINDOW_WIDTHS, kitWidth): the owner's question whether it moves to the windows' family (E54 W6)" };
+        const KIT = { "ui-kit.mjs#fitKitTabs": "a tab bar's growth: the width its one-line fit needs, at most a quarter more (GROWTH), through the app since 1.2.122 where it was the element's inline width (the audit of 1.2.118, UI-23)", "ui-kit.mjs#settleKitWidth": "the kit's stated width of a window kind (ui-kit.mjs WINDOW_WIDTHS, kitWidth): the owner's question whether it moves to the windows' family (E54 W6)" };
         const sites = [], decided = {};
         for (const [file, raw] of sources) {
             if (!file.endsWith(".mjs")) continue;

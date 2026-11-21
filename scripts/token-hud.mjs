@@ -21,10 +21,17 @@
  *     resources are typed on the sheet.
  *   - the status palette: the module puts Breakdown, Wounded and the dead status on itself (states.mjs `syncStates`,
  *     death.mjs). What it costs a GM - Daggerheart's own conditions by hand from the HUD - was asked of the coordinator
- *     with this default (21.11.2026); an effect can still be added on the sheet.
+ *     with this default (21.11.2026). The sheet is no road to them: its Effects tab is the module's Rules tab on every
+ *     character sheet (sheet-actions.mjs `replaceEffectsTab`), and Daggerheart's effects display is hidden (the audit
+ *     of 1.2.120, H-2). The road left is the console, `actor.toggleStatusEffect(id)` (Foundry's), which the GM
+ *     handbook's section on the HUD names; a GM-only road on the sheet is the owner's to decide (1.2.122 line UI's
+ *     proposal to the coordinator).
  *   - the movement palette: v14's movement actions (walk, fly, ...); the module's moves are judged by rooms, never by it.
- *   - target: Daggerheart's rolls against a target read the user's targets, which the canvas still sets (T, or a double right-click);
- *     the module's own rolls read none (private-rolls.mjs clears a roll's `system.targets`).
+ *   - target: Daggerheart's rolls against a target read the user's targets, which the canvas still sets with the T key
+ *     over a token; the module's own rolls read none (private-rolls.mjs clears a roll's `system.targets`). Not a double
+ *     right-click: as Foundry's Token#_onClickRight2 is remembered (v11-v13; no v14 source here), an owner with the
+ *     TOKEN_CONFIGURE permission - every GM, and a Trusted player by Foundry's default - gets the token's settings from
+ *     it, and only others target (the audit of 1.2.120, H-3).
  *   - combat: no rule of the module runs on Foundry's combat; the trial and the Eclipse are its own.
  *
  * A PLAYER HAS NO TOKEN HUD (the owner, 21.11.2026, on this line's first answer, which kept a player bring to front and
@@ -34,6 +41,12 @@
  * did there is a road the module needs: a floor is changed by the stairs (a region's `changeLevel`, rooms.mjs), and
  * movement.mjs sends back an unlawful floor change however it was written. The HUD is emptied after Foundry drew it, not
  * kept from opening: v14's road to it (the token's right-click) is not read here (no v14 source), LIVE-H120-01.
+ *
+ * NOR ITS SETTINGS, BY ANY ROAD (H-3; the owner's "gracz niech nie widzi ustawien tokena wcale"). A Trusted player's
+ * double right-click on their own token, and a sheet's prototype-token control where a player is offered one, open
+ * Foundry's token settings past the HUD; on a browser whose user is not a GM such a window is hidden as it is drawn and
+ * closed (`refuseTokenConfig`, at the render hooks of v14's TokenApplication and its two kinds), and the player told
+ * once a minute that a token's settings are the GM's. Whether v14 still opens it on those roads is not read: LIVE.
  *
  * WHAT STAYS, FOR A GM: bring to front, the floor's palette, lock, the token's settings and visibility, and Daggerheart's
  * companion or party button where Daggerheart draws one, with Daggerheart's picture and words.
@@ -63,6 +76,10 @@ export const REMOVED = Object.freeze([
     '[data-action="target"]',
     '[data-action="combat"]'
 ]);
+
+/** A kept control whose focus ring the HUD's rules draw (under the glass, inside its hexagon), which high contrast's
+ *  page-wide ring passes by (the audit of 1.2.120, H-7). */
+export const RING_INSIDE_CLASS = "drpg-ring-inside";
 
 /** A player's HUD: emptied and marked with this class, which the stylesheet does not draw. */
 export const NO_HUD_CLASS = "drpg-token-hud-none";
@@ -111,6 +128,12 @@ export function trimHudFor(element, user) {
         const root = element?.querySelectorAll ? element : element?.[0];
         if (!root?.querySelectorAll) return;
         root.classList.add(TOKEN_HUD_CLASS);
+        // A GM's HUD is drawn, whatever the root held before (H-8): ApplicationV2 keeps the root between renders, and
+        // one marked for a player before a live promotion to a GM's role stayed undrawn until a reload.
+        if (user?.isGM) {
+            root.classList.remove(NO_HUD_CLASS);
+            root.removeAttribute("aria-hidden");
+        }
         if (!user?.isGM) {
             root.replaceChildren();
             root.classList.add(NO_HUD_CLASS);
@@ -119,10 +142,40 @@ export function trimHudFor(element, user) {
         }
         for (const node of root.querySelectorAll(REMOVED.join(", "))) node.remove();
         for (const button of root.querySelectorAll("button.control-icon")) {
+            // Its focus ring is the HUD's own (danganronpa.css, stained-glass.css), not high contrast's page-wide one (H-7).
+            button.classList.add(RING_INSIDE_CLASS);
             labelControl(button);
             followState(button);
         }
     } catch (err) {
         error("Could not trim the token HUD", err);
+    }
+}
+
+/* The token settings refused on this browser, and when the player was last told (`refuseTokenConfig`). */
+const refusedConfigs = new WeakSet();
+let configToldAt = -Infinity;
+
+/**
+ * A token's settings window, drawn on a browser whose user is not a GM: hidden at once and closed (H-3). Hooked at
+ * `renderTokenApplication`, `renderTokenConfig` and `renderPrototypeTokenConfig` (hud.mjs `registerHud`); a window
+ * reached by two of them is closed once. Answers whether it closed one (R8421 reads it).
+ */
+export function refuseTokenConfig(app, element, user = game.user) {
+    try {
+        if (user?.isGM || !app || refusedConfigs.has(app)) return false;
+        refusedConfigs.add(app);
+        const root = element?.style ? element : element?.[0] ?? app.element;
+        if (root?.style) root.style.display = "none";
+        Promise.resolve(app.close?.()).catch(err => error("Could not close a token's settings", err));
+        const now = Date.now();
+        if (now - configToldAt > 60_000) {
+            configToldAt = now;
+            ui.notifications?.info?.(game.i18n.localize("DRPG.TokenHud.configGm"));
+        }
+        return true;
+    } catch (err) {
+        error("Could not close a token's settings", err);
+        return false;
     }
 }

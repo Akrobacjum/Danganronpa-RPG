@@ -897,26 +897,71 @@ export function injectUltimate(app, element, mode = modeOf(app)) {
     const ultimate = actor.getFlag(MODULE_ID, FLAGS.ultimate) ?? "";
     const editable = mode.editable;
 
+    /*
+     * WHAT IS BEING TYPED OUTLIVES A RENDER (the audit of 1.2.118, REFR-10; 1.2.122 line UI). The sheet renders on
+     * every clock write, rule, incident move and update of its actor, from any client, and this row was rebuilt from
+     * the stored flag each time: the half-typed Ultimate went, and the caret with it. As the backstory is held
+     * (`tidyBiography`, `app._drpgBiography`), the typed text is kept on the app (`app._drpgUltimate`: the text and
+     * whether the field had the focus) from its first keystroke until it is saved or put back, drawn into the new
+     * row, and the focus and the caret, at the text's end, given back. The save waits a tick after a blur and is
+     * skipped when the field has left the page: a field taken out by a render is not a player leaving it, whether or
+     * not the browser fires a blur for it (not read in Chromium here; jsdom fires none). A close saves what is held
+     * (sheet.mjs, `commitHeldUltimate`).
+     */
+    const held = editable ? app?._drpgUltimate ?? null : null;
     details.classList.add("drpg-ultimate");
-    details.replaceChildren(buildUltimateRow(ultimate, editable));
+    details.replaceChildren(buildUltimateRow(held ? held.value : ultimate, editable));
 
     if (!editable) return;
 
     const field = details.querySelector("[data-drpg-ultimate]");
     if (!field) return;
+    if (held?.focused) {
+        field.focus();
+        try {
+            const range = document.createRange();
+            range.selectNodeContents(field);
+            range.collapse(false);
+            const sel = window.getSelection?.();
+            sel?.removeAllRanges();
+            sel?.addRange(range);
+        } catch { /* no selection here: the focus is what matters */ }
+    }
 
+    const hold = focused => { if (app) app._drpgUltimate = { value: field.textContent, focused }; };
+    field.addEventListener("input", () => hold(true));
     // Commit on blur, and let Enter mean "done" rather than "new line".
-    field.addEventListener("blur", () => commitUltimate(actor, field));
+    field.addEventListener("blur", () => {
+        if (app?._drpgUltimate) app._drpgUltimate.focused = false;
+        setTimeout(() => {
+            if (!field.isConnected) {
+                // Taken out by a render: the new row holds the text, and the focus it had (`held.focused`, kept).
+                if (app?._drpgUltimate) app._drpgUltimate.focused = true;
+                return;
+            }
+            if (app) app._drpgUltimate = null;
+            commitUltimate(actor, field);
+        }, 0);
+    });
     field.addEventListener("keydown", event => {
         if (event.key === "Enter") {
             event.preventDefault();
             field.blur();
         } else if (event.key === "Escape") {
             event.preventDefault();
+            if (app) app._drpgUltimate = null;
             field.textContent = actor.getFlag(MODULE_ID, FLAGS.ultimate) ?? "";
             field.blur();
         }
     });
+}
+
+/** The Ultimate typed and not saved when its sheet closes, saved from the app (REFR-10; sheet.mjs's close hook). */
+export function commitHeldUltimate(app) {
+    const held = app?._drpgUltimate;
+    if (!held || !app.document) return null;
+    app._drpgUltimate = null;
+    return commitUltimate(app.document, { textContent: held.value });
 }
 
 function buildUltimateRow(ultimate, editable) {

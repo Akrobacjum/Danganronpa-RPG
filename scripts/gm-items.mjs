@@ -38,7 +38,7 @@ function recipientOptions(students, selectedId) {
         .map(a => `<option value="${a.id}"${a.id === selectedId ? " selected" : ""}>${esc(a.name)}</option>`)
         .join("");
 }
-import { whisperToOwner, log, error, plural, cardHead, esc, serialWrite, listOf } from "./utils.mjs";
+import { whisperToOwner, log, error, debug, plural, cardHead, esc, serialWrite, listOf } from "./utils.mjs";
 import { kitTabs, wireKitTabs, shownTab, drpgWindow, box, emptyOption, formGrid, modeBar, tipAttr, tipText } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 import { homeScene } from "./rooms.mjs";
@@ -334,7 +334,17 @@ export async function openItemManager(actor = null, { give = null } = {}) {
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
     // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-items")) return RAISED;
+    // OPEN ON THE STUDENT ASKED FOR (the audit of 1.2.118, CTRL-20; 1.2.122 line UI). A sheet's Give / take, or the
+    // Students window's Items, on Bob while the hub stood open on Anna raised it still on Anna, and the next Give went
+    // to her. The hub is raised when it shows the student asked for (or none was named); shown on somebody else, it is
+    // closed and opened again on the one asked for - not its select turned, since the Give tab's key list is built for
+    // the student it opened on (`keyChoices`: their own bedroom left out) and would stay the other one's.
+    const open = alreadyOpen("drpg-window-items");
+    if (open) {
+        const shown = open.element?.querySelector?.("form [name=who]")?.value ?? null;
+        if (!actor?.id || !shown || shown === actor.id) return RAISED;
+        await open.close().catch(err => debug("Could not close the item hub to open it on another student", err));
+    }
 
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));

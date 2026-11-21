@@ -561,7 +561,8 @@ export function injectEquippedTools(app, element, mode = modeOf(app)) {
     if (!readied) {
         const empty = document.createElement("li");
         empty.className = "drpg-equipped-empty";
-        empty.textContent = game.i18n.localize("DRPG.Items.noneReadied");
+        // A GM's view of a student's sheet says it of the student (the audit of 1.2.118, UI-33).
+        empty.textContent = game.i18n.localize(mode.gm ? "DRPG.Items.noneReadiedGm" : "DRPG.Items.noneReadied");
         list.append(empty);
     }
 }
@@ -585,7 +586,7 @@ export function noteEmptyExperience(app, element, mode = modeOf(app)) {
     if (Object.keys(actor.system?.experiences ?? {}).length) return;
     const empty = document.createElement("p");
     empty.className = "notes drpg-experience-empty";
-    empty.textContent = game.i18n.localize("DRPG.SheetNotes.noExperiences");
+    empty.textContent = game.i18n.localize(mode.gm ? "DRPG.SheetNotes.noExperiencesGm" : "DRPG.SheetNotes.noExperiences");
     list.append(empty);
 }
 
@@ -900,8 +901,10 @@ export function redrawPassageSheets() {
  * the sheet is the window a player already has open and already looks at, and
  * the moment this is needed is not the moment to go hunting for a control.
  *
- * Present for everyone - a Monokuma's player is at the same table, and a
- * character who died an hour ago does not stop being someone's evening.
+ * On every sheet but a Monokuma's, which is the GM's character (E49 B2,
+ * `sheetMode` `safeword`): a character who died an hour ago does not stop
+ * being someone's evening, and a Spectator is a person at the table, not a
+ * student (1.2.122 line UI; the audit of 1.2.118, UI-25, COMM-54, STG-04).
  * Anchored to the window content, so it does not depend on Daggerheart's
  * internal layout holding still.
  */
@@ -1006,7 +1009,7 @@ function plainBiography(html) {
  * followed by a close is one write, not two. Compared against the FLATTENED current value (`plainBiography`): a
  * formatted backstory merely opened, focused and left is not rewritten.
  */
-export function saveBiography(app) {
+export function saveBiography(app, { closing = false } = {}) {
     const held = app?._drpgBiography;
     if (!held) return null;
     const actor = app.document ?? null;
@@ -1022,12 +1025,19 @@ export function saveBiography(app) {
      * text stored writes nothing: the other write stands, the typed text stays held - the field keeps it, unsaved - and
      * the typist is told once; their next save writes theirs, as the base is now what they were told of. Scenario 71
      * I2 read on da8e8a3b: the player's save wrote their text over the GM's edit, no word said.
+     *
+     * AT A CLOSE THERE IS NO SECOND LEAVE (the audit of 1.2.118, STG-12; 1.2.122 line UI). The close's save found the
+     * same conflict, kept the text on the closed sheet object and asked the typist to "click outside the field again" -
+     * a field no longer on screen, the text gone at the next reload. A close is the last save this text gets, so it
+     * writes now what the second leave would have written (the typist's text over the other one, Q-E45-C3b-1's
+     * default for that leave), and the notice says so (`biographyChangedClosed`).
      */
-    if (held.base !== undefined && held.base !== now && next !== now) {
+    if (held.base !== undefined && held.base !== now && next !== now && !closing) {
         app._drpgBiography = { ...held, base: now };
         ui.notifications?.warn(game.i18n.localize("DRPG.Sheet.biographyChanged"));
         return null;
     }
+    if (held.base !== undefined && held.base !== now && next !== now) ui.notifications?.warn(game.i18n.localize("DRPG.Sheet.biographyChangedClosed"));
     app._drpgBiography = null;
     // The same text already on its way (a tab's click, then the field's focusout, before the write is back) is not a second write.
     if (next === now || next === app._drpgBiographySending) return null;

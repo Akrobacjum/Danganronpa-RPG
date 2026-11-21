@@ -421,7 +421,7 @@ export function wireKitTabs(root, { buttons = null, always = [], onSwitch = null
     }
     const first = tabs.find(t => t.getAttribute("aria-selected") === "true") ?? tabs[0];
     if (first) show(first.dataset.drpgTabKey);
-    if (fit) fitWhenLaidOut(nav, win);
+    if (fit) fitWhenLaidOut(nav, win, app);
     return { show, nav };
 }
 
@@ -448,9 +448,9 @@ export function keepInScreen(el) {
  * a bar fitted to one line at 13 px (the kit gallery, 04.11.2026; measured again with the face in: two rows of two).
  * On a page with no layout (jsdom) it measures 0 and sets nothing.
  */
-function fitWhenLaidOut(nav, win) {
+function fitWhenLaidOut(nav, win, app = null) {
     if (typeof requestAnimationFrame !== "function") return;
-    const fit = () => { if (nav.isConnected) fitKitTabs(nav, { win }); };
+    const fit = () => { if (nav.isConnected) fitKitTabs(nav, { win, app }); };
     requestAnimationFrame(() => {
         fit();
         const tab = nav.querySelector('button[role="tab"]');
@@ -508,7 +508,7 @@ function tabNeed(nav, btns, cols, size, ls, pad) {
  * `{ rows, cols, size, ls, pad, grew }` (`cols` null when the bar wraps: its rows are counted by laying the tabs' own
  * widths left to right), or null where nothing could be measured.
  */
-export function fitKitTabs(nav, { win = null } = {}) {
+export function fitKitTabs(nav, { win = null, app = null } = {}) {
     const btns = [...(nav?.children ?? [])].filter(b => b.matches('button[role="tab"]'));
     if (!btns.length || !nav.clientWidth) return null;
     for (const v of ["--drpg-kit-tab-fit-size", "--drpg-kit-tab-fit-ls", "--drpg-kit-tab-fit-pad", "--drpg-kit-tab-n"]) nav.style.removeProperty(v);
@@ -554,7 +554,17 @@ export function fitKitTabs(nav, { win = null } = {}) {
             const by = Math.ceil(need - room) + 1;
             if (now + by <= maxW && now + by - w0 <= w0 * GROWTH) {
                 if (!win.dataset.drpgTabW0) win.dataset.drpgTabW0 = String(now);
-                win.style.width = `${Math.ceil(now + by)}px`;
+                /* THROUGH THE APP WHERE THERE IS ONE (the audit of 1.2.118, UI-23; 1.2.122 line UI). Written as the
+                   element's inline width, the growth was not the application's: every tab press asks
+                   `app.setPosition({ height: "auto" })` (`wireKitTabs`), and an ApplicationV2 lays its recorded
+                   position back on the element (window-scale.mjs's note on the render hook), so the window went back
+                   to its old width under a bar fitted for the wider one. `setPosition({ width })` records it, as
+                   `fitKitWidth` and `settleKitWidth` do. Where v14 writes it is not read here (no Foundry source);
+                   the harness lays nothing out, so the grow is not reached headless. */
+                const width = Math.ceil(now + by);
+                if (typeof app?.setPosition === "function") {
+                    try { app.setPosition({ width }); } catch { win.style.width = `${width}px`; }
+                } else win.style.width = `${width}px`;
                 return { size, ls, pad, grew: by };
             }
         }
@@ -586,10 +596,20 @@ const SCROLL_SLACK = 8;
 export function watchScroll(box) {
     if (!box) return () => {};
     const note = box.querySelector(":scope > [data-drpg-scroll-note]");
+    /* WHICH WAY THE MORE LIES (the audit of 1.2.118, UI-32; 1.2.122 line UI): the line said "There is more below" for
+       a wide table whose more was to the right. Below is said first, as a reader scrolls down first; a box with more
+       only to the right says so (`scrollMoreRight`). The words are written only when they change (setText's reason in
+       hud-elapsed.mjs: a11y.mjs observes the module's chrome). */
     const read = () => {
-        const more = box.scrollHeight - box.clientHeight - box.scrollTop > SCROLL_SLACK || box.scrollWidth - box.clientWidth - box.scrollLeft > SCROLL_SLACK;
+        const below = box.scrollHeight - box.clientHeight - box.scrollTop > SCROLL_SLACK;
+        const right = box.scrollWidth - box.clientWidth - box.scrollLeft > SCROLL_SLACK;
+        const more = below || right;
         if (more) box.dataset.drpgScroll = "more"; else delete box.dataset.drpgScroll;
-        if (note) note.hidden = !more;
+        if (note) {
+            note.hidden = !more;
+            const text = localize(below || !right ? "DRPG.Kit.scrollMore" : "DRPG.Kit.scrollMoreRight");
+            if (note.textContent !== text) note.textContent = text;
+        }
     };
     read();
     box.addEventListener("scroll", read, { passive: true });
@@ -1452,7 +1472,7 @@ function settleKitWidth(app, sized) {
             if (!width || Math.abs(now - width) <= 1) return;
             app.setPosition({ width });
             // A tab bar fitted to the width before (`fitWhenLaidOut`, a frame after the render) is fitted to this one.
-            for (const nav of root.querySelectorAll("nav.drpg-tabs")) fitKitTabs(nav, { win: root });
+            for (const nav of root.querySelectorAll("nav.drpg-tabs")) fitKitTabs(nav, { win: root, app });
         } catch (err) {
             error("A kit window could not be given its width", err);
         }

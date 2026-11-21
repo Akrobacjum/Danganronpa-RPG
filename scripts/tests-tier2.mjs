@@ -107386,6 +107386,171 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ text: typed, world: true }),
             "Room setup wrote over the digits typed in a token count, or sent them unasked (text: the count's text after the redraw; world: the room's tokens untouched)");
     }],
+    ["1.2.122 REFR-10 STG-12 - the Ultimate typed outlives a render and is saved at the close, and a Background held at a close after somebody else changed it is saved, with a notice that says so (the audit of 1.2.118; 1.2.122 line UI)", async () => {
+        /*
+         * 1.2.122 line UI, 21.11.2026. The sheet is the module's own hooks on a stand-in window, as E24-T2 draws it. The
+         * Ultimate: typed, the sheet drawn again (as a render after a GM's Hope write draws it), its text read, then the
+         * close. The Background: typed, the GM's write of another text, the close. Read: the fields and what was saved,
+         * and the notices. Put back: the Ultimate, the Background and Hope. Red at 21bf5d18: the row drawn again from the
+         * stored flag (the typed text gone), and the close's conflict saved nothing, asking for a field no longer there.
+         */
+        const [student] = cast(1);
+        const BIO = "system.biography.background", ULT = `flags.${MODULE_ID}.${FLAGS.ultimate}`, HOPE = "system.resources.hope.value";
+        const was = foundry.utils.getProperty(student, BIO) ?? "", ultWas = student.getFlag(MODULE_ID, FLAGS.ultimate) ?? "";
+        const hopeWas = foundry.utils.getProperty(student, HOPE) ?? 0;
+        const app = { document: student, isEditable: true }, roots = [], warned = [];
+        const draw = () => {
+            const root = document.createElement("div");
+            root.innerHTML = `<div class="character-header-sheet"><div class="character-details"></div></div>`
+                + `<section data-application-part="biography"><fieldset class="glassy biography-section"><legend>1.2.122</legend>`
+                + `<prose-mirror name="${BIO}"></prose-mirror></fieldset></section>`;
+            document.body.append(root);
+            Hooks.callAll("renderCharacterSheet", app, root, {}, { isFirstRender: !roots.length });
+            roots.push(root);
+            return root;
+        };
+        const closeByX = async () => { roots.at(-1).remove(); Hooks.callAll("closeCharacterSheet", app); await settle(); };
+        const warn = ui.notifications.warn;
+        ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+        const read = {};
+        try {
+            let root = draw();
+            let field = root.querySelector("[data-drpg-ultimate]");
+            must(field, "the sheet's hook drew no Ultimate field - this would measure nothing");
+            field.focus();
+            field.textContent = "SUITE 1.2.122 an Ultimate half typ";
+            field.dispatchEvent(new Event("input", { bubbles: true }));
+            await student.update({ [HOPE]: hopeWas > 0 ? hopeWas - 1 : 1 });
+            await settle();
+            roots.at(-1).remove();
+            root = draw();
+            field = root.querySelector("[data-drpg-ultimate]");
+            read.ultimate = [field?.textContent ?? null, student.getFlag(MODULE_ID, FLAGS.ultimate) ?? ""];
+            await closeByX();
+            await until(() => student.getFlag(MODULE_ID, FLAGS.ultimate) === "SUITE 1.2.122 an Ultimate half typ", 3000);
+            read.ultimateSaved = student.getFlag(MODULE_ID, FLAGS.ultimate) ?? "";
+            root = draw();
+            const area = root.querySelector("textarea.drpg-biography-text");
+            must(area, "the sheet's hook drew no backstory textarea - this would measure nothing");
+            area.focus();
+            area.value = "SUITE 1.2.122 the player's Background";
+            area.dispatchEvent(new Event("input", { bubbles: true }));
+            await student.update({ [BIO]: "SUITE 1.2.122 the GM's one word" });
+            await settle();
+            await closeByX();
+            await until(() => foundry.utils.getProperty(student, BIO) === "SUITE 1.2.122 the player's Background", 3000);
+            read.background = foundry.utils.getProperty(student, BIO) ?? null;
+            read.told = [warned.includes(game.i18n.localize("DRPG.Sheet.biographyChangedClosed")), warned.includes(game.i18n.localize("DRPG.Sheet.biographyChanged"))];
+        } finally {
+            ui.notifications.warn = warn;
+            for (const root of roots) root.remove();
+            await student.update({ [BIO]: was, [HOPE]: hopeWas, [ULT]: ultWas });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            ultimate: ["SUITE 1.2.122 an Ultimate half typ", ultWas], ultimateSaved: "SUITE 1.2.122 an Ultimate half typ",
+            background: "SUITE 1.2.122 the player's Background", told: [true, false]
+        }), "{ultimate: [the field drawn again, the stored flag]; ultimateSaved: after the close; background: after the close over the GM's write; told: [the close's notice, the field's]}");
+    }],
+    ["1.2.122 CTRL-20 - Give / take on another student opens the item hub on that student (the audit of 1.2.118; 1.2.122 line UI): with the hub open on one student, gm-items.mjs `openItemManager` for another leaves one hub, its student select on the one asked for; for the same student it raises the hub as it stands", async () => {
+        /*
+         * 1.2.122 line UI, 21.11.2026. As the GM, on the drawn window. Red at 21bf5d18: the hub was raised still on the
+         * first student, and the next Give went to them. Nothing is given: the hubs are closed by their Close.
+         */
+        needs(env.dialogs(), "the item hub is drawn and pressed");
+        must(game.user.isGM, "the item hub is a GM's");
+        const G = await import("./gm-items.mjs");
+        const [first, second] = cast(2);
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-items").length, "the item hub stands open already");
+        const answers = [];
+        const read = {};
+        try {
+            answers.push(Promise.resolve().then(() => G.openItemManager(first)).catch(err => `threw: ${err.message}`));
+            must(await until(() => of("drpg-window-items")[0]?.element?.querySelector("[name=who]"), 6000), "the hub did not open - this would measure nothing");
+            const hub = of("drpg-window-items")[0];
+            read.same = await G.openItemManager(first);
+            read.sameHub = of("drpg-window-items")[0] === hub;
+            answers.push(Promise.resolve().then(() => G.openItemManager(second)).catch(err => `threw: ${err.message}`));
+            await until(() => of("drpg-window-items")[0] && of("drpg-window-items")[0] !== hub, 6000);
+            await settle();
+            const now = of("drpg-window-items");
+            read.other = [now.length, now[0]?.element?.querySelector("[name=who]")?.value === second.id];
+        } finally {
+            for (const app of of("drpg-window-items")) {
+                const close = app.element?.querySelector('footer.form-footer button[data-action="cancel"]');
+                if (close) close.click(); else await app.close().catch(() => {});
+            }
+            await Promise.race([Promise.all(answers), wait(4000)]);
+        }
+        equal(stableJson(read), stableJson({ same: "raised", sameHub: true, other: [1, true] }),
+            "{same: the answer for the student shown; sameHub: the hub kept; other: [hubs open after Give / take on another student, its select on them]}");
+    }],
+    ["1.2.122 UI-22 - the Eclipse chevron counts the crossings of the Eclipse it opens (the audit of 1.2.118; 1.2.122 line UI): with a Darkness armed for the time of day the next Eclipse opens, overflow.mjs `overflowCrossingsAhead` answers the darkened count while `overflowCrossings` (the running time of day) answers the plain one", async () => {
+        /*
+         * 1.2.122 line UI, 21.11.2026. The world's stamp (`SETTINGS.overflow`'s `active`) is written for the next time of
+         * day and put back. Red at 21bf5d18: no `overflowCrossingsAhead` - the chevron asked `overflowCrossings` before the
+         * press, which read this time of day's stamp.
+         */
+        must(game.user.isGM, "the overflow's stamp is a GM's write");
+        const O = await import("./overflow.mjs");
+        must(typeof O.overflowCrossingsAhead === "function", "overflow.mjs has no overflowCrossingsAhead - the chevron counts by the running time of day");
+        const clock = getClock();
+        must(!clock.eclipse, "an Eclipse runs - this would read the running Eclipse's stamp");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const i = TIMES_OF_DAY.indexOf(clock.timeOfDay), next = (i + 1) % TIMES_OF_DAY.length, rolled = next === 0;
+        const ahead = { session: rolled ? clock.session + 1 : clock.session, day: rolled ? (clock.day ?? 1) + 1 : (clock.day ?? 1), timeOfDay: TIMES_OF_DAY[next], effect: "darkness" };
+        const was = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflow) ?? {});
+        const read = {};
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, { ...was, active: ahead });
+            await settle();
+            const dark = O.overflowRules().effects.darkness;
+            read.want = Math.max(dark.floor ?? 1, 2 - dark.by);
+            read.ahead = O.overflowCrossingsAhead(2);
+            read.now = O.overflowCrossings(2);
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, was);
+            await settle();
+        }
+        equal(stableJson({ ahead: read.ahead === read.want, now: read.now, darker: read.want < 2 }), stableJson({ ahead: true, now: 2, darker: true }),
+            "{ahead: the count of the Eclipse to open is the darkened one; now: the running time of day's; darker: the darkening takes a crossing}");
+    }],
+    ["1.2.122 REFR-64 - the lights close the direct murders' cards (the audit of 1.2.118; 1.2.122 line UI): eclipse.mjs `settleDeclarationCards` settles an open declaration card for a killer whose row the lights took, as a ruled card settles, and leaves another killer's", async () => {
+        /*
+         * 1.2.122 line UI, 21.11.2026. Two GM-only cards posted as `askGmToAllow` posts them (`callGm` with the
+         * approveMurder buttons), one for each of two students; the lights' call made for the first. Read: each card's
+         * settled flag. The cards are deleted. Red at 21bf5d18: no `settleDeclarationCards` - the cards kept live buttons.
+         */
+        must(game.user.isGM, "the cards are a GM's");
+        const E = await import("./eclipse.mjs");
+        must(typeof E.settleDeclarationCards === "function", "eclipse.mjs has no settleDeclarationCards - the lights leave the cards live");
+        const { callGm } = await import("./gm-bridge.mjs");
+        const [a, b] = cast(2);
+        const made = [];
+        const hook = Hooks.on("createChatMessage", m => made.push(m));
+        let settled = null;
+        try {
+            for (const killer of [a, b]) {
+                await callGm(killer, { gmOnly: true, title: "SUITE 1.2.122 REFR-64", body: "SUITE 1.2.122 a declaration",
+                    actions: [{ action: "approveMurder", label: "Allow", data: { killer: killer.id, trait: "strength" } },
+                        { action: "refuseMurder", label: "Refuse", data: { killer: killer.id } }] });
+            }
+            await until(() => made.length >= 2, 4000);
+            must(made.length >= 2, "the two cards were not posted - this would measure nothing");
+            settled = await E.settleDeclarationCards([a.id]);
+            await settle();
+        } finally {
+            Hooks.off("createChatMessage", hook);
+        }
+        // Settled: the buttons gone from the card's words (call-gm.mjs `settleCall`; a GM-only card's words are its secret's).
+        const { contentOf } = await import("./secret.mjs");
+        const flags = made.map(m => !String(contentOf(game.messages.get(m.id)) ?? "").includes('data-drpg-call="approveMurder"'));
+        for (const m of made) await game.messages.get(m.id)?.delete().catch(() => {});
+        await settle();
+        equal(stableJson({ settled, flags }), stableJson({ settled: 1, flags: [true, false] }),
+            "{settled: the cards the lights closed; flags: [the first killer's card settled, the second's]}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

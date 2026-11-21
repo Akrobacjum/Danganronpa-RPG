@@ -22,6 +22,7 @@
 import { MODULE_ID } from "./config.mjs";
 import { spectatorViewer, spectatorUserIds, talksWithSpectators, SPECTATOR_LISTEN_FLAG } from "./spectator.mjs";
 import { error, log, isPrimaryGm } from "./utils.mjs";
+import { SAFEWORD_FLAG } from "./safeword.mjs";
 
 const SPECTATOR_BODY_CLASS = "drpg-spectator";
 
@@ -71,19 +72,33 @@ function spectatorAuthor(message) {
     return Boolean(author && !author.isGM && spectatorUserIds().has(author.id));
 }
 
+/*
+ * THE SAFEWORD'S CARD IS NOT CHAT (1.2.122 line UI; the audit of 1.2.118, STG-04). A Spectator's press posts the public
+ * card from its own browser when no GM is connected, or when none answered in time (safeword.mjs `safewordPoster`,
+ * `awaitCard`), and the three parts below took it for the Spectator's chat: refused on its own browser, so no card, no
+ * banner and no pause, while the press reported the card posted. The card carries the safeword's flag and the
+ * safeword's own shape (its heading's class, one short paragraph); a message with the flag and any other content is
+ * chat as before, so the flag is no road for a Spectator's words into the log.
+ */
+export function isSafewordCard(message) {
+    const flagged = message?.getFlag?.(MODULE_ID, SAFEWORD_FLAG) ?? message?.flags?.[MODULE_ID]?.[SAFEWORD_FLAG];
+    const content = String(message?.content ?? "");
+    return Boolean(flagged) && content.includes("drpg-safeword-heading") && content.length <= 600;
+}
+
 function refuseOwnMessage(message, data, options, userId) {
-    if (userId !== game.user?.id || !spectatorViewer()) return true;
+    if (userId !== game.user?.id || !spectatorViewer() || isSafewordCard(message)) return true;
     ui.notifications?.warn?.(game.i18n.localize("DRPG.Spectator.noChat"));
     return false;
 }
 
 function hideSpectatorMessage(message, element) {
-    if (spectatorAuthor(message)) element?.remove?.();
+    if (spectatorAuthor(message) && !isSafewordCard(message)) element?.remove?.();
 }
 
 async function dropSpectatorMessage(message) {
     try {
-        if (!isPrimaryGm() || !message?.author || message.author.isGM) return;
+        if (!isPrimaryGm() || !message?.author || message.author.isGM || isSafewordCard(message)) return;
         const { senderNotSpectator } = await import("./bridge-guards.mjs");
         if (!(await senderNotSpectator(message.author))) return;
         log(`Removed a chat message ${message.author.name} posted as a Spectator.`);

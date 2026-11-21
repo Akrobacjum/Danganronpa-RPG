@@ -1260,7 +1260,7 @@ export function registerTextGuard() {
 export function injectSelectPickerSkin() {
     if (document.getElementById("drpg-select-picker-skin")) return;
     const GROUP = ":is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger, "
-        + ".drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection))";
+        + ":where(.application.sheet.actor, .application.roll-selection))";
     const style = document.createElement("style");
     style.id = "drpg-select-picker-skin";
     // The chosen option (`:checked`, last) in the attention colour, as every selection since E48 K1 (E59 C2, R6755: it

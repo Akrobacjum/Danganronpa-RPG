@@ -2199,11 +2199,15 @@ export function registerSettings() {
         default: {}
     });
 
+    // The GMs' offers: a GM's open sheets draw the Level Up button's "on offer" from it (sheet-header.mjs
+    // `injectAdvanceButton`), so they redraw on every write of it - another GM's merged in as much as this GM's own
+    // (the audit of 1.2.118, REFR-14; 1.2.122 line UI). A player's browser holds no section of it.
     game.settings.register(MODULE_ID, SETTINGS.advanceOffers, {
         scope: "client",
         config: false,
         type: Object,
-        default: {}
+        default: {},
+        onChange: () => import("./clock.mjs").then(m => m.refreshSheets()).catch(() => {})
     });
     game.settings.register(MODULE_ID, SETTINGS.legacyAdvanceOffers, {
         scope: "client",
@@ -3166,8 +3170,12 @@ export function registerSettings() {
         config: false,
         type: Boolean,
         default: true,
-        // The stylesheet's half of the lock follows at once (E03; audit S01-40).
-        onChange: value => document.body.classList.toggle("drpg-resources-locked", Boolean(value))
+        // The stylesheet's half of the lock follows at once (E03; audit S01-40), and so do the open sheets: the reserve's
+        // field is the mode's, read at a render (sheet-mode.mjs `reserveField`; the audit of 1.2.118, REFR-11, STG-13).
+        onChange: value => {
+            document.body.classList.toggle("drpg-resources-locked", Boolean(value));
+            import("./clock.mjs").then(m => m.refreshSheets()).catch(() => {});
+        }
     });
 
     /* THE PROPOSAL APPROVES ITSELF IN DAILY LIFE (E68 C2, 10.11.2026; DA41 = 2, DA50 = 1). Off by default: on, a
