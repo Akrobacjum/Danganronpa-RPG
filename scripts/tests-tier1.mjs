@@ -51409,7 +51409,8 @@ const INVARIANTS = [
             const pane = document.createElement("div");
             pane.innerHTML = T.poolPaneHtml("rooms", [room], room);
             const body = pane.querySelector("[data-drpg-table-body]");
-            T.wireRoomFilter?.(body);
+            // From the editor itself since 1.2.122 (CORE-48): the tables.mjs facade re-exports its four names of 1.2.97 alone.
+            (await import("./tables-editor.mjs")).wireRoomFilter(body);
             const picker = body?.querySelectorAll("select[data-drpg-room-filter]") ?? [];
             const box = body?.querySelector("[data-drpg-room-groups]");
             const counted = kind => box?.querySelector(`:scope > .drpg-room-group[data-kind="${kind}"] > h5 .notes`)?.textContent.trim() ?? "0";
@@ -57783,6 +57784,24 @@ const INVARIANTS = [
         };
         equal(stableJson(read), stableJson({ bare: true, npcOnly: false, echoNpc: false, echoStudent: true }),
             "{bare: a dead student and an NPC Not in the class; npcOnly: the NPC alone (no student); echoNpc, echoStudent: whether another player's NPC and student count for Echoes} - Not in the class is no student");
+    }],
+    ["R8503 - a room's own table that answers a Search with another category marks the find a substitute, and one that answers what was asked does not (scripts/tables-pools.mjs `drawItem`, `markedSubstitute`; the audit's CORE-47, 1.2.122 line WORLD): a flat 'Kitchen' table holding only a screwdriver, asked for Healing, hands over the screwdriver as a tool and a substitute; asked for a tool, as a tool and no substitute", async () => {
+        /* 21.11.2026, 1.2.122 line WORLD. On R1234's shims (a stand-in collection and scene; nothing written): the room's flat
+           table by name is the draw's first step, which never set `substitute`, so the card's "the room had nothing of what
+           you asked for" was missing. "Screwdriver" is filed by the built-in pools as a tool (R1234's spare road). Red at
+           21bf5d18: substitute null on the Healing ask. */
+        const T = await import("./tables.mjs");
+        const result = name => ({ name, img: null, description: null, getFlag: () => undefined });
+        const table = (name, results) => ({ id: `zR8503${name.length}`, name, getFlag: () => undefined, draw: async () => ({ results }) });
+        const kitchen = table("R8503 Kitchen", [result("Screwdriver")]);
+        const shelf = { contents: [kitchen], getName: name => (name === kitchen.name ? kitchen : null), [Symbol.iterator]: () => [kitchen][Symbol.iterator]() };
+        const scene = { id: "zR8503scene", regions: [{ id: "zR8503region", name: "R8503 Kitchen room", behaviors: [],
+            getFlag: (module, key) => module !== MODULE_ID ? undefined : key === "room" ? true : key === "drpgItemTable" ? "R8503 Kitchen" : undefined }] };
+        const pick = a => a && [a.name, a.category, a.substitute ?? null];
+        const ask = (category, goal) => T.drawItem(category, 1, { goal, room: "R8503 Kitchen room", scene, tables: shelf, rng: () => 0.5 });
+        const read = { healing: pick(await ask("usable", "healing")), tool: pick(await ask("tool", null)) };
+        equal(stableJson(read), stableJson({ healing: ["Screwdriver", "tool", true], tool: ["Screwdriver", "tool", null] }),
+            "{healing, tool: [the find, its category, substitute] asked for Healing and for a tool from a flat room table holding a screwdriver} - another category is said as a substitute");
     }],
     ["R5380 - the closing curtain stands under the open windows, the title and its band over them (styles/danganronpa.css THE SEQUENCES; the owner's ask of 13.11.2026: \"zamkniecie kurtyny niech bedzie pod otwartymi oknami, napis i jego tlo na otwartych oknach\"): read through the module's cascade in both themes, on a desk and a stacked screen, for the trial's entry and its exit with the glass and with the lids, the host is no box of its own (`display: contents`), its curtain layer is fixed under Foundry's window layer (`--z-index-window` less 2) and over every other z-index the module's sheets state under that layer, and takes the clicks it covers; its title layer is fixed at 99980, over every window, and lets the clicks through; the notice stack stands over the curtain - under the windows under Stained Glass, over them under Monokuma Legacy; the verdict's cut-in and the day's boards keep the one host at 99980; every window open on this page stands between the two layers", async () => {
         /*

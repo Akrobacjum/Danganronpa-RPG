@@ -892,8 +892,9 @@ export function entryAs(table, entry) {
  * The room's tables by name: the tier, the category (an older or a Polish plural too, `roomPluralsOf`), then the flat
  * table - "Kitchen - Tier 2" answers a Tier 2 roll before "Kitchen - Murder Weapons", and that before plain "Kitchen".
  * The guide says outright that what turns up can depend on where you are, so a kitchen and a boiler room do not draw
- * from the same bag; a single "Kitchen" table asked for a crime tool would hand back an apple and then label it a
- * weapon, so the split by category and by tier (F5.5, Dawid 25.08) is asked first. A GM who does not want that
+ * from the same bag; a single "Kitchen" table asked for a crime tool would hand back an apple (since E14 part 2 C3 as
+ * an apple, and said as a substitute since 1.2.122: `markedSubstitute`), so the split by category and by tier (F5.5,
+ * Dawid 25.08) is asked first. A GM who does not want that
  * precision keeps one flat table and it answers everything. A room with nothing to give - never set up, or its tables
  * empty - falls through to the world's pools as it did before (D15).
  */
@@ -904,9 +905,23 @@ async function drawRoomNamed(ctx) {
         // A tier pool is never a room's stock, whatever its name (E14 fix e1-G2): a room pointed at one before
         // Room Setup read the flags answered every Search there from that pool, at any roll.
         const found = table && !tierPoolOf(table) ? await drawFrom(table) : null;
-        if (found) return resultFrom(found, ctx, { from: "room", table });
+        if (found) return markedSubstitute(resultFrom(found, ctx, { from: "room", table }), ctx.asked);
     }
     return null;
+}
+
+/*
+ * ANOTHER CATEGORY IS A SUBSTITUTE, WHICHEVER TABLE GAVE IT (the audit's CORE-47, 1.2.122, 21.11.2026). Since E14 part 2
+ * C3 a find is what it is (`roomEntryAs`), so a room's tier table or flat table asked for Healing can hand over a knife,
+ * filed and granted as a weapon - and only the room's other tables and the spare marked `substitute`, so the card did not
+ * say the room had nothing of what was asked (action-search.mjs's outcome). Marked here when the find's category is not
+ * the one asked, or its usable goal is another (a usable of no one goal, "both", serves either). Pure but for the mark.
+ */
+function markedSubstitute(answer, asked) {
+    if (!answer || !asked?.category || answer.substitute) return answer;
+    const goal = answer.goal ?? null;
+    if (answer.category !== asked.category || (asked.goal && goal && goal !== "both" && goal !== asked.goal)) answer.substitute = true;
+    return answer;
 }
 
 /**

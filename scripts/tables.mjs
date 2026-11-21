@@ -14,7 +14,9 @@
  * every importer still imports tables.mjs, and neither file imports it. New
  * code goes into the file of its role, never here: a table's name, a pool, a
  * role or the draw, into tables-pools.mjs; the window or Install, into
- * tables-editor.mjs.
+ * tables-editor.mjs. E54 (6c7c6bc5) added a fifth, `wireRoomFilter`, for the
+ * suite alone, against the facade rule; 1.2.122 took it back out (the audit's
+ * CORE-48), and R3450 imports it from tables-editor.mjs.
  */
 
 export {
@@ -23,4 +25,4 @@ export {
     tierPoolForms, USABLE_GOALS, usableKindFor, ITEM_POOLS, POOL_ROLES, MULTI_ROLE_TIER,
     rolesForPoolItem, rolesOfResult, tierTableIdFor, randomItem, foundAs, entryAs, DRAW_STEPS, drawItem, moduleTables
 } from "./tables-pools.mjs";
-export { installTables, promptForTableName, poolPaneHtml, openItemTables, wireRoomFilter } from "./tables-editor.mjs";
+export { installTables, promptForTableName, poolPaneHtml, openItemTables } from "./tables-editor.mjs";
