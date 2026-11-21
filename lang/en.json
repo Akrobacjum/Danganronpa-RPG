@@ -3199,7 +3199,7 @@
       "gmTold": "{owner} entered {room} and was told somebody has been in their stash. It covers what {names} took.",
       "tabStashes": "Stashes",
       "stashesIntro": "Who has a stash in which room. Click a cell to change it. A bedroom's owner has a stash there from the start; you can take it away here.",
-      "stashesNote": "Anyone in the room can go through an open stash and take one thing from it, once each time of day. A hidden one must be found first, with Analyze's Find Stash ({n}+), and is open to its finder from then on. A stash in somebody else's room does not come with a key to it.",
+      "stashesNote": "Anyone in the room can go through an open stash and take one thing from it, once each time of day. A hidden one must be found first, with Analyze's Find Stash ({n}+), and is open to its finder from then on. The Mastermind sees every hidden stash. A stash in somebody else's room does not come with a key to it.",
       "stashCycle": "Click to cycle: none / open / hidden",
       "stashNone": "No stash",
       "stashOpen": "Open",

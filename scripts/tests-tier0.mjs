@@ -27304,7 +27304,7 @@ const REGRESSIONS = [
         equal(JSON.stringify([read.unnoted, read.stale]), "[[],[]]", "a bare write of a student's guarded flag does not tell the GMs' audit first, or a NOT_NOTED row names nothing [unnoted, stale]");
     }],
 
-    ["R8060 - the language files say what the code does (1.2.122 line TEXT; the audit of 1.2.118: CORE-37, CORE-52, ROLL-29, STG-29, STG-33, STG-51, STG-80, STG-86, STG-87, STG-90, STG-91, TEXT-31, TEXT-33, TEXT-34, TEXT-35, TEXT-37, TEXT-38, UI-31; the check of 1.2.121: r121-R-8): each row reads one key, or every value, of lang/en.json and lang/pl.json and holds it to the fact the finding read off the code", async () => {
+    ["R8060 - the language files say what the code does (1.2.122 line TEXT; the audit of 1.2.118: CORE-37, CORE-52, ROLL-29, STG-29, STG-33, STG-51, STG-80, STG-86, STG-87, STG-90, STG-91, TEXT-31, TEXT-33, TEXT-34, TEXT-35, TEXT-37, TEXT-38, UI-31; the check of 1.2.121: r121-R-8; the check of 1.2.122: r122-A-7): each row reads one key, or every value, of lang/en.json and lang/pl.json and holds it to the fact the finding read off the code", async () => {
         /*
          * 1.2.122 line TEXT, 21.11.2026. One row a finding; each is the reading the finding made at its file:line on
          * 21bf5d18, turned into the words the text must (or must not) hold. They are words, not behaviour: what each
@@ -27352,7 +27352,11 @@ const REGRESSIONS = [
             // the glossary declines Truth Bullet and token with -u (DB4).
             ["TEXT-35", () => !all("pl").some(([, v]) => /Truth Bulleta(?![\p{L}])|(?<![\p{L}])tokena(?![\p{L}])/u.test(v))],
             // a no-wrap mini button: the Polish no more than twice the English.
-            ["TEXT-37", () => at("pl", "DRPG.Mastermind.lair.lock").length <= 2 * at("en", "DRPG.Mastermind.lair.lock").length],
+            // and the finding's second button, the roll window's Pass (1.2.123 line TEXT; the audit of 1.2.122, recheck of TEXT-37)
+            ["TEXT-37", () => ["DRPG.Mastermind.lair.lock", "DRPG.TraitRuling.pass"].every(k => at("pl", k).length <= 2 * at("en", k).length)],
+            // stash-reach.mjs: the Mastermind reaches a hidden stash with no Search; both languages say it or neither does
+            // (1.2.123 line TEXT; the audit of 1.2.122, r122-A-7: the Polish said it, the English did not)
+            ["r122-A-7", () => /Mastermind/.test(at("en", "DRPG.Vault.stashesNote")) === /Mastermind/.test(at("pl", "DRPG.Vault.stashesNote"))],
             // explain.mjs shows the paragraph to whoever clicks, GM included: no "you" spoken to the class.
             ["TEXT-38", () => !/one of you|Get it right/.test(at("en", "DRPG.Explain.phase.classTrial")) && !/z was|Trafcie|pomylcie/.test(at("pl", "DRPG.Explain.phase.classTrial"))],
             // notice-history-app.mjs `changed` draws new entries at once since 1.2.120; the pill only scrolls up to them
@@ -27627,14 +27631,15 @@ const REGRESSIONS = [
         if (!/proseOf\(\s*USABLE_KIND_EFFECTS\[kind\]\s*,\s*give\.tier\s*\)/.test(items)) wrong.push("gm-items.mjs's receipt does not fill the usable's sentence");
         equal(JSON.stringify(wrong), "[]", "[a number told twice, or a sentence its reader does not fill]");
     }],
-    ["R8070 - a text the auditor's unrouted list named says no more than holds (1.2.122 line TEXT; the audit of 1.2.118's unrouted items, TEXT-04, TEXT-09 and TEXT-LC2): the giver of a Truth Bullet the receiver already holds a copy of is told only that nothing changed hands", async () => {
+    ["R8070 - a text the auditor's unrouted list named says no more than holds (1.2.122 line TEXT; the audit of 1.2.118's unrouted items, TEXT-09 and TEXT-LC2; TEXT-04 is R8462's): the giver of a Truth Bullet the receiver already holds a copy of is told only that nothing changed hands", async () => {
         /*
          * 1.2.122 line TEXT, 21.11.2026; the owner: everything the auditor named goes into 1.2.122.
          * TEXT-04 (the Eclipse's "or anywhere at night" under Darkness) was fixed twice, by TEXT and by STG (3.1-03); the
          * assembly kept STG's, which names the night's rooms, and its test is R8462. TEXT-09 / TEXT-LC2: DRPG.Handover.alreadyHasIt,
          * whispered to the giver (handover.mjs `mintCopy`'s HELD_COPY), said "They already hold a Truth Bullet of this
          * Remnant" - a fact about the receiver's evidence (AUDIT-1.2.42.md 3.4, fixed in task 13 as "Nothing changed
-         * hands.", reworded back in E71 B08 with no owner's verdict). Red at aa564cca.
+         * hands.", reworded back in E71 B08 with no owner's verdict). Red at aa564cca. The title named TEXT-04 until 1.2.123
+         * (line TEXT; the audit of 1.2.122, r122-A-6), though this body reads only the Handover sentence.
          */
         const wrong = [];
         for (const code of ["en", "pl"]) {
