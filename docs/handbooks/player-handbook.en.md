@@ -562,7 +562,7 @@ Every roll of yours that lands with Despair feeds the pool of the Monokuma who w
 | Patronage | 3 | Adds 2 progress to a project. On a secret project, only those in on it learn which, and how far it stands. |
 | Pain | 4 | You lose 2 Health. |
 | Silence | 4 | You cannot spend Hope Calls until the time of day ends. |
-| Contraband | 4 | Destroys any one item. |
+| Contraband | 4 | Destroys any one item but a Truth Bullet. |
 | Public Announcement | 6 | Everyone is called to one room at the start of the next time of day. You have until then; where you are when it starts is up to you. |
 | Motive | 6 | A demand, a deadline in times of day, and the price of ignoring it, announced to everyone word for word. The countdown sits on the Event panel. |
 | New Rule | 9 | One new killing game rule of Monokuma's choice. Rules land on the **Rules** tab of every sheet. |
@@ -721,7 +721,7 @@ This section is what a player may know about a murder. Until a body is found, wh
 
 Where a roll below lists more than one statistic, you propose one: pick it in the window under the choices and, if you like, add a line on how your character does it. The GM approves it, changes it to another statistic on the list, or refuses, on a card in your thread. Nothing is spent before they answer, and a refusal costs nothing.
 
-After a change, your window says what it was changed to and offers to roll it or *I'll pass (nothing spent)*; in a fight, a pass opens the crisis menu again. The roll window then opens on the answer, locked. With the Resolve Hope Call armed you pick the statistic yourself in the roll window, and nobody is asked. In Daily Life a GM may let a Search's or a project's proposal through without a click; the card then says *Approved automatically.*
+After a change, your window says what it was changed to and offers to roll it or *Pass*; in a fight, a pass opens the crisis menu again. The roll window then opens on the answer, locked. With the Resolve Hope Call armed you pick the statistic yourself in the roll window, and nobody is asked. In Daily Life a GM may let a Search's or a project's proposal through without a click; the card then says *Approved automatically.*
 
 ### The opening roll
 
@@ -761,7 +761,7 @@ A death by one's own hand uses the killer's roll and goes straight to Tamper.
 
 ### If you are the victim
 
-The incident is turn-based, and **you go first**. Every other tile on your sheet goes dark; **Fight back** opens your crisis actions and is dimmed while it is not your turn. Pick an action and it shows what it costs, what it rolls, who picks the statistic, and what a miss does. **Roll** sends it on; where it lists several statistics, your proposal goes to the GM first (above). Hope Calls still work.
+The incident is turn-based, and **you go first**. Every other tile on your sheet goes dark; **Fight Back** opens your crisis actions and is dimmed while it is not your turn. Pick an action and it shows what it costs, what it rolls, who picks the statistic, and what a miss does. **Roll** sends it on; where it lists several statistics, your proposal goes to the GM first (above). Hope Calls still work.
 
 Alone with a trap, you roll every crisis action with advantage, and every turn is yours: nobody acts against you, and each turn you end comes back to you.
 
@@ -786,7 +786,7 @@ Survive and Role Reversal are resolution actions: each costs **1 Sanity** instea
 
 ### If you are the killer
 
-Your side of the same table is behind the **Crisis actions** tile:
+Your side of the same table is behind the **Crisis Actions** tile:
 
 | Action | Roll | What it does |
 |---|---|---|
@@ -1053,7 +1053,7 @@ During an Eclipse the phase line names it, *Night Eclipse* for instance. During 
 **On a narrow screen** (a tablet, a phone, a narrow window) the module's blocks stand in one column at the top, in this order: the clock, the room tile with the voice tile on its right, your status strip and the Projects tray, the Despair rows, and the Event panel. The board stays visible and playable under it. When the column is longer than its room, it scrolls, and its foot fades while there is more below.
 
 **Your sheet:**
-- *Actions* - the ten tiles, with the Hope Calls below. Under Stained Glass a tile you cannot use or pay for now is dark with a dashed edge, whatever it would cost. During an incident the Direct Murder tile becomes **Fight back** for the victim and **Crisis actions** for the others, and opens them. A Monocub's sheet shows a Monocub's tiles, with no Move tile: you drag your token.
+- *Actions* - the ten tiles, with the Hope Calls below. Under Stained Glass a tile you cannot use or pay for now is dark with a dashed edge, whatever it would cost. During an incident the Direct Murder tile becomes **Fight Back** for the victim and **Crisis Actions** for the others, and opens them. A Monocub's sheet shows a Monocub's tiles, with no Move tile: you drag your token.
 - *Inventory* - Usables, Gear (each with a button to hold it ready), Truth Bullets (Analyze, Present, Share; group them by **Chapter** or **Location**), Room Keys, and your stash when you stand in that room.
 - *Rules* - Monokuma's standing rules, everyone's, all the time.
 - The safeword, bottom-left (section 15), and Level Up when you have earned one.

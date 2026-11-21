@@ -362,6 +362,12 @@ export function validateKnownLeaks(doc, { stageStatus, readme = "", scenarioText
         if (!LEAK_CLASSES.includes(e.class)) errs.push(`${at}: class "${e.class}" is not one of ${LEAK_CLASSES.join(", ")}`);
         if (!SEVERITIES.includes(e.severity)) errs.push(`${at}: severity "${e.severity}" is not one of ${SEVERITIES.join(", ")}`);
         if (!String(e.what ?? "").trim()) errs.push(`${at}: says nothing of what reaches whom`);
+        /* THE KILLER IS NOT METADATA (DOC-02, 21.11.2026). The two rows that resolve a token to the killer's actor were
+           filed metadata / info, the class D27 lets wait and the one a reader after 1.3.0 counts as harmless. A row whose
+           `what` names the killer is held to the class killer-identity; a severity under high would read the same way. */
+        if (/\bkillers?'?s?\b/i.test(String(e.what ?? "")) && (e.class !== "killer-identity" || !["critical", "high"].includes(e.severity))) {
+            errs.push(`${at}: its what names the killer, so it is class killer-identity at high or critical, not ${e.class} / ${e.severity} (D27)`);
+        }
         if (!String(e.measuredAt ?? "").trim()) errs.push(`${at}: no measuredAt - an entry is written from a run that reproduced it`);
         const kinds = ["closes", "foundryLimit", "deferred"].filter(k => e[k] !== undefined && e[k] !== null);
         if (kinds.length !== 1) errs.push(`${at}: needs exactly one of closes, foundryLimit and deferred, and has ${kinds.join(", ") || "none"}`);

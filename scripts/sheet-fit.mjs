@@ -175,7 +175,7 @@ export function softWrap(label) {
         if (part.length < LONG_WORD || /\s/.test(part)) return part;
         // A word that already carries a hyphen has a break point of its own,
         // and it is a better one than counting to six can find: "Self-defence"
-        // was coming out as "Self-d­efence", which reads as a typo rather than
+        // was coming out as "Self-d<U+00AD>efence" (a soft hyphen after the d), which reads as a typo rather than
         // as a hyphenation.
         if (part.includes("-")) return part;
         let out = "";

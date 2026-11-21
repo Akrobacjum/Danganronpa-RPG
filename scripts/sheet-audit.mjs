@@ -582,7 +582,7 @@ export function kindOf(path) {
 /*
  * The write that puts `paths` back to `before`. A path that was not there is deleted at its
  * highest missing part - a new experience goes whole, not as an empty entry - with v14's
- * forced deletion (`-=key` removes nothing in this Foundry: utils.mjs `forcedDeletion`), or
+ * forced deletion (the old `-=key` is deprecated on v14: utils.mjs `forcedDeletion`), or
  * written null where there is none. A path that was an object is written whole over what
  * the player made of it.
  */

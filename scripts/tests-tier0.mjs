@@ -900,7 +900,47 @@ const REGRESSIONS = [
         equal(JSON.stringify(problems.slice(0, 40)), "[]", `the one prefix (${problems.length} problem(s), ${Object.keys(texts).length} file(s), ${names.length} named glyph(s))`);
     }],
 
-    ["R1313 - CONTRIBUTING.md's \"The CSS contract\" names each detector of the CSS lint (importantCount, colourLiterals, strayCommentEnds, duplicateRules, deadClasses), the floor (21 px scaled under Stained Glass, 10 px a rung under Monokuma Legacy), the 390 px rule and the three commands - node tools/check.mjs css, node tools/check.mjs contrast, node audit/style-sweep.mjs (E44 C1c; E44-04)", async () => {
+    ["R8460 - a UI label the handbooks quote is one the module still draws (1.2.122, STG-27; E57's plan T10, never built): every row of docs/dev/e57/LABELS.md - a bold or italic span of a handbook that was a whole lang value - whose span still stands in that handbook, so marked, is a value of that language's lang file today; two spans that are the register's states, not labels, are named and let through", async () => {
+        /*
+         * 1.2.122 line STG, 21.11.2026. The audit's E57-1 read 25 distinct spans (33 rows) the handbooks still quoted under
+         * words no key of their language held any more - **Add pool** for "Grant pool", *I'll pass (nothing spent)* for
+         * "Pass", **Takes part** for "In the hall" - and nothing compared a quoted label with its key: every handbook test
+         * and `check text` were green. LABELS.md is E57's table (3053 rows); a span that some other key still holds is
+         * not drift (the listed key may have gone while the words stayed). Red at 5813f569: the 25.
+         */
+        needs(env.tools(), "docs/dev is read from the repository (an installed module's zip leaves it out, as it leaves tools/)");
+        const get = async path => { try { const r = await fetch(`/modules/${MODULE_ID}/${path}`, { cache: "no-cache" }); return r.ok ? await lfText(r) : ""; } catch { return ""; } };
+        const table = await get("docs/dev/e57/LABELS.md");
+        must(table.includes("| Handbook | Line | Label | Key(s) |"), "docs/dev/e57/LABELS.md did not load - this test would read nothing");
+        const values = {};
+        for (const lang of ["en", "pl"]) {
+            const out = new Set();
+            const walk = o => { if (typeof o === "string") out.add(o); else if (o && typeof o === "object") Object.values(o).forEach(walk); };
+            walk(JSON.parse(await get(`lang/${lang}.json`) || "{}"));
+            values[lang] = out;
+        }
+        /* The register's row states (diagnosePatches: ok, failed, unknown) are written in italics and once equalled
+           DRPG.Cleanup.miss; they are states, not a label of that key. */
+        const NOT_LABELS = new Set(["en failed", "pl nieudane"]);
+        const books = new Map(), stale = new Set();
+        let rows = 0;
+        for (const line of bodyOf(table, "| Handbook | Line | Label | Key(s) |", { until: "\n## " }).split("\n")) {
+            const m = line.match(/^\| ([a-z-]+)\.(en|pl) \| \d+ \| (.*?) \| `/);
+            if (!m) continue;
+            rows++;
+            const [, book, lang, label] = m;
+            if (values[lang].has(label) || NOT_LABELS.has(`${lang} ${label}`)) continue;
+            const name = `${book}.${lang}`;
+            if (!books.has(name)) books.set(name, await get(`docs/handbooks/${name}.md`));
+            const text = books.get(name);
+            const esc = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            if (text.includes(`**${label}**`) || new RegExp(`(?<![*\\w])\\*${esc}\\*(?![*\\w])`).test(text)) stale.add(`${name}: ${label}`);
+        }
+        must(rows > 3000, `LABELS.md gave ${rows} rows - this test would read nothing`);
+        equal(JSON.stringify([...stale].sort()), "[]", "the handbooks quote these labels under words no key of their language holds");
+    }],
+
+    ["R1313 - CONTRIBUTING.md's \"The CSS contract\" names each detector of the CSS lint (importantCount, colourLiterals, strayCommentEnds, duplicateRules, deadClasses), the floor (21 px scaled under Stained Glass; under Monokuma Legacy 11 px for `--drpg-text-xs` and the rungs 11 to 14, a rung under it at its own size - never the old \"10 px per rung\", UI-36), the 390 px rule and the three commands - node tools/check.mjs css, node tools/check.mjs contrast, node audit/style-sweep.mjs (E44 C1c; E44-04)", async () => {
         /*
          * E44 C1c, 04.11.2026 (audit S17-35: no CSS contract). The section is what a contributor reads before
          * touching styles/, so it names what the tools hold them to; a detector added to tests-css.mjs's DETECTORS
@@ -915,9 +955,12 @@ const REGRESSIONS = [
         ok(text.includes("\n## The CSS contract\n"), "CONTRIBUTING.md has no section \"## The CSS contract\"");
         const section = bodyOf(text, "\n## The CSS contract\n", { until: "\n## " });
         must(section.length > 500, `the CSS contract section is ${section.length} characters - this test would read nothing`);
-        const wanted = [...Object.keys(CSS_DETECTORS), "deadClasses", "21 px", "10 px", "390 px",
+        const wanted = [...Object.keys(CSS_DETECTORS), "deadClasses", "21 px", "11 px", "390 px",
             "node tools/check.mjs css", "node tools/check.mjs contrast", "node audit/style-sweep.mjs", "!important", "narrow.css"];
         equal(JSON.stringify(wanted.filter(w => !section.includes(w))), "[]", "the CSS contract does not name these");
+        /* UI-36 (1.2.122): Legacy's floor is 11 px for `--drpg-text-xs` and the rungs 11 to 14 since E48 K6 (R3500, R6754);
+           the section said "10 px per rung" until then, a floor only rung 10 itself still stops at. */
+        ok(!/10 px per rung/.test(section), "the CSS contract still gives Monokuma Legacy a floor of 10 px per rung (11 px since E48 K6: R3500)");
     }],
 
     ["R1322 - styles/components.css holds the kit's contract (E44 C3a; E44-11): no `!important` and no colour literal; Legacy's tokens on `body` and the glass's on `body.drpg-theme-stained-glass`, none the glass declares missing for Legacy and none read undeclared; every colour through a `--drpg-kit-*` token; no rule for the glass alone without one for both themes beside it; every font-size a kit size token floored at 11 px under Legacy and at `--drpg-sg-floor` under the glass; no width above 390 px; an uppercase box at line-height 1.3 and never overflow: hidden - and each of those faults, planted in a copy of the served file, read", async () => {
@@ -5945,13 +5988,15 @@ const REGRESSIONS = [
         ok(guard > 0 && guard < init.indexOf("requirementsMet()"), "the relay guard is registered after the requirements check");
     }],
 
-    ["R152 - no update deletes or replaces a key with the old '-=' / '==' spelling, which v14 ignores", async () => {
+    ["R152 - no update deletes or replaces a key with the old '-=' / '==' spelling, which v14 deprecates (on 14.370 it still deletes, with a deprecation warning: LIVE-E30-01)", async () => {
         /*
          * E30, 24.09.2026; audit S17-01. `migrateRemnants` took a trace's answer key off
          * its token with `flags.<id>.-=<key>`, the spelling the module's own notes
          * measured removing nothing in this Foundry (actions.mjs, music.mjs, fog.mjs,
          * migrate.mjs): the key stayed on a token every client receives, and the
-         * summary said "stripped". A key is deleted with `forcedDeletion()` or
+         * summary said "stripped". (That reading is refuted for 14.370: LIVE-E30-01,
+         * read 16.11.2026, deleted the key with v14's deprecation warning; the rule
+         * stands for the warning and for a Foundry without the old spelling.) A key is deleted with `forcedDeletion()` or
          * `unsetFlag`, and a value replaced with `replaceFlag` (utils.mjs).
          *
          * Every string and template literal of every file the module loads, this
@@ -5983,7 +6028,7 @@ const REGRESSIONS = [
             const code = stripComments(text);
             for (const lit of writes(code)) found.push(`${file}:${lineAt(code, lit.start)} ${JSON.stringify(lit.text).slice(0, 60)}`);
         }
-        ok(!found.length, `a key spelled the old way, which v14 ignores (delete with forcedDeletion() or unsetFlag, replace with replaceFlag): ${found.join("; ")}`);
+        ok(!found.length, `a key spelled the old way, which v14 deprecates (delete with forcedDeletion() or unsetFlag, replace with replaceFlag): ${found.join("; ")}`);
     }],
 
     ["R154 - the runner keeps the test author contract", async () => {
@@ -21067,7 +21112,7 @@ const REGRESSIONS = [
             + "verdictCandidates and verdictRefusal; applies: an apply without verdictRefusal and verdictRunning; builders: a card or a summary built by hand)");
     }],
 
-    ["R1252 - the verdict, the Final Trial's verdict, the execution and the chapter's end are step tables on the one runner (E42 C1c, E42-04, E42-06, E42-07; E42 C2, E42-08; audit S17-30): `VERDICT_STEPS` and `VERDICT_NEEDS` as E70 left them (no \"executions\"), the Final Trial's execution and Mastermind's step needing its sentence, `FINAL_VERDICT_STEPS` the Final Trial's six keys in order, none of them `card`, `sentence` or an ordinary verdict's key, every key of both tables a step in `VERDICT_STEP` and a label in both languages, `verdictSteps` answering the Final Trial's table for a `final` record, and `runVerdict` and `carryOutSentence` running on steps.mjs `runSteps`; `CHAPTER_END_STEPS` its nine keys in E11's order, the seven the GM's choices ask for, each labelled in both languages, run by `runChapterEnd` on `runSteps` with the phase held before every step (`stop`), its record saved (`save`) and its report through `stepsReport`", async () => {
+    ["R1252 - the verdict, the Final Trial's verdict, the execution and the chapter's end are step tables on the one runner (E42 C1c, E42-04, E42-06, E42-07; E42 C2, E42-08; audit S17-30): `VERDICT_STEPS` and `VERDICT_NEEDS` as E70 left them (no \"executions\"), the Final Trial's execution and Mastermind's step needing its sentence, `FINAL_VERDICT_STEPS` the Final Trial's seven keys in order (the Ghost Bets' `finalBets` since E72), none of them `card`, `sentence` or an ordinary verdict's key, every key of both tables a step in `VERDICT_STEP` and a label in both languages, `verdictSteps` answering the Final Trial's table for a `final` record, and `runVerdict` and `carryOutSentence` running on steps.mjs `runSteps`; `CHAPTER_END_STEPS` its nine keys in E11's order, the seven the GM's choices ask for, each labelled in both languages, run by `runChapterEnd` on `runSteps` with the phase held before every step (`stop`), its record saved (`save`) and its report through `stepsReport`", async () => {
         /*
          * E42 C1c, 02.11.2026; E42-04, E42-06, E42-07, audit S17-30. The ordinary verdict's steps were a table run by a
          * loop of its own (`runVerdict`), the Final Trial's verdict one function whose consequences logged and went on,

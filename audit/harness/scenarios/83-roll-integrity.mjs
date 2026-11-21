@@ -7,7 +7,7 @@
  * hand-over, a stash rifled, a Plant, a steal and a body's loot) - is driven from that player's own page,
  * as a console would call the module, and the GMs' audit must say nothing of it: no roll flagged, no write put back or flagged, no
  * whisper to the GMs, no refusal, no "not counted" line to the roller. C5b appends the forgeries
- * (F1-F7) below, read the same way; a forgery must say something, a legal road nothing.
+ * (F1-F7 then, fifteen now with their variants, F8 and F9: the list `forgeries`) below, read the same way; a forgery must say something, a legal road nothing.
  *
  * THE READINGS (`readings()` below), taken on every client before a road and again after it:
  *   - the GM: `rollFlags({ quiet: true })` and `sheetWrites({ quiet: true })` (roll-draw.mjs,

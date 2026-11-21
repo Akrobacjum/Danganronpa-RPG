@@ -995,8 +995,9 @@ export function forcedReplacement(value) {
 /**
  * The value that deletes a key in a document write, or null in a Foundry without one.
  *
- * `-=key` removes nothing in this Foundry (the measured notes in actions.mjs,
- * music.mjs, fog.mjs and migrate.mjs) and R152 refuses that spelling anywhere in
+ * `-=key` was measured removing nothing by the module's older notes (actions.mjs,
+ * music.mjs, fog.mjs and migrate.mjs); on 14.370 it deletes, with v14's deprecation
+ * warning (LIVE-E30-01, 16.11.2026), and R152 refuses that spelling anywhere in
  * the module. v14 names the deletion `foundry.data.operators.ForcedDeletion`, and
  * Daggerheart writes it as the global `_del`. Null means the caller unsets one
  * flag at a time instead (E30, 24.09.2026) - or writes the null where every

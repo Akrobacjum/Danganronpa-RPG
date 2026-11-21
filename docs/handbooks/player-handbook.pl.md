@@ -418,7 +418,7 @@ Echoes znajduje najbliższy pokój, w którym stoi żywy uczeń innego gracza, l
 
 Idziesz za uczniem, który stoi w twoim pokoju. Proponujesz statystykę drugiego rzutu, Leg albo Shadow, a GM wybiera ją na karcie; nic nie płacisz, dopóki GM nie odpowie. Potem są dwa rzuty. Przy Shadow 15 lub więcej cel cię nie zauważa; poniżej od razu dostaje twoje imię, a śledzenie i tak trwa. Drugi rzut nie ma liczby do przebicia: jego wynik to to, co Dash celu musi przebić, żeby cię zgubić (niżej).
 
-Dopóki śledzenie trwa, za każdym razem, gdy cel przejdzie do innego pokoju i postoi tam około dwóch sekund, dostajesz kartę: *{name} przechodzi do: {room}.* Przy krytyku w drugim rzucie karta mówi też, kto tam jest, poza Eclipse. Podczas Eclipse karty wciąż przychodzą, ale podają tylko pokoje.
+Dopóki śledzenie trwa, za każdym razem, gdy cel przejdzie do innego pokoju i postoi tam około dwóch sekund, dostajesz kartę: *{name} przechodzi do pokoju {room}.* Przy krytyku w drugim rzucie karta mówi też, kto tam jest, poza Eclipse. Podczas Eclipse karty wciąż przychodzą, ale podają tylko pokoje.
 
 Śledzenie kończy się kartą, gdy nie jesteś ani w pokoju, który cel opuścił, ani w tym, do którego doszedł (gubisz trop), gdy kończy się dzień, gdy zostanie ogłoszone znalezienie ciała albo gdy cel użyje Dash z wynikiem wyższym niż twój drugi rzut; krytyczne śledzenie przerywa tylko krytyczny Dash. Kończy się bez karty, gdy któreś z was zginie albo zacznie się incydent. Prowadzisz jedno śledzenie naraz, a nowe zastępuje stare. Śledzenia nie da się zacząć w Eclipse, w Investigation ani w Class Trial.
 
@@ -562,7 +562,7 @@ Każdy twój rzut zakończony Despair zasila pulę Monokumy, który cię pilnuje
 | Patronage | 3 | Dodaje projektowi 2 postępu. Przy tajnym projekcie tylko ci, którzy o nim wiedzą, dowiadują się, któremu, i ile ma postępu. |
 | Pain | 4 | Tracisz 2 Health. |
 | Silence | 4 | Nie możesz wydawać Hope Calli do końca pory dnia. |
-| Contraband | 4 | Niszczy dowolny jeden przedmiot. |
+| Contraband | 4 | Niszczy dowolny jeden przedmiot oprócz Truth Bulletu. |
 | Public Announcement | 6 | Wszyscy zostają wezwani do jednego pokoju na początek następnej pory dnia. Macie czas do tej pory, a to, gdzie będziesz, gdy się zacznie, zależy od ciebie. |
 | Motive | 6 | Żądanie, termin w porach dnia i cena zignorowania go, ogłoszone wszystkim słowo w słowo. Odliczanie wisi na panelu zdarzeń. |
 | New Rule | 9 | Jedna nowa zasada killing game, wybrana przez Monokumę. Zasady lądują na zakładce **Zasady** każdego arkusza. |
@@ -721,7 +721,7 @@ Ta część mówi, co graczowi wolno wiedzieć o morderstwie. Dopóki nikt nie z
 
 Gdy rzut wymienia więcej niż jedną statystykę, proponujesz jedną: wybierasz ją w oknie pod wyborami i, jeśli chcesz, dopisujesz linijkę o tym, jak twoja postać to robi. GM zatwierdza twoją propozycję, zmienia ją na inną statystykę z listy albo odmawia, na karcie w twoim wątku. Dopóki GM nie odpowie, nic nie płacisz, a odmowa nic nie kosztuje.
 
-Po zmianie twoje okno mówi, na co ją zmieniono, i daje do wyboru rzut albo *Rezygnuję (nic nie schodzi)*; w walce rezygnacja znowu otwiera menu kryzysowe. Okno rzutu otwiera się wtedy z tym, co ustalił GM, i nie możesz tego zmienić. Z uzbrojonym Hope Callem Resolve wybierasz statystykę w oknie rzutu i nikogo nie pytasz. W Daily Life GM może przepuszczać propozycje do Search i do projektu bez kliknięcia; karta mówi wtedy *Zatwierdzone automatycznie.*
+Po zmianie twoje okno mówi, na co ją zmieniono, i daje do wyboru rzut albo *Zrezygnuj*; w walce rezygnacja znowu otwiera menu kryzysowe. Okno rzutu otwiera się wtedy z tym, co ustalił GM, i nie możesz tego zmienić. Z uzbrojonym Hope Callem Resolve wybierasz statystykę w oknie rzutu i nikogo nie pytasz. W Daily Life GM może przepuszczać propozycje do Search i do projektu bez kliknięcia; karta mówi wtedy *Zatwierdzone automatycznie.*
 
 ### Rzut otwarcia
 

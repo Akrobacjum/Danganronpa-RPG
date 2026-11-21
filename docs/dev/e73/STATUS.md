@@ -82,7 +82,9 @@ on the vote's opening card; the GM edits, deletes and marks "Monokuma confirms" 
   button rule, 0-5-2, over the picker's); it reads 0.45 now in both themes.
 - Q-E73-1: the scenario is 68-trial-zones. Q-E73-3: the set editor a kit window, the run in the console. Q-E73-4 as
   above. Q-E73-5: the modes are in floor-machine.mjs `MODES`, so E99's `caseModes` and the census have them.
-- A wrong majority in Logic Dive ends the set as a tie does, and shows no truth either (the set stays replayable).
+- A wrong majority in Logic Dive ends the set as a tie does. Its card stays as it is: with two answers per question it shows
+  the class which answer was right (the owner's answer to STG-74, 21.11.2026; until then this line said it shows no truth,
+  as a tie does).
 - A Logic Dive set's Finding is its own `conclusion` text, or the last question's right answer when the set has none.
 
 ## Progress
@@ -149,7 +151,9 @@ for the reason named in the commit; green on the commit.
 
 - Q-E73-2: answered, mockup B; built in this line (5fc377d), not after E61 as the default had it.
 - Q-E73-1, -3, -4, -5: defaults taken (above), owner to confirm.
-- A wrong Logic Dive majority shows no truth, as a tie does (the set stays replayable): default taken, owner to confirm.
+- A wrong Logic Dive majority's card stays as it is: with two answers per question it shows the class which answer was
+  right (the owner's answer to STG-74, 21.11.2026; this line read "shows no truth, as a tie does ... default taken, owner to
+  confirm" until then).
 - The Pre-season check's hall row now counts "no zones" as not done (optional row): owner to confirm it should.
 
 Tokens so far: not measured by this line.

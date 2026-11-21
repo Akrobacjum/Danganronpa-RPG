@@ -69,6 +69,41 @@
         ],
         "headless": "R7540 asserts how a line is taken (the nearest rank, fifty kept, junk readings dropped), the lines' text from stand-in readings and that each cost is fed where its work runs; the milliseconds are jsdom's and go nowhere",
         "liveRun": "LIVE-E53-01: perf() and fps() on the GM's and the weakest player's browser, the largest map, both themes, after the table has changed scene into the trial hall and out, opened the case dashboard and seen a sheet write judged"
+      },
+      {
+        "stage": "E53",
+        "version": "1.2.117",
+        "bodySha256": "fb46d56fe233df3b816aa8d0109f3965a89c421c41de1fde437bce6bc5a0e390",
+        "bodyIs": "the 1.2.116 revision's body, unchanged: perf-baseline.mjs perfBodySha over scripts/diagnostics.mjs at tag v1.2.117 gave this sha256 (read 21.11.2026, line STG of 1.2.122; STG-105)",
+        "change": "none - the same body recorded again under the release that serves it, so a sandbox serving 1.2.117 is a run (perf-baseline.mjs: every recorded entry with this checkout's hash counts)"
+      },
+      {
+        "stage": "E53",
+        "version": "1.2.118",
+        "bodySha256": "fb46d56fe233df3b816aa8d0109f3965a89c421c41de1fde437bce6bc5a0e390",
+        "bodyIs": "the 1.2.116 revision's body, unchanged: perf-baseline.mjs perfBodySha over scripts/diagnostics.mjs at tag v1.2.118 gave this sha256 (read 21.11.2026, line STG of 1.2.122; STG-105)",
+        "change": "none - the same body recorded again under the release that serves it, so a sandbox serving 1.2.118 is a run (perf-baseline.mjs: every recorded entry with this checkout's hash counts)"
+      },
+      {
+        "stage": "E53",
+        "version": "1.2.119",
+        "bodySha256": "fb46d56fe233df3b816aa8d0109f3965a89c421c41de1fde437bce6bc5a0e390",
+        "bodyIs": "the 1.2.116 revision's body, unchanged: perf-baseline.mjs perfBodySha over scripts/diagnostics.mjs at tag v1.2.119 gave this sha256 (read 21.11.2026, line STG of 1.2.122; STG-105)",
+        "change": "none - the same body recorded again under the release that serves it, so a sandbox serving 1.2.119 is a run (perf-baseline.mjs: every recorded entry with this checkout's hash counts)"
+      },
+      {
+        "stage": "E53",
+        "version": "1.2.120",
+        "bodySha256": "fb46d56fe233df3b816aa8d0109f3965a89c421c41de1fde437bce6bc5a0e390",
+        "bodyIs": "the 1.2.116 revision's body, unchanged: perf-baseline.mjs perfBodySha over scripts/diagnostics.mjs at tag v1.2.120 gave this sha256 (read 21.11.2026, line STG of 1.2.122; STG-105)",
+        "change": "none - the same body recorded again under the release that serves it, so a sandbox serving 1.2.120 is a run (perf-baseline.mjs: every recorded entry with this checkout's hash counts)"
+      },
+      {
+        "stage": "E53",
+        "version": "1.2.121",
+        "bodySha256": "fb46d56fe233df3b816aa8d0109f3965a89c421c41de1fde437bce6bc5a0e390",
+        "bodyIs": "the 1.2.116 revision's body, unchanged: perf-baseline.mjs perfBodySha over scripts/diagnostics.mjs at 21bf5d18, the 1.2.121 assembly (its tag not yet cut on 21.11.2026) gave this sha256 (read 21.11.2026, line STG of 1.2.122; STG-105)",
+        "change": "none - the same body recorded again under the release that serves it, so a sandbox serving 1.2.121 is a run (perf-baseline.mjs: every recorded entry with this checkout's hash counts)"
       }
     ]
   },

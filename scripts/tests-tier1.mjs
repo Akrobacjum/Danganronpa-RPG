@@ -9208,7 +9208,7 @@ const INVARIANTS = [
         equal(JSON.stringify({ view: map.view, names: missing("names"), actions: missing("actions") }), JSON.stringify({ view: "map", names: [], actions: [] }),
             "{view: the region drawn after the Map button; names: the Table's fields the Map lacks; actions: its row buttons the Map lacks}");
     }],
-    ["R3656 - who has what, by name, on the Map (E97 C7; the owner's Q-A of 11.11 and E47-21): with no node picked the side panel lists each living student by name, under each their Truth Bullets by name and what each really is, then their other items by name; a dead student is not listed", async () => {
+    ["R3656 - who has what, by name, on the Map (E97 C7; the owner's Q-A of 11.11 and E47-21): the Who has what list (`.drpg-case-students`) names each living student, under each their Truth Bullets by name, then their other items by name - names only, the kind drawn beside a bullet is not compared; a dead student is not listed", async () => {
         /*
          * E97 C7, 12.11.2026. Read off the drawn window (opened on the Map) against the world:
          * `livingStudentsForGm`, each one's bullets (truth-bullets.mjs `bulletsOf`) and the rest of their items. Red at
@@ -26104,7 +26104,7 @@ const INVARIANTS = [
             + "not the Eclipse's; micHold in the Spectators' room and in the main room]");
     }],
 
-    ["R815 - the dead channel: a dead student keeps the voice of the room they lie in until the incident ends, the body is found, a GM silences them or a living witness from outside the cast is there; then a secret death talks in the dead channel and a public one in the main room, each room to its account alone, a witness's after the victim's (E19-12 to E19-16)", async () => {
+    ["R815 - the dead channel: a dead student keeps the voice of the room they lie in until the incident ends, the body is found, a GM silences them or a living witness from outside the cast is there; then the dead talk in the Spectators' room, for a public death as for a secret one (E62 C3b; the main room for a public death until then), each room to its account alone, a witness's after the victim's (E19-12 to E19-16)", async () => {
         /*
          * E19 C3, 19.10.2026; S11-26, D8, the owner's A9 of 11.10. Until C3 a death the GMs held sent its account to
          * the main room at the kill (`CLAIM.dead`, "the main room"): every player there heard the victim of a murder
@@ -26349,7 +26349,7 @@ const INVARIANTS = [
             + "as painted, a GM's block there]");
     }],
 
-    ["R832 - a browser asking where its voice belongs is answered in the reconcile's order: while the GMs' cast is not here a kept dead account gets the dead channel (a public death the main room) and a player arriving in its room nothing, in the asking and in the pass; a witness asking inside the witness's wait is sent its room only after the victim's own answer or 1500 ms (E19-13, E19-14; E19 fix r1-G1)", async () => {
+    ["R832 - a browser asking where its voice belongs is answered in the reconcile's order: while the GMs' cast is not here a kept dead account gets the Spectators' room (a public death too, since E62 C3b) and a player arriving in its room nothing, in the asking and in the pass; a witness asking inside the witness's wait is sent its room only after the victim's own answer or 1500 ms (E19-13, E19-14; E19 fix r1-G1)", async () => {
         /*
          * E19 fix r1-G1, 19.10.2026; the review's E19-C3-2, E19-C3-3 and sec-1. Until the fix voice.mjs `onWhoAmI`
          * answered a kept row (an incident running, the cast not here: `deathVoiceGone`'s null) with nothing, so a
@@ -36414,7 +36414,7 @@ const INVARIANTS = [
             "chapterRestStamps's since, the version it ships in");
     }],
 
-    ["R1541 - a failed row of the contract: one permanent GM notice a load naming its target, file:symbol and fallback, and the same rows on Pre-season's checks; every row's file:symbol is a function of that file", async () => {
+    ["R1541 - a failed row of the contract: one permanent GM notice a load naming its target, file:symbol and fallback, and the same rows in the Debug log's Foundry and modules window (season-setup.mjs `foundryReport`; Pre-season's checks until E101); every row's file:symbol is a function of that file", async () => {
         /*
          * E52 C2, 30.10.2026; audit S17-50, E52-05. A failed row's fallback is the one its file has always had
          * (D24 read as Q-6: the register only reads); what C2 adds is that the GMs are told which, once a load,
@@ -36457,12 +36457,12 @@ const INVARIANTS = [
         const failed = await read(mod.runContract({ rows }));
         equal(stableJson(["R1541 target gone", "fog.mjs:registerDoorControls", "R1541 fallback gone", "forced-roll.mjs:loadDie",
             "R1541 fallback two", "R1541 target fine"].map(part => failed.includes(part))), stableJson([true, true, true, true, true, false]),
-            "Pre-season's checks do not list the failed rows with their file:symbol and fallback, or list a row that holds");
+            "Foundry and modules (the Debug log) does not list the failed rows with their file:symbol and fallback, or lists a row that holds");
         const okLine = game.i18n.format("DRPG.Contract.checksAllOk.one", { n: 1 });
         const all = await read(mod.runContract({ rows: [rows[2]] }));
         const blind = await read(mod.runContract({ rows: [row("blind", () => ({ present: null, ours: null }))] }));
-        ok(!okLine.startsWith("DRPG.") && all.includes(okLine) && !all.includes("R1541"), "Pre-season's checks give no green line when every row holds");
-        ok(blind.includes("R1541 target blind") && !blind.includes(okLine), "a row nobody could read is green on Pre-season's checks, or not named there");
+        ok(!okLine.startsWith("DRPG.") && all.includes(okLine) && !all.includes("R1541"), "Foundry and modules (the Debug log) gives no green line when every row holds");
+        ok(blind.includes("R1541 target blind") && !blind.includes(okLine), "a row nobody could read is green in Foundry and modules (the Debug log), or not named there");
 
         // Every row of the register: one symbol per file, each a function its file declares.
         const sources = await moduleSources();
@@ -37248,7 +37248,7 @@ const INVARIANTS = [
         equal(stableJson(["systemWarningSilenced", "recommendsSilenced"].map(id => text.includes(id))), stableJson([true, true]),
             "the report's silences part does not name the live and the stale silence");
     }],
-    ["R1553 - Pre-season's contract lines: each failed row its own line, the rows nobody could read one counted line with their list folded under it (E52 C4, C3's gap; E52-05)", async () => {
+    ["R1553 - the contract lines in the Debug log's Foundry and modules window (Pre-season's checks until E101): each failed row its own line, the rows nobody could read one counted line with their list folded under it (E52 C4, C3's gap; E52-05)", async () => {
         /*
          * E52 C4, 30.10.2026; C3's gap. On the suite's world about two dozen rows of the register cannot be read
          * (checks only a table shows, hooks not seen firing yet) and Pre-season listed every one of them on one
@@ -58726,7 +58726,7 @@ const INVARIANTS = [
         equal(stableJson(["eveningFoldsIntoBoard" in D ? "function" : "undefined", /FoldsIntoBoard/.test(sum), /showDaySummary\(window\)/.test(sum)]),
             stableJson(["undefined", false, true]), "[a fold function exported, sumUp asks a fold, sumUp puts the window up]");
     }],
-    ["R3725 - the clock stamps when the day began (scripts/clock.mjs `setClock`; E94 C3): a write that moves the day sets `dayStartedAt` to the new time of day's own stamp, or the server's clock, unless the write sets it itself; the end-of-day board reads its rows from it", async () => {
+    ["R3725 - the clock stamps when the day began (scripts/clock.mjs `setClock`; E94 C3): a write that moves the day sets `dayStartedAt` to the new time of day's own stamp, or the server's clock, unless the write sets it itself; a late browser's start-of-day board reads it (sequence.mjs `lateSequence`; the end board read its rows from it until F118)", async () => {
         /* E94 C3, 12.11.2026. Red at 7bbbd3c: setClock writes no dayStartedAt. The write itself is tier 2's (tiers 0-1 write no setting). */
         const sources = await moduleSources();
         const set = bodyOf(stripComments(sources.get("clock.mjs") ?? ""), "export async function setClock(", { until: "\nexport " });
@@ -59494,7 +59494,7 @@ const INVARIANTS = [
         }), stableJson({ delays: [hour?.dur ?? -1, 0, 0, 0, 0], waits: true, rows: true, css: true }),
             "[an hour's turn, reduced motion, the switch off, no clock before, no change; sumUp waits; each row its place; the rows' slide and its reduced-motion rule]");
     }],
-    ["R3731 - the end-of-day board's chapter line stands apart from the rest (styles/danganronpa.css; the owner's word of 12.11 on the review page: \"W podsumowaniu dnia powiekszylbym odstep miedzy rozdzialem a reszta\"): below the chapter line the end board adds 22 of the sequence's units to the grid's 14, in both themes; the start board keeps its spacing", async () => {
+    ["R3731 - the end-of-day board's chapter line stands apart from the rest (styles/danganronpa.css; the owner's word of 12.11 on the review page: \"W podsumowaniu dnia powiekszylbym odstep miedzy rozdzialem a reszta\"): since F118 one board at both ends of the day, so the shared rule `#drpg-sequence .drpg-seq-day-sub` puts 22 of the sequence's units below the chapter line, in both themes, and no end board has a rule of its own", async () => {
         /*
          * E94 C3, 12.11.2026. Red at 463d12f: the line stood the grid's 14 units (12 px at 1366x768) from the columns.
          * Measured in Chromium on the glass harness at 1366x768, both themes, EN and PL: 12 px before, 31 px after, the
@@ -59703,7 +59703,7 @@ const INVARIANTS = [
         equal(stableJson({ present, third: /\bisSpectator\(actor\)\)\s*return/.test(third) }),
             stableJson({ present: ["R3852-student"], third: true }), "[who counts in the room; maybeThirdParty passes a Spectator over]");
     }],
-    ["R3853 - a Spectator's microphone is held in every phase (E92 C2; the owner's E92 goal (2)): voice.mjs `micHold` answers `{ reason: \"spectator\", held: true }` for an account whose characters are Spectators, in Daily Life and in the Class Trial alike, and nothing for a student's account", async () => {
+    ["R3853 - a Spectator's microphone (E92 C2; the owner's E92 goal (2); owner-116): voice.mjs `micHold` answers `{ reason: \"spectator\", held: true }` for an account whose characters are Spectators, in Daily Life and in the Class Trial alike, and nothing for a student's account; in the GMs' view (`moduleHoldsMic`) an account with no flag talks in the Spectators' room (\"spectatorTalk\") and one with its listen flag set is the held Spectator (\"spectator\")", async () => {
         /*
          * E92 C0, 12.11.2026. The facts are handed (`micHold` takes them all), so no LiveKit and no world is read.
          * Red on C0's tree: null for the Spectator.
@@ -59807,7 +59807,7 @@ const INVARIANTS = [
         const want = { mode: "spectator", actions: null, calls: false, use: false, levelUp: false, strip: "none", objection: false, tile: false, safeword: true, acts: false, spectator: true };
         equal(stableJson({ owner: read(owner), gm: read(gm) }), stableJson({ owner: want, gm: want }), "[sheetMode of a Spectator for its owner and a GM]");
     }],
-    ["R3860 - the Spectators' room (E92 C6; the owner's 04.11 amend \"a 'Spectator talk' switch moves them to their room until they return\"): voice.mjs `placeVoices` sends a Spectator's account whose switch is on (its own User flag, scripts/spectator.mjs `SPECTATOR_TALK_FLAG`) to voice-client.mjs `SPECTATOR_ROOM`, and back to its token's room when it is off; a student's account with the flag stays in its room; `micHold` opens the microphone in the Spectators' room alone (\"spectatorTalk\", not held) and the voice tile's switch says which way it goes (voice-tile.mjs `paintSpectatorTalk`, round 3; the line under the clock until then)", async () => {
+    ["R3860 - the Spectators' room (E92 C6; the owner's 04.11 amend \"a 'Spectator talk' switch moves them to their room until they return\"): voice.mjs `placeVoices` sends a Spectator's account whose switch is on (since owner-116 its own User flag scripts/spectator.mjs `SPECTATOR_LISTEN_FLAG` absent, the default) to voice-client.mjs `SPECTATOR_ROOM`, and back to its token's room when it is off (the listen flag set); a student's account with the flag stays in its room; `micHold` opens the microphone in the Spectators' room alone (\"spectatorTalk\", not held) and the voice tile's switch says which way it goes (voice-tile.mjs `paintSpectatorTalk`, round 3; the line under the clock until then)", async () => {
         /*
          * E92 C6, 12.11.2026. Stand-in accounts and characters; the room each stands in is handed (`locate`), the deaths
          * answered none. Red before C6: no SPECTATOR_ROOM, the Spectator in its token's room.
@@ -59997,7 +59997,7 @@ const INVARIANTS = [
         equal(stableJson({ drawn, faint, tint, outline, back: token.mesh.alpha }), stableJson({ drawn: true, faint: 0.27, tint: 0xffffff, outline: 0, back: 0.9 }),
             "[dressed; its sprite's alpha for a token of alpha 0.9; its tint; outlines added; the alpha given back]");
     }],
-    ["R3867 - a Spectator observes every secret project, and is nobody's viewer (E92, the owner's DRPG-D1 of 12.11.2026: \"Widzi wszystkie projekty w tym prywatne\"): projects-secrecy.mjs `ownershipMap` gives every Spectator's account OBSERVER beside the viewers handed and every other player NONE; scripts/spectator.mjs `spectatorUserIds` names an account whose every character but a Monokuma is a Spectator, and not one that also plays a student or plays nobody", async () => {
+    ["R3867 - a Spectator observes every secret project, and is nobody's viewer (E92, the owner's DRPG-D1 of 12.11.2026: \"Widzi wszystkie projekty w tym prywatne\"): projects-secrecy.mjs `ownershipMap` gives every Spectator's account, the viewers handed and every other player OBSERVER alike (since S17-31: who sees the row is `canSee`'s), and no GM a row; scripts/spectator.mjs `spectatorUserIds` names an account whose every character but a Monokuma is a Spectator, and not one that also plays a student or plays nobody", async () => {
         /*
          * E92, 12.11.2026. The map is built over the world's users, with the Spectators handed; the census of accounts over
          * stand-ins. What a Spectator's and a student's browsers then hold is scenario 93's ("projects"): a tier-2 test runs

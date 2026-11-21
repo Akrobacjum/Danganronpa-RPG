@@ -359,8 +359,8 @@ async function restore(snap) {
             ...(row.actionsMax === null ? {} : { "system.resources.actions.max": row.actionsMax })
         };
         /* Each flag of this module back as it was: one the world did not have is
-           deleted with v14's forced deletion (`-=key` removes nothing in this
-           Foundry, and a restore that only overwrites leaves a flag the world never
+           deleted with v14's forced deletion (`-=key` is deprecated on v14,
+           LIVE-E30-01, and a restore that only overwrites leaves a flag the world never
            had), one that changed is written back whole - an object with v14's forced
            replacement, which a plain write would merge into - and one that matches
            is not written at all. */
@@ -17939,7 +17939,7 @@ const SCENARIOS = [
         }
     }],
 
-    ["E120 - the lights veil only a killer they can still open, and lift one they cancel before they judge the next: never a killer the room alone cancels", async () => {
+    ["1.2.121 the lights veil only a killer they can still open, and lift one they cancel before they judge the next: never a killer the room alone cancels", async () => {
         /*
          * 1.2.121 line M2; the audit's DOC-01 (audit/findings-1.2.118, first-session old-1.1.88-1.2.13-A obs1, re-checked
          * open on 1.2.119). `endEclipse` veiled every declaration's killer before the lights judged (mask-gm.mjs
@@ -18021,7 +18021,7 @@ const SCENARIOS = [
             + "in order, each write of the veil to either killer's tokens and each card to either killer's player; a veil left on either)");
     }],
 
-    ["E120 - the masks end before every write of a day's board stamp, so the chapter end's next morning outside a trial draws no masked killer on either board", async () => {
+    ["1.2.121 the masks end before every write of a day's board stamp, so the chapter end's next morning outside a trial draws no masked killer on either board", async () => {
         /*
          * 1.2.121 line M2; the audit's STG-03 residue and N119-5 (two readers): End chapter with "next morning" moves the
          * clock through clock.mjs `setTimeOfDay` with the start board's stamp and the end board's (chapter.mjs, the
@@ -18164,7 +18164,7 @@ const SCENARIOS = [
             "a reader outside the mask was sent the killer's name, or not sent the words ([sent, the name in it]: asked while the mask stood; after it ended with the time of day; the killer's own player after; the card rewritten after; a card under a mask the killer revealed)");
     }],
 
-    ["E120 - a Monocub's Ghost Bet and a GM's Bounty on a masked student name them \"?\" to the Monocub's player while the mask stands and after it ends, until the killer reveals themselves", async () => {
+    ["1.2.121 a Monocub's Ghost Bet and a GM's Bounty on a masked student name them \"?\" to the Monocub's player while the mask stands and after it ends, until the killer reveals themselves", async () => {
         /*
          * 1.2.121 line M1 (21.11.2026), the audit's N119-2 and N119-3 (recheck-119.json; COMM-19's and COMM-24's residue).
          * A Monocub's Ghost Bet picker names a masked student "?" (monocub.mjs CUB_TARGETS.student, `nameAsSeen`), and a
@@ -18263,7 +18263,7 @@ const SCENARIOS = [
         }), "the Monocub's player was given the masked student's name, or not given the control's (the copy's Bounties and bet: while the mask stands, after the time of day ended it, after the killer revealed themselves; the cards to that player: [sent, the name in them] while it stands and at the lapse after it ended)");
     }],
 
-    ["E120 - a room action used beside a killer veiled for the opening leaves the killer out of what its user is told, card and answer, and names them once the veil is lifted", async () => {
+    ["1.2.121 a room action used beside a killer veiled for the opening leaves the killer out of what its user is told, card and answer, and names them once the veil is lifted", async () => {
         /*
          * 1.2.121 line M1 (21.11.2026), the audit's N119-1 (recheck-119.json; MAP-16's residue). While a direct murder waits
          * on its opening the killer is veiled (mask-gm.mjs `veilWanted`): the victim's browser does not draw them, and the
@@ -19167,15 +19167,16 @@ const SCENARIOS = [
             "a student who is no Monocub was not refused before the run, or a die was drawn or a Confusion armed (codes told, answered, dice drawn, Confusions armed)");
     }],
 
-    ["a target in another room is refused on the GM - said and not refunded", async () => {
+    ["a target in another room is refused on the GM - said, and nothing paid", async () => {
         /*
          * E33 C10; the plan's 2.7 and ACT-12. The packet's `targetId` is a claim the run holds to
          * the row's `CUB_TARGETS` rule with the world as the GM holds it (monocub.mjs
          * `cubAbilityOnGm`): a Monocub alone in a room with one student names a third, who stands
          * elsewhere. The guards pass (a Monocub, a row, a choice); the run refuses before the
          * dice, answers no roll (fix r2-H7), logs it and whispers the Monocub - and writes
-         * nothing on the Monocub: this side cannot see that anything was paid, so a refund here
-         * would be Hope minted for a forged packet. Read: the codes told (none: the guards
+         * nothing on the Monocub: since E72 C1 nothing is paid before the GM's conditions hold
+         * (monocub.mjs, "PAID ON THE GM, AFTER THE CONDITIONS"), so there is nothing to give back,
+         * and a refund here would be Hope minted for a forged packet. Read: the codes told (none: the guards
          * passed), the answer (done, no roll), the dice drawn, the Monocub's Hope after, and
          * whether its player was whispered the refusal.
          */
@@ -51747,7 +51748,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const offTurn = game.i18n.localize("DRPG.Murder.offTurn");
         const read = actor => {
             const tile = actionButton(actor, "directMurder", ACTIONS.directMurder);
-            return [(tile.querySelector(".drpg-action-name")?.textContent ?? "").replace(/[­​]/g, "").trim(),
+            return [(tile.querySelector(".drpg-action-name")?.textContent ?? "").replace(/[\u00AD\u200B]/g, "").trim(),
                 Boolean(tile.querySelector(".drpg-action-cost")), Boolean(tile.querySelector(".drpg-action-gm")),
                 tile.dataset.drpgCostKind ?? null, tile.getAttribute("aria-disabled") === "true",
                 tile.classList.contains("unaffordable"), (tile.dataset.tooltip ?? "").includes(offTurn)];
@@ -53373,8 +53374,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         /*
          * E30, 24.09.2026; audit S17-01 and S05-43. A trace from before the ledger kept
          * its answer key in flags on its token. `migrateRemnants` moved the key into the
-         * ledger and stripped the token with `-=` keys, which remove nothing in this
-         * Foundry (the module's own notes; LIVE-E30-01 confirms it on v14) - while its
+         * ledger and stripped the token with `-=` keys, which the module's own notes
+         * measured removing nothing (LIVE-E30-01 read 14.370 deleting them, with v14's
+         * deprecation warning, 16.11.2026) - while its
          * summary said "stripped" - and a second run, finding the flags still there,
          * wrote them over the ledger row and the GM's corrections with it. The strip is
          * read back now, and a live row is only filled in, never overwritten. Fixture
@@ -89932,6 +89934,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const clockBefore = foundry.utils.deepClone(getClock());
         const storedRecord = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
         const activeBefore = game.scenes.active ?? null;
+        /* THE SCENE ON VIEW PUT BACK (1.2.122, DOC-07). On the owner's sandbox (claude/e58-local LOCAL-REPORT.md, 17-18.11.2026)
+           this test left the GM viewing the new hall it deleted ("state:viewedScene SCENEACADEMY0000 -> <the hall>", or null),
+           and 17, then 49, tests after it skipped for want of a scene on screen: a real v14 moves a GM's canvas with the
+           active scene, which the harness's does not, so the leftover was never read headless. */
+        const viewedBefore = canvas?.scene ?? null;
         const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
         must(!of("drpg-window-season").length, "Season setup stands open already");
         must(!clockBefore.eclipse, "an Eclipse holds the trial shut");
@@ -89982,6 +89989,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await game.settings.set(MODULE_ID, "sceneRoles", rolesBefore);
             R.forgetSceneRoles();
             if (activeBefore && !activeBefore.active) await activeBefore.activate();
+            if (viewedBefore && canvas?.scene?.id !== viewedBefore.id && game.scenes.get(viewedBefore.id)) await viewedBefore.view();
             await oldHall?.delete();
             await newHall?.delete();
             await settle();
@@ -106775,7 +106783,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             debate: ["debate", false, true, 0]
         }), "[road, answered, the clock as it was, public cards] per press; [the floor's target, the card's target id and name, its who line, the receipt's target]; the last card names both and is public");
     }],
-    ["E110-T2 - the modes mute who may not speak and give back exactly what they took (E110 C2): an Objection blocks every player but the objector's, its Rebuttal gives the target back, a Panic Round writes only the speaker who stops and the one who starts, the floor's end gives everything back; a GM's hand block and a Monocub are never touched; a block left standing after a crash is given back at the primary's next settle, and by the season reset's release (E110-05 to E110-09)", async () => {
+    ["E110-T2 - the modes mute who may not speak and give back exactly what they took (E110 C2): an Objection blocks every player but the objector's, its Rebuttal gives the target back, a Panic Round writes only the speaker who stops and the one who starts, the floor's end gives everything back; a GM's hand block is never touched, and a Monocub is muted by a mode as a student is (D-E110-A); a block left standing after a crash is given back at the primary's next settle, and by the season reset's release (E110-05 to E110-09)", async () => {
         /*
          * E110 C2, 14.11.2026. Read on this primary, the clock written raw and the trial's voices settled by hand as the
          * entry and the primary's hooks settle them (voice.mjs `settleTrialVoices`, E70-T8's shape). Four players whose
@@ -106889,21 +106897,26 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await gmStoresIdle();
             await settle();
         }
-        const m = M ? ["open"] : [];
+        /* M, a Monocub from before the trial and named by no floor, is muted by every mode as H is in its own step
+           (D-E110-A) - one more write when a mode blocks M and one when the floor's end gives M back. Until 1.2.122 (STG-94)
+           this expected M open throughout, which the settle never did: read with a fourth connected player (a scratch
+           scenario of run-tests with p4 owning Daichi, 21.11.2026), M "blocked" in the Objection, its Rebuttal, the Monocub
+           step, the Panic Round and its turn, and the writes one more at the Objection, the end, the Monocub step and the Panic. */
+        const m = state => (M ? [state] : []), w = n => n + (M ? 1 : 0);
         equal(stableJson(read), stableJson({
-            entry: ["open", "open", "gm", ...m],
-            objection: [1, ["open", "blocked", "gm", ...m], "objection"],
+            entry: ["open", "open", "gm", ...m("open")],
+            objection: [w(1), ["open", "blocked", "gm", ...m("blocked")], "objection"],
             line: "floorHeld",
-            rebuttal: [1, ["open", "open", "gm", ...m]],
-            end: [0, ["open", "open", "gm", ...m], 0],
+            rebuttal: [1, ["open", "open", "gm", ...m("blocked")]],
+            end: [w(0), ["open", "open", "gm", ...m("open")], 0],
             // D-E110-A (the owner, 14.11.2026: "W tych trybach monocuby tez maja byc wyciszane"): a Monocub is muted by the mode too.
-            monocub: [2, ["open", "blocked", "blocked", ...m], true],
-            panic: [1, ["open", "blocked", "gm", ...m], true],
-            turn: [2, ["blocked", "open", "gm", ...m], true],
-            crashed: ["blocked", "open", "gm", ...m],
-            ready: [["open", "open", "gm", ...m], 0],
-            release: ["open", "open", "gm", ...m],
-            exit: [["open", "open", "gm", ...m], 0]
+            monocub: [w(2), ["open", "blocked", "blocked", ...m("blocked")], true],
+            panic: [w(1), ["open", "blocked", "gm", ...m("blocked")], true],
+            turn: [2, ["blocked", "open", "gm", ...m("blocked")], true],
+            crashed: ["blocked", "open", "gm", ...m("blocked")],
+            ready: [["open", "open", "gm", ...m("open")], 0],
+            release: ["open", "open", "gm", ...m("open")],
+            exit: [["open", "open", "gm", ...m("open")], 0]
         }), "per step [user writes, each player's microphone (O, B, H with a GM's block, M a Monocub): blocked by the trial, a GM's block, open, the floor's mode or holder]");
     }],
     ["E110-T3 - the review's gaps on the primary (E110 C3): the vote's opening ends a Panic Round and a Scrum Debate as it ends a Closing; a mode opened takes back a Straw Poll's split, so the console's next step is no longer Scrum Debate; a Scrum speaker's Done (trial.turn's run) hands the turn to the other camp and a stale or another's Pass moves nothing", async () => {

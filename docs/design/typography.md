@@ -86,7 +86,12 @@ sidebar, chat and settings windows, exactly as it has always done under the
 glass. Every rung is N/16 rem, which is the value Foundry and Daggerheart already
 state, so at 100 % the block changes nothing.
 
-## Legacy's floor is 10px, and it is per rung
+## Legacy's floor is per rung: 11px from rung 11, a smaller rung at its own size
+
+Corrected 21.11.2026 (UI-36). This section was written when the floor was 10px; since E48 K6 (S12-41)
+`--drpg-text-xs` and the rungs 11 to 14 floor at 11px (`min(11px, the rung)`, R3500, R6754), and only rungs 8 to 10
+stop at their own size, rung 10 at 10px (styles/danganronpa.css, the Legacy body's `--font-size-*`). The reasoning
+below is kept as it was written; read its "10px" as rung 10's.
 
 The 11px above is VT323's floor and the glass's. Press Start 2P is a bitmap face
 drawn on an 8px grid, and the smallest size this module states for it is 10px -

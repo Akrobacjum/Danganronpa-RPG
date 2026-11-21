@@ -382,7 +382,7 @@ The ten tiles on the sheet, in the order they are drawn:
 
 **Who picks the statistic.** A roll whose definition lists one statistic rolls it and asks nobody. When an action lists several, the player proposes one in the action's window, under the choices (*Which statistic do you propose?* and *How do you do it? (optional)*), and may say how; you rule on one card in their thread: **Approve** it, **Change to** another on the roll's list (the card offers no other), or **Refuse**. When you roll for a character yourself, a window on your own screen offers **Approve**, a **Change to** for each other listed statistic and **Cancel**, which rolls nothing; it has no **Refuse**. Nothing is spent before you answer, and a refusal costs nothing, with one exception: a killer's Direct Murder spends its action when it is declared, so **Refuse** on its card does not give that action back.
 
-After a **Change to**, the player's window says what you changed it to and offers **Roll** with that statistic or *I'll pass (nothing spent)*; a pass leaves one line in their thread, and in a fight the crisis menu opens again. The roll window then opens on your answer, locked: *Approved by the GM.*, *Changed by the GM.* or, when the player proposed nothing, *Chosen by the GM.* Who picks, roll by roll:
+After a **Change to**, the player's window says what you changed it to and offers **Roll** with that statistic or *Pass*; a pass leaves one line in their thread, and in a fight the crisis menu opens again. The roll window then opens on your answer, locked: *Approved by the GM.*, *Changed by the GM.* or, when the player proposed nothing, *Chosen by the GM.* Who picks, roll by roll:
 
 | Roll | Statistics it lists | Who picks |
 |---|---|---|
@@ -500,7 +500,7 @@ A GM spends Despair Calls from a Monokuma's sheet, out of the pool that Monokuma
 | Patronage | 3 | Add 2 progress to a project |
 | Pain | 4 | A player loses 2 Health |
 | Silence | 4 | One player cannot spend Hope Calls until the end of the time of day |
-| Contraband | 4 | Destroy any one item |
+| Contraband | 4 | Destroy any one item but a Truth Bullet |
 | Public Announcement | 6 | Call everyone to one room at the start of the next time of day |
 | Motive | 6 | Announce a motive: a demand, a deadline in times of day, and the price of ignoring it |
 | New Rule | 9 | Introduce one new killing game rule |
@@ -563,12 +563,12 @@ The setting **Lock players' resources on the sheet** governs all of this for the
 
 **Despair Flow** (GM panel > Between sessions > Season setup) is the one window for the GM team. Its four tabs:
 
-- **Pools**: the pools' names, and extra pools: **Add pool** grants one to an Assistant GM, **Remove pool** takes it back.
+- **Pools**: the pools' names, and extra pools: **Grant pool** grants one to an Assistant GM, **Revoke pool** takes it back.
 - **Monokumas**: which GM's pool each Monokuma draws on. Who is a Monokuma is set in the Students window's **Role** column (the column: section 3; marking a Monokuma: section 8).
 - **Students**: which Monokuma watches which student, with **Split evenly** and **- nobody -**. A student never assigned feeds the first pool, and its select says *(fallback)*. **Save** writes only the rows you changed or set before, so a fallback stays one.
 - **Overflow**: the Overflow's threshold and effects (below).
 
-The guide (the game's own rulebook, which the module follows) is shaped for at least two GMs who divide the students strictly between them, but the module works with one. With one GM and no Assistant GM to grant a pool to there is nothing to choose, so the window opens on **Overflow** and folds the other three tabs behind **Show pools, Monokumas and students**.
+The guide (the game's own rulebook, which the module follows) is shaped for at least two GMs who divide the students strictly between them, but the module works with one. With one GM and no Assistant GM to grant a pool to there is nothing to choose, so the window opens on **Overflow** and folds the other three tabs behind **Show pools, Monokumas, and students**.
 
 **Converting Despair into Hope** (1:1) is a GM ruling, never a self-service button. It is how a Monocub is fueled and how a Mastermind stays afloat. There are two roads, and both credit the Hope the same way, with a private card to the receiver that names the paying pool:
 
@@ -610,7 +610,7 @@ On Despair Flow's **Overflow** tab the threshold stands above two tables of the 
 
 Players see the pools' counts and the Overflow's threshold, but a "?" in place of its count ("?/20"): when the Overflow fires stays Monokuma's to know. Only the GMs hold the count, and Despair Flow shows it to you (technical notes: section 22).
 
-**Clearing it yourself.** **Clear the overflow**, under the count on the Overflow tab, asks first (**Cancel** is the default), then sets the spilled Despair back to 0, whichever GM presses it. A darkening already drawn stays until its time of day ends.
+**Clearing it yourself.** **Clear the Overflow**, under the count on the Overflow tab, asks first (**Cancel** is the default), then sets the spilled Despair back to 0, whichever GM presses it. A darkening already drawn stays until its time of day ends.
 
 ---
 
@@ -722,7 +722,7 @@ Two regions with the same name are one room (a corridor drawn in two pieces): a 
 | Stashes | Who has a stash in which room and whether it is hidden. Click a cell to cycle none / open / hidden; the legend over the table shows the three, and a shaded cell is the owner's own bedroom. The students head the columns, each name on up to two lines and whole in its tooltip when cut, as on the Fog tab. A bedroom gives its owner an open stash whichever way you set it up: the room marked and given to a student in either order, in one Apply or in two, and Apply pressed on this tab without touching a cell (a cell you did not change is left as it was). When a bedroom is given to someone else, the old owner keeps their stash and what is in it, and the new owner gets their own open stash in the room. A stash in somebody else's room gives no key to it. A stash with something in it cannot be removed; removing an empty one makes everybody who had located it forget it |
 | Description | **What it looks like**: the room in your words, plain text shown as typed, an empty line starting a new paragraph. **Picture**: one picture from this server's files or, on The Forge, from your Assets Library (not from S3) - jpg, png, webp or avif - chosen with the picker or removed; any other path is not saved, and you are told so. A picture over 4096 px on a side or 8 MB is flagged in its cell (*This picture is large and slow to load for every player: ...*), as is one that does not load (*This picture does not load. Pick the file again.*); neither stops Apply. Both show on the room tile (below) |
 | Fog | The discovery matrix (which rooms each character has already seen on this scene) with **Discover all** and **Hide all** over it, which tick or clear every box (nothing changes until Apply), the percentage of the scene that belongs to no room, and the region check |
-| Scenes | Not a tab of Room setup: **Season setup** holds this part, under **Scenes**, the same on every scene. It links the season's two scenes once: the **School** and the **Trial hall** (a scene of its own; the two must differ, and Season setup's **Save** waits until they do). It also holds the hall's cast (a table with a switch per character under **Takes part**, and **Token in the hall** where a token of yours stands there), the hall's **Name**, **Picture** and **Description** for the room tile in a trial, and **Prepare the hall on Save** (section 15.1) |
+| Scenes | Not a tab of Room setup: **Season setup** holds this part, under **Scenes**, the same on every scene. It links the season's two scenes once: the **School** and the **Trial hall** (a scene of its own; the two must differ, and Season setup's **Save** waits until they do). It also holds the hall's cast (a table with a switch per character under **In the hall**, and **Token in the hall** where a token of yours stands there), the hall's **Name**, **Picture** and **Description** for the room tile in a trial, and **Prepare the hall on Save** (section 15.1) |
 
 **The room tile.** Every player's screen has a room tile under the clock. It shows the room their own character stands in: its name, its Search Tokens left, **You can work a project here** when it holds a project they can work on, your **Picture** across the tile behind the name, and your words behind **Read more**; on a narrow screen a small picture and a **Description** window. Your own screen has it too, for the room your Monokuma stands in. During a Class Trial it shows the trial hall (section 15.1). Clicking the clock prints the room's words too. The Player Handbook's section 3 shows the tile as a player sees it.
 
@@ -1198,7 +1198,7 @@ The **incident tracker** (the Murder tile while one runs) updates live and keeps
 
 Stage 6 begins by itself after a Finishing Blow, a victim run out of Health and Sanity, a successful Survive or Escape Together, or straight after a death by their own hand. It also begins when you mark the victim dead with **A character dies** and accept the prompt that follows. A player's Reroll on a crisis action is judged against the record the tracker keeps; a Reroll of an action that killed somebody is refused, and the death stands.
 
-On the sheet the fight is one tile: **Fight back** on the victim's side, **Crisis actions** on the others, marked free and with no GM chip; off-turn it is dimmed and says whose turn it is. Its menu lists the side's actions. Picking one unfolds what it costs, which statistics it rolls and what a miss does, with a field under it, where it lists several, to propose one and say how. **Roll** carries the proposal to the GM's card (a GM rolling for a character answers in their own window) and then goes on to the roll window; a take that needs no roll says **Do it** instead.
+On the sheet the fight is one tile: **Fight Back** on the victim's side, **Crisis Actions** on the others, marked free and with no GM chip; off-turn it is dimmed and says whose turn it is. Its menu lists the side's actions. Picking one unfolds what it costs, which statistics it rolls and what a miss does, with a field under it, where it lists several, to propose one and say how. **Roll** carries the proposal to the GM's card (a GM rolling for a character answers in their own window) and then goes on to the roll window; a take that needs no roll says **Do it** instead.
 
 ### 13.3 Cleaning up (Stage 6) and Tamper
 
@@ -1246,7 +1246,7 @@ A failure lets the others see roughly what they are up to.
 
 ### 13.4 After the incident, and body discovery
 
-Closing the murder tells each of its players that it is over, in a card that names nobody, and a living victim that they can act again; a direct murder's victim during the opening roll, and a trap's builder before Stage 6, are told nothing. Only an incident that left a body records the **Blackened**, the killers the chapter's Class Trial is to find (every killer of the chapter, including a betrayer), and one that reached Stage 6 breaks the weapons swung (13.3). With a body, closing opens the after-incident screen, *The incident is over - what now*: **Body found** (announce it), **Move to Investigation**, **Issue Autopsy Truth Bullet**, and the betrayal if one is on offer; it also reminds you how many Key Remnants still need placing, and to issue the autopsy. Without a body nobody is Blackened: after Escape Together you get the escape's own screen, after another survival a short one saying so with a button to the Remnants, and an incident closed before Stage 6 says it was interrupted and nobody died.
+Closing the murder tells each of its players that it is over, in a card that names nobody, and a living victim that they can act again; a direct murder's victim during the opening roll, and a trap's builder before Stage 6, are told nothing. Only an incident that left a body records the **Blackened**, the killers the chapter's Class Trial is to find (every killer of the chapter, including a betrayer), and one that reached Stage 6 breaks the weapons swung (13.3). With a body, closing opens the after-incident screen, *After the incident*: **Body found** (announce it), **Move to Investigation**, **Issue Autopsy Truth Bullet**, and the betrayal if one is on offer; it also reminds you how many Key Remnants still need placing, and to issue the autopsy. Without a body nobody is Blackened: after Escape Together you get the escape's own screen, after another survival a short one saying so with a button to the Remnants, and an incident closed before Stage 6 says it was interrupted and nobody died.
 
 **Body discovery** is asked of you when two or more students stand in the room where this chapter's body lies (its body tile, or its token while it has none), at least one of them <ins>unconnected to the killing</ins>: neither a recorded Blackened nor a killer of the running incident still cleaning up in Stage 6. Killers over their own victim are a frame-up, not a discovery, and Monokumas and the dead, Monocubs among them, are not witnesses. It is never asked during an Eclipse. You can also start it with the **Body found** button.
 
@@ -1351,7 +1351,7 @@ The plan is the GMs' (section 14.8) and is kept a chapter at a time: each chapte
 
 ### 14.5 Realization and planned evidence
 
-**Realization preview** changes nothing: it lists each Key Remnant slot not yet on the map, and you pick a room for each one to place. A slot's planned room (the room picker beside its **Place**, on the Map and in the Table) is the first choice there and in **Place**; a planned room the scene no longer has is said in one line, and you pick another. A slot also plans its visibility, who left it and its picture: **Place** starts on that visibility, and the realization places the slot with all of them. A slot with no room is named under the Map's consistency check.
+**Preview realization** changes nothing: it lists each Key Remnant slot not yet on the map, and you pick a room for each one to place. A slot's planned room (the room picker beside its **Place**, on the Map and in the Table) is the first choice there and in **Place**; a planned room the scene no longer has is said in one line, and you pick another. A slot also plans its visibility, who left it and its picture: **Place** starts on that visibility, and the realization places the slot with all of them. A slot with no room is named under the Map's consistency check.
 
 **Run realization** places the slots as the planner's **Place** does and marks each in your case. **Undo realization**, in the same window once a run has placed something, asks first, removes only what nobody has found and Monokuma has not revealed, and frees its slot. When a body is found, the primary GM is asked once a chapter whether to open the preview, if the chapter has a case planned and its realization has not run; nothing is placed by itself.
 
@@ -1720,7 +1720,7 @@ The **Sound** window (Right now > Sound) has three tabs for a GM: **Play**, **Mu
 
 **The murder row** stands outside that order, whatever the switch says. It plays one track off its playlist, the same one for everybody in the incident, only in the browsers of the incident's participants and the GMs, so nobody else learns from the music that a murder is happening; a trap's builder, somewhere else, hears nothing. There it silences the room's music until the incident ends: a player hears the room's music pause and pick up again where it stopped, and a GM hears it turned down. The track plays on the Music channel at its own volume, so each player hears it at their own Music volume. A track that will not load leaves the room's music playing, and the next incident tries it again. Left empty, an incident holds whatever was playing.
 
-**Every change saves as you make it.** The window has no Apply: a Music row says *Saving...*, then *Saved* (or *Not saved. See the console.*), and every tab ends in one **Close**. The mapping is the world's, so any GM may change it, and the table's music follows within a few seconds. Two GMs saving different rows in the same moment both keep theirs. With the window open on two GMs' screens, open it again to see the other GM's changes. The **"Situational"** playlist is the Play tab's cue source alone, and no Music row offers it.
+**Every change saves as you make it.** The window has no Apply: a Music row says *Saving...*, then *Saved* (or *Not saved. See the console.*), and every tab ends in one **Close**. The mapping is the world's, so any GM may change it, and the table's music follows within a few seconds. Two GMs saving different rows in the same moment both keep theirs. With the window open on two GMs' screens, the Music rows and the Effects table show the other GM's changes at once; the two switches, **Music follows the game state** and **Vary the sounds you hear often**, show them only when the window is opened again. The **"Situational"** playlist is the Play tab's cue source alone, and no Music row offers it.
 
 Two **volume sliders** belong to each browser, in the gear's settings window (section 18), a player's as a GM's. *Sound* is for the effects, as a plain percentage. *Music* is Foundry's own playlist volume rather than a second one, drawn on Foundry's scale, so it should read the number Foundry's playlist slider reads. A GM finds the table-wide switch **Vary the sounds you hear often** on the Effects tab, beside the note on the *varies* chip: a frequent sound comes out slightly different each time.
 
@@ -2150,7 +2150,7 @@ A conversion's Despair waits as a row of the GMs' store `despairOwed` and is pai
 
 Despair past a full pool used to evaporate before the Overflow existed. Since 1.2.64 the Overflow's count is kept by the GMs (section 14), so a player's console reads no more of it than the screen shows. The world holds only what the GM changed from config.mjs's defaults: the threshold, and each effect's `on` and `by`. So a later update's defaults still reach a world. The five room-action states (Lockdown to Power cut) joined the draw later, ticked: before them each of the older eight effects came up 1 time in 8, and unticking the five keeps that draw.
 
-**Clear the overflow** is carried out by the primary GM's browser, whichever GM presses it; with no primary GM connected, the GM who pressed it clears it.
+**Clear the Overflow** is carried out by the primary GM's browser, whichever GM presses it; with no primary GM connected, the GM who pressed it clears it.
 
 ### 22.8 Monokuma, Monocubs and the Mastermind
 
