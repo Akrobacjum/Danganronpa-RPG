@@ -28,8 +28,6 @@ import { stepper, stepperId, drpgWindow, drpgConfirm, formGrid, helpText, box, r
 import { alreadyOpen, RAISED } from "./live.mjs";
 import { trialScene } from "./rooms.mjs";
 
-// E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
-
 
 /**
  * WHETHER AN EDIT CAMPAIGN WRITE IS A CORRECTION OF THE HOUR, NOT THE HOUR PASSING (E11 C6, 1.2.73; audit

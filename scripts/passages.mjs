@@ -11,8 +11,8 @@
  * GM's browser reads the GMs' records instead. Nothing here writes a document, a flag or a
  * setting but the copy's own key, and nothing of a passage is put in the page.
  *
- * A LEAF (the E79 plan's R560): it imports rooms.mjs, the GM stores, settings.mjs, utils.mjs
- * and config.mjs and nothing else - never movement.mjs, which reads it (C3), and not the
+ * A LEAF (the E79 plan's R560): it imports rooms.mjs, the GM stores, utils.mjs and config.mjs
+ * and nothing else - never movement.mjs, which reads it (C3), and not the
  * bridge, whose `replyForMe` rule the receiver below spells out with the primary GM's own.
  *
  * What a console on a player's browser can do with it: write its own copy, which changes only

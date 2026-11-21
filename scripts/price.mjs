@@ -190,8 +190,11 @@ export function quotePrice(actor, key, { skip = [] } = {}) {
  * quote and this call a player can spend the action on another tile, a Monokuma
  * can take the Hope, and a concealment roll can take the Sanity the price was
  * going to use - so what is charged is whatever the chain can pay at the moment
- * of paying. Two windows open at once therefore pay two different steps rather
- * than the same step twice. `null` means it could pay nothing.
+ * of paying. On a GM's browser two windows open at once therefore pay two
+ * different steps rather than the same step twice (`meansWrite` is the GM's queue,
+ * sheet-audit.mjs `gmMeansWrite`); on a player's it reads the sheet with no queue,
+ * so two presses a round trip apart pay two steps and two begun before the first
+ * write lands read the same Hope - not measured. `null` means it could pay nothing.
  *
  * `quiet` is for the one caller that charges somebody else's character on the
  * primary GM's client (the Objection): the pip sound and any warning belong on

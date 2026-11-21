@@ -71,7 +71,8 @@ export const STYLE_SURFACES = [
     { id: "hud", role: "both", selector: "#drpg-hud" },
     { id: "player-status", role: "both", selector: "#drpg-player-status" },
     /* The window kit (E44 C3a, ui-kit.mjs and components.css): each component once, as the style harness's kit gallery
-       (`?kit=1`) draws it with the kit's own builders, until E21 moves the module's windows onto it. */
+       (`?kit=1`) draws it with the kit's own builders, and since E21 (C5a, C6a) the module's own windows, which stand
+       on the kit's frame, so these rows read real windows too. */
     { id: "kit-window", role: "both", selector: ".application.drpg-ui" },
     { id: "kit-content", role: "both", selector: ".application.drpg-ui > .window-content" },
     { id: "kit-body", role: "both", selector: ".application.drpg-ui .drpg-kit-body" },

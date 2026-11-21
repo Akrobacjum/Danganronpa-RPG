@@ -15,8 +15,9 @@ import { log, plural, forcedDeletion, listOf } from "./utils.mjs";
 /**
  * Does this character still need the starting maxima?
  *
- * BELOW the starting numbers, not different from them (17.09, SEASON-01). A Level Up
- * writes +1 Health or +1 Sanity onto the maximum, so strict equality called every
+ * BELOW the starting numbers, not different from them (17.09, SEASON-01). An advance
+ * can raise a maximum (a statistic's point, level-up.mjs; until DA39 a Level Up's +1
+ * Health or +1 Sanity), so strict equality called every
  * advanced student "not set up": the season checklist listed them, the sheet offered
  * its set-up wand, and one Do it put the maximum back to the start, zeroed the damage,
  * reset Hope and re-stamped the season's baseline - the advance gone without a word.

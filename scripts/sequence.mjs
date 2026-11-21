@@ -1238,7 +1238,7 @@ export function onPhaseChanged(phase, clock = getClock()) {
  * theirs, as it never reached them live), a GM's case summary card (its board, `caseBoard`, at the message's time) and the start-of-day board (a day the real roll-over stamped, `dayBoard`, at
  * `dayStartedAt`; a correction writes no stamp and plays nothing, as live). An event counts while `now` is under
  * `LATE_PLAY_MS` after it - one stamped a little ahead of this browser's server time is the writer's skew, and new - and
- * when `played` (this browser's record) does not hold it. Every connected browser plays these three live, the GMs, the
+ * when `played` (this browser's record) does not hold it. Every connected browser plays these four live, the GMs, the
  * dead and a Spectator included (Q-E61-9; a Spectator's start-of-day board is everybody's), so the gate is the one the
  * live hooks have: what reached this browser. Pure. Answers `{ kind, key, at, message? }` or null. R4934.
  */

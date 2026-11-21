@@ -33,8 +33,6 @@ import { WORLD_SECRET_RULES } from "./world-secrets.mjs";
 import { plainWhat } from "./relay-guard.mjs";
 import { keepRoom } from "./notice-history.mjs";
 
-// E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
-
 const isPlain = o => o !== null && typeof o === "object" && !Array.isArray(o);
 
 /* ---------------------------------------------------------------------------

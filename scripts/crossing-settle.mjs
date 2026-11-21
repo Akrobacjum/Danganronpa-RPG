@@ -57,7 +57,8 @@ function settle(actorId, entry, roomNow) {
     Hooks.callAll(CROSSING_SETTLED, event);
 }
 
-/** Drop every crossing waiting to settle (the suite's put-back, a world's reset). Answers how many were dropped. */
+/** Drop every crossing waiting to settle - the suite's put-back alone (tier 2; the season's reset does not call it).
+ *  Answers how many were dropped. */
 export function forgetSettling() {
     for (const entry of waiting.values()) clearTimeout(entry.timer);
     const n = waiting.size;

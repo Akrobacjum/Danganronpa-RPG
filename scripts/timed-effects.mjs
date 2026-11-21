@@ -11,12 +11,13 @@
  *
  *   - `timeOfDay`: when the time of day it was given in ends (`mark`, facilities.mjs `facilityMark`) - with an Eclipse,
  *     as it starts;
- *   - `day`: when the clock's day changes (`day`, `dayMark`) - with an Eclipse, as Night's starts.
+ *   - `day`: when the clock's day changes (`day`, `dayMark`), on the advance into Morning - with an Eclipse, as the
+ *     Morning Eclipse starts (an Eclipse is named by the time of day it leads into: eclipse.mjs `eclipseLabel`).
  *
  * WHEN IT ENDS. On the primary as an Eclipse starts (`endAtEclipseStart`, A113-C2-6: the one boundary, read on the
  * clock the Eclipse leads into) and at `drpgTimeOfDayChanged` (`endTimedEffects`): each row past its end is taken back
- * (`KINDS[kind].take`) and dropped; a row that lasts until an Eclipse at its end (`endEclipseEffects`). Those two are
- * the only callers of `endTimedEffect` outside the tests (through `endAtEclipseStart` too): no window, button or game.drpg command ends a row by hand
+ * (`KINDS[kind].take`) and dropped; a row that lasts until an Eclipse at its end (`endEclipseEffects`). Those three -
+ * `endTimedEffects`, `endAtEclipseStart` and `endEclipseEffects` - are the only callers of `endTimedEffect` outside the tests: no window, button or game.drpg command ends a row by hand
  * (A113-C6-5, 13.11.2026; this line said "a GM may end one by hand" until then). A GM who edits a trait the row raised
  * back to its number by hand does not end the row, and its end takes the bonus again from whatever the sheet holds:
  * measured headless on 13.11.2026, a +2 on a trait of 0, edited back to 0, read -2 after `endTimedEffect`.
@@ -373,8 +374,8 @@ function onTimedSocket(payload, senderId) {
  * with an Eclipse is its END - so a +2 Body bought in the afternoon lasted through the dark, and at the lights
  * `endTimedEffects`, started from that hook, raced `judgePendingMurders` over whether it was still on the killer's sheet
  * as the fight opened. Now, as an Eclipse starts, every row is ended that would be past its end on the clock the Eclipse
- * leads into (clock.mjs `clockAfter`): the time of day's, and at Night's Eclipse the day's too, since that advance
- * begins a new day. Nothing given before the dark is left to end at the lights; a row given during it ends there, as
+ * leads into (clock.mjs `clockAfter`): the time of day's, and at the Morning Eclipse the day's too, since that advance
+ * begins a new day (`clockAfter`'s `rolledOver`). Nothing given before the dark is left to end at the lights; a row given during it ends there, as
  * before. A time of day changed with no Eclipse still ends them at `drpgTimeOfDayChanged`. Answers how many ended.
  *
  * TAKEN BACK WITH THE BOUNDARY (the coordinator's follow-up, 13.11.2026): the rows it ends are kept in the GMs'

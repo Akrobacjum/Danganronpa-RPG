@@ -8,7 +8,9 @@
  * Three moments, and none of them fire on their own:
  *
  *   the body is found   traces that were doubtful become permanent, everyone is
- *                       called to the scene, and the phase turns to Investigation
+ *                       called to the scene, and the discovery is held for the
+ *                       GM, who starts the Investigation (body.mjs, D5: the
+ *                       discovery writes no phase)
  *   the chapter ends    every Truth Bullet gives up what it really was
  *   the GM sweeps       the evidence is cleared out, Faint excepted
  *
@@ -20,8 +22,9 @@
  * worst bug this module could have.
  *
  * That is the one place this file departs from the page above it. The guide
- * puts the sweep at the start of the next session; here it is a button in the
- * Investigation Dashboard and the session counter does not touch it. The
+ * puts the sweep at the start of the next session; here it is a tick of End the
+ * chapter (`CHAPTER_END_STEPS`' "sweep", ticked when it has a count) and the
+ * session counter does not touch it. The
  * reasoning, and the season run behind it, is written out over
  * `sweepTruthBullets` at the bottom of this file.
  *
@@ -46,13 +49,8 @@ import { keepFresh } from "./live.mjs";
 import { columnsHtml } from "./ui-columns.mjs";
 // A leaf (utils.mjs alone): the one runner of the procedures that cannot be taken back, and its report (E42 C2).
 import { runSteps, stepsReport } from "./steps.mjs";
-// A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 
 import { caseMark } from "./gm-stores.mjs";
-// The engine (config.mjs alone): the moment this browser's GM stores open, for the prompt of a discovery waiting (1.2.113).
-
-// A leaf (config.mjs alone): the scenes of the discovery window and a discovery handed no scene (E12 C5).
-
 import { bulletsHeldBy, keepBulletDeletions } from "./death.mjs";
 export { faintPrepCandidates, promoteFaintPrep, discoverBody, deathAnnounced, announceBody, BODY_ANNOUNCED_HOOK, announceArrivedBodies, registerBodyAnnounced, announcedIn, bodiesToDiscover, witnessesOf, maybeBodyFound, pendingBodyDiscoveries, answersBodyPrompt, askPendingBodies, registerPendingBodies, bodiesLyingIn, openBodyDiscoveryDialog } from "./body.mjs";
 export { livingStudents, livingStudentsForGm, markDeceased, killCharacter, incidentVictimDied, publishDeath, tellUnfoundDeaths, reviveCharacter, clearSeasonDeaths, clearSeasonBodies, openDeathDialog } from "./death.mjs";
@@ -212,9 +210,11 @@ export async function sweepPlan({ actors = null } = {}) {
  * crime and tied traces are exempt. The sweep took the evidence and left the
  * noise. Precisely backwards.
  *
- * So it stops happening because a date passed, and stays available because a GM
- * asks: the button is in the Investigation Dashboard, next to the one that
- * clears Faint Remnants, and both say how many before they do anything.
+ * So it stops happening because a date passed, and happens because a GM asks:
+ * since E64-inv it is a tick of End the chapter again, beside the Faint Remnants'
+ * clean-up, each with its count and marked permanent (`chapterEndForm`); neither
+ * has a button in the Investigation Dashboard any more (investigation.mjs
+ * `confirmSweepBullets`'s note).
  */
 export async function sweepTruthBullets({ actors = null } = {}) {
     if (!game.user.isGM) return { removed: 0, kept: 0 };
@@ -411,8 +411,9 @@ export function refreshChapterEnd(el, html) {
 /**
  * The GM's end-of-chapter panel.
  *
- * One screen with counts, because two of these three cannot be undone and a GM
- * deserves to see the number before it happens rather than after.
+ * One screen with counts, because four of its steps cannot be undone - the reveal,
+ * the sweep, the Faint clean-up and the Key Remnants, each marked permanent - and
+ * a GM deserves to see the number before it happens rather than after.
  */
 export async function openChapterEndDialog() {
     if (!game.user.isGM) {

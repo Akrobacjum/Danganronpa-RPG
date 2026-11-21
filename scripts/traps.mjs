@@ -19,7 +19,9 @@
  * ---------------------------------------------------------------------------
  * SIX LISTENERS FOR NINE TRIGGERS, AND THAT IS THE POINT OF DOING IT HERE.
  *
- * The plan called it eight listeners on hot paths. It was five, because three of
+ * Nine triggers are watched; the tenth, `manual`, watches nothing (config.mjs
+ * TRAP_TRIGGERS). The plan called it eight listeners on hot paths. It was five
+ * until E80 C3 added the passage's, because three of
  * the triggers are the same event asked three questions (`drpgActionResolved`
  * for Search, project and sabotage) and two more are the same crossing:
  *
@@ -47,10 +49,10 @@
  * ---------------------------------------------------------------------------
  * WHAT LIVES WHERE, AND WHY THE ITEM TRIGGER IS DIFFERENT.
  *
- * Seven triggers are answered from the trap's row in the GM store
+ * Eight of the nine watched triggers are answered from the trap's row in the GM store
  * `projectSecrets` - its killer, its condition and its trigger, which were
  * projectMeta's, a world setting any console reads, until E05 (1.2.64; audit
- * S09-05) - and from projectMeta's room and flags. The eighth - the planted
+ * S09-05) - and from projectMeta's room and flags. The ninth - the planted
  * item - must not be, and the reason is the whole design decision of this
  * stage: an item on a character sheet is fully readable from its owner's
  * console, so a flag saying "this is the trap" would be a poisoned first aid

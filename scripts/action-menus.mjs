@@ -274,6 +274,8 @@ export async function chooseVariant({
                 globalThis.document?.fonts?.ready?.then(() => holdRowLines(dialog.element)).catch(() => {});
             }
             atTop(dialog);
+            // A caller's live regions in `extra` (`live(dialog)`; palm.mjs's targets, the audit's REFR-52, 1.2.122).
+            live?.(dialog);
         },
         footer: !usable.length ? { close: "close" } : {
             primary: {

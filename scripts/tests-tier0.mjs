@@ -8998,9 +8998,9 @@ const REGRESSIONS = [
             // flags are written by their entries' clears (remnants.mjs, vault-store.mjs), each gated on the primary GM.
             ["secret.mjs", "post", "ChatMessage", "a secret's card"],
             ["sound-panel.mjs", "wireSoundPlay", "Playlist", "the situational playlist, made from the sound window"],
-            ["tables-editor.mjs", "addResult", "table", "a pool table's result"],
-            ["tables-editor.mjs", "editResult", "result", "a pool table's result"],
-            ["tables-editor.mjs", "dropResult", "table", "a pool table's result"],
+            ["tables-entries.mjs", "addResult", "table", "a pool table's result"],
+            ["tables-entries.mjs", "editResult", "result", "a pool table's result"],
+            ["tables-entries.mjs", "dropResult", "table", "a pool table's result"],
             ["tables-editor.mjs", "wirePaneHeading", "current()", "a pool table, renamed"],
             ["tables-editor.mjs", "wirePaneHeading", "gone", "a pool table, deleted"],
             ["tables-editor.mjs", "wirePaneRows", "result", "a pool table's result and its flags"],

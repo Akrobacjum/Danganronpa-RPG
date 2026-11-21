@@ -160,6 +160,18 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     check("control: the same handover.item from Botan's own player does move the item",
         handOk.botanHas === false && handOk.aikoWrenches === 1, JSON.stringify(handOk));
 
+    // 4a'. searchTokens.gmWrite (1.2.122 line WORLD, the audit's MAP-40): a GM's own write of the counters, asked of the
+    //      primary by a GM who is not it. From p1's console it is refused as a GM's alone, told, and writes nothing.
+    //      Its legal control, an Assistant GM's step and refill, is 33-bridge-paths A23.
+    const readCounters = `return foundry.utils.deepClone(game.settings.get("${MOD}", "searchTokens") ?? {});`;
+    const gmWrite = await forge("searchTokens.gmWrite", { op: "set", roomName: "Gym", sceneId: null, value: 0 }, readCounters);
+    const gmReset = await forge("searchTokens.gmWrite", { op: "reset" }, readCounters);
+    check("SECURITY: a forged searchTokens.gmWrite from a player - a room's step and a refill - changed nothing on the GM",
+        gmWrite.unchanged && gmReset.unchanged, JSON.stringify({ gmWrite, gmReset }));
+    check("SECURITY: the GM refused the forged searchTokens.gmWrite as a GM's alone, and told p1",
+        [gmWrite, gmReset].every(f => f.reasons.some(r => /only a GM sets the Search Tokens/.test(r)) && f.told.some(t => t.what === "searchTokens.gmWrite")),
+        JSON.stringify({ reasons: [gmWrite.reasons, gmReset.reasons], told: [gmWrite.told, gmReset.told] }));
+
     // 4b. call.arm: p1 arms a Support on Aiko, paid for by Botan.
     //     E03 (audit S10-09): the honest shape is a Support bought by one student for
     //     ANOTHER student's character, and the GM takes the Hope for it. So the

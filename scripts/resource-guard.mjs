@@ -5,7 +5,9 @@
  * change because something happened - a roll landed, an action was spent, an
  * advancement was earned - not because a player clicked a pip.
  *
- * So those fields become read-only for players and writable only by the GM or
+ * So actions and traits (with the maxima, Health and Sanity: `GUARDED`) become
+ * read-only for players - Hope is left out on purpose, the note over `GUARDED`
+ * says why - and writable only by the GM or
  * by this module's own automation - on the player's own browser, where the hooks
  * below run (a courtesy, below); the check that a console cannot step past is the
  * primary GM's (sheet-audit.mjs, E29).
