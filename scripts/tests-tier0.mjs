@@ -23431,6 +23431,8 @@ const REGRESSIONS = [
             "enforced.mjs": {"line": 2}, "facilities-gm.mjs": {"card": 2}, "fog.mjs": {"line": 1}, "frisk.mjs": {"built": 7, "message": 2},
             "gm-items.mjs": {"action": 1, "heading": 2},
             "handover.mjs": {"built": 1, "heading": 2, "line": 13, "message": 1},
+            // 1.2.122 line MURDER (the audit's CASE-25): the GMs told a standing betrayal offer was kept (`armBetrayalWindow`).
+            "incident-store.mjs": {"line": 1},
             "inventory.mjs": {"card": 2, "line": 3}, 
             "key-remnants.mjs": {"card": 1, "line": 2}, "level-up.mjs": {"heading": 1, "line": 4},
             // E69 C8 (13.11.2026): the killer's own cards behind the "?" (mask-gm.mjs), its start and its end at the time of day.

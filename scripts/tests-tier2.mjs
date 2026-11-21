@@ -8455,12 +8455,12 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson([[true, false], [true, false]]), "[[the student, the Spectator] in the watch's list, in the tail's list]");
     }],
-    ["1.2.122 CASE-29 - the Key Remnant count holds the slots that hold one, inside the case's count (scripts/key-remnants.mjs `keyPlanStatus`; gm-panel.mjs next step, events.mjs the body line; the audit's CASE-29, 1.2.122 line MURDER): a case of three with three slots written and one written past it reads three planned, three missing, a total of three", async () => {
+    ["1.2.122 CASE-29 - the Key Remnant count holds the slots that hold one, inside the case's count (scripts/key-remnants.mjs `keyPlanStatus`; gm-panel.mjs next step, events.mjs the body line; the audit's CASE-29, 1.2.122 line MURDER): a case of four with three slots written, one left blank and one written past it reads three planned, three missing, a total of three", async () => {
         /*
          * 21.11.2026, 1.2.122 line MURDER. The audit's CASE-29: `keyPlan` answers five slots whatever was written and
          * `missing` counted every one not found, so a case of three or four never read "every planned Key Remnant has
          * been found" and the GM's line read "N of 5". This chapter's plan rows are kept aside, and a case of three is
-         * written (`<chapter>:case`), with slots 0-2 named and slot 4 named past the count; nothing is found. Read:
+         * written (`<chapter>:case`) as four, with slots 0-2 named, slot 3 left blank and slot 4 named past the count; nothing is found. Read:
          * `planned`, `missing`, `total`. Put back: this chapter's rows as they were. Red at 21bf5d18: [undefined, 5,
          * undefined] - the five slots counted.
          */
@@ -8473,7 +8473,7 @@ const SCENARIOS = [
         let read = null;
         try {
             for (const [key] of kept) await keyPlanStore.drop(key);
-            await keyPlanStore.patch(`${chapter}:case`, { keys: 3 });
+            await keyPlanStore.patch(`${chapter}:case`, { keys: 4 });
             for (const slot of [0, 1, 2, 4]) await keyPlanStore.patch(`${chapter}:${slot}`, { name: `SUITE 1.2.122 CASE-29 slot ${slot}`, text: "SUITE" });
             await settle();
             const status = K.keyPlanStatus();
@@ -8484,6 +8484,292 @@ const SCENARIOS = [
             await settle();
         }
         equal(stableJson(read), stableJson([3, 3, 3]), "[the slots planned, those missing, the total the GM's line reads]");
+    }],
+    ["1.2.122 CASE-25 - a second body the same day leaves the offer standing for the earlier third and tells the GMs (scripts/incident-store.mjs `armBetrayalWindow`; the audit's CASE-25, 1.2.122 line MURDER): an offer of today stands for one student; an accomplice's incident reaches Stage 6 with its own third; the cast's offer is still the first, and the GMs are told whose it is", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line MURDER. The audit's CASE-25: the cast holds one offer and `armBetrayalWindow` wrote the
+         * new one over a standing one. A standing offer of this chapter and day is written for the fourth student against
+         * the killer; then the killer, the victim and an accomplice play to Stage 6 by the killer's blow (the fixture of
+         * the betrayal tests, `accompliceAtStageSix`, read here without its own check of the offer). Read: the offer's
+         * third, the GMs' whisper. Put back: the offer, the incident, the dead, the clock. Red at 21bf5d18: the offer
+         * named the accomplice.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and an accomplice, each with a player");
+        needs(world.atLeast("livingStudents", 4), "a fourth student holding the earlier offer");
+        const M = await import("./murder.mjs");
+        const S = await import("./incident-store.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { isMonokuma } = await import("./monokuma.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, third] = livingStudents().filter(player);
+        const earlier = livingStudents().find(a => ![killer, victim, third].includes(a) && !isMonokuma(a));
+        must(earlier, "no fourth student");
+        const clock = getClock();
+        const seen = new Set(game.messages.map(m => m.id));
+        const read = {};
+        try {
+            await S.writeCast({ ...S.readCast(), betrayal: { thirdId: earlier.id, killerId: killer.id, chapter: clock?.chapter ?? 1, day: clock?.day ?? 1 } });
+            await settle();
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await settle();
+            await M.thirdPartyEnters(third);
+            await M.resolveCrisisAction({ actorId: third.id, key: "crimePartners", total: 20, isCritical: false, withHope: true });
+            for (let i = 0; i < 4 && M.crisisRefusal(killer, "finishingBlow")?.why === "not their turn"; i++) await M.passTurn();
+            await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "resolution", `the incident did not reach Stage 6: ${M.murderState()?.stage}`);
+            read.offer = S.readCast()?.betrayal?.thirdId === earlier.id ? "earlier" : S.readCast()?.betrayal?.thirdId === third.id ? "accomplice" : null;
+            const { contentOf } = await import("./secret.mjs");
+            read.told = game.messages.filter(m => !seen.has(m.id)).some(m => String(contentOf(m) ?? m.content ?? "").includes(game.i18n.format("DRPG.Murder.betrayalOfferKept",
+                { kept: foundry.utils.escapeHTML(earlier.name), killer: foundry.utils.escapeHTML(killer.name), third: foundry.utils.escapeHTML(third.name) })));
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await M.clearBetrayalOffer();
+            for (const a of [victim, killer, third]) if (isDeadForGm(a)) await reviveCharacter(a, { quiet: true });
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete().catch(() => {});
+            await c3Incident(clock);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ offer: "earlier", told: true }), "{whose offer the cast holds after the second body, the GMs told}");
+    }],
+    ["1.2.122 CASE-23 - with two killers, Cancel on 'the victim ran out' is asked once for one crisis action (scripts/murder-rules.mjs `checkVictimSpent`, `resolveCrisisAction`; the audit's CASE-23, 1.2.122 line MURDER): a victim with no Health or Sanity left and an accomplice on the killer's side; one crisis action of the killer asks the question once, and Cancel leaves the fight running", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line MURDER. The audit's CASE-23: `applyCrisisAction` asks before the card and after the
+         * pass, and the actor hook held while the action is scored asks a third time, nothing remembering a Cancel. An
+         * accomplice joins the killer's side; the victim's Health and Sanity are filled to the maximum (a write that asks
+         * the question once by the hook, answered Cancel); then the killer's Keep distance is resolved, and the question's
+         * windows (DialogV2.wait, its title; Cancel) are counted for that action alone. Put back: the dialogs, the
+         * victim's marks, the incident, the clock. Red at 21bf5d18: more than one window for the action.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and an accomplice, each with a player");
+        const M = await import("./murder.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, third] = livingStudents().filter(player);
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const title = game.i18n.localize("DRPG.Murder.ranOutTitle");
+        let asked = 0;
+        // Cancel answers false, as the question's own Cancel does (ui-kit.mjs `drpgConfirm`).
+        D.wait = async cfg => (cfg?.window?.title === title ? (asked++, false) : own?.value?.call(D, cfg) ?? null);
+        const res = victim.system?.resources ?? {};
+        const was = { hp: res.hitPoints?.value ?? 0, stress: res.stress?.value ?? 0 };
+        const clock = getClock();
+        let duringAction = null, stage = null;
+        try {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await settle();
+            await M.thirdPartyEnters(third);
+            await M.resolveCrisisAction({ actorId: third.id, key: "crimePartners", total: 20, isCritical: false, withHope: true });
+            await settle();
+            await victim.update({ "system.resources.hitPoints.value": res.hitPoints?.max ?? 0, "system.resources.stress.value": res.stress?.max ?? 0 });
+            await settle();
+            for (let i = 0; i < 4 && M.crisisRefusal(killer, "keepDistance")?.why === "not their turn"; i++) await M.passTurn();
+            asked = 0;
+            await M.resolveCrisisAction({ actorId: killer.id, key: "keepDistance", total: 30, isCritical: false, withHope: true });
+            await settle();
+            duringAction = asked;
+            stage = M.murderState()?.stage ?? null;
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await victim.update({ "system.resources.hitPoints.value": was.hp, "system.resources.stress.value": was.stress });
+            for (const a of [victim, killer, third]) if (isDeadForGm(a)) await reviveCharacter(a, { quiet: true });
+            await c3Incident(clock);
+            await settle();
+        }
+        equal(stableJson([duringAction, stage]), stableJson([1, "incident"]), "[the question's windows for one crisis action, the stage after Cancel]");
+    }],
+    ["1.2.122 CASE-22 CTRL-81 - a tracker that reopens itself at a stage change keeps the GM panel's wait (scripts/murder-ui.mjs `openIncidentTracker`; the audit's CASE-22 and CTRL-81, 1.2.122 line MURDER): a tracker opened at the opening is still awaited after the opening lands and the next copy is drawn, and settles only when that copy closes", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line MURDER. The audit's CASE-22: the stage change closed the tracker and opened the next
+         * copy from a `.then()`, so the first call settled and the GM panel (which waits on the Murder tile's run) came
+         * back beside the new tracker. A direct murder waits on its opening; the tracker is drawn here (`__dialogWindows`)
+         * and its call kept; the killer's opening lands. Read: whether the call settled while the second copy is drawn,
+         * then once that copy is closed. Put back: the windows, the incident, the clock. Red at 21bf5d18: settled at once.
+         */
+        needs(env.dialogs(), "the tracker is drawn here");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim with players");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const title = game.i18n.localize("DRPG.Murder.trackerTitle");
+        const drawn = () => [...foundry.applications.instances.values()].filter(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title);
+        const clock = getClock();
+        const read = {};
+        try {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            await settle();
+            let settled = false;
+            const run = M.openIncidentTracker().then(() => { settled = true; });
+            read.first = await until(() => drawn().length === 1, 6000);
+            const firstCopy = drawn()[0];
+            await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            read.second = await until(() => drawn().length === 1 && drawn()[0] !== firstCopy, 6000);
+            await wait(300);
+            read.settledWithSecond = settled;
+            for (const app of drawn()) await app.close();
+            await Promise.race([run, wait(3000)]);
+            read.settledAfter = settled;
+        } finally {
+            for (const app of drawn()) await app.close().catch(() => {});
+            await c3Incident(clock);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ first: true, second: true, settledWithSecond: false, settledAfter: true }),
+            "{the first copy drawn, the next drawn after the stage change, the call settled while it stands, settled once it closed}");
+    }],
+    ["1.2.122 TEXT-21 - the improvised weapon is written in the world's document language (scripts/murder-rules.mjs `grantImprovisedWeapon`; utils.mjs `worldLocalize`; the audit's TEXT-21, 1.2.122 line MURDER): with the world's documents in Polish on an English page, the Crime Tool an unarmed weapon blow makes is named \"Improwizowana broń\" and its note is the Polish one", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line MURDER. The audit's TEXT-21 (D34): the item's name was the config prose swapped to the
+         * page's language and its description `game.i18n`'s. The world's document language is set to Polish for the test
+         * (the setting `documentLanguage`), the weapon granted to a student as the blow grants it, and its name and
+         * description read. Put back: the item, the setting. Red at 21bf5d18: "Improvised weapon".
+         */
+        needs(env.primaryGm(), "the weapon is made on the primary GM");
+        const R = await import("./murder-rules.mjs");
+        const { CRISIS_ACTIONS } = await import("./config.mjs");
+        must(typeof R.grantImprovisedWeapon === "function", "murder-rules.mjs does not export grantImprovisedWeapon");
+        must(game.i18n.lang !== "pl", "this page is in Polish - the world's language would read as the page's");
+        const [student] = cast(1);
+        const was = game.settings.get(MODULE_ID, SETTINGS.documentLanguage);
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const wantName = foundry.utils.getProperty(pl, "DRPG.Config.CRISIS_ACTIONS.weaponAttack.unarmedImprovises.name") ?? pl["DRPG.Config.CRISIS_ACTIONS.weaponAttack.unarmedImprovises.name"];
+        const wantNote = foundry.utils.getProperty(pl, "DRPG.Murder.improvisedNote") ?? pl["DRPG.Murder.improvisedNote"];
+        const before = new Set(student.items.map(i => i.id));
+        let read = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.documentLanguage, "pl");
+            await R.grantImprovisedWeapon(student, CRISIS_ACTIONS.weaponAttack, "hope", []);
+            await settle();
+            const item = student.items.find(i => !before.has(i.id));
+            read = [item?.name ?? null, String(item?.system?.description ?? "").includes(wantNote)];
+        } finally {
+            for (const i of student.items.filter(i => !before.has(i.id))) await i.delete().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.documentLanguage, was);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([wantName, true]), "[the weapon's name, its description the Polish note]");
+    }],
+    ["1.2.122 REFR-21 - the crisis menu follows the incident while it stands: a turn passed to the other side closes it and says so (scripts/action-murder.mjs `openCrisisMenu`; action-menus.mjs `chooseVariant` with `live`, `keepRowsLive`; 1.2.121's line K left the menu with no live refresh; the audit's REFR-21, 1.2.122 line MURDER): the victim's menu drawn at their turn, the GM passes the turn, and the menu closes with the off-turn sentence and answers nothing", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line MURDER. The crisis menu was drawn once: a turn gone, a row shut or a threshold moved
+         * while it stood were not shown, and its press was refused afterwards. A direct murder is opened and its opening
+         * made, so the victim acts; their menu is drawn here (`__dialogWindows`) and the GM passes the turn under it. Read:
+         * the menu drawn, whether it is still drawn after the pass, what `openCrisisMenu` answered, the toast. Put back: the
+         * window, the notifications, the incident, the clock. Red at 21bf5d18: the menu stood after the pass, unanswered.
+         * The rows' rebuild in Chromium (the press order on a row redrawn under the pointer) is not measured here.
+         */
+        needs(env.dialogs(), "the menu is drawn here");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim with players");
+        const M = await import("./murder.mjs");
+        const AM = await import("./action-murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const title = game.i18n.localize("DRPG.Murder.yourTurn");
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title) ?? null;
+        const clock = getClock();
+        const said = [];
+        const info = ui.notifications.info;
+        const read = {};
+        try {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "incident" && M.isTheirTurn(victim), `the victim does not act: ${stableJson(M.murderState())}`);
+            const run = Promise.resolve().then(() => AM.openCrisisMenu(victim)).catch(err => `threw ${err?.message ?? err}`);
+            read.drawn = await until(() => Boolean(drawn()), 6000);
+            ui.notifications.info = (message, ...rest) => { said.push(String(message)); return info.call(ui.notifications, message, ...rest); };
+            await M.passTurn();
+            await settle();
+            const answer = await Promise.race([run, wait(3000).then(() => "unanswered")]);
+            read.after = Boolean(drawn());
+            read.answer = answer ?? null;
+            read.told = said.includes(game.i18n.localize("DRPG.Murder.offTurn"));
+        } finally {
+            ui.notifications.info = info;
+            if (drawn()) await drawn().close();
+            await c3Incident(clock);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ drawn: true, after: false, answer: null, told: true }),
+            "{the menu drawn, still drawn after the turn passed, what the menu answered, the off-turn sentence said}");
+    }],
+    ["1.2.122 REFR-67 STG-30 - a held Key fee's card offers its charge only while it has its own chapter's fee to charge (scripts/key-remnants.mjs `wireChargeHeld`, `heldChargeStale`; the audit's REFR-67 and STG-30, 1.2.122 line MURDER): three held cards drawn - of the clock's chapter, of another chapter, and of none (a card from before) - keep the button on the first alone", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line MURDER. REFR-67: the button stayed on every other GM after the fee was charged, and a
+         * reload drew it again; STG-30: its press charged whatever chapter the clock was in. Three cards are posted to the
+         * GMs as the held card is (its flags, its button), each drawn into an element as the chat log draws it and handed
+         * to `wireChargeHeld`; no fee is stamped (read). Read: which still hold the button. Put back: the cards. Red at
+         * 21bf5d18: all three held it.
+         */
+        needs(env.primaryGm(), "the held card is the primary GM's");
+        const K = await import("./key-remnants.mjs");
+        const { trialProgress } = await import("./vote.mjs");
+        must(!trialProgress()?.keysCharged, "the trial's fee is stamped - every card would read stale");
+        const chapter = Number(getClock().chapter);
+        const button = `<div class="drpg-call-actions"><button type="button" data-drpg-key-charge>SUITE 1.2.122</button></div>`;
+        const made = [];
+        const read = [];
+        try {
+            for (const flag of [chapter, chapter + 7, null]) {
+                const flags = { keyChargeHeld: true, ...(flag === null ? {} : { keyChargeChapter: flag }) };
+                const [message] = await ChatMessage.createDocuments([{ content: button, whisper: game.users.filter(u => u.isGM).map(u => u.id), flags: { [MODULE_ID]: flags } }]);
+                made.push(message);
+                const element = document.createElement("li");
+                element.dataset.messageId = message.id;
+                element.innerHTML = button;
+                K.wireChargeHeld(message, element);
+                await settle();
+                read.push(Boolean(element.querySelector("[data-drpg-key-charge]")));
+            }
+        } finally {
+            for (const m of made) await m.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson([true, false, false]), "[the button on the card of the clock's chapter, of another chapter, of none]");
+    }],
+    ["1.2.122 CTRL-31 STG-65 - Direct Murder's declaration opens its briefing's Details, and its yes says what it does (scripts/action-murder.mjs `performDirectMurder`; action-menus.mjs `wireDetails`; the audit's CTRL-31 and STG-65, 1.2.122 line MURDER): the question drawn here, its Details toggle pressed, the box opens; its yes reads Declare the murder", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line MURDER. CTRL-31: the declaration's question is the kit's `drpgConfirm`, which never
+         * called `wireDetails`, so the briefing's Details did nothing. STG-65: its yes said "Yes". A student's Direct
+         * Murder is asked in an Eclipse (the clock's `eclipse`), and the question drawn here (`__dialogWindows`); the
+         * toggle is clicked. Read: the toggle's `aria-expanded` after, the yes's label. Closed unanswered: nothing is
+         * spent. Put back: the window, the clock. Red at 21bf5d18: the toggle stayed shut and the yes read "Yes". The
+         * toggle's press in Chromium is not measured here (jsdom's click; the 1.2.120 lesson).
+         */
+        needs(env.dialogs(), "the question is drawn here");
+        const AM = await import("./action-murder.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const [student] = cast(1);
+        const title = ACTIONS.directMurder?.label;
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title) ?? null;
+        const clock = getClock();
+        const read = {};
+        try {
+            await setClock({ ...clock, eclipse: true });
+            await settle();
+            const run = Promise.resolve().then(() => AM.performDirectMurder(student, ACTIONS.directMurder, { free: true })).catch(err => `threw ${err?.message ?? err}`);
+            read.drawn = await until(() => Boolean(drawn()), 6000);
+            const el = drawn()?.element;
+            const toggle = el?.querySelector(".drpg-action-details-toggle");
+            toggle?.click();
+            await wait(50);
+            read.open = toggle?.getAttribute("aria-expanded") ?? null;
+            read.yes = el?.querySelector('footer button[data-action="yes"]')?.textContent?.trim() ?? null;
+            if (drawn()) await drawn().close();
+            await Promise.race([run, wait(2000)]);
+        } finally {
+            if (drawn()) await drawn().close();
+            await setClock(clock);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ drawn: true, open: "true", yes: game.i18n.localize("DRPG.Action.murderDeclareYes") }),
+            "{the question drawn, its Details after a press, its yes's words}");
     }],
     ["the time of day in an incident is veiled and names nobody", async () => {
         /*

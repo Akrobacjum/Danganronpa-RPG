@@ -83,9 +83,10 @@ import { SETTINGS, incidentCast, incidentIndirect, incidentSeats, seasonEpoch, i
 import { castStore, blackenedStore, castCopy, deathStore, deathCopy, maskStore, CAST_FIELDS, CAST_SEATS, INCIDENT_METHOD, INCIDENT_FIGHT } from "./gm-stores.mjs";
 import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible, gmStoreStamp, stableJson } from "./gm-store.mjs";
 import { getClock } from "./clock.mjs";
-import { playerOwns, ownerIdsOf, isPrimaryGm, primaryGmId, log, warn, error, debug } from "./utils.mjs";
+import { playerOwns, ownerIdsOf, isPrimaryGm, primaryGmId, whisperToGms, log, warn, error, debug } from "./utils.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState, everyPart } from "./season-reset.mjs";
+import { count } from "./perf-counters.mjs";
 
 /* ==========================================================================
  * STATE
@@ -882,6 +883,21 @@ async function armBetrayalWindow(state) {
     if (!killer || !third) return null;
 
     const clock = getClock();
+    /* AN OFFER STANDING IS KEPT (the audit's CASE-25, 1.2.122). The cast holds one offer, and a second body the same day
+       with a third of its own wrote its offer over the first: the earlier third lost, with no word, an offer that was
+       theirs until the day's end (the GM handbook's "lasts until the end of that day ... and is single-use"). An offer of
+       another third for this chapter and day stands, and the new one is not armed; the GMs are told whose it is. One a
+       later day left behind is no offer (`sweepBetrayalWindows`), and the same third's is armed again as before. Red at
+       21bf5d18 (tier 2 "1.2.122 CASE-25"): the second offer was written over the first. */
+    const standing = readCast().betrayal;
+    if (standing?.thirdId && standing.thirdId !== third.id
+        && Number(standing.chapter) === Number(clock?.chapter ?? 1) && Number(standing.day) === Number(clock?.day ?? 1)) {
+        const name = id => foundry.utils.escapeHTML(game.actors.get(id ?? "")?.name ?? "?");
+        await whisperToGms(`<p>${game.i18n.format("DRPG.Murder.betrayalOfferKept", {
+            kept: name(standing.thirdId), killer: name(standing.killerId), third: name(third.id) })}</p>`);
+        log(`Betrayal window kept for ${game.actors.get(standing.thirdId)?.name ?? standing.thirdId}; none armed for ${third.name}.`);
+        return null;
+    }
     // In the cast, never on the actor: the offer names the killer and the
     // accomplice, and an actor flag would name them to every client.
     await writeCast({
@@ -1353,8 +1369,13 @@ export function tellFinder(userId, token, room, { company = false } = {}) {
  * token's object, never a status or a flag, which every console would read. Not measured: the
  * harness has no canvas (26.09.2026), so this is a check for a real table.
  */
-function markLocalDeath(token) {
+export function markLocalDeath(token) {
+    count("refreshToken.localDeath");
     try {
+        /* NOTHING TO DRAW, NOTHING READ (the audit's CASE-58, 1.2.122): every token refresh on a player's browser ran the
+           death reads below and a walk of the token's children, with no death kept from the table and no mark worn. With
+           this browser's copy empty and no mark on the token it stops here; the count is fps()'s and scenario 86's. */
+        if (!Object.keys(deathCopy.read() ?? {}).length && !token?.children?.some?.(c => c?.name === "drpg-local-dead")) return;
         const actor = token?.actor;
         const show = Boolean(actor) && !game.user.isGM && isDeadForGm(actor) && !isDeceased(actor);
         let icon = token?.children?.find?.(c => c?.name === "drpg-local-dead") ?? null;

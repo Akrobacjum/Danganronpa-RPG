@@ -723,7 +723,15 @@ export async function openIncidentTracker() {
     // Whether the victim's voice can be moved now (E72 C8): a death the GMs keep, not yet moved.
     const victim = state?.victimId ? game.actors?.get(state.victimId) ?? null : null;
     const { isDeadForGm, isDeceased } = await import("./chapter.mjs");
-    const silence = Boolean(victim) && isDeadForGm(victim) && !isDeceased(victim) && !isDeadSilenced(victim);
+    /* READ AGAIN AT EVERY REBUILD (the audit's CTRL-80 and REFR-63, 1.2.122): it was read once as the window opened, and
+       the footer is drawn only by a reopen, so a victim dead under an unchanged stage got no Silence now, and one drawn
+       before the body was announced or another GM pressed it stayed, its press doing nothing. It is part of the
+       signature below now, so a change of it reopens the tracker with the footer it wants. */
+    const silenceNow = () => {
+        const v = murderState()?.victimId ? game.actors?.get(murderState().victimId) ?? null : null;
+        return Boolean(v) && isDeadForGm(v) && !isDeceased(v) && !isDeadSilenced(v);
+    };
+    const silence = silenceNow();
 
     /* AWAITED ONCE, HERE, so the body below can be rebuilt synchronously.
 
@@ -754,9 +762,15 @@ export async function openIncidentTracker() {
     const read = () => murderState();
 
     const trackerBody = () => (state ? incidentTrackerHtml(read(), cleanup) : emptyTrackerHtml());
-    const signature = () => incidentSignature(read());
+    const signature = () => `${incidentSignature(read())}|${silenceNow()}`;
     const openedWith = signature();
     let settling = false;
+    /* THE REOPEN IS THE AWAITED CALL'S (the audit's CASE-22 and CTRL-81, 1.2.122). A stage change under an open tracker
+       closed it and opened the next copy from a `.then()` nobody awaited, so the first copy's wait settled with null,
+       `openMurderDialog` returned and the GM panel - which waits on its tile's run - opened again beside the new tracker as
+       the fight began. The close now settles this call, which opens the next copy itself and answers it, as Pass does
+       (`return openIncidentTracker()`). Red at 21bf5d18 (tier 2 "1.2.122 CASE-22"): the call settled before the second copy. */
+    let restage = null;
 
     const action = await drpgWindow({
         title: game.i18n.localize("DRPG.Murder.trackerTitle"),
@@ -779,7 +793,9 @@ export async function openIncidentTracker() {
                change mid-incident, and the turn was the world half's. Since E32 C2 a pass
                writes the cast alone, and its setting's change says so (`drpgCastChanged`,
                settings.mjs). */
-            watch: { actors: true, tokens: true, settings: [SETTINGS.murderState], hooks: ["drpgCastChanged"] },
+            /* And items (the audit's REFR-38, 1.2.122): readying or putting away a Cleaning Tool writes the item alone, and
+               Stage 6's tool line and every clean-up DC below read it. */
+            watch: { actors: true, tokens: true, items: true, settings: [SETTINGS.murderState], hooks: ["drpgCastChanged"] },
             after: () => {
                 if (settling) return;
                 const now = signature();
@@ -788,15 +804,15 @@ export async function openIncidentTracker() {
                 /* The fight is over: shut, rather than reopening onto nothing. The
                    `endMurder` route closes this window itself; this is the backstop for
                    every other way an incident can stop existing. */
-                const again = now !== null;
-                dialog.close()
-                    .then(() => (again ? openIncidentTracker() : null))
-                    .catch(err => error("Could not refresh the incident tracker", err));
+                restage = incidentSignature(read()) !== null ? "again" : "gone";
+                dialog.close().catch(err => error("Could not refresh the incident tracker", err));
             }
         }),
         rejectClose: false
     });
 
+    if (restage === "again") return openIncidentTracker();
+    if (restage) return null;
     if (action === "open") return openMurderDialog();
     if (action === "pass") {
         if (passAllowed()) await passTurn();

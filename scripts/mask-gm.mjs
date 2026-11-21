@@ -36,6 +36,7 @@ import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { isPrimaryGm, log, error, whisperToOwnerOnly, esc, forcedDeletion, markFired } from "./utils.mjs";
 import { maskStore, veilStore } from "./gm-stores.mjs";
+import { count } from "./perf-counters.mjs";
 
 /**
  * The name a masked token wears, and its picture. THE MODULE'S OWN "?" (E112 item 2a, 15.11.2026; the owner: "Morderca
@@ -821,12 +822,32 @@ export function registerMasks() {
     import("./visibility.mjs").then(m => { shownHere = doc => m.tokenShownTo(doc, m.viewerHere(d => Boolean(d?.isOwner))); }).catch(() => {});
     // By `import()`: secret.mjs is reached from gm-stores.mjs (through notice-history.mjs), which this file imports.
     import("./secret.mjs").then(m => m.setNameMask(namesHiddenFrom, { stands: anyMaskStands, masked: maskedNow })).catch(err => error("Could not hand the cards the masked names", err));
+    /* THE OWN MASK WHEN AN OWN TOKEN'S MASK TURNS, NOT ON EVERY REDRAW (the audit's CASE-71, 1.2.122): `noticeOwnMask`
+       walked every token of every scene on each `refreshToken` of a player's browser, whether or not a mask stood. It is
+       asked now only when a token this player owns is redrawn with its mask flag other than the redraw before saw it
+       (`ownMaskFlags`, one flag read a redraw), and at ready (below); counted (`refreshToken.mask`) as the other refresh
+       listeners are. No token hook of its own: a mask's write redraws the token, and the censuses of the room, trial
+       and passage roads read none here. */
     Hooks.on("refreshToken", token => {
+        count("refreshToken.mask");
         drawMaskName(token);
-        if (!game.user?.isGM) noticeOwnMask();
+        if (!game.user?.isGM && ownMaskTurned(token)) noticeOwnMask();
     });
     if (game.user?.isGM) return;
     noticeOwnMask();
+}
+
+/* Whether each of this player's own tokens wore the mask at its last redraw, by token id (`ownMaskTurned`). */
+const ownMaskFlags = new Map();
+
+/** Whether `token` is this player's own and its mask flag differs from its last redraw's (the first redraw counts). */
+export function ownMaskTurned(token) {
+    const doc = token?.document ?? token;
+    if (!doc?.id || !doc.isOwner) return false;
+    const masked = isMaskedToken(doc);
+    if (ownMaskFlags.get(doc.id) === masked) return false;
+    ownMaskFlags.set(doc.id, masked);
+    return true;
 }
 
 /* The mask this browser last saw on its own character (an actor id, or null), so a redraw that changes nothing is quiet. */

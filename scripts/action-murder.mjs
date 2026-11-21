@@ -18,13 +18,14 @@
  */
 
 import { TRAITS, RESOLUTION_STRESS_COST } from "./config.mjs";
+import { SETTINGS } from "./settings.mjs";
 import { spendAction } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { roomOfActor } from "./movement.mjs";
 import { whisperToOwner, cardHead, esc, proseOf } from "./utils.mjs";
 import { abort, canAfford } from "./action-pipeline.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
-import { actionWindow, chooseVariant, promptForNote, traitFieldHtml, readProposal } from "./action-menus.mjs";
+import { actionWindow, chooseVariant, promptForNote, traitFieldHtml, readProposal, wireDetails } from "./action-menus.mjs";
 import { drpgConfirm, tipText } from "./ui-kit.mjs";
 
 /**
@@ -94,15 +95,13 @@ export async function openCrisisMenu(actor) {
     const youPick = resolveArmed(actor);
     // What each row lists (a trap victim's own table where the incident gives one), and whether its roll asks a GM.
     const listed = Object.fromEntries(options.map(({ key }) => [key, listedTraits({ kind: "crisis", key, variant: crisisVariant(actor, key) })]));
-    const asks = ({ key, def, free }) => !free && !def.noRoll && !youPick && listed[key].length > 1;
-    const picked = await chooseVariant({
-        actor,
-        title: game.i18n.localize("DRPG.Murder.yourTurn"),
-        // The left column of every action's window (E68 C12, layout B): the menu had no briefing, so one sentence.
-        intro: `<div class="drpg-briefing-block"><p>${game.i18n.localize("DRPG.Murder.crisisBrief")}</p></div>`,
-        prompt: game.i18n.localize("DRPG.Murder.crisisPrompt"),
-        confirm: game.i18n.localize("DRPG.Murder.briefRoll"),
-        options: options.map(({ key, def, threshold, defense, defenseHidden, free, hindered, blocked, locked, spent, lockedBy, denied, why }) => ({
+    const asks = ({ key, def, free }) => !free && !def.noRoll && !youPick && (listed[key] ?? []).length > 1;
+    /* THE MENU IS LIVE (1.2.122 line MURDER; 1.2.121's line K left it; the audit's REFR-21): its rows are the turn's
+       numbers and shut reasons, read again (`rowsOf`) when the incident, the cast or an actor changes while it stands
+       (`chooseVariant`'s `live`); a turn gone to the other side, or an incident over, closes it with the off-turn
+       sentence. A row's statistic list is the one read at the open (`listed`), as its field is. R8228 reads the rows
+       rebuilt. */
+    const rowsOf = rows => rows.map(({ key, def, threshold, defense, defenseHidden, free, hindered, blocked, locked, spent, lockedBy, denied, why }) => ({
             value: key,
             icon: def.icon ?? "fa-burst",
             label: def.label,
@@ -142,7 +141,20 @@ export async function openCrisisMenu(actor) {
                 : spent
                     ? game.i18n.localize("DRPG.Murder.actionSpent")
                     : game.i18n.localize("DRPG.Murder.actionBlocked")
-        }))
+        }));
+    const picked = await chooseVariant({
+        actor,
+        title: game.i18n.localize("DRPG.Murder.yourTurn"),
+        // The left column of every action's window (E68 C12, layout B): the menu had no briefing, so one sentence.
+        intro: `<div class="drpg-briefing-block"><p>${game.i18n.localize("DRPG.Murder.crisisBrief")}</p></div>`,
+        prompt: game.i18n.localize("DRPG.Murder.crisisPrompt"),
+        confirm: game.i18n.localize("DRPG.Murder.briefRoll"),
+        options: rowsOf(options),
+        live: {
+            options: () => rowsOf(availableCrisisActions(actor).filter(o => !o.hidden && listed[o.key])),
+            watch: { actors: true, settings: [SETTINGS.murderState], hooks: ["drpgCastChanged"] },
+            closeWhen: () => (isTheirTurn(actor) ? null : "DRPG.Murder.offTurn")
+        }
     });
 
     if (!picked) return null;
@@ -271,7 +283,8 @@ export async function performBetrayal(actor, partner, def, options = {}) {
         ask: `<form>${dark ? `<p>${game.i18n.localize("DRPG.Murder.betrayalConfirmEclipse")}</p>` : ""}
             <div class="drpg-action-trait">${traitFieldHtml(actor, listed, { propose: true, how: !dark })}</div></form>`,
         footer: {
-            primary: { action: "yes", label: game.i18n.localize("DRPG.Dialog.yes"),
+            // The yes names its effect (the audit's STG-65, 1.2.122).
+            primary: { action: "yes", label: game.i18n.localize("DRPG.Murder.betrayalYes"),
                 tooltip: tipText(dark ? "DRPG.Tips.Sweep.Actions.betrayalEclipseTooltip" : "DRPG.Tips.Sweep.Actions.betrayalNowTooltip"),
                 callback: (e, b, d) => readProposal(d.element, listed) },
             close: "cancel"
@@ -331,9 +344,12 @@ export async function performDirectMurder(actor, def, options) {
     // it - so the other key, `DRPG.Action.murderConfirm`, was never shown and is deleted.
     // A question on the kit's frame (E21 C5a). Its yes on the GM's road (E22 C5c; A4, audit S03-26): it parks the
     // declaration for a GM to rule on when the Eclipse ends, which the window's last line says.
+    // Its yes says what it does (the audit's STG-65, 1.2.122; E22's rule), and its briefing's Details opens (CTRL-31:
+    // `wireDetails` was called by `actionWindow` alone, and this is the kit's question, so the toggle did nothing).
     const confirmed = await drpgConfirm({
-        yes: { role: "gmRoute", label: game.i18n.localize("DRPG.Dialog.yes") },
+        yes: { role: "gmRoute", label: game.i18n.localize("DRPG.Action.murderDeclareYes") },
         classes: ["drpg-panel"],
+        render: (event, dialog) => wireDetails(dialog),
         title: def.label,
         body: `${briefingBlock(actor, "directMurder", def)}
             <p class="notes">${game.i18n.localize("DRPG.Action.murderSpendsAnyway")}</p>

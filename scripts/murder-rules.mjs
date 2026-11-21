@@ -83,7 +83,7 @@ import { dropRemnant, traceFeedback, publishTiesFor, fightKey, remnantById } fro
 import { closeOpen } from "./live.mjs";
 import {
     announce as announcePlain, whisperToGms, whisperToOwner as whisperToOwnerPlain, ownerOf,
-    ownerIdsOf, gmIds, isPrimaryGm, primaryGmId, hiddenByGm, log, warn, error, plural, listOf, proseOf, debug, esc, cardHead, markFired
+    ownerIdsOf, gmIds, isPrimaryGm, primaryGmId, hiddenByGm, worldLocalize, log, warn, error, plural, listOf, proseOf, debug, esc, cardHead, markFired
 } from "./utils.mjs";
 // The kit's frame (E21 C3a): the fight's questions and the checklists after it, answering as before.
 import { drpgWindow, drpgConfirm, tipText } from "./ui-kit.mjs";
@@ -1565,20 +1565,27 @@ async function rateTierZero(actor, item, rule) {
  *
  * @returns {Promise<string|null>} the item's id, so a Reroll can take it back.
  */
-async function grantImprovisedWeapon(actor, def, band, done) {
+export async function grantImprovisedWeapon(actor, def, band, done) {
     const tier = def.unarmedImprovises?.[band];
     if (tier === undefined) return null;
 
+    /* IN THE WORLD'S DOCUMENT LANGUAGE (the audit's TEXT-21, 1.2.122; D34, R1154): the item is a world document every
+       browser reads, and its name was the config prose `localizeConfig` had swapped to this GM's page language, its
+       description `game.i18n` - a Polish GM's "Improwizowana broń" in an English world. Both through `worldLocalize`,
+       the config prose by its key (`DRPG.Config.CRISIS_ACTIONS.<row>.unarmedImprovises.name`), the page's text where the
+       world names no language. Red at 21bf5d18 (tier 2 "1.2.122 TEXT-21"): the page's name in a Polish world. */
+    const row = Object.keys(CRISIS_ACTIONS).find(key => CRISIS_ACTIONS[key] === def) ?? "weaponAttack";
+    const name = await worldLocalize(`DRPG.Config.CRISIS_ACTIONS.${row}.unarmedImprovises.name`) || def.unarmedImprovises.name;
     const { grantItem } = await import("./inventory.mjs");
     const item = await grantItem(actor, {
         reason: "incident",
-        name: def.unarmedImprovises.name,
+        name,
         category: "crimeTool",
         tier,
         // The killer is mid-incident and cannot go and put something down;
         // a GM's ruling outranks the carry cap here.
         override: true,
-        description: `<p>${game.i18n.localize("DRPG.Murder.improvisedNote")}</p>`
+        description: `<p>${await worldLocalize("DRPG.Murder.improvisedNote")}</p>`
     });
 
     if (!item) return null;
@@ -1618,6 +1625,8 @@ async function grantImprovisedWeapon(actor, def, band, done) {
  */
 export async function resolveCrisisAction(options = {}) {
     if (!game.user.isGM) return null;
+    // A new crisis action may ask the two killers' question again (`checkVictimSpent`, CASE-23).
+    if (!resolving) spentAsked = null;
     resolving++;
     try {
         return await applyCrisisAction(options);
@@ -2438,6 +2447,16 @@ function isSpent(actor) {
  *   action's own resolution asks: the victim is added to it if this killed them.
  * @returns {Promise<boolean>} true if this ended the incident.
  */
+/*
+ * THE TWO KILLERS' QUESTION IS ASKED ONCE A TURN (the audit's CASE-23, 1.2.122). `applyCrisisAction` asks it before the
+ * card and after the pass, and the actor hook held while the action is scored asks it a third time as it ends, and
+ * nothing remembered a Cancel: the same window came back two or three times in a row for one action. A question open
+ * here, or one cancelled during this crisis action (`spentAsked`, the incident's `openedAt`, let go as the next action
+ * starts in `resolveCrisisAction`), is not asked again; the next crisis action asks it once more - which its note now says, where it sent the GM to a tracker button that closes the incident with
+ * nobody dead. Red at 21bf5d18 (tier 2 "1.2.122 CASE-23"): three windows for one action.
+ */
+let spentAsked = null;
+
 async function checkVictimSpent(done = null, killed = null) {
     if (!game.user.isGM) return false;
 
@@ -2446,6 +2465,7 @@ async function checkVictimSpent(done = null, killed = null) {
 
     const victim = game.actors.get(state.victimId);
     if (!isSpent(victim)) return false;
+    const askedKey = String(state.openedAt ?? "");
 
     // One killer: the incident is over and closing it is bookkeeping.
     //
@@ -2456,6 +2476,8 @@ async function checkVictimSpent(done = null, killed = null) {
     // because the guide does not say, and the wrong silent default here is one
     // nobody can undo.
     if (killerIds(state).length > 1) {
+        if (spentAsked?.key === askedKey) return false;
+        spentAsked = { key: askedKey };
         const names = killerIds(state)
             .map(id => game.actors.get(id)?.name).filter(Boolean)
             .map(n => foundry.utils.escapeHTML(n)).join(" & ");
@@ -2474,6 +2496,7 @@ async function checkVictimSpent(done = null, killed = null) {
             rejectClose: false
         });
         if (!now) return false;
+        spentAsked = null;
     }
 
     // Against the incident it read (E32 C4): the hook's check and the action's, or two

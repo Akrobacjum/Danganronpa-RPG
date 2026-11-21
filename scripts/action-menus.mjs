@@ -25,6 +25,7 @@ import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
 import { WIDE, choiceRowHtml, wideWindow } from "./ui-columns.mjs";
 import { PROPOSAL_NOTE_MAX } from "./trait-ruling.mjs";
 import { holdRowLines } from "./ui-hold.mjs";
+import { keepLive } from "./live.mjs";
 
 
 /**
@@ -159,6 +160,34 @@ export function requestFieldHtml({ prompt, placeholder, optional = true, when = 
     </label>`;
 }
 
+/**
+ * THE ROWS FOLLOW THE TABLE WHILE THE MENU STANDS (1.2.122 line MURDER; 1.2.121's line K left the crisis menu with no
+ * live refresh; the audit's REFR-21; the owner's rule "Zawsze odswiezamy okna od razu przy zmianie"). A caller hands
+ * `live`: `options()` reads the rows again, `watch` is keepLive's (`actors`, `settings`, `hooks` ...), and `closeWhen()`,
+ * when it answers a key of lang, closes the menu and says that sentence - the crisis menu's turn gone to the other side or
+ * its incident over. The list (`.drpg-choice-list`) is rebuilt from the fresh rows, the first usable one checked, and
+ * keepLive carries the row the player picked (live.mjs keys a radio by its name and value). A row's details, fields and
+ * facts stay as drawn: the menu's own rows are the turn's numbers and shut reasons. Chromium's press order on a rebuilt
+ * row is not measured here (jsdom; the 1.2.120 lesson, r120-P-1).
+ */
+function keepRowsLive(dialog, live, rowsOf) {
+    keepLive(dialog, {
+        region: ".drpg-choice-list",
+        build: () => {
+            const list = live.options?.() ?? [];
+            const first = list.find(o => !o.disabled)?.value ?? null;
+            return `<div class="drpg-choice-list">${rowsOf(list, first)}</div>`;
+        },
+        watch: live.watch ?? {},
+        after: () => {
+            const why = live.closeWhen?.();
+            if (!why) return;
+            ui.notifications.info(game.i18n.localize(why));
+            dialog.close().catch(() => {});
+        }
+    });
+}
+
 /** Whatever was typed into that field, from a dialog that has already closed. */
 export function readRequestField(root) {
     return root?.querySelector('[name="request"]')?.value.trim() ?? "";
@@ -166,7 +195,7 @@ export function readRequestField(root) {
 
 export async function chooseVariant({
     actor, title, intro = "", prompt = "", options = [], traits = null,
-    extra = "", confirm = null, traitNote = "", showShut = false, columns = true
+    extra = "", confirm = null, traitNote = "", showShut = false, columns = true, live = null
 } = {}) {
     const usable = options.filter(o => !o.disabled);
     // `showShut`: a window whose every row is shut still opens, the rows greyed with their reasons and one button
@@ -189,7 +218,8 @@ export async function chooseVariant({
     // `hidden`: the left column is as tall as its tallest block, whatever is picked (the rule of 10.11).
     const detailsOf = o => (o.details && !o.disabled
         ? `<div class="drpg-choice-details${columns && o.value !== first ? ` ${UNPICKED}` : ""}" data-drpg-for="${esc(o.value)}">${o.details}</div>` : "");
-    const rows = options.map(o => `${choiceRowHtml(o, { checked: o.value === first })}${columns ? "" : detailsOf(o)}`).join("");
+    const rowsOf = (list, checkedValue) => list.map(o => `${choiceRowHtml(o, { checked: o.value === checkedValue })}${columns ? "" : detailsOf(o)}`).join("");
+    const rows = rowsOf(options, first);
     const beside = columns ? options.map(detailsOf).join("") : "";
     // A row's fact lines (`facts`: the crisis menu's, `crisisDetails`) go into the window's Details (E49 A8.1), one layer
     // a row in one stack: into the briefing's own box where the intro drew one (`DETAILS_ROWS`), else a Details of their own.
@@ -238,6 +268,7 @@ export async function chooseVariant({
         ...(columns ? { brief, ask: form }
             : { body: `${intro}${form}` }),
         render: (event, dialog) => {
+            if (live) keepRowsLive(dialog, live, rowsOf);
             if (options.some(o => o.confirm)) followConfirmLabel(dialog, confirmFor);
             if (columns) {
                 holdFields(dialog);
@@ -368,7 +399,7 @@ export function detailsStack(layers = []) {
 }
 
 /** The toggle opens and shuts its box and writes the setting; Enter on it does what a click does (the kit's form takes no part). */
-function wireDetails(dialog) {
+export function wireDetails(dialog) {
     const root = dialog?.element;
     if (!root) return;
     for (const toggle of root.querySelectorAll(".drpg-action-details-toggle")) {

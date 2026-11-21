@@ -735,7 +735,7 @@ export async function chargeForUnfoundKeys() {
         // With the way to ask again on the card (E109, DISAGREEMENTS.json D27, D28): `wireChargeHeld` wires it on a GM's browser.
         await whisperToGms({ tone: "warning", body: `<p>${plural("DRPG.Case.chargeHeld", { n: fee.held })}</p><div class="drpg-call-actions">`
             + `<button type="button" data-drpg-key-charge data-tooltip="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Case.chargeAgainHint"))}">${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Case.chargeAgain"))}</button></div>` },
-            { flags: { [MODULE_ID]: { keyChargeHeld: true } } });
+            { flags: { [MODULE_ID]: { keyChargeHeld: true, keyChargeChapter: now } } });
         return null;
     }
     const short = fee.short;
@@ -802,14 +802,58 @@ export async function askToChargeForUnfoundKeys() {
  */
 export function wireChargeHeld(message, element) {
     if (!game.user?.isGM || !cardFlag(message, "keyChargeHeld") || !cardWriter(message)?.isGM) return;
+    watchHeldCharges();
+    /* A CARD THAT HAS NOTHING TO CHARGE OFFERS NOTHING (the audit's REFR-67 and STG-30, 1.2.122). The button stayed on
+       every other GM after the fee was charged - by another GM's press or the trial's own charge - and a reload drew it
+       again; and its press charged whatever chapter the clock was in, the card's or not. Drawn, and again whenever the
+       trial's record or the clock is written (`watchHeldCharges`), the button is there only while this card's chapter
+       (`keyChargeChapter`, written with it since 1.2.122; a card without one is from before and offers nothing) is the
+       clock's and no fee is stamped; a press asks the same again first. Red at 21bf5d18 (tier 2 "1.2.122 REFR-67"). */
+    void dropStaleCharge(message, element);
     element.addEventListener("click", async event => {
         const button = event.target?.closest?.("[data-drpg-key-charge]");
         if (!button) return;
         event.preventDefault();
         button.closest(".drpg-call-actions")?.remove();
+        if (await heldChargeStale(message)) {
+            ui.notifications.info(game.i18n.localize("DRPG.Case.chargeStale"));
+            return;
+        }
         await askToChargeForUnfoundKeys();
         const { trialProgress } = await import("./vote.mjs");
         if (trialProgress()?.keysCharged) ui.notifications.info(game.i18n.localize("DRPG.Case.chargeDone"));
+    });
+}
+
+/** Whether a held Key fee's card has nothing left to charge: the fee stamped, or the clock in another chapter than the card's. */
+export async function heldChargeStale(message) {
+    const { trialProgress } = await import("./vote.mjs");
+    if (trialProgress()?.keysCharged) return true;
+    const chapter = cardFlag(message, "keyChargeChapter");
+    return !Number.isFinite(Number(chapter)) || chapter === null || Number(chapter) !== Number(getClock().chapter);
+}
+
+/** Take a stale held card's button away (`heldChargeStale`). Answers whether it did. */
+async function dropStaleCharge(message, element) {
+    if (!element?.querySelector?.("[data-drpg-key-charge]") || !(await heldChargeStale(message))) return false;
+    element.querySelector("[data-drpg-key-charge]")?.closest(".drpg-call-actions")?.remove();
+    return true;
+}
+
+let heldChargesWatched = false;
+
+/** Once a load: the trial's record or the clock written, every held card drawn in this browser's log is read again. */
+function watchHeldCharges() {
+    if (heldChargesWatched) return;
+    heldChargesWatched = true;
+    const keys = [`${MODULE_ID}.${SETTINGS.trialProgress}`, `${MODULE_ID}.${SETTINGS.clock}`];
+    Hooks.on("updateSetting", setting => {
+        if (!keys.includes(setting?.key)) return;
+        for (const button of document.querySelectorAll("[data-drpg-key-charge]")) {
+            const card = button.closest("[data-message-id]");
+            const message = game.messages?.get(card?.dataset?.messageId ?? "");
+            if (message && cardFlag(message, "keyChargeHeld")) void dropStaleCharge(message, card);
+        }
     });
 }
 
