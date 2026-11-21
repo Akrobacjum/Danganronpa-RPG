@@ -20182,9 +20182,13 @@ const SCENARIOS = [
             const drawnHere = await asVictim(async () => K.veiledFromHere(killer));
             must(drawnHere === true, "the stood-in victim's browser draws the veiled killer - this would measure nothing");
             read.veiled = await asVictim(hear);
+            // CHANGED ON PURPOSE BY 1.2.123 (the audit's r122-F-1): a GM's Listen for the victim, built on this GM's browser
+            // and whispered to the victim's player, hears as that player would. Red at 14bb0d92: named and counted.
+            read.gmVeiled = await hear();
             await M.endMurder({ reason: "test", followUp: false });
             await K.settleVeils();
             read.lifted = await asVictim(hear);
+            read.gmLifted = await hear();
         } finally {
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
             if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
@@ -20206,8 +20210,10 @@ const SCENARIOS = [
             "[the card's reads of the room through `heardIn`: the critical's sweep, the named tier, the count; a raw `occupantsOf` of a room left]");
         equal(stableJson(read), stableJson({
             veiled: { heard: false, named: false, empty: true, critical: false },
-            lifted: { heard: true, named: true, empty: false, critical: true }
-        }), "{while the veil stands, on the victim's browser: the card's reader holds the killer, the Reroll's named tier names them, its count reads the room empty, its critical sweep names them; the same after the incident closed}");
+            gmVeiled: { heard: false, named: false, empty: true, critical: false },
+            lifted: { heard: true, named: true, empty: false, critical: true },
+            gmLifted: { heard: true, named: true, empty: false, critical: true }
+        }), "{while the veil stands, on the victim's browser: the card's reader holds the killer, the Reroll's named tier names them, its count reads the room empty, its critical sweep names them; the same on this GM's browser for the victim; both again after the incident closed}");
     }],
     ["E119 - a Call's lines for its card name a masked student \"?\" (a Despair Call on the public card)", async () => {
         /*
@@ -24277,12 +24283,16 @@ equal(read.added, 3, "three additions to a purse at once lost one");
     ["1.2.122 CTRL-26 - a Reroll of an action a GM rules on ends the first card it replaced: the open call card of that character posted since the replaced roll loses its buttons and says a Reroll replaced it, while another character's open card and a card from before the roll stand (scripts/reroll.mjs `endReplacedRuling`, `settleGmRuling`; call-gm.mjs `settleCall`; the audit's CTRL-26, 1.2.122 line DESP)", async () => {
         /*
          * 21.11.2026, 1.2.122 line DESP. The audit's CTRL-26: the Reroll posted a second card for the ruling and left the
-         * first one's buttons live, about the roll it replaced. Three call cards posted as an action's are (`callGm`, a
-         * Decline button with `data-by`): one of a student's before its roll message, the roll's message, one of the
-         * student's after it, one of another student's after it. Then `endReplacedRuling` for the student's bookmark
-         * naming that roll. Read: for each card, whether its buttons stand and whether it says the Reroll replaced it; and
-         * off the source, that the Reroll's re-ask ends the first card before it posts its own. Put back: the messages.
-         * Red at ded83479: no `endReplacedRuling`.
+         * first one's buttons live, about the roll it replaced. Call cards posted as an action's are (`callGm`), with the
+         * buttons a described Search's ruling carries (`ruledMissAction`, `declineAction`): one of a student's before its
+         * roll message, the roll's message, one of the student's after it, one of another student's after it. Then
+         * `endReplacedRuling` for the student's bookmark naming that roll. Read: for each card, whether its buttons stand
+         * and whether it says the Reroll replaced it; and off the source, that the Reroll's re-ask ends the first card
+         * before it posts its own. Put back: the messages. Red at ded83479: no `endReplacedRuling`.
+         * CHANGED ON PURPOSE BY 1.2.123 (the audit's r122-F-9): the student's cards after the roll are three - a project
+         * proposal's (Approve and Decline, `data-by`), the Search's ruling, and a later Search's ruling - and only the
+         * Search's first is ended: the card of the replaced action's kind, the oldest of that kind since the roll. Red at
+         * 14bb0d92: all three ended.
          */
         const [student, other] = cast(2);
         const R = await import("./reroll.mjs");
@@ -24291,9 +24301,13 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         must(typeof R.endReplacedRuling === "function", "reroll.mjs ends no replaced ruling (no endReplacedRuling) - this would measure nothing");
         const seen = new Set(game.messages.map(m => m.id));
         const fresh = () => game.messages.contents.filter(m => !seen.has(m.id));
-        const post = async (actor, tag) => {
+        const { ruledMissAction, declineAction } = await import("./action-pipeline.mjs");
+        const searchButtons = actor => [ruledMissAction(actor), declineAction(actor, null)];
+        const projectButtons = actor => [{ action: "approveProject", label: "Approve", data: { by: actor.id } },
+            { action: "declineProject", label: "Decline", data: { by: actor.id } }];
+        const post = async (actor, tag, buttons = searchButtons) => {
             const before = new Set(game.messages.map(m => m.id));
-            must(await callGm(actor, { title: `SUITE CTRL-26 ${tag}`, actions: [{ action: "decline", label: "Decline", data: { by: actor.id } }] }),
+            must(await callGm(actor, { title: `SUITE CTRL-26 ${tag}`, actions: buttons(actor) }),
                 `the ${tag} card was not posted - this would measure nothing`);
             await settle();
             const card = game.messages.contents.find(m => !before.has(m.id)) ?? null;
@@ -24306,20 +24320,26 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await wait(5);
             const roll = await ChatMessage.create({ content: "<p>SUITE CTRL-26 roll</p>" });
             await wait(5);
+            // The project's card first: the oldest card of the student since the roll is not the Search's ruling.
+            const project = await post(student, "project", projectButtons);
+            await wait(5);
             const first = await post(student, "first");
+            await wait(5);
+            const later = await post(student, "later");
             const another = await post(other, "another");
             const ended = await R.endReplacedRuling(student, { messageId: roll.id, actionKey: "search", gmRuled: true });
             await settle();
             const state = card => { const w = contentOf(game.messages.get(card.id)) ?? ""; return [w.includes("drpg-call-actions"), w.includes(game.i18n.localize("DRPG.Reroll.rulingReplaced"))]; };
-            read.cards = { early: state(early), first: state(first), another: state(another), ended };
+            read.cards = { early: state(early), first: state(first), project: state(project), later: state(later), another: state(another), ended };
         } finally {
             for (const m of fresh()) await m.delete().catch(() => {});
             await settle();
         }
         const ask = fnSource(stripComments((await moduleSources()).get("reroll.mjs") ?? ""), "settleGmRuling");
         read.order = ask.search(/await endReplacedRuling\(actor, bookmark\)/) > 0 && ask.search(/await endReplacedRuling\(actor, bookmark\)/) < ask.search(/await callGm\(/);
-        equal(stableJson(read), stableJson({ cards: { early: [true, false], first: [false, true], another: [true, false], ended: 1 }, order: true }),
-            "{each card [its buttons stand, it says a Reroll replaced it]: the student's before the roll, the student's after it, another's after it; how many were ended; the re-ask ends the first before posting its own}");
+        equal(stableJson(read), stableJson({ cards: { early: [true, false], first: [false, true], project: [true, false], later: [true, false],
+            another: [true, false], ended: 1 }, order: true }),
+            "{each card [its buttons stand, it says a Reroll replaced it]: the student's before the roll, the Search's after it, the student's project proposal after it, a later Search's, another's after it; how many were ended; the re-ask ends the first before posting its own}");
     }],
     ["1.2.122 ROLL-21 - a roller who reloads while the GM draws their roll can still read its card: the wait is kept for the reload, and the drawn message that carries its nonce is read here and kept, after a second reload too (scripts/private-rolls.mjs `awaitDrawn`, `refillReadable`, `keepAwaitedHere`; the audit's ROLL-21, 1.2.122 line DESP)", async () => {
         /*
@@ -64138,6 +64158,24 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
             await until(() => listed().length === 1, 1500);
             read.came = stableJson(listed()) === stableJson([third.id]);
+            /* CHANGED ON PURPOSE BY 1.2.123 (the audit's r122-F-3): the third picked, then walking out, and Roll pressed with
+               the list empty - the window says that student is gone, and answers null. Red at 14bb0d92: no word. */
+            const who = el()?.querySelector('select[name="who"]');
+            if (who) { who.value = third.id; who.dispatchEvent(new Event("change", { bubbles: true })); }
+            await thirdToken.update(thirdWas, { ...PLACE });
+            await settle();
+            await until(() => listed().length === 0, 1500);
+            const warned = [];
+            const warnWas = ui.notifications.warn;
+            ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warnWas.call(ui.notifications, text, ...rest); };
+            try {
+                el()?.querySelector('footer button[data-action="ok"]')?.click();
+                read.pressed = (await Promise.race([opening, wait(3000).then(() => "open")])) ?? null;
+            } finally {
+                ui.notifications.warn = warnWas;
+            }
+            const { nameAsSeen } = await import("./mask-gm.mjs");
+            read.said = warned.includes(game.i18n.format("DRPG.Infiltrate.tail.gone", { name: nameAsSeen(third) }));
         } finally {
             for (const app of [...(foundry.applications.instances?.values?.() ?? [])]) {
                 const e = app.element instanceof HTMLElement ? app.element : app.element?.[0];
@@ -64148,8 +64186,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await stood.back();
         }
         read.paid = actionsWas - resourceValue(tailer, "actions");
-        equal(stableJson(read), stableJson({ opened: true, left: [], came: true, closed: null, paid: 0 }),
-            "{the list at the opening names the one student there; after that student left; after the third came in; what closing the window answers; the actions it cost}");
+        equal(stableJson(read), stableJson({ opened: true, left: [], came: true, pressed: null, said: true, closed: null, paid: 0 }),
+            "{the list at the opening names the one student there; after that student left; after the third came in; Roll pressed once the third, picked, walked out: what it answers; whether it said they are gone; what closing the window answers; the actions it cost}");
     }],
     ["1.2.122 REFR-52 - Level Up's picker follows the sheet while it stands: a statistic's value written meanwhile is shown at its new value, the statistic picked stays picked, and an experience added meanwhile is offered (scripts/level-up.mjs `wireForm`; the audit's REFR-52, 1.2.122 line DESP)", async () => {
         /*
@@ -92211,6 +92249,186 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(stableJson(read), stableJson({ rows: pair.map(a => a.id).sort(), others: 0, boxes: 0, warning: [true, true, true, true] }),
             "{the two Monokumas' rows; rows of a character that is no Monokuma; checkboxes on the tab; the warning [a warning box, shown, above the table, both names]}");
+    }],
+    ["1.2.123 p43-1 - an action window's briefing follows the character while it stands: \"You have 3\" reads 2 once an action is spent meanwhile, as a fresh window would (scripts/action-briefing.mjs `briefingBlock`; action-menus.mjs `keepBriefing`, `wireLiveBriefings`; the auditor's probe 43, 1.2.123 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.123 line DESP. The auditor's p43-1 (first measured on 1.2.118, AUDIT 18.1): Observe, Search,
+         * Analyze, Tamper, Projects and a Dynamic action draw `briefingBlock` once, at the open, and kept the count. The menu
+         * every one of them opens (`chooseVariant`, through `actionWindow`) drawn on this GM (`__dialogWindows`) with
+         * Observe's briefing, for a student of the cast with 3 actions; then the actions written to 2 on the sheet. Read: the
+         * price's line in Details before and after, and the lead's words still there. Put back: the window, the actions.
+         * Red at e7605e9f: the line stayed at 3.
+         */
+        needs(env.dialogs(), "the window is drawn and read");
+        const { ACTIONS } = await import("./config.mjs");
+        const { briefingBlock } = await import("./action-briefing.mjs");
+        const { chooseVariant } = await import("./action-menus.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { plural } = await import("./utils.mjs");
+        const [actor] = cast(1);
+        const def = ACTIONS.observe;
+        const actionsWas = foundry.utils.getProperty(actor, "system.resources.actions.value");
+        const el = () => [...(foundry.applications.instances?.values?.() ?? [])].map(a => (a.element instanceof HTMLElement ? a.element : a.element?.[0]))
+            .find(e => e?.isConnected && e.querySelector('input[name="variant"][value="suiteP43"]')) ?? null;
+        const box = () => el()?.querySelector(".drpg-action-details-box")?.textContent.replace(/\s+/g, " ") ?? "";
+        const line = n => plural("DRPG.Action.willCost", { n: def.cost ?? 1, left: n });
+        const read = {};
+        let opening = null;
+        try {
+            await trustedWrite(actor, { "system.resources.actions.value": 3 }, { reason: "gmRuling" });
+            await settle();
+            opening = chooseVariant({ actor, title: "SUITE p43-1", intro: briefingBlock(actor, "observe", def), options: [{ value: "suiteP43", label: "SUITE" }] });
+            await until(() => el(), 3000);
+            read.before = box().includes(line(3));
+            await trustedWrite(actor, { "system.resources.actions.value": 2 }, { reason: "gmRuling" });
+            await settle();
+            await until(() => box().includes(line(2)), 1500);
+            read.after = box().includes(line(2));
+            read.lead = Boolean(el()?.querySelector(".drpg-briefing-block p"));
+        } finally {
+            for (const app of [...(foundry.applications.instances?.values?.() ?? [])]) {
+                const e = app.element instanceof HTMLElement ? app.element : app.element?.[0];
+                if (e?.querySelector?.('input[name="variant"][value="suiteP43"]')) await app.close().catch(() => {});
+            }
+            await opening?.catch?.(() => null);
+            await trustedWrite(actor, { "system.resources.actions.value": actionsWas }, { reason: "gmRuling" });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ before: true, after: true, lead: true }),
+            "{the price's line at 3 actions; at 2 once spent meanwhile; the lead still drawn}");
+    }],
+    ["1.2.123 p43-1 - Analyze's window follows the bullets while it stands: a student with nothing to analyze is given a Truth Bullet, and its row is no longer shut and its select offers the bullet (scripts/action-analyze.mjs `askWhatToAnalyze`; the auditor's probe 43, 1.2.123 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.123 line DESP. The auditor's p43-1: Analyze kept "You have nothing left to analyze" after a Truth
+         * Bullet was given. The GM's free Analyze for a student of the cast with no analysable bullet, drawn on this GM
+         * (`__dialogWindows`); then a Truth Bullet made for that student (`createTruthBullet`). Read: the bullet row shut
+         * before, open after, and the bullet in the select. Put back: the window (Cancel: nothing is paid), the bullet.
+         * Red at e7605e9f: the row stayed shut.
+         */
+        needs(env.dialogs(), "the window is drawn and read");
+        const A = await import("./action-rolls.mjs");
+        const T = await import("./truth-bullets.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const actor = cast(4).find(a => !T.analysableBullets(a).length);
+        must(actor, "every student of the cast holds an analysable bullet - this would measure nothing");
+        const el = () => [...(foundry.applications.instances?.values?.() ?? [])].map(a => (a.element instanceof HTMLElement ? a.element : a.element?.[0]))
+            .find(e => e?.isConnected && e.querySelector('input[name="variant"][value="bullet"]') && e.querySelector('input[name="variant"][value="passage"], input[name="variant"][value="hint"]')) ?? null;
+        const shut = () => Boolean(el()?.querySelector('input[name="variant"][value="bullet"]')?.disabled);
+        let bullet = null, opening = null;
+        const read = {};
+        try {
+            opening = A.performAction(actor, "analyze", { free: true });
+            await until(() => el(), 3000);
+            must(el(), "the Analyze window did not open - this would measure nothing");
+            read.before = shut();
+            bullet = await T.createTruthBullet(actor, { name: "SUITE p43-1 a torn note", playerText: "SUITE p43-1" });
+            await sheetAuditIdle();
+            await settle();
+            await until(() => !shut(), 1500);
+            read.after = shut();
+            read.offered = Boolean(bullet && el()?.querySelector(`select[name="bullet"] option[value="${bullet.id}"]`));
+        } finally {
+            for (const app of [...(foundry.applications.instances?.values?.() ?? [])]) {
+                const e = app.element instanceof HTMLElement ? app.element : app.element?.[0];
+                if (e?.querySelector?.('input[name="variant"][value="bullet"]')) await app.close().catch(() => {});
+            }
+            await opening?.catch?.(() => null);
+            if (bullet && actor.items.get(bullet.id)) await bullet.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ before: true, after: false, offered: true }),
+            "{the bullet row shut with nothing to analyze; shut once a bullet was given meanwhile; the bullet in the select}");
+    }],
+    ["1.2.123 p43-1 - Tamper's whom to frame follows who is alive while the window stands: a student who dies leaves the select, and the others stay (scripts/action-tamper.mjs `chooseTamper`, `runTamperChoice`; the auditor's probe 43, 1.2.123 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.123 line DESP. The auditor's p43-1: Tamper's "Who to frame" kept a student who died. The GM's
+         * free Tamper for a student of the cast, drawn on this GM (`__dialogWindows`); then another student marked dead
+         * (death.mjs `markDeceased`, the published flag `livingStudents` reads). Read: the select's students before and
+         * after. Put back: the window (Cancel), the death (`reviveCharacter`). Red at e7605e9f: the dead student stayed.
+         */
+        needs(env.dialogs(), "the window is drawn and read");
+        const A = await import("./action-rolls.mjs");
+        const D = await import("./death.mjs");
+        const [actor, victim] = cast(2);
+        must(victim, "fewer than two students - this would measure nothing");
+        const el = () => [...(foundry.applications.instances?.values?.() ?? [])].map(a => (a.element instanceof HTMLElement ? a.element : a.element?.[0]))
+            .find(e => e?.isConnected && e.querySelector('input[name="variant"][value="frame"]')) ?? null;
+        const listed = () => [...(el()?.querySelectorAll('select[name="who"] option') ?? [])].map(o => o.value);
+        let opening = null, marked = false;
+        const read = {};
+        try {
+            opening = A.performAction(actor, "tamper", { free: true });
+            await until(() => el(), 3000);
+            must(el(), "the Tamper window did not open - this would measure nothing");
+            read.before = listed().includes(victim.id);
+            const others = listed().filter(id => id !== victim.id);
+            marked = Boolean(await D.markDeceased(victim, { silent: true }));
+            must(marked, "the student could not be marked dead - this would measure nothing");
+            await settle();
+            await until(() => !listed().includes(victim.id), 2000);
+            read.after = listed().includes(victim.id);
+            read.others = stableJson(listed()) === stableJson(others);
+        } finally {
+            for (const app of [...(foundry.applications.instances?.values?.() ?? [])]) {
+                const e = app.element instanceof HTMLElement ? app.element : app.element?.[0];
+                if (e?.querySelector?.('input[name="variant"][value="frame"]')) await app.close().catch(() => {});
+            }
+            await opening?.catch?.(() => null);
+            if (marked) await D.reviveCharacter(victim, { quiet: true, silent: true });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ before: true, after: false, others: true }),
+            "{the victim-to-be offered at the open; offered once dead; the other students as they were}");
+    }],
+    ["1.2.123 r122-H-7 - Despair Flow follows another GM's change while it stands: the Overflow rules written meanwhile are what the window shows, and a pool's name this GM typed and did not save is kept, while the fields it left as drawn show the world (scripts/gm-team-dialog.mjs `flowShown`, `changedDraft`; the audit's r122-F-4 and r122-H-7, 1.2.123 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.123 line DESP. The audit's r122-H-7: the window showed the pools, assignments and Overflow rules of
+         * its open while another GM changed them; r122-F-4: the suggested threshold did not follow a pool granted or revoked.
+         * Despair Flow opened on this GM (`__dialogWindows`); the first pool's name typed (not saved); then the Overflow
+         * rules written to the world as another GM's Save writes them (the threshold +3, the setting `overflowRules`). Read:
+         * the window's threshold field, the typed name, and whether the window drawn now is a new one (opened again from the
+         * world). A grant by another GM is the same road (`extraPoolUsers`, a user's role) and is not driven: the harness
+         * runs no Assistant GM in the suite. Put back: the window, the rules. Red at 14bb0d92: the old threshold stood.
+         */
+        needs(env.dialogs(), "Despair Flow is drawn and read");
+        must(game.user.isGM, "Despair Flow is a GM's");
+        const T = await import("./gm-team-dialog.mjs");
+        const { monokumas } = await import("./despair.mjs");
+        const { overflowRules } = await import("./overflow.mjs");
+        const gms = monokumas();
+        must(gms.length >= 1, "nobody holds a Despair pool here - the window would not open");
+        const rulesWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflowRules) ?? {});
+        const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-gmteam"));
+        const threshold = () => Number(open()[0]?.element?.querySelector('[name="ovf-threshold"]')?.value);
+        const read = {};
+        let answer = null;
+        try {
+            answer = Promise.resolve().then(() => T.openGmTeamDialog()).catch(() => null);
+            await until(() => open()[0]?.element, 6000);
+            const first = open()[0];
+            const root = first?.element;
+            must(root, "Despair Flow did not open - this would measure nothing");
+            const name = root.querySelector(`[name="poolName.${CSS.escape(gms[0].id)}"]`);
+            must(name, "the first pool's name field was not drawn - this would measure nothing");
+            name.value = "SUITE H-7 typed";
+            name.dispatchEvent(new Event("input", { bubbles: true }));
+            const was = overflowRules().threshold;
+            read.before = threshold() === was;
+            await game.settings.set(MODULE_ID, SETTINGS.overflowRules, { ...rulesWas, threshold: was + 3 });
+            await settle();
+            await until(() => threshold() === was + 3, 3000);
+            read.after = threshold() === was + 3;
+            read.again = open()[0] !== first;
+            read.typed = open()[0]?.element?.querySelector(`[name="poolName.${CSS.escape(gms[0].id)}"]`)?.value === "SUITE H-7 typed";
+        } finally {
+            for (const app of open()) await app.close().catch(() => {});
+            if (answer) await Promise.race([answer, wait(3000)]);
+            await game.settings.set(MODULE_ID, SETTINGS.overflowRules, rulesWas);
+            await settle();
+            for (const app of open()) await app.close().catch(() => {});
+        }
+        equal(stableJson(read), stableJson({ before: true, after: true, again: true, typed: true }),
+            "{the threshold field at the world's value; at the value another GM wrote meanwhile; the window opened again; the pool name this GM typed kept}");
     }],
     ["E101-T4 - Season setup stays as it is while a window opened from its row comes and goes: Despair Flow pressed from the row opens in front, and closed, Season setup is the same window, not drawn again, with a field as typed and its scroll kept (E101 F4; the owner at a 1.2.108 table)", async () => {
         /*

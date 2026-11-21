@@ -26,7 +26,7 @@ import { actionWindow, chooseVariant } from "./action-menus.mjs";
 import { watchShutWhy } from "./action-watch.mjs";
 import { isEclipse } from "./settings.mjs";
 import { tipAttr, tipText } from "./ui-kit.mjs";
-import { isMaskedActor, MASK_NAME, seenHere } from "./mask-gm.mjs";
+import { isMaskedActor, isVeiledToken, MASK_NAME, seenHere } from "./mask-gm.mjs";
 
 /**
  * THE DOORS, NOT THE ROOMS BEHIND THEM (22.09). The picker named every neighbouring room,
@@ -135,9 +135,19 @@ export function listenName(other) {
  * `seenHere` (mask-gm.mjs, as the room pickers do since MAP-16): a veiled occupant this browser does not draw is left out of
  * the names and of the count. The Reroll's lines are heard through the same reader (reroll.mjs `listenLines`). A GM, the
  * killer's own player and the killers' side hear them as before (`veiledFromHere` answers false for them).
+ *
+ * AND A GM'S LISTEN FOR A STUDENT HEARS AS THAT STUDENT'S PLAYER WOULD (the audit's r122-F-1, 1.2.123). `seenHere` answers
+ * for the browser that builds the card, and on a GM's it hides nobody (mask-gm.mjs `veilHidesHere`); a GM who pressed
+ * Listen on a student's sheet - `performAction` runs for any character on a GM - built the card there, naming the veiled
+ * killer, and `whisperToOwner` sent it to the student's player. On a GM's browser a character on a veiled token is now
+ * left out too, unless the listener stands on a veiled token of their own: the veil covers the killers' side alone
+ * (`veilWanted`), whose browsers draw each other.
  */
 export function heardIn(room, actor, scene, occupantsOf) {
-    return seenHere(occupantsOf(room, actor, scene));
+    const heard = seenHere(occupantsOf(room, actor, scene));
+    if (!game.user?.isGM) return heard;
+    const veiled = who => (game.scenes ?? []).some(s => (s?.tokens ?? []).some(t => t.actorId === who?.id && isVeiledToken(t)));
+    return veiled(actor) ? heard : heard.filter(a => !veiled(a));
 }
 
 /**

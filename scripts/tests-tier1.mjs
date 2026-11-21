@@ -33404,11 +33404,27 @@ const INVARIANTS = [
         const src = fnSource(stripComments((await moduleSources()).get("action-tail.mjs") ?? ""), "performTail");
         const asked = src.search(/await requestTailStart\(/);
         must(asked > 0, "performTail asks no tail.start - this would measure nothing");
-        const back = src.search(/if \(!res\.ok && res\.refused && res\.reason === "notThere"\) \{\s*await abort\(actor, paid\);/);
+        // CHANGED ON PURPOSE BY 1.2.123 (the audit's r122-F-2): the receipt comes back only where neither roll earned Hope.
+        const back = src.search(/if \(!res\.ok && res\.refused && res\.reason === "notThere"\) \{\s*const earned = rollsEarnedHope\(\[shadow, roll\]\);\s*if \(!earned\) await abort\(actor, paid\);/);
         const plain = src.search(/if \(!res\.ok \|\| res\.value\?\.refused\) return null;/);
         const aborts = [...src.matchAll(/\babort\(/g)].filter(m => m.index > asked).length;
         equal(stableJson([back > asked, back > 0 && plain > back, aborts]), stableJson([true, true, 1]),
             "[a branch on notThere gives the receipt back; before the plain refusal; one abort after the ask]");
+    }],
+    ["R8580 - Tail Someone's notThere refund is no Hope generator (1.2.123 line DESP; the audit's r122-F-2): action-tail.mjs `rollsEarnedHope` answers true for a roll with Hope and for a critical, false for rolls with Despair alone, and `performTail` gives the action back only where it answers false", async () => {
+        /*
+         * 21.11.2026, 1.2.123 line DESP. The refund came after both drawn rolls had paid out their Hope, so two players who
+         * agreed (one steps out while the other rolls) repeated Tail for its Hope at no action. The rule, measured on
+         * `rollTrait`'s shape (`result.duality`: 1 Hope, -1 Despair, 0 a critical; action-pipeline.mjs `dualityOf`): a
+         * Hope roll, a critical, Despair and Despair, and a Despair roll beside a Hope one. That `performTail` asks it before
+         * the refund is R8384's reading. Red at 14bb0d92: no `rollsEarnedHope`.
+         */
+        const T = await import("./action-tail.mjs");
+        must(typeof T.rollsEarnedHope === "function", "action-tail.mjs has no rollsEarnedHope - this would measure nothing");
+        const r = duality => ({ result: { duality }, isCritical: duality === 0 });
+        equal(stableJson([T.rollsEarnedHope([r(-1), r(1)]), T.rollsEarnedHope([r(0), r(-1)]), T.rollsEarnedHope([r(-1), r(-1)]), T.rollsEarnedHope([])]),
+            stableJson([true, true, false, false]),
+            "[a Despair roll beside a Hope one; a critical beside a Despair; two Despair rolls; none]");
     }],
     ["R8383 - on the primary, an actor's flag write below full Gamemaster that touches no Dice So Nice flag schedules no dice-look put-back (1.2.122 line DESP; the audit's ROLL-30): dice-sync.mjs `onActorWritten` returns before `afterSwitchesHeld` for a write neither touching the look nor a creation", async () => {
         /*
@@ -39409,7 +39425,12 @@ const INVARIANTS = [
         const labelOf = (fn, name) => {
             const body = fnSource(code, fn) ?? "";
             const m = body.match(new RegExp(`<label class="drpg-specific-note"(?: data-drpg-when="([\\w-]+)")?>\\s*<span>\\$\\{[^}]*\\}</span>\\s*<select name="${name}"(?:\\$\\{tipAttr\\([^)]*\\)\\})?>`));
-            return m ? m[1] ?? "always" : "no such select";
+            if (m) return m[1] ?? "always";
+            /* CHANGED ON PURPOSE BY 1.2.123 (the auditor's p43-1): Tamper's frame select is drawn by `whoSelect`, which the
+               menu keeps live; the label holds the helper's call, and the helper starts with the select itself. */
+            const viaHelper = body.match(new RegExp(`<label class="drpg-specific-note"(?: data-drpg-when="([\\w-]+)")?>\\s*<span>\\$\\{[^}]*\\}</span>\\s*\\$\\{whoSelect\\(candidates\\)\\}`));
+            const helper = new RegExp(`const whoSelect = list => \`<select name="${name}"`).test(body);
+            return viaHelper && helper ? viaHelper[1] ?? "always" : "no such select";
         };
         equal(JSON.stringify({
             wrong,

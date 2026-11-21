@@ -30,20 +30,30 @@ import { chooseVariant } from "./action-menus.mjs";
 
 import { tipAttr } from "./ui-kit.mjs";
 import { nameAsSeen } from "./mask-gm.mjs";
+import { keepLive, keepFresh } from "./live.mjs";
 
 /* ==========================================================================
  * TAMPER
  * ========================================================================== */
 
+/*
+ * WHOM TO FRAME FOLLOWS WHO IS ALIVE (the auditor's probe 43, p43-1, 1.2.123). The list was read once, at the open
+ * (cleanup.mjs `framingCandidates`): a student who died while the menu stood stayed offered, and the frame row stayed
+ * lit for them. The list is read again on every write of a character and every death the GMs keep (`keepFresh`); when it
+ * differs, `TAMPER_WHO_HOOK` is called and the frame row (the rows, action-menus.mjs `keepRowsLive`) and its select (a
+ * region of its own) are rebuilt from it, the student picked carried while they still stand there. `runTamperChoice`
+ * reads the list again before it frames anybody.
+ */
+const TAMPER_WHO_HOOK = "drpgTamperWhoChanged";
+
 /** The Tamper menu: cover, reshape, frame, and - for the killer on their own night - the body. */
 async function chooseTamper(actor, def, { erasable, mine, candidates, stageSix, tamperFacts, cleanup }) {
-    return chooseVariant({
-        actor,
-        title: def.label,
-        intro: briefingBlock(actor, "tamper", def, { extraFacts: tamperFacts }),
-        prompt: game.i18n.localize("DRPG.Tamper.prompt"),
-        confirm: game.i18n.localize("DRPG.Action.roll"),
-        options: [
+    let latest = candidates;
+    const idsOf = list => list.map(a => a.id).join(",");
+    // The select itself is the region: it stands straight in its row's label, as the stylesheet reads it (R1142).
+    const whoSelect = list => `<select name="who" class="drpg-tamper-who"${tipAttr("DRPG.Tips.Actions.frameStudentTooltip")}>${list.map(a =>
+        `<option value="${a.id}">${esc(nameAsSeen(a))}</option>`).join("")}</select>`;
+    const rowsFor = list => [
             {
                 value: "cover", icon: "fa-eraser",
                 label: game.i18n.localize("DRPG.Tamper.cover"),
@@ -78,7 +88,7 @@ async function chooseTamper(actor, def, { erasable, mine, candidates, stageSix, 
                 value: "frame", icon: "fa-signs-post",
                 label: game.i18n.localize("DRPG.Tamper.frame"),
                 hint: game.i18n.format("DRPG.Tamper.frameHint", { n: CLEANUP.actions.misleadingTrail.threshold }),
-                disabled: !candidates.length,
+                disabled: !list.length,
                 why: game.i18n.localize("DRPG.Cleanup.trailNobody")
             },
             // The third row exists only for the person standing over a body
@@ -92,7 +102,28 @@ async function chooseTamper(actor, def, { erasable, mine, candidates, stageSix, 
                 disabled: !cleanup.bodyIsHere(actor),
                 why: game.i18n.localize("DRPG.Cleanup.bodyNotHere")
             }] : [])
-        ],
+        ];
+    return chooseVariant({
+        actor,
+        title: def.label,
+        intro: briefingBlock(actor, "tamper", def, { extraFacts: tamperFacts }),
+        prompt: game.i18n.localize("DRPG.Tamper.prompt"),
+        confirm: game.i18n.localize("DRPG.Action.roll"),
+        options: rowsFor(candidates),
+        live: { options: () => rowsFor(latest), watch: { hooks: [TAMPER_WHO_HOOK] } },
+        onRender: (event, dialog) => {
+            keepLive(dialog, { region: "select.drpg-tamper-who", build: () => whoSelect(latest), watch: { hooks: [TAMPER_WHO_HOOK] } });
+            keepFresh(dialog, {
+                run: () => {
+                    cleanup.framingCandidates(actor).then(list => {
+                        if (idsOf(list) === idsOf(latest)) return;
+                        latest = list;
+                        Hooks.callAll(TAMPER_WHO_HOOK);
+                    }).catch(() => {});
+                },
+                watch: { actors: true, hooks: ["drpgDeathsChanged"] }
+            });
+        },
         // What is readied, said where the clean-up is chosen. The clean-up
         // panel carried this line; the panel is gone and the sentence is not -
         // a Cleaning Tool lowers the number and grants advantage, and a player
@@ -119,11 +150,10 @@ async function chooseTamper(actor, def, { erasable, mine, candidates, stageSix, 
                 <span>${game.i18n.localize("DRPG.Tamper.whichTrace")}</span>
                 <select name="reshapeTrace">${erasable.map(t =>
                     `<option value="${esc(t.id)}">${esc(t.label)}</option>`).join("")}</select>
-            </label>` : ""}${candidates.length ? `<label class="drpg-specific-note" data-drpg-when="frame">
+            </label>` : ""}<label class="drpg-specific-note" data-drpg-when="frame">
                 <span>${game.i18n.localize("DRPG.Cleanup.trailWho")}</span>
-                <select name="who"${tipAttr("DRPG.Tips.Actions.frameStudentTooltip")}>${candidates.map(a =>
-                    `<option value="${a.id}">${esc(nameAsSeen(a))}</option>`).join("")}</select>
-            </label>` : ""}`
+                ${whoSelect(candidates)}
+            </label>`
     });
 }
 
@@ -159,8 +189,14 @@ async function runTamperChoice(actor, picked, { cleanup, erasable, candidates, v
         });
     }
 
-    const whoId = picked.form?.querySelector("[name=who]")?.value ?? candidates[0]?.id;
-    if (!whoId) return null;
+    // The list as it stands now (p43-1, 1.2.123): a student who died while the menu stood is framed by nobody.
+    const now = await cleanup.framingCandidates(actor);
+    const whoId = picked.form?.querySelector("[name=who]")?.value || now[0]?.id;
+    if (!whoId || !now.some(a => a.id === whoId)) {
+        const was = whoId ? game.actors?.get?.(whoId) : null;
+        ui.notifications.warn(was ? game.i18n.format("DRPG.Cleanup.trailGone", { name: nameAsSeen(was) }) : game.i18n.localize("DRPG.Cleanup.trailNobody"));
+        return null;
+    }
     return cleanup.attemptStageSix(actor, "misleadingTrail", whoId, { viaAction });
 }
 
