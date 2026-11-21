@@ -101,6 +101,29 @@ function openControls() {
     return true;
 }
 
+/** The push-to-talk key's line: its name, or that none is bound. */
+function keyLine(key) {
+    return key ? game.i18n.format("DRPG.Voice.panel.pttKey", { key }) : game.i18n.localize("DRPG.Voice.mic.pttNoKey");
+}
+
+/**
+ * THE KEY'S LINE FOLLOWS THE BINDING (1.2.122, the audit's REFR-55). It was written once, from `pushToTalkKey()` when the
+ * fieldset was built, and its own Change the key opens Foundry's Configure Controls: a player who rebound the key there
+ * came back to the old one until the settings window was opened again. Foundry keeps the bindings in the client setting
+ * `core.keybindings`, and its write raises `clientSettingChanged` (read as Foundry's hook, not in v14's source: a LIVE
+ * question); every key line on the page is written again then. Registered once, with the first fieldset.
+ */
+let followingTheKey = false;
+function followTheKey() {
+    if (followingTheKey) return;
+    followingTheKey = true;
+    Hooks.on("clientSettingChanged", key => {
+        if (key !== "core.keybindings") return;
+        const line = keyLine(pushToTalkKey());
+        for (const span of document.querySelectorAll(".drpg-voice-panel-key-name")) if (span.textContent !== line) span.textContent = line;
+    });
+}
+
 /**
  * The Voice fieldset, wired: every change writes at once through `writeVoiceSetting`.
  *
@@ -140,7 +163,8 @@ export async function voiceFieldset({ client = game.webrtc?.client, settings = g
     fieldset.append(mode);
 
     const keyRow = node("div", "drpg-voice-panel-key");
-    keyRow.append(node("span", "", key ? game.i18n.format("DRPG.Voice.panel.pttKey", { key }) : game.i18n.localize("DRPG.Voice.mic.pttNoKey")));
+    keyRow.append(node("span", "drpg-voice-panel-key-name", keyLine(key)));
+    followTheKey();
     if (typeof foundry.applications?.sidebar?.apps?.ControlsConfig === "function") {
         const change = node("button", "drpg-voice-panel-key-change", t("pttChange"));
         change.type = "button";

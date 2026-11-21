@@ -17600,6 +17600,33 @@ const INVARIANTS = [
             "closing the history read what its filter hid, or did not read what it listed ([the player's card after the close, the card for you, the player's card after Mark all as read])");
     }],
 
+    ["R8273 - the Voice section's push-to-talk line follows the binding: a key rebound in Foundry's controls is the line's at the bindings' write, without the settings window opened again (voice-panel.mjs `voiceFieldset`, `followTheKey`; 1.2.122, the audit's REFR-55)", async () => {
+        /*
+         * The audit of 1.2.118 (REFR-55): the line was written once, when the fieldset was built. A fieldset built with
+         * no client, no settings and the key "R8273Old" (nothing is written); then Foundry's keybindings stood in (an own
+         * `keybindings` on `game`, taken off after) with push to talk on "R8273New", and the hook Foundry raises when a
+         * client setting is written, for `core.keybindings`. Whether v14 raises `clientSettingChanged` for a rebinding is
+         * not read here. Red at 21bf5d18: the old key.
+         */
+        const P = await import("./voice-panel.mjs");
+        const fieldset = await P.voiceFieldset({ client: null, settings: null, key: "R8273Old" });
+        document.body.append(fieldset);
+        const own = Object.getOwnPropertyDescriptor(game, "keybindings");
+        let read = null;
+        try {
+            const line = () => fieldset.querySelector(".drpg-voice-panel-key span, .drpg-voice-panel-key-name")?.textContent ?? "";
+            const before = line();
+            Object.defineProperty(game, "keybindings", { value: { get: (ns, name) => (ns === "core" && name === "pushToTalk" ? [{ key: "R8273New" }] : []) }, configurable: true });
+            Hooks.callAll("clientSettingChanged", "core.keybindings", {}, {});
+            read = [before.includes("R8273Old"), line().includes("R8273New")];
+        } finally {
+            if (own) Object.defineProperty(game, "keybindings", own);
+            else delete game.keybindings;
+            fieldset.remove();
+        }
+        equal(stableJson(read), stableJson([true, true]), "the push-to-talk line did not follow the binding ([the old key at the build, the new one after the bindings' write])");
+    }],
+
     ["R539 - the GM's block in the list is Foundry's block and never undoes the module's: the button is built only in a GM's list; its click writes the user's `permissions.BROADCAST_AUDIO` flipped from what Foundry answers now and nothing else; where `moduleHoldsMic` holds the microphone or a death is kept secret the button is disabled with its line and `toggleBlock` writes nothing; it refuses a player's client, the GM's own account and a user who is not of this world", async () => {
         /*
          * E78 C5, 14.10.2026; the A9 design's R392 (A9-5; the E78 plan's D2 gave it this number), the owner's Q4 (the
