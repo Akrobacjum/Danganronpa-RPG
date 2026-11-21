@@ -1424,8 +1424,9 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
              * room a student walked into), the students (one made, renamed or deleted, a death: `rosterMoved`, below)
              * or the Mastermind draws the form again from the world, as `keepLive` redraws: what the GM changed and has not
              * applied is carried by name (live.mjs RULE 2) - a field another GM changed meanwhile keeps the GM's
-             * value and is marked - with the tab, the scroll and the focus in a named field (`whileEditing`); a
-             * select held open, or the token count's field (no name), holds the redraw until the focus leaves.
+             * value and is marked - with the tab, the scroll and the focus (`whileEditing`). What holds a redraw is
+             * live.mjs's to say: an IME's composition, and on e515907d a focused select or a field with no name (the
+             * token count's), which the line claude/refresh-120 lets go.
              * Apply then writes only what the GM changed (`untouchedRoomRow`, REFR-03). The Passages tab is not
              * drawn again: its box follows its own stores (passages-tab.mjs `wirePassagesTab`), so the box standing
              * is moved into the new form whole, with its listeners. What a cell draws from its hidden field - a stash
