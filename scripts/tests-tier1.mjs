@@ -57714,6 +57714,40 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ oneFirst: "trialExit", oneStill: "trialExit", oneThen: "dayEnd", twoStill: "trialExit", twoThen: "dayEnd", alone: "dayStart" }),
             "[one run: what plays first, still after 400 ms, then; two runs: what plays 400 ms after the morning was heard, then once the exit was skipped; a new day with no exit]");
     }],
+    ["R8500 - a page whose clock an incident hides plays no day's board for a move of the clock (scripts/transitions.mjs `onClockHeard`, incident-store.mjs `clockHiddenHere`; the audit's STG-06, 1.2.122 line WORLD): Evening to Night with the end board's stamp starts the end-of-day board on a page that sees the clock, and nothing on one where it is hidden, which `onClockHeard` asks of `clockHiddenHere` when no answer is handed in", async () => {
+        /* 21.11.2026, 1.2.122 line WORLD. The audit's STG-06 (stages-20 E94-1): a bystander's HUD was frozen and their
+           browser still played 'End of day N' with its chime. Heard twice, as R4424 hears its runs: once on a page that
+           sees the clock (`hidden: false`), once on one where it is hidden (`hidden: true`, the answer `clockHiddenHere`
+           gives a bystander's browser while an incident runs; this GM's own answer is false). The default is read in the
+           source. Red at 21bf5d18: the hidden page played "dayEnd". */
+        const S = await import("./sequence.mjs"), T = await import("./transitions.mjs");
+        const body = document.body, hadGlass = body.classList.contains("drpg-theme-stained-glass"), wasReduced = body.classList.contains("drpg-reduced-motion"), phase = body.dataset.drpgPhase;
+        const day = 800 + (Date.now() % 100), tag = `R8500:${Date.now()}`, read = {};
+        const c = (d, timeOfDay, extra = {}) => ({ season: tag, session: d, day: d, timeOfDay, phase: "dailyLife", eclipse: false, chapter: 2, ...extra });
+        const kind = () => S.sequenceNow()?.kind ?? null;
+        try {
+            body.classList.remove("drpg-theme-stained-glass");
+            body.classList.add("drpg-reduced-motion");
+            S.endSequence("cut");
+            // A day each: the end board plays once a key ("one start per key", transitions.mjs `boardsOf`), so a second hearing of one day would read nothing.
+            for (const [label, hidden, d] of [["seen", false, day], ["hidden", true, day + 1]]) {
+                T.onClockHeard(c(d, "evening"), { on: false, still: true, hidden: false });
+                T.onClockHeard(c(d, "night", { nightBoard: d, dayBoard: null }), { on: true, still: true, keep: false, hidden });
+                await until(() => kind() !== null, label === "seen" ? 3000 : 1200);
+                read[label] = kind();
+                S.endSequence("cut");
+            }
+        } finally {
+            S.endSequence("cut");
+            body.classList.toggle("drpg-theme-stained-glass", hadGlass);
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+            if (phase === undefined) delete body.dataset.drpgPhase; else body.dataset.drpgPhase = phase;
+        }
+        const head = fnSource(stripComments(new Map(await otherSources()).get("transitions.mjs") ?? ""), "onClockHeard").split("{").slice(0, 3).join("{");
+        read.asks = /hidden\s*=\s*clockHiddenHere\(\)/.test(head);
+        equal(stableJson(read), stableJson({ seen: "dayEnd", hidden: null, asks: true }),
+            "{seen, hidden: what plays after Evening to Night on a page that sees the clock and on one where it is hidden; asks: onClockHeard's default reads clockHiddenHere} - a bystander is not shown the move the incident hides");
+    }],
     ["R5380 - the closing curtain stands under the open windows, the title and its band over them (styles/danganronpa.css THE SEQUENCES; the owner's ask of 13.11.2026: \"zamkniecie kurtyny niech bedzie pod otwartymi oknami, napis i jego tlo na otwartych oknach\"): read through the module's cascade in both themes, on a desk and a stacked screen, for the trial's entry and its exit with the glass and with the lids, the host is no box of its own (`display: contents`), its curtain layer is fixed under Foundry's window layer (`--z-index-window` less 2) and over every other z-index the module's sheets state under that layer, and takes the clicks it covers; its title layer is fixed at 99980, over every window, and lets the clicks through; the notice stack stands over the curtain - under the windows under Stained Glass, over them under Monokuma Legacy; the verdict's cut-in and the day's boards keep the one host at 99980; every window open on this page stands between the two layers", async () => {
         /*
          * E105, 13.11.2026. Red at 58e0fd06: the whole sequence was one fixed host at 99980, over every window - the
