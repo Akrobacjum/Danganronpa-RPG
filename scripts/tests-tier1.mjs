@@ -65599,7 +65599,8 @@ const INVARIANTS = [
         const acts = src.get("bridge-runs-acts.mjs") ?? "", owed = fnSource(acts, "reaskOwedOpening");
         equal(stableJson({
             "CASE-24": [/reaskOwedOpening\(sender\)/.test(fnSource(acts, "handleAdvancementAsk")), /if \(state\?\.stage !== "openingRoll"\) return false;/.test(owed),
-                /!actor\.testUserPermission\?\.\(sender, "OWNER"\)\) return false;\s*await rollOpening\(side, state\);/.test(owed),
+                // Since 1.2.123 (r122-lane-B-2) not while this GM's own window throws that opening.
+                /!actor\.testUserPermission\?\.\(sender, "OWNER"\)\) return false;[\s\S]{0,900}?if \(openingThrownHere\(side, actor\.id\)\) return false;\s*await rollOpening\(side, state\);/.test(owed),
                 /if \(openingKeysInFlight\.has\(flightKey\)\) return null;\s*let roll = null;\s*openingKeysInFlight\.add\(flightKey\);\s*openingRollsInFlight\+\+;/.test(fnSource(src.get("murder-rules.mjs") ?? "", "throwOpeningRoll"))],
             "CORE-31": /if \(!canGiveBack\(game\.user\)\) \{[\s\S]{0,240}DRPG\.Enforced\.filesNeedFullGm[\s\S]{0,80}return false;\s*\}\s*await keepOriginal\("permissions"/.test(hold),
             "CORE-24": [(place.match(/broadcast\(SYNC\.gather,/g) ?? []).length, /\}\s*if \(moved\.length\) broadcast\(SYNC\.gather, \{ scene: \[\.\.\.scenes\], tokenIds: moved \}\);/.test(place),
@@ -65931,6 +65932,48 @@ const INVARIANTS = [
         }), stableJson({
             plain: "? caught you.? looks away.", title: ["?"], cut: false, cutQ: true, plainOutside: false, inside: true, untouched: true
         }), "{plain, title: the escaped names cut in the text and the attribute; cut, cutQ: on a card cut by reader, outside the mask; plainOutside: a plain card through wordsFor; inside: a reader with no mask gets the words as written; untouched: words holding no name come back byte for byte}");
+    }],
+    ["R8119 - fileSizes reads each script once and leaves out a name only the suite's own fixtures quote, and still reports a module file that did not arrive (1.2.123; the audit of 1.2.118, CORE-28: diagnostics.mjs `crawlScripts`, `loadedFiles`, `fileSizes`)", async () => {
+        /* Red at 8516ae4b: the crawl followed `import z from "./ghost.mjs"` quoted in a suite file, so the list held a
+           file no server holds and fileSizes printed it "DID NOT ARRIVE"; and every script was fetched by the crawl and
+           again by fileSizes. A served tree of its own stands in for the server while this runs (`fetch` put back after):
+           module.mjs imports a.mjs and, lazily, tests.mjs; a.mjs imports gone.mjs, which the server does not hold; tests.mjs
+           imports tests-kit.mjs and quotes ghost.mjs in a fixture. Nothing is posted (`toChat: false`). */
+        const D = await import("./diagnostics.mjs");
+        must(typeof D.loadedFiles === "function" && typeof D.fileSizes === "function", "diagnostics.mjs exports no loadedFiles or fileSizes - this would measure nothing");
+        const tree = {
+            "module.mjs": 'import { a } from "./a.mjs";\nconst lazy = () => import("./tests.mjs");',
+            "a.mjs": 'import g from "./gone.mjs";\nexport const a = 1;',
+            "tests.mjs": 'import { k } from "./tests-kit.mjs";\nconst fixture = \'import z from "./ghost.mjs"\';',
+            "tests-kit.mjs": "export const k = 1;"
+        };
+        const asked = [];
+        const reply = (status, body) => ({ ok: status === 200, status, text: async () => body, json: async () => JSON.parse(body) });
+        const real = globalThis.fetch;
+        globalThis.fetch = async (url, options) => {
+            const path = String(url);
+            asked.push({ path, reload: options?.cache === "reload" });
+            const name = path.match(/scripts\/([\w-]+\.mjs)$/)?.[1];
+            if (name && Object.hasOwn(tree, name)) return reply(200, tree[name]);
+            if (/module\.json$/.test(path)) return reply(200, JSON.stringify({ styles: [], languages: [] }));
+            return reply(404, "");
+        };
+        let listed, text;
+        try {
+            listed = await D.loadedFiles();
+            asked.length = 0;
+            text = await D.fileSizes({ toChat: false });
+        } finally { globalThis.fetch = real; }
+        const fetchedA = asked.filter(a => a.path.endsWith("scripts/a.mjs"));
+        equal(stableJson({
+            listed: listed.filter(f => f.startsWith("scripts/")),
+            ghost: /ghost\.mjs[^\n]*DID NOT ARRIVE/.test(text), named: /Not listed: ghost\.mjs/.test(text),
+            gone: /scripts\/gone\.mjs[^\n]*DID NOT ARRIVE/.test(text),
+            aOnce: fetchedA.length, aReload: fetchedA.every(a => a.reload)
+        }), stableJson({
+            listed: ["scripts/a.mjs", "scripts/gone.mjs", "scripts/module.mjs", "scripts/tests-kit.mjs", "scripts/tests.mjs"],
+            ghost: false, named: true, gone: true, aOnce: 1, aReload: true
+        }), "{listed: the scripts loadedFiles names; ghost: the fixture's name reported as not arrived; named: it is named apart; gone: a module file the server lacks still is; aOnce, aReload: a.mjs fetched once by fileSizes, past the cache}");
     }],
     ["R8050 - Foundry's token HUD holds only the controls kept (1.2.120 line H; the owner, 21.11.2026: \"Niepotrzebne jest: combat, target, movement action, assign status, liczby na gorze i na dole i elevation\"): token-hud.mjs `trimHudFor` on Daggerheart 2.12.8's tokenHUD.hbs as drawn for a GM leaves the floor's palette, bring to front, the companion's button, lock, the token's settings and visibility, with no input, status palette, movement palette, target or combat; as drawn for a player it leaves nothing, the HUD marked not to be drawn (the owner, 21.11.2026: \"Niech gracz nie ma menu tokena\")", async () => {
         /*

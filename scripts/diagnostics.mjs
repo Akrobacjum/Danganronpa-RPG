@@ -1098,26 +1098,57 @@ export function traceClicks({ seconds = 20, toChat = true, onReport = null } = {
  * list to the manifest.
  */
 export async function loadedFiles() {
-    const scripts = new Set();
+    const { scripts } = await crawlScripts();
+    return listedFiles(scripts);
+}
+
+/** The suite's own files, as tests-kit.mjs `isSuiteFile` reads them: tests.mjs and every tests-*.mjs. */
+const SUITE_FILE = /^test[s](-[\w-]+)?\.mjs$/; // "[s]": R22 reads a name before "(" as a call, a regex's too
+
+/**
+ * THE CRAWL, ONCE, AND NOT INTO THE SUITE'S FIXTURES (1.2.123; the audit of 1.2.118, CORE-28). The regex below reads an
+ * import out of any text, and the suite's own files quote imports in their fixtures - `import x from "./x.mjs"` written
+ * as a string a test hands a parser (tests-tier0.mjs, tests-kit.mjs) - so the crawl followed five names no file holds and
+ * `fileSizes()` printed each as "DID NOT ARRIVE"; and it fetched every script here, then `fileSizes()` fetched them all
+ * again. Now a name the suite's own files alone name (tests.mjs, tests-*.mjs: `SUITE_FILE`), that is not itself one of
+ * them and that the server does not serve, is a fixture: left out of the list and named apart (`fixtures`). A name any
+ * other file imports is reported whatever the server says, as before. `cache` is the fetch's (`fileSizes` asks for
+ * "reload"). Answers `{ scripts: Map name -> { ok, chars }, fixtures }`; R8119 reads it on a served tree of its own.
+ */
+export async function crawlScripts({ cache = undefined } = {}) {
+    const scripts = new Map();
+    const namedOutsideSuite = new Set(["module.mjs"]);
     const queue = ["module.mjs"];
     while (queue.length) {
         const file = queue.pop();
         if (scripts.has(file)) continue;
-        let text = null;
+        let text = null, ok = false;
         try {
-            const res = await fetch(`modules/${MODULE_ID}/scripts/${file}`);
-            if (res.ok) text = await res.text();
+            const res = await fetch(`modules/${MODULE_ID}/scripts/${file}`, cache ? { cache } : undefined);
+            ok = Boolean(res?.ok);
+            if (ok) text = await res.text();
         } catch {
             // A file that will not load is what this report is for. Recorded
             // below as a failed fetch rather than dropped here.
         }
-        scripts.add(file);
+        scripts.set(file, { ok, chars: text === null ? null : text.length });
         if (text === null) continue;
         for (const m of text.matchAll(/(?:from|import\()\s*"\.\/([\w-]+\.mjs)"/g)) {
+            if (!SUITE_FILE.test(file)) namedOutsideSuite.add(m[1]);
             queue.push(m[1]);
         }
     }
+    const fixtures = [];
+    for (const [file, got] of scripts) {
+        if (got.ok || namedOutsideSuite.has(file) || SUITE_FILE.test(file)) continue;
+        scripts.delete(file);
+        fixtures.push(file);
+    }
+    return { scripts, fixtures: fixtures.sort() };
+}
 
+/** The list `loadedFiles` answers: module.json, the languages, the stylesheets, then the scripts crawled. */
+async function listedFiles(scripts) {
     let styles = [];
     let languages = [];
     try {
@@ -1135,7 +1166,7 @@ export async function loadedFiles() {
         "module.json",
         ...languages,
         ...styles,
-        ...[...scripts].sort().map(name => `scripts/${name}`)
+        ...[...scripts.keys()].sort().map(name => `scripts/${name}`)
     ])];
 }
 
@@ -1155,9 +1186,11 @@ export async function loadedFiles() {
  * replaced some files and not others looks exactly like a deployment that
  * worked.
  */
-export async function fileSizes() {
+export async function fileSizes({ toChat = true } = {}) {
     const lines = [];
-    const files = await loadedFiles();
+    // Each script fetched once, past the cache (CORE-28): the crawl's own reading is the size.
+    const { scripts, fixtures } = await crawlScripts({ cache: "reload" });
+    const files = await listedFiles(scripts);
 
     lines.push(`Danganronpa RPG v${moduleVersion()}, `
         + `stylesheet v${stylesheetVersion() || "(none)"}`);
@@ -1166,6 +1199,11 @@ export async function fileSizes() {
     lines.push("");
 
     for (const file of files) {
+        const crawled = file.startsWith("scripts/") ? scripts.get(file.slice("scripts/".length)) : null;
+        if (crawled) {
+            lines.push(crawled.ok ? `${file.padEnd(30)} ${String(crawled.chars).padStart(7)} chars` : `${file.padEnd(30)} did not load  ← DID NOT ARRIVE`);
+            continue;
+        }
         try {
             const res = await fetch(`modules/${MODULE_ID}/${file}`, { cache: "reload" });
             if (!res.ok) {
@@ -1179,7 +1217,8 @@ export async function fileSizes() {
         }
     }
 
-    return report("File sizes", lines);
+    if (fixtures.length) lines.push("", `Not listed: ${fixtures.join(", ")} - named only in the suite's own fixtures, and not served`);
+    return report("File sizes", lines, { toChat });
 }
 
 /**

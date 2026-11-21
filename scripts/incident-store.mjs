@@ -1956,8 +1956,18 @@ function rememberOpeningNotices(notices) {
         .catch(err => error("Could not keep the opening's request cards for the GMs", err));
 }
 
-export function keepOpeningNotice(message) {
-    if (message?.id) void rememberOpeningNotices({ [message.id]: true });
+/* WHOM EACH CARD WENT TO (1.2.123; the auditor's check of 1.2.122, r122-lane-B-3): `userId`, the invited player, is the
+   card's value in the memo (`true` for the line a GM is picking its statistic, which goes to the GMs), so a re-ask that
+   finds that player's card still standing posts no second one (`openingCardStandsFor`). The card's own document cannot
+   say it: while an incident runs it is veiled, addressed to every browser (above). */
+export function keepOpeningNotice(message, userId = null) {
+    if (message?.id) void rememberOpeningNotices({ [message.id]: userId || true });
+}
+
+/** Whether an opening's request card to `userId` stands in the GMs' memo and in the chat (r122-lane-B-3). */
+export function openingCardStandsFor(userId) {
+    if (!userId) return false;
+    return Object.entries(castStore.record()?.openingNotices ?? {}).some(([id, to]) => to === userId && Boolean(game.messages?.get(id)));
 }
 
 export async function retireOpeningNotices() {
