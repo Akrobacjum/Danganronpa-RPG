@@ -185,7 +185,7 @@ export const FLOWS = Object.freeze([
     // `despair.roster`, `overflow.take`, `overflow.check`, each gmOnly); 30-security forges each from a player's console,
     // 33-bridge-paths A19 drives each from the Assistant GM, tier 2 E37-T8 judges a player's and a second GM's.
     { id: "despair", what: "Despair: an Assistant GM's correction written by the primary, a Despair Call from a GM, the pools every screen shows",
-        entry: { bridge: ["despair.adjust", "overflow.add", "overflow.clear", "despair.set", "despair.all", "despair.roster", "overflow.take", "overflow.check"] },
+        entry: { bridge: ["despair.adjust", "overflow.add", "overflow.clear", "despair.set", "despair.all", "despair.roster", "overflow.take", "overflow.check", "call.world"] },
         scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
     { id: "discovery-ledger", what: "Which rooms each character has found: written by the GM, pulled and rebuilt by the clients",
         entry: { sockets: ["fog.mjs"] }, scenarios: ["60-ledger", "30-security", "61-gmstore-case"], status: "covered", stage: "<=1.2.50" },
@@ -407,6 +407,10 @@ export const FLOWS = Object.freeze([
     // (`sfx.played`) on every browser: a GM's sound for one player plays there alone, and a player's forged packets nowhere.
     { id: "sound", what: "A sound played for other browsers",
         entry: { sockets: ["sfx.mjs"] }, scenarios: ["87-messenger-sound"], status: "covered", stage: "1.2.94" },
+    // 1.2.122 (the owner's decision of 21.11.2026): covered. 97-two-gms's phase M presses Play and Stop the track on the
+    // second GM and reads the music's record on the primary.
+    { id: "music-track", what: "Play and Stop the track in the Sound window, pressed by a GM who is not the primary",
+        entry: { bridge: ["music.track"] }, scenarios: ["97-two-gms"], status: "covered", stage: "1.2.122" },
     { id: "trace-remnant", what: "Traces: placed, tied to the crime, re-rated by a Reroll, cleaned up",
         entry: { bridge: ["remnant.place", "remnant.tieForItem", "remnant.edit", "cleanup.traces", "cleanup.ruling"] },
         scenarios: ["10-murder", "30-security", "33-bridge-paths", "61-gmstore-case"], status: "partial", stage: "E39" },

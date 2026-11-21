@@ -20,9 +20,10 @@
  * imports them from here - which is why `sealRoom` and `restrict` are exported
  * now - and it re-exports the eleven names of this file it exported before, so
  * every other importer keeps importing call-effects.mjs. Nothing here imports it
- * back (R161 would see the cycle). Below it are config.mjs, settings.mjs and
- * utils.mjs, statically, and rooms.mjs, the leaf every room is read through
- * (E12 C2a). movement.mjs imports `isSealed` and `isChained` from the
+ * back (R161 would see the cycle). Below it are config.mjs, settings.mjs,
+ * utils.mjs, rooms.mjs (the leaf every room is read through, E12 C2a) and
+ * season-reset.mjs (its season state's registration), statically; the bridge's
+ * ask for `call.world` (1.2.122, COMM-26) is a lazy `import()`. movement.mjs imports `isSealed` and `isChained` from the
  * facade statically, so a static import of movement.mjs here would close a cycle
  * (movement -> call-effects -> call-world); it stays a lazy `import()`, as do the
  * others, which a pure move does not touch. `isCallSilenced` sits here (renamed
@@ -31,7 +32,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
-import { announce, log, warn, error, plural, isPrimaryGm, forcedDeletion } from "./utils.mjs";
+import { announce, log, warn, error, plural, isPrimaryGm, primaryGmId, serialWrite, forcedDeletion } from "./utils.mjs";
 import { roomRegions, homeScene, sceneOfRoom } from "./rooms.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
@@ -63,9 +64,7 @@ export function isSealed(room) {
 }
 
 export async function sealRoom(room) {
-    const current = new Set(sealedRooms());
-    current.add(room);
-    return Boolean(await writeWorld(SETTINGS.sealedRooms, Array.from(current)));
+    return callWorld({ kind: "seal", room });
 }
 
 /**
@@ -132,10 +131,57 @@ export function isChained(actor) {
 }
 
 export async function restrict(actor, patch) {
-    const all = { ...restrictions() };
-    all[actor.id] = { ...(all[actor.id] ?? {}), ...patch };
-    await writeWorld(SETTINGS.restrictions, all);
-    return true;
+    if (!actor || !patch) return false;
+    return callWorld({ kind: "restrict", actorId: actor.id, silenced: patch.silenced === true, chained: patch.chained === true,
+        room: patch.room ?? null });
+}
+
+/*
+ * ONE WRITER FOR THE SEALS AND THE RESTRICTIONS (1.2.122, the audit's COMM-26). Both settings were read and written
+ * whole from this GM's copy, so two GMs' Silence or Seal within one round trip kept only the second, and both cards said
+ * it landed. The primary writes them, one after another (`serialWrite` on one key, each step reading the value it then
+ * writes); another GM asks it (`call.world`) while it is connected, and writes itself only when it is the one GM there.
+ * The answer is the write's, as it always was for a seal: true whatever `writeWorld` did announced a restriction that
+ * nothing had written.
+ */
+async function callWorld(change) {
+    if (!game.user?.isGM) return false;
+    if (onPrimaryElsewhere()) {
+        const { requestCallWorld } = await import("./bridge-asks.mjs");
+        const res = await requestCallWorld(change);
+        return Boolean(res.ok && res.value?.done);
+    }
+    return writeCallWorld(change);
+}
+
+/** Whether this GM is not the primary while the primary, another GM, is connected: then the primary writes. */
+function onPrimaryElsewhere() {
+    if (isPrimaryGm()) return false;
+    const primary = game.users?.get(primaryGmId() ?? "");
+    return Boolean(primary?.active && primary.id !== game.user?.id);
+}
+
+/**
+ * A seal or a restriction written here, after the one before it (`serialWrite`): `{ kind: "seal", room }`, or
+ * `{ kind: "restrict", actorId, silenced, chained, room }` merged into that student's row as `restrict` always merged its
+ * patch (a Chain's room with it). The primary's (the bridge's run, or its own Call) and a lone GM's. Answers whether it wrote.
+ */
+export function writeCallWorld({ kind, room = null, actorId = null, silenced = false, chained = false } = {}) {
+    if (!game.user?.isGM) return Promise.resolve(false);
+    return serialWrite("drpg-call-world", async () => {
+        if (kind === "seal") {
+            if (!room) return false;
+            const current = new Set(sealedRooms());
+            current.add(room);
+            return Boolean(await writeWorld(SETTINGS.sealedRooms, Array.from(current)));
+        }
+        const actor = game.actors?.get(actorId ?? "");
+        if (!actor || kind !== "restrict" || (!silenced && !chained)) return false;
+        const patch = { ...(silenced ? { silenced: true } : {}), ...(chained ? { chained: true } : {}), ...(room ? { room } : {}) };
+        const all = { ...restrictions() };
+        all[actor.id] = { ...(all[actor.id] ?? {}), ...patch };
+        return Boolean(await writeWorld(SETTINGS.restrictions, all));
+    });
 }
 
 /**
@@ -528,7 +574,7 @@ export async function gatherEveryone(room, onScene = null, { held = null, box = 
        token" with no token on screen. `pan: false` above is the teleport's own camera, which
        would move only this GM's. Told after the moves, so a client that pans finds its token
        where it now stands; each client pans to its own (`panToGathered`). Lazily, as the rest:
-       this file imports only config.mjs, settings.mjs and utils.mjs statically (the header).
+       this file imports only config.mjs, settings.mjs, utils.mjs, rooms.mjs and season-reset.mjs statically (the header).
        Tier 2 "the gather tells each client where its token went"; scenario 65 B1b. */
     const { broadcast, SYNC } = await import("./sync.mjs");
     broadcast(SYNC.gather, { room, scene: scene.id, tokenIds: tokens.map(t => t.id) });

@@ -24,7 +24,7 @@
 
 import { MODULE_ID, SITUATIONAL_PLAYLIST } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
-import { isPrimaryGm, debug, log, warn, error } from "./utils.mjs";
+import { isPrimaryGm, primaryGmId, debug, log, warn, error } from "./utils.mjs";
 import { count } from "./perf-counters.mjs";
 import {
     stateDef, currentState, musicMap, playlistFor, isCuePlaylist, dropCueMappings, recheckMusicKeys
@@ -265,7 +265,7 @@ export function registerMusic() {
         if (game.user?.isGM) mapSeen = { ...(musicMap() ?? {}) };
         watchManualPlayback();
         watchManualEnd();
-        adoptRunningInterruption();
+        if (enabled()) adoptOnBecomingPrimary();
         // Not immediate: at `ready` the canvas and the clock are still settling,
         // and the first thing a GM sees should not be a fade triggered by a
         // state that is about to change again.
@@ -281,6 +281,31 @@ export function registerMusic() {
             .then(() => applyMurderMusic())
             .catch(err => error("Could not settle the murder music at ready", err));
     });
+}
+
+/**
+ * THE GM WHO BECOMES THE PRIMARY TAKES OVER THE MUSIC (1.2.122, the audit's COMM-30). `interrupted`, `silenced` and
+ * `playingState` live in the primary's tab, and a GM's `ready` adopted a running cue only while it was already the
+ * primary: after the primary left, the next state change played its playlist over a cue still on repeat, and the old
+ * holds stayed flagged. On this browser's first apply as the primary (`adopted`), the world is read as at `ready`: a
+ * cue running is adopted with what it holds, and with none, playlists still held while nothing plays are the silence's.
+ * `schedule` on a GM that is not the primary says it is to be done again.
+ */
+let adopted = false;
+
+function adoptOnBecomingPrimary() {
+    adopted = true;
+    adoptRunningInterruption();
+    if (interrupted || silenced) return;
+    try {
+        const held = playlistsHolding().map(p => p.id);
+        if (held.length && !anythingPlaying()) {
+            silenced = { held };
+            debug(`Music: adopted ${held.length} held playlist(s) as a silence already in progress.`);
+        }
+    } catch (err) {
+        error("Could not check for a silence already running", err);
+    }
 }
 
 /**
@@ -343,7 +368,11 @@ function adoptRunningInterruption() {
  *   catalogue, which today is the Objection alone.
  */
 function schedule({ now = false } = {}) {
-    if (!enabled()) return;
+    if (!enabled()) {
+        // Not the primary now: the next time it is, it takes over what is running (`adoptOnBecomingPrimary`).
+        if (!isPrimaryGm()) adopted = false;
+        return;
+    }
     if (settleTimer) {
         clearTimeout(settleTimer);
         settleTimer = null;
@@ -396,6 +425,8 @@ function enabled() {
  */
 async function apply() {
     if (!enabled()) return;
+    // A GM who has just become the primary takes over what is running (1.2.122, the audit's COMM-30).
+    if (!adopted) adoptOnBecomingPrimary();
 
     // The GM is playing something of their own. Their choice outranks the state
     // machine until it finishes; `resume` picks the thread back up.
@@ -458,8 +489,10 @@ async function apply() {
 
     const state = currentState();
     const next = state ? playlistFor(state) : null;
-    // What left the map in the change this apply follows, if it follows one (`scheduleMapRefresh`): taken here so
-    // that an apply that returns below does not hand it to a later one.
+    // What left the map in the change this apply follows, if it follows one (`scheduleMapRefresh`): taken here, so
+    // an apply that returns below has used it up and does not hand it to a later one. The two returns above it - the
+    // switch off, and a GM's track the moved state does not take over (`cueGivesWay`) - leave it in the set, and
+    // the next apply that gets this far takes it.
     const left = [...leftForApply];
     leftForApply.clear();
     // The same state on the same playlist: nothing to do. The playlist is asked too since E50 C3, because the map
@@ -760,10 +793,11 @@ async function resumeHeld(ids = []) {
 /**
  * This playlist is no longer holding for anything.
  *
- * Set to false rather than deleted. Deleting a key here means `-=held`, and in
- * this Foundry that quietly does nothing unless the update is a forced
- * replacement - a flag that cannot be cleared is worse than a flag that reads
- * `false`.
+ * Set to false rather than deleted. Deleting a key here would mean `-=held`:
+ * on Foundry 14.370 that does delete, but writes v14's deprecation warning
+ * (LIVE-E30-01, read on the owner's sandbox 16.11.2026), and R152 fails any
+ * update in the module spelt that way. `false` reads the same as no flag to
+ * every reader here (`getFlag(...)` is tested for truth), so nothing is lost.
  */
 async function clearHeld(playlist) {
     if (!playlist?.getFlag?.(MODULE_ID, HELD_FLAG)) return;
@@ -1005,7 +1039,11 @@ function onManualStart(sound) {
  */
 function watchManualEnd() {
     Hooks.on("updatePlaylist", (playlist, changes) => {
-        if (!enabled()) return;
+        /* The primary's, whether or not the music follows the game state (1.2.122, the audit's COMM-31): Play does its own
+           bookkeeping so that it works with the switch off (`playTrack`), and the cue stopped from Foundry's Playlists
+           sidebar is the end of that record too - it left the music it paused paused and flagged. With the switch off
+           `interrupted` is only ever Play's. */
+        if (!isPrimaryGm()) return;
         if (ourDoing()) return;
         if (changes.playing !== false) return;
         if (!interrupted) return;
@@ -1100,6 +1138,14 @@ export async function playTrack(track, soundId) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
     }
+    // Another GM's press is the primary's to carry out (`onPrimaryElsewhere`), which finds the track as below and says
+    // what it lacks; the bridge says a refusal or no answer. The sound answered is this browser's copy, for the notice.
+    if (onPrimaryElsewhere()) {
+        const { requestMusicTrack } = await import("./bridge-asks.mjs");
+        const res = await requestMusicTrack("play", String(soundId ?? track ?? "").trim());
+        const id = res.ok ? res.value?.played : null;
+        return id ? (situationalPlaylist()?.sounds.get(id) ?? null) : null;
+    }
 
     const playlist = situationalPlaylist();
     if (!playlist) {
@@ -1181,6 +1227,11 @@ export async function resetMusic() {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
     }
+    if (onPrimaryElsewhere()) {
+        const { requestMusicTrack } = await import("./bridge-asks.mjs");
+        const res = await requestMusicTrack("stop");
+        return res.ok && res.value ? { stopped: Number(res.value.stopped) || 0, given: Number(res.value.given) || 0 } : null;
+    }
 
     const record = interrupted;
     interrupted = null;
@@ -1196,11 +1247,13 @@ export async function resetMusic() {
     const situational = situationalPlaylist();
     if (situational) cues.add(situational.id);
 
+    let stopped = 0;
     for (const id of cues) {
         const playlist = game.playlists.get(id);
         if (!playlist) continue;
         if (!playlist.playing && !playlist.sounds.some(s => s.playing || s.pausedTime)) continue;
         await stopPlaylistDead(playlist);
+        stopped++;
     }
 
     // What comes back. The record if there is one; otherwise whatever is left
@@ -1222,7 +1275,24 @@ export async function resetMusic() {
     schedule();
 
     log(`Music: reset. ${giveBack.length} playlist(s) given back.`);
-    return true;
+    // What the press did, for its notice (1.2.122, the audit's COMM-50): it said a track stopped and the music came
+    // back whatever it found. Truthy as `true` was.
+    return { stopped, given: giveBack.length };
+}
+
+/**
+ * PLAY AND STOP THE TRACK FROM EVERY GM, CARRIED OUT ON THE PRIMARY (1.2.122: the audit's COMM-29, then the owner's
+ * decision of 21.11.2026, "Odtworz i zatrzymaj muzyke niech dziala u kazdego gma"). The music's record - the cue, what
+ * it holds, the body's silence (`interrupted`, `silenced`) - lives in the primary's tab: an assistant's Play run there
+ * left the primary's record empty, and its Stop during the body's silence gave the afternoon back over it. So another
+ * GM's press is asked of the primary (`music.track`, bridge-table.mjs), which plays or stops as its own press would, and
+ * the asker is answered what it did. This is true while the primary is connected and is somebody else; a GM who is the
+ * primary, or the only GM, carries the press out itself.
+ */
+function onPrimaryElsewhere() {
+    if (isPrimaryGm()) return false;
+    const primary = game.users?.get(primaryGmId() ?? "");
+    return Boolean(primary?.active && primary.id !== game.user?.id);
 }
 
 /**

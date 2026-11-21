@@ -17,11 +17,12 @@
  * WHERE IT SITS. Moved out of gm-bridge.mjs by E41 C5 (1.2.97), a pure move
  * that `node tools/moved-only.mjs` proves line by line. gm-bridge.mjs
  * re-exports the ten names of this file it exported, so every importer
- * still imports gm-bridge.mjs; fifteen more are exported now because the
- * bridge's table, runs and asks read them (in gm-bridge.mjs at C5; in
- * bridge-table.mjs, the two runs files and bridge-asks.mjs since C5a and C5b),
- * and gm-bridge.mjs does not re-export those. C5a added the ask cards' four
- * primary-side senders, three of them exported for the runs and the asks. Nothing here imports gm-bridge.mjs
+ * still imports gm-bridge.mjs; the rest of its exports (23 in all on 1.2.122,
+ * counted by `^export (async )?(function|const)`) are read directly by the
+ * bridge's table, runs and asks (bridge-table.mjs, the two runs files and
+ * bridge-asks.mjs since C5a and C5b) - the ask cards' primary-side senders
+ * among them (C5a) - and `threadOf` by the suite (1.2.122, R8275); gm-bridge.mjs
+ * does not re-export those. Nothing here imports gm-bridge.mjs
  * (the facade rule, .claude/rules/code.md). `CALL_GM_WHAT` stands above the
  * first function so that no function's cut runs on into it (the bridge's
  * crawl reads `receivedOnPrimary`'s, which it followed in gm-bridge.mjs).
@@ -1021,8 +1022,13 @@ export async function callGm(actor, {
  * to the asker's thread when the asker owns the character. Tier 2's "a co-owner's question lands in the co-owner's
  * thread" reads it.
  */
-function threadOf(actor, userId) {
-    const user = userId ? game.users.get(userId) : null;
+export function threadOf(actor, userId, { poster = game.user } = {}) {
+    /* AND A CARD A PLAYER'S OWN BROWSER POSTS GOES TO THAT PLAYER'S THREAD (1.2.122, the audit's COMM-25): a Search for
+       something specific, an Observe, an Analyze, a project's proposal and a Tier 0 item's use pass no `thread`, so a
+       co-owner's own question went to the first owner's thread. With no asker named, the poster is the asker when it is a
+       player who owns the character; a GM's post with none still goes to the first owner (`ownerOf`). */
+    const asker = userId ?? (poster && !poster.isGM ? poster.id : null);
+    const user = asker ? game.users.get(asker) : null;
     if (user && !user.isGM && actor?.testUserPermission?.(user, "OWNER")) return user;
     return ownerOf(actor);
 }

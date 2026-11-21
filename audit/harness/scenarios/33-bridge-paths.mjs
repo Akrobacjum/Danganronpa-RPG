@@ -2381,14 +2381,16 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         && keptC.status === keptC.kept && !keptC.kept.startsWith("DRPG."), JSON.stringify({ c4, keptC }), { flow: "pre-session-note" });
     /* E29 C8 (05.10.2026; the plan's 3.3): a Call on p1's own character - a Resolve, 3 Hope, all Aiko holds - is bought on
        the GM now, so with no GM connected it settles at once, sends nothing, and arms and pays nothing; the bridge says there
-       is no GM, and the Call's own line that nothing was taken follows it. Until C8 p1's browser paid and armed it itself. */
+       is no GM and that nothing was spent, once - since 1.2.122 (the audit's COMM-37) the Call's own line that nothing was
+       taken no longer follows it. Until C8 p1's browser paid and armed it itself. */
     const c5 = await offline("call.arm", `(await import("${repoUrl}/scripts/calls.mjs")).spendHopeCall(game.actors.get("${IDS.aiko}"), "determination")`);
     const c5After = await p1.eval(`const a = game.actors.get("${IDS.aiko}"), f = a.getFlag("${MOD}", "pendingCall");
         return { hope: a.system.resources.hope.value, resolve: (Array.isArray(f) ? f : f ? [f] : []).some(e => e?.grants === "trait"),
-            noGm: game.i18n.localize("DRPG.Bridge.why.noGm") };`);
-    check("C: with no GM connected, p1's Resolve on its own character settles at once, sends nothing, arms and pays nothing, and says there is no GM",
+            noGm: game.i18n.localize("DRPG.Bridge.why.noGm"), spent: game.i18n.localize("DRPG.Bridge.nothingSpent") };`);
+    check("C: with no GM connected, p1's Resolve on its own character settles at once, sends nothing, arms and pays nothing, and says once that there is no GM and nothing was spent",
         c5.answer === null && c5.ms < 1000 && c5.sent === 0 && c5After.hope === 3 && c5After.resolve === false
-        && c5.said.some(m => m.includes(c5.label) && m.includes(c5After.noGm)), JSON.stringify({ c5, c5After }), { flow: "call-arm" });
+        && c5.said.length === 1 && c5.said.every(m => m.includes(c5.label) && m.includes(c5After.noGm) && m.includes(c5After.spent)),
+        JSON.stringify({ c5, c5After }), { flow: "call-arm" });
     /* E80 fix r1-G4 (19.10.2026; the review's goal-P2-20 and sec-3, the A11 design's A11-14): p1's Frisk with no GM connected,
        Openly and then Unseen - the Palm window's answer queued as a player gives it (the Frisk, Botan and the mode) - is
        refused before its window and its price (action-rolls.mjs `performAction`'s gate): the actions unchanged, no window

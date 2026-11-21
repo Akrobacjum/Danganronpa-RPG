@@ -125,6 +125,13 @@ export const FLAGS = {
      */
     monocub: "monocub",
     /**
+     * Character: when the Monocub mark was last changed quietly (epoch ms; 1.2.122, the audit's COMM-48). monocub.mjs
+     * `setMonocub` writes it beside the mark when `quiet` (the season reset, a revive's quiet road), so the update's own
+     * changes - which every browser's `updateActor` is handed - say the change was quiet, and sfx.mjs plays no Monocub
+     * sound for it. A time, so each quiet write differs from the last and is in the changes; a loud write leaves it out.
+     */
+    monocubQuiet: "monocubQuiet",
+    /**
      * Tile: this tile is a murdered student's body, left where their token stood when they became a Monocub
      * (E95, 1.2.104; DC6; body-tile.mjs). `{ actorId, deathId, level, at }` - whose body, which death
      * (the `deceased` record's `deathId`, so a later death's reader does not take an earlier one's tile),
@@ -5047,7 +5054,8 @@ export const SFX_CATEGORIES = {
  * setting says it may be. A variation that can exceed its own ceiling is a
  * volume control with a leak.
  *
- * Tuned by ear in E17, alongside `YIELD_MS`. Both are numbers no amount of
+ * To be tuned by ear, alongside `YIELD_MS`: E17 was to and recorded no reading,
+ * so both are still first guesses (1.2.122, the audit's COMM-49). Both are numbers no amount of
  * reasoning settles - which is the lesson of the paragraph this one replaced.
  */
 export const SFX_VARIATION = { rate: 0.14, floor: 0.5, gain: 0.18 };

@@ -170,7 +170,13 @@ export async function setMonocub(actor, value = true, { quiet = false, watcher =
         if (purseOf(actor)) await patchCubRow(actor.id, { purse: null });
     }
     noteOwnWrite(actor, { flags: { [MODULE_ID]: { [FLAGS.monocub]: Boolean(value) } } });
-    await actor.setFlag(MODULE_ID, FLAGS.monocub, Boolean(value));
+    // A quiet change sounds nothing either (1.2.122, the audit's COMM-48): its marker is written in the same update, so it
+    // is in the changes every browser's `updateActor` is handed (`FLAGS.monocubQuiet`), not in an option of the update,
+    // whose reaching another browser is not read on v14.
+    await actor.update({
+        [`flags.${MODULE_ID}.${FLAGS.monocub}`]: Boolean(value),
+        ...(quiet ? { [`flags.${MODULE_ID}.${FLAGS.monocubQuiet}`]: Date.now() } : {})
+    });
 
     /* THE BODY (E63 C0, 11.11.2026; the owner on E95 Q3: "Nie gdy zostaje Monocubem"): becoming a Monocub lays nothing.
        The death laid it (death.mjs `markDeceased`), and the Monocub walks away from it on the token; ticked, unticked
@@ -1581,6 +1587,9 @@ async function redeemHope(actor) {
     return { success: true };
 }
 
+/** The most a GM's Give on a Monocub's Ask for Hope gives: the card's larger button (`postHopeAsk`, `answerHopeAsk`). */
+export const ASK_GIVE_MAX = 2;
+
 /**
  * ASK FOR HOPE (E72 C5; audit S18-60): the GMs' card in the Monocub's thread (call-gm.mjs `callGm`), Give 1, Give 2 or
  * Not now, ruled once by whichever GM clicks (`claimCard`, messenger-app.mjs's `cubGiveHope` and `cubNotNow`, which
@@ -1595,7 +1604,7 @@ async function postHopeAsk(actor) {
     const posted = await callGm(actor, {
         title: game.i18n.localize("DRPG.Monocub.askTitle"),
         body: `<p>${esc(game.i18n.format("DRPG.Monocub.askBody", { name: actor.name }))}</p>`,
-        actions: [give(1), give(2), { action: "cubNotNow", label: game.i18n.localize("DRPG.Monocub.askNotNow"), data: { actor: actor.id } }],
+        actions: [give(1), give(ASK_GIVE_MAX), { action: "cubNotNow", label: game.i18n.localize("DRPG.Monocub.askNotNow"), data: { actor: actor.id } }],
         thread: owner?.id ?? null,
         veiled: true
     });
@@ -1612,7 +1621,9 @@ async function postHopeAsk(actor) {
 export async function answerHopeAsk(actor, n) {
     if (!game.user?.isGM || !actor) return null;
     // A student who is a Monocub no more is answered Not now (the 1.2.110 review's #5): no Despair turned into its Hope.
-    const amount = isMonocub(actor) ? wholeNumber(n, { min: 0, fallback: 0 }) : 0;
+    // At most what the card offers (1.2.122, the rest of the audit's COMM-21): the card is written on the Monocub's
+    // player's browser, so the `n` its Give button carries is a claim.
+    const amount = isMonocub(actor) ? wholeNumber(n, { min: 0, max: ASK_GIVE_MAX, fallback: 0 }) : 0;
     if (amount > 0) {
         const { convertDespairToHope } = await import("./despair.mjs");
         const granted = await convertDespairToHope(game.user.id, actor, amount);

@@ -46,9 +46,10 @@
  * through (mask-gm.mjs `nameAsSeen`, the pickers' rule) - has every name on the
  * plate written "?" in every mode that draws one, the account name too (it names
  * the player, and so the character), and put back when the veil or the mask goes
- * (`relabelCameraDock`, on the token's write). What the dock draws besides the
- * plate - the video, the avatar, the box itself - is avclient-livekit's and
- * Foundry's, LIVE-F119-03: not measured headless.
+ * (`relabelCameraDock`, on the token's write). Since 1.2.122 the box goes too -
+ * its avatar, its video and its place on the dock, in every nameplate mode,
+ * Off included (`showBox`, R8260) - and comes back as it stood. What
+ * avclient-livekit draws outside the dock is LIVE-F119-03: not measured headless.
  */
 
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
@@ -63,8 +64,8 @@ export function registerCameraView() {
        imports this file and both of them), and a static import here would close a cycle (R161). Before they bind - a
        moment at load, before any dock renders - nobody is hidden, as `seenHere` before its own binding. */
     import("./visibility.mjs").then(m => { veiledHere = user => m.voiceVeiledHere(user); }).catch(err => error("Could not bind the veil's rule for the camera dock", err));
-    import("./mask-gm.mjs").then(m => {
-        maskedHere = user => { const actor = m.myMask(user); return Boolean(actor) && m.nameAsSeen(actor) === m.MASK_NAME; };
+    Promise.all([import("./mask-gm.mjs"), import("./spectator.mjs")]).then(([m, s]) => {
+        maskedHere = maskRuleOf(m, { spectator: () => Boolean(s.spectatorViewer?.()) });
     }).catch(err => error("Could not bind the mask's rule for the camera dock", err));
     // A veil or a mask going up or down shows on the dock at once (the owner's rule for every window), not at its next render.
     Hooks.on("updateToken", (doc, changes) => onTokenChange(doc, changes));
@@ -199,6 +200,21 @@ export const HIDDEN_PLATE = "?";
 export function hiddenFromHere(user, { veiled = veiledHere, masked = maskedHere } = {}) {
     if (!user || user.isGM || game.user?.isGM || user.id === game.user?.id) return false;
     return Boolean(veiled(user) || masked(user));
+}
+
+/**
+ * The dock's mask rule (`maskedHere`), from mask-gm.mjs's names: a participant whose character stands behind a mask this
+ * browser does not see through. A Spectator sees through it (1.2.122, the audit's r121-M-6): the Spectator's map draws
+ * "? (name)" over the token (mask-gm.mjs `drawMaskName`), and the GM handbook says the Spectators see the name - the dock
+ * read "?" there, after the pickers' rule (`nameAsSeen`), which answers "?" to every player who does not own the character.
+ * `m` and `spectator` are the suite's.
+ */
+export function maskRuleOf(m, { spectator = () => false } = {}) {
+    return user => {
+        const actor = m.myMask(user);
+        if (!actor || spectator()) return false;
+        return m.nameAsSeen(actor) === m.MASK_NAME;
+    };
 }
 
 /** Whether a token's write moved a veil or a mask (their flags, set or taken off): the dock's plates are read again. */
@@ -339,6 +355,18 @@ function nameplateMode() {
     };
 }
 
+/** A dock's box taken off (`shown` false) or put back as it stood: its inline `display` kept in `data-drpg-box` meanwhile. */
+function showBox(box, shown) {
+    if (!shown) {
+        if (box.dataset.drpgBox === undefined) box.dataset.drpgBox = box.style.display ?? "";
+        box.style.display = "none";
+        return;
+    }
+    if (box.dataset.drpgBox === undefined) return;
+    box.style.display = box.dataset.drpgBox;
+    delete box.dataset.drpgBox;
+}
+
 /**
  * Swap Foundry's truncated (or hardcoded) charname for the real one - or, for a participant hidden from this browser
  * (`hiddenFromHere`), every name on the plate for "?", the plate as Foundry drew it kept on the label and put back once
@@ -347,6 +375,11 @@ function nameplateMode() {
 function relabel(box, userId, { hidden = hiddenFromHere, plate = nameplateMode() } = {}) {
     const user = game.users.get(userId);
     if (!user) return;
+
+    // The box itself, in every mode (1.2.122, the audit's COMM-20 residue): the plate's "?" below still left the box -
+    // the account's avatar or the camera, and one more box on the dock - and with nameplates Off nothing was asked at
+    // all. A hidden participant's box is taken off, its own `display` kept on it and put back when they are not.
+    showBox(box, !hidden(user));
 
     // Nothing is drawn at all.
     if (plate && plate.mode === plate.MODES.OFF) return;

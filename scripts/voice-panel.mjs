@@ -101,6 +101,64 @@ function openControls() {
     return true;
 }
 
+/** The push-to-talk key's line: its name, or that none is bound. */
+function keyLine(key) {
+    return key ? game.i18n.format("DRPG.Voice.panel.pttKey", { key }) : game.i18n.localize("DRPG.Voice.mic.pttNoKey");
+}
+
+/**
+ * THE KEY'S LINE FOLLOWS THE BINDING (1.2.122, the audit's REFR-55). It was written once, from `pushToTalkKey()` when the
+ * fieldset was built, and its own Change the key opens Foundry's Configure Controls: a player who rebound the key there
+ * came back to the old one until the settings window was opened again. Foundry keeps the bindings in the client setting
+ * `core.keybindings`, and its write raises `clientSettingChanged` (read as Foundry's hook, not in v14's source: a LIVE
+ * question); every key line on the page is written again then. Registered once, with the first fieldset.
+ */
+let followingTheKey = false;
+function followTheKey() {
+    if (followingTheKey) return;
+    followingTheKey = true;
+    Hooks.on("clientSettingChanged", key => {
+        if (key !== "core.keybindings") return;
+        const line = keyLine(pushToTalkKey());
+        for (const span of document.querySelectorAll(".drpg-voice-panel-key-name")) if (span.textContent !== line) span.textContent = line;
+    });
+}
+
+/**
+ * THE MICROPHONE NOTE FOLLOWS THE BROWSER (1.2.122, the rest of the audit's REFR-55). The note that asks for the
+ * microphone was drawn once, when the fieldset was built, and stayed after the browser allowed it. While it stands, the
+ * devices are read again on the browser's `devicechange`, on the microphone permission's `change` (where the browser
+ * answers `navigator.permissions.query`) and on Foundry's `rtcSettingsChanged`; once the microphones are named the note
+ * gives way to their list, which the fieldset's one `change` listener writes like the others. Which of the three a real
+ * browser raises when the microphone is allowed is not read at a table (R8284 raises `devicechange` on a stand-in).
+ */
+function followTheMic(fieldset, client, settings, label) {
+    const note = fieldset.querySelector(".drpg-voice-panel-mic-note");
+    if (!note) return;
+    const media = globalThis.navigator?.mediaDevices;
+    let permission = null, hook = null, done = false;
+    const stop = () => {
+        done = true;
+        media?.removeEventListener?.("devicechange", recheck);
+        permission?.removeEventListener?.("change", recheck);
+        if (hook !== null) Hooks.off("rtcSettingsChanged", hook);
+    };
+    async function recheck() {
+        if (done) return;
+        const sources = await devices(client, "getAudioSources");
+        if (done || unnamed(sources)) return;
+        if (note.isConnected) note.replaceWith(deviceRow(label, "voice:audioSrc", sources, settings?.client?.audioSrc));
+        stop();
+    }
+    media?.addEventListener?.("devicechange", recheck);
+    hook = Hooks.on("rtcSettingsChanged", () => { recheck(); });
+    globalThis.navigator?.permissions?.query?.({ name: "microphone" }).then(status => {
+        if (done) return;
+        permission = status;
+        status?.addEventListener?.("change", recheck);
+    }).catch(() => { /* a browser that does not answer for the microphone has the other two */ });
+}
+
 /**
  * The Voice fieldset, wired: every change writes at once through `writeVoiceSetting`.
  *
@@ -119,6 +177,7 @@ export async function voiceFieldset({ client = game.webrtc?.client, settings = g
 
     if (unnamed(sources)) fieldset.append(node("p", "notes drpg-voice-panel-mic-note", t("micNote")));
     else fieldset.append(deviceRow(t("mic"), "voice:audioSrc", sources, stored.audioSrc));
+    followTheMic(fieldset, client, settings, t("mic"));
     if (Object.keys(sinks).length) fieldset.append(deviceRow(t("output"), "voice:audioSink", sinks, stored.audioSink));
 
     const mode = node("div", "drpg-voice-panel-mode");
@@ -140,7 +199,8 @@ export async function voiceFieldset({ client = game.webrtc?.client, settings = g
     fieldset.append(mode);
 
     const keyRow = node("div", "drpg-voice-panel-key");
-    keyRow.append(node("span", "", key ? game.i18n.format("DRPG.Voice.panel.pttKey", { key }) : game.i18n.localize("DRPG.Voice.mic.pttNoKey")));
+    keyRow.append(node("span", "drpg-voice-panel-key-name", keyLine(key)));
+    followTheKey();
     if (typeof foundry.applications?.sidebar?.apps?.ControlsConfig === "function") {
         const change = node("button", "drpg-voice-panel-key-change", t("pttChange"));
         change.type = "button";

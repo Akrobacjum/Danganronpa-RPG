@@ -23,7 +23,7 @@ import { claimOnPrimary, sayRefusedHere, observePickOnPrimary, yesOnPrimary, dyn
 import {
     SOCKET_EVENT, ACTION_PROGRESS, ACTION_SHARE, ACTION_REMNANT, ACTION_TIE_TRACE, ACTION_REMNANT_EDIT, ACTION_SABOTAGE,
     ACTION_UNSABOTAGE, ACTION_PROJECT_CHANGE, ACTION_SENDBACK, ACTION_ECLIPSE_MOVE, ACTION_ARM, ACTION_DESPAIR,
-    ACTION_OVERFLOW_ADD, ACTION_OVERFLOW_CLEAR, ACTION_DESPAIR_SET, ACTION_DESPAIR_ALL, ACTION_DESPAIR_ROSTER,
+    ACTION_OVERFLOW_ADD, ACTION_CALL_WORLD, ACTION_MUSIC_TRACK, ACTION_OVERFLOW_CLEAR, ACTION_DESPAIR_SET, ACTION_DESPAIR_ALL, ACTION_DESPAIR_ROSTER,
     ACTION_OVERFLOW_TAKE, ACTION_OVERFLOW_CHECK, ACTION_DIFFICULTY, ACTION_VOTE_CAST, ACTION_VOTE_ASK,
     ACTION_TRIAL_OBJECT, ACTION_TRIAL_EVIDENCE, ACTION_TRIAL_WITHDRAW, ACTION_FLOOR_REPOINT, ACTION_TRIAL_GM,
     ACTION_TRIAL_TURN, ACTION_TRIAL_CLAIM, ACTION_TRIAL_SIDE, ACTION_TRIAL_KEYWORD, ACTION_TRIAL_PRESENT, ACTION_READY_OPEN, ACTION_READY_ANSWER,
@@ -492,8 +492,10 @@ export function requestReadyEnd({ roundId, outcome }) {
  * or null for a character that is not there.
  */
 export function requestArmCall(actorId, call, timeoutMs = TIMING.rulingMs) {
+    // Its refusal says nothing was spent (1.2.122, the audit's COMM-37): the one notice of a Call not armed, the Call
+    // adding none of its own (calls.mjs `spendHopeCall`).
     return ask(ACTION_ARM, { actorId, call }, {
-        timeoutMs,
+        timeoutMs, nothingSpent: true,
         local: async () => {
             const actor = game.actors.get(actorId);
             if (!actor) return null;
@@ -521,6 +523,26 @@ export function requestArmCall(actorId, call, timeoutMs = TIMING.rulingMs) {
  */
 export function sendDespairToPrimary(targetUserId, delta, { clamp = false, price = false } = {}) {
     return ask(ACTION_DESPAIR, { targetUserId, delta, ...(clamp ? { clamp: true } : {}), ...(price ? { price: true } : {}) });
+}
+
+/**
+ * A GM that is not the primary asks the primary to write a Despair Call's seal or restriction (1.2.122, the audit's
+ * COMM-26; call-world.mjs `callWorld`, which asks only while the primary is connected and is somebody else). Its value
+ * is `{ done: true }`.
+ */
+export function requestCallWorld(change) {
+    return ask(ACTION_CALL_WORLD, { kind: change.kind, room: change.room ?? null, actorId: change.actorId ?? null,
+        silenced: change.silenced === true, chained: change.chained === true });
+}
+
+/**
+ * A GM that is not the primary asks the primary to play a cue or stop the track (1.2.122, the owner's decision of
+ * 21.11.2026; music-play.mjs `playTrack`, `resetMusic`, which ask only while the primary is connected and is somebody
+ * else). `track` is a sound's id or a track's name, as `playTrack` takes it. Its value is `{ played }` (the sound's id) for
+ * a play, `{ stopped, given }` for a stop.
+ */
+export function requestMusicTrack(kind, track = null) {
+    return ask(ACTION_MUSIC_TRACK, { kind, track: track ?? null });
 }
 
 /**
@@ -737,11 +759,14 @@ export function answerTraitRuling(requestId, asker, trait) {
  * the card stays open. `messageId` is the card pressed: a yes is kept only for the ask held on it
  * (fix early-C2-G2); a GM's call that names no card is judged by the request alone.
  */
-export async function answerHopeCall(requestId, asker, verdict, messageId = null) {
+export async function answerHopeCall(requestId, asker, verdict, messageId = null, out = null) {
     if (!game.user.isGM || !requestId || !asker) return false;
     if (verdict) {
         const res = await ask(ACTION_CALL_YES, { rid: requestId, asker, messageId }, {
             onPrimary: true, local: () => yesOnPrimary(requestId, asker, game.user.id, messageId) });
+        // `out.told` (1.2.122, the audit's CTRL-23): the bridge said why it was not carried out; a false with none is the
+        // primary holding no such ask, which the card's ruling says (messenger-app.mjs).
+        if (out) out.told = !res.ok;
         return res.ok && res.value === true;
     }
     game.socket.emit(SOCKET_EVENT, {
@@ -776,12 +801,13 @@ export async function askReshapeRuling(verdict, { by, trace, attempt } = {}) {
  * once the player has it (`keepRuling`). True once sent; false when the primary holds no such ask - one its player
  * stopped waiting for - and the card is left as it is. `messageId` is the card pressed, as `answerHopeCall` takes it.
  */
-export async function answerDynamic(requestId, asker, ruling, messageId = null) {
+export async function answerDynamic(requestId, asker, ruling, messageId = null, out = null) {
     if (!game.user.isGM || !requestId || !asker) return false;
     const refuse = !ruling;
     const res = await ask(ACTION_DYNAMIC_ANSWER, {
         rid: requestId, asker, tier: refuse ? 0 : Number(ruling.tier), trait: refuse ? null : ruling.trait ?? null, refuse, messageId
     }, { onPrimary: true, local: () => dynamicOnPrimary(requestId, asker, refuse ? false : ruling, game.user.id, messageId) });
+    if (out) out.told = !res.ok;   // As answerHopeCall's (CTRL-23).
     return res.ok && res.value === true;
 }
 

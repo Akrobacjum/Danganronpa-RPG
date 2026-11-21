@@ -41989,7 +41989,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const V2 = await newCard(() => judged("dynamic.difficulty", { actorId: lent.id, description: "E18 fix early-C2-G2", actorName: lent.name, room: null }, player.id, rV),
                 "the resend's card");
             await withAnsweredWindows(() => ({ tier: 2, trait: "agility" }), () => press(V, "setDifficulty"));
-            await press(V, "refuseDynamic");
+            // Since 1.2.122 (the audit's CTRL-23) a press on a card whose ask the primary does not hold closes that card
+            // ("The player was no longer waiting."), so its refusal is no longer there to press: read that it closed.
+            read.push(Boolean(cardFlag(game.messages.get(V.id), "settled")));
             read.push(kept(V2), Boolean(await B.answerDynamic(rV, player.id, { tier: 1, trait: "agility" }, V2.id)));
             await settle(300);
             read.push(kept(V2));
@@ -42001,8 +42003,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             for (const message of created) await message.delete().catch(() => {});
             await settle();
         }
-        equal(stableJson(read), stableJson([false, true, true, null, true, ["dynamic", "lent", 1]]),
-            "a GM's yes or ruling pressed on a card went to the ask held on another card under the same request: the yes on an Experience's card let the Ultimate's arm through, or the difficulty set on a card for the player's character was kept for another, or the second card's own press was not taken (in order: the Ultimate's arm after the first card's yes, the second card's yes, the arm then; the ruling on the second card after the first card's difficulty and refusal, the second card's difficulty, the ruling then)");
+        equal(stableJson(read), stableJson([false, true, true, true, null, true, ["dynamic", "lent", 1]]),
+            "a GM's yes or ruling pressed on a card went to the ask held on another card under the same request: the yes on an Experience's card let the Ultimate's arm through, or the difficulty set on a card for the player's character was kept for another, or the second card's own press was not taken (in order: the Ultimate's arm after the first card's yes, the second card's yes, the arm then; the first card closed after its difficulty (1.2.122, CTRL-23), the ruling on the second card after it, the second card's difficulty, the ruling then)");
     }],
 
     ["the primary ends an ask's card at the time the card shows: a card past it ends as expired, one before it stays open, and a player's card is not touched (E18 C2)", async () => {
@@ -54922,6 +54924,126 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             for (const [key, value] of kept) await game.settings.set(MODULE_ID, key, value);
             await putNoteFlagsBack(before);
         }
+    }],
+
+    ["1.2.122 CTRL-13 CTRL-24 REFR-53 - the conversation window keeps what is typed across its tabs, and its Note dot and participants line follow the world while it stands open (messenger-app.mjs `DrpgMessengerApp`: `_replaceHTML`, `refreshNote`, `refreshHead`; the audit's CTRL-13, CTRL-24, REFR-53)", async () => {
+        /*
+         * The audit of 1.2.118: a press of either tab rendered the window whole, so a chat message typed and not sent was
+         * gone after a visit to the Note tab (CTRL-24), and a note typed and not saved after a visit to the Chat tab
+         * (CTRL-13); the Note tab's dot was drawn once, so a note written while the window stood on Chat drew no dot, and
+         * the participants line read the users once (REFR-53). In a world the stores have never opened, a GM's window on a
+         * player's thread: a message typed, Note pressed, a note typed, Chat pressed, then Note again; the note written by
+         * another road while the window stands on Chat; a GM's account renamed. Red at 21bf5d18: both boxes empty after the
+         * round trip, no dot, the old name.
+         */
+        needs(world.atLeast("playerAccounts", 1), "the window shows a player's thread");
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const M = await import("./messenger-app.mjs");
+        const [one] = game.users.filter(u => !u.isGM);
+        const before = noteFlagsNow();
+        const kept = [SETTINGS.messengerLastRead, SETTINGS.messengerWindowPositions]
+            .map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, key))]);
+        const earlier = M.DrpgMessengerApp.instances.get(one.id) ?? null;
+        const nameWas = game.user.name;
+        let app = null;
+        let read = null;
+        try {
+            if (earlier) await earlier.close();
+            await E.withGmStoreWorld(`suite-tabs-${foundry.utils.randomID(8)}`, async () => {
+                app = new M.DrpgMessengerApp(one.id);
+                M.DrpgMessengerApp.instances.set(one.id, app);
+                app.tab = "chat";
+                await app.render({ force: true });
+                await settle();
+                const press = async key => { app.element.querySelector(`[data-drpg-tab-key="${key}"]`)?.click(); await settle(); await until(() => app.tab === key, 500); await settle(); };
+                const chatBox = () => app.element?.querySelector(".drpg-messenger-input textarea") ?? null;
+                const noteBox = () => app.element?.querySelector(".drpg-messenger-note-text") ?? null;
+                chatBox().value = "SUITE CTRL-24 typed and not sent";
+                await press("note");
+                noteBox().value = "SUITE CTRL-13 typed and not saved";
+                await press("chat");
+                const chatBack = chatBox()?.value ?? null;
+                await press("note");
+                const noteBack = noteBox()?.value ?? null;
+                await press("chat");
+                const dotBefore = Boolean(app.element.querySelector('[data-drpg-tab-key="note"] .drpg-messenger-tab-dot'));
+                await S.noteStore.patch(one.id, { text: "SUITE REFR-53 a note written meanwhile", updatedAt: Date.now(), byGm: true });
+                await settle();
+                const dotAfter = Boolean(app.element.querySelector('[data-drpg-tab-key="note"] .drpg-messenger-tab-dot'));
+                await game.user.update({ name: "SUITE REFR-53 renamed GM" });
+                await settle();
+                const line = app.element.querySelector(".drpg-messenger-participants")?.textContent ?? "";
+                read = [chatBack, noteBack, dotBefore, dotAfter, line.includes("SUITE REFR-53 renamed GM")];
+            });
+        } finally {
+            if (game.user.name !== nameWas) await game.user.update({ name: nameWas });
+            if (app) await app.close();
+            for (const [key, value] of kept) await game.settings.set(MODULE_ID, key, value);
+            await putNoteFlagsBack(before);
+        }
+        equal(stableJson(read), stableJson(["SUITE CTRL-24 typed and not sent", "SUITE CTRL-13 typed and not saved", false, true, true]),
+            "the window lost what was typed on a tab press, or its Note dot or participants line did not follow ([the chat box after Note and back, "
+            + "the note box after Chat and back, the dot before a note, the dot after one written meanwhile, the line names a renamed GM])");
+    }],
+
+    ["1.2.122 REFR-15 COMM-34 CTRL-63 - the messenger's launcher is one button kept and redrawn in place, the GM's open roster follows a thread's new message, and a roster row opens its conversation from the keyboard (messenger-app.mjs `renderLauncher`, `refreshRoster`, `rosterRow`; the audit's REFR-15, COMM-34, CTRL-63)", async () => {
+        /*
+         * The audit of 1.2.118: every thread event took the launcher off the page and built it again (COMM-34), so a
+         * keyboard user's focus on it was thrown back to the page; the open roster kept the rows it was drawn with
+         * (REFR-15); a row was an li with a click listener alone, which Tab never reached (CTRL-63). On a GM's page: the
+         * launcher drawn and focused, the roster opened from it; a message posted into a player's thread; then the
+         * launcher's node and the focus, the player's row's preview, and the row's role, tab stop and Enter. Red at
+         * 21bf5d18: a new launcher node, the focus lost, the old preview, no role or tab stop, Enter opened nothing.
+         */
+        needs(world.atLeast("playerAccounts", 1), "the roster lists a player's thread");
+        must(game.user.isGM, "the roster is a GM's");
+        must(!document.getElementById("drpg-messenger-roster"), "the GM's roster is open - close it: this test opens its own");
+        const A = await import("./messenger-app.mjs");
+        const { sendMessage } = await import("./messenger.mjs");
+        const [one] = game.users.filter(u => !u.isGM);
+        const earlier = A.DrpgMessengerApp.instances.get(one.id) ?? null;
+        const kept = [SETTINGS.messengerLastRead, SETTINGS.messengerWindowPositions]
+            .map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, key))]);
+        const TEXT = `SUITE REFR-15 ${foundry.utils.randomID(6)}`;
+        const made = [];
+        const hook = Hooks.on("createChatMessage", m => made.push(m.id));
+        let read = null;
+        try {
+            if (earlier) await earlier.close();
+            A.renderLauncher();
+            const launcher = document.getElementById("drpg-messenger-launcher");
+            launcher.focus();
+            launcher.click();
+            await until(() => document.getElementById("drpg-messenger-roster"), 1000);
+            await settle();
+            await sendMessage(one.id, TEXT);
+            await settle();
+            await until(() => false, 100);
+            const now = document.getElementById("drpg-messenger-launcher");
+            const rowOf = () => [...document.querySelectorAll("#drpg-messenger-roster .drpg-messenger-roster-row")]
+                .find(li => li.textContent.includes(one.name));
+            const row = rowOf();
+            const preview = row?.querySelector(".drpg-messenger-roster-preview")?.textContent ?? "";
+            const keys = [row?.getAttribute("role") ?? null, row?.tabIndex ?? null];
+            const stillFocused = document.activeElement === launcher;
+            row?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+            await settle();
+            await until(() => A.DrpgMessengerApp.instances.get(one.id)?.rendered, 1000);
+            read = [now === launcher, stillFocused, preview.includes(TEXT), ...keys,
+                Boolean(A.DrpgMessengerApp.instances.get(one.id)?.rendered)];
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            await A.DrpgMessengerApp.instances.get(one.id)?.close();
+            for (const panel of document.querySelectorAll("#drpg-messenger-roster")) panel.remove();
+            for (const id of made) await game.messages.get(id)?.delete();
+            for (const [key, value] of kept) await game.settings.set(MODULE_ID, key, value);
+            A.renderLauncher();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([true, true, true, "button", 0, true]),
+            "the launcher was built again or lost the focus, the open roster kept an old row, or a row is not a keyboard's control "
+            + "([the same launcher node, the focus still on it, the row's preview shows the new message, the row's role, its tabIndex, Enter opened the conversation])");
     }],
 
     ["the case health check names a secret project and a note this browser does not hold, and a restore's flags keep a newer note's date", async () => {
@@ -90096,6 +90218,148 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "the same window]; [the key written meanwhile kept by the next change, that row's marker]; [two changes in one tick both stored and saved]; "
             + "[the window not rebuilt]; [Close closes]; [the toasts while it was open]; [the map after]; [the map after the test's own restore]");
     }],
+    ["1.2.122 COMM-21 - a GM's Give on a Monocub's Ask for Hope gives at most what the card offers, 2, whatever number the card's data names: the card is written on the Monocub's player's browser, so its `n` is a claim (monocub.mjs `answerHopeAsk`, `ASK_GIVE_MAX`; the rest of the audit's COMM-21)", async () => {
+        /*
+         * The audit of 1.2.118, COMM-21's rest: a ruling card's data is its writer's, and since 1.2.122 a ruling that acts
+         * on a character holds it to one the card's writer owns (messenger-app.mjs `writerOwns`). The Monocub's own Ask
+         * names its own Monocub, so that check passes it, and `cubGiveHope` handed `data.n` to `answerHopeAsk` unbounded:
+         * a console's copy of the card with Give 50 turned a GM's press into all of that GM's Despair. On this GM, five
+         * Despair in its pool, none owed, a Monocub with no Hope: `answerHopeAsk(cub, 50)`. Read: the Monocub's Hope after.
+         * Everything put back as the Ask for Hope test (E72 C5) puts it. Red at 21bf5d18: Hope 5.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a Monocub with a player");
+        const M = await import("./monocub.mjs");
+        const D = await import("./despair.mjs");
+        const { cubStore, despairOwedStore } = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { resourceMax } = await import("./character.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [cub] = livingStudents().filter(player);
+        ok(D.monokumas().some(u => u.id === game.user.id), "this GM holds no Despair pool to give from - this would measure nothing");
+        must(resourceMax(cub, "hope") >= 5, "the Monocub's Hope maximum is under 5 - the bound would not be read");
+        const was = [cub.system.resources.hope.value];
+        const despairWas = D.getDespair(game.user.id) ?? null;
+        const rowWas = foundry.utils.deepClone(cubStore?.get(cub.id) ?? null);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const read = {};
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await trustedWrite(cub, { "system.resources.hope.value": 0 }, { reason: "gmRuling" });
+            await despairOwedStore.drop(game.user.id);
+            await D.setDespair(game.user.id, 5);
+            await settle();
+            await M.answerHopeAsk(cub, 50);
+            await settle();
+            read.given = [cub.system.resources.hope.value, M.ASK_GIVE_MAX];
+        } finally {
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await cub.update({ "system.resources.hope.value": was[0] });
+            await despairOwedStore.drop(game.user.id);
+            if (despairWas !== null) await D.setDespair(game.user.id, despairWas);
+            if (cubStore) {
+                if (rowWas) await cubStore.patch(cub.id, rowWas);
+                else if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            }
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+        }
+        equal(stableJson(read), stableJson({ given: [2, 2] }),
+            "a Give naming 50 gave more than the card offers ({given: [the Monocub's Hope, ASK_GIVE_MAX]})");
+    }],
+    ["1.2.122 COMM-48 - a quiet change of the Monocub mark sounds nothing, as it toasts nothing: setMonocub's `quiet` writes its marker in the same update, so it is in the changes every browser's listener is handed, and the Monocub sound's listener plays only for changes without it (monocub.mjs `setMonocub`, config.mjs `FLAGS.monocubQuiet`, sfx.mjs `onActorFlagged`; the audit's COMM-48)", async () => {
+        /*
+         * The audit of 1.2.118, COMM-48: the season reset clears each cub with `setMonocub(actor, false, { quiet: true })`,
+         * and `quiet` held back only the toast - the flag's write reached sfx.mjs's `updateActor` listener like any other,
+         * so a reset of a season with three Monocubs rang the chime up to three times on each GM. The marker rides in the
+         * update's changes, not in an option of the update (whether v14 hands an option to the other browsers is not read
+         * headless), so this reads the changes alone: the listener the module registered, handed a student's mark change
+         * with and without the marker (nothing written to the actor), the Monocub row mapped to a file and this browser's
+         * Sound slider above 0 for the run and put back; and setMonocub's source for the marker on its write. Red at
+         * 21bf5d18: the quiet change played, and setMonocub's write carried no marker.
+         */
+        needs(world.atLeast("livingStudents"), "a student's mark change is handed to the listener");
+        const PC = await import("./perf-counters.mjs");
+        const SFX = await import("./sfx.mjs");
+        const listener = (Hooks.events?.updateActor ?? []).find(entry => entry.fn?.name === "onActorFlagged")?.fn;
+        must(typeof listener === "function", "sfx.mjs registered no updateActor listener named onActorFlagged - this would measure nothing");
+        must(typeof FLAGS.monocubQuiet === "string", "config.mjs FLAGS has no monocubQuiet");
+        const [actor] = cast(1);
+        const map = foundry.utils.deepClone(getSetting(SETTINGS.sfxMap) ?? {});
+        const volumes = foundry.utils.deepClone(getSetting(SETTINGS.sfxVolumes) ?? {});
+        const asked = () => (PC.snapshot()["sfx.played"] ?? 0) + (SFX.diagnoseSfx().droppedBeforeFirstClick ?? 0);
+        const change = extra => ({ _id: actor.id, flags: { [MODULE_ID]: { monocub: false, ...extra } } });
+        const read = {};
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.sfxMap, { ...map, monocub: "sounds/notify.wav" });
+            await SFX.setSfxVolume("sound", 0.8);
+            await settle();
+            await until(() => false, 200);
+            let before = asked();
+            listener(actor, change({ [FLAGS.monocubQuiet]: Date.now() }), {}, game.user.id);
+            read.quiet = asked() - before;
+            await until(() => false, 200);
+            before = asked();
+            listener(actor, change({}), {}, game.user.id);
+            read.loud = asked() - before;
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.sfxMap, map);
+            await game.settings.set(MODULE_ID, SETTINGS.sfxVolumes, volumes);
+            await settle();
+        }
+        const src = stripComments((await moduleSources()).get("monocub.mjs") ?? "");
+        read.carried = /quiet \? \{ \[`flags\.\$\{MODULE_ID\}\.\$\{FLAGS\.monocubQuiet\}`\]/.test(fnSource(src, "setMonocub"));
+        equal(stableJson(read), stableJson({ quiet: 0, loud: 1, carried: true }),
+            "a quiet mark change still rang, or a plain one did not ({quiet, loud: sounds asked of the audio layer; carried: setMonocub's quiet write carries the marker})");
+    }],
+    ["1.2.122 REFR-25 - the Sound window's Music rows follow the world's playlists, and its two switches follow another GM's write (sound-panel.mjs `openSoundDialog`'s regions, `wireSoundSwitches`; the audit's REFR-25)", async () => {
+        /*
+         * The audit of 1.2.118 (REFR-25, the residue its 1.2.119 check left): the Music rows' region was woken by the map
+         * alone, so a playlist made, renamed or deleted in the sidebar with the window open was offered by no select until
+         * the window was opened again; the two switches had no region, so another GM's write of either was not drawn. The
+         * Sound window opened as E50-T1 opens it; a playlist made, then renamed; each switch's setting written as another
+         * GM's write would arrive, then put back. Red at 21bf5d18: the new playlist in no select, both switches as drawn.
+         */
+        needs(env.dialogs(), "the Sound window is drawn");
+        must(game.user.isGM, "the Sound window is a GM's");
+        const M = await import("./music.mjs");
+        const { setSetting } = await import("./settings.mjs");
+        must(!document.querySelector(".drpg-window-sound"), "a Sound window is open - close it: this test opens its own");
+        const was = { musicEnabled: getSetting(SETTINGS.musicEnabled) === true, sfxVary: getSetting(SETTINGS.sfxVary) === true };
+        let playlist = null, answer = null;
+        const read = {};
+        try {
+            answer = Promise.resolve().then(() => M.openSoundDialog()).catch(err => `threw: ${err.message}`);
+            const root = () => document.querySelector(".drpg-window-sound");
+            must(await until(() => root()?.querySelector("select[name^='state:']"), 6000), "the Sound window did not open with its Music tab");
+            const offered = name => [...root().querySelectorAll("select[name^='state:'] option")].some(o => o.textContent.includes(name));
+            playlist = await Playlist.create({ name: "SUITE REFR-25 made meanwhile" });
+            read.made = Boolean(await until(() => offered("SUITE REFR-25 made meanwhile"), 3000));
+            await playlist.update({ name: "SUITE REFR-25 renamed" });
+            read.renamed = Boolean(await until(() => offered("SUITE REFR-25 renamed") && !offered("SUITE REFR-25 made meanwhile"), 3000));
+            const switchOf = key => root().querySelector(`[data-drpg-sound-setting="${key}"] input[role='switch']`);
+            read.switches = {};
+            for (const key of ["musicEnabled", "sfxVary"]) {
+                must(switchOf(key), `the ${key} switch is not drawn - this would measure nothing`);
+                await setSetting(SETTINGS[key], !was[key]);
+                const followed = Boolean(await until(() => switchOf(key)?.checked === !was[key], 3000));
+                // The redrawn switch still saves as it is flipped: its listener is put back on the new node.
+                const input = switchOf(key);
+                input.checked = was[key];
+                input.dispatchEvent(new Event("change", { bubbles: true }));
+                const saved = Boolean(await until(() => (getSetting(SETTINGS[key]) === true) === was[key], 3000));
+                read.switches[key] = [followed, saved];
+                await setSetting(SETTINGS[key], was[key]);
+            }
+        } finally {
+            for (const app of [...foundry.applications.instances.values()].filter(a => a.element?.classList?.contains("drpg-window-sound"))) await app.close();
+            if (answer) await Promise.race([answer, wait(3000)]);
+            for (const key of ["musicEnabled", "sfxVary"]) if ((getSetting(SETTINGS[key]) === true) !== was[key]) await setSetting(SETTINGS[key], was[key]);
+            if (playlist) await playlist.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ made: true, renamed: true, switches: { musicEnabled: [true, true], sfxVary: [true, true] } }),
+            "the Sound window did not follow a playlist made or renamed, or a switch another GM wrote ({made, renamed, switches: per key [drawn as written, the redrawn switch saves]})");
+    }],
     ["E101-T7 - the Sound window's two switches save as they are flipped: Music follows the game state on the Music tab and Vary the sounds on the Effects tab write their world settings with no Apply, and the window stays open (E101 item 7; R4050)", async () => {
         /*
          * E101 item 7, 12.11.2026 (the owner's yes to the GM screens' review, #8). As the GM: the Sound window opened, each
@@ -103833,6 +104097,348 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ setting: [false, 1], gm: [NAME, true, false], revealed: [NAME, true] }),
             "{setting: [the name in Countdowns, the levels its map gives the players]; gm: [the GMs' name, the insider sees it, another does not]; revealed: [its name in the setting, another sees it]} - a secret project kept out of Countdowns");
     }],
+    ["1.2.122 COMM-30 COMM-31 COMM-50 - the music's record stays on the primary GM: a cue stopped from the Playlists sidebar gives back what Play held with the switch off, Stop the track says what it did, and a GM who becomes the primary takes over a silence still held (music-play.mjs `playTrack`, `resetMusic`, `watchManualEnd`, `adoptOnBecomingPrimary`; sound-panel.mjs; the audit's COMM-30, COMM-31, COMM-50; another GM's Play and Stop, carried out on the primary since the owner's decision of 21.11.2026, are scenario 97's phase M)", async () => {
+        /*
+         * The audit of 1.2.118. COMM-31: with "Music follows the game state" off (the default) Play paused the ambient
+         * playlist and the cue's end was watched only with the switch on, so a cue stopped in the sidebar left the ambient
+         * paused and flagged. COMM-50: Stop the track always said a track stopped and the music came back. COMM-30: a GM who became the primary
+         * adopted nothing, so playlists held for a silence stayed held. Here, two fixture playlists - an ambient one
+         * playing and the cue playlist (made unless the world holds one) - and the switch as found: Play, the cue stopped
+         * through its own document as the sidebar stops it, Stop the track with nothing playing; then, with this browser
+         * standing in as an assistant (a GM before it in the primary's order, `game.users.filter` stood in) and the switch on and nothing mapped, the ambient held while this browser is not the primary and the
+         * order put back: the next apply as the primary. Everything is deleted or put back after. Red at 21bf5d18: the
+         * ambient still paused after the sidebar's stop, Stop the track answering true, the
+         * held ambient left held.
+         */
+        must(game.user.isGM, "the music is a GM's");
+        const P = await import("./music-play.mjs");
+        const U = await import("./utils.mjs");
+        const { SITUATIONAL_PLAYLIST } = await import("./config.mjs");
+        const { setSetting } = await import("./settings.mjs");
+        must(U.isPrimaryGm(), "this browser is not the primary GM - this would measure nothing");
+        const enabledWas = getSetting(SETTINGS.musicEnabled);
+        const mapWas = foundry.utils.deepClone(getSetting(SETTINGS.musicMap) ?? {});
+        const users = game.users;
+        const [hadFilter, realFilter] = [Object.prototype.hasOwnProperty.call(users, "filter"), users.filter];
+        const [hadGet, realGet] = [Object.prototype.hasOwnProperty.call(users, "get"), users.get];
+        const before = { id: "!!SuiteEarlierGm", name: "SUITE earlier GM", active: true, isGM: true, role: CONST.USER_ROLES.GAMEMASTER };
+        const standIn = on => {
+            if (on) {
+                users.filter = function (fn, ...a) { return [...realFilter.call(this, fn, ...a), ...[before].filter(fn)]; };
+                users.get = function (id, ...a) { return id === before.id ? before : realGet.call(this, id, ...a); };
+                return;
+            }
+            if (hadFilter) users.filter = realFilter; else delete users.filter;
+            if (hadGet) users.get = realGet; else delete users.get;
+        };
+        const made = [];
+        const wait = async () => { await settle(); await until(() => false, 300); await settle(); };
+        const read = {};
+        /* The harness's CONST has no PLAYLIST_MODES, which the music engine reads: Foundry's values stood in for the test
+           (DISABLED -1, SEQUENTIAL 0, SHUFFLE 1, SIMULTANEOUS 2, as remembered, not read in v14's source), taken off after. */
+        const modesStoodIn = !CONST.PLAYLIST_MODES && Object.isExtensible(CONST);
+        if (modesStoodIn) Object.defineProperty(CONST, "PLAYLIST_MODES", { value: { DISABLED: -1, SEQUENTIAL: 0, SHUFFLE: 1, SIMULTANEOUS: 2 }, configurable: true });
+        must(CONST.PLAYLIST_MODES, "no playlist modes in this Foundry, and none could be stood in - this would measure nothing");
+        try {
+            await setSetting(SETTINGS.musicEnabled, false);
+            const ambient = await Playlist.create({ name: "SUITE COMM-31 ambient", mode: 0,
+                sounds: [{ name: "SUITE ambient one", path: "sounds/lock.wav" }] });
+            made.push(ambient);
+            let cue = P.situationalPlaylist();
+            if (!cue) {
+                cue = await Playlist.create({ name: SITUATIONAL_PLAYLIST, mode: 0 });
+                made.push(cue);
+            }
+            const [track] = await cue.createEmbeddedDocuments("PlaylistSound", [{ name: "SUITE COMM-31 cue", path: "sounds/notify.wav" }]);
+            await ambient.playAll();
+            await ambient.sounds.contents[0].update({ playing: true });
+            await wait();
+            const played = await P.playTrack(track.id);
+            await wait();
+            read.play = [Boolean(played), ambient.playing, P.musicStatus().interrupted];
+            await cue.update({ playing: false });
+            await track.update({ playing: false });
+            await wait();
+            read.sidebarStop = [ambient.playing, P.musicStatus().interrupted, Boolean(ambient.getFlag(MODULE_ID, "held"))];
+            await ambient.stopAll();
+            await wait();
+            read.nothing = await P.resetMusic();
+
+            await setSetting(SETTINGS.musicMap, {});
+            await setSetting(SETTINGS.musicEnabled, true);
+            await wait();
+            standIn(true);
+            P.refreshMusic({ now: true });
+            await wait();
+            await ambient.update({ playing: false, [`flags.${MODULE_ID}.held`]: true });
+            await ambient.sounds.contents[0].update({ playing: false, pausedTime: 3 });
+            await wait();
+            standIn(false);
+            P.refreshMusic({ now: true });
+            await until(() => ambient.playing, 4000);
+            await wait();
+            read.takeover = [ambient.playing, Boolean(ambient.getFlag(MODULE_ID, "held"))];
+        } finally {
+            standIn(false);
+            for (const p of made) { if (game.playlists.get(p.id)) { await p.stopAll().catch(() => {}); await p.delete(); } }
+            const left = P.situationalPlaylist();
+            if (left && !made.includes(left)) for (const s of left.sounds.filter(s => s.name === "SUITE COMM-31 cue")) await s.delete();
+            await setSetting(SETTINGS.musicMap, mapWas);
+            await setSetting(SETTINGS.musicEnabled, enabledWas);
+            P.refreshMusic({ now: true });
+            await settle();
+            if (modesStoodIn) delete CONST.PLAYLIST_MODES;
+        }
+        equal(stableJson(read), stableJson({
+            play: [true, false, true], sidebarStop: [true, false, false], nothing: { stopped: 0, given: 0 },
+            takeover: [true, false]
+        }), "the music's record left the primary, a cue stopped in the sidebar kept what it held, or Stop the track did not say what it did "
+            + "({play: [played, the ambient playing, a cue recorded]; sidebarStop: [the ambient playing, a cue recorded, the ambient flagged held]; "
+            + "nothing: Stop the track's answer with nothing playing; "
+            + "takeover: [the held ambient playing, still flagged] after this browser became the primary})");
+    }],
+    ["1.2.122 CTRL-25 - Create an item on a Search card, with the item tables already open, opens them again on the card's category, tier, room and name when nothing is typed in their New item tab, and with something typed there leaves them as they are and says the card's details were not carried (messenger-app.mjs `ruleCreateItem`; tables-editor.mjs `openItemTables`; the audit's CTRL-25)", async () => {
+        /*
+         * The audit of 1.2.118 (CTRL-25): openItemTables answered RAISED for a window already open, before the preset was
+         * read, so the GM got the tables as they were and retyped the card's category, tier, room and name. The item tables
+         * opened; the ruling pressed through `runCallAction` with a Search card's data (a), then, with the name cleared and
+         * text typed into the New item tab's description, pressed again naming another item (b). Read each time: the windows open, the New item
+         * tab's name, the warnings. The windows closed after. Red at 21bf5d18: (a) the name empty, one warning.
+         */
+        needs(env.dialogs(), "the item tables are drawn");
+        must(game.user.isGM, "the item tables are a GM's");
+        const M = await import("./messenger-app.mjs");
+        const T = await import("./tables.mjs");
+        const warns = [], realWarn = ui.notifications.warn;
+        const isTables = app => app.element?.classList?.contains("drpg-window-tables");
+        const open = () => [...foundry.applications.instances.values()].filter(app => isTables(app) && app.rendered && app.element?.isConnected);
+        const nameNow = () => open()[0]?.element?.querySelector('[name="newName"]')?.value ?? null;
+        const warned = () => warns.filter(w => w === game.i18n.localize("DRPG.Items.tablesOpenNoPreset")).length;
+        const waits = [];
+        const read = {};
+        try {
+            waits.push(Promise.resolve().then(() => T.openItemTables()).catch(() => null));
+            must(await until(() => open().length === 1, 6000), "the item tables did not open");
+            const drawn = open()[0];
+            ui.notifications.warn = text => { warns.push(String(text)); };
+            waits.push(Promise.resolve().then(() => M.runCallAction("createItem", { category: "tool", tier: "1", room: "", want: "SUITE CTRL-25 crowbar" })).catch(() => null));
+            await until(() => open().length === 1 && open()[0] !== drawn && nameNow() === "SUITE CTRL-25 crowbar", 6000);
+            await settle();
+            read.a = [open().length, nameNow(), warned()];
+            const text = open()[0]?.element?.querySelector('[name="newText"]');
+            must(text, "the New item tab has no description box - (b) would measure nothing");
+            text.value = "SUITE CTRL-25 half typed";
+            open()[0].element.querySelector('[name="newName"]').value = "";
+            const kept = open()[0];
+            waits.push(Promise.resolve().then(() => M.runCallAction("createItem", { category: "tool", tier: "1", room: "", want: "SUITE CTRL-25 rope" })).catch(() => null));
+            await until(() => warned() > 0, 3000);
+            await settle();
+            read.b = [open().length, open()[0] === kept, nameNow(), warned()];
+        } finally {
+            ui.notifications.warn = realWarn;
+            for (const app of [...foundry.applications.instances.values()].filter(isTables)) await app.close();
+            await Promise.race([Promise.all(waits), wait(3000)]);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ a: [1, "SUITE CTRL-25 crowbar", 0], b: [1, true, "", 1] }),
+            "the open item tables did not take the card's preset, or took it over typed text ({a, b: [windows open, the same window (b), the New item name, warnings]})");
+    }],
+    ["1.2.122 REFR-17 - a Despair Call's confirmation follows the Despair its pool owes: a conversion's debt written while the window stands open changes the header's spendable sum (calls.mjs `confirmCall`'s live header; despair.mjs `spendableDespair`; the audit's REFR-17, the header's half)", async () => {
+        /*
+         * The audit of 1.2.118 (REFR-17): the confirmation's header was kept live on the actors and the module's settings,
+         * and the spendable Despair also subtracts the GMs' debt store, heard only through `watch.stores`. With this GM's
+         * Monokuma (the pool's actor) and its pool at 8 (put back after), Public Announcement's confirmation opened (DialogV2.wait held by a stand-in that keeps
+         * the window until the test closes it, as R3818 holds it, and the window's content drawn into the page), a debt row
+         * of 2 written for the pool and dropped after. Red at 21bf5d18: the header as drawn. The pickers' own rows are not
+         * live (not done here: each picker hands `choose` its rows once).
+         */
+        must(game.user.isGM, "the debt store is a GM's");
+        const calls = await import("./calls.mjs");
+        const { DESPAIR_CALLS } = await import("./config.mjs");
+        const { poolUserFor } = await import("./monokuma.mjs");
+        const { spendableDespair, getDespair, setDespair } = await import("./despair.mjs");
+        const { despairOwedStore } = await import("./gm-stores.mjs");
+        const monokuma = game.actors.find(a => a.type === "character" && a.getFlag(MODULE_ID, FLAGS.monokuma) && poolUserFor(a)?.id === game.user.id);
+        needs(world.atLeast("playerAccounts", 1), "a world with a cast");
+        must(monokuma, "this GM has no Monokuma whose pool is theirs - this would measure nothing");
+        const call = DESPAIR_CALLS.publicAnnouncement ?? Object.values(DESPAIR_CALLS).find(c => c.target === "room");
+        const key = `${game.user.id}:${game.user.id}:REFR17${Date.now()}`;
+        const sums = [];
+        const poolWas = getDespair(game.user.id);
+        await setDespair(game.user.id, 8);
+        await settle();
+        const open = calls.confirmCall(call, { kind: "despair", held: spendableDespair(game.user.id), actor: monokuma });
+        try {
+            await until(() => document.querySelector(".drpg-call-header"), 3000);
+            const header = () => document.querySelector(".drpg-call-header")?.textContent ?? "";
+            sums.push(header());
+            await despairOwedStore.patch(key, { owed: 2, since: null });
+            await until(() => header() !== sums[0], 3000);
+            sums.push(header());
+        } finally {
+            await despairOwedStore.dropMany([key]);
+            for (const app of [...foundry.applications.instances.values()].filter(a => a.element?.querySelector?.(".drpg-call-header"))) await app.close();
+            await Promise.race([open, wait(3000)]);
+            await setDespair(game.user.id, poolWas);
+            await settle();
+        }
+        ok(sums.length === 2 && sums[1] !== sums[0], `the confirmation's header did not follow the pool's debt (read "${sums[0]}" then "${sums[1] ?? "-"}")`);
+    }],
+    ["1.2.122 REFR-17 - a Call's picker follows the world while it stands open: Contraband's item rows take an item made meanwhile and drop one deleted, and the row ticked stays ticked while it is still offered (call-pickers.mjs `choose`'s `follow`, `pickItem`; live.mjs `keepLive`'s carry; the rest of the audit's REFR-17)", async () => {
+        /*
+         * The audit of 1.2.118 (REFR-17), the pickers' half: every picker built its rows when it opened and handed
+         * `callWindow` no `live`, so a student who walked out, a project made meanwhile or an item handed over stayed as
+         * drawn until the window was opened again. As the GM, Contraband's picker opened (`pickTarget`, not awaited) with
+         * a student's item made for the run; a second item made on the same student, then the first deleted, with the
+         * second row ticked between. Read: the rows' values after each, and the ticked one. The items and the window
+         * gone after. Red at 21bf5d18: the rows as first drawn.
+         */
+        needs(env.dialogs(), "the picker is drawn");
+        needs(world.atLeast("livingStudents"), "a student whose item Contraband is offered");
+        must(game.user.isGM, "Contraband is a GM's Call");
+        const P = await import("./call-pickers.mjs");
+        const { DESPAIR_CALLS } = await import("./config.mjs");
+        const call = DESPAIR_CALLS.contraband;
+        must(call?.target === "item", "no Contraband Call aimed at an item - this would measure nothing");
+        const [actor] = cast(1);
+        const made = [];
+        const make = async name => {
+            const [item] = await actor.createEmbeddedDocuments("Item", [{ name, type: "loot", flags: { [MODULE_ID]: { category: "tool" } } }]);
+            made.push(item);
+            return item;
+        };
+        const rows = () => [...document.querySelectorAll(".drpg-choice-list input[name='choice']")];
+        const values = () => rows().map(r => r.value);
+        let open = null;
+        const read = {};
+        try {
+            const first = await make("SUITE REFR-17 first");
+            await settle();
+            open = P.pickTarget(actor, call, "despair").catch(() => null);
+            must(await until(() => values().includes(first.uuid), 6000), "the picker did not open with the student's item");
+            const second = await make("SUITE REFR-17 second");
+            read.made = Boolean(await until(() => values().includes(second.uuid), 3000));
+            rows().find(r => r.value === second.uuid).checked = true;
+            await first.delete();
+            made.splice(made.indexOf(first), 1);
+            read.deleted = Boolean(await until(() => !values().includes(first.uuid), 3000));
+            read.ticked = rows().find(r => r.checked)?.value === second.uuid;
+        } finally {
+            for (const app of [...foundry.applications.instances.values()].filter(a => a.element?.querySelector?.(".drpg-choice-list"))) await app.close();
+            if (open) await Promise.race([open, wait(3000)]);
+            for (const item of made) if (actor.items.get(item.id)) await item.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ made: true, deleted: true, ticked: true }),
+            "Contraband's picker did not follow the student's items, or lost the row ticked ({made, deleted: the rows followed; ticked: the second still ticked})");
+    }],
+    ["1.2.122 COMM-26 - two restrictions written at the same moment both stand, and a seal or a restriction is a GM's alone on the primary: a player's `call.world` is refused (call-world.mjs `restrict`, `writeCallWorld`; bridge-table.mjs `call.world`; the audit's COMM-26)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-26): sealRoom and restrict read the world setting on this GM's browser, added one entry
+         * and set the whole value, so two writes within one round trip kept only the second. The primary writes them one
+         * after another now (`serialWrite`), and another GM asks it (`call.world`). On this primary GM: two students
+         * Silenced in the same tick; then a player's packet judged as the bridge judges it. The restrictions are put back.
+         * Red at 21bf5d18: one of the two silenced, and no `call.world` (refused as an unknown action).
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a player's packet is judged, and Foundry names only a connected one");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which writes the restrictions - this would measure nothing");
+        const W = await import("./call-world.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const [a, b] = cast(2);
+        must(a && b, "two students to silence - this would measure nothing");
+        const { player } = playerAndCharacters();
+        const was = foundry.utils.deepClone(W.restrictions());
+        let read = null;
+        try {
+            const answers = await Promise.all([W.restrict(a, { silenced: true }), W.restrict(b, { silenced: true })]);
+            await settle();
+            const sent = [];
+            await G.judge(B.BRIDGE_ACTIONS, { action: "call.world", requestId: "COMM26PLAYER0001", kind: "restrict", actorId: a.id, silenced: true }, player.id,
+                { send: (to, reply) => sent.push(reply) });
+            await settle();
+            read = [answers, W.isCallSilenced(a), W.isCallSilenced(b), sent.find(r => r?.action === "bridge.refused")?.reason ?? null];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.restrictions, was);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[true, true], true, true, "gmOnly"]),
+            "two restrictions at once did not both stand, or a player's call.world was not refused as a GM's ([both answers, the first silenced, the second silenced, the refusal's reason])");
+    }],
+    ["1.2.122 COMM-36 - Contraband tells the owner of the item it destroys, privately, as Silence and Chain tell theirs (call-effects.mjs `destroyItemEffect`, `tell`; the audit's COMM-36)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-36): the item was deleted on the GM and the public card named only the item; its
+         * owner was told nothing, where every other Despair Call aimed at a student tells the student. An item given to a
+         * student here, Contraband's effect run on this GM through `applyCall` (nothing is paid: the effect alone); read
+         * the private words sent to the owner's players (`wordsSent`). The item is gone after, as the Call does; the cards
+         * are deleted. Red at 21bf5d18: no words to the owner.
+         */
+        needs(world.atLeast("livingStudents", 1), "a student whose item is destroyed");
+        const INV = await import("./inventory.mjs");
+        const { applyCall } = await import("./call-effects.mjs");
+        const [owner] = cast(1);
+        const readers = game.users.filter(u => !u.isGM && owner.testUserPermission(u, "OWNER")).map(u => u.id);
+        must(readers.length, `${owner.name} has no player - this would measure nothing`);
+        const NAME = "SUITE COMM-36 crowbar";
+        const from = game.messages.contents.length;
+        let item = null, told = null, gone = null;
+        try {
+            item = await INV.grantItem(owner, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+            must(item, "the item could not be given - this would measure nothing");
+            const packets = await wordsSent(async () => {
+                await applyCall(game.user.character ?? owner, "contraband", "despair", { item });
+                await settle();
+            });
+            gone = !owner.items.get(item.id);
+            told = packets.filter(w => w.to.some(id => readers.includes(id)) && w.html.includes(NAME)).length;
+        } finally {
+            if (item && owner.items.get(item.id)) await owner.items.get(item.id).delete();
+            for (const m of game.messages.contents.slice(from)) await m.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson([gone, told]), stableJson([true, 1]), "Contraband did not destroy the item, or did not tell its owner once ([gone, private words to the owner's players naming it])");
+    }],
+    ["1.2.122 COMM-38 - a Call aimed at a secret project names it in its confirmation as the picker did, not \"???\" (calls.mjs `describeChoice`, projects-secrecy.mjs `shownName`; the audit's COMM-38)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-38): the picker names each project by the name its reader may know, and the
+         * confirmation named the picked one from Daggerheart's raw countdown, which for a secret project is the neutral
+         * "???" - "Aimed at: ???" one window after the buyer picked it by name. A secret project made here (deleted after);
+         * Contribution's confirmation opened on this GM with DialogV2.wait held by a stand-in that reads the window and
+         * cancels it (nothing paid). Red at 21bf5d18: "???".
+         */
+        const P = await import("./projects.mjs");
+        const calls = await import("./calls.mjs");
+        const { HOPE_CALLS } = await import("./config.mjs");
+        const NAME = "SUITE COMM-38 the secret trap";
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        let id = null, aimed = null;
+        try {
+            id = (await P.createProject({ name: NAME, target: 6, room: null, secret: true, viewers: [] }))?.id ?? null;
+            must(id, "the secret project could not be made - this would measure nothing");
+            await settle();
+            must(game.settings.get("daggerheart", "Countdowns")?.countdowns?.[id]?.name !== NAME, "the countdown carries the real name - this would measure nothing");
+            D.wait = async config => {
+                const root = document.createElement("div");
+                if (typeof config.content === "string") root.innerHTML = config.content;
+                else if (config.content) root.append(config.content.cloneNode(true));
+                const line = [...root.querySelectorAll("p")].find(p => p.textContent.includes(game.i18n.localize("DRPG.Calls.aimedAt")));
+                aimed = line?.textContent ?? null;
+                return "cancel";
+            };
+            const call = Object.values(HOPE_CALLS).find(c => c.target === "project") ?? HOPE_CALLS.contribution;
+            must(call, "no Hope Call is aimed at a project - this would measure nothing");
+            await calls.confirmCall(call, { kind: "hope", held: 12, choice: { project: id } });
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+            if (id) await P.deleteProject(id);
+            await settle();
+        }
+        equal(stableJson([aimed?.includes(NAME) ?? null, aimed?.includes("???") ?? null]), stableJson([true, false]),
+            `the confirmation did not name the secret project as the picker does (read "${aimed}")`);
+    }],
     ["S17-31-T2 - a world's secret projects from before S17-31 are lifted once by the migration (scripts/migrate.mjs clause hideSecretProjects, projects.mjs `resealSecretProjects`): a secret project whose countdown holds its name and a per-player map loses both - its countdown carries no name and gives every player one level - its name and its player go to the GMs' store, that player is told by a private card, and a second run, forced, changes nothing", async () => {
         /*
          * S17-31, 13.11.2026. The old shape planted on a project made now: Daggerheart's Countdowns written back with the name
@@ -104318,9 +104924,13 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const P = await import("./lockpick-gm.mjs");
         const step = async (hand, cover, withHope = true) => {
             const before = cards();
-            const out = await ask(await rolls(hand, cover, withHope));
+            let out = null;
+            // The bedroom's warning is a veiled card since 1.2.122 (the audit's COMM-22): its document names no speaker, so
+            // it is counted by the words sent with its sound; a card spoken as the owner is counted off its document.
+            const packets = await wordsSent(async () => { out = await ask(await rolls(hand, cover, withHope)); });
+            const warned = packets.filter(w => w.meta?.sfx === "bedroomEntered").length;
             const row = typeof out === "string" ? out : [out?.opened ?? null, [...(out?.held ?? [])].sort().join("+"),
-                roomNow() === A && P.passOf(actor.id)?.room === B, cards() - before];
+                roomNow() === A && P.passOf(actor.id)?.room === B, cards() - before + warned];
             if (P.passOf(actor.id)) await P.endPass(actor.id);
             if (roomNow() !== A) await backToA();
             return row;
@@ -106693,6 +107303,79 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "([the note: noteBedroom's answer, cards], [after the settled crossing: cards, notes left], [after the paid crossing's hook], "
             + "[after a second note and a GM's placement: cards, notes left], [after out and in again])");
     }],
+    ["1.2.122 COMM-22 - a bedroom's note told on walking back in is veiled: its document names no speaker and no reader, so a console that watches the chat log cannot read who walked into their own bedroom, in an Eclipse or by day (doors-gm.mjs `tellBedroomNotes`, `BEDROOM_SOUND`; arrival-notices.mjs; secret.mjs `postSecret`; the audit's COMM-22)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-22): arrival-notices.mjs answers every settled crossing, an Eclipse's included, and the
+         * bedroom's note went out through `whisperToOwnerOnly` unveiled - its document spoke as the owner's character and was
+         * whispered to the owner's players, two seconds after the crossing, on every browser, where the Eclipse's own
+         * crossing card is veiled for exactly that reason (eclipse.mjs `whisperToOwnerOnly(..., { veiled: true })`). A note
+         * held, the owner's settled crossing into the bedroom raised as crossing-settle.mjs raises it; read each card the
+         * crossing made that carries the bedroom's sound: its document's veiled flag, whether it speaks as an actor, and
+         * whether its whisper list is the owner's players (an unveiled card's) or everybody (a veiled one's).
+         */
+        const M = await import("./movement.mjs");
+        const D = await import("./doors-gm.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        const { ROOM_OWNER_FLAG } = await import("./config.mjs");
+        const { roomRegions } = await import("./rooms.mjs");
+        const { isDeadForGm } = await import("./settings.mjs");
+        const { CROSSING_SETTLED } = await import("./crossing-settle.mjs");
+        needs(world.atLeast("namedRooms", 2), "a bedroom and a room apart");
+        must(isPrimaryGm(), "this client is not the primary GM, which hears a crossing - this would measure nothing");
+        const scene = canvas.scene;
+        const readers = who => game.users.filter(u => !u.isGM && who.testUserPermission(u, "OWNER")).map(u => u.id);
+        const owner = game.actors.find(a => a.type === "character" && !a.getFlag(MODULE_ID, FLAGS.monokuma) && !isDeadForGm(a)
+            && readers(a).length && scene?.tokens?.some(t => t.actorId === a.id && !t.hidden));
+        must(owner, "no living student of a player with a token on the scene on screen - this would measure nothing");
+        const token = scene.tokens.find(t => t.actorId === owner.id);
+        const rooms = M.allRooms(scene);
+        must(rooms.length >= 2, `the scene on screen has ${rooms.length} rooms - too few for a bedroom and a room apart`);
+        const [B, far] = rooms;
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const was = { x: token.x, y: token.y };
+        const feesWere = game.settings.get(MODULE_ID, SETTINGS.chargeMovement);
+        const flagsWere = roomRegions(scene, B).map(piece => [piece, piece.getFlag(MODULE_ID, ROOM_OWNER_FLAG) ?? null]);
+        const noteKeys = () => Object.keys(S.bedroomNoteStore?.entries?.() ?? {}).filter(k => k.startsWith(`${owner.id}:`));
+        const wait = async () => { await settle(); await until(() => false, 400); await settle(); };
+        const made = [];
+        const hook = Hooks.on("createChatMessage", m => made.push(m.id));
+        let read = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, false);
+            for (const [piece] of flagsWere) await piece.setFlag(MODULE_ID, ROOM_OWNER_FLAG, owner.id);
+            await token.update(M.positionIn(far, token), { ...PLACE });
+            await wait();
+            await D.noteBedroom({ scene, room: B, kind: "mended" });
+            const before = made.length;
+            // The GM is no reader of this card, so it holds neither its words nor its meta: the card is the one whose
+            // words went out with the bedroom's sound (`wordsSent`), and its document is read for the rest.
+            const packets = await wordsSent(async () => {
+                Hooks.callAll(CROSSING_SETTLED, { actorId: owner.id, from: far, to: B, via: null, eclipse: null, sceneId: scene.id });
+                await wait();
+            });
+            const told = new Set(packets.filter(w => w.meta?.sfx === "bedroomEntered").map(w => w.id));
+            const mine = readers(owner).slice().sort();
+            read = made.slice(before).filter(id => told.has(id)).map(id => game.messages.get(id)).filter(Boolean).map(m => [
+                m.getFlag(MODULE_ID, "veiled") === true,
+                Boolean(m.speaker?.actor || m.speaker?.token),
+                stableJson([...(m.whisper ?? [])].filter(id => !game.users.get(id)?.isGM).sort()) === stableJson(mine)
+            ]);
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            for (const id of made) await game.messages.get(id)?.delete();
+            for (const key of noteKeys()) await S.bedroomNoteStore.drop(key);
+            for (const [piece, value] of flagsWere) {
+                if (value === null) await piece.unsetFlag(MODULE_ID, ROOM_OWNER_FLAG);
+                else await piece.setFlag(MODULE_ID, ROOM_OWNER_FLAG, value);
+            }
+            if (scene.tokens.has(token.id)) await token.update(was, { ...PLACE });
+            await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, feesWere);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[true, false, false]]),
+            "the bedroom's note told on a settled crossing was not one veiled card ([veiled, speaks as an actor, whispered to the owner's players alone] per card)");
+    }],
     ["A113-C4-3 - a stash's owner is told on every road that stands them in its room: a settled crossing (crossing rooms free, an Eclipse) and a GM's placement tell them as a paid crossing does, and once (traps.mjs `onCrossed`, arrival-notices.mjs, stash-reach.mjs `tellStashDisturbed`; 1.2.112's notice, the owner's decision of 13.11.2026)", async () => {
         /*
          * The audit of 1.2.113 (A113-C4-3): the notice fired only from `drpgRoomCrossed`, raised at the end of a paid
@@ -106730,6 +107413,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const made = [];
         const hook = Hooks.on("createChatMessage", m => made.push(m.id));
         const notices = () => made.map(id => game.messages.get(id)).filter(m => m && cardFlag(m, "sfx") === "stolen").length;
+        // 1.2.122 COMM-22: each notice is a veiled card - its document speaks as nobody and names no reader.
+        const unveiled = () => made.map(id => game.messages.get(id)).filter(m => m && cardFlag(m, "sfx") === "stolen")
+            .filter(m => m.getFlag(MODULE_ID, "veiled") !== true || m.speaker?.actor || m.speaker?.token).length;
         const backs = [];
         const read = [];
         const wait = async () => { await settle(); await until(() => false, 400); await settle(); };
@@ -106767,6 +107453,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await ownerToken.update(positionIn(room, ownerToken), { ...PLACE });
             await wait();
             read.push(["placed again", notices()]);
+            read.push(["unveiled", unveiled()]);
         } finally {
             Hooks.off("createChatMessage", hook);
             for (const a of [owner, first, second]) for (const i of a.items.filter(i => i.name.startsWith(NAME))) await i.delete();
@@ -106779,10 +107466,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await together.back();
             await settle();
         }
-        equal(stableJson(read), stableJson([["away", 0], ["settled", 1], ["paid after", 1], ["placed", 2], ["placed again", 2]]),
+        equal(stableJson(read), stableJson([["away", 0], ["settled", 1], ["paid after", 1], ["placed", 2], ["placed again", 2], ["unveiled", 0]]),
             "the owner was not told on a settled crossing or a GM's placement into the room, or told twice for one reach "
             + "([after the reach: notices], [after the settled crossing], [after the paid crossing's hook that follows it], "
-            + "[after a second reach and a GM's placement into the room], [after a second placement])");
+            + "[after a second reach and a GM's placement into the room], [after a second placement], "
+            + "[notices whose document is not veiled or speaks as an actor: 1.2.122 COMM-22])");
     }],
     ["A113-C6-4 - the GMs read whether a stash's owner watched a reach or is still to be told, and which reaches a notice settles; the players read no more (stash-reach.mjs `stealFromVault`, `tellStashDisturbed`; the audit of 1.2.113, A113-C6-4)", async () => {
         /*

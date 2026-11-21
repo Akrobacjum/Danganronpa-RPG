@@ -1483,7 +1483,20 @@ export async function openItemTables({ preset = null, poolError = null, draft = 
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
     // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-tables")) return RAISED;
+    if (alreadyOpen("drpg-window-tables")) {
+        if (!preset) return RAISED;
+        /* A CARD'S PRESET REACHES AN OPEN WINDOW (1.2.122, the audit's CTRL-25): raised as it stood, the window dropped the
+           card's category, tier, room and name and the GM retyped them. Its rows save as they change, so the one thing
+           a close can lose is what was typed in Add an item: with nothing there, the window is opened again on the
+           preset; with something, it stays as it is, and the GM is told the card's details were not carried. */
+        const open = [...foundry.applications.instances.values()].find(app => app.options?.classes?.includes("drpg-window-tables"));
+        const typed = ["newName", "newText"].some(name => String(open?.element?.querySelector(`[name="${name}"]`)?.value ?? "").trim());
+        if (typed || !open) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Items.tablesOpenNoPreset"));
+            return RAISED;
+        }
+        await open.close();
+    }
 
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));

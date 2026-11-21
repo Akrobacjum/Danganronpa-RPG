@@ -4806,7 +4806,8 @@ const REGRESSIONS = [
             "the gate is never wired to the window");
         ok(!/return null;\s*\}\s*return written;/.test(confirm),
             "the callback still tries to cancel by returning null");
-        ok(/if \(call\.needsGm && !String\(result\)\.trim\(\)\) return null;/.test(confirm),
+        // The words read off the answer's object since 1.2.122 (the audit's COMM-39: a note "cancel" was read as Cancel).
+        ok(/const words = String\(result\.note \?\? ""\);\s*if \(call\.needsGm && !words\.trim\(\)\) return null;/.test(confirm),
             "an empty note can still reach the GM as an empty request - the gate lives in "
             + "the interface, and the boundary has to ask again");
     }],
@@ -7606,6 +7607,8 @@ const REGRESSIONS = [
             "death.mjs reviveCharacter status": "the marker, taken off with it",
             // E19 C2: the updateActor hook's test moved into `reconcileTrigger`, which the hook asks.
             "voice.mjs reconcileTrigger flag": "the updateActor hook's trigger reads the change's key, not the actor",
+            // 1.2.122 (the audit's COMM-41): the trial voices' updateActor hook asks `trialVoiceTrigger` of the change's keys.
+            "voice.mjs TRIAL_VOICE_FLAGS flag": "the trial voices' updateActor trigger, the change's keys, not the actor",
             // E15 C4: the conditions' hook syncs again when a death is published; `syncStates` then asks `isDeceased`.
             "states.mjs touchesTracks flag": "the updateActor hook's trigger reads the change's key, not the actor",
             // E29 C3: the GMs' audit holds the GM-only flags in a student's mark and puts a player's write of one back;
@@ -8637,8 +8640,9 @@ const REGRESSIONS = [
         equal(sorted(found), sorted(CENSUS), "an ownerOf call is not in the census (a co-owner left out), or the census names one gone");
         equal(JSON.stringify(compared), "[]", "a check of 'is the owner' asks ownerOf, which names one owner");
         const app = stripComments(sources.get("messenger-app.mjs") ?? "");
-        const rulings = ["ruleItemWorksOrItemNoEffectOrItemRefuse", "ruleDeclineProject", "ruleReply", "ruleSearchMiss", "ruleObserveMiss", "ruleDecline",
-            "ruleDeclineMurder"].map(name => [name, /rulingThread\(actor, message\)/.test(fnSource(app, name) ?? "")]);
+        const rulings = ["ruleItemWorksOrItemNoEffectOrItemRefuse", "ruleDeclineProject", "ruleReply", "ruleSearchMiss", "ruleObserveMiss", "ruleDecline"]
+            // ruleDeclineMurder left with its road (1.2.122, the audit's CTRL-76 and ROLL-33: no card drew the button).
+            .map(name => [name, /rulingThread\(actor, message\)/.test(fnSource(app, name) ?? "")]);
         equal(JSON.stringify(rulings.filter(([, ok]) => !ok).map(([name]) => name)), "[]", "a ruling does not go to the thread its card is in");
         const finder = fnSource(stripComments(chapterText(sources)), "tellLoneFinder") ?? "";
         ok(/ownerIdsOf\(finder\)/.test(finder), "the lone finder's death is told to one owner");
@@ -10735,7 +10739,8 @@ const REGRESSIONS = [
             ["DELETE season-wipe.mjs#deleteMessages", "the season reset deletes in batches without the withdraw option (R295): an entry stays, marked deleted, until the epoch clears every section of this world at the next read or write (R297)"],
             ["HOOK popup.mjs#registerPopups#createChatMessage", "the catch-all's registration; the road is the catch-all's SURFACE row (R297)"],
             ["HOOK popup.mjs#registerPopups#deleteChatMessage", "a deleted message closes its card on screen as withdrawn - `onDeleteChatMessage`, a `drpg-dismiss` and no click on its X, so the entry is not read (R295); whether the entry stays is the history's own hook"],
-            ["HOOK popup.mjs#registerPopups#updateChatMessage", "an Objection card a GM marked overruled closes its cards on screen as by code - `onUpdateChatMessage`, a `drpg-dismiss` with reason \"code\", so the entry is kept unread with the stamp its body gained before the close (`watchCard`, R293); a player's card is not one: the mark is read only on a GM's message (E70 C2)"],
+            ["HOOK popup.mjs#registerPopups#updateChatMessage", "an Objection card a GM marked overruled closes its cards on screen as by code - `onUpdateChatMessage`, a `drpg-dismiss` with reason \"code\", so the entry is kept unread with the stamp its body gained before the close (`watchCard`, R293); a player's card is not one: the mark is read only on a GM's message (E70 C2); and since 1.2.122 a card that is not private and carries `settled` closes its notices the same way (`followSettled`, R8265; the audit's REFR-16)"],
+            ["HOOK popup.mjs#registerPopups#drpgSecretStored", "a private card's words stored with `settled` in their meta close its notices on screen as by code - `followSettled`, a `drpg-dismiss` with reason \"code\", the entry kept unread; the history marks it settled by its own hook (1.2.122, R8265; the audit's REFR-16)"],
             ["HOOK notice-history.mjs#registerNoticeHistory#deleteChatMessage", "`noticeCardDeleted`: the module's withdraw option, from a GM's deletion (the user Foundry hands the hook), takes the entry out with a tombstone; any other deletion - a player's with the option, `deleteAll` in the options or not - leaves it marked deleted and an open one unread (R295, 73-notice-history B and G3)"],
             ["HOOK notice-history.mjs#registerNoticeHistory#updateChatMessage", "`noticeCardChanged`: a GM's update (the user Foundry hands the hook) whose own changes set `rerolled` or `settled` marks the entry; a player's update, or a GM's that sets neither, marks nothing; the snapshot and the state do not move (R295, 73-notice-history G3)"],
             ["HOOK notice-history.mjs#registerNoticeHistory#drpgSecretStored", "`noticeSecretStored` once a private card's words and meta are stored (secret.mjs `remember`): its `rerolled` and `settled` travel in the meta, read alone - never the document's flags; only a mark (R295, 73-notice-history G3). New words on an open card are its observer's (R293)"],
@@ -26863,6 +26868,9 @@ const REGRESSIONS = [
         const names = W.windowNames(sites);
         must(names.length >= 150, `only ${names.length} window(s) read in scripts/ - this would measure too little`);
         ok(names.includes("notice-history-app.mjs NoticeHistoryApp") && names.includes("trial-floor-ui.mjs confirmReveal"), `the census misses the notice history or the Reveal question (R1044): ${names.slice(0, 8).join(", ")} ...`);
+        // A window opened through a conditional callee, `(columns ? actionWindow : drpgWindow)({` (1.2.122, the audit's CTRL-65).
+        const callee = ["call-gm.mjs askForRequest", "action-menus.mjs chooseVariant", "action-menus.mjs promptForNote"].filter(name => !names.includes(name));
+        equal(JSON.stringify(callee), "[]", "the census misses a window opened through a conditional callee");
         const r = W.rootRule(sites);
         equal(r.read.length, names.length, "the rule did not judge every window it read");
         const stale = W.ROOT_OUTSIDE.filter(o => !sites.some(s => s.label === o.label && o.kind.test(s.kind))).map(o => o.label);

@@ -13302,7 +13302,9 @@ const INVARIANTS = [
             for (let i = 0; i < 3; i++) seconds.push(NH.recordNotice({ source: "player", author: SECOND, kind: "info", title: `R297 second ${i}`, text: "", html: "<p>R297 second</p>" }));
             for (let i = 0; i < 13; i++) await onCreateChatMessage(made("P", i, { author: player, content: words }));
             ran("public");
-            for (let i = 0; i < 13; i++) await onCreateChatMessage(made("G", i, { author: player, whisper: [me], flags: { gmPopup: true }, content: words }));
+            // A GM's card posted at the player's asking (`askedBy`), as the module writes a gmPopup card: since 1.2.122 one a
+            // player wrote raises nothing (the audit's COMM-35). Its entry is still the player's.
+            for (let i = 0; i < 13; i++) await onCreateChatMessage(made("G", i, { author: game.user, whisper: [me], flags: { gmPopup: true, askedBy: player.id }, content: words }));
             ran("gmPopup");
             for (let i = 0; i < 13; i++) {
                 P.showPopup(words, { title: "R297 evidence", kind: "evidence", sticky: true, source: "evidence", messageId: made("E", i, { author: player }).id });
@@ -17296,6 +17298,699 @@ const INVARIANTS = [
             + "(both modes: B's plate, D's, D's tooltip; player names only: D's; a write that moves no flag: boxes read, D's plate; the veil gone: boxes read, D's plate, its tooltip; the GM's rule; the dock's mark is the mask's)");
     }],
 
+    ["R8260 - the camera dock draws no box for a participant the veil or a mask hides from this reader: the box with its avatar and video is taken off the dock in every nameplate mode, Off included, and put back as it was when the veil goes (1.2.122, the audit's COMM-20 residue inside the module)", async () => {
+        /*
+         * 1.2.121 line M2 wrote "?" on a hidden participant's plate (R7931), but left the rest of the box: Foundry's dock
+         * draws the account's avatar (or the camera) in it, so a killer behind the opening's veil was still counted on the
+         * dock and shown by their player's picture, and with nameplates Off `relabel` returned before it asked whether the
+         * participant was hidden at all. Now the box is taken off (`relabel`, its `display` kept and put back). A stand-in
+         * dock of two boxes as Foundry draws them (an avatar, a video, the plate), D hidden: in the three modes, then the
+         * veil gone through the token hook's handler. What avclient-livekit draws outside the dock stays LIVE-F119-03.
+         * Red at 21bf5d18: D's box shown in every mode.
+         */
+        needs(world.atLeast("playerAccounts", 2), "two accounts besides the GM's, each with a box on the dock");
+        const C = await import("./camera-view.mjs");
+        const [b, d] = game.users.filter(user => user.id !== game.user.id && !user.isGM).slice(0, 2);
+        const root = document.createElement("div");
+        root.innerHTML = [b, d].map(u => `<div class="camera-view" data-user="${u.id}" style="display: flex"><img class="user-avatar" src="icons/svg/mystery-man.svg"><video class="user-camera"></video><div class="player-name ellipsis"><strong>${foundry.utils.escapeHTML(u.name)}</strong><strong>x</strong></div></div>`).join("");
+        const shown = u => root.querySelector(`.camera-view[data-user="${u.id}"]`)?.style.display ?? null;
+        const MODES = { OFF: 0, PLAYER_ONLY: 1, BOTH: 2 };
+        const hidden = user => user?.id === d.id;
+        const read = {};
+        for (const [key, mode] of Object.entries(MODES)) {
+            C.relabelCameraDock(root, { hidden, plate: { MODES, mode } });
+            read[key] = [shown(b), shown(d)];
+        }
+        C.onTokenChange({}, { flags: { [MODULE_ID]: { [`${"-="}veiled`]: null } } }, { root, hidden: () => false });
+        read.back = [shown(b), shown(d)];
+        equal(stableJson(read), stableJson({
+            OFF: ["flex", "none"], PLAYER_ONLY: ["flex", "none"], BOTH: ["flex", "none"], back: ["flex", "flex"]
+        }), "the dock showed a hidden participant's box, or did not put it back as it was when the veil went ([B's display, D's] in each mode, then the veil gone)");
+    }],
+
+    ["R8261 - the voice tile names who holds the floor: a microphone the floor holds keeps the hold's names, on the tile's line, its tooltip and the notice of a press (voice-tile.mjs `micState`, `paintMic`, `toggleOwnMic`; 1.2.122, the audit's COMM-27)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-27): micHold answers a player the floor leaves out with { held, reason: floorHeld |
+         * floorHeldPair, data: { name, target } }; micState dropped `data` on its held branch, so paintMic formatted the
+         * line and the tooltip with no name, and toggleOwnMic localized the key with its {name} never filled - while the
+         * HUD's trial row names them (hud.mjs). A stand-in tile (a mic button and its note) painted from micState of each
+         * hold, and the press's notice caught. Red at 21bf5d18: no name in any of the three.
+         */
+        const V = await import("./voice-tile.mjs");
+        const read = [];
+        for (const [reason, data] of [["floorHeld", { name: "R8261 Aiko" }], ["floorHeldPair", { name: "R8261 Aiko", target: "R8261 Botan" }]]) {
+            const tile = document.createElement("div");
+            tile.innerHTML = `<button class="drpg-voice-mic"></button><p class="drpg-voice-tile-note" id="r8261-note"></p>`;
+            const mic = V.micState({ hold: { held: true, reason, data }, settings: null });
+            V.paintMic(tile, mic, { key: null });
+            let said = "";
+            await V.toggleOwnMic({ mic, settings: null, notify: text => { said = text; } });
+            const names = Object.values(data);
+            read.push([reason, mic.state, ...[tile.querySelector(".drpg-voice-tile-note").textContent,
+                tile.querySelector(".drpg-voice-mic").dataset.tooltipText ?? "", said].map(text => names.every(n => text.includes(n)) && !text.includes("{"))]);
+        }
+        equal(stableJson(read), stableJson([["floorHeld", "held", true, true, true], ["floorHeldPair", "held", true, true, true]]),
+            "the tile's floor-held line, tooltip or a press's notice did not name who holds the floor ([reason, state, line names them, tooltip names them, notice names them])");
+    }],
+
+    ["R8262 - a killer behind a \"?\" reads a word of their own on the voice tile, not \"Disconnected\": the module took them out of voice on purpose, and the line says they hear nobody until they reveal themselves or the time of day changes (voice-tile.mjs `voiceWord`, `WORDS`; 1.2.122, the audit's COMM-42)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-42): maskedRow sends the masked killer's account a silent room, which this browser
+         * applies by leaving voice, and voiceWord read the hold for the external and Eclipse cases only - so the tile said
+         * "Disconnected" with "You are not connected to voice.", the reading the owner called an error (N10). The word for
+         * the mask's hold in each Room state a silent room leaves, and an ordinary disconnect beside it; the mask's line in
+         * both languages names the hearing and the time of day. Red at 21bf5d18: "disconnected" for the mask.
+         */
+        const V = await import("./voice-tile.mjs");
+        const hold = { held: true, reason: "masked" };
+        const read = ["disconnected", null, "connected"].map(state => V.voiceWord({ hold, state }))
+            .map(w => [w.word.split(".").pop(), w.line.split(".").pop()]);
+        read.push(Object.values(V.voiceWord({ hold: null, state: "disconnected" })).map(k => k.split(".").pop()));
+        equal(stableJson(read), stableJson([["hidden", "masked"], ["hidden", "masked"], ["hidden", "masked"], ["disconnected", "offline"]]),
+            "the masked killer's tile word was not its own ([word, line] for the mask's hold with the Room disconnected, absent, connected; an ordinary disconnect)");
+    }],
+
+    ["R8263 - a ruling card whose subject is gone settles and says so, and the card table holds no road no card draws: a creative use of an item no longer at hand closes with \"nothing to rule on\", every card of a deleted character with its own line, and openMurder and declineMurder are not rulings (messenger-app.mjs `runCallAction`, `CARD_ACTIONS`; 1.2.122, the audit's CTRL-23, CTRL-76, ROLL-33)", async () => {
+        /*
+         * The audit of 1.2.118. CTRL-23: a handler that found no character or no item answered null, which gave the
+         * buttons back and said nothing - an item handed over before the press left a card no button could close, Refuse
+         * included. CTRL-76 and ROLL-33: `openMurder` (an incident opened from a card's data, with no window's checks) and
+         * `declineMurder` (one action back whatever paid for the declaration) were rulings no card of the module draws -
+         * the Eclipse's gate posts approveMurder and refuseMurder (eclipse.mjs). Each ruling asked with a character that is
+         * not in this world (nothing is written: each answers before any write), the creative use with a real character
+         * and an item it does not hold, and the card table's keys read off the source. Red at 21bf5d18: null for each, and
+         * both dead keys in the table (and no export of `runCallAction`, which the suite reads now).
+         */
+        const M = await import("./messenger-app.mjs");
+        must(typeof M.runCallAction === "function", "messenger-app.mjs exports no runCallAction - this would measure nothing");
+        const someone = game.actors.find(a => a.type === "character");
+        must(someone, "no character in this world - this would measure nothing");
+        const NOBODY = "R8263Nobody00000";
+        const lineOf = answer => answer?.settled ?? null;
+        const gone = game.i18n.format("DRPG.Bridge.settledNoCharacter", { name: game.user.name });
+        const read = {
+            itemGone: lineOf(await M.runCallAction("itemRefuse", { by: someone.id, item: "R8263NoItem00000" })) === game.i18n.format("DRPG.Items.rulingGone", { name: game.user.name })
+        };
+        for (const [action, data] of [["itemRefuse", { by: NOBODY, item: "x" }], ["searchMiss", { by: NOBODY }], ["observeMiss", { by: NOBODY }],
+            ["decline", { by: NOBODY, paid: "none" }], ["giveItem", { by: NOBODY }], ["cubNotNow", { actor: NOBODY }]]) {
+            read[action] = lineOf(await M.runCallAction(action, data)) === gone;
+        }
+        const sources = await moduleSources();
+        const table = bodyOf(stripComments(sources.get("messenger-app.mjs") ?? ""), "const CARD_ACTIONS = {", { until: "};" }) ?? "";
+        must(/approveMurder:/.test(table), "the card table was not read off messenger-app.mjs - this would measure nothing");
+        read.dead = ["openMurder", "declineMurder"].filter(key => new RegExp(`\\b${key}:`).test(table));
+        equal(stableJson(read), stableJson({ itemGone: true, itemRefuse: true, searchMiss: true, observeMiss: true, decline: true,
+            giveItem: true, cubNotNow: true, dead: [] }),
+            "a ruling with nothing to rule on did not settle with its line, or the card table still holds a road no card draws");
+    }],
+
+    ["R8264 - a GM's notice of a ruling card carries none of the card's buttons: drawn from the card's words, the notice leaves out its .drpg-call-actions, which nothing there wires (popup.mjs `onCreateChatMessage`; 1.2.122, the audit's CTRL-22)", async () => {
+        /*
+         * The audit of 1.2.118 (CTRL-22): callGm's road with no thread whispers the card to the GMs with gmPopup, and
+         * popup.mjs drew the notice from the words whole - a GM's copy keeps the ruling's buttons (secret.mjs strips them
+         * for a player only) - while only a bubble and the chat log wire them (messenger-app.mjs `wireCallActions`): Allow,
+         * Refuse, Spring the trap pressed in the notice only closed it. The messenger's own notices take them off
+         * (`cardPreview`). A GM's card for the GM to answer, made here (no world write) as R297 makes its cards, with a
+         * ruling's buttons and a line beside them; the notice drawn, then closed. Red at 21bf5d18: two buttons in it.
+         */
+        must(game.user?.isGM, "the notice measured here is a GM's");
+        const NH = await import("./notice-history.mjs");
+        const { onCreateChatMessage } = await import("./popup.mjs");
+        const { MESSAGE_FLAG } = await import("./utils.mjs");
+        const id = "R8264RulingCard1";
+        const message = {
+            id, author: game.user, whisper: [game.user.id], rolls: [],
+            content: `<p>R8264 a trap spoke</p><div class="drpg-call-actions"><button class="drpg-call-action" data-drpg-call="fireTrap">Spring</button><button class="drpg-call-action" data-drpg-call="rearmTrap">Rearm</button></div>`,
+            flags: { [MODULE_ID]: { [MESSAGE_FLAG]: true, gmPopup: true } },
+            getFlag(scope, key) { return this.flags?.[scope]?.[key]; }
+        };
+        must(!Object.hasOwn(game.messages, "get"), "game.messages already answers get for itself - the suite's stand-in would hide it");
+        await NH.holdNoticeHistory(true);
+        const realGet = game.messages.get;
+        game.messages.get = function (key, ...rest) { return key === id ? message : realGet.call(this, key, ...rest); };
+        let read = null;
+        try {
+            await onCreateChatMessage(message);
+            const card = document.querySelector(`.drpg-popup[data-drpg-message="${id}"]`);
+            read = [Boolean(card), card?.querySelectorAll("[data-drpg-call], .drpg-call-actions").length ?? null, Boolean(card?.textContent.includes("R8264 a trap spoke"))];
+        } finally {
+            delete game.messages.get;
+            for (const card of document.querySelectorAll(`.drpg-popup[data-drpg-message="${id}"]`)) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            NH.holdNoticeHistory(false);
+        }
+        equal(stableJson(read), stableJson([true, 0, true]), "the GM's notice of a ruling card carried its buttons, or was not drawn ([drawn, buttons in it, its words])");
+    }],
+
+    ["R8265 - a GM's notice of an ask closes once the card is ruled elsewhere: a settle that reaches this browser as the document's update or as a private card's words stored takes the notice off, and a card not ruled keeps it (popup.mjs `onUpdateChatMessage`, `followSettled`; 1.2.122, the audit's REFR-16)", async () => {
+        /*
+         * The audit of 1.2.118 (REFR-16): every GM gets a notice of an ask; when one GM rules it, settleCall writes the
+         * card again and every bubble and the log redraw, but the notices on the other GMs' screens are copies, reached
+         * only by a deletion or an overruled Objection's mark - so they kept "Awaiting a ruling". Three cards made here (no
+         * world write) as R8264 makes its card, each drawn as a notice; one then settled through the document's update, one
+         * through the words' store (`drpgSecretStored`, the road a private card's `settled` takes), one left. Red at
+         * 21bf5d18: all three notices still standing.
+         */
+        must(game.user?.isGM, "the notices measured here are a GM's");
+        const NH = await import("./notice-history.mjs");
+        const P = await import("./popup.mjs");
+        const { MESSAGE_FLAG } = await import("./utils.mjs");
+        const made = id => ({
+            id, author: game.user, whisper: [game.user.id], rolls: [], content: `<p>${id} asks</p>`,
+            flags: { [MODULE_ID]: { [MESSAGE_FLAG]: true, gmPopup: true } },
+            getFlag(scope, key) { return this.flags?.[scope]?.[key]; }
+        });
+        const cards = ["R8265UpdatedCard", "R8265StoredCard1", "R8265LeftAlone01"].map(made);
+        const byId = new Map(cards.map(m => [m.id, m]));
+        must(!Object.hasOwn(game.messages, "get"), "game.messages already answers get for itself - the suite's stand-in would hide it");
+        await NH.holdNoticeHistory(true);
+        const realGet = game.messages.get;
+        game.messages.get = function (key, ...rest) { return byId.get(key) ?? realGet.call(this, key, ...rest); };
+        const standing = id => [...document.querySelectorAll(`.drpg-popup[data-drpg-message="${id}"]`)].some(c => !c.classList.contains("leaving"));
+        let read = null;
+        try {
+            for (const m of cards) await P.onCreateChatMessage(m);
+            const drawn = cards.map(m => standing(m.id));
+            cards[0].flags[MODULE_ID].settled = true;
+            P.onUpdateChatMessage(cards[0], { flags: { [MODULE_ID]: { settled: true } } });
+            cards[1].flags[MODULE_ID].settled = true;
+            Hooks.callAll("drpgSecretStored", cards[1]);
+            // Words stored for a card still waiting (an edit, a late arrival) take nothing off.
+            Hooks.callAll("drpgSecretStored", cards[2]);
+            P.onUpdateChatMessage(cards[2], { flags: { [MODULE_ID]: { popupTitle: "R8265" } } });
+            await new Promise(resolve => setTimeout(resolve, 0));
+            read = [drawn, cards.map(m => standing(m.id))];
+        } finally {
+            delete game.messages.get;
+            for (const m of cards) for (const c of document.querySelectorAll(`.drpg-popup[data-drpg-message="${m.id}"]`)) c.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            NH.holdNoticeHistory(false);
+        }
+        equal(stableJson(read), stableJson([[true, true, true], [false, false, true]]),
+            "a notice of a card ruled elsewhere stayed, or one not ruled went ([drawn per card], [standing after: settled by update, settled by its words, left])");
+    }],
+
+    ["R8266 - a note or a new rule that reads \"cancel\" is sent as written, not taken for the Cancel button: the Call's confirmation and New Rule's window answer the words inside an object (calls.mjs `confirmCall`, call-pickers.mjs `pickText`; 1.2.122, the audit's COMM-39)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-39): both windows' Next or Send answered the typed words bare, and the kit's Cancel
+         * answers its action, "cancel" - so the words "cancel" were read as Cancel (askForRequest fixed the same shape in
+         * E18 C0). DialogV2.wait held by a stand-in, as R3818 holds it, that presses the window's own primary button: its
+         * callback run on the window's form with "cancel" typed, its answer handed back as DialogV2 hands it. Read what
+         * each caller answers. Nothing is paid, armed or written: confirmCall only answers, and pickText's answer is taken
+         * before any purchase. Red at 21bf5d18: null for both.
+         */
+        const calls = await import("./calls.mjs");
+        const { pickTarget } = await import("./call-effects.mjs");
+        const { HOPE_CALLS, DESPAIR_CALLS } = await import("./config.mjs");
+        const who = game.actors.find(a => a.type === "character");
+        must(who, "no character in this world - this would measure nothing");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        D.wait = async config => {
+            const root = document.createElement("div");
+            if (typeof config.content === "string") root.innerHTML = config.content;
+            else if (config.content) root.append(config.content.cloneNode(true));
+            for (const box of root.querySelectorAll("textarea")) box.value = "cancel";
+            const press = (config.buttons ?? []).find(b => b.default) ?? (config.buttons ?? []).find(b => ["spend", "ok"].includes(b.action));
+            const answer = press?.callback ? await press.callback(new Event("click"), null, { element: root }) : null;
+            return answer ?? press?.action ?? null;
+        };
+        const within = promise => Promise.race([promise, new Promise(resolve => setTimeout(() => resolve("(another window)"), 2000))]);
+        let read = null;
+        try {
+            read = [await within(calls.confirmCall(HOPE_CALLS.experience, { kind: "hope", held: 12 })),
+                await within(pickTarget(who, DESPAIR_CALLS.newRule, "despair"))];
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+        }
+        equal(stableJson(read), stableJson(["cancel", { text: "cancel" }]),
+            "the words \"cancel\" were taken for the Cancel button ([Experience's note as confirmCall answers it, New Rule's text as pickTarget answers it])");
+    }],
+
+    ["R8267 - the GMs' card for a Hope Call's approval prints the effect from the GM's own table, never the packet's (call-gm.mjs `askHopeCallByCard`; 1.2.122, the audit's COMM-40)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-40): the card's title and price were read from this GM's HOPE_CALLS, the line under
+         * the title was the packet's `effect`, a claim - a console's ask could put "+5 to every roll today" under "Approve
+         * Experience?". Read off the source (driving the card would hold an ask on the primary): the card's body reads
+         * `proseOf(call, "effect")`, and the function reads no `payload.effect`. Red at 21bf5d18: `payload.effect` printed.
+         */
+        const sources = await moduleSources();
+        const body = stripComments(fnSource(stripComments(sources.get("call-gm.mjs") ?? ""), "askHopeCallByCard") ?? "");
+        must(/callGm\(actor,/.test(body), "askHopeCallByCard was not read off call-gm.mjs - this would measure nothing");
+        equal(stableJson([/proseOf\(call, "effect"\)/.test(body), /payload\.effect/.test(body)]), stableJson([true, false]),
+            "the approval card does not print the table's effect, or still prints the packet's ([reads proseOf(call, \"effect\"), reads payload.effect])");
+    }],
+
+    ["R8268 - a restriction answers whether it was written: `restrict` on a browser that may not write the world answers false, as `sealRoom` does, so a Silence or a Chain is not announced over nothing (call-world.mjs `restrict`; 1.2.122, the audit's COMM-26, its second half)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-26): sealRoom answered the write, restrict answered true whatever `writeWorld` did,
+         * and Silence and Chain announced on it. Asked here with this browser standing in as a player's (an own `isGM`
+         * false on this user, taken off after): `writeWorld` refuses before any write, so nothing is written. Red at
+         * 21bf5d18: true. The race of two GMs writing the whole value at once is not measured here (it stays open).
+         */
+        const W = await import("./call-world.mjs");
+        const someone = game.actors.find(a => a.type === "character");
+        must(someone && game.user.isGM, "no character, or this browser is not a GM's - this would measure nothing");
+        const before = JSON.stringify(W.restrictions());
+        Object.defineProperty(game.user, "isGM", { value: false, configurable: true });
+        let answer = null;
+        try {
+            answer = await W.restrict(someone, { silenced: true });
+        } finally {
+            delete game.user.isGM;
+        }
+        equal(stableJson([answer, JSON.stringify(W.restrictions()) === before, game.user.isGM]), stableJson([false, true, true]),
+            "restrict answered true for a write it did not make, or wrote ([its answer, the restrictions unchanged, this browser a GM's again])");
+    }],
+
+    ["R8269 - the voice plan says Foundry's A/V mode in words, video alone as the mode nobody is heard in (voice.mjs `avModeWord`, `voicePlan`; 1.2.122, the audit's COMM-44)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-44): for any mode but disabled the plan wrote `game.webrtc.mode` raw - "A/V mode: 2",
+         * which a GM cannot tell is video alone, the one mode voice refuses. Foundry's four modes, as voice-tile.mjs lists
+         * them, each handed to `avModeWord` with the modes handed in; each key's words in both languages; a number Foundry
+         * does not name. And the plan's line read off the source. Red at 21bf5d18: no `avModeWord`.
+         */
+        const V = await import("./voice.mjs");
+        must(typeof V.avModeWord === "function", "voice.mjs has no avModeWord - the plan prints the mode as its number");
+        const modes = { DISABLED: 0, AUDIO: 1, VIDEO: 2, AUDIO_VIDEO: 3 };
+        const keys = [0, 1, 2, 3, 7].map(mode => V.avModeWord(mode, modes));
+        const lang = await Promise.all(["en", "pl"].map(l => fetch(`modules/${MODULE_ID}/lang/${l}.json`).then(r => r.json()).catch(() => null)));
+        const said = keys.filter(Boolean).map(key => lang.every(file => typeof file?.DRPG?.Voice?.plan?.[key] === "string" && file.DRPG.Voice.plan[key].length > 0));
+        const sources = await moduleSources();
+        const plan = stripComments(sources.get("voice.mjs") ?? "");
+        equal(stableJson([keys, said, /P\("avMode", \{ mode: mode \? P\(mode\)/.test(plan)]),
+            stableJson([["avDisabled", "avAudio", "avVideo", "avAudioVideo", null], [true, true, true, true], true]),
+            "the plan does not say the A/V mode in words ([the key for disabled, audio, video, both and an unknown number], [each key in both languages], the plan's line)");
+    }],
+
+    ["R8270 - the voice plan files each account under where it is sent: a masked killer under a silent room of its own, a Scrum camp under its camp's room, a listener under the room it listens into (voice.mjs `placeName`; 1.2.122, the audit's COMM-43)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-43): placeName named a row by `row.room`, so a masked killer and both Scrum camps (the
+         * trial's null room) stood under "(main room)" and a listener under its own room, in voicePlan's groups and in
+         * contestedWarning. Rows shaped as maskedRow, the Scrum camps and listeningRow make them (no world read), with an
+         * ordinary row and a dead one beside them. Red at 21bf5d18: no export, and the room read off `row.room`.
+         */
+        const V = await import("./voice.mjs");
+        must(typeof V.placeName === "function", "voice.mjs exports no placeName - this would measure nothing");
+        const words = { main: "MAIN", dead: "DEAD", silent: "SILENT", camp: side => `CAMP ${side}` };
+        const rows = [
+            { room: null, target: "drpg-silent-x", masked: true },
+            { room: null, target: "drpg-scrum-a", camp: "a" },
+            { room: "Hall", target: "drpg-x-Kitchen", listening: { from: "Hall", into: "Kitchen" } },
+            { room: "Hall", target: "drpg-x-Hall" },
+            { room: "Hall", claim: 1, target: null }
+        ];
+        equal(stableJson(rows.map(row => V.placeName(row, words))), stableJson(["SILENT", "CAMP a", "Kitchen", "Hall", "DEAD"]),
+            "a row was filed by its token's room, not by where it is sent ([masked, a Scrum camp, a listener, an ordinary row, a dead one])");
+    }],
+
+    ["R8271 - an actor's write settles the trial's voices again only when it can move a microphone: a death, a Monocub, a Spectator, a Monokuma or a student out of the class, set or deleted, the module's flags taken off whole, or the ownership - not an action's own fields (voice.mjs `trialVoiceTrigger`; 1.2.122, the audit's COMM-41)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-41): registerTrialVoices scheduled a settle on any updateActor carrying the module's
+         * flags, and in a world with a Spectator that is every Move or Search of every student (freeMoveUsed, lastAction,
+         * pendingCall), in every phase. A table of changes as updateActor hands them. Red at 21bf5d18: no
+         * `trialVoiceTrigger` (the hook read any module flag).
+         */
+        const V = await import("./voice.mjs");
+        must(typeof V.trialVoiceTrigger === "function", "voice.mjs has no trialVoiceTrigger - this would measure nothing");
+        const f = flags => ({ flags: { [MODULE_ID]: flags } });
+        // The deletion's spelling as an update may carry it, built so R152 reads no old-style key here.
+        const gone = key => `${"-="}${key}`;
+        const cases = [f({ deceased: true }), f({ [gone("monocub")]: null }), f({ spectator: true }), f({ monokuma: true }), f({ notInClass: true }),
+            { flags: { [gone(MODULE_ID)]: null } }, { ownership: { default: 0 } },
+            f({ freeMoveUsed: true }), f({ lastAction: "search" }), f({ pendingCall: [] }), { name: "x" }, null];
+        equal(stableJson(cases.map(c => V.trialVoiceTrigger(c))),
+            stableJson([true, true, true, true, true, true, true, false, false, false, false, false]),
+            "the trial's voices were settled for a write that moves no microphone, or not for one that does");
+    }],
+
+    ["R8272 - closing the notice history reads what it listed and nothing more: an unread entry its filter hid stays unread, one it listed is read, and Mark all as read still reads every one (notice-history-app.mjs `_onClose`, `buildList`; notice-history.mjs `markNoticesRead`; 1.2.122, the audit's COMM-33)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-33): the close called markNoticesRead with no list, which moved every unread entry of
+         * this login to read - the ones the filter or the search hid and the ones waiting behind "Show new notices" - and
+         * the corner's count dropped for notices nobody saw. With the history held (R299's road): an unread entry from a
+         * player and one for this user; the window opened on "For you" and closed; the two read; then Mark all as read
+         * (the engine with no list). Red at 21bf5d18: both read on the close.
+         */
+        const NH = await import("./notice-history.mjs");
+        must(!document.querySelector(".drpg-window-notices"), "the notice history window is open - close it: the suite measures a window it opened itself");
+        const { openNotices } = await import("./notice-history-app.mjs");
+        let win = null, read = null;
+        await NH.holdNoticeHistory(true);
+        try {
+            const hidden = NH.recordNotice({ source: "player", kind: "info", title: "R8272 a player's card", text: "", html: "", state: "unread" });
+            const listed = NH.recordNotice({ source: "mine", kind: "info", title: "R8272 a card for you", text: "", html: "", state: "unread" });
+            const state = id => NH.noticeEntries().find(entry => entry.id === id)?.state ?? null;
+            win = await openNotices();
+            must(win?.element, "the window did not open");
+            win.element.querySelector('[data-drpg-chip="forYou"]')?.click();
+            await settle();
+            await win.close();
+            win = null;
+            await settle();
+            read = [state(hidden), state(listed)];
+            NH.markNoticesRead();
+            read.push(state(hidden));
+        } finally {
+            await win?.close();
+            NH.holdNoticeHistory(false);
+        }
+        equal(stableJson(read), stableJson(["unread", "read", "read"]),
+            "closing the history read what its filter hid, or did not read what it listed ([the player's card after the close, the card for you, the player's card after Mark all as read])");
+    }],
+
+    ["R8273 - the Voice section's push-to-talk line follows the binding: a key rebound in Foundry's controls is the line's at the bindings' write, without the settings window opened again (voice-panel.mjs `voiceFieldset`, `followTheKey`; 1.2.122, the audit's REFR-55)", async () => {
+        /*
+         * The audit of 1.2.118 (REFR-55): the line was written once, when the fieldset was built. A fieldset built with
+         * no client, no settings and the key "R8273Old" (nothing is written); then Foundry's keybindings stood in (an own
+         * `keybindings` on `game`, taken off after) with push to talk on "R8273New", and the hook Foundry raises when a
+         * client setting is written, for `core.keybindings`. Whether v14 raises `clientSettingChanged` for a rebinding is
+         * not read here. Red at 21bf5d18: the old key.
+         */
+        const P = await import("./voice-panel.mjs");
+        const fieldset = await P.voiceFieldset({ client: null, settings: null, key: "R8273Old" });
+        document.body.append(fieldset);
+        const own = Object.getOwnPropertyDescriptor(game, "keybindings");
+        let read = null;
+        try {
+            const line = () => fieldset.querySelector(".drpg-voice-panel-key span, .drpg-voice-panel-key-name")?.textContent ?? "";
+            const before = line();
+            Object.defineProperty(game, "keybindings", { value: { get: (ns, name) => (ns === "core" && name === "pushToTalk" ? [{ key: "R8273New" }] : []) }, configurable: true });
+            Hooks.callAll("clientSettingChanged", "core.keybindings", {}, {});
+            read = [before.includes("R8273Old"), line().includes("R8273New")];
+        } finally {
+            if (own) Object.defineProperty(game, "keybindings", own);
+            else delete game.keybindings;
+            fieldset.remove();
+        }
+        equal(stableJson(read), stableJson([true, true]), "the push-to-talk line did not follow the binding ([the old key at the build, the new one after the bindings' write])");
+    }],
+
+    ["R8284 - the Voice section's microphone note follows the browser: drawn while the browser has not named its microphones, it gives way to the microphone list once a device change finds them named, without the settings window opened again (voice-panel.mjs `voiceFieldset`, `followTheMic`; 1.2.122, the rest of the audit's REFR-55)", async () => {
+        /*
+         * The audit of 1.2.118 (REFR-55), the device half: the note "allow the microphone" was drawn once, when the fieldset
+         * was built, and stayed after the browser allowed it. A fieldset built with a stand-in client whose microphones
+         * are unnamed, then named; the browser's device list stood in (an own `mediaDevices` on `navigator`, an
+         * element standing in for the EventTarget, taken off after) and its `devicechange` raised, once still unnamed. Nothing is written. Whether a real browser raises
+         * `devicechange` or the permission's `change` when the microphone is allowed is not read here: LIVE. Red at
+         * d4d1ddec: the note still drawn.
+         */
+        const P = await import("./voice-panel.mjs");
+        let named = false;
+        const client = { getAudioSources: async () => (named ? { R8284Mic: "R8284 microphone" } : { "": "" }), getAudioSinks: async () => ({}) };
+        const own = Object.getOwnPropertyDescriptor(globalThis.navigator, "mediaDevices");
+        const media = document.createElement("div");
+        Object.defineProperty(globalThis.navigator, "mediaDevices", { value: media, configurable: true });
+        let fieldset = null, read = null;
+        try {
+            fieldset = await P.voiceFieldset({ client, settings: { client: {} }, key: null });
+            document.body.append(fieldset);
+            const state = () => [Boolean(fieldset.querySelector(".drpg-voice-panel-mic-note")),
+                [...fieldset.querySelectorAll('select[name="voice:audioSrc"] option')].map(o => o.value)];
+            const before = state();
+            media.dispatchEvent(new Event("devicechange"));
+            await settle();
+            const stillUnnamed = state();
+            named = true;
+            media.dispatchEvent(new Event("devicechange"));
+            await until(() => !fieldset.querySelector(".drpg-voice-panel-mic-note"), 2000);
+            read = [before, stillUnnamed, state()];
+        } finally {
+            if (own) Object.defineProperty(globalThis.navigator, "mediaDevices", own);
+            else delete globalThis.navigator.mediaDevices;
+            fieldset?.remove();
+        }
+        equal(stableJson(read), stableJson([[true, []], [true, []], [false, ["R8284Mic"]]]),
+            "the microphone note did not give way to the microphones once they were named, or gave way before ([[the note drawn, the microphones listed] at the build, after a device change still unnamed, after one named])");
+    }],
+
+    ["R8274 - after the vote has opened, a floor opened again before the verdict plays its own music, an Objection's and a debate's too, and the vote's comes back when it ends (music-states.mjs `voteMusicPlays`; 1.2.122, the audit's STG-95)", async () => {
+        /*
+         * The audit of 1.2.118 (STG-95): voteMusicPlays held from the vote's first opening to the verdict, and its row
+         * stands after the modes' own rows and before trial.objection and trial.debate - so a mode with its own playlist
+         * played it, while a reopened debate or an Objection played the vote's. Pure over what is handed in: a record
+         * whose vote opened, a Class Trial's clock, the vote mapped; no floor, a debate, an Objection. Red at 21bf5d18:
+         * true for all three.
+         */
+        const S = await import("./music-states.mjs");
+        const record = { chapter: 3, voteOpenedAt: 1, verdictApplied: false };
+        const clock = { phase: "classTrial", chapter: 3 };
+        const mapped = key => key === "trial.vote";
+        const read = [null, { mode: "nonstopDebate" }, { mode: "objection" }].map(floor => S.voteMusicPlays(record, clock, { mapped, floor }));
+        equal(stableJson(read), stableJson([true, false, false]), "the vote's music played over a floor opened after it ([no floor, a debate, an Objection])");
+    }],
+
+    ["R8275 - a card a player's own browser posts goes to that player's thread when they own the character: a co-owner's own question lands in the co-owner's thread, a GM's post with no asker still in the first owner's (call-gm.mjs `threadOf`; 1.2.122, the audit's COMM-25)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-25): callGm's roads on a player's browser (a Search for something specific, an
+         * Observe, an Analyze, a proposal, a Tier 0 item's use) pass no `thread`, and threadOf answered ownerOf - the first
+         * connected owner - so a co-owner's request went to the other owner's thread. A stand-in character both of two
+         * player accounts own (its `testUserPermission` the suite's); the thread asked with no asker, the poster each of
+         * the two, then a GM. Nothing is written. Red at 21bf5d18: no export, and the first owner's thread for the second.
+         */
+        needs(world.atLeast("playerAccounts", 2), "two player accounts own the stand-in");
+        const C = await import("./call-gm.mjs");
+        must(typeof C.threadOf === "function", "call-gm.mjs exports no threadOf - this would measure nothing");
+        const [first, second] = game.users.filter(u => !u.isGM);
+        const stand = { id: "R8275Character01", name: "R8275", type: "character", testUserPermission: user => user?.id === first.id || user?.id === second.id };
+        const { ownerOf } = await import("./utils.mjs");
+        const firstOwner = ownerOf(stand)?.id ?? null;
+        must(firstOwner, "neither account is connected - ownerOf names nobody, and this would measure nothing");
+        const other = [first, second].find(u => u.id !== firstOwner);
+        const read = [C.threadOf(stand, null, { poster: other })?.id === other.id, C.threadOf(stand, null, { poster: game.user })?.id === firstOwner,
+            C.threadOf(stand, firstOwner, { poster: other })?.id === firstOwner];
+        equal(stableJson(read), stableJson([true, true, true]),
+            "a co-owner's own card did not go to the co-owner's thread, or another road moved ([the co-owner posting, a GM posting with no asker, an asker named])");
+    }],
+
+    ["R8276 - a page that landed alone and was told no room reconnects by asking the primary again, not by leaving voice: the card stays until the answer moves it, and with no GM connected it joins the main room (voice-client.mjs `reconnectRoad`; 1.2.122, the audit's COMM-28)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-28): landAloneFirst points the first connect at the account's own silent room, and a
+         * drop in that window ran reconnect with `desired` still undefined, so it applied that silent room - which
+         * applyBreakout reads as landed whenever the Room is disconnected - took the drop card down at once and made no
+         * connect, until the self-check 45 s later. The road for each set of facts, handed in. Red at 21bf5d18: no
+         * `reconnectRoad` (reconnect applied the room LiveKit had).
+         */
+        const V = await import("./voice-client.mjs");
+        must(typeof V.reconnectRoad === "function", "voice-client.mjs has no reconnectRoad - this would measure nothing");
+        const read = [{ told: true, alone: true, gms: 1 }, { told: false, alone: true, gms: 1 }, { told: false, alone: true, gms: 0 }, { told: false, alone: false, gms: 1 }]
+            .map(facts => V.reconnectRoad(facts));
+        equal(stableJson(read), stableJson(["desired", "ask", "main", "had"]),
+            "a reconnect took the wrong road ([told a room, landed alone with a GM, landed alone with none, neither])");
+    }],
+
+    ["R8277 - a ruling card's buttons act only on a character the card's writer owns: a player's card naming a classmate is closed and rules nothing, a GM's card is the GM's; and Rearm the trap on a project that is gone says so (messenger-app.mjs `runCallAction`, `writerOwns`, `ruleRearmTrap`; 1.2.122, the audit's COMM-21 and CTRL-64)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-21): a ruling acted on the card's `data.by` with nothing comparing it to the card's
+         * writer, so a card a player's console posted naming a classmate made a GM's "Nothing was there" charge the
+         * classmate Sanity. A card made here (no world write) as R8264 makes one, written by one player, naming a
+         * character that player does not own: Nothing was there and Refuse pressed through `runCallAction`; the
+         * character's Sanity read before and after; the notice caught. Then the same data on a GM's card naming no
+         * character, which reaches the ruling (its own line). Red at 21bf5d18: the classmate charged.
+         */
+        needs(world.atLeast("playerAccounts", 2), "a writer and a classmate's player");
+        const M = await import("./messenger-app.mjs");
+        const writer = game.users.find(u => !u.isGM && game.actors.some(a => a.type === "character" && !a.testUserPermission(u, "OWNER")
+            && game.users.some(o => !o.isGM && o.id !== u.id && a.testUserPermission(o, "OWNER"))));
+        must(writer, "no player with a classmate's character to name - this would measure nothing");
+        const classmate = game.actors.find(a => a.type === "character" && !a.testUserPermission(writer, "OWNER")
+            && game.users.some(o => !o.isGM && o.id !== writer.id && a.testUserPermission(o, "OWNER")));
+        const card = author => ({ id: "R8277RulingCard1", author, whisper: [], rolls: [], content: "", flags: { [MODULE_ID]: {} },
+            getFlag(scope, key) { return this.flags?.[scope]?.[key]; } });
+        const stress = () => classmate.system?.resources?.stress?.value ?? null;
+        const before = stress();
+        const warns = [], realWarn = ui.notifications.warn;
+        ui.notifications.warn = text => { warns.push(String(text)); };
+        let read = null, read_rearm = null;
+        try {
+            const miss = await M.runCallAction("observeMiss", { by: classmate.id }, card(writer));
+            const refuse = await M.runCallAction("itemRefuse", { by: classmate.id, item: "x" }, card(writer));
+            const gm = await M.runCallAction("observeMiss", { by: "R8277Nobody00000" }, card(game.user));
+            // CTRL-64 (1.2.122): Rearm on an alert whose project is gone closes with its line and writes nothing.
+            read_rearm = (await M.runCallAction("rearmTrap", { project: "R8277NoProject00" }, card(game.user)))?.settled ?? null;
+            const line = key => game.i18n.format(key, { name: game.user.name });
+            read = [miss?.settled === line("DRPG.Bridge.settledNotTheirs"), refuse?.settled === line("DRPG.Bridge.settledNotTheirs"),
+                stress() === before, warns.length, gm?.settled === line("DRPG.Bridge.settledNoCharacter")];
+        } finally {
+            ui.notifications.warn = realWarn;
+        }
+        equal(stableJson(read), stableJson([true, true, true, 2, true]),
+            "a player's card ruled on a classmate's character, or a GM's card was held to it ([Nothing was there closed, Refuse closed, the classmate's Sanity unchanged, notices, a GM's card reaches its ruling])");
+        equal(read_rearm, game.i18n.format("DRPG.Trap.rearmGone", { name: game.user.name }), "Rearm the trap on a project that is gone did not say so (the audit's CTRL-64)");
+    }],
+
+    ["R8278 - a whisper to the GMs raises a notice for the GM to answer only when a GM's browser wrote it: gmPopup on a document a player wrote raises nothing, on a GM's it does (popup.mjs `onCreateChatMessage`; 1.2.122, the audit's COMM-35)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-35): gmPopup was read off any document, so a player's console could whisper the GMs a
+         * plain card with the module's marker and gmPopup and put a notice of its choosing in every GM's corner, while its
+         * two siblings (popupForce, popupCentre) were held to a GM's card. Two cards made here (no world write) as R8264
+         * makes its card, both whispered to this GM with gmPopup: one written by a player, one by this GM. Red at
+         * 21bf5d18: both drawn.
+         */
+        must(game.user?.isGM, "the notices measured here are a GM's");
+        needs(world.atLeast("playerAccounts", 1), "a player account to write a card as");
+        const NH = await import("./notice-history.mjs");
+        const { onCreateChatMessage } = await import("./popup.mjs");
+        const { MESSAGE_FLAG } = await import("./utils.mjs");
+        const player = game.users.find(u => !u.isGM);
+        const card = (id, author) => ({ id, author, whisper: [game.user.id], rolls: [], content: `<p>${id}</p>`,
+            flags: { [MODULE_ID]: { [MESSAGE_FLAG]: true, gmPopup: true } }, getFlag(scope, key) { return this.flags?.[scope]?.[key]; } });
+        const cards = [card("R8278PlayerCard1", player), card("R8278GmCard00001", game.user)];
+        const byId = new Map(cards.map(m => [m.id, m]));
+        must(!Object.hasOwn(game.messages, "get"), "game.messages already answers get for itself - the suite's stand-in would hide it");
+        await NH.holdNoticeHistory(true);
+        const realGet = game.messages.get;
+        game.messages.get = function (key, ...rest) { return byId.get(key) ?? realGet.call(this, key, ...rest); };
+        let read = null;
+        try {
+            for (const m of cards) await onCreateChatMessage(m);
+            read = cards.map(m => Boolean(document.querySelector(`.drpg-popup[data-drpg-message="${m.id}"]`)));
+        } finally {
+            delete game.messages.get;
+            for (const m of cards) for (const c of document.querySelectorAll(`.drpg-popup[data-drpg-message="${m.id}"]`)) c.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            NH.holdNoticeHistory(false);
+        }
+        equal(stableJson(read), stableJson([false, true]), "a player's gmPopup raised a GM's notice, or a GM's did not ([the player's card drawn, the GM's drawn])");
+    }],
+
+    ["R8279 - one speaker event of the Room the tile follows reads the tile's hold once: the speaker's word, the controls' word and, with the Room connected, the microphone's state share it (voice-tile.mjs `voiceStep`, `paintControls`; 1.2.122, the audit's COMM-47)", async () => {
+        /*
+         * The audit of 1.2.118 (COMM-47): each step painted the speaker (paintWord asks watch.hold, micHold) and then the
+         * controls (paintWord again), each micHold scanning every token of every scene twice. The tile's rig (R538's,
+         * `voiceTileRig`) with its hold counted, its microphone's own reading counted, and the controls painted on each step;
+         * one account speaks in the rig's Room, which reads connected. Red at 21bf5d18: two reads of the hold for the step;
+         * and at d4d1ddec the microphone's own reading asked besides.
+         */
+        needs(world.atLeast("playerAccounts", 1), "a speaker in the stand-in Room");
+        const V = await import("./voice-tile.mjs");
+        const [b] = game.users.filter(u => u.id !== game.user.id);
+        let asked = 0, micAsked = 0;
+        const rig = voiceTileRig(V, [b], { hold: () => { asked++; return null; }, mic: () => { micAsked++; return V.micState({ hold: null }); },
+            controls: (w, g) => V.paintControls(w, g), gm: () => false });
+        const room = rig.makeRoom([b.id]);
+        V.attachRoom(rig.clientOf(room), rig.watch);
+        document.body.append(rig.tile);
+        let read = null;
+        try {
+            asked = 0;
+            micAsked = 0;
+            rig.speak(room, [b.id]);
+            read = [asked, micAsked];
+            // Outside a step (a hook's repaint) the microphone asks its own reading again: a different question.
+            micAsked = 0;
+            V.paintControls(rig.watch);
+            read.push(micAsked);
+        } finally {
+            V.detachRoom(rig.watch);
+            rig.tile.remove();
+        }
+        equal(stableJson(read), stableJson([1, 0, 1]), "one speaker event read the tile's hold more than once, or a repaint outside a step did not ask the microphone's own ([the hold's reads, the microphone's own readings in the step, and in a repaint after])");
+    }],
+
+    ["R8280 - a Spectator's camera dock names a masked killer as the Spectator's map does; another player's reads \"?\" (camera-view.mjs `maskRuleOf`; 1.2.122, the audit's r121-M-6)", async () => {
+        /*
+         * The audit of 1.2.121 (r121-M-6): the dock's mask rule was nameAsSeen, "?" to every player who does not own the
+         * character, a Spectator included, while the Spectator's map draws "? (name)" over the token (mask-gm.mjs
+         * `drawMaskName`) and the GM handbook says the Spectators see the name. The rule asked with mask-gm.mjs's own
+         * functions and a mask stood in (`myMask` answering a character for the user), as a Spectator's browser and as
+         * another player's. Red at 21bf5d18: no `maskRuleOf` (the dock read "?" for both).
+         */
+        const C = await import("./camera-view.mjs");
+        const K = await import("./mask-gm.mjs");
+        must(typeof C.maskRuleOf === "function", "camera-view.mjs has no maskRuleOf - this would measure nothing");
+        const someone = game.actors.find(a => a.type === "character");
+        must(someone, "no character in this world - this would measure nothing");
+        const m = { myMask: () => someone, nameAsSeen: () => K.MASK_NAME, MASK_NAME: K.MASK_NAME };
+        const user = { id: "R8280User0000000", isGM: false };
+        const read = [C.maskRuleOf(m, { spectator: () => true })(user), C.maskRuleOf(m, { spectator: () => false })(user),
+            C.maskRuleOf({ ...m, myMask: () => null }, { spectator: () => false })(user)];
+        equal(stableJson(read), stableJson([false, true, false]), "the dock's mask rule ([a Spectator's browser hides, another player's hides, no mask hides])");
+    }],
+
+    ["R8281 - a ruling on a Call's or a Dynamic action's ask the primary no longer holds says so and closes the card, where its buttons came back with a line in the console alone (messenger-app.mjs `askNotHeld`; bridge-asks.mjs `answerHopeCall`, `answerDynamic`'s `out`; 1.2.122, the audit's CTRL-23, its second half)", async () => {
+        /*
+         * The audit of 1.2.118 (CTRL-23): Approve on a Call and both Dynamic buttons answered false when the primary held
+         * no such ask (the player reloaded and asked again, or its time ran out); the buttons came back and the GM saw
+         * nothing. On this primary GM, the three rulings pressed through `runCallAction` with an ask no primary holds: the
+         * primary answers at once, before any write (call-gm.mjs `yesOnPrimary`, `dynamicOnPrimary`). Red at 21bf5d18:
+         * null for each, no notice.
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM - the ask would travel, and this would measure nothing");
+        needs(world.atLeast("playerAccounts", 1), "an asker");
+        const M = await import("./messenger-app.mjs");
+        const player = game.users.find(u => !u.isGM);
+        const data = { rid: "R8281NoSuchAsk00", asker: player.id };
+        const warns = [], realWarn = ui.notifications.warn;
+        ui.notifications.warn = text => { warns.push(String(text)); };
+        const line = game.i18n.format("DRPG.Bridge.settledGone", { name: game.user.name });
+        let read = null;
+        try {
+            read = [];
+            for (const action of ["approveCall", "refuseDynamic"]) read.push((await M.runCallAction(action, data))?.settled === line);
+            read.push(warns.filter(w => w === game.i18n.localize("DRPG.Bridge.askNotHeld")).length);
+        } finally {
+            ui.notifications.warn = realWarn;
+        }
+        equal(stableJson(read), stableJson([true, true, 2]), "a ruling on an ask nobody holds came back silent ([Approve settled, Refuse settled, notices])");
+    }],
+
+    ["R8282 - the Music tab's \"no playlists yet\" box follows the world's playlists while the Sound window is open: it is a region of its own, always drawn (empty once a playlist other than the cue one exists), kept by its own `keepLive` woken by the playlist hooks (sound-panel.mjs `musicEmptyBox`, `openSoundDialog`; 1.2.122, the rest of the audit's REFR-25)", async () => {
+        /*
+         * The audit of 1.2.118, REFR-25's rest (the unrouted list of 1.2.122, section A): the box was drawn in the Music
+         * pane outside every region, so a first playlist made in the sidebar with the window open left the box saying
+         * there was none, beside a select that offered it. Read here: the box's builder on no playlist, on the cue
+         * playlist alone and on one other (a stand-in document, nothing written), and the window's source for the
+         * region's `keepLive`. Red at d4d1ddec: no `musicEmptyBox`.
+         */
+        const P = await import("./sound-panel.mjs");
+        must(typeof P.musicEmptyBox === "function", "sound-panel.mjs exports no musicEmptyBox");
+        const { SITUATIONAL_PLAYLIST } = await import("./config.mjs");
+        const box = list => {
+            const t = document.createElement("template");
+            t.innerHTML = P.musicEmptyBox(list).trim();
+            const el = t.content.firstElementChild;
+            return [el?.matches("[data-drpg-music-empty]") ?? false, Boolean(el?.querySelector(".notes"))];
+        };
+        const src = stripComments((await moduleSources()).get("sound-panel.mjs") ?? "");
+        const open = fnSource(src, "openSoundDialog");
+        const call = bodyOf(open, "region: '[data-drpg-music-empty]'", { until: "});" });
+        const pane = fnSource(src, "soundPlaylistsPane");
+        equal(stableJson({
+            none: box([]), cueAlone: box([{ id: "x", name: SITUATIONAL_PLAYLIST }]), other: box([{ id: "y", name: "SUITE R8282" }]),
+            hooks: ["createPlaylist", "deletePlaylist", "updatePlaylist"].map(h => call.includes(`"${h}"`)),
+            inPane: pane.includes("musicEmptyBox(")
+        }), stableJson({ none: [true, true], cueAlone: [true, true], other: [true, false], hooks: [true, true, true], inPane: true }),
+            "the box did not follow the playlists ({none, cueAlone, other: [the region drawn, the box in it]; hooks: the region woken by each; inPane: the pane draws it})");
+    }],
+
+    ["R8283 - a message whose sender's clock runs behind the reader's last read stamp still arrives unread: the read stamp keeps the ids it read within `READ_SKEW_MS` under its newest message, a message under the stamp and inside that window that it did not read counts, one older than the window does not, a stamp of a number reads as before, and a thread whose stamp already holds every message has nothing to mark (messenger.mjs `readEntryOf`, `threadStatsOf`, `markThreadRead`; 1.2.122, the rest of the audit's COMM-15)", async () => {
+        /*
+         * The audit of 1.2.118, COMM-15's rest (the unrouted list of 1.2.122, section B): since COMM-15 the read stamp is
+         * the newest message's own `timestamp`, and the rule is `timestamp >` that stamp - so a message from a sender
+         * whose clock runs behind the newest one's writer was stamped under it and arrived read, never on the badge.
+         * Whether v14 stamps `timestamp` on the server, which would end the question, is not read (COMM-LC7). A stand-in
+         * thread here, nothing written. Red at d4d1ddec: no `readEntryOf`.
+         */
+        const M = await import("./messenger.mjs");
+        must(typeof M.readEntryOf === "function" && Number.isFinite(M.READ_SKEW_MS), "messenger.mjs exports no readEntryOf or READ_SKEW_MS");
+        const T = "R8283Player00001", ME = "R8283GmUser00001", HER = T;
+        const card = (id, timestamp, author) => ({ id, timestamp, author: { id: author, isGM: author === ME }, flags: { [MODULE_ID]: { thread: T, kind: "dm" } } });
+        const at = 10_000_000;
+        const world = [card("R8283Card0000001", at - 1000, HER), card("R8283Card0000002", at, HER)];
+        const entry = M.readEntryOf(world, T, null);
+        const unread = (list, map) => M.threadStatsOf(list, { me: ME, readMap: { [T]: map }, isGM: true }).get(T)?.unread ?? null;
+        const late = [...world, card("R8283Card0000003", at - 500, HER)];
+        const old = [...world, card("R8283Card0000004", at - M.READ_SKEW_MS - 1, HER)];
+        equal(stableJson({
+            entry: entry && { at: entry.at, ids: [...entry.ids].sort() },
+            afterRead: unread(world, entry), late: unread(late, entry), old: unread(old, entry), number: unread(late, at),
+            nothingNew: M.readEntryOf(world, T, entry), lateMarked: (() => { const e = M.readEntryOf(late, T, entry); return e && [e.at, e.ids.includes("R8283Card0000003")]; })()
+        }), stableJson({
+            entry: { at, ids: ["R8283Card0000001", "R8283Card0000002"] },
+            afterRead: 0, late: 1, old: 0, number: 0, nothingNew: null, lateMarked: [at, true]
+        }), "a late-stamped message arrived read, or the stamp did not keep what it read ({entry; afterRead, late, old, number: the thread's unread; nothingNew: a second read's entry; lateMarked: [its stamp, the late message in it]})");
+    }],
+
     ["R539 - the GM's block in the list is Foundry's block and never undoes the module's: the button is built only in a GM's list; its click writes the user's `permissions.BROADCAST_AUDIO` flipped from what Foundry answers now and nothing else; where `moduleHoldsMic` holds the microphone or a death is kept secret the button is disabled with its line and `toggleBlock` writes nothing; it refuses a player's client, the GM's own account and a user who is not of this world", async () => {
         /*
          * E78 C5, 14.10.2026; the A9 design's R392 (A9-5; the E78 plan's D2 gave it this number), the owner's Q4 (the
@@ -17340,6 +18035,9 @@ const INVARIANTS = [
         const gmRig = voiceTileRig(V, [b, d], { settings: () => settings, gm: () => true });
         const playerRig = voiceTileRig(V, [b, d], { settings: () => settings, gm: () => false });
         const updates = [], spied = [b, d, game.user], own = spied.map(user => Object.getOwnPropertyDescriptor(user, "update"));
+        // 1.2.122, the audit's COMM-46: an unblock takes the user's own key off (v14's ForcedDeletion, else
+        // Daggerheart's _del), so the role's rule stands again; an explicit true only where neither exists.
+        const unblocked = (await import("./utils.mjs")).forcedDeletion() ?? true;
         for (const user of spied) user.update = async data => { updates.push(tag(`${user.id}:${JSON.stringify(data)}`)); return user; };
         const seen = [];
         try {
@@ -17388,7 +18086,7 @@ const INVARIANTS = [
             held.click();
             free.click();
             await new Promise(resolve => setTimeout(resolve, 0));
-            seen.push([disabled, updates.splice(0).join(",") === (worldHold?.held ? "" : `B:${JSON.stringify({ "permissions.BROADCAST_AUDIO": !worldAllowed })}`)]);
+            seen.push([disabled, updates.splice(0).join(",") === (worldHold?.held ? "" : `B:${JSON.stringify({ "permissions.BROADCAST_AUDIO": worldAllowed ? false : unblocked })}`)]);
         } finally {
             spied.forEach((user, i) => {
                 if (own[i]) Object.defineProperty(user, "update", own[i]);
@@ -17410,7 +18108,7 @@ const INVARIANTS = [
             [true, false, "true", true, true, null, false],
             true,
             [[true, true, false, false, false, false, false, false],
-                ["B:{\"permissions.BROADCAST_AUDIO\":false}", "B:{\"permissions.BROADCAST_AUDIO\":true}"], ["gmSecretDead", "gmHeld", "gmSecretDead"]],
+                ["B:{\"permissions.BROADCAST_AUDIO\":false}", `B:${JSON.stringify({ "permissions.BROADCAST_AUDIO": unblocked })}`], ["gmSecretDead", "gmHeld", "gmSecretDead"]],
             [true, true],
             true]),
         "[the GM's list: per row the block, disabled, pressed, struck, its name, the line shown, described by it - B free, D's death kept secret | "
@@ -20572,7 +21270,10 @@ const INVARIANTS = [
             return [sw.length, sw[0]?.checked === (getSetting(SETTINGS[key]) === true), sw[0]?.closest("label")?.textContent.trim()
                 === game.i18n.localize(game.settings.settings.get(`${MODULE_ID}.${SETTINGS[key]}`)?.name ?? "-"), before];
         };
-        const wire = fnSource(stripComments(new Map(await moduleSources()).get("sound-panel.mjs") ?? ""), "wireSoundDialog");
+        // The switches' wiring since 1.2.122 is `wireSoundSwitches`, which `wireSoundDialog` calls and each switch's live region
+        // calls again (the audit's REFR-25).
+        const soundPanel = stripComments(new Map(await moduleSources()).get("sound-panel.mjs") ?? "");
+        const wire = /wireSoundSwitches\(root\)/.test(fnSource(soundPanel, "wireSoundDialog") ?? "") ? fnSource(soundPanel, "wireSoundSwitches") : "";
         const read = {
             sections: inSections,
             listed: Array.isArray(W.SOUND_WINDOW_SETTINGS) ? [...W.SOUND_WINDOW_SETTINGS].sort() : null,
@@ -46125,7 +46826,8 @@ const INVARIANTS = [
          * Red on dd87f9f7: `<p class="notes drpg-warning">`. The other `drpg-warning` sites of the module are not read
          * here (STATUS Open 83: E46's and E47's).
          */
-        const sound = fnSource(await fetch(`/modules/${MODULE_ID}/scripts/sound-panel.mjs`).then(lfText), "soundPlaylistsPane");
+        // The box in a region of its own since 1.2.122 (REFR-25's rest): `musicEmptyBox`, which `soundPlaylistsPane` draws (R8282).
+        const sound = fnSource(await fetch(`/modules/${MODULE_ID}/scripts/sound-panel.mjs`).then(lfText), "musicEmptyBox");
         const KEY = String.raw`\$\{\s*game\.i18n\.localize\("DRPG\.Music\.noPlaylists"\)`;
         ok(new RegExp(KEY).test(sound), "the mapping tab still writes the no-playlist line (DRPG.Music.noPlaylists)");
         equal(stableJson({ warning: new RegExp(`drpg-warning[^\`]*?${KEY}`).test(sound), info: new RegExp(`box\\("info",\\s*\`<p class="notes"[^\`>]*>${KEY}`).test(sound) }),
@@ -64941,7 +65643,7 @@ const INVARIANTS = [
         const legacy = { AIKO: 300, BOTAN: 200 };
         const write = fnSource((new Map(await moduleSources())).get("messenger.mjs") ?? "", "markThreadRead");
         equal(stableJson({ gm: M.readMap(all, "W1.GM"), aiko: M.readMap(all, "W1.AIKO"), otherWorld: M.readMap(all, "W2.AIKO"), none: M.readMap(all, "W1.BOTAN"),
-            legacy: M.readMap(legacy, "W1.AIKO"), writesSection: /const map = \{ \.\.\.all, \[section\]: \{ \.\.\.readMap\(all, section\), \[playerUserId\]: newest \} \};/.test(write) }),
+            legacy: M.readMap(legacy, "W1.AIKO"), writesSection: /const map = \{ \.\.\.all, \[section\]: \{ \.\.\.mine, \[playerUserId\]: entry \} \};/.test(write) && /const mine = readMap\(all, section\);/.test(write) }),
         stableJson({ gm: { AIKO: 500 }, aiko: { AIKO: 100 }, otherWorld: { AIKO: 900 }, none: {}, legacy: { AIKO: 300, BOTAN: 200 }, writesSection: true }),
             "{gm, aiko: the same thread as each login on one browser reads it; otherWorld: another world's; none: a login with no section; legacy: a map from before; writesSection: the write keeps the other sections}");
     }],

@@ -655,8 +655,10 @@ async function tellStashDisturbedNow(owner, room, scene) {
     // Whose reaches the notice settles, for the GMs alone (A113-C6-4): the thief's id is a row's key up to its first colon.
     const thieves = [...new Set(pending.map(key => game.actors.get(key.slice(0, key.indexOf(":")))?.name).filter(Boolean))];
     try {
+        // Veiled (1.2.122, the audit's COMM-22): told the moment the owner stands in the room, an Eclipse's crossing
+        // included, so a plain document spoken as the owner told every console where they had just walked.
         await whisperToOwner(owner, `<p>${game.i18n.localize("DRPG.Vault.noticed")}</p>`, {
-            flags: { [MODULE_ID]: { sfx: "stolen" } }
+            flags: { [MODULE_ID]: { sfx: "stolen" } }, veiled: true
         });
     } catch (err) {
         error("Could not tell the owner their stash had been gone through", err);

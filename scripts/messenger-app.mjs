@@ -45,8 +45,8 @@ export function registerMessengerUi() {
     Hooks.on("drpgMessengerRead", () => renderLauncher());
     /* A card that changed: a settled ask no longer counts for the GM that posted it (messenger.mjs `threadStatsOf`, E50
        C2), and a settle reaches a browser as this hook alone - new words through `updateSecret` (secret.mjs `remember`),
-       or a document's update - so the badge is drawn again here (E50 fix FG2; the end review's F2, 87 B1). An open
-       roster keeps the rows it was drawn with, as it does for a message or a read. */
+       or a document's update - so the badge is drawn again here (E50 fix FG2; the end review's F2, 87 B1). Since 1.2.122
+       an open roster's rows follow too, as they do for a message or a read (`refreshRoster`, the audit's REFR-15). */
     Hooks.on("drpgMessengerEdited", () => renderLauncher());
     Hooks.on("drpgMessengerDeleted", onMessengerDeleted);
     /* The page shown again (another tab, a minimised browser): the frontmost messenger window reads what came while it
@@ -60,6 +60,13 @@ export function registerMessengerUi() {
     Hooks.on("drpgNotesChanged", () => {
         for (const app of DrpgMessengerApp.instances.values()) app.refreshNote();
     });
+    /* A user created, renamed or given another role (1.2.122, the audit's REFR-53): the open windows' title and
+       participants line read the users at their render alone. Followed in place, never redrawn under the typing. */
+    for (const hook of ["createUser", "updateUser", "deleteUser"]) {
+        Hooks.on(hook, () => {
+            for (const app of DrpgMessengerApp.instances.values()) app.refreshHead();
+        });
+    }
 
     // A quick way in from the Players sidebar, mirroring how avclient-livekit
     // adds its own breakout-room entries to the same context menu.
@@ -191,6 +198,14 @@ export class DrpgMessengerApp extends DrpgApp() {
      */
     noteShown = null;
 
+    /**
+     * What stood typed in the two boxes when the window was last drawn over (1.2.122, the audit's CTRL-13 and CTRL-24):
+     * a tab press renders the window whole, and the box of the tab it leaves is not drawn at all, so its words are kept
+     * here and given back when that tab is drawn again (`_replaceHTML`). `note` is null while the note box holds the
+     * note it was drawn with; `noteBase` is the note the typing started from, still the base a Save is judged against.
+     */
+    drafts = { chat: "", note: null, noteBase: null };
+
     constructor(playerUserId) {
         const options = { id: `drpg-messenger-${playerUserId}` };
         // Only set `position` when there is a saved one - passing `undefined`
@@ -305,6 +320,7 @@ export class DrpgMessengerApp extends DrpgApp() {
         area.className = "drpg-messenger-note-text";
         area.value = context.note;
         this.noteShown = context.note;
+        area.drpgShown = context.note;
         area.placeholder = game.i18n.localize("DRPG.Note.placeholder");
         setTip(area, game.user.isGM && game.user.id !== this.playerUserId
             ? "DRPG.Tips.Sweep.More.noteReadersGmTooltip" : "DRPG.Tips.Sweep.More.noteReadersTooltip");
@@ -347,6 +363,9 @@ export class DrpgMessengerApp extends DrpgApp() {
                     this.noteSaid = game.i18n.localize(outcome === "sent" ? "DRPG.Note.sentToGms"
                         : outcome === "kept" ? "DRPG.Note.keptUntilGm" : "DRPG.Note.saved");
                     status.textContent = this.noteSaid;
+                    // Saved: what the box holds is the note now, no draft to keep over the redraw.
+                    area.drpgShown = area.value;
+                    this.drafts.note = null;
                     this.render();
                 }
             } finally {
@@ -365,6 +384,7 @@ export class DrpgMessengerApp extends DrpgApp() {
      * was drawn with - never over what is being typed. No redraw.
      */
     refreshNote() {
+        if (this.rendered) this.refreshHead();
         if (!this.rendered || this.tab !== "note") return;
         const area = this.element?.querySelector(".drpg-messenger-note-text");
         const status = this.element?.querySelector(".drpg-messenger-note-status");
@@ -377,8 +397,54 @@ export class DrpgMessengerApp extends DrpgApp() {
         status.textContent = noteStatus(this.playerUserId);
     }
 
+    /**
+     * The window's head followed in place (1.2.122, the audit's REFR-53): the Note tab's dot from the note as it stands,
+     * the participants line and the title from the users. Drawn once at the render until then, so a note written while
+     * the window stood on Chat drew no dot, and a GM renamed or added kept the old line.
+     */
+    refreshHead() {
+        if (!this.rendered || !this.element) return;
+        const player = game.users.get(this.playerUserId);
+        const gms = gmIds().map(id => game.users.get(id)).filter(Boolean);
+        const line = this.element.querySelector(".drpg-messenger-participants");
+        const words = participantsLine(player, gms);
+        if (line && line.textContent !== words) line.textContent = words;
+        if (this.window?.title?.nodeType === 1 && this.window.title.textContent !== this.title) this.window.title.textContent = this.title;
+        const tab = this.element.querySelector('nav.drpg-tabs [data-drpg-tab-key="note"]');
+        if (!tab) return;
+        const bar = tab.closest("nav.drpg-tabs");
+        const has = Boolean(noteFor(this.playerUserId).trim());
+        const dot = tab.querySelector(".drpg-messenger-tab-dot");
+        if (has && !dot) {
+            const made = document.createElement("span");
+            made.className = "drpg-messenger-tab-dot";
+            tab.append(made);
+        } else if (!has && dot) dot.remove();
+        if (has) bar.dataset.hasNote = "true";
+        else delete bar.dataset.hasNote;
+    }
+
     async _replaceHTML(result, content, _options) {
+        // What was typed and not sent or saved survives the redraw (CTRL-13, CTRL-24): read off the boxes drawn over...
+        const chatWas = content.querySelector(".drpg-messenger-input textarea");
+        if (chatWas) this.drafts.chat = chatWas.value;
+        const noteWas = content.querySelector(".drpg-messenger-note-text");
+        if (noteWas) {
+            const typed = noteWas.value !== (noteWas.drpgShown ?? noteWas.value);
+            this.drafts.note = typed ? noteWas.value : null;
+            this.drafts.noteBase = typed ? noteWas.drpgShown : null;
+        }
         content.replaceChildren(result);
+        // ...and given back to the box of the tab drawn now. A note's draft keeps its base: a Save still asks whether
+        // the note changed under it (`saveNote`'s `base`).
+        const chatNow = content.querySelector(".drpg-messenger-input textarea");
+        if (chatNow && this.drafts.chat) chatNow.value = this.drafts.chat;
+        const noteNow = content.querySelector(".drpg-messenger-note-text");
+        if (noteNow && this.drafts.note !== null) {
+            noteNow.value = this.drafts.note;
+            noteNow.drpgShown = this.drafts.noteBase;
+            this.noteShown = this.drafts.noteBase;
+        }
     }
 
     _onRender(context, options) {
@@ -420,7 +486,10 @@ export class DrpgMessengerApp extends DrpgApp() {
             } finally {
                 textarea.disabled = false;
             }
-            if (sent) textarea.value = "";
+            if (sent) {
+                textarea.value = "";
+                this.drafts.chat = "";
+            }
             else if (outcome.maybePosted) ui.notifications.warn(game.i18n.localize("DRPG.Messenger.sendUnsure"));
             else if (!outcome.told) ui.notifications.error(game.i18n.localize("DRPG.Messenger.sendFailed"));
             textarea.focus();
@@ -847,30 +916,31 @@ async function askItemEffect(item) {
     }).then(r => (r && r !== "cancel" ? r : null));
 }
 
-/** What each button on a ruling card does. GM side, by construction. */
-    // A Hope Call that needed the GM's say-so (COMM-04). The verdict goes back
-    // to the asking client over the packet the old dialog used; the player's
-    // own `spendHopeCall` asks the GM to arm it on a yes, and the GM charges the
-    // Hope then. A yes goes by the primary, which keeps it for that arm (E29 fix
-    // r2-H4): one it could not keep leaves the card open. The primary writes
-    // "Approved" on the card once the player's browser has the yes (E18 C1). The
-    // card pressed goes with it: the primary keeps a yes only for the ask held on
-    // that card (call-gm.mjs `yesOnPrimary`, fix early-C2-G2).
+// A Hope Call that needed the GM's say-so (COMM-04). The verdict goes back
+// to the asking client over the packet the old dialog used; the player's
+// own `spendHopeCall` asks the GM to arm it on a yes, and the GM charges the
+// Hope then. A yes goes by the primary, which keeps it for that arm (E29 fix
+// r2-H4): one it could not keep closes the card with "The player was no longer waiting." (`askNotHeld`, 1.2.122),
+// or leaves it open where the bridge said why. The primary writes
+// "Approved" on the card once the player's browser has the yes (E18 C1). The
+// card pressed goes with it: the primary keeps a yes only for the ask held on
+// that card (call-gm.mjs `yesOnPrimary`, fix early-C2-G2).
 async function ruleApproveCallOrRefuseCall(action, data, message = null) {
     const { answerHopeCall } = await import("./gm-bridge.mjs");
     const yes = action === "approveCall";
-    if (!(await answerHopeCall(data.rid, data.asker, yes, message?.id ?? null))) return null;
+    const out = {};
+    if (!(await answerHopeCall(data.rid, data.asker, yes, message?.id ?? null, out))) return askNotHeld(out);
     return yes ? { held: true } : settled("DRPG.Bridge.settledDeclined");
 }
 
-    // A Dynamic action: the difficulty editor is the old dialog, opened from
-    // the card by whichever GM picks it up; "Refuse" tells the player so. The
-    // difficulty is kept in the card's meta, where the GM who places the action's
-    // trace reads its band (bridge-runs-records.mjs `dynamicRulingOf`, E08+E28 C15). The
-    // ruling goes by the primary, which keeps it in the meta and takes the card's
-    // buttons off as it sends it on, and writes the card's line once the player's
-    // browser has it (E18 C1; call-gm.mjs `keepRuling`, fix early-C1-G1) - for
-    // the ask held on the card pressed alone (`dynamicOnPrimary`, fix early-C2-G2).
+// A Dynamic action: the difficulty editor is the old dialog, opened from
+// the card by whichever GM picks it up; "Refuse" tells the player so. The
+// difficulty is kept in the card's meta, where the GM who places the action's
+// trace reads its band (bridge-runs-records.mjs `dynamicRulingOf`, E08+E28 C15). The
+// ruling goes by the primary, which keeps it in the meta and takes the card's
+// buttons off as it sends it on, and writes the card's line once the player's
+// browser has it (E18 C1; call-gm.mjs `keepRuling`, fix early-C1-G1) - for
+// the ask held on the card pressed alone (`dynamicOnPrimary`, fix early-C2-G2).
 async function ruleSetDifficulty(action, data, message = null) {
     const { askDynamicDifficulty } = await import("./action-rolls.mjs");
     const ruling = await askDynamicDifficulty({
@@ -880,12 +950,26 @@ async function ruleSetDifficulty(action, data, message = null) {
     if (ruling === false) return ruleRefuseDynamic(action, data, message);
     if (!ruling) return null;
     const { answerDynamic } = await import("./gm-bridge.mjs");
-    return (await answerDynamic(data.rid, data.asker, ruling, message?.id ?? null)) ? { held: true } : null;
+    const out = {};
+    return (await answerDynamic(data.rid, data.asker, ruling, message?.id ?? null, out)) ? { held: true } : askNotHeld(out);
+}
+
+/**
+ * A ruling on an ask the primary no longer holds (1.2.122, the audit's CTRL-23): the player reloaded and asked again
+ * elsewhere, or its time ran out. The buttons came back with a line in the console alone, so the GM pressed again; the
+ * card says so now and settles with "The player was no longer waiting.". Where the bridge said why (no primary to ask,
+ * no answer: `out.told`), the buttons come back and nothing more is said.
+ */
+function askNotHeld(out) {
+    if (out?.told) return null;
+    ui.notifications.warn(game.i18n.localize("DRPG.Bridge.askNotHeld"));
+    return settled("DRPG.Bridge.settledGone");
 }
 
 async function ruleRefuseDynamic(action, data, message = null) {
     const { answerDynamic } = await import("./gm-bridge.mjs");
-    return (await answerDynamic(data.rid, data.asker, false, message?.id ?? null)) ? { held: true } : null;
+    const out = {};
+    return (await answerDynamic(data.rid, data.asker, false, message?.id ?? null, out)) ? { held: true } : askNotHeld(out);
 }
 
 /**
@@ -900,15 +984,15 @@ function rulingThread(actor, message) {
     return ownerOf(actor);
 }
 
-    // The statistic of a roll that lists several (E32+E07 C11b; trait-ruling.mjs). The
-    // list is read again from this GM's config for the definition the card names, and a
-    // trait not on it is refused here: the button's data is the card's, and the card is
-    // a document. The pick goes to the asker alone and is kept in the card's meta. A project
-    // stored without a statistic is given this one before the answer leaves (C11d), so the
-    // roll it is for is the last that asks. Since E68 C1 (DA18) the card may answer a proposal:
-    // "Approve" and each "Change to" are this one action, and the list's guard holds both - a
-    // "Change to" off the list is refused here as any pick is. The ruling keeps the proposal and
-    // `how` ("approved", "changed", or "picked" with none), read as the button's data says it.
+// The statistic of a roll that lists several (E32+E07 C11b; trait-ruling.mjs). The
+// list is read again from this GM's config for the definition the card names, and a
+// trait not on it is refused here: the button's data is the card's, and the card is
+// a document. The pick goes to the asker alone and is kept in the card's meta. A project
+// stored without a statistic is given this one before the answer leaves (C11d), so the
+// roll it is for is the last that asks. Since E68 C1 (DA18) the card may answer a proposal:
+// "Approve" and each "Change to" are this one action, and the list's guard holds both - a
+// "Change to" off the list is refused here as any pick is. The ruling keeps the proposal and
+// `how` ("approved", "changed", or "picked" with none), read as the button's data says it.
 async function rulePickTrait(action, data) {
     // The valve's press (E68 C2; call-gm.mjs `askTraitByCard`): no card's button carries `auto`, only the primary's own call.
     const auto = data.auto === "1";
@@ -927,20 +1011,23 @@ async function rulePickTrait(action, data) {
         ruling: { type: "trait", actorId: data.by, ...spec, trait: data.trait, ...(proposed ? { proposed } : {}), how, ...(auto ? { auto: true } : {}) } };
 }
 
-    // Refuse: the action is not taken, and nothing was spent for it.
+// Refuse: the action is not taken, and nothing was spent for it.
 async function ruleRefuseTrait(action, data) {
     const { answerTraitRuling } = await import("./gm-bridge.mjs");
     if (!answerTraitRuling(data.rid, data.asker, false)) return null;
     return settled("DRPG.Bridge.settledDeclined");
 }
 
-    // A Tier 0 item used creatively (ITEM-07). The ruling used to be a console
-    // call - `game.drpg.grantItemEffect(...)` - and so was never made: the
-    // "seemingly useless item" stayed in the bag holding a usable slot.
+// A Tier 0 item used creatively (ITEM-07). The ruling used to be a console
+// call - `game.drpg.grantItemEffect(...)` - and so was never made: the
+// "seemingly useless item" stayed in the bag holding a usable slot.
 async function ruleItemWorksOrItemNoEffectOrItemRefuse(action, data, message = null) {
     const actor = game.actors.get(data.by);
     const item = actor?.items?.get(data.item);
-    if (!actor || !item) return null;   // Handed over meanwhile; nothing to rule on.
+    // Gone before the press (1.2.122, the audit's CTRL-23): the card settles with its line, where a null gave the
+    // buttons back and said nothing - an item handed over left a card no button could close, Refuse included.
+    if (!actor) return settled("DRPG.Bridge.settledNoCharacter");
+    if (!item) return settled("DRPG.Items.rulingGone");
     const { grantItemEffect, ruleCreativeUse } = await import("./use-items.mjs");
     if (action === "itemRefuse") {
         const { postToThread } = await import("./messenger.mjs");
@@ -963,17 +1050,11 @@ async function ruleItemWorksOrItemNoEffectOrItemRefuse(action, data, message = n
     return done ? settled("DRPG.Bridge.settledHandled") : null;
 }
 
-async function ruleOpenMurder(action, data) {
-    const { openMurder } = await import("./murder.mjs");
-    const opened = await openMurder({ killerId: data.killer, victimId: data.victim });
-    return opened ? settled("DRPG.Bridge.settledHandled") : null;
-}
-
-    // The two halves of the direct-murder gate. The declaration is already
-    // parked and the action already spent; what these decide is whether it is
-    // allowed to become an incident when the lights come up - and, since E68 C9, on which
-    // statistic its opening rolls: each Allow and Change to names one (`data.trait`), which
-    // `ruleOnParkedMurder` reads against the killer's list.
+// The two halves of the direct-murder gate. The declaration is already
+// parked and the action already spent; what these decide is whether it is
+// allowed to become an incident when the lights come up - and, since E68 C9, on which
+// statistic its opening rolls: each Allow and Change to names one (`data.trait`), which
+// `ruleOnParkedMurder` reads against the killer's list.
 async function ruleApproveMurderOrRefuseMurder(action, data) {
     const { ruleOnParkedMurder } = await import("./eclipse.mjs");
     const ruled = await ruleOnParkedMurder(data.killer, action === "approveMurder", action === "approveMurder" ? data.trait ?? null : null);
@@ -999,6 +1080,10 @@ async function ruleRearmTrap(action, data) {
      * wrong and the trap should keep watching - which must not be a console
      * call, because the GM is mid-scene when they need it.
      */
+    // A project gone since the alert (1.2.122, the audit's CTRL-64): nothing to rearm, said so, and no store row
+    // written for an id no countdown carries - the card read "The trap is watching again." over a deleted project.
+    const { rawCountdown } = await import("./projects-secrecy.mjs");
+    if (!rawCountdown(data.project ?? "")) return settled("DRPG.Trap.rearmGone");
     const { rearmTrap } = await import("./traps.mjs");
     const ok = await rearmTrap(data.project);
     return ok ? settled("DRPG.Trap.rearmed") : null;
@@ -1057,7 +1142,7 @@ async function ruleDeclineProject(action, data, message = null) {
     // No action to refund: starting a project is a declaration, and the
     // cost is paid by working on it afterwards.
     const actor = game.actors.get(data.by);
-    if (!actor) return null;
+    if (!actor) return settled("DRPG.Bridge.settledNoCharacter");   // Deleted meanwhile (CTRL-23): said, not silent.
     const { postToThread } = await import("./messenger.mjs");
     const owner = rulingThread(actor, message);
     const note = `<p><em>${foundry.utils.escapeHTML(
@@ -1132,7 +1217,7 @@ async function ruleReply(action, data, message = null) {
     // the module's own answer to that has always been the thread the card
     // is already sitting in.
     const actor = game.actors.get(data.by);
-    if (!actor) return null;
+    if (!actor) return settled("DRPG.Bridge.settledNoCharacter");   // Deleted meanwhile (CTRL-23): said, not silent.
 
     // On the kit (E21 C6a): Send on the right, the default; Cancel on the left. DialogV2 answers a button's callback or,
     // when that is null, its action, so Cancel answers "cancel" and a closed window null; neither is a `{ text }`, which
@@ -1186,7 +1271,7 @@ async function ruleReply(action, data, message = null) {
  */
 async function ruleSearchMiss(action, data, message = null) {
     const actor = game.actors.get(data.by);
-    if (!actor) return null;
+    if (!actor) return settled("DRPG.Bridge.settledNoCharacter");   // Deleted meanwhile (CTRL-23): said, not silent.
     const { postToThread } = await import("./messenger.mjs");
     const owner = rulingThread(actor, message);
     if (owner) {
@@ -1212,7 +1297,7 @@ async function ruleSearchMiss(action, data, message = null) {
  */
 async function ruleObserveMiss(action, data, message = null) {
     const actor = game.actors.get(data.by);
-    if (!actor) return null;
+    if (!actor) return settled("DRPG.Bridge.settledNoCharacter");   // Deleted meanwhile (CTRL-23): said, not silent.
 
     const { chargeObserveMiss } = await import("./observe.mjs");
     await chargeObserveMiss(actor);
@@ -1285,12 +1370,12 @@ function refundOnCard(data) {
 }
 
 async function ruleDecline(action, data, message = null) {
-    // What was paid comes BACK. Same reasoning as `declineMurder`: a refusal
+    // What was paid comes BACK: a refusal
     // here is the GM overruling the declaration rather than the rules
     // resolving it, and a player who spent an action on a question that was
     // never answered has spent nothing.
     const actor = game.actors.get(data.by);
-    if (!actor) return null;
+    if (!actor) return settled("DRPG.Bridge.settledNoCharacter");   // Deleted meanwhile (CTRL-23): said, not silent.
 
     const receipt = refundOnCard(data);
     const { postToThread } = await import("./messenger.mjs");
@@ -1341,6 +1426,8 @@ async function ruleCreateItem(action, data) {
     // and the room, so the form opens with all three answered and the GM
     // writes the one thing only they know: what was actually there.
     const { openItemTables } = await import("./tables.mjs");
+    /* The item tables already open take the card's preset, opened again on it, unless something is typed in their Add
+       an item; then they stay as they are and the GM is told (tables-editor.mjs `openItemTables`; 1.2.122, CTRL-25). */
     return openItemTables({
         preset: {
             category: data.category || null,
@@ -1356,7 +1443,7 @@ async function ruleGiveItem(action, data) {
     // exists already, so it goes straight onto the sheet rather than into a
     // table first.
     const actor = game.actors.get(data.by);
-    if (!actor) return null;
+    if (!actor) return settled("DRPG.Bridge.settledNoCharacter");   // Deleted meanwhile (CTRL-23): said, not silent.
     const { gmGiveItemDialog } = await import("./gm-items.mjs");
     const given = await gmGiveItemDialog(actor);
     return given ? settled("DRPG.Bridge.settledHandled") : null;
@@ -1372,24 +1459,6 @@ async function ruleKeyRemnantHere(action, data) {
     return placed ? settled("DRPG.Bridge.settledHandled") : null;
 }
 
-async function ruleDeclineMurder(action, data, message = null) {
-    // The refusal is the GM overruling the declaration, not the rules
-    // resolving it - so the action comes back. A witness in the room is the
-    // other thing, and that one keeps the attempt spent (see
-    // `performDirectMurder`).
-    const actor = game.actors.get(data.killer);
-    if (!actor) return null;
-    const { refundAction } = await import("./actions.mjs");
-    await refundAction(actor, 1);
-    const { postToThread } = await import("./messenger.mjs");
-    const owner = rulingThread(actor, message);
-    const note = `<p><em>${foundry.utils.escapeHTML(
-        game.i18n.format("DRPG.Bridge.declined", { name: game.user.name }))}</em></p>`;
-    if (owner) await postToThread(owner.id, note);
-    ui.notifications.info(game.i18n.format("DRPG.Bridge.declinedGm", { name: actor.name }));
-    return settled("DRPG.Bridge.settledDeclined");
-}
-
 /** What each button on a ruling card does, by its action. GM side, by construction. */
 const CARD_ACTIONS = {
     approveCall: ruleApproveCallOrRefuseCall,
@@ -1401,7 +1470,6 @@ const CARD_ACTIONS = {
     itemWorks: ruleItemWorksOrItemNoEffectOrItemRefuse,
     itemNoEffect: ruleItemWorksOrItemNoEffectOrItemRefuse,
     itemRefuse: ruleItemWorksOrItemNoEffectOrItemRefuse,
-    openMurder: ruleOpenMurder,
     approveMurder: ruleApproveMurderOrRefuseMurder,
     refuseMurder: ruleApproveMurderOrRefuseMurder,
     plantTrapItem: rulePlantTrapItem,
@@ -1421,7 +1489,6 @@ const CARD_ACTIONS = {
     createItem: ruleCreateItem,
     giveItem: ruleGiveItem,
     keyRemnantHere: ruleKeyRemnantHere,
-    declineMurder: ruleDeclineMurder,
     // E72 C5: a Monocub's Ask for Hope, answered once by whichever GM clicks (monocub.mjs `answerHopeAsk`).
     cubGiveHope: ruleCubHope,
     cubNotNow: ruleCubHope
@@ -1430,17 +1497,45 @@ const CARD_ACTIONS = {
 /** Give 1, Give 2 or Not now on a Monocub's Ask for Hope (E72 C5): the GM's own Despair, or none. */
 async function ruleCubHope(action, data) {
     const actor = game.actors.get(data.actor);
-    if (!actor) return null;
+    if (!actor) return settled("DRPG.Bridge.settledNoCharacter");   // Deleted meanwhile (CTRL-23): said, not silent.
     const { answerHopeAsk } = await import("./monocub.mjs");
     const words = await answerHopeAsk(actor, action === "cubGiveHope" ? Number(data.n) || 0 : 0);
     return words ? { settled: words } : null;
 }
 
 /** The rule of the button pressed, handed the card it is on (`message`, fix early-C2-G2), or null for none. */
-async function runCallAction(action, data, message = null) {
+export async function runCallAction(action, data, message = null) {
     const rule = CARD_ACTIONS[action];
     if (!rule) return null;
+    if (message && actsOnCardCharacter(action) && !writerOwns(message, data?.by)) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Bridge.notTheirCharacter"));
+        return settled("DRPG.Bridge.settledNotTheirs");
+    }
     return rule(action, data, message);
+}
+
+/*
+ * A RULING ACTS ONLY ON A CHARACTER THE CARD'S WRITER OWNS (1.2.122, the audit's COMM-21). These rulings act on the
+ * card's own `data.by` - charge it Sanity (Nothing was there), use up its item, refund it, give it an item, answer in its
+ * owner's thread - and the card is written on the roller's browser, so its data is that player's to rewrite: a card a
+ * console posted naming a classmate made a GM's press charge the classmate. The asks the primary holds (a Call, a Dynamic
+ * action, a statistic, an Observe's pick) go by their `rid` and are not in this list. A card a GM wrote is the GM's.
+ */
+const CARD_CHARACTER_RULINGS = Object.freeze(new Set(["itemWorks", "itemNoEffect", "itemRefuse", "declineProject", "reply",
+    "searchMiss", "observeMiss", "decline", "giveItem"]));
+
+function actsOnCardCharacter(action) {
+    return CARD_CHARACTER_RULINGS.has(action);
+}
+
+/** Whether the card's writer may name `actorId`: a GM's card, or a player's about a character that player owns. */
+function writerOwns(message, actorId) {
+    const writer = cardWriter(message);
+    if (!writer || writer.isGM) return true;
+    const actor = game.actors.get(actorId ?? "");
+    // No such character: the ruling's own line says so (`settledNoCharacter`, CTRL-23).
+    if (!actor) return true;
+    return actor.testUserPermission?.(writer, "OWNER") === true;
 }
 
 /* ==========================================================================
@@ -1498,27 +1593,44 @@ function savePosition(playerUserId, position) {
  * corner cannot be broken by either one changing shape.
  * ========================================================================== */
 
+/*
+ * ONE BUTTON, REDRAWN IN PLACE (1.2.122, the audit's COMM-34). Every thread event - a message, a read, an edited card,
+ * a deletion, each card's words landing after a return - took the launcher off the page and built a new one, so a
+ * keyboard user's focus on it went back to the page and a hover tooltip went with the node. It is made once now, and
+ * a later call writes only its tooltip, its name and its badge, each when it changed; the open roster's rows follow
+ * the same call (`refreshRoster`, REFR-15). The count is still one `threadStats` pass a call (messenger.mjs).
+ */
 export function renderLauncher() {
     try {
-        document.getElementById(LAUNCHER_ID)?.remove();
-
-        const button = document.createElement("button");
-        button.type = "button";
-        button.id = LAUNCHER_ID;
+        let button = document.getElementById(LAUNCHER_ID);
+        const made = !button;
+        if (made) {
+            button = document.createElement("button");
+            button.type = "button";
+            button.id = LAUNCHER_ID;
+            button.innerHTML = `<i class="fa-solid fa-comments" inert></i>`;
+        }
         // Its language, the page's (E66 fix r1 F1; C1's `lang` on the module's containers, STATUS Open 3 and 19).
         markLanguage(button);
-        button.dataset.tooltip = launcherTooltip();
-        button.setAttribute("aria-label", launcherTooltip());
-        button.innerHTML = `<i class="fa-solid fa-comments" inert></i>`;
+        const tip = launcherTooltip();
+        if (button.dataset.tooltip !== tip) button.dataset.tooltip = tip;
+        if (button.getAttribute("aria-label") !== tip) button.setAttribute("aria-label", tip);
 
         // One count of every thread (messenger.mjs `threadStats`, E50 C2): a GM's every player's, a player's own.
         const unread = totalUnread();
+        let badge = button.querySelector(".drpg-messenger-badge");
         if (unread > 0) {
-            const badge = document.createElement("span");
-            badge.className = "drpg-messenger-badge";
-            badge.textContent = unread > 99 ? "99+" : String(unread);
-            button.append(badge);
-        }
+            if (!badge) {
+                badge = document.createElement("span");
+                badge.className = "drpg-messenger-badge";
+                button.append(badge);
+            }
+            const count = unread > 99 ? "99+" : String(unread);
+            if (badge.textContent !== count) badge.textContent = count;
+        } else badge?.remove();
+
+        refreshRoster();
+        if (!made) return;
 
         button.addEventListener("click", event => {
             event.preventDefault();
@@ -1539,6 +1651,22 @@ export function renderLauncher() {
 
 function launcherTooltip() {
     return game.i18n.localize("DRPG.Messenger.launcherTooltip");
+}
+
+/**
+ * The GM's open roster drawn again from the threads as they stand (1.2.122, the audit's REFR-15): a message, a read or
+ * a settled ask while it stood open changed the launcher's badge and not the row's preview or badge. Its list is
+ * replaced in place, the focus kept on the row it was on; a roster on its way out is left alone.
+ */
+function refreshRoster() {
+    const panel = document.getElementById("drpg-messenger-roster");
+    const list = panel?.querySelector("ul");
+    if (!panel || !list || panel.classList.contains("leaving")) return;
+    const focused = document.activeElement?.closest?.(".drpg-messenger-roster-row")?.dataset.drpgUser ?? null;
+    const stats = threadStats();
+    const rows = threadUsers().sort((a, b) => a.name.localeCompare(b.name)).map(user => rosterRow(user, stats));
+    list.replaceChildren(...rows);
+    if (focused) rows.find(li => li.dataset.drpgUser === focused)?.focus();
 }
 
 function toggleRoster(anchor) {
@@ -1633,6 +1761,10 @@ function buildRoster(anchor) {
 function rosterRow(user, stats = threadStats()) {
     const li = document.createElement("li");
     li.className = "drpg-messenger-roster-row";
+    li.dataset.drpgUser = user.id;
+    // A keyboard's control (1.2.122, the audit's CTRL-63): Tab reaches the row, Enter or Space opens it as a click does.
+    li.setAttribute("role", "button");
+    li.tabIndex = 0;
 
     const row = stats.get(user.id);
     const last = row?.last ?? null;
@@ -1663,6 +1795,11 @@ function rosterRow(user, stats = threadStats()) {
         const panel = li.closest("#drpg-messenger-roster");
         if (panel) closeRoster(panel);
         openMessenger(user.id);
+    });
+    li.addEventListener("keydown", event => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        li.click();
     });
 
     return li;
