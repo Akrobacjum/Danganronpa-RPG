@@ -1918,6 +1918,8 @@ The notice names what the table gets instead at each place. The whole register, 
 | `musicDialog` | `soundDialog` | no end set |
 | `currentRoom` | `roomOfActor` | no end set |
 
+**Remnants in a macro.** `game.drpg.remnantsOn(scene)` and `game.drpg.remnantsInRoom(room, scene)` answer one read-only record a Remnant (its `id`, its place and size, and `document`, the Remnant's token on a GM's browser), not token documents, since 1.2.98. A macro written for 1.2.97 that calls `.update()` or `.delete()` on what they answer fails: change a Remnant through `game.drpg.removeRemnant`, `revealRemnant` and the other Remnant calls, and read it with `game.drpg.remnantData`.
+
 ### 20.6 When the table lags
 
 Measure before you change anything, on the GM's machine and on the weakest player's, and send one block a machine:
@@ -2444,6 +2446,7 @@ What the table gets instead, by row. A setting or flag the module holds has a ro
 | `hook-dice-so-nice-roll-start` | every Hope and Despair die is drawn in the look its thrower's Daggerheart gave it, and the dice look's report names no throw seen on this browser |
 | `hook-livekit-initialized` | the voice rooms, the voice tile and the trial's speakers do not follow the voice client |
 | `hook-image-popout-header` | a room picture's window shows Foundry's share control and any a module adds |
+| `hook-actor-directory-render` | in a player's Actors list the masked student's entry alone wears the mask's question mark beside their name |
 | `token-bars-reserve` | a student's token bars fill up as they are hurt, as Daggerheart draws them, and another player sees their Sanity bar |
 | `state-icons-off-token` | Breakdown's and Wounded's icons show on every token, to everybody |
 | `dead-icon-own` | the dead overlay is Daggerheart's tombstone |

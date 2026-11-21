@@ -522,14 +522,27 @@ export function keyPlanStatus() {
             finders: Array.from(finders.get(r.token.id) ?? [])
         }));
 
+    /* A SLOT IS A KEY REMNANT WHEN IT HOLDS ONE (the audit's CASE-29, 1.2.122). `keyPlan` answers at least five slots
+       whatever was written, and `missing` counted every slot not found - a blank one, and one at or past the case's count
+       (`caseKeyCount`: four on Despair, three on a critical; the realization leaves those 'overLimit') - so "every planned
+       Key Remnant has been found" never came for a case of three or four, and the GM's line read "4 of 5". `missingKeyRows`'
+       rule now: a slot inside the case's count that holds a trace or words, or was found (`keyed`). `planned` counts those,
+       `total` adds the Key Remnants found off the plan, which `foundAny` counts too. Red at 21bf5d18 (R8227). */
+    const limit = caseKeyCount(plan.chapter);
+    for (const e of entries) {
+        e.keyed = (limit === null || e.slot < limit) && Boolean(e.found || e.tokenId || e.name || e.text);
+    }
     const found = entries.filter(e => e.found).length;
+    const keyed = entries.filter(e => e.keyed).length;
     return {
         entries,
         placed: entries.filter(e => e.placed).length,
         found,
         offPlan,
         foundAny: found + offPlan.length,
-        missing: entries.filter(e => !e.found).length
+        planned: keyed,
+        total: keyed + offPlan.length,
+        missing: entries.filter(e => e.keyed && !e.found).length
     };
 }
 

@@ -2788,7 +2788,9 @@
     },
     "Murder": {
       "openingReask": "Ask for the opening roll again",
-      "openingReaskSent": "The opening roll was offered again: to the victim of a trap, otherwise to the killer.",
+      "openingReaskSent": "The opening roll was offered again to {name}.",
+      "openingReaskHere": "Nobody playing {name} is connected, so the opening roll was thrown here.",
+      "openingReaskNone": "Nothing was sent: the opening's statistic window is already open, or it was closed without a choice.",
       "openingReaskWait": "The opening roll was offered a moment ago. Wait a few seconds before asking again.",
       "victimNoticedNext": "The victim noticed the trap. Nothing moves on by itself: they may use their Free Move if they still have it, and the incident stays open until you end it from the tracker.",
       "openTitle": "Murder",
@@ -2843,6 +2845,8 @@
       "passTooSoon": "The turn was passed a moment ago. Press Pass the turn again to pass the next one.",
       "endMurder": "End the murder",
       "endConfirm": "Stop tracking this murder? Lost Health and Sanity, items, and Remnants stay as they are.",
+      "afterPhaseMoved": "The phase has changed since this window opened, so it stays as it is now.",
+      "endConfirmSelf": "Ending it records {name}'s death, kept by the GMs until the body is found.",
       "afterTitle": "After the incident",
       "afterIntro": "{killer} against {victim}. The incident is closed; below is what follows from it.",
       "afterRoom": "The body is in {room}.",
@@ -6924,6 +6928,7 @@
         "hook-dice-so-nice-roll-start": "every Hope and Despair die is drawn in the look its thrower's Daggerheart gave it, and the dice look's report names no throw seen on this browser",
         "hook-livekit-initialized": "the voice rooms, the voice tile and the trial's speakers do not follow the voice client",
         "hook-image-popout-header": "a room picture's window shows Foundry's share control and any a module adds",
+        "hook-actor-directory-render": "in a player's Actors list the masked student's entry alone wears the mask's question mark beside their name",
         "token-bars-reserve": "a student's token bars fill up as they are hurt, as Daggerheart draws them, and another player sees their Sanity bar",
         "state-icons-off-token": "Breakdown's and Wounded's icons show on every token, to everybody",
         "dead-icon-own": "the dead overlay is Daggerheart's tombstone",
@@ -7041,6 +7046,7 @@
         "hook-dice-so-nice-roll-start": "Dice So Nice starts a throw on this screen",
         "hook-livekit-initialized": "the A/V client starts a room (voice on in this world)",
         "hook-image-popout-header": "a picture window (ImagePopout) opens on this browser",
+        "hook-actor-directory-render": "the Actors list is drawn on a player's browser",
         "hook-party-sheet-render": "the Party sheet is drawn on this browser"
       }
     },

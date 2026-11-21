@@ -3255,7 +3255,10 @@ export function traceTokenHeard(doc, changes) {
     return Boolean(ours && Object.keys(ours).some(k => k.replace(/^-=/, "") === REMNANT_FLAGS.isRemnant));
 }
 
-/** Every trace on a scene, one ref each (`traceRefsOf`): the store's rows read once a call. */
+/**
+ * Every trace on a scene, one ref each (`traceRefsOf`): the store's rows read once a call. Also `game.drpg.remnantsOn`:
+ * a macro gets frozen refs, not TokenDocuments, since E60 C1b (1.2.98; the GM handbook, 20.5; the audit's STG-66).
+ */
 export function remnantsOn(scene) {
     if (!scene) return [];
     return traceRefsOf(readRemnantLedger(), scene, scene.tokens);
@@ -3291,7 +3294,7 @@ export function sceneOfRemnant(tokenId) {
 }
 
 /**
- * Remnants inside a named room region.
+ * Remnants inside a named room region - frozen refs, as `remnantsOn` answers, also to a macro (`game.drpg.remnantsInRoom`).
  *
  * Resolved through `roomOfToken`, which falls back to a geometric test when a
  * token's region set is empty. Reading `t.regions` directly returned nothing at

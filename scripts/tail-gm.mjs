@@ -29,7 +29,7 @@
 
 import { MODULE_ID, FLAGS, INFILTRATE } from "./config.mjs";
 import { getClock, isDeadForGm } from "./settings.mjs";
-import { isPrimaryGm, hiddenByGm, whisperToOwnerOnly, log, error, esc, listOf } from "./utils.mjs";
+import { isPrimaryGm, whisperToOwnerOnly, log, error, esc, listOf } from "./utils.mjs";
 import { tailStore } from "./gm-stores.mjs";
 import { CROSSING_SETTLED } from "./crossing-settle.mjs";
 import { BODY_ANNOUNCED_HOOK } from "./chapter.mjs";
@@ -93,15 +93,16 @@ async function endsSilently(tailer, target) {
 
 /**
  * Who stands in `room` of `scene` as the GMs read it, for a critical tail's card: characters on tokens the GMs have not
- * hidden, in that room, no Monocub or Monokuma, none the GMs hold dead, not `skip`'s.
+ * hidden, in that room, no Monocub, Monokuma or Spectator, none the GMs hold dead, not `skip`'s.
  */
-async function standingIn(scene, room, skip) {
-    const { roomOfToken } = await import("./movement.mjs");
+export async function standingIn(scene, room, skip = new Set()) {
+    // No Spectator either (the audit's ITEM-21, 1.2.122): movement.mjs `countsAsPresent`, the room's one answer.
+    const { roomOfToken, countsAsPresent } = await import("./movement.mjs");
     const names = [];
     for (const token of scene?.tokens ?? []) {
         const actor = token.actor;
-        if (!actor || actor.type !== "character" || hiddenByGm(token) || skip.has(actor.id)) continue;
-        if (actor.getFlag(MODULE_ID, FLAGS.monocub) || actor.getFlag(MODULE_ID, FLAGS.monokuma) || isDeadForGm(actor)) continue;
+        if (!countsAsPresent(token) || skip.has(actor.id)) continue;
+        if (actor.getFlag(MODULE_ID, FLAGS.monocub)) continue;
         if (roomOfToken(token) !== room || names.includes(actor.name)) continue;
         names.push(actor.name);
     }

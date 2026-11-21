@@ -44,6 +44,7 @@ import { tokenShownAsSeen, forgetSeenPass, tintAsSeen } from "./projects-seen.mj
 import { debug } from "./utils.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
+import { userVeiledFromHere } from "./mask-gm.mjs";
 
 export function registerVisibility() {
     // A token this browser hides gives it no sight (E112v): the token class's vision-source test asks `tokenShownTo` too.
@@ -1011,14 +1012,8 @@ export function installSightRule(TokenClass = globalThis.CONFIG?.Token?.objectCl
  * veil hides them from. `viewer` and `scenes` are the suite's (R7864).
  */
 export function voiceVeiledHere(user, { viewer = viewerHere(), scenes = game.scenes ?? [] } = {}) {
-    if (!user || user.isGM || viewer?.gm || user.id === game.user?.id) return false;
-    for (const scene of scenes) {
-        for (const tokenDoc of scene?.tokens ?? []) {
-            if (!veiledToken(tokenDoc) || !tokenDoc.actor?.testUserPermission?.(user, "OWNER")) continue;
-            if (tokenShownTo(tokenDoc, viewer) === "hide") return true;
-        }
-    }
-    return false;
+    // The pickers' rule (mask-gm.mjs `veilHidesHere`, 1.2.122 line MURDER): one predicate, this browser's verdict handed in.
+    return userVeiledFromHere(user, { scenes, shown: tokenDoc => tokenShownTo(tokenDoc, viewer), user: game.user, gm: Boolean(viewer?.gm) });
 }
 
 /** This browser's answer for a token's ruler (the ruler class's predicate). */

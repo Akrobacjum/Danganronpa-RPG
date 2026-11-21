@@ -912,14 +912,27 @@ export function askPendingBodies({ leaving = null } = {}) {
     return askingPending;
 }
 
+/*
+ * THE ROWS READ AGAIN AFTER EACH WINDOW (the audit's CTRL-34 and CASE-67, 1.2.122). The rows were read once, before the
+ * first window, and a second room whose witnesses reached the count while it stood wrote its row and was handed the
+ * running prompt's promise (`askPendingBodies`) - asked by nothing when that prompt ended, and by no later walk into its
+ * room, whose row stood. Each window now takes the oldest waiting row this prompt has not asked yet, read afresh, so a
+ * row written meanwhile is asked in the same prompt; a row answered "Not yet" is not asked twice by one prompt. Red at
+ * 21bf5d18 (tier 2 "1.2.122 CTRL-34"): one window for two discoveries.
+ */
 async function promptPendingBodies() {
     const { flagsHeldNow } = await import("./sheet-audit.mjs");
-    const rows = pendingBodyDiscoveries({ held: flagsHeldNow });
-    const live = new Set(rows.map(r => r.key));
-    const stale = Object.keys(pendingBodyStore.entries() ?? {}).filter(key => !live.has(key));
-    if (stale.length) await pendingBodyStore.dropMany(stale);
+    const asked = new Set();
+    const nextRow = async () => {
+        const rows = pendingBodyDiscoveries({ held: flagsHeldNow });
+        const live = new Set(rows.map(r => r.key));
+        const stale = Object.keys(pendingBodyStore.entries() ?? {}).filter(key => !live.has(key));
+        if (stale.length) await pendingBodyStore.dropMany(stale);
+        return rows.find(r => !asked.has(r.key)) ?? null;
+    };
     let announced = 0;
-    for (const row of rows) {
+    for (let row = await nextRow(); row; row = await nextRow()) {
+        asked.add(row.key);
         if (!pendingBodyStore.has(row.key) || !isPrimaryGm()) continue;
         const body = game.actors.get(row.victimId);
         /* WHERE THE BODY LIES NOW (E59 on the 1.2.115 line, CHAINS.md B-M2; R7174): the row keeps the room the witnesses saw
@@ -946,6 +959,16 @@ async function promptPendingBodies() {
         if (done) announced++;
     }
     return announced;
+}
+
+/**
+ * Whom "Whose body?" offers (the GM's Body found window): every student dead as the GMs hold it but a Monocub (the
+ * audit's CASE-68, 1.2.122). A Monocub keeps the deceased flag and walks the map, and no walk-in ever names one (the
+ * walk-in's rule, `deadIn` with `FLAGS.monocub` above); offered unmarked, a press announced "the body of X" while X walked
+ * as a Monocub. Pure but for the flags it reads (R8226).
+ */
+export function bodyCandidates(actors, { dead = isDeadForGm } = {}) {
+    return (actors ?? []).filter(a => dead(a) && !a?.getFlag?.(MODULE_ID, FLAGS.monocub));
 }
 
 /**
@@ -1164,7 +1187,7 @@ export async function openBodyDiscoveryDialog() {
     // The dead are the candidates here - the victim is normally already marked
     // by the time anybody trips over them. One this chapter has announced says so (E11 fix
     // r1-G2): `runDiscovery` refuses it a second time.
-    const dead = studentActors().filter(isDeadForGm);
+    const dead = bodyCandidates(studentActors());
     const victims = dead.map(a => {
         const name = foundry.utils.escapeHTML(a.name);
         const label = announcedAlready(a, flagsHeldNow) ? game.i18n.format("DRPG.Chapter.victimAnnounced", { name }) : name;

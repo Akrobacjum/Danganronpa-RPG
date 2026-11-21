@@ -14608,7 +14608,8 @@ const REGRESSIONS = [
                 && /scene: esc\(scene\?\.name \?\? "\?"\)/.test(fnSource(code("traps.mjs"), "alert")),
             oneScene: /place\.scene\.id === projectScene\(countdownId\)\?\.id/.test(fnSource(code("projects.mjs"), "standsAtProject"))
                 && /standsAtProject\(\{ room, scene \}, trap\.id\)/.test(fnSource(code("traps.mjs"), "armedIn"))
-                && /return sameRoom\(actor, victim\);/.test(fnSource(cleanupBy(code), "bodyIsHere"))
+                // Where the body lies, on the killer's scene, floor and room (1.2.122 line MURDER, the audit's CASE-32).
+                && /return samePlace\(locateActor\(actor\), locateActor\(victim, \{ body: true \}\)\);/.test(fnSource(cleanupBy(code), "bodyIsHere"))
                 && /DRPG\.Panel\.noSceneNamed/.test(fnSource(api, "sceneNamed"))
                 && /if \(room && game\.user\?\.isGM && !sceneOfRoom\(room\)\)/.test(fnSource(api, "createProjectNamed")),
             putBack: /if \(!roomFlagSeen\.has\(region\.id\)\) return keepRoomFlag\(region, undefined, false, author\);/.test(fnSource(movement, "judgeRoomFlagChange"))

@@ -970,6 +970,9 @@ export async function handleCleanup(payload, sender, ctx, prepared) {
         rollId: payload.rollId,
         by: sender.id
     });
+    // Its one refusal answered as an object (`{ refused }`: a Tamper with no step to pay for it) is passed on, as the
+    // Stage 6 branch above passes its own (the audit's CASE-59, 1.2.122): read as an answer, it was told as done.
+    if (cleaned?.refused) return { refused: cleaned.refused };
     if (!cleaned) return { refused: "nothing was carried out: resolveCleanup cleaned nothing" };
 }
 

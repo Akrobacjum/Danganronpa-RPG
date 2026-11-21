@@ -83,7 +83,7 @@ import { dropRemnant, traceFeedback, publishTiesFor, fightKey, remnantById } fro
 import { closeOpen } from "./live.mjs";
 import {
     announce as announcePlain, whisperToGms, whisperToOwner as whisperToOwnerPlain, ownerOf,
-    ownerIdsOf, gmIds, isPrimaryGm, hiddenByGm, log, warn, error, plural, listOf, proseOf, debug, esc, cardHead, markFired
+    ownerIdsOf, gmIds, isPrimaryGm, primaryGmId, hiddenByGm, log, warn, error, plural, listOf, proseOf, debug, esc, cardHead, markFired
 } from "./utils.mjs";
 // The kit's frame (E21 C3a): the fight's questions and the checklists after it, answering as before.
 import { drpgWindow, drpgConfirm, tipText } from "./ui-kit.mjs";
@@ -3800,7 +3800,14 @@ async function afterIncident(state) {
             ? "DRPG.Murder.afterIndirect"
             : "DRPG.Murder.afterDirect"));
 
-    const alreadyInvestigating = getClock().phase === "investigation";
+    const phaseAtOpen = getClock().phase;
+    const alreadyInvestigating = phaseAtOpen === "investigation";
+    /* THE BODY'S BUTTON ON THE GM WHO CAN PRESS IT (the audit's CTRL-79, 1.2.122). Any GM may end a murder and so open
+       this checklist, but only the primary GM announces a body (body.mjs `discoveryHere`): on another GM the primary
+       button - the one Enter presses - closed the window and was refused. There it is not drawn, and the note says whose
+       the announcement is, in the words the refusal used. */
+    const announcesHere = isPrimaryGm();
+    const primaryName = game.users.get(primaryGmId() ?? "")?.name ?? "?";
 
     // Zdrada. The guide's fifth walk-in entry, and the one place two bodies come
     // from: "po zabiciu pierwszego oryginalnego uczestnika" the newcomer may
@@ -3838,12 +3845,14 @@ async function afterIncident(state) {
                 third: foundry.utils.escapeHTML(traitor.name),
                 killer: foundry.utils.escapeHTML(killer?.name ?? "?")
             })}</p>` : ""}
+            ${announcesHere ? "" : `<p class="notes">${game.i18n.format("DRPG.Chapter.bodyPrimaryOnly", { name: foundry.utils.escapeHTML(primaryName) })}</p>`}
         </div>`,
         footer: {
             // THE BODY FIRST, AND IT NO LONGER STARTS STAGE 7 (D5). Announcing
             // the discovery and starting the investigation are two decisions
             // now, and this window offers them in that order.
-            primary: { action: "body", label: game.i18n.localize("DRPG.Chapter.bodyTitle"), tooltip: tipText("DRPG.Tips.Trial.bodyFoundTooltip") },
+            // None on a GM who is not the primary (the kit draws no primary for null; CTRL-79).
+            primary: announcesHere ? { action: "body", label: game.i18n.localize("DRPG.Chapter.bodyTitle"), tooltip: tipText("DRPG.Tips.Trial.bodyFoundTooltip") } : null,
             secondary: [
                 ...(alreadyInvestigating ? [] : [{
                     action: "investigation",
@@ -3869,6 +3878,13 @@ async function afterIncident(state) {
         // Only the phase. Announcing the body is its own button above, and
         // since D5 it is its own beat: the discovery holds the game in Daily
         // Life until a GM presses this or moves the clock.
+        // AS THE CLOCK STOOD WHEN IT WAS OFFERED (the audit's REFR-41, 1.2.122): a checklist answered late - the
+        // Investigation begun meanwhile, or the Class Trial sitting - wrote "investigation" over the phase it found.
+        // A phase moved since the window opened is left as it is, and the GM told.
+        if (getClock().phase !== phaseAtOpen) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Murder.afterPhaseMoved"));
+            return null;
+        }
         const { setPhase } = await import("./clock.mjs");
         return setPhase("investigation");
     }

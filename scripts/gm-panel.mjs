@@ -922,7 +922,8 @@ export function nextStep(clock, { setupList, incident = game.drpg?.murderState?.
         } catch {
             status = null;
         }
-        if (status?.entries?.length && status.missing === 0) {
+        // `planned`: the slots that hold a Key Remnant (key-remnants.mjs `keyPlanStatus`, the audit's CASE-29), not every slot.
+        if (status?.planned && status.missing === 0) {
             return { text: game.i18n.localize("DRPG.Panel.nextStartTrial"), action: "trial" };
         }
         return { text: game.i18n.localize("DRPG.Panel.nextInvestigation"), action: "investigation" };

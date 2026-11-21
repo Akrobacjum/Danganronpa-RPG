@@ -275,7 +275,7 @@ export async function chooseVariant({
  * every action window"). `actionWindow` is the one builder of an action's window, as call-pickers.mjs `callWindow` is the
  * Calls': the briefing in the left column, the question in the right, in ui-columns.mjs's window of one stated width
  * (`WIDE`, 1120 px). `chooseVariant` opens through it (every action menu), and so do the windows an action draws itself
- * (Listen's room, Move's briefing, a project picked to work on); R3200 holds the list. The right column ends in the
+ * (Listen's room, a project picked to work on; Move's briefing went with the Move window, E100 item 1); R3200 holds the list. The right column ends in the
  * statistic's slot (`TRAIT_SLOT`: `traitFieldHtml`'s field, and E68 C4's proposal and the player's "how"), under the rows
  * and the caller's `extra`: the owner's Q3 of round M keeps the field there. What it measured: S/stages/E68/STATUS.md E68-C12.
  *
@@ -301,8 +301,8 @@ const TRAIT_SLOT = "drpg-action-trait";
  * on every render (`wireDetails`), before the caller's own `render`.
  */
 export function actionWindow({ brief = "", ask = "", classes = [], render = null, ...rest } = {}) {
-    // A window that asks nothing (Move's briefing) is its left column alone, at half the width: an empty right column
-    // would be 540 px of nothing.
+    // A window that asks nothing is its left column alone, at half the width: an empty right column would be 540 px of
+    // nothing. Move's briefing was the one such window until E100 item 1 took it away; the branch is kept for the next.
     return wideWindow({
         ...(ask ? {} : { width: WIDE.width / 2 }),
         ...rest,
@@ -533,6 +533,18 @@ export async function promptForNote(actor, { title, prompt, placeholder, traits 
         },
         rejectClose: false
     }).catch(() => "");
-    if (propose) return result && typeof result === "object" ? result : { note: "", proposed: null };
-    return typeof result === "string" ? result : "";
+    return noteAnswerOf(result, traits);
+}
+
+/**
+ * `promptForNote`'s answer, in one shape for each caller (the audit's ROLL-32, 1.2.122): a caller that hands `traits` -
+ * Direct Murder's declaration - reads `{ note, proposed }` whatever the list holds, and one that hands none the sentence
+ * alone. Until 1.2.122 a list of one statistic answered the string, and the declaration's destructuring lost the
+ * sentence (latent: MURDER_OPENING's killer lists two). A list of one proposes nothing: `proposed` is null, as a closed
+ * window's. Pure (R8223).
+ */
+export function noteAnswerOf(result, traits = null) {
+    if (traits === null || traits === undefined) return typeof result === "string" ? result : "";
+    if (result && typeof result === "object") return { note: String(result.note ?? ""), proposed: result.proposed ?? null };
+    return { note: typeof result === "string" ? result : "", proposed: null };
 }

@@ -68,11 +68,11 @@ import { PRICE_CHAINS, ACTIONS, MODULE_ID, CLEANUP, RESOLUTION_STRESS_COST, REMN
 import { quotePrice, payPrice, refundPrice, paidLine, priceLabel } from "./price.mjs";
 import { getClock } from "./clock.mjs";
 import { bodyDiscovery, seasonEpoch } from "./settings.mjs";
-import { murderState, killerIds, blackenedIds, refOf, swungWeaponOf, spendFreeCleanup, knowsOfDeath } from "./murder.mjs";
+import { murderState, killerIds, participantIds, blackenedIds, refOf, swungWeaponOf, spendFreeCleanup, knowsOfDeath } from "./murder.mjs";
 import { usedToolStore, blackenedStore, cleanupAttemptStore, caseMark, deathStore } from "./gm-stores.mjs";
 import { readMine } from "./gm-store.mjs";
 import { remnantsInRoom, remnantData, removeRemnant, dropRemnant, setRemnantPublic, remnantPublic, remnantById } from "./remnants.mjs";
-import { locateActor, sameRoom, whilePlacing } from "./movement.mjs";
+import { locateActor, whilePlacing } from "./movement.mjs";
 import { isCubToken } from "./spectator.mjs";
 import { roomRegions } from "./rooms.mjs";
 import { equippedFor, breakOnDespair } from "./use-items.mjs";
@@ -86,7 +86,7 @@ import { trustedWrite } from "./resource-guard.mjs";
 import { announce as announcePlain, whisperToGms, log, error, cardHead, isPrimaryGm, plural, listOf } from "./utils.mjs";
 import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
 
-import { findRemnantToken, askTransform, whisperToOwner, plainText, proposeReshape, keepAttempt, recreationDataFor, attemptOf, forgetAttempt, keepAttemptFact } from "./cleanup-reshape.mjs";
+import { findRemnantToken, askTransform, whisperToOwner, plainText, proposeReshape, keepAttempt, recreationDataFor, attemptOf, forgetAttempt, keepAttemptFact, traceLabelFor } from "./cleanup-reshape.mjs";
 export { askTransform, plainText, reshapeCardParts, applyReshapeRuling, declineReshapeRuling, ruleReshape, askTransformChange, attemptOf } from "./cleanup-reshape.mjs";
 
 const announce = data =>
@@ -147,11 +147,29 @@ export function isCleaner(actor) {
  * killer's scene, found none: "The body would not move", and the step was gone.
  * A body that cannot be placed is not here, and the action is refused before it
  * is paid for.
+ *
+ * WHERE THE BODY LIES, NOT WHERE ITS MONOCUB WALKS (the audit's CASE-32, 1.2.122).
+ * A victim who became a Monocub holds two tokens, and `sameRoom` asks for the one
+ * it walks (movement.mjs `walkerOrBody`): with the Monocub beside the killer the
+ * check passed and `applyMoveBody`, which carries the corpse (`!isCubToken`),
+ * pulled it from wherever it lay; with the corpse beside the killer the action was
+ * refused. The body's place now (`locateActor(victim, { body: true })`), on the
+ * same scene, floor and room as the killer's own. Red at 21bf5d18 (R8223 reads
+ * the two places this compares).
  */
 export function bodyIsHere(actor) {
     const victim = game.actors.get(murderState()?.victimId ?? "");
     if (!victim) return false;
-    return sameRoom(actor, victim);
+    return samePlace(locateActor(actor), locateActor(victim, { body: true }));
+}
+
+/** Whether two of `locateActor`'s answers are one room on one scene and floor (movement.mjs `sameRoom`'s rule). */
+export function samePlace(here, there) {
+    if (!here?.room || !there?.room) return false;
+    if (here.scene?.id !== there.scene?.id) return false;
+    const level = place => place.level?.id ?? place.level ?? null;
+    if (level(here) !== level(there)) return false;
+    return here.room === there.room;
 }
 
 /** Say which of the four it is, and refuse. @returns {null} always. */
@@ -794,7 +812,7 @@ async function cleanupRefusal(actor, token, data, viaAction, price = null, grant
     // what the player's browser paid before the dice comes back with the refusal.
     if (data.reinforced) {
         await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Cleanup.reinforced", {
-            what: foundry.utils.escapeHTML(`${data.visibilityLabel} ${data.typeLabel}`)
+            what: foundry.utils.escapeHTML(traceLabelFor(actor, token.id, data, { cleaner: isCleaner(actor) }))
         })}</p>${await refundRefused(actor, price, grant, by)}`);
         return { removed: false, reinforced: true };
     }
@@ -960,7 +978,7 @@ async function resolveEraseRoad(actor, token, data, { outcome, transforming, isC
             // difference between a rule and two rules that can drift apart.
             await removeRemnant(token);
             done.push(game.i18n.format("DRPG.Cleanup.removed", {
-                what: `${data.visibilityLabel} ${data.typeLabel}`
+                what: foundry.utils.escapeHTML(traceLabelFor(actor, token.id, data, { cleaner: isCleaner(actor) }))
             }));
         } catch (err) {
             error("Could not remove the Remnant a clean-up erased", err);
@@ -1595,10 +1613,20 @@ function stageSixDef(actor, key, { viaAction = false } = {}) {
  * The murder victim is excluded only when there IS one. Framing the person
  * lying dead in the room is a confession with extra steps - but outside an
  * incident `murderState()` has no victim and the filter simply does not bite.
+ *
+ * AND ONLY FOR A ROLLER IN THE INCIDENT (the audit's CASE-30, 1.2.122). A
+ * bystander's browser holds no cast, so their Tamper menu offered the victim;
+ * the GM, holding the whole cast, then left the victim out and refused the
+ * trail with "You cannot frame that student" - the one name the menu offered
+ * that could be refused, so the refusal named the victim of an incident the
+ * bystander is kept out of. Asked of the seats (`participantIds`) on both
+ * browsers: a bystander's trail at the victim stands like any other. Red at
+ * 21bf5d18: the GM's list for a bystander lacked the victim.
  */
 export async function framingCandidates(actor) {
     const { livingStudents } = await import("./chapter.mjs");
-    const victimId = murderState()?.victimId;
+    const state = murderState();
+    const victimId = actor && participantIds(state).has(actor.id) ? state?.victimId : null;
     return livingStudents()
         .filter(a => a.id !== actor?.id && a.id !== victimId && !isMonokuma(a));
 }

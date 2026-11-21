@@ -1918,6 +1918,8 @@ Migracja danych działa sama przy wczytaniu, w przeglądarce głównego GM-a, il
 | `musicDialog` | `soundDialog` | bez terminu |
 | `currentRoom` | `roomOfActor` | bez terminu |
 
+**Remnanty w makrze.** `game.drpg.remnantsOn(scene)` i `game.drpg.remnantsInRoom(room, scene)` od 1.2.98 zwracają jeden zapis tylko do odczytu na Remnant (jego `id`, miejsce i rozmiar oraz `document`, token Remnantu w przeglądarce GM-a), a nie dokumenty tokenów. Makro napisane dla 1.2.97, które woła `.update()` albo `.delete()` na tym, co zwracają, nie zadziała: Remnant zmieniaj przez `game.drpg.removeRemnant`, `revealRemnant` i inne wywołania Remnantów, a czytaj przez `game.drpg.remnantData`.
+
 ### 20.6 Gdy stół laguje
 
 Zmierz, zanim cokolwiek zmienisz, na komputerze GM-a i na najsłabszym komputerze gracza, i odeślij jeden blok z każdego komputera.
@@ -2444,6 +2446,7 @@ Co stół dostaje zamiast tego, wiersz po wierszu. Ustawienie albo flaga, które
 | `hook-dice-so-nice-roll-start` | każda kość Hope i Despair rysuje się w wyglądzie, który nadał jej Daggerheart osoby rzucającej, a raport wyglądu kości nie wymienia żadnego rzutu widzianego w tej przeglądarce |
 | `hook-livekit-initialized` | pokoje głosowe, kafelek głosu i mówcy rozprawy nie podążają za klientem głosu |
 | `hook-image-popout-header` | okno zdjęcia pokoju pokazuje przycisk udostępniania Foundry i każdy, który doda moduł |
+| `hook-actor-directory-render` | na liście aktorów gracza tylko wpis zamaskowanego ucznia ma znak zapytania maski obok imienia |
 | `token-bars-reserve` | paski na żetonach uczniów rosną, gdy uczeń traci punkty, jak rysuje je Daggerheart, a inny gracz widzi pasek Sanity |
 | `state-icons-off-token` | ikony Breakdown i Wounded są widoczne na każdym żetonie, dla każdego |
 | `dead-icon-own` | nakładka zmarłego to nagrobek z Daggerheart |

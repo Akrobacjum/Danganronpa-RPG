@@ -11,7 +11,7 @@ import { CLEANUP, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, REMNANT_TYPES }
 import { cardWarn } from "./chat-card.mjs";
 import { cleanupAttemptStore } from "./gm-stores.mjs";
 import { remnantById, sceneOfRemnant, tieState, remnantData, removeRemnant } from "./remnants.mjs";
-import { heldCopiesOf } from "./truth-bullets.mjs";
+import { heldCopiesOf, bulletsOf, secretOf } from "./truth-bullets.mjs";
 import { whisperToOwner as whisperToOwnerPlain, plural, whisperToGms, log, cardHead, esc } from "./utils.mjs";
 import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
 
@@ -87,8 +87,9 @@ export async function keepAttemptFact(rolls, roll, actorId, receipt) {
 /**
  * Enough to build this Remnant again where it stood, with everything it knew.
  *
- * `placeRemnant` takes exactly this shape, so recreating is handing the flags
- * back rather than reconstructing them from a summary.
+ * `placeRemnant` takes exactly this shape, read off the trace's ledger row
+ * (`remnantData`, CASE-06 below), so recreating is handing that row back rather
+ * than reconstructing it from a summary; the token itself carries only `isRemnant`.
  *
  * THE TOKEN'S ID COMES BACK TOO (E08+E28 C3, 03.10.2026; audit S05-07). It was
  * the one thing that did not: the undo re-placed the trace without it, so
@@ -305,6 +306,25 @@ export function plainText(value, max) {
 }
 
 /**
+ * How a Tamper's result card names the trace to its roller (the audit's CASE-28, 1.2.122). The menu labels a
+ * trace this character holds a copy of by that copy's name and by nothing of the ledger (cleanup.mjs
+ * `cleanableTracesForPlayer`, E05 C14), because the category is what an Analyze is paid for; the cards after the roll
+ * printed the ledger's band and category all the same - "The Subtle Incident Remnant is gone" to a roller holding an
+ * unanalysed copy. The same rule now: Stage 6's cleaner (`cleaner`) is read the whole label, as their guide reads the
+ * whole room; anyone else holding a copy is read the copy's name; one with no copy (a trace they watched being made,
+ * the only other road in) the whole label, as the menu showed it. The GMs' card keeps the whole label. Red at
+ * 21bf5d18: the erase's line named the band and the category.
+ */
+export function traceLabelFor(actor, tokenId, data, { cleaner = false } = {}) {
+    if (!cleaner && actor && tokenId) {
+        for (const item of bulletsOf(actor)) {
+            if (secretOf(item.uuid).remnantId === tokenId) return game.i18n.format("DRPG.Tamper.yourCopy", { name: item.name });
+        }
+    }
+    return `${data.visibilityLabel} ${data.typeLabel}`;
+}
+
+/**
  * Write the killer's story onto a trace. GM-side, and the ONLY writer.
  *
  * Both reshape roads end here - the Tamper action's own (declared before the
@@ -334,7 +354,7 @@ export function plainText(value, max) {
  * already held".
  */
 async function reshapeTrace(token, data, {
-    name = "", text = "", softer = null, tie = false, receipt = null, done = []
+    name = "", text = "", softer = null, tie = false, receipt = null, done = [], actor = null
 } = {}) {
     const { retuneRemnant, setRemnantPublic, remnantData } = await import("./remnants.mjs");
     const { REMNANT_VISIBILITY_LABELS, REMNANT_TYPES } = await import("./config.mjs");
@@ -390,7 +410,7 @@ async function reshapeTrace(token, data, {
     if (Object.keys(story).length) await setRemnantPublic(token, story, { propagate: false });
 
     done.push(game.i18n.format("DRPG.Cleanup.reshaped", {
-        from: `${data.visibilityLabel} ${data.typeLabel}`,
+        from: foundry.utils.escapeHTML(traceLabelFor(actor, token.id, data, { cleaner: tie })),
         band: REMNANT_VISIBILITY_LABELS[patch.visibility ?? data.visibility]
             ?? data.visibilityLabel,
         kind: REMNANT_TYPES[patch.type]?.label ?? patch.type,
@@ -652,7 +672,8 @@ export async function applyReshapeRuling({ actorId, tokenId, attempt = "" } = {}
     await reshapeTrace(token, data, {
         name: safeName, text: safeText, softer: quieter, tie: Boolean(tie),
         receipt,
-        done
+        done,
+        actor
     });
     if (receipt.transformed) {
         await cleanupAttemptStore.patch(actorId, { transformed: receipt.transformed }, { ifLive: true });

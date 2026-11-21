@@ -451,9 +451,9 @@ export function incidentAudienceIds(state = murderState(), { stage = state?.stag
  * incident (D18) - the offer alone, once the incident running is not theirs
  * (`castFor`).
  */
-function castOwners(cast, state = null) {
+function castOwners(cast, state = null, { betrayal = true } = {}) {
     const live = state ?? game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
-    return new Set(incidentAudienceIds({ ...live, ...cast, indirect: incidentIndirect(cast, live) }, { betrayal: true }));
+    return new Set(incidentAudienceIds({ ...live, ...cast, indirect: incidentIndirect(cast, live) }, { betrayal }));
 }
 
 /**
@@ -1223,12 +1223,16 @@ const DEATHS_FOUND = "deaths.found";
  * running incident's seats when this actor is its victim, as `castOwners` gives them now.
  * Counted as at Stage 6, where a trap's killer is let back in: the engine's kill sites run
  * after the stage has moved, and the GM's death dialog runs just before it is offered.
+ * The seats alone: a standing betrayal offer's third holds a copy of the cast for the offer
+ * (`castFor`), not a seat in this incident, and an offer outlives its own incident until the
+ * day ends - so with `betrayal: false` an earlier incident's third is not told of this death
+ * (the audit's CASE-21, 1.2.122; red at 21bf5d18, the third's player named).
  */
 export function incidentKnowers(actor) {
     if (!game.user?.isGM || !actor) return [];
     const state = murderState();
     if (!state?.active || state.victimId !== actor.id) return [];
-    return [...castOwners(readCast(), { ...state, stage: "resolution" })];
+    return [...castOwners(readCast(), { ...state, stage: "resolution" }, { betrayal: false })];
 }
 
 /** Whether this user may know of this death kept by the GMs: a GM, a user named in its row, or an owner of the body. */
@@ -1886,13 +1890,19 @@ export async function clearBlackened() {
  * of an incident running since 1.2.65, which tried Escape together and failed or took
  * Use an item - and an escape tried loses the offer, as it did then.
  */
-export function betrayalCandidate(state, killer) {
+export function betrayalCandidate(state, killer, deadNow = actor => isDeadForGm(actor)) {
     if (!state?.thirdId || !killer) return null;
     if (!leftABody(state)) return null;
     if (state.thirdSide !== "killer" && (incidentIndirect(state) || state.thirdActed)) return null;
     const third = game.actors.get(state.thirdId);
     if (!third || third.id === killer.id) return null;
     if (isMonokuma(third)) return null;
+    /* BOTH ALIVE, ON EVERY ROAD (the audit's CASE-26, 1.2.122). The tile (murder-rules.mjs `betrayalTarget`) and a
+       betrayal opened at the lights asked it; the GM's checklist and the offer's arming read this and asked nothing, so a
+       killer dead by a GM's hand during Stage 6 was offered as the betrayal's victim and the button opened an incident on
+       a dead student. Asked here, of the GMs' knowledge (`isDeadForGm`); `deadNow` is the suite's (R8222). Red at
+       21bf5d18: a dead killer was answered with the third. */
+    if (deadNow(third) || deadNow(killer)) return null;
     return third;
 }
 

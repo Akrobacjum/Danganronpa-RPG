@@ -591,7 +591,7 @@ function incidentSignature(now) {
  * secondary; End the murder destructive - it asks first, and is never the default; Close, since the tracker answers
  * nothing (E21 rule 3).
  */
-function incidentButtons(state, { silence = false } = {}) {
+export function incidentButtons(state, { silence = false } = {}) {
     const list = [
         /* SILENCE NOW (E72 C8; the plan's A9 of 11.10): the victim dead and not found, its voice still in the room it died
            in - a GM may send it to its own room now (incident-store.mjs `silenceDeadNow`). A way on, as Pass. */
@@ -624,7 +624,10 @@ function incidentButtons(state, { silence = false } = {}) {
         // once more from here (CASE-10): the alternative was End and open
         // it again, which repeated the whole three-strike loop. Rate-limited
         // on this client so a held Enter cannot stack windows again.
-        ...(state.stage === "openingRoll" && !state.selfInflicted ? [
+        // A death by the student's own hand keeps it (the audit's CTRL-32, 1.2.122): it opens on Stage 4's roll too,
+        // re-offered three times, and the GMs' notice when it is not made (DRPG.Murder.openingDeclined) says to press
+        // this; only Pass has no place in it.
+        ...(state.stage === "openingRoll" ? [
             { action: "reask", label: game.i18n.localize("DRPG.Murder.openingReask") }
         ] : []),
         ...(state.stage === "openingRoll" || state.selfInflicted ? [] : [
@@ -651,6 +654,11 @@ function incidentButtons(state, { silence = false } = {}) {
     };
 }
 
+/** Whether ending this incident now records a death: one by the student's own hand at Stage 6 (`endMurder`). Pure (R8225). */
+export function endRecordsDeath(state) {
+    return Boolean(state?.selfInflicted && state.stage === "resolution");
+}
+
 /** The empty state's footer (E47-C2): Open a murder... the primary and the default, Close beside it. */
 function emptyButtons() {
     return {
@@ -659,20 +667,35 @@ function emptyButtons() {
     };
 }
 
-/** Send the opening roll again, once the cooldown allows. */
-function reaskOpening() {
+/**
+ * Send the opening roll again, once the cooldown allows. Answers the promise of the re-ask (the suite's, R8224); the
+ * tracker does not wait on it.
+ *
+ * SAID WHEN IT IS KNOWN, AND AS IT WENT (the audit's CTRL-77, CTRL-78, 1.2.122). "The opening roll was offered again"
+ * was said in the same step as `rollOpening` began, which sends nothing while this browser's statistic window is open
+ * or when its own window is closed, and throws the roll on this GM's browser when nobody playing the roller is
+ * connected. The words now follow `rollOpening`'s answer: offered to whom (`asked`), thrown here (any other answer), or
+ * nothing sent (null).
+ */
+export function reaskOpening() {
     const now = Date.now();
     if (now - lastReask < REASK_COOLDOWN_MS) {
         ui.notifications.warn(game.i18n.localize("DRPG.Murder.openingReaskWait"));
-    } else {
-        lastReask = now;
-        const current = murderState();
-        if (current?.stage === "openingRoll") {
-            rollOpening(current.indirect ? "victim" : "killer", current)
-                .catch(err => error("Could not re-send the opening roll", err));
-            ui.notifications.info(game.i18n.localize("DRPG.Murder.openingReaskSent"));
-        }
+        return Promise.resolve(null);
     }
+    lastReask = now;
+    const current = murderState();
+    if (current?.stage !== "openingRoll") return Promise.resolve(null);
+    const side = current.indirect ? "victim" : "killer";
+    const roller = game.actors.get((side === "killer" ? current.killerId : current.victimId) ?? "");
+    return rollOpening(side, current)
+        .then(out => {
+            if (out?.asked) ui.notifications.info(game.i18n.format("DRPG.Murder.openingReaskSent", { name: out.of ?? "" }));
+            else if (out) ui.notifications.info(game.i18n.format("DRPG.Murder.openingReaskHere", { name: roller?.name ?? "" }));
+            else ui.notifications.warn(game.i18n.localize("DRPG.Murder.openingReaskNone"));
+            return out ?? null;
+        })
+        .catch(err => { error("Could not re-send the opening roll", err); return null; });
 }
 
 /** The live tracker: whose turn, what is left, and the controls. */
@@ -795,7 +818,10 @@ export async function openIncidentTracker() {
             no: "cancel",
             classes: ["drpg-panel"],
             title: game.i18n.localize("DRPG.Murder.endMurder"),
-            body: `<p>${game.i18n.localize("DRPG.Murder.endConfirm")}</p>`
+            // A death by the student's own hand at Stage 6 is recorded by this yes (murder-rules.mjs `endMurder`): the
+            // question says so (the audit's CTRL-82, 1.2.122), read off the incident as the press finds it.
+            body: `<p>${game.i18n.localize("DRPG.Murder.endConfirm")}</p>${endRecordsDeath(murderState())
+                ? `<p>${game.i18n.format("DRPG.Murder.endConfirmSelf", { name: esc(game.actors.get(murderState()?.victimId ?? "")?.name ?? "") })}</p>` : ""}`
         });
         if (sure) await endMurder();
     }

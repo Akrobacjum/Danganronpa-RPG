@@ -34,7 +34,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { isPrimaryGm, log, error, whisperToOwnerOnly, esc, forcedDeletion } from "./utils.mjs";
+import { isPrimaryGm, log, error, whisperToOwnerOnly, esc, forcedDeletion, markFired } from "./utils.mjs";
 import { maskStore, veilStore } from "./gm-stores.mjs";
 
 /**
@@ -732,13 +732,36 @@ function drawMaskName(token) {
  */
 let shownHere = null;
 
-/** Whether this browser does not draw a veiled token of `actor` (`tokenShownTo` "hide"): never on a GM's. */
-export function veiledFromHere(actor, { scenes = game.scenes, shown = shownHere, user = game.user } = {}) {
-    if (!actor || user?.isGM || typeof shown !== "function") return false;
-    for (const scene of scenes ?? []) for (const token of scene.tokens ?? []) {
-        if (token.actorId === actor.id && isVeiledToken(token) && shown(token) === "hide") return true;
+/*
+ * ONE VEIL PREDICATE FOR THE PICKERS AND THE VOICE TILE (1.2.122 line MURDER; a known gap since 1.2.119). The pickers asked
+ * `veiledFromHere` of an actor and the voice tile asked visibility.mjs `voiceVeiledHere` of a user, each with a loop of its
+ * own over every scene's tokens, two flag readers (`isVeiledToken`, visibility.mjs's own `veiledToken`) and two GM tests -
+ * one rule written twice, which could drift apart. Both now ask `veilHidesHere`: some veiled token on a scene that
+ * `isTheirs` claims, which `shown` - this browser's `tokenShownTo` - answers "hide" for, and never on a GM's browser.
+ * `veiledFromHere` claims an actor's tokens; `userVeiledFromHere`, which the voice tile reads through `voiceVeiledHere`,
+ * the tokens of every actor `subject` owns. R8221 holds that for a user owning one student the two never differ.
+ */
+export function veilHidesHere(isTheirs, { scenes = game.scenes, shown = shownHere, gm = Boolean(game.user?.isGM) } = {}) {
+    if (gm || typeof shown !== "function" || typeof isTheirs !== "function") return false;
+    for (const scene of scenes ?? []) for (const token of scene?.tokens ?? []) {
+        if (isVeiledToken(token) && isTheirs(token) && shown(token) === "hide") return true;
     }
     return false;
+}
+
+/** Whether this browser does not draw a veiled token of `actor` (`tokenShownTo` "hide"): never on a GM's. */
+export function veiledFromHere(actor, { scenes = game.scenes, shown = shownHere, user = game.user } = {}) {
+    if (!actor) return false;
+    return veilHidesHere(token => token.actorId === actor.id, { scenes, shown, gm: Boolean(user?.isGM) });
+}
+
+/**
+ * Whether the veil hides `subject` - a user - from this browser: a veiled token of a character they own that this browser
+ * does not draw. Never for a GM's account, nor for this browser's own (`user`), nor on a GM's browser.
+ */
+export function userVeiledFromHere(subject, { scenes = game.scenes, shown = shownHere, user = game.user, gm = Boolean(user?.isGM) } = {}) {
+    if (!subject || subject.isGM || subject.id === user?.id) return false;
+    return veilHidesHere(token => Boolean(token.actor?.testUserPermission?.(subject, "OWNER")), { scenes, shown, gm });
 }
 
 /** `actors` without those whose veiled token this browser does not draw (`veiledFromHere`): a picker's room, as it sees it. */
@@ -749,8 +772,39 @@ export function seenHere(actors, options = {}) {
 let spectatorViewerOf = () => false;
 const isSpectatorViewer = () => spectatorViewerOf();
 
+/**
+ * THE ACTORS LIST LOOKS ALIKE WHILE A MASK STANDS (the audit's CASE-45, 1.2.122). The mask writes its "?" onto the
+ * killer's Actor (E112 item 2b, for the sheet, the voice tile, a roll's header and the boards), and every player sees
+ * every student in Foundry's Actors list under "Keep character sheets anonymous" - so exactly one entry wore the "?"
+ * beside its own name. On a player's browser that is no Spectator, while any student wears the "?", every other
+ * student's entry this user does not own is drawn with the same "?" picture, the masked one among them; a GM and a
+ * Spectator see the list as it is. Only the drawn list: no document is written. Answers how many pictures it changed
+ * (R8220). Red at 21bf5d18: there was no such pass, the masked student's entry alone wore the "?".
+ */
+export function veilActorsList(root, { user = game.user, actors = game.actors, spectator = isSpectatorViewer() } = {}) {
+    if (!root?.querySelectorAll || !user || user.isGM || spectator) return 0;
+    const students = [...(actors ?? [])].filter(a => a?.type === "character");
+    if (!students.some(a => a.img === MASK_IMG)) return 0;
+    let n = 0;
+    for (const actor of students) {
+        if (actor.testUserPermission?.(user, "OWNER")) continue;
+        for (const img of root.querySelectorAll(`[data-entry-id="${CSS.escape(actor.id)}"] img`)) {
+            if (img.getAttribute("src") === MASK_IMG) continue;
+            img.setAttribute("src", MASK_IMG);
+            if (img.dataset?.src) img.dataset.src = MASK_IMG;
+            n++;
+        }
+    }
+    return n;
+}
+
 /** At ready: the primary's end at a new time of day, the GMs' and Spectators' names, the killer's question. */
 export function registerMasks() {
+    // The Actors list (the audit's CASE-45): every entry alike on a player's browser while a mask stands.
+    Hooks.on("renderActorDirectory", (app, element) => {
+        markFired("renderActorDirectory");
+        try { veilActorsList(element instanceof HTMLElement ? element : element?.[0]); } catch (err) { error("Could not draw the Actors list behind the mask", err); }
+    });
     Hooks.on("drpgTimeOfDayChanged", () => {
         if (isPrimaryGm()) masksAtNewTimeOfDay().catch(err => error("The masks could not end with the time of day", err));
     });
