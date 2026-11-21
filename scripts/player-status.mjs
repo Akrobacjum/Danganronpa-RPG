@@ -72,6 +72,13 @@ export function registerPlayerStatus() {
     });
     // The Eclipse rewrites every row on this panel and is not an actor update.
     Hooks.on("drpgEclipseChanged", () => renderPlayerStatus());
+    /* And the GMs' stores the strip reads, and the owners' copies of them (the audit's UI-20 and REFR-23, 1.2.122):
+       client settings, which fire no `updateSetting`, so until then a crossing in an Eclipse (Move's feet, Still
+       placing), a Monocub's purse (its Hope row) and a death the GMs keep (Still to act) left the strip as it was until
+       some student's actor was written. Each store's change calls its hook on this browser (settings.mjs). */
+    Hooks.on("drpgEclipseMovesChanged", () => renderPlayerStatus());
+    Hooks.on("drpgCubsChanged", () => renderPlayerStatus());
+    Hooks.on("drpgDeathsChanged", () => renderPlayerStatus());
 }
 
 /**
@@ -664,7 +671,7 @@ export { WIDGET_ID };
  * Move) and `theme` (motion.mjs reads it when a spent pip flares). And `murderState` (E23 C3a): the table's strip
  * leaves "Still to act" out while an incident runs (`quietActions`), so an incident's start and end redraw it. The
  * actor, the user and the Eclipse have their own hooks above; the GMs' stores and their copies are client settings,
- * which fire no `updateSetting`. R1013 fails when the strip reads a module setting this list lacks.
+ * which fire no `updateSetting`, and the three the strip reads call a hook of their own (above, 1.2.122). R1013 fails when the strip reads a module setting this list lacks.
  */
 const STRIP_SETTINGS = new Set([SETTINGS.clock, SETTINGS.overflow, SETTINGS.overflowRules, SETTINGS.language, SETTINGS.theme,
     SETTINGS.murderState]);

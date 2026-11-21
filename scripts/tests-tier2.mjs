@@ -103710,6 +103710,70 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ inOther: [A, false], inHere: [A, true], after: [B, false, false, null] }),
             "{inOther: the pass after a crossing into a room of its name on another scene; inHere: after one on its own; after: [the token's room, the barricade's row, its flag, the pass] once the token a GM moved out has stood} - the barricade and the pass follow the character out of the room by any road");
     }],
+    ["1.2.122 UI-20 REFR-23 - the status strip redraws when a GMs' store it reads changes with no actor written: a death the GMs keep takes a student off Still to act, a crossing in an Eclipse off Still placing, and a Monocubs' record written draws the strip (scripts/player-status.mjs `registerPlayerStatus`; settings.mjs `onEclipseMovesChange`, `onCubsChange`, `onDeathsChange`; the audit's UI-20 and REFR-23, 1.2.122 line WORLD)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line WORLD. The audit's REFR-23 (controls-09-hud-overlays-1) and UI-20 (domain-ui-b-kit-hud-3):
+         * the strip heard updateActor, its world settings, updateUser, canvasReady and drpgEclipseChanged - and the GMs'
+         * stores it reads are client settings, which fire no updateSetting. Driven on this GM's strip (the table's view):
+         * a death written to the GMs' `deaths` store alone, then, in an Eclipse at noon, a student's crossings written to
+         * `eclipseMoves` alone, each read off the strip's own text; and a row of the Monocubs' record written alone, read off
+         * the strip's render counter (a GM's strip prints no purse: a player's Hope pips are not read headless, the LIVE
+         * text in the line's report). Put back: the rows, the Eclipse, the clock. Red at 21bf5d18: neither text moved and
+         * the counter stood.
+         */
+        const S = await import("./gm-stores.mjs");
+        const E = await import("./eclipse.mjs");
+        const { actingStudents } = await import("./monokuma.mjs");
+        const { snapshot: counters } = await import("./perf-counters.mjs");
+        const { murderState } = await import("./murder.mjs");
+        must(!murderState() && !E.isEclipse(), "an incident or an Eclipse was running when this test started");
+        const strip = cls => document.querySelector(`#drpg-player-status .${cls} .drpg-status-value`)?.textContent ?? null;
+        const renders = () => counters()["playerStatus.render"] ?? 0;
+        const students = actingStudents().filter(a => !a.getFlag(MODULE_ID, FLAGS.monocub));
+        must(students.length >= 2, "fewer than two living students - this would measure nothing");
+        const [who, walker] = students;
+        must(strip("is-actions"), "this GM's strip draws no Still to act - this would measure nothing");
+        const clock = getClock() ?? {};
+        const read = {};
+        let cubWas;
+        try {
+            const total = n => String(strip(n) ?? "").split("/").map(x => x.trim())[1] ?? null;
+            read.before = total("is-actions");
+            await S.deathStore.patch(who.id, { chapter: 99, day: 1, timeOfDay: "night", at: Date.now(), keepBullets: true, known: [] });
+            await settle();
+            read.dead = total("is-actions");
+            await S.deathStore.drop(who.id);
+            await settle();
+            await setClock({ timeOfDay: "noon" });
+            await E.startEclipse();
+            await settle();
+            const id = E.eclipseId();
+            must(E.isEclipse() && id && strip("is-move"), "the Eclipse did not open, or the strip draws no Still placing");
+            const placing = () => Number(String(strip("is-move")).split("/")[0].trim());
+            read.placing = placing();
+            await S.eclipseMoveStore.patch(walker.id, { used: 9, seen: 9, eclipse: id });
+            await settle();
+            read.placed = read.placing - placing();
+            await S.eclipseMoveStore.drop(walker.id);
+            await E.endEclipse({ advance: false });
+            await settle();
+            cubWas = S.cubStore.get(walker.id) ?? null;
+            const r0 = renders();
+            await S.cubStore.patch(walker.id, { purse: 1 });
+            await settle();
+            read.cubRender = renders() > r0;
+        } finally {
+            if (S.deathStore.get(who.id)) await S.deathStore.drop(who.id);
+            if (S.eclipseMoveStore.get(walker.id)) await S.eclipseMoveStore.drop(walker.id);
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            if (cubWas === null && S.cubStore.get(walker.id)) await S.cubStore.drop(walker.id);
+            else if (cubWas) await S.cubStore.patch(walker.id, cubWas);
+            await setClock(clock);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ before: String(students.length), dead: String(students.length - 1), placing: read.placing, placed: 1, cubRender: true }),
+            "{before, dead: the students Still to act counts over, before and after a death the GMs keep; placed: how many fewer Still placing after one student's crossings were written; cubRender: whether a Monocubs' row written drew the strip} - the strip follows the GMs' stores it reads");
+    }],
     ["PV-DOORS-T1 - the people in the character's own room always see who works its doors, and everyone behind a barricade hears a knock (scripts/doors-gm.mjs `shutDoor`, `forceDoor`, `pickLock`, `knockDoor`; the owner's rules #8 and #9, 13.11.2026): Shut the Door, a Force missed with Hope and a Pick whose Shadow cover passed each send the other student in the character's room a card naming the character, and nobody in the room beyond one; a Pick whose cover failed and a Force missed with Despair tell both rooms, as before; a walk refused at a barricade is heard by everyone in the barricaded room - its author and the student beside them - and never by the walker", async () => {
         /*
          * Privacy line 1 (doors), 13.11.2026. Judged as the primary judges the player's packets (`G.judge`), each roll a
