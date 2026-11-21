@@ -4616,14 +4616,19 @@ Każde okno `keepLive` (20 regionów) przerysowuje się teraz od razu przy fokus
 - r121-M-2 (`facilities-gm.mjs:162`), M-3 (`secret.mjs:520`), M-4 (`sheet-actions.mjs:1014`), `minor`: odpowiedź akcji pokoju nazywa zamaskowany cel; drugi GM nie słyszy ujawnienia; karta ofiary liczy zawoalowanego zabójcę.
 - r121-R-7, `minor` (`season-setup.mjs:1008-1012`): przerysowanie wiersza listy kontrolnej sezonu bez przytrzymania naciśnięcia, więc kliknięcie może przepaść.
 
-**Sonda 43 na 1.2.121 (dopisane po jej przebiegach).** Pełny przebieg nie wyszedł:
-- Dwa razy klient GM-a harnessu wyczerpał stertę JS (domyślną, potem 8 GB), za każdym razem przy oknach mapy sprawy. Otwarto 33 z 74 okien (`probe-43-121.json`; sonda od 9b8f7722 zapisuje dowody po każdym oknie).
-- Celowy pomiar, dwa okna mapy (`investigation--map-crowd`, `--map-modes`), po jednym procesie: 1.2.121 - szczyt GM-a 2 417 MB w 12 min; 1.2.120 - 2 279 MB w 11 min 40 s. To nie jest regresja 1.2.121. Czy pamięć trzyma moduł (np. słuchacze albo pamięci podręczne mapy przy każdym przerysowaniu), czy jsdom harnessu, nie ustaliłem; przy stole nie zmierzone.
-- Odczyty z 33 okien: przytrzymanie przez fokus w polu - 0 (było 7 na 1.2.118). Z 386 "nieaktualnych" 340 to szum okien niespokojnych. 46 to prawdziwe nieaktualne odczyty w 8 oknach:
-  - Despair Flow (śmierć: sugerowany próg), jak na 1.2.118;
-  - lista kontrolna sezonu (śmierć: pokoje na ucznia);
-  - mapa sprawy w pięciu widokach (licznik problemów po Remnancie);
-  - zakładka Files okna Sound - różnica w stanie przełączników przy każdej zmianie; czy to wskaźnik odtwarzania, nie przeczytano.
+**Sonda 43 na 1.2.121 (dopisane po jej przebiegach; poprawione 21.11.2026 po odczycie INVEST).** Pierwsze odczytanie miało dwa błędy samej sondy, nie modułu:
+- **Ponowne otwarcie siało przypadek od nowa.** Sonda 43 przy każdym ponownym otwarciu uruchamiała `before`/`after` wiersza z sondy 08. Dla mapy sprawy to `SEED_CASE`, który bierze wejścia dedukcji z dowodów, jakie właśnie są, i tworzy długi Remnant jako nowy token. Okno FRESH było więc inną sprawą niż okno LIVE (INVEST, claude/invest-122 ddec1aa3; w dowodach widać nowy id tokenu w każdym odczycie, niezależnie od zmiany).
+- **Zakładka Files okna Sound** zmienia znacznik przełącznika przy każdym ponownym otwarciu, jakakolwiek była zmiana. To naciśnięcie samej sondy; wyjaśnienie (zapamiętane zwinięcie) jest COMM-u, nie sprawdziłem go.
+- Oba okna były oznaczone jako niespokojne, a moja maska szumu ich nie złapała. Z "46 prawdziwych" 42 to artefakty sondy - błąd audytu.
+
+Poprawka sond: bcf54c21. W sondzie 42 lista kliknięć to `WeakSet`, jak w INVEST. W sondzie 43 zasiew powstaje przy pierwszym otwarciu i znika przy ostatnim zamknięciu.
+
+Ponowny odczyt na 1eee4d62 z poprawką (`probe-43-121-fixed.json`, 8 okien):
+- **Zostają prawdziwe, 4 odczyty w 2 oknach,** po śmierci, przy zastosowaniu i przy cofnięciu:
+  - Despair Flow: "Suggested for 4 students" zostaje, a świeże okno pokazuje 3;
+  - lista kontrolna sezonu: "1.5 rooms per student. Living students: 4" zostaje, a świeże okno pokazuje 2.0 i 3.
+- **Mapa sprawy w pięciu widokach:** 0 okien niespokojnych, odczyty na żywo. Wyjątek: 2 z 136 odczytów pokazują inną liczbę dedukcji w świeżym oknie bez zmiany, która by ją ruszała (map: health undo, 2 wobec 3; map-modes: despair apply, 4 wobec 7). Niewyjaśnione, nie jako znalezisko.
+- **Pamięć:** w każdym moim przebiegu limit sterty był 8 GB (zmienna NODE_OPTIONS sesji ma `--max-old-space-size=8192`). Pierwsze odczytanie mówiło o dwóch przebiegach, "z domyślnym limitem, potem z 8 GB": najpewniej oba miały 8 GB. Szczyt RSS GM-a z obiema poprawkami: 2 822 MB (dwa okna mapy) i 3 468 MB (sześć okien). Szczyt RSS przy limicie 8 GB nie mierzy tego, co zostaje w pamięci. Pomiar INVEST (sterta po wymuszonym gc: moduł sam płaski 125 -> 122 MB, pod opakowaniem sondy 42 do 2 403 MB) jest ich, nie mój. Pełny przebieg 74 okien z poprawkami: wynik niżej, kiedy się skończy.
 
 ## Część II - raport 1.2.42 z 12.09.2026 (zapis)
 
