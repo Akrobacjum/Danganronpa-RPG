@@ -114835,6 +114835,41 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "{opened: the suite's things offered at the open; taken: those left after the lamp was taken; added: after the key was stashed; kept: the rope still picked}");
     }],
 
+    ["1.2.123 p43-4 - the project window's \"Which project\" list follows the projects while it stands: a project created elsewhere is offered, the pick kept (scripts/projects-ui.mjs `openProjectDialog`; the auditor's probe 43, p43-4)", async () => {
+        /*
+         * 1.2.123, 21.11.2026; the auditor's p43-4 read here: the view itself (the create form where a fresh open shows the
+         * list) is the manager's design - with no project it opens on Create, and Create ends on the list - but the form's
+         * "Which project" select, the project a trap watches, was drawn once from `allProjects()`, so a project created
+         * meanwhile was not offered. The create window open, a project created elsewhere (removed at the end): it must join
+         * the select, the pick made before kept. Red at 14bb0d92: not offered.
+         */
+        needs(env.dialogs(), "the window is read as drawn");
+        const UI = await import("./projects-ui.mjs");
+        const P = await import("./projects.mjs");
+        const app = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.element.querySelector('select[name="triggerTarget"]'));
+        const offered = () => [...(app()?.element?.querySelector('select[name="triggerTarget"]')?.options ?? [])].map(o => o.value).filter(Boolean);
+        const made = [];
+        let read = null, opening = null;
+        try {
+            made.push((await P.createProject({ name: "SUITE p43-4 first", target: 3, secret: false }))?.id);
+            opening = Promise.resolve().then(() => UI.openProjectDialog({})).catch(() => null);
+            must(await until(() => offered().includes(made[0]), 6000), "the project window did not open with the first project offered");
+            const select = app().element.querySelector('select[name="triggerTarget"]');
+            select.value = made[0];
+            select.dispatchEvent(new Event("change", { bubbles: true }));
+            made.push((await P.createProject({ name: "SUITE p43-4 second", target: 3, secret: false }))?.id);
+            must(made[1], "no second project was made - this would measure nothing");
+            read = { joined: Boolean(await until(() => offered().includes(made[1]), 3000)),
+                kept: app()?.element?.querySelector('select[name="triggerTarget"]')?.value === made[0] };
+        } finally {
+            app()?.close();
+            if (opening) await Promise.race([opening, wait(3000)]);
+            for (const id of made.filter(Boolean)) await P.applyProjectChange(id, { remove: true }, { by: { kind: "gm" } }).catch(() => null);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ joined: true, kept: true }), "{joined: the project made elsewhere offered; kept: the pick made before}");
+    }],
+
     ["1.2.123 r122-E-5 - Rifle: the thing picked taken by somebody else meanwhile, the list says so, and Take with nothing picked says so instead of closing on nothing (scripts/stash-reach.mjs `rifleStashDialog`; the auditor's r122-E-5)", async () => {
         /*
          * 1.2.123, 21.11.2026; the auditor's r122-E-5. The live list (REFR-52) redraws the select without the thing the
