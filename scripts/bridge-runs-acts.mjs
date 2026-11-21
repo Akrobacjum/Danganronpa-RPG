@@ -551,6 +551,13 @@ async function reaskOwedOpening(sender) {
     const actor = game.actors.get(side === "killer" ? state.killerId : state.victimId);
     // Any owner's return (D078's co-owners): the invitation goes, as the tracker's re-ask sends it, to the one `rollOpening` asks.
     if (!actor || !actor.testUserPermission?.(sender, "OWNER")) return false;
+    /* NOT WHILE THIS GM THROWS IT (1.2.123; the auditor's check of 1.2.122, r122-lane-B-2): a player away at the ask has
+       the GM throw for them (`rollOpening` falls to `throwOpeningRoll` here); coming back, their ready asked again and was
+       invited while the GM's own window stood, two windows for one roll, the second's dice counting for nothing. The
+       primary's own window is read (`openingThrownHere`); another GM's is not seen from here, so one a second GM throws
+       still meets the invitation. */
+    const { openingThrownHere } = await import("./murder-rules.mjs");
+    if (openingThrownHere(side, actor.id)) return false;
     await rollOpening(side, state);
     return true;
 }
@@ -901,18 +908,6 @@ export async function handleCrisis(payload, sender, ctx, prepared) {
     if (result.lethal) return { reply: { lethal: true } };
 }
 
-    // A direct murder declared in the dark. The declaration is written in the GMs'
-    // store (eclipse.mjs, since E05 - until then a world setting every browser
-    // held, so the parking itself was the leak), and a player's client holds no
-    // GM store, so it travels; the judgement happens when the Eclipse ends, on a
-    // GM's side, off the final placement.
-    //
-    // Nothing about the outcome is decided here or sent back - that is the whole
-    // point of parking it, and a bridge that answered "recorded" with anything
-    // more would tell the asker what only the GMs know.
-    //
-    // Only while an Eclipse runs (E05 fix r1-G3; review S1-m8), as `eclipse.move` is: outside
-    // one nothing is written and nobody is asked, and the asker is told.
 /*
  * A DECLARATION IN THE DARK IS PAID FOR WHERE IT IS WRITTEN (1.2.122; the audit of 1.2.118, CORE-21's rest). A parked
  * murder and a betrayal declared in an Eclipse cost one action, paid on the asker's browser before it asks
@@ -927,6 +922,18 @@ async function claimedFor(sender, actorId, kind) {
     return claimTicket(actorId, kind);
 }
 
+// A direct murder declared in the dark. The declaration is written in the GMs'
+// store (eclipse.mjs, since E05 - until then a world setting every browser
+// held, so the parking itself was the leak), and a player's client holds no
+// GM store, so it travels; the judgement happens when the Eclipse ends, on a
+// GM's side, off the final placement.
+//
+// Nothing about the outcome is decided here or sent back - that is the whole
+// point of parking it, and a bridge that answered "recorded" with anything
+// more would tell the asker what only the GMs know.
+//
+// Only while an Eclipse runs (E05 fix r1-G3; review S1-m8), as `eclipse.move` is: outside
+// one nothing is written and nobody is asked, and the asker is told.
 export async function handleParkMurder(payload, sender, ctx) {
     const eclipse = await import("./eclipse.mjs");
     if (!eclipse.eclipseId()) return { refused: "no Eclipse is running" };

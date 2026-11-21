@@ -92,7 +92,7 @@ import { drpgWindow, drpgConfirm, tipText } from "./ui-kit.mjs";
 import {
     readCast, murderState, writeCast, incidentWrite, stillHolds, restoreState, incidentAudienceIds, writeState,
     sweepBetrayalWindows, sideOf, killerIds, participantIds, castHeldHere, registerIncidentCastSync,
-    registerDeathCopy, recordBlackened, leftABody, betrayalCandidate, keepOpeningNotice, retireOpeningNotices, castFor
+    registerDeathCopy, recordBlackened, leftABody, betrayalCandidate, keepOpeningNotice, openingCardStandsFor, retireOpeningNotices, castFor
 } from "./incident-store.mjs";
 
 
@@ -4610,9 +4610,15 @@ export async function rollOpening(side, state, { proposal = null } = {}) {
         if (askOpeningRoll({ userId: owner.id, actorId: actor.id, side, trait, hindrance })) {
             openingInvited = { openedAt: state?.openedAt ?? null, userId: owner.id };
             const title = openingTitle(side, state);
-            keepOpeningNotice(await whisperToOwner(actor,
-                `${cardHead({ action: title })}<p>${game.i18n.localize("DRPG.Murder.openingYours")}</p>`,
-                { flags: { [MODULE_ID]: { popupTitle: title } } }));
+            /* ONE CARD A PLAYER (1.2.123; the auditor's check of 1.2.122, r122-lane-B-3): the invitation goes again on
+               every ask - a reload ends the window it opens - but the card that says the roll is theirs is posted once:
+               a re-ask at the player's ready, at a primary's ready or from a tracker found it still standing and posted
+               another, each raised as a popup. Read in the GMs' memo of the opening's cards (`openingCardStandsFor`). */
+            if (!openingCardStandsFor(owner.id)) {
+                keepOpeningNotice(await whisperToOwner(actor,
+                    `${cardHead({ action: title })}<p>${game.i18n.localize("DRPG.Murder.openingYours")}</p>`,
+                    { flags: { [MODULE_ID]: { popupTitle: title } } }), owner.id);
+            }
             return { asked: true, of: owner.name };
         }
     }
@@ -4706,6 +4712,11 @@ let openingRollsInFlight = 0;
 /* Which of them, as `${side}|${actorId}` (1.2.122, CASE-24 narrowed): `throwOpeningRoll` starts no second loop for a
    side and character whose window stands here, and starts one for any other. */
 const openingKeysInFlight = new Set();
+
+/** Whether this browser's own window throws `side`'s opening for `actorId` now (r122-lane-B-2: the re-ask reads it). */
+export function openingThrownHere(side, actorId) {
+    return openingKeysInFlight.has(`${side}|${actorId}`);
+}
 
 /**
  * AND WHICH WINDOWS THEY OPENED (E32+E07 C16, 03.10.2026; audit S04-35). The count above was

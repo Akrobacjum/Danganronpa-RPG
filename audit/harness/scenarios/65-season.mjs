@@ -958,6 +958,13 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
         globalThis.__h = { restore: () => { first.run = run; }, told: globalThis.__notifications.length,
             end: C.applyChapterEnd({ nextSession: true, nextMorning: true, opened }) };
         return true;`, { timeout: 30000 });
+    /* WHAT ONE END OF CHAPTER DRAWS (1.2.123; the audit of 1.2.118, CORE-LC5): each browser's counters read around the
+       primary's end (`game.drpg.counters()`, the module's own counts - the harness's model of a HUD and a sheet, never a
+       frame), from just before it to 1.5 s after it has reached every browser. */
+    const COUNT = `return (await game.drpg.counters()).counts;`;
+    const lc5Clients = { gm, p1, p2, p3 };
+    const lc5Before = {};
+    for (const [who, c] of Object.entries(lc5Clients)) lc5Before[who] = await c.eval(COUNT);
     const primary = await gm.eval(`${MARK} const C = await import("${repoUrl}/scripts/chapter.mjs");
         const ended = await C.applyChapterEnd({ nextSession: true, nextMorning: true, opened: ${J(opened)} });
         return { ended: Boolean(ended), after: mark() };`, { timeout: 60000 });
@@ -977,6 +984,19 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
             asked: globalThis.__dialogLog.slice(asked).map(d => d.title),
             windowWarned: globalThis.__notifications.slice(told).filter(n => n.level === "warn" && n.msg === refusal).length };`, { timeout: 60000 });
     const after = await gm.eval(`${UNTIL} ${MARK} await new Promise(r => setTimeout(r, 500)); return mark();`, { timeout: 30000 });
+    await settle(1500);
+    const lc5 = {};
+    for (const [who, c] of Object.entries(lc5Clients)) {
+        const now = await c.eval(COUNT), was = lc5Before[who];
+        lc5[who] = Object.fromEntries(["hud.renderHud", "clock.refreshSheets", "clock.refreshSheets.rendered"].map(k => [k, (now[k] ?? 0) - (was[k] ?? 0)]));
+    }
+    /* Read 21.11.2026 on the harness: hud.renderHud 2 on gm, p1 and p2 and 3 on p3, clock.refreshSheets 1 each, no
+       sheet rendered - no sheet stands open in this scenario, so the audit's "three sheets open" half is not read here
+       (LIVE). Held to the code's own sum, at most three clock writes in an end (chapter.mjs, trial-floor-ui.mjs), each one
+       HUD draw and one sheet pass: a fourth would be a write nobody counted. */
+    check("LC5: one End of chapter draws the HUD at least once and at most three times on each browser, and passes its sheets at most three times (CORE-LC5)",
+        Object.keys(lc5).length === 4 && Object.values(lc5).every(r => r["hud.renderHud"] >= 1 && r["hud.renderHud"] <= 3 && r["clock.refreshSheets"] <= 3),
+        J(lc5), { flow: "clock-day" });
     check("H1: a second GM's End of chapter started on the same clock while the primary's runs is refused and told whose the end is, and the chapter's end counts one session and one day (E11 fix r1-G5)",
         primary.ended === true && secondGm.ended === null && secondGm.warned === 1
             && after.chapter === opened.chapter && after.session === opened.session + 1 && after.day === opened.day + 1
