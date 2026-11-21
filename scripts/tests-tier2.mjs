@@ -103521,7 +103521,6 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const M = await import("./murder.mjs");
         const W = await import("./watch-gm.mjs");
         const { castFor } = await import("./incident-store.mjs");
-        const { incidentCast } = await import("./settings.mjs");
         const { expectedFor } = await import("./roll-draw.mjs");
         const [killer, victim] = cast(2);
         must(!M.murderState(), "an incident was already running when this test started");
@@ -103559,9 +103558,19 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             read.watch = S.watchStore.get(victim.id) ?? null;
             read.invited = sent.map(p => p.hindrance ?? 0);
             read.drawn = state ? (await expectedFor(killer, { actionKey: "murderOpening", context: { side: "killer" } })).read?.situation ?? null : null;
+            /* THE COPY READ WHOLE (1.2.122, the auditor's r121-K-2): this read the copy's top-level keys for "hindrance" and
+               answered [] for an empty copy, or for no victim's player at all, so it held nothing - and the die's field is
+               `watchDie`, which the pattern never matched. Measured 21.11.2026: `incidentCast()` read an empty cast here, so
+               the copy was {} on every run. Now the GMs' cast is read from its store and must hold the die (1); the killer's
+               copy made from it holds the incident (29 fields that day) with the die null, and the victim's, who is not yet
+               the cast's audience at the opening roll, holds nothing, the die included. The invitations were held to
+               "each that was sent reads 1", which no invitation at all passed; one was sent on every run read, so one is wanted. */
             const victimUser = owner(victim);
-            const copy = victimUser ? castFor(victimUser.id, incidentCast(), state) : {};
-            read.copy = Object.keys(copy).filter(k => /hindrance/i.test(k) && copy[k] !== null);
+            must(victimUser, "the victim has no player - the copy would be read for nobody");
+            const gmCast = S.castStore.record() ?? {};
+            const copyOf = a => { const u = owner(a); const c = u ? castFor(u.id, gmCast, state) ?? {} : null;
+                return c && { holds: Object.keys(c).length > 0, die: Object.hasOwn(c, "watchDie") ? c.watchDie : "absent" }; };
+            read.copy = { gm: gmCast.watchDie ?? null, killer: copyOf(killer), victim: copyOf(victim) };
         } finally {
             if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
             if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
@@ -103572,8 +103581,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             for (const m of game.messages.filter(m => !seenIds.has(m.id))) await m.delete();
             await settle();
         }
-        equal(stableJson(read), stableJson({ inTheDark: 1, opened: [true, true, "openingRoll"], watch: null, invited: read.invited.length ? read.invited.map(() => 1) : [], drawn: -1, copy: [] }),
-            "{inTheDark: the die while the watch stands; opened: [killer, victim, stage]; watch: the row after the Eclipse; invited: each invitation's die; drawn: the GM's draw of the killer's opening; copy: the victim's copy's fields of it} - the watch's die stays with the murder declared on the watcher in the dark");
+        equal(stableJson(read), stableJson({ inTheDark: 1, opened: [true, true, "openingRoll"], watch: null, invited: [1], drawn: -1, copy: { gm: 1, killer: { holds: true, die: null }, victim: { holds: false, die: "absent" } } }),
+            "{inTheDark: the die while the watch stands; opened: [killer, victim, stage]; watch: the row after the Eclipse; invited: each invitation's die; drawn: the GM's draw of the killer's opening; copy: the GMs' die, and the killer's and the victim's copies, whether each holds anything and its die} - the watch's die stays with the murder declared on the watcher in the dark");
     }],
     ["E74-T11 - Pick the Lock's open is a pass for the picker alone, kept until the picker leaves the room it opens (scripts/lockpick-gm.mjs, movement.mjs `holdsPass`, doors-gm.mjs `pickLock`, infiltrate-reroll.mjs; E74 C4; DA9 as the plan has it, the owner 12.11.2026 \"Wole zgodnie z planem\"): an open at 15 moves nobody and gives the picker a pass to that room, in the copy of the picker's player alone; the picker's walk in through the locked door is let through and another student's is refused doorLocked; the picker's settled crossing in keeps it, the one out ends it and the door is locked to them again; a new time of day takes a pass not yet used and leaves one in use; a seal's pass lets the picker past it; a Reroll below 15 takes back a pass not yet used, and leaves one used", async () => {
         /*
