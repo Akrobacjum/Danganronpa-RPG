@@ -17966,6 +17966,189 @@ const SCENARIOS = [
             "a reader outside the mask was sent the killer's name, or not sent the words ([sent, the name in it]: asked while the mask stood; after it ended with the time of day; the killer's own player after; the card rewritten after; a card under a mask the killer revealed)");
     }],
 
+    ["E120 - a Monocub's Ghost Bet and a GM's Bounty on a masked student name them \"?\" to the Monocub's player while the mask stands and after it ends, until the killer reveals themselves", async () => {
+        /*
+         * 1.2.120 line M1 (21.11.2026), the audit's N119-2 and N119-3 (recheck-119.json; COMM-19's and COMM-24's residue).
+         * A Monocub's Ghost Bet picker names a masked student "?" (monocub.mjs CUB_TARGETS.student, `nameAsSeen`), and a
+         * GM may put a Bounty on one (`postBounty`); the cards that tell the Monocub's player are cut while the mask stands
+         * (secret.mjs `wordsFor`), but the copy its owner is sent (`cubsFor`: the bet's and every open Bounty's
+         * `targetName`, which the sheet's panel writes, sheet-actions.mjs `cubPanelLines`) carried the name in clear, and
+         * the lapse's card, posted after the time of day ended the mask, named the student behind the "?". Driven on this
+         * GM: the killer masked (mask-gm.mjs `maskKiller`); a Bounty on them and on a student not masked (the control: it
+         * names them), and the Monocub's bet on the killer; the copy read while the mask stands, after the time of day
+         * ended it, and the lapse's words to the Monocub's player; then a second mask, a Bounty and the bet again, the
+         * killer's reveal, and the copy read after. Every `secret.card` this browser sends kept here and dropped.
+         * Red at e515907d.
+         */
+        needs(env.primaryGm(), "the masks are the primary GM's");
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and a Monocub, each with a player");
+        const M = await import("./monocub.mjs"), K = await import("./mask-gm.mjs"), I = await import("./murder.mjs");
+        const D = await import("./despair.mjs"), S = await import("./gm-stores.mjs"), SC = await import("./secret.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        must(!I.murderState(), "an incident is open - this would measure something else");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, cub] = livingStudents().filter(owner);
+        const cubUser = owner(cub);
+        must(!killer.testUserPermission(cubUser, "OWNER") && !K.maskStands(killer.id), "the Monocub's player owns the killer, or a mask stands - this would measure something else");
+        const pool = D.getDespair(game.user.id);
+        const owedRows = foundry.utils.deepClone(S.despairOwedStore?.entries?.() ?? {});
+        const rowWas = foundry.utils.deepClone(S.cubStore.get(cub.id) ?? null);
+        const bountiesWas = foundry.utils.deepClone(S.bountyStore.entries() ?? {});
+        const cardsWas = foundry.utils.deepClone(getSetting(SETTINGS.secretCards) ?? {});
+        const stored = clientStored();
+        const messagesWas = new Set(game.messages.contents.map(m => m.id));
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const out = [];
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "secret.card") {
+                if ((options?.recipients ?? []).includes(cubUser.id)) out.push(String(packet.html ?? ""));
+                return true;
+            }
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const copy = () => {
+            const row = M.copyRowOf(M.cubsFor(cubUser.id).cubs[cub.id]);
+            return { bounties: (row?.bounties ?? []).map(b => b.targetName === killer.name ? "killer" : b.targetName === victim.name ? "victim" : b.targetName).sort(),
+                bet: row?.bet ? (row.bet.targetName === killer.name ? "killer" : row.bet.targetName) : null };
+        };
+        const named = () => out.some(html => html.includes(killer.name));
+        const read = {};
+        try {
+            for (const id of Object.keys(bountiesWas)) await S.bountyStore.drop(id);
+            await D.setDespair(game.user.id, 6);
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            await settle();
+            must(await M.postBounty(game.user.id, victim), "the control's Bounty was not posted - this would measure nothing");
+            must(await K.maskKiller({ killerId: killer.id, victimId: victim.id }), "the mask did not go up - this would measure nothing");
+            await settle();
+            out.length = 0;
+            must(await M.postBounty(game.user.id, killer), "the Bounty was not posted - this would measure nothing");
+            await M.CUB_RESOLVERS.bet(cub, killer);
+            await settle();
+            read.standing = { ...copy(), cards: [out.length > 0, named()] };
+            await K.endMask(killer.id, "timeOfDay");
+            await settle();
+            read.ended = copy();
+            out.length = 0;
+            await M.lapseBounties();
+            await settle();
+            read.lapsed = [out.length > 0, named()];
+            must(await K.maskKiller({ killerId: killer.id, victimId: victim.id }), "the second mask did not go up - this would measure nothing");
+            await settle();
+            must(await M.postBounty(game.user.id, killer), "the second Bounty was not posted - this would measure nothing");
+            await K.revealMask(killer.id);
+            await settle();
+            read.revealed = copy();
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
+            for (const id of Object.keys(S.bountyStore.entries() ?? {})) await S.bountyStore.drop(id);
+            for (const [id, row] of Object.entries(bountiesWas)) await S.bountyStore.patch(id, row);
+            const nowRows = Object.keys(S.despairOwedStore?.entries?.() ?? {}).filter(k => !Object.hasOwn(owedRows, k));
+            if (nowRows.length) await S.despairOwedStore.dropMany(nowRows);
+            await D.setDespair(game.user.id, pool);
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            if (rowWas) await S.cubStore.patch(cub.id, rowWas);
+            for (const m of game.messages.contents.filter(m => !messagesWas.has(m.id))) await m.delete().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.secretCards, cardsWas);
+            SC.forgetSecrets();
+            putBackStored(stored);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            standing: { bounties: ["?", "victim"], bet: "?", cards: [true, false] },
+            ended: { bounties: ["?", "victim"], bet: "?" },
+            lapsed: [true, false],
+            revealed: { bounties: ["killer"], bet: "killer" }
+        }), "the Monocub's player was given the masked student's name, or not given the control's (the copy's Bounties and bet: while the mask stands, after the time of day ended it, after the killer revealed themselves; the cards to that player: [sent, the name in them] while it stands and at the lapse after it ended)");
+    }],
+
+    ["E120 - a room action used beside a killer veiled for the opening leaves the killer out of what its user is told, card and answer, and names them once the veil is lifted", async () => {
+        /*
+         * 1.2.120 line M1 (21.11.2026), the audit's N119-1 (recheck-119.json; MAP-16's residue). While a direct murder waits
+         * on its opening the killer is veiled (mask-gm.mjs `veilWanted`): the victim's browser does not draw them, and the
+         * room's pickers leave them out (`seenHere`). The victim is not seated yet (settings.mjs `incidentSeats`), so
+         * nothing stops their room action (bridge-runs-acts.mjs `handleFacilityUse` asks no incident), and an effect on
+         * those present or the others falls on the veiled killer too - the rules' reading, kept (`countsAsPresent`). But
+         * its lines named everyone it fell on (facilities-gm.mjs `applyEffects`), in the asker's answer and on the card
+         * `tellUse` whispers, and the card's cut covers masked names, not veiled ones (secret.mjs `wordsFor`). Driven on
+         * this GM: the two alone in a room, a direct murder opened with its invitation held, the veil settled; a room
+         * action's Health on "others" used by the victim, then by the killer (the control: the killer's side sees them),
+         * then by the victim after the incident closed (the veil gone). Read: whether the killer's name is in the lines
+         * and on the card's words sent to the victim's player; whether the victim's name is in the killer's lines.
+         * Red at e515907d.
+         */
+        needs(env.primaryGm(), "the veil is the primary GM's");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs"), K = await import("./mask-gm.mjs"), S = await import("./gm-stores.mjs");
+        const F = await import("./facilities.mjs"), FG = await import("./facilities-gm.mjs"), SC = await import("./secret.mjs");
+        const { gmPlaceOf } = await import("./movement.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        must(!M.murderState(), "an incident is open - this would measure something else");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const kp = owner(killer), vp = owner(victim);
+        must(kp && vp && kp.id !== vp.id, "the killer and the victim share a player - this would measure something else");
+        const tokens = () => game.scenes.contents.flatMap(scene => scene.tokens.filter(t => t.actorId === killer.id));
+        const before = tokens().map(t => [t.id, Boolean(t._source.hidden)]);
+        const flagOf = t => t._source.flags?.[MODULE_ID] ?? {};
+        const effect = F.cleanEffect({ kind: "health", n: 1, scope: "others" });
+        must(effect?.scope === "others", "no room action's effect on the others - this would measure nothing");
+        const cardsWas = foundry.utils.deepClone(getSetting(SETTINGS.secretCards) ?? {});
+        const stored = clientStored();
+        const messagesWas = new Set(game.messages.contents.map(m => m.id));
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const out = [];
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "murder.openingAsk") return true;
+            if (packet?.action === "secret.card") {
+                if ((options?.recipients ?? []).includes(vp.id)) out.push(String(packet.html ?? ""));
+                return true;
+            }
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const use = async (actor, user, other) => {
+            out.length = 0;
+            const lines = await FG.applyEffects(actor, [effect], gmPlaceOf(actor), user);
+            await FG.tellUse(actor, { label: "E120 room action" }, true, lines);
+            await settle();
+            return [lines.length > 0, lines.some(line => line.includes(other.name)), actor === victim ? out.some(html => html.includes(other.name)) : null];
+        };
+        let back = null;
+        const read = {};
+        try {
+            ({ back } = await aloneTogether(killer, victim));
+            await S.veilStore.whenHydrated();
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            await K.settleVeils();
+            must(S.veilStore.has(killer.id), "the opening did not veil the killer - this would measure nothing");
+            read.veiled = await use(victim, vp, killer);
+            read.killerSide = await use(killer, kp, victim);
+            await M.endMurder({ reason: "test", followUp: false });
+            await K.settleVeils();
+            read.lifted = await use(victim, vp, killer);
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (K.maskStands(killer.id)) await K.endMask(killer.id, "suite");
+            if (S.veilStore.has(killer.id)) await S.veilStore.drop(killer.id);
+            for (const [id, hidden] of before) {
+                const t = tokens().find(x => x.id === id);
+                if (t && (Boolean(t._source.hidden) !== hidden || flagOf(t).veiled !== undefined)) await t.update({ hidden, ...K.unveilPatch((await import("./utils.mjs")).forcedDeletion()) });
+            }
+            if (back) await back();
+            for (const m of game.messages.contents.filter(m => !messagesWas.has(m.id))) await m.delete().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.secretCards, cardsWas);
+            SC.forgetSecrets();
+            putBackStored(stored);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ veiled: [false, false, false], killerSide: [true, true, null], lifted: [true, true, true] }),
+            "a room action named a killer veiled for the opening to the victim, or left the killer's side or a lifted veil unnamed ([lines, the other named in them, the other named on the card's words to the victim's player]: the victim's use while the veil stands; the killer's; the victim's after the incident closed)");
+    }],
+
     ["E119 - a Call's lines for its card name a masked student \"?\" (a Despair Call on the public card)", async () => {
         /*
          * 1.2.119 (20.11.2026), the audit's item C through the coordinator: "a GM's Despair Call on a masked student names

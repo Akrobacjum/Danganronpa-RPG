@@ -28,6 +28,9 @@
  *   J  the owner's flow as they restated it on 20.11.2026: rows of a character put out of the class and of the Monokuma
  *      beside Aiko's, every box of Room setup's Fog tab unticked (Hide all) and Apply, then gm's map (its record and
  *      its shading) at once and after gm's reload, and p1's copy (J1).
+ *   K  1.2.120 line M1 (the audit's CORE-20 residue, N119-4): a card rewritten naming Chie while her mask stood, gm2 and
+ *      p2 away; the time of day ends the mask, gm2 fetches the words, gm leaves, and gm2 serves p2 with Chie "?" (K1);
+ *      gm2's own rewrite reaches p2 cut too (K2). Red at e515907d: K1 and K2 named her.
  *
  * What this cannot see: a real F5 (a new process with the old localStorage, no cookie, IndexedDB or cache; the
  * order of "inactive", "active" and `ready` on v14 is LIVE-E30-05 and LIVE-E04-12), and a real server's delivery
@@ -512,6 +515,67 @@ export async function run(api) {
         setJ.rows >= 4 && beforeJ.lit.length > 0 && applied > 0
             && afterJ.lit.length === 0 && fogged(afterJ) && reloadedJ.lit.length === 0 && fogged(reloadedJ) && onP1I.length > 0 && onP1J.length === 0,
         J({ setJ, beforeJ, applied, afterJ, reloadedJ, onP1J }));
+
+    /* ------------------------------------------------------------------ K */
+    /* A MASKED NAME KEPT CUT BY THE SECOND GM (1.2.120 line M1; the audit's CORE-20 residue and N119-4, recheck-119.json).
+       1.2.119 keeps, on a GM, who stood behind a mask when a card's words came (secret.mjs `remember`'s `hid`), and cuts
+       those names for a reader outside the mask when the words are served or rewritten after the mask ended without a
+       reveal. A second GM away while the mask stood held no `hid`: it fetched the words from the first GM after the end
+       (`askForWords` at its ready; a GM is given the words uncut) and could then serve the name in clear to a reader who
+       was also away - for certain once the first GM had left. Driven here: gm2 and p2 away; gm posts a plain card naming
+       Chie to p2 and both GMs (plain because no mask stands yet: one that stood would veil it, `incidentVeils`), masks
+       Chie and rewrites the card while the mask stands, so gm keeps `hid`; the time of day ends the mask; gm2 comes and
+       fetches the words; gm leaves; p2 comes and is served by gm2 alone (K1); gm2 rewrites the card naming Chie (K2). */
+    phase("K a masked name the second GM serves after the mask ended");
+    const chieName = await gm.eval(`return game.actors.get("${IDS.chie}").name;`);
+    await api.disconnect("p2");
+    await settle(800);
+    const idK = await gm.eval(`const S = ${imp("secret.mjs")};
+        const posted = await S.postSecret({ content: "<p>E120K " + foundry.utils.escapeHTML(game.actors.get("${IDS.chie}").name) + " was seen</p>",
+            whisper: ["${IDS.p2}", "${IDS.gm}", "${GM2}"] });
+        return posted?.id ?? null;`, { timeout: 60000 });
+    const CARD_K = `const S = ${imp("secret.mjs")}; const card = () => game.messages.get(${J(idK)}) ?? null;`;
+    const setK = await gm.eval(`${CARD_K} const K = ${imp("mask-gm.mjs")};
+        const name = foundry.utils.escapeHTML(game.actors.get("${IDS.chie}").name);
+        const masked = await K.maskKiller({ killerId: "${IDS.chie}", victimId: "${IDS.aiko}" });
+        await new Promise(r => setTimeout(r, 400));
+        await S.updateSecret(card(), "<p>E120K again " + name + " was seen</p>");
+        const hid = (game.settings.get("${MOD}", "secretCards")?.[card()?.id]?.hid ?? []).map(r => r.id);
+        const ended = await K.endMask("${IDS.chie}", "timeOfDay");
+        await new Promise(r => setTimeout(r, 400));
+        return { posted: Boolean(card()), masked, veiled: Boolean(card()?.flags?.["${MOD}"]?.veiled), hid, ended, stands: K.maskStands("${IDS.chie}") };`, { timeout: 60000 });
+    await connect("gm2");
+    const onGm2K = await until(() => gm2.eval(`${CARD_K} return S.secretHtml(card()) ?? null;`), v => typeof v === "string");
+    const leftK = await makePrimary("gm2");
+    await connect("p2");
+    const onP2K = await until(() => p2.eval(`${CARD_K} return S.secretHtml(card()) ?? null;`), v => typeof v === "string");
+    check("K1: a card rewritten naming Chie while her mask stood, fetched by gm2 after the time of day ended it, is served by gm2 to p2 - away throughout, outside the mask - with Chie as \"?\" (1.2.120 M1, CORE-20 / N119-4)",
+        setK.posted && setK.masked && !setK.veiled && J(setK.hid) === J([IDS.chie]) && setK.ended && !setK.stands
+            && typeof onGm2K === "string" && onGm2K.includes(chieName) && J(leftK.left) === J(["gm"])
+            && typeof onP2K === "string" && onP2K.includes("E120K again") && !onP2K.includes(chieName),
+        J({ setK, onGm2K, leftK: leftK.left, onP2K }));
+    await p2.eval(`globalThis.__e120kGot = [];
+        game.socket.on("module.${MOD}", payload => { if (payload?.action === "secret.card") globalThis.__e120kGot.push(String(payload.html ?? "")); });
+        return true;`);
+    await gm2.eval(`${CARD_K} await S.updateSecret(card(), "<p>E120K third " + foundry.utils.escapeHTML(game.actors.get("${IDS.chie}").name) + "</p>"); return true;`);
+    const rewrittenK = await until(() => p2.eval(`return globalThis.__e120kGot.filter(h => h.includes("E120K third"));`), v => v.length > 0);
+    check("K2: gm2's rewrite of the same card after the mask ended reaches p2 with Chie as \"?\"",
+        rewrittenK.length > 0 && rewrittenK.every(h => !h.includes(chieName)), J(rewrittenK));
+    await connect("gm");
+    await until(primaryOn, on => allRead(on, IDS.gm));
+    // A GM's own rewrite to the other GM carries what it kept masked (secret.mjs `sendWords`), as its answer does (K1).
+    const toGm2K = await gm.eval(`${CARD_K} const socket = game.socket, send = socket.emit, got = [];
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "secret.card" && (options?.recipients ?? []).includes("${GM2}")) got.push((packet.hid ?? []).map(r => r.id));
+            return send.call(this, event, packet, options, ...rest);
+        };
+        try { await S.updateSecret(card(), "<p>E120K fourth " + foundry.utils.escapeHTML(game.actors.get("${IDS.chie}").name) + "</p>"); }
+        finally { socket.emit = send; }
+        return got;`);
+    check("K3: gm's rewrite of the card after the mask ended sends gm2 the masked rows it kept (Chie's)",
+        toGm2K.length > 0 && toGm2K.every(ids => J(ids) === J([IDS.chie])), J(toGm2K));
+    await gm.eval(`${CARD_K} await card()?.delete(); return true;`);
+    await settle(800);
 
     return { primary: { before, joined, afterGmReload, moved, backAgain }, reloads: { p1: r1, gm: r2, card: r3 },
         d153: { before: gBefore, onGm: gAfter, onGm2: gAfter2, found: gFound, gave: gGave } };
