@@ -4663,6 +4663,8 @@ Surowe wyniki: `audit/findings-1.2.118/recheck-122.json`.
 - odpowiedziane po zakresie linii: CASE-LC4 i CASE-LC6 (LIVE-I122-05, -06) oraz COMM-LC3, LC5, LC6, LC7 (LIVE-CM122-07..10), w commicie składania `b2bcbe36`;
 - zakładka Files okna Sound z sondy 43 to naciśnięcie samej sondy, nie było czego poprawiać.
 
+Twierdzenie linii R1 o mutancie przytrzymania naciśnięcia (`cb945182`), którego tor H nie uruchomił, uruchomiłem na `14bb0d92` w Chromium: `live-press.mjs` 5 ok i `live-redraw.mjs` 6 ok, 0 niezaliczonych; z przytrzymaniem wyjętym z kopii `live.mjs` (`live.mjs:186`) `live-press.mjs` daje 3 niezaliczone (naciśnięcie usłyszane 0 razy). Twierdzenie się trzyma.
+
 Regresje sprawdzenia 1.2.121: R-2, R-3, R-6, R-7, R-11 zrobione; R-1 i R-5 w części (R-1 niżej, przy H-R1).
 
 **Nowe wady wydania.** `recheck-122.json`: 67 pozycji. Po odjęciu obalonej i jednego duplikatu (D-1 to D-R1) stoją: 3 regresje `major`, 5 regresji `minor`, 1 stare znalezisko `major`, 22 znaleziska `minor`, 34 `nit`. Regresje i stare `major` wysłałem koordynatorowi od razu po potwierdzeniu, żeby jedna poprawka mogła zabrać je wszystkie:
