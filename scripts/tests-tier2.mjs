@@ -104291,6 +104291,51 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ before: [true, false], after: [true, true, true] }),
             "{before, after: [the student there at the open offered, the one who came in offered(, the choice kept)]} - the picker follows the room");
     }],
+    ["1.2.122 REFR-40 - End the chapter follows the world while it stands: a backup made with the window open moves its 'last backup' line, and a count that changes opens or shuts its box in place, the GM's own untick kept (scripts/chapter.mjs `openChapterEndDialog`, `refreshChapterEnd`, `chapterEndForm`; the audit's REFR-40, 1.2.122 line WORLD)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line WORLD. The audit's REFR-40 (controls-13-case-death-chapter-5): the window was drawn once.
+         * Driven: the window drawn on this GM, the case mark written with no backup and then as `backupCase` writes it
+         * (`lastBackupAt` now), its backup line read before and after; and `refreshChapterEnd` handed two forms built by
+         * `chapterEndForm` - the window's sweep unticked by the GM, its keys at 0 - then a form with three keys to take:
+         * the keys' box opens ticked and the sweep stays unticked. Put back: the case mark, the window.
+         * Red at 21bf5d18: the line still said never, and there was no `refreshChapterEnd`.
+         */
+        needs(env.dialogs(), "the chapter's end window is drawn and its line read");
+        const C = await import("./chapter.mjs");
+        const markWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.caseMark) ?? {});
+        const title = game.i18n.localize("DRPG.Chapter.endTitle");
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.element && a.options?.window?.title === title) ?? null;
+        const never = game.i18n.localize("DRPG.Case.backupNever"), today = game.i18n.localize("DRPG.Case.backupToday");
+        const line = () => drawn()?.element?.querySelector("[data-drpg-backup]")?.closest("p")?.textContent ?? "";
+        const read = {};
+        let pending = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.caseMark, { ...markWas, lastBackupAt: null });
+            await settle();
+            pending = C.openChapterEndDialog();
+            must(await until(() => Boolean(drawn()), 8000), "the chapter's end window did not draw (a stopped end, or not the primary)");
+            read.before = [line().includes(never), line().includes(today)];
+            await game.settings.set(MODULE_ID, SETTINGS.caseMark, { ...markWas, lastBackupAt: Date.now(), lastBackupBy: game.user.name });
+            await settle();
+            await settle();
+            read.after = [line().includes(never), line().includes(today)];
+            must(typeof C.refreshChapterEnd === "function", "chapter.mjs has no refreshChapterEnd: the window is drawn once");
+            const host = document.createElement("div");
+            const base = { chapter: 1, session: 1, day: 1, sweepable: 2, keyable: 0, backup: "x" };
+            host.innerHTML = C.chapterEndForm(base);
+            host.querySelector('input[name="sweep"]').checked = false;
+            C.refreshChapterEnd(host, C.chapterEndForm({ ...base, keyable: 3 }));
+            const keys = host.querySelector('input[name="keys"]'), sweep = host.querySelector('input[name="sweep"]');
+            read.boxes = [Boolean(keys && !keys.disabled && keys.checked), Boolean(sweep && !sweep.disabled && !sweep.checked)];
+        } finally {
+            if (drawn()) await drawn().close();
+            try { await Promise.race([pending, wait(2000)]); } catch { /* closed */ }
+            await game.settings.set(MODULE_ID, SETTINGS.caseMark, markWas);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ before: [true, false], after: [false, true], boxes: [true, true] }),
+            "{before, after: [the backup line says never, says today] before and after a backup made with the window open; boxes: [the keys' box opened and ticked, the GM's unticked sweep kept]} - the chapter's end window shows the world as it is");
+    }],
     ["PV-DOORS-T1 - the people in the character's own room always see who works its doors, and everyone behind a barricade hears a knock (scripts/doors-gm.mjs `shutDoor`, `forceDoor`, `pickLock`, `knockDoor`; the owner's rules #8 and #9, 13.11.2026): Shut the Door, a Force missed with Hope and a Pick whose Shadow cover passed each send the other student in the character's room a card naming the character, and nobody in the room beyond one; a Pick whose cover failed and a Force missed with Despair tell both rooms, as before; a walk refused at a barricade is heard by everyone in the barricaded room - its author and the student beside them - and never by the walker", async () => {
         /*
          * Privacy line 1 (doors), 13.11.2026. Judged as the primary judges the player's packets (`G.judge`), each roll a
