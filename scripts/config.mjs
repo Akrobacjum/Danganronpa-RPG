@@ -124,6 +124,13 @@ export const FLAGS = {
      */
     monocub: "monocub",
     /**
+     * Character: when the Monocub mark was last changed quietly (epoch ms; 1.2.122, the audit's COMM-48). monocub.mjs
+     * `setMonocub` writes it beside the mark when `quiet` (the season reset, a revive's quiet road), so the update's own
+     * changes - which every browser's `updateActor` is handed - say the change was quiet, and sfx.mjs plays no Monocub
+     * sound for it. A time, so each quiet write differs from the last and is in the changes; a loud write leaves it out.
+     */
+    monocubQuiet: "monocubQuiet",
+    /**
      * Tile: this tile is a murdered student's body, left where their token stood when they became a Monocub
      * (E95, 1.2.104; DC6; body-tile.mjs). `{ actorId, deathId, level, at }` - whose body, which death
      * (the `deceased` record's `deathId`, so a later death's reader does not take an earlier one's tile),
@@ -3467,12 +3474,6 @@ export const LEVEL_UP_TRAIT_RESOURCES = Object.freeze({
  * in the whole system with no trait behind it, so it is built as a flat 2d12
  * in monocub.mjs rather than forced through a trait it does not have.
  */
-/**
- * The update option a quiet change of the Monocub mark carries (1.2.122, the audit's COMM-48): monocub.mjs `setMonocub`
- * writes the flag with it when `quiet`, and sfx.mjs's `updateActor` listener plays nothing for an update holding it.
- */
-export const MONOCUB_QUIET_OPTION = "drpgMonocubQuiet";
-
 export const MONOCUB = {
     /** Same as a living student's. Refilled by the same reset pass. */
     actions: STARTING.actions,

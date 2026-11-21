@@ -46564,7 +46564,8 @@ const INVARIANTS = [
          * Red on dd87f9f7: `<p class="notes drpg-warning">`. The other `drpg-warning` sites of the module are not read
          * here (STATUS Open 83: E46's and E47's).
          */
-        const sound = fnSource(await fetch(`/modules/${MODULE_ID}/scripts/sound-panel.mjs`).then(lfText), "soundPlaylistsPane");
+        // The box in a region of its own since 1.2.122 (REFR-25's rest): `musicEmptyBox`, which `soundPlaylistsPane` draws (R8282).
+        const sound = fnSource(await fetch(`/modules/${MODULE_ID}/scripts/sound-panel.mjs`).then(lfText), "musicEmptyBox");
         const KEY = String.raw`\$\{\s*game\.i18n\.localize\("DRPG\.Music\.noPlaylists"\)`;
         ok(new RegExp(KEY).test(sound), "the mapping tab still writes the no-playlist line (DRPG.Music.noPlaylists)");
         equal(stableJson({ warning: new RegExp(`drpg-warning[^\`]*?${KEY}`).test(sound), info: new RegExp(`box\\("info",\\s*\`<p class="notes"[^\`>]*>${KEY}`).test(sound) }),

@@ -42,7 +42,7 @@
  * `appendArmedCall` sends it there.
  */
 
-import { MODULE_ID, FLAGS, MONOCUB, ACTIONS_RESOURCE, HOPE_CALLS, DESPAIR_CALLS, MONOCUB_QUIET_OPTION } from "./config.mjs";
+import { MODULE_ID, FLAGS, MONOCUB, ACTIONS_RESOURCE, HOPE_CALLS, DESPAIR_CALLS } from "./config.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { isDeceased, isDeadForGm } from "./chapter.mjs";
 import { isMonokuma } from "./monokuma.mjs";
@@ -167,9 +167,13 @@ export async function setMonocub(actor, value = true, { quiet = false, watcher =
         if (purseOf(actor)) await patchCubRow(actor.id, { purse: null });
     }
     noteOwnWrite(actor, { flags: { [MODULE_ID]: { [FLAGS.monocub]: Boolean(value) } } });
-    // A quiet change sounds nothing either (1.2.122, the audit's COMM-48): the option rides on the update to every
-    // browser's `updateActor`, where sfx.mjs plays the Monocub sound only without it.
-    await actor.update({ [`flags.${MODULE_ID}.${FLAGS.monocub}`]: Boolean(value) }, quiet ? { [MONOCUB_QUIET_OPTION]: true } : {});
+    // A quiet change sounds nothing either (1.2.122, the audit's COMM-48): its marker is written in the same update, so it
+    // is in the changes every browser's `updateActor` is handed (`FLAGS.monocubQuiet`), not in an option of the update,
+    // whose reaching another browser is not read on v14.
+    await actor.update({
+        [`flags.${MODULE_ID}.${FLAGS.monocub}`]: Boolean(value),
+        ...(quiet ? { [`flags.${MODULE_ID}.${FLAGS.monocubQuiet}`]: Date.now() } : {})
+    });
 
     /* THE BODY (E63 C0, 11.11.2026; the owner on E95 Q3: "Nie gdy zostaje Monocubem"): becoming a Monocub lays nothing.
        The death laid it (death.mjs `markDeceased`), and the Monocub walks away from it on the token; ticked, unticked

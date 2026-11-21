@@ -1138,7 +1138,6 @@ export async function playTrack(track, soundId) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
     }
-    if (refusedOffPrimary()) return null;
 
     const playlist = situationalPlaylist();
     if (!playlist) {
@@ -1153,6 +1152,12 @@ export async function playTrack(track, soundId) {
     if (!sound) {
         ui.notifications.warn(game.i18n.localize("DRPG.Music.noTrack"));
         return null;
+    }
+    // Another GM's press is the primary's to carry out (`onPrimaryElsewhere`); the bridge says a refusal or no answer.
+    if (onPrimaryElsewhere()) {
+        const { requestMusicTrack } = await import("./bridge-asks.mjs");
+        const res = await requestMusicTrack("play", sound.id);
+        return res.ok && res.value?.played ? sound : null;
     }
 
     try {
@@ -1220,7 +1225,11 @@ export async function resetMusic() {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
     }
-    if (refusedOffPrimary()) return null;
+    if (onPrimaryElsewhere()) {
+        const { requestMusicTrack } = await import("./bridge-asks.mjs");
+        const res = await requestMusicTrack("stop");
+        return res.ok && res.value ? { stopped: Number(res.value.stopped) || 0, given: Number(res.value.given) || 0 } : null;
+    }
 
     const record = interrupted;
     interrupted = null;
@@ -1270,17 +1279,18 @@ export async function resetMusic() {
 }
 
 /**
- * PLAY AND STOP THE TRACK ON THE PRIMARY GM ALONE (1.2.122, the audit's COMM-29). The music's record - the cue, what it
- * holds, the body's silence (`interrupted`, `silenced`) - lives in the primary's tab, and both buttons were open to
- * every GM: an assistant's Play left the primary's record empty, and an assistant's Stop during the body's silence gave
- * the afternoon back over it, nothing on the primary silencing it again. Another GM is told whose browser carries the
- * music out, and nothing is done. True when refused.
+ * PLAY AND STOP THE TRACK FROM EVERY GM, CARRIED OUT ON THE PRIMARY (1.2.122: the audit's COMM-29, then the owner's
+ * decision of 21.11.2026, "Odtworz i zatrzymaj muzyke niech dziala u kazdego gma"). The music's record - the cue, what
+ * it holds, the body's silence (`interrupted`, `silenced`) - lives in the primary's tab: an assistant's Play run there
+ * left the primary's record empty, and its Stop during the body's silence gave the afternoon back over it. So another
+ * GM's press is asked of the primary (`music.track`, bridge-table.mjs), which plays or stops as its own press would, and
+ * the asker is answered what it did. This is true while the primary is connected and is somebody else; a GM who is the
+ * primary, or the only GM, carries the press out itself.
  */
-function refusedOffPrimary() {
+function onPrimaryElsewhere() {
     if (isPrimaryGm()) return false;
-    const name = game.users?.get(primaryGmId() ?? "")?.name ?? "?";
-    ui.notifications.warn(game.i18n.format("DRPG.Music.primaryOnly", { name }));
-    return true;
+    const primary = game.users?.get(primaryGmId() ?? "");
+    return Boolean(primary?.active && primary.id !== game.user?.id);
 }
 
 /**

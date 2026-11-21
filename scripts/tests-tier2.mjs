@@ -88907,29 +88907,28 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ given: [2, 2] }),
             "a Give naming 50 gave more than the card offers ({given: [the Monocub's Hope, ASK_GIVE_MAX]})");
     }],
-    ["1.2.122 COMM-48 - a quiet change of the Monocub mark sounds nothing, as it toasts nothing: setMonocub's `quiet` rides on the flag's update as its option, and the Monocub sound's listener plays only for an update without it (monocub.mjs `setMonocub`, sfx.mjs `onActorFlagged`; the audit's COMM-48)", async () => {
+    ["1.2.122 COMM-48 - a quiet change of the Monocub mark sounds nothing, as it toasts nothing: setMonocub's `quiet` writes its marker in the same update, so it is in the changes every browser's listener is handed, and the Monocub sound's listener plays only for changes without it (monocub.mjs `setMonocub`, config.mjs `FLAGS.monocubQuiet`, sfx.mjs `onActorFlagged`; the audit's COMM-48)", async () => {
         /*
          * The audit of 1.2.118, COMM-48: the season reset clears each cub with `setMonocub(actor, false, { quiet: true })`,
          * and `quiet` held back only the toast - the flag's write reached sfx.mjs's `updateActor` listener like any other,
-         * so a reset of a season with three Monocubs rang the chime up to three times on each GM. Read here: the listener
-         * the module registered, handed a student's own mark change with and without the option (nothing written to the
-         * actor), the Monocub row mapped to a file and this browser's Sound slider above 0 for the run and put back; and
-         * setMonocub's source for the option on its write. Whether Foundry 14 hands an update's own option to the other
-         * browsers' `updateActor` is not read at a table (the harness does): a live check this line proposes. Red at 21bf5d18: the quiet
-         * change played, and setMonocub's write carried no option.
+         * so a reset of a season with three Monocubs rang the chime up to three times on each GM. The marker rides in the
+         * update's changes, not in an option of the update (whether v14 hands an option to the other browsers is not read
+         * headless), so this reads the changes alone: the listener the module registered, handed a student's mark change
+         * with and without the marker (nothing written to the actor), the Monocub row mapped to a file and this browser's
+         * Sound slider above 0 for the run and put back; and setMonocub's source for the marker on its write. Red at
+         * 21bf5d18: the quiet change played, and setMonocub's write carried no marker.
          */
         needs(world.atLeast("livingStudents"), "a student's mark change is handed to the listener");
         const PC = await import("./perf-counters.mjs");
         const SFX = await import("./sfx.mjs");
         const listener = (Hooks.events?.updateActor ?? []).find(entry => entry.fn?.name === "onActorFlagged")?.fn;
         must(typeof listener === "function", "sfx.mjs registered no updateActor listener named onActorFlagged - this would measure nothing");
-        const { MONOCUB_QUIET_OPTION } = await import("./config.mjs");
-        must(typeof MONOCUB_QUIET_OPTION === "string", "config.mjs exports no MONOCUB_QUIET_OPTION");
+        must(typeof FLAGS.monocubQuiet === "string", "config.mjs FLAGS has no monocubQuiet");
         const [actor] = cast(1);
         const map = foundry.utils.deepClone(getSetting(SETTINGS.sfxMap) ?? {});
         const volumes = foundry.utils.deepClone(getSetting(SETTINGS.sfxVolumes) ?? {});
         const asked = () => (PC.snapshot()["sfx.played"] ?? 0) + (SFX.diagnoseSfx().droppedBeforeFirstClick ?? 0);
-        const change = { _id: actor.id, flags: { [MODULE_ID]: { monocub: false } } };
+        const change = extra => ({ _id: actor.id, flags: { [MODULE_ID]: { monocub: false, ...extra } } });
         const read = {};
         try {
             await game.settings.set(MODULE_ID, SETTINGS.sfxMap, { ...map, monocub: "sounds/notify.wav" });
@@ -88937,11 +88936,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
             await until(() => false, 200);
             let before = asked();
-            listener(actor, change, { [MONOCUB_QUIET_OPTION]: true }, game.user.id);
+            listener(actor, change({ [FLAGS.monocubQuiet]: Date.now() }), {}, game.user.id);
             read.quiet = asked() - before;
             await until(() => false, 200);
             before = asked();
-            listener(actor, change, {}, game.user.id);
+            listener(actor, change({}), {}, game.user.id);
             read.loud = asked() - before;
         } finally {
             await game.settings.set(MODULE_ID, SETTINGS.sfxMap, map);
@@ -88949,9 +88948,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
         }
         const src = stripComments((await moduleSources()).get("monocub.mjs") ?? "");
-        read.carried = /MONOCUB_QUIET_OPTION\]: true/.test(fnSource(src, "setMonocub"));
+        read.carried = /quiet \? \{ \[`flags\.\$\{MODULE_ID\}\.\$\{FLAGS\.monocubQuiet\}`\]/.test(fnSource(src, "setMonocub"));
         equal(stableJson(read), stableJson({ quiet: 0, loud: 1, carried: true }),
-            "a quiet mark change still rang, or a plain one did not ({quiet, loud: sounds asked of the audio layer; carried: setMonocub's write carries the option})");
+            "a quiet mark change still rang, or a plain one did not ({quiet, loud: sounds asked of the audio layer; carried: setMonocub's quiet write carries the marker})");
     }],
     ["1.2.122 REFR-25 - the Sound window's Music rows follow the world's playlists, and its two switches follow another GM's write (sound-panel.mjs `openSoundDialog`'s regions, `wireSoundSwitches`; the audit's REFR-25)", async () => {
         /*
@@ -102597,19 +102596,17 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ setting: [false, 1], gm: [NAME, true, false], revealed: [NAME, true] }),
             "{setting: [the name in Countdowns, the levels its map gives the players]; gm: [the GMs' name, the insider sees it, another does not]; revealed: [its name in the setting, another sees it]} - a secret project kept out of Countdowns");
     }],
-    ["1.2.122 COMM-29 COMM-30 COMM-31 COMM-50 - the music's record stays on the primary GM: another GM's Play and Stop the track are refused with the primary's name, a cue stopped from the Playlists sidebar gives back what Play held with the switch off, Stop the track says what it did, and a GM who becomes the primary takes over a silence still held (music-play.mjs `playTrack`, `resetMusic`, `watchManualEnd`, `adoptOnBecomingPrimary`; sound-panel.mjs; the audit's COMM-29, COMM-30, COMM-31, COMM-50)", async () => {
+    ["1.2.122 COMM-30 COMM-31 COMM-50 - the music's record stays on the primary GM: a cue stopped from the Playlists sidebar gives back what Play held with the switch off, Stop the track says what it did, and a GM who becomes the primary takes over a silence still held (music-play.mjs `playTrack`, `resetMusic`, `watchManualEnd`, `adoptOnBecomingPrimary`; sound-panel.mjs; the audit's COMM-30, COMM-31, COMM-50; another GM's Play and Stop, carried out on the primary since the owner's decision of 21.11.2026, are scenario 97's phase M)", async () => {
         /*
          * The audit of 1.2.118. COMM-31: with "Music follows the game state" off (the default) Play paused the ambient
          * playlist and the cue's end was watched only with the switch on, so a cue stopped in the sidebar left the ambient
-         * paused and flagged. COMM-50: Stop the track always said a track stopped and the music came back. COMM-29: Play
-         * and Stop the track ran on any GM while the record lives on the primary. COMM-30: a GM who became the primary
+         * paused and flagged. COMM-50: Stop the track always said a track stopped and the music came back. COMM-30: a GM who became the primary
          * adopted nothing, so playlists held for a silence stayed held. Here, two fixture playlists - an ambient one
          * playing and the cue playlist (made unless the world holds one) - and the switch as found: Play, the cue stopped
-         * through its own document as the sidebar stops it, Stop the track with nothing playing; then this browser stood
-         * in as an assistant (a GM before it in the primary's order, `game.users.filter` stood in) for Play and Stop;
-         * then, with the switch on and nothing mapped, the ambient held while this browser is not the primary and the
+         * through its own document as the sidebar stops it, Stop the track with nothing playing; then, with this browser
+         * standing in as an assistant (a GM before it in the primary's order, `game.users.filter` stood in) and the switch on and nothing mapped, the ambient held while this browser is not the primary and the
          * order put back: the next apply as the primary. Everything is deleted or put back after. Red at 21bf5d18: the
-         * ambient still paused after the sidebar's stop, Stop the track answering true, the assistant's Play played, the
+         * ambient still paused after the sidebar's stop, Stop the track answering true, the
          * held ambient left held.
          */
         must(game.user.isGM, "the music is a GM's");
@@ -102633,7 +102630,6 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             if (hadFilter) users.filter = realFilter; else delete users.filter;
             if (hadGet) users.get = realGet; else delete users.get;
         };
-        const warns = [], realWarn = ui.notifications.warn;
         const made = [];
         const wait = async () => { await settle(); await until(() => false, 300); await settle(); };
         const read = {};
@@ -102667,13 +102663,6 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await wait();
             read.nothing = await P.resetMusic();
 
-            ui.notifications.warn = text => { warns.push(String(text)); };
-            standIn(true);
-            read.assistant = [U.isPrimaryGm(), await P.playTrack(track.id), await P.resetMusic(), track.playing,
-                warns.filter(w => w.includes(before.name)).length];
-            standIn(false);
-            ui.notifications.warn = realWarn;
-
             await setSetting(SETTINGS.musicMap, {});
             await setSetting(SETTINGS.musicEnabled, true);
             await wait();
@@ -102690,7 +102679,6 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             read.takeover = [ambient.playing, Boolean(ambient.getFlag(MODULE_ID, "held"))];
         } finally {
             standIn(false);
-            ui.notifications.warn = realWarn;
             for (const p of made) { if (game.playlists.get(p.id)) { await p.stopAll().catch(() => {}); await p.delete(); } }
             const left = P.situationalPlaylist();
             if (left && !made.includes(left)) for (const s of left.sounds.filter(s => s.name === "SUITE COMM-31 cue")) await s.delete();
@@ -102702,10 +102690,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(stableJson(read), stableJson({
             play: [true, false, true], sidebarStop: [true, false, false], nothing: { stopped: 0, given: 0 },
-            assistant: [false, null, null, false, 2], takeover: [true, false]
+            takeover: [true, false]
         }), "the music's record left the primary, a cue stopped in the sidebar kept what it held, or Stop the track did not say what it did "
             + "({play: [played, the ambient playing, a cue recorded]; sidebarStop: [the ambient playing, a cue recorded, the ambient flagged held]; "
-            + "nothing: Stop the track's answer with nothing playing; assistant: [primary, Play's answer, Stop's answer, the cue playing, notices naming the primary]; "
+            + "nothing: Stop the track's answer with nothing playing; "
             + "takeover: [the held ambient playing, still flagged] after this browser became the primary})");
     }],
     ["1.2.122 CTRL-25 - Create an item on a Search card, with the item tables already open, opens them again on the card's category, tier, room and name when nothing is typed in their New item tab, and with something typed there leaves them as they are and says the card's details were not carried (messenger-app.mjs `ruleCreateItem`; tables-editor.mjs `openItemTables`; the audit's CTRL-25)", async () => {

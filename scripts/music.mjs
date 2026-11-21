@@ -43,8 +43,9 @@
  * voice, this needs no protocol, no acknowledgement and no retry: it only needs
  * exactly one client to be the one deciding, which is the primary GM, the same
  * rule the rest of the module follows. That includes a GM's own Play and Stop
- * the track since 1.2.122 (the audit's COMM-29): on another GM's browser both
- * are refused with the primary's name (music-play.mjs `refusedOffPrimary`).
+ * the track since 1.2.122: another GM's press is asked of the primary, which
+ * carries it out (music-play.mjs `onPrimaryElsewhere`, the bridge's
+ * `music.track`; the owner's decision of 21.11.2026).
  *
  * FADES are Foundry's. A playlist's `fade`, or a sound's own, is read by
  * `PlaylistSound#fadeDuration` and applied on both start and stop - this file

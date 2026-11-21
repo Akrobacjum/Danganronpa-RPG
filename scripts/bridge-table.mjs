@@ -35,7 +35,7 @@ import {
 import {
     ACTION_PROGRESS, ACTION_SHARE, ACTION_REMNANT, ACTION_TIE_TRACE, ACTION_REMNANT_EDIT, ACTION_SABOTAGE,
     ACTION_UNSABOTAGE, ACTION_PROJECT_CHANGE, ACTION_SENDBACK, ACTION_ECLIPSE_MOVE, ACTION_ARM, ACTION_DESPAIR,
-    ACTION_OVERFLOW_ADD, ACTION_CALL_WORLD, ACTION_OVERFLOW_CLEAR, ACTION_DESPAIR_SET, ACTION_DESPAIR_ALL, ACTION_DESPAIR_ROSTER,
+    ACTION_OVERFLOW_ADD, ACTION_CALL_WORLD, ACTION_MUSIC_TRACK, ACTION_OVERFLOW_CLEAR, ACTION_DESPAIR_SET, ACTION_DESPAIR_ALL, ACTION_DESPAIR_ROSTER,
     ACTION_OVERFLOW_TAKE, ACTION_OVERFLOW_CHECK, ACTION_DIFFICULTY, ACTION_AUDIT_DECIDE, ACTION_KEYS_CHARGE,
     ACTION_VOTE_RUN, ACTION_VOTE_CAST, ACTION_VOTE_ASK, ACTION_FLOOR_NOW, ACTION_TRIAL_OBJECT, ACTION_TRIAL_EVIDENCE,
     ACTION_TRIAL_WITHDRAW, ACTION_FLOOR_REPOINT, ACTION_TRIAL_GM, ACTION_TRIAL_TURN, ACTION_TRIAL_CLAIM, ACTION_TRIAL_SIDE, ACTION_TRIAL_KEYWORD,
@@ -65,7 +65,7 @@ import {
 import {
     handleProgress, handleShare, TRACE_OF_ROLL, handleRemnant, traceBandOf, progressOf, repairOf, handleTieTrace,
     handleRemnantEdit, sabotageAgain, handleSabotage, handleProjectChange, handleUnsabotage, handleSendback, handleLoot,
-    handleArm, handleOverflowAdd, handleCallWorld, handleOverflowClear, handleDespairSet, handleDespairAll, handleDespairRoster,
+    handleArm, handleOverflowAdd, handleCallWorld, handleMusicTrack, handleOverflowClear, handleDespairSet, handleDespairAll, handleDespairRoster,
     handleOverflowTake, handleOverflowCheck, handleDespair, handleEclipseMove, handleNoteSave, handleRollBookmark,
     handleReroll, handleAuditDecide, handleKeysCharge, handleTrialRecord, handleTrialEnter, handleVoteRun, handleBallot,
     handleBallotAsk, handleFloorNow, handleTrialObject, handleTrialEvidence, handleTrialWithdraw, handleFloorRepoint,
@@ -994,12 +994,24 @@ export const BRIDGE_ACTIONS = table({
      */
     [ACTION_CALL_WORLD]: {
         label: "DRPG.Bridge.what.call.world",
-        guards: [gmOnly("only a GM seals a room or restricts a student"),
-            inRange("kind", k => ["seal", "restrict"].includes(k), value => `kind ${value} is not a seal or a restriction`)],
-        sanitize: pick({ kind: as.text, room: as.text, actorId: as.id, silenced: as.gmFlag, chained: as.gmFlag }),
+        // The kind by the sanitizer's list, not `inRange`, which reads a number (a word is never in its range).
+        guards: [gmOnly("only a GM seals a room or restricts a student")],
+        sanitize: pick({ kind: as.oneOf("seal", "restrict"), room: as.text, actorId: as.id, silenced: as.gmFlag, chained: as.gmFlag }),
         run: handleCallWorld,
         answer: "reply",
         claims: { actorId: "gmOnly: a GM's own Despair Call names its target, as the GM's sheet road does" }
+    },
+    /*
+     * PLAY AND STOP THE TRACK FROM ANY GM (1.2.122, the owner's decision of 21.11.2026: "Odtworz i zatrzymaj muzyke niech
+     * dziala u kazdego gma"). The music's record - the cue, what it holds, the body's silence - lives on the primary, so
+     * another GM's press is carried out there, as the primary's own press would be. A GM's alone: the music is the GMs'.
+     */
+    [ACTION_MUSIC_TRACK]: {
+        label: "DRPG.Bridge.what.music.track",
+        guards: [gmOnly("only a GM plays or stops the music")],
+        sanitize: pick({ kind: as.oneOf("play", "stop"), soundId: as.text }),
+        run: handleMusicTrack,
+        answer: "reply"
     },
     [ACTION_OVERFLOW_ADD]: {
         label: "DRPG.Bridge.what.overflow.add",

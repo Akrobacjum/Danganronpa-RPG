@@ -405,6 +405,10 @@ export const FLOWS = Object.freeze([
     // (`sfx.played`) on every browser: a GM's sound for one player plays there alone, and a player's forged packets nowhere.
     { id: "sound", what: "A sound played for other browsers",
         entry: { sockets: ["sfx.mjs"] }, scenarios: ["87-messenger-sound"], status: "covered", stage: "1.2.94" },
+    // 1.2.122 (the owner's decision of 21.11.2026): covered. 97-two-gms's phase M presses Play and Stop the track on the
+    // second GM and reads the music's record on the primary.
+    { id: "music-track", what: "Play and Stop the track in the Sound window, pressed by a GM who is not the primary",
+        entry: { bridge: ["music.track"] }, scenarios: ["97-two-gms"], status: "covered", stage: "1.2.122" },
     { id: "trace-remnant", what: "Traces: placed, tied to the crime, re-rated by a Reroll, cleaned up",
         entry: { bridge: ["remnant.place", "remnant.tieForItem", "remnant.edit", "cleanup.traces", "cleanup.ruling"] },
         scenarios: ["10-murder", "30-security", "33-bridge-paths", "61-gmstore-case"], status: "partial", stage: "E39" },

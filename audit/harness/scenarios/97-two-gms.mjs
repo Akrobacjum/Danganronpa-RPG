@@ -31,6 +31,8 @@
  *   K  1.2.121 line M1 (the audit's CORE-20 residue, N119-4): a card rewritten naming Chie while her mask stood, gm2 and
  *      p2 away; the time of day ends the mask, gm2 fetches the words, gm leaves, and gm2 serves p2 with Chie "?" (K1);
  *      gm2's own rewrite reaches p2 cut too (K2). Red at e515907d: K1 and K2 named her.
+ *   M  1.2.122, the owner's decision of 21.11.2026: the second GM's Play and Stop the track, carried out on the primary
+ *      and read there (M1, M2); and the second GM's Silence through `call.world` (M3, the audit's COMM-26).
  *
  * What this cannot see: a real F5 (a new process with the old localStorage, no cookie, IndexedDB or cache; the
  * order of "inactive", "active" and `ready` on v14 is LIVE-E30-05 and LIVE-E04-12), and a real server's delivery
@@ -575,6 +577,75 @@ export async function run(api) {
     check("K3: gm's rewrite of the card after the mask ended sends gm2 the masked rows it kept (Chie's)",
         toGm2K.length > 0 && toGm2K.every(ids => J(ids) === J([IDS.chie])), J(toGm2K));
     await gm.eval(`${CARD_K} await card()?.delete(); return true;`);
+    await settle(800);
+
+    /* ------------------------------------------------------------------ M */
+    /* PLAY AND STOP THE TRACK FROM THE SECOND GM (1.2.122, the owner's decision of 21.11.2026: "Odtworz i zatrzymaj
+       muzyke niech dziala u kazdego gma"). gm, the primary, makes an ambient playlist and plays it, and puts a track on
+       the cue playlist; gm2 presses Play (music-play.mjs `playTrack`), then Stop the track (`resetMusic`). Read on gm,
+       which keeps the music's record: the cue recorded and the ambient held after the Play, and the ambient given back
+       after the Stop; and gm2's answers. Red at 21bf5d18 (and through COMM-29): gm2's Play played on gm2 and recorded
+       nothing on gm; then (COMM-29) both were refused on gm2. */
+    phase("M Play and Stop the track from the second GM", { flow: "music-track" });
+    // The harness's CONST has no PLAYLIST_MODES, which the music engine reads: Foundry's values stood in on both GMs, as the
+    // tier-2 music test stands them in, and taken off after.
+    const MODES = `if (!CONST.PLAYLIST_MODES && Object.isExtensible(CONST)) { Object.defineProperty(CONST, "PLAYLIST_MODES",
+        { value: { DISABLED: -1, SEQUENTIAL: 0, SHUFFLE: 1, SIMULTANEOUS: 2 }, configurable: true }); globalThis.__e122modes = true; } return true;`;
+    await gm.eval(MODES);
+    await gm2.eval(MODES);
+    const MUSIC = `const P = ${imp("music-play.mjs")};`;
+    const setM = await gm.eval(`${MUSIC} const C = ${imp("config.mjs")};
+        const made = [];
+        const ambient = await Playlist.create({ name: "E122M ambient", mode: CONST.PLAYLIST_MODES?.SEQUENTIAL ?? 0,
+            sounds: [{ name: "E122M ambient one", path: "sounds/lock.wav" }] });
+        made.push(ambient.id);
+        let cue = P.situationalPlaylist();
+        if (!cue) { cue = await Playlist.create({ name: C.SITUATIONAL_PLAYLIST, mode: CONST.PLAYLIST_MODES?.SEQUENTIAL ?? 0 }); made.push(cue.id); }
+        const [track] = await cue.createEmbeddedDocuments("PlaylistSound", [{ name: "E122M cue", path: "sounds/notify.wav" }]);
+        await ambient.playAll();
+        await ambient.sounds.contents[0].update({ playing: true });
+        await new Promise(r => setTimeout(r, 400));
+        globalThis.__e122m = { made, ambient: ambient.id, cue: cue.id, track: track.id };
+        return { ...globalThis.__e122m, playing: ambient.playing, primary: (${imp("utils.mjs")}).isPrimaryGm() };`, { timeout: 60000 });
+    const playM = await gm2.eval(`${MUSIC} const U = ${imp("utils.mjs")};
+        const sound = await P.playTrack(${J(setM.track)});
+        return { primary: U.isPrimaryGm(), played: Boolean(sound) };`, { timeout: 60000 });
+    await settle(1500);
+    const afterPlayM = await gm.eval(`${MUSIC} return { interrupted: Boolean(P.musicStatus().interrupted),
+        ambient: game.playlists.get(${J(setM.ambient)})?.playing ?? null,
+        cue: game.playlists.get(${J(setM.cue)})?.sounds.get(${J(setM.track)})?.playing ?? null };`);
+    const stopM = await gm2.eval(`${MUSIC} return await P.resetMusic();`, { timeout: 60000 });
+    await settle(1500);
+    const afterStopM = await gm.eval(`${MUSIC} return { interrupted: Boolean(P.musicStatus().interrupted),
+        ambient: game.playlists.get(${J(setM.ambient)})?.playing ?? null,
+        cue: game.playlists.get(${J(setM.cue)})?.sounds.get(${J(setM.track)})?.playing ?? null };`);
+    check("M1: the second GM's Play of a cue is carried out on the primary: gm2 is told it played, and gm records the cue playing with the ambient held (the owner's decision of 21.11.2026)",
+        setM.primary === true && setM.playing === true && playM.primary === false && playM.played === true
+            && afterPlayM.interrupted === true && afterPlayM.cue === true && afterPlayM.ambient === false,
+        J({ setM, playM, afterPlayM }));
+    check("M2: the second GM's Stop the track stops the cue on the primary and gives the ambient back, and gm2 is answered what it did",
+        stopM?.stopped >= 1 && stopM?.given >= 1 && afterStopM.interrupted === false && afterStopM.cue === false && afterStopM.ambient === true,
+        J({ stopM, afterStopM }));
+    await gm.eval(`${MUSIC} const m = globalThis.__e122m;
+        for (const id of m.made) { const p = game.playlists.get(id); if (p) { await p.stopAll().catch(() => {}); await p.delete(); } }
+        const cue = game.playlists.get(m.cue); if (cue) for (const s of cue.sounds.filter(s => s.name === "E122M cue")) await s.delete();
+        delete globalThis.__e122m; return true;`, { timeout: 60000 });
+    /* AND A DESPAIR CALL'S RESTRICTION FROM THE SECOND GM (1.2.122, the audit's COMM-26): gm2's Silence is asked of the
+       primary (`call.world`) and written there; read on gm, and the restrictions put back on gm after (a restriction is
+       lifted by the end of its time of day, call-world.mjs `clearSeals`, not by a Call). Red at d4d1ddec: the row's
+       kind guard read a number, so every such ask from a GM who is not the primary was refused. */
+    const W = `const W = ${imp("call-world.mjs")};`;
+    const restrictionsWas = await gm.eval(`${W} return foundry.utils.deepClone(W.restrictions());`);
+    const silenceN = await gm2.eval(`${W} return await W.restrict(game.actors.get("${IDS.chie}"), { silenced: true });`, { timeout: 60000 });
+    await settle(1000);
+    const onGmN = await gm.eval(`${W} return W.isCallSilenced(game.actors.get("${IDS.chie}"));`);
+    const onGm2N = await gm2.eval(`${W} return W.isCallSilenced(game.actors.get("${IDS.chie}"));`);
+    check("M3: the second GM's Silence on Chie is written by the primary, and both GMs read it (call-world.mjs `restrict` through `call.world`)",
+        silenceN === true && onGmN === true && onGm2N === true, J({ silenceN, onGmN, onGm2N }));
+    await gm.eval(`await game.settings.set("${MOD}", "restrictions", ${J(restrictionsWas)}); return true;`);
+    const UNMODES = `if (globalThis.__e122modes) { delete CONST.PLAYLIST_MODES; delete globalThis.__e122modes; } return true;`;
+    await gm.eval(UNMODES);
+    await gm2.eval(UNMODES);
     await settle(800);
 
     return { primary: { before, joined, afterGmReload, moved, backAgain }, reloads: { p1: r1, gm: r2, card: r3 },

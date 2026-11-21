@@ -23,7 +23,7 @@ import { claimOnPrimary, sayRefusedHere, observePickOnPrimary, yesOnPrimary, dyn
 import {
     SOCKET_EVENT, ACTION_PROGRESS, ACTION_SHARE, ACTION_REMNANT, ACTION_TIE_TRACE, ACTION_REMNANT_EDIT, ACTION_SABOTAGE,
     ACTION_UNSABOTAGE, ACTION_PROJECT_CHANGE, ACTION_SENDBACK, ACTION_ECLIPSE_MOVE, ACTION_ARM, ACTION_DESPAIR,
-    ACTION_OVERFLOW_ADD, ACTION_CALL_WORLD, ACTION_OVERFLOW_CLEAR, ACTION_DESPAIR_SET, ACTION_DESPAIR_ALL, ACTION_DESPAIR_ROSTER,
+    ACTION_OVERFLOW_ADD, ACTION_CALL_WORLD, ACTION_MUSIC_TRACK, ACTION_OVERFLOW_CLEAR, ACTION_DESPAIR_SET, ACTION_DESPAIR_ALL, ACTION_DESPAIR_ROSTER,
     ACTION_OVERFLOW_TAKE, ACTION_OVERFLOW_CHECK, ACTION_DIFFICULTY, ACTION_VOTE_CAST, ACTION_VOTE_ASK,
     ACTION_TRIAL_OBJECT, ACTION_TRIAL_EVIDENCE, ACTION_TRIAL_WITHDRAW, ACTION_FLOOR_REPOINT, ACTION_TRIAL_GM,
     ACTION_TRIAL_TURN, ACTION_TRIAL_CLAIM, ACTION_TRIAL_SIDE, ACTION_TRIAL_KEYWORD, ACTION_TRIAL_PRESENT, ACTION_READY_OPEN, ACTION_READY_ANSWER,
@@ -498,15 +498,28 @@ export function sendDespairToPrimary(targetUserId, delta, { clamp = false } = {}
 }
 
 /**
- * A GM that is not the primary adds to the overflow (E17 C5; overflow.mjs `addOverflow`), which asked only once it
- * knew the primary is connected and is somebody else. Its value is `{ after }`, the count on the primary after.
+ * A GM that is not the primary asks the primary to write a Despair Call's seal or restriction (1.2.122, the audit's
+ * COMM-26; call-world.mjs `callWorld`, which asks only while the primary is connected and is somebody else). Its value
+ * is `{ done: true }`.
  */
 export function requestCallWorld(change) {
-    // A GM that is not the primary, while the primary is connected (call-world.mjs `onPrimaryElsewhere`): COMM-26.
     return ask(ACTION_CALL_WORLD, { kind: change.kind, room: change.room ?? null, actorId: change.actorId ?? null,
         silenced: change.silenced === true, chained: change.chained === true });
 }
 
+/**
+ * A GM that is not the primary asks the primary to play a cue or stop the track (1.2.122, the owner's decision of
+ * 21.11.2026; music-play.mjs `playTrack`, `resetMusic`, which ask only while the primary is connected and is somebody
+ * else). Its value is `{ played }` for a play, `{ stopped, given }` for a stop.
+ */
+export function requestMusicTrack(kind, soundId = null) {
+    return ask(ACTION_MUSIC_TRACK, { kind, soundId: soundId ?? null });
+}
+
+/**
+ * A GM that is not the primary adds to the overflow (E17 C5; overflow.mjs `addOverflow`), which asked only once it
+ * knew the primary is connected and is somebody else. Its value is `{ after }`, the count on the primary after.
+ */
 export function requestOverflowAdd(amount, reason) {
     return ask(ACTION_OVERFLOW_ADD, { amount, reason });
 }

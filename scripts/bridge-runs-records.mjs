@@ -610,11 +610,29 @@ export async function handleOverflowAdd(payload, sender, ctx) {
 
 /** The run of `call.world` (1.2.122, COMM-26): the primary's own write of a seal or a restriction, its answer whether it wrote. */
 export async function handleCallWorld(payload, sender, ctx) {
+    if (!payload.kind) return { refused: "nothing was carried out: the change is not a seal or a restriction" };
     const { writeCallWorld } = await import("./call-world.mjs");
     const done = await writeCallWorld({ kind: payload.kind, room: payload.room ?? null, actorId: payload.actorId ?? null,
         silenced: payload.silenced === true, chained: payload.chained === true });
     if (!done) return { refused: "nothing was carried out: the seal or the restriction was not written" };
     return { reply: { done: true } };
+}
+
+/**
+ * The run of `music.track` (1.2.122, the owner's decision of 21.11.2026): another GM's Play of a cue or Stop the track,
+ * carried out by the primary's own `playTrack` or `resetMusic`; what it did is the reply, for the asker's notice.
+ */
+export async function handleMusicTrack(payload, sender, ctx) {
+    if (!payload.kind) return { refused: "nothing was carried out: the press is not a play or a stop" };
+    const { playTrack, resetMusic } = await import("./music-play.mjs");
+    if (payload.kind === "play") {
+        const played = await playTrack(payload.soundId);
+        if (!played) return { refused: "nothing was carried out: the cue was not played" };
+        return { reply: { played: true } };
+    }
+    const done = await resetMusic();
+    if (!done) return { refused: "nothing was carried out: the music was not stopped" };
+    return { reply: { stopped: done.stopped, given: done.given } };
 }
 
 /** The run of `overflow.clear` (H84-06): the primary's own `resetOverflow` of the count alone, for the GM who asked. */
