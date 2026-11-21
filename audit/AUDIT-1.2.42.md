@@ -4421,6 +4421,8 @@ Właściciel odpowiedział na wszystkie cztery 20.11.2026 około 23:30Z, przez k
 | Q-A119-3 | Czy dziennik awarii panelu GM-a może zostać po angielsku (zdania głosu i muzyki w `voice.mjs:1686, 1749`, `music-play.mjs:619-620`)? | `verify-old-1.2.42-comms` (COMM-18) | tak, jak konsola diagnostyki (zasada E65); COMM-18 zamknięte decyzją (D-A7) |
 | Q-A119-4 | `giveKeyDialog` jest osiągalne tylko z testów; zostawić czy usunąć? | `controls-06-items-sheet` | zostaje, oznaczone jako martwy kod (D-A8) |
 
+Późniejsze decyzje właściciela (21.11.2026, około 02:45Z; `DECISIONS.md`): **D-A9**, CASE-16 - GM rozstrzyga pełną liczbą, a ofiara i trzeci widzą liczbę, którą mogą znać, z dopiskiem, że dochodzi ukryta obrona, bez wartości i bez imienia. **D-A10** - po każdym wydaniu audytor sprawdza zmiany tego wydania: wydane drzewo wobec poprzedniego tagu, twierdzenia każdej linii, znaleziska, które wydanie uznaje za zamknięte, i nowe znaleziska w zmienionych plikach. Pierwsze takie sprawdzenie to 18.5.
+
 ### 18.3 1.2.119
 
 > **Po wydaniu (21.11.2026):** stan każdej pozycji tej tabeli na wydanym `e515907d` jest w 18.5; "do sprawdzenia" niżej to zapis sprzed wydania.
