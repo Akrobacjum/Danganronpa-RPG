@@ -2967,6 +2967,7 @@ function awayCards() {
  * no buttons, and the way it went (`onRenderUnwitnessed`).
  */
 async function settleAwayCards(messageIds, grant) {
+    if (!game.user?.isGM) return;
     const decided = new Set(messageIds);
     for (const card of awayCards()) {
         const ids = cardFlag(card, "awayRolls");

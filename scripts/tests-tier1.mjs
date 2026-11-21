@@ -11469,7 +11469,8 @@ const INVARIANTS = [
         ].map(before);
         const written = /message\.updateSource\(\{ \[`flags\.\$\{MODULE_ID\}\.\$\{UNWITNESSED_FLAG\}`\]: \{ \.\.\.stamp \} \}\)/.test(fnSource(draw, "stampUnwitnessed"))
             && /Hooks\.on\("preCreateChatMessage", stampUnwitnessed\)/.test(fnSource(draw, "registerUnwitnessedRolls"));
-        const card = /if \(message\.getFlag\?\.\(MODULE_ID, UNWITNESSED_FLAG\) && [^\n]*\) \{\s*body\.insertAdjacentHTML\([^\n]*game\.i18n\.localize\("DRPG\.Rolls\.unwitnessed"\)/.test(fnSource(draw, "onRenderUnwitnessed"));
+        // Since 1.2.122 (REFR-54) the line follows the decision: the waiting line while undecided, the decided one after.
+        const card = /const stamp = message\.getFlag\?\.\(MODULE_ID, UNWITNESSED_FLAG\);[\s\S]*?!decided \? "DRPG\.Rolls\.unwitnessed"[\s\S]*?rollStatus\("unwitnessed", game\.i18n\.localize\(key\)\)/.test(fnSource(draw, "onRenderUnwitnessed"));
         const reaction = /\breaction: dice\?\.options\?\.actionType === "reaction"/.test(fnSource(draw, "awayRowOf"));
         const tells = /\)\s*\{\s*if \(reaction\) return game\.i18n\.localize\("DRPG\.Rolls\.awayNothing"\);/.test(fnSource(draw, "awayMoves"));
         const grant = fnSource(draw, "grantRolls");
@@ -48137,6 +48138,7 @@ const INVARIANTS = [
             "cleanup.mjs undoLastCleanup": "a Reroll puts the clean-up's Sanity marks back",
             // E74 C6: Keep Watch missed with Despair marks a Sanity, written by the primary GM.
             "watch-gm.mjs declareWatch": "a watch missed with Despair, its Sanity mark, written",
+            "infiltrate-reroll.mjs settleWatch": "a Keep Watch's Reroll, the first throw's Sanity mark given back where it no longer stands (1.2.122, ROLL-24)",
             "cleanup.mjs markResolutionStress": "the resolution's Sanity price, written",
             "cleanup.mjs restoreStress": "a refund of Sanity, written",
             "cleanup.mjs resolveCleanup": "the receipt's Sanity before the attempt, for a Reroll",
@@ -56262,8 +56264,9 @@ const INVARIANTS = [
             hurt: hurt[1] === game.i18n.format("DRPG.Explain.status.actionsWounded", { wounded: unit("actionAcc", base - lost), actions: unit("actionGen", base) }),
             // The trial's clause, in the sentence the window shows (the phase's name as the glossary has it, both languages).
             trial: hurt[1].includes("Class Trial") && rule[1].includes("Class Trial"),
-            windows: [/phaseExplanation\(clock, \{ actor: subjectActor\(\) \}\)/.test(fnSource(src, "openStateExplainer")),
-                /actionsExplained\(\{ actor \}\)/.test(fnSource(src, "openStatusExplainer"))]
+            // The bodies the two windows draw, and draw again, since 1.2.122 (CORE-30): `stateBody`, `statusBody`.
+            windows: [/phaseExplanation\(clock, \{ actor: subjectActor\(\) \}\)/.test(fnSource(src, "stateBody")),
+                /actionsExplained\(\{ actor \}\)/.test(fnSource(src, "statusBody"))]
         };
         equal(stableJson(read), stableJson({ phase: [true, true], what: [true, true], wounded: [true, true], hurt: true, trial: true, windows: [true, true] }),
             "{Daily Life's paragraph [with the character: its own count; with none: the rule's]; the strip's budget sentence [own, rule]; Wounded's [own less a wound, own]; Wounded's for a wounded student [Daily Life's wounded budget, the whole one]; the trial's clause in it; the windows hand the character in [the clock's, the strip's]}");

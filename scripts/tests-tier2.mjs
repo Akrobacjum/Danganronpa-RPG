@@ -22056,6 +22056,85 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             stableJson({ answers: [false, null, { tier: 1, trait: "agility" }], card: true }),
             "{the window's answers: Refuse, closed, a band; whether the card's Set the difficulty refuses on the window's no}");
     }],
+    ["1.2.122 CORE-30 - the four explainers' \"right now\" follows what they print while they stand open: the clock's window the time of day, the Despair window a pool's count, the strip's window the subject's actions, the Projects window the reader's projects (scripts/explain.mjs `explainer`, `stateBody`, `despairBody`, `statusBody`, `projectsBody`; the audit's CORE-30, REFR-24 and REFR-56, 1.2.122 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP. The audit's CORE-30 (and REFR-24, REFR-56): each explainer was a one-shot window
+         * built from a read at open; a clock moved, a pool spent or an action taken left it on the old numbers beside a
+         * panel that had redrawn. On this GM, with the GM's selected token a student's (the subject a GM's window reads),
+         * each window opened and left open; then the time of day moved, this GM's pool set, the student's actions written.
+         * Read: whether each body's text took the change (the new time of day's label, the pool's "n / max", the actions'
+         * line). The Projects window is opened and closed with no change (its rows are a client's sight, not written here).
+         * Put back: the clock, the pool, the actions, the selection, the windows. Red at 21bf5d18: no body changed.
+         */
+        const E = await import("./explain.mjs");
+        const D = await import("./despair.mjs");
+        const { actionsLeft, actionsMax } = await import("./actions.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const C = await import("./clock.mjs");
+        const { player, actor } = await playerInRoom();
+        must(player && actor, "a player's student in a room - this would measure nothing");
+        must(D.monokumas().some(u => u.id === game.user.id), "this GM holds no Despair pool - this would measure nothing");
+        const token = canvas?.tokens?.placeables?.find(t => t.actor?.id === actor.id) ?? null;
+        must(token, `${actor.name} has no token on the canvas to select - this would measure nothing`);
+        const clock = foundry.utils.deepClone(getClock());
+        const pool = D.getDespair(game.user.id);
+        const actionsWas = foundry.utils.getProperty(actor, "system.resources.actions.value");
+        const controlled = [...(canvas.tokens.controlled ?? [])];
+        const bodyOfWindow = cls => [...(foundry.applications.instances?.values?.() ?? [])]
+            .map(app => (app.element instanceof HTMLElement ? app.element : app.element?.[0]))
+            .find(el => el?.classList?.contains("drpg-explain") && el.querySelector(".drpg-explain-body") && el.dataset.suiteWindow === cls)?.querySelector(".drpg-explain-body")?.textContent ?? null;
+        // The time of day marked as now in the clock's window (its strip names every one).
+        const nowOf = cls => [...(foundry.applications.instances?.values?.() ?? [])]
+            .map(app => (app.element instanceof HTMLElement ? app.element : app.element?.[0]))
+            .find(el => el?.dataset?.suiteWindow === cls)?.querySelector(".drpg-explain-body .drpg-explain-now")?.textContent ?? null;
+        const opened = [];
+        const open = async (fn, cls) => {
+            const before = new Set(foundry.applications.instances?.keys?.() ?? []);
+            void fn();
+            await until(() => [...(foundry.applications.instances?.values?.() ?? [])].some(app => !before.has(app.id)
+                && (app.element instanceof HTMLElement ? app.element : app.element?.[0])?.classList?.contains("drpg-explain")), 3000);
+            const app = [...foundry.applications.instances.values()].find(a => !before.has(a.id));
+            must(app, `the ${cls} explainer did not open - this would measure nothing`);
+            (app.element instanceof HTMLElement ? app.element : app.element?.[0]).dataset.suiteWindow = cls;
+            opened.push(app);
+        };
+        const read = {};
+        try {
+            token.control({ releaseOthers: true });
+            await trustedWrite(actor, { "system.resources.actions.value": actionsMax(actor) }, { reason: "gmRuling" });
+            await D.setDespair(game.user.id, 1);
+            await settle();
+            await open(E.openStateExplainer, "state");
+            await open(E.openDespairExplainer, "despair");
+            await open(E.openStatusExplainer, "status");
+            await settle();
+            // One change at a time, each read before the next: a window is drawn again by its own watch, not by another's.
+            const settled = async () => { await settle(); await wait(200); await settle(); };
+            const next = TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(clock.timeOfDay) + 1) % TIMES_OF_DAY.length];
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, timeOfDay: next });
+            await settled();
+            read.state = nowOf("state") === C.timeOfDayLabel(next);
+            await D.setDespair(game.user.id, 2);
+            await settled();
+            read.despair = bodyOfWindow("despair")?.includes(`${D.poolLabel(game.user)}: 2 / ${D.despairMax()}`) ?? null;
+            await trustedWrite(actor, { "system.resources.actions.value": Math.max(0, actionsMax(actor) - 1) }, { reason: "gmRuling" });
+            await settled();
+            read.status = bodyOfWindow("status")?.includes(game.i18n.format("DRPG.Explain.status.actionsNow", { left: actionsLeft(actor), max: actionsMax(actor) })) ?? null;
+            await open(E.openProjectsExplainer, "projects");
+            read.projects = typeof bodyOfWindow("projects") === "string";
+        } finally {
+            for (const app of opened) await app.close().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await D.setDespair(game.user.id, pool);
+            await trustedWrite(actor, { "system.resources.actions.value": actionsWas }, { reason: "gmRuling" });
+            token.release();
+            for (const t of controlled) t.control({ releaseOthers: false });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ state: true, despair: true, status: true, projects: true }),
+            "{whether each open explainer's body took the change: the clock's window the new time of day, the Despair window the pool's count, the strip's window the actions; the Projects window drawn}");
+    }],
     ["Grant all grants each stamped roll once", async () => {
         /*
          * E08+E28 C18, 04.10.2026; the plan's 3.7. A roll thrown while no GM was connected is
