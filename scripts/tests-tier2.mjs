@@ -107387,6 +107387,55 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "Room setup wrote over the digits typed in a token count, or sent them unasked (text: the count's text after the redraw; world: the room's tokens untouched)");
     }],
 
+    ["1.2.122 MAP-39 - Room Setup draws a name no piece can make a room with every cell off but its name and This is a room, and a room's row as live as before (scripts/room-setup.mjs `roomCells`, `cellsOff`; the audit's MAP-39)", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026; the audit's MAP-39. Room Setup lists every named region, and a name only a Teleport, a
+         * level change or a player's region carries kept its owner, locks, table, description, picture and token cells live
+         * while Apply skips the row and writes none of them. A scene of the suite's own, viewed: a Hall marked a room and a
+         * Stairwell whose one region is a Teleport. The window is opened with Foundry's DialogV2.wait answered by a reader
+         * of its content, which closes it. Read: whether each row's owner, lock, description and table are disabled.
+         * Put back: the camera, the scene, DialogV2.wait.
+         */
+        needs(env.dialogs(), "the window's content is read as drawn");
+        const R = await import("./rooms.mjs");
+        const V = await import("./vault.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const back = canvas?.scene ?? null;
+        const HALL = "SUITE MAP39 Hall", STAIRS = "SUITE MAP39 Stairwell";
+        let scene = null, read = null;
+        try {
+            scene = await Scene.create({ name: "SUITE MAP39 Floor", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [
+                { name: HALL, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }], flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] },
+                { name: STAIRS, shapes: [{ type: "rectangle", x: 1000, y: 0, width: 800, height: 800 }], behaviors: [{ type: "teleportToken", name: "Up", system: { destination: null } }] }]);
+            await scene.view();
+            await settle();
+            must(canvas?.scene === scene && R.writablePieces(scene, STAIRS).length === 0 && R.roomRegions(scene, HALL).length === 1,
+                "the suite's scene is not on screen, its Stairwell can be a room or its Hall is none - this would measure nothing");
+            let drawn = null;
+            D.wait = async cfg => {
+                const form = document.createElement("form");
+                if (typeof cfg?.content === "string") form.innerHTML = cfg.content;
+                else if (cfg?.content) form.append(cfg.content.cloneNode(true));
+                drawn = form;
+                return null;
+            };
+            await V.openRoomSetupDialog();
+            await settle();
+            must(drawn, "Room Setup drew no window - this would measure nothing");
+            const row = room => ["owner", "locked", "desc", "table"].map(k => drawn.querySelector(`[name="${CSS.escape(`${k}:${room}`)}"]`)?.disabled ?? null);
+            read = { stairs: row(STAIRS), hall: row(HALL) };
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+            await back?.view();
+            await scene?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ stairs: [true, true, true, true], hall: [false, false, false, false] }),
+            "{stairs, hall: [the owner, the lock, the description, the table disabled]}");
+    }],
+
     ["1.2.122 MAP-30 - a held Secret Passage's \"finished\" card is posted once on its finder's entry, though the primary reads the move twice and the first post is slow (scripts/fog.mjs `reactToMove`; projects-seen.mjs `tellFoundOnEntry`; the audit's MAP-30)", async () => {
         /*
          * 1.2.122 line MAP, 21.11.2026; the audit's MAP-30. The primary reads an ordinary drop twice, at the update and again

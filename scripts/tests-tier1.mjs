@@ -51819,7 +51819,8 @@ const INVARIANTS = [
         equal(stableJson({ first, after, asked, heavy: [facts.heavy, facts.gone], missing: missing.gone, holds: /setApplyBlock|disabled/.test(src) }), stableJson({
             first: [["warning", big], ["warning", game.i18n.localize("DRPG.Vault.imageBroken")], [null, ""]],
             after: [[null, ""], ["warning", game.i18n.localize("DRPG.Vault.imageBroken")], [null, ""]],
-            asked: ["big.webp", "gone.webp", "fine.webp", "fine.webp"],
+            // A path read once a window's open since 1.2.122 (line MAP; the audit's MAP-41): the second "fine.webp" is answered from the first.
+            asked: ["big.webp", "gone.webp", "fine.webp"],
             heavy: [true, false], missing: true, holds: false
         }), "{first: each cell [a warning box, its words] for a picture too large, one that does not load, one that fits; after: the first given the fitting picture; asked: the pictures read; imageFacts over the bytes [heavy, gone]; a 404 gone; whether the warning touches Apply}");
     }],
@@ -64446,6 +64447,51 @@ const INVARIANTS = [
             ["outlineRoomFlag", "outlineReshaped", "whereIStand"].map(id => replaced.includes(`step("${id}"`))]),
             JSON.stringify([["R8343 Gym"], [2, true, true, ["false", "true"]], ["leadRooms", "leadRooms"], true, [true, true, true]]),
             "[the lead's rooms, [buttons, the same nodes drawn again, rebuilt for another floor, pressed], the outline's two fades against, the door polygons a getter, the scene update's outline and standing steps]");
+    }],
+    ["R8344 - Room Setup draws a name no piece can make a room with its cells off, probes each picture path once and a few at a time, and gives its held Apply's reason as text (1.2.122 line MAP; scripts/room-setup.mjs `cellsOff`, `wirePictureWarnings`, `setApplyBlock`; the audit's MAP-39, MAP-41, MAP-42)", async () => {
+        /*
+         * 1.2.122 line MAP, 21.11.2026. MAP-39: a row whose name only a Teleport, a level change or a player's region carries
+         * kept every cell live while Apply skips it; `cellsOff` disables every control but the name and This is a room, and
+         * takes the picture off the pickers and the probe. MAP-41: every picture cell probed its own path at the open, all
+         * at once; five cells of two paths are read here through a stand-in `imageFacts` that counts calls and the most at
+         * once. MAP-42: the held Apply's reason went into Foundry's tooltip through an empty data-tooltip and the
+         * aria-label (R4764's road not to take); it is `data-tooltip-text` now. All on detached elements.
+         */
+        const V = await import("./room-setup.mjs");
+        must(typeof V.cellsOff === "function" && typeof V.wirePictureWarnings === "function" && typeof V.setApplyBlock === "function",
+            "room-setup.mjs has no cellsOff, wirePictureWarnings or setApplyBlock - this would measure nothing");
+        const cells = V.cellsOff({ name: "<strong>Stairwell</strong>", isroom: { html: '<input type="checkbox" name="isroom:Stairwell" disabled>', title: "hint" },
+            owner: '<select name="owner:Stairwell"><option value=""></option></select>', locked: { html: '<input type="checkbox" name="locked:Stairwell">', title: "t" },
+            description: '<textarea name="desc:Stairwell"></textarea>', tokens: '<span><button type="button" data-drpg-token="Stairwell">+</button></span>',
+            image: '<img class="drpg-room-picture" data-drpg-portrait="Stairwell" src="a.webp"><input type="hidden" name="img:Stairwell" value="a.webp">' });
+        const host = document.createElement("div");
+        host.innerHTML = Object.values(cells).map(c => (typeof c === "object" ? c.html : c)).join("");
+        const off = [...host.querySelectorAll("input, select, textarea, button")].filter(el => !el.name?.startsWith("isroom")).map(el => el.disabled);
+        const kept = [cells.name, cells.isroom?.title, cells.locked?.title, host.querySelector("[data-drpg-portrait]") === null];
+
+        const root = document.createElement("div");
+        root.innerHTML = ["a.webp", "b.webp", "a.webp", "a.webp", "b.webp"].map(src => `<table><tr><td><img data-drpg-portrait="x" src="${src}"><div data-drpg-picture-say></div></td></tr></table>`).join("");
+        let calls = 0, now = 0, most = 0;
+        V.wirePictureWarnings(root, { atOnce: 1, facts: async () => {
+            calls++; now++; most = Math.max(most, now);
+            await new Promise(r => setTimeout(r, 30));
+            now--;
+            return { gone: false, pixels: false, heavy: false };
+        } });
+        await until(() => calls >= 2 && now === 0, 2000);
+        await new Promise(r => setTimeout(r, 100));
+
+        const form = document.createElement("div");
+        form.innerHTML = '<footer><button type="button" data-action="ok">Apply</button></footer>';
+        const apply = form.querySelector("button");
+        const reason = "<b>Ai</b> holds two rooms";
+        V.setApplyBlock(form, "bedrooms", reason);
+        const held = [apply.disabled, apply.hasAttribute("data-tooltip"), apply.dataset.tooltipText ?? null, apply.getAttribute("aria-label")];
+        V.setApplyBlock(form, "bedrooms", null);
+        const freed = [apply.disabled, apply.hasAttribute("data-tooltip"), apply.dataset.tooltipText ?? null, apply.getAttribute("aria-label")];
+        equal(JSON.stringify([off, kept, [calls, most], held, freed]),
+            JSON.stringify([[true, true, true, true, true], ["<strong>Stairwell</strong>", "hint", "t", true], [2, 1], [true, false, reason, reason], [false, false, null, null]]),
+            "[each control of the row off, [the name, This is a room's hint, a cell's hint kept, the picture no picker], [probes for two paths, the most at once], the held Apply [disabled, an empty data-tooltip, its text tooltip, its label], freed]");
     }],
 ];
 
