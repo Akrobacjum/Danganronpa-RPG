@@ -6113,6 +6113,7 @@
       "none": "No Motive is in force.",
       "withdraw": "Withdraw Motive",
       "withdrawNote": "Withdrawing it tells the whole table the Motive is off.",
+      "changedMeanwhile": "The Motive changed while this window was open. The one in force is shown now; press Withdraw Motive again to withdraw it.",
       "deadline": {
         "one": "The deadline is one time of day.",
         "other": "The deadline is {n} times of day."

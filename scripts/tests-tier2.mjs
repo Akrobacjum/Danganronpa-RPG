@@ -104186,6 +104186,61 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ room: ["SUITE soup", "SUITE tea"], roomTold: [true, true], project: ["SUITE brew", ["", "sanity"], true] }),
             "{room: the room's actions after Save; roomTold: [the dropped line told, the other GM's action named]; project: [its action's name after the second Save, the first effect each window drew, the missing name told]} - the editors keep what is typed and say what is not saved");
     }],
+    ["1.2.122 REFR-22 - the rules manager does not put another GM's work back: a rule another GM reworded while the window stood keeps their words when this GM saves a revoke of another, the motive shown follows a new one at once, and Withdraw withdraws the motive drawn (scripts/rules.mjs `openRulesManager`, `saveRulesEdit`, `wireMotiveWithdraw`, `motiveMark`; the audit's REFR-22, 1.2.122 line WORLD)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line WORLD. The audit's REFR-22 (controls-08-rolls-actions-8): the window drew the rules and the
+         * motive once; Save sent every drawn row's text, so a rule reworded meanwhile got the old words back, and Withdraw
+         * withdrew whatever was in force. Driven: two rules and a motive set; the manager drawn on this GM; while it stands,
+         * the second rule reworded as another GM's write does (`updateRule`) and a new motive set (`setMotive`); the first
+         * rule's Revoke ticked and Save pressed - after the section was read and Withdraw pressed. Read: the motive section's
+         * words, the motive after Withdraw, the rules after Save. Put back: the rules, the motive, the cards.
+         * Red at 21bf5d18: the section showed the first motive and the second rule had its old words back.
+         */
+        needs(env.dialogs(), "the rules manager is drawn and its Save and Withdraw pressed");
+        const R = await import("./rules.mjs");
+        const rulesWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.killingGameRules) ?? []);
+        const motiveWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.motive) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const title = game.i18n.localize("DRPG.Rules.manageTitle");
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.element && a.options?.window?.title === title) ?? null;
+        const read = {};
+        let pending = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.killingGameRules, []);
+            const one = await R.addRule("SUITE 122 rule one");
+            const two = await R.addRule("SUITE 122 rule two");
+            must(one?.id && two?.id, "the rules were not written - this would measure nothing");
+            await R.setMotive({ text: "SUITE 122 motive first", timesOfDay: 2 });
+            await settle();
+            pending = R.openRulesManager();
+            must(await until(() => Boolean(drawn()), 8000), "the rules manager did not draw");
+            await R.updateRule(two.id, "SUITE 122 rule two, reworded");
+            await wait(5);
+            await R.setMotive({ text: "SUITE 122 motive second", timesOfDay: 2 });
+            await settle();
+            await settle();
+            const el = drawn().element;
+            read.section = el.querySelector(".drpg-rules-motive")?.textContent.includes("SUITE 122 motive second") ?? null;
+            el.querySelector("[data-drpg-motive-withdraw]")?.click();
+            await settle();
+            await settle();
+            read.withdrawn = R.motive()?.text ?? null;
+            const box = el.querySelector(`[name="delete:${CSS.escape(one.id)}"]`);
+            if (box) box.checked = true;
+            el.querySelector('footer button[data-action="save"]')?.click();
+            await Promise.race([pending, wait(4000)]);
+            await settle();
+            read.rules = R.rules().map(r => r.text);
+        } finally {
+            if (drawn()) await drawn().close();
+            await game.settings.set(MODULE_ID, SETTINGS.killingGameRules, rulesWas);
+            await game.settings.set(MODULE_ID, SETTINGS.motive, motiveWas);
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ section: true, withdrawn: null, rules: ["SUITE 122 rule two, reworded"] }),
+            "{section: the motive section shows the motive set while the window stood; withdrawn: the motive after Withdraw; rules: after a Save that revoked the first} - the manager follows the table and puts nothing back");
+    }],
     ["PV-DOORS-T1 - the people in the character's own room always see who works its doors, and everyone behind a barricade hears a knock (scripts/doors-gm.mjs `shutDoor`, `forceDoor`, `pickLock`, `knockDoor`; the owner's rules #8 and #9, 13.11.2026): Shut the Door, a Force missed with Hope and a Pick whose Shadow cover passed each send the other student in the character's room a card naming the character, and nobody in the room beyond one; a Pick whose cover failed and a Force missed with Despair tell both rooms, as before; a walk refused at a barricade is heard by everyone in the barricaded room - its author and the student beside them - and never by the walker", async () => {
         /*
          * Privacy line 1 (doors), 13.11.2026. Judged as the primary judges the player's packets (`G.judge`), each roll a

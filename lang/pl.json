@@ -6561,6 +6561,7 @@
       "none": "Żaden Motive nie obowiązuje.",
       "withdraw": "Wycofaj Motive",
       "withdrawNote": "Wycofanie ogłasza wszystkim, że Motive już nie obowiązuje.",
+      "changedMeanwhile": "Motive zmienił się, gdy okno było otwarte. Teraz widać ten, który obowiązuje; naciśnij Wycofaj Motive jeszcze raz, żeby go wycofać.",
       "deadline": {
         "one": "Jedna pora dnia, by coś z tym zrobić.",
         "few": "{n} pory dnia, by coś z tym zrobić.",
