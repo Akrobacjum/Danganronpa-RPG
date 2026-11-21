@@ -6,7 +6,7 @@
  "runs": {
   "tiers_0_1": "1978 ran, 1963 passed, 0 failed, 16 skipped, 0 red (562 s), 14bb0d92's own harness",
   "tier_2_selected": "--only \"1.2.122\": 288 ran, 294 passed, 0 failed, 0 skipped, 0 red (403 s; the runner's two counts differ, not read why)",
-  "probe_44": "100 windows, 96 opened, 78 of 78 live regions return the region. action-palm and ballot are not opened on any version (the probe's); action-loot and action-loot--long opened on 1.2.121 and not in this run: see not_established",
+  "probe_44": "100 windows, 96 opened, 78 of 78 live regions return the region. action-palm and ballot are not opened on any version (the probe's); action-loot and action-loot--long opened on 1.2.121 and not in this run: see not_established_audit (not a regression by the rerun)",
   "probe_43": "running at the time of writing (all 74 windows, the GM heap after gc per window): 16 windows read, 136 -> 288 MB, against 472 -> 4967 MB on 1.2.121 at the same 16 (probe-43-heap.json) - INVEST's a11y observer (ede0cbe7) holds end to end so far. Added when it ends."
  },
  "method": "8 lanes (A TEXT+STG+assembly, B CORE+WORLD, C TRIAL+MURDER, D INVEST+heap, E MAP+UI, F DESP+ITEMS, G COMM, H R1+the window rule), each a first reader on the shipped tree and its diff against v1.2.121 (every commit of the line; lane F was sent back once for the 24 commits it had not read), then a second reader who tried to overturn every finding, regression and every claim or ask marked no/partly/not done. Two items measured in Chromium (H-R1, by both readers; the refuter from the real card's code), C-1 and two others in jsdom with verbatim copies; the rest read.",
@@ -1982,6 +1982,6 @@
   }
  },
  "not_established_audit": [
-  "Probe 08's Take from the Body seed (action-loot): on 14bb0d92 the window opened in 6 of 11 scratch runs (4 misses, 1 run gave no reading; probes 42 and 44 missed it too), on 1eee4d62 in 5 of 5; in a miss, p1 had not seen the body's death or its items 12 s after the GM's seed (the GM's side the same as on 1.2.121). Probe 43 was running beside every run. Load or a slower path to a player's copy of a death: not told apart. A table check: a player beside a body that a GM kills on a published death opens Take from the Body at once."
+  "Probe 08's Take from the Body seed (action-loot): on 14bb0d92 the window opened in 6 of 11 scratch runs (4 misses, 1 run gave no reading; probes 42 and 44 missed it too), on 1eee4d62 in 5 of 5; in a miss, p1 had not seen the body's death or its items 12 s after the GM's seed (the GM's side the same as on 1.2.121). Probe 43 was running beside every run. Load or a slower path to a player's copy of a death: not told apart. Rerun 21.11.2026 ~19:45Z, 8 pairs alternating 1eee4d62 and 14bb0d92 under the same load (probe 43 beside): 6 of 6 readable runs opened on each, 2 runs on each gave no reading (the cluster under load); 1.2.122 has not missed in its last 11 readable runs, its 4 misses came close together earlier. Read as timing under load, not a regression of 1.2.122; not settled. A table check: a player beside a body that a GM kills on a published death opens Take from the Body at once."
  ]
 }
