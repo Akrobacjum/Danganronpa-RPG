@@ -87,7 +87,8 @@ const THROWS_NO_DICE = new Set(["move", "rest", "directMurder"]);
  * ========================================================================== */
 
 /**
- * Run an action from the panel. Always starts with the briefing.
+ * Run an action from the panel. An action's briefing is the block inside the window it opens (`briefingBlock`); Move
+ * opens nothing (the note above).
  *
  * @param {Actor} actor
  * @param {string} actionKey  A key from ACTIONS, or "dynamic".

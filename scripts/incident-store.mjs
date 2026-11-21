@@ -315,8 +315,8 @@ async function ownCastWrite(write) {
  * itself: R205 reads that off the source.
  *
  * PER BROWSER. A second GM's button runs its own queue on its own browser; the stores'
- * stamps settle what the two GMs wrote, and nothing here orders them. Not measured -
- * the harness has one GM (LIVE-E07-10).
+ * stamps settle what the two GMs wrote, and nothing here orders them. Not measured on
+ * v14 (LIVE-E07-10): the harness's second GM (scenarios 61, 62, 97) runs the shim's timing, not a server's.
  *
  * A WRITE THAT THROWS RELEASES THE QUEUE (`run.catch`): the next write runs, and the one
  * that threw tells its caller, which stops as it would have. Read since E32 C4 and measured

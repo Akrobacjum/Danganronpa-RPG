@@ -272,6 +272,31 @@ export async function dropOffer(actorId, offerId) {
     return true;
 }
 
+/*
+ * EVERY GM'S OPEN SHEET FOLLOWS THE OFFERS (the audit's STG-14, 1.2.122). `dropOffer` draws the primary's own sheet, and
+ * the withdrawal reaches another GM as a merge of the offers store, which drew nothing: a second GM's open sheet kept the
+ * Level Up button lit after a player's take until it rendered for another reason. The store's client setting changes on
+ * every GM when a copy merges in (live.mjs `watch.stores`), so here each GM draws again the open sheets of the characters
+ * whose offers changed - those only, so a sheet a GM is typing in is not drawn for another student's offer.
+ */
+let offersSeen = null;
+
+/** At `ready`, on a GM: the listener above. */
+export function registerLevelUpSheets() {
+    const shape = () => Object.fromEntries(Object.entries(readOffers()).map(([id, row]) => [id, JSON.stringify(offerList(row))]));
+    Hooks.on("clientSettingChanged", key => {
+        if (!game.user?.isGM || key !== `${MODULE_ID}.${offerStore.spec.key}`) return;
+        const now = shape(), before = offersSeen ?? {};
+        offersSeen = now;
+        for (const id of new Set([...Object.keys(before), ...Object.keys(now)])) {
+            if (before[id] === now[id]) continue;
+            const sheet = game.actors.get(id)?.sheet;
+            if (sheet?.rendered) sheet.render(false);
+        }
+    });
+    if (game.user?.isGM) offersSeen = shape();
+}
+
 /**
  * Primary GM: the offers standing on this user's own characters - and only those -
  * with a stamp per character they own: the newest decision about it (`newest`: the
@@ -418,7 +443,11 @@ export const takingBack = new Set();
 export async function takeBackOffer(actor, offerId) {
     if (!game.user.isGM || !actor) return false;
     const offer = standingOffers(actor).find(standing => standing.id === offerId);
-    if (!offer) return false;
+    // Spent or taken back since the menu was drawn (the audit's CTRL-21, 1.2.122): said, not a press that does nothing.
+    if (!offer) {
+        ui.notifications.warn(game.i18n.format("DRPG.Advance.takeBackGone", { name: actor.name }));
+        return false;
+    }
     if (takingBack.has(actor.id)) {
         ui.notifications.warn(game.i18n.format("DRPG.Advance.takeBackTaking", { name: actor.name }));
         return false;
@@ -639,16 +668,20 @@ export async function openAdvancement(actor, kind = "standard", { extraPicks = 0
      * twice cannot buy two - and since E10 C6 the packet names WHICH offer it spends,
      * and the GM checks that one.
      */
+    /* A NEW EXPERIENCE WITH NO NAME is caught HERE, on the screen of the person
+       who left it blank. The apply's own warning fires on the GM's client, so a
+       player's blank name used to warn the GM, spend the offer on the picks that
+       did work, and tell the player nothing. The offer is untouched and the
+       button is still lit; they press it again. A GM's own picks the same since
+       1.2.122 (the audit's DESP-24): the apply skipped the pick and wrote the rest,
+       and in a verdict's batch that counted as given and dropped the Blackened's
+       waiting Reinforced. Now nothing is written; the batch offers the player the
+       Level Up instead, where there is one to offer it to. */
+    if (result.some(p => p?.option === "experienceNew" && !String(p.name ?? "").trim())) {
+        ui.notifications.warn(game.i18n.localize(asPlayer ? "DRPG.Advance.experienceNeedsNameKept" : "DRPG.Advance.experienceNeedsNameGm"));
+        return null;
+    }
     if (asPlayer) {
-        /* A NEW EXPERIENCE WITH NO NAME is caught HERE, on the screen of the person
-           who left it blank. The apply's own warning fires on the GM's client, so a
-           player's blank name used to warn the GM, spend the offer on the picks that
-           did work, and tell the player nothing. The offer is untouched and the
-           button is still lit; they press it again. */
-        if (result.some(p => p?.option === "experienceNew" && !String(p.name ?? "").trim())) {
-            ui.notifications.warn(game.i18n.localize("DRPG.Advance.experienceNeedsNameKept"));
-            return null;
-        }
         const { requestAdvancement } = await import("./gm-bridge.mjs");
         const res = await requestAdvancement({ actorId: actor.id, picks: result, kind, offerId: offer.id });
         return res.ok ? { pending: true } : null;

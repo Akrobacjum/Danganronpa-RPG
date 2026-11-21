@@ -1003,7 +1003,8 @@ export function requestRollBookmark(payload) {
  * primary, so two Rerolls of one character could each read the GMs' journal before the
  * other's row reached it, and both pay, throw and replay. `onPrimary`: another GM asks the
  * primary as a player does, so `making` (reroll.mjs) holds every Reroll of a character on one
- * client. The harness has one GM, so the race itself is not measured; R219 reads the waiter.
+ * client. The race itself is not measured on v14 (LIVE-E08-03): the harness's second GM (scenarios 61, 62, 97) runs
+ * the shim's timing, not a server's; R219 reads the waiter.
  */
 export function requestReroll(actorId, { late = null, lateRefused = null } = {}) {
     return ask(ACTION_REROLL, { actorId }, {

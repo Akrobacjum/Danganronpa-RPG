@@ -5412,6 +5412,8 @@
       "noExperienceToRaise": "There is no experience to raise. Choose another improvement; the Level Up still waits.",
       "notOnSheet": "A pick names a statistic or an experience {name} does not have, so nothing was written.",
       "experienceNeedsName": "A new experience needs a name. That choice was skipped.",
+      "experienceNeedsNameGm": "A new experience needs a name. Nothing was written: open Level Up again and choose.",
+      "takeBackGone": "That Level Up offer for {name} no longer stands: it was spent or taken back.",
       "nothingToApply": "Nothing was selected, so nothing changed.",
       "unknownKind": "Unknown Level Up type: {kind}.",
       "failed": "The Level Up could not be saved. See the console.",

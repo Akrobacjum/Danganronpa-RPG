@@ -56208,15 +56208,17 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({
             words: { roll: ["Roll", "Rzuć"], next: ["Next", "Dalej"], restNow: ["Rest", "Odpocznij"], askThem: ["Ask them", "Poproś"],
                 send: ["Send to the GM", "Wyślij do GM-a"], propose: ["Send to the GM", "Wyślij do GM-a"], crisis: ["Roll", "Rzuć"], gotIt: [null, null] },
-            openers: { observe: ["Action.roll"], search: ["Action.roll"], tamper: ["Action.roll"], listen: ["Action.roll"], palm: ["Action.askThem", "Action.roll"],
+            /* Tamper: Next on Reshape and Body, which open a window of their own first (1.2.122, ROLL-31). */
+            openers: { observe: ["Action.roll"], search: ["Action.roll"], tamper: ["Action.next", "Action.roll"], listen: ["Action.roll"], palm: ["Action.askThem", "Action.roll"],
                 analyze: ["Action.roll"], project: ["Action.next", "Action.roll"], picker: ["Action.roll"], rest: [], picks: ["Action.restNow"],
                 /* Level Up: Grant (the r112 merge, 13.11.2026, changed on purpose): E101 made its two menus one window
                    (the owner's yes to the GM screens' review, R4056), whose press grants; no menu leads to another. */
                 levelUp: ["Advance.grant"], dynamic: ["Bridge.send"], proposal: ["Project.proposeButton"],
                 /* Infiltrate (the r112 review's G1, the coordinator's default of 13.11.2026): Roll on a row that rolls from
                    this press (Dash, Shut the Door, Keep Watch), Next on one that opens its own window (Listen, Tail, Force,
-                   Pick), each of which says Roll. Red at 2895e28e: no key, the fallback Do it. */
-                infiltrate: ["Action.next", "Action.roll"], tail: ["Action.roll"], force: ["Action.roll"], pick: ["Action.roll"] },
+                   Pick), each of which says Roll. Red at 2895e28e: no key, the fallback Do it. Echoes, which rolls nothing, the
+                   kit's word for acting without a roll (DRPG.Murder.briefTake) since 1.2.122 (CTRL-67): it said Roll. */
+                infiltrate: ["Action.next", "Action.roll", "Murder.briefTake"], tail: ["Action.roll"], force: ["Action.roll"], pick: ["Action.roll"] },
             proceed: ["action-menus.mjs"],
             variantCallers: [["action-analyze.mjs", 1], ["action-listen.mjs", 1], ["action-murder.mjs", 1], ["action-observe.mjs", 1],
                 ["action-project.mjs", 1], ["action-rest.mjs", 1], ["action-search.mjs", 1], ["action-tamper.mjs", 1], ["level-up.mjs", 1], ["palm.mjs", 1]]

@@ -478,7 +478,8 @@ export function isPrimaryGm({ leaving = null } = {}) {
  * `leaving`: a GM this client was just told has gone (`userConnected(user, false)`) -
  * counted as gone whatever its `active` still says (E08+E28 fix r1-G5, 04.10.2026; the
  * round-1 review's m3: the Reroll journal's recovery on a GM leaving, reroll.mjs). Which
- * of the hook and the flag comes first on v14 is not measured: the harness has one GM.
+ * of the hook and the flag comes first is read on 14.370 for a player leaving (the flag already false inside the hook;
+ * docs/dev/e39/CALIBRATION.md, LIVE-E30-05), not yet for a GM (LIVE-E08-03); the harness's second GM keeps the shim's order.
  *
  * @returns {string|null} User id, or null when no GM is connected.
  */

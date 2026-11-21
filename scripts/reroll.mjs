@@ -864,7 +864,9 @@ async function putFirstRollBack(message, firstRolls) {
  * Foundry calls the hook before the leaving user's flag flips, the GM who stays still
  * computed the one leaving as the primary and recovered nothing until its next load. The
  * pass now asks without the GM it was told is gone (`isPrimaryGm({ leaving })`, utils.mjs).
- * Which of the two comes first on v14 is not measured: the harness has one GM.
+ * Which of the two comes first is read on 14.370 for a player leaving - `userConnected(user, false)` came once, with
+ * `user.active` already false (docs/dev/e39/CALIBRATION.md, LIVE-E30-05) - and not yet for a GM (LIVE-E08-03). The
+ * harness's second GM (scenarios 61, 62, 97) keeps the shim's order, so it does not settle v14's (the audit's STG-46).
  * ========================================================================== */
 
 /** Suite only: the phase after which the next Reroll made on this client stops, as a reload there would leave it. */

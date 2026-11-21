@@ -75,14 +75,16 @@ export function infiltrateRows(actor) {
             /* One word per kind of button (E100 item 6; the r112 review's G1, the coordinator's default of 13.11.2026): a
                row that rolls from this press says Roll, one that opens a window of its own (which says Roll) says Next.
                With no `confirm` the window said `chooseVariant`'s fallback, Do it (R4105). */
-            confirm: game.i18n.localize(ROLLS_FROM_THE_ROW.has(key) ? "DRPG.Action.roll" : "DRPG.Action.next")
+            // Echoes throws nothing (the audit's CTRL-67, 1.2.122): the kit's word for a row that acts without a roll, as
+            // the crisis menu's (action-murder.mjs, DRPG.Murder.briefTake), not Roll on a row whose hint says "without a roll".
+            confirm: game.i18n.localize(key === "echoes" ? "DRPG.Murder.briefTake" : ROLLS_FROM_THE_ROW.has(key) ? "DRPG.Action.roll" : "DRPG.Action.next")
         };
     });
 }
 
-/** Infiltrate's rows that roll from the window's own press: no window of their own follows (R4105). Echoes rolls
- *  nothing, but its press is the action and no window of its own follows, so it says Roll with them (E69 C7). */
-const ROLLS_FROM_THE_ROW = new Set(["dash", "shut", "keepWatch", "echoes"]);
+/** Infiltrate's rows that roll from the window's own press: no window of their own follows (R4105). Echoes is no longer
+ *  one (it said Roll with them since E69 C7): it rolls nothing, and says the word for that (1.2.122, CTRL-67). */
+const ROLLS_FROM_THE_ROW = new Set(["dash", "shut", "keepWatch"]);
 
 /**
  * Why Echoes' row is shut now, or null (E69 C7; Q-E69-3's default): struck through with its reason in an Eclipse, as the

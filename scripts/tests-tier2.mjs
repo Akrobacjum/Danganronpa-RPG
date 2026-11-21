@@ -22033,6 +22033,29 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ second: "none", before: true, stalePress: true, card: { mark: true, buttons: false, line: true }, rollLine: "granted", despair: { rose: 0, shieldLeft: 0 } }),
             "{a second ask; the copy drawn before had buttons; a press on it said already decided; the card after: its mark, buttons, the decided line; the roll's own line; the Monokuma's pool's rise and the protections left}");
     }],
+    ["1.2.122 CTRL-27 - the Dynamic Action's difficulty window answers its Refuse as the GM's no, apart from a window closed unanswered, and the GMs' card refuses on it as its own Refuse does (scripts/action-dynamic.mjs `askDynamicDifficulty`; messenger-app.mjs `ruleSetDifficulty`; the audit's CTRL-27, 1.2.122 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP. The audit's CTRL-27: `askDynamicDifficulty` answered null for Refuse and for a
+         * closed window alike; the card's Set the difficulty read null as "the editor was closed" (nothing sent, the card
+         * open again, the player waiting until the ruling lapsed), and a GM's own action read only `false` as the no, so
+         * the window's Refuse ended it unsaid. The window answered through the harness's queue: Refuse, then closed (null),
+         * then a band. Read: the three answers; and off the source, that the card's Set the difficulty hands a `false` to
+         * the card's Refuse. Red at 21bf5d18: Refuse answered null.
+         */
+        const A = await import("./action-dynamic.mjs");
+        const request = { description: "SUITE CTRL-27", actorName: "SUITE", room: null };
+        globalThis.__dialogAnswers.push("refuse", null, () => ({ tier: 1, trait: "agility" }));
+        const read = [];
+        try {
+            for (let i = 0; i < 3; i++) read.push(await A.askDynamicDifficulty(request));
+        } finally {
+            globalThis.__dialogAnswers.length = 0;
+        }
+        const card = fnSource(stripComments((await moduleSources()).get("messenger-app.mjs") ?? ""), "ruleSetDifficulty");
+        equal(stableJson({ answers: read, card: /if \(ruling === false\) return ruleRefuseDynamic\(/.test(card) }),
+            stableJson({ answers: [false, null, { tier: 1, trait: "agility" }], card: true }),
+            "{the window's answers: Refuse, closed, a band; whether the card's Set the difficulty refuses on the window's no}");
+    }],
     ["Grant all grants each stamped roll once", async () => {
         /*
          * E08+E28 C18, 04.10.2026; the plan's 3.7. A roll thrown while no GM was connected is
@@ -61594,6 +61617,77 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "(the experience on the sheet and in the GMs' mark; the offers; the reasons told; the GM's apply; the advances gained)");
     }],
 
+    ["1.2.122 DESP-24 - Level Up on a GM: the GM's own picks with a new experience left unnamed are refused before anything is written; a Take back pressed after the offer went says so; and a change of a student's offers draws that student's open sheet again on every GM, and no other sheet (scripts/level-up.mjs `openAdvancement`, `takeBackOffer`, `registerLevelUpSheets`; the audit's DESP-24, CTRL-21 and STG-14, 1.2.122 line DESP)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line DESP. DESP-24: the blank-name check was the player's road only; on the GM's the apply
+         * skipped the pick and wrote the rest (in a verdict's batch: counted as given, the waiting Reinforced dropped).
+         * CTRL-21: `takeBackOffer` answered false with no word for an offer spent or taken back since the menu was drawn.
+         * STG-14: a second GM's open sheet kept the Level Up button lit - nothing drew it when the offers store merged in.
+         * The picker answered as "an experience to raise with none named ..." answers it (DialogV2.wait stood in for): +1
+         * Health, +1 Sanity and a new experience with no name. Then Take back of an offer id no list holds. Then two
+         * students' sheets stood in as open (`rendered`, `render` counted), the second holding an offer that does not change,
+         * and an offer written on the first and dropped:
+         * the renders each sheet got. Put back: the sheet's values, the offers, the sheets' stand-ins. Red at 21bf5d18:
+         * one advance written; no notice; no render on this GM's listener (0 beyond the primary's own).
+         */
+        needs(world.atLeast("livingStudents", 2), "two living students: one to advance, one whose sheet must not be drawn");
+        const L = await import("./level-up.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const [student, other] = livingStudents();
+        const R = "system.resources", HP_MAX = `${R}.hitPoints.max`, SAN_MAX = `${R}.stress.max`, ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
+        const at = path => foundry.utils.getProperty(student._source, path);
+        const putBack = sheetAsFound(student, [HP_MAX, SAN_MAX, ADVANCES, ...LEVEL_UP_POINTS]);
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const warn = ui.notifications.warn, warned = [];
+        const rowWas = foundry.utils.deepClone(S.offerStore.get(student.id) ?? null);
+        const otherWas = foundry.utils.deepClone(S.offerStore.get(other.id) ?? null);
+        const sheets = [student, other].map(a => a.sheet).filter(Boolean);
+        must(sheets.length === 2, "the students have no sheet objects - this would measure nothing");
+        const renders = new Map(sheets.map(s => [s, 0]));
+        const undo = [];
+        const read = {};
+        try {
+            D.wait = async cfg => ((cfg?.classes ?? []).includes("drpg-advance")
+                ? [{ option: "trait", trait: "strength" }, { option: "trait", trait: "knowledge" }, { option: "experienceNew", name: "   " }] : null);
+            ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            const before = at(ADVANCES) ?? 0, hp = at(HP_MAX);
+            read.blank = { answered: await L.openAdvancement(student, "reinforced"), advances: (at(ADVANCES) ?? 0) - before, hp: at(HP_MAX) - hp,
+                told: warned.includes(game.i18n.localize("DRPG.Advance.experienceNeedsNameGm")) };
+            read.gone = { answered: await L.takeBackOffer(student, "SUITE-no-such-offer"),
+                told: warned.includes(game.i18n.format("DRPG.Advance.takeBackGone", { name: student.name })) };
+            // The other student's offer stands, unchanged, through the writes: its sheet is the control.
+            await S.offerStore.patch(other.id, { offers: [{ id: "SUITEstg14o", kind: "standard", extra: 0, deferred: 0, at: Date.now() }] });
+            await settle();
+            for (const sheet of sheets) {
+                const had = Object.getOwnPropertyDescriptor(sheet, "rendered"), render = sheet.render;
+                Object.defineProperty(sheet, "rendered", { value: true, configurable: true });
+                sheet.render = () => { renders.set(sheet, renders.get(sheet) + 1); return sheet; };
+                undo.push(() => { if (had) Object.defineProperty(sheet, "rendered", had); else delete sheet.rendered; sheet.render = render; });
+            }
+            await S.offerStore.patch(student.id, { offers: [{ id: "SUITEstg14", kind: "standard", extra: 0, deferred: 0, at: Date.now() }] });
+            await settle();
+            const afterOffer = sheets.map(s => renders.get(s));
+            await S.offerStore.drop(student.id);
+            await settle();
+            read.sheets = { offer: afterOffer, drop: sheets.map(s => renders.get(s)) };
+        } finally {
+            for (const put of undo.reverse()) put();
+            ui.notifications.warn = warn;
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+            if (rowWas) await S.offerStore.patch(student.id, rowWas);
+            else if (S.offerStore.has(student.id)) await S.offerStore.drop(student.id);
+            if (otherWas) await S.offerStore.patch(other.id, otherWas);
+            else if (S.offerStore.has(other.id)) await S.offerStore.drop(other.id);
+            await putBack();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ blank: { answered: null, advances: 0, hp: 0, told: true }, gone: { answered: false, told: true },
+            sheets: { offer: [1, 0], drop: [2, 0] } }),
+            "{blank: the GM's picks with a new experience unnamed - the answer, the advances and the Health maximum's rise, the GM told; gone: a Take back of an offer no longer standing - the answer, told; sheets: [the student's, another's] renders after the offer was written and after it was dropped}");
+    }],
     ["an experience to raise with none named is refused before the Level Up is written, and the picker cannot choose it", async () => {
         /*
          * E10 C8, 1.2.71; audit S03-22. A character with no experience was warned in the picker that there was

@@ -876,7 +876,9 @@ async function ruleSetDifficulty(action, data, message = null) {
     const ruling = await askDynamicDifficulty({
         description: data.desc ?? "", actorName: data.name ?? "?", actorId: data.by || null, room: data.room || null, proposed: data.proposed || null
     });
-    if (!ruling) return null;   // The editor was closed; the card stays open.
+    // The window's Refuse is the card's Refuse (1.2.122, CTRL-27); closed with no answer, the card stays open.
+    if (ruling === false) return ruleRefuseDynamic(action, data, message);
+    if (!ruling) return null;
     const { answerDynamic } = await import("./gm-bridge.mjs");
     return (await answerDynamic(data.rid, data.asker, ruling, message?.id ?? null)) ? { held: true } : null;
 }

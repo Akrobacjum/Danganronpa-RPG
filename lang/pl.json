@@ -5794,6 +5794,8 @@
       "noExperienceToRaise": "Nie ma doświadczenia do podniesienia. Wybierz inne ulepszenie; Level Up wciąż czeka.",
       "notOnSheet": "Wybór wskazuje statystykę albo doświadczenie, których {name} nie ma, więc nic nie zapisano.",
       "experienceNeedsName": "Nowe doświadczenie potrzebuje nazwy. Ten wybór pominięto.",
+      "experienceNeedsNameGm": "Nowe doświadczenie musi mieć nazwę. Nic nie zapisano: otwórz Level Up jeszcze raz i wybierz.",
+      "takeBackGone": "Ta oferta Level Up dla postaci {name} już nie stoi: została wykorzystana albo cofnięta.",
       "nothingToApply": "Nic nie wybrano, więc nic się nie zmieniło.",
       "unknownKind": "Nieznany typ Level Up: {kind}.",
       "failed": "Nie udało się zapisać Level Up. Zajrzyj do konsoli.",
