@@ -104374,6 +104374,80 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ picks: [[OTHER, NEW], NEW, [OTHER, OLD]], code: "roomsPicked" }),
             "{picks: [the passage's pick, the target's room, another scene's pick] after the rename's carry; code: the mismatch's refusal's code} - a waiting project follows its room's new name");
     }],
+    ["1.2.122 ROLL-26 - a missed watch's Sanity mark reads the track as the GMs hold it, not a maximum a console raised that the audit has not put back; and a Reroll's take-back of an action and the grants of a Burst or a crossing are written in the student's audit queue from the GMs' values (scripts/watch-gm.mjs `declareWatch`; actions.mjs `takeBackRefund`, `grantFreeActions`, `grantFreeMoves`; infiltrate-reroll.mjs `settleDash`; sheet-audit.mjs `meansWrite`; the audit's ROLL-26, 1.2.122 line WORLD)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line WORLD. The audit's ROLL-26 (domain-roll-b-actions-5): E29 fix r2-H24 moved `refundAction`
+         * onto `meansWrite`, and four GM writes were left on the document. Driven in the window a console's write leaves
+         * (`inConsoleWindow`, as r2-H24's tests drive `refundAction`): the student's Sanity track full, the console's raise of
+         * its maximum by 3 judged and its put-back refused; then a watch missed with Despair (`declareWatch`). Read: the marks
+         * on the sheet and in the GMs' mark. A console's raise of the actions or of a grant is flagged, not put back (the
+         * GMs' mark takes it until a GM's Undo), so those three roads' window is the audit queue's order, which is not
+         * driven here: they are read in the source, each writing inside `meansWrite`. Put back: the sheet.
+         * Red at 21bf5d18: the watch wrote a mark past the GMs' maximum, and none of the three wrote through `meansWrite`.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player whose write is judged");
+        const W = await import("./watch-gm.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [student] = livingStudents().filter(player);
+        const SAN = "system.resources.stress.value", SAN_MAX = "system.resources.stress.max";
+        const putBack = sheetAsFound(student, [SAN, SAN_MAX]);
+        const sanMax = Number(foundry.utils.getProperty(student._source, SAN_MAX)) || 0;
+        must(sanMax >= 1, `${student.name} has no Sanity track`);
+        const read = {};
+        try {
+            read.watch = await inConsoleWindow(student, player(student), { honest: { [SAN]: sanMax }, forged: { [SAN_MAX]: sanMax + 3 }, paths: [SAN] },
+                async () => { const out = await W.declareWatch({ actor: student, total: 1, isCritical: false, withHope: false }); must(!out?.refused, `the watch was refused: ${out?.refused}`); });
+        } finally {
+            await putBack();
+        }
+        const src = new Map(await otherSources());
+        const body = (file, fn) => fnSource(stripComments(src.get(file) ?? ""), fn).replace(/\s+/g, " ");
+        read.queued = [["actions.mjs", "takeBackRefund"], ["actions.mjs", "grantFreeActions"], ["actions.mjs", "grantFreeMoves"], ["infiltrate-reroll.mjs", "settleDash"]]
+            .map(([file, fn]) => [fn, /meansWrite\(actor, [^]*trustedWrite\(actor/.test(body(file, fn))]);
+        equal(stableJson(read), stableJson({ watch: [[sanMax, sanMax]], queued: [["takeBackRefund", true], ["grantFreeActions", true], ["grantFreeMoves", true], ["settleDash", true]] }),
+            "{watch: [the marks on the sheet, in the GMs' mark] after the missed watch; queued: each road writes inside meansWrite} - the GM's writes read the GMs' values");
+    }],
+    ["1.2.122 DESP-33 - a Rest's Breath says the Hope that landed: at one under the maximum, a Long Rest's Breath (two Hope asked) fills the track and its line reads +1 (scripts/rest.mjs `applyRest`; the audit's DESP-33, 1.2.122 line WORLD)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line WORLD. The audit's DESP-33 (domain-desp-a-9): Breath wrote min(max, hope + gain) and said
+         * '+{gain} Hope'. Driven as tier 2's Relief test drives a rest (`takeRest`, the window answered with Breath alone),
+         * a Long Rest with no limit read and no room asked (Breath and one other pick), on a student at one under the Hope maximum; its action given
+         * first. Put back: the sheet. Red at 21bf5d18: the line read +2 over a rise of 1.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student to rest");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { takeRest } = await import("./rest.mjs");
+        const { overflowBlocksHope } = await import("./overflow.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { ACTIONS_RESOURCE } = await import("./config.mjs");
+        must(!overflowBlocksHope(), "the Despair darkening holds Hope down - Breath would be greyed, and this would measure nothing");
+        const [student] = livingStudents();
+        const HOPE = "system.resources.hope.value", ACTS = `system.resources.${ACTIONS_RESOURCE}.value`;
+        const putBack = sheetAsFound(student, [HOPE, ACTS, "system.resources.hitPoints.value", "system.resources.stress.value"]);
+        const max = Number(student.system.resources.hope.max) || 0;
+        must(max >= 2, `${student.name}'s Hope maximum is ${max} - too small to read`);
+        let read = null;
+        try {
+            await trustedWrite(student, { [HOPE]: max - 1, [ACTS]: 3 }, { reason: "gmRuling" });
+            await settle();
+            let rested = null;
+            // A Long Rest takes two picks: Breath and the first other one open.
+            await withFormAnswered(element => {
+                const box = element.querySelector('[name="pick"][value="breath"]');
+                const other = [...element.querySelectorAll('[name="pick"]')].find(b => b !== box && !b.disabled);
+                for (const b of [box, other]) if (b) b.checked = true;
+                return Boolean(box && other);
+            }, async () => { rested = await takeRest(student, "long", { ignoreRoom: true, ignoreLimit: true, quiet: true }); });
+            await settle();
+            read = { hope: student.system.resources.hope.value - (max - 1), line: (rested?.applied ?? []).find(l => /Hope/.test(l)) ?? null, rested };
+        } finally {
+            await putBack();
+        }
+        must(read?.line, `the rest said nothing of Hope - this would measure nothing: ${stableJson(read)}`);
+        equal(stableJson({ hope: read.hope, says: /\+1 Hope/.test(read.line) }), stableJson({ hope: 1, says: true }),
+            `{hope: the Hope it gave; says: its line reads +1} - the Breath line says what landed (${read.line})`);
+    }],
     ["PV-DOORS-T1 - the people in the character's own room always see who works its doors, and everyone behind a barricade hears a knock (scripts/doors-gm.mjs `shutDoor`, `forceDoor`, `pickLock`, `knockDoor`; the owner's rules #8 and #9, 13.11.2026): Shut the Door, a Force missed with Hope and a Pick whose Shadow cover passed each send the other student in the character's room a card naming the character, and nobody in the room beyond one; a Pick whose cover failed and a Force missed with Despair tell both rooms, as before; a walk refused at a barricade is heard by everyone in the barricaded room - its author and the student beside them - and never by the walker", async () => {
         /*
          * Privacy line 1 (doors), 13.11.2026. Judged as the primary judges the player's packets (`G.judge`), each roll a

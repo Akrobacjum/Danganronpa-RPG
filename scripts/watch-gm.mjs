@@ -103,9 +103,13 @@ export async function declareWatch({ actor, total = 0, isCritical = false, withH
     // A miss with Despair costs a Sanity mark (the plan's C6): written by this GM, its reason the GM's alone.
     if (!kept && !withHope) {
         const { trustedWrite } = await import("./resource-guard.mjs");
-        const stress = actor.system?.resources?.stress ?? {};
-        const next = Math.min(Number(stress.max) || 0, (Number(stress.value) || 0) + 1);
-        if (next !== Number(stress.value)) await trustedWrite(actor, { "system.resources.stress.value": next }, { reason: "infiltrate" });
+        // The Sanity track as the GMs hold it, mark and maximum (the audit's ROLL-26, 1.2.122; sheet-audit.mjs `meansWrite`).
+        const { meansWrite } = await import("./sheet-audit.mjs");
+        await meansWrite(actor, async ({ stress }, maxOf) => {
+            const max = Number(maxOf("stress") ?? actor.system?.resources?.stress?.max) || 0, now = Number(stress) || 0;
+            const next = Math.min(max, now + 1);
+            if (next !== now) await trustedWrite(actor, { "system.resources.stress.value": next }, { reason: "infiltrate" });
+        });
     }
     log(`${actor.name} ${kept ? "will keep watch" : "keeps no watch"} (${Number(total) || 0}).`);
     return { kept };

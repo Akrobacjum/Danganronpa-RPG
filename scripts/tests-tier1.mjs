@@ -42348,7 +42348,9 @@ const INVARIANTS = [
             // window; tier 1 runs on one). Its own window went with the owner's 13:15 (12.11.2026); the console mounts the
             // schema after its render, so its region is waited for (`settled`)
             "case-trial.mjs": { cls: "drpg-window-trial", open: () => import("./trial-floor-ui.mjs").then(m => m.manageClassTrial()),
-                settled: app => app.element?.querySelector("[data-drpg-trial-schema] > .drpg-case-trial-live") }
+                settled: app => app.element?.querySelector("[data-drpg-trial-schema] > .drpg-case-trial-live") },
+            // 1.2.122 (REFR-22): the rules manager's motive section, a read-out of the motive's setting and the clock.
+            "rules.mjs": { cls: "drpg-window-rules", open: () => import("./rules.mjs").then(m => m.openRulesManager()) }
         };
         /* NOT OPENED HERE, and why: each stands only while the world holds what it is about, which is a world write tier 1
            may not make. The readiness round's GM window (boundary.mjs `roundWindow`) while a round is open; its build reads
@@ -57860,6 +57862,38 @@ const INVARIANTS = [
         }
         equal(stableJson(read), stableJson({ before: ["R8504 Aiko", "R8504 Botan"], made: ["R8504 Aiko renamed", "R8504 Botan", "R8504 Chie"], hooks: true }),
             "{before, made: the grant menu's students before and after a student was made and another renamed; hooks: the tab hears an actor made or deleted and a user} - the tab reads its students now");
+    }],
+    ["R8505 - a student made a Spectator keeps the cards its player posted as a student in the log: a message of that account an hour old is drawn, one of the last moment - the one the primary is about to remove - is not (scripts/spectator-ui.mjs `hiddenSpectatorMessage`, `SPECTATOR_FRESH_MS`; the audit's STG-05, 1.2.122 line WORLD)", async () => {
+        /* 21.11.2026, 1.2.122 line WORLD. The audit's STG-05 (stages-20 E92-2): `renderChatMessageHTML` removed every message
+           of an account that is a Spectator's now, its student's whole history too. A player who plays one character, that
+           character flagged a Spectator in memory (`e24HeldFlagged`, as R3861 flags one); stand-in messages of that account,
+           an hour old and a second old. Red at 21bf5d18: there was no reader to ask (`hiddenSpectatorMessage`), and the hook
+           removed both. */
+        const U = await import("./spectator-ui.mjs");
+        const owns = u => game.actors.filter(a => a.type === "character" && a.testUserPermission?.(u, "OWNER"));
+        const player = game.users.find(u => !u.isGM && owns(u).length === 1);
+        must(player, "no player who plays exactly one character - this would measure nothing");
+        const [watcher] = owns(player);
+        must(typeof U.hiddenSpectatorMessage === "function", "spectator-ui.mjs has no hiddenSpectatorMessage: every message of a Spectator's account is removed, old or new");
+        const now = Date.now();
+        const msg = (id, ago) => ({ id, author: player, timestamp: now - ago });
+        const read = await e24HeldFlagged(watcher, { [FLAGS.spectator]: true }, () => ({
+            old: U.hiddenSpectatorMessage(msg("R8505old", 3_600_000), { now }),
+            fresh: U.hiddenSpectatorMessage(msg("R8505new", 1_000), { now })
+        }));
+        const asStudent = U.hiddenSpectatorMessage(msg("R8505student", 1_000), { now });
+        equal(stableJson({ ...read, asStudent }), stableJson({ old: false, fresh: true, asStudent: false }),
+            "{old, fresh: whether a message of the Spectator's account an hour old and a second old is left undrawn; asStudent: a fresh one while the character is a student} - a Spectator's history as a student stays");
+    }],
+    ["R8506 - a floating field's face is scaled by the zoom its screen box carries: under a zoom of 0.5 its font, line height, padding and borders are half the layout's, at 1 they are as read, and a word with no length is left (scripts/float-text.mjs `scaledFace`; the audit's COMM-32, 1.2.122 line WORLD; in Chromium audit/float-zoom.mjs)", async () => {
+        /* 21.11.2026, 1.2.122 line WORLD. Pure: a face as `lift` reads it off the computed style. Red at 21bf5d18: no
+           `scaledFace`, the face copied as read. The browser's own reading is audit/float-zoom.mjs (8, 16, 32 px). */
+        const F = await import("./float-text.mjs");
+        must(typeof F.scaledFace === "function", "float-text.mjs has no scaledFace: the face is copied unzoomed");
+        const face = [["font-size", "16px"], ["line-height", "20px"], ["padding-top", "4px"], ["border-top-width", "1px"], ["font-family", "Signika"], ["box-shadow", "rgba(0, 0, 0, 0.5) 0px 2px 6px 0px"]];
+        equal(stableJson({ half: F.scaledFace(face, 0.5), one: F.scaledFace(face, 1) }), stableJson({
+            half: [["font-size", "8px"], ["line-height", "10px"], ["padding-top", "2px"], ["border-top-width", "0.5px"], ["font-family", "Signika"], ["box-shadow", "rgba(0, 0, 0, 0.5) 0px 1px 3px 0px"]],
+            one: face }), "{half, one: the face at zoom 0.5 and 1} - the floating face is the one the screen showed");
     }],
     ["R5380 - the closing curtain stands under the open windows, the title and its band over them (styles/danganronpa.css THE SEQUENCES; the owner's ask of 13.11.2026: \"zamkniecie kurtyny niech bedzie pod otwartymi oknami, napis i jego tlo na otwartych oknach\"): read through the module's cascade in both themes, on a desk and a stacked screen, for the trial's entry and its exit with the glass and with the lids, the host is no box of its own (`display: contents`), its curtain layer is fixed under Foundry's window layer (`--z-index-window` less 2) and over every other z-index the module's sheets state under that layer, and takes the clicks it covers; its title layer is fixed at 99980, over every window, and lets the clicks through; the notice stack stands over the curtain - under the windows under Stained Glass, over them under Monokuma Legacy; the verdict's cut-in and the day's boards keep the one host at 99980; every window open on this page stands between the two layers", async () => {
         /*

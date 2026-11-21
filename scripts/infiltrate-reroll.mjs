@@ -38,7 +38,7 @@ export async function settleInfiltrate(actor, bookmark, after, done) {
 
 /** A Dash: the band of the new total; crossings granted up to it, or those still left taken down to it. */
 async function settleDash(actor, bookmark, total, isCritical, done) {
-    const { freeMovesLeft, grantFreeMoves } = await import("./actions.mjs");
+    const { grantFreeMoves } = await import("./actions.mjs");
     const { trustedWrite } = await import("./resource-guard.mjs");
     const rule = INFILTRATE.dash;
     const band = [...rule.bands].sort((a, b) => b.min - a.min).find(b => total >= b.min);
@@ -46,8 +46,10 @@ async function settleDash(actor, bookmark, total, isCritical, done) {
     const before = Number(bookmark.dashMoves) || 0;
     if (moves > before) await grantFreeMoves(actor, moves - before, { reason: "infiltrate" });
     else if (moves < before) {
-        const left = freeMovesLeft(actor);
-        await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: Math.max(0, left - (before - moves)) }, { reason: "infiltrate" });
+        // The crossings as the GMs hold them (the audit's ROLL-26, 1.2.122; sheet-audit.mjs `meansWrite`).
+        const { meansWrite } = await import("./sheet-audit.mjs");
+        await meansWrite(actor, ({ freeMoveGrants }) => trustedWrite(actor,
+            { [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: Math.max(0, (Number(freeMoveGrants) || 0) - (before - moves)) }, { reason: "infiltrate" }));
     }
     done.push(line("dash", { n: moves }));
     return { dashMoves: moves };

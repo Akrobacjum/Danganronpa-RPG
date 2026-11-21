@@ -131,15 +131,26 @@ export function canPayFor(actor, cost = 1) {
  * audit covers a grant by the Call's price (`call`, `ref` the Call) or by a grant spent
  * before it (`refund`), and lists one that names neither.
  */
+/*
+ * READ AS THE GMS HOLD IT (the audit's ROLL-26, 1.2.122, 21.11.2026). The two grants and `takeBackRefund` wrote the
+ * document's count plus or minus n, and on the primary - inside a Reroll, a Call, a Dash's replay - a console's raised
+ * count still waiting for its put-back became the GMs' value less one (sheet-audit.mjs, READ WHEN WRITTEN). Each reads
+ * the count in the student's audit queue now (`meansWrite`, as `refundAction` since E29 fix r2-H24): the GMs' value on a
+ * GM's browser, the sheet on a player's, as before. None of their callers runs inside a `gmMeansWrite` job.
+ */
 export async function grantFreeActions(actor, n = 1, { reason = "call", ref = null } = {}) {
     if (!actor || n <= 0) return false;
-    await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: freeActionsLeft(actor) + n }, { reason, ref });
+    const { meansWrite } = await import("./sheet-audit.mjs");
+    await meansWrite(actor, ({ freeActionGrants }) =>
+        trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: Math.max(0, Number(freeActionGrants) || 0) + n }, { reason, ref }));
     return true;
 }
 
 export async function grantFreeMoves(actor, n = 1, { reason = "call", ref = null } = {}) {
     if (!actor || n <= 0) return false;
-    await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: freeMovesLeft(actor) + n }, { reason, ref });
+    const { meansWrite } = await import("./sheet-audit.mjs");
+    await meansWrite(actor, ({ freeMoveGrants }) =>
+        trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: Math.max(0, Number(freeMoveGrants) || 0) + n }, { reason, ref }));
     return true;
 }
 
@@ -266,15 +277,23 @@ export async function refundAction(actor, amount = 1, receipt = null) {
  */
 export async function takeBackRefund(actor, amount = 1, receipt = null) {
     if (!actor || amount <= 0) return false;
-    if (receipt?.grant && freeActionsLeft(actor) > 0) {
-        await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: freeActionsLeft(actor) - 1 }, { reason: "spend" });
+    // The grant or the actions as the GMs hold them (ROLL-26, above `grantFreeActions`), read and written in one job.
+    const { meansWrite } = await import("./sheet-audit.mjs");
+    const taken = await meansWrite(actor, async ({ actions, freeActionGrants }) => {
+        const grants = Number(freeActionGrants) || 0, left = Number(actions) || 0;
+        if (receipt?.grant && grants > 0) {
+            await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: grants - 1 }, { reason: "spend" });
+            return { grant: true, amount };
+        }
+        if (!receipt?.grant && left >= amount) {
+            await trustedWrite(actor, { [`system.resources.${ACTIONS_RESOURCE}.value`]: left - amount }, { reason: "spend" });
+            return { grant: false, amount };
+        }
+        return null;
+    });
+    if (taken) {
         playSfx("actionSpent");
-        return { grant: true, amount };
-    }
-    if (!receipt?.grant && actionsLeft(actor) >= amount) {
-        await trustedWrite(actor, { [`system.resources.${ACTIONS_RESOURCE}.value`]: actionsLeft(actor) - amount }, { reason: "spend" });
-        playSfx("actionSpent");
-        return { grant: false, amount };
+        return taken;
     }
     return spendAction(actor, amount);
 }
