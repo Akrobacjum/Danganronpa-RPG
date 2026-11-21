@@ -143,7 +143,8 @@ before it builds anything.
    to `main` or a `claude/**` branch and on a dispatch, spread over parallel jobs -
    lint, check and gate; the scenarios in buckets; the suite in eight shards; then
    `verdict`, which merges the shards with `suite-merge.mjs` (INFRA I3) - and
-   `release.yml` calls the same file on the release commit.
+   `release.yml` calls the same file on the release commit, or reuses a green
+   run of the same tree that ran every part (audit/gate/reuse-ci.mjs).
 2. **local-gate** - what no headless run can do: the suite's tier 2 in both
    themes on a real Foundry v14, the whole-world diff around it, the scenarios
    whose layers include `local-gate`, and the drills a stage names in
