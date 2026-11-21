@@ -5840,6 +5840,7 @@
    ".drpg-project-card": "read in source: draw returns <div class=\"drpg-panel drpg-remnant-card drpg-project-card\"> (projects-map.mjs:944)",
    ".drpg-remnant-card": "read in source: each of draw's three returns starts with <div class=\"drpg-panel drpg-remnant-card\"> (remnant-ring.mjs:419, 459, 505); an empty build is skipped (live.mjs `if (!next) return`)"
   },
-  "reading": "Of the 18 keepLive regions in the module, 13 measured (all return the region), 4 read in source (all return the region), 1 is the Mastermind box hopebox-120 fixes. call-pickers.mjs and ui-kit.mjs pass a caller's region through and were not read separately. Each build was called once in the window's state as opened."
+  "reading": "Of the 18 keepLive regions in the module, 13 measured (all return the region), 4 read in source (all return the region), 1 is the Mastermind box hopebox-120 fixes. call-pickers.mjs and ui-kit.mjs pass a caller's region through and were not read separately. Each build was called once in the window's state as opened.",
+  "red_on_the_defect": "R1 (claude/refresh-120 aa3c5de9, 21.11 ~04:14Z) added a mastermind row to probe 08; probe 44 then reports on e515907d 'NOT THE REGION: .drpg-mm-live -> <p class=\"notes\">', and 56 of 56 on refresh-120: the probe goes red on the defect it was written for (R1's run, relayed by the coordinator; not rerun by the audit)."
  }
 }
