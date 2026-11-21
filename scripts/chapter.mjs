@@ -380,8 +380,8 @@ export function chapterEndForm({ chapter, session, day, hidden = 0, typeless = 0
 /**
  * Write a freshly built form (`html`, `chapterEndForm`'s) into the open window `el` in place (the audit's REFR-40,
  * 1.2.122): each of the five boxes with its words and whether it is shut - a box the GM could tick keeps their tick, one
- * that opens takes the form's default - and the warnings and the backup line, each replaced where it differs. Nothing
- * else of the window moves.
+ * that opens takes the form's default - and the warnings and the backup line, each replaced where it differs, put in
+ * where it comes and taken out where it goes (1.2.123). Nothing else of the window moves.
  */
 export function refreshChapterEnd(el, html) {
     const form = el?.querySelector?.("form");
@@ -400,11 +400,22 @@ export function refreshChapterEnd(el, html) {
     }
     // A column's piece that holds a marked line: the warning boxes and the backup's paragraph.
     const piece = node => { let at = node; while (at?.parentElement && !at.parentElement.classList.contains("drpg-wide-col")) at = at.parentElement; return at; };
+    /* A WARNING THAT COMES OR GOES COMES OR GOES (1.2.123; the auditor's recheck of REFR-40: one was replaced only where it
+       stood in both forms). One that the fresh form has and the window does not is put in beside the same neighbour it has
+       there - after its previous one, else before its next one, else at the end of its column; one the window has and the
+       fresh form does not is taken out. */
+    const cols = root => [...root.querySelectorAll(".drpg-wide-col")];
     for (const mark of ["[data-drpg-typeless]", "[data-drpg-final-truth]", "[data-drpg-backup]"]) {
         const was = form.querySelector(mark), now = next.querySelector(mark);
-        if (!was || !now) continue;
-        const a = piece(was), b = piece(now);
-        if (a && b && a.outerHTML !== b.outerHTML) a.replaceWith(b);
+        if (!was && !now) continue;
+        const a = was ? piece(was) : null, b = now ? piece(now) : null;
+        if (a && b) { if (a.outerHTML !== b.outerHTML) a.replaceWith(b); continue; }
+        if (a) { a.remove(); continue; }
+        const col = cols(form)[cols(next).indexOf(b.parentElement)] ?? null;
+        if (!col) continue;
+        const same = node => node ? [...col.children].find(child => child.outerHTML === node.outerHTML) ?? null : null;
+        const before = same(b.previousElementSibling), after = same(b.nextElementSibling);
+        if (before) before.after(b); else if (after) after.before(b); else col.append(b);
     }
 }
 

@@ -286,6 +286,14 @@ export class SearchTokens {
             }
             return claimOf({ ok: res.ok, value: res.value, refused: res.refused });
         }
+        /* A GM'S OWN SPEND IN THE PRIMARY'S QUEUE TOO (1.2.123; the audit's r122-lane-B-7, a rest of MAP-40). A Search a
+           GM throws for a character they play (action-search.mjs) or `game.drpg.useToken` on a GM who is not the primary
+           spent in that browser's own queue, from its own copy - the race MAP-40 closed for Room Setup and the refill.
+           Asked of the primary as `searchTokens.gmWrite` op "spend"; the primary, or a GM with none to ask, spends here. */
+        if (!onPrimary) {
+            const asked = await gmWriteOnPrimary({ op: "spend", roomName, sceneId: sceneId ?? null });
+            if (asked !== HERE) return asked && typeof asked === "object" ? { ok: Boolean(asked.ok), why: asked.why ?? null } : { ok: false, why: "unanswered" };
+        }
         const spent = await this.#spendAsGm(roomName, sceneId, { onPrimary });
         if (spent === HANDED_OVER) return { ok: false, why: "refused", handedOver: true };
         return { ok: spent, why: spent ? null : this.refusalOf(roomName, sceneId) };
@@ -369,6 +377,38 @@ export class SearchTokens {
         const asked = await gmWriteOnPrimary({ op: "set", roomName, sceneId: typeof scene === "string" ? scene : scene?.id ?? null, value });
         if (asked !== HERE) return asked;
         return this.setForHere(roomName, value, scene);
+    }
+
+    /**
+     * Move one room's counter by `delta` (Room Setup's - and +, and a count typed over the one drawn), clamped to 0 to
+     * max, from the count the writing browser holds (1.2.123; the audit's r122-lane-B-7, a rest of MAP-40). The step was
+     * computed on the GM who pressed, from its own copy (`left() + (typed - was)`), and only the number travelled to the
+     * primary's queue: a spend the primary wrote whose setting had not reached that GM yet was written over (3 -> 2 by a
+     * player's Search, then 3 + 1 = 4 from the second GM's 3). Now the step travels (`searchTokens.gmWrite` op "step")
+     * and the primary adds it to its own count in its step of SEARCH_KEY (`stepForHere`). Answers the value stored.
+     */
+    static async stepFor(roomName, delta, scene) {
+        if (!game.user.isGM || !roomName) return null;
+        const asked = await gmWriteOnPrimary({ op: "step", roomName, sceneId: typeof scene === "string" ? scene : scene?.id ?? null, value: delta });
+        if (asked !== HERE) return asked;
+        return this.stepForHere(roomName, delta, scene);
+    }
+
+    /** `stepFor`'s write, on the browser that holds the counters' queue: its own count read in the step, moved, clamped. */
+    static async stepForHere(roomName, delta, scene) {
+        if (!game.user.isGM || !roomName) return null;
+        const by = Math.round(Number(delta) || 0);
+        return serialWrite(SEARCH_KEY, async () => {
+            const store = foundry.utils.duplicate(this.store);
+            const key = this.key(roomName, scene);
+            const n = Math.max(0, Math.min(this.max, this.storedLeft(store, key, roomName) + by));
+            store[key] = n;
+            // Same reasoning as `#spendAsGm`: drop the legacy plain-name key only when it is a different key.
+            if (key !== roomName) delete store[roomName];
+            await game.settings.set(MODULE_ID, SETTINGS.searchTokens, store);
+            debug(`Search tokens in "${roomName}" moved by ${by} to ${n}.`);
+            return n;
+        });
     }
 
     /** `setFor`'s write, on the browser that holds the counters' queue (the primary's, since 1.2.122). */
@@ -487,7 +527,8 @@ const ACTION_TAKE_PLANT = "searchTokens.takePlant";
 const ACTION_RETURN_PLANT = "searchTokens.returnPlant";
 /** player -> primary GM: the token of a spend whose answer came after this browser stopped waiting, back (E17 C4). */
 const ACTION_RETURN_TOKEN = "searchTokens.returnToken";
-/** a GM who is not the primary -> primary GM: Room Setup's step, a refill or a boundary's put-back of the counters (MAP-40). */
+/** a GM who is not the primary -> primary GM: Room Setup's count and step, a GM's own spend, a refill or a boundary's put-back
+ *  of the counters (MAP-40; the step and the spend since 1.2.123, r122-lane-B-7). */
 const ACTION_GM_WRITE = "searchTokens.gmWrite";
 
 /*
@@ -499,7 +540,9 @@ const ACTION_GM_WRITE = "searchTokens.gmWrite";
  * moment later (the new afternoon opening with yesterday's searched-out rooms at 0), or a step over a spend in another
  * room. A GM who is not the primary now asks the primary (`searchTokens.gmWrite`), which writes in its own queue; the
  * primary writes here. `HERE` answers "write it on this browser": this one is the primary, or no primary is connected
- * to ask (the console, a world with one GM away), as before.
+ * to ask (the console, a world with one GM away), as before. Since 1.2.123 (r122-lane-B-7) Room Setup's step travels as a
+ * step (op "step", added on the primary to its own count) and a GM's own spend is the primary's too (op "spend"): an
+ * absolute number from a GM's copy, or a spend in its queue, still wrote over what the primary had not yet sent it.
  */
 const HERE = Symbol("search tokens written here");
 
@@ -526,6 +569,15 @@ async function runGmWrite(payload) {
     if (payload.op === "set") {
         if (!payload.roomName) return { refused: "nothing was carried out: no room was named" };
         return { reply: await SearchTokens.setForHere(payload.roomName, payload.value, payload.sceneId ?? null) };
+    }
+    if (payload.op === "step") {
+        if (!payload.roomName) return { refused: "nothing was carried out: no room was named" };
+        return { reply: await SearchTokens.stepForHere(payload.roomName, payload.value, payload.sceneId ?? null) };
+    }
+    if (payload.op === "spend") {
+        if (!payload.roomName) return { refused: "nothing was carried out: no room was named" };
+        const claimed = await SearchTokens.claim(payload.roomName, payload.sceneId ?? null, { onPrimary: true });
+        return { reply: { ok: Boolean(claimed.ok), why: claimed.why ?? null } };
     }
     if (payload.op === "reset") {
         await serialWrite(SEARCH_KEY, () => game.settings.set(MODULE_ID, SETTINGS.searchTokens, {}));
@@ -960,7 +1012,7 @@ export const SEARCH_ACTIONS = table({
     [ACTION_GM_WRITE]: {
         label: "DRPG.Bridge.what.searchTokens.gmWrite",
         guards: [gmOnly("only a GM sets the Search Tokens")],
-        sanitize: pick({ op: as.oneOf("set", "reset", "putBack"), roomName: as.text, sceneId: as.id, value: as.num, store: as.raw }),
+        sanitize: pick({ op: as.oneOf("set", "step", "spend", "reset", "putBack"), roomName: as.text, sceneId: as.id, value: as.num, store: as.raw }),
         run: runGmWrite,
         answer: "reply",
         claims: { sceneId: "a GM's own pick of a room's scene, which keys that room's counter alone (`SearchTokens.key`); the asker is a GM (`gmOnly`), and the run writes it in the primary's step of SEARCH_KEY",
