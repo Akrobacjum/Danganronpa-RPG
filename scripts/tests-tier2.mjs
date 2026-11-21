@@ -9486,6 +9486,131 @@ const SCENARIOS = [
                 + "moved ({ redrawn under the question, the By select shows, the record holds })");
     }],
 
+    ["1.2.123 r122-H-R1 - the GM's Remnant card keeps what is typed in its player text and Analyze text through a redraw, the field floated, and saves it whole when the field is left (scripts/remnant-ring.mjs `gmRemnantCard`; live.mjs `keyFor`; the auditor's recheck of 1.2.122, r122-H-R1)", async () => {
+        /*
+         * Line INVEST of 1.2.123. A trace placed beside a student, its card drawn as a GM's sheet render draws it (the hook
+         * `renderActorSheetV2` on a window of the trace's token, as the CTRL-19 test does), in a window the floating field
+         * serves (`.application.sheet.actor`). For each of the two text boxes: focused (it floats: float-text.mjs puts its
+         * placeholder before it; headless, where nothing floats, the test puts that placeholder there), words typed, the token moved a pixel (a redraw of the card's live region), then the
+         * field left. Read: the text in the field after the redraw, whether it still has the focus, and what the record
+         * holds after the field is left.
+         * Red at 14bb0d92 (1.2.122): the two textareas had no name, no key and no id, so live.mjs keyed them by their place,
+         * and the floating field's placeholder moved that place; the redraw put the typed words nowhere and the leaving
+         * saved nothing (the auditor's reading in Chromium; read here in jsdom the same way).
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a trace is placed beside a student on the scene on screen");
+        const R = await import("./remnants.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const scene = canvas?.scene;
+        const [first] = cast(4).filter(a => locateActor(a)?.scene === scene);
+        must(first, "no student of the cast stands on the scene on screen - this would measure nothing");
+        const { tokenDoc, room } = locateActor(first);
+        let trace = null, element = null;
+        const read = {};
+        try {
+            trace = await R.placeRemnant({ type: "prep", visibility: "evident", scene, x: tokenDoc.x, y: tokenDoc.y, room, note: "SUITE 1.2.123 H-R1" });
+            must(trace, "the trace was not placed - this would measure nothing");
+            const doc = () => scene.tokens.get(trace.id);
+            await R.setRemnantPublic(doc(), { name: "SUITE H-R1", playerText: "", analyzedText: "" });
+            await settle();
+            element = document.createElement("div");
+            element.className = "application sheet actor";
+            element.innerHTML = `<div class="window-content"></div>`;
+            document.body.append(element);
+            const app = { document: doc().actor?.token ?? doc(), element, setPosition: () => {} };
+            Hooks.callAll("renderActorSheetV2", app, element);
+            for (const key of ["playerText", "analyzedText"]) {
+                const field = () => element.querySelector(`textarea[data-drpg-public="${key}"]`);
+                const drawn = field();
+                must(drawn, `the card drew no ${key} box - this would measure nothing`);
+                drawn.focus();
+                await wait(50);
+                /* jsdom has no popover and no layout, so float-text.mjs `lift` returns before it floats anything: its
+                   placeholder, the one change a floating field makes to the field's place, is put before the field by hand
+                   where it did not float by itself (in a browser it does). */
+                const held = () => Boolean(drawn.previousElementSibling?.classList?.contains("drpg-float-text-hold"));
+                if (!held()) {
+                    const hold = document.createElement("div");
+                    hold.className = "drpg-float-text-hold";
+                    hold.setAttribute("aria-hidden", "true");
+                    drawn.before(hold);
+                }
+                const floated = held();
+                const typed = `SUITE H-R1 ${key} typed`;
+                drawn.value = typed;
+                drawn.dispatchEvent(new Event("input", { bubbles: true }));
+                await doc().update({ x: doc().x + 1 }, { animate: false });
+                await until(() => field() && field() !== drawn || null, 3000).catch(() => {});
+                await settle();
+                const now = field();
+                read[key] = { floated, redrawn: now !== drawn, kept: now?.value ?? null, focused: document.activeElement === now };
+                now?.blur();
+                await settle();
+                read[key].saved = R.remnantData(doc())?.public?.[key] ?? R.remnantData(doc())?.[key] ?? null;
+            }
+        } finally {
+            document.activeElement?.blur?.();
+            element?.remove();
+            if (trace) {
+                const live = scene.tokens.get(trace.id);
+                if (live) { try { await R.dropRemnantSecret(live); } catch { /* nothing filed */ } await live.delete().catch(() => {}); }
+            }
+            await settle();
+        }
+        const want = key => ({ floated: true, redrawn: true, kept: `SUITE H-R1 ${key} typed`, focused: true, saved: `SUITE H-R1 ${key} typed` });
+        equal(stableJson(read), stableJson({ playerText: want("playerText"), analyzedText: want("analyzedText") }),
+            "{floated: the box floated; redrawn: the card was drawn again under it; kept: the words in the box after; focused: it kept the focus; saved: what the record holds once it was left}");
+    }],
+
+    ["1.2.123 r122-D-R1 - on the Investigation window's Table a filter change keeps what was typed in the Final Truth form and the Key limit's tick: only the fields the dashboard's write writes are taken as drawn (investigation.mjs `wireCaseFilters`, `saveFieldsIn`; the auditor's recheck of 1.2.122, r122-D-R1)", async () => {
+        /*
+         * Line INVEST of 1.2.123. The dashboard drawn on its Table; the Final Truth form's name, words and note typed, and
+         * the Key limit's "Place more than the opening roll allows" ticked where it is drawn; then the Order filter changed
+         * (a redraw). Read: each of those fields in the window after the redraw.
+         * Red at 14bb0d92 (1.2.122): the filter wrote the window's changed fields first (`saveDrawnForm`, 1.2.122's CTRL-11),
+         * and that marked every changed field of the form as drawn while `applyDashboardSave` writes only the Remnants,
+         * the Key rows and the case schema - so the redraw drew the Final Truth form from its kept words and the tick from
+         * nothing, and Save or a close asked nothing.
+         * The tick is drawn only where the chapter has a Key limit (`caseKeyCount`); the harness's world has none, so
+         * there it reads "not drawn" and the tick's half is the fix's by name only (`notWrittenHere`), not read here.
+         */
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        let win = null;
+        const read = {}, typed = { finalName: "SUITE D-R1 name", finalText: "SUITE D-R1 words", finalNote: "SUITE D-R1 note" };
+        try {
+            win = await drawnCaseWindow({ view: "table" });
+            const root = win.app?.element;
+            await settle();
+            must(root?.querySelector('[name="finalName"]'), "the Table drew no Final Truth form - this would measure nothing");
+            for (const [name, value] of Object.entries(typed)) {
+                const f = win.field(name);
+                f.value = value;
+                f.dispatchEvent(new Event("input", { bubbles: true }));
+                f.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+            const tick = win.field("keyOverride");
+            if (tick) { tick.checked = true; tick.dispatchEvent(new Event("change", { bubbles: true })); }
+            const order = root.querySelector('[data-drpg-filter="order"]');
+            must(order && order.options.length > 1, "the Table drew no Order filter with a choice - this would measure nothing");
+            const was = root.querySelector(".drpg-case-live");
+            order.value = [...order.options].find(o => o.value !== order.value).value;
+            order.dispatchEvent(new Event("change", { bubbles: true }));
+            await until(() => root.querySelector(".drpg-case-live") !== was || null, 4000).catch(() => {});
+            await settle();
+            read.redrawn = root.querySelector(".drpg-case-live") !== was;
+            for (const name of Object.keys(typed)) read[name] = win.field(name)?.value ?? null;
+            read.keyOverride = tick ? win.field("keyOverride")?.checked ?? null : "not drawn";
+        } finally {
+            if (win) {
+                for (const name of Object.keys(typed)) { const f = win.field(name); if (f) { f.value = ""; f.dispatchEvent(new Event("input", { bubbles: true })); } }
+                await win.close().catch(() => {});
+            }
+            await gmStoresIdle();
+        }
+        equal(stableJson(read), stableJson({ ...typed, redrawn: true, keyOverride: read.keyOverride === "not drawn" ? "not drawn" : true }),
+            "{redrawn: the Table drawn again by the filter; the Final Truth form's fields and the Key limit's tick after it}");
+    }],
+
     ["1.2.122 CASE-74 - an incident's automatic tie reads the room the victim died in, not the room the body was carried to (scripts/remnants.mjs `placeRemnant`; death.mjs `recordSecretDeath`; the audit's CASE-74, 1.2.122 line MURDER): after the kill and the body moved to another room, a trace left in the room of the death is tied to the crime and one left where the body now lies is not", async () => {
         /*
          * 1.2.122, the audit's CASE-74. A trace left during an incident by nobody of its cast is tied to the crime when it
