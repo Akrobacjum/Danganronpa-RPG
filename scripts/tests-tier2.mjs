@@ -9322,6 +9322,123 @@ const SCENARIOS = [
                 + "moved ({ redrawn under the question, the By select shows, the record holds })");
     }],
 
+    ["1.2.122 CASE-74 - an incident's automatic tie reads the room the victim died in, not the room the body was carried to (scripts/remnants.mjs `placeRemnant`; death.mjs `recordSecretDeath`; the audit's CASE-74, 1.2.122 line MURDER): after the kill and the body moved to another room, a trace left in the room of the death is tied to the crime and one left where the body now lies is not", async () => {
+        /*
+         * 1.2.122, the audit's CASE-74. A trace left during an incident by nobody of its cast is tied to the crime when it
+         * is left in the incident's room (remnants.mjs `placeRemnant`, D5), and that room was read off the victim's token -
+         * which Move the body teleports to another room, so the tie went with the body. A killer and a victim with players
+         * stood in named rooms, the fight opened and the Finishing blow dealt (Stage 6, the death kept by the GMs); the
+         * body's token teleported to a room nobody stands in, as Move the body's landing teleports it (cleanup.mjs
+         * `applyMoveBody`). Then a trace placed by the GM, with no author, in the room of the death and in the body's new
+         * room. Read: each trace's tie (true, or null for undecided).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        needs(world.atLeast("namedRooms", 2), "the body is carried to another room");
+        const M = await import("./murder.mjs");
+        const R = await import("./remnants.mjs");
+        const { deathStore } = await import("./gm-stores.mjs");
+        const { locateActor, allRooms, othersInNamedRoom, positionIn } = await import("./movement.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const scene = canvas?.scene;
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const tokenOf = a => scene?.tokens?.find(t => t.actorId === a.id) ?? null;
+        const [killer, victim] = livingStudents().filter(a => player(a) && tokenOf(a) && locateActor(a)?.room);
+        must(killer && victim, "no two students with players stand in named rooms on the scene on screen");
+        const body = tokenOf(victim), was = { x: body.x, y: body.y };
+        const placed = [];
+        let read = null;
+        try {
+            await fightOpen(M, killer, victim);
+            await turnFor(M, killer, "finishingBlow");
+            await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "resolution" && isDeadForGm(victim) && deathStore.has(victim.id),
+                `the fixture's Stage 6 over a death the GMs keep did not come: ${stableJson(M.murderState())}`);
+            const fell = locateActor(victim, { body: true })?.room ?? null;
+            const away = allRooms(scene).find(r => r !== fell && othersInNamedRoom(r).length === 0) ?? null;
+            must(fell && away, "no room of the death, or no empty room to carry the body to - this would measure nothing");
+            await body.update(positionIn(away, body), { teleport: true, movementAction: "displace", animate: false });
+            await settle();
+            must(locateActor(victim, { body: true })?.room === away, `the body was not carried to ${away} - this would measure nothing`);
+            for (const room of [fell, away]) {
+                const at = positionIn(room, body);
+                placed.push(await R.placeRemnant({ type: "prep", visibility: "evident", scene, x: at?.x ?? 0, y: at?.y ?? 0, room,
+                    note: `SUITE 1.2.122 CASE-74 ${room === fell ? "where it happened" : "where the body lies"}` }));
+            }
+            await settle();
+            read = placed.map(t => (t ? R.remnantData(scene.tokens.get(t.id))?.tiedToCrime ?? null : "not placed"));
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (scene.tokens.has(body.id)) await body.update({ x: was.x, y: was.y }, { teleport: true, movementAction: "displace", animate: false });
+            for (const t of placed.filter(Boolean)) {
+                const live = scene.tokens.get(t.id);
+                if (!live) continue;
+                try { await R.dropRemnantSecret(live); } catch { /* nothing filed */ }
+                await live.delete().catch(() => {});
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson([true, null]),
+            "the incident's tie followed the body to where it was carried ([the trace in the room of the death, the trace where the body lies])");
+    }],
+
+    ["1.2.122 CTRL-80 REFR-63 REFR-38 - the open tracker follows Silence now and the killer's Cleaning Tool (scripts/murder-ui.mjs `openIncidentTracker`; the audit's CTRL-80, REFR-63 and REFR-38, 1.2.122 line MURDER): at Stage 6 over a death the GMs keep, a tool readied by the killer is named on the open tracker, and once another GM's Silence now has moved the voice the tracker is drawn again without its button", async () => {
+        /*
+         * 1.2.122, the audit's CTRL-80, REFR-63 and REFR-38. These shipped in batch 2 with no test of their own; written
+         * on 21.11.2026 and read red on 21bf5d18's copy of murder-ui.mjs. Whether Silence now was drawn was read once as
+         * the tracker opened, and nothing in the region's signature changed when it stopped being true, so a press by
+         * another GM left a button that did nothing. And the region heard no item write, so readying a Cleaning Tool left
+         * Stage 6's tool line and DCs as they were. A direct murder between two students with players, the Finishing
+         * blow dealt (Stage 6, the death kept by the GMs), the tracker drawn here (`__dialogWindows`). Then the killer
+         * readies a Cleaning Tool (`inHand`), and the victim's voice is silenced as another GM's press writes it (incident-store.mjs
+         * `silenceDeadNow`). Read: Silence now on the first copy, the tool's name on the tracker after the tool, and
+         * Silence now on the tracker drawn after the silence.
+         */
+        needs(env.dialogs(), "the tracker is drawn here");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim with players");
+        const M = await import("./murder.mjs");
+        const { silenceDeadNow } = await import("./incident-store.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        must(killer && victim, "no two students with players - this would measure nothing");
+        const title = game.i18n.localize("DRPG.Murder.trackerTitle");
+        const drawn = () => [...foundry.applications.instances.values()].filter(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title);
+        const silenceShown = () => Boolean(drawn()[0]?.element?.querySelector('[data-action="silence"]'));
+        const clock = getClock();
+        const toolName = "SUITE 1.2.122 CTRL-80 gloves";
+        let gloves = null, run = null;
+        const read = {};
+        try {
+            await fightOpen(M, killer, victim);
+            await turnFor(M, killer, "finishingBlow");
+            await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "resolution" && isDeadForGm(victim), `the fixture's Stage 6 did not come: ${stableJson(M.murderState())}`);
+            run = M.openIncidentTracker();
+            must(await until(() => drawn().length === 1, 6000), "the tracker was not drawn - this would measure nothing");
+            read.silenceAtOpen = silenceShown();
+            gloves = await inHand(killer, "cleaningTool", toolName);
+            read.toolNamed = await until(() => (drawn()[0]?.element?.textContent ?? "").includes(toolName), 3000);
+            const first = drawn()[0];
+            must(await silenceDeadNow(victim), "the victim's voice was not silenced - this would measure nothing");
+            await until(() => drawn().length === 1 && drawn()[0] !== first, 3000);
+            await settle();
+            read.silenceAfter = silenceShown();
+        } finally {
+            for (const app of drawn()) await app.close().catch(() => {});
+            if (run) await Promise.race([run, wait(3000)]);
+            try { await gloves?.delete(); } catch { /* already gone */ }
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            await c3Incident(clock);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ silenceAtOpen: true, toolNamed: true, silenceAfter: false }),
+            "{Silence now on the first copy, the readied tool named on the open tracker, Silence now after another GM's press}");
+    }],
+
     ["the time of day in an incident is veiled and names nobody", async () => {
         /*
          * E06 C4, 27.09.2026; audit S10-04 (L12). While an incident runs the time of day is told

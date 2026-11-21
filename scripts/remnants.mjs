@@ -23,7 +23,7 @@ import { isPrimaryGm, log, warn, error, plural, esc, forcedDeletion, serverNow }
 // The kit's frame (E21 C3a): Clear Faint Remnants' question.
 // The ledger's store. gm-stores.mjs reaches this file only by a dynamic `import()`,
 // so a static import here is no cycle (R161).
-import { remnantStore, bulletStore, traceDigestStore, upgradeMark } from "./gm-stores.mjs";
+import { remnantStore, bulletStore, traceDigestStore, upgradeMark, deathStore } from "./gm-stores.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
 
@@ -386,8 +386,15 @@ export async function placeRemnant(data = {}, { keepId = false, rollId = null, d
                 const cast = [state.killerId, state.victimId, state.thirdId].filter(Boolean);
                 let tied = Boolean(data.sourceActor && cast.includes(data.sourceActor));
                 if (!tied) {
+                    /* THE ROOM IT HAPPENED IN, NOT WHERE THE BODY WAS CARRIED (the audit's CASE-74, 1.2.122 line MURDER):
+                       this read the victim's token, which Move the body takes to another room, and the tie went with it - a
+                       trace left where the murder was came out untied, one left where the body was dumped tied. The death's
+                       row keeps the room the body lay in at the kill (death.mjs `recordSecretDeath`); the token is read only
+                       while there is no such row - the victim alive, or the death published. Tier 2 "1.2.122 CASE-74". */
                     const { locateActor } = await import("./movement.mjs");
-                    const where = locateActor(game.actors.get(state.victimId));
+                    const fell = deathStore.get(state.victimId) ?? null;
+                    const where = fell?.room ? { room: fell.room, scene: game.scenes.get(fell.sceneId ?? "") ?? null }
+                        : locateActor(game.actors.get(state.victimId));
                     const sceneId = data.sceneId ?? data.scene?.id ?? null;
                     tied = Boolean(where?.room && data.room && data.room === where.room
                         && (!where.scene || !sceneId || where.scene.id === sceneId));

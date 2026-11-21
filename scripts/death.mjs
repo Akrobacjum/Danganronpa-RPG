@@ -459,6 +459,17 @@ async function recordSecretDeath(actor, { keepBullets = false, phase = null } = 
     const clock = getClock();
     const record = { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay, phase: phase ?? clock.phase, epoch: seasonEpoch(),
         deathId: foundry.utils.randomID(), sinceVerdict: verdictBefore(clock.chapter) };
+    /* WHERE IT HAPPENED (the audit's CASE-74, 1.2.122 line MURDER): the room the body lies in at the kill, read off its
+       token before anything moves it, for the incident's automatic tie (remnants.mjs `placeRemnant`), which followed the
+       token to wherever Move the body carried it. The GMs' alone: a player's copy takes the chapter, day and time of the
+       row (incident-store.mjs `deathsFor`). */
+    try {
+        const { locateActor } = await import("./movement.mjs");
+        const at = locateActor(actor, { body: true });
+        if (at?.room) Object.assign(record, { room: at.room, sceneId: at.scene?.id ?? null });
+    } catch (err) {
+        error(`Could not read where ${actor.name} died`, err);
+    }
     let known = [];
     try {
         const { incidentKnowers } = await import("./murder.mjs");
