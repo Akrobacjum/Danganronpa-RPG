@@ -2181,8 +2181,10 @@ const INVARIANTS = [
             "localizeConfig swaps config prose without keeping its English");
         /* The two sites: one helper, and both call it. */
         const tierLine = (lang, n) => inv.tierDescription({ category: "usable", kind: null, tier: n, lang });
-        equal(await tierLine("pl", 1), `<p>${foundry.utils.getProperty(pl, "DRPG.Items.tierN").replace("{n}", "1")}. ${polish}</p>`, "a Polish world's item has no Polish tier line");
-        equal(await tierLine("en", 1), `<p>${game.i18n.format("DRPG.Items.tierN", { n: 1 })}. ${C.TIER_EFFECTS.usable[1]}</p>`, "an English world's item has no English tier line");
+        // the tier's restore filled (`{restores}`, USABLE_EFFECTS' amount; 1.2.122 line TEXT, TEXT-26)
+        const restores = text => text.replaceAll("{restores}", String(C.USABLE_EFFECTS[1].amount));
+        equal(await tierLine("pl", 1), `<p>${foundry.utils.getProperty(pl, "DRPG.Items.tierN").replace("{n}", "1")}. ${restores(polish)}</p>`, "a Polish world's item has no Polish tier line");
+        equal(await tierLine("en", 1), `<p>${game.i18n.format("DRPG.Items.tierN", { n: 1 })}. ${restores(C.TIER_EFFECTS.usable[1])}</p>`, "an English world's item has no English tier line");
         const invSource = await lfText(await fetch(`/modules/${MODULE_ID}/scripts/inventory.mjs`));
         ok(/tierDescription\(/.test(fnSource(invSource, "grantItem")) && /tierDescription\(/.test(fnSource(invSource, "refreshTierThreeWording")),
             "grantItem or the tier 3 rewrite does not write its tier line through tierDescription");
@@ -31123,8 +31125,10 @@ const INVARIANTS = [
         const words = await (await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" })).json();
         const pl = path => foundry.utils.getProperty(words, `DRPG.Config.${path}`);
         const PATHS = ["TIER_EFFECTS.usable.3", "USABLE_KIND_EFFECTS.healing.3", "USABLE_KIND_EFFECTS.stress.3", "ITEM_CATEGORIES.usable.hint"];
-        const here = PATHS.map(path => foundry.utils.getProperty(C, path));
-        const there = PATHS.map(pl);
+        // The number is a placeholder since 1.2.122 (line TEXT, TEXT-26), filled from USABLE_EFFECTS[3]'s amount, held above.
+        const filled = text => (typeof text === "string" ? text.replaceAll("{restores}", String(row.amount)) : text);
+        const here = PATHS.map(path => filled(foundry.utils.getProperty(C, path)));
+        const there = PATHS.map(path => filled(pl(path)));
         must([...here, ...there].every(text => typeof text === "string" && text.length), "a tier 3 sentence is missing from config.mjs or lang/pl.json - this reads nothing");
         // The hint names no number; the three effect sentences each name the 3.
         const wrong = text => ["Hope", "choice", "pick", "wybor", "wybór", "wybrać", " 2 "].filter(word => text.includes(word));

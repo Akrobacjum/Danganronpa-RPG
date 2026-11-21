@@ -19903,6 +19903,12 @@ const REGRESSIONS = [
                 "Overflow.explainBody", "Mastermind.hopeReadout",
                 // E71 B10b and B12 (line C, 14.11.2026): Confusion's least to give, a count before Despair; a Reroll's Work, a count before progress.
                 "Monocub.giveAtLeast", "Reroll.progressAdjusted",
+                // 1.2.122 line TEXT (TEXT-26): four numbers config prose typed, a placeholder now, before progress, Hope,
+                // Health or Sanity.
+                "Config.INDIRECT_MURDER.concealIntent.successWithDespair", "Config.REST.options.breath.long", "Config.REST.options.breath.short",
+                "Config.TIER_EFFECTS.usable.1", "Config.TIER_EFFECTS.usable.2", "Config.TIER_EFFECTS.usable.3",
+                "Config.USABLE_KIND_EFFECTS.healing.1", "Config.USABLE_KIND_EFFECTS.healing.2", "Config.USABLE_KIND_EFFECTS.healing.3",
+                "Config.USABLE_KIND_EFFECTS.stress.1", "Config.USABLE_KIND_EFFECTS.stress.2", "Config.USABLE_KIND_EFFECTS.stress.3",
                 // E57 T7 (14.11.2026): a rule's number from a placeholder where a word stood - the Bounty's reward before Hope,
                 // the Despair stepper's step before Despair.
                 "Config.DESPAIR_CALLS.bounty.effect", "Tips.Gm.minusTooltip", "Tips.Gm.plusTooltip"
@@ -19966,7 +19972,7 @@ const REGRESSIONS = [
         const reasons = {};
         for (const why of ALLOW.values()) reasons[why] = (reasons[why] ?? 0) + 1;
         equal(JSON.stringify({ read: found.length > 0, flat: found.filter(k => !ALLOW.has(k)), stale: [...ALLOW.keys()].filter(k => !found.includes(k)), fixture, reasons }),
-            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 81, S: 39, R: 29, D: 1, P: 1, T: 1, G: 1 } }),
+            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 93, S: 39, R: 29, D: 1, P: 1, T: 1, G: 1 } }),
             "[the census read something; the values it finds that are no family and not in the allow table; the allow rows it no longer finds; "
             + "what it finds on its planted case (a flat English counter, a Polish predicate before a unit and before a noun; not a family, not a name); "
             + "the allow rows by reason]");
@@ -20207,7 +20213,8 @@ const REGRESSIONS = [
         }
         // The digit rule, over every config sentence and its Polish.
         const ALLOW = new Map([
-            ["INDIRECT_MURDER.concealIntent.successWithDespair", "the +1 is action-project.mjs CONCEALED_WITH_DESPAIR (action-rolls.mjs until E41 C4), a constant of that file; the entry's 1 is `aloneBonus`, the other bonus"]
+            // INDIRECT_MURDER.concealIntent.successWithDespair left the table in 1.2.122 (line TEXT, TEXT-26): its +1 is the
+            // entry's `despairBonus`, a placeholder now, and action-project.mjs `CONCEALED_WITH_DESPAIR` reads it.
         ]);
         const carried = entry => {
             const out = new Set();
@@ -20355,7 +20362,8 @@ const REGRESSIONS = [
         }
         const sources = await moduleSources();
         const src = file => stripComments(sources.get(file) ?? "");
-        read.roads = [/export function eclipseExplanation\(crossings = overflowCrossings\(ECLIPSE_MOVES\) \?\? ECLIPSE_MOVES\)/.test(src("explain.mjs")),
+        // 1.2.122 line TEXT (TEXT-04): a second parameter, `nightFree`, follows the crossings
+        read.roads = [/export function eclipseExplanation\(crossings = overflowCrossings\(ECLIPSE_MOVES\) \?\? ECLIPSE_MOVES[,)]/.test(src("explain.mjs")),
             /baseActions\(\{ wounded: costsAction \}\) - dark/.test(src("actions.mjs")), // E64 C1c: Wounded's action is Daily Life's alone
             /game\.i18n\.format\(card\.key, \{[^}]*\bseconds\b[^}]*\}\)/.test(fnSource(src("trial-floor.mjs"), "postFloorCard") ?? ""),
             /"DRPG\.Floor\.holdingDebateOver", \{ seconds: Math\.abs\(left\), step: adjustStep\(floor\) \}/.test(src("trial-floor-ui.mjs")),
@@ -27238,12 +27246,14 @@ const REGRESSIONS = [
          */
         const code = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/vault-store.mjs`, { cache: "no-cache" }).then(lfText));
         const grant = fnSource(code, "grantKeyNow");
-        must(/"DRPG\.Vault\.keyName"/.test(grant), "vault-store.mjs `grantKeyNow` (grantBedroomKey's step) names no DRPG.Vault.keyName - this reads nothing");
+        // ITEMS' line of 1.2.122 names the key through `keyNameFor` (worldLocalize); before it, game.i18n.format did
+        must(/"DRPG\.Vault\.keyName"|keyNameFor\(/.test(grant), "vault-store.mjs `grantKeyNow` (grantBedroomKey's step) names its key neither way - this reads nothing");
         const byPage = /game\.i18n\.format\(\s*"DRPG\.Vault\.keyName"/.test(grant);
         const lang = {};
         for (const c of ["en", "pl"]) lang[c] = await fetch(`/modules/${MODULE_ID}/lang/${c}.json`, { cache: "no-cache" }).then(r => r.json());
         const hints = [lang.en.DRPG.Settings.documentLanguage.hint, lang.pl.DRPG.Settings.documentLanguage.hint];
-        const named = [/bedroom key/.test(hints[0]), /klucz/.test(hints[1])];
+        // the exception's own words: a name in the writing GM's language
+        const named = [/writing GM's language/.test(hints[0]), /w języku GM-a, który je zapisuje/.test(hints[1])];
         equal(JSON.stringify(named), JSON.stringify([byPage, byPage]), `the hint ${byPage ? "does not say" : "still says"} that a bedroom key's name is outside the document language [en, pl]`);
     }],
 
@@ -27318,6 +27328,30 @@ const REGRESSIONS = [
         const items = await src("gm-items.mjs");
         if (!/proseOf\(\s*USABLE_KIND_EFFECTS\[kind\]\s*,\s*give\.tier\s*\)/.test(items)) wrong.push("gm-items.mjs's receipt does not fill the usable's sentence");
         equal(JSON.stringify(wrong), "[]", "[a number told twice, or a sentence its reader does not fill]");
+    }],
+    ["R8070 - two texts the auditor's unrouted list named say no more than holds (1.2.122 line TEXT; the audit of 1.2.118's unrouted items, TEXT-04, TEXT-09 and TEXT-LC2): the Eclipse's explainer promises a night's placement anywhere only while the Overflow's Darkness does not take it away (explain.mjs `eclipseExplanation`, `nightFree`), and the giver of a Truth Bullet the receiver already holds a copy of is told only that nothing changed hands", async () => {
+        /*
+         * 1.2.122 line TEXT, 21.11.2026; the owner: everything the auditor named goes into 1.2.122.
+         * TEXT-04: overflow.mjs `overflowCrossings(null)` turns a night's free placement into ECLIPSE_MOVES rooms under
+         * Darkness, and the sentence still said "or anywhere at night". TEXT-09 / TEXT-LC2: DRPG.Handover.alreadyHasIt,
+         * whispered to the giver (handover.mjs `mintCopy`'s HELD_COPY), said "They already hold a Truth Bullet of this
+         * Remnant" - a fact about the receiver's evidence (AUDIT-1.2.42.md 3.4, fixed in task 13 as "Nothing changed
+         * hands.", reworded back in E71 B08 with no owner's verdict). Red at aa564cca: both.
+         */
+        const E = await import("./explain.mjs");
+        const wrong = [];
+        const dark = E.eclipseExplanation(2, { nightFree: false }), light = E.eclipseExplanation(2, { nightFree: true });
+        if (/anywhere|gdziekolwiek/.test(dark)) wrong.push(`under Darkness: ${dark}`);
+        if (!/anywhere|gdziekolwiek/.test(light)) wrong.push(`with the night free: ${light}`);
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/explain.mjs`, { cache: "no-cache" }).then(lfText));
+        if (!/nightFree\s*=\s*overflowCrossings\(\s*null\s*\)\s*===\s*null/.test(fnSource(src, "eclipseExplanation"))) wrong.push("eclipseExplanation does not ask the Overflow whether the night is free");
+        for (const code of ["en", "pl"]) {
+            const json = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => r.json());
+            const text = json?.DRPG?.Handover?.alreadyHasIt ?? "";
+            must(text.length > 5, `${code} DRPG.Handover.alreadyHasIt is missing - this reads nothing`);
+            if (/already|ma już|Remnant/.test(text)) wrong.push(`${code} alreadyHasIt: ${text}`);
+        }
+        equal(JSON.stringify(wrong), "[]", "[what the two texts still say beyond what holds]");
     }],
 ];
 
