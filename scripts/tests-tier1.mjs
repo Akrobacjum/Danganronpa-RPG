@@ -64561,6 +64561,47 @@ const INVARIANTS = [
             stableJson({ read: [true, true, false, true, false, false], asked: true }),
             "{read: [3 of a case of 3 found on the plan, 2 on and 1 off it, 2 of 3, every slot with no count, a slot left with no count, no plan]; asked: nextStep reads it with the case's count}");
     }],
+    ["R8117 - the Season checklist's rooms-per-student line follows the living while it stands open (1.2.122 line CORE; the auditor's probe 43 on 1.2.121): season-setup.mjs `repaintStep` draws a step's world-written line again, and keeps what else stands under the row", async () => {
+        /* Red at b9197030: the row's mark, missing line and button were drawn again, its `extra` kept as drawn - after a
+           death the line still counted the dead. Pure over a detached list: the room count step as `steps` gives it for
+           the living students, then for one fewer, as a death leaves it; `setupRows` draws it, `repaintStep` draws it again. */
+        needs(world.atLeast("livingStudents", 2), "the line counts the living, and one fewer must differ");
+        const S = await import("./season-setup.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const { isDeceased } = await import("./settings.mjs");
+        const roster = studentActors().filter(a => !isDeceased(a));
+        const step = list => S.steps({ roster: list }).find(s => s.key === "roomCount");
+        const before = step(roster), after = step(roster.slice(1));
+        must(before && after, "steps lists no roomCount step - this would measure nothing");
+        const lineOf = st => {
+            const box = document.createElement("div");
+            box.innerHTML = S.setupRows([st]);
+            return box.querySelector("li [data-drpg-live-line]")?.textContent ?? null;
+        };
+        const box = document.createElement("div");
+        box.innerHTML = S.setupRows([before]);
+        const li = box.querySelector('li[data-drpg-key="roomCount"]');
+        li.querySelector(".drpg-check-detail")?.insertAdjacentHTML("beforeend", "<div data-suite-under></div>");
+        S.repaintStep(li, after);
+        equal(stableJson({ differs: lineOf(before) !== lineOf(after), shown: li.querySelector("[data-drpg-live-line]")?.textContent === lineOf(after),
+            lines: li.querySelectorAll("[data-drpg-live-line]").length, under: Boolean(li.querySelector("[data-suite-under]")) }),
+            stableJson({ differs: true, shown: true, lines: 1, under: true }),
+            "{differs: the line for one fewer living is another line; shown: the row drawn again shows it; lines: once; under: what stood under the row stays}");
+        /* A line that comes and goes (the rooms row's "judged" line, drawn once a scene holds rooms): drawn in under the
+           hint, before what stands under the row, and taken away again. */
+        const bare = extra => ({ key: "suiteRow", optional: true, inline: true, hintKey: "DRPG.Season.checkClean", missing: () => [], extra });
+        const host = document.createElement("div");
+        host.innerHTML = S.setupRows([bare(() => "")]);
+        const row = host.querySelector('li[data-drpg-key="suiteRow"]');
+        row.querySelector(".drpg-check-detail")?.insertAdjacentHTML("beforeend", "<div data-suite-under></div>");
+        S.repaintStep(row, bare(() => "<div data-drpg-live-line>R8117 line</div>"));
+        const order = [...(row.querySelector(".drpg-check-detail")?.children ?? [])].map(el =>
+            el.matches("[data-drpg-live-line]") ? "line" : el.matches("[data-suite-under]") ? "under" : el.matches(".drpg-setup-hint") ? "hint" : "other");
+        S.repaintStep(row, bare(() => ""));
+        equal(stableJson({ order, gone: !row.querySelector("[data-drpg-live-line]"), under: Boolean(row.querySelector("[data-suite-under]")) }),
+            stableJson({ order: ["hint", "line", "under"], gone: true, under: true }),
+            "{order: a new line drawn under the hint, before what stood under the row; gone: taken away when the step has none; under: kept}");
+    }],
     ["R8050 - Foundry's token HUD holds only the controls kept (1.2.120 line H; the owner, 21.11.2026: \"Niepotrzebne jest: combat, target, movement action, assign status, liczby na gorze i na dole i elevation\"): token-hud.mjs `trimHudFor` on Daggerheart 2.12.8's tokenHUD.hbs as drawn for a GM leaves the floor's palette, bring to front, the companion's button, lock, the token's settings and visibility, with no input, status palette, movement palette, target or combat; as drawn for a player it leaves nothing, the HUD marked not to be drawn (the owner, 21.11.2026: \"Niech gracz nie ma menu tokena\")", async () => {
         /*
          * 21.11.2026, 1.2.120 line H. The harness draws no token HUD (no canvas), so this hands the transform the markup

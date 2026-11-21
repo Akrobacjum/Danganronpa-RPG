@@ -214,7 +214,7 @@ async function fixCursorPermission() {
 
 /** The rooms-per-student line under the room count step: Room setup's own sentence, on its Rooms tab since E101 (vault-store.mjs `roomRatioLine`, E20 C1). */
 function roomCountLine(census, living) {
-    return `<div class="notes">${foundry.utils.escapeHTML(roomRatioLine(census, living))}</div>`;
+    return `<div class="notes" data-drpg-live-line>${foundry.utils.escapeHTML(roomRatioLine(census, living))}</div>`;
 }
 
 /*
@@ -527,7 +527,7 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
              * errand, and splitting them across two windows is how the second
              * half stops happening.
              */
-            extra: () => `${withRooms.length ? `<div class="notes">${esc(plural("DRPG.Season.roomsJudged",
+            extra: () => `${withRooms.length ? `<div class="notes" data-drpg-live-line>${esc(plural("DRPG.Season.roomsJudged",
                 { n: withRooms.length, scene: roomScene?.name ?? "" }))}</div>` : ""}${roomGuideHtml()}`
         },
         {
@@ -1015,6 +1015,18 @@ export function repaintStep(li, step) {
     if (missing && nextMissing) missing.replaceWith(nextMissing);
     else if (missing) missing.remove();
     else if (nextMissing) detail?.querySelector(":scope > .drpg-setup-hint")?.after(nextMissing);
+    /* AND A LINE UNDER IT THE WORLD WRITES (1.2.122; the auditor's probe 43 on 1.2.121): a step's `extra` was kept as drawn,
+       so after a death the rooms-per-student line still counted the dead ("1.5 rooms per student. Living students: 4" with
+       three alive). A line of `extra` that reads the world is marked `data-drpg-live-line` and drawn again here, in order;
+       what else stands under the row - the room guide, Check rooms and its findings - is kept. */
+    const lines = detail ? [...detail.querySelectorAll(":scope > [data-drpg-live-line]")] : [];
+    const nextLines = [...fresh.querySelectorAll(":scope > .drpg-check-text > .drpg-check-detail > [data-drpg-live-line]")];
+    let after = null;
+    lines.forEach((line, i) => {
+        if (nextLines[i]) { line.replaceWith(nextLines[i]); after = nextLines[i]; } else line.remove();
+    });
+    after ??= detail?.querySelector(":scope > .drpg-setup-missing") ?? detail?.querySelector(":scope > .drpg-setup-hint") ?? null;
+    for (const line of nextLines.slice(lines.length)) { after?.after(line); after = line; }
     const button = li.querySelector(":scope > button[data-drpg-action]");
     const nextButton = fresh.querySelector(":scope > button[data-drpg-action]");
     if (button && nextButton) button.replaceWith(nextButton);
