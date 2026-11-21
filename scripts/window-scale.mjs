@@ -22,25 +22,6 @@ export function rescaleSheets() {
     }
 }
 
-/*
- * THE OTHER THEME'S SWITCHES ARE NOT SHOWN.
- *
- * Three of the look settings only exist under Stained Glass - the pulse, the ticker and
- * the blur - and the pixel face only exists under Monokuma Legacy, which has no second
- * face of its own to swap. Reduced motion is in neither list: it is for both themes since
- * W-3. Whichever theme is on, the other's switches still sat in Foundry's settings window
- * looking live, and changing one did nothing.
- *
- * HIDDEN, not greyed (Dawid, 08.09). They were greyed here and simply absent from the
- * Look window, which builds the same switches from the same settings - so the two
- * windows disagreed about whether a switch existed at all. One of them had to change,
- * and the Look window is the one a player actually opens. The row is hidden, never
- * disabled: a disabled field is left out of the form Foundry submits on Save, and a
- * setting that is merely irrelevant to this theme must keep the value it has.
- *
- * Off the SELECT, not the stored setting. Somebody who picks the other theme in this
- * window has not saved yet, and the switches follow the choice as it is made.
- */
 /* ==========================================================================
    A WINDOW IS PART OF THE INTERFACE, SO THE SLIDER MOVES IT TOO
    ==========================================================================

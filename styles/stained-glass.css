@@ -3226,7 +3226,7 @@ body.drpg-theme-stained-glass #countdowns .countdown-tool-controls a {
    curtain: the same 2 % white, the same backdrop filter, and nothing else. */
 body.drpg-theme-stained-glass .application.dialog:is(.drpg-panel, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog, .drpg-despair-dialog, .drpg-monokuma-panel,
-    .drpg-gm-panel-window, .drpg-summary-dialog, .drpg-safeword-dialog) .window-header,
+    .drpg-gm-panel-window, .drpg-safeword-dialog) .window-header,
 body.drpg-theme-stained-glass .application.drpg-panel .window-header,
 body.drpg-theme-stained-glass .application.drpg-messenger .window-header {
     background: rgba(255, 255, 255, 0.02) !important;
@@ -3320,7 +3320,7 @@ body.drpg-theme-stained-glass #drpg-hud .drpg-hud-time-slot:not(:has(.drpg-hud-t
    never reached - so every dialog opened under the theme wore a caption for a title. */
 body.drpg-theme-stained-glass .application.dialog:is(.drpg-panel, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog, .drpg-despair-dialog, .drpg-monokuma-panel,
-    .drpg-gm-panel-window, .drpg-summary-dialog, .drpg-safeword-dialog) .window-header .window-title,
+    .drpg-gm-panel-window, .drpg-safeword-dialog) .window-header .window-title,
 body.drpg-theme-stained-glass .application.drpg-panel .window-header .window-title {
     font-family: var(--drpg-font-title);
     font-size: max(var(--drpg-sg-floor), calc(21px * var(--drpg-sg-scale))) !important;
@@ -3449,8 +3449,9 @@ body.drpg-theme-stained-glass #drpg-despair .drpg-despair-row { width: max-conte
 
 /* ---- 3. The notice tile is one piece of glass ---------------------------------------------
    `--drpg-note-w` x `--drpg-note-h` at 100 %, scaled with the screen, never measured
-   (glass.mjs reads the same two): the stack is as tall as the tile, the newest at the bottom,
-   and a card that would not fit is retired by popup.mjs. */
+   (glass.mjs reads the same two): the stack is as tall as the tile, the newest on top (prepended,
+   popup.mjs, 22.09), and a card that would not fit is parked under the stack and kept, to come back
+   when a shown card is closed (popup.mjs `trimStack`, `unparkInto`; the audit of 1.2.118, UI-39). */
 body.drpg-theme-stained-glass #drpg-popups {
     /* B1 (above): bottom-left on the pane the curtain cuts for the notices, its width, rising (a rule of its own there
        until E55 S3) */
@@ -3739,7 +3740,7 @@ body.drpg-theme-stained-glass .application.drpg-messenger .window-header .header
    width (`drpg-kit-width`, ui-kit.mjs WINDOW_WIDTHS, E21 W1; `drpg-wide` and the GM panel's class until then). */
 body.drpg-theme-stained-glass .application.dialog:is(
     .drpg-panel, .drpg-advance, .drpg-assign,
-    .drpg-projects, .drpg-narrow, .drpg-monokuma-panel, .drpg-summary-dialog
+    .drpg-projects, .drpg-narrow, .drpg-monokuma-panel
 ):not(.drpg-kit-fit):not(.drpg-kit-width) {
     width: fit-content !important;
     min-width: min(var(--drpg-popup), 92vw) !important;
@@ -3748,7 +3749,7 @@ body.drpg-theme-stained-glass .application.dialog:is(
    a kit window's `max-width` is its frame's, the screen less 8 px a side. */
 body.drpg-theme-stained-glass .application.dialog:is(
     .drpg-panel, .drpg-advance, .drpg-assign,
-    .drpg-projects, .drpg-narrow, .drpg-monokuma-panel, .drpg-summary-dialog
+    .drpg-projects, .drpg-narrow, .drpg-monokuma-panel
 ):not(.drpg-kit-fit):not(.drpg-kit-width):not(.drpg-ui) {
     max-width: min(var(--drpg-popup-wide), 92vw) !important;
 }
@@ -3770,7 +3771,7 @@ body.drpg-theme-stained-glass .application.dialog:is(
    contain a table is left to win on its own selector. */
 body.drpg-theme-stained-glass .application.dialog:is(
     .drpg-panel, .drpg-advance, .drpg-assign,
-    .drpg-projects, .drpg-narrow, .drpg-monokuma-panel, .drpg-summary-dialog
+    .drpg-projects, .drpg-narrow, .drpg-monokuma-panel
 ):not(.drpg-kit-fit):not(.drpg-kit-width) .dialog-content {
     max-width: var(--drpg-popup);
 }
@@ -5386,4 +5387,25 @@ body.drpg-theme-stained-glass #token-hud.drpg-token-hud .palette-list-entry { co
 body.drpg-high-contrast.drpg-theme-stained-glass #token-hud.drpg-token-hud :is(.control-icon, .palette.palette-list) {
     border-color: var(--drpg-sg-bone);
     background: var(--drpg-sg-ink);
+}
+/* A TOGGLE THAT IS ON STAYS BONE UNDER HIGH CONTRAST (the audit of 1.2.120, H-1; 1.2.122 line UI). The rule above is
+   (1,5,1) - `:is()` takes its most specific argument, `.palette.palette-list` - and outranked the on-state's Bone ground
+   (1,4,1), while the on-state's Ink glyph stood: a hidden or locked token's button was an Ink glyph on Ink, a blank
+   hexagon. Same specificity here, and later, so the on-state wins again: Bone, the glyph Ink (12.88:1). */
+body.drpg-high-contrast.drpg-theme-stained-glass #token-hud.drpg-token-hud .control-icon.active {
+    background: var(--drpg-sg-bone);
+    color: var(--drpg-sg-ink);
+}
+/* THE FOCUS RING INSIDE THE HEXAGON (H-7). The hexagon's `clip-path` cuts everything outside its polygon, the outline
+   2 px outside the box (danganronpa.css) with it, so a keyboard's focus showed only as the edge and the ground changing.
+   Under the glass the ring is drawn inside: `outline-offset: -10px` puts the 2 px ring 8-10 px in from the 44 px box's
+   edge, where the polygon's slanted sides still hold its corners (at 8 px down they stand 7.7 px in), and clear of the
+   24 px glyph (10-34 px). Read in Chromium on docs/dev/ui122's page, both themes. */
+body.drpg-theme-stained-glass #token-hud.drpg-token-hud .control-icon:focus-visible {
+    outline-offset: -10px;
+}
+/* High contrast's ring, 3 px of Bone (danganronpa.css), drawn here for these buttons, inside as above: 8-11 px in. */
+body.drpg-high-contrast.drpg-theme-stained-glass #token-hud.drpg-token-hud .control-icon:focus-visible {
+    outline: 3px solid var(--drpg-bone);
+    outline-offset: -11px;
 }

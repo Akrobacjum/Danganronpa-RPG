@@ -571,7 +571,6 @@ body {
 .application.drpg-panel,
 .application.drpg-messenger,
 .application.drpg-advance,
-.application.drpg-summary-dialog,
 #countdowns,
 #drpg-hud,
 #drpg-player-status,
@@ -4669,8 +4668,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    Search picker, which is the point. */
 .application.dialog:is(
     .drpg-panel, .drpg-advance, .drpg-assign,
-    .drpg-projects, .drpg-narrow, .drpg-monokuma-panel,
-    .drpg-summary-dialog
+    .drpg-projects, .drpg-narrow, .drpg-monokuma-panel
 ):not(.drpg-kit-fit):not(.drpg-kit-width) {
     /* `!important` because ApplicationV2 writes the width as an INLINE style,
        which no stylesheet rule can outrank otherwise - and `DialogV2.confirm`
@@ -4699,8 +4697,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    window, which all carry `.drpg-panel`. The width above still holds them all. */
 .application.dialog:is(
     .drpg-panel, .drpg-advance, .drpg-assign,
-    .drpg-projects, .drpg-narrow, .drpg-monokuma-panel,
-    .drpg-summary-dialog
+    .drpg-projects, .drpg-narrow, .drpg-monokuma-panel
 ):not(.drpg-kit-fit):not(.drpg-kit-width):not(.drpg-ui) {
     max-width: min(var(--drpg-popup), 92vw) !important;
 }
@@ -14351,7 +14348,7 @@ body.drpg-reduced-motion #pause.paused figcaption::after {
     .drpg-panel, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window,
-    .drpg-summary-dialog, .drpg-safeword-dialog
+    .drpg-safeword-dialog
 ) .window-content {
     background: light-dark(var(--drpg-paper-alt), var(--drpg-ink)) !important;
     background-image: none !important;
@@ -14547,8 +14544,7 @@ body.drpg-theme-monokuma-legacy .drpg-panel :is(input[type="text"], input[type="
    And below them, the block that stops asking politely - see `base-select`.
    ========================================================================== */
 
-.application:is(.drpg-panel, .drpg-projects, .drpg-advance, .drpg-messenger,
-    .drpg-summary-dialog) {
+.application:is(.drpg-panel, .drpg-projects, .drpg-advance, .drpg-messenger) {
     --input-background-color: rgba(var(--drpg-ink-rgb), 0.55);
     --input-border-color: var(--drpg-line-strong);
     --input-text-color: var(--drpg-bone);
@@ -14560,7 +14556,6 @@ body.drpg-theme-monokuma-legacy .drpg-panel :is(input[type="text"], input[type="
 .drpg-panel select,
 .drpg-advance select,
 .drpg-messenger select,
-.drpg-summary-dialog select,
 .application.sheet.actor select,
 .application.roll-selection select {
     color-scheme: dark;
@@ -14571,7 +14566,6 @@ body.drpg-theme-monokuma-legacy .drpg-panel :is(input[type="text"], input[type="
 .drpg-panel select option,
 .drpg-advance select option,
 .drpg-messenger select option,
-.drpg-summary-dialog select option,
 .application.sheet.actor select option,
 .application.roll-selection select option {
     background: var(--drpg-ink);
@@ -14600,14 +14594,14 @@ body.drpg-theme-monokuma-legacy .drpg-panel :is(input[type="text"], input[type="
        the dice pickers) must keep outranking this skin. */
 
     :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
-        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select,
+        :where(.application.sheet.actor, .application.roll-selection)) select,
     :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
-        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select::picker(select) {
+        :where(.application.sheet.actor, .application.roll-selection)) select::picker(select) {
         appearance: base-select;
     }
 
     :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
-        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select {
+        :where(.application.sheet.actor, .application.roll-selection)) select {
         display: flex;
         align-items: center;
         gap: 0.4rem;
@@ -14623,26 +14617,26 @@ body.drpg-theme-monokuma-legacy .drpg-panel :is(input[type="text"], input[type="
     }
 
     :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
-        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select:hover {
+        :where(.application.sheet.actor, .application.roll-selection)) select:hover {
         border-color: var(--drpg-bone);
     }
 
     /* The arrow. It turns over when the list is open, which is the one piece of
        state a closed control cannot otherwise show. */
     :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
-        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select::picker-icon {
+        :where(.application.sheet.actor, .application.roll-selection)) select::picker-icon {
         margin-inline-start: auto;
         color: rgba(var(--drpg-bone-rgb), 0.65);
         transition: transform var(--drpg-t-snap, 90ms) var(--drpg-ease-arrive, ease-out);
     }
 
     :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
-        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select:open::picker-icon {
+        :where(.application.sheet.actor, .application.roll-selection)) select:open::picker-icon {
         transform: rotate(180deg);
     }
 
     :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
-        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select::picker(select) {
+        :where(.application.sheet.actor, .application.roll-selection)) select::picker(select) {
         background: var(--drpg-ink);
         border: 1px solid var(--drpg-line-strong);
         border-radius: 3px;
@@ -14663,7 +14657,7 @@ body.drpg-theme-monokuma-legacy .drpg-panel :is(input[type="text"], input[type="
        Mixing the same tints into Ink gives the identical intended colour and
        leaves the strip nothing to show through. */
     :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
-        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select option {
+        :where(.application.sheet.actor, .application.roll-selection)) select option {
         display: flex;
         align-items: center;
         gap: 0.4rem;
@@ -14674,15 +14668,15 @@ body.drpg-theme-monokuma-legacy .drpg-panel :is(input[type="text"], input[type="
     }
 
     :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
-        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select option:hover,
+        :where(.application.sheet.actor, .application.roll-selection)) select option:hover,
     :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
-        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select option:focus {
+        :where(.application.sheet.actor, .application.roll-selection)) select option:focus {
         background: color-mix(in srgb, var(--drpg-bone) 12%, var(--drpg-ink));
         outline: none;
     }
 
     :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
-        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select option:checked {
+        :where(.application.sheet.actor, .application.roll-selection)) select option:checked {
         background: color-mix(in srgb, var(--drpg-attention) 18%, var(--drpg-ink));
     }
 
@@ -14698,7 +14692,7 @@ body.drpg-theme-monokuma-legacy .drpg-panel :is(input[type="text"], input[type="
        carries a word as well (see `projectOptionsHtml`) for the browsers that
        will not style an `<option>` at all. */
     :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
-        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select option.is-complete {
+        :where(.application.sheet.actor, .application.roll-selection)) select option.is-complete {
         text-decoration: line-through;
         text-decoration-color: var(--drpg-crimson-light);
         opacity: 0.5;
@@ -14709,7 +14703,7 @@ body.drpg-theme-monokuma-legacy .drpg-panel :is(input[type="text"], input[type="
        space on every row so the list does not shuffle sideways as the choice
        moves down it. */
     :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
-        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select option::checkmark {
+        :where(.application.sheet.actor, .application.roll-selection)) select option::checkmark {
         color: var(--drpg-attention);
         font-size: 0.75em;
     }
@@ -14726,22 +14720,22 @@ body.drpg-theme-monokuma-legacy .drpg-panel :is(input[type="text"], input[type="
        color(srgb 0.273 0.232 0.151) and a 3 px picker in both themes; the readings after are
        E23 fix L's commit. R1468. */
     body.drpg-theme-monokuma-legacy :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
-        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select::picker(select) {
+        :where(.application.sheet.actor, .application.roll-selection)) select::picker(select) {
         border-radius: 0;
     }
 
     body.drpg-theme-monokuma-legacy :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
-        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select option {
+        :where(.application.sheet.actor, .application.roll-selection)) select option {
         border-radius: 0;
     }
 
     body.drpg-theme-monokuma-legacy :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
-        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select option:checked {
+        :where(.application.sheet.actor, .application.roll-selection)) select option:checked {
         background: color-mix(in srgb, var(--drpg-eye) 28%, var(--drpg-ink));
     }
 
     body.drpg-theme-monokuma-legacy :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
-        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select option::checkmark {
+        :where(.application.sheet.actor, .application.roll-selection)) select option::checkmark {
         color: var(--drpg-eye-light);
     }
 }
@@ -14924,7 +14918,7 @@ body.drpg-theme-stained-glass .application.sheet.actor .drpg-inventory-group .dr
     .drpg-panel, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window,
-    .drpg-summary-dialog, .drpg-safeword-dialog
+    .drpg-safeword-dialog
 ) footer.form-footer button {
     background: var(--drpg-kit-face-bg, rgba(var(--drpg-bone-rgb), 0.10)) !important;
     background-image: var(--drpg-kit-face-raster, none) !important;
@@ -14940,7 +14934,7 @@ body.drpg-theme-stained-glass .application.sheet.actor .drpg-inventory-group .dr
     .drpg-panel, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window,
-    .drpg-summary-dialog, .drpg-safeword-dialog
+    .drpg-safeword-dialog
 ) footer.form-footer button:hover:not(:disabled) {
     background-color: var(--drpg-kit-face-hover-bg, var(--drpg-kit-hover-bg)) !important;
     border-color: var(--drpg-kit-face-hover-edge, var(--drpg-kit-hover-edge)) !important;
@@ -15041,8 +15035,7 @@ body.drpg-theme-monokuma-legacy #pause.paused {
 
 .application.dialog:is(
     .drpg-panel, .drpg-advance, .drpg-assign,
-    .drpg-projects, .drpg-narrow, .drpg-monokuma-panel,
-    .drpg-summary-dialog
+    .drpg-projects, .drpg-narrow, .drpg-monokuma-panel
 ) .window-header {
     background: var(--drpg-bone) !important;
     background-image: none !important;
@@ -15056,7 +15049,7 @@ body.drpg-theme-monokuma-legacy #pause.paused {
     .drpg-panel, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window,
-    .drpg-summary-dialog, .drpg-safeword-dialog
+    .drpg-safeword-dialog
 ) :is(.window-title, .window-header button, .window-header a, .window-header i) {
     color: var(--drpg-ink) !important;
     background: none !important;
@@ -15410,7 +15403,7 @@ body.drpg-theme-monokuma-legacy .drpg-window-tables fieldset.drpg-tables-new > .
     .drpg-panel, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window,
-    .drpg-summary-dialog, .drpg-safeword-dialog
+    .drpg-safeword-dialog
 ),
 .application.drpg-messenger,
 #chat-popout,
@@ -17385,8 +17378,9 @@ body.drpg-high-contrast:not(.drpg-theme-stained-glass) .drpg-action-button:disab
 
 /* And the focus ring, which is the one piece of chrome a keyboard reader steers
    by. Thicker and in bone rather than in the accent, so it is visible on every
-   ground this module draws. */
-body.drpg-high-contrast :focus-visible {
+   ground this module draws. Not on the token HUD's buttons (`drpg-ring-inside`, token-hud.mjs), whose ring the HUD's
+   own rules draw - under the glass inside the hexagon, which clips anything outside it (the audit of 1.2.120, H-7). */
+body.drpg-high-contrast :focus-visible:not(.drpg-ring-inside) {
     outline: 3px solid var(--drpg-bone) !important;
     outline-offset: 2px !important;
 }
@@ -19036,6 +19030,11 @@ body.drpg-theme-stained-glass .application:is(.filepicker, .file-picker) :is(.fi
 }
 #token-hud.drpg-token-hud .control-icon:focus-visible {
     outline: 2px solid var(--drpg-attention);
+    outline-offset: 2px;
+}
+/* High contrast's ring on these buttons (its page-wide rule passes them by: `drpg-ring-inside`, H-7): 3 px of Bone. */
+body.drpg-high-contrast #token-hud.drpg-token-hud .control-icon:focus-visible {
+    outline: 3px solid var(--drpg-bone);
     outline-offset: 2px;
 }
 #token-hud.drpg-token-hud .control-icon.active {

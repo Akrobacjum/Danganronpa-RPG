@@ -4201,9 +4201,10 @@ body .application.drpg-ui .drpg-box > :last-child { margin-bottom: 0; }
    "Reinforced" 105 px, "description" 116, "Powiązany" 95, "naprawdę" 84, "Znalazł" 74, a cell's padding 17 px (Chromium,
    09.11.2026). Each column its own share (by its key, `col[data-drpg-col]`, as Visibility's above; the Key planner's
    name and texts keep theirs: its `name`, `text` and `analysis` keys are read by class here). Under Legacy's pixel face
-   the same words are 104-143 px and ten columns do not hold them all in 1204 px: there, and below 1366 px, a head still
-   breaks inside a word (`overflow-wrap: anywhere`, above), within its two lines and its whole name in its tooltip
-   (STATUS "## Open (E47-FB)"). */
+   the same words are wider than their shares; how the Legacy Traces table holds them since E97 C2 (the window 1120 px,
+   the table at 130 % of its box, scrolling sideways in the view, a head breaking between its words only) is the note
+   "LEGACY'S ONE-WORD HEADS" above (the audit of 1.2.118, STG-70: this note said 1204 px and in-word breaks until
+   1.2.122). */
 /* the shares are the columns' (`col`): a head or cell that states its class's share too is read beside its column's by
    Chromium's fixed layout (the wider wins: the name's column stood 141 px, its 12 % and not its 8 %) */
 body .application.drpg-window-case table.drpg-data-table :is(th, td) { width: auto; }

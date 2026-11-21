@@ -35,6 +35,11 @@ const SURFACES = [
     "#drpg-hud", "#drpg-despair", "#drpg-player-status", "#countdowns",
     "#drpg-events", "#drpg-popups", "#drpg-evidence", "#drpg-gm-launcher", "#drpg-messenger-launcher",
     "#drpg-sound-launcher", "#drpg-book-launcher", "#drpg-foundry-tools", ".drpg-panel", ".drpg-messenger",
+    /* The three tiles that stand beside the HUD, not in it (the audit of 1.2.118, CORE-45; 1.2.122 line UI): the room
+       tile (room-tile.mjs, placed after #drpg-hud), the voice tile (voice-tile.mjs) and the floor switcher (fog.mjs).
+       The report said "every control in the module's own chrome has a name" and listed the disclosures without reading
+       them, the room tile's fold, named in the note on the disclosures below, among them. */
+    "#drpg-room-tile", "#drpg-voice-tile", "#drpg-floors",
     /*
      * `.drpg-advance` IS A MODULE WINDOW AND THIS LIST WAS THE ONLY PLACE THAT
      * DID NOT KNOW IT (audit 15.09). The Level Up window was the one dialog of

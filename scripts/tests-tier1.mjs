@@ -40476,7 +40476,8 @@ const INVARIANTS = [
             broken: [C.BROKEN_ITEMS.thresholds === C.INDIRECT_MURDER.hideTraces.thresholds, C.BROKEN_ITEMS.critical === C.INDIRECT_MURDER.hideTraces.critical],
             hideTraces: [C.INDIRECT_MURDER.hideTraces.thresholds.map(t => [t.min, t.remnant]), C.INDIRECT_MURDER.hideTraces.critical.remnant],
             darkness: [C.OVERFLOW.effects.darkness.freeBecomes === C.ECLIPSE_MOVES, C.ECLIPSE_MOVES, crossings],
-            fallback: [/\bfreeBecomes\s*\?\?\s*ECLIPSE_MOVES\b/.test(fnIn("overflowCrossings")), /\bfreeBecomes\s*\?\?\s*\d/.test(fnIn("overflowCrossings"))],
+            // The darkening's arithmetic is `darkenedCrossings`' since 1.2.122 (UI-22), shared by `overflowCrossings` and `overflowCrossingsAhead`.
+            fallback: [/\bfreeBecomes\s*\?\?\s*ECLIPSE_MOVES\b/.test(fnIn("darkenedCrossings")), /\bfreeBecomes\s*\?\?\s*\d/.test(fnIn("darkenedCrossings"))],
             sabotage: [complexMin, repair, numbers(fnIn("sabotageRepairScale"))],
             rest: [/\bREST\[kind\]\.actionCost\b/.test(rest), /kind\s*===\s*"long"\s*\?\s*2\s*:\s*1/.test(rest), C.REST.long.actionCost, C.REST.short.actionCost],
             traceWrong
@@ -47956,7 +47957,7 @@ const INVARIANTS = [
             "monokuma-legacy": ["var(--drpg-pix-hold-ready)", "var(--drpg-pix-hand-over)", null, null]
         }, [[true, true], [true, true]]]), "[{theme: [the equip glyph, the handover glyph, fa-hand-fist outside the row, fa-hand-holding outside the row]}, [each declaration of --drpg-pix-hold-ready, of --drpg-pix-hand-over, draws the picked rows]]");
     }],
-    ["R3985 - the panes that stand keep their frost through a turn (glass.mjs `glassTurn`, `turnPlan`; gaps, the owner's table on 1.2.108): on a stand-in curtain a recut that moves two panes and leaves two standing lays no animation that takes the frost to 0, clips the frost for the moves to the two standing panes and to the part of each moving pane its old and new places share (`convexOverlap`), and to the new cut once they end", async () => {
+    ["R3985 - the panes that stand keep their frost through a turn (glass.mjs `glassTurn`, `turnPlan`; gaps, the owner's table on 1.2.108): on a stand-in curtain a recut that moves two panes and leaves two standing lays no animation that takes the frost to 0, clips the frost for the moves to the two standing panes and to the part of each moving pane its old and new places share (`overlapPolygon`), and to the new cut once they end", async () => {
         /*
          * The owner, 12.11.2026, on 1.2.108: folding or unfolding the Projects tray takes the blur off the notices tile
          * beside it for a moment, and it comes back. The blur under Stained Glass is one element, `#drpg-curtain-frost`,
@@ -50113,7 +50114,8 @@ const INVARIANTS = [
         const held = [`${ITEM_CATEGORIES.crimeTool.label} · ${ITEM_CATEGORIES.tool.label} - T2`];
         const tags = [ITEM_CATEGORIES.crimeTool.label, ITEM_CATEGORIES.tool.label];
         equal(stableJson({ none: await draw({}), one: await draw({ r1459: { name: "R1459 cooking", value: 2 } }) }),
-            stableJson({ none: { failed: 0, empty: [game.i18n.localize("DRPG.SheetNotes.noExperiences")], labels: held, tags }, one: { failed: 0, empty: [], labels: held, tags } }),
+            // The GM's view says it of the student since 1.2.122 (UI-33): the suite reads it as a GM, the owner's line is R8423's.
+            stableJson({ none: { failed: 0, empty: [game.i18n.localize(game.user.isGM ? "DRPG.SheetNotes.noExperiencesGm" : "DRPG.SheetNotes.noExperiences")], labels: held, tags }, one: { failed: 0, empty: [], labels: held, tags } }),
             "[no experiences, one]: the steps that failed; the empty Experience line; the Equipped row's label and its tags for a Murder Weapon that is also a Tool (its home listed twice)");
     }],
     ["R1460 - the locks on the sheet (sheet-actions.mjs `callLockNote`, sheet-header.mjs `freeMovePip`, sheet-actions.mjs `budgetLine`; E24 C3b, E24-24; audit S03-13): under the Overflow's Silence every Hope Call tile is locked and carries `DRPG.Overflow.silenced` and the drawer is `drpg-silenced`; under Fog the free Move is a third state (`drpg-fogged`, Fog's reason) and the budget line says Fog's reason; with no Overflow running neither", async () => {
@@ -59788,7 +59790,7 @@ const INVARIANTS = [
             t: { "S1/watch": { "": 0, Gym: 20, Hall: 10, Lab: 40 }, "S2/watch": { "": 0, Roof: 5 } },
             d: {}, cleared: 3 }), "[the fold of three students' rows, one the Mastermind's, on two scenes]");
     }],
-    ["R3857 - a Spectator's sheet is a watcher's (E92 C5; the owner's E92 goal (5)): sheet-mode.mjs `sheetMode` answers mode \"spectator\" - no action panel, no Calls, no row buttons, no Level Up, no strip, no OBJECTION!, no room tile, no Stop, a still header - for its owner and for a GM", async () => {
+    ["R3857 - a Spectator's sheet is a watcher's (E92 C5; the owner's E92 goal (5)): sheet-mode.mjs `sheetMode` answers mode \"spectator\" - no action panel, no Calls, no row buttons, no Level Up, no strip, no OBJECTION!, no room tile, a still header, and since 1.2.122 the Stop (UI-25) - for its owner and for a GM", async () => {
         /*
          * E92 C0, 12.11.2026. A stand-in Spectator; `editable` is handed. Red on C0's tree: mode "student".
          */
@@ -59800,7 +59802,9 @@ const INVARIANTS = [
             return { mode: m.mode, actions: m.actions, calls: m.calls, use: m.rows.use, levelUp: m.levelUp, strip: m.strip, objection: m.objection,
                 tile: m.tile, safeword: m.safeword, acts: m.header.acts, spectator: m.spectator };
         };
-        const want = { mode: "spectator", actions: null, calls: false, use: false, levelUp: false, strip: "none", objection: false, tile: false, safeword: false, acts: false, spectator: true };
+        // The Stop came back to a Spectator's sheet in 1.2.122 (line UI; the audit of 1.2.118, UI-25, STG-04): changed on
+        // purpose, the owner's choice of 21.11.2026 ("Safeword u spectatora zgoda").
+        const want = { mode: "spectator", actions: null, calls: false, use: false, levelUp: false, strip: "none", objection: false, tile: false, safeword: true, acts: false, spectator: true };
         equal(stableJson({ owner: read(owner), gm: read(gm) }), stableJson({ owner: want, gm: want }), "[sheetMode of a Spectator for its owner and a GM]");
     }],
     ["R3860 - the Spectators' room (E92 C6; the owner's 04.11 amend \"a 'Spectator talk' switch moves them to their room until they return\"): voice.mjs `placeVoices` sends a Spectator's account whose switch is on (its own User flag, scripts/spectator.mjs `SPECTATOR_TALK_FLAG`) to voice-client.mjs `SPECTATOR_ROOM`, and back to its token's room when it is off; a student's account with the flag stays in its room; `micHold` opens the microphone in the Spectators' room alone (\"spectatorTalk\", not held) and the voice tile's switch says which way it goes (voice-tile.mjs `paintSpectatorTalk`, round 3; the line under the clock until then)", async () => {
@@ -60069,7 +60073,7 @@ const INVARIANTS = [
             "fog.mjs": 5, "gm-stores.mjs": 3, "gm-students.mjs": 1, "gm-team-dialog.mjs": 2, "hud.mjs": 1, "monocub.mjs": 2, "monokuma.mjs": 8,
             "movement.mjs": 2, "palm.mjs": 1, "passages-gm.mjs": 3, "passages.mjs": 1, "patches.mjs": 1, "player-status.mjs": 1,
             "private-rolls.mjs": 1, "projects-ui.mjs": 1, "projects.mjs": 1, "relay-guard.mjs": 2, "reroll.mjs": 1, "roll-dialog.mjs": 1,
-            "roll-draw.mjs": 1, "settings.mjs": 1, "window-scale.mjs": 2, "sfx.mjs": 1, "sheet-audit.mjs": 6, "sheet-mode.mjs": 1, "sheet-repaint.mjs": 1, "sheet-sidebar.mjs": 2, "spectator-dead.mjs": 1, "spectator.mjs": 1, "states.mjs": 1, "trial-scene.mjs": 4,
+            "roll-draw.mjs": 1, "settings.mjs": 1, "window-scale.mjs": 2, "sfx.mjs": 1, "sheet-audit.mjs": 6, "sheet-mode.mjs": 1, "sheet-inventory.mjs": 1, "sheet.mjs": 1, "sheet-repaint.mjs": 1, "sheet-sidebar.mjs": 2, "spectator-dead.mjs": 1, "spectator.mjs": 1, "states.mjs": 1, "trial-scene.mjs": 4,
             "trial-zones-ui.mjs": 1, "user-match.mjs": 3, "visibility.mjs": 2, "voice.mjs": 4 };
         const counted = {};
         for (const [file, text] of await otherSources()) {
@@ -64677,7 +64681,8 @@ const INVARIANTS = [
         const hud = stripComments(sources.get("hud.mjs") ?? "");
         equal(stableJson({ controls: tokenHudControls(el), inputs: el.querySelectorAll("input").length, still: /stillTokenBars/.test(hud),
             hooked: /Hooks\.on\("renderTokenHUD", trimTokenHud\)/.test(fnSource(hud, "registerHud")) }),
-        stableJson({ controls: game.user?.isGM ? ["togglePalette:levels", "sort", "toggleCompanions", "locked", "config", "visibility"] : ["sort", "toggleCompanions", "locked", "config", "visibility"],
+        // A user who is not a GM has no HUD at all (R8050's player row; the audit of 1.2.120, H-4: this branch listed five).
+        stableJson({ controls: game.user?.isGM ? ["togglePalette:levels", "sort", "toggleCompanions", "locked", "config", "visibility"] : [],
             inputs: 0, still: false, hooked: true }),
         "{the controls after Foundry's hook, the inputs left, hud.mjs still naming stillTokenBars, registerHud hooking trimTokenHud}");
     }],
@@ -65136,6 +65141,308 @@ const INVARIANTS = [
         must(blurs.length >= 3, `fog-reveal.mjs makes ${blurs.length} blur(s) - this would measure nothing`);
         equal(JSON.stringify([[...new Set(blurs)], [...new Set(pads)], /Math\.max\(6,/.test(src)]), JSON.stringify([["HALO_BLUR_PX"], ["HALO_PAD_PX"], false]),
             "[what every blur is made of, every padding, a blur grown from a seam]");
+    }],
+    ["R8420 - a bystander's frozen clock takes the live clock's pauses (the audit of 1.2.118, UI-21, CORE-49; 1.2.122 line UI): hud-elapsed.mjs `shownClock` hiding hands back the copy from before the incident with the live `pausedAt`, and with the breaks the live clock added since - the difference of the totals while the hour stands, the live total whole once the incident moved it - so `elapsedOf` freezes on a pause in the incident and does not fall back when it ends", async () => {
+        /* Red at 21bf5d18: the copy came back as it was, `pausedAt` null - the minutes counted on through the pause. Pure. */
+        const H = await import("./hud-elapsed.mjs");
+        const start = 1_000_000, copy = { timeOfDay: "noon", timeOfDayStartedAt: start, pausedTotalMs: 60_000, pausedAt: null };
+        const paused = { ...copy, timeOfDay: "afternoon", pausedAt: start + 20 * 60_000 };
+        const after = { ...copy, timeOfDay: "afternoon", pausedTotalMs: 60_000 + 10 * 60_000, pausedAt: null };
+        const moved = { timeOfDay: "evening", timeOfDayStartedAt: start + 30 * 60_000, pausedTotalMs: 2 * 60_000, pausedAt: null };
+        const shown = clock => H.shownClock(clock, { hide: true, last: copy });
+        const minutes = (clock, now, isPaused) => Math.floor(H.elapsedOf(shown(clock), { now, paused: isPaused }) / 60_000);
+        equal(stableJson({
+            hour: shown(paused).timeOfDay,
+            inPause: minutes(paused, start + 30 * 60_000, true),
+            afterPause: minutes(after, start + 32 * 60_000, false),
+            moved: shown(moved).pausedTotalMs,
+            open: H.shownClock(copy, { hide: false, last: null }) === copy
+        }), stableJson({ hour: "noon", inPause: 19, afterPause: 21, moved: 3 * 60_000, open: true }),
+        "{hour: the copy's; inPause: the minutes 10 min into a pause begun at 20 min; afterPause: 32 min on with a 10 min break; moved: the copy's total with the live hour's; open: not hiding, the clock itself}");
+    }],
+    ["R8421 - a player has no token settings and a promoted GM gets the HUD drawn (the audit of 1.2.120, H-3, H-8; 1.2.122 line UI): token-hud.mjs `refuseTokenConfig` hides and closes a token's settings window drawn for a user who is not a GM, once, and leaves a GM's; `trimHudFor` for a GM on a root a player's trim marked takes the marks off", async () => {
+        /* Red at 21bf5d18: no `refuseTokenConfig`, and the GM's trim left `drpg-token-hud-none` and aria-hidden on the root. */
+        const T = await import("./token-hud.mjs");
+        must(typeof T.refuseTokenConfig === "function", "token-hud.mjs has no refuseTokenConfig - a Trusted player's double right-click opens the token's settings");
+        const stand = () => {
+            const element = document.createElement("div");
+            const app = { closed: 0, element, close() { this.closed++; return Promise.resolve(); } };
+            return { app, element };
+        };
+        const player = stand(), gm = stand();
+        const was = ui.notifications?.info;
+        let told = 0;
+        if (ui.notifications) ui.notifications.info = () => { told++; };
+        let answers;
+        try {
+            answers = [T.refuseTokenConfig(player.app, player.element, { isGM: false }), T.refuseTokenConfig(player.app, player.element, { isGM: false }),
+                T.refuseTokenConfig(gm.app, gm.element, { isGM: true })];
+        } finally {
+            if (ui.notifications) ui.notifications.info = was;
+        }
+        const root = dhTokenHud({ gm: false });
+        T.trimHudFor(root, { isGM: false });
+        const marked = [root.classList.contains(T.NO_HUD_CLASS), root.getAttribute("aria-hidden")];
+        root.innerHTML = dhTokenHud({ gm: true }).innerHTML;
+        T.trimHudFor(root, { isGM: true });
+        equal(stableJson({ answers, closed: [player.app.closed, gm.app.closed], hidden: [player.element.style.display, gm.element.style.display], told: told <= 1,
+            marked, promoted: [root.classList.contains(T.NO_HUD_CLASS), root.getAttribute("aria-hidden"), tokenHudControls(root).length > 0] }),
+        stableJson({ answers: [true, false, false], closed: [1, 0], hidden: ["none", ""], told: true, marked: [true, "true"], promoted: [false, null, true] }),
+        "{answers: a player's window, again, a GM's; closed and hidden: each; told at most once; marked: a player's root; promoted: the same root trimmed for a GM}");
+    }],
+    ["R8422 - a priced tile nothing can pay for does not say 'free' (the audit of 1.2.118, UI-24; 1.2.122 line UI): sheet-actions.mjs `costLabelFor` for Analyze outside a Class Trial with no action left, and for Tamper with no action and a full Sanity track, says what its chain's first step costs, as the stripe does", async () => {
+        /* Red at 21bf5d18: DRPG.Action.costFree ('free') on a blocked quote, and no export. A stand-in student: nothing written. */
+        const S = await import("./sheet-actions.mjs");
+        must(typeof S.costLabelFor === "function", "sheet-actions.mjs does not export costLabelFor");
+        needs(world.atLeast("livingStudents"), "a student to stand in for");
+        // No action, no Hope and a full Sanity track: blocked in a Class Trial too, where Analyze's chain is three steps.
+        const real = studentActors().find(a => !a.getFlag?.(MODULE_ID, "deceased")) ?? studentActors()[0];
+        const spent = Object.create(real, { system: { value: foundry.utils.mergeObject(foundry.utils.deepClone(real.system), {
+            resources: { actions: { value: 0 }, hope: { value: 0 }, stress: { value: 99, max: 6 } } }, { inplace: false }) } });
+        const { quotePrice, priceLabel } = await import("./price.mjs");
+        const first = key => priceLabel({ pay: PRICE_CHAINS[key].steps[0].pay, amount: PRICE_CHAINS[key].steps[0].amount });
+        const free = game.i18n.localize("DRPG.Action.costFree");
+        equal(stableJson({ blocked: Boolean(quotePrice(spent, "analyze").blocked), analyze: S.costLabelFor(spent, "analyze", ACTIONS.analyze), tamperFree: S.costLabelFor(spent, "tamper", ACTIONS.tamper) === free }),
+            stableJson({ blocked: true, analyze: first("analyze"), tamperFree: false }),
+            "{blocked: the stand-in's Analyze quote; analyze: its tile's face; tamperFree: Tamper's face says 'free'}");
+    }],
+    ["R8423 - the GM's view of a student's sheet speaks of the student (the audit of 1.2.118, UI-33; 1.2.122 line UI): the dead panel (`injectActionPanel`), the Equipped list's empty line (`injectEquippedTools`) and the empty Experience (`noteEmptyExperience`) draw the `...Gm` keys for a GM's mode and the player's second person for the owner's", async () => {
+        /* Red at 21bf5d18: the same player-addressed keys for both. Stand-in sheets and modes; nothing written. */
+        const A = await import("./sheet-actions.mjs"), B = await import("./sheet-sidebar.mjs");
+        const actor = { id: "R8423", name: "R8423", type: "character", items: [], system: { experiences: {} }, getFlag: () => undefined };
+        const drawn = gm => {
+            const root = document.createElement("div");
+            root.innerHTML = `<section class="tab" data-tab="features" data-application-part="features"></section>`
+                + `<aside class="character-sidebar-sheet"><div class="equipment-section"><ul class="items-sidebar-list"></ul></div>`
+                + `<div class="experience-section"><div class="experience-list"></div></div></aside>`;
+            const app = { document: actor };
+            A.injectActionPanel(app, root, { actions: "dead", gm, unfound: false });
+            B.injectEquippedTools(app, root, { equipped: true, gm });
+            B.noteEmptyExperience(app, root, { experience: true, gm });
+            return [root.querySelector(".drpg-dead-panel h3")?.textContent ?? null, root.querySelector(".drpg-dead-still")?.textContent ?? null,
+                root.querySelector(".drpg-equipped-empty")?.textContent ?? null, root.querySelector(".drpg-experience-empty")?.textContent ?? null];
+        };
+        const L = key => game.i18n.localize(key);
+        equal(stableJson({ gm: drawn(true), owner: drawn(false) }), stableJson({
+            gm: [L("DRPG.Chapter.deadPanelTitleGm"), L("DRPG.Class.deadStillGm"), L("DRPG.Items.noneReadiedGm"), L("DRPG.SheetNotes.noExperiencesGm")],
+            owner: [L("DRPG.Chapter.deadPanelTitle"), L("DRPG.Class.deadStill"), L("DRPG.Items.noneReadied"), L("DRPG.SheetNotes.noExperiences")]
+        }), "{gm, owner: [the dead panel's heading, its line on the trial, the Equipped list's empty line, the empty Experience]}");
+        ok(["DRPG.Chapter.deadPanelTitleGm", "DRPG.Class.deadStillGm", "DRPG.Items.noneReadiedGm", "DRPG.SheetNotes.noExperiencesGm"].every(k => game.i18n.has(k)), "a GM's key is missing");
+    }],
+    ["R8424 - the settings an open sheet draws from redraw it at once (the audit of 1.2.118, REFR-11, STG-13, REFR-14; 1.2.122 line UI): `lockPlayerResources`' change and the GMs' offers store's (`gmOffers`) each run clock.mjs `refreshSheets`", async () => {
+        /* Red at 21bf5d18: the lock's change only toggled a body class, and the offers' setting had no onChange. The suite
+           calls each setting's own onChange with the value it holds, so the body class stays as it is. */
+        const { snapshot } = await import("./perf-counters.mjs");
+        const C = "clock.refreshSheets";
+        // The offers' setting is a GM store's key: found by a comparison of its id and handed no value read off it (R171).
+        const read = async (pick, value) => {
+            const setting = [...game.settings.settings.entries()].find(([id]) => pick(id))?.[1];
+            if (typeof setting?.onChange !== "function") return 0;
+            const before = snapshot()[C] ?? 0;
+            await setting.onChange(value);
+            await until(() => (snapshot()[C] ?? 0) > before, 2000);
+            return (snapshot()[C] ?? 0) - before;
+        };
+        const locked = document.body.classList.contains("drpg-resources-locked");
+        const lock = await read(id => id === `${MODULE_ID}.${SETTINGS.lockPlayerResources}`, game.settings.get(MODULE_ID, SETTINGS.lockPlayerResources));
+        const offers = await read(id => id === `${MODULE_ID}.${SETTINGS.advanceOffers}`, {});
+        equal(stableJson({ lock: lock > 0, offers: offers > 0, cls: document.body.classList.contains("drpg-resources-locked") === locked }),
+            stableJson({ lock: true, offers: true, cls: true }), "{lock, offers: each change ran refreshSheets; cls: the body class as it stood}");
+    }],
+    ["R8425 - an open sheet's room parts follow the room (the audit of 1.2.118, REFR-12, UI-34; 1.2.122 line UI): sheet-inventory.mjs `redrawRoomSheets` renders an open sheet whose `roomSignature` moved since its render and not one whose did not; sheet.mjs hears a token's move, a token made or taken away (a trace), an item's change and a room's region, and a token made or taken away forgets the Tamper cache on every browser and redraws the sheets on its scene", async () => {
+        /* Red at 21bf5d18: no room watch - a sheet rendered on its own actor's writes and refreshSheets alone. A stand-in
+           sheet in `ui.windows`, taken out again; nothing written. */
+        const I = await import("./sheet-inventory.mjs");
+        must(typeof I.redrawRoomSheets === "function" && typeof I.noteRoomSignature === "function", "sheet-inventory.mjs has no room watch");
+        needs(world.atLeast("studentsInRooms"), "a student standing in a room");
+        const { roomOfActor } = await import("./movement.mjs");
+        const student = studentActors().find(a => roomOfActor(a));
+        must(student, "no student stands in a room - this would measure nothing");
+        let renders = 0;
+        const app = { document: { id: "R8425-elsewhere", type: "character" }, rendered: true, render() { renders++; } };
+        const key = "R8425-stand-in";
+        ui.windows[key] = app;
+        let counts;
+        try {
+            I.noteRoomSignature(app);
+            app.document = student;
+            const moved = I.redrawRoomSheets();
+            I.noteRoomSignature(app);
+            const still = I.redrawRoomSheets();
+            counts = [moved, still, renders];
+        } finally {
+            delete ui.windows[key];
+        }
+        const src = stripComments((await moduleSources()).get("sheet.mjs") ?? "");
+        const reg = fnSource(src, "registerSheetTweaks");
+        const hooked = ["updateToken", "createToken", "deleteToken", "createItem", "updateItem", "deleteItem", "updateRegion"].filter(h => reg.includes(`"${h}"`));
+        equal(stableJson({ counts, hooked, forgets: /\["createToken", "deleteToken"\]\)\s*Hooks\.on\(hook, doc => \{\s*forgetTamper\(\);\s*roomChanged\(doc\?\.parent/.test(reg) }),
+            stableJson({ counts: [1, 0, 1], hooked: ["updateToken", "createToken", "deleteToken", "createItem", "updateItem", "deleteItem", "updateRegion"], forgets: true }),
+            "{counts: [renders after the room moved, after it stood, in all]; hooked: the hooks registerSheetTweaks listens on; forgets: a token made or taken away forgets the Tamper cache and redraws its scene's sheets}");
+    }],
+    ["R8426 - the scroll signal says which way the more lies (the audit of 1.2.118, UI-32; 1.2.122 line UI): ui-kit.mjs `watchScroll` on a box with more below says `DRPG.Kit.scrollMore`, on one with more only to the right `DRPG.Kit.scrollMoreRight`, and hides the line when nothing is past the edge", async () => {
+        /* Red at 21bf5d18: the one line, "There is more below", for a box whose more was to the right. jsdom lays nothing
+           out, so the box's sizes are handed (`defineProperty`); its scroll listener is taken off again. */
+        const K = await import("./ui-kit.mjs");
+        const box = document.createElement("div");
+        box.innerHTML = K.scrollNote();
+        const size = { scrollHeight: 100, clientHeight: 100, scrollTop: 0, scrollWidth: 100, clientWidth: 100, scrollLeft: 0 };
+        for (const k of Object.keys(size)) Object.defineProperty(box, k, { get: () => size[k], configurable: true });
+        const note = box.querySelector("[data-drpg-scroll-note]");
+        const read = patch => { Object.assign(size, patch); box.dispatchEvent(new Event("scroll")); return note.hidden ? "hidden" : note.textContent; };
+        const stop = K.watchScroll(box);
+        let seen;
+        try {
+            seen = [read({}), read({ scrollWidth: 400 }), read({ scrollHeight: 400 }), read({ scrollWidth: 100, scrollHeight: 100 })];
+        } finally {
+            stop();
+        }
+        const L = key => game.i18n.localize(key);
+        ok(game.i18n.has("DRPG.Kit.scrollMoreRight"), "no DRPG.Kit.scrollMoreRight");
+        equal(stableJson(seen), stableJson(["hidden", L("DRPG.Kit.scrollMoreRight"), L("DRPG.Kit.scrollMore"), "hidden"]),
+            "[the note with nothing past the edge, more to the right, more below too, nothing again]");
+    }],
+    ["R8427 - game.drpg.a11y() reads the tiles beside the HUD (the audit of 1.2.118, CORE-45; 1.2.122 line UI): a disclosure on the room tile, the voice tile or the floor switcher is listed by a11y.mjs `a11yReport`", async () => {
+        /* Red at 21bf5d18: SURFACES held none of the three, so a disclosure there was never listed. Stand-in tiles with
+           ids of their own are put in the page only where the real one is not there, and taken out again. */
+        const A = await import("./a11y.mjs");
+        const ids = ["drpg-room-tile", "drpg-voice-tile", "drpg-floors"];
+        const made = [];
+        try {
+            for (const id of ids) {
+                let host = document.getElementById(id);
+                if (!host) { host = document.createElement("div"); host.id = id; document.body.append(host); made.push(host); }
+                const b = document.createElement("button");
+                b.type = "button";
+                b.setAttribute("aria-expanded", "false");
+                b.setAttribute("aria-label", `R8427 ${id}`);
+                b.dataset.r8427 = "";
+                host.append(b);
+                made.push(b);
+            }
+            const report = A.a11yReport();
+            equal(stableJson(ids.map(id => report.includes(`R8427 ${id}`))), stableJson([true, true, true]),
+                "[the room tile's, the voice tile's, the floor switcher's disclosure listed]");
+        } finally {
+            for (const el of made.reverse()) el.remove();
+        }
+    }],
+    ["R8428 - the dead class and the curtain's stale twins are gone (the audit of 1.2.118, DOC-12, UI-27, UI-28, UI-29, UI-30; 1.2.122 line UI): no stylesheet rule and no script names `.drpg-summary-dialog`; glass.mjs reads `PAD_SIDE` from glass-geometry.mjs and types no `2 * 12`, keeps no `placeTiles` and no `j.placed`, and its watchdog observes what it mounts; the two overlaps are named apart (`overlapPolygon`, `overlapsConvex`), and glass-close.mjs's corner mean is not called `centroid`", async () => {
+        /* Red at 21bf5d18: 34 rules and a selector string named the class, and each glass reading below its old way. */
+        const css = await moduleStyles(), sources = await moduleSources();
+        const code = [...sources.entries()].filter(([name]) => !/^tests/.test(name)).map(([, text]) => stripComments(text)).join("\n");
+        const glass = stripComments(sources.get("glass.mjs") ?? ""), close = stripComments(sources.get("glass-close.mjs") ?? "");
+        const watchdog = lineAround(glass, glass.indexOf("curtain watchdog: rebuilding"));
+        equal(stableJson({
+            dead: [css.includes("drpg-summary-dialog"), code.includes("drpg-summary-dialog")],
+            pad: [/import \{[^}]*\bPAD_SIDE\b[^}]*\} from "\.\/glass-geometry\.mjs"/.test(glass), /2 \* 12\b/.test(glass), /const COLUMN_PAD = 12\b/.test(glass)],
+            placed: [/\bplaceTiles\b/.test(glass), /\.placed\b/.test(glass)],
+            observes: /mount\(\);\s*observe\(\);/.test(watchdog),
+            names: [/export function overlapPolygon\(/.test(glass), /export function overlapsConvex\(/.test(close), /\bconvexOverlap\b/.test(glass + close), /\bcentroid\b/.test(close)]
+        }), stableJson({ dead: [false, false], pad: [true, false, false], placed: [false, false], observes: true, names: [true, true, false, false] }),
+        "{dead: the class in the stylesheets, in the scripts; pad: PAD_SIDE imported, a bare 2 * 12, COLUMN_PAD typed; placed: placeTiles, j.placed; observes: the watchdog's mount observed; names: the two overlaps, the old name, centroid in glass-close.mjs}");
+    }],
+    ["R8429 - the Eclipse's opening whisper names the character's own crossings and no seal (the audit of 1.2.118, UI-18, UI-26; 1.2.122 line UI): eclipse.mjs `startEclipse` counts each whisper's crossings with `eclipseAllowanceFor(actor)`, and `DRPG.Eclipse.yourMoves` in English and Polish names locked doors and no sealed room, as the Eclipse has just lifted every seal", async () => {
+        /* Red at 21bf5d18: the table's `allowance` in every whisper, and "locked doors and sealed rooms still stop you". The
+           whisper is read in the source (a whole Eclipse would have to run to read it on a card). */
+        const src = stripComments((await moduleSources()).get("eclipse.mjs") ?? "");
+        const start = fnSource(src, "startEclipse");
+        const whisper = lineAround(start, start.indexOf("DRPG.Eclipse.yourMoves\""));
+        const forms = async lang => {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json()).catch(() => null);
+            return Object.values(res?.DRPG?.Eclipse?.yourMoves ?? {});
+        };
+        const en = await forms("en"), pl = await forms("pl");
+        ok(en.length >= 2 && pl.length >= 4, "the yourMoves forms were not read - this would measure nothing");
+        equal(stableJson({ own: /n: eclipseAllowanceFor\(actor\)/.test(whisper), en: en.some(t => /seal/i.test(t)), pl: pl.some(t => /zapiecz/i.test(t)) }),
+            stableJson({ own: true, en: false, pl: false }), "{own: the whisper's count the character's own; en, pl: a form names a sealed room}");
+    }],
+    ["R8430 - a Spectator has a Stop, and its press is not refused as chat (the audit of 1.2.118, UI-25, STG-04, COMM-54; 1.2.122 line UI): `sheetMode` answers `safeword` true for a Spectator's sheet and false for a Monokuma's; spectator-ui.mjs `isSafewordCard` passes the safeword's own card (its flag and its heading) and nothing else that carries the flag", async () => {
+        /* Red at 21bf5d18: a Spectator's sheet drew no Stop (E92 C5), and the Spectator's chat block refused its card. */
+        const { sheetMode } = await import("./sheet.mjs");
+        const SU = await import("./spectator-ui.mjs");
+        must(typeof SU.isSafewordCard === "function", "spectator-ui.mjs has no isSafewordCard - a Spectator's safeword card is refused as chat");
+        const { safewordCard, SAFEWORD_FLAG } = await import("./safeword.mjs");
+        const owner = { id: "R8430owner", isGM: false };
+        const watcher = e92Char("R8430-watch", { spectator: true }, owner.id), bear = e92Char("R8430-bear", { monokuma: true });
+        const card = safewordCard();
+        const msg = data => ({ content: data.content, getFlag: (scope, key) => data.flags?.[scope]?.[key] });
+        equal(stableJson({
+            spectator: sheetMode(watcher, owner, { editable: true }).safeword,
+            monokuma: sheetMode(bear, { id: "gm", isGM: true }, { editable: true }).safeword,
+            card: SU.isSafewordCard(msg(card)),
+            words: SU.isSafewordCard(msg({ content: "<p>hello table</p>", flags: { [MODULE_ID]: { [SAFEWORD_FLAG]: true } } })),
+            unflagged: SU.isSafewordCard(msg({ content: card.content }))
+        }), stableJson({ spectator: true, monokuma: false, card: true, words: false, unflagged: false }),
+        "{spectator, monokuma: the sheet's Stop; card: the safeword's card passes; words: a flagged message of other words; unflagged: the card's words with no flag}");
+    }],
+    ["R8431 - the token HUD's on toggles and its focus read under Stained Glass with high contrast (the audit of 1.2.120, H-1, H-7; 1.2.122 line UI): a rule under high contrast and the glass gives `.control-icon.active` the Bone ground and the Ink glyph after the high-contrast ground, and the glass draws the focus ring inside the hexagon (a negative `outline-offset`)", async () => {
+        /* Red at 21bf5d18: the high-contrast rule (1,5,1) took the on toggle's ground to Ink under an Ink glyph, and the
+           ring stood 2 px outside the clip. Read off the sheets' text; drawn in Chromium by docs/dev/ui122/hud-shots.mjs. */
+        const css = await moduleStyles();
+        const at = sel => css.indexOf(sel);
+        const hc = "body.drpg-high-contrast.drpg-theme-stained-glass #token-hud.drpg-token-hud :is(.control-icon, .palette.palette-list) {";
+        const on = "body.drpg-high-contrast.drpg-theme-stained-glass #token-hud.drpg-token-hud .control-icon.active {";
+        const focus = "body.drpg-theme-stained-glass #token-hud.drpg-token-hud .control-icon:focus-visible {";
+        const body = sel => css.match(new RegExp(`${sel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^}]*)\\}`))?.[1] ?? "";
+        ok(at(hc) >= 0, "the high-contrast HUD rule was not found - this would measure nothing");
+        equal(stableJson({ after: at(on) > at(hc), ground: /background:\s*var\(--drpg-sg-bone\)/.test(body(on)), glyph: /color:\s*var\(--drpg-sg-ink\)/.test(body(on)),
+            ring: /outline-offset:\s*-\d+px/.test(body(focus)) }), stableJson({ after: true, ground: true, glyph: true, ring: true }),
+        "{after: the on rule after the high-contrast one; ground, glyph: Bone and Ink; ring: a negative outline-offset under the glass}");
+    }],
+    ["R8432 - a tab bar fitted by widening its window widens it through the application (the audit of 1.2.118, UI-23; 1.2.122 line UI): ui-kit.mjs `fitKitTabs`, where only growth makes the tabs fit one line, asks `app.setPosition({ width })` - the position a later `setPosition({ height: \"auto\" })` on a tab press keeps - and writes no inline width of its own; with no app it writes the element's width as before", async () => {
+        /* Red at 21bf5d18: the growth was `win.style.width` alone, which ApplicationV2 lays its recorded width back over at
+           the first tab press. jsdom lays nothing out, so the widths are handed: four tabs of 120 px in a 400 px bar, a
+           500 px window. What v14's setPosition then draws is the table's. */
+        const K = await import("./ui-kit.mjs");
+        const bar = () => {
+            const nav = document.createElement("nav");
+            nav.className = "drpg-tabs";
+            for (let i = 0; i < 4; i++) {
+                const b = document.createElement("button");
+                b.setAttribute("role", "tab");
+                b.getBoundingClientRect = () => ({ width: 120, height: 20, top: 0, left: 0, right: 120, bottom: 20 });
+                nav.append(b);
+            }
+            Object.defineProperty(nav, "clientWidth", { get: () => 400, configurable: true });
+            const win = document.createElement("div");
+            win.getBoundingClientRect = () => ({ width: 500, height: 300, top: 0, left: 0, right: 500, bottom: 300 });
+            win.append(nav);
+            document.body.append(win);
+            return { nav, win };
+        };
+        const asked = [];
+        const withApp = bar(), alone = bar();
+        let fits;
+        try {
+            fits = [K.fitKitTabs(withApp.nav, { win: withApp.win, app: { setPosition: pos => asked.push(pos) } })?.grew ?? null,
+                K.fitKitTabs(alone.nav, { win: alone.win })?.grew ?? null];
+        } finally {
+            withApp.win.remove();
+            alone.win.remove();
+        }
+        const grew = fits[0];
+        must(grew > 0 && fits[1] === grew, `the fit did not grow either window the same (${stableJson(fits)}) - this would measure nothing`);
+        equal(stableJson({ asked, inline: withApp.win.style.width, alone: alone.win.style.width }),
+            stableJson({ asked: [{ width: 500 + grew }], inline: "", alone: `${500 + grew}px` }),
+            "{asked: the app's setPosition calls; inline: the app's window's own width written; alone: an app-less window's}");
+    }],
+    ["R8433 - a killer under the opening's veil is nobody here on a sheet that does not draw them (the auditor's check of 1.2.121, r121-M-4; 1.2.122 line UI): sheet-actions.mjs `roomBlockFor`'s Palm ('Nobody else is here') and action-briefing.mjs's Project line on concealment count the room through mask-gm.mjs `seenHere`, as the pickers do; `seenHere` leaves out an actor whose veiled token this browser hides and keeps the rest", async () => {
+        /* Red on 21bf5d18 and 8edfd7cf: both counted `othersInRoom` raw, so the victim's own sheet said somebody was there.
+           The two counts are read in the source; `seenHere`'s verdict on stand-in tokens with a stand-in user and verdict. */
+        const sources = await moduleSources();
+        const block = fnSource(stripComments(sources.get("sheet-actions.mjs") ?? ""), "roomBlockFor");
+        const brief = stripComments(sources.get("action-briefing.mjs") ?? "");
+        const M = await import("./mask-gm.mjs");
+        const veiled = { id: "R8433-veiled" }, plain = { id: "R8433-plain" };
+        const scenes = [{ tokens: [{ actorId: veiled.id, flags: { [MODULE_ID]: { [M.VEIL_FLAG]: true } } }, { actorId: plain.id, flags: {} }] }];
+        equal(stableJson({
+            player: M.seenHere([veiled, plain], { scenes, user: { isGM: false }, shown: () => "hide" }).map(a => a.id),
+            palm: /key === "palm" && seenHere\(othersInRoom\(actor\)\)\.length === 0/.test(block),
+            conceal: /if \(seenHere\(othersInRoom\(actor\)\)\.length\) f\("DRPG\.Action\.dcConceal"/.test(brief),
+            gm: M.seenHere([veiled, plain], { scenes, user: { isGM: true }, shown: () => "hide" }).length
+        }), stableJson({ player: [plain.id], palm: true, conceal: true, gm: 2 }),
+        "{player: who a player's browser that hides the veiled token counts; palm, conceal: each counts the room through seenHere; gm: a GM's browser leaves nobody out}");
     }],
 ];
 

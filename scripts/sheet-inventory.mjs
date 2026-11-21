@@ -13,7 +13,7 @@ import { stashRoomsFor, openStashesHere, stashItemsIn } from "./vault.mjs";
 import { murderState, sideOf } from "./murder.mjs";
 import { isStashed, categoriesInGroup, isBroken, countInGroup, onlyCopied } from "./inventory.mjs";
 import { isEquipped, isUsable, usedCreatively, isEquippable, noDiscardNow } from "./use-items.mjs";
-import { sceneOfActor, roomOfActor } from "./movement.mjs";
+import { sceneOfActor, roomOfActor, othersInRoom } from "./movement.mjs";
 import { GM_ROUTE_CLASS, error } from "./utils.mjs";
 import { drpgConfirm, setTip } from "./ui-kit.mjs";
 import { modeOf, rowGate, sheetMode } from "./sheet-mode.mjs";
@@ -184,7 +184,7 @@ export function groupInventory(app, element, mode = modeOf(app)) {
             && !items.some(isEquipped)) {
             const nudge = document.createElement("p");
             nudge.className = "notes drpg-equip-nudge";
-            nudge.textContent = game.i18n.localize("DRPG.Items.noneReadied");
+            nudge.textContent = game.i18n.localize(mode.gm ? "DRPG.Items.noneReadiedGm" : "DRPG.Items.noneReadied");
             section.append(nudge);
         }
 
@@ -1017,3 +1017,67 @@ function addHandoverButton(li, item, app, { copying }) {
 
     li.append(button);
 }
+
+/*
+ * THE SHEET'S ROOM-BOUND PARTS FOLLOW THE ROOM (the audit of 1.2.118, REFR-12; 1.2.122 line UI; the owner's rule of
+ * 20.11.2026, "Zawsze odswiezamy okna od razu przy zmianie"). Palm's "Nobody else is here", Tamper's witnesses, Rifle
+ * and the open stashes' section, the own stash sections and the lair's lock line are drawn from where the character
+ * stands, who else stands there and the room's flags; a sheet rendered on its own actor's writes only, so another
+ * student walking in, a stash filled elsewhere or a room's lock left them as drawn. `roomSignature` is what those
+ * parts read about the room, short: the room, who else is in it, and each open stash's owner and count. A token's move,
+ * a token made or taken away (a trace laid or erased is a token) or an item's change redraws an open sheet whose
+ * signature moved, and no other - another player's step costs the sheets that do not see it nothing but this read
+ * (E88's rule: scenario 86 counts the work). A room's region written (its lock, a stash set up, concealed or found) is
+ * a GM's write and rarer: it redraws every open character sheet on that scene. The presses themselves were judged
+ * again at the press all along (`roomBlockFor`'s note); the redraw is the screen's.
+ */
+export function roomSignature(actor) {
+    try {
+        const room = roomOfActor(actor) ?? null;
+        if (!room) return "-";
+        const others = othersInRoom(actor).map(a => a?.id ?? "?").sort();
+        const stashes = openStashesHere(actor).map(s => `${s.owner?.id}:${s.items?.length ?? 0}`).sort();
+        return JSON.stringify([room, others, stashes]);
+    } catch {
+        return "?";
+    }
+}
+
+const ROOM_SIGNATURES = new WeakMap();
+
+/** The signature an open sheet was drawn with (sheet.mjs `onRenderCharacterSheet`). */
+export function noteRoomSignature(app) {
+    if (app?.document) ROOM_SIGNATURES.set(app, roomSignature(app.document));
+}
+
+/** The open character sheets, rendered and not folded away. */
+function openCharacterSheets() {
+    const out = new Set();
+    for (const app of [...Object.values(ui.windows ?? {}), ...(foundry.applications?.instances?.values() ?? [])]) {
+        if (app?.document?.type === "character" && app.rendered) out.add(app);
+    }
+    return [...out];
+}
+
+/**
+ * Redraw the open sheets whose room parts moved: `all` for every sheet whose character stands on `scene` (a room's
+ * region written), else only those whose `roomSignature` differs from the one they were drawn with. Answers the
+ * number of sheets asked to render (the suite reads it).
+ */
+export function redrawRoomSheets({ scene = null, all = false } = {}) {
+    let drawn = 0;
+    for (const app of openCharacterSheets()) {
+        const actor = app.document;
+        if (all) {
+            if (scene && sceneOfActor(actor)?.id !== scene.id) continue;
+        } else if (ROOM_SIGNATURES.has(app) && ROOM_SIGNATURES.get(app) === roomSignature(actor)) continue;
+        try {
+            app.render(false);
+            drawn++;
+        } catch (err) {
+            error("Could not redraw a sheet for a change in its room", err);
+        }
+    }
+    return drawn;
+}
+

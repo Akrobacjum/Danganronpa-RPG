@@ -511,6 +511,7 @@
       "otherHint": "Przedmiot bez znanej kategorii nie trafia pod żaden nagłówek. Poproś GM-a, żeby nadał mu kategorię.",
       "biographyLabel": "Przeszłość",
       "biographyPlaceholder": "Kim była twoja postać, zanim zaczęła się killing game.",
+      "biographyChangedClosed": "W międzyczasie ktoś zmienił przeszłość tej postaci. Arkusz został zamknięty, więc twój tekst zapisano w miejsce tamtego.",
       "biographyChanged": "W międzyczasie ktoś zmienił przeszłość tej postaci, więc twojego tekstu nie zapisano. Wyjdź z pola jeszcze raz, żeby zastąpić tamten."
     },
     "Guard": {
@@ -667,6 +668,7 @@
     },
     "TokenHud": {
       "show": "Pokaż token graczom",
+      "configGm": "Ustawienia tokenu należą do GM-a.",
       "hide": "Ukryj token przed graczami",
       "lock": "Zablokuj token w miejscu",
       "unlock": "Odblokuj token",
@@ -1214,6 +1216,7 @@
       "equipTooltip": "Weź do ręki.",
       "unequipTooltip": "Odłóż.",
       "readyTooltip": "W ręku.",
+      "noneReadiedGm": "Nie trzyma niczego w ręku, a w incydencie i przy sprzątaniu liczy się tylko to, co trzyma. Tak samo jest w projekcie i przy sabotażu.",
       "noneReadied": "Nie trzymasz niczego w ręku, a w incydencie i przy sprzątaniu liczy się tylko to, co trzymasz. Tak samo jest w projekcie i przy sabotażu.",
       "rowGone": "„{item}” już tam nie ma.",
       "restoreN": "Przywraca {n}.",
@@ -1990,6 +1993,7 @@
       "close": "Zamknij",
       "cancel": "Anuluj",
       "tableEmpty": "Na razie nie ma tu nic do pokazania.",
+      "scrollMoreRight": "Po prawej jest więcej. Przewiń w bok, żeby zobaczyć.",
       "scrollMore": "Niżej jest więcej. Przewiń, żeby zobaczyć.",
       "details": "Szczegóły",
       "thresholds": "Progi",
@@ -3523,6 +3527,7 @@
       "revived": "Postać {name} nie jest już oznaczona jako martwa. Truth Bullets, które przepadły razem z tą postacią, nie wracają.",
       "nobodyLeft": "Wszyscy uczniowie już nie żyją.",
       "deadShort": "nie żyje",
+      "deadPanelTitleGm": "Nie żyje",
       "deadPanelTitle": "Nie żyjesz",
       "deadPanelNote": "Zmarli nie wykonują akcji i nie wydają Hope. Przywrócony jako Monocub, ten panel pokazuje Confusion i pozostałe kafelki Monocuba.",
       "deadCannotAct": "{name} nie żyje i nie może wykonywać akcji.",
@@ -4598,6 +4603,7 @@
       "failedSteps": "Części arkusza postaci nie udało się narysować: {steps}. Najczęściej to skutek nowszej wersji Daggerheart; każdy błąd jest w konsoli (F12).",
       "fogFreeMove": "Fog: o tej porze dnia nie ma Free Move. Każde przejście kosztuje akcję.",
       "fogBudget": "Fog: bez Free Move",
+      "noExperiencesGm": "Brak doświadczeń. Postać zaczyna z dwoma po +2, a Level Up może dodać kolejne.",
       "noExperiences": "Nie masz jeszcze doświadczeń. Zaczynasz z dwoma po +2, a Level Up może dodać kolejne."
     },
     "Spectator": {
@@ -4618,6 +4624,7 @@
       "markedIn": "{name} znów jest uczniem.",
       "npcLine": "Poza klasą: bez akcji, głosów i Level Upów.",
       "deathMark": "Nie żyje",
+      "deadStillGm": "Poza Class Trial ta postać nadal mówi przy stole. Gdy włączony jest Głos osobno w każdym pokoju, moduł przenosi ją do pokoju Widzów, gdzie żywi jej nie słyszą. Podczas Class Trial jej mikrofon jest wyłączony i nie oddaje głosu.",
       "deadStill": "Poza Class Trial nadal mówisz przy stole. Gdy włączony jest Głos osobno w każdym pokoju, moduł przenosi cię do pokoju Widzów, gdzie żywi cię nie słyszą. Podczas Class Trial twój mikrofon jest wyłączony i nie oddajesz głosu."
     },
     "Overflow": {
@@ -4752,10 +4759,10 @@
         "other": "Gasną światła. Każdy uczeń ma {n} przejść między połączonymi pokojami. Dopóki trwa Eclipse, nikt nie widzi tokenów pozostałych uczniów."
       },
       "yourMoves": {
-        "one": "Masz jedno przejście między pokojami. Jesteś w pokoju {room}. Przeciągnij token do połączonego pokoju; zamknięte drzwi i zapieczętowane pokoje wciąż cię nie wpuszczą.",
-        "few": "Masz {n} przejścia między pokojami. Jesteś w pokoju {room}. Przeciągnij token do połączonego pokoju; zamknięte drzwi i zapieczętowane pokoje wciąż cię nie wpuszczą.",
-        "many": "Masz {n} przejść między pokojami. Jesteś w pokoju {room}. Przeciągnij token do połączonego pokoju; zamknięte drzwi i zapieczętowane pokoje wciąż cię nie wpuszczą.",
-        "other": "Masz {n} przejść między pokojami. Jesteś w pokoju {room}. Przeciągnij token do połączonego pokoju; zamknięte drzwi i zapieczętowane pokoje wciąż cię nie wpuszczą."
+        "one": "Masz jedno przejście między pokojami. Jesteś w pokoju {room}. Przeciągnij token do połączonego pokoju; zamknięte drzwi wciąż cię nie wpuszczą.",
+        "few": "Masz {n} przejścia między pokojami. Jesteś w pokoju {room}. Przeciągnij token do połączonego pokoju; zamknięte drzwi wciąż cię nie wpuszczą.",
+        "many": "Masz {n} przejść między pokojami. Jesteś w pokoju {room}. Przeciągnij token do połączonego pokoju; zamknięte drzwi wciąż cię nie wpuszczą.",
+        "other": "Masz {n} przejść między pokojami. Jesteś w pokoju {room}. Przeciągnij token do połączonego pokoju; zamknięte drzwi wciąż cię nie wpuszczą."
       },
       "moved": {
         "one": "Jesteś teraz w pokoju {room}. Do końca Eclipse zostało ci {left} przejście.",
@@ -4772,6 +4779,7 @@
       "movesColumn": "Przejścia",
       "named": "Eclipse ({time})",
       "announceFree": "Gasną światła. Każdy wybiera dowolny pokój na mapie i stawia tam swój token. Nikt nie widzi nikogo, dopóki Eclipse się nie skończy.",
+      "declarationClosed": "Zamknięte, gdy wróciło światło: Eclipse się skończyło, więc ta deklaracja już tu nie czeka.",
       "yourMovesFree": "Możesz stanąć w dowolnym pokoju na mapie. Jesteś w pokoju {room}. Przeciągnij token do pokoju, w którym chcesz być.",
       "movedFree": "Jesteś teraz w pokoju {room}.",
       "murderOnlyInEclipse": "Direct Murder można zgłosić tylko podczas Eclipse.",

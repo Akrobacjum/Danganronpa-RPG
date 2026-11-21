@@ -165,8 +165,25 @@ export async function beatClock() {
  */
 export function shownClock(clock, { hide = false, last = null } = {}) {
     if (!hide) return clock;
-    if (last) return last;
-    return clock?.clockAtOpen ? { ...clock, ...clock.clockAtOpen } : clock;
+    const frozen = last ?? (clock?.clockAtOpen ? { ...clock, ...clock.clockAtOpen } : null);
+    return frozen ? withLivePauses(frozen, clock) : clock;
+}
+
+/*
+ * A PAUSE IS NOT THE INCIDENT'S (the audit of 1.2.118, UI-21, CORE-49; 1.2.122 line UI). The frozen copy kept the
+ * pause fields of its own moment, and a pause is written to the live clock (`pausedAt`, then `pausedTotalMs` at the
+ * unpause): a bystander's minutes counted on through a pause in the incident, undrawn as paused, and fell back by the
+ * break when the incident ended and the live clock showed through. A pause says nothing of the incident - every
+ * screen's game stops with it, and the HUD's "On hold" stamp reads `game.paused` on each - so the copy takes the live
+ * `pausedAt`, and the breaks the live clock has added since the copy was taken: the difference of the two totals while
+ * the live clock still runs the copy's time of day, the live total whole once the incident moved the hour (its total
+ * starts again with the new time of day; the breaks between the copy and that move are not counted then, and the
+ * reading is the live one again when the incident ends). Pure: E17-T10 and R8420 hand it clocks.
+ */
+function withLivePauses(frozen, live) {
+    const sameHour = Number(live?.timeOfDayStartedAt) === Number(frozen?.timeOfDayStartedAt);
+    const liveTotal = Number(live?.pausedTotalMs) || 0, frozenTotal = Number(frozen?.pausedTotalMs) || 0;
+    return { ...frozen, pausedAt: live?.pausedAt ?? null, pausedTotalMs: sameHour ? Math.max(frozenTotal, liveTotal) : frozenTotal + liveTotal };
 }
 
 /**

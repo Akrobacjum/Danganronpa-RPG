@@ -25,7 +25,7 @@
 
 import { MODULE_ID, FLAGS, TIMES_OF_DAY, ECLIPSE_FREE_PLACEMENT, ECLIPSE_MOVES } from "./config.mjs";
 // A leaf (config, settings, utils): the Eclipse allowance under a darkening, for the tooltip.
-import { overflowCrossings } from "./overflow.mjs";
+import { overflowCrossingsAhead } from "./overflow.mjs";
 import { getClock, campaignName, phaseLabel, timeOfDayLabel, rewindTimeOfDay } from "./clock.mjs";
 import { play, TURN, ARRIVE, LEAVE } from "./motion.mjs";
 import { error, debug, tickerRuns, markLanguage, plural, trialModeLabel } from "./utils.mjs";
@@ -66,7 +66,7 @@ import {
 } from "./hud-elapsed.mjs";
 import { markLoneInitials } from "./chrome.mjs";
 import { holdAppRenders } from "./dice-hold.mjs";
-import { trimTokenHud } from "./token-hud.mjs";
+import { trimTokenHud, refuseTokenConfig } from "./token-hud.mjs";
 export {
     unpausePatch, CLOCK_BEAT_MS, readyPatch, settleClockAtReady, beatClock, shownClock, clockForDisplay, elapsedOf,
     showsStopwatch
@@ -260,6 +260,10 @@ export function registerHud() {
        1.2.120 line H). Its two bar inputs are among what goes, for everybody, which ends what `stillTokenBars` did here
        from E29 C7 (a student's bars display-only for a player). */
     Hooks.on("renderTokenHUD", trimTokenHud);
+    // Nor a token's settings for a player, by a double right-click or a sheet's control (token-hud.mjs `refuseTokenConfig`).
+    for (const hook of ["renderTokenApplication", "renderTokenConfig", "renderPrototypeTokenConfig"]) {
+        Hooks.on(hook, (app, element) => refuseTokenConfig(app, element));
+    }
     /* And the HUD's own render waits for a roll's dice as the sheet's Hope does (dice-hold.mjs `holdAppRenders`,
        1.2.119), held only for its token's actor's write. It held a bar pointed at Hope until 1.2.120; the HUD draws no
        number since, so the hold now changes only when the HUD is drawn again, not what it shows. */
@@ -1289,15 +1293,19 @@ function buildTimeRow(clock, isGM) {
         // checks until then): what dims the chevron is what refuses the press, in the same order and words.
         const refusal = eclipseRunning ? null : startRefusalOf(clock, { body: bodyDiscovery(), incident: murderState() });
         const held = Boolean(refusal);
+        // The crossings the Eclipse about to open will give, by the stamp it will read (overflow.mjs
+        // `overflowCrossingsAhead`; the audit of 1.2.118, UI-22): a free placement darkened is a count too.
+        const freeLine = free && index !== TIMES_OF_DAY.length - 1;
+        const ahead = overflowCrossingsAhead(freeLine ? null : ECLIPSE_MOVES, clock);
         const tooltip = eclipseRunning
             ? game.i18n.localize("DRPG.Hud.endEclipse")
             : refusal ? game.i18n.localize(refusal)
             // The two that count the crossings are plural families on {n} (E66 C3; S10-69, E66-14): the last time of
             // day's said "(2 crossings)" whatever the count was. The free Eclipse names no count.
-            : free && index !== TIMES_OF_DAY.length - 1
+            : freeLine && ahead === null
                 ? game.i18n.format("DRPG.Hud.startEclipseFree", { time: timeOfDayLabel(incoming) })
                 : plural(index === TIMES_OF_DAY.length - 1 ? "DRPG.Hud.startEclipseNewSession" : "DRPG.Hud.startEclipseNamed",
-                    { time: timeOfDayLabel(incoming), n: overflowCrossings(ECLIPSE_MOVES) ?? ECLIPSE_MOVES });
+                    { time: timeOfDayLabel(incoming), n: ahead ?? ECLIPSE_MOVES });
 
         row.append(control(
             eclipseRunning ? "fa-play" : "fa-chevron-right",

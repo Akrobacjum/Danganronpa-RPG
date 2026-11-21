@@ -379,7 +379,9 @@ export async function startEclipse() {
         // round the moment the overflow first fired.
         await whisperToOwner(actor, `<p>${free
             ? game.i18n.format("DRPG.Eclipse.yourMovesFree", { room })
-            : plural("DRPG.Eclipse.yourMoves", { n: allowance, room }, "n")
+            // The character's own allowance (`eclipseAllowanceFor`: a room action's extra crossings on top), as the
+            // sheet's budget line, `movesLeft` and the crossing's own card read it (the audit of 1.2.118, UI-18).
+            : plural("DRPG.Eclipse.yourMoves", { n: eclipseAllowanceFor(actor) ?? allowance, room }, "n")
         }</p>`);
     }
 
@@ -895,6 +897,40 @@ async function killersTheLightsCanOpen(id) {
 }
 
 /**
+ * THE LIGHTS CLOSE THE DECLARATIONS' CARDS (the audit of 1.2.118, REFR-64; 1.2.122 line UI). `askGmToAllow`'s card kept
+ * its Allow, Change to and Refuse after the lights had dropped every row: a press found no row, warned
+ * `murderNotParked`, and the card stood open for the rest of the session. Each card still open for a killer whose row
+ * the lights took is settled as a ruled card is (call-gm.mjs `settleCall`), its line saying the Eclipse is over. A
+ * card is found by its buttons, as `askGmToAllow` wrote them (`data-drpg-call="approveMurder"`, `data-killer`); one
+ * that cannot be settled is logged and stays as it was.
+ */
+export async function settleDeclarationCards(killerIds) {
+    if (!killerIds?.length) return 0;
+    let settled = 0;
+    try {
+        const [{ contentOf }, { settleCall }, { MESSENGER_FLAGS }] = await Promise.all([
+            import("./secret.mjs"), import("./gm-bridge.mjs"), import("./messenger.mjs")]);
+        const ids = new Set(killerIds);
+        for (const message of [...(game.messages ?? [])]) {
+            if (message.getFlag?.(MODULE_ID, MESSENGER_FLAGS.settled)) continue;
+            const html = String(contentOf(message) ?? "");
+            if (!html.includes('data-drpg-call="approveMurder"')) continue;
+            const killer = html.match(/data-killer="([^"]+)"/)?.[1] ?? null;
+            if (!killer || !ids.has(killer)) continue;
+            try {
+                await settleCall(message, { key: "DRPG.Eclipse.declarationClosed" });
+                settled++;
+            } catch (err) {
+                error("Could not close a direct murder's card at the lights", err);
+            }
+        }
+    } catch (err) {
+        error("Could not close the direct murders' cards at the lights", err);
+    }
+    return settled;
+}
+
+/**
  * The lights come up: judge every declaration made in the Eclipse `id` - the one
  * `endEclipse` is ending, named before the clock moved.
  *
@@ -937,6 +973,7 @@ async function judgePendingMurders(id, taken = new Map()) {
     const ids = Object.keys(all);
     if (!held.length) return;
     await pendingMurderStore.dropMany(held);
+    await settleDeclarationCards(held);
     if (held.length > ids.length) log(`Dropped ${held.length - ids.length} declaration(s) made in another Eclipse, unjudged.`);
     if (!ids.length) return;
 

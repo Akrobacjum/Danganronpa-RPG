@@ -28,7 +28,7 @@ import { inFoundryWindow } from "./foundry-windows.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
 import { fillHole, slidePlan } from "./glass-close.mjs";
-import { PAD_FAR, bboxOf, railSwing, STRIP_ANGLE, MAX_TILT, STAIN, TONE, rgba, bbox, convex, overlaps, inside, stackShapes, deskShapes, curtainShapes, hex, DEG, meanOf, centroid, fitAffine, matrixAt, invAffine, thenAffine, stretchOf, boxOf, onBorder, num, windowShapes } from "./glass-geometry.mjs";
+import { PAD_FAR, PAD_SIDE, bboxOf, railSwing, STRIP_ANGLE, MAX_TILT, STAIN, TONE, rgba, bbox, convex, overlaps, inside, stackShapes, deskShapes, curtainShapes, hex, DEG, meanOf, centroid, fitAffine, matrixAt, invAffine, thenAffine, stretchOf, boxOf, onBorder, num, windowShapes } from "./glass-geometry.mjs";
 import { VOICE_WIDE, VOICE_TALL, VOICE_SEAM, VOICE_WALL } from "./glass-blocks.mjs";
 export { blockTurns } from "./glass-blocks.mjs";
 
@@ -104,7 +104,7 @@ const BLOCKS = [
    with nothing to say cuts no pane"), which meant every notice recut the curtain and took it
    away again - the corner tile came and went with the news. It is a fixed tile of the glass
    now, at the audit page's place and size (scaled with the screen), and the cards land on it;
-   a taller stack of cards is measured and the tile grows to hold it. */
+   a taller stack of cards is clipped to it and grows nothing (the note on `note-block` above). */
 /* THE GEOMETRY SCALE, NOT THE TYPE SCALE - and this file read the wrong one for two days.
    `--drpg-sg-scale` is the TYPE factor (settings.mjs: `--drpg-type-scale`); `--drpg-ui-scale`
    is the one the theme sizes boxes with. Every number this function feeds is a box: the notice
@@ -965,9 +965,9 @@ export function rotationWrites(tables) {
    `margin-top` hud.mjs already keeps level with the Despair rail, and a z-index below the
    sidebar so an open sidebar slides over the column instead of under it. Legacy is untouched. */
 const PIN = { rail: null, band: null };
-/* `PAD_SIDE` from the partition, which lives inside `curtainShapes`. One number, stated
-   twice because the two are in different scopes; if it ever moves, both move. */
-const COLUMN_PAD = 12;
+/* The panes' side pad, the partition's own (glass-geometry.mjs `PAD_SIDE`, imported since the
+   audit of 1.2.118, UI-30: since E54 it is an export there, and this file kept a copy of it). */
+const COLUMN_PAD = PAD_SIDE;
 /* The status strip and the Projects tray, at 100 % type: the width they keep, and the width
    they take where the desk has room (see `pinRightColumn`). */
 const COLUMN_W = [360, 400];
@@ -1058,10 +1058,10 @@ function pinRightColumn() {
   const scale = Number.parseFloat(getComputedStyle(document.body).getPropertyValue("--drpg-sg-scale")) || 1;
   const gap = Number.parseFloat(getComputedStyle(col).marginRight) || 0;
   const [narrowW, wideW] = COLUMN_W.map(w => Math.round(w * scale));
-  const fitW = dspR != null ? Math.floor(innerWidth - dspR - 2 * 12 - (base + slack) - gap) : wideW;
+  const fitW = dspR != null ? Math.floor(innerWidth - dspR - 2 * COLUMN_PAD - (base + slack) - gap) : wideW;
   col.style.setProperty("--drpg-column-w", Math.max(narrowW, Math.min(wideW, fitW)) + "px");
   const own = col.getBoundingClientRect().width;
-  const room = dspR != null && own ? Math.round(innerWidth - dspR - 2 * 12 - own - gap) : Infinity;
+  const room = dspR != null && own ? Math.round(innerWidth - dspR - 2 * COLUMN_PAD - own - gap) : Infinity;
   const right = Math.max(base, Math.min(base + slack, room));
   if (col.dataset.drpgPinned === "1" && PIN.rail === right) return;
   PIN.rail = right;
@@ -2705,7 +2705,7 @@ function curtainSibling(j, id, cls, extra = "") {
 }
 /* The overlap of two convex polygons (Sutherland-Hodgman: `a` clipped by each edge of `b`), either winding; null when
    they share no area. For the frost of a pane that travels (`glassTurn`). */
-export function convexOverlap(a, b) {
+export function overlapPolygon(a, b) {
   const area = p => p.reduce((s, q, i) => { const r = p[(i + 1) % p.length]; return s + q[0] * r[1] - r[0] * q[1]; }, 0) / 2;
   const sign = area(b) >= 0 ? 1 : -1;
   const side = (p, q, r) => sign * ((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]));
@@ -3000,10 +3000,10 @@ export function glassTurn({ job = curtains[0], from = null, look = null, glow = 
      unfrosted for their move as before. Only a turn in which every pane moves still fades the whole frost out. */
   const frost = plan.frost ? frostOf(job) : null;
   /* and where a pane travels, the part its old place and its new one share: the partition's panes are convex, so their
-     overlap is (`convexOverlap`), and the travelling layer covers it from the first frame to the last. The voice tile
+     overlap is (`overlapPolygon`), and the travelling layer covers it from the first frame to the last. The voice tile
      under the tray rides a pane the fold moves; without this it stood unfrosted for the move (the harness, 1366x768). */
   const stay = frost ? [...plan.stay.map(i => to[i]?.poly),
-    ...plan.moves.map(m => (from[m.from] && to[m.to] ? convexOverlap(from[m.from].poly, to[m.to].poly) : null))].filter(p => p && p.length >= 3) : [];
+    ...plan.moves.map(m => (from[m.from] && to[m.to] ? overlapPolygon(from[m.from].poly, to[m.to].poly) : null))].filter(p => p && p.length >= 3) : [];
   if (frost && stay.length) clipToCut(frost, stay.map(p => p.map((q, i) => (i ? "L" : "M") + num(q[0], 1) + " " + num(q[1], 1)).join("") + "Z").join(""));
   else if (frost) layers.push({ el: frost, frames: [{ opacity: 1 }, { opacity: 0 }], timing: { duration: plan.frost.out, fill: "forwards" }, frost: true });
   // the bloom crosses over and never goes out: the old glow's copy fades over the new one as the new fades in
@@ -3350,9 +3350,6 @@ function rebuildAll() {
     const oldPanes = wasPainted ? snapshotPanes(j) : null;
     CHECKS.length = 0;
     if (curtainGeometry(j)) {
-      // Foundry's tiles must start below the corner panes to own a shard of the strip;
-      // when they do not, push them down once and cut the glass again
-      if (!j.placed && placeTiles()) { j.placed = true; j.sig = null; curtainGeometry(j); }
       const acc = resolveAcc(j.el);
       const check = CHECKS[CHECKS.length - 1];
       const changed = !wasPainted || !check?.same || acc !== oldAcc;
@@ -3364,7 +3361,7 @@ function rebuildAll() {
            pass cost, and the garbage they made on top of that.
            SAFE TO TAKE LATE, because nothing between the top of this loop and this line paints
            the curtain: `curtainGeometry` measures the blocks, cuts the partition and writes the
-           rotation sheet, and `placeTiles` writes padding onto Foundry's rails. The pixels
+           rotation sheet. The pixels
            caught here are the pixels that were on the screen when the pass began.
            The gate is `oldPanes` and not `j.painted`: an identical cut leaves `painted` alone,
            but a new one has already set it false by the time we are here, and the old look is
@@ -3412,28 +3409,14 @@ function rebuildAll() {
   // watch compares against, taken after the rotations have been written, never before
   requestAnimationFrame(() => { for (const j of curtains) { j.live = liveSignature(); j.pending = null; } });
 }
-/* the scene controls and the sidebar tabs start below the corner panes, 24 px under the strip's top.
-   The shift is capped: the GM's sidebar is a column of real work, and 160 px is as much of it as the
-   glass may take. Padding (with border-box), not margin, so a column sized to the screen shrinks
-   instead of running off its bottom. */
 /** The tiles shown in a rail: Foundry's `button.ui-control`s (v13+), any earlier markup's `.control`s. */
 function tileButtons(rail) {
   return [...rail.querySelectorAll("button.ui-control, .ui-control, .control")].filter(e => e.offsetWidth > 0 && e.offsetHeight > 0);
 }
-/* NOTHING TO PLACE ONCE THE RAILS ARE BLOCKS.
-   An older version pushed a rail down with `padding-top` until it stood under the shard cut
-   for it, which fed a measured position back into the thing being measured (see the note
-   inside `moduleLayout` on where the push is computed now). All that is left to do is clear
-   the padding that version may have left on the element, once. */
-function placeTiles() {
-  let moved = false;
-  const side = document.querySelector("#sidebar");
-  if (side && side.style.paddingTop) { side.style.paddingTop = ""; moved = true; }
-  const left = document.querySelector("#scene-controls");
-  if (left && left.style.paddingTop) { left.style.paddingTop = ""; moved = true; }
-  return moved;
-
-}
+/* NOTHING IS PLACED ON FOUNDRY'S RAILS (the audit of 1.2.118, UI-28; UI-06 of 1.2.42). An older version pushed a rail
+   down with a capped `padding-top` until it stood under the shard cut for it; the margin that places the rail is
+   `moduleLayout`'s now ("MARGIN, NOT PADDING"), which clears that padding in the same pass, as `unmount` does, so the
+   `placeTiles` that cleared it once more answered false on every pass and went, with the watchdog's `j.placed`. */
 
 /** A one-line account of the curtain for the Look dialog: frame, panes, the self-check, the tiles. */
 export function glassReport() {
@@ -3837,12 +3820,15 @@ export function registerGlass() {
     if (!document.hidden && themeOn()) schedule();
   });
   // late blocks: the launchers and the tray arrive after ready on some clients; and a watchdog,
-  // because a curtain that measured nothing (a hidden canvas, a frame of 0) must try again
+  // because a curtain that measured nothing (a hidden canvas, a frame of 0) must try again.
+  // It observes what it mounts (the audit of 1.2.118, UI-27): a curtain it mounted before the
+  // fonts arrived was found standing by `refreshGlass`'s `go`, which then observed nothing, and the
+  // page went without its observers and the tray fold's turn for the session.
   setTimeout(() => { if (glassRoom()) rebuild(); }, 1500);
   for (const ms of [4000, 9000]) setTimeout(() => {
     const j = curtains[0];
     if (!glassRoom()) return;
-    if (!j || !j.painted || Math.abs(j.el.getBoundingClientRect().width - innerWidth) > 2) { log("curtain watchdog: rebuilding", glassReport()); if (j) j.placed = false; mount(); }
+    if (!j || !j.painted || Math.abs(j.el.getBoundingClientRect().width - innerWidth) > 2) { log("curtain watchdog: rebuilding", glassReport()); mount(); observe(); }
   }, ms);
   Hooks.on("canvasReady", schedule);
   /* The camera dock's lift changed (camera-view.mjs `measureCameraDock`, E19 fix r1-G2): the

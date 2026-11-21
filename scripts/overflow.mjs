@@ -1105,7 +1105,32 @@ export function overflowFloor(key) {
  * @returns {number|null}
  */
 export function overflowCrossings(allowance) {
-    if (!overflowIs("darkness")) return allowance;
+    return darkenedCrossings(allowance, overflowIs("darkness"));
+}
+
+/**
+ * THE CROSSINGS OF THE ECLIPSE STILL TO OPEN (the audit of 1.2.118, UI-22; 1.2.122 line UI): what `overflowCrossings`
+ * will answer once `clock`'s Eclipse runs, for the HUD's chevron before the press. Asked before the press,
+ * `overflowCrossings` read the stamp of the time of day running, which the Eclipse that closes it is never darkened by
+ * (`stampReading`'s note), and missed a Darkness armed for the time of day the Eclipse opens: the tooltip said 1 where
+ * the Eclipse gave 2, and 2 where it gave 1. This reads the stamp as the running Eclipse will (`upcoming`), and a
+ * darkening a verdict kept waiting as darkening it, since the press points it at that time of day (`checkOverflow`'s
+ * `pending`). A spill that reaches the threshold at the press draws its effect then, which nothing can say before.
+ */
+export function overflowCrossingsAhead(allowance, clock = getClock()) {
+    let dark = false;
+    try {
+        const active = state().active;
+        const reading = stampReading(active, { ...(clock ?? {}), eclipse: true }, null);
+        dark = reading.running === "darkness" || reading.waiting === "darkness";
+    } catch {
+        dark = false;
+    }
+    return darkenedCrossings(allowance, dark);
+}
+
+function darkenedCrossings(allowance, dark) {
+    if (!dark) return allowance;
     const rule = overflowRules().effects.darkness;
 
     // Free placement has no "minus one" to take, so the darkening hands it a
