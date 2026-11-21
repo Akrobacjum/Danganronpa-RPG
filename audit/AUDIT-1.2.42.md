@@ -4553,7 +4553,14 @@ Surowe wyniki: `audit/findings-1.2.118/recheck-120.json`.
 - r120-F-4, `minor`: zapis odrzucony przy pełnej pamięci mówi tylko `onChange` ustawienia.
 - Do tego `nit`: P-5, H-4 do H-8, F-3, F-5.
 
-Gracz nie dostaje teraz Token HUD wcale. Zapis prośby w ROUTING.md mówi tylko o tym, co zostaje dla GM-a; czy to zgodne z zamiarem właściciela, jest pytaniem do niego (Q-A120-1).
+Gracz nie dostaje teraz Token HUD wcale. Zapis prośby w ROUTING.md mówi tylko o tym, co zostaje dla GM-a; czy to zgodne z zamiarem właściciela, było pytaniem do niego (Q-A120-1). **Odpowiedź (21.11.2026, D-A11): tak, celowo** - "gracz niech nie widzi ustawien tokena wcale", "Chodzi o cale menu. Niech gracz nie ma menu tokena."
+
+Skierowanie po sprawdzeniu (koordynator, około 06:54Z; ROUTING.md):
+- r120-P-1 i P-2: `claude/press-121`;
+- r120-F-1 i F-2: `claude/fog-121`;
+- r120-P-3: pokryte przez R1 w 1.2.121;
+- r120-F-6: R1 - przeczytałem `refresh-120` d3153c04: czekanie pudełka na fokus jest poprawione (`whileEditing`), ale okno dalej nie słucha zmiany Mastermind;
+- r120-P-4, H-1, H-2, H-3, H-7, F-4: 1.2.122.
 
 ## Część II - raport 1.2.42 z 12.09.2026 (zapis)
 

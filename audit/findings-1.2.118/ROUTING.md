@@ -91,3 +91,12 @@ Not routed to 1.2.120 (they go to 1.2.121 with the rest): every minor and nit, t
 - ~06:50Z: the 1.2.121 assembly (asm-121 from 03ee8de9) merges infra-120 c6bb8143, mask-120 b9903de3, veil-120 575de480, rules-120 d0986d5b, setup-120 eccaf195, refresh-120 d3153c04 and claude/audit-119 at 2927f16a (clean; check live green with 575 items). The coordinator added probe 44's row to audit/harness/README.md in the assembly; probes/README.md's row is on this branch (48673032). The lines' "1.2.120" in comments, test names and handbook notes now say 1.2.121 (88 lines, d1b68bb0); tier-2 names "1.2.121 CASE-16/-17/-18", "1.2.121 STG-01".
 - Where the report says "1.2.120" for the majors (CASE-16, REFR-01 and the rest) read 1.2.121, and for E39, E40, E43, E53, E58, E83 read 1.2.123 (AUDIT 18.6 says so once; the older sentences stay as written).
 - (coordinator, ~06:52Z) 9.2 numbers for the 1.2.121 lines' table checks: LIVE-M121-01, LIVE-M121-02, LIVE-K121-01, LIVE-R121-01, LIVE-R121-02 take 710-714 (agreed by the audit). The audit keeps 701-709 reserved and has used none of them.
+
+## After the check of 1.2.120 (coordinator, 21.11.2026 ~06:54Z)
+- r120-P-1 -> line P, new branch claude/press-121 from refresh-120 d3153c04: a change ends the press-hold only when it comes from the element pressed; red first in Chromium with a real mouse; ships in 1.2.121. r120-P-2 there too if small. r120-P-3 is covered by R1's select-never-holds in 1.2.121 (to re-check there). r120-P-4 -> 1.2.122.
+- r120-F-1 and r120-F-2 -> line F, new branch claude/fog-121 from 03ee8de9; ships in 1.2.121. r120-F-4 only if small, else 1.2.122.
+- r120-H-1, H-7, H-2, H-3 -> 1.2.122 (minors).
+- r120-F-6 -> R1 in 1.2.121 if its branch covers it. The audit read refresh-120 d3153c04 for it: the box's wait for focus is covered (`whileEditing: true` on `.drpg-mm-live`, R7972); the other half is NOT - `current` is still read once at the window's open (mastermind.mjs:605-606 at d3153c04), the `keepLive` watch still names no store (`actors`, `drpgDespairOwedChanged`), so another GM changing or clearing the Mastermind redraws nothing and Give still converts to the Mastermind of the window's opening.
+- Q-A120-1 answered (the owner to line H, 21.11.2026): the player has no Token HUD at all, by intent - "gracz niech nie widzi ustawien tokena wcale", "Chodzi o cale menu. Niech gracz nie ma menu tokena." Recorded as D-A11.
+- 7f4a178e merged into asm-121 (0a0a9e5e); 1.2.121 waits for press-121 and fog-121.
+
