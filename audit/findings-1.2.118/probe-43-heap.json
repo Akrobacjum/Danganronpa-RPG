@@ -1,0 +1,118 @@
+{
+ "about": "probe 43 (since 1b9064e6) with the GM's heap after a forced gc (--expose-gc) after each window, closed and the world put back; 1eee4d62 (v1.2.121) and 03ee8de9 (v1.2.120) run side by side, 21.11.2026. Both GMs SIGKILLed at investigation--map-types (two GMs of about 5 GB each on a 16 GB machine: the system's kill, not V8's limit). A reading, not a verdict.",
+ "opens_about": "a window opened and closed this many times: the first open, the restless check, and one reopen per reading",
+ "windows": [
+  {
+   "window": "rooms-bedrooms",
+   "opens_about": 30,
+   "heap_after_gc_mb_1eee4d62": 472,
+   "heap_after_gc_mb_03ee8de9": 470,
+   "per_open_mb_1eee4d62": null
+  },
+  {
+   "window": "rooms-doors",
+   "opens_about": 30,
+   "heap_after_gc_mb_1eee4d62": 810,
+   "heap_after_gc_mb_03ee8de9": 807,
+   "per_open_mb_1eee4d62": 11.3
+  },
+  {
+   "window": "rooms-passages",
+   "opens_about": 30,
+   "heap_after_gc_mb_1eee4d62": 1151,
+   "heap_after_gc_mb_03ee8de9": 1146,
+   "per_open_mb_1eee4d62": 11.4
+  },
+  {
+   "window": "rooms-search",
+   "opens_about": 30,
+   "heap_after_gc_mb_1eee4d62": 1491,
+   "heap_after_gc_mb_03ee8de9": 1485,
+   "per_open_mb_1eee4d62": 11.3
+  },
+  {
+   "window": "rooms-rest",
+   "opens_about": 30,
+   "heap_after_gc_mb_1eee4d62": 1832,
+   "heap_after_gc_mb_03ee8de9": 1825,
+   "per_open_mb_1eee4d62": 11.4
+  },
+  {
+   "window": "rooms-stashes",
+   "opens_about": 30,
+   "heap_after_gc_mb_1eee4d62": 2173,
+   "heap_after_gc_mb_03ee8de9": 2164,
+   "per_open_mb_1eee4d62": 11.4
+  },
+  {
+   "window": "rooms-description",
+   "opens_about": 30,
+   "heap_after_gc_mb_1eee4d62": 2513,
+   "heap_after_gc_mb_03ee8de9": 2503,
+   "per_open_mb_1eee4d62": 11.3
+  },
+  {
+   "window": "rooms-fog",
+   "opens_about": 30,
+   "heap_after_gc_mb_1eee4d62": 2854,
+   "heap_after_gc_mb_03ee8de9": 2842,
+   "per_open_mb_1eee4d62": 11.4
+  },
+  {
+   "window": "sound",
+   "opens_about": 30,
+   "heap_after_gc_mb_1eee4d62": 3368,
+   "heap_after_gc_mb_03ee8de9": 3357,
+   "per_open_mb_1eee4d62": 17.1
+  },
+  {
+   "window": "sound--files",
+   "opens_about": 30,
+   "heap_after_gc_mb_1eee4d62": 3886,
+   "heap_after_gc_mb_03ee8de9": 3874,
+   "per_open_mb_1eee4d62": 17.3
+  },
+  {
+   "window": "despair-flow",
+   "opens_about": 31,
+   "heap_after_gc_mb_1eee4d62": 3990,
+   "heap_after_gc_mb_03ee8de9": 3980,
+   "per_open_mb_1eee4d62": 3.4
+  },
+  {
+   "window": "season-setup",
+   "opens_about": 31,
+   "heap_after_gc_mb_1eee4d62": 4048,
+   "heap_after_gc_mb_03ee8de9": 4037,
+   "per_open_mb_1eee4d62": 1.9
+  },
+  {
+   "window": "season-checklist",
+   "opens_about": 30,
+   "heap_after_gc_mb_1eee4d62": 4112,
+   "heap_after_gc_mb_03ee8de9": 4100,
+   "per_open_mb_1eee4d62": 2.1
+  },
+  {
+   "window": "foundry-report",
+   "opens_about": 30,
+   "heap_after_gc_mb_1eee4d62": 4131,
+   "heap_after_gc_mb_03ee8de9": 4119,
+   "per_open_mb_1eee4d62": 0.6
+  },
+  {
+   "window": "investigation",
+   "opens_about": 35,
+   "heap_after_gc_mb_1eee4d62": 4431,
+   "heap_after_gc_mb_03ee8de9": 4419,
+   "per_open_mb_1eee4d62": 8.6
+  },
+  {
+   "window": "investigation--map",
+   "opens_about": 36,
+   "heap_after_gc_mb_1eee4d62": 4967,
+   "heap_after_gc_mb_03ee8de9": 4947,
+   "per_open_mb_1eee4d62": 14.9
+  }
+ ]
+}
