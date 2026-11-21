@@ -110190,6 +110190,110 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ folded: ["false", false], counted: true, open: true, again: true, face: true }),
             "{folded: [the line's aria-expanded, the trace's node drawn]; counted: a trace placed meanwhile on the line; open: after a press; again: after a second press; face: a node's face opens the Map on it}");
     }],
+    ["1.2.123 r122-C-3 - a node pressed in the trial console's schema opens that node on the Investigation window that already stands (scripts/investigation.mjs `openInvestigationDashboard`, `caseHandOff`; scripts/case-trial.mjs `liveSchema`'s onPick; the audit's r122-C-3): with the Map standing on one node, another node's face pressed in the console opens that node's fields there and closes the first; with the Table standing, a face pressed brings the Map back on that node; one window throughout", async () => {
+        /* Drawn on this GM: two deduction nodes of the suite's own, the Map drawn one node at a time (`allOpen: false`; with
+           every node open the press puts the focus on the node's fields, read by the same hand-off). Red at 14bb0d92: the
+           window was raised and kept the node it stood on - `alreadyOpen` answered before `node` was read. The user's view
+           flag is put back. */
+        needs(env.dialogs(), "the console and the Investigation window are drawn and pressed");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM");
+        const UI = await import("./trial-floor-ui.mjs");
+        const I = await import("./investigation.mjs");
+        const S = await import("./case-schema.mjs");
+        const { closeOpen } = await import("./live.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const hadView = game.user.getFlag(MODULE_ID, "investigationView");
+        const ids = ["deduction-suiter122c3a", "deduction-suiter122c3b"];
+        const by = cls => [...foundry.applications.instances.values()].filter(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes(cls));
+        const face = id => by("drpg-window-trial")[0]?.element?.querySelector(`[data-drpg-trial-schema] button[data-drpg-node="${id}"]`) ?? null;
+        const fields = id => by("drpg-window-case")[0]?.element?.querySelector(`.drpg-case-edit[data-drpg-edit="${id}"]:not([hidden])`) ?? null;
+        const pressed = () => by("drpg-window-case")[0]?.element?.querySelector('[data-drpg-slot="switch"] [aria-pressed="true"]')?.dataset.drpgMode ?? null;
+        const read = {};
+        let dash = null, opened = null;
+        try {
+            await setClock({ ...clock, phase: "investigation" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            for (const [i, id] of ids.entries()) await S.setCaseNode(clock.chapter, id, { kind: "deduction", label: `SUITE C3 ${i}`, mode: "testimony" });
+            await gmStoresIdle();
+            dash = I.openInvestigationDashboard({ node: ids[0], allOpen: false });
+            must(await until(() => fields(ids[0]), 6000), "the Map did not open on the first node - this would measure nothing");
+            opened = UI.manageClassTrial();
+            must(await until(() => face(ids[1]), 6000), "the console drew no face for the second node - this would measure nothing");
+            face(ids[1]).click();
+            await until(() => fields(ids[1]), 4000).catch(() => {});
+            read.map = [Boolean(fields(ids[1])), Boolean(fields(ids[0])), by("drpg-window-case").length];
+            by("drpg-window-case")[0]?.element?.querySelector('[data-drpg-slot="switch"] [data-drpg-mode="table"]')?.click();
+            await until(() => !by("drpg-window-case")[0]?.element?.querySelector(".drpg-case-canvas"), 4000).catch(() => {});
+            read.table = pressed();
+            face(ids[0])?.click();
+            await until(() => fields(ids[0]), 4000).catch(() => {});
+            read.back = [Boolean(fields(ids[0])), pressed(), by("drpg-window-case").length];
+        } finally {
+            closeOpen("drpg-window-case");
+            closeOpen("drpg-window-trial");
+            await Promise.race([Promise.all([dash, opened]), wait(3000)]);
+            for (const id of ids) await S.dropCaseNode(clock.chapter, id).catch(() => {});
+            await (hadView === undefined ? game.user.unsetFlag(MODULE_ID, "investigationView") : game.user.setFlag(MODULE_ID, "investigationView", hadView)).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue).catch(() => {});
+            await setClock(clock).catch(() => {});
+            await gmStoresIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ map: [true, false, 1], table: "table", back: [true, "map", 1] }),
+            "{map: [the pressed node's fields open, the first node's open, Investigation windows]; table: the view pressed; back: [the node's fields after a press from the Table, the view pressed, windows]}");
+    }],
+    ["1.2.123 r122-C-5 - Season setup's scenes part draws a student added or removed while it stands, and its hooks go with its window (scripts/trial-scene.mjs `followRoles`; the audit's r122-C-5, the rest of REFR-73): in a drawn window, a student created meanwhile gets a row in the hall's cast list and a deleted one loses it, a tick this GM changed kept through both; once the window closes, the part's hooks are off with no other event", async () => {
+        /* A kit window wired as Season setup wires its scenes part (`wireScenesTab` on the window's element, season-setup.mjs
+           `render`), a hall of the suite's own linked; the hooks counted on `Hooks.events` (`createRegion`, which only the
+           part adds here among the windows the test draws). Red at 14bb0d92: the rows stood as drawn, and the hooks stood
+           after the close until some later event fired one. The links are put back. */
+        needs(env.dialogs(), "the window is drawn and closed");
+        const S = await import("./trial-scene.mjs");
+        const R = await import("./rooms.mjs");
+        const K = await import("./ui-kit.mjs");
+        const roles = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.sceneRoles) ?? {});
+        const title = `SUITE C5 ${foundry.utils.randomID(6)}`;
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title) ?? null;
+        const hooked = () => (Hooks.events?.createRegion ?? []).length;
+        const row = id => drawn()?.element?.querySelector(`[data-drpg-cast] input[type="checkbox"][name="cast:${id}"]`) ?? null;
+        const read = {};
+        let hall = null, added = null, opened = null;
+        try {
+            hall = await Scene.create({ name: "SUITE C5 hall", width: 1000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await game.settings.set(MODULE_ID, SETTINGS.sceneRoles, { ...roles, trial: hall.id, zones: null });
+            R.forgetSceneRoles();
+            const before = hooked();
+            opened = K.drpgWindow({ classes: ["drpg-window-suite-c5"], title, body: S.scenesTabHtml(R.sceneRoles()),
+                footer: { close: "close" }, render: (event, dialog) => S.wireScenesTab(dialog.element, () => {}) });
+            must(await until(() => drawn()?.element?.querySelector("[data-drpg-cast]"), 6000), "the window drew no cast list for the hall - this would measure nothing");
+            read.wired = hooked() > before;
+            const changed = drawn().element.querySelector('[data-drpg-cast] input[type="checkbox"][name^="cast:"]');
+            must(changed, "the cast list draws no student - this would measure nothing");
+            changed.checked = !changed.checked;
+            const changedTo = changed.checked, changedName = changed.name;
+            const kept = () => drawn()?.element?.querySelector(`[name="${changedName}"]`)?.checked === changedTo;
+            added = await Actor.create({ name: "SUITE C5 student", type: "character" });
+            read.added = [Boolean(await until(() => row(added.id), 3000)), kept()];
+            const gone = added.id;
+            await added.delete();
+            added = null;
+            read.removed = [await until(() => !row(gone), 3000), kept()];
+            await drawn()?.close();
+            await Promise.race([opened, wait(3000)]);
+            read.off = hooked() === before;
+        } finally {
+            if (drawn()) await drawn().close().catch(() => {});
+            if (added) await added.delete().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.sceneRoles, roles).catch(() => {});
+            R.forgetSceneRoles();
+            if (hall) await hall.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ wired: true, added: [true, true], removed: [true, true], off: true }),
+            "{wired: the part's hooks on; added: [a student created meanwhile has a row, the changed tick kept]; removed: [a deleted one's row gone, the tick kept]; off: the hooks gone at the close}");
+    }],
     ["1.2.122 REFR-68 - the vote window follows a student's sheet (scripts/trial-floor-ui.mjs `openVoteDialog`, `PARTICIPANT_WRITES`; the audit's REFR-68): before the ballots go out it names who would get one; a student marked not in the class while it stands is no longer named, with no other write; unmarked, named again", async () => {
         /* Drawn on this GM in a Class Trial with no vote open. Red at 21bf5d18: the window heard ballots, users and settings
            alone, so the list stood as drawn. The flag is put back. */
