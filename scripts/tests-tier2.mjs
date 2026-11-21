@@ -105713,6 +105713,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * GM (vault-store.mjs `updateRoom`); then the GM types a description in the second room and presses Apply. Read:
          * the first room broken, its description, the second room's description. Both rooms' flags are put back as found.
          * Red at e515907d: the first room's row was written as drawn - the lock mended, the description put back.
+         * The window's redraw (REFR-04) would draw the first room's cells again before Apply and hide the fault, so the GM
+         * starts composing in the second room's description first (`compositionstart`, as an IME does): live.mjs holds
+         * the redraw while a composition runs, and Apply reads cells drawn before the world moved. Without the hold a
+         * mutant that writes every column as drawn survived (21.11.2026, M1 and M5 of the line's mutants).
          */
         needs(env.dialogs(), "Room setup is drawn and its Apply pressed");
         needs(world.atLeast("namedRooms", 2), "Room setup lists two rooms of the scene on screen");
@@ -105734,10 +105738,13 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             answer = Promise.resolve().then(() => V.openRoomSetupDialog()).catch(err => `threw: ${err.message}`);
             await until(() => field(`desc:${roomB}`), 6000).catch(() => {});
             must(field(`desc:${roomB}`) && field(`broken:${roomA}`), "Room setup drew no description or Broken box - this would measure nothing");
+            field(`desc:${roomB}`).focus();
+            field(`desc:${roomB}`).dispatchEvent(new Event("compositionstart", { bubbles: true }));
             await M.setRoomBroken(scene, roomA, true);
             await VS.updateRoom(scene, roomA, { [`flags.${MODULE_ID}.${VS.VAULT_FLAGS.description}`]: "SUITE written elsewhere" });
             await settle();
             await wait(400);
+            read.held = field(`broken:${roomA}`)?.checked === false;
             field(`desc:${roomB}`).value = "SUITE typed here";
             field(`desc:${roomB}`).dispatchEvent(new Event("input", { bubbles: true }));
             of("drpg-window-rooms")[0]?.element?.querySelector('footer button[data-action="ok"]')?.click();
@@ -105754,8 +105761,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             }
             await settle();
         }
-        equal(stableJson(read), stableJson({ broken: true, a: "SUITE written elsewhere", b: "SUITE typed here" }),
-            "Room setup's Apply wrote back what it had drawn over a change made while it stood open (broken: the forced lock kept, a: the description written elsewhere, b: the description typed)");
+        equal(stableJson(read), stableJson({ held: true, broken: true, a: "SUITE written elsewhere", b: "SUITE typed here" }),
+            "Room setup's Apply wrote back what it had drawn over a change made while it stood open (held: the cells as drawn before the change, under the composition; broken: the forced lock kept, a: the description written elsewhere, b: the description typed)");
     }],
 
     ["Room setup follows the map while it stands open: a lock forced, a stash written and a room found show at once, and the description the GM is typing keeps its text and its focus, marked where another GM wrote the same field (room-setup.mjs `openRoomSetupDialog`'s `keepLive`; the audit of 1.2.118, REFR-04; the owner's rule \"Zawsze odswiezamy okna od razu przy zmianie\"; the line claude/setup-120)", async () => {
@@ -105799,16 +105806,18 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             desc.focus();
             desc.value = "SUITE typed here";
             desc.dispatchEvent(new Event("input", { bubbles: true }));
+            // The region writes first, read alone: the ledger's write below redraws the window as well (M3 of the line's mutants).
             await M.setRoomBroken(scene, roomA, true);
             await VS.setStash(roomA, student.id, { present: true, concealed: false, scene });
-            await F.applyDiscoveryChanges(scene, [{ actorId: student.id, room: roomC, value: !found }]);
             await VS.updateRoom(scene, roomB, { [`flags.${MODULE_ID}.${VS.VAULT_FLAGS.description}`]: "SUITE another GM" });
-            await until(() => field(`broken:${roomA}`)?.checked && field(`stash:${roomA}:${student.id}`)?.value === "open"
-                && field(`fog:${roomC}:${student.id}`)?.checked === !found, 3000).catch(() => {});
+            await until(() => field(`broken:${roomA}`)?.checked && field(`stash:${roomA}:${student.id}`)?.value === "open", 3000).catch(() => {});
             await wait(300);
             const box = name => ({ shown: field(name)?.checked ?? null, drawn: field(name)?.defaultChecked ?? null });
             read.broken = box(`broken:${roomA}`);
             read.stash = { shown: field(`stash:${roomA}:${student.id}`)?.value ?? null, drawn: field(`stash:${roomA}:${student.id}`)?.dataset.drpgDrawn ?? null };
+            await F.applyDiscoveryChanges(scene, [{ actorId: student.id, room: roomC, value: !found }]);
+            await until(() => field(`fog:${roomC}:${student.id}`)?.checked === !found, 3000).catch(() => {});
+            await wait(300);
             read.fog = box(`fog:${roomC}:${student.id}`);
             read.typed = { text: field(`desc:${roomB}`)?.value ?? null, marked: Boolean(field(`desc:${roomB}`)?.classList.contains("drpg-moved-under")),
                 focus: document.activeElement?.getAttribute?.("name") === `desc:${roomB}` };

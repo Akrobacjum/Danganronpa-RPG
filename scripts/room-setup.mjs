@@ -1421,8 +1421,8 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
             /*
              * AND THE WHOLE FORM FOLLOWS THE MAP (REFR-04, above `drawBody`). A write to a region of this scene (a lock
              * forced, a stash written, a room drawn, marked or deleted, another GM's Apply), the discovery ledger (a
-             * room a student walked into), the students (one made, renamed or deleted, a death the GMs keep) or the
-             * Mastermind draws the form again from the world, as `keepLive` redraws: what the GM changed and has not
+             * room a student walked into), the students (one made, renamed or deleted, a death: `rosterMoved`, below)
+             * or the Mastermind draws the form again from the world, as `keepLive` redraws: what the GM changed and has not
              * applied is carried by name (live.mjs RULE 2) - a field another GM changed meanwhile keeps the GM's
              * value and is marked - with the tab, the scroll and the focus in a named field (`whileEditing`); a
              * select held open, or the token count's field (no name), holds the redraw until the focus leaves.
@@ -1435,6 +1435,14 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
              * table with a GM typing it is not.
              */
             const onScene = doc => (doc?.parent?.id ?? null) === scene.id;
+            /* AN ACTOR'S WRITE REDRAWS ONLY WHEN THE ROSTER THE WINDOW PRINTS MOVED: its students, their names, how many
+               live. Until this was read every write of a module flag of an actor drew the whole window again - a step on
+               the map spends an action, so during Daily Life a redraw on the GM a step - and in scenario 76 phase E
+               (21.11.2026) the GM's announcement of a route then came late, past the check's own: E failed 2 runs of 2
+               with that watch, and passed 1 run of 1 with it off and 1 run of 1 with this test. */
+            const rosterOf = () => { const list = studentActors(); return JSON.stringify([list.map(a => [a.id, a.name]), studentCensus(list).count]); };
+            let roster = rosterOf();
+            const rosterMoved = () => { const now = rosterOf(); if (now === roster) return false; roster = now; return true; };
             const afterRedraw = form => {
                 wireKitTabs(root, { win: root, app: dialog });
                 wireForm(form);
@@ -1473,9 +1481,7 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
                     stores: [discoveryStore, deathStore, mastermindStore],
                     where: [
                         ...["createRegion", "updateRegion", "deleteRegion"].map(hook => [hook, onScene]),
-                        ["createActor", () => true], ["deleteActor", () => true],
-                        ["updateActor", (actor, change) => Object.hasOwn(change ?? {}, "name") || Object.hasOwn(change ?? {}, "type")
-                            || change?.flags?.[MODULE_ID] !== undefined]
+                        ...["createActor", "updateActor", "deleteActor"].map(hook => [hook, rosterMoved])
                     ]
                 }
             });
