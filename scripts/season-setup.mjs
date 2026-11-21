@@ -32,7 +32,7 @@
 // live in `roomsWantedFor`, so both screens that print it agree by
 // construction (audit A21).
 import {
-    MODULE_ID, STARTING, UNCOVERED_LIMIT_PCT, ROOM_IMAGE_LIMITS
+    MODULE_ID, STARTING, UNCOVERED_LIMIT_PCT, ROOM_IMAGE_LIMITS, TIMING
 } from "./config.mjs";
 import { SETTINGS, DEFAULT_SAFEWORD, setSetting, isDeadForGm } from "./settings.mjs";
 import { safeword } from "./safeword.mjs";
@@ -62,7 +62,7 @@ import { scenesReportOf } from "./trial-scene.mjs";
 import { log, error, plural, workingScene, esc, localeFormat, listOf } from "./utils.mjs";
 import { stepperId, drpgWindow, checkList, formGrid, box, roleButton, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
 // Edit campaign's fields, reader, writes and End the chapter part (E49 A1e): gm-campaign.mjs never reaches back here.
-import { campaignRows, readClockForm, applyCampaignForm, endChapterPart, endTheChapter, morningLineRow } from "./gm-campaign.mjs";
+import { campaignRows, readClockForm, applyCampaignForm, endChapterPart, endTheChapter, morningLineRow, untouchedKept, changedField } from "./gm-campaign.mjs";
 import { alreadyOpen, handOff, RAISED } from "./live.mjs";
 // Foundry's secret doors and the players' rulers (E80 C5): the doors as the map holds them, their
 // conversion, and the permissions in force where `core.permissions` names none.
@@ -1012,6 +1012,35 @@ export function repaintStep(li, step) {
     else if (nextButton) li.append(nextButton);
 }
 
+/**
+ * THE CHECKLIST'S ROWS FOLLOW THE WORLD (the line claude/season-119, 20.11.2026; the audit of 1.2.118,
+ * controls-10-setup-config finding -3; the owner's rule "Zawsze odswiezamy okna od razu przy zmianie"). Until this line a
+ * row was drawn again only when one of the checklist's own buttons was pressed (the round trip) or Check rooms ran
+ * (`repaintStep`): a student made, a scene linked or the clock written elsewhere left every row as it was drawn. While the
+ * window stands open, a write of what the rows read (`steps`: the module's settings and the clock, actors and their items,
+ * scenes, their regions and walls, users) draws every row again in place (`repaintStep`), at most once per
+ * `TIMING.coalesceMs`; the list's one listener keeps running the buttons. Let go when the window's element is gone.
+ */
+function followChecklist(dialog) {
+    const root = dialog?.element;
+    if (!root || root.dataset.drpgFollowsWorld) return;
+    root.dataset.drpgFollowsWorld = "1";
+    const names = ["updateSetting", "createActor", "updateActor", "deleteActor", "createItem", "updateItem", "deleteItem",
+        "createScene", "updateScene", "deleteScene", "createRegion", "updateRegion", "deleteRegion", "createWall", "updateWall", "deleteWall",
+        "createUser", "updateUser", "deleteUser"];
+    const ids = [];
+    const stop = () => { for (const [name, id] of ids) Hooks.off(name, id); ids.length = 0; };
+    const repaint = foundry.utils.debounce(() => {
+        if (!root.isConnected) return stop();
+        const now = steps();
+        for (const li of root.querySelectorAll("li.drpg-check-row[data-drpg-key]")) {
+            const step = now.find(s => s.key === li.dataset.drpgKey);
+            if (step) repaintStep(li, step);
+        }
+    }, TIMING.coalesceMs);
+    for (const name of names) ids.push([name, Hooks.on(name, () => { if (!root.isConnected) return stop(); repaint(); })]);
+}
+
 /** The Check rooms button under the rooms step: run the region check and print its findings in place. */
 function wireRoomCheck(dialog) {
     const checkButton = dialog.element.querySelector("[data-drpg-check]");
@@ -1176,7 +1205,10 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
             primary: {
                 action: "save", label: game.i18n.localize("DRPG.Assign.save"),
                 // The scenes part read with the rest (E101 item 5): null where it is not drawn.
-                callback: (e, b, d) => ({ ...readSeasonForm(d), scenes: scenesTab.readScenesTab(d.element) })
+                /* only what the GM changed (`untouchedKept`; the line claude/season-119): a field left as drawn takes the
+                   clock or the safeword as they stand at the press, so a time step, a trial started or another GM's
+                   safeword written while this window stood open is not written back */
+                callback: (e, b, d) => ({ ...untouchedKept(d.element.querySelector("form"), readSeasonForm(d), { safeword: safeword() }), scenes: scenesTab.readScenesTab(d.element) })
             },
             close: { role: "cancel", action: "close" }
         },
@@ -1202,6 +1234,8 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
                 resetAsked = true;
                 dialog.close();
             });
+            // The campaign's fields follow the clock and the safeword while the window stands open (`followWorld`).
+            followWorld(dialog);
             // At its top, on its first field (S01-19), or where the copy that closed was (C-2); then what a tile
             // opened, in front of it (S06-30).
             seasonOpening(dialog.element, draft?.place ?? null);
@@ -1211,8 +1245,11 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
     });
 
     if (endAsked) return endTheChapter(() => import("./chapter.mjs").then(m => m.openChapterEndDialog()));
-    if (!result || result === "close") return null;
+    /* Read before the null (the line claude/season-119, 20.11.2026; the audit of 1.2.118, controls-10-setup-config): the
+       button closes the window, and a window closed answers null (`rejectClose: false`), so with this line after the
+       return below the reset never opened - since E101 this button is its one door. As `endAsked` above is read. */
     if (resetAsked) return (await import("./season-wipe.mjs")).resetSeason();
+    if (!result || result === "close") return null;
 
     /* THE SCENES' TWO BACKSTOPS (E101 item 5; Room setup's Apply ran them until then): one scene for both roles, and the
        trial hall linked, relinked or unlinked while a Class Trial runs (E13 fix r1-F2). Save is held with the reason while
@@ -1259,6 +1296,36 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
 
     log(`Season setup saved: "${result.campaignName}", chapter ${result.chapter}.`);
     return result;
+}
+
+/**
+ * THE CAMPAIGN'S FIELDS FOLLOW THE WORLD (the line claude/season-119, 20.11.2026; the owner's rule, relayed for the audit
+ * of 1.2.118: "Zawsze odswiezamy okna od razu przy zmianie"). While Season setup stands open, a write of the clock or of
+ * the safeword - a time step on the HUD, a trial started, another GM's Save - sets each campaign field the GM has not
+ * changed (gm-campaign.mjs `changedField`) to what the world holds now, shown and as drawn, so the window reads true and
+ * its Save still counts the field untouched (`untouchedKept`). A field the GM changed keeps their text. Heard through
+ * `updateSetting` for the two world settings; let go when the window's element is gone. Wired once per element.
+ */
+function followWorld(dialog) {
+    const root = dialog?.element;
+    if (!root || root.dataset.drpgFollowsWorld) return;
+    root.dataset.drpgFollowsWorld = "1";
+    const keys = [`${MODULE_ID}.${SETTINGS.clock}`, `${MODULE_ID}.${SETTINGS.safeword}`];
+    const set = (el, value) => {
+        if (!el || value === undefined || value === null || changedField(el)) return;
+        const text = String(value);
+        if (el.tagName === "SELECT") for (const o of el.options) o.defaultSelected = o.value === text;
+        else el.defaultValue = text;
+        el.value = text;
+    };
+    const hook = Hooks.on("updateSetting", setting => {
+        if (!root.isConnected) { Hooks.off("updateSetting", hook); return; }
+        if (!keys.includes(setting?.key)) return;
+        const form = root.querySelector("form");
+        const clock = getClock();
+        for (const name of ["campaignName", "chapter", "day", "phase", "session", "timeOfDay"]) set(form?.querySelector(`[name="${name}"]`), clock?.[name]);
+        set(form?.querySelector('[name="safeword"]'), safeword());
+    });
 }
 
 /**
@@ -1357,6 +1424,8 @@ export async function openSeasonChecklist({ draft = null, opened = null } = {}) 
              */
             wireRoomCheck(dialog);
             wireSetupSteps(dialog, trip => { roundTrip = trip; }, openSeasonChecklist);
+            // Its rows follow the world while it stands open (`followChecklist`).
+            followChecklist(dialog);
             // At its top, or where the copy that closed was (C-2); then what a row's Open opened, in front of it (S06-30).
             seasonOpening(dialog.element, draft?.place ?? null);
             if (opened) raiseOpened(opened);

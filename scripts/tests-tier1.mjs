@@ -63514,6 +63514,28 @@ const INVARIANTS = [
             stableJson({ mutual: { "counter-a": 1, "counter-b": 1 }, onItself: ["counter-c", "deduction-c"] }),
             "{mutual: the two counters' columns, or what threw; onItself: the nodes laid out, or what threw}");
     }],
+    ["R7803 - Season setup's Save and Edit campaign's Apply write only what the GM changed (the audit of 1.2.118, controls-10-setup-config; the line claude/season-119): gm-campaign.mjs `untouchedKept` gives each of the clock's six fields, and the safeword where it is given, that still holds what the window drew (`changedField`: a select's choice, a box's tick, a field's text against its default) the value the world holds at the press, and keeps a field the GM changed; both windows' callbacks read through it", async () => {
+        /* Red at b5a29e73: no `untouchedKept` - both windows wrote every field as drawn. Pure over a detached form, and a
+           text read of the two callbacks. */
+        const G = await import("./gm-campaign.mjs");
+        must(typeof G.untouchedKept === "function", "gm-campaign.mjs has no untouchedKept - every field is written as drawn");
+        const form = document.createElement("form");
+        form.innerHTML = `<input name="campaignName" value="drawn" /><input name="chapter" value="2" /><input name="day" value="3" />`
+            + `<select name="phase"><option value="dailyLife" selected>a</option><option value="investigation">b</option></select>`
+            + `<input name="session" value="4" /><select name="timeOfDay"><option value="morning" selected>m</option><option value="noon">n</option></select>`
+            + `<input name="safeword" value="drawn word" />`;
+        form.querySelector('[name="campaignName"]').value = "typed";
+        form.querySelector('[name="phase"]').value = "investigation";
+        const read = { campaignName: "typed", chapter: 2, day: 3, phase: "investigation", session: 4, timeOfDay: "morning", safeword: "drawn word" };
+        const clock = { campaignName: "elsewhere", chapter: 2, day: 5, phase: "classTrial", session: 4, timeOfDay: "night" };
+        const out = G.untouchedKept(form, read, { clock, safeword: "set elsewhere" });
+        const src = new Map(await moduleSources());
+        const season = fnSource(src.get("season-setup.mjs") ?? "", "openSeasonSetup"), clockDialog = fnSource(src.get("gm-campaign.mjs") ?? "", "openClockDialog");
+        equal(stableJson({ out, season: /untouchedKept\(d\.element\.querySelector\("form"\), readSeasonForm\(d\), \{ safeword: safeword\(\) \}\)/.test(season),
+            edit: /untouchedKept\(dialog\.element\.querySelector\("form"\), readClockForm\(dialog\)\)/.test(clockDialog) }),
+        stableJson({ out: { campaignName: "typed", chapter: 2, day: 5, phase: "investigation", session: 4, timeOfDay: "night", safeword: "set elsewhere" }, season: true, edit: true }),
+            "{out: the fields written - the name and the phase changed, the rest as the clock holds them; season, edit: the two callbacks read through it}");
+    }],
 ];
 
 /**
