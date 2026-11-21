@@ -90,3 +90,42 @@ Not routed to 1.2.120 (they go to 1.2.121 with the rest): every minor and nit, t
 - v1.2.120 published 06:22:59Z, tag at main 03ee8de9 (PR #70): lines P (move-120 1fc4219a), H (tokenhud-120 b022fde1), F (fog-120 be44650c), hopebox-120 a5661b39; stage E120; R8010-R8014, R8030-R8031, R8050-R8053; 9.2 items 696 (LIVE-P120-01), 698 (LIVE-H120-01), 700 (LIVE-F120-01). The audit's check of it: AUDIT 18.6, `recheck-120.json`.
 - ~06:50Z: the 1.2.121 assembly (asm-121 from 03ee8de9) merges infra-120 c6bb8143, mask-120 b9903de3, veil-120 575de480, rules-120 d0986d5b, setup-120 eccaf195, refresh-120 d3153c04 and claude/audit-119 at 2927f16a (clean; check live green with 575 items). The coordinator added probe 44's row to audit/harness/README.md in the assembly; probes/README.md's row is on this branch (48673032). The lines' "1.2.120" in comments, test names and handbook notes now say 1.2.121 (88 lines, d1b68bb0); tier-2 names "1.2.121 CASE-16/-17/-18", "1.2.121 STG-01".
 - Where the report says "1.2.120" for the majors (CASE-16, REFR-01 and the rest) read 1.2.121, and for E39, E40, E43, E53, E58, E83 read 1.2.123 (AUDIT 18.6 says so once; the older sentences stay as written).
+- (coordinator, ~06:52Z) 9.2 numbers for the 1.2.121 lines' table checks: LIVE-M121-01, LIVE-M121-02, LIVE-K121-01, LIVE-R121-01, LIVE-R121-02 take 710-714 (agreed by the audit). The audit keeps 701-709 reserved and has used none of them.
+
+## After the check of 1.2.120 (coordinator, 21.11.2026 ~06:54Z)
+- r120-P-1 -> line P, new branch claude/press-121 from refresh-120 d3153c04: a change ends the press-hold only when it comes from the element pressed; red first in Chromium with a real mouse; ships in 1.2.121. r120-P-2 there too if small. r120-P-3 is covered by R1's select-never-holds in 1.2.121 (to re-check there). r120-P-4 -> 1.2.122.
+- r120-F-1 and r120-F-2 -> line F, new branch claude/fog-121 from 03ee8de9; ships in 1.2.121. r120-F-4 only if small, else 1.2.122.
+- r120-H-1, H-7, H-2, H-3 -> 1.2.122 (minors).
+- r120-F-6 -> R1 in 1.2.121 if its branch covers it. The audit read refresh-120 d3153c04 for it: the box's wait for focus is covered (`whileEditing: true` on `.drpg-mm-live`, R7972); the other half is NOT - `current` is still read once at the window's open (mastermind.mjs:605-606 at d3153c04), the `keepLive` watch still names no store (`actors`, `drpgDespairOwedChanged`), so another GM changing or clearing the Mastermind redraws nothing and Give still converts to the Mastermind of the window's opening.
+- Q-A120-1 answered (the owner to line H, 21.11.2026): the player has no Token HUD at all, by intent - "gracz niech nie widzi ustawien tokena wcale", "Chodzi o cale menu. Niech gracz nie ma menu tokena." Recorded as D-A11.
+- 7f4a178e merged into asm-121 (0a0a9e5e); 1.2.121 waits for press-121 and fog-121.
+
+- (coordinator, 21.11 08:50Z) asm-121 21bf5d18: CI run 44879555080 on e537947b was red on two items only. (1) Tier 2 E44-T2 asserted the old "a select holds" rule; R1 rewrote it (aa534724), 8/8 on the assembly. (2) Scenario 61-gmstore-case F3: line K's new GM-only cast field `watchDie` is nulled in every copy like `openingTrait`, and F3's withheld list did not name it; the coordinator fixed the scenario (78de5a84), 114/114 locally, no code change. For the 1.2.121 check: read both rewritten checks against what they measured before (a test changed to meet new behaviour must still measure a claim).
+
+## 1.2.122 lines (coordinator, 21.11.2026 08:30Z; started before 1.2.121 ships, the owner's ask)
+Base: 21bf5d18 (the 1.2.121 assembly). They take the minor and nit findings still open in `recheck-119.json` (533 by the coordinator's count; the majors are 1.2.121's), split by the file each names (INDEX.json `where`), plus the items of the 1.2.120 check. Reports due Monday 23.11.2026 12:00 Warsaw.
+| Line | Branch | R block | Also |
+| --- | --- | --- | --- |
+| TEXT | claude/text-122 | R8060-8099 | lang texts, config prose |
+| CORE | claude/core-122 | R8100-8139 | bridge, settings, migrate, secret, clock, gm-campaign and season, gm-store; REFR-02's rest, r120-F-4 |
+| TRIAL | claude/trial-122 | R8140-8179 | |
+| INVEST | claude/invest-122 | R8180-8219 | r120-P-3 re-check, P-4, P-5, the Map's small texts |
+| MURDER | claude/murder-122 | R8220-8259 | the crisis menu's refresh, one veil predicate for mask-gm and visibility |
+| COMM | claude/comm-122 | R8260-8299 | COMM-20's rest |
+| ITEMS | claude/items-122 | R8300-8339 | r120-F-6's rest |
+| MAP | claude/map-122 | R8340-8379 | r120-F-3 |
+| DESP | claude/desp-122 | R8380-8419 | |
+| UI | claude/ui-122 | R8420-8459 | r120-H-1..H-8 |
+| STG | claude/stg-122 | R8460-8499 | records; the four "E120 - " tier-2 names that shipped in 1.2.121 |
+| WORLD | claude/world-122 | R8500-8539 | the small files |
+The audit's check of 1.2.121 will give a file:line per finding so it can be routed to these lines by file. Note for the lines: of the open findings in `recheck-119.json`, 246 are "open-unchanged" - their files did not change by 1.2.119 and they were not re-read then; a line should re-read each on its own base before fixing it.
+
+## After the check of 1.2.121 (coordinator, 21.11.2026 ~10:10Z)
+- v1.2.121 published 09:35:15Z, tag at main 1eee4d62 (PR #71); release.yml run 44890152504 reused green CI run 44886414447 on the same tree (line I's first use). The audit's check: AUDIT 18.7, `recheck-121.json`.
+- r121-M-1 (Listen naming the veiled killer) fixed on claude/desp-122 f652fafc (tier 2 "1.2.122 r121-M-1" red first, 5 mutants killed; `performListen` held by a source read); ships with 1.2.122 (the owner chose no early release). r121-K-1 -> MURDER.
+- Lane M, optional follow-ups for 1.2.122 (else 1.2.123): M-2 -> MAP, M-3 -> CORE, M-4 -> UI, M-5 -> DESP, M-6 -> COMM. M-7 done on stg-122 17941a84 (the four tests renamed "1.2.121").
+- The owner's default for the rest of the 1.2.121 findings: 1.2.122 ships when its lines are in; what a line does not close goes to 1.2.123.
+- (coordinator, ~10:13Z) `recheck-121.json` routed: r121-R-1 (major), R-2, R-3, R-5 (the regressions) -> R1 on claude/refresh-120 (fast-forwarded to 1eee4d62), R8540-R8579, required for 1.2.122; R-6, R-7, R-11 -> R1, optional. R-4 = F-1 -> ITEMS. R-8 -> TEXT; R-9 -> COMM; R-10 and F-5, K-2, K-4 -> STG; K-1 (required) and K-3 -> MURDER; F-4 -> MAP; F-2 and F-3 -> the coordinator at assembly. Optional ones not closed go to 1.2.123.
+- (owner, relayed ~10:22Z) 1.2.122 waits for every finding of the 1.2.121 check (all 27 rows of `recheck-121.json` and lane M): every row routed as optional is now required on the same line; F-2 and F-3 stay with the coordinator at assembly.
+- (coordinator, ~10:41Z) `unrouted-122.json` (bb96d8dd) routed in full, by file or id prefix. A: CORE REFR-06, REFR-27; INVEST CTRL-10, STG-21; COMM COMM-24, REFR-25; ITEMS STG-100; MAP MAP-19, STG-32; STG DOC-05. B: by prefix (UI, CASE -> INVEST, ITEM, MAP, COMM, ROLL and DESP, CORE, TEXT); DEC-1b and H1b -> MURDER (known-leaks.json first); the other 67 -> STG. C: rows 0-26 TRIAL, 27 INVEST, 28-32 ITEMS, 33-39 UI, 40 COMM. D: each by its file (TEXT 16, CORE 43, TRIAL 15, INVEST 9, MURDER 24, COMM 31, ITEMS 30, MAP 22, DESP 23, UI 22, STG 7, WORLD 42). E: no code release closes the table checks; they stay with L1, and the owner is told. Each line answers per item: fixed, comment corrected, already true, or needs a real table (a proposed LIVE id, not closed). The 1.2.122 check will hold each line's answers to these rows.
+- (coordinator, ~12:07Z) probe 43 on 1.2.121 (AUDIT 18.7, `probe-43-121.json`) routed, all required for 1.2.122: Despair Flow's suggested threshold after a death -> ITEMS; the Season checklist's rooms per student after a death -> CORE; the case map's problem count after a Remnant, five views -> INVEST; Sound's Files tab toggle state -> COMM; the harness GM's heap growth over case-map redraws -> INVEST, to measure headless and fix if the module holds it.

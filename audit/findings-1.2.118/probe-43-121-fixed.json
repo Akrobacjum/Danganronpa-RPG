@@ -1,0 +1,1637 @@
+{
+ "about": "probe 43 on 1eee4d62 (v1.2.121) after bcf54c21 (probe 42's click list a WeakSet; probe 43's reopen leaves the row's seed standing): the windows the first reading flagged, read again. A reading, not a verdict.",
+ "runs": [
+  {
+   "windows": "investigation--map-crowd, investigation--map-modes",
+   "gm_peak_rss_mb": 2822,
+   "wall": "15m10s",
+   "totals": {
+    "windows": 2,
+    "opened": 2,
+    "readings": 56,
+    "relevant": 25,
+    "live": 24,
+    "stale": 1,
+    "staleUntilBlur": 0,
+    "confounded": 0,
+    "restless": 0,
+    "failed": 0,
+    "focusedReadings": 12,
+    "heldByFocus": 0,
+    "liveUnderFocus": 12
+   }
+  },
+  {
+   "windows": "despair-flow, season-checklist, sound--files, investigation--map, investigation--map-types, investigation--map-types-faces",
+   "gm_peak_rss_mb": 3468,
+   "wall": "16m30s",
+   "totals": {
+    "windows": 6,
+    "opened": 6,
+    "readings": 168,
+    "relevant": 71,
+    "live": 38,
+    "stale": 33,
+    "staleUntilBlur": 0,
+    "confounded": 0,
+    "restless": 1,
+    "failed": 0,
+    "focusedReadings": 18,
+    "heldByFocus": 0,
+    "liveUnderFocus": 18
+   }
+  }
+ ],
+ "heap_limit": "8 GB in every run of this audit: the session's NODE_OPTIONS carries --max-old-space-size=8192",
+ "windows": [
+  {
+   "id": "investigation--map-crowd",
+   "client": "gm",
+   "opener": "investigation.mjs m.openInvestigationDashboard({ allOpen: false })",
+   "readings": [
+    {
+     "change": "time-of-day",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "time-of-day",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "despair",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "despair",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "overflow",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "overflow",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "hope",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "hope",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "health",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "health",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "actions",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "actions",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "item",
+     "step": "apply",
+     "verdict": "live"
+    },
+    {
+     "change": "item",
+     "step": "undo",
+     "verdict": "live"
+    },
+    {
+     "change": "item",
+     "step": "apply-focused",
+     "field": "select",
+     "verdict": "live-under-focus"
+    },
+    {
+     "change": "truth-bullet",
+     "step": "apply",
+     "verdict": "live"
+    },
+    {
+     "change": "truth-bullet",
+     "step": "undo",
+     "verdict": "live"
+    },
+    {
+     "change": "truth-bullet",
+     "step": "apply-focused",
+     "field": "select",
+     "verdict": "live-under-focus"
+    },
+    {
+     "change": "trace",
+     "step": "apply",
+     "verdict": "live"
+    },
+    {
+     "change": "trace",
+     "step": "undo",
+     "verdict": "live"
+    },
+    {
+     "change": "trace",
+     "step": "apply-focused",
+     "field": "select",
+     "verdict": "live-under-focus"
+    },
+    {
+     "change": "trace-moved",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "trace-moved",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "project",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "project",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "case-node",
+     "step": "apply",
+     "verdict": "live"
+    },
+    {
+     "change": "case-node",
+     "step": "undo",
+     "verdict": "live"
+    },
+    {
+     "change": "case-node",
+     "step": "apply-focused",
+     "field": "select",
+     "verdict": "live-under-focus"
+    },
+    {
+     "change": "death",
+     "step": "apply",
+     "verdict": "live"
+    },
+    {
+     "change": "death",
+     "step": "undo",
+     "verdict": "live"
+    },
+    {
+     "change": "death",
+     "step": "apply-focused",
+     "field": "select",
+     "verdict": "live-under-focus"
+    },
+    {
+     "change": "eclipse",
+     "step": "apply",
+     "verdict": "live"
+    },
+    {
+     "change": "eclipse",
+     "step": "undo",
+     "verdict": "live"
+    },
+    {
+     "change": "eclipse",
+     "step": "apply-focused",
+     "field": "select",
+     "verdict": "live-under-focus"
+    }
+   ],
+   "opened": true,
+   "title": "Investigation",
+   "threw": null
+  },
+  {
+   "id": "investigation--map-modes",
+   "client": "gm",
+   "opener": "investigation.mjs m.openInvestigationDashboard({ allOpen: false })",
+   "readings": [
+    {
+     "change": "time-of-day",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "time-of-day",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "despair",
+     "step": "apply",
+     "verdict": "stale",
+     "focusInside": false,
+     "diff": {
+      "part": "words",
+      "live": "nce: 16Tied to the murder: 7Found by students: 0Deductions: 4Counters: 1Problems: 7Check consistencyProblems: 7The culprit came in with a ke",
+      "fresh": "nce: 16Tied to the murder: 7Found by students: 0Deductions: 7Counters: 2Problems: 22Check consistencyProblems: 22The culprit came in with a "
+     }
+    },
+    {
+     "change": "despair",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "overflow",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "overflow",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "hope",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "hope",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "health",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "health",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "actions",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "actions",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "item",
+     "step": "apply",
+     "verdict": "live"
+    },
+    {
+     "change": "item",
+     "step": "undo",
+     "verdict": "live"
+    },
+    {
+     "change": "item",
+     "step": "apply-focused",
+     "field": "select",
+     "verdict": "live-under-focus"
+    },
+    {
+     "change": "truth-bullet",
+     "step": "apply",
+     "verdict": "live"
+    },
+    {
+     "change": "truth-bullet",
+     "step": "undo",
+     "verdict": "live"
+    },
+    {
+     "change": "truth-bullet",
+     "step": "apply-focused",
+     "field": "select",
+     "verdict": "live-under-focus"
+    },
+    {
+     "change": "trace",
+     "step": "apply",
+     "verdict": "live"
+    },
+    {
+     "change": "trace",
+     "step": "undo",
+     "verdict": "live"
+    },
+    {
+     "change": "trace",
+     "step": "apply-focused",
+     "field": "select",
+     "verdict": "live-under-focus"
+    },
+    {
+     "change": "trace-moved",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "trace-moved",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "project",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "project",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "case-node",
+     "step": "apply",
+     "verdict": "live"
+    },
+    {
+     "change": "case-node",
+     "step": "undo",
+     "verdict": "live"
+    },
+    {
+     "change": "case-node",
+     "step": "apply-focused",
+     "field": "select",
+     "verdict": "live-under-focus"
+    },
+    {
+     "change": "death",
+     "step": "apply",
+     "verdict": "live"
+    },
+    {
+     "change": "death",
+     "step": "undo",
+     "verdict": "live"
+    },
+    {
+     "change": "death",
+     "step": "apply-focused",
+     "field": "select",
+     "verdict": "live-under-focus"
+    },
+    {
+     "change": "eclipse",
+     "step": "apply",
+     "verdict": "live"
+    },
+    {
+     "change": "eclipse",
+     "step": "undo",
+     "verdict": "live"
+    },
+    {
+     "change": "eclipse",
+     "step": "apply-focused",
+     "field": "select",
+     "verdict": "live-under-focus"
+    }
+   ],
+   "opened": true,
+   "title": "Investigation",
+   "threw": null
+  },
+  {
+   "id": "sound--files",
+   "client": "gm",
+   "opener": "sound-panel.mjs m.openSoundDialog()",
+   "readings": [
+    {
+     "change": "time-of-day",
+     "step": "apply",
+     "verdict": "stale",
+     "focusInside": false,
+     "diff": {
+      "part": "controls",
+      "live": "falsefalsetruehdhhfalsehh",
+      "fresh": "falsefalsetruehdhhtrueh"
+     }
+    },
+    {
+     "change": "time-of-day",
+     "step": "undo",
+     "verdict": "stale",
+     "focusInside": false,
+     "diff": {
+      "part": "controls",
+      "live": "falsefalsetruehdhhtrueh",
+      "fresh": "falsefalsetruehdhhfalsehh"
+     }
+    },
+    {
+     "change": "despair",
+     "step": "apply",
+     "verdict": "stale",
+     "focusInside": false,
+     "diff": {
+      "part": "controls",
+      "live": "falsefalsetruehdhhfalsehh",
+      "fresh": "falsefalsetruehdhhtrueh"
+     }
+    },
+    {
+     "change": "despair",
+     "step": "undo",
+     "verdict": "stale",
+     "focusInside": false,
+     "diff": {
+      "part": "controls",
+      "live": "falsefalsetruehdhhtrueh",
+      "fresh": "falsefalsetruehdhhfalsehh"
+     }
+    },
+    {
+     "change": "overflow",
+     "step": "apply",
+     "verdict": "stale",
+     "focusInside": false,
+     "diff": {
+      "part": "controls",
+      "live": "falsefalsetruehdhhfalsehh",
+      "fresh": "falsefalsetruehdhhtrueh"
+     }
+    },
+    {
+     "change": "overflow",
+     "step": "undo",
+     "verdict": "stale",
+     "focusInside": false,
+     "diff": {
+      "part": "controls",
+      "live": "falsefalsetruehdhhtrueh",
+      "fresh": "falsefalsetruehdhhfalsehh"
+     }
+    },
+    {
+     "change": "hope",
+     "step": "apply",
+     "verdict": "stale",
+     "focusInside": false,
+     "diff": {
+      "part": "controls",
+      "live": "falsefalsetruehdhhfalsehh",
+      "fresh": "falsefalsetruehdhhtrueh"
+     }
+    },
+    {
+     "change": "hope",
+     "step": "undo",
+     "verdict": "stale",
+     "focusInside": false,
+     "diff": {
+      "part": "controls",
+      "live": "falsefalsetruehdhhtrueh",
+      "fresh": "falsefalsetruehdhhfalsehh"
+     }
+    },
+    {
+     "change": "health",
+     "step": "apply",
+     "verdict": "stale",
+     "focusInside": false,
+     "diff": {
+      "part": "controls",
+      "live": "falsefalsetruehdhhfalsehh",
+      "fresh": "falsefalsetruehdhhtrueh"
+     }
+    },
+    {
+     "change": "health",
+     "step": "undo",
+     "verdict": "stale",
+     "focusInside": false,
+     "diff": {
+      "part": "controls",
+      "live": "falsefalsetruehdhhtrueh",
+      "fresh": "falsefalsetruehdhhfalsehh"
+     }
+    },
+    {
+     "change": "actions",
+     "step": "apply",
+     "verdict": "stale",
+     "focusInside": false,
+     "diff": {
+      "part": "controls",
+      "live": "falsefalsetruehdhhfalsehh",
+      "fresh": "falsefalsetruehdhhtrueh"
+     }
+    },
+    {
+     "change": "actions",
+     "step": "undo",
+     "verdict": "stale",
+     "focusInside": false,
+     "diff": {
+      "part": "controls",
+      "live": "falsefalsetruehdhhtrueh",
+      "fresh": "falsefalsetruehdhhfalsehh"
+     }
+    },
+    {
+     "change": "item",
+     "step": "apply",
+     "verdict": "stale",
+     "focusInside": false,
+     "diff": {
+      "part": "controls",
+      "live": "falsefalsetruehdhhfalsehh",
+      "fresh": "falsefalsetruehdhhtrueh"
+     }
+    },
+    {
+     "change": "item",
+     "step": "undo",
+     "verdict": "stale",
+     "focusInside": false,
+     "diff": {
+      "part": "controls",
+      "live": "falsefalsetruehdhhtrueh",
+      "fresh": "falsefalsetruehdhhfalsehh"
+     }
+    },
+    {
+     "change": "truth-bullet",
+     "step": "apply",
+     "verdict": "stale",
+     "focusInside": false,
+     "diff": {
+      "part": "controls",
+      "live": "falsefalsetruehdhhfalsehh",
+      "fresh": "falsefalsetruehdhhtrueh"
+     }
+    },
+    {
+     "change": "truth-bullet",
+     "step": "undo",
+     "verdict": "stale",
+     "focusInside": false,
+     "diff": {
+      "part": "controls",
+      "live": "falsefalsetruehdhhtrueh",
+      "fresh": "falsefalsetruehdhhfalsehh"
+     }
+    },
+    {
+     "change": "trace",
+     "step": "apply",
+     "verdict": "stale",
+     "focusInside": false,
+     "diff": {
+      "part": "controls",
+      "live": "falsefalsetruehdhhfalsehh",
+      "fresh": "falsefalsetruehdhhtrueh"
+     }
+    },
+    {
+     "change": "trace",
+     "step": "undo",
+     "verdict": "stale",
+     "focusInside": false,
+     "diff": {
+      "part": "controls",
+      "live": "falsefalsetruehdhhtrueh",
+      "fresh": "falsefalsetruehdhhfalsehh"
+     }
+    },
+    {
+     "change": "trace-moved",
+     "step": "apply",
+     "verdict": "stale",
+     "focusInside": false,
+     "diff": {
+      "part": "controls",
+      "live": "falsefalsetruehdhhtrueh",
+      "fresh": "falsefalsetruehdhhfalsehh"
+     }
+    },
+    {
+     "change": "trace-moved",
+     "step": "undo",
+     "verdict": "stale",
+     "focusInside": false,
+     "diff": {
+      "part": "controls",
+      "live": "falsefalsetruehdhhfalsehh",
+      "fresh": "falsefalsetruehdhhtrueh"
+     }
+    },
+    {
+     "change": "project",
+     "step": "apply",
+     "verdict": "stale",
+     "focusInside": false,
+     "diff": {
+      "part": "controls",
+      "live": "falsefalsetruehdhhfalsehh",
+      "fresh": "falsefalsetruehdhhtrueh"
+     }
+    },
+    {
+     "change": "project",
+     "step": "undo",
+     "verdict": "stale",
+     "focusInside": false,
+     "diff": {
+      "part": "controls",
+      "live": "falsefalsetruehdhhtrueh",
+      "fresh": "falsefalsetruehdhhfalsehh"
+     }
+    },
+    {
+     "change": "case-node",
+     "step": "apply",
+     "verdict": "stale",
+     "focusInside": false,
+     "diff": {
+      "part": "controls",
+      "live": "falsefalsetruehdhhfalsehh",
+      "fresh": "falsefalsetruehdhhtrueh"
+     }
+    },
+    {
+     "change": "case-node",
+     "step": "undo",
+     "verdict": "stale",
+     "focusInside": false,
+     "diff": {
+      "part": "controls",
+      "live": "falsefalsetruehdhhtrueh",
+      "fresh": "falsefalsetruehdhhfalsehh"
+     }
+    },
+    {
+     "change": "death",
+     "step": "apply",
+     "verdict": "stale",
+     "focusInside": false,
+     "diff": {
+      "part": "controls",
+      "live": "falsefalsetruehdhhfalsehh",
+      "fresh": "falsefalsetruehdhhtrueh"
+     }
+    },
+    {
+     "change": "death",
+     "step": "undo",
+     "verdict": "stale",
+     "focusInside": false,
+     "diff": {
+      "part": "controls",
+      "live": "falsefalsetruehdhhtrueh",
+      "fresh": "falsefalsetruehdhhfalsehh"
+     }
+    },
+    {
+     "change": "eclipse",
+     "step": "apply",
+     "verdict": "stale",
+     "focusInside": false,
+     "diff": {
+      "part": "controls",
+      "live": "falsefalsetruehdhhfalsehh",
+      "fresh": "falsefalsetruehdhhtrueh"
+     }
+    },
+    {
+     "change": "eclipse",
+     "step": "undo",
+     "verdict": "stale",
+     "focusInside": false,
+     "diff": {
+      "part": "controls",
+      "live": "falsefalsetruehdhhtrueh",
+      "fresh": "falsefalsetruehdhhfalsehh"
+     }
+    }
+   ],
+   "opened": true,
+   "title": "Sound",
+   "threw": null,
+   "restless": {
+    "part": "controls",
+    "live": "falsefalsetruehdhhtrueh",
+    "fresh": "falsefalsetruehdhhfalsehh"
+   }
+  },
+  {
+   "id": "despair-flow",
+   "client": "gm",
+   "opener": "gm-team-dialog.mjs m.openGmTeamDialog()",
+   "readings": [
+    {
+     "change": "time-of-day",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "time-of-day",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "despair",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "despair",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "overflow",
+     "step": "apply",
+     "verdict": "live"
+    },
+    {
+     "change": "overflow",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "overflow",
+     "step": "apply-focused",
+     "field": "ovf-threshold",
+     "verdict": "live-under-focus"
+    },
+    {
+     "change": "hope",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "hope",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "health",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "health",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "actions",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "actions",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "item",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "item",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "truth-bullet",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "truth-bullet",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "trace",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "trace",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "trace-moved",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "trace-moved",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "project",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "project",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "case-node",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "case-node",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "death",
+     "step": "apply",
+     "verdict": "stale",
+     "focusInside": false,
+     "diff": {
+      "part": "words",
+      "live": "w: 2 of 20. Clear the Overflow Threshold (X)-+Suggested for 4 students and 1 pool: 14.Any value from 6 to 60: the table decides. What can be",
+      "fresh": "w: 2 of 20. Clear the Overflow Threshold (X)-+Suggested for 3 students and 1 pool: 14.Any value from 6 to 60: the table decides. What can be"
+     }
+    },
+    {
+     "change": "death",
+     "step": "undo",
+     "verdict": "stale",
+     "focusInside": false,
+     "diff": {
+      "part": "words",
+      "live": "w: 2 of 20. Clear the Overflow Threshold (X)-+Suggested for 3 students and 1 pool: 14.Any value from 6 to 60: the table decides. What can be",
+      "fresh": "w: 2 of 20. Clear the Overflow Threshold (X)-+Suggested for 4 students and 1 pool: 14.Any value from 6 to 60: the table decides. What can be"
+     }
+    },
+    {
+     "change": "eclipse",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "eclipse",
+     "step": "undo",
+     "verdict": "not-shown"
+    }
+   ],
+   "opened": true,
+   "title": "Despair Flow",
+   "threw": null
+  },
+  {
+   "id": "season-checklist",
+   "client": "gm",
+   "opener": "season-setup.mjs m.openSeasonChecklist()",
+   "readings": [
+    {
+     "change": "time-of-day",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "time-of-day",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "despair",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "despair",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "overflow",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "overflow",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "hope",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "hope",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "health",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "health",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "actions",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "actions",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "item",
+     "step": "apply",
+     "verdict": "live"
+    },
+    {
+     "change": "item",
+     "step": "undo",
+     "verdict": "live"
+    },
+    {
+     "change": "truth-bullet",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "truth-bullet",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "trace",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "trace",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "trace-moved",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "trace-moved",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "project",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "project",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "case-node",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "case-node",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "death",
+     "step": "apply",
+     "verdict": "partly",
+     "focusInside": false,
+     "diff": {
+      "part": "words",
+      "live": "iving student, corridors and bedrooms aside.6 shared rooms, 1.5 rooms per student. Living students: 4; this season wants 6 (1.5 each).✗The m",
+      "fresh": "iving student, corridors and bedrooms aside.6 shared rooms, 2.0 rooms per student. Living students: 3; this season wants 5 (1.5 each).✗The m"
+     }
+    },
+    {
+     "change": "death",
+     "step": "undo",
+     "verdict": "partly",
+     "focusInside": false,
+     "diff": {
+      "part": "words",
+      "live": "iving student, corridors and bedrooms aside.6 shared rooms, 2.0 rooms per student. Living students: 3; this season wants 5 (1.5 each).✗The m",
+      "fresh": "iving student, corridors and bedrooms aside.6 shared rooms, 1.5 rooms per student. Living students: 4; this season wants 6 (1.5 each).✗The m"
+     }
+    },
+    {
+     "change": "eclipse",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "eclipse",
+     "step": "undo",
+     "verdict": "not-shown"
+    }
+   ],
+   "opened": true,
+   "title": "Season checklist",
+   "threw": null
+  },
+  {
+   "id": "investigation--map",
+   "client": "gm",
+   "opener": "investigation.mjs m.openInvestigationDashboard()",
+   "readings": [
+    {
+     "change": "time-of-day",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "time-of-day",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "despair",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "despair",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "overflow",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "overflow",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "hope",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "hope",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "health",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "health",
+     "step": "undo",
+     "verdict": "stale",
+     "focusInside": false,
+     "diff": {
+      "part": "words",
+      "live": "ence: 9Tied to the murder: 7Found by students: 0Deductions: 2Counters: 1Problems: 6Check consistencyProblems: 6The culprit came in with a ke",
+      "fresh": "ence: 9Tied to the murder: 7Found by students: 0Deductions: 3Counters: 1Problems: 7Check consistencyProblems: 7The culprit came in with a ke"
+     }
+    },
+    {
+     "change": "actions",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "actions",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "item",
+     "step": "apply",
+     "verdict": "live"
+    },
+    {
+     "change": "item",
+     "step": "undo",
+     "verdict": "live"
+    },
+    {
+     "change": "item",
+     "step": "apply-focused",
+     "field": "select",
+     "verdict": "live-under-focus"
+    },
+    {
+     "change": "truth-bullet",
+     "step": "apply",
+     "verdict": "live"
+    },
+    {
+     "change": "truth-bullet",
+     "step": "undo",
+     "verdict": "live"
+    },
+    {
+     "change": "truth-bullet",
+     "step": "apply-focused",
+     "field": "select",
+     "verdict": "live-under-focus"
+    },
+    {
+     "change": "trace",
+     "step": "apply",
+     "verdict": "live"
+    },
+    {
+     "change": "trace",
+     "step": "undo",
+     "verdict": "live"
+    },
+    {
+     "change": "trace",
+     "step": "apply-focused",
+     "field": "select",
+     "verdict": "live-under-focus"
+    },
+    {
+     "change": "trace-moved",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "trace-moved",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "project",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "project",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "case-node",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "case-node",
+     "step": "undo",
+     "verdict": "live"
+    },
+    {
+     "change": "death",
+     "step": "apply",
+     "verdict": "live"
+    },
+    {
+     "change": "death",
+     "step": "undo",
+     "verdict": "live"
+    },
+    {
+     "change": "death",
+     "step": "apply-focused",
+     "field": "select",
+     "verdict": "live-under-focus"
+    },
+    {
+     "change": "eclipse",
+     "step": "apply",
+     "verdict": "live"
+    },
+    {
+     "change": "eclipse",
+     "step": "undo",
+     "verdict": "live"
+    },
+    {
+     "change": "eclipse",
+     "step": "apply-focused",
+     "field": "select",
+     "verdict": "live-under-focus"
+    }
+   ],
+   "opened": true,
+   "title": "Investigation",
+   "threw": null
+  },
+  {
+   "id": "investigation--map-types",
+   "client": "gm",
+   "opener": "investigation.mjs m.openInvestigationDashboard()",
+   "readings": [
+    {
+     "change": "time-of-day",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "time-of-day",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "despair",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "despair",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "overflow",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "overflow",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "hope",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "hope",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "health",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "health",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "actions",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "actions",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "item",
+     "step": "apply",
+     "verdict": "live"
+    },
+    {
+     "change": "item",
+     "step": "undo",
+     "verdict": "live"
+    },
+    {
+     "change": "item",
+     "step": "apply-focused",
+     "field": "select",
+     "verdict": "live-under-focus"
+    },
+    {
+     "change": "truth-bullet",
+     "step": "apply",
+     "verdict": "live"
+    },
+    {
+     "change": "truth-bullet",
+     "step": "undo",
+     "verdict": "live"
+    },
+    {
+     "change": "truth-bullet",
+     "step": "apply-focused",
+     "field": "select",
+     "verdict": "live-under-focus"
+    },
+    {
+     "change": "trace",
+     "step": "apply",
+     "verdict": "live"
+    },
+    {
+     "change": "trace",
+     "step": "undo",
+     "verdict": "live"
+    },
+    {
+     "change": "trace",
+     "step": "apply-focused",
+     "field": "select",
+     "verdict": "live-under-focus"
+    },
+    {
+     "change": "trace-moved",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "trace-moved",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "project",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "project",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "case-node",
+     "step": "apply",
+     "verdict": "live"
+    },
+    {
+     "change": "case-node",
+     "step": "undo",
+     "verdict": "live"
+    },
+    {
+     "change": "case-node",
+     "step": "apply-focused",
+     "field": "select",
+     "verdict": "live-under-focus"
+    },
+    {
+     "change": "death",
+     "step": "apply",
+     "verdict": "live"
+    },
+    {
+     "change": "death",
+     "step": "undo",
+     "verdict": "live"
+    },
+    {
+     "change": "death",
+     "step": "apply-focused",
+     "field": "select",
+     "verdict": "live-under-focus"
+    },
+    {
+     "change": "eclipse",
+     "step": "apply",
+     "verdict": "live"
+    },
+    {
+     "change": "eclipse",
+     "step": "undo",
+     "verdict": "live"
+    },
+    {
+     "change": "eclipse",
+     "step": "apply-focused",
+     "field": "select",
+     "verdict": "live-under-focus"
+    }
+   ],
+   "opened": true,
+   "title": "Investigation",
+   "threw": null
+  },
+  {
+   "id": "investigation--map-types-faces",
+   "client": "gm",
+   "opener": "investigation.mjs m.openInvestigationDashboard({ allOpen: false })",
+   "readings": [
+    {
+     "change": "time-of-day",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "time-of-day",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "despair",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "despair",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "overflow",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "overflow",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "hope",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "hope",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "health",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "health",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "actions",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "actions",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "item",
+     "step": "apply",
+     "verdict": "live"
+    },
+    {
+     "change": "item",
+     "step": "undo",
+     "verdict": "live"
+    },
+    {
+     "change": "item",
+     "step": "apply-focused",
+     "field": "select",
+     "verdict": "live-under-focus"
+    },
+    {
+     "change": "truth-bullet",
+     "step": "apply",
+     "verdict": "live"
+    },
+    {
+     "change": "truth-bullet",
+     "step": "undo",
+     "verdict": "live"
+    },
+    {
+     "change": "truth-bullet",
+     "step": "apply-focused",
+     "field": "select",
+     "verdict": "live-under-focus"
+    },
+    {
+     "change": "trace",
+     "step": "apply",
+     "verdict": "live"
+    },
+    {
+     "change": "trace",
+     "step": "undo",
+     "verdict": "live"
+    },
+    {
+     "change": "trace",
+     "step": "apply-focused",
+     "field": "select",
+     "verdict": "live-under-focus"
+    },
+    {
+     "change": "trace-moved",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "trace-moved",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "project",
+     "step": "apply",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "project",
+     "step": "undo",
+     "verdict": "not-shown"
+    },
+    {
+     "change": "case-node",
+     "step": "apply",
+     "verdict": "live"
+    },
+    {
+     "change": "case-node",
+     "step": "undo",
+     "verdict": "live"
+    },
+    {
+     "change": "case-node",
+     "step": "apply-focused",
+     "field": "select",
+     "verdict": "live-under-focus"
+    },
+    {
+     "change": "death",
+     "step": "apply",
+     "verdict": "live"
+    },
+    {
+     "change": "death",
+     "step": "undo",
+     "verdict": "live"
+    },
+    {
+     "change": "death",
+     "step": "apply-focused",
+     "field": "select",
+     "verdict": "live-under-focus"
+    },
+    {
+     "change": "eclipse",
+     "step": "apply",
+     "verdict": "live"
+    },
+    {
+     "change": "eclipse",
+     "step": "undo",
+     "verdict": "live"
+    },
+    {
+     "change": "eclipse",
+     "step": "apply-focused",
+     "field": "select",
+     "verdict": "live-under-focus"
+    }
+   ],
+   "opened": true,
+   "title": "Investigation",
+   "threw": null
+  }
+ ]
+}
