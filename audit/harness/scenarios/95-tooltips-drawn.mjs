@@ -22,7 +22,11 @@
  * alone noted drawn and not held are in (the Map's open-all switch and folded list, the planner's Clear, a project's scale
  * and a secret project's player tick). Three more it noted - the trial's edit, delete and Monokuma's confirm
  * (DRPG.Tips.Trial.editTooltip, deleteTooltip, monokumaConfirmsTooltip) - were drawn alone and not drawn in CI 43819231988's
- * bucket b2, where this scenario runs after 30, 69 and 86: they hang on the world's state, so they are not held. The keys these windows never draw (a window probe 08 does not open, a state it does not
+ * bucket b2, where this scenario runs after 30, 69 and 86: they hang on the world's state, so they are not held.
+ * Since the 1.2.122 assembly (CI on 5c3dad9d): DRPG.Tips.Gm.giveAnItemTooltip is in - gm-items.mjs `holdGive` took a Give
+ * button's own title off whenever Give was on, which cost Give an Item its tooltip at the open and, once line ITEMS'
+ * CTRL-61 (1e365846) painted Give a Truth Bullet's gate at its open too, giveATruthBulletTooltip (red here); `holdGive`
+ * now keeps the button's own title, and this run drew both. The keys these windows never draw (a window probe 08 does not open, a state it does not
  * build, a card, a sheet) are counted and listed in the evidence as not drawn here: what holds them is their family test
  * and `node tools/check.mjs tooltips`. A key with a placeholder or a plural is not looked for (its words vary).
  */
@@ -63,7 +67,7 @@ export const DRAWN = {
     CasePlan: ["DRPG.Tips.CasePlan.clearPlanTooltip"],
     Gm: [
         "DRPG.Tips.Gm.aCharacterDiesTooltip", "DRPG.Tips.Gm.campaignNameTooltip", "DRPG.Tips.Gm.categoryTooltip",
-        "DRPG.Tips.Gm.chapterTooltip", "DRPG.Tips.Gm.despairPoolTooltip", "DRPG.Tips.Gm.giveATruthBulletTooltip",
+        "DRPG.Tips.Gm.chapterTooltip", "DRPG.Tips.Gm.despairPoolTooltip", "DRPG.Tips.Gm.giveAnItemTooltip", "DRPG.Tips.Gm.giveATruthBulletTooltip",
         "DRPG.Tips.Gm.howHardTheOriginalTooltip", "DRPG.Tips.Gm.phaseTooltip", "DRPG.Tips.Gm.poolNameTooltip",
         "DRPG.Tips.Gm.roleTooltip", "DRPG.Tips.Gm.stateTooltip", "DRPG.Tips.Gm.tabsPoolsMonokumasStudentsTooltip",
         "DRPG.Tips.Gm.tellOnGiveTooltip", "DRPG.Tips.Gm.tierTooltip", "DRPG.Tips.Gm.whatItReallyIsTooltip", "DRPG.Tips.Gm.whatThePlayerIsTooltip",

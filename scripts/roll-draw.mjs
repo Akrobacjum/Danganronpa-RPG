@@ -65,7 +65,7 @@ import { armedCallsShown, giveBackLoadedDie, situationalAdvantage, spendCallsByN
 import { isBrokenDown } from "./character.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { roomOfActor } from "./movement.mjs";
-import { cardFlag, cardWriter } from "./secret.mjs";
+import { cardFlag, cardWriter, secretHtml, updateSecret } from "./secret.mjs";
 import { box, roleButton, tipText } from "./ui-kit.mjs";
 // The balance log (E53 C3): a drawn roll kept while the world switch is on.
 import { noteBalanceRoll } from "./balance-log.mjs";
@@ -3010,8 +3010,8 @@ function awayCards() {
  * EVERY GM'S CARD FOLLOWS THE DECISION (the audit's REFR-19 and ROLL-28, 1.2.122). A decision updated the rolls' messages
  * and never the card, so on another GM's browser the card was not drawn again and its Grant all and Grant none stayed; a
  * press there asked the primary, which found every roll decided and answered nothing, and nothing was said. Once a card's
- * rolls are all decided its `awayDecided` is written (this decision's way), and that update draws it again on every GM:
- * no buttons, and the way it went (`onRenderUnwitnessed`).
+ * rolls are all decided its `awayDecided` (this decision's way) goes with its words to every GM, which draws it again
+ * there: no buttons, and the way it went (`onRenderUnwitnessed`).
  */
 async function settleAwayCards(messageIds, grant) {
     if (!game.user?.isGM) return;
@@ -3020,7 +3020,13 @@ async function settleAwayCards(messageIds, grant) {
         const ids = cardFlag(card, "awayRolls");
         if (!ids.some(id => decided.has(id)) || ids.some(id => awayRowOf(game.messages.get(id)))) continue;
         if (cardFlag(card, "awayDecided") !== undefined && cardFlag(card, "awayDecided") !== null) continue;
-        await card.update({ [`flags.${MODULE_ID}.awayDecided`]: grant === true }).catch(err => error("Could not mark the GMs' card of rolls thrown with no GM as decided", err));
+        /* With the words, not on the document (1.2.122, the assembly; scenario 15's checkState in CI): the card is private,
+           and a private card's document says nothing of itself (world-secrets.mjs, E06 C7a) - `card.update` put the
+           decision's way on the document every browser is sent. updateSecret adds it to the meta its readers keep and
+           sends the same words again, which draws the card again on every GM, as the update did. */
+        const words = secretHtml(card);
+        if (typeof words !== "string") continue;
+        await updateSecret(card, words, null, { awayDecided: grant === true }).catch(err => error("Could not mark the GMs' card of rolls thrown with no GM as decided", err));
     }
 }
 

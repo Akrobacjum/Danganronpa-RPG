@@ -3682,7 +3682,21 @@ const MODIFIER_FIXTURES = Object.freeze([
             const dark = await e93Darkening("jitters");
             const back = async () => place.scene.updateEmbeddedDocuments("Region", pieces.map((p, i) => ({ _id: p.id,
                 [`flags.${MODULE_ID}.${FACILITIES.flag}`]: was[i] === null ? forcedDeletion() : was[i] })));
-            return { off: dark, undo: async () => { await dark(); await back(); } };
+            /* The action opened again between the two draws (1.2.122, the assembly): since STG-39 (ded83479, roll-draw.mjs
+               `closeFacilityAtDraw`, line DESP) the draw of a GM's room action writes its use row and closes it for the
+               table, so the draw without Jitters found it closed and was refused cannotNow (measured
+               ["situation facility",true,["bridge.ack","cannotNow"],...]) - the closing, not the Jitters. Its use row and
+               its key in the public closing are taken off after each draw, and the closing put back as it was. */
+            const S = await import("./gm-stores.mjs");
+            const key = F.gmActionKey(place.scene.id, place.room, "SUITEC3fac");
+            const closedWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.facilityClosed) ?? {});
+            const reopen = async () => {
+                if (S.facilityUseStore.has(key)) await S.facilityUseStore.drop(key);
+                const closed = game.settings.get(MODULE_ID, SETTINGS.facilityClosed) ?? {};
+                if ((closed.keys ?? []).includes(key)) await game.settings.set(MODULE_ID, SETTINGS.facilityClosed, { ...closed, keys: closed.keys.filter(k => k !== key) });
+            };
+            return { off: async () => { await reopen(); await dark(); },
+                undo: async () => { await dark(); await reopen(); await game.settings.set(MODULE_ID, SETTINGS.facilityClosed, closedWas); await back(); } };
         },
         claim: (t, s, on) => ({ actionKey: "facility", trait: "eye", window: true, situational: on ? -1 : 0, edit: p => ({ ...p, context: { facilityId: "SUITEC3fac" } }) }),
         expect: -1, moves: -4 },
@@ -49837,8 +49851,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * `[data-drpg-trial-schema]` (case-trial.mjs TRIAL_SCHEMA_SLOT) outside `.drpg-trial-console`, the read-out that
          * redraws every second while a floor runs; case-trial.mjs fills it. Read with a debate's floor open: the slot is
          * there and outside the read-out, it holds the planted deduction's tick box, the same box after the clock has
-         * moved (the schema is not redrawn by the second), greyed starts while the floor is open, and a click reaches
-         * the store. Red at c73f5d7: no slot.
+         * moved (the schema is not redrawn by the second), the node's Testimony start drawn and live over the open
+         * debate, and a click reaches the store. Red at c73f5d7: no slot. THE START OVER A DEBATE (1.2.122, line TRIAL
+         * 02db95be; CTRL-45): the schema's starts follow the mode picker's rule, which starts a round over an open debate
+         * and greys only the debate's own start (R8144 holds the rule); until then every start was greyed under any floor,
+         * and this read expected the Testimony start greyed (measured 21.11.2026 on the 1.2.122 tree: drawn, not greyed).
          */
         const floorMod = await import("./trial-floor.mjs");
         const ui2 = await import("./trial-floor-ui.mjs");
@@ -49891,10 +49908,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const rewired = Boolean(slot()?.querySelector(":scope > .drpg-case-trial-live > .drpg-case-trial .drpg-case-graph[data-drpg-camera]"));
             const pressedAfter = box()?.getAttribute("aria-pressed") ?? null;
             equal(JSON.stringify({ outside: !slot().closest(".drpg-trial-console"), box: Boolean(first), pressed, onTile, camera, ticked: secondsOf() < t0, kept,
-                startGreyed: Boolean(start?.disabled), listed, stored: S.caseTicks(chapter)[id] === true, rewired, pressedAfter }),
-            JSON.stringify({ outside: true, box: true, pressed: "false", onTile: true, camera: true, ticked: true, kept: true, startGreyed: true, listed: false, stored: true,
+                startGreyed: start ? Boolean(start.disabled) : "no start", listed, stored: S.caseTicks(chapter)[id] === true, rewired, pressedAfter }),
+            JSON.stringify({ outside: true, box: true, pressed: "false", onTile: true, camera: true, ticked: true, kept: true, startGreyed: false, listed: false, stored: true,
                 rewired: true, pressedAfter: "true" }),
-            "{the slot outside the read-out; the deduction's tick button on the graph; not pressed; inside its tile's box; the Map's camera wired; the clock moved; the same button after it; the start greyed under the open floor; no list; the click stored; after the redraw the region there and wired; the button pressed}");
+            "{the slot outside the read-out; the deduction's tick button on the graph; not pressed; inside its tile's box; the Map's camera wired; the clock moved; the same button after it; the Testimony start drawn and not greyed over the open debate; no list; the click stored; after the redraw the region there and wired; the button pressed}");
         } finally {
             closeOpen("drpg-window-trial");
             await floorMod.endFloor();
@@ -50910,8 +50927,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         /*
          * E70 fix p1-G3, 28.10.2026; the review's BEH-3 = E70P1-R02, E70P1-R04, E70P1-R12, E70P1-R11, BEH-5 = E70P1-R13,
          * E70P1-R15. Read on this primary in a Class Trial with the console drawn, as E70-T2. (1) A debate, then an
-         * Objection on a card: Enter in the console is held (the footer's Close Debate would end the exchange and the
-         * debate), and the floor is still the Objection; the bar's Overrule names that card. (2) A pointer pressed on the
+         * Objection on a card: Enter on the footer's default is held (its Close Debate would end the exchange and the
+         * debate), and the floor is still the Objection; the bar's Overrule names that card; Enter on the bar's Skip is
+         * not held (1.2.122, CTRL-39: held for the footer's default alone). (2) A pointer pressed on the
          * bar and let go outside the window: the console's live region is drawn again within three seconds. (3)
          * `extendFloor(-30)` on a debate with 100 s left leaves about 70. (4) A verdict in the record and a debate with its
          * question open after it: the Event panel's card is the debate's, the question its subtitle. (5) The Overrule's
@@ -50949,11 +50967,20 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await F.openObjection(objector.id, target.id, { cardId: CARD });
             await settle();
             await wait(1500);
+            /* ON THE FOOTER'S DEFAULT, AND NOT ON THE BAR (1.2.122, line TRIAL 02db95be; CTRL-39, CASE-63): Enter is held for
+               the footer's default alone, so a GM who reached Skip by Tab presses it. Until then this read sent Enter to the
+               window's first button, which the hold no longer covers (measured 21.11.2026 on the 1.2.122 tree: not held,
+               the floor still the Objection). The default is the case BEH-3 is about; the bar's Skip the case CTRL-39 frees. */
             const enter = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
-            (app.element.querySelector("button, input") ?? app.element).dispatchEvent(enter);
+            const footerDefault = app.element.querySelector("footer button.default, footer button[autofocus]");
+            footerDefault?.dispatchEvent(enter);
+            const barEnter = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+            const skip = app.element.querySelector('[data-drpg-bar="skip"]');
+            skip?.dispatchEvent(barEnter);
             await wait(800);
-            read.enter = [enter.defaultPrevented, F.trialFloor()?.mode ?? null,
-                app.element.querySelector('[data-drpg-bar="overrule"]')?.dataset.drpgTarget ?? null];
+            read.enter = [footerDefault ? enter.defaultPrevented : "no default", F.trialFloor()?.mode ?? null,
+                app.element.querySelector('[data-drpg-bar="overrule"]')?.dataset.drpgTarget ?? null,
+                skip ? barEnter.defaultPrevented : "no Skip"];
 
             const region = () => app.element.querySelector(".drpg-trial-console")?.innerHTML ?? "";
             app.element.querySelector('[data-drpg-bar="minus"]')?.dispatchEvent(new Event("pointerdown", { bubbles: true }));
@@ -50994,8 +51021,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
         }
         equal(stableJson(read), stableJson({
-            enter: [true, "objection", CARD], released: true, minus: true, panel: "SUITE fix p1-G3: after the verdict", sound: "overrule"
-        }), "(1) Enter held, the floor, the Overrule's card on the bar; (2) the console drawn again after a press let go outside it; (3) -30 s by extendFloor; (4) the Event panel's subtitle after the verdict; (5) the Overrule card's sound");
+            enter: [true, "objection", CARD, false], released: true, minus: true, panel: "SUITE fix p1-G3: after the verdict", sound: "overrule"
+        }), "(1) Enter held on the footer's default, the floor, the Overrule's card on the bar, Enter on the bar's Skip not held; (2) the console drawn again after a press let go outside it; (3) -30 s by extendFloor; (4) the Event panel's subtitle after the verdict; (5) the Overrule card's sound");
     }],
 
     ["Back to the debate gives the debate the time it had when the Objection cut in (E70-T3)", async () => {
@@ -65397,8 +65424,23 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const { ultimate } = drawnSheetFields(student);
             must(ultimate, "the sheet's hook drew no Ultimate field - this would measure only setUltimate");
             const judged = [...await judgedOnRoad([student], player, () => setUltimate(student, "SUITE E33 C1b an Ultimate"))];
-            ultimate.textContent = "SUITE E33 C1b an Ultimate typed";
-            judged.push(...await judgedOnRoad([student], player, () => ultimate.dispatchEvent(new Event("blur"))));
+            /* On the page, and the blur's save waited for (1.2.122 line UI, 6ff631d5, REFR-10): the field's blur saves a
+               tick later and only while the field is still on the page - a field a render took out is not a player
+               leaving it. The row drawn here was never on the page, so the typed write was skipped (measured one write,
+               the Ultimate "SUITE E33 C1b an Ultimate", one row). The row is put on the page for the blur, and the road
+               waits out the tick as a player's browser, so the write is still the player's. */
+            const host = ultimate.closest(".character-header-sheet")?.parentElement ?? null;
+            must(host, "the Ultimate field is in no drawn header - this would measure nothing");
+            document.body.append(host);
+            try {
+                ultimate.textContent = "SUITE E33 C1b an Ultimate typed";
+                judged.push(...await judgedOnRoad([student], player, async () => {
+                    ultimate.dispatchEvent(new Event("blur"));
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                }, { whole: true }));
+            } finally {
+                host.remove();
+            }
             await sheetAuditIdle();
             read = [judged.map(write => [write.module, write.stamp, write.verdict]), student.getFlag(MODULE_ID, FLAGS.ultimate) ?? null,
                 await rowsSince(student, player, from)];
@@ -83093,7 +83135,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const U = await import("./use-items.mjs");
         const { gmGiveItemDialog } = await import("./gm-items.mjs");
         const { USABLE_GOALS, usableKindFor } = await import("./tables.mjs");
-        const { USABLE_KINDS, USABLE_KIND_EFFECTS } = await import("./config.mjs");
+        const { USABLE_KINDS, USABLE_KIND_EFFECTS, fillProse } = await import("./config.mjs");
         const { judgeWrite, onItemWrite, sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
         const { contentOf } = await import("./secret.mjs");
         const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
@@ -83105,6 +83147,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             .find(([goal, name]) => usableKindFor(name) === goal);
         must(named, "no tier 2 name of the built-in pools is one kind's alone in the tables - this would measure nothing");
         const [kind, NAME] = named, other = Object.keys(USABLE_KINDS).find(k => k !== kind);
+        // The tier 2 sentence as the description and the receipt print it: since aa564cca (1.2.122 line TEXT, TEXT-26) the
+        // table holds "Restores {restores} ...", filled from USABLE_EFFECTS' amount by inventory.mjs `tierDescription` and
+        // gm-items.mjs `tellGiven`; read raw, it was in neither, and this test measured made[1] and give[3] false on 21.11.
+        const EFFECT = fillProse(USABLE_KIND_EFFECTS[kind], 2);
+        must(EFFECT && !/\{\w+\}/.test(EFFECT), `the tier 2 ${kind} sentence was not filled ("${EFFECT}") - this would measure nothing`);
         const HP = "system.resources.hitPoints.value", HOPE = "system.resources.hope.value";
         const had = new Set(actor.items.map(i => i.id)), messages = new Set(game.messages.contents.map(m => m.id));
         const [hpWas, hopeWas, lock] = [foundry.utils.getProperty(actor._source, HP), foundry.utils.getProperty(actor._source, HOPE),
@@ -83122,7 +83169,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await game.settings.set(MODULE_ID, SETTINGS.lockPlayerResources, true);
             const found = await INV.grantItem(actor, { name: NAME, category: "usable", tier: 2, goal: other, override: true, quiet: true });
             read.made = [found?.getFlag(MODULE_ID, INV.ITEM_FLAGS.kind) === kind,
-                String(found?.system?.description ?? "").includes(USABLE_KIND_EFFECTS[kind][2])];
+                String(found?.system?.description ?? "").includes(EFFECT)];
             let note = null;
             D.wait = async config => {
                 // `dialogContent` hands the window a drawn element, not words.
@@ -83148,7 +83195,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 .find(text => text.includes(foundry.utils.escapeHTML(NAME))) ?? "";
             read.give = [gave, given?.getFlag(MODULE_ID, INV.ITEM_FLAGS.kind) === kind,
                 note?.[0] === false && note?.[1] === game.i18n.format("DRPG.Items.kindFromTables", { item: NAME, kind: USABLE_KINDS[kind].label }),
-                receipt.includes(foundry.utils.escapeHTML(USABLE_KIND_EFFECTS[kind][2])), receipt.includes(foundry.utils.escapeHTML(USABLE_KINDS[kind].label))];
+                receipt.includes(foundry.utils.escapeHTML(EFFECT)), receipt.includes(foundry.utils.escapeHTML(USABLE_KINDS[kind].label))];
             const kit = await INV.grantItem(actor, { name: "SUITE E14-T7 a tier 3 kit", category: "usable", tier: 3, goal: "healing", override: true, quiet: true });
             await actor.update({ [HP]: 3, [HOPE]: 1 });
             await sheetAuditIdle();
@@ -83220,7 +83267,13 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await INV.refreshTierThreeWording?.();
             await settle();
             const text = item => actor.items.get(item.id)?.system?.description ?? null;
-            read.texts = [text(en) === `<p>Tier 3. ${C.USABLE_KIND_EFFECTS.healing[3]}</p>`, text(pl) === `<p>Tier 3. ${C.USABLE_KIND_EFFECTS.stress[3]}</p>`,
+            // Today's sentences as `tierDescription` writes them: filled with the tier's restore since aa564cca (1.2.122 line
+            // TEXT, TEXT-26; the table holds "Restores {restores} Health."), so the raw table row matched neither rewrite and
+            // this test measured [false, false, true] on 21.11 over descriptions that read "Restores 3 ...".
+            const today = kind => C.fillProse(C.USABLE_KIND_EFFECTS[kind], 3);
+            must(["healing", "stress"].every(kind => today(kind) && !/\{\w+\}/.test(today(kind))),
+                "today's tier 3 sentences were not filled - this would measure nothing");
+            read.texts = [text(en) === `<p>Tier 3. ${today("healing")}</p>`, text(pl) === `<p>Tier 3. ${today("stress")}</p>`,
                 text(own) === OWN];
         } finally {
             for (const item of actor.items.filter(i => i.name.startsWith(NAME))) await item.delete();
@@ -83728,8 +83781,12 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                     ...(was.tier !== undefined && was.tier !== null ? { [`flags.${MODULE_ID}.tier`]: was.tier } : {}) });
             }
         }
+        // The mop out of the room's Murder Weapons, asked as a weapon and filed by the pools as a Cleaning Tool, is said as a
+        // substitute since 426e63c2 (1.2.122, the audit's CORE-47, tables-pools.mjs `markedSubstitute`: a room table by name
+        // that answers with another category marks it, so the card says the room gave something else); measured true on
+        // 21.11 where this read false. Its category and tier, and what grantDrawn writes of it, are unchanged.
         equal(stableJson(read), stableJson({
-            inRoom: [["mop", "cleaningTool", 2, null, false], ["unknown", "usable", 1, "healing", false], ["tea", "usable", 0, "stress", false]],
+            inRoom: [["mop", "cleaningTool", 2, null, true], ["unknown", "usable", 1, "healing", false], ["tea", "usable", 0, "stress", false]],
             grants: { mopTier1: ["cleaningTool", 1], mopTier0: ["cleaningTool", 0], substitute: ["tool", 1] },
             substitute: ["unknown", "tool", 1, null, true],
             world: [["bento", "usable", 2, "stress", false], ["pool", "crimeTool", 0, null, false]],

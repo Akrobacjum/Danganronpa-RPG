@@ -927,15 +927,30 @@ function gateGive(form, existing) {
     return !missing;
 }
 
+/* The title each Give button was drawn with and the one `holdGive` last wrote on it, by button (a WeakMap: a closed
+   window's button goes with it). */
+const OWN_TITLE = new WeakMap();
+
 /* The Give button of the window `root` (its own window's `ok`, the hub's `give`) on or off, with the reason as its
-   title while off (`why`, else the category and tier line). */
+   title while off (`why`, else the category and tier line), and its own tooltip again while on. */
 function holdGive(root, may, why = null, action = "ok") {
     const ok = root?.querySelector(`footer button[data-action="${action}"]`);
     if (!ok) return;
+    /* ITS OWN TITLE KEPT (1.2.122, the assembly; scenario 95 in CI). The footer draws a button's tooltip as its `title`
+       (ui-kit.mjs `footerButton`, `dressFooter`), and this took the title off whenever Give was on: since line ITEMS'
+       CTRL-61 (1e365846) Give a Truth Bullet's form paints the gate as it opens, and DRPG.Tips.Gm.giveATruthBulletTooltip
+       was no longer drawn on its Give; Give an Item's own (giveAnItemTooltip) had gone the same way since its gate was
+       painted at the open. A title on the button that this did not write is the button's own, kept and put back while
+       Give may go - read at each call, so the order of the footer's dressing and the first paint does not matter. */
+    const held = OWN_TITLE.get(ok) ?? { own: null, wrote: null };
+    const now = ok.getAttribute("title");
+    if (now !== held.wrote) held.own = now;
     ok.disabled = !may;
-    const title = may ? null : why ?? game.i18n.localize("DRPG.Items.setCategoryTier");
+    const title = may ? held.own : why ?? game.i18n.localize("DRPG.Items.setCategoryTier");
     if (title) ok.title = title;
     else ok.removeAttribute("title");
+    held.wrote = title || null;
+    OWN_TITLE.set(ok, held);
 }
 
 /** The give form's warnings of a usable's kind (`paintKinds`), wired whether or not the world has tables to give from. */

@@ -176,8 +176,13 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
     // English, then in Polish; the two pages must write the same line each time, and it must be the world's. Put back.
     const was = await gm.eval(`return game.settings.get("${MOD}", "documentLanguage");`);
     const line = c => c.eval(`const I = await import("${REPO}/scripts/inventory.mjs"); return I.tierDescription({ category: "usable", kind: null, tier: 1 });`);
-    const tables = await p1.eval(`const C = await import("${REPO}/scripts/config.mjs"); return C.TIER_EFFECTS.usable[1];`);
-    const swapped = await gm.eval(`const C = await import("${REPO}/scripts/config.mjs"); return C.TIER_EFFECTS.usable[1];`);
+    // The sentence as the table holds it, with the tier's restore put in for `{restores}` (since the 1.2.122 line TEXT,
+    // aa564cca, the tables carry that placeholder and tierDescription fills it from USABLE_EFFECTS; before, the number
+    // was typed into the sentence and this read the table's text as it stood).
+    const sentence = `const C = await import("${REPO}/scripts/config.mjs");
+        return String(C.TIER_EFFECTS.usable[1]).replaceAll("{restores}", String(C.USABLE_EFFECTS[1]?.amount));`;
+    const tables = await p1.eval(sentence);
+    const swapped = await gm.eval(sentence);
     check("D34: the Polish GM's tables hold the Polish tier sentence and p1's the English, so the two lines below can differ", tables !== swapped, JSON.stringify({ tables, swapped }));
     try {
         for (const world of ["en", "pl"]) {
