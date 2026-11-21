@@ -1224,7 +1224,7 @@ async function repointRooms(from, to) {
  * name, as `repointRooms`. Answers the new names.
  */
 async function renameRoomFamily(from, to) {
-    if (!from || !to || from === to || game.tables?.getName?.(from)) return [];
+    if (!game.user?.isGM || !from || !to || from === to || game.tables?.getName?.(from)) return [];
     const done = [];
     for (const table of [...(game.tables ?? [])]) {
         const suffix = roomTableSuffix(from, table.name);

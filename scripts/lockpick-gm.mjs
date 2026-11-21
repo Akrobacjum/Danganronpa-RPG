@@ -94,10 +94,11 @@ export async function passLeftBy(actorId) {
     if (!isPrimaryGm() || !actorId) return false;
     const row = lockpickStore.get(actorId);
     if (!row?.entered) return false;
-    const token = game.scenes.get(row.sceneId ?? "")?.tokens?.find(t => t.actorId === actorId) ?? null;
-    if (!token) return false;
-    const { roomOfToken } = await import("./movement.mjs");
-    return roomOfToken(token) !== row.room ? endPass(actorId) : false;
+    // Where the holder stands on the pass's scene: `locateActor`, the one walk of a character's tokens (R114).
+    const { locateActor } = await import("./movement.mjs");
+    const place = locateActor(game.actors.get(actorId), { sceneId: row.sceneId ?? null });
+    if (place?.scene?.id !== row.sceneId) return false;
+    return place.room !== row.room ? endPass(actorId) : false;
 }
 
 /** A new time of day: every pass not used in the one before is lost; one in use stays. Answers how many ended. */

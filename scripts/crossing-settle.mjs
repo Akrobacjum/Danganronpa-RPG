@@ -92,7 +92,8 @@ function onTokenMoved(tokenDoc, change, ms) {
     standing.set(tokenId, setTimeout(() => {
         standing.delete(tokenId);
         if (!isPrimaryGm()) return;
-        const doc = game.scenes.get(sceneId ?? "")?.tokens?.get(tokenId) ?? null;
+        // The document in hand, while its scene still holds it (no read of a token by id: R1281's rule).
+        const doc = tokenDoc.parent?.tokens?.has?.(tokenId) && tokenDoc.parent?.id === sceneId ? tokenDoc : null;
         if (!doc) return;
         for (const fn of stoodListeners) {
             try {

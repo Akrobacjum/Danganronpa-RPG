@@ -512,11 +512,13 @@ export async function barricadesLeftBy(actorId) {
     if (!isPrimaryGm() || !actorId) return 0;
     const rows = Object.entries(barricadeStore.entries() ?? {}).filter(([, row]) => row?.authorId === actorId);
     if (!rows.length) return 0;
-    const { roomOfToken } = await import("./movement.mjs");
+    const { locateActor } = await import("./movement.mjs");
+    const actor = game.actors.get(actorId);
     let n = 0;
     for (const [key, row] of rows) {
-        const token = game.scenes.get(row.sceneId ?? "")?.tokens?.find(t => t.actorId === actorId) ?? null;
-        if (token && roomOfToken(token) !== row.room && (await endBarricade(key))) n++;
+        // Where the author stands on the barricade's scene: `locateActor`, the one walk of a character's tokens (R114).
+        const place = locateActor(actor, { sceneId: row.sceneId ?? null });
+        if (place?.scene?.id === row.sceneId && place.room !== row.room && (await endBarricade(key))) n++;
     }
     return n;
 }
