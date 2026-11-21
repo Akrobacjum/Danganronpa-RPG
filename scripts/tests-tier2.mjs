@@ -104196,6 +104196,85 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ room: ["SUITE soup", "SUITE tea"], roomTold: [true, true], project: ["SUITE brew", ["", "sanity"], true] }),
             "{room: the room's actions after Save; roomTold: [the dropped line told, the other GM's action named]; project: [its action's name after the second Save, the first effect each window drew, the missing name told]} - the editors keep what is typed and say what is not saved");
     }],
+    ["1.2.122 REFR-58 - the action editors follow another GM's Save while they stand open, what is typed kept: a room's editor shows the action added and the difficulty changed elsewhere, while a text typed on a saved action and a name typed in a blank row stay on their own rows with the focus; a project's editor shows the effect set elsewhere, its typed name kept (scripts/facility-editor.mjs `followSaved`, `roomFieldKey`; the audit's REFR-58, 1.2.122 line WORLD)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line WORLD. The audit's REFR-58 (controls-11-map-rooms-5): each editor was drawn once and had
+         * no listener, so another GM's Save was not shown while it stood open. Driven on a scene of the test's own (one room,
+         * one action "SUITE soup" at difficulty 12): the room's editor drawn and not answered; the soup's first effect text
+         * typed into and focused, and "SUITE typed" written in the first blank row's name; then the room's flag written as
+         * another GM's Save writes it - the soup at difficulty 15, "SUITE tea" added after it. A project's editor drawn the
+         * same way, "SUITE typing" in its name, and the project's action set elsewhere with a Sanity effect. Read: each
+         * row's name and the soup's difficulty and text as the form shows them, where the focus is, and the project form's
+         * name and first effect; then the project's Save pressed, and the action stored and whether the GM was told it went
+         * over another's (not: the window had shown theirs). Put back: the room's window cancelled, the project, the scene.
+         * Red at 21bf5d18: the room's form still showed difficulty 12 and no tea, the project's no effect.
+         */
+        needs(env.dialogs(), "the two editors are drawn and left standing while the world changes under them");
+        const R = await import("./rooms.mjs");
+        const F = await import("./facilities.mjs");
+        const E = await import("./facility-editor.mjs");
+        const P = await import("./projects.mjs");
+        const { FACILITIES } = await import("./config.mjs");
+        const ROOM = "SUITE 122 REFR-58 Kitchen";
+        const editor = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.element?.isConnected
+            && a.element.classList.contains("drpg-facility-window"))?.element ?? null;
+        const shut = async () => {
+            const el = editor();
+            el?.querySelector('footer button[data-action="cancel"]')?.click();
+            await settle();
+        };
+        const read = {};
+        const said = [];
+        const own = { warn: ui.notifications.warn, info: ui.notifications.info };
+        let scene = null, id = null, room = null, proj = null;
+        try {
+            scene = await Scene.create({ name: "SUITE 1.2.122 REFR-58 a school", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: ROOM, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true, [FACILITIES.flag]: [{ id: "SUITE122s", label: "SUITE soup", trait: "eye", dc: 12, effects: [{ kind: "sanity", n: 1, scope: "self", text: "" }] }] } }, behaviors: [] }]);
+            await settle();
+            room = E.editRoomActions(scene, ROOM);
+            must(await until(() => Boolean(editor()), 8000), "the room's editor did not draw - this would measure nothing");
+            let el = editor();
+            const text = el.querySelector('[name="a0.e0.text"]');
+            text.value = "SUITE warm";
+            text.focus();
+            el.querySelector('[name="a1.label"]').value = "SUITE typed";
+            await F.setRoomActions(scene, ROOM, [{ ...F.roomActions(scene, ROOM)[0], dc: 15 },
+                { id: "SUITE122t", label: "SUITE tea", trait: "eye", dc: 12, effects: [] }]);
+            await settle();
+            await settle();
+            el = editor();
+            const value = name => el.querySelector(`[name="${name}"]`)?.value ?? null;
+            read.room = { labels: [0, 1, 2, 3].map(i => value(`a${i}.label`)), dc: value("a0.dc"), text: value("a0.e0.text"),
+                focus: document.activeElement?.name ?? null };
+            await shut();
+            await Promise.race([room, wait(3000)]);
+            id = (await P.createProject({ name: "SUITE 1.2.122 REFR-58 a project", target: 6, room: ROOM }))?.id ?? null;
+            must(id, "could not create a project - this would measure nothing");
+            proj = E.editProjectFacility(P.allProjects().find(p => p.id === id));
+            must(await until(() => Boolean(editor()), 8000), "the project's editor did not draw - this would measure nothing");
+            editor().querySelector('[name="p.label"]').value = "SUITE typing";
+            await F.setProjectFacility(id, { label: "SUITE other", effects: [{ kind: "sanity", n: 1, scope: "self", text: "" }], costsAction: true, lifetime: { kind: "forever" } });
+            await settle();
+            await settle();
+            el = editor();
+            read.project = { label: el?.querySelector('[name="p.label"]')?.value ?? null, kind: el?.querySelector('[name="p.e0.kind"]')?.value ?? null };
+            for (const k of ["warn", "info"]) ui.notifications[k] = (msg, ...rest) => { said.push(String(msg)); return own[k].call(ui.notifications, msg, ...rest); };
+            el?.querySelector('footer button[data-action="save"]')?.click();
+            await Promise.race([proj, wait(3000)]);
+            await settle();
+            read.saved = { label: F.projectFacilityOf(id).facility?.label ?? null, savedOver: said.includes(game.i18n.localize("DRPG.Facility.editor.savedOver")) };
+        } finally {
+            Object.assign(ui.notifications, own);
+            if (editor()) await shut();
+            if (id) await P.deleteProject(id);
+            if (scene) await scene.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ room: { labels: ["SUITE soup", "SUITE tea", "SUITE typed", ""], dc: "15", text: "SUITE warm", focus: "a0.e0.text" },
+            project: { label: "SUITE typing", kind: "sanity" }, saved: { label: "SUITE typing", savedOver: false } }),
+            "{room: [the rows' names, the soup's difficulty and typed text, the focused field's name]; project: [the typed name, the first effect]; saved: [the project's action after Save, whether Save said it went over another GM's - it did not: the window showed theirs]} - the editors follow another GM's Save, what is typed kept");
+    }],
     ["1.2.122 REFR-22 - the rules manager does not put another GM's work back: a rule another GM reworded while the window stood keeps their words when this GM saves a revoke of another, the motive shown follows a new one at once, and Withdraw withdraws the motive drawn (scripts/rules.mjs `openRulesManager`, `saveRulesEdit`, `wireMotiveWithdraw`, `motiveMark`; the audit's REFR-22, 1.2.122 line WORLD)", async () => {
         /*
          * 21.11.2026, 1.2.122 line WORLD. The audit's REFR-22 (controls-08-rolls-actions-8): the window drew the rules and the
@@ -104458,6 +104537,61 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         must(read?.line, `the rest said nothing of Hope - this would measure nothing: ${stableJson(read)}`);
         equal(stableJson({ hope: read.hope, says: /\+1 Hope/.test(read.line) }), stableJson({ hope: 1, says: true }),
             `{hope: the Hope it gave; says: its line reads +1} - the Breath line says what landed (${read.line})`);
+    }],
+    ["1.2.122 REFR-57 - Item tables' table on screen follows its entries changed from outside: an entry made through Foundry and another renamed there appear in the open pane, while the description the GM is typing in a third keeps its words, unsaved, and the focus (scripts/tables-editor.mjs `wirePoolPane`'s `refresh`, `freshTableCounts`; the audit's REFR-57, 1.2.122 line WORLD)", async () => {
+        /*
+         * 21.11.2026, 1.2.122 line WORLD. The audit's REFR-57 (controls-10-setup-config-8): the window drew the tables once,
+         * so a change made in Foundry's own table sheet or by another GM was not shown. Driven: a room table of the test's own
+         * with two entries, the window drawn on this GM and the table picked; the second entry's description typed into and
+         * focused, not left; then, through Foundry's API as its sheet writes, the first renamed, read, and a third entry made.
+         * Read: the pane's entry names, the typed field's value and whether it holds the focus, and the stored description
+         * (still the old one: nothing is saved by the redraw). Put back: the window, the table. Red at 21bf5d18: the pane
+         * still showed two entries under their old names.
+         */
+        const T = await import("./tables.mjs");
+        const NAME = "SUITE 122 REFR-57 Pantry";
+        const appWith = test => [...foundry.applications.instances.values()].find(a => a.element?.isConnected && test(a.element));
+        const tablesApp = () => appWith(el => el.classList.contains("drpg-window-tables"));
+        const entry = text => ({ type: "text", text, name: text, weight: 1, range: [1, 1] });
+        let table = null, opening = null;
+        const read = {};
+        try {
+            table = await RollTable.create({ name: NAME, formula: "1d2", flags: { [MODULE_ID]: { roomPool: true } }, results: [entry("SUITE a ladle"), entry("SUITE a pot")] });
+            await settle();
+            opening = T.openItemTables();
+            await until(() => tablesApp());
+            await settle();
+            const el = tablesApp()?.element;
+            const pane = el?.querySelector('[data-drpg-pool-pane="rooms"]');
+            pane?.querySelector(`button.drpg-table-pick[data-drpg-table="${CSS.escape(table.id)}"]`)?.click();
+            await settle();
+            const [ladle, pot] = ["SUITE a ladle", "SUITE a pot"].map(n => table.results.find(r => (r.name ?? r.text) === n));
+            const field = () => pane.querySelector(`[data-drpg-field="description"][data-drpg-owns-result="${CSS.escape(pot.id)}"]`);
+            must(field(), "the pane shows no description field for the test's entry - this would measure nothing");
+            read.storedBefore = String(table.results.get(pot.id)?.description ?? "");
+            field().focus();
+            field().value = "SUITE typed, not left";
+            const names = () => [...pane.querySelectorAll('[data-drpg-field="name"]')].map(f => f.value).sort();
+            // One change at a time, each read before the next: a rename alone is heard on its own hook.
+            await table.updateEmbeddedDocuments("TableResult", [{ _id: ladle.id, name: "SUITE a big ladle", text: "SUITE a big ladle" }]);
+            await settle();
+            await settle();
+            read.renamed = names();
+            await table.createEmbeddedDocuments("TableResult", [entry("SUITE a cleaver")]);
+            await settle();
+            await settle();
+            read.after = { names: names(), typed: field()?.value ?? null, focused: document.activeElement === field(),
+                storedKept: String(table.results.get(pot.id)?.description ?? "") === read.storedBefore };
+            delete read.storedBefore;
+        } finally {
+            const app = tablesApp();
+            if (app) await app.close().catch(() => {});
+            try { await Promise.race([opening, wait(2000)]); } catch { /* closed */ }
+            if (table && game.tables.get(table.id)) await table.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ renamed: ["SUITE a big ladle", "SUITE a pot"], after: { names: ["SUITE a big ladle", "SUITE a cleaver", "SUITE a pot"], typed: "SUITE typed, not left", focused: true, storedKept: true } }),
+            "{renamed: the pane's entry names after the rename alone, after: [the pane's entry names, the typed field's words, whether it keeps the focus, the stored description kept]} - the table on screen follows its entries, what is typed kept");
     }],
     ["PV-DOORS-T1 - the people in the character's own room always see who works its doors, and everyone behind a barricade hears a knock (scripts/doors-gm.mjs `shutDoor`, `forceDoor`, `pickLock`, `knockDoor`; the owner's rules #8 and #9, 13.11.2026): Shut the Door, a Force missed with Hope and a Pick whose Shadow cover passed each send the other student in the character's room a card naming the character, and nobody in the room beyond one; a Pick whose cover failed and a Force missed with Despair tell both rooms, as before; a walk refused at a barricade is heard by everyone in the barricaded room - its author and the student beside them - and never by the walker", async () => {
         /*

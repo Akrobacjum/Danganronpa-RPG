@@ -997,6 +997,17 @@ function shortPoolName(name) {
 /* ONE FORM OF THE NAME (E14 part 2 C7, S08-24): the heading over a pool's entries read "DRPG CLEANING TOOLS - TIER 0"
    above a list that says "Cleaning Tools - Tier 0". The heading drops the prefix now, as the list does, and the whole
    name - what Rename shows and what the draw reads - is the tooltip of both. */
+/*
+ * A TABLE'S BUTTON IN THE LIST, NOT AN ENTRY'S ROW (the audit's REFR-57, 1.2.122, 21.11.2026). Both carry
+ * `data-drpg-table`: the list's pick button names its table, and `entryTableHtml` puts the owning table's id on every
+ * entry's `tr` for `wirePaneRows`. A lookup by the attribute alone also took the rows: `freshTableCounts` wrote the
+ * table's short name over each entry's name cell (its first `span`) as soon as a redraw left rows on screen - measured
+ * by "1.2.122 REFR-57", whose rows read the pantry's name for "a ladle" - and the pick buttons' click listener was also
+ * put on the rows of the table drawn first (read off the code, not driven). The four readers of the list's buttons ask
+ * for this class.
+ */
+const TABLE_PICK = "button.drpg-table-pick";
+
 function showPoolName(el, name) {
     if (!el) return;
     el.textContent = shortPoolName(name);
@@ -1264,12 +1275,12 @@ function wirePaneHeading(pane, root, { current, show, nameEl }) {
             await repointRooms(was, name);
             const family = pane.dataset.drpgPoolPane === "tiers" ? [] : await renameRoomFamily(was, name);
             showPoolName(nameEl, name);
-            const button = root.querySelector(`[data-drpg-table="${CSS.escape(current().id)}"]`);
+            const button = root.querySelector(`${TABLE_PICK}[data-drpg-table="${CSS.escape(current().id)}"]`);
             const entry = button?.querySelector("span");
             if (entry) entry.textContent = shortPoolName(name);
             if (button) button.title = name;
             for (const renamed of family) {
-                const row = root.querySelector(`[data-drpg-table="${CSS.escape(game.tables.getName(renamed)?.id ?? "")}"]`);
+                const row = root.querySelector(`${TABLE_PICK}[data-drpg-table="${CSS.escape(game.tables.getName(renamed)?.id ?? "")}"]`);
                 if (row?.querySelector("span")) row.querySelector("span").textContent = shortPoolName(renamed);
                 if (row) row.title = renamed;
             }
@@ -1347,11 +1358,13 @@ function wirePaneHeading(pane, root, { current, show, nameEl }) {
  * Every list's count and name as the tables hold them now, written into the rows' own spans (nodes nobody edits). Place
  * moved both lists' counts; Remove moved neither, so a list said 14 where the table held 12 (the audit's REFR-57,
  * 1.2.122). Since then the window also hears the tables change - a Remove, a Place, Foundry's own table sheet, another GM
- * - and writes the counts and names again (`openItemTables`, `keepFresh`). The entries of the table on screen are not
- * redrawn from outside: their fields are edited in place, and each saves itself.
+ * - and writes the counts and names again (`openItemTables`, `keepFresh`), and each pane draws its table's entries again
+ * with what the GM has typed kept (`wirePoolPane`'s `refresh`).
  */
 function freshTableCounts(root) {
-    for (const button of root?.querySelectorAll?.("[data-drpg-table]") ?? []) {
+    // And each pane's table on screen, its entries drawn again with what is typed kept (`wirePoolPane`'s `refresh`).
+    for (const pane of root?.querySelectorAll?.("[data-drpg-pool-pane]") ?? []) pane.drpgRefresh?.();
+    for (const button of root?.querySelectorAll?.(`${TABLE_PICK}[data-drpg-table]`) ?? []) {
         const t = game.tables.get(button.dataset.drpgTable);
         if (!t) continue;
         const badge = button.closest("tr")?.querySelector("[data-drpg-table-count]");
@@ -1560,10 +1573,48 @@ function wirePoolPane(pane, root) {
     };
     show(current);
 
-    for (const button of pane.querySelectorAll("[data-drpg-table]")) {
+    /*
+     * THE TABLE ON SCREEN FOLLOWS ITS ENTRIES, WHOEVER CHANGED THEM (the audit's REFR-57, 1.2.122, 21.11.2026; the owner's
+     * rule of every window). Foundry's own table sheet, another GM or a Place from the other pane changed an entry, and
+     * this pane went on showing the old rows until it was opened again. `refresh` draws the same table again - unlike
+     * `show`, without saving anything: a field the GM has typed in and not left keeps its words (and stays unsaved,
+     * to be written when it is left, as before), the focused field keeps the focus and its caret, and the room pool's
+     * category filter stays where it was. A table that is gone shows the empty pane.
+     */
+    const refresh = () => {
+        const table = current ? game.tables.get(current.id) ?? null : null;
+        if (!table) { if (current) show(null); return; }
+        const keyOf = f => `${f.dataset.drpgOwnsResult}/${f.dataset.drpgField}`;
+        const typed = new Map([...bodyEl.querySelectorAll("[data-drpg-field]")]
+            .filter(f => f.value.trim() !== (f.dataset.drpgInitial ?? "")).map(f => [keyOf(f), f.value]));
+        const focused = bodyEl.contains(document.activeElement) && document.activeElement.matches?.("[data-drpg-field]")
+            ? { key: keyOf(document.activeElement), start: document.activeElement.selectionStart, end: document.activeElement.selectionEnd } : null;
+        const filter = bodyEl.querySelector("select[data-drpg-room-filter]")?.value ?? null;
+        const html = tableItemsHtml(table);
+        if (!typed.size && !focused && bodyEl.dataset.drpgDrawn === html) return;
+        showPoolName(nameEl, table.name);
+        bodyEl.innerHTML = html;
+        bodyEl.dataset.drpgDrawn = html;
+        wireRoomFilter(bodyEl);
+        const picker = bodyEl.querySelector("select[data-drpg-room-filter]");
+        if (picker && filter !== null && [...picker.options].some(o => o.value === filter)) {
+            picker.value = filter;
+            picker.dispatchEvent(new Event("change"));
+        }
+        for (const f of bodyEl.querySelectorAll("[data-drpg-field]")) {
+            if (typed.has(keyOf(f))) f.value = typed.get(keyOf(f));
+            if (focused && keyOf(f) === focused.key) {
+                f.focus({ preventScroll: true });
+                try { f.setSelectionRange(focused.start, focused.end); } catch { /* not a text field */ }
+            }
+        }
+    };
+    pane.drpgRefresh = refresh;
+
+    for (const button of pane.querySelectorAll(`${TABLE_PICK}[data-drpg-table]`)) {
         button.addEventListener("click", ev => {
             ev.preventDefault();
-            for (const b of pane.querySelectorAll("[data-drpg-table]")) {
+            for (const b of pane.querySelectorAll(`${TABLE_PICK}[data-drpg-table]`)) {
                 b.classList.toggle("active", b === button);
             }
             show(game.tables.get(button.dataset.drpgTable));
@@ -1788,7 +1839,7 @@ export async function openItemTables({ preset = null, poolError = null, draft = 
             for (const pane of root.querySelectorAll("[data-drpg-pool-pane]")) wirePoolPane(pane, root);
             root.querySelector('[data-drpg-pool-pane] input[aria-invalid="true"]')?.focus();
             // The lists' counts and names follow the tables, whoever changed them (`freshTableCounts`; REFR-57, 1.2.122).
-            keepFresh(dialog, { run: el => freshTableCounts(el), watch: { hooks: ["createTableResult", "deleteTableResult", "updateRollTable"] } });
+            keepFresh(dialog, { run: el => freshTableCounts(el), watch: { hooks: ["createTableResult", "deleteTableResult", "updateTableResult", "updateRollTable"] } });
         },
         rejectClose: false
     });
